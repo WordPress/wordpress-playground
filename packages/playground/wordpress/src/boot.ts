@@ -81,7 +81,8 @@ export interface BootRequestHandlerOptions {
 		getPHPInstance?: () => Promise<{
 			php: PHP | Remote<PHPWorker>;
 			reap: () => void;
-		}>
+		}>,
+		currentPHP?: PHP
 	) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
@@ -381,8 +382,6 @@ async function assertValidDatabaseConnection(
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	defaultSqliteJournalMode(options);
-	const createSpawnHandler =
-		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
 		requestHandler?: PHPRequestHandler,
 		isPrimary = false
@@ -456,13 +455,25 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (createSpawnHandler) {
+		if (options.spawnHandler) {
 			await php.setSpawnHandler(
-				createSpawnHandler(
+				options.spawnHandler(
 					requestHandler
 						? () =>
 								requestHandler.instanceManager.acquirePHPInstance()
-						: undefined
+						: undefined,
+					php
+				)
+			);
+		} else {
+			await php.setSpawnHandler(
+				sandboxedSpawnHandlerFactory(
+					requestHandler
+						? () =>
+								requestHandler.instanceManager.acquirePHPInstance()
+						: undefined,
+					undefined,
+					php
 				)
 			);
 		}

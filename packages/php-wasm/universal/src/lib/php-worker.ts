@@ -36,6 +36,12 @@ export type LimitedPHPApi = Pick<
 	| 'listFiles'
 	| 'isDir'
 	| 'fileExists'
+	| 'chmod'
+	| 'stat'
+	| 'utimes'
+	| 'symlink'
+	| 'readlink'
+	| 'realpath'
 	| 'chdir'
 	| 'run'
 	| 'onMessage'
@@ -175,6 +181,36 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!PHP.rmdir  */
 	async rmdir(path: string, options?: RmDirOptions) {
 		return _private.get(this)!.php!.rmdir(path, options);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.chmod */
+	chmod(path: string, mode: number) {
+		return _private.get(this)!.php!.chmod(path, mode);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.stat */
+	stat(path: string, follow = true) {
+		return _private.get(this)!.php!.stat(path, follow);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.utimes */
+	utimes(path: string, atime: number, mtime: number) {
+		return _private.get(this)!.php!.utimes(path, atime, mtime);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.symlink */
+	symlink(target: string, path: string) {
+		return _private.get(this)!.php!.symlink(target, path);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.readlink */
+	readlink(path: string) {
+		return _private.get(this)!.php!.readlink(path);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.realpath */
+	realpath(path: string) {
+		return _private.get(this)!.php!.realpath(path);
 	}
 
 	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.request */

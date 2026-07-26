@@ -27,7 +27,8 @@ export function createSpawnHandler(
 	program: (
 		command: string[],
 		processApi: ProcessApi,
-		options: ProcessOptions
+		options: ProcessOptions,
+		commandString?: string
 	) => void | Promise<void>
 ): any {
 	return function (
@@ -50,7 +51,12 @@ export function createSpawnHandler(
 				throw new Error('Invalid command ', command);
 			}
 			try {
-				const promise = program(commandArray, processApi, options);
+				const promise = program(
+					commandArray,
+					processApi,
+					options,
+					typeof command === 'string' ? command : undefined
+				);
 				if (
 					typeof promise !== 'object' ||
 					promise === null ||

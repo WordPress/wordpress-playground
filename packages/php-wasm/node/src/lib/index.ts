@@ -15,3 +15,4 @@ export type {
 } from './extensions/load-extensions';
 export * from './wasm-user-space';
 export * from './wasm-kernel-space';
+export { vfsShellExecutor } from './vfs-shell-executor';

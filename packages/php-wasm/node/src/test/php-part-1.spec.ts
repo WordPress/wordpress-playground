@@ -11,7 +11,7 @@ import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
-import { loadNodeRuntime } from '..';
+import { loadNodeRuntime, vfsShellExecutor } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { spawn } from 'child_process';
 
@@ -2135,9 +2135,55 @@ describe('sandboxedSpawnHandlerFactory', () => {
 					'/tmp/shared-test-directory/code/index.php',
 					'Hello, world!'
 				);
+				php.writeFile(
+					'/tmp/script.sh',
+					'#!/bin/sh\necho "script:$1"\n'
+				);
+				php.chmod('/tmp/script.sh', 0o777);
+				php.writeFile(
+					'/tmp/command-logger.sh',
+					`#!/bin/bash
+command="$1"
+log_json="$2"
+command_identifier="$3"
+
+ensure_log_initialized() {
+	local log_dir=$(dirname "$log_json")
+	mkdir -p "$log_dir"
+	if [ ! -s "$log_json" ]; then
+		echo "[]" > "$log_json"
+	fi
+}
+
+log_command_execution() {
+	local command="$1"
+	local startTime=$(date --iso-8601=seconds)
+	local stdoutTmp=$(mktemp)
+	local stderrTmp=$(mktemp)
+	local stdoutJsonTmp=$(mktemp)
+	local stderrJsonTmp=$(mktemp)
+	eval "$command" >"$stdoutTmp" 2>"$stderrTmp"
+	local exitCode=$?
+	cat "$stdoutTmp"
+	cat "$stderrTmp" >&2
+	jq -Rsa 'split("\\n")[:-1]' "$stdoutTmp" > "$stdoutJsonTmp"
+	jq -Rsa 'split("\\n")[:-1]' "$stderrTmp" > "$stderrJsonTmp"
+	jq --arg startTime "$startTime" --arg command "$command" --arg exitCode "$exitCode" --arg command_identifier "$command_identifier" --slurpfile stdout "$stdoutJsonTmp" --slurpfile stderr "$stderrJsonTmp" '. += [{commandIdentifier: $command_identifier, startTime: $startTime, command: $command, exitCode: ($exitCode | tonumber), stdout: $stdout[0], stderr: $stderr[0]}]' "$log_json" > /tmp/new-log.json && mv /tmp/new-log.json "$log_json"
+	rm "$stdoutTmp" "$stderrTmp"
+	return $exitCode
+}
+
+ensure_log_initialized
+log_command_execution "$command"
+cat "$log_json"
+`
+				);
+				php.chmod('/tmp/command-logger.sh', 0o777);
 				await php.setSpawnHandler(
-					sandboxedSpawnHandlerFactory(() =>
-						processManager.acquirePHPInstance()
+					sandboxedSpawnHandlerFactory(
+						() => processManager.acquirePHPInstance(),
+						vfsShellExecutor,
+						php
 					)
 				);
 				return php;
@@ -2190,5 +2236,91 @@ describe('sandboxedSpawnHandlerFactory', () => {
 		expect(await response.stdoutText).toEqual(
 			['README.md', 'code', ''].join('\n')
 		);
+	});
+
+	it('runs compound shell syntax against the PHP VFS', async () => {
+		const response = await php.run({
+			code: `<?php
+				echo shell_exec("printf 'hello' | tr a-z A-Z > result.txt && echo $(cat result.txt) && cat result.txt");
+			`,
+		});
+		expect(response.text).toBe('HELLO\nHELLO');
+	});
+
+	it('forwards proc_open stdin and exit status through the shell', async () => {
+		const response = await php.run({
+			code: `<?php
+				$process = proc_open('cat | tr a-z A-Z; exit 7', [
+					0 => ['pipe', 'r'],
+					1 => ['pipe', 'w'],
+					2 => ['pipe', 'w'],
+				], $pipes);
+				fwrite($pipes[0], 'stdin');
+				fclose($pipes[0]);
+				echo stream_get_contents($pipes[1]) . ':' . proc_close($process);
+			`,
+		});
+		expect(response.text).toBe('STDIN:7');
+	});
+
+	it('keeps shell filesystem mutations visible to the originating PHP', async () => {
+		const response = await php.run({
+			code: `<?php
+				$process = proc_open('mkdir -p /tmp/from-shell && echo visible > /tmp/from-shell/output', [], $pipes);
+				$status = proc_close($process);
+				echo $status . ':' . file_get_contents('/tmp/from-shell/output');
+			`,
+		});
+		expect(response.text).toBe('0:visible\n');
+	});
+
+	it('supports deployment rsync flattening and delete-after in the PHP VFS', async () => {
+		const response = await php.run({
+			code: `<?php
+				echo shell_exec("mkdir source destination && echo new > source/new.txt && echo old > destination/old.txt && rsync --archive --delete-after source/ destination && cat destination/new.txt && test ! -e destination/old.txt && echo deleted");
+			`,
+		});
+		expect(response.text).toContain('new\ndeleted\n');
+	});
+
+	it('executes VFS shell scripts with positional arguments and cannot read host paths', async () => {
+		const response = await php.run({
+			code: `<?php
+				echo shell_exec('../script.sh argument');
+				echo shell_exec('[ -e /outside-the-php-vfs ] && echo host || echo isolated');
+			`,
+		});
+		expect(response.text).toBe('script:argument\nisolated\n');
+	});
+
+	it('executes a command logger script and appends structured output', async () => {
+		const response = await php.run({
+			code: `<?php
+				$command = '/tmp/command-logger.sh ' . escapeshellarg('echo "Test log message"') . ' /tmp/command.log first';
+				$process = proc_open($command, [
+					1 => ['pipe', 'w'],
+					2 => ['pipe', 'w'],
+				], $pipes);
+				$stdout = stream_get_contents($pipes[1]);
+				$stderr = stream_get_contents($pipes[2]);
+				$status = proc_close($process);
+				echo json_encode([$stdout, $stderr, $status]);
+			`,
+		});
+		const [stdout, stderr, status] = JSON.parse(response.text);
+		const logOffset = stdout.indexOf('[', 'Test log message\n'.length);
+		expect(stdout.slice(0, logOffset)).toBe('Test log message\n');
+		const logOutput = stdout.slice(logOffset);
+		expect(stderr).toBe('');
+		expect(status).toBe(0);
+		expect(JSON.parse(logOutput)).toMatchObject([
+			{
+				commandIdentifier: 'first',
+				command: 'echo "Test log message"',
+				exitCode: 0,
+				stdout: ['Test log message'],
+				stderr: [],
+			},
+		]);
 	});
 });
