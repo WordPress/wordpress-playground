@@ -173,7 +173,7 @@ the full supported matrix. Each version package still includes the compiled
 variants and version-matched artifacts required for that PHP version.
 -->
 
-In questo caso, un'impronta più ridotta significa installare una sola versione
+In questo caso ridurre le dipendenze significa installare una sola versione
 minore di PHP invece dell'intera matrice supportata. Ogni pacchetto di versione
 include comunque le varianti compilate e gli artefatti corrispondenti richiesti
 da quella versione di PHP.
@@ -189,7 +189,7 @@ required Emscripten configuration itself.
 
 Questo approccio diretto è volutamente di più basso livello. Salta la
 configurazione eseguita da `loadNodeRuntime()` o `loadWebRuntime()`, incluse le
-funzionalità di rete della piattaforma, il blocco dei file di Node.js, il
+funzionalità di rete della piattaforma, il file locking di Node.js, il
 caricamento delle estensioni e le altre integrazioni specifiche dell'ambiente.
 Usalo quando l'API condivisa `PHP` e il filesystem in memoria sono sufficienti,
 oppure quando la tua applicazione fornisce da sé la configurazione Emscripten
@@ -202,7 +202,7 @@ to choose the matching package suffix.
 
 Consulta le
 [versioni di PHP supportate](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/universal/src/lib/supported-php-versions.ts)
-per scegliere il suffisso del pacchetto corrispondente.
+per poter scegliere il giusto suffisso per il pacchetto.
 
 <!-- ## Which approach should you choose? -->
 
@@ -218,6 +218,6 @@ per scegliere il suffisso del pacchetto corrispondente.
 - Usa `@php-wasm/node` o `@php-wasm/web` per la configurazione del runtime e le
   utilità specifiche della piattaforma, oltre all'API più semplice per la
   selezione delle versioni.
-- Carica direttamente `@php-wasm/node-X-Y` o `@php-wasm/web-X-Y` quando la
-  dimensione dell'installazione conta più delle comodità dell'adattatore di
-  piattaforma.
+- Carica direttamente `@php-wasm/node-X-Y` o `@php-wasm/web-X-Y` quando le
+  dimensioni dell'installazione sono più importanti della comodità offerta
+  dall'adattatore della piattaforma.
