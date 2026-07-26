@@ -1123,6 +1123,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysql_stmt_execute",\
 "mysqli_commit_or_rollback_libmysql",\
 "mysqli_common_connect",\
+"mysqlnd_stream_array_from_fd_set",\
 "mysqlnd_caching_sha2_handle_server_response",\
 "mysqlnd_com_handshake_run",\
 "mysqlnd_com_init_db_run",\
@@ -1147,6 +1148,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysqlnd_com_stmt_close_run",\
 "mysqlnd_com_enable_ssl_run",\
 "mysqlnd_com_handshake_run",\
+"mysqlnd_poll",\
 "mysqlnd_connect",\
 "mysqlnd_connection_connect",\
 "mysqlnd_mysqlnd_command_handshake_pub",\
@@ -2032,6 +2034,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_mysqli_multi_query",\
 "zif_mysqli_next_result",\
 "zif_mysqli_ping",\
+"zif_mysqli_poll",\
 "zif_mysqli_prepare",\
 "zif_mysqli_query",\
 "zif_mysqli_real_connect",\

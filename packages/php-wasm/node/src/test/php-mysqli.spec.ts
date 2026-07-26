@@ -106,6 +106,105 @@ describe('MySQL network functions', () => {
 			`);
 		});
 
+		test('mysqli_poll honors its timeout while a query waits on a lock', async () => {
+			const result = await php.run({
+				code: `<?php
+					mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+					$first = null;
+					$second = null;
+					$table = 'playground_mysqli_poll_timeout_${phpVersion.replace('.', '_')}_' . bin2hex(random_bytes(6));
+					$table_created = false;
+					$first_transaction = false;
+					$second_transaction = false;
+					$query_pending = false;
+					try {
+						$first = new mysqli(
+							"${mysqlCredentials.host}",
+							"${mysqlCredentials.user}",
+							"${mysqlCredentials.password}",
+							"${mysqlCredentials.database}",
+							${mysqlCredentials.port}
+						);
+						$second = new mysqli(
+							"${mysqlCredentials.host}",
+							"${mysqlCredentials.user}",
+							"${mysqlCredentials.password}",
+							"${mysqlCredentials.database}",
+							${mysqlCredentials.port}
+						);
+						$first->query("CREATE TABLE $table (id INT PRIMARY KEY) ENGINE=InnoDB");
+						$table_created = true;
+						$first->query("INSERT INTO $table VALUES (1)");
+						$first->begin_transaction();
+						$first_transaction = true;
+						$first->query("SELECT id FROM $table WHERE id = 1 FOR UPDATE");
+						$second->begin_transaction();
+						$second_transaction = true;
+						$second->query(
+							"SELECT id FROM $table WHERE id = 1 FOR UPDATE",
+							MYSQLI_ASYNC
+						);
+						$query_pending = true;
+						$read = array($second);
+						$error = array();
+						$reject = array();
+						$started = microtime(true);
+						$ready = mysqli_poll($read, $error, $reject, 0, 100000);
+						$elapsed_ms = (microtime(true) - $started) * 1000;
+						$timeout_set_counts = array(count($read), count($error), count($reject));
+						$first->rollback();
+						$first_transaction = false;
+						$cleanup_ready = false;
+						for ($attempt = 0; $attempt < 20; $attempt++) {
+							$read = array($second);
+							$error = array();
+							$reject = array();
+							if (mysqli_poll($read, $error, $reject, 0, 100000) > 0) {
+								$cleanup_ready = true;
+								break;
+							}
+						}
+						if (!$cleanup_ready) {
+							throw new RuntimeException('Async query did not become ready after releasing the lock');
+						}
+						$second->reap_async_query();
+						$query_pending = false;
+						$second->rollback();
+						$second_transaction = false;
+					} finally {
+						if ($first_transaction && $first instanceof mysqli) {
+							try { $first->rollback(); } catch (Throwable $e) {}
+						}
+						if ($second instanceof mysqli) {
+							if ($second_transaction && !$query_pending) {
+								try { $second->rollback(); } catch (Throwable $e) {}
+							}
+							try { $second->close(); } catch (Throwable $e) {}
+						}
+						if ($table_created && $first instanceof mysqli) {
+							try { $first->query("DROP TABLE $table"); } catch (Throwable $e) {}
+						}
+						if ($first instanceof mysqli) {
+							try { $first->close(); } catch (Throwable $e) {}
+						}
+					}
+					echo json_encode(array(
+						'ready' => $ready,
+						'elapsed_ms' => $elapsed_ms,
+						'timeout_set_counts' => $timeout_set_counts,
+						'cleanup_ready' => $cleanup_ready,
+					));
+				`,
+			});
+			expect(result.errors).toBeFalsy();
+			const output = JSON.parse(result.text);
+			expect(output.ready).toBe(0);
+			expect(output.elapsed_ms).toBeGreaterThanOrEqual(50);
+			expect(output.elapsed_ms).toBeLessThan(2_000);
+			expect(output.timeout_set_counts).toEqual([0, 0, 0]);
+			expect(output.cleanup_ready).toBe(true);
+		});
+
 		async function assertNoCrash(code: string) {
 			try {
 				const result = await php.run({
