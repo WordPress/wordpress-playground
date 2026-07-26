@@ -112,7 +112,7 @@ describe('MySQL network functions', () => {
 					mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 					$first = null;
 					$second = null;
-					$table = 'playground_mysqli_poll_timeout_${phpVersion.replace('.', '_')}_' . bin2hex(random_bytes(6));
+					$table = 'playground_mysqli_poll_timeout_${String(phpVersion).replace('.', '_')}_' . bin2hex(random_bytes(6));
 					$table_created = false;
 					$first_transaction = false;
 					$second_transaction = false;
