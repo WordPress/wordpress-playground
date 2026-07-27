@@ -28,6 +28,7 @@ export type {
 export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 export { getWordPressStableVersions } from './wordpress-releases';
+export { PLAYGROUND_MANAGED_DB_PHP_MARKER } from './legacy-wp/legacy-fixes';
 
 export * from './version-detect';
 export * from './rewrite-rules';

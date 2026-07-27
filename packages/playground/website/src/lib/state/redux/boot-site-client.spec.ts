@@ -12,6 +12,8 @@ import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
 import { logBlueprintEvents } from '../../tracking';
 import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
+import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
+import clientsReducer from './slice-clients';
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -63,6 +65,7 @@ vi.mock('../opfs/opfs-site-storage', () => ({
 vi.mock('@php-wasm/logger', () => ({
 	logger: {
 		error: vi.fn(),
+		warn: vi.fn(),
 	},
 }));
 
@@ -87,7 +90,30 @@ describe('bootSiteClient', () => {
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).mockResolvedValue(undefined);
 		vi.mocked(opfsSiteStorage!.update).mockReset();
-		vi.mocked(opfsSiteStorage!.update).mockResolvedValue(undefined);
+		vi.mocked(opfsSiteStorage!.update).mockImplementation(
+			async (slug, changes) => {
+				const site = createSite(slug);
+				const {
+					runtimeConfiguration: runtimeConfigurationChanges,
+					...metadataChanges
+				} = changes.metadata ?? {};
+				return {
+					...site,
+					metadata: {
+						...site.metadata,
+						...metadataChanges,
+						...(runtimeConfigurationChanges
+							? {
+									runtimeConfiguration: {
+										...site.metadata.runtimeConfiguration,
+										...runtimeConfigurationChanges,
+									},
+								}
+							: {}),
+					},
+				};
+			}
+		);
 	});
 
 	it('does not report a missing site after boot is aborted', async () => {
@@ -127,11 +153,11 @@ describe('bootSiteClient', () => {
 		).toBeLessThan(
 			vi.mocked(startPlaygroundWeb).mock.invocationCallOrder[0]
 		);
-		expect(opfsSiteStorage!.update).toHaveBeenCalledWith(
-			'autosaved',
-			expect.objectContaining({ opfsSiteRemovalPending: undefined }),
-			undefined
-		);
+		expect(opfsSiteStorage!.update).toHaveBeenCalledWith('autosaved', {
+			metadata: expect.objectContaining({
+				opfsSiteRemovalPending: undefined,
+			}),
+		});
 		expect(startPlaygroundWeb).toHaveBeenCalled();
 	});
 
@@ -333,6 +359,69 @@ describe('bootSiteClient', () => {
 				],
 			})
 		);
+	});
+
+	it('reopens the current page after a runtime settings reboot', async () => {
+		const playground = createPlaygroundClient({
+			goTo: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			urlToRestoreAfterRuntimeSettingsChange:
+				'/index.php?slashes=///#more/slashes',
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(playground.goTo).toHaveBeenCalledWith(
+			'/index.php?slashes=///#more/slashes'
+		);
+		expect(
+			state.sites.entities['stored-save']
+				.urlToRestoreAfterRuntimeSettingsChange
+		).toBeUndefined();
+	});
+
+	it.each([
+		'https://example.com/wp-admin/',
+		'//example.com/wp-admin/',
+		'/\\example.com/wp-admin/',
+	])('skips unsafe runtime settings restore URL %s', async (urlToRestore) => {
+		const playground = createPlaygroundClient({
+			goTo: vi.fn(async () => undefined),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			urlToRestoreAfterRuntimeSettingsChange: urlToRestore,
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(playground.goTo).not.toHaveBeenCalled();
+		expect(
+			state.sites.entities['stored-save']
+				.urlToRestoreAfterRuntimeSettingsChange
+		).toBeUndefined();
 	});
 
 	it('mounts legacy OPFS directories from stored metadata', async () => {
@@ -580,9 +669,103 @@ describe('bootSiteClient', () => {
 		expect(dispatch.mock.calls.length).toBe(actionCountAfterAbort);
 		expect(opfsSiteStorage!.update).not.toHaveBeenCalledWith(
 			'initial-sync',
-			expect.objectContaining({ initialOpfsSyncPending: false }),
-			undefined
+			{
+				metadata: expect.objectContaining({
+					initialOpfsSyncPending: false,
+				}),
+			}
 		);
+	});
+
+	it('does not capture a thumbnail after the initial OPFS copy fails', async () => {
+		let rejectMount!: (error: Error) => void;
+		const mountFinished = new Promise<void>((_, reject) => {
+			rejectMount = reject;
+		});
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(() => mountFinished),
+			captureSiteThumbnail: vi.fn(),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('initial-sync', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('initial-sync', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		// Another tab may clear this flag while this copy is still running.
+		// Thumbnail capture must follow this copy's result, not shared metadata.
+		dispatch(
+			sitesSlice.actions.updateSite({
+				id: 'initial-sync',
+				changes: {
+					metadata: {
+						...state.sites.entities['initial-sync'].metadata,
+						initialOpfsSyncPending: false,
+					},
+				},
+			})
+		);
+		rejectMount(new Error('OPFS copy failed'));
+		await vi.waitFor(() =>
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: 'clients/updateClientInfo',
+					payload: expect.objectContaining({
+						changes: expect.objectContaining({
+							opfsSync: expect.objectContaining({
+								status: 'error',
+							}),
+						}),
+					}),
+				})
+			)
+		);
+
+		expect(playground.captureSiteThumbnail).not.toHaveBeenCalled();
+	});
+
+	it('runs a first-boot initializer before the initial OPFS copy', async () => {
+		const calls: string[] = [];
+		const playground = createPlaygroundClient({
+			mountOpfs: vi.fn(async () => {
+				calls.push('copy to OPFS');
+			}),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('zip-import', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+		const initialization = registerSiteFirstBootInitializer(
+			'zip-import',
+			async () => {
+				calls.push('import ZIP');
+			}
+		);
+
+		await bootSiteClient('zip-import', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		await initialization.finished;
+		await vi.waitFor(() => expect(calls).toHaveLength(2));
+
+		expect(calls).toEqual(['import ZIP', 'copy to OPFS']);
 	});
 });
 
@@ -594,6 +777,9 @@ function createDispatch(state: PlaygroundReduxState) {
 		const reduxAction = action as { type?: string };
 		if (reduxAction.type?.startsWith('sites/')) {
 			state.sites = reducer(state.sites, action as any);
+		}
+		if (reduxAction.type?.startsWith('clients/')) {
+			state.clients = clientsReducer(state.clients, action as any);
 		}
 		return action;
 	}) as any;
@@ -607,6 +793,7 @@ function createState(...sites: SiteInfo[]): PlaygroundReduxState {
 	}
 	return {
 		sites: sitesState,
+		clients: clientsReducer(undefined, { type: 'init' }),
 		ui: {
 			activeSite: sites[0] ? { slug: sites[0].slug } : undefined,
 		},
@@ -617,12 +804,15 @@ function createSite(
 	slug: string,
 	options: {
 		loadedFromStorage?: boolean;
+		urlToRestoreAfterRuntimeSettingsChange?: string;
 		metadata?: Partial<SiteInfo['metadata']>;
 	} = {}
 ): SiteInfo {
 	return {
 		slug,
 		loadedFromStorage: options.loadedFromStorage,
+		urlToRestoreAfterRuntimeSettingsChange:
+			options.urlToRestoreAfterRuntimeSettingsChange,
 		metadata: {
 			id: slug,
 			name: slug,

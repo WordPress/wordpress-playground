@@ -118,7 +118,6 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 									: lastSavedPlaygroundsPanel
 							}
 							onClose={() => dispatch(setDockPaneOpen(false))}
-							onCloseBlockedChange={onPaneCloseBlockedChange}
 							onPaneHeaderChange={onNewPlaygroundHeaderChange}
 						/>
 					</div>

@@ -27,6 +27,7 @@ import {
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
+	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
 // @ts-ignore
@@ -40,8 +41,10 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -250,12 +253,7 @@ export function bootSiteClient(
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
-				pathAliases: [
-					{
-						urlPrefix: '/phpmyadmin',
-						fsPath: PHPMYADMIN_INSTALL_PATH,
-					},
-				],
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
 			if (signal.aborted) {
@@ -382,6 +380,28 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		try {
+			await runSiteFirstBootInitializer(site.slug, connectedPlayground);
+		} catch (error) {
+			if (signal.aborted) {
+				return;
+			}
+			logger.error('Error initializing Playground', error);
+			if (mountDescriptorForInitialOpfsSync) {
+				dispatch(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
+					})
+				);
+			}
+			return;
+		}
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
 		// the stored files are mounted and boot can only refresh recency metadata.
@@ -395,6 +415,17 @@ export function bootSiteClient(
 				signal,
 				siteSlugToReturnToIfBlueprintFails:
 					site.metadata.siteSlugToReturnToIfBlueprintFails,
+			}).then((syncSucceeded) => {
+				if (!syncSucceeded) {
+					return;
+				}
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+					getState,
+					signal,
+				});
 			});
 		} else {
 			try {
@@ -428,6 +459,15 @@ export function bootSiteClient(
 					})
 				);
 			}
+			if (site.metadata.storage !== 'none') {
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+					getState,
+					signal,
+				});
+			}
 		}
 
 		connectedPlayground.onNavigation((url) => {
@@ -443,6 +483,37 @@ export function bootSiteClient(
 				})
 			);
 		});
+
+		if (site.urlToRestoreAfterRuntimeSettingsChange) {
+			const urlToRestore = site.urlToRestoreAfterRuntimeSettingsChange;
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes: {
+						urlToRestoreAfterRuntimeSettingsChange: undefined,
+					},
+				})
+			);
+			if (signal.aborted) {
+				return;
+			}
+			if (urlToRestore.startsWith('/')) {
+				const restoreBaseUrl = 'https://playground.internal';
+				const parsedUrlToRestore = new URL(
+					urlToRestore,
+					restoreBaseUrl
+				);
+				// Restore only paths inside this Playground. The URL parser
+				// catches protocol-relative URLs and browser backslash
+				// normalization quirks while preserving valid slashes in the
+				// path, query, and hash.
+				if (parsedUrlToRestore.origin === restoreBaseUrl) {
+					await connectedPlayground.goTo(
+						`${parsedUrlToRestore.pathname}${parsedUrlToRestore.search}${parsedUrlToRestore.hash}`
+					);
+				}
+			}
+		}
 	};
 }
 
@@ -570,7 +641,7 @@ async function syncInitialOpfsFilesInBackground({
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
 	siteSlugToReturnToIfBlueprintFails?: string;
-}) {
+}): Promise<boolean> {
 	let shouldReportProgress = true;
 	try {
 		// The first OPFS copy can outlive the iframe that started it. Once the
@@ -600,7 +671,7 @@ async function syncInitialOpfsFilesInBackground({
 			}
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		// Clear the return target in the same metadata write that completes the
 		// initial copy so failed copies retain their recovery action.
@@ -617,7 +688,7 @@ async function syncInitialOpfsFilesInBackground({
 			})
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		dispatch(
 			updateClientInfo({
@@ -627,9 +698,10 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
+		return true;
 	} catch (error: unknown) {
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		logger.error('Error syncing saved Playground to OPFS', error);
 		dispatch(
@@ -643,7 +715,7 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
-		return;
+		return false;
 	} finally {
 		// Progress is reported from a worker. Once the sync settles, ignore any
 		// queued progress message so it cannot overwrite the final UI state.

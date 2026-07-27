@@ -52,6 +52,9 @@ export function SaveStatusIndicator({
 	disabled?: boolean;
 }) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
+	const siteImportIsRunning = useAppSelector(
+		(state) => state.ui.siteImportIsRunning
+	);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const previousStatusRef = useRef<{
@@ -62,7 +65,9 @@ export function SaveStatusIndicator({
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
-	const status = getSaveStatus(activeSite, clientInfo);
+	const status = siteImportIsRunning
+		? 'loading'
+		: getSaveStatus(activeSite, clientInfo);
 	const siteSlug = activeSite?.slug;
 	const syncOperation = getSyncOperation({ site: activeSite, opfsSync });
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);

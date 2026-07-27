@@ -17,6 +17,19 @@ describe('stored sites', () => {
 		deleteSite = vi.fn();
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
+		updateSiteStorage.mockImplementation(async (slug, changes) => {
+			const site = createSiteInfo({ slug });
+			return {
+				...site,
+				...('originalUrlParams' in changes
+					? { originalUrlParams: changes.originalUrlParams }
+					: {}),
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
+		});
 		persistBlueprintBundle = vi.fn();
 		deleteBlueprintBundle = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
@@ -155,23 +168,16 @@ describe('stored sites', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			updatedMetadata,
-			originalUrlParams
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 	});
 
 	it('updates redux only after persisted metadata is written', async () => {
@@ -184,8 +190,15 @@ describe('stored sites', () => {
 			),
 		};
 		const order: string[] = [];
-		updateSiteStorage.mockImplementation(async () => {
+		updateSiteStorage.mockImplementation(async (_slug, changes) => {
 			order.push('opfs');
+			return {
+				...site,
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
 		});
 		const dispatch = vi.fn((action) => {
 			order.push('redux');
@@ -194,15 +207,10 @@ describe('stored sites', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
@@ -224,16 +232,11 @@ describe('stored sites', () => {
 			state.sites = sitesSlice.reducer(state.sites, action);
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await expect(
 			updateSite({
 				slug: site.slug,
 				changes: {
-					metadata: updatedMetadata,
+					metadata: { name: 'Renamed Playground' },
 				},
 			})(dispatch as any, () => state as any)
 		).rejects.toThrow(storageError);
@@ -261,21 +264,13 @@ describe('stored sites', () => {
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: {
-					name: 'Renamed Playground',
-				} as any,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			expect.objectContaining({
-				name: 'Renamed Playground',
-				storage: 'opfs',
-				runtimeConfiguration: site.metadata.runtimeConfiguration,
-			}),
-			undefined
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 		expect(state.sites.entities[site.slug]?.metadata).toEqual({
 			...site.metadata,
 			name: 'Renamed Playground',
@@ -365,6 +360,44 @@ describe('stored sites', () => {
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
+	it('selects the requested replacement once when removing the active site', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const { selectActiveSite, setActiveSite } = await import('./store');
+		const removedSite = createSiteInfo({ slug: 'failed-import' });
+		const previousSite = createSiteInfo({ slug: 'previous-site' });
+		const newerSite = createSiteInfo({ slug: 'newer-site' });
+		removedSite.metadata.whenCreated = 3;
+		newerSite.metadata.whenCreated = 2;
+		previousSite.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([
+					removedSite,
+					previousSite,
+					newerSite,
+				])
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		vi.mocked(selectActiveSite).mockReturnValue(removedSite);
+
+		await removeSite(removedSite.slug, {
+			replacementSiteSlug: previousSite.slug,
+			updateUrl: false,
+		})(dispatch as any, () => state as any);
+
+		expect(setActiveSite).toHaveBeenCalledOnce();
+		expect(setActiveSite).toHaveBeenCalledWith(previousSite.slug, {
+			updateUrl: false,
+		});
+	});
+
 	it('continues pruning after an autosave cannot be deleted', async () => {
 		const { pruneAutosavedSites, sitesSlice } =
 			await import('./slice-sites');
@@ -412,6 +445,62 @@ describe('stored sites', () => {
 		expect(loggerError).toHaveBeenCalledWith(
 			`Failed to prune autosaved Playground "${failedAutosave.slug}"`,
 			deletionError
+		);
+	});
+
+	it('stops an aborted prune before deleting the next autosave', async () => {
+		const { pruneAutosavedSites, sitesSlice } =
+			await import('./slice-sites');
+		const firstAutosave = createSiteInfo({ slug: 'first-autosave' });
+		firstAutosave.metadata.persistence = 'autosave';
+		firstAutosave.metadata.whenCreated = 2;
+		const protectedAutosave = createSiteInfo({
+			slug: 'protected-autosave',
+		});
+		protectedAutosave.metadata.persistence = 'autosave';
+		protectedAutosave.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([firstAutosave, protectedAutosave])
+			),
+		};
+		const getState = () => state as any;
+		const dispatch: ReturnType<typeof vi.fn> = vi.fn((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		let finishFirstDeletion!: () => void;
+		const firstDeletionCanFinish = new Promise<void>((resolve) => {
+			finishFirstDeletion = resolve;
+		});
+		deleteSite.mockImplementation(async (slug) => {
+			if (slug === firstAutosave.slug) {
+				await firstDeletionCanFinish;
+			}
+		});
+		const abortController = new AbortController();
+
+		const pruning = pruneAutosavedSites({
+			limit: 0,
+			signal: abortController.signal,
+		})(dispatch as any, getState);
+		await vi.waitFor(() =>
+			expect(deleteSite).toHaveBeenCalledWith(firstAutosave.slug)
+		);
+		abortController.abort();
+		finishFirstDeletion();
+		await pruning;
+
+		expect(deleteSite).not.toHaveBeenCalledWith(protectedAutosave.slug);
+		expect(state.sites.entities[firstAutosave.slug]).toBeUndefined();
+		expect(state.sites.entities[protectedAutosave.slug]).toEqual(
+			protectedAutosave
 		);
 	});
 

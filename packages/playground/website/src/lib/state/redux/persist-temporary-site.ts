@@ -28,6 +28,7 @@ import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
 import { getSetupUrlFromSite } from '../playground-identity';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -246,7 +247,7 @@ export function persistTemporarySite(
 			const persistedAt = Date.now();
 			const playgroundDefinedConstants =
 				await getPlaygroundDefinedPHPConstants(playground);
-			const siteChanges: Partial<SiteInfo> = {
+			const siteChanges: Parameters<typeof updateSite>[0]['changes'] = {
 				// Autosaves stay tied to their source setup URL so restore
 				// matching and boot-time query options can still inspect it.
 				// Explicit saves open by slug, but they still keep their setup
@@ -257,7 +258,6 @@ export function persistTemporarySite(
 							originalUrlParams: getSavedSetupUrlParams(siteInfo),
 						}),
 				metadata: {
-					...siteInfo.metadata,
 					storage: storageType,
 					persistence: options.persistence ?? 'explicit',
 					// The viewport key includes whenCreated. Changing it
@@ -297,6 +297,12 @@ export function persistTemporarySite(
 					},
 				})
 			);
+			void captureAndPersistSiteThumbnail({
+				playground,
+				siteSlug,
+				dispatch,
+				getState,
+			});
 		} catch (error) {
 			if (
 				storageType === 'local-fs' &&

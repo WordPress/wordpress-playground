@@ -1032,6 +1032,118 @@
 	color: var(--ink-muted, #5f5b54);
 }
 
+.playgrounds-pane .zipFileInput {
+	display: none;
+}
+
+.playgrounds-pane .zipDropzone {
+	align-items: center;
+	background: #ffffff;
+	border: 2px dashed var(--line-control, rgba(33, 32, 29, 0.22));
+	border-radius: var(--radius-card, 8px);
+	color: var(--ink-soft, #2f2d28);
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2, 8px);
+	justify-content: center;
+	min-height: 190px;
+	padding: var(--space-6, 24px);
+	text-align: center;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease,
+		box-shadow 0.12s ease;
+	width: 100%;
+}
+
+.playgrounds-pane .zipDropzone:hover:not(:disabled) {
+	background: var(--paper-2, #faf8f5);
+	border-color: var(--accent, #3858e9);
+}
+
+.zipDropOverlay {
+	align-items: center;
+	background: rgba(247, 245, 242, 0.96);
+	border: 3px dashed #3858e9;
+	border-radius: 18px;
+	box-sizing: border-box;
+	color: #21201d;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	inset: 12px;
+	justify-content: center;
+	pointer-events: none;
+	position: fixed;
+	z-index: 100;
+}
+
+.zipDropOverlayIcon {
+	color: #3858e9;
+	display: flex;
+}
+
+.zipDropOverlayTitle {
+	font-size: 28px;
+	font-weight: 650;
+	text-align: center;
+}
+
+@media (max-width: 600px) {
+	.zipDropOverlay {
+		inset: 8px;
+		padding: 24px;
+	}
+
+	.zipDropOverlayTitle {
+		font-size: 22px;
+	}
+}
+
+.playgrounds-pane .zipDropzone:focus-visible {
+	border-color: var(--accent, #3858e9);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.35);
+	outline: none;
+}
+
+.playgrounds-pane .zipDropzone:disabled {
+	cursor: wait;
+	opacity: 0.7;
+}
+
+.playgrounds-pane .zipDropzoneIcon {
+	color: var(--accent, #3858e9);
+	display: flex;
+}
+
+.playgrounds-pane .zipDropzoneTitle {
+	color: var(--ink, #21201d);
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.playgrounds-pane .zipDropzoneHint {
+	color: var(--ink-muted, #5f5b54);
+	font-size: 13px;
+}
+
+.playgrounds-pane .zipImportStatus {
+	background: var(--paper-2, #faf8f5);
+	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border-radius: var(--radius-card, 8px);
+	color: var(--ink-soft, #2f2d28);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2, 8px);
+	padding: 12px;
+}
+
+.playgrounds-pane .zipImportError {
+	border-color: var(--color-alert-red, #cc1818);
+	color: var(--color-alert-red, #cc1818);
+}
+
 /* Inline docs link inside a hint — accent, underlines on hover. */
 .playgrounds-pane .inlineForm .inlineFormLink,
 .playgrounds-pane .inlineFormLink {
@@ -1110,8 +1222,57 @@
 	padding: 8px var(--space-2);
 }
 
-/* Denser rows: the 50px gallery logo and 20px name drove the row height, so
-   trim both to fit more Playgrounds in view without scrolling. */
+.playgrounds-pane .siteRowPreview {
+	align-items: center;
+	display: flex;
+	flex: 0 0 128px;
+	height: 96px;
+	justify-content: center;
+}
+
+.playgrounds-pane .siteRowThumbnail {
+	background: var(--paper-3);
+	border: 1px solid var(--line-subtle);
+	border-radius: 6px;
+	height: 96px;
+	object-fit: cover;
+	object-position: top;
+	width: 128px;
+}
+
+.playgrounds-pane .siteRowPreviewFallback {
+	background: var(--paper-2);
+	border: 1px solid var(--line-subtle);
+	border-radius: 6px;
+}
+
+/* On phones, align the name and details with the top of the preview. Let the
+   name use three lines before truncating so the larger thumbnail does not reduce
+   it to a single short fragment. */
+@media (max-width: 480px) {
+	.playgrounds-pane .siteRow {
+		align-items: flex-start;
+	}
+
+	.playgrounds-pane .siteRowContent {
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.playgrounds-pane .siteRowName {
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		display: -webkit-box;
+		line-height: 1.25;
+		white-space: normal;
+	}
+
+	.playgrounds-pane .siteRowActions {
+		padding-top: 8px;
+		padding-right: 0;
+	}
+}
+
 /* Neutral logo chips — a blue-tinted box on every row added up to a lot of
    accent; a quiet paper chip keeps the rows calm and lets the accent be rare. */
 .playgrounds-pane .siteRowLogo {
@@ -1119,6 +1280,10 @@
 	color: var(--ink-soft);
 	height: 38px;
 	width: 38px;
+}
+
+.playgrounds-pane .siteRowPreviewFallback .siteRowLogo {
+	background: transparent;
 }
 
 .playgrounds-pane .siteRowLogo svg {

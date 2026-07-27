@@ -72,7 +72,10 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
+import {
+	setDockOperationNotice,
+	setDockPaneOpen,
+} from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -466,6 +469,23 @@ export const BlueprintBundleEditor = forwardRef<
 			}
 			setSaveError(null);
 			if (runInNewPlayground) {
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running in a new Playground',
+						message: 'Opening the new Playground now.',
+					})
+				);
+			} else {
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running',
+						message: 'Recreating this Playground now.',
+					})
+				);
+			}
+			if (runInNewPlayground) {
 				const siteSlugToReturnToIfBlueprintFails =
 					site.metadata.siteSlugToReturnToIfBlueprintFails ??
 					site.slug;
@@ -507,14 +527,9 @@ export const BlueprintBundleEditor = forwardRef<
 			);
 			const changes = {
 				metadata: {
-					...site.metadata,
 					originalBlueprintSource: { type: 'none' as const },
 					originalBlueprint: filesystem,
 					runtimeConfiguration,
-					initialOpfsSyncPending:
-						site.metadata.initialOpfsSyncPending,
-					playgroundDefinedConstants:
-						site.metadata.playgroundDefinedConstants,
 					whenCreated: Date.now(),
 				},
 				originalUrlParams: undefined,
