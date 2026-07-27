@@ -1263,18 +1263,16 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	const autosaveStarted = expect(autosaveProgress).toBeVisible({
 		timeout: 120000,
 	});
-	const importProgressAdvanced = website.page.waitForFunction(
-		() =>
-			Number(
-				document
-					.querySelector(
-						'[role="progressbar"][aria-label="WordPress import progress"]'
-					)
-					?.getAttribute('aria-valuenow')
-			) > 0,
-		undefined,
-		{ timeout: 120000 }
-	);
+	const importProgressAdvanced = expect
+		.poll(
+			async () =>
+				Number(await importProgress.getAttribute('aria-valuenow')),
+			{
+				intervals: [16],
+				timeout: 120000,
+			}
+		)
+		.toBeGreaterThan(0);
 	await fileInput.setInputFiles({
 		name: 'playground-export-with-plugin-and-theme.zip',
 		mimeType: 'application/zip',
@@ -1282,11 +1280,9 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	});
 	await expect(pane).not.toBeVisible();
 	await loadingStarted;
-	await expect(importProgress).toHaveAttribute(
-		'aria-valuetext',
-		'Starting import, 0%',
-		{ timeout: 120000 }
-	);
+	await expect(importProgress).toHaveAttribute('aria-valuenow', '0', {
+		timeout: 120000,
+	});
 	await expect(autosaveProgress).toHaveCount(0);
 	await importProgressAdvanced;
 	await expect(loading).not.toBeVisible({ timeout: 120000 });
