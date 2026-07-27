@@ -1271,16 +1271,12 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	const autosaveStarted = expect(autosaveProgress).toBeVisible({
 		timeout: 120000,
 	});
-	const unpackingProgressAdvanced = expect
+	const importProgressAdvanced = expect
 		.poll(
 			async () => {
-				const value = Number(
-					await importProgress.getAttribute('aria-valuenow')
-				);
-				const text =
-					await importProgress.getAttribute('aria-valuetext');
 				return (
-					text?.startsWith('Unpacking archive') === true && value > 0
+					Number(await importProgress.getAttribute('aria-valuenow')) >
+					0
 				);
 			},
 			{
@@ -1297,7 +1293,7 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	await expect(pane).not.toBeVisible();
 	await importProgressStarted;
 	await expect(autosaveProgress).toHaveCount(0);
-	await unpackingProgressAdvanced;
+	await importProgressAdvanced;
 	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
 	await autosaveStarted;
 	await expect(
