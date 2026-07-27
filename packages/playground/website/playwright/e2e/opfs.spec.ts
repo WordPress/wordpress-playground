@@ -51,7 +51,20 @@ async function dropZipFile(
 	const paneText = await pane.innerText();
 	const pageBody = page.locator('body');
 	await pageBody.dispatchEvent('dragenter', { dataTransfer });
-	await expect(page.locator('[data-cy="zip-drop-overlay"]')).toBeVisible();
+	const overlay = page.locator('[data-cy="zip-drop-overlay"]');
+	await expect(overlay).toBeVisible();
+	await expect
+		.poll(() =>
+			overlay.evaluate((element) => {
+				const bounds = element.getBoundingClientRect();
+				const hitTarget = document.elementFromPoint(
+					bounds.left + bounds.width / 2,
+					bounds.top + bounds.height / 2
+				);
+				return element.contains(hitTarget);
+			})
+		)
+		.toBe(true);
 	expect(await pane.innerText()).toBe(paneText);
 	if (verifyDragLeaveStability) {
 		await pageBody.dispatchEvent('dragleave', { dataTransfer });
@@ -61,8 +74,8 @@ async function dropZipFile(
 			page.locator('[data-cy="zip-drop-overlay"]')
 		).toBeVisible();
 	}
-	await pageBody.dispatchEvent('dragover', { dataTransfer });
-	await pageBody.dispatchEvent('drop', { dataTransfer });
+	await overlay.dispatchEvent('dragover', { dataTransfer });
+	await overlay.dispatchEvent('drop', { dataTransfer });
 	await dataTransfer.dispose();
 }
 
