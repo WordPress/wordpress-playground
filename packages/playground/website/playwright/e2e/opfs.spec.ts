@@ -276,6 +276,65 @@ async function writePendingOpfsResetSite(page: Page, slug: string) {
 	);
 }
 
+/**
+ * Writes the OPFS state left when a site's first WordPress file copy stops.
+ *
+ * The metadata exists, but `initialOpfsSyncPending` still marks the WordPress
+ * files as incomplete.
+ */
+async function writeInterruptedInitialOpfsSite(page: Page, slug: string) {
+	await page.evaluate(
+		async ({ dirName, siteSlug }) => {
+			const root = await navigator.storage.getDirectory();
+			try {
+				await root.removeEntry('sites', { recursive: true });
+			} catch (error) {
+				if (error?.name !== 'NotFoundError') {
+					throw error;
+				}
+			}
+			const sites = await root.getDirectoryHandle('sites', {
+				create: true,
+			});
+			const siteDirectory = await sites.getDirectoryHandle(dirName, {
+				create: true,
+			});
+			const metadata = {
+				slug: siteSlug,
+				originalUrlParams: {
+					searchParams: {},
+					hash: '',
+				},
+				originalBlueprintSource: { type: 'none' },
+				originalBlueprint: {},
+				name: siteSlug,
+				id: siteSlug,
+				whenCreated: Date.now(),
+				whenLastUsed: Date.now(),
+				persistence: 'autosave',
+				storage: 'opfs',
+				initialOpfsSyncPending: true,
+				runtimeConfiguration: {
+					phpVersion: '8.4',
+					wpVersion: 'latest',
+					intl: false,
+					networking: true,
+					extraLibraries: [],
+					constants: {},
+				},
+			};
+			const metadataFile = await siteDirectory.getFileHandle(
+				'wp-runtime.json',
+				{ create: true }
+			);
+			const writable = await metadataFile.createWritable();
+			await writable.write(JSON.stringify(metadata, null, 2));
+			await writable.close();
+		},
+		{ dirName: getDirectoryNameForSlug(slug), siteSlug: slug }
+	);
+}
+
 async function readPendingResetSiteState(page: Page, slug: string) {
 	return await page.evaluate(
 		async ({ dirName }) => {
@@ -477,6 +536,42 @@ test('should retry pending OPFS cleanup after another tab releases storage', asy
 	const storedSite = await readPendingResetSiteState(website.page, slug);
 	expect(storedSite.metadata.opfsSiteRemovalPending).toBeUndefined();
 	expect(storedSite.hasOldResetSentinel).toBe(false);
+});
+
+test('should start a new Playground after an initial OPFS sync was interrupted', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const interruptedSiteSlug = `interrupted-initial-sync-${Date.now()}`;
+	await website.page.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() => !!navigator.storage?.getDirectory);
+	await writeInterruptedInitialOpfsSite(website.page, interruptedSiteSlug);
+
+	await website.page.goto(
+		`./?site-slug=${encodeURIComponent(interruptedSiteSlug)}`
+	);
+	await expect(
+		website.page.getByText('Start a new Playground to continue')
+	).toBeVisible();
+
+	await website.page
+		.getByRole('button', { name: 'Start a new Playground' })
+		.click();
+
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(website.page))?.slug, {
+			timeout: 15000,
+		})
+		.not.toBe(interruptedSiteSlug);
+	await expect(
+		website.page.getByText('Start a new Playground to continue')
+	).not.toBeVisible();
+	await website.waitForNestedIframes();
 });
 
 test('should switch between sites', async ({ website, browserName }) => {
