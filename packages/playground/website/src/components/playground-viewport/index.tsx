@@ -170,7 +170,9 @@ export const KeepAliveTemporarySitesViewport = () => {
 			)}
 			{(!hasVisibleSite || siteImportProgress) && (
 				<div className={css.loadingViewport}>
-					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
+					<h1 className={css.loadingCaption}>
+						{siteImportProgress?.caption ?? 'Preparing WordPress'}
+					</h1>
 					<div
 						className={classNames(css.progressWrapper, {
 							[css.progressWrapperDeterminate]:
@@ -211,14 +213,6 @@ export const KeepAliveTemporarySitesViewport = () => {
 							}
 						/>
 					</div>
-					{siteImportProgress && (
-						<div className={css.progressDetails}>
-							<span>{siteImportProgress.caption}</span>
-							<span>
-								{Math.round(siteImportProgress.progress)}%
-							</span>
-						</div>
-					)}
 				</div>
 			)}
 			{slugsSeenSoFar.map((slug) => {
