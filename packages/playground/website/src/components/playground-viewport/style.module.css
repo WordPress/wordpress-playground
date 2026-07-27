@@ -71,6 +71,22 @@
 	transform: translateX(-100%);
 }
 
+.progress-wrapper-determinate::after {
+	display: none;
+}
+
+.progress-details {
+	display: flex;
+	justify-content: space-between;
+	width: calc(100% - 48px);
+	max-width: 420px;
+	margin-top: 8px;
+	color: #646970;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
 @media (prefers-color-scheme: dark) {
 	.loading-viewport {
 		background: #1e1e1e;
@@ -78,6 +94,10 @@
 
 	.loading-caption {
 		color: #fff;
+	}
+
+	.progress-details {
+		color: #a7aaad;
 	}
 
 	.progress-wrapper {
@@ -103,6 +123,12 @@
 	background: linear-gradient(90deg, #3858e9 0%, #6f7dff 100%);
 	border-radius: inherit;
 	animation: indefinite-loading 2s linear infinite;
+}
+
+.progress-bar-determinate {
+	right: auto;
+	animation: none;
+	transition: width 150ms ease-out;
 }
 
 @keyframes track-shimmer {
@@ -138,5 +164,9 @@
 	.progress-wrapper::after,
 	.progress-bar {
 		animation: none;
+	}
+
+	.progress-bar-determinate {
+		transition: none;
 	}
 }

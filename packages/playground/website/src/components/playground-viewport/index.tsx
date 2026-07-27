@@ -63,8 +63,8 @@ export const KeepAliveTemporarySitesViewport = () => {
 	const activeSiteSlugIsSet = useAppSelector(
 		(state) => !!state.ui.activeSite?.slug
 	);
-	const siteImportIsRunning = useAppSelector(
-		(state) => state.ui.siteImportIsRunning
+	const siteImportProgress = useAppSelector(
+		(state) => state.ui.siteImportProgress
 	);
 	const siteSlugsToRender = useMemo(() => {
 		let sites = temporarySites.filter(
@@ -168,12 +168,57 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			{(!hasVisibleSite || siteImportIsRunning) && (
+			{(!hasVisibleSite || siteImportProgress) && (
 				<div className={css.loadingViewport}>
 					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
-					<div className={css.progressWrapper}>
-						<div className={css.progressBar} />
+					<div
+						className={classNames(css.progressWrapper, {
+							[css.progressWrapperDeterminate]:
+								!!siteImportProgress,
+						})}
+						aria-label={
+							siteImportProgress
+								? 'WordPress import progress'
+								: 'WordPress loading progress'
+						}
+						aria-valuemax={100}
+						aria-valuemin={0}
+						aria-valuenow={
+							siteImportProgress
+								? Math.round(siteImportProgress.progress)
+								: undefined
+						}
+						aria-valuetext={
+							siteImportProgress
+								? `${siteImportProgress.caption}, ${Math.round(
+										siteImportProgress.progress
+									)}%`
+								: undefined
+						}
+						role="progressbar"
+					>
+						<div
+							className={classNames(css.progressBar, {
+								[css.progressBarDeterminate]:
+									!!siteImportProgress,
+							})}
+							style={
+								siteImportProgress
+									? {
+											width: `${siteImportProgress.progress}%`,
+										}
+									: undefined
+							}
+						/>
 					</div>
+					{siteImportProgress && (
+						<div className={css.progressDetails}>
+							<span>{siteImportProgress.caption}</span>
+							<span>
+								{Math.round(siteImportProgress.progress)}%
+							</span>
+						</div>
+					)}
 				</div>
 			)}
 			{slugsSeenSoFar.map((slug) => {
@@ -187,7 +232,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 						className={classNames(css.fullSize, {
 							[css.hidden]:
 								slug !== activeSite?.slug ||
-								siteImportIsRunning,
+								!!siteImportProgress,
 						})}
 					>
 						{siteSlugsToRender.includes(slug) ? (
