@@ -1,5 +1,4 @@
 import {
-	getPhpIniEntries,
 	PHP,
 	PHPProcessManager,
 	sandboxedSpawnHandlerFactory,
@@ -505,69 +504,40 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		/**
-		 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
-		 */
-		describe('dns_* function warnings', { skip }, () => {
-			it('dns_check_record should throw a warning', async () => {
-				const result = await php.run({
-					code: `<?php
-					dns_check_record('w.org', 2);
-				`,
-				});
-				expect(result.text).toContain(
-					'dns_check_record() always returns false in PHP.wasm.'
-				);
-			});
-		});
-
 		describe('dns_* functions()', { skip }, () => {
-			beforeEach(async () => {
-				await setPhpIniEntries(php, {
-					...getPhpIniEntries(php),
-					// Disable warnings to test the function output
-					error_reporting: 'E_ALL & ~E_WARNING',
-				});
-			});
-			it('dns_check_record should exist and be possible to run', async () => {
+			/** @issue https://github.com/WordPress/wordpress-playground/issues/4171 */
+			it('resolves A and MX records through Node DNS', async () => {
 				const result = await php.run({
 					code: `<?php
-					var_dump(dns_check_record('w.org', 2));
+					$a = dns_get_record('example.com', DNS_A);
+					$mxHosts = array(); $mxWeights = array();
+					echo json_encode(array(
+						'check' => checkdnsrr('example.com', 'A'),
+						'records' => $a,
+						'mx' => getmxrr('gmail.com', $mxHosts, $mxWeights),
+						'mxHosts' => $mxHosts,
+						'mxWeights' => $mxWeights
+					));
 				`,
 				});
-				expect(result.text).toEqual('bool(false)\n');
-			});
-			it('checkdnsrr should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(checkdnsrr('w.org', 2));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
-			});
-			it('dns_get_record should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(dns_get_record('w.org'));
-				`,
-				});
-				expect(result.text).toEqual('array(0) {\n}\n');
-			});
-			it('dns_get_mx should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(dns_get_mx('', $mxhosts));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
-			});
-			it('getmxrr should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(getmxrr('', $mxhosts));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
+				const dns = JSON.parse(result.text);
+				expect(dns.check).toBe(true);
+				expect(dns.records).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({
+							host: 'example.com',
+							type: 'A',
+							ip: expect.any(String),
+						}),
+					])
+				);
+				expect(dns.mx).toBe(true);
+				expect(dns.mxHosts).toEqual(
+					expect.arrayContaining([expect.any(String)])
+				);
+				expect(dns.mxWeights).toEqual(
+					expect.arrayContaining([expect.any(Number)])
+				);
 			});
 		});
 

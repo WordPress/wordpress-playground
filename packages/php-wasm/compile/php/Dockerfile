@@ -503,7 +503,7 @@ ARG OUTPUT_DIR_ON_HOST
 ARG DEBUG_DWARF_COMPILATION_DIR
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
-	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions -DPLAYGROUND_JSPI=1"; else echo ""; fi) && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
 		$JSPI_FLAGS \
@@ -662,7 +662,10 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "setsockopt",\n\
 "_setsockopt",\n\
 "wasm_connect",\n\
-"_wasm_connect"]'; \
+"_wasm_connect",\n\
+"wasm_dns_resolve",\n\
+"_wasm_dns_resolve",\n\
+"_asyncjs__wasm_dns_resolve"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
 "cookieread",\
@@ -680,6 +683,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zm_shutdown_imagick",\
 "php_imagick_read_file",\
 "zim_Imagick___construct",\
+"zif_dns_check_record",\
+"zif_dns_get_record",\
+"zif_dns_get_mx",\
+"dns_resolve",\
+"dns_resolve_mask",\
 "printf_core",\
 "__vfprintf_internal",\
 "vfprintf",\
@@ -2377,7 +2385,7 @@ RUN set -euxo pipefail; \
 	ZEND_SIDE_MODULE_EXPORT_SOURCE=""; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_pclose,__wrap_popen,__wrap_pclose,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,wasm_dns_resolve,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_pclose,__wrap_popen,__wrap_pclose,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 		ZEND_SIDE_MODULE_EXPORT_SOURCE="/root/zend-side-module-exports.c"; \
 	else \
