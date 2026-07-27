@@ -71,7 +71,7 @@
 	transform: translateX(-100%);
 }
 
-.progress-wrapper-determinate::after {
+.progress-wrapper[aria-valuenow]::after {
 	display: none;
 }
 
@@ -109,8 +109,9 @@
 	animation: indefinite-loading 2s linear infinite;
 }
 
-.progress-bar-determinate {
+.progress-wrapper[aria-valuenow] .progress-bar {
 	right: auto;
+	width: var(--loading-progress);
 	animation: none;
 	transition: width 150ms ease-out;
 }
@@ -150,7 +151,7 @@
 		animation: none;
 	}
 
-	.progress-bar-determinate {
+	.progress-wrapper[aria-valuenow] .progress-bar {
 		transition: none;
 	}
 }
