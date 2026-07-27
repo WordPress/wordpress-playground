@@ -116,11 +116,11 @@ add_action( 'login_head', 'playground_enable_view_transitions', 0 );
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {
-	$networking_err_msg = '<div class="networking_err_msg">Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85" target="_blank">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.
+	$networking_err_msg = '<div class="networking_err_msg">Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85" target="_blank" rel="noopener noreferrer">experimental, opt-in feature<span class="screen-reader-text"> (opens in a new tab)</span></a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.
 	<p>There are two alternative methods to enable global networking support:</p>
 	<ol>
-	<li>Using the <a href="https://wordpress.github.io/wordpress-playground/developers/apis/query-api/">Query API</a>: for example, https://playground.wordpress.net/<em>?networking=yes</em> <strong>or</strong>
-	<li> Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints/data-format/#features">Blueprint API</a>: add <code>"features": { "networking": true }</code> to the JSON file.
+	<li>Using the <a href="https://wordpress.github.io/wordpress-playground/developers/apis/query-api/" target="_blank" rel="noopener noreferrer">Query API<span class="screen-reader-text"> (opens in a new tab)</span></a>: for example, https://playground.wordpress.net/<em>?networking=yes</em> <strong>or</strong>
+	<li> Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints/data-format/#features" target="_blank" rel="noopener noreferrer">Blueprint API<span class="screen-reader-text"> (opens in a new tab)</span></a>: add <code>"features": { "networking": true }</code> to the JSON file.
 	</li></ol>
 	<p>
 	When browsing Playground as a standalone instance, you can enable networking via the settings panel: select the option "Network access (e.g. for browsing plugins)" and hit the "Apply changes" button.<p>
@@ -138,14 +138,15 @@ add_filter('plugins_api_result', function ($res) {
 	return $res;
 });
 
-add_filter('gettext', function ($translation) {
-	if( $GLOBALS['pagenow'] === 'theme-install.php') {
-		if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
+add_filter('gettext', function ($translation, $text = '', $domain = 'default') {
+	$pagenow = isset($GLOBALS['pagenow']) ? $GLOBALS['pagenow'] : '';
+	if ('theme-install.php' === $pagenow) {
+		if (strpos($text, 'An unexpected error occurred.') !== false || $translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
 			return networking_disabled();
 		}
 	}
 	return $translation;
-});
+}, 10, 3);
 
 /**
  * Links with target="top" don't work in the playground iframe because of
@@ -249,7 +250,7 @@ function playground_report_url_to_parent() {
 					type: 'playground-url-change',
 					url: window.location.href
 				}),
-				'*'
+				window.location.origin
 			);
 		}
 	</script>
@@ -434,8 +435,11 @@ add_action('init', function() {
  * taking the full 30 seconds to complete. Since we're running PHP on a single
  * worker, that blocks every other request from running until WP Cron completes.
  */
-define('DISABLE_WP_CRON', true);
-if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
+if ( ! defined( 'DISABLE_WP_CRON' ) ) {
+	define( 'DISABLE_WP_CRON', true );
+}
+$php_self = isset( $_SERVER['PHP_SELF'] ) ? $_SERVER['PHP_SELF'] : '';
+if ( '' !== $php_self && str_ends_with( $php_self, '/wp-cron.php' ) ) {
 	http_response_code(503);
 	header('Content-Type: text/plain');
 	echo 'WP Cron is temporarily disabled in the Playground.';
