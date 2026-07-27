@@ -127,9 +127,18 @@ export function consumeAPI<APIType>(
 }
 
 /**
- * Uses the observable Window channel only to bootstrap a point-to-point port.
- * Waiting for `isConnected()` first matters because `consumeAPI()` may run before
- * the remote Window has installed its Comlink listener.
+ * Moves a Window-backed API onto a point-to-point MessagePort.
+ *
+ * Unlike Worker messages, Window messages are visible to the application's main
+ * world and to browser-extension isolated worlds. In Chromium, an isolated-world
+ * listener that evaluates `event.data` first can take ownership of a transferred
+ * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 exposed
+ * this by leaving the parent-side `runStream()` call pending during a ZIP import.
+ *
+ * The Window message used here transfers only Comlink's endpoint port. Later API
+ * calls and streams use that port, where unrelated Window listeners cannot
+ * observe them. The handshake is retried because `consumeAPI()` may run before
+ * the remote Window installs its Comlink listener.
  */
 async function connectWindowApiThroughMessagePort(
 	bootstrapApi: Remote<WithAPIState> & ProxyMethods
@@ -146,8 +155,12 @@ async function connectWindowApiThroughMessagePort(
 }
 
 /**
- * `consumeAPI()` returns synchronously, while the MessagePort handshake is
- * asynchronous. Buffer the Comlink endpoint operations until that port arrives.
+ * Adapts the asynchronous MessagePort handshake to `consumeAPI()`'s synchronous
+ * return type.
+ *
+ * Comlink starts registering listeners and posting requests immediately. Buffer
+ * those operations until the port arrives, then attach and start the listeners
+ * before replaying requests so no response can arrive without a listener.
  */
 function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
 	let port: MessagePort | undefined;
@@ -548,60 +561,8 @@ function setupTransferHandlers() {
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:
 
 /**
- * Detects whether this runtime can transfer a ReadableStream directly.
- *
- * A `StreamedPHPResponse` reaches the website through two message boundaries:
- *
- * 1. The PHP worker sends the response to `remote.html` with
- *    `Worker.postMessage()`.
- * 2. `remote.html` re-exposes that response to the website parent through
- *    Comlink's Window endpoint, which uses `Window.postMessage()`.
- *
- * The worker boundary is point-to-point: its message has one destination global.
- * Browser-extension content scripts run in isolated Window worlds attached to
- * documents, not inside that worker, so they do not observe this first message.
- *
- * The Window boundary has a different shape. Chromium documents may contain the
- * application's main world and isolated worlds created for browser-extension
- * content scripts. Listeners in all of those worlds can observe the same Window
- * messages. A normal structured-clone value can be materialized independently in
- * each world. A ReadableStream cannot because transferring it moves the stream
- * instead of cloning it.
- *
- * Chromium 150 resolves that conflict according to listener order. Its Window
- * message data is materialized lazily for each execution world. If an isolated-
- * world listener runs first and evaluates `event.data`, the transferred stream is
- * materialized in that world. The application listener is then never invoked;
- * Chromium does not dispatch a `messageerror` either. A minimal reproduction
- * confirmed the ownership transfer by reading the stream contents from the
- * extension while the application timed out. If the application listener was
- * registered first, the same transfer completed there instead.
- *
- * Evernote Web Clipper 7.41.1 exposed this ordering in Playground. It injects a
- * content script into the parent page and registers a `message` listener that
- * evaluates `event.data` in a `switch`. When that listener was registered before
- * Playground's Comlink listener, it received the transferred response streams.
- * The parent-side `runStream()` promise never resolved.
- *
- * This happened immediately after a ZIP had crossed into PHP in 16 MiB chunks.
- * The next operation, the streamed ZIP-metadata scan, waited for `runStream()`.
- * The UI therefore kept its last completed update, `Reading archive, 45%`, and
- * never received the first `Inspecting archive` update. The exact same saved-site
- * profile completed when the extension was absent, as in private browsing, and
- * when the Window boundary used MessagePorts.
- *
- * Listener order is not a usable safeguard. An extension may register at
- * `document_start`, before any application script. Instead, `consumeAPI()` uses
- * the Window channel only to request a dedicated MessagePort from Comlink. That
- * bootstrap message contains no streams, and Chromium delivers the transferred
- * port even when an extension reads `event.data` first. Every subsequent API
- * message travels through the point-to-point port, where unrelated Window
- * listeners cannot observe it. ReadableStreams can therefore remain directly
- * transferable across both the worker and parent-page boundaries.
- *
- * The capability probe below uses a MessageChannel because all stream-bearing API
- * messages use a Worker or MessagePort endpoint. Safari rejects the probe and
- * uses the existing `chunk`, `close`, `error`, and `cancel` port-message fallback.
+ * Safari does not support transferable streams. Use the MessagePort bridge when
+ * this point-to-point capability probe fails.
  */
 let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
