@@ -32,18 +32,24 @@ describe('setupPostMessageRelay', () => {
 			contentWindow: nestedFrameWindow,
 		} as unknown as HTMLIFrameElement);
 
-		expect(() =>
-			messageListeners[0]({
+		expect(messageListeners.length).toBeGreaterThan(0);
+		const nullMessages = [
+			{
 				data: null,
 				source: nestedFrameWindow,
-			} as MessageEvent)
-		).not.toThrow();
-		expect(() =>
-			messageListeners[1]({
+			} as MessageEvent,
+			{
 				data: null,
 				source: parentWindow,
-			} as MessageEvent)
-		).not.toThrow();
+			} as MessageEvent,
+		];
+		for (const event of nullMessages) {
+			expect(() => {
+				for (const listener of messageListeners) {
+					listener(event);
+				}
+			}).not.toThrow();
+		}
 		expect(parentPostMessage).not.toHaveBeenCalled();
 		expect(nestedFramePostMessage).not.toHaveBeenCalled();
 	});
