@@ -7,6 +7,7 @@ import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
+	createEndpoint,
 	nodeEndpoint as nodeWorkerEndpoint,
 	releaseProxy,
 	type NodeEndpoint as NodeWorker,
@@ -77,11 +78,17 @@ export function consumeAPI<APIType>(
 				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
 			);
 		}
+	} else if (remote instanceof Worker) {
+		endpoint = remote;
 	} else {
-		endpoint =
-			remote instanceof Worker
-				? remote
-				: Comlink.windowEndpoint(remote as Window, context);
+		const windowEndpoint = Comlink.windowEndpoint(
+			remote as Window,
+			context
+		);
+		const bootstrapApi = Comlink.wrap<WithAPIState>(windowEndpoint);
+		endpoint = deferredEndpoint(
+			connectWindowApiThroughMessagePort(bootstrapApi)
+		);
 	}
 
 	/**
@@ -117,6 +124,104 @@ export function consumeAPI<APIType>(
 			return (api as any)[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
+}
+
+/**
+ * Uses the observable Window channel only to bootstrap a point-to-point port.
+ * Waiting for `isConnected()` first matters because `consumeAPI()` may run before
+ * the remote Window has installed its Comlink listener.
+ */
+async function connectWindowApiThroughMessagePort(
+	bootstrapApi: Remote<WithAPIState> & ProxyMethods
+): Promise<MessagePort> {
+	while (true) {
+		try {
+			await runWithTimeout(bootstrapApi.isConnected(), 200);
+			break;
+		} catch {
+			// The remote Window has not exposed its API yet.
+		}
+	}
+	return bootstrapApi[createEndpoint]();
+}
+
+/**
+ * `consumeAPI()` returns synchronously, while the MessagePort handshake is
+ * asynchronous. Buffer the Comlink endpoint operations until that port arrives.
+ */
+function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
+	let port: MessagePort | undefined;
+	let shouldStart = false;
+	const listeners: Array<{
+		type: string;
+		listener: EventListenerOrEventListenerObject;
+		options?: object;
+	}> = [];
+	const messages: Array<{
+		message: unknown;
+		transfer?: Transferable[];
+	}> = [];
+
+	void portPromise.then((connectedPort) => {
+		port = connectedPort;
+		for (const { type, listener, options } of listeners) {
+			port.addEventListener(type, listener, options);
+		}
+		if (shouldStart) {
+			port.start();
+		}
+		for (const { message, transfer } of messages) {
+			if (transfer) {
+				port.postMessage(message, transfer);
+			} else {
+				port.postMessage(message);
+			}
+		}
+		messages.length = 0;
+	});
+
+	return {
+		postMessage(message, transfer) {
+			if (port) {
+				if (transfer) {
+					port.postMessage(message, transfer);
+				} else {
+					port.postMessage(message);
+				}
+			} else {
+				messages.push({ message, transfer });
+			}
+		},
+		addEventListener(type, listener, options) {
+			if (port) {
+				port.addEventListener(type, listener, options);
+			} else {
+				listeners.push({ type, listener, options });
+			}
+		},
+		removeEventListener(type, listener, options) {
+			if (port) {
+				port.removeEventListener(type, listener, options);
+				return;
+			}
+			const index = listeners.findIndex(
+				(entry) =>
+					entry.type === type &&
+					entry.listener === listener &&
+					entry.options === options
+			);
+			if (index !== -1) {
+				listeners.splice(index, 1);
+			}
+		},
+		start() {
+			if (port) {
+				port.start();
+			} else {
+				shouldStart = true;
+			}
+		},
+	};
 }
 
 async function runWithTimeout<T>(
@@ -434,11 +539,60 @@ function setupTransferHandlers() {
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:
 
 /**
- * Safari does not support transferable streams, so we need to fallback to
- * MessagePorts.
- * Feature-detects whether this runtime supports transferring ReadableStreams
- * directly through postMessage (aka "transferable streams"). When false,
- * we must fall back to port-bridged streaming.
+ * Detects whether this runtime can transfer a ReadableStream directly.
+ *
+ * A `StreamedPHPResponse` reaches the website through two message boundaries:
+ *
+ * 1. The PHP worker sends the response to `remote.html` with
+ *    `Worker.postMessage()`.
+ * 2. `remote.html` re-exposes that response to the website parent through
+ *    Comlink's Window endpoint, which uses `Window.postMessage()`.
+ *
+ * The worker boundary is point-to-point: its message has one destination global.
+ * Browser-extension content scripts run in isolated Window worlds attached to
+ * documents, not inside that worker, so they do not observe this first message.
+ *
+ * The Window boundary has a different shape. Chromium documents may contain the
+ * application's main world and isolated worlds created for browser-extension
+ * content scripts. Listeners in all of those worlds can observe the same Window
+ * messages. A normal structured-clone value can be materialized independently in
+ * each world. A ReadableStream cannot because transferring it moves the stream
+ * instead of cloning it.
+ *
+ * Chromium 150 resolves that conflict according to listener order. Its Window
+ * message data is materialized lazily for each execution world. If an isolated-
+ * world listener runs first and evaluates `event.data`, the transferred stream is
+ * materialized in that world. The application listener is then never invoked;
+ * Chromium does not dispatch a `messageerror` either. A minimal reproduction
+ * confirmed the ownership transfer by reading the stream contents from the
+ * extension while the application timed out. If the application listener was
+ * registered first, the same transfer completed there instead.
+ *
+ * Evernote Web Clipper 7.41.1 exposed this ordering in Playground. It injects a
+ * content script into the parent page and registers a `message` listener that
+ * evaluates `event.data` in a `switch`. When that listener was registered before
+ * Playground's Comlink listener, it received the transferred response streams.
+ * The parent-side `runStream()` promise never resolved.
+ *
+ * This happened immediately after a ZIP had crossed into PHP in 16 MiB chunks.
+ * The next operation, the streamed ZIP-metadata scan, waited for `runStream()`.
+ * The UI therefore kept its last completed update, `Reading archive, 45%`, and
+ * never received the first `Inspecting archive` update. The exact same saved-site
+ * profile completed when the extension was absent, as in private browsing, and
+ * when the Window boundary used MessagePorts.
+ *
+ * Listener order is not a usable safeguard. An extension may register at
+ * `document_start`, before any application script. Instead, `consumeAPI()` uses
+ * the Window channel only to request a dedicated MessagePort from Comlink. That
+ * bootstrap message contains no streams, and Chromium delivers the transferred
+ * port even when an extension reads `event.data` first. Every subsequent API
+ * message travels through the point-to-point port, where unrelated Window
+ * listeners cannot observe it. ReadableStreams can therefore remain directly
+ * transferable across both the worker and parent-page boundaries.
+ *
+ * The capability probe below uses a MessageChannel because all stream-bearing API
+ * messages use a Worker or MessagePort endpoint. Safari rejects the probe and
+ * uses the existing `chunk`, `close`, `error`, and `cancel` port-message fallback.
  */
 let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
