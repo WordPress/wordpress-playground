@@ -92,6 +92,15 @@ Theme Name: Close Race Theme
 			'wp-content/themes/close-race-theme/index.php'
 		),
 	];
+	const progressFileContents = new Uint8Array(8 * 1024);
+	for (let index = 0; index < 5000; index++) {
+		files.push(
+			new File(
+				[progressFileContents],
+				`wp-content/uploads/import-progress-${index}.bin`
+			)
+		);
+	}
 	const zipStream = encodeZip(files);
 	const zipBytes = await collectBytes(zipStream);
 	return Buffer.from(zipBytes!);
@@ -1250,42 +1259,46 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	const pane = website.page.getByRole('dialog', {
 		name: 'New Playground pane',
 	});
-	const loading = website.page.getByRole('heading', {
-		name: 'Preparing WordPress',
-	});
 	const importProgress = website.page.getByRole('progressbar', {
 		name: 'WordPress import progress',
 	});
 	const autosaveProgress = website.page.getByRole('progressbar', {
 		name: 'Autosave progress',
 	});
-	const loadingStarted = expect(loading).toBeVisible({ timeout: 120000 });
+	const importProgressStarted = expect(importProgress).toBeVisible({
+		timeout: 120000,
+	});
 	const autosaveStarted = expect(autosaveProgress).toBeVisible({
 		timeout: 120000,
 	});
-	const importProgressAdvanced = expect
+	const unpackingProgressAdvanced = expect
 		.poll(
-			async () =>
-				Number(await importProgress.getAttribute('aria-valuenow')),
+			async () => {
+				const value = Number(
+					await importProgress.getAttribute('aria-valuenow')
+				);
+				const text =
+					await importProgress.getAttribute('aria-valuetext');
+				return (
+					text?.startsWith('Unpacking archive') === true && value > 0
+				);
+			},
 			{
 				intervals: [16],
 				timeout: 120000,
 			}
 		)
-		.toBeGreaterThan(0);
+		.toBe(true);
 	await fileInput.setInputFiles({
 		name: 'playground-export-with-plugin-and-theme.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
 	await expect(pane).not.toBeVisible();
-	await loadingStarted;
-	await expect(importProgress).toHaveAttribute('aria-valuenow', '0', {
-		timeout: 120000,
-	});
+	await importProgressStarted;
 	await expect(autosaveProgress).toHaveCount(0);
-	await importProgressAdvanced;
-	await expect(loading).not.toBeVisible({ timeout: 120000 });
+	await unpackingProgressAdvanced;
+	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
 	await autosaveStarted;
 	await expect(
 		website.page.locator('iframe.playground-viewport:visible')
