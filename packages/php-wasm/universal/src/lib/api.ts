@@ -137,12 +137,12 @@ async function connectWindowApiThroughMessagePort(
 	while (true) {
 		try {
 			await runWithTimeout(bootstrapApi.isConnected(), 200);
-			break;
+			return await bootstrapApi[createEndpoint]();
 		} catch {
-			// The remote Window has not exposed its API yet.
+			// The remote Window has not exposed its API yet, or it changed
+			// before the endpoint request completed.
 		}
 	}
-	return bootstrapApi[createEndpoint]();
 }
 
 /**
@@ -229,8 +229,17 @@ async function runWithTimeout<T>(
 	timeout: number
 ): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
-		setTimeout(reject, timeout);
-		promise.then(resolve);
+		const timeoutId = setTimeout(reject, timeout);
+		promise.then(
+			(value) => {
+				clearTimeout(timeoutId);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timeoutId);
+				reject(error);
+			}
+		);
 	});
 }
 
