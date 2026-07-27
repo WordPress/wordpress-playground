@@ -1074,7 +1074,8 @@
 	gap: 16px;
 	inset: 12px;
 	justify-content: center;
-	pointer-events: none;
+	/* Keep the drag in the parent document instead of handing it to an iframe below. */
+	pointer-events: auto;
 	position: fixed;
 	z-index: 100;
 }
