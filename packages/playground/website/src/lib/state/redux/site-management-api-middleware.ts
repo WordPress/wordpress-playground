@@ -10,7 +10,7 @@ import {
 	useAppDispatch,
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
-import { setActiveSiteError, setSiteImportIsRunning } from './slice-ui';
+import { setActiveSiteError, setSiteImportProgress } from './slice-ui';
 import {
 	addClientInfo,
 	removeClientInfo,
@@ -845,7 +845,12 @@ export function createSitesAPI(
 			wordPressFilesZip: File,
 			onProgress?: (progress: ZipImportProgress) => void
 		): Promise<string> {
-			dispatch(setSiteImportIsRunning(true));
+			dispatch(
+				setSiteImportProgress({
+					caption: 'Starting import',
+					progress: 0,
+				})
+			);
 			try {
 				const tracker = new ProgressTracker();
 				const importWeight = opfsSiteStorage
@@ -854,10 +859,12 @@ export function createSitesAPI(
 				tracker.addEventListener(
 					'progress',
 					(event: ProgressTrackerEvent) => {
-						onProgress?.({
+						const progress = {
 							caption: event.detail.caption,
 							progress: event.detail.progress * importWeight,
-						});
+						};
+						dispatch(setSiteImportProgress(progress));
+						onProgress?.(progress);
 					}
 				);
 				const initialOpfsSyncProgress = opfsSiteStorage
@@ -889,7 +896,7 @@ export function createSitesAPI(
 					});
 					// The imported page is ready. Reveal it while createSavedSite waits
 					// for the initial OPFS autosave to finish.
-					dispatch(setSiteImportIsRunning(false));
+					dispatch(setSiteImportProgress(undefined));
 				};
 				if (!opfsSiteStorage) {
 					return await createTemporarySite(
@@ -908,7 +915,7 @@ export function createSitesAPI(
 				onProgress?.({ caption: 'Import complete', progress: 100 });
 				return siteSlug;
 			} finally {
-				dispatch(setSiteImportIsRunning(false));
+				dispatch(setSiteImportProgress(undefined));
 			}
 		},
 	};

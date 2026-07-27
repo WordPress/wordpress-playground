@@ -63,8 +63,8 @@ export const KeepAliveTemporarySitesViewport = () => {
 	const activeSiteSlugIsSet = useAppSelector(
 		(state) => !!state.ui.activeSite?.slug
 	);
-	const siteImportIsRunning = useAppSelector(
-		(state) => state.ui.siteImportIsRunning
+	const siteImportProgress = useAppSelector(
+		(state) => state.ui.siteImportProgress
 	);
 	const siteSlugsToRender = useMemo(() => {
 		let sites = temporarySites.filter(
@@ -138,14 +138,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
 	if (!sitesFinishedLoading) {
-		return (
-			<div className={css.loadingViewport}>
-				<h1 className={css.loadingCaption}>Loading Playgrounds</h1>
-				<div className={css.progressWrapper}>
-					<div className={css.progressBar} />
-				</div>
-			</div>
-		);
+		return <LoadingViewport caption="Loading Playgrounds" />;
 	}
 
 	return (
@@ -168,13 +161,13 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			{(!hasVisibleSite || siteImportIsRunning) && (
-				<div className={css.loadingViewport}>
-					<h1 className={css.loadingCaption}>Preparing WordPress</h1>
-					<div className={css.progressWrapper}>
-						<div className={css.progressBar} />
-					</div>
-				</div>
+			{(!hasVisibleSite || siteImportProgress) && (
+				<LoadingViewport
+					caption={
+						siteImportProgress?.caption ?? 'Preparing WordPress'
+					}
+					progress={siteImportProgress?.progress}
+				/>
 			)}
 			{slugsSeenSoFar.map((slug) => {
 				const site = sitesBySlug.get(slug);
@@ -187,7 +180,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 						className={classNames(css.fullSize, {
 							[css.hidden]:
 								slug !== activeSite?.slug ||
-								siteImportIsRunning,
+								!!siteImportProgress,
 						})}
 					>
 						{siteSlugsToRender.includes(slug) ? (
@@ -199,6 +192,49 @@ export const KeepAliveTemporarySitesViewport = () => {
 		</>
 	);
 };
+
+function LoadingViewport({
+	caption,
+	progress,
+}: {
+	caption: string;
+	progress?: number;
+}) {
+	const progressPercent =
+		progress !== undefined && progress > 0
+			? Math.round(progress)
+			: undefined;
+
+	return (
+		<div className={css.loadingViewport}>
+			<h1 className={css.loadingCaption}>{caption}</h1>
+			<div
+				className={css.progressWrapper}
+				aria-label={
+					progress === undefined
+						? 'WordPress loading progress'
+						: 'WordPress import progress'
+				}
+				aria-valuemax={100}
+				aria-valuemin={0}
+				aria-valuenow={progressPercent}
+				aria-valuetext={
+					progressPercent === undefined
+						? caption
+						: `${caption}, ${progressPercent}%`
+				}
+				role="progressbar"
+				style={
+					{
+						'--loading-progress': `${progress ?? 0}%`,
+					} as React.CSSProperties
+				}
+			>
+				<div className={css.progressBar} />
+			</div>
+		</div>
+	);
+}
 
 export const JustViewport = function JustViewport({
 	siteSlug,

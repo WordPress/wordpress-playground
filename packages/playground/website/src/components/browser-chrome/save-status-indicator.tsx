@@ -52,8 +52,8 @@ export function SaveStatusIndicator({
 	disabled?: boolean;
 }) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
-	const siteImportIsRunning = useAppSelector(
-		(state) => state.ui.siteImportIsRunning
+	const siteImportProgress = useAppSelector(
+		(state) => state.ui.siteImportProgress
 	);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
@@ -65,7 +65,7 @@ export function SaveStatusIndicator({
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
-	const status = siteImportIsRunning
+	const status = siteImportProgress
 		? 'loading'
 		: getSaveStatus(activeSite, clientInfo);
 	const siteSlug = activeSite?.slug;

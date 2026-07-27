@@ -71,6 +71,10 @@
 	transform: translateX(-100%);
 }
 
+.progress-wrapper[aria-valuenow]::after {
+	display: none;
+}
+
 @media (prefers-color-scheme: dark) {
 	.loading-viewport {
 		background: #1e1e1e;
@@ -103,6 +107,13 @@
 	background: linear-gradient(90deg, #3858e9 0%, #6f7dff 100%);
 	border-radius: inherit;
 	animation: indefinite-loading 2s linear infinite;
+}
+
+.progress-wrapper[aria-valuenow] .progress-bar {
+	right: auto;
+	width: var(--loading-progress);
+	animation: none;
+	transition: width 150ms ease-out;
 }
 
 @keyframes track-shimmer {
@@ -138,5 +149,9 @@
 	.progress-wrapper::after,
 	.progress-bar {
 		animation: none;
+	}
+
+	.progress-wrapper[aria-valuenow] .progress-bar {
+		transition: none;
 	}
 }
