@@ -135,6 +135,8 @@ export const KeepAliveTemporarySitesViewport = () => {
 	const hasVisibleSite = !!slugsSeenSoFar.find(
 		(slug) => slug === activeSite?.slug
 	);
+	const siteImportProgressIsDeterminate =
+		!!siteImportProgress && siteImportProgress.progress > 0;
 
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
 	if (!sitesFinishedLoading) {
@@ -176,7 +178,7 @@ export const KeepAliveTemporarySitesViewport = () => {
 					<div
 						className={classNames(css.progressWrapper, {
 							[css.progressWrapperDeterminate]:
-								!!siteImportProgress,
+								siteImportProgressIsDeterminate,
 						})}
 						aria-label={
 							siteImportProgress
@@ -186,15 +188,17 @@ export const KeepAliveTemporarySitesViewport = () => {
 						aria-valuemax={100}
 						aria-valuemin={0}
 						aria-valuenow={
-							siteImportProgress
+							siteImportProgressIsDeterminate
 								? Math.round(siteImportProgress.progress)
 								: undefined
 						}
 						aria-valuetext={
 							siteImportProgress
-								? `${siteImportProgress.caption}, ${Math.round(
-										siteImportProgress.progress
-									)}%`
+								? siteImportProgressIsDeterminate
+									? `${siteImportProgress.caption}, ${Math.round(
+											siteImportProgress.progress
+										)}%`
+									: siteImportProgress.caption
 								: undefined
 						}
 						role="progressbar"
@@ -202,10 +206,10 @@ export const KeepAliveTemporarySitesViewport = () => {
 						<div
 							className={classNames(css.progressBar, {
 								[css.progressBarDeterminate]:
-									!!siteImportProgress,
+									siteImportProgressIsDeterminate,
 							})}
 							style={
-								siteImportProgress
+								siteImportProgressIsDeterminate
 									? {
 											width: `${siteImportProgress.progress}%`,
 										}
