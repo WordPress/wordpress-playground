@@ -130,10 +130,10 @@ export function consumeAPI<APIType>(
  * Moves a Window-backed API onto a point-to-point MessagePort.
  *
  * Unlike Worker messages, Window messages are visible to the application's main
- * world and to browser-extension isolated worlds. In Chromium, an isolated-world
+ * world and to browser-extension isolated worlds. In Chromium, a browser extension
  * listener that evaluates `event.data` first can take ownership of a transferred
- * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 exposed
- * this by leaving the parent-side `runStream()` call pending during a ZIP import.
+ * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 is one
+ * such extension.
  *
  * The Window message used here transfers only Comlink's endpoint port. Later API
  * calls and streams use that port, where unrelated Window listeners cannot
