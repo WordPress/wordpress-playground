@@ -2,6 +2,10 @@ export * from './lib/github';
 export * from './lib/changeset';
 export * from './lib/playground';
 export * from './lib/browser-fs';
+export {
+	OPFS_SITES_ROOT_PATH,
+	OPFS_EMBEDDED_SITES_ROOT_PATH,
+} from './lib/opfs-paths';
 export * from './lib/paths';
 export * from './lib/filesystems';
 export { GitAuthenticationError } from './lib/git-authentication-error';

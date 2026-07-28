@@ -1,8 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
-import { joinPaths } from '@php-wasm/util';
-
-const EMBEDDED_SITES_OPFS_ROOT_PATH = '/embedded-sites';
+import { getEmbeddedSiteOpfsPath } from './opfs-paths';
 
 export type MountDevice =
 	| {
@@ -51,13 +49,6 @@ async function getOrCreateEmbeddedSiteOpfsDirectoryHandle(
 	return resolveOpfsDirectoryHandle(
 		getEmbeddedSiteOpfsPath(storageKey),
 		true
-	);
-}
-
-function getEmbeddedSiteOpfsPath(storageKey: string) {
-	return joinPaths(
-		EMBEDDED_SITES_OPFS_ROOT_PATH,
-		`site-${encodeURIComponent(storageKey)}`
 	);
 }
 

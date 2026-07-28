@@ -1,6 +1,7 @@
 import { joinPaths } from '@php-wasm/util';
+import { OPFS_SITES_ROOT_PATH } from '@wp-playground/storage';
 
-export const OPFS_SITES_ROOT_PATH = '/sites';
+export { OPFS_SITES_ROOT_PATH };
 
 /**
  * Computes the canonical OPFS path for writing a site slug.

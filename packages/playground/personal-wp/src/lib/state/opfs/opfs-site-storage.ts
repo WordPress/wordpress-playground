@@ -17,9 +17,9 @@ import {
 } from '@wp-playground/blueprints';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { OPFS_SITES_ROOT_PATH } from '@wp-playground/storage';
 import { loadPersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
 
-const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
 
@@ -45,7 +45,7 @@ export interface StoredSiteMetadata extends SiteMetadata {
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
 	opfsSitesRoot = await navigator.storage.getDirectory();
-	for (const path of ROOT_PATH.replace(/^\//, '').split('/')) {
+	for (const path of OPFS_SITES_ROOT_PATH.replace(/^\//, '').split('/')) {
 		opfsSitesRoot = await opfsSitesRoot.getDirectoryHandle(path, {
 			create: true,
 		});
@@ -73,7 +73,11 @@ class OpfsSiteStorage {
 			create: true,
 		});
 		await opfsWriteFile(
-			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			joinPaths(
+				OPFS_SITES_ROOT_PATH,
+				newSiteDirName,
+				SITE_METADATA_FILENAME
+			),
 			await metadataToStoredFormat(slug, metadata)
 		);
 	}
@@ -85,7 +89,11 @@ class OpfsSiteStorage {
 		}
 
 		await opfsWriteFile(
-			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
+			joinPaths(
+				OPFS_SITES_ROOT_PATH,
+				newSiteDirName,
+				SITE_METADATA_FILENAME
+			),
 			await metadataToStoredFormat(slug, metadata)
 		);
 	}
@@ -166,7 +174,7 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 export const isOpfsAvailable = !!opfsSiteStorage;
 
 export function getDirectoryPathForSlug(slug: string) {
-	return joinPaths(ROOT_PATH, getDirectoryNameForSlug(slug));
+	return joinPaths(OPFS_SITES_ROOT_PATH, getDirectoryNameForSlug(slug));
 }
 
 export function getDirectoryNameForSlug(slug: string) {
