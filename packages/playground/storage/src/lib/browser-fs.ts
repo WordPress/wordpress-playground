@@ -24,40 +24,48 @@ export async function directoryHandleFromMountDevice(
 	}
 
 	if (device.type === 'opfs-embedded-site') {
-		return getEmbeddedSiteOpfsDirectoryHandle(device.storageKey, {
-			create: true,
-		});
+		return getOrCreateEmbeddedSiteOpfsDirectoryHandle(device.storageKey);
 	}
 
 	return opfsPathToDirectoryHandle(device.path);
 }
 
 /**
- * Opens the canonical OPFS directory for an embedded site.
- *
- * Mounting code should pass `create: true`. Consumers opening an existing site
- * should pass `create: false` so an unknown storage key does not create an
- * empty site.
+ * Opens the canonical OPFS directory for an existing embedded site.
+ * Throws a `NotFoundError` if the storage key has no directory.
  */
-export async function getEmbeddedSiteOpfsDirectoryHandle(
-	storageKey: string,
-	options: { create: boolean }
+export async function getExistingEmbeddedSiteOpfsDirectoryHandle(
+	storageKey: string
 ): Promise<FileSystemDirectoryHandle> {
-	return opfsPathToDirectoryHandle(getEmbeddedSiteOpfsPath(storageKey), {
-		create: options.create,
-	});
+	return resolveOpfsDirectoryHandle(
+		getEmbeddedSiteOpfsPath(storageKey),
+		false
+	);
+}
+
+async function getOrCreateEmbeddedSiteOpfsDirectoryHandle(
+	storageKey: string
+): Promise<FileSystemDirectoryHandle> {
+	return resolveOpfsDirectoryHandle(
+		getEmbeddedSiteOpfsPath(storageKey),
+		true
+	);
 }
 
 export async function opfsPathToDirectoryHandle(
+	opfsPath: string
+): Promise<FileSystemDirectoryHandle> {
+	return resolveOpfsDirectoryHandle(opfsPath, true);
+}
+
+async function resolveOpfsDirectoryHandle(
 	opfsPath: string,
-	options: { create?: boolean } = {}
+	create: boolean
 ): Promise<FileSystemDirectoryHandle> {
 	const parts = opfsPath.split('/').filter((p) => p.length > 0);
 	let handle = await navigator.storage.getDirectory();
 	for (const part of parts) {
-		handle = await handle.getDirectoryHandle(part, {
-			create: options.create ?? true,
-		});
+		handle = await handle.getDirectoryHandle(part, { create });
 	}
 	return handle;
 }

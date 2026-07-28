@@ -2,7 +2,6 @@ export * from './lib/github';
 export * from './lib/changeset';
 export * from './lib/playground';
 export * from './lib/browser-fs';
-export * from './lib/embedded-site-opfs-path';
 export * from './lib/paths';
 export * from './lib/filesystems';
 export { GitAuthenticationError } from './lib/git-authentication-error';

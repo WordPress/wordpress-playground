@@ -1,6 +1,6 @@
 import {
 	directoryHandleFromMountDevice,
-	getEmbeddedSiteOpfsDirectoryHandle,
+	getExistingEmbeddedSiteOpfsDirectoryHandle,
 } from './browser-fs';
 import { getEmbeddedSiteOpfsPath } from './embedded-site-opfs-path';
 
@@ -39,9 +39,7 @@ describe('embedded site OPFS directory handle', () => {
 			},
 		});
 
-		await getEmbeddedSiteOpfsDirectoryHandle('a/b', {
-			create: false,
-		});
+		await getExistingEmbeddedSiteOpfsDirectoryHandle('a/b');
 
 		expect(getDirectoryHandle).toHaveBeenNthCalledWith(
 			1,
