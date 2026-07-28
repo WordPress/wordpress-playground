@@ -645,6 +645,25 @@ describe.each(blueprintVersions)(
 		const phpString = (value: string) =>
 			`'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
+		// TODO: Make PHP-WASM proc_open() pipes block by default, matching native
+		// PHP. Native pipe streams wait for data or EOF unless explicitly made
+		// non-blocking. PHP-WASM currently returns an empty string when no child
+		// output is available yet. Until that compatibility gap is fixed, poll
+		// both pipes until the child exits and then drain any remaining output.
+		const phpDrainProcessPipes = `
+			$stdout = '';
+			$stderr = '';
+			do {
+				$stdout .= (string) stream_get_contents($pipes[1]);
+				$stderr .= (string) stream_get_contents($pipes[2]);
+				$status = proc_get_status($proc);
+				if ($status['running']) {
+					usleep(1_000);
+				}
+			} while ($status['running']);
+			$stdout .= (string) stream_get_contents($pipes[1]);
+			$stderr .= (string) stream_get_contents($pipes[2]);`;
+
 		// Build a PHP script that runs `scriptPath` in a child PHP process via
 		// proc_open() — the code path the regression tests below guard — and
 		// echoes `prefix` followed by the child's trimmed stdout. A failed
@@ -667,8 +686,7 @@ describe.each(blueprintVersions)(
 				echo ${phpString(prefix)} . ':PROC_OPEN_FAILED';
 				exit(1);
 			}
-			$stdout = (string) stream_get_contents($pipes[1]);
-			$stderr = (string) stream_get_contents($pipes[2]);
+			${phpDrainProcessPipes}
 			fclose($pipes[1]);
 			fclose($pipes[2]);
 			proc_close($proc);
@@ -1136,11 +1154,16 @@ describe.each(blueprintVersions)(
 				[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
 				$pipes
 			);
-			$out = trim((string) stream_get_contents($pipes[1]));
-			$err = trim((string) stream_get_contents($pipes[2]));
+			if ($proc === false) {
+				echo 'PROC_OPEN_FAILED';
+				exit(1);
+			}
+			${phpDrainProcessPipes}
 			fclose($pipes[1]);
 			fclose($pipes[2]);
 			proc_close($proc);
+			$out = trim($stdout);
+			$err = trim($stderr);
 
 			try {
 				$pdo->exec('COMMIT');
