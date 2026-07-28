@@ -475,25 +475,49 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 	): Promise<void> {
 		// Descendants may be keeping this worker blocked in system(). Stop them
 		// first so this worker can leave the synchronous spawn call cleanly.
-		await child.descendantEndpoint.dispose();
+		const failures: unknown[] = [];
+		try {
+			await child.descendantEndpoint.dispose();
+		} catch (error) {
+			// A failed descendant must not prevent this worker from being stopped.
+			// It may still be blocked waiting for that descendant in system().
+			failures.push(error);
+		}
 		if (!child.worker) {
 			await Promise.race([
 				child.workerCreated.promise,
 				child.initializationFinished.promise,
 			]);
 		}
+		let childTerminationFailed = false;
 		if (child.worker) {
-			await terminateChildWorker(child);
+			try {
+				await terminateChildWorker(child);
+			} catch (error) {
+				childTerminationFailed = true;
+				failures.push(error);
+			}
 		}
-		// Worker.terminate() settling is sufficient even when a test double or an
-		// unusual Worker implementation does not emit the normal exit callback.
-		child.terminated.resolve();
-		try {
-			await child.mountPromise;
-		} catch {
-			// A mount failure initiated disposal; cleanup still owns all endpoints.
+		if (!childTerminationFailed) {
+			// Worker.terminate() settling is sufficient even when a test double or
+			// unusual Worker implementation does not emit the normal exit callback.
+			child.terminated.resolve();
+			try {
+				await child.mountPromise;
+			} catch {
+				// A mount failure initiated disposal; cleanup still owns all endpoints.
+			}
+			cleanupChild(child);
 		}
-		cleanupChild(child);
+		if (failures.length === 1) {
+			throw failures[0];
+		}
+		if (failures.length > 1) {
+			throw new AggregateError(
+				failures,
+				`Failed to dispose child worker ${child.childId} and one or more descendants.`
+			);
+		}
 	}
 
 	async function terminateChildWorker(

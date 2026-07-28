@@ -214,6 +214,47 @@ describe('createChildWorkerService', function () {
 		expect(controller.liveChildWorkerCount()).toBe(0);
 	});
 
+	it('terminates a parent when grandchild termination fails', async function () {
+		const harness = createSpawnHarness();
+		const controller = createChildWorkerService(
+			harness.spawnWorker,
+			new FileLockManagerInMemory(),
+			async function runMountImmediately(mount): Promise<void> {
+				await mount();
+			}
+		);
+		const topLevelWorkerEndpoint = controller.createEndpoint();
+		const child = await topLevelWorkerEndpoint.api.createChildWorker();
+		const childService = consumeAPI<ChildWorkerService>(
+			child.workerConfig.childWorkerServicePort,
+			undefined,
+			childWorkerServiceTransferPolicy
+		);
+		await childService.createChildWorker();
+		harness.workers[1].terminate = vi.fn(
+			async function rejectGrandchildTermination(): Promise<number> {
+				throw new Error('Grandchild termination was rejected');
+			}
+		);
+
+		await expect(topLevelWorkerEndpoint.dispose()).rejects.toThrow(
+			'Failed to terminate child worker 2.'
+		);
+
+		expect(harness.workers[0].terminateCalls).toBe(1);
+		expect(harness.workers[1].terminate).toHaveBeenCalledOnce();
+		expect(controller.liveChildWorkerCount()).toBe(1);
+
+		// Model a later native exit so this test leaves no live service records.
+		harness.workers[1].exit();
+		await vi.waitFor(function waitForLateGrandchildExitCleanup(): void {
+			expect(controller.liveChildWorkerCount()).toBe(0);
+		});
+		harness.phpMainPorts.forEach(function closePHPMainPort(port): void {
+			port.close();
+		});
+	});
+
 	it('disposes descendants when their spawning child exits', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
