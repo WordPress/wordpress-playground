@@ -1,0 +1,10 @@
+{
+  "phpVersion": "8.6.0-dev",
+  "phpRef": "master",
+  "builtAt": "2026-07-28T07:18:08.148Z",
+  "modes": [
+    "jspi",
+    "asyncify"
+  ],
+  "loaderFilename": "php_8_6.js"
+}
