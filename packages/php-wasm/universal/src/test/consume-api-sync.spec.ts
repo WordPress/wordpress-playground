@@ -218,6 +218,49 @@ describe('MessagePort transfer handling', () => {
 		}
 	});
 
+	it('combines policies with existing top-level transfer handlers', async () => {
+		type TransferTestApi = {
+			createPort(): MessagePort;
+		};
+		const apiChannel = new MessageChannel();
+		const resourceChannel = new MessageChannel();
+		const transferPolicy = defineAPITransferPolicy<TransferTestApi>({
+			createPort: {
+				result(port) {
+					return [port, port];
+				},
+			},
+		});
+		const [setReady] = exposeAPI<TransferTestApi, undefined>(
+			{
+				createPort() {
+					return resourceChannel.port1;
+				},
+			},
+			undefined,
+			apiChannel.port1,
+			transferPolicy
+		);
+		setReady();
+		const api = consumeAPI<TransferTestApi>(
+			apiChannel.port2,
+			undefined,
+			transferPolicy
+		);
+		const messageReceived = new Promise((resolve) =>
+			resourceChannel.port2.once('message', resolve)
+		);
+
+		const transferredPort = await api.createPort();
+		transferredPort.postMessage('transferred');
+		await expect(messageReceived).resolves.toBe('transferred');
+
+		transferredPort.close();
+		resourceChannel.port2.close();
+		apiChannel.port1.close();
+		apiChannel.port2.close();
+	});
+
 	it('preserves method errors without invoking a result transfer hook', async () => {
 		type FailingApi = {
 			createResource(): { port: MessagePort };

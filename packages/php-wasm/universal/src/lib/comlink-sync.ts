@@ -50,14 +50,6 @@ interface SyncTransport {
 	): WireValue;
 }
 
-export interface AsyncTransferResolver {
-	getArgumentTransferables(
-		path: string[],
-		argumentsList: unknown[]
-	): Transferable[];
-	getResultTransferables(path: string[], result: unknown): Transferable[];
-}
-
 export function exposeSync(
 	obj: any,
 	ep: Endpoint,
@@ -630,8 +622,7 @@ export function expose(
 	obj: any,
 	ep: Endpoint = globalThis as any,
 	allowedOrigins: (string | RegExp)[] = ['*'],
-	afterResponseSent?: (ev: MessageEvent) => void,
-	transferResolver?: AsyncTransferResolver
+	afterResponseSent?: (ev: MessageEvent) => void
 ) {
 	ep.addEventListener('message', function callback(ev: MessageEvent) {
 		if (!ev || !ev.data) {
@@ -681,13 +672,7 @@ export function expose(
 				case MessageType.ENDPOINT:
 					{
 						const { port1, port2 } = new MessageChannel();
-						expose(
-							obj,
-							port2,
-							allowedOrigins,
-							undefined,
-							transferResolver
-						);
+						expose(obj, port2);
 						returnValue = transfer(port1, [port1]);
 					}
 					break;
@@ -707,28 +692,8 @@ export function expose(
 				return { value, [throwMarker]: 0 };
 			})
 			.then((returnValue) => {
-				let responseValue = returnValue;
-				let explicitlyTransferred: Transferable[] = [];
-				if (type === MessageType.APPLY && !isThrownValue(returnValue)) {
-					try {
-						explicitlyTransferred =
-							transferResolver?.getResultTransferables(
-								path,
-								returnValue
-							) || [];
-					} catch (value) {
-						responseValue = { value, [throwMarker]: 0 };
-					}
-				}
-				const [wireValue, automaticallyTransferred] =
-					toWireValue(responseValue);
-				ep.postMessage(
-					{ ...wireValue, id },
-					deduplicateTransferables([
-						...automaticallyTransferred,
-						...explicitlyTransferred,
-					])
-				);
+				const [wireValue, transferables] = toWireValue(returnValue);
+				ep.postMessage({ ...wireValue, id }, transferables);
 				if (type === MessageType.RELEASE) {
 					// detach and deactive after sending release response above.
 					ep.removeEventListener('message', callback as any);
@@ -766,11 +731,7 @@ function closeEndPoint(endpoint: Endpoint) {
 	if (isMessagePort(endpoint)) endpoint.close();
 }
 
-export function wrap<T>(
-	ep: Endpoint,
-	target?: any,
-	transferResolver?: AsyncTransferResolver
-): Remote<T> {
+export function wrap<T>(ep: Endpoint, target?: any): Remote<T> {
 	const pendingListeners: PendingListenersMap = new Map();
 
 	ep.addEventListener('message', function handleMessage(ev: Event) {
@@ -790,13 +751,7 @@ export function wrap<T>(
 		}
 	});
 
-	return createProxy<T>(
-		ep,
-		pendingListeners,
-		[],
-		target,
-		transferResolver
-	) as any;
+	return createProxy<T>(ep, pendingListeners, [], target) as any;
 }
 
 function throwIfProxyReleased(isReleased: boolean) {
@@ -854,8 +809,7 @@ function createProxy<T>(
 	ep: Endpoint,
 	pendingListeners: PendingListenersMap,
 	path: (string | number | symbol)[] = [],
-	target: object = function () {},
-	transferResolver?: AsyncTransferResolver
+	target: object = function () {}
 ): Remote<T> {
 	let isProxyReleased = false;
 	const proxy = new Proxy(target, {
@@ -879,13 +833,7 @@ function createProxy<T>(
 				}).then(fromWireValue);
 				return r.then.bind(r);
 			}
-			return createProxy(
-				ep,
-				pendingListeners,
-				[...path, prop],
-				undefined,
-				transferResolver
-			);
+			return createProxy(ep, pendingListeners, [...path, prop]);
 		},
 		set(_target, prop, rawValue) {
 			throwIfProxyReleased(isProxyReleased);
@@ -913,34 +861,19 @@ function createProxy<T>(
 			}
 			// We just pretend that `bind()` didn’t happen.
 			if (last === 'bind') {
-				return createProxy(
-					ep,
-					pendingListeners,
-					path.slice(0, -1),
-					undefined,
-					transferResolver
-				);
+				return createProxy(ep, pendingListeners, path.slice(0, -1));
 			}
-			const [argumentList, automaticallyTransferred] =
+			const [argumentList, transferables] =
 				processArguments(rawArgumentList);
-			const stringPath = path.map((part) => part.toString());
-			const explicitlyTransferred =
-				transferResolver?.getArgumentTransferables(
-					stringPath,
-					rawArgumentList
-				) || [];
 			return requestResponseMessage(
 				ep,
 				pendingListeners,
 				{
 					type: MessageType.APPLY,
-					path: stringPath,
+					path: path.map((p) => p.toString()),
 					argumentList,
 				},
-				deduplicateTransferables([
-					...automaticallyTransferred,
-					...explicitlyTransferred,
-				])
+				transferables
 			).then(fromWireValue);
 		},
 		construct(_target, rawArgumentList) {
@@ -961,16 +894,6 @@ function createProxy<T>(
 	});
 	registerProxy(proxy, ep);
 	return proxy as any;
-}
-
-function deduplicateTransferables(
-	transferables: Transferable[]
-): Transferable[] {
-	return Array.from(new Set(transferables));
-}
-
-function isThrownValue(value: unknown): value is ThrownValue {
-	return isObject(value) && throwMarker in value;
 }
 
 function myFlat<T>(arr: (T | T[])[]): T[] {

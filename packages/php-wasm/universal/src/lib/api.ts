@@ -241,7 +241,6 @@ export function consumeAPI<APIType>(
 	...transferPolicyArgument: TransferPolicyArgument<APIType>
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
-	const transferResolver = createTransferResolver(transferPolicyArgument[0]);
 
 	let endpoint;
 	/**
@@ -289,10 +288,10 @@ export function consumeAPI<APIType>(
 	 *
 	 * @TODO: Remove this workaround.
 	 */
-	const api = Comlink.wrap<APIType & WithAPIState>(
-		endpoint,
-		undefined,
-		transferResolver
+	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
+	const policyAwareApi = applyArgumentTransferPolicy(
+		api,
+		transferPolicyArgument[0]
 	);
 	const methods = proxyClone(api);
 	const remoteAPI = new Proxy(methods, {
@@ -314,7 +313,7 @@ export function consumeAPI<APIType>(
 					}
 				};
 			}
-			return (api as any)[prop];
+			return policyAwareApi[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
 	consumedAPIProxies.add(remoteAPI);
@@ -465,7 +464,8 @@ export function exposeAPI<Methods, PipedAPI>(
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
-		pipedApi
+		pipedApi,
+		transferPolicyArgument[0]
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
@@ -488,13 +488,7 @@ export function exposeAPI<Methods, PipedAPI>(
 				? Comlink.windowEndpoint(self.parent)
 				: undefined;
 	}
-	Comlink.expose(
-		exposedApi,
-		endpoint,
-		['*'],
-		undefined,
-		createTransferResolver(transferPolicyArgument[0])
-	);
+	Comlink.expose(exposedApi, endpoint);
 	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
 }
 
@@ -503,46 +497,79 @@ type RuntimeMethodTransferPolicy = {
 	result?: (value: any) => readonly APITransferable[];
 };
 
-function createTransferResolver(
+function applyArgumentTransferPolicy(
+	api: any,
 	policy: APITransferPolicy<any> | undefined
-): Comlink.AsyncTransferResolver | undefined {
+): any {
 	if (!policy) {
-		return undefined;
+		return api;
 	}
-	return {
-		getArgumentTransferables(path, argumentsList) {
-			const methodPolicy = resolveMethodTransferPolicy(policy, path);
-			return toComlinkTransferables(
-				methodPolicy?.arguments?.(...argumentsList) || []
-			);
+
+	return new Proxy(api, {
+		get(target, property) {
+			const value = target[property];
+			const policyNode =
+				typeof property === 'string'
+					? (policy as Record<string, unknown>)[property]
+					: undefined;
+			if (!isRuntimeMethodTransferPolicy(policyNode)) {
+				return policyNode && isObjectLike(value)
+					? applyArgumentTransferPolicy(
+							value,
+							policyNode as APITransferPolicy<any>
+						)
+					: value;
+			}
+			if (!policyNode.arguments || typeof value !== 'function') {
+				return value;
+			}
+			return (...args: any[]) => {
+				const transferables = policyNode.arguments!(...args);
+				return value(
+					...attachTransferablesToFirstArgument(args, transferables)
+				);
+			};
 		},
-		getResultTransferables(path, result) {
-			const methodPolicy = resolveMethodTransferPolicy(policy, path);
-			return toComlinkTransferables(methodPolicy?.result?.(result) || []);
-		},
-	};
+	});
 }
 
-function resolveMethodTransferPolicy(
-	policy: APITransferPolicy<any>,
-	path: string[]
-): RuntimeMethodTransferPolicy | undefined {
-	let node: unknown = policy;
-	for (const part of path) {
-		if (typeof node !== 'object' || node === null) {
-			return undefined;
-		}
-		node = (node as Record<string, unknown>)[part];
-	}
-	return typeof node === 'object' && node !== null
-		? (node as RuntimeMethodTransferPolicy)
-		: undefined;
-}
-
-function toComlinkTransferables(
+function attachTransferablesToFirstArgument(
+	args: any[],
 	transferables: readonly APITransferable[]
-): Transferable[] {
-	return transferables as readonly Transferable[] as Transferable[];
+): any[] {
+	if (transferables.length === 0) {
+		return args;
+	}
+	if (args.length === 0) {
+		throw new TypeError(
+			'An API argument transfer policy returned transferables for a ' +
+				'method with no arguments.'
+		);
+	}
+	// Comlink serializes each argument separately but combines their transfer
+	// lists in one postMessage() call. One envelope can therefore carry every
+	// transferable referenced anywhere in the complete argument list.
+	const wrappedArgs = [...args];
+	wrappedArgs[0] = createAPITransferEnvelope(wrappedArgs[0], transferables);
+	return wrappedArgs;
+}
+
+function isRuntimeMethodTransferPolicy(
+	value: unknown
+): value is RuntimeMethodTransferPolicy {
+	return (
+		isObjectLike(value) &&
+		(typeof (value as RuntimeMethodTransferPolicy).arguments ===
+			'function' ||
+			typeof (value as RuntimeMethodTransferPolicy).result === 'function')
+	);
+}
+
+function isObjectLike(value: unknown): value is object {
+	return (
+		(typeof value === 'object' && value !== null) ||
+		typeof value === 'function'
+	);
 }
 
 export async function exposeSyncAPI<Methods>(
@@ -558,7 +585,8 @@ export async function exposeSyncAPI<Methods>(
 
 function prepareForExpose<Methods, PipedAPI>(
 	apiMethods?: Methods,
-	pipedApi?: PipedAPI
+	pipedApi?: PipedAPI,
+	transferPolicy?: APITransferPolicy<any>
 ) {
 	setupTransferHandlers();
 
@@ -571,7 +599,10 @@ function prepareForExpose<Methods, PipedAPI>(
 		setFailed = reject;
 	});
 
-	const methods = proxyClone(apiMethods);
+	const methods = proxyClone(apiMethods, transferPolicy);
+	const pipedMethods = pipedApi
+		? proxyClone(pipedApi, transferPolicy)
+		: pipedApi;
 	const exposedApi = new Proxy(methods, {
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
@@ -581,11 +612,36 @@ function prepareForExpose<Methods, PipedAPI>(
 			} else if (prop in target) {
 				return target[prop];
 			}
-			return (pipedApi as any)?.[prop];
+			return (pipedMethods as any)?.[prop];
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
 	return { setReady, setFailed, exposedApi };
+}
+
+const apiTransferMarker = Symbol('php-wasm-api-transfer');
+const apiTransferHandlerName = 'PHP_WASM_API_TRANSFER';
+
+type APITransferEnvelope = {
+	[apiTransferMarker]: true;
+	value: unknown;
+	transferables: readonly APITransferable[];
+};
+
+type SerializedAPITransferEnvelope = {
+	handler?: string;
+	value: unknown;
+};
+
+function createAPITransferEnvelope(
+	value: unknown,
+	transferables: readonly APITransferable[]
+): APITransferEnvelope {
+	return {
+		[apiTransferMarker]: true,
+		value,
+		transferables,
+	};
 }
 
 let isTransferHandlersSetup = false;
@@ -594,6 +650,52 @@ function setupTransferHandlers() {
 		return;
 	}
 	isTransferHandlersSetup = true;
+	Comlink.transferHandlers.set(apiTransferHandlerName, {
+		canHandle: (value): value is APITransferEnvelope =>
+			isObjectLike(value) && apiTransferMarker in value,
+		serialize(
+			envelope: APITransferEnvelope
+		): [SerializedAPITransferEnvelope, Transferable[]] {
+			// Preserve any top-level Comlink serialization that the value would
+			// normally receive, then add the API policy's nested transferables.
+			for (const [name, handler] of Comlink.transferHandlers) {
+				if (
+					name === apiTransferHandlerName ||
+					!handler.canHandle(envelope.value)
+				) {
+					continue;
+				}
+				const [value, automaticallyTransferred] = handler.serialize(
+					envelope.value as never
+				);
+				return [
+					{ handler: name, value },
+					deduplicateTransferables([
+						...automaticallyTransferred,
+						...toComlinkTransferables(envelope.transferables),
+					]),
+				];
+			}
+			return [
+				{ value: envelope.value },
+				deduplicateTransferables(
+					toComlinkTransferables(envelope.transferables)
+				),
+			];
+		},
+		deserialize(envelope: SerializedAPITransferEnvelope): unknown {
+			if (!envelope.handler) {
+				return envelope.value;
+			}
+			const handler = Comlink.transferHandlers.get(envelope.handler);
+			if (!handler) {
+				throw new TypeError(
+					`Unknown Comlink transfer handler "${envelope.handler}".`
+				);
+			}
+			return handler.deserialize(envelope.value as never);
+		},
+	});
 	Comlink.transferHandlers.set('EVENT', {
 		canHandle: (obj): obj is CustomEvent => obj instanceof CustomEvent,
 		serialize: (ev: CustomEvent) => {
@@ -1149,17 +1251,50 @@ const throwTransferHandlerCustom: Comlink.TransferHandler<
 
 Comlink.transferHandlers.set('throw', throwTransferHandlerCustom);
 
-function proxyClone(object: any): any {
+function proxyClone(object: any, transferPolicy?: APITransferPolicy<any>): any {
 	return new Proxy(object, {
 		get(target, prop) {
+			const policyNode =
+				typeof prop === 'string'
+					? (transferPolicy as Record<string, unknown> | undefined)?.[
+							prop
+						]
+					: undefined;
+			if (
+				policyNode &&
+				!isRuntimeMethodTransferPolicy(policyNode) &&
+				isObjectLike(target[prop])
+			) {
+				return proxyClone(
+					target[prop],
+					policyNode as APITransferPolicy<any>
+				);
+			}
 			switch (typeof target[prop]) {
 				case 'function':
-					return (...args: any[]) => target[prop](...args);
+					return (...args: any[]) => {
+						const result = target[prop](...args);
+						if (
+							!isRuntimeMethodTransferPolicy(policyNode) ||
+							!policyNode.result
+						) {
+							return result;
+						}
+						return Promise.resolve(result).then((value) =>
+							createAPITransferEnvelope(
+								value,
+								policyNode.result!(value)
+							)
+						);
+					};
 				case 'object':
 					if (target[prop] === null) {
 						return target[prop];
 					}
-					return proxyClone(target[prop]);
+					return proxyClone(
+						target[prop],
+						policyNode as APITransferPolicy<any> | undefined
+					);
 				case 'undefined':
 				case 'number':
 				case 'string':
@@ -1169,6 +1304,18 @@ function proxyClone(object: any): any {
 			}
 		},
 	});
+}
+
+function deduplicateTransferables(
+	transferables: Transferable[]
+): Transferable[] {
+	return Array.from(new Set(transferables));
+}
+
+function toComlinkTransferables(
+	transferables: readonly APITransferable[]
+): Transferable[] {
+	return transferables as readonly Transferable[] as Transferable[];
 }
 
 /**
