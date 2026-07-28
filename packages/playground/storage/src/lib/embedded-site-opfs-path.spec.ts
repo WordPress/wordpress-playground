@@ -1,3 +1,4 @@
+import { directoryHandleFromMountDevice } from './browser-fs';
 import { getEmbeddedSiteOpfsPath } from './embedded-site-opfs-path';
 
 describe('getEmbeddedSiteOpfsPath', () => {
@@ -14,8 +15,39 @@ describe('getEmbeddedSiteOpfsPath', () => {
 		expect(getEmbeddedSiteOpfsPath('a?b')).toBe(
 			'/embedded-sites/site-a%3Fb'
 		);
-		expect(getEmbeddedSiteOpfsPath('..')).toBe(
-			'/embedded-sites/site-..'
+		expect(getEmbeddedSiteOpfsPath('..')).toBe('/embedded-sites/site-..');
+	});
+});
+
+describe('embedded site OPFS mount device', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('opens the path derived from its storage key', async () => {
+		const getDirectoryHandle = vi.fn();
+		const directoryHandle = {
+			getDirectoryHandle,
+		} as unknown as FileSystemDirectoryHandle;
+		getDirectoryHandle.mockResolvedValue(directoryHandle);
+		vi.stubGlobal('navigator', {
+			storage: {
+				getDirectory: vi.fn(async () => directoryHandle),
+			},
+		});
+
+		await directoryHandleFromMountDevice({
+			type: 'opfs-embedded-site',
+			storageKey: 'a/b',
+		});
+
+		expect(getDirectoryHandle).toHaveBeenNthCalledWith(
+			1,
+			'embedded-sites',
+			{ create: true }
 		);
+		expect(getDirectoryHandle).toHaveBeenNthCalledWith(2, 'site-a%2Fb', {
+			create: true,
+		});
 	});
 });

@@ -1,10 +1,15 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
+import { getEmbeddedSiteOpfsPath } from './embedded-site-opfs-path';
 
 export type MountDevice =
 	| {
 			type: 'opfs';
 			path: string;
+	  }
+	| {
+			type: 'opfs-embedded-site';
+			storageKey: string;
 	  }
 	| {
 			type: 'local-fs';
@@ -18,7 +23,11 @@ export async function directoryHandleFromMountDevice(
 		return device.handle;
 	}
 
-	return opfsPathToDirectoryHandle(device.path);
+	const opfsPath =
+		device.type === 'opfs'
+			? device.path
+			: getEmbeddedSiteOpfsPath(device.storageKey);
+	return opfsPathToDirectoryHandle(opfsPath);
 }
 
 export async function opfsPathToDirectoryHandle(
