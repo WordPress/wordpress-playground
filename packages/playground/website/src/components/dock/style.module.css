@@ -265,10 +265,13 @@
 }
 
 /* Classic scrollbars paint their track over the pane's rounded edge. Keep the
-   track transparent and away from the corner curve. */
+   track transparent and away from the corner curve. Physical margins, not
+   margin-block: logical properties resolve unreliably inside scrollbar
+   pseudo-elements, and this track is always vertical. */
 .pane::-webkit-scrollbar-track {
 	background: transparent;
-	margin-block: var(--radius-pane);
+	margin-bottom: var(--radius-pane);
+	margin-top: var(--radius-pane);
 }
 
 .pane-editor {
