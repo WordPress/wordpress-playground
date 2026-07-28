@@ -43,7 +43,7 @@ describe('consecutive installPlugin steps', () => {
 		await handler[Symbol.asyncDispose]();
 	});
 
-	it('activates a run in two WordPress boots and leaves opted-out plugins inactive', async () => {
+	it('activates a run in one WordPress boot and leaves opted-out plugins inactive', async () => {
 		const bootCountPath = '/tmp/plugin-activation-boot-count';
 		const muPluginsPath = '/wordpress/wp-content/mu-plugins';
 		if (!(await php.fileExists(muPluginsPath))) {
@@ -64,7 +64,7 @@ file_put_contents($path, (string) ($count + 1));
 			pluginStep('second-plugin'),
 		]);
 
-		expect(await php.readFileAsText(bootCountPath)).toBe('2');
+		expect(await php.readFileAsText(bootCountPath)).toBe('1');
 		const activePlugins = await readActivePlugins();
 		expect(activePlugins).toEqual(
 			expect.arrayContaining([
@@ -263,7 +263,7 @@ echo json_encode(array(
 			expect(onStepCompleted).toHaveBeenCalledTimes(2);
 			expect(loggerWarnSpy).toHaveBeenCalledWith(
 				expect.stringContaining(
-					'Skipping plugin installation for interrupted-plugin after failure'
+					'Skipping interrupted-plugin after failure'
 				)
 			);
 		} finally {

@@ -318,19 +318,31 @@ describe('Blueprint step activatePlugin()', () => {
 
 	it('uses a distinct scratch log for each concurrent activation', async () => {
 		const activationLogPaths: string[] = [];
+		const states = new Map<string, string>();
 		const playground = {
 			documentRoot: '/wordpress',
-			fileExists: vi.fn().mockResolvedValue(false),
+			fileExists: vi
+				.fn()
+				.mockImplementation(async (path) => states.has(path)),
+			readFileAsText: vi
+				.fn()
+				.mockImplementation(async (path) => states.get(path)),
+			unlink: vi.fn().mockImplementation(async (path) => {
+				states.delete(path);
+			}),
 			run: vi.fn().mockImplementation(async ({ env }) => {
-				if (env?.ACTIVATION_STATE) {
-					const [target] = JSON.parse(env.PLUGIN_TARGETS);
-					activationLogPaths.push(target.activationLogPath);
-					return { text: '', headers: {} };
-				}
-				return {
-					text: `${env.ACTIVATION_STATUS_PAYLOAD_PREFIX}[true]`,
-					headers: {},
-				};
+				const [target] = JSON.parse(env.PLUGIN_TARGETS);
+				activationLogPaths.push(target.activationLogPath);
+				states.set(
+					env.ACTIVATION_STATE,
+					JSON.stringify({
+						lastIndex: 0,
+						active: { 0: true },
+						messages: {},
+						checked: true,
+					})
+				);
+				return { text: '', headers: {} };
 			}),
 		};
 

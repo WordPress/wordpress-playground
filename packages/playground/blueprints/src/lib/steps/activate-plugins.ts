@@ -2,15 +2,9 @@ import { logger } from '@php-wasm/logger';
 import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, randomString } from '@php-wasm/util';
 
-const ACTIVATION_STATUS_PAYLOAD_PREFIX = 'PLAYGROUND_PLUGIN_ACTIVATION_STATUS:';
-
-export interface PluginActivation {
+interface PluginActivation {
 	pluginPath: string;
 	continueOnError: boolean;
-}
-
-export interface PluginActivationOutcome {
-	error?: unknown;
 }
 
 interface RuntimePluginActivation extends PluginActivation {
@@ -18,50 +12,40 @@ interface RuntimePluginActivation extends PluginActivation {
 	activationLogPath: string;
 }
 
-interface ActivationAttempt {
-	status: 'started' | 'returned';
-	active?: boolean;
-	errorMessage?: string;
-}
-
 interface ActivationState {
-	attempts: Record<string, ActivationAttempt>;
+	lastIndex: number;
+	active: Record<string, boolean>;
+	messages: Record<string, string>;
+	checked?: boolean;
 }
 
 /**
  * Activates plugins in as few WordPress requests as possible.
  *
- * A plugin can redirect, exit, or fail before activate_plugin() returns. Each
- * attempt is written to a scratch file before it starts. A separate WordPress
- * request then checks which plugins are active, and any unattempted plugins are
- * resumed in another collective request.
- *
- * The status check also handles ordinary activation output. WordPress returns
- * a WP_Error when a plugin prints bytes, but it adds the plugin to the active
- * list first. The active list remains the source of truth, just as it was for
- * the singular activatePlugin step.
+ * A plugin can redirect or exit before activate_plugin() returns. The scratch
+ * state records the current plugin so the next request can resume with the
+ * following one. A shutdown callback checks the active plugin list because
+ * WordPress may activate a plugin even when activation printed output.
  *
  * @see https://github.com/WordPress/wordpress-develop/blob/6.7/src/wp-admin/includes/plugin.php#L733
  */
 export async function activatePlugins(
 	playground: UniversalPHP,
 	plugins: PluginActivation[]
-): Promise<PluginActivationOutcome[]> {
-	const outcomes: PluginActivationOutcome[] = plugins.map(() => ({}));
+) {
+	const outcomes: Array<{ error?: unknown }> = plugins.map(() => ({}));
 	if (plugins.length === 0) {
 		return outcomes;
 	}
 
 	const docroot = await playground.documentRoot;
-	const activationId = randomString(20, '');
 	const statePath = joinPaths(
 		'/tmp',
-		`playground-activate-plugins-${activationId}.json`
+		`playground-activate-plugins-${randomString(20, '')}.json`
 	);
 	/**
-	 * Route each plugin's PHP errors to a unique scratch file. Do not change
-	 * the site's debug.log. CLI workers share /tmp, so concurrent activations
-	 * must not share a filename.
+	 * Do not change the site's debug.log. CLI workers share /tmp, so every
+	 * activation also needs its own PHP error log.
 	 */
 	const targets: RuntimePluginActivation[] = plugins.map((plugin, index) => ({
 		...plugin,
@@ -83,6 +67,7 @@ export async function activatePlugins(
 					playground,
 					docroot,
 					statePath,
+					nextIndex,
 					requestedTargets
 				);
 			} catch (error) {
@@ -90,73 +75,17 @@ export async function activatePlugins(
 			}
 
 			const state = await readActivationState(playground, statePath);
-			const attemptedTargets = requestedTargets.filter(
-				(target) => state.attempts[target.index]
+			const statuses = state?.checked ? state.active : undefined;
+			const attemptedThrough = Math.min(
+				targets.length - 1,
+				Math.max(nextIndex, state?.lastIndex ?? nextIndex)
 			);
-			const lastAttemptedTarget = attemptedTargets.at(-1);
-			const interruptedTarget = attemptedTargets.find(
-				(target) => state.attempts[target.index]?.status === 'started'
-			);
-			const requestErrorTarget =
-				activationRequestError === undefined
-					? undefined
-					: interruptedTarget || lastAttemptedTarget;
 
-			let statuses: Record<string, boolean> | undefined;
-			let statusRequestError: unknown;
-			try {
-				statuses = await readActivationStatuses(
-					playground,
-					docroot,
-					requestedTargets
-				);
-			} catch (error) {
-				statusRequestError = error;
-			}
-
-			if (attemptedTargets.length === 0) {
-				const target = requestedTargets[0];
-				if (
-					activationRequestError === undefined &&
-					statuses?.[target.index] === true
-				) {
-					nextIndex++;
-					continue;
-				}
-				outcomes[target.index].error =
-					activationRequestError ||
-					statusRequestError ||
-					createActivationError(
-						target.pluginPath,
-						activationResponse?.text,
-						await readScratchLog(
-							playground,
-							target.activationLogPath
-						),
-						activationResponse?.headers
-					);
-				if (!target.continueOnError) {
-					break;
-				}
-				nextIndex++;
-				continue;
-			}
-
-			let processedThrough = nextIndex - 1;
-			for (const target of attemptedTargets) {
-				const attempt = state.attempts[target.index];
-				const isRequestErrorTarget =
-					target.index === requestErrorTarget?.index;
-				const isStatusErrorTarget =
-					statuses === undefined &&
-					target.index === lastAttemptedTarget?.index;
-				const active =
-					statuses === undefined
-						? !isStatusErrorTarget && attempt.active === true
-						: statuses[target.index] === true;
+			for (let index = nextIndex; index <= attemptedThrough; index++) {
+				const target = targets[index];
 				const output =
-					attempt.errorMessage ||
-					(target.index === lastAttemptedTarget?.index
+					state?.messages[target.index] ||
+					(target.index === attemptedThrough
 						? activationResponse?.text
 						: '');
 				if (output) {
@@ -166,57 +95,55 @@ export async function activatePlugins(
 				}
 
 				let error: unknown;
-				if (isRequestErrorTarget) {
+				if (
+					target.index === attemptedThrough &&
+					activationRequestError !== undefined
+				) {
 					error = activationRequestError;
-				} else if (isStatusErrorTarget && statusRequestError) {
-					error = statusRequestError;
-				} else if (!active || isStatusErrorTarget) {
-					const activationLog = await readScratchLog(
-						playground,
-						target.activationLogPath
-					);
+				} else if (
+					statuses === undefined &&
+					target.index === attemptedThrough
+				) {
 					error = createActivationError(
 						target.pluginPath,
 						output,
-						activationLog,
+						await readScratchLog(
+							playground,
+							target.activationLogPath
+						),
+						activationResponse?.headers
+					);
+				} else if (
+					(statuses?.[target.index] ??
+						state?.active[target.index]) !== true
+				) {
+					error = createActivationError(
+						target.pluginPath,
+						output,
+						await readScratchLog(
+							playground,
+							target.activationLogPath
+						),
 						activationResponse?.headers
 					);
 				}
 
-				processedThrough = target.index;
 				if (error) {
 					outcomes[target.index].error = error;
 					if (!target.continueOnError) {
 						return outcomes;
 					}
 				}
-
-				if (
-					attempt.status === 'started' ||
-					isRequestErrorTarget ||
-					isStatusErrorTarget
-				) {
-					break;
-				}
 			}
 
-			if (processedThrough < nextIndex) {
-				outcomes[nextIndex].error =
-					activationRequestError ||
-					statusRequestError ||
-					new Error(
-						`Plugin ${targets[nextIndex].pluginPath} could not be activated.`
-					);
-				break;
-			}
-			nextIndex = processedThrough + 1;
+			nextIndex = attemptedThrough + 1;
 		}
 
 		return outcomes;
 	} finally {
 		/**
-		 * Remove the per-run state and error logs after both activation and
-		 * verification. Ignore only files that another cleanup already removed.
+		 * Ignore only files that another cleanup already removed. Other
+		 * filesystem errors must still surface.
 		 */
 		await removeScratchFile(playground, statePath);
 		for (const target of targets) {
@@ -259,26 +186,53 @@ async function runActivationRequest(
 	playground: UniversalPHP,
 	docroot: string,
 	statePath: string,
+	startIndex: number,
 	targets: RuntimePluginActivation[]
 ) {
 	return playground.run({
 		code: `<?php
-define( 'WP_ADMIN', true );
-require_once getenv( 'DOCROOT' ) . '/wp-load.php';
-require_once getenv( 'DOCROOT' ) . '/wp-admin/includes/plugin.php';
-
-function playground_blueprints_write_activation_state( $state_path, $attempts ) {
-	file_put_contents(
-		$state_path,
-		wp_json_encode( array( 'attempts' => $attempts ) )
-	);
+function playground_blueprints_write_activation_state( $path, $state ) {
+	file_put_contents( $path, json_encode( $state ) );
 }
 
 ${PLUGIN_IS_ACTIVE_PHP}
 
-$targets = json_decode( getenv( 'PLUGIN_TARGETS' ), true );
-$attempts = array();
+$state = array(
+	'lastIndex' => (int) getenv( 'START_INDEX' ),
+	'active' => array(),
+	'messages' => array(),
+);
 $state_path = getenv( 'ACTIVATION_STATE' );
+$targets = json_decode( getenv( 'PLUGIN_TARGETS' ), true );
+playground_blueprints_write_activation_state( $state_path, $state );
+
+/**
+ * Register before WordPress loads so this runs before any plugin shutdown
+ * callbacks, including callbacks that call exit.
+ */
+register_shutdown_function(
+	function() use ( &$state, $state_path, $targets ) {
+		if (
+			! defined( 'WP_PLUGIN_DIR' ) ||
+			! function_exists( 'get_option' )
+		) {
+			return;
+		}
+		$state['active'] = array();
+		foreach ( $targets as $target ) {
+			$state['active'][ $target['index'] ] =
+				playground_blueprints_plugin_is_active(
+					$target['pluginPath']
+				);
+		}
+		$state['checked'] = true;
+		playground_blueprints_write_activation_state( $state_path, $state );
+	}
+);
+
+define( 'WP_ADMIN', true );
+require_once getenv( 'DOCROOT' ) . '/wp-load.php';
+require_once getenv( 'DOCROOT' ) . '/wp-admin/includes/plugin.php';
 
 // Set current user to admin.
 wp_set_current_user( get_users( array( 'role' => 'Administrator' ) )[0]->ID );
@@ -289,8 +243,8 @@ foreach ( $targets as $target ) {
 	ini_set( 'log_errors', '1' );
 	ini_set( 'error_log', $target['activationLogPath'] );
 
-	$attempts[ $index ] = array( 'status' => 'started' );
-	playground_blueprints_write_activation_state( $state_path, $attempts );
+	$state['lastIndex'] = $index;
+	playground_blueprints_write_activation_state( $state_path, $state );
 
 	$response = false;
 	if ( ! is_dir( $plugin_path ) ) {
@@ -309,18 +263,14 @@ foreach ( $targets as $target ) {
 	}
 
 	$active = playground_blueprints_plugin_is_active( $plugin_path );
-	$attempt = array(
-		'status' => 'returned',
-		'active' => $active,
-	);
+	$state['active'][ $index ] = $active;
 	if ( is_wp_error( $response ) ) {
-		$attempt['errorMessage'] = $response->get_error_message();
+		$state['messages'][ $index ] = $response->get_error_message();
 	} elseif ( false === $response ) {
-		$attempt['errorMessage'] =
-			"The activatePlugin step wasn't able to find the plugin $plugin_path.";
+		$state['messages'][ $index ] =
+			"Plugin activation couldn't find $plugin_path.";
 	}
-	$attempts[ $index ] = $attempt;
-	playground_blueprints_write_activation_state( $state_path, $attempts );
+	playground_blueprints_write_activation_state( $state_path, $state );
 
 	if ( ! $active && ! $target['continueOnError'] ) {
 		break;
@@ -331,86 +281,32 @@ foreach ( $targets as $target ) {
 			DOCROOT: docroot,
 			PLUGIN_TARGETS: JSON.stringify(targets),
 			ACTIVATION_STATE: statePath,
+			START_INDEX: String(startIndex),
 		},
 	});
-}
-
-async function readActivationStatuses(
-	playground: UniversalPHP,
-	docroot: string,
-	targets: RuntimePluginActivation[]
-) {
-	const result = await playground.run({
-		code: `<?php
-ob_start();
-require_once getenv( 'DOCROOT' ) . '/wp-load.php';
-
-${PLUGIN_IS_ACTIVE_PHP}
-
-$statuses = array();
-foreach ( json_decode( getenv( 'PLUGIN_TARGETS' ), true ) as $target ) {
-	$statuses[ $target['index'] ] =
-		playground_blueprints_plugin_is_active( $target['pluginPath'] );
-}
-ob_end_clean();
-
-// Print the machine-readable status after activation-related shutdown output.
-$payload_prefix = getenv( 'ACTIVATION_STATUS_PAYLOAD_PREFIX' );
-register_shutdown_function(
-	function() use ( $statuses, $payload_prefix ) {
-		echo "\\n" . $payload_prefix;
-		echo wp_json_encode( $statuses ) . "\\n";
-	}
-);
-`,
-		env: {
-			DOCROOT: docroot,
-			PLUGIN_TARGETS: JSON.stringify(targets),
-			ACTIVATION_STATUS_PAYLOAD_PREFIX: ACTIVATION_STATUS_PAYLOAD_PREFIX,
-		},
-	});
-
-	return parseActivationStatuses(result.text);
 }
 
 async function readActivationState(
 	playground: UniversalPHP,
 	statePath: string
-): Promise<ActivationState> {
+): Promise<ActivationState | undefined> {
 	if (!(await playground.fileExists(statePath))) {
-		return { attempts: {} };
+		return undefined;
 	}
 	try {
 		const state = JSON.parse(
 			await playground.readFileAsText(statePath)
 		) as Partial<ActivationState>;
+		if (typeof state.lastIndex !== 'number') {
+			return undefined;
+		}
 		return {
-			attempts: state.attempts || {},
+			lastIndex: state.lastIndex,
+			active: state.active || {},
+			messages: state.messages || {},
+			checked: state.checked === true,
 		};
 	} catch {
-		return { attempts: {} };
-	}
-}
-
-function parseActivationStatuses(text: string | undefined) {
-	const output = text || '';
-	const payloadIndex = output.lastIndexOf(ACTIVATION_STATUS_PAYLOAD_PREFIX);
-	if (payloadIndex === -1) {
-		if (output.trim()) {
-			logger.debug(output.trim());
-		}
-		return undefined;
-	}
-
-	const payload = output
-		.slice(payloadIndex + ACTIVATION_STATUS_PAYLOAD_PREFIX.length)
-		.trimStart()
-		.split(/\r?\n/, 1)[0]
-		.trim();
-	try {
-		return JSON.parse(payload) as Record<string, boolean>;
-	} catch {
-		logger.debug(output.trim());
 		return undefined;
 	}
 }
@@ -445,7 +341,6 @@ function createActivationError(
 	details.push(`Response headers: ${JSON.stringify(headers, null, 2)}`);
 	/**
 	 * Browser runs expose PHP logs in DevTools; the CLI writes them to stderr.
-	 * Point to both because this message is shared by both runtimes.
 	 */
 	details.push(
 		'If you need more context, check the Playground console ' +

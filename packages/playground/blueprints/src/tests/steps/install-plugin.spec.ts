@@ -151,9 +151,7 @@ describe('Blueprint step installPlugin', () => {
 			).resolves.toBeUndefined();
 
 			expect(loggerWarnSpy).toHaveBeenCalledWith(
-				expect.stringContaining(
-					'Skipping plugin installation for unknown plugin after failure'
-				)
+				expect.stringContaining('Skipping unknown plugin after failure')
 			);
 		} finally {
 			loggerWarnSpy.mockRestore();
@@ -177,7 +175,7 @@ describe('Blueprint step installPlugin', () => {
 
 			expect(loggerWarnSpy).toHaveBeenCalledWith(
 				expect.stringContaining(
-					'Skipping plugin installation for Query Monitor Beta after failure'
+					'Skipping Query Monitor Beta after failure'
 				)
 			);
 		} finally {

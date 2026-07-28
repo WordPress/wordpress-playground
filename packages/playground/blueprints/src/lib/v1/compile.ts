@@ -46,7 +46,6 @@ import {
 	installPluginSequence,
 	shouldActivatePlugin,
 } from '../steps/install-plugin';
-import type { InstallPluginSequenceOutcome } from '../steps/install-plugin';
 
 export { InvalidBlueprintError };
 
@@ -394,7 +393,6 @@ function compileBlueprintJson(
 			gitAdditionalHeadersCallback,
 		})
 	);
-	groupPluginInstallations(compiled);
 
 	return {
 		versions: {
@@ -413,7 +411,6 @@ function compileBlueprintJson(
 		},
 		extraLibraries: blueprint.extraLibraries || [],
 		run: async (playground: UniversalPHP) => {
-			const executionToken = {};
 			try {
 				// Start resolving resources early
 				for (const { resources } of compiled) {
@@ -435,18 +432,76 @@ function compileBlueprintJson(
 					}
 				}
 
-				for (const [i, { run, step }] of Object.entries(compiled)) {
+				let stepIndex = 0;
+				while (stepIndex < compiled.length) {
+					const compiledStep = compiled[stepIndex];
+					let sequenceEnd = stepIndex + 1;
+					if (compiledStep.step.step === 'installPlugin') {
+						while (
+							sequenceEnd < compiled.length &&
+							compiled[sequenceEnd].step.step === 'installPlugin'
+						) {
+							sequenceEnd++;
+						}
+					}
+					const pluginSequence = compiled.slice(
+						stepIndex,
+						sequenceEnd
+					);
+					const activateTogether =
+						pluginSequence.filter(
+							({ step }) =>
+								step.step === 'installPlugin' &&
+								shouldActivatePlugin(step.options || {})
+						).length >= 2;
+
+					if (activateTogether) {
+						const outcomes = await installPluginSequence(
+							playground,
+							pluginSequence.map(
+								(item) => () =>
+									item.runPluginInstallation(playground)
+							)
+						);
+						/**
+						 * Complete each logical step here so callbacks, progress,
+						 * and errors keep their original step number.
+						 */
+						for (const [
+							sequenceIndex,
+							item,
+						] of pluginSequence.entries()) {
+							try {
+								const outcome = outcomes[sequenceIndex];
+								if (outcome.error) {
+									throw outcome.error;
+								}
+								onStepCompleted(undefined, item.step);
+							} catch (e) {
+								throw new BlueprintStepExecutionError({
+									stepNumber: stepIndex + sequenceIndex + 1,
+									step: item.step,
+									cause: e,
+								});
+							} finally {
+								item.finishProgress();
+							}
+						}
+						stepIndex = sequenceEnd;
+						continue;
+					}
+
 					try {
-						const result = await run(playground, executionToken);
-						onStepCompleted(result, step);
+						const result = await compiledStep.run(playground);
+						onStepCompleted(result, compiledStep.step);
 					} catch (e) {
-						const stepNumber = Number(i) + 1;
 						throw new BlueprintStepExecutionError({
-							stepNumber,
-							step,
+							stepNumber: stepIndex + 1,
+							step: compiledStep.step,
 							cause: e,
 						});
 					}
+					stepIndex++;
 				}
 			} finally {
 				try {
@@ -685,15 +740,8 @@ interface CompileStepArgsOptions {
 }
 
 interface CompiledStep<S extends StepDefinition = StepDefinition> {
-	run: (
-		playground: UniversalPHP,
-		executionToken: object
-	) => Promise<any> | void;
-	runWithHandler: (
-		playground: UniversalPHP,
-		handler: (...args: any[]) => any,
-		finishProgress?: boolean
-	) => Promise<any>;
+	run: (playground: UniversalPHP) => Promise<any>;
+	runPluginInstallation: (playground: UniversalPHP) => Promise<any>;
 	finishProgress: () => void;
 	step: S;
 	resources: Array<Resource<any>>;
@@ -737,10 +785,14 @@ function compileStep<S extends StepDefinition>(
 		args[key] = value;
 	}
 
+	const run = (playground: UniversalPHP) =>
+		runWithHandler(playground, keyedStepHandlers[step.step], true);
+	const runPluginInstallation = (playground: UniversalPHP) =>
+		runWithHandler(playground, installPluginFiles, false);
 	const runWithHandler = async (
 		playground: UniversalPHP,
 		handler: (...args: any[]) => any,
-		finishProgress = true
+		finishProgress: boolean
 	) => {
 		try {
 			if (step.progress?.caption) {
@@ -757,8 +809,6 @@ function compileStep<S extends StepDefinition>(
 			}
 		}
 	};
-	const run = (playground: UniversalPHP) =>
-		runWithHandler(playground, keyedStepHandlers[step.step]);
 
 	/**
 	 * The weight of each async resource is the same, and is the same as the
@@ -776,81 +826,11 @@ function compileStep<S extends StepDefinition>(
 
 	return {
 		run,
-		runWithHandler,
+		runPluginInstallation,
 		finishProgress: () => stepProgress.finish(),
 		step,
 		resources,
 	};
-}
-
-/**
- * Runs each consecutive set of plugin installs as one deferred activation.
- *
- * Each logical step keeps its own run function. The first one starts the shared
- * work, while every run reads only its own stored outcome. The outer runner can
- * therefore keep reporting callbacks and failures against the original step.
- */
-function groupPluginInstallations(compiled: CompiledStep[]): void {
-	for (let start = 0; start < compiled.length; ) {
-		if (compiled[start].step.step !== 'installPlugin') {
-			start++;
-			continue;
-		}
-
-		let end = start + 1;
-		while (
-			end < compiled.length &&
-			compiled[end].step.step === 'installPlugin'
-		) {
-			end++;
-		}
-
-		const group = compiled.slice(start, end);
-		const activationCount = group.filter(
-			({ step }) =>
-				step.step === 'installPlugin' &&
-				shouldActivatePlugin(step.options || {})
-		).length;
-		if (activationCount >= 2) {
-			const sharedRuns = new WeakMap<
-				object,
-				Promise<InstallPluginSequenceOutcome[]>
-			>();
-			for (const [groupIndex, compiledStep] of group.entries()) {
-				compiledStep.run = async (
-					playground: UniversalPHP,
-					executionToken: object
-				) => {
-					let sharedRun = sharedRuns.get(executionToken);
-					if (!sharedRun) {
-						sharedRun = installPluginSequence(
-							playground,
-							group.map(
-								(item) => () =>
-									item.runWithHandler(
-										playground,
-										installPluginFiles,
-										false
-									)
-							)
-						).finally(() => {
-							for (const item of group) {
-								item.finishProgress();
-							}
-						});
-						sharedRuns.set(executionToken, sharedRun);
-					}
-
-					const outcome = (await sharedRun)[groupIndex];
-					if (outcome.error) {
-						throw outcome.error;
-					}
-				};
-			}
-		}
-
-		start = end;
-	}
 }
 
 /**
