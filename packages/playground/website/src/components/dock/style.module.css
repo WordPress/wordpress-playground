@@ -150,7 +150,11 @@
 
 .dock-item:focus-visible {
 	outline: 2px solid #3858e9;
-	outline-offset: 3px;
+	outline-offset: -2px;
+}
+
+.dock-item-primary:focus-visible {
+	outline-color: #ffffff;
 }
 
 .dock-item-primary {
@@ -766,17 +770,6 @@
 	.dock-item {
 		flex-shrink: 0;
 		min-width: 60px;
-	}
-
-	/* The horizontal scroller clips outlines drawn outside its block edge.
-	   Keep keyboard focus rings inside each button, with a contrasting ring on
-	   the blue primary button. */
-	.dock-item:focus-visible {
-		outline-offset: -2px;
-	}
-
-	.dock-item-primary:focus-visible {
-		outline-color: #ffffff;
 	}
 
 	/* 16px keeps iOS from auto-zooming when the inline rename field focuses. */
