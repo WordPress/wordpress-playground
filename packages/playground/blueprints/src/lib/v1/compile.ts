@@ -41,6 +41,12 @@ import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
 import { InvalidBlueprintError } from '../invalid-blueprint-error';
+import {
+	installPluginFiles,
+	installPluginSequence,
+	shouldActivatePlugin,
+} from '../steps/install-plugin';
+import type { InstallPluginSequenceOutcome } from '../steps/install-plugin';
 
 export { InvalidBlueprintError };
 
@@ -388,6 +394,7 @@ function compileBlueprintJson(
 			gitAdditionalHeadersCallback,
 		})
 	);
+	groupPluginInstallations(compiled);
 
 	return {
 		versions: {
@@ -406,6 +413,7 @@ function compileBlueprintJson(
 		},
 		extraLibraries: blueprint.extraLibraries || [],
 		run: async (playground: UniversalPHP) => {
+			const executionToken = {};
 			try {
 				// Start resolving resources early
 				for (const { resources } of compiled) {
@@ -429,7 +437,7 @@ function compileBlueprintJson(
 
 				for (const [i, { run, step }] of Object.entries(compiled)) {
 					try {
-						const result = await run(playground);
+						const result = await run(playground, executionToken);
 						onStepCompleted(result, step);
 					} catch (e) {
 						const stepNumber = Number(i) + 1;
@@ -676,6 +684,21 @@ interface CompileStepArgsOptions {
 	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
 }
 
+interface CompiledStep<S extends StepDefinition = StepDefinition> {
+	run: (
+		playground: UniversalPHP,
+		executionToken: object
+	) => Promise<any> | void;
+	runWithHandler: (
+		playground: UniversalPHP,
+		handler: (...args: any[]) => any,
+		finishProgress?: boolean
+	) => Promise<any>;
+	finishProgress: () => void;
+	step: S;
+	resources: Array<Resource<any>>;
+}
+
 /**
  * Compiles a single Blueprint step into a form that can be executed
  *
@@ -694,7 +717,7 @@ function compileStep<S extends StepDefinition>(
 		streamBundledFile,
 		gitAdditionalHeadersCallback,
 	}: CompileStepArgsOptions
-): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
+): CompiledStep<S> {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight,
 		step.progress?.caption
@@ -714,24 +737,28 @@ function compileStep<S extends StepDefinition>(
 		args[key] = value;
 	}
 
-	const run = async (playground: UniversalPHP) => {
+	const runWithHandler = async (
+		playground: UniversalPHP,
+		handler: (...args: any[]) => any,
+		finishProgress = true
+	) => {
 		try {
 			if (step.progress?.caption) {
 				stepProgress.setCaption(step.progress.caption);
 			}
 			stepProgress.fillSlowly();
-			return await keyedStepHandlers[step.step](
-				playground,
-				await resolveArguments(args),
-				{
-					tracker: stepProgress,
-					initialCaption: step.progress?.caption,
-				}
-			);
+			return await handler(playground, await resolveArguments(args), {
+				tracker: stepProgress,
+				initialCaption: step.progress?.caption,
+			});
 		} finally {
-			stepProgress.finish();
+			if (finishProgress) {
+				stepProgress.finish();
+			}
 		}
 	};
+	const run = (playground: UniversalPHP) =>
+		runWithHandler(playground, keyedStepHandlers[step.step]);
 
 	/**
 	 * The weight of each async resource is the same, and is the same as the
@@ -747,7 +774,83 @@ function compileStep<S extends StepDefinition>(
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return { run, step, resources };
+	return {
+		run,
+		runWithHandler,
+		finishProgress: () => stepProgress.finish(),
+		step,
+		resources,
+	};
+}
+
+/**
+ * Runs each consecutive set of plugin installs as one deferred activation.
+ *
+ * Each logical step keeps its own run function. The first one starts the shared
+ * work, while every run reads only its own stored outcome. The outer runner can
+ * therefore keep reporting callbacks and failures against the original step.
+ */
+function groupPluginInstallations(compiled: CompiledStep[]): void {
+	for (let start = 0; start < compiled.length; ) {
+		if (compiled[start].step.step !== 'installPlugin') {
+			start++;
+			continue;
+		}
+
+		let end = start + 1;
+		while (
+			end < compiled.length &&
+			compiled[end].step.step === 'installPlugin'
+		) {
+			end++;
+		}
+
+		const group = compiled.slice(start, end);
+		const activationCount = group.filter(
+			({ step }) =>
+				step.step === 'installPlugin' &&
+				shouldActivatePlugin(step.options || {})
+		).length;
+		if (activationCount >= 2) {
+			const sharedRuns = new WeakMap<
+				object,
+				Promise<InstallPluginSequenceOutcome[]>
+			>();
+			for (const [groupIndex, compiledStep] of group.entries()) {
+				compiledStep.run = async (
+					playground: UniversalPHP,
+					executionToken: object
+				) => {
+					let sharedRun = sharedRuns.get(executionToken);
+					if (!sharedRun) {
+						sharedRun = installPluginSequence(
+							playground,
+							group.map(
+								(item) => () =>
+									item.runWithHandler(
+										playground,
+										installPluginFiles,
+										false
+									)
+							)
+						).finally(() => {
+							for (const item of group) {
+								item.finishProgress();
+							}
+						});
+						sharedRuns.set(executionToken, sharedRun);
+					}
+
+					const outcome = (await sharedRun)[groupIndex];
+					if (outcome.error) {
+						throw outcome.error;
+					}
+				};
+			}
+		}
+
+		start = end;
+	}
 }
 
 /**

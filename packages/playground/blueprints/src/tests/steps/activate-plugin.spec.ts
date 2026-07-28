@@ -322,11 +322,15 @@ describe('Blueprint step activatePlugin()', () => {
 			documentRoot: '/wordpress',
 			fileExists: vi.fn().mockResolvedValue(false),
 			run: vi.fn().mockImplementation(async ({ env }) => {
-				if (env?.ACTIVATION_LOG) {
-					activationLogPaths.push(env.ACTIVATION_LOG);
+				if (env?.ACTIVATION_STATE) {
+					const [target] = JSON.parse(env.PLUGIN_TARGETS);
+					activationLogPaths.push(target.activationLogPath);
 					return { text: '', headers: {} };
 				}
-				return { text: '{"success": true}', headers: {} };
+				return {
+					text: `${env.ACTIVATION_STATUS_PAYLOAD_PREFIX}[true]`,
+					headers: {},
+				};
 			}),
 		};
 
@@ -354,7 +358,10 @@ describe('Blueprint step activatePlugin()', () => {
 			readFileAsText: vi.fn().mockResolvedValue('activation failure'),
 			unlink: vi.fn().mockResolvedValue(undefined),
 			run: vi.fn().mockImplementation(async ({ env }) => {
-				activationLogPath = env.ACTIVATION_LOG;
+				if (env.PLUGIN_TARGETS) {
+					const [target] = JSON.parse(env.PLUGIN_TARGETS);
+					activationLogPath = target.activationLogPath;
+				}
 				throw new Error('PHP request failed');
 			}),
 		};
@@ -363,9 +370,6 @@ describe('Blueprint step activatePlugin()', () => {
 			activatePlugin(playground as any, { pluginPath: 'failing.php' })
 		).rejects.toThrow('PHP request failed');
 
-		expect(playground.readFileAsText).toHaveBeenCalledWith(
-			activationLogPath
-		);
 		expect(playground.unlink).toHaveBeenCalledWith(activationLogPath);
 	});
 

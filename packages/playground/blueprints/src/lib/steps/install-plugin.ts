@@ -2,12 +2,14 @@ import type { StepHandler } from '.';
 import type { InstallAssetOptions } from './install-asset';
 import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
+import { activatePlugins } from './activate-plugins';
 import { writeFile } from './write-file';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import type { Directory } from '../v1/resources';
 import { joinPaths } from '@php-wasm/util';
 import { writeFiles, type UniversalPHP } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
+import type { StepProgress } from '.';
 
 const ACTIVATION_OPTIONS_PAYLOAD_PREFIX = 'PLAYGROUND_ACTIVATION_OPTIONS:';
 
@@ -96,6 +98,21 @@ export interface InstallPluginOptions {
 	humanReadableName?: string;
 }
 
+export interface InstalledPlugin {
+	pluginPath: string;
+	pluginName: string;
+	options: InstallPluginOptions;
+	progress?: StepProgress;
+}
+
+export interface InstallPluginSequenceOutcome {
+	error?: unknown;
+}
+
+export type DeferredPluginInstallation = () => Promise<
+	InstalledPlugin | undefined
+>;
+
 /**
  * Installs a WordPress plugin in the Playground.
  *
@@ -105,6 +122,152 @@ export interface InstallPluginOptions {
  */
 export const installPlugin: StepHandler<
 	InstallPluginStep<File, Directory>
+> = async (playground, args, progress?) => {
+	const options = args.options || {};
+	const installedPlugin = await installPluginFiles(
+		playground,
+		args,
+		progress
+	);
+	if (!installedPlugin || !shouldActivatePlugin(options)) {
+		return;
+	}
+
+	// Activate
+	try {
+		await activateInstalledPlugin(playground, installedPlugin);
+	} catch (error) {
+		if (options.onError === 'skip-plugin') {
+			logSkippedPlugin(installedPlugin.pluginName, error);
+			return;
+		}
+		throw error;
+	}
+};
+
+/**
+ * Installs a run of plugins first, then activates all successful installs in
+ * one WordPress request. Each returned outcome belongs to the original step.
+ * If activation stops the run, later plugin files are already installed but
+ * remain inactive, and the outer runner still stops at the failing step.
+ */
+export async function installPluginSequence(
+	playground: UniversalPHP,
+	installations: DeferredPluginInstallation[]
+): Promise<InstallPluginSequenceOutcome[]> {
+	const outcomes: InstallPluginSequenceOutcome[] = installations.map(
+		() => ({})
+	);
+	const activations: Array<{
+		stepIndex: number;
+		installedPlugin: InstalledPlugin;
+		activationOptionName?: string;
+	}> = [];
+
+	for (const [stepIndex, install] of installations.entries()) {
+		let installedPlugin: InstalledPlugin | undefined;
+		try {
+			installedPlugin = await install();
+		} catch (error) {
+			outcomes[stepIndex].error = error;
+			break;
+		}
+		if (
+			!installedPlugin ||
+			!shouldActivatePlugin(installedPlugin.options)
+		) {
+			continue;
+		}
+
+		try {
+			let activationOptionName: string | undefined;
+			if (installedPlugin.options.activationOptions !== undefined) {
+				activationOptionName = await setPluginActivationOptions(
+					playground,
+					installedPlugin.pluginPath,
+					installedPlugin.options.activationOptions
+				);
+			}
+			activations.push({
+				stepIndex,
+				installedPlugin,
+				activationOptionName,
+			});
+		} catch (error) {
+			if (installedPlugin.options.onError === 'skip-plugin') {
+				logSkippedPlugin(installedPlugin.pluginName, error);
+				continue;
+			}
+			outcomes[stepIndex].error = error;
+			break;
+		}
+	}
+
+	const activationErrors = new Map<number, unknown>();
+	try {
+		for (const { installedPlugin } of activations) {
+			installedPlugin.progress?.tracker.setCaption(
+				`Activating ${
+					installedPlugin.pluginName || installedPlugin.pluginPath
+				}`
+			);
+		}
+		const activationOutcomes = await activatePlugins(
+			playground,
+			activations.map(({ installedPlugin }) => ({
+				pluginPath: installedPlugin.pluginPath,
+				continueOnError:
+					installedPlugin.options.onError === 'skip-plugin',
+			}))
+		);
+		for (const [index, outcome] of activationOutcomes.entries()) {
+			if (outcome.error) {
+				activationErrors.set(
+					activations[index].stepIndex,
+					outcome.error
+				);
+			}
+		}
+	} catch (error) {
+		if (activations.length > 0) {
+			activationErrors.set(activations[0].stepIndex, error);
+		}
+	} finally {
+		for (const activation of activations) {
+			if (!activation.activationOptionName) {
+				continue;
+			}
+			try {
+				await deletePluginActivationOptions(
+					playground,
+					activation.activationOptionName
+				);
+			} catch (error) {
+				// This matches the singular step's finally block: cleanup errors
+				// replace activation errors for the same plugin.
+				activationErrors.set(activation.stepIndex, error);
+			}
+		}
+	}
+
+	for (const { stepIndex, installedPlugin } of activations) {
+		const error = activationErrors.get(stepIndex);
+		if (!error) {
+			continue;
+		}
+		if (installedPlugin.options.onError === 'skip-plugin') {
+			logSkippedPlugin(installedPlugin.pluginName, error);
+		} else {
+			outcomes[stepIndex].error = error;
+		}
+	}
+
+	return outcomes;
+}
+
+export const installPluginFiles: StepHandler<
+	InstallPluginStep<File, Directory>,
+	Promise<InstalledPlugin | undefined>
 > = async (
 	playground,
 	{ pluginData, pluginZipFile, ifAlreadyInstalled, options = {} },
@@ -120,21 +283,6 @@ export const installPlugin: StepHandler<
 	let assetPath = '';
 	let assetNiceName = '';
 	const progressName = () => options.humanReadableName || assetNiceName;
-
-	const looksLikeZipFile = async (file: File): Promise<boolean> => {
-		if (file.name.toLowerCase().endsWith('.zip')) {
-			return true;
-		}
-
-		const filePrefix = new Uint8Array(await file.arrayBuffer(), 0, 4);
-		// Check against the signature for non-empty, non-spanned zip files.
-		const matchesZipSignature =
-			filePrefix[0] === 0x50 &&
-			filePrefix[1] === 0x4b &&
-			filePrefix[2] === 0x03 &&
-			filePrefix[3] === 0x04;
-		return matchesZipSignature;
-	};
 
 	try {
 		const pluginsDirectoryPath = joinPaths(
@@ -201,50 +349,81 @@ export const installPlugin: StepHandler<
 			);
 			assetPath = pluginDirectoryPath;
 		}
-
-		// Activate
-		const activate = 'activate' in options ? options.activate : true;
-
-		if (activate) {
-			let activationOptionName: string | undefined;
-			if (options.activationOptions !== undefined) {
-				activationOptionName = await setPluginActivationOptions(
-					playground,
-					assetPath,
-					options.activationOptions
-				);
-			}
-			try {
-				await activatePlugin(
-					playground,
-					{
-						pluginPath: assetPath,
-						pluginName: progressName(),
-					},
-					progress
-				);
-			} finally {
-				if (activationOptionName) {
-					await deletePluginActivationOptions(
-						playground,
-						activationOptionName
-					);
-				}
-			}
-		}
 	} catch (error) {
 		if (options.onError === 'skip-plugin') {
-			const skippedPluginName = progressName() || 'unknown plugin';
-			logger.warn(
-				`Skipping plugin installation for ${skippedPluginName} after failure: ${
-					error instanceof Error ? error.message : String(error)
-				}`
-			);
-			return;
+			logSkippedPlugin(progressName(), error);
+			return undefined;
 		}
 		throw error;
 	}
+
+	return {
+		pluginPath: assetPath,
+		pluginName: progressName(),
+		options,
+		progress,
+	};
 };
+
+async function activateInstalledPlugin(
+	playground: UniversalPHP,
+	installedPlugin: InstalledPlugin
+) {
+	let activationOptionName: string | undefined;
+	if (installedPlugin.options.activationOptions !== undefined) {
+		activationOptionName = await setPluginActivationOptions(
+			playground,
+			installedPlugin.pluginPath,
+			installedPlugin.options.activationOptions
+		);
+	}
+	try {
+		await activatePlugin(
+			playground,
+			{
+				pluginPath: installedPlugin.pluginPath,
+				pluginName: installedPlugin.pluginName,
+			},
+			installedPlugin.progress
+		);
+	} finally {
+		if (activationOptionName) {
+			await deletePluginActivationOptions(
+				playground,
+				activationOptionName
+			);
+		}
+	}
+}
+
+async function looksLikeZipFile(file: File): Promise<boolean> {
+	if (file.name.toLowerCase().endsWith('.zip')) {
+		return true;
+	}
+
+	const filePrefix = new Uint8Array(await file.arrayBuffer(), 0, 4);
+	// Check against the signature for non-empty, non-spanned zip files.
+	return (
+		filePrefix[0] === 0x50 &&
+		filePrefix[1] === 0x4b &&
+		filePrefix[2] === 0x03 &&
+		filePrefix[3] === 0x04
+	);
+}
+
+function logSkippedPlugin(pluginName: string, error: unknown) {
+	logger.warn(
+		`Skipping plugin installation for ${
+			pluginName || 'unknown plugin'
+		} after failure: ${
+			error instanceof Error ? error.message : String(error)
+		}`
+	);
+}
+
+export function shouldActivatePlugin(options: InstallPluginOptions): boolean {
+	return 'activate' in options ? Boolean(options.activate) : true;
+}
 
 /**
  * Stages activation options for a plugin before its activation hook runs.
