@@ -14,22 +14,33 @@ import {
 	RemoteAccessConnect,
 	isRemoteAccessConnectRoute,
 } from './components/remote-access-connect';
+import { AppUpdateGate, AppUpdateNotice } from './components/app-update-notice';
+import { AppUpdateProvider } from './lib/pwa-update/use-app-update';
 
 collectWindowErrors(logger);
 
 const root = createRoot(document.getElementById('root')!);
 const remoteAccessSessionId = getRemoteAccessSessionId();
 
-root.render(
-	remoteAccessSessionId ? (
-		<RemoteAccessViewer sessionId={remoteAccessSessionId} />
-	) : isRemoteAccessConnectRoute() ? (
-		<RemoteAccessConnect />
-	) : (
-		<Provider store={store}>
-			<EnsurePlaygroundSite>
-				<Layout />
-			</EnsurePlaygroundSite>
-		</Provider>
-	)
-);
+root.render(<PersonalWPApp />);
+
+function PersonalWPApp() {
+	return (
+		<AppUpdateProvider>
+			<AppUpdateGate>
+				<AppUpdateNotice />
+				{remoteAccessSessionId ? (
+					<RemoteAccessViewer sessionId={remoteAccessSessionId} />
+				) : isRemoteAccessConnectRoute() ? (
+					<RemoteAccessConnect />
+				) : (
+					<Provider store={store}>
+						<EnsurePlaygroundSite>
+							<Layout />
+						</EnsurePlaygroundSite>
+					</Provider>
+				)}
+			</AppUpdateGate>
+		</AppUpdateProvider>
+	);
+}

@@ -115,8 +115,8 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
 	const manifestResponse = await fetchFresh(
 		'/assets-required-for-offline-mode.json'
 	);
-	const requiredOfflineAssetUrls = await manifestResponse.json();
-	const urlsToCache = ['/', ...requiredOfflineAssetUrls];
+	const requiredOfflineAssetUrls: string[] = await manifestResponse.json();
+	const urlsToCache = Array.from(new Set(['/', ...requiredOfflineAssetUrls]));
 	const websiteRequests = urlsToCache.map(
 		/**
 		 * Ensure the response is not coming from HTTP cache.
@@ -194,6 +194,10 @@ export function shouldCacheUrl(url: URL) {
 	 * change on every request.
 	 */
 	if (url.pathname.endsWith('.php')) {
+		return false;
+	}
+
+	if (url.pathname === '/app-version.json') {
 		return false;
 	}
 

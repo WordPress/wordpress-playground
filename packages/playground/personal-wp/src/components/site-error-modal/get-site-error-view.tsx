@@ -61,7 +61,7 @@ export function getSiteErrorView(
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
 		case 'resource-download-failed':
-			return resourceDownloadFailedView();
+			return resourceDownloadFailedView(context);
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
@@ -468,7 +468,49 @@ function networkFirewallInterferenceView({
 	};
 }
 
-function resourceDownloadFailedView(): SiteErrorViewConfig {
+function resourceDownloadFailedView({
+	errorDetails,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	if (isBrowserRuntimeStartupFailure(errorDetails)) {
+		return {
+			title: 'Could not start WordPress in this browser',
+			isDeveloperError: false,
+			hideReportButton: true,
+			hideTroubleshootWithAiButton: true,
+			detailSummaryOverride: 'Technical details',
+			body: (
+				<>
+					<p className={css.errorLead}>
+						Safari could not start the browser worker that runs
+						WordPress. This is usually caused by stale website data,
+						a service worker cache issue, or an interrupted update.
+					</p>
+					<ul className={css.errorList}>
+						<li>Reload the page and try again.</li>
+						<li>
+							If the problem persists, remove website data for{' '}
+							<code>{window.location.hostname}</code> in Safari
+							and reload.
+						</li>
+						<li>
+							Disable browser extensions or content blockers that
+							might interfere with workers.
+						</li>
+					</ul>
+				</>
+			),
+			actions: [
+				<Button
+					variant="primary"
+					key="reload"
+					onClick={() => window.location.reload()}
+				>
+					Reload page
+				</Button>,
+			],
+		};
+	}
+
 	return {
 		title: 'Could not download required files',
 		isDeveloperError: false,
@@ -503,6 +545,27 @@ function resourceDownloadFailedView(): SiteErrorViewConfig {
 			</Button>,
 		],
 	};
+}
+
+function isBrowserRuntimeStartupFailure(errorDetails: unknown): boolean {
+	const message = getErrorDetailsMessage(errorDetails).toLowerCase();
+	return (
+		message.includes('webworker failed to load') ||
+		message.includes('service worker context closed')
+	);
+}
+
+function getErrorDetailsMessage(errorDetails: unknown): string {
+	if (typeof errorDetails === 'string') {
+		return errorDetails;
+	}
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return '';
+	}
+
+	const details = errorDetails as Record<string, unknown>;
+	const message = details.rawMessage || details.message;
+	return typeof message === 'string' ? message : '';
 }
 
 function genericSiteBootFailedView({

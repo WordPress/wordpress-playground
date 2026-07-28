@@ -42,6 +42,7 @@ const patternsToNotCache = [
 	 * Files needed only by the playground.wordpress.net server.
 	 */
 	'/.htaccess',
+	'/app-version.json',
 	/**
 	 * We can't download the PHP scripts – only get their execution result. This is fine,
 	 * we don't need them for the offline mode anyway. This includes things like plugins-proxy.php.
@@ -115,23 +116,27 @@ export const listAssetsRequiredForOfflineMode = ({
 		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
-			const files = distDirectoriesToList.flatMap((dir) => {
-				const absoluteDirPath = join(outputDir, dir);
-				console.log(`Listing files in ${absoluteDirPath}`);
-				return listFiles(absoluteDirPath)
-					.map((file) => {
-						file = file.replace(absoluteDirPath, '');
-						return join('/', file);
+			const files = Array.from(
+				new Set(
+					distDirectoriesToList.flatMap((dir) => {
+						const absoluteDirPath = join(outputDir, dir);
+						console.log(`Listing files in ${absoluteDirPath}`);
+						return listFiles(absoluteDirPath)
+							.map((file) => {
+								file = file.replace(absoluteDirPath, '');
+								return join('/', file);
+							})
+							.filter((item) => {
+								return !patternsToNotCache.some((pattern) => {
+									if (pattern instanceof RegExp) {
+										return pattern.test(item);
+									}
+									return pattern === item;
+								});
+							});
 					})
-					.filter((item) => {
-						return !patternsToNotCache.some((pattern) => {
-							if (pattern instanceof RegExp) {
-								return pattern.test(item);
-							}
-							return pattern === item;
-						});
-					});
-			});
+				)
+			);
 			writeFileSync(
 				join(outputDir, outputFile),
 				JSON.stringify(files, null, 2)

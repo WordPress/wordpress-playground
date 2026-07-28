@@ -92,6 +92,17 @@ assert_equal(
     'My WordPress relay endpoint should not be edge cached'
 );
 
+$mywp_app_version_headers = playground_get_custom_response_headers( '/app-version.json' );
+assert_equal(
+    true,
+    in_array(
+        'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+        $mywp_app_version_headers,
+        true
+    ),
+    'My WordPress app version endpoint should not be cached'
+);
+
 $mywp_event_server_snapshot = $_SERVER;
 
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';
