@@ -41,6 +41,12 @@ export type WithAPIState = {
 };
 export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
+/**
+ * A value that a transfer policy may add to Comlink's postMessage() transfer
+ * list. Only nested MessagePorts make a policy hook statically required;
+ * transferring other values, such as ArrayBuffers, is an opt-in ownership
+ * decision because it may detach or otherwise invalidate the sender's value.
+ */
 export type APITransferable = Transferable | NodeTransferable;
 
 type AnyMethod = (...args: any[]) => any;
@@ -88,6 +94,11 @@ type ArgumentNeedsTransferPolicy<Argument> =
 		? false
 		: ContainsMessagePort<Argument>;
 
+/**
+ * `Parameters` and `ReturnType` inspect only the last signature of an
+ * overloaded method. API contracts that need required-policy checking must
+ * expose nested MessagePorts in that signature or use a non-overloaded method.
+ */
 type ArgumentsNeedTransferPolicy<Method extends AnyMethod> =
 	true extends ArgumentNeedsTransferPolicy<Parameters<Method>[number]>
 		? true
@@ -145,12 +156,19 @@ type RequiresTransferPolicy<Value> = Value extends AnyMethod
  * when their nested transferables are included in the postMessage() transfer
  * list. Nested objects mirror nested API method paths.
  *
- * The required-policy check follows statically visible object properties and
- * the element types of arrays, maps, and sets. It intentionally cannot inspect
- * `any`, `unknown`, runtime-only values, or custom containers whose contents
- * are not represented by their public TypeScript shape. Extremely large types
- * are also subject to TypeScript's own type-instantiation limit. Declare an
- * optional hook explicitly for any such shape that may contain transferables.
+ * The required-policy check detects nested MessagePorts only. They cannot be
+ * structured-cloned without transfer, so a missing hook is unambiguously an
+ * error. Other transferable types remain optional because transferring them
+ * may change ownership semantics; for example, transferring an ArrayBuffer
+ * detaches it from the sender.
+ *
+ * Detection follows statically visible object properties and the element types
+ * of arrays, maps, and sets. It cannot inspect `any`, `unknown`, runtime-only
+ * values, custom containers whose contents are absent from their public
+ * TypeScript shape, or MessagePorts present only in a non-final overload.
+ * Extremely large types are also subject to TypeScript's type-instantiation
+ * limit. Declare an optional hook explicitly for any such shape that may
+ * contain transferables.
  *
  * This analysis only decides whether TypeScript requires a hook. At runtime no
  * object tree is traversed: the hook alone returns the exact transfer list.
@@ -235,6 +253,10 @@ function assertIsMessagePort(
 	}
 }
 
+/**
+ * Consume a remote API. APIs with statically visible nested MessagePorts
+ * require an APITransferPolicy as the third argument.
+ */
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined,
@@ -454,6 +476,11 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 	Methods & PipedAPI
 >;
 
+/**
+ * Expose local methods and an optional piped API. Contracts with statically
+ * visible nested MessagePorts require an APITransferPolicy as the fourth
+ * argument.
+ */
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
@@ -601,7 +628,7 @@ function prepareForExpose<Methods, PipedAPI>(
 
 	const methods = proxyClone(apiMethods, transferPolicy);
 	const pipedMethods = pipedApi
-		? proxyClone(pipedApi, transferPolicy)
+		? applyResultTransferPolicy(pipedApi, transferPolicy)
 		: pipedApi;
 	const exposedApi = new Proxy(methods, {
 		get: (target, prop) => {
@@ -617,6 +644,49 @@ function prepareForExpose<Methods, PipedAPI>(
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
 	return { setReady, setFailed, exposedApi };
+}
+
+/**
+ * Preserve the Comlink proxy's property traps except at method paths whose
+ * results have an explicit transfer policy. In particular, remote value
+ * properties are thenable Comlink proxies; recursively cloning every property
+ * turns those proxies into plain functions and breaks property reads.
+ */
+function applyResultTransferPolicy(
+	api: any,
+	policy: APITransferPolicy<any> | undefined
+): any {
+	if (!policy) {
+		return api;
+	}
+
+	return new Proxy(api, {
+		get(target, property) {
+			const value = target[property];
+			const policyNode =
+				typeof property === 'string'
+					? (policy as Record<string, unknown>)[property]
+					: undefined;
+			if (!isRuntimeMethodTransferPolicy(policyNode)) {
+				return policyNode && isObjectLike(value)
+					? applyResultTransferPolicy(
+							value,
+							policyNode as APITransferPolicy<any>
+						)
+					: value;
+			}
+			if (!policyNode.result || typeof value !== 'function') {
+				return value;
+			}
+			return (...args: any[]) =>
+				Promise.resolve(value(...args)).then((result) =>
+					createAPITransferEnvelope(
+						result,
+						policyNode.result!(result)
+					)
+				);
+		},
+	});
 }
 
 const apiTransferMarker = Symbol('php-wasm-api-transfer');

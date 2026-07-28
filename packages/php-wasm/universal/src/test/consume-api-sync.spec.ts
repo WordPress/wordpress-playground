@@ -7,6 +7,7 @@ import {
 	defineAPITransferPolicy,
 	exposeAPI,
 	exposeSyncAPI,
+	releaseApiProxy,
 	type APITransferPolicy,
 } from '../lib/api';
 
@@ -337,6 +338,84 @@ describe('MessagePort transfer handling', () => {
 		apiChannel.port2.close();
 		resourceChannel.port1.close();
 		resourceChannel.port2.close();
+	});
+});
+
+describe('piped API forwarding', () => {
+	it('preserves a consumed proxy and applies only its declared result policy', async () => {
+		type PipedApi = {
+			absoluteUrl: string;
+			stringifyDate(date: Date): string;
+			createPort(): { port: MessagePort };
+		};
+		const transferPolicy = defineAPITransferPolicy<PipedApi>({
+			createPort: {
+				result(resource) {
+					return [resource.port];
+				},
+			},
+		});
+		const innerApiChannel = new MessageChannel();
+		const outerApiChannel = new MessageChannel();
+		const resourceChannel = new MessageChannel();
+		const [setInnerReady] = exposeAPI<PipedApi, undefined>(
+			{
+				absoluteUrl: 'https://playground.wordpress.net/',
+				stringifyDate(date) {
+					return date.toISOString();
+				},
+				createPort() {
+					return { port: resourceChannel.port1 };
+				},
+			},
+			undefined,
+			innerApiChannel.port1,
+			transferPolicy
+		);
+		setInnerReady();
+		const innerApi = consumeAPI<PipedApi>(
+			innerApiChannel.port2,
+			undefined,
+			transferPolicy
+		);
+		const [setOuterReady] = exposeAPI(
+			{},
+			innerApi,
+			outerApiChannel.port1,
+			transferPolicy
+		);
+		setOuterReady();
+		const outerApi = consumeAPI<PipedApi>(
+			outerApiChannel.port2,
+			undefined,
+			transferPolicy
+		);
+		const resourceMessage = new Promise(function receiveResourceMessage(
+			resolve
+		) {
+			resourceChannel.port2.once('message', resolve);
+		});
+
+		try {
+			await expect(outerApi.absoluteUrl).resolves.toBe(
+				'https://playground.wordpress.net/'
+			);
+			await expect(
+				outerApi.stringifyDate(new Date('2026-07-28T12:00:00.000Z'))
+			).resolves.toBe('2026-07-28T12:00:00.000Z');
+			const resource = await outerApi.createPort();
+			resource.port.postMessage('forwarded');
+			await expect(resourceMessage).resolves.toBe('forwarded');
+			resource.port.close();
+		} finally {
+			outerApi[releaseApiProxy]();
+			innerApi[releaseApiProxy]();
+			innerApiChannel.port1.close();
+			innerApiChannel.port2.close();
+			outerApiChannel.port1.close();
+			outerApiChannel.port2.close();
+			resourceChannel.port2.close();
+		}
 	});
 });
 
