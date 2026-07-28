@@ -6,20 +6,14 @@ inputs:
         required: true
         description: 'Node.js version to use'
         default: '20'
-    set-nx-shas:
-        type: boolean
-        required: false
-        description: 'Set the base and head SHAs used by nx affected'
-        default: false
 
 runs:
     using: 'composite'
     steps:
-        - name: Derive appropriate SHAs for nx affected
-          if: inputs.set-nx-shas == 'true'
-          uses: nrwl/nx-set-shas@v5
-          with:
-              main-branch-name: trunk
+        - name: Fetch base SHA for nx affected
+          if: env.NX_BASE != ''
+          shell: bash
+          run: git fetch --no-tags --depth=1 --filter=blob:none origin "$NX_BASE"
         - uses: actions/setup-node@v4
           with:
               node-version: ${{ inputs.node-version }}
