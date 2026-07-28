@@ -214,7 +214,7 @@ describe('createChildWorkerService', function () {
 		expect(controller.liveChildWorkerCount()).toBe(0);
 	});
 
-	it('terminates a parent when grandchild termination fails', async function () {
+	it('waits for every grandchild before reporting a termination failure', async function () {
 		const harness = createSpawnHarness();
 		const controller = createChildWorkerService(
 			harness.spawnWorker,
@@ -231,18 +231,50 @@ describe('createChildWorkerService', function () {
 			childWorkerServiceTransferPolicy
 		);
 		await childService.createChildWorker();
+		await childService.createChildWorker();
 		harness.workers[1].terminate = vi.fn(
 			async function rejectGrandchildTermination(): Promise<number> {
 				throw new Error('Grandchild termination was rejected');
 			}
 		);
+		let finishSlowGrandchildTermination!: () => void;
+		const slowGrandchildTermination = new Promise<void>(
+			function captureSlowGrandchildTermination(resolve): void {
+				finishSlowGrandchildTermination = resolve;
+			}
+		);
+		harness.workers[2].terminate = vi.fn(
+			async function delayGrandchildTermination(): Promise<number> {
+				await slowGrandchildTermination;
+				harness.workers[2].exit();
+				return 0;
+			}
+		);
 
-		await expect(topLevelWorkerEndpoint.dispose()).rejects.toThrow(
+		const disposal = topLevelWorkerEndpoint.dispose();
+		let disposalSettled = false;
+		void disposal
+			.catch(function observeExpectedDisposalFailure(): void {
+				// The assertion below inspects the same rejection.
+			})
+			.finally(function recordDisposalSettlement(): void {
+				disposalSettled = true;
+			});
+		await vi.waitFor(function waitForGrandchildTermination(): void {
+			expect(harness.workers[1].terminate).toHaveBeenCalledOnce();
+			expect(harness.workers[2].terminate).toHaveBeenCalledOnce();
+		});
+		expect(disposalSettled).toBe(false);
+		expect(harness.workers[0].terminateCalls).toBe(0);
+
+		finishSlowGrandchildTermination();
+		await expect(disposal).rejects.toThrow(
 			'Failed to terminate child worker 2.'
 		);
 
 		expect(harness.workers[0].terminateCalls).toBe(1);
 		expect(harness.workers[1].terminate).toHaveBeenCalledOnce();
+		expect(harness.workers[2].terminate).toHaveBeenCalledOnce();
 		expect(controller.liveChildWorkerCount()).toBe(1);
 
 		// Model a later native exit so this test leaves no live service records.

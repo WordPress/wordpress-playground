@@ -441,15 +441,33 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 	function disposeOwner(owner: ChildWorkerOwner<Worker>): Promise<void> {
 		if (!owner.disposePromise) {
 			owner.disposed = true;
-			owner.disposePromise = Promise.all(
-				[...owner.children].map(function disposeOwnedChild(child) {
-					return disposeChildRecord(child);
-				})
-			).then(function finishOwnerDisposal(): void {
-				// The endpoint stays closed after all of its children have stopped.
-			});
+			owner.disposePromise = disposeOwnedChildren(owner);
 		}
 		return owner.disposePromise;
+	}
+
+	async function disposeOwnedChildren(
+		owner: ChildWorkerOwner<Worker>
+	): Promise<void> {
+		const results = await Promise.allSettled(
+			[...owner.children].map(function disposeOwnedChild(child) {
+				return disposeChildRecord(child);
+			})
+		);
+		const failures = results.flatMap(
+			function collectDisposalFailure(result): unknown[] {
+				return result.status === 'rejected' ? [result.reason] : [];
+			}
+		);
+		if (failures.length === 1) {
+			throw failures[0];
+		}
+		if (failures.length > 1) {
+			throw new AggregateError(
+				failures,
+				'Failed to dispose one or more owned child workers.'
+			);
+		}
 	}
 
 	async function disposeChildWorker(childId: number): Promise<void> {
