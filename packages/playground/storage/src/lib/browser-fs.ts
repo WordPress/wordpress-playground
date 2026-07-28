@@ -23,20 +23,41 @@ export async function directoryHandleFromMountDevice(
 		return device.handle;
 	}
 
-	const opfsPath =
-		device.type === 'opfs'
-			? device.path
-			: getEmbeddedSiteOpfsPath(device.storageKey);
-	return opfsPathToDirectoryHandle(opfsPath);
+	if (device.type === 'opfs-embedded-site') {
+		return getEmbeddedSiteOpfsDirectoryHandle(device.storageKey, {
+			create: true,
+		});
+	}
+
+	return opfsPathToDirectoryHandle(device.path);
+}
+
+/**
+ * Opens the canonical OPFS directory for an embedded site.
+ *
+ * Mounting code should pass `create: true`. Consumers opening an existing site
+ * should pass `create: false` so an unknown storage key does not create an
+ * empty site.
+ */
+export async function getEmbeddedSiteOpfsDirectoryHandle(
+	storageKey: string,
+	options: { create: boolean }
+): Promise<FileSystemDirectoryHandle> {
+	return opfsPathToDirectoryHandle(getEmbeddedSiteOpfsPath(storageKey), {
+		create: options.create,
+	});
 }
 
 export async function opfsPathToDirectoryHandle(
-	opfsPath: string
+	opfsPath: string,
+	options: { create?: boolean } = {}
 ): Promise<FileSystemDirectoryHandle> {
 	const parts = opfsPath.split('/').filter((p) => p.length > 0);
 	let handle = await navigator.storage.getDirectory();
 	for (const part of parts) {
-		handle = await handle.getDirectoryHandle(part, { create: true });
+		handle = await handle.getDirectoryHandle(part, {
+			create: options.create ?? true,
+		});
 	}
 	return handle;
 }

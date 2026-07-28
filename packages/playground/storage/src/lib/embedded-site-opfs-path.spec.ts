@@ -1,4 +1,7 @@
-import { directoryHandleFromMountDevice } from './browser-fs';
+import {
+	directoryHandleFromMountDevice,
+	getEmbeddedSiteOpfsDirectoryHandle,
+} from './browser-fs';
 import { getEmbeddedSiteOpfsPath } from './embedded-site-opfs-path';
 
 describe('getEmbeddedSiteOpfsPath', () => {
@@ -19,12 +22,38 @@ describe('getEmbeddedSiteOpfsPath', () => {
 	});
 });
 
-describe('embedded site OPFS mount device', () => {
+describe('embedded site OPFS directory handle', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 	});
 
-	it('opens the path derived from its storage key', async () => {
+	it('opens an existing directory without creating it', async () => {
+		const getDirectoryHandle = vi.fn();
+		const directoryHandle = {
+			getDirectoryHandle,
+		} as unknown as FileSystemDirectoryHandle;
+		getDirectoryHandle.mockResolvedValue(directoryHandle);
+		vi.stubGlobal('navigator', {
+			storage: {
+				getDirectory: vi.fn(async () => directoryHandle),
+			},
+		});
+
+		await getEmbeddedSiteOpfsDirectoryHandle('a/b', {
+			create: false,
+		});
+
+		expect(getDirectoryHandle).toHaveBeenNthCalledWith(
+			1,
+			'embedded-sites',
+			{ create: false }
+		);
+		expect(getDirectoryHandle).toHaveBeenNthCalledWith(2, 'site-a%2Fb', {
+			create: false,
+		});
+	});
+
+	it('creates the directory for an embedded site mount', async () => {
 		const getDirectoryHandle = vi.fn();
 		const directoryHandle = {
 			getDirectoryHandle,
