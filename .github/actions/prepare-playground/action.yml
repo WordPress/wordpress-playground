@@ -6,13 +6,20 @@ inputs:
         required: true
         description: 'Node.js version to use'
         default: '20'
+    set-nx-shas:
+        type: boolean
+        required: false
+        description: 'Set the base and head SHAs used by nx affected'
+        default: false
 
 runs:
     using: 'composite'
     steps:
-        - name: Fetch trunk
-          shell: bash
-          run: git fetch origin trunk --depth=1 --recurse-submodules
+        - name: Derive appropriate SHAs for nx affected
+          if: inputs.set-nx-shas == 'true'
+          uses: nrwl/nx-set-shas@v5
+          with:
+              main-branch-name: trunk
         - uses: actions/setup-node@v4
           with:
               node-version: ${{ inputs.node-version }}
@@ -48,12 +55,6 @@ runs:
                   /etc/apt/sources.list.d/azure-cli.sources \
                   /etc/apt/sources.list.d/microsoft-prod.list \
                   /etc/apt/sources.list.d/microsoft-prod.sources || true
-        - name: Set NX_BASE
-          shell: bash
-          run: echo "NX_BASE=$(git rev-parse origin/trunk)" >> $GITHUB_ENV
-        - name: Set NX_HEAD
-          shell: bash
-          run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
         - name: Reset NX cache
           shell: bash
           run: npx nx reset
