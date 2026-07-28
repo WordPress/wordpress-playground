@@ -235,11 +235,12 @@
 	--accent: #3858e9;
 	--accent-hover: #2f4ad1;
 	--accent-link: #2645c9;
+	--radius-pane: 14px;
 	--radius-card: 8px;
 	--radius-control: 6px;
 
 	background: var(--paper-1);
-	border-radius: 14px;
+	border-radius: var(--radius-pane);
 	bottom: 94px;
 	/* Shadow only — a floating element doesn't also need a hard border
 	   (the doubled edge is a slop tell). A faint top highlight fakes a lit top. */
@@ -261,6 +262,16 @@
 	transform: translate(-50%, 0);
 	width: min(600px, calc(100vw - 40px));
 	z-index: 40;
+}
+
+/* Classic scrollbars paint their track over the pane's rounded edge. Keep the
+   track transparent and away from the corner curve. Physical margins, not
+   margin-block: logical properties resolve unreliably inside scrollbar
+   pseudo-elements, and this track is always vertical. */
+.pane::-webkit-scrollbar-track {
+	background: transparent;
+	margin-bottom: var(--radius-pane);
+	margin-top: var(--radius-pane);
 }
 
 .pane-editor {

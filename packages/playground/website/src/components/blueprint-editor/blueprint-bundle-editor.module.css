@@ -230,13 +230,23 @@
 }
 
 .runHint {
-	background: var(--paper-2, #ffffff);
-	border-bottom: 1px solid var(--line-subtle, #ddd);
-	color: var(--ink-muted, #50575e);
+	align-items: flex-start;
+	background: #fff8e5;
+	border-bottom: 1px solid #f0b849;
+	color: #614c00;
+	display: flex;
 	font-size: 13px;
+	gap: 8px;
 	line-height: 1.5;
 	margin: 0;
 	padding: 10px 16px;
+}
+
+.runHint svg {
+	color: #996800;
+	fill: currentColor;
+	flex: 0 0 auto;
+	margin-top: 1px;
 }
 
 .editorDocsLink {
