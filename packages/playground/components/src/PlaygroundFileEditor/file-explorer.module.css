@@ -163,7 +163,7 @@
 	.dockPresentation .fileExplorerSubsectionTitle {
 		color: var(--ink-muted, #5f5b54);
 		display: inline;
-		font-size: 13px;
+		font-size: 18px;
 		font-weight: 600;
 	}
 
