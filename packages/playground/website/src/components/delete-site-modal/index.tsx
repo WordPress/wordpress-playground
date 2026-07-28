@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Notice, __experimentalText as Text } from '@wordpress/components';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import {
+	selectActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import {
 	setActiveModal,
 	setSiteSlugToDelete,
@@ -19,6 +23,7 @@ export function DeleteSiteModal() {
 	const site = useAppSelector((state) =>
 		siteSlugToDelete ? state.sites.entities[siteSlugToDelete] : undefined
 	);
+	const activeSite = useAppSelector(selectActiveSite);
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -33,6 +38,8 @@ export function DeleteSiteModal() {
 	if (!site) {
 		return null;
 	}
+
+	const isDeletingActiveSite = activeSite?.slug === site.slug;
 
 	const closeModal = () => {
 		dispatch(setActiveModal(null));
@@ -74,6 +81,13 @@ export function DeleteSiteModal() {
 					Are you sure you want to delete the site &ldquo;
 					{site.metadata.name}&rdquo;? This action cannot be undone.
 				</Text>
+				{isDeletingActiveSite ? (
+					<Text>
+						You&rsquo;re viewing this Playground now. Deleting it
+						opens your most recent Playground, or starts a new one
+						if it&rsquo;s your last.
+					</Text>
+				) : null}
 				{error ? (
 					<Notice status="error" isDismissible={false}>
 						{error}
