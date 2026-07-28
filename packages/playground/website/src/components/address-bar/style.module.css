@@ -16,7 +16,7 @@
 	padding: 5px;
 	background: transparent;
 	border: none;
-	color: #b4becb;
+	color: var(--wporg-color-charcoal-5);
 	cursor: pointer;
 	transition: color 0.2s ease;
 	flex-shrink: 0;
@@ -32,7 +32,7 @@
 
 .refresh-button:disabled,
 .refresh-button:disabled:hover {
-	color: rgba(180, 190, 203, 0.4);
+	color: rgba(151, 154, 161, 0.4);
 	cursor: default;
 }
 
@@ -59,9 +59,9 @@
 	font-weight: 50;
 	height: 26px;
 	border: 0;
-	background: #40464d;
+	background: var(--wporg-color-charcoal-3);
 	border-radius: 8px;
-	color: #b4becb;
+	color: var(--wporg-color-light-grey-1);
 	transition: color 0.5s ease;
 	width: 100%;
 }
@@ -76,7 +76,7 @@
 }
 
 .input:disabled {
-	color: rgba(180, 190, 203, 0.4);
+	color: rgba(217, 217, 217, 0.4);
 	cursor: default;
 }
 
@@ -87,7 +87,7 @@
 
 /* Override WordPress Popover default styles */
 .popover :global(.components-popover__content) {
-	background: #3c434a;
+	background: var(--wporg-color-charcoal-3);
 	border: none;
 	border-radius: 8px;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -96,7 +96,7 @@
 
 /* Suggestions dropdown - styled like browser autocomplete */
 .suggestions {
-	background: #3c434a;
+	background: var(--wporg-color-charcoal-3);
 	border-radius: 8px;
 	margin: 0;
 	padding: 4px 0;
@@ -111,7 +111,7 @@
 	padding: 8px 12px;
 	cursor: pointer;
 	gap: 10px;
-	color: #e0e6eb;
+	color: var(--wporg-color-light-grey-1);
 	font-size: 14px;
 	transition: background 0.1s ease;
 	height: auto;
@@ -121,8 +121,8 @@
 .suggestion-item:hover,
 .suggestion-item:focus,
 .suggestion-item-active {
-	background: #4f5861;
-	color: #e0e6eb;
+	background: var(--wporg-color-charcoal-4);
+	color: var(--wporg-color-light-grey-2);
 	outline: none;
 	box-shadow: none;
 }
@@ -131,7 +131,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #8ab4f8;
+	color: var(--wporg-color-blueberry-2);
 	flex-shrink: 0;
 	width: 20px;
 	margin-right: 8px;
@@ -142,14 +142,14 @@
 }
 
 .suggestion-label {
-	color: #e8eaed;
+	color: var(--wporg-color-light-grey-2);
 	font-size: 14px;
 	white-space: nowrap;
 	margin-right: 8px;
 }
 
 .suggestion-path {
-	color: #9aa0a6;
+	color: var(--wporg-color-charcoal-5);
 	font-size: 13px;
 	overflow: hidden;
 	text-overflow: ellipsis;

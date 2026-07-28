@@ -122,12 +122,12 @@
 }
 
 .create-fresh-button {
-	background: #6c4fd3 !important;
+	background: var(--wporg-color-purple-2) !important;
 	color: #fff !important;
 }
 
 .create-fresh-button:hover {
-	background: #573eb5 !important;
+	background: var(--wporg-color-purple-1) !important;
 }
 
 .caret {
@@ -231,11 +231,11 @@
 }
 
 .create-fresh-menu-item {
-	color: #573eb5;
+	color: var(--wporg-color-purple-1);
 }
 
 .action-menu-item.selected-apply-menu-item {
-	color: #304bd1;
+	color: var(--wporg-color-deep-blueberry);
 }
 
 .action-menu-item:disabled {

@@ -1,8 +1,12 @@
 :root {
 	--site-view-min-width: 320px;
-	--dock-paper: #f7f5f2;
-	--dock-paper-deep: #efece7;
-	--dock-ink: #21201d;
+	--dock-paper: var(--wporg-color-light-grey-2);
+	--dock-paper-deep: color-mix(
+		in srgb,
+		var(--wporg-color-light-grey-1) 40%,
+		#ffffff
+	);
+	--dock-ink: var(--wporg-color-charcoal-0);
 }
 
 body {
@@ -43,7 +47,7 @@ body {
 }
 
 .preview-dismiss {
-	background: rgba(28, 25, 21, 0.42);
+	background: rgba(26, 25, 25, 0.42);
 	border: 0;
 	inset: 0;
 	opacity: 0;
@@ -66,7 +70,7 @@ body {
 }
 
 .preview-dismiss:focus-visible {
-	outline: 2px solid #3858e9;
+	outline: 2px solid var(--wporg-color-blueberry-1);
 	outline-offset: -4px;
 }
 

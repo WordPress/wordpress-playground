@@ -146,9 +146,36 @@ html {
 }
 
 :root {
-	--color-gray-200: #ddd;
-	--color-gray-600: #6a6a6a;
-	--color-gray-900: #1e1e1e;
+	/* WordPress.org Design Library palette. */
+	--wporg-color-charcoal-0: #1a1919;
+	--wporg-color-charcoal-1: #1e1e1e;
+	--wporg-color-charcoal-2: #23282d;
+	--wporg-color-charcoal-3: #40464d;
+	--wporg-color-charcoal-4: #656a71;
+	--wporg-color-charcoal-5: #979aa1;
+	--wporg-color-light-grey-1: #d9d9d9;
+	--wporg-color-light-grey-2: #f6f6f6;
+	--wporg-color-dark-blueberry: #1d35b4;
+	--wporg-color-deep-blueberry: #213fd4;
+	--wporg-color-blueberry-1: #3858e9;
+	--wporg-color-blueberry-2: #9fb1ff;
+	--wporg-color-blueberry-3: #c7d1ff;
+	--wporg-color-blueberry-4: #eff2ff;
+	--wporg-color-pomegranate-1: #e26f56;
+	--wporg-color-pomegranate-2: #ffb7a7;
+	--wporg-color-pomegranate-3: #ffe9de;
+	--wporg-color-acid-green-1: #33f078;
+	--wporg-color-acid-green-2: #c7ffdb;
+	--wporg-color-acid-green-3: #e2ffed;
+	--wporg-color-lemon-1: #fff972;
+	--wporg-color-lemon-2: #fffcb5;
+	--wporg-color-lemon-3: #fffdd6;
+	--wporg-color-purple-1: #5300be;
+	--wporg-color-purple-2: #7a00df;
+
+	--color-gray-200: var(--wporg-color-light-grey-1);
+	--color-gray-600: var(--wporg-color-charcoal-4);
+	--color-gray-900: var(--wporg-color-charcoal-1);
 	--color-alert-red: #cc1818;
 }
 
@@ -167,12 +194,12 @@ body {
 }
 
 :root {
-	--wp-admin-theme-color: #007cba;
-	--wp-admin-theme-color--rgb: 0, 124, 186;
-	--wp-admin-theme-color-darker-10: #006ba1;
-	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
-	--wp-admin-theme-color-darker-20: #005a87;
-	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
+	--wp-admin-theme-color: var(--wporg-color-blueberry-1);
+	--wp-admin-theme-color--rgb: 56, 88, 233;
+	--wp-admin-theme-color-darker-10: var(--wporg-color-deep-blueberry);
+	--wp-admin-theme-color-darker-10--rgb: 33, 63, 212;
+	--wp-admin-theme-color-darker-20: var(--wporg-color-dark-blueberry);
+	--wp-admin-theme-color-darker-20--rgb: 29, 53, 180;
 }
 
 .components-button.is-link {

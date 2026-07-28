@@ -17,21 +17,20 @@
 	flex-shrink: 0;
 }
 
-/* "Saved" uses a calm, desaturated sage green with a check that settles into
-   the dark dock. "Autosaved" is icon-less white text — plainer, since it's the
-   transient default. Only "unsaved" stays vibrant (it wants attention). */
+/* Status colors keep their original semantic hues while using the light
+   WordPress.org palette steps that retain readable contrast on Charcoal. */
 .saved {
-	color: #a0c49a;
+	color: var(--wporg-color-acid-green-2);
 }
 
 .saved svg {
-	fill: #a0c49a;
+	fill: var(--wporg-color-acid-green-2);
 }
 
-/* "Autosaved" keeps the same blue as the in-progress "Autosaving" state, so the
-   color doesn't change as the save settles. */
+/* "Autosaved" keeps the same pale Blueberry as the in-progress "Autosaving"
+   state, so the color doesn't change as the save settles. */
 .autosaved {
-	color: #93c5fd;
+	color: var(--wporg-color-blueberry-3);
 }
 
 .saving .label {
@@ -46,15 +45,15 @@
 	box-sizing: border-box;
 	height: 34px;
 	padding: 0 10px;
-	background: rgba(255, 251, 243, 0.05);
-	border: 1px solid rgba(255, 251, 243, 0.1);
+	background: rgba(246, 246, 246, 0.05);
+	border: 1px solid rgba(246, 246, 246, 0.1);
 	border-radius: 9px;
 	cursor: pointer;
 	transition: background 0.13s ease;
 }
 
 .actionable:hover {
-	background: rgba(255, 251, 243, 0.12);
+	background: rgba(246, 246, 246, 0.12);
 }
 
 .actionable:disabled,
@@ -65,37 +64,37 @@
 
 .actionable:disabled:hover,
 .error:disabled:hover {
-	background: rgba(255, 251, 243, 0.05);
+	background: rgba(246, 246, 246, 0.05);
 }
 
 .actionable:focus-visible,
 .error:focus-visible {
-	outline: 2px solid #3858e9;
+	outline: 2px solid var(--wporg-color-blueberry-1);
 	outline-offset: 2px;
 }
 
 .unsaved {
-	color: #fcd34d;
+	color: var(--wporg-color-lemon-1);
 }
 
 .unsaved svg {
-	fill: #fcd34d;
+	fill: var(--wporg-color-lemon-1);
 }
 
 .saving {
-	color: #93c5fd;
+	color: var(--wporg-color-blueberry-3);
 }
 
 .error {
-	color: #fca5a5;
+	color: var(--wporg-color-pomegranate-2);
 }
 
 .error:hover {
-	background: rgba(255, 251, 243, 0.12);
+	background: rgba(246, 246, 246, 0.12);
 }
 
 .error svg {
-	fill: #fca5a5;
+	fill: var(--wporg-color-pomegranate-2);
 }
 
 .label {
@@ -139,5 +138,5 @@
 /* --- Restored from the deployed build --- */
 
 .loading {
-	color: #f7f5f2b3;
+	color: rgba(246, 246, 246, 0.7);
 }

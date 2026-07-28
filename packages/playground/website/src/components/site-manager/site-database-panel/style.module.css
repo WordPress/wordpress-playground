@@ -47,7 +47,7 @@
 	margin-top: var(--space-2);
 }
 
-/* The shared Dock notice supplies the warm well; this surface only sets the
+/* The shared Dock notice supplies the neutral grey well; this surface only sets the
    compact hierarchy inside it. */
 .site-notice {
 	width: 100%;

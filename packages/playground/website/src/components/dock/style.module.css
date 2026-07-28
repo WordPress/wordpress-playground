@@ -1,5 +1,5 @@
 .dock {
-	background: #21201d;
+	background: var(--wporg-color-charcoal-0);
 	/* Welded to the bottom edge: only the top corners round, and the bottom is
 	   clipped flush so it reads as part of the viewport edge. */
 	border-radius: 18px 18px 0 0;
@@ -10,16 +10,16 @@
 	   upward casts lift the bar off the page; a tight near-opaque edge cast defines
 	   the boundary on light or similar-toned backgrounds, where a soft shadow alone
 	   washes out and the bar looks pasted on. */
-	filter: drop-shadow(0 -14px 34px rgba(12, 10, 8, 0.5))
-		drop-shadow(0 -3px 10px rgba(12, 10, 8, 0.34))
-		drop-shadow(0 0 1px rgba(12, 10, 8, 0.6));
+	filter: drop-shadow(0 -14px 34px rgba(26, 25, 25, 0.5))
+		drop-shadow(0 -3px 10px rgba(26, 25, 25, 0.34))
+		drop-shadow(0 0 1px rgba(26, 25, 25, 0.6));
 	flex-direction: column;
 	/* A light rim on the inside edges (the bottom is clipped flush) keeps a crisp
 	   outline where the page behind is dark; the brighter top line reads as the lit
 	   top edge of a raised panel. Inset so it's clipped and rounded with the box. */
 	box-shadow:
-		inset 0 0 0 1px rgba(255, 251, 243, 0.16),
-		inset 0 2px 0 -1px rgba(255, 251, 243, 0.26);
+		inset 0 0 0 1px rgba(246, 246, 246, 0.16),
+		inset 0 2px 0 -1px rgba(246, 246, 246, 0.26);
 	left: 50%;
 	max-width: calc(100vw - 24px);
 	position: fixed;
@@ -111,7 +111,7 @@
 	width: 1px;
 	height: 24px;
 	transform: translateY(-50%);
-	background: rgba(247, 245, 242, 0.16);
+	background: rgba(246, 246, 246, 0.16);
 }
 
 .dock-item {
@@ -119,7 +119,7 @@
 	background: transparent;
 	border: 0;
 	border-radius: 12px;
-	color: rgba(247, 245, 242, 0.68);
+	color: rgba(246, 246, 246, 0.68);
 	cursor: pointer;
 	display: flex;
 	flex-direction: column;
@@ -137,31 +137,30 @@
 }
 
 .dock-item:hover {
-	background: rgba(247, 245, 242, 0.14);
-	color: #f7f5f2;
+	background: rgba(246, 246, 246, 0.14);
+	color: var(--wporg-color-light-grey-2);
 }
 
 /* The open pane gets a persistent, stronger highlight than hover so it reads as
    "current" — the fill alone marks it (no underline bar). */
 .dock-item-active {
-	background: rgba(247, 245, 242, 0.22);
+	background: rgba(246, 246, 246, 0.22);
 	color: #ffffff;
 }
 
 .dock-item:focus-visible {
-	outline: 2px solid #3858e9;
+	outline: 2px solid var(--wporg-color-blueberry-1);
 	outline-offset: 3px;
 }
 
 .dock-item-primary {
-	background: #3858e9;
+	background: var(--wporg-color-blueberry-1);
 	color: #ffffff;
 }
 
 .dock-item-primary:hover,
 .dock-item-primary.dock-item-active {
-	/* Matches the surface accent-hover (#2f4ad1) used in pane content. */
-	background: #2f4ad1;
+	background: var(--wporg-color-deep-blueberry);
 	color: #ffffff;
 }
 
@@ -208,8 +207,8 @@
 .pane {
 	--file-tree-row-height: 36px;
 
-	/* "Quiet Paper" design tokens — inherited by all pane content so every
-	   surface, space, and color comes from one warm scale. */
+	/* The WordPress.org palette is inherited by all pane content. Neutral
+	   surfaces stay neutral while semantic accents retain their original hue. */
 	--space-1: 4px;
 	--space-2: 8px;
 	--space-3: 12px;
@@ -219,22 +218,30 @@
 	--space-12: 48px;
 	/* Child panels use the same content edge as the shared title. */
 	--pane-inline-padding: var(--space-6);
-	--paper-1: #f7f5f2; /* pane surface */
-	--paper-2: #faf8f5; /* raised */
-	--paper-3: #ece8e1; /* recessed well: notices, code chips */
-	--paper-4: #e7e2da; /* control hover */
-	--paper-5: #e2dcd2; /* control active */
-	--line-subtle: rgba(33, 32, 29, 0.08);
-	--line-control: rgba(33, 32, 29, 0.14);
-	--line-hover: rgba(33, 32, 29, 0.22);
-	--ink: #21201d;
-	--ink-soft: #2f2d28;
-	--ink-muted: #5f5b54;
-	--ink-faint: #8a857b;
-	--action-icon: #4f4b45;
-	--accent: #3858e9;
-	--accent-hover: #2f4ad1;
-	--accent-link: #2645c9;
+	--paper-1: var(--wporg-color-light-grey-2); /* pane surface */
+	--paper-2: #ffffff; /* raised */
+	--paper-3: color-mix(
+		in srgb,
+		var(--wporg-color-light-grey-1) 50%,
+		#ffffff
+	); /* recessed well */
+	--paper-4: color-mix(
+		in srgb,
+		var(--wporg-color-light-grey-1) 70%,
+		#ffffff
+	); /* control hover */
+	--paper-5: var(--wporg-color-light-grey-1); /* control active */
+	--line-subtle: rgba(26, 25, 25, 0.08);
+	--line-control: rgba(26, 25, 25, 0.15);
+	--line-hover: rgba(26, 25, 25, 0.24);
+	--ink: var(--wporg-color-charcoal-0);
+	--ink-soft: var(--wporg-color-charcoal-2);
+	--ink-muted: var(--wporg-color-charcoal-4);
+	--ink-faint: var(--wporg-color-charcoal-5);
+	--action-icon: var(--wporg-color-charcoal-3);
+	--accent: var(--wporg-color-blueberry-1);
+	--accent-hover: var(--wporg-color-deep-blueberry);
+	--accent-link: var(--wporg-color-dark-blueberry);
 	--radius-pane: 14px;
 	--radius-card: 8px;
 	--radius-control: 6px;
@@ -246,9 +253,9 @@
 	   (the doubled edge is a slop tell). A faint top highlight fakes a lit top. */
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.55),
-		0 1px 2px rgba(40, 33, 23, 0.05),
-		0 8px 18px rgba(40, 33, 23, 0.09),
-		0 26px 56px rgba(40, 33, 23, 0.18);
+		0 1px 2px rgba(26, 25, 25, 0.05),
+		0 8px 18px rgba(26, 25, 25, 0.09),
+		0 26px 56px rgba(26, 25, 25, 0.18);
 	color: var(--ink);
 	/* Simple panes scroll as one piece — the header scrolls with the content
 	   rather than staying pinned. Editor panes override this below. */
@@ -543,22 +550,22 @@
 	font-size: 14px;
 	font-weight: 500;
 	line-height: inherit;
-	color: var(--ink, #21201d);
-	background: var(--paper-1, #f7f5f2);
+	color: var(--ink, var(--wporg-color-charcoal-0));
+	background: var(--paper-1, var(--wporg-color-light-grey-2));
 	border: 1px solid var(--accent, #3858e9);
 	border-radius: var(--radius-control, 6px);
 	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
 	outline: none;
 }
 
-/* Notices = recessed warm wells: a deeper parchment + faint inset, NO border and
-   NO outer shadow, so they read as carved-in context that never out-shouts the
+/* Notices = recessed neutral wells with a faint inset, NO border and NO outer
+   shadow, so they read as carved-in context that never out-shouts the
    title. (A bordered, filled box rivaling the H1 is the classic AI-slop tell.) */
 .pane :global(.components-notice) {
 	background: var(--paper-3);
 	border: 0;
 	border-radius: var(--radius-card);
-	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.04);
+	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.04);
 	color: var(--ink-muted);
 	margin: 0;
 	padding: var(--space-4);
@@ -566,9 +573,9 @@
 
 /* Status is signalled by a single restrained left rule (kept as an inset shadow
    so the "NO border, NO filled box" rule above still holds), never an
-   off-palette colour slab. Warning/info/success stay quiet parchment wells —
+   off-palette colour slab. Warning/info/success stay quiet neutral wells —
    the same calm treatment the settings pane uses for its reset note — so a
-   caution never out-shouts the warm surface; only a true error carries red. */
+   caution never out-shouts the surface; only a true error carries red. */
 .pane :global(.components-notice.is-warning),
 .pane :global(.components-notice.is-success) {
 	background: var(--paper-3);
@@ -580,14 +587,14 @@
 	background: var(--paper-3);
 	box-shadow:
 		inset 0 0 0 1px var(--line-subtle),
-		inset 0 1px 1px rgba(40, 33, 23, 0.05);
+		inset 0 1px 1px rgba(26, 25, 25, 0.05);
 }
 
 .pane :global(.components-notice.is-error) {
 	background: var(--paper-3);
 	box-shadow:
-		inset 3px 0 0 0 #cc1818,
-		inset 0 1px 1px rgba(40, 33, 23, 0.04);
+		inset 3px 0 0 0 var(--wporg-color-pomegranate-1),
+		inset 0 1px 1px rgba(26, 25, 25, 0.04);
 }
 
 .pane :global(.components-notice .components-notice__content) {
@@ -608,9 +615,8 @@
 /* Button hierarchy: exactly one filled blue primary per pane. Every secondary /
    tertiary becomes a quiet ink control on paper (destructive stays red). */
 
-/* The filled primary uses the surface accent, not WordPress' admin teal
-   (#007cba) — Gutenberg's default is-primary keys off --wp-admin-theme-color,
-   which isn't on the warm ramp. (is-destructive primaries stay red.) */
+/* The filled primary uses WordPress Blueberry. Gutenberg's default is-primary
+   keys off --wp-admin-theme-color; destructive primaries stay red. */
 .pane :global(.components-button.is-primary:not(.is-destructive)) {
 	background: var(--accent);
 }
@@ -661,9 +667,9 @@
 	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
-/* Form fields — warm, consistent, refined across every pane (Store permanently,
-   This Playground, Share). The default WordPress controls otherwise read as
-   admin chrome and clash with the paper surface. */
+/* Form fields — consistent with the WordPress neutral palette across every pane
+   (Store permanently, This Playground, Share). The default WordPress controls
+   otherwise read as separate admin chrome and clash with the pane surface. */
 .pane .pane-body :global(.components-text-control__input),
 .pane .pane-body :global(.components-select-control__input) {
 	background: #ffffff;
@@ -703,11 +709,10 @@
 	accent-color: var(--accent);
 }
 
-/* The save surface keeps the native WordPress radio blue used by the deployed
-   Dock while the rest of the pane actions use the stronger Quiet Paper accent. */
+/* The save surface uses the same WordPress Blueberry as the rest of the pane. */
 .pane-save {
-	--wp-admin-theme-color: #007cba;
-	--wp-admin-theme-color--rgb: 0, 124, 186;
+	--wp-admin-theme-color: var(--wporg-color-blueberry-1);
+	--wp-admin-theme-color--rgb: 56, 88, 233;
 }
 
 .pane :global(.components-radio-control__label),
@@ -753,8 +758,8 @@
 		transform: none;
 		cursor: default;
 		box-shadow:
-			0 -1px 0 rgba(247, 245, 242, 0.08),
-			0 -10px 30px rgba(33, 30, 25, 0.4);
+			0 -1px 0 rgba(246, 246, 246, 0.08),
+			0 -10px 30px rgba(26, 25, 25, 0.4);
 	}
 
 	/* Tools scroll horizontally when they overflow; the scrollbar is hidden
@@ -1071,9 +1076,9 @@
 	display: flex;
 	/* A soft neutral shadow plus a hairline dark edge separate the tile from the
 	   page whether the background behind it is light or dark. */
-	filter: drop-shadow(0 6px 18px rgba(20, 18, 15, 0.3))
-		drop-shadow(0 2px 5px rgba(20, 18, 15, 0.22));
-	box-shadow: inset 0 0 0 1px rgba(20, 18, 15, 0.12);
+	filter: drop-shadow(0 6px 18px rgba(26, 25, 25, 0.3))
+		drop-shadow(0 2px 5px rgba(26, 25, 25, 0.22));
+	box-shadow: inset 0 0 0 1px rgba(26, 25, 25, 0.12);
 	height: 46px;
 	justify-content: center;
 	position: fixed;
@@ -1102,11 +1107,11 @@
 }
 
 .dock-corner:hover {
-	background: #f2f0ec;
+	background: var(--wporg-color-light-grey-2);
 }
 
 .dock-corner:focus-visible {
-	outline: 2px solid #3858e9;
+	outline: 2px solid var(--wporg-color-blueberry-1);
 	outline-offset: 2px;
 }
 
@@ -1160,7 +1165,7 @@
 	justify-content: center;
 }
 
-/* No drag handle: while the dock can move, its whole dark chrome is the grab
+/* No drag handle: while the dock can move, its whole Charcoal chrome is the grab
    (real controls keep their own cursors and swallow the press in JS). */
 .dock-can-move {
 	cursor: grab;
@@ -1171,7 +1176,7 @@
 	cursor: grabbing;
 }
 
-/* The grab affordance (the hr-11 "sheen"): warm light pools along the dock's
+/* The grab affordance (the hr-11 "sheen"): neutral light pools along the dock's
    top edge under the pointer, with a bright hairline riding the very edge —
    invisible at rest, answered on approach. Driven by --sheen-x/--sheen-o,
    written from the dock's pointer handlers. */
@@ -1190,8 +1195,8 @@
 .dock-sheen::before {
 	background: radial-gradient(
 		180px 32px at var(--sheen-x, 50%) 0,
-		rgba(255, 251, 243, 0.27),
-		rgba(255, 251, 243, 0.06) 55%,
+		rgba(246, 246, 246, 0.27),
+		rgba(246, 246, 246, 0.06) 55%,
 		transparent 80%
 	);
 	content: '';
@@ -1202,8 +1207,8 @@
 .dock-sheen::after {
 	background: radial-gradient(
 		110px 3px at var(--sheen-x, 50%) 1px,
-		rgba(255, 251, 243, 0.85),
-		rgba(255, 251, 243, 0.16) 62%,
+		rgba(246, 246, 246, 0.85),
+		rgba(246, 246, 246, 0.16) 62%,
 		transparent 85%
 	);
 	content: '';
@@ -1230,8 +1235,8 @@
    styling is needed. */
 .dock-toggle-pill {
 	align-items: stretch;
-	background: rgba(255, 251, 243, 0.05);
-	border: 1px solid rgba(255, 251, 243, 0.1);
+	background: rgba(246, 246, 246, 0.05);
+	border: 1px solid rgba(246, 246, 246, 0.1);
 	border-radius: 9px;
 	display: inline-flex;
 	flex: none;
@@ -1243,7 +1248,7 @@
 	align-items: center;
 	background: transparent;
 	border: 0;
-	color: rgba(247, 245, 241, 0.62);
+	color: rgba(246, 246, 246, 0.62);
 	cursor: pointer;
 	display: flex;
 	justify-content: center;
@@ -1255,16 +1260,16 @@
 }
 
 .dock-pill-btn + .dock-pill-btn {
-	border-left: 1px solid rgba(255, 251, 243, 0.09);
+	border-left: 1px solid rgba(246, 246, 246, 0.09);
 }
 
 .dock-pill-btn:hover {
-	background: rgba(255, 251, 243, 0.12);
-	color: #f7f5f1;
+	background: rgba(246, 246, 246, 0.12);
+	color: var(--wporg-color-light-grey-2);
 }
 
 .dock-pill-btn:focus-visible {
-	outline: 2px solid #8fa3f7;
+	outline: 2px solid var(--wporg-color-blueberry-2);
 	outline-offset: -2px;
 }
 
@@ -1298,12 +1303,21 @@
 .dock-operation-toast {
 	align-items: center;
 	animation: dock-operation-toast-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
-	background: #681f1b;
-	border: 1px solid #9f4c45;
+	background: color-mix(
+		in srgb,
+		var(--wporg-color-pomegranate-1) 40%,
+		var(--wporg-color-charcoal-0)
+	);
+	border: 1px solid
+		color-mix(
+			in srgb,
+			var(--wporg-color-pomegranate-1) 65%,
+			var(--wporg-color-charcoal-3)
+		);
 	border-radius: 11px;
 	bottom: 12px;
-	box-shadow: 0 15px 36px rgba(65, 12, 9, 0.32);
-	color: #fff;
+	box-shadow: 0 15px 36px rgba(226, 111, 86, 0.26);
+	color: #ffffff;
 	display: flex;
 	font-size: 14px;
 	gap: 14px;
@@ -1321,13 +1335,21 @@
 }
 
 .dock-operation-toast-success {
-	background: #1f4f2b;
-	border-color: #4f8f59;
-	box-shadow: 0 15px 36px rgba(19, 68, 32, 0.28);
+	background: color-mix(
+		in srgb,
+		var(--wporg-color-acid-green-1) 22%,
+		var(--wporg-color-charcoal-0)
+	);
+	border-color: color-mix(
+		in srgb,
+		var(--wporg-color-acid-green-1) 40%,
+		var(--wporg-color-charcoal-3)
+	);
+	box-shadow: 0 15px 36px rgba(51, 240, 120, 0.22);
 }
 
 .dock-operation-toast-success .dock-operation-toast-message {
-	color: #d8f4dc;
+	color: var(--wporg-color-acid-green-2);
 }
 
 .dock-operation-toast-content {
@@ -1340,7 +1362,7 @@
 }
 
 .dock-operation-toast-message {
-	color: #f5cfcb;
+	color: var(--wporg-color-pomegranate-3);
 	font-size: 12px;
 	line-height: 1.4;
 	margin-top: 2px;
@@ -1351,7 +1373,7 @@
 	background: transparent;
 	border: 0;
 	border-radius: 7px;
-	color: #ffe8e5;
+	color: var(--wporg-color-pomegranate-3);
 	cursor: pointer;
 	display: flex;
 	flex: none;
@@ -1363,11 +1385,11 @@
 
 .dock-operation-toast button:hover {
 	background: rgba(255, 255, 255, 0.12);
-	color: #fff;
+	color: #ffffff;
 }
 
 .dock-operation-toast button:focus-visible {
-	outline: 2px solid #fff6f4;
+	outline: 2px solid var(--wporg-color-pomegranate-3);
 	outline-offset: 2px;
 }
 
@@ -1387,9 +1409,9 @@
 }
 
 .dock-item-dot {
-	background: var(--accent, #3858e9);
+	background: var(--accent, var(--wporg-color-blueberry-1));
 	border-radius: 50%;
-	box-shadow: 0 0 0 2px #21201d;
+	box-shadow: 0 0 0 2px var(--wporg-color-charcoal-0);
 	height: 7px;
 	pointer-events: none;
 	position: absolute;
@@ -1452,7 +1474,7 @@
 
 .dock-pill-btn:disabled:hover {
 	background: transparent;
-	color: rgba(247, 245, 241, 0.62);
+	color: rgba(246, 246, 246, 0.62);
 }
 
 .dock-pill-collapse-closed svg {

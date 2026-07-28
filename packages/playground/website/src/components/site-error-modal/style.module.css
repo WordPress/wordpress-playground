@@ -1,21 +1,29 @@
-/* The error modal is a "Quiet Paper" surface — the same warm system the Dock
-   panes use. It renders in a portal outside the pane tree, so it re-declares
-   the pane tokens (see dock/style.module.css) rather than inheriting them. */
+/* The error modal uses the same WordPress.org neutral palette as the Dock panes.
+   It renders in a portal outside the pane tree, so it re-declares the pane tokens
+   (see dock/style.module.css) rather than inheriting them. */
 .error-modal {
-	--paper-1: #f7f5f2; /* sheet surface */
-	--paper-2: #faf8f5; /* raised: footer */
-	--paper-3: #ece8e1; /* recessed well: details, code */
-	--paper-4: #e7e2da; /* control hover */
-	--line-subtle: rgba(33, 32, 29, 0.08);
-	--line-control: rgba(33, 32, 29, 0.14);
-	--line-hover: rgba(33, 32, 29, 0.22);
-	--ink: #21201d;
-	--ink-soft: #2f2d28;
-	--ink-muted: #5f5b54;
-	--ink-faint: #8a857b;
-	--accent: #3858e9;
-	--accent-hover: #2f4ad1;
-	--accent-link: #2645c9;
+	--paper-1: var(--wporg-color-light-grey-2); /* sheet surface */
+	--paper-2: #ffffff; /* raised: footer */
+	--paper-3: color-mix(
+		in srgb,
+		var(--wporg-color-light-grey-1) 50%,
+		#ffffff
+	); /* recessed well */
+	--paper-4: color-mix(
+		in srgb,
+		var(--wporg-color-light-grey-1) 70%,
+		#ffffff
+	); /* control hover */
+	--line-subtle: rgba(26, 25, 25, 0.08);
+	--line-control: rgba(26, 25, 25, 0.15);
+	--line-hover: rgba(26, 25, 25, 0.24);
+	--ink: var(--wporg-color-charcoal-0);
+	--ink-soft: var(--wporg-color-charcoal-2);
+	--ink-muted: var(--wporg-color-charcoal-4);
+	--ink-faint: var(--wporg-color-charcoal-5);
+	--accent: var(--wporg-color-blueberry-1);
+	--accent-hover: var(--wporg-color-deep-blueberry);
+	--accent-link: var(--wporg-color-dark-blueberry);
 	--alert: #cc1818;
 	--radius-pane: 14px;
 	--radius-card: 8px;
@@ -23,14 +31,14 @@
 	--font-mono:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
-	/* Retune the WordPress components inside (primary buttons, focus rings,
-	   text fields) to the surface accent instead of wp-admin teal. */
+	/* Pin WordPress components inside (primary buttons, focus rings, text fields)
+	   to the same Blueberry scale as the rest of the surface. */
 	--wp-components-color-accent: var(--accent);
 	--wp-components-color-accent-darker-10: var(--accent-hover);
-	--wp-components-color-accent-darker-20: #26399e;
+	--wp-components-color-accent-darker-20: var(--wporg-color-dark-blueberry);
 	--wp-admin-theme-color: var(--accent);
 	--wp-admin-theme-color-darker-10: var(--accent-hover);
-	--wp-admin-theme-color-darker-20: #26399e;
+	--wp-admin-theme-color-darker-20: var(--wporg-color-dark-blueberry);
 }
 
 /* Doubled selector so sizing and surface outrank the stock frame styles
@@ -38,13 +46,13 @@
 .error-modal:global(.components-modal__frame) {
 	background: var(--paper-1);
 	border-radius: var(--radius-pane);
-	/* The pane elevation: soft warm casts plus a faint lit top edge. Overflow
+	/* The pane elevation: soft neutral casts plus a faint lit top edge. Overflow
 	   is clipped so the full-bleed footer keeps the rounded bottom corners. */
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.55),
-		0 1px 2px rgba(40, 33, 23, 0.05),
-		0 8px 18px rgba(40, 33, 23, 0.09),
-		0 26px 56px rgba(40, 33, 23, 0.18);
+		0 1px 2px rgba(26, 25, 25, 0.05),
+		0 8px 18px rgba(26, 25, 25, 0.09),
+		0 26px 56px rgba(26, 25, 25, 0.18);
 	color: var(--ink);
 	/* Header, scrolling body, and pinned footer split the frame's height. */
 	display: flex;
@@ -63,16 +71,16 @@
 .error-modal:global(.components-modal__frame):focus-visible {
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.55),
-		0 1px 2px rgba(40, 33, 23, 0.05),
-		0 8px 18px rgba(40, 33, 23, 0.09),
-		0 26px 56px rgba(40, 33, 23, 0.18);
+		0 1px 2px rgba(26, 25, 25, 0.05),
+		0 8px 18px rgba(26, 25, 25, 0.09),
+		0 26px 56px rgba(26, 25, 25, 0.18);
 	outline: none;
 }
 
-/* Warm the scrim to the same ink family so the backdrop and sheet read as one
-   material world, not a gray system overlay under warm paper. */
+/* Use Charcoal for the scrim so the backdrop and sheet read as one material
+   system rather than an unrelated gray overlay. */
 .error-modal-overlay:global(.components-modal__screen-overlay) {
-	background: rgba(28, 25, 21, 0.55);
+	background: rgba(26, 25, 25, 0.55);
 }
 
 .error-modal :global(.components-modal__content) {
@@ -233,13 +241,13 @@
 	padding: 2px 5px;
 }
 
-/* Technical output sits in a recessed parchment well — carved into the sheet,
+/* Technical output sits in a recessed neutral well — carved into the sheet,
    not boxed onto it (no border, faint inset only). */
 .error-details {
 	background: var(--paper-3);
 	border: 0;
 	border-radius: var(--radius-card);
-	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.05);
+	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.05);
 	flex-shrink: 0;
 }
 
@@ -346,7 +354,7 @@
 .step-error-code {
 	background: var(--paper-3);
 	border-radius: var(--radius-card);
-	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.05);
+	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.05);
 	color: var(--ink-soft);
 	font-family: var(--font-mono);
 	font-size: 12.5px;
