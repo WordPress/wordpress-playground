@@ -27,7 +27,11 @@ import type {
 	WorkerConfig,
 	WorkerPlatformConfig,
 } from '../worker-boot-config';
-import { CHILD_WORKER_CONTROL_READY } from '../worker-boot-config';
+import {
+	CHILD_WORKER_CONTROL_READY,
+	childWorkerServiceTransferPolicy,
+	workerBootApiTransferPolicy,
+} from '../worker-boot-config';
 import { bootSpawnedChildWorker } from '../spawned-child-worker';
 
 import type { Mount } from '@php-wasm/cli-util';
@@ -171,7 +175,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 		this.bootedRequestHandler = true;
 		this.childWorkerService = consumeAPI<ChildWorkerService>(
-			workerConfig.childWorkerServicePort
+			workerConfig.childWorkerServicePort,
+			undefined,
+			childWorkerServiceTransferPolicy
 		);
 
 		const options: WorkerBootRequestHandlerOptions = {
@@ -302,7 +308,8 @@ const phpChannel = new MessageChannel();
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliBlueprintV2Worker(new EmscriptenDownloadMonitor()),
 	undefined,
-	phpChannel.port1
+	phpChannel.port1,
+	workerBootApiTransferPolicy
 );
 
 parentPort?.postMessage(

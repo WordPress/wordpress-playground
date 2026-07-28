@@ -37,7 +37,10 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
-import type { WorkerConfig } from '../worker-boot-config';
+import {
+	workerBootApiTransferPolicy,
+	type WorkerConfig,
+} from '../worker-boot-config';
 
 /**
  * Boots Playground CLI workers using the native TypeScript Blueprint v2
@@ -194,7 +197,9 @@ export class BlueprintsV2Handler {
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV2Worker>(
-			worker.phpPort
+			worker.phpPort,
+			undefined,
+			workerBootApiTransferPolicy
 		);
 
 		await playground.isConnected();

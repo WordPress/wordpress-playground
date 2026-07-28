@@ -1,5 +1,6 @@
 import {
 	consumeAPI,
+	defineAPITransferPolicy,
 	releaseApiProxy,
 	type RemoteAPI,
 } from '@php-wasm/universal';
@@ -7,17 +8,19 @@ import { logger } from '@php-wasm/logger';
 import type { MessagePort } from 'worker_threads';
 import type {
 	ChildWorkerService,
-	WorkerConfig,
+	WorkerBootApi,
 	WorkerPlatformConfig,
 } from './worker-boot-config';
+import { workerBootApiTransferPolicy } from './worker-boot-config';
 
-type SpawnedChildWorkerApi = {
+type SpawnedChildWorkerApi = WorkerBootApi & {
 	useFileLockManager(port: MessagePort): Promise<void>;
-	bootRequestHandler(
-		platformConfig: WorkerPlatformConfig,
-		workerConfig: WorkerConfig
-	): Promise<void>;
 };
+
+const spawnedChildWorkerTransferPolicy =
+	defineAPITransferPolicy<SpawnedChildWorkerApi>({
+		bootRequestHandler: workerBootApiTransferPolicy.bootRequestHandler,
+	});
 
 /**
  * Ask the main thread for a child worker and finish wiring it before exposing
@@ -37,16 +40,21 @@ export async function bootSpawnedChildWorker<
 	const { childId, phpPort, fileLockManagerPort, workerConfig } =
 		await childWorkerService.createChildWorker();
 	const runtimeExited = childWorkerService.waitForChildExit(childId);
-	let childApi: RemoteAPI<WorkerApi> | undefined;
+	let childApi: RemoteAPI<SpawnedChildWorkerApi> | undefined;
 
 	try {
-		childApi = consumeAPI<WorkerApi>(phpPort);
+		const activeChildApi = consumeAPI<SpawnedChildWorkerApi>(
+			phpPort,
+			undefined,
+			spawnedChildWorkerTransferPolicy
+		);
+		childApi = activeChildApi;
 		await completeBeforeChildExits(
-			childApi.useFileLockManager(fileLockManagerPort),
+			activeChildApi.useFileLockManager(fileLockManagerPort),
 			runtimeExited
 		);
 		await completeBeforeChildExits(
-			childApi.bootRequestHandler(platformConfig, workerConfig),
+			activeChildApi.bootRequestHandler(platformConfig, workerConfig),
 			runtimeExited
 		);
 		// A child created after WordPress installation must not execute PHP until
@@ -57,7 +65,7 @@ export async function bootSpawnedChildWorker<
 		);
 
 		return {
-			php: childApi,
+			php: activeChildApi as unknown as RemoteAPI<WorkerApi>,
 			runtimeExited,
 			reap() {
 				releaseChildApiProxyQuietly(childApi);

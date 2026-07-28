@@ -1,7 +1,14 @@
 import { build } from 'esbuild';
-import { MessageChannel, Worker } from 'node:worker_threads';
-import { describe, expect, it } from 'vitest';
-import { consumeAPISync, exposeAPI, exposeSyncAPI } from '../lib/api';
+import { MessageChannel, type MessagePort, Worker } from 'node:worker_threads';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import {
+	consumeAPI,
+	consumeAPISync,
+	defineAPITransferPolicy,
+	exposeAPI,
+	exposeSyncAPI,
+	type APITransferPolicy,
+} from '../lib/api';
 
 /**
  * These tests pin down the trap behind
@@ -61,12 +68,84 @@ describe('consumeAPISync() endpoint validation', () => {
 });
 
 describe('MessagePort transfer handling', () => {
-	it('transfers nested MessagePorts from an exposed API to a consumer worker', async () => {
+	it('requires policies for collections and deeply nested ports', () => {
+		type TransferApi = {
+			sendMap(value: Map<string, MessagePort>): void;
+			receiveSet(): Promise<Set<MessagePort>>;
+			sendDeeplyNested(value: {
+				one: {
+					two: {
+						three: {
+							four: {
+								five: {
+									six: {
+										seven: {
+											port: MessagePort;
+										};
+									};
+								};
+							};
+						};
+					};
+				};
+			}): void;
+		};
+		type ConsumeArguments = Parameters<typeof consumeAPI<TransferApi>>;
+
+		expectTypeOf<[MessagePort]>().not.toMatchTypeOf<ConsumeArguments>();
+		expectTypeOf<
+			[MessagePort, undefined, APITransferPolicy<TransferApi>]
+		>().toMatchTypeOf<ConsumeArguments>();
+	});
+
+	it('applies explicit transfer policies to nested results and method arguments', async () => {
 		const apiChannel = new MessageChannel();
 		const phpChannel = new MessageChannel();
 		const fileLockManagerChannel = new MessageChannel();
 		const childWorkerServiceChannel = new MessageChannel();
 		const consumerWorker = await createMessagePortConsumerWorker();
+		type TransferTestApi = {
+			createChildWorker(): {
+				phpPort: MessagePort;
+				fileLockManagerPort: MessagePort;
+				workerConfig: {
+					processId: number;
+					childWorkerServicePort: MessagePort;
+				};
+			};
+			workers: {
+				register(config: {
+					transport: {
+						port: MessagePort;
+						buffer: ArrayBuffer;
+					};
+				}): void;
+			};
+		};
+		const transferPolicy = defineAPITransferPolicy<TransferTestApi>({
+			createChildWorker: {
+				result(child) {
+					return [
+						child.phpPort,
+						child.fileLockManagerPort,
+						child.workerConfig.childWorkerServicePort,
+					];
+				},
+			},
+			workers: {
+				register: {
+					arguments(config) {
+						return [
+							config.transport.port,
+							config.transport.buffer,
+							// Policies may discover the same backing buffer through
+							// multiple views. The transport deduplicates by identity.
+							config.transport.buffer,
+						];
+					},
+				},
+			},
+		});
 		const [setReady] = exposeAPI(
 			{
 				createChildWorker: () => ({
@@ -77,9 +156,23 @@ describe('MessagePort transfer handling', () => {
 						childWorkerServicePort: childWorkerServiceChannel.port1,
 					},
 				}),
+				workers: {
+					register(config: {
+						transport: {
+							port: MessagePort;
+							buffer: ArrayBuffer;
+						};
+					}) {
+						config.transport.port.postMessage(
+							`nested argument buffer length ${config.transport.buffer.byteLength}`
+						);
+						config.transport.port.close();
+					},
+				},
 			},
 			undefined,
-			apiChannel.port1
+			apiChannel.port1,
+			transferPolicy
 		);
 		setReady();
 		const messagesFromConsumerWorker = Promise.all([
@@ -90,6 +183,16 @@ describe('MessagePort transfer handling', () => {
 			new Promise((resolve) =>
 				childWorkerServiceChannel.port2.once('message', resolve)
 			),
+			new Promise((resolve) => {
+				consumerWorker.on(
+					'message',
+					function resolveNestedTransfer(message) {
+						if (message?.type === 'nested-transfer-complete') {
+							resolve(message.value);
+						}
+					}
+				);
+			}),
 		]);
 		const consumerWorkerError =
 			rejectWhenConsumerWorkerFails(consumerWorker);
@@ -104,6 +207,7 @@ describe('MessagePort transfer handling', () => {
 				'php port',
 				'file lock manager port',
 				'child worker service port for process 123',
+				'nested argument buffer length 8; sender buffer length 0',
 			]);
 		} finally {
 			apiChannel.port1.close();
@@ -112,6 +216,84 @@ describe('MessagePort transfer handling', () => {
 			childWorkerServiceChannel.port2.close();
 			await consumerWorker.terminate();
 		}
+	});
+
+	it('preserves method errors without invoking a result transfer hook', async () => {
+		type FailingApi = {
+			createResource(): { port: MessagePort };
+		};
+		let resultHookCalled = false;
+		const transferPolicy = defineAPITransferPolicy<FailingApi>({
+			createResource: {
+				result(resource) {
+					resultHookCalled = true;
+					return [resource.port];
+				},
+			},
+		});
+		const apiChannel = new MessageChannel();
+		const [setReady] = exposeAPI<FailingApi, undefined>(
+			{
+				createResource() {
+					throw new Error('resource creation failed');
+				},
+			},
+			undefined,
+			apiChannel.port1,
+			transferPolicy
+		);
+		setReady();
+		const api = consumeAPI<FailingApi>(
+			apiChannel.port2,
+			undefined,
+			transferPolicy
+		);
+
+		await expect(api.createResource()).rejects.toThrow(
+			'resource creation failed'
+		);
+		expect(resultHookCalled).toBe(false);
+		apiChannel.port1.close();
+		apiChannel.port2.close();
+	});
+
+	it('rejects the remote call when a result transfer hook fails', async () => {
+		type FailingPolicyApi = {
+			createResource(): { port: MessagePort };
+		};
+		const transferPolicy = defineAPITransferPolicy<FailingPolicyApi>({
+			createResource: {
+				result() {
+					throw new Error('transfer policy failed');
+				},
+			},
+		});
+		const resourceChannel = new MessageChannel();
+		const apiChannel = new MessageChannel();
+		const [setReady] = exposeAPI<FailingPolicyApi, undefined>(
+			{
+				createResource() {
+					return { port: resourceChannel.port1 };
+				},
+			},
+			undefined,
+			apiChannel.port1,
+			transferPolicy
+		);
+		setReady();
+		const api = consumeAPI<FailingPolicyApi>(
+			apiChannel.port2,
+			undefined,
+			transferPolicy
+		);
+
+		await expect(api.createResource()).rejects.toThrow(
+			'transfer policy failed'
+		);
+		apiChannel.port1.close();
+		apiChannel.port2.close();
+		resourceChannel.port1.close();
+		resourceChannel.port2.close();
 	});
 });
 
@@ -127,12 +309,40 @@ async function createMessagePortConsumerWorker(): Promise<Worker> {
 			resolveDir: import.meta.dirname,
 			sourcefile: 'message-port-consumer.worker.mjs',
 			contents: `
-		import { parentPort } from 'node:worker_threads';
-		import { consumeAPI } from '../lib/api.ts';
+		import { MessageChannel, parentPort } from 'node:worker_threads';
+		import {
+			consumeAPI,
+			defineAPITransferPolicy,
+		} from '../lib/api.ts';
+
+		const transferPolicy = defineAPITransferPolicy({
+			createChildWorker: {
+				result(child) {
+					return [
+						child.phpPort,
+						child.fileLockManagerPort,
+						child.workerConfig.childWorkerServicePort,
+					];
+				},
+			},
+			workers: {
+				register: {
+					arguments(config) {
+						return [
+							config.transport.port,
+							config.transport.buffer,
+							// Exercise transfer-list identity deduplication in the
+							// bundled consumer as well as the typed main-thread policy.
+							config.transport.buffer,
+						];
+					},
+				},
+			},
+		});
 
 		parentPort.once('message', async function consumeApi({ apiPort }) {
 			try {
-				const api = consumeAPI(apiPort);
+				const api = consumeAPI(apiPort, undefined, transferPolicy);
 				const child = await api.createChildWorker();
 				child.phpPort.postMessage('php port');
 				child.fileLockManagerPort.postMessage(
@@ -145,6 +355,25 @@ async function createMessagePortConsumerWorker(): Promise<Worker> {
 				child.phpPort.close();
 				child.fileLockManagerPort.close();
 				child.workerConfig.childWorkerServicePort.close();
+				const argumentChannel = new MessageChannel();
+				const buffer = new ArrayBuffer(8);
+				const nestedArgumentReceived = new Promise((resolve) => {
+					argumentChannel.port2.once('message', resolve);
+				});
+				await api.workers.register({
+					transport: {
+						port: argumentChannel.port1,
+						buffer,
+					},
+				});
+				parentPort.postMessage({
+					type: 'nested-transfer-complete',
+					value:
+						(await nestedArgumentReceived) +
+						'; sender buffer length ' +
+						buffer.byteLength,
+				});
+				argumentChannel.port2.close();
 			} catch (error) {
 				parentPort.postMessage({
 					type: 'error',

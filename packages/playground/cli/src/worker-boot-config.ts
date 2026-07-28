@@ -1,5 +1,9 @@
 import type { PHPExtension } from '@php-wasm/node';
-import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
+import {
+	defineAPITransferPolicy,
+	type AllPHPVersion,
+	type PathAlias,
+} from '@php-wasm/universal';
 import type { Mount } from '@php-wasm/cli-util';
 import type { MessagePort } from 'worker_threads';
 
@@ -102,3 +106,41 @@ export interface ChildWorkerService {
 	/** Terminate a child worker and close the main-thread ports it was given. */
 	disposeChildWorker: (childId: number) => Promise<void>;
 }
+
+export interface WorkerBootApi {
+	bootRequestHandler(
+		platformConfig: WorkerPlatformConfig,
+		workerConfig: WorkerConfig
+	): Promise<void>;
+}
+
+export const childWorkerServiceTransferPolicy =
+	defineAPITransferPolicy<ChildWorkerService>({
+		createChildWorker: {
+			result: function transferCreatedChildWorker(child) {
+				return [
+					child.phpPort,
+					child.fileLockManagerPort,
+					child.workerConfig.childWorkerServicePort,
+					child.workerConfig.childWorkerControlPort,
+				];
+			},
+		},
+	});
+
+export const workerBootApiTransferPolicy =
+	defineAPITransferPolicy<WorkerBootApi>({
+		bootRequestHandler: {
+			arguments: function transferWorkerBootArguments(
+				_platformConfig,
+				workerConfig
+			) {
+				return [
+					workerConfig.childWorkerServicePort,
+					...(workerConfig.childWorkerControlPort
+						? [workerConfig.childWorkerControlPort]
+						: []),
+				];
+			},
+		},
+	});

@@ -21,6 +21,7 @@ import {
 	nodeProcessEndpoint,
 } from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
+import type { TransferListItem as NodeTransferable } from 'worker_threads';
 
 // NOTE: It seems like we wouldn't have to explicitly specify
 // symbol type here, but it seems to resolve some type errors.
@@ -39,6 +40,144 @@ export type WithAPIState = {
 	isReady: () => Promise<void>;
 };
 export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
+
+export type APITransferable = Transferable | NodeTransferable;
+
+type AnyMethod = (...args: any[]) => any;
+type IsAny<T> = 0 extends 1 & T ? true : false;
+type AnyContainsMessagePort<Candidates> = true extends Candidates
+	? true
+	: false;
+
+/**
+ * Detect nested ports in the structured-clone containers TypeScript can
+ * describe directly. `Seen` stops recursive types from expanding forever
+ * without imposing an arbitrary nesting-depth limit.
+ */
+type ContainsMessagePort<T, Seen = never> =
+	IsAny<T> extends true
+		? false
+		: T extends IsomorphicMessagePort
+			? true
+			: T extends AnyMethod
+				? false
+				: T extends Seen
+					? false
+					: T extends readonly (infer Item)[]
+						? ContainsMessagePort<Item, Seen | T>
+						: T extends ReadonlyMap<infer Key, infer Value>
+							? MapContainsMessagePort<Key, Value, Seen | T>
+							: T extends ReadonlySet<infer Item>
+								? ContainsMessagePort<Item, Seen | T>
+								: T extends object
+									? ObjectContainsMessagePort<T, Seen | T>
+									: false;
+
+type MapContainsMessagePort<Key, Value, Seen> = AnyContainsMessagePort<
+	ContainsMessagePort<Key, Seen> | ContainsMessagePort<Value, Seen>
+>;
+
+type ObjectContainsMessagePort<T extends object, Seen> = AnyContainsMessagePort<
+	{
+		[Key in keyof T]-?: ContainsMessagePort<T[Key], Seen>;
+	}[keyof T]
+>;
+
+type ArgumentNeedsTransferPolicy<Argument> =
+	Argument extends IsomorphicMessagePort
+		? false
+		: ContainsMessagePort<Argument>;
+
+type ArgumentsNeedTransferPolicy<Method extends AnyMethod> =
+	true extends ArgumentNeedsTransferPolicy<Parameters<Method>[number]>
+		? true
+		: false;
+
+type ResultNeedsTransferPolicy<Method extends AnyMethod> =
+	Awaited<ReturnType<Method>> extends IsomorphicMessagePort
+		? false
+		: ContainsMessagePort<Awaited<ReturnType<Method>>>;
+
+type MethodTransferPolicy<Method extends AnyMethod> =
+	(ArgumentsNeedTransferPolicy<Method> extends true
+		? {
+				arguments: (
+					...args: Parameters<Method>
+				) => readonly APITransferable[];
+			}
+		: {
+				arguments?: (
+					...args: Parameters<Method>
+				) => readonly APITransferable[];
+			}) &
+		(ResultNeedsTransferPolicy<Method> extends true
+			? {
+					result: (
+						value: Awaited<ReturnType<Method>>
+					) => readonly APITransferable[];
+				}
+			: {
+					result?: (
+						value: Awaited<ReturnType<Method>>
+					) => readonly APITransferable[];
+				});
+
+type TransferPolicyNode<Value> = Value extends AnyMethod
+	? MethodTransferPolicy<Value>
+	: Value extends object
+		? APITransferPolicy<Value>
+		: never;
+
+type RequiresTransferPolicy<Value> = Value extends AnyMethod
+	? ArgumentsNeedTransferPolicy<Value> extends true
+		? true
+		: ResultNeedsTransferPolicy<Value>
+	: Value extends object
+		? true extends {
+				[Key in keyof Value]-?: RequiresTransferPolicy<Value[Key]>;
+			}[keyof Value]
+			? true
+			: false
+		: false;
+
+/**
+ * Per-method transfer rules for values that structured clone can only carry
+ * when their nested transferables are included in the postMessage() transfer
+ * list. Nested objects mirror nested API method paths.
+ *
+ * The required-policy check follows statically visible object properties and
+ * the element types of arrays, maps, and sets. It intentionally cannot inspect
+ * `any`, `unknown`, runtime-only values, or custom containers whose contents
+ * are not represented by their public TypeScript shape. Extremely large types
+ * are also subject to TypeScript's own type-instantiation limit. Declare an
+ * optional hook explicitly for any such shape that may contain transferables.
+ *
+ * This analysis only decides whether TypeScript requires a hook. At runtime no
+ * object tree is traversed: the hook alone returns the exact transfer list.
+ */
+export type APITransferPolicy<API> = {
+	[Key in keyof API as RequiresTransferPolicy<API[Key]> extends true
+		? Key
+		: never]-?: TransferPolicyNode<API[Key]>;
+} & {
+	[Key in keyof API as RequiresTransferPolicy<API[Key]> extends true
+		? never
+		: Key]?: TransferPolicyNode<API[Key]>;
+};
+
+export function defineAPITransferPolicy<API>(
+	policy: APITransferPolicy<API>
+): APITransferPolicy<API> {
+	return policy;
+}
+
+type TransferPolicyArgument<API> =
+	RequiresTransferPolicy<API> extends true
+		? [transferPolicy: APITransferPolicy<API>]
+		: [transferPolicy?: APITransferPolicy<API>];
+
+type ExposedAPIContract<Methods, PipedAPI> = Methods &
+	([PipedAPI] extends [undefined] ? unknown : PipedAPI);
 
 // A proxy answers every property access, so no duck-typed property check can
 // distinguish it from an endpoint reliably. Track the proxies we create by
@@ -98,9 +237,11 @@ function assertIsMessagePort(
 
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeWorker | NodeProcess,
-	context: undefined | EventTarget = undefined
+	context: undefined | EventTarget = undefined,
+	...transferPolicyArgument: TransferPolicyArgument<APIType>
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
+	const transferResolver = createTransferResolver(transferPolicyArgument[0]);
 
 	let endpoint;
 	/**
@@ -148,7 +289,11 @@ export function consumeAPI<APIType>(
 	 *
 	 * @TODO: Remove this workaround.
 	 */
-	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
+	const api = Comlink.wrap<APIType & WithAPIState>(
+		endpoint,
+		undefined,
+		transferResolver
+	);
 	const methods = proxyClone(api);
 	const remoteAPI = new Proxy(methods, {
 		get: (target, prop) => {
@@ -313,7 +458,10 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: MessagePort | NodeWorker | NodeProcess
+	targetWorker?: MessagePort | NodeWorker | NodeProcess,
+	...transferPolicyArgument: TransferPolicyArgument<
+		ExposedAPIContract<Methods, PipedAPI>
+	>
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -340,8 +488,61 @@ export function exposeAPI<Methods, PipedAPI>(
 				? Comlink.windowEndpoint(self.parent)
 				: undefined;
 	}
-	Comlink.expose(exposedApi, endpoint);
+	Comlink.expose(
+		exposedApi,
+		endpoint,
+		['*'],
+		undefined,
+		createTransferResolver(transferPolicyArgument[0])
+	);
 	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
+}
+
+type RuntimeMethodTransferPolicy = {
+	arguments?: (...args: any[]) => readonly APITransferable[];
+	result?: (value: any) => readonly APITransferable[];
+};
+
+function createTransferResolver(
+	policy: APITransferPolicy<any> | undefined
+): Comlink.AsyncTransferResolver | undefined {
+	if (!policy) {
+		return undefined;
+	}
+	return {
+		getArgumentTransferables(path, argumentsList) {
+			const methodPolicy = resolveMethodTransferPolicy(policy, path);
+			return toComlinkTransferables(
+				methodPolicy?.arguments?.(...argumentsList) || []
+			);
+		},
+		getResultTransferables(path, result) {
+			const methodPolicy = resolveMethodTransferPolicy(policy, path);
+			return toComlinkTransferables(methodPolicy?.result?.(result) || []);
+		},
+	};
+}
+
+function resolveMethodTransferPolicy(
+	policy: APITransferPolicy<any>,
+	path: string[]
+): RuntimeMethodTransferPolicy | undefined {
+	let node: unknown = policy;
+	for (const part of path) {
+		if (typeof node !== 'object' || node === null) {
+			return undefined;
+		}
+		node = (node as Record<string, unknown>)[part];
+	}
+	return typeof node === 'object' && node !== null
+		? (node as RuntimeMethodTransferPolicy)
+		: undefined;
+}
+
+function toComlinkTransferables(
+	transferables: readonly APITransferable[]
+): Transferable[] {
+	return transferables as readonly Transferable[] as Transferable[];
 }
 
 export async function exposeSyncAPI<Methods>(
@@ -606,62 +807,6 @@ function setupTransferHandlers() {
 			return new StreamedPHPResponse(headers, stdout, stderr, exitCode);
 		},
 	});
-	// Comlink applies transfer handlers to the top-level value only. Collect
-	// ports nested in plain API result objects so structured clone receives the
-	// complete transfer list for aggregate results such as worker boot configs.
-	Comlink.transferHandlers.set('MESSAGE_PORT_CONTAINER', {
-		canHandle(obj: unknown): obj is MessagePortContainer {
-			return (
-				isMessagePortContainer(obj) &&
-				collectMessagePorts(obj).length > 0
-			);
-		},
-		serialize(
-			container: MessagePortContainer
-		): [MessagePortContainer, Transferable[]] {
-			return [container, collectMessagePorts(container)];
-		},
-		deserialize(container: MessagePortContainer): MessagePortContainer {
-			return container;
-		},
-	});
-}
-
-type MessagePortContainer = unknown[] | Record<string, unknown>;
-
-function collectMessagePorts(container: MessagePortContainer): MessagePort[] {
-	const ports = new Set<MessagePort>();
-	collectMessagePortsInto(container, ports, new WeakSet<object>());
-	return Array.from(ports);
-}
-
-function collectMessagePortsInto(
-	value: unknown,
-	ports: Set<MessagePort>,
-	visited: WeakSet<object>
-): void {
-	if (value instanceof MessagePort) {
-		ports.add(value);
-		return;
-	}
-	if (!isMessagePortContainer(value) || visited.has(value)) {
-		return;
-	}
-	visited.add(value);
-	for (const nestedValue of Object.values(value)) {
-		collectMessagePortsInto(nestedValue, ports, visited);
-	}
-}
-
-function isMessagePortContainer(value: unknown): value is MessagePortContainer {
-	if (typeof value !== 'object' || value === null) {
-		return false;
-	}
-	if (Array.isArray(value)) {
-		return true;
-	}
-	const prototype = Object.getPrototypeOf(value);
-	return prototype === Object.prototype || prototype === null;
 }
 
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:

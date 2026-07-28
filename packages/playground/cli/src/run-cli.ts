@@ -81,6 +81,7 @@ import {
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
 import { createChildWorkerService } from './child-worker-service';
+import { childWorkerServiceTransferPolicy } from './worker-boot-config';
 import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_ENTRY_PATH,
@@ -1655,7 +1656,8 @@ export async function runCLI(
 						exposeAPI(
 							childWorkerServiceEndpoint.api,
 							undefined,
-							childWorkerServiceChannel.port1
+							childWorkerServiceChannel.port1,
+							childWorkerServiceTransferPolicy
 						);
 						childWorkerServiceChannel.port1.unref();
 						childWorkerServicePorts.push(

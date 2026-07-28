@@ -11,6 +11,7 @@ import {
 import { MessageChannel, type MessagePort } from 'worker_threads';
 import {
 	CHILD_WORKER_CONTROL_READY,
+	childWorkerServiceTransferPolicy,
 	type ChildWorkerControl,
 	type ChildWorkerService,
 	type CreatedChildWorker,
@@ -198,7 +199,12 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 
 		// The main ends remain owned here for the child's entire lifetime. The
 		// other ends are returned once, as one naturally transferable aggregate.
-		exposeAPI(descendantEndpoint.api, undefined, serviceChannel.port1);
+		exposeAPI(
+			descendantEndpoint.api,
+			undefined,
+			serviceChannel.port1,
+			childWorkerServiceTransferPolicy
+		);
 		lockChannel.port1.unref();
 		serviceChannel.port1.unref();
 		controlChannel.port1.unref();
