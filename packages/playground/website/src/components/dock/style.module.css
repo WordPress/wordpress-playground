@@ -149,8 +149,8 @@
 }
 
 .dock-item:focus-visible {
-	outline: 2px solid #3858e9;
-	outline-offset: 3px;
+	outline: 1px solid #afbcf6;
+	outline-offset: -1px;
 }
 
 .dock-item-primary {
@@ -1401,6 +1401,11 @@
 @media (forced-colors: active) {
 	.dock-operation-toast {
 		border: 2px solid CanvasText;
+	}
+
+	.dock-item:focus-visible {
+		outline: 2px solid CanvasText;
+		outline-offset: -2px;
 	}
 }
 
