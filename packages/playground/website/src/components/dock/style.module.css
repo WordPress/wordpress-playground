@@ -149,8 +149,12 @@
 }
 
 .dock-item:focus-visible {
-	box-shadow: inset 0 0 0 1.5px #ffffff;
+	box-shadow: inset 0 0 0 1.5px #2271b1;
 	outline: none;
+}
+
+.dock-item-primary:focus-visible {
+	box-shadow: inset 0 0 0 1.5px #ffffff;
 }
 
 .dock-item-primary {
