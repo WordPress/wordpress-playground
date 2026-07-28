@@ -962,6 +962,7 @@ export const BlueprintBundleEditor = forwardRef<
 							{...(dockPresentation
 								? {
 										title: 'Blueprint',
+										mobileSubsectionTitle: 'Files',
 										showBinaryPreviewHeader: false,
 										dockPresentation: true,
 										useWordPressTooltips: true,

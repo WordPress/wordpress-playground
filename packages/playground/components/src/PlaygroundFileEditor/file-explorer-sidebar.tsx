@@ -45,6 +45,7 @@ export type FileExplorerSidebarProps = {
 	documentRoot: string;
 	readOnly?: boolean;
 	title?: string;
+	mobileSubsectionTitle?: string;
 	showBinaryPreviewHeader?: boolean;
 	dockPresentation?: boolean;
 	useWordPressTooltips?: boolean;
@@ -64,6 +65,7 @@ export function FileExplorerSidebar({
 	documentRoot,
 	readOnly = false,
 	title = 'Files',
+	mobileSubsectionTitle,
 	showBinaryPreviewHeader = true,
 	dockPresentation = false,
 	useWordPressTooltips = false,
@@ -287,6 +289,11 @@ export function FileExplorerSidebar({
 		>
 			<div className={styles['fileExplorerHeader']}>
 				<span className={styles['fileExplorerTitle']}>{title}</span>
+				{mobileSubsectionTitle ? (
+					<span className={styles['fileExplorerSubsectionTitle']}>
+						{mobileSubsectionTitle}
+					</span>
+				) : null}
 				{!readOnly ? (
 					<div className={styles['fileExplorerActions']}>
 						<FileActionTooltip

@@ -28,6 +28,10 @@
 	color: var(--color-gray-700);
 }
 
+.fileExplorerSubsectionTitle {
+	display: none;
+}
+
 .fileExplorerActions {
 	display: flex;
 	align-items: center;
@@ -148,4 +152,22 @@
 .dockPresentation .fileExplorerUploadButton svg {
 	width: 16px;
 	height: 16px;
+}
+
+@media (max-width: 1024px) {
+	/* The mobile Dock toolbar names the editor, so this row labels its files. */
+	.dockPresentation .fileExplorerTitle {
+		display: none;
+	}
+
+	.dockPresentation .fileExplorerSubsectionTitle {
+		color: var(--ink-muted, #5f5b54);
+		display: inline;
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.dockPresentation .fileExplorerActions {
+		margin-left: auto;
+	}
 }
