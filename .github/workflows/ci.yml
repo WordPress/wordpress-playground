@@ -28,7 +28,7 @@ jobs:
                   filter: tree:0
             - id: set_shas
               name: Derive appropriate SHAs for nx affected
-              uses: nrwl/nx-set-shas@v5
+              uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5.0.1
               with:
                   main-branch-name: trunk
                   set-environment-variables-for-job: false
