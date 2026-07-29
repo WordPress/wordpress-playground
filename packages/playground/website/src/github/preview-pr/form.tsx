@@ -508,18 +508,23 @@ export default function PreviewPRForm({
 		return { ok: false, error: 'unexpected_response' };
 	}
 
-	const inputLabel = inline
-		? 'WordPress Core or Gutenberg'
-		: target === 'wordpress'
+	const inputLabel =
+		target === 'wordpress'
 			? 'PR number or URL'
 			: 'PR number, URL, or a branch name';
 
 	return (
-		<form onSubmit={handleSubmit}>
+		<form
+			className={inline ? css.inlineForm : undefined}
+			onSubmit={handleSubmit}
+		>
+			{inline && <h3>Preview a pull request</h3>}
 			<div>
 				<TextControl
+					__nextHasNoMarginBottom={inline}
 					disabled={submitting}
-					label={inputLabel}
+					hideLabelFromVision={inline}
+					label={inline ? 'PR number or GitHub URL' : inputLabel}
 					placeholder={inline ? 'PR number or GitHub URL' : undefined}
 					value={value}
 					autoFocus={!inline}
@@ -640,12 +645,18 @@ export default function PreviewPRForm({
 						<div>{feedback.message}</div>
 					))}
 			</div>
+			{inline && (
+				<p className={css.inlineDescription}>
+					Enter a WordPress Core or Gutenberg PR number or GitHub URL
+					to open it in a fresh Playground.
+				</p>
+			)}
 			{inline && repositoryMatches.length === 0 && !resolvedSource ? (
 				<div className={css.inlineActions}>
 					<Button
 						variant="primary"
 						type="submit"
-						disabled={submitting}
+						disabled={submitting || !value.trim()}
 					>
 						{isBarePrNumber ? 'Find pull request' : 'Preview'}
 					</Button>

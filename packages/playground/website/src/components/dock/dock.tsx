@@ -1156,7 +1156,6 @@ export function Dock({
 						[css.hostPaneHidden]:
 							Boolean(activeSiteError) ||
 							(!dockPaneIsOpen && paneExitComplete),
-						[css.paneSave]: section === 'save',
 						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}
