@@ -1458,6 +1458,8 @@ test.describe('Default Playground storage', () => {
 				directoryHandlePrototype.getDirectoryHandle;
 			(window as any).__releaseBlueprintBundleDirectory =
 				releaseBlueprintBundleDirectory;
+			(window as any).__originalBlueprintGetDirectoryHandle =
+				getDirectoryHandle;
 			directoryHandlePrototype.getDirectoryHandle = async function (
 				name,
 				options
@@ -1482,13 +1484,21 @@ test.describe('Default Playground storage', () => {
 					.getByRole('status')
 			).toHaveText('Loading the Blueprint editor…');
 		} finally {
-			await website.page.evaluate(() =>
-				(window as any).__releaseBlueprintBundleDirectory()
-			);
+			await website.page.evaluate(() => {
+				(window as any).__releaseBlueprintBundleDirectory();
+				FileSystemDirectoryHandle.prototype.getDirectoryHandle = (
+					window as any
+				).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__releaseBlueprintBundleDirectory;
+				delete (window as any).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__blueprintBundleDirectoryRequested;
+			});
 		}
 
 		await expect(
-			website.page.locator('[class*="blueprint-editor"] .cm-content')
+			website.page
+				.getByRole('dialog', { name: 'Blueprint pane' })
+				.getByRole('button', { name: 'Create new file' })
 		).toBeVisible();
 	});
 
