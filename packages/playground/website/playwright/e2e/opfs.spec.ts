@@ -1739,6 +1739,107 @@ test('should retain files omitted from a legacy ZIP export', async ({
 	);
 });
 
+test('should re-import an exported ZIP without switching sites', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const blueprint: Blueprint = {
+		meta: {
+			title: 'ZIP Reimport Regression',
+			author: 'wordpress',
+		},
+		steps: [],
+	};
+	const sourceUrl = getTemporaryPlaygroundUrl(
+		`#${JSON.stringify(blueprint)}`
+	);
+	await website.goto(sourceUrl);
+	const sourceSiteSlug = await website.page.evaluate(() =>
+		(window as any).playgroundSites.createNewSavedSite(
+			undefined,
+			undefined,
+			{
+				persistence: 'autosave',
+				updateUrl: false,
+			}
+		)
+	);
+
+	// Occupy the next slug after this tab loaded. Its Redux snapshot will not
+	// include this site, but both tabs share OPFS.
+	const secondTab = await context.newPage();
+	await secondTab.goto(new URL(sourceUrl, website.page.url()).href);
+	await secondTab.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	const occupiedSiteSlug = await secondTab.evaluate(
+		(slugToKeep) =>
+			(window as any).playgroundSites.createNewSavedSite(
+				undefined,
+				undefined,
+				{
+					updateUrl: false,
+					excludeFromPruning: [slugToKeep],
+				}
+			),
+		sourceSiteSlug
+	);
+	await secondTab.close();
+
+	expect(occupiedSiteSlug).not.toBe(sourceSiteSlug);
+	expect((await getActivePlaygroundSite(website.page))?.slug).toBe(
+		sourceSiteSlug
+	);
+
+	await website.openDockPane('Export');
+	const downloadPromise = website.page.waitForEvent('download');
+	await website.page
+		.getByRole('dialog', { name: 'Export pane' })
+		.getByRole('button', { name: 'Download as .zip' })
+		.click();
+	const download = await downloadPromise;
+	const downloadPath = await download.path();
+	expect(downloadPath).toBeTruthy();
+	const zipBuffer = await readFile(downloadPath!);
+
+	// Downloading must not change the active site before the ZIP is imported.
+	expect((await getActivePlaygroundSite(website.page))?.slug).toBe(
+		sourceSiteSlug
+	);
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+	const acceptImportDialog = async (dialog: { accept(): Promise<void> }) => {
+		await dialog.accept();
+	};
+	website.page.on('dialog', acceptImportDialog);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'zip-reimport-regression.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== sourceSiteSlug
+	);
+	website.page.off('dialog', acceptImportDialog);
+	expect(importedSite.slug).not.toBe(occupiedSiteSlug);
+});
+
 test('should preserve a customized default-theme background through export and import', async ({
 	website,
 	wordpress,

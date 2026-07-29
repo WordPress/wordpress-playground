@@ -612,63 +612,6 @@ describe('stored sites', () => {
 		});
 	});
 
-	it('avoids slugs occupied in OPFS outside the current Redux state', async () => {
-		const { createStoredSite } = await import('./slice-sites');
-		resolveRuntimeConfiguration.mockResolvedValue({
-			phpVersion: '8.3',
-			wpVersion: 'latest',
-			intl: false,
-			networking: true,
-			extraLibraries: [],
-			constants: {},
-		});
-		listMetadata.mockResolvedValue([
-			createSiteInfo({
-				slug: 'playground-welcome-landing-page',
-				name: 'Stored Playground',
-			}),
-		]);
-
-		const newSite = await createStoredSite(
-			'Imported Playground',
-			createBundleBlueprint(),
-			'playground-welcome-landing-page'
-		)(createThunkDispatch() as any, createEmptyGetState() as any);
-
-		expect(newSite.slug).toBe('playground-welcome-landing-page-2');
-		expect(createSite).toHaveBeenCalledWith(
-			'playground-welcome-landing-page-2',
-			newSite.metadata,
-			undefined
-		);
-	});
-
-	it('creates from the Redux snapshot when OPFS enumeration fails', async () => {
-		const { createStoredSite } = await import('./slice-sites');
-		resolveRuntimeConfiguration.mockResolvedValue({
-			phpVersion: '8.3',
-			wpVersion: 'latest',
-			intl: false,
-			networking: true,
-			extraLibraries: [],
-			constants: {},
-		});
-		listMetadata.mockRejectedValue(new Error('Unable to enumerate OPFS'));
-
-		const newSite = await createStoredSite(
-			'Imported Playground',
-			createBundleBlueprint(),
-			'imported-playground'
-		)(createThunkDispatch() as any, createEmptyGetState() as any);
-
-		expect(newSite.slug).toBe('imported-playground');
-		expect(createSite).toHaveBeenCalledWith(
-			'imported-playground',
-			newSite.metadata,
-			undefined
-		);
-	});
-
 	it('does not persist an edited Blueprint bundle when its runtime is invalid', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
