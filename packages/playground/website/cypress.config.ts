@@ -7,4 +7,7 @@ export default defineConfig({
 	}),
 	// Playground may be slow on GitHub CI
 	defaultCommandTimeout: 60000 * 2,
+	// Each query API test boots a full PHP-Wasm runtime. Reclaim Chromium's
+	// heap between tests so repeated boots do not exhaust CI runners.
+	experimentalMemoryManagement: true,
 });
