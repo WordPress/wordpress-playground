@@ -52,7 +52,7 @@
 .github-export-form :global(select),
 .github-export-form :global(textarea) {
 	background: #ffffff;
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card);
 	box-shadow: none;
 	box-sizing: border-box;

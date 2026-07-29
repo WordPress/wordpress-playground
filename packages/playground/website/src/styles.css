@@ -148,18 +148,27 @@ html {
 :root {
 	/* Semantic UI roles using colors from the WordPress.org Design Library. */
 
-	/* Dark chrome and the text used on light surfaces. */
+	/* Dark app chrome. */
 	--chrome-background: #1a1919;
-	--chrome-field-background: #40464d;
+	--chrome-input-background: #40464d;
+	--chrome-popover-background: #40464d;
 	--chrome-hover-background: #656a71;
+	--chrome-control-background: rgba(246, 246, 246, 0.05);
+	--chrome-control-border: rgba(246, 246, 246, 0.1);
+	--chrome-control-hover-background: rgba(246, 246, 246, 0.12);
+
+	/* Text and icons. Dark chrome spans separate subtrees and portaled surfaces,
+	   so contrast-specific `-on-dark` roles stay explicit. */
 	--ink: #1a1919;
 	--ink-soft: #23282d;
 	--ink-muted: #656a71;
 	--ink-faint: #979aa1;
 	--ink-on-dark: #d9d9d9;
+	--ink-muted-on-dark: rgba(246, 246, 246, 0.7);
 	--ink-bright-on-dark: #f6f6f6;
 	--ink-disabled-on-dark: rgba(217, 217, 217, 0.4);
 	--action-icon: #40464d;
+	--action-icon-disabled-on-dark: rgba(151, 154, 161, 0.4);
 
 	/* Light surfaces, controls, and their boundaries. */
 	--surface: #f6f6f6;
@@ -170,8 +179,8 @@ html {
 	--app-background-recessed: #f0f0f0;
 	--divider: #d9d9d9;
 	--border-subtle: rgba(26, 25, 25, 0.08);
-	--border-control: rgba(26, 25, 25, 0.15);
-	--border-control-hover: rgba(26, 25, 25, 0.24);
+	--interactive-border: rgba(26, 25, 25, 0.15);
+	--interactive-border-hover: rgba(26, 25, 25, 0.24);
 	--loading-surface-dark: #1e1e1e;
 	--loading-track-dark: #23282d;
 
@@ -188,7 +197,6 @@ html {
 	--create-fresh-action-hover: #5300be;
 
 	/* Success, warning, error, and destructive states. */
-	--success: #33f078;
 	--success-on-dark: #c7ffdb;
 	--success-toast-background: #20482e;
 	--success-toast-border: #3b8a5e;

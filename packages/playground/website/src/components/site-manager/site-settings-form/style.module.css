@@ -47,7 +47,7 @@
 }
 
 .form-section :global(.components-input-control__backdrop) {
-	border-color: var(--border-control) !important;
+	border-color: var(--interactive-border) !important;
 	border-radius: var(--radius-control) !important;
 }
 

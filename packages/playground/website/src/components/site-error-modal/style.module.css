@@ -351,7 +351,7 @@
 
 .error-modal-body :global(.components-textarea-control__input) {
 	background: #ffffff;
-	border-color: var(--border-control);
+	border-color: var(--interactive-border);
 	border-radius: var(--radius-card);
 	box-shadow: none;
 	color: var(--ink);
@@ -394,7 +394,7 @@
 /* Exactly one filled accent primary per sheet; every other action is a quiet
    text control on the pane surface (same hierarchy as the Dock panes). */
 .error-modal :global(.components-button.is-secondary:not(.is-destructive)) {
-	box-shadow: inset 0 0 0 1px var(--border-control);
+	box-shadow: inset 0 0 0 1px var(--interactive-border);
 	color: var(--ink);
 }
 
@@ -405,7 +405,7 @@
 			)
 	) {
 	background: var(--surface-control-hover);
-	box-shadow: inset 0 0 0 1px var(--border-control-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 	color: var(--ink);
 }
 

@@ -45,15 +45,15 @@
 	box-sizing: border-box;
 	height: 34px;
 	padding: 0 10px;
-	background: rgba(246, 246, 246, 0.05);
-	border: 1px solid rgba(246, 246, 246, 0.1);
+	background: var(--chrome-control-background);
+	border: 1px solid var(--chrome-control-border);
 	border-radius: 9px;
 	cursor: pointer;
 	transition: background 0.13s ease;
 }
 
 .actionable:hover {
-	background: rgba(246, 246, 246, 0.12);
+	background: var(--chrome-control-hover-background);
 }
 
 .actionable:disabled,
@@ -64,7 +64,7 @@
 
 .actionable:disabled:hover,
 .error:disabled:hover {
-	background: rgba(246, 246, 246, 0.05);
+	background: var(--chrome-control-background);
 }
 
 .actionable:focus-visible,
@@ -90,7 +90,7 @@
 }
 
 .error:hover {
-	background: rgba(246, 246, 246, 0.12);
+	background: var(--chrome-control-hover-background);
 }
 
 .error svg {
@@ -138,5 +138,5 @@
 /* --- Restored from the deployed build --- */
 
 .loading {
-	color: rgba(246, 246, 246, 0.7);
+	color: var(--ink-muted-on-dark);
 }

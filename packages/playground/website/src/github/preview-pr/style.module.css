@@ -65,7 +65,7 @@
 	.components-button.is-secondary:hover:not(:disabled)
 ) {
 	background: var(--surface-control-hover);
-	box-shadow: inset 0 0 0 1px var(--border-control-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 }
 
 .repository-choices
@@ -73,7 +73,7 @@
 		.components-button.is-secondary:active:not(:disabled)
 	) {
 	background: var(--surface-control-active);
-	box-shadow: inset 0 0 0 1px var(--border-control-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 }
 
 .repository-choice:global(

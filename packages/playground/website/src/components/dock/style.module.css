@@ -192,7 +192,7 @@
    overriding WordPress' teal admin color (#007cba) and any muted per-panel
    accent (the site-info panel remaps the WP accent to gray). */
 .pane :global(.components-checkbox-control__input[type='checkbox']) {
-	border-color: var(--border-control);
+	border-color: var(--interactive-border);
 	border-radius: 4px;
 }
 .pane :global(.components-checkbox-control__input[type='checkbox']:checked),
@@ -405,7 +405,7 @@
 .pane-header-action {
 	align-items: center;
 	background: transparent;
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card);
 	color: var(--ink-soft);
 	cursor: pointer;
@@ -423,7 +423,7 @@
 
 .pane-header-action:hover {
 	background: var(--surface-control-hover);
-	border-color: var(--border-control-hover);
+	border-color: var(--interactive-border-hover);
 }
 
 .pane-header-action svg {
@@ -604,7 +604,7 @@
 }
 
 .pane :global(.components-button.is-secondary:not(.is-destructive)) {
-	box-shadow: inset 0 0 0 1px var(--border-control);
+	box-shadow: inset 0 0 0 1px var(--interactive-border);
 	color: var(--ink);
 }
 
@@ -615,7 +615,7 @@
 			)
 	) {
 	background: var(--surface-control-hover);
-	box-shadow: inset 0 0 0 1px var(--border-control-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 	color: var(--ink);
 }
 
@@ -648,7 +648,7 @@
 .pane .pane-body :global(.components-text-control__input),
 .pane .pane-body :global(.components-select-control__input) {
 	background: #ffffff;
-	border-color: var(--border-control);
+	border-color: var(--interactive-border);
 	border-radius: var(--radius-card);
 	box-shadow: none;
 	color: var(--ink);
@@ -664,7 +664,7 @@
 }
 
 .pane :global(.components-input-control__backdrop) {
-	border-color: var(--border-control) !important;
+	border-color: var(--interactive-border) !important;
 	border-radius: var(--radius-control) !important;
 }
 
@@ -1204,8 +1204,8 @@
    styling is needed. */
 .dock-toggle-pill {
 	align-items: stretch;
-	background: rgba(246, 246, 246, 0.05);
-	border: 1px solid rgba(246, 246, 246, 0.1);
+	background: var(--chrome-control-background);
+	border: 1px solid var(--chrome-control-border);
 	border-radius: 9px;
 	display: inline-flex;
 	flex: none;
@@ -1233,7 +1233,7 @@
 }
 
 .dock-pill-btn:hover {
-	background: rgba(246, 246, 246, 0.12);
+	background: var(--chrome-control-hover-background);
 	color: var(--ink-bright-on-dark);
 }
 

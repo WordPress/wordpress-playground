@@ -31,7 +31,7 @@
 
 .log-filter-chip {
 	background: none;
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: 999px;
 	color: var(--ink-muted);
 	cursor: pointer;
@@ -42,7 +42,7 @@
 }
 
 .log-filter-chip:hover:not(:disabled) {
-	border-color: var(--border-control-hover);
+	border-color: var(--interactive-border-hover);
 	color: var(--ink);
 }
 

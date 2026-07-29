@@ -32,7 +32,7 @@
 
 .refresh-button:disabled,
 .refresh-button:disabled:hover {
-	color: rgba(151, 154, 161, 0.4);
+	color: var(--action-icon-disabled-on-dark);
 	cursor: default;
 }
 
@@ -59,7 +59,7 @@
 	font-weight: 50;
 	height: 26px;
 	border: 0;
-	background: var(--chrome-field-background);
+	background: var(--chrome-input-background);
 	border-radius: 8px;
 	color: var(--ink-on-dark);
 	transition: color 0.5s ease;
@@ -87,7 +87,7 @@
 
 /* Override WordPress Popover default styles */
 .popover :global(.components-popover__content) {
-	background: var(--chrome-field-background);
+	background: var(--chrome-popover-background);
 	border: none;
 	border-radius: 8px;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -96,7 +96,7 @@
 
 /* Suggestions dropdown - styled like browser autocomplete */
 .suggestions {
-	background: var(--chrome-field-background);
+	background: var(--chrome-popover-background);
 	border-radius: 8px;
 	margin: 0;
 	padding: 4px 0;

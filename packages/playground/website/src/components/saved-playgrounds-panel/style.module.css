@@ -767,7 +767,7 @@
    raised white segment. */
 .playgrounds-pane.new-pane .creationTabs {
 	background: var(--surface-control-hover);
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: 14px;
 	box-shadow: inset 0 1px 2px rgba(26, 25, 25, 0.05);
 	display: grid;
@@ -865,7 +865,7 @@
 .playgrounds-pane.new-pane .creationButtonActive:hover:not(:disabled) {
 	background: #ffffff;
 	box-shadow:
-		inset 0 0 0 1px var(--border-control),
+		inset 0 0 0 1px var(--interactive-border),
 		0 1px 1px rgba(26, 25, 25, 0.05),
 		0 2px 6px rgba(26, 25, 25, 0.12);
 	color: var(--ink);
@@ -935,7 +935,7 @@
    editors rather than reading as a separate default-white box. It grows to fill the
    panel (min 160px) so the Create button below it is always reachable. */
 .playgrounds-pane.new-pane .writeOwnEditor {
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
 	display: flex;
 	flex-direction: column;
@@ -1010,7 +1010,7 @@
 .playgrounds-pane .inlineForm :global(input[type='url']),
 .playgrounds-pane .inlineForm :global(select) {
 	background: #ffffff;
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
 	box-shadow: none;
 	color: var(--ink);
@@ -1039,7 +1039,7 @@
 .playgrounds-pane .zipDropzone {
 	align-items: center;
 	background: #ffffff;
-	border: 2px dashed var(--border-control);
+	border: 2px dashed var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
 	color: var(--ink-soft);
 	cursor: pointer;
@@ -1131,7 +1131,7 @@
 
 .playgrounds-pane .zipImportStatus {
 	background: var(--surface-raised);
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
 	color: var(--ink-soft);
 	display: flex;
@@ -1345,14 +1345,14 @@
 .playgrounds-pane .blueprintCard,
 .playgrounds-pane .blueprintPreviewCard {
 	background: #ffffff;
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	color: var(--ink);
 }
 
 .playgrounds-pane .creationButton:hover:not(:disabled),
 .playgrounds-pane .blueprintPreviewCard:hover {
 	background: var(--surface-raised);
-	border-color: var(--border-control-hover);
+	border-color: var(--interactive-border-hover);
 }
 
 .playgrounds-pane .creationIcon,
@@ -1392,7 +1392,7 @@
 
 .playgrounds-pane .searchWrapper {
 	background: #ffffff;
-	border-color: var(--border-control);
+	border-color: var(--interactive-border);
 	border-radius: 8px;
 	max-width: none;
 }
@@ -1416,7 +1416,7 @@
 .playgrounds-pane .blueprintPreviewThumbnail,
 .playgrounds-pane .blueprintThumbnail {
 	background: var(--surface-recessed);
-	border-color: var(--border-control);
+	border-color: var(--interactive-border);
 }
 
 .playgrounds-pane .blueprintPreviewTitle {
@@ -1573,7 +1573,7 @@
 }
 
 .playgrounds-pane .showMoreButton {
-	border-color: var(--border-control);
+	border-color: var(--interactive-border);
 	color: var(--ink-muted);
 }
 
@@ -1593,7 +1593,7 @@
 	width: 28px;
 	height: 28px;
 	padding: 0px;
-	border: 1px solid var(--border-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-control, 6px);
 	background: var(--surface-raised);
 	color: var(--ink-muted);
