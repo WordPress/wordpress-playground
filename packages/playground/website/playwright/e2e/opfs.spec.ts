@@ -462,6 +462,23 @@ async function getStoredPlaygroundSiteSlugs(page: Page) {
 	});
 }
 
+async function getInitialOpfsSyncPending(page: Page, siteSlug: string) {
+	return page.evaluate(
+		async ({ directoryName }) => {
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(directoryName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const metadata = JSON.parse(
+				await (await metadataFile.getFile()).text()
+			);
+			return metadata.initialOpfsSyncPending === true;
+		},
+		{ directoryName: getDirectoryNameForSlug(siteSlug) }
+	);
+}
+
 async function waitForActivePlaygroundSiteSlug(
 	page: Page,
 	matchesSlug: (slug: string) => boolean
@@ -1250,7 +1267,7 @@ test('should show an inline error for a non-ZIP drop', async ({
 	).toBeVisible();
 });
 
-test('should close the pane, reveal the site, and finish during a ZIP import', async ({
+test('should finish autosaving a ZIP import after switching Playgrounds', async ({
 	website,
 	browserName,
 }) => {
@@ -1260,6 +1277,8 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	);
 
 	await website.goto(getTemporaryPlaygroundUrl());
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
 	await website.openDockPane('New Playground');
 	await website.page
 		.getByRole('tab', { name: 'Import zip', exact: true })
@@ -1281,9 +1300,16 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	const importProgressStarted = expect(importProgress).toBeVisible({
 		timeout: 120000,
 	});
-	const autosaveStarted = expect(autosaveProgress).toBeVisible({
-		timeout: 120000,
-	});
+	const switchWhileAutosaving = (async () => {
+		await expect(autosaveProgress).toBeVisible({ timeout: 120000 });
+		const importedSite = await getActivePlaygroundSite(website.page);
+		expect(importedSite).toMatchObject({
+			storage: 'opfs',
+			persistence: 'autosave',
+		});
+		await setActivePlaygroundSite(website.page, sourceSite.slug);
+		return importedSite;
+	})();
 	const importProgressAdvanced = expect
 		.poll(
 			async () => {
@@ -1308,10 +1334,15 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	await expect(autosaveProgress).toHaveCount(0);
 	await importProgressAdvanced;
 	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
-	await autosaveStarted;
-	await expect(
-		website.page.locator('iframe.playground-viewport:visible')
-	).toHaveCount(1);
+	const importedSite = await switchWhileAutosaving;
+
+	await expect
+		.poll(
+			() => getInitialOpfsSyncPending(website.page, importedSite.slug),
+			{ timeout: 120000 }
+		)
+		.toBe(false);
+
 	const newPlaygroundButton = website.page.getByRole('button', {
 		name: 'New Playground',
 		exact: true,
@@ -1320,11 +1351,8 @@ test('should close the pane, reveal the site, and finish during a ZIP import', a
 	await expect(
 		website.page.getByText('Playground imported', { exact: true })
 	).toBeVisible({ timeout: 120000 });
-	const importedSite = await getActivePlaygroundSite(website.page);
-	expect(importedSite).toMatchObject({
-		storage: 'opfs',
-		persistence: 'autosave',
-	});
+
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSite.slug)}`);
 
 	await expect
 		.poll(
