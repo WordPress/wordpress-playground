@@ -7,11 +7,13 @@ describe('opfsSiteStorage', () => {
 	let storage: NonNullable<typeof exportedOpfsSiteStorage>;
 	let loadPersistedBlueprintBundle: ReturnType<typeof vi.fn>;
 	let loadPersistedBlueprintBundleFromPath: ReturnType<typeof vi.fn>;
+	let loggerError: ReturnType<typeof vi.fn>;
 
 	beforeEach(async () => {
 		vi.resetModules();
 		loadPersistedBlueprintBundle = vi.fn();
 		loadPersistedBlueprintBundleFromPath = vi.fn();
+		loggerError = vi.fn();
 		const activeWorkerWrites = new Set<string>();
 		opfsRoot = new MemoryDirectoryHandle('');
 		vi.stubGlobal('navigator', {
@@ -73,6 +75,9 @@ describe('opfsSiteStorage', () => {
 		vi.doMock('@wp-playground/blueprints', () => ({
 			getBlueprintDeclaration: vi.fn(async (blueprint) => blueprint),
 		}));
+		vi.doMock('@php-wasm/logger', () => ({
+			logger: { error: loggerError },
+		}));
 
 		const module = await import('./opfs-site-storage');
 		storage = module.opfsSiteStorage!;
@@ -105,6 +110,14 @@ describe('opfsSiteStorage', () => {
 		await expect(
 			storage.create('a/b', createSiteMetadata())
 		).rejects.toThrow("Site with slug 'a/b' already exists.");
+	});
+
+	it('silently skips directories left by interrupted first saves', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await sitesRoot.getDirectoryHandle('site-incomplete', { create: true });
+
+		await expect(storage.list()).resolves.toEqual([]);
+		expect(loggerError).not.toHaveBeenCalled();
 	});
 
 	it('stores setup URL params alongside site metadata', async () => {

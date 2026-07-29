@@ -167,6 +167,11 @@ class OpfsSiteStorage {
 						sites.push(site);
 					}
 				} catch (e) {
+					if (isMissingOpfsEntry(e)) {
+						// An interrupted first save can leave the directory behind
+						// before its metadata file is written.
+						continue;
+					}
 					// @TODO: Still return this site's info, just in an error state.
 					logger.error(`Error reading site ${entry.name}:`, e);
 					// @TODO: Handle per-site errors somehow.
