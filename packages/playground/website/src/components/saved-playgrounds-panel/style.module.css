@@ -328,9 +328,10 @@
 	min-width: 0;
 }
 
-/* "Unsaved" pill — a calm amber chip mirroring the dock's yellow Unsaved
-   status, so the current Playground's row plainly says it's lost on refresh. */
-.unsavedBadge {
+/* Current Playground status pills mirror the dock without competing with the
+   Playground name. */
+.unsavedBadge,
+.autosavedBadge {
 	flex-shrink: 0;
 	border-radius: 999px;
 	padding: 1px 8px;
@@ -338,8 +339,17 @@
 	font-weight: 600;
 	line-height: 16px;
 	letter-spacing: 0.01em;
+}
+
+.unsavedBadge {
 	background: #fdeeb3;
 	color: #7c4a03;
+}
+
+.autosavedBadge {
+	background: var(--paper-1, #f7f5f2);
+	box-shadow: inset 0 0 0 1px var(--line-control, rgba(33, 32, 29, 0.14));
+	color: var(--accent-link, #2645c9);
 }
 
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
@@ -1266,6 +1276,12 @@
 		display: -webkit-box;
 		line-height: 1.25;
 		white-space: normal;
+	}
+
+	.playgrounds-pane .currentSiteNameLine {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 4px;
 	}
 
 	.playgrounds-pane .siteRowActions {

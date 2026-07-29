@@ -1251,9 +1251,10 @@ export function SavedPlaygroundsPanel({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
-		// A temporary Playground is lost on refresh — call that out right on its
-		// row so the list mirrors the dock's yellow "Unsaved" status.
+		// Temporary and autosaved Playgrounds are not explicit saves. Mirror the
+		// dock's status on the current row so that lifecycle is visible here too.
 		const isUnsaved = site.metadata.storage === 'none';
+		const isAutosaved = isAutosavedSite(site);
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1267,6 +1268,11 @@ export function SavedPlaygroundsPanel({
 							{isUnsaved && (
 								<span className={css.unsavedBadge}>
 									Unsaved
+								</span>
+							)}
+							{isAutosaved && (
+								<span className={css.autosavedBadge}>
+									Autosaved
 								</span>
 							)}
 						</span>
