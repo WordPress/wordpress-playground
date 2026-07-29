@@ -25,6 +25,10 @@ export function DropdownMenu({
 	);
 }
 
+/**
+ * Handles Home and End for the current menu without moving focus into a
+ * nested menu.
+ */
 function focusMenuBoundary(event: KeyboardEvent) {
 	if (event.key !== 'Home' && event.key !== 'End') {
 		return;
