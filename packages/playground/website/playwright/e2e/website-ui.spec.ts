@@ -1895,7 +1895,7 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('menuitem', {
 				name: /Create a fresh Playground/,
 			})
-		).toContainText(`“${storedSite.name}” stays in Saved Playgrounds.`);
+		).toContainText('Your current Playground stays in Saved Playgrounds.');
 		await website.page.keyboard.press('Escape');
 		await website.page.getByLabel('Language').selectOption('pl_PL');
 		await website.page
@@ -1907,8 +1907,11 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
-		const freshSite = await getActivePlaygroundSite(website.page);
-		expect(freshSite.slug).not.toBe(storedSite.slug);
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: storedSite.slug });
 		await expect
 			.poll(() =>
 				website.page.evaluate(
