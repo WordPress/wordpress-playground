@@ -135,6 +135,24 @@ describe('Dock positioning', () => {
 		).toEqual({ bottom: '504px', left: '308px' });
 	});
 
+	it('drops the toast above the Dock when a tall pane leaves no room above it', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
+				dockCenter: null,
+				viewportSize: { width: 1200, height: 800 },
+				paneHeight: 680,
+				toastHeight: 62,
+				paneOpen: true,
+				isEditorSection: true,
+				isWideSection: false,
+			})
+		).toEqual({ bottom: '92px', left: '600px' });
+	});
+
 	it('keeps operation notices above the visible collapsed Dock row', () => {
 		expect(
 			getDockOperationToastStyle({
