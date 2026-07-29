@@ -16,14 +16,14 @@
 	padding: 5px;
 	background: transparent;
 	border: none;
-	color: var(--action-icon-on-dark);
+	color: var(--ink-faint);
 	cursor: pointer;
 	transition: color 0.2s ease;
 	flex-shrink: 0;
 }
 
 .refresh-button:hover {
-	color: var(--ink-bright-on-dark);
+	color: #fff;
 }
 
 .refresh-button:active {
@@ -68,7 +68,7 @@
 
 .input:focus,
 .input:hover {
-	color: var(--ink-bright-on-dark);
+	color: #fff;
 }
 
 .input:focus {
@@ -149,7 +149,7 @@
 }
 
 .suggestion-path {
-	color: var(--ink-muted-on-dark);
+	color: var(--ink-faint);
 	font-size: 13px;
 	overflow: hidden;
 	text-overflow: ellipsis;

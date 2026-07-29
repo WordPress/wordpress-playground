@@ -159,13 +159,13 @@
 }
 
 .messageArea a {
-	color: var(--accent-link, #2271b1);
+	color: #2271b1;
 	text-decoration: underline;
 	cursor: pointer;
 }
 
 .messageArea a:hover {
-	color: var(--accent-hover, #135e96);
+	color: #135e96;
 }
 
 .mobileToggle {
@@ -176,23 +176,22 @@
 	display: none;
 }
 
-/* The Dock presentation is opt-in because these components also render in
-   DevTools, Personal WP, FilePickerControl, and standalone harnesses. Literal
-   fallbacks preserve it when the website's global tokens are not loaded. */
+/* Quiet Paper is opt-in because these components also render in DevTools,
+   Personal WP, FilePickerControl, and standalone harnesses. */
 .dockPresentation .content {
-	background: var(--surface, #f6f6f6);
+	background: var(--paper-1, #ffffff);
 }
 
 .dockPresentation .sidebarWrapper {
-	border-right-color: var(--border-subtle, rgba(26, 25, 25, 0.08));
-	background: var(--surface, #f6f6f6);
+	border-right-color: var(--line-subtle, #ddd);
+	background: var(--paper-1, #ffffff);
 }
 
 .dockPresentation .editorHeader {
 	min-height: 56px;
 	padding: 8px 16px 8px var(--pane-inline-padding, 24px);
-	border-bottom-color: var(--border-subtle, rgba(26, 25, 25, 0.08));
-	background: var(--surface-raised, #ffffff);
+	border-bottom-color: var(--line-subtle, #ddd);
+	background: var(--paper-2, #ffffff);
 }
 
 .dockPresentation .editorPath {
@@ -200,7 +199,7 @@
 }
 
 .dockPresentation .editorPathPlaceholder {
-	color: var(--ink-muted, #656a71);
+	color: var(--ink-faint, #787c82);
 }
 
 .dockDirtyIndicator {
@@ -208,7 +207,8 @@
 	height: 6px;
 	flex: 0 0 auto;
 	border-radius: 50%;
-	background: var(--ink-muted, #656a71);
+	background: var(--ink-faint, #787c82);
+	opacity: 0.6;
 }
 
 .dockSaveButton {
@@ -218,27 +218,27 @@
 
 .dockPresentation .editor,
 .dockPresentation .editor :global(.cm-editor) {
-	background: var(--surface, #f6f6f6);
+	background: var(--paper-1, #ffffff);
 }
 
 .dockPresentation .editor :global(.cm-gutters) {
-	background: var(--surface-raised, #ffffff);
-	color: var(--ink-muted, #656a71);
-	border-right: 1px solid var(--border-subtle, rgba(26, 25, 25, 0.08));
+	background: var(--paper-2, #ffffff);
+	color: var(--ink-faint, #787c82);
+	border-right: 1px solid var(--line-subtle, #ddd);
 }
 
 .dockPresentation .editor :global(.cm-activeLine),
 .dockPresentation .editor :global(.cm-activeLineGutter) {
-	background: var(--surface-recessed, #ececec);
+	background: var(--paper-3, #f0f0f1);
 }
 
 .dockPresentation .placeholder {
 	color: var(--ink-muted, #50575e);
-	background: var(--surface, #f6f6f6);
+	background: var(--paper-1, #ffffff);
 }
 
 .dockPresentation .messageArea {
-	background: var(--surface, #f6f6f6);
+	background: var(--paper-1, #ffffff);
 }
 
 .dockPresentation .messageArea a {
@@ -340,7 +340,7 @@
 		display: grid;
 		gap: 8px;
 		grid-template-columns: minmax(0, 1fr) auto;
-		background: var(--surface-raised, #ffffff);
+		background: var(--paper-2, #ffffff);
 		padding: 8px 16px 12px var(--pane-inline-padding, 24px);
 	}
 

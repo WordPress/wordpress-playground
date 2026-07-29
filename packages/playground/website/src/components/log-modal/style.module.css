@@ -50,7 +50,7 @@
    filter row stays quieter than the log content it controls. */
 .log-filter-chip[aria-pressed='true'] {
 	background: var(--surface-control-active);
-	border-color: var(--interactive-border-hover);
+	border-color: var(--surface-control-active);
 	color: var(--ink);
 }
 
@@ -62,6 +62,7 @@
 .log-filter-count {
 	font-variant-numeric: tabular-nums;
 	margin-left: var(--space-1, 4px);
+	opacity: 0.65;
 }
 
 .log-copy-all {
@@ -110,7 +111,7 @@
 }
 
 .log-timestamp {
-	color: var(--ink-muted);
+	color: var(--ink-faint);
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
 	grid-column: 1;
@@ -120,11 +121,11 @@
 /* The `PHP Notice:` style head is part of the record text — it only gets
    a tint, and color appears only where it means something. */
 .log-severity-head[data-tier='error'] {
-	color: var(--error-foreground);
+	color: #96291b;
 }
 
 .log-severity-head[data-tier='warning'] {
-	color: var(--warning-foreground);
+	color: #765311;
 }
 
 .log-severity-head[data-tier='info'] {
@@ -180,7 +181,7 @@
 }
 
 .log-entry-message mark {
-	background: var(--search-match-background);
+	background: #f2e2ac;
 	border-radius: 3px;
 	color: var(--ink);
 	padding: 0 2px;

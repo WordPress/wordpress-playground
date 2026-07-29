@@ -56,16 +56,7 @@
 }
 
 .button.is-primary {
-	background: var(--accent, #3858e9);
+	background: #1e2327;
 	color: #fff;
 	border: none;
-}
-
-.button.is-primary:hover:not(:disabled),
-.button.is-primary:focus:not(:disabled),
-.button.is-primary:active:not(:disabled),
-.button.is-primary[aria-expanded='true'] {
-	background: var(--accent-hover, #213fd4);
-	color: #fff !important;
-	opacity: 1;
 }

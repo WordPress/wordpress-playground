@@ -12,8 +12,8 @@
 	max-width: 400px;
 	align-items: center;
 	width: 100%;
-	background: var(--chrome-input-background);
-	border: 1px solid var(--interactive-border-on-dark);
+	background: #2c3338;
+	border: 1px solid #3c4349;
 	border-radius: 24px;
 }
 
@@ -22,13 +22,13 @@
 	background: transparent;
 	border: none;
 	padding: 12px 16px 12px 0;
-	color: var(--ink-bright-on-dark);
+	color: #fff;
 	font-size: clamp(15px, 1.5vw, 16px);
 	outline: none;
 }
 
 .searchField::placeholder {
-	color: var(--ink-muted-on-dark);
+	color: #6b7280;
 }
 
 .searchIcon {
@@ -36,16 +36,16 @@
 	align-items: center;
 	justify-content: center;
 	padding: 12px 12px 12px 16px;
-	color: var(--ink-muted-on-dark);
+	color: #6b7280;
 }
 
 .emptyMessage {
-	color: var(--ink-muted-on-dark);
+	color: #6b7280;
 	font-size: clamp(14px, 1.4vw, 15px);
 	margin: 0;
 	padding: 32px;
 	text-align: center;
-	background: var(--chrome-input-background);
+	background: #2c3338;
 	border-radius: 8px;
 }
 
@@ -86,8 +86,8 @@
 	gap: 8px;
 	padding: 16px 12px;
 	min-width: 100px;
-	background: var(--chrome-input-background);
-	border: 1px solid var(--interactive-border-on-dark);
+	background: #2c3338;
+	border: 1px solid #3c4349;
 	border-radius: 8px;
 	cursor: pointer;
 	transition: all 0.15s ease;
@@ -96,8 +96,8 @@
 }
 
 .creationButton:hover:not(:disabled) {
-	background: var(--chrome-hover-background);
-	border-color: var(--interactive-border-hover-on-dark);
+	background: #353b41;
+	border-color: #4a5258;
 }
 
 .creationButton:disabled {
@@ -106,7 +106,7 @@
 }
 
 .creationIcon {
-	color: var(--ink-bright-on-dark);
+	color: #fff;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -115,7 +115,7 @@
 }
 
 .creationIcon :global(svg) {
-	fill: var(--ink-bright-on-dark);
+	fill: #fff;
 	width: 28px;
 	height: 28px;
 }
@@ -123,7 +123,7 @@
 .creationTitle {
 	font-size: clamp(13px, 1.3vw, 14px);
 	font-weight: 500;
-	color: var(--ink-bright-on-dark);
+	color: #fff;
 	text-align: center;
 }
 
@@ -150,14 +150,14 @@
 }
 
 .blueprintPreviewCard:hover .blueprintPreviewThumbnail {
-	border-color: var(--accent);
+	border-color: #3858e9;
 }
 
 .blueprintPreviewThumbnail {
 	width: 100%;
 	aspect-ratio: 4 / 3;
-	background: var(--chrome-input-background);
-	border: 2px solid var(--interactive-border-on-dark);
+	background: #2c3338;
+	border: 2px solid #3c4349;
 	border-radius: 8px;
 	overflow: hidden;
 	display: flex;
@@ -174,7 +174,7 @@
 
 .blueprintPreviewTitle {
 	font-size: clamp(13px, 1.3vw, 14px);
-	color: var(--ink-on-dark);
+	color: #e5e6e6;
 	text-align: center;
 	width: 100%;
 	line-height: 1.4;
@@ -187,7 +187,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--accent);
+	color: #3858e9;
 }
 
 .blueprintPlaceholder svg {
@@ -199,7 +199,7 @@
 .sitesList {
 	display: flex;
 	flex-direction: column;
-	border: 1px solid var(--interactive-border-on-dark);
+	border: 1px solid #3c4349;
 	border-radius: 8px;
 	overflow: hidden;
 }
@@ -208,7 +208,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	border-bottom: 1px solid var(--interactive-border-on-dark);
+	border-bottom: 1px solid #3c4349;
 	transition: background 0.15s ease;
 }
 
@@ -217,12 +217,12 @@
 }
 
 .siteRow:hover {
-	background: var(--chrome-input-background);
+	background: #2c3338;
 }
 
 .siteRowSelected {
-	background: rgba(var(--accent-rgb), 0.18);
-	border-left: 3px solid var(--accent);
+	background: #2a3654;
+	border-left: 3px solid #3858e9;
 }
 
 .siteRowContent {
@@ -250,9 +250,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(var(--accent-rgb), 0.18);
+	background: #2a3654;
 	border-radius: 10px;
-	color: var(--accent);
+	color: #3858e9;
 	flex-shrink: 0;
 }
 
@@ -278,7 +278,7 @@
 .siteRowName {
 	font-size: clamp(14px, 1.4vw, 15px);
 	font-weight: 500;
-	color: var(--ink-bright-on-dark);
+	color: #fff;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -306,18 +306,18 @@
 	background: var(--surface);
 	border: 1px solid var(--accent);
 	border-radius: var(--radius-control, 6px);
-	box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.18);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
 	outline: none;
 }
 
 .siteRowContent:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid #3858e9;
 	outline-offset: -2px;
 }
 
 .siteRowDate {
 	font-size: clamp(12px, 1.2vw, 13px);
-	color: var(--ink-muted-on-dark);
+	color: #6b7280;
 }
 
 /* Current Playground: its name sits on a line with a small status badge. */
@@ -338,8 +338,8 @@
 	font-weight: 600;
 	line-height: 16px;
 	letter-spacing: 0.01em;
-	background: var(--warning-badge-background);
-	color: var(--warning-foreground);
+	background: var(--warning-highlight);
+	color: var(--ink-soft);
 }
 
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
@@ -355,7 +355,7 @@
 .siteRowSavingSpinner {
 	width: 12px;
 	height: 12px;
-	border: 1.5px solid rgba(var(--accent-rgb), 0.25);
+	border: 1.5px solid rgba(56, 88, 233, 0.25);
 	border-top-color: var(--accent);
 	border-radius: 50%;
 	animation: siteRowSavingSpin 0.7s linear infinite;
@@ -386,12 +386,12 @@
 }
 
 .siteRowMenu button {
-	color: var(--action-icon-on-dark) !important;
+	color: #949494 !important;
 }
 
 .siteRowMenu button:hover {
-	color: var(--ink-bright-on-dark) !important;
-	background: var(--chrome-control-hover-background) !important;
+	color: #fff !important;
+	background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .dangerMenuItem {
@@ -427,8 +427,8 @@
 		align-items: center;
 		gap: 16px;
 		min-width: unset;
-		background: var(--chrome-input-background);
-		border: 1px solid var(--interactive-border-on-dark);
+		background: #2c3338;
+		border: 1px solid #3c4349;
 		border-radius: 8px;
 		padding: 0 16px 0 0;
 		transition: all 0.15s ease;
@@ -436,8 +436,8 @@
 	}
 
 	.blueprintPreviewCard:hover {
-		border-color: var(--accent);
-		background: var(--chrome-hover-background);
+		border-color: #3858e9;
+		background: #353b41;
 	}
 
 	.blueprintPreviewCard:hover .blueprintPreviewThumbnail {
@@ -449,7 +449,7 @@
 		width: 140px;
 		aspect-ratio: unset;
 		flex-shrink: 0;
-		background: var(--chrome-background);
+		background: #252a2e;
 		border: none;
 		border-radius: 7px 0 0 7px;
 	}
@@ -621,7 +621,7 @@
 
 	.blueprintsSection .blueprintPreviewThumbnail {
 		aspect-ratio: 4 / 3;
-		border: 2px solid var(--interactive-border-on-dark);
+		border: 2px solid #3c4349;
 		border-radius: 8px;
 		height: auto;
 		width: 100% !important;
@@ -865,7 +865,7 @@
 .playgrounds-pane.new-pane .creationButtonActive:hover:not(:disabled) {
 	background: #ffffff;
 	box-shadow:
-		inset 0 0 0 1px var(--interactive-border-hover),
+		inset 0 0 0 1px var(--interactive-border),
 		0 1px 1px rgba(26, 25, 25, 0.05),
 		0 2px 6px rgba(26, 25, 25, 0.12);
 	color: var(--ink);
@@ -955,7 +955,7 @@
 .playgrounds-pane.new-pane .writeOwnEditor :global(.cm-gutters) {
 	background: var(--surface-raised);
 	border-right: 1px solid var(--border-subtle);
-	color: var(--ink-muted);
+	color: var(--ink-faint);
 }
 
 .playgrounds-pane.new-pane .writeOwnEditor :global(.cm-scroller) {
@@ -967,8 +967,8 @@
    these rules retheme the remaining native inputs/labels/headings so the GitHub
    and PR flows read as native dock forms, not transplanted modal markup. */
 .playgrounds-pane .inlineForm {
-	/* Body copy defaults to ink-soft; notes use readable ink-muted, so each flow
-	   reads as heading → body → fine print without sacrificing contrast. */
+	/* Body copy defaults to ink-soft; quieter notes opt down to ink-faint via
+	   their own class, so each flow reads as heading → body → fine print. */
 	color: var(--ink-soft);
 	display: flex;
 	flex-direction: column;
@@ -977,8 +977,8 @@
 	line-height: 1.5;
 }
 
-/* Explicit light-surface text keeps these flows from inheriting the overlay's
-   dark-surface copy role. */
+/* Explicit muted text — without it the overlay's `.section p`
+   rule leaks a low-contrast #9ca3af gray into these flows. */
 .playgrounds-pane .inlineForm :global(p) {
 	color: var(--ink-muted);
 	font-size: 13px;
@@ -1024,7 +1024,7 @@
 .playgrounds-pane .inlineForm :global(input[type='url']:focus),
 .playgrounds-pane .inlineForm :global(select:focus) {
 	border-color: var(--accent);
-	box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45);
+	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
 	outline: none;
 }
 
@@ -1104,7 +1104,7 @@
 
 .playgrounds-pane .zipDropzone:focus-visible {
 	border-color: var(--accent);
-	box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
+	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.35);
 	outline: none;
 }
 
@@ -1311,8 +1311,6 @@
 	font-size: 13px;
 }
 
-/* The "..." menu is the one action affordance on every row. Keep its neutral
-   icon readable at rest, then darken it on hover. */
 .playgrounds-pane .siteRowMenu button {
 	color: var(--ink-muted) !important;
 }
@@ -1328,6 +1326,19 @@
 	flex-shrink: 0;
 	gap: var(--space-2);
 	padding-right: var(--space-2);
+}
+
+/* The "..." menu is the one action affordance on every row — always present but
+   quiet (a faint ink glyph that darkens on hover). */
+.playgrounds-pane .siteRowMenu {
+	opacity: 0.65;
+	transition: opacity 0.12s ease;
+}
+
+.playgrounds-pane .siteRow:hover .siteRowMenu,
+.playgrounds-pane .siteRow:focus-within .siteRowMenu,
+.playgrounds-pane .siteRowMenu:hover {
+	opacity: 1;
 }
 
 .playgrounds-pane .creationButton,
@@ -1388,7 +1399,7 @@
 
 .playgrounds-pane .searchWrapper:focus-within {
 	border-color: var(--accent);
-	box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45);
+	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
 }
 
 .playgrounds-pane .searchField {
@@ -1399,7 +1410,7 @@
 
 .playgrounds-pane .searchField::placeholder,
 .playgrounds-pane .searchIcon {
-	color: var(--ink-muted);
+	color: var(--ink-faint);
 }
 
 .playgrounds-pane .blueprintPreviewThumbnail,
@@ -1441,7 +1452,7 @@
 
 .playgrounds-pane.new-pane .blueprintPreviewCard:hover {
 	background: #ffffff;
-	border-color: rgba(var(--accent-rgb), 0.45);
+	border-color: rgba(56, 88, 233, 0.45);
 	box-shadow: 0 8px 20px rgba(26, 25, 25, 0.13);
 	transform: translateY(-2px);
 }
@@ -1518,8 +1529,8 @@
 
 .playgrounds-pane .blueprintsError {
 	align-items: flex-start;
-	background: var(--warning-background);
-	border: 1px solid var(--warning-border);
+	background: var(--warning-surface);
+	border: 1px solid var(--warning);
 	border-radius: 10px;
 	color: var(--ink);
 	display: flex;
@@ -1529,9 +1540,9 @@
 
 .playgrounds-pane .blueprintsErrorIcon {
 	align-items: center;
-	background: var(--warning-badge-background);
+	background: var(--warning-highlight);
 	border-radius: 50%;
-	color: var(--warning-foreground);
+	color: var(--ink-soft);
 	display: flex;
 	flex: none;
 	font-size: 13px;

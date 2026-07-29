@@ -74,11 +74,11 @@
 }
 
 .unsaved {
-	color: var(--warning-foreground-on-dark);
+	color: var(--warning);
 }
 
 .unsaved svg {
-	fill: var(--warning-foreground-on-dark);
+	fill: var(--warning);
 }
 
 .saving {

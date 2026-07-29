@@ -21,7 +21,7 @@
 	max-width: 360px;
 	min-width: 220px;
 	border-right: 1px solid var(--divider);
-	background: var(--surface-raised);
+	background: #ffffff;
 	z-index: 3;
 }
 
@@ -42,7 +42,7 @@
 	gap: 8px 12px;
 	padding: 12px 16px;
 	border-bottom: 1px solid var(--divider);
-	background: var(--surface-raised);
+	background: #ffffff;
 	z-index: 1;
 }
 
@@ -58,7 +58,7 @@
 }
 
 .editorPathPlaceholder {
-	color: var(--ink-muted);
+	color: var(--ink-faint);
 }
 
 .editorHeaderActions {
@@ -71,7 +71,7 @@
 .editor {
 	flex: 1;
 	min-height: 0;
-	background: var(--surface-raised);
+	background: #ffffff;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -93,7 +93,7 @@
 	padding: 32px;
 	text-align: center;
 	color: var(--ink-muted);
-	background: var(--surface-raised);
+	background: #ffffff;
 }
 
 .messageArea {
@@ -103,7 +103,7 @@
 	align-items: flex-start;
 	justify-content: flex-start;
 	padding: 16px 20px;
-	background: var(--surface-raised);
+	background: #ffffff;
 	overflow: auto;
 	font-family:
 		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -123,13 +123,13 @@
 }
 
 .messageArea a {
-	color: var(--accent-link);
+	color: #2271b1;
 	text-decoration: underline;
 	cursor: pointer;
 }
 
 .messageArea a:hover {
-	color: var(--accent-hover);
+	color: #135e96;
 }
 
 .editorToolbarButton {
@@ -231,9 +231,9 @@
 
 .runHint {
 	align-items: flex-start;
-	background: var(--warning-background);
-	border-bottom: 1px solid var(--warning-border);
-	color: var(--warning-foreground);
+	background: #fff8e5;
+	border-bottom: 1px solid #f0b849;
+	color: #614c00;
 	display: flex;
 	font-size: 13px;
 	gap: 8px;
@@ -243,7 +243,7 @@
 }
 
 .runHint svg {
-	color: var(--warning-foreground);
+	color: #996800;
 	fill: currentColor;
 	flex: 0 0 auto;
 	margin-top: 1px;
@@ -260,7 +260,7 @@
 }
 
 .editorDocsLink:hover {
-	background: var(--surface-control-hover);
+	background: rgba(20, 18, 15, 0.06);
 	color: var(--accent);
 }
 
@@ -274,7 +274,7 @@
 .dockPresentation .editor :global(.cm-gutters) {
 	background: var(--surface-raised);
 	border-right: 1px solid var(--border-subtle);
-	color: var(--ink-muted);
+	color: var(--ink-faint);
 }
 
 .dockPresentation .editor :global(.cm-activeLine),
