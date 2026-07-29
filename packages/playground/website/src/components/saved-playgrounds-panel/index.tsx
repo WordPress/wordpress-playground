@@ -1136,7 +1136,7 @@ export function SavedPlaygroundsPanel({
 												css.dangerMenuItem,
 												css.deleteMenuItemWithHint
 											)}
-											disabled
+											aria-disabled
 										>
 											<span
 												className={
