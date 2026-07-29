@@ -69,6 +69,7 @@ import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
@@ -1052,6 +1053,7 @@ export function SavedPlaygroundsPanel({
 		const isAutosave = isAutosavedSite(site);
 		const isTemporary = site.metadata.storage === 'none';
 		const isStored = !isTemporary;
+		const isActiveSite = site.slug === activeSite?.slug;
 		// Temporary Playgrounds have not chosen storage yet, so they show both
 		// destinations and explain any unavailable option. A stored Playground's
 		// backend is fixed. An autosave can only be kept permanently in place.
@@ -1068,7 +1070,7 @@ export function SavedPlaygroundsPanel({
 					label={`Actions for ${site.metadata.name}`}
 					className={css.siteRowMenu}
 					toggleProps={{ disabled: isImportingZip }}
-					popoverProps={{ placement: 'bottom-end' }}
+					popoverProps={{ placement: 'top-end' }}
 				>
 					{({ onClose: closeMenu }) => (
 						<>
@@ -1172,48 +1174,30 @@ export function SavedPlaygroundsPanel({
 									>
 										Rename
 									</MenuItem>
-									{site.slug === activeSite?.slug ? (
-										// You can't delete the Playground you're
-										// currently in — deleting it would swap
-										// the view out from under you. Switch
-										// away first, then delete it as an
-										// ordinary background Playground.
-										<MenuItem
-											className={classNames(
-												css.dangerMenuItem,
-												css.deleteMenuItemWithHint
-											)}
-											aria-disabled
-										>
-											<span
-												className={
-													css.deleteMenuItemBody
-												}
-											>
-												<span>Delete</span>
-												<span
-													className={
-														css.deleteMenuItemHint
-													}
-												>
-													Switch to another Playground
-													first to delete this one.
-												</span>
-											</span>
-										</MenuItem>
-									) : (
-										<MenuItem
-											className={css.dangerMenuItem}
-											onClick={() =>
-												handleDeleteSite(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Delete
-										</MenuItem>
-									)}
+									{/* You can't delete the Playground you're currently in:
+									    deleting it would swap the view out from under you.
+									    Switch away first, then delete it as an ordinary
+									    background Playground. */}
+									<MenuItemWithDescription
+										className={css.dangerMenuItem}
+										info={
+											isActiveSite
+												? 'Switch to another Playground first to delete this one.'
+												: undefined
+										}
+										aria-disabled={isActiveSite}
+										onClick={
+											isActiveSite
+												? undefined
+												: () =>
+														handleDeleteSite(
+															site,
+															closeMenu
+														)
+										}
+									>
+										Delete
+									</MenuItemWithDescription>
 								</MenuGroup>
 							)}
 						</>

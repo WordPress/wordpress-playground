@@ -9,7 +9,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import {
 	Button,
-	Dropdown,
+	DropdownMenu,
 	Icon,
 	MenuGroup,
 	MenuItem,
@@ -32,7 +32,6 @@ import {
 	forwardRef,
 	useCallback,
 	useEffect,
-	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -76,6 +75,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -343,7 +343,6 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		return state.clients.entities[storedSiteSlug]?.opfsSync?.status;
 	});
-	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -819,62 +818,54 @@ export const BlueprintBundleEditor = forwardRef<
 		</Button>
 	);
 	const dockExportDropdown = (
-		<Dropdown
+		<DropdownMenu
 			className={styles.editorExport}
+			icon={null}
+			label="Export"
+			toggleProps={{
+				variant: 'secondary',
+				className: classNames(
+					styles.editorToolbarButton,
+					styles.editorExportToggle
+				),
+				showTooltip: false,
+				children: (
+					<>
+						Export
+						<Icon icon={chevronDown} size={16} />
+					</>
+				),
+			}}
 			popoverProps={{
 				placement: 'bottom-end',
 			}}
-			renderToggle={({ isOpen, onToggle }) => (
-				<Button
-					variant="secondary"
-					className={classNames(
-						styles.editorToolbarButton,
-						styles.editorExportToggle
-					)}
-					onClick={onToggle}
-					aria-expanded={isOpen}
-					aria-haspopup="menu"
-				>
-					Export
-					<Icon icon={chevronDown} size={16} />
-				</Button>
-			)}
-			renderContent={({ onClose }) => (
-				<MenuGroup>
-					<MenuItem
+		>
+			{({ onClose }) => (
+				<MenuGroup className={styles.editorExportMenu}>
+					<MenuItemWithDescription
 						icon={link}
-						className={
+						info={
 							!isBundleShareable
-								? styles.exportMenuItemWithHint
+								? 'Multi-file Blueprints can’t be shared as a URL — download a zip instead.'
 								: undefined
 						}
-						aria-label="Copy Blueprint URL"
-						aria-describedby={
-							!isBundleShareable
-								? copyBlueprintUrlHintId
+						aria-disabled={!isBundleShareable}
+						onClick={
+							isBundleShareable
+								? () => {
+										handleShareBlueprint();
+										onClose();
+									}
 								: undefined
 						}
-						disabled={!isBundleShareable}
-						onClick={() => {
-							handleShareBlueprint();
-							onClose();
-						}}
 					>
-						<span className={styles.exportMenuItemBody}>
-							<span>Copy Blueprint URL</span>
-							{!isBundleShareable && (
-								<span
-									id={copyBlueprintUrlHintId}
-									className={styles.exportMenuItemHint}
-								>
-									Multi-file Blueprints can’t be shared as a
-									URL — download a zip instead.
-								</span>
-							)}
-						</span>
-					</MenuItem>
+						Copy Blueprint URL
+					</MenuItemWithDescription>
+					{/* Start on the available action. ArrowUp still reaches the
+					    unavailable item's explanation. */}
 					<MenuItem
 						icon={download}
+						autoFocus={!isBundleShareable}
 						onClick={() => {
 							handleDownloadBundle();
 							onClose();
@@ -884,7 +875,7 @@ export const BlueprintBundleEditor = forwardRef<
 					</MenuItem>
 				</MenuGroup>
 			)}
-		/>
+		</DropdownMenu>
 	);
 	const dockDocsLink = (
 		<WpTooltip
