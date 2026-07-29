@@ -1,50 +1,17 @@
-/* The error modal uses the same WordPress.org neutral palette as the Dock panes.
-   It renders in a portal outside the pane tree, so it re-declares the pane tokens
-   (see dock/style.module.css) rather than inheriting them. */
+/* The error modal is portaled outside the pane tree, so its layout tokens remain
+   local while its semantic colors come from the global Playground roles. */
 .error-modal {
-	--paper-1: var(--wporg-color-light-grey-2); /* sheet surface */
-	--paper-2: #ffffff; /* raised: footer */
-	--paper-3: color-mix(
-		in srgb,
-		var(--wporg-color-light-grey-1) 50%,
-		#ffffff
-	); /* recessed well */
-	--paper-4: color-mix(
-		in srgb,
-		var(--wporg-color-light-grey-1) 70%,
-		#ffffff
-	); /* control hover */
-	--line-subtle: rgba(26, 25, 25, 0.08);
-	--line-control: rgba(26, 25, 25, 0.15);
-	--line-hover: rgba(26, 25, 25, 0.24);
-	--ink: var(--wporg-color-charcoal-0);
-	--ink-soft: var(--wporg-color-charcoal-2);
-	--ink-muted: var(--wporg-color-charcoal-4);
-	--ink-faint: var(--wporg-color-charcoal-5);
-	--accent: var(--wporg-color-blueberry-1);
-	--accent-hover: var(--wporg-color-deep-blueberry);
-	--accent-link: var(--wporg-color-dark-blueberry);
-	--alert: #cc1818;
 	--radius-pane: 14px;
 	--radius-card: 8px;
 	--radius-control: 6px;
 	--font-mono:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-
-	/* Pin WordPress components inside (primary buttons, focus rings, text fields)
-	   to the same Blueberry scale as the rest of the surface. */
-	--wp-components-color-accent: var(--accent);
-	--wp-components-color-accent-darker-10: var(--accent-hover);
-	--wp-components-color-accent-darker-20: var(--wporg-color-dark-blueberry);
-	--wp-admin-theme-color: var(--accent);
-	--wp-admin-theme-color-darker-10: var(--accent-hover);
-	--wp-admin-theme-color-darker-20: var(--wporg-color-dark-blueberry);
 }
 
 /* Doubled selector so sizing and surface outrank the stock frame styles
    regardless of stylesheet load order. */
 .error-modal:global(.components-modal__frame) {
-	background: var(--paper-1);
+	background: var(--surface);
 	border-radius: var(--radius-pane);
 	/* The pane elevation: soft neutral casts plus a faint lit top edge. Overflow
 	   is clipped so the full-bleed footer keeps the rounded bottom corners. */
@@ -77,8 +44,8 @@
 	outline: none;
 }
 
-/* Use Charcoal for the scrim so the backdrop and sheet read as one material
-   system rather than an unrelated gray overlay. */
+/* Use the dark chrome color for the scrim so the backdrop and sheet read as one
+   material system rather than an unrelated gray overlay. */
 .error-modal-overlay:global(.components-modal__screen-overlay) {
 	background: rgba(26, 25, 25, 0.55);
 }
@@ -144,7 +111,7 @@
 }
 
 .error-modal :global(.components-modal__header .components-button:hover) {
-	background: var(--paper-4);
+	background: var(--surface-control-hover);
 	color: var(--ink);
 }
 
@@ -233,7 +200,7 @@
 }
 
 .error-modal-body code {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-radius: 4px;
 	color: var(--ink-soft);
 	font-family: var(--font-mono);
@@ -244,7 +211,7 @@
 /* Technical output sits in a recessed neutral well — carved into the sheet,
    not boxed onto it (no border, faint inset only). */
 .error-details {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border: 0;
 	border-radius: var(--radius-card);
 	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.05);
@@ -352,7 +319,7 @@
 }
 
 .step-error-code {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-radius: var(--radius-card);
 	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.05);
 	color: var(--ink-soft);
@@ -375,7 +342,7 @@
 	font-weight: 500;
 }
 
-/* Report-a-crash form fields, retuned from admin chrome to the paper surface. */
+/* Report-a-crash form fields, retuned from admin chrome to the pane surface. */
 .error-modal-body :global(.components-base-control__label) {
 	color: var(--ink-muted);
 	font-size: 13px;
@@ -384,7 +351,7 @@
 
 .error-modal-body :global(.components-textarea-control__input) {
 	background: #ffffff;
-	border-color: var(--line-control);
+	border-color: var(--border-control);
 	border-radius: var(--radius-card);
 	box-shadow: none;
 	color: var(--ink);
@@ -402,8 +369,8 @@
    footer instead of a floating shadow bar. */
 .error-modal-footer {
 	align-items: center;
-	background: var(--paper-2);
-	border-top: 1px solid var(--line-subtle);
+	background: var(--surface-raised);
+	border-top: 1px solid var(--border-subtle);
 	display: flex;
 	flex-shrink: 0;
 	flex-wrap: wrap;
@@ -425,9 +392,9 @@
 }
 
 /* Exactly one filled accent primary per sheet; every other action is a quiet
-   ink control on paper (same hierarchy as the Dock panes). */
+   text control on the pane surface (same hierarchy as the Dock panes). */
 .error-modal :global(.components-button.is-secondary:not(.is-destructive)) {
-	box-shadow: inset 0 0 0 1px var(--line-control);
+	box-shadow: inset 0 0 0 1px var(--border-control);
 	color: var(--ink);
 }
 
@@ -437,8 +404,8 @@
 				:disabled
 			)
 	) {
-	background: var(--paper-4);
-	box-shadow: inset 0 0 0 1px var(--line-hover);
+	background: var(--surface-control-hover);
+	box-shadow: inset 0 0 0 1px var(--border-control-hover);
 	color: var(--ink);
 }
 

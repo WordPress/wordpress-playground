@@ -1,20 +1,13 @@
 :root {
 	--site-view-min-width: 320px;
-	--dock-paper: var(--wporg-color-light-grey-2);
-	--dock-paper-deep: color-mix(
-		in srgb,
-		var(--wporg-color-light-grey-1) 40%,
-		#ffffff
-	);
-	--dock-ink: var(--wporg-color-charcoal-0);
 }
 
 body {
-	background-color: var(--dock-paper);
+	background-color: var(--surface);
 }
 
 .layout {
-	background: var(--dock-paper-deep);
+	background: var(--app-background-recessed);
 	display: flex;
 	height: 100dvh;
 	overflow: hidden;
@@ -70,7 +63,7 @@ body {
 }
 
 .preview-dismiss:focus-visible {
-	outline: 2px solid var(--wporg-color-blueberry-1);
+	outline: 2px solid var(--accent);
 	outline-offset: -4px;
 }
 

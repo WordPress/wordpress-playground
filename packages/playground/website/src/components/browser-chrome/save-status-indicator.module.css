@@ -17,20 +17,20 @@
 	flex-shrink: 0;
 }
 
-/* Status colors keep their original semantic hues while using the light
-   WordPress.org palette steps that retain readable contrast on Charcoal. */
+/* Status colors keep their original semantic hues and stay readable on the
+   dark Dock chrome. */
 .saved {
-	color: var(--wporg-color-acid-green-2);
+	color: var(--success-on-dark);
 }
 
 .saved svg {
-	fill: var(--wporg-color-acid-green-2);
+	fill: var(--success-on-dark);
 }
 
-/* "Autosaved" keeps the same pale Blueberry as the in-progress "Autosaving"
+/* "Autosaved" keeps the same soft accent as the in-progress "Autosaving"
    state, so the color doesn't change as the save settles. */
 .autosaved {
-	color: var(--wporg-color-blueberry-3);
+	color: var(--saving-on-dark);
 }
 
 .saving .label {
@@ -69,24 +69,24 @@
 
 .actionable:focus-visible,
 .error:focus-visible {
-	outline: 2px solid var(--wporg-color-blueberry-1);
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 
 .unsaved {
-	color: var(--wporg-color-lemon-1);
+	color: var(--warning);
 }
 
 .unsaved svg {
-	fill: var(--wporg-color-lemon-1);
+	fill: var(--warning);
 }
 
 .saving {
-	color: var(--wporg-color-blueberry-3);
+	color: var(--saving-on-dark);
 }
 
 .error {
-	color: var(--wporg-color-pomegranate-2);
+	color: var(--error-strong-on-dark);
 }
 
 .error:hover {
@@ -94,7 +94,7 @@
 }
 
 .error svg {
-	fill: var(--wporg-color-pomegranate-2);
+	fill: var(--error-strong-on-dark);
 }
 
 .label {
