@@ -690,19 +690,28 @@ export function createStoredSite(
 			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
 		// Redux belongs to this tab, while OPFS is shared across same-origin
-		// tabs. Include storage records created after this tab loaded so a new
-		// Playground never reuses their slugs.
-		const sites = [
-			...selectAllSites(getState()),
-			...(await opfsSiteStorage.list()),
-		];
+		// tabs. Read names and slugs from storage so records created after this
+		// tab loaded still participate in allocation.
+		const sites = selectAllSites(getState()).map((site) => ({
+			slug: site.slug,
+			name: site.metadata.name,
+		}));
+		try {
+			sites.push(...(await opfsSiteStorage.listSiteNamesAndSlugs()));
+		} catch (error) {
+			logger.warn(
+				'Unable to list stored Playgrounds before choosing a new site slug.',
+				error
+			);
+			// Creating the OPFS record still refuses to overwrite an occupied slug.
+		}
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {
 			slugBaseName = getDefaultSiteNameFromBlueprint(blueprint, siteName);
 			displayName = getSiteNameWithCreationTimeIfDuplicate(
 				slugBaseName,
-				sites.map((site) => site.metadata.name),
+				sites.map((site) => site.name),
 				new Date(now)
 			);
 		}

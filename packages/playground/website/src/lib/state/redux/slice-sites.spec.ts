@@ -5,7 +5,7 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
-	let listSites: ReturnType<typeof vi.fn>;
+	let listSiteNamesAndSlugs: ReturnType<typeof vi.fn>;
 	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -16,7 +16,7 @@ describe('stored sites', () => {
 		vi.resetModules();
 		createSite = vi.fn();
 		deleteSite = vi.fn();
-		listSites = vi.fn().mockResolvedValue([]);
+		listSiteNamesAndSlugs = vi.fn().mockResolvedValue([]);
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
 		updateSiteStorage.mockImplementation(async (slug, changes) => {
@@ -39,6 +39,7 @@ describe('stored sites', () => {
 		vi.doMock('@php-wasm/logger', () => ({
 			logger: {
 				error: loggerError,
+				warn: vi.fn(),
 			},
 		}));
 		vi.doMock('@wp-playground/common', () => ({
@@ -69,7 +70,7 @@ describe('stored sites', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				delete: deleteSite,
-				list: listSites,
+				listSiteNamesAndSlugs,
 				update: updateSiteStorage,
 			},
 		}));
@@ -621,8 +622,11 @@ describe('stored sites', () => {
 			extraLibraries: [],
 			constants: {},
 		});
-		listSites.mockResolvedValue([
-			createSiteInfo({ slug: 'playground-welcome-landing-page' }),
+		listSiteNamesAndSlugs.mockResolvedValue([
+			{
+				slug: 'playground-welcome-landing-page',
+				name: 'Stored Playground',
+			},
 		]);
 
 		const newSite = await createStoredSite(
@@ -634,6 +638,34 @@ describe('stored sites', () => {
 		expect(newSite.slug).toBe('playground-welcome-landing-page-2');
 		expect(createSite).toHaveBeenCalledWith(
 			'playground-welcome-landing-page-2',
+			newSite.metadata,
+			undefined
+		);
+	});
+
+	it('creates from the Redux snapshot when OPFS enumeration fails', async () => {
+		const { createStoredSite } = await import('./slice-sites');
+		resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		});
+		listSiteNamesAndSlugs.mockRejectedValue(
+			new Error('Unable to enumerate OPFS')
+		);
+
+		const newSite = await createStoredSite(
+			'Imported Playground',
+			createBundleBlueprint(),
+			'imported-playground'
+		)(createThunkDispatch() as any, createEmptyGetState() as any);
+
+		expect(newSite.slug).toBe('imported-playground');
+		expect(createSite).toHaveBeenCalledWith(
+			'imported-playground',
 			newSite.metadata,
 			undefined
 		);
