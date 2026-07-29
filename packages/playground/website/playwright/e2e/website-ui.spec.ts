@@ -1433,6 +1433,65 @@ test.describe('Default Playground storage', () => {
 		).toBe(false);
 	});
 
+	test('should keep the Blueprint loading status visible while its filesystem initializes', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('blueprint-loading')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.evaluate(() => {
+			let releaseBlueprintBundleDirectory!: () => void;
+			const blueprintBundleDirectoryCanOpen = new Promise<void>(
+				(resolve) => {
+					releaseBlueprintBundleDirectory = resolve;
+				}
+			);
+			const directoryHandlePrototype =
+				FileSystemDirectoryHandle.prototype;
+			const getDirectoryHandle =
+				directoryHandlePrototype.getDirectoryHandle;
+			(window as any).__releaseBlueprintBundleDirectory =
+				releaseBlueprintBundleDirectory;
+			directoryHandlePrototype.getDirectoryHandle = async function (
+				name,
+				options
+			) {
+				if (name === 'blueprint-bundle') {
+					(window as any).__blueprintBundleDirectoryRequested = true;
+					await blueprintBundleDirectoryCanOpen;
+				}
+				return await getDirectoryHandle.call(this, name, options);
+			};
+		});
+
+		try {
+			await website.openDockPane('Current Blueprint', 'Blueprint pane');
+			await website.page.waitForFunction(
+				() =>
+					(window as any).__blueprintBundleDirectoryRequested === true
+			);
+			await expect(
+				website.page
+					.getByRole('dialog', { name: 'Blueprint pane' })
+					.getByRole('status')
+			).toHaveText('Loading the Blueprint editor…');
+		} finally {
+			await website.page.evaluate(() =>
+				(window as any).__releaseBlueprintBundleDirectory()
+			);
+		}
+
+		await expect(
+			website.page.locator('[class*="blueprint-editor"] .cm-content')
+		).toBeVisible();
+	});
+
 	test('should edit a Blueprint for an autosaved Playground and run it in a new Playground', async ({
 		website,
 		wordpress,
