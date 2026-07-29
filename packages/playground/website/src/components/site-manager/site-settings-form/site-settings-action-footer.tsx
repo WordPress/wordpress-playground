@@ -1,6 +1,7 @@
 import {
 	Button,
-	Dropdown,
+	DropdownMenu,
+	MenuGroup,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +9,7 @@ import {
 	MAX_AUTOSAVED_SITES,
 	type SitePersistence,
 } from '../../../lib/state/redux/site-lifecycle';
+import { MenuItemWithDescription } from '../../menu-item-with-description';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import type { SiteSettingsFormFooterContext } from './unconnected-site-settings-form';
 import { getFreshPlaygroundReason } from './site-settings-actions';
@@ -83,36 +85,32 @@ export function SiteSettingsActionFooter({
 						? 'Apply to this Playground'
 						: 'Create a fresh Playground'}
 				</Button>
-				<Dropdown
+				<DropdownMenu
 					className={css.splitButtonDropdown}
-					focusOnMount={false}
+					icon={null}
+					label="More settings actions"
+					toggleProps={{
+						variant: 'primary',
+						className:
+							primaryAction === 'apply'
+								? css.splitButtonToggle
+								: `${css.splitButtonToggle} ${css.createFreshButton}`,
+						disabled: isPending,
+						showTooltip: false,
+						children: (
+							<span className={css.caret} aria-hidden="true" />
+						),
+					}}
+					menuProps={{ className: css.actionMenu }}
 					popoverProps={{
 						placement: 'top-end',
 						className: css.actionMenuPopover,
 					}}
-					renderToggle={({ isOpen, onToggle }) => (
-						<Button
-							type="button"
-							variant="primary"
-							className={
-								primaryAction === 'apply'
-									? css.splitButtonToggle
-									: `${css.splitButtonToggle} ${css.createFreshButton}`
-							}
-							onClick={onToggle}
-							aria-expanded={isOpen}
-							aria-haspopup="menu"
-							aria-label="More settings actions"
-							disabled={isPending}
-						>
-							<span className={css.caret} aria-hidden="true" />
-						</Button>
-					)}
-					renderContent={({ onClose }) => (
+				>
+					{({ onClose }) => (
 						<SettingsActionMenu
-							canApplyToCurrent={canApplyToCurrent}
 							applyUnavailableReason={applyUnavailableReason}
-							selectedAction={primaryAction}
+							primaryAction={primaryAction}
 							sitePersistence={sitePersistence}
 							onSelectApply={() => {
 								onClose();
@@ -126,7 +124,7 @@ export function SiteSettingsActionFooter({
 							}}
 						/>
 					)}
-				/>
+				</DropdownMenu>
 			</div>
 			{error && (
 				<p className={css.actionError} role="alert">
@@ -138,106 +136,44 @@ export function SiteSettingsActionFooter({
 }
 
 function SettingsActionMenu({
-	canApplyToCurrent,
 	applyUnavailableReason,
-	selectedAction,
+	primaryAction,
 	sitePersistence,
 	onSelectApply,
 	onSelectCreateFresh,
 }: {
-	canApplyToCurrent: boolean;
 	applyUnavailableReason?: string;
-	selectedAction: SettingsAction;
+	primaryAction: SettingsAction;
 	sitePersistence: SitePersistence;
 	onSelectApply: () => void;
 	onSelectCreateFresh: () => void;
 }) {
-	const applyRef = useRef<HTMLButtonElement>(null);
-	const freshRef = useRef<HTMLButtonElement>(null);
-	const items = [applyRef, freshRef];
-
-	useEffect(() => {
-		(selectedAction === 'apply' && canApplyToCurrent
-			? applyRef
-			: freshRef
-		).current?.focus();
-	}, [canApplyToCurrent, selectedAction]);
-
-	const moveFocus = (event: React.KeyboardEvent, nextIndex: number) => {
-		event.preventDefault();
-		items[nextIndex].current?.focus();
-	};
-
 	return (
-		<div
-			className={css.actionMenu}
-			role="menu"
-			onKeyDown={(event) => {
-				const currentIndex = items.findIndex(
-					(ref) => ref.current === document.activeElement
-				);
-				if (event.key === 'ArrowDown') {
-					moveFocus(event, (currentIndex + 1) % items.length);
-				} else if (event.key === 'ArrowUp') {
-					moveFocus(
-						event,
-						(currentIndex - 1 + items.length) % items.length
-					);
-				} else if (event.key === 'Home') {
-					moveFocus(event, 0);
-				} else if (event.key === 'End') {
-					moveFocus(event, items.length - 1);
-				}
-			}}
-		>
-			<button
-				ref={applyRef}
-				type="button"
-				role="menuitem"
+		<MenuGroup className={css.actionMenuGroup}>
+			<MenuItemWithDescription
+				autoFocus={primaryAction === 'apply'}
+				info={applyUnavailableReason}
 				aria-disabled={!!applyUnavailableReason}
-				disabled={!!applyUnavailableReason}
 				className={`${css.actionMenuItem} ${
-					selectedAction === 'apply' && canApplyToCurrent
-						? css.selectedApplyMenuItem
-						: ''
+					primaryAction === 'apply' ? css.selectedApplyMenuItem : ''
 				}`}
-				onClick={onSelectApply}
+				onClick={applyUnavailableReason ? undefined : onSelectApply}
 			>
-				<span className={css.actionMenuTitle}>
-					Apply to this Playground
-				</span>
-				{applyUnavailableReason && (
-					<span className={css.actionMenuDescription}>
-						{applyUnavailableReason}
-					</span>
-				)}
-			</button>
-			<button
-				ref={freshRef}
-				type="button"
-				role="menuitem"
+				Apply to this Playground
+			</MenuItemWithDescription>
+			<MenuItemWithDescription
+				autoFocus={primaryAction === 'fresh'}
+				info={
+					sitePersistence === 'explicit'
+						? 'Start a clean site. Your current Playground stays in Saved Playgrounds.'
+						: `Start a clean site. Your current Playground stays in Recent autosaves until ${MAX_AUTOSAVED_SITES} newer autosaves replace it.`
+				}
 				className={`${css.actionMenuItem} ${css.createFreshMenuItem}`}
 				onClick={onSelectCreateFresh}
 			>
-				<span className={css.actionMenuTitle}>
-					Create a fresh Playground
-				</span>
-				<span className={css.actionMenuDescription}>
-					{sitePersistence === 'explicit' ? (
-						<>
-							Start a clean site. Your current Playground stays in
-							Saved Playgrounds.
-						</>
-					) : (
-						<>
-							Start a clean site. Your current Playground stays in
-							Recent autosaves until {MAX_AUTOSAVED_SITES} newer
-							autosaves replace it.
-						</>
-					)}
-				</span>
-			</button>
-		</div>
+				Create a fresh Playground
+			</MenuItemWithDescription>
+		</MenuGroup>
 	);
 }
 
