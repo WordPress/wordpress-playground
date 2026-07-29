@@ -57,7 +57,7 @@
 	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
 	font-size: 16px;
 	font-weight: 50;
-	height: 34px;
+	height: var(--chrome-control-height);
 	border: 0;
 	background: var(--chrome-input-background);
 	border-radius: 8px;

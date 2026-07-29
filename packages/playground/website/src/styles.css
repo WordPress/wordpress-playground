@@ -146,6 +146,8 @@ html {
 }
 
 :root {
+	--chrome-control-height: 34px;
+
 	/* Semantic UI roles using colors from the WordPress.org Design Library. */
 
 	/* Dark app chrome. */

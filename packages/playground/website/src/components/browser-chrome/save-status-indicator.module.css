@@ -43,7 +43,7 @@
 .actionable,
 .error {
 	box-sizing: border-box;
-	height: 34px;
+	height: var(--chrome-control-height);
 	padding: 0 10px;
 	background: var(--chrome-control-background);
 	border: 1px solid var(--chrome-control-border);
