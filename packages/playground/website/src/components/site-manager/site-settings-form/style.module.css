@@ -11,11 +11,11 @@
 }
 
 .invalid-input :global(.components-input-control__backdrop) {
-	border-color: var(--color-alert-red, #cc1818) !important;
+	border-color: var(--destructive) !important;
 }
 
 .invalid-input :global(.components-base-control__help) {
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 }
 
 .form-section {
@@ -47,7 +47,7 @@
 }
 
 .form-section :global(.components-input-control__backdrop) {
-	border-color: var(--line-control) !important;
+	border-color: var(--interactive-border) !important;
 	border-radius: var(--radius-control) !important;
 }
 
@@ -122,12 +122,12 @@
 }
 
 .create-fresh-button {
-	background: #6c4fd3 !important;
+	background: var(--create-fresh-action) !important;
 	color: #fff !important;
 }
 
 .create-fresh-button:hover {
-	background: #573eb5 !important;
+	background: var(--create-fresh-action-hover) !important;
 }
 
 .caret {
@@ -163,7 +163,7 @@
 	border: 0;
 	border-radius: 0;
 	background: #fff;
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	cursor: pointer;
 	font: inherit;
 	text-align: left;
@@ -189,7 +189,7 @@
 
 .action-error {
 	animation: action-error-in 120ms ease-out;
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 	font-size: 13px;
 	left: var(--space-6);
 	line-height: 1.4;
@@ -223,7 +223,7 @@
 	display: block;
 	max-width: 100%;
 	margin-top: 2px;
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	font-size: 12px;
 	line-height: 1.4;
 	overflow-wrap: anywhere;
@@ -231,11 +231,11 @@
 }
 
 .create-fresh-menu-item {
-	color: #573eb5;
+	color: var(--create-fresh-action-hover);
 }
 
 .action-menu-item.selected-apply-menu-item {
-	color: #304bd1;
+	color: var(--accent-hover);
 }
 
 .action-menu-item:disabled {
@@ -271,7 +271,7 @@
 }
 
 .temporary-warning strong {
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 }
 
 .footer .temporary-action-button {

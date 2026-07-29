@@ -2,7 +2,7 @@
 	--spinner-color: currentColor;
 
 	align-items: center;
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	display: flex;
 	flex: 1;
 	flex-direction: column;
@@ -43,9 +43,9 @@
 
 .inline-progress {
 	align-items: center;
-	background: var(--paper-3, #ece8e1);
+	background: var(--surface-recessed);
 	border-radius: var(--radius-card, 8px);
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	display: flex;
 	gap: var(--space-2, 8px);
 	padding: var(--space-3, 12px) var(--space-4, 16px);

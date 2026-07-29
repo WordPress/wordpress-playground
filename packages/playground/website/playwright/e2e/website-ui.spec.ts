@@ -2183,7 +2183,7 @@ test.describe('Default Playground storage', () => {
 		await pullRequestTab.click();
 		await expect(
 			newPane.getByRole('textbox', {
-				name: 'WordPress Core or Gutenberg',
+				name: 'PR number or GitHub URL',
 			})
 		).toBeVisible();
 		await expect(
