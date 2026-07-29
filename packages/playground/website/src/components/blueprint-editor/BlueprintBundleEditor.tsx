@@ -858,8 +858,11 @@ export const BlueprintBundleEditor = forwardRef<
 					>
 						Copy Blueprint URL
 					</MenuItemWithDescription>
+					{/* Start on the available action. ArrowUp still reaches the
+					    unavailable item's explanation. */}
 					<MenuItem
 						icon={download}
+						autoFocus={!isBundleShareable}
 						onClick={() => {
 							handleDownloadBundle();
 							onClose();
