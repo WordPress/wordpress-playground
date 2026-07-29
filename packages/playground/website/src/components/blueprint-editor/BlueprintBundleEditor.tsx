@@ -9,7 +9,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import {
 	Button,
-	Dropdown,
+	DropdownMenu,
 	Icon,
 	MenuGroup,
 	MenuItem,
@@ -817,27 +817,26 @@ export const BlueprintBundleEditor = forwardRef<
 		</Button>
 	);
 	const dockExportDropdown = (
-		<Dropdown
+		<DropdownMenu
 			className={styles.editorExport}
+			icon={chevronDown}
+			label="Export"
+			text="Export"
+			toggleProps={{
+				variant: 'secondary',
+				className: classNames(
+					styles.editorToolbarButton,
+					styles.editorExportToggle
+				),
+				iconPosition: 'right',
+				iconSize: 16,
+				showTooltip: false,
+			}}
 			popoverProps={{
 				placement: 'bottom-end',
 			}}
-			renderToggle={({ isOpen, onToggle }) => (
-				<Button
-					variant="secondary"
-					className={classNames(
-						styles.editorToolbarButton,
-						styles.editorExportToggle
-					)}
-					onClick={onToggle}
-					aria-expanded={isOpen}
-					aria-haspopup="menu"
-				>
-					Export
-					<Icon icon={chevronDown} size={16} />
-				</Button>
-			)}
-			renderContent={({ onClose }) => (
+		>
+			{({ onClose }) => (
 				<MenuGroup>
 					<MenuItem
 						icon={link}
@@ -869,7 +868,7 @@ export const BlueprintBundleEditor = forwardRef<
 					</MenuItem>
 				</MenuGroup>
 			)}
-		/>
+		</DropdownMenu>
 	);
 	const dockDocsLink = (
 		<WpTooltip

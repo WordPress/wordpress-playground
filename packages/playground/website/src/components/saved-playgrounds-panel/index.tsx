@@ -1069,7 +1069,7 @@ export function SavedPlaygroundsPanel({
 					label={`Actions for ${site.metadata.name}`}
 					className={css.siteRowMenu}
 					toggleProps={{ disabled: isImportingZip }}
-					popoverProps={{ placement: 'bottom-end' }}
+					popoverProps={{ placement: 'top-end' }}
 				>
 					{({ onClose: closeMenu }) => (
 						<>
