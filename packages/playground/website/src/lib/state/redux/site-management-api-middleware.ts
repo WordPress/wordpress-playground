@@ -767,7 +767,7 @@ export function createSitesAPI(
 			if (selectClientInfoBySiteSlug(state, siteSlug)) {
 				// Retained temporary or syncing viewports already have a running
 				// client, so activation does not emit addClientInfo again.
-				dispatch(setActiveSite(siteSlug, options));
+				await dispatch(setActiveSite(siteSlug, options));
 				return;
 			}
 			const bootPromise = new Promise<void>((resolve, reject) => {

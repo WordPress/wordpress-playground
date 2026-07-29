@@ -465,21 +465,15 @@ async function getStoredPlaygroundSiteSlugs(page: Page) {
 async function getInitialOpfsSyncPending(page: Page, siteSlug: string) {
 	return page.evaluate(
 		async ({ directoryName }) => {
-			try {
-				const root = await navigator.storage.getDirectory();
-				const sites = await root.getDirectoryHandle('sites');
-				const siteDirectory =
-					await sites.getDirectoryHandle(directoryName);
-				const metadataFile =
-					await siteDirectory.getFileHandle('wp-runtime.json');
-				const metadata = JSON.parse(
-					await (await metadataFile.getFile()).text()
-				);
-				return metadata.initialOpfsSyncPending === true;
-			} catch {
-				// Treat transient reads during the metadata rewrite as still syncing.
-				return true;
-			}
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(directoryName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const metadata = JSON.parse(
+				await (await metadataFile.getFile()).text()
+			);
+			return metadata.initialOpfsSyncPending === true;
 		},
 		{ directoryName: getDirectoryNameForSlug(siteSlug) }
 	);
