@@ -446,6 +446,7 @@ function createDispatch(
 
 function createPlaygroundWithConstants(contents: string | undefined) {
 	return {
+		fileExists: vi.fn(async () => contents !== undefined),
 		readFileAsText: vi.fn(async (path: string) => {
 			expect(path).toBe('/internal/shared/consts.json');
 			if (contents === undefined) {
