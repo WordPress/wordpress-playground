@@ -24,6 +24,11 @@ async function createTestWordPressZip(
 	return Buffer.from(zipBytes!);
 }
 
+/**
+ * Drops a ZIP through the page-level import target.
+ *
+ * By default, also confirms a transient dragleave does not dismiss the overlay.
+ */
 async function dropZipFile(
 	page: Page,
 	name: string,
@@ -46,13 +51,16 @@ async function dropZipFile(
 	await expect(
 		page.getByRole('button', { name: /Drop a Playground ZIP here/ })
 	).toBeVisible();
-	await page.waitForTimeout(50);
 	const pane = page.getByRole('dialog', { name: 'New Playground pane' });
 	const paneText = await pane.innerText();
 	const pageBody = page.locator('body');
-	await pageBody.dispatchEvent('dragenter', { dataTransfer });
 	const overlay = page.locator('[data-cy="zip-drop-overlay"]');
-	await expect(overlay).toBeVisible();
+	await expect
+		.poll(async () => {
+			await pageBody.dispatchEvent('dragenter', { dataTransfer });
+			return overlay.isVisible();
+		})
+		.toBe(true);
 	await expect
 		.poll(() =>
 			overlay.evaluate((element) => {
