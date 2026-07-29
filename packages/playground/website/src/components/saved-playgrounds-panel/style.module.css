@@ -320,40 +320,12 @@
 	color: #6b7280;
 }
 
-/* Keep the current Playground's status on its own line so it cannot be
-   mistaken for part of the name. */
-.currentSiteNameLine {
-	align-items: flex-start;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	min-width: 0;
-}
-
-/* Current Playground status pills mirror the dock without competing with the
-   Playground name. */
-.unsavedBadge,
-.autosavedBadge {
-	flex-shrink: 0;
-	border-radius: 999px;
-	padding: 1px 8px;
-	font-size: 11px;
-	font-weight: 600;
-	line-height: 16px;
-	letter-spacing: 0.01em;
-}
-
-.unsavedBadge {
-	background: #fdeeb3;
-	color: #7c4a03;
-}
-
-/* Autosave wears the dock's autosave blue as a soft tint chip — the same
-   construction as the amber pill, so the two states read as one family. A
-   white/bordered chip here looked like a clickable button. */
-.autosavedBadge {
-	background: #dfe6fb;
-	color: #2b3a8f;
+/* The current Playground's save state is a plain sentence on its own line —
+   name, then state, then runtime meta. Quieter than a status pill, and it has
+   room for the autosave timestamp. */
+.siteRowStatus {
+	font-size: 13px;
+	color: var(--ink-soft, #2f2d28);
 }
 
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
@@ -1323,6 +1295,12 @@
 
 .playgrounds-pane .siteRowDate {
 	font-size: 13px;
+}
+
+/* On the current row the runtime meta is the third line — fade it so the
+   hierarchy reads name → save state → details. */
+.playgrounds-pane .current-site-row .siteRowDate {
+	color: var(--ink-faint, #8a857b) !important;
 }
 
 .playgrounds-pane .siteRowMenu button {
