@@ -1172,14 +1172,48 @@ export function SavedPlaygroundsPanel({
 									>
 										Rename
 									</MenuItem>
-									<MenuItem
-										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
-										}
-									>
-										Delete
-									</MenuItem>
+									{site.slug === activeSite?.slug ? (
+										// You can't delete the Playground you're
+										// currently in — deleting it would swap
+										// the view out from under you. Switch
+										// away first, then delete it as an
+										// ordinary background Playground.
+										<MenuItem
+											className={classNames(
+												css.dangerMenuItem,
+												css.deleteMenuItemWithHint
+											)}
+											aria-disabled
+										>
+											<span
+												className={
+													css.deleteMenuItemBody
+												}
+											>
+												<span>Delete</span>
+												<span
+													className={
+														css.deleteMenuItemHint
+													}
+												>
+													Switch to another Playground
+													first to delete this one.
+												</span>
+											</span>
+										</MenuItem>
+									) : (
+										<MenuItem
+											className={css.dangerMenuItem}
+											onClick={() =>
+												handleDeleteSite(
+													site,
+													closeMenu
+												)
+											}
+										>
+											Delete
+										</MenuItem>
+									)}
 								</MenuGroup>
 							)}
 						</>
