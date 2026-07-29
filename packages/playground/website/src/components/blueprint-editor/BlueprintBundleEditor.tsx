@@ -820,18 +820,21 @@ export const BlueprintBundleEditor = forwardRef<
 	const dockExportDropdown = (
 		<DropdownMenu
 			className={styles.editorExport}
-			icon={chevronDown}
+			icon={null}
 			label="Export"
-			text="Export"
 			toggleProps={{
 				variant: 'secondary',
 				className: classNames(
 					styles.editorToolbarButton,
 					styles.editorExportToggle
 				),
-				iconPosition: 'right',
-				iconSize: 16,
 				showTooltip: false,
+				children: (
+					<>
+						Export
+						<Icon icon={chevronDown} size={16} />
+					</>
+				),
 			}}
 			popoverProps={{
 				placement: 'bottom-end',
