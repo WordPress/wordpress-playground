@@ -1267,7 +1267,7 @@ test('should show an inline error for a non-ZIP drop', async ({
 	).toBeVisible();
 });
 
-test('should finish autosaving a ZIP import after switching Playgrounds', async ({
+test('should notify when a ZIP import loads before autosave finishes', async ({
 	website,
 	browserName,
 }) => {
@@ -1297,10 +1297,13 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 	const autosaveProgress = website.page.getByRole('progressbar', {
 		name: 'Autosave progress',
 	});
+	const importNotice = website.page
+		.getByRole('group', { name: 'Operation succeeded' })
+		.filter({ hasText: 'Playground imported' });
 	const importProgressStarted = expect(importProgress).toBeVisible({
 		timeout: 120000,
 	});
-	const switchWhileAutosaving = (async () => {
+	const notifyWhileAutosaving = (async () => {
 		await expect(autosaveProgress).toBeVisible({ timeout: 120000 });
 		const importedSite = await getActivePlaygroundSite(website.page);
 		expect(importedSite).toMatchObject({
@@ -1308,6 +1311,10 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 			persistence: 'autosave',
 		});
 		await setActivePlaygroundSite(website.page, sourceSite.slug);
+		await expect(importNotice).toBeVisible();
+		expect(
+			await getInitialOpfsSyncPending(website.page, importedSite.slug)
+		).toBe(true);
 		return importedSite;
 	})();
 	const importProgressAdvanced = expect
@@ -1334,7 +1341,7 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 	await expect(autosaveProgress).toHaveCount(0);
 	await importProgressAdvanced;
 	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
-	const importedSite = await switchWhileAutosaving;
+	const importedSite = await notifyWhileAutosaving;
 
 	await expect
 		.poll(
@@ -1348,9 +1355,6 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 		exact: true,
 	});
 	await expect(newPlaygroundButton).toBeEnabled();
-	await expect(
-		website.page.getByText('Playground imported', { exact: true })
-	).toBeVisible({ timeout: 120000 });
 
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSite.slug)}`);
 
