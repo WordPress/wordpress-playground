@@ -174,8 +174,8 @@
 	line-height: 20px;
 	/* identical to box height, or 154% */
 
-	/* Gutenberg/Gray 700 */
-	color: #757575;
+	/* Secondary metadata stays on the readable muted-ink role. */
+	color: var(--ink-muted);
 }
 
 .siteInfoHeaderTitleRow {

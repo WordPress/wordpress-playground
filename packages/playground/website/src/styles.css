@@ -146,7 +146,7 @@ html {
 }
 
 :root {
-	/* Semantic UI roles using colors from the WordPress.org Design Library. */
+	/* Semantic UI roles using colors from the WordPress design palettes. */
 
 	/* Dark app chrome. */
 	--chrome-background: #1a1919;
@@ -162,12 +162,12 @@ html {
 	--ink: #1a1919;
 	--ink-soft: #23282d;
 	--ink-muted: #656a71;
-	--ink-faint: #979aa1;
 	--ink-on-dark: #d9d9d9;
 	--ink-muted-on-dark: rgba(246, 246, 246, 0.7);
 	--ink-bright-on-dark: #f6f6f6;
 	--ink-disabled-on-dark: rgba(217, 217, 217, 0.4);
 	--action-icon: #40464d;
+	--action-icon-on-dark: #d9d9d9;
 	--action-icon-disabled-on-dark: rgba(151, 154, 161, 0.4);
 
 	/* Light surfaces, controls, and their boundaries. */
@@ -179,8 +179,12 @@ html {
 	--app-background-recessed: #f0f0f0;
 	--divider: #d9d9d9;
 	--border-subtle: rgba(26, 25, 25, 0.08);
-	--interactive-border: rgba(26, 25, 25, 0.15);
-	--interactive-border-hover: rgba(26, 25, 25, 0.24);
+	/* Unlike decorative dividers, interactive boundaries must remain visible.
+	   These are the accessible neutral strokes from the WordPress Design System. */
+	--interactive-border: #8d8d8d;
+	--interactive-border-hover: #6e6e6e;
+	--interactive-border-on-dark: #979aa1;
+	--interactive-border-hover-on-dark: #d9d9d9;
 	--loading-surface-dark: #1e1e1e;
 	--loading-track-dark: #23282d;
 
@@ -200,10 +204,13 @@ html {
 	--success-on-dark: #c7ffdb;
 	--success-toast-background: #20482e;
 	--success-toast-border: #3b8a5e;
-	--warning: #fff972;
-	--warning-highlight: #fffcb5;
-	--warning-surface: #fffdd6;
-	--error: #e26f56;
+	--warning-foreground: #926300;
+	--warning-foreground-on-dark: #fff972;
+	--warning-background: #fffdd6;
+	--warning-badge-background: #fffcb5;
+	--warning-border: #f0b849;
+	--search-match-background: #fffcb5;
+	--error-foreground: #cc1818;
 	--error-strong-on-dark: #ffb7a7;
 	--error-soft-on-dark: #ffe9de;
 	--error-toast-background: #6a3b31;
@@ -332,7 +339,7 @@ h4 {
 	display: none;
 	position: fixed;
 	inset: 0;
-	background: #1e2327;
+	background: var(--chrome-background);
 	z-index: 9999;
 	align-items: center;
 	justify-content: center;
@@ -368,19 +375,19 @@ h4 {
 #wkwebview-notice .logo span {
 	font-size: 22px;
 	font-weight: 600;
-	color: #fff;
+	color: var(--ink-bright-on-dark);
 }
 
 #wkwebview-notice h1 {
 	font-size: 24px;
 	font-weight: 600;
-	color: #fff;
+	color: var(--ink-bright-on-dark);
 	margin: 0 0 1rem;
 }
 
 #wkwebview-notice p {
 	font-size: 15px;
-	color: #9ca3af;
+	color: var(--ink-muted-on-dark);
 	line-height: 1.5;
 	margin: 0 0 2rem;
 }
@@ -406,20 +413,20 @@ h4 {
 }
 
 #wkwebview-notice .primary {
-	background: #3858e9;
-	color: #fff;
+	background: var(--accent);
+	color: var(--ink-bright-on-dark);
 }
 
 #wkwebview-notice .secondary {
-	background: #2c3338;
-	color: #e5e6e6;
-	border: 1px solid #3c4349;
+	background: var(--chrome-input-background);
+	color: var(--ink-on-dark);
+	border: 1px solid var(--interactive-border-on-dark);
 	font-weight: 500;
 }
 
 #wkwebview-notice .hint {
 	font-size: 13px;
-	color: #6b7280;
+	color: var(--ink-muted-on-dark);
 	margin-top: 1rem;
 	margin-bottom: 0;
 }

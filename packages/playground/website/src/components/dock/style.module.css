@@ -488,7 +488,7 @@
 	background: transparent;
 	border: 0;
 	border-radius: var(--radius-control);
-	color: var(--ink-faint);
+	color: var(--action-icon);
 	cursor: pointer;
 	display: inline-flex;
 	flex: none;
@@ -528,7 +528,7 @@
 	background: var(--surface);
 	border: 1px solid var(--accent);
 	border-radius: var(--radius-control, 6px);
-	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
+	box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.18);
 	outline: none;
 }
 
@@ -567,7 +567,7 @@
 .pane :global(.components-notice.is-error) {
 	background: var(--surface-recessed);
 	box-shadow:
-		inset 3px 0 0 0 var(--error),
+		inset 3px 0 0 0 var(--error-foreground),
 		inset 0 1px 1px rgba(26, 25, 25, 0.04);
 }
 
@@ -583,7 +583,7 @@
 }
 
 .pane :global(.components-notice .components-notice__dismiss) {
-	color: var(--ink-faint);
+	color: var(--action-icon);
 }
 
 /* Button hierarchy: exactly one filled blue primary per pane. Every secondary /
@@ -634,7 +634,7 @@
 /* Keep focus inside controls so clipped ancestors cannot cut off the active
    state. The white inset on primary buttons stays visible against their blue. */
 .pane .pane-body :global(.components-button:focus:not(:disabled)) {
-	box-shadow: inset 0 0 0 2px rgba(56, 88, 233, 0.8);
+	box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb), 0.8);
 	outline: none;
 }
 
@@ -659,7 +659,7 @@
 .pane .pane-body :global(.components-text-control__input:focus),
 .pane .pane-body :global(.components-select-control__input:focus) {
 	border-color: var(--accent);
-	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
+	box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45);
 	outline: none;
 }
 
@@ -936,7 +936,7 @@
 		background: transparent;
 		border: 0;
 		border-radius: var(--radius-control);
-		color: var(--ink-faint);
+		color: var(--action-icon);
 		cursor: pointer;
 		display: flex;
 		flex: none;

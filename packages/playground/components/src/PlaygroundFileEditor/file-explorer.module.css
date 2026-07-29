@@ -87,21 +87,19 @@
 	padding: 6px 0;
 }
 
-/* Quiet Paper and the larger Dock header are explicit so shared consumers keep
-   the original compact file explorer by default. */
+/* The larger Dock presentation is explicit so shared consumers keep the
+   original compact file explorer by default. Literal fallbacks preserve the
+   presentation in consumers that do not load the website's global tokens. */
 .fileExplorerContainer.dockPresentation {
-	background: var(--paper-1, #ffffff);
-	--file-tree-row-background: var(--paper-2, #f7f7f7);
+	background: var(--surface, #f6f6f6);
+	--file-tree-row-background: var(--surface-raised, #ffffff);
 	--file-tree-row-padding: 6px 12px;
 	--file-tree-row-color: var(
 		--ink,
 		var(--wp-components-color-foreground, #1e1e1e)
 	);
-	--file-tree-selected-background: var(
-		--paper-5,
-		var(--wp-admin-theme-color)
-	);
-	--file-tree-selected-color: var(--ink, #fff);
+	--file-tree-selected-background: var(--surface-control-active, #d9d9d9);
+	--file-tree-selected-color: var(--ink, #1a1919);
 	--file-tree-selected-shadow: inset 2px 0 0 var(--accent, transparent);
 	--file-tree-focus-shadow: 0 0 0 1px
 		var(--accent, var(--wp-admin-theme-color)) inset;
@@ -118,8 +116,8 @@
 	gap: 8px;
 	min-height: 56px;
 	padding: 8px 16px 8px 24px;
-	background: var(--paper-2, #ffffff);
-	border-bottom-color: var(--line-subtle, #ddd);
+	background: var(--surface-raised, #ffffff);
+	border-bottom-color: var(--border-subtle, rgba(26, 25, 25, 0.08));
 }
 
 .dockPresentation .fileExplorerTitle {
@@ -139,7 +137,7 @@
 }
 
 .dockPresentation .fileExplorerButton:hover {
-	background: var(--paper-4, rgba(0, 0, 0, 0.04));
+	background: var(--surface-control-hover, #e4e4e4);
 	color: var(--ink, #1e1e1e);
 	border-color: transparent;
 }

@@ -47,7 +47,7 @@ type SaveSiteModalProps =
 	  };
 
 const helpTextStyle: CSSProperties = {
-	color: '#757575',
+	color: 'var(--ink-muted)',
 	fontSize: 12,
 	marginTop: 8,
 };

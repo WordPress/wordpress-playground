@@ -102,7 +102,7 @@
 
 .error-modal :global(.components-modal__header .components-button) {
 	border-radius: var(--radius-control);
-	color: var(--ink-faint);
+	color: var(--action-icon);
 	/* Centered on the title line: the 36px button overhangs the 26px line
 	   by 5px on each side so the title keeps the 24px top inset and the
 	   header hugs its single line. */
@@ -190,7 +190,7 @@
 }
 
 .error-list li::marker {
-	color: var(--ink-faint);
+	color: var(--ink-muted);
 }
 
 .error-modal-body a {
@@ -239,7 +239,7 @@
 }
 
 .error-details summary::before {
-	background: var(--ink-faint);
+	background: var(--action-icon);
 	content: '';
 	flex-shrink: 0;
 	height: 12px;
@@ -311,7 +311,7 @@
 }
 
 .step-error-label {
-	color: var(--ink-faint);
+	color: var(--ink-muted);
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.08em;
@@ -361,7 +361,7 @@
 }
 
 .error-modal-body :global(.components-base-control__help) {
-	color: var(--ink-faint);
+	color: var(--ink-muted);
 	font-size: 12px;
 }
 

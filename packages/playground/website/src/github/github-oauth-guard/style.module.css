@@ -20,9 +20,9 @@
 	max-width: 60ch;
 }
 
-/* Fine print reads one step quieter than body copy. */
+/* Fine print stays secondary without dropping below readable text contrast. */
 .authenticate.authenticate p.note {
-	color: var(--ink-faint);
+	color: var(--ink-muted);
 	font-size: 12px;
 }
 

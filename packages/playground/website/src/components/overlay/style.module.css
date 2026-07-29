@@ -11,18 +11,18 @@
 	margin: 0 0 16px 0 !important;
 	font-size: clamp(18px, 2vw, 22px) !important;
 	font-weight: 600 !important;
-	color: #fff !important;
+	color: var(--ink-bright-on-dark) !important;
 }
 
 .sectionDescription {
 	margin: 0 0 12px 0;
 	font-size: clamp(13px, 1.3vw, 14px);
-	color: #6b7280;
+	color: var(--ink-muted-on-dark);
 	line-height: 1.5;
 }
 
 .section p {
-	color: #9ca3af;
+	color: var(--ink-muted-on-dark);
 	margin: 0;
 	font-size: clamp(14px, 1.4vw, 15px);
 	line-height: 1.5;
