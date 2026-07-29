@@ -1043,25 +1043,24 @@ export function SavedPlaygroundsPanel({
 		});
 	}
 
-	// Every row carries one calm "..." menu (no separate buttons). It groups the
-	// two save destinations — "Save in browser storage" (OPFS) and "Save in a
-	// local directory…" — above Rename / Delete. Clicking anywhere on the row switches
-	// to it. The menu only lists what applies to that Playground's storage.
+	// Every row carries one calm "..." menu (no separate buttons). Temporary
+	// Playgrounds show the save destinations. Stored Playgrounds show the current
+	// destination and explain why the other one is unavailable. Autosaves also
+	// offer one way to keep them permanently. Clicking anywhere on the row
+	// switches to it.
 	function renderRowActions(site: SiteInfo) {
 		const isAutosave = isAutosavedSite(site);
 		const isTemporary = site.metadata.storage === 'none';
 		const isStored = !isTemporary;
-		// Temporary and autosaved Playgrounds live in the browser and can be
-		// stored permanently in the browser (OPFS) and/or copied to a local
-		// directory. Already-saved and local-directory Playgrounds can't.
-		const canStoreInBrowser =
-			(isTemporary || isAutosave) && isOpfsAvailable;
-		const canSaveToLocal =
-			(isTemporary || isAutosave) && localFsAvailability === 'available';
-		const hasSaveActions = canStoreInBrowser || canSaveToLocal;
-		if (!hasSaveActions && !isStored) {
-			return null;
-		}
+		// Temporary Playgrounds have not chosen storage yet, so they show both
+		// destinations and explain any unavailable option. A stored Playground's
+		// backend is fixed. An autosave can only be kept permanently in place.
+		const localFsUnavailableReason =
+			localFsAvailability === 'available'
+				? undefined
+				: localFsAvailability === null
+					? 'Checking availability…'
+					: 'Not available in this browser';
 		return (
 			<div className={css.siteRowActions}>
 				<DropdownMenu
@@ -1073,45 +1072,93 @@ export function SavedPlaygroundsPanel({
 				>
 					{({ onClose: closeMenu }) => (
 						<>
-							{hasSaveActions && (
+							{isStored && (
 								<MenuGroup>
-									{canStoreInBrowser && (
-										<MenuItem
-											onClick={() =>
-												handleStoreInBrowser(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Save in browser storage
-										</MenuItem>
-									)}
-									{canSaveToLocal && (
-										<MenuItem
-											onClick={() =>
-												handleSaveToLocalDirectory(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Save in a local directory…
-										</MenuItem>
-									)}
-								</MenuGroup>
-							)}
-							{site.metadata.storage === 'opfs' && (
-								<MenuGroup>
-									<MenuItem icon={check} disabled>
-										Saved in browser storage
+									<MenuItem
+										disabled
+										icon={
+											site.metadata.storage === 'opfs'
+												? check
+												: undefined
+										}
+										info={
+											site.metadata.storage !== 'opfs'
+												? 'Storage can’t be changed'
+												: undefined
+										}
+									>
+										{site.metadata.storage === 'opfs'
+											? 'Saved in browser storage'
+											: 'Save in browser storage'}
+									</MenuItem>
+									<MenuItem
+										disabled
+										icon={
+											site.metadata.storage === 'local-fs'
+												? check
+												: undefined
+										}
+										info={
+											site.metadata.storage !== 'local-fs'
+												? 'Storage can’t be changed'
+												: undefined
+										}
+									>
+										{site.metadata.storage === 'local-fs'
+											? 'Saved in a local directory'
+											: 'Save in a local directory'}
 									</MenuItem>
 								</MenuGroup>
 							)}
-							{site.metadata.storage === 'local-fs' && (
+							{isTemporary && (
+								<MenuGroup label="Save Playground">
+									<MenuItem
+										disabled={!isOpfsAvailable}
+										info={
+											!isOpfsAvailable
+												? 'Not available in this browser'
+												: undefined
+										}
+										onClick={() =>
+											handleStoreInBrowser(
+												site,
+												closeMenu
+											)
+										}
+									>
+										Save in browser storage
+									</MenuItem>
+									<MenuItem
+										disabled={!!localFsUnavailableReason}
+										info={localFsUnavailableReason}
+										onClick={() =>
+											handleSaveToLocalDirectory(
+												site,
+												closeMenu
+											)
+										}
+									>
+										Save in a local directory…
+									</MenuItem>
+								</MenuGroup>
+							)}
+							{isAutosave && (
 								<MenuGroup>
-									<MenuItem icon={check} disabled>
-										Saved in a local directory
+									<MenuItem
+										disabled={!isOpfsAvailable}
+										info={
+											!isOpfsAvailable
+												? 'Browser storage is unavailable'
+												: undefined
+										}
+										onClick={() =>
+											handleStoreInBrowser(
+												site,
+												closeMenu
+											)
+										}
+									>
+										Keep autosave permanently
 									</MenuItem>
 								</MenuGroup>
 							)}
