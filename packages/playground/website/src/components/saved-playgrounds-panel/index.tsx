@@ -69,6 +69,7 @@ import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
@@ -1177,7 +1178,7 @@ export function SavedPlaygroundsPanel({
 									    deleting it would swap the view out from under you.
 									    Switch away first, then delete it as an ordinary
 									    background Playground. */}
-									<MenuItem
+									<MenuItemWithDescription
 										className={css.dangerMenuItem}
 										info={
 											isActiveSite
@@ -1196,7 +1197,7 @@ export function SavedPlaygroundsPanel({
 										}
 									>
 										Delete
-									</MenuItem>
+									</MenuItemWithDescription>
 								</MenuGroup>
 							)}
 						</>

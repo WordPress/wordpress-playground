@@ -75,6 +75,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -838,7 +839,7 @@ export const BlueprintBundleEditor = forwardRef<
 		>
 			{({ onClose }) => (
 				<MenuGroup>
-					<MenuItem
+					<MenuItemWithDescription
 						icon={link}
 						info={
 							!isBundleShareable
@@ -856,7 +857,7 @@ export const BlueprintBundleEditor = forwardRef<
 						}
 					>
 						Copy Blueprint URL
-					</MenuItem>
+					</MenuItemWithDescription>
 					<MenuItem
 						icon={download}
 						onClick={() => {
