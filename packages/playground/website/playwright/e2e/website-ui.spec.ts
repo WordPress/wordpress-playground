@@ -1937,17 +1937,12 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
-		const originalSite = await getActivePlaygroundSite(website.page);
-		const activeSite = await website.page.evaluate(async (originalSlug) => {
+		const activeSite = await website.page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
 			const slug = `operation-error-active-${Date.now().toString(36)}`;
-			await api.createNewSavedSite(slug, undefined, {
-				persistence: 'autosave',
-				updateUrl: false,
-				excludeFromPruning: [originalSlug],
-			});
+			await api.createNewTemporarySite(slug);
 			return api.list().find((site: any) => site.slug === slug);
-		}, originalSite.slug);
+		});
 		await website.page.evaluate(() => {
 			Object.defineProperty(window, 'showDirectoryPicker', {
 				configurable: true,
