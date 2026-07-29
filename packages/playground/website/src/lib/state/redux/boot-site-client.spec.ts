@@ -470,13 +470,18 @@ describe('bootSiteClient', () => {
 		);
 	});
 
-	it('clears the return target after the initial OPFS copy succeeds', async () => {
+	it('keeps the initial OPFS sync pending until the final flush succeeds', async () => {
 		let resolveMount = () => {};
 		const mountFinished = new Promise<void>((resolve) => {
 			resolveMount = resolve;
 		});
+		let resolveFlush = () => {};
+		const flushFinished = new Promise<void>((resolve) => {
+			resolveFlush = resolve;
+		});
 		const playground = createPlaygroundClient({
 			mountOpfs: vi.fn(() => mountFinished),
+			flushOpfs: vi.fn(() => flushFinished),
 		});
 		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
 			async (options: any) => {
@@ -505,11 +510,33 @@ describe('bootSiteClient', () => {
 		).toBe('source-site');
 		resolveMount();
 		await vi.waitFor(() =>
+			expect(playground.flushOpfs).toHaveBeenCalledWith('/wordpress')
+		);
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.initialOpfsSyncPending
+		).toBe(true);
+		expect(state.clients.entities['blueprint-run']?.opfsSync?.status).toBe(
+			'syncing'
+		);
+		resolveFlush();
+		await vi.waitFor(() => {
 			expect(
 				state.sites.entities['blueprint-run'].metadata
 					.siteSlugToReturnToIfBlueprintFails
-			).toBeUndefined()
-		);
+			).toBeUndefined();
+			expect(
+				state.sites.entities['blueprint-run'].metadata
+					.initialOpfsSyncPending
+			).toBe(false);
+			expect(
+				state.clients.entities['blueprint-run']?.opfsSync
+			).toBeUndefined();
+		});
 	});
 
 	it('keeps Blueprint recovery behind private repository authentication', async () => {
@@ -836,6 +863,7 @@ function createSite(
 function createPlaygroundClient(overrides: Record<string, unknown> = {}): any {
 	return {
 		mountOpfs: vi.fn(async () => undefined),
+		flushOpfs: vi.fn(async () => undefined),
 		onNavigation: vi.fn(),
 		...overrides,
 	};

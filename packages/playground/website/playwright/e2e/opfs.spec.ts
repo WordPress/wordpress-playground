@@ -479,6 +479,15 @@ async function getInitialOpfsSyncPending(page: Page, siteSlug: string) {
 	);
 }
 
+/** Waits until a new OPFS site is safe to reload. */
+async function waitForInitialOpfsSync(page: Page, siteSlug: string) {
+	await expect
+		.poll(() => getInitialOpfsSyncPending(page, siteSlug), {
+			timeout: 120000,
+		})
+		.toBe(false);
+}
+
 async function waitForActivePlaygroundSiteSlug(
 	page: Page,
 	matchesSlug: (slug: string) => boolean
@@ -1343,12 +1352,7 @@ test('should notify when a ZIP import loads before autosave finishes', async ({
 	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
 	const importedSite = await notifyWhileAutosaving;
 
-	await expect
-		.poll(
-			() => getInitialOpfsSyncPending(website.page, importedSite.slug),
-			{ timeout: 120000 }
-		)
-		.toBe(false);
+	await waitForInitialOpfsSync(website.page, importedSite.slug);
 
 	const newPlaygroundButton = website.page.getByRole('button', {
 		name: 'New Playground',
@@ -1644,6 +1648,7 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	);
 	expect(importedSite?.slug).toBeTruthy();
 	const importedSiteSlug = importedSite.slug;
+	await waitForInitialOpfsSync(website.page, importedSiteSlug);
 	// Discard the import runtime before requesting the marker. The fresh runtime
 	// must load the imported file from persisted OPFS state.
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
@@ -1886,6 +1891,7 @@ PHP;
 		.toBe(true);
 	website.page.off('dialog', acceptImportDialog);
 
+	await waitForInitialOpfsSync(website.page, importedSiteSlug);
 	// Reboot the imported site so the final assertion reads the customization
 	// from persisted OPFS state rather than the import runtime.
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
