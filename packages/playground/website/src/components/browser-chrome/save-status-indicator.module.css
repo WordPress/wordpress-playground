@@ -17,21 +17,20 @@
 	flex-shrink: 0;
 }
 
-/* "Saved" uses a calm, desaturated sage green with a check that settles into
-   the dark dock. "Autosaved" is icon-less white text — plainer, since it's the
-   transient default. Only "unsaved" stays vibrant (it wants attention). */
+/* Status colors keep their original semantic hues and stay readable on the
+   dark Dock chrome. */
 .saved {
-	color: #a0c49a;
+	color: var(--success-on-dark);
 }
 
 .saved svg {
-	fill: #a0c49a;
+	fill: var(--success-on-dark);
 }
 
-/* "Autosaved" keeps the same blue as the in-progress "Autosaving" state, so the
-   color doesn't change as the save settles. */
+/* "Autosaved" keeps the same soft accent as the in-progress "Autosaving"
+   state, so the color doesn't change as the save settles. */
 .autosaved {
-	color: #93c5fd;
+	color: var(--saving-on-dark);
 }
 
 .saving .label {
@@ -46,15 +45,15 @@
 	box-sizing: border-box;
 	height: 34px;
 	padding: 0 10px;
-	background: rgba(255, 251, 243, 0.05);
-	border: 1px solid rgba(255, 251, 243, 0.1);
+	background: var(--chrome-control-background);
+	border: 1px solid var(--chrome-control-border);
 	border-radius: 9px;
 	cursor: pointer;
 	transition: background 0.13s ease;
 }
 
 .actionable:hover {
-	background: rgba(255, 251, 243, 0.12);
+	background: var(--chrome-control-hover-background);
 }
 
 .actionable:disabled,
@@ -65,37 +64,37 @@
 
 .actionable:disabled:hover,
 .error:disabled:hover {
-	background: rgba(255, 251, 243, 0.05);
+	background: var(--chrome-control-background);
 }
 
 .actionable:focus-visible,
 .error:focus-visible {
-	outline: 2px solid #3858e9;
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 
 .unsaved {
-	color: #fcd34d;
+	color: var(--warning);
 }
 
 .unsaved svg {
-	fill: #fcd34d;
+	fill: var(--warning);
 }
 
 .saving {
-	color: #93c5fd;
+	color: var(--saving-on-dark);
 }
 
 .error {
-	color: #fca5a5;
+	color: var(--error-strong-on-dark);
 }
 
 .error:hover {
-	background: rgba(255, 251, 243, 0.12);
+	background: var(--chrome-control-hover-background);
 }
 
 .error svg {
-	fill: #fca5a5;
+	fill: var(--error-strong-on-dark);
 }
 
 .label {
@@ -139,5 +138,5 @@
 /* --- Restored from the deployed build --- */
 
 .loading {
-	color: #f7f5f2b3;
+	color: var(--ink-muted-on-dark);
 }
