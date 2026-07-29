@@ -178,7 +178,9 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
         runs-on: ${{ matrix.os }}
-        timeout-minutes: 30
+        # Windows normally needs about 27 minutes for the suite after setup.
+        # Leave enough headroom for normal hosted-runner variance.
+        timeout-minutes: 35
         permissions:
             contents: read # Required to clone the repo.
         env:
