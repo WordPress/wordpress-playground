@@ -158,7 +158,7 @@
 	box-shadow: 0 16px 38px rgb(0 0 0 / 20%);
 }
 
-.action-menu .action-menu-item:global(.components-button) {
+.action-menu .action-menu-item:global(.components-menu-item__button) {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -267,7 +267,8 @@
 }
 
 @media (forced-colors: active) {
-	.action-menu .action-menu-item:focus-visible {
+	.action-menu .action-menu-item:focus-visible,
+	.action-menu .action-menu-item[aria-disabled='true']:focus-visible {
 		outline: 2px solid CanvasText;
 		outline-offset: -2px;
 		box-shadow: none;
