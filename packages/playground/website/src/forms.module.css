@@ -84,3 +84,11 @@ input.radio-input.not-available + label > span {
 	align-items: center;
 	margin-top: 10px;
 }
+
+/* Keep the primary action geometry stable between the GitHub import and
+   pull-request preview flows. */
+.primary-action:global(.components-button) {
+	border-radius: var(--radius-control, 6px);
+	justify-content: center;
+	width: 100%;
+}

@@ -5,7 +5,6 @@ import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
-import Button from '../../components/button';
 import type { GitHubURLInformation } from '../analyze-github-url';
 import {
 	resolveGitHubBranchPath,
@@ -384,11 +383,11 @@ export default function GitHubImportForm({
 					false
 				)}
 				<div className={forms.submitRow}>
-					<Button
+					<WPButton
+						className={forms.primaryAction}
 						disabled={!url || isAnalyzing || isImporting}
 						type="submit"
 						variant="primary"
-						size="large"
 					>
 						{isAnalyzing ? (
 							<>
@@ -405,7 +404,7 @@ export default function GitHubImportForm({
 						) : (
 							'Continue'
 						)}
-					</Button>
+					</WPButton>
 				</div>
 			</form>
 		</GitHubOAuthGuard>
