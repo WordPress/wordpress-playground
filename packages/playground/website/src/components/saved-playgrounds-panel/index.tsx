@@ -47,14 +47,12 @@ import {
 } from '../../lib/state/redux/store';
 import type { SiteImage, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
-	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	isRestorableAutosavedSite,
 	selectSortedSites,
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
-import { getRelativeDate } from '../../lib/get-relative-date';
 import {
 	modalSlugs,
 	setActiveModal,
@@ -698,21 +696,17 @@ export function SavedPlaygroundsPanel({
 		].join(' · ');
 	};
 
-	// The current row spells its save state out on a line of its own — a plain
-	// sentence is quieter than a status pill and has room for the autosave
-	// timestamp.
-	const getCurrentSiteStatusLabel = (site: SiteInfo) => {
+	// Each lifecycle state wears its own monochrome pill: dashed = unsaved,
+	// outlined = autosaved, filled = saved. The pill's substance (not a color)
+	// encodes how permanent the Playground is.
+	const getCurrentSiteStatusPill = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
-			return 'Temporary — lost on page refresh';
+			return { label: 'Unsaved', className: css.statusPillUnsaved };
 		}
 		if (isAutosavedSite(site)) {
-			const autosavedAt = getSiteRecencyTimestamp(site) || Date.now();
-			return `Autosaved ${getRelativeDate(new Date(autosavedAt))}`;
+			return { label: 'Autosaved', className: css.statusPillAutosaved };
 		}
-		if (site.metadata.storage === 'local-fs') {
-			return 'Saved to a local directory';
-		}
-		return 'Saved in this browser';
+		return { label: 'Saved', className: css.statusPillSaved };
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
@@ -1270,6 +1264,7 @@ export function SavedPlaygroundsPanel({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
+		const statusPill = getCurrentSiteStatusPill(site);
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1278,7 +1273,17 @@ export function SavedPlaygroundsPanel({
 				<div className={css.siteRowContent}>
 					<SitePreview site={site} />
 					<div className={css.siteRowInfo}>
-						{renderSiteRowName(site)}
+						<span className={css.currentSiteNameLine}>
+							{renderSiteRowName(site)}
+							<span
+								className={classNames(
+									css.statusPill,
+									statusPill.className
+								)}
+							>
+								{statusPill.label}
+							</span>
+						</span>
 						{activeSiteSyncLabel ? (
 							<span className={css.siteRowSaving}>
 								<span
@@ -1288,12 +1293,9 @@ export function SavedPlaygroundsPanel({
 								{activeSiteSyncLabel}
 							</span>
 						) : (
-							<span className={css.siteRowStatus}>
-								{getCurrentSiteStatusLabel(site)}
-							</span>
-						)}
-						{meta && (
-							<span className={css.siteRowDate}>{meta}</span>
+							meta && (
+								<span className={css.siteRowDate}>{meta}</span>
+							)
 						)}
 					</div>
 				</div>
