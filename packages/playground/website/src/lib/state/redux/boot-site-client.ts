@@ -45,6 +45,7 @@ import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
+import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -620,11 +621,12 @@ function waitForPendingOpfsSiteRemovalRetry(
 }
 
 /**
- * Copies files created during a saved site's first boot from MEMFS into OPFS.
+ * Copies files and live PHP constants from a saved site's first boot into
+ * browser storage.
  *
  * The iframe is already usable when this runs. Redux keeps showing sync
- * progress until the copy and final journal flush succeed, then future boots
- * can mount OPFS normally.
+ * progress until the file copy, final journal flush, and constant snapshot
+ * succeed. Future boots can then mount OPFS normally.
  */
 async function syncInitialOpfsFilesInBackground({
 	playground,
@@ -681,6 +683,11 @@ async function syncInitialOpfsFilesInBackground({
 		if (signal.aborted) {
 			return false;
 		}
+		const playgroundDefinedConstants =
+			await getPlaygroundDefinedPHPConstants(playground);
+		if (signal.aborted) {
+			return false;
+		}
 		// Clear the return target in the same metadata write that completes the
 		// initial sync so failed copies retain their recovery action.
 		await dispatch(
@@ -689,6 +696,7 @@ async function syncInitialOpfsFilesInBackground({
 				changes: {
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
+					playgroundDefinedConstants,
 					...(siteSlugToReturnToIfBlueprintFails
 						? { siteSlugToReturnToIfBlueprintFails: undefined }
 						: {}),

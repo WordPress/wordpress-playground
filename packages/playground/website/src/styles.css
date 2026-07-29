@@ -146,10 +146,81 @@ html {
 }
 
 :root {
-	--color-gray-200: #ddd;
-	--color-gray-600: #6a6a6a;
-	--color-gray-900: #1e1e1e;
-	--color-alert-red: #cc1818;
+	/* Semantic UI roles using colors from the WordPress.org Design Library. */
+
+	/* Dark app chrome. */
+	--chrome-background: #1a1919;
+	--chrome-input-background: #40464d;
+	--chrome-popover-background: #40464d;
+	--chrome-hover-background: #656a71;
+	--chrome-control-background: rgba(246, 246, 246, 0.05);
+	--chrome-control-border: rgba(246, 246, 246, 0.1);
+	--chrome-control-hover-background: rgba(246, 246, 246, 0.12);
+
+	/* Text and icons. Dark chrome spans separate subtrees and portaled surfaces,
+	   so contrast-specific `-on-dark` roles stay explicit. */
+	--ink: #1a1919;
+	--ink-soft: #23282d;
+	--ink-muted: #656a71;
+	--ink-faint: #979aa1;
+	--ink-on-dark: #d9d9d9;
+	--ink-muted-on-dark: rgba(246, 246, 246, 0.7);
+	--ink-bright-on-dark: #f6f6f6;
+	--ink-disabled-on-dark: rgba(217, 217, 217, 0.4);
+	--action-icon: #40464d;
+	--action-icon-disabled-on-dark: rgba(151, 154, 161, 0.4);
+
+	/* Light surfaces, controls, and their boundaries. */
+	--surface: #f6f6f6;
+	--surface-raised: #ffffff;
+	--surface-control-active: #d9d9d9;
+	--surface-recessed: #ececec;
+	--surface-control-hover: #e4e4e4;
+	--app-background-recessed: #f0f0f0;
+	--divider: #d9d9d9;
+	--border-subtle: rgba(26, 25, 25, 0.08);
+	--interactive-border: rgba(26, 25, 25, 0.15);
+	--interactive-border-hover: rgba(26, 25, 25, 0.24);
+	--loading-surface-dark: #1e1e1e;
+	--loading-track-dark: #23282d;
+
+	/* Interactive colors. */
+	--accent-rgb: 56, 88, 233;
+	--accent: rgb(var(--accent-rgb));
+	--accent-hover-rgb: 33, 63, 212;
+	--accent-hover: rgb(var(--accent-hover-rgb));
+	--accent-link-rgb: 29, 53, 180;
+	--accent-link: rgb(var(--accent-link-rgb));
+	--accent-soft: #9fb1ff;
+	--saving-on-dark: #c7d1ff;
+	--create-fresh-action: #7a00df;
+	--create-fresh-action-hover: #5300be;
+
+	/* Success, warning, error, and destructive states. */
+	--success-on-dark: #c7ffdb;
+	--success-toast-background: #20482e;
+	--success-toast-border: #3b8a5e;
+	--warning: #fff972;
+	--warning-highlight: #fffcb5;
+	--warning-surface: #fffdd6;
+	--error: #e26f56;
+	--error-strong-on-dark: #ffb7a7;
+	--error-soft-on-dark: #ffe9de;
+	--error-toast-background: #6a3b31;
+	--error-toast-border: #a96153;
+	--destructive: #cc1818;
+
+	/* @wordpress/components owns these public names. Keep the numbered API
+	   aliases here and map them to the readable Playground roles above. */
+	--wp-components-color-accent: var(--accent);
+	--wp-components-color-accent-darker-10: var(--accent-hover);
+	--wp-components-color-accent-darker-20: var(--accent-link);
+	--wp-admin-theme-color: var(--accent);
+	--wp-admin-theme-color--rgb: var(--accent-rgb);
+	--wp-admin-theme-color-darker-10: var(--accent-hover);
+	--wp-admin-theme-color-darker-10--rgb: var(--accent-hover-rgb);
+	--wp-admin-theme-color-darker-20: var(--accent-link);
+	--wp-admin-theme-color-darker-20--rgb: var(--accent-link-rgb);
 }
 
 html,
@@ -164,15 +235,6 @@ body {
 		Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 	line-height: 1.3;
 	font-weight: 300;
-}
-
-:root {
-	--wp-admin-theme-color: #007cba;
-	--wp-admin-theme-color--rgb: 0, 124, 186;
-	--wp-admin-theme-color-darker-10: #006ba1;
-	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
-	--wp-admin-theme-color-darker-20: #005a87;
-	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
 }
 
 .components-button.is-link {

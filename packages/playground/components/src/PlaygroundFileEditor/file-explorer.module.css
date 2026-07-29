@@ -101,7 +101,7 @@
 		--paper-5,
 		var(--wp-admin-theme-color)
 	);
-	--file-tree-selected-color: var(--ink, #fff);
+	--file-tree-selected-color: var(--ink-bright-on-dark, #fff);
 	--file-tree-selected-shadow: inset 2px 0 0 var(--accent, transparent);
 	--file-tree-focus-shadow: 0 0 0 1px
 		var(--accent, var(--wp-admin-theme-color)) inset;
@@ -119,7 +119,7 @@
 	min-height: 56px;
 	padding: 8px 16px 8px 24px;
 	background: var(--paper-2, #ffffff);
-	border-bottom-color: var(--line-subtle, #ddd);
+	border-bottom: 1px solid var(--divider, #d9d9d9);
 }
 
 .dockPresentation .fileExplorerTitle {

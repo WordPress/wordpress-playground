@@ -69,6 +69,7 @@ import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
@@ -708,6 +709,19 @@ export function SavedPlaygroundsPanel({
 		].join(' · ');
 	};
 
+	// Each lifecycle state wears its own monochrome pill: dashed = unsaved,
+	// outlined = autosaved, filled = saved. The pill's substance (not a color)
+	// encodes how permanent the Playground is.
+	const getCurrentSiteStatusPill = (site: SiteInfo) => {
+		if (site.metadata.storage === 'none') {
+			return { label: 'Unsaved', className: css.statusPillUnsaved };
+		}
+		if (isAutosavedSite(site)) {
+			return { label: 'Autosaved', className: css.statusPillAutosaved };
+		}
+		return { label: 'Saved', className: css.statusPillSaved };
+	};
+
 	const getRuntimeLabel = (site: SiteInfo) => {
 		const { phpVersion, wpVersion } = site.metadata.runtimeConfiguration;
 		return `WP ${wpVersion} · PHP ${phpVersion}`;
@@ -1064,6 +1078,7 @@ export function SavedPlaygroundsPanel({
 		const isAutosave = isAutosavedSite(site);
 		const isTemporary = site.metadata.storage === 'none';
 		const isStored = !isTemporary;
+		const isActiveSite = site.slug === activeSite?.slug;
 		// Temporary Playgrounds have not chosen storage yet, so they show both
 		// destinations and explain any unavailable option. A stored Playground's
 		// backend is fixed. An autosave can only be kept permanently in place.
@@ -1080,7 +1095,7 @@ export function SavedPlaygroundsPanel({
 					label={`Actions for ${site.metadata.name}`}
 					className={css.siteRowMenu}
 					toggleProps={{ disabled: isImportingZip }}
-					popoverProps={{ placement: 'bottom-end' }}
+					popoverProps={{ placement: 'top-end' }}
 				>
 					{({ onClose: closeMenu }) => (
 						<>
@@ -1184,14 +1199,30 @@ export function SavedPlaygroundsPanel({
 									>
 										Rename
 									</MenuItem>
-									<MenuItem
+									{/* You can't delete the Playground you're currently in:
+									    deleting it would swap the view out from under you.
+									    Switch away first, then delete it as an ordinary
+									    background Playground. */}
+									<MenuItemWithDescription
 										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
+										info={
+											isActiveSite
+												? 'Switch to another Playground first to delete this one.'
+												: undefined
+										}
+										aria-disabled={isActiveSite}
+										onClick={
+											isActiveSite
+												? undefined
+												: () =>
+														handleDeleteSite(
+															site,
+															closeMenu
+														)
 										}
 									>
 										Delete
-									</MenuItem>
+									</MenuItemWithDescription>
 								</MenuGroup>
 							)}
 						</>
@@ -1263,9 +1294,7 @@ export function SavedPlaygroundsPanel({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
-		// A temporary Playground is lost on refresh — call that out right on its
-		// row so the list mirrors the dock's yellow "Unsaved" status.
-		const isUnsaved = site.metadata.storage === 'none';
+		const statusPill = getCurrentSiteStatusPill(site);
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1276,11 +1305,14 @@ export function SavedPlaygroundsPanel({
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
-							{isUnsaved && (
-								<span className={css.unsavedBadge}>
-									Unsaved
-								</span>
-							)}
+							<span
+								className={classNames(
+									css.statusPill,
+									statusPill.className
+								)}
+							>
+								{statusPill.label}
+							</span>
 						</span>
 						{activeSiteSyncLabel ? (
 							<span className={css.siteRowSaving}>
@@ -1596,6 +1628,7 @@ export function SavedPlaygroundsPanel({
 				return (
 					<div className={css.inlineForm}>
 						<GitHubImportForm
+							inline
 							playground={playground!}
 							showRepositoryDetails={isGitHubImportDetailsOpen}
 							onRepositoryResolved={() => {
