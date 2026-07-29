@@ -32,7 +32,6 @@ import {
 	forwardRef,
 	useCallback,
 	useEffect,
-	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -343,7 +342,6 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		return state.clients.entities[storedSiteSlug]?.opfsSync?.status;
 	});
-	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -843,35 +841,22 @@ export const BlueprintBundleEditor = forwardRef<
 				<MenuGroup>
 					<MenuItem
 						icon={link}
-						className={
+						info={
 							!isBundleShareable
-								? styles.exportMenuItemWithHint
+								? 'Multi-file Blueprints can’t be shared as a URL — download a zip instead.'
 								: undefined
 						}
-						aria-label="Copy Blueprint URL"
-						aria-describedby={
-							!isBundleShareable
-								? copyBlueprintUrlHintId
+						aria-disabled={!isBundleShareable}
+						onClick={
+							isBundleShareable
+								? () => {
+										handleShareBlueprint();
+										onClose();
+									}
 								: undefined
 						}
-						disabled={!isBundleShareable}
-						onClick={() => {
-							handleShareBlueprint();
-							onClose();
-						}}
 					>
-						<span className={styles.exportMenuItemBody}>
-							<span>Copy Blueprint URL</span>
-							{!isBundleShareable && (
-								<span
-									id={copyBlueprintUrlHintId}
-									className={styles.exportMenuItemHint}
-								>
-									Multi-file Blueprints can’t be shared as a
-									URL — download a zip instead.
-								</span>
-							)}
-						</span>
+						Copy Blueprint URL
 					</MenuItem>
 					<MenuItem
 						icon={download}
