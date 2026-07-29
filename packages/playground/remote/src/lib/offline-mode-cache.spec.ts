@@ -14,12 +14,16 @@ describe('offline mode cache', () => {
 	] as const)(
 		'settles failed background writes for the %s strategy',
 		async (_strategy, fetchFunctionName) => {
-			let rejectCacheWrite!: (reason: unknown) => void;
-			const cacheWrite = new Promise<void>((_resolve, reject) => {
-				rejectCacheWrite = reject;
+			const cacheWriteError = new DOMException(
+				'Cache.put() encountered a network error',
+				'NetworkError'
+			);
+			const cacheWriteCatch = vi.fn((onRejected) =>
+				Promise.resolve(onRejected(cacheWriteError))
+			);
+			const cachePut = vi.fn().mockReturnValue({
+				catch: cacheWriteCatch,
 			});
-			const cacheWriteCatch = vi.spyOn(cacheWrite, 'catch');
-			const cachePut = vi.fn().mockReturnValue(cacheWrite);
 			vi.stubGlobal('caches', {
 				open: vi.fn().mockResolvedValue({
 					match: vi.fn().mockResolvedValue(undefined),
@@ -38,14 +42,6 @@ describe('offline mode cache', () => {
 
 			expect(cachePut).toHaveBeenCalledOnce();
 			expect(cacheWriteCatch).toHaveBeenCalledOnce();
-
-			rejectCacheWrite(
-				new DOMException(
-					'Cache.put() encountered a network error',
-					'NetworkError'
-				)
-			);
-			await Promise.resolve();
 		}
 	);
 });
