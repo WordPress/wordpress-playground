@@ -851,7 +851,7 @@
 	.pane-editor-header {
 		align-items: center;
 		background: var(--surface-raised);
-		border-bottom: 1px solid var(--border-subtle);
+		border-bottom: 1px solid var(--divider);
 		display: flex;
 		flex: none;
 		gap: var(--space-2);

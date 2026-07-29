@@ -1,8 +1,17 @@
 /* Inline (dock pane) actions: a single left-aligned primary, matching the other
    New-pane flows. The modal variant keeps the right-aligned Cancel/Submit row. */
+.inline-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.inline-description {
+	margin: 0;
+}
+
 .inline-actions {
 	display: flex;
-	margin-top: 12px;
 }
 
 .progress {
