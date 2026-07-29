@@ -179,20 +179,15 @@ class OpfsSiteStorage {
 	}
 
 	/**
-	 * Lists persisted site names and slugs without loading Blueprint bundles.
+	 * Lists persisted site metadata without loading Blueprint bundles.
 	 */
-	async listSiteNamesAndSlugs(): Promise<
-		Array<{ slug: string; name: string }>
-	> {
-		const sites: Array<{ slug: string; name: string }> = [];
+	async listMetadata(): Promise<SiteInfo[]> {
+		const sites: SiteInfo[] = [];
 		for await (const entry of this.root.values()) {
 			if (entry.kind === 'directory') {
 				try {
 					const site = await this.readStoredSiteMetadata(entry);
-					sites.push({
-						slug: site.slug,
-						name: site.metadata.name,
-					});
+					sites.push(site);
 				} catch (error) {
 					logger.error(`Error reading site ${entry.name}:`, error);
 				}

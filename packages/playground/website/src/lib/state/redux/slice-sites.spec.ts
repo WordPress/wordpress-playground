@@ -5,7 +5,7 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
-	let listSiteNamesAndSlugs: ReturnType<typeof vi.fn>;
+	let listMetadata: ReturnType<typeof vi.fn>;
 	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -16,7 +16,7 @@ describe('stored sites', () => {
 		vi.resetModules();
 		createSite = vi.fn();
 		deleteSite = vi.fn();
-		listSiteNamesAndSlugs = vi.fn().mockResolvedValue([]);
+		listMetadata = vi.fn().mockResolvedValue([]);
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
 		updateSiteStorage.mockImplementation(async (slug, changes) => {
@@ -70,7 +70,7 @@ describe('stored sites', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				delete: deleteSite,
-				listSiteNamesAndSlugs,
+				listMetadata,
 				update: updateSiteStorage,
 			},
 		}));
@@ -622,11 +622,11 @@ describe('stored sites', () => {
 			extraLibraries: [],
 			constants: {},
 		});
-		listSiteNamesAndSlugs.mockResolvedValue([
-			{
+		listMetadata.mockResolvedValue([
+			createSiteInfo({
 				slug: 'playground-welcome-landing-page',
 				name: 'Stored Playground',
-			},
+			}),
 		]);
 
 		const newSite = await createStoredSite(
@@ -653,9 +653,7 @@ describe('stored sites', () => {
 			extraLibraries: [],
 			constants: {},
 		});
-		listSiteNamesAndSlugs.mockRejectedValue(
-			new Error('Unable to enumerate OPFS')
-		);
+		listMetadata.mockRejectedValue(new Error('Unable to enumerate OPFS'));
 
 		const newSite = await createStoredSite(
 			'Imported Playground',
