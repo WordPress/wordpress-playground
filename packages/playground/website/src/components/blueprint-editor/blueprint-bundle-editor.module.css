@@ -196,6 +196,11 @@
 	gap: 4px;
 }
 
+.editorExportMenu :global(.components-menu-item__button.components-button) {
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
 .runHint {
 	align-items: flex-start;
 	background: #fff8e5;

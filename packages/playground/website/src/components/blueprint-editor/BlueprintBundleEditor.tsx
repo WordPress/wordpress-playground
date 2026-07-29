@@ -838,7 +838,7 @@ export const BlueprintBundleEditor = forwardRef<
 			}}
 		>
 			{({ onClose }) => (
-				<MenuGroup>
+				<MenuGroup className={styles.editorExportMenu}>
 					<MenuItemWithDescription
 						icon={link}
 						info={
