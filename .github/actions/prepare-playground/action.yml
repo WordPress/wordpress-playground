@@ -10,9 +10,10 @@ inputs:
 runs:
     using: 'composite'
     steps:
-        - name: Fetch trunk
+        - name: Fetch base SHA for nx affected
+          if: env.NX_BASE != ''
           shell: bash
-          run: git fetch origin trunk --depth=1 --recurse-submodules
+          run: git fetch --no-tags --depth=1 --filter=blob:none origin "$NX_BASE"
         - uses: actions/setup-node@v4
           with:
               node-version: ${{ inputs.node-version }}
@@ -48,12 +49,6 @@ runs:
                   /etc/apt/sources.list.d/azure-cli.sources \
                   /etc/apt/sources.list.d/microsoft-prod.list \
                   /etc/apt/sources.list.d/microsoft-prod.sources || true
-        - name: Set NX_BASE
-          shell: bash
-          run: echo "NX_BASE=$(git rev-parse origin/trunk)" >> $GITHUB_ENV
-        - name: Set NX_HEAD
-          shell: bash
-          run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
         - name: Reset NX cache
           shell: bash
           run: npx nx reset

@@ -1627,7 +1627,6 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({
 			timeout: 120000,
 		});
-		const autosavedSite = await getActivePlaygroundSite(website.page);
 
 		await website.openDockPane('Site Settings');
 
@@ -1660,7 +1659,7 @@ test.describe('Default Playground storage', () => {
 			name: /Create a fresh Playground/,
 		});
 		await expect(freshMenuItem).toContainText(
-			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
+			'Your current Playground stays in Recent autosaves until 5 newer autosaves replace it.'
 		);
 		await expect(applyMenuItem).toBeFocused();
 		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'false');
@@ -1937,17 +1936,12 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
-		const originalSite = await getActivePlaygroundSite(website.page);
-		const activeSite = await website.page.evaluate(async (originalSlug) => {
+		const activeSite = await website.page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
 			const slug = `operation-error-active-${Date.now().toString(36)}`;
-			await api.createNewSavedSite(slug, undefined, {
-				persistence: 'autosave',
-				updateUrl: false,
-				excludeFromPruning: [originalSlug],
-			});
+			await api.createNewTemporarySite(slug);
 			return api.list().find((site: any) => site.slug === slug);
-		}, originalSite.slug);
+		});
 		await website.page.evaluate(() => {
 			Object.defineProperty(window, 'showDirectoryPicker', {
 				configurable: true,

@@ -286,10 +286,6 @@
 	display: none;
 }
 
-.editorHeaderSlotActions .mobileToggle {
-	display: inline-flex;
-}
-
 .mobileOverlay {
 	display: none;
 }
@@ -438,6 +434,7 @@
 
 @media (max-width: 1024px) {
 	.editorHeaderSlotActions .mobileToggle {
+		display: inline-flex;
 		order: initial;
 	}
 
