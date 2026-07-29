@@ -1209,7 +1209,7 @@
 	border-radius: 9px;
 	display: inline-flex;
 	flex: none;
-	height: var(--chrome-control-height);
+	height: 34px;
 	overflow: hidden;
 }
 
