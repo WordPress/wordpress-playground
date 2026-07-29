@@ -689,7 +689,13 @@ export function createStoredSite(
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
-		const sites = selectAllSites(getState());
+		// Redux belongs to this tab, while OPFS is shared across same-origin
+		// tabs. Include storage records created after this tab loaded so a new
+		// Playground never reuses their slugs.
+		const sites = [
+			...selectAllSites(getState()),
+			...(await opfsSiteStorage.list()),
+		];
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {

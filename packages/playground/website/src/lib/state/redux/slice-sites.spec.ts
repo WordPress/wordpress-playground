@@ -5,6 +5,7 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
+	let listSites: ReturnType<typeof vi.fn>;
 	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -15,6 +16,7 @@ describe('stored sites', () => {
 		vi.resetModules();
 		createSite = vi.fn();
 		deleteSite = vi.fn();
+		listSites = vi.fn().mockResolvedValue([]);
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
 		updateSiteStorage.mockImplementation(async (slug, changes) => {
@@ -67,6 +69,7 @@ describe('stored sites', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				delete: deleteSite,
+				list: listSites,
 				update: updateSiteStorage,
 			},
 		}));
@@ -606,6 +609,34 @@ describe('stored sites', () => {
 			'source-site': sourceSite,
 			'source-site-2': newSite,
 		});
+	});
+
+	it('avoids slugs occupied in OPFS outside the current Redux state', async () => {
+		const { createStoredSite } = await import('./slice-sites');
+		resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		});
+		listSites.mockResolvedValue([
+			createSiteInfo({ slug: 'playground-welcome-landing-page' }),
+		]);
+
+		const newSite = await createStoredSite(
+			'Imported Playground',
+			createBundleBlueprint(),
+			'playground-welcome-landing-page'
+		)(createThunkDispatch() as any, createEmptyGetState() as any);
+
+		expect(newSite.slug).toBe('playground-welcome-landing-page-2');
+		expect(createSite).toHaveBeenCalledWith(
+			'playground-welcome-landing-page-2',
+			newSite.metadata,
+			undefined
+		);
 	});
 
 	it('does not persist an edited Blueprint bundle when its runtime is invalid', async () => {
