@@ -327,6 +327,12 @@ export function SavedPlaygroundsPanel({
 		}
 	};
 
+	/**
+	 * Imports a ZIP and reports readiness before any initial browser save finishes.
+	 *
+	 * A rejection after readiness replaces the success notice instead of
+	 * reopening the import pane, which closed when the import started.
+	 */
 	const importZipFile = useCallback(
 		async (file: File) => {
 			if (zipImportPendingRef.current) {
