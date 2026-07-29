@@ -320,11 +320,13 @@
 	color: #6b7280;
 }
 
-/* Current Playground: its name sits on a line with a small status badge. */
+/* Keep the current Playground's status on its own line so it cannot be
+   mistaken for part of the name. */
 .currentSiteNameLine {
-	align-items: center;
+	align-items: flex-start;
 	display: flex;
-	gap: 8px;
+	flex-direction: column;
+	gap: 4px;
 	min-width: 0;
 }
 
@@ -346,10 +348,12 @@
 	color: #7c4a03;
 }
 
+/* Autosave wears the dock's autosave blue as a soft tint chip — the same
+   construction as the amber pill, so the two states read as one family. A
+   white/bordered chip here looked like a clickable button. */
 .autosavedBadge {
-	background: var(--paper-1, #f7f5f2);
-	box-shadow: inset 0 0 0 1px var(--line-control, rgba(33, 32, 29, 0.14));
-	color: var(--accent-link, #2645c9);
+	background: #dfe6fb;
+	color: #2b3a8f;
 }
 
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
@@ -1276,12 +1280,6 @@
 		display: -webkit-box;
 		line-height: 1.25;
 		white-space: normal;
-	}
-
-	.playgrounds-pane .currentSiteNameLine {
-		align-items: flex-start;
-		flex-direction: column;
-		gap: 4px;
 	}
 
 	.playgrounds-pane .siteRowActions {
