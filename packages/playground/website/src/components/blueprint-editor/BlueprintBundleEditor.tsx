@@ -9,7 +9,6 @@ import {
 import { logger } from '@php-wasm/logger';
 import {
 	Button,
-	DropdownMenu,
 	Icon,
 	MenuGroup,
 	MenuItem,
@@ -75,6 +74,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
+import { DropdownMenu } from '../dropdown-menu';
 import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
@@ -1094,8 +1094,8 @@ export const BlueprintBundleEditor = forwardRef<
 										'Run will wait for this Playground to finish saving.'
 									) : (
 										<>
-											Running this Blueprint creates a fresh
-											autosaved Playground. “
+											Running this Blueprint creates a
+											fresh autosaved Playground. “
 											{site?.metadata.name}” stays in{' '}
 											{isAutosaved
 												? 'Recent autosaves'

@@ -1,6 +1,5 @@
 import {
 	Button,
-	DropdownMenu,
 	MenuGroup,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
@@ -9,6 +8,7 @@ import {
 	MAX_AUTOSAVED_SITES,
 	type SitePersistence,
 } from '../../../lib/state/redux/site-lifecycle';
+import { DropdownMenu } from '../../dropdown-menu';
 import { MenuItemWithDescription } from '../../menu-item-with-description';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import type { SiteSettingsFormFooterContext } from './unconnected-site-settings-form';
@@ -101,27 +101,7 @@ export function SiteSettingsActionFooter({
 							<span className={css.caret} aria-hidden="true" />
 						),
 					}}
-					menuProps={{
-						className: css.actionMenu,
-						onKeyDown: (event) => {
-							if (event.key !== 'Home' && event.key !== 'End') {
-								return;
-							}
-							const menu = event.currentTarget as HTMLElement;
-							const items =
-								menu.querySelectorAll<HTMLElement>(
-									'[role="menuitem"]'
-								);
-							const target =
-								event.key === 'Home'
-									? items[0]
-									: items[items.length - 1];
-							if (target) {
-								event.preventDefault();
-								target.focus();
-							}
-						},
-					}}
+					menuProps={{ className: css.actionMenu }}
 					popoverProps={{
 						placement: 'top-end',
 						className: css.actionMenuPopover,
