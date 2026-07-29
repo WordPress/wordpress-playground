@@ -1907,8 +1907,11 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
-		const freshSite = await getActivePlaygroundSite(website.page);
-		expect(freshSite.slug).not.toBe(storedSite.slug);
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: storedSite.slug });
 		await expect
 			.poll(() =>
 				website.page.evaluate(
