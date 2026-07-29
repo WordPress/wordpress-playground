@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
 import { chevronRight, Icon, wordpress } from '@wordpress/icons';
 import css from './style.module.css';
-import forms from '../../forms.module.css';
 import gutenbergLogoUrl from './gutenberg-logo.svg';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
@@ -644,7 +643,6 @@ export default function PreviewPRForm({
 			{inline && repositoryMatches.length === 0 && !resolvedSource ? (
 				<div className={css.inlineActions}>
 					<Button
-						className={forms.primaryAction}
 						variant="primary"
 						type="submit"
 						disabled={submitting}

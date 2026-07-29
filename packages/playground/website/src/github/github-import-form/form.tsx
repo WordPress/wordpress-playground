@@ -384,7 +384,6 @@ export default function GitHubImportForm({
 				)}
 				<div className={forms.submitRow}>
 					<WPButton
-						className={forms.primaryAction}
 						disabled={!url || isAnalyzing || isImporting}
 						type="submit"
 						variant="primary"
