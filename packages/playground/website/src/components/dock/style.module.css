@@ -1272,9 +1272,8 @@
 .dock-operation-toast {
 	align-items: center;
 	animation: dock-operation-toast-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
-	background: color-mix(in srgb, var(--error) 40%, var(--chrome-background));
-	border: 1px solid
-		color-mix(in srgb, var(--error) 65%, var(--chrome-field-background));
+	background: var(--error-toast-background);
+	border: 1px solid var(--error-toast-border);
 	border-radius: 11px;
 	bottom: 12px;
 	box-shadow: 0 15px 36px rgba(226, 111, 86, 0.26);
@@ -1296,16 +1295,8 @@
 }
 
 .dock-operation-toast-success {
-	background: color-mix(
-		in srgb,
-		var(--success) 22%,
-		var(--chrome-background)
-	);
-	border-color: color-mix(
-		in srgb,
-		var(--success) 40%,
-		var(--chrome-field-background)
-	);
+	background: var(--success-toast-background);
+	border-color: var(--success-toast-border);
 	box-shadow: 0 15px 36px rgba(51, 240, 120, 0.22);
 }
 

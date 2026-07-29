@@ -76,7 +76,7 @@
 }
 
 .input:disabled {
-	color: rgba(217, 217, 217, 0.4);
+	color: var(--ink-disabled-on-dark);
 	cursor: default;
 }
 

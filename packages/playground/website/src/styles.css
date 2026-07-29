@@ -158,27 +158,16 @@ html {
 	--ink-faint: #979aa1;
 	--ink-on-dark: #d9d9d9;
 	--ink-bright-on-dark: #f6f6f6;
+	--ink-disabled-on-dark: rgba(217, 217, 217, 0.4);
 	--action-icon: #40464d;
 
 	/* Light surfaces, controls, and their boundaries. */
 	--surface: #f6f6f6;
 	--surface-raised: #ffffff;
 	--surface-control-active: #d9d9d9;
-	--surface-recessed: color-mix(
-		in srgb,
-		var(--surface-control-active) 50%,
-		var(--surface-raised)
-	);
-	--surface-control-hover: color-mix(
-		in srgb,
-		var(--surface-control-active) 70%,
-		var(--surface-raised)
-	);
-	--app-background-recessed: color-mix(
-		in srgb,
-		var(--surface-control-active) 40%,
-		var(--surface-raised)
-	);
+	--surface-recessed: #ececec;
+	--surface-control-hover: #e4e4e4;
+	--app-background-recessed: #f0f0f0;
 	--divider: #d9d9d9;
 	--border-subtle: rgba(26, 25, 25, 0.08);
 	--border-control: rgba(26, 25, 25, 0.15);
@@ -187,9 +176,12 @@ html {
 	--loading-track-dark: #23282d;
 
 	/* Interactive colors. */
-	--accent: #3858e9;
-	--accent-hover: #213fd4;
-	--accent-link: #1d35b4;
+	--accent-rgb: 56, 88, 233;
+	--accent: rgb(var(--accent-rgb));
+	--accent-hover-rgb: 33, 63, 212;
+	--accent-hover: rgb(var(--accent-hover-rgb));
+	--accent-link-rgb: 29, 53, 180;
+	--accent-link: rgb(var(--accent-link-rgb));
 	--accent-soft: #9fb1ff;
 	--saving-on-dark: #c7d1ff;
 	--create-fresh-action: #7a00df;
@@ -198,12 +190,16 @@ html {
 	/* Success, warning, error, and destructive states. */
 	--success: #33f078;
 	--success-on-dark: #c7ffdb;
+	--success-toast-background: #20482e;
+	--success-toast-border: #3b8a5e;
 	--warning: #fff972;
 	--warning-highlight: #fffcb5;
 	--warning-surface: #fffdd6;
 	--error: #e26f56;
 	--error-strong-on-dark: #ffb7a7;
 	--error-soft-on-dark: #ffe9de;
+	--error-toast-background: #6a3b31;
+	--error-toast-border: #a96153;
 	--destructive: #cc1818;
 
 	/* @wordpress/components owns these public names. Keep the numbered API
@@ -212,11 +208,11 @@ html {
 	--wp-components-color-accent-darker-10: var(--accent-hover);
 	--wp-components-color-accent-darker-20: var(--accent-link);
 	--wp-admin-theme-color: var(--accent);
-	--wp-admin-theme-color--rgb: 56, 88, 233;
+	--wp-admin-theme-color--rgb: var(--accent-rgb);
 	--wp-admin-theme-color-darker-10: var(--accent-hover);
-	--wp-admin-theme-color-darker-10--rgb: 33, 63, 212;
+	--wp-admin-theme-color-darker-10--rgb: var(--accent-hover-rgb);
 	--wp-admin-theme-color-darker-20: var(--accent-link);
-	--wp-admin-theme-color-darker-20--rgb: 29, 53, 180;
+	--wp-admin-theme-color-darker-20--rgb: var(--accent-link-rgb);
 }
 
 html,
