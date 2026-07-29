@@ -1584,6 +1584,7 @@ export function SavedPlaygroundsPanel({
 				return (
 					<div className={css.inlineForm}>
 						<GitHubImportForm
+							inline
 							playground={playground!}
 							showRepositoryDetails={isGitHubImportDetailsOpen}
 							onRepositoryResolved={() => {

@@ -5,7 +5,6 @@ import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
-import Button from '../../components/button';
 import type { GitHubURLInformation } from '../analyze-github-url';
 import {
 	resolveGitHubBranchPath,
@@ -30,6 +29,8 @@ export interface GitHubImportFormProps {
 	getPlaygroundBeforeImport?: () => Promise<PlaygroundClient>;
 	onRepositoryResolved?: () => void;
 	showRepositoryDetails?: boolean;
+	/** Use the compact, left-aligned action layout in the Dock pane. */
+	inline?: boolean;
 	onImported: (details: {
 		url: string;
 		urlInformation: GitHubURLInformation;
@@ -47,6 +48,7 @@ export default function GitHubImportForm({
 	getPlaygroundBeforeImport,
 	onRepositoryResolved,
 	showRepositoryDetails = true,
+	inline = false,
 	onImported,
 }: GitHubImportFormProps) {
 	const [errors, setErrors] = useState<Record<string, string>>({});
@@ -218,12 +220,20 @@ export default function GitHubImportForm({
 
 	return (
 		<GitHubOAuthGuard>
-			<form id="import-playground-form" onSubmit={handleSubmit}>
+			<form
+				id="import-playground-form"
+				className={inline ? css.inlineForm : undefined}
+				onSubmit={handleSubmit}
+			>
 				<p>
 					You may import WordPress plugins, themes, and entire
 					wp-content directories from any public GitHub repository.
 				</p>
-				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
+				<div
+					className={`${forms.formGroup} ${forms.formGroupLast} ${
+						inline ? css.inlineFieldGroup : ''
+					}`}
+				>
 					<label>
 						{' '}
 						I want to import from this GitHub URL:
@@ -318,7 +328,9 @@ export default function GitHubImportForm({
 						) ? (
 							<>
 								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
+									className={`${forms.formGroup} ${
+										forms.formGroupLast
+									} ${inline ? css.inlineFieldGroup : ''}`}
 								>
 									<label>
 										I am importing a:
@@ -351,7 +363,9 @@ export default function GitHubImportForm({
 									) : null}
 								</div>
 								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
+									className={`${forms.formGroup} ${
+										forms.formGroupLast
+									} ${inline ? css.inlineFieldGroup : ''}`}
 								>
 									<label>
 										From the following path in the repo:
@@ -383,12 +397,11 @@ export default function GitHubImportForm({
 				) : (
 					false
 				)}
-				<div className={forms.submitRow}>
-					<Button
+				<div className={inline ? css.inlineActions : forms.submitRow}>
+					<WPButton
 						disabled={!url || isAnalyzing || isImporting}
 						type="submit"
 						variant="primary"
-						size="large"
 					>
 						{isAnalyzing ? (
 							<>
@@ -405,7 +418,7 @@ export default function GitHubImportForm({
 						) : (
 							'Continue'
 						)}
-					</Button>
+					</WPButton>
 				</div>
 			</form>
 		</GitHubOAuthGuard>
