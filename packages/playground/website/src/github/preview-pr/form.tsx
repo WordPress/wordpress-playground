@@ -518,7 +518,7 @@ export default function PreviewPRForm({
 			className={inline ? css.inlineForm : undefined}
 			onSubmit={handleSubmit}
 		>
-			{inline && <h3>WordPress Core or Gutenberg</h3>}
+			{inline && <h3>Preview a pull request</h3>}
 			<div>
 				<TextControl
 					__nextHasNoMarginBottom={inline}
@@ -647,7 +647,8 @@ export default function PreviewPRForm({
 			</div>
 			{inline && (
 				<p className={css.inlineDescription}>
-					Runs a pull request or branch in a fresh Playground.
+					Enter a WordPress Core or Gutenberg PR number or GitHub URL
+					to open it in a fresh Playground.
 				</p>
 			)}
 			{inline && repositoryMatches.length === 0 && !resolvedSource ? (
@@ -655,7 +656,7 @@ export default function PreviewPRForm({
 					<Button
 						variant="primary"
 						type="submit"
-						disabled={submitting}
+						disabled={submitting || !value.trim()}
 					>
 						{isBarePrNumber ? 'Find pull request' : 'Preview'}
 					</Button>
