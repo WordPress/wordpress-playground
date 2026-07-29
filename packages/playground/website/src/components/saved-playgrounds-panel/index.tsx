@@ -697,6 +697,19 @@ export function SavedPlaygroundsPanel({
 		].join(' · ');
 	};
 
+	// Each lifecycle state wears its own monochrome pill: dashed = unsaved,
+	// outlined = autosaved, filled = saved. The pill's substance (not a color)
+	// encodes how permanent the Playground is.
+	const getCurrentSiteStatusPill = (site: SiteInfo) => {
+		if (site.metadata.storage === 'none') {
+			return { label: 'Unsaved', className: css.statusPillUnsaved };
+		}
+		if (isAutosavedSite(site)) {
+			return { label: 'Autosaved', className: css.statusPillAutosaved };
+		}
+		return { label: 'Saved', className: css.statusPillSaved };
+	};
+
 	const getRuntimeLabel = (site: SiteInfo) => {
 		const { phpVersion, wpVersion } = site.metadata.runtimeConfiguration;
 		return `WP ${wpVersion} · PHP ${phpVersion}`;
@@ -1269,9 +1282,7 @@ export function SavedPlaygroundsPanel({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
-		// A temporary Playground is lost on refresh — call that out right on its
-		// row so the list mirrors the dock's yellow "Unsaved" status.
-		const isUnsaved = site.metadata.storage === 'none';
+		const statusPill = getCurrentSiteStatusPill(site);
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1282,11 +1293,14 @@ export function SavedPlaygroundsPanel({
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
-							{isUnsaved && (
-								<span className={css.unsavedBadge}>
-									Unsaved
-								</span>
-							)}
+							<span
+								className={classNames(
+									css.statusPill,
+									statusPill.className
+								)}
+							>
+								{statusPill.label}
+							</span>
 						</span>
 						{activeSiteSyncLabel ? (
 							<span className={css.siteRowSaving}>

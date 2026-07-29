@@ -320,7 +320,7 @@
 	color: #6b7280;
 }
 
-/* Current Playground: its name sits on a line with a small status badge. */
+/* The current Playground's name shares its line with a status pill. */
 .currentSiteNameLine {
 	align-items: center;
 	display: flex;
@@ -328,9 +328,10 @@
 	min-width: 0;
 }
 
-/* "Unsaved" pill — a warning chip mirroring the dock's Unsaved
-   status, so the current Playground's row plainly says it's lost on refresh. */
-.unsavedBadge {
+/* Each lifecycle state wears its own monochrome pill — permanence encoded by
+   substance, not color: barely-there dashes while unsaved, a firm outline
+   once autosaved, a solid fill once explicitly saved. */
+.statusPill {
 	flex-shrink: 0;
 	border-radius: 999px;
 	padding: 1px 8px;
@@ -338,8 +339,21 @@
 	font-weight: 600;
 	line-height: 16px;
 	letter-spacing: 0.01em;
-	background: var(--warning-highlight);
 	color: var(--ink-soft);
+}
+
+.statusPillUnsaved {
+	border: 1px dashed var(--interactive-border-hover);
+	/* The border replaces 1px of padding so all three pills match in size. */
+	padding: 0 7px;
+}
+
+.statusPillAutosaved {
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
+}
+
+.statusPillSaved {
+	background: var(--surface-control-active);
 }
 
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
@@ -1266,6 +1280,12 @@
 		display: -webkit-box;
 		line-height: 1.25;
 		white-space: normal;
+	}
+
+	.playgrounds-pane .currentSiteNameLine {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 4px;
 	}
 
 	.playgrounds-pane .siteRowActions {
