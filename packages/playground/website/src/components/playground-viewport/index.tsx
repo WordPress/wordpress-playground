@@ -9,9 +9,13 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import {
+	removeClientInfo,
+	selectAllClientInfo,
+} from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import {
+	selectAllSites,
 	selectSiteBySlug,
 	selectSitesLoaded,
 	selectTemporarySites,
@@ -37,26 +41,27 @@ export const PlaygroundViewport = ({
 	className,
 }: PlaygroundViewportProps) => {
 	if (displayMode === 'seamless') {
-		return <KeepAliveTemporarySitesViewport />;
+		return <KeepAliveTemporaryAndSyncingSitesViewport />;
 	}
 	return (
 		<BrowserChrome className={className}>
-			<KeepAliveTemporarySitesViewport />
+			<KeepAliveTemporaryAndSyncingSitesViewport />
 		</BrowserChrome>
 	);
 };
 
 /**
- * A multi-viewport component that keeps all rendered temporary sites alive.
+ * A multi-viewport component that keeps temporary and syncing sites alive.
  * Technically, it retains their iframe node in the DOM. When the user switches
- * to another site, the iframe is hidden but not removed. This way, the state
- * of each temporary site is preserved as long as the browser tab remains open.
+ * to another site, the iframe is hidden but not removed. This preserves
+ * temporary state and lets an in-progress storage sync finish in the background.
  *
- * Persistent sites are not affected by this. They are unmounted and rendered as usual
- * as there's no risk of data loss
+ * Persistent sites are otherwise unmounted and rendered as usual.
  */
-export const KeepAliveTemporarySitesViewport = () => {
+export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 	const temporarySites = useAppSelector(selectTemporarySites);
+	const allSites = useAppSelector(selectAllSites);
+	const allClientInfo = useAppSelector(selectAllClientInfo);
 	const activeSite = useActiveSite();
 	// Check if a site slug is set (even if the entity doesn't exist yet).
 	// This handles the transitional state when navigating to create a new site.
@@ -66,24 +71,26 @@ export const KeepAliveTemporarySitesViewport = () => {
 	const siteImportProgress = useAppSelector(
 		(state) => state.ui.siteImportProgress
 	);
-	const siteSlugsToRender = useMemo(() => {
-		let sites = temporarySites.filter(
-			(site) => site.slug !== activeSite?.slug
-		);
-		if (activeSite) {
-			sites = [...sites, activeSite];
-		}
-		return sites.map((site) => site.slug);
-	}, [temporarySites, activeSite]);
-
 	// Create a map of slug to site for easy lookup
 	const sitesBySlug = useMemo(() => {
-		const sites = [...temporarySites];
-		if (activeSite) {
-			sites.push(activeSite);
+		return new Map(allSites.map((site) => [site.slug, site]));
+	}, [allSites]);
+	const siteSlugsToRender = useMemo(() => {
+		const siteSlugs = new Set(temporarySites.map((site) => site.slug));
+		for (const client of allClientInfo) {
+			if (
+				client.opfsSync?.status === 'syncing' &&
+				sitesBySlug.has(client.siteSlug)
+			) {
+				siteSlugs.add(client.siteSlug);
+			}
 		}
-		return new Map(sites.map((site) => [site.slug, site]));
-	}, [temporarySites, activeSite]);
+		if (activeSite) {
+			siteSlugs.delete(activeSite.slug);
+			siteSlugs.add(activeSite.slug);
+		}
+		return Array.from(siteSlugs);
+	}, [temporarySites, allClientInfo, activeSite, sitesBySlug]);
 	/**
 	 * ## Critical data loss prevention mechanism
 	 *
