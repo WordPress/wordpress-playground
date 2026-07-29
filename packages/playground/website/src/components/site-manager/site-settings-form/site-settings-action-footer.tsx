@@ -101,7 +101,27 @@ export function SiteSettingsActionFooter({
 							<span className={css.caret} aria-hidden="true" />
 						),
 					}}
-					menuProps={{ className: css.actionMenu }}
+					menuProps={{
+						className: css.actionMenu,
+						onKeyDown: (event) => {
+							if (event.key !== 'Home' && event.key !== 'End') {
+								return;
+							}
+							const menu = event.currentTarget as HTMLElement;
+							const items =
+								menu.querySelectorAll<HTMLElement>(
+									'[role="menuitem"]'
+								);
+							const target =
+								event.key === 'Home'
+									? items[0]
+									: items[items.length - 1];
+							if (target) {
+								event.preventDefault();
+								target.focus();
+							}
+						},
+					}}
 					popoverProps={{
 						placement: 'top-end',
 						className: css.actionMenuPopover,
