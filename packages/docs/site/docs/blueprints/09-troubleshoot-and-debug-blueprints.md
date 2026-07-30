@@ -480,7 +480,7 @@ You can write your own messages with `error_log()` in a
 [`runPHP` step](/blueprints/steps), then check the Playground
 **Logs** panel or the browser console.
 
-![The Logs pane showing Playground messages and PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
+![The PHP error log pane showing PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 

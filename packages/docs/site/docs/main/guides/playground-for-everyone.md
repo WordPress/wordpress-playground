@@ -106,7 +106,9 @@ Want to try a different font size? Adjust spacing? Change colors? Load a Playgro
 2. Select a block and modify its settings
 3. See the results immediately
 
-If you like what you see, recreate those changes on your real site. If not, just close the tab — no cleanup required.
+If you like what you see, recreate those changes on your real site. If not,
+start another Playground. The experiment may remain as a recent autosave until
+newer autosaves replace it.
 
 ## Yes, You Can Save Your Work
 
@@ -116,7 +118,7 @@ If you like what you see, recreate those changes on your real site. If not, just
 
 New Playgrounds are autosaved when browser storage is available. Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
 
-![The Your Playgrounds pane with recent and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
 

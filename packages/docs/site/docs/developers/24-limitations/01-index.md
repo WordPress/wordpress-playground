@@ -13,11 +13,16 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Browser storage and recovery
 
-Playground runs WordPress in the browser. New Playgrounds are autosaved when browser storage and saving are available, and they appear in **Your Playgrounds**. Only the five most recent autosaves are kept: when a new autosave is created, the oldest one is deleted. Autosaves are recovery points, not long-term backups. Store an autosave permanently or export a ZIP when you want to keep it.
+Playground runs WordPress in the browser. New Playgrounds are autosaved when
+browser storage and saving are available, and they appear in **Your
+Playgrounds**. Playground keeps up to five recent autosaves. After five exist,
+creating another deletes the oldest one. Autosaves are recovery points, not
+long-term backups. Store an autosave permanently or export a ZIP when you want
+to keep it.
 
 Use these storage modes deliberately:
 
-- **Autosaved**: stored in browser storage and retained only while it is one of the five most recent autosaves.
+- **Autosaved**: stored in browser storage and retained only while it is one of up to five recent autosaves.
 - **Saved**: stored permanently in browser storage or saved to a local directory.
 - **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
 
@@ -27,7 +32,7 @@ The Playground **Refresh page** button reloads the WordPress page inside the cur
 
 Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
 
-![The Your Playgrounds pane lists the current Playground, recent autosaves, and saved Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 ### Browser support
 

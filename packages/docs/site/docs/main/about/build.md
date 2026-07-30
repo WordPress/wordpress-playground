@@ -29,7 +29,11 @@ Some more examples of this workflow:
 
 ## Synchronize your Playground with a local folder and create GitHub Pull Requests
 
-In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save in a local directory**, click **Choose...**, and select an empty directory dedicated to this Playground. After granting write access, click **Save**. Playground copies the current site into the selected directory and overwrites files with matching names; it does not import an existing site from that directory.
+In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save
+in a local directory**, click **Choose...**, and select a directory dedicated
+to this Playground. After granting write access, click **Save**. Playground
+copies the current site into the selected directory and overwrites files with
+matching names; it does not import an existing site from that directory.
 
 ![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 

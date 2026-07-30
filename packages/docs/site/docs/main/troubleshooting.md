@@ -135,7 +135,13 @@ If a saved Playground cannot reload:
 
 New Playgrounds are autosaved when browser storage and saving are available. Open **Your Playgrounds** in the Dock to recover recent autosaves or saved Playgrounds. Playground keeps up to five recent autosaves.
 
-Click the **Autosaved** or **Unsaved** status in the Dock to open the storage choices. Select **Save in browser storage**, or select **Save in a local directory** and choose an empty directory before clicking **Save**. Use **Export** to download a portable ZIP. A browser refresh can recover a stored or autosaved Playground, but `?storage=temp` creates a temporary Playground that is discarded on refresh or tab close.
+Click the **Autosaved** or **Unsaved** status in the Dock to open the storage
+choices. Select **Save in browser storage**, or select **Save in a local
+directory** and choose a directory dedicated to that Playground before
+clicking **Save**. Matching files in the directory may be overwritten. Use
+**Export** to download a portable ZIP. A browser refresh can recover a stored
+or autosaved Playground, but `?storage=temp` creates a temporary Playground
+that is discarded on refresh or tab close.
 
 For longer-running local development, prefer the [Playground CLI](/developers/local-development/wp-playground-cli), which persists site files on disk.
 
