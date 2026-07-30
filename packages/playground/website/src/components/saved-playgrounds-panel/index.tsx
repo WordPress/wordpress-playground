@@ -160,6 +160,9 @@ export function SavedPlaygroundsPanel({
 	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
+	const siteSlugToDelete = useAppSelector(
+		(state) => state.ui.siteSlugToDelete
+	);
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
@@ -541,6 +544,8 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
+		rowRectsRef.current = snapshotRowRects();
+		pendingDeleteMoveRef.current = site.slug;
 		dispatch(setSiteSlugToDelete(site.slug));
 		dispatch(setActiveModal(modalSlugs.DELETE_SITE));
 		closeMenu();
@@ -556,12 +561,13 @@ export function SavedPlaygroundsPanel({
 		inlineRename.start(site);
 	};
 
-	// FLIP animation state for "Store": when an autosave becomes a permanent save
-	// it moves from "Last 5 autosaves" to "Saved". We snapshot every row's
-	// position before the change and animate each row from its old position to its
-	// new one, so the stored Playground visibly travels between the two groups.
+	// FLIP animation state for list moves. Storing an autosave moves it into the
+	// "Saved" group. Deleting a Playground removes a row and may also remove its
+	// group heading. Snapshot every row before either change, then animate the
+	// surviving rows from their old positions to their new ones.
 	const rowRectsRef = useRef<Map<string, DOMRect>>(new Map());
 	const animateMoveRef = useRef(false);
+	const pendingDeleteMoveRef = useRef<string>();
 
 	const snapshotRowRects = () => {
 		const rects = new Map<string, DOMRect>();
@@ -577,9 +583,24 @@ export function SavedPlaygroundsPanel({
 	};
 
 	useLayoutEffect(() => {
-		// Only touch the DOM on the render that follows a "Store" — every other
-		// render returns immediately, so we never read layout (and never thrash
-		// it) during unrelated re-renders such as a Playground booting.
+		const pendingDeleteSlug = pendingDeleteMoveRef.current;
+		if (pendingDeleteSlug) {
+			const wasDeleted = !storedSites.some(
+				(site) => site.slug === pendingDeleteSlug
+			);
+			if (wasDeleted) {
+				pendingDeleteMoveRef.current = undefined;
+				animateMoveRef.current = true;
+			} else if (siteSlugToDelete !== pendingDeleteSlug) {
+				pendingDeleteMoveRef.current = undefined;
+			} else {
+				return;
+			}
+		}
+
+		// Only touch the DOM after a Store or confirmed deletion. Every other
+		// render returns immediately, so unrelated re-renders such as a
+		// Playground booting never read or thrash layout.
 		if (!animateMoveRef.current) {
 			return;
 		}

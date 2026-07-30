@@ -10,7 +10,8 @@ interface ModalButtonsProps {
 	 * Pane forms can keep Cancel available while only submission is invalid.
 	 */
 	cancelDisabled?: boolean;
-	areBusy?: boolean;
+	submitBusy?: boolean;
+	submitDestructive?: boolean;
 	onCancel?: () => void;
 	onSubmit?: (e: any) => void;
 	style?: React.CSSProperties;
@@ -19,7 +20,8 @@ export default function ModalButtons({
 	submitText = 'Submit',
 	areDisabled = false,
 	cancelDisabled,
-	areBusy,
+	submitBusy,
+	submitDestructive,
 	onCancel,
 	onSubmit,
 	style,
@@ -30,7 +32,6 @@ export default function ModalButtons({
 		<Flex gap={4} justify="end" className={css.modalButtons} style={style}>
 			<Button
 				type="button"
-				isBusy={areBusy}
 				disabled={isCancelDisabled}
 				variant="link"
 				onClick={onCancel}
@@ -39,7 +40,8 @@ export default function ModalButtons({
 			</Button>
 			<Button
 				type="submit"
-				isBusy={areBusy}
+				isBusy={submitBusy}
+				isDestructive={submitDestructive}
 				disabled={areDisabled}
 				variant="primary"
 				onClick={onSubmit}

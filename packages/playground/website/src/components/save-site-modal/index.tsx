@@ -491,7 +491,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
 					cancelDisabled={asPane ? isSubmitting : undefined}
-					areBusy={false}
+					submitBusy={false}
 					style={{ marginTop: 0 }}
 				/>
 			</form>

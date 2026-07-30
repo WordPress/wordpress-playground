@@ -71,6 +71,15 @@ describe('ModalButtons', () => {
 		expect(submit.disabled).toBe(false);
 	});
 
+	it('shows submission progress on the submit action only', () => {
+		const [cancel, submit] = renderButtons(
+			<ModalButtons submitBusy onCancel={() => {}} />
+		);
+
+		expect(cancel.classList.contains('is-busy')).toBe(false);
+		expect(submit.classList.contains('is-busy')).toBe(true);
+	});
+
 	function renderButtons(element: JSX.Element) {
 		act(() => root.render(element));
 		const buttons = container.querySelectorAll('button');
