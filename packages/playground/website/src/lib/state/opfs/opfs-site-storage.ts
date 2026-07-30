@@ -22,6 +22,7 @@ import {
 	type PHPConstants,
 	getBlueprintDeclaration,
 } from '@wp-playground/blueprints';
+import type { ExportSavedSiteAsZipOptions } from '@wp-playground/client';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
@@ -70,14 +71,6 @@ type StoredSiteChanges = {
 	metadata?: SiteMetadataChanges;
 	originalUrlParams?: OriginalUrlParams;
 };
-
-export interface ExportSavedSiteAsZipOptions {
-	/**
-	 * Gitignore-style exclusion patterns applied relative to the saved site root.
-	 * Patterns starting with `!` re-include paths.
-	 */
-	excludePatterns?: readonly string[];
-}
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
