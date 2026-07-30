@@ -315,7 +315,6 @@ export const BlueprintBundleEditor = forwardRef<
 	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -770,11 +769,17 @@ export const BlueprintBundleEditor = forwardRef<
 			anchor.click();
 			document.body.removeChild(anchor);
 			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Blueprint downloaded',
+				})
+			);
 		} catch (error) {
 			logger.error('Failed to download bundle', error);
 			setSaveError('Could not download bundle. Try again.');
 		}
-	}, [filesystem]);
+	}, [filesystem, dispatch]);
 
 	const handleShareBlueprint = async () => {
 		if (false === newUrl) {
@@ -786,8 +791,12 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			await navigator.clipboard.writeText(newUrl);
 
-			setSuccessMessage('Link copied to clipboard!');
-			setTimeout(() => setSuccessMessage(null), 2000);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Link copied to clipboard',
+				})
+			);
 		} catch (error) {
 			logger.error('Failed to share blueprint', error);
 			setSaveError('Could not copy link. Try again.');
@@ -1064,13 +1073,6 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{successMessage ? (
-							<div style={{ padding: '8px 16px' }}>
-								<Notice status="success" isDismissible={false}>
-									{successMessage}
-								</Notice>
-							</div>
-						) : null}
 						{!dockPresentation &&
 						!readOnly &&
 						!isBundleShareable ? (
@@ -1094,8 +1096,8 @@ export const BlueprintBundleEditor = forwardRef<
 										'Run will wait for this Playground to finish saving.'
 									) : (
 										<>
-											Running this Blueprint creates a fresh
-											autosaved Playground. “
+											Running this Blueprint creates a
+											fresh autosaved Playground. “
 											{site?.metadata.name}” stays in{' '}
 											{isAutosaved
 												? 'Recent autosaves'

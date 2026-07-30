@@ -904,11 +904,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 		.getByRole('menuitem', { name: 'Copy Blueprint URL' })
 		.click();
 
-	// Verify success message appears in the notice component
+	// Verify the copy confirmation surfaces in the Dock success toast
 	await expect(
 		website.page
-			.locator('.components-notice')
-			.getByText('Link copied to clipboard!')
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Link copied to clipboard' })
 	).toBeVisible();
 
 	// Verify clipboard contains the correct URL format
