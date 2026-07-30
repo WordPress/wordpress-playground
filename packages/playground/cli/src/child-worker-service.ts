@@ -1,3 +1,32 @@
+/**
+ * Main-thread coordinator for PHP processes spawned by proc_open() or system().
+ *
+ * A PHP worker cannot safely create and manage its children by itself. It may
+ * be blocked inside a synchronous system() call while that child is running.
+ * The main thread remains available, already owns the shared file-lock manager,
+ * and can see every worker in the process tree. It therefore owns child worker
+ * creation, unique process IDs, MessagePorts, post-install mount state, and
+ * termination.
+ *
+ * One controller holds state shared by the entire CLI run:
+ *
+ * - The list of mounts that every current and future child must receive.
+ * - Every live child, including workers that are still initializing.
+ * - Parent/child ownership needed to dispose a complete descendant tree.
+ * - The direct lock-manager connections that avoid routing a lock request
+ *   through a parent blocked in system().
+ *
+ * Each worker receives a separate service endpoint. That endpoint closes over
+ * an owner record, so disposing a worker also disposes only the descendants it
+ * created. Every new child receives another endpoint backed by the same
+ * controller, which makes the same rules apply at any nesting depth.
+ *
+ * Three MessageChannels connect each child to the main thread: one for
+ * synchronous file locking, one for creating descendants, and one for the
+ * main thread to apply mounts after the child finishes booting. Keeping all
+ * three in one lifecycle record lets setup either complete fully or clean up
+ * every partially created resource.
+ */
 import type { Mount } from '@php-wasm/cli-util';
 import { logger } from '@php-wasm/logger';
 import {
@@ -15,7 +44,7 @@ import {
 	type ChildWorkerControl,
 	type ChildWorkerService,
 	type CreatedChildWorker,
-} from './worker-boot-config';
+} from './worker-boot';
 
 /** The part of a Node Worker that the lifecycle service owns. */
 export interface TerminableWorker {
@@ -70,11 +99,18 @@ type Deferred = {
 };
 
 type ChildWorkerOwner<Worker extends TerminableWorker> = {
+	/** Children created through one worker's private service endpoint. */
 	children: Set<ChildWorkerRecord<Worker>>;
 	disposed: boolean;
 	disposePromise?: Promise<void>;
 };
 
+/**
+ * Every resource and lifecycle signal owned for one spawned worker.
+ *
+ * The record is created before the Worker exists so mount application and
+ * disposal can still account for a child that is between creation steps.
+ */
 type ChildWorkerRecord<Worker extends TerminableWorker> = {
 	childId: number;
 	owner: ChildWorkerOwner<Worker>;
@@ -108,6 +144,9 @@ const CHILD_EXITED_DURING_CREATION_ERROR =
  * A child is inserted into the lifecycle map before its spawn begins. This is
  * important during WordPress installation: an apply-all sweep must see a child
  * even when that child has not finished its initialization handshake yet.
+ *
+ * createEndpoint() returns an owner-scoped view for one worker. All of those
+ * views share this controller's child map and post-install mount history.
  */
 export function createChildWorkerService<Worker extends TerminableWorker>(
 	spawnWorker: SpawnChildWorker<Worker>,
@@ -129,6 +168,9 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 	};
 
 	function createEndpoint(): ChildWorkerServiceEndpoint {
+		// Each worker gets a distinct owner even though every endpoint delegates
+		// to the same controller. This is what lets parent exit clean up exactly
+		// that parent's descendants.
 		const owner: ChildWorkerOwner<Worker> = {
 			children: new Set(),
 			disposed,
@@ -179,6 +221,8 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 		const lockChannel = new MessageChannel();
 		const serviceChannel = new MessageChannel();
 		const controlChannel = new MessageChannel();
+		// A child can spawn its own descendants. Give it an owner-scoped endpoint
+		// backed by this same controller so nesting does not create isolated state.
 		const descendantEndpoint = createEndpoint();
 		const controlApi = consumeAPI<ChildWorkerControl>(controlChannel.port1);
 		const controlConnected = createDeferred();

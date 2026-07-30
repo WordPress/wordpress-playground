@@ -81,7 +81,7 @@ import {
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
 import { createChildWorkerService } from './child-worker-service';
-import { childWorkerServiceTransferPolicy } from './worker-boot-config';
+import { childWorkerServiceTransferPolicy } from './worker-boot';
 import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_ENTRY_PATH,

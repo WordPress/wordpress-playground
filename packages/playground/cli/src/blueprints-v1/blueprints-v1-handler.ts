@@ -33,10 +33,7 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
-import {
-	workerBootApiTransferPolicy,
-	type WorkerConfig,
-} from '../worker-boot-config';
+import { workerBootApiTransferPolicy, type WorkerConfig } from '../worker-boot';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.

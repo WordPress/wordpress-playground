@@ -17,7 +17,7 @@ import {
 	childWorkerServiceTransferPolicy,
 	type ChildWorkerControl,
 	type ChildWorkerService,
-} from '../src/worker-boot-config';
+} from '../src/worker-boot';
 
 type ExitListener = (code: number, processId: number) => void;
 

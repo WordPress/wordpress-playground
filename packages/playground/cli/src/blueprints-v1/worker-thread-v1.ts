@@ -26,13 +26,13 @@ import type {
 	WorkerBootRequestHandlerOptions,
 	WorkerConfig,
 	WorkerPlatformConfig,
-} from '../worker-boot-config';
+} from '../worker-boot';
 import {
+	bootSpawnedChildWorker,
 	CHILD_WORKER_CONTROL_READY,
 	childWorkerServiceTransferPolicy,
 	workerBootApiTransferPolicy,
-} from '../worker-boot-config';
-import { bootSpawnedChildWorker } from '../spawned-child-worker';
+} from '../worker-boot';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -190,8 +190,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
 
-					// Post-install mounting marks this worker as booted so any
-					// replacement PHP runtimes receive the same mounts.
+					// mountAfterWordPressInstall() sets this flag after applying
+					// the mounts to the current runtime. Apply them here as well
+					// whenever the request handler creates a replacement runtime.
 					if (this.bootedWordPress) {
 						await mountResources(php, options.mountsAfterWpInstall);
 					}
@@ -199,20 +200,33 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				sapiName: 'cli',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
-				spawnHandler: this.createSandboxedSpawnHandler.bind(
-					this,
-					platformConfig
-				),
+				spawnHandler: () =>
+					sandboxedSpawnHandlerFactory(async () => {
+						if (!this.childWorkerService) {
+							throw new Error(
+								'Cannot spawn a child PHP process: this ' +
+									'worker has no child-worker service.'
+							);
+						}
+						return bootSpawnedChildWorker<PlaygroundCliBlueprintV1Worker>(
+							this.childWorkerService,
+							platformConfig
+						);
+					}),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
 			if (workerConfig.childWorkerControlPort) {
+				// Spawned workers miss the main WordPress installation flow. This
+				// private endpoint lets the main-thread service apply post-install
+				// mounts before it declares the child ready. The service releases
+				// the API and closes both ports when the child is cleaned up.
 				exposeAPI(
 					{
-						mountAfterWordPressInstall:
-							this.mountAfterWordPressInstall.bind(this),
+						mountAfterWordPressInstall: (mounts: Array<Mount>) =>
+							this.mountAfterWordPressInstall(mounts),
 					},
 					undefined,
 					workerConfig.childWorkerControlPort
@@ -230,7 +244,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	}
 
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
-		// Make sure replacement PHP runtimes also receive post-install mounts.
+		// Remember that post-install mounts are active. The request handler may
+		// replace its PHP runtime later, and onPHPInstanceCreated() uses this flag
+		// to apply the same mounts to that replacement.
 		this.bootedWordPress = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
@@ -238,25 +254,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	// Provide a named disposal method that can be invoked via comlink.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
-	}
-
-	private createSandboxedSpawnHandler(platformConfig: WorkerPlatformConfig) {
-		return sandboxedSpawnHandlerFactory(
-			this.getSpawnedPHPInstance.bind(this, platformConfig)
-		);
-	}
-
-	private async getSpawnedPHPInstance(platformConfig: WorkerPlatformConfig) {
-		if (!this.childWorkerService) {
-			throw new Error(
-				'Cannot spawn a child PHP process: this ' +
-					'worker has no child-worker service.'
-			);
-		}
-		return bootSpawnedChildWorker<PlaygroundCliBlueprintV1Worker>(
-			this.childWorkerService,
-			platformConfig
-		);
 	}
 }
 
