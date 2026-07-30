@@ -160,6 +160,7 @@ export function SavedPlaygroundsPanel({
 	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
+	const activeModal = useAppSelector((state) => state.ui.activeModal);
 	const siteSlugToDelete = useAppSelector(
 		(state) => state.ui.siteSlugToDelete
 	);
@@ -589,6 +590,9 @@ export function SavedPlaygroundsPanel({
 				(site) => site.slug === pendingDeleteSlug
 			);
 			if (wasDeleted) {
+				if (activeModal === modalSlugs.DELETE_SITE) {
+					return;
+				}
 				pendingDeleteMoveRef.current = undefined;
 				animateMoveRef.current = true;
 			} else if (siteSlugToDelete !== pendingDeleteSlug) {
@@ -598,8 +602,9 @@ export function SavedPlaygroundsPanel({
 			}
 		}
 
-		// Only touch the DOM after a Store or confirmed deletion. Every other
-		// render returns immediately, so unrelated re-renders such as a
+		// Only perform layout reads and writes in this effect after a Store or
+		// confirmed deletion. Deletion also waits until its modal is gone. Every
+		// other render returns immediately, so unrelated re-renders such as a
 		// Playground booting never read or thrash layout.
 		if (!animateMoveRef.current) {
 			return;
