@@ -34,8 +34,8 @@ export type WithAPIState = {
 	 */
 	isConnected: () => Promise<void>;
 	/**
-	 * Resolves to true when the remote API is declares it's
-	 * fully loaded and ready to be used.
+	 * Resolves when the remote API declares that it is fully initialized and
+	 * ready to be used.
 	 */
 	isReady: () => Promise<void>;
 };
@@ -49,8 +49,20 @@ export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
  */
 export type APITransferable = Transferable | NodeTransferable;
 
+/** Any callable API member whose arguments and result can be inspected. */
 type AnyMethod = (...args: any[]) => any;
+
+/**
+ * Detect `any` before it reaches the recursive type below. TypeScript lets
+ * `any` take every conditional branch, which would otherwise produce an
+ * unusable or infinitely expanding policy type.
+ */
 type IsAny<T> = 0 extends 1 & T ? true : false;
+
+/**
+ * Collapse a union of recursive results to one answer: true when at least one
+ * member contains a MessagePort.
+ */
 type AnyContainsMessagePort<Candidates> = true extends Candidates
 	? true
 	: false;
@@ -79,16 +91,23 @@ type ContainsMessagePort<T, Seen = never> =
 									? ObjectContainsMessagePort<T, Seen | T>
 									: false;
 
+/** Check both the keys and values because either side of a Map is cloned. */
 type MapContainsMessagePort<Key, Value, Seen> = AnyContainsMessagePort<
 	ContainsMessagePort<Key, Seen> | ContainsMessagePort<Value, Seen>
 >;
 
+/** Check every statically known property of a structured-cloneable object. */
 type ObjectContainsMessagePort<T extends object, Seen> = AnyContainsMessagePort<
 	{
 		[Key in keyof T]-?: ContainsMessagePort<T[Key], Seen>;
 	}[keyof T]
 >;
 
+/**
+ * Top-level MessagePorts are already handled by Comlink. A policy is required
+ * only when a port is nested inside an argument that Comlink otherwise treats
+ * as an ordinary structured-cloned value.
+ */
 type ArgumentNeedsTransferPolicy<Argument> =
 	Argument extends IsomorphicMessagePort
 		? false
@@ -104,11 +123,20 @@ type ArgumentsNeedTransferPolicy<Method extends AnyMethod> =
 		? true
 		: false;
 
+/**
+ * Like arguments, top-level MessagePort results use Comlink's existing
+ * transfer handler. Only a port nested inside the resolved result needs a
+ * policy hook.
+ */
 type ResultNeedsTransferPolicy<Method extends AnyMethod> =
 	Awaited<ReturnType<Method>> extends IsomorphicMessagePort
 		? false
 		: ContainsMessagePort<Awaited<ReturnType<Method>>>;
 
+/**
+ * Describe the hooks for one method. A hook becomes required only when the
+ * method's visible TypeScript signature proves that nested ports are present.
+ */
 type MethodTransferPolicy<Method extends AnyMethod> =
 	(ArgumentsNeedTransferPolicy<Method> extends true
 		? {
@@ -133,12 +161,17 @@ type MethodTransferPolicy<Method extends AnyMethod> =
 					) => readonly APITransferable[];
 				});
 
+/** Follow nested API objects until the policy reaches an actual method. */
 type TransferPolicyNode<Value> = Value extends AnyMethod
 	? MethodTransferPolicy<Value>
 	: Value extends object
 		? APITransferPolicy<Value>
 		: never;
 
+/**
+ * Decide whether a method or any method below a nested API object requires a
+ * policy. This is used to make the corresponding policy property mandatory.
+ */
 type RequiresTransferPolicy<Value> = Value extends AnyMethod
 	? ArgumentsNeedTransferPolicy<Value> extends true
 		? true
@@ -183,12 +216,23 @@ export type APITransferPolicy<API> = {
 		: Key]?: TransferPolicyNode<API[Key]>;
 };
 
+/**
+ * Define a reusable transfer policy with contextual types for every hook.
+ *
+ * This is intentionally an identity function at runtime. Its purpose is to
+ * make TypeScript check the policy against an API contract while preserving
+ * readable callback parameter types at the declaration site.
+ */
 export function defineAPITransferPolicy<API>(
 	policy: APITransferPolicy<API>
 ): APITransferPolicy<API> {
 	return policy;
 }
 
+/**
+ * Make exposeAPI() require its policy argument when the exposed contract
+ * contains a statically visible nested MessagePort.
+ */
 type TransferPolicyArgument<API> =
 	RequiresTransferPolicy<API> extends true
 		? [transferPolicy: APITransferPolicy<API>]
@@ -239,6 +283,13 @@ export class RemoteAPIEndpointTerminatedError extends Error {
 // identity instead.
 const consumedAPIProxies = new WeakSet<object>();
 
+/**
+ * Consume an API whose calls must block the current thread until the remote
+ * side responds.
+ *
+ * This variant is used for synchronous facilities such as file locking and
+ * therefore accepts only a real MessagePort, never another Comlink proxy.
+ */
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
 ): Promise<APIType> {
@@ -584,6 +635,12 @@ type RuntimeMethodTransferPolicy = {
 	result?: (value: any) => readonly APITransferable[];
 };
 
+/**
+ * Wrap only the consumer-side methods named by a transfer policy.
+ *
+ * The wrapper asks the policy for the exact nested transferables before each
+ * call. It does not inspect or recursively traverse argument values at runtime.
+ */
 function applyArgumentTransferPolicy(
 	api: any,
 	policy: APITransferPolicy<any> | undefined
@@ -899,6 +956,12 @@ function observeEmitterTermination(
 	}
 }
 
+/**
+ * Put all argument transferables into one Comlink envelope.
+ *
+ * Comlink serializes arguments separately but posts them in one message, so
+ * attaching the combined transfer list to the first argument is sufficient.
+ */
 function attachTransferablesToFirstArgument(
 	args: any[],
 	transferables: readonly APITransferable[]
@@ -920,6 +983,7 @@ function attachTransferablesToFirstArgument(
 	return wrappedArgs;
 }
 
+/** Distinguish method policy leaves from nested policy objects at runtime. */
 function isRuntimeMethodTransferPolicy(
 	value: unknown
 ): value is RuntimeMethodTransferPolicy {
@@ -931,6 +995,7 @@ function isRuntimeMethodTransferPolicy(
 	);
 }
 
+/** Return true for values that JavaScript Proxy can wrap. */
 function isObjectLike(value: unknown): value is object {
 	return (
 		(typeof value === 'object' && value !== null) ||
@@ -938,6 +1003,12 @@ function isObjectLike(value: unknown): value is object {
 	);
 }
 
+/**
+ * Expose a synchronous API over a MessagePort.
+ *
+ * Synchronous APIs currently do not use nested transfer policies because their
+ * shared-memory transport serves the file-locking use case.
+ */
 export async function exposeSyncAPI<Methods>(
 	apiMethods: Methods,
 	port: IsomorphicMessagePort
@@ -949,6 +1020,13 @@ export async function exposeSyncAPI<Methods>(
 	return [setReady, setFailed, exposedApi as Methods];
 }
 
+/**
+ * Build the API object shared by asynchronous and synchronous exposure.
+ *
+ * Besides the caller's methods, every exposed API reports connection and
+ * initialization state. Transfer policies are applied before Comlink receives
+ * the object so result envelopes are created on the exposing side.
+ */
 function prepareForExpose<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
@@ -1042,6 +1120,10 @@ type SerializedAPITransferEnvelope = {
 	value: unknown;
 };
 
+/**
+ * Mark a value for the custom transfer handler without changing its
+ * structured-cloned shape on the receiving side.
+ */
 function createAPITransferEnvelope(
 	value: unknown,
 	transferables: readonly APITransferable[]
@@ -1054,6 +1136,13 @@ function createAPITransferEnvelope(
 }
 
 let isTransferHandlersSetup = false;
+
+/**
+ * Register php-wasm's Comlink transfer handlers once per JavaScript realm.
+ *
+ * The API envelope handler delegates normal serialization to any existing
+ * handler, then adds the policy-provided nested transferables to its list.
+ */
 function setupTransferHandlers() {
 	if (isTransferHandlersSetup) {
 		return;
@@ -1660,6 +1749,13 @@ const throwTransferHandlerCustom: Comlink.TransferHandler<
 
 Comlink.transferHandlers.set('throw', throwTransferHandlerCustom);
 
+/**
+ * Preserve the existing behavior of exposed API objects while adding result
+ * transfer envelopes at policy-selected method paths.
+ *
+ * Plain objects are cloned lazily so nested methods keep their receiver. Values
+ * that need Comlink proxy semantics continue to use Comlink.proxy().
+ */
 function proxyClone(object: any, transferPolicy?: APITransferPolicy<any>): any {
 	return new Proxy(object, {
 		get(target, prop) {
@@ -1715,12 +1811,19 @@ function proxyClone(object: any, transferPolicy?: APITransferPolicy<any>): any {
 	});
 }
 
+/** Include each transferable only once in the final postMessage() list. */
 function deduplicateTransferables(
 	transferables: Transferable[]
 ): Transferable[] {
 	return Array.from(new Set(transferables));
 }
 
+/**
+ * Convert the isomorphic public type to Comlink's DOM transfer-list type.
+ *
+ * Node accepts additional worker_threads transferables at runtime even though
+ * Comlink's TypeScript definitions use the browser Transferable type.
+ */
 function toComlinkTransferables(
 	transferables: readonly APITransferable[]
 ): Transferable[] {
