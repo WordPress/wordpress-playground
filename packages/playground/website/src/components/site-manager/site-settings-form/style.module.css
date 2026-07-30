@@ -208,7 +208,10 @@
 }
 
 .action-menu .action-menu-item:hover:not([aria-disabled='true']) {
-	background: var(--wp-components-color-gray-100, #f0f0f0);
+	color: var(
+		--wp-components-color-accent,
+		var(--wp-admin-theme-color, #3858e9)
+	);
 }
 
 .action-menu .action-menu-item:focus {
