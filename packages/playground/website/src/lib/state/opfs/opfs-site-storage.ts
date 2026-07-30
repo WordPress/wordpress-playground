@@ -25,11 +25,6 @@ import {
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
-	BUNDLE_DIR_NAME,
-	loadPersistedBlueprintBundle,
-	loadPersistedBlueprintBundleFromPath,
-} from './opfs-blueprint-bundle-storage';
-import {
 	OPFS_SITES_ROOT_PATH,
 	getCandidateDirectoryNamesForSlug,
 	getDirectoryNameForSlug,
@@ -302,6 +297,11 @@ class OpfsSiteStorage {
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
+				// Load Blueprint bundle support only for Blueprint-backed site metadata.
+				const {
+					loadPersistedBlueprintBundle,
+					loadPersistedBlueprintBundleFromPath,
+				} = await import('./opfs-blueprint-bundle-storage');
 				siteInfo.metadata.originalBlueprint = isLegacyDirectoryName
 					? await loadPersistedBlueprintBundleFromPath(sitePath)
 					: await loadPersistedBlueprintBundle(siteInfo.slug);
@@ -358,6 +358,9 @@ class OpfsSiteStorage {
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
 		}
+		// Only site reset needs Blueprint bundle support.
+		const { BUNDLE_DIR_NAME } =
+			await import('./opfs-blueprint-bundle-storage');
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
 		const namesToDelete: string[] = [];
 		for await (const [name] of siteDirectory.entries()) {
