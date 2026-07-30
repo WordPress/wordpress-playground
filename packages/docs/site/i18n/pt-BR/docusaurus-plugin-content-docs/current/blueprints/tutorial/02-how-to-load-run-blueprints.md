@@ -10,9 +10,38 @@ description: Learn the various methods for loading and running Blueprints, inclu
 
 # Como carregar e executar as Blueprints
 
-<!-- URL fragment
+<!--
+## Playground Dock
 
-The fastest way to run Blueprints is to paste one into the URL "fragment" of a WordPress Playground website. Just add a `#` after the `.net/`.
+The easiest way to run a Blueprint from the website is through the Dock:
+
+- Open **New → Blueprint gallery** to choose an example.
+- Open **New → Blueprint URL** to run a public Blueprint JSON or ZIP bundle URL.
+- Open **New → Write a Blueprint** to write a Blueprint in the browser.
+- Open **Blueprint** to inspect or edit the current Playground's Blueprint.
+
+See [Using Blueprints](/blueprints/using-blueprints) for the full list of UI paths.
+
+![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
+-->
+
+## Dock do Playground
+
+A maneira mais fácil de executar um Blueprint pelo site é usar o Dock:
+
+- Abra **Nova → Blueprint gallery** para escolher um exemplo.
+- Abra **Novo → Blueprint URL** para executar uma URL pública de Blueprint JSON ou de pacote ZIP.
+- Abra **Novo → Write a Blueprint** para escrever um Blueprint no navegador.
+- Abra **Blueprint** para inspecionar ou editar o Blueprint do Playground atual.
+
+Consulte [Como usar Blueprints](/blueprints/using-blueprints) para ver a lista completa de caminhos da interface.
+
+![Painel New Playground com a galeria de Blueprints selecionada](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
+
+<!--
+## URL fragment
+
+For links and automation, you can paste a Blueprint into the URL "fragment" of a WordPress Playground website. Just add a `#` after the `.net/`.
 
 Let's say you want to create a Playground with specific versions of WordPress and PHP using the following Blueprint:
 
@@ -34,7 +63,7 @@ Use this method to run the example code in the next chapter, [**Build your first
 
 ## Fragmento de URL
 
-A maneira mais rápida de executar Blueprints é colar um no "fragmento" de URL de um site do WordPress Playground. Basta adicionar um `#` após o `.net/`.
+Para links e automação, você pode colar um Blueprint no "fragmento" da URL de um site do WordPress Playground. Basta adicionar um `#` após o `.net/`.
 
 <!-- Let's say you want to create a Playground with specific versions of WordPress and PHP using the following Blueprint: -->
 

@@ -34,7 +34,7 @@ By default, WordPress Playground loads a landing page to introduce some of the f
 1. Open **New** from the Dock.
 2. Select **Vanilla WordPress** from the Blueprint Gallery.
 
-    ![New Playground pane in the Dock](/img/dock/dock-new-playground.webp)
+    ![New Playground pane in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ## If You're Learning WordPress
 
@@ -59,7 +59,7 @@ Open **New** from the Dock to access the Blueprint Gallery, a set of more than 4
 1. Open **New** from the Dock.
 2. Browse the Blueprint Gallery and select the Blueprint to launch in WordPress Playground.
 
-    ![Blueprint Gallery in the Dock](/img/dock/dock-new-playground.webp)
+    ![Blueprint Gallery in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ### Try New Features Safely
 

@@ -18,7 +18,7 @@ The [Query Params API](/developers/apis/query-api/) allows you to directly load 
 
 The Playground website includes a Dock that opens tools for launching, configuring, inspecting, and exporting your Playground.
 
-![Playground Dock](/img/dock/dock-overview.webp)
+![Playground Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 
 ## Customize Playground
 
@@ -35,7 +35,7 @@ The Dock includes these destinations:
 
 ### Site Settings
 
-![Site Settings in the Dock](/img/dock/dock-site-settings.webp)
+![Site Settings in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 The **Site Settings** pane includes these [Query API options](/developers/apis/query-api#available-options):
 
@@ -53,17 +53,17 @@ Open **Export** from the Dock to download or share the current Playground state:
 - **Copy original setup link**: Copies a URL that rebuilds the Playground from its original Blueprint. It does not include later edits.
 - **Export to GitHub**: Pushes the current state, including edits, to a GitHub repository.
 
-![Export options in the Dock](/img/dock/dock-export-playground.webp)
+![Export options in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 ### Blueprint pane
 
-![Blueprint pane in the Dock](/img/dock/dock-current-blueprint.webp)
+![Blueprint pane in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
 
 The **Blueprint** pane lets you edit, export, and run the Blueprint for the current Playground.
 
 ### New Playground
 
-![New Playground options in the Dock](/img/dock/dock-new-playground.webp)
+![New Playground options in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 The **New** pane shows all the ways to launch WordPress Playground: choose a Blueprint from the gallery, import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
 
