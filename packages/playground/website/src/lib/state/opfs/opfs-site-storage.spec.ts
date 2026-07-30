@@ -267,6 +267,13 @@ describe('opfsSiteStorage', () => {
 		cache.setFile('cached.html', 'exclude cache');
 		const cacheEntries = vi.spyOn(cache, 'entries');
 
+		expect(
+			JSON.parse(await readOpfsFile(siteDirectory, 'wp-runtime.json'))
+		).toMatchObject({ slug: 'patterns' });
+		expect(await readOpfsFile(wpAdmin, 'index.php')).toBe('exclude admin');
+		expect(await readOpfsFile(plugins, 'hello.php')).toBe('include plugin');
+		expect(await readOpfsFile(cache, 'cached.html')).toBe('exclude cache');
+
 		const zipFile = await storage.exportSavedSiteAsZip('patterns', {
 			excludePatterns: [
 				'/*',
@@ -425,6 +432,14 @@ async function readZipEntries(zipFile: Blob) {
 	} finally {
 		await reader.close();
 	}
+}
+
+async function readOpfsFile(
+	directory: MemoryDirectoryHandle,
+	fileName: string
+) {
+	const fileHandle = await directory.getFileHandle(fileName);
+	return (await fileHandle.getFile()).text();
 }
 
 async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
