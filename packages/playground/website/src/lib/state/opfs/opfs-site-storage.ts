@@ -15,6 +15,7 @@ import type { OriginalUrlParams } from '../original-url-params';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
+import type { Ignore } from 'ignore';
 import ignore from 'ignore';
 import {
 	type ExtraLibrary,
@@ -587,7 +588,7 @@ async function addDirectoryEntries(
 	zipWriter: ZipWriter<Blob>,
 	directory: FileSystemDirectoryHandle,
 	relativeDirPath: string,
-	pathMatcher: ReturnType<typeof ignore>
+	pathMatcher: Ignore
 ) {
 	for await (const [name, entry] of directory.entries()) {
 		const relativePath = relativeDirPath
