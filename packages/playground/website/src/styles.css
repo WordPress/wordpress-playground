@@ -198,8 +198,8 @@ html {
 
 	/* Success, warning, error, and destructive states. */
 	--success-on-dark: #c7ffdb;
-	--success-toast-background: #20482e;
-	--success-toast-border: #3b8a5e;
+	--success-toast-background: #2e5540;
+	--success-toast-border: #457a5c;
 	--warning: #fff972;
 	--warning-highlight: #fffcb5;
 	--warning-surface: #fffdd6;

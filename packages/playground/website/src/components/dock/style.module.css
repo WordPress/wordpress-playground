@@ -1276,7 +1276,7 @@
 	border: 1px solid var(--error-toast-border);
 	border-radius: 11px;
 	bottom: 12px;
-	box-shadow: 0 15px 36px rgba(226, 111, 86, 0.26);
+	box-shadow: 0 6px 20px rgba(28, 16, 12, 0.16);
 	color: #ffffff;
 	display: flex;
 	font-size: 14px;
@@ -1297,7 +1297,7 @@
 .dock-operation-toast-success {
 	background: var(--success-toast-background);
 	border-color: var(--success-toast-border);
-	box-shadow: 0 15px 36px rgba(51, 240, 120, 0.22);
+	box-shadow: 0 6px 20px rgba(16, 40, 26, 0.18);
 }
 
 .dock-operation-toast-success .dock-operation-toast-message {
