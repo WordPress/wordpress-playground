@@ -818,7 +818,7 @@ describe.each(blueprintVersions)(
 		// invisible to child PHP processes spawned with proc_open()/system(),
 		// because the spawned worker never installs WordPress itself and so
 		// skipped applying the post-install mounts.
-		test('child processes spawned via proc_open() see post-install --mount files', async () => {
+		test('a child spawned after WordPress installation sees post-install --mount files', async () => {
 			const hostDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-spawn-mount-')
 			);
@@ -869,7 +869,7 @@ describe.each(blueprintVersions)(
 		// WordPress. The main-thread service records post-install mounts and gives
 		// every future child a control endpoint, so a mount visible to the parent
 		// must remain visible two levels down.
-		test('grandchild processes spawned via nested proc_open() see post-install --mount files', async () => {
+		test('a grandchild spawned after WordPress installation sees post-install --mount files', async () => {
 			const hostDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-spawn-mount-gc-')
 			);
@@ -919,7 +919,7 @@ describe.each(blueprintVersions)(
 		// path in mountResources(), and it is the shape real tooling uses for
 		// state files (see the `.import-state.json` mounts elsewhere in this
 		// suite). A child must see the file, not just the directory case.
-		test('child processes spawned via proc_open() see single-file post-install --mount', async () => {
+		test('a child spawned after WordPress installation sees a single-file post-install --mount', async () => {
 			const hostDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-spawn-mount-file-')
 			);
@@ -974,7 +974,7 @@ describe.each(blueprintVersions)(
 		// NODEFS mounts in separate workers. A write made by the parent must be
 		// visible to the child it then spawns — otherwise tooling that stages a
 		// file and shells out to consume it (wp-cli, PHPUnit bootstraps) breaks.
-		test('a child process sees writes its parent made through a mount', async () => {
+		test('a child spawned after WordPress installation sees writes through a post-install mount', async () => {
 			const hostDir = await mkdtemp(
 				path.join(tmpdir(), 'playground-test-spawn-mount-rw-')
 			);
@@ -1024,7 +1024,7 @@ describe.each(blueprintVersions)(
 		// forwards to its children. If it were dropped on the way down, a child
 		// would refuse to load a script reached through a symlinked mount while
 		// the parent loaded it happily.
-		test('child processes spawned via proc_open() honour --follow-symlinks in mounts', async ({
+		test('a child spawned after WordPress installation honors --follow-symlinks in post-install mounts', async ({
 			skip,
 		}) => {
 			if (os.platform() === 'win32') {

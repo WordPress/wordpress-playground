@@ -70,7 +70,7 @@ afterEach(async function disposeControllers(): Promise<void> {
 });
 
 describe('createChildWorkerService', function () {
-	it('returns every child port and its worker config in one aggregate', async function () {
+	it('gives a new child all the ports and configuration it needs', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 
@@ -103,7 +103,7 @@ describe('createChildWorkerService', function () {
 		expect(controller.liveChildWorkerCount()).toBe(2);
 	});
 
-	it('applies post-install mounts to a connected current child', async function () {
+	it('applies post-install mounts to a child that is already connected', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 		const child = await controller.api.createChildWorker();
@@ -124,7 +124,7 @@ describe('createChildWorkerService', function () {
 		expect(mountHandler).toHaveBeenCalledWith(mounts);
 	});
 
-	it('records mounts for a future child and waits until its mount finishes', async function () {
+	it('mounts children created later before reporting that they are ready', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 		const mounts = [
@@ -167,7 +167,7 @@ describe('createChildWorkerService', function () {
 		expect(readySettled).toBe(true);
 	});
 
-	it('fulfills the exit signal and unblocks mount application on child exit', async function () {
+	it('stops waiting to apply mounts when the child exits', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 		const child = await controller.api.createChildWorker();
@@ -187,7 +187,7 @@ describe('createChildWorkerService', function () {
 		expect(controller.liveChildWorkerCount()).toBe(0);
 	});
 
-	it('cascades endpoint disposal through child and grandchild workers', async function () {
+	it('disposes a worker together with its children and grandchildren', async function () {
 		const harness = createSpawnHarness();
 		const controller = createChildWorkerService(
 			harness.spawnWorker,
@@ -214,7 +214,7 @@ describe('createChildWorkerService', function () {
 		expect(controller.liveChildWorkerCount()).toBe(0);
 	});
 
-	it('waits for every grandchild before reporting a termination failure', async function () {
+	it('waits for every grandchild to stop before reporting a failure', async function () {
 		const harness = createSpawnHarness();
 		const controller = createChildWorkerService(
 			harness.spawnWorker,
@@ -287,7 +287,7 @@ describe('createChildWorkerService', function () {
 		});
 	});
 
-	it('disposes descendants when their spawning child exits', async function () {
+	it('disposes descendants when the worker that spawned them exits', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 		const child = await controller.api.createChildWorker();
@@ -306,7 +306,7 @@ describe('createChildWorkerService', function () {
 		});
 	});
 
-	it('closes a PHP port returned after the worker has already exited', async function () {
+	it('closes a PHP port returned after its worker has already exited', async function () {
 		let phpPortClosed = false;
 		let phpMainPort: MessagePort | undefined;
 		const spawnWorker = async function spawnWorker(
@@ -347,7 +347,7 @@ describe('createChildWorkerService', function () {
 		phpMainPort?.close();
 	});
 
-	it('propagates a child mount failure and still disposes cleanly', async function () {
+	it('reports a mount failure and can still dispose the child', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 		const child = await controller.api.createChildWorker();
@@ -370,7 +370,7 @@ describe('createChildWorkerService', function () {
 		expect(harness.workers[0].terminateCalls).toBe(1);
 	});
 
-	it('makes child and service disposal idempotent', async function () {
+	it('allows a child and the service to be disposed more than once', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
 		const child = await controller.api.createChildWorker();
@@ -388,7 +388,7 @@ describe('createChildWorkerService', function () {
 		);
 	});
 
-	it('retains and reports a worker whose termination fails', async function () {
+	it('keeps tracking a worker when terminating it fails', async function () {
 		const terminationFailure = new Error('Worker termination was rejected');
 		const worker: TerminableWorker = {
 			terminate: vi.fn(
