@@ -72,7 +72,11 @@ export function getDockPaneStyle({
 	};
 }
 
-/** Places a global operation toast above the pane, or above the Dock if it won't fit. */
+/**
+ * Places a global operation toast above an open pane when there's room above it
+ * (desktop only). Otherwise — no pane, a full-height pane, or mobile — it sits
+ * just above the Dock.
+ */
 export function getDockOperationToastStyle({
 	isMobile,
 	dockSize,
