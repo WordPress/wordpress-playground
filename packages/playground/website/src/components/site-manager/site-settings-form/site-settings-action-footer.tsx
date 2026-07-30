@@ -154,9 +154,7 @@ function SettingsActionMenu({
 				autoFocus={primaryAction === 'apply'}
 				info={applyUnavailableReason}
 				aria-disabled={!!applyUnavailableReason}
-				className={`${css.actionMenuItem} ${
-					primaryAction === 'apply' ? css.selectedApplyMenuItem : ''
-				}`}
+				className={css.actionMenuItem}
 				onClick={applyUnavailableReason ? undefined : onSelectApply}
 			>
 				Apply to this Playground
@@ -168,7 +166,7 @@ function SettingsActionMenu({
 						? 'Start a clean site. Your current Playground stays in Saved Playgrounds.'
 						: `Start a clean site. Your current Playground stays in Recent autosaves until ${MAX_AUTOSAVED_SITES} newer autosaves replace it.`
 				}
-				className={`${css.actionMenuItem} ${css.createFreshMenuItem}`}
+				className={css.actionMenuItem}
 				onClick={onSelectCreateFresh}
 			>
 				Create a fresh Playground

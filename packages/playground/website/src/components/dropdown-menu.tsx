@@ -1,5 +1,7 @@
 import { DropdownMenu as WordPressDropdownMenu } from '@wordpress/components';
+import classNames from 'classnames';
 import type { ComponentProps } from 'react';
+import css from './dropdown-menu.module.css';
 
 type DropdownMenuProps = ComponentProps<typeof WordPressDropdownMenu>;
 
@@ -14,6 +16,7 @@ export function DropdownMenu({
 			{...dropdownMenuProps}
 			menuProps={{
 				...menuProps,
+				className: classNames(css.menu, menuProps?.className),
 				onKeyDown: (event) => {
 					onKeyDown?.(event);
 					if (!event.defaultPrevented) {
