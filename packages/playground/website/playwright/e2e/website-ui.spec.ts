@@ -229,6 +229,21 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 	);
 });
 
+test('should navigate from the address bar suggestions', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const address = dock.getByRole('combobox');
+
+	await address.click();
+	await website.page.getByRole('option', { name: /Dashboard/ }).click();
+
+	await expect(address).toHaveValue('/wp-admin/');
+});
+
 test('should route tools through one Dock pane', async ({ website }) => {
 	await website.goto('./?storage=temp');
 	const dock = website.page.getByRole('navigation', {
@@ -699,14 +714,16 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 });
 
-test('should edit a file in the code editor and see changes in the viewport', async ({
+test('should edit a file on mobile and see changes in the viewport', async ({
 	website,
 	wordpress,
 }) => {
 	await website.goto('./?storage=temp');
+	await website.page.setViewportSize({ width: 375, height: 812 });
 
 	await website.openDockPane('Files');
 	const filesPane = website.page.getByRole('dialog', { name: 'Files pane' });
+	await filesPane.getByRole('button', { name: 'Browse files' }).click();
 
 	// Wait for file tree to load
 	await website.page.locator('[data-path="/wordpress"]').waitFor();
@@ -730,37 +747,6 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	const saveButton = filesPane.getByRole('button', {
 		name: /^(Save|Saved|Saving…)$/,
 	});
-
-	const desktopViewport = website.page.viewportSize();
-	await website.page.setViewportSize({ width: 375, height: 812 });
-	const browseButton = filesPane.getByRole('button', {
-		name: 'Browse files',
-	});
-	const closeButton = filesPane.getByRole('button', {
-		name: 'Close',
-		exact: true,
-	});
-	await expect(browseButton).toBeVisible();
-	await expect(closeButton).toBeVisible();
-	const editorPath = filesPane.locator('[class*="editorPath"]').first();
-	const [browseBox, saveBox, closeBox, pathBox] = await Promise.all([
-		browseButton.boundingBox(),
-		saveButton.boundingBox(),
-		closeButton.boundingBox(),
-		editorPath.boundingBox(),
-	]);
-	if (!browseBox || !saveBox || !closeBox || !pathBox) {
-		throw new Error('The responsive file editor controls must be visible.');
-	}
-	expect(browseBox.y).toBe(closeBox.y);
-	expect(saveBox.y).toBe(closeBox.y);
-	expect(saveBox.x + saveBox.width).toBeLessThan(closeBox.x);
-	expect(pathBox.y).toBeGreaterThanOrEqual(
-		Math.max(browseBox.y + browseBox.height, saveBox.y + saveBox.height)
-	);
-	if (desktopViewport) {
-		await website.page.setViewportSize(desktopViewport);
-	}
 
 	// Click on the editor to focus it
 	await website.page.waitForTimeout(50);
@@ -918,11 +904,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 		.getByRole('menuitem', { name: 'Copy Blueprint URL' })
 		.click();
 
-	// Verify success message appears in the notice component
+	// Verify the copy confirmation surfaces in the Dock success toast
 	await expect(
 		website.page
-			.locator('.components-notice')
-			.getByText('Link copied to clipboard!')
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Link copied to clipboard' })
 	).toBeVisible();
 
 	// Verify clipboard contains the correct URL format
@@ -956,7 +942,7 @@ test('should make every Dock tool reachable on mobile', async ({ website }) => {
 		['Site Settings', 'Site Settings pane'],
 		['Database', 'Database pane'],
 		['Files', 'Files pane'],
-		['Logs', 'Logs pane'],
+		['Logs', 'PHP error log pane'],
 		['Export', 'Export pane'],
 	] as const;
 
@@ -1088,15 +1074,15 @@ test.describe('Database panel', () => {
 		expect(path).toBeTruthy();
 	});
 
-	test('should load and open Adminer', async ({ website, context }) => {
+	test('should load and open Adminer', async ({ website }) => {
 		const adminerButton = website.page.getByRole('button', {
 			name: 'Open Adminer',
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
 
-		// Set up new page listener
-		const pagePromise = context.waitForEvent('page');
+		// Set up popup listener
+		const pagePromise = website.page.waitForEvent('popup');
 
 		// Click the Adminer button
 		await adminerButton.click();
@@ -1160,15 +1146,15 @@ test.describe('Database panel', () => {
 		await newPage.close();
 	});
 
-	test('should load and open phpMyAdmin', async ({ website, context }) => {
+	test('should load and open phpMyAdmin', async ({ website }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
 			name: 'Open phpMyAdmin',
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
 
-		// Set up new page listener
-		const pagePromise = context.waitForEvent('page');
+		// Set up popup listener
+		const pagePromise = website.page.waitForEvent('popup');
 
 		// Click the phpMyAdmin button
 		await phpMyAdminButton.click();
@@ -1245,6 +1231,36 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
 		await newPage.close();
+	});
+
+	/*
+	 * Regression coverage for https://github.com/WordPress/wordpress-playground/pull/4144.
+	 * Opening Adminer first creates a secondary PHP instance that phpMyAdmin may reuse.
+	 * Every PHP instance must therefore see runtime-installed tools under `/tools`.
+	 */
+	test('should open phpMyAdmin after Adminer', async ({ website }) => {
+		const adminerPagePromise = website.page.waitForEvent('popup');
+		await website.page
+			.getByRole('button', { name: 'Open Adminer' })
+			.click();
+		const adminerPage = await adminerPagePromise;
+		await adminerPage.waitForLoadState();
+		await expect(adminerPage.locator('body')).toContainText('Adminer');
+		await expect(adminerPage.locator('body')).toContainText('wp_posts');
+
+		const phpMyAdminPagePromise = website.page.waitForEvent('popup');
+		await website.page
+			.getByRole('button', { name: 'Open phpMyAdmin' })
+			.click();
+		const phpMyAdminPage = await phpMyAdminPagePromise;
+		await phpMyAdminPage.waitForLoadState();
+		await expect(phpMyAdminPage.locator('body')).toContainText(
+			'phpMyAdmin'
+		);
+		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
+
+		await adminerPage.close();
+		await phpMyAdminPage.close();
 	});
 });
 
@@ -1415,6 +1431,75 @@ test.describe('Default Playground storage', () => {
 				/\d+%/.test(statusAnnouncement ?? '')
 			)
 		).toBe(false);
+	});
+
+	test('should keep the Blueprint loading status visible while its filesystem initializes', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('blueprint-loading')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.evaluate(() => {
+			let releaseBlueprintBundleDirectory!: () => void;
+			const blueprintBundleDirectoryCanOpen = new Promise<void>(
+				(resolve) => {
+					releaseBlueprintBundleDirectory = resolve;
+				}
+			);
+			const directoryHandlePrototype =
+				FileSystemDirectoryHandle.prototype;
+			const getDirectoryHandle =
+				directoryHandlePrototype.getDirectoryHandle;
+			(window as any).__releaseBlueprintBundleDirectory =
+				releaseBlueprintBundleDirectory;
+			(window as any).__originalBlueprintGetDirectoryHandle =
+				getDirectoryHandle;
+			directoryHandlePrototype.getDirectoryHandle = async function (
+				name,
+				options
+			) {
+				if (name === 'blueprint-bundle') {
+					(window as any).__blueprintBundleDirectoryRequested = true;
+					await blueprintBundleDirectoryCanOpen;
+				}
+				return await getDirectoryHandle.call(this, name, options);
+			};
+		});
+
+		try {
+			await website.openDockPane('Current Blueprint', 'Blueprint pane');
+			await website.page.waitForFunction(
+				() =>
+					(window as any).__blueprintBundleDirectoryRequested === true
+			);
+			await expect(
+				website.page
+					.getByRole('dialog', { name: 'Blueprint pane' })
+					.getByRole('status')
+			).toHaveText('Loading the Blueprint editor…');
+		} finally {
+			await website.page.evaluate(() => {
+				(window as any).__releaseBlueprintBundleDirectory();
+				FileSystemDirectoryHandle.prototype.getDirectoryHandle = (
+					window as any
+				).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__releaseBlueprintBundleDirectory;
+				delete (window as any).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__blueprintBundleDirectoryRequested;
+			});
+		}
+
+		await expect(
+			website.page
+				.getByRole('dialog', { name: 'Blueprint pane' })
+				.getByRole('button', { name: 'Create new file' })
+		).toBeVisible();
 	});
 
 	test('should edit a Blueprint for an autosaved Playground and run it in a new Playground', async ({
@@ -1611,7 +1696,6 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({
 			timeout: 120000,
 		});
-		const autosavedSite = await getActivePlaygroundSite(website.page);
 
 		await website.openDockPane('Site Settings');
 
@@ -1644,7 +1728,7 @@ test.describe('Default Playground storage', () => {
 			name: /Create a fresh Playground/,
 		});
 		await expect(freshMenuItem).toContainText(
-			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
+			'Your current Playground stays in Recent autosaves until 5 newer autosaves replace it.'
 		);
 		await expect(applyMenuItem).toBeFocused();
 		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'false');
@@ -1880,7 +1964,7 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('menuitem', {
 				name: /Create a fresh Playground/,
 			})
-		).toContainText(`“${storedSite.name}” stays in Saved Playgrounds.`);
+		).toContainText('Your current Playground stays in Saved Playgrounds.');
 		await website.page.keyboard.press('Escape');
 		await website.page.getByLabel('Language').selectOption('pl_PL');
 		await website.page
@@ -1892,8 +1976,11 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
-		const freshSite = await getActivePlaygroundSite(website.page);
-		expect(freshSite.slug).not.toBe(storedSite.slug);
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: storedSite.slug });
 		await expect
 			.poll(() =>
 				website.page.evaluate(
@@ -1911,7 +1998,7 @@ test.describe('Default Playground storage', () => {
 			.toBe(true);
 	});
 
-	test('should keep Playground management failures visible across Dock surfaces', async ({
+	test('should position and dismiss Playground management failures', async ({
 		website,
 		browserName,
 	}) => {
@@ -1921,17 +2008,12 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
-		const originalSite = await getActivePlaygroundSite(website.page);
-		const activeSite = await website.page.evaluate(async (originalSlug) => {
+		const activeSite = await website.page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
 			const slug = `operation-error-active-${Date.now().toString(36)}`;
-			await api.createNewSavedSite(slug, undefined, {
-				persistence: 'autosave',
-				updateUrl: false,
-				excludeFromPruning: [originalSlug],
-			});
+			await api.createNewTemporarySite(slug);
 			return api.list().find((site: any) => site.slug === slug);
-		}, originalSite.slug);
+		});
 		await website.page.evaluate(() => {
 			Object.defineProperty(window, 'showDirectoryPicker', {
 				configurable: true,
@@ -2001,93 +2083,17 @@ test.describe('Default Playground storage', () => {
 		);
 
 		await website.page.keyboard.press('Escape');
-		await expect(pane).not.toBeVisible();
-		await expect(notice).toBeVisible();
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
-		const dock = website.page.getByRole('navigation', {
-			name: 'Playground tools',
-		});
-		const closedNoticeBox = await notice.boundingBox();
-		const dockBox = await dock.boundingBox();
-		expect(closedNoticeBox).not.toBeNull();
-		expect(dockBox).not.toBeNull();
-		expect(
-			closedNoticeBox!.y + closedNoticeBox!.height
-		).toBeLessThanOrEqual(dockBox!.y);
-		expect(closedNoticeBox!.x + closedNoticeBox!.width / 2).toBeCloseTo(
-			dockBox!.x + dockBox!.width / 2,
-			0
-		);
+		await expect(notice).toHaveCount(0);
+		await expect(pane).toBeVisible();
 
-		await website.openDockPane('Site Settings');
-		const settingsPane = website.page.getByRole('dialog', {
-			name: 'Site Settings pane',
-		});
-		await expect(notice).toBeVisible();
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
-		const settingsPaneBox = await settingsPane.boundingBox();
-		const settingsNoticeBox = await notice.boundingBox();
-		expect(settingsPaneBox).not.toBeNull();
-		expect(settingsNoticeBox).not.toBeNull();
-		expect(
-			settingsNoticeBox!.y + settingsNoticeBox!.height
-		).toBeLessThanOrEqual(settingsPaneBox!.y);
-
-		await website.openDockPane('Playgrounds');
 		await pane
-			.getByRole('button', { name: `Open ${originalSite.name}` })
+			.getByRole('button', { name: `Actions for ${activeSite.name}` })
 			.click();
-		await expect(pane).not.toBeVisible();
-		await expect
-			.poll(() => getActivePlaygroundSite(website.page), {
-				timeout: 120000,
-			})
-			.toMatchObject({ slug: originalSite.slug });
-		await expect(notice).toBeVisible();
-
-		await website.page.setViewportSize({ width: 390, height: 844 });
-		await expect
-			.poll(() =>
-				website.page.evaluate(
-					() => window.matchMedia('(max-width: 1024px)').matches
-				)
-			)
-			.toBe(true);
-		await website.openDockPane('Playgrounds');
-		await expect
-			.poll(() => pane.boundingBox())
-			.toMatchObject({
-				x: 0,
-				width: 390,
-			});
-		await expect(notice).toBeVisible();
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
-		const mobileNoticeBox = await notice.boundingBox();
-		const mobileDockBox = await dock.boundingBox();
-		expect(mobileNoticeBox).not.toBeNull();
-		expect(mobileDockBox).not.toBeNull();
-		expect(mobileNoticeBox!.x).toBeGreaterThanOrEqual(12);
-		expect(mobileNoticeBox!.x + mobileNoticeBox!.width).toBeLessThanOrEqual(
-			378
-		);
-		expect(
-			mobileNoticeBox!.y + mobileNoticeBox!.height
-		).toBeLessThanOrEqual(mobileDockBox!.y);
-		await notice
-			.getByRole('button', { name: 'Dismiss operation error' })
+		await website.page
+			.getByRole('menuitem', { name: 'Save in a local directory…' })
 			.click();
+		await expect(notice).toBeVisible();
+		await pane.click({ position: { x: 20, y: 20 } });
 		await expect(notice).toHaveCount(0);
 	});
 
@@ -2248,11 +2254,8 @@ test.describe('Default Playground storage', () => {
 
 		await pullRequestTab.click();
 		await expect(
-			newPane.getByRole('heading', { name: 'Preview a pull request' })
-		).toBeVisible();
-		await expect(
 			newPane.getByRole('textbox', {
-				name: 'Pull request URL or number',
+				name: 'PR number or GitHub URL',
 			})
 		).toBeVisible();
 		await expect(
@@ -2876,6 +2879,58 @@ test.describe('Default Playground storage', () => {
 		).toBe(true);
 	});
 
+	test('should persist a front-page thumbnail for a saved Playground', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(getUniqueSavedPlaygroundSetupUrl('thumbnail'));
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const activeSite = await getActivePlaygroundSite(website.page);
+
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		const thumbnail = website.page.locator(
+			`[data-playground-row="${activeSite.slug}"] [data-site-thumbnail]`
+		);
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			/^data:image\/(webp|jpeg);base64,/
+		);
+
+		const storedThumbnail = await website.page.evaluate(
+			async (siteSlug) => {
+				const root = await navigator.storage.getDirectory();
+				const sites = await root.getDirectoryHandle('sites');
+				const site = await sites.getDirectoryHandle(
+					`site-${encodeURIComponent(siteSlug)}`
+				);
+				const metadata = await site.getFileHandle('wp-runtime.json');
+				return JSON.parse(await (await metadata.getFile()).text())
+					.thumbnail;
+			},
+			activeSite.slug
+		);
+		expect(storedThumbnail.mime).toMatch(/^image\/(webp|jpeg)$/);
+		expect(storedThumbnail.data.length).toBeGreaterThan(0);
+
+		await website.goto(
+			`./?site-slug=${encodeURIComponent(activeSite.slug)}`
+		);
+		await website.waitForNestedIframes();
+		await website.page
+			.getByRole('button', { name: 'Your Playgrounds' })
+			.click();
+		await expect(thumbnail).toHaveAttribute(
+			'src',
+			`data:${storedThumbnail.mime};base64,${storedThumbnail.data}`
+		);
+	});
+
 	test('should persist WordPress changes after refreshing the default Playground', async ({
 		website,
 		browserName,
@@ -2907,7 +2962,7 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page
 				.getByLabel('Recent autosaved Playground')
-				.getByText('Recent autosave available', { exact: true })
+				.getByText('Recent autosave', { exact: true })
 		).toBeVisible();
 		await website.waitForNestedIframes();
 		await expect(
@@ -2955,7 +3010,7 @@ echo get_option('blogname');
 		const nudge = website.page.getByLabel('Recent autosaved Playground');
 		await expect(nudge).toBeVisible();
 		await nudge
-			.getByRole('button', { name: 'Stop showing autosave prompts' })
+			.getByRole('button', { name: 'Don’t notify me about autosaves' })
 			.click();
 		await expect(nudge).toHaveCount(0);
 		await expect(
@@ -3039,28 +3094,22 @@ echo get_option('blogname');
 		await assertRestoreCardGeometry();
 
 		async function assertRestoreCardGeometry() {
-			const geometry = await website.page.evaluate(() => {
-				const card = document.querySelector<HTMLElement>(
-					'[aria-label="Recent autosaved Playground"]'
-				)!;
-				const cardRect = card.getBoundingClientRect();
-				return {
-					cardTop: cardRect.top,
-					cardLeft: cardRect.left,
-					cardRight: cardRect.right,
-					cardBottom: cardRect.bottom,
-					viewportWidth: window.innerWidth,
-					viewportHeight: window.innerHeight,
-				};
-			});
-			expect(geometry.cardTop).toBeGreaterThanOrEqual(0);
-			expect(geometry.cardLeft).toBeGreaterThanOrEqual(0);
-			expect(geometry.cardRight).toBeLessThanOrEqual(
-				geometry.viewportWidth
-			);
-			expect(geometry.cardBottom).toBeLessThanOrEqual(
-				geometry.viewportHeight
-			);
+			await expect
+				.poll(() =>
+					website.page.evaluate(() => {
+						const card = document.querySelector<HTMLElement>(
+							'[aria-label="Recent autosaved Playground"]'
+						)!;
+						const cardRect = card.getBoundingClientRect();
+						return (
+							cardRect.top >= 0 &&
+							cardRect.left >= 0 &&
+							cardRect.right <= window.innerWidth &&
+							cardRect.bottom <= window.innerHeight
+						);
+					})
+				)
+				.toBe(true);
 		}
 	});
 

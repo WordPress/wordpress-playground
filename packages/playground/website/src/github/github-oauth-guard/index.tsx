@@ -47,7 +47,7 @@ export default function GitHubOAuthGuard({
 }: GitHubOAuthGuardProps) {
 	if (oAuthState.value.isAuthorizing) {
 		return (
-			<div>
+			<div className={css.authorizing}>
 				<Spinner />
 				<p>
 					Authorization popup opened. Continue in the popup to connect
@@ -80,7 +80,7 @@ function Authenticate({
 	});
 
 	return (
-		<div>
+		<div className={css.authenticate}>
 			<p>
 				{intro ??
 					'Importing plugins, themes, and wp-content directories directly from your public GitHub repositories.'}
@@ -95,7 +95,7 @@ function Authenticate({
 						The authentication flow opens in a popup. Your running
 						Playground will stay open.
 					</p>
-					<label style={{ cursor: 'pointer' }}>
+					<label className={css.confirm}>
 						<input
 							type="checkbox"
 							checked={exported}
@@ -106,25 +106,27 @@ function Authenticate({
 					</label>
 				</>
 			) : null}
-			<p>
-				<a
-					aria-label="Connect your GitHub account"
-					className={buttonClass}
-					href={new URL('oauth.php', window.location.href).toString()}
-					onClick={async (e) => {
-						e.preventDefault();
-						if (mayLoseProgress && !exported) {
-							return;
-						}
-						await connectToGitHub({ setError });
-					}}
-				>
-					<Icon icon={GitHubIcon} />
-					Connect your GitHub account
-				</a>
-			</p>
-			{error ? <p role="alert">{error}</p> : null}
-			<p>
+			<a
+				aria-label="Connect your GitHub account"
+				className={buttonClass}
+				href={new URL('oauth.php', window.location.href).toString()}
+				onClick={async (e) => {
+					e.preventDefault();
+					if (mayLoseProgress && !exported) {
+						return;
+					}
+					await connectToGitHub({ setError });
+				}}
+			>
+				<Icon icon={GitHubIcon} />
+				Connect your GitHub account
+			</a>
+			{error ? (
+				<p className={css.error} role="alert">
+					{error}
+				</p>
+			) : null}
+			<p className={css.note}>
 				Your access token is not stored anywhere, which means you'll
 				have to re-authenticate after every page refresh.
 			</p>

@@ -8799,6 +8799,10 @@ var wp;
     return typeof wp?.components === "object" && wp.components !== null;
   }
   var cachedSlot = null;
+  function ensureSlotIsAccessible(element) {
+    element.setAttribute("aria-hidden", "false");
+    return element;
+  }
   function createSlot(ownerDocument2) {
     const element = ownerDocument2.createElement("div");
     element.setAttribute(WP_COMPAT_OVERLAY_SLOT_ATTRIBUTE, "");
@@ -8820,19 +8824,19 @@ var wp;
       return void 0;
     }
     if (cachedSlot && cachedSlot.ownerDocument === ownerDocument2 && cachedSlot.isConnected) {
-      return cachedSlot;
+      return ensureSlotIsAccessible(cachedSlot);
     }
     const existing = ownerDocument2.querySelector(
       `[${WP_COMPAT_OVERLAY_SLOT_ATTRIBUTE}]`
     );
     if (existing instanceof HTMLDivElement) {
-      cachedSlot = existing;
-      return existing;
+      cachedSlot = ensureSlotIsAccessible(existing);
+      return cachedSlot;
     }
     if (cachedSlot?.isConnected) {
       cachedSlot.remove();
     }
-    cachedSlot = createSlot(ownerDocument2);
+    cachedSlot = ensureSlotIsAccessible(createSlot(ownerDocument2));
     return cachedSlot;
   }
 
@@ -9217,7 +9221,7 @@ var wp;
   // packages/edit-post/build-module/components/layout/index.mjs
   var import_editor17 = __toESM(require_editor(), 1);
   var import_data24 = __toESM(require_data(), 1);
-  var import_block_editor = __toESM(require_block_editor(), 1);
+  var import_block_editor2 = __toESM(require_block_editor(), 1);
 
   // packages/global-styles-engine/build-module/utils/common.mjs
   var import_style_engine = __toESM(require_style_engine(), 1);
@@ -10465,7 +10469,9 @@ var wp;
   var import_element22 = __toESM(require_element(), 1);
   var import_components4 = __toESM(require_components(), 1);
   var import_data10 = __toESM(require_data(), 1);
+  var import_block_editor = __toESM(require_block_editor(), 1);
   var import_jsx_runtime26 = __toESM(require_jsx_runtime(), 1);
+  var { useNativeUndo } = unlock2(import_block_editor.privateApis);
   function MetaBoxesArea({ location }) {
     const container = (0, import_element22.useRef)(null);
     const formRef = (0, import_element22.useRef)(null);
@@ -10488,7 +10494,8 @@ var wp;
     const classes = clsx_default("edit-post-meta-boxes-area", `is-${location}`, {
       "is-loading": isSaving
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: classes, children: [
+    const nativeUndoRef = useNativeUndo();
+    return /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: classes, ref: nativeUndoRef, children: [
       isSaving && /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(import_components4.Spinner, { className: "edit-post-meta-boxes-area__spinner" }),
       /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(
         "div",
@@ -11209,9 +11216,7 @@ var wp;
       if (!container) {
         return;
       }
-      const noticeContainer = container.querySelector(
-        ":scope > .notices-inline-notices-wrapper"
-      );
+      const noticeContainer = container.querySelector(".editor-notices");
       const resizeHandle = container.querySelector(
         ".edit-post-meta-boxes-main__presenter"
       );
@@ -11419,7 +11424,7 @@ var wp;
           name: "wp_template"
         });
         const { getBlockSelectionStart, isZoomOut } = unlock2(
-          select3(import_block_editor.store)
+          select3(import_block_editor2.store)
         );
         const { getEditorMode: getEditorMode2, getDefaultRenderingMode } = unlock2(
           select3(import_editor17.store)
@@ -11724,22 +11729,6 @@ var wp;
       console.warn(
         "Your browser is using Quirks Mode. \nThis can cause rendering issues such as blocks overlaying meta boxes in the editor. Quirks Mode can be triggered by PHP errors or HTML code appearing before the opening <!DOCTYPE html>. Try checking the raw page source or your site's PHP error log and resolving errors there, removing any HTML before the doctype, or disabling plugins."
       );
-    }
-    const isIphone = window.navigator.userAgent.indexOf("iPhone") !== -1;
-    if (isIphone) {
-      window.addEventListener("scroll", (event) => {
-        const editorScrollContainer = document.getElementsByClassName(
-          "interface-interface-skeleton__body"
-        )[0];
-        if (event.target === document) {
-          if (window.scrollY > 100) {
-            editorScrollContainer.scrollTop = editorScrollContainer.scrollTop + window.scrollY;
-          }
-          if (document.getElementsByClassName("is-mode-visual")[0]) {
-            window.scrollTo(0, 0);
-          }
-        }
-      });
     }
     window.addEventListener("dragover", (e) => e.preventDefault(), false);
     window.addEventListener("drop", (e) => e.preventDefault(), false);

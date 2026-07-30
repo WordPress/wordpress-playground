@@ -2,8 +2,11 @@ import type { OriginalUrlParams } from '../original-url-params';
 import type { SiteInfo } from './slice-sites';
 import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 
-describe('stored site creation', () => {
+describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
+	let deleteSite: ReturnType<typeof vi.fn>;
+	let listMetadata: ReturnType<typeof vi.fn>;
+	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
 	let deleteBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -12,14 +15,31 @@ describe('stored site creation', () => {
 	beforeEach(() => {
 		vi.resetModules();
 		createSite = vi.fn();
+		deleteSite = vi.fn();
+		listMetadata = vi.fn().mockResolvedValue([]);
+		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
+		updateSiteStorage.mockImplementation(async (slug, changes) => {
+			const site = createSiteInfo({ slug });
+			return {
+				...site,
+				...('originalUrlParams' in changes
+					? { originalUrlParams: changes.originalUrlParams }
+					: {}),
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
+		});
 		persistBlueprintBundle = vi.fn();
 		deleteBlueprintBundle = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
 
 		vi.doMock('@php-wasm/logger', () => ({
 			logger: {
-				error: vi.fn(),
+				error: loggerError,
+				warn: vi.fn(),
 			},
 		}));
 		vi.doMock('@wp-playground/common', () => ({
@@ -49,6 +69,8 @@ describe('stored site creation', () => {
 		vi.doMock('../opfs/opfs-site-storage', () => ({
 			opfsSiteStorage: {
 				create: createSite,
+				delete: deleteSite,
+				listMetadata,
 				update: updateSiteStorage,
 			},
 		}));
@@ -87,6 +109,19 @@ describe('stored site creation', () => {
 		vi.doUnmock('../url/resolve-blueprint-from-url');
 		vi.doUnmock('./slice-ui');
 		vi.doUnmock('./store');
+	});
+
+	it('classifies a normal autosave but not an unfinished Blueprint run as restorable', async () => {
+		const { isRestorableAutosavedSite } = await import('./slice-sites');
+		const autosave = createSiteInfo({ slug: 'autosave' });
+		autosave.metadata.persistence = 'autosave';
+		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
+		unfinishedRun.metadata.persistence = 'autosave';
+		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
+			'source-site';
+
+		expect(isRestorableAutosavedSite(autosave)).toBe(true);
+		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 
 	it('persists setup URL params when adding a saved site', async () => {
@@ -137,23 +172,16 @@ describe('stored site creation', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			updatedMetadata,
-			originalUrlParams
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 	});
 
 	it('updates redux only after persisted metadata is written', async () => {
@@ -166,8 +194,15 @@ describe('stored site creation', () => {
 			),
 		};
 		const order: string[] = [];
-		updateSiteStorage.mockImplementation(async () => {
+		updateSiteStorage.mockImplementation(async (_slug, changes) => {
 			order.push('opfs');
+			return {
+				...site,
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
 		});
 		const dispatch = vi.fn((action) => {
 			order.push('redux');
@@ -176,15 +211,10 @@ describe('stored site creation', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
@@ -206,16 +236,11 @@ describe('stored site creation', () => {
 			state.sites = sitesSlice.reducer(state.sites, action);
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await expect(
 			updateSite({
 				slug: site.slug,
 				changes: {
-					metadata: updatedMetadata,
+					metadata: { name: 'Renamed Playground' },
 				},
 			})(dispatch as any, () => state as any)
 		).rejects.toThrow(storageError);
@@ -243,21 +268,13 @@ describe('stored site creation', () => {
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: {
-					name: 'Renamed Playground',
-				} as any,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			expect.objectContaining({
-				name: 'Renamed Playground',
-				storage: 'opfs',
-				runtimeConfiguration: site.metadata.runtimeConfiguration,
-			}),
-			undefined
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 		expect(state.sites.entities[site.slug]?.metadata).toEqual({
 			...site.metadata,
 			name: 'Renamed Playground',
@@ -294,6 +311,201 @@ describe('stored site creation', () => {
 		).rejects.toThrow('browser storage is not available');
 
 		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('keeps a stored site in Redux when deleting it from OPFS fails', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const site = createSiteInfo();
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		deleteSite.mockRejectedValue(new Error('Could not delete site'));
+
+		await expect(
+			removeSite(site.slug)(dispatch as any, () => state as any)
+		).rejects.toThrow('Could not delete site');
+
+		expect(state.sites.entities[site.slug]).toEqual(site);
+	});
+
+	it('keeps a stored site in Redux when browser storage is unavailable', async () => {
+		vi.doMock('../opfs/opfs-site-storage', () => ({
+			opfsSiteStorage: undefined,
+		}));
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const site = createSiteInfo();
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+
+		await expect(
+			removeSite(site.slug)(dispatch as any, () => state as any)
+		).rejects.toThrow('browser storage is not available');
+
+		expect(state.sites.entities[site.slug]).toEqual(site);
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it('selects the requested replacement once when removing the active site', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const { selectActiveSite, setActiveSite } = await import('./store');
+		const removedSite = createSiteInfo({ slug: 'failed-import' });
+		const previousSite = createSiteInfo({ slug: 'previous-site' });
+		const newerSite = createSiteInfo({ slug: 'newer-site' });
+		removedSite.metadata.whenCreated = 3;
+		newerSite.metadata.whenCreated = 2;
+		previousSite.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([
+					removedSite,
+					previousSite,
+					newerSite,
+				])
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		vi.mocked(selectActiveSite).mockReturnValue(removedSite);
+
+		await removeSite(removedSite.slug, {
+			replacementSiteSlug: previousSite.slug,
+			updateUrl: false,
+		})(dispatch as any, () => state as any);
+
+		expect(setActiveSite).toHaveBeenCalledOnce();
+		expect(setActiveSite).toHaveBeenCalledWith(previousSite.slug, {
+			updateUrl: false,
+		});
+	});
+
+	it('continues pruning after an autosave cannot be deleted', async () => {
+		const { pruneAutosavedSites, sitesSlice } =
+			await import('./slice-sites');
+		const failedAutosave = createSiteInfo({ slug: 'failed-autosave' });
+		failedAutosave.metadata.persistence = 'autosave';
+		failedAutosave.metadata.whenCreated = 2;
+		const removableAutosave = createSiteInfo({
+			slug: 'removable-autosave',
+		});
+		removableAutosave.metadata.persistence = 'autosave';
+		removableAutosave.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([failedAutosave, removableAutosave])
+			),
+		};
+		const getState = () => state as any;
+		const dispatch: ReturnType<typeof vi.fn> = vi.fn((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		const deletionError = new Error('Could not delete autosave');
+		deleteSite.mockImplementation(async (slug) => {
+			if (slug === failedAutosave.slug) {
+				throw deletionError;
+			}
+		});
+
+		await expect(
+			pruneAutosavedSites({ limit: 0 })(dispatch as any, getState)
+		).resolves.toBeUndefined();
+
+		expect(deleteSite).toHaveBeenCalledWith(failedAutosave.slug);
+		expect(deleteSite).toHaveBeenCalledWith(removableAutosave.slug);
+		expect(state.sites.entities[failedAutosave.slug]).toEqual(
+			failedAutosave
+		);
+		expect(state.sites.entities[removableAutosave.slug]).toBeUndefined();
+		expect(loggerError).toHaveBeenCalledWith(
+			`Failed to prune autosaved Playground "${failedAutosave.slug}"`,
+			deletionError
+		);
+	});
+
+	it('stops an aborted prune before deleting the next autosave', async () => {
+		const { pruneAutosavedSites, sitesSlice } =
+			await import('./slice-sites');
+		const firstAutosave = createSiteInfo({ slug: 'first-autosave' });
+		firstAutosave.metadata.persistence = 'autosave';
+		firstAutosave.metadata.whenCreated = 2;
+		const protectedAutosave = createSiteInfo({
+			slug: 'protected-autosave',
+		});
+		protectedAutosave.metadata.persistence = 'autosave';
+		protectedAutosave.metadata.whenCreated = 1;
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSites([firstAutosave, protectedAutosave])
+			),
+		};
+		const getState = () => state as any;
+		const dispatch: ReturnType<typeof vi.fn> = vi.fn((action) => {
+			if (typeof action === 'function') {
+				return action(dispatch, getState);
+			}
+			state = {
+				sites: sitesSlice.reducer(state.sites, action),
+			};
+			return action;
+		});
+		let finishFirstDeletion!: () => void;
+		const firstDeletionCanFinish = new Promise<void>((resolve) => {
+			finishFirstDeletion = resolve;
+		});
+		deleteSite.mockImplementation(async (slug) => {
+			if (slug === firstAutosave.slug) {
+				await firstDeletionCanFinish;
+			}
+		});
+		const abortController = new AbortController();
+
+		const pruning = pruneAutosavedSites({
+			limit: 0,
+			signal: abortController.signal,
+		})(dispatch as any, getState);
+		await vi.waitFor(() =>
+			expect(deleteSite).toHaveBeenCalledWith(firstAutosave.slug)
+		);
+		abortController.abort();
+		finishFirstDeletion();
+		await pruning;
+
+		expect(deleteSite).not.toHaveBeenCalledWith(protectedAutosave.slug);
+		expect(state.sites.entities[firstAutosave.slug]).toBeUndefined();
+		expect(state.sites.entities[protectedAutosave.slug]).toEqual(
+			protectedAutosave
+		);
 	});
 
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
@@ -335,6 +547,7 @@ describe('stored site creation', () => {
 			name: 'Original Playground',
 		});
 		const editedBundle = createBundleBlueprint();
+		const copiedBundle = createBundleBlueprint();
 		let state = {
 			sites: sitesSlice.reducer(
 				undefined,
@@ -355,6 +568,7 @@ describe('stored site creation', () => {
 		const writes: string[] = [];
 		persistBlueprintBundle.mockImplementation(async () => {
 			writes.push('bundle');
+			return copiedBundle;
 		});
 		createSite.mockImplementation(async () => {
 			writes.push('metadata');
@@ -364,7 +578,10 @@ describe('stored site creation', () => {
 			'Edited Blueprint',
 			editedBundle,
 			'source-site',
-			{ persistence: 'autosave' }
+			{
+				persistence: 'autosave',
+				siteSlugToReturnToIfBlueprintFails: 'source-site',
+			}
 		)(dispatch as any, getState as any);
 
 		expect(newSite.slug).toBe('source-site-2');
@@ -373,7 +590,8 @@ describe('stored site creation', () => {
 			storage: 'opfs',
 			persistence: 'autosave',
 			initialOpfsSyncPending: true,
-			originalBlueprint: editedBundle,
+			siteSlugToReturnToIfBlueprintFails: 'source-site',
+			originalBlueprint: copiedBundle,
 			originalBlueprintSource: { type: 'opfs-site' },
 			runtimeConfiguration,
 		});

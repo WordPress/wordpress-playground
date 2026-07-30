@@ -1,79 +1,70 @@
-.nudge {
+/* Fallback position for when the Playgrounds Dock button is off screen and
+   the card cannot point at it. */
+.nudgeFloating {
 	position: fixed;
 	z-index: 30;
 	top: 62px;
 	right: 16px;
-	display: flex;
-	align-items: stretch;
-	flex-direction: column;
-	gap: 16px;
-	box-sizing: border-box;
-	width: min(400px, calc(100vw - 32px));
-	padding: 18px;
-	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
-	box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
-	color: #1e1e1e;
 }
 
-.copy {
-	min-width: 0;
-}
-
-.title {
-	font-size: 13px;
-	font-weight: 600;
-	line-height: 18px;
-}
-
-.description {
-	margin-top: 4px;
-	color: #50575e;
-	font-size: 12px;
-	line-height: 17px;
+/* Keep the anchored nudge above the Dock (50) but below any modal overlay. */
+.nudgePopover:global(.components-popover) {
+	z-index: 60;
 }
 
 .error {
-	margin-top: 6px;
 	color: #b32d2e;
 	font-size: 12px;
 	line-height: 17px;
 }
 
-.actions {
-	display: flex;
-	align-items: flex-start;
-	flex-direction: column;
-	gap: 10px;
-}
-
-.decisionActions {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 10px;
-}
-
-.preferenceAction {
-	width: 100%;
-	padding-top: 12px;
-	border-top: 1px solid #dcdcde;
-}
-
 .disableNotifications:global(.components-button.is-link) {
-	color: #646970;
+	align-self: flex-start;
+	font-size: 13px;
+	/* The global styles.css strips button underlines with !important. */
+	text-decoration: underline !important;
 }
 
-.disableNotifications:global(.components-button.is-link):hover {
-	color: #3c434a;
+/* On phones the sheet sits directly on page content and its 1px gutters leave
+   no room for a shadow to read, so a passive scrim provides the separation.
+   It stays below the Dock (50) so the Playgrounds button the caret points at
+   keeps full contrast, and it ignores pointer events so a tap anywhere
+   outside still dismisses the nudge. */
+.scrim {
+	display: none;
 }
 
 @media (max-width: 600px) {
-	.nudge {
+	.scrim {
+		display: block;
+		position: fixed;
+		z-index: 25;
+		inset: 0;
+		background: rgb(0 0 0 / 40%);
+		animation: scrimFadeIn 200ms ease-out;
+		pointer-events: none;
+	}
+
+	/* The proactive autosave card spans the viewport above the Dock's bottom
+	   bar; shared callout styles provide its compact spacing. */
+	.nudgePopover .nudge {
+		width: calc(100vw - 4px);
+	}
+
+	.nudgeFloating.nudge {
 		top: 108px;
 		left: 12px;
 		right: 12px;
 		width: auto;
+	}
+}
+
+@keyframes scrimFadeIn {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
 	}
 }

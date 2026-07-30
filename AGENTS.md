@@ -171,6 +171,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   adjacent screens and reuse the existing shared component, variant, sizing, and design tokens. Add
   bespoke CSS only when shared primitives cannot express the required behavior, and verify the result
   side by side with neighboring UI.
+- **Progress states:** Use `PaneLoading` when an entire Dock pane is unavailable and `InlineProgress`
+  when an operation leaves the surrounding pane visible. Keep progress inside an action button only
+  when the button is the sole progress surface; do not show a second spinner or invent another loading
+  container for the same operation.
 - **Path manipulation**: Never use ad-hoc string operations for file paths. Use
   the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
   `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)

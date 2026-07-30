@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
+import { useDockPaneEditorHeaderSlot } from '../../dock/dock-pane';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import css from './style.module.css';
@@ -33,10 +34,12 @@ export function SiteToolPanels({
 	site,
 	playground,
 	activeTabName,
+	mobileUi = false,
 }: {
 	site: SiteInfo;
 	playground: PlaygroundClient | undefined;
 	activeTabName: SiteInfoTabName | null;
+	mobileUi?: boolean;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
@@ -44,6 +47,8 @@ export function SiteToolPanels({
 		() => (activeTabName ? [activeTabName] : [])
 	);
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	const editorHeaderSlot = useDockPaneEditorHeaderSlot();
+	const activeMobileHeaderSlot = mobileUi ? editorHeaderSlot : null;
 	const settingsMounted =
 		activeTabName === 'settings' || mountedTabNames.includes('settings');
 	const filesMounted =
@@ -118,6 +123,11 @@ export function SiteToolPanels({
 								site={site}
 								isVisible={activeTabName === 'files'}
 								documentRoot={documentRoot}
+								mobileHeaderTarget={
+									activeTabName === 'files'
+										? activeMobileHeaderSlot
+										: null
+								}
 							/>
 						) : (
 							// The file browser needs the booted WordPress runtime;
@@ -144,6 +154,11 @@ export function SiteToolPanels({
 							site={site}
 							className={classNames(css.blueprintEditor)}
 							dockPresentation
+							mobileHeaderTarget={
+								activeTabName === 'blueprint'
+									? activeMobileHeaderSlot
+									: null
+							}
 						/>
 					</Suspense>
 				</div>

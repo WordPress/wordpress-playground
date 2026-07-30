@@ -208,6 +208,7 @@ export function UnconnectedSiteSettingsForm({
 
 							{enabledFields.wpVersion && (
 								<CheckboxControl
+									className={css.subOption}
 									label="Include older versions"
 									help={
 										includeOlderVersions

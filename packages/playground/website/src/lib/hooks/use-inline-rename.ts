@@ -50,6 +50,7 @@ export function useInlineRename() {
 			setRenamingSlug(site.slug);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t rename “${site.metadata.name}”`,
 					message:
 						'Your new name is still in the field so you can try again.',

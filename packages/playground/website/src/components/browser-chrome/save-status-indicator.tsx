@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import css from './save-status-indicator.module.css';
+import calloutCss from '../dock-callout.module.css';
 import classNames from 'classnames';
 import {
 	useAppSelector,
@@ -12,8 +13,14 @@ import {
 	setDockPaneSection,
 	setSiteSlugToSave,
 } from '../../lib/state/redux/slice-ui';
-import { Icon, Tooltip, Dropdown, Button } from '@wordpress/components';
-import { check, cautionFilled, chevronDown, update } from '@wordpress/icons';
+import { Button, Dropdown, Icon, Tooltip } from '@wordpress/components';
+import {
+	check,
+	cautionFilled,
+	chevronDown,
+	close,
+	wordpress,
+} from '@wordpress/icons';
 import {
 	isAutosavedSite,
 	MAX_AUTOSAVED_SITES,
@@ -45,6 +52,9 @@ export function SaveStatusIndicator({
 	disabled?: boolean;
 }) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
+	const siteImportProgress = useAppSelector(
+		(state) => state.ui.siteImportProgress
+	);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const previousStatusRef = useRef<{
@@ -55,7 +65,9 @@ export function SaveStatusIndicator({
 	const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
 	const opfsSync = clientInfo?.opfsSync;
-	const status = getSaveStatus(activeSite, clientInfo);
+	const status = siteImportProgress
+		? 'loading'
+		: getSaveStatus(activeSite, clientInfo);
 	const siteSlug = activeSite?.slug;
 	const syncOperation = getSyncOperation({ site: activeSite, opfsSync });
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
@@ -170,7 +182,15 @@ export function SaveStatusIndicator({
 		if (isLocalFs) {
 			return withStatusAnnouncement(
 				<Dropdown
-					popoverProps={{ placement: 'top' }}
+					popoverProps={{
+						placement: 'top',
+						shift: true,
+						noArrow: false,
+						className: classNames(
+							calloutCss.popover,
+							css.savedMenuPopover
+						),
+					}}
 					renderToggle={({ isOpen, onToggle }) => (
 						<button
 							type="button"
@@ -182,7 +202,8 @@ export function SaveStatusIndicator({
 							onClick={onToggle}
 							disabled={disabled}
 							aria-expanded={isOpen}
-							title="Saved to a folder on this computer."
+							aria-haspopup="dialog"
+							title="Saved to a local directory."
 						>
 							<Icon icon={check} size={18} />
 							<span className={css.label}>Saved</span>
@@ -190,16 +211,43 @@ export function SaveStatusIndicator({
 						</button>
 					)}
 					renderContent={({ onClose }) => (
-						<div className={css.savedMenuContent}>
-							<p className={css.savedMenuHint}>
-								This Playground is saved to a folder on your
-								computer. Changes you make here are written to
-								those files.
-							</p>
+						<aside
+							className={calloutCss.card}
+							role="dialog"
+							aria-label="Local directory save status"
+						>
+							<div className={calloutCss.header}>
+								<div className={calloutCss.eyebrow}>
+									Local directory
+								</div>
+								<Button
+									className={calloutCss.dismiss}
+									icon={close}
+									label="Close local directory status"
+									onClick={onClose}
+								/>
+							</div>
+							<div className={calloutCss.identity}>
+								<span
+									className={calloutCss.avatar}
+									aria-hidden="true"
+								>
+									<Icon icon={wordpress} size={28} />
+								</span>
+								<div className={calloutCss.identityCopy}>
+									<div className={calloutCss.identityTitle}>
+										{activeSite?.metadata.name}
+									</div>
+									<div className={calloutCss.identityMeta}>
+										Saved directly to the linked folder
+									</div>
+								</div>
+							</div>
 							<Button
-								className={css.savedMenuAction}
-								icon={update}
+								variant="primary"
+								className={calloutCss.primaryAction}
 								disabled={disabled || isReloadingFromDisk}
+								isBusy={isReloadingFromDisk}
 								onClick={async () => {
 									await reloadFilesFromDisk();
 									onClose();
@@ -209,7 +257,11 @@ export function SaveStatusIndicator({
 									? 'Reloading…'
 									: 'Reload files from disk'}
 							</Button>
-						</div>
+							<p className={calloutCss.hint}>
+								Reload to pick up edits made to the folder
+								outside Playground.
+							</p>
+						</aside>
 					)}
 				/>
 			);

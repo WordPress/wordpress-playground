@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@wordpress/components';
+import classNames from 'classnames';
+import { Button, Icon, Popover } from '@wordpress/components';
+import { close, wordpress } from '@wordpress/icons';
 import css from './restore-autosave-nudge.module.css';
+import calloutCss from '../dock-callout.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
+	getSiteRecencyTimestamp,
 	isAutosavedSite,
+	isRestorableAutosavedSite,
 	selectSiteBySlug,
 	selectSortedSites,
 	type SiteInfo,
@@ -34,7 +39,10 @@ import {
 } from '../../lib/state/playground-identity';
 import { getRelativeDate } from '../../lib/get-relative-date';
 import { listenForPointerDownAcrossIframes } from './listen-for-pointer-down-across-iframes';
-import { RecentAutosaveNudgeProvider } from './recent-autosave-nudge-context';
+import {
+	RecentAutosaveNudgeProvider,
+	useRecentAutosaveNudgeAnchor,
+} from './recent-autosave-nudge-context';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -95,8 +103,14 @@ export function EnsurePlaygroundSiteIsSelected({
 		() => getAutosaveFingerprintFromURL(url),
 		[url.href]
 	);
+	// An open Dock pane owns the screen (all of it on mobile), so the nudge
+	// waits for it to close instead of covering it. This also keeps Escape
+	// working for the pane: the Dock lets any open popover consume Escape
+	// first, but the nudge popover never does.
+	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const canShowAutosaveNudge =
 		youHaveAutosaveNudgeEnabled &&
+		!dockPaneIsOpen &&
 		autosaveNudge &&
 		activeSite &&
 		activeSite.slug !== autosaveNudge.site.slug &&
@@ -118,6 +132,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				logger.error('Error loading sites:', error);
 				dispatch(
 					setDockOperationNotice({
+						status: 'error',
 						title: 'Couldn’t load Playgrounds',
 						message:
 							'Reload the page to try browser storage again.',
@@ -199,11 +214,20 @@ export function EnsurePlaygroundSiteIsSelected({
 			if (shouldUseTemporarySite) {
 				await sitesAPI.createNewTemporarySite();
 			} else {
-				// A matching autosave may already be waiting for its first OPFS
-				// sync. Keep it selected instead of creating a duplicate for the
-				// same setup URL.
+				// `initialOpfsSyncPending` describes two different situations:
+				//
+				// 1. A site created in this tab is still copying WordPress files
+				//    into OPFS. If this effect runs again before the copy finishes,
+				//    keep that site active instead of creating a duplicate.
+				// 2. A site loaded from OPFS still has the flag because an earlier
+				//    tab closed or reloaded during the copy. That site is incomplete
+				//    and cannot boot. For example, "Start a new Playground" must be
+				//    allowed to create a different site instead of keeping it active.
+				//
+				// `loadedFromStorage` distinguishes the interrupted second case.
 				if (
 					activeSite &&
+					activeSite.loadedFromStorage !== true &&
 					isAutosavedSite(activeSite) &&
 					activeSite.metadata.initialOpfsSyncPending &&
 					getAutosaveFingerprintFromSite(activeSite) ===
@@ -216,7 +240,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				// setup URL. A different setup URL should create a fresh
 				// Playground even if another autosave exists.
 				const matchingAutosave = sortedSites
-					.filter(isAutosavedSite)
+					.filter(isRestorableAutosavedSite)
 					.find(
 						(site) =>
 							getAutosaveFingerprintFromSite(site) ===
@@ -300,24 +324,32 @@ export function EnsurePlaygroundSiteIsSelected({
 		setAutosaveNudge(undefined);
 		setAutosaveNudgeError(undefined);
 		setIsAutosaveNudgeActionPending(true);
+		// Dismissing the restore choice settles it for this page load. If keeping
+		// the new Playground fails, report that save failure separately instead of
+		// reopening a prompt about the older autosave.
+		setDeclinedYouHaveAutosaveFingerprints((fingerprints) =>
+			fingerprints.includes(dismissedNudge.setupUrlFingerprint)
+				? fingerprints
+				: [...fingerprints, dismissedNudge.setupUrlFingerprint]
+		);
 		try {
 			await sitesAPI.autosaveTemporarySite(undefined, {
 				updateUrl: false,
 				excludeFromPruning: [dismissedNudge.site.slug],
 			});
-			setDeclinedYouHaveAutosaveFingerprints((fingerprints) => [
-				...fingerprints,
-				dismissedNudge.setupUrlFingerprint,
-			]);
 			return true;
 		} catch (error) {
 			logger.error(
 				'Error autosaving the new Playground after declining restore.',
 				error
 			);
-			setAutosaveNudge(dismissedNudge);
-			setAutosaveNudgeError(
-				'Could not keep the new Playground. Please try again.'
+			dispatch(
+				setDockOperationNotice({
+					status: 'error',
+					title: 'Couldn’t autosave this Playground',
+					message:
+						'It’s still open but will be lost on refresh. Your earlier autosave is unchanged.',
+				})
 			);
 			return false;
 		} finally {
@@ -359,9 +391,6 @@ export function EnsurePlaygroundSiteIsSelected({
 							setIsAutosaveNudgeActionPending(false);
 						}
 					}}
-					onKeepNew={async () => {
-						await keepNewPlayground();
-					}}
 					onDismiss={async () => {
 						await keepNewPlayground();
 					}}
@@ -379,13 +408,17 @@ export function EnsurePlaygroundSiteIsSelected({
 
 /**
  * Shows the restore choice for a recent autosave matching the current setup URL.
+ *
+ * The choice concerns saved Playgrounds, so the card is anchored right above
+ * the Playgrounds Dock button with a caret pointing at it. A collapsed Dock
+ * hides that button and the caret points at the save status instead; a
+ * cornered Dock shows neither and the card floats in the top-right corner.
  */
 function YouHaveAutosaveNudge({
 	site,
 	error,
 	isBusy,
 	onRestore,
-	onKeepNew,
 	onDismiss,
 	onDisableNotifications,
 }: {
@@ -393,12 +426,12 @@ function YouHaveAutosaveNudge({
 	error?: string;
 	isBusy: boolean;
 	onRestore: () => Promise<void>;
-	onKeepNew: () => Promise<void>;
 	onDismiss: () => Promise<void>;
 	onDisableNotifications: () => Promise<void>;
 }) {
 	const nudgeRef = useRef<HTMLElement>(null);
-	const createdAt = new Date(site.metadata.whenCreated ?? Date.now());
+	const anchorButton = useRecentAutosaveNudgeAnchor();
+	const autosavedAt = new Date(getSiteRecencyTimestamp(site) || Date.now());
 
 	useEffect(() => {
 		const dismissOnOutsidePointer = (event: PointerEvent) => {
@@ -410,52 +443,84 @@ function YouHaveAutosaveNudge({
 		return listenForPointerDownAcrossIframes(dismissOnOutsidePointer);
 	}, [isBusy, onDismiss]);
 
-	return (
+	const card = (
 		<aside
 			ref={nudgeRef}
-			className={css.nudge}
+			className={classNames(calloutCss.card, css.nudge, {
+				[css.nudgeFloating]: !anchorButton,
+				[calloutCss.surface]: !anchorButton,
+			})}
 			aria-label="Recent autosaved Playground"
 		>
-			<div className={css.copy}>
-				<div className={css.title}>Recent autosave available</div>
-				<div className={css.description}>
-					Another Playground was created {getRelativeDate(createdAt)}{' '}
-					from the same URL.
-				</div>
-				{error && (
-					<div className={css.error} role="alert">
-						{error}
+			<div className={calloutCss.header}>
+				<div className={calloutCss.eyebrow}>Recent autosave</div>
+				<Button
+					className={calloutCss.dismiss}
+					icon={close}
+					label="Dismiss and keep this Playground"
+					onClick={onDismiss}
+					disabled={isBusy}
+				/>
+			</div>
+			<div className={calloutCss.identity}>
+				<span className={calloutCss.avatar} aria-hidden="true">
+					<Icon icon={wordpress} size={28} />
+				</span>
+				<div className={calloutCss.identityCopy}>
+					<div className={calloutCss.identityTitle}>
+						{site.metadata.name}
 					</div>
-				)}
-			</div>
-			<div className={css.actions}>
-				<div className={css.decisionActions}>
-					<Button
-						variant="primary"
-						onClick={onRestore}
-						disabled={isBusy}
-					>
-						Restore Autosave
-					</Button>
-					<Button
-						variant="tertiary"
-						onClick={onKeepNew}
-						disabled={isBusy}
-					>
-						Keep this Playground
-					</Button>
-				</div>
-				<div className={css.preferenceAction}>
-					<Button
-						variant="link"
-						className={css.disableNotifications}
-						onClick={onDisableNotifications}
-						disabled={isBusy}
-					>
-						Stop showing autosave prompts
-					</Button>
+					<div className={calloutCss.identityMeta}>
+						Autosaved {getRelativeDate(autosavedAt)}
+					</div>
 				</div>
 			</div>
+			{error && (
+				<div className={css.error} role="alert">
+					{error}
+				</div>
+			)}
+			<Button
+				variant="primary"
+				className={calloutCss.primaryAction}
+				onClick={onRestore}
+				disabled={isBusy}
+			>
+				Restore autosave
+			</Button>
+			<p className={calloutCss.hint}>
+				Kept in this browser as a periodic snapshot — not every change
+				is saved.
+			</p>
+			<Button
+				variant="link"
+				className={css.disableNotifications}
+				onClick={onDisableNotifications}
+				disabled={isBusy}
+			>
+				Don’t notify me about autosaves
+			</Button>
 		</aside>
+	);
+
+	return (
+		<>
+			<div className={css.scrim} aria-hidden="true" />
+			{anchorButton ? (
+				<Popover
+					className={classNames(calloutCss.popover, css.nudgePopover)}
+					anchor={anchorButton}
+					placement="top"
+					offset={18}
+					shift
+					noArrow={false}
+					focusOnMount={false}
+				>
+					{card}
+				</Popover>
+			) : (
+				card
+			)}
+		</>
 	);
 }
