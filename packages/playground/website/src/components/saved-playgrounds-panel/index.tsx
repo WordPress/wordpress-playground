@@ -327,6 +327,12 @@ export function SavedPlaygroundsPanel({
 		}
 	};
 
+	/**
+	 * Imports a ZIP and reports readiness before any initial browser save finishes.
+	 *
+	 * A rejection after readiness replaces the success notice instead of
+	 * reopening the import pane, which closed when the import started.
+	 */
 	const importZipFile = useCallback(
 		async (file: File) => {
 			if (zipImportPendingRef.current) {
@@ -347,24 +353,36 @@ export function SavedPlaygroundsPanel({
 			setIsImportingZip(true);
 			setZipImportError(undefined);
 			onClose();
+			let playgroundLoaded = false;
 			try {
-				const importedSiteSlug =
-					await sitesAPI.createNewSiteFromZip(file);
-				const importedSite = sitesAPI
-					.list()
-					.find((site) => site.slug === importedSiteSlug);
-				dispatch(
-					setDockOperationNotice({
-						status: 'success',
-						title: 'Playground imported',
-						message:
-							importedSite?.storage === 'temporary'
-								? 'Your Playground is ready. It’s available until you close this page.'
-								: 'Your Playground is ready. It’s autosaved in this browser.',
-					})
-				);
+				await sitesAPI.createNewSiteFromZip(file, {
+					onPlaygroundLoaded: (storage) => {
+						playgroundLoaded = true;
+						dispatch(
+							setDockOperationNotice({
+								status: 'success',
+								title: 'Playground imported',
+								message:
+									storage === 'temporary'
+										? 'Your Playground is ready. It’s available until you close this page.'
+										: 'Your Playground is ready. Autosave will finish in the background.',
+							})
+						);
+					},
+				});
 			} catch (error) {
 				logger.error(error);
+				if (playgroundLoaded) {
+					dispatch(
+						setDockOperationNotice({
+							status: 'error',
+							title: 'Couldn’t autosave imported Playground',
+							message:
+								'The imported page was ready, but its browser autosave failed.',
+						})
+					);
+					return;
+				}
 				setZipImportError(
 					'Unable to import this file. Is it a valid WordPress Playground export?'
 				);

@@ -625,7 +625,8 @@ function waitForPendingOpfsSiteRemovalRetry(
  * browser storage.
  *
  * The iframe is already usable when this runs. Redux keeps showing sync
- * progress until the copy succeeds, then future boots can mount OPFS normally.
+ * progress until the file copy, final journal flush, and constant snapshot
+ * succeed. Future boots can then mount OPFS normally.
  */
 async function syncInitialOpfsFilesInBackground({
 	playground,
@@ -675,13 +676,20 @@ async function syncInitialOpfsFilesInBackground({
 		if (signal.aborted) {
 			return false;
 		}
+		// mountOpfs() starts the final journal flush without waiting for it.
+		// Keep the syncing viewport alive until changes captured during the
+		// initial copy have reached OPFS.
+		await playground.flushOpfs(mountDescriptor.mountpoint);
+		if (signal.aborted) {
+			return false;
+		}
 		const playgroundDefinedConstants =
 			await getPlaygroundDefinedPHPConstants(playground);
 		if (signal.aborted) {
 			return false;
 		}
 		// Clear the return target in the same metadata write that completes the
-		// initial copy so failed copies retain their recovery action.
+		// initial sync so failed copies retain their recovery action.
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,

@@ -24,6 +24,11 @@ async function createTestWordPressZip(
 	return Buffer.from(zipBytes!);
 }
 
+/**
+ * Drops a ZIP through the page-level import target.
+ *
+ * By default, also confirms a transient dragleave does not dismiss the overlay.
+ */
 async function dropZipFile(
 	page: Page,
 	name: string,
@@ -46,13 +51,16 @@ async function dropZipFile(
 	await expect(
 		page.getByRole('button', { name: /Drop a Playground ZIP here/ })
 	).toBeVisible();
-	await page.waitForTimeout(50);
 	const pane = page.getByRole('dialog', { name: 'New Playground pane' });
 	const paneText = await pane.innerText();
 	const pageBody = page.locator('body');
-	await pageBody.dispatchEvent('dragenter', { dataTransfer });
 	const overlay = page.locator('[data-cy="zip-drop-overlay"]');
-	await expect(overlay).toBeVisible();
+	await expect
+		.poll(async () => {
+			await pageBody.dispatchEvent('dragenter', { dataTransfer });
+			return overlay.isVisible();
+		})
+		.toBe(true);
 	await expect
 		.poll(() =>
 			overlay.evaluate((element) => {
@@ -477,6 +485,15 @@ async function getInitialOpfsSyncPending(page: Page, siteSlug: string) {
 		},
 		{ directoryName: getDirectoryNameForSlug(siteSlug) }
 	);
+}
+
+/** Waits until a new OPFS site is safe to reload. */
+async function waitForInitialOpfsSync(page: Page, siteSlug: string) {
+	await expect
+		.poll(() => getInitialOpfsSyncPending(page, siteSlug), {
+			timeout: 120000,
+		})
+		.toBe(false);
 }
 
 async function waitForActivePlaygroundSiteSlug(
@@ -1267,7 +1284,7 @@ test('should show an inline error for a non-ZIP drop', async ({
 	).toBeVisible();
 });
 
-test('should finish autosaving a ZIP import after switching Playgrounds', async ({
+test('should notify when a ZIP import loads before autosave finishes', async ({
 	website,
 	browserName,
 }) => {
@@ -1297,10 +1314,13 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 	const autosaveProgress = website.page.getByRole('progressbar', {
 		name: 'Autosave progress',
 	});
+	const importNotice = website.page
+		.getByRole('group', { name: 'Operation succeeded' })
+		.filter({ hasText: 'Playground imported' });
 	const importProgressStarted = expect(importProgress).toBeVisible({
 		timeout: 120000,
 	});
-	const switchWhileAutosaving = (async () => {
+	const notifyWhileAutosaving = (async () => {
 		await expect(autosaveProgress).toBeVisible({ timeout: 120000 });
 		const importedSite = await getActivePlaygroundSite(website.page);
 		expect(importedSite).toMatchObject({
@@ -1308,6 +1328,10 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 			persistence: 'autosave',
 		});
 		await setActivePlaygroundSite(website.page, sourceSite.slug);
+		await expect(importNotice).toBeVisible();
+		expect(
+			await getInitialOpfsSyncPending(website.page, importedSite.slug)
+		).toBe(true);
 		return importedSite;
 	})();
 	const importProgressAdvanced = expect
@@ -1334,24 +1358,25 @@ test('should finish autosaving a ZIP import after switching Playgrounds', async 
 	await expect(autosaveProgress).toHaveCount(0);
 	await importProgressAdvanced;
 	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
-	const importedSite = await switchWhileAutosaving;
+	const importedSite = await notifyWhileAutosaving;
 
-	await expect
-		.poll(
-			() => getInitialOpfsSyncPending(website.page, importedSite.slug),
-			{ timeout: 120000 }
-		)
-		.toBe(false);
+	// Reopen the retained import runtime before its background sync finishes.
+	// setActiveSite() must not wait for a second client-added event.
+	await setActivePlaygroundSite(website.page, importedSite.slug);
+	expect((await getActivePlaygroundSite(website.page)).slug).toBe(
+		importedSite.slug
+	);
+	await setActivePlaygroundSite(website.page, sourceSite.slug);
 
 	const newPlaygroundButton = website.page.getByRole('button', {
 		name: 'New Playground',
 		exact: true,
 	});
 	await expect(newPlaygroundButton).toBeEnabled();
-	await expect(
-		website.page.getByText('Playground imported', { exact: true })
-	).toBeVisible({ timeout: 120000 });
 
+	// A full page load discards the retained runtime. Let its background sync
+	// finish before verifying that the imported files survive a cold boot.
+	await waitForInitialOpfsSync(website.page, importedSite.slug);
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSite.slug)}`);
 
 	await expect
@@ -1640,6 +1665,7 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	);
 	expect(importedSite?.slug).toBeTruthy();
 	const importedSiteSlug = importedSite.slug;
+	await waitForInitialOpfsSync(website.page, importedSiteSlug);
 	// Discard the import runtime before requesting the marker. The fresh runtime
 	// must load the imported file from persisted OPFS state.
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
@@ -1983,6 +2009,7 @@ PHP;
 		.toBe(true);
 	website.page.off('dialog', acceptImportDialog);
 
+	await waitForInitialOpfsSync(website.page, importedSiteSlug);
 	// Reboot the imported site so the final assertion reads the customization
 	// from persisted OPFS state rather than the import runtime.
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
