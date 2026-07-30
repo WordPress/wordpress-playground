@@ -51,7 +51,7 @@
 	margin: 19px auto 0;
 	overflow: hidden;
 	border-radius: 999px;
-	background: #d8dce2;
+	background: var(--surface-control-active);
 	box-shadow:
 		0 1px 0 rgb(255 255 255 / 0.72) inset,
 		0 10px 24px rgb(0 0 0 / 0.08);
@@ -71,9 +71,13 @@
 	transform: translateX(-100%);
 }
 
+.progress-wrapper[aria-valuenow]::after {
+	display: none;
+}
+
 @media (prefers-color-scheme: dark) {
 	.loading-viewport {
-		background: #1e1e1e;
+		background: var(--loading-surface-dark);
 	}
 
 	.loading-caption {
@@ -81,7 +85,7 @@
 	}
 
 	.progress-wrapper {
-		background: #2f3338;
+		background: var(--loading-track-dark);
 		box-shadow:
 			inset 0 0 0 1px rgb(255 255 255 / 0.04),
 			0 10px 28px rgb(0 0 0 / 0.22);
@@ -100,9 +104,20 @@
 	right: 100%;
 	z-index: 1;
 	width: 0;
-	background: linear-gradient(90deg, #3858e9 0%, #6f7dff 100%);
+	background: linear-gradient(
+		90deg,
+		var(--accent) 0%,
+		var(--accent-soft) 100%
+	);
 	border-radius: inherit;
 	animation: indefinite-loading 2s linear infinite;
+}
+
+.progress-wrapper[aria-valuenow] .progress-bar {
+	right: auto;
+	width: var(--loading-progress);
+	animation: none;
+	transition: width 150ms ease-out;
 }
 
 @keyframes track-shimmer {
@@ -138,5 +153,9 @@
 	.progress-wrapper::after,
 	.progress-bar {
 		animation: none;
+	}
+
+	.progress-wrapper[aria-valuenow] .progress-bar {
+		transition: none;
 	}
 }

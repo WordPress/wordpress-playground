@@ -10,7 +10,7 @@ import {
 	useAppDispatch,
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
-import { setActiveSiteError, setSiteImportIsRunning } from './slice-ui';
+import { setActiveSiteError, setSiteImportProgress } from './slice-ui';
 import {
 	addClientInfo,
 	removeClientInfo,
@@ -64,6 +64,11 @@ export interface SiteSettings {
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
 type ZipImportProgress = ProgressDetails;
+type ZipImportProgressCallback = (progress: ZipImportProgress) => void;
+type ZipImportOptions = {
+	onProgress?: ZipImportProgressCallback;
+	onPlaygroundLoaded?: (storage: 'opfs' | 'temporary') => void;
+};
 
 const ZIP_INSTALL_PROGRESS_PERCENT = 85;
 const ZIP_STORAGE_PROGRESS_PERCENT = 100 - ZIP_INSTALL_PROGRESS_PERCENT;
@@ -764,6 +769,12 @@ export function createSitesAPI(
 			if (activeSite?.slug === siteSlug) {
 				return;
 			}
+			if (selectClientInfoBySiteSlug(state, siteSlug)) {
+				// Retained temporary or syncing viewports already have a running
+				// client, so activation does not emit addClientInfo again.
+				await dispatch(setActiveSite(siteSlug, options));
+				return;
+			}
 			const bootPromise = new Promise<void>((resolve, reject) => {
 				const unsubscribe = startListening({
 					predicate: (action) =>
@@ -839,13 +850,25 @@ export function createSitesAPI(
 		 * MEMFS before the initial OPFS copy, avoiding an empty-site persistence pass.
 		 *
 		 * @param wordPressFilesZip Playground ZIP export.
+		 * @param options Import lifecycle callbacks. Passing a bare progress
+		 *   callback remains supported.
 		 * @returns The new site's slug.
 		 */
 		async createNewSiteFromZip(
 			wordPressFilesZip: File,
-			onProgress?: (progress: ZipImportProgress) => void
+			options: ZipImportOptions | ZipImportProgressCallback = {}
 		): Promise<string> {
-			dispatch(setSiteImportIsRunning(true));
+			const callbacks: ZipImportOptions =
+				typeof options === 'function'
+					? { onProgress: options }
+					: options;
+			const { onProgress, onPlaygroundLoaded } = callbacks;
+			dispatch(
+				setSiteImportProgress({
+					caption: 'Starting import',
+					progress: 0,
+				})
+			);
 			try {
 				const tracker = new ProgressTracker();
 				const importWeight = opfsSiteStorage
@@ -854,10 +877,12 @@ export function createSitesAPI(
 				tracker.addEventListener(
 					'progress',
 					(event: ProgressTrackerEvent) => {
-						onProgress?.({
+						const progress = {
 							caption: event.detail.caption,
 							progress: event.detail.progress * importWeight,
-						});
+						};
+						dispatch(setSiteImportProgress(progress));
+						onProgress?.(progress);
 					}
 				);
 				const initialOpfsSyncProgress = opfsSiteStorage
@@ -889,7 +914,10 @@ export function createSitesAPI(
 					});
 					// The imported page is ready. Reveal it while createSavedSite waits
 					// for the initial OPFS autosave to finish.
-					dispatch(setSiteImportIsRunning(false));
+					dispatch(setSiteImportProgress(undefined));
+					onPlaygroundLoaded?.(
+						opfsSiteStorage ? 'opfs' : 'temporary'
+					);
 				};
 				if (!opfsSiteStorage) {
 					return await createTemporarySite(
@@ -908,7 +936,7 @@ export function createSitesAPI(
 				onProgress?.({ caption: 'Import complete', progress: 100 });
 				return siteSlug;
 			} finally {
-				dispatch(setSiteImportIsRunning(false));
+				dispatch(setSiteImportProgress(undefined));
 			}
 		},
 	};

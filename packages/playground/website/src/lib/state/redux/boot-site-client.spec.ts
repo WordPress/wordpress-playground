@@ -470,13 +470,135 @@ describe('bootSiteClient', () => {
 		);
 	});
 
-	it('clears the return target after the initial OPFS copy succeeds', async () => {
+	it('replays live auto-login constants after a saved site finishes its initial OPFS copy', async () => {
+		const firstPlayground = createPlaygroundClient({
+			fileExists: vi.fn(async () => true),
+			readFileAsText: vi.fn(async () =>
+				JSON.stringify({
+					PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+				})
+			),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(firstPlayground);
+				return firstPlayground;
+			}
+		);
+		const site = createSite('auto-login', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('auto-login', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		await vi.waitFor(() =>
+			expect(
+				state.sites.entities['auto-login'].metadata
+					.playgroundDefinedConstants
+			).toEqual({
+				PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+			})
+		);
+		expect(opfsSiteStorage!.update).toHaveBeenCalledWith('auto-login', {
+			metadata: expect.objectContaining({
+				initialOpfsSyncPending: false,
+				playgroundDefinedConstants: {
+					PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+				},
+			}),
+		});
+
+		const reloadedSite = {
+			...state.sites.entities['auto-login'],
+			loadedFromStorage: true,
+		};
+		const reloadedState = createState(reloadedSite);
+		await bootSiteClient('auto-login', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(createDispatch(reloadedState), () => reloadedState);
+
+		expect(startPlaygroundWeb).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				blueprint: expect.objectContaining({
+					constants: expect.objectContaining({
+						PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+					}),
+				}),
+			})
+		);
+	});
+
+	it('keeps the initial OPFS copy pending when live constants cannot be read', async () => {
+		const constantsError = new Error('Unable to read live constants');
+		const playground = createPlaygroundClient({
+			fileExists: vi.fn(async () => true),
+			readFileAsText: vi.fn(async () => {
+				throw constantsError;
+			}),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('constants-read-failed', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'constants-read-failed',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+		await vi.waitFor(() =>
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: 'clients/updateClientInfo',
+					payload: expect.objectContaining({
+						siteSlug: 'constants-read-failed',
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: 'autosave',
+							},
+						},
+					}),
+				})
+			)
+		);
+
+		expect(
+			state.sites.entities['constants-read-failed'].metadata
+				.initialOpfsSyncPending
+		).toBe(true);
+		expect(opfsSiteStorage!.update).not.toHaveBeenCalledWith(
+			'constants-read-failed',
+			{
+				metadata: expect.objectContaining({
+					initialOpfsSyncPending: false,
+				}),
+			}
+		);
+	});
+
+	it('keeps the initial OPFS sync pending until the final flush succeeds', async () => {
 		let resolveMount = () => {};
 		const mountFinished = new Promise<void>((resolve) => {
 			resolveMount = resolve;
 		});
+		let resolveFlush = () => {};
+		const flushFinished = new Promise<void>((resolve) => {
+			resolveFlush = resolve;
+		});
 		const playground = createPlaygroundClient({
 			mountOpfs: vi.fn(() => mountFinished),
+			flushOpfs: vi.fn(() => flushFinished),
 		});
 		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
 			async (options: any) => {
@@ -505,11 +627,33 @@ describe('bootSiteClient', () => {
 		).toBe('source-site');
 		resolveMount();
 		await vi.waitFor(() =>
+			expect(playground.flushOpfs).toHaveBeenCalledWith('/wordpress')
+		);
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.initialOpfsSyncPending
+		).toBe(true);
+		expect(state.clients.entities['blueprint-run']?.opfsSync?.status).toBe(
+			'syncing'
+		);
+		resolveFlush();
+		await vi.waitFor(() => {
 			expect(
 				state.sites.entities['blueprint-run'].metadata
 					.siteSlugToReturnToIfBlueprintFails
-			).toBeUndefined()
-		);
+			).toBeUndefined();
+			expect(
+				state.sites.entities['blueprint-run'].metadata
+					.initialOpfsSyncPending
+			).toBe(false);
+			expect(
+				state.clients.entities['blueprint-run']?.opfsSync
+			).toBeUndefined();
+		});
 	});
 
 	it('keeps Blueprint recovery behind private repository authentication', async () => {
@@ -835,7 +979,9 @@ function createSite(
 
 function createPlaygroundClient(overrides: Record<string, unknown> = {}): any {
 	return {
+		fileExists: vi.fn(async () => false),
 		mountOpfs: vi.fn(async () => undefined),
+		flushOpfs: vi.fn(async () => undefined),
 		onNavigation: vi.fn(),
 		...overrides,
 	};

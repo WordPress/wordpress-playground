@@ -52,7 +52,7 @@
 .github-export-form :global(select),
 .github-export-form :global(textarea) {
 	background: #ffffff;
-	border: 1px solid var(--line-control);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card);
 	box-shadow: none;
 	box-sizing: border-box;
@@ -137,9 +137,9 @@
 
 .group-icon {
 	align-items: center;
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-radius: var(--radius-card);
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 	display: flex;
 	flex-shrink: 0;
 	height: 38px;
@@ -196,5 +196,5 @@
 }
 
 .error {
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 }

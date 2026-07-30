@@ -1,5 +1,6 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
 
@@ -172,7 +173,7 @@ export interface UIState {
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	shareExportOpen: boolean;
-	siteImportIsRunning: boolean;
+	siteImportProgress?: ProgressDetails;
 	dockPaneIsOpen: boolean;
 	dockPaneSection: DockPaneSection;
 	/**
@@ -215,7 +216,6 @@ const initialState: UIState = {
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
 	shareExportOpen: false,
-	siteImportIsRunning: false,
 	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
 	// even if they seem redundant. We may experiment with toggling the Dock
 	// pane to be open by default or closed by default, and we do not want to
@@ -304,8 +304,11 @@ const uiSlice = createSlice({
 		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
 			state.shareExportOpen = action.payload;
 		},
-		setSiteImportIsRunning: (state, action: PayloadAction<boolean>) => {
-			state.siteImportIsRunning = action.payload;
+		setSiteImportProgress: (
+			state,
+			action: PayloadAction<ProgressDetails | undefined>
+		) => {
+			state.siteImportProgress = action.payload;
 		},
 		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
 			state.dockPaneSection = action.payload;
@@ -389,7 +392,7 @@ export const {
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setShareExportOpen,
-	setSiteImportIsRunning,
+	setSiteImportProgress,
 	setDockPaneOpen,
 	setDockPaneSection,
 	setWriteOwnBlueprintDraft,

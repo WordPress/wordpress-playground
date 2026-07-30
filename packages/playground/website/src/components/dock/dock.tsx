@@ -37,6 +37,7 @@ import {
 } from '../../lib/dock-full-width';
 import {
 	getActiveClientInfo,
+	selectActiveSiteError,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -192,6 +193,7 @@ export function Dock({
 	const dispatch = useAppDispatch();
 	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
+	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const section = useAppSelector((state) => state.ui.dockPaneSection);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
 	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
@@ -1152,8 +1154,8 @@ export function Dock({
 					headerOverride={paneHeaderOverride}
 					className={classNames({
 						[css.hostPaneHidden]:
-							!dockPaneIsOpen && paneExitComplete,
-						[css.paneSave]: section === 'save',
+							Boolean(activeSiteError) ||
+							(!dockPaneIsOpen && paneExitComplete),
 						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}

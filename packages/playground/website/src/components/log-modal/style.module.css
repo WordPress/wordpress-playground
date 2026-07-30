@@ -13,8 +13,8 @@
 /* The toolbar pins to the top of the scrolling pane so search and filters
    stay reachable while long logs scroll underneath. */
 .log-toolbar {
-	background: var(--paper-1, #fff);
-	box-shadow: 0 1px 0 var(--line-subtle, rgba(33, 32, 29, 0.08));
+	background: var(--surface);
+	box-shadow: 0 1px 0 var(--border-subtle);
 	padding: var(--space-2, 8px) 0 var(--space-3, 12px);
 	position: sticky;
 	top: 0;
@@ -31,9 +31,9 @@
 
 .log-filter-chip {
 	background: none;
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border: 1px solid var(--interactive-border);
 	border-radius: 999px;
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	cursor: pointer;
 	font-size: 12px;
 	font-weight: 500;
@@ -42,16 +42,16 @@
 }
 
 .log-filter-chip:hover:not(:disabled) {
-	border-color: var(--line-hover, rgba(33, 32, 29, 0.22));
-	color: var(--ink, #21201d);
+	border-color: var(--interactive-border-hover);
+	color: var(--ink);
 }
 
-/* The active chip fills with a warm neutral instead of near-black so the
+/* The active chip fills with a light neutral instead of near-black so the
    filter row stays quieter than the log content it controls. */
 .log-filter-chip[aria-pressed='true'] {
-	background: var(--paper-5, #e2dcd2);
-	border-color: var(--paper-5, #e2dcd2);
-	color: var(--ink, #21201d);
+	background: var(--surface-control-active);
+	border-color: var(--surface-control-active);
+	color: var(--ink);
 }
 
 .log-filter-chip:disabled {
@@ -68,7 +68,7 @@
 .log-copy-all {
 	background: none;
 	border: 0;
-	color: var(--accent-link, #2645c9);
+	color: var(--accent-link);
 	cursor: pointer;
 	font-size: 12px;
 	font-weight: 500;
@@ -94,7 +94,7 @@
    with a copy slot on the right. The message is the widest and darkest
    element, so the eye lands on it. */
 .log-entry {
-	border-block-end: 1px solid var(--line-subtle, rgba(33, 32, 29, 0.08));
+	border-block-end: 1px solid var(--border-subtle);
 	column-gap: var(--space-4, 16px);
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 24px;
@@ -111,7 +111,7 @@
 }
 
 .log-timestamp {
-	color: var(--ink-faint, #8a857b);
+	color: var(--ink-faint);
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
 	grid-column: 1;
@@ -129,7 +129,7 @@
 }
 
 .log-severity-head[data-tier='info'] {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 }
 
 .log-copy {
@@ -137,7 +137,7 @@
 	background: none;
 	border: 0;
 	border-radius: var(--radius-control, 6px);
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 	cursor: pointer;
 	display: flex;
 	grid-column: 2;
@@ -157,11 +157,11 @@
 }
 
 .log-copy:hover {
-	background: var(--paper-4, #e7e2da);
+	background: var(--surface-control-hover);
 }
 
 .log-entry-message {
-	color: var(--ink-soft, #2f2d28);
+	color: var(--ink-soft);
 	font-family:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 	font-size: 12px;
@@ -183,14 +183,14 @@
 .log-entry-message mark {
 	background: #f2e2ac;
 	border-radius: 3px;
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	padding: 0 2px;
 }
 
 .log-entry-toggle {
 	background: none;
 	border: 0;
-	color: var(--accent-link, #2645c9);
+	color: var(--accent-link);
 	cursor: pointer;
 	font-size: 12px;
 	font-weight: 500;
@@ -202,9 +202,9 @@
    so collapsing never requires scrolling to the end of a long record. The
    full-width opaque band masks the text passing beneath it. */
 .log-entry-toggle[aria-expanded='true'] {
-	background: var(--paper-1, #fff);
+	background: var(--surface);
 	bottom: 0;
-	box-shadow: 0 -1px 0 var(--line-subtle, rgba(33, 32, 29, 0.08));
+	box-shadow: 0 -1px 0 var(--border-subtle);
 	display: block;
 	padding: var(--space-2, 8px) 0;
 	position: sticky;
@@ -227,7 +227,7 @@
 .log-clear-search {
 	background: none;
 	border: 0;
-	color: var(--accent-link, #2645c9);
+	color: var(--accent-link);
 	cursor: pointer;
 	font-size: 13px;
 	padding: 0;

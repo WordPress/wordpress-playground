@@ -302,9 +302,9 @@
 	font-size: 16px;
 	font-weight: 500;
 	line-height: inherit;
-	color: var(--ink, #21201d);
-	background: var(--paper-1, #f7f5f2);
-	border: 1px solid var(--accent, #3858e9);
+	color: var(--ink);
+	background: var(--surface);
+	border: 1px solid var(--accent);
 	border-radius: var(--radius-control, 6px);
 	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.18);
 	outline: none;
@@ -320,7 +320,7 @@
 	color: #6b7280;
 }
 
-/* Current Playground: its name sits on a line with a small status badge. */
+/* The current Playground's name shares its line with a status pill. */
 .currentSiteNameLine {
 	align-items: center;
 	display: flex;
@@ -328,9 +328,10 @@
 	min-width: 0;
 }
 
-/* "Unsaved" pill — a calm amber chip mirroring the dock's yellow Unsaved
-   status, so the current Playground's row plainly says it's lost on refresh. */
-.unsavedBadge {
+/* Each lifecycle state wears its own monochrome pill — permanence encoded by
+   substance, not color: barely-there dashes while unsaved, a firm outline
+   once autosaved, a solid fill once explicitly saved. */
+.statusPill {
 	flex-shrink: 0;
 	border-radius: 999px;
 	padding: 1px 8px;
@@ -338,8 +339,21 @@
 	font-weight: 600;
 	line-height: 16px;
 	letter-spacing: 0.01em;
-	background: #fdeeb3;
-	color: #7c4a03;
+	color: var(--ink-soft);
+}
+
+.statusPillUnsaved {
+	border: 1px dashed var(--interactive-border-hover);
+	/* The border replaces 1px of padding so all three pills match in size. */
+	padding: 0 7px;
+}
+
+.statusPillAutosaved {
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
+}
+
+.statusPillSaved {
+	background: var(--surface-control-active);
 }
 
 /* The active Playground's row mirrors the dock's "Saving" status while an OPFS
@@ -349,14 +363,14 @@
 	align-items: center;
 	gap: 6px;
 	font-size: 13px;
-	color: var(--accent, #3858e9);
+	color: var(--accent);
 }
 
 .siteRowSavingSpinner {
 	width: 12px;
 	height: 12px;
 	border: 1.5px solid rgba(56, 88, 233, 0.25);
-	border-top-color: var(--accent, #3858e9);
+	border-top-color: var(--accent);
 	border-radius: 50%;
 	animation: siteRowSavingSpin 0.7s linear infinite;
 }
@@ -395,7 +409,7 @@
 }
 
 .dangerMenuItem {
-	color: var(--color-alert-red, #cc1818) !important;
+	color: var(--destructive) !important;
 }
 
 .dangerMenuItem:hover {
@@ -706,7 +720,7 @@
 	height: auto;
 	overflow: visible;
 	padding: 0 24px 24px;
-	color: #21201d;
+	color: var(--ink);
 	width: 100%;
 }
 
@@ -726,7 +740,7 @@
 }
 
 .playgrounds-pane .playgroundsSection h2 {
-	color: #21201d !important;
+	color: var(--ink) !important;
 	font-size: 22px !important;
 	line-height: 1.2 !important;
 	margin: 0 0 16px !important;
@@ -760,16 +774,16 @@
 	width: 100%;
 }
 
-/* The tab strip is a recessed "segmented control": a warm well (paper-4) with a
+/* The tab strip is a recessed segmented control: a neutral grey well with a
    defined edge and an inset shadow, holding the methods as a 3-column grid. The
    three Blueprint sources fill the top row; the code/import flows the bottom.
    Inactive cells are transparent so the well reads through; the active cell is a
    raised white segment. */
 .playgrounds-pane.new-pane .creationTabs {
-	background: var(--paper-4, #e7e2da);
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	background: var(--surface-control-hover);
+	border: 1px solid var(--interactive-border);
 	border-radius: 14px;
-	box-shadow: inset 0 1px 2px rgba(40, 33, 23, 0.05);
+	box-shadow: inset 0 1px 2px rgba(26, 25, 25, 0.05);
 	display: grid;
 	flex: none;
 	gap: 6px;
@@ -787,7 +801,7 @@
 	background: transparent;
 	border: none;
 	border-radius: var(--radius-card, 8px);
-	color: var(--ink-soft, #2f2d28);
+	color: var(--ink-soft);
 	cursor: pointer;
 	flex-direction: row;
 	gap: 10px;
@@ -804,8 +818,8 @@
 }
 
 .playgrounds-pane.new-pane .creationButton:hover:not(:disabled) {
-	background: var(--paper-2, #faf8f5);
-	color: var(--ink, #21201d);
+	background: var(--surface-raised);
+	color: var(--ink);
 }
 
 .playgrounds-pane.new-pane .creationButton:disabled {
@@ -815,7 +829,7 @@
 
 .playgrounds-pane.new-pane .creationIcon {
 	align-items: center;
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 	display: flex;
 	flex: none;
 	height: 20px;
@@ -865,19 +879,19 @@
 .playgrounds-pane.new-pane .creationButtonActive:hover:not(:disabled) {
 	background: #ffffff;
 	box-shadow:
-		inset 0 0 0 1px var(--line-control, rgba(33, 32, 29, 0.14)),
-		0 1px 1px rgba(40, 33, 23, 0.05),
-		0 2px 6px rgba(40, 33, 23, 0.12);
-	color: var(--ink, #21201d);
+		inset 0 0 0 1px var(--interactive-border),
+		0 1px 1px rgba(26, 25, 25, 0.05),
+		0 2px 6px rgba(26, 25, 25, 0.12);
+	color: var(--ink);
 }
 
 .playgrounds-pane.new-pane .creationButtonActive .creationTitle {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-weight: 600;
 }
 
 .playgrounds-pane.new-pane .creationButtonActive .creationIcon {
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 }
 
 /* The active tab's flow scrolls within this panel; a sticky heading names it. */
@@ -898,7 +912,7 @@
 
 .playgrounds-pane.new-pane .panelHeader {
 	align-items: center;
-	background: var(--paper-1, #f7f5f2);
+	background: var(--surface);
 	display: flex;
 	flex-shrink: 0;
 	gap: var(--space-2, 8px);
@@ -923,7 +937,7 @@
 /* A sentence-case heading naming the active flow (restores the "Start from a
    Blueprint" header for the gallery), one weight below the 20px pane title. */
 .playgrounds-pane.new-pane .panelTitle {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	letter-spacing: -0.005em;
@@ -931,11 +945,11 @@
 	margin: 0;
 }
 
-/* "Write your own": a schema-aware code surface, warmed to match the other
-   in-dock editors rather than reading as a cold white box. It grows to fill the
+/* "Write your own": a schema-aware code surface matched to the other in-dock
+   editors rather than reading as a separate default-white box. It grows to fill the
    panel (min 160px) so the Create button below it is always reachable. */
 .playgrounds-pane.new-pane .writeOwnEditor {
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
 	display: flex;
 	flex-direction: column;
@@ -948,14 +962,14 @@
 }
 
 .playgrounds-pane.new-pane .writeOwnEditor :global(.cm-editor) {
-	background: var(--paper-1, #f7f5f2);
+	background: var(--surface);
 	height: 100%;
 }
 
 .playgrounds-pane.new-pane .writeOwnEditor :global(.cm-gutters) {
-	background: var(--paper-2, #faf8f5);
-	border-right: 1px solid var(--line-subtle, rgba(33, 32, 29, 0.08));
-	color: var(--ink-faint, #8a857b);
+	background: var(--surface-raised);
+	border-right: 1px solid var(--border-subtle);
+	color: var(--ink-faint);
 }
 
 .playgrounds-pane.new-pane .writeOwnEditor :global(.cm-scroller) {
@@ -969,7 +983,7 @@
 .playgrounds-pane .inlineForm {
 	/* Body copy defaults to ink-soft; quieter notes opt down to ink-faint via
 	   their own class, so each flow reads as heading → body → fine print. */
-	color: var(--ink-soft, #2f2d28);
+	color: var(--ink-soft);
 	display: flex;
 	flex-direction: column;
 	font-size: 14px;
@@ -977,10 +991,10 @@
 	line-height: 1.5;
 }
 
-/* Explicit warm secondary color — without it the overlay's `.section p` rule
-   leaks a cool #9ca3af gray (~2.3:1) into these flows. */
+/* Explicit muted text — without it the overlay's `.section p`
+   rule leaks a low-contrast #9ca3af gray into these flows. */
 .playgrounds-pane .inlineForm :global(p) {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
@@ -988,18 +1002,18 @@
 }
 
 .playgrounds-pane .inlineForm :global(p[role='alert']) {
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 }
 
 .playgrounds-pane .inlineForm :global(h3) {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	margin: 0;
 }
 
 .playgrounds-pane .inlineForm :global(label) {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	display: flex;
 	flex-direction: column;
 	font-size: 13px;
@@ -1010,10 +1024,10 @@
 .playgrounds-pane .inlineForm :global(input[type='url']),
 .playgrounds-pane .inlineForm :global(select) {
 	background: #ffffff;
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.18));
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
 	box-shadow: none;
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 15px;
 	margin: 0;
 	padding: 10px 12px;
@@ -1023,13 +1037,13 @@
 .playgrounds-pane .inlineForm :global(input[type='text']:focus),
 .playgrounds-pane .inlineForm :global(input[type='url']:focus),
 .playgrounds-pane .inlineForm :global(select:focus) {
-	border-color: var(--accent, #3858e9);
+	border-color: var(--accent);
 	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
 	outline: none;
 }
 
 .playgrounds-pane .inlineFormHint {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 }
 
 .playgrounds-pane .zipFileInput {
@@ -1039,9 +1053,9 @@
 .playgrounds-pane .zipDropzone {
 	align-items: center;
 	background: #ffffff;
-	border: 2px dashed var(--line-control, rgba(33, 32, 29, 0.22));
+	border: 2px dashed var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
-	color: var(--ink-soft, #2f2d28);
+	color: var(--ink-soft);
 	cursor: pointer;
 	display: flex;
 	flex-direction: column;
@@ -1058,29 +1072,30 @@
 }
 
 .playgrounds-pane .zipDropzone:hover:not(:disabled) {
-	background: var(--paper-2, #faf8f5);
-	border-color: var(--accent, #3858e9);
+	background: var(--surface-raised);
+	border-color: var(--accent);
 }
 
 .zipDropOverlay {
 	align-items: center;
-	background: rgba(247, 245, 242, 0.96);
-	border: 3px dashed #3858e9;
+	background: rgba(255, 255, 255, 0.96);
+	border: 3px dashed var(--accent);
 	border-radius: 18px;
 	box-sizing: border-box;
-	color: #21201d;
+	color: var(--ink);
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
 	inset: 12px;
 	justify-content: center;
-	pointer-events: none;
+	/* Keep the drag in the parent document instead of handing it to an iframe below. */
+	pointer-events: auto;
 	position: fixed;
 	z-index: 100;
 }
 
 .zipDropOverlayIcon {
-	color: #3858e9;
+	color: var(--accent);
 	display: flex;
 }
 
@@ -1102,7 +1117,7 @@
 }
 
 .playgrounds-pane .zipDropzone:focus-visible {
-	border-color: var(--accent, #3858e9);
+	border-color: var(--accent);
 	box-shadow: 0 0 0 2px rgba(56, 88, 233, 0.35);
 	outline: none;
 }
@@ -1113,26 +1128,26 @@
 }
 
 .playgrounds-pane .zipDropzoneIcon {
-	color: var(--accent, #3858e9);
+	color: var(--accent);
 	display: flex;
 }
 
 .playgrounds-pane .zipDropzoneTitle {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 15px;
 	font-weight: 600;
 }
 
 .playgrounds-pane .zipDropzoneHint {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	font-size: 13px;
 }
 
 .playgrounds-pane .zipImportStatus {
-	background: var(--paper-2, #faf8f5);
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	background: var(--surface-raised);
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-card, 8px);
-	color: var(--ink-soft, #2f2d28);
+	color: var(--ink-soft);
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-2, 8px);
@@ -1140,14 +1155,14 @@
 }
 
 .playgrounds-pane .zipImportError {
-	border-color: var(--color-alert-red, #cc1818);
-	color: var(--color-alert-red, #cc1818);
+	border-color: var(--destructive);
+	color: var(--destructive);
 }
 
 /* Inline docs link inside a hint — accent, underlines on hover. */
 .playgrounds-pane .inlineForm .inlineFormLink,
 .playgrounds-pane .inlineFormLink {
-	color: var(--accent, #3858e9);
+	color: var(--accent);
 	font-weight: 500;
 	text-decoration: none;
 	white-space: nowrap;
@@ -1203,16 +1218,16 @@
 /* A single hairline between adjacent rows. It stays put on hover/active so the
    list keeps its structure — only the row's fill changes. */
 .playgrounds-pane .siteRow + .siteRow {
-	box-shadow: inset 0 1px 0 var(--line-subtle);
+	box-shadow: inset 0 1px 0 var(--border-subtle);
 }
 
 .playgrounds-pane .siteRow:hover {
-	background: var(--paper-2);
+	background: var(--surface-raised);
 }
 
 .playgrounds-pane .siteRowSelected,
 .playgrounds-pane .current-site-row {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-left: 0;
 }
 
@@ -1231,8 +1246,8 @@
 }
 
 .playgrounds-pane .siteRowThumbnail {
-	background: var(--paper-3);
-	border: 1px solid var(--line-subtle);
+	background: var(--surface-recessed);
+	border: 1px solid var(--border-subtle);
 	border-radius: 6px;
 	height: 96px;
 	object-fit: cover;
@@ -1241,8 +1256,8 @@
 }
 
 .playgrounds-pane .siteRowPreviewFallback {
-	background: var(--paper-2);
-	border: 1px solid var(--line-subtle);
+	background: var(--surface-raised);
+	border: 1px solid var(--border-subtle);
 	border-radius: 6px;
 }
 
@@ -1267,6 +1282,12 @@
 		white-space: normal;
 	}
 
+	.playgrounds-pane .currentSiteNameLine {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 4px;
+	}
+
 	.playgrounds-pane .siteRowActions {
 		padding-top: 8px;
 		padding-right: 0;
@@ -1274,9 +1295,9 @@
 }
 
 /* Neutral logo chips — a blue-tinted box on every row added up to a lot of
-   accent; a quiet paper chip keeps the rows calm and lets the accent be rare. */
+   accent; a quiet neutral chip keeps the rows calm and lets the accent be rare. */
 .playgrounds-pane .siteRowLogo {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	color: var(--ink-soft);
 	height: 38px;
 	width: 38px;
@@ -1294,7 +1315,7 @@
 .playgrounds-pane .siteRowName,
 .playgrounds-pane .creationTitle,
 .playgrounds-pane .blueprintTitle {
-	color: #21201d !important;
+	color: var(--ink) !important;
 }
 
 .playgrounds-pane .siteRowName {
@@ -1303,7 +1324,7 @@
 
 .playgrounds-pane .siteRowDate,
 .playgrounds-pane .blueprintDescription {
-	color: #5f5b54 !important;
+	color: var(--ink-muted) !important;
 }
 
 .playgrounds-pane .siteRowDate {
@@ -1311,12 +1332,12 @@
 }
 
 .playgrounds-pane .siteRowMenu button {
-	color: #5f5b54 !important;
+	color: var(--ink-muted) !important;
 }
 
 .playgrounds-pane .siteRowMenu button:hover {
-	background: rgba(33, 30, 25, 0.08) !important;
-	color: #21201d !important;
+	background: rgba(26, 25, 25, 0.08) !important;
+	color: var(--ink) !important;
 }
 
 .playgrounds-pane .siteRowActions {
@@ -1344,19 +1365,19 @@
 .playgrounds-pane .blueprintCard,
 .playgrounds-pane .blueprintPreviewCard {
 	background: #ffffff;
-	border: 1px solid rgba(33, 30, 25, 0.14);
-	color: #21201d;
+	border: 1px solid var(--interactive-border);
+	color: var(--ink);
 }
 
 .playgrounds-pane .creationButton:hover:not(:disabled),
 .playgrounds-pane .blueprintPreviewCard:hover {
-	background: rgba(33, 30, 25, 0.045);
-	border-color: rgba(33, 30, 25, 0.28);
+	background: var(--surface-raised);
+	border-color: var(--interactive-border-hover);
 }
 
 .playgrounds-pane .creationIcon,
 .playgrounds-pane .creationIcon :global(svg) {
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 	fill: currentColor;
 }
 
@@ -1371,7 +1392,7 @@
 .playgrounds-pane .newPlaygroundIcon :global(svg path),
 .playgrounds-pane .siteRowLogo :global(svg path),
 .playgrounds-pane .blueprintPlaceholder :global(svg path) {
-	fill: #3858e9;
+	fill: var(--accent);
 }
 
 .playgrounds-pane .blueprintsRow {
@@ -1391,35 +1412,35 @@
 
 .playgrounds-pane .searchWrapper {
 	background: #ffffff;
-	border-color: rgba(33, 30, 25, 0.14);
+	border-color: var(--interactive-border);
 	border-radius: 8px;
 	max-width: none;
 }
 
 .playgrounds-pane .searchWrapper:focus-within {
-	border-color: var(--accent, #3858e9);
+	border-color: var(--accent);
 	box-shadow: inset 0 0 0 1px rgba(56, 88, 233, 0.45);
 }
 
 .playgrounds-pane .searchField {
-	color: #21201d;
+	color: var(--ink);
 	font-size: 15px;
 	padding: 10px 12px 10px 0;
 }
 
 .playgrounds-pane .searchField::placeholder,
 .playgrounds-pane .searchIcon {
-	color: var(--ink-faint, #8a857b);
+	color: var(--ink-faint);
 }
 
 .playgrounds-pane .blueprintPreviewThumbnail,
 .playgrounds-pane .blueprintThumbnail {
-	background: var(--paper-3, #ece8e1);
-	border-color: rgba(33, 30, 25, 0.14);
+	background: var(--surface-recessed);
+	border-color: var(--interactive-border);
 }
 
 .playgrounds-pane .blueprintPreviewTitle {
-	color: #21201d;
+	color: var(--ink);
 	font-size: 15px;
 }
 
@@ -1452,14 +1473,14 @@
 .playgrounds-pane.new-pane .blueprintPreviewCard:hover {
 	background: #ffffff;
 	border-color: rgba(56, 88, 233, 0.45);
-	box-shadow: 0 8px 20px rgba(40, 33, 23, 0.13);
+	box-shadow: 0 8px 20px rgba(26, 25, 25, 0.13);
 	transform: translateY(-2px);
 }
 
 .playgrounds-pane.new-pane .blueprintPreviewThumbnail {
 	aspect-ratio: 16 / 10;
 	border: none;
-	border-bottom: 1px solid rgba(33, 30, 25, 0.1);
+	border-bottom: 1px solid rgba(26, 25, 25, 0.1);
 	border-radius: 0;
 	/* Full-width thumbnail on top of the vertical card (overrides the legacy
 	   ≤875px fixed 140px-wide list-thumbnail). */
@@ -1471,13 +1492,13 @@
 
 /* "Default" badge: a quiet frosted chip with accent text rather than a
    saturated blue brick — the loudest mass on the surface otherwise. White
-   backing keeps it legible over the card thumbnail (an on-paper 12% tint would
-   not), while the accent-link text carries the same quiet-accent language as the
-   current-playground card. */
+   backing keeps it legible over the card thumbnail (a 12% surface tint would
+   not), while the accent-link text carries the same quiet-accent language as
+   the current-playground card. */
 .playgrounds-pane.new-pane .blueprintBadge {
 	background: rgba(255, 255, 255, 0.92);
 	border-radius: 5px;
-	box-shadow: inset 0 0 0 1px rgba(33, 30, 25, 0.08);
+	box-shadow: inset 0 0 0 1px rgba(26, 25, 25, 0.08);
 	color: var(--accent-link);
 	font-size: 11px;
 	font-weight: 600;
@@ -1498,7 +1519,7 @@
 }
 
 .playgrounds-pane.new-pane .blueprintPreviewTitle {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	line-height: 1.3;
@@ -1514,7 +1535,7 @@
 .playgrounds-pane.new-pane .blueprintPreviewDescription {
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 1;
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	display: -webkit-box;
 	font-size: 12px;
 	line-height: 1.4;
@@ -1523,15 +1544,15 @@
 
 .playgrounds-pane .emptyMessage {
 	background: #ffffff;
-	color: #5f5b54;
+	color: var(--ink-muted);
 }
 
 .playgrounds-pane .blueprintsError {
 	align-items: flex-start;
-	background: #fff8e5;
-	border: 1px solid #e6d39a;
+	background: var(--warning-surface);
+	border: 1px solid var(--warning);
 	border-radius: 10px;
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	display: flex;
 	gap: 12px;
 	padding: 14px 16px;
@@ -1539,9 +1560,9 @@
 
 .playgrounds-pane .blueprintsErrorIcon {
 	align-items: center;
-	background: #f5df9d;
+	background: var(--warning-highlight);
 	border-radius: 50%;
-	color: #6d4a00;
+	color: var(--ink-soft);
 	display: flex;
 	flex: none;
 	font-size: 13px;
@@ -1558,27 +1579,27 @@
 }
 
 .playgrounds-pane .blueprintsErrorTitle {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	line-height: 1.4;
 }
 
 .playgrounds-pane .blueprintsErrorMessage {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	font-size: 13px;
 	line-height: 1.5;
 	margin-top: 2px;
 }
 
 .playgrounds-pane .showMoreButton {
-	border-color: rgba(33, 30, 25, 0.14);
-	color: #5f5b54;
+	border-color: var(--interactive-border);
+	color: var(--ink-muted);
 }
 
 .playgrounds-pane .showMoreButton:hover {
-	background: rgba(33, 30, 25, 0.045);
-	color: #21201d;
+	background: var(--surface-raised);
+	color: var(--ink);
 }
 
 .playgrounds-pane.new-pane .writeOwnExpand {
@@ -1592,24 +1613,24 @@
 	width: 28px;
 	height: 28px;
 	padding: 0px;
-	border: 1px solid var(--line-control, rgba(33, 32, 29, 0.14));
+	border: 1px solid var(--interactive-border);
 	border-radius: var(--radius-control, 6px);
-	background: var(--paper-2, #faf8f5);
-	color: var(--ink-muted, #5f5b54);
+	background: var(--surface-raised);
+	color: var(--ink-muted);
 	cursor: pointer;
-	box-shadow: rgba(40, 33, 23, 0.08) 0px 1px 2px;
+	box-shadow: rgba(26, 25, 25, 0.08) 0px 1px 2px;
 	transition:
 		background 0.12s,
 		color 0.12s;
 }
 
 .playgrounds-pane.new-pane .writeOwnExpand:hover:not(:disabled) {
-	background: var(--paper-4, #e7e2da);
-	color: var(--ink, #21201d);
+	background: var(--surface-control-hover);
+	color: var(--ink);
 }
 
 .playgrounds-pane.new-pane .writeOwnExpand:focus-visible {
-	outline: 2px solid var(--accent, #3858e9);
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 

@@ -91,6 +91,9 @@ export const importWordPressFiles: StepHandler<
 				uncompressedBytesProcessed,
 				totalUncompressedBytes,
 			}) => {
+				progress.tracker.setCaption(
+					`Extracting ${filesProcessed}/${totalFiles}`
+				);
 				let fraction = filesProcessed / Math.max(totalFiles, 1);
 				if (totalUncompressedBytes > 0) {
 					fraction =
