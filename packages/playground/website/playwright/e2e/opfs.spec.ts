@@ -1360,7 +1360,13 @@ test('should notify when a ZIP import loads before autosave finishes', async ({
 	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
 	const importedSite = await notifyWhileAutosaving;
 
-	await waitForInitialOpfsSync(website.page, importedSite.slug);
+	// Reopen the retained import runtime before its background sync finishes.
+	// setActiveSite() must not wait for a second client-added event.
+	await setActivePlaygroundSite(website.page, importedSite.slug);
+	expect((await getActivePlaygroundSite(website.page)).slug).toBe(
+		importedSite.slug
+	);
+	await setActivePlaygroundSite(website.page, sourceSite.slug);
 
 	const newPlaygroundButton = website.page.getByRole('button', {
 		name: 'New Playground',
@@ -1368,6 +1374,9 @@ test('should notify when a ZIP import loads before autosave finishes', async ({
 	});
 	await expect(newPlaygroundButton).toBeEnabled();
 
+	// A full page load discards the retained runtime. Let its background sync
+	// finish before verifying that the imported files survive a cold boot.
+	await waitForInitialOpfsSync(website.page, importedSite.slug);
 	await website.goto(`./?site-slug=${encodeURIComponent(importedSite.slug)}`);
 
 	await expect
