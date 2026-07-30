@@ -2,5 +2,8 @@
 	"version": "0.0.1",
 	"type": "commonjs",
 	"private": true,
-	"name": "@wp-playground/website"
+	"name": "@wp-playground/website",
+	"dependencies": {
+		"ignore": "7.0.6"
+	}
 }
