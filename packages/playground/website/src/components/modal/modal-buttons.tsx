@@ -42,7 +42,7 @@ export default function ModalButtons({
 				type="submit"
 				isBusy={submitBusy}
 				isDestructive={submitDestructive}
-				disabled={areDisabled}
+				disabled={areDisabled || submitBusy}
 				variant="primary"
 				onClick={onSubmit}
 			>
