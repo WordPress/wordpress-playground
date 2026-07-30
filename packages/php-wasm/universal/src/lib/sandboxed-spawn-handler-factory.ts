@@ -18,8 +18,6 @@ export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
 		php: PHP | Remote<PHPWorker>;
 		reap: () => void;
-		/** Resolves when the remote runtime exits. */
-		runtimeExited?: Promise<void>;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -100,35 +98,26 @@ export function sandboxedSpawnHandlerFactory(
 		let reap: (() => void) | undefined;
 		try {
 			const instance = await getPHPInstance();
-			const { php, runtimeExited } = instance;
+			const { php } = instance;
 			reap = instance.reap;
 			if (options.cwd) {
-				await completeWhileRuntimeIsRunning(
-					php.chdir(options.cwd as string),
-					runtimeExited
-				);
+				await php.chdir(options.cwd as string);
 			}
 
-			const cwd = await completeWhileRuntimeIsRunning(
-				php.cwd(),
-				runtimeExited
-			);
+			const cwd = await php.cwd();
 			switch (binaryName) {
 				case 'php': {
 					// Figure out more about setting env, putenv(), etc.
-					const result = await completeWhileRuntimeIsRunning(
-						php.cli(args, {
-							env: {
-								...options.env,
-								SCRIPT_PATH: args[1],
-								// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-								// the output as ASCII tables.
-								// @see https://github.com/wp-cli/wp-cli/issues/1102
-								SHELL_PIPE: '0',
-							},
-						}),
-						runtimeExited
-					);
+					const result = await php.cli(args, {
+						env: {
+							...options.env,
+							SCRIPT_PATH: args[1],
+							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+							// the output as ASCII tables.
+							// @see https://github.com/wp-cli/wp-cli/issues/1102
+							SHELL_PIPE: '0',
+						},
+					});
 
 					const stdout = result.stdout.pipeTo(
 						new WritableStream({
@@ -144,30 +133,27 @@ export function sandboxedSpawnHandlerFactory(
 							},
 						})
 					);
-					const [exitCode] = await completeWhileRuntimeIsRunning(
-						Promise.all([result.exitCode, stdout, stderr]),
-						runtimeExited
-					);
+					const [exitCode] = await Promise.all([
+						result.exitCode,
+						stdout,
+						stderr,
+					]);
 					processApi.exit(exitCode);
 					break;
 				}
 				case 'ls': {
-					const files = await completeWhileRuntimeIsRunning(
-						php.listFiles(args[1] ?? cwd),
-						runtimeExited
-					);
+					const files = await php.listFiles(args[1] ?? cwd);
 					for (const file of files) {
 						processApi.stdout(file + '\n');
 					}
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await completeWhileRuntimeIsRunning(
-						new Promise(function waitForOutputConsumption(resolve) {
-							setTimeout(resolve, 10);
-						}),
-						runtimeExited
-					);
+					await new Promise(function waitForOutputConsumption(
+						resolve
+					) {
+						setTimeout(resolve, 10);
+					});
 					processApi.exit(0);
 					break;
 				}
@@ -176,12 +162,11 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await completeWhileRuntimeIsRunning(
-						new Promise(function waitForOutputConsumption(resolve) {
-							setTimeout(resolve, 10);
-						}),
-						runtimeExited
-					);
+					await new Promise(function waitForOutputConsumption(
+						resolve
+					) {
+						setTimeout(resolve, 10);
+					});
 					processApi.exit(0);
 					break;
 				}
@@ -201,27 +186,4 @@ export function sandboxedSpawnHandlerFactory(
 			reap?.();
 		}
 	});
-}
-
-/**
- * Comlink does not reject pending calls when their worker exits. Require each
- * operation to finish while its runtime is still running so a crashed child
- * becomes a proc_open() failure instead of leaving the parent pending forever.
- */
-function completeWhileRuntimeIsRunning<T>(
-	operation: T | Promise<T>,
-	runtimeExited: Promise<void> | undefined
-): Promise<T> {
-	const operationPromise = Promise.resolve(operation);
-	if (!runtimeExited) {
-		return operationPromise;
-	}
-	const operationInterrupted = runtimeExited.then(
-		function throwRuntimeExitError(): never {
-			throw new Error(
-				'The PHP runtime exited before the operation completed.'
-			);
-		}
-	);
-	return Promise.race([operationPromise, operationInterrupted]);
 }

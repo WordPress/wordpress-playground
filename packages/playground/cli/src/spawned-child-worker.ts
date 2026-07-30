@@ -46,27 +46,18 @@ export async function bootSpawnedChildWorker<
 		const activeChildApi = consumeAPI<SpawnedChildWorkerApi>(
 			phpPort,
 			undefined,
-			spawnedChildWorkerTransferPolicy
+			spawnedChildWorkerTransferPolicy,
+			{ endpointTerminated: runtimeExited }
 		);
 		childApi = activeChildApi;
-		await completeBeforeChildExits(
-			activeChildApi.useFileLockManager(fileLockManagerPort),
-			runtimeExited
-		);
-		await completeBeforeChildExits(
-			activeChildApi.bootRequestHandler(platformConfig, workerConfig),
-			runtimeExited
-		);
+		await activeChildApi.useFileLockManager(fileLockManagerPort);
+		await activeChildApi.bootRequestHandler(platformConfig, workerConfig);
 		// A child created after WordPress installation must not execute PHP until
 		// the service has applied the mounts it recorded for future workers.
-		await completeBeforeChildExits(
-			childWorkerService.waitForChildReady(childId),
-			runtimeExited
-		);
+		await childWorkerService.waitForChildReady(childId);
 
 		return {
 			php: activeChildApi as unknown as RemoteAPI<WorkerApi>,
-			runtimeExited,
 			reap() {
 				releaseChildApiProxyQuietly(childApi);
 				// Reaping is deliberately fire-and-forget because the spawn-handler
@@ -95,26 +86,6 @@ export async function bootSpawnedChildWorker<
 		}
 		throw error;
 	}
-}
-
-/**
- * Do not let a child crash leave a pending Comlink operation unresolved.
- * Closing a MessagePort does not reject calls already waiting for a response,
- * so every boot operation must either complete while the child is alive or
- * fail as soon as its positive exit signal settles.
- */
-function completeBeforeChildExits<T>(
-	operation: Promise<T>,
-	runtimeExited: Promise<void>
-): Promise<T> {
-	const childExitedBeforeCompletion = runtimeExited.then(
-		function throwChildExitError(): never {
-			throw new Error(
-				'Child worker exited before its boot operation completed.'
-			);
-		}
-	);
-	return Promise.race([operation, childExitedBeforeCompletion]);
 }
 
 function releaseChildApiProxyQuietly(

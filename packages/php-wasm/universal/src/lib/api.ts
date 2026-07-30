@@ -194,8 +194,45 @@ type TransferPolicyArgument<API> =
 		? [transferPolicy: APITransferPolicy<API>]
 		: [transferPolicy?: APITransferPolicy<API>];
 
+/**
+ * Describes lifecycle information that the transport cannot discover itself.
+ *
+ * Node.js workers, child processes, and MessagePorts expose lifecycle events,
+ * so consumeAPI() observes them automatically. Web Workers do not have a
+ * standard event for normal termination, and a MessagePort may be backed by a
+ * worker whose lifecycle is managed elsewhere. In those cases, provide the
+ * authoritative termination promise here.
+ */
+export interface ConsumeAPIOptions {
+	endpointTerminated?: PromiseLike<unknown>;
+}
+
+type ConsumeAPIArguments<API> =
+	RequiresTransferPolicy<API> extends true
+		? [transferPolicy: APITransferPolicy<API>, options?: ConsumeAPIOptions]
+		: [
+				transferPolicy?: APITransferPolicy<API>,
+				options?: ConsumeAPIOptions,
+			];
+
 type ExposedAPIContract<Methods, PipedAPI> = Methods &
 	([PipedAPI] extends [undefined] ? unknown : PipedAPI);
+
+/**
+ * Raised when a remote call cannot finish because its worker, process, or
+ * MessagePort terminated.
+ */
+export class RemoteAPIEndpointTerminatedError extends Error {
+	constructor(cause?: unknown) {
+		super(
+			'The remote API endpoint terminated before the operation completed.',
+			{
+				cause,
+			}
+		);
+		this.name = 'RemoteAPIEndpointTerminatedError';
+	}
+}
 
 // A proxy answers every property access, so no duck-typed property check can
 // distinguish it from an endpoint reliably. Track the proxies we create by
@@ -260,9 +297,14 @@ function assertIsMessagePort(
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined,
-	...transferPolicyArgument: TransferPolicyArgument<APIType>
+	...consumeArguments: ConsumeAPIArguments<APIType>
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
+	const [transferPolicy, options] = consumeArguments;
+	const endpointLifecycle = observeEndpointLifecycle(
+		remote,
+		options?.endpointTerminated
+	);
 
 	let endpoint;
 	/**
@@ -311,21 +353,39 @@ export function consumeAPI<APIType>(
 	 * @TODO: Remove this workaround.
 	 */
 	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
-	const policyAwareApi = applyArgumentTransferPolicy(
-		api,
-		transferPolicyArgument[0]
-	);
+	const policyAwareApi = applyArgumentTransferPolicy(api, transferPolicy);
+	const lifecycleAwareApi = endpointLifecycle
+		? applyEndpointLifecycle(policyAwareApi, endpointLifecycle)
+		: policyAwareApi;
 	const methods = proxyClone(api);
 	const remoteAPI = new Proxy(methods, {
 		get: (target, prop) => {
+			if (prop === releaseProxy) {
+				return () => {
+					endpointLifecycle?.dispose();
+					return policyAwareApi[prop]();
+				};
+			}
 			if (prop === 'isConnected') {
 				return async () => {
 					// Keep retrying until the remote API confirms it's connected.
 					while (true) {
 						try {
-							await runWithTimeout(api.isConnected(), 200);
+							const connectionAttempt = runWithTimeout(
+								api.isConnected(),
+								200
+							);
+							await (endpointLifecycle
+								? completeBeforeEndpointTerminates(
+										connectionAttempt,
+										endpointLifecycle
+									)
+								: connectionAttempt);
 							break;
-						} catch {
+						} catch (error) {
+							if (endpointLifecycle?.terminated) {
+								throw error;
+							}
 							// Timeout exceeded, try again. We can't just use a single
 							// `runWithTimeout` call because it won't reach the remote API
 							// if it's not connected yet. Instead, we need to keep retrying
@@ -335,7 +395,7 @@ export function consumeAPI<APIType>(
 					}
 				};
 			}
-			return policyAwareApi[prop];
+			return lifecycleAwareApi[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
 	consumedAPIProxies.add(remoteAPI);
@@ -558,6 +618,285 @@ function applyArgumentTransferPolicy(
 			};
 		},
 	});
+}
+
+type EndpointLifecycle = {
+	readonly failure: Promise<never>;
+	readonly terminated: boolean;
+	dispose(): void;
+};
+
+type EndpointTerminationObserver = {
+	readonly terminated: Promise<unknown>;
+	dispose(): void;
+};
+
+/**
+ * Reject every call made through a Comlink proxy when its endpoint terminates.
+ *
+ * Comlink proxies are also used for nested properties and remote value reads,
+ * so this wrapper must preserve both property and function proxy traps. A
+ * regular object clone would turn those nested proxies into plain functions.
+ */
+function applyEndpointLifecycle(api: any, lifecycle: EndpointLifecycle): any {
+	const wrappedValues = new WeakMap<object, object>();
+	return wrapValue(api);
+
+	function wrapValue(value: any): any {
+		if (!isObjectLike(value)) {
+			return value;
+		}
+		const existing = wrappedValues.get(value);
+		if (existing) {
+			return existing;
+		}
+
+		const wrapped = new Proxy(value, {
+			get(target, property, receiver) {
+				const propertyValue = Reflect.get(target, property, receiver);
+				if (property === releaseProxy || !isObjectLike(propertyValue)) {
+					return propertyValue;
+				}
+				if (
+					property === 'then' &&
+					typeof propertyValue === 'function'
+				) {
+					return (
+						onFulfilled: (resolved: unknown) => unknown,
+						onRejected: (error: unknown) => unknown
+					) => {
+						const remoteValue = new Promise((resolve, reject) => {
+							Reflect.apply(propertyValue, target, [
+								resolve,
+								reject,
+							]);
+						});
+						return completeBeforeEndpointTerminates(
+							remoteValue,
+							lifecycle
+						)
+							.then((resolved) =>
+								protectEndpointResult(resolved, lifecycle)
+							)
+							.then(onFulfilled, onRejected);
+					};
+				}
+				return wrapValue(propertyValue);
+			},
+			apply(target, thisArgument, argumentsList) {
+				const operation = Reflect.apply(
+					target as (...args: any[]) => unknown,
+					thisArgument,
+					argumentsList
+				);
+				return completeBeforeEndpointTerminates(
+					operation,
+					lifecycle
+				).then((result) => protectEndpointResult(result, lifecycle));
+			},
+		});
+		wrappedValues.set(value, wrapped);
+		return wrapped;
+	}
+}
+
+/**
+ * Keep asynchronous resources returned by a completed API call tied to the
+ * endpoint that owns them. The call itself may finish before a streamed PHP
+ * response has produced its output or exit code.
+ */
+function protectEndpointResult(
+	result: unknown,
+	lifecycle: EndpointLifecycle
+): unknown {
+	if (result instanceof StreamedPHPResponse) {
+		return new StreamedPHPResponse(
+			interruptStreamWhenEndpointTerminates(
+				result.getHeadersStream(),
+				lifecycle
+			),
+			interruptStreamWhenEndpointTerminates(result.stdout, lifecycle),
+			interruptStreamWhenEndpointTerminates(result.stderr, lifecycle),
+			completeBeforeEndpointTerminates(result.exitCode, lifecycle)
+		);
+	}
+	if (
+		typeof ReadableStream !== 'undefined' &&
+		result instanceof ReadableStream
+	) {
+		return interruptStreamWhenEndpointTerminates(result, lifecycle);
+	}
+	return result;
+}
+
+/**
+ * Turn endpoint termination into a stream error instead of leaving a read
+ * pending forever.
+ */
+function interruptStreamWhenEndpointTerminates<T>(
+	stream: ReadableStream<T>,
+	lifecycle: EndpointLifecycle
+): ReadableStream<T> {
+	const reader = stream.getReader();
+	return new ReadableStream<T>({
+		async pull(controller) {
+			try {
+				const next = await completeBeforeEndpointTerminates(
+					reader.read(),
+					lifecycle
+				);
+				if (next.done) {
+					controller.close();
+				} else {
+					controller.enqueue(next.value);
+				}
+			} catch (error) {
+				controller.error(error);
+				await reader.cancel(error).catch(() => {
+					// The endpoint may already have closed the source stream.
+				});
+			}
+		},
+		cancel(reason) {
+			return reader.cancel(reason);
+		},
+	});
+}
+
+/**
+ * Race one operation against the endpoint lifecycle shared by the whole proxy.
+ */
+function completeBeforeEndpointTerminates<T>(
+	operation: T | PromiseLike<T>,
+	lifecycle: EndpointLifecycle
+): Promise<T> {
+	return Promise.race([Promise.resolve(operation), lifecycle.failure]);
+}
+
+/**
+ * Combine a caller-provided lifecycle signal with lifecycle events available
+ * on Node.js workers, child processes, and MessagePorts.
+ */
+function observeEndpointLifecycle(
+	remote: Worker | Window | NodeWorker | NodeProcess,
+	providedTermination: PromiseLike<unknown> | undefined
+): EndpointLifecycle | undefined {
+	const automaticObserver = observeNodeEndpointTermination(remote);
+	const terminationSignals: Promise<unknown>[] = [];
+	if (providedTermination) {
+		terminationSignals.push(
+			Promise.resolve(providedTermination).then(
+				(value) => value,
+				(error) => error
+			)
+		);
+	}
+	if (automaticObserver) {
+		terminationSignals.push(automaticObserver.terminated);
+	}
+	if (terminationSignals.length === 0) {
+		return undefined;
+	}
+
+	let terminated = false;
+	const termination = Promise.race(terminationSignals);
+	const failure = termination.then((cause): never => {
+		terminated = true;
+		automaticObserver?.dispose();
+		throw new RemoteAPIEndpointTerminatedError(cause);
+	});
+	// The lifecycle may end while no API call is pending. Observe the shared
+	// rejection here; individual calls still receive it through Promise.race().
+	void failure.catch(() => undefined);
+
+	return {
+		failure,
+		get terminated() {
+			return terminated;
+		},
+		dispose() {
+			automaticObserver?.dispose();
+		},
+	};
+}
+
+/**
+ * Observe normal endpoint termination where Node.js exposes a reliable event.
+ *
+ * Browser Worker has no equivalent normal-termination event. Callers managing
+ * one must provide ConsumeAPIOptions.endpointTerminated.
+ */
+function observeNodeEndpointTermination(
+	remote: Worker | Window | NodeWorker | NodeProcess
+): EndpointTerminationObserver | undefined {
+	const candidate = remote as any;
+	if (
+		typeof candidate.send === 'function' &&
+		typeof candidate.addListener === 'function' &&
+		typeof candidate.removeListener === 'function'
+	) {
+		return observeEmitterTermination(candidate, [
+			'disconnect',
+			'exit',
+			'close',
+		]);
+	}
+	if (
+		typeof candidate.on !== 'function' ||
+		typeof candidate.off !== 'function'
+	) {
+		return undefined;
+	}
+	if (typeof candidate.terminate === 'function') {
+		return observeEmitterTermination(candidate, ['exit']);
+	}
+	if (
+		typeof candidate.close === 'function' &&
+		typeof candidate.start === 'function'
+	) {
+		return observeEmitterTermination(candidate, ['close']);
+	}
+	return undefined;
+}
+
+/**
+ * Resolve on the first lifecycle event and detach every remaining listener.
+ */
+function observeEmitterTermination(
+	emitter: {
+		on(event: string, listener: (...args: any[]) => void): void;
+		off(event: string, listener: (...args: any[]) => void): void;
+	},
+	events: string[]
+): EndpointTerminationObserver {
+	let disposed = false;
+	const listeners = new Map<string, (...args: any[]) => void>();
+	let resolveTermination!: (reason: unknown) => void;
+	const terminated = new Promise<unknown>((resolve) => {
+		resolveTermination = resolve;
+	});
+
+	for (const event of events) {
+		const listener = (...args: any[]) => {
+			dispose();
+			resolveTermination({ event, args });
+		};
+		listeners.set(event, listener);
+		emitter.on(event, listener);
+	}
+
+	return { terminated, dispose };
+
+	function dispose(): void {
+		if (disposed) {
+			return;
+		}
+		disposed = true;
+		for (const [event, listener] of listeners) {
+			emitter.off(event, listener);
+		}
+		listeners.clear();
+	}
 }
 
 function attachTransferablesToFirstArgument(

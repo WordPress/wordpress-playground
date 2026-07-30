@@ -9,7 +9,9 @@ import {
 	exposeSyncAPI,
 	releaseApiProxy,
 	type APITransferPolicy,
+	RemoteAPIEndpointTerminatedError,
 } from '../lib/api';
+import { StreamedPHPResponse } from '../lib/php-response';
 
 /**
  * These tests pin down the trap behind
@@ -65,6 +67,120 @@ describe('consumeAPISync() endpoint validation', () => {
 		await expect(consumeAPISync((() => undefined) as any)).rejects.toThrow(
 			'consumeAPISync() expects a MessagePort but received function.'
 		);
+	});
+});
+
+describe('consumeAPI() endpoint lifecycle', () => {
+	it('rejects a pending call when its Node MessagePort closes', async () => {
+		const { port1, port2 } = new MessageChannel();
+		exposeAPI(
+			{
+				waitForever: () => new Promise<void>(() => undefined),
+			},
+			undefined,
+			port1
+		);
+		const api = consumeAPI<{
+			waitForever(): Promise<void>;
+		}>(port2);
+
+		const pendingCall = api.waitForever();
+		port1.close();
+
+		await expect(pendingCall).rejects.toBeInstanceOf(
+			RemoteAPIEndpointTerminatedError
+		);
+		port2.close();
+	});
+
+	it('rejects a pending remote property read when its endpoint closes', async () => {
+		const { port1, port2 } = new MessageChannel();
+		exposeAPI(
+			{
+				get value() {
+					return new Promise<string>(() => undefined);
+				},
+			},
+			undefined,
+			port1
+		);
+		const api = consumeAPI<{
+			value: Promise<string>;
+		}>(port2);
+
+		const pendingRead = api.value;
+		port1.close();
+
+		await expect(pendingRead).rejects.toBeInstanceOf(
+			RemoteAPIEndpointTerminatedError
+		);
+		port2.close();
+	});
+
+	it('uses a provided termination signal when the transport has none', async () => {
+		const { port1, port2 } = new MessageChannel();
+		let signalTermination!: () => void;
+		const endpointTerminated = new Promise<void>((resolve) => {
+			signalTermination = resolve;
+		});
+		exposeAPI(
+			{
+				waitForever: () => new Promise<void>(() => undefined),
+			},
+			undefined,
+			port1
+		);
+		const api = consumeAPI<{
+			waitForever(): Promise<void>;
+		}>(port2, undefined, undefined, { endpointTerminated });
+
+		const pendingCall = api.waitForever();
+		signalTermination();
+
+		await expect(pendingCall).rejects.toBeInstanceOf(
+			RemoteAPIEndpointTerminatedError
+		);
+		port1.close();
+		port2.close();
+	});
+
+	it('interrupts streams and exit codes returned before termination', async () => {
+		const { port1, port2 } = new MessageChannel();
+		let signalTermination!: () => void;
+		const endpointTerminated = new Promise<void>((resolve) => {
+			signalTermination = resolve;
+		});
+		const streamThatNeverProducesData = () =>
+			new ReadableStream<Uint8Array>();
+		exposeAPI(
+			{
+				run: () =>
+					new StreamedPHPResponse(
+						streamThatNeverProducesData(),
+						streamThatNeverProducesData(),
+						streamThatNeverProducesData(),
+						new Promise<number>(() => undefined)
+					),
+			},
+			undefined,
+			port1
+		);
+		const api = consumeAPI<{
+			run(): Promise<StreamedPHPResponse>;
+		}>(port2, undefined, undefined, { endpointTerminated });
+
+		const response = await api.run();
+		const stdout = response.stdout.getReader().read();
+		signalTermination();
+
+		await expect(stdout).rejects.toBeInstanceOf(
+			RemoteAPIEndpointTerminatedError
+		);
+		await expect(response.exitCode).rejects.toBeInstanceOf(
+			RemoteAPIEndpointTerminatedError
+		);
+		port1.close();
+		port2.close();
 	});
 });
 
