@@ -39,6 +39,7 @@ export class BlueprintsV1Handler {
 			onClientConnected,
 			pathAliases,
 			disableProgressBar,
+			willReplaceWordPressFiles,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -148,6 +149,7 @@ export class BlueprintsV1Handler {
 		const wpMajor = parseFloat(runtimeConfiguration.wpVersion);
 		const isLegacyWpVersion = Number.isFinite(wpMajor) && wpMajor < 5.1;
 		const shouldPrefetchUpdateChecks =
+			!willReplaceWordPressFiles &&
 			runtimeConfiguration.networking &&
 			!isLegacyWpVersion &&
 			resolvedWordPressInstallMode === 'download-and-install';

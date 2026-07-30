@@ -64,6 +64,28 @@ describe('startPlaygroundWeb', () => {
 		expect(iframe.src).toContain('existing=1');
 	});
 
+	it('marks remote boots whose WordPress files will be replaced', async () => {
+		const playground = { connected: true };
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		mocks.bootPlaygroundV1.mockResolvedValue(playground);
+		const iframe = createIframe();
+
+		await startPlaygroundWeb({
+			iframe,
+			remoteUrl: 'http://localhost/remote.html',
+			progressTracker: createProgressTracker(),
+			willReplaceWordPressFiles: true,
+		});
+
+		expect(
+			new URL(iframe.src).searchParams.has(
+				'wordpress-files-will-be-replaced'
+			)
+		).toBe(true);
+	});
+
 	it('routes Blueprint v2 declarations through the v2 handler', async () => {
 		const playground = { connected: true };
 		mocks.BlueprintsV2Handler.mockImplementation(() => ({

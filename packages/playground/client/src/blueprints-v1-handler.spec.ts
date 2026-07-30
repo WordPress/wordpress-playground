@@ -271,6 +271,29 @@ describe('BlueprintsV1Handler', () => {
 		vi.useRealTimers();
 	});
 
+	it('does not prefetch updates for WordPress files that will be replaced', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+		});
+		vi.useFakeTimers();
+		vi.stubGlobal('requestIdleCallback', undefined);
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+			willReplaceWordPressFiles: true,
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+		await vi.runAllTimersAsync();
+
+		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
+	});
+
 	it('does not treat wp-admin-prefixed frontend paths as admin landings', async () => {
 		mocks.resolveRuntimeConfiguration.mockResolvedValue({
 			phpVersion: '8.4',

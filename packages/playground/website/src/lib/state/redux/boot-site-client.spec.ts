@@ -909,6 +909,11 @@ describe('bootSiteClient', () => {
 		await initialization.finished;
 		await vi.waitFor(() => expect(calls).toHaveLength(2));
 
+		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				willReplaceWordPressFiles: true,
+			})
+		);
 		expect(calls).toEqual(['import ZIP', 'copy to OPFS']);
 	});
 });

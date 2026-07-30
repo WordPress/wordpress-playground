@@ -46,6 +46,11 @@ export function registerSiteFirstBootInitializer(
 	};
 }
 
+/** Returns whether a site has work waiting for its first runtime boot. */
+export function hasSiteFirstBootInitializer(siteSlug: string) {
+	return pendingInitializers.has(siteSlug);
+}
+
 /** Runs and consumes a site's pending first-boot initializer, if any. */
 export async function runSiteFirstBootInitializer(
 	siteSlug: string,
