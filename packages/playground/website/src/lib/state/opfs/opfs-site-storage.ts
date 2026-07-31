@@ -16,7 +16,6 @@ import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
 import type { Ignore } from 'ignore';
-import ignore from 'ignore';
 import {
 	type ExtraLibrary,
 	type PHPConstants,
@@ -567,7 +566,9 @@ async function zipDirectory(
 	excludePatterns: readonly string[] = []
 ) {
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
-	const pathMatcher = ignore().add(excludePatterns);
+	const pathMatcher = excludePatterns.length
+		? (await import('ignore')).default().add(excludePatterns)
+		: undefined;
 	try {
 		await addDirectoryEntries(zipWriter, directory, '', pathMatcher);
 		return await zipWriter.close();
@@ -588,7 +589,7 @@ async function addDirectoryEntries(
 	zipWriter: ZipWriter<Blob>,
 	directory: FileSystemDirectoryHandle,
 	relativeDirPath: string,
-	pathMatcher: Ignore
+	pathMatcher: Ignore | undefined
 ) {
 	for await (const [name, entry] of directory.entries()) {
 		const relativePath = relativeDirPath
@@ -598,7 +599,7 @@ async function addDirectoryEntries(
 		if (entry.kind === 'directory') {
 			const archivePath = `${relativePath}/`;
 			// Descendants cannot be re-included while their parent remains ignored.
-			if (pathMatcher.ignores(archivePath)) {
+			if (pathMatcher?.ignores(archivePath)) {
 				continue;
 			}
 			await zipWriter.add(archivePath, undefined, {
@@ -612,7 +613,7 @@ async function addDirectoryEntries(
 				pathMatcher
 			);
 		} else {
-			if (pathMatcher.ignores(relativePath)) {
+			if (pathMatcher?.ignores(relativePath)) {
 				continue;
 			}
 			await zipWriter.add(
