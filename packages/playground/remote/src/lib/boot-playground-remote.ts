@@ -24,6 +24,7 @@ type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
+import { waitForIframeLoad } from './iframe-navigation';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
@@ -320,11 +321,7 @@ export async function bootPlaygroundRemote() {
 			 * @see https://github.com/WordPress/wordpress-playground/issues/3061 for
 			 *      the detailed context.
 			 */
-			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), {
-					once: true,
-				});
-			});
+			const navigationComplete = waitForIframeLoad(wpFrame);
 
 			// If the URL is the same, we need to force a reload
 			// because otherwise the iframe will not reload the page.
