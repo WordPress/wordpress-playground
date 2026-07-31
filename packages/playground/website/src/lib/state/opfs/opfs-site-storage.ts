@@ -15,6 +15,8 @@ import type { OriginalUrlParams } from '../original-url-params';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
+import type { Ignore } from 'ignore';
+import ignore from 'ignore';
 import {
 	type ExtraLibrary,
 	type PHPConstants,
@@ -39,6 +41,8 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+// 0o40755 = 0o40000 | 0o755; ZIP stores it in externalFileAttributes' upper 16 bits.
+const ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES = 0o40755 << 16;
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -66,6 +70,14 @@ type StoredSiteChanges = {
 	metadata?: SiteMetadataChanges;
 	originalUrlParams?: OriginalUrlParams;
 };
+
+export interface ExportSavedSiteAsZipOptions {
+	/**
+	 * Gitignore-style exclusion patterns applied relative to the saved site root.
+	 * Patterns starting with `!` re-include paths.
+	 */
+	excludePatterns?: readonly string[];
+}
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
@@ -217,12 +229,15 @@ class OpfsSiteStorage {
 	 * half-written or mismatched files is just corrupt output with a nicer file
 	 * extension.
 	 */
-	async exportSavedSiteAsZip(slug: string): Promise<Blob | undefined> {
+	async exportSavedSiteAsZip(
+		slug: string,
+		options: ExportSavedSiteAsZipOptions = {}
+	): Promise<Blob | undefined> {
 		const siteDirectory = await this.getSavedSiteDirectory(slug);
 		if (!siteDirectory) {
 			return undefined;
 		}
-		return await zipDirectory(siteDirectory);
+		return await zipDirectory(siteDirectory, options.excludePatterns);
 	}
 
 	/**
@@ -547,10 +562,14 @@ function isMissingOpfsEntry(error: unknown) {
  * callers can use the Blob directly, and converting it copies the whole archive
  * for no useful reason.
  */
-async function zipDirectory(directory: FileSystemDirectoryHandle) {
+async function zipDirectory(
+	directory: FileSystemDirectoryHandle,
+	excludePatterns: readonly string[] = []
+) {
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
+	const pathMatcher = ignore().add(excludePatterns);
 	try {
-		await addDirectoryEntries(zipWriter, directory, '');
+		await addDirectoryEntries(zipWriter, directory, '', pathMatcher);
 		return await zipWriter.close();
 	} catch (error) {
 		await zipWriter.close().catch(() => undefined);
@@ -568,7 +587,8 @@ async function zipDirectory(directory: FileSystemDirectoryHandle) {
 async function addDirectoryEntries(
 	zipWriter: ZipWriter<Blob>,
 	directory: FileSystemDirectoryHandle,
-	relativeDirPath: string
+	relativeDirPath: string,
+	pathMatcher: Ignore
 ) {
 	for await (const [name, entry] of directory.entries()) {
 		const relativePath = relativeDirPath
@@ -576,11 +596,25 @@ async function addDirectoryEntries(
 			: name;
 
 		if (entry.kind === 'directory') {
-			await zipWriter.add(`${relativePath}/`, undefined, {
+			const archivePath = `${relativePath}/`;
+			// Descendants cannot be re-included while their parent remains ignored.
+			if (pathMatcher.ignores(archivePath)) {
+				continue;
+			}
+			await zipWriter.add(archivePath, undefined, {
 				directory: true,
+				externalFileAttributes: ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES,
 			});
-			await addDirectoryEntries(zipWriter, entry, relativePath);
+			await addDirectoryEntries(
+				zipWriter,
+				entry,
+				relativePath,
+				pathMatcher
+			);
 		} else {
+			if (pathMatcher.ignores(relativePath)) {
+				continue;
+			}
 			await zipWriter.add(
 				relativePath,
 				new BlobReader(await entry.getFile())
