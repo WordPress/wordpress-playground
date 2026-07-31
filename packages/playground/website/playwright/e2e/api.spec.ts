@@ -2,6 +2,16 @@ import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 import { test, expect } from '../playground-fixtures';
 
+/**
+ * This test isolates the public saved-site export API from Playground site creation:
+ *
+ * 1. Load the website with temporary storage so its active site does not write to OPFS.
+ * 2. Seed a minimal, uniquely identified saved site directly in the origin's OPFS bucket.
+ * 3. Load the public client and same-origin api.html in a sandboxed iframe.
+ * 4. Export that slug and verify its marker content is present in the returned ZIP.
+ *
+ * The marker proves that api.html read the seeded OPFS site through the public API.
+ */
 test('startPlaygroundAPI exports a saved OPFS site through api.html', async ({
 	page,
 	browserName,
