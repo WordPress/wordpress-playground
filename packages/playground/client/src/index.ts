@@ -147,6 +147,7 @@ export interface StartPlaygroundWebOptions extends Omit<
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
+// Redefined here to prevent an import from opfs-site-storage.ts
 export interface ExportSavedSiteAsZipOptions {
 	/**
 	 * Gitignore-style exclusion patterns applied relative to the saved site root.
