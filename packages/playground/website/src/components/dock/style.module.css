@@ -1258,7 +1258,7 @@
 .dock-body {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 8px;
 	/* One 8px frame all around. The measure that matters is the ink touching
 	   each edge: the toggle pill (full-row, bordered) at the top, the tool
 	   buttons at the sides and bottom — all of them clear the dock's edge by
