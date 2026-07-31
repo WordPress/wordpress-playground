@@ -36,6 +36,14 @@
 	cursor: default;
 }
 
+@media (max-width: 1024px) {
+	/* The full-width mobile Dock has two inline insets. Center the refresh target
+	   between the outer Dock edge and URL field instead of the inner inset. */
+	.refresh-button {
+		margin-inline: -4px 12px;
+	}
+}
+
 .input-container {
 	position: relative;
 	display: flex;
