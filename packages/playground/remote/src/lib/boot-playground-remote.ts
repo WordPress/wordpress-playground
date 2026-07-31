@@ -130,6 +130,10 @@ export async function bootPlaygroundRemote() {
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	type PHPEventListener = Parameters<
+		PlaygroundWorkerEndpoint['addEventListener']
+	>[1];
+
 	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
@@ -154,6 +158,26 @@ export async function bootPlaygroundRemote() {
 		},
 		async removeEventListener(event, listener) {
 			return await phpWorkerApi.removeEventListener(event, listener);
+		},
+		async subscribeToPHPEvent(event, listener) {
+			/**
+			 * Keep the relay in this iframe instead of passing the parent callback
+			 * proxy into the worker. This gives each Comlink hop a local callback and
+			 * lets transferable event payloads cross both boundaries.
+			 *
+			 * The worker stores the exact relay under the returned ID because callback
+			 * identity does not survive another Comlink call.
+			 */
+			const relay: PHPEventListener = (phpEvent) => listener(phpEvent);
+			return await phpWorkerApi.__internal_subscribeToPHPEvent(
+				event,
+				relay
+			);
+		},
+		async unsubscribeFromPHPEvent(subscriptionId) {
+			await phpWorkerApi.__internal_unsubscribeFromPHPEvent(
+				subscriptionId
+			);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {

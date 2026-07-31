@@ -69,6 +69,15 @@ export interface WebClientMixin extends ProgressReceiver {
 	replayFSJournal: PlaygroundWorkerEndpoint['replayFSJournal'];
 	addEventListener: PlaygroundWorkerEndpoint['addEventListener'];
 	removeEventListener: PlaygroundWorkerEndpoint['removeEventListener'];
+	/**
+	 * Subscribes to PHP events through both the worker and iframe boundaries.
+	 * @returns An ID accepted by unsubscribeFromPHPEvent().
+	 */
+	subscribeToPHPEvent(
+		eventType: Parameters<PlaygroundWorkerEndpoint['addEventListener']>[0],
+		listener: Parameters<PlaygroundWorkerEndpoint['addEventListener']>[1]
+	): Promise<number>;
+	unsubscribeFromPHPEvent(subscriptionId: number): Promise<void>;
 	backfillStaticFilesRemovedFromMinifiedBuild: PlaygroundWorkerEndpoint['backfillStaticFilesRemovedFromMinifiedBuild'];
 	hasCachedStaticFilesRemovedFromMinifiedBuild: PlaygroundWorkerEndpoint['hasCachedStaticFilesRemovedFromMinifiedBuild'];
 
