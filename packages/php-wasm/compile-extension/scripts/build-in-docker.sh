@@ -110,5 +110,22 @@ if [ -x /root/emsdk/upstream/bin/wasm-opt ]; then
 		-o "$module_path"
 fi
 
+node --input-type=module - "$module_path" <<'EOF'
+import { readFile } from 'node:fs/promises';
+
+const modulePath = process.argv[2];
+const module = new WebAssembly.Module(await readFile(modulePath));
+const hasGetModule = WebAssembly.Module.exports(module).some(
+	({ kind, name }) => kind === 'function' && name === 'get_module'
+);
+
+if (!hasGetModule) {
+	throw new Error(
+		`${modulePath} does not export PHP's get_module() entry point. ` +
+			'PHP extensions must include config.h and call ZEND_GET_MODULE().'
+	);
+}
+EOF
+
 mkdir -p /out
 cp "$module_path" "/out/${ARTIFACT_FILENAME}"

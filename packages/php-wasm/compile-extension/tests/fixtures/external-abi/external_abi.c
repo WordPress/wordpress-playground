@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "php.h"
 #include "ext/standard/php_password.h"
 #include <stdio.h>
@@ -43,5 +47,8 @@ zend_module_entry external_abi_module_entry = {
 };
 
 #ifdef COMPILE_DL_EXTERNAL_ABI
+#ifdef ZTS
+ZEND_TSRMLS_CACHE_DEFINE()
+#endif
 ZEND_GET_MODULE(external_abi)
 #endif
