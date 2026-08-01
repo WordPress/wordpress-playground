@@ -475,7 +475,7 @@ PHP_FUNCTION(dns_get_mx)
 	{
 		HashPosition position;
 		zval **record, **target, **priority;
-		for (zend_hash_internal_pointer_reset_ex(Z_ARRVAL(records), &position); zend_hash_get_current_data_ex(Z_ARRVAL(records), (void **) &record, &position) == SUCCESS; zend_hash_move_forward_ex(Z_ARRVAL(records), &position)) {
+		for (zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(records), &position); zend_hash_get_current_data_ex(Z_ARRVAL_P(records), (void **) &record, &position) == SUCCESS; zend_hash_move_forward_ex(Z_ARRVAL_P(records), &position)) {
 			if (zend_hash_find(Z_ARRVAL_PP(record), "target", sizeof("target"), (void **) &target) == SUCCESS) dns_append_string(mx_list, Z_STRVAL_PP(target));
 			if (weight_list && zend_hash_find(Z_ARRVAL_PP(record), "pri", sizeof("pri"), (void **) &priority) == SUCCESS) add_next_index_long(weight_list, Z_LVAL_PP(priority));
 		}

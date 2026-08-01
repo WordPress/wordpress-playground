@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '5_2_17', 'php_5_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 9915614;
+export const dependenciesTotalSize = 9920819;
 const phpVersionString = '5.2.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6086,7 +6086,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map,
+		socketTimeouts: new Map(),
 		init: function () {
 			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
 			if (PHPLoader.bindUserSpace) {
@@ -6684,7 +6684,6 @@ export function init(RuntimeName, PHPLoader) {
 			const peer = PHPWASM.getAllPeers(sock).find(
 				(candidate) => candidate.socket === ws
 			);
-
 			const cleanupConnectListeners = () => {
 				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
@@ -6693,7 +6692,6 @@ export function init(RuntimeName, PHPLoader) {
 				ws.removeEventListener('error', handleError);
 				ws.removeEventListener('close', handleClose);
 			};
-
 			const cleanupFailedConnect = (errno) => {
 				try {
 					if (
@@ -6702,16 +6700,13 @@ export function init(RuntimeName, PHPLoader) {
 					) {
 						ws.close();
 					}
-				} catch (e) {
-					// Ignore close errors on an already-failed connect.
-				}
+				} catch (e) {}
 				if (peer) {
 					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
 				}
 				sock.connecting = false;
 				sock.error = errno;
 			};
-
 			const finishConnect = (result) => {
 				if (!resolved) {
 					resolved = true;
@@ -6722,21 +6717,17 @@ export function init(RuntimeName, PHPLoader) {
 					wakeUp(result);
 				}
 			};
-
 			if (timeout > 0) {
 				timeoutId = setTimeout(() => {
 					finishConnect(-ERRNO_CODES.ETIMEDOUT);
 				}, timeout);
 			}
-
 			handleOpen = () => {
 				finishConnect(0);
 			};
-
 			handleError = () => {
 				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
-
 			handleClose = () => {
 				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
@@ -9125,11 +9116,34 @@ export function init(RuntimeName, PHPLoader) {
 				 * Descriptor 0 was not provided, so the child process must observe EOF.
 				 * Closing stdin explicitly lets spawn handlers distinguish that case from
 				 * a valid pipe whose first bytes have not arrived yet.
-				 */
-				cp.stdin.end();
+				 */ cp.stdin.end();
 			}
 			return ProcInfo.pid;
 		});
+	}
+
+	function _js_popen_clear_pid_for_fd(fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				delete PHPWASM.processTable[pid].fd;
+				return;
+			}
+		}
+	}
+
+	function _js_popen_get_pid_for_fd(fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				return PHPWASM.processTable[pid].pid;
+			}
+		}
+		return -1;
+	}
+
+	function _js_popen_set_pid_for_fd(fd, pid) {
+		if (PHPWASM.processTable[pid]) {
+			PHPWASM.processTable[pid].fd = fd;
+		}
 	}
 
 	function _js_release_file_locks() {
@@ -9137,6 +9151,24 @@ export function init(RuntimeName, PHPLoader) {
 			return;
 		}
 		return Module['userSpace'].js_release_file_locks();
+	}
+
+	function _js_waitpid(pid, exitCodePtr) {
+		if (!PHPWASM.processTable[pid]) {
+			return -1;
+		}
+		return Asyncify.handleSleep((wakeUp) => {
+			const poll = function () {
+				if (PHPWASM.processTable[pid]?.exited) {
+					HEAPU32[exitCodePtr >> 2] =
+						PHPWASM.processTable[pid].exitCode;
+					wakeUp(pid);
+				} else {
+					setTimeout(poll, 50);
+				}
+			};
+			poll();
+		});
 	}
 
 	var arraySum = (array, index) => {
@@ -9533,6 +9565,7 @@ export function init(RuntimeName, PHPLoader) {
 			PHPWASM.socketTimeouts.set(socketd, timeouts);
 			return 0;
 		}
+		// Options that we can forward to the WebSocket proxy
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
@@ -9553,7 +9586,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|wasm_connect|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
+				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|wasm_connect|wasm_dns_resolve|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
 					let isAsyncifyImport =
@@ -9764,6 +9797,26 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library exports
 	// end include: postlibrary.js
 	var ASM_CONSTS = {};
+
+	function __asyncjs__wasm_dns_resolve(host, type) {
+		return Asyncify.handleAsync(async () => {
+			if (
+				typeof Module['userSpace'] === 'undefined' ||
+				!Module['userSpace'].dnsResolve
+			)
+				return 0;
+			const value = await Module['userSpace'].dnsResolve(
+				UTF8ToString(host),
+				UTF8ToString(type)
+			);
+			const size = lengthBytesUTF8(value) + 1;
+			const result = _malloc(size);
+			stringToUTF8(value, result, size);
+			return result;
+		});
+	}
+
+	__asyncjs__wasm_dns_resolve.sig = 'iii';
 
 	function __asyncjs__js_popen_to_file(command, mode, exitCodePtr) {
 		return Asyncify.handleAsync(async () => {
@@ -10069,7 +10122,8 @@ export function init(RuntimeName, PHPLoader) {
 	__asyncjs__js_module_onMessage.sig = 'iii';
 
 	// Imports from the Wasm binary.
-	var _compile_string,
+	var _php_info_print_table_header,
+		_compile_string,
 		__efree,
 		__zval_ptr_dtor,
 		_destroy_op_array,
@@ -10078,17 +10132,32 @@ export function init(RuntimeName, PHPLoader) {
 		_calloc,
 		_malloc,
 		___errno_location,
+		___wasm_setjmp,
+		___wasm_setjmp_test,
+		___wasm_longjmp,
+		_rename,
+		_unlink,
+		_mkdir,
+		_rmdir,
+		_opendir,
+		_ftell,
+		_strtoll,
 		_wasm_sleep,
 		_ntohs,
 		_htons,
 		_htonl,
+		_fseek,
 		_wasm_read,
 		_fflush,
 		_flock,
+		_closedir,
+		_readdir,
+		_isalnum,
 		_php_pollfd_for,
 		_wasm_php_exec,
 		___wrap_usleep,
 		_wasm_popen,
+		_wasm_pclose,
 		___wrap_select,
 		_wasm_set_sapi_name,
 		_wasm_set_phpini_path,
@@ -10115,6 +10184,8 @@ export function init(RuntimeName, PHPLoader) {
 		___wrap_getpid,
 		_wasm_trace,
 		_initgroups,
+		_sqlite3_auto_extension,
+		_sqlite3_cancel_auto_extension,
 		___funcs_on_exit,
 		___dl_seterr,
 		__emscripten_find_dylib,
@@ -10136,6 +10207,8 @@ export function init(RuntimeName, PHPLoader) {
 		wasmMemory;
 
 	function assignWasmExports(wasmExports) {
+		_php_info_print_table_header = Module['_php_info_print_table_header'] =
+			wasmExports['php_info_print_table_header'];
 		_compile_string = Module['_compile_string'] =
 			wasmExports['compile_string'];
 		__efree = Module['__efree'] = wasmExports['_efree'];
@@ -10153,13 +10226,30 @@ export function init(RuntimeName, PHPLoader) {
 				wasmExports['malloc'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];
+		___wasm_setjmp = Module['___wasm_setjmp'] =
+			wasmExports['__wasm_setjmp'];
+		___wasm_setjmp_test = Module['___wasm_setjmp_test'] =
+			wasmExports['__wasm_setjmp_test'];
+		___wasm_longjmp = Module['___wasm_longjmp'] =
+			wasmExports['__wasm_longjmp'];
+		_rename = Module['_rename'] = wasmExports['rename'];
+		_unlink = Module['_unlink'] = wasmExports['unlink'];
+		_mkdir = Module['_mkdir'] = wasmExports['mkdir'];
+		_rmdir = Module['_rmdir'] = wasmExports['rmdir'];
+		_opendir = Module['_opendir'] = wasmExports['opendir'];
+		_ftell = Module['_ftell'] = wasmExports['ftell'];
+		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'];
 		_ntohs = wasmExports['ntohs'];
 		_htons = wasmExports['htons'];
 		_htonl = wasmExports['htonl'];
+		_fseek = Module['_fseek'] = wasmExports['fseek'];
 		_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'];
 		_fflush = wasmExports['fflush'];
 		_flock = Module['_flock'] = wasmExports['flock'];
+		_closedir = Module['_closedir'] = wasmExports['closedir'];
+		_readdir = Module['_readdir'] = wasmExports['readdir'];
+		_isalnum = Module['_isalnum'] = wasmExports['isalnum'];
 		_php_pollfd_for = Module['_php_pollfd_for'] =
 			wasmExports['php_pollfd_for'];
 		_wasm_php_exec = Module['_wasm_php_exec'] =
@@ -10167,6 +10257,7 @@ export function init(RuntimeName, PHPLoader) {
 		___wrap_usleep = Module['___wrap_usleep'] =
 			wasmExports['__wrap_usleep'];
 		_wasm_popen = Module['_wasm_popen'] = wasmExports['wasm_popen'];
+		_wasm_pclose = Module['_wasm_pclose'] = wasmExports['wasm_pclose'];
 		___wrap_select = Module['___wrap_select'] =
 			wasmExports['__wrap_select'];
 		_wasm_set_sapi_name = Module['_wasm_set_sapi_name'] =
@@ -10218,6 +10309,11 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__wrap_getpid'];
 		_wasm_trace = Module['_wasm_trace'] = wasmExports['wasm_trace'];
 		_initgroups = Module['_initgroups'] = wasmExports['initgroups'];
+		_sqlite3_auto_extension = Module['_sqlite3_auto_extension'] =
+			wasmExports['sqlite3_auto_extension'];
+		_sqlite3_cancel_auto_extension = Module[
+			'_sqlite3_cancel_auto_extension'
+		] = wasmExports['sqlite3_cancel_auto_extension'];
 		___funcs_on_exit = wasmExports['__funcs_on_exit'];
 		___dl_seterr = wasmExports['__dl_seterr'];
 		__emscripten_find_dylib = wasmExports['_emscripten_find_dylib'];
@@ -10246,34 +10342,35 @@ export function init(RuntimeName, PHPLoader) {
 		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
 
-	var _file_globals = (Module['_file_globals'] = 4026816);
+	var _file_globals = (Module['_file_globals'] = 4027216);
 
-	var _sapi_module = (Module['_sapi_module'] = 4032012);
+	var _sapi_module = (Module['_sapi_module'] = 4032412);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 4032152);
+	var _sapi_globals = (Module['_sapi_globals'] = 4032552);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 4025696);
+	var _compiler_globals = (Module['_compiler_globals'] = 4026096);
 
-	var _executor_globals = (Module['_executor_globals'] = 4026040);
+	var _executor_globals = (Module['_executor_globals'] = 4026440);
 
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 4020136);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 4020536);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 4020140);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 4020540);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 4020144);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 4020544);
 
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 4020148);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 4020548);
 
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 4020152);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 4020552);
 
-	var _std_object_handlers = (Module['_std_object_handlers'] = 3648076);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 3648092);
 
-	var ___heap_base = 5123888;
+	var ___heap_base = 5124288;
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,
 		/** @export */ __asyncjs__js_module_onMessage,
 		/** @export */ __asyncjs__js_popen_to_file,
+		/** @export */ __asyncjs__wasm_dns_resolve,
 		/** @export */ __asyncjs__wasm_poll_socket,
 		/** @export */ __call_sighandler: ___call_sighandler,
 		/** @export */ __syscall_accept4: ___syscall_accept4,
@@ -10349,7 +10446,11 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */ js_flock: _js_flock,
 		/** @export */ js_getpid: _js_getpid,
 		/** @export */ js_open_process: _js_open_process,
+		/** @export */ js_popen_clear_pid_for_fd: _js_popen_clear_pid_for_fd,
+		/** @export */ js_popen_get_pid_for_fd: _js_popen_get_pid_for_fd,
+		/** @export */ js_popen_set_pid_for_fd: _js_popen_set_pid_for_fd,
 		/** @export */ js_release_file_locks: _js_release_file_locks,
+		/** @export */ js_waitpid: _js_waitpid,
 		/** @export */ js_wasm_trace: _js_wasm_trace,
 		/** @export */ proc_exit: _proc_exit,
 		/** @export */ strptime: _strptime,

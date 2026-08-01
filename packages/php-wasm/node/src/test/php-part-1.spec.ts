@@ -528,33 +528,46 @@ phpLoaderOptions.forEach((options) => {
 				});
 				const bridgedPhp = new PHP(runtime);
 				try {
-					const result = await bridgedPhp.run({
+					const lowercase = await bridgedPhp.run({
 						code: `<?php
-						$a = dns_get_record('example.test', DNS_A);
-						$mxHosts = array(); $mxWeights = array();
-						echo json_encode(array(
-							'lowercase' => checkdnsrr('example.test', 'a'),
-							'mixedCase' => checkdnsrr('example.test', 'aAaA'),
-							'records' => $a,
-							'mx' => getmxrr('example.test', $mxHosts, $mxWeights),
-							'mxHosts' => $mxHosts,
-							'mxWeights' => $mxWeights
-						));
+							echo json_encode(checkdnsrr('example.test', 'a'));
 						`,
 					});
-					const dns = JSON.parse(result.text);
-					expect(dns).toEqual({
-						lowercase: true,
-						mixedCase: true,
-						records: [
-							{
-								host: 'example.test',
-								class: 'IN',
-								ttl: 0,
-								type: 'A',
-								ip: '192.0.2.1',
-							},
-						],
+					expect(JSON.parse(lowercase.text)).toBe(true);
+
+					const mixedCase = await bridgedPhp.run({
+						code: `<?php
+							echo json_encode(checkdnsrr('example.test', 'aAaA'));
+						`,
+					});
+					expect(JSON.parse(mixedCase.text)).toBe(true);
+
+					const records = await bridgedPhp.run({
+						code: `<?php
+							echo json_encode(dns_get_record('example.test', DNS_A));
+						`,
+					});
+					expect(JSON.parse(records.text)).toEqual([
+						{
+							host: 'example.test',
+							class: 'IN',
+							ttl: 0,
+							type: 'A',
+							ip: '192.0.2.1',
+						},
+					]);
+
+					const mx = await bridgedPhp.run({
+						code: `<?php
+							$mxHosts = array(); $mxWeights = array();
+							echo json_encode(array(
+								'mx' => getmxrr('example.test', $mxHosts, $mxWeights),
+								'mxHosts' => $mxHosts,
+								'mxWeights' => $mxWeights
+							));
+						`,
+					});
+					expect(JSON.parse(mx.text)).toEqual({
 						mx: true,
 						mxHosts: ['mail.example.test'],
 						mxWeights: [10],

@@ -704,6 +704,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_dns_get_mx",\
 "dns_resolve",\
 "dns_resolve_mask",\
+"ZEND_DO_FCALL_SPEC_CONST_HANDLER",\
+"execute",\
+"zend_execute_scripts",\
+"php_execute_script",\
+"wasm_sapi_handle_request",\
 "printf_core",\
 "__vfprintf_internal",\
 "vfprintf",\
