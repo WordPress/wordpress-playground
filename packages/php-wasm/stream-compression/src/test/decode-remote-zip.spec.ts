@@ -57,6 +57,30 @@ describe('decodeRemoteZip', () => {
 		}
 	}, 30_000);
 
+	it('bounds concurrent live range response bodies', async () => {
+		const zipBytes = await createLargeZip(20, 100_000);
+		const originalFetch = globalThis.fetch;
+		const delayedFetch = createDelayedRangeFetch(zipBytes);
+		globalThis.fetch = delayedFetch.fetch;
+
+		try {
+			const decoder = new TextDecoder();
+			const stream = await decodeRemoteZip(
+				'https://example.com/archive.zip',
+				(entry) => decoder.decode(entry.path).endsWith('.txt')
+			);
+			const files = readAll(stream);
+
+			await delayedFetch.waitForLiveResponses(10);
+			expect(delayedFetch.maximumLiveResponses).toBeLessThanOrEqual(10);
+			expect(delayedFetch.maximumLiveResponses).toBeGreaterThan(1);
+			delayedFetch.releaseBodies();
+			await files;
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	}, 30_000);
+
 	it('propagates range failures through the returned stream', async () => {
 		const zipBytes = await createLargeZip();
 		const originalFetch = globalThis.fetch;
@@ -78,10 +102,12 @@ describe('decodeRemoteZip', () => {
 	}, 30_000);
 });
 
-async function createLargeZip(selectedFiles = 2): Promise<Uint8Array> {
+async function createLargeZip(
+	selectedFiles = 2,
+	noiseLength = selectedFiles === 2 ? 600_000 : 40_000
+): Promise<Uint8Array> {
 	let state = 0x12345678;
 	const files = [];
-	const noiseLength = selectedFiles === 2 ? 600_000 : 40_000;
 	for (let index = 0; index < selectedFiles; index++) {
 		files.push(new File([`contents ${index}`], `selected-${index}.txt`));
 		const noise = new Uint8Array(noiseLength);
@@ -147,5 +173,81 @@ function createRangeFetch(
 				'Content-Range': `bytes ${from}-${to}/${zipBytes.byteLength}`,
 			},
 		});
+	};
+}
+
+function createDelayedRangeFetch(zipBytes: Uint8Array) {
+	let liveResponses = 0;
+	let maximumLiveResponses = 0;
+	let releaseBodies!: () => void;
+	const bodiesReleased = new Promise<void>((resolve) => {
+		releaseBodies = resolve;
+	});
+	let resolveWaitForLiveResponses!: () => void;
+	const liveResponsesReached = new Promise<void>((resolve) => {
+		resolveWaitForLiveResponses = resolve;
+	});
+
+	return {
+		fetch: (async (_input, init) => {
+			if (init?.method === 'HEAD') {
+				return new Response(null, {
+					headers: { 'Content-Length': String(zipBytes.byteLength) },
+				});
+			}
+
+			const range = new Headers(init?.headers).get('Range');
+			if (!range) {
+				return new Response(zipBytes);
+			}
+
+			const match = /^bytes=(\d+)-(\d*)$/.exec(range);
+			if (!match) {
+				throw new Error(`Unexpected Range header: ${range}`);
+			}
+			const from = Number(match[1]);
+			const to = match[2]
+				? Math.min(Number(match[2]), zipBytes.byteLength - 1)
+				: zipBytes.byteLength - 1;
+			const bytes = zipBytes.slice(from, to + 1);
+			const delayBody =
+				range !== 'bytes=0-0' && from < zipBytes.byteLength / 2;
+			const body = delayBody
+				? new ReadableStream<Uint8Array>({
+						async pull(controller) {
+							liveResponses++;
+							maximumLiveResponses = Math.max(
+								maximumLiveResponses,
+								liveResponses
+							);
+							if (maximumLiveResponses >= 10) {
+								resolveWaitForLiveResponses();
+							}
+							await bodiesReleased;
+							controller.enqueue(bytes);
+							controller.close();
+							liveResponses--;
+						},
+					})
+				: bytes;
+
+			return new Response(body, {
+				status: 206,
+				headers: {
+					'Content-Length': String(bytes.byteLength),
+					'Content-Range': `bytes ${from}-${to}/${zipBytes.byteLength}`,
+				},
+			});
+		}) as typeof fetch,
+		get maximumLiveResponses() {
+			return maximumLiveResponses;
+		},
+		releaseBodies,
+		waitForLiveResponses: async (count: number) => {
+			if (maximumLiveResponses >= count) {
+				return;
+			}
+			await liveResponsesReached;
+		},
 	};
 }
