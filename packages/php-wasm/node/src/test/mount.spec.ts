@@ -46,6 +46,22 @@ describe('Mounting', () => {
 		php.exit();
 	});
 
+	it('Should reject a missing local source path', async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+		const missingSourcePath = path.join(tempDir, 'missing-source.txt');
+
+		try {
+			await expect(
+				php.mount(
+					'/missing-source.txt',
+					createNodeFsMountHandler(missingSourcePath)
+				)
+			).rejects.toMatchObject({ code: 'ENOENT' });
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	[
 		{
 			filePath: testFilePath,

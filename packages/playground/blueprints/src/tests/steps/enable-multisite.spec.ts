@@ -10,6 +10,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { login } from '../../lib/steps/login';
 import type { PHPRequest, PHPRequestHandler } from '@php-wasm/universal';
+import { compileBlueprintForExecution } from '../../lib/compile';
 
 describe('Blueprint step enableMultisite', () => {
 	let handler: PHPRequestHandler;
@@ -87,6 +88,48 @@ describe('Blueprint step enableMultisite', () => {
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toContain('My Sites');
 			expect(response.text).toContain('Network Admin');
+		});
+	});
+
+	it('should run with later WP-CLI steps through the Blueprint v2 compiler', async () => {
+		const { php } = await doBootWordPress({
+			absoluteUrl: 'http://playground-domain/',
+		});
+		const wpCli = readFileSync(join(__dirname, '/../fixtures/wp-cli.phar'));
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response(wpCli, { status: 200 }));
+
+		try {
+			const compiled = await compileBlueprintForExecution({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{ step: 'enableMultisite' },
+					{
+						step: 'wp-cli',
+						command:
+							"wp site create --slug=food --title='The Foodie' --email=editor@example.com",
+					},
+				],
+			});
+			await compiled.run(php);
+		} finally {
+			fetchSpy.mockRestore();
+		}
+
+		const result = await php.run({
+			code: `<?php
+				require '/wordpress/wp-load.php';
+				echo json_encode([
+					'isMultisite' => is_multisite(),
+					'siteCount' => count(get_sites()),
+				]);
+			`,
+		});
+
+		expect(result.json).toEqual({
+			isMultisite: true,
+			siteCount: 2,
 		});
 	});
 });

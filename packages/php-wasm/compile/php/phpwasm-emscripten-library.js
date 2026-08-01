@@ -945,6 +945,13 @@ const LibraryExample = {
 				// callbacks.
 				const interval = setInterval(pump, 20);
 				pump();
+			} else {
+				/**
+				 * Descriptor 0 was not provided, so the child process must observe EOF.
+				 * Closing stdin explicitly lets spawn handlers distinguish that case from
+				 * a valid pipe whose first bytes have not arrived yet.
+				 */
+				cp.stdin.end();
 			}
 
 			return ProcInfo.pid;
@@ -978,6 +985,30 @@ const LibraryExample = {
 			};
 			poll();
 		});
+	},
+
+	js_popen_set_pid_for_fd: function (fd, pid) {
+		if (PHPWASM.processTable[pid]) {
+			PHPWASM.processTable[pid].fd = fd;
+		}
+	},
+
+	js_popen_get_pid_for_fd: function (fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				return PHPWASM.processTable[pid].pid;
+			}
+		}
+		return -1;
+	},
+
+	js_popen_clear_pid_for_fd: function (fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				delete PHPWASM.processTable[pid].fd;
+				return;
+			}
+		}
 	},
 
 	/**

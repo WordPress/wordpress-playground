@@ -68,6 +68,14 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	flushOpfs(mountpoint: string): Promise<void>;
 
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	unmountOpfs(mountpoint: string): Promise<void>;
 
 	boot(options: WorkerBootOptions): Promise<void>;

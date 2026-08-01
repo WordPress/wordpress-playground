@@ -1,6 +1,9 @@
 Options +Multiviews
 AddEncoding x-gzip .gz
 
+RewriteEngine On
+RewriteRule ^relay(/.*)?$ relay.php [L,QSA]
+
 <FilesMatch "index\.html">
 Header unset ETag
 Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"

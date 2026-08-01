@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
@@ -34,18 +35,30 @@ export function PhpMyAdminButton({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		async function detectPhpMyAdmin() {
-			if (!playground) {
-				return;
-			}
+		if (!playground) {
+			setState('idle');
+			setError(null);
+			return;
+		}
+		let cancelled = false;
 
-			if (await playground.isDir(PHPMYADMIN_INSTALL_PATH)) {
-				setState('ready');
-			} else {
+		async function detectPhpMyAdmin() {
+			try {
+				if (!playground) return;
+				const isDir = await playground.isDir(PHPMYADMIN_INSTALL_PATH);
+				if (cancelled) return;
+				setState(isDir ? 'ready' : 'idle');
+			} catch (error) {
+				if (cancelled) return;
+				logger.error('Failed to detect phpMyAdmin', error);
 				setState('idle');
 			}
 		}
-		detectPhpMyAdmin();
+
+		void detectPhpMyAdmin();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const handleOpenPhpMyAdmin = async () => {
@@ -86,7 +99,7 @@ export function PhpMyAdminButton({
 		<>
 			<Flex direction="column" gap={0} expanded={false}>
 				<Button
-					variant="primary"
+					variant="secondary"
 					disabled={!playground || isLoading}
 					isBusy={isLoading}
 					onClick={handleOpenPhpMyAdmin}

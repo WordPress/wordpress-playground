@@ -721,6 +721,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_init_config",\
 "zend_register_constant",\
 "zend_register_ini_entries_ex",\
+"php_mail",\
 "php_module_startup",\
 "wasm_sapi_module_startup",\
 "__fseeko_unlocked",\
@@ -1685,7 +1686,10 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "wasm_php_exec",\
 "wasm_php_stream_flush",\
 "wasm_php_stream_read",\
+"wasm_pclose",\
 "wasm_popen",\
+"__wrap_pclose",\
+"__wrap_popen",\
 "wasm_read",\
 "wasm_sapi_handle_request",\
 "wasm_sapi_request_shutdown",\
@@ -2049,6 +2053,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_passthru",\
 "zif_phar_file_get_contents",\
 "zif_phar_fopen",\
+"zif_mail",\
+"zif_pclose",\
 "zif_popen",\
 "zif_post_message_to_js",\
 "zif_preg_replace_callback",\
@@ -2380,7 +2386,7 @@ RUN set -euxo pipefail; \
 	ZEND_SIDE_MODULE_EXPORT_SOURCE=""; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_pclose,__wrap_popen,__wrap_pclose,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 		ZEND_SIDE_MODULE_EXPORT_SOURCE="/root/zend-side-module-exports.c"; \
 	else \
@@ -2437,6 +2443,8 @@ RUN set -euxo pipefail; \
 	-Wl,@/root/.wasm-exports \
 	-Wl,--wrap=usleep \
 	-Wl,--wrap=select \
+	-Wl,--wrap=popen \
+	-Wl,--wrap=pclose \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \

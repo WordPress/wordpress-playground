@@ -7,8 +7,8 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import type { OriginalUrlParams } from '../original-url-params';
 import {
-	type BlueprintV1,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
@@ -21,6 +21,12 @@ import {
 	type ResolvedBlueprint,
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
+import {
+	deleteBlueprintBundle,
+	isTraversableFilesystemBackend,
+	persistBlueprintBundle,
+} from '../opfs/opfs-blueprint-bundle-storage';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -29,10 +35,16 @@ import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
+	isStoredSite,
+	isTemporarySite,
 	type AutosavedSitesPruneOptions,
 	type SitePersistence,
 } from './site-lifecycle';
 import { getAutosaveFingerprintFromURL } from '../playground-identity';
+import {
+	getDefaultSiteNameFromBlueprint,
+	getSiteNameWithCreationTimeIfDuplicate,
+} from './site-name';
 export {
 	MAX_AUTOSAVED_SITES,
 	SitePersistenceTypes,
@@ -42,6 +54,9 @@ export {
 	getSitePublicPersistence,
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	isOpfsBackedSite,
+	isStoredSite,
+	isTemporarySite,
 	wasSiteRecentlyInteractedWith,
 } from './site-lifecycle';
 export type {
@@ -57,10 +72,8 @@ const DEFAULT_BLUEPRINT =
  */
 export interface SiteInfo {
 	slug: string;
-	originalUrlParams?: {
-		searchParams?: Record<string, string | string[]>;
-		hash?: string;
-	};
+	loadedFromStorage?: boolean;
+	originalUrlParams?: OriginalUrlParams;
 	metadata: SiteMetadata;
 }
 
@@ -126,7 +139,10 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 		const currentSites = getState().sites.entities;
 		const allSites = { ...currentSites };
 		sites.forEach((site) => {
-			allSites[site.slug] = site;
+			allSites[site.slug] = {
+				...site,
+				loadedFromStorage: true,
+			};
 		});
 		dispatch(sitesSlice.actions.setSites(allSites));
 		dispatch(setOPFSSitesLoadingState('loaded'));
@@ -225,19 +241,42 @@ export function updateSite({
 		if ('storage' in changes) {
 			throw new Error('Cannot update storage for a site.');
 		}
+		const existingSite = selectSiteBySlug(getState(), slug);
+		if (!existingSite) {
+			throw new Error(`Site not found: ${slug}`);
+		}
+		const { metadata, ...topLevelChanges } = changes;
+		const updatedSite = {
+			...existingSite,
+			...topLevelChanges,
+			metadata: metadata
+				? {
+						...existingSite.metadata,
+						...metadata,
+					}
+				: existingSite.metadata,
+		};
+		if (updatedSite.metadata.storage !== 'none') {
+			if (!opfsSiteStorage) {
+				throw new Error(
+					'Cannot update a saved Playground because browser storage is not available.'
+				);
+			}
+			await opfsSiteStorage.update(
+				updatedSite.slug,
+				updatedSite.metadata,
+				updatedSite.originalUrlParams
+			);
+		}
 		dispatch(
 			sitesSlice.actions.updateSite({
 				id: slug,
-				changes,
+				changes: {
+					...topLevelChanges,
+					...(metadata ? { metadata: updatedSite.metadata } : {}),
+				},
 			})
 		);
-		const updatedSite = selectSiteBySlug(getState(), slug);
-		if (updatedSite.metadata.storage !== 'none') {
-			await opfsSiteStorage?.update(
-				updatedSite.slug,
-				updatedSite.metadata
-			);
-		}
 	};
 }
 
@@ -264,7 +303,11 @@ export function addSite(siteInfo: SiteInfo) {
 				'Cannot add a saved Playground because browser storage is not available.'
 			);
 		}
-		await opfsSiteStorage.create(siteInfo.slug, siteInfo.metadata);
+		await opfsSiteStorage.create(
+			siteInfo.slug,
+			siteInfo.metadata,
+			siteInfo.originalUrlParams
+		);
 		dispatch(sitesSlice.actions.addSite(siteInfo));
 	};
 }
@@ -409,16 +452,18 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(siteName),
-			{
-				// Temporary sites are removed before the new one is added, so they
-				// should not force the replacement site to take a numeric suffix.
-				unavailableSlugs: selectAllSites(getState())
-					.filter((site) => site.metadata.storage !== 'none')
-					.map((site) => site.slug),
-			}
+		// Temporary sites are removed before the new one is added, so they
+		// should not force the replacement site to take a numeric suffix.
+		const storedSites = selectAllSites(getState()).filter(
+			(site) => site.metadata.storage !== 'none'
 		);
+		const unavailableSlugs = storedSites.map((site) => site.slug);
+		const unavailableNames = storedSites.map((site) => site.metadata.name);
+		const getAvailableSiteSlug = (name: string) =>
+			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
+				unavailableSlugs,
+			});
+		let siteSlug = getAvailableSiteSlug(siteName);
 
 		const sites = getState().sites.entities;
 
@@ -460,11 +505,25 @@ export function setTemporarySiteSpec(
 				resolvedBlueprint,
 				playgroundUrlWithQueryApiArgs
 			);
+			let displayName = siteName;
+			let slugBaseName = siteName;
+			if (!preferredSlug) {
+				slugBaseName = getDefaultSiteNameFromBlueprint(
+					resolvedBlueprint.blueprint,
+					siteName
+				);
+				displayName = getSiteNameWithCreationTimeIfDuplicate(
+					slugBaseName,
+					unavailableNames,
+					new Date()
+				);
+			}
+			siteSlug = getAvailableSiteSlug(slugBaseName);
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: displayName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
@@ -496,18 +555,13 @@ export function setTemporarySiteSpec(
 }
 
 /**
- * Creates the metadata record for a new OPFS-backed Playground.
- *
- * This intentionally overlaps with `setTemporarySiteSpec`: both capture the
- * setup URL, resolve the Blueprint, and derive the runtime configuration.
- * Stored sites diverge after that by writing OPFS metadata immediately, keeping
- * more than one site record, and marking the first file sync as pending. Boot
- * then uses the same setup URL to install WordPress in MEMFS before copying the
- * initialized files into OPFS.
+ * Creates a new OPFS-backed Playground from a setup URL or editable Blueprint
+ * bundle. Bundles are stored with the new Playground before their metadata is
+ * written because they may include edits that cannot be represented by a URL.
  */
-export function setStoredSiteSpec(
+export function createStoredSite(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL,
+	source: URL | TraversableFilesystemBackend,
 	preferredSlug?: string,
 	options: {
 		/**
@@ -520,44 +574,99 @@ export function setStoredSiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(siteName),
-			{ unavailableSlugs: selectSiteSlugs(getState()) }
-		);
-		const originalUrlParams = getOriginalUrlParams(
-			playgroundUrlWithQueryApiArgs
-		);
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create a saved Playground because browser storage is not available.'
+			);
+		}
 
-		const resolvedBlueprint = await resolveSiteBlueprintFromUrl(
-			playgroundUrlWithQueryApiArgs
-		);
+		/**
+		 * A setup URL needs resolving and carries its original URL params and
+		 * autosave fingerprint. An editable bundle is already the source of
+		 * truth and will be persisted below, so it has neither.
+		 */
+		let blueprint: ResolvedBlueprint['blueprint'];
+		let originalBlueprintSource: BlueprintSource;
+		let originalUrlParams: OriginalUrlParams | undefined;
+		let sourceSetupUrlFingerprint: string | undefined;
+		if (source instanceof URL) {
+			const resolvedBlueprint = await resolveSiteBlueprintFromUrl(source);
+			blueprint = resolvedBlueprint.blueprint;
+			originalBlueprintSource = resolvedBlueprint.source!;
+			originalUrlParams = getOriginalUrlParams(source);
+			sourceSetupUrlFingerprint = getAutosaveFingerprintFromURL(source);
+		} else {
+			blueprint = source;
+			originalBlueprintSource = { type: 'opfs-site' };
+		}
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
+		const sites = selectAllSites(getState());
+		let displayName = siteName;
+		let slugBaseName = siteName;
+		if (!preferredSlug) {
+			slugBaseName = getDefaultSiteNameFromBlueprint(blueprint, siteName);
+			displayName = getSiteNameWithCreationTimeIfDuplicate(
+				slugBaseName,
+				sites.map((site) => site.metadata.name),
+				new Date(now)
+			);
+		}
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || deriveSlugFromSiteName(slugBaseName),
+			{ unavailableSlugs: sites.map((site) => site.slug) }
+		);
+		const blueprintBundle = isTraversableFilesystemBackend(blueprint)
+			? blueprint
+			: undefined;
+		if (blueprintBundle) {
+			originalBlueprintSource = {
+				type: 'opfs-site',
+			};
+		}
 		const newSiteInfo: SiteInfo = {
 			slug: siteSlug,
 			originalUrlParams,
 			metadata: {
-				name: siteName,
+				name: displayName,
 				id: crypto.randomUUID(),
 				whenCreated: now,
 				whenLastUsed: now,
 				persistence: options.persistence ?? 'explicit',
 				storage: 'opfs' as const,
 				initialOpfsSyncPending: true,
-				sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-					playgroundUrlWithQueryApiArgs
-				),
-				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource: resolvedBlueprint.source!,
-				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
-				)!,
+				...(sourceSetupUrlFingerprint
+					? {
+							sourceSetupUrlFingerprint:
+								sourceSetupUrlFingerprint,
+						}
+					: {}),
+				originalBlueprint: blueprint,
+				originalBlueprintSource,
+				runtimeConfiguration,
 			},
 		};
 
-		await dispatch(addSite(newSiteInfo));
+		try {
+			if (blueprintBundle) {
+				await persistBlueprintBundle(siteSlug, blueprintBundle);
+			}
+			await dispatch(addSite(newSiteInfo));
+		} catch (error) {
+			if (blueprintBundle) {
+				await deleteBlueprintBundle(siteSlug);
+			}
+			throw error;
+		}
 		return newSiteInfo;
 	};
 }
+
+/**
+ * Compatibility alias for callers that create a stored Playground from a URL.
+ */
+export const setStoredSiteSpec = createStoredSite;
 
 /**
  * Resolves the Blueprint that should initialize a site created from a URL.
@@ -593,7 +702,7 @@ async function prepareResolvedBlueprint(
 	);
 	if (reflection.getVersion() === 1) {
 		resolvedBlueprint.blueprint = await applyQueryOverrides(
-			resolvedBlueprint.blueprint,
+			resolvedBlueprint.blueprint as any,
 			playgroundUrlWithQueryApiArgs.searchParams
 		);
 	}
@@ -677,6 +786,14 @@ export interface SiteMetadata {
 	 */
 	initialOpfsSyncPending?: boolean;
 	/**
+	 * Legacy crash-recovery marker for replacing autosaved WordPress files.
+	 *
+	 * Older Playground builds could write new setup metadata before deleting the
+	 * previous files. When this flag is present, boot must finish that deletion
+	 * before mounting OPFS or installing WordPress from the new setup.
+	 */
+	opfsSiteRemovalPending?: boolean;
+	/**
 	 * PHP constants discovered from the running Playground and persisted so
 	 * they can be replayed after reload without changing the live boot config.
 	 */
@@ -684,7 +801,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
-	originalBlueprint: BlueprintV1;
+	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
 }
 
@@ -704,17 +821,27 @@ export const selectSortedSites = createSelector(
 	(sites: SiteInfo[]) => getSitesSortedByRecency(sites)
 );
 
+/**
+ * Returns storage-backed Playgrounds, including autosaves, in recency order.
+ * Temporary Playgrounds remain outside this list because they are only
+ * available for the current session.
+ */
+export const selectSortedStoredSites = createSelector(
+	[selectSortedSites],
+	(sites: SiteInfo[]) => sites.filter(isStoredSite)
+);
+
 export const selectTemporarySite = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) => {
-		return sites.find((site) => site.metadata.storage === 'none');
+		return sites.find(isTemporarySite);
 	}
 );
 
 export const selectTemporarySites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) => {
-		return sites.filter((site) => site.metadata.storage === 'none');
+		return sites.filter(isTemporarySite);
 	}
 );
 
@@ -728,8 +855,7 @@ export const selectSitesLoaded = createSelector(
 	],
 	(opfsSitesLoadingState, firstTemporarySiteCreated, activeSite) =>
 		['loaded', 'error'].includes(opfsSitesLoadingState) &&
-		((activeSite && activeSite.metadata.storage !== 'none') ||
-			firstTemporarySiteCreated)
+		((activeSite && isStoredSite(activeSite)) || firstTemporarySiteCreated)
 );
 
 export default sitesSlice.reducer;

@@ -46,6 +46,7 @@ const sidebars = {
 					},
 					items: [
 						'main/guides/php-code-snippets',
+						'main/guides/php-frameworks',
 						'main/guides/agent-skill-wp-playground',
 						'main/guides/wordpress-native-ios-app',
 						'main/guides/for-plugin-developers',

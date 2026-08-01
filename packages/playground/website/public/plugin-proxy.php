@@ -3,6 +3,7 @@
 ini_set('display_errors', 0);
 
 class ApiException extends Exception {}
+class RateLimitedException extends ApiException {}
 class PluginDownloader
 {
 
@@ -210,6 +211,9 @@ class PluginDownloader
 		]);
 		$response = file_get_contents($url, false, $context);
 		if ($response === false) {
+			if (isset($http_response_header) && isRateLimitedResponse($http_response_header)) {
+				throw new RateLimitedException('Rate limited');
+			}
 			throw new ApiException('Request failed');
 		}
 		// Find the last index of "HTTP/1.1 200 OK" in $http_response_header array
@@ -288,10 +292,39 @@ function streamHttpResponse($url, $request_method = 'GET', $request_headers = []
 			return strlen($body);
 		}
 	);
-	curl_exec($ch);
+	$response = curl_exec($ch);
 	$info = curl_getinfo($ch);
-	curl_close($ch);
+	if ($response === false && isset($info['http_code']) && $info['http_code'] === 429) {
+		closeCurlHandle($ch);
+		throw new RateLimitedException('Rate limited');
+	}
+	closeCurlHandle($ch);
 	return $info;
+}
+
+function closeCurlHandle($ch)
+{
+	if (version_compare(PHP_VERSION, '8.5', '<')) {
+		// curl_close is deprecated in PHP 8.5 and later.
+		// See https://www.php.net/manual/en/migration85.deprecated.php#migration85.deprecated.curl
+		curl_close($ch);
+	}
+}
+
+function isRateLimitedResponse($headers)
+{
+	$http_code = 0;
+	$rate_limit_exhausted = false;
+	foreach ($headers as $header) {
+		if (preg_match('/^HTTP\/\S+\s+(\d{3})/', $header, $matches)) {
+			$http_code = (int)$matches[1];
+		}
+		if (preg_match('/^X-RateLimit-Remaining\s*:\s*0\b/i', $header)) {
+			$rate_limit_exhausted = true;
+		}
+	}
+	// GitHub reports primary rate limits as HTTP 403 with this header.
+	return $http_code === 429 || ($http_code === 403 && $rate_limit_exhausted);
 }
 
 $downloader = new PluginDownloader(
@@ -470,7 +503,7 @@ try {
 		throw new ApiException('Invalid query parameters');
 	}
 } catch (ApiException $e) {
-	http_response_code(400);
+	http_response_code($e instanceof RateLimitedException ? 429 : 400);
 	if (!headers_sent()) {
 		header('Content-Type: application/json');
 	}

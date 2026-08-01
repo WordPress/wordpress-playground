@@ -13,6 +13,10 @@ In this section we present a selection of guides that will help you to both work
 
 Embed editable, runnable PHP and WordPress examples in any web page with the `<php-snippet>` web component. The guide covers custom Blueprints, expected output, pure-PHP snippets, runtime sharing, and the standalone PHP Playground.
 
+## [Run PHP frameworks in Playground](/guides/php-frameworks)
+
+Use Playground as a generic browser-based PHP runtime. This guide shows how to skip the WordPress download, load a bundled Symfony app with a Blueprint, and run it from a `<php-snippet>`.
+
 ## [WordPress Playground for Everyone](/guides/playground-for-everyone)
 
 Think Playground is only for developers? Think again. This guide shows how WordPress Playground helps beginners, site owners, and everyday users experiment safely — no technical expertise required.

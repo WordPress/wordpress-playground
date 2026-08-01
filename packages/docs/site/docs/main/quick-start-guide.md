@@ -60,13 +60,10 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
 
-1. Open the Playground site manager panel:
+1. Open **Export** from the Dock.
+2. Select **Download as .zip**.
 
-![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
-
-2. Use the "Download as .zip" button in the additional actions menu
-
-![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
+![Export Playground from the Dock](/img/dock/dock-export-playground.webp)
 
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
 
@@ -74,21 +71,19 @@ The SQLite database file is also included in the export, you'll find it `wp-cont
 
 ## Restore a saved site
 
-You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel:
+You can restore the saved site from the Dock's **New** pane:
 
-1. Open the Playground dashboard panel:
+1. Open the **New** pane from the Dock.
+2. Select **Import zip**.
+3. Choose the `.zip` file you exported earlier.
 
-![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
-
-1. Use the "Import .zip" button at the end of the "Start a new Playground" section
-
-![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
+![Import a Playground zip from the Dock](/img/dock/dock-new-playground-import-zip.webp)
 
 ## Use a specific WordPress or PHP version
 
-The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
+The quickest way to change the version of WordPress or PHP is by opening **Site Settings** from the Dock on the [official demo site](https://playground.wordpress.net/):
 
-![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
+![WordPress and PHP settings in the Dock](/img/dock/dock-site-settings.webp)
 
 <div class="callout callout-info">
 

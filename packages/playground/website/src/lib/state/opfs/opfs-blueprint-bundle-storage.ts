@@ -14,7 +14,22 @@ import {
 import { joinPaths } from '@php-wasm/util';
 import { getDirectoryPathForSlug } from './opfs-site-path';
 
-const BUNDLE_DIR_NAME = 'blueprint-bundle';
+export const BUNDLE_DIR_NAME = 'blueprint-bundle';
+
+export function isTraversableFilesystemBackend(
+	value: unknown
+): value is TraversableFilesystemBackend {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		typeof (value as Partial<TraversableFilesystemBackend>).read ===
+			'function' &&
+		typeof (value as Partial<TraversableFilesystemBackend>).listFiles ===
+			'function' &&
+		typeof (value as Partial<TraversableFilesystemBackend>).isDir ===
+			'function'
+	);
+}
 
 /**
  * Get the OPFS path for a site's blueprint bundle directory.

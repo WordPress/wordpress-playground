@@ -448,6 +448,56 @@ export function createSitesAPI(
 		},
 
 		/**
+		 * Applies the runtime settings that can change without replacing WordPress.
+		 * When the settings already match, reloads the current WordPress page.
+		 *
+		 * PHP and networking share one metadata write so changing both cannot boot an
+		 * intermediate runtime and then immediately tear it down for the second change.
+		 */
+		async updateRuntimeSettings(settings: {
+			phpVersion: AllPHPVersion;
+			networking: boolean;
+		}): Promise<void> {
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
+			if (site.metadata.storage === 'none') {
+				throw new Error(
+					'Cannot update settings on a temporary site. Save it first.'
+				);
+			}
+			const currentRuntimeConfiguration =
+				site.metadata.runtimeConfiguration;
+			if (
+				currentRuntimeConfiguration.phpVersion ===
+					settings.phpVersion &&
+				currentRuntimeConfiguration.networking === settings.networking
+			) {
+				const client = selectClientBySiteSlug(getState(), site.slug);
+				if (!client) {
+					throw new Error(
+						'Cannot reload a Playground that is not running.'
+					);
+				}
+				await client.goTo(await client.getCurrentURL());
+				return;
+			}
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						runtimeConfiguration: {
+							...site.metadata.runtimeConfiguration,
+							phpVersion: settings.phpVersion,
+							networking: settings.networking,
+						},
+					},
+				})
+			);
+		},
+
+		/**
 		 * Deletes a saved site by slug.
 		 *
 		 * @param siteSlug The slug of the site to delete.
@@ -519,8 +569,9 @@ export function createSitesAPI(
 		/**
 		 * Creates a new temporary site and boots it.
 		 *
-		 * @param siteSlug Optional slug hint. A random name is
-		 *   generated when omitted.
+		 * @param requestedSiteSlug Optional slug hint. When omitted, the
+		 *   Blueprint title becomes the site name if available; otherwise a
+		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @returns The new site's slug.
 		 */
@@ -531,7 +582,9 @@ export function createSitesAPI(
 			const siteName = requestedSiteSlug
 				? deriveSiteNameFromSlug(requestedSiteSlug)
 				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings);
+			const url = getSetupUrlForNewSite(settings, {
+				baseUrl: new URL(window.location.href),
+			});
 			const newSiteInfo = await dispatch(
 				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
 			);
@@ -546,8 +599,9 @@ export function createSitesAPI(
 		 * autosave. First boot creates the WordPress files from the setup URL,
 		 * then stores that initialized filesystem in OPFS for later boots.
 		 *
-		 * @param requestedSiteSlug Optional slug hint. A random name is
-		 *   generated when omitted.
+		 * @param requestedSiteSlug Optional slug hint. When omitted, the
+		 *   Blueprint title becomes the site name if available; otherwise a
+		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @param options Optional persistence, routing, and pruning behavior.
 		 * @returns The new site's slug.
@@ -570,6 +624,7 @@ export function createSitesAPI(
 				? deriveSiteNameFromSlug(requestedSiteSlug)
 				: randomSiteName();
 			const url = getSetupUrlForNewSite(settings, {
+				baseUrl: new URL(window.location.href),
 				onlySetupParams: true,
 			});
 			const newSiteInfo = await dispatch(
@@ -623,15 +678,15 @@ async function updateSiteNameIfProvided(
  * mapping so new settings have one query representation.
  */
 function getSetupUrlForNewSite(
-	settings?: SiteSettings,
+	settings: SiteSettings | undefined,
 	options: {
+		baseUrl: URL;
 		onlySetupParams?: boolean;
-	} = {}
+	}
 ) {
-	const currentUrl = new URL(window.location.href);
 	const url = options.onlySetupParams
-		? getSetupUrlFromUrl(currentUrl)
-		: currentUrl;
+		? getSetupUrlFromUrl(options.baseUrl)
+		: new URL(options.baseUrl.href);
 	if (settings) {
 		if (settings.phpVersion !== undefined) {
 			url.searchParams.set('php', settings.phpVersion);

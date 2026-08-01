@@ -96,6 +96,22 @@ wp_insert_post(array(
 ]
 }} />
 
+## Run Symfony without WordPress
+
+Blueprints can also skip the WordPress download and boot a standalone PHP app.
+This example loads a bundled Symfony app with Composer dependencies already
+installed, so it starts without cloning a Git repository or running a Node/Sass
+build in the browser.
+
+The app demonstrates Symfony attribute routes, autowired services, Twig, and
+HttpClient. Its landing page also explains where to open the Playground file
+browser and Blueprint viewer.
+
+<BlueprintExample
+	title="Blueprint URL"
+	blueprintUrl="https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/blueprint.json"
+/>
+
 ## Enable an option on the Gutenberg Experiments page
 
 Here: Switch on the "new admin views" feature.

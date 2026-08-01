@@ -1,9 +1,11 @@
 import {
+	useCallback,
 	useEffect,
 	useMemo,
 	useState,
 	useRef,
 	type CSSProperties,
+	type ReactNode,
 } from 'react';
 import {
 	Button,
@@ -31,13 +33,31 @@ import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 
 type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
 
+type SaveSiteModalProps =
+	| {
+			/** Render the form inside the Dock instead of a standalone modal. */
+			asPane: true;
+			onClose: () => void;
+			onCloseBlockedChange?: (isBlocked: boolean) => void;
+	  }
+	| {
+			asPane?: false;
+			onClose?: never;
+			onCloseBlockedChange?: never;
+	  };
+
 const helpTextStyle: CSSProperties = {
 	color: '#757575',
 	fontSize: 12,
 	marginTop: 8,
 };
 
-export function SaveSiteModal() {
+export function SaveSiteModal(props: SaveSiteModalProps = {}) {
+	const { asPane = false } = props;
+	const onClose = props.asPane ? props.onClose : undefined;
+	const onCloseBlockedChange = props.asPane
+		? props.onCloseBlockedChange
+		: undefined;
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
 	const siteSlugToSave = useAppSelector((state) => state.ui.siteSlugToSave);
@@ -90,7 +110,7 @@ export function SaveSiteModal() {
 	}, [initialName, site?.slug]);
 
 	useEffect(() => {
-		// Select the text in the name input when the modal is shown
+		// Select the text in the name input when the save surface is shown
 		// Use a small delay to ensure the input is focused first by autoFocus
 		const timer = setTimeout(() => {
 			// Try using the ref first
@@ -135,18 +155,32 @@ export function SaveSiteModal() {
 	const isAutosaved = site && isAutosavedSite(site);
 	const canSaveSite =
 		site && (site.metadata.storage === 'none' || isAutosaved);
-	const closeModal = () => {
-		dispatch(setActiveModal(null));
+	const closeSurface = useCallback(() => {
 		dispatch(setSiteSlugToSave(undefined));
-	};
+		if (onClose) {
+			onClose();
+			return;
+		}
+		dispatch(setActiveModal(null));
+	}, [dispatch, onClose]);
+
+	useEffect(() => {
+		if (!asPane) {
+			return;
+		}
+		// A background autosave may already be running when this pane opens.
+		// Disable submission then, but only trap the pane while this form's own
+		// save is in flight.
+		onCloseBlockedChange?.(isSubmitting);
+		return () => onCloseBlockedChange?.(false);
+	}, [asPane, isSubmitting, onCloseBlockedChange]);
 
 	useEffect(() => {
 		if (site && canSaveSite) {
 			return;
 		}
-		dispatch(setActiveModal(null));
-		dispatch(setSiteSlugToSave(undefined));
-	}, [canSaveSite, dispatch, site]);
+		closeSurface();
+	}, [canSaveSite, closeSurface, site]);
 
 	if (!site || !canSaveSite) {
 		return null;
@@ -280,7 +314,7 @@ export function SaveSiteModal() {
 				}
 			}
 
-			closeModal();
+			closeSurface();
 		} catch (error) {
 			logger.error(error);
 			setSubmitError(
@@ -315,31 +349,44 @@ export function SaveSiteModal() {
 				: 'Preparing to save...';
 
 	const handleRequestClose = () => {
-		if (!isSaving) {
-			closeModal();
+		const closeIsBlocked = asPane ? isSubmitting : isSaving;
+		if (!closeIsBlocked) {
+			closeSurface();
 		}
 	};
 
 	return (
-		<Modal
-			title="Save Playground"
-			contentLabel="Save Playground"
+		<SaveSurface
+			asPane={asPane}
+			isDismissible={asPane ? !isSubmitting : !isSaving}
 			onRequestClose={handleRequestClose}
-			isDismissible={!isSaving}
-			small
 		>
 			<form
 				onSubmit={(event) => {
 					event.preventDefault();
 					handleSubmit();
 				}}
-				style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 16,
+					...(asPane && {
+						padding: 'var(--space-2) var(--space-6) var(--space-6)',
+					}),
+				}}
 				autoComplete="off"
 			>
-				<p style={{ margin: 0, color: '#1e1e1e' }}>
+				<p
+					style={{
+						margin: 0,
+						color: asPane ? 'var(--ink, #21201d)' : '#1e1e1e',
+					}}
+				>
 					{isAutosaved
 						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
-						: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
+						: asPane
+							? 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.'
+							: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
 				</p>
 				<TextControl
 					label="Playground name"
@@ -358,13 +405,17 @@ export function SaveSiteModal() {
 					options={[
 						{
 							label:
-								'Save in this browser' +
+								(asPane
+									? 'Save in browser storage'
+									: 'Save in this browser') +
 								(!isOpfsAvailable ? ' (not available)' : ''),
 							value: 'opfs',
 						},
 						{
 							label:
-								'Save to a local directory' +
+								(asPane
+									? 'Save in a local directory'
+									: 'Save to a local directory') +
 								(!localIsAvailable ? ' (not available)' : ''),
 							value: 'local-fs',
 						},
@@ -417,7 +468,13 @@ export function SaveSiteModal() {
 							id="save-progress"
 							max={savingProgress?.total || 100}
 							value={savingProgress?.files || 0}
-							style={{ width: '100%', height: 24 }}
+							style={{
+								width: '100%',
+								height: asPane ? 12 : 24,
+								...(asPane && {
+									accentColor: 'var(--accent, #3858e9)',
+								}),
+							}}
 						></progress>
 						<p style={{ ...helpTextStyle, marginTop: 4 }}>
 							{savingProgressLabel}
@@ -433,10 +490,39 @@ export function SaveSiteModal() {
 					submitText="Save"
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
+					cancelDisabled={asPane ? isSubmitting : undefined}
 					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>
 			</form>
+		</SaveSurface>
+	);
+}
+
+/** Uses the Dock pane's chrome when embedded, or the standalone modal otherwise. */
+function SaveSurface({
+	asPane,
+	isDismissible,
+	onRequestClose,
+	children,
+}: {
+	asPane: boolean;
+	isDismissible: boolean;
+	onRequestClose: () => void;
+	children: ReactNode;
+}) {
+	if (asPane) {
+		return children;
+	}
+	return (
+		<Modal
+			title="Save Playground"
+			contentLabel="Save Playground"
+			onRequestClose={onRequestClose}
+			isDismissible={isDismissible}
+			small
+		>
+			{children}
 		</Modal>
 	);
 }

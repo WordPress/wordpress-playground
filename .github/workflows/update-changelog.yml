@@ -39,6 +39,7 @@ jobs:
         permissions:
             contents: write # Required to clone the repo, commit, and push the updated changelog.
             issues: read # Required to query merged pull requests for changelog generation.
+            pull-requests: read # Without it, the issues endpoint strips pull_request data and the changelog comes out empty.
         environment:
             name: wordpress-assets
         env:

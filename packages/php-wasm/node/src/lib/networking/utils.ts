@@ -1,4 +1,4 @@
-import * as net from 'net';
+import type { AddressInfo } from 'net';
 import { logger } from '@php-wasm/logger';
 
 export function debugLog(message: any, ...args: any[]) {
@@ -7,28 +7,13 @@ export function debugLog(message: any, ...args: any[]) {
 	}
 }
 
-export async function findFreePorts(n: number) {
-	const serversPromises: Promise<net.Server>[] = [];
-	for (let i = 0; i < n; i++) {
-		serversPromises.push(listenOnRandomPort());
+export function getServerPort(server: {
+	address(): AddressInfo | string | null;
+}): number {
+	const address = server.address();
+	if (address === null || typeof address === 'string') {
+		throw new Error('Server address is not available');
 	}
 
-	const servers = await Promise.all(serversPromises);
-	const ports: number[] = [];
-	for (const server of servers) {
-		const address = server.address()! as net.AddressInfo;
-		ports.push(address.port);
-		server.close();
-	}
-
-	return ports;
-}
-
-function listenOnRandomPort(): Promise<net.Server> {
-	return new Promise((resolve) => {
-		const server = net.createServer();
-		server.listen(0, () => {
-			resolve(server);
-		});
-	});
+	return address.port;
 }
