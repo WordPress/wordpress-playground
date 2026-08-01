@@ -10,12 +10,19 @@ import {
 	useAppDispatch,
 } from './store';
 import type { SerializedSiteErrorDetails, SiteError } from './slice-ui';
-import { setActiveSiteError } from './slice-ui';
-import { addClientInfo } from './slice-clients';
+import { setActiveSiteError, setSiteImportProgress } from './slice-ui';
+import {
+	addClientInfo,
+	removeClientInfo,
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+} from './slice-clients';
 import {
 	selectAllSites,
 	selectSiteBySlug,
 	setOPFSSitesLoadingState,
+	updateSite,
 	updateSiteMetadata,
 	removeSite,
 	pruneAutosavedSites,
@@ -32,11 +39,18 @@ import {
 } from './slice-sites';
 import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
-import { selectClientBySiteSlug } from './slice-clients';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
+import { importWordPressFiles } from '@wp-playground/client';
+import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
+import {
+	ProgressTracker,
+	type ProgressDetails,
+	type ProgressTrackerEvent,
+} from '@php-wasm/progress';
+import { logger } from '@php-wasm/logger';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 
 export interface SiteSettings {
@@ -49,6 +63,15 @@ export interface SiteSettings {
 
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
+type ZipImportProgress = ProgressDetails;
+type ZipImportProgressCallback = (progress: ZipImportProgress) => void;
+type ZipImportOptions = {
+	onProgress?: ZipImportProgressCallback;
+	onPlaygroundLoaded?: (storage: 'opfs' | 'temporary') => void;
+};
+
+const ZIP_INSTALL_PROGRESS_PERCENT = 85;
+const ZIP_STORAGE_PROGRESS_PERCENT = 100 - ZIP_INSTALL_PROGRESS_PERCENT;
 
 /**
  * Tracks the operation shared by concurrent autosave calls for one site.
@@ -599,12 +622,16 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							phpVersion: version,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							runtimeConfiguration: {
+								phpVersion: version,
+							},
 						},
 					},
 				})
@@ -629,12 +656,16 @@ export function createSitesAPI(
 				);
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							networking: enabled,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							runtimeConfiguration: {
+								networking: enabled,
+							},
 						},
 					},
 				})
@@ -678,13 +709,17 @@ export function createSitesAPI(
 				return;
 			}
 			await dispatch(
-				updateSiteMetadata({
+				updateSite({
 					slug: site.slug,
 					changes: {
-						runtimeConfiguration: {
-							...site.metadata.runtimeConfiguration,
-							phpVersion: settings.phpVersion,
-							networking: settings.networking,
+						urlToRestoreAfterRuntimeSettingsChange:
+							selectClientInfoBySiteSlug(getState(), site.slug)
+								?.url,
+						metadata: {
+							runtimeConfiguration: {
+								phpVersion: settings.phpVersion,
+								networking: settings.networking,
+							},
 						},
 					},
 				})
@@ -734,6 +769,12 @@ export function createSitesAPI(
 			if (activeSite?.slug === siteSlug) {
 				return;
 			}
+			if (selectClientInfoBySiteSlug(state, siteSlug)) {
+				// Retained temporary or syncing viewports already have a running
+				// client, so activation does not emit addClientInfo again.
+				await dispatch(setActiveSite(siteSlug, options));
+				return;
+			}
 			const bootPromise = new Promise<void>((resolve, reject) => {
 				const unsubscribe = startListening({
 					predicate: (action) =>
@@ -774,17 +815,7 @@ export function createSitesAPI(
 			requestedSiteSlug?: string,
 			settings?: SiteSettings
 		): Promise<string> {
-			const siteName = requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-			});
-			const newSiteInfo = await dispatch(
-				setTemporarySiteSpec(siteName, url, requestedSiteSlug)
-			);
-			await api.setActiveSite(newSiteInfo.slug);
-			return newSiteInfo.slug;
+			return await createTemporarySite(requestedSiteSlug, settings);
 		},
 
 		/**
@@ -810,37 +841,277 @@ export function createSitesAPI(
 				excludeFromPruning?: string[];
 			} = {}
 		): Promise<string> {
-			if (!opfsSiteStorage) {
-				throw new Error(
-					'Cannot create a saved Playground because browser storage is not available.'
+			return await createSavedSite(requestedSiteSlug, settings, options);
+		},
+
+		/**
+		 * Creates an autosaved site from a Playground ZIP and waits until its
+		 * imported filesystem is safely stored. The import runs against first-boot
+		 * MEMFS before the initial OPFS copy, avoiding an empty-site persistence pass.
+		 *
+		 * @param wordPressFilesZip Playground ZIP export.
+		 * @param options Import lifecycle callbacks. Passing a bare progress
+		 *   callback remains supported.
+		 * @returns The new site's slug.
+		 */
+		async createNewSiteFromZip(
+			wordPressFilesZip: File,
+			options: ZipImportOptions | ZipImportProgressCallback = {}
+		): Promise<string> {
+			const callbacks: ZipImportOptions =
+				typeof options === 'function'
+					? { onProgress: options }
+					: options;
+			const { onProgress, onPlaygroundLoaded } = callbacks;
+			dispatch(
+				setSiteImportProgress({
+					caption: 'Starting import',
+					progress: 0,
+				})
+			);
+			try {
+				const tracker = new ProgressTracker();
+				const importWeight = opfsSiteStorage
+					? ZIP_INSTALL_PROGRESS_PERCENT / 100
+					: 1;
+				tracker.addEventListener(
+					'progress',
+					(event: ProgressTrackerEvent) => {
+						const progress = {
+							caption: event.detail.caption,
+							progress: event.detail.progress * importWeight,
+						};
+						dispatch(setSiteImportProgress(progress));
+						onProgress?.(progress);
+					}
 				);
+				const initialOpfsSyncProgress = opfsSiteStorage
+					? new ProgressTracker({
+							caption: 'Saving imported Playground',
+						})
+					: undefined;
+				initialOpfsSyncProgress?.addEventListener(
+					'progress',
+					(event: ProgressTrackerEvent) => {
+						onProgress?.({
+							caption: event.detail.caption,
+							progress:
+								ZIP_INSTALL_PROGRESS_PERCENT +
+								(event.detail.progress / 100) *
+									ZIP_STORAGE_PROGRESS_PERCENT,
+						});
+					}
+				);
+				const initialize = async (playground: PlaygroundClient) => {
+					await importWordPressFiles(
+						playground,
+						{ wordPressFilesZip },
+						{ tracker }
+					);
+					await playground.goTo('/').catch((error) => {
+						logger.error('Failed to refresh imported site', error);
+						throw error;
+					});
+					// The imported page is ready. Reveal it while createSavedSite waits
+					// for the initial OPFS autosave to finish.
+					dispatch(setSiteImportProgress(undefined));
+					onPlaygroundLoaded?.(
+						opfsSiteStorage ? 'opfs' : 'temporary'
+					);
+				};
+				if (!opfsSiteStorage) {
+					return await createTemporarySite(
+						undefined,
+						undefined,
+						initialize
+					);
+				}
+				const siteSlug = await createSavedSite(
+					undefined,
+					undefined,
+					{ persistence: 'autosave' },
+					initialize,
+					initialOpfsSyncProgress
+				);
+				onProgress?.({ caption: 'Import complete', progress: 100 });
+				return siteSlug;
+			} finally {
+				dispatch(setSiteImportProgress(undefined));
 			}
-			const siteName = requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName();
-			const url = getSetupUrlForNewSite(settings, {
-				baseUrl: new URL(window.location.href),
-				onlySetupParams: true,
-			});
-			const newSiteInfo = await dispatch(
-				setStoredSiteSpec(siteName, url, requestedSiteSlug, {
-					persistence: options.persistence ?? 'explicit',
-				})
-			);
-			await api.setActiveSite(newSiteInfo.slug, {
-				updateUrl: options.updateUrl,
-			});
-			await dispatch(
-				pruneAutosavedSites({
-					excludeSlugs: [
-						newSiteInfo.slug,
-						...(options.excludeFromPruning ?? []),
-					],
-				})
-			);
-			return newSiteInfo.slug;
 		},
 	};
+
+	async function createTemporarySite(
+		requestedSiteSlug?: string,
+		settings?: SiteSettings,
+		initialize?: (playground: PlaygroundClient) => Promise<void>
+	): Promise<string> {
+		const siteName = requestedSiteSlug
+			? deriveSiteNameFromSlug(requestedSiteSlug)
+			: randomSiteName();
+		const url = getSetupUrlForNewSite(settings, {
+			baseUrl: new URL(window.location.href),
+		});
+		const newSiteInfo = await dispatch(
+			setTemporarySiteSpec(siteName, url, requestedSiteSlug, {
+				// ZIP initialization must run during a fresh boot, before WordPress
+				// starts serving requests from the new filesystem.
+				replaceExisting: Boolean(initialize),
+			})
+		);
+		await activateNewSite(newSiteInfo.slug, initialize);
+		return newSiteInfo.slug;
+	}
+
+	async function createSavedSite(
+		requestedSiteSlug?: string,
+		settings?: SiteSettings,
+		options: {
+			persistence?: SitePersistence;
+			updateUrl?: boolean;
+			excludeFromPruning?: string[];
+		} = {},
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		initialOpfsSyncProgress?: ProgressTracker
+	): Promise<string> {
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create a saved Playground because browser storage is not available.'
+			);
+		}
+		const siteName = requestedSiteSlug
+			? deriveSiteNameFromSlug(requestedSiteSlug)
+			: randomSiteName();
+		const url = getSetupUrlForNewSite(settings, {
+			baseUrl: new URL(window.location.href),
+			onlySetupParams: true,
+		});
+		const previousActiveSiteSlug = selectActiveSite(getState())?.slug;
+		const newSiteInfo = await dispatch(
+			setStoredSiteSpec(siteName, url, requestedSiteSlug, {
+				persistence: options.persistence ?? 'explicit',
+			})
+		);
+		try {
+			await activateNewSite(newSiteInfo.slug, initialize, {
+				updateUrl: options.updateUrl,
+			});
+			if (initialize) {
+				await waitForInitialOpfsSync(
+					newSiteInfo.slug,
+					initialOpfsSyncProgress
+				);
+			}
+		} catch (error) {
+			if (initialize) {
+				// A failed initializer or first OPFS copy cannot produce a reloadable
+				// site. Remove it instead of retaining incomplete files and metadata.
+				await dispatch(
+					removeSite(newSiteInfo.slug, {
+						replacementSiteSlug: previousActiveSiteSlug,
+						updateUrl: options.updateUrl,
+					})
+				);
+			}
+			throw error;
+		}
+		await dispatch(
+			pruneAutosavedSites({
+				excludeSlugs: [
+					newSiteInfo.slug,
+					...(options.excludeFromPruning ?? []),
+				],
+			})
+		);
+		return newSiteInfo.slug;
+	}
+
+	async function activateNewSite(
+		siteSlug: string,
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		options: { updateUrl?: boolean } = {}
+	) {
+		const initialization = initialize
+			? registerSiteFirstBootInitializer(siteSlug, initialize)
+			: undefined;
+		try {
+			await api.setActiveSite(siteSlug, options);
+			await initialization?.finished;
+		} catch (error) {
+			initialization?.cancel();
+			throw error;
+		}
+	}
+
+	async function waitForInitialOpfsSync(
+		siteSlug: string,
+		progress?: ProgressTracker
+	) {
+		const getSync = () =>
+			selectClientInfoBySiteSlug(getState(), siteSlug)?.opfsSync;
+		const reportProgress = () => {
+			const currentSync = getSync();
+			const syncProgress =
+				currentSync?.status === 'syncing'
+					? currentSync.progress
+					: undefined;
+			const completedFiles = syncProgress?.files ?? 0;
+			const totalFiles = syncProgress?.total ?? 0;
+			progress?.set(
+				totalFiles > 0
+					? Math.min(1, completedFiles / totalFiles) * 100
+					: 0
+			);
+		};
+		const sync = getSync();
+		if (!sync) {
+			const site = selectSiteBySlug(getState(), siteSlug);
+			if (!site || site.metadata.initialOpfsSyncPending !== false) {
+				throw new Error(
+					'Unable to save the Playground because its initial storage sync did not complete.'
+				);
+			}
+			progress?.finish();
+			return;
+		}
+		if (sync.status === 'error') {
+			throw new Error('Unable to save the Playground.');
+		}
+		reportProgress();
+
+		await new Promise<void>((resolve, reject) => {
+			const unsubscribe = startListening({
+				predicate: (action) =>
+					(updateClientInfo.match(action) &&
+						action.payload.siteSlug === siteSlug) ||
+					(removeClientInfo.match(action) &&
+						action.payload === siteSlug),
+				effect: (action) => {
+					if (removeClientInfo.match(action)) {
+						unsubscribe();
+						reject(
+							new Error(
+								'Unable to save the Playground because its runtime stopped.'
+							)
+						);
+						return;
+					}
+					const currentSync = getSync();
+					if (currentSync?.status === 'syncing') {
+						reportProgress();
+						return;
+					}
+					unsubscribe();
+					if (currentSync?.status === 'error') {
+						reject(new Error('Unable to save the Playground.'));
+					} else {
+						progress?.finish();
+						resolve();
+					}
+				},
+			});
+		});
+	}
 	return api;
 }
 

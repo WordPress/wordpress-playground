@@ -75,6 +75,7 @@ export interface SiteInfo {
 	slug: string;
 	loadedFromStorage?: boolean;
 	originalUrlParams?: OriginalUrlParams;
+	urlToRestoreAfterRuntimeSettingsChange?: string;
 	metadata: SiteMetadata;
 }
 
@@ -170,7 +171,7 @@ export function updateSiteMetadata({
 	changes,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	changes: SiteMetadataChanges;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -184,10 +185,7 @@ export function updateSiteMetadata({
 			updateSite({
 				slug,
 				changes: {
-					metadata: {
-						...storedSite.metadata,
-						...changes,
-					},
+					metadata: changes,
 				},
 			})
 		);
@@ -233,7 +231,9 @@ export function updateSite({
 	changes,
 }: {
 	slug: string;
-	changes: Partial<SiteInfo>;
+	changes: Omit<Partial<SiteInfo>, 'metadata' | 'slug'> & {
+		metadata?: SiteMetadataChanges;
+	};
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -242,20 +242,24 @@ export function updateSite({
 		if ('storage' in changes) {
 			throw new Error('Cannot update storage for a site.');
 		}
+		if ('slug' in changes) {
+			throw new Error('Cannot update the slug for a site.');
+		}
 		const existingSite = selectSiteBySlug(getState(), slug);
 		if (!existingSite) {
 			throw new Error(`Site not found: ${slug}`);
 		}
-		const { metadata, ...topLevelChanges } = changes;
-		const updatedSite = {
+		let updatedSite: SiteInfo = {
 			...existingSite,
-			...topLevelChanges,
-			metadata: metadata
-				? {
-						...existingSite.metadata,
-						...metadata,
-					}
-				: existingSite.metadata,
+			...changes,
+			metadata: {
+				...existingSite.metadata,
+				...changes.metadata,
+				runtimeConfiguration: {
+					...existingSite.metadata.runtimeConfiguration,
+					...changes.metadata?.runtimeConfiguration,
+				},
+			},
 		};
 		if (updatedSite.metadata.storage !== 'none') {
 			if (!opfsSiteStorage) {
@@ -263,19 +267,17 @@ export function updateSite({
 					'Cannot update a saved Playground because browser storage is not available.'
 				);
 			}
-			await opfsSiteStorage.update(
-				updatedSite.slug,
-				updatedSite.metadata,
-				updatedSite.originalUrlParams
-			);
+			const persistedSite = await opfsSiteStorage.update(slug, changes);
+			updatedSite = {
+				...updatedSite,
+				...persistedSite,
+			};
 		}
+		const { slug: updatedSlug, ...updatedSiteChanges } = updatedSite;
 		dispatch(
 			sitesSlice.actions.updateSite({
-				id: slug,
-				changes: {
-					...topLevelChanges,
-					...(metadata ? { metadata: updatedSite.metadata } : {}),
-				},
+				id: updatedSlug,
+				changes: updatedSiteChanges,
 			})
 		);
 	};
@@ -320,10 +322,16 @@ export function addSite(siteInfo: SiteInfo) {
  * deleting the OPFS data fails, the redux record remains available for retry
  * and the storage error is rethrown.
  *
+ * @param options.replacementSiteSlug Site to select after deleting the active
+ * site. Falls back to the most recently created remaining site.
+ * @param options.updateUrl Whether selecting the replacement updates the URL.
  * @throws When the site is temporary, browser storage is unavailable, or its
  * OPFS data cannot be deleted.
  */
-export function removeSite(slug: string) {
+export function removeSite(
+	slug: string,
+	options: { replacementSiteSlug?: string; updateUrl?: boolean } = {}
+) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -343,9 +351,17 @@ export function removeSite(slug: string) {
 
 		// Select the most recently created site
 		if (activeSite?.slug === siteInfo.slug) {
-			const newActiveSite = selectSortedSites(getState())[0];
+			const requestedReplacement = options.replacementSiteSlug
+				? selectSiteBySlug(getState(), options.replacementSiteSlug)
+				: undefined;
+			const newActiveSite =
+				requestedReplacement ?? selectSortedSites(getState())[0];
 			if (newActiveSite) {
-				dispatch(setActiveSite(newActiveSite.slug));
+				dispatch(
+					setActiveSite(newActiveSite.slug, {
+						updateUrl: options.updateUrl,
+					})
+				);
 			}
 		}
 	};
@@ -422,12 +438,14 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
 }
 
 /**
- * Creates or reuses a temporary Playground in the redux state.
+ * Creates or reuses a temporary Playground in the redux state. Replacements
+ * receive a different slug so React boots them in a fresh iframe.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
 	playgroundUrlWithQueryApiArgs: URL,
-	preferredSlug?: string
+	preferredSlug?: string,
+	options: { replaceExisting?: boolean } = {}
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -497,7 +515,7 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite) {
+		if (currentTemporarySite && !options.replaceExisting) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
@@ -514,6 +532,11 @@ export function setTemporarySiteSpec(
 			(site) => site.metadata.storage !== 'none'
 		);
 		const unavailableSlugs = storedSites.map((site) => site.slug);
+		if (currentTemporarySite && options.replaceExisting) {
+			// Reserve the old slug so selecting the replacement changes the active
+			// slug and React boots a fresh iframe for it.
+			unavailableSlugs.push(currentTemporarySite.slug);
+		}
 		const unavailableNames = storedSites.map((site) => site.metadata.name);
 		const getAvailableSiteSlug = (name: string) =>
 			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
@@ -666,7 +689,25 @@ export function createStoredSite(
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
-		const sites = selectAllSites(getState());
+		// Redux belongs to this tab, while OPFS is shared across same-origin
+		// tabs. Read metadata from storage so records created after this tab
+		// loaded still participate in allocation.
+		const sitesBySlug = new Map<string, SiteInfo>(
+			selectAllSites(getState()).map((site) => [site.slug, site])
+		);
+		try {
+			for (const site of await opfsSiteStorage.listMetadata()) {
+				// Fresh OPFS metadata replaces the same site's Redux snapshot.
+				sitesBySlug.set(site.slug, site);
+			}
+		} catch (error) {
+			logger.warn(
+				'Unable to list stored Playgrounds before choosing a new site slug.',
+				error
+			);
+			// Creating the OPFS record still refuses to overwrite an occupied slug.
+		}
+		const sites = [...sitesBySlug.values()];
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {
@@ -816,13 +857,20 @@ function parseSearchParams(searchParams: URLSearchParams) {
 export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
 export type SiteStorageType = (typeof SiteStorageTypes)[number];
 
-/**
- * The site logo data.
- */
-export type SiteLogo = {
+export type SiteImage = {
 	mime: string;
 	data: string;
 };
+
+/**
+ * The site logo data.
+ */
+export type SiteLogo = SiteImage;
+
+/**
+ * A compact front-page image used to identify a saved Playground.
+ */
+export type SiteThumbnail = SiteImage;
 
 // TODO: Create a schema for this as the design matures
 /**
@@ -833,6 +881,7 @@ export interface SiteMetadata {
 	id: string;
 	name: string;
 	logo?: SiteLogo;
+	thumbnail?: SiteThumbnail;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
@@ -882,6 +931,19 @@ export interface SiteMetadata {
 	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
 }
+
+/**
+ * Fields to merge into existing site metadata.
+ *
+ * Runtime configuration is also a patch so one settings change does not
+ * restore unrelated runtime fields from an older tab's Redux snapshot.
+ */
+export type SiteMetadataChanges = Omit<
+	Partial<SiteMetadata>,
+	'runtimeConfiguration'
+> & {
+	runtimeConfiguration?: Partial<SiteMetadata['runtimeConfiguration']>;
+};
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
 export { sitesSlice };

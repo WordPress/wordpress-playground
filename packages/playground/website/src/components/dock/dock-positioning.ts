@@ -72,7 +72,11 @@ export function getDockPaneStyle({
 	};
 }
 
-/** Keeps a global operation failure with the visible Dock surface. */
+/**
+ * Places a global operation toast above an open pane when there's room above it
+ * (desktop only). Otherwise — no pane, a full-height pane, or mobile — it sits
+ * just above the Dock.
+ */
 export function getDockOperationToastStyle({
 	isMobile,
 	dockSize,
@@ -108,12 +112,21 @@ export function getDockOperationToastStyle({
 		toolsHeight,
 		isCollapsed,
 	});
-	const desiredBottom =
-		visibleDockHeight +
-		DOCK_PANE_GAP +
-		(!isMobile && paneOpen ? paneHeight + DOCK_PANE_GAP : 0);
-	// Editor panes and mobile panes can consume all available space. Keep the
-	// toast reachable at the viewport edge instead of placing it off-screen.
+	const aboveDock = visibleDockHeight + DOCK_PANE_GAP;
+	const roomAbovePane = !isMobile && paneOpen;
+	const abovePane = roomAbovePane
+		? aboveDock + paneHeight + DOCK_PANE_GAP
+		: aboveDock;
+	const fitsAbovePane =
+		roomAbovePane &&
+		abovePane + toastHeight + DOCK_PANE_GAP <= viewportSize.height;
+	// Prefer sitting above the pane. When there's no room — a full-height
+	// editor pane, or mobile — the toast overlays the pane's lower edge, so
+	// lift it a gap off the pane's bottom edge instead of aligning with it.
+	const desiredBottom = fitsAbovePane
+		? abovePane
+		: aboveDock + (paneOpen ? DOCK_PANE_GAP : 0);
+	// Final guard so the toast never sits off-screen.
 	const maxBottom = Math.max(
 		DOCK_PANE_GAP,
 		viewportSize.height - DOCK_PANE_GAP - toastHeight

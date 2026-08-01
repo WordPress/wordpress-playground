@@ -25,7 +25,11 @@ export function setupPostMessageRelay(
 			return;
 		}
 
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
+		if (
+			event.data === null ||
+			typeof event.data !== 'object' ||
+			event.data.type !== 'relay'
+		) {
 			return;
 		}
 
@@ -38,7 +42,11 @@ export function setupPostMessageRelay(
 			return;
 		}
 
-		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
+		if (
+			event.data === null ||
+			typeof event.data !== 'object' ||
+			event.data.type !== 'relay'
+		) {
 			return;
 		}
 

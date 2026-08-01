@@ -128,6 +128,19 @@ describe('opfsSiteStorage', () => {
 		});
 	});
 
+	it('stores the saved Playground thumbnail in site metadata', async () => {
+		const thumbnail = {
+			mime: 'image/webp',
+			data: 'thumbnail-bytes',
+		};
+
+		await storage.create('stored-site', createSiteMetadata({ thumbnail }));
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: { thumbnail },
+		});
+	});
+
 	it('updates setup URL params alongside site metadata', async () => {
 		await storage.create('stored-site', createSiteMetadata(), {
 			searchParams: { language: 'en_US' },
@@ -139,11 +152,10 @@ describe('opfsSiteStorage', () => {
 			},
 		};
 
-		await storage.update(
-			'stored-site',
-			createSiteMetadata({ name: 'Renamed Playground' }),
-			originalUrlParams
-		);
+		await storage.update('stored-site', {
+			metadata: { name: 'Renamed Playground' },
+			originalUrlParams,
+		});
 
 		await expect(storage.read('stored-site')).resolves.toMatchObject({
 			metadata: {
@@ -153,18 +165,37 @@ describe('opfsSiteStorage', () => {
 		});
 	});
 
+	it('preserves runtime configuration fields across partial updates', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { phpVersion: '8.2' } },
+		});
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { networking: false } },
+		});
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: {
+				runtimeConfiguration: {
+					phpVersion: '8.2',
+					wpVersion: 'latest',
+					networking: false,
+				},
+			},
+		});
+	});
+
 	it('serializes concurrent metadata updates to the same site', async () => {
 		await storage.create('stored-site', createSiteMetadata());
 
 		await Promise.all([
-			storage.update(
-				'stored-site',
-				createSiteMetadata({ name: 'First name' })
-			),
-			storage.update(
-				'stored-site',
-				createSiteMetadata({ name: 'Second name' })
-			),
+			storage.update('stored-site', {
+				metadata: { name: 'First name' },
+			}),
+			storage.update('stored-site', {
+				metadata: { name: 'Second name' },
+			}),
 		]);
 		const site = await storage.read('stored-site');
 		expect(['First name', 'Second name']).toContain(site?.metadata.name);
@@ -208,6 +239,55 @@ describe('opfsSiteStorage', () => {
 		);
 		expect(archive.files.has('wp-runtime.json')).toBe(true);
 		expect(archive.directories.has('wp-content/empty-cache/')).toBe(true);
+		expect(archive.directories.get('wp-content/empty-cache/')).toBe(0o755);
+	});
+
+	it('applies ordered exclusion patterns when exporting saved site files', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-patterns',
+			'patterns'
+		);
+		const wpAdmin = await siteDirectory.getDirectoryHandle('wp-admin', {
+			create: true,
+		});
+		wpAdmin.setFile('index.php', 'exclude admin');
+		const wpAdminEntries = vi.spyOn(wpAdmin, 'entries');
+		const wpContent = await siteDirectory.getDirectoryHandle('wp-content', {
+			create: true,
+		});
+		const plugins = await wpContent.getDirectoryHandle('plugins', {
+			create: true,
+		});
+		plugins.setFile('hello.php', 'include plugin');
+		const cache = await wpContent.getDirectoryHandle('cache', {
+			create: true,
+		});
+		cache.setFile('cached.html', 'exclude cache');
+		const cacheEntries = vi.spyOn(cache, 'entries');
+
+		const zipFile = await storage.exportSavedSiteAsZip('patterns', {
+			excludePatterns: [
+				'/*',
+				'!/wp-content/',
+				'!/wp-content/**',
+				'/wp-content/cache/',
+				'/wp-content/cache/**',
+			],
+		});
+		const archive = await readZipEntries(zipFile!);
+
+		expect(archive.files.has('wp-runtime.json')).toBe(false);
+		expect(archive.files.has('wp-admin/index.php')).toBe(false);
+		expect(wpAdminEntries).not.toHaveBeenCalled();
+		expect(archive.directories.has('wp-content/')).toBe(true);
+		expect(archive.files.get('wp-content/plugins/hello.php')).toBe(
+			'include plugin'
+		);
+		expect(archive.directories.has('wp-content/cache/')).toBe(false);
+		expect(archive.files.has('wp-content/cache/cached.html')).toBe(false);
+		expect(cacheEntries).not.toHaveBeenCalled();
 	});
 
 	it('does not export directories without saved Playground metadata', async () => {
@@ -327,10 +407,13 @@ async function readZipEntries(zipFile: Blob) {
 	try {
 		const entries = await reader.getEntries();
 		const files = new Map<string, string>();
-		const directories = new Set<string>();
+		const directories = new Map<string, number>();
 		for (const entry of entries) {
 			if (entry.directory) {
-				directories.add(entry.filename);
+				directories.set(
+					entry.filename,
+					(entry.externalFileAttributes >>> 16) & 0o777
+				);
 			} else {
 				files.set(
 					entry.filename,
