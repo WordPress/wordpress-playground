@@ -499,7 +499,7 @@ jobs:
 
                   git fetch --no-tags --depth=1 origin "$base_sha"
 
-                  if git diff --name-only "$base_sha" "$GITHUB_SHA" -- packages/php-wasm/compile-extension/ | grep -q .; then
+                  if git diff --name-only "$base_sha" "$GITHUB_SHA" -- packages/php-wasm/compile-extension/ packages/php-wasm/compile/php/ | grep -q .; then
                     echo "changed=true" >> "$GITHUB_OUTPUT"
                   else
                     echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -541,6 +541,8 @@ jobs:
               run: node --expose-gc node_modules/nx/bin/nx run php-wasm-compile-extension:test-lazy-docker-asset-fetch --output-style=stream
             - name: Build and load PHP.wasm extension fixtures
               run: node --expose-gc node_modules/nx/bin/nx affected --target=test-compile-extension-integration --parallel=1 --output-style=stream
+            - name: Load external extension against freshly built PHP 8.5 JSPI runtime
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-compile-extension:test-external-extension-abi --output-style=stream
 
     test-legacy-wp-version-boot:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
