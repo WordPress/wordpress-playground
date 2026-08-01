@@ -37,11 +37,13 @@ VS કોડ એક્સટેન્શન એક અલગ GitHub રિપો
 </div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
 
-:::
+</div>
 -->
 
 ## સ્થાપન અને ઉપયોગ:

@@ -11,17 +11,17 @@ WordPress Playground is an open-source project that welcomes contributors of all
 
 ## How can I contribute?
 
--   Code? See the [developer section](/contributing/code).
--   Documentation? See the [documentation section](/contributing/documentation).
--   Reporting bugs? Open a [new issue](https://github.com/WordPress/wordpress-playground/issues/new) in the main GitHub repository, or in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
--   Ideas, designs, or anything else? Open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions), and let's talk!
--   Translation? see the [translation section](/contributing/translations).
+- Code? See the [developer section](/contributing/code).
+- Documentation? See the [documentation section](/contributing/documentation).
+- Reporting bugs? Open a [new issue](https://github.com/WordPress/wordpress-playground/issues/new) in the main GitHub repository, or in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
+- Ideas, designs, or anything else? Open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions), and let's talk!
+- Translation? see the [translation section](/contributing/translations).
 
 ## Guidelines
 
--   As with all WordPress projects, we want to ensure a welcoming and respectful environment for everyone. Please read our community's [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/) to learn more.
--   Code contributors should review the [coding principles](/contributing/coding-standards).
--   You maintain copyright over any contribution you make. By submitting a Pull Request, you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
+- As with all WordPress projects, we want to ensure a welcoming and respectful environment for everyone. Please read our community's [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/) to learn more.
+- Code contributors should review the [coding principles](/contributing/coding-standards).
+- You maintain copyright over any contribution you make. By submitting a Pull Request, you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
 
 ## Triaging issues
 
@@ -38,11 +38,11 @@ WordPress Playground and the WordPress project are strongly rooted in free and o
 
 As such, please be aware of the implications that your contributions will fall under:
 
--   When you contribute, you agree to license your contributions under the GPLv2 (or later) license
--   The GPL license has strong copyleft provisions that ensure all derivative works remain open-source and under the same license terms, thereby promoting a collaborative development environment.
--   The GPL license encourages contributing any changes, bug fixes, or new features back to the original codebase.
--   The GPL license ensures that the project remains free and open-source, not only in terms of cost but also with respect to the freedom to use, modify, and distribute the software.
+- When you contribute, you agree to license your contributions under the GPLv2 (or later) license
+- The GPL license has strong copyleft provisions that ensure all derivative works remain open-source and under the same license terms, thereby promoting a collaborative development environment.
+- The GPL license encourages contributing any changes, bug fixes, or new features back to the original codebase.
+- The GPL license ensures that the project remains free and open-source, not only in terms of cost but also with respect to the freedom to use, modify, and distribute the software.
 
-If you have any questions about how the above might affect your contributions, please feel free to reach out on WP Slack and the [`meta-playground` channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+If you have any questions about how the above might affect your contributions, please feel free to reach out on WP Slack and the [`#playground` channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 
 Thank you again for your contributions! 🎉

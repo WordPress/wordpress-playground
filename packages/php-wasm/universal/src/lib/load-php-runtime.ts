@@ -157,6 +157,12 @@ export async function loadPHPRuntime(
 
 	await phpReady;
 
+	const phpWasmAsyncMode =
+		phpModuleArgs.phpWasmAsyncMode ?? phpLoaderModule.phpWasmAsyncMode;
+	if (phpWasmAsyncMode) {
+		PHPRuntime.phpWasmAsyncMode = phpWasmAsyncMode;
+	}
+
 	const id = ++lastRuntimeId;
 
 	// TODO: Ask @adamziel why this is here.
@@ -272,6 +278,7 @@ export type PHPRuntime = any;
 export type PHPLoaderModule = {
 	dependencyFilename: string;
 	dependenciesTotalSize: number;
+	phpWasmAsyncMode?: 'jspi' | 'asyncify';
 	init: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
 };
 

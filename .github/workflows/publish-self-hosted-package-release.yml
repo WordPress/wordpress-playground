@@ -14,6 +14,10 @@ on:
                 required: true
                 default: 'patch'
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     publish:
         # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
@@ -33,6 +37,11 @@ jobs:
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        # This workflow is currently disabled. This timeout is set to a high value in anticipation of the workflow
+        # being re-enabled and needing to run through the full deployment process.
+        timeout-minutes: 60
+        permissions:
+            contents: write # Required to clone the repo, push version bump commits, and create tags.
         environment:
             name: self-hosted-packages
         steps:

@@ -141,7 +141,10 @@ Blueprints são uma ferramenta inestimável para construir sites WordPress via P
 - **Criando um ambiente de desenvolvimento**: Um novo desenvolvedor na equipe pode baixar o Blueprint, executar um hipotético comando `wp up` e obter um novo ambiente de desenvolvimento—carregado com tudo o que precisa. Todo o processo de CI/CD pode reutilizar o mesmo Blueprint.
 
 <!--
-:::info **More Resources**
+<div class="callout callout-info">
+
+**More Resources**
+
 Visit these links to learn more about the (endless) possibilities of Blueprints:
 -->
 

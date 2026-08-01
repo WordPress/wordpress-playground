@@ -1,126 +1,19 @@
 # Path-based labels for actions/labeler.
 #
-# Drives the [Package][@..], [Aspect], and [Focus] labels off changed file
-# paths. Title/body-driven [Type] labels are intentionally not handled here —
-# those need human judgment and there isn't a reliable path heuristic. The
-# previous AI-based labeler (auto-label-prs.yml) is gone because GitHub
-# Models access in Actions is gated by an org-level toggle we can't flip.
+# This file drives only the labels that map cleanly to paths AND have no
+# count limit: [Aspect], [Focus], [Feature], and [Type] Documentation.
 #
-# Format: each top-level key is a label name, value is a list of glob match
-# rules. See https://github.com/actions/labeler for syntax. We use the
-# `changed-files` / `any-glob-to-any-file` form throughout.
-
-# ---------------------------------------------------------------------------
-# [Package][@php-wasm] *
-# ---------------------------------------------------------------------------
-
-'[Package][@php-wasm] CLI':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/cli/**'
-
-'[Package][@php-wasm] CLI-Util':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/cli-util/**'
-
-'[Package][@php-wasm] Compile':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/compile/**'
-
-'[Package][@php-wasm] FS Journal':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/fs-journal/**'
-
-'[Package][@php-wasm] Logger':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/logger/**'
-
-'[Package][@php-wasm] Node':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/node/**'
-
-'[Package][@php-wasm] Progress':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/progress/**'
-
-'[Package][@php-wasm] Scopes':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/scopes/**'
-
-'[Package][@php-wasm] Stream Compression':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/stream-compression/**'
-
-'[Package][@php-wasm] Universal':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/universal/**'
-
-'[Package][@php-wasm] Util':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/util/**'
-
-'[Package][@php-wasm] Web':
-    - changed-files:
-          - any-glob-to-any-file:
-                - 'packages/php-wasm/web/**'
-                - 'packages/php-wasm/web-service-worker/**'
-
-'[Package][@php-wasm] Xdebug Bridge':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/php-wasm/xdebug-bridge/**'
-
-# ---------------------------------------------------------------------------
-# [Package][@wp-playground] *
-# ---------------------------------------------------------------------------
-
-'[Package][@wp-playground] Blueprints':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/blueprints/**'
-
-'[Package][@wp-playground] CLI':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/cli/**'
-
-'[Package][@wp-playground] Client':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/client/**'
-
-'[Package][@wp-playground] Common':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/common/**'
-
-'[Package][@wp-playground] Components':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/components/**'
-
-'[Package][@wp-playground] CORS Proxy':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/php-cors-proxy/**'
-
-'[Package][@wp-playground] Remote':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/remote/**'
-
-'[Package][@wp-playground] Storage':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/storage/**'
-
-'[Package][@wp-playground] Sync':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/sync/**'
-
-'[Package][@wp-playground] Website':
-    - changed-files:
-          - any-glob-to-any-file:
-                - 'packages/playground/website/**'
-                - 'packages/playground/website-extras/**'
-
-'[Package][@wp-playground] WordPress':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/wordpress/**'
-
-'[Package][@wp-playground] WordPress Builds':
-    - changed-files:
-          - any-glob-to-any-file: 'packages/playground/wordpress-builds/**'
+# [Package][...] labels are NOT handled here — they're applied by the
+# `package-and-type` job in auto-label-prs.yml, which ranks packages by
+# total lines changed (additions + deletions) and picks the top 3.
+# Without that cap, a wide refactor produces a wall of [Package] labels.
+#
+# [Type] (other than Documentation) is also not handled here — the same
+# job infers a single [Type] from the PR title's conventional-commit
+# prefix when the signal is unambiguous.
+#
+# Format: each top-level key is a label name, value is a list of glob
+# match rules. See https://github.com/actions/labeler for syntax.
 
 # ---------------------------------------------------------------------------
 # [Aspect] *  — cross-cutting concerns inferable from paths

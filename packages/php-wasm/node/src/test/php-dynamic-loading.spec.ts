@@ -1,4 +1,4 @@
-import { loadNodeRuntime } from '..';
+import { loadNodeRuntime, type PHPExtension } from '..';
 import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	PHP,
@@ -13,9 +13,71 @@ import { jspi } from 'wasm-feature-detect';
 // Check JSPI availability at module load time (top-level await)
 // so the value is available when tests are registered.
 const isJspiAvailable = await jspi();
+const lifecyclePHPVersion = '8.4';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
+
+const bundledLifecycleExtensionNames = [
+	'xdebug',
+	'intl',
+	...(isJspiAvailable ? ['redis', 'memcached'] : []),
+];
+
+const bundledLifecycleLoaderOptions = {
+	extensions: [
+		'xdebug',
+		'intl',
+		...(isJspiAvailable ? (['redis', 'memcached'] as const) : []),
+	] satisfies PHPExtension[],
+};
+
+describe(`Bundled extension lifecycle - PHP ${lifecyclePHPVersion}`, () => {
+	it('keeps enabled extensions loaded after runtime rotation', async () => {
+		const recreateRuntime = vitest.fn(() =>
+			loadNodeRuntime(lifecyclePHPVersion, bundledLifecycleLoaderOptions)
+		);
+		const php = new PHP(await recreateRuntime());
+		php.enableRuntimeRotation({
+			recreateRuntime,
+			maxRequests: 1,
+		});
+
+		try {
+			await expectExtensionsLoaded(php, bundledLifecycleExtensionNames);
+			await expectExtensionsLoaded(php, bundledLifecycleExtensionNames);
+			expect(recreateRuntime).toHaveBeenCalledTimes(2);
+		} finally {
+			php.exit();
+		}
+	}, 30_000);
+
+	it('keeps deprecated with* loader options working', async () => {
+		const extensionNames = [
+			'xdebug',
+			'intl',
+			...(isJspiAvailable ? ['redis', 'memcached'] : []),
+		];
+		const php = new PHP(
+			await loadNodeRuntime(lifecyclePHPVersion, {
+				withXdebug: { ideKey: 'BC_TEST' },
+				withIntl: true,
+				withRedis: isJspiAvailable,
+				withMemcached: isJspiAvailable,
+			})
+		);
+
+		try {
+			await expectExtensionsLoaded(php, extensionNames);
+			expect(
+				php.readFileAsText('/internal/shared/extensions/xdebug.ini')
+			).toContain('xdebug.idekey="BC_TEST"');
+		} finally {
+			php.exit();
+		}
+	}, 30_000);
+});
+
 describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
 		let php: PHP;
@@ -34,7 +96,11 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withXdebug: options,
+					extensions: [
+						typeof options === 'object'
+							? { name: 'xdebug', options }
+							: 'xdebug',
+					],
 				})
 			);
 		});
@@ -43,7 +109,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			php.exit();
 		});
 
-		it('does not load dynamically by default', async () => {
+		it('does not load at startup by default', async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
 
 			const result = await php.runStream({
@@ -54,7 +120,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(await result.stdoutText).toEqual('bool(false)\n');
 		});
 
-		it('supports dynamic loading', async () => {
+		it('loads at startup when requested', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('xdebug'));`,
@@ -197,7 +263,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withIntl: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['intl'],
+				})
 			);
 		});
 
@@ -205,7 +273,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			php.exit();
 		});
 
-		it('does not load dynamically by default', async () => {
+		it('does not load at startup by default', async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
 
 			const result = await php.runStream({
@@ -219,7 +287,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			);
 		});
 
-		it('supports dynamic loading', async () => {
+		it('loads at startup when requested', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('intl'));
@@ -252,7 +320,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('reads the icu data in PROXYFS', async () => {
 			const newPhp = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withIntl: true,
+					extensions: ['intl'],
 				})
 			);
 
@@ -320,7 +388,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				return;
 			}
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['redis'],
+				})
 			);
 		});
 
@@ -331,7 +401,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it.skipIf(!isJspiAvailable)(
-			'does not load dynamically by default',
+			'does not load at startup by default',
 			async () => {
 				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
@@ -347,15 +417,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'loads at startup when requested',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('redis'));
 					var_dump(class_exists('Redis'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			}
+		);
 
 		it.skipIf(!isJspiAvailable)(
 			'has its own ini file and entries',
@@ -393,7 +468,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withMemcached: true,
+					extensions: ['memcached'],
 				})
 			);
 		});
@@ -405,7 +480,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it.skipIf(!isJspiAvailable)(
-			'does not load dynamically by default',
+			'does not load at startup by default',
 			async () => {
 				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
@@ -421,15 +496,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'loads at startup when requested',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('memcached'));
 					var_dump(class_exists('Memcached'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			}
+		);
 
 		it.skipIf(!isJspiAvailable)(
 			'has its own ini file and entries',
@@ -478,3 +558,26 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		);
 	});
 });
+
+async function expectExtensionsLoaded(php: PHP, extensionNames: string[]) {
+	const result = await php.run({
+		code: `<?php
+			$extensions = ${phpArrayLiteral(extensionNames)};
+			foreach ($extensions as $extension) {
+				echo $extension . ':' . (extension_loaded($extension) ? 'loaded' : 'missing') . "\\n";
+			}
+		`,
+	});
+
+	expect(result.text).toBe(
+		extensionNames
+			.map((extensionName) => `${extensionName}:loaded\n`)
+			.join('')
+	);
+}
+
+function phpArrayLiteral(values: string[]) {
+	return `array(${values
+		.map((value) => `'${value.replaceAll("'", "\\'")}'`)
+		.join(', ')})`;
+}

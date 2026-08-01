@@ -54,9 +54,11 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
 - Read about the [limitations](/developers/limitations)
 - [WordCamp Contributor Day](/contributing/contributor-day)
 
-:::tip
+<div class="callout callout-tip">
+
 Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
-:::
+
+</div>
 
 ## Take a deep dive
 
@@ -92,4 +94,3 @@ WordPress Playground is designed to work with AI coding agents and AI-powered to
 WordPress Playground is free software released under the terms of the GNU General Public License version 2 or (at your option) any later version. For a complete license, see [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
 
 <br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>
-

@@ -20,11 +20,15 @@ Bem-vindo a um curso intensivo sobre Blueprints, onde você encontrará tudo que
 3. [Crie seu primeiro Blueprint](/blueprints/tutorial/build-your-first-blueprint)
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Se você encontrar algum problema enquanto segue este tutorial, consulte a seção [Solução de problemas e depuração de Blueprints](/blueprints/troubleshoot-and-debug) para dicas e ferramentas que podem ajudá-lo a resolvê-los.
-:::
+
+</div>

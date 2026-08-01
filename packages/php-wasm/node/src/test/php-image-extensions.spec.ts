@@ -72,7 +72,10 @@ for (const serverConfiguration of serverConfigurations) {
 	const phpVersions =
 		'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-	const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+	const phpLoaderOptions: PHPLoaderOptions[] = [
+		{},
+		{ extensions: ['xdebug'] },
+	];
 
 	describe(`${protocol} protocol – ${runtimeMode}`, () => {
 		phpLoaderOptions.forEach((options) => {

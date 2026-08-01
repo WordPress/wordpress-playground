@@ -2,7 +2,7 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 4px 0;
+	padding: 5px 8px;
 	border-radius: 4px;
 	font-size: 14px;
 	font-weight: 500;
@@ -17,12 +17,61 @@
 	flex-shrink: 0;
 }
 
+/* "Saved" uses a calm, desaturated sage green with a check that settles into
+   the dark dock. "Autosaved" is icon-less white text — plainer, since it's the
+   transient default. Only "unsaved" stays vibrant (it wants attention). */
 .saved {
-	color: #86efac;
+	color: #a0c49a;
 }
 
 .saved svg {
-	fill: #86efac;
+	fill: #a0c49a;
+}
+
+/* "Autosaved" keeps the same blue as the in-progress "Autosaving" state, so the
+   color doesn't change as the save settles. */
+.autosaved {
+	color: #93c5fd;
+}
+
+.saving .label {
+	font-weight: 600;
+}
+
+/* Clickable status pills wear the same raised-tile chrome as the adjacent
+   dock toggle pill, so they read as buttons; status-only states (loading,
+   saving, unavailable unsaved) stay flat text. */
+.actionable,
+.error {
+	box-sizing: border-box;
+	height: 34px;
+	padding: 0 10px;
+	background: rgba(255, 251, 243, 0.05);
+	border: 1px solid rgba(255, 251, 243, 0.1);
+	border-radius: 9px;
+	cursor: pointer;
+	transition: background 0.13s ease;
+}
+
+.actionable:hover {
+	background: rgba(255, 251, 243, 0.12);
+}
+
+.actionable:disabled,
+.error:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.actionable:disabled:hover,
+.error:disabled:hover {
+	background: rgba(255, 251, 243, 0.05);
+}
+
+.actionable:focus-visible,
+.error:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
 }
 
 .unsaved {
@@ -33,36 +82,16 @@
 	fill: #fcd34d;
 }
 
-.saveButton {
-	margin-left: 2px;
-	padding: 4px 10px;
-	background: #fcd34d;
-	color: #1e2327;
-	border: none;
-	border-radius: 4px;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background 0.15s ease;
-	min-height: 28px;
-}
-
-.saveButton:hover {
-	background: #fde68a;
-}
-
 .saving {
 	color: #93c5fd;
 }
 
 .error {
 	color: #fca5a5;
-	cursor: pointer;
-	transition: background 0.15s ease;
 }
 
 .error:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: rgba(255, 251, 243, 0.12);
 }
 
 .error svg {
@@ -73,20 +102,31 @@
 	display: inline;
 }
 
-.spinner {
-	width: 16px;
-	height: 16px;
-	border: 2px solid rgba(147, 197, 253, 0.3);
-	border-top-color: #93c5fd;
-	border-radius: 50%;
-	animation: spin 0.8s linear infinite;
-	flex-shrink: 0;
+/* The shared callout stays centered over the Saved pill. These margins count
+   toward collision detection and preserve its shadow at both mobile edges. */
+.saved-menu-popover :global(.components-popover__content) {
+	margin-inline: 16px;
 }
 
-@keyframes spin {
-	to {
-		transform: rotate(360deg);
-	}
+.progress-ring {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: conic-gradient(
+		currentColor var(--save-progress),
+		rgba(255, 255, 255, 0.24) 0
+	);
+	flex-shrink: 0;
+	mask: radial-gradient(
+		farthest-side,
+		transparent calc(100% - 2px),
+		#000 calc(100% - 2px)
+	);
+	-webkit-mask: radial-gradient(
+		farthest-side,
+		transparent calc(100% - 2px),
+		#000 calc(100% - 2px)
+	);
 }
 
 /* Mobile responsive styles */
@@ -94,10 +134,10 @@
 	.indicator {
 		font-size: 13px;
 	}
+}
 
-	.saveButton {
-		min-width: 40px;
-		min-height: 40px;
-		padding: 8px 12px;
-	}
+/* --- Restored from the deployed build --- */
+
+.loading {
+	color: #f7f5f2b3;
 }

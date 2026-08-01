@@ -19,6 +19,7 @@ import { setCurrentPath } from '../store';
 import { loadStateFromURL, saveStateToURL } from '../url-state';
 import { playgroundRuntime } from '../runtime';
 import { logger } from '@php-wasm/logger';
+import type { AllPHPVersion } from '@php-wasm/universal';
 
 export const PlaygroundManager = () => {
 	const dispatch = useAppDispatch();
@@ -121,12 +122,12 @@ export const PlaygroundManager = () => {
 				const clientInstance = await startPlaygroundWeb({
 					iframe: previewIframe,
 					remoteUrl: getRemoteUrl().toString(),
-					// blueprint: {
-					// 	preferredVersions: {
-					// 		wp: wpVersionRef.current,
-					// 		php: phpVersionRef.current as any,
-					// 	},
-					// },
+					blueprint: {
+						preferredVersions: {
+							wp: wpVersionRef.current,
+							php: phpVersionRef.current as AllPHPVersion,
+						},
+					},
 				});
 
 				if (cancelled) {

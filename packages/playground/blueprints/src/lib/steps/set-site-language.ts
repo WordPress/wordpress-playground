@@ -1,7 +1,7 @@
 import type { StepHandler } from '.';
 import { unzipFile } from '@wp-playground/common';
 import { logger } from '@php-wasm/logger';
-import { Semaphore } from '@php-wasm/util';
+import { phpVar, Semaphore } from '@php-wasm/util';
 /**
  * @inheritDoc setSiteLanguage
  * @hasRunnableExample
@@ -59,9 +59,15 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Translating');
 
-	await playground.defineConstant('WPLANG', language);
-
 	const docroot = await playground.documentRoot;
+
+	await playground.defineConstant('WPLANG', language);
+	await playground.run({
+		code: `<?php
+		require_once ${phpVar(docroot)} . '/wp-load.php';
+		update_option('WPLANG', ${phpVar(language)});
+		`,
+	});
 
 	const wpVersion = (
 		await playground.run({

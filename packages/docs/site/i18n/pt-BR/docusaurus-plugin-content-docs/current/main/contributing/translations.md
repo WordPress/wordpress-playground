@@ -17,9 +17,11 @@ Help make WordPress Playground accessible to a global audience by translating it
 Ajude a tornar o WordPress Playground acessível a um público global traduzindo sua documentação. Este guia fornece tudo o que você precisa saber para começar. Contribuir com traduções segue o mesmo fluxo de trabalho que qualquer outra alteração de documentação. Você pode fazer um fork do repositório [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) e criar um pull request (PR) com suas alterações, ou editar páginas diretamente usando a interface do GitHub.
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -41,9 +43,11 @@ Playground's documentation site is built with Docusaurus, which handles the inte
 O site de documentação do Playground é construído com Docusaurus, que gerencia os recursos de internacionalização (i18n).
 
 <!--
-:::info
+<div class="callout callout-info">
+
 To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -317,9 +321,11 @@ Siga estes passos para traduzir uma página:
 - Solicite uma revisão em `#playground` ou `#polyglots` no `wordpress.slack.com`
 
 <!--
-:::info
+<div class="callout callout-info">
+
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -741,14 +747,18 @@ WordPress Playground é uma ferramenta online onde você pode testar e aprender 
 ```
 
 <!--
-:::info
+<div class="callout callout-info">
+
 This practice also helps the maintenance team identify outdated translations. When the original English content is updated, we can search the codebase for the old text (now in comments) and flag the corresponding translation for review.
-:::
+
+</div>
 -->
 
-:::info
+<div class="callout callout-info">
+
 Esta prática também ajuda a equipe de manutenção a identificar traduções desatualizadas. Quando o conteúdo original em inglês é atualizado, podemos pesquisar no código base o texto antigo (agora em comentários) e sinalizar a tradução correspondente para revisão.
-:::
+
+</div>
 
 <!--
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).

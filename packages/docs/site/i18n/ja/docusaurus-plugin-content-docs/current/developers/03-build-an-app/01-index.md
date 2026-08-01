@@ -41,13 +41,15 @@ Playground can be embedded on your website using the HTML `<iframe>` tag as foll
 Every visitor will get their own private WordPress instance for free. You can then customize it using one of the [Playground APIs](/developers/apis/).
 -->
 
-:::caution Careful with the demo site
+<div class="callout callout-warning">
+
+**Careful with the demo site**
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
-:::
+</div>
 
 ## 埋め込まれたウェブサイトを制御する
 

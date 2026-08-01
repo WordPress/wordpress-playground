@@ -8,10 +8,10 @@ description: Tuklasin ang iba't ibang paraan para gamitin ang mga Blueprint, kas
 
 Maaari mong gamitin ang mga Blueprint sa isa sa sumusunod na paraan:
 
--   Sa pamamagitan ng pagpasa sa kanila bilang URL fragment sa Playground.
--   Sa pamamagitan ng pag-load sa kanila mula sa URL gamit ang `blueprint-url` parameter.
--   Sa pamamagitan ng paggamit ng Blueprint bundles (ZIP files o directories).
--   Sa pamamagitan ng paggamit ng JavaScript API.
+- Sa pamamagitan ng pagpasa sa kanila bilang URL fragment sa Playground.
+- Sa pamamagitan ng pag-load sa kanila mula sa URL gamit ang `blueprint-url` parameter.
+- Sa pamamagitan ng paggamit ng Blueprint bundles (ZIP files o directories).
+- Sa pamamagitan ng paggamit ng JavaScript API.
 
 ## URL Fragment
 
@@ -32,7 +32,8 @@ Halimbawa, para gumawa ng Playground na may specific na mga version ng WordPress
 At pagkatapos ay pupunta ka sa
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 
-:::tip
+<div class="callout callout-tip">
+
 Sa Javascript, maaari kang makakuha ng compact version ng anumang blueprint JSON gamit ang [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) at [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Halimbawa:
 
@@ -47,7 +48,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"8.3","wp":"6.5"}}
 ```
 
-:::
+</div>
 
 Hindi mo kailangang mag-paste ng mga link para sumabay. Gagamitin namin ang mga code example na may "Try it out" button na awtomatikong magpapatakbo ng mga halimbawa para sa iyo:
 
@@ -66,7 +67,8 @@ Ang ilang tool, kasama ang GitHub, ay maaaring hindi ma-format nang tama ang Blu
 
 Para patakbuhin ito, pumunta sa https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
-:::tip
+<div class="callout callout-tip">
+
 Sa JavaScript, Maaari kang makakuha ng anumang blueprint JSON sa [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) gamit ang global function na `btoa()`.
 
 Halimbawa:
@@ -82,7 +84,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 
 ### Mag-load ng Blueprint mula sa URL
 

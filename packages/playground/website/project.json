@@ -55,6 +55,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
@@ -79,6 +80,13 @@
 					"buildTarget": "playground-website:build:standalone:production",
 					"hmr": false
 				}
+			}
+		},
+		"sync-php-next-assets": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
+				"parallel": false
 			}
 		},
 		"preview": {

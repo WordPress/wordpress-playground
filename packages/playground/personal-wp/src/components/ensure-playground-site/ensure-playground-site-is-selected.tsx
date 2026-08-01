@@ -18,6 +18,7 @@ import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
+import { getAppBaseUrl, isAppBasePath } from '../../lib/state/url/app-base-url';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -95,6 +96,10 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
+			if (!isAppBasePath(url.pathname) && activeSite) {
+				return;
+			}
+
 			// If only the 'modal' parameter changes in searchParams, don't reload the page
 			const notRefreshingParam = 'modal';
 			const oldParams = new URLSearchParams(prevUrl?.search);
@@ -111,8 +116,11 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 
 		ensureSiteIsSelected();
+		// Only re-run when search params or hash change (blueprint
+		// instructions), not when pathname changes (WordPress
+		// navigation reflected via pushState).
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, requestedSiteSlug, siteListingStatus]);
+	}, [url.search, url.hash, requestedSiteSlug, siteListingStatus]);
 
 	useEffect(() => {
 		if (
@@ -148,8 +156,19 @@ async function createNewTemporarySite(
 	const siteName = requestedSiteSlug
 		? deriveSiteNameFromSlug(requestedSiteSlug)
 		: randomSiteName();
+
+	// Only treat URL params as blueprint instructions when on the
+	// root path. Other paths (e.g. /wp-admin/plugins.php) are
+	// WordPress URLs reflected in the browser bar via pushState
+	// and their params belong to WordPress, not to the blueprint
+	// system.
+	const currentUrl = new URL(window.location.href);
+	const blueprintUrl = isAppBasePath(currentUrl.pathname)
+		? currentUrl
+		: getAppBaseUrl();
+
 	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec(siteName, new URL(window.location.href))
+		setTemporarySiteSpec(siteName, blueprintUrl)
 	);
 	await dispatch(setActiveSite(newSiteInfo.slug));
 }

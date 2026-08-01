@@ -12,11 +12,13 @@ description: Bienvenido a la documentación de WordPress Playground. Esta págin
 # Documentación de WordPress Playground
 
 <!--
-:::info **Looking for the official Playground website?**
+<div class="callout callout-info">
+
+**Looking for the official Playground website?**
 
 WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">
@@ -120,14 +122,18 @@ Ya seas desarrollador, usuario no técnico o contribuidor, estas documentaciones
 - [Día del Contribuidor de WordCamp](/contributing/contributor-day)
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 Read [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) blog post in the [WordPress Developer Blog](https://developer.wordpress.org/news) for a great introduction to WordPress Playground
-:::
+
+</div>
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 Lee la publicación del blog [**Introducción a Playground: ejecutando WordPress en el navegador**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) en el [Blog de Desarrolladores de WordPress](https://developer.wordpress.org/news) para una excelente introducción a WordPress Playground
-:::
+
+</div>
 
 <!--
 ## Take a deep dive

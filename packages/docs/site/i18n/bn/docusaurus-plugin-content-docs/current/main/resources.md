@@ -11,34 +11,36 @@ description: ওয়ার্ডপ্রেস প্লেগ্রাউন
 # লিংক এবং রিসোর্স
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
 
 <ul id="list-resources-redirections">
-<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Playground instance</li>
-<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
-<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
-<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
-<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
+<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Playground instance</li>
+<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Playground Docs</li>
+<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
+<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer for WordPress</li>
+<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer for Gutenberg</li>
+<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → Playground Proxy Service <em>(see [URLReference](/blueprints/steps/resources#urlreference) for more info)</em></li>
 </ul>
-:::
+
+</div>
 -->
 
-:::পরামর্শ
+<div class="callout callout-tip">
 
 প্লেগ্রাউন্ড সম্পর্কিত কিছু টুলে অ্যাক্সেস সহজ করার জন্য এখানে কিছু রিডাইরেকশন সেট করা আছে:
 
 <ul id="list-resources-redirections">
-<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → প্লেগ্রাউন্ড ইনস্ট্যান্স</li>
-<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → প্লেগ্রাউন্ড ডকস</li>
-<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → প্লেগ্রাউন্ড ব্লুপ্রিন্ট বিল্ডার</li>
-<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → ওয়ার্ডপ্রেসের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
-<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → গুটেনবার্গের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → প্লেগ্রাউন্ড প্রক্সি সার্ভিস <em>(আরও তথ্যের জন্য <a href="/blueprints/steps/resources#urlreference">URLReference</a> দেখুন)</em></li>
+<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → প্লেগ্রাউন্ড ইনস্ট্যান্স</li>
+<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → প্লেগ্রাউন্ড ডকস</li>
+<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → প্লেগ্রাউন্ড ব্লুপ্রিন্ট বিল্ডার</li>
+<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → ওয়ার্ডপ্রেসের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
+<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → গুটেনবার্গের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
+<li>[https://playground.wordpress.net**/proxy**](https://playground.wordpress.net/proxy) → প্লেগ্রাউন্ড প্রক্সি সার্ভিস <em>(আরও তথ্যের জন্য [URLReference](/blueprints/steps/resources#urlreference) দেখুন)</em></li>
 </ul>
-:::
+
+</div>
 
 <!--
 ## Frequently sought links

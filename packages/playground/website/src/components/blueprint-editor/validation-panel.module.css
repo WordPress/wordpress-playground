@@ -1,6 +1,6 @@
 .validationPanel {
-	border-top: 1px solid var(--color-gray-200);
-	background: #fff5f5;
+	border-top: 1px solid var(--line-subtle, #ddd);
+	background: var(--paper-2, #faf8f5);
 	max-height: 150px;
 	overflow: auto;
 	flex-shrink: 0;
@@ -13,9 +13,9 @@
 	padding: 8px 16px;
 	font-size: 13px;
 	font-weight: 500;
-	color: #d63638;
-	border-bottom: 1px solid rgba(214, 54, 56, 0.15);
-	background: #fff5f5;
+	color: var(--color-alert-red, #cc1818);
+	border-bottom: 1px solid var(--line-subtle, #ddd);
+	background: var(--paper-3, #ece8e1);
 	position: sticky;
 	top: 0;
 }
@@ -50,17 +50,17 @@
 		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
 	line-height: 1.4;
-	color: var(--color-gray-900);
+	color: var(--ink, #1e1e1e);
 }
 
 .validationError + .validationError {
-	border-top: 1px solid rgba(214, 54, 56, 0.1);
+	border-top: 1px solid var(--line-subtle, #ddd);
 	padding-top: 8px;
 	margin-top: 4px;
 }
 
 .errorPath {
-	color: #d63638;
+	color: var(--color-alert-red, #cc1818);
 	font-weight: 500;
 	flex-shrink: 0;
 }
@@ -71,7 +71,7 @@
 }
 
 .errorMessage {
-	color: var(--color-gray-700);
+	color: var(--ink-muted, #50575e);
 }
 
 .runButtonDisabled {

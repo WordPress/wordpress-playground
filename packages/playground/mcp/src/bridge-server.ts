@@ -53,18 +53,10 @@ const ALLOWED_ORIGIN_PATTERNS = [
 	/^https?:\/\/playground\.wordpress\.net$/,
 ];
 
-function isAllowedOrigin(origin: string | undefined): boolean {
-	// Non-browser clients (e.g. Node.js MCP clients) don't send
-	// an Origin header. Allow them — they're local processes.
-	if (!origin) {
-		return true;
-	}
-	return ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
-}
-
 type SiteActivatedListener = (siteId: string) => void;
 
 export class PlaygroundBridge {
+	private additionalAllowedOrigins = new Set<string>();
 	private connections = new Map<string, WebSocket>();
 	private sites = new Map<string, SiteEntry>();
 	private pendingRequests = new Map<
@@ -80,6 +72,17 @@ export class PlaygroundBridge {
 	private httpServer: ReturnType<typeof createHttpServer> | undefined;
 	private sessionToken = randomUUID();
 	private siteActivatedListeners: SiteActivatedListener[] = [];
+
+	constructor(additionalAllowedUrls: string[] = []) {
+		for (const url of additionalAllowedUrls) {
+			try {
+				this.additionalAllowedOrigins.add(new URL(url).origin);
+			} catch {
+				// Invalid URLs are ignored here; URL generation will
+				// report the same invalid argument when tools register.
+			}
+		}
+	}
 
 	getPort(): number {
 		const addr = this.httpServer?.address() as AddressInfo | null;
@@ -106,7 +109,7 @@ export class PlaygroundBridge {
 						message?: string
 					) => void
 				) => {
-					if (!isAllowedOrigin(info.origin)) {
+					if (!this.isAllowedOrigin(info.origin)) {
 						console.error(
 							`[MCP] Rejected WebSocket connection ` +
 								`from origin: ${info.origin}`
@@ -163,7 +166,7 @@ export class PlaygroundBridge {
 	private handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
 		if (req.url === '/bridge-token') {
 			const origin = req.headers.origin;
-			if (!origin || !isAllowedOrigin(origin)) {
+			if (!origin || !this.isAllowedOrigin(origin)) {
 				res.writeHead(403);
 				res.end('Forbidden');
 				return;
@@ -183,6 +186,18 @@ export class PlaygroundBridge {
 		}
 		res.writeHead(404);
 		res.end();
+	}
+
+	private isAllowedOrigin(origin: string | undefined): boolean {
+		// Non-browser clients (e.g. Node.js MCP clients) don't send
+		// an Origin header. Allow them — they're local processes.
+		if (!origin) {
+			return true;
+		}
+		return (
+			this.additionalAllowedOrigins.has(origin) ||
+			ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))
+		);
 	}
 
 	private handleConnection(ws: WebSocket) {

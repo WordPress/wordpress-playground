@@ -231,9 +231,13 @@ Open multiple browser tabs with different Playground setups. Compare plugin A ve
 Abre múltiples pestañas del navegador con diferentes configuraciones de Playground. Compara el plugin A versus el plugin B, o mira cómo se ve tu contenido en diferentes temas. Toma decisiones informadas antes de tocar tu sitio de producción.
 
 <!--
-:::info Your Real Site Stays Safe
+<div class="callout callout-info">
+
+**Your Real Site Stays Safe**
+
 Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
-:::
+
+</div>
 -->
 
 <div class="callout callout-info">
@@ -331,14 +335,22 @@ Need to move your work elsewhere? Choose **Download as .zip** to export your ent
 ¿Necesitas mover tu trabajo a otro lugar? Elige **Descargar como .zip** para exportar todo tu Playground — incluyendo plugins, temas y contenido. Puedes restaurarlo más tarde o incluso alojarlo en un servidor real.
 
 <!--
-:::tip Keep Your Playground Link
+<div class="callout callout-tip">
+
+**Keep Your Playground Link**
+
 When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
-:::
+
+</div>
 -->
 
-:::tip Guarda Tu Enlace de Playground
+<div class="callout callout-tip">
+
+**Guarda Tu Enlace de Playground**
+
 Cuando guardes en el navegador, copia la URL única que genera. Ese enlace es tu camino de vuelta a tu trabajo guardado.
-:::
+
+</div>
 
 <!--
 ## Next Steps

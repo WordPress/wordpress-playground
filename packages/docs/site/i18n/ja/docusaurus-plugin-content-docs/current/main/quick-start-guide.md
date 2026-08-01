@@ -67,11 +67,13 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 </div>
 
 <!--
-:::info WordPress Playground is private
+<div class="callout callout-info">
+
+**WordPress Playground is private**
 
 Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
-:::
+</div>
  -->
 
 ## ブロック、テーマ、プラグインを試す
@@ -231,11 +233,13 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 </div>
 
 <!--
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
  -->
 
 また、`wp` および `php` [クエリパラメータ](/developers/apis/query-api) を使用して、適切なバージョンがすでにロードされた状態で Playground を開くこともできます。
@@ -264,10 +268,13 @@ To learn more about preparing content for demos, see the [providing content for 
 </div>
 
 <!--
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
-:::
+
+</div>
  -->
 
 ## WXR ファイルをインポートする

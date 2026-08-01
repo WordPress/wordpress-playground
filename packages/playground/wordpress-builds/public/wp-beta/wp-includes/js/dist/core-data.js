@@ -109,6 +109,27 @@ var wp;
     }
   });
 
+  // package-external:@wordpress/api-fetch
+  var require_api_fetch = __commonJS({
+    "package-external:@wordpress/api-fetch"(exports, module) {
+      module.exports = window.wp.apiFetch;
+    }
+  });
+
+  // package-external:@wordpress/sync
+  var require_sync = __commonJS({
+    "package-external:@wordpress/sync"(exports, module) {
+      module.exports = window.wp.sync;
+    }
+  });
+
+  // package-external:@wordpress/private-apis
+  var require_private_apis = __commonJS({
+    "package-external:@wordpress/private-apis"(exports, module) {
+      module.exports = window.wp.privateApis;
+    }
+  });
+
   // node_modules/equivalent-key-map/equivalent-key-map.js
   var require_equivalent_key_map = __commonJS({
     "node_modules/equivalent-key-map/equivalent-key-map.js"(exports, module) {
@@ -329,13 +350,6 @@ var wp;
     }
   });
 
-  // package-external:@wordpress/api-fetch
-  var require_api_fetch = __commonJS({
-    "package-external:@wordpress/api-fetch"(exports, module) {
-      module.exports = window.wp.apiFetch;
-    }
-  });
-
   // package-external:@wordpress/blocks
   var require_blocks = __commonJS({
     "package-external:@wordpress/blocks"(exports, module) {
@@ -350,13 +364,6 @@ var wp;
     }
   });
 
-  // package-external:@wordpress/sync
-  var require_sync = __commonJS({
-    "package-external:@wordpress/sync"(exports, module) {
-      module.exports = window.wp.sync;
-    }
-  });
-
   // package-external:@wordpress/block-editor
   var require_block_editor = __commonJS({
     "package-external:@wordpress/block-editor"(exports, module) {
@@ -368,13 +375,6 @@ var wp;
   var require_rich_text = __commonJS({
     "package-external:@wordpress/rich-text"(exports, module) {
       module.exports = window.wp.richText;
-    }
-  });
-
-  // package-external:@wordpress/private-apis
-  var require_private_apis = __commonJS({
-    "package-external:@wordpress/private-apis"(exports, module) {
-      module.exports = window.wp.privateApis;
     }
   });
 
@@ -417,13 +417,11 @@ var wp;
   var index_exports = {};
   __export(index_exports, {
     EntityProvider: () => EntityProvider,
-    SelectionDirection: () => SelectionDirection,
-    SelectionType: () => SelectionType,
     __experimentalFetchLinkSuggestions: () => fetchLinkSuggestions,
     __experimentalFetchUrlData: () => experimental_fetch_url_data_default,
-    __experimentalUseEntityRecord: () => __experimentalUseEntityRecord,
-    __experimentalUseEntityRecords: () => __experimentalUseEntityRecords,
-    __experimentalUseResourcePermissions: () => __experimentalUseResourcePermissions,
+    __experimentalUseEntityRecord: () => useDeprecatedEntityRecord,
+    __experimentalUseEntityRecords: () => useDeprecatedEntityRecords,
+    __experimentalUseResourcePermissions: () => useDeprecatedResourcePermissions,
     fetchBlockPatterns: () => fetchBlockPatterns,
     privateApis: () => privateApis,
     store: () => store,
@@ -434,16 +432,33 @@ var wp;
     useEntityRecords: () => useEntityRecords,
     useResourcePermissions: () => use_resource_permissions_default
   });
-  var import_data16 = __toESM(require_data(), 1);
+  var import_data15 = __toESM(require_data(), 1);
 
   // packages/core-data/build-module/reducer.mjs
-  var import_es64 = __toESM(require_es6(), 1);
+  var import_es65 = __toESM(require_es6(), 1);
   var import_compose2 = __toESM(require_compose(), 1);
-  var import_data8 = __toESM(require_data(), 1);
+  var import_data7 = __toESM(require_data(), 1);
   var import_undo_manager = __toESM(require_undo_manager(), 1);
 
-  // packages/core-data/build-module/utils/conservative-map-item.mjs
+  // packages/core-data/build-module/utils/clear-unchanged-edits.mjs
   var import_es6 = __toESM(require_es6(), 1);
+  function clearUnchangedEdits(edits, persistedRecord) {
+    if (!persistedRecord) {
+      return edits;
+    }
+    return Object.fromEntries(
+      Object.entries(edits).map(([key, value]) => {
+        const persisted = persistedRecord[key]?.raw ?? persistedRecord[key];
+        return [
+          key,
+          (0, import_es6.default)(value, persisted) ? void 0 : value
+        ];
+      })
+    );
+  }
+
+  // packages/core-data/build-module/utils/conservative-map-item.mjs
+  var import_es62 = __toESM(require_es6(), 1);
   function conservativeMapItem(item, nextItem) {
     if (!item) {
       return nextItem;
@@ -451,7 +466,7 @@ var wp;
     let hasChanges = false;
     const result = {};
     for (const key in nextItem) {
-      if ((0, import_es6.default)(item[key], nextItem[key])) {
+      if ((0, import_es62.default)(item[key], nextItem[key])) {
         result[key] = item[key];
       } else {
         hasChanges = true;
@@ -495,23 +510,6 @@ var wp;
   };
   var forward_resolver_default = forwardResolver;
 
-  // packages/core-data/build-module/utils/on-sub-key.mjs
-  var onSubKey = (actionProperty) => (reducer) => (state = {}, action) => {
-    const key = action[actionProperty];
-    if (key === void 0) {
-      return state;
-    }
-    const nextKeyState = reducer(state[key], action);
-    if (nextKeyState === state[key]) {
-      return state;
-    }
-    return {
-      ...state,
-      [key]: nextKeyState
-    };
-  };
-  var on_sub_key_default = onSubKey;
-
   // packages/core-data/build-module/utils/replace-action.mjs
   var replaceAction = (replacer) => (reducer) => (state, action) => {
     return reducer(state, replacer(action));
@@ -535,11 +533,6 @@ var wp;
     };
   }
   var with_weak_map_cache_default = withWeakMapCache;
-
-  // packages/core-data/build-module/utils/is-raw-attribute.mjs
-  function isRawAttribute(entity2, attribute) {
-    return (entity2.rawAttributes || []).includes(attribute);
-  }
 
   // packages/core-data/build-module/utils/set-nested-value.mjs
   function setNestedValue(object, path, value) {
@@ -590,9 +583,6 @@ var wp;
   ];
   function getUserPermissionsFromAllowHeader(allowedMethods) {
     const permissions = {};
-    if (!allowedMethods) {
-      return permissions;
-    }
     const methods = {
       create: "POST",
       read: "GET",
@@ -600,7 +590,7 @@ var wp;
       delete: "DELETE"
     };
     for (const [actionName, methodName] of Object.entries(methods)) {
-      permissions[actionName] = allowedMethods.includes(methodName);
+      permissions[actionName] = allowedMethods ? allowedMethods.includes(methodName) : false;
     }
     return permissions;
   }
@@ -614,11 +604,93 @@ var wp;
     "RECEIVE_INTERMEDIATE_RESULTS"
   );
 
+  // packages/core-data/build-module/utils/normalize-query-for-resolution.mjs
+  function normalizeQueryForResolution(query) {
+    if (!query) {
+      return void 0;
+    }
+    const entries = Object.entries(query).filter(
+      ([k, v]) => (k === "context" || k === "_fields") && v !== void 0 && v !== null
+    );
+    return entries.length > 0 ? Object.fromEntries(entries) : void 0;
+  }
+
+  // packages/core-data/build-module/utils/save-crdt-doc.mjs
+  var import_api_fetch = __toESM(require_api_fetch(), 1);
+
+  // packages/core-data/build-module/sync.mjs
+  var import_sync = __toESM(require_sync(), 1);
+
+  // packages/core-data/build-module/lock-unlock.mjs
+  var import_private_apis = __toESM(require_private_apis(), 1);
+  var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
+    "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
+    "@wordpress/core-data"
+  );
+
+  // packages/core-data/build-module/sync.mjs
+  var {
+    ConnectionErrorCode,
+    createSyncManager,
+    Delta,
+    CRDT_DOC_META_PERSISTENCE_KEY,
+    CRDT_RECORD_MAP_KEY,
+    LOCAL_EDITOR_ORIGIN,
+    LOCAL_UNDO_IGNORED_ORIGIN,
+    retrySyncConnection
+  } = unlock(import_sync.privateApis);
+  var syncManager;
+  function getSyncManager() {
+    if (syncManager) {
+      return syncManager;
+    }
+    syncManager = createSyncManager();
+    return syncManager;
+  }
+  function hasSyncManager() {
+    return Boolean(syncManager);
+  }
+
+  // packages/core-data/build-module/utils/save-crdt-doc.mjs
+  var SYNC_SAVE_API_PATH = "/wp-sync/v1/save";
+  var saveCRDTDocQueues = /* @__PURE__ */ new Map();
+  async function serializeAndSaveCRDTDoc(objectType, objectId, room) {
+    const serializedDoc = await getSyncManager()?.createPersistedCRDTDoc(
+      objectType,
+      objectId
+    );
+    if (!serializedDoc) {
+      return;
+    }
+    await (0, import_api_fetch.default)({
+      path: SYNC_SAVE_API_PATH,
+      method: "POST",
+      data: {
+        room,
+        doc: serializedDoc
+      }
+    });
+  }
+  async function saveCRDTDoc(objectType, objectId) {
+    const room = `${objectType}:${objectId}`;
+    const previousSave = saveCRDTDocQueues.get(room) || Promise.resolve();
+    const currentSave = previousSave.catch(() => {
+    }).then(() => serializeAndSaveCRDTDoc(objectType, objectId, room));
+    saveCRDTDocQueues.set(room, currentSave);
+    try {
+      await currentSave;
+    } finally {
+      if (saveCRDTDocQueues.get(room) === currentSave) {
+        saveCRDTDocQueues.delete(room);
+      }
+    }
+  }
+
   // packages/core-data/build-module/queried-data/actions.mjs
   function receiveItems(items2, edits, meta) {
     return {
       type: "RECEIVE_ITEMS",
-      items: Array.isArray(items2) ? items2 : [items2],
+      items: items2,
       persistedEdits: edits,
       meta
     };
@@ -641,7 +713,6 @@ var wp;
 
   // packages/core-data/build-module/queried-data/selectors.mjs
   var import_equivalent_key_map = __toESM(require_equivalent_key_map(), 1);
-  var import_data = __toESM(require_data(), 1);
 
   // packages/core-data/build-module/queried-data/get-query-parts.mjs
   var import_url = __toESM(require_url(), 1);
@@ -650,6 +721,7 @@ var wp;
       stableKey: "",
       page: 1,
       perPage: 10,
+      offset: null,
       fields: null,
       include: null,
       context: "default"
@@ -665,6 +737,13 @@ var wp;
         case "per_page":
           parts.perPage = Number(value);
           break;
+        case "offset": {
+          const numericOffset = Number(value);
+          if (Number.isFinite(numericOffset)) {
+            parts.offset = numericOffset;
+          }
+          break;
+        }
         case "context":
           parts.context = value;
           break;
@@ -689,17 +768,30 @@ var wp;
 
   // packages/core-data/build-module/queried-data/selectors.mjs
   var queriedItemsCacheByState = /* @__PURE__ */ new WeakMap();
-  function getQueriedItemsUncached(state, query) {
-    const { stableKey, page, perPage, include, fields, context } = get_query_parts_default(query);
-    let itemIds;
-    if (state.queries?.[context]?.[stableKey]) {
-      itemIds = state.queries[context][stableKey].itemIds;
-    }
+  function getQueriedItemsUncached(state, query, options = {}) {
+    const { supportsPagination = true } = options;
+    const {
+      stableKey,
+      page,
+      perPage,
+      offset: queryOffset,
+      include,
+      fields,
+      context
+    } = get_query_parts_default(query);
+    const itemIds = state.queries?.[context]?.[stableKey]?.itemIds;
     if (!itemIds) {
       return null;
     }
-    const startOffset = perPage === -1 ? 0 : (page - 1) * perPage;
-    const endOffset = perPage === -1 ? itemIds.length : Math.min(startOffset + perPage, itemIds.length);
+    const isPaginated = supportsPagination && perPage !== -1;
+    const startOffset = isPaginated ? queryOffset ?? (page - 1) * perPage : 0;
+    const endOffset = isPaginated ? Math.min(startOffset + perPage, itemIds.length) : itemIds.length;
+    if (isPaginated && itemIds.length < startOffset + perPage) {
+      const totalItems = state.queries[context][stableKey].meta?.totalItems;
+      if (Number.isFinite(totalItems) && itemIds.length < totalItems) {
+        return null;
+      }
+    }
     const items2 = [];
     for (let i = startOffset; i < endOffset; i++) {
       const itemId = itemIds[i];
@@ -734,7 +826,7 @@ var wp;
     }
     return items2;
   }
-  var getQueriedItems = (0, import_data.createSelector)((state, query = {}) => {
+  function getQueriedItems(state, query = {}, options = {}) {
     let queriedItemsCache = queriedItemsCacheByState.get(state);
     if (queriedItemsCache) {
       const queriedItems = queriedItemsCache.get(query);
@@ -745,10 +837,10 @@ var wp;
       queriedItemsCache = new import_equivalent_key_map.default();
       queriedItemsCacheByState.set(state, queriedItemsCache);
     }
-    const items2 = getQueriedItemsUncached(state, query);
+    const items2 = getQueriedItemsUncached(state, query, options);
     queriedItemsCache.set(query, items2);
     return items2;
-  });
+  }
   function getQueriedTotalItems(state, query = {}) {
     const { stableKey, context } = get_query_parts_default(query);
     return state.queries?.[context]?.[stableKey]?.meta?.totalItems ?? null;
@@ -759,7 +851,7 @@ var wp;
   }
 
   // packages/core-data/build-module/queried-data/reducer.mjs
-  var import_data7 = __toESM(require_data(), 1);
+  var import_data6 = __toESM(require_data(), 1);
   var import_compose = __toESM(require_compose(), 1);
 
   // node_modules/tslib/tslib.es6.mjs
@@ -850,17 +942,17 @@ var wp;
   }
 
   // packages/core-data/build-module/entities.mjs
-  var import_api_fetch = __toESM(require_api_fetch(), 1);
+  var import_api_fetch2 = __toESM(require_api_fetch(), 1);
   var import_blocks4 = __toESM(require_blocks(), 1);
   var import_i18n = __toESM(require_i18n(), 1);
 
   // packages/core-data/build-module/awareness/post-editor-awareness.mjs
-  var import_data5 = __toESM(require_data(), 1);
-  var import_sync8 = __toESM(require_sync(), 1);
+  var import_data4 = __toESM(require_data(), 1);
+  var import_sync9 = __toESM(require_sync(), 1);
   var import_block_editor3 = __toESM(require_block_editor(), 1);
 
   // packages/core-data/build-module/awareness/base-awareness.mjs
-  var import_data2 = __toESM(require_data(), 1);
+  var import_data = __toESM(require_data(), 1);
 
   // packages/core-data/build-module/awareness/config.mjs
   var AWARENESS_CURSOR_UPDATE_THROTTLE_IN_MS = 100;
@@ -868,7 +960,7 @@ var wp;
   var REMOVAL_DELAY_IN_MS = 5e3;
 
   // packages/core-data/build-module/awareness/typed-awareness.mjs
-  var import_sync = __toESM(require_sync(), 1);
+  var import_sync3 = __toESM(require_sync(), 1);
 
   // packages/core-data/build-module/awareness/utils.mjs
   function getBrowserName() {
@@ -937,7 +1029,7 @@ var wp;
   }
 
   // packages/core-data/build-module/awareness/typed-awareness.mjs
-  var TypedAwareness = class extends import_sync.Awareness {
+  var TypedAwareness = class extends import_sync3.Awareness {
     /**
      * Get the states from an awareness document.
      */
@@ -1210,7 +1302,7 @@ var wp;
      * Set the current collaborator info in the local state.
      */
     async setCurrentCollaboratorInfo() {
-      const currentUser2 = await (0, import_data2.resolveSelect)(STORE_NAME).getCurrentUser();
+      const currentUser2 = await (0, import_data.resolveSelect)(STORE_NAME).getCurrentUser();
       const collaboratorInfo = generateCollaboratorInfo(currentUser2);
       this.setLocalStateField("collaboratorInfo", collaboratorInfo);
     }
@@ -1223,15 +1315,26 @@ var wp;
   };
 
   // packages/core-data/build-module/awareness/block-lookup.mjs
-  var import_data3 = __toESM(require_data(), 1);
-  var import_sync2 = __toESM(require_sync(), 1);
+  var import_data2 = __toESM(require_data(), 1);
+  var import_sync4 = __toESM(require_sync(), 1);
   var import_block_editor = __toESM(require_block_editor(), 1);
+  function getContainingBlockYMap(yType) {
+    let current = yType;
+    while (current) {
+      const parent = current.parent;
+      if (parent instanceof import_sync4.Y.Map && parent.parent instanceof import_sync4.Y.Array && parent.get("clientId") !== void 0 && parent.get("innerBlocks") instanceof import_sync4.Y.Array) {
+        return parent;
+      }
+      current = parent instanceof import_sync4.Y.AbstractType ? parent : null;
+    }
+    return null;
+  }
   function getBlockPathInYdoc(yType) {
     const path = [];
     let current = yType;
     while (current) {
       const parentArray = current.parent;
-      if (!parentArray || !(parentArray instanceof import_sync2.Y.Array)) {
+      if (!parentArray || !(parentArray instanceof import_sync4.Y.Array)) {
         return null;
       }
       let index = -1;
@@ -1246,7 +1349,7 @@ var wp;
       }
       path.unshift(index);
       const grandparent = parentArray.parent;
-      if (grandparent instanceof import_sync2.Y.Map && grandparent.get("clientId") !== void 0) {
+      if (grandparent instanceof import_sync4.Y.Map && grandparent.get("clientId") !== void 0) {
         current = grandparent;
       } else {
         break;
@@ -1254,13 +1357,10 @@ var wp;
     }
     return path;
   }
-  function resolveBlockClientIdByPath(path) {
+  function resolveBlockClientIdByPath(path, blocks) {
     if (path.length === 0) {
       return null;
     }
-    const { getBlocks } = (0, import_data3.select)(import_block_editor.store);
-    const postContentBlocks = getPostContentBlocks(getBlocks(), getBlocks);
-    let blocks = postContentBlocks;
     for (let i = 0; i < path.length; i++) {
       const block = blocks[path[i]];
       if (!block) {
@@ -1273,76 +1373,59 @@ var wp;
     }
     return null;
   }
-  function getPostContentBlocks(rootBlocks, getBlocks) {
-    const postContentBlock = findBlockByName(rootBlocks, "core/post-content");
-    if (postContentBlock) {
-      return getBlocks(postContentBlock.clientId);
-    }
-    return rootBlocks;
-  }
-  function findBlockByName(blocks, name) {
-    for (const block of blocks) {
-      if (block.name === name) {
-        return block;
-      }
-      if (block.innerBlocks?.length) {
-        const found = findBlockByName(block.innerBlocks, name);
-        if (found) {
-          return found;
-        }
-      }
-    }
-    return null;
+  function usePostContentBlocks() {
+    return (0, import_data2.useSelect)((select4) => {
+      const { getBlocksByName, getClientIdsTree } = unlock(
+        select4(import_block_editor.store)
+      );
+      const [postContentClientId] = getBlocksByName("core/post-content");
+      return getClientIdsTree(postContentClientId ?? "");
+    }, []);
   }
 
   // packages/core-data/build-module/utils/crdt-utils.mjs
-  var import_sync4 = __toESM(require_sync(), 1);
+  var import_sync5 = __toESM(require_sync(), 1);
   var import_rich_text = __toESM(require_rich_text(), 1);
-
-  // packages/core-data/build-module/sync.mjs
-  var import_sync3 = __toESM(require_sync(), 1);
-
-  // packages/core-data/build-module/lock-unlock.mjs
-  var import_private_apis = __toESM(require_private_apis(), 1);
-  var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
-    "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
-    "@wordpress/core-data"
-  );
-
-  // packages/core-data/build-module/sync.mjs
-  var {
-    ConnectionErrorCode,
-    createSyncManager,
-    Delta,
-    CRDT_DOC_META_PERSISTENCE_KEY,
-    CRDT_RECORD_MAP_KEY,
-    LOCAL_EDITOR_ORIGIN,
-    LOCAL_UNDO_IGNORED_ORIGIN,
-    retrySyncConnection
-  } = unlock(import_sync3.privateApis);
-  var syncManager;
-  function getSyncManager() {
-    if (syncManager) {
-      return syncManager;
-    }
-    syncManager = createSyncManager();
-    return syncManager;
-  }
-
-  // packages/core-data/build-module/utils/crdt-utils.mjs
   function getRootMap(doc, key) {
     return doc.getMap(key);
   }
   function createYMap(partial = {}) {
-    return new import_sync4.Y.Map(Object.entries(partial));
+    return new import_sync5.Y.Map(Object.entries(partial));
   }
   function isYMap(value) {
-    return value instanceof import_sync4.Y.Map;
+    return value instanceof import_sync5.Y.Map;
+  }
+  function asRichTextOffset(offset) {
+    return offset;
+  }
+  function asHtmlStringIndex(index) {
+    return index;
+  }
+  function getYTextByAttributeKey(attributes, attributeKey) {
+    const directValue = attributes.get(attributeKey);
+    if (directValue instanceof import_sync5.Y.Text) {
+      return directValue;
+    }
+    let value = attributes;
+    for (const pathPart of attributeKey.split(".")) {
+      if (value instanceof import_sync5.Y.Map) {
+        value = value.get(pathPart);
+      } else if (value instanceof import_sync5.Y.Array) {
+        const index = Number.parseInt(pathPart, 10);
+        if (!Number.isSafeInteger(index) || index < 0 || index.toString() !== pathPart) {
+          return null;
+        }
+        value = value.get(index);
+      } else {
+        return null;
+      }
+    }
+    return value instanceof import_sync5.Y.Text ? value : null;
   }
   function findBlockByClientIdInDoc(blockId, ydoc) {
     const ymap = getRootMap(ydoc, CRDT_RECORD_MAP_KEY);
     const blocks = ymap.get("blocks");
-    if (!(blocks instanceof import_sync4.Y.Array)) {
+    if (!(blocks instanceof import_sync5.Y.Array)) {
       return null;
     }
     return findBlockByClientIdInBlocks(blockId, blocks);
@@ -1360,24 +1443,24 @@ var wp;
   }
   function htmlIndexToRichTextOffset(html, htmlIndex) {
     if (!html.includes("<") && !html.includes("&")) {
-      return htmlIndex;
+      return asRichTextOffset(htmlIndex);
     }
     const marker = pickMarker(html);
     if (!marker) {
-      return htmlIndex;
+      return asRichTextOffset(htmlIndex);
     }
     const withMarker = html.slice(0, htmlIndex) + marker + html.slice(htmlIndex);
     const value = (0, import_rich_text.create)({ html: withMarker });
     const markerPos = value.text.indexOf(marker);
-    return markerPos === -1 ? htmlIndex : markerPos;
+    return asRichTextOffset(markerPos === -1 ? htmlIndex : markerPos);
   }
   function richTextOffsetToHtmlIndex(html, richTextOffset) {
     if (!html.includes("<") && !html.includes("&")) {
-      return richTextOffset;
+      return asHtmlStringIndex(richTextOffset);
     }
     const marker = pickMarker(html);
     if (!marker) {
-      return richTextOffset;
+      return asHtmlStringIndex(richTextOffset);
     }
     const value = (0, import_rich_text.create)({ html });
     const markerValue = (0, import_rich_text.create)({ text: marker });
@@ -1392,7 +1475,9 @@ var wp;
     );
     const htmlWithMarker = (0, import_rich_text.toHTMLString)({ value: withMarker });
     const markerIndex = htmlWithMarker.indexOf(marker);
-    return markerIndex === -1 ? richTextOffset : markerIndex;
+    return asHtmlStringIndex(
+      markerIndex === -1 ? richTextOffset : markerIndex
+    );
   }
   function findBlockByClientIdInBlocks(blockId, blocks) {
     for (const block of blocks) {
@@ -1414,8 +1499,8 @@ var wp;
   }
 
   // packages/core-data/build-module/utils/crdt-user-selections.mjs
-  var import_data4 = __toESM(require_data(), 1);
-  var import_sync6 = __toESM(require_sync(), 1);
+  var import_data3 = __toESM(require_data(), 1);
+  var import_sync7 = __toESM(require_sync(), 1);
   var import_block_editor2 = __toESM(require_block_editor(), 1);
   var SelectionType = /* @__PURE__ */ ((SelectionType2) => {
     SelectionType2["None"] = "none";
@@ -1425,6 +1510,11 @@ var wp;
     SelectionType2["WholeBlock"] = "whole-block";
     return SelectionType2;
   })(SelectionType || {});
+  var SelectionDirection = /* @__PURE__ */ ((SelectionDirection2) => {
+    SelectionDirection2["Forward"] = "f";
+    SelectionDirection2["Backward"] = "b";
+    return SelectionDirection2;
+  })(SelectionDirection || {});
   function getSelectionState(selectionStart, selectionEnd, yDoc, options) {
     const { selectionDirection } = options ?? {};
     const ymap = getRootMap(yDoc, CRDT_RECORD_MAP_KEY);
@@ -1494,21 +1584,25 @@ var wp;
       return null;
     }
     const attributes = block.get("attributes");
-    const currentYText = attributes?.get(selection.attributeKey);
-    if (!(currentYText instanceof import_sync6.Y.Text)) {
+    const currentYText = attributes ? getYTextByAttributeKey(attributes, selection.attributeKey) : null;
+    if (!(currentYText instanceof import_sync7.Y.Text)) {
       return null;
     }
-    const relativePosition = import_sync6.Y.createRelativePositionFromTypeIndex(
+    const relativePosition = import_sync7.Y.createRelativePositionFromTypeIndex(
       currentYText,
-      richTextOffsetToHtmlIndex(currentYText.toString(), selection.offset)
+      richTextOffsetToHtmlIndex(
+        currentYText.toString(),
+        asRichTextOffset(selection.offset)
+      )
     );
     return {
       relativePosition,
-      absoluteOffset: selection.offset
+      absoluteOffset: selection.offset,
+      attributeKey: selection.attributeKey
     };
   }
   function getBlockPathForLocalClientId(clientId) {
-    const { getBlockIndex, getBlockRootClientId, getBlockName } = (0, import_data4.select)(import_block_editor2.store);
+    const { getBlockIndex, getBlockRootClientId, getBlockName } = (0, import_data3.select)(import_block_editor2.store);
     const path = [];
     let current = clientId;
     while (current) {
@@ -1542,7 +1636,7 @@ var wp;
       if (i === path.length - 1) {
         return block;
       }
-      currentBlocks = block.get("innerBlocks") ?? new import_sync6.Y.Array();
+      currentBlocks = block.get("innerBlocks") ?? new import_sync7.Y.Array();
     }
     return null;
   }
@@ -1553,13 +1647,13 @@ var wp;
         return null;
       }
       if (i === path.length - 1) {
-        return import_sync6.Y.createRelativePositionFromTypeIndex(
+        return import_sync7.Y.createRelativePositionFromTypeIndex(
           currentBlocks,
           path[i]
         );
       }
       const block = currentBlocks.get(path[i]);
-      currentBlocks = block?.get("innerBlocks") ?? new import_sync6.Y.Array();
+      currentBlocks = block?.get("innerBlocks") ?? new import_sync7.Y.Array();
     }
     return null;
   }
@@ -1592,7 +1686,7 @@ var wp;
           selection2.cursorEndPosition
         ) && selection1.selectionDirection === selection2.selectionDirection;
       case "whole-block":
-        return import_sync6.Y.compareRelativePositions(
+        return import_sync7.Y.compareRelativePositions(
           selection1.blockPosition,
           selection2.blockPosition
         );
@@ -1601,20 +1695,13 @@ var wp;
     }
   }
   function areCursorPositionsEqual(cursorPosition1, cursorPosition2) {
-    const isRelativePositionEqual = import_sync6.Y.compareRelativePositions(
+    const isRelativePositionEqual = import_sync7.Y.compareRelativePositions(
       cursorPosition1.relativePosition,
       cursorPosition2.relativePosition
     );
     const isAbsoluteOffsetEqual = cursorPosition1.absoluteOffset === cursorPosition2.absoluteOffset;
     return isRelativePositionEqual && isAbsoluteOffsetEqual;
   }
-
-  // packages/core-data/build-module/types.mjs
-  var SelectionDirection = /* @__PURE__ */ ((SelectionDirection2) => {
-    SelectionDirection2["Forward"] = "f";
-    SelectionDirection2["Backward"] = "b";
-    return SelectionDirection2;
-  })(SelectionDirection || {});
 
   // packages/core-data/build-module/awareness/post-editor-awareness.mjs
   var PostEditorAwareness = class extends BaseAwarenessState {
@@ -1640,12 +1727,12 @@ var wp;
         getSelectionStart,
         getSelectionEnd,
         getSelectedBlocksInitialCaretPosition
-      } = (0, import_data5.select)(import_block_editor3.store);
+      } = (0, import_data4.select)(import_block_editor3.store);
       let selectionStart = getSelectionStart();
       let selectionEnd = getSelectionEnd();
       let localCursorTimeout = null;
       let selectionBeforeDebounce = null;
-      (0, import_data5.subscribe)(() => {
+      (0, import_data4.subscribe)(() => {
         const newSelectionStart = getSelectionStart();
         const newSelectionEnd = getSelectionEnd();
         if (newSelectionStart === selectionStart && newSelectionEnd === selectionEnd) {
@@ -1707,7 +1794,7 @@ var wp;
       const options = {
         undoIgnore: true
       };
-      (0, import_data5.dispatch)(STORE_NAME).editEntityRecord(
+      (0, import_data4.dispatch)(STORE_NAME).editEntityRecord(
         this.kind,
         this.name,
         this.postId,
@@ -1745,45 +1832,59 @@ var wp;
      * clientIds (e.g. in "Show Template" mode where blocks are cloned).
      *
      * @param selection - The selection state.
+     * @param blocks    - The tree of block-editor store post content blocks.
      * @return The rich-text offset and block client ID, or nulls if not resolvable.
      */
-    convertSelectionStateToAbsolute(selection) {
+    convertSelectionStateToAbsolute(selection, blocks) {
       if (selection.type === SelectionType.None) {
-        return { richTextOffset: null, localClientId: null };
+        return {
+          richTextOffset: null,
+          localClientId: null,
+          attributeKey: null
+        };
       }
       if (selection.type === SelectionType.WholeBlock) {
-        const absolutePos = import_sync8.Y.createAbsolutePositionFromRelativePosition(
+        const absolutePos = import_sync9.Y.createAbsolutePositionFromRelativePosition(
           selection.blockPosition,
           this.doc
         );
         let localClientId2 = null;
-        if (absolutePos && absolutePos.type instanceof import_sync8.Y.Array) {
+        if (absolutePos && absolutePos.type instanceof import_sync9.Y.Array) {
           const parentArray = absolutePos.type;
           const block = parentArray.get(absolutePos.index);
-          if (block instanceof import_sync8.Y.Map) {
+          if (block instanceof import_sync9.Y.Map) {
             const path2 = getBlockPathInYdoc(block);
-            localClientId2 = path2 ? resolveBlockClientIdByPath(path2) : null;
+            localClientId2 = path2 ? resolveBlockClientIdByPath(path2, blocks) : null;
           }
         }
-        return { richTextOffset: null, localClientId: localClientId2 };
+        return {
+          richTextOffset: null,
+          localClientId: localClientId2,
+          attributeKey: null
+        };
       }
       const cursorPos = "cursorPosition" in selection ? selection.cursorPosition : selection.cursorStartPosition;
-      const absolutePosition = import_sync8.Y.createAbsolutePositionFromRelativePosition(
+      const absolutePosition = import_sync9.Y.createAbsolutePositionFromRelativePosition(
         cursorPos.relativePosition,
         this.doc
       );
       if (!absolutePosition) {
-        return { richTextOffset: null, localClientId: null };
+        return {
+          richTextOffset: null,
+          localClientId: null,
+          attributeKey: null
+        };
       }
-      const yType = absolutePosition.type.parent?.parent;
-      const path = yType instanceof import_sync8.Y.Map ? getBlockPathInYdoc(yType) : null;
-      const localClientId = path ? resolveBlockClientIdByPath(path) : null;
+      const yType = getContainingBlockYMap(absolutePosition.type);
+      const path = yType ? getBlockPathInYdoc(yType) : null;
+      const localClientId = path ? resolveBlockClientIdByPath(path, blocks) : null;
       return {
         richTextOffset: htmlIndexToRichTextOffset(
           absolutePosition.type.toString(),
-          absolutePosition.index
+          asHtmlStringIndex(absolutePosition.index)
         ),
-        localClientId
+        localClientId,
+        attributeKey: cursorPos.attributeKey ?? null
       };
     }
     /**
@@ -1860,49 +1961,45 @@ var wp;
   }
 
   // packages/core-data/build-module/utils/crdt.mjs
-  var import_es63 = __toESM(require_es6(), 1);
+  var import_es64 = __toESM(require_es6(), 1);
   var import_blocks3 = __toESM(require_blocks(), 1);
-  var import_sync13 = __toESM(require_sync(), 1);
+  var import_sync14 = __toESM(require_sync(), 1);
 
-  // node_modules/uuid/dist/esm-browser/rng.js
-  var getRandomValues;
-  var rnds8 = new Uint8Array(16);
-  function rng() {
-    if (!getRandomValues) {
-      getRandomValues = typeof crypto !== "undefined" && crypto.getRandomValues && crypto.getRandomValues.bind(crypto);
-      if (!getRandomValues) {
-        throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
-      }
-    }
-    return getRandomValues(rnds8);
-  }
-
-  // node_modules/uuid/dist/esm-browser/stringify.js
+  // node_modules/uuid/dist/stringify.js
   var byteToHex = [];
   for (let i = 0; i < 256; ++i) {
     byteToHex.push((i + 256).toString(16).slice(1));
   }
   function unsafeStringify(arr, offset = 0) {
-    return byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]];
+    return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
   }
 
-  // node_modules/uuid/dist/esm-browser/native.js
-  var randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
-  var native_default = {
-    randomUUID
-  };
+  // node_modules/uuid/dist/rng.js
+  var rnds8 = new Uint8Array(16);
+  function rng() {
+    return crypto.getRandomValues(rnds8);
+  }
 
-  // node_modules/uuid/dist/esm-browser/v4.js
+  // node_modules/uuid/dist/v4.js
   function v4(options, buf, offset) {
-    if (native_default.randomUUID && !buf && !options) {
-      return native_default.randomUUID();
+    if (!buf && !options && crypto.randomUUID) {
+      return crypto.randomUUID();
     }
+    return _v4(options, buf, offset);
+  }
+  function _v4(options, buf, offset) {
     options = options || {};
-    const rnds = options.random || (options.rng || rng)();
+    const rnds = options.random ?? options.rng?.() ?? rng();
+    if (rnds.length < 16) {
+      throw new Error("Random bytes length must be >= 16");
+    }
     rnds[6] = rnds[6] & 15 | 64;
     rnds[8] = rnds[8] & 63 | 128;
     if (buf) {
       offset = offset || 0;
+      if (offset < 0 || offset + 16 > buf.length) {
+        throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
+      }
       for (let i = 0; i < 16; ++i) {
         buf[offset + i] = rnds[i];
       }
@@ -1913,10 +2010,10 @@ var wp;
   var v4_default = v4;
 
   // packages/core-data/build-module/utils/crdt-blocks.mjs
-  var import_es62 = __toESM(require_es6(), 1);
+  var import_es63 = __toESM(require_es6(), 1);
   var import_blocks = __toESM(require_blocks(), 1);
   var import_rich_text3 = __toESM(require_rich_text(), 1);
-  var import_sync9 = __toESM(require_sync(), 1);
+  var import_sync10 = __toESM(require_sync(), 1);
 
   // packages/core-data/build-module/utils/crdt-text.mjs
   var import_rich_text2 = __toESM(require_rich_text(), 1);
@@ -1971,8 +2068,19 @@ var wp;
   }
   function makeBlocksSerializable(blocks) {
     return blocks.map((block) => {
-      const { name, innerBlocks, attributes, ...rest } = block;
-      delete rest.validationIssues;
+      const {
+        name,
+        innerBlocks,
+        attributes,
+        /*
+         * Any validation issues discovered when loading a block are appended
+         * to the block node with a logging function, which cannot be serialized.
+         *
+         * @see import("@wordpress/blocks/src/api/parser").parseRawBlock()
+         */
+        validationIssues,
+        ...rest
+      } = block;
       return {
         ...rest,
         name,
@@ -2009,7 +2117,7 @@ var wp;
       const { name, innerBlocks, attributes, ...rest } = block;
       const newAttributes = { ...attributes };
       for (const [key, value] of Object.entries(attributes)) {
-        const schema = getBlockAttributeType(name, key);
+        const schema = getBlockAttributeSchema(name, key);
         if (schema) {
           newAttributes[key] = deserializeAttributeValue(
             schema,
@@ -2031,7 +2139,7 @@ var wp;
       innerBlocks: null,
       clientId: null
     };
-    const res = (0, import_es62.default)(
+    const res = (0, import_es63.default)(
       Object.assign({}, gblock, overwrites),
       Object.assign({}, yblockAsJson, overwrites)
     );
@@ -2042,7 +2150,7 @@ var wp;
     );
   }
   function createNewYAttributeMap(blockName, attributes) {
-    return new import_sync9.Y.Map(
+    return new import_sync10.Y.Map(
       Object.entries(attributes).map(
         ([attributeName, attributeValue]) => {
           return [
@@ -2058,11 +2166,44 @@ var wp;
     );
   }
   function createNewYAttributeValue(blockName, attributeName, attributeValue) {
-    const isRichText = isRichTextAttribute(blockName, attributeName);
-    if (isRichText) {
-      return new import_sync9.Y.Text(attributeValue?.toString() ?? "");
+    const schema = getBlockAttributeSchema(blockName, attributeName);
+    return createYValueFromSchema(schema, attributeValue);
+  }
+  function createYValueFromSchema(schema, value) {
+    if (!schema) {
+      return value;
     }
-    return attributeValue;
+    if (schema.type === "rich-text") {
+      return new import_sync10.Y.Text(value?.toString() ?? "");
+    }
+    if (schema.type === "array" && schema.query && Array.isArray(value)) {
+      const query = schema.query;
+      const yArray = new import_sync10.Y.Array();
+      yArray.insert(
+        0,
+        value.map((item) => createYMapFromQuery(query, item))
+      );
+      return yArray;
+    }
+    if (schema.type === "object" && schema.query && isRecord(value)) {
+      return createYMapFromQuery(schema.query, value);
+    }
+    return value;
+  }
+  function isRecord(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+  function createYMapFromQuery(query, obj) {
+    if (!isRecord(obj)) {
+      return new import_sync10.Y.Map();
+    }
+    const entries = Object.entries(obj).map(
+      ([key, val]) => {
+        const subSchema = query[key];
+        return [key, createYValueFromSchema(subSchema, val)];
+      }
+    );
+    return new import_sync10.Y.Map(entries);
   }
   function createNewYBlock(block) {
     return createYMap(
@@ -2076,7 +2217,7 @@ var wp;
               ];
             }
             case "innerBlocks": {
-              const innerBlocks = new import_sync9.Y.Array();
+              const innerBlocks = new import_sync10.Y.Array();
               if (!Array.isArray(value)) {
                 return [key, innerBlocks];
               }
@@ -2095,110 +2236,151 @@ var wp;
       )
     );
   }
-  function mergeCrdtBlocks(yblocks, incomingBlocks, cursorPosition) {
+  function mergeCrdtBlocks(yblocks, incomingBlocks, attributeCursor, options = {}) {
     if (!serializableBlocksCache.has(incomingBlocks)) {
       serializableBlocksCache.set(
         incomingBlocks,
         makeBlocksSerializable(incomingBlocks)
       );
     }
-    const blocksToSync = serializableBlocksCache.get(incomingBlocks) ?? [];
+    const incomingBlocksToSync = serializableBlocksCache.get(incomingBlocks) ?? [];
     const numOfCommonEntries = Math.min(
-      blocksToSync.length ?? 0,
+      incomingBlocksToSync.length ?? 0,
       yblocks.length
     );
     let left = 0;
     let right = 0;
-    for (; left < numOfCommonEntries && areBlocksEqual(blocksToSync[left], yblocks.get(left)); left++) {
+    for (; left < numOfCommonEntries && areBlocksEqual(incomingBlocksToSync[left], yblocks.get(left)); left++) {
     }
     for (; right < numOfCommonEntries - left && areBlocksEqual(
-      blocksToSync[blocksToSync.length - right - 1],
+      incomingBlocksToSync[incomingBlocksToSync.length - right - 1],
       yblocks.get(yblocks.length - right - 1)
     ); right++) {
     }
     const numOfUpdatesNeeded = numOfCommonEntries - left - right;
     const numOfInsertionsNeeded = Math.max(
       0,
-      blocksToSync.length - yblocks.length
+      incomingBlocksToSync.length - yblocks.length
     );
     const numOfDeletionsNeeded = Math.max(
       0,
-      yblocks.length - blocksToSync.length
+      yblocks.length - incomingBlocksToSync.length
     );
     for (let i = 0; i < numOfUpdatesNeeded; i++, left++) {
-      const block = blocksToSync[left];
-      const yblock = yblocks.get(left);
-      Object.entries(block).forEach(([key, value]) => {
-        switch (key) {
-          case "attributes": {
-            const currentAttributes = yblock.get(key);
-            if (!currentAttributes) {
-              yblock.set(
-                key,
-                createNewYAttributeMap(block.name, value)
+      const incomingYBlock = incomingBlocksToSync[left];
+      const localYBlock = yblocks.get(left);
+      Object.entries(incomingYBlock).forEach(
+        ([incomingBlockProperty, incomingBlockPropertyValue]) => {
+          switch (incomingBlockProperty) {
+            case "attributes": {
+              const localAttributes = localYBlock.get(
+                incomingBlockProperty
+              );
+              const incomingAttributes = incomingBlockPropertyValue;
+              if (!localAttributes) {
+                localYBlock.set(
+                  incomingBlockProperty,
+                  createNewYAttributeMap(
+                    incomingYBlock.name,
+                    incomingAttributes
+                  )
+                );
+                break;
+              }
+              Object.entries(incomingAttributes).forEach(
+                ([
+                  incomingAttributeName,
+                  incomingAttributeValue
+                ]) => {
+                  const currentAttribute = localAttributes?.get(
+                    incomingAttributeName
+                  );
+                  const isExpectedType = isExpectedAttributeType(
+                    incomingYBlock.name,
+                    incomingAttributeName,
+                    currentAttribute
+                  );
+                  const isYType = currentAttribute instanceof import_sync10.Y.AbstractType;
+                  const isAttributeChanged = !isExpectedType || isYType || !(0, import_es63.default)(
+                    currentAttribute,
+                    incomingAttributeValue
+                  );
+                  if (isAttributeChanged) {
+                    updateYBlockAttribute(
+                      incomingYBlock.name,
+                      incomingYBlock.clientId,
+                      incomingAttributeName,
+                      incomingAttributeValue,
+                      localAttributes,
+                      attributeCursor
+                    );
+                  }
+                }
+              );
+              localAttributes.forEach(
+                (_attrValue, attrName) => {
+                  if (!incomingBlockPropertyValue.hasOwnProperty(
+                    attrName
+                  )) {
+                    localAttributes.delete(attrName);
+                  }
+                }
               );
               break;
             }
-            Object.entries(value).forEach(
-              ([attributeName, attributeValue]) => {
-                const currentAttribute = currentAttributes?.get(attributeName);
-                const isExpectedType = isExpectedAttributeType(
-                  block.name,
-                  attributeName,
-                  currentAttribute
+            case "innerBlocks": {
+              let yInnerBlocks = localYBlock.get(
+                incomingBlockProperty
+              );
+              if (!(yInnerBlocks instanceof import_sync10.Y.Array)) {
+                yInnerBlocks = new import_sync10.Y.Array();
+                localYBlock.set(
+                  incomingBlockProperty,
+                  yInnerBlocks
                 );
-                const isAttributeChanged = !isExpectedType || !(0, import_es62.default)(
-                  currentAttribute,
-                  attributeValue
+              }
+              mergeCrdtBlocks(
+                yInnerBlocks,
+                incomingBlockPropertyValue ?? [],
+                attributeCursor,
+                options
+              );
+              break;
+            }
+            case "clientId": {
+              if (options.preserveClientIds) {
+                break;
+              }
+              if (incomingBlockPropertyValue !== localYBlock.get(incomingBlockProperty)) {
+                localYBlock.set(
+                  incomingBlockProperty,
+                  incomingBlockPropertyValue
                 );
-                if (isAttributeChanged) {
-                  updateYBlockAttribute(
-                    block.name,
-                    attributeName,
-                    attributeValue,
-                    currentAttributes,
-                    cursorPosition
-                  );
-                }
               }
-            );
-            currentAttributes.forEach(
-              (_attrValue, attrName) => {
-                if (!value.hasOwnProperty(attrName)) {
-                  currentAttributes.delete(attrName);
-                }
+              break;
+            }
+            default:
+              if (!(0, import_es63.default)(
+                incomingYBlock[incomingBlockProperty],
+                localYBlock.get(incomingBlockProperty)
+              )) {
+                localYBlock.set(
+                  incomingBlockProperty,
+                  incomingBlockPropertyValue
+                );
               }
-            );
-            break;
           }
-          case "innerBlocks": {
-            let yInnerBlocks = yblock.get(key);
-            if (!(yInnerBlocks instanceof import_sync9.Y.Array)) {
-              yInnerBlocks = new import_sync9.Y.Array();
-              yblock.set(key, yInnerBlocks);
-            }
-            mergeCrdtBlocks(
-              yInnerBlocks,
-              value ?? [],
-              cursorPosition
-            );
-            break;
-          }
-          default:
-            if (!(0, import_es62.default)(block[key], yblock.get(key))) {
-              yblock.set(key, value);
-            }
         }
-      });
-      yblock.forEach((_v, k) => {
-        if (!block.hasOwnProperty(k)) {
-          yblock.delete(k);
+      );
+      localYBlock.forEach((_v, k) => {
+        if (!incomingYBlock.hasOwnProperty(k)) {
+          localYBlock.delete(k);
         }
       });
     }
     yblocks.delete(left, numOfDeletionsNeeded);
     for (let i = 0; i < numOfInsertionsNeeded; i++, left++) {
-      const newBlock = [createNewYBlock(blocksToSync[left])];
+      const newBlock = [createNewYBlock(incomingBlocksToSync[left])];
       yblocks.insert(left, newBlock);
     }
     const knownClientIds = /* @__PURE__ */ new Set();
@@ -2215,24 +2397,135 @@ var wp;
       knownClientIds.add(clientId);
     }
   }
-  function updateYBlockAttribute(blockName, attributeName, attributeValue, currentAttributes, cursorPosition) {
-    const isRichText = isRichTextAttribute(blockName, attributeName);
-    const currentAttribute = currentAttributes.get(attributeName);
-    if (isRichText && "string" === typeof attributeValue && currentAttributes.has(attributeName) && currentAttribute instanceof import_sync9.Y.Text) {
-      mergeRichTextUpdate(currentAttribute, attributeValue, cursorPosition);
-    } else {
-      currentAttributes.set(
-        attributeName,
-        createNewYAttributeValue(blockName, attributeName, attributeValue)
+  function areArrayElementsEqual(newElement, yElement) {
+    if (yElement instanceof import_sync10.Y.Map && isRecord(newElement)) {
+      return (0, import_es63.default)(newElement, yElement.toJSON());
+    }
+    return (0, import_es63.default)(newElement, yElement);
+  }
+  function mergeYArray(yArray, newValue, schema, cursorPosition, cursorScope) {
+    if (!schema.query) {
+      return;
+    }
+    const query = schema.query;
+    const numOfCommonEntries = Math.min(newValue.length, yArray.length);
+    let left = 0;
+    let right = 0;
+    for (; left < numOfCommonEntries && areArrayElementsEqual(newValue[left], yArray.get(left)); left++) {
+    }
+    for (; right < numOfCommonEntries - left && areArrayElementsEqual(
+      newValue[newValue.length - right - 1],
+      yArray.get(yArray.length - right - 1)
+    ); right++) {
+    }
+    const numOfUpdatesNeeded = numOfCommonEntries - left - right;
+    for (let i = 0; i < numOfUpdatesNeeded; i++) {
+      const currentElement = yArray.get(left + i);
+      const newElement = newValue[left + i];
+      if (currentElement instanceof import_sync10.Y.Map && isRecord(newElement)) {
+        mergeYMapValues(
+          currentElement,
+          newElement,
+          query,
+          cursorPosition,
+          cursorScope
+        );
+      } else {
+        yArray.delete(0, yArray.length);
+        yArray.insert(
+          0,
+          newValue.map((item) => createYMapFromQuery(query, item))
+        );
+        return;
+      }
+    }
+    const numOfDeletionsNeeded = Math.max(0, yArray.length - newValue.length);
+    if (numOfDeletionsNeeded > 0) {
+      yArray.delete(left + numOfUpdatesNeeded, numOfDeletionsNeeded);
+    }
+    const numOfInsertionsNeeded = Math.max(
+      0,
+      newValue.length - yArray.length
+    );
+    if (numOfInsertionsNeeded > 0) {
+      const insertAt = left + numOfUpdatesNeeded;
+      const itemsToInsert = new Array(
+        numOfInsertionsNeeded
       );
+      for (let i = 0; i < numOfInsertionsNeeded; i++) {
+        itemsToInsert[i] = createYMapFromQuery(
+          query,
+          newValue[insertAt + i]
+        );
+      }
+      yArray.insert(insertAt, itemsToInsert);
     }
   }
-  var cachedBlockAttributeTypes;
-  function getBlockAttributeType(blockName, attributeName) {
-    if (!cachedBlockAttributeTypes) {
-      cachedBlockAttributeTypes = /* @__PURE__ */ new Map();
+  function mergeYValue(schema, newVal, yMap, key, cursorPosition, cursorScope) {
+    const currentVal = yMap.get(key);
+    if (schema?.type === "rich-text" && typeof newVal === "string" && currentVal instanceof import_sync10.Y.Text) {
+      mergeRichTextUpdate(
+        currentVal,
+        newVal,
+        resolveRichTextCursorPosition(cursorPosition, cursorScope, newVal)
+      );
+    } else if (schema?.type === "array" && schema.query && Array.isArray(newVal) && currentVal instanceof import_sync10.Y.Array) {
+      mergeYArray(currentVal, newVal, schema, cursorPosition, cursorScope);
+    } else if (schema?.type === "object" && schema.query && isRecord(newVal) && currentVal instanceof import_sync10.Y.Map) {
+      mergeYMapValues(
+        currentVal,
+        newVal,
+        schema.query,
+        cursorPosition,
+        cursorScope
+      );
+    } else {
+      const newYValue = createYValueFromSchema(schema, newVal);
+      if (newYValue !== newVal || !(0, import_es63.default)(currentVal, newVal)) {
+        yMap.set(key, newYValue);
+      }
+    }
+  }
+  function mergeYMapValues(yMap, newObj, query, cursorPosition, cursorScope) {
+    for (const [key, newVal] of Object.entries(newObj)) {
+      mergeYValue(
+        query[key],
+        newVal,
+        yMap,
+        key,
+        cursorPosition,
+        cursorScope
+      );
+    }
+    for (const key of yMap.keys()) {
+      if (!Object.hasOwn(newObj, key)) {
+        yMap.delete(key);
+      }
+    }
+  }
+  function updateYBlockAttribute(blockName, clientId, attributeName, attributeValue, currentAttributes, newCursorPosition) {
+    const schema = getBlockAttributeSchema(blockName, attributeName);
+    mergeYValue(
+      schema,
+      attributeValue,
+      currentAttributes,
+      attributeName,
+      newCursorPosition,
+      { attributeKey: attributeName, clientId }
+    );
+  }
+  function resolveRichTextCursorPosition(cursorPosition, cursorScope, updatedValue) {
+    return cursorPosition && cursorPosition.clientId === cursorScope.clientId && cursorPosition.attributeKey === cursorScope.attributeKey && "number" === typeof cursorPosition.offset && Number.isInteger(cursorPosition.offset) ? richTextOffsetToHtmlIndex(
+      updatedValue,
+      asRichTextOffset(cursorPosition.offset)
+    ) : null;
+  }
+  var cachedBlockAttributeSchemas;
+  function getBlockAttributeSchema(blockName, attributeName) {
+    if (!cachedBlockAttributeSchemas) {
+      cachedBlockAttributeSchemas = /* @__PURE__ */ new Map();
       for (const blockType of (0, import_blocks.getBlockTypes)()) {
-        cachedBlockAttributeTypes.set(
+        cachedBlockAttributeSchemas.set(
           blockType.name,
           new Map(
             Object.entries(blockType.attributes ?? {}).map(
@@ -2245,52 +2538,57 @@ var wp;
         );
       }
     }
-    return cachedBlockAttributeTypes.get(blockName)?.get(attributeName);
+    return cachedBlockAttributeSchemas.get(blockName)?.get(attributeName);
   }
   function isExpectedAttributeType(blockName, attributeName, attributeValue) {
-    const expectedAttributeType = getBlockAttributeType(
-      blockName,
-      attributeName
-    )?.type;
-    if (expectedAttributeType === "rich-text") {
-      return attributeValue instanceof import_sync9.Y.Text;
+    const schema = getBlockAttributeSchema(blockName, attributeName);
+    if (schema?.type === "rich-text") {
+      return attributeValue instanceof import_sync10.Y.Text;
     }
-    if (expectedAttributeType === "string") {
+    if (schema?.type === "string") {
       return typeof attributeValue === "string";
+    }
+    if (schema?.type === "array" && schema.query) {
+      return attributeValue instanceof import_sync10.Y.Array;
+    }
+    if (schema?.type === "object" && schema.query) {
+      return attributeValue instanceof import_sync10.Y.Map;
     }
     return true;
   }
   function isLocalAttribute(blockName, attributeName) {
-    return "local" === getBlockAttributeType(blockName, attributeName)?.role;
-  }
-  function isRichTextAttribute(blockName, attributeName) {
-    return "rich-text" === getBlockAttributeType(blockName, attributeName)?.type;
+    return "local" === getBlockAttributeSchema(blockName, attributeName)?.role;
   }
   var localDoc;
-  function mergeRichTextUpdate(blockYText, updatedValue, cursorPosition = null) {
-    if (!localDoc) {
-      localDoc = new import_sync9.Y.Doc();
-    }
-    const localYText = localDoc.getText("temporary-text");
-    localYText.delete(0, localYText.length);
-    localYText.insert(0, updatedValue);
+  function mergeRichTextUpdate(blockYText, updatedValue, htmlCursorIndex = null) {
     const currentValueAsDelta = new Delta(blockYText.toDelta());
-    const updatedValueAsDelta = new Delta(localYText.toDelta());
+    const updatedValueAsDelta = new Delta([{ insert: updatedValue }]);
     const deltaDiff = currentValueAsDelta.diffWithCursor(
       updatedValueAsDelta,
-      cursorPosition
+      htmlCursorIndex
     );
-    blockYText.applyDelta(deltaDiff.ops);
+    const safeDiff = htmlCursorIndex === null || isDeltaVerificationMatch(blockYText, deltaDiff, updatedValue) ? deltaDiff : currentValueAsDelta.diff(updatedValueAsDelta);
+    blockYText.applyDelta(safeDiff.ops);
+  }
+  function isDeltaVerificationMatch(blockYText, delta, expectedValue) {
+    if (!localDoc) {
+      localDoc = new import_sync10.Y.Doc();
+    }
+    const verificationYText = localDoc.getText("verification-text");
+    verificationYText.delete(0, verificationYText.length);
+    verificationYText.insert(0, blockYText.toString());
+    verificationYText.applyDelta(delta.ops);
+    return verificationYText.toString() === expectedValue;
   }
 
   // packages/core-data/build-module/utils/crdt-selection.mjs
-  var import_data6 = __toESM(require_data(), 1);
+  var import_data5 = __toESM(require_data(), 1);
   var import_block_editor4 = __toESM(require_block_editor(), 1);
   var import_blocks2 = __toESM(require_blocks(), 1);
-  var import_sync12 = __toESM(require_sync(), 1);
+  var import_sync13 = __toESM(require_sync(), 1);
 
   // packages/core-data/build-module/utils/block-selection-history.mjs
-  var import_sync11 = __toESM(require_sync(), 1);
+  var import_sync12 = __toESM(require_sync(), 1);
   var SELECTION_HISTORY_DEFAULT_SIZE = 5;
   var YSelectionType = /* @__PURE__ */ ((YSelectionType2) => {
     YSelectionType2["RelativeSelection"] = "RelativeSelection";
@@ -2336,19 +2634,23 @@ var wp;
     const block = findBlockByClientIdInDoc(clientId, ydoc);
     const attributes = block?.get("attributes");
     const attributeKey = selection.attributeKey;
-    const changedYText = attributeKey ? attributes?.get(attributeKey) : void 0;
-    const isYText = changedYText instanceof import_sync11.Y.Text;
-    const isFullyDefinedSelection = attributeKey && clientId;
-    if (!isYText || !isFullyDefinedSelection) {
+    let changedYText = null;
+    if (attributeKey && attributes) {
+      changedYText = getYTextByAttributeKey(attributes, attributeKey);
+    }
+    if (!(changedYText instanceof import_sync12.Y.Text) || !attributeKey || !clientId) {
       return {
         type: "BlockSelection",
         clientId
       };
     }
     const offset = selection.offset ?? 0;
-    const relativePosition = import_sync11.Y.createRelativePositionFromTypeIndex(
+    const relativePosition = import_sync12.Y.createRelativePositionFromTypeIndex(
       changedYText,
-      richTextOffsetToHtmlIndex(changedYText.toString(), offset)
+      richTextOffsetToHtmlIndex(
+        changedYText.toString(),
+        asRichTextOffset(offset)
+      )
     );
     return {
       type: "RelativeSelection",
@@ -2378,7 +2680,7 @@ var wp;
   function convertYSelectionToBlockSelection(ySelection, ydoc) {
     if (ySelection.type === YSelectionType.RelativeSelection) {
       const { relativePosition, attributeKey, clientId } = ySelection;
-      const absolutePosition = import_sync12.Y.createAbsolutePositionFromRelativePosition(
+      const absolutePosition = import_sync13.Y.createAbsolutePositionFromRelativePosition(
         relativePosition,
         ydoc
       );
@@ -2388,7 +2690,7 @@ var wp;
           attributeKey,
           offset: htmlIndexToRichTextOffset(
             absolutePosition.type.toString(),
-            absolutePosition.index
+            asHtmlStringIndex(absolutePosition.index)
           )
         };
       }
@@ -2441,8 +2743,8 @@ var wp;
     if (selectionToRestore === null) {
       return;
     }
-    const { getBlock } = (0, import_data6.select)(import_block_editor4.store);
-    const { resetSelection } = (0, import_data6.dispatch)(import_block_editor4.store);
+    const { getBlock } = (0, import_data5.select)(import_block_editor4.store);
+    const { resetSelection } = (0, import_data5.dispatch)(import_block_editor4.store);
     const { selectionStart, selectionEnd } = selectionToRestore;
     const isSelectionInSameBlock = selectionStart.clientId === selectionEnd.clientId;
     if (isSelectionInSameBlock) {
@@ -2521,17 +2823,27 @@ var wp;
       }
       switch (key) {
         case "blocks": {
-          if (!newValue) {
+          const newCursorPosition = parseCursorSelection(
+            changes.selection
+          );
+          const rawContent = getRawValue(changes.content);
+          if (!newValue && typeof rawContent === "string") {
+            mergeContentWithoutBlocks(
+              ymap,
+              rawContent,
+              newCursorPosition
+            );
+            break;
+          } else if (!newValue) {
             ymap.set(key, void 0);
             break;
           }
           let currentBlocks = ymap.get(key);
-          if (!(currentBlocks instanceof import_sync13.Y.Array)) {
-            currentBlocks = new import_sync13.Y.Array();
+          if (!(currentBlocks instanceof import_sync14.Y.Array)) {
+            currentBlocks = new import_sync14.Y.Array();
             ymap.set(key, currentBlocks);
           }
-          const cursorPosition = changes.selection?.selectionStart?.offset ?? null;
-          mergeCrdtBlocks(currentBlocks, newValue, cursorPosition);
+          mergeCrdtBlocks(currentBlocks, newValue, newCursorPosition);
           break;
         }
         case "content":
@@ -2542,10 +2854,10 @@ var wp;
           if (key === "title" && !currentValue?.toString() && "Auto Draft" === rawValue) {
             rawValue = "";
           }
-          if (currentValue instanceof import_sync13.Y.Text) {
+          if (currentValue instanceof import_sync14.Y.Text) {
             mergeRichTextUpdate(currentValue, rawValue ?? "");
           } else {
-            const newYText = new import_sync13.Y.Text(rawValue ?? "");
+            const newYText = new import_sync14.Y.Text(rawValue ?? "");
             ymap.set(key, newYText);
           }
           break;
@@ -2596,8 +2908,34 @@ var wp;
       }, 0);
     }
   }
-  function defaultGetChangesFromCRDTDoc(crdtDoc) {
-    return getRootMap(crdtDoc, CRDT_RECORD_MAP_KEY).toJSON();
+  function mergeContentWithoutBlocks(ymap, rawContent, cursorPosition) {
+    let currentBlocks = ymap.get("blocks");
+    if (!(currentBlocks instanceof import_sync14.Y.Array)) {
+      currentBlocks = new import_sync14.Y.Array();
+      ymap.set("blocks", currentBlocks);
+    }
+    mergeCrdtBlocks(
+      currentBlocks,
+      (0, import_blocks3.parse)(rawContent),
+      cursorPosition,
+      { preserveClientIds: true }
+    );
+  }
+  function parseCursorSelection(selection) {
+    const selectionStart = selection?.selectionStart;
+    return selectionStart?.clientId && selectionStart.attributeKey && "number" === typeof selectionStart.offset && Number.isInteger(selectionStart.offset) ? {
+      attributeKey: selectionStart.attributeKey,
+      clientId: selectionStart.clientId,
+      offset: asRichTextOffset(selectionStart.offset)
+    } : null;
+  }
+  function defaultGetChangesFromCRDTDoc(crdtDoc, editedRecord) {
+    const docRecord = getRootMap(crdtDoc, CRDT_RECORD_MAP_KEY).toJSON();
+    return Object.fromEntries(
+      Object.entries(docRecord).filter(
+        ([key, newValue]) => haveValuesChanged(editedRecord?.[key], newValue)
+      )
+    );
   }
   function getPostChangesFromCRDTDoc(ydoc, editedRecord, syncedProperties) {
     const ymap = getRootMap(ydoc, CRDT_RECORD_MAP_KEY);
@@ -2624,13 +2962,19 @@ var wp;
             return haveValuesChanged(currentValue, newValue);
           }
           case "meta": {
+            const currentMeta = currentValue ?? {};
             allowedMetaChanges = Object.fromEntries(
               Object.entries(newValue ?? {}).filter(
-                ([metaKey]) => !disallowedPostMetaKeys.has(metaKey)
+                ([metaKey]) => {
+                  if (disallowedPostMetaKeys.has(metaKey)) {
+                    return false;
+                  }
+                  return metaKey in currentMeta;
+                }
               )
             );
             const mergedValue = {
-              ...currentValue,
+              ...currentMeta,
               ...allowedMetaChanges
             };
             return haveValuesChanged(currentValue, mergedValue);
@@ -2661,6 +3005,10 @@ var wp;
         changes.blocks
       );
     }
+    if (changes.blocks && !changes.content) {
+      const capturedBlocks = changes.blocks;
+      changes.content = () => (0, import_blocks3.__unstableSerializeAndClean)(capturedBlocks);
+    }
     if ("object" === typeof changes.meta) {
       changes.meta = {
         ...editedRecord.meta,
@@ -2682,6 +3030,12 @@ var wp;
     createAwareness: (ydoc) => new BaseAwareness(ydoc),
     getChangesFromCRDTDoc: defaultGetChangesFromCRDTDoc
   };
+  var defaultCollectionSyncConfig = {
+    applyChangesToCRDTDoc: () => {
+    },
+    getChangesFromCRDTDoc: () => ({}),
+    shouldSync: (_, objectId) => null === objectId
+  };
   function getRawValue(value) {
     if ("string" === typeof value) {
       return value;
@@ -2692,7 +3046,7 @@ var wp;
     return void 0;
   }
   function haveValuesChanged(currentValue, newValue) {
-    return !(0, import_es63.default)(currentValue, newValue);
+    return !(0, import_es64.default)(currentValue, newValue);
   }
   function updateMapValue(map, key, currentValue, newValue) {
     if (void 0 === newValue) {
@@ -2724,17 +3078,13 @@ var wp;
       baseURL: "/",
       baseURLParams: {
         // Please also change the preload path when changing this.
-        // @see lib/compat/wordpress-7.0/preload.php
+        // @see lib/compat/wordpress-7.1/preload.php
         _fields: [
           "description",
           "gmt_offset",
           "home",
           "image_sizes",
           "image_size_threshold",
-          "image_output_formats",
-          "jpeg_interlaced",
-          "png_interlaced",
-          "gif_interlaced",
           "name",
           "site_icon",
           "site_icon_url",
@@ -2748,7 +3098,8 @@ var wp;
       },
       // The entity doesn't support selecting multiple records.
       // The property is maintained for backward compatibility.
-      plural: "__unstableBases"
+      plural: "__unstableBases",
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("Post Type"),
@@ -2757,7 +3108,8 @@ var wp;
       key: "slug",
       baseURL: "/wp/v2/types",
       baseURLParams: { context: "edit" },
-      plural: "postTypes"
+      plural: "postTypes",
+      supportsPagination: false
     },
     {
       name: "media",
@@ -2776,7 +3128,8 @@ var wp;
       baseURL: "/wp/v2/taxonomies",
       baseURLParams: { context: "edit" },
       plural: "taxonomies",
-      label: (0, import_i18n.__)("Taxonomy")
+      label: (0, import_i18n.__)("Taxonomy"),
+      supportsPagination: false
     },
     {
       name: "sidebar",
@@ -2785,7 +3138,8 @@ var wp;
       baseURLParams: { context: "edit" },
       plural: "sidebars",
       transientEdits: { blocks: true },
-      label: (0, import_i18n.__)("Widget areas")
+      label: (0, import_i18n.__)("Widget areas"),
+      supportsPagination: false
     },
     {
       name: "widget",
@@ -2794,7 +3148,8 @@ var wp;
       baseURLParams: { context: "edit" },
       plural: "widgets",
       transientEdits: { blocks: true },
-      label: (0, import_i18n.__)("Widgets")
+      label: (0, import_i18n.__)("Widgets"),
+      supportsPagination: false
     },
     {
       name: "widgetType",
@@ -2802,7 +3157,8 @@ var wp;
       baseURL: "/wp/v2/widget-types",
       baseURLParams: { context: "edit" },
       plural: "widgetTypes",
-      label: (0, import_i18n.__)("Widget types")
+      label: (0, import_i18n.__)("Widget types"),
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("User"),
@@ -2821,7 +3177,8 @@ var wp;
       baseURLParams: { context: "edit" },
       plural: "comments",
       label: (0, import_i18n.__)("Comment"),
-      supportsPagination: true
+      supportsPagination: true,
+      syncConfig: defaultCollectionSyncConfig
     },
     {
       name: "menu",
@@ -2849,7 +3206,8 @@ var wp;
       baseURLParams: { context: "edit" },
       plural: "menuLocations",
       label: (0, import_i18n.__)("Menu Location"),
-      key: "name"
+      key: "name",
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("Global Styles"),
@@ -2870,7 +3228,8 @@ var wp;
       baseURL: "/wp/v2/themes",
       baseURLParams: { context: "edit" },
       plural: "themes",
-      key: "stylesheet"
+      key: "stylesheet",
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("Plugins"),
@@ -2879,7 +3238,8 @@ var wp;
       baseURL: "/wp/v2/plugins",
       baseURLParams: { context: "edit" },
       plural: "plugins",
-      key: "plugin"
+      key: "plugin",
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("Status"),
@@ -2888,14 +3248,16 @@ var wp;
       baseURL: "/wp/v2/statuses",
       baseURLParams: { context: "edit" },
       plural: "statuses",
-      key: "slug"
+      key: "slug",
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("Registered Templates"),
       name: "registeredTemplate",
       kind: "root",
       baseURL: "/wp/v2/registered-templates",
-      key: "id"
+      key: "id",
+      supportsPagination: false
     },
     {
       label: (0, import_i18n.__)("Font Collections"),
@@ -2904,7 +3266,8 @@ var wp;
       baseURL: "/wp/v2/font-collections",
       baseURLParams: { context: "view" },
       plural: "fontCollections",
-      key: "slug"
+      key: "slug",
+      supportsPagination: true
     },
     {
       label: (0, import_i18n.__)("Icons"),
@@ -2913,15 +3276,20 @@ var wp;
       baseURL: "/wp/v2/icons",
       baseURLParams: { context: "view" },
       plural: "icons",
-      key: "name"
+      key: "name",
+      supportsPagination: false
+    },
+    {
+      label: (0, import_i18n.__)("Icon Collections"),
+      name: "iconCollection",
+      kind: "root",
+      baseURL: "/wp/v2/icon-collections",
+      baseURLParams: { context: "view" },
+      plural: "iconCollections",
+      key: "slug",
+      supportsPagination: false
     }
-  ].map((entity2) => {
-    const syncEnabledRootEntities = /* @__PURE__ */ new Set(["comment"]);
-    if (syncEnabledRootEntities.has(entity2.name)) {
-      entity2.syncConfig = defaultSyncConfig;
-    }
-    return entity2;
-  });
+  ];
   var deprecatedEntities = {
     root: {
       media: {
@@ -2970,8 +3338,8 @@ var wp;
     return newEdits;
   };
   async function loadPostTypeEntities() {
-    const postTypesPromise = (0, import_api_fetch.default)({ path: "/wp/v2/types?context=view" });
-    const taxonomiesPromise = window._wpCollaborationEnabled ? (0, import_api_fetch.default)({ path: "/wp/v2/taxonomies?context=view" }) : Promise.resolve({});
+    const postTypesPromise = (0, import_api_fetch2.default)({ path: "/wp/v2/types?context=view" });
+    const taxonomiesPromise = window._wpCollaborationEnabled ? (0, import_api_fetch2.default)({ path: "/wp/v2/taxonomies?context=view" }) : Promise.resolve({});
     const [postTypes, taxonomies] = await Promise.all([
       postTypesPromise,
       taxonomiesPromise
@@ -3019,6 +3387,8 @@ var wp;
         revisionKey: isTemplate && !window?.__experimentalTemplateActivate ? "wp_id" : DEFAULT_ENTITY_KEY
       };
       entity2.syncConfig = {
+        // Save a CRDT document with this entity
+        supportsPersistence: true,
         /**
          * Apply changes from the local editor to the local CRDT document so
          * that those changes can be synced to other peers (via the provider).
@@ -3062,13 +3432,14 @@ var wp;
          */
         getPersistedCRDTDoc: (record) => {
           return record?.meta?.[POST_META_KEY_FOR_CRDT_DOC_PERSISTENCE] || null;
-        }
+        },
+        shouldSync: () => !(Array.isArray(window._wpCollaborationDisabledPostTypes) && window._wpCollaborationDisabledPostTypes.includes(name))
       };
       return entity2;
     });
   }
   async function loadTaxonomyEntities() {
-    const taxonomies = await (0, import_api_fetch.default)({
+    const taxonomies = await (0, import_api_fetch2.default)({
       path: "/wp/v2/taxonomies?context=view"
     });
     return Object.entries(taxonomies ?? {}).map(([name, taxonomy]) => {
@@ -3093,9 +3464,10 @@ var wp;
       kind: "root",
       key: false,
       baseURL: "/wp/v2/settings",
+      supportsPagination: false,
       meta: {}
     };
-    const site = await (0, import_api_fetch.default)({
+    const site = await (0, import_api_fetch2.default)({
       path: entity2.baseURL,
       method: "OPTIONS"
     });
@@ -3124,20 +3496,24 @@ var wp;
     const queryParts = get_query_parts_default(query);
     return queryParts.context;
   }
-  function getMergedItemIds(itemIds, nextItemIds, page, perPage) {
-    const receivedAllIds = page === 1 && perPage === -1;
-    if (receivedAllIds) {
+  function getMergedItemIds(itemIds = [], nextItemIds, { page = 1, offset, perPage = 10 } = {}) {
+    if (perPage === -1) {
       return nextItemIds;
     }
-    const nextItemIdsStartIndex = (page - 1) * perPage;
+    const nextItemIdsStartIndex = offset ?? (page - 1) * perPage;
+    const nextItemIdsRange = Math.max(perPage, nextItemIds.length);
     const size = Math.max(
-      itemIds?.length ?? 0,
+      itemIds.length,
       nextItemIdsStartIndex + nextItemIds.length
     );
     const mergedItemIds = new Array(size);
     for (let i = 0; i < size; i++) {
-      const isInNextItemsRange = i >= nextItemIdsStartIndex && i < nextItemIdsStartIndex + perPage;
-      mergedItemIds[i] = isInNextItemsRange ? nextItemIds[i - nextItemIdsStartIndex] : itemIds?.[i];
+      const isInNextItemsRange = i >= nextItemIdsStartIndex && i < nextItemIdsStartIndex + nextItemIdsRange;
+      if (isInNextItemsRange) {
+        mergedItemIds[i] = nextItemIds[i - nextItemIdsStartIndex];
+      } else {
+        mergedItemIds[i] = itemIds[i];
+      }
     }
     return mergedItemIds;
   }
@@ -3158,18 +3534,20 @@ var wp;
       case "RECEIVE_ITEMS": {
         const context = getContextFromAction(action);
         const key = action.key || DEFAULT_ENTITY_KEY;
+        const itemsList = Array.isArray(action.items) ? action.items : [action.items];
         return {
           ...state,
           [context]: {
             ...state[context],
-            ...action.items.reduce((accumulator, value) => {
-              const itemId = value?.[key];
-              accumulator[itemId] = conservativeMapItem(
-                state?.[context]?.[itemId],
-                value
-              );
-              return accumulator;
-            }, {})
+            ...Object.fromEntries(
+              itemsList.map((item) => [
+                item?.[key],
+                conservativeMapItem(
+                  state?.[context]?.[item?.[key]],
+                  item
+                )
+              ])
+            )
           }
         };
       }
@@ -3188,13 +3566,14 @@ var wp;
       case "RECEIVE_ITEMS": {
         const context = getContextFromAction(action);
         const { query, key = DEFAULT_ENTITY_KEY } = action;
+        const itemsList = Array.isArray(action.items) ? action.items : [action.items];
         const queryParts = query ? get_query_parts_default(query) : {};
         const isCompleteQuery = !query || !Array.isArray(queryParts.fields);
         return {
           ...state,
           [context]: {
             ...state[context],
-            ...action.items.reduce((result, item) => {
+            ...itemsList.reduce((result, item) => {
               const itemId = item?.[key];
               result[itemId] = state?.[context]?.[itemId] || isCompleteQuery;
               return result;
@@ -3216,7 +3595,7 @@ var wp;
     // Limit to matching action type so we don't attempt to replace action on
     // an unhandled action.
     if_matching_action_default((action) => "query" in action),
-    // Inject query parts into action for use both in `onSubKey` and reducer.
+    // Inject query parts into action for use both in `keyedReducer` and reducer.
     replace_action_default((action) => {
       if (action.query) {
         return {
@@ -3226,21 +3605,27 @@ var wp;
       }
       return action;
     }),
-    on_sub_key_default("context"),
+    (0, import_data6.keyedReducer)("context"),
     // Queries shape is shared, but keyed by query `stableKey` part. Original
     // reducer tracks only a single query object.
-    on_sub_key_default("stableKey")
+    (0, import_data6.keyedReducer)("stableKey")
   ])((state = {}, action) => {
-    const { type, page, perPage, key = DEFAULT_ENTITY_KEY } = action;
-    if (type !== "RECEIVE_ITEMS") {
+    if (action.type !== "RECEIVE_ITEMS") {
       return state;
     }
+    if (!Array.isArray(action.items)) {
+      return state;
+    }
+    const key = action.key ?? DEFAULT_ENTITY_KEY;
     return {
       itemIds: getMergedItemIds(
-        state?.itemIds || [],
+        state.itemIds,
         action.items.map((item) => item?.[key]).filter(Boolean),
-        page,
-        perPage
+        {
+          page: action.page,
+          offset: action.offset,
+          perPage: action.perPage
+        }
       ),
       meta: action.meta
     };
@@ -3278,7 +3663,7 @@ var wp;
         return state;
     }
   };
-  var reducer_default = (0, import_data7.combineReducers)({
+  var reducer_default = (0, import_data6.combineReducers)({
     items,
     itemIsComplete,
     queries
@@ -3354,18 +3739,21 @@ var wp;
       const { record } = action;
       let newState = state;
       record.forEach(({ id: { kind, name, recordId }, changes }) => {
+        const persistedRecord = state?.queriedData?.items?.default?.[recordId];
+        const edits = Object.fromEntries(
+          Object.entries(changes).map(([key, value]) => [
+            key,
+            action.type === "UNDO" ? value.from : value.to
+          ])
+        );
         newState = reducer(newState, {
           type: "EDIT_ENTITY_RECORD",
           kind,
           name,
           recordId,
-          edits: Object.entries(changes).reduce(
-            (acc, [key, value]) => {
-              acc[key] = action.type === "UNDO" ? value.from : value.to;
-              return acc;
-            },
-            {}
-          )
+          // Clear edits matching the persisted record so the entity is
+          // no longer dirty after undoing back to its saved state.
+          edits: clearUnchangedEdits(edits, persistedRecord)
         });
       });
       return newState;
@@ -3388,7 +3776,7 @@ var wp;
         };
       })
     ])(
-      (0, import_data8.combineReducers)({
+      (0, import_data7.combineReducers)({
         queriedData: reducer_default,
         edits: (state = {}, action) => {
           switch (action.type) {
@@ -3398,7 +3786,8 @@ var wp;
                 return state;
               }
               const nextState = { ...state };
-              for (const record of action.items) {
+              const itemsList = Array.isArray(action.items) ? action.items : [action.items];
+              for (const record of itemsList) {
                 const recordId = record?.[action.key];
                 const edits = nextState[recordId];
                 if (!edits) {
@@ -3410,12 +3799,12 @@ var wp;
                       // Edits are the "raw" attribute values, but records may have
                       // objects with more properties, so we use `get` here for the
                       // comparison.
-                      !(0, import_es64.default)(
+                      !(0, import_es65.default)(
                         edits[key],
                         record[key]?.raw ?? record[key]
                       ) && // Sometimes the server alters the sent value which means
                       // we need to also remove the edits before the api request.
-                      (!action.persistedEdits || !(0, import_es64.default)(
+                      (!action.persistedEdits || !(0, import_es65.default)(
                         edits[key],
                         action.persistedEdits[key]
                       ))
@@ -3528,11 +3917,11 @@ var wp;
         acc[kind].push(record);
         return acc;
       }, {});
-      entitiesDataReducer = (0, import_data8.combineReducers)(
+      entitiesDataReducer = (0, import_data7.combineReducers)(
         Object.fromEntries(
           Object.entries(entitiesByKind).map(
             ([kind, subEntities]) => {
-              const kindReducer = (0, import_data8.combineReducers)(
+              const kindReducer = (0, import_data7.combineReducers)(
                 Object.fromEntries(
                   subEntities.map((entityConfig) => [
                     entityConfig.name,
@@ -3557,6 +3946,16 @@ var wp;
     };
   };
   function undoManager(state = (0, import_undo_manager.createUndoManager)()) {
+    return state;
+  }
+  function syncUndoManagerState(state = { hasRedo: false, hasUndo: false }, action) {
+    switch (action.type) {
+      case "SYNC_UNDO_MANAGER_CHANGE":
+        return {
+          hasRedo: action.hasRedo,
+          hasUndo: action.hasUndo
+        };
+    }
     return state;
   }
   function editsReference(state = {}, action) {
@@ -3706,7 +4105,22 @@ var wp;
     }
     return state;
   }
-  var reducer_default2 = (0, import_data8.combineReducers)({
+  function viewConfigs(state = {}, action) {
+    switch (action.type) {
+      case "RECEIVE_VIEW_CONFIG": {
+        const key = `${action.kind}/${action.name}`;
+        return {
+          ...state,
+          [key]: {
+            ...state[key],
+            ...action.config
+          }
+        };
+      }
+    }
+    return state;
+  }
+  var reducer_default2 = (0, import_data7.combineReducers)({
     users,
     currentTheme,
     currentGlobalStylesId,
@@ -3716,6 +4130,7 @@ var wp;
     themeGlobalStyleRevisions,
     entities,
     editsReference,
+    syncUndoManagerState,
     undoManager,
     embedPreviews,
     userPermissions,
@@ -3729,7 +4144,8 @@ var wp;
     editorSettings,
     editorAssets,
     syncConnectionStatuses,
-    collaborationSupported
+    collaborationSupported,
+    viewConfigs
   });
 
   // packages/core-data/build-module/selectors.mjs
@@ -3771,7 +4187,6 @@ var wp;
     getReferenceByDistinctEdits: () => getReferenceByDistinctEdits,
     getRevision: () => getRevision,
     getRevisions: () => getRevisions,
-    getSyncConnectionStatus: () => getSyncConnectionStatus,
     getThemeSupports: () => getThemeSupports,
     getUndoEdit: () => getUndoEdit,
     getUserPatternCategories: () => getUserPatternCategories,
@@ -3781,6 +4196,7 @@ var wp;
     hasEntityRecords: () => hasEntityRecords,
     hasFetchedAutosaves: () => hasFetchedAutosaves,
     hasRedo: () => hasRedo,
+    hasRevision: () => hasRevision,
     hasUndo: () => hasUndo,
     isAutosavingEntityRecord: () => isAutosavingEntityRecord,
     isDeletingEntityRecord: () => isDeletingEntityRecord,
@@ -3788,7 +4204,7 @@ var wp;
     isRequestingEmbedPreview: () => isRequestingEmbedPreview,
     isSavingEntityRecord: () => isSavingEntityRecord
   });
-  var import_data10 = __toESM(require_data(), 1);
+  var import_data9 = __toESM(require_data(), 1);
   var import_url2 = __toESM(require_url(), 1);
   var import_deprecated2 = __toESM(require_deprecated(), 1);
 
@@ -3804,11 +4220,13 @@ var wp;
     getNavigationFallbackId: () => getNavigationFallbackId,
     getPostsPageId: () => getPostsPageId,
     getRegisteredPostMeta: () => getRegisteredPostMeta,
+    getSyncConnectionStatus: () => getSyncConnectionStatus,
     getTemplateId: () => getTemplateId,
     getUndoManager: () => getUndoManager,
+    getViewConfig: () => getViewConfig,
     isCollaborationSupported: () => isCollaborationSupported
   });
-  var import_data9 = __toESM(require_data(), 1);
+  var import_data8 = __toESM(require_data(), 1);
 
   // packages/core-data/build-module/utils/log-entity-deprecation.mjs
   var import_deprecated = __toESM(require_deprecated(), 1);
@@ -3840,31 +4258,32 @@ var wp;
   }
 
   // packages/core-data/build-module/private-selectors.mjs
+  var EMPTY_OBJECT = {};
   function getUndoManager(state) {
     return getSyncManager()?.undoManager ?? state.undoManager;
   }
   function getNavigationFallbackId(state) {
     return state.navigationFallbackId;
   }
-  var getBlockPatternsForPostType = (0, import_data9.createRegistrySelector)(
-    (select5) => (0, import_data9.createSelector)(
-      (state, postType) => select5(STORE_NAME).getBlockPatterns().filter(
+  var getBlockPatternsForPostType = (0, import_data8.createRegistrySelector)(
+    (select4) => (0, import_data8.createSelector)(
+      (state, postType) => select4(STORE_NAME).getBlockPatterns().filter(
         ({ postTypes }) => !postTypes || Array.isArray(postTypes) && postTypes.includes(postType)
       ),
-      () => [select5(STORE_NAME).getBlockPatterns()]
+      () => [select4(STORE_NAME).getBlockPatterns()]
     )
   );
-  var getEntityRecordsPermissions = (0, import_data9.createRegistrySelector)(
-    (select5) => (0, import_data9.createSelector)(
+  var getEntityRecordsPermissions = (0, import_data8.createRegistrySelector)(
+    (select4) => (0, import_data8.createSelector)(
       (state, kind, name, ids) => {
         const normalizedIds = Array.isArray(ids) ? ids : [ids];
         return normalizedIds.map((id) => ({
-          delete: select5(STORE_NAME).canUser("delete", {
+          delete: select4(STORE_NAME).canUser("delete", {
             kind,
             name,
             id
           }),
-          update: select5(STORE_NAME).canUser("update", {
+          update: select4(STORE_NAME).canUser("update", {
             kind,
             name,
             id
@@ -3890,10 +4309,10 @@ var wp;
     }
     return value.toString();
   }
-  var getHomePage = (0, import_data9.createRegistrySelector)(
-    (select5) => (0, import_data9.createSelector)(
+  var getHomePage = (0, import_data8.createRegistrySelector)(
+    (select4) => (0, import_data8.createSelector)(
       () => {
-        const siteData = select5(STORE_NAME).getEntityRecord(
+        const siteData = select4(STORE_NAME).getEntityRecord(
           "root",
           "__unstableBase"
         );
@@ -3904,15 +4323,21 @@ var wp;
         if (homepageId) {
           return { postType: "page", postId: homepageId };
         }
-        const frontPageTemplateId = select5(
+        const frontPageTemplateId = select4(
           STORE_NAME
         ).getDefaultTemplateId({
           slug: "front-page"
         });
-        if (!frontPageTemplateId) {
-          return null;
+        if (frontPageTemplateId) {
+          return {
+            postType: "wp_template",
+            postId: frontPageTemplateId
+          };
         }
-        return { postType: "wp_template", postId: frontPageTemplateId };
+        if (frontPageTemplateId === "") {
+          return EMPTY_OBJECT;
+        }
+        return null;
       },
       (state) => [
         // Even though getDefaultTemplateId.shouldInvalidate returns true when root/site changes,
@@ -3925,21 +4350,21 @@ var wp;
       ]
     )
   );
-  var getPostsPageId = (0, import_data9.createRegistrySelector)((select5) => () => {
-    const siteData = select5(STORE_NAME).getEntityRecord(
+  var getPostsPageId = (0, import_data8.createRegistrySelector)((select4) => () => {
+    const siteData = select4(STORE_NAME).getEntityRecord(
       "root",
       "__unstableBase"
     );
     return siteData?.show_on_front === "page" ? normalizePageId(siteData.page_for_posts) : null;
   });
-  var getTemplateId = (0, import_data9.createRegistrySelector)(
-    (select5) => (state, postType, postId) => {
-      const homepage = unlock(select5(STORE_NAME)).getHomePage();
+  var getTemplateId = (0, import_data8.createRegistrySelector)(
+    (select4) => (state, postType, postId) => {
+      const homepage = unlock(select4(STORE_NAME)).getHomePage();
       if (!homepage) {
         return;
       }
       if (postType === "page" && postType === homepage?.postType && postId.toString() === homepage?.postId) {
-        const templates = select5(STORE_NAME).getEntityRecords(
+        const templates = select4(STORE_NAME).getEntityRecords(
           "postType",
           "wp_template",
           {
@@ -3954,7 +4379,7 @@ var wp;
           return id;
         }
       }
-      const editedEntity = select5(STORE_NAME).getEditedEntityRecord(
+      const editedEntity = select4(STORE_NAME).getEditedEntityRecord(
         "postType",
         postType,
         postId
@@ -3962,15 +4387,15 @@ var wp;
       if (!editedEntity) {
         return;
       }
-      const postsPageId = unlock(select5(STORE_NAME)).getPostsPageId();
+      const postsPageId = unlock(select4(STORE_NAME)).getPostsPageId();
       if (postType === "page" && postsPageId === postId.toString()) {
-        return select5(STORE_NAME).getDefaultTemplateId({
+        return select4(STORE_NAME).getDefaultTemplateId({
           slug: "home"
         });
       }
       const currentTemplateSlug = editedEntity.template;
       if (currentTemplateSlug) {
-        const currentTemplate = select5(STORE_NAME).getEntityRecords("postType", "wp_template", {
+        const currentTemplate = select4(STORE_NAME).getEntityRecords("postType", "wp_template", {
           per_page: -1
         })?.find(({ slug }) => slug === currentTemplateSlug);
         if (currentTemplate) {
@@ -3983,7 +4408,7 @@ var wp;
       } else {
         slugToCheck = postType === "page" ? "page" : `single-${postType}`;
       }
-      return select5(STORE_NAME).getDefaultTemplateId({
+      return select4(STORE_NAME).getDefaultTemplateId({
         slug: slugToCheck
       });
     }
@@ -3997,12 +4422,33 @@ var wp;
   function isCollaborationSupported(state) {
     return state.collaborationSupported;
   }
+  function getViewConfig(state, kind, name) {
+    return state.viewConfigs?.[`${kind}/${name}`] ?? {
+      default_view: void 0,
+      default_layouts: void 0,
+      view_list: void 0,
+      form: void 0
+    };
+  }
+  function getSyncConnectionStatus(state) {
+    if (!state.syncConnectionStatuses) {
+      return void 0;
+    }
+    const PRIORITIZED_STATUSES = ["disconnected", "connecting", "connected"];
+    let coalesced;
+    for (const status of Object.values(state.syncConnectionStatuses)) {
+      if (!coalesced || PRIORITIZED_STATUSES.indexOf(status.status) < PRIORITIZED_STATUSES.indexOf(coalesced.status)) {
+        coalesced = status;
+      }
+    }
+    return coalesced;
+  }
 
   // packages/core-data/build-module/selectors.mjs
-  var EMPTY_OBJECT = {};
-  var isRequestingEmbedPreview = (0, import_data10.createRegistrySelector)(
-    (select5) => (state, url) => {
-      return select5(STORE_NAME).isResolving("getEmbedPreview", [
+  var EMPTY_OBJECT2 = {};
+  var isRequestingEmbedPreview = (0, import_data9.createRegistrySelector)(
+    (select4) => (state, url) => {
+      return select4(STORE_NAME).isResolving("getEmbedPreview", [
         url
       ]);
     }
@@ -4021,7 +4467,7 @@ var wp;
   function getCurrentUser(state) {
     return state.currentUser;
   }
-  var getUserQueryResults = (0, import_data10.createSelector)(
+  var getUserQueryResults = (0, import_data9.createSelector)(
     (state, queryID) => {
       const queryResults = state.users.queries[queryID] ?? [];
       return queryResults.map((id) => state.users.byId[id]);
@@ -4038,7 +4484,7 @@ var wp;
     });
     return getEntitiesConfig(state, kind);
   }
-  var getEntitiesConfig = (0, import_data10.createSelector)(
+  var getEntitiesConfig = (0, import_data9.createSelector)(
     (state, kind) => state.entities.config.filter((entity2) => entity2.kind === kind),
     /* eslint-disable @typescript-eslint/no-unused-vars */
     (state, kind) => state.entities.config
@@ -4057,7 +4503,7 @@ var wp;
       (config) => config.kind === kind && config.name === name
     );
   }
-  var getEntityRecord = (0, import_data10.createSelector)(
+  var getEntityRecord = (0, import_data9.createSelector)(
     ((state, kind, name, key, query) => {
       logEntityDeprecation(kind, name, "getEntityRecord");
       const queriedState = state.entities.records?.[kind]?.[name]?.queriedData;
@@ -4132,7 +4578,7 @@ var wp;
   function __experimentalGetEntityRecordNoResolver(state, kind, name, key) {
     return getEntityRecord(state, kind, name, key);
   }
-  var getRawEntityRecord = (0, import_data10.createSelector)(
+  var getRawEntityRecord = (0, import_data9.createSelector)(
     (state, kind, name, key) => {
       logEntityDeprecation(kind, name, "getRawEntityRecord");
       const record = getEntityRecord(
@@ -4141,14 +4587,22 @@ var wp;
         name,
         key
       );
-      return record && Object.keys(record).reduce((accumulator, _key) => {
-        if (isRawAttribute(getEntityConfig(state, kind, name), _key)) {
-          accumulator[_key] = record[_key]?.raw !== void 0 ? record[_key]?.raw : record[_key];
-        } else {
-          accumulator[_key] = record[_key];
-        }
-        return accumulator;
-      }, {});
+      const config = getEntityConfig(state, kind, name);
+      if (!record || !config?.rawAttributes?.length) {
+        return record;
+      }
+      return Object.fromEntries(
+        Object.keys(record).map((_key) => {
+          if (config.rawAttributes.includes(_key)) {
+            const rawValue = record[_key]?.raw;
+            return [
+              _key,
+              rawValue !== void 0 ? rawValue : record[_key]
+            ];
+          }
+          return [_key, record[_key]];
+        })
+      );
     },
     (state, kind, name, recordId, query) => {
       const context = query?.context ?? "default";
@@ -4169,7 +4623,9 @@ var wp;
     if (!queriedState) {
       return null;
     }
-    return getQueriedItems(queriedState, query);
+    return getQueriedItems(queriedState, query, {
+      supportsPagination: !!getEntityConfig(state, kind, name)?.supportsPagination
+    });
   });
   var getEntityRecordsTotalItems = (state, kind, name, query) => {
     logEntityDeprecation(kind, name, "getEntityRecordsTotalItems");
@@ -4185,7 +4641,7 @@ var wp;
     if (!queriedState) {
       return null;
     }
-    if (query?.per_page === -1) {
+    if (!getEntityConfig(state, kind, name)?.supportsPagination || query?.per_page === -1) {
       return 1;
     }
     const totalItems = getQueriedTotalItems(queriedState, query);
@@ -4197,7 +4653,7 @@ var wp;
     }
     return Math.ceil(totalItems / query.per_page);
   };
-  var __experimentalGetDirtyEntityRecords = (0, import_data10.createSelector)(
+  var __experimentalGetDirtyEntityRecords = (0, import_data9.createSelector)(
     (state) => {
       const {
         entities: { records }
@@ -4237,7 +4693,7 @@ var wp;
     },
     (state) => [state.entities.records]
   );
-  var __experimentalGetEntitiesBeingSaved = (0, import_data10.createSelector)(
+  var __experimentalGetEntitiesBeingSaved = (0, import_data9.createSelector)(
     (state) => {
       const {
         entities: { records }
@@ -4277,7 +4733,7 @@ var wp;
     logEntityDeprecation(kind, name, "getEntityRecordEdits");
     return state.entities.records?.[kind]?.[name]?.edits?.[recordId];
   }
-  var getEntityRecordNonTransientEdits = (0, import_data10.createSelector)(
+  var getEntityRecordNonTransientEdits = (0, import_data9.createSelector)(
     (state, kind, name, recordId) => {
       logEntityDeprecation(kind, name, "getEntityRecordNonTransientEdits");
       const { transientEdits } = getEntityConfig(state, kind, name) || {};
@@ -4303,7 +4759,7 @@ var wp;
       getEntityRecordNonTransientEdits(state, kind, name, recordId)
     ).length > 0;
   }
-  var getEditedEntityRecord = (0, import_data10.createSelector)(
+  var getEditedEntityRecord = (0, import_data9.createSelector)(
     (state, kind, name, recordId) => {
       logEntityDeprecation(kind, name, "getEditedEntityRecord");
       const raw = getRawEntityRecord(state, kind, name, recordId);
@@ -4360,9 +4816,15 @@ var wp;
     return void 0;
   }
   function hasUndo(state) {
+    if (getSyncManager()?.undoManager) {
+      return state.syncUndoManagerState.hasUndo;
+    }
     return getUndoManager(state).hasUndo();
   }
   function hasRedo(state) {
+    if (getSyncManager()?.undoManager) {
+      return state.syncUndoManagerState.hasRedo;
+    }
     return getUndoManager(state).hasRedo();
   }
   function getCurrentTheme(state) {
@@ -4375,7 +4837,7 @@ var wp;
     return state.currentGlobalStylesId;
   }
   function getThemeSupports(state) {
-    return getCurrentTheme(state)?.theme_supports ?? EMPTY_OBJECT;
+    return getCurrentTheme(state)?.theme_supports ?? EMPTY_OBJECT2;
   }
   function getEmbedPreview(state, url) {
     return state.embedPreviews[url];
@@ -4418,9 +4880,9 @@ var wp;
       (autosave) => autosave.author === authorId
     );
   }
-  var hasFetchedAutosaves = (0, import_data10.createRegistrySelector)(
-    (select5) => (state, postType, postId) => {
-      return select5(STORE_NAME).hasFinishedResolution("getAutosaves", [
+  var hasFetchedAutosaves = (0, import_data9.createRegistrySelector)(
+    (select4) => (state, postType, postId) => {
+      return select4(STORE_NAME).hasFinishedResolution("getAutosaves", [
         postType,
         postId
       ]);
@@ -4474,7 +4936,34 @@ var wp;
     }
     return getQueriedItems(queriedStateRevisions, query);
   };
-  var getRevision = (0, import_data10.createSelector)(
+  function hasRevision(state, kind, name, recordKey, revisionKey, query) {
+    const queriedState = state.entities.records?.[kind]?.[name]?.revisions?.[recordKey];
+    if (!queriedState) {
+      return false;
+    }
+    const context = query?.context ?? "default";
+    if (!query || !query._fields) {
+      return !!queriedState.itemIsComplete[context]?.[revisionKey];
+    }
+    const item = queriedState.items[context]?.[revisionKey];
+    if (!item) {
+      return false;
+    }
+    const fields = get_normalized_comma_separable_default(query._fields) ?? [];
+    for (let i = 0; i < fields.length; i++) {
+      const path = fields[i].split(".");
+      let value = item;
+      for (let p = 0; p < path.length; p++) {
+        const part = path[p];
+        if (!value || !Object.hasOwn(value, part)) {
+          return false;
+        }
+        value = value[part];
+      }
+    }
+    return true;
+  }
+  var getRevision = (0, import_data9.createSelector)(
     (state, kind, name, recordKey, revisionKey, query) => {
       logEntityDeprecation(kind, name, "getRevision");
       const queriedState = state.entities.records?.[kind]?.[name]?.revisions?.[recordKey];
@@ -4513,19 +5002,6 @@ var wp;
       ];
     }
   );
-  function getSyncConnectionStatus(state) {
-    if (!state.syncConnectionStatuses) {
-      return void 0;
-    }
-    const PRIORITIZED_STATUSES = ["disconnected", "connecting", "connected"];
-    let coalesced;
-    for (const status of Object.values(state.syncConnectionStatuses)) {
-      if (!coalesced || PRIORITIZED_STATUSES.indexOf(status.status) < PRIORITIZED_STATUSES.indexOf(coalesced.status)) {
-        coalesced = status;
-      }
-    }
-    return coalesced;
-  }
 
   // packages/core-data/build-module/actions.mjs
   var actions_exports = {};
@@ -4557,16 +5033,14 @@ var wp;
     redo: () => redo,
     saveEditedEntityRecord: () => saveEditedEntityRecord,
     saveEntityRecord: () => saveEntityRecord,
-    setSyncConnectionStatus: () => setSyncConnectionStatus,
     undo: () => undo
   });
-  var import_es65 = __toESM(require_es6(), 1);
-  var import_api_fetch3 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch4 = __toESM(require_api_fetch(), 1);
   var import_url3 = __toESM(require_url(), 1);
   var import_deprecated3 = __toESM(require_deprecated(), 1);
 
   // packages/core-data/build-module/batch/default-processor.mjs
-  var import_api_fetch2 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch3 = __toESM(require_api_fetch(), 1);
   var maxItems = null;
   function chunk(arr, chunkSize) {
     const tmp = [...arr];
@@ -4578,7 +5052,7 @@ var wp;
   }
   async function defaultProcessor(requests) {
     if (maxItems === null) {
-      const preflightResponse = await (0, import_api_fetch2.default)({
+      const preflightResponse = await (0, import_api_fetch3.default)({
         path: "/batch/v1",
         method: "OPTIONS"
       });
@@ -4586,7 +5060,7 @@ var wp;
     }
     const results = [];
     for (const batchRequests of chunk(requests, maxItems)) {
-      const batchResponse = await (0, import_api_fetch2.default)({
+      const batchResponse = await (0, import_api_fetch3.default)({
         path: "/batch/v1",
         method: "POST",
         data: {
@@ -4747,6 +5221,9 @@ var wp;
   };
 
   // packages/core-data/build-module/actions.mjs
+  function addTitleToAutoDraft(record) {
+    return record.status === "auto-draft" ? { ...record, title: "" } : record;
+  }
   function receiveUserQuery(queryID, users2) {
     return {
       type: "RECEIVE_USER_QUERY",
@@ -4768,9 +5245,7 @@ var wp;
   }
   function receiveEntityRecords(kind, name, records, query = void 0, invalidateCache = false, edits = void 0, meta = void 0) {
     if (kind === "postType") {
-      records = (Array.isArray(records) ? records : [records]).map(
-        (record) => record.status === "auto-draft" ? { ...record, title: "" } : record
-      );
+      records = Array.isArray(records) ? records.map(addTitleToAutoDraft) : addTitleToAutoDraft(records);
     }
     let action;
     if (query) {
@@ -4840,7 +5315,7 @@ var wp;
       preview
     };
   }
-  var deleteEntityRecord = (kind, name, recordId, query, { __unstableFetch = import_api_fetch3.default, throwOnError = false } = {}) => async ({ dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
+  var deleteEntityRecord = (kind, name, recordId, query, { __unstableFetch = import_api_fetch4.default, throwOnError = false } = {}) => async ({ dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
     logEntityDeprecation(kind, name, "deleteEntityRecord");
     const configs = await resolveSelect2.getEntitiesConfig(kind);
     const entityConfig = configs.find(
@@ -4902,17 +5377,17 @@ var wp;
       dispatch3.__unstableReleaseStoreLock(lock2);
     }
   };
-  var editEntityRecord = (kind, name, recordId, edits, options = {}) => ({ select: select5, dispatch: dispatch3 }) => {
+  var editEntityRecord = (kind, name, recordId, edits, options = {}) => ({ select: select4, dispatch: dispatch3 }) => {
     logEntityDeprecation(kind, name, "editEntityRecord");
-    const entityConfig = select5.getEntityConfig(kind, name);
+    const entityConfig = select4.getEntityConfig(kind, name);
     if (!entityConfig) {
       throw new Error(
         `The entity being edited (${kind}, ${name}) does not have a loaded config.`
       );
     }
     const { mergedEdits = {} } = entityConfig;
-    const record = select5.getRawEntityRecord(kind, name, recordId);
-    const editedRecord = select5.getEditedEntityRecord(
+    const record = select4.getRawEntityRecord(kind, name, recordId);
+    const editedRecord = select4.getEditedEntityRecord(
       kind,
       name,
       recordId
@@ -4927,12 +5402,7 @@ var wp;
       recordId,
       // Clear edits when they are equal to their persisted counterparts
       // so that the property is not considered dirty.
-      edits: Object.keys(edits).reduce((acc, key) => {
-        const recordValue = record[key];
-        const value = editsWithMerges[key];
-        acc[key] = (0, import_es65.default)(recordValue, value) ? void 0 : value;
-        return acc;
-      }, {})
+      edits: clearUnchangedEdits(editsWithMerges, record)
     };
     if (entityConfig.syncConfig) {
       const objectType = `${kind}/${name}`;
@@ -4948,7 +5418,7 @@ var wp;
       );
     }
     if (!options.undoIgnore) {
-      select5.getUndoManager().addRecord(
+      select4.getUndoManager().addRecord(
         [
           {
             id: { kind, name, recordId },
@@ -4969,15 +5439,15 @@ var wp;
       ...edit
     });
   };
-  var clearEntityRecordEdits = (kind, name, recordId) => ({ select: select5, dispatch: dispatch3 }) => {
-    const entityConfig = select5.getEntityConfig(kind, name);
+  var clearEntityRecordEdits = (kind, name, recordId) => ({ select: select4, dispatch: dispatch3 }) => {
+    const entityConfig = select4.getEntityConfig(kind, name);
     logEntityDeprecation(kind, name, "clearEntityRecordEdits");
     if (!entityConfig) {
       throw new Error(
         `The entity being edited (${kind}, ${name}) does not have a loaded config.`
       );
     }
-    const currentEdits = select5.getEntityRecordEdits(
+    const currentEdits = select4.getEntityRecordEdits(
       kind,
       name,
       recordId
@@ -5000,8 +5470,8 @@ var wp;
       edits: clearedEdits
     });
   };
-  var undo = () => ({ select: select5, dispatch: dispatch3 }) => {
-    const undoRecord = select5.getUndoManager().undo();
+  var undo = () => ({ select: select4, dispatch: dispatch3 }) => {
+    const undoRecord = select4.getUndoManager().undo();
     if (!undoRecord) {
       return;
     }
@@ -5010,8 +5480,8 @@ var wp;
       record: undoRecord
     });
   };
-  var redo = () => ({ select: select5, dispatch: dispatch3 }) => {
-    const redoRecord = select5.getUndoManager().redo();
+  var redo = () => ({ select: select4, dispatch: dispatch3 }) => {
+    const redoRecord = select4.getUndoManager().redo();
     if (!redoRecord) {
       return;
     }
@@ -5020,14 +5490,16 @@ var wp;
       record: redoRecord
     });
   };
-  var __unstableCreateUndoLevel = () => ({ select: select5 }) => {
-    select5.getUndoManager().addRecord();
+  var __unstableCreateUndoLevel = () => ({ select: select4 }) => {
+    select4.getUndoManager().addRecord();
   };
-  var saveEntityRecord = (kind, name, record, {
-    isAutosave = false,
-    __unstableFetch = import_api_fetch3.default,
-    throwOnError = false
-  } = {}) => async ({ select: select5, resolveSelect: resolveSelect2, dispatch: dispatch3 }) => {
+  var saveEntityRecord = (kind, name, record, options = {}) => async ({ select: select4, resolveSelect: resolveSelect2, dispatch: dispatch3 }) => {
+    const {
+      isAutosave = false,
+      __unstableFetch = import_api_fetch4.default,
+      __unstableSkipSyncUpdate = false,
+      throwOnError = false
+    } = options;
     logEntityDeprecation(kind, name, "saveEntityRecord");
     const configs = await resolveSelect2.getEntitiesConfig(kind);
     const entityConfig = configs.find(
@@ -5048,7 +5520,7 @@ var wp;
       for (const [key, value] of Object.entries(record)) {
         if (typeof value === "function") {
           const evaluatedValue = value(
-            select5.getEditedEntityRecord(kind, name, recordId)
+            select4.getEditedEntityRecord(kind, name, recordId)
           );
           dispatch3.editEntityRecord(
             kind,
@@ -5078,29 +5550,18 @@ var wp;
       }
       try {
         const path = `${baseURL}${recordId ? "/" + recordId : ""}`;
-        const persistedRecord = !isNewRecord ? select5.getRawEntityRecord(kind, name, recordId) : {};
+        const persistedRecord = !isNewRecord ? select4.getRawEntityRecord(kind, name, recordId) : {};
         if (isAutosave) {
-          const currentUser2 = select5.getCurrentUser();
-          const currentUserId = currentUser2 ? currentUser2.id : void 0;
-          const autosavePost = await resolveSelect2.getAutosave(
-            persistedRecord.type,
-            persistedRecord.id,
-            currentUserId
-          );
-          let data = {
-            ...persistedRecord,
-            ...autosavePost,
-            ...record
-          };
-          data = Object.keys(data).reduce(
+          const merged = { ...persistedRecord, ...record };
+          const data = [
+            "title",
+            "excerpt",
+            "content",
+            "meta"
+          ].reduce(
             (acc, key) => {
-              if ([
-                "title",
-                "excerpt",
-                "content",
-                "meta"
-              ].includes(key)) {
-                acc[key] = data[key];
+              if (key in merged) {
+                acc[key] = merged[key];
               }
               return acc;
             },
@@ -5109,7 +5570,7 @@ var wp;
               // It's very important to let the user explicitly save this change,
               // because it can lead to unexpected results. An example would be to
               // have a draft post and change the status to publish.
-              status: data.status === "auto-draft" ? "draft" : void 0
+              status: merged.status === "auto-draft" ? "draft" : void 0
             }
           );
           updatedRecord = await __unstableFetch({
@@ -5125,9 +5586,12 @@ var wp;
             };
             newRecord = Object.keys(newRecord).reduce(
               (acc, key) => {
-                if (["title", "excerpt", "content"].includes(
-                  key
-                )) {
+                if ([
+                  "title",
+                  "excerpt",
+                  "content",
+                  "meta"
+                ].includes(key)) {
                   acc[key] = newRecord[key];
                 } else if (key === "status") {
                   acc[key] = persistedRecord.status === "auto-draft" && newRecord.status === "draft" ? newRecord.status : persistedRecord.status;
@@ -5179,7 +5643,7 @@ var wp;
             getSyncManager()?.update(
               `${kind}/${name}`,
               recordId,
-              updatedRecord,
+              __unstableSkipSyncUpdate ? {} : updatedRecord,
               LOCAL_UNDO_IGNORED_ORIGIN,
               { isSave: true }
             );
@@ -5240,9 +5704,9 @@ var wp;
     ]);
     return results;
   };
-  var saveEditedEntityRecord = (kind, name, recordId, options) => async ({ select: select5, dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
+  var saveEditedEntityRecord = (kind, name, recordId, options) => async ({ select: select4, dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
     logEntityDeprecation(kind, name, "saveEditedEntityRecord");
-    if (!select5.hasEditsForEntityRecord(kind, name, recordId)) {
+    if (!select4.hasEditsForEntityRecord(kind, name, recordId)) {
       return;
     }
     const configs = await resolveSelect2.getEntitiesConfig(kind);
@@ -5253,7 +5717,7 @@ var wp;
       return;
     }
     const entityIdKey = entityConfig.key || DEFAULT_ENTITY_KEY;
-    const edits = select5.getEntityRecordNonTransientEdits(
+    const edits = select4.getEntityRecordNonTransientEdits(
       kind,
       name,
       recordId
@@ -5261,16 +5725,16 @@ var wp;
     const record = { [entityIdKey]: recordId, ...edits };
     return await dispatch3.saveEntityRecord(kind, name, record, options);
   };
-  var __experimentalSaveSpecifiedEntityEdits = (kind, name, recordId, itemsToSave, options) => async ({ select: select5, dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
+  var __experimentalSaveSpecifiedEntityEdits = (kind, name, recordId, itemsToSave, options) => async ({ select: select4, dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
     logEntityDeprecation(
       kind,
       name,
       "__experimentalSaveSpecifiedEntityEdits"
     );
-    if (!select5.hasEditsForEntityRecord(kind, name, recordId)) {
+    if (!select4.hasEditsForEntityRecord(kind, name, recordId)) {
       return;
     }
-    const edits = select5.getEntityRecordNonTransientEdits(
+    const edits = select4.getEntityRecordNonTransientEdits(
       kind,
       name,
       recordId
@@ -5340,11 +5804,11 @@ var wp;
     const entityConfig = configs.find(
       (config) => config.kind === kind && config.name === name
     );
-    const key = entityConfig && entityConfig?.revisionKey ? entityConfig.revisionKey : DEFAULT_ENTITY_KEY;
+    const key = entityConfig?.revisionKey ?? DEFAULT_ENTITY_KEY;
     dispatch3({
       type: "RECEIVE_ITEM_REVISIONS",
       key,
-      items: Array.isArray(records) ? records : [records],
+      items: records,
       recordKey,
       meta,
       query,
@@ -5353,34 +5817,20 @@ var wp;
       invalidateCache
     });
   };
-  function setSyncConnectionStatus(kind, name, key, status) {
-    if (!status) {
-      return {
-        type: "CLEAR_SYNC_CONNECTION_STATUS",
-        kind,
-        name,
-        key
-      };
-    }
-    return {
-      type: "SET_SYNC_CONNECTION_STATUS",
-      kind,
-      name,
-      key,
-      status
-    };
-  }
 
   // packages/core-data/build-module/private-actions.mjs
   var private_actions_exports = {};
   __export(private_actions_exports, {
+    __unstableNotifySyncUndoManagerChange: () => __unstableNotifySyncUndoManagerChange,
     editMediaEntity: () => editMediaEntity,
     receiveEditorAssets: () => receiveEditorAssets,
     receiveEditorSettings: () => receiveEditorSettings,
     receiveRegisteredPostMeta: () => receiveRegisteredPostMeta,
-    setCollaborationSupported: () => setCollaborationSupported
+    receiveViewConfig: () => receiveViewConfig,
+    setCollaborationSupported: () => setCollaborationSupported,
+    setSyncConnectionStatus: () => setSyncConnectionStatus
   });
-  var import_api_fetch4 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch5 = __toESM(require_api_fetch(), 1);
   function receiveRegisteredPostMeta(postType, registeredPostMeta2) {
     return {
       type: "RECEIVE_REGISTERED_POST_META",
@@ -5388,7 +5838,7 @@ var wp;
       registeredPostMeta: registeredPostMeta2
     };
   }
-  var editMediaEntity = (recordId, edits = {}, { __unstableFetch = import_api_fetch4.default, throwOnError = false } = {}) => async ({ dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
+  var editMediaEntity = (recordId, edits = {}, { __unstableFetch = import_api_fetch5.default, throwOnError = false } = {}) => async ({ dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
     if (!recordId) {
       return;
     }
@@ -5429,7 +5879,7 @@ var wp;
           dispatch3.receiveEntityRecords(
             kind,
             name,
-            [newRecord],
+            newRecord,
             void 0,
             true,
             void 0,
@@ -5470,7 +5920,45 @@ var wp;
   }
   var setCollaborationSupported = (supported) => ({ dispatch: dispatch3 }) => {
     dispatch3({ type: "SET_COLLABORATION_SUPPORTED", supported });
+    if (!supported && hasSyncManager()) {
+      getSyncManager().unloadAll();
+      dispatch3.__unstableNotifySyncUndoManagerChange({
+        hasUndo: false,
+        hasRedo: false
+      });
+    }
   };
+  function receiveViewConfig(kind, name, config) {
+    return {
+      type: "RECEIVE_VIEW_CONFIG",
+      kind,
+      name,
+      config
+    };
+  }
+  function __unstableNotifySyncUndoManagerChange(state) {
+    return {
+      type: "SYNC_UNDO_MANAGER_CHANGE",
+      ...state
+    };
+  }
+  function setSyncConnectionStatus(kind, name, key, status) {
+    if (!status) {
+      return {
+        type: "CLEAR_SYNC_CONNECTION_STATUS",
+        kind,
+        name,
+        key
+      };
+    }
+    return {
+      type: "SET_SYNC_CONNECTION_STATUS",
+      kind,
+      name,
+      key,
+      status
+    };
+  }
 
   // packages/core-data/build-module/resolvers.mjs
   var resolvers_exports = {};
@@ -5504,17 +5992,18 @@ var wp;
     getRevision: () => getRevision2,
     getRevisions: () => getRevisions2,
     getThemeSupports: () => getThemeSupports2,
-    getUserPatternCategories: () => getUserPatternCategories2
+    getUserPatternCategories: () => getUserPatternCategories2,
+    getViewConfig: () => getViewConfig2
   });
   var import_url6 = __toESM(require_url(), 1);
   var import_html_entities2 = __toESM(require_html_entities(), 1);
-  var import_api_fetch8 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch9 = __toESM(require_api_fetch(), 1);
 
   // packages/core-data/build-module/fetch/index.mjs
-  var import_api_fetch7 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch8 = __toESM(require_api_fetch(), 1);
 
   // packages/core-data/build-module/fetch/__experimental-fetch-link-suggestions.mjs
-  var import_api_fetch5 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch6 = __toESM(require_api_fetch(), 1);
   var import_url4 = __toESM(require_url(), 1);
   var import_html_entities = __toESM(require_html_entities(), 1);
   var import_i18n2 = __toESM(require_i18n(), 1);
@@ -5533,7 +6022,7 @@ var wp;
     const queries2 = [];
     if (!type || type === "post") {
       queries2.push(
-        (0, import_api_fetch5.default)({
+        (0, import_api_fetch6.default)({
           path: (0, import_url4.addQueryArgs)("/wp/v2/search", {
             search,
             page,
@@ -5557,7 +6046,7 @@ var wp;
     }
     if (!type || type === "term") {
       queries2.push(
-        (0, import_api_fetch5.default)({
+        (0, import_api_fetch6.default)({
           path: (0, import_url4.addQueryArgs)("/wp/v2/search", {
             search,
             page,
@@ -5581,7 +6070,7 @@ var wp;
     }
     if (!disablePostFormats && (!type || type === "post-format")) {
       queries2.push(
-        (0, import_api_fetch5.default)({
+        (0, import_api_fetch6.default)({
           path: (0, import_url4.addQueryArgs)("/wp/v2/search", {
             search,
             page,
@@ -5605,7 +6094,7 @@ var wp;
     }
     if (!type || type === "attachment") {
       queries2.push(
-        (0, import_api_fetch5.default)({
+        (0, import_api_fetch6.default)({
           path: (0, import_url4.addQueryArgs)("/wp/v2/media", {
             search,
             page,
@@ -5662,7 +6151,7 @@ var wp;
   }
 
   // packages/core-data/build-module/fetch/__experimental-fetch-url-data.mjs
-  var import_api_fetch6 = __toESM(require_api_fetch(), 1);
+  var import_api_fetch7 = __toESM(require_api_fetch(), 1);
   var import_url5 = __toESM(require_url(), 1);
   var CACHE = /* @__PURE__ */ new Map();
   var fetchUrlData = async (url, options = {}) => {
@@ -5682,7 +6171,7 @@ var wp;
     if (CACHE.has(url)) {
       return CACHE.get(url);
     }
-    return (0, import_api_fetch6.default)({
+    return (0, import_api_fetch7.default)({
       path: (0, import_url5.addQueryArgs)(endpoint, args),
       ...options
     }).then((res) => {
@@ -5694,7 +6183,7 @@ var wp;
 
   // packages/core-data/build-module/fetch/index.mjs
   async function fetchBlockPatterns() {
-    const restPatterns = await (0, import_api_fetch7.default)({
+    const restPatterns = await (0, import_api_fetch8.default)({
       path: "/wp/v2/block-patterns/patterns"
     });
     if (!restPatterns) {
@@ -5710,20 +6199,26 @@ var wp;
     );
   }
 
+  // packages/core-data/build-module/parsed-blocks-cache.mjs
+  var parsedBlocksCache = /* @__PURE__ */ new Map();
+  function getCacheKey(kind, name, id) {
+    return `${kind}:${name}:${id}`;
+  }
+
   // packages/core-data/build-module/resolvers.mjs
   var getAuthors2 = (query) => async ({ dispatch: dispatch3 }) => {
     const path = (0, import_url6.addQueryArgs)(
       "/wp/v2/users/?who=authors&per_page=100",
       query
     );
-    const users2 = await (0, import_api_fetch8.default)({ path });
+    const users2 = await (0, import_api_fetch9.default)({ path });
     dispatch3.receiveUserQuery(path, users2);
   };
   var getCurrentUser2 = () => async ({ dispatch: dispatch3 }) => {
-    const currentUser2 = await (0, import_api_fetch8.default)({ path: "/wp/v2/users/me" });
+    const currentUser2 = await (0, import_api_fetch9.default)({ path: "/wp/v2/users/me" });
     dispatch3.receiveCurrentUser(currentUser2);
   };
-  var getEntityRecord2 = (kind, name, key = "", query) => async ({ select: select5, dispatch: dispatch3, registry, resolveSelect: resolveSelect2 }) => {
+  var getEntityRecord2 = (kind, name, key = "", query) => async ({ select: select4, dispatch: dispatch3, registry, resolveSelect: resolveSelect2 }) => {
     const configs = await resolveSelect2.getEntitiesConfig(kind);
     const entityConfig = configs.find(
       (config) => config.name === name && config.kind === kind
@@ -5749,7 +6244,7 @@ var wp;
         };
       }
       if (query !== void 0 && query._fields) {
-        const hasRecord = select5.hasEntityRecord(
+        const hasRecord = select4.hasEntityRecord(
           kind,
           name,
           key,
@@ -5767,7 +6262,7 @@ var wp;
         ...entityConfig.baseURLParams,
         ...query
       });
-      const response = await (0, import_api_fetch8.default)({ path, parse: false });
+      const response = await (0, import_api_fetch9.default)({ path, parse: false });
       const record = await response.json();
       const permissions = getUserPermissionsFromAllowHeader(
         response.headers?.get("allow")
@@ -5794,7 +6289,14 @@ var wp;
         ).forEach(([propName, transientConfig]) => {
           recordWithTransients[propName] = transientConfig.read(recordWithTransients);
         });
-        void getSyncManager()?.load(
+        if (recordWithTransients.blocks && typeof recordWithTransients.content?.raw === "string") {
+          parsedBlocksCache.set(getCacheKey(kind, name, key), {
+            content: recordWithTransients.content.raw,
+            blocks: recordWithTransients.blocks
+          });
+        }
+        const syncManager2 = select4?.isCollaborationSupported?.() === false ? void 0 : getSyncManager();
+        void syncManager2?.load(
           entityConfig.syncConfig,
           objectType,
           objectId,
@@ -5837,7 +6339,7 @@ var wp;
               dispatch3.receiveEntityRecords(
                 kind,
                 name,
-                await (0, import_api_fetch8.default)({ path, parse: true }),
+                await (0, import_api_fetch9.default)({ path, parse: true }),
                 query
               );
             },
@@ -5848,15 +6350,19 @@ var wp;
             // persistence. As we add support for syncing additional entity,
             // we'll need to revisit where persisted CRDT documents are stored.
             persistCRDTDoc: () => {
-              resolveSelect2.getEditedEntityRecord(kind, name, key).then((editedRecord) => {
+              if (!entityConfig.syncConfig?.supportsPersistence) {
+                return;
+              }
+              return resolveSelect2.getEditedEntityRecord(kind, name, key).then(async (editedRecord) => {
                 const { meta, status } = editedRecord;
                 if ("auto-draft" === status || !meta) {
                   return;
                 }
-                dispatch3.saveEntityRecord(
-                  kind,
-                  name,
-                  editedRecord
+                const entityIdKey = entityConfig.key || DEFAULT_ENTITY_KEY;
+                const entityId = editedRecord[entityIdKey];
+                await saveCRDTDoc(
+                  `${kind}/${name}`,
+                  entityId
                 );
               });
             },
@@ -5868,6 +6374,11 @@ var wp;
                   selectionHistory
                 );
               }
+            },
+            onUndoStackChange: (undoState) => {
+              dispatch3.__unstableNotifySyncUndoManagerChange(
+                undoState
+              );
             },
             restoreUndoMeta: (ydoc, meta) => {
               const selectionHistory = meta.get("selectionHistory");
@@ -5913,16 +6424,12 @@ var wp;
     const rawQuery = { ...query };
     const key = entityConfig.key || DEFAULT_ENTITY_KEY;
     function getResolutionsArgs(records, recordsQuery) {
-      const queryArgs = Object.fromEntries(
-        Object.entries(recordsQuery).filter(([k, v]) => {
-          return ["context", "_fields"].includes(k) && !!v;
-        })
-      );
+      const normalizedQuery = normalizeQueryForResolution(recordsQuery);
       return records.filter((record) => record?.[key]).map((record) => [
         kind,
         name,
         record[key],
-        Object.keys(queryArgs).length > 0 ? queryArgs : void 0
+        normalizedQuery
       ]);
     }
     try {
@@ -5948,7 +6455,7 @@ var wp;
       });
       let records = [], meta;
       if (entityConfig.supportsPagination && query.per_page !== -1) {
-        const response = await (0, import_api_fetch8.default)({ path, parse: false });
+        const response = await (0, import_api_fetch9.default)({ path, parse: false });
         records = Object.values(await response.json());
         meta = {
           totalItems: parseInt(
@@ -5962,7 +6469,7 @@ var wp;
         let page = 1;
         let totalPages;
         do {
-          const response = await (0, import_api_fetch8.default)({
+          const response = await (0, import_api_fetch9.default)({
             path: (0, import_url6.addQueryArgs)(path, { page, per_page: 100 }),
             parse: false
           });
@@ -5997,7 +6504,7 @@ var wp;
           page++;
         } while (page <= totalPages);
       } else {
-        records = Object.values(await (0, import_api_fetch8.default)({ path }));
+        records = Object.values(await (0, import_api_fetch9.default)({ path }));
         meta = {
           totalItems: records.length,
           totalPages: 1
@@ -6021,7 +6528,7 @@ var wp;
               dispatch3.receiveEntityRecords(
                 kind,
                 name,
-                await (0, import_api_fetch8.default)({ path, parse: true }),
+                await (0, import_api_fetch9.default)({ path, parse: true }),
                 query
               );
             }
@@ -6086,7 +6593,7 @@ var wp;
         );
         dispatch3.__unstableReleaseStoreLock(lock2);
       });
-    } catch (e) {
+    } catch {
       dispatch3.__unstableReleaseStoreLock(lock2);
     }
   };
@@ -6106,11 +6613,11 @@ var wp;
   var getThemeSupports2 = forward_resolver_default("getCurrentTheme");
   var getEmbedPreview2 = (url) => async ({ dispatch: dispatch3 }) => {
     try {
-      const embedProxyResponse = await (0, import_api_fetch8.default)({
+      const embedProxyResponse = await (0, import_api_fetch9.default)({
         path: (0, import_url6.addQueryArgs)("/oembed/1.0/proxy", { url })
       });
       dispatch3.receiveEmbedPreview(url, embedProxyResponse);
-    } catch (error) {
+    } catch {
       dispatch3.receiveEmbedPreview(url, false);
     }
   };
@@ -6152,29 +6659,28 @@ var wp;
     }
     let response;
     try {
-      response = await (0, import_api_fetch8.default)({
+      response = await (0, import_api_fetch9.default)({
         path: resourcePath,
         method: "OPTIONS",
         parse: false
       });
-    } catch (error) {
+    } catch {
       return;
     }
     const permissions = getUserPermissionsFromAllowHeader(
       response.headers?.get("allow")
     );
-    registry.batch(() => {
-      for (const action of ALLOWED_RESOURCE_ACTIONS) {
-        const key = getUserPermissionCacheKey(action, resource, id);
-        dispatch3.receiveUserPermission(key, permissions[action]);
-        if (action !== requestedAction) {
-          dispatch3.finishResolution("canUser", [
-            action,
-            resource,
-            id
-          ]);
-        }
+    const receiveUserPermissionArgs = {};
+    const canUserResolutionsArgs = [];
+    for (const action of ALLOWED_RESOURCE_ACTIONS) {
+      receiveUserPermissionArgs[getUserPermissionCacheKey(action, resource, id)] = permissions[action];
+      if (action !== requestedAction) {
+        canUserResolutionsArgs.push([action, resource, id]);
       }
+    }
+    registry.batch(() => {
+      dispatch3.receiveUserPermissions(receiveUserPermissionArgs);
+      dispatch3.finishResolutions("canUser", canUserResolutionsArgs);
     });
   };
   var canUserEditEntityRecord2 = (kind, name, recordId) => async ({ dispatch: dispatch3 }) => {
@@ -6189,7 +6695,7 @@ var wp;
     if (!supports?.autosave) {
       return;
     }
-    const autosaves2 = await (0, import_api_fetch8.default)({
+    const autosaves2 = await (0, import_api_fetch9.default)({
       path: `/${restNamespace}/${restBase}/${postId}/autosaves?context=edit`
     });
     if (autosaves2 && autosaves2.length) {
@@ -6217,7 +6723,7 @@ var wp;
   };
   var __experimentalGetCurrentThemeBaseGlobalStyles2 = () => async ({ resolveSelect: resolveSelect2, dispatch: dispatch3 }) => {
     const currentTheme2 = await resolveSelect2.getCurrentTheme();
-    const themeGlobalStyles = await (0, import_api_fetch8.default)({
+    const themeGlobalStyles = await (0, import_api_fetch9.default)({
       path: `/wp/v2/global-styles/themes/${currentTheme2.stylesheet}?context=view`
     });
     dispatch3.__experimentalReceiveThemeBaseGlobalStyles(
@@ -6227,7 +6733,7 @@ var wp;
   };
   var __experimentalGetCurrentThemeGlobalStylesVariations2 = () => async ({ resolveSelect: resolveSelect2, dispatch: dispatch3 }) => {
     const currentTheme2 = await resolveSelect2.getCurrentTheme();
-    const variations = await (0, import_api_fetch8.default)({
+    const variations = await (0, import_api_fetch9.default)({
       path: `/wp/v2/global-styles/themes/${currentTheme2.stylesheet}/variations?context=view`
     });
     dispatch3.__experimentalReceiveThemeGlobalStyleVariations(
@@ -6244,7 +6750,7 @@ var wp;
     ) : void 0;
     const revisionsURL = record?._links?.["version-history"]?.[0]?.href;
     if (revisionsURL) {
-      const resetRevisions = await (0, import_api_fetch8.default)({
+      const resetRevisions = await (0, import_api_fetch9.default)({
         url: revisionsURL
       });
       const revisions = resetRevisions?.map(
@@ -6269,7 +6775,7 @@ var wp;
     dispatch3({ type: "RECEIVE_BLOCK_PATTERNS", patterns });
   };
   var getBlockPatternCategories2 = () => async ({ dispatch: dispatch3 }) => {
-    const categories = await (0, import_api_fetch8.default)({
+    const categories = await (0, import_api_fetch9.default)({
       path: "/wp/v2/block-patterns/categories"
     });
     dispatch3({ type: "RECEIVE_BLOCK_PATTERN_CATEGORIES", categories });
@@ -6294,8 +6800,8 @@ var wp;
       patternCategories: mappedPatternCategories
     });
   };
-  var getNavigationFallbackId2 = () => async ({ dispatch: dispatch3, select: select5, registry }) => {
-    const fallback = await (0, import_api_fetch8.default)({
+  var getNavigationFallbackId2 = () => async ({ dispatch: dispatch3, select: select4, registry }) => {
+    const fallback = await (0, import_api_fetch9.default)({
       path: (0, import_url6.addQueryArgs)("/wp-block-editor/v1/navigation-fallback", {
         _embed: true
       })
@@ -6306,7 +6812,7 @@ var wp;
       if (!record) {
         return;
       }
-      const existingFallbackEntityRecord = select5.getEntityRecord(
+      const existingFallbackEntityRecord = select4.getEntityRecord(
         "postType",
         "wp_navigation",
         fallback.id
@@ -6327,28 +6833,30 @@ var wp;
     });
   };
   var getDefaultTemplateId2 = (query) => async ({ dispatch: dispatch3, registry, resolveSelect: resolveSelect2 }) => {
-    const template = await (0, import_api_fetch8.default)({
+    const template = await (0, import_api_fetch9.default)({
       path: (0, import_url6.addQueryArgs)("/wp/v2/templates/lookup", query)
     });
     await resolveSelect2.getEntitiesConfig("postType");
     const id = window?.__experimentalTemplateActivate ? template?.wp_id || template?.id : template?.id;
-    if (id) {
-      template.id = id;
-      registry.batch(() => {
-        dispatch3.receiveDefaultTemplateId(query, id);
-        dispatch3.receiveEntityRecords("postType", template.type, [
+    registry.batch(() => {
+      dispatch3.receiveDefaultTemplateId(query, id || "");
+      if (id) {
+        template.id = id;
+        dispatch3.receiveEntityRecords(
+          "postType",
+          template.type,
           template
-        ]);
+        );
         dispatch3.finishResolution("getEntityRecord", [
           "postType",
           template.type,
           id
         ]);
-      });
-    }
+      }
+    });
   };
   getDefaultTemplateId2.shouldInvalidate = (action) => {
-    return action.type === "RECEIVE_ITEMS" && action.kind === "root" && action.name === "site";
+    return action.type === "RECEIVE_ITEMS" && action.kind === "root" && action.name === "site" && !!action.persistedEdits;
   };
   var getRevisions2 = (kind, name, recordKey, query = {}) => async ({ dispatch: dispatch3, registry, resolveSelect: resolveSelect2 }) => {
     const configs = await resolveSelect2.getEntitiesConfig(kind);
@@ -6358,76 +6866,86 @@ var wp;
     if (!entityConfig) {
       return;
     }
-    if (query._fields) {
-      query = {
-        ...query,
-        _fields: [
-          .../* @__PURE__ */ new Set([
-            ...get_normalized_comma_separable_default(query._fields) || [],
-            entityConfig.revisionKey || DEFAULT_ENTITY_KEY
-          ])
-        ].join()
-      };
-    }
-    const path = (0, import_url6.addQueryArgs)(
-      entityConfig.getRevisionsUrl(recordKey),
-      query
+    const rawQuery = { ...query };
+    const lock2 = await dispatch3.__unstableAcquireStoreLock(
+      STORE_NAME,
+      ["entities", "records", kind, name, recordKey, "revisions"],
+      { exclusive: false }
     );
-    let records, response;
-    const meta = {};
-    const isPaginated = entityConfig.supportsPagination && query.per_page !== -1;
     try {
-      response = await (0, import_api_fetch8.default)({ path, parse: !isPaginated });
-    } catch (error) {
-      return;
-    }
-    if (response) {
-      if (isPaginated) {
-        records = Object.values(await response.json());
-        meta.totalItems = parseInt(
-          response.headers.get("X-WP-Total")
-        );
-      } else {
-        records = Object.values(response);
-      }
       if (query._fields) {
-        records = records.map((record) => {
-          query._fields.split(",").forEach((field) => {
-            if (!record.hasOwnProperty(field)) {
-              record[field] = void 0;
-            }
-          });
-          return record;
-        });
+        query = {
+          ...query,
+          _fields: [
+            .../* @__PURE__ */ new Set([
+              ...get_normalized_comma_separable_default(query._fields) || [],
+              entityConfig.revisionKey || DEFAULT_ENTITY_KEY
+            ])
+          ].join()
+        };
       }
-      registry.batch(() => {
-        dispatch3.receiveRevisions(
-          kind,
-          name,
-          recordKey,
-          records,
-          query,
-          false,
-          meta
-        );
-        if (!query?._fields && !query.context) {
+      const path = (0, import_url6.addQueryArgs)(
+        entityConfig.getRevisionsUrl(recordKey),
+        query
+      );
+      let records, response;
+      const meta = {};
+      const isPaginated = entityConfig.supportsPagination && query.per_page !== -1;
+      try {
+        response = await (0, import_api_fetch9.default)({ path, parse: !isPaginated });
+      } catch {
+        return;
+      }
+      if (response) {
+        if (isPaginated) {
+          records = Object.values(await response.json());
+          meta.totalItems = parseInt(
+            response.headers.get("X-WP-Total")
+          );
+        } else {
+          records = Object.values(response);
+        }
+        if (query._fields) {
+          records = records.map((record) => {
+            query._fields.split(",").forEach((field) => {
+              if (!record.hasOwnProperty(field)) {
+                record[field] = void 0;
+              }
+            });
+            return record;
+          });
+        }
+        registry.batch(() => {
+          dispatch3.receiveRevisions(
+            kind,
+            name,
+            recordKey,
+            records,
+            query,
+            false,
+            meta
+          );
           const key = entityConfig.revisionKey || DEFAULT_ENTITY_KEY;
+          const normalizedQuery = normalizeQueryForResolution(rawQuery);
           const resolutionsArgs = records.filter((record) => record[key]).map((record) => [
             kind,
             name,
             recordKey,
-            record[key]
+            record[key],
+            normalizedQuery
           ]);
           dispatch3.finishResolutions(
             "getRevision",
             resolutionsArgs
           );
-        }
-      });
+        });
+      }
+    } finally {
+      dispatch3.__unstableReleaseStoreLock(lock2);
     }
   };
   getRevisions2.shouldInvalidate = (action, kind, name, recordKey) => action.type === "SAVE_ENTITY_RECORD_FINISH" && name === action.name && kind === action.kind && !action.error && recordKey === action.recordId;
-  var getRevision2 = (kind, name, recordKey, revisionKey, query) => async ({ dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
+  var getRevision2 = (kind, name, recordKey, revisionKey, query) => async ({ select: select4, dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
     const configs = await resolveSelect2.getEntitiesConfig(kind);
     const entityConfig = configs.find(
       (config) => config.name === name && config.kind === kind
@@ -6446,18 +6964,44 @@ var wp;
         ].join()
       };
     }
-    const path = (0, import_url6.addQueryArgs)(
-      entityConfig.getRevisionsUrl(recordKey, revisionKey),
-      query
+    const lock2 = await dispatch3.__unstableAcquireStoreLock(
+      STORE_NAME,
+      [
+        "entities",
+        "records",
+        kind,
+        name,
+        recordKey,
+        "revisions",
+        revisionKey
+      ],
+      { exclusive: false }
     );
-    let record;
     try {
-      record = await (0, import_api_fetch8.default)({ path });
-    } catch (error) {
-      return;
-    }
-    if (record) {
-      dispatch3.receiveRevisions(kind, name, recordKey, record, query);
+      if (select4.hasRevision(kind, name, recordKey, revisionKey, query)) {
+        return;
+      }
+      const path = (0, import_url6.addQueryArgs)(
+        entityConfig.getRevisionsUrl(recordKey, revisionKey),
+        query
+      );
+      let record;
+      try {
+        record = await (0, import_api_fetch9.default)({ path });
+      } catch {
+        return;
+      }
+      if (record) {
+        dispatch3.receiveRevisions(
+          kind,
+          name,
+          recordKey,
+          record,
+          query
+        );
+      }
+    } finally {
+      dispatch3.__unstableReleaseStoreLock(lock2);
     }
   };
   var getRegisteredPostMeta2 = (postType) => async ({ dispatch: dispatch3, resolveSelect: resolveSelect2 }) => {
@@ -6467,11 +7011,11 @@ var wp;
         rest_namespace: restNamespace = "wp/v2",
         rest_base: restBase
       } = await resolveSelect2.getPostType(postType) || {};
-      options = await (0, import_api_fetch8.default)({
+      options = await (0, import_api_fetch9.default)({
         path: `${restNamespace}/${restBase}/?context=edit`,
         method: "OPTIONS"
       });
-    } catch (error) {
+    } catch {
       return;
     }
     if (options) {
@@ -6498,16 +7042,27 @@ var wp;
     }
   };
   var getEditorSettings2 = () => async ({ dispatch: dispatch3 }) => {
-    const settings = await (0, import_api_fetch8.default)({
+    const settings = await (0, import_api_fetch9.default)({
       path: "/wp-block-editor/v1/settings"
     });
     dispatch3.receiveEditorSettings(settings);
   };
   var getEditorAssets2 = () => async ({ dispatch: dispatch3 }) => {
-    const assets = await (0, import_api_fetch8.default)({
+    const assets = await (0, import_api_fetch9.default)({
       path: "/wp-block-editor/v1/assets"
     });
     dispatch3.receiveEditorAssets(assets);
+  };
+  var getViewConfig2 = (kind, name, options = {}) => async ({ dispatch: dispatch3 }) => {
+    const query = { kind, name };
+    const fields = get_normalized_comma_separable_default(options.fields);
+    if (fields?.length) {
+      query._fields = fields.join(",");
+    }
+    const config = await (0, import_api_fetch9.default)({
+      path: (0, import_url6.addQueryArgs)("/wp/v2/view-config", query)
+    });
+    dispatch3.receiveViewConfig(kind, name, config);
   };
 
   // packages/core-data/build-module/locks/utils.mjs
@@ -6724,12 +7279,232 @@ var wp;
   }
 
   // packages/core-data/build-module/hooks/use-entity-record.mjs
-  var import_data12 = __toESM(require_data(), 1);
+  var import_data10 = __toESM(require_data(), 1);
   var import_deprecated4 = __toESM(require_deprecated(), 1);
   var import_element3 = __toESM(require_element(), 1);
 
-  // packages/core-data/build-module/hooks/use-query-select.mjs
+  // packages/core-data/build-module/hooks/constants.mjs
+  var Status = /* @__PURE__ */ ((Status2) => {
+    Status2["Idle"] = "IDLE";
+    Status2["Resolving"] = "RESOLVING";
+    Status2["Error"] = "ERROR";
+    Status2["Success"] = "SUCCESS";
+    return Status2;
+  })(Status || {});
+
+  // packages/core-data/build-module/hooks/utils.mjs
+  function getResolutionStatus(resolutionStatus) {
+    let status;
+    switch (resolutionStatus) {
+      case "resolving":
+        status = Status.Resolving;
+        break;
+      case "finished":
+        status = Status.Success;
+        break;
+      case "error":
+        status = Status.Error;
+        break;
+      default:
+        status = Status.Idle;
+    }
+    return {
+      status,
+      isResolving: status === Status.Resolving,
+      hasStarted: status !== Status.Idle,
+      hasResolved: status === Status.Success || status === Status.Error
+    };
+  }
+
+  // packages/core-data/build-module/hooks/use-entity-record.mjs
+  var EMPTY_OBJECT3 = {};
+  function useEntityRecord(kind, name, recordId, options = { enabled: true }) {
+    const { editEntityRecord: editEntityRecord2, saveEditedEntityRecord: saveEditedEntityRecord2 } = (0, import_data10.useDispatch)(store);
+    const mutations = (0, import_element3.useMemo)(
+      () => ({
+        edit: (record2, editOptions = {}) => editEntityRecord2(kind, name, recordId, record2, editOptions),
+        save: (saveOptions = {}) => saveEditedEntityRecord2(kind, name, recordId, {
+          throwOnError: true,
+          ...saveOptions
+        })
+      }),
+      [editEntityRecord2, kind, name, recordId, saveEditedEntityRecord2]
+    );
+    const { record, editedRecord, hasEdits, edits, ...resolution } = (0, import_data10.useSelect)(
+      (select4) => {
+        if (!options.enabled) {
+          return {
+            record: null,
+            editedRecord: EMPTY_OBJECT3,
+            hasEdits: false,
+            edits: EMPTY_OBJECT3,
+            ...getResolutionStatus()
+          };
+        }
+        const storeSelectors = select4(store);
+        const resolutionStatus = storeSelectors.getResolutionState(
+          "getEntityRecord",
+          [kind, name, recordId]
+        )?.status;
+        return {
+          record: storeSelectors.getEntityRecord(
+            kind,
+            name,
+            recordId
+          ) ?? null,
+          editedRecord: storeSelectors.getEditedEntityRecord(
+            kind,
+            name,
+            recordId
+          ),
+          hasEdits: storeSelectors.hasEditsForEntityRecord(
+            kind,
+            name,
+            recordId
+          ),
+          edits: storeSelectors.getEntityRecordNonTransientEdits(
+            kind,
+            name,
+            recordId
+          ),
+          ...getResolutionStatus(resolutionStatus)
+        };
+      },
+      [kind, name, recordId, options.enabled]
+    );
+    return {
+      record,
+      editedRecord,
+      hasEdits,
+      edits,
+      ...resolution,
+      ...mutations
+    };
+  }
+  function useDeprecatedEntityRecord(kind, name, recordId, options) {
+    (0, import_deprecated4.default)(`wp.data.__experimentalUseEntityRecord`, {
+      alternative: "wp.data.useEntityRecord",
+      since: "6.1"
+    });
+    return useEntityRecord(kind, name, recordId, options);
+  }
+
+  // packages/core-data/build-module/hooks/use-entity-records.mjs
+  var import_url7 = __toESM(require_url(), 1);
+  var import_deprecated5 = __toESM(require_deprecated(), 1);
   var import_data11 = __toESM(require_data(), 1);
+  var import_element4 = __toESM(require_element(), 1);
+  var EMPTY_ARRAY = [];
+  function useEntityRecords(kind, name, queryArgs = {}, options = { enabled: true }) {
+    const queryAsString = (0, import_url7.addQueryArgs)("", queryArgs);
+    const { records, totalItems, totalPages, ...rest } = (0, import_data11.useSelect)(
+      (select4) => {
+        if (!options.enabled) {
+          return {
+            // Avoiding returning a new reference on every execution.
+            records: EMPTY_ARRAY,
+            totalItems: null,
+            totalPages: null,
+            ...getResolutionStatus()
+          };
+        }
+        const storeSelectors = select4(store);
+        const resolutionStatus = storeSelectors.getResolutionState(
+          "getEntityRecords",
+          [kind, name, queryArgs]
+        )?.status;
+        return {
+          records: storeSelectors.getEntityRecords(
+            kind,
+            name,
+            queryArgs
+          ),
+          totalItems: storeSelectors.getEntityRecordsTotalItems(
+            kind,
+            name,
+            queryArgs
+          ),
+          totalPages: storeSelectors.getEntityRecordsTotalPages(
+            kind,
+            name,
+            queryArgs
+          ),
+          ...getResolutionStatus(resolutionStatus)
+        };
+      },
+      [kind, name, queryAsString, options.enabled]
+    );
+    return {
+      records,
+      totalItems,
+      totalPages,
+      ...rest
+    };
+  }
+  function useDeprecatedEntityRecords(kind, name, queryArgs, options) {
+    (0, import_deprecated5.default)(`wp.data.__experimentalUseEntityRecords`, {
+      alternative: "wp.data.useEntityRecords",
+      since: "6.1"
+    });
+    return useEntityRecords(kind, name, queryArgs, options);
+  }
+  function useEntityRecordsWithPermissions(kind, name, queryArgs = {}, options = { enabled: true }) {
+    const entityConfig = (0, import_data11.useSelect)(
+      (select4) => select4(store).getEntityConfig(kind, name),
+      [kind, name]
+    );
+    const { records: data, ...ret } = useEntityRecords(
+      kind,
+      name,
+      {
+        ...queryArgs,
+        // If _fields is provided, we need to include _links in the request for permission caching to work.
+        ...queryArgs._fields ? {
+          _fields: [
+            .../* @__PURE__ */ new Set([
+              ...get_normalized_comma_separable_default(
+                queryArgs._fields
+              ) || [],
+              "_links"
+            ])
+          ].join()
+        } : {}
+      },
+      options
+    );
+    const ids = (0, import_element4.useMemo)(
+      () => data?.map(
+        // @ts-ignore
+        (record) => record[entityConfig?.key ?? "id"]
+      ) ?? [],
+      [data, entityConfig?.key]
+    );
+    const permissions = (0, import_data11.useSelect)(
+      (select4) => {
+        const { getEntityRecordsPermissions: getEntityRecordsPermissions2 } = unlock(
+          select4(store)
+        );
+        return getEntityRecordsPermissions2(kind, name, ids);
+      },
+      [ids, kind, name]
+    );
+    const dataWithPermissions = (0, import_element4.useMemo)(
+      () => data?.map((record, index) => ({
+        // @ts-ignore
+        ...record,
+        permissions: permissions[index]
+      })) ?? [],
+      [data, permissions]
+    );
+    return { records: dataWithPermissions, ...ret };
+  }
+
+  // packages/core-data/build-module/hooks/use-resource-permissions.mjs
+  var import_deprecated6 = __toESM(require_deprecated(), 1);
+  var import_warning = __toESM(require_warning(), 1);
+
+  // packages/core-data/build-module/hooks/use-query-select.mjs
+  var import_data12 = __toESM(require_data(), 1);
 
   // node_modules/memize/dist/index.js
   function memize(fn, options) {
@@ -6799,18 +7574,6 @@ var wp;
     return memoized;
   }
 
-  // packages/core-data/build-module/hooks/memoize.mjs
-  var memoize_default = memize;
-
-  // packages/core-data/build-module/hooks/constants.mjs
-  var Status = /* @__PURE__ */ ((Status2) => {
-    Status2["Idle"] = "IDLE";
-    Status2["Resolving"] = "RESOLVING";
-    Status2["Error"] = "ERROR";
-    Status2["Success"] = "SUCCESS";
-    return Status2;
-  })(Status || {});
-
   // packages/core-data/build-module/hooks/use-query-select.mjs
   var META_SELECTORS = [
     "getIsResolving",
@@ -6820,12 +7583,12 @@ var wp;
     "getCachedResolvers"
   ];
   function useQuerySelect(mapQuerySelect, deps) {
-    return (0, import_data11.useSelect)((select5, registry) => {
-      const resolve = (store2) => enrichSelectors(select5(store2));
+    return (0, import_data12.useSelect)((select4, registry) => {
+      const resolve = (store2) => enrichSelectors(select4(store2));
       return mapQuerySelect(resolve, registry);
     }, deps);
   }
-  var enrichSelectors = memoize_default(((selectors) => {
+  var enrichSelectors = memize(((selectors) => {
     const resolvers = {};
     for (const selectorName in selectors) {
       if (META_SELECTORS.includes(selectorName)) {
@@ -6838,27 +7601,9 @@ var wp;
             selectorName,
             args
           )?.status;
-          let status;
-          switch (resolutionStatus) {
-            case "resolving":
-              status = Status.Resolving;
-              break;
-            case "finished":
-              status = Status.Success;
-              break;
-            case "error":
-              status = Status.Error;
-              break;
-            case void 0:
-              status = Status.Idle;
-              break;
-          }
           return {
             data,
-            status,
-            isResolving: status === Status.Resolving,
-            hasStarted: status !== Status.Idle,
-            hasResolved: status === Status.Success || status === Status.Error
+            ...getResolutionStatus(resolutionStatus)
           };
         }
       });
@@ -6866,188 +7611,7 @@ var wp;
     return resolvers;
   }));
 
-  // packages/core-data/build-module/hooks/use-entity-record.mjs
-  var EMPTY_OBJECT2 = {};
-  function useEntityRecord(kind, name, recordId, options = { enabled: true }) {
-    const { editEntityRecord: editEntityRecord2, saveEditedEntityRecord: saveEditedEntityRecord2 } = (0, import_data12.useDispatch)(store);
-    const mutations = (0, import_element3.useMemo)(
-      () => ({
-        edit: (record2, editOptions = {}) => editEntityRecord2(kind, name, recordId, record2, editOptions),
-        save: (saveOptions = {}) => saveEditedEntityRecord2(kind, name, recordId, {
-          throwOnError: true,
-          ...saveOptions
-        })
-      }),
-      [editEntityRecord2, kind, name, recordId, saveEditedEntityRecord2]
-    );
-    const { editedRecord, hasEdits, edits } = (0, import_data12.useSelect)(
-      (select5) => {
-        if (!options.enabled) {
-          return {
-            editedRecord: EMPTY_OBJECT2,
-            hasEdits: false,
-            edits: EMPTY_OBJECT2
-          };
-        }
-        return {
-          editedRecord: select5(store).getEditedEntityRecord(
-            kind,
-            name,
-            recordId
-          ),
-          hasEdits: select5(store).hasEditsForEntityRecord(
-            kind,
-            name,
-            recordId
-          ),
-          edits: select5(store).getEntityRecordNonTransientEdits(
-            kind,
-            name,
-            recordId
-          )
-        };
-      },
-      [kind, name, recordId, options.enabled]
-    );
-    const { data: record, ...querySelectRest } = useQuerySelect(
-      (query) => {
-        if (!options.enabled) {
-          return {
-            data: null
-          };
-        }
-        return query(store).getEntityRecord(kind, name, recordId);
-      },
-      [kind, name, recordId, options.enabled]
-    );
-    return {
-      record,
-      editedRecord,
-      hasEdits,
-      edits,
-      ...querySelectRest,
-      ...mutations
-    };
-  }
-  function __experimentalUseEntityRecord(kind, name, recordId, options) {
-    (0, import_deprecated4.default)(`wp.data.__experimentalUseEntityRecord`, {
-      alternative: "wp.data.useEntityRecord",
-      since: "6.1"
-    });
-    return useEntityRecord(kind, name, recordId, options);
-  }
-
-  // packages/core-data/build-module/hooks/use-entity-records.mjs
-  var import_url7 = __toESM(require_url(), 1);
-  var import_deprecated5 = __toESM(require_deprecated(), 1);
-  var import_data13 = __toESM(require_data(), 1);
-  var import_element4 = __toESM(require_element(), 1);
-  var EMPTY_ARRAY = [];
-  function useEntityRecords(kind, name, queryArgs = {}, options = { enabled: true }) {
-    const queryAsString = (0, import_url7.addQueryArgs)("", queryArgs);
-    const { data: records, ...rest } = useQuerySelect(
-      (query) => {
-        if (!options.enabled) {
-          return {
-            // Avoiding returning a new reference on every execution.
-            data: EMPTY_ARRAY
-          };
-        }
-        return query(store).getEntityRecords(kind, name, queryArgs);
-      },
-      [kind, name, queryAsString, options.enabled]
-    );
-    const { totalItems, totalPages } = (0, import_data13.useSelect)(
-      (select5) => {
-        if (!options.enabled) {
-          return {
-            totalItems: null,
-            totalPages: null
-          };
-        }
-        return {
-          totalItems: select5(store).getEntityRecordsTotalItems(
-            kind,
-            name,
-            queryArgs
-          ),
-          totalPages: select5(store).getEntityRecordsTotalPages(
-            kind,
-            name,
-            queryArgs
-          )
-        };
-      },
-      [kind, name, queryAsString, options.enabled]
-    );
-    return {
-      records,
-      totalItems,
-      totalPages,
-      ...rest
-    };
-  }
-  function __experimentalUseEntityRecords(kind, name, queryArgs, options) {
-    (0, import_deprecated5.default)(`wp.data.__experimentalUseEntityRecords`, {
-      alternative: "wp.data.useEntityRecords",
-      since: "6.1"
-    });
-    return useEntityRecords(kind, name, queryArgs, options);
-  }
-  function useEntityRecordsWithPermissions(kind, name, queryArgs = {}, options = { enabled: true }) {
-    const entityConfig = (0, import_data13.useSelect)(
-      (select5) => select5(store).getEntityConfig(kind, name),
-      [kind, name]
-    );
-    const { records: data, ...ret } = useEntityRecords(
-      kind,
-      name,
-      {
-        ...queryArgs,
-        // If _fields is provided, we need to include _links in the request for permission caching to work.
-        ...queryArgs._fields ? {
-          _fields: [
-            .../* @__PURE__ */ new Set([
-              ...get_normalized_comma_separable_default(
-                queryArgs._fields
-              ) || [],
-              "_links"
-            ])
-          ].join()
-        } : {}
-      },
-      options
-    );
-    const ids = (0, import_element4.useMemo)(
-      () => data?.map(
-        // @ts-ignore
-        (record) => record[entityConfig?.key ?? "id"]
-      ) ?? [],
-      [data, entityConfig?.key]
-    );
-    const permissions = (0, import_data13.useSelect)(
-      (select5) => {
-        const { getEntityRecordsPermissions: getEntityRecordsPermissions2 } = unlock(
-          select5(store)
-        );
-        return getEntityRecordsPermissions2(kind, name, ids);
-      },
-      [ids, kind, name]
-    );
-    const dataWithPermissions = (0, import_element4.useMemo)(
-      () => data?.map((record, index) => ({
-        // @ts-ignore
-        ...record,
-        permissions: permissions[index]
-      })) ?? [],
-      [data, permissions]
-    );
-    return { records: dataWithPermissions, ...ret };
-  }
-
   // packages/core-data/build-module/hooks/use-resource-permissions.mjs
-  var import_deprecated6 = __toESM(require_deprecated(), 1);
-  var import_warning = __toESM(require_warning(), 1);
   function useResourcePermissions(resource, id) {
     const isEntity = typeof resource === "object";
     const resourceAsString = isEntity ? JSON.stringify(resource) : resource;
@@ -7060,12 +7624,10 @@ var wp;
       (resolve) => {
         const hasId = isEntity ? !!resource.id : !!id;
         const { canUser: canUser3 } = resolve(store);
-        const create3 = canUser3(
-          "create",
-          isEntity ? { kind: resource.kind, name: resource.name } : resource
-        );
+        const collectionResource = isEntity ? { kind: resource.kind, name: resource.name } : resource;
+        const create3 = canUser3("create", collectionResource);
         if (!hasId) {
-          const read2 = canUser3("read", resource);
+          const read2 = canUser3("read", collectionResource);
           const isResolving2 = create3.isResolving || read2.isResolving;
           const hasResolved2 = create3.hasResolved && read2.hasResolved;
           let status2 = Status.Idle;
@@ -7107,7 +7669,7 @@ var wp;
     );
   }
   var use_resource_permissions_default = useResourcePermissions;
-  function __experimentalUseResourcePermissions(resource, id) {
+  function useDeprecatedResourcePermissions(resource, id) {
     (0, import_deprecated6.default)(`wp.data.__experimentalUseResourcePermissions`, {
       alternative: "wp.data.useResourcePermissions",
       since: "6.1"
@@ -7117,7 +7679,7 @@ var wp;
 
   // packages/core-data/build-module/hooks/use-entity-block-editor.mjs
   var import_element6 = __toESM(require_element(), 1);
-  var import_data14 = __toESM(require_data(), 1);
+  var import_data13 = __toESM(require_data(), 1);
   var import_blocks5 = __toESM(require_blocks(), 1);
 
   // packages/core-data/build-module/hooks/use-entity-id.mjs
@@ -7264,16 +7826,15 @@ var wp;
 
   // packages/core-data/build-module/hooks/use-entity-block-editor.mjs
   var EMPTY_ARRAY2 = [];
-  var parsedBlocksCache = /* @__PURE__ */ new Map();
   function useEntityBlockEditor(kind, name, { id: _id } = {}) {
     const providerId = useEntityId(kind, name);
     const id = _id ?? providerId;
-    const { content, editedBlocks, meta } = (0, import_data14.useSelect)(
-      (select5) => {
+    const { content, editedBlocks, meta } = (0, import_data13.useSelect)(
+      (select4) => {
         if (!id) {
           return {};
         }
-        const { getEditedEntityRecord: getEditedEntityRecord3 } = select5(STORE_NAME);
+        const { getEditedEntityRecord: getEditedEntityRecord3 } = select4(STORE_NAME);
         const editedRecord = getEditedEntityRecord3(kind, name, id);
         return {
           editedBlocks: editedRecord.blocks,
@@ -7283,7 +7844,7 @@ var wp;
       },
       [kind, name, id]
     );
-    const { __unstableCreateUndoLevel: __unstableCreateUndoLevel2, editEntityRecord: editEntityRecord2 } = (0, import_data14.useDispatch)(STORE_NAME);
+    const { __unstableCreateUndoLevel: __unstableCreateUndoLevel2, editEntityRecord: editEntityRecord2 } = (0, import_data13.useDispatch)(STORE_NAME);
     const blocks = (0, import_element6.useMemo)(() => {
       if (!id) {
         return void 0;
@@ -7294,7 +7855,7 @@ var wp;
       if (!content || typeof content !== "string") {
         return EMPTY_ARRAY2;
       }
-      const cacheKey = `${kind}:${name}:${id}`;
+      const cacheKey = getCacheKey(kind, name, id);
       const cached = parsedBlocksCache.get(cacheKey);
       let _blocks;
       if (cached && cached.content === content) {
@@ -7351,16 +7912,16 @@ var wp;
 
   // packages/core-data/build-module/hooks/use-entity-prop.mjs
   var import_element7 = __toESM(require_element(), 1);
-  var import_data15 = __toESM(require_data(), 1);
+  var import_data14 = __toESM(require_data(), 1);
   function useEntityProp(kind, name, prop, _id) {
     const providerId = useEntityId(kind, name);
     const id = _id ?? providerId;
     const context = (0, import_element7.useContext)(EntityContext);
     const revisionId = context?.revisionId;
-    const { value, fullValue } = (0, import_data15.useSelect)(
-      (select5) => {
+    const { value, fullValue } = (0, import_data14.useSelect)(
+      (select4) => {
         if (revisionId) {
-          const revisions = select5(STORE_NAME).getRevisions(
+          const revisions = select4(STORE_NAME).getRevisions(
             kind,
             name,
             id,
@@ -7370,7 +7931,7 @@ var wp;
               _fields: "id,date,author,meta,title.raw,excerpt.raw,content.raw"
             }
           );
-          const entityConfig = select5(STORE_NAME).getEntityConfig(
+          const entityConfig = select4(STORE_NAME).getEntityConfig(
             kind,
             name
           );
@@ -7379,11 +7940,11 @@ var wp;
             (r) => r[revKey] === revisionId
           );
           return revision ? {
-            value: revision[prop],
+            value: revision[prop]?.raw ?? revision[prop],
             fullValue: revision[prop]
           } : {};
         }
-        const { getEntityRecord: getEntityRecord3, getEditedEntityRecord: getEditedEntityRecord3 } = select5(STORE_NAME);
+        const { getEntityRecord: getEntityRecord3, getEditedEntityRecord: getEditedEntityRecord3 } = select4(STORE_NAME);
         const record = getEntityRecord3(kind, name, id);
         const editedRecord = getEditedEntityRecord3(kind, name, id);
         return record && editedRecord ? {
@@ -7393,7 +7954,7 @@ var wp;
       },
       [kind, name, id, prop, revisionId]
     );
-    const { editEntityRecord: editEntityRecord2 } = (0, import_data15.useDispatch)(STORE_NAME);
+    const { editEntityRecord: editEntityRecord2 } = (0, import_data14.useDispatch)(STORE_NAME);
     const setValue = (0, import_element7.useCallback)(
       (newValue) => {
         if (revisionId) {
@@ -7413,7 +7974,8 @@ var wp;
   var import_element8 = __toESM(require_element(), 1);
   var defaultResolvedSelection = {
     richTextOffset: null,
-    localClientId: null
+    localClientId: null,
+    attributeKey: null
   };
   var defaultState = {
     activeCollaborators: [],
@@ -7429,7 +7991,7 @@ var wp;
     const activeCollaborators = newState ?? awareness.getCurrentState();
     return {
       activeCollaborators,
-      resolveSelection: (selection) => awareness.convertSelectionStateToAbsolute(selection),
+      resolveSelection: (selection, blocks) => awareness.convertSelectionStateToAbsolute(selection, blocks),
       getDebugData: () => awareness.getDebugData(),
       isCurrentCollaboratorDisconnected: activeCollaborators.find((collaborator) => collaborator.isMe)?.isConnected === false
     };
@@ -7466,7 +8028,12 @@ var wp;
     return usePostEditorAwarenessState(postId, postType).activeCollaborators;
   }
   function useResolvedSelection(postId, postType) {
-    return usePostEditorAwarenessState(postId, postType).resolveSelection;
+    const blocks = usePostContentBlocks();
+    const awarenessState = usePostEditorAwarenessState(postId, postType);
+    return (0, import_element8.useCallback)(
+      (selection) => awarenessState.resolveSelection(selection, blocks),
+      [blocks, awarenessState]
+    );
   }
   function useLastPostSave(postId, postType) {
     const [lastSave, setLastSave] = (0, import_element8.useState)(null);
@@ -7582,8 +8149,7 @@ var wp;
   }
 
   // packages/core-data/build-module/private-apis.mjs
-  var privateApis = {};
-  lock(privateApis, {
+  var lockedApis = {
     useEntityRecordsWithPermissions,
     RECEIVE_INTERMEDIATE_RESULTS,
     retrySyncConnection,
@@ -7591,8 +8157,12 @@ var wp;
     useResolvedSelection,
     useOnCollaboratorJoin,
     useOnCollaboratorLeave,
-    useOnPostSave
-  });
+    useOnPostSave,
+    SelectionType,
+    SelectionDirection
+  };
+  var privateApis = {};
+  lock(privateApis, lockedApis);
 
   // packages/core-data/build-module/index.mjs
   var entitiesConfig2 = [
@@ -7679,9 +8249,9 @@ var wp;
     },
     resolvers: { ...resolvers_exports, ...entityResolvers }
   });
-  var store = (0, import_data16.createReduxStore)(STORE_NAME, storeConfig());
+  var store = (0, import_data15.createReduxStore)(STORE_NAME, storeConfig());
   unlock(store).registerPrivateSelectors(private_selectors_exports);
   unlock(store).registerPrivateActions(private_actions_exports);
-  (0, import_data16.register)(store);
+  (0, import_data15.register)(store);
   return __toCommonJS(index_exports);
 })();

@@ -2,9 +2,10 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
+import { joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
+	PHPWebExtension,
 	SyncProgressCallback,
 	TCPOverFetchOptions,
 } from '@php-wasm/web';
@@ -29,9 +30,15 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { AllPHPVersion, PathAlias, PHP } from '@php-wasm/universal';
+import type {
+	AllPHPVersion,
+	PathAlias,
+	PHP,
+	PHPRequestHandler,
+} from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
+	MountStillActiveError,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -54,6 +61,9 @@ import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import playgroundWebMuPluginPhp52 from './playground-mu-plugin/0-playground-php52.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
+let activeRequestHandler: PHPRequestHandler | undefined;
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
+
 export interface MountDescriptor {
 	mountpoint: string;
 	device: MountDevice;
@@ -62,22 +72,23 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	/** A caller-provided WordPress archive used instead of downloading one. */
+	wordPressZip?: File;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
 	scope: string;
-	withIntl: boolean;
+	extensions?: PHPWebExtension[];
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
+	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
-	/** When true, skip default WP install and run Blueprints v2 in the worker */
-	experimentalBlueprintsV2Runner?: boolean;
-	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
+	/** Blueprint v2 declaration used for worker-side execution or preflight checks. */
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.
-	 * Defaults to 'install-from-existing-files-if-needed'.
+	 * Defaults to `download-and-install`.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
@@ -106,14 +117,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	loadedWordPressVersion: string | undefined;
 
-	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
-		[];
-
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
 		createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
+	private requestHandler: PHPRequestHandler | undefined;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -138,7 +147,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
-		withIntl,
+		extensions,
 		withNetworking,
 		phpVersion,
 		pathAliases,
@@ -147,13 +156,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
-		withIntl: boolean;
+		extensions?: PHPWebExtension[];
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			'curl.cainfo': '/internal/shared/ca-bundle.crt',
 		};
 
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
@@ -179,13 +189,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				CAroot,
 				corsProxyUrl,
 			};
-			phpIniEntries['disable_functions'] = (
-				phpIniEntries['disable_functions'] ?? ''
-			)
-				.split(',')
-				.concat(['curl_share_init'])
-				.filter((n) => n)
-				.join(',');
 		} else {
 			phpIniEntries['allow_url_fopen'] = '0';
 			phpIniEntries['disable_functions'] = (
@@ -205,7 +208,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
-					withIntl,
+					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
@@ -232,6 +235,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				/**
+				 * The remote runtime has no mail server. Capture sendmail stdin as an
+				 * event through a null transport; consumers must relay the message if
+				 * they want it delivered.
+				 */
+				php.setCommandSpawnHandler(
+					'sendmail',
+					sendmailSpawnHandler(php)
+				);
+
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [
 						'/tmp',
@@ -267,6 +280,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
+					...viewTransitionsWorkaroundMuPlugin(),
 					// Legacy PHP can't parse closures at all (even with an
 					// early return), so use a minimal compatible stub instead.
 					'1-playground-web.php': isLegacyPhp
@@ -312,7 +326,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 
 		const primaryPhp = await requestHandler.getPrimaryPhp();
+		primaryPhp.requestHandler ??= requestHandler;
 		await this.setPrimaryPHP(primaryPhp);
+		this.__internal_setRequestHandler(requestHandler);
+		this.requestHandler = requestHandler;
+		activeRequestHandler = requestHandler;
 		return requestHandler;
 	}
 
@@ -322,6 +340,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		knownRemoteAssetPaths: Set<string>
 	) {
 		const primaryPhp = await requestHandler.getPrimaryPhp();
+		primaryPhp.requestHandler ??= requestHandler;
+		this.requestHandler = requestHandler;
+		activeRequestHandler = requestHandler;
 
 		if (withNetworking) {
 			/**
@@ -384,6 +405,23 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.__internal_setRequestHandler(requestHandler);
 	}
 
+	protected override getRequestHandler(required?: true): PHPRequestHandler;
+	protected override getRequestHandler(
+		required: false
+	): PHPRequestHandler | undefined;
+	protected override getRequestHandler(required = true) {
+		const requestHandler =
+			super.getRequestHandler(false) ??
+			this.requestHandler ??
+			activeRequestHandler;
+		if (requestHandler || !required) {
+			return requestHandler;
+		}
+		throw new Error(
+			'Playground worker is not connected to a request handler.'
+		);
+	}
+
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
 	/**
@@ -426,31 +464,38 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		await opfsMount.flush();
 	}
 
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	async unmountOpfs(mountpoint: string) {
-		const opfsMount = this.opfsMounts[mountpoint];
 		const unmount = this.unmounts[mountpoint];
-		if (opfsMount === undefined || unmount === undefined) {
+		if (
+			this.opfsMounts[mountpoint] === undefined ||
+			unmount === undefined
+		) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		let flushError: unknown;
-		try {
-			await opfsMount.flush();
-		} catch (error) {
-			flushError = error;
-		}
+		let mountIsStillActive = false;
 		try {
 			await unmount();
 		} catch (error) {
-			if (flushError === undefined) {
-				throw error;
+			if (error instanceof MountStillActiveError) {
+				// PHP retained its callback and journal. Keep endpoint tracking
+				// aligned, but do not expose this internal lifecycle signal.
+				mountIsStillActive = true;
+				throw error.cause;
 			}
-			logger.error(error);
+			throw error;
 		} finally {
-			delete this.unmounts[mountpoint];
-			delete this.opfsMounts[mountpoint];
-		}
-		if (flushError !== undefined) {
-			throw flushError;
+			if (!mountIsStillActive) {
+				delete this.unmounts[mountpoint];
+				delete this.opfsMounts[mountpoint];
+			}
 		}
 	}
 
@@ -464,16 +509,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
-	}
-
-	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another
-	// way of listening for events.
-	async onBlueprintMessage(listener: (message: any) => void | Promise<void>) {
-		this.blueprintMessageListeners.push(listener);
-		return async () => {
-			this.blueprintMessageListeners =
-				this.blueprintMessageListeners.filter((l) => l !== listener);
-		};
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -542,6 +577,68 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		this.unmounts[options.mountpoint] = unmount;
 		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
+}
+
+/**
+ * Disable view transitions in Google Chrome until
+ * https://issues.chromium.org/issues/530704642 is resolved.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3845.
+ */
+function viewTransitionsWorkaroundMuPlugin(): Record<string, string> {
+	const userEnforcedTransitions = new URL(
+		globalThis.location.href
+	).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM);
+	const navigatorObject = globalThis.navigator;
+	const brands = navigatorObject
+		? (
+				navigatorObject as Navigator & {
+					userAgentData?: { brands?: Array<{ brand: string }> };
+				}
+			).userAgentData?.brands
+		: undefined;
+	// Naive but sufficient browser detection for the crash workaround.
+	const isChromiumBasedBrowser = brands
+		? brands.some(({ brand }) =>
+				[
+					'Chromium',
+					'Google Chrome',
+					'Microsoft Edge',
+					'Opera',
+				].includes(brand)
+			)
+		: /\b(?:Chrome|Chromium|Edg|OPR)\//.test(
+				navigatorObject?.userAgent || ''
+			);
+
+	if (userEnforcedTransitions || !isChromiumBasedBrowser) {
+		return {};
+	}
+
+	return {
+		'0-playground-chrome-view-transitions-workaround.php': `<?php
+/**
+ * Disable view transitions in Google Chrome until
+ * https://issues.chromium.org/issues/530704642 is resolved.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3845.
+ */
+function playground_remove_admin_view_transitions_for_chrome_crash() {
+	remove_action( 'admin_print_styles', 'playground_enable_view_transitions', 0 );
+}
+add_action( 'admin_print_styles', 'playground_remove_admin_view_transitions_for_chrome_crash', -1 );
+
+function playground_dequeue_admin_view_transitions_for_chrome_crash() {
+	if ( ! function_exists( 'wp_dequeue_style' ) || ! function_exists( 'wp_deregister_style' ) ) {
+		return;
+	}
+
+	wp_dequeue_style( 'wp-view-transitions-admin' );
+	wp_deregister_style( 'wp-view-transitions-admin' );
+}
+add_action( 'admin_enqueue_scripts', 'playground_dequeue_admin_view_transitions_for_chrome_crash', PHP_INT_MAX );
+`,
+	};
 }
 
 function createNullPrototypeRecord<T>() {

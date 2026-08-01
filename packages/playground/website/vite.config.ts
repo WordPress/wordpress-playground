@@ -30,6 +30,8 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 
 const exec = promisify(execCb);
@@ -83,6 +85,9 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 
 		css: {
 			modules: {
@@ -123,7 +128,7 @@ export default defineConfig(({ command, mode }) => {
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				'^[/]((?!website-server|php-next).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 					changeOrigin: true,
 				},
@@ -187,6 +192,27 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					// Let static playground pages import the local client package in dev.
+					server.middlewares.use(
+						'/website-server/client/index.js',
+						(_, res) => {
+							const clientIndexPath = fileURLToPath(
+								new URL(
+									'../client/src/index.ts',
+									import.meta.url
+								)
+							);
+							res.setHeader(
+								'Content-Type',
+								'application/javascript'
+							);
+							res.end(
+								`export * from ${JSON.stringify(
+									`/@fs/${clientIndexPath}`
+								)};`
+							);
+						}
+					);
 					server.middlewares.use(oAuthMiddleware);
 				},
 			},

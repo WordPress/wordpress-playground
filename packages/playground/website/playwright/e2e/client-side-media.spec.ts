@@ -68,7 +68,9 @@ test('Post editor should be cross-origin isolated with SharedArrayBuffer availab
 	website,
 	wordpress,
 }) => {
-	await website.goto(`./#${JSON.stringify(clientSideMediaBlueprint)}`);
+	await website.goto(
+		`./?storage=temp#${JSON.stringify(clientSideMediaBlueprint)}`
+	);
 
 	// Wait for the block editor to fully load. The editor header is visible in both
 	// fullscreen and non-fullscreen modes.
@@ -96,7 +98,9 @@ test('Gutenberg should report client-side media processing as enabled', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto(`./#${JSON.stringify(clientSideMediaBlueprint)}`);
+	await website.goto(
+		`./?storage=temp#${JSON.stringify(clientSideMediaBlueprint)}`
+	);
 
 	await expect(
 		wordpress.locator('.edit-post-header, .editor-header')

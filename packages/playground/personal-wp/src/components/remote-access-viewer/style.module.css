@@ -1,0 +1,292 @@
+.viewer {
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: #f6f7f7;
+	color: #1e1e1e;
+}
+
+.banner {
+	min-height: 48px;
+	padding: 10px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	background: #ffffff;
+	border-bottom: 1px solid #dcdcde;
+	z-index: 2;
+}
+
+.banner-title strong {
+	display: block;
+	font-size: 14px;
+	line-height: 20px;
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.banner-title {
+	min-width: 0;
+}
+
+.banner-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.backup-button {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font: inherit;
+	font-size: 12px;
+	line-height: 1;
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.backup-button:hover:not(:disabled),
+.backup-button:focus-visible {
+	border-color: #8c8f94;
+	background: #f6f7f7;
+}
+
+.backup-button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.backup-button:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.status-pill {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	height: 28px;
+	min-height: 28px;
+	min-width: 86px;
+	padding: 0 10px;
+	border-radius: 4px;
+	background: #f0f6fc;
+	color: #1e1e1e;
+	font-size: 12px;
+	line-height: 1;
+	font-weight: 500;
+	border: 1px solid #c3c4c7;
+	white-space: nowrap;
+}
+
+.status-pill-button {
+	font-family: inherit;
+	cursor: pointer;
+}
+
+.status-pill-button:hover,
+.status-pill-button:focus-visible {
+	background: #f6f7f7;
+	border-color: #8c8f94;
+	color: #1e1e1e;
+}
+
+.status-pill-button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.status-pill-label,
+.status-pill-hover-label {
+	display: block;
+	line-height: 1;
+}
+
+.status-pill-hover-label {
+	position: absolute;
+	opacity: 0;
+}
+
+.status-pill-button:hover .status-pill-label,
+.status-pill-button:focus-visible .status-pill-label {
+	opacity: 0;
+}
+
+.status-pill-button:hover .status-pill-hover-label,
+.status-pill-button:focus-visible .status-pill-hover-label {
+	opacity: 1;
+}
+
+.unsupported-notice {
+	min-height: 44px;
+	padding: 8px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	background: #fff8e5;
+	border-bottom: 1px solid #dba617;
+	color: #1e1e1e;
+	font-size: 13px;
+	line-height: 18px;
+	z-index: 2;
+}
+
+.unsupported-notice span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.unsupported-notice-actions {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.unsupported-notice button {
+	flex: 0 0 auto;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid #dba617;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font: inherit;
+	font-size: 12px;
+	line-height: 1;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.unsupported-notice button:hover,
+.unsupported-notice button:focus-visible {
+	background: #fffdf5;
+	border-color: #8a6a00;
+}
+
+.unsupported-notice button:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.iframe-wrapper {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+
+.iframe {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+	background: #ffffff;
+}
+
+.center-notice {
+	position: absolute;
+	inset: 48px 0 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 24px;
+	text-align: center;
+	z-index: 1;
+}
+
+.center-notice h1,
+.disconnected-card h1 {
+	margin: 0;
+	font-size: 20px;
+	line-height: 28px;
+	font-weight: 600;
+}
+
+.center-notice p,
+.disconnected-card p {
+	max-width: 520px;
+	margin: 0;
+	color: #50575e;
+	font-size: 14px;
+	line-height: 20px;
+}
+
+.verification-code {
+	padding: 8px 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #1e1e1e;
+	font-size: 28px;
+	line-height: 34px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.center-notice button,
+.disconnected-card button {
+	margin-top: 6px;
+	padding: 8px 14px;
+	border: 1px solid #1e1e1e;
+	border-radius: 4px;
+	background: #1e1e1e;
+	color: #ffffff;
+	font: inherit;
+	cursor: pointer;
+}
+
+.disconnected-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(246, 247, 247, 0.82);
+}
+
+.disconnected-card {
+	width: min(420px, 100%);
+	padding: 24px;
+	background: #ffffff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+	text-align: center;
+}
+
+@media (max-width: 600px) {
+	.banner {
+		align-items: center;
+		flex-direction: row;
+		gap: 8px;
+	}
+
+	.banner-title strong {
+		font-size: 13px;
+		line-height: 18px;
+	}
+
+	.center-notice {
+		inset-block-start: 48px;
+	}
+}

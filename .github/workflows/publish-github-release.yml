@@ -7,8 +7,9 @@ on:
         types:
             - completed
 
-permissions:
-    contents: write
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
 
 jobs:
     create-release:
@@ -25,6 +26,9 @@ jobs:
             )
 
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: write # Required to clone the repo, create the GitHub release, and push the tag.
 
         steps:
             - uses: actions/checkout@v4

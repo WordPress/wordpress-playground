@@ -46,7 +46,9 @@ npm run dev
 
 Playground will open in a new browser tab and refresh automatically with each change.
 
-:::tip Troubleshooting: File watcher limit on Linux
+<div class="callout callout-tip">
+
+**Troubleshooting: File watcher limit on Linux**
 
 On Linux, you might see an error like `ENOSPC: System limit for number of file watchers reached` when running `npm run dev`. This happens because the Playground repository has more files than the default system limit allows to watch.
 
@@ -65,7 +67,7 @@ sudo sysctl -p
 
 Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and other Linux distributions.
 
-:::
+</div>
 
 When your'e ready, commit the changes and submit a Pull Request.
 
@@ -79,12 +81,13 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 
 ### Running a local Multisite
 
-WordPress Multisite has a few [restrictions when run locally](https://developer.wordpress.org/advanced-administration/multisite/prepare-network/#restrictions). If you plan to test a Multisite network using Playground's `enableMultisite` step, make sure you either change `wp-now`'s default port or set a local test domain running via HTTPS.
+WordPress Multisite has a few [restrictions when run locally](https://developer.wordpress.org/advanced-administration/multisite/prepare-network/#restrictions). If you plan to test a Multisite network using Playground's `enableMultisite` step, make sure you either change Playground CLI's default port or set a local test domain running via HTTPS.
 
-To change `wp-now`'s default port to the one supported by WordPress Multisite, run it using the `--port=80` flag:
+To change Playground CLI's default port to the one supported by WordPress
+Multisite, run it using the `--port=80` flag:
 
 ```bash
-npx @wp-now/wp-now start --port=80
+npx @wp-playground/cli@latest start --port=80
 ```
 
 There are a few ways to set up a local test domain, including editing your `hosts` file. If you're unsure how to do that, we suggest installing [Laravel Valet](https://laravel.com/docs/11.x/valet) and then running the following command:

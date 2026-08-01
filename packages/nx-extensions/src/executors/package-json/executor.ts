@@ -1,6 +1,11 @@
 import * as fs from 'fs';
 import { createPackageJson } from '@nx/js';
-import type { ExecutorContext, ProjectGraphDependency } from '@nx/devkit';
+import type {
+	ExecutorContext,
+	FileData,
+	ProjectFileMap,
+	ProjectGraphDependency,
+} from '@nx/devkit';
 import {
 	serializeJson,
 	logger,
@@ -12,6 +17,8 @@ import {
 	HelperDependency,
 	readTsConfig,
 } from '@nx/js';
+import { readFileMapCache } from 'nx/src/project-graph/nx-deps-cache';
+import { fileDataDepTarget } from 'nx/src/config/project-graph';
 import type { PackageJsonExecutorSchema } from './schema';
 
 interface ExecutorEvent {
@@ -52,7 +59,12 @@ export default async function* packageJsonExecutor(
 		});
 	}
 
-	const monorepoDependencies = getMonorepoDependencies(context);
+	const sourceFileMap = getSourceOnlyFileMap();
+	const sourceDeps = getSourceDependencyTargets(
+		sourceFileMap,
+		context.projectName
+	);
+	const monorepoDependencies = getMonorepoDependencies(context, sourceDeps);
 
 	// Read optional dependencies from the original package.json
 	let originalOptionalDependencies: Record<string, string> | undefined;
@@ -75,7 +87,9 @@ export default async function* packageJsonExecutor(
 				context,
 				helperDependencies,
 				monorepoDependencies,
-				originalOptionalDependencies
+				originalOptionalDependencies,
+				sourceFileMap,
+				sourceDeps
 			);
 			if (built === false) {
 				return {
@@ -109,7 +123,9 @@ async function buildPackageJson(
 	context: ExecutorContext,
 	helperDependencies: ProjectGraphDependency[],
 	monorepoDependencies: MonorepoDependency[],
-	originalOptionalDependencies?: Record<string, string>
+	originalOptionalDependencies?: Record<string, string>,
+	sourceFileMap?: ProjectFileMap,
+	sourceDeps?: Set<string>
 ) {
 	const packageJson = createPackageJson(
 		context.projectName,
@@ -119,7 +135,8 @@ async function buildPackageJson(
 			root: context.root,
 			isProduction: true,
 			helperDependencies: helperDependencies.map((dep) => dep.target),
-		} as any
+		} as any,
+		sourceFileMap
 	);
 
 	let main = packageJson.main ?? event.outfile;
@@ -134,6 +151,17 @@ async function buildPackageJson(
 
 	if (!packageJson.dependencies) {
 		packageJson.dependencies = {};
+	}
+
+	// Remove external dependencies that are not directly imported by source
+	// files. createPackageJson flattens transitive dependencies, but published
+	// libraries should only declare their direct dependencies.
+	if (sourceDeps) {
+		for (const name of Object.keys(packageJson.dependencies)) {
+			if (!sourceDeps.has(`npm:${name}`)) {
+				delete packageJson.dependencies[name];
+			}
+		}
 	}
 
 	for (const dep of monorepoDependencies) {
@@ -178,12 +206,6 @@ async function buildPackageJson(
 		options.outputPath + '/package.json',
 		serializeJson(packageJson)
 	);
-
-	// Lock file doesn't work with monorepoDependencies
-	// fs.writeFileSync(
-	//   getLockFileName(),
-	//   createLockFile(packageJson)
-	// );
 }
 
 interface MonorepoDependency {
@@ -191,8 +213,41 @@ interface MonorepoDependency {
 	version: string;
 }
 
+function isSourceFile(filePath: string): boolean {
+	return /\/src\//.test(filePath) && !/\/tests?\//.test(filePath);
+}
+
+function getSourceOnlyFileMap(): ProjectFileMap {
+	const cache = readFileMapCache();
+	const fullFileMap = cache?.fileMap?.projectFileMap || {};
+	const filtered: ProjectFileMap = {};
+	for (const [project, files] of Object.entries(fullFileMap)) {
+		filtered[project] = (files as FileData[]).filter((f) =>
+			isSourceFile(f.file)
+		);
+	}
+	return filtered;
+}
+
+function getSourceDependencyTargets(
+	sourceFileMap: ProjectFileMap,
+	projectName?: string
+): Set<string> {
+	const targets = new Set<string>();
+	if (projectName) {
+		const projectFiles = sourceFileMap[projectName] || [];
+		for (const fileData of projectFiles) {
+			for (const dep of fileData.deps || []) {
+				targets.add(fileDataDepTarget(dep));
+			}
+		}
+	}
+	return targets;
+}
+
 function getMonorepoDependencies(
-	context: ExecutorContext
+	context: ExecutorContext,
+	sourceDeps: Set<string>
 ): MonorepoDependency[] {
 	const monorepoDeps: MonorepoDependency[] = [];
 	for (const repoDep of context.projectGraph.dependencies[
@@ -205,6 +260,9 @@ function getMonorepoDependencies(
 			continue;
 		}
 		if (!(repoDep.target in context.projectGraph.nodes)) {
+			continue;
+		}
+		if (!sourceDeps.has(repoDep.target)) {
 			continue;
 		}
 		const targetSourceRoot =

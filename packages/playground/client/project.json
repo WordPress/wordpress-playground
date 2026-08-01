@@ -7,7 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README"]
+			"dependsOn": ["build:README", "build:rollup-declarations"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -24,21 +24,17 @@
 				"tsConfig": "packages/playground/client/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/client",
 				"buildTarget": "playground-client:build:bundle:production"
-			},
-			"dependsOn": ["build:rollup-declarations"]
+			}
 		},
 		"build:rollup-declarations": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx dts-bundle-generator -o packages/playground/client/src/rollup.d.ts -- packages/playground/client/src/index.ts",
-					"rimraf dist/packages/playground/client/lib/*.d.ts",
-					"rimraf dist/packages/playground/client/*.d.ts",
-					"cp packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
+					"node packages/playground/client/bin/build-rollup-declarations.mjs"
 				],
 				"parallel": false
 			},
-			"dependsOn": ["build:bundle"]
+			"dependsOn": ["build:package-json"]
 		},
 		"build:bundle": {
 			"executor": "@nx/vite:build",
@@ -96,6 +92,13 @@
 			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
 			"options": {
 				"outputPath": "dist/packages/playground/client"
+			},
+			"dependsOn": ["build"]
+		},
+		"test:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/client/bin/check-rollup-declarations.mjs"
 			},
 			"dependsOn": ["build"]
 		},

@@ -6,10 +6,11 @@ export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
 }
 
-interface QueryAPIParams {
+export interface QueryAPIParams {
 	name?: string;
 	wp?: string;
 	php?: string;
+	'php-extension'?: string[];
 	language?: string;
 	multisite?: 'yes' | 'no';
 	networking?: 'yes' | 'no';
@@ -17,6 +18,9 @@ interface QueryAPIParams {
 	login?: 'yes' | 'no';
 	plugin?: string[];
 	blueprint?: string;
+	'core-pr'?: string;
+	'gutenberg-branch'?: string;
+	'gutenberg-pr'?: string;
 	'import-site'?: string;
 	'import-wxr'?: string;
 	'import-content'?: string;
@@ -58,7 +62,10 @@ export function parseBlueprint(rawData: string) {
  * base64-decode-then-parse error if the input looks base64-shaped,
  * otherwise the plain JSON.parse error.
  */
-function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string {
+function formatInvalidBlueprintError(
+	rawData: string,
+	errors: unknown[]
+): string {
 	const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(rawData.trim());
 	const primary = looksLikeBase64 && errors[1] ? errors[1] : errors[0];
 	const detail =
@@ -75,7 +82,21 @@ function formatInvalidBlueprintError(rawData: string, errors: unknown[]): string
 	return sentences.join('. ') + '.';
 }
 
+/**
+ * Builds navigation targets for Playground site changes.
+ *
+ * The helpers describe user-facing routing intents, such as switching to a
+ * saved Playground or starting a fresh setup. They do not change browser
+ * history themselves; callers navigate to the returned URL.
+ */
 export class PlaygroundRoute {
+	/**
+	 * Builds the navigation target for switching to an existing Playground.
+	 *
+	 * Temporary sites reuse their original setup URL. Stored sites use a
+	 * `site-slug` route while preserving selected query parameters from the
+	 * current URL.
+	 */
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
@@ -85,6 +106,10 @@ export class PlaygroundRoute {
 				'mode',
 				'networking',
 				'login',
+				'php',
+				'wp',
+				'language',
+				'multisite',
 				'url',
 				'page-title',
 				'mcp',
@@ -103,6 +128,13 @@ export class PlaygroundRoute {
 			});
 		}
 	}
+
+	/**
+	 * Get the URL that starts a fresh temporary Playground.
+	 *
+	 * It comes with `?storage=temp` and a random cache busting parameter
+	 * and will not be autosaved regardless of the default browser-storage policy.
+	 */
 	static newTemporarySite(
 		config: {
 			query?: QueryAPIParams;
@@ -117,9 +149,39 @@ export class PlaygroundRoute {
 			{
 				searchParams: {
 					...query,
-					// Ensure a part of the URL is unique so we can still
-					// reload the temporary site even if its configuration
-					// hasn't changed.
+					storage: 'temp',
+					// Repeating the same temporary setup should still
+					// navigate away from the current Playground.
+					random: Math.random().toString(36).substring(2, 15),
+				},
+				hash: config.hash,
+			},
+			'replace'
+		);
+	}
+
+	/**
+	 * Get the URL that starts a fresh autosaved Playground.
+	 *
+	 * It comes with no `?storage` parameter, which allows the default browser-storage
+	 * policy to take effect. It still includes a random cache busting parameter anyway.
+	 */
+	static newSite(
+		config: {
+			query?: QueryAPIParams;
+			hash?: string;
+		} = {},
+		baseUrl: string = window.location.href
+	) {
+		const query =
+			(config.query as Record<string, string | undefined>) || {};
+		return updateUrl(
+			baseUrl,
+			{
+				searchParams: {
+					...query,
+					// Repeating the same setup should still navigate away from
+					// the current Playground.
 					random: Math.random().toString(36).substring(2, 15),
 				},
 				hash: config.hash,
@@ -130,19 +192,30 @@ export class PlaygroundRoute {
 }
 
 /**
- * Checks if the URL has a query parameter that disables saving.
- *
- * @returns {boolean} True if saving is disabled by the query parameter, false otherwise.
+ * Checks if the current Playground shell should offer browser saving.
  */
-export function isSaveDisabledByQueryParam(): boolean {
+export function isSiteSavingDisabled(
+	url: URL = new URL(document.location.href),
+	win: Window = window
+): boolean {
 	return (
-		new URL(document.location.href).searchParams.get('can-save') === 'no'
+		url.searchParams.get('can-save') === 'no' ||
+		url.searchParams.get('mode') === 'seamless' ||
+		isEmbeddedInAnIframe(win)
 	);
 }
 
+function isEmbeddedInAnIframe(win: Window): boolean {
+	try {
+		return win.self !== win.top;
+	} catch {
+		return true;
+	}
+}
+
 /**
- * Checks if the MCP server bridge is enabled via the `?mcp=yes` query parameter.
+ * Checks if the MCP server bridge is enabled via the `?mcp-port` query parameter.
  */
 export function isMcpServerEnabled(): boolean {
-	return new URL(document.location.href).searchParams.get('mcp') === 'yes';
+	return new URL(document.location.href).searchParams.has('mcp-port');
 }

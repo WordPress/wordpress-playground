@@ -52,13 +52,15 @@ export const importWordPressFiles: StepHandler<
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
-	let importPath = joinPaths('/tmp', 'import');
-	await playground.mkdir(importPath);
+	const unzipRoot = joinPaths('/tmp', 'import');
+	await playground.mkdir(unzipRoot);
 	await unzip(playground, {
 		zipFile: wordPressFilesZip,
-		extractToPath: importPath,
+		extractToPath: unzipRoot,
 	});
-	importPath = joinPaths(importPath, pathInZip);
+	let importPath = joinPaths(unzipRoot, pathInZip);
+	importPath =
+		(await findWordPressFilesRoot(playground, importPath)) || importPath;
 
 	// Read the export manifest if it exists. The manifest contains the
 	// site URL (including scope) at export time, which we'll use later
@@ -126,7 +128,9 @@ export const importWordPressFiles: StepHandler<
 	}
 
 	// Remove the directory where we unzipped the imported zip file.
-	await playground.rmdir(importPath);
+	await playground.rmdir(unzipRoot, {
+		recursive: true,
+	});
 
 	// Ensure required constants are defined if wp-config.php doesn't define them.
 	await ensureWpConfig(playground, documentRoot);
@@ -290,6 +294,66 @@ async function inferSiteUrlFromDatabase(
 	});
 	const siteUrl = result.text.trim();
 	return siteUrl || null;
+}
+
+const WORDPRESS_ROOT_MARKERS = [
+	'wp-content',
+	'wp-admin',
+	'wp-includes',
+	'wp-config.php',
+	'wp-config-sample.php',
+];
+
+/**
+ * Finds the directory containing the WordPress files in an extracted archive.
+ *
+ * Some ZIP tools wrap the selected files in a single parent directory. Without
+ * unwrapping that directory, importWordPressFiles() reports success but moves
+ * the wrapper into WordPress, leaving the live wp-content unchanged.
+ *
+ * Only one wrapper directory is supported, and only when it is the only entry
+ * at the requested import path. Deeper layouts are ambiguous, so they are left
+ * unchanged instead of guessing.
+ *
+ * wp-content is not required here. importWordPressFiles() can also replace
+ * other top-level WordPress files such as wp-admin, wp-includes, or
+ * wp-config.php.
+ */
+async function findWordPressFilesRoot(
+	playground: UniversalPHP,
+	importPath: string
+): Promise<string | null> {
+	if (await hasWordPressRootMarker(playground, importPath)) {
+		return importPath;
+	}
+
+	const fileNames = await playground.listFiles(importPath);
+	if (fileNames.length !== 1) {
+		return null;
+	}
+
+	const nestedPath = joinPaths(importPath, fileNames[0]);
+	if (!(await playground.isDir(nestedPath))) {
+		return null;
+	}
+
+	if (await hasWordPressRootMarker(playground, nestedPath)) {
+		return nestedPath;
+	}
+
+	return null;
+}
+
+async function hasWordPressRootMarker(
+	playground: UniversalPHP,
+	path: string
+): Promise<boolean> {
+	for (const marker of WORDPRESS_ROOT_MARKERS) {
+		if (await playground.fileExists(joinPaths(path, marker))) {
+			return true;
+		}
+	}
+	return false;
 }
 
 async function removePath(playground: UniversalPHP, path: string) {

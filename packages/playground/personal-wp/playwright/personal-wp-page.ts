@@ -44,16 +44,4 @@ export class PersonalWPPage {
 			await button.click();
 		}
 	}
-
-	async openMenuOverlay() {
-		await this.page
-			.getByRole('button', { name: 'Playground Menu' })
-			.click();
-	}
-
-	addressBar() {
-		return this.page
-			.locator('header[aria-label="Playground toolbar"]')
-			.locator('input[type="text"]');
-	}
 }

@@ -24,3 +24,4 @@ npm install
 
 # Run tests
 npm run test
+npm run test:bundle

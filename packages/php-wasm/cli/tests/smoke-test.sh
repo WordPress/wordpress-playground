@@ -19,10 +19,23 @@ output=$(npx nx dev php-wasm-cli -- packages/php-wasm/cli/tests/proc_open_test.p
 # Assert that the output contains the expected success message
 if echo "$output" | grep -q "proc_open test passed!"; then
     echo "Assertion passed: proc_open test output contains expected success message"
-    echo "php-wasm-cli smoke test completed!"
 else
     echo "Assertion failed: Expected output to contain 'proc_open test passed!'"
     echo "Actual output:"
     echo "$output"
+    exit 1
+fi
+
+echo "Running php-wasm-cli smoke test with curl over HTTPS..."
+
+curl_output=$(npx nx dev php-wasm-cli -- packages/php-wasm/cli/tests/curl_test.php 2>&1)
+
+if echo "$curl_output" | grep -q "curl test passed!"; then
+    echo "Assertion passed: curl test output contains expected success message"
+    echo "php-wasm-cli smoke test completed!"
+else
+    echo "Assertion failed: Expected output to contain 'curl test passed!'"
+    echo "Actual output:"
+    echo "$curl_output"
     exit 1
 fi

@@ -75,7 +75,7 @@ async function build() {
 			'ws',
 			'fs',
 			'path',
-			'fs-ext',
+			'fs-ext-extra-prebuilt',
 		],
 		supported: {
 			'dynamic-import': true,

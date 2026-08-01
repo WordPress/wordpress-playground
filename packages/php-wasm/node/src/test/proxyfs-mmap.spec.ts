@@ -184,12 +184,12 @@ describe.each(phpVersionsToTest)(
 		it('should use Collator through PROXYFS', async () => {
 			// Create php1 with Intl support - it has the ICU data file
 			using php1 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			// Create php2 with Intl support
 			using php2 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			// Mount PROXYFS on php2, sharing /internal/shared from php1.
@@ -223,11 +223,11 @@ describe.each(phpVersionsToTest)(
 
 		it('should use NumberFormatter through PROXYFS', async () => {
 			using php1 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			using php2 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			await proxyFileSystem(php1, php2, ['/internal/shared']);

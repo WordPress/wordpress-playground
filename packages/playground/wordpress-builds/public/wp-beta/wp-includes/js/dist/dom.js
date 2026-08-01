@@ -345,7 +345,7 @@ var wp;
         selectionStart === null || // when not null, compare the two points
         selectionStart !== selectionEnd
       );
-    } catch (error) {
+    } catch {
       return true;
     }
   }
@@ -523,20 +523,20 @@ var wp;
 
   // packages/dom/build-module/dom/caret-range-from-point.mjs
   function caretRangeFromPoint(doc, x, y) {
+    if (doc.caretPositionFromPoint) {
+      const point = doc.caretPositionFromPoint(x, y);
+      if (!point) {
+        return null;
+      }
+      const range = doc.createRange();
+      range.setStart(point.offsetNode, point.offset);
+      range.collapse(true);
+      return range;
+    }
     if (doc.caretRangeFromPoint) {
       return doc.caretRangeFromPoint(x, y);
     }
-    if (!doc.caretPositionFromPoint) {
-      return null;
-    }
-    const point = doc.caretPositionFromPoint(x, y);
-    if (!point) {
-      return null;
-    }
-    const range = doc.createRange();
-    range.setStart(point.offsetNode, point.offset);
-    range.collapse(true);
-    return range;
+    return null;
   }
 
   // packages/dom/build-module/dom/hidden-caret-range-from-point.mjs
@@ -685,7 +685,7 @@ var wp;
       }
       return;
     }
-    if (!container.isContentEditable) {
+    if (container.contentEditable !== "true") {
       return;
     }
     const range = scrollIfNoRange(
@@ -848,11 +848,6 @@ var wp;
     wbr: {},
     "#text": {}
   };
-  var excludedElements = ["#text", "br"];
-  Object.keys(textContentSchema).filter((element) => !excludedElements.includes(element)).forEach((tag) => {
-    const { [tag]: removedTag, ...restSchema } = textContentSchema;
-    textContentSchema[tag].children = restSchema;
-  });
   var embeddedContentSchema = {
     audio: {
       attributes: [
@@ -908,6 +903,14 @@ var wp;
       children: "*"
     }
   };
+  var excludedElements = ["#text", "br", "wbr"];
+  Object.keys(textContentSchema).filter((element) => !excludedElements.includes(element)).forEach((tag) => {
+    const { [tag]: removedTag, ...restSchema } = textContentSchema;
+    textContentSchema[tag].children = {
+      ...restSchema,
+      img: embeddedContentSchema.img
+    };
+  });
   var phrasingContentSchema = {
     ...textContentSchema,
     ...embeddedContentSchema

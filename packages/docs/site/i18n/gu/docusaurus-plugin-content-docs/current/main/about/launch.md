@@ -81,9 +81,11 @@ With this block you have a straightforward and effective way to create live Word
 </div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
-:::
+
+</div>
 -->
 
 ## એપ સ્ટોરમાં વર્ડપ્રેસ ચલાવતું એક નેટિવ ઍપ મૂકો.
