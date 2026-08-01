@@ -90,9 +90,12 @@ jobs:
 
             # npm 11.5.1+ is required for trusted publisher OIDC authentication
             - name: Upgrade npm for trusted publishing
-              run: npm install -g npm@latest lerna@9
+              run: npm install -g npm@11 lerna@9
 
             - uses: ./.github/actions/prepare-playground
+
+            - name: Validate publish package overrides
+              run: node tools/scripts/check-publish-package-overrides.mjs
 
             - name: Publish NPM packages
               # Version bump, release, tag a new version on GitHub.

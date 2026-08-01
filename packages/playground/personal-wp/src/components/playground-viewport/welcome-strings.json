@@ -1,0 +1,38 @@
+{
+	"firstTime": {
+		"title": "Your free WordPress",
+		"subtitle": "Setting things up… have a read while you wait.",
+		"intro": "This is a complete WordPress that runs in your browser: no sign-up, no hosting plan, no domain needed. It's not meant for public blogging. Instead, it's your own personal WordPress, where you can install apps that keep your stuff with you: reading lists, saved articles, contacts, conversations, and more. Your data lives here, and you can shape this WordPress however you like.",
+		"aFewThingsHeading": "A few things to know",
+		"bullets": [
+			"Running WordPress in the browser is unusual. It normally lives on a server. We've tried to make it behave just like a normally hosted WordPress, but you might run into the occasional oddity.",
+			"Look for the small Site Tools icon in the bottom-left corner. It's always there, floating above WordPress, and it opens everything you need: install apps, manage files, view logs, and restore backups.",
+			"Your WordPress <strong>downloads a backup every day, automatically</strong> (configurable in Site Tools). If your browser data ever gets cleared, this page will come back as a fresh WordPress. Open Site Tools and point it at your saved backup to restore your old site."
+		],
+		"bookmarkTip": "<strong>⭐ Bookmark this page.</strong> This is your WordPress now. Add it to your bookmarks so you can easily come back."
+	},
+	"returning": {
+		"title": "Welcome back!",
+		"subtitle": "Loading your site…",
+		"tipLabel": "💡 Tip",
+		"whatsNewHeading": "What's new"
+	},
+	"tips": [
+		"The Site Tools icon in the bottom-left corner is always there. Click it to open Site Tools any time.",
+		"Your site backs up automatically every day. Change the schedule or turn it off in Site Tools."
+	],
+	"changelog": [
+		{
+			"title": "Just WordPress",
+			"text": "Before this change, we showed a second address bar. This has now been removed. Like on a hosted WordPress, your browser will show you where you are."
+		},
+		{
+			"title": "Accessing the Site Tools",
+			"text": "The Playground sidebar is now accessible via the Site Tools icon in the bottom-left corner. Click it any time for files, database, logs, backups, and recovery."
+		},
+		{
+			"title": "Apps launcher",
+			"text": "The apps launcher is now installed by default. You can install apps directly from there."
+		}
+	]
+}

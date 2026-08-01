@@ -21,12 +21,14 @@ if (ifMissing && fs.existsSync(path.join(targetDir, 'index.js'))) {
 }
 
 try {
-	run('git', [
-		'fetch',
-		remote,
-		`+refs/heads/${branch}:${remoteRef}`,
-		'--depth=1',
-	]);
+	verifyRemoteBranchExists();
+	run(
+		'git',
+		['fetch', remote, `+refs/heads/${branch}:${remoteRef}`, '--depth=1'],
+		{
+			inheritStdio: !optional,
+		}
+	);
 	fs.rmSync(targetDir, { recursive: true, force: true });
 	fs.mkdirSync(targetDir, { recursive: true });
 	await extractGitArchive(remoteRef, targetDir);
@@ -81,11 +83,53 @@ function extractGitArchive(ref, outputDir) {
 	});
 }
 
-function run(command, commandArgs) {
+/**
+ * Check the publishing branch before git fetch so optional local dev sync can
+ * explain a missing PHP-next branch without dumping git's fatal stderr.
+ */
+function verifyRemoteBranchExists() {
+	const result = spawnSync(
+		'git',
+		['ls-remote', '--exit-code', '--heads', remote, branch],
+		{
+			cwd: projectRoot,
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		}
+	);
+	if (result.error) {
+		throw new Error(`git failed to start: ${result.error.message}`, {
+			cause: result.error,
+		});
+	}
+	if (result.status === 0) {
+		return;
+	}
+	if (result.status === 2) {
+		throw new Error(
+			`PHP next assets branch ${branch} does not exist on ${remote}. ` +
+				'Run the Refresh PHP Next workflow to publish it.'
+		);
+	}
+	const output = formatCommandOutput(result);
+	throw new Error(
+		output
+			? `Could not query PHP next assets branch ${branch} ` +
+					`on ${remote}: ${output}`
+			: `Could not query PHP next assets branch ${branch} on ${remote}: ` +
+					`git ls-remote exited with code ${result.status}`
+	);
+}
+
+function run(command, commandArgs, options = {}) {
 	console.log('Running', command, commandArgs.join(' '), '...');
 	const result = spawnSync(command, commandArgs, {
 		cwd: projectRoot,
-		stdio: 'inherit',
+		encoding: 'utf8',
+		stdio:
+			options.inheritStdio === false
+				? ['ignore', 'pipe', 'pipe']
+				: 'inherit',
 	});
 	if (result.error) {
 		throw new Error(`${command} failed to start: ${result.error.message}`, {
@@ -93,6 +137,15 @@ function run(command, commandArgs) {
 		});
 	}
 	if (result.status !== 0) {
-		throw new Error(`${command} exited with code ${result.status}`);
+		const output = formatCommandOutput(result);
+		throw new Error(
+			output
+				? `${command} exited with code ${result.status}: ${output}`
+				: `${command} exited with code ${result.status}`
+		);
 	}
+}
+
+function formatCommandOutput(result) {
+	return [result.stderr, result.stdout].filter(Boolean).join('\n').trim();
 }

@@ -108,18 +108,7 @@
 			if (submitting) {
 				return;
 			}
-			let prNumber = document.getElementById('pr-number').value;
-
-			// Extract number from a GitHub URL
-			if (
-				prNumber
-					.toLowerCase()
-					.includes('github.com/wordpress/gutenberg/pull')
-			) {
-				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
-			}
-
-			previewPr(prNumber);
+			previewPr(document.getElementById('pr-number').value);
 		});
 
 		async function previewPr(prNumber) {
@@ -127,6 +116,40 @@
 			errorDiv.innerText = '';
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
+
+			prNumber = prNumber.trim();
+
+			// Extract number from a GitHub URL
+			const gutenbergPr = prNumber.match(
+				/github\.com\/wordpress\/gutenberg\/pull\/(\d+)/i
+			);
+			if (gutenbergPr) {
+				prNumber = gutenbergPr[1];
+			}
+
+			if (!/^\d+$/.test(prNumber)) {
+				if (
+					prNumber
+						.toLowerCase()
+						.includes('github.com/wordpress/wordpress-develop/pull')
+				) {
+					const link = document.createElement('a');
+					link.href = './wordpress.html';
+					link.textContent = 'WordPress PR previewer';
+					errorDiv.replaceChildren(
+						'This looks like a WordPress Core PR. Use the ',
+						link,
+						' instead.'
+					);
+				} else {
+					errorDiv.innerText =
+						'Please enter a valid gutenberg PR number or URL.';
+				}
+				submitting = false;
+				submitButton.classList.remove('loading');
+				submitButton.disabled = false;
+				return;
+			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
@@ -151,7 +174,7 @@
 						step: 'login',
 						username: 'admin',
 						password: 'password',
-					}
+					},
 				],
 			};
 			// If there's a import-site query parameter, pass that to the blueprint

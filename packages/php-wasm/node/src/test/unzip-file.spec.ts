@@ -3,6 +3,7 @@ import {
 	zipDirectory,
 	RecommendedPHPVersion,
 } from '@wp-playground/common';
+import { phpVars } from '@php-wasm/util';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 
@@ -49,4 +50,78 @@ describe('unzipFile – concurrent calls avoid conflicts', () => {
 		const leftoverZips = tmpFiles.filter((f) => f.endsWith('.zip'));
 		expect(leftoverZips).toHaveLength(0);
 	});
+
+	it('extracts normalized ZIP entry names inside the target directory', async () => {
+		const zip = await createZipBuffer(php, {
+			'safe.txt': 'safe',
+			'../escape.txt': 'escape',
+		});
+
+		await unzipFile(php, new File([zip], 'normalized.zip'), '/dst');
+
+		expect(php.fileExists('/escape.txt')).toBe(false);
+		expect(php.readFileAsText('/dst/escape.txt')).toBe('escape');
+		expect(php.readFileAsText('/dst/safe.txt')).toBe('safe');
+		const tmpFiles = php.listFiles('/tmp');
+		const leftoverZips = tmpFiles.filter((f) => f.endsWith('.zip'));
+		expect(leftoverZips).toHaveLength(0);
+	});
+
+	it('extracts leading-slash entries inside the target directory', async () => {
+		const zip = await createZipBuffer(php, {
+			'/absolute.txt': 'absolute',
+		});
+
+		await unzipFile(php, new File([zip], 'leading-slash.zip'), '/dst');
+
+		expect(php.fileExists('/absolute.txt')).toBe(false);
+		expect(php.readFileAsText('/dst/absolute.txt')).toBe('absolute');
+	});
+
+	it('preserves existing files when overwriteFiles is false', async () => {
+		php.mkdir('/dst');
+		php.writeFile('/dst/existing.txt', 'old');
+		const zip = await createZipBuffer(php, {
+			'existing.txt': 'new',
+			'fresh.txt': 'fresh',
+		});
+
+		await unzipFile(
+			php,
+			new File([zip], 'no-overwrite.zip'),
+			'/dst',
+			false
+		);
+
+		expect(php.readFileAsText('/dst/existing.txt')).toBe('old');
+		expect(php.readFileAsText('/dst/fresh.txt')).toBe('fresh');
+	});
 });
+
+/**
+ * Creates ZIP fixtures with exact entry names, including unsafe paths.
+ *
+ * `zipDirectory()` can only archive files that already exist in the VFS, so it
+ * cannot create entries such as `../escape.txt` needed for extraction tests.
+ */
+async function createZipBuffer(php: PHP, entries: Record<string, string>) {
+	const zipPath = `/tmp/source-${Math.random()}.zip`;
+	const js = phpVars({ entries, zipPath });
+	await php.run({
+		code: `<?php
+		$entries = ${js.entries};
+		$zip = new ZipArchive;
+		$res = $zip->open(${js.zipPath}, ZipArchive::CREATE);
+		if ($res !== TRUE) {
+			throw new Exception('Failed to create ZIP: ' . $res);
+		}
+		foreach ($entries as $name => $contents) {
+			$zip->addFromString($name, $contents);
+		}
+		$zip->close();
+		`,
+	});
+	const zip = await php.readFileAsBuffer(zipPath);
+	await php.unlink(zipPath);
+	return zip;
+}

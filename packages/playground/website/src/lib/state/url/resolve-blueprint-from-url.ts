@@ -2,17 +2,15 @@ import type {
 	BlueprintV1Declaration,
 	BlueprintBundle,
 	StepDefinition,
-	BlueprintV1,
+	Blueprint,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { OpfsFilesystemBackend } from '@wp-playground/storage';
 import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
-import { logger } from '@php-wasm/logger';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
 
@@ -22,9 +20,6 @@ export type BlueprintSource =
 	| {
 			type: 'remote-url';
 			url: string;
-	  }
-	| {
-			type: 'last-autosave';
 	  }
 	| {
 			type: 'inline-string';
@@ -37,7 +32,7 @@ export type BlueprintSource =
 	  };
 
 export type ResolvedBlueprint = {
-	blueprint: BlueprintV1;
+	blueprint: Blueprint;
 	source: BlueprintSource;
 };
 
@@ -94,7 +89,7 @@ export async function resolveBlueprintFromURL(
 				`Starting a new Playground from a Blueprint is disabled when the MCP server
 				is active to prevent potential prompt injection vulnerabilities.
 				Please remove the "blueprint-url" query parameter to proceed or
-				disable the MCP server by removing the "mcp=yes" query parameter.`
+				disable the MCP server by removing the "mcp-port" query parameter.`
 			);
 		}
 		/*
@@ -109,32 +104,13 @@ export async function resolveBlueprintFromURL(
 				url: blueprintUrl,
 			},
 		};
-	} else if (fragment === 'last-autosave') {
-		let bundle = undefined;
-		try {
-			bundle = await OpfsFilesystemBackend.fromPath(
-				'blueprints/last-edited-bundle',
-				true
-			);
-		} catch (error) {
-			logger.error(
-				'Failed to load the last edited blueprint from OPFS',
-				error
-			);
-		}
-		return {
-			blueprint:
-				bundle ||
-				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
-			source: { type: 'last-autosave' },
-		};
 	} else if (fragment.length) {
 		if (isMcpServerEnabled()) {
 			throw new Error(
 				`Starting a new Playground from a Blueprint is disabled when the MCP server
 				is active to prevent potential prompt injection vulnerabilities.
 				Please remove the Blueprint hash from your URL or
-				disable the MCP server by removing the "mcp=yes" query parameter.`
+				disable the MCP server by removing the "mcp-port" query parameter.`
 			);
 		}
 		/*

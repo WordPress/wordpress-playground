@@ -48,6 +48,10 @@ class TestEndpoint extends PHPWorker {
 		this.registerWorkerListeners(php);
 	}
 
+	emitEvent(event: PhpEvent) {
+		this.dispatchEvent(event);
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async boot(_: unknown = undefined) {}
 }
@@ -68,6 +72,62 @@ class EndpointWithoutRequestHandler extends TestEndpoint {
 }
 
 describe('PlaygroundWorkerEndpoint', () => {
+	test('copies files using the primary PHP instance', async () => {
+		const endpoint = new TestEndpoint();
+		const primaryPhp = {
+			...createMockPHP(),
+			cp: vi.fn(),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		await endpoint.cp('/source', '/target');
+
+		expect(primaryPhp.cp).toHaveBeenCalledOnce();
+		expect(primaryPhp.cp).toHaveBeenCalledWith('/source', '/target');
+	});
+
+	test('does not infer stream fan-out from an stdin property', () => {
+		const endpoint = new TestEndpoint();
+		const received: PhpEvent[] = [];
+		endpoint.addEventListener('unbranded.stream', (event) =>
+			received.push(event as PhpEvent)
+		);
+		endpoint.addEventListener('unbranded.stream', (event) =>
+			received.push(event as PhpEvent)
+		);
+
+		const unbrandedStream = new ReadableStream<Uint8Array>();
+		endpoint.emitEvent({
+			type: 'unbranded.stream',
+			stdin: unbrandedStream,
+		});
+
+		expect(received).toHaveLength(2);
+		expect(received[0]['stdin']).toBe(unbrandedStream);
+		expect(received[1]['stdin']).toBe(unbrandedStream);
+	});
+
+	test('uses a stable listener snapshot during dispatch', () => {
+		const endpoint = new TestEndpoint();
+		const addedDuringDispatch = vi.fn();
+		const removedDuringDispatch = vi.fn();
+		const mutatesListeners = vi.fn(() => {
+			endpoint.removeEventListener(
+				'snapshot.test',
+				removedDuringDispatch
+			);
+			endpoint.addEventListener('snapshot.test', addedDuringDispatch);
+		});
+		endpoint.addEventListener('snapshot.test', mutatesListeners);
+		endpoint.addEventListener('snapshot.test', removedDuringDispatch);
+
+		endpoint.emitEvent({ type: 'snapshot.test' });
+
+		expect(mutatesListeners).toHaveBeenCalledOnce();
+		expect(removedDuringDispatch).toHaveBeenCalledOnce();
+		expect(addedDuringDispatch).not.toHaveBeenCalled();
+	});
+
 	test('listeners receive events from each PHP instance', async () => {
 		const endpoint = new TestEndpoint();
 		const phpA = createMockPHP();

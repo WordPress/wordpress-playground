@@ -8,10 +8,18 @@ export {
 	basename,
 	normalizePath,
 	isParentOf,
+	resolvePathUnder,
 	ensureAbsolutePath,
 	toPosixPath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
+export { phpEventStdinTransfer } from './php-event';
+export type { PHPEventWithStdinTransfer } from './php-event';
+export {
+	sendmailSpawnHandler,
+	SENDMAIL_CAPTURE_MAX_SIZE,
+} from './spawn-handlers/sendmail';
+export type { PHPSendmailSpawnedEvent } from './spawn-handlers/sendmail';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';

@@ -170,6 +170,7 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
+					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
@@ -185,6 +186,7 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
+					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
@@ -230,6 +232,7 @@
 					"symlinks.spec.ts",
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
+					"networking-port-allocation.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -247,6 +250,7 @@
 					"symlinks.spec.ts",
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
+					"networking-port-allocation.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",

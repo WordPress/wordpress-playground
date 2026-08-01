@@ -1,4 +1,10 @@
-import { basename, dirname, joinPaths } from '@php-wasm/util';
+import {
+	basename,
+	dirname,
+	isParentOf,
+	joinPaths,
+	normalizePath,
+} from '@php-wasm/util';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import {
 	Button,
@@ -74,6 +80,8 @@ export type FileNode = {
 
 export type FilePickerTreeProps = {
 	withContextMenu?: boolean;
+	/** Disables filesystem mutations while preserving selection and previews. */
+	readOnly?: boolean;
 	filesystem: AsyncWritableFilesystem;
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
@@ -94,15 +102,21 @@ export type FilePickerTreeHandle = {
 	// Filesystem helpers
 	createFile: (absSelectedPath?: string) => Promise<void>;
 	createFolder: (absSelectedPath?: string) => Promise<void>;
+	/** Imports captured file-input entries into an existing tree directory. */
+	importFiles: (
+		files: readonly File[],
+		destinationDir: string
+	) => Promise<void>;
+	/** Imports a drop payload into an existing tree directory. */
+	importDataTransfer: (
+		dataTransfer: DataTransfer,
+		destinationDir: string
+	) => Promise<void>;
 };
 
 function buildPathChain(path: string): string[] {
 	if (!path) return [];
-	const normalized =
-		path
-			.replaceAll(/\\+/g, '/')
-			.replace(/\/{2,}/g, '/')
-			.replace(/\/$/, '') || path;
+	const normalized = normalizePath(path);
 	const hasLeadingSlash = normalized.startsWith('/');
 	const parts = normalized.split('/').filter(Boolean);
 	const chain: string[] = [];
@@ -117,20 +131,6 @@ function buildPathChain(path: string): string[] {
 		chain.push(current);
 	}
 	return chain;
-}
-
-function isDescendantPath(ancestor: string, candidate: string) {
-	if (!ancestor || !candidate) return false;
-	if (ancestor === candidate) return false;
-	const normalizedAncestor =
-		ancestor === '/' ? '/' : ancestor.replace(/\/{2,}/g, '/');
-	const normalizedCandidate = candidate.replace(/\/{2,}/g, '/');
-	if (normalizedAncestor === '/') {
-		return (
-			normalizedCandidate.startsWith('/') && normalizedCandidate !== '/'
-		);
-	}
-	return normalizedCandidate.startsWith(`${normalizedAncestor}/`);
 }
 
 function remapSinglePath(value: string | null, from: string, to: string) {
@@ -148,6 +148,7 @@ export const FilePickerTree = forwardRef<
 >(function FilePickerTree(
 	{
 		withContextMenu = true,
+		readOnly = false,
 		filesystem,
 		root = '/wordpress',
 		initialSelectedPath,
@@ -156,19 +157,7 @@ export const FilePickerTree = forwardRef<
 	},
 	ref
 ) {
-	const normalizedRoot = useMemo(() => {
-		let p = (root || '/').replace(/\\+/g, '/');
-		if (!p.startsWith('/')) p = `/${p}`;
-		p = p.replace(/\/{2,}/g, '/');
-		if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
-		return p || '/';
-	}, [root]);
-
-	const isValidNameSegment = (name: string) => {
-		if (!name) return false;
-		if (name === '.' || name === '..') return false;
-		return !/[\\/]/.test(name);
-	};
+	const normalizedRoot = useMemo(() => joinPaths('/', root || '/'), [root]);
 
 	const [expanded, setExpanded] = useState<ExpandedNodePaths>(() => {
 		if (!initialSelectedPath) {
@@ -227,7 +216,7 @@ export const FilePickerTree = forwardRef<
 
 	const focusDomNode = (path: string) => {
 		const focusTarget = containerRef.current?.querySelector(
-			`[data-path="${path}"]`
+			`[data-path="${CSS.escape(path)}"]`
 		) as HTMLElement | null;
 		if (focusTarget && typeof focusTarget.focus === 'function') {
 			focusTarget.focus();
@@ -239,8 +228,9 @@ export const FilePickerTree = forwardRef<
 	};
 
 	const generatePath = (node: FileNode, parentPath = ''): string => {
-		const raw = parentPath ? `${parentPath}/${node.name}` : node.name;
-		return raw.replaceAll(/\\+/g, '/').replace(/\/{2,}/g, '/');
+		return parentPath
+			? joinPaths(parentPath, node.name)
+			: joinPaths('/', node.name);
 	};
 
 	const getResolvedChildren = (
@@ -421,20 +411,12 @@ export const FilePickerTree = forwardRef<
 		if (!from || !to || from === to) {
 			return;
 		}
-		const fromPrefix = from === '/' ? '/' : `${from}/`;
-		const remapKey = (key: string): string | null => {
-			if (key === from) return to;
-			if (key.startsWith(fromPrefix)) {
-				return to + key.slice(from.length);
-			}
-			return null;
-		};
 
 		setExpanded((prev) => {
 			let changed = false;
 			const next: ExpandedNodePaths = { ...prev };
 			for (const key of Object.keys(prev)) {
-				const mapped = remapKey(key);
+				const mapped = remapSinglePath(key, from, to);
 				if (mapped && mapped !== key) {
 					next[mapped] = prev[key];
 					delete next[key];
@@ -448,7 +430,7 @@ export const FilePickerTree = forwardRef<
 			let changed = false;
 			const next = { ...prev } as Record<string, FileNode[]>;
 			for (const key of Object.keys(prev)) {
-				const mapped = remapKey(key);
+				const mapped = remapSinglePath(key, from, to);
 				if (mapped && mapped !== key) {
 					next[mapped] = prev[key];
 					delete next[key];
@@ -458,16 +440,8 @@ export const FilePickerTree = forwardRef<
 			return changed ? next : prev;
 		});
 
-		setSelectedPath((prev) => {
-			if (!prev) return prev;
-			const mapped = remapKey(prev);
-			return mapped ?? prev;
-		});
-		setFocusedPath((prev) => {
-			if (!prev) return prev;
-			const mapped = remapKey(prev);
-			return mapped ?? prev;
-		});
+		setSelectedPath((prev) => remapSinglePath(prev, from, to));
+		setFocusedPath((prev) => remapSinglePath(prev, from, to));
 	};
 
 	const resetDragState = () => {
@@ -502,7 +476,7 @@ export const FilePickerTree = forwardRef<
 		tempPath: string;
 	} | null>(null);
 
-	const effectiveRenamingPath = renamingAbsolutePath;
+	const effectiveRenamingPath = readOnly ? null : renamingAbsolutePath;
 
 	useImperativeHandle(
 		ref,
@@ -540,13 +514,23 @@ export const FilePickerTree = forwardRef<
 			refresh: async (path: string) => await refreshChildren(path),
 			remapPath: remapPathState,
 			createFile: async (absSelectedPath?: string) => {
+				if (readOnly) return;
 				await createNode(absSelectedPath, 'file', 'untitled.php');
 			},
 			createFolder: async (absSelectedPath?: string) => {
+				if (readOnly) return;
 				await createNode(absSelectedPath, 'folder', 'New Folder');
 			},
+			importFiles: async (files, destinationDir) => {
+				if (readOnly) return;
+				await importFiles(files, destinationDir);
+			},
+			importDataTransfer: async (dataTransfer, destinationDir) => {
+				if (readOnly) return;
+				await importDataTransfer(dataTransfer, destinationDir);
+			},
 		}),
-		[selectedPath, refreshChildren, remapPathState, expandToPath]
+		[selectedPath, refreshChildren, remapPathState, expandToPath, readOnly]
 	);
 
 	const hasInitializedRef = useRef(false);
@@ -690,10 +674,7 @@ export const FilePickerTree = forwardRef<
 			return { allowed: false, state: 'invalid', destination: null };
 		}
 		if (sourcePath) {
-			if (destinationDir === sourcePath) {
-				return { allowed: false, state: 'invalid', destination: null };
-			}
-			if (isDescendantPath(sourcePath, destinationDir)) {
+			if (isParentOf(sourcePath, destinationDir)) {
 				return { allowed: false, state: 'invalid', destination: null };
 			}
 		}
@@ -809,7 +790,10 @@ export const FilePickerTree = forwardRef<
 			if (sourcePath) {
 				await moveNode(sourcePath, evaluation.destination);
 			} else {
-				await importExternalItems(event, evaluation.destination);
+				await importDataTransfer(
+					event.dataTransfer,
+					evaluation.destination
+				);
 			}
 		} finally {
 			resetDragState();
@@ -1037,18 +1021,32 @@ export const FilePickerTree = forwardRef<
 		}
 	};
 
-	const importExternalItems = async (
-		event: React.DragEvent,
+	/** Imports files selected by the browser's file input into one directory. */
+	const importFiles = (files: readonly File[], destinationDir: string) => {
+		return importExternalItems([], files, destinationDir);
+	};
+
+	/** Captures a drop payload before the browser protects its data store. */
+	const importDataTransfer = (
+		dataTransfer: DataTransfer,
 		destinationDir: string
 	) => {
-		if (!filesystem) return;
-		const items = event.dataTransfer?.items
-			? Array.from(event.dataTransfer.items)
-			: [];
+		const items = Array.from(dataTransfer.items);
 		const entries = items
 			.filter((item) => item.kind === 'file')
 			.map((item) => getEntryFromItem(item))
 			.filter((entry): entry is FileSystemEntryLike => Boolean(entry));
+		const files = Array.from(dataTransfer.files);
+		return importExternalItems(entries, files, destinationDir);
+	};
+
+	/** Writes captured files or directory entries through the tree's importer. */
+	const importExternalItems = async (
+		entries: FileSystemEntryLike[],
+		files: readonly File[],
+		destinationDir: string
+	) => {
+		if (!filesystem) return;
 		if (entries.length > 0) {
 			for (const entry of entries) {
 				if (entry.isFile) {
@@ -1064,9 +1062,6 @@ export const FilePickerTree = forwardRef<
 				}
 			}
 		} else {
-			const files = event.dataTransfer?.files
-				? Array.from(event.dataTransfer.files)
-				: [];
 			for (const file of files) {
 				await importFileBlob(file, destinationDir);
 			}
@@ -1189,11 +1184,16 @@ export const FilePickerTree = forwardRef<
 
 	// Filesystem-mode rename handlers
 	const handleRename = async (path: string, newName: string) => {
+		if (readOnly) return;
 		const pending = pendingCreateRef.current;
 		const isPending = pending?.tempPath === path;
 		const parent = dirname(path);
-		const sanitized = (newName || '').trim();
-		if (!isValidNameSegment(sanitized)) {
+		if (
+			!newName ||
+			newName === '.' ||
+			newName === '..' ||
+			basename(newName) !== newName
+		) {
 			if (isPending) {
 				try {
 					if (pending.type === 'folder') {
@@ -1211,7 +1211,7 @@ export const FilePickerTree = forwardRef<
 			setRenamingAbsolutePath(isPending ? null : path);
 			return;
 		}
-		let candidate = joinPaths(parent, sanitized);
+		let candidate = joinPaths(parent, newName);
 		let candidateNormalized = candidate;
 		if (candidateNormalized === path) {
 			setRenamingAbsolutePath(null);
@@ -1234,7 +1234,7 @@ export const FilePickerTree = forwardRef<
 				try {
 					const unique = await findAvailableName(
 						parent === '/' ? '/' : parent,
-						sanitized
+						newName
 					);
 					candidate = joinPaths(parent, unique);
 					candidateNormalized = candidate;
@@ -1327,23 +1327,25 @@ export const FilePickerTree = forwardRef<
 						selectPath={selectPath}
 						generatePath={generatePath}
 						getChildren={getResolvedChildren}
-						onContextMenu={handleInternalContextMenu}
+						onContextMenu={
+							readOnly ? undefined : handleInternalContextMenu
+						}
 						renamingPath={effectiveRenamingPath}
 						onRename={handleRename}
 						onRenameCancel={handleRenameCancelInternal}
 						dropIndicator={dropIndicator}
-						onDragStart={handleNodeDragStart}
-						onDragEnd={handleNodeDragEnd}
-						onDragEnter={handleNodeDragEnter}
-						onDragOver={handleNodeDragOver}
-						onDragLeave={handleNodeDragLeave}
-						onDrop={handleNodeDrop}
+						onDragStart={readOnly ? undefined : handleNodeDragStart}
+						onDragEnd={readOnly ? undefined : handleNodeDragEnd}
+						onDragEnter={readOnly ? undefined : handleNodeDragEnter}
+						onDragOver={readOnly ? undefined : handleNodeDragOver}
+						onDragLeave={readOnly ? undefined : handleNodeDragLeave}
+						onDrop={readOnly ? undefined : handleNodeDrop}
 						rootPath={normalizedRoot}
 						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}
 			</TreeGrid>
-			{contextMenu && (
+			{!readOnly && contextMenu && (
 				<Popover
 					placement="bottom-start"
 					onClose={() => setContextMenu(null)}
@@ -1521,7 +1523,8 @@ const NodeRow: React.FC<{
 	const isDropTargetValid = isDropTarget && dropIndicator?.state === 'valid';
 	const isDropTargetInvalid =
 		isDropTarget && dropIndicator?.state === 'invalid';
-	const isDraggable = !isRenaming && path !== rootPath;
+	const isDraggable =
+		Boolean(onDragStart) && !isRenaming && path !== rootPath;
 	const clickTimeoutRef = useRef<number | null>(null);
 
 	const dragHandlers = {
@@ -1564,7 +1567,7 @@ const NodeRow: React.FC<{
 			} else {
 				(
 					document.querySelector(
-						`[data-path="${parentPath}"]`
+						`[data-path="${CSS.escape(parentPath)}"]`
 					) as HTMLButtonElement
 				)?.focus();
 			}
@@ -1579,7 +1582,7 @@ const NodeRow: React.FC<{
 					);
 					(
 						document.querySelector(
-							`[data-path="${firstChildPath}"]`
+							`[data-path="${CSS.escape(firstChildPath)}"]`
 						) as HTMLButtonElement
 					)?.focus();
 				}
@@ -1622,7 +1625,7 @@ const NodeRow: React.FC<{
 	const handleRenameSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
 		renameHandledRef.current = true;
-		onRename?.(path, renameValue.trim());
+		onRename?.(path, renameValue);
 	};
 
 	const handleRenameKeyDown = (

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import classNames from 'classnames';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
 
@@ -52,6 +51,9 @@ export function SiteErrorModal({
 				logger.error('Failed to delete site', error);
 			}
 		},
+		reloadPage: () => {
+			window.location.reload();
+		},
 		restartWithoutPr: () => {
 			const url = new URL(window.location.href);
 			url.searchParams.delete('core-pr');
@@ -98,10 +100,8 @@ export function SiteErrorModal({
 			}
 			onRequestClose={() => dispatch(clearActiveSiteError())}
 			shouldCloseOnClickOutside
-			className={classNames(css.errorModal, {
-				[css.errorModalDeveloper]: view.isDeveloperError,
-				[css.errorModalCrash]: !view.isDeveloperError,
-			})}
+			overlayClassName={css.errorModalOverlay}
+			className={css.errorModal}
 		>
 			<div className={css.errorModalContent}>
 				<div className={css.errorModalBody}>
@@ -130,7 +130,7 @@ export function SiteErrorModal({
 						/>
 					)}
 					{reportSubmitted && !submitError && (
-						<p style={{ color: 'green', fontWeight: '500' }}>
+						<p className={css.reportSuccess}>
 							Your report has been submitted to the{' '}
 							<a
 								href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"

@@ -1,4 +1,5 @@
 export * from './boot-playground-remote';
+export * from './dev-server';
 export * from './playground-client';
 export {
 	MinifiedWordPressVersions,

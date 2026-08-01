@@ -97,7 +97,11 @@ export const toolExecutors: Record<
 		const headers = {
 			...((input['headers'] as Record<string, string>) ?? {}),
 		};
-		const body = input['body'] as string | undefined;
+		const rawBody = input['body'];
+		const body =
+			typeof rawBody === 'object' && rawBody !== null
+				? JSON.stringify(rawBody)
+				: (rawBody as string | undefined);
 
 		try {
 			const parsedUrl = new URL(url, 'http://localhost');
