@@ -225,7 +225,7 @@ export type PHPRuntimeId = number;
  * Retrieves a PHP runtime by its ID and removes it from the internal registry.
  *
  * When you call `loadPHPRuntime()`, it creates an Emscripten-based PHP instance and
- * stores it in a module-level Map keyed by a numeric ID. This function is the only
+ * stores it in a global registry keyed by a numeric ID. This function is the only
  * way to retrieve that runtime object so you can actually use it.
  *
  * The "pop" semantic is intentional: retrieving a runtime also removes it from the

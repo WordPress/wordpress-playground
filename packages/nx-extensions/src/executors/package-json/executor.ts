@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import { createPackageJson } from '@nx/js';
+import * as ts from 'typescript';
 import type {
 	ExecutorContext,
 	FileData,
@@ -64,7 +65,11 @@ export default async function* packageJsonExecutor(
 		sourceFileMap,
 		context.projectName
 	);
-	const monorepoDependencies = getMonorepoDependencies(context, sourceDeps);
+	const monorepoDependencies = getMonorepoDependencies(
+		context,
+		sourceDeps,
+		sourceFileMap
+	);
 
 	// Read optional dependencies from the original package.json
 	let originalOptionalDependencies: Record<string, string> | undefined;
@@ -247,7 +252,8 @@ function getSourceDependencyTargets(
 
 function getMonorepoDependencies(
 	context: ExecutorContext,
-	sourceDeps: Set<string>
+	sourceDeps: Set<string>,
+	sourceFileMap: ProjectFileMap
 ): MonorepoDependency[] {
 	const monorepoDeps: MonorepoDependency[] = [];
 	for (const repoDep of context.projectGraph.dependencies[
@@ -277,10 +283,122 @@ function getMonorepoDependencies(
 		if (packageJson.private) {
 			continue;
 		}
+		if (
+			!hasRuntimeImport(
+				context.root,
+				sourceFileMap[context.projectName] || [],
+				packageJson.name
+			)
+		) {
+			continue;
+		}
 		monorepoDeps.push({
 			name: packageJson.name,
 			version: packageJson.version,
 		});
 	}
 	return monorepoDeps;
+}
+
+function hasRuntimeImport(
+	workspaceRoot: string,
+	files: FileData[],
+	packageName: string
+): boolean {
+	return files.some((file) => {
+		const sourceText = fs.readFileSync(
+			`${workspaceRoot}/${file.file}`,
+			'utf8'
+		);
+		return hasRuntimeImportInSource(sourceText, file.file, packageName);
+	});
+}
+
+export function hasRuntimeImportInSource(
+	sourceText: string,
+	fileName: string,
+	packageName: string
+): boolean {
+	const sourceFile = ts.createSourceFile(
+		fileName,
+		sourceText,
+		ts.ScriptTarget.Latest,
+		true
+	);
+	let hasRuntimeImport = false;
+
+	function visit(node: ts.Node) {
+		if (hasRuntimeImport) {
+			return;
+		}
+		if (
+			(ts.isImportDeclaration(node) &&
+				!isTypeOnlyImport(node.importClause) &&
+				isPackageImport(node.moduleSpecifier, packageName)) ||
+			(ts.isExportDeclaration(node) &&
+				!isTypeOnlyExport(node) &&
+				isPackageImport(node.moduleSpecifier, packageName)) ||
+			(isDynamicImport(node) &&
+				isPackageImport(node.arguments[0], packageName)) ||
+			(isRequireCall(node) &&
+				isPackageImport(node.arguments[0], packageName))
+		) {
+			hasRuntimeImport = true;
+			return;
+		}
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sourceFile);
+	return hasRuntimeImport;
+}
+
+function isTypeOnlyImport(importClause: ts.ImportClause | undefined): boolean {
+	if (!importClause || !importClause.namedBindings) {
+		return importClause?.isTypeOnly === true;
+	}
+	return (
+		importClause.isTypeOnly ||
+		(ts.isNamedImports(importClause.namedBindings) &&
+			importClause.namedBindings.elements.every(
+				(specifier) => specifier.isTypeOnly
+			))
+	);
+}
+
+function isTypeOnlyExport(node: ts.ExportDeclaration): boolean {
+	if (!node.exportClause || !ts.isNamedExports(node.exportClause)) {
+		return node.isTypeOnly;
+	}
+	return (
+		node.isTypeOnly ||
+		node.exportClause.elements.every((specifier) => specifier.isTypeOnly)
+	);
+}
+
+function isPackageImport(
+	moduleSpecifier: ts.Expression | undefined,
+	packageName: string
+): boolean {
+	return (
+		moduleSpecifier !== undefined &&
+		ts.isStringLiteral(moduleSpecifier) &&
+		(moduleSpecifier.text === packageName ||
+			moduleSpecifier.text.startsWith(`${packageName}/`))
+	);
+}
+
+function isDynamicImport(node: ts.Node): node is ts.CallExpression {
+	return (
+		ts.isCallExpression(node) &&
+		node.expression.kind === ts.SyntaxKind.ImportKeyword
+	);
+}
+
+function isRequireCall(node: ts.Node): node is ts.CallExpression {
+	return (
+		ts.isCallExpression(node) &&
+		ts.isIdentifier(node.expression) &&
+		node.expression.text === 'require'
+	);
 }

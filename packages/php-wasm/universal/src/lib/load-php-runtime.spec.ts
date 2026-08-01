@@ -30,19 +30,31 @@ describe('PHP runtime registry', () => {
 		deleteRuntimeRegistry();
 	});
 
-	it('shares loaded runtimes across duplicate module instances', async () => {
+	it('shares monotonic runtime IDs across duplicate module instances', async () => {
 		vi.resetModules();
 		const firstModule = await import('./load-php-runtime');
-		const runtimeId =
+		const firstRuntimeId =
 			await firstModule.loadPHPRuntime(createLoaderModule());
 
 		vi.resetModules();
 		const secondModule = await import('./load-php-runtime');
-		const runtime = secondModule.popLoadedRuntime(runtimeId as any);
+		const secondRuntimeId =
+			await secondModule.loadPHPRuntime(createLoaderModule());
 
-		expect(runtime.id).toBe(runtimeId);
-		expect(() => firstModule.popLoadedRuntime(runtimeId as any)).toThrow(
-			`Runtime with id ${runtimeId} not found`
+		expect(firstRuntimeId).toBe(1);
+		expect(secondRuntimeId).toBe(2);
+
+		const firstRuntime = secondModule.popLoadedRuntime(
+			firstRuntimeId as any
 		);
+		const secondRuntime = firstModule.popLoadedRuntime(
+			secondRuntimeId as any
+		);
+
+		expect(firstRuntime.id).toBe(firstRuntimeId);
+		expect(secondRuntime.id).toBe(secondRuntimeId);
+		expect(() =>
+			secondModule.popLoadedRuntime(firstRuntimeId as any)
+		).toThrow(`Runtime with id ${firstRuntimeId} not found`);
 	});
 });
