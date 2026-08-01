@@ -9,6 +9,7 @@ import {
 } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { TextReader, Uint8ArrayWriter, ZipWriter } from '@zip.js/zip.js';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime, vfsShellExecutor } from '..';
@@ -2281,6 +2282,24 @@ cat "$log_json"
 			`,
 		});
 		expect(response.text).toContain('new\ndeleted\n');
+	});
+
+	it('rejects ZIP traversal before resolving a root destination', async () => {
+		const writer = new ZipWriter(new Uint8ArrayWriter());
+		await writer.add('../outside.txt', new TextReader('overwritten'));
+		await php.writeFile('/tmp/unsafe.zip', await writer.close());
+		await php.writeFile('/outside.txt', 'preserved');
+
+		const response = await php.run({
+			code: `<?php
+				$output = [];
+				exec('unzip /tmp/unsafe.zip -d / 2>&1', $output, $status);
+				echo $status . ':' . implode("\\n", $output) . ':' . file_get_contents('/outside.txt');
+			`,
+		});
+		expect(response.text).toBe(
+			'1:unzip: unsafe path: ../outside.txt:preserved'
+		);
 	});
 
 	it('executes VFS shell scripts with positional arguments and cannot read host paths', async () => {

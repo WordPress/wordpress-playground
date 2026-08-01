@@ -1,4 +1,9 @@
-import { BlobReader, Uint8ArrayWriter, ZipReader } from '@zip.js/zip.js';
+import {
+	BlobReader,
+	Uint8ArrayWriter,
+	ZipReader,
+	type Entry,
+} from '@zip.js/zip.js';
 // TypeScript's legacy Node resolution cannot follow this valid package export.
 // @ts-ignore Types are supplied by the package's main export below.
 import { Bash, defineCommand } from 'just-bash/browser';
@@ -16,6 +21,76 @@ import type {
 
 const BrowserBash: typeof BashClass = Bash;
 const defineVfsCommand: typeof defineCommandFunction = defineCommand;
+
+const MAX_ZIP_ARCHIVE_BYTES = 100 * 1024 * 1024;
+const MAX_ZIP_ENTRIES = 10_000;
+const MAX_ZIP_ENTRY_BYTES = 100 * 1024 * 1024;
+const MAX_ZIP_TOTAL_BYTES = 500 * 1024 * 1024;
+const MAX_ZIP_COMPRESSION_RATIO = 100;
+
+class ZipExtractionLimitError extends Error {}
+
+class BoundedUint8ArrayWriter extends Uint8ArrayWriter {
+	private size = 0;
+	private readonly maximumSize: number;
+	private readonly addToTotal: (size: number) => void;
+
+	constructor(maximumSize: number, addToTotal: (size: number) => void) {
+		super();
+		this.maximumSize = maximumSize;
+		this.addToTotal = addToTotal;
+	}
+
+	override async writeUint8Array(array: Uint8Array): Promise<void> {
+		if (array.byteLength > this.maximumSize - this.size)
+			throw new ZipExtractionLimitError('entry is too large');
+		this.size += array.byteLength;
+		this.addToTotal(array.byteLength);
+		await super.writeUint8Array(array);
+	}
+}
+
+export function resolveZipEntryPath(destination: string, filename: string) {
+	if (
+		!filename ||
+		filename.startsWith('/') ||
+		filename.split('/').some((part) => part === '..')
+	)
+		return undefined;
+	const path = resolvePath(destination, filename);
+	return path === destination ? undefined : path;
+}
+
+export function validateZipEntries(entries: Entry[]): string | undefined {
+	if (entries.length > MAX_ZIP_ENTRIES)
+		return `too many entries (maximum ${MAX_ZIP_ENTRIES})`;
+
+	let totalSize = 0;
+	for (const entry of entries) {
+		if (!resolveZipEntryPath('/', entry.filename))
+			return `unsafe path: ${entry.filename}`;
+		if (
+			!Number.isSafeInteger(entry.compressedSize) ||
+			!Number.isSafeInteger(entry.uncompressedSize) ||
+			entry.compressedSize < 0 ||
+			entry.uncompressedSize < 0
+		)
+			return `invalid size: ${entry.filename}`;
+		if (entry.uncompressedSize > MAX_ZIP_ENTRY_BYTES)
+			return `entry is too large: ${entry.filename}`;
+		if (
+			entry.uncompressedSize > 0 &&
+			(entry.compressedSize === 0 ||
+				entry.uncompressedSize / entry.compressedSize >
+					MAX_ZIP_COMPRESSION_RATIO)
+		)
+			return `compression ratio is too high: ${entry.filename}`;
+		totalSize += entry.uncompressedSize;
+		if (totalSize > MAX_ZIP_TOTAL_BYTES)
+			return `total uncompressed size is too large`;
+	}
+	return undefined;
+}
 
 function resolvePath(base: string, path: string) {
 	const resolved: string[] = [];
@@ -145,17 +220,43 @@ function deploymentCommands() {
 				context.cwd,
 				destinationArgument
 			);
-			const archive = await context.fs.readFileBuffer(
-				context.fs.resolvePath(context.cwd, zipPath)
-			);
+			const archivePath = context.fs.resolvePath(context.cwd, zipPath);
+			if (
+				(await context.fs.stat(archivePath)).size >
+				MAX_ZIP_ARCHIVE_BYTES
+			)
+				return {
+					stdout: '',
+					stderr: 'unzip: archive is too large\n',
+					exitCode: 1,
+				};
+			const archive = await context.fs.readFileBuffer(archivePath);
 			const reader = new ZipReader(new BlobReader(new Blob([archive])));
 			try {
-				for (const entry of await reader.getEntries()) {
-					const path = context.fs.resolvePath(
+				const entries: Entry[] = [];
+				for await (const entry of reader.getEntriesGenerator()) {
+					entries.push(entry);
+					if (entries.length > MAX_ZIP_ENTRIES)
+						return {
+							stdout: '',
+							stderr: `unzip: too many entries (maximum ${MAX_ZIP_ENTRIES})\n`,
+							exitCode: 1,
+						};
+				}
+				const validationError = validateZipEntries(entries);
+				if (validationError)
+					return {
+						stdout: '',
+						stderr: `unzip: ${validationError}\n`,
+						exitCode: 1,
+					};
+				let extractedSize = 0;
+				for (const entry of entries) {
+					const path = resolveZipEntryPath(
 						destination,
 						entry.filename
 					);
-					if (!path.startsWith(`${destination.replace(/\/$/, '')}/`))
+					if (!path)
 						return {
 							stdout: '',
 							stderr: `unzip: unsafe path: ${entry.filename}\n`,
@@ -170,11 +271,33 @@ function deploymentCommands() {
 						);
 						await context.fs.writeFile(
 							path,
-							await entry.getData!(new Uint8ArrayWriter())
+							await entry.getData!(
+								new BoundedUint8ArrayWriter(
+									MAX_ZIP_ENTRY_BYTES,
+									(size) => {
+										if (
+											size >
+											MAX_ZIP_TOTAL_BYTES - extractedSize
+										)
+											throw new ZipExtractionLimitError(
+												'total uncompressed size is too large'
+											);
+										extractedSize += size;
+									}
+								)
+							)
 						);
 					}
 				}
 				return { stdout: '', stderr: '', exitCode: 0 };
+			} catch (error) {
+				if (error instanceof ZipExtractionLimitError)
+					return {
+						stdout: '',
+						stderr: `unzip: ${error.message}\n`,
+						exitCode: 1,
+					};
+				throw error;
 			} finally {
 				await reader.close();
 			}
