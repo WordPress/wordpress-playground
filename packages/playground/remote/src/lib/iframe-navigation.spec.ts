@@ -29,4 +29,25 @@ describe('waitForIframeLoad', () => {
 		expect(iframe.src).toBe('about:blank');
 		vi.useRealTimers();
 	});
+
+	it('removes a timed-out navigation listener before the following navigation', async () => {
+		vi.useFakeTimers();
+		const iframe = Object.assign(new EventTarget(), {
+			src: 'https://example.com/first',
+		}) as HTMLIFrameElement;
+		const firstNavigation = waitForIframeLoad(iframe, 100);
+		const firstResult = expect(firstNavigation).rejects.toThrow(
+			'Playground iframe navigation did not finish within 100ms.'
+		);
+
+		await vi.advanceTimersByTimeAsync(100);
+		await firstResult;
+
+		iframe.src = 'https://example.com/second';
+		const secondNavigation = waitForIframeLoad(iframe, 100);
+		iframe.dispatchEvent(new Event('load'));
+
+		await expect(secondNavigation).resolves.toBeUndefined();
+		vi.useRealTimers();
+	});
 });

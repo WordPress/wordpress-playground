@@ -5,6 +5,7 @@ vi.stubGlobal('caches', {
 });
 vi.stubGlobal('self', {
 	location: { hostname: 'example.com' },
+	registration: { scope: 'https://example.com/' },
 });
 
 export {};
@@ -13,12 +14,27 @@ const { shouldCacheUrl } = await import('./offline-mode-cache');
 
 describe('shouldCacheUrl', () => {
 	it('does not cache dynamic WordPress REST API responses', () => {
-		expect(shouldCacheUrl(new URL('https://example.com/wp-json'))).toBe(
-			false
-		);
+		const baseUrl = 'https://example.com/wordpress/';
 		expect(
 			shouldCacheUrl(
-				new URL('https://example.com/wp-json/example/v1/resource?ref=a')
+				new URL('https://example.com/wordpress/wp-json'),
+				baseUrl
+			)
+		).toBe(false);
+		expect(
+			shouldCacheUrl(
+				new URL(
+					'https://example.com/wordpress/wp-json/example/v1/resource?ref=a'
+				),
+				baseUrl
+			)
+		).toBe(false);
+		expect(
+			shouldCacheUrl(
+				new URL(
+					'https://example.com/wordpress/?rest_route=/example/v1/resource&ref=a'
+				),
+				baseUrl
 			)
 		).toBe(false);
 	});

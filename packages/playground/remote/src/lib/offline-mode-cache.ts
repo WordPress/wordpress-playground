@@ -167,7 +167,7 @@ export async function hasCachedResponse(
 	return !!cachedResponse;
 }
 
-export function shouldCacheUrl(url: URL) {
+export function shouldCacheUrl(url: URL, baseUrl = getServiceWorkerScope()) {
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
 	}
@@ -189,11 +189,7 @@ export function shouldCacheUrl(url: URL) {
 		return false;
 	}
 
-	/**
-	 * Don't cache WordPress REST API responses. They are dynamic, and distinct
-	 * requests commonly share a pathname while using different query parameters.
-	 */
-	if (url.pathname === '/wp-json' || url.pathname.startsWith('/wp-json/')) {
+	if (isWordPressRestRequest(url, baseUrl)) {
 		return false;
 	}
 
@@ -209,6 +205,27 @@ export function shouldCacheUrl(url: URL) {
 	 * Allow only requests to the same hostname to be cached.
 	 */
 	return self.location.hostname === url.hostname;
+}
+
+function getServiceWorkerScope() {
+	return (self as unknown as ServiceWorkerGlobalScope).registration.scope;
+}
+
+function isWordPressRestRequest(url: URL, baseUrl: string) {
+	const siteUrl = new URL(baseUrl);
+	if (url.origin !== siteUrl.origin || !url.href.startsWith(siteUrl.href)) {
+		return false;
+	}
+
+	if (url.searchParams.has('rest_route')) {
+		return true;
+	}
+
+	const restApiUrl = new URL('wp-json/', siteUrl);
+	return (
+		url.pathname === restApiUrl.pathname.slice(0, -1) ||
+		url.pathname.startsWith(restApiUrl.pathname)
+	);
 }
 
 /**
