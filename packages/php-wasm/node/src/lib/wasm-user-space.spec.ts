@@ -8,6 +8,17 @@ describe('serializeDnsRecords', () => {
 		);
 	});
 
+	it('serializes MX and TXT records with their PHP fields', () => {
+		expect(
+			serializeDnsRecords('MX', [
+				{ priority: 10, exchange: 'mail.example.test' },
+			])
+		).toBe('MX\t3130\t6d61696c2e6578616d706c652e74657374');
+		expect(serializeDnsRecords('TXT', [['first', 'second']])).toBe(
+			'TXT\t66697273747365636f6e64\t6669727374\t7365636f6e64'
+		);
+	});
+
 	it('maps every Node CAA property to a PHP CAA record', () => {
 		expect(
 			serializeDnsRecords('CAA', [

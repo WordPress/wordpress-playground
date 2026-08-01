@@ -10,7 +10,7 @@ import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
-import { loadNodeRuntime } from '..';
+import { bindUserSpace, loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { spawn } from 'child_process';
 
@@ -506,38 +506,62 @@ phpLoaderOptions.forEach((options) => {
 
 		describe('dns_* functions()', { skip }, () => {
 			/** @issue https://github.com/WordPress/wordpress-playground/issues/4171 */
-			it('resolves A and MX records through Node DNS', async () => {
-				const result = await php.run({
-					code: `<?php
-					$a = dns_get_record('example.com', DNS_A);
-					$mxHosts = array(); $mxWeights = array();
-					echo json_encode(array(
-						'check' => checkdnsrr('example.com', 'A'),
-						'records' => $a,
-						'mx' => getmxrr('gmail.com', $mxHosts, $mxWeights),
-						'mxHosts' => $mxHosts,
-						'mxWeights' => $mxWeights
-					));
-				`,
-				});
-				const dns = JSON.parse(result.text);
-				expect(dns.check).toBe(true);
-				expect(dns.records).toEqual(
-					expect.arrayContaining([
-						expect.objectContaining({
-							host: 'example.com',
-							type: 'A',
-							ip: expect.any(String),
+			it('uses the resolver bridge for canonical DNS types', async () => {
+				const runtime = await loadNodeRuntime(phpVersion as any, {
+					emscriptenOptions: {
+						bindUserSpace: (context) => ({
+							...bindUserSpace({} as any, context),
+							dnsResolve: async (_hostname, type) => {
+								switch (type) {
+									case 'A':
+										return 'A\t3139322e302e322e31';
+									case 'AAAA':
+										return 'AAAA\t323030313a6462383a3a31';
+									case 'MX':
+										return 'MX\t3130\t6d61696c2e6578616d706c652e74657374';
+									default:
+										return '';
+								}
+							},
 						}),
-					])
-				);
-				expect(dns.mx).toBe(true);
-				expect(dns.mxHosts).toEqual(
-					expect.arrayContaining([expect.any(String)])
-				);
-				expect(dns.mxWeights).toEqual(
-					expect.arrayContaining([expect.any(Number)])
-				);
+					},
+				});
+				const bridgedPhp = new PHP(runtime);
+				try {
+					const result = await bridgedPhp.run({
+						code: `<?php
+						$a = dns_get_record('example.test', DNS_A);
+						$mxHosts = array(); $mxWeights = array();
+						echo json_encode(array(
+							'lowercase' => checkdnsrr('example.test', 'a'),
+							'mixedCase' => checkdnsrr('example.test', 'aAaA'),
+							'records' => $a,
+							'mx' => getmxrr('example.test', $mxHosts, $mxWeights),
+							'mxHosts' => $mxHosts,
+							'mxWeights' => $mxWeights
+						));
+						`,
+					});
+					const dns = JSON.parse(result.text);
+					expect(dns).toEqual({
+						lowercase: true,
+						mixedCase: true,
+						records: [
+							{
+								host: 'example.test',
+								class: 'IN',
+								ttl: 0,
+								type: 'A',
+								ip: '192.0.2.1',
+							},
+						],
+						mx: true,
+						mxHosts: ['mail.example.test'],
+						mxWeights: [10],
+					});
+				} finally {
+					bridgedPhp.exit();
+				}
 			});
 		});
 

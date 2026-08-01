@@ -275,7 +275,14 @@ static int dns_resolve(zval *records, const char *host, const char *type)
 
 static const char *dns_type(const char *type)
 {
-	if (!strcasecmp(type, "A") || !strcasecmp(type, "AAAA") || !strcasecmp(type, "CAA") || !strcasecmp(type, "CNAME") || !strcasecmp(type, "MX") || !strcasecmp(type, "NAPTR") || !strcasecmp(type, "NS") || !strcasecmp(type, "PTR") || !strcasecmp(type, "SOA") || !strcasecmp(type, "SRV") || !strcasecmp(type, "TXT")) return type;
+	struct dns_name { const char *name; } types[] = {
+		{ "A" }, { "AAAA" }, { "CAA" }, { "CNAME" }, { "MX" },
+		{ "NAPTR" }, { "NS" }, { "PTR" }, { "SOA" }, { "SRV" }, { "TXT" }
+	};
+	int i;
+	for (i = 0; i < (int) (sizeof(types) / sizeof(types[0])); i++) {
+		if (!strcasecmp(type, types[i].name)) return types[i].name;
+	}
 	return NULL;
 }
 
@@ -309,7 +316,11 @@ PHP_FUNCTION(dns_check_record)
 	char *rectype = NULL;
 #endif
 	const char *type;
+#if PHP_MAJOR_VERSION >= 7
 	zval records;
+#else
+	zval *records;
+#endif
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &hostname, &hostname_len, &rectype, &rectype_len) == FAILURE) {
 		return;
@@ -325,6 +336,8 @@ PHP_FUNCTION(dns_check_record)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid DNS record type");
 		RETURN_FALSE;
 	}
+
+#if PHP_MAJOR_VERSION >= 7
 	array_init(&records);
 	dns_resolve(&records, hostname, type);
 	if (zend_hash_num_elements(Z_ARRVAL(records))) {
@@ -332,6 +345,16 @@ PHP_FUNCTION(dns_check_record)
 		RETURN_TRUE;
 	}
 	zval_ptr_dtor(&records);
+#else
+	MAKE_STD_ZVAL(records);
+	array_init(records);
+	dns_resolve(records, hostname, type);
+	if (zend_hash_num_elements(Z_ARRVAL_P(records))) {
+		zval_ptr_dtor(&records);
+		RETURN_TRUE;
+	}
+	zval_ptr_dtor(&records);
+#endif
 	RETURN_FALSE;
 }
 
@@ -390,7 +413,11 @@ PHP_FUNCTION(dns_get_mx)
 	int hostname_len;
 #endif
 	zval *mx_list, *weight_list = NULL;
+#if PHP_MAJOR_VERSION >= 7
 	zval records;
+#else
+	zval *records;
+#endif
 
 #if PHP_MAJOR_VERSION >= 7
 	ZEND_PARSE_PARAMETERS_START(2, 3)
@@ -418,12 +445,22 @@ PHP_FUNCTION(dns_get_mx)
 #endif
 
 	if (!hostname_len) RETURN_FALSE;
+#if PHP_MAJOR_VERSION >= 7
 	array_init(&records);
 	dns_resolve(&records, hostname, "MX");
 	if (!zend_hash_num_elements(Z_ARRVAL(records))) {
 		zval_ptr_dtor(&records);
 		RETURN_FALSE;
 	}
+#else
+	MAKE_STD_ZVAL(records);
+	array_init(records);
+	dns_resolve(records, hostname, "MX");
+	if (!zend_hash_num_elements(Z_ARRVAL_P(records))) {
+		zval_ptr_dtor(&records);
+		RETURN_FALSE;
+	}
+#endif
 #if PHP_MAJOR_VERSION >= 7
 	{
 		zval *record;
