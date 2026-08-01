@@ -57,6 +57,28 @@ describe('decodeRemoteZip', () => {
 		}
 	}, 30_000);
 
+	it('fails clearly without exceeding the request budget for a large central directory', async () => {
+		const zipBytes = await createLargeCentralDirectoryZip();
+		const originalFetch = globalThis.fetch;
+		let requests = 0;
+		globalThis.fetch = createRangeFetch(zipBytes, () => requests++);
+
+		try {
+			const stream = await decodeRemoteZip(
+				'https://example.com/archive.zip',
+				(entry) =>
+					new TextDecoder().decode(entry.path) === 'selected.txt',
+				{ maxRequests: 3 }
+			);
+			await expect(readAll(stream)).rejects.toThrow(
+				'Remote ZIP request budget exhausted after 3 requests'
+			);
+			expect(requests).toBe(1);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	}, 30_000);
+
 	it('bounds concurrent live range response bodies', async () => {
 		const zipBytes = await createLargeZip(20, 100_000);
 		const originalFetch = globalThis.fetch;
@@ -126,6 +148,29 @@ async function createLargeZip(
 			...Array.from(
 				{ length: 2_500 },
 				(_, index) => new File([], `ignored-${index}.bin`)
+			),
+		])
+	);
+}
+
+async function createLargeCentralDirectoryZip(): Promise<Uint8Array> {
+	let state = 0x12345678;
+	const noise = new Uint8Array(700_000);
+	for (let index = 0; index < noise.length; index++) {
+		state ^= state << 13;
+		state ^= state >>> 17;
+		state ^= state << 5;
+		noise[index] = state;
+	}
+
+	return await collectBytes(
+		encodeZip([
+			new File(['selected contents'], 'selected.txt'),
+			new File([noise], 'noise.bin'),
+			...Array.from(
+				{ length: 400 },
+				(_, index) =>
+					new File([], `ignored-${index}-${'x'.repeat(1_000)}.bin`)
 			),
 		])
 	);

@@ -20,6 +20,7 @@ import {
 const loaderPath = '@php-wasm/web-8-5/asyncify/php_8_5.js';
 const phpVersion = '8.5.8' as const;
 const wordpressArchiveUrl = 'https://wordpress.org/latest.zip';
+const remoteZipRequestBudget = 50;
 let isolateId: string | undefined;
 let runtimePromise: Promise<PHP> | undefined;
 
@@ -63,10 +64,14 @@ async function remoteZipProbe(): Promise<Response> {
 	let predicateEntries = 0;
 	let decodedEntries = 0;
 	let includesVersion = false;
-	const stream = await decodeRemoteZip(wordpressArchiveUrl, (entry) => {
-		predicateEntries++;
-		return isWordPressRuntimeAsset(decoder.decode(entry.path));
-	});
+	const stream = await decodeRemoteZip(
+		wordpressArchiveUrl,
+		(entry) => {
+			predicateEntries++;
+			return isWordPressRuntimeAsset(decoder.decode(entry.path));
+		},
+		{ maxRequests: remoteZipRequestBudget }
+	);
 	for await (const entry of stream) {
 		decodedEntries++;
 		const path =

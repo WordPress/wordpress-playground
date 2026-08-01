@@ -13,12 +13,16 @@ import type { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;
-// Leave room in a 50-request budget for the HEAD and range-capability requests.
-const MAX_RANGE_REQUESTS = 48;
+const DEFAULT_MAX_REQUESTS = 50;
 const fetchSemaphore = new Semaphore({ concurrency: 10 });
 const PREFER_RANGES_IF_FILE_LARGER_THAN = 1024 * 1024 * 1;
 
 const DEFAULT_PREDICATE = () => true;
+
+export type DecodeRemoteZipOptions = {
+	/** The maximum number of requests used by the filtered range path. */
+	maxRequests?: number;
+};
 
 /**
  * Streams the contents of a remote zip file.
@@ -35,7 +39,8 @@ export async function decodeRemoteZip(
 	url: string,
 	predicate: (
 		dirEntry: CentralDirectoryEntry | FileEntry
-	) => boolean = DEFAULT_PREDICATE
+	) => boolean = DEFAULT_PREDICATE,
+	{ maxRequests = DEFAULT_MAX_REQUESTS }: DecodeRemoteZipOptions = {}
 ) {
 	if (predicate === DEFAULT_PREDICATE) {
 		// If we're not filtering the zip contents, let's just
@@ -44,7 +49,8 @@ export async function decodeRemoteZip(
 		return decodeZip(response.body!);
 	}
 
-	const contentLength = await fetchContentLength(url);
+	const requestBudget = new RequestBudget(maxRequests);
+	const contentLength = await fetchContentLength(url, requestBudget);
 	if (contentLength <= PREFER_RANGES_IF_FILE_LARGER_THAN) {
 		// If the zip is small enough, let's just grab it.
 		const response = await fetch(url);
@@ -53,7 +59,7 @@ export async function decodeRemoteZip(
 
 	// Ensure ranges query support:
 	// Fetch one byte
-	const response = await fetch(url, {
+	const response = await requestBudget.fetch(url, {
 		headers: {
 			// 0-0 looks weird, doesn't it?
 			// The Range header is inclusive so it's actually
@@ -85,10 +91,10 @@ export async function decodeRemoteZip(
 
 	// We're good, let's clean up the other branch of the response stream.
 	responseStream.cancel();
-	const source = await createFetchSource(url, contentLength);
+	const source = await createFetchSource(url, contentLength, requestBudget);
 	return streamCentralDirectoryEntries(source)
 		.pipeThrough(filterStream(predicate))
-		.pipeThrough(partitionNearbyEntries(source.length))
+		.pipeThrough(partitionNearbyEntries(source.length, requestBudget))
 		.pipeThrough(
 			fetchPartitionedEntries(source)
 		) as IterableReadableStream<FileEntry>;
@@ -181,15 +187,19 @@ async function streamCentralDirectoryBytes(source: BytesSource) {
  * It may download some extra files living within the gaps
  * between the partitions.
  */
-function partitionNearbyEntries(sourceLength: number) {
+function partitionNearbyEntries(
+	sourceLength: number,
+	requestBudget: RequestBudget
+) {
 	let lastFileEndsAt = 0;
 	let currentChunk: CentralDirectoryEntry[] = [];
-	const batchDownloadThreshold = Math.max(
-		BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN,
-		Math.ceil(sourceLength / MAX_RANGE_REQUESTS)
-	);
+	let batchDownloadThreshold: number | undefined;
 	return new TransformStream<CentralDirectoryEntry, CentralDirectoryEntry[]>({
 		transform(zipEntry, controller) {
+			batchDownloadThreshold ??= Math.max(
+				BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN,
+				Math.ceil(sourceLength / Math.max(1, requestBudget.remaining))
+			);
 			// Byte distance too large, flush and start a new chunk
 			if (
 				zipEntry.firstByteAt >
@@ -321,8 +331,9 @@ async function requestChunkRange(
 /**
  * Fetches the Content-Length header from a remote URL.
  */
-async function fetchContentLength(url: string) {
-	return await fetch(url, { method: 'HEAD' })
+async function fetchContentLength(url: string, requestBudget: RequestBudget) {
+	return await requestBudget
+		.fetch(url, { method: 'HEAD' })
 		.then((response) => response.headers.get('Content-Length'))
 		.then((contentLength) => {
 			if (!contentLength) {
@@ -351,22 +362,42 @@ type BytesSource = {
 	) => Promise<ReadableStream<Uint8Array>>;
 };
 
+class RequestBudget {
+	private requestsMade = 0;
+	private readonly maxRequests: number;
+
+	constructor(maxRequests: number) {
+		this.maxRequests = maxRequests;
+	}
+
+	get remaining() {
+		return this.maxRequests - this.requestsMade;
+	}
+
+	async fetch(url: string, init?: RequestInit): Promise<Response> {
+		if (this.remaining <= 0) {
+			throw new Error(
+				`Remote ZIP request budget exhausted after ${this.maxRequests} requests`
+			);
+		}
+		this.requestsMade++;
+		return await fetch(url, init);
+	}
+}
+
 /**
  * Creates a BytesSource enabling fetching ranges of bytes
  * from a remote URL.
  */
 async function createFetchSource(
 	url: string,
-	contentLength?: number
+	contentLength: number,
+	requestBudget: RequestBudget
 ): Promise<BytesSource> {
-	if (contentLength === undefined) {
-		contentLength = await fetchContentLength(url);
-	}
-
 	return {
 		length: contentLength,
 		streamBytes: async (from: number, to: number) => {
-			const response = await fetch(url, {
+			const response = await requestBudget.fetch(url, {
 				headers: {
 					// The Range header is inclusive, so we need to subtract 1
 					Range: `bytes=${from}-${to - 1}`,
