@@ -1,3 +1,4 @@
+import { Semaphore } from '@php-wasm/util';
 import { filterStream } from '../utils/filter-stream';
 import { concatUint8Array } from '../utils/concat-uint8-array';
 import { collectBytes } from '../utils/collect-bytes';
@@ -14,6 +15,7 @@ const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;
 // Leave room in a 50-request budget for the HEAD and range-capability requests.
 const MAX_RANGE_REQUESTS = 48;
+const fetchSemaphore = new Semaphore({ concurrency: 10 });
 const PREFER_RANGES_IF_FILE_LARGER_THAN = 1024 * 1024 * 1;
 
 const DEFAULT_PREDICATE = () => true;
@@ -214,30 +216,77 @@ function partitionNearbyEntries(sourceLength: number) {
 function fetchPartitionedEntries(
 	source: BytesSource
 ): ReadableWritablePair<FileEntry, CentralDirectoryEntry[]> {
-	return new TransformStream<CentralDirectoryEntry[], FileEntry>({
-		async transform(zipEntries, controller) {
+	let isWritableClosed = false;
+	let requestsInProgress = 0;
+	let readableController: ReadableStreamDefaultController<FileEntry>;
+	const byteStreams: Array<
+		[CentralDirectoryEntry[], ReadableStream<Uint8Array>]
+	> = [];
+	const writable = new WritableStream<CentralDirectoryEntry[]>({
+		write(zipEntries, controller) {
 			if (!zipEntries.length) {
 				return;
 			}
 
-			const stream = await requestChunkRange(source, zipEntries);
+			requestsInProgress++;
+			void fetchSemaphore
+				.run(async () => {
+					const bytes = await collectBytes(
+						await requestChunkRange(source, zipEntries)
+					);
+					byteStreams.push([zipEntries, new Blob([bytes]).stream()]);
+				})
+				.catch((error) => controller.error(error))
+				.finally(() => requestsInProgress--);
+		},
+		abort(reason) {
+			isWritableClosed = true;
+			readableController.error(reason);
+		},
+		close() {
+			isWritableClosed = true;
+		},
+	});
+	const readable = new ReadableStream<FileEntry>({
+		start(controller) {
+			readableController = controller;
+		},
+		async pull(controller) {
 			while (true) {
-				const file = await readFileEntry(stream);
-				if (!file) {
+				if (
+					isWritableClosed &&
+					!byteStreams.length &&
+					requestsInProgress === 0
+				) {
+					controller.close();
 					return;
 				}
 
-				// A range can include files between the requested entries.
+				if (!byteStreams.length) {
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					continue;
+				}
+
+				const [zipEntries, stream] = byteStreams[0];
+				const file = await readFileEntry(stream);
+				if (!file) {
+					byteStreams.shift();
+					continue;
+				}
+
 				if (
 					zipEntries.some((entry) =>
 						uint8ArraysEqual(entry.path, file.path)
 					)
 				) {
 					controller.enqueue(file);
+					return;
 				}
 			}
 		},
 	});
+
+	return { readable, writable };
 }
 
 function uint8ArraysEqual(left: Uint8Array, right: Uint8Array): boolean {
