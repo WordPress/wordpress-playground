@@ -27,12 +27,16 @@ Welcome to a Blueprints crash course, where you'll find everything you need to k
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
  -->
 
-:::tip
+<div class="callout callout-tip">
+
 このチュートリアルの実行中に問題が発生した場合は、[ブループリントのトラブルシューティングとデバッグ](/blueprints/troubleshoot-and-debug)セクションを参照して、問題解決に役立つヒントやツールを確認してください。
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
-:::
+
+</div>
  -->

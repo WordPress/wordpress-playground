@@ -8,15 +8,24 @@
  * can now forward bytes explicitly instead of relying on Emscripten's
  * implicit `process.stdin.fd` inheritance.
  */
-import { PHP, ProcessIdAllocator } from '@php-wasm/universal';
+import {
+	PHP,
+	PHPRequestHandler,
+	PHPWorker,
+	ProcessIdAllocator,
+} from '@php-wasm/universal';
 import { describe, it, expect } from 'vitest';
 import { loadNodeRuntime } from '..';
 
 const allocator = new ProcessIdAllocator();
 
-async function makePhp() {
+async function makePhp(options: Parameters<typeof loadNodeRuntime>[1] = {}) {
 	const id = await loadNodeRuntime('8.3', {
-		emscriptenOptions: { processId: allocator.claim() },
+		...options,
+		emscriptenOptions: {
+			...options.emscriptenOptions,
+			processId: allocator.claim(),
+		},
 	});
 	const php = new PHP(id);
 	await php.setSapiName('cli');
@@ -44,6 +53,41 @@ const STDIN_ECHO_SCRIPT =
 	'$s = file_get_contents("php://stdin"); echo "len=" . strlen($s) . ";body=" . $s;';
 
 describe('PHP.cli() stdin option', () => {
+	it('preserves omitted stdin behavior', async () => {
+		let hasRead = false;
+		const php = await makePhp({
+			emscriptenOptions: {
+				stdin: () => {
+					if (hasRead) {
+						return null;
+					}
+					hasRead = true;
+					return 'd'.charCodeAt(0);
+				},
+			},
+		});
+		const response = await php.cli(['php', '-r', STDIN_ECHO_SCRIPT]);
+		const out = await readText(response.stdout);
+		expect(out).toBe('len=1;body=d');
+		expect(await response.exitCode).toBe(0);
+	});
+
+	it('preserves a caller-provided Module.stdin over explicit input', async () => {
+		const bytes = new TextEncoder().encode('custom stdin');
+		let cursor = 0;
+		const php = await makePhp({
+			emscriptenOptions: {
+				stdin: () => bytes[cursor++] ?? null,
+			},
+		});
+		const response = await php.cli(['php', '-r', STDIN_ECHO_SCRIPT], {
+			stdin: 'ignored explicit input',
+		});
+		const out = await readText(response.stdout);
+		expect(out).toBe('len=12;body=custom stdin');
+		expect(await response.exitCode).toBe(0);
+	});
+
 	it('accepts a string', async () => {
 		const php = await makePhp();
 		const response = await php.cli(['php', '-r', STDIN_ECHO_SCRIPT], {
@@ -130,5 +174,30 @@ describe('PHP.cli() stdin option', () => {
 		const out = await readText(response.stdout);
 		expect(out).toBe('[via-fread]');
 		expect(await response.exitCode).toBe(0);
+	});
+
+	it('forwards stdin through PHPWorker.cli()', async () => {
+		const handler = new PHPRequestHandler({
+			documentRoot: '/wordpress',
+			absoluteUrl: 'http://127.0.0.1:2398',
+			phpFactory: async () => await makePhp(),
+		});
+		const worker = new PHPWorker(handler);
+		await worker.setPrimaryPHP(await handler.getPrimaryPhp());
+		try {
+			const response = await worker.cli(
+				['php', '-r', STDIN_ECHO_SCRIPT],
+				{
+					stdin: 'worker stdin',
+				}
+			);
+			expect(await readText(response.stdout)).toBe(
+				'len=12;body=worker stdin'
+			);
+			expect(await response.exitCode).toBe(0);
+		} finally {
+			await worker[Symbol.asyncDispose]();
+			await handler[Symbol.asyncDispose]();
+		}
 	});
 });

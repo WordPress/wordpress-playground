@@ -57,6 +57,7 @@ export const WordPressReleaseNames: Record<string, string> = {
 	'6.7': 'Rollins',
 	'6.8': 'Cecil',
 	'6.9': 'Gene',
+	'7.0': 'Armstrong',
 };
 
 /**

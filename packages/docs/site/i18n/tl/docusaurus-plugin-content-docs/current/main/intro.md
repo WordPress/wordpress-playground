@@ -46,9 +46,11 @@ Kung ikaw ay developer, non-technical na user, o kontribyutor, gagabay sa iyo an
 - Basahin ang tungkol sa mga [limitasyon](/developers/limitations)
 - [WordCamp Contributor Day](/contributing/contributor-day)
 
-:::tip
+<div class="callout callout-tip">
+
 Basahin ang [**Introduction to Playground: running WordPress in the browser**](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/) sa [WordPress Developer Blog](https://developer.wordpress.org/news) para sa mahusay na panimula sa WordPress Playground.
-:::
+
+</div>
 
 ## Mas Malalim na Pagsusuri
 
@@ -69,6 +71,8 @@ Ang WordPress Playground ay open-source at malugod na tinatanggap ang lahat ng k
 - Tingnan ang [Contributors Handbook](/contributing) para sa detalye kung paano ka makakatulong.
 - Sumali sa `#meta-playground` channel sa Slack (tingnan ang [WordPress Slack page](https://make.wordpress.org/chat/) para sa impormasyon sa pag-signup)
 
-:::tip
+<div class="callout callout-tip">
+
 Tingnan ang aming [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/) upang matiyak ang magiliw na kapaligiran para sa lahat.
-:::
+
+</div>

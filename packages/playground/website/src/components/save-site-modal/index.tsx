@@ -1,9 +1,11 @@
 import {
+	useCallback,
 	useEffect,
 	useMemo,
 	useState,
 	useRef,
 	type CSSProperties,
+	type ReactNode,
 } from 'react';
 import {
 	Button,
@@ -15,15 +17,34 @@ import {
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	setActiveModal,
+	setSiteSlugToSave,
+} from '../../lib/state/redux/slice-ui';
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import type { SiteStorageType } from '../../lib/state/redux/slice-sites';
+import {
+	isAutosavedSite,
+	type SiteStorageType,
+} from '../../lib/state/redux/slice-sites';
 import { logger } from '@php-wasm/logger';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 
 type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
+
+type SaveSiteModalProps =
+	| {
+			/** Render the form inside the Dock instead of a standalone modal. */
+			asPane: true;
+			onClose: () => void;
+			onCloseBlockedChange?: (isBlocked: boolean) => void;
+	  }
+	| {
+			asPane?: false;
+			onClose?: never;
+			onCloseBlockedChange?: never;
+	  };
 
 const helpTextStyle: CSSProperties = {
 	color: '#757575',
@@ -31,21 +52,31 @@ const helpTextStyle: CSSProperties = {
 	marginTop: 8,
 };
 
-export function SaveSiteModal() {
+export function SaveSiteModal(props: SaveSiteModalProps = {}) {
+	const { asPane = false } = props;
+	const onClose = props.asPane ? props.onClose : undefined;
+	const onCloseBlockedChange = props.asPane
+		? props.onCloseBlockedChange
+		: undefined;
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
+	const siteSlugToSave = useAppSelector((state) => state.ui.siteSlugToSave);
+	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	// The modal may be opened from an inactive autosave in Your Playgrounds.
+	const targetSiteSlug = siteSlugToSave ?? activeSiteSlug;
 	const site = useAppSelector((state) =>
-		state.ui.activeSite?.slug
-			? state.sites.entities[state.ui.activeSite.slug]
-			: undefined
+		targetSiteSlug ? state.sites.entities[targetSiteSlug] : undefined
 	);
 	const clientInfo = useAppSelector((state) =>
-		state.ui.activeSite?.slug
-			? selectClientInfoBySiteSlug(state, state.ui.activeSite.slug)
+		targetSiteSlug
+			? selectClientInfoBySiteSlug(state, targetSiteSlug)
 			: undefined
 	);
 
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
+	const targetIsActive = !!site && site.slug === activeSiteSlug;
+	const localIsAvailable =
+		targetIsActive && localFsAvailability === 'available';
 
 	const initialName = useMemo(() => site?.metadata?.name ?? '', [site]);
 	const [name, setName] = useState(initialName);
@@ -54,7 +85,7 @@ export function SaveSiteModal() {
 			if (isOpfsAvailable) {
 				return 'opfs';
 			}
-			if (localFsAvailability === 'available') {
+			if (localIsAvailable) {
 				return 'local-fs';
 			}
 			return 'opfs';
@@ -68,13 +99,18 @@ export function SaveSiteModal() {
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const nameInputRef = useRef<HTMLInputElement>(null);
+	const nameSiteSlugRef = useRef<string>();
 
 	useEffect(() => {
+		if (nameSiteSlugRef.current === site?.slug) {
+			return;
+		}
+		nameSiteSlugRef.current = site?.slug;
 		setName(initialName);
-	}, [initialName]);
+	}, [initialName, site?.slug]);
 
 	useEffect(() => {
-		// Select the text in the name input when the modal is shown
+		// Select the text in the name input when the save surface is shown
 		// Use a small delay to ensure the input is focused first by autoFocus
 		const timer = setTimeout(() => {
 			// Try using the ref first
@@ -89,23 +125,20 @@ export function SaveSiteModal() {
 	}, []);
 
 	useEffect(() => {
-		if (
-			selectedStorage === 'local-fs' &&
-			localFsAvailability !== 'available'
-		) {
+		if (selectedStorage === 'local-fs' && !localIsAvailable) {
 			setSelectedStorage('opfs');
 		}
-	}, [selectedStorage, localFsAvailability]);
+	}, [selectedStorage, localIsAvailable]);
 
 	useEffect(() => {
 		if (
 			selectedStorage === 'opfs' &&
 			!isOpfsAvailable &&
-			localFsAvailability === 'available'
+			localIsAvailable
 		) {
 			setSelectedStorage('local-fs');
 		}
-	}, [selectedStorage, localFsAvailability]);
+	}, [selectedStorage, localIsAvailable]);
 
 	useEffect(() => {
 		setDirectoryHandle(null);
@@ -119,29 +152,43 @@ export function SaveSiteModal() {
 	const savingProgress =
 		saveProgress?.status === 'syncing' ? saveProgress.progress : undefined;
 
-	// Close modal when save completes successfully
-	useEffect(() => {
-		if (
-			isSubmitting &&
-			saveProgress?.status !== 'syncing' &&
-			saveProgress?.status !== 'error' &&
-			site?.metadata?.storage !== 'none'
-		) {
-			dispatch(setActiveModal(null));
+	const isAutosaved = site && isAutosavedSite(site);
+	const canSaveSite =
+		site && (site.metadata.storage === 'none' || isAutosaved);
+	const closeSurface = useCallback(() => {
+		dispatch(setSiteSlugToSave(undefined));
+		if (onClose) {
+			onClose();
+			return;
 		}
-	}, [isSubmitting, saveProgress?.status, site?.metadata?.storage, dispatch]);
+		dispatch(setActiveModal(null));
+	}, [dispatch, onClose]);
 
-	if (!site || site.metadata.storage !== 'none') {
+	useEffect(() => {
+		if (!asPane) {
+			return;
+		}
+		// A background autosave may already be running when this pane opens.
+		// Disable submission then, but only trap the pane while this form's own
+		// save is in flight.
+		onCloseBlockedChange?.(isSubmitting);
+		return () => onCloseBlockedChange?.(false);
+	}, [asPane, isSubmitting, onCloseBlockedChange]);
+
+	useEffect(() => {
+		if (site && canSaveSite) {
+			return;
+		}
+		closeSurface();
+	}, [canSaveSite, closeSurface, site]);
+
+	if (!site || !canSaveSite) {
 		return null;
 	}
 
-	const closeModal = () => {
-		dispatch(setActiveModal(null));
-	};
-
-	const localIsAvailable = localFsAvailability === 'available';
-	const localUnavailableMessage =
-		localFsAvailability === 'not-available'
+	const localUnavailableMessage = !targetIsActive
+		? 'Open this Playground to save it to a local directory'
+		: localFsAvailability === 'not-available'
 			? 'Not available in this browser'
 			: 'Not available on this site';
 
@@ -234,8 +281,16 @@ export function SaveSiteModal() {
 			setSubmitError(null);
 
 			if (selectedStorage === 'local-fs') {
+				if (!targetIsActive) {
+					setDirectoryError(
+						'Open this Playground to save it to a local directory.'
+					);
+					setIsSubmitting(false);
+					return;
+				}
 				if (!directoryHandle) {
 					setDirectoryError('Choose a directory to continue.');
+					setIsSubmitting(false);
 					return;
 				}
 				const permission = await ensureWriteAccess(directoryHandle);
@@ -244,6 +299,7 @@ export function SaveSiteModal() {
 					setDirectoryError(
 						'Allow Playground to edit that directory in the browser prompt to continue.'
 					);
+					setIsSubmitting(false);
 					return;
 				}
 				await sitesAPI.saveToLocalFileSystem(
@@ -251,10 +307,14 @@ export function SaveSiteModal() {
 					directoryHandle
 				);
 			} else {
-				await sitesAPI.saveInBrowser(trimmedName);
+				if (isAutosaved) {
+					await sitesAPI.keep(site.slug, trimmedName);
+				} else {
+					await sitesAPI.saveInBrowser(trimmedName);
+				}
 			}
 
-			// Don't close modal here - useEffect will close it when save completes
+			closeSurface();
 		} catch (error) {
 			logger.error(error);
 			setSubmitError(
@@ -279,32 +339,54 @@ export function SaveSiteModal() {
 		!selectionIsAvailable ||
 		!hasDirectoryAccess ||
 		isSaving;
+	const savingProgressLabel =
+		savingProgress &&
+		savingProgress.total > 0 &&
+		savingProgress.files >= savingProgress.total
+			? 'Finalizing save...'
+			: savingProgress
+				? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
+				: 'Preparing to save...';
 
 	const handleRequestClose = () => {
-		if (!isSaving) {
-			closeModal();
+		const closeIsBlocked = asPane ? isSubmitting : isSaving;
+		if (!closeIsBlocked) {
+			closeSurface();
 		}
 	};
 
 	return (
-		<Modal
-			title="Save Playground"
-			contentLabel="Save Playground"
+		<SaveSurface
+			asPane={asPane}
+			isDismissible={asPane ? !isSubmitting : !isSaving}
 			onRequestClose={handleRequestClose}
-			isDismissible={!isSaving}
-			small
 		>
 			<form
 				onSubmit={(event) => {
 					event.preventDefault();
 					handleSubmit();
 				}}
-				style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 16,
+					...(asPane && {
+						padding: 'var(--space-2) var(--space-6) var(--space-6)',
+					}),
+				}}
 				autoComplete="off"
 			>
-				<p style={{ margin: 0, color: '#1e1e1e' }}>
-					This Playground is temporary and will be lost when you
-					refresh or close this page. Save it to keep your work.
+				<p
+					style={{
+						margin: 0,
+						color: asPane ? 'var(--ink, #21201d)' : '#1e1e1e',
+					}}
+				>
+					{isAutosaved
+						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
+						: asPane
+							? 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.'
+							: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
 				</p>
 				<TextControl
 					label="Playground name"
@@ -323,13 +405,17 @@ export function SaveSiteModal() {
 					options={[
 						{
 							label:
-								'Save in this browser' +
+								(asPane
+									? 'Save in browser storage'
+									: 'Save in this browser') +
 								(!isOpfsAvailable ? ' (not available)' : ''),
 							value: 'opfs',
 						},
 						{
 							label:
-								'Save to a local directory' +
+								(asPane
+									? 'Save in a local directory'
+									: 'Save to a local directory') +
 								(!localIsAvailable ? ' (not available)' : ''),
 							value: 'local-fs',
 						},
@@ -382,12 +468,16 @@ export function SaveSiteModal() {
 							id="save-progress"
 							max={savingProgress?.total || 100}
 							value={savingProgress?.files || 0}
-							style={{ width: '100%', height: 24 }}
+							style={{
+								width: '100%',
+								height: asPane ? 12 : 24,
+								...(asPane && {
+									accentColor: 'var(--accent, #3858e9)',
+								}),
+							}}
 						></progress>
 						<p style={{ ...helpTextStyle, marginTop: 4 }}>
-							{savingProgress
-								? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
-								: 'Preparing to save...'}
+							{savingProgressLabel}
 						</p>
 					</div>
 				)}
@@ -400,10 +490,39 @@ export function SaveSiteModal() {
 					submitText="Save"
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
+					cancelDisabled={asPane ? isSubmitting : undefined}
 					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>
 			</form>
+		</SaveSurface>
+	);
+}
+
+/** Uses the Dock pane's chrome when embedded, or the standalone modal otherwise. */
+function SaveSurface({
+	asPane,
+	isDismissible,
+	onRequestClose,
+	children,
+}: {
+	asPane: boolean;
+	isDismissible: boolean;
+	onRequestClose: () => void;
+	children: ReactNode;
+}) {
+	if (asPane) {
+		return children;
+	}
+	return (
+		<Modal
+			title="Save Playground"
+			contentLabel="Save Playground"
+			onRequestClose={onRequestClose}
+			isDismissible={isDismissible}
+			small
+		>
+			{children}
 		</Modal>
 	);
 }

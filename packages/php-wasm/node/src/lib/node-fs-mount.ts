@@ -23,11 +23,21 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		 * PHP-WASM source: https://github.com/WordPress/wordpress-playground/blob/5821cee231f452d050fd337b99ad0b26ebda487e/packages/php-wasm/compile/php/Dockerfile#L2148
 		 */
 		let removeVfsNode = false;
-		const mountRoot = realpathSync(localPath);
+		let mountRoot: string;
+		try {
+			mountRoot = realpathSync(localPath);
+		} catch (e) {
+			throw markMissingMountSource(e, localPath);
+		}
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
 			// Resolve symlinks so both the VFS placeholder and NODEFS root
 			// match the target's file-or-directory shape.
-			const stat = statSync(mountRoot);
+			let stat: ReturnType<typeof statSync>;
+			try {
+				stat = statSync(mountRoot);
+			} catch (e) {
+				throw markMissingMountSource(e, localPath);
+			}
 			if (stat.isFile()) {
 				FS.mkdirTree(dirname(vfsMountPoint));
 				FS.writeFile(vfsMountPoint, '');
@@ -70,4 +80,25 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			}
 		};
 	};
+}
+
+/**
+ * Marks ENOENT from NODEFS source lookup so rotation can handle only that race.
+ */
+function markMissingMountSource(error: unknown, localPath: string) {
+	const errnoError = error as NodeJS.ErrnoException;
+	if (errnoError.code === 'ENOENT') {
+		const missingSourceError = new Error(
+			`Unable to mount ${localPath}: source path does not exist.`,
+			{ cause: error }
+		) as NodeJS.ErrnoException & {
+			phpWasmMountSourceMissing: true;
+		};
+		missingSourceError.code = 'ENOENT';
+		missingSourceError.path = localPath;
+		missingSourceError.phpWasmMountSourceMissing = true;
+		return missingSourceError;
+	}
+
+	return error;
 }

@@ -17,15 +17,13 @@
  * The runtime is single-use for `cli()` (PHP exits on completion), so
  * the state does not need to be restored between calls.
  *
- * Consumers that want to forward host stdin must do so explicitly — see
- * `@php-wasm/cli` for an example that drains `process.stdin` when
- * non-TTY and passes the bytes via `PHP.cli({ stdin })`.
+ * When no explicit bytes are provided, the shim delegates to the runtime's
+ * existing stdin callback so omitted input keeps its established behavior.
  */
 export interface CliStdinState {
 	/**
 	 * Bytes to serve to PHP's stdin. `null` means no explicit bytes
-	 * were provided; the shim returns `null` (EOF) in that case so PHP
-	 * sees an empty stdin.
+	 * were provided, so the shim delegates to the runtime's fallback.
 	 */
 	bytes: Uint8Array | null;
 
@@ -90,11 +88,12 @@ export async function coerceCliStdin(
  * `null` at EOF.
  */
 export function createCliStdinCallback(
-	state: CliStdinState
+	state: CliStdinState,
+	fallback: () => number | null = () => null
 ): () => number | null {
 	return () => {
 		if (state.bytes === null) {
-			return null;
+			return fallback();
 		}
 		if (state.cursor >= state.bytes.length) {
 			return null;

@@ -16,7 +16,7 @@ const phpVersions =
 		? [process.env['PHP']! as SupportedPHPVersion]
 		: SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { extensions: ['xdebug'] }];
 
 describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	let server: any;

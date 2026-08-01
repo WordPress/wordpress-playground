@@ -3,6 +3,7 @@ import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
 import type { SyncProgress } from '@php-wasm/web';
 import type { MountDevice } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
+import type { MainTabStatus } from './tab-coordinator';
 
 export type OpfsSync =
 	| {
@@ -23,6 +24,7 @@ export interface ClientInfo {
 	};
 	opfsSync?: OpfsSync;
 	isDependentMode?: boolean;
+	mainTabStatus?: MainTabStatus;
 }
 
 // Create an entity adapter for ClientInfo

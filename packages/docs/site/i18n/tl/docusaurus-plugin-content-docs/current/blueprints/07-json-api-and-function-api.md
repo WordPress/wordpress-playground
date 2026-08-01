@@ -29,6 +29,8 @@ May dalawang pangunahing pagkakaiba sa pagitan ng JSON at Function APIs:
 1. Ang mga Blueprint ay nagha-handle ng progress bar at error reporting para sa iyo. Ang function API ay nangangailangan na i-handle mo ang mga ito nang mag-isa.
 2. Ang function API ay nangangailangan ng pag-import ng API client library habang ang mga Blueprint ay maaaring i-paste lang sa URL fragment.
 
-:::note
+<div class="callout callout-info">
+
 Tingnan ang [Use the same structure for Blueprint JSON definitions and step handlers](https://github.com/WordPress/wordpress-playground/pull/215) issue sa [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo para sa mas detalyadong impormasyon tungkol sa topic na ito
-:::
+
+</div>

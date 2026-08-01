@@ -139,18 +139,21 @@ export async function loadPHPRuntime(
 	// Install a dynamic stdin shim so `PHP.cli()` can provide stdin
 	// bytes after the runtime has been initialized. The shim captures a
 	// mutable `CliStdinState` object by reference; `PHP.cli()` populates
-	// it per-invocation. When no bytes are provided, the shim returns
-	// `null` (EOF) and PHP sees an empty stdin. Consumers that need to
-	// forward host stdin (e.g. the `@php-wasm/cli` bin) must drain it
-	// themselves and pass it via the `stdin` option on `PHP.cli()`.
+	// it per-invocation. When no bytes are provided, the shim delegates
+	// to the runtime-specific fallback to preserve existing behavior.
 	//
 	// If the caller already supplied their own `stdin` callback, we
 	// defer to it — some extensions may install custom stdio wiring and
 	// we should not clobber it. When that happens, `PHP.cli()`'s stdin
 	// option has no effect (the caller is in full control).
 	const cliStdinState: CliStdinState = createCliStdinState();
-	const cliStdinCallback = createCliStdinCallback(cliStdinState);
 	const userStdin = phpModuleArgs.stdin;
+	const cliStdinFallback = phpModuleArgs.cliStdinFallback;
+	delete phpModuleArgs.cliStdinFallback;
+	const cliStdinCallback = createCliStdinCallback(
+		cliStdinState,
+		cliStdinFallback
+	);
 
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
@@ -178,6 +181,12 @@ export async function loadPHPRuntime(
 	});
 
 	await phpReady;
+
+	const phpWasmAsyncMode =
+		phpModuleArgs.phpWasmAsyncMode ?? phpLoaderModule.phpWasmAsyncMode;
+	if (phpWasmAsyncMode) {
+		PHPRuntime.phpWasmAsyncMode = phpWasmAsyncMode;
+	}
 
 	const id = ++lastRuntimeId;
 
@@ -298,6 +307,7 @@ export type PHPRuntime = any;
 export type PHPLoaderModule = {
 	dependencyFilename: string;
 	dependenciesTotalSize: number;
+	phpWasmAsyncMode?: 'jspi' | 'asyncify';
 	init: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
 };
 

@@ -1,0 +1,13 @@
+**
+!compile/
+!compile/php/
+!compile/php/php*.patch
+!compile-extension/
+!compile-extension/docker/
+!compile-extension/docker/Dockerfile.ext
+!compile-extension/scripts/
+!compile-extension/scripts/build-in-docker.sh
+!node-builds/
+!node-builds/**
+!web-builds/
+!web-builds/**

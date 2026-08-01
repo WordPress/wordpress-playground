@@ -8,10 +8,16 @@ description: Discover the different ways to use Blueprints, including via URL fr
 
 You can use Blueprints in one of the following ways:
 
-- By passing them as a URL fragment to the Playground.
-- By loading them from a URL using the `blueprint-url` parameter.
-- By using Blueprint bundles (ZIP files or directories).
-- By using the JavaScript API.
+- Open **New → Blueprint gallery** in the Playground Dock and choose an example.
+- Open **New → Blueprint URL** and enter a public Blueprint JSON or ZIP bundle URL.
+- Open **New → Write a Blueprint** to author a Blueprint in the browser.
+- Open **Blueprint** to inspect or edit the current Playground's Blueprint.
+- Pass a Blueprint as a URL fragment.
+- Load a Blueprint from a URL using the `blueprint-url` parameter.
+- Use Blueprint bundles (ZIP files or directories).
+- Use the JavaScript API.
+
+![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ## URL Fragment
 
@@ -32,7 +38,8 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 And then you would go to
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"6.5"}}`.
 
-:::tip
+<div class="callout callout-tip">
+
 In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Example:
 
@@ -49,7 +56,7 @@ const encodedBlueprint = encodeURIComponent(minifiedBlueprintJson);
 const playgroundUrl = `https://playground.wordpress.net/#${encodedBlueprint}`;
 ```
 
-:::
+</div>
 
 You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
 
@@ -81,7 +88,23 @@ Playground also supports Base64-encoded Blueprints. Base64 is useful when a plat
 
 To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 
-:::tip
+#### URIError: URI malformed
+
+If a Playground link fails with `URIError: URI malformed`, the encoded
+Blueprint fragment is usually malformed. Common causes include an invalid `%`
+escape, a fragment that was encoded twice, or JSON pasted into the URL without
+encoding.
+
+Rebuild the link from the original Blueprint object and encode it once:
+
+```js
+const playgroundUrl = `https://playground.wordpress.net/#${encodeURIComponent(JSON.stringify(blueprint))}`;
+```
+
+If another tool changes URL fragments, use a Base64-encoded Blueprint instead.
+
+<div class="callout callout-tip">
+
 In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
 
 Example:
@@ -97,7 +120,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 
 ### Load Blueprint from a URL
 
@@ -110,6 +133,15 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 ```
 Access-Control-Allow-Origin: *
 ```
+
+When a Blueprint URL fails with `BlueprintFetchError`, check these details:
+
+- The URL must return a JSON file or a Blueprint ZIP bundle, not an HTML page.
+- GitHub URLs should use `raw.githubusercontent.com`, not `github.com/.../blob/...`.
+- GitLab URLs should use the raw file URL, not a `/-/blob/` page.
+- The file must be reachable without login, cookies, VPN access, or a temporary browser session.
+- Draft releases, expired CI artifacts, and temporary tunnel URLs can stop working even if the Blueprint was valid earlier.
+- If you host the file yourself, configure CORS so `https://playground.wordpress.net` can fetch it.
 
 #### Blueprint Bundles
 

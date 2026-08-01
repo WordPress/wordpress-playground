@@ -7,26 +7,42 @@ import {
 	type Tooltip,
 } from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
-import { Button, Icon, Notice } from '@wordpress/components';
-import { download, link } from '@wordpress/icons';
+import {
+	Button,
+	Dropdown,
+	Icon,
+	MenuGroup,
+	MenuItem,
+	Notice,
+	Tooltip as WpTooltip,
+} from '@wordpress/components';
+import { chevronDown, download, help, link } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
 } from '@wp-playground/blueprints';
-import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import type {
+	AsyncWritableFilesystem,
+	EventedFilesystem,
+} from '@wp-playground/storage';
 import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
 import classNames from 'classnames';
+import { createPortal } from 'react-dom';
 import {
 	forwardRef,
 	useCallback,
 	useEffect,
+	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
 } from 'react';
-import { CodeEditor, type CodeEditorHandle } from '@wp-playground/components';
-import { FileExplorerSidebar } from './file-explorer-sidebar';
+import {
+	CodeEditor,
+	FileExplorerSidebar,
+	type CodeEditorHandle,
+} from '@wp-playground/components';
 import {
 	formatEditor,
 	getStringNodeAtPosition,
@@ -41,13 +57,19 @@ import { StringEditorModal } from './string-editor-modal';
 import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import { sitesSlice } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch } from '../../lib/state/redux/store';
+import {
+	createStoredSite,
+	isAutosavedSite,
+	isStoredSite,
+	pruneAutosavedSites,
+	type SiteInfo,
+	updateSite,
+} from '../../lib/state/redux/slice-sites';
+import { setActiveSite, useAppDispatch } from '../../lib/state/redux/store';
+import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
-import type { EventedFilesystem } from '@wp-playground/storage';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -249,24 +271,35 @@ const PlayIcon = ({ className }: { className?: string }) => (
  * Inner editor that assumes the filesystem never changes.
  */
 export type BlueprintBundleEditorProps = {
-	filesystem: AsyncWritableFilesystem;
+	filesystem: EventedFilesystem;
 	className?: string;
 	site?: SiteInfo;
 	autoRunToken?: number;
 	readOnly?: boolean;
+	dockPresentation?: boolean;
+	/** Mobile Dock title row where Browse and Export should be rendered. */
+	mobileHeaderTarget?: Element | null;
 };
 
 export interface BlueprintBundleEditorHandle {
 	downloadBundle: () => Promise<void>;
 	getBundle: () => Promise<AsyncWritableFilesystem | null>;
-	triggerRecreate: () => Promise<void>;
+	runBlueprint: () => Promise<void>;
 }
 
 export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
 >(function BlueprintFilesystemEditor(
-	{ filesystem, className, site, autoRunToken, readOnly },
+	{
+		filesystem,
+		className,
+		site,
+		autoRunToken,
+		readOnly,
+		dockPresentation = false,
+		mobileHeaderTarget = null,
+	},
 	ref
 ) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>('/');
@@ -276,14 +309,16 @@ export const BlueprintBundleEditor = forwardRef<
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
-	const [treeFocusPath, setTreeFocusPath] = useState<string | null>(null);
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
-	const [isRecreating, setIsRecreating] = useState(false);
+	const [isRunningBlueprint, setIsRunningBlueprint] = useState(false);
 	const [validationResult, setValidationResult] =
 		useState<BlueprintValidationResult | null>(null);
+	const hasValidationErrors =
+		validationResult !== null && !validationResult.valid;
+	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -317,31 +352,43 @@ export const BlueprintBundleEditor = forwardRef<
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
+	/**
+	 * `flush()` starts the latest delayed save. This ordered promise also includes
+	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
+	 */
+	const saveBarrierRef = useRef<Promise<boolean>>(Promise.resolve(true));
+	const runInProgressRef = useRef(false);
 	const dispatch = useAppDispatch();
 
 	// Save file to filesystem
-	const saveFile = useDebouncedCallback(
-		async (path: string, content: string) => {
+	const saveFile = useDebouncedCallback(enqueueSave, 200, [filesystem]);
+
+	function enqueueSave(path: string, content: string): Promise<boolean> {
+		saveBarrierRef.current = saveBarrierRef.current.then(async () => {
 			try {
 				await filesystem.writeFile(path, content);
 				setSaveError(null);
+				return true;
 			} catch (error) {
 				logger.error('Failed to save file', error);
 				setSaveError('Could not save changes. Try again.');
+				return false;
 			}
-		},
-		200,
-		[filesystem]
-	);
+		});
+		return saveBarrierRef.current;
+	}
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
+			if (readOnly || isRunningBlueprint) {
+				return;
+			}
 			setCode(newCode);
 			if (currentPath) {
 				saveFile(currentPath, newCode);
 			}
 		},
-		[currentPath, saveFile]
+		[currentPath, isRunningBlueprint, readOnly, saveFile]
 	);
 
 	// Load initial blueprint.json and focus tree
@@ -358,7 +405,6 @@ export const BlueprintBundleEditor = forwardRef<
 				setSaveError(null);
 				setMessageContent(null);
 				setShowExplorerOnMobile(false);
-				setTreeFocusPath(BLUEPRINT_JSON_PATH);
 			} catch (error) {
 				logger.error('Could not open blueprint.json', error);
 			}
@@ -375,50 +421,93 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [newUrl]);
 
-	const handleRecreateFromBlueprint = useCallback(async () => {
-		if (!site || site.metadata.storage !== 'none' || readOnly) {
+	const handleRunBlueprint = useCallback(async () => {
+		if (
+			!site ||
+			readOnly ||
+			hasValidationErrors ||
+			runInProgressRef.current
+		) {
 			return;
 		}
+		runInProgressRef.current = true;
+		const runInNewPlayground = isStoredSite(site);
 		try {
-			setIsRecreating(true);
-			const bundle =
-				(filesystem as EventedFilesystem | null) ??
-				((site.metadata.originalBlueprint ||
-					null) as EventedFilesystem | null);
-			if (!bundle) {
-				throw new Error('Blueprint bundle is not available.');
+			setIsRunningBlueprint(true);
+			saveFile.flush();
+			if (!(await saveBarrierRef.current)) {
+				return;
+			}
+			setSaveError(null);
+			if (runInNewPlayground) {
+				const newSite = await dispatch(
+					createStoredSite(
+						site.metadata.name,
+						filesystem.backend,
+						undefined,
+						{ persistence: 'autosave' }
+					)
+				);
+				try {
+					await dispatch(
+						pruneAutosavedSites({
+							excludeSlugs: [site.slug, newSite.slug],
+						})
+					);
+				} catch (error) {
+					// The new Playground is already committed. Retention cleanup is
+					// housekeeping and must not turn a successful run into a retry
+					// that creates a duplicate Playground.
+					logger.error(
+						'Failed to prune autosaved Playgrounds',
+						error
+					);
+				}
+				dispatch(setDockPaneOpen(false));
+				dispatch(setActiveSite(newSite.slug));
+				return;
 			}
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				bundle as any
+				filesystem as any
 			);
+			const changes = {
+				metadata: {
+					...site.metadata,
+					originalBlueprintSource: { type: 'none' as const },
+					originalBlueprint: filesystem,
+					runtimeConfiguration,
+					initialOpfsSyncPending:
+						site.metadata.initialOpfsSyncPending,
+					playgroundDefinedConstants:
+						site.metadata.playgroundDefinedConstants,
+					whenCreated: Date.now(),
+				},
+				originalUrlParams: undefined,
+			};
 			dispatch(removeClientInfo(site.slug));
-			dispatch(
-				sitesSlice.actions.updateSite({
-					id: site.slug,
-					changes: {
-						metadata: {
-							...site.metadata,
-							originalBlueprintSource: { type: 'last-autosave' },
-							originalBlueprint: bundle,
-							runtimeConfiguration,
-							whenCreated: Date.now(),
-						},
-						originalUrlParams: undefined,
-					},
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes,
 				})
 			);
 		} catch (error) {
-			logger.error('Failed to recreate from blueprint', error);
-			setSaveError('Could not recreate Playground. Try again.');
+			logger.error('Failed to run Blueprint', error);
+			setSaveError(
+				runInNewPlayground
+					? 'Could not create Playground. Try again.'
+					: 'Could not recreate Playground. Try again.'
+			);
 		} finally {
-			setIsRecreating(false);
+			runInProgressRef.current = false;
+			setIsRunningBlueprint(false);
 		}
-	}, [dispatch, filesystem, site]);
+	}, [dispatch, filesystem, hasValidationErrors, readOnly, saveFile, site]);
 
 	// autorun token hook
 	useEffect(() => {
 		if (autoRunToken === undefined) return;
-		void handleRecreateFromBlueprint();
+		void handleRunBlueprint();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [autoRunToken]);
 
@@ -430,7 +519,6 @@ export const BlueprintBundleEditor = forwardRef<
 			setMessageContent(null);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			setTreeFocusPath(path);
 
 			if (shouldFocus) {
 				setTimeout(() => editorRef.current?.focus(), 20);
@@ -445,7 +533,6 @@ export const BlueprintBundleEditor = forwardRef<
 		setMessageContent(null);
 		setDisplayPath(null);
 		setSaveError(null);
-		setTreeFocusPath(null);
 	}, []);
 
 	// Open the string editor modal for the string at the current cursor position
@@ -485,6 +572,9 @@ export const BlueprintBundleEditor = forwardRef<
 	// Handle saving from the string editor modal
 	const handleStringEditorSave = useCallback(
 		(newValue: string) => {
+			if (readOnly || isRunningBlueprint) {
+				return;
+			}
 			const view = cmViewRef.current;
 			if (!view) return;
 
@@ -502,7 +592,12 @@ export const BlueprintBundleEditor = forwardRef<
 			// Format the document after the change
 			setTimeout(() => formatEditor(view), 0);
 		},
-		[stringEditorState.contentStart, stringEditorState.contentEnd]
+		[
+			isRunningBlueprint,
+			readOnly,
+			stringEditorState.contentEnd,
+			stringEditorState.contentStart,
+		]
 	);
 
 	const closeStringEditor = useCallback(() => {
@@ -526,7 +621,6 @@ export const BlueprintBundleEditor = forwardRef<
 
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			setTreeFocusPath(null);
 		},
 		[]
 	);
@@ -563,9 +657,6 @@ export const BlueprintBundleEditor = forwardRef<
 		],
 		[handleValidationChange, openStringEditor]
 	);
-
-	const hasValidationErrors =
-		validationResult !== null && !validationResult.valid;
 
 	const handleDownloadBundle = useCallback(async () => {
 		try {
@@ -630,15 +721,139 @@ export const BlueprintBundleEditor = forwardRef<
 		() => ({
 			downloadBundle: handleDownloadBundle,
 			getBundle: async () => filesystem,
-			triggerRecreate: handleRecreateFromBlueprint,
+			runBlueprint: handleRunBlueprint,
 		}),
-		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
+		[handleDownloadBundle, filesystem, handleRunBlueprint]
 	);
 
-	const disableRunButton = isRecreating || !site || hasValidationErrors;
+	const isAutosaved = site ? isAutosavedSite(site) : false;
+	const isStored = site ? isStoredSite(site) : false;
+	const disableRunButton = isRunningBlueprint || !site || hasValidationErrors;
+	const mobileExplorerToggle = (
+		<Button
+			className={styles.mobileToggle}
+			variant="secondary"
+			onClick={() => setShowExplorerOnMobile((previous) => !previous)}
+		>
+			{showExplorerOnMobile ? 'Hide files' : 'Browse files'}
+		</Button>
+	);
+	const dockExportDropdown = (
+		<Dropdown
+			className={styles.editorExport}
+			popoverProps={{
+				placement: 'bottom-end',
+			}}
+			renderToggle={({ isOpen, onToggle }) => (
+				<Button
+					variant="secondary"
+					className={classNames(
+						styles.editorToolbarButton,
+						styles.editorExportToggle
+					)}
+					onClick={onToggle}
+					aria-expanded={isOpen}
+					aria-haspopup="menu"
+				>
+					Export
+					<Icon icon={chevronDown} size={16} />
+				</Button>
+			)}
+			renderContent={({ onClose }) => (
+				<MenuGroup>
+					<MenuItem
+						icon={link}
+						className={
+							!isBundleShareable
+								? styles.exportMenuItemWithHint
+								: undefined
+						}
+						aria-label="Copy Blueprint URL"
+						aria-describedby={
+							!isBundleShareable
+								? copyBlueprintUrlHintId
+								: undefined
+						}
+						disabled={!isBundleShareable}
+						onClick={() => {
+							handleShareBlueprint();
+							onClose();
+						}}
+					>
+						<span className={styles.exportMenuItemBody}>
+							<span>Copy Blueprint URL</span>
+							{!isBundleShareable && (
+								<span
+									id={copyBlueprintUrlHintId}
+									className={styles.exportMenuItemHint}
+								>
+									Multi-file Blueprints can’t be shared as a
+									URL — download a zip instead.
+								</span>
+							)}
+						</span>
+					</MenuItem>
+					<MenuItem
+						icon={download}
+						onClick={() => {
+							handleDownloadBundle();
+							onClose();
+						}}
+					>
+						Download Zip
+					</MenuItem>
+				</MenuGroup>
+			)}
+		/>
+	);
+	const dockDocsLink = (
+		<WpTooltip
+			text="See Blueprints documentation"
+			delay={0}
+			placement="top"
+		>
+			<a
+				className={styles.editorDocsLink}
+				href="https://wordpress.github.io/wordpress-playground/blueprints"
+				target="_blank"
+				rel="noreferrer"
+				aria-label="See Blueprints documentation"
+			>
+				<Icon icon={help} size={24} />
+			</a>
+		</WpTooltip>
+	);
+	const mobileHeaderActions = mobileHeaderTarget
+		? createPortal(
+				<div
+					className={styles.editorHeaderSlotActions}
+					data-dock-pane-header-actions
+				>
+					<div
+						className={styles.editorHeaderHelp}
+						data-dock-pane-header-help
+					>
+						{dockDocsLink}
+					</div>
+					<div
+						className={styles.editorHeaderFileActions}
+						data-dock-pane-header-utilities
+					>
+						{mobileExplorerToggle}
+						{dockExportDropdown}
+					</div>
+				</div>,
+				mobileHeaderTarget
+			)
+		: null;
 	return (
 		<>
-			<div className={classNames(styles.container, className)}>
+			{mobileHeaderActions}
+			<div
+				className={classNames(styles.container, className, {
+					[styles.dockPresentation]: dockPresentation,
+				})}
+			>
 				<div
 					className={classNames(styles.content, {
 						[styles.sidebarOpen]: showExplorerOnMobile,
@@ -659,62 +874,86 @@ export const BlueprintBundleEditor = forwardRef<
 							currentPath={currentPath}
 							selectedDirPath={selectedDirPath}
 							setSelectedDirPath={setSelectedDirPath}
-							focusPath={treeFocusPath}
 							onFileOpened={handleFileOpened}
 							onSelectionCleared={handleClearSelection}
 							onShowMessage={handleShowMessage}
 							documentRoot="/"
-							readOnly={readOnly}
+							readOnly={readOnly || isRunningBlueprint}
+							{...(dockPresentation
+								? {
+										title: 'Blueprint',
+										showBinaryPreviewHeader: false,
+										dockPresentation: true,
+										useWordPressTooltips: true,
+									}
+								: {})}
 						/>
 					</aside>
 					<section className={styles.editorWrapper}>
 						<div className={styles.editorHeader}>
-							<Button
-								className={styles.mobileToggle}
-								variant="secondary"
-								onClick={() =>
-									setShowExplorerOnMobile(
-										(previous) => !previous
-									)
-								}
-							>
-								{showExplorerOnMobile
-									? 'Hide files'
-									: 'Browse files'}
-							</Button>
-							<div
-								className={classNames(styles.editorPath, {
-									[styles.editorPathPlaceholder]:
-										!currentPath?.length,
-								})}
-							>
-								{displayPath ||
-									selectedDirPath ||
-									'Browse files under /'}
-							</div>
+							{!dockPresentation && mobileExplorerToggle}
+							{!dockPresentation && (
+								<div
+									className={classNames(styles.editorPath, {
+										[styles.editorPathPlaceholder]:
+											!currentPath?.length,
+									})}
+								>
+									{displayPath ||
+										selectedDirPath ||
+										'Browse files under /'}
+								</div>
+							)}
 
-							<div className={styles.editorHeaderActions}>
-								<Button
-									variant="tertiary"
-									className={styles.editorToolbarButton}
-									onClick={handleShareBlueprint}
-									title="Copy link to blueprint"
-									aria-label="Copy link to blueprint"
-									disabled={!isBundleShareable}
-								>
-									<Icon icon={link} />
-								</Button>
-								<Button
-									variant="tertiary"
-									className={styles.editorToolbarButton}
-									onClick={handleDownloadBundle}
-									title="Download bundle"
-								>
-									<Icon icon={download} />
-								</Button>
+							<div
+								className={classNames(
+									styles.editorHeaderActions,
+									{
+										[styles.editorHeaderActionsWithPortaledUtilities]:
+											mobileHeaderTarget,
+									}
+								)}
+							>
+								{dockPresentation &&
+									!mobileHeaderTarget &&
+									mobileExplorerToggle}
+								{dockPresentation ? (
+									!mobileHeaderTarget && (
+										<>
+											{dockDocsLink}
+											{dockExportDropdown}
+										</>
+									)
+								) : (
+									<>
+										<Button
+											variant="tertiary"
+											className={
+												styles.editorToolbarButton
+											}
+											onClick={handleShareBlueprint}
+											title="Copy link to blueprint"
+											aria-label="Copy link to blueprint"
+											disabled={!isBundleShareable}
+										>
+											<Icon icon={link} />
+										</Button>
+										<Button
+											variant="tertiary"
+											className={
+												styles.editorToolbarButton
+											}
+											onClick={handleDownloadBundle}
+											title="Download bundle"
+										>
+											<Icon icon={download} />
+										</Button>
+									</>
+								)}
 								{!readOnly && (
 									<Button
 										variant="primary"
+										isDestructive={!isStored}
 										className={classNames(
 											styles.editorToolbarButton,
 											{
@@ -722,8 +961,8 @@ export const BlueprintBundleEditor = forwardRef<
 													hasValidationErrors,
 											}
 										)}
-										onClick={handleRecreateFromBlueprint}
-										isBusy={isRecreating}
+										onClick={handleRunBlueprint}
+										isBusy={isRunningBlueprint}
 										disabled={disableRunButton}
 										title={
 											hasValidationErrors
@@ -736,7 +975,9 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarPlayIcon
 											}
 										/>
-										Run Blueprint
+										{isStored
+											? 'Run in a new Playground'
+											: 'Discard current Playground & run Blueprint'}
 									</Button>
 								)}
 							</div>
@@ -755,7 +996,9 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{!readOnly && !isBundleShareable ? (
+						{!dockPresentation &&
+						!readOnly &&
+						!isBundleShareable ? (
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="warning" isDismissible={false}>
 									This Blueprint bundle contains multiple
@@ -764,6 +1007,16 @@ export const BlueprintBundleEditor = forwardRef<
 									zip file.
 								</Notice>
 							</div>
+						) : null}
+						{isStored ? (
+							<p className={styles.runHint}>
+								Running this Blueprint creates a fresh autosaved
+								Playground. “{site?.metadata.name}” stays in{' '}
+								{isAutosaved
+									? 'Recent autosaves'
+									: 'Saved Playgrounds'}
+								.
+							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
 							messageContent ? (
@@ -778,7 +1031,9 @@ export const BlueprintBundleEditor = forwardRef<
 										onChange={handleCodeChange}
 										currentPath={currentPath}
 										className={styles.editor}
-										readOnly={readOnly}
+										readOnly={
+											readOnly || isRunningBlueprint
+										}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH
 												? blueprintSchemaExtensions

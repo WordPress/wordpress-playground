@@ -61,8 +61,13 @@ const DOWNLOAD_ERROR_PATTERNS = [
  * Error class names that indicate a download/network problem.
  * WebAssembly.CompileError and LinkError occur when the browser tries
  * to compile a non-WASM response (e.g. an HTML error page) as WASM.
+ * ResourceDownloadError is thrown for Blueprint resource fetch failures.
  */
-const DOWNLOAD_ERROR_CLASS_NAMES = ['CompileError', 'LinkError'];
+const DOWNLOAD_ERROR_CLASS_NAMES = [
+	'CompileError',
+	'LinkError',
+	'ResourceDownloadError',
+];
 
 /**
  * Search through an error's cause chain to find a network/download error.

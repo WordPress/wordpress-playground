@@ -45,6 +45,75 @@ add_action('admin_head', function () {
 		</style>';
 });
 
+/**
+ * Opt Playground pages into browser-native cross-document View Transitions.
+ *
+ * This lets the browser keep the outgoing page visible until the incoming page
+ * is ready, without intercepting clicks or emulating navigation.
+ * The rules are intentionally low-specificity and printed early, so themes,
+ * plugins, and user code can override them with ordinary CSS.
+ */
+function playground_enable_view_transitions() {
+	if ( playground_has_wordpress_view_transitions() ) {
+		return;
+	}
+
+	?>
+	<style>
+		@media (prefers-reduced-motion: no-preference) {
+			@view-transition {
+				navigation: auto;
+			}
+
+			::view-transition-group(root),
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				animation-delay: 0s;
+				animation-duration: 0s;
+			}
+
+			::view-transition-old(root),
+			::view-transition-new(root) {
+				mix-blend-mode: normal;
+			}
+		}
+	</style>
+	<?php
+}
+
+/**
+ * Checks whether WordPress already owns View Transitions for this request.
+ *
+ * The Playground fallback avoids named transitions, but it should still step
+ * aside when Core or the feature plugin can define its own root transition.
+ */
+function playground_has_wordpress_view_transitions() {
+	// The standalone View Transitions feature plugin defines these globally.
+	if ( defined( 'VIEW_TRANSITIONS_VERSION' )
+		|| function_exists( 'plvt_load_view_transitions' ) ) {
+		return true;
+	}
+
+	if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
+		return false;
+	}
+
+	// Core exposes these helpers while its admin View Transitions are available.
+	if ( function_exists( 'wp_get_view_transitions_admin_css' )
+		|| function_exists( 'wp_enqueue_view_transitions_admin_css' ) ) {
+		return true;
+	}
+
+	return function_exists( 'wp_style_is' )
+		&& (
+			wp_style_is( 'wp-view-transitions-admin', 'enqueued' )
+			|| wp_style_is( 'wp-view-transitions-admin', 'done' )
+		);
+}
+add_action( 'wp_head', 'playground_enable_view_transitions', 0 );
+add_action( 'admin_print_styles', 'playground_enable_view_transitions', 0 );
+add_action( 'login_head', 'playground_enable_view_transitions', 0 );
+
 add_action('init', 'networking_disabled');
 function networking_disabled() {
 	$networking_err_msg = '<div class="networking_err_msg">Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85" target="_blank">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.

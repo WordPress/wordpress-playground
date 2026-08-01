@@ -1,4 +1,4 @@
-export * from './utils';
-export * from './messaging';
-export { fetchWithCorsProxy } from './fetch-with-cors-proxy';
-export { FirewallInterferenceError } from './firewall-interference-error';
+export * from './lib/utils';
+export * from './lib/messaging';
+export { fetchWithCorsProxy } from './lib/fetch-with-cors-proxy';
+export { FirewallInterferenceError } from './lib/firewall-interference-error';

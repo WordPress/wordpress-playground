@@ -17,11 +17,13 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 Como todos os projetos WordPress, o Playground usa o GitHub para gerenciar o código e rastrear problemas. O repositório principal está em [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) e o repositório de Ferramentas do Playground está em [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 
 <!--
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or local development tools—start there.
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">
@@ -100,11 +102,13 @@ When your'e ready, commit the changes and submit a Pull Request.
 Quando estiver pronto, faça o commit das alterações e envie um Pull Request.
 
 <!--
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
 <div class="callout callout-info">

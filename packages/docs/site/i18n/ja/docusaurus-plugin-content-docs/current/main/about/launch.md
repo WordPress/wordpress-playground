@@ -81,9 +81,11 @@ WordPress プレイグラウンド ブロックに関する問題や質問があ
 </div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
-:::
+
+</div>
 -->
 
 ## WordPress を実行するネイティブ アプリを App Store に公開します。

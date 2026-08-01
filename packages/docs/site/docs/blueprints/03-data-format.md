@@ -55,7 +55,7 @@ The `landingPage` property tells Playground which URL to navigate to after the B
 
 The `preferredVersions` property declares your preferred PHP and WordPress versions. It can contain the following properties:
 
-- `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
+- `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `latest`, or `next`. Minor versions like `7.4.1` are not supported. Use `next` to preview the next PHP version from the php-src development branch; it is currently supported by the web runtime only.
 - `wp` (string): Loads the specified WordPress version. Accepts the last seven major WordPress versions. As of April 28, 2026, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7`, `6.8`, or `6.9`. You can also use the generic values `latest`, `beta`, or `nightly` (alias `trunk`). `beta` resolves to the most recent Beta or Release Candidate of an active release cycle; `nightly`/`trunk` builds straight from the WordPress development branch.
 
 ```js
@@ -115,3 +115,73 @@ Arguably the most powerful property, `steps` allows you to configure the Playgro
 	]
 }
 ```
+
+## Common property placement mistakes
+
+Blueprint validation errors often come from putting a valid property in the
+wrong object.
+
+### Activate a plugin or theme
+
+`activate` belongs inside `options`, not inside `pluginData`, `themeData`, or
+directly on the step.
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "wordpress.org/plugins",
+		"slug": "gutenberg"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+### Install plugins with the shorthand
+
+The `plugins` shorthand is a top-level Blueprint property. Do not put it inside
+`preferredVersions`.
+
+```json
+{
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"plugins": ["gutenberg"]
+}
+```
+
+### Use one plugin install shape
+
+For an `installPlugin` step, use `pluginData`. Do not mix `pluginData` with
+older examples or custom objects such as `pluginZipFile`.
+
+```json
+{
+	"step": "installPlugin",
+	"pluginData": {
+		"resource": "wordpress.org/plugins",
+		"slug": "woocommerce"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+The `wordpress.org/plugins` resource needs a separate `slug`. Do not write the
+slug into the `resource` value, such as `"wordpress.org/plugins/woocommerce"`.
+
+### Keep `preferredVersions` limited to versions
+
+`preferredVersions` only accepts `php` and `wp`. Use `features` for networking,
+`plugins` or `installPlugin` for plugins, and `steps` for ordered setup tasks.
+
+### Use explicit steps when order matters
+
+Shorthands such as `plugins`, `login`, `siteOptions`, and `constants` are
+expanded before the `steps` array. If one action must happen before another,
+write both actions as explicit steps in the order you need.

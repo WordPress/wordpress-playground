@@ -1,125 +1,147 @@
-import { useMediaQuery } from '@wordpress/compose';
-import { useActiveSite, useAppSelector } from '../../lib/state/redux/store';
-
-import css from './style.module.css';
-import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
+import {
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
+import type { DockPaneHeaderOverride } from '../dock/dock-pane';
+import { SavedPlaygroundsPanel } from '../saved-playgrounds-panel';
+import { SaveSiteModal } from '../save-site-modal';
+import { SiteInfoPanel, type SiteInfoTabName } from './site-info-panel';
+import { SiteSharePanel } from './site-share-panel';
+import css from './style.module.css';
 
-import { forwardRef, useState } from 'react';
-import { BlueprintsPanel } from './blueprints-panel';
-import { ResizableBox } from '@wordpress/components';
+export type SiteManagerProps = {
+	className?: string;
+	isVisible: boolean;
+	mobileUi: boolean;
+	onPaneCloseBlockedChange: (isBlocked: boolean) => void;
+	onNewPlaygroundHeaderChange: (
+		header: DockPaneHeaderOverride | undefined
+	) => void;
+};
 
-const SITE_INFO_MIN_WIDTH = 400;
-const SITE_INFO_DEFAULT_WIDTH = 555;
-const SITE_INFO_WIDTH_STORAGE_KEY = 'playground-site-info-panel-width';
+/** Routes the active Dock destination to the existing website tool surface. */
+export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
+	function SiteManager(
+		{
+			className,
+			isVisible,
+			mobileUi,
+			onPaneCloseBlockedChange,
+			onNewPlaygroundHeaderChange,
+		},
+		ref
+	) {
+		const dispatch = useAppDispatch();
+		const activeSite = useActiveSite();
+		const activeSection = useAppSelector(
+			(state) => state.ui.dockPaneSection
+		);
+		const selectedSiteTab: SiteInfoTabName | null =
+			activeSection === 'settings' ||
+			activeSection === 'files' ||
+			activeSection === 'blueprint' ||
+			activeSection === 'database' ||
+			activeSection === 'logs'
+				? activeSection
+				: null;
+		const activeSiteTab = isVisible ? selectedSiteTab : null;
+		const [mountedSiteSlug, setMountedSiteSlug] = useState<string | null>(
+			null
+		);
+		const [savedPlaygroundsPanelMounted, setSavedPlaygroundsPanelMounted] =
+			useState(false);
+		const [lastSavedPlaygroundsPanel, setLastSavedPlaygroundsPanel] =
+			useState<'new' | 'playgrounds'>('playgrounds');
+		const [sharePanelMounted, setSharePanelMounted] = useState(false);
+		const closeSavePane = useCallback(
+			() => dispatch(setDockPaneOpen(false)),
+			[dispatch]
+		);
 
-export const SiteManager = forwardRef<
-	HTMLDivElement,
-	{
-		className?: string;
-	}
->(({ className }, ref) => {
-	const activeSite = useActiveSite();
-	const fullScreenSections = useMediaQuery('(max-width: 875px)');
-	const activeSiteManagerSection = useAppSelector(
-		(state) => state.ui.siteManagerSection
-	);
-
-	// Load saved width from localStorage or use default
-	const [siteInfoWidth, setSiteInfoWidth] = useState<number>(() => {
-		try {
-			const saved = localStorage.getItem(SITE_INFO_WIDTH_STORAGE_KEY);
-			if (saved) {
-				const width = parseInt(saved, 10);
-				if (!isNaN(width) && width >= SITE_INFO_MIN_WIDTH) {
-					return width;
-				}
+		// Do not mount the site tools until they are opened. Once opened, keep
+		// them alive for that site so closing or changing panes cannot erase a
+		// settings draft or editor state.
+		useEffect(() => {
+			if (activeSite?.slug && activeSiteTab) {
+				setMountedSiteSlug(activeSite.slug);
 			}
-		} catch {
-			// localStorage might not be available
-		}
-		return SITE_INFO_DEFAULT_WIDTH;
-	});
+		}, [activeSite?.slug, activeSiteTab]);
 
-	// Save width to localStorage whenever it changes
-	const handleResize = (
-		_event: any,
-		_direction: any,
-		element: HTMLElement
-	) => {
-		const newWidth = element.offsetWidth;
-		setSiteInfoWidth(newWidth);
-		try {
-			localStorage.setItem(
-				SITE_INFO_WIDTH_STORAGE_KEY,
-				newWidth.toString()
-			);
-		} catch {
-			// localStorage might not be available
-		}
-	};
+		useEffect(() => {
+			if (activeSection === 'new' || activeSection === 'playgrounds') {
+				setSavedPlaygroundsPanelMounted(true);
+				setLastSavedPlaygroundsPanel(activeSection);
+			} else if (activeSection === 'share') {
+				setSharePanelMounted(true);
+			}
+		}, [activeSection]);
 
-	let activePanel;
-	switch (activeSiteManagerSection) {
-		case 'blueprints':
-			activePanel = (
-				<BlueprintsPanel
-					className={css.blueprintsPanel}
-					mobileUi={fullScreenSections}
-				/>
-			);
-			break;
-		default:
-		case 'site-details':
-			activePanel = activeSite ? (
-				fullScreenSections ? (
-					<SiteInfoPanel
-						key={activeSite?.slug}
-						className={css.siteManagerSiteInfo}
-						site={activeSite}
-						mobileUi={fullScreenSections}
+		let activePanel: JSX.Element | null = null;
+		if (activeSection === 'save') {
+			activePanel =
+				isVisible && activeSite ? (
+					<SaveSiteModal
+						asPane
+						onClose={closeSavePane}
+						onCloseBlockedChange={onPaneCloseBlockedChange}
 					/>
-				) : (
-					<ResizableBox
-						key={activeSite?.slug}
-						className={css.siteInfoResizable}
-						minWidth={SITE_INFO_MIN_WIDTH}
-						size={{
-							width: siteInfoWidth,
-							height: '100%',
-						}}
-						enable={{
-							top: false,
-							right: true,
-							bottom: false,
-							left: false,
-						}}
-						onResizeStop={handleResize}
-						showHandle={true}
-						handleClasses={{
-							right: css.siteInfoResizeHandle,
-						}}
+				) : null;
+		} else if (selectedSiteTab && !activeSite && isVisible) {
+			activePanel = (
+				<div className={css.emptyPanel}>
+					Start or select a Playground before opening this tool.
+				</div>
+			);
+		}
+
+		return (
+			<div className={classNames(css.siteManager, className)} ref={ref}>
+				{activePanel}
+				{savedPlaygroundsPanelMounted && (
+					<div
+						className={css.savedPlaygroundsPanel}
+						hidden={
+							!isVisible ||
+							(activeSection !== 'new' &&
+								activeSection !== 'playgrounds')
+						}
 					>
+						<SavedPlaygroundsPanel
+							panel={
+								activeSection === 'new' ||
+								activeSection === 'playgrounds'
+									? activeSection
+									: lastSavedPlaygroundsPanel
+							}
+							onClose={() => dispatch(setDockPaneOpen(false))}
+							onCloseBlockedChange={onPaneCloseBlockedChange}
+							onPaneHeaderChange={onNewPlaygroundHeaderChange}
+						/>
+					</div>
+				)}
+				{sharePanelMounted && (
+					<div
+						className={css.sharePanel}
+						hidden={!isVisible || activeSection !== 'share'}
+					>
+						<SiteSharePanel key={activeSite?.slug ?? 'no-site'} />
+					</div>
+				)}
+				{activeSite &&
+					(activeSiteTab || mountedSiteSlug === activeSite.slug) && (
 						<SiteInfoPanel
+							key={activeSite.slug}
 							className={css.siteManagerSiteInfo}
 							site={activeSite}
-							mobileUi={fullScreenSections}
+							activeTabName={activeSiteTab}
+							mobileUi={mobileUi}
 						/>
-					</ResizableBox>
-				)
-			) : null;
-			break;
+					)}
+			</div>
+		);
 	}
-
-	// If the site manager is open but there's no active panel,
-	// close it (this can happen if the sidebar was the only content)
-	if (!activePanel) {
-		return null;
-	}
-
-	return (
-		<div className={classNames(css.siteManager, className)} ref={ref}>
-			{activePanel}
-		</div>
-	);
-});
+);

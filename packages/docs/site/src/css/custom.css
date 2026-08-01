@@ -245,6 +245,12 @@ a.navbar__link--active:hover {
 		}
 	}
 
+	&.callout-tip {
+		--wp--custom--wporg-callout--color--background: var(
+			--wp--preset--color--acid-green-3
+		);
+	}
+
 	&.callout-alert {
 		--wp--custom--wporg-callout--color--background: var(
 			--wp--preset--color--lemon-3

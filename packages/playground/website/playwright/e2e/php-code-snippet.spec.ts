@@ -1,21 +1,43 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * E2E tests for the <php-snippet> web component embed.
  * Verifies that:
- *   - the demo page renders three snippets,
- *   - clicking Run on the first shows a real progress bar with a caption
- *     and percent that advance toward 100,
+ *   - the fixture page renders snippets,
+ *   - clicking Run on the first shows real button progress that advances
+ *     toward 100,
  *   - the first snippet executes and shows PHP output,
  *   - subsequent snippets reuse the same Playground runtime (much faster
  *     than the first boot) and produce their own output.
  */
 
-const DEMO_URL = './php-code-snippet-demo.html';
+const DEMO_URL = './php-code-snippet-e2e.html';
+const DOCS_URL =
+	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
+const CLIENT_INDEX_SOURCE = `${process.cwd()}/packages/playground/client/src/index.ts`;
+const TOOLKIT_AUTOLOAD_SOURCE = `${process.cwd()}/packages/playground/website/public/php-toolkit-autoload.txt`;
+const pageErrors = new WeakMap<Page, string[]>();
 
 test.describe('php-code-snippet embed', () => {
+	test.beforeEach(async ({ page }) => {
+		const errors: string[] = [];
+		pageErrors.set(page, errors);
+		page.on('pageerror', (error) => {
+			errors.push(error.message);
+		});
+	});
+
+	test.afterEach(async ({ page }) => {
+		expect(
+			pageErrors.get(page) || [],
+			'<php-snippet> should not emit uncaught browser errors'
+		).toEqual([]);
+	});
+
 	test('renders all snippets with Run buttons', async ({ page }) => {
 		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
 		for (const name of [
 			'hello.php',
 			'lazy-load-images.php',
@@ -23,13 +45,147 @@ test.describe('php-code-snippet embed', () => {
 			'greet-alice.php',
 			'greet-bob.php',
 			'scratch.php',
+			'reference.php',
 			'precomputed.php',
 			'just-php.php',
+			'quickstart.php',
 		]) {
 			const snippet = page.locator(`php-snippet[name="${name}"]`);
 			await expect(snippet).toBeVisible();
 			await expect(snippet.locator('.run')).toBeVisible();
+			await expect(snippet.locator('.powered-by')).toContainText(
+				'PHP Code Snippet powered by WordPress Playground'
+			);
+			await expect(
+				snippet.locator('.powered-by a').nth(0)
+			).toHaveAttribute('href', DOCS_URL);
+			await expect(
+				snippet.locator('.powered-by a').nth(1)
+			).toHaveAttribute('href', 'https://wordpress.org/playground/');
+			await expect(snippet.locator('.run-shortcut')).toContainText(
+				/Ctrl\+Enter|Cmd\+Enter/
+			);
 		}
+	});
+
+	test('decodes JSON-encoded child payloads', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+		await page.evaluate(() => {
+			document.body.insertAdjacentHTML(
+				'beforeend',
+				String.raw`
+					<php-snippet name="json-payload.php">
+						<script type="application/x-php+json">
+							"\u003C?php\necho '\u003C/script\u003E';"
+						</script>
+						<script type="text/expected-output+json">
+							"\u003C/script\u003E"
+						</script>
+					</php-snippet>
+				`
+			);
+		});
+
+		const snippet = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="json-payload.php"]'
+		);
+		await expect(snippet.locator('textarea.ta')).toHaveValue(
+			"<?php\necho '</script>';"
+		);
+		await expect(snippet.locator('.output-body')).toHaveText('</script>');
+	});
+
+	test('rejects JSON child payloads that are not strings', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+
+		const rejected = await page.evaluate(async () => {
+			const codeSnippet = document.createElement(
+				'php-snippet'
+			) as HTMLElement & {
+				_readCode(): Promise<string>;
+			};
+			const codeScript = document.createElement('script');
+			codeScript.type = 'application/x-php+json';
+			codeScript.textContent = '{}';
+			codeSnippet.append(codeScript);
+
+			let code = false;
+			try {
+				await codeSnippet._readCode();
+			} catch (error) {
+				code = error instanceof TypeError;
+			}
+
+			const outputSnippet = document.createElement(
+				'php-snippet'
+			) as HTMLElement & {
+				_readExpectedOutput(): string | null;
+			};
+			const outputScript = document.createElement('script');
+			outputScript.type = 'text/expected-output+json';
+			outputScript.textContent = 'null';
+			outputSnippet.append(outputScript);
+
+			let output = false;
+			try {
+				outputSnippet._readExpectedOutput();
+			} catch (error) {
+				output = error instanceof TypeError;
+			}
+
+			return { code, output };
+		});
+
+		expect(rejected).toEqual({ code: true, output: true });
+	});
+
+	test('runnable snippets are editable by default unless readonly', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const defaultEditable = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="hello.php"]'
+		);
+		const readOnly = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="reference.php"]'
+		);
+
+		await expect(defaultEditable).toBeVisible();
+		await expect(defaultEditable.locator('textarea.ta')).toBeVisible();
+		await expect(defaultEditable.locator('.editor')).toBeVisible();
+
+		await expect(readOnly).toBeVisible();
+		await expect(readOnly.locator('.run')).toBeVisible();
+		await expect(readOnly.locator('textarea.ta')).toHaveCount(0);
+		await expect(readOnly.locator('pre code')).toContainText(
+			'Reference only'
+		);
+
+		await page.evaluate(() => {
+			const snippet = document.createElement('php-snippet');
+			snippet.setAttribute('name', 'editable-false.php');
+			snippet.setAttribute('editable', 'false');
+			const script = document.createElement('script');
+			script.type = 'application/x-php';
+			script.textContent = '<?php echo "Locked";';
+			snippet.append(script);
+			document.body.append(snippet);
+		});
+
+		const editableFalse = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="editable-false.php"]'
+		);
+		await expect(editableFalse.locator('.run')).toBeVisible();
+		await expect(editableFalse.locator('textarea.ta')).toHaveCount(0);
+		await expect(editableFalse.locator('pre code')).toContainText('Locked');
 	});
 
 	test('runnable=false renders a read-only snippet without Run', async ({
@@ -49,29 +205,77 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(0);
 	});
 
-	test('first Run boots the runtime and shows progress + output', async ({
+	test('wp=none progress copy says runtime instead of WordPress', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const phpOnly = page.locator('php-snippet[name="just-php.php"]');
+		const withWordPress = page.locator('php-snippet[name="hello.php"]');
+
+		await expect(phpOnly).toBeVisible();
+		await expect(withWordPress).toBeVisible();
+		await expect
+			.poll(() =>
+				phpOnly.evaluate((snippet: any) =>
+					snippet._getRunProgressLabel('Preparing WordPress')
+				)
+			)
+			.toBe('Preparing runtime');
+		await expect
+			.poll(() =>
+				withWordPress.evaluate((snippet: any) =>
+					snippet._getRunProgressLabel('Preparing WordPress')
+				)
+			)
+			.toBe('Preparing WordPress');
+	});
+
+	test('Run button width stays stable across progress labels', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const runButton = editable.locator('.run');
+		const idleBox = await runButton.boundingBox();
+		expect(idleBox).not.toBeNull();
+
+		await editable.evaluate((snippet: any) => {
+			const runButton = snippet.shadowRoot.querySelector('.run');
+			runButton.setAttribute('aria-busy', 'true');
+			snippet._setRunButtonProgress('Preparing runtime', 100);
+		});
+
+		const progressBox = await runButton.boundingBox();
+		expect(progressBox).not.toBeNull();
+		expect(Math.round(progressBox!.width)).toBe(Math.round(idleBox!.width));
+	});
+
+	test('first Run boots the runtime and shows button progress + output', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
 		const first = page.locator('php-snippet').nth(0);
+		const runButton = first.locator('.run');
+		const runSpinner = first.locator('.run-spinner');
+		const runPercent = first.locator('.run-percent');
 
-		await expect(first.locator('.progress')).toBeHidden();
-		await first.locator('.run').click();
+		await expect(first.locator('.progress')).toHaveCount(0);
+		await runButton.click();
 
-		// Progress bar appears with caption + percent text.
-		await expect(first.locator('.progress')).toBeVisible();
-		await expect(first.locator('.caption')).not.toHaveText('');
-		await expect(first.locator('.percent')).toContainText(/%$/);
+		await expect(runButton).toHaveAttribute('aria-busy', /true/);
+		await expect(runSpinner).toBeVisible();
+		await expect(runPercent).toContainText(/%$/);
 
 		// The percent advances past 0 (real progress, not just "0%" forever).
 		await expect
 			.poll(
 				async () =>
 					Number(
-						(
-							(await first.locator('.percent').textContent()) ||
-							'0%'
-						).replace('%', '')
+						((await runPercent.textContent()) || '0%').replace(
+							'%',
+							''
+						)
 					),
 				{ timeout: 120_000, intervals: [500] }
 			)
@@ -85,8 +289,7 @@ test.describe('php-code-snippet embed', () => {
 			'Hello from PHP'
 		);
 
-		// Progress hides once the run finishes.
-		await expect(first.locator('.progress')).toBeHidden();
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
 	});
 
 	test('subsequent snippets reuse the shared runtime', async ({ page }) => {
@@ -94,6 +297,16 @@ test.describe('php-code-snippet embed', () => {
 		const first = page.locator('php-snippet').nth(0);
 		const second = page.locator('php-snippet').nth(1);
 		const third = page.locator('php-snippet').nth(2);
+
+		await ensurePlaygroundClientIsServed(page);
+		await page.locator('php-snippet').evaluateAll((snippets) => {
+			for (const snippet of snippets) {
+				snippet.setAttribute(
+					'playground-origin',
+					window.location.origin
+				);
+			}
+		});
 
 		// Boot the runtime via the first snippet.
 		await first.locator('.run').click();
@@ -114,40 +327,15 @@ test.describe('php-code-snippet embed', () => {
 			'loading="lazy"'
 		);
 
-		await expect(third.locator('.progress')).toBeHidden();
-		await third.evaluate((snippet: HTMLElement) => {
-			const progress = snippet.shadowRoot?.querySelector('.progress');
-			if (!progress) {
-				throw new Error('Missing progress element');
-			}
-			const state = {
-				wasVisible: progress.classList.contains('visible'),
-				observer: new MutationObserver(() => {
-					if (progress.classList.contains('visible')) {
-						state.wasVisible = true;
-					}
-				}),
-			};
-			state.observer.observe(progress, {
-				attributes: true,
-				attributeFilter: ['class'],
-			});
-			(snippet as any).__progressVisibilityState = state;
-		});
-
-		// Third snippet — same shared runtime.
+		// Third snippet — same shared runtime. It should still show its own
+		// run progress, but it should not create a second runtime iframe.
+		const thirdStart = Date.now();
 		await third.locator('.run').click();
 		await expect(third.locator('.output')).toBeVisible({
 			timeout: 60_000,
 		});
-		const thirdProgressWasVisible = await third.evaluate(
-			(snippet: HTMLElement) => {
-				const state = (snippet as any).__progressVisibilityState;
-				state.observer.disconnect();
-				return state.wasVisible;
-			}
-		);
-		expect(thirdProgressWasVisible).toBe(false);
+		const thirdElapsed = Date.now() - thirdStart;
+		expect(thirdElapsed).toBeLessThan(60_000);
 		await expect(third.locator('.output-body')).toContainText(
 			'core/paragraph'
 		);
@@ -196,7 +384,8 @@ test.describe('php-code-snippet embed', () => {
 
 		// Replace the snippet contents with something we can uniquely identify
 		// in the output panel.
-		await textarea.click();
+		await editable.locator('.editor').click();
+		await expect(textarea).toBeFocused();
 		await textarea.evaluate((el: HTMLTextAreaElement) => {
 			el.value = '<?php echo "edited:" . (40 + 2);';
 			el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -210,29 +399,439 @@ test.describe('php-code-snippet embed', () => {
 		);
 	});
 
+	test('Run button queues clicks while a snippet is running', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.click();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/);
+		await expect(runButton).toBeEnabled();
+		await runButton.click();
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:2'
+		);
+		await expect(runButton).toBeEnabled();
+	});
+
+	test('Run button starts from pointer activation even if click is canceled', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				this._setRunButtonProgress('Running', 42);
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.scrollIntoViewIfNeeded();
+		const idleBox = await runButton.boundingBox();
+		expect(idleBox).not.toBeNull();
+
+		await page.mouse.move(
+			idleBox!.x + idleBox!.width / 2,
+			idleBox!.y + idleBox!.height / 2
+		);
+		await page.mouse.down();
+		await page.mouse.move(idleBox!.x - 20, idleBox!.y - 20);
+		await page.mouse.up();
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1'
+		);
+		await expect(runButton).toBeEnabled();
+	});
+
+	test('Run button works while the code editor textarea is focused', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function (code: string) {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}; hasTyped:${code.includes('typed-marker')}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const editor = editable.locator('.editor');
+		await editor.scrollIntoViewIfNeeded();
+		const editorBox = await editor.boundingBox();
+		expect(editorBox).not.toBeNull();
+		const textarea = editable.locator('textarea.ta');
+		const thirdLineEnd = await textarea.evaluate(
+			(el: HTMLTextAreaElement) => {
+				const lines = el.value.split('\n');
+				return {
+					lineEnd:
+						lines[0].length +
+						1 +
+						lines[1].length +
+						1 +
+						lines[2].length,
+					lineTop:
+						parseFloat(getComputedStyle(el).paddingTop) +
+						parseFloat(getComputedStyle(el).lineHeight) * 2,
+				};
+			}
+		);
+		await page.mouse.click(
+			editorBox!.x + editorBox!.width - 24,
+			editorBox!.y + thirdLineEnd.lineTop + 4
+		);
+
+		await expect(textarea).toBeFocused();
+		await expect
+			.poll(() =>
+				textarea.evaluate(
+					(el: HTMLTextAreaElement) => el.selectionStart
+				)
+			)
+			.toBe(thirdLineEnd.lineEnd);
+		await page.keyboard.type(' // typed-marker');
+
+		const runButton = editable.locator('.run');
+		const runBox = await runButton.boundingBox();
+		expect(runBox).not.toBeNull();
+		await page.mouse.click(
+			runBox!.x + runBox!.width / 2,
+			runBox!.y + runBox!.height / 2
+		);
+
+		await expect(editable.locator('.output-body')).toContainText(
+			'run-count:1; hasTyped:true'
+		);
+		await expect(textarea).toBeFocused({ timeout: 1000 });
+	});
+
+	test('Run button handles repeated mouse clicks after completion', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._testRunCount = 0;
+			snippet._runOnce = async function () {
+				this._testRunCount += 1;
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = `run-count:${this._testRunCount}`;
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		const runButton = editable.locator('.run');
+		await runButton.scrollIntoViewIfNeeded();
+		const box = await runButton.boundingBox();
+		expect(box).not.toBeNull();
+
+		for (let expected = 1; expected <= 5; expected++) {
+			await page.mouse.click(
+				box!.x + box!.width / 2,
+				box!.y + box!.height / 2
+			);
+			await expect(editable.locator('.output-body')).toContainText(
+				`run-count:${expected}`
+			);
+			await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
+		}
+	});
+
+	test('Ctrl+Enter and Cmd+Enter run the focused snippet', async ({
+		page,
+		browserName,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const textarea = editable.locator('textarea.ta');
+		await expect(textarea).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function (code: string) {
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = code.includes('cmd')
+					? 'cmd-enter-marker'
+					: 'ctrl-enter-marker';
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		await textarea.click();
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php echo "ctrl";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+		await page.keyboard.press('Control+Enter');
+		await expect(editable.locator('.output-body')).toContainText(
+			'ctrl-enter-marker'
+		);
+
+		// WebKit on Linux does not reliably synthesize Meta shortcuts in CI.
+		if (browserName !== 'webkit') {
+			await textarea.evaluate((el: HTMLTextAreaElement) => {
+				el.value = '<?php echo "cmd";';
+				el.dispatchEvent(new Event('input', { bubbles: true }));
+			});
+			await page.keyboard.press('Meta+Enter');
+			await expect(editable.locator('.output-body')).toContainText(
+				'cmd-enter-marker'
+			);
+		}
+	});
+
+	test('output refresh keeps the light result styling', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function () {
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = 'light-output-marker';
+				outputWrap.classList.add('visible');
+				this._flashOutput(outputBody);
+			};
+		});
+
+		await editable.locator('.run').click();
+		await expect(editable.locator('.output-body')).toContainText(
+			'light-output-marker'
+		);
+
+		const colors = await editable.evaluate((snippet: any) => {
+			const output = snippet.shadowRoot.querySelector('.output');
+			const outputBody = snippet.shadowRoot.querySelector('.output-body');
+			const outputStyles = getComputedStyle(output);
+			const bodyStyles = getComputedStyle(outputBody);
+			return {
+				outputBackground: outputStyles.backgroundColor,
+				bodyBackground: bodyStyles.backgroundColor,
+				bodyColor: bodyStyles.color,
+			};
+		});
+
+		expect(colors.outputBackground).toBe('rgb(255, 255, 255)');
+		expect(colors.bodyBackground).not.toBe('rgb(13, 17, 23)');
+		expect(colors.bodyColor).toBe('rgb(36, 41, 47)');
+	});
+
+	test('wp="none" + blueprint installs a PHP toolkit usable from the snippet', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const snippet = page.locator('php-snippet[name="quickstart.php"]');
+
+		await expect(snippet).toBeVisible();
+		await ensurePlaygroundClientIsServed(page);
+		await ensureToolkitAutoloadIsServed(page);
+		await snippet.evaluate((element) => {
+			element.setAttribute('playground-origin', window.location.origin);
+		});
+		// The snippet ships with an expected-output script that pre-fills the
+		// output panel. Wait for the real run to execute by watching the run
+		// button enter and exit its busy state.
+		const runButton = snippet.locator('.run');
+		await runButton.click();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/, {
+			timeout: 30_000,
+		});
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/, {
+			timeout: 240_000,
+		});
+
+		const body = snippet.locator('.output-body');
+		await expect(body).not.toHaveClass(/error/);
+		await expect(body).toContainText(
+			'<img src="hero.jpg" alt="Hero shot" loading="lazy">'
+		);
+		await expect(body).toContainText(
+			'<img src="diagram.png" alt="" loading="eager">'
+		);
+	});
+
+	test('Run button shows progress while a snippet is running', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		const editable = page.locator('php-snippet[name="scratch.php"]');
+		await expect(editable).toBeVisible();
+		const textarea = editable.locator('textarea.ta');
+		await expect(textarea).toBeVisible();
+		const runButton = editable.locator('.run');
+		const outputBody = editable.locator('.output-body');
+		const runSpinner = editable.locator('.run-spinner');
+		const runLabel = editable.locator('.run-label');
+		const runPercent = editable.locator('.run-percent');
+		const runShortcut = editable.locator('.run-shortcut');
+
+		await editable.evaluate((snippet: any) => {
+			snippet._runOnce = async function (code: string) {
+				this._setRunButtonProgress('Running', 42);
+				await new Promise((resolve) => setTimeout(resolve, 500));
+				const outputWrap = this.shadowRoot.querySelector('.output');
+				const outputBody =
+					this.shadowRoot.querySelector('.output-body');
+				outputBody.textContent = code.includes('second')
+					? 'second-run-marker'
+					: 'slow-run-marker';
+				outputWrap.classList.add('visible');
+			};
+		});
+
+		await textarea.click();
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php usleep(1500000); echo "slow-run-marker";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+
+		await runButton.click();
+		await expect(runButton).toBeEnabled();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/, {
+			timeout: 30_000,
+		});
+		await expect(runSpinner).toBeVisible();
+		await expect(runPercent).toBeVisible();
+		await expect(runShortcut).toBeHidden();
+		await expect(runLabel).toHaveText('Running');
+		await expect(runPercent).toHaveText('42%');
+		await expect(outputBody).toContainText('slow-run-marker', {
+			timeout: 60_000,
+		});
+		await expect(runButton).toBeEnabled({ timeout: 30_000 });
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/, {
+			timeout: 30_000,
+		});
+		await expect(runSpinner).toBeHidden();
+		await expect(runLabel).toHaveText('Run');
+		await expect(runShortcut).toBeVisible();
+
+		await textarea.evaluate((el: HTMLTextAreaElement) => {
+			el.value = '<?php echo "second-run-marker";';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+
+		await runButton.click();
+		await expect(outputBody).toContainText('second-run-marker', {
+			timeout: 60_000,
+		});
+	});
+
 	test('expected output shows before Run and is replaced by real output', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
 		const snippet = page.locator('php-snippet[name="precomputed.php"]');
 
-		await expect(snippet.locator('.progress')).toBeHidden();
+		await expect(snippet.locator('.progress')).toHaveCount(0);
 		await expect(snippet.locator('.output')).toBeVisible();
 		await expect(snippet.locator('.output-body')).toContainText(
 			'2 + 2 = 4'
 		);
 
-		await snippet.locator('.run').click();
-		await expect(snippet.locator('.progress')).toBeVisible();
+		const runButton = snippet.locator('.run');
+		await runButton.click();
+		await expect(runButton).toHaveAttribute('aria-busy', /true/);
 		await expect(snippet.locator('.output')).toBeVisible({
 			timeout: 240_000,
 		});
 		await expect(snippet.locator('.output-body')).toContainText(
 			'WordPress is awesome.'
 		);
-		await expect(snippet.locator('.progress')).toBeHidden();
+		await expect(runButton).not.toHaveAttribute('aria-busy', /true/);
 		await expect(
 			page.locator('iframe[title="PHP Snippet runtime"]')
 		).toHaveCount(1);
 	});
 });
+
+async function ensurePlaygroundClientIsServed(page: Page) {
+	const clientUrl = new URL('/client/index.js', page.url()).href;
+	const response = await page.request.get(clientUrl);
+	if (response.ok()) {
+		return;
+	}
+
+	const sourceUrl = new URL(`/@fs${CLIENT_INDEX_SOURCE}`, page.url()).href;
+	await page.route(clientUrl, async (route) => {
+		const response = await page.request.get(sourceUrl);
+		await route.fulfill({ response });
+	});
+}
+
+async function ensureToolkitAutoloadIsServed(page: Page) {
+	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
+	const response = await page.request.get(autoloadUrl);
+	if (response.ok()) {
+		return;
+	}
+
+	await page.route(autoloadUrl, async (route) => {
+		await route.fulfill({
+			path: TOOLKIT_AUTOLOAD_SOURCE,
+			contentType: 'text/plain',
+		});
+	});
+}
+
+async function waitForPhpSnippetDefinition(page: Page) {
+	await page.evaluate(() => customElements.whenDefined('php-snippet'));
+}
+
+async function waitForRenderedPhpSnippet(page: Page, selector: string) {
+	await waitForPhpSnippetDefinition(page);
+	const snippet = page.locator(selector);
+
+	await expect(snippet).toBeVisible();
+	await expect
+		.poll(() =>
+			snippet.evaluate(
+				(element) => element.shadowRoot?.childElementCount ?? 0
+			)
+		)
+		.toBeGreaterThan(0);
+
+	return snippet;
+}

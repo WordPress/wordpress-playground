@@ -45,7 +45,12 @@ const caBundlePath = new URL('ca-bundle.crt', baseUrl).pathname;
 if (!existsSync(caBundlePath)) {
 	writeFileSync(caBundlePath, rootCertificates.join('\n'));
 }
-args.unshift('-d', `openssl.cafile=${caBundlePath}`);
+args.unshift(
+	'-d',
+	`openssl.cafile=${caBundlePath}`,
+	'-d',
+	`curl.cainfo=${caBundlePath}`
+);
 
 async function run() {
 	const defaultPhpIniPath = new URL('php.ini', baseUrl).pathname;
@@ -132,11 +137,16 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
-			withXdebug:
-				hasXdebugOption ??
-				makeXdebugConfig({
-					pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
-				}),
+			extensions: hasXdebugOption
+				? [
+						{
+							name: 'xdebug',
+							options: makeXdebugConfig({
+								pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
+							}),
+						},
+					]
+				: [],
 		})
 	);
 	php.setSpawnHandler((command: string, args: string[]): any =>

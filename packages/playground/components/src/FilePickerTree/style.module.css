@@ -2,7 +2,7 @@
 	width: 100%;
 
 	tr:nth-child(even) {
-		background-color: #f7f7f7;
+		background-color: var(--file-tree-row-background, #f7f7f7);
 	}
 
 	&:active {
@@ -26,20 +26,23 @@
 	-webkit-appearance: none;
 	background: none;
 	transition: box-shadow 0.1s linear;
-	height: 30px;
+	height: var(--file-tree-row-height, 30px);
 	align-items: center;
 	box-sizing: border-box;
-	padding: 6px 12px;
+	padding: var(--file-tree-row-padding, 6px);
 	border-radius: 2px;
 
 	width: 100%;
 	white-space: nowrap;
-	color: var(--wp-components-color-foreground, #1e1e1e);
+	color: var(
+		--file-tree-row-color,
+		var(--wp-components-color-foreground, #1e1e1e)
+	);
 	background: transparent;
-	padding: 6px;
 
-	font-family: -apple-system, 'system-ui', 'Segoe UI', Roboto, Oxygen-Sans,
-		Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+	font-family:
+		-apple-system, 'system-ui', 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu,
+		Cantarell, 'Helvetica Neue', sans-serif;
 	font-size: 13px;
 	font-weight: 400;
 
@@ -51,24 +54,37 @@
 }
 
 .selected {
-	background-color: var(--wp-admin-theme-color);
-	color: #fff;
+	background-color: var(
+		--file-tree-selected-background,
+		var(--wp-admin-theme-color)
+	);
+	color: var(--file-tree-selected-color, #fff);
+	box-shadow: var(--file-tree-selected-shadow, none);
 
 	&:hover,
 	&:active,
 	&:focus {
-		color: #fff !important;
-		background-color: var(--wp-admin-theme-color);
+		color: var(--file-tree-selected-color, #fff) !important;
+		background-color: var(
+			--file-tree-selected-background,
+			var(--wp-admin-theme-color)
+		);
 	}
 }
 
 .focused {
-	box-shadow: 0 0 0 1px var(--wp-admin-theme-color) inset;
+	box-shadow: var(
+		--file-tree-focus-shadow,
+		0 0 0 1px var(--wp-admin-theme-color) inset
+	);
 	border-radius: 2px;
 }
 
 .dropTarget {
-	box-shadow: inset 0 0 0 2px var(--wp-admin-theme-color);
+	box-shadow: var(
+		--file-tree-drop-shadow,
+		inset 0 0 0 2px var(--wp-admin-theme-color)
+	);
 }
 
 .dropTarget:not(.selected) {

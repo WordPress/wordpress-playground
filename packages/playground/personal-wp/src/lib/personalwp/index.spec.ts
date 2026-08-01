@@ -66,14 +66,27 @@ describe('resolveUrlParamsForExistingSite', () => {
 		expect((themeStep as any)?.themeData?.slug).toBe('flavor');
 	});
 
-	it('sets landingPage from ?url= param via applyQueryOverrides', async () => {
+	it('returns the built-in recovery blueprint for Health Check recovery mode', async () => {
+		const url = new URL(
+			'https://my.wordpress.net/?playground-recovery-mode=health-check'
+		);
+		const result = await resolveUrlParamsForExistingSite(url);
+		const firstStep = result?.steps?.[0];
+
+		expect(result).not.toBeNull();
+		expect(typeof firstStep).toBe('object');
+		expect((firstStep as any)?.step).toBe('installPlugin');
+		expect((firstStep as any)?.pluginData?.slug).toBe('health-check');
+	});
+
+	it('ignores legacy ?url= params when applying query overrides', async () => {
 		const url = new URL(
 			'https://playground.wordpress.net/?plugin=woocommerce&url=/wp-admin/plugins.php'
 		);
 		const result = await resolveUrlParamsForExistingSite(url);
 
 		expect(result).not.toBeNull();
-		expect(result?.landingPage).toBe('/wp-admin/plugins.php');
+		expect(result?.landingPage).toBeUndefined();
 	});
 
 	it('returns null for ?gutenberg-pr= (not supported for existing sites)', async () => {

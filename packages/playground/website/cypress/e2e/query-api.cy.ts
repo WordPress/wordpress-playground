@@ -28,10 +28,14 @@ describe('Query API', () => {
 	describe('option `wp`', () => {
 		it('should load WordPress latest by default', () => {
 			cy.visit('/?url=/wp-admin/');
-			const expectedBodyClass =
-				'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
+			// WordPress derives the admin body branch class from (float) $wp_version.
+			const expectedBranchClass =
+				'branch-' +
+				parseFloat(LatestSupportedWordPressVersion)
+					.toString()
+					.replace('.', '-');
 			cy.wordPressDocument()
-				.find(`body.${expectedBodyClass}`)
+				.find(`body.${expectedBranchClass}`)
 				.should('exist');
 		});
 
@@ -222,7 +226,7 @@ if (!Cypress.env('CI')) {
 			// Wait for the Playground to finish loading
 			cy.wordPressDocument().its('body').should('exist');
 
-			cy.get('[data-cy="dropdown-menu"]').click();
+			cy.get('[aria-label="Export"]').click();
 			cy.get('[data-cy="download-as-zip"]').click();
 			const downloadsFolder = Cypress.config('downloadsFolder');
 			cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
@@ -243,7 +247,7 @@ if (!Cypress.env('CI')) {
 
 			// Download a zip file
 			const downloadsFolder = Cypress.config('downloadsFolder');
-			cy.get('[data-cy="dropdown-menu"]').click();
+			cy.get('[aria-label="Export"]').click();
 			cy.get('[data-cy="download-as-zip"]').click();
 			cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
 				'have.length.above',
@@ -259,12 +263,11 @@ if (!Cypress.env('CI')) {
 				.should('not.contain', 'Cypress tests – site title');
 
 			// Import the zip file
-			cy.get('[data-cy="dropdown-menu"]').click();
-			cy.get('[data-cy="restore-from-zip"]').click();
-			cy.get('#import-select-file').selectFile(
-				`${downloadsFolder}/wordpress-playground.zip`
+			cy.get('[aria-label="New Playground"]').click();
+			cy.get('input[type="file"][accept*=".zip"]').selectFile(
+				`${downloadsFolder}/wordpress-playground.zip`,
+				{ force: true }
 			);
-			cy.get('#import-submit--btn').click();
 
 			// Wait for the Playground to reload
 			cy.wordPressDocument().its('body').should('exist');

@@ -2,7 +2,11 @@ import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
 import css from './style.module.css';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteStorageType } from '../../../lib/state/redux/slice-sites';
-import { modalSlugs, setActiveModal } from '../../../lib/state/redux/slice-ui';
+import {
+	modalSlugs,
+	setActiveModal,
+	setSiteSlugToSave,
+} from '../../../lib/state/redux/slice-ui';
 import React from 'react';
 
 export function SitePersistButton({
@@ -19,10 +23,11 @@ export function SitePersistButton({
 	const dispatch = useAppDispatch();
 
 	if (!clientInfo?.opfsSync || clientInfo.opfsSync?.status === 'error') {
-		const handleClick = () => {
+		const openSaveModal = () => {
+			dispatch(setSiteSlugToSave(siteSlug));
 			dispatch(setActiveModal(modalSlugs.SAVE_SITE));
 		};
-		const button = <div onClick={handleClick}>{children}</div>;
+		const button = <div onClick={openSaveModal}>{children}</div>;
 
 		return (
 			<>

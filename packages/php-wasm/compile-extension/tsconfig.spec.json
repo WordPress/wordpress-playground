@@ -1,0 +1,9 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../../../dist/out-tsc",
+		"module": "ESNext",
+		"types": ["vitest", "node"]
+	},
+	"include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.ts"]
+}

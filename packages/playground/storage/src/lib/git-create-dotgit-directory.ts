@@ -1,4 +1,4 @@
-import { GitIndex } from 'isomorphic-git/src/models/GitIndex.js';
+import { GitIndex } from './isomorphic-git-internals';
 import type { SparseCheckoutObject } from './git-sparse-checkout';
 import pako from 'pako';
 const deflate = pako.deflate;
@@ -181,12 +181,10 @@ export async function createDotGitDirectory({
 	if (headInfo.branchRef && headInfo.branchName) {
 		gitFiles['.git/logs/HEAD'] = `ref: ${headInfo.branchRef}\n`;
 		gitFiles[`.git/${headInfo.branchRef}`] = `${commitHash}\n`;
-		gitFiles[
-			`.git/refs/remotes/origin/${headInfo.branchName}`
-		] = `${commitHash}\n`;
-		gitFiles[
-			'.git/refs/remotes/origin/HEAD'
-		] = `ref: refs/remotes/origin/${headInfo.branchName}\n`;
+		gitFiles[`.git/refs/remotes/origin/${headInfo.branchName}`] =
+			`${commitHash}\n`;
+		gitFiles['.git/refs/remotes/origin/HEAD'] =
+			`ref: refs/remotes/origin/${headInfo.branchName}\n`;
 	}
 
 	if (headInfo.tagName) {

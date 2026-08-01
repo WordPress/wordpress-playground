@@ -87,7 +87,10 @@ const httpsServer = https.createServer(
 				fclose($fp);`,
 		};
 
-		const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+		const phpLoaderOptions: PHPLoaderOptions[] = [
+			{},
+			{ extensions: ['xdebug'] },
+		];
 
 		phpLoaderOptions.forEach((options) => {
 			describe.each(phpVersions)(

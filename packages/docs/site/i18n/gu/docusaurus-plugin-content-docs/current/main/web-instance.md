@@ -173,17 +173,19 @@ The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery a
 લૉન્ચ પેનલ બ્લુપ્રીન્ટ ગેલેરીમાંથી 40 થી વધુ બ્લુપ્રીન્ટ અને તમારા સેવ કરેલા પ્લેગ્રાઉન્ડ પણ સૂચિબદ્ધ કરે છે.
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 https://playground.wordpress.net પરની સાઇટ સમુદાયને સમર્થન આપવા માટે છે, પરંતુ ટ્રાફિક નોંધપાત્ર રીતે વધે તો તે કામ કરવાનું ચાલુ રાખશે તેની કોઈ ગેરંટી નથી.
 
 જો તમને ચોક્કસ ઉપલબ્ધતાની જરૂર હોય, તો તમારે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરવું](/developers/architecture/host-your-own-playground) જોઈએ.
-:::
+
+</div>

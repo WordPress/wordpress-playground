@@ -239,14 +239,22 @@ Open multiple browser tabs with different Playground setups. Compare plugin A ve
 বিভিন্ন প্লেগ্রাউন্ড সেটআপ সহ একাধিক ব্রাউজার ট্যাব খুলুন। প্লাগইন A বনাম প্লাগইন B তুলনা করুন, অথবা বিভিন্ন থিমে আপনার কন্টেন্ট কেমন দেখায় তা দেখুন। প্রোডাকশন সাইটে হাত দেওয়ার আগে সঠিকভাবে জেনে-বুঝে সিদ্ধান্ত নিন।
 
 <!--
-:::info Your Real Site Stays Safe
+<div class="callout callout-info">
+
+**Your Real Site Stays Safe**
+
 Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
-:::
+
+</div>
 -->
 
-:::তথ্য আপনার আসল সাইটটি নিরাপদে থাকে
+<div class="callout callout-info">
+
+**আপনার আসল সাইটটি নিরাপদে থাকে**
+
 প্রতিটি প্লেগ্রাউন্ড আপনার ব্রাউজারে স্বাধীনভাবে চলে। কোনো কিছুই কোনো বাইরের সার্ভারের সাথে সিঙ্ক হয় না এবং কোনো কিছুই আপনার লাইভ ওয়ার্ডপ্রেস সাইটকে প্রভাবিত করে না।
-:::
+
+</div>
 
 <!--
 ## If You Use WordPress Daily
@@ -337,14 +345,22 @@ Need to move your work elsewhere? Choose **Download as .zip** to export your ent
 আপনার কাজ অন্য কোথাও নিতে চান? আপনার পুরো প্লেগ্রাউন্ডটি — যার মধ্যে প্লাগইন, থিম এবং কন্টেন্ট রয়েছে — এক্সপোর্ট করার জন্য **.zip হিসেবে ডাউনলোড করুন** বেছে নিন। আপনি এটি পরে রিস্টোর করতে পারেন অথবা এমনকি একটি আসল সার্ভারে হোস্ট করতে পারেন।
 
 <!--
-:::tip Keep Your Playground Link
+<div class="callout callout-tip">
+
+**Keep Your Playground Link**
+
 When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
-:::
+
+</div>
 -->
 
-:::পরামর্শ আপনার প্লেগ্রাউন্ড লিঙ্কটি সংরক্ষণ করুন
+<div class="callout callout-tip">
+
+**আপনার প্লেগ্রাউন্ড লিঙ্কটি সংরক্ষণ করুন**
+
 আপনি যখন ব্রাউজারে সেভ করবেন, তখন এটি যে ইউনিক URL জেনারেট করবে তা কপি করে রাখুন। আপনার সেভ করা কাজে ফিরে আসার জন্য এই লিঙ্কটিই একমাত্র উপায়।
-:::
+
+</div>
 
 <!--
 ## Next Steps

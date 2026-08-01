@@ -96,18 +96,18 @@ With Google Chrome you can synchronize your Playground instance with a local dir
 - একটি বিদ্যমান ডিরেক্টরি – এটি এখানে লোড করতে এবং সিঙ্কিং শুরু করতে
 
 <!--
-:::info
+<div class="callout callout-info">
 
 This feature is only available for Google Chrome for now. It won't work with other browsers yet.
 
-:::
+</div>
 -->
 
-:::তথ্য
+<div class="callout callout-info">
 
 এই ফিচারটি বর্তমানে শুধুমাত্র গুগল ক্রোমের জন্য উপলব্ধ। এটি এখনও অন্য ব্রাউজারে কাজ করবে না।
 
-:::
+</div>
 
 <!--
 Regarding changes done on both sides of the connection:

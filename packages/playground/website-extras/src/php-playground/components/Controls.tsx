@@ -1,6 +1,7 @@
 import { type ChangeEvent, useMemo } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../hooks';
+import { getPHPVersionLabel } from '../php-versions';
 import { queueRun, setPhpVersion, setWpVersion } from '../store';
 import styles from './Layout.module.css';
 
@@ -70,7 +71,7 @@ export const Controls = ({ onHelpClick }: ControlsProps) => {
 				>
 					{phpVersions.map((version) => (
 						<option key={version} value={version}>
-							{version}
+							{getPHPVersionLabel(version)}
 						</option>
 					))}
 				</select>
