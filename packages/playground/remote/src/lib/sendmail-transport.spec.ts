@@ -24,17 +24,15 @@ describe('remote sendmail transport', () => {
 	it('constructs the sandboxed handler with the current PHP instance', async () => {
 		vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
 		vi.stubGlobal('location', { href: 'http://playground.test/' });
+		const stopAfterCapturingOptions = new Error(
+			'stop after capturing options'
+		);
 		let spawnHandler:
 			| ((getPHPInstance?: unknown, currentPHP?: unknown) => unknown)
 			| undefined;
 		bootRequestHandlerMock.mockImplementationOnce(async (options) => {
 			spawnHandler = options.spawnHandler;
-			return {
-				documentRoot: '/wordpress',
-				getPrimaryPhp: vi.fn(async () => ({
-					requestHandler: undefined,
-				})),
-			};
+			throw stopAfterCapturingOptions;
 		});
 		const { PlaygroundWorkerEndpoint } =
 			await import('./playground-worker-endpoint');
@@ -52,9 +50,11 @@ describe('remote sendmail transport', () => {
 			}
 		}
 
-		await new TestEndpoint(
-			{} as EmscriptenDownloadMonitor
-		).createRequestHandlerForTest();
+		await expect(
+			new TestEndpoint(
+				{} as EmscriptenDownloadMonitor
+			).createRequestHandlerForTest()
+		).rejects.toBe(stopAfterCapturingOptions);
 		const getPHPInstance = vi.fn();
 		const currentPHP = {};
 		expect(spawnHandler).toBeDefined();
@@ -83,9 +83,9 @@ describe('remote sendmail transport', () => {
 			await options.onPHPInstanceCreated(php, { isPrimary: true });
 			return requestHandler;
 		});
-
 		const { PlaygroundWorkerEndpoint } =
 			await import('./playground-worker-endpoint');
+
 		class TestEndpoint extends PlaygroundWorkerEndpoint {
 			async boot() {}
 
