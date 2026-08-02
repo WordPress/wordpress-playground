@@ -610,7 +610,9 @@ int __wrap_pclose(FILE *fp)
 	if (js_popen_get_pid_for_fd(fileno(fp)) >= 0) {
 		return wasm_pclose(fp);
 	}
-	return __real_pclose(fp);
+	// Read-mode wasm_popen() uses a regular file after its process has exited.
+	// Preserve pipe stream reads, but close the backing file with fclose().
+	return fclose(fp);
 }
 
 /**
@@ -725,7 +727,7 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 		goto err;
 	}
 
-	stream = php_stream_fopen_from_file(fp, "rb");
+	stream = php_stream_fopen_from_pipe(fp, "rb");
 
 	buf = (char *)emalloc(EXEC_INPUT_BUF);
 	buflen = EXEC_INPUT_BUF;

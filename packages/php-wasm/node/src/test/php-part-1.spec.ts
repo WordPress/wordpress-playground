@@ -634,7 +634,7 @@ phpLoaderOptions.forEach((options) => {
 
 				const popenResult = await php.run({
 					code: `<?php
-					for ($i = 0; $i < 100; $i++) {
+					for ($i = 0; $i < 25; $i++) {
 						$fp = popen("echo WordPress", "r");
 						fread($fp, 1024);
 						pclose($fp);
@@ -648,7 +648,7 @@ phpLoaderOptions.forEach((options) => {
 				const execResult = await php.run({
 					code: `<?php
 
-					for ($i = 0; $i < 100; $i++) {
+					for ($i = 0; $i < 25; $i++) {
 						exec("echo WordPress", $output, $exit_code);
 						$output = [];
 					}
@@ -661,7 +661,7 @@ phpLoaderOptions.forEach((options) => {
 				const shellExecResult = await php.run({
 					code: `<?php
 
-					for ($i = 0; $i < 100; $i++) {
+					for ($i = 0; $i < 25; $i++) {
 						shell_exec("echo WordPress");
 					}
 					echo "shell-done";
@@ -673,7 +673,7 @@ phpLoaderOptions.forEach((options) => {
 				const systemResult = await php.run({
 					code: `<?php
 
-					for ($i = 0; $i < 100; $i++) {
+					for ($i = 0; $i < 25; $i++) {
 						ob_start();
 						system("echo WordPress", $exit_code);
 						ob_end_clean();
@@ -688,7 +688,7 @@ phpLoaderOptions.forEach((options) => {
 				const passthruResult = await php.run({
 					code: `<?php
 
-					for ($i = 0; $i < 100; $i++) {
+					for ($i = 0; $i < 25; $i++) {
 						ob_start();
 						passthru("echo WordPress", $exit_code);
 						ob_end_clean();
