@@ -465,6 +465,7 @@ RUN if grep -q 'VCWD_POPEN' /root/php-src/Zend/zend_virtual_cwd.h 2>/dev/null; t
 		/root/replace.sh 's/#define VCWD_POPEN.+/#define VCWD_POPEN(command, type) wasm_popen(command,type)/g' /root/php-src/Zend/zend_virtual_cwd.h; \
 	fi
 RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/php-src/Zend/zend_virtual_cwd.h
+
 # Provide a custom implementation of the shutdown() function.
 # php_cli_server.c exists in PHP 5.4+ (built-in server added in 5.4)
 RUN if [ -f /root/php-src/sapi/cli/php_cli_server.c ]; then \
