@@ -34,6 +34,31 @@ class ArtifactExpiredError extends Error {
 	}
 }
 
+/**
+ * Identifies a concrete WordPress release that wordpress.org cannot provide.
+ *
+ * This error is reserved for HTTP 404 responses from the versioned WordPress
+ * download endpoint. Other HTTP responses and transport failures remain normal
+ * download errors because retrying them or changing the network may succeed.
+ *
+ * Errors crossing the worker boundary may lose their prototype, but retain the
+ * class name as `originalErrorClassName`. Giving this condition a stable name
+ * lets the website show unavailable-resource guidance instead of treating it as
+ * a transient download failure.
+ */
+class ResourceUnavailableError extends Error {
+	/**
+	 * Creates an unavailable-resource error with a name that survives worker
+	 * error serialization.
+	 *
+	 * @param message The exact resource and version that could not be downloaded.
+	 */
+	constructor(message: string) {
+		super(message);
+		this.name = 'ResourceUnavailableError';
+	}
+}
+
 class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 	override async boot({
 		scope,
@@ -152,6 +177,11 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 						.monitorFetch(fetch(downloadUrl))
 						.then((response) => {
 							if (!response.ok) {
+								if (response.status === 404) {
+									throw new ResourceUnavailableError(
+										`WordPress ${normalizedVersion} is not available for download.`
+									);
+								}
 								throw new Error(
 									`Failed to download WordPress ${normalizedVersion} (HTTP ${response.status})`
 								);

@@ -2,6 +2,7 @@ import { PHPWorker } from '../lib/php-worker';
 import { describe, expect, test, vi } from 'vitest';
 import type { PHP } from '../lib/php';
 import type { PHPRequestHandler } from '../lib/php-request-handler';
+import type { StreamedPHPResponse } from '../lib/php-response';
 
 type PhpEvent = { type: string; [key: string]: unknown };
 type PhpEventListener = (event: PhpEvent) => void | Promise<void>;
@@ -214,6 +215,42 @@ describe('PlaygroundWorkerEndpoint', () => {
 			['php', '/tmp/script.php'],
 			undefined
 		);
+	});
+
+	test('keeps a pooled PHP instance alive until runStream finishes', async () => {
+		let finish!: () => void;
+		const finished = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+		const response = { finished } as StreamedPHPResponse;
+		const reap = vi.fn();
+		const streamedPhp = {
+			chdir: vi.fn(),
+			runStream: vi.fn().mockResolvedValue(response),
+			addEventListener: vi.fn(),
+			onMessage: vi.fn(),
+		};
+		const requestHandler = {
+			absoluteUrl: 'http://127.0.0.1/',
+			documentRoot: '/wordpress',
+			instanceManager: {
+				acquirePHPInstance: vi.fn().mockResolvedValue({
+					php: streamedPhp,
+					reap,
+				}),
+			},
+		};
+		const endpoint = new TestEndpoint(
+			requestHandler as unknown as PHPRequestHandler
+		);
+		const request = { code: "<?php echo 'hi!';" };
+
+		await expect(endpoint.runStream(request)).resolves.toBe(response);
+		expect(streamedPhp.runStream).toHaveBeenCalledWith(request);
+		expect(reap).not.toHaveBeenCalled();
+
+		finish();
+		await vi.waitFor(() => expect(reap).toHaveBeenCalledOnce());
 	});
 
 	test('uses the primary PHP instance before resolving a missing request handler', async () => {

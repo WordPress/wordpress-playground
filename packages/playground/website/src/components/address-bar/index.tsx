@@ -70,6 +70,7 @@ const quickNavItems: QuickNavItem[] = [
 interface AddressBarProps {
 	url?: string;
 	onUpdate?: (url: string) => void;
+	isMobile?: boolean;
 	/**
 	 * Renders the bar inert (e.g. while the Playground is still booting and
 	 * there is no client to navigate yet) instead of hiding it, so the Dock
@@ -78,9 +79,16 @@ interface AddressBarProps {
 	disabled?: boolean;
 }
 
+/**
+ * Renders the Dock's URL input and quick-navigation list.
+ *
+ * The desktop popover follows the full input width while mobile keeps its
+ * compact presentation.
+ */
 export default function AddressBar({
 	url,
 	onUpdate,
+	isMobile = false,
 	disabled = false,
 }: AddressBarProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -112,24 +120,33 @@ export default function AddressBar({
 		}
 	}, [disabled, url]);
 
-	// Update listbox width when it opens and track resize.
+	// Match the full input width on desktop while preserving the compact mobile
+	// sizing, and keep both widths in sync when the input resizes.
 	useEffect(() => {
 		if (!isOpen || !inputRef.current) {
 			return;
 		}
-		setMenuWidth(inputRef.current.offsetWidth);
+		setMenuWidth(
+			isMobile
+				? inputRef.current.offsetWidth
+				: inputRef.current.getBoundingClientRect().width
+		);
 		if (typeof ResizeObserver === 'undefined') {
 			return;
 		}
 
 		const resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
-				setMenuWidth(entry.contentRect.width);
+				setMenuWidth(
+					isMobile
+						? entry.contentRect.width
+						: entry.target.getBoundingClientRect().width
+				);
 			}
 		});
 		resizeObserver.observe(inputRef.current);
 		return () => resizeObserver.disconnect();
-	}, [isOpen]);
+	}, [isMobile, isOpen]);
 
 	function closeSuggestions() {
 		setIsOpen(false);
@@ -262,6 +279,7 @@ export default function AddressBar({
 				{isOpen && (
 					<Popover
 						placement="top-start"
+						offset={isMobile ? undefined : 8}
 						onClose={closeSuggestions}
 						anchor={inputRef.current}
 						noArrow={true}

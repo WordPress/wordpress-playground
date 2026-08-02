@@ -16,7 +16,6 @@ import css from './style.module.css';
 type SettingsAction = 'apply' | 'fresh';
 
 export function SiteSettingsActionFooter({
-	siteName,
 	sitePersistence,
 	values,
 	defaultValues,
@@ -26,7 +25,6 @@ export function SiteSettingsActionFooter({
 	isPending,
 	error,
 }: SiteSettingsFormFooterContext & {
-	siteName: string;
 	sitePersistence: SitePersistence;
 	onApply: (data: SiteFormData) => void | Promise<void>;
 	onCreateFresh: (data: SiteFormData) => void | Promise<void>;
@@ -115,7 +113,6 @@ export function SiteSettingsActionFooter({
 							canApplyToCurrent={canApplyToCurrent}
 							applyUnavailableReason={applyUnavailableReason}
 							selectedAction={primaryAction}
-							siteName={siteName}
 							sitePersistence={sitePersistence}
 							onSelectApply={() => {
 								onClose();
@@ -144,7 +141,6 @@ function SettingsActionMenu({
 	canApplyToCurrent,
 	applyUnavailableReason,
 	selectedAction,
-	siteName,
 	sitePersistence,
 	onSelectApply,
 	onSelectCreateFresh,
@@ -152,7 +148,6 @@ function SettingsActionMenu({
 	canApplyToCurrent: boolean;
 	applyUnavailableReason?: string;
 	selectedAction: SettingsAction;
-	siteName: string;
 	sitePersistence: SitePersistence;
 	onSelectApply: () => void;
 	onSelectCreateFresh: () => void;
@@ -230,13 +225,13 @@ function SettingsActionMenu({
 				<span className={css.actionMenuDescription}>
 					{sitePersistence === 'explicit' ? (
 						<>
-							Start a clean site. “{siteName}” stays in Saved
-							Playgrounds.
+							Start a clean site. Your current Playground stays in
+							Saved Playgrounds.
 						</>
 					) : (
 						<>
-							Start a clean site. “{siteName}” stays in Recent
-							autosaves until {MAX_AUTOSAVED_SITES} newer
+							Start a clean site. Your current Playground stays in
+							Recent autosaves until {MAX_AUTOSAVED_SITES} newer
 							autosaves replace it.
 						</>
 					)}

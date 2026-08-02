@@ -16,17 +16,15 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import {
-	loadPersistedBlueprintBundle,
-	persistBlueprintBundle,
-} from '../../lib/state/opfs/opfs-blueprint-bundle-storage';
+import { persistBlueprintBundle } from '../../lib/state/opfs/opfs-blueprint-bundle-storage';
 import {
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	type SiteInfo,
-	updateSite,
+	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
+import { PaneLoading } from '../pane-loading';
 import styles from './blueprint-bundle-editor.module.css';
 import {
 	type BlueprintBundleEditorHandle,
@@ -272,20 +270,19 @@ export const SiteBlueprintBundleEditor = forwardRef<
 				// Autosaved Playgrounds keep editable Blueprint bundles beside their
 				// WordPress files. Declaration-only metadata is converted once into a
 				// per-site OPFS bundle so later edits cannot leak into another site.
-				await persistBlueprintBundle(site.slug, fs.backend);
 				const opfsFilesystem = new EventedFilesystem(
-					await loadPersistedBlueprintBundle(site.slug)
+					await persistBlueprintBundle(site.slug, fs.backend)
 				);
+				// Boot may update site metadata while the bundle is copied. Merge only
+				// the bundle fields after the copy instead of restoring the SiteInfo
+				// snapshot captured when this effect started.
 				await dispatch(
-					updateSite({
+					updateSiteMetadata({
 						slug: site.slug,
 						changes: {
-							metadata: {
-								...site.metadata,
-								originalBlueprint: opfsFilesystem.backend,
-								originalBlueprintSource: {
-									type: 'opfs-site',
-								},
+							originalBlueprint: opfsFilesystem.backend,
+							originalBlueprintSource: {
+								type: 'opfs-site',
 							},
 						},
 					})
@@ -335,7 +332,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 	return (
 		<div className={classNames(styles.container, className)}>
-			{filesystem && (
+			{filesystem ? (
 				<BlueprintBundleEditor
 					ref={innerEditorRef}
 					filesystem={filesystem}
@@ -344,6 +341,8 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					dockPresentation={dockPresentation}
 					mobileHeaderTarget={mobileHeaderTarget}
 				/>
+			) : (
+				<PaneLoading message="Loading the Blueprint editor…" />
 			)}
 		</div>
 	);
