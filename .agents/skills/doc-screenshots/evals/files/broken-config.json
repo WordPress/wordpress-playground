@@ -1,0 +1,10 @@
+{
+	"screenshot": "examples/sample-shot.webp",
+	"output": "annotated.png",
+	"outlines": [
+		{ "type": "rect", "box": [216, 0, 91, 32] },
+		{ "type": "circle" }
+	],
+	"arrows": [{ "from": [340, 250], "to": [261, 46], "axis": "d" }],
+	"cards": [{ "number": 1, "title": "Edit Site", "target": 5 }]
+}

@@ -15,10 +15,23 @@ WebAssembly પ્રોજેક્ટ તરીકે, તમે Node.js મ�
 As a WebAssembly project, you can also use WordPress Playground in Node.js.
 -->
 
-જો તમને અંતર્ગત WebAssembly PHP બિલ્ડ પર નીચા-સ્તરના નિયંત્રણની જરૂર હોય, તો [`@php-wasm/node` પેકેજ](https://npmjs.org/@php-wasm/node) પર એક નજર નાખો જે PHP WebAssembly રનટાઇમ મોકલે છે. આ પેકેજ Node.js માટેના બધા વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ટૂલ્સના મૂળમાં છે.
+જો તમને અંતર્ગત WebAssembly PHP રનટાઇમ પર સીધા નિયંત્રણની જરૂર હોય, તો [`@php-wasm/node` પેકેજ](https://npmjs.org/@php-wasm/node) પર એક નજર નાખો. તે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ટૂલ્સ દ્વારા ઉપયોગમાં લેવાતા Node.js લોડર અને રનટાઇમ ઇન્ટિગ્રેશન પૂરાં પાડે છે. કમ્પાઇલ કરેલા બાઇનરી `@php-wasm/node-8-4` જેવા વર્ઝન-વિશિષ્ટ પેકેજોમાં પ્રકાશિત થાય છે.
 
 <!--
-If you need low-level control over the underlying WebAssembly PHP build, take a look at the [`@php-wasm/node` package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js.
+If you need direct control over the underlying WebAssembly PHP runtime, take a
+look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node). It
+provides the Node.js loader and runtime integrations used by WordPress
+Playground tools. The compiled binaries are published in version-specific
+packages such as `@php-wasm/node-8-4`.
+-->
+
+`@php-wasm/universal`, Node.js અને વેબ ઍડપ્ટર્સ, અને વર્ઝન-વિશિષ્ટ પેકેજો કેવી રીતે એકસાથે કામ કરે છે તે જાણવા માટે [PHP.wasm પેકેજો](/developers/architecture/php-wasm-packages) જુઓ. તે પેજ નાની ડિપેન્ડન્સી ફૂટપ્રિન્ટ સાથેના નીચલા-સ્તરના, એક-વર્ઝન સેટઅપને પણ સમજાવે છે.
+
+<!--
+See [PHP.wasm packages](/developers/architecture/php-wasm-packages) to learn
+how `@php-wasm/universal`, the Node.js and web adapters, and the version-specific
+packages fit together. That page also explains the lower-level, single-version
+setup with a smaller dependency footprint.
 -->
 
 <div class="callout callout-info">

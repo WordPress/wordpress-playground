@@ -45,8 +45,6 @@ export type StepDefinition = Step & {
 	};
 };
 
-export { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-
 /**
  * If you add a step here, make sure to also
  * add it to the exports below.
@@ -127,7 +125,7 @@ export type StepProgress = {
 
 export type StepHandler<
 	S extends GenericStep<File, Directory>,
-	Return = any
+	Return = any,
 > = (
 	/**
 	 * A PHP instance or Playground client.

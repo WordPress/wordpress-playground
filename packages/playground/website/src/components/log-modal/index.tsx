@@ -1,17 +1,27 @@
-import { Fragment, useEffect, useState } from 'react';
+import {
+	Fragment,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import { logEventType, logger } from '@php-wasm/logger';
 
 import classNames from 'classnames';
 import css from './style.module.css';
 import { Modal } from '../modal';
-import { TextControl } from '@wordpress/components';
+import { Icon, TextControl } from '@wordpress/components';
+import { check, copySmall } from '@wordpress/icons';
 import type {
 	PlaygroundDispatch,
 	PlaygroundReduxState,
 } from '../../lib/state/redux/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { splitLogHighlights } from './log-highlights';
+import { splitSearchHighlights } from './log-highlights';
+import { parseLogs } from './log-parsing';
+import type { LogEntry, LogTier } from './log-parsing';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
@@ -24,23 +34,69 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	}
 
 	return (
-		<Modal title={props.title || 'Error Logs'} onRequestClose={onClose}>
+		<Modal title={props.title || 'PHP error log'} onRequestClose={onClose}>
 			<div>{props.description}</div>
 			<SiteLogs key={activeModal} className={css.logsInsideModal} />
 		</Modal>
 	);
 }
 
+/** Keep in sync with `-webkit-line-clamp` in style.module.css. */
+const CLAMP_LINES = 6;
+
+const TIER_FILTERS: Array<{ tier: LogTier; label: string }> = [
+	{ tier: 'error', label: 'Errors' },
+	{ tier: 'warning', label: 'Warnings' },
+	{ tier: 'info', label: 'Info' },
+];
+
 export function SiteLogs({ className }: { className?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
+	const [tierFilter, setTierFilter] = useState<LogTier | 'all'>('all');
+	const [copiedAll, copyAll] = useCopyToClipboard();
+	const contentRef = useRef<HTMLDivElement>(null);
 
-	// Keep each entry's original append-only index as its stable React key.
-	const filteredLogs = logs
-		.map((log, index) => ({ log, index }))
-		.filter(({ log }) =>
-			log.toLowerCase().includes(searchTerm.toLowerCase())
-		);
+	// A deep scroll offset makes no sense against a different result set —
+	// jump back to the newest entries whenever the filter or search changes.
+	useEffect(() => {
+		for (
+			let node = contentRef.current?.parentElement;
+			node;
+			node = node.parentElement
+		) {
+			if (node.scrollTop > 0) {
+				node.scrollTop = 0;
+			}
+		}
+	}, [tierFilter, searchTerm]);
+
+	const entries = useMemo(() => parseLogs(logs), [logs]);
+
+	// Keep each entry's original append-only position as its stable React key.
+	const searchedEntries = useMemo(() => {
+		const needle = searchTerm.toLowerCase();
+		return entries
+			.map((entry, index) => ({ entry, index }))
+			.filter(({ entry }) => entry.raw.toLowerCase().includes(needle));
+	}, [entries, searchTerm]);
+
+	const tierCounts = useMemo(() => {
+		const counts: Record<LogTier, number> = {
+			error: 0,
+			warning: 0,
+			info: 0,
+		};
+		for (const { entry } of searchedEntries) {
+			counts[entry.tier]++;
+		}
+		return counts;
+	}, [searchedEntries]);
+
+	const visibleEntries =
+		tierFilter === 'all'
+			? searchedEntries
+			: searchedEntries.filter(({ entry }) => entry.tier === tierFilter);
 
 	useEffect(() => {
 		getLogs();
@@ -55,90 +111,289 @@ export function SiteLogs({ className }: { className?: string }) {
 		setLogs(logger.getLogs());
 	}
 
-	function logList() {
-		return filteredLogs
-			.slice()
-			.reverse()
-			.map(({ log, index }) => (
-				<div className={css.logEntry} key={index}>
-					{splitLogHighlights(log).map((segment, segmentIndex) =>
-						segment.highlight ? (
-							<mark key={segmentIndex}>{segment.text}</mark>
-						) : (
-							<Fragment key={segmentIndex}>
-								{segment.text}
-							</Fragment>
-						)
-					)}
-				</div>
-			));
+	function clearFilters() {
+		setSearchTerm('');
+		setTierFilter('all');
 	}
 
 	return (
 		<div className={classNames(css.logsComponent, className)}>
 			{logs.length > 0 ? (
-				<TextControl
-					aria-label="Search"
-					placeholder="Search logs"
-					value={searchTerm}
-					onChange={setSearchTerm}
-					autoFocus={true}
-					className={css.logSearch}
-				/>
+				<div className={css.logToolbar}>
+					<TextControl
+						aria-label="Search"
+						placeholder="Search logs"
+						value={searchTerm}
+						onChange={setSearchTerm}
+						__nextHasNoMarginBottom
+					/>
+					<div
+						className={css.logFilters}
+						role="group"
+						aria-label="Filter logs"
+					>
+						<button
+							type="button"
+							className={css.logFilterChip}
+							aria-pressed={tierFilter === 'all'}
+							onClick={() => setTierFilter('all')}
+						>
+							All
+							<span className={css.logFilterCount}>
+								{searchedEntries.length}
+							</span>
+						</button>
+						{/* The chip set is fixed: empty tiers dim instead of
+						    disappearing, so the row never reshuffles. */}
+						{TIER_FILTERS.map(({ tier, label }) => (
+							<button
+								key={tier}
+								type="button"
+								className={css.logFilterChip}
+								aria-pressed={tierFilter === tier}
+								disabled={
+									tierCounts[tier] === 0 &&
+									tierFilter !== tier
+								}
+								onClick={() =>
+									setTierFilter(
+										tierFilter === tier ? 'all' : tier
+									)
+								}
+							>
+								{label}
+								<span className={css.logFilterCount}>
+									{tierCounts[tier]}
+								</span>
+							</button>
+						))}
+						{visibleEntries.length > 0 && (
+							<button
+								type="button"
+								className={css.logCopyAll}
+								onClick={() =>
+									copyAll(
+										visibleEntries
+											.map(({ entry }) => entry.raw)
+											.join('\n')
+									)
+								}
+							>
+								{copiedAll ? 'Copied' : 'Copy logs'}
+							</button>
+						)}
+					</div>
+				</div>
 			) : null}
-			<div className={css.logContentContainer}>
-				{filteredLogs.length > 0 ? (
-					<main className={css.logList}>{logList()}</main>
+			<div ref={contentRef} className={css.logContentContainer}>
+				{visibleEntries.length > 0 ? (
+					<ul className={css.logList}>
+						{visibleEntries
+							.slice()
+							.reverse()
+							.map(({ entry, index }) => (
+								<LogEntryRow
+									key={index}
+									entry={entry}
+									searchTerm={searchTerm}
+								/>
+							))}
+					</ul>
 				) : logs.length > 0 ? (
 					<div className={css.logEmptyPlaceholder}>
 						<p className={css.logEmptyHint}>
-							No logs match “{searchTerm}”.
+							{searchTerm
+								? `No logs match “${searchTerm}”.`
+								: 'No logs match the current filter.'}
 						</p>
-						<button
-							type="button"
-							className={css.logClearSearch}
-							onClick={() => setSearchTerm('')}
-						>
-							Clear search
-						</button>
+						{(searchTerm !== '' || tierFilter !== 'all') && (
+							<button
+								type="button"
+								className={css.logClearSearch}
+								onClick={clearFilters}
+							>
+								Clear filters
+							</button>
+						)}
 					</div>
 				) : (
 					<div className={css.logEmptyState}>
 						<p className={css.logEmptyTitle}>Nothing logged yet</p>
 						<p className={css.logEmptyHint}>
-							This is the combined log for your Playground. Three
-							kinds of messages land here as you use it:
+							PHP errors, warnings, and notices from your site
+							appear here as they are written to the debug log.
 						</p>
-						<ul className={css.logLegend}>
-							<li>
-								<span className={css.logLegendTerm}>PHP</span>
-								<span className={css.logLegendDesc}>
-									fatal errors, warnings, and notices from
-									your code
-								</span>
-							</li>
-							<li>
-								<span className={css.logLegendTerm}>
-									WordPress
-								</span>
-								<span className={css.logLegendDesc}>
-									entries written to the debug log when
-									WP_DEBUG is on
-								</span>
-							</li>
-							<li>
-								<span className={css.logLegendTerm}>
-									Playground
-								</span>
-								<span className={css.logLegendDesc}>
-									runtime messages from the Playground app
-									itself
-								</span>
-							</li>
-						</ul>
 					</div>
 				)}
 			</div>
 		</div>
 	);
+}
+
+/** One log record: its timestamp above a full-width, clamped message. */
+function LogEntryRow({
+	entry,
+	searchTerm,
+}: {
+	entry: LogEntry;
+	searchTerm: string;
+}) {
+	const [expanded, setExpanded] = useState(false);
+	const [overflowing, setOverflowing] = useState(false);
+	const entryRef = useRef<HTMLLIElement>(null);
+	const messageRef = useRef<HTMLDivElement>(null);
+	const [copied, copy] = useCopyToClipboard();
+
+	// Collapsed entries clamp to a few lines. Only entries that actually
+	// overflow that clamp — measured at the live pane width — get the toggle.
+	useLayoutEffect(() => {
+		const message = messageRef.current;
+		if (!message || expanded) {
+			return;
+		}
+		const measure = () =>
+			setOverflowing(message.scrollHeight > message.clientHeight + 1);
+		measure();
+		if (typeof ResizeObserver === 'undefined') {
+			return;
+		}
+		const observer = new ResizeObserver(measure);
+		observer.observe(message);
+		return () => observer.disconnect();
+	}, [entry.message, expanded]);
+
+	const lineCount = entry.message.split('\n').length;
+
+	return (
+		<li ref={entryRef} className={css.logEntry}>
+			{entry.timestamp && (
+				<time className={css.logTimestamp}>{entry.timestamp}</time>
+			)}
+			<div className={css.logEntryBody}>
+				<div
+					ref={messageRef}
+					className={css.logEntryMessage}
+					data-clamped={!expanded || undefined}
+				>
+					{headSegments(entry, searchTerm).map(
+						(segment, segmentIndex) => {
+							const text = segment.highlight ? (
+								<mark>{segment.text}</mark>
+							) : (
+								segment.text
+							);
+							// The severity head stays part of the message; it
+							// is only tinted, never restated elsewhere.
+							return segment.head ? (
+								<span
+									key={segmentIndex}
+									className={css.logSeverityHead}
+									data-tier={entry.tier}
+								>
+									{text}
+								</span>
+							) : (
+								<Fragment key={segmentIndex}>{text}</Fragment>
+							);
+						}
+					)}
+				</div>
+				{(overflowing || expanded) && (
+					<button
+						type="button"
+						className={css.logEntryToggle}
+						aria-expanded={expanded}
+						onClick={() => {
+							const next = !expanded;
+							setExpanded(next);
+							if (!next) {
+								// Collapsing shrinks the list; without this
+								// the viewport lands on whatever slid up.
+								requestAnimationFrame(() =>
+									entryRef.current?.scrollIntoView({
+										block: 'nearest',
+									})
+								);
+							}
+						}}
+					>
+						{expanded
+							? 'Show less'
+							: lineCount > CLAMP_LINES
+								? `Show all ${lineCount} lines`
+								: 'Show more'}
+					</button>
+				)}
+			</div>
+			<button
+				type="button"
+				className={css.logCopy}
+				aria-label="Copy log entry"
+				title="Copy log entry"
+				onClick={() => copy(entry.raw)}
+			>
+				<Icon icon={copied ? check : copySmall} size={18} />
+			</button>
+		</li>
+	);
+}
+
+/**
+ * Search-highlight segments split once more at the severity-head boundary,
+ * so the head keeps its tint even when a search match crosses from the
+ * head into the message.
+ */
+function headSegments(
+	entry: LogEntry,
+	searchTerm: string
+): Array<{ text: string; highlight: boolean; head: boolean }> {
+	const segments = splitSearchHighlights(entry.message, searchTerm);
+	const pieces: Array<{ text: string; highlight: boolean; head: boolean }> =
+		[];
+	let offset = 0;
+	for (const segment of segments) {
+		const end = offset + segment.text.length;
+		if (offset < entry.headLength && end > entry.headLength) {
+			const cut = entry.headLength - offset;
+			pieces.push({
+				text: segment.text.slice(0, cut),
+				highlight: segment.highlight,
+				head: true,
+			});
+			pieces.push({
+				text: segment.text.slice(cut),
+				highlight: segment.highlight,
+				head: false,
+			});
+		} else {
+			pieces.push({
+				text: segment.text,
+				highlight: segment.highlight,
+				head: end <= entry.headLength,
+			});
+		}
+		offset = end;
+	}
+	return pieces;
+}
+
+/** Copies text and reports a short-lived "copied" flag for button feedback. */
+function useCopyToClipboard(): [boolean, (text: string) => void] {
+	const [copied, setCopied] = useState(false);
+	const timerRef = useRef<number>();
+	useEffect(() => () => window.clearTimeout(timerRef.current), []);
+	const copy = (text: string) => {
+		void navigator.clipboard?.writeText(text).then(
+			() => {
+				setCopied(true);
+				window.clearTimeout(timerRef.current);
+				timerRef.current = window.setTimeout(
+					() => setCopied(false),
+					1600
+				);
+			},
+			() => {}
+		);
+	};
+	return [copied, copy];
 }
