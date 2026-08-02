@@ -4,6 +4,111 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.47] (2026-07-27) 
+
+### Documentation
+
+- [docs] Adding ways of import data guide. ([#4032](https://github.com/WordPress/wordpress-playground/pull/4032))
+- [docs] Updating resource page. ([#4037](https://github.com/WordPress/wordpress-playground/pull/4037))
+
+### PHP WebAssembly
+
+- [Blueprints] Make WordPress file imports failure-safe. ([#3848](https://github.com/WordPress/wordpress-playground/pull/3848))
+- [Blueprints] Report ZIP extraction progress during WordPress imports. ([#4168](https://github.com/WordPress/wordpress-playground/pull/4168))
+
+#### Website
+
+- [Website] Fix phpMyAdmin page not found in Personal WP. ([#4154](https://github.com/WordPress/wordpress-playground/pull/4154))
+
+### Website
+
+- Clarify New Playground and autosave failure states. ([#4119](https://github.com/WordPress/wordpress-playground/pull/4119))
+- Add front-page thumbnails to saved Playgrounds. ([#4133](https://github.com/WordPress/wordpress-playground/pull/4133))
+- Bind copied Blueprint bundles to their new Playground. ([#4115](https://github.com/WordPress/wordpress-playground/pull/4115))
+- Detect the repository for pull request numbers. ([#4120](https://github.com/WordPress/wordpress-playground/pull/4120))
+- Distinguish 404 errors from transient network failures. ([#4114](https://github.com/WordPress/wordpress-playground/pull/4114))
+- Expose front-page thumbnail capture through PlaygroundClient. ([#4142](https://github.com/WordPress/wordpress-playground/pull/4142))
+- Fix phpMyAdmin after opening Adminer. ([#4144](https://github.com/WordPress/wordpress-playground/pull/4144))
+- Give failed Blueprint runs an explicit recovery path. ([#4099](https://github.com/WordPress/wordpress-playground/pull/4099))
+- Import ZIP contents before initial browser persistence. ([#4131](https://github.com/WordPress/wordpress-playground/pull/4131))
+- Keep unfinished Blueprint runs out of Recent and restore suggestions. ([#4127](https://github.com/WordPress/wordpress-playground/pull/4127))
+- Log OPFS write worker failures. ([#4125](https://github.com/WordPress/wordpress-playground/pull/4125))
+- Make desktop address suggestions clickable and input-width. ([#4135](https://github.com/WordPress/wordpress-playground/pull/4135))
+- Preserve Blueprint recovery through GitHub authentication. ([#4129](https://github.com/WordPress/wordpress-playground/pull/4129))
+- Preserve Playground records when OPFS deletion fails. ([#4128](https://github.com/WordPress/wordpress-playground/pull/4128))
+- Preserve concurrent cross-tab metadata changes. ([#4152](https://github.com/WordPress/wordpress-playground/pull/4152))
+- Preserve concurrent metadata while preparing Blueprint drafts. ([#4116](https://github.com/WordPress/wordpress-playground/pull/4116))
+- Preserve plugin proxy default response headers. ([#4157](https://github.com/WordPress/wordpress-playground/pull/4157))
+- Preserve selected Query API parameters when starting over after an error. ([#4123](https://github.com/WordPress/wordpress-playground/pull/4123))
+- Prevent stale thumbnail captures from overwriting saved metadata. ([#4167](https://github.com/WordPress/wordpress-playground/pull/4167))
+- Queue Blueprint Run during OPFS synchronization. ([#4118](https://github.com/WordPress/wordpress-playground/pull/4118))
+- Remove stray plugin proxy expression. ([#4158](https://github.com/WordPress/wordpress-playground/pull/4158))
+- Replace failed Blueprint runs before pruning autosaves. ([#4134](https://github.com/WordPress/wordpress-playground/pull/4134))
+- Retry transient OPFS access handle contention. ([#4149](https://github.com/WordPress/wordpress-playground/pull/4149))
+- Serialize concurrent OPFS metadata writes. ([#4136](https://github.com/WordPress/wordpress-playground/pull/4136))
+- Share concurrent OPFS autosave operations. ([#4140](https://github.com/WordPress/wordpress-playground/pull/4140))
+- Track Blueprint runs until their first OPFS copy succeeds. ([#4126](https://github.com/WordPress/wordpress-playground/pull/4126))
+- Turn the Logs pane into a PHP error log. ([#4122](https://github.com/WordPress/wordpress-playground/pull/4122))
+- Tweak confirmations copy and placement. And preserve the Playground URL through settings update. ([#4150](https://github.com/WordPress/wordpress-playground/pull/4150))
+- Validate plugin proxy redirect destinations. ([#4137](https://github.com/WordPress/wordpress-playground/pull/4137))
+
+#### Blueprints
+
+- Accept ZIP drops across the page. ([#4121](https://github.com/WordPress/wordpress-playground/pull/4121))
+- Reveal ZIP imports while their browser autosave finishes. ([#4132](https://github.com/WordPress/wordpress-playground/pull/4132))
+- [Blueprints] Export and import all site files except Playground runtime files. ([#4141](https://github.com/WordPress/wordpress-playground/pull/4141))
+- [Blueprints] Export complete versioned Playground ZIP snapshots. ([#4139](https://github.com/WordPress/wordpress-playground/pull/4139))
+- [Blueprints] Import versioned ZIP user content while retaining legacy defaults. ([#4130](https://github.com/WordPress/wordpress-playground/pull/4130))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @brandonpayton @fellyph
+
+
+## [v3.1.46] (2026-07-20) 
+
+### Blueprints
+
+- Declare v2 schema constraints beside their types. ([#4077](https://github.com/WordPress/wordpress-playground/pull/4077))
+
+### Documentation
+
+- [Docs] Describe Playground tools with the Dock UI. ([#4085](https://github.com/WordPress/wordpress-playground/pull/4085))
+- [Docs] Document Dock paths in Blueprint and API documentation. ([#4083](https://github.com/WordPress/wordpress-playground/pull/4083))
+
+### PHP WebAssembly
+
+- [CLI] Use preferredVersions.wp in Playground CLI. ([#4075](https://github.com/WordPress/wordpress-playground/pull/4075))
+- Harden non-streaming fallback tests for fetchWithCorsProxy. ([#3495](https://github.com/WordPress/wordpress-playground/pull/3495))
+- [PHP-WASM] Expose recursive cp through PHPWorker. ([#4061](https://github.com/WordPress/wordpress-playground/pull/4061))
+
+### Website
+
+- Add a square mobile Dock with a tools toggle. ([#4088](https://github.com/WordPress/wordpress-playground/pull/4088))
+- Add end-to-end coverage for playground-zip import regressions. ([#3874](https://github.com/WordPress/wordpress-playground/pull/3874))
+- Align mobile Dock pane titles, toolbars, and forms. ([#4084](https://github.com/WordPress/wordpress-playground/pull/4084))
+- Anchor the autosave nudge to the Playgrounds Dock button. ([#4096](https://github.com/WordPress/wordpress-playground/pull/4096))
+- Ask before reloading edited Blueprint fragments. ([#4089](https://github.com/WordPress/wordpress-playground/pull/4089))
+- Clarify New Playground action labels. ([#4090](https://github.com/WordPress/wordpress-playground/pull/4090))
+- Decode JSON-encoded &lt;php-snippet&gt; child payloads. ([#4101](https://github.com/WordPress/wordpress-playground/pull/4101))
+- Keep the file editor Save control stable during autosave. ([#4073](https://github.com/WordPress/wordpress-playground/pull/4073))
+- Make Playgrounds pane rows span the Dock width. ([#4086](https://github.com/WordPress/wordpress-playground/pull/4086))
+- Match local-directory status to the autosave callout. ([#4100](https://github.com/WordPress/wordpress-playground/pull/4100))
+- Name Dock pane state after the Dock. ([#4080](https://github.com/WordPress/wordpress-playground/pull/4080))
+- Place Dock panes above the visible collapsed row. ([#4112](https://github.com/WordPress/wordpress-playground/pull/4112))
+- Render error dialogs as Quiet Paper sheets. ([#4102](https://github.com/WordPress/wordpress-playground/pull/4102))
+- Restyle the GitHub connect prompt to match the Dock. ([#4094](https://github.com/WordPress/wordpress-playground/pull/4094))
+- Use outward glyph for Dock Export. ([#4091](https://github.com/WordPress/wordpress-playground/pull/4091))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame
+
+
 ## [v3.1.45] (2026-07-16) 
 
 ### Enhancements

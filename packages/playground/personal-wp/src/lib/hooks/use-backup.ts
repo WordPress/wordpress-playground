@@ -82,9 +82,7 @@ export function useBackup() {
 			const siteName =
 				wpSiteName || activeSite.metadata.name || 'playground';
 
-			const bytes = await zipWpContent(playground, {
-				selfContained: true,
-			});
+			const bytes = await zipWpContent(playground);
 			const filename = formatBackupFilename(siteName);
 			const timestamp = Date.now();
 			saveAs(new File([bytes], filename));

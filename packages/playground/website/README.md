@@ -28,6 +28,33 @@ setOAuthToken('YOUR-TOKEN');
 
 Replace `YOUR-TOKEN` with your [Personal access token](https://github.com/settings/tokens) (with repo scope).
 
+#### Pull-request preview states
+
+The pull-request preview normally calls the production plugin proxy, whose
+result depends on GitHub credentials, rate limits, workflow history, and
+network availability. Start the website with deterministic verification
+responses when testing this interface locally:
+
+```bash
+PLAYGROUND_PR_PREVIEW_MOCKS=true npm run dev
+```
+
+Open **New → Preview a PR**, then enter one of these reserved PR numbers:
+
+| PR number   | WordPress Core response | Gutenberg response | Expected state                         |
+| ----------- | ----------------------- | ------------------ | -------------------------------------- |
+| `900000001` | Available               | Missing            | Opens a WordPress Core preview         |
+| `900000002` | Missing                 | Available          | Opens a Gutenberg preview              |
+| `900000003` | Available               | Available          | Asks which repository to open          |
+| `900000004` | Missing                 | Missing            | Reports that neither PR was found      |
+| `900000005` | Unavailable             | Missing            | Reports that GitHub cannot be checked  |
+| `900000006` | Missing                 | No workflow runs   | Reports that the build has not started |
+| `900000007` | Missing                 | Expired artifact   | Reports that the artifact expired      |
+| `900000008` | Artifact pending        | Missing            | Shows the retry countdown              |
+
+Only verification requests for these numbers are mocked. Other PR numbers and
+all artifact downloads continue through the normal plugin proxy.
+
 ## Tracking
 
 The WordPress Playground website uses Google Analytics to track user interactions. We use this data to better understand how Playground is being used. We do not track or store any personal information.
