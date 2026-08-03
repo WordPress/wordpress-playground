@@ -1,230 +1,359 @@
 ---
 title: ઝડપી પ્રારંભ માર્ગદર્શિકા
 slug: /quick-start-guide
-description: પ્લેગ્રાઉન્ડ શરૂ કરવા માટે 5 મિનિટની માર્ગદર્શિકા. પ્લગઇન્સનું પરીક્ષણ કેવી રીતે કરવું, થીમ્સ કેવી રીતે અજમાવવી અને વિવિધ WP/PHP વર્ઝનનો ઉપયોગ કેવી રીતે કરવો તે શીખો.
+description: Playground શરૂ કરવા માટે 5 મિનિટની માર્ગદર્શિકા. Plugins ચકાસવા, themes અજમાવવા અને વિવિધ WP/PHP versions વાપરવાનું શીખો.
 ---
 
-<!-- # Start using WordPress Playground in 5 minutes -->
+<!--
+# Start using WordPress Playground in 5 minutes
+-->
 
-# 5 મિનિટમાં વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉપયોગ શરૂ કરો
+# 5 મિનિટમાં વર્ડપ્રેસ Playground વાપરવાનું શરૂ કરો
 
-<!-- WordPress Playground can help you with any of the following: -->
+<!--
+WordPress Playground can help you with any of the following:
+-->
 
-વર્ડપ્રેસ પ્લેગ્રાઉન્ડ તમને નીચેના પૈકી કોઈ પણ બાબતમાં મદદ કરી શકે છે:
+વર્ડપ્રેસ Playground તમને નીચેના પૈકી કોઈપણ કાર્યમાં મદદ કરી શકે છે:
 
 import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
-<!-- This page will guide you through each of these. Oh, and if you're a visual learner – here's a video: -->
+<!--
+This page will guide you through each of these. Oh, and if you're a visual learner – here's a video. Some interface details in the video predate the Dock; follow the written steps below for the current UI.
+-->
 
-આ પેજ તમને આ બધી બાબતોમાં માર્ગદર્શન આપશે. ઓહ, અને જો તમે દ્રશ્ય શીખનાર છો - તો અહીં એક વિડિઓ છે:
+આ page દરેક વિષયમાં તમને માર્ગદર્શન આપશે. જો તમે જોઈને શીખવાનું પસંદ કરો છો, તો અહીં
+એક video છે. Video માં interface ની કેટલીક વિગતો Dock પહેલાંની છે; વર્તમાન UI માટે
+નીચેના લેખિત steps અનુસરો.
 
-<!-- <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe> -->
-<iframe width="752" height="423.2" title="વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે શરૂઆત કરવી" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
+<!--
+<iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
+-->
 
-<!-- ## Start a new WordPress site -->
+<iframe width="752" height="423.2" title="વર્ડપ્રેસ Playground સાથે શરૂઆત" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
 
-## નવી વર્ડપ્રેસ સાઇટ શરૂ કરો
+<!--
+## Start a new WordPress site
+-->
 
-<!-- Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site. -->
+## નવી વર્ડપ્રેસ site શરૂ કરો
 
-દરેક વખત જ્યારે તમે [playground.wordpress.net પરનો સત્તાવાર ડેમો](https://playground.wordpress.net/) મુલાકાત લો છો, ત્યારે તમને નવી વર્ડપ્રેસ સાઇટ મળે છે.
+<!--
+Open the [official demo on playground.wordpress.net](https://playground.wordpress.net/) to start WordPress in your browser.
+-->
 
-<!-- You can then create pages, upload plugins, themes, import your own site, and do most things you would do on a regular WordPress. -->
+તમારા browser માં વર્ડપ્રેસ શરૂ કરવા [playground.wordpress.net પર official demo](https://playground.wordpress.net/) ખોલો.
 
-ત્યારબાદ તમે પેજ બનાવી શકો છો, પ્લગઇન્સ અને થીમ્સ અપલોડ કરી શકો છો, તમારી પોતાની સાઇટ ઇમ્પોર્ટ કરી શકો છો અને મોટા ભાગની એવી બધી જ વસ્તુઓ કરી શકો છો જે તમે સામાન્ય વર્ડપ્રેસ પર કરતા હો.
+<!--
+You can create pages, upload plugins, install themes, import content, and do most things you would do on a regular WordPress site.
+-->
 
-<!-- It's that easy to start! -->
+તમે pages બનાવી, plugins upload કરી, themes install કરી, content import કરી અને સામાન્ય
+વર્ડપ્રેસ site પર કરતા મોટાભાગના કાર્યો કરી શકો છો.
 
-શરૂઆત કરવી એટલી સરળ છે!
+<!--
+When browser storage is available, new Playgrounds are autosaved. You can find
+up to five recent autosaves in **Your Playgrounds** from the Dock. If you need a
+site that is discarded on refresh, open Playground with `?storage=temp`.
+-->
 
-<!-- The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page! -->
-
-સંપૂર્ણ સાઇટ તમારા બ્રાઉઝરમાં જ ચાલે છે અને જ્યારે તમે ટેબ બંધ કરો છો ત્યારે કાઢી નાખવામાં આવે છે. ફરીથી શરૂ કરવું છે? ફક્ત પેજ રિફ્રેશ કરો!
-
-<!-- :::info WordPress Playground is private -->
+Browser storage ઉપલબ્ધ હોય ત્યારે નવા Playground autosave થાય છે. Dock માં
+**Your Playgrounds** હેઠળ તાજેતરના પાંચ autosave સુધી મળી શકે છે. Refresh કરતાં દૂર
+થતી site જોઈએ તો `?storage=temp` સાથે Playground ખોલો.
 
 <div class="callout callout-info">
 
-**વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ખાનગી છે**
+<!--
+**WordPress Playground is private**
+-->
 
-<!-- Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over! -->
+**વર્ડપ્રેસ Playground ખાનગી છે**
 
-તમે બનાવેલું બધું તમારા બ્રાઉઝરમાં જ રહે છે અને ક્યાંય મોકલવામાં આવતું **નથી**. તમે પૂર્ણ કરી લો પછી, તમે તમારી સાઇટને ZIP ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો. અથવા ફક્ત પેજ રિફ્રેશ કરીને ફરીથી શરૂ કરી શકો છો!
+<!--
+The Playground runs locally in your browser. It does not upload your site
+unless you choose an action such as **Export to GitHub**. Once you're finished,
+you can store the Playground permanently, export it as a ZIP, or start over
+from **New Playground**.
+-->
+
+Playground તમારા browser માં locally ચાલે છે. **Export to GitHub** જેવી action પસંદ ન
+કરો ત્યાં સુધી તે તમારી site upload કરતું નથી. કામ પૂરુ થયા પછી Playground કાયમી રીતે
+store કરો, ZIP તરીકે export કરો અથવા **New Playground** થી ફરી શરૂ કરો.
 
 </div>
 
-<!-- ## Try a block, a theme, or a plugin -->
+<!--
+## Try a block, a theme, or a plugin
+-->
 
-## એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો
+## Block, theme અથવા plugin અજમાવો
 
-<!-- You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/). -->
+<!--
+You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
+-->
 
-તમે તમારી ઇચ્છા મુજબ કોઈપણ પ્લગિન અથવા થીમ [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/) માં અપલોડ કરી શકો છો.
+તમે [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/) માં કોઈપણ plugin અથવા theme upload કરી શકો છો.
 
-<!-- To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL: -->
+<!--
+To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL:
+-->
 
-કેટલાંક ક્લિક્સ બચાવવા માટે, તમે URL માં `plugin` અથવા `theme` પેરામીટર ઉમેરીને વર્ડપ્રેસ પ્લગઇન ડિરેક્ટરીમાંથી પ્લગઇન્સ અથવા થીમ્સ પહેલેથી ઇન્સ્ટોલ કરી શકો છો. ઉદાહરણ તરીકે, coblocks પ્લગઇન ઇન્સ્ટોલ કરવા માટે, તમે આ URL નો ઉપયોગ કરી શકો છો:
-
-<!-- https://playground.wordpress.net/?plugin=coblocks -->
+થોડા clicks બચાવવા URL માં `plugin` અથવા `theme` parameter ઉમેરીને વર્ડપ્રેસ directory
+માંથી plugin અથવા theme preinstall કરી શકો છો. ઉદાહરણ તરીકે coblocks plugin માટે:
 
 https://playground.wordpress.net/?plugin=coblocks
 
-<!-- Or this URL to preinstall the `pendant` theme: -->
+<!--
+Or this URL to preinstall the `pendant` theme:
+-->
 
-અથવા `pendant` થીમ પહેલેથી ઇન્સ્ટોલ કરવા માટે આ URL:
-
-<!-- https://playground.wordpress.net/?theme=pendant -->
+અથવા `pendant` theme preinstall કરવા:
 
 https://playground.wordpress.net/?theme=pendant
 
-<!-- In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters: -->
+<!--
+In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters:
+-->
 
-જો તમે બહુવિધ થીમ્સ અને પ્લગિન્સ ઇન્સ્ટોલ કરવા માંગતા હોવ, તો `theme` અથવા `plugin` પેરામિટર્સને પુનરાવર્તિત કરવું શક્ય છે:
+ઘણા themes અને plugins install કરવા `theme` અથવા `plugin` parameters ફરી આપી શકો છો:
 
 https://playground.wordpress.net/?theme=pendant&theme=acai
 
-<!-- You can also mix and match these parameters and even add multiple plugins: -->
+<!--
+You can also mix and match these parameters and even add multiple plugins:
+-->
 
-તમે આ પેરામિટર્સને મિક્સ અને મેચ પણ કરી શકો છો અને એકથી વધુ પ્લગિન્સ પણ ઉમેરી શકો છો:
-
-<!-- https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant -->
+આ parameters ભેગા કરીને ઘણા plugins પણ ઉમેરી શકો છો:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
+<!--
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
+-->
 
-<!-- ## Save your site -->
+આને [Query API](/developers/apis/query-api/) કહે છે. [તે વિશે વધુ જાણો](/developers/apis/query-api/).
 
-## તમારી સાઇટ સાચવો
+<!--
+## Store a Playground in browser storage
+-->
 
-<!-- To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file. -->
+## Browser storage માં Playground store કરો
 
-તમારી વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાઇટને એક જ બ્રાઉઝર સેશન કરતાં વધુ સમય સુધી રાખવા માટે, તમે તેને `.zip` ફાઇલ તરીકે એક્સપોર્ટ કરી શકો છો.
+<!--
+Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
+permanently**, then choose **Save in browser storage**.
+-->
 
-<!-- 1. Open the Playground site manager panel: -->
+**Store permanently** ખોલવા Dock માં **Autosaved** અથવા **Unsaved** status પર click
+કરો, પછી **Save in browser storage** પસંદ કરો.
 
-1. પ્લેગ્રાઉન્ડ સાઇટ મેનેજર પેનલ ખોલો:
+<!--
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
+-->
 
-<!-- ![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp) -->
+![Playground નામ અને Save બટન સાથે Store permanently pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
-![સાઇટ મેનેજર](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
+<!--
+A saved browser Playground appears in **Your Playgrounds**. Autosaves also
+appear there, but Playground keeps up to five recent autosaves. Store a
+Playground permanently when you want to keep it beyond the autosave lifecycle.
+-->
 
-<!-- 2. Use the "Download as .zip" button in the additional actions menu -->
+Browser માં saved Playground **Your Playgrounds** માં દેખાય છે. Autosave પણ ત્યાં
+દેખાય છે, પરંતુ Playground તાજેતરના પાંચ autosave સુધી રાખે છે. Autosave lifecycle પછી
+પણ Playground રાખવું હોય તો તેને કાયમી રીતે store કરો.
 
-2. વધારાના ક્રિયાઓના મેનુમાં "Download as .zip" બટનનો ઉપયોગ કરો
+<!--
+Browser storage still belongs to the browser. Export a ZIP when you need a file you can move, archive, or restore later.
+-->
 
-<!-- ![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp) -->
+Browser storage browser નું જ છે. ખસેડી, archive કરી અથવા પછી restore કરી શકાય એવી
+file જોઈએ તો ZIP export કરો.
 
-![એક્સપોર્ટ બટન](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
+<!--
+## Export a portable ZIP
+-->
 
-<!-- The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there. -->
+## Portable ZIP export કરો
 
-એક્સપોર્ટ કરેલી ફાઇલમાં તમે બનાવેલી સંપૂર્ણ સાઇટ સામેલ છે. તમે તેને કોઈપણ સર્વર પર હોસ્ટ કરી શકો છો જે PHP અને SQLite ને સપોર્ટ કરે છે. તમામ વર્ડપ્રેસ કોર ફાઇલો, પ્લગિન્સ, થીમ્સ અને તમે તમારી સાઇટમાં ઉમેરેલી બધી અન્ય વસ્તુઓ તેમાં સામેલ છે.
+<!--
+Open **Export** from the Dock and use **Download as .zip**.
+-->
 
-<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
+Dock માંથી **Export** ખોલીને **Download as .zip** વાપરો.
 
-SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમાં સામેલ છે, તમે તેને `wp-content/database/.ht.sqlite` માં શોધી શકો છો. ધ્યાનમાં રાખો કે ડોટ (.) થી શરૂ થતી ફાઇલો મોટાભાગની ઓપરેટિંગ સિસ્ટમમાં ડિફૉલ્ટ મુજબ છુપાયેલી હોય છે, તેથી તમને તમારા ફાઇલ મેનેજરમાં "Show hidden files" વિકલ્પ સક્રિય કરવાની જરૂર પડી શકે છે.
+<!--
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+-->
 
-<!-- ## Restore a saved site -->
+![Download as .zip હાઇલાઇટ કરેલું Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
-## સેવ કરેલી સાઇટ પુનઃસ્થાપિત કરો
+<!--
+The exported file contains the current files, database, plugins, themes, uploads, and edits. You can restore it in Playground or host it on a server that supports PHP and SQLite.
+-->
 
-<!-- You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel: -->
+Export કરેલી file માં વર્તમાન files, database, plugins, themes, uploads અને edits હોય
+છે. તમે તેને Playground માં restore કરી શકો અથવા PHP અને SQLite support કરતા server
+પર host કરી શકો છો.
 
-તમે પ્લેગ્રાઉન્ડ ડેશબોર્ડ પેનલમાં "Import from .zip" બટનનો ઉપયોગ કરીને સેવ કરેલી સાઇટ પુનઃસ્થાપિત કરી શકો છો:
+<!--
+The SQLite database file is included at `wp-content/database/.ht.sqlite`. Files starting with a dot are hidden by default on most operating systems, so you may need to enable hidden files in your file manager.
+-->
 
-<!-- 1. Open the Playground dashboard panel: -->
+SQLite database file `wp-content/database/.ht.sqlite` માં હોય છે. Dot થી શરૂ થતી files
+મોટાભાગની operating system માં default રીતે hidden હોય છે, તેથી file manager માં hidden
+files બતાવવાનો option ચાલુ કરવો પડી શકે છે.
 
-1. પ્લેગ્રાઉન્ડ ડેશબોર્ડ પેનલ ખોલો:
+<!--
+## Restore a ZIP
+-->
 
-<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp) -->
+## ZIP restore કરો
 
-![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
+<!--
+Open **New Playground** from the Dock, choose **Import zip**, and select the ZIP file.
+-->
 
-<!-- 1. Use the "Import .zip" button at the end of the "Start a new Playground" section -->
+Dock માંથી **New Playground** ખોલો, **Import zip** પસંદ કરો અને ZIP file પસંદ કરો.
 
-1. "Start a new Playground" વિભાગના અંતે "Import .zip" બટનનો ઉપયોગ કરો
+<!--
+![The New Playground pane with Import zip selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
+-->
 
-<!-- ![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp) -->
+![Import zip પસંદ કરેલું New Playground pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
-![પ્લેગ્રાઉન્ડ ડેશબોર્ડ ખોલો](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
+<!--
+This restores the files and database from the ZIP into a new Playground.
+-->
 
-<!-- ## Use a specific WordPress or PHP version -->
+આ ZIP ની files અને database ને નવા Playground માં restore કરે છે.
 
-## ચોક્કસ વર્ડપ્રેસ અથવા PHP વર્ઝનનો ઉપયોગ કરો
+<!--
+## Use a specific WordPress or PHP version
+-->
 
-<!-- The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/): -->
+## ચોક્કસ વર્ડપ્રેસ અથવા PHP version વાપરો
 
-વર્ડપ્રેસ અથવા PHP નું વર્ઝન બદલવાનો સૌથી ઝડપી રસ્તો [સત્તાવાર ડેમો સાઇટ](https://playground.wordpress.net/) પર સેટિંગ્સ પેનલનો ઉપયોગ કરવો છે:
+<!--
+Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
+-->
 
-<!-- ![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp) -->
+વર્ડપ્રેસ, PHP, language, multisite અને networking options પસંદ કરવા Dock માંથી
+**Site Settings** ખોલો.
 
-![વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સેટિંગ્સ મેનુ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
+<!--
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+-->
 
-<!-- :::info Test your plugin or theme -->
+![Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <div class="callout callout-info">
 
-**તમારું પ્લગિન અથવા થીમ તપાસો**
+<!--
+**Test your plugin or theme**
+-->
 
-<!-- Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage! -->
+**તમારું plugin અથવા theme ચકાસો**
 
-ઘણા બધા વર્ડપ્રેસ અને PHP વર્ઝન્સ સાથે સુસંગતતા ચકાસવી હંમેશા મુશ્કેલ હતી. વર્ડપ્રેસ પ્લેગ્રાઉન્ડ આ પ્રક્રિયાને સરળ બનાવે છે — તેનો તમારા ફાયદા માટે ઉપયોગ કરો!
+<!--
+Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
+-->
+
+ઘણા વર્ડપ્રેસ અને PHP versions સાથે compatibility test કરવું હંમેશા મુશ્કેલ હતું.
+વર્ડપ્રેસ Playground આ પ્રક્રિયાને સરળ બનાવે છે—તેનો લાભ લો.
 
 </div>
 
-<!-- You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded: -->
+<!--
+You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
+-->
 
-તમે યોગ્ય વર્ઝન પહેલેથી લોડ થયેલ સાથે પ્લેગ્રાઉન્ડ ખોલવા માટે `wp` અને `php` [ક્વેરી પેરામિટર્સ](/developers/apis/query-api) નો ઉપયોગ કરી શકો છો:
+યોગ્ય versions પહેલેથી loaded હોય તેવું Playground ખોલવા `wp` અને `php`
+[query parameters](/developers/apis/query-api) વાપરી શકો છો:
 
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?php=next
 
+<!--
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
+-->
 
-<!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
+આને [Query API](/developers/apis/query-api/) કહે છે. [તે વિશે વધુ જાણો](/developers/apis/query-api/).
 
-ડેમો માટે સામગ્રી તૈયાર કરવા વિશે વધુ જાણવા માટે, [તમારા ડેમો માર્ગદર્શિકા માટે સામગ્રી પ્રદાન કરવી](/guides/providing-content-for-your-demo) જુઓ.
+<!--
+Use `php=next` to preview the next PHP version built from the php-src development branch. For example, see the [PHP 8.6 feature preview](https://playground.wordpress.net/php-8-6.html).
+-->
 
-<!-- :::info Major versions only -->
+php-src development branch માંથી બનેલું આગામી PHP version preview કરવા `php=next`
+વાપરો. ઉદાહરણ તરીકે [PHP 8.6 feature preview](https://playground.wordpress.net/php-8-6.html) જુઓ.
+
+<!--
+To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
+-->
+
+Demo માટે content તૈયાર કરવા વિશે વધુ જાણવા [demo content guide](/guides/providing-content-for-your-demo) જુઓ.
 
 <div class="callout callout-info">
 
-**માત્ર મુખ્ય વર્ઝન**
+<!--
+**Major versions only**
+-->
 
-<!-- You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. -->
+**માત્ર major versions**
 
-તમે `wp=6.2` અથવા `php=8.1` જેવા મુખ્ય વર્ઝન નિર્દેશ કરી શકો છો અને તે શ્રેણીમાં તાજેતરની રિલીઝ અપેક્ષા રાખી શકો છો. જોકે, તમે જૂના માઇનર વર્ઝન માટે વિનંતી કરી શકતા નથી, તેથી `wp=6.1.2` અથવા `php=7.4.9` બંને કામ નહીં કરે.
+<!--
+You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. Generic aliases like `latest` and `next` are exceptions.
+-->
+
+તમે `wp=6.2` અથવા `php=8.1` જેવા major versions આપી તે line ની સૌથી તાજેતરની release
+મેળવી શકો છો. જૂના minor versions માગી શકાતા નથી, તેથી `wp=6.1.2` અથવા `php=7.4.9`
+કામ કરશે નહીં. `latest` અને `next` જેવા generic alias તેના અપવાદ છે.
 
 </div>
 
-<!-- ## Import a WXR file -->
+<!--
+## Import a WXR file
+-->
 
-## WXR ફાઇલ આયાત કરો
+## WXR file import કરો
 
-<!-- You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php). -->
+<!--
+You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
+-->
 
-તમે [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php) માં WXR ફાઇલ અપલોડ કરીને વર્ડપ્રેસ એક્સપોર્ટ ફાઇલ આયાત કરી શકો છો.
+[/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php) માં WXR file upload કરીને વર્ડપ્રેસ export file import કરી શકો છો.
 
-<!-- You can also use [JSON Blueprints](/blueprints). See [getting started with Blueprints](/blueprints/getting-started) to learn more. -->
+<!--
+You can also use [JSON Blueprints](/blueprints). See [getting started with Blueprints](/blueprints/getting-started) to learn more.
+-->
 
-તમે [JSON બ્લુપ્રિન્ટ્સ](/blueprints) નો પણ ઉપયોગ કરી શકો છો. વધુ જાણવા માટે [બ્લુપ્રિન્ટ્સ સાથે શરૂઆત કરો](/blueprints/getting-started) જુઓ.
+[JSON Blueprints](/blueprints) પણ વાપરી શકો છો. વધુ જાણવા [Blueprints સાથે શરૂઆત](/blueprints/getting-started) જુઓ.
 
-<!-- This is different from the import feature described above. The import feature exports the entire site, including the database. This import feature imports a WXR file into an existing site. -->
+<!--
+This is different from restoring a Playground ZIP. A WXR file imports WordPress content into an existing site. A Playground ZIP restores files and the database into a new Playground.
+-->
 
-આ ઉપર વર્ણવેલી ઇમ્પોર્ટ સુવિધાથી અલગ છે. ઇમ્પોર્ટ સુવિધા ડેટાબેસ સહિત સંપૂર્ણ સાઇટને એક્સપોર્ટ કરે છે. આ ઇમ્પોર્ટ સુવિધા મોજૂદા સાઇટમાં WXR ફાઇલ ઇમ્પોર્ટ કરે છે.
+આ Playground ZIP restore કરવાથી અલગ છે. WXR file હાલની site માં વર્ડપ્રેસ content
+import કરે છે. Playground ZIP નવી Playground માં files અને database restore કરે છે.
 
-<!-- ## Build apps with WordPress Playground -->
+<!--
+## Build apps with WordPress Playground
+-->
 
-## વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે એપ્સ બનાવો
+## વર્ડપ્રેસ Playground સાથે apps બનાવો
 
-<!-- WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), setup plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/). -->
+<!--
+WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
+-->
 
-વર્ડપ્રેસ પ્લેગ્રાઉન્ડ પ્રોગ્રામેબલ છે, જેનો અર્થ એ છે કે તમે [વર્ડપ્રેસ એપ્સ બનાવી શકો છો](/developers/build-your-first-app), પ્લગિન ડેમોઝ સેટઅપ કરી શકો છો અને તેને શૂન્ય-સેટઅપ [લોકલ ડેવલપમેન્ટ એન્વાયર્નમેન્ટ](/developers/local-development/) તરીકે પણ ઉપયોગ કરી શકો છો.
+વર્ડપ્રેસ Playground programmable છે, એટલે તમે [વર્ડપ્રેસ apps બનાવી](/developers/build-your-first-app), plugin demos setup કરી અને zero-setup [local development environment](/developers/local-development/) તરીકે પણ તેનો ઉપયોગ કરી શકો છો.
 
-<!-- To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section. -->
+<!--
+To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
+-->
 
-વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે ડેવલપમેન્ટ વિશે વધુ જાણવા માટે, [ડેવલપમેન્ટ ક્વિક સ્ટાર્ટ](/developers/build-your-first-app) વિભાગ જુઓ.
+વર્ડપ્રેસ Playground સાથે development વિશે વધુ જાણવા [development quick start](/developers/build-your-first-app) જુઓ.
