@@ -21,7 +21,8 @@ test('startPlaygroundAPI exports a saved OPFS site through api.html', async ({
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
-	await page.goto('./?storage=temp');
+	// Use a lightweight same-origin page without booting the full Playground.
+	await page.goto('./manifest.json');
 
 	const slug = `api-e2e-${crypto.randomUUID()}`;
 	const directoryName = getDirectoryNameForSlug(slug);
