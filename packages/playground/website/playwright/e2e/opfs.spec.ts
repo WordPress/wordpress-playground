@@ -630,6 +630,85 @@ test('should start a new Playground after an initial OPFS sync was interrupted',
 	await website.waitForNestedIframes();
 });
 
+test('should flush pooled PHP request writes to an autosaved OPFS site', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(`./?random=${Date.now()}`);
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await expect(
+		website.page.getByRole('button', { name: 'Autosaved' })
+	).toBeVisible({ timeout: 120000 });
+	const site = await getActivePlaygroundSite(website.page);
+	await waitForInitialOpfsSync(website.page, site.slug);
+
+	const markerName = `pooled-request-${Date.now()}.txt`;
+	const markerContents = 'written by the pooled PHP instance';
+	const liveMarkerContents = await website.page.evaluate(
+		async ({ markerName, markerContents }) => {
+			const playground = (window as any).playgroundSites.getClient();
+			const documentRoot = await playground.documentRoot;
+			const markerPath = `${documentRoot}/wp-content/uploads/${markerName}`;
+			const primaryRequest = playground.run({
+				code: '<?php usleep(500000);',
+			});
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			const pooledRequest = playground.run({
+				code: `<?php usleep(750000); file_put_contents(${JSON.stringify(
+					markerPath
+				)}, ${JSON.stringify(markerContents)});`,
+			});
+			await Promise.all([primaryRequest, pooledRequest]);
+			return await playground.readFileAsText(markerPath);
+		},
+		{ markerName, markerContents }
+	);
+	expect(liveMarkerContents).toBe(markerContents);
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(
+					async ({ directoryName, markerName }) => {
+						try {
+							const root = await navigator.storage.getDirectory();
+							const sites =
+								await root.getDirectoryHandle('sites');
+							const siteDirectory =
+								await sites.getDirectoryHandle(directoryName);
+							const wpContent =
+								await siteDirectory.getDirectoryHandle(
+									'wp-content'
+								);
+							const uploads =
+								await wpContent.getDirectoryHandle('uploads');
+							const marker =
+								await uploads.getFileHandle(markerName);
+							return await (await marker.getFile()).text();
+						} catch (error) {
+							if (error?.name === 'NotFoundError') {
+								return undefined;
+							}
+							throw error;
+						}
+					},
+					{
+						directoryName: getDirectoryNameForSlug(site.slug),
+						markerName,
+					}
+				),
+			{ timeout: 3000 }
+		)
+		.toBe(markerContents);
+});
+
 test('should switch between sites', async ({ website, browserName }) => {
 	test.skip(
 		browserName !== 'chromium',
