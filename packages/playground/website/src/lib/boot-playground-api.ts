@@ -3,7 +3,7 @@ import type { PlaygroundAPIClient } from '@wp-playground/client';
 import { opfsSiteStorage } from './state/opfs/opfs-site-storage';
 
 export function bootPlaygroundAPI() {
-	const [setAPIReady, , api] = exposeAPI<PlaygroundAPIClient, undefined>({
+	const [setAPIReady, , api] = exposeAPI<PlaygroundAPIClient, unknown>({
 		async exportSavedSiteAsZip(slug, options) {
 			if (!opfsSiteStorage) {
 				throw new Error(

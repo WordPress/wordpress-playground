@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => {
 		BlueprintsV1Handler: vi.fn(),
 		BlueprintsV2Handler: vi.fn(),
 		createBlueprintReflection: vi.fn(),
-		consumeAPI: vi.fn(),
 	};
 });
 
@@ -31,14 +30,6 @@ vi.mock('./blueprints-v1-handler', () => ({
 vi.mock('./blueprints-v2-handler', () => ({
 	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
 }));
-
-vi.mock('@php-wasm/universal', async (importActual) => {
-	const actual = await importActual();
-	return {
-		...(actual as object),
-		consumeAPI: mocks.consumeAPI,
-	};
-});
 
 import { startPlaygroundAPI, startPlaygroundWeb } from './index';
 
@@ -131,68 +122,22 @@ describe('startPlaygroundWeb', () => {
 });
 
 describe('startPlaygroundAPI', () => {
-	afterEach(() => {
-		vi.clearAllMocks();
-	});
-
-	it('loads api.html and returns its API client', async () => {
-		const api = createAPIClient();
-		mocks.consumeAPI.mockReturnValue(api);
-		const iframe = createIframe();
-
-		await expect(
-			startPlaygroundAPI({
-				iframe,
-				apiUrl: 'http://localhost/api.html',
-			})
-		).resolves.toBe(api);
-
-		expect(iframe.src).toBe('http://localhost/api.html');
-		expect(mocks.consumeAPI).toHaveBeenCalledWith(
-			iframe.contentWindow,
-			iframe.ownerDocument!.defaultView
-		);
-		expect(api.isConnected).toHaveBeenCalledTimes(1);
-		expect(api.isReady).toHaveBeenCalledTimes(1);
-	});
-
-	it('resolves a relative API URL against the default remote origin', async () => {
-		mocks.consumeAPI.mockReturnValue(createAPIClient());
-		const iframe = createIframe();
-
-		await startPlaygroundAPI({
-			iframe,
-			apiUrl: '/api.html',
-		});
-
-		expect(iframe.src).toBe('https://playground.wordpress.net/api.html');
-	});
-
-	it('requires the API URL to point to api.html', async () => {
+	it.each([
+		['a different endpoint', 'http://localhost/remote.html'],
+		['an untrusted origin', 'https://example.com/api.html'],
+	])('rejects %s', async (_description, apiUrl) => {
 		await expect(
 			startPlaygroundAPI({
 				iframe: createIframe(),
-				apiUrl: 'http://localhost/remote.html',
+				apiUrl,
 			})
-		).rejects.toThrow('/api.html');
+		).rejects.toThrow('Invalid remote URL');
 	});
 });
-
-function createAPIClient() {
-	return {
-		isConnected: vi.fn(async () => undefined),
-		isReady: vi.fn(async () => undefined),
-		exportSavedSiteAsZip: vi.fn(),
-	};
-}
 
 function createIframe() {
 	return {
 		src: '',
-		contentWindow: {},
-		ownerDocument: {
-			defaultView: {},
-		},
 		addEventListener: vi.fn((_event, callback: () => void) => {
 			callback();
 		}),
