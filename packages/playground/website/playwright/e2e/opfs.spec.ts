@@ -655,7 +655,7 @@ test('should flush pooled PHP request writes to an autosaved OPFS site', async (
 		async ({ markerName, markerContents }) => {
 			const playground = (window as any).playgroundSites.getClient();
 			const documentRoot = await playground.documentRoot;
-			const markerPath = `${documentRoot}/wp-content/uploads/${markerName}`;
+			const markerPath = `${documentRoot}/wp-content/${markerName}`;
 			const primaryRequest = playground.run({
 				code: '<?php usleep(500000);',
 			});
@@ -687,10 +687,8 @@ test('should flush pooled PHP request writes to an autosaved OPFS site', async (
 								await siteDirectory.getDirectoryHandle(
 									'wp-content'
 								);
-							const uploads =
-								await wpContent.getDirectoryHandle('uploads');
 							const marker =
-								await uploads.getFileHandle(markerName);
+								await wpContent.getFileHandle(markerName);
 							return await (await marker.getFile()).text();
 						} catch (error) {
 							if (error?.name === 'NotFoundError') {
