@@ -246,6 +246,23 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				);
 
 				if (!isPrimary) {
+					/**
+					 * Secondary PHP instances write through the primary PHP's filesystem.
+					 * Their request-end event stays on the secondary instance, so trigger
+					 * every active mount journal here after those proxied writes finish.
+					 */
+					php.addEventListener('request.end', () => {
+						for (const [mountpoint, mount] of Object.entries(
+							this.opfsMounts
+						)) {
+							void mount.flush().catch((error) => {
+								logger.error(
+									`OPFS flush failed after a pooled PHP request at "${mountpoint}"`,
+									error
+								);
+							});
+						}
+					});
 					const pathsToShareBetweenPhpInstances = [
 						'/tmp',
 						requestHandler.documentRoot,
