@@ -1272,8 +1272,10 @@ export function Dock({
 					</button>
 				</div>
 			)}
+			{/* The web MU-plugin uses this stable hook to keep WordPress notices clear. */}
 			<nav
 				ref={dockRef}
+				data-playground-dock=""
 				className={classNames(css.dock, {
 					[css.dockCollapsed]: isCollapsed,
 					[css.dockFull]: !isMobile && isFullWidth,
