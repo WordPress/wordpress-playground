@@ -202,10 +202,7 @@ export async function startPlaygroundWeb(
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
-	await new Promise((resolve) => {
-		iframe.src = remoteUrl;
-		iframe.addEventListener('load', resolve, false);
-	});
+	await loadIframe(iframe, remoteUrl);
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
@@ -230,10 +227,7 @@ export async function startPlaygroundAPI(
 	allowStorageAccessByUserActivation(iframe);
 	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
 
-	await new Promise((resolve) => {
-		iframe.src = resolvedAPIUrl;
-		iframe.addEventListener('load', resolve, false);
-	});
+	await loadIframe(iframe, resolvedAPIUrl);
 
 	const api = consumeAPI<PlaygroundAPIClient>(
 		iframe.contentWindow!,
@@ -243,6 +237,13 @@ export async function startPlaygroundAPI(
 	await api.isReady();
 
 	return api;
+}
+
+function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
+	return new Promise((resolve) => {
+		iframe.addEventListener('load', () => resolve(), { once: true });
+		iframe.src = url;
+	});
 }
 
 async function shouldUseBlueprintV2Handler(
@@ -314,16 +315,17 @@ const remoteOrigin =
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html');
+	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html', 'remote');
 }
 
 function assertLikelyCompatibleAPIOrigin(apiUrl: string) {
-	assertLikelyCompatibleRemotePath(apiUrl, '/api.html');
+	assertLikelyCompatibleRemotePath(apiUrl, '/api.html', 'API');
 }
 
 function assertLikelyCompatibleRemotePath(
 	urlString: string,
-	expectedPath: string
+	expectedPath: string,
+	endpointName: 'remote' | 'API'
 ) {
 	const url = new URL(urlString, remoteOrigin);
 
@@ -333,8 +335,8 @@ function assertLikelyCompatibleRemotePath(
 
 	if (!validRemote) {
 		throw new Error(
-			`Invalid remote URL: ${url}. ` +
-				`Expected remote URL to have a path of "${expectedPath}" based ` +
+			`Invalid ${endpointName} URL: ${url}. ` +
+				`Expected ${endpointName} URL to have a path of "${expectedPath}" based ` +
 				`on one of the following origins:\n ${validRemoteOrigins.join(
 					'\n'
 				)}`

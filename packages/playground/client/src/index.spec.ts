@@ -131,7 +131,7 @@ describe('startPlaygroundAPI', () => {
 				iframe: createIframe(),
 				apiUrl,
 			})
-		).rejects.toThrow('Invalid remote URL');
+		).rejects.toThrow('Invalid API URL');
 	});
 });
 
