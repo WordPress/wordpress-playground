@@ -4,6 +4,7 @@ import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
+	getOpfsSiteDurabilityLockName,
 } from '../opfs/opfs-site-storage';
 import {
 	isTraversableFilesystemBackend,
@@ -152,12 +153,15 @@ export function persistTemporarySite(
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 		if (storageType === 'opfs') {
+			const siteDirectoryPath = getDirectoryPathForSlug(siteSlug);
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					path: getDirectoryPathForSlug(siteSlug),
+					path: siteDirectoryPath,
 				},
 				mountpoint: '/wordpress',
+				durabilityLockName:
+					getOpfsSiteDurabilityLockName(siteDirectoryPath),
 			} as const;
 		} else if (storageType === 'local-fs') {
 			let dirHandle: FileSystemDirectoryHandle;

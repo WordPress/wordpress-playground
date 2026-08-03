@@ -1,6 +1,7 @@
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
+	getOpfsSiteDurabilityLockName,
 	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
@@ -113,15 +114,20 @@ export function bootSiteClient(
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
+			// @TODO: Remove backcompat code after 2024-12-01.
+			const siteDirectoryPath = (site.metadata as any)[
+				legacyOpfsPathSymbol
+			]
+				? (site.metadata as any)[legacyOpfsPathSymbol]
+				: getDirectoryPathForSlug(site.slug);
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
-					// @TODO: Remove backcompat code after 2024-12-01.
-					path: (site.metadata as any)[legacyOpfsPathSymbol]
-						? (site.metadata as any)[legacyOpfsPathSymbol]
-						: getDirectoryPathForSlug(site.slug),
+					path: siteDirectoryPath,
 				},
 				mountpoint: '/wordpress',
+				durabilityLockName:
+					getOpfsSiteDurabilityLockName(siteDirectoryPath),
 			} as const;
 		} else if (site.metadata.storage === 'local-fs') {
 			let localDirectoryHandle;

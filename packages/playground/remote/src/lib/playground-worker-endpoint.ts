@@ -68,6 +68,8 @@ export interface MountDescriptor {
 	mountpoint: string;
 	device: MountDevice;
 	initialSyncDirection: 'opfs-to-memfs' | 'memfs-to-opfs';
+	/** Origin-wide Web Lock that guards journal writes against direct readers. */
+	durabilityLockName?: string;
 }
 
 export type WorkerBootOptions = {
@@ -579,6 +581,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					onProgress,
 					direction: options.initialSyncDirection,
 				},
+				durabilityLockName: options.durabilityLockName,
 				onMount(mount) {
 					opfsMount = mount;
 				},

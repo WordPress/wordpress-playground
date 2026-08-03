@@ -14,6 +14,16 @@ export function getDirectoryPathForSlug(slug: string) {
 }
 
 /**
+ * Returns the origin-wide Web Lock name that guards a saved site's OPFS files.
+ *
+ * Use the actual directory path so legacy and encoded site directories use the
+ * same lock in both the runtime that writes them and direct readers.
+ */
+export function getOpfsSiteDurabilityLockName(siteDirectoryPath: string) {
+	return `wordpress-playground:opfs-durability:${siteDirectoryPath}`;
+}
+
+/**
  * Returns the OPFS directory name for a site slug.
  *
  * The slug itself may contain characters that are fine in a query parameter

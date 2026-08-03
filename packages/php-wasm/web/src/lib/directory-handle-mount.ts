@@ -39,6 +39,8 @@ export interface MountOptions {
 		direction?: 'opfs-to-memfs' | 'memfs-to-opfs';
 		onProgress?: SyncProgressCallback;
 	};
+	/** Origin-wide Web Lock that guards journal writes against direct readers. */
+	durabilityLockName?: string;
 	onMount?: (mount: DirectoryHandleMount) => void;
 }
 export interface DirectoryHandleMount {
@@ -70,6 +72,7 @@ export type SyncProgressCallback = (
 ) => void | Promise<void>;
 
 interface JournalFSEventsToOpfsOptions {
+	durabilityLockName?: string;
 	maxFlushPasses?: number;
 }
 
@@ -103,11 +106,15 @@ export function createDirectoryHandleMountHandler(
 			}
 			FSHelpers.mkdir(FS, vfsMountPoint);
 			await copyOpfsToMemfs(FS, handle, vfsMountPoint);
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				durabilityLockName: options.durabilityLockName,
+			});
 			options.onMount?.(mount);
 			return mount.unmount;
 		} else {
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				durabilityLockName: options.durabilityLockName,
+			});
 			options.onMount?.(mount);
 			let lastProgress: SyncProgress | undefined;
 			try {
@@ -456,6 +463,17 @@ export function journalFSEventsToOpfs(
 	}
 
 	async function flushJournal() {
+		if (!options.durabilityLockName || !globalThis.navigator?.locks) {
+			return await drainJournal();
+		}
+		return await globalThis.navigator.locks.request(
+			options.durabilityLockName,
+			{ mode: 'exclusive' },
+			drainJournal
+		);
+	}
+
+	async function drainJournal() {
 		const maxFlushPasses =
 			options.maxFlushPasses ?? DEFAULT_MAX_OPFS_FLUSH_PASSES;
 		for (let pass = 0; journal.length > 0; pass++) {

@@ -33,10 +33,12 @@ import {
 	OPFS_SITES_ROOT_PATH,
 	getCandidateDirectoryNamesForSlug,
 	getDirectoryNameForSlug,
+	getOpfsSiteDurabilityLockName,
 } from './opfs-site-path';
 export {
 	getDirectoryNameForSlug,
 	getDirectoryPathForSlug,
+	getOpfsSiteDurabilityLockName,
 } from './opfs-site-path';
 
 // TODO: Decide on metadata filename
@@ -237,7 +239,9 @@ class OpfsSiteStorage {
 		if (!siteDirectory) {
 			return undefined;
 		}
-		return await zipDirectory(siteDirectory, options.excludePatterns);
+		return await this.withSiteDurabilityLock(siteDirectory.name, () =>
+			zipDirectory(siteDirectory, options.excludePatterns)
+		);
 	}
 
 	/**
@@ -277,6 +281,24 @@ class OpfsSiteStorage {
 			}
 			throw error;
 		}
+	}
+
+	private async withSiteDurabilityLock<T>(
+		siteDirectoryName: string,
+		operation: () => Promise<T>
+	): Promise<T> {
+		if (!navigator.locks) {
+			return await operation();
+		}
+		const siteDirectoryPath = joinPaths(
+			OPFS_SITES_ROOT_PATH,
+			siteDirectoryName
+		);
+		return await navigator.locks.request(
+			getOpfsSiteDurabilityLockName(siteDirectoryPath),
+			{ mode: 'shared' },
+			operation
+		);
 	}
 
 	private async readSite(siteDirName: string) {

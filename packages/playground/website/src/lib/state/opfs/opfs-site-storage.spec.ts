@@ -242,6 +242,53 @@ describe('opfsSiteStorage', () => {
 		expect(archive.directories.get('wp-content/empty-cache/')).toBe(0o755);
 	});
 
+	it('waits for the shared durability lock before traversing files for export', async () => {
+		const lockRequested = deferred<void>();
+		const grantLock = deferred<void>();
+		const requestLock = vi.fn(
+			async (
+				_name: string,
+				_options: LockOptions,
+				callback: () => Promise<Blob>
+			) => {
+				lockRequested.resolve();
+				await grantLock.promise;
+				return await callback();
+			}
+		);
+		(navigator as any).locks = { request: requestLock };
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-durability',
+			'durability'
+		);
+		siteDirectory.setFile('marker.txt', 'durable');
+		const readEntries = vi.spyOn(siteDirectory, 'entries');
+
+		let exportSettled = false;
+		const exportPromise = storage
+			.exportSavedSiteAsZip('durability')
+			.then((zipFile) => {
+				exportSettled = true;
+				return zipFile;
+			});
+		await lockRequested.promise;
+
+		expect(readEntries).not.toHaveBeenCalled();
+		expect(exportSettled).toBe(false);
+		expect(requestLock).toHaveBeenCalledWith(
+			'wordpress-playground:opfs-durability:/sites/site-durability',
+			{ mode: 'shared' },
+			expect.any(Function)
+		);
+
+		grantLock.resolve();
+		const zipFile = await exportPromise;
+		const archive = await readZipEntries(zipFile!);
+		expect(archive.files.get('marker.txt')).toBe('durable');
+	});
+
 	it('applies ordered exclusion patterns when exporting saved site files', async () => {
 		const sitesRoot = await getSitesRoot(opfsRoot);
 		const siteDirectory = await writeSiteMetadata(
@@ -572,4 +619,12 @@ function createDomException(name: string) {
 	const error = new Error(name);
 	error.name = name;
 	return error;
+}
+
+function deferred<T>() {
+	let resolve: (value: T | PromiseLike<T>) => void = () => {};
+	const promise = new Promise<T>((resolver) => {
+		resolve = resolver;
+	});
+	return { promise, resolve };
 }

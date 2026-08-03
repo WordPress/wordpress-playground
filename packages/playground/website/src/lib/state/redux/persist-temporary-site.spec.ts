@@ -60,6 +60,7 @@ vi.mock('../opfs/opfs-directory-handle-storage', () => ({
 
 vi.mock('../opfs/opfs-site-storage', () => ({
 	getDirectoryPathForSlug: mocks.getDirectoryPathForSlug,
+	getOpfsSiteDurabilityLockName: (path: string) => `durability:${path}`,
 	get opfsSiteStorage() {
 		return mocks.opfsSiteStorage;
 	},
@@ -206,6 +207,12 @@ describe('persistTemporarySite', () => {
 		);
 
 		expect(order).toEqual(['mount', 'updateSite']);
+		expect(playground.mountOpfs).toHaveBeenCalledWith(
+			expect.objectContaining({
+				durabilityLockName: 'durability:/sites/test-site',
+			}),
+			expect.any(Function)
+		);
 		expect(mocks.opfsSiteStorage.create).toHaveBeenCalledWith(
 			'test-site',
 			expect.objectContaining({ storage: 'none' }),
