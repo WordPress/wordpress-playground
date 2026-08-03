@@ -31,7 +31,7 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 
 By default, WordPress Playground loads a landing page that introduces Playground. To start with a plain WordPress install, open **New** in the Dock and choose **Vanilla WordPress** from the Blueprint gallery.
 
-![The New Playground pane with Vanilla WordPress first in the Blueprint gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
+![The Dock New button and the Blueprint gallery with Vanilla WordPress selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 ## If You're Learning WordPress
 
@@ -53,7 +53,7 @@ You can inspect columns, headings, images, and buttons — and see exactly how t
 
 Open **New** in the Dock to browse the Blueprint gallery. The gallery has examples for art galleries, stores, portfolios, learning environments, and many other starting points.
 
-![The Blueprint gallery in the New Playground pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
+![Opening the Blueprint gallery from the Dock New button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 ### Try New Features Safely
 
@@ -116,19 +116,23 @@ newer autosaves replace it.
 
 ### Save to Your Browser
 
-New Playgrounds are autosaved when browser storage is available. Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
+New Playgrounds are autosaved when browser storage is available. The Dock shows the save status next to the address field.
+
+![The Autosaved status in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
+
+Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
 
 ![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
 
-![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 ### Download as a ZIP File
 
 Need to move your work elsewhere? Open **Export** and choose **Download as .zip**. The ZIP contains the current files, database, plugins, themes, uploads, and edits. You can restore it later with **New → Import zip** or host it on a server that supports PHP and SQLite.
 
-![The Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 <div class="callout callout-tip">
 
