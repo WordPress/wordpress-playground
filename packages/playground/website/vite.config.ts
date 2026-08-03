@@ -417,12 +417,6 @@ export default defineConfig(({ command, mode }) => {
 				},
 				output: {
 					manualChunks: (id) => {
-						// Rollup recursively assigns the API entry's dependencies to this chunk.
-						// This prevents the optional Blueprint editor chunk from claiming OPFS storage.
-						if (id.endsWith('/src/lib/boot-playground-api.ts')) {
-							return 'opfs-site-storage';
-						}
-
 						// Split CodeMirror and Lezer packages into separate chunks
 						// that will be placed in assets/optional/ directory
 
@@ -471,6 +465,25 @@ export default defineConfig(({ command, mode }) => {
 						// Optional, lazy loaded Blueprint Editor package
 						if (id.includes('blueprint-editor')) {
 							return 'optional/blueprint-editor';
+						}
+
+						// Vite builds api.html and the website in one Rollup graph. In Rollup 4,
+						// a manual chunk also claims its static dependencies by default.
+						// The Blueprint editor and api.html both depend on OPFS storage, so without
+						// this rule the editor chunk claims that shared code. As a result, api.html
+						// must preload the large editor and CodeMirror chunks just to use OPFS.
+						//
+						// The proper fix is to enable `onlyExplicitManualChunks`, which makes manual
+						// chunks claim only the modules explicitly assigned to them. With our current
+						// imports, that produces circular chunks between the application and CodeMirror
+						// code, making their execution order unsafe. We must untangle those imports
+						// before enabling the option globally.
+						//
+						// Until then, assign the API entry to its own manual chunk. This keeps its static
+						// dependency graph, including OPFS storage, out of the optional editor chunk.
+						// See https://rollupjs.org/configuration-options/#output-onlyexplicitmanualchunks
+						if (id.endsWith('/src/lib/boot-playground-api.ts')) {
+							return 'opfs-site-storage';
 						}
 					},
 					assetFileNames: (chunkInfo) => {
