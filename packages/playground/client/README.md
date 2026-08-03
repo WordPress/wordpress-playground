@@ -24,7 +24,12 @@ Loading the client from `https://playground.wordpress.net/client/index.js` keeps
 
 ## Saved-site export API
 
-Use `startPlaygroundAPI()` to work with saved OPFS Playgrounds without booting WordPress, PHP, workers, or a service worker. The API endpoint must have the same origin and browser storage partition as the Playground that saved the site. WebKit requires save and export to use the same top-level origin, including its scheme, host, and port; a site saved while Playground is top-level is not visible to an API iframe embedded under another top-level origin.
+`startPlaygroundAPI()` exposes an API for working with Playgrounds without booting WordPress, PHP, workers, or a service worker. Currently, it only supports exporting saved OPFS sites.
+
+To export a saved OPFS site:
+
+- The API endpoint must share the origin and browser storage partition used to save the site.
+- In WebKit, saving and exporting must use the same top-level origin, including its scheme, host, and port. A site saved while Playground is the top-level page is not visible to an API iframe embedded under a different top-level origin.
 
 The `/api.html` entry point is part of the full Playground website deployment. It is not included in the `@wp-playground/remote` npm package.
 
