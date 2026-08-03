@@ -10,7 +10,7 @@ description: A detailed guide to the web interface at playground.wordpress.net, 
 WordPress in your browser without a server. The page opens a Playground, shows
 the WordPress site, and keeps the site tools in the **Dock**.
 
-![The Playground web instance with the Dock visible at the bottom of the page](/img/dock/dock-overview.webp)
+![The Playground web instance with the Dock visible at the bottom of the page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 
 The Dock has an address field, a save status, layout controls, and destinations for creating, storing, inspecting, and exporting Playgrounds.
 
@@ -38,6 +38,8 @@ For example, enter `/wp-admin/` to open the dashboard or
 `/wp-admin/plugins.php` to open the Plugins screen. **Refresh page** reloads
 the current WordPress path.
 
+![The Refresh page button in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
+
 You can also use the [Query Params API](/developers/apis/query-api/) to open Playground with a specific setup, such as a WordPress version, PHP version, plugin, theme, or Blueprint.
 
 ## Understand the save status
@@ -50,7 +52,7 @@ The status next to the address field tells you how the current Playground is sto
 
 Click **Autosaved** or **Unsaved** to open **Store permanently**.
 
-![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 Store permanently can keep an autosaved Playground in browser storage so autosave pruning no longer removes it. In browsers that support the File System Access API, it can also save the Playground to a local directory.
 
@@ -62,20 +64,20 @@ Open **New Playground** from the Dock by clicking **New**. The pane contains
 **Blueprint gallery**, **From a URL**, **Write a Blueprint**, **Preview a PR**,
 **From GitHub**, and **Import zip**.
 
-![The New Playground pane with the Blueprint gallery selected](/img/dock/dock-new-playground.webp)
+![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 The Blueprint gallery starts with **Vanilla WordPress**, which creates a clean
 WordPress install. **From a URL** opens a public Blueprint URL. **Write a
 Blueprint** opens an editor for a new Blueprint. **Import zip** restores a ZIP
 exported from Playground.
 
-![The New Playground pane with Import zip selected](/img/dock/dock-new-playground-import-zip.webp)
+![The New Playground pane with Import zip selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
 ## Return to recent and saved Playgrounds
 
 Open **Your Playgrounds** from the Dock by clicking **Playgrounds**. It lists the current Playground, recent autosaves, and Playgrounds you saved permanently.
 
-![The Your Playgrounds pane with the current Playground](/img/dock/your-playgrounds.webp)
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 Autosaved Playgrounds are recovery points. Playground retains up to five recent
 autosaves. Use **Store permanently** to keep one as a saved Playground.
@@ -84,7 +86,7 @@ autosaves. Use **Store permanently** to keep one as a saved Playground.
 
 Open **Site Settings** to change runtime and WordPress setup options.
 
-![The Site Settings pane](/img/dock/dock-site-settings.webp)
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 PHP version and networking can be applied to an existing stored Playground. WordPress version, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
 
@@ -94,7 +96,7 @@ Running an edited Blueprint keeps stored and autosaved Playgrounds. It discards 
 
 Open **Blueprint** to view and edit the Blueprint for the current Playground.
 
-![The Blueprint editor pane](/img/dock/dock-current-blueprint.webp)
+![The Blueprint editor pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
 
 The editor can run the edited Blueprint in a new Playground. For a stored or autosaved Playground, the original Playground remains available in **Your Playgrounds**.
 
@@ -102,21 +104,21 @@ The editor can run the edited Blueprint in a new Playground. For a stored or aut
 
 Open **Files** to browse and edit the current Playground files.
 
-![The Files pane with a WordPress file selected](/img/dock/files.webp)
+![The Files pane with a WordPress file selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
 
 Open **Database** to use database tools or download the SQLite database.
 
-![The Database pane](/img/dock/database.webp)
+![The Database pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
 
 Open **Logs** to inspect PHP errors, warnings, and notices.
 
-![The PHP error log pane](/img/dock/logs.webp)
+![The PHP error log pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 ## Export and share {#playground-options-menu}
 
 Open **Export** to download or share the current Playground.
 
-![The Export pane](/img/dock/dock-export-playground.webp)
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 **Download as .zip** exports the current files, database, plugins, themes, uploads, and edits. The ZIP can be restored later with **New → Import zip**.
 
@@ -129,23 +131,23 @@ setup. It does not include edits made after the Playground started.
 
 The Dock can be shown as a floating panel or full-width bar. Use **Full width** to switch layouts.
 
-| Floating                                                   | Full width                                                    |
-| ---------------------------------------------------------- | ------------------------------------------------------------- |
-| ![The default floating Dock](/img/dock/dock-overview.webp) | ![The full-width Dock layout](/img/dock/dock-full-width.webp) |
+| Floating                                                                                                                                                              | Full width                                                                                                                                                               |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ![The default floating Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp) | ![The full-width Dock layout](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-full-width.webp) |
 
 Use **Hide tools** to collapse the Dock to its address field and save status.
 Use **Show tools** to reopen the tool row.
 
-![The Playground with Dock tools hidden](/img/dock/dock-hidden-tools.webp)
+![The Playground with Dock tools hidden](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-hidden-tools.webp)
 
 You can drag the floating Dock on desktop. Drag it past the left or right edge
 to fold it into a corner launcher, then click the launcher to restore the Dock.
 
-![The Dock folded into the corner launcher](/img/dock/dock-corner-launcher.webp)
+![The Dock folded into the corner launcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-corner-launcher.webp)
 
 On narrow screens, the Dock uses a full-width mobile layout.
 
-![The Dock on a mobile viewport](/img/dock/dock-mobile.webp)
+![The Dock on a mobile viewport](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-mobile.webp)
 
 <div class="callout callout-warning">
 
