@@ -27,87 +27,58 @@ You can track the status of these issues on the [Playground Project board](https
 ## In the browser
 -->
 
-### 設計上は一時的なもの
+### ブラウザストレージと復元
 
 <!--
-### Temporary by design
+Playground runs WordPress in the browser. New Playgrounds are autosaved when
+browser storage and saving are available, and they appear in **Your
+Playgrounds**. Playground keeps up to five recent autosaves. After five exist,
+creating another deletes the oldest one. Autosaves are recovery points, not
+long-term backups. Store an autosave permanently or export a ZIP when you want
+to keep it.
 -->
 
-Playground は、ページを読み込むたびに新しい WordPress インスタンスを作成します。そのため、ブラウザを更新すると、データベースの変更、アップロード、修正はすべて破棄されます。
+Playground はブラウザ内で WordPress を実行します。ブラウザストレージと保存機能を利用できる場合、新しい Playground は自動保存され、**Playground 一覧**に表示されます。最近の自動保存は最大 5 件保持されます。5 件ある状態で新たに作成すると、最も古いものが削除されます。自動保存は復元ポイントであり、長期的なバックアップではありません。残しておきたい場合は自動保存を永続的に保存するか、ZIP をエクスポートしてください。
 
 <!--
-Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications.
+Use these storage modes deliberately:
 -->
 
-**理由**: Playgroundは、WordPressを従来のサーバーから配信するのではなく、ブラウザに直接ストリーミングします。そのため、リフレッシュするたびにクリーンな状態から再開されます。
+用途に合わせて、次の保存モードを選んでください。
 
 <!--
-**Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate.
+- **Autosaved**: stored in browser storage and retained only while it is one of up to five recent autosaves.
+- **Saved**: stored permanently in browser storage or saved to a local directory.
+- **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
 -->
 
-**作業を保存するには：**
+- **自動保存済み**: ブラウザストレージに保存され、最近の自動保存 5 件のいずれかである間だけ保持されます。
+- **保存済み**: ブラウザストレージに永続的に保存されたか、ローカルディレクトリに保存されています。
+- **一時的**: `?storage=temp` を付けた場合、または保存機能を利用できない場合に作成されます。タブを閉じるかブラウザページを更新すると破棄されます。
 
 <!--
-**To persist your work:**
+The Playground **Refresh page** button reloads the WordPress page inside the current Playground. Browser refresh (Cmd+R or F5) reloads the whole Playground app. A stored or autosaved Playground can recover after that reload, but a temporary Playground cannot.
 -->
 
-- **保存**: 「保存」ボタン（右上のアドレスバーの横）をクリックしてブラウザに保存できます。その後、ブラウザのアドレスバーからページを再読み込みしてください。
-- **開発向け**: 永続的なローカルストレージをサポートしている [Playground CLI](/developers/local-development/wp-playground-cli) をご利用ください。
+Playground の**ページを更新**ボタンは、現在の Playground 内にある WordPress ページを再読み込みします。ブラウザの更新（Cmd+R または F5）は Playground アプリ全体を再読み込みします。保存済みまたは自動保存済みの Playground は更新後に復元できますが、一時的な Playground は復元できません。
 
 <!--
-- **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar.
-- **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage
+![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 -->
 
-<div class="callout callout-tip">
-
-Playground 内の更新ボタンは WordPress のコンテンツのみを再読み込みし、PHP/WPの状態は維持します。ブラウザの更新ボタン（F5またはCmd+R）はインスタンス全体を破棄します。
-
-</div>
+![WordPress の更新、保存方法の選択、Playground のエクスポートを行う Dock コントロール](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 
 <!--
-<div class="callout callout-tip">
-
-The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
-
-</div>
+Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
 -->
 
-![Refresh Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
-
-<blockquote>
-<figure>
-<figcaption><i>1. Playgroundのエクスポート</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
-
-</figure>
-
-<figure>
-<figcaption><i>2. 保存ボタン:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
-
-</figure>
-</blockquote>
+ブラウザストレージはブラウザによって管理されます。容量不足、プライベートブラウジング、プロファイルの変更、サイトデータの消去によって削除される場合があります。持ち運べるバックアップが必要な場合は ZIP をエクスポートしてください。
 
 <!--
-<blockquote>
-<figure>
-<figcaption><i>1. Exporting Playground:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
-
-</figure>
-
-<figure>
-<figcaption><i>2. Save button:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
-
-</figure>
-</blockquote>
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 -->
+
+![現在の Playground が表示された「Playground 一覧」パネル](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 ### ブラウザサポート
 

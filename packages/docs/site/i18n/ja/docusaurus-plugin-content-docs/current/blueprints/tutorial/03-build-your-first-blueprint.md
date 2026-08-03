@@ -52,7 +52,15 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 <div class="callout callout-tip">
 
+<!--
+**Autocomplete**
+-->
+
 **オートコンプリート**
+
+<!--
+If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
+-->
 
 VS Code や PHPStorm などの IDE をご利用の場合は、[Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json)を使用して、自動補完機能を備えたブループリント開発環境を構築できます。`blueprint.json`ファイルの先頭に次の行を追加してください。
 
@@ -61,6 +69,11 @@ VS Code や PHPStorm などの IDE をご利用の場合は、[Blueprint JSON Sc
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json"
 }
 ```
+
+<!--
+</div>
+Here's what it looks like in VS Code:
+-->
 
 </div>
 
@@ -292,6 +305,10 @@ In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.
 -->
 
 <div class="callout callout-info">
+
+<!--
+Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
+-->
 
 サポートされているリソースの詳細については、[Blueprint リソース API リファレンス](/blueprints/steps/resources/)を参照してください。
 
@@ -562,7 +579,7 @@ Here's the complete Blueprint:
 That's what it looks like when you navigate to the dashboard:
 -->
 
-![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
+![「Hello from My Custom Plugin!」通知が表示された WordPress ダッシュボード](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### プラグインを作成して圧縮する
 
