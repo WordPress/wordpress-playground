@@ -5,7 +5,7 @@ import { test, expect } from '../playground-fixtures';
 /**
  * This test isolates the public saved-site export API from Playground site creation:
  *
- * 1. Load the website with temporary storage so its active site does not write to OPFS.
+ * 1. Load a lightweight same-origin page without booting the full Playground.
  * 2. Seed a minimal, uniquely identified saved site directly in the origin's OPFS bucket.
  * 3. Load the public client and same-origin api.html in a sandboxed iframe.
  * 4. Export that slug and verify its marker content is present in the returned ZIP.
