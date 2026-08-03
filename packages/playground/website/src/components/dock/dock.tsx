@@ -661,6 +661,7 @@ export function Dock({
 		const rect = dock.getBoundingClientRect();
 		const startX = event.clientX;
 		const startCenter = rect.left + rect.width / 2;
+		const initialDockCenter = dockCenter;
 		const halfWidth = dock.offsetWidth / 2;
 		const pointerId = event.pointerId;
 		const capturePointer = () => {
@@ -708,7 +709,12 @@ export function Dock({
 		};
 
 		/** Finishes a drag without also activating the pressed Dock control. */
-		const finishDockDrag = () => {
+		const finishDockDrag = () => completeDockDrag(false);
+
+		/** Restores the Dock when pointer ownership ends without a pointerup. */
+		const cancelDockDrag = () => completeDockDrag(true);
+
+		const completeDockDrag = (cancelled: boolean) => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
 			// Let the next click target the restored corner launcher instead of
@@ -751,6 +757,14 @@ export function Dock({
 				setDockSheen(0);
 			}
 
+			if (cancelled) {
+				dragSideRef.current = null;
+				setCornerSide(null);
+				setDockCenter(initialDockCenter);
+				setDockSheen(0);
+				return;
+			}
+
 			if (dragSideRef.current !== null && dockPaneIsOpen) {
 				// An open pane owns the expanded Dock. Refuse a fold that would hide
 				// both the tool in use and its launcher.
@@ -770,11 +784,15 @@ export function Dock({
 		dragCleanupRef.current = () => {
 			window.removeEventListener('pointermove', moveDock, true);
 			window.removeEventListener('pointerup', finishDockDrag, true);
-			window.removeEventListener('pointercancel', finishDockDrag, true);
+			window.removeEventListener('pointercancel', cancelDockDrag, true);
+			window.removeEventListener('blur', cancelDockDrag);
+			dock.removeEventListener('lostpointercapture', cancelDockDrag);
 		};
 		window.addEventListener('pointermove', moveDock, true);
 		window.addEventListener('pointerup', finishDockDrag, true);
-		window.addEventListener('pointercancel', finishDockDrag, true);
+		window.addEventListener('pointercancel', cancelDockDrag, true);
+		window.addEventListener('blur', cancelDockDrag);
+		dock.addEventListener('lostpointercapture', cancelDockDrag);
 	};
 
 	/** Reveals the grab sheen, softened while the pointer is over a control. */
