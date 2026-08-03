@@ -5,15 +5,9 @@ description: Annotate UI screenshots with documentation callouts in Fellyph's es
 
 # Documentation Screenshot Annotations
 
-Produce annotated UI screenshots in one specific house style: uniform-width
-orange (#e8590c) arrows with white halos, double-stroke blue outlines around
-targets, and (for overviews) a row of numbered callout cards over a dimmed
-screenshot. Never use stock arrow shapes, stroked polylines, or ad-hoc styles.
+Produce annotated UI screenshots in one specific house style: uniform-width orange (#e8590c) arrows with white halos, double-stroke blue outlines around targets, and (for overviews) a row of numbered callout cards over a dimmed screenshot. Never use stock arrow shapes, stroked polylines, or ad-hoc styles.
 
-The geometry engine lives in `scripts/annotate.py`. Your job is to produce
-accurate coordinates and a config JSON; the script renders everything
-(supersampling, Bézier ribbons, halos, cards, shadows, WEBP export) exactly
-to spec. Do not reimplement the drawing by hand.
+The geometry engine lives in `scripts/annotate.py`. Your job is to produce accurate coordinates and a config JSON; the script renders everything (supersampling, Bézier ribbons, halos, cards, shadows, WEBP export) exactly to spec. Do not reimplement the drawing by hand.
 
 ## Workflow
 
@@ -47,52 +41,23 @@ to spec. Do not reimplement the drawing by hand.
 
 ## Choosing the annotation mode
 
-- **Pointing at specific controls** (a dialog walkthrough, "click here"):
-  use `outlines` + free `arrows`. No dim, no cards. One arrow per target,
-  tail starting from empty space, arriving straight onto the outline.
-- **Overview with a legend** ("these are the three persistence controls"):
-  use `cards` + `outlines` + `dim`. Cards get `target` indexes and the
-  script auto-draws vertical arrows from each card's bottom edge onto its
-  outline. Set `dim.region` to the area holding the documented controls so
-  they stay at full brightness while the rest dims 24% toward #28313b.
-- Add `chrome_bar` (44px bar, traffic lights, URL pill) only when browser
-  context matters to the reader.
+- **Pointing at specific controls** (a dialog walkthrough, "click here"): use `outlines` + free `arrows`. No dim, no cards. One arrow per target, tail starting from empty space, arriving straight onto the outline.
+- **Overview with a legend** ("these are the three persistence controls"): use `cards` + `outlines` + `dim`. Cards get `target` indexes and the script auto-draws vertical arrows from each card's bottom edge onto its outline. Set `dim.region` to the area holding the documented controls so they stay at full brightness while the rest dims 24% toward #28313b.
+- Add `chrome_bar` (44px bar, traffic lights, URL pill) only when browser context matters to the reader.
 
 ## Placement rules the script cannot decide for you
 
-- Arrow endpoints: the tip must stop 5–7px short of the target's outline
-  (for card arrows the script handles the 6px gap; for free arrows, place
-  `to` accordingly). Both tangents are axis-parallel — pick `axis` so the
-  arrow leaves and arrives straight, giving the calm S-curve.
-- Arrows must never cross each other or overlap another annotation. If a
-  layout forces a crossing, move the tail, flip the axis, or reorder cards
-  so each card sits roughly above its target.
-- Outlines must enclose the whole control including secondary lines (a
-  row's timestamp, a button's icon), not just the text node you queried
-  for. Pad 6–10px, radius 10–14 for rounded rects; plain circles r≈25 for
-  icon-only buttons.
-- Card copy: title 2–3 words, subtitle one short clause. The script warns
-  on stderr if text overflows its card — treat that as a hard failure.
+- Arrow endpoints: the tip must stop 5–7px short of the target's outline (for card arrows the script handles the 6px gap; for free arrows, place `to` accordingly). Both tangents are axis-parallel — pick `axis` so the arrow leaves and arrives straight, giving the calm S-curve.
+- Arrows must never cross each other or overlap another annotation. If a layout forces a crossing, move the tail, flip the axis, or reorder cards so each card sits roughly above its target.
+- Outlines must enclose the whole control including secondary lines (a row's timestamp, a button's icon), not just the text node you queried for. Pad 6–10px, radius 10–14 for rounded rects; plain circles r≈25 for icon-only buttons.
+- Card copy: title 2–3 words, subtitle one short clause. The script warns on stderr if text overflows its card — treat that as a hard failure.
 
 ## Style constants (already baked into the script — do not override)
 
-Arrows are orange #e8590c on pure white halos; outlines, badges and cards stay blue #3858e9. The shaft is a uniform 9px line (constant
-top to bottom, round caps) ending in an open chevron head — two 16px
-diagonal strokes of the same width sweeping back from the tip at ±35°;
-halo expanded 3.2px per side. Outline = white width 9 on
-the bbox expanded 2.5px, blue width 4 on the exact bbox. Canvas #f6f7f7,
-36px margins, rounded frame with 1px #dcdcde border and soft shadow. Cards:
-white, radius 16, 1px #ccced0 border, double shadow, blue badge r22,
-Helvetica Neue (27px bold title #101517 / 19px subtitle #2c3338). Export is
-WEBP quality ~89 after a single LANCZOS downsample from the supersampled
-canvas.
+Arrows are orange #e8590c on pure white halos; outlines, badges and cards stay blue #3858e9. The shaft is a uniform 9px line (constant top to bottom, round caps) ending in an open chevron head — two 16px diagonal strokes of the same width sweeping back from the tip at ±35°; halo expanded 3.2px per side. Outline = white width 9 on the bbox expanded 2.5px, blue width 4 on the exact bbox. Canvas #f6f7f7, 36px margins, rounded frame with 1px #dcdcde border and soft shadow. Cards: white, radius 16, 1px #ccced0 border, double shadow, blue badge r22, Helvetica Neue (27px bold title #101517 / 19px subtitle #2c3338). Export is WEBP quality ~89 after a single LANCZOS downsample from the supersampled canvas.
 
-Reference outputs in this style: an action walkthrough
-(free arrows onto dialog controls) and an overview legend (three cards over
-a dimmed page) — match their look, spacing and restraint.
+Reference outputs in this style: an action walkthrough (free arrows onto dialog controls) and an overview legend (three cards over a dimmed page) — match their look, spacing and restraint.
 
 ## Repo layout
 
-The source of truth is `.agents/skills/doc-screenshots/`. `.claude/skills`
-is a committed symlink to `../.agents/skills`, so Claude Code loads the same
-files — edit only under `.agents/skills/` and never create a separate copy.
+The source of truth is `.agents/skills/doc-screenshots/`. `.claude/skills` is a committed symlink to `../.agents/skills`, so Claude Code loads the same files — edit only under `.agents/skills/` and never create a separate copy.
