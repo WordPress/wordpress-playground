@@ -315,19 +315,19 @@ const remoteOrigin =
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html', 'remote');
+	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html');
 }
 
 function assertLikelyCompatibleAPIOrigin(apiUrl: string) {
-	assertLikelyCompatibleRemotePath(apiUrl, '/api.html', 'API');
+	assertLikelyCompatibleRemotePath(apiUrl, '/api.html');
 }
 
 function assertLikelyCompatibleRemotePath(
 	urlString: string,
-	expectedPath: string,
-	endpointName: 'remote' | 'API'
+	expectedPath: '/remote.html' | '/api.html'
 ) {
 	const url = new URL(urlString, remoteOrigin);
+	const endpointName = expectedPath === '/api.html' ? 'API' : 'remote';
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
