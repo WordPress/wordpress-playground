@@ -790,24 +790,20 @@ npx @wp-playground/cli server --mount-before-install=wordpress:/wordpress --blue
 
 ### Editor de Blueprints
 
-<!--
-Use the in-browser [Blueprints editor](https://playground.wordpress.net/builder/builder.html)
-to build, validate, and preview Blueprints.
--->
+<!-- Use the in-browser [Blueprints editor](https://playground.wordpress.net/builder/builder.html) -->
+<!-- to build, validate, and preview Blueprints. -->
 
 Use o [editor de Blueprints](https://playground.wordpress.net/builder/builder.html)
 no navegador para criar, validar e pré-visualizar Blueprints.
 
-<!-- :::danger Caution -->
-
 <div class="callout callout-warning">
+
+<!-- **Caution** -->
 
 **Atenção**
 
-<!--
-The editor is under development and the embedded Playground sometimes fails to
-load. To get around it, refresh the page.
--->
+<!-- The editor is under development and the embedded Playground sometimes fails to -->
+<!-- load. To get around it, refresh the page. -->
 
 O editor está em desenvolvimento e o Playground incorporado às vezes falha ao
 carregar. Para contornar isso, atualize a página.
@@ -818,32 +814,39 @@ carregar. Para contornar isso, atualize a página.
 
 ### Inspeção do sistema de arquivos e do banco de dados
 
-<!--
-Some Blueprint steps, such as [`writeFile`](/blueprints/steps),
-alter the internal filesystem. Others, such as
-[`runSql`](/blueprints/steps), alter the database.
--->
+<!-- Some Blueprint steps, such as [`writeFile`](/blueprints/steps), -->
+<!-- alter the internal filesystem. Others, such as -->
+<!-- [`runSql`](/blueprints/steps), alter the database. -->
 
 Algumas etapas de Blueprint, como [`writeFile`](/blueprints/steps),
 alteram o sistema de arquivos interno. Outras, como
 [`runSql`](/blueprints/steps), alteram o banco de dados.
 
-<!--
-To inspect the final state, install plugins such as
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and
-[`WPide`](https://wordpress.org/plugins/wpide/). You can see them in action at
-https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
--->
+<!-- To inspect the final state, use **Files**, **Database**, and **Logs** from the Dock. -->
 
-Para inspecionar o estado final, instale plugins como
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) e
-[`WPide`](https://wordpress.org/plugins/wpide/). Você pode vê-los em ação em
-https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
+Para inspecionar o estado final, use **Arquivos**, **Banco de dados** e
+**Registros** no Dock.
 
-<!--
-You can also inspect a Playground instance from the browser console through
-`window.playground`:
--->
+<!-- Use **Files** to confirm the Blueprint created, moved, or edited the expected files. -->
+
+Use **Arquivos** para confirmar que o Blueprint criou, moveu ou editou os
+arquivos esperados.
+
+<!-- ![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp) -->
+
+![O painel Arquivos mostrando um arquivo do WordPress selecionado e seu conteúdo](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+
+<!-- Use **Database** to inspect tables and records changed by SQL or WordPress steps. -->
+
+Use **Banco de dados** para inspecionar tabelas e registros alterados por etapas
+de SQL ou do WordPress.
+
+<!-- ![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp) -->
+
+![O painel Banco de dados mostrando as ferramentas de inspeção do banco de dados](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
+
+<!-- You can also inspect a Playground instance from the browser console through -->
+<!-- `window.playground`: -->
 
 Você também pode inspecionar uma instância do Playground pelo console do
 navegador usando `window.playground`:
@@ -861,27 +864,21 @@ Consulte a [API PlaygroundClient](/api/client/interface/PlaygroundClient) comple
 
 ### Console do navegador e requisições de rede
 
-<!--
-Open browser developer tools to check JavaScript errors, PHP debug logs, and
-failed network requests. In Chrome, Firefox, and Edge, press
-`Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS.
--->
+<!-- Open browser developer tools to check JavaScript errors, PHP debug logs, and -->
+<!-- failed network requests. In Chrome, Firefox, and Edge, press -->
+<!-- `Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS. -->
 
 Abra as ferramentas de desenvolvedor do navegador para verificar erros de
-JavaScript, logs de depuração de PHP e requisições de rede com falha. No Chrome,
+JavaScript, registros de depuração de PHP e requisições de rede com falha. No Chrome,
 Firefox e Edge, pressione `Ctrl + Shift + I` no Windows/Linux ou
 `Cmd + Option + I` no macOS.
-
-<!-- :::caution Safari -->
 
 <div class="callout callout-warning">
 
 **Safari**
 
-<!--
-If you have not enabled the Develop menu, go to **Safari > Settings... >
-Advanced** and check **Show features for web developers**.
--->
+<!-- If you have not enabled the Develop menu, go to **Safari > Settings... > -->
+<!-- Advanced** and check **Show features for web developers**. -->
 
 Se você ainda não ativou o menu Develop, acesse **Safari > Settings... >
 Advanced** e marque **Show features for web developers**.
@@ -892,33 +889,24 @@ Advanced** e marque **Show features for web developers**.
 
 ### Registro de erros personalizado
 
-<!--
-You can write your own messages with `error_log()` in a
-[`runPHP` step](/blueprints/steps), then check the Playground
-**Logs** panel or the browser console.
--->
+<!-- You can write your own messages with `error_log()` in a -->
+<!-- [`runPHP` step](/blueprints/steps), then check the Playground -->
+<!-- **Logs** panel or the browser console. -->
 
 Você pode gravar suas próprias mensagens com `error_log()` em uma etapa
-[`runPHP`](/blueprints/steps) e depois conferir o painel **Logs** do Playground
+[`runPHP`](/blueprints/steps) e depois conferir o painel **Registros** do Playground
 ou o console do navegador.
 
-<!-- ![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp) -->
+<!-- ![The PHP error log pane showing PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp) -->
 
-![Captura de logs de erro](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
-
-<!--
-<div class="callout callout-info">
-
-When you download your Playground instance as a ZIP through the
-["Download as zip"](/web-instance) option, the archive
-also includes `debug.log`.
-</div>
--->
+![O painel de registros de erros do PHP mostrando a saída do PHP](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 
-Ao baixar sua instância do Playground como ZIP pela opção
-["Download as zip"](/web-instance), o arquivo também inclui `debug.log`.
+<!-- When you download your Playground as a ZIP through **Export → Download as .zip**, the archive also includes `debug.log`. -->
+
+Ao baixar seu Playground como ZIP em **Exportar → Baixar como .zip**, o arquivo
+também inclui `debug.log`.
 
 </div>
 
