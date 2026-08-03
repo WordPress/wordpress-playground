@@ -813,6 +813,8 @@ dans le navigateur pour créer, valider et prévisualiser des Blueprints.
 
 <div class="callout callout-warning">
 
+<!-- **Caution** -->
+
 **Attention**
 
 <!--
@@ -839,17 +841,25 @@ Certaines étapes de Blueprint, comme [`writeFile`](/blueprints/steps),
 modifient le système de fichiers interne. D’autres, comme
 [`runSql`](/blueprints/steps), modifient la base de données.
 
-<!--
-To inspect the final state, install plugins such as
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and
-[`WPide`](https://wordpress.org/plugins/wpide/). You can see them in action at
-https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
--->
+<!-- To inspect the final state, use **Files**, **Database**, and **Logs** from the Dock. -->
 
-Pour inspecter l’état final, installez des extensions comme
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) et
-[`WPide`](https://wordpress.org/plugins/wpide/). Vous pouvez les voir en action
-sur https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
+Pour inspecter l’état final, utilisez **Fichiers**, **Base de données** et **Journaux** depuis le Dock.
+
+<!-- Use **Files** to confirm the Blueprint created, moved, or edited the expected files. -->
+
+Utilisez **Fichiers** pour vérifier que le Blueprint a créé, déplacé ou modifié les fichiers attendus.
+
+<!-- ![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp) -->
+
+![Le panneau Fichiers affichant un fichier WordPress sélectionné et son contenu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+
+<!-- Use **Database** to inspect tables and records changed by SQL or WordPress steps. -->
+
+Utilisez **Base de données** pour inspecter les tables et les enregistrements modifiés par SQL ou par des étapes WordPress.
+
+<!-- ![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp) -->
+
+![Le panneau Base de données affichant les outils d’inspection de la base de données](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
 
 <!--
 You can also inspect a Playground instance from the browser console through
@@ -915,23 +925,15 @@ Vous pouvez écrire vos propres messages avec `error_log()` dans une étape
 [`runPHP`](/blueprints/steps), puis consulter le panneau **Logs** de Playground
 ou la console du navigateur.
 
-<!-- ![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp) -->
+<!-- ![The PHP error log pane showing PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp) -->
 
-![Capture des erreurs de journal](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
-
-<!--
-<div class="callout callout-info">
-
-When you download your Playground instance as a ZIP through the
-["Download as zip"](/web-instance) option, the archive
-also includes `debug.log`.
-</div>
--->
+![Le panneau du journal d’erreurs PHP affichant la sortie du journal](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 
-Lorsque vous téléchargez votre instance Playground sous forme de ZIP via
-l’option ["Download as zip"](/web-instance), l’archive inclut aussi `debug.log`.
+<!-- When you download your Playground as a ZIP through **Export → Download as .zip**, the archive also includes `debug.log`. -->
+
+Lorsque vous téléchargez votre Playground sous forme de ZIP avec **Exporter → Télécharger en .zip**, l’archive inclut également `debug.log`.
 
 </div>
 

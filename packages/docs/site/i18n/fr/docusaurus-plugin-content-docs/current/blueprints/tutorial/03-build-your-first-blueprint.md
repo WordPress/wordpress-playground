@@ -46,7 +46,11 @@ On pourrait penser que rien ne se passe, mais ce blueprint lance déjà un site 
 
 <div class="callout callout-tip">
 
+<!-- **Autocomplete** -->
+
 **Auto-complétion**
+
+<!-- If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file: -->
 
 Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le [Schéma JSON Blueprint](https://playground.wordpress.net/blueprint-schema.json) pour activer l'auto-complétion pendant votre développement. Ajoutez la ligne qui suit au début de votre fichier `blueprint.json` :
 
@@ -55,6 +59,9 @@ Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le [Sc
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json"
 }
 ```
+
+<!-- </div> -->
+<!-- Here's what it looks like in VS Code: -->
 
 </div>
 
@@ -68,9 +75,7 @@ Voici ce à quoi ça ressemble dans VS Code :
 
 <!-- Here’s what it looks like in VS Code: -->
 
-![Visualisation de l’autocompletion](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
-
-<!-- ![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp) -->
+![L’autocomplétion affichée dans l’éditeur](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. Définir le titre du site par « Mon premier blueprint »
 
@@ -173,9 +178,7 @@ Le site devrait maintenant ressembler à la capture d’écran ci-dessous :
 
 <!-- The site should now look like the screenshot below: -->
 
-![Site avec le thème Adventurer](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
-
-<!-- ![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp) -->
+![Site utilisant le thème Adventurer](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### Ressources
 
@@ -208,6 +211,8 @@ Dans ce cas, `https://wordpress.org/themes/<slug>/` devient `https://wordpress.o
 <!-- In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`. -->
 
 <div class="callout callout-info">
+
+<!-- Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/). -->
 
 Pour en savoir plus sur les ressources prises en charge, consultez le [Référenciel API des ressources blueprint](/blueprints/steps/resources/).
 
@@ -390,9 +395,7 @@ Voici à quoi cela ressemble quand vous naviguez dans le tableau de bord :
 
 <!-- That's what it looks like when you navigate to the dashboard: -->
 
-![Site avec l’extension personnalisée](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
-
-<!-- ![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp) -->
+![Site utilisant l’extension personnalisée](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### Créer une extension et la compresser
 

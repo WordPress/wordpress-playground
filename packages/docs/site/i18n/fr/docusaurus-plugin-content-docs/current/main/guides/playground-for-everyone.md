@@ -42,7 +42,11 @@ WordPress Playground works the same way. It gives you a complete WordPress site 
 
 WordPress Playground fonctionne de la même manière. Il vous offre un site WordPress complet pour expérimenter, mais rien de ce que vous faites n'affecte un vrai site web. Faites des modifications, cassez des choses, apprenez de vos erreurs — puis recommencez à zéro quand vous le souhaitez.
 
+<!--
 ![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
+-->
+
+![Page d’accueil de WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
 
 <!--
 ## What Can You Do with Playground?
@@ -52,14 +56,16 @@ WordPress Playground fonctionne de la même manière. Il vous offre un site Word
 
 <!--
 When you visit [playground.wordpress.net](https://playground.wordpress.net), you get a WordPress site running entirely in your browser. You can:
+-->
 
+Lorsque vous visitez [playground.wordpress.net](https://playground.wordpress.net), vous obtenez un site WordPress fonctionnant entièrement dans votre navigateur. Vous pouvez :
+
+<!--
 - Install plugins and themes
 - Edit pages and create content
 - Change WordPress and PHP versions
 - Explore features you've never tried before
 -->
-
-Lorsque vous visitez [playground.wordpress.net](https://playground.wordpress.net), vous obtenez un site WordPress fonctionnant entièrement dans votre navigateur. Vous pouvez :
 
 - Installer des plugins et des thèmes
 - Modifier des pages et créer du contenu
@@ -67,24 +73,16 @@ Lorsque vous visitez [playground.wordpress.net](https://playground.wordpress.net
 - Explorer des fonctionnalités que vous n'avez jamais essayées auparavant
 
 <!--
-By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
+By default, WordPress Playground loads a landing page that introduces Playground. To start with a plain WordPress install, open **New** in the Dock and choose **Vanilla WordPress** from the Blueprint gallery.
 -->
 
-Par défaut, WordPress Playground charge une page d'accueil pour présenter certaines des fonctionnalités de Playground et où vous pouvez en apprendre davantage. Mais vous pouvez également charger une version vanilla de WordPress sans la page d'accueil. Dans le panneau de lancement de Playground, une option est de charger une version vanilla de WordPress.
+Par défaut, WordPress Playground charge une page d’accueil qui présente Playground. Pour commencer avec une installation WordPress vierge, ouvrez **Nouveau** dans le Dock et choisissez **WordPress vierge** dans la galerie de Blueprints.
 
 <!--
-1. Open Launch WordPress Panel
+![The Dock New button and the Blueprint gallery with Vanilla WordPress selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 -->
 
-1. Ouvrez le Panneau de Lancement WordPress
-   ![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
-
-<!--
-2. Select to load a Vanilla WordPress version
--->
-
-2. Sélectionnez pour charger une version Vanilla de WordPress
-   ![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
+![Le bouton Nouveau du Dock et la galerie de Blueprints avec WordPress vierge sélectionné](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 <!--
 ## If You're Learning WordPress
@@ -110,7 +108,11 @@ Playground logs you in as an administrator, so you can edit any page. Click **Ed
 
 Playground vous connecte en tant qu'administrateur, vous pouvez donc modifier n'importe quelle page. Cliquez sur **Modifier** pour éditer les articles et **Modifier le Site** pour mettre à jour la mise en page du site dans la barre d'outils supérieure pour ouvrir l'éditeur.
 
+<!--
 ![Editing WordPress websites](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
+-->
+
+![Modification de sites WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
 
 <!--
 Want to understand how a page layout was created? Open the **List View** (the three horizontal lines icon) to see every block that makes up the page.
@@ -118,7 +120,11 @@ Want to understand how a page layout was created? Open the **List View** (the th
 
 Vous voulez comprendre comment une mise en page a été créée ? Ouvrez la **Vue en Liste** (l'icône des trois lignes horizontales) pour voir chaque bloc qui compose la page.
 
+<!--
 ![Site Editor List view](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/site-editor-list-view.webp)
+-->
+
+![Vue en liste de l’Éditeur de site](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/site-editor-list-view.webp)
 
 <!--
 You can inspect columns, headings, images, and buttons — and see exactly how they're arranged. This is a powerful way to learn by example.
@@ -133,24 +139,16 @@ Vous pouvez inspecter les colonnes, les titres, les images et les boutons — et
 #### Explorez la Bibliothèque de Blueprints
 
 <!--
-At the Launch WordPress Playground panel, you will have access to the Blueprint Library, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground, Art Gallery, E-commerce, and Web Portfolio are some of the examples.
+Open **New** in the Dock to browse the Blueprint gallery. The gallery has examples for art galleries, stores, portfolios, learning environments, and many other starting points.
 -->
 
-Dans le panneau de Lancement de WordPress Playground, vous aurez accès à la Bibliothèque de Blueprints, un ensemble de plus de 40 blueprints pour vous inspirer et essayer différents types de sites web avec WordPress Playground. Galerie d'Art, E-commerce et Portfolio Web sont quelques exemples.
+Ouvrez **Nouveau** dans le Dock pour parcourir la galerie de Blueprints. Elle propose des exemples de galeries d’art, de boutiques, de portfolios, d’environnements d’apprentissage et de nombreux autres points de départ.
 
 <!--
-1. Open the Blueprint gallery at the Playground Launch Panel
+![Opening the Blueprint gallery from the Dock New button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 -->
 
-1. Ouvrez la galerie de Blueprints dans le Panneau de Lancement Playground
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
-
-<!--
-1. Navigate and select the Blueprint to launch at WordPress Playground
--->
-
-1. Naviguez et sélectionnez le Blueprint à lancer dans WordPress Playground
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
+![Ouvrir la galerie de Blueprints depuis le bouton Nouveau du Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 <!--
 ### Try New Features Safely
@@ -162,7 +160,13 @@ Dans le panneau de Lancement de WordPress Playground, vous aurez accès à la Bi
 When the WordPress team releases new features, you can test them in Playground before they affect your real site. Select any WordPress version from the settings panel to explore what's new — or what's coming next.
 -->
 
-Lorsque l'équipe WordPress publie de nouvelles fonctionnalités, vous pouvez les tester dans Playground avant qu'elles n'affectent votre vrai site. Sélectionnez n'importe quelle version de WordPress dans le panneau des paramètres pour explorer les nouveautés — ou ce qui arrive ensuite.
+Lorsque l’équipe WordPress publie de nouvelles fonctionnalités, vous pouvez les tester dans Playground avant qu’elles n’affectent votre vrai site. Ouvrez **Réglages du site** depuis le Dock pour choisir une version de WordPress ou de PHP.
+
+<!--
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+-->
+
+![Le panneau Réglages du site](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <!--
 ## If You Own a WordPress Site
@@ -184,14 +188,16 @@ Gérer un site web en direct signifie que chaque modification risque de casser q
 
 <!--
 Curious about a new SEO plugin? Want to compare two contact form options? Install them in Playground first:
+-->
 
+Curieux à propos d'un nouveau plugin SEO ? Vous voulez comparer deux options de formulaire de contact ? Installez-les d'abord dans Playground :
+
+<!--
 1. Open [playground.wordpress.net](https://playground.wordpress.net)
 2. Go to **Plugins → Add New**
 3. Search for and install any plugin
 4. Test it thoroughly
 -->
-
-Curieux à propos d'un nouveau plugin SEO ? Vous voulez comparer deux options de formulaire de contact ? Installez-les d'abord dans Playground :
 
 1. Ouvrez [playground.wordpress.net](https://playground.wordpress.net)
 2. Allez dans **Extensions → Ajouter**
@@ -204,7 +210,11 @@ Your real site stays untouched while you evaluate whether the plugin fits your n
 
 Votre vrai site reste intact pendant que vous évaluez si le plugin répond à vos besoins.
 
+<!--
 ![Installing Plugins](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/installing-plugins.webp)
+-->
+
+![Installation d’extensions](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/installing-plugins.webp)
 
 <!--
 ### Preview Theme Changes
@@ -242,7 +252,15 @@ Every Playground runs independently in your browser. Nothing syncs to any extern
 
 <div class="callout callout-info">
 
+<!--
+**Your Real Site Stays Safe**
+-->
+
 **Votre Vrai Site Reste en Sécurité**
+
+<!--
+Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
+-->
 
 Chaque Playground fonctionne indépendamment dans votre navigateur. Rien ne se synchronise avec un serveur externe, et rien n'affecte votre installation WordPress en direct.
 
@@ -276,6 +294,12 @@ Want to try a different font size? Adjust spacing? Change colors? Load a Playgro
 
 Vous voulez essayer une taille de police différente ? Ajuster l'espacement ? Changer les couleurs ? Chargez un Playground avec le même thème que vous utilisez en production et modifiez-le librement :
 
+<!--
+1. Open any page in the editor
+2. Select a block and modify its settings
+3. See the results immediately
+-->
+
 1. Ouvrez n'importe quelle page dans l'éditeur
 2. Sélectionnez un bloc et modifiez ses paramètres
 3. Voyez les résultats immédiatement
@@ -284,7 +308,7 @@ Vous voulez essayer une taille de police différente ? Ajuster l'espacement ? Ch
 If you like what you see, recreate those changes on your real site. If not, just close the tab — no cleanup required.
 -->
 
-Si vous aimez ce que vous voyez, recréez ces modifications sur votre vrai site. Sinon, fermez simplement l'onglet — aucun nettoyage requis.
+Si le résultat vous plaît, reproduisez ces modifications sur votre vrai site. Sinon, démarrez un autre Playground. L’expérience peut rester dans les sauvegardes automatiques récentes jusqu’à ce que de nouvelles sauvegardes la remplacent.
 
 <!--
 ## Yes, You Can Save Your Work
@@ -305,22 +329,40 @@ Si vous aimez ce que vous voyez, recréez ces modifications sur votre vrai site.
 ### Sauvegardez dans Votre Navigateur
 
 <!--
-1. Now WordPress Playground teels you if your Playground instance is unsaved on the top right
-2. Click on **Save** (yellow button)
-3. Set the name of your instance
+New Playgrounds are autosaved when browser storage is available. The Dock shows the save status next to the address field.
 -->
 
-1. Maintenant WordPress Playground vous indique si votre instance Playground n'est pas sauvegardée en haut à droite
-2. Cliquez sur **Sauvegarder** (bouton jaune)
-3. Définissez le nom de votre instance
-
-![Saving Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
+Les nouveaux Playgrounds sont enregistrés automatiquement lorsque le stockage du navigateur est disponible. Le Dock affiche l’état d’enregistrement à côté du champ d’adresse.
 
 <!--
-Playground generates a unique link for your saved site. Bookmark it, and you can return to exactly where you left off.
+![The Autosaved status in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
 -->
 
-Playground génère un lien unique pour votre site sauvegardé. Ajoutez-le à vos favoris, et vous pourrez revenir exactement là où vous vous êtes arrêté.
+![L’état Enregistré automatiquement dans le Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
+
+<!--
+Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
+-->
+
+Ouvrez **Vos Playgrounds** depuis le Dock pour retrouver les sauvegardes automatiques récentes. Playground conserve jusqu’à cinq sauvegardes automatiques récentes.
+
+<!--
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+-->
+
+![Le panneau Vos Playgrounds avec le Playground actuel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+
+<!--
+To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
+-->
+
+Pour conserver définitivement une sauvegarde automatique, cliquez sur l’état **Enregistré automatiquement** dans le Dock, choisissez **Enregistrer dans le stockage du navigateur**, puis enregistrez-la.
+
+<!--
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
+-->
+
+![Le panneau Stocker définitivement avec le nom du Playground et le bouton Enregistrer](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 <!--
 ### Download as a ZIP File
@@ -332,23 +374,27 @@ Playground génère un lien unique pour votre site sauvegardé. Ajoutez-le à vo
 Need to move your work elsewhere? Choose **Download as .zip** to export your entire Playground — including plugins, themes, and content. You can restore it later or even host it on a real server.
 -->
 
-Besoin de déplacer votre travail ailleurs ? Choisissez **Télécharger en .zip** pour exporter tout votre Playground — y compris les plugins, thèmes et contenu. Vous pouvez le restaurer plus tard ou même l'héberger sur un vrai serveur.
+Besoin de déplacer votre travail ailleurs ? Ouvrez **Exporter** et choisissez **Télécharger en .zip**. Le ZIP contient les fichiers, la base de données, les extensions, les thèmes, les téléversements et les modifications actuels. Vous pouvez le restaurer plus tard avec **Nouveau → Importer un ZIP** ou l’héberger sur un serveur compatible avec PHP et SQLite.
 
 <!--
-<div class="callout callout-tip">
-
-**Keep Your Playground Link**
-
-When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
-
-</div>
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 -->
 
+![Le panneau Exporter avec Télécharger au format .zip mis en évidence](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+
 <div class="callout callout-tip">
 
-**Gardez Votre Lien Playground**
+<!--
+**Keep a portable backup**
+-->
 
-Lorsque vous sauvegardez dans le navigateur, copiez l'URL unique qu'il génère. Ce lien est votre chemin de retour vers votre travail sauvegardé.
+**Conservez une sauvegarde portable**
+
+<!--
+Browser storage belongs to your browser profile and can be cleared or evicted. Export a ZIP when you need a file you can move or archive.
+-->
+
+Le stockage du navigateur appartient à votre profil de navigateur et peut être effacé ou évincé. Exportez un ZIP lorsque vous avez besoin d’un fichier à déplacer ou à archiver.
 
 </div>
 
@@ -360,12 +406,14 @@ Lorsque vous sauvegardez dans le navigateur, copiez l'URL unique qu'il génère.
 
 <!--
 Now that you know Playground is for everyone, explore further:
-
-- [Quick Start Guide](/quick-start-guide) — A 5-minute walkthrough of Playground basics
-- [About WordPress Playground](/about) — Learn what you can build, test, and launch
 -->
 
 Maintenant que vous savez que Playground est pour tous, explorez davantage :
+
+<!--
+- [Quick Start Guide](/quick-start-guide) — A 5-minute walkthrough of Playground basics
+- [About WordPress Playground](/about) — Learn what you can build, test, and launch
+-->
 
 - [Guide de Démarrage Rapide](/quick-start-guide) — Une présentation de 5 minutes des bases de Playground
 - [À Propos de WordPress Playground](/about) — Apprenez ce que vous pouvez construire, tester et lancer
