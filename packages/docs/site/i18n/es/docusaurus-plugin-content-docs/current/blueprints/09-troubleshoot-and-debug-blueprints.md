@@ -806,6 +806,8 @@ en el navegador para crear, validar y previsualizar Blueprints.
 
 <div class="callout callout-warning">
 
+<!-- **Caution** -->
+
 **Precaución**
 
 <!--
@@ -832,17 +834,25 @@ Algunas etapas de Blueprint, como [`writeFile`](/blueprints/steps), modifican
 el sistema de archivos interno. Otras, como [`runSql`](/blueprints/steps),
 modifican la base de datos.
 
-<!--
-To inspect the final state, install plugins such as
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and
-[`WPide`](https://wordpress.org/plugins/wpide/). You can see them in action at
-https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
--->
+<!-- To inspect the final state, use **Files**, **Database**, and **Logs** from the Dock. -->
 
-Para inspeccionar el estado final, instala plugins como
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) y
-[`WPide`](https://wordpress.org/plugins/wpide/). Puedes verlos en acción en
-https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
+Para inspeccionar el estado final, usa **Archivos**, **Base de datos** y **Registros** desde el Dock.
+
+<!-- Use **Files** to confirm the Blueprint created, moved, or edited the expected files. -->
+
+Usa **Archivos** para confirmar que el Blueprint creó, movió o editó los archivos esperados.
+
+<!-- ![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp) -->
+
+![El panel Archivos con un archivo de WordPress seleccionado y su contenido](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+
+<!-- Use **Database** to inspect tables and records changed by SQL or WordPress steps. -->
+
+Usa **Base de datos** para inspeccionar las tablas y los registros modificados por SQL o por etapas de WordPress.
+
+<!-- ![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp) -->
+
+![El panel Base de datos con las herramientas de inspección de la base de datos](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
 
 <!--
 You can also inspect a Playground instance from the browser console through
@@ -906,23 +916,15 @@ Puedes escribir tus propios mensajes con `error_log()` en una etapa
 [`runPHP`](/blueprints/steps) y luego revisar el panel **Logs** de Playground o
 la consola del navegador.
 
-<!-- ![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp) -->
+<!-- ![The PHP error log pane showing PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp) -->
 
-![Captura de errores de log](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
-
-<!--
-<div class="callout callout-info">
-
-When you download your Playground instance as a ZIP through the
-["Download as zip"](/web-instance) option, the archive
-also includes `debug.log`.
-</div>
--->
+![El panel del registro de errores de PHP con la salida del registro](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 
-Cuando descargas tu instancia de Playground como ZIP mediante la opción
-["Download as zip"](/web-instance), el archivo también incluye `debug.log`.
+<!-- When you download your Playground as a ZIP through **Export → Download as .zip**, the archive also includes `debug.log`. -->
+
+Cuando descargas tu Playground como ZIP mediante **Exportar → Descargar como .zip**, el archivo también incluye `debug.log`.
 
 </div>
 

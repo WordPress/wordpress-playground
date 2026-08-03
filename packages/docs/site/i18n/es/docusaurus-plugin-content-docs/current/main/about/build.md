@@ -51,9 +51,18 @@ Some more examples of this workflow:
 
 Puedes conectar tu instancia de Playground a un repositorio de GitHub y crear un Pull Request con los cambios que hayas realizado a través de la interfaz de WordPress, aprovechando el plugin [Create Block Theme](https://wordpress.org/plugins/create-block-theme/).
 
+<!--
+With this workflow, you could build a block theme completely in your browser and save your changes to GitHub, or you could improve/fix an existing one.
+-->
+
 Con este flujo de trabajo, podrías crear un tema de bloques completamente en tu navegador y guardar tus cambios en GitHub, o podrías mejorar/corregir uno existente.
 
 <iframe width="800" src="https://www.youtube.com/embed/94KnoFhQg1g" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<!--
+<p></p>
+Some more examples of this workflow:
+-->
 
 <p></p>
 Algunos ejemplos más de este flujo de trabajo:
@@ -62,62 +71,48 @@ Algunos ejemplos más de este flujo de trabajo:
 - [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
-## Synchronize your playground instance with a local folder and create GitHub Pull Requests
+## Synchronize your Playground with a local folder and create GitHub Pull Requests
 -->
 
-## Sincroniza tu instancia de Playground con una carpeta local y crea Pull Requests en GitHub
+## Sincroniza tu Playground con una carpeta local y crea Pull Requests en GitHub
 
 <!--
-![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
-
-With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
-
--   An empty directory – to save this Playground and start syncing
--   An existing directory – to load it here and start syncing
+In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save
+in a local directory**, click **Choose...**, and select a directory dedicated
+to this Playground. After granting write access, click **Save**. Playground
+copies the current site into the selected directory and overwrites files with
+matching names; it does not import an existing site from that directory.
 -->
 
-![Captura de un tipo de almacenamiento](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
-
-Con Google Chrome puedes sincronizar tu instancia de Playground con un directorio local, que puede ser:
-
-- Un directorio vacío: para guardar este Playground y comenzar a sincronizar
-- Un directorio existente: para cargarlo aquí y comenzar a sincronizar
+En el Dock, haz clic en el estado **Guardado automáticamente** o **Sin guardar**, selecciona **Guardar en un directorio local**, haz clic en **Elegir...** y selecciona un directorio dedicado a este Playground. Después de conceder acceso de escritura, haz clic en **Guardar**. Playground copia el sitio actual en el directorio seleccionado y sobrescribe los archivos con nombres coincidentes; no importa un sitio existente desde ese directorio.
 
 <!--
-<div class="callout callout-info">
-
-This feature is only available for Google Chrome for now. It won't work with other browsers yet.
-
-</div>
+![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 -->
 
-<div class="callout callout-info">
-
-Esta función solo está disponible por ahora para Google Chrome. Aún no funciona con otros navegadores.
-
-</div>
+![El panel Almacenar permanentemente con el almacenamiento en un directorio local seleccionado](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 
 <!--
-Regarding changes done on both sides of the connection:
-
--   Files changed in the Playground will be synchronized to your computer.
--   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
-
-With this workflow, you can create GitHub PRs directly from your changes made in your local directory.
-
-See here a little demo of this workflow in action:
-
-<iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-<p></p>
+Local-directory storage uses the File System Access API, so availability depends on browser and platform support for choosing and writing to directories. Chromium-based desktop browsers usually support it. Browsers without that capability can still use browser storage and ZIP export. See [Browser support](/developers/limitations#browser-support) for the broader compatibility model.
 -->
 
-En cuanto a los cambios realizados en ambos lados de la conexión:
+El almacenamiento en un directorio local usa la API de acceso al sistema de archivos, por lo que su disponibilidad depende de la compatibilidad del navegador y la plataforma para elegir directorios y escribir en ellos. Los navegadores de escritorio basados en Chromium suelen admitirlo. Los navegadores sin esta capacidad pueden seguir usando el almacenamiento del navegador y la exportación ZIP. Consulta [Compatibilidad con navegadores](/developers/limitations#compatibilidad-con-navegadores) para conocer el modelo de compatibilidad general.
 
-- Los archivos modificados en Playground se sincronizarán con tu computadora.
-- Los archivos modificados en tu computadora no se sincronizarán con Playground. Deberás hacer clic en el botón "Sincronizar archivos locales".
+<!--
+Files changed in Playground are written to the selected directory. Files changed on disk are not pulled into the running Playground automatically. For a local-directory Playground, open the **Saved** status menu in the Dock and choose **Reload files from disk** when you want Playground to read the current files from the directory.
+-->
+
+Los archivos modificados en Playground se escriben en el directorio seleccionado. Los archivos modificados en el disco no se cargan automáticamente en el Playground en ejecución. En un Playground guardado en un directorio local, abre el menú de estado **Guardado** del Dock y elige **Recargar archivos desde el disco** cuando quieras que Playground lea los archivos actuales del directorio.
+
+<!--
+With this workflow, you can create GitHub PRs directly from changes made in your local directory.
+-->
 
 Con este flujo de trabajo, puedes crear PRs en GitHub directamente a partir de los cambios realizados en tu directorio local.
+
+<!--
+See here a little demo of this workflow in action:
+-->
 
 Aquí tienes una pequeña demostración de este flujo de trabajo en acción:
 
@@ -141,7 +136,15 @@ Another interesting app built on top of Playground is **Translate Live** (see [e
 
 Playground se puede combinar con diferentes APIs para crear herramientas increíbles. Las posibilidades son infinitas.
 
+<!--
+You can [use WordPress Playground in Node.js](/developers/local-development/php-wasm-node) to create new tools. The [@php-wasm/node package](https://npmjs.org/@php-wasm/node), which ships the PHP WebAssembly runtime, is the package used for [https://playground.wordpress.net/](https://playground.wordpress.net/), for example.
+-->
+
 Puedes [usar WordPress Playground en Node.js](/developers/local-development/php-wasm-node) para crear nuevas herramientas. El paquete [@php-wasm/node](https://npmjs.org/@php-wasm/node), que incluye el runtime de PHP WebAssembly, es por ejemplo, el paquete utilizado para [https://playground.wordpress.net/](https://playground.wordpress.net/).
+
+<!--
+Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with OpenAI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+-->
 
 Otra aplicación interesante construida sobre Playground es **Translate Live** (ver [ejemplo](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) que, en combinación con Open AI, proporciona una herramienta de traducción de WordPress "in situ" donde las traducciones se pueden ver y modificar en su contexto real (ver ejemplo). Lee más sobre esta herramienta en [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 
@@ -161,7 +164,15 @@ Read [Introducing Offline Mode and PWA Support for WordPress Playground](https:/
 
 Cuando visitas por primera vez [playground.wordpress.net](https://playground.wordpress.net/), tu navegador almacena automáticamente en caché todos los archivos necesarios para usar Playground. A partir de ese momento, puedes acceder a [playground.wordpress.net](https://playground.wordpress.net/), incluso sin conexión a Internet, asegurando que puedas continuar trabajando en tus proyectos sin interrupciones.
 
+<!--
+You can also install Playground on your device as a Progressive Web App (PWA) to launch the Playground directly from your home screen—just like a native app.
+-->
+
 También puedes instalar Playground en tu dispositivo como una Aplicación Web Progresiva (PWA) para iniciar Playground directamente desde la pantalla de inicio, al igual que una aplicación nativa.
+
+<!--
+Read [Introducing Offline Mode and PWA Support for WordPress Playground](https://make.wordpress.org/playground/2024/08/05/offline-mode-and-pwa-support/) for more info.
+-->
 
 Puedes leer [Introducing Offline Mode and PWA Support for WordPress Playground](https://make.wordpress.org/playground/2024/08/05/offline-mode-and-pwa-support/) para más información.
 
