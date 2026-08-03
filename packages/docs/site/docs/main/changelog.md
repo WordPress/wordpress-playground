@@ -12,6 +12,72 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.48] (2026-08-03) 
+
+### Documentation
+
+- Support wildcard CORS proxy origins. ([#4156](https://github.com/WordPress/wordpress-playground/pull/4156))
+- [Docs] Document the Playground Dock and persistence workflow. ([#4081](https://github.com/WordPress/wordpress-playground/pull/4081))
+- [docs] Add doc-screenshots agent skill and regenerate documentation screenshots for the new UI. ([#4124](https://github.com/WordPress/wordpress-playground/pull/4124))
+- [docs] Adding WASM PHP modules page. ([#4010](https://github.com/WordPress/wordpress-playground/pull/4010))
+
+### PHP WebAssembly
+
+- [CLI] Fix concurrent SQLite stress fixture length. ([#4189](https://github.com/WordPress/wordpress-playground/pull/4189))
+- [PHP-WASM] Ignore null iframe relay messages. ([#4174](https://github.com/WordPress/wordpress-playground/pull/4174))
+- [PHP-WASM] Include dot entries in mounted directory scans. ([#4222](https://github.com/WordPress/wordpress-playground/pull/4222))
+- [PHP-WASM] Route Window APIs through dedicated MessagePorts. ([#4178](https://github.com/WordPress/wordpress-playground/pull/4178))
+- [Website] Display ZIP import progress. ([#4176](https://github.com/WordPress/wordpress-playground/pull/4176))
+
+### Website
+
+- Hide Blueprint file browser toggle on desktop. ([#4197](https://github.com/WordPress/wordpress-playground/pull/4197))
+- Keep ZIP drop listeners active through rerenders. ([#4214](https://github.com/WordPress/wordpress-playground/pull/4214))
+- Label mobile Blueprint file explorer as Files. ([#4181](https://github.com/WordPress/wordpress-playground/pull/4181))
+- Start a fresh Playground after interrupted OPFS sync. ([#4177](https://github.com/WordPress/wordpress-playground/pull/4177))
+- Center the Dock refresh button between the frame and URL field. ([#4225](https://github.com/WordPress/wordpress-playground/pull/4225))
+- Center the mobile Dock refresh button between the edge and URL field. ([#4226](https://github.com/WordPress/wordpress-playground/pull/4226))
+- Close Site Settings when a submission starts. ([#4201](https://github.com/WordPress/wordpress-playground/pull/4201))
+- Don't delete the Playground you're currently in. ([#4187](https://github.com/WordPress/wordpress-playground/pull/4187))
+- Drop the Dock operation toast to the Dock only when the pane leaves no room. ([#4212](https://github.com/WordPress/wordpress-playground/pull/4212))
+- Keep Blueprint loading status visible during filesystem setup. ([#4205](https://github.com/WordPress/wordpress-playground/pull/4205))
+- Keep Dock focus rings inside tool buttons. ([#4182](https://github.com/WordPress/wordpress-playground/pull/4182))
+- Keep ZIP reimports from reusing stored Playground slugs. ([#4199](https://github.com/WordPress/wordpress-playground/pull/4199))
+- Keep autosaves running after switching Playgrounds. ([#4196](https://github.com/WordPress/wordpress-playground/pull/4196))
+- Keep the ZIP drop overlay active over frames. ([#4179](https://github.com/WordPress/wordpress-playground/pull/4179))
+- Label the current Playground storage state. ([#4194](https://github.com/WordPress/wordpress-playground/pull/4194))
+- Map Playground chrome colors to the WordPress palette. ([#4191](https://github.com/WordPress/wordpress-playground/pull/4191))
+- Match the URL field height to adjacent controls. ([#4203](https://github.com/WordPress/wordpress-playground/pull/4203))
+- Refer to the current Playground in fresh-site settings. ([#4198](https://github.com/WordPress/wordpress-playground/pull/4198))
+- Restore the Dock when a drag loses pointer capture. ([#4216](https://github.com/WordPress/wordpress-playground/pull/4216))
+- Reuse MenuItem descriptions for contextual action hints. ([#4193](https://github.com/WordPress/wordpress-playground/pull/4193))
+- Separate Blueprint warnings and errors and preserve rounded Dock panes. ([#4097](https://github.com/WordPress/wordpress-playground/pull/4097))
+- Separate Playground storage status from save actions. ([#4192](https://github.com/WordPress/wordpress-playground/pull/4192))
+- Show ZIP import notices while autosave continues in background. ([#4195](https://github.com/WordPress/wordpress-playground/pull/4195))
+- Support filtered saved-site ZIP exports. ([#4217](https://github.com/WordPress/wordpress-playground/pull/4217))
+- Surface Blueprint editor action feedback in the Dock toast. ([#4143](https://github.com/WordPress/wordpress-playground/pull/4143))
+- [CI] Reclaim Cypress browser memory between Playground boots. ([#4204](https://github.com/WordPress/wordpress-playground/pull/4204))
+- [Docs] Route Playground guides through Dock workflows. ([#4082](https://github.com/WordPress/wordpress-playground/pull/4082))
+
+#### Blueprints
+
+- Preserve auto-login across browser-stored Playground reopens. ([#4185](https://github.com/WordPress/wordpress-playground/pull/4185))
+
+### Internal
+
+- [CI] Compare affected tasks with the last successful run. ([#4190](https://github.com/WordPress/wordpress-playground/pull/4190))
+
+### Various
+
+- [Website] Increase mobile Files heading to 18px. ([#4188](https://github.com/WordPress/wordpress-playground/pull/4188))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ashfame @fellyph
+
+
 ## [v3.1.47] (2026-07-27) 
 
 ### Documentation
