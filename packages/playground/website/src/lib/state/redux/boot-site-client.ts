@@ -24,6 +24,7 @@ import {
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
+	hasInterruptedInitialOpfsSync,
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
@@ -96,10 +97,7 @@ export function bootSiteClient(
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
-			} else if (
-				site.loadedFromStorage === true &&
-				site.metadata.initialOpfsSyncPending === true
-			) {
+			} else if (hasInterruptedInitialOpfsSync(site)) {
 				// If the initial OPFS sync was interrupted, the site files are incomplete
 				// and we can't boot this site.
 				dispatch(

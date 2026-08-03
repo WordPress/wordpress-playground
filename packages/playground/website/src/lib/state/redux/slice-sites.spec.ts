@@ -111,16 +111,25 @@ describe('stored sites', () => {
 		vi.doUnmock('./store');
 	});
 
-	it('classifies a normal autosave but not an unfinished Blueprint run as restorable', async () => {
+	it('only classifies bootable autosaves as restorable', async () => {
 		const { isRestorableAutosavedSite } = await import('./slice-sites');
 		const autosave = createSiteInfo({ slug: 'autosave' });
 		autosave.metadata.persistence = 'autosave';
+		const inProgressAutosave = createSiteInfo({ slug: 'in-progress' });
+		inProgressAutosave.metadata.persistence = 'autosave';
+		inProgressAutosave.metadata.initialOpfsSyncPending = true;
+		const interruptedAutosave = createSiteInfo({ slug: 'interrupted' });
+		interruptedAutosave.loadedFromStorage = true;
+		interruptedAutosave.metadata.persistence = 'autosave';
+		interruptedAutosave.metadata.initialOpfsSyncPending = true;
 		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
 		unfinishedRun.metadata.persistence = 'autosave';
 		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
 			'source-site';
 
 		expect(isRestorableAutosavedSite(autosave)).toBe(true);
+		expect(isRestorableAutosavedSite(inProgressAutosave)).toBe(true);
+		expect(isRestorableAutosavedSite(interruptedAutosave)).toBe(false);
 		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 
