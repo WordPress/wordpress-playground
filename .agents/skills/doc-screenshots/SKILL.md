@@ -17,68 +17,33 @@ to spec. Do not reimplement the drawing by hand.
 
 ## Workflow
 
-1.  **Capture.** Take screenshots at `deviceScaleFactor: 2`. Never eyeball
-    coordinates: record every target's bounding box programmatically and save
-    the boxes to JSON — including _regions_ (panels, sidebars, block trees),
-    not just buttons; eyeballed region outlines are the most common
-    quality-gate failure. With Playwright:
+1. **Capture.** Take screenshots at `deviceScaleFactor: 2`. Never eyeball coordinates: record every target's bounding box programmatically and save the boxes to JSON — including _regions_ (panels, sidebars, block trees), not just buttons; eyeballed region outlines are the most common quality-gate failure. With Playwright:
 
-        ```js
-        const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
-        // ... navigate, prepare UI state ...
-        const box = await page.locator('button:has-text("Export")').boundingBox();
-        await page.screenshot({ path: 'shot.png' });
-        ```
+    ```js
+    const viewport = { width: 1440, height: 900 };
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 2 });
+    // ... navigate, prepare UI state ...
+    const box = await page.locator('button:has-text("Export")').boundingBox();
+    await page.screenshot({ path: 'shot.png' });
+    ```
 
-        **Iframes:** Playwright's `locator(...).boundingBox()` already returns
-        main-viewport coordinates, even inside nested iframes (Playground nests
-        main page → `remote.html` wrapper → the WordPress scope frame) — use
-        the boxes as-is, no offsets. Only raw `getBoundingClientRect()` inside a
-        frame's own `evaluate()` (or the Chrome DevTools MCP tools) needs the
-        enclosing iframe's box offset added.
+    **Iframes:** Playwright's `locator(...).boundingBox()` already returns main-viewport coordinates, even inside nested iframes (Playground nests main page → `remote.html` wrapper → the WordPress scope frame) — use the boxes as-is, no offsets. Only raw `getBoundingClientRect()` inside a frame's own `evaluate()` (or the Chrome DevTools MCP tools) needs the enclosing iframe's box offset added.
 
-        **WordPress modals:** editor screens open welcome guides ("Edit your
-        site" → Get started) whose overlay swallows clicks; some have no
-        `aria-label="Close"` button. Dismiss with an Escape loop — while
-        `.components-modal__screen-overlay` exists, press Escape on the frame's
-        body, wait ~1s — and retry the blocked click between attempts. The modal
-        can appear _after_ the page looks loaded, so dismiss lazily around the
-        click, not once up front.
+    **WordPress modals:** Editor screens open welcome guides ("Edit your site" → Get started) whose overlay swallows clicks; some have no `aria-label="Close"` button. Dismiss with an Escape loop — while `.components-modal__screen-overlay` exists, press Escape on the frame's body, wait ~1s — and retry the blocked click between attempts. The modal can appear _after_ the page looks loaded, so dismiss lazily around the click, not once up front.
 
-        Prefer driving the browser from Node with the repo's own
-        `node_modules/playwright`; otherwise `pip install playwright &&
+    Prefer driving the browser from Node with the repo's own `node_modules/playwright`; otherwise run `pip install playwright && playwright install chromium`, or use the Chrome DevTools MCP capture tools.
 
-    playwright install chromium`, or use the Chrome DevTools MCP capture
-    tools.
+    Before capturing, clean up dev-environment artifacts such as update nags, debug badges, and plugin notices. They must not appear in docs imagery.
 
-        Before capturing, clean up dev-environment artifacts: update nags, debug
-        badges, plugin notices. They must not appear in docs imagery.
+2. **Author the config.** All geometry is in CSS px relative to the screenshot's top-left. Write a config JSON using the schema in the script's docstring; read it first. Runnable examples of both modes are in `examples/` and share the bundled `sample-shot.webp`. Then run:
 
-2.  **Author the config.** All geometry is in CSS px relative to the
-    screenshot's top-left. Write a config JSON (schema in the script's
-    docstring — read it; runnable examples of both modes are in `examples/`,
-    sharing the bundled `sample-shot.webp`) and run:
+    ```bash
+    python .agents/skills/doc-screenshots/scripts/annotate.py config.json --crops crops/
+    ```
 
-        ```bash
-        python .agents/skills/doc-screenshots/scripts/annotate.py config.json --crops crops/
-        ```
+    The script needs Python with Pillow. If no suitable interpreter is active, create a virtual environment in the session scratchpad with `python3 -m venv <scratchpad>/venv && <scratchpad>/venv/bin/pip install Pillow`, then call that interpreter directly. The script validates the config up front and exits with a readable `config error:` message on bad input; `output` must be a `.webp` path.
 
-        The script needs Python with Pillow. If no suitable interpreter is
-        active, create a venv in the session scratchpad (`python3 -m venv
-
-    <scratchpad>/venv && <scratchpad>/venv/bin/pip install Pillow`) and call
-that interpreter directly. The script validates the config up front and
-exits with a readable `config error:`message on bad input;`output`    must be a`.webp` path.
-
-3.  **Quality gate — actually look.** Read the rendered WEBP at full size,
-    plus the zoomed crops the script saves of every arrowhead and outline
-    (named `<output-stem>-NN-<spot>.png`, so one crops dir can serve all
-    configs of a batch).
-    Check: tip gaps even (5–7px short of each outline), halos unbroken,
-    no arrow crosses another arrow or a sibling annotation, no card text
-    overflow warnings on stderr, artifacts removed. Also sanity-check
-    legibility at docs width (~860px) and mobile (~343px) — if labels become
-    unreadable, simplify rather than shrink. Fix and re-render until clean.
+3. **Quality gate — actually look.** Read the rendered WEBP at full size, plus the zoomed crops the script saves of every arrowhead and outline (named `<output-stem>-NN-<spot>.png`, so one crops directory can serve every config in a batch). Check that tip gaps are even (5–7px short of each outline), halos are unbroken, no arrow crosses another arrow or a sibling annotation, stderr has no card-text overflow warnings, and artifacts are removed. Also sanity-check legibility at docs width (~860px) and mobile (~343px); if labels become unreadable, simplify rather than shrink. Fix and re-render until clean.
 
 ## Choosing the annotation mode
 
