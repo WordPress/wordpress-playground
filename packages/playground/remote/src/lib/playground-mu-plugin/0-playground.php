@@ -48,10 +48,9 @@ add_action('admin_head', function () {
 /**
  * Keeps editor snackbars above the floating Playground Dock.
  *
- * The Dock lives two iframe layers above WordPress. Playground's scoped
- * requests share its origin, so wp-admin can read the Dock geometry without
- * introducing a second host-side state channel. Embedded or isolated contexts
- * that cannot reach the Dock keep WordPress's native notice positioning.
+ * The host measures the Dock and relays its bottom offset through the
+ * Playground client. postMessage crosses the iframe boundary even when the
+ * host, remote, and WordPress documents cannot inspect each other's DOM.
  */
 add_action('admin_footer', function () {
 	?>
@@ -63,86 +62,36 @@ add_action('admin_footer', function () {
 	</style>
 	<script>
 		(function () {
-			let ancestorWindow = window;
-			let frameLeft = 0;
-			let frameTop = 0;
-			let dock;
-
-			while (ancestorWindow !== ancestorWindow.parent) {
-				try {
-					const frame = ancestorWindow.frameElement;
-					if (!frame) {
-						return;
-					}
-					const frameRect = frame.getBoundingClientRect();
-					frameLeft += frameRect.left;
-					frameTop += frameRect.top;
-					ancestorWindow = ancestorWindow.parent;
-					dock = ancestorWindow.document.querySelector(
-						'[data-playground-dock]'
-					);
-					if (dock) {
-						break;
-					}
-				} catch {
+			const root = document.documentElement;
+			window.addEventListener('message', function (event) {
+				// The remote may be cross-origin, so its window identity is the
+				// trust boundary for this presentation-only message.
+				if (
+					event.source !== window.parent ||
+					event.data?.type !== 'playground-editor-notice-bottom-offset'
+				) {
 					return;
 				}
-			}
-
-			if (!dock) {
-				return;
-			}
-
-			const root = document.documentElement;
-			const updateNoticePosition = function () {
-				const dockRect = dock.getBoundingClientRect();
-				const frameBottom = frameTop + window.innerHeight;
-				const frameCenter = frameLeft + window.innerWidth / 2;
-				const overlap = frameBottom - dockRect.top;
-				const overlapsNotices =
-					dockRect.width > 0 &&
-					dockRect.height > 0 &&
-					overlap > 0 &&
-					dockRect.left < frameCenter &&
-					dockRect.right > frameCenter;
-
+				const bottom = event.data.bottom;
+				const hasBottomOffset =
+					typeof bottom === 'number' &&
+					Number.isFinite(bottom) &&
+					bottom > 0;
 				root.classList.toggle(
 					'playground-dock-overlaps-admin-notices',
-					overlapsNotices
+					hasBottomOffset
 				);
-				if (overlapsNotices) {
+				if (hasBottomOffset) {
 					root.style.setProperty(
 						'--playground-dock-notice-bottom',
-						`${overlap + 12}px`
+						`${bottom}px`
 					);
 				} else {
 					root.style.removeProperty(
 						'--playground-dock-notice-bottom'
 					);
 				}
-			};
-
-			const resizeObserver = new ResizeObserver(updateNoticePosition);
-			resizeObserver.observe(dock);
-			const mutationObserver = new MutationObserver(updateNoticePosition);
-			mutationObserver.observe(dock, {
-				attributes: true,
-				attributeFilter: ['class', 'style'],
 			});
-			window.addEventListener('resize', updateNoticePosition);
-			ancestorWindow.addEventListener('resize', updateNoticePosition);
-			dock.addEventListener('transitionend', updateNoticePosition);
-			dock.addEventListener('animationend', updateNoticePosition);
-
-			window.addEventListener('pagehide', function () {
-				resizeObserver.disconnect();
-				mutationObserver.disconnect();
-				ancestorWindow.removeEventListener('resize', updateNoticePosition);
-				dock.removeEventListener('transitionend', updateNoticePosition);
-				dock.removeEventListener('animationend', updateNoticePosition);
-			}, { once: true });
-
-			updateNoticePosition();
 		})();
 	</script>
 	<?php

@@ -64,6 +64,7 @@ import { DockTogglePill } from './dock-toggle-pill';
 import {
 	DOCK_DRAG_EDGE,
 	DOCK_OPERATION_TOAST_MIN_HEIGHT,
+	DOCK_PANE_GAP,
 	getDockOperationToastStyle,
 	getDockPaneStyle,
 } from './dock-positioning';
@@ -230,6 +231,7 @@ export function Dock({
 	const paneCopy = PANE_COPY[section];
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
+	const activeClient = clientInfo?.client;
 	const isEditorSection =
 		section === 'blueprint' || section === 'files' || section === 'mail';
 	// Logs and Terminal hold long monospace records, so they get a wider pane.
@@ -343,6 +345,61 @@ export function Dock({
 		}
 		return () => observer.disconnect();
 	}, []);
+
+	useEffect(() => {
+		const dock = dockRef.current;
+		if (!activeClient || !dock) {
+			return;
+		}
+
+		const updateEditorNoticePosition = () => {
+			const dockRect = dock.getBoundingClientRect();
+			const viewportCenter = window.innerWidth / 2;
+			const overlap = window.innerHeight - dockRect.top;
+			const overlapsNotices =
+				!isMobile &&
+				!isFullWidth &&
+				dockRect.width > 0 &&
+				dockRect.height > 0 &&
+				overlap > 0 &&
+				dockRect.left < viewportCenter &&
+				dockRect.right > viewportCenter;
+			void activeClient.setEditorNoticeBottomOffset(
+				overlapsNotices ? overlap + DOCK_PANE_GAP : undefined
+			);
+		};
+
+		let resizeObserver: ResizeObserver | undefined;
+		if (typeof ResizeObserver !== 'undefined') {
+			resizeObserver = new ResizeObserver(updateEditorNoticePosition);
+			resizeObserver.observe(dock);
+		}
+		const mutationObserver = new MutationObserver(
+			updateEditorNoticePosition
+		);
+		mutationObserver.observe(dock, {
+			attributes: true,
+			attributeFilter: ['class', 'style'],
+		});
+		window.addEventListener('resize', updateEditorNoticePosition);
+		dock.addEventListener('transitionend', updateEditorNoticePosition);
+		dock.addEventListener('animationend', updateEditorNoticePosition);
+		updateEditorNoticePosition();
+
+		return () => {
+			resizeObserver?.disconnect();
+			mutationObserver.disconnect();
+			window.removeEventListener('resize', updateEditorNoticePosition);
+			dock.removeEventListener(
+				'transitionend',
+				updateEditorNoticePosition
+			);
+			dock.removeEventListener(
+				'animationend',
+				updateEditorNoticePosition
+			);
+		};
+	}, [activeClient, isFullWidth, isMobile]);
 
 	useEffect(() => {
 		/** Keeps floating geometry inside the live viewport. */
@@ -1272,10 +1329,8 @@ export function Dock({
 					</button>
 				</div>
 			)}
-			{/* The web MU-plugin uses this stable hook to keep WordPress notices clear. */}
 			<nav
 				ref={dockRef}
-				data-playground-dock=""
 				className={classNames(css.dock, {
 					[css.dockCollapsed]: isCollapsed,
 					[css.dockFull]: !isMobile && isFullWidth,
