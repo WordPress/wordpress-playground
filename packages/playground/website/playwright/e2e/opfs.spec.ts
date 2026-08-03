@@ -630,7 +630,7 @@ test('should start a new Playground after an initial OPFS sync was interrupted',
 	await website.waitForNestedIframes();
 });
 
-test('should not offer an interrupted initial OPFS sync as a recent autosave', async ({
+test('should not offer an unfinished initial OPFS sync loaded from storage as a recent autosave', async ({
 	website,
 	browserName,
 }) => {

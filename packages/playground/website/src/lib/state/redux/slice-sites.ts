@@ -35,7 +35,7 @@ import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
-	hasInterruptedInitialOpfsSync,
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isStoredSite,
 	isTemporarySite,
@@ -54,7 +54,7 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
-	hasInterruptedInitialOpfsSync,
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	isOpfsBackedSite,
@@ -410,9 +410,9 @@ export function pruneAutosavedSites(
 /**
  * Checks whether a stored Playground may be offered as an autosave.
  *
- * An interrupted first OPFS copy is incomplete and cannot boot. A Blueprint
- * run also uses autosave persistence before that copy succeeds. Callers
- * withhold both from Recent and matching-setup restore suggestions.
+ * An unfinished first OPFS copy loaded from storage cannot boot yet. A
+ * Blueprint run also uses autosave persistence before that copy succeeds.
+ * Callers withhold both from Recent and matching-setup restore suggestions.
  *
  * @param site The Playground whose autosave lifecycle should be checked.
  * @returns Whether the Playground is a restorable autosave.
@@ -420,7 +420,7 @@ export function pruneAutosavedSites(
 export function isRestorableAutosavedSite(site: SiteInfo) {
 	return (
 		isAutosavedSite(site) &&
-		!hasInterruptedInitialOpfsSync(site) &&
+		!hasUnfinishedInitialOpfsSyncFromStorage(site) &&
 		!isUnfinishedBlueprintRun(site)
 	);
 }

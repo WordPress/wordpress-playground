@@ -83,13 +83,14 @@ export function isTemporarySite(site: SiteInfo) {
 }
 
 /**
- * Indicates whether a site's first OPFS copy stopped in an earlier document.
+ * Indicates whether a site was loaded before its first OPFS copy completed.
  *
  * New stored Playgrounds keep this flag while their live client copies its
- * initialized files. Once the record is loaded in a later document, however,
- * the same flag means the files are incomplete and the site cannot be booted.
+ * initialized files. If another document loads the record before that flag is
+ * cleared, the files are not yet bootable. The creating document may still be
+ * syncing or may have stopped.
  */
-export function hasInterruptedInitialOpfsSync(site: SiteInfo) {
+export function hasUnfinishedInitialOpfsSyncFromStorage(site: SiteInfo) {
 	return (
 		site.loadedFromStorage === true &&
 		isOpfsBackedSite(site) &&

@@ -118,10 +118,12 @@ describe('stored sites', () => {
 		const inProgressAutosave = createSiteInfo({ slug: 'in-progress' });
 		inProgressAutosave.metadata.persistence = 'autosave';
 		inProgressAutosave.metadata.initialOpfsSyncPending = true;
-		const interruptedAutosave = createSiteInfo({ slug: 'interrupted' });
-		interruptedAutosave.loadedFromStorage = true;
-		interruptedAutosave.metadata.persistence = 'autosave';
-		interruptedAutosave.metadata.initialOpfsSyncPending = true;
+		const storedUnfinishedAutosave = createSiteInfo({
+			slug: 'stored-unfinished',
+		});
+		storedUnfinishedAutosave.loadedFromStorage = true;
+		storedUnfinishedAutosave.metadata.persistence = 'autosave';
+		storedUnfinishedAutosave.metadata.initialOpfsSyncPending = true;
 		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
 		unfinishedRun.metadata.persistence = 'autosave';
 		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
@@ -129,7 +131,7 @@ describe('stored sites', () => {
 
 		expect(isRestorableAutosavedSite(autosave)).toBe(true);
 		expect(isRestorableAutosavedSite(inProgressAutosave)).toBe(true);
-		expect(isRestorableAutosavedSite(interruptedAutosave)).toBe(false);
+		expect(isRestorableAutosavedSite(storedUnfinishedAutosave)).toBe(false);
 		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 
