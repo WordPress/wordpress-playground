@@ -1,7 +1,7 @@
 ---
 title: ওয়েব ইনস্ট্যান্স
 slug: /web-instance
-description: playground.wordpress.net ওয়েব ইন্টারফেসের একটি বিস্তারিত নির্দেশিকা, যেখানে টুলবার, সেটিংস এবং ইনস্ট্যান্স ম্যানেজার নিয়ে আলোচনা করা হয়েছে।
+description: playground.wordpress.net-এর ওয়েব ইন্টারফেসে Dock, সংরক্ষণ, সেটিংস এবং সাইট টুল ব্যবহার করার বিস্তারিত নির্দেশিকা।
 ---
 
 <!--
@@ -11,189 +11,420 @@ description: playground.wordpress.net ওয়েব ইন্টারফে�
 # ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েব ইনস্ট্যান্স
 
 <!--
-[https://playground.wordpress.net/](https://playground.wordpress.net/) is a versatile web tool that allows developers to run WordPress in a browser without needing a server. This environment is particularly useful for testing plugins, themes, and other WordPress features quickly and efficiently.
+[https://playground.wordpress.net/](https://playground.wordpress.net/) runs
+WordPress in your browser without a server. The page opens a Playground, shows
+the WordPress site, and keeps the site tools in the **Dock**.
 -->
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) একটি বহুমুখী ওয়েব টুল যা ডেভেলপারদের কোনো সার্ভার ছাড়াই ব্রাউজারে ওয়ার্ডপ্রেস চালানোর সুযোগ দেয়। এই পরিবেশটি প্লাগইন, থিম এবং অন্যান্য ওয়ার্ডপ্রেস ফিচার দ্রুত এবং দক্ষতার সাথে পরীক্ষা করার জন্য বিশেষভাবে কার্যকর।
+[https://playground.wordpress.net/](https://playground.wordpress.net/) কোনো সার্ভার ছাড়াই
+আপনার ব্রাউজারে ওয়ার্ডপ্রেস চালায়। পেজটি একটি Playground খোলে, ওয়ার্ডপ্রেস সাইটটি
+দেখায় এবং সাইটের টুলগুলো **Dock**-এ রাখে।
 
 <!--
-Some key features:
+![The Playground web instance with the Dock visible at the bottom of the page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 -->
 
-কিছু প্রধান বৈশিষ্ট্য:
+![পেজের নিচে Dock-সহ Playground ওয়েব ইনস্ট্যান্স](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 
 <!--
--   **Browser-based**: No local server setup required.
--   **Instant Setup**: Run WordPress with a single click.
--   **Testing Environment**: Ideal for testing plugins and themes.
+The Dock has an address field, a save status, layout controls, and destinations for creating, storing, inspecting, and exporting Playgrounds.
 -->
 
-- **ব্রাউজার-ভিত্তিক**: কোনো লোকাল সার্ভার সেটআপের প্রয়োজন নেই।
-- **তাৎক্ষণিক সেটআপ**: এক ক্লিকেই ওয়ার্ডপ্রেস চালু করুন।
-- **টেস্টিং এনভায়রনমেন্ট**: প্লাগইন এবং থিম পরীক্ষার জন্য আদর্শ।
-
-<!--
-The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
--->
-
-[কোয়েরি প্যারামস API](/developers/apis/query-api/) আপনাকে সরাসরি একটি প্লেগ্রাউন্ড ইনস্ট্যান্সে নির্দিষ্ট কনফিগারেশন লোড করার অনুমতি দেয়। এর মধ্যে রয়েছে একটি নির্দিষ্ট ওয়ার্ডপ্রেস সংস্করণ, থিম বা প্লাগইন সেট করা। আপনি ব্লুপ্রিন্ট ব্যবহার করে আরও জটিল সেটআপও নির্ধারণ করতে পারেন ([উদাহরণ এখানে](/quick-start-guide#try-a-block-a-theme-or-a-plugin) দেখুন)।
-
-<!--
-From the Playground website, some toolbars are also available to customize your Playground instance and provide quick access to some resources and utilities.
--->
-
-প্লেগ্রাউন্ড ওয়েবসাইট থেকে, আপনার প্লেগ্রাউন্ড ইনস্ট্যান্স কাস্টমাইজ করতে এবং কিছু রিসোর্স ও ইউটিলিটিতে দ্রুত অ্যাক্সেস পেতে কিছু টুলবারও উপলব্ধ।
-
-<!--
-![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
--->
-
-![প্লেগ্রাউন্ড টুলবার স্ন্যাপশট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
+Dock-এ একটি ঠিকানা ফিল্ড, সংরক্ষণের স্ট্যাটাস, লেআউট কন্ট্রোল এবং Playground তৈরি,
+সংরক্ষণ, পরিদর্শন ও এক্সপোর্ট করার গন্তব্য রয়েছে।
 
 <!--
 ## Customize Playground
 -->
 
-## প্লেগ্রাউন্ড কাস্টমাইজ করুন
+## Playground কাস্টমাইজ করুন
 
 <!--
-On the toolbar, you'll find:
+The Dock includes these destinations:
 -->
 
-টুলবারে আপনি পাবেন:
+Dock-এ নিচের গন্তব্যগুলো রয়েছে:
 
 <!--
--   **Playground Settings**: A panel for configuring your current instance, like PHP and WordPress versions.
--   **Playground Manager**: This panel lets you manage WordPress Playground instances, allowing you to save, import, and export them.
+- **New**: Start from the Blueprint gallery, a public Blueprint URL, a new
+  Blueprint, a pull request preview, a GitHub repository, or an imported `.zip`
+  file.
+- **Playgrounds**: Switch between recent and saved Playgrounds.
+- **Blueprint**: View, edit, export, and run the current Blueprint.
+- **Site Settings**: Configure WordPress version, PHP version, language,
+  networking, and multisite.
+- **Database**: Inspect or download the SQLite database and open database tools.
+- **Files**: Browse and edit files in the WordPress filesystem.
+- **Logs**: Inspect PHP errors, warnings, and notices.
+- **Export**: Download a `.zip`, copy the original setup link, or export selected
+  files to a GitHub pull request.
 -->
 
-- **প্লেগ্রাউন্ড সেটিংস**: আপনার বর্তমান ইনস্ট্যান্স কনফিগার করার জন্য একটি প্যানেল, যেমন PHP এবং ওয়ার্ডপ্রেস সংস্করণ।
-- **প্লেগ্রাউন্ড ম্যানেজার**: এই প্যানেলটি আপনাকে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ইনস্ট্যান্সগুলো পরিচালনা করতে দেয়, যার মাধ্যমে আপনি সেগুলোকে সংরক্ষণ, ইম্পোর্ট এবং এক্সপোর্ট করতে পারেন।
+- **New**: Blueprint gallery, পাবলিক Blueprint URL, নতুন Blueprint, পুল রিকোয়েস্ট
+  প্রিভিউ, GitHub রিপোজিটরি অথবা ইম্পোর্ট করা `.zip` ফাইল থেকে শুরু করুন।
+- **Playgrounds**: সাম্প্রতিক ও সংরক্ষিত Playground-গুলোর মধ্যে পরিবর্তন করুন।
+- **Blueprint**: বর্তমান Blueprint দেখুন, সম্পাদনা করুন, এক্সপোর্ট করুন ও চালান।
+- **Site Settings**: ওয়ার্ডপ্রেস সংস্করণ, PHP সংস্করণ, ভাষা, নেটওয়ার্কিং এবং
+  মাল্টিসাইট কনফিগার করুন।
+- **Database**: SQLite ডেটাবেস পরিদর্শন বা ডাউনলোড করুন এবং ডেটাবেস টুল খুলুন।
+- **Files**: ওয়ার্ডপ্রেস ফাইলসিস্টেমের ফাইল ব্রাউজ ও সম্পাদনা করুন।
+- **Logs**: PHP-এর ত্রুটি, সতর্কতা ও নোটিশ দেখুন।
+- **Export**: `.zip` ডাউনলোড করুন, মূল সেটআপ লিংক কপি করুন অথবা নির্বাচিত ফাইল
+  GitHub পুল রিকোয়েস্টে এক্সপোর্ট করুন।
 
 <!--
-### Playground Settings
+## Navigate inside WordPress
 -->
 
-### প্লেগ্রাউন্ড সেটিংস
+## ওয়ার্ডপ্রেসের ভেতরে নেভিগেট করুন
 
 <!--
-![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
+Use the Dock address field to open a path inside the current WordPress site.
+For example, enter `/wp-admin/` to open the dashboard or
+`/wp-admin/plugins.php` to open the Plugins screen. **Refresh page** reloads
+the current WordPress path.
 -->
 
-![প্লেগ্রাউন্ড ইনস্ট্যান্সে কাস্টমাইজ প্লেগ্রাউন্ড উইন্ডোর স্ন্যাপশট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
+বর্তমান ওয়ার্ডপ্রেস সাইটের কোনো পাথ খুলতে Dock-এর ঠিকানা ফিল্ড ব্যবহার করুন। যেমন,
+ড্যাশবোর্ড খুলতে `/wp-admin/` অথবা Plugins স্ক্রিন খুলতে
+`/wp-admin/plugins.php` লিখুন। **Refresh page** বর্তমান ওয়ার্ডপ্রেস পাথটি পুনরায়
+লোড করে।
 
 <!--
-The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
+![The Refresh page button in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 -->
 
-**প্লেগ্রাউন্ড সেটিংস প্যানেল** থেকে উপলব্ধ বিকল্পগুলো নিম্নলিখিত [কোয়েরি API বিকল্পগুলোর](/developers/apis/query-api#available-options) সাথে সামঞ্জস্যপূর্ণ:
+![Dock-এ Refresh page বোতাম](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <!--
--   `language`: Sets the WordPress instance language.
--   `multisite`: Enables WordPress multisite support.
--   `networking`: Grants network access, allowing fetches from the WordPress plugin directory and internal WordPress APIs.
--   `php`: Specifies the PHP version for the instance.
--   `wp`: Defines the WordPress version.
+You can also use the [Query Params API](/developers/apis/query-api/) to open Playground with a specific setup, such as a WordPress version, PHP version, plugin, theme, or Blueprint.
 -->
 
-- `language`: ওয়ার্ডপ্রেস ইনস্ট্যান্সের ভাষা সেট করে।
-- `multisite`: ওয়ার্ডপ্রেস মাল্টিসাইট সাপোর্ট চালু করে।
-- `networking`: নেটওয়ার্ক অ্যাক্সেস প্রদান করে, যা ওয়ার্ডপ্রেস প্লাগইন ডিরেক্টরি এবং অভ্যন্তরীণ ওয়ার্ডপ্রেস API গুলো থেকে ডেটা নিয়ে আসার সুযোগ দেয়।
-- `php`: ইনস্ট্যান্সের জন্য PHP সংস্করণ নির্দিষ্ট করে।
-- `wp`: ওয়ার্ডপ্রেস সংস্করণ নির্ধারণ করে।
+নির্দিষ্ট ওয়ার্ডপ্রেস সংস্করণ, PHP সংস্করণ, প্লাগইন, থিম বা Blueprint-সহ Playground
+খুলতে আপনি [Query Params API](/developers/apis/query-api/) ব্যবহার করতে পারেন।
 
 <!--
-## Playground Manager
+## Understand the save status
 -->
 
-## প্লেগ্রাউন্ড ম্যানেজার
+## সংরক্ষণের স্ট্যাটাস বুঝুন
 
 <!--
-![Playground settings panel allow users to manage multiple instances](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
+The status next to the address field tells you how the current Playground is stored:
 -->
 
-![প্লেগ্রাউন্ড সেটিংস প্যানেল ব্যবহারকারীদের একাধিক ইনস্ট্যান্স পরিচালনা করতে দেয়](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
+ঠিকানা ফিল্ডের পাশের স্ট্যাটাসটি বর্তমান Playground কীভাবে সংরক্ষিত আছে তা জানায়:
 
 <!--
-This panel enables users to manage Playground instances. It displays a list of saved Playgrounds and provides access to the current Playground's settings, along with a **Save Button** to store your configurations locally in your browser for later reloading.
+- **Autosaved** means the Playground is stored in this browser and can be recovered from **Your Playgrounds**. Playground keeps up to five recent autosaves.
+- **Saved** means the Playground was stored permanently in browser storage or saved to a local directory.
+- **Unsaved** means the Playground has not been saved. Temporary Playgrounds, including `?storage=temp`, are lost when the tab is closed or refreshed.
 -->
 
-এই প্যানেলটি ব্যবহারকারীদের প্লেগ্রাউন্ড ইনস্ট্যান্স পরিচালনা করতে সক্ষম করে। এটি সংরক্ষিত প্লেগ্রাউন্ডগুলোর একটি তালিকা প্রদর্শন করে এবং বর্তমান প্লেগ্রাউন্ডের সেটিংসে অ্যাক্সেস প্রদান করে, সাথে একটি **সেভ বাটন** থাকে যা আপনার কনফিগারেশনগুলো পরবর্তীতে পুনরায় লোড করার জন্য স্থানীয়ভাবে আপনার ব্রাউজারে সংরক্ষণ করে।
+- **Autosaved** মানে Playground এই ব্রাউজারে সংরক্ষিত এবং **Your Playgrounds** থেকে
+  ফিরিয়ে আনা যায়। Playground সর্বোচ্চ পাঁচটি সাম্প্রতিক autosave রাখে।
+- **Saved** মানে Playground ব্রাউজার স্টোরেজে স্থায়ীভাবে রাখা হয়েছে অথবা একটি
+  লোকাল ডিরেক্টরিতে সংরক্ষিত হয়েছে।
+- **Unsaved** মানে Playground সংরক্ষিত হয়নি। `?storage=temp`-সহ অস্থায়ী Playground
+  ট্যাব বন্ধ বা রিফ্রেশ করলে হারিয়ে যায়।
 
 <!--
-![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
+Click **Autosaved** or **Unsaved** to open **Store permanently**.
 -->
 
-![প্লেগ্রাউন্ড সেভ বাটন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
+**Store permanently** খুলতে **Autosaved** অথবা **Unsaved**-এ ক্লিক করুন।
 
 <!--
-Once you click on save, an instance will be stored with a generated name to be revisited anytime. The Playground Manager also has options to export(Additional actions menu) and import(Import actions menu) WordPress Playground instances:
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 -->
 
-আপনি সেভ-এ ক্লিক করলেই, একটি জেনারেটেড নাম সহ ইনস্ট্যান্সটি সংরক্ষিত হবে যা যেকোনো সময় পুনরায় দেখা যাবে। প্লেগ্রাউন্ড ম্যানেজারে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ইনস্ট্যান্স এক্সপোর্ট (অতিরিক্ত অ্যাকশন মেনু) এবং ইম্পোর্ট (ইম্পোর্ট অ্যাকশন মেনু) করার বিকল্পও রয়েছে:
+![Playground নাম এবং Save বোতাম সহ Store permanently পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 <!--
-### Additional actions menu
+Store permanently can keep an autosaved Playground in browser storage so autosave pruning no longer removes it. In browsers that support the File System Access API, it can also save the Playground to a local directory.
 -->
 
-### অতিরিক্ত অ্যাকশন মেনু
+Store permanently একটি autosaved Playground-কে ব্রাউজার স্টোরেজে স্থায়ীভাবে রাখতে
+পারে, যাতে পুরোনো autosave মুছে ফেলার সময় এটি বাদ না যায়। File System Access API
+সমর্থিত ব্রাউজারে Playground একটি লোকাল ডিরেক্টরিতেও সংরক্ষণ করা যায়।
 
 <!--
-![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-additional-actions.webp)
+Browser storage still belongs to the browser. The browser may remove stored data when storage pressure or privacy settings require it. Export a ZIP when you need a portable backup.
 -->
 
-![অতিরিক্ত অ্যাকশন মেনু](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-additional-actions.webp)
+ব্রাউজার স্টোরেজ ব্রাউজারেরই অংশ। স্টোরেজের চাপ বা গোপনীয়তা সেটিংসের কারণে ব্রাউজার
+সংরক্ষিত ডেটা সরিয়ে ফেলতে পারে। বহনযোগ্য ব্যাকআপের জন্য ZIP এক্সপোর্ট করুন।
 
 <!--
--   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
--   **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` won't include content and database changes.
--   **Report error**: If you have any issues with WordPress Playground, you can report them using the form available from this option. You can help resolve issues with Playground by sharing the error details with the development team behind Playground.
--   **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool, you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+## Start a Playground
 -->
 
-- **গিটহাবে পুল রিকোয়েস্ট এক্সপোর্ট করুন**: এই বিকল্পটি আপনাকে যেকোনো পাবলিক গিটহাব রিপোজিটরিতে পুল রিকোয়েস্ট হিসেবে ওয়ার্ডপ্রেস প্লাগইন, থিম এবং সম্পূর্ণ wp-content ডিরেক্টরি এক্সপোর্ট করতে দেয়। এই বিকল্পটি ব্যবহারের একটি ডেমো [এখানে](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) দেখুন।
-- **zip হিসেবে ডাউনলোড করুন**: এটি প্লেগ্রাউন্ড ইনস্ট্যান্সের সেটআপ সহ একটি `.zip` ফাইল তৈরি করে, যার মধ্যে ইনস্টল করা যেকোনো থিম বা প্লাগইন অন্তর্ভুক্ত থাকে। এই `.zip` ফাইলে কন্টেন্ট এবং ডাটাবেস পরিবর্তন অন্তর্ভুক্ত থাকবে না।
-- **ইনস্ট্যান্স সম্পর্কে**: আপনি যদি ওয়ার্ডপ্রেস প্লেগ্রাউন্ড নিয়ে কোনো সমস্যায় পড়েন, তবে এই বিকল্প থেকে উপলব্ধ ফর্ম ব্যবহার করে তা রিপোর্ট করতে পারেন। আপনি প্লেগ্রাউন্ডের নেপথ্যে থাকা ডেভেলপমেন্ট টিমের সাথে ত্রুটির বিবরণ শেয়ার করে প্লেগ্রাউন্ডের সমস্যা সমাধানে সহায়তা করতে পারেন।
-- **ব্লুপ্রিন্ট দেখুন**: এই বিকল্পটি প্লেগ্রাউন্ড ইনস্ট্যান্সের জন্য ব্যবহৃত বর্তমান ব্লুপ্রিন্টটি [ব্লুপ্রিন্ট বিল্ডার টুলে](https://playground.wordpress.net/builder/builder.html) খুলবে। এই টুল থেকে, আপনি অনলাইনে ব্লুপ্রিন্ট এডিট করতে পারবেন এবং আপনার ব্লুপ্রিন্টের এডিট করা সংস্করণ দিয়ে একটি নতুন প্লেগ্রাউন্ড ইনস্ট্যান্স চালাতে পারবেন।
+## একটি Playground শুরু করুন
 
 <!--
-<span id="edit-the-blueprint"></span>
+Open **New Playground** from the Dock by clicking **New**. The pane contains
+**Blueprint gallery**, **From a URL**, **Write a Blueprint**, **Preview a PR**,
+**From GitHub**, and **Import zip**.
 -->
 
-<span id="edit-the-blueprint"></span>
+Dock-এর **New**-এ ক্লিক করে **New Playground** খুলুন। পেনটিতে **Blueprint gallery**,
+**From a URL**, **Write a Blueprint**, **Preview a PR**, **From GitHub** এবং
+**Import zip** রয়েছে।
 
 <!--
-[![snapshot of Builder mode of WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
+![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 -->
 
-[![ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের বিল্ডার মোডের স্ন্যাপশট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
+![Blueprint gallery নির্বাচিত New Playground পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 <!--
-### Import actions menu
+The Blueprint gallery starts with **Vanilla WordPress**, which creates a clean
+WordPress install. **From a URL** opens a public Blueprint URL. **Write a
+Blueprint** opens an editor for a new Blueprint. **Import zip** restores a ZIP
+exported from Playground.
 -->
 
-### ইম্পোর্ট অ্যাকশন মেনু
+Blueprint gallery-র শুরুতে থাকা **Vanilla WordPress** একটি পরিষ্কার ওয়ার্ডপ্রেস
+ইনস্টল তৈরি করে। **From a URL** পাবলিক Blueprint URL খোলে। **Write a Blueprint**
+নতুন Blueprint-এর এডিটর খোলে। **Import zip** Playground থেকে এক্সপোর্ট করা ZIP
+পুনরুদ্ধার করে।
 
 <!--
-![Import actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-import-actions.webp)
+![The New Playground pane with Import zip selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 -->
 
-![ইম্পোর্ট অ্যাকশন মেনু](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-import-actions.webp)
+![Import zip নির্বাচিত New Playground পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
 <!--
--   **Import from .zip**: Allows you to recreate a Playground instance using any `.zip` file generated with the "Download as .zip" option.
--   **Preview a Gutenberg PR**: Allows testers to run branches from the Gutenberg repository to test pull requests instantly.
--   **Import from GitHub**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
+## Return to recent and saved Playgrounds
 -->
 
-- **.zip থেকে ইম্পোর্ট করুন**: এটি আপনাকে "Download as .zip" বিকল্প দিয়ে জেনারেট করা যেকোনো `.zip` ফাইল ব্যবহার করে একটি প্লেগ্রাউন্ড ইনস্ট্যান্স পুনরায় তৈরি করতে দেয়।
-- **গুটেনবার্গ পিআর প্রিভিউ করুন**: এটি টেস্টারদের গুটেনবার্গ রিপোজিটরি থেকে ব্রাঞ্চগুলো চালিয়ে তাৎক্ষণিকভাবে পুল রিকোয়েস্ট পরীক্ষা করার সুযোগ দেয়।
-- **গিটহাব থেকে ইম্পোর্ট করুন**: এই বিকল্পটি আপনাকে সরাসরি আপনার পাবলিক গিটহাব রিপোজিটরি থেকে প্লাগইন, থিম এবং wp-content ডিরেক্টরি ইম্পোর্ট করতে দেয়। এই ফিচারটি চালু করতে, ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে আপনার গিটহাব অ্যাকাউন্ট সংযুক্ত করুন।
+## সাম্প্রতিক ও সংরক্ষিত Playground-এ ফিরুন
 
 <!--
-<div class="callout callout-warning">
-
+Open **Your Playgrounds** from the Dock by clicking **Playgrounds**. It lists the current Playground, recent autosaves, and Playgrounds you saved permanently.
 -->
+
+Dock-এর **Playgrounds**-এ ক্লিক করে **Your Playgrounds** খুলুন। এতে বর্তমান
+Playground, সাম্প্রতিক autosave এবং স্থায়ীভাবে সংরক্ষিত Playground-এর তালিকা থাকে।
+
+<!--
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+-->
+
+![বর্তমান Playground-সহ Your Playgrounds পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+
+<!--
+Autosaved Playgrounds are recovery points. Playground retains up to five recent
+autosaves. Use **Store permanently** to keep one as a saved Playground.
+-->
+
+Autosaved Playground হলো পুনরুদ্ধারের পয়েন্ট। Playground সর্বোচ্চ পাঁচটি সাম্প্রতিক
+autosave রাখে। কোনোটি সংরক্ষিত Playground হিসেবে রাখতে **Store permanently** ব্যবহার
+করুন।
+
+<!--
+## Change site settings
+-->
+
+## সাইট সেটিংস পরিবর্তন করুন
+
+<!--
+Open **Site Settings** to change runtime and WordPress setup options.
+-->
+
+রানটাইম ও ওয়ার্ডপ্রেস সেটআপের বিকল্প পরিবর্তন করতে **Site Settings** খুলুন।
+
+<!--
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+-->
+
+![Site Settings পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+
+<!--
+PHP version and networking can be applied to an existing stored Playground. WordPress version, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
+-->
+
+বর্তমান সংরক্ষিত Playground-এ PHP সংস্করণ ও নেটওয়ার্কিং প্রয়োগ করা যায়। ওয়ার্ডপ্রেস
+সংস্করণ, ভাষা ও মাল্টিসাইট ওয়ার্ডপ্রেস ইনস্টলেশন বদলায়, তাই এগুলোর জন্য নতুন Playground
+প্রয়োজন।
+
+<!--
+Running an edited Blueprint keeps stored and autosaved Playgrounds. It discards a temporary Playground because the new run starts from a fresh setup.
+-->
+
+সম্পাদিত Blueprint চালালে সংরক্ষিত ও autosaved Playground অক্ষত থাকে। নতুন রানটি
+একটি পরিষ্কার সেটআপ থেকে শুরু হওয়ায় অস্থায়ী Playground বাদ পড়ে।
+
+<!--
+## Inspect the current Blueprint
+-->
+
+## বর্তমান Blueprint পরিদর্শন করুন
+
+<!--
+Open **Blueprint** to view and edit the Blueprint for the current Playground.
+-->
+
+বর্তমান Playground-এর Blueprint দেখতে ও সম্পাদনা করতে **Blueprint** খুলুন।
+
+<!--
+![The Blueprint editor pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
+-->
+
+![Blueprint editor পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
+
+<!--
+The editor can run the edited Blueprint in a new Playground. For a stored or autosaved Playground, the original Playground remains available in **Your Playgrounds**.
+-->
+
+এডিটরটি সম্পাদিত Blueprint নতুন Playground-এ চালাতে পারে। সংরক্ষিত বা autosaved
+Playground হলে মূল Playground **Your Playgrounds**-এ পাওয়া যাবে।
+
+<!--
+## Inspect files, database, and logs
+-->
+
+## ফাইল, ডেটাবেস ও লগ পরিদর্শন করুন
+
+<!--
+Open **Files** to browse and edit the current Playground files.
+-->
+
+বর্তমান Playground-এর ফাইল ব্রাউজ ও সম্পাদনা করতে **Files** খুলুন।
+
+<!--
+![The Files pane with a WordPress file selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+-->
+
+![একটি ওয়ার্ডপ্রেস ফাইল নির্বাচিত Files পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+
+<!--
+Open **Database** to use database tools or download the SQLite database.
+-->
+
+ডেটাবেস টুল ব্যবহার করতে বা SQLite ডেটাবেস ডাউনলোড করতে **Database** খুলুন।
+
+<!--
+![The Database pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
+-->
+
+![Database পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
+
+<!--
+Open **Logs** to inspect PHP errors, warnings, and notices.
+-->
+
+PHP-এর ত্রুটি, সতর্কতা ও নোটিশ দেখতে **Logs** খুলুন।
+
+<!--
+![The PHP error log pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
+-->
+
+![PHP error log পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
+
+<!--
+## Export and share {#playground-options-menu}
+-->
+
+## এক্সপোর্ট ও শেয়ার করুন {#playground-options-menu}
+
+<!--
+Open **Export** to download or share the current Playground.
+-->
+
+বর্তমান Playground ডাউনলোড বা শেয়ার করতে **Export** খুলুন।
+
+<!--
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+-->
+
+![Download as .zip হাইলাইট করা Export পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+
+<!--
+**Download as .zip** exports the current files, database, plugins, themes, uploads, and edits. The ZIP can be restored later with **New → Import zip**.
+-->
+
+**Download as .zip** বর্তমান ফাইল, ডেটাবেস, প্লাগইন, থিম, আপলোড ও সম্পাদনা এক্সপোর্ট
+করে। ZIP-টি পরে **New → Import zip** দিয়ে পুনরুদ্ধার করা যায়।
+
+<!--
+**Copy original setup link** copies a link that recreates only the original
+setup. It does not include edits made after the Playground started.
+-->
+
+**Copy original setup link** শুধু মূল সেটআপ পুনর্নির্মাণের একটি লিংক কপি করে। Playground
+শুরু হওয়ার পরের সম্পাদনা এতে থাকে না।
+
+<!--
+**Export to GitHub** can create a pull request with selected files from the current Playground.
+-->
+
+**Export to GitHub** বর্তমান Playground থেকে নির্বাচিত ফাইল নিয়ে একটি পুল রিকোয়েস্ট
+তৈরি করতে পারে।
+
+<!--
+## Change the Dock layout
+-->
+
+## Dock-এর লেআউট পরিবর্তন করুন
+
+<!--
+The Dock can be shown as a floating panel or full-width bar. Use **Full width** to switch layouts.
+-->
+
+Dock-কে ভাসমান প্যানেল বা পূর্ণ-প্রস্থের বার হিসেবে দেখানো যায়। লেআউট পরিবর্তন করতে
+**Full width** ব্যবহার করুন।
+
+<!--
+| Floating                                                   | Full width                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| ![The default floating Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp) | ![The full-width Dock layout](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-full-width.webp) |
+-->
+
+| ভাসমান                                                                                                                                                         | পূর্ণ প্রস্থ                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![ডিফল্ট ভাসমান Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp) | ![পূর্ণ-প্রস্থের Dock লেআউট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-full-width.webp) |
+
+<!--
+Use **Hide tools** to collapse the Dock to its address field and save status.
+Use **Show tools** to reopen the tool row.
+-->
+
+Dock-কে শুধু ঠিকানা ফিল্ড ও সংরক্ষণের স্ট্যাটাসে সংকুচিত করতে **Hide tools** ব্যবহার
+করুন। টুলের সারি আবার খুলতে **Show tools** ব্যবহার করুন।
+
+<!--
+![The Playground with Dock tools hidden](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-hidden-tools.webp)
+-->
+
+![Dock-এর টুল লুকানো Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-hidden-tools.webp)
+
+<!--
+You can drag the floating Dock on desktop. Drag it past the left or right edge
+to fold it into a corner launcher, then click the launcher to restore the Dock.
+-->
+
+ডেস্কটপে ভাসমান Dock টেনে সরানো যায়। এটিকে বাম বা ডান প্রান্তের বাইরে টেনে কোণের
+launcher-এ ভাঁজ করুন, তারপর Dock ফিরিয়ে আনতে launcher-এ ক্লিক করুন।
+
+<!--
+![The Dock folded into the corner launcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-corner-launcher.webp)
+-->
+
+![কোণের launcher-এ ভাঁজ করা Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-corner-launcher.webp)
+
+<!--
+On narrow screens, the Dock uses a full-width mobile layout.
+-->
+
+সরু স্ক্রিনে Dock পূর্ণ-প্রস্থের মোবাইল লেআউট ব্যবহার করে।
+
+<!--
+![The Dock on a mobile viewport](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-mobile.webp)
+-->
+
+![মোবাইল ভিউপোর্টে Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-mobile.webp)
 
 <div class="callout callout-warning">
 
@@ -201,14 +432,15 @@ Once you click on save, an instance will be stored with a generated name to be r
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 -->
 
-https://playground.wordpress.net সাইটটি কমিউনিটিকে সহায়তা করার জন্য আছে, কিন্তু ট্রাফিক উল্লেখযোগ্যভাবে বৃদ্ধি পেলে এটি কাজ চালিয়ে যাবে কিনা তার কোনো নিশ্চয়তা নেই।
+https://playground.wordpress.net সাইটটি কমিউনিটিকে সহায়তা করার জন্য আছে, কিন্তু ট্রাফিক
+উল্লেখযোগ্যভাবে বৃদ্ধি পেলে এটি কাজ চালিয়ে যাবে কিনা তার কোনো নিশ্চয়তা নেই।
 
 <!--
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-
-</div>
 -->
 
-যদি আপনার নিশ্চিত প্রাপ্যতার প্রয়োজন হয়, তবে আপনার [নিজস্ব ওয়ার্ডপ্রেস প্লেগ্রাউন্ড হোস্ট](/developers/architecture/host-your-own-playground) করা উচিত।
+যদি আপনার নিশ্চিত প্রাপ্যতার প্রয়োজন হয়, তবে আপনার
+[নিজস্ব ওয়ার্ডপ্রেস প্লেগ্রাউন্ড হোস্ট](/developers/architecture/host-your-own-playground)
+করা উচিত।
 
 </div>
