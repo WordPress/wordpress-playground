@@ -8,14 +8,9 @@
 			WordPress Playground uses this page to export saved sites. It isn't
 			intended to be opened directly.
 		</p>
-		<script type="module">
-			import { bootPlaygroundAPI } from './src/lib/boot-playground-api';
-
-			if (window.self === window.top) {
-				document.getElementById('api-description').hidden = false;
-			}
-
-			window.playgroundAPI = bootPlaygroundAPI();
-		</script>
+		<script
+			type="module"
+			src="/src/lib/boot-playground-api-page.ts"
+		></script>
 	</body>
 </html>
