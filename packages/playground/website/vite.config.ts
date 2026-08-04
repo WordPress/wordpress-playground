@@ -292,7 +292,7 @@ export default defineConfig(({ command, mode }) => {
 							);
 							res.end(
 								`export * from ${JSON.stringify(
-									`/@fs/${clientIndexPath}`
+									`${server.config.base}@fs${clientIndexPath}`
 								)};`
 							);
 						}
