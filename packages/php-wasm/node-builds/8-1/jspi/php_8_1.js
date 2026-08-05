@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_1_34', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22165316;
+export const dependenciesTotalSize = 22165207;
 const phpVersionString = '8.1.34';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -9310,7 +9310,8 @@ export function init(RuntimeName, PHPLoader) {
 				 * Descriptor 0 was not provided, so the child process must observe EOF.
 				 * Closing stdin explicitly lets spawn handlers distinguish that case from
 				 * a valid pipe whose first bytes have not arrived yet.
-				 */ cp.stdin.end();
+				 */
+				cp.stdin.end();
 			}
 			return ProcInfo.pid;
 		});
@@ -10769,7 +10770,6 @@ export function init(RuntimeName, PHPLoader) {
 		_log,
 		_log2,
 		_fmod,
-		_wasm_popen,
 		_wasm_php_exec,
 		_socket,
 		_gai_strerror,
@@ -10812,6 +10812,7 @@ export function init(RuntimeName, PHPLoader) {
 		_strerror_r,
 		___ctype_get_mb_cur_max,
 		___wrap_usleep,
+		_wasm_popen,
 		_wasm_pclose,
 		_poll,
 		___wrap_select,
@@ -11623,7 +11624,6 @@ export function init(RuntimeName, PHPLoader) {
 		_log = Module['_log'] = wasmExports['log'];
 		_log2 = Module['_log2'] = wasmExports['log2'];
 		_fmod = Module['_fmod'] = wasmExports['fmod'];
-		_wasm_popen = Module['_wasm_popen'] = wasmExports['wasm_popen'];
 		_wasm_php_exec = Module['_wasm_php_exec'] =
 			wasmExports['wasm_php_exec'];
 		_socket = Module['_socket'] = wasmExports['socket'];
@@ -11673,6 +11673,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__ctype_get_mb_cur_max'];
 		___wrap_usleep = Module['___wrap_usleep'] =
 			wasmExports['__wrap_usleep'];
+		_wasm_popen = Module['_wasm_popen'] = wasmExports['wasm_popen'];
 		_wasm_pclose = Module['_wasm_pclose'] = wasmExports['wasm_pclose'];
 		_poll = Module['_poll'] = wasmExports['poll'];
 		___wrap_select = Module['___wrap_select'] =
@@ -11862,9 +11863,9 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12871796);
 
-	var _empty_fcall_info = (Module['_empty_fcall_info'] = 9352872);
+	var _empty_fcall_info = (Module['_empty_fcall_info'] = 9352808);
 
-	var _empty_fcall_info_cache = (Module['_empty_fcall_info_cache'] = 9352920);
+	var _empty_fcall_info_cache = (Module['_empty_fcall_info_cache'] = 9352856);
 
 	var _zend_write = (Module['_zend_write'] = 12871904);
 

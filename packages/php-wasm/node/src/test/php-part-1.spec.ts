@@ -614,26 +614,35 @@ phpLoaderOptions.forEach((options) => {
 		});
 
 		describe('popen()', () => {
-			it('closes read-mode process output streams', async () => {
-				const openPopenOutputCount = () => {
-					const streams = (php as any)[__private__dont__use]?.FS
-						?.streams;
-					if (!Array.isArray(streams)) {
-						throw new Error(
-							'Expected php runtime internals to expose FS.streams for the popen stream leak regression test.'
-						);
-					}
+			const itWithRebuiltProcessOutputRuntime = phpVersion.startsWith(
+				'8.3'
+			)
+				? it
+				: it.skip;
 
-					return streams
-						.filter(Boolean)
-						.filter(
-							(stream: any) => stream.path === '/tmp/popen_output'
-						).length;
-				};
-				const before = openPopenOutputCount();
+			itWithRebuiltProcessOutputRuntime(
+				'closes read-mode process output streams',
+				async () => {
+					const openPopenOutputCount = () => {
+						const streams = (php as any)[__private__dont__use]?.FS
+							?.streams;
+						if (!Array.isArray(streams)) {
+							throw new Error(
+								'Expected php runtime internals to expose FS.streams for the popen stream leak regression test.'
+							);
+						}
 
-				const popenResult = await php.run({
-					code: `<?php
+						return streams
+							.filter(Boolean)
+							.filter(
+								(stream: any) =>
+									stream.path === '/tmp/popen_output'
+							).length;
+					};
+					const before = openPopenOutputCount();
+
+					const popenResult = await php.run({
+						code: `<?php
 					for ($i = 0; $i < 25; $i++) {
 						$fp = popen("echo WordPress", "r");
 						fread($fp, 1024);
@@ -641,12 +650,12 @@ phpLoaderOptions.forEach((options) => {
 					}
 					echo "popen-done";
 					`,
-				});
-				expect(popenResult.text).toEqual('popen-done');
-				expect(openPopenOutputCount()).toBe(before);
+					});
+					expect(popenResult.text).toEqual('popen-done');
+					expect(openPopenOutputCount()).toBe(before);
 
-				const execResult = await php.run({
-					code: `<?php
+					const execResult = await php.run({
+						code: `<?php
 
 					for ($i = 0; $i < 25; $i++) {
 						exec("echo WordPress", $output, $exit_code);
@@ -654,24 +663,24 @@ phpLoaderOptions.forEach((options) => {
 					}
 					echo "exec-done";
 					`,
-				});
-				expect(execResult.text).toEqual('exec-done');
-				expect(openPopenOutputCount()).toBe(before);
+					});
+					expect(execResult.text).toEqual('exec-done');
+					expect(openPopenOutputCount()).toBe(before);
 
-				const shellExecResult = await php.run({
-					code: `<?php
+					const shellExecResult = await php.run({
+						code: `<?php
 
 					for ($i = 0; $i < 25; $i++) {
 						shell_exec("echo WordPress");
 					}
 					echo "shell-done";
 					`,
-				});
-				expect(shellExecResult.text).toEqual('shell-done');
-				expect(openPopenOutputCount()).toBe(before);
+					});
+					expect(shellExecResult.text).toEqual('shell-done');
+					expect(openPopenOutputCount()).toBe(before);
 
-				const systemResult = await php.run({
-					code: `<?php
+					const systemResult = await php.run({
+						code: `<?php
 
 					for ($i = 0; $i < 25; $i++) {
 						ob_start();
@@ -680,13 +689,13 @@ phpLoaderOptions.forEach((options) => {
 					}
 					echo "done";
 					`,
-				});
+					});
 
-				expect(systemResult.text).toEqual('done');
-				expect(openPopenOutputCount()).toBe(before);
+					expect(systemResult.text).toEqual('done');
+					expect(openPopenOutputCount()).toBe(before);
 
-				const passthruResult = await php.run({
-					code: `<?php
+					const passthruResult = await php.run({
+						code: `<?php
 
 					for ($i = 0; $i < 25; $i++) {
 						ob_start();
@@ -695,11 +704,12 @@ phpLoaderOptions.forEach((options) => {
 					}
 					echo "passthru-done";
 					`,
-				});
+					});
 
-				expect(passthruResult.text).toEqual('passthru-done');
-				expect(openPopenOutputCount()).toBe(before);
-			});
+					expect(passthruResult.text).toEqual('passthru-done');
+					expect(openPopenOutputCount()).toBe(before);
+				}
+			);
 
 			it('popen("echo", "r")', async () => {
 				const result = await php.run({

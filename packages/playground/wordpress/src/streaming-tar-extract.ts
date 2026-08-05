@@ -425,9 +425,7 @@ export class StreamingTarParser {
 		if (entry.isLongLink) {
 			// GNU longlink body is the full path (NUL-terminated) for the NEXT
 			// entry.
-			this.pendingLongName = textDecoder
-				.decode(data)
-				.replace(/\0.*$/, '');
+			this.pendingLongName = textDecoder.decode(data).replace(/\0.*$/, '');
 			return;
 		}
 		if (entry.isPaxHeader) {

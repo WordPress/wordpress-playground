@@ -4673,7 +4673,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map(),
+		socketTimeouts: new Map,
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
