@@ -127,16 +127,17 @@ Theme Name: Close Race Theme
 	return Buffer.from(zipBytes!);
 }
 
-// OPFS tests must run serially because OPFS storage is shared at the browser
-// level, so tests would interfere with each other's saved sites if run in parallel.
-test.describe.configure({ mode: 'serial' });
+// OPFS is shared by tests in one browser. Default mode keeps this file ordered
+// while retrying only the failed test. CI also selects this file into the
+// one-worker storage lane configured in playwright.ci.config.ts.
+test.describe.configure({ mode: 'default' });
 
 /**
  * Returns a URL that opts this test out of default browser storage.
  *
  * `storage=temp` is what makes the site temporary. The random value keeps
  * repeated navigations from reusing a temporary site created earlier in this
- * serial OPFS test file.
+ * ordered OPFS test file.
  */
 function getTemporaryPlaygroundUrl(hash = '') {
 	return `./?storage=temp&random=${Math.random().toString(36).slice(2)}${hash}`;
@@ -2024,11 +2025,8 @@ PHP;
 	);
 });
 
-// Missing site modal tests in a separate describe block to avoid state pollution
+// Missing site modal tests in a separate describe block to avoid state pollution.
 test.describe('Missing site modal', () => {
-	// These tests also need serial mode since they use OPFS
-	test.describe.configure({ mode: 'serial' });
-
 	test('should show modal when loading non-existent site slug', async ({
 		website,
 		wordpress,
