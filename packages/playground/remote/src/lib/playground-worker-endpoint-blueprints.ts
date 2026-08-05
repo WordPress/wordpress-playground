@@ -107,8 +107,16 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 				pathAliases,
 			});
 
-			this.requestedWordPressVersion =
-				wpVersion === 'nightly' ? 'trunk' : wpVersion;
+			// `nightly` and `latest` are aliases for a concrete build. Resolve
+			// them here so the loaded-version check in finalizeAfterBoot()
+			// compares two build versions instead of an alias and a version.
+			if (wpVersion === 'nightly') {
+				this.requestedWordPressVersion = 'trunk';
+			} else if (wpVersion === 'latest') {
+				this.requestedWordPressVersion = LatestMinifiedWordPressVersion;
+			} else {
+				this.requestedWordPressVersion = wpVersion;
+			}
 			const isMinifiedVersion = MinifiedWordPressVersionsList.includes(
 				this.requestedWordPressVersion
 			);
@@ -163,9 +171,8 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 				) {
 					// Non-minified release like "4.9", "6.8.0", or
 					// "7.0-RC1": download directly from wordpress.org.
-					// Sentinel values like "latest" fall through to the
-					// minified-bundle branch below and resolve to
-					// LatestMinifiedWordPressVersion.
+					// Aliases like "latest" were already resolved to a
+					// minified build above, so they never reach here.
 					const normalizedVersion = normalizeWordPressVersion(
 						this.requestedWordPressVersion!
 					);
