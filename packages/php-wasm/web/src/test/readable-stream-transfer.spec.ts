@@ -1,11 +1,77 @@
 import test from '@playwright/test';
 
-test.describe('worker event stdin stream transfer', () => {
+test.describe('readable stream transfer', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
 		await page.addScriptTag({
 			type: 'module',
 			url: '/src/test/playwright/browser-globals.ts',
+		});
+	});
+
+	test('keeps Window API streams away from isolated-world listeners', async ({
+		page,
+	}) => {
+		const cdp = await page.context().newCDPSession(page);
+		const frameTree = await cdp.send('Page.getFrameTree');
+		const isolatedWorld = await cdp.send('Page.createIsolatedWorld', {
+			frameId: frameTree.frameTree.frame.id,
+			worldName: 'window-stream-observer',
+		});
+		await cdp.send('Runtime.evaluate', {
+			contextId: isolatedWorld.executionContextId,
+			expression: `
+				window.addEventListener('message', (event) => {
+					void event.data;
+				});
+			`,
+		});
+
+		const result = await page.evaluate(async () => {
+			type WindowAPI = {
+				isReady(): Promise<void>;
+				getStream(): Promise<ReadableStream<Uint8Array>>;
+				wasStreamTransferred(): Promise<boolean>;
+			};
+
+			const iframe = document.createElement('iframe');
+			iframe.src = '/src/test/playwright/window-api-frame.html';
+			document.body.appendChild(iframe);
+
+			const withTimeout = <T>(promise: Promise<T>) =>
+				Promise.race([
+					promise,
+					new Promise<never>((_, reject) =>
+						setTimeout(
+							() =>
+								reject(
+									new Error(
+										'Window API stream did not arrive'
+									)
+								),
+							5000
+						)
+					),
+				]);
+
+			try {
+				const api = window.consumeAPI<WindowAPI>(iframe.contentWindow!);
+				await withTimeout(api.isReady());
+				const stream = await withTimeout(api.getStream());
+				return {
+					text: await withTimeout(new Response(stream).text()),
+					transferredReadableStream: await withTimeout(
+						api.wasStreamTransferred()
+					),
+				};
+			} finally {
+				iframe.remove();
+			}
+		});
+
+		test.expect(result).toEqual({
+			text: 'stream from iframe',
+			transferredReadableStream: true,
 		});
 	});
 

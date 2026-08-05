@@ -1,5 +1,6 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
 
@@ -17,6 +18,7 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
+	| 'resource-unavailable'
 	| 'resource-download-failed';
 
 export type DockPaneSection =
@@ -171,6 +173,7 @@ export interface UIState {
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	shareExportOpen: boolean;
+	siteImportProgress?: ProgressDetails;
 	dockPaneIsOpen: boolean;
 	dockPaneSection: DockPaneSection;
 	/**
@@ -181,6 +184,7 @@ export interface UIState {
 	/** Playground slug from which the current authoring draft was seeded. */
 	writeOwnSeededSlug?: string;
 	dockOperationNotice?: {
+		status?: 'error' | 'success';
 		title: string;
 		message?: string;
 	};
@@ -300,6 +304,12 @@ const uiSlice = createSlice({
 		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
 			state.shareExportOpen = action.payload;
 		},
+		setSiteImportProgress: (
+			state,
+			action: PayloadAction<ProgressDetails | undefined>
+		) => {
+			state.siteImportProgress = action.payload;
+		},
 		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
 			state.dockPaneSection = action.payload;
 		},
@@ -382,6 +392,7 @@ export const {
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setShareExportOpen,
+	setSiteImportProgress,
 	setDockPaneOpen,
 	setDockPaneSection,
 	setWriteOwnBlueprintDraft,

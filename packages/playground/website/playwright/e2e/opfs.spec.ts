@@ -3,19 +3,88 @@ import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
+import { readFile } from 'node:fs/promises';
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
- * The ZIP contains just an index.php file with the given marker content.
+ * The ZIP contains just one marker file with the given marker content.
  */
-async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
-	const phpContent = `<?php echo '${markerContent}';`;
-	const file = new File([phpContent], 'wp-content/index.php', {
+async function createTestWordPressZip(
+	markerContent: string,
+	markerPath = 'wp-content/index.php',
+	additionalFiles: File[] = []
+): Promise<Buffer> {
+	const encodedMarker = Buffer.from(markerContent).toString('base64');
+	const phpContent = `<?php echo base64_decode('${encodedMarker}');`;
+	const file = new File([phpContent], markerPath, {
 		type: 'text/plain',
 	});
-	const zipStream = encodeZip([file]);
+	const zipStream = encodeZip([file, ...additionalFiles]);
 	const zipBytes = await collectBytes(zipStream);
 	return Buffer.from(zipBytes!);
+}
+
+/**
+ * Drops a ZIP through the page-level import target.
+ *
+ * By default, also confirms a transient dragleave does not dismiss the overlay.
+ */
+async function dropZipFile(
+	page: Page,
+	name: string,
+	zipBuffer: Buffer,
+	verifyDragLeaveStability = true
+) {
+	const dataTransfer = await page.evaluateHandle(
+		(file) => {
+			const bytes = Uint8Array.from(atob(file.base64), (character) =>
+				character.charCodeAt(0)
+			);
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(
+				new File([bytes], file.name, { type: 'application/zip' })
+			);
+			return dataTransfer;
+		},
+		{ name, base64: zipBuffer.toString('base64') }
+	);
+	await expect(
+		page.getByRole('button', { name: /Drop a Playground ZIP here/ })
+	).toBeVisible();
+	const pane = page.getByRole('dialog', { name: 'New Playground pane' });
+	const paneText = await pane.innerText();
+	const pageBody = page.locator('body');
+	const overlay = page.locator('[data-cy="zip-drop-overlay"]');
+	await expect
+		.poll(async () => {
+			await pageBody.dispatchEvent('dragenter', { dataTransfer });
+			return overlay.isVisible();
+		})
+		.toBe(true);
+	await expect
+		.poll(() =>
+			overlay.evaluate((element) => {
+				const bounds = element.getBoundingClientRect();
+				const hitTarget = document.elementFromPoint(
+					bounds.left + bounds.width / 2,
+					bounds.top + bounds.height / 2
+				);
+				return element.contains(hitTarget);
+			})
+		)
+		.toBe(true);
+	expect(await pane.innerText()).toBe(paneText);
+	if (verifyDragLeaveStability) {
+		await pageBody.dispatchEvent('dragleave', { dataTransfer });
+		await pageBody.dispatchEvent('dragenter', { dataTransfer });
+		await page.waitForTimeout(75);
+		await expect(
+			page.locator('[data-cy="zip-drop-overlay"]')
+		).toBeVisible();
+	}
+	await overlay.dispatchEvent('dragover', { dataTransfer });
+	await overlay.dispatchEvent('drop', { dataTransfer });
+	await dataTransfer.dispose();
 }
 
 async function createPluginThemeExportZip(): Promise<Buffer> {
@@ -44,6 +113,15 @@ Theme Name: Close Race Theme
 			'wp-content/themes/close-race-theme/index.php'
 		),
 	];
+	const progressFileContents = new Uint8Array(8 * 1024);
+	for (let index = 0; index < 5000; index++) {
+		files.push(
+			new File(
+				[progressFileContents],
+				`wp-content/uploads/import-progress-${index}.bin`
+			)
+		);
+	}
 	const zipStream = encodeZip(files);
 	const zipBytes = await collectBytes(zipStream);
 	return Buffer.from(zipBytes!);
@@ -228,6 +306,65 @@ async function writePendingOpfsResetSite(page: Page, slug: string) {
 	);
 }
 
+/**
+ * Writes the OPFS state left when a site's first WordPress file copy stops.
+ *
+ * The metadata exists, but `initialOpfsSyncPending` still marks the WordPress
+ * files as incomplete.
+ */
+async function writeInterruptedInitialOpfsSite(page: Page, slug: string) {
+	await page.evaluate(
+		async ({ dirName, siteSlug }) => {
+			const root = await navigator.storage.getDirectory();
+			try {
+				await root.removeEntry('sites', { recursive: true });
+			} catch (error) {
+				if (error?.name !== 'NotFoundError') {
+					throw error;
+				}
+			}
+			const sites = await root.getDirectoryHandle('sites', {
+				create: true,
+			});
+			const siteDirectory = await sites.getDirectoryHandle(dirName, {
+				create: true,
+			});
+			const metadata = {
+				slug: siteSlug,
+				originalUrlParams: {
+					searchParams: {},
+					hash: '',
+				},
+				originalBlueprintSource: { type: 'none' },
+				originalBlueprint: {},
+				name: siteSlug,
+				id: siteSlug,
+				whenCreated: Date.now(),
+				whenLastUsed: Date.now(),
+				persistence: 'autosave',
+				storage: 'opfs',
+				initialOpfsSyncPending: true,
+				runtimeConfiguration: {
+					phpVersion: '8.4',
+					wpVersion: 'latest',
+					intl: false,
+					networking: true,
+					extraLibraries: [],
+					constants: {},
+				},
+			};
+			const metadataFile = await siteDirectory.getFileHandle(
+				'wp-runtime.json',
+				{ create: true }
+			);
+			const writable = await metadataFile.createWritable();
+			await writable.write(JSON.stringify(metadata, null, 2));
+			await writable.close();
+		},
+		{ dirName: getDirectoryNameForSlug(slug), siteSlug: slug }
+	);
+}
+
 async function readPendingResetSiteState(page: Page, slug: string) {
 	return await page.evaluate(
 		async ({ dirName }) => {
@@ -311,6 +448,92 @@ async function saveSiteViaDockPane(
 	await expect(pane).not.toBeVisible({ timeout: 60000 });
 }
 
+async function getActivePlaygroundSite(page: Page) {
+	return page.evaluate(() =>
+		(window as any).playgroundSites
+			.list()
+			.find((site: any) => site.isActive)
+	);
+}
+
+async function getStoredPlaygroundSiteSlugs(page: Page) {
+	return page.evaluate(() => {
+		const sitesAPI = (window as any).playgroundSites;
+		if (!sitesAPI) {
+			return null;
+		}
+		return sitesAPI
+			.list()
+			.filter((site: any) => site.storage !== 'temporary')
+			.map((site: any) => site.slug)
+			.sort();
+	});
+}
+
+async function getInitialOpfsSyncPending(page: Page, siteSlug: string) {
+	return page.evaluate(
+		async ({ directoryName }) => {
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(directoryName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const metadata = JSON.parse(
+				await (await metadataFile.getFile()).text()
+			);
+			return metadata.initialOpfsSyncPending === true;
+		},
+		{ directoryName: getDirectoryNameForSlug(siteSlug) }
+	);
+}
+
+/** Waits until a new OPFS site is safe to reload. */
+async function waitForInitialOpfsSync(page: Page, siteSlug: string) {
+	await expect
+		.poll(() => getInitialOpfsSyncPending(page, siteSlug), {
+			timeout: 120000,
+		})
+		.toBe(false);
+}
+
+async function waitForActivePlaygroundSiteSlug(
+	page: Page,
+	matchesSlug: (slug: string) => boolean
+) {
+	await expect
+		.poll(
+			async () => {
+				const slug = (await getActivePlaygroundSite(page))?.slug;
+				return typeof slug === 'string' &&
+					slug.length > 0 &&
+					matchesSlug(slug)
+					? slug
+					: '';
+			},
+			{ timeout: 120000 }
+		)
+		.not.toBe('');
+
+	return await getActivePlaygroundSite(page);
+}
+
+async function setActivePlaygroundSite(page: Page, siteSlug: string) {
+	await page.evaluate(
+		(slug) =>
+			(window as any).playgroundSites.setActiveSite(slug, {
+				updateUrl: false,
+			}),
+		siteSlug
+	);
+}
+
+async function openPlaygroundPath(page: Page, path: string) {
+	// goTo() resolves after the nested iframe loads, so no additional test delay is needed.
+	await page.evaluate(
+		(requestedPath) => (window as any).playground.goTo(requestedPath),
+		path
+	);
+}
 test('should retry pending OPFS cleanup after another tab releases storage', async ({
 	website,
 	context,
@@ -369,6 +592,42 @@ test('should retry pending OPFS cleanup after another tab releases storage', asy
 	const storedSite = await readPendingResetSiteState(website.page, slug);
 	expect(storedSite.metadata.opfsSiteRemovalPending).toBeUndefined();
 	expect(storedSite.hasOldResetSentinel).toBe(false);
+});
+
+test('should start a new Playground after an initial OPFS sync was interrupted', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const interruptedSiteSlug = `interrupted-initial-sync-${Date.now()}`;
+	await website.page.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() => !!navigator.storage?.getDirectory);
+	await writeInterruptedInitialOpfsSite(website.page, interruptedSiteSlug);
+
+	await website.page.goto(
+		`./?site-slug=${encodeURIComponent(interruptedSiteSlug)}`
+	);
+	await expect(
+		website.page.getByText('Start a new Playground to continue')
+	).toBeVisible();
+
+	await website.page
+		.getByRole('button', { name: 'Start a new Playground' })
+		.click();
+
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(website.page))?.slug, {
+			timeout: 15000,
+		})
+		.not.toBe(interruptedSiteSlug);
+	await expect(
+		website.page.getByText('Start a new Playground to continue')
+	).not.toBeVisible();
+	await website.waitForNestedIframes();
 });
 
 test('should switch between sites', async ({ website, browserName }) => {
@@ -554,6 +813,124 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.closePlaygroundsPane();
 });
 
+test('should wait for a temporary OPFS metadata lock', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.saveInBrowser()
+	);
+	const site = await getActivePlaygroundSite(website.page);
+	const newName = 'Renamed after OPFS lock';
+
+	await website.page.evaluate(
+		async ({ dirName, newName, slug }) => {
+			const root = await navigator.storage.getDirectory();
+			const sites = await root.getDirectoryHandle('sites');
+			const siteDirectory = await sites.getDirectoryHandle(dirName);
+			const metadataFile =
+				await siteDirectory.getFileHandle('wp-runtime.json');
+			const writable = await metadataFile.createWritable({
+				keepExistingData: true,
+			});
+			const releaseLock = new Promise<void>((resolve, reject) => {
+				setTimeout(async () => {
+					try {
+						await writable.close();
+						resolve();
+					} catch (error) {
+						reject(error);
+					}
+				}, 200);
+			});
+
+			try {
+				await (window as any).playgroundSites.rename(newName, slug);
+			} finally {
+				await releaseLock;
+			}
+		},
+		{
+			dirName: getDirectoryNameForSlug(site.slug),
+			newName,
+			slug: site.slug,
+		}
+	);
+
+	await website.page.reload();
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(website.page))?.name)
+		.toBe(newName);
+});
+
+test('should preserve metadata changes made in different tabs', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.saveInBrowser()
+	);
+	const site = await getActivePlaygroundSite(website.page);
+
+	const secondTab = await context.newPage();
+	await secondTab.goto(
+		new URL(
+			`./?site-slug=${encodeURIComponent(site.slug)}`,
+			website.page.url()
+		).href
+	);
+	await secondTab.waitForFunction(() =>
+		Boolean((window as any).playgroundSites)
+	);
+	await secondTab.evaluate(() => (window as any).playgroundSites.isReady());
+
+	const newName = 'Renamed in the first tab';
+	await website.page.evaluate(
+		({ name, slug }) => (window as any).playgroundSites.rename(name, slug),
+		{ name: newName, slug: site.slug }
+	);
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.setPhpVersion('8.2')
+	);
+	await secondTab.evaluate(() =>
+		(window as any).playgroundSites.setNetworking(false)
+	);
+
+	const persistedMetadata = await website.page.evaluate(async (dirName) => {
+		const root = await navigator.storage.getDirectory();
+		const sites = await root.getDirectoryHandle('sites');
+		const siteDirectory = await sites.getDirectoryHandle(dirName);
+		const metadataFile =
+			await siteDirectory.getFileHandle('wp-runtime.json');
+		return JSON.parse(await (await metadataFile.getFile()).text());
+	}, getDirectoryNameForSlug(site.slug));
+	expect(persistedMetadata.name).toBe(newName);
+	expect(persistedMetadata.runtimeConfiguration.phpVersion).toBe('8.2');
+	expect(persistedMetadata.runtimeConfiguration.networking).toBe(false);
+});
+
 test('should show the Store permanently pane with the save controls', async ({
 	website,
 	browserName,
@@ -731,7 +1108,155 @@ test('should display OPFS storage option as selected by default', async ({
 	await pane.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should block closing and finish during a ZIP import', async ({
+test('should import ZIP into a fresh temporary site without browser storage', async ({
+	website,
+	browserName,
+	context,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		'This test controls OPFS availability in Chromium.'
+	);
+	await context.addInitScript(() => {
+		Object.defineProperty(StorageManager.prototype, 'getDirectory', {
+			configurable: true,
+			value: undefined,
+		});
+	});
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const siteBeforeImport = await getActivePlaygroundSite(website.page);
+	expect(siteBeforeImport?.storage).toBe('temporary');
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const marker = 'TEMPORARY_ZIP_IMPORT_MARKER';
+	const markerPath = 'wp-content/temporary-zip-import-marker.txt';
+	const zipBuffer = await createTestWordPressZip(
+		marker,
+		'wp-content/index.php',
+		[new File([marker], markerPath)]
+	);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'temporary-playground.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect(
+		website.page
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Playground imported' })
+	).toBeVisible({ timeout: 120000 });
+	await expect(
+		website.page.getByRole('alert').filter({
+			hasText: 'Playground imported',
+		})
+	).toHaveCount(0);
+	const siteAfterImport = await getActivePlaygroundSite(website.page);
+	expect(siteAfterImport).toMatchObject({
+		storage: 'temporary',
+	});
+	expect(siteAfterImport.slug).not.toBe(siteBeforeImport.slug);
+	await expect
+		.poll(async () => {
+			return await website.page.evaluate(async (relativePath) => {
+				const playground = (window as any).playgroundSites.getClient();
+				const documentRoot = await playground.documentRoot;
+				return await playground.readFileAsText(
+					`${documentRoot}/${relativePath}`
+				);
+			}, markerPath);
+		})
+		.toBe(marker);
+});
+
+test('should remove the saved site created for a failed ZIP import', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const activeSiteBeforeImport = await getActivePlaygroundSite(website.page);
+	const storedSiteSlugsBeforeImport = await getStoredPlaygroundSiteSlugs(
+		website.page
+	);
+	expect(storedSiteSlugsBeforeImport).not.toBeNull();
+
+	const importFailed = await website.page.evaluate(async () => {
+		try {
+			await (window as any).playgroundSites.createNewSiteFromZip(
+				new File(['not a zip archive'], 'invalid-playground.zip', {
+					type: 'application/zip',
+				})
+			);
+			return false;
+		} catch {
+			return true;
+		}
+	});
+	expect(importFailed).toBe(true);
+
+	await expect
+		.poll(() => getStoredPlaygroundSiteSlugs(website.page))
+		.toEqual(storedSiteSlugsBeforeImport);
+	await expect
+		.poll(async () => (await getActivePlaygroundSite(website.page))?.slug)
+		.toBe(activeSiteBeforeImport.slug);
+
+	await website.page.reload();
+	await website.waitForPlaygroundShell();
+	await expect
+		.poll(() => getStoredPlaygroundSiteSlugs(website.page))
+		.toEqual(storedSiteSlugsBeforeImport);
+});
+
+test('should import a ZIP dropped on the page', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	const sourceSiteSlug = sourceSite.slug;
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const marker = 'PAGE_DROP_ZIP_IMPORT_MARKER';
+	const markerPath = 'wp-content/page-drop-zip-import-marker.php';
+	const zipBuffer = await createTestWordPressZip(marker, markerPath);
+	await dropZipFile(website.page, 'page-drop-import.zip', zipBuffer);
+
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
+	await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== sourceSiteSlug
+	);
+	await openPlaygroundPath(website.page, `/${markerPath}`);
+	await expect(wordpress.locator('body')).toContainText(marker);
+});
+
+test('should show an inline error for a non-ZIP drop', async ({
 	website,
 	browserName,
 }) => {
@@ -745,45 +1270,114 @@ test('should block closing and finish during a ZIP import', async ({
 	await website.page
 		.getByRole('tab', { name: 'Import zip', exact: true })
 		.click();
+	await dropZipFile(
+		website.page,
+		'not-a-playground-export.txt',
+		Buffer.from('not a zip archive'),
+		false
+	);
+
+	await expect(
+		website.page.getByRole('alert').filter({
+			hasText: 'Choose a WordPress Playground .zip export.',
+		})
+	).toBeVisible();
+});
+
+test('should notify when a ZIP import loads before autosave finishes', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
 
 	const zipBuffer = await createPluginThemeExportZip();
 	const fileInput = website.page.locator(
 		'input[type="file"][accept*=".zip"]'
 	);
-	const importComplete = website.page
-		.waitForEvent('dialog')
-		.then(async (dialog) => {
-			await dialog.accept();
+	const pane = website.page.getByRole('dialog', {
+		name: 'New Playground pane',
+	});
+	const importProgress = website.page.getByRole('progressbar', {
+		name: 'WordPress import progress',
+	});
+	const autosaveProgress = website.page.getByRole('progressbar', {
+		name: 'Autosave progress',
+	});
+	const importNotice = website.page
+		.getByRole('group', { name: 'Operation succeeded' })
+		.filter({ hasText: 'Playground imported' });
+	const importProgressStarted = expect(importProgress).toBeVisible({
+		timeout: 120000,
+	});
+	const notifyWhileAutosaving = (async () => {
+		await expect(autosaveProgress).toBeVisible({ timeout: 120000 });
+		const importedSite = await getActivePlaygroundSite(website.page);
+		expect(importedSite).toMatchObject({
+			storage: 'opfs',
+			persistence: 'autosave',
 		});
+		await setActivePlaygroundSite(website.page, sourceSite.slug);
+		await expect(importNotice).toBeVisible();
+		expect(
+			await getInitialOpfsSyncPending(website.page, importedSite.slug)
+		).toBe(true);
+		return importedSite;
+	})();
+	const importProgressAdvanced = expect
+		.poll(
+			async () => {
+				return (
+					Number(await importProgress.getAttribute('aria-valuenow')) >
+					0
+				);
+			},
+			{
+				intervals: [16],
+				timeout: 120000,
+			}
+		)
+		.toBe(true);
 	await fileInput.setInputFiles({
 		name: 'playground-export-with-plugin-and-theme.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
-	const importingButton = website.page.getByRole('button', {
-		name: 'Importing…',
+	await expect(pane).not.toBeVisible();
+	await importProgressStarted;
+	await expect(autosaveProgress).toHaveCount(0);
+	await importProgressAdvanced;
+	await expect(importProgress).toHaveCount(0, { timeout: 120000 });
+	const importedSite = await notifyWhileAutosaving;
+
+	// Reopen the retained import runtime before its background sync finishes.
+	// setActiveSite() must not wait for a second client-added event.
+	await setActivePlaygroundSite(website.page, importedSite.slug);
+	expect((await getActivePlaygroundSite(website.page)).slug).toBe(
+		importedSite.slug
+	);
+	await setActivePlaygroundSite(website.page, sourceSite.slug);
+
+	const newPlaygroundButton = website.page.getByRole('button', {
+		name: 'New Playground',
+		exact: true,
 	});
-	await expect(importingButton).toBeVisible();
-	const saveStatus = website.page.getByRole('button', { name: 'Unsaved' });
-	await expect(saveStatus).toBeDisabled();
-	await saveStatus.evaluate((button: HTMLButtonElement) => button.click());
-	await expect(
-		website.page.getByRole('dialog', { name: 'New Playground pane' })
-	).toBeVisible();
-	await expect(
-		website.page.locator('section[aria-label="Store permanently pane"]')
-	).toHaveCount(0);
-	const newPlaygroundTool = website.page
-		.getByRole('navigation', { name: 'Playground tools' })
-		.getByRole('button', { name: 'New Playground' });
-	await expect(newPlaygroundTool).toBeDisabled();
-	await website.page.keyboard.press('Escape');
-	await expect(
-		website.page.getByRole('dialog', { name: 'New Playground pane' })
-	).toBeVisible();
-	await expect(importingButton).toBeVisible();
-	await importComplete;
-	await expect(newPlaygroundTool).toBeEnabled();
+	await expect(newPlaygroundButton).toBeEnabled();
+
+	// A full page load discards the retained runtime. Let its background sync
+	// finish before verifying that the imported files survive a cold boot.
+	await waitForInitialOpfsSync(website.page, importedSite.slug);
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSite.slug)}`);
 
 	await expect
 		.poll(
@@ -866,17 +1460,15 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler for the import success alert
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
-
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
 		name: 'test-import.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
 
 	// The import should switch us to a new saved Playground by default.
 	await expect(getPlaygroundTitle(website.page)).not.toContainText(
@@ -892,8 +1484,7 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 	await website.openPlaygroundsPane();
 
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
+		.getByRole('button', { name: `Open ${savedSiteName}`, exact: true })
 		.click();
 	await website.ensureSiteManagerIsOpen();
 
@@ -964,11 +1555,6 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		.getByRole('tab', { name: 'Import zip', exact: true })
 		.click();
 
-	const importZipButton = website.page.getByRole('button', {
-		name: 'Choose a .zip file…',
-	});
-	await expect(importZipButton).toBeVisible();
-
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
 	const zipBuffer = await createTestWordPressZip(importedMarker);
@@ -978,17 +1564,15 @@ test('should create a saved site when importing ZIP while on a saved site with n
 		'input[type="file"][accept*=".zip"]'
 	);
 
-	// Set up dialog handler
-	website.page.once('dialog', async (dialog) => {
-		await dialog.accept();
-	});
-
 	// Upload the ZIP file
 	await fileInput.setInputFiles({
 		name: 'test-import-direct.zip',
 		mimeType: 'application/zip',
 		buffer: zipBuffer,
 	});
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
 
 	// The import should trigger creation of a new saved site by default.
 	await expect(getPlaygroundTitle(website.page)).not.toContainText(
@@ -1003,8 +1587,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	await website.openPlaygroundsPane();
 
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
+		.getByRole('button', { name: `Open ${savedSiteName}`, exact: true })
 		.click();
 	await website.ensureSiteManagerIsOpen();
 
@@ -1013,6 +1596,431 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	await expect(getPlaygroundTitle(website.page)).toContainText(
 		savedSiteName,
 		{ timeout: 30000 }
+	);
+});
+
+test('should persist an imported ZIP saved site after switching away and back', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const savedSiteMarker = 'ZIP_IMPORT_PERSISTENCE_SOURCE';
+	const blueprint: Blueprint = {
+		landingPage: '/saved-site-marker.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/saved-site-marker.php',
+				data: `<?php echo '${savedSiteMarker}';`,
+			},
+		],
+	};
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
+	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
+
+	await website.ensureSiteManagerIsOpen();
+	const savedSiteName = 'ZIP Import Persistence Source';
+	await saveSiteViaDockPane(website.page, { customName: savedSiteName });
+	await expect(getPlaygroundTitle(website.page)).toContainText(
+		savedSiteName,
+		{ timeout: 90000 }
+	);
+	const savedSite = await getActivePlaygroundSite(website.page);
+	expect(savedSite?.slug).toBeTruthy();
+	const savedSiteSlug = savedSite.slug;
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const importedMarker = 'ZIP_IMPORT_PERSISTED_MARKER';
+	const importedMarkerPath = 'imported-marker.php';
+	const zipBuffer = await createTestWordPressZip(
+		importedMarker,
+		importedMarkerPath
+	);
+
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'test-import-persistence.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== savedSiteSlug
+	);
+	expect(importedSite?.slug).toBeTruthy();
+	const importedSiteSlug = importedSite.slug;
+	await waitForInitialOpfsSync(website.page, importedSiteSlug);
+	// Discard the import runtime before requesting the marker. The fresh runtime
+	// must load the imported file from persisted OPFS state.
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
+
+	await setActivePlaygroundSite(website.page, savedSiteSlug);
+	await website.waitForNestedIframes();
+	await expect(getPlaygroundTitle(website.page)).toContainText(
+		savedSiteName,
+		{ timeout: 30000 }
+	);
+
+	await setActivePlaygroundSite(website.page, importedSiteSlug);
+	await website.waitForNestedIframes();
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
+
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
+	await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
+	await expect(wordpress.locator('body')).toContainText(importedMarker);
+});
+
+test('should retain files omitted from a legacy ZIP export', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto(getTemporaryPlaygroundUrl());
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	const sourceSiteSlug = sourceSite.slug;
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+
+	const legacyMarker = 'LEGACY_ZIP_IMPORT_MARKER';
+	const legacyMarkerPath = 'wp-content/plugins/legacy-zip-import-marker.php';
+	const zipBuffer = await createTestWordPressZip(
+		legacyMarker,
+		legacyMarkerPath,
+		[
+			new File(
+				[JSON.stringify({ siteUrl: 'http://playground-domain/' })],
+				'playground-export.json'
+			),
+		]
+	);
+	let importDialogAccepted = false;
+	const acceptImportDialog = async (dialog: { accept(): Promise<void> }) => {
+		await dialog.accept();
+		importDialogAccepted = true;
+	};
+	website.page.on('dialog', acceptImportDialog);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'legacy-playground-export.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect
+		.poll(
+			() =>
+				website.page.evaluate(
+					async ({ originalSlug, markerPath }) => {
+						const sitesAPI = (window as any).playgroundSites;
+						if (!sitesAPI) {
+							return { marker: false, defaultTheme: false };
+						}
+						const activeSite = sitesAPI
+							.list()
+							.find((site: any) => site.isActive);
+						const playground = sitesAPI.getClient();
+						if (
+							!activeSite ||
+							activeSite.slug === originalSlug ||
+							!playground
+						) {
+							return { marker: false, defaultTheme: false };
+						}
+						const documentRoot = await playground.documentRoot;
+						return {
+							marker: await playground.fileExists(
+								`${documentRoot}/${markerPath}`
+							),
+							defaultTheme: await playground.fileExists(
+								`${documentRoot}/wp-content/themes/twentytwentyfive/theme.json`
+							),
+						};
+					},
+					{
+						originalSlug: sourceSiteSlug,
+						markerPath: legacyMarkerPath,
+					}
+				),
+			{ timeout: 120000 }
+		)
+		.toEqual({ marker: true, defaultTheme: true });
+	await expect
+		.poll(
+			async () =>
+				importDialogAccepted ||
+				(await website.page
+					.getByText('Playground imported', { exact: true })
+					.isVisible()),
+			{ timeout: 120000 }
+		)
+		.toBe(true);
+	website.page.off('dialog', acceptImportDialog);
+
+	await website.waitForNestedIframes();
+	await openPlaygroundPath(website.page, '/');
+	await expect(wordpress.locator('body')).toBeVisible();
+	await expect(wordpress.locator('body')).not.toContainText(
+		'There has been a critical error'
+	);
+});
+
+test('should re-import an exported ZIP without switching sites', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const blueprint: Blueprint = {
+		meta: {
+			title: 'ZIP Reimport Regression',
+			author: 'wordpress',
+		},
+		steps: [],
+	};
+	const sourceUrl = getTemporaryPlaygroundUrl(
+		`#${JSON.stringify(blueprint)}`
+	);
+	await website.goto(sourceUrl);
+	const sourceSiteSlug = await website.page.evaluate(() =>
+		(window as any).playgroundSites.createNewSavedSite(
+			undefined,
+			undefined,
+			{
+				persistence: 'autosave',
+				updateUrl: false,
+			}
+		)
+	);
+
+	// Occupy the next slug after this tab loaded. Its Redux snapshot will not
+	// include this site, but both tabs share OPFS.
+	const secondTab = await context.newPage();
+	await secondTab.goto(new URL(sourceUrl, website.page.url()).href);
+	await secondTab.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+	const occupiedSiteSlug = await secondTab.evaluate(
+		(slugToKeep) =>
+			(window as any).playgroundSites.createNewSavedSite(
+				undefined,
+				undefined,
+				{
+					updateUrl: false,
+					excludeFromPruning: [slugToKeep],
+				}
+			),
+		sourceSiteSlug
+	);
+	await secondTab.close();
+
+	expect(occupiedSiteSlug).not.toBe(sourceSiteSlug);
+	expect((await getActivePlaygroundSite(website.page))?.slug).toBe(
+		sourceSiteSlug
+	);
+
+	await website.openDockPane('Export');
+	const downloadPromise = website.page.waitForEvent('download');
+	await website.page
+		.getByRole('dialog', { name: 'Export pane' })
+		.getByRole('button', { name: 'Download as .zip' })
+		.click();
+	const download = await downloadPromise;
+	const downloadPath = await download.path();
+	expect(downloadPath).toBeTruthy();
+	const zipBuffer = await readFile(downloadPath!);
+
+	// Downloading must not change the active site before the ZIP is imported.
+	expect((await getActivePlaygroundSite(website.page))?.slug).toBe(
+		sourceSiteSlug
+	);
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+	const acceptImportDialog = async (dialog: { accept(): Promise<void> }) => {
+		await dialog.accept();
+	};
+	website.page.on('dialog', acceptImportDialog);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'zip-reimport-regression.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+
+	await expect(
+		website.page.getByText('Playground imported', { exact: true })
+	).toBeVisible({ timeout: 120000 });
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== sourceSiteSlug
+	);
+	website.page.off('dialog', acceptImportDialog);
+	expect(importedSite.slug).not.toBe(occupiedSiteSlug);
+});
+
+test('should preserve a customized default-theme background through export and import', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	const purpleBackground = '#7f54b3';
+	const purpleBackgroundRgb = 'rgb(127, 84, 179)';
+	// Keep the customization in stock-theme files, which older imports replaced
+	// with pristine files from the new runtime.
+	const blueprint: Blueprint = {
+		landingPage: '/',
+		steps: [
+			{
+				step: 'runPHP',
+				code: `<?php
+					$functions_path = '/wordpress/wp-content/themes/twentytwentyfive/functions.php';
+					$customization = <<<'PHP'
+add_action('wp_head', function() {
+	echo '<style>
+body { background-color: ${purpleBackground} !important; }
+</style>';
+});
+PHP;
+					file_put_contents(
+						$functions_path,
+						"\n$customization\n",
+						FILE_APPEND
+					);
+				`,
+			},
+			{
+				step: 'activateTheme',
+				themeFolderName: 'twentytwentyfive',
+			},
+		],
+	};
+	await website.goto(
+		getTemporaryPlaygroundUrl(`#${JSON.stringify(blueprint)}`)
+	);
+	await expect(wordpress.locator('body')).toHaveCSS(
+		'background-color',
+		purpleBackgroundRgb
+	);
+	const sourceSite = await getActivePlaygroundSite(website.page);
+	expect(sourceSite?.slug).toBeTruthy();
+	const sourceSiteSlug = sourceSite.slug;
+
+	await website.openDockPane('Export');
+	const downloadPromise = website.page.waitForEvent('download');
+	await website.page
+		.getByRole('dialog', { name: 'Export pane' })
+		.getByRole('button', { name: 'Download as .zip' })
+		.click();
+	const download = await downloadPromise;
+	const downloadPath = await download.path();
+	expect(downloadPath).toBeTruthy();
+	const zipBuffer = await readFile(downloadPath!);
+
+	await website.openDockPane('New Playground');
+	await website.page
+		.getByRole('tab', { name: 'Import zip', exact: true })
+		.click();
+	let importDialogAccepted = false;
+	const acceptImportDialog = async (dialog: { accept(): Promise<void> }) => {
+		await dialog.accept();
+		importDialogAccepted = true;
+	};
+	website.page.on('dialog', acceptImportDialog);
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles({
+			name: 'brewcommerce-purple-export.zip',
+			mimeType: 'application/zip',
+			buffer: zipBuffer,
+		});
+	const importedSite = await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug !== sourceSiteSlug
+	);
+	expect(importedSite?.slug).toBeTruthy();
+	const importedSiteSlug = importedSite.slug;
+	await expect
+		.poll(() =>
+			website.page.evaluate(async (background) => {
+				const sitesAPI = (window as any).playgroundSites;
+				const playground = sitesAPI?.getClient();
+				if (!playground) {
+					return false;
+				}
+				const documentRoot = await playground.documentRoot;
+				return (
+					await playground.readFileAsText(
+						`${documentRoot}/wp-content/themes/twentytwentyfive/functions.php`
+					)
+				).includes(background);
+			}, purpleBackground)
+		)
+		.toBe(true);
+	await expect
+		.poll(
+			async () =>
+				importDialogAccepted ||
+				(await website.page
+					.getByText('Playground imported', { exact: true })
+					.isVisible()),
+			{ timeout: 120000 }
+		)
+		.toBe(true);
+	website.page.off('dialog', acceptImportDialog);
+
+	await waitForInitialOpfsSync(website.page, importedSiteSlug);
+	// Reboot the imported site so the final assertion reads the customization
+	// from persisted OPFS state rather than the import runtime.
+	await website.goto(`./?site-slug=${encodeURIComponent(importedSiteSlug)}`);
+	await waitForActivePlaygroundSiteSlug(
+		website.page,
+		(slug) => slug === importedSiteSlug
+	);
+	await openPlaygroundPath(website.page, '/');
+	await expect(wordpress.locator('body')).toHaveCSS(
+		'background-color',
+		purpleBackgroundRgb
 	);
 });
 

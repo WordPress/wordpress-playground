@@ -41,15 +41,31 @@ export function PlaygroundBootNotice({
 			aria-hidden={!show || undefined}
 		>
 			<div className={css.bootNoticeInner}>
-				<div
-					className={css.bootNotice}
-					role="status"
-					aria-live="polite"
-				>
-					<Spinner size={16} />
-					<span className={css.bootNoticeText}>{message}</span>
-				</div>
+				<InlineProgress message={message} />
 			</div>
+		</div>
+	);
+}
+
+/**
+ * Displays progress without replacing the surrounding pane.
+ *
+ * The message and spinner are presented in the shared compact progress
+ * container. The container is also a polite live region so assistive
+ * technology announces message changes without interrupting the user.
+ *
+ * This component only renders the progress state. Its parent owns the
+ * operation lifecycle and decides when to mount or remove it. Use
+ * `PaneLoading` instead when the entire pane is unavailable.
+ *
+ * @param message Human-readable description of the operation in progress.
+ * @returns The compact progress status region.
+ */
+export function InlineProgress({ message }: { message: string }) {
+	return (
+		<div className={css.inlineProgress} role="status" aria-live="polite">
+			<Spinner size={16} />
+			<span className={css.inlineProgressText}>{message}</span>
 		</div>
 	);
 }
