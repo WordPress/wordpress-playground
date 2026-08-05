@@ -183,14 +183,14 @@
 }
 
 .dockPresentation .sidebarWrapper {
-	border-right-color: var(--line-subtle, #ddd);
+	border-right: 1px solid var(--divider, #d9d9d9);
 	background: var(--paper-1, #ffffff);
 }
 
 .dockPresentation .editorHeader {
 	min-height: 56px;
 	padding: 8px 16px 8px var(--pane-inline-padding, 24px);
-	border-bottom-color: var(--line-subtle, #ddd);
+	border-bottom: 1px solid var(--divider, #d9d9d9);
 	background: var(--paper-2, #ffffff);
 }
 

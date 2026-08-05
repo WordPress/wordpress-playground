@@ -10,6 +10,29 @@ on:
 permissions: {}
 
 jobs:
+    set-nx-shas:
+        name: 'Resolve Nx affected SHAs'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            actions: read # Required to find the last successful CI run.
+            contents: read # Required to clone the repo.
+        outputs:
+            base: ${{ steps.set_shas.outputs.base }}
+            head: ${{ steps.set_shas.outputs.head }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  filter: tree:0
+            - id: set_shas
+              name: Derive appropriate SHAs for nx affected
+              uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5.0.1
+              with:
+                  main-branch-name: trunk
+                  set-environment-variables-for-job: false
+
     # This step:
     # * Warms up the node_modules cache
     # * Performs linting and typechecking
@@ -20,11 +43,15 @@ jobs:
     # take ~25s just to run git clone and restore node_modules.
     lint-and-typecheck:
         name: 'Lint and typecheck'
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -35,11 +62,15 @@ jobs:
             - run: npx nx check-orphan-pages docs-site
             - run: bash tools/check-node-engine-alignment.sh
     test-unit-asyncify:
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         strategy:
             fail-fast: false
             matrix:
@@ -87,11 +118,15 @@ jobs:
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-unit-jspi:
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         strategy:
             fail-fast: false
             matrix:
@@ -137,15 +172,18 @@ jobs:
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-playground-cli:
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
-        continue-on-error: true
         runs-on: ${{ matrix.os }}
         timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         name: 'test-playground-cli (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
@@ -157,6 +195,7 @@ jobs:
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
     test-file-locking:
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:
             matrix:
@@ -167,6 +206,9 @@ jobs:
         timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         name: 'test-file-locking-${{ matrix.async-strategy }} (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
@@ -506,12 +548,15 @@ jobs:
                   fi
 
     test-compile-extension-helper:
-        needs: detect-compile-extension-helper-changes
+        needs: [detect-compile-extension-helper-changes, set-nx-shas]
         if: (github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request') && needs.detect-compile-extension-helper-changes.outputs.changed == 'true'
         runs-on: ubuntu-latest
         timeout-minutes: 60
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -633,11 +678,15 @@ jobs:
                   MEMCACHED_PORT: 11211
 
     build:
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 30
         permissions:
             contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
         steps:
             - uses: actions/checkout@v4
               with:

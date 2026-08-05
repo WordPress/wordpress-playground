@@ -11,7 +11,7 @@
 	flex: 1;
 	display: flex;
 	min-height: 0;
-	background: var(--color-gray-000);
+	background: var(--surface);
 }
 
 .sidebarWrapper {
@@ -20,7 +20,7 @@
 	width: 280px;
 	max-width: 360px;
 	min-width: 220px;
-	border-right: 1px solid var(--color-gray-200);
+	border-right: 1px solid var(--divider);
 	background: #ffffff;
 	z-index: 3;
 }
@@ -41,7 +41,7 @@
 	flex-wrap: wrap;
 	gap: 8px 12px;
 	padding: 12px 16px;
-	border-bottom: 1px solid var(--color-gray-200);
+	border-bottom: 1px solid var(--divider);
 	background: #ffffff;
 	z-index: 1;
 }
@@ -53,12 +53,12 @@
 		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
-	color: var(--color-gray-700);
+	color: var(--ink-muted);
 	word-break: break-all;
 }
 
 .editorPathPlaceholder {
-	color: var(--color-gray-500);
+	color: var(--ink-faint);
 }
 
 .editorHeaderActions {
@@ -92,7 +92,7 @@
 	justify-content: center;
 	padding: 32px;
 	text-align: center;
-	color: var(--color-gray-700);
+	color: var(--ink-muted);
 	background: #ffffff;
 }
 
@@ -144,17 +144,17 @@
 }
 
 .dockPresentation .content {
-	background: var(--paper-1, #ffffff);
+	background: var(--surface);
 }
 
 .dockPresentation .sidebarWrapper {
-	background: var(--paper-1, #ffffff);
-	border-right-color: var(--line-subtle, #ddd);
+	background: var(--surface);
+	border-right-color: var(--border-subtle);
 }
 
 .dockPresentation .editorHeader {
-	background: var(--paper-2, #ffffff);
-	border-bottom-color: var(--line-subtle, #ddd);
+	background: var(--surface-raised);
+	border-bottom-color: var(--border-subtle);
 	min-height: 56px;
 	padding: 8px 16px;
 }
@@ -196,53 +196,35 @@
 	gap: 4px;
 }
 
-.exportMenuItemWithHint {
-	height: auto;
-	justify-content: flex-start;
-	min-height: 52px;
-	padding-bottom: 8px;
-	padding-top: 8px;
-	text-align: left;
-}
-
-.exportMenuItemWithHint :global(.components-menu-item__item) {
-	align-items: flex-start;
-	min-width: 0;
-	white-space: normal;
-}
-
-.exportMenuItemBody {
-	align-items: flex-start;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	line-height: 1.4;
-	white-space: normal;
-}
-
-.exportMenuItemHint {
-	color: var(--ink-muted, #50575e);
-	font-size: 12px;
-	font-weight: 400;
-	line-height: 1.4;
-	max-width: 240px;
-	white-space: normal;
+.editorExportMenu :global(.components-menu-item__button.components-button) {
+	padding-left: 12px;
+	padding-right: 12px;
 }
 
 .runHint {
-	background: var(--paper-2, #ffffff);
-	border-bottom: 1px solid var(--line-subtle, #ddd);
-	color: var(--ink-muted, #50575e);
+	align-items: flex-start;
+	background: #fff8e5;
+	border-bottom: 1px solid #f0b849;
+	color: #614c00;
+	display: flex;
 	font-size: 13px;
+	gap: 8px;
 	line-height: 1.5;
 	margin: 0;
 	padding: 10px 16px;
 }
 
+.runHint svg {
+	color: #996800;
+	fill: currentColor;
+	flex: 0 0 auto;
+	margin-top: 1px;
+}
+
 .editorDocsLink {
 	align-items: center;
 	border-radius: 6px;
-	color: var(--ink-muted, #50575e);
+	color: var(--ink-muted);
 	display: inline-flex;
 	height: 32px;
 	justify-content: center;
@@ -251,33 +233,29 @@
 
 .editorDocsLink:hover {
 	background: rgba(20, 18, 15, 0.06);
-	color: var(--accent, #3858e9);
+	color: var(--accent);
 }
 
 .dockPresentation .editor,
 .dockPresentation .editor :global(.cm-editor),
 .dockPresentation .placeholder,
 .dockPresentation .messageArea {
-	background: var(--paper-1, #ffffff);
+	background: var(--surface);
 }
 
 .dockPresentation .editor :global(.cm-gutters) {
-	background: var(--paper-2, #ffffff);
-	border-right: 1px solid var(--line-subtle, #ddd);
-	color: var(--ink-faint, #787c82);
+	background: var(--surface-raised);
+	border-right: 1px solid var(--border-subtle);
+	color: var(--ink-faint);
 }
 
 .dockPresentation .editor :global(.cm-activeLine),
 .dockPresentation .editor :global(.cm-activeLineGutter) {
-	background: var(--paper-3, #f0f0f1);
+	background: var(--surface-recessed);
 }
 
 .mobileToggle {
 	display: none;
-}
-
-.editorHeaderSlotActions .mobileToggle {
-	display: inline-flex;
 }
 
 .mobileOverlay {
@@ -428,6 +406,7 @@
 
 @media (max-width: 1024px) {
 	.editorHeaderSlotActions .mobileToggle {
+		display: inline-flex;
 		order: initial;
 	}
 
