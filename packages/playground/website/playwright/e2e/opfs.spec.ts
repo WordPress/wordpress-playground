@@ -1,17 +1,9 @@
-import { test as baseTest, expect } from '../playground-fixtures.ts';
+import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 import { readFile } from 'node:fs/promises';
-
-// Every test in this file touches browser-wide OPFS, so CI must route all of
-// them to the one-worker storage lane. Keep the usual APIs used in this file
-// while adding `@storage` to each test declaration.
-const test = Object.assign(storageTest, {
-	describe: baseTest.describe,
-	skip: baseTest.skip,
-});
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
@@ -136,7 +128,8 @@ Theme Name: Close Race Theme
 }
 
 // OPFS is shared by tests in one browser. Default mode keeps this file ordered
-// while retrying only the failed test.
+// while retrying only the failed test. Each test includes the `@storage` tag so
+// CI routes it to the one-worker storage lane.
 test.describe.configure({ mode: 'default' });
 
 /**
@@ -542,7 +535,7 @@ async function openPlaygroundPath(page: Page, path: string) {
 		path
 	);
 }
-test('should retry pending OPFS cleanup after another tab releases storage', async ({
+test('should retry pending OPFS cleanup after another tab releases storage @storage', async ({
 	website,
 	context,
 	browserName,
@@ -602,7 +595,7 @@ test('should retry pending OPFS cleanup after another tab releases storage', asy
 	expect(storedSite.hasOldResetSentinel).toBe(false);
 });
 
-test('should start a new Playground after an initial OPFS sync was interrupted', async ({
+test('should start a new Playground after an initial OPFS sync was interrupted @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -638,7 +631,10 @@ test('should start a new Playground after an initial OPFS sync was interrupted',
 	await website.waitForNestedIframes();
 });
 
-test('should switch between sites', async ({ website, browserName }) => {
+test('should switch between sites @storage', async ({
+	website,
+	browserName,
+}) => {
 	test.skip(
 		browserName !== 'chromium',
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
@@ -701,7 +697,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 	await expect(getPlaygroundTitle(website.page)).toContainText(firstSiteName);
 });
 
-test('should preserve PHP constants when saving a temporary site to OPFS', async ({
+test('should preserve PHP constants when saving a temporary site to OPFS @storage', async ({
 	website,
 	browserName,
 	wordpress,
@@ -768,7 +764,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
 });
 
-test('should rename a saved Playground and persist after reload', async ({
+test('should rename a saved Playground and persist after reload @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -821,7 +817,7 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.closePlaygroundsPane();
 });
 
-test('should wait for a temporary OPFS metadata lock', async ({
+test('should wait for a temporary OPFS metadata lock @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -883,7 +879,7 @@ test('should wait for a temporary OPFS metadata lock', async ({
 		.toBe(newName);
 });
 
-test('should preserve metadata changes made in different tabs', async ({
+test('should preserve metadata changes made in different tabs @storage', async ({
 	website,
 	context,
 	browserName,
@@ -939,7 +935,7 @@ test('should preserve metadata changes made in different tabs', async ({
 	expect(persistedMetadata.runtimeConfiguration.networking).toBe(false);
 });
 
-test('should show the Store permanently pane with the save controls', async ({
+test('should show the Store permanently pane with the save controls @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -971,7 +967,7 @@ test('should show the Store permanently pane with the save controls', async ({
 	await expect(pane).not.toBeVisible();
 });
 
-test('should close the Store permanently pane without saving', async ({
+test('should close the Store permanently pane without saving @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1006,7 +1002,7 @@ test('should close the Store permanently pane without saving', async ({
 	);
 });
 
-test('should have playground name input text selected by default', async ({
+test('should have playground name input text selected by default @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1042,7 +1038,10 @@ test('should have playground name input text selected by default', async ({
 	await pane.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should save site with custom name', async ({ website, browserName }) => {
+test('should save site with custom name @storage', async ({
+	website,
+	browserName,
+}) => {
 	test.skip(
 		browserName !== 'chromium',
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
@@ -1071,7 +1070,7 @@ test('should save site with custom name', async ({ website, browserName }) => {
 	await website.closePlaygroundsPane();
 });
 
-test('should not persist the Store permanently pane through page refresh', async ({
+test('should not persist the Store permanently pane through page refresh @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1095,7 +1094,7 @@ test('should not persist the Store permanently pane through page refresh', async
 	await expect(pane).toHaveCount(0);
 });
 
-test('should display OPFS storage option as selected by default', async ({
+test('should display OPFS storage option as selected by default @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1118,7 +1117,7 @@ test('should display OPFS storage option as selected by default', async ({
 	await pane.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should import ZIP into a fresh temporary site without browser storage', async ({
+test('should import ZIP into a fresh temporary site without browser storage @storage', async ({
 	website,
 	browserName,
 	context,
@@ -1186,7 +1185,7 @@ test('should import ZIP into a fresh temporary site without browser storage', as
 		.toBe(marker);
 });
 
-test('should remove the saved site created for a failed ZIP import', async ({
+test('should remove the saved site created for a failed ZIP import @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1230,7 +1229,7 @@ test('should remove the saved site created for a failed ZIP import', async ({
 		.toEqual(storedSiteSlugsBeforeImport);
 });
 
-test('should import a ZIP dropped on the page', async ({
+test('should import a ZIP dropped on the page @storage', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1266,7 +1265,7 @@ test('should import a ZIP dropped on the page', async ({
 	await expect(wordpress.locator('body')).toContainText(marker);
 });
 
-test('should show an inline error for a non-ZIP drop', async ({
+test('should show an inline error for a non-ZIP drop @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1294,7 +1293,7 @@ test('should show an inline error for a non-ZIP drop', async ({
 	).toBeVisible();
 });
 
-test('should notify when a ZIP import loads before autosave finishes', async ({
+test('should notify when a ZIP import loads before autosave finishes @storage', async ({
 	website,
 	browserName,
 }) => {
@@ -1414,7 +1413,7 @@ test('should notify when a ZIP import loads before autosave finishes', async ({
 		.toEqual({ plugin: true, theme: true });
 });
 
-test('should import ZIP into a new saved site when a saved site exists', async ({
+test('should import ZIP into a new saved site when a saved site exists @storage', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1506,7 +1505,7 @@ test('should import ZIP into a new saved site when a saved site exists', async (
 	);
 });
 
-test('should create a saved site when importing ZIP while on a saved site with no existing temporary site', async ({
+test('should create a saved site when importing ZIP while on a saved site with no existing temporary site @storage', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1609,7 +1608,7 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	);
 });
 
-test('should persist an imported ZIP saved site after switching away and back', async ({
+test('should persist an imported ZIP saved site after switching away and back @storage', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1699,7 +1698,7 @@ test('should persist an imported ZIP saved site after switching away and back', 
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 });
 
-test('should retain files omitted from a legacy ZIP export', async ({
+test('should retain files omitted from a legacy ZIP export @storage', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1803,7 +1802,7 @@ test('should retain files omitted from a legacy ZIP export', async ({
 	);
 });
 
-test('should re-import an exported ZIP without switching sites', async ({
+test('should re-import an exported ZIP without switching sites @storage', async ({
 	website,
 	context,
 	browserName,
@@ -1904,7 +1903,7 @@ test('should re-import an exported ZIP without switching sites', async ({
 	expect(importedSite.slug).not.toBe(occupiedSiteSlug);
 });
 
-test('should preserve a customized default-theme background through export and import', async ({
+test('should preserve a customized default-theme background through export and import @storage', async ({
 	website,
 	wordpress,
 	browserName,
@@ -2036,7 +2035,7 @@ PHP;
 
 // Missing site modal tests in a separate describe block to avoid state pollution.
 test.describe('Missing site modal', () => {
-	test('should show modal when loading non-existent site slug', async ({
+	test('should show modal when loading non-existent site slug @storage', async ({
 		website,
 		wordpress,
 		browserName,
@@ -2063,7 +2062,7 @@ test.describe('Missing site modal', () => {
 		).toBeVisible({ timeout: 30000 });
 	});
 
-	test('should dismiss modal when clicking dismiss button', async ({
+	test('should dismiss modal when clicking dismiss button @storage', async ({
 		website,
 		wordpress,
 		browserName,
@@ -2097,7 +2096,3 @@ test.describe('Missing site modal', () => {
 		await expect(dialog).not.toBeVisible();
 	});
 });
-
-function storageTest(title: string, body: Parameters<typeof baseTest>[2]) {
-	baseTest(title, { tag: '@storage' }, body);
-}

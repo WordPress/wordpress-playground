@@ -18,10 +18,6 @@ function getTestGroupOptions(testGroup: string | undefined) {
 			return { grep: storageTests, workers: 1 };
 		case 'regular':
 			return { grepInvert: storageTests };
-		case undefined:
-			// The Nx full-suite target does not select a group. One worker keeps
-			// its storage tests from overlapping while still running every test.
-			return { workers: 1 };
 		default:
 			throw new Error(
 				`Unsupported PLAYWRIGHT_TEST_GROUP: ${JSON.stringify(testGroup)}. ` +
