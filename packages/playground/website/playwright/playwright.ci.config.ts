@@ -10,13 +10,25 @@ import playwrightConfig from './playwright.config';
  * does not need to know which files contain storage tests.
  */
 const storageTests = /@storage/;
-const testGroup = process.env.PLAYWRIGHT_TEST_GROUP;
-const testGroupOptions =
-	testGroup === 'storage'
-		? { grep: storageTests, workers: 1 }
-		: testGroup === 'regular'
-			? { grepInvert: storageTests }
-			: {};
+const testGroupOptions = getTestGroupOptions(process.env.PLAYWRIGHT_TEST_GROUP);
+
+function getTestGroupOptions(testGroup: string | undefined) {
+	switch (testGroup) {
+		case 'storage':
+			return { grep: storageTests, workers: 1 };
+		case 'regular':
+			return { grepInvert: storageTests };
+		case undefined:
+			// The Nx full-suite target does not select a group. One worker keeps
+			// its storage tests from overlapping while still running every test.
+			return { workers: 1 };
+		default:
+			throw new Error(
+				`Unsupported PLAYWRIGHT_TEST_GROUP: ${JSON.stringify(testGroup)}. ` +
+					'Expected "regular" or "storage".'
+			);
+	}
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.
