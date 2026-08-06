@@ -6,6 +6,7 @@
 #include "ext/standard/php_password.h"
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 PHP_FUNCTION(external_abi_probe)
 {
@@ -15,6 +16,8 @@ PHP_FUNCTION(external_abi_probe)
 	void *first = emalloc(160);
 	void *second = emalloc(448);
 	zend_string *algorithm = zend_string_init("bcrypt", sizeof("bcrypt") - 1, 0);
+	zend_string *mixed_case = zend_string_init("Zstd", sizeof("Zstd") - 1, 0);
+	int compared;
 
 	ZVAL_LONG(&value, 1);
 	convert_to_null(&value);
@@ -22,10 +25,12 @@ PHP_FUNCTION(external_abi_probe)
 	php_password_algo_register("external_abi", &php_password_algo_bcrypt);
 	explicit_bzero(cleared, sizeof(cleared));
 	sscanf("42", "%d", &parsed);
+	compared = strncasecmp(ZSTR_VAL(mixed_case), "zstd", 4);
 	zend_string_release(algorithm);
+	zend_string_release(mixed_case);
 	efree(first);
 	efree(second);
-	RETURN_BOOL(cleared[0] == 0 && parsed == 42);
+	RETURN_BOOL(cleared[0] == 0 && parsed == 42 && compared == 0);
 }
 
 static const zend_function_entry external_abi_functions[] = {

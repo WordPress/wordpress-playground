@@ -19,6 +19,7 @@ _rmdir
 _sqlite3_auto_extension
 _sqlite3_cancel_auto_extension
 _sscanf
+_strncasecmp
 _strtoll
 _unlink
 _php_wasm_init
