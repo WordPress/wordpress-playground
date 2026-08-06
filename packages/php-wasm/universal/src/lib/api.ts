@@ -1,696 +1,1570 @@
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
 import {
 	phpEventStdinTransfer,
 	type PHPEventWithStdinTransfer,
 } from '@php-wasm/util';
-import type { PHPResponseData } from './php-response';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
-import * as Comlink from './comlink-sync';
 import {
-	NodeSABSyncReceiveMessageTransport,
-	createEndpoint,
-	nodeEndpoint as nodeWorkerEndpoint,
-	releaseProxy,
-	type NodeEndpoint as NodeWorker,
+	RPC_PROTOCOL_MARKER,
+	RPC_PROTOCOL_VERSION,
+	RPCProtocolVersionMismatchError,
+	RPCSerializationError,
+	RPCUnsupportedOperationError,
+	RPCUnsupportedTransferError,
+	RemoteAPIEndpointTerminatedError,
+	SyncRPCOperationTimeoutError,
+	createRPCEndpointAdapter,
+	createRPCClient,
+	createSyncRPCClient,
+	exposeRPC,
+	exposeSyncRPC,
+	isRPCRemoteProxy,
+	releaseApiProxy,
+	reserveRPCEndpoint,
+	type EncodedRPCCodecValue,
 	type Remote,
-	type Endpoint,
-	type IsomorphicMessagePort,
-	type ProxyMethods,
-} from './comlink-sync';
-import {
-	type NodeProcess,
-	nodeProcessEndpoint,
-} from './comlink-node-process-adapter';
-import * as ErrorSerializer from './serialize-error';
+	type RPCClientOptions,
+	type RPCClosablePort,
+	type RPCCodecContext,
+	type RPCEndpointAdapter,
+	type RPCPath,
+	type RPCResourceOwner,
+	type RPCTransferPolicy,
+	type RPCValueCodec,
+	type RPCWireValue,
+	type SyncRPCClientOptions,
+} from './rpc';
+import type { NodeProcess } from './rpc-node-process-adapter';
 
-// NOTE: It seems like we wouldn't have to explicitly specify
-// symbol type here, but it seems to resolve some type errors.
-export const releaseApiProxy: typeof releaseProxy = releaseProxy;
+export {
+	RPC_PROTOCOL_MARKER,
+	RPC_PROTOCOL_VERSION,
+	RPCProtocolVersionMismatchError,
+	RPCSerializationError,
+	RPCUnsupportedOperationError,
+	RPCUnsupportedTransferError,
+	RemoteAPIEndpointTerminatedError,
+	SyncRPCOperationTimeoutError,
+	releaseApiProxy,
+};
+export type { Remote } from './rpc';
 
 export type WithAPIState = {
-	/**
-	 * Resolves to true when the remote API is ready for
-	 * Comlink communication, but not necessarily fully initialized yet.
-	 */
+	/** Resolves after the versioned RPC handshake succeeds. */
 	isConnected: () => Promise<void>;
-	/**
-	 * Resolves to true when the remote API is declares it's
-	 * fully loaded and ready to be used.
-	 */
+	/** Resolves after the exposing side declares the API ready. */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
-export async function consumeAPISync<APIType>(
-	remote: IsomorphicMessagePort
-): Promise<APIType> {
-	setupTransferHandlers();
-	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	return Comlink.wrapSync<APIType>(remote, transport);
-}
-
-export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeWorker | NodeProcess,
-	context: undefined | EventTarget = undefined
-): RemoteAPI<APIType> {
-	setupTransferHandlers();
-
-	let endpoint;
-	/**
-	 * Previously we assumed we were running in a Node.js environment
-	 * when `import.meta.url` started with `file://`. But this assumption breaks
-	 * with webpack which emits file URLs for `import.meta.url`.
-	 * https://webpack.js.org/api/module-variables/#importmetaurl
-	 *
-	 * We replaced this with a more explicit check for `process.versions.node`.
-	 * See https://github.com/WordPress/wordpress-playground/pull/3248
-	 */
-	const appearsToBeNodeEnvironment =
-		typeof process !== 'undefined' &&
-		typeof process.versions !== 'undefined' &&
-		typeof process.versions.node !== 'undefined';
-	if (appearsToBeNodeEnvironment) {
-		if ('postMessage' in remote) {
-			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
-		} else if ('send' in remote && 'addListener' in remote) {
-			endpoint = nodeProcessEndpoint(remote as NodeProcess);
-		} else {
-			throw new Error(
-				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
-			);
-		}
-	} else if (remote instanceof Worker) {
-		endpoint = remote;
-	} else {
-		const windowEndpoint = Comlink.windowEndpoint(
-			remote as Window,
-			context
-		);
-		const bootstrapApi = Comlink.wrap<WithAPIState>(windowEndpoint);
-		endpoint = deferredEndpoint(
-			connectWindowApiThroughMessagePort(bootstrapApi)
-		);
-	}
-
-	/**
-	 * This shouldn't be necessary, but Comlink doesn't seem to
-	 * handle the initial isConnected() call correctly unless it's
-	 * explicitly provided here. This is especially weird
-	 * since the only thing this proxy does is to call the
-	 * isConnected() method on the remote API.
-	 *
-	 * @TODO: Remove this workaround.
-	 */
-	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
-	const methods = proxyClone(api);
-	return new Proxy(methods, {
-		get: (target, prop) => {
-			if (prop === 'isConnected') {
-				return async () => {
-					// Keep retrying until the remote API confirms it's connected.
-					while (true) {
-						try {
-							await runWithTimeout(api.isConnected(), 200);
-							break;
-						} catch {
-							// Timeout exceeded, try again. We can't just use a single
-							// `runWithTimeout` call because it won't reach the remote API
-							// if it's not connected yet. Instead, we need to keep retrying
-							// until the remote API is connected and registers a handler
-							// for the `isConnected` method.
-						}
-					}
-				};
-			}
-			return (api as any)[prop];
-		},
-	}) as unknown as RemoteAPI<APIType>;
-}
-
-/**
- * Moves a Window-backed API onto a point-to-point MessagePort.
- *
- * Unlike Worker messages, Window messages are visible to the application's main
- * world and to browser-extension isolated worlds. In Chromium, a browser extension
- * listener that evaluates `event.data` first can take ownership of a transferred
- * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 is one
- * such extension.
- *
- * The Window message used here transfers only Comlink's endpoint port. Later API
- * calls and streams use that port, where unrelated Window listeners cannot
- * observe them. The handshake is retried because `consumeAPI()` may run before
- * the remote Window installs its Comlink listener.
- */
-async function connectWindowApiThroughMessagePort(
-	bootstrapApi: Remote<WithAPIState> & ProxyMethods
-): Promise<MessagePort> {
-	while (true) {
-		try {
-			await runWithTimeout(bootstrapApi.isConnected(), 200);
-			return await bootstrapApi[createEndpoint]();
-		} catch {
-			// The remote Window has not exposed its API yet, or it changed
-			// before the endpoint request completed.
-		}
-	}
-}
-
-/**
- * Adapts the asynchronous MessagePort handshake to `consumeAPI()`'s synchronous
- * return type.
- *
- * Comlink starts registering listeners and posting requests immediately. Buffer
- * those operations until the port arrives, then attach and start the listeners
- * before replaying requests so no response can arrive without a listener.
- */
-function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
-	let port: MessagePort | undefined;
-	let shouldStart = false;
-	const listeners: Array<{
-		type: string;
-		listener: EventListenerOrEventListenerObject;
-		options?: object;
-	}> = [];
-	const messages: Array<{
-		message: unknown;
-		transfer?: Transferable[];
-	}> = [];
-
-	void portPromise.then((connectedPort) => {
-		port = connectedPort;
-		for (const { type, listener, options } of listeners) {
-			port.addEventListener(type, listener, options);
-		}
-		if (shouldStart) {
-			port.start();
-		}
-		for (const { message, transfer } of messages) {
-			if (transfer) {
-				port.postMessage(message, transfer);
-			} else {
-				port.postMessage(message);
-			}
-		}
-		messages.length = 0;
-	});
-
-	return {
-		postMessage(message, transfer) {
-			if (port) {
-				if (transfer) {
-					port.postMessage(message, transfer);
-				} else {
-					port.postMessage(message);
-				}
-			} else {
-				messages.push({ message, transfer });
-			}
-		},
-		addEventListener(type, listener, options) {
-			if (port) {
-				port.addEventListener(type, listener, options);
-			} else {
-				listeners.push({ type, listener, options });
-			}
-		},
-		removeEventListener(type, listener, options) {
-			if (port) {
-				port.removeEventListener(type, listener, options);
-				return;
-			}
-			const index = listeners.findIndex(
-				(entry) =>
-					entry.type === type &&
-					entry.listener === listener &&
-					entry.options === options
-			);
-			if (index !== -1) {
-				listeners.splice(index, 1);
-			}
-		},
-		start() {
-			if (port) {
-				port.start();
-			} else {
-				shouldStart = true;
-			}
-		},
-	};
-}
-
-async function runWithTimeout<T>(
-	promise: Promise<T>,
-	timeout: number
-): Promise<T> {
-	return new Promise<T>((resolve, reject) => {
-		const timeoutId = setTimeout(reject, timeout);
-		promise.then(
-			(value) => {
-				clearTimeout(timeoutId);
-				resolve(value);
-			},
-			(error) => {
-				clearTimeout(timeoutId);
-				reject(error);
-			}
-		);
-	});
-}
-
+export type RemoteAPI<T> = Remote<T> & WithAPIState;
 export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 	Methods & PipedAPI
 >;
 
-export function exposeAPI<Methods, PipedAPI>(
+export type APITransferable = Transferable;
+
+export interface APITransferPolicy<API = unknown> extends RPCTransferPolicy {
+	transferArguments?(
+		path: RPCPath,
+		args: readonly unknown[]
+	): readonly APITransferable[];
+	transferResult?(path: RPCPath, result: unknown): readonly APITransferable[];
+	/** Type-only anchor for the API associated with this policy. */
+	readonly __apiType?: API;
+}
+
+export interface ConsumeAPIOptions {
+	/** Event context retained for the positional Window compatibility overload. */
+	context?: EventTarget;
+	/** One owner-controlled signal for the complete endpoint lifetime. */
+	signal?: AbortSignal;
+	/** Exact origin used for the Window bootstrap postMessage(). */
+	targetOrigin?: string;
+	/** Transfer hooks for nested method arguments. */
+	transferPolicy?: APITransferPolicy;
+	/** Select native stream transfer, the portable port bridge, or feature detection. */
+	streamTransport?: 'auto' | 'native' | 'message-port';
+	/** Handshake retry cadence. Primarily useful for deterministic tests. */
+	handshakeRetryMs?: number;
+}
+
+export interface ExposeAPIOptions {
+	/** One owner-controlled signal for the complete exposed endpoint lifetime. */
+	signal?: AbortSignal;
+	/** Transfer hooks for nested method results. */
+	transferPolicy?: APITransferPolicy;
+	/** Exact origins accepted by an iframe's Window bootstrap listener. */
+	allowedOrigins?: string | readonly string[];
+	/** Expected bootstrap sender. Defaults to the iframe's parent Window. */
+	parentWindow?: Window;
+	/** Select native stream transfer, the portable port bridge, or feature detection. */
+	streamTransport?: 'auto' | 'native' | 'message-port';
+}
+
+export type ConsumeAPISyncOptions = SyncRPCClientOptions;
+
+/** Browser and node:worker_threads MessagePorts share this RPC-facing shape. */
+export interface IsomorphicMessagePort {
+	postMessage: (...args: any[]) => unknown;
+	addEventListener?: (
+		type: string,
+		listener: (...args: any[]) => void
+	) => unknown;
+	removeEventListener?: (
+		type: string,
+		listener: (...args: any[]) => void
+	) => unknown;
+	on?: (type: string, listener: (...args: any[]) => void) => unknown;
+	off?: (type: string, listener: (...args: any[]) => void) => unknown;
+	addListener?: (type: string, listener: (...args: any[]) => void) => unknown;
+	removeListener?: (
+		type: string,
+		listener: (...args: any[]) => void
+	) => unknown;
+	start?: () => void;
+	close?: () => void;
+}
+
+const policiesByAPI = new WeakMap<object, APITransferPolicy>();
+
+export function defineAPITransferPolicy<Policy extends APITransferPolicy>(
+	policy: Policy
+): Policy;
+export function defineAPITransferPolicy<API extends object>(
+	api: API,
+	policy: APITransferPolicy<API>
+): API;
+export function defineAPITransferPolicy(
+	apiOrPolicy: object,
+	policy?: APITransferPolicy
+): object {
+	if (policy === undefined) {
+		assertTransferPolicy(apiOrPolicy as APITransferPolicy);
+		return apiOrPolicy;
+	}
+	assertTransferPolicy(policy);
+	policiesByAPI.set(apiOrPolicy, policy);
+	return apiOrPolicy;
+}
+
+export async function consumeAPISync<APIType>(
+	remote: IsomorphicMessagePort,
+	options: ConsumeAPISyncOptions = {}
+): Promise<APIType> {
+	return await createSyncRPCClient<APIType>(remote, options);
+}
+
+export function consumeAPI<APIType>(
+	remote: Worker | Window | MessagePort | object | NodeProcess,
+	contextOrOptions?: EventTarget | ConsumeAPIOptions,
+	additionalOptions: ConsumeAPIOptions = {}
+): RemoteAPI<APIType> {
+	const options = normalizeConsumeOptions(
+		contextOrOptions,
+		additionalOptions
+	);
+	const codecs = createPlaygroundCodecs(options.streamTransport || 'auto');
+	let endpoint: RPCEndpointAdapter;
+
+	if (isWindowEndpoint(remote)) {
+		const targetOrigin =
+			options.targetOrigin ||
+			inferWindowTargetOrigin(remote, options.context);
+		endpoint = createWindowBootstrapEndpoint(remote, targetOrigin);
+	} else {
+		reserveRPCEndpoint(remote, 'asynchronous RPC consumption');
+		endpoint = createRPCEndpointAdapter(remote, {
+			ownsTarget: isMessagePort(remote),
+		});
+	}
+
+	const clientOptions: RPCClientOptions = {
+		signal: options.signal,
+		transferPolicy: options.transferPolicy,
+		handshakeRetryMs: options.handshakeRetryMs,
+	};
+	return createRPCClient<APIType & WithAPIState>(
+		endpoint,
+		codecs,
+		clientOptions
+	) as RemoteAPI<APIType>;
+}
+
+export function exposeAPI<Methods, PipedAPI = unknown>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: MessagePort | NodeWorker | NodeProcess
-): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
+	targetWorker?: MessagePort | object | NodeProcess,
+	options: ExposeAPIOptions = {}
+): [() => void, (error: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
 		pipedApi
 	);
-	let endpoint: Endpoint | undefined;
-	if (targetWorker) {
-		if ('addEventListener' in targetWorker) {
-			// TODO: MessagePort satisfies Endpoint at runtime but its
-			// addEventListener overloads don't exactly match EventSource.
-			endpoint = targetWorker as Endpoint;
-		} else if ('postMessage' in targetWorker) {
-			endpoint = nodeWorkerEndpoint(targetWorker);
-		} else if ('send' in targetWorker && 'addListener' in targetWorker) {
-			endpoint = nodeProcessEndpoint(targetWorker);
-		} else {
-			throw new Error(
-				'exposeAPI: targetWorker does not look like a Worker, MessagePort, or Process'
+	const transferPolicy =
+		options.transferPolicy || getDefinedTransferPolicy(apiMethods);
+	const codecs = createPlaygroundCodecs(options.streamTransport || 'auto');
+
+	if (targetWorker !== undefined) {
+		if (isWindowEndpoint(targetWorker)) {
+			throw new TypeError(
+				'Window exposure requires the private iframe bootstrap; ' +
+					'do not pass a Window as the explicit endpoint.'
 			);
 		}
+		reserveRPCEndpoint(targetWorker, 'asynchronous RPC exposure');
+		exposeRPC(
+			exposedApi,
+			createRPCEndpointAdapter(targetWorker, {
+				ownsTarget: isMessagePort(targetWorker),
+			}),
+			codecs,
+			{
+				signal: options.signal,
+				transferPolicy,
+			}
+		);
+	} else if (isIframeWindowRealm()) {
+		installWindowBootstrap(exposedApi, codecs, {
+			...options,
+			transferPolicy,
+		});
 	} else {
-		endpoint =
-			typeof window !== 'undefined'
-				? Comlink.windowEndpoint(self.parent)
-				: undefined;
+		const workerGlobal = globalThis as unknown as object;
+		if (isWindowEndpoint(workerGlobal)) {
+			throw new TypeError(
+				'Top-level Window exposure is unsupported; use an iframe ' +
+					'with a private bootstrap port.'
+			);
+		}
+		reserveRPCEndpoint(workerGlobal, 'asynchronous RPC exposure');
+		exposeRPC(exposedApi, createRPCEndpointAdapter(workerGlobal), codecs, {
+			signal: options.signal,
+			transferPolicy,
+		});
 	}
-	Comlink.expose(exposedApi, endpoint);
+
 	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
 }
 
 export async function exposeSyncAPI<Methods>(
 	apiMethods: Methods,
-	port: IsomorphicMessagePort
-): Promise<[() => void, (e: Error) => void, Methods]> {
+	port: IsomorphicMessagePort,
+	options: { signal?: AbortSignal } = {}
+): Promise<[() => void, (error: Error) => void, Methods]> {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
-	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	const endpoint = nodeWorkerEndpoint(port as any);
-	Comlink.exposeSync(exposedApi, endpoint, transport);
+	exposeSyncRPC(exposedApi, port, options);
 	return [setReady, setFailed, exposedApi as Methods];
 }
 
 function prepareForExpose<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI
-) {
-	setupTransferHandlers();
-
-	const connected = Promise.resolve();
-
-	let setReady: any;
-	let setFailed: any;
-	const ready = new Promise((resolve, reject) => {
-		setReady = resolve;
-		setFailed = reject;
+): {
+	setReady: () => void;
+	setFailed: (error: Error) => void;
+	exposedApi: Methods & PipedAPI & WithAPIState;
+} {
+	let readyState: 'pending' | 'resolved' | 'rejected' = 'pending';
+	let resolveReady!: () => void;
+	let rejectReady!: (error: Error) => void;
+	const ready = new Promise<void>((resolve, reject) => {
+		resolveReady = resolve;
+		rejectReady = reject;
 	});
+	void ready.catch(() => {});
 
-	const methods = proxyClone(apiMethods);
-	const exposedApi = new Proxy(methods, {
-		get: (target, prop) => {
-			if (prop === 'isConnected') {
-				return () => connected;
-			} else if (prop === 'isReady') {
-				return () => ready;
-			} else if (prop in target) {
-				return target[prop];
+	const setReady = () => {
+		if (readyState !== 'pending') return;
+		readyState = 'resolved';
+		resolveReady();
+	};
+	const setFailed = (error: Error) => {
+		if (readyState !== 'pending') return;
+		readyState = 'rejected';
+		rejectReady(error);
+	};
+
+	const exposedApi = new Proxy(Object.create(null), {
+		get(_target, property) {
+			if (property === 'isConnected') {
+				return async () => {};
 			}
-			return (pipedApi as any)?.[prop];
+			if (property === 'isReady') {
+				return () => ready;
+			}
+			const direct = getCompositeProperty(apiMethods, property);
+			if (direct.found) {
+				return bindCompositeMethod(direct.value, apiMethods);
+			}
+			const pipedIsRemote = isRPCRemoteProxy(pipedApi);
+			const piped = getCompositeProperty(
+				pipedApi,
+				property,
+				pipedIsRemote
+			);
+			return piped.found
+				? pipedIsRemote
+					? piped.value
+					: bindCompositeMethod(piped.value, pipedApi)
+				: undefined;
 		},
-	}) as unknown as PublicAPI<Methods, PipedAPI>;
+		has(_target, property) {
+			return (
+				property === 'isConnected' ||
+				property === 'isReady' ||
+				hasProperty(apiMethods, property) ||
+				isRPCRemoteProxy(pipedApi) ||
+				hasProperty(pipedApi, property)
+			);
+		},
+	}) as Methods & PipedAPI & WithAPIState;
 
 	return { setReady, setFailed, exposedApi };
 }
 
-let isTransferHandlersSetup = false;
-function setupTransferHandlers() {
-	if (isTransferHandlersSetup) {
-		return;
+function getCompositeProperty(
+	object: unknown,
+	property: string | symbol,
+	assumePresent = false
+): { found: boolean; value?: unknown } {
+	if (
+		object === null ||
+		object === undefined ||
+		(!assumePresent && !hasProperty(object, property))
+	) {
+		return { found: false };
 	}
-	isTransferHandlersSetup = true;
-	Comlink.transferHandlers.set('EVENT', {
-		canHandle: (obj): obj is CustomEvent => obj instanceof CustomEvent,
-		serialize: (ev: CustomEvent) => {
-			return [
-				{
-					detail: ev.detail,
-				},
-				[],
-			];
-		},
-		deserialize: (obj) => obj,
-	});
-	Comlink.transferHandlers.set('FUNCTION', {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-		canHandle: (obj: unknown): obj is Function => typeof obj === 'function',
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-		serialize(obj: Function) {
-			const { port1, port2 } = new MessageChannel();
-			Comlink.expose(obj, port1);
-			return [port2, [port2]];
-		},
-		deserialize(port: any) {
-			port.start();
-			return Comlink.wrap(port);
-		},
-	});
-	Comlink.transferHandlers.set('MESSAGE_PORT', {
-		canHandle: (obj: unknown): obj is MessagePort =>
-			obj instanceof MessagePort,
-		serialize(port: MessagePort): [MessagePort, Transferable[]] {
-			return [port, [port]];
-		},
-		deserialize(port: MessagePort): MessagePort {
-			return port;
-		},
-	});
-	type SerializedReadableStream = {
-		stream?: ReadableStream<Uint8Array>;
-		port?: MessagePort;
+	return {
+		found: true,
+		value: Reflect.get(Object(object), property, object),
 	};
-	/**
-	 * Keeps the stream live while it crosses the Comlink boundary. Runtimes without
-	 * transferable stream support use the existing MessagePort bridge.
-	 */
-	const readableStreamTransferHandler: Comlink.TransferHandler<
-		ReadableStream<Uint8Array>,
-		SerializedReadableStream
-	> = {
-		canHandle: (obj: unknown): obj is ReadableStream<Uint8Array> =>
-			typeof ReadableStream !== 'undefined' &&
-			obj instanceof ReadableStream,
-		serialize(
-			stream: ReadableStream<Uint8Array>
-		): [SerializedReadableStream, Transferable[]] {
-			if (supportsTransferableStreams()) {
-				return [{ stream }, [stream as unknown as Transferable]];
-			}
+}
 
-			const port = streamToPort(stream);
-			return [{ port }, [port]];
-		},
-		deserialize(
-			data: SerializedReadableStream
-		): ReadableStream<Uint8Array> {
-			return data.stream || portToStream(data.port!);
-		},
-	};
-	Comlink.transferHandlers.set(
-		'READABLE_STREAM',
-		readableStreamTransferHandler
+function hasProperty(object: unknown, property: string | symbol): boolean {
+	return (
+		object !== null && object !== undefined && property in Object(object)
 	);
-	type SerializedEventWithReadableStdin = {
-		type: string;
-		stdin: SerializedReadableStream;
+}
+
+function bindCompositeMethod(value: unknown, owner: unknown): unknown {
+	if (typeof value !== 'function') {
+		return value;
+	}
+	return (...args: unknown[]) => Reflect.apply(value, owner, args);
+}
+
+function normalizeConsumeOptions(
+	contextOrOptions: EventTarget | ConsumeAPIOptions | undefined,
+	additionalOptions: ConsumeAPIOptions
+): ConsumeAPIOptions {
+	if (isEventTarget(contextOrOptions)) {
+		return {
+			...additionalOptions,
+			context: contextOrOptions,
+		};
+	}
+	return {
+		...(contextOrOptions || {}),
+		...additionalOptions,
 	};
-	/**
-	 * Transfers a worker event explicitly branded with `phpEventStdinTransfer`.
-	 * Comlink applies a transfer handler to the top-level value only, so it will not
-	 * discover the nested `stdin` stream on its own.
-	 */
-	const eventWithReadableStdinTransferHandler: Comlink.TransferHandler<
-		PHPEventWithStdinTransfer,
-		SerializedEventWithReadableStdin
-	> = {
-		canHandle: (obj: unknown): obj is PHPEventWithStdinTransfer =>
-			typeof obj === 'object' &&
-			obj !== null &&
-			phpEventStdinTransfer in obj &&
-			obj[phpEventStdinTransfer] === true &&
-			'type' in obj &&
-			typeof obj.type === 'string' &&
-			'stdin' in obj &&
-			readableStreamTransferHandler.canHandle(obj.stdin),
-		serialize(event): [SerializedEventWithReadableStdin, Transferable[]] {
-			const [stdin, transferables] =
-				readableStreamTransferHandler.serialize(event.stdin);
-			return [{ ...event, stdin }, transferables];
+}
+
+function isEventTarget(value: unknown): value is EventTarget {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'addEventListener' in value &&
+		typeof value.addEventListener === 'function' &&
+		!('targetOrigin' in value) &&
+		!('signal' in value)
+	);
+}
+
+function assertTransferPolicy(policy: APITransferPolicy): void {
+	if (
+		policy.transferArguments !== undefined &&
+		typeof policy.transferArguments !== 'function'
+	) {
+		throw new TypeError('transferArguments must be a function.');
+	}
+	if (
+		policy.transferResult !== undefined &&
+		typeof policy.transferResult !== 'function'
+	) {
+		throw new TypeError('transferResult must be a function.');
+	}
+}
+
+function getDefinedTransferPolicy(
+	value: unknown
+): APITransferPolicy | undefined {
+	return (typeof value === 'object' && value !== null) ||
+		typeof value === 'function'
+		? policiesByAPI.get(value)
+		: undefined;
+}
+
+const RPC_BOOTSTRAP_MARKER = 'wordpress-playground-rpc-bootstrap';
+
+interface WindowBootstrapEnvelope {
+	protocol: typeof RPC_BOOTSTRAP_MARKER;
+	version: number;
+	kind: 'connect';
+	session: string;
+}
+
+function createWindowBootstrapEndpoint(
+	remoteWindow: Window,
+	targetOrigin: string
+): RPCEndpointAdapter {
+	assertExactOrigin(targetOrigin);
+	const messageListeners = new Set<(message: unknown) => void>();
+	const terminationListeners = new Set<
+		(reason: string, cause?: unknown) => void
+	>();
+	const attempts = new Set<{
+		port: MessagePort;
+		cleanup: () => void;
+	}>();
+	let activePort: MessagePort | undefined;
+	let closed = false;
+
+	const closeAttempts = (except?: MessagePort) => {
+		for (const attempt of [...attempts]) {
+			if (attempt.port === except) continue;
+			attempt.cleanup();
+			attempts.delete(attempt);
+		}
+	};
+
+	const beginAttempt = (hello: unknown) => {
+		if (closed || activePort || !isClientHello(hello)) return;
+		const channel = new MessageChannel();
+		const port = channel.port1;
+		const removeMessage = addPortMessageListener(port, (message) => {
+			if (activePort === port) {
+				for (const listener of messageListeners) listener(message);
+				return;
+			}
+			if (!isSessionBootstrapResponse(message, hello.session)) return;
+			activePort = port;
+			closeAttempts(port);
+			for (const listener of messageListeners) listener(message);
+		});
+		const removeClose = addPortCloseListener(port, () => {
+			if (activePort === port && !closed) {
+				for (const listener of terminationListeners) {
+					listener('private-message-port-closed');
+				}
+			}
+		});
+		const attempt = {
+			port,
+			cleanup: () => {
+				clearTimeout(expiration);
+				removeMessage();
+				removeClose();
+				safeClosePort(port);
+			},
+		};
+		attempts.add(attempt);
+		port.start();
+		const expiration = setTimeout(() => {
+			if (activePort !== port) {
+				attempt.cleanup();
+				attempts.delete(attempt);
+			}
+		}, 2_000);
+		try {
+			remoteWindow.postMessage(
+				{
+					protocol: RPC_BOOTSTRAP_MARKER,
+					version: RPC_PROTOCOL_VERSION,
+					kind: 'connect',
+					session: hello.session,
+				} satisfies WindowBootstrapEnvelope,
+				targetOrigin,
+				[channel.port2]
+			);
+			port.postMessage(hello);
+		} catch (error) {
+			attempt.cleanup();
+			attempts.delete(attempt);
+			for (const listener of terminationListeners) {
+				listener('window-bootstrap-failed', error);
+			}
+		}
+	};
+
+	return {
+		type: 'window-private-message-port',
+		supportsTransfers: true,
+		postMessage(message, transferables = []) {
+			if (closed) {
+				throw new RemoteAPIEndpointTerminatedError(
+					'The Window RPC bootstrap endpoint is closed.',
+					{
+						endpointType: 'window-private-message-port',
+						reason: 'closed',
+					}
+				);
+			}
+			if (!activePort) {
+				beginAttempt(message);
+				return;
+			}
+			if (transferables.length > 0) {
+				activePort.postMessage(message, [...transferables]);
+			} else {
+				activePort.postMessage(message);
+			}
 		},
-		deserialize(event): PHPEventWithStdinTransfer {
-			// Symbol properties are not structured-cloned. Restore the brand locally.
+		listen(listener) {
+			messageListeners.add(listener);
+			return () => messageListeners.delete(listener);
+		},
+		listenForTermination(listener) {
+			terminationListeners.add(listener);
+			return () => terminationListeners.delete(listener);
+		},
+		start() {},
+		close() {
+			if (closed) return;
+			closed = true;
+			closeAttempts();
+			if (activePort) safeClosePort(activePort);
+			activePort = undefined;
+			messageListeners.clear();
+			terminationListeners.clear();
+		},
+	};
+}
+
+function installWindowBootstrap(
+	exposedApi: unknown,
+	codecs: readonly RPCValueCodec[],
+	options: ExposeAPIOptions & { transferPolicy?: APITransferPolicy }
+): void {
+	const currentWindow = window;
+	const expectedSource = options.parentWindow || currentWindow.parent;
+	const allowedOrigins = resolveAllowedOrigins(options.allowedOrigins);
+	const sessions = new Set<{
+		closed: Promise<void>;
+		terminate(error?: Error): void;
+	}>();
+
+	const onMessage = (event: MessageEvent) => {
+		if (
+			event.source !== expectedSource ||
+			!allowedOrigins.has(event.origin) ||
+			!isWindowBootstrapEnvelope(event.data) ||
+			event.ports.length !== 1
+		) {
+			return;
+		}
+		const port = event.ports[0];
+		if (event.data.version !== RPC_PROTOCOL_VERSION) {
+			port.postMessage({
+				protocol: RPC_PROTOCOL_MARKER,
+				version: RPC_PROTOCOL_VERSION,
+				session: event.data.session,
+				kind: 'protocol-error',
+				remoteVersion: RPC_PROTOCOL_VERSION,
+				message:
+					`Unsupported Window bootstrap protocol version ` +
+					`${event.data.version}.`,
+			});
+			port.close();
+			return;
+		}
+		reserveRPCEndpoint(port, 'private Window RPC exposure');
+		const session = exposeRPC(
+			exposedApi,
+			createRPCEndpointAdapter(port, { ownsTarget: true }),
+			codecs,
+			{
+				signal: options.signal,
+				transferPolicy: options.transferPolicy,
+				expectedSessionId: event.data.session,
+			}
+		);
+		sessions.add(session);
+		void session.closed.then(() => sessions.delete(session));
+	};
+
+	currentWindow.addEventListener('message', onMessage);
+	if (options.signal) {
+		const cleanup = () => {
+			currentWindow.removeEventListener('message', onMessage);
+			for (const session of sessions) session.terminate();
+			sessions.clear();
+		};
+		if (options.signal.aborted) cleanup();
+		else options.signal.addEventListener('abort', cleanup, { once: true });
+	}
+}
+
+function isWindowBootstrapEnvelope(
+	value: unknown
+): value is WindowBootstrapEnvelope {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'protocol' in value &&
+		value.protocol === RPC_BOOTSTRAP_MARKER &&
+		'version' in value &&
+		typeof value.version === 'number' &&
+		'kind' in value &&
+		value.kind === 'connect' &&
+		'session' in value &&
+		typeof value.session === 'string' &&
+		value.session.length >= 8 &&
+		value.session.length <= 200
+	);
+}
+
+function isClientHello(
+	value: unknown
+): value is { session: string; kind: 'hello' } {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'protocol' in value &&
+		value.protocol === RPC_PROTOCOL_MARKER &&
+		'kind' in value &&
+		value.kind === 'hello' &&
+		'session' in value &&
+		typeof value.session === 'string'
+	);
+}
+
+function isSessionBootstrapResponse(value: unknown, session: string): boolean {
+	if (
+		!(
+			typeof value === 'object' &&
+			value !== null &&
+			'protocol' in value &&
+			value.protocol === RPC_PROTOCOL_MARKER &&
+			'session' in value &&
+			value.session === session &&
+			'kind' in value
+		)
+	) {
+		return false;
+	}
+	if (value.kind === 'hello-ack') {
+		return 'version' in value && value.version === RPC_PROTOCOL_VERSION;
+	}
+	return (
+		value.kind === 'protocol-error' &&
+		'version' in value &&
+		typeof value.version === 'number' &&
+		Number.isSafeInteger(value.version) &&
+		'remoteVersion' in value &&
+		typeof value.remoteVersion === 'number' &&
+		Number.isSafeInteger(value.remoteVersion)
+	);
+}
+
+function resolveAllowedOrigins(
+	configured: string | readonly string[] | undefined
+): Set<string> {
+	const values =
+		configured === undefined
+			? [inferParentOrigin()]
+			: typeof configured === 'string'
+				? [configured]
+				: [...configured];
+	const origins = new Set<string>();
+	for (const origin of values) {
+		assertExactOrigin(origin);
+		origins.add(origin);
+	}
+	return origins;
+}
+
+function inferParentOrigin(): string {
+	if (document.referrer) {
+		return new URL(document.referrer).origin;
+	}
+	if (window.parent === window) {
+		return window.location.origin;
+	}
+	throw new Error(
+		'Cannot infer the parent origin. Configure exposeAPI({ allowedOrigins }) ' +
+			'when the iframe referrer is suppressed.'
+	);
+}
+
+function inferWindowTargetOrigin(
+	remoteWindow: Window,
+	context: EventTarget | undefined
+): string {
+	if (isWindowObject(context)) {
+		try {
+			for (const iframe of Array.from(
+				context.document.querySelectorAll('iframe')
+			)) {
+				if (iframe.contentWindow === remoteWindow) {
+					return new URL(iframe.src, context.document.baseURI).origin;
+				}
+			}
+		} catch {
+			// Continue to the same-origin probe below.
+		}
+	}
+	try {
+		return remoteWindow.location.origin;
+	} catch {
+		throw new Error(
+			'consumeAPI() requires options.targetOrigin for a cross-origin Window.'
+		);
+	}
+}
+
+function assertExactOrigin(origin: string): void {
+	if (origin === 'null') {
+		throw new TypeError(
+			'Opaque Window origins are not supported for RPC bootstrap.'
+		);
+	}
+	if (origin === '*') {
+		throw new TypeError(
+			'Wildcard origins are not allowed for RPC bootstrap.'
+		);
+	}
+	let parsed: URL;
+	try {
+		parsed = new URL(origin);
+	} catch (cause) {
+		throw new TypeError(`Invalid RPC origin "${origin}".`, { cause });
+	}
+	if (parsed.origin !== origin || parsed.pathname !== '/') {
+		throw new TypeError(
+			`RPC origin must be an exact origin without a path: "${origin}".`
+		);
+	}
+}
+
+function isIframeWindowRealm(): boolean {
+	return (
+		typeof window !== 'undefined' &&
+		typeof document !== 'undefined' &&
+		window.parent !== window
+	);
+}
+
+function isWindowEndpoint(value: unknown): value is Window {
+	if (typeof value !== 'object' || value === null) return false;
+	if (typeof Window !== 'undefined') {
+		try {
+			if (value instanceof Window) return true;
+		} catch {
+			// Cross-origin Window proxies may reject reflective access.
+		}
+	}
+	const candidate = value as {
+		window?: unknown;
+		postMessage?: unknown;
+		closed?: unknown;
+	};
+	try {
+		if (candidate.window === value) return true;
+	} catch {
+		// Continue with the cross-origin-accessible Window properties below.
+	}
+	try {
+		return (
+			typeof candidate.postMessage === 'function' &&
+			typeof candidate.closed === 'boolean'
+		);
+	} catch {
+		return false;
+	}
+}
+
+function isWindowObject(value: unknown): value is Window {
+	if (typeof Window === 'undefined') return false;
+	try {
+		return value instanceof Window;
+	} catch {
+		return false;
+	}
+}
+
+function isMessagePort(value: unknown): value is MessagePort {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		value.constructor?.name === 'MessagePort' &&
+		'postMessage' in value &&
+		typeof value.postMessage === 'function' &&
+		'close' in value &&
+		typeof value.close === 'function'
+	);
+}
+
+type StreamTransportPreference = NonNullable<
+	ConsumeAPIOptions['streamTransport']
+>;
+
+type EncodedReadableStream =
+	| {
+			transport: 'native';
+			stream: ReadableStream<Uint8Array>;
+	  }
+	| {
+			transport: 'message-port';
+			port: MessagePort;
+	  };
+
+function createPlaygroundCodecs(
+	streamTransport: StreamTransportPreference
+): readonly RPCValueCodec[] {
+	const readableStreamCodec = createReadableStreamCodec(streamTransport);
+	return [
+		createPHPEventWithStdinCodec(streamTransport),
+		createStreamedPHPResponseCodec(streamTransport),
+		createPHPResponseCodec(),
+		createCustomEventCodec(),
+		createCallbackCodec(),
+		createMessagePortCodec(),
+		readableStreamCodec,
+		createErrorValueCodec(),
+	];
+}
+
+function createCallbackCodec(): RPCValueCodec {
+	return {
+		id: 'playground.callback.v1',
+		canEncode: (value) => typeof value === 'function',
+		encode(value, context) {
 			return {
-				...event,
-				stdin: readableStreamTransferHandler.deserialize(event.stdin),
+				value: {
+					callbackId: context.registerCallback(
+						value as (...args: any[]) => unknown
+					),
+				},
+				transferables: [],
+			};
+		},
+		decode(value, context) {
+			if (
+				typeof value !== 'object' ||
+				value === null ||
+				!('callbackId' in value) ||
+				typeof value.callbackId !== 'string'
+			) {
+				throw new RPCSerializationError(
+					'Invalid callback codec payload.'
+				);
+			}
+			return context.getCallbackProxy(value.callbackId);
+		},
+	};
+}
+
+function createCustomEventCodec(): RPCValueCodec {
+	return {
+		id: 'playground.custom-event.v1',
+		canEncode(value) {
+			return (
+				typeof CustomEvent !== 'undefined' &&
+				value instanceof CustomEvent
+			);
+		},
+		encode(value, context) {
+			const event = value as CustomEvent;
+			const detail = context.encode(event.detail);
+			return {
+				value: {
+					type: event.type,
+					detail: detail.wire,
+					bubbles: event.bubbles,
+					cancelable: event.cancelable,
+					composed: event.composed,
+				},
+				transferables: detail.transferables,
+			};
+		},
+		decode(value, context) {
+			if (
+				typeof value !== 'object' ||
+				value === null ||
+				!('type' in value) ||
+				typeof value.type !== 'string' ||
+				!('detail' in value)
+			) {
+				throw new RPCSerializationError(
+					'Invalid CustomEvent codec payload.'
+				);
+			}
+			const detail = context.decode(value.detail as RPCWireValue);
+			if (typeof CustomEvent !== 'undefined') {
+				return new CustomEvent(value.type, {
+					detail,
+					bubbles: Boolean('bubbles' in value && value.bubbles),
+					cancelable: Boolean(
+						'cancelable' in value && value.cancelable
+					),
+					composed: Boolean('composed' in value && value.composed),
+				});
+			}
+			return { type: value.type, detail };
+		},
+	};
+}
+
+function createMessagePortCodec(): RPCValueCodec {
+	return {
+		id: 'playground.message-port.v1',
+		canEncode: isMessagePort,
+		encode(value, context) {
+			assertTransfersSupported(context.resources);
+			return {
+				value,
+				transferables: [value as Transferable],
+			};
+		},
+		decode(value, context) {
+			if (!isMessagePort(value)) {
+				throw new RPCSerializationError(
+					'Invalid MessagePort codec payload.'
+				);
+			}
+			context.resources.trackPort(value);
+			return value;
+		},
+	};
+}
+
+function createReadableStreamCodec(
+	preference: StreamTransportPreference
+): RPCValueCodec {
+	return {
+		id: 'playground.readable-stream.v1',
+		canEncode: isReadableStream,
+		encode(value, context) {
+			return encodeReadableStream(
+				value as ReadableStream<Uint8Array>,
+				context.resources,
+				preference
+			);
+		},
+		decode(value, context) {
+			return decodeReadableStream(value, context.resources);
+		},
+	};
+}
+
+function createPHPEventWithStdinCodec(
+	preference: StreamTransportPreference
+): RPCValueCodec {
+	return {
+		id: 'playground.php-event-stdin.v1',
+		canEncode(value): value is PHPEventWithStdinTransfer {
+			return (
+				typeof value === 'object' &&
+				value !== null &&
+				phpEventStdinTransfer in value &&
+				value[phpEventStdinTransfer] === true &&
+				'type' in value &&
+				typeof value.type === 'string' &&
+				'stdin' in value &&
+				isReadableStream(value.stdin)
+			);
+		},
+		encode(value, context) {
+			const event = value as PHPEventWithStdinTransfer &
+				Record<string, unknown>;
+			const stdin = encodeReadableStream(
+				event.stdin,
+				context.resources,
+				preference
+			);
+			const properties: Record<string, unknown> = {};
+			for (const property of Object.keys(event)) {
+				if (property !== 'stdin')
+					properties[property] = event[property];
+			}
+			return {
+				value: {
+					properties,
+					stdin: stdin.value,
+				},
+				transferables: stdin.transferables,
+			};
+		},
+		decode(value, context) {
+			if (
+				typeof value !== 'object' ||
+				value === null ||
+				!('properties' in value) ||
+				typeof value.properties !== 'object' ||
+				value.properties === null ||
+				!('stdin' in value)
+			) {
+				throw new RPCSerializationError(
+					'Invalid PHP event codec payload.'
+				);
+			}
+			return {
+				...(value.properties as Record<string, unknown>),
+				stdin: decodeReadableStream(value.stdin, context.resources),
 				[phpEventStdinTransfer]: true,
 			};
 		},
 	};
-	Comlink.transferHandlers.set(
-		'EVENT_WITH_READABLE_STDIN',
-		eventWithReadableStdinTransferHandler
-	);
-	Comlink.transferHandlers.set('PHPResponse', {
-		canHandle: (obj: unknown): obj is PHPResponseData =>
-			typeof obj === 'object' &&
-			obj !== null &&
-			'headers' in obj &&
-			'bytes' in obj &&
-			'errors' in obj &&
-			'exitCode' in obj &&
-			'httpStatusCode' in obj,
-		serialize(obj: PHPResponse): [PHPResponseData, Transferable[]] {
-			const data = obj.toRawData();
-			// Transfer the ArrayBuffer instead of cloning it to avoid
-			// "could not be cloned" errors when the buffer is detached
+}
+
+function createPHPResponseCodec(): RPCValueCodec {
+	return {
+		id: 'playground.php-response.v1',
+		canEncode: (value) => value instanceof PHPResponse,
+		encode(value, context) {
+			const response = value as PHPResponse;
+			const data = response.toRawData();
 			const transferables: Transferable[] = [];
-			if (data.bytes.buffer.byteLength > 0) {
+			if (
+				data.bytes.buffer instanceof ArrayBuffer &&
+				data.bytes.buffer.byteLength > 0
+			) {
+				assertTransfersSupported(context.resources);
 				transferables.push(data.bytes.buffer);
 			}
-			return [data, transferables];
+			return { value: data, transferables };
 		},
-		deserialize(responseData: PHPResponseData): PHPResponse {
-			return PHPResponse.fromRawData(responseData);
+		decode(value) {
+			if (!isPHPResponseData(value)) {
+				throw new RPCSerializationError(
+					'Invalid PHPResponse codec payload.'
+				);
+			}
+			return PHPResponse.fromRawData(value);
 		},
-	});
-	// Augment Comlink's throw handler to include Error the response and source
-	// information in the serialized error object. BasePHP may throw
-	// PHPExecutionFailureError which includes those information and we'll want to
-	// display them for the user.
-	const throwHandler = Comlink.transferHandlers.get('throw')!;
-	const originalSerialize = throwHandler?.serialize;
-	throwHandler.serialize = ({ value }: any) => {
-		const serialized = originalSerialize({ value }) as any;
-		if (value.response) {
-			serialized[0].value.response = value.response;
-		}
-		if (value.source) {
-			serialized[0].value.source = value.source;
-		}
-		return serialized;
 	};
+}
 
-	Comlink.transferHandlers.set('StreamedPHPResponse', {
-		canHandle: (obj: unknown): obj is StreamedPHPResponse =>
-			obj instanceof StreamedPHPResponse,
-		serialize(obj: StreamedPHPResponse): [any, Transferable[]] {
-			const supportsStreams = supportsTransferableStreams();
-			const exitCodePort = promiseToPort(obj.exitCode);
-			const headersStream = obj.getHeadersStream();
-
-			if (supportsStreams) {
-				const payload = {
-					__type: 'StreamedPHPResponse',
-					headers: headersStream,
-					stdout: obj.stdout,
-					stderr: obj.stderr,
+function createStreamedPHPResponseCodec(
+	preference: StreamTransportPreference
+): RPCValueCodec {
+	return {
+		id: 'playground.streamed-php-response.v1',
+		canEncode: (value) => value instanceof StreamedPHPResponse,
+		encode(value, context) {
+			assertTransfersSupported(context.resources);
+			const response = value as StreamedPHPResponse;
+			const headers = encodeReadableStream(
+				response.getHeadersStream(),
+				context.resources,
+				preference
+			);
+			const stdout = encodeReadableStream(
+				response.stdout,
+				context.resources,
+				preference
+			);
+			const stderr = encodeReadableStream(
+				response.stderr,
+				context.resources,
+				preference
+			);
+			const exitCodePort = promiseToPort(
+				response.exitCode,
+				context.resources
+			);
+			return {
+				value: {
+					headers: headers.value,
+					stdout: stdout.value,
+					stderr: stderr.value,
 					exitCodePort,
-				};
-				// ReadableStreams must be explicitly transferred
-				return [
-					payload,
-					[
-						headersStream as unknown as Transferable,
-						obj.stdout as unknown as Transferable,
-						obj.stderr as unknown as Transferable,
-						exitCodePort,
-					],
-				];
-			}
-			// Fallback: bridge streams via MessagePorts
-			const headersPort = streamToPort(headersStream);
-			const stdoutPort = streamToPort(obj.stdout);
-			const stderrPort = streamToPort(obj.stderr);
-			const payload = {
-				__type: 'StreamedPHPResponse',
-				headersPort,
-				stdoutPort,
-				stderrPort,
-				exitCodePort,
+				},
+				transferables: [
+					...headers.transferables,
+					...stdout.transferables,
+					...stderr.transferables,
+					exitCodePort,
+				],
 			};
-			return [
-				payload,
-				[headersPort, stdoutPort, stderrPort, exitCodePort],
-			];
 		},
-		deserialize(data: any): StreamedPHPResponse {
-			if (data.headers && data.stdout && data.stderr) {
-				const exitCode = portToPromise(
-					data.exitCodePort as MessagePort
-				);
-				return new StreamedPHPResponse(
-					data.headers as ReadableStream<Uint8Array>,
-					data.stdout as ReadableStream<Uint8Array>,
-					data.stderr as ReadableStream<Uint8Array>,
-					exitCode
+		decode(value, context) {
+			if (
+				typeof value !== 'object' ||
+				value === null ||
+				!('headers' in value) ||
+				!('stdout' in value) ||
+				!('stderr' in value) ||
+				!('exitCodePort' in value) ||
+				!isMessagePort(value.exitCodePort)
+			) {
+				throw new RPCSerializationError(
+					'Invalid StreamedPHPResponse codec payload.'
 				);
 			}
-			const headers = portToStream(data.headersPort as MessagePort);
-			const stdout = portToStream(data.stdoutPort as MessagePort);
-			const stderr = portToStream(data.stderrPort as MessagePort);
-			const exitCode = portToPromise(data.exitCodePort as MessagePort);
-			return new StreamedPHPResponse(headers, stdout, stderr, exitCode);
+			return new StreamedPHPResponse(
+				decodeReadableStream(value.headers, context.resources),
+				decodeReadableStream(value.stdout, context.resources),
+				decodeReadableStream(value.stderr, context.resources),
+				portToPromise<number>(value.exitCodePort, context.resources)
+			);
+		},
+	};
+}
+
+interface SerializedErrorValue {
+	name: string;
+	message: string;
+	stack?: string;
+	originalClassName: string;
+	cause?: SerializedErrorNestedValue;
+	properties: Record<string, SerializedErrorNestedValue>;
+}
+
+type SerializedErrorNestedValue =
+	| { kind: 'error'; value: SerializedErrorValue }
+	| { kind: 'value'; value: RPCWireValue };
+
+function createErrorValueCodec(): RPCValueCodec {
+	return {
+		id: 'playground.error-value.v1',
+		canEncode: (value) => value instanceof Error,
+		encode(value, context) {
+			return encodeErrorValue(value as Error, context, new Set());
+		},
+		decode(value, context) {
+			return decodeErrorValue(value, context);
+		},
+	};
+}
+
+function encodeErrorValue(
+	error: Error,
+	context: RPCCodecContext,
+	seen: Set<Error>
+): EncodedRPCCodecValue {
+	seen.add(error);
+	const transferables: Transferable[] = [];
+	let cause: SerializedErrorNestedValue | undefined;
+	if (error.cause !== undefined) {
+		const encodedCause = encodeErrorNested(error.cause, context, seen);
+		cause = encodedCause.value;
+		transferables.push(...encodedCause.transferables);
+	}
+	const properties: Record<string, SerializedErrorNestedValue> = {};
+	for (const property of Object.getOwnPropertyNames(error)) {
+		if (
+			property === 'name' ||
+			property === 'message' ||
+			property === 'stack' ||
+			property === 'cause' ||
+			property === '__proto__' ||
+			property === 'prototype' ||
+			property === 'constructor'
+		) {
+			continue;
+		}
+		const descriptor = Object.getOwnPropertyDescriptor(error, property);
+		if (!descriptor || !('value' in descriptor)) continue;
+		const encoded = encodeErrorNested(descriptor.value, context, seen);
+		properties[property] = encoded.value;
+		transferables.push(...encoded.transferables);
+	}
+	return {
+		value: {
+			name: error.name,
+			message: error.message,
+			stack: error.stack,
+			originalClassName: error.constructor?.name || 'Error',
+			cause,
+			properties,
+		} satisfies SerializedErrorValue,
+		transferables,
+	};
+}
+
+function encodeErrorNested(
+	value: unknown,
+	context: RPCCodecContext,
+	seen: Set<Error>
+): { value: SerializedErrorNestedValue; transferables: Transferable[] } {
+	if (value instanceof Error) {
+		if (seen.has(value)) {
+			const circular = context.encode('[Circular error reference]');
+			return {
+				value: { kind: 'value', value: circular.wire },
+				transferables: circular.transferables,
+			};
+		}
+		const encoded = encodeErrorValue(value, context, new Set(seen));
+		return {
+			value: {
+				kind: 'error',
+				value: encoded.value as SerializedErrorValue,
+			},
+			transferables: encoded.transferables,
+		};
+	}
+	const encoded = context.encode(value);
+	return {
+		value: { kind: 'value', value: encoded.wire },
+		transferables: encoded.transferables,
+	};
+}
+
+function decodeErrorValue(value: unknown, context: RPCCodecContext): Error {
+	if (!isSerializedErrorValue(value)) {
+		throw new RPCSerializationError('Invalid Error value codec payload.');
+	}
+	const error = new Error(value.message);
+	error.name = value.name;
+	if (value.stack !== undefined) error.stack = value.stack;
+	if (value.cause !== undefined) {
+		error.cause = decodeErrorNested(value.cause, context);
+	}
+	Object.defineProperty(error, 'originalErrorClassName', {
+		configurable: true,
+		enumerable: true,
+		writable: true,
+		value: value.originalClassName,
+	});
+	for (const [property, nested] of Object.entries(value.properties)) {
+		if (
+			property === '__proto__' ||
+			property === 'prototype' ||
+			property === 'constructor'
+		) {
+			continue;
+		}
+		Object.defineProperty(error, property, {
+			configurable: true,
+			enumerable: true,
+			writable: true,
+			value: decodeErrorNested(nested, context),
+		});
+	}
+	return error;
+}
+
+function decodeErrorNested(
+	value: SerializedErrorNestedValue,
+	context: RPCCodecContext
+): unknown {
+	return value.kind === 'error'
+		? decodeErrorValue(value.value, context)
+		: context.decode(value.value);
+}
+
+function isSerializedErrorValue(value: unknown): value is SerializedErrorValue {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'name' in value &&
+		typeof value.name === 'string' &&
+		'message' in value &&
+		typeof value.message === 'string' &&
+		'originalClassName' in value &&
+		typeof value.originalClassName === 'string' &&
+		'properties' in value &&
+		typeof value.properties === 'object' &&
+		value.properties !== null
+	);
+}
+
+function isPHPResponseData(
+	value: unknown
+): value is ReturnType<PHPResponse['toRawData']> {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'headers' in value &&
+		typeof value.headers === 'object' &&
+		'bytes' in value &&
+		value.bytes instanceof Uint8Array &&
+		'errors' in value &&
+		typeof value.errors === 'string' &&
+		'exitCode' in value &&
+		typeof value.exitCode === 'number' &&
+		'httpStatusCode' in value &&
+		typeof value.httpStatusCode === 'number'
+	);
+}
+
+function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
+	return (
+		typeof ReadableStream !== 'undefined' && value instanceof ReadableStream
+	);
+}
+
+function assertTransfersSupported(resources: RPCResourceOwner): void {
+	if (!resources.supportsTransfers) {
+		throw new RPCUnsupportedTransferError(resources.endpointType);
+	}
+}
+
+function encodeReadableStream(
+	stream: ReadableStream<Uint8Array>,
+	resources: RPCResourceOwner,
+	preference: StreamTransportPreference
+): EncodedRPCCodecValue {
+	assertTransfersSupported(resources);
+	const useNative =
+		preference === 'native' ||
+		(preference === 'auto' && supportsTransferableStreams());
+	if (useNative) {
+		if (!supportsTransferableStreams()) {
+			throw new RPCSerializationError(
+				'Native transferable ReadableStreams are unavailable in this runtime.'
+			);
+		}
+		return {
+			value: {
+				transport: 'native',
+				stream,
+			} satisfies EncodedReadableStream,
+			transferables: [stream as unknown as Transferable],
+		};
+	}
+	const port = streamToPortInternal(stream, resources);
+	return {
+		value: {
+			transport: 'message-port',
+			port,
+		} satisfies EncodedReadableStream,
+		transferables: [port],
+	};
+}
+
+function decodeReadableStream(
+	value: unknown,
+	resources: RPCResourceOwner
+): ReadableStream<Uint8Array> {
+	if (
+		typeof value !== 'object' ||
+		value === null ||
+		!('transport' in value)
+	) {
+		throw new RPCSerializationError(
+			'Invalid ReadableStream codec payload.'
+		);
+	}
+	if (
+		value.transport === 'native' &&
+		'stream' in value &&
+		isReadableStream(value.stream)
+	) {
+		return bindStreamToLifetime(value.stream, resources);
+	}
+	if (
+		value.transport === 'message-port' &&
+		'port' in value &&
+		isMessagePort(value.port)
+	) {
+		return portToStreamInternal(value.port, resources);
+	}
+	throw new RPCSerializationError(
+		'Unknown ReadableStream transport payload.'
+	);
+}
+
+let cachedTransferableStreams: boolean | undefined;
+
+function supportsTransferableStreams(): boolean {
+	if (cachedTransferableStreams !== undefined) {
+		return cachedTransferableStreams;
+	}
+	if (
+		typeof ReadableStream === 'undefined' ||
+		typeof MessageChannel === 'undefined'
+	) {
+		cachedTransferableStreams = false;
+		return false;
+	}
+	const channel = new MessageChannel();
+	const stream = new ReadableStream({
+		start(controller) {
+			controller.close();
 		},
 	});
+	try {
+		channel.port1.postMessage(stream, [stream as unknown as Transferable]);
+		cachedTransferableStreams = true;
+	} catch {
+		cachedTransferableStreams = false;
+	} finally {
+		safeClosePort(channel.port1);
+		safeClosePort(channel.port2);
+	}
+	return cachedTransferableStreams;
 }
 
-// Utilities for transferring ReadableStreams and Promises via MessagePorts:
+const STREAM_BRIDGE_MARKER = 'wordpress-playground-stream-bridge';
+const DEFERRED_BRIDGE_MARKER = 'wordpress-playground-deferred-bridge';
+const BRIDGE_PROTOCOL_VERSION = 1;
 
-/**
- * Safari does not support transferable streams. Use the MessagePort bridge when
- * this point-to-point capability probe fails.
- */
-let _cachedSupportsTransferableStreams: boolean | undefined;
-function supportsTransferableStreams(): boolean {
-	if (typeof ReadableStream === 'undefined') {
-		_cachedSupportsTransferableStreams = false;
-	}
-	if (_cachedSupportsTransferableStreams === undefined) {
-		try {
-			const { port1 } = new MessageChannel();
-			const rs = new ReadableStream();
-			port1.postMessage(rs, [rs as unknown as Transferable]);
-			try {
-				port1.close();
-			} catch (_e) {
-				void _e;
-			}
-			_cachedSupportsTransferableStreams = true;
-		} catch (_e) {
-			void _e;
-			_cachedSupportsTransferableStreams = false;
-		}
-	}
-	return _cachedSupportsTransferableStreams;
+interface StreamBridgeMessage {
+	protocol: typeof STREAM_BRIDGE_MARKER;
+	version: number;
+	channel: string;
+	kind: 'chunk' | 'close' | 'error' | 'cancel';
+	bytes?: ArrayBuffer;
+	error?: SerializedBridgeError;
 }
 
-/**
- * Bridges a ReadableStream to a MessagePort by reading chunks and posting
- * messages to the port. Used as a fallback when transferable streams are not
- * supported (e.g., Safari).
- *
- * Protocol of the returned MessagePort:
- *
- *   { t: 'chunk', b: ArrayBuffer } – next binary chunk
- *   { t: 'close' }                 – end of stream
- *   { t: 'error', m: string }      – terminal error
- *   { t: 'cancel' }                – consumer cancelled the stream
- */
+interface DeferredBridgeMessage {
+	protocol: typeof DEFERRED_BRIDGE_MARKER;
+	version: number;
+	channel: string;
+	kind: 'resolve' | 'reject';
+	value?: unknown;
+	error?: SerializedBridgeError;
+}
+
+interface SerializedBridgeError {
+	name: string;
+	message: string;
+	stack?: string;
+}
+
 export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
-	const { port1, port2 } = new MessageChannel();
+	return streamToPortInternal(stream);
+}
+
+function streamToPortInternal(
+	stream: ReadableStream<Uint8Array>,
+	resources?: RPCResourceOwner
+): MessagePort {
+	const channel = new MessageChannel();
+	const channelId = createBridgeId();
 	const reader = stream.getReader();
-	const onMessage = (event: MessageEvent) => {
-		if (event.data?.t === 'cancel') {
-			reader.cancel().catch(() => {
-				// The consumer has already cancelled and cannot observe source errors.
-			});
-		}
+	let settled = false;
+	let removeTerminalResource = () => {};
+
+	const cleanup = () => {
+		if (settled) return;
+		settled = true;
+		removeMessage();
+		removeClose();
+		removeTerminalResource();
+		safeClosePort(channel.port1);
 	};
-	port1.addEventListener('message', onMessage);
-	port1.start();
-	(async () => {
+	const cancelReader = (reason?: unknown) => {
+		void reader.cancel(reason).catch(() => {});
+		cleanup();
+	};
+	const removeMessage = addPortMessageListener(channel.port1, (message) => {
+		if (
+			isStreamBridgeMessage(message, channelId) &&
+			message.kind === 'cancel'
+		) {
+			cancelReader('The remote stream consumer cancelled the stream.');
+		}
+	});
+	const removeClose = addPortCloseListener(channel.port1, () =>
+		cancelReader('The remote stream port closed.')
+	);
+	if (resources) {
+		removeTerminalResource = resources.addTerminalResource((error) =>
+			cancelReader(error)
+		);
+	}
+	channel.port1.start();
+
+	void (async () => {
 		try {
-			while (true) {
+			while (!settled) {
 				const { done, value } = await reader.read();
 				if (done) {
-					try {
-						port1.postMessage({ t: 'close' });
-					} catch {
-						// Ignore error
-					}
-					try {
-						port1.close();
-					} catch {
-						// Ignore error
-					}
+					postPortMessage(channel.port1, {
+						protocol: STREAM_BRIDGE_MARKER,
+						version: BRIDGE_PROTOCOL_VERSION,
+						channel: channelId,
+						kind: 'close',
+					});
 					break;
 				}
-				if (value) {
-					/**
-					 * ReadableStream.tee() gives each branch the same chunk object. Transfer
-					 * an owned copy so detaching this buffer does not invalidate another
-					 * listener's branch.
-					 */
-					const owned = value.slice();
-					const buf = owned.buffer;
-					try {
-						port1.postMessage({ t: 'chunk', b: buf }, [
-							buf as unknown as Transferable,
-						]);
-					} catch {
-						port1.postMessage({
-							t: 'chunk',
-							b: owned.buffer.slice(0),
-						});
-					}
+				const ownedBytes = value.slice();
+				postPortMessage(
+					channel.port1,
+					{
+						protocol: STREAM_BRIDGE_MARKER,
+						version: BRIDGE_PROTOCOL_VERSION,
+						channel: channelId,
+						kind: 'chunk',
+						bytes: ownedBytes.buffer,
+					},
+					[ownedBytes.buffer]
+				);
+			}
+		} catch (error) {
+			if (!settled) {
+				try {
+					postPortMessage(channel.port1, {
+						protocol: STREAM_BRIDGE_MARKER,
+						version: BRIDGE_PROTOCOL_VERSION,
+						channel: channelId,
+						kind: 'error',
+						error: serializeBridgeError(error),
+					});
+				} catch {
+					// The peer cannot observe an error after its port closes.
 				}
 			}
-		} catch (e: any) {
-			try {
-				port1.postMessage({ t: 'error', m: e?.message || String(e) });
-			} catch {
-				// Ignore error
-			}
 		} finally {
-			port1.removeEventListener('message', onMessage);
-			try {
-				port1.close();
-			} catch {
-				// Ignore error
-			}
+			cleanup();
 		}
 	})();
-	return port2;
+
+	return channel.port2;
 }
 
-/**
- * Reconstructs a ReadableStream from a MessagePort using the inverse of the
- * streamToPort protocol. Each message enqueues data, closes, or errors.
- */
 export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
+	return portToStreamInternal(port);
+}
+
+function portToStreamInternal(
+	port: MessagePort,
+	resources?: RPCResourceOwner
+): ReadableStream<Uint8Array> {
+	let channelId: string | undefined;
+	let cleanupPort = () => safeClosePort(port);
 	return new ReadableStream<Uint8Array>({
 		start(controller) {
-			const onMessage = (ev: MessageEvent) => {
-				const data: any = (ev as any).data;
-				if (!data) return;
-				switch (data.t) {
+			let settled = false;
+			let removeTerminalResource = () => {};
+			const cleanup = () => {
+				if (settled) return;
+				settled = true;
+				removeMessage();
+				removeClose();
+				removeTerminalResource();
+				safeClosePort(port);
+			};
+			cleanupPort = cleanup;
+			const terminate = (error: unknown) => {
+				safeStreamError(controller, error);
+				cleanup();
+			};
+			const removeMessage = addPortMessageListener(port, (message) => {
+				if (!isStreamBridgeMessage(message)) return;
+				if (channelId === undefined) channelId = message.channel;
+				if (message.channel !== channelId) return;
+				switch (message.kind) {
 					case 'chunk':
+						if (!(message.bytes instanceof ArrayBuffer)) {
+							terminate(
+								new RPCSerializationError(
+									'Stream bridge chunk is missing its ArrayBuffer.'
+								)
+							);
+							return;
+						}
 						try {
-							controller.enqueue(new Uint8Array(data.b));
+							controller.enqueue(new Uint8Array(message.bytes));
 						} catch {
-							// enqueue() throws when the stream is no
-							// longer readable — the consumer cancelled
-							// it, someone called controller.error(),
-							// or the stream was already closed. We
-							// swallow the error because the consumer
-							// already knows why the stream ended. The
-							// only actionable response is to close
-							// the port so the remote side stops
-							// sending.
 							cleanup();
 						}
 						break;
@@ -699,254 +1573,292 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 						cleanup();
 						break;
 					case 'error':
-						safeStreamError(
-							controller,
-							new Error(data.m || 'Stream error')
-						);
-						cleanup();
+						terminate(deserializeBridgeError(message.error));
 						break;
 				}
-			};
-			const cleanup = () => {
-				try {
-					port.removeEventListener?.('message', onMessage as any);
-				} catch {
-					// Ignore error
+			});
+			const removeClose = addPortCloseListener(port, () => {
+				if (!settled) {
+					terminate(
+						new RemoteAPIEndpointTerminatedError(
+							'The stream transport port closed before the stream completed.',
+							{
+								endpointType: 'message-port-stream',
+								reason: 'port-closed',
+							}
+						)
+					);
 				}
-				try {
-					port.onmessage = null;
-				} catch {
-					// Ignore error
-				}
-				try {
-					port.close();
-				} catch {
-					// Ignore error
-				}
-			};
-			if (port.addEventListener) {
-				port.addEventListener('message', onMessage as any);
-			} else if ((port as any).on) {
-				(port as any).on('message', (data: any) =>
-					onMessage({ data } as any)
-				);
-			} else {
-				port.onmessage = onMessage as any;
+			});
+			if (resources) {
+				removeTerminalResource =
+					resources.addTerminalResource(terminate);
 			}
-			if (typeof port.start === 'function') {
-				port.start();
-			}
+			port.start();
 		},
-		cancel() {
+		cancel(reason) {
 			try {
-				port.postMessage({ t: 'cancel' });
-			} catch {
-				// The producer has already closed its port.
-			}
-			try {
-				port.close();
-			} catch {
-				// Ignore error
-			}
-		},
-	});
-}
-
-/**
- * Bridges a Promise to a MessagePort so it can be delivered across threads.
- *
- * Protocol of the returned MessagePort:
- *
- *   { t: 'resolve', v: any } – promise resolved with value v
- *   { t: 'reject',  m: str } – promise rejected with message m
- */
-function promiseToPort(promise: Promise<any>): MessagePort {
-	const { port1, port2 } = new MessageChannel();
-	promise
-		.then((value) => {
-			try {
-				port1.postMessage({ t: 'resolve', v: value });
-			} catch {
-				// Ignore error
-			}
-		})
-		.catch((err) => {
-			try {
-				port1.postMessage({
-					t: 'reject',
-					m: (err as any)?.message || String(err),
+				postPortMessage(port, {
+					protocol: STREAM_BRIDGE_MARKER,
+					version: BRIDGE_PROTOCOL_VERSION,
+					channel: channelId || '',
+					kind: 'cancel',
 				});
 			} catch {
-				// Ignore error
+				void reason;
 			}
-		})
-		.finally(() => {
-			try {
-				port1.close();
-			} catch {
-				// Ignore error
-			}
-		});
-	return port2;
-}
-
-/**
- * Reconstructs a Promise from a MessagePort using the inverse of
- * promiseToPort. Resolves or rejects when the corresponding message arrives.
- */
-function portToPromise(port: MessagePort): Promise<any> {
-	return new Promise((resolve, reject) => {
-		const onMessage = (ev: MessageEvent) => {
-			const data: any = (ev as any).data;
-			if (!data) return;
-			if (data.t === 'resolve') {
-				cleanup();
-				resolve(data.v);
-			} else if (data.t === 'reject') {
-				cleanup();
-				reject(new Error(data.m || ''));
-			}
-		};
-		const cleanup = () => {
-			try {
-				port.removeEventListener?.('message', onMessage as any);
-			} catch {
-				// Ignore error
-			}
-			try {
-				port.onmessage = null;
-			} catch {
-				// Ignore error
-			}
-			try {
-				port.close();
-			} catch {
-				// Ignore error
-			}
-		};
-		if (port.addEventListener) {
-			port.addEventListener('message', onMessage as any);
-		} else if ((port as any).on) {
-			(port as any).on('message', (data: any) =>
-				onMessage({ data } as any)
-			);
-		} else {
-			port.onmessage = onMessage as any;
-		}
-		if (typeof port.start === 'function') {
-			port.start();
-		}
-	});
-}
-
-// Augment Comlink's throw handler to include all the information carried by
-// the thrown object, including the cause, additional properties, etc.
-interface UnserializedError {
-	value: unknown;
-}
-type SerializedError =
-	| { isError: true; value: ErrorSerializer.ErrorObject }
-	| { isError: false; value: unknown };
-
-const throwTransferHandler = Comlink.transferHandlers.get(
-	'throw'
-) as Comlink.TransferHandler<UnserializedError, SerializedError>;
-
-const throwTransferHandlerCustom: Comlink.TransferHandler<
-	UnserializedError,
-	SerializedError
-> = {
-	canHandle: throwTransferHandler.canHandle,
-	serialize: ({ value }) => {
-		let serialized: SerializedError;
-		if (value instanceof Error) {
-			serialized = {
-				isError: true,
-				value: ErrorSerializer.serializeError(value),
-			};
-			// The error class name is not serialized by serialize-error, let's add it manually.
-			serialized.value['originalErrorClassName'] = value.constructor.name;
-		} else {
-			serialized = { isError: false, value };
-		}
-		return [serialized, []];
-	},
-	deserialize: (serialized) => {
-		if (serialized.isError) {
-			const error = ErrorSerializer.deserializeError(serialized.value);
-			/**
-			 * The original error from the web worker does not include any call
-			 * stack from the Playground web app. Let's include that information
-			 * in the error chain.
-			 *
-			 * We'll place it at the bottom of the error chain. This way the API
-			 * consumer gets the original error object and not an opaque
-			 * "Comlink method call failed" error, but they can still inspect
-			 * it further to see the full call stack.
-			 */
-			const additionalCallStack = new Error('Comlink method call failed');
-			let deepestError = error;
-			while (deepestError.cause) {
-				deepestError = deepestError.cause;
-			}
-			deepestError.cause = additionalCallStack;
-			throw error;
-		}
-		throw serialized.value;
-	},
-};
-
-Comlink.transferHandlers.set('throw', throwTransferHandlerCustom);
-
-function proxyClone(object: any): any {
-	return new Proxy(object, {
-		get(target, prop) {
-			switch (typeof target[prop]) {
-				case 'function':
-					return (...args: any[]) => target[prop](...args);
-				case 'object':
-					if (target[prop] === null) {
-						return target[prop];
-					}
-					return proxyClone(target[prop]);
-				case 'undefined':
-				case 'number':
-				case 'string':
-					return target[prop];
-				default:
-					return Comlink.proxy(target[prop]);
-			}
+			cleanupPort();
 		},
 	});
 }
 
-/**
- * Calls controller.error() without throwing if the stream is
- * already closed or errored. We swallow the error because the
- * consumer already has the terminal state — re-throwing would
- * crash the Node process for no benefit.
- */
-function safeStreamError(
-	controller: ReadableStreamDefaultController,
-	error: unknown
-) {
+function bindStreamToLifetime(
+	stream: ReadableStream<Uint8Array>,
+	resources: RPCResourceOwner
+): ReadableStream<Uint8Array> {
+	const reader = stream.getReader();
+	let removeTerminalResource = () => {};
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			removeTerminalResource = resources.addTerminalResource((error) => {
+				void reader.cancel(error).catch(() => {});
+				safeStreamError(controller, error);
+			});
+		},
+		async pull(controller) {
+			try {
+				const result = await reader.read();
+				if (result.done) {
+					removeTerminalResource();
+					safeStreamClose(controller);
+				} else {
+					controller.enqueue(result.value);
+				}
+			} catch (error) {
+				removeTerminalResource();
+				safeStreamError(controller, error);
+			}
+		},
+		cancel(reason) {
+			removeTerminalResource();
+			return reader.cancel(reason);
+		},
+	});
+}
+
+function promiseToPort<T>(
+	promise: Promise<T>,
+	resources?: RPCResourceOwner
+): MessagePort {
+	const channel = new MessageChannel();
+	const channelId = createBridgeId();
+	let settled = false;
+	let removeTerminalResource = () => {};
+	const cleanup = () => {
+		if (settled) return;
+		settled = true;
+		removeTerminalResource();
+		safeClosePort(channel.port1);
+	};
+	if (resources) {
+		removeTerminalResource = resources.addTerminalResource(cleanup);
+	}
+	void promise.then(
+		(value) => {
+			if (settled) return;
+			try {
+				postPortMessage(channel.port1, {
+					protocol: DEFERRED_BRIDGE_MARKER,
+					version: BRIDGE_PROTOCOL_VERSION,
+					channel: channelId,
+					kind: 'resolve',
+					value,
+				});
+			} finally {
+				cleanup();
+			}
+		},
+		(error) => {
+			if (settled) return;
+			try {
+				postPortMessage(channel.port1, {
+					protocol: DEFERRED_BRIDGE_MARKER,
+					version: BRIDGE_PROTOCOL_VERSION,
+					channel: channelId,
+					kind: 'reject',
+					error: serializeBridgeError(error),
+				});
+			} finally {
+				cleanup();
+			}
+		}
+	);
+	return channel.port2;
+}
+
+function portToPromise<T>(
+	port: MessagePort,
+	resources?: RPCResourceOwner
+): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		let settled = false;
+		let channelId: string | undefined;
+		let removeTerminalResource = () => {};
+		const cleanup = () => {
+			if (settled) return;
+			settled = true;
+			removeMessage();
+			removeClose();
+			removeTerminalResource();
+			safeClosePort(port);
+		};
+		const removeMessage = addPortMessageListener(port, (message) => {
+			if (!isDeferredBridgeMessage(message)) return;
+			if (channelId === undefined) channelId = message.channel;
+			if (message.channel !== channelId) return;
+			cleanup();
+			if (message.kind === 'resolve') resolve(message.value as T);
+			else reject(deserializeBridgeError(message.error));
+		});
+		const removeClose = addPortCloseListener(port, () => {
+			if (settled) return;
+			cleanup();
+			reject(
+				new RemoteAPIEndpointTerminatedError(
+					'The deferred-value port closed before it settled.',
+					{
+						endpointType: 'message-port-deferred',
+						reason: 'port-closed',
+					}
+				)
+			);
+		});
+		if (resources) {
+			removeTerminalResource = resources.addTerminalResource((error) => {
+				if (settled) return;
+				cleanup();
+				reject(error);
+			});
+		}
+		port.start();
+	});
+}
+
+function isStreamBridgeMessage(
+	value: unknown,
+	channel?: string
+): value is StreamBridgeMessage {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'protocol' in value &&
+		value.protocol === STREAM_BRIDGE_MARKER &&
+		'version' in value &&
+		value.version === BRIDGE_PROTOCOL_VERSION &&
+		'channel' in value &&
+		typeof value.channel === 'string' &&
+		(channel === undefined || value.channel === channel) &&
+		'kind' in value &&
+		(value.kind === 'chunk' ||
+			value.kind === 'close' ||
+			value.kind === 'error' ||
+			value.kind === 'cancel')
+	);
+}
+
+function isDeferredBridgeMessage(
+	value: unknown
+): value is DeferredBridgeMessage {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'protocol' in value &&
+		value.protocol === DEFERRED_BRIDGE_MARKER &&
+		'version' in value &&
+		value.version === BRIDGE_PROTOCOL_VERSION &&
+		'channel' in value &&
+		typeof value.channel === 'string' &&
+		'kind' in value &&
+		(value.kind === 'resolve' || value.kind === 'reject')
+	);
+}
+
+function serializeBridgeError(value: unknown): SerializedBridgeError {
+	if (value instanceof Error) {
+		return {
+			name: value.name,
+			message: value.message,
+			stack: value.stack,
+		};
+	}
+	return { name: 'Error', message: String(value) };
+}
+
+function deserializeBridgeError(
+	value: SerializedBridgeError | undefined
+): Error {
+	const error = new Error(value?.message || 'Remote stream failed.');
+	error.name = value?.name || 'Error';
+	if (value?.stack) error.stack = value.stack;
+	return error;
+}
+
+function createBridgeId(): string {
+	if (typeof globalThis.crypto?.randomUUID === 'function') {
+		return globalThis.crypto.randomUUID();
+	}
+	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function postPortMessage(
+	port: MessagePort,
+	message: unknown,
+	transferables: Transferable[] = []
+): void {
+	if (transferables.length > 0) port.postMessage(message, transferables);
+	else port.postMessage(message);
+}
+
+function addPortMessageListener(
+	port: MessagePort,
+	listener: (message: unknown) => void
+): () => void {
+	const eventListener = (event: MessageEvent) => listener(event.data);
+	port.addEventListener('message', eventListener);
+	return () => port.removeEventListener('message', eventListener);
+}
+
+function addPortCloseListener(
+	port: MessagePort,
+	listener: () => void
+): () => void {
+	port.addEventListener('close', listener);
+	return () => port.removeEventListener('close', listener);
+}
+
+function safeClosePort(port: RPCClosablePort): void {
 	try {
-		controller.error(error);
+		port.close?.();
 	} catch {
-		// Stream already in a terminal state.
+		// Cleanup is deliberately idempotent.
 	}
 }
 
-/**
- * Calls controller.close() without throwing if the stream is
- * already closed or errored. We swallow the error because the
- * consumer already has the terminal state — re-throwing would
- * crash the Node process for no benefit.
- */
-function safeStreamClose(controller: ReadableStreamDefaultController) {
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+): void {
+	try {
+		controller.error(error);
+	} catch {
+		// The stream is already closed, errored, or cancelled.
+	}
+}
+
+function safeStreamClose(controller: ReadableStreamDefaultController): void {
 	try {
 		controller.close();
 	} catch {
-		// Stream already in a terminal state.
+		// The stream is already closed, errored, or cancelled.
 	}
 }

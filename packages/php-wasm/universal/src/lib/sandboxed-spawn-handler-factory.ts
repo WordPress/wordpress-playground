@@ -1,7 +1,7 @@
 import { createSpawnHandler, splitShellCommand } from '@php-wasm/util';
 import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
-import type { Remote } from './comlink-sync';
+import type { Remote } from './rpc';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -158,11 +158,12 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
 			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
