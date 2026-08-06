@@ -178,7 +178,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
+					"PLAYWRIGHT_TEST_GROUP=regular npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts",
+					"PLAYWRIGHT_TEST_GROUP=storage npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
 				],
 				"parallel": false
 			}
