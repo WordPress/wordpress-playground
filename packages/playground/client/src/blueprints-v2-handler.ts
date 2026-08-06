@@ -48,18 +48,19 @@ export class BlueprintsV2Handler {
 		const downloadProgress = progressTracker.stage();
 		const blueprint = this.options.blueprint || { version: 2 };
 
-		// Connect the Comlink API client to the remote worker,
+		// Connect the Playground RPC client to the remote worker,
 		// boot the playground, and run the blueprint steps.
-		const playground = consumeAPI<PlaygroundClient>(
-			iframe.contentWindow!,
-			iframe.ownerDocument!.defaultView!
-		) as PlaygroundClient;
+		const playground = consumeAPI<PlaygroundClient>(iframe.contentWindow!, {
+			context: iframe.ownerDocument!.defaultView!,
+			signal: this.options.signal,
+			targetOrigin: new URL(iframe.src).origin,
+		}) as PlaygroundClient;
 		await playground.isConnected();
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);
 		}
 
-		// Connect the Comlink API client to the remote worker download monitor
+		// Connect the Playground RPC client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
 		const requestedWordPressInstallMode = resolveWordPressInstallMode({

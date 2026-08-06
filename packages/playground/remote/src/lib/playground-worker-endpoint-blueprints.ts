@@ -326,11 +326,11 @@ type WordPressInstallMode = NonNullable<
 const workerGlobal = self as unknown as {
 	__playgroundWorkerEndpointBlueprints?: boolean;
 };
-const alreadyExposedComlinkEndpoint =
+const alreadyExposedRpcEndpoint =
 	workerGlobal.__playgroundWorkerEndpointBlueprints;
-if (alreadyExposedComlinkEndpoint) {
+if (alreadyExposedRpcEndpoint) {
 	/*
-	 * This worker entrypoint owns exactly one Comlink endpoint. Seeing this
+	 * This worker entrypoint owns exactly one Playground RPC endpoint. Seeing this
 	 * guard means the same module was evaluated twice in the same worker
 	 * global, most likely because a generated chunk imported the worker
 	 * entrypoint to reuse one of its exports. Keep shared imports in
@@ -338,7 +338,7 @@ if (alreadyExposedComlinkEndpoint) {
 	 * startup code.
 	 */
 	throw new Error(
-		'The Blueprints Playground worker tried to expose its Comlink endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
+		'The Blueprints Playground worker tried to expose its RPC endpoint more than once in the same worker global. This usually means the worker entrypoint was imported as a dependency. Worker entrypoints must not be imported; move shared code into a side-effect-free module instead.'
 	);
 }
 workerGlobal.__playgroundWorkerEndpointBlueprints = true;

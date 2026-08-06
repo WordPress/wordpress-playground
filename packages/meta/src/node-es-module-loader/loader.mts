@@ -85,7 +85,7 @@ export async function resolve(
 	if (looksLikePackageImport) {
 		// Support resolving package imports with different file extensions.
 		//
-		// This was added to support importing a specific, nested comlink module.
+		// This was added to support importing a specific nested package module.
 		// Before this change, there was a conflict between TypeScript type
 		// resolution and Node.js module resolution:
 		// - Node.js would not find the module without its .mjs extension.

@@ -658,8 +658,8 @@ class OpfsRewriter {
 				}
 			}
 		} catch (e) {
-			// Useful for debugging – the original error gets lost in the
-			// Comlink proxy.
+			// Useful for debugging – the original error gets lost across the
+			// RPC boundary.
 			logger.log({ entry, name });
 			logger.error(e);
 			throw e;

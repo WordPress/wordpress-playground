@@ -278,6 +278,7 @@ export function bootSiteClient(
 			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
+				signal,
 				scope: site.slug,
 				blueprint,
 				disableProgressBar: true,

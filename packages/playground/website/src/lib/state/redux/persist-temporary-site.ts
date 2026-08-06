@@ -350,9 +350,9 @@ export function persistTemporarySite(
 		/**
 		 * @TODO: Fix OPFS site storage write timeout that happens alongside 2000
 		 *        "Cannot read properties of undefined (reading 'apply')" errors here:
-		 * I suspect the postMessage call we do to the safari worker causes it to
-		 * respond with another message and these unexpected exchange throws off
-		 * Comlink. We should make Comlink ignore those.
+		 * I suspect the postMessage call we do to the Safari worker causes it to
+		 * respond with another message and the unexpected exchange interferes with
+		 * RPC message routing. Unrelated messages should be ignored.
 		 */
 		// @TODO: ^ Is this fixed now?
 		const updatedSite = selectSiteBySlug(getState(), siteSlug);

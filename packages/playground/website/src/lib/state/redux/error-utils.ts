@@ -74,7 +74,7 @@ const DOWNLOAD_ERROR_CLASS_NAMES = [
  * Checks error messages against known patterns and error class names
  * against WebAssembly compilation errors.
  *
- * Handles both native Error objects and Comlink-serialized errors
+ * Handles both native Error objects and RPC-serialized errors
  * (which use `originalErrorClassName` instead of the native class name).
  *
  * Returns the matching error if found, or undefined if not.

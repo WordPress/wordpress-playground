@@ -59,6 +59,11 @@ const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
+	/**
+	 * Controls the iframe RPC endpoint for its complete lifetime.
+	 * Aborting rejects pending calls and prevents any new remote operation.
+	 */
+	signal?: AbortSignal;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	blueprint?: BlueprintV1;
@@ -166,6 +171,8 @@ export interface PlaygroundAPIClient {
 export interface StartPlaygroundAPIOptions {
 	iframe: HTMLIFrameElement;
 	apiUrl: string;
+	/** Controls the API iframe and its RPC endpoint for their complete lifetime. */
+	signal?: AbortSignal;
 }
 
 /**
@@ -202,7 +209,7 @@ export async function startPlaygroundWeb(
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
-	await loadIframe(iframe, remoteUrl);
+	await loadIframe(iframe, remoteUrl, options.signal);
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
@@ -222,26 +229,41 @@ export async function startPlaygroundWeb(
 export async function startPlaygroundAPI(
 	options: StartPlaygroundAPIOptions
 ): Promise<PlaygroundAPIClient> {
-	const { iframe, apiUrl } = options;
+	const { iframe, apiUrl, signal } = options;
 	assertLikelyCompatibleAPIOrigin(apiUrl);
 	allowStorageAccessByUserActivation(iframe);
 	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
 
-	await loadIframe(iframe, resolvedAPIUrl);
+	await loadIframe(iframe, resolvedAPIUrl, signal);
 
-	const api = consumeAPI<PlaygroundAPIClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	);
+	const api = consumeAPI<PlaygroundAPIClient>(iframe.contentWindow!, {
+		context: iframe.ownerDocument!.defaultView!,
+		signal,
+		targetOrigin: new URL(resolvedAPIUrl).origin,
+	});
 	await api.isConnected();
 	await api.isReady();
 
 	return api;
 }
 
-function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
-	return new Promise((resolve) => {
-		iframe.addEventListener('load', () => resolve(), { once: true });
+function loadIframe(
+	iframe: HTMLIFrameElement,
+	url: string,
+	signal?: AbortSignal
+): Promise<void> {
+	signal?.throwIfAborted();
+	return new Promise((resolve, reject) => {
+		const onLoad = () => {
+			signal?.removeEventListener('abort', onAbort);
+			resolve();
+		};
+		const onAbort = () => {
+			iframe.removeEventListener('load', onLoad);
+			reject(signal?.reason);
+		};
+		iframe.addEventListener('load', onLoad, { once: true });
+		signal?.addEventListener('abort', onAbort, { once: true });
 		iframe.src = url;
 	});
 }
@@ -288,7 +310,7 @@ const validRemoteOrigins = [
 	// An older origin that's still used by some plugins.
 	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
-	location.origin,
+	...(typeof location === 'undefined' ? [] : [location.origin]),
 	// Allow hosting remote from the same origin as the client library.
 	new URL(import.meta.url).origin,
 	'http://localhost',

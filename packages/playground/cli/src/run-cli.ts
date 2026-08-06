@@ -2120,7 +2120,7 @@ export function spawnWorkerThread(
 /**
  * Expose the file lock manager API on a MessagePort and return it.
  *
- * @see comlink-sync.ts
+ * @see The synchronous Playground RPC API in @php-wasm/universal
  * @see phpwasm-emscripten-library-file-locking-for-node.js
  */
 async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
@@ -2131,7 +2131,7 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	 * between synchronous and asynchronous APIs.
 	 *
 	 * @todo: Fill in the file containing the injected file locking system calls.
-	 * @see comlink-sync.ts
+	 * @see The synchronous Playground RPC API in @php-wasm/universal
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	await exposeSyncAPI(fileLockManager, port1);
