@@ -1,9 +1,17 @@
-import { test, expect } from '../playground-fixtures.ts';
+import { test as baseTest, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 import { readFile } from 'node:fs/promises';
+
+// Every test in this file touches browser-wide OPFS, so CI must route all of
+// them to the one-worker storage lane. Keep the usual APIs used in this file
+// while adding `@storage` to each test declaration.
+const test = Object.assign(storageTest, {
+	describe: baseTest.describe,
+	skip: baseTest.skip,
+});
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
@@ -128,8 +136,7 @@ Theme Name: Close Race Theme
 }
 
 // OPFS is shared by tests in one browser. Default mode keeps this file ordered
-// while retrying only the failed test. CI also selects this file into the
-// one-worker storage lane configured in playwright.ci.config.ts.
+// while retrying only the failed test.
 test.describe.configure({ mode: 'default' });
 
 /**
@@ -1057,7 +1064,9 @@ test('should save site with custom name', async ({ website, browserName }) => {
 	// Verify the name also appears in the Playgrounds pane.
 	await website.openPlaygroundsPane();
 	await expect(
-		website.page.locator('[class*="siteRowName"]', { hasText: customName })
+		website.page.locator('[class*="siteRowName"]', {
+			hasText: customName,
+		})
 	).toBeVisible();
 	await website.closePlaygroundsPane();
 });
@@ -2088,3 +2097,7 @@ test.describe('Missing site modal', () => {
 		await expect(dialog).not.toBeVisible();
 	});
 });
+
+function storageTest(title: string, body: Parameters<typeof baseTest>[2]) {
+	baseTest(title, { tag: '@storage' }, body);
+}

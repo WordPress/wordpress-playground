@@ -6,10 +6,10 @@ import playwrightConfig from './playwright.config';
  * The dedicated CI lane uses one worker and Playwright's default mode, which
  * retries only a failed test instead of replaying an entire serial group.
  *
- * `opfs.spec.ts` is entirely storage-sensitive. The tag selects the storage
- * describe nested inside the otherwise parallel `website-ui.spec.ts` file.
+ * Every storage-sensitive test carries the `@storage` tag, so the CI routing
+ * does not need to know which files contain storage tests.
  */
-const storageTests = /(?:opfs\.spec\.ts|@storage)/;
+const storageTests = /@storage/;
 const testGroup = process.env.PLAYWRIGHT_TEST_GROUP;
 const testGroupOptions =
 	testGroup === 'storage'
