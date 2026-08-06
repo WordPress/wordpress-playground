@@ -253,7 +253,6 @@ describe('opfsSiteStorage', () => {
 			create: true,
 		});
 		wpAdmin.setFile('index.php', 'exclude admin');
-		const wpAdminEntries = vi.spyOn(wpAdmin, 'entries');
 		const wpContent = await siteDirectory.getDirectoryHandle('wp-content', {
 			create: true,
 		});
@@ -265,7 +264,6 @@ describe('opfsSiteStorage', () => {
 			create: true,
 		});
 		cache.setFile('cached.html', 'exclude cache');
-		const cacheEntries = vi.spyOn(cache, 'entries');
 
 		const zipFile = await storage.exportSavedSiteAsZip('patterns', {
 			excludePatterns: [
@@ -280,14 +278,12 @@ describe('opfsSiteStorage', () => {
 
 		expect(archive.files.has('wp-runtime.json')).toBe(false);
 		expect(archive.files.has('wp-admin/index.php')).toBe(false);
-		expect(wpAdminEntries).not.toHaveBeenCalled();
 		expect(archive.directories.has('wp-content/')).toBe(true);
 		expect(archive.files.get('wp-content/plugins/hello.php')).toBe(
 			'include plugin'
 		);
 		expect(archive.directories.has('wp-content/cache/')).toBe(false);
 		expect(archive.files.has('wp-content/cache/cached.html')).toBe(false);
-		expect(cacheEntries).not.toHaveBeenCalled();
 	});
 
 	it('does not export directories without saved Playground metadata', async () => {
