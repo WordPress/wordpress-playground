@@ -328,6 +328,7 @@ describe('BlueprintsV1Handler', () => {
 
 function createIframe() {
 	return {
+		src: 'http://example.com/remote.html',
 		contentWindow: {},
 		ownerDocument: {
 			defaultView: {},

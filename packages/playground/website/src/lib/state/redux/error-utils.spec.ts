@@ -41,7 +41,7 @@ describe('findDownloadErrorInCauseChain', () => {
 		expect(findDownloadErrorInCauseChain(error)).toBe(error);
 	});
 
-	it('should detect CompileError via originalErrorClassName (Comlink)', () => {
+	it('should detect CompileError via serialized originalErrorClassName', () => {
 		const error = new Error('expected magic word 00 61 73 6d');
 		(error as any).originalErrorClassName = 'CompileError';
 		expect(findDownloadErrorInCauseChain(error)).toBe(error);
@@ -92,7 +92,7 @@ describe('findDownloadErrorInCauseChain', () => {
 		expect(findDownloadErrorInCauseChain(error)).toBe(error);
 	});
 
-	it('should detect LinkError via originalErrorClassName (Comlink)', () => {
+	it('should detect LinkError via serialized originalErrorClassName', () => {
 		const error = new Error('import object field is not a Function');
 		(error as any).originalErrorClassName = 'LinkError';
 		expect(findDownloadErrorInCauseChain(error)).toBe(error);

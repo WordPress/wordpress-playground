@@ -1015,18 +1015,26 @@ test('should stat the database size without reading the database into JavaScript
 		{ timeout: 120000 }
 	);
 	await website.page.evaluate(() => {
-		const playground = (window as any).playgroundSites.getClient();
-		const originalRead = playground.readFileAsBuffer.bind(playground);
+		const sites = (window as any).playgroundSites;
+		const playground = sites.getClient();
 		(window as any).__databaseReadCount = 0;
-		playground.readFileAsBuffer = async (path: string) => {
-			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
-				(window as any).__databaseReadCount++;
-				throw new Error(
-					'Database contents must not be read to calculate size.'
-				);
-			}
-			return originalRead(path);
-		};
+		const guardedPlayground = new Proxy(playground, {
+			get(target, property, receiver) {
+				if (property !== 'readFileAsBuffer') {
+					return Reflect.get(target, property, receiver);
+				}
+				return async (path: string) => {
+					if (path.endsWith('/wp-content/database/.ht.sqlite')) {
+						(window as any).__databaseReadCount++;
+						throw new Error(
+							'Database contents must not be read to calculate size.'
+						);
+					}
+					return playground.readFileAsBuffer(path);
+				};
+			},
+		});
+		sites.getClient = () => guardedPlayground;
 	});
 
 	await website.openDockPane('Database');

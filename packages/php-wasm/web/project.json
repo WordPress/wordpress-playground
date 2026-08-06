@@ -151,6 +151,14 @@
 				]
 			}
 		},
+		"e2e:rpc": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npm exec -- playwright test --config=packages/php-wasm/web/playwright.rpc.config.ts"
+				]
+			}
+		},
 		"lint": {
 			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
