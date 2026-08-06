@@ -128,8 +128,7 @@ Theme Name: Close Race Theme
 }
 
 // OPFS is shared by tests in one browser. Default mode keeps this file ordered
-// while retrying only the failed test. Each test includes the `@storage` tag so
-// CI routes it to the one-worker storage lane.
+// while retrying only the failed test.
 test.describe.configure({ mode: 'default' });
 
 /**
@@ -535,7 +534,8 @@ async function openPlaygroundPath(page: Page, path: string) {
 		path
 	);
 }
-test('should retry pending OPFS cleanup after another tab releases storage @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should retry pending OPFS cleanup after another tab releases storage', async ({
 	website,
 	context,
 	browserName,
@@ -595,7 +595,8 @@ test('should retry pending OPFS cleanup after another tab releases storage @stor
 	expect(storedSite.hasOldResetSentinel).toBe(false);
 });
 
-test('should start a new Playground after an initial OPFS sync was interrupted @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should start a new Playground after an initial OPFS sync was interrupted', async ({
 	website,
 	browserName,
 }) => {
@@ -631,7 +632,8 @@ test('should start a new Playground after an initial OPFS sync was interrupted @
 	await website.waitForNestedIframes();
 });
 
-test('should switch between sites @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should switch between sites', async ({
 	website,
 	browserName,
 }) => {
@@ -697,7 +699,8 @@ test('should switch between sites @storage', async ({
 	await expect(getPlaygroundTitle(website.page)).toContainText(firstSiteName);
 });
 
-test('should preserve PHP constants when saving a temporary site to OPFS @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should preserve PHP constants when saving a temporary site to OPFS', async ({
 	website,
 	browserName,
 	wordpress,
@@ -764,7 +767,8 @@ test('should preserve PHP constants when saving a temporary site to OPFS @storag
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
 });
 
-test('should rename a saved Playground and persist after reload @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should rename a saved Playground and persist after reload', async ({
 	website,
 	browserName,
 }) => {
@@ -817,7 +821,8 @@ test('should rename a saved Playground and persist after reload @storage', async
 	await website.closePlaygroundsPane();
 });
 
-test('should wait for a temporary OPFS metadata lock @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should wait for a temporary OPFS metadata lock', async ({
 	website,
 	browserName,
 }) => {
@@ -879,7 +884,8 @@ test('should wait for a temporary OPFS metadata lock @storage', async ({
 		.toBe(newName);
 });
 
-test('should preserve metadata changes made in different tabs @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should preserve metadata changes made in different tabs', async ({
 	website,
 	context,
 	browserName,
@@ -935,7 +941,8 @@ test('should preserve metadata changes made in different tabs @storage', async (
 	expect(persistedMetadata.runtimeConfiguration.networking).toBe(false);
 });
 
-test('should show the Store permanently pane with the save controls @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should show the Store permanently pane with the save controls', async ({
 	website,
 	browserName,
 }) => {
@@ -967,7 +974,8 @@ test('should show the Store permanently pane with the save controls @storage', a
 	await expect(pane).not.toBeVisible();
 });
 
-test('should close the Store permanently pane without saving @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should close the Store permanently pane without saving', async ({
 	website,
 	browserName,
 }) => {
@@ -1002,7 +1010,8 @@ test('should close the Store permanently pane without saving @storage', async ({
 	);
 });
 
-test('should have playground name input text selected by default @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should have playground name input text selected by default', async ({
 	website,
 	browserName,
 }) => {
@@ -1038,7 +1047,8 @@ test('should have playground name input text selected by default @storage', asyn
 	await pane.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should save site with custom name @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should save site with custom name', async ({
 	website,
 	browserName,
 }) => {
@@ -1070,7 +1080,8 @@ test('should save site with custom name @storage', async ({
 	await website.closePlaygroundsPane();
 });
 
-test('should not persist the Store permanently pane through page refresh @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should not persist the Store permanently pane through page refresh', async ({
 	website,
 	browserName,
 }) => {
@@ -1094,7 +1105,8 @@ test('should not persist the Store permanently pane through page refresh @storag
 	await expect(pane).toHaveCount(0);
 });
 
-test('should display OPFS storage option as selected by default @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should display OPFS storage option as selected by default', async ({
 	website,
 	browserName,
 }) => {
@@ -1117,7 +1129,8 @@ test('should display OPFS storage option as selected by default @storage', async
 	await pane.getByRole('button', { name: 'Cancel' }).click();
 });
 
-test('should import ZIP into a fresh temporary site without browser storage @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should import ZIP into a fresh temporary site without browser storage', async ({
 	website,
 	browserName,
 	context,
@@ -1185,7 +1198,8 @@ test('should import ZIP into a fresh temporary site without browser storage @sto
 		.toBe(marker);
 });
 
-test('should remove the saved site created for a failed ZIP import @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should remove the saved site created for a failed ZIP import', async ({
 	website,
 	browserName,
 }) => {
@@ -1229,7 +1243,8 @@ test('should remove the saved site created for a failed ZIP import @storage', as
 		.toEqual(storedSiteSlugsBeforeImport);
 });
 
-test('should import a ZIP dropped on the page @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should import a ZIP dropped on the page', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1265,7 +1280,8 @@ test('should import a ZIP dropped on the page @storage', async ({
 	await expect(wordpress.locator('body')).toContainText(marker);
 });
 
-test('should show an inline error for a non-ZIP drop @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should show an inline error for a non-ZIP drop', async ({
 	website,
 	browserName,
 }) => {
@@ -1293,7 +1309,8 @@ test('should show an inline error for a non-ZIP drop @storage', async ({
 	).toBeVisible();
 });
 
-test('should notify when a ZIP import loads before autosave finishes @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should notify when a ZIP import loads before autosave finishes', async ({
 	website,
 	browserName,
 }) => {
@@ -1413,7 +1430,8 @@ test('should notify when a ZIP import loads before autosave finishes @storage', 
 		.toEqual({ plugin: true, theme: true });
 });
 
-test('should import ZIP into a new saved site when a saved site exists @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should import ZIP into a new saved site when a saved site exists', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1505,7 +1523,8 @@ test('should import ZIP into a new saved site when a saved site exists @storage'
 	);
 });
 
-test('should create a saved site when importing ZIP while on a saved site with no existing temporary site @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should create a saved site when importing ZIP while on a saved site with no existing temporary site', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1608,7 +1627,8 @@ test('should create a saved site when importing ZIP while on a saved site with n
 	);
 });
 
-test('should persist an imported ZIP saved site after switching away and back @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should persist an imported ZIP saved site after switching away and back', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1698,7 +1718,8 @@ test('should persist an imported ZIP saved site after switching away and back @s
 	await expect(wordpress.locator('body')).toContainText(importedMarker);
 });
 
-test('should retain files omitted from a legacy ZIP export @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should retain files omitted from a legacy ZIP export', async ({
 	website,
 	wordpress,
 	browserName,
@@ -1802,7 +1823,8 @@ test('should retain files omitted from a legacy ZIP export @storage', async ({
 	);
 });
 
-test('should re-import an exported ZIP without switching sites @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should re-import an exported ZIP without switching sites', async ({
 	website,
 	context,
 	browserName,
@@ -1903,7 +1925,8 @@ test('should re-import an exported ZIP without switching sites @storage', async 
 	expect(importedSite.slug).not.toBe(occupiedSiteSlug);
 });
 
-test('should preserve a customized default-theme background through export and import @storage', async ({
+// `@storage` routes this browser-scoped test to the one-worker CI lane.
+test('@storage should preserve a customized default-theme background through export and import', async ({
 	website,
 	wordpress,
 	browserName,
@@ -2035,7 +2058,8 @@ PHP;
 
 // Missing site modal tests in a separate describe block to avoid state pollution.
 test.describe('Missing site modal', () => {
-	test('should show modal when loading non-existent site slug @storage', async ({
+	// `@storage` routes this browser-scoped test to the one-worker CI lane.
+	test('@storage should show modal when loading non-existent site slug', async ({
 		website,
 		wordpress,
 		browserName,
@@ -2062,7 +2086,8 @@ test.describe('Missing site modal', () => {
 		).toBeVisible({ timeout: 30000 });
 	});
 
-	test('should dismiss modal when clicking dismiss button @storage', async ({
+	// `@storage` routes this browser-scoped test to the one-worker CI lane.
+	test('@storage should dismiss modal when clicking dismiss button', async ({
 		website,
 		wordpress,
 		browserName,

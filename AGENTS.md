@@ -54,8 +54,8 @@ npx nx build <package-name>              # Build specific package
 # Testing
 npm test                                 # Run all tests
 npx nx test <package-name>               # Test specific package
-npx nx e2e playground-website            # Run end-to-end tests
-npx nx run playground-website:e2e:playwright:ci # Run regular tests, then one-worker storage tests
+npx nx e2e playground-website            # Run website Cypress E2E tests
+npx nx run playground-website:e2e:playwright:ci # Run website Playwright E2E tests
 
 # Running a single test file
 npx nx test <package-name> --testFile=<test-file-name>

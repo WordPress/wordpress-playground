@@ -15,6 +15,8 @@ const testGroupOptions = getTestGroupOptions(process.env.PLAYWRIGHT_TEST_GROUP);
 function getTestGroupOptions(testGroup: string | undefined) {
 	switch (testGroup) {
 		case 'storage':
+			// Storage tests share browser-scoped OPFS, so one worker prevents
+			// them from changing the same storage concurrently.
 			return { grep: storageTests, workers: 1 };
 		case 'regular':
 			return { grepInvert: storageTests };
