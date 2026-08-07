@@ -293,6 +293,8 @@ function prepareForExpose<Methods, PipedAPI>(
 		readyState = 'rejected';
 		rejectReady(error);
 	};
+	const apiIsRemote = isRPCRemoteProxy(apiMethods);
+	const pipedIsRemote = isRPCRemoteProxy(pipedApi);
 
 	const exposedApi = new Proxy(Object.create(null), {
 		get(_target, property) {
@@ -302,11 +304,16 @@ function prepareForExpose<Methods, PipedAPI>(
 			if (property === 'isReady') {
 				return () => ready;
 			}
-			const direct = getCompositeProperty(apiMethods, property);
+			const direct = getCompositeProperty(
+				apiMethods,
+				property,
+				apiIsRemote
+			);
 			if (direct.found) {
-				return bindCompositeMethod(direct.value, apiMethods);
+				return apiIsRemote
+					? direct.value
+					: bindCompositeMethod(direct.value, apiMethods);
 			}
-			const pipedIsRemote = isRPCRemoteProxy(pipedApi);
 			const piped = getCompositeProperty(
 				pipedApi,
 				property,
@@ -322,8 +329,9 @@ function prepareForExpose<Methods, PipedAPI>(
 			return (
 				property === 'isConnected' ||
 				property === 'isReady' ||
+				apiIsRemote ||
 				hasProperty(apiMethods, property) ||
-				isRPCRemoteProxy(pipedApi) ||
+				pipedIsRemote ||
 				hasProperty(pipedApi, property)
 			);
 		},
@@ -826,6 +834,7 @@ type EncodedReadableStream =
 	| {
 			transport: 'message-port';
 			port: MessagePort;
+			channel: string;
 	  };
 
 function createPlaygroundCodecs(
@@ -1333,13 +1342,14 @@ function encodeReadableStream(
 			transferables: [stream as unknown as Transferable],
 		};
 	}
-	const port = streamToPortInternal(stream, resources);
+	const bridge = streamToPortInternal(stream, resources);
 	return {
 		value: {
 			transport: 'message-port',
-			port,
+			port: bridge.port,
+			channel: bridge.channelId,
 		} satisfies EncodedReadableStream,
-		transferables: [port],
+		transferables: [bridge.port],
 	};
 }
 
@@ -1366,9 +1376,13 @@ function decodeReadableStream(
 	if (
 		value.transport === 'message-port' &&
 		'port' in value &&
-		isMessagePort(value.port)
+		isMessagePort(value.port) &&
+		'channel' in value &&
+		typeof value.channel === 'string' &&
+		value.channel.length > 0 &&
+		value.channel.length <= 200
 	) {
-		return portToStreamInternal(value.port, resources);
+		return portToStreamInternal(value.port, resources, value.channel);
 	}
 	throw new RPCSerializationError(
 		'Unknown ReadableStream transport payload.'
@@ -1414,7 +1428,7 @@ interface StreamBridgeMessage {
 	protocol: typeof STREAM_BRIDGE_MARKER;
 	version: number;
 	channel: string;
-	kind: 'chunk' | 'close' | 'error' | 'cancel';
+	kind: 'open' | 'chunk' | 'close' | 'error' | 'cancel';
 	bytes?: ArrayBuffer;
 	error?: SerializedBridgeError;
 }
@@ -1435,13 +1449,13 @@ interface SerializedBridgeError {
 }
 
 export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
-	return streamToPortInternal(stream);
+	return streamToPortInternal(stream).port;
 }
 
 function streamToPortInternal(
 	stream: ReadableStream<Uint8Array>,
 	resources?: RPCResourceOwner
-): MessagePort {
+): { port: MessagePort; channelId: string } {
 	const channel = new MessageChannel();
 	const channelId = createBridgeId();
 	const reader = stream.getReader();
@@ -1477,6 +1491,12 @@ function streamToPortInternal(
 		);
 	}
 	channel.port1.start();
+	postPortMessage(channel.port1, {
+		protocol: STREAM_BRIDGE_MARKER,
+		version: BRIDGE_PROTOCOL_VERSION,
+		channel: channelId,
+		kind: 'open',
+	});
 
 	void (async () => {
 		try {
@@ -1523,7 +1543,7 @@ function streamToPortInternal(
 		}
 	})();
 
-	return channel.port2;
+	return { port: channel.port2, channelId };
 }
 
 export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
@@ -1532,10 +1552,16 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 
 function portToStreamInternal(
 	port: MessagePort,
-	resources?: RPCResourceOwner
+	resources?: RPCResourceOwner,
+	knownChannelId?: string
 ): ReadableStream<Uint8Array> {
-	let channelId: string | undefined;
-	let cleanupPort = () => safeClosePort(port);
+	let channelId = knownChannelId;
+	let pendingCancelReason: unknown;
+	let hasPendingCancel = false;
+	let cancelRemote = (reason: unknown) => {
+		pendingCancelReason = reason;
+		hasPendingCancel = true;
+	};
 	return new ReadableStream<Uint8Array>({
 		start(controller) {
 			let settled = false;
@@ -1548,7 +1574,24 @@ function portToStreamInternal(
 				removeTerminalResource();
 				safeClosePort(port);
 			};
-			cleanupPort = cleanup;
+			cancelRemote = (reason: unknown) => {
+				if (channelId === undefined) {
+					pendingCancelReason = reason;
+					hasPendingCancel = true;
+					return;
+				}
+				try {
+					postPortMessage(port, {
+						protocol: STREAM_BRIDGE_MARKER,
+						version: BRIDGE_PROTOCOL_VERSION,
+						channel: channelId,
+						kind: 'cancel',
+					});
+				} catch {
+					void reason;
+				}
+				cleanup();
+			};
 			const terminate = (error: unknown) => {
 				safeStreamError(controller, error);
 				cleanup();
@@ -1557,7 +1600,14 @@ function portToStreamInternal(
 				if (!isStreamBridgeMessage(message)) return;
 				if (channelId === undefined) channelId = message.channel;
 				if (message.channel !== channelId) return;
+				if (hasPendingCancel) {
+					hasPendingCancel = false;
+					cancelRemote(pendingCancelReason);
+					return;
+				}
 				switch (message.kind) {
+					case 'open':
+						break;
 					case 'chunk':
 						if (!isArrayBufferValue(message.bytes)) {
 							terminate(
@@ -1602,17 +1652,7 @@ function portToStreamInternal(
 			port.start();
 		},
 		cancel(reason) {
-			try {
-				postPortMessage(port, {
-					protocol: STREAM_BRIDGE_MARKER,
-					version: BRIDGE_PROTOCOL_VERSION,
-					channel: channelId || '',
-					kind: 'cancel',
-				});
-			} catch {
-				void reason;
-			}
-			cleanupPort();
+			cancelRemote(reason);
 		},
 	});
 }
@@ -1762,9 +1802,12 @@ function isStreamBridgeMessage(
 		value.version === BRIDGE_PROTOCOL_VERSION &&
 		'channel' in value &&
 		typeof value.channel === 'string' &&
+		value.channel.length > 0 &&
+		value.channel.length <= 200 &&
 		(channel === undefined || value.channel === channel) &&
 		'kind' in value &&
-		(value.kind === 'chunk' ||
+		(value.kind === 'open' ||
+			value.kind === 'chunk' ||
 			value.kind === 'close' ||
 			value.kind === 'error' ||
 			value.kind === 'cancel')

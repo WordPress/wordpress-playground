@@ -2432,7 +2432,7 @@ function createSyncRemoteProxy(
 	path: readonly string[]
 ): any {
 	const target = function synchronousRemoteProxyTarget() {};
-	return new Proxy(target, {
+	const proxy = new Proxy(target, {
 		get(_target, property) {
 			if (property === releaseApiProxy) {
 				return path.length === 0 ? () => session.release() : undefined;
@@ -2461,6 +2461,8 @@ function createSyncRemoteProxy(
 			throw new RPCUnsupportedOperationError('construction');
 		},
 	});
+	remoteProxies.add(proxy);
+	return proxy;
 }
 
 function isSyncEnvelope(value: unknown): value is SyncRPCEnvelope {

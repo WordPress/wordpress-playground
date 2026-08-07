@@ -465,6 +465,23 @@ describe('Playground RPC', () => {
 	);
 
 	it('round-trips and cancels streams through the public port helpers', async () => {
+		let immediateCancelReason: unknown;
+		const immediatelyCancelled = new Promise<void>((resolve) => {
+			const stalled = new ReadableStream<Uint8Array>({
+				cancel(reason) {
+					immediateCancelReason = reason;
+					resolve();
+				},
+			});
+			void portToStream(streamToPort(stalled)).cancel(
+				'cancel before data'
+			);
+		});
+		await immediatelyCancelled;
+		expect(immediateCancelReason).toBe(
+			'The remote stream consumer cancelled the stream.'
+		);
+
 		let cancelReason: unknown;
 		const cancelled = new Promise<void>((resolve) => {
 			const source = new ReadableStream<Uint8Array>({

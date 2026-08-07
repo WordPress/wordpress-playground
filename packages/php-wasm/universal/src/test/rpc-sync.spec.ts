@@ -8,6 +8,7 @@ import {
 	MessageChannel as NodeMessageChannel,
 	Worker,
 } from 'node:worker_threads';
+import type { MessagePort as NodeMessagePort } from 'node:worker_threads';
 import {
 	RemoteAPIEndpointTerminatedError,
 	RPC_PROTOCOL_MARKER,
@@ -71,9 +72,44 @@ describe('synchronous Playground RPC', () => {
 		});
 
 		expect(() => consumeAPI(port)).toThrow(/dedicated endpoint/);
+		const portClosed = once(port as unknown as NodeMessagePort, 'close');
 		await worker.terminate();
-		await new Promise((resolve) => setImmediate(resolve));
+		await portClosed;
 		expect(() => remote.add(1)).toThrow(RemoteAPIEndpointTerminatedError);
+	});
+
+	it('re-exposes a synchronous remote proxy through a second port', async () => {
+		const upstream = await spawnSyncFixture();
+		const downstream = new NodeMessageChannel();
+		const forwarder = new Worker(
+			new URL('./fixtures/rpc-sync-worker.mjs', import.meta.url),
+			{
+				workerData: {
+					moduleUrl: new URL(
+						'../../../../../dist/test-fixtures/php-wasm-universal/rpc-sync-runtime.js',
+						import.meta.url
+					).href,
+					upstreamPort: upstream.port,
+					port: downstream.port1,
+				},
+				transferList: [
+					upstream.port as unknown as NodeMessagePort,
+					downstream.port1,
+				],
+			}
+		);
+		await once(forwarder, 'message');
+		const remote = await consumeAPISync<SyncFixtureAPI>(
+			downstream.port2 as unknown as MessagePort,
+			{ timeoutMs: 1_000 }
+		);
+
+		try {
+			expect(remote.add(5)).toBe(15);
+		} finally {
+			await forwarder.terminate();
+			await upstream.worker.terminate();
+		}
 	});
 
 	it('distinguishes endpoint loss during a blocked call', async () => {

@@ -4,7 +4,7 @@
 
 import { parentPort, workerData } from 'node:worker_threads';
 
-const { exposeSyncAPI } = await import(workerData.moduleUrl);
+const { consumeAPISync, exposeSyncAPI } = await import(workerData.moduleUrl);
 
 class SyncFixtureAPI {
 	base = 10;
@@ -40,5 +40,10 @@ class SyncFixtureAPI {
 	}
 }
 
-await exposeSyncAPI(new SyncFixtureAPI(), workerData.port);
+if (workerData.upstreamPort) {
+	const upstream = await consumeAPISync(workerData.upstreamPort);
+	await exposeSyncAPI(upstream, workerData.port);
+} else {
+	await exposeSyncAPI(new SyncFixtureAPI(), workerData.port);
+}
 parentPort.postMessage('ready');
