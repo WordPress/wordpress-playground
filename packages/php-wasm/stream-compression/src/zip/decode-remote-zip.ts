@@ -216,28 +216,47 @@ function partitionNearbyEntries(sourceLength: number) {
 function fetchPartitionedEntries(
 	source: BytesSource
 ): ReadableWritablePair<FileEntry, CentralDirectoryEntry[]> {
+	/**
+	 * This function implements a ReadableStream and a WritableStream
+	 * instead of a TransformStream. This is intentional.
+	 *
+	 * In TransformStream, returning a promise from transform() delays the
+	 * next transform() call until that promise resolves. The separate streams
+	 * let us schedule range requests in parallel while the semaphore below
+	 * bounds how many response bodies are downloaded at once.
+	 */
 	let isWritableClosed = false;
-	let requestsInProgress = 0;
+	let pendingRangeRequests = 0;
 	let readableController: ReadableStreamDefaultController<FileEntry>;
-	const byteStreams: Array<
+	const downloadedRangeStreams: Array<
 		[CentralDirectoryEntry[], ReadableStream<Uint8Array>]
 	> = [];
+	/**
+	 * Receives chunks of CentralDirectoryEntries and fetches the corresponding
+	 * byte ranges from the remote zip file.
+	 */
 	const writable = new WritableStream<CentralDirectoryEntry[]>({
 		write(zipEntries, controller) {
 			if (!zipEntries.length) {
 				return;
 			}
 
-			requestsInProgress++;
+			pendingRangeRequests++;
+			// fetch() resolves when response headers arrive, before its body has
+			// been consumed. Keep the semaphore slot through body collection so
+			// unread responses cannot accumulate beyond the concurrency limit.
 			void fetchSemaphore
 				.run(async () => {
 					const bytes = await collectBytes(
 						await requestChunkRange(source, zipEntries)
 					);
-					byteStreams.push([zipEntries, new Blob([bytes]).stream()]);
+					downloadedRangeStreams.push([
+						zipEntries,
+						new Blob([bytes]).stream(),
+					]);
 				})
 				.catch((error) => controller.error(error))
-				.finally(() => requestsInProgress--);
+				.finally(() => pendingRangeRequests--);
 		},
 		abort(reason) {
 			isWritableClosed = true;
@@ -253,35 +272,44 @@ function fetchPartitionedEntries(
 		},
 		async pull(controller) {
 			while (true) {
-				if (
+				const allChunksProcessed =
 					isWritableClosed &&
-					!byteStreams.length &&
-					requestsInProgress === 0
-				) {
+					!downloadedRangeStreams.length &&
+					pendingRangeRequests === 0;
+				if (allChunksProcessed) {
 					controller.close();
 					return;
 				}
 
-				if (!byteStreams.length) {
+				// There are no bytes available, but the writable stream is still
+				// open or range requests are still pending. Wait for more bytes.
+				const waitingForMoreBytes = !downloadedRangeStreams.length;
+				if (waitingForMoreBytes) {
 					await new Promise((resolve) => setTimeout(resolve, 50));
 					continue;
 				}
 
-				const [zipEntries, stream] = byteStreams[0];
+				const [requestedEntries, stream] = downloadedRangeStreams[0];
 				const file = await readFileEntry(stream);
-				if (!file) {
-					byteStreams.shift();
+				// The stream is exhausted, so remove it and try the next one.
+				const streamExhausted = !file;
+				if (streamExhausted) {
+					downloadedRangeStreams.shift();
 					continue;
 				}
 
-				if (
-					zipEntries.some((entry) =>
-						uint8ArraysEqual(entry.path, file.path)
-					)
-				) {
-					controller.enqueue(file);
-					return;
+				// Extra files may live between requested entries in the downloaded
+				// range. Filter those intertwined files out by comparing path bytes.
+				const isOneOfRequestedPaths = requestedEntries.some((entry) =>
+					uint8ArraysEqual(entry.path, file.path)
+				);
+				if (!isOneOfRequestedPaths) {
+					continue;
 				}
+
+				// Finally, emit a file selected by the caller's predicate.
+				controller.enqueue(file);
+				return;
 			}
 		},
 	});
