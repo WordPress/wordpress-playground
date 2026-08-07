@@ -2,10 +2,17 @@
 
 # WordPress Playground RPC protocol version 1
 
-This document defines the independently designed wire contract implemented by
-`@php-wasm/universal`. It is intended for version review and coordinated
-deployment, not as an invitation to treat the engine as a general-purpose RPC
-framework.
+This document defines the independently designed wire contract exported from
+`@php-wasm/universal/playground-rpc`. Version `1` identifies this message format;
+it is independent of the npm package version. It is intended for version review
+and coordinated deployment, not as an invitation to treat the implementation as
+a general-purpose RPC framework.
+
+The first rollout uses this protocol only between Playground CLI processes and
+worker threads. The package-root RPC exports remain unchanged for browser and
+other consumers. The Window, browser-worker, and child-process sections document
+implemented transport contracts for later integrations; they do not expand the
+scope of this rollout.
 
 All object fields described as required must have the stated type. Receivers
 ignore envelopes with another marker or session. They reject or ignore malformed

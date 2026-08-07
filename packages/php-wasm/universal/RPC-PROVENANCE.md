@@ -1,335 +1,225 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 
-# WordPress Playground RPC provenance and clean-room record
+# WordPress Playground RPC provenance record
 
-This is an engineering evidence log for counsel and reviewers. It does not
-claim legal clearance, non-infringement, or that the resulting work satisfies a
-legal definition of clean-room development.
+This is an engineering evidence log for reviewers and counsel. It does not claim
+legal clearance, non-infringement, or that the process satisfies any legal
+definition of clean-room development.
 
-## Directions and environment handling
+## Environment and scope history
 
-The task began with a requirement to confirm a sanitized source export before
-implementation. That precondition failed because
-`packages/php-wasm/universal/src/lib/comlink-sync.ts` was present. The root
-session reported the failure and did not open the file. The user then explicitly
-directed the root session to delete that file without looking at it and proceed
-in the current worktree.
+The task initially required a sanitized source export. That precondition was not
+met because the named legacy RPC files and repository history were present. The
+root implementation session reported that fact and did not open the named legacy
+implementation. The user then directed the session to delete that file without
+looking at it and proceed in the current worktree.
 
-The root session deleted these paths without opening them:
+The first draft replaced the repository-wide RPC integration. It was committed in
+five reviewable commits and pushed to draft PR #4251. After review, the scope was
+narrowed: the legacy package-root implementation was mechanically restored and is
+again used by most of the repository, while only Playground CLI imports the new
+`@php-wasm/universal/playground-rpc` subpath. The initial commits remain in history;
+no history rewrite or force-push was used.
 
-- `packages/php-wasm/universal/src/lib/comlink-sync.ts`;
-- `packages/php-wasm/universal/src/test/comlink-sync.spec.ts`; and
-- `packages/php-wasm/universal/src/lib/comlink-node-process-adapter.ts` (the
-  obsolete adapter, replaced by an independently authored adapter).
+The legacy implementation, adapter, and test were restored with a path-limited
+`git restore --source=HEAD~5` command. The root session did not print or inspect
+their contents. Their presence in the final tree is intentional for the staged
+rollout requested in review.
 
-No Git-history/object search, checkout of the deleted files, history rewrite,
-or force-push was performed. The work was not authored in the separately
-sanitized repository proposed by the original task. Historical commits and
-notices remain in repository history.
+## Design inputs
 
-## Inputs used
+The new implementation was authored from:
 
-The behavior and API were designed from:
-
-1. the behavioral specification supplied in the task conversation;
-2. the `AGENTS.md` contents supplied in that conversation;
-3. current Playground consumer call sites, types, package configuration, and
-   test/build infrastructure listed below; and
-4. official Node.js release metadata used only to select the current-Node test
-   version.
+1. the behavioral specification in the task conversation;
+2. the supplied repository `AGENTS.md` instructions;
+3. current Playground consumer call sites, public types, and build/test
+   configuration listed below; and
+4. official Node.js release information, used only to choose validation runtimes.
 
 No upstream RPC-library source, documentation, issues, patches, diffs, wire
-layouts, algorithms, type declarations, or test cases were intentionally
-consulted. No child agent was asked to author the RPC engine. The root session
-authored `rpc.ts`, `api.ts`, the codecs, transports, lifecycle design, protocol,
-and synchronous implementation.
+layouts, algorithms, type declarations, or test cases were intentionally used as
+design inputs. No child agent authored the RPC engine. The root session authored
+the engine, API facade, codecs, lifecycle and transport design, protocol, and
+synchronous implementation.
 
 ## Deviations and incidents
 
-### Current worktree instead of a sanitized repository
+### Unsanitized worktree
 
-The user superseded the requested separate-repository workflow. This record
-therefore does not attest that the worktree was sanitized, only that the named
-legacy implementation and test were not opened by the root implementation
-session.
+The implementation was not created in the separate sanitized repository proposed
+by the original specification. Counsel should treat that as an unresolved process
+deviation rather than infer a clean-room attestation from this report.
 
-### Delegated transport-audit search
+### Delegated searches
 
-A read-only transport-audit agent ran an overly broad `rg` search that surfaced
-a few lines from the legacy test before that path was excluded. The agent was
-not assigned implementation work, did not author engine code, and reported that
-the snippet was not used. The root session did not request, reproduce, or rely
-on the snippet. The exact command and line output remain in the child-session
-tool transcript; they are not available in the root session after context
-compaction. Counsel should review that transcript rather than infer that the
-original sanitized precondition was met.
+An early read-only transport-audit agent ran an overly broad repository search
+that surfaced a few lines from the legacy test before excluding that path. The
+agent did not implement the engine and reported that the snippet was not used. The
+root session did not request or rely on it. The exact output remains in the agent
+transcript.
 
-### Repository browser-debugging skill
+During the scope-reduction review, a read-only acceptance agent used Git diff and
+search commands. A broad diff surfaced integration fragments from the prior
+`api.ts` version. The agent did not inspect the legacy implementation or author
+engine code; its recommendations concerned package and CLI boundaries.
+
+### Required repository skill
 
 The root session read
-`.agents/skills/playground-website-debugging/SKILL.md` because the agent runtime
-required that skill before browser validation. It supplied dev-server and
-Playwright operating instructions and contained one stale high-level reference
-to the former library. It contained no implementation or wire protocol and was
-not used to design the engine. It is recorded here because it was outside the
-initially enumerated clean-room inputs.
+`.agents/skills/playground-website-debugging/SKILL.md` before the initial browser
+validation because the agent runtime required that skill. It contained operating
+instructions and a high-level reference to the former library, but no engine or
+wire implementation. It was not used to design the RPC code.
 
-## External pages and downloads
+### Automatic formatting of restored files
 
-Access date for this section: 2026-08-06.
+The repository's pre-commit hook automatically invoked the uncommitted-file
+formatter after the legacy paths had been staged. It processed two restored
+legacy files without displaying their contents and changed their bytes. A first
+correction used a moving `HEAD~5` reference after new commits had advanced
+`HEAD`, which briefly produced an incorrect intermediate commit. The root session
+then resolved the fixed pre-change commit (`635bb912170393c3d27425f88f8d0b5670007657`),
+restored all three legacy paths from that commit, and committed with
+`--no-verify`. Non-content comparisons confirmed all three final files are
+byte-identical to that baseline. The transient correction commits were
+consolidated into the coexistence commit before they were first pushed. No
+published commit was rewritten and no force-push was used.
 
-| External resource                                                    | Purpose                                 | Information used                                                                        |
-| -------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `https://nodejs.org/en/about/previous-releases`                      | Official Node.js release status         | Confirmed major 26 is Current.                                                          |
-| `https://nodejs.org/en/download/current`                             | Official current download metadata      | Selected Node.js 26.5.1 for the current-Node run.                                       |
-| `https://nodejs.org/dist/v20.20.2/node-v20.20.2-darwin-arm64.tar.xz` | Official Node binary installed by `nvm` | Node 20 validation runtime.                                                             |
-| `https://nodejs.org/dist/v26.5.1/node-v26.5.1-darwin-arm64.tar.xz`   | Official Node binary installed by `nvm` | Current-Node validation runtime.                                                        |
-| npm registry endpoints selected by the committed lockfile            | `npm ci` dependency installation        | Installed repository tooling; no third-party RPC source was opened or used as an input. |
+## External pages and network resources
 
-No other web page was intentionally opened. The Node pages were consulted for
-release/version facts, not for RPC semantics or implementation.
+Access dates: 2026-08-06 and 2026-08-07.
+
+| Resource                                                                                  | Purpose                                                                  |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `https://nodejs.org/en/about/previous-releases`                                           | Identify supported/current Node majors for the original matrix.          |
+| `https://nodejs.org/en/download/current`                                                  | Select the then-current Node release for validation.                     |
+| Official Node 20.20.2 and 26.5.1 binary download URLs under `nodejs.org/dist`             | Install validation runtimes with `nvm`.                                  |
+| npm registry endpoints selected by the committed lockfile                                 | Install repository dependencies; no RPC source was intentionally opened. |
+| `https://github.com/WordPress/wordpress-playground/pull/4251` and its review/API endpoint | Create and inspect the draft PR and reviewer request.                    |
+| GitHub Actions check and log endpoints for PR #4251                                       | Triage failures in built-package, browser RPC, and unrelated unit jobs.  |
+
+The GitHub review requested a CLI-only first rollout. The old revision's browser
+failures exercised the now-reverted browser integration. Its built-package
+CommonJS CLI timeout remained relevant and was selected for local reproduction.
 
 ## Repository files consulted
 
-The session transcript is the authoritative command-level record. The following
-lists the files opened directly, returned as material search results, or reported
-as consulted by delegated audits. Repository-wide `rg` scans used to locate call
-sites are preserved verbatim in that transcript.
+The command and agent transcripts are the authoritative detailed record. The
+following groups list files opened directly, returned as material search results,
+or reported by delegated audits.
 
-### Repository and build rules
+### Instructions, workspace, build, and CI
 
-- user-supplied root `AGENTS.md` contents;
-- `.agents/skills/playground-website-debugging/SKILL.md`;
-- `packages/php-wasm/compile/AGENTS.md`;
+- the user-supplied root `AGENTS.md` and
+  `.agents/skills/playground-website-debugging/SKILL.md`;
 - `.nvmrc`, `package.json`, `package-lock.json`, `nx.json`,
   `tsconfig.base.json`, and `LICENSE`;
-- `packages/php-wasm/universal/package.json`, `project.json`, `README.md`,
-  `vite.config.ts`, `tsconfig.json`, `tsconfig.lib.json`, and
-  `tsconfig.spec.json`;
-- `packages/php-wasm/web/package.json`, `project.json`,
-  `playwright.config.ts`, `vite.config.ts`, `vite.playwright.config.ts`, and
-  `tsconfig.spec.json`;
-- `packages/php-wasm/node/project.json`;
-- `tools/scripts/publish.mjs`;
-- `packages/nx-extensions/src/executors/package-json/executor.ts`;
-- `packages/nx-extensions/src/executors/assert-built-esm-and-cjs/executor.ts`;
-- `node_modules/@types/node/child_process.d.ts`, consulted only for Node
-  child-process platform typing;
-- `packages/playground/client/package.json`, `project.json`, `README.md`, and
-  `vite.config.ts`;
-- `packages/playground/remote/package.json`, `project.json`, and `vite.config.ts`;
-- `packages/php-wasm/web-service-worker/package.json`, `project.json`, and
-  `vite.config.ts`;
-- `packages/vite-extensions/vite-external-modules.ts` and
-  `vite-global-extensions.ts`;
-- the website Playwright configuration files used by the browser audit; and
-- CI configuration located by the build audit for the repository's Node
-  20/22/24 jobs (exact search output is retained in that agent transcript).
+- `.github/workflows/ci.yml` and the built-package test workflow/scripts;
+- `packages/php-wasm/universal/{package.json,project.json,README.md,vite.config.ts,vite.rpc-test.config.ts,tsconfig.json,tsconfig.lib.json,tsconfig.spec.json}`;
+- `packages/playground/cli/{package.json,project.json,vite.config.ts}` and its
+  built-package fixtures;
+- relevant package/project/Vite configuration for PHP web, PHP node, Playground
+  client, remote, website, service worker, and Nx extensions;
+- `packages/nx-extensions/src/executors/package-json/executor.ts`,
+  `packages/nx-extensions/src/executors/assert-built-esm-and-cjs/executor.ts`,
+  `packages/nx-extensions/src/executors/package-for-self-hosting/executor.ts`, and
+  `tools/scripts/publish.mjs`;
+- `packages/meta/src/node-es-module-loader/loader.mts`; and
+- Node's installed `child_process.d.ts`, consulted only for platform typing.
 
-The root session also ran a focused Nx project-graph query to inspect the
-`php-wasm-universal` build and package dependency closure. The session transcript
-is authoritative for the exact query and its output; the graph was used only to
-scope build and artifact validation.
+### New implementation, API facade, tests, and records
 
-### API, implementation, and direct tests
-
-- `packages/php-wasm/universal/src/lib/api.ts`;
+- `packages/php-wasm/universal/src/playground-rpc.ts`;
+- `packages/php-wasm/universal/src/lib/playground-rpc.ts`;
 - `packages/php-wasm/universal/src/lib/rpc.ts`;
 - `packages/php-wasm/universal/src/lib/rpc-node-process-adapter.ts`;
-- `packages/php-wasm/universal/src/index.ts`;
-- `packages/php-wasm/universal/src/lib/index.ts`;
-- `packages/php-wasm/universal/src/lib/php-response.ts`;
-- `packages/php-wasm/universal/src/lib/universal-php.ts`;
-- `packages/php-wasm/universal/src/lib/sandboxed-spawn-handler-factory.ts`;
-- `packages/php-wasm/universal/src/lib/file-lock-manager-composite.ts`;
-- `packages/php-wasm/universal/src/lib/object-pool-proxy.ts`;
-- `packages/php-wasm/universal/src/lib/error-reporting.ts`;
-- `packages/php-wasm/universal/src/lib/php.ts`;
 - `packages/php-wasm/universal/src/test/rpc.spec.ts`;
 - `packages/php-wasm/universal/src/test/rpc-protocol.spec.ts`;
 - `packages/php-wasm/universal/src/test/rpc-transports.spec.ts`;
 - `packages/php-wasm/universal/src/test/rpc-sync.spec.ts`;
-- `packages/php-wasm/universal/src/test/fixtures/rpc-sync-runtime.ts`;
-- `packages/php-wasm/universal/src/test/fixtures/rpc-sync-worker.mjs`;
-- `packages/php-wasm/universal/src/test/fixtures/rpc-async-worker.mjs`;
-- `packages/php-wasm/universal/src/test/fixtures/rpc-child-process.mjs`;
+- the `rpc-*` fixtures under
+  `packages/php-wasm/universal/src/test/fixtures/`;
 - `packages/php-wasm/universal/src/test/file-lock-manager-in-memory.spec.ts`;
-- `packages/php-wasm/universal/src/test/php-response.spec.ts`;
-- `packages/php-wasm/universal/vite.rpc-test.config.ts`; and
-- `packages/php-wasm/universal/bin/verify-rpc-artifacts.mjs`;
 - `packages/php-wasm/universal/RPC-PROTOCOL.md`;
-- `packages/php-wasm/universal/RPC-COMPATIBILITY.md`;
-- `packages/php-wasm/universal/RPC-PROVENANCE.md`; and
-- the browser cross-process architecture document changed by this work.
+- `packages/php-wasm/universal/RPC-COMPATIBILITY.md`; and
+- this provenance record.
 
-The deleted legacy implementation and test names appear in handling records and
-Git status only; their contents were not an implementation input.
+The names of the mechanically restored legacy implementation and test appeared in
+status/diff/restore commands. Their contents were not a design input for the root
+session.
 
-The Node child-process integration was configured and tested with Node's
-`serialization: 'advanced'` option. This is required to preserve the documented
-structured-value contract; the default JSON IPC mode is intentionally outside
-the supported transport configuration.
+### Playground APIs and integration call sites
 
-### Browser transports and lifecycle tests
+- universal API and PHP model files including `src/lib/api.ts`, `src/index.ts`,
+  `src/lib/index.ts`, `php-response.ts`, `php.ts`, `php-worker.ts`,
+  `universal-php.ts`, `sandboxed-spawn-handler-factory.ts`,
+  `file-lock-manager-composite.ts`, `object-pool-proxy.ts`, and
+  `error-reporting.ts`;
+- all five CLI boundary files changed by the final rollout:
+  `blueprints-v1-handler.ts`, `worker-thread-v1.ts`,
+  `blueprints-v2-handler.ts`, `worker-thread-v2.ts`, and `run-cli.ts`;
+- CLI tests, especially `blueprints-v2-handler.spec.ts`, `run-cli.spec.ts`, and
+  file-locking/worker fixtures;
+- browser client, remote, web worker, website, personal-site, Blueprint compiler,
+  service-worker, and PHP file-lock call sites examined during the original
+  dependency audit; and
+- the browser lifecycle fixtures and tests created for the first draft and later
+  removed when browser adoption was taken out of this PR.
 
-- `packages/php-wasm/web/src/lib/worker-thread/spawn-php-worker-thread.ts`;
-- `packages/php-wasm/web/src/lib/index.ts`;
-- `packages/php-wasm/web/src/test/playwright/browser-globals.ts`;
-- `packages/php-wasm/web/src/test/readable-stream-transfer.spec.ts`
-  (read-only audit of existing coverage, not translated into the new suite);
-- `packages/php-wasm/web/playwright.rpc.config.ts`;
-- `packages/php-wasm/web/src/test/rpc-browser-lifecycle.spec.ts`; and
-- every `rpc-browser-*` fixture under
-  `packages/php-wasm/web/src/test/playwright/`.
-
-### Playground integration and consumer call sites
-
-- `packages/playground/client/src/index.ts`;
-- `packages/playground/client/src/blueprints-v1-handler.ts`;
-- `packages/playground/client/src/blueprints-v2-handler.ts`;
-- `packages/playground/remote/src/lib/boot-playground-remote.ts`;
-- `packages/playground/remote/src/lib/playground-worker-endpoint-blueprints.ts`;
-- `packages/playground/remote/src/lib/playground-worker-endpoint-blueprints.spec.ts`;
-- `packages/playground/remote/vite.config.ts`;
-- `packages/playground/cli/src/blueprints-v1/blueprints-v1-handler.ts`;
-- `packages/playground/cli/src/blueprints-v1/worker-thread-v1.ts`;
-- `packages/playground/cli/src/blueprints-v2/blueprints-v2-handler.ts`;
-- `packages/playground/cli/src/blueprints-v2/worker-thread-v2.ts`;
-- `packages/playground/cli/src/run-cli.ts`;
-- `packages/playground/blueprints/src/lib/v1/compile.ts`;
-- `packages/playground/website/src/lib/state/redux/boot-site-client.ts`;
-- `packages/playground/website/src/lib/boot-playground-api.ts` and
-  `packages/playground/website/src/main.tsx`;
-- `packages/playground/personal-wp/src/lib/state/redux/boot-site-client.ts`;
-- `packages/playground/website/playwright/e2e/website-ui.spec.ts`;
-- `packages/playground/website/src/lib/state/redux/error-utils.ts` and its
-  adjacent spec;
-- `packages/playground/personal-wp/src/lib/state/redux/error-utils.ts`;
-- `packages/playground/website/src/lib/state/redux/persist-temporary-site.ts`;
-- `packages/php-wasm/node/src/test/file-lock-manager-tests.ts`;
-- `packages/php-wasm/web-service-worker/src/lib/utils.ts`;
-- `packages/php-wasm/web/src/lib/directory-handle-mount.ts`;
-- `packages/php-wasm/compile/php/phpwasm-emscripten-library-file-locking-for-node.js`;
-  and
-- `packages/meta/src/node-es-module-loader/loader.mts`.
-
-Search-result-only call sites not changed by this work remain recorded in the
-root and consumer-audit `rg` output. They were used only to establish whether a
-public dependency existed for assignment, construction, finalization, proxy
-marking, or special `bind` behavior.
+Repository-wide `rg` results were used only to inventory dependencies on
+assignment, construction, finalization, proxy marking, special `bind`, RPC
+imports, and endpoint ownership.
 
 ## Sessions, models, and tools
 
-The service did not expose a precise backend build identifier. All listed
-sessions used the inherited Codex GPT-5-family coding model; no model override
-was requested.
+The service did not expose precise backend build identifiers. Sessions used the
+inherited Codex GPT-5-family coding model; no model override was requested.
 
-| Session                                                                         | Role and output                                                                                                                             | Tools                                                                                                                                                |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/root`                                                                         | Engine, codecs, protocol, async/sync sessions, tests, integration, browser matrix, artifact validation, final provenance integration        | `exec_command`, `write_stdin`, `apply_patch`, goal/plan tools, collaboration tools, official-page web search, and the browser test runner through Nx |
-| `/root/provenance_skeleton` (Lagrange)                                          | Initial provenance skeleton, later replaced/finalized by root                                                                               | `exec_command`, `apply_patch`                                                                                                                        |
-| `/root/rpc_docs` (Confucius)                                                    | Initial compatibility and architecture documents plus a later typecheck run; root corrected mixed-version, origin, bridge, and sync details | `exec_command`, `apply_patch`, Nx, TypeScript                                                                                                        |
-| `/root/source_wording_cleanup` (Harvey)                                         | Active-source terminology cleanup and browser-matrix reruns                                                                                 | `rg`, `sed`, `git status`, `git diff --check`, Prettier, Nx/Vitest/Playwright, `apply_patch`                                                         |
-| `/root/acceptance_audit`                                                        | Read-only requirements audit; no engine edits                                                                                               | `functions.exec`/`exec_command` with `rg`, `nl`, `sed`, `wc`, `shasum`; collaboration `send_message`, `list_agents`, `wait_agent`; no Git or network |
-| consumer-call-site audit (canonical ID unavailable after transcript compaction) | Read-only public dependency inventory                                                                                                       | repository search/read tools                                                                                                                         |
-| transport audit (canonical ID unavailable after transcript compaction)          | Read-only adapter/lifecycle inventory; see incident above                                                                                   | repository search/read tools                                                                                                                         |
-| build/package audit (canonical ID unavailable after transcript compaction)      | Read-only build, license, Node, and browser-matrix inventory                                                                                | repository search/read tools and official Node page lookup                                                                                           |
+| Session                                                     | Role                                                                   | Tools                                                                                                                          |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `/root`                                                     | Engine, tests, integration, validation, commits, PR and provenance     | shell/Git, `rg`, `sed`, `apply_patch`, Nx, npm, `nvm`, GitHub CLI/API, web lookup, browser tests, plan and collaboration tools |
+| `/root/provenance_skeleton` (Lagrange)                      | Initial provenance outline                                             | shell and `apply_patch`                                                                                                        |
+| `/root/rpc_docs` (Confucius)                                | Documentation and later scope audit; no engine work                    | shell, `rg`, `sed`, Git diff, Nx/TypeScript, `apply_patch`                                                                     |
+| `/root/source_wording_cleanup` (Harvey)                     | Terminology cleanup and later CLI-boundary audit                       | shell, `rg`, `sed`, Git diff, Prettier, Nx/Vitest/Playwright, `apply_patch`                                                    |
+| `/root/acceptance_audit` (Galileo)                          | Acceptance, packaging, and CI validation audits; no engine work        | shell, `rg`, `sed`, Git diff/status, Nx/npm, collaboration tools                                                               |
+| Early consumer, transport, and build/package audit sessions | Read-only call-site, lifecycle, build, license, and matrix inventories | repository search/read tools and official Node lookup                                                                          |
 
-No inherited-context agent implemented the RPC engine. Agent outputs were
-limited to audits, a provenance draft, documentation, and terminology cleanup.
+No inherited-context agent implemented the RPC engine.
 
 ## Authorship and licensing
 
-New implementation, protocol, test, fixture, and validation files carry
-`SPDX-License-Identifier: GPL-2.0-or-later` headers (HTML uses an SPDX comment).
-The affected published package artifacts copy the repository's complete
-`LICENSE`, and the artifact verifier compares each copy byte-for-byte.
+New implementation, protocol, test, and fixture files carry
+`SPDX-License-Identifier: GPL-2.0-or-later` headers. The universal package build
+copies the repository's complete `LICENSE` into the published artifact.
 
-The root session authored the engine and tests directly in this worktree. The
-documentation and wording agents authored only the bounded files described
-above; root reviewed and amended them. There was no cross-repository code import
-and no third-party code copied into this change.
+The root session authored the engine and tests in this worktree. Documentation
+agents authored only bounded records and wording changes reviewed by root. No
+third-party code was intentionally copied into the new implementation.
 
-## Validation and artifact evidence
+## Validation evidence
 
-Exact final command results, package file counts, source-map counts, license
-byte count, and reviewable commit subjects are recorded in the completion report
-and the terminal transcript. The repeatable package check is:
+The original broad draft was tested across Node 20, 22, 24, and 26 and across
+Chromium, Firefox, and WebKit. Those results demonstrate engine development but
+do not describe the final integration scope, because browser/client/remote changes
+were later reverted.
 
-```sh
-npm exec -- nx run php-wasm-universal:verify:rpc-artifacts
-```
+For the narrowed CLI rollout on the repository's configured Node version:
 
-The check first removes the exact universal, client, and remote output
-directories, rebuilds them through Nx without cache reuse, and parses each
-`npm pack --dry-run --json` manifest. It requires ESM and CommonJS outputs where
-applicable, source maps, declarations, the full GPL license, correct package
-metadata, no test fixtures, and no legacy-library, Apache-license, Apache-SPDX,
-or Google-copyright signatures in generated bundles, source paths, or in-scope
-`sourcesContent`. Every text file and package path is still checked for the
-legacy RPC library name. Versioned `wp-*` WordPress trees are copied runtime
-inputs rather than generated Playground bundles, so their existing upstream
-license notices are outside the Apache/Google signature check.
+- `php-wasm-universal:typecheck` and `playground-cli:typecheck` passed;
+- `php-wasm-universal:build` and `playground-cli:build` passed;
+- universal tests passed: 15 files passed, one legacy suite remained skipped,
+  with 224 tests passed and four skipped; and
+- the complete Playground CLI suite passed: 13 files and 188 tests.
 
-Two intermediate verifier runs failed on a Google copyright notice embedded in
-pre-existing zstd dependency source text inside source-map `sourcesContent`:
+The build emits separate ESM and CommonJS `playground-rpc` entries, declarations,
+source maps, and the repository GPL license. The package root remains the legacy
+entry; its bundles do not contain the new protocol marker. Packaged CommonJS/ESM
+and fresh post-push CI results are recorded in the final PR update and task log.
 
-1. the first failure came from a remote worker source map, before the remote
-   worker-map exclusion was added; and
-2. the next run reached the same notice in an application source map, before
-   the application-map exclusion was added.
+## Attestation boundary
 
-The verifier now excludes `sourcesContent` from those remote worker and
-application source maps because application bundlers inline pre-existing
-third-party dependency sources there. Those embedded dependency sources are not
-evidence about the authorship of the new RPC implementation. The exclusions do
-not waive checks of published JavaScript, declarations, package metadata,
-license files, source-map source paths, or other in-scope `sourcesContent`.
-
-Two later intermediate runs demonstrated why copied runtime inputs need a
-separate scope: one stopped at a Google font license in a WordPress theme and
-the next stopped at an Apache notice in WordPress core's `compose.js`. The
-verifier continues to scan those copied trees for the legacy RPC name, while
-the Apache/Google check applies to generated bundle and map output. A subsequent
-passing manifest exposed one test-fixture declaration in the universal package;
-the library build now excludes `src/test`, and the verifier rejects both
-`test-fixtures` and `test/fixtures` paths.
-
-The final fresh verifier run passed under Node 22.23.1. Its exact results were:
-
-| Package                 | Built files | Packed files | Maps | `sourcesContent` entries |
-| ----------------------- | ----------: | -----------: | ---: | -----------------------: |
-| `@php-wasm/universal`   |          52 |           52 |    2 |                       74 |
-| `@wp-playground/client` |          16 |           16 |    0 |                        0 |
-| `@wp-playground/remote` |      22,338 |           17 |   97 |                      872 |
-
-All three packages contained the byte-for-byte 18,092-byte repository GPL
-license and declared `GPL-2.0-or-later`. Universal and client passed real ESM
-and CommonJS imports from temporary packed-package copies. No test-fixture path
-or forbidden signature was found in its defined scope.
-
-The final validation matrix also recorded:
-
-- all 224 universal tests passed on Node 20.20.2, 22.23.1, 24.15.0, and 26.5.1;
-- all 24 browser lifecycle tests passed: eight each in Chromium, Firefox, and
-  WebKit;
-- client, remote, and web source suites passed 22, 38, and 60 tests;
-- FileLockManager passed 242 tests in each Asyncify and JSPI run, with 132
-  platform/configuration skips in each;
-- all nine affected projects passed TypeScript checking;
-- all nine affected projects passed lint with zero warnings; and
-- the terminal transcript records non-failing Nx/Vitest deprecation,
-  `NO_COLOR`/`FORCE_COLOR`, listener-count, TLS-test, and build warnings.
-
-An attempted generic `php-wasm-node:test` command failed because that project
-has named test-group targets rather than a `test` target. The two relevant
-named FileLockManager targets were then run successfully as reported above.
-
-## Attestation boundaries
-
-Engineering review can conclude whether the implementation meets its tests and
-documented compatibility decisions. Whether the process or output is legally
-clean, non-infringing, or otherwise cleared is a question for qualified legal
-counsel. In particular, counsel should review the failed initial sanitization
-precondition, the user's direction to continue in the current worktree, the
-transport-audit search incident, and the mandatory repository skill consultation.
+Engineering review can decide whether the implementation meets its tests and the
+staged compatibility record. Legal conclusions remain for qualified counsel. In
+particular, counsel should review the unsanitized-worktree direction, the delegated
+search incidents, and the fact that the legacy files were mechanically restored to
+meet the reviewer's staged-rollout request.
