@@ -1265,8 +1265,10 @@ test.describe('Database panel', () => {
 });
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
-test.describe('Default Playground storage', () => {
-	test.describe.configure({ mode: 'serial' });
+// The `@storage` tag routes this group to the one-worker CI storage lane.
+test.describe('Default Playground storage', { tag: '@storage' }, () => {
+	// Default mode prevents storage overlap while retrying only the failed test.
+	test.describe.configure({ mode: 'default' });
 
 	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
