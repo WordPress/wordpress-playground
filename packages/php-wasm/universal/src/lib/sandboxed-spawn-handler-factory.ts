@@ -25,7 +25,7 @@ type SandboxedSpawnPHP = {
 export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
 		php: SandboxedSpawnPHP;
-		reap: () => void;
+		reap: () => void | Promise<void>;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -176,7 +176,7 @@ export function sandboxedSpawnHandlerFactory(
 			processApi.exit(1);
 			throw e;
 		} finally {
-			reap();
+			await reap();
 		}
 	});
 }

@@ -17,6 +17,7 @@ import {
 import {
 	exposeAPI,
 	exposeSyncAPI,
+	releaseApiProxy,
 	type RemoteAPI,
 } from '@php-wasm/universal/playground-rpc';
 import type {
@@ -1153,27 +1154,75 @@ export async function runCLI(
 			// - multiple, conflicting dispose attempts
 			// - logging that a worker exited while the CLI itself is exiting
 			let disposing = false;
+			let disposePromise: Promise<void> | undefined;
 			const disposeCLI = async function disposeCLI() {
-				if (disposing) {
-					return;
+				if (disposePromise) {
+					return disposePromise;
 				}
 
 				disposing = true;
-				await Promise.all(
-					spawnedWorkers.map(async (spawnedWorker) => {
-						await workerToPlaygroundMap
-							.get(spawnedWorker)
-							?.dispose();
-						await spawnedWorker.worker.terminate();
-					})
-				);
-				if (server) {
-					await new Promise((resolve) => {
-						server.close(resolve);
-						server.closeAllConnections();
-					});
-				}
-				await nativeDir.cleanup();
+				disposePromise = (async () => {
+					const cleanupErrors: unknown[] = [];
+					const workerResults = await Promise.allSettled(
+						spawnedWorkers.map(async (spawnedWorker) => {
+							const workerErrors: unknown[] = [];
+							const playground =
+								workerToPlaygroundMap.get(spawnedWorker);
+							try {
+								await playground?.dispose();
+							} catch (error) {
+								workerErrors.push(error);
+							}
+							try {
+								await playground?.[releaseApiProxy]();
+							} catch (error) {
+								workerErrors.push(error);
+							}
+							try {
+								await spawnedWorker.worker.terminate();
+							} catch (error) {
+								workerErrors.push(error);
+							}
+							if (workerErrors.length > 0) {
+								throw new AggregateError(
+									workerErrors,
+									'Failed to clean up a Playground CLI worker.'
+								);
+							}
+						})
+					);
+					for (const result of workerResults) {
+						if (result.status === 'rejected') {
+							cleanupErrors.push(result.reason);
+						}
+					}
+
+					if (server) {
+						try {
+							await new Promise<void>((resolve, reject) => {
+								server!.close((error) =>
+									error ? reject(error) : resolve()
+								);
+								server!.closeAllConnections();
+							});
+						} catch (error) {
+							cleanupErrors.push(error);
+						}
+					}
+					try {
+						await nativeDir.cleanup();
+					} catch (error) {
+						cleanupErrors.push(error);
+					}
+
+					if (cleanupErrors.length > 0) {
+						throw new AggregateError(
+							cleanupErrors,
+							'Failed to fully clean up Playground CLI resources.'
+						);
+					}
+				})();
+				return disposePromise;
 			};
 
 			// Everything below (symlink setup, Xdebug config, blueprint

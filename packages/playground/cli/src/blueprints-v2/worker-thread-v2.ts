@@ -304,16 +304,15 @@ async function createPHPWorker(
 
 	return {
 		php: handler,
-		reap: () => {
+		reap: async () => {
 			try {
-				handler.dispose();
-			} catch {
-				/** */
-			}
-			try {
-				spawnedWorker.worker.terminate();
-			} catch {
-				/** */
+				await handler.dispose();
+			} finally {
+				try {
+					await handler[releaseApiProxy]();
+				} finally {
+					await spawnedWorker.worker.terminate();
+				}
 			}
 		},
 	};
