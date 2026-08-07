@@ -76,12 +76,6 @@
 			},
 			"dependsOn": ["build"]
 		},
-		"verify:rpc-artifacts": {
-			"executor": "nx:run-commands",
-			"options": {
-				"command": "node packages/php-wasm/universal/bin/verify-rpc-artifacts.mjs"
-			}
-		},
 		"test:vite": {
 			"executor": "@nx/vitest:test",
 			"dependsOn": ["build:rpc-test-fixture"],

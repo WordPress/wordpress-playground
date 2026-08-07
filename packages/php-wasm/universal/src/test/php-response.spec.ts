@@ -98,7 +98,7 @@ describe('StreamedPHPResponse', () => {
 
 			const streamed = StreamedPHPResponse.fromPHPResponse(original);
 
-			// Simulate what the Playground RPC codec does:
+			// Simulate what Comlink's transfer handler does:
 			// it reads the raw headersStream and ignores parsedHeaders.
 			const rawStream = streamed.getHeadersStream();
 			const reader = rawStream
@@ -116,7 +116,7 @@ describe('StreamedPHPResponse', () => {
 			expect(parsed.headers).toEqual(['location: /wp-admin/']);
 
 			// Reconstruct a StreamedPHPResponse from the raw stream
-			// as the Playground RPC decoder would
+			// as the Comlink deserializer would
 			const reconstructed = new StreamedPHPResponse(
 				new ReadableStream<Uint8Array>({
 					start(controller) {

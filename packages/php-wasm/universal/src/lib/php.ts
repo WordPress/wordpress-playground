@@ -284,7 +284,7 @@ export class PHP implements Disposable {
 	async setSpawnHandler(handler: SpawnHandler | string) {
 		if (typeof handler === 'string') {
 			// This workaround is needed because the
-			// Playground RPC layer
+			// Comlink messaging library used by Playground
 			// has a hard time serializing a composite
 			// handler object.
 			// @TODO: Don't eval text-based functions here. Instead

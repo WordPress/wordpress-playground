@@ -48,7 +48,7 @@ export async function prettyPrintFullStackTrace(e: any) {
 }
 
 /**
- * Describe an error for display. Handles Error instances, RPC-serialized
+ * Describe an error for display. Handles Error instances, Comlink-serialized
  * plain objects (which lose their Error prototype during worker thread
  * transfer), and arbitrary values.
  */
@@ -96,7 +96,7 @@ function describeErrorObject(
 	}
 	seen.add(error);
 
-	// RPC-serialized errors arrive as plain objects like
+	// Comlink-serialized errors arrive as plain objects like
 	// { name: 'ErrnoError', errno: 20 } with no .message.
 	const parts = [];
 	if (

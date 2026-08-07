@@ -1,5 +1,5 @@
 import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
-import type { Remote } from './rpc';
+import type { Remote } from './comlink-sync';
 import type { Pooled } from './object-pool-proxy';
 import type { LimitedPHPApi } from './php-worker';
 

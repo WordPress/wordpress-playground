@@ -124,19 +124,9 @@ export async function bootPlaygroundRemote() {
 		});
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
-	const workerLifecycle = new AbortController();
-	window.addEventListener(
-		'pagehide',
-		() =>
-			workerLifecycle.abort(new Error('The Playground iframe unloaded.')),
-		{ once: true }
-	);
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl, {
-			signal: workerLifecycle.signal,
-		}),
-		{ signal: workerLifecycle.signal }
+		await spawnPHPWorkerThread(workerUrl)
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
@@ -146,8 +136,8 @@ export async function bootPlaygroundRemote() {
 		},
 		/**
 		 * Re-expose cli() from this iframe instead of piping through the
-		 * worker proxy. WebKit otherwise receives an RPC function proxy
-		 * forwarded from another RPC proxy and may dispatch the call to an endpoint
+		 * worker proxy. WebKit otherwise receives a Comlink function proxy
+		 * from another Comlink proxy and may dispatch the call to an endpoint
 		 * that has not booted yet.
 		 */
 		async cli(argv, options) {
@@ -381,8 +371,8 @@ export async function bootPlaygroundRemote() {
 		},
 		/**
 		 * This function is merely here to explicitly call workerApi.onMessage.
-		 * Keeping the callback on this iframe endpoint avoids forwarding it
-		 * through two RPC sessions, which used to produce the following error:
+		 * Comlink should be able to handle that on its own, but something goes
+		 * wrong and if this function is not here, we see the following error:
 		 *
 		 * Error: Failed to execute 'postMessage' on 'Worker': function() {
 		 * } could not be cloned.
@@ -567,11 +557,16 @@ export async function bootPlaygroundRemote() {
 
 	await phpWorkerApi.isConnected();
 
+	// If onDownloadProgress is not explicitly re-exposed here,
+	// Comlink will throw an error and claim the callback
+	// cannot be cloned. Adding a transfer handler for functions
+	// doesn't help:
+	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
+	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
+	//        the onDownloadProgress method
 	const [setAPIReady, setAPIError, playground] = exposeAPI(
 		phpRemoteApi,
-		phpWorkerApi,
-		undefined,
-		{ signal: workerLifecycle.signal }
+		phpWorkerApi
 	);
 
 	/*

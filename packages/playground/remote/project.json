@@ -7,25 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:LICENSE", "build:package-json"]
-		},
-		"build:LICENSE": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"cp LICENSE dist/packages/playground/remote/LICENSE"
-				]
-			},
-			"dependsOn": ["build:vite"]
-		},
-		"build:package-json": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"cp packages/playground/remote/package.json dist/packages/playground/remote/package.json"
-				]
-			},
-			"dependsOn": ["build:vite"]
+			"dependsOn": ["build:README"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",

@@ -459,8 +459,8 @@ function compileBlueprintJson(
 					/**
 					 * Redirecting to the landing page is a browser-only feature for now.
 					 *
-					 * The Playground object only exposes the `goTo` method when
-					 * it is a remote API running in the browser.
+					 * The playground object only exposes the `goTo` method when
+					 * it's a Comlink proxy object running in the browser.
 					 *
 					 * Let's tolerate any errors thrown in other runtimes.
 					 *

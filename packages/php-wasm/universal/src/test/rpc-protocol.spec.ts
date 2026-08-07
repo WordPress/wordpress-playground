@@ -13,7 +13,7 @@ import {
 	exposeAPI,
 	releaseApiProxy,
 	type NodeProcess,
-} from '../lib';
+} from '../lib/playground-rpc';
 
 describe('Playground RPC protocol validation', () => {
 	it('reports the exposing endpoint version to a mismatched peer', async () => {

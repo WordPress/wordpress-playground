@@ -366,7 +366,7 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		await expect(
 			import('./playground-worker-endpoint-blueprints')
 		).rejects.toThrow(
-			'The Blueprints Playground worker tried to expose its RPC endpoint more than once in the same worker global.'
+			'The Blueprints Playground worker tried to expose its Comlink endpoint more than once in the same worker global.'
 		);
 	});
 });

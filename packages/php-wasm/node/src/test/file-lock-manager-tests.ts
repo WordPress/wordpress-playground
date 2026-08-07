@@ -71,7 +71,6 @@ export function declareFileLockManagerTests({
 		> => {
 			const child = fork(testWorkerUrl, {
 				execArgv: EXEC_ARGV,
-				serialization: 'advanced',
 				stdio: 'inherit',
 			});
 			cleanupProcessCallbacks.push(() => killLockingProcess(child));
@@ -172,7 +171,7 @@ export function declareFileLockManagerTests({
 			// TODO: Is the below true? I wrote something like this a while ago but remember removing it.
 			// ^ Claude re-added it.
 			// Pass URL hrefs instead of URL objects because URL
-			// objects can't be structured-cloned through the RPC
+			// objects can't be structured-cloned through Comlink's
 			// MessagePort channel (worker threads). The openSync
 			// wrapper in file-lock-manager-test-utils.ts converts
 			// file:// strings back to URL objects.

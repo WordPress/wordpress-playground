@@ -4,22 +4,24 @@
 
 import {
 	PHPResponse,
+	StreamedPHPResponse,
+	phpEventStdinTransfer,
+} from '../lib';
+import {
 	RPC_PROTOCOL_MARKER,
 	RPC_PROTOCOL_VERSION,
 	RPCProtocolVersionMismatchError,
 	RPCSerializationError,
 	RemoteAPIEndpointTerminatedError,
-	StreamedPHPResponse,
 	consumeAPI,
 	defineAPITransferPolicy,
 	exposeAPI,
-	phpEventStdinTransfer,
 	portToStream,
 	releaseApiProxy,
 	streamToPort,
 	type APITransferPolicy,
 	type RemoteAPI,
-} from '../lib';
+} from '../lib/playground-rpc';
 
 type Pair<API> = {
 	remote: RemoteAPI<API>;

@@ -10,7 +10,7 @@ import {
 	consumeAPI,
 	releaseApiProxy,
 	type NodeProcess,
-} from '../lib';
+} from '../lib/playground-rpc';
 
 describe('Playground RPC endpoint adapters', () => {
 	it('uses a Node worker_threads Worker directly and observes exit', async () => {

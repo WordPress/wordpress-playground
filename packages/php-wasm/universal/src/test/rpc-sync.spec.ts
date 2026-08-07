@@ -15,7 +15,7 @@ import {
 	consumeAPI,
 	consumeAPISync,
 	exposeSyncAPI,
-} from '../lib';
+} from '../lib/playground-rpc';
 
 type SyncFixtureAPI = {
 	add(value: number): number;

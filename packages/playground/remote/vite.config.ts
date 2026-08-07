@@ -124,7 +124,6 @@ export default defineConfig(({ mode }) => {
 			plugins: () => plugins,
 			rollupOptions: {
 				output: {
-					sourcemapExcludeSources: true,
 					assetFileNames: (chunkInfo) => {
 						// Split Extensions or associated shared files into separate chunks
 						// that will be placed in assets/extensions/ directory
@@ -159,7 +158,7 @@ export default defineConfig(({ mode }) => {
 					 * PHP loader chunk would then import the worker entrypoint as
 					 * a normal module dependency inside the same worker global.
 					 * That re-evaluates the entrypoint and tries to expose the
-					 * Playground RPC endpoint a second time.
+					 * Comlink endpoint a second time.
 					 *
 					 * A dedicated, side-effect-free chunk makes PHP loader chunks
 					 * import `wasm-feature-detect` directly instead of importing
@@ -195,7 +194,6 @@ export default defineConfig(({ mode }) => {
 					wordpress: path('/remote.html'),
 				},
 				output: {
-					sourcemapExcludeSources: true,
 					assetFileNames: (chunkInfo) => {
 						// Split Extensions or associated shared files into separate chunks
 						// that will be placed in assets/extensions/ directory

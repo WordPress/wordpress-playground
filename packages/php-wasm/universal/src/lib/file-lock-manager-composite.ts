@@ -45,7 +45,7 @@ export class FileLockManagerComposite implements FileLockManager {
 				logger.error('Unexpected error in lockWholeFile()', e);
 			} finally {
 				// Rollback the native lock if the wasm lock throws
-				// (e.g. a synchronous RPC timeout). Without this, the native
+				// (e.g. comlink-sync timeout). Without this, the native
 				// lock would be held indefinitely, blocking all other
 				// workers.
 				if (nativeResult && !wasmResult) {

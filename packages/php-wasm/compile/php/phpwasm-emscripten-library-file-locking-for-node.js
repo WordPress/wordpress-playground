@@ -35,7 +35,7 @@
  * As of today 2026-01-27, php-wasm/node workers in Playground CLI are single-threaded,
  * so there should be no harm in blocking the worker to service the one php-wasm instance.
  *
- * See the synchronous Playground RPC implementation for more details.
+ * See comlink-sync.ts for more details.
  *
  * @see https://github.com/WordPress/wordpress-playground/pull/2317
  * @see https://github.com/WordPress/wordpress-playground/pull/3150

@@ -46,13 +46,12 @@ export class BlueprintsV1Handler {
 		// Set a default blueprint if none is provided.
 		const blueprint = this.options.blueprint || {};
 
-		// Connect the Playground RPC client to the remote worker,
+		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
-		const playground = consumeAPI<PlaygroundClient>(iframe.contentWindow!, {
-			context: iframe.ownerDocument!.defaultView!,
-			signal: this.options.signal,
-			targetOrigin: new URL(iframe.src).origin,
-		}) as PlaygroundClient;
+		const playground = consumeAPI<PlaygroundClient>(
+			iframe.contentWindow!,
+			iframe.ownerDocument!.defaultView!
+		) as PlaygroundClient;
 		await playground.isConnected();
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);

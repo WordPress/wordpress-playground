@@ -8,4 +8,4 @@ export {
 	exposeAPI,
 	exposeSyncAPI,
 	releaseApiProxy,
-} from '../../lib/api';
+} from '../../lib/playground-rpc';

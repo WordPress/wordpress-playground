@@ -1,6 +1,6 @@
 /*
- * This data shape is encoded by Playground RPC's PHPResponse codec, so update
- * that codec when changing this type.
+ * This type is used in Comlink.transferHandlers.set('PHPResponse', { ... })
+ * so be sure to update that if you change this type.
  */
 export interface PHPResponseData {
 	/**
@@ -116,8 +116,8 @@ export class StreamedPHPResponse {
 
 		// Encode headers into the stream in the JSON format that
 		// parseHeadersStream expects. This is critical for when
-		// the response crosses a worker thread RPC boundary. Only the raw
-		// headersStream is serialized,
+		// the response crosses a worker thread boundary via
+		// Comlink — only the raw headersStream is serialized,
 		// not the parsedHeaders property.
 		const headerLines: string[] = [];
 		for (const [name, values] of Object.entries(response.headers)) {
@@ -344,8 +344,8 @@ async function streamToBytes(
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.
  *
- * This data shape is encoded by Playground RPC's PHPResponse codec, so update
- * that codec when changing this type.
+ * This type is used in Comlink.transferHandlers.set('PHPResponse', \{ ... \})
+ * so be sure to update that if you change this type.
  */
 export class PHPResponse implements PHPResponseData {
 	/** @inheritDoc */
