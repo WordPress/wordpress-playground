@@ -129,10 +129,16 @@ and one of these kinds:
 
 | Kind     | Additional fields                      | Direction            |
 | -------- | -------------------------------------- | -------------------- |
+| `open`   | None                                   | Producer to consumer |
 | `chunk`  | `bytes: ArrayBuffer`                   | Producer to consumer |
 | `close`  | None                                   | Producer to consumer |
 | `error`  | Serialized name/message/optional stack | Producer to consumer |
 | `cancel` | None                                   | Consumer to producer |
+
+The message-port stream codec payload carries the private port and its channel
+identifier. The public port helper sends `open` before reading the source. Either
+form lets the consumer identify the bridge and cancel it before the first chunk
+or terminal message arrives.
 
 The deferred marker is `wordpress-playground-deferred-bridge`, version `1`.
 Its messages have the same common fields and either `resolve` with `value`, or

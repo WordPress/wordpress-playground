@@ -21,10 +21,12 @@ again used by most of the repository, while only Playground CLI imports the new
 `@php-wasm/universal/playground-rpc` subpath. The initial commits remain in history;
 no history rewrite or force-push was used.
 
-The legacy implementation, adapter, and test were restored with a path-limited
-`git restore --source=HEAD~5` command. The root session did not print or inspect
-their contents. Their presence in the final tree is intentional for the staged
-rollout requested in review.
+The legacy implementation, adapter, and test were restored with path-limited
+commands. After an initial moving-reference mistake described below, their final
+source was the fixed pre-change commit
+`635bb912170393c3d27425f88f8d0b5670007657`. The root session did not print or
+inspect their contents. Their presence in the final tree is intentional for the
+staged rollout requested in review.
 
 ## Design inputs
 
@@ -208,9 +210,9 @@ For the narrowed CLI rollout:
 - `php-wasm-universal:typecheck`, `playground-cli:typecheck`, and both package
   lint targets passed;
 - `php-wasm-universal:build` and `playground-cli:build` passed;
-- universal tests passed on Node 20.20.2 and Node 22.23.1 with 225 tests passed
-  and four legacy tests skipped; the same suite passed all 229 tests on Node
-  24.11.1 and Node 26.5.1;
+- universal tests passed on Node 20.20.2 and Node 22.23.1 with 226 tests passed
+  and four legacy tests skipped; the same suite passed all 230 tests on Node
+  24.15.0 and Node 26.5.1;
 - the complete Playground CLI suite passed: 13 files and 188 tests; and
 - both CLI self-hosting package targets passed.
 
@@ -224,6 +226,21 @@ the fix, the built-package CommonJS suite passed all 89 tests, including all sev
 PHP versions, and its separate bundle checks passed Node `require`, Node dynamic
 `import`, and Chromium web loading.
 
+A final read-only audit found three additional lifetime gaps in the narrowed
+rollout. Synchronous proxies are now recognized when re-exposed to nested workers;
+nested and top-level worker cleanup awaits remote disposal, explicitly releases
+sessions, and terminates every worker even when another cleanup step fails; and a
+stream bridge communicates its channel before data so immediate cancellation
+reaches a stalled producer. Focused regressions cover synchronous proxy forwarding
+and cancellation before the first stream chunk.
+
+The first narrowed post-push CI run also exposed a timing assumption in the
+synchronous endpoint-loss test. On CI, the test called a blocking synchronous
+method before the Node `MessagePort` close event had been delivered, so the
+documented bounded timeout occurred. The test now subscribes before worker
+termination and waits for the observable close event before asserting immediate
+endpoint rejection.
+
 The build emits separate ESM and CommonJS `playground-rpc` entries, declarations,
 source maps, and the repository GPL license. Both packed subpath formats imported
 successfully. The packed CLI license is byte-identical to the repository license
@@ -233,7 +250,8 @@ package root remains the legacy entry; its bundles do not contain the new protoc
 marker. Because this staged PR intentionally retains the legacy implementation,
 it does not claim a repository-wide or package-wide removal scan.
 
-Fresh post-push CI results are recorded in the PR and timestamped task log.
+Fresh post-push CI is tracked on PR #4251. Its terminal results are recorded in
+the timestamped task log.
 
 ## Attestation boundary
 

@@ -124,12 +124,13 @@ remain a later integration step.
 
 ## Consumer impact
 
-- Playground CLI: worker communication changes internally; its public commands,
-  options, and return values remain unchanged.
+- Playground CLI: worker communication changes internally; no change to its public
+  commands, options, or return values is intended.
 - Telex, Studio, browser Playground, and direct root-package consumers: no RPC
   implementation change in this PR.
 - wp-env and other CLI consumers: no intended API change; their packaged CLI path
-  exercises the new internal RPC and must be validated by built-package tests.
+  exercises the new internal RPC and is covered by the passing built-package
+  tests.
 
 Any later rollout to an independently deployed worker or iframe will need a
 coordinated client/remote upgrade and an explicit browser lifecycle owner.
