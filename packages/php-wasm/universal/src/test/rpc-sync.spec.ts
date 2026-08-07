@@ -3,6 +3,7 @@
  */
 
 import { getEventListeners, once } from 'node:events';
+import { runInNewContext } from 'node:vm';
 import {
 	MessageChannel as NodeMessageChannel,
 	Worker,
@@ -16,6 +17,12 @@ import {
 	consumeAPISync,
 	exposeSyncAPI,
 } from '../lib/playground-rpc';
+import {
+	isArrayBufferValue,
+	isReadableStreamValue,
+	isSharedArrayBufferValue,
+	isUint8ArrayValue,
+} from '../lib/rpc';
 
 type SyncFixtureAPI = {
 	add(value: number): number;
@@ -245,6 +252,43 @@ describe('synchronous Playground RPC', () => {
 			kind: 'release',
 		});
 		channel.port2.close();
+	});
+
+	it('recognizes genuine binary values from another JavaScript realm', () => {
+		const crossRealm = runInNewContext(`({
+			arrayBuffer: new ArrayBuffer(16),
+			sharedArrayBuffer: new SharedArrayBuffer(16),
+			bytes: new Uint8Array([1, 2, 3])
+		})`);
+		expect(crossRealm.arrayBuffer).not.toBeInstanceOf(ArrayBuffer);
+		expect(crossRealm.sharedArrayBuffer).not.toBeInstanceOf(
+			SharedArrayBuffer
+		);
+		expect(crossRealm.bytes).not.toBeInstanceOf(Uint8Array);
+		expect(isArrayBufferValue(crossRealm.arrayBuffer)).toBe(true);
+		expect(isSharedArrayBufferValue(crossRealm.sharedArrayBuffer)).toBe(
+			true
+		);
+		expect(isUint8ArrayValue(crossRealm.bytes)).toBe(true);
+		expect(isReadableStreamValue(new ReadableStream())).toBe(true);
+		expect(
+			isSharedArrayBufferValue({
+				byteLength: 16,
+				[Symbol.toStringTag]: 'SharedArrayBuffer',
+			})
+		).toBe(false);
+		expect(
+			isArrayBufferValue({
+				byteLength: 16,
+				[Symbol.toStringTag]: 'ArrayBuffer',
+			})
+		).toBe(false);
+		expect(
+			isUint8ArrayValue({
+				[Symbol.toStringTag]: 'Uint8Array',
+			})
+		).toBe(false);
+		expect(isReadableStreamValue({ locked: false })).toBe(false);
 	});
 });
 

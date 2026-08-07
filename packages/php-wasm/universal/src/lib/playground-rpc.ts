@@ -21,7 +21,10 @@ import {
 	createSyncRPCClient,
 	exposeRPC,
 	exposeSyncRPC,
+	isArrayBufferValue,
 	isRPCRemoteProxy,
+	isReadableStreamValue,
+	isUint8ArrayValue,
 	releaseApiProxy,
 	reserveRPCEndpoint,
 	type EncodedRPCCodecValue,
@@ -1033,7 +1036,7 @@ function createPHPResponseCodec(): RPCValueCodec {
 			const data = response.toRawData();
 			const transferables: Transferable[] = [];
 			if (
-				data.bytes.buffer instanceof ArrayBuffer &&
+				isArrayBufferValue(data.bytes.buffer) &&
 				data.bytes.buffer.byteLength > 0
 			) {
 				assertTransfersSupported(context.resources);
@@ -1287,7 +1290,7 @@ function isPHPResponseData(
 		'headers' in value &&
 		typeof value.headers === 'object' &&
 		'bytes' in value &&
-		value.bytes instanceof Uint8Array &&
+		isUint8ArrayValue(value.bytes) &&
 		'errors' in value &&
 		typeof value.errors === 'string' &&
 		'exitCode' in value &&
@@ -1298,9 +1301,7 @@ function isPHPResponseData(
 }
 
 function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
-	return (
-		typeof ReadableStream !== 'undefined' && value instanceof ReadableStream
-	);
+	return isReadableStreamValue(value);
 }
 
 function assertTransfersSupported(resources: RPCResourceOwner): void {
@@ -1558,7 +1559,7 @@ function portToStreamInternal(
 				if (message.channel !== channelId) return;
 				switch (message.kind) {
 					case 'chunk':
-						if (!(message.bytes instanceof ArrayBuffer)) {
+						if (!isArrayBufferValue(message.bytes)) {
 							terminate(
 								new RPCSerializationError(
 									'Stream bridge chunk is missing its ArrayBuffer.'

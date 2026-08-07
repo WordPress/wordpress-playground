@@ -1702,6 +1702,75 @@ function isProtocolVersion(value: unknown): value is number {
 	return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
+const arrayBufferByteLengthGetter =
+	typeof ArrayBuffer === 'undefined'
+		? undefined
+		: Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')
+				?.get;
+const sharedArrayBufferByteLengthGetter =
+	typeof SharedArrayBuffer === 'undefined'
+		? undefined
+		: Object.getOwnPropertyDescriptor(
+				SharedArrayBuffer.prototype,
+				'byteLength'
+			)?.get;
+const typedArrayTagGetter =
+	typeof Uint8Array === 'undefined'
+		? undefined
+		: Object.getOwnPropertyDescriptor(
+				Object.getPrototypeOf(Uint8Array.prototype),
+				Symbol.toStringTag
+			)?.get;
+const readableStreamLockedGetter =
+	typeof ReadableStream === 'undefined'
+		? undefined
+		: Object.getOwnPropertyDescriptor(ReadableStream.prototype, 'locked')
+				?.get;
+
+/** @internal */
+export function isArrayBufferValue(value: unknown): value is ArrayBuffer {
+	return hasIntrinsicBrand(arrayBufferByteLengthGetter, value);
+}
+
+/** @internal */
+export function isSharedArrayBufferValue(
+	value: unknown
+): value is SharedArrayBuffer {
+	return hasIntrinsicBrand(sharedArrayBufferByteLengthGetter, value);
+}
+
+/** @internal */
+export function isUint8ArrayValue(value: unknown): value is Uint8Array {
+	if (!typedArrayTagGetter || typeof value !== 'object' || value === null) {
+		return false;
+	}
+	try {
+		return Reflect.apply(typedArrayTagGetter, value, []) === 'Uint8Array';
+	} catch {
+		return false;
+	}
+}
+
+/** @internal */
+export function isReadableStreamValue(value: unknown): value is ReadableStream {
+	return hasIntrinsicBrand(readableStreamLockedGetter, value);
+}
+
+function hasIntrinsicBrand(
+	getter: ((this: unknown) => unknown) | undefined,
+	value: unknown
+): boolean {
+	if (!getter || typeof value !== 'object' || value === null) {
+		return false;
+	}
+	try {
+		Reflect.apply(getter, value, []);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 function isRecord(value: unknown): value is Record<string, any> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -2217,7 +2286,7 @@ class SyncRPCServerSession {
 
 	async #onRequest(message: SyncRPCEnvelope): Promise<void> {
 		if (
-			!(message.sharedBuffer instanceof SharedArrayBuffer) ||
+			!isSharedArrayBufferValue(message.sharedBuffer) ||
 			message.sharedBuffer.byteLength < 8 ||
 			typeof message.requestId !== 'string' ||
 			message.requestId.length === 0 ||
@@ -2470,13 +2539,13 @@ function encodeSyncData(value: unknown): string {
 		if (nestedValue instanceof Set) {
 			return { [SYNC_TYPE_MARKER]: 'set', value: [...nestedValue] };
 		}
-		if (nestedValue instanceof Uint8Array) {
+		if (isUint8ArrayValue(nestedValue)) {
 			return {
 				[SYNC_TYPE_MARKER]: 'uint8array',
 				value: [...nestedValue],
 			};
 		}
-		if (nestedValue instanceof ArrayBuffer) {
+		if (isArrayBufferValue(nestedValue)) {
 			return {
 				[SYNC_TYPE_MARKER]: 'arraybuffer',
 				value: [...new Uint8Array(nestedValue)],
