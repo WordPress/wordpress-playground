@@ -642,6 +642,46 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		await website.waitForNestedIframes();
 	});
 
+	test('should not offer an unfinished initial OPFS sync loaded from storage as a recent autosave', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		const interruptedSiteSlug = `interrupted-autosave-${Date.now()}`;
+		await website.page.goto(getTemporaryPlaygroundUrl());
+		await website.page.waitForFunction(
+			() => !!navigator.storage?.getDirectory
+		);
+		await writeInterruptedInitialOpfsSite(
+			website.page,
+			interruptedSiteSlug
+		);
+
+		await website.page.goto('./');
+		const restoreNudge = website.page.getByLabel(
+			'Recent autosaved Playground'
+		);
+		const autosavedStatus = website.page.getByRole('button', {
+			name: 'Autosaved',
+		});
+		await expect(restoreNudge.or(autosavedStatus)).toBeVisible({
+			timeout: 120000,
+		});
+
+		expect(await restoreNudge.count()).toBe(0);
+		await expect(autosavedStatus).toBeVisible();
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page))
+			.toMatchObject({
+				storage: 'opfs',
+				persistence: 'autosave',
+			});
+	});
+
 	test('should switch between sites', async ({ website, browserName }) => {
 		test.skip(
 			browserName !== 'chromium',
