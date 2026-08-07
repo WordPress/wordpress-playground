@@ -52,14 +52,13 @@
  * While this strategy enables fast load times and an offline experience, it also
  * creates a substantial challenge.
  *
- * When a new Playground version is deployed, all the clients will load an old
- * version of the `remote.html` file on their next visit. Unfortunately, that old
- * `remote.html` file contains hardcoded references to assets that may not be
- * cached and no longer exist in the new webapp build.
+ * When a new Playground version is deployed, clients may load an old entry
+ * document such as `remote.html` or `api.html`. That document contains
+ * hardcoded references to assets that may no longer exist in the new build.
  *
- * To solve this problem, we use the **Network first** strategy when `remote.html`
- * is requested. This introduces a small network overhead, but it guarantees loading
- * the most recent version of `remote.html` and all the referenced assets.
+ * To solve this problem, we use the **Network first** strategy for entry
+ * documents. This introduces a small network overhead, but guarantees loading
+ * the most recent document and all its referenced assets.
  *
  * Similarly, we use the **Network first** strategy for the `/` path. This is
  * useful in situations where the user didn't visit Playground in a while,
@@ -67,8 +66,8 @@
  * If we loaded the cached version, they'd see the old Playground website on their
  * first visit and then the new Playground website only on their second visit.
  *
- * There's still a small window of time between loading the remote.html file and
- * fetching the new assets when a new deployment would break the application.
+ * There's still a small window between loading an entry document and fetching
+ * its assets when a new deployment would break the application.
  * This should be very rare, but when it happens we provide an error message asking
  * the user to reload the page.
  *
@@ -365,7 +364,8 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	/**
-	 * Always fetch the fresh version of `/remote.html` and `/` from the network.
+	 * Always fetch fresh versions of `/remote.html`, `/api.html`, and `/` from
+	 * the network.
 	 *
 	 * This is the secret sauce that enables seamless upgrades of the
 	 * running Playground clients when a new version is deployed on
@@ -374,13 +374,14 @@ self.addEventListener('fetch', (event) => {
 	 * ## The problem with deployments
 	 *
 	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, the remote.html file we've cached
-	 * for offline usage still holds references to those assets.
+	 * previous app version. Meanwhile, cached entry documents still hold
+	 * references to those assets.
 	 *
-	 * If we just loaded the cached remote.html file, the site would crash
+	 * If we just loaded a cached entry document, the client would crash
 	 * with seemingly random errors.
 	 *
-	 * Instead, we fetch the most recent version of remote.html from the network.
+	 * Instead, we fetch the most recent version of each entry document from
+	 * the network.
 	 * It references the static assets that are now available on the server and
 	 * should work just fine.
 	 *
@@ -392,7 +393,11 @@ self.addEventListener('fetch', (event) => {
 	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
 	 * details.
 	 */
-	if (url.pathname === '/remote.html' || url.pathname === '/') {
+	if (
+		url.pathname === '/remote.html' ||
+		url.pathname === '/api.html' ||
+		url.pathname === '/'
+	) {
 		event.respondWith(networkFirstFetch(event.request));
 		return;
 	}
