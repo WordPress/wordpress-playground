@@ -214,7 +214,7 @@ For the narrowed CLI rollout:
   and four legacy tests skipped; the same suite passed all 230 tests on Node
   24.15.0 and Node 26.5.1;
 - the complete Playground CLI suite passed: 13 files and 188 tests; and
-- both CLI self-hosting package targets passed.
+- the universal and CLI self-host packaging targets passed.
 
 The prior PR revision's built-package CommonJS job timed out in every PHP version.
 That failure was reproduced from the packed artifacts on Node 22.23.1 and traced
