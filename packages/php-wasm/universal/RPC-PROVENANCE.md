@@ -203,18 +203,37 @@ Chromium, Firefox, and WebKit. Those results demonstrate engine development but
 do not describe the final integration scope, because browser/client/remote changes
 were later reverted.
 
-For the narrowed CLI rollout on the repository's configured Node version:
+For the narrowed CLI rollout:
 
-- `php-wasm-universal:typecheck` and `playground-cli:typecheck` passed;
+- `php-wasm-universal:typecheck`, `playground-cli:typecheck`, and both package
+  lint targets passed;
 - `php-wasm-universal:build` and `playground-cli:build` passed;
-- universal tests passed: 15 files passed, one legacy suite remained skipped,
-  with 224 tests passed and four skipped; and
-- the complete Playground CLI suite passed: 13 files and 188 tests.
+- universal tests passed on Node 20.20.2 and Node 22.23.1 with 225 tests passed
+  and four legacy tests skipped; the same suite passed all 229 tests on Node
+  24.11.1 and Node 26.5.1;
+- the complete Playground CLI suite passed: 13 files and 188 tests; and
+- both CLI self-hosting package targets passed.
+
+The prior PR revision's built-package CommonJS job timed out in every PHP version.
+That failure was reproduced from the packed artifacts on Node 22.23.1 and traced
+to a synchronous request being ignored when a genuine `SharedArrayBuffer` came
+from Jest's VM realm. The transport validators now use intrinsic brand checks for
+cross-realm `SharedArrayBuffer`, `ArrayBuffer`, `Uint8Array`, and
+`ReadableStream` values. A `node:vm` regression test covers the boundary. After
+the fix, the built-package CommonJS suite passed all 89 tests, including all seven
+PHP versions, and its separate bundle checks passed Node `require`, Node dynamic
+`import`, and Chromium web loading.
 
 The build emits separate ESM and CommonJS `playground-rpc` entries, declarations,
-source maps, and the repository GPL license. The package root remains the legacy
-entry; its bundles do not contain the new protocol marker. Packaged CommonJS/ESM
-and fresh post-push CI results are recorded in the final PR update and task log.
+source maps, and the repository GPL license. Both packed subpath formats imported
+successfully. The packed CLI license is byte-identical to the repository license
+(18,092 bytes; SHA-256
+`8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643`). The
+package root remains the legacy entry; its bundles do not contain the new protocol
+marker. Because this staged PR intentionally retains the legacy implementation,
+it does not claim a repository-wide or package-wide removal scan.
+
+Fresh post-push CI results are recorded in the PR and timestamped task log.
 
 ## Attestation boundary
 
