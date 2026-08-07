@@ -2,15 +2,14 @@ import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
+import { PHPWorker, sandboxedSpawnHandlerFactory } from '@php-wasm/universal';
 import {
-	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
 	exposeSyncAPI,
-	sandboxedSpawnHandlerFactory,
-} from '@php-wasm/universal';
+} from '@php-wasm/universal/playground-rpc';
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {

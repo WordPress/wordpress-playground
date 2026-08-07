@@ -5,18 +5,20 @@ import {
 	type Pooled,
 	type PHPRequest,
 	type PathAlias,
-	type RemoteAPI,
 	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	StreamedPHPResponse,
 	HttpCookieStore,
-	exposeAPI,
-	exposeSyncAPI,
 	printDebugDetails,
 	describeError,
 } from '@php-wasm/universal';
+import {
+	exposeAPI,
+	exposeSyncAPI,
+	type RemoteAPI,
+} from '@php-wasm/universal/playground-rpc';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,

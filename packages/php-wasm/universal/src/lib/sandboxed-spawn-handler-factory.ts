@@ -1,8 +1,16 @@
 import { createSpawnHandler, splitShellCommand } from '@php-wasm/util';
-import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
-import type { Remote } from './rpc';
 import { logger } from '@php-wasm/logger';
+
+type MaybeRemoteMethod<T> = T extends (...args: infer Args) => infer Result
+	? (...args: Args) => Result | Promise<Awaited<Result>>
+	: never;
+
+type SandboxedSpawnPHP = {
+	[Method in 'chdir' | 'cwd' | 'cli' | 'listFiles']: MaybeRemoteMethod<
+		PHPWorker[Method]
+	>;
+};
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -16,7 +24,7 @@ import { logger } from '@php-wasm/logger';
  */
 export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
-		php: PHP | Remote<PHPWorker>;
+		php: SandboxedSpawnPHP;
 		reap: () => void;
 	}>
 ) {

@@ -25,7 +25,10 @@ const playgroundPackageRootUrl = pathToFileURL(
 );
 
 const aliasMap = new Map<string, URL>();
-for (const [alias, paths] of Object.entries(pathAliases)) {
+const aliasesBySpecificity = Object.entries(pathAliases).sort(
+	([left], [right]) => right.length - left.length
+);
+for (const [alias, paths] of aliasesBySpecificity) {
 	// Our config is simple and doesn't use wildcards,
 	// so we can just use the first path
 	const resolvedPath = resolvePath(baseUrl, paths[0]);
@@ -85,7 +88,7 @@ export async function resolve(
 	if (looksLikePackageImport) {
 		// Support resolving package imports with different file extensions.
 		//
-		// This was added to support importing a specific nested package module.
+		// This was added to support importing a specific, nested comlink module.
 		// Before this change, there was a conflict between TypeScript type
 		// resolution and Node.js module resolution:
 		// - Node.js would not find the module without its .mjs extension.
