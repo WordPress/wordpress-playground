@@ -37,26 +37,6 @@ export function isPortInUse(port: number): Promise<boolean> {
 	});
 }
 
-/**
- * Reserve a free TCP port on 127.0.0.1. The kernel-resident nginx in
- * `--experimental-posix-kernel` needs a concrete port up front.
- */
-export function reserveFreePort(): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const server = express().listen(0, '127.0.0.1', () => {
-			const address = server.address();
-			if (typeof address !== 'object' || address === null) {
-				server.close();
-				reject(new Error('Server address is not available'));
-				return;
-			}
-			const port = address.port;
-			server.close((err) => (err ? reject(err) : resolve(port)));
-		});
-		server.once('error', reject);
-	});
-}
-
 export async function startServer(
 	options: ServerOptions
 ): Promise<RunCLIServer | number | void> {

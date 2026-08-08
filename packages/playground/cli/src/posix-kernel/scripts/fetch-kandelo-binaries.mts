@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Fetch the kandelo wasm binaries WordPress Playground needs, resolved
  * against the committed pinned index (kandelo-pinned-binaries-index.toml).
@@ -46,8 +47,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 
-// zstdDecompressSync shipped in Node 22.15; the @types/node in this
-// repo predates it, so read it off the module with an explicit type.
 const zstdDecompressSync = (
 	zlib as { zstdDecompressSync?: (input: Buffer) => Buffer }
 ).zstdDecompressSync;
@@ -75,13 +74,8 @@ const SUBMODULE_DIR = join(REPO_ROOT, 'kandelo');
 const BINARIES_DIR = join(SUBMODULE_DIR, 'binaries');
 const CACHE_DIR = join(homedir(), '.cache', 'wp-playground-kandelo');
 
-// What the CLI resolves: kernel.wasm + userspace.wasm (kandelo's host
-// runtime), rootfs.vfs, and the only two programs boot.ts spawns (nginx,
-// php). Shell/coreutils live inside rootfs.vfs, so no separate fetch.
 const NEEDED = ['kernel', 'userspace', 'rootfs', 'nginx', 'php'];
 
-// Packages whose (single) output is also exposed at the top of
-// binaries/, mirroring kandelo's packagedBinaryCandidates().
 const TOP_LEVEL_PACKAGES = new Set(['kernel', 'userspace', 'rootfs']);
 
 if (typeof zstdDecompressSync !== 'function') {
@@ -112,11 +106,6 @@ async function main(): Promise<void> {
 	log(`done. resolved=${resolved}/${NEEDED.length} -> ${BINARIES_DIR}`);
 }
 
-/**
- * Minimal parser for the pinned index this repo generates itself
- * (generate-kandelo-pinned-index.mts): a `generator = "..."` header plus
- * [[packages]] blocks with name / archive_url / archive_sha256 keys.
- */
 function parsePinnedIndex(toml: string): PinnedIndex {
 	const generator = toml.match(/^generator\s*=\s*"([^"]*)"/m)?.[1] ?? '';
 	const byName = new Map<string, PinnedPackage>();
@@ -147,11 +136,6 @@ function parsePinnedIndex(toml: string): PinnedIndex {
 	return { generator, byName };
 }
 
-/**
- * The index header records the kandelo commit it was generated for.
- * A mismatch means someone bumped the submodule without regenerating
- * the index — the archives would be from a different ABI/build.
- */
 function verifySubmodulePin(generator: string): void {
 	const pinned = generator.match(/kandelo @ ([0-9a-f]{40})/)?.[1];
 	if (!pinned) {
@@ -259,12 +243,6 @@ function tarString(block: Buffer, offset: number, length: number): string {
 		.replace(/\0.*$/, '');
 }
 
-/**
- * Place a package's artifacts per its manifest [[outputs]]. The
- * destination name is `<output.name><ext-of-artifact>` — e.g. kernel's
- * artifact kandelo-kernel.wasm ships as output name "kernel" and lands
- * as kernel.wasm.
- */
 function placeArtifacts(name: string, entries: Map<string, Buffer>): void {
 	const manifestBytes = entries.get('manifest.toml');
 	if (!manifestBytes) {
@@ -285,8 +263,6 @@ function placeArtifacts(name: string, entries: Map<string, Buffer>): void {
 		const destinations: string[] = [];
 		if (TOP_LEVEL_PACKAGES.has(name)) {
 			destinations.push(join(BINARIES_DIR, destName));
-			// xtask also mirrors rootfs.vfs under programs/wasm32/; some
-			// consumers still resolve the legacy location.
 			if (name === 'rootfs') {
 				destinations.push(
 					join(BINARIES_DIR, 'programs/wasm32', destName)
@@ -301,15 +277,11 @@ function placeArtifacts(name: string, entries: Map<string, Buffer>): void {
 		}
 		for (const dest of destinations) {
 			mkdirSync(dirname(dest), { recursive: true });
-			// The destination may be a symlink from an earlier
-			// xtask-based fetch; writing through it would corrupt the
-			// link target in ~/.cache/kandelo.
 			rmSync(dest, { force: true });
 			writeFileSync(dest, artifact);
 		}
 	}
-	// Non-Wasm runtime closures ([[runtime_files]], e.g. php's icu.dat)
-	// are mirrored at programs/<arch>/<pkg>/<artifact>.
+
 	const runtimeFiles = parseManifestRuntimeFiles(manifest);
 	for (const artifactName of runtimeFiles) {
 		const artifact = entries.get(`artifacts/${artifactName}`);

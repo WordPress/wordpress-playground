@@ -20,8 +20,6 @@ define('NONCE_SALT',       'playground-posix-kernel-dev');
 
 $table_prefix = 'wp_';
 
-// Guards so CLI --define overrides (applied by the playground-defines
-// mu-plugin) win without tripping "constant already defined" warnings.
 if (!defined('WP_DEBUG')) {
     define('WP_DEBUG', true);
 }

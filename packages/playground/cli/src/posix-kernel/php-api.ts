@@ -16,6 +16,7 @@ import type {
 	RmDirOptions,
 } from '@php-wasm/universal';
 import { PHPResponse } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 import { dirname, joinPaths } from '@php-wasm/util';
 import type { KernelRuntime } from './boot';
 import { readWasm } from './host-bridge';
@@ -24,19 +25,14 @@ import DEFINES_MU_PLUGIN_PHP from './wp-templates/playground-defines.php?raw';
 
 const VFS_DOCUMENT_ROOT = '/wordpress';
 
-// Lexical substitution of the `/wordpress` doc-root token inside PHP
-// *source strings* (blueprint v1 embeds the canonical docroot into code
-// it hands us), not a filesystem-path operation — so the @php-wasm/util
-// path helpers don't apply here. The lookbehind/lookahead bound the
-// match to a whole path segment so we don't rewrite substrings like
-// `/wordpressish` or a `/wordpress` that's already prefixed.
-const VFS_DOCROOT_IN_CODE = /(?<![\w/-])\/wordpress(?=$|[/"'`\s\\,;:)$])/g;
+const VFS_TEMP_DIR = '/tmp';
+const VFS_TEMP_SUBDIR = 'vfs-tmp';
 
-/**
- * Loads the zip/curl/phar side modules for blueprint steps and caps
- * Zend's stack so deep C-level recursion fatals cleanly before V8's
- * call-stack budget is exceeded. Mirrors the FPM argv in `boot.ts`.
- */
+const REQUEST_TIMEOUT_MS = 630_000;
+
+const VFS_PATHS_IN_CODE =
+	/(?<![\w/-])(\/wordpress|\/tmp)(?=$|[/"'`\s\\,;:)$])/g;
+
 const PHP_EXTENSION_ARGS = [
 	'-d',
 	'extension_dir=/usr/lib/php/extensions',
@@ -44,12 +40,8 @@ const PHP_EXTENSION_ARGS = [
 	'extension=zip.so',
 	'-d',
 	'extension=curl.so',
-	// kandelo builds Phar shared; wp-cli.phar (blueprint wp-cli step)
-	// needs the `Phar` class.
 	'-d',
 	'extension=phar.so',
-	// The WASM curl.so has no built-in CA bundle; point it at the one the
-	// kernel worker installs. Mirrors boot.ts's fpm argv.
 	'-d',
 	'curl.cainfo=/etc/ssl/certs/ca-certificates.crt',
 	'-d',
@@ -60,18 +52,20 @@ export interface KernelLimitedPHPApiOptions {
 	serverUrl: string;
 	wordPressRootHostPath: string;
 	wordPressRootKernelPath: string;
+	tempDirHostPath: string;
+	tempDirKernelPath: string;
 	phpWasmPath: string;
 	runtime: KernelRuntime;
 }
 
 export class KernelLimitedPHPApi {
 	readonly absoluteUrl: string;
-	/**
-	 * Kernel-side WP doc root. Blueprint v1 embeds this into PHP source,
-	 * so it must be a path the kernel can `open()`.
-	 */
 	readonly documentRoot: string;
+	private readonly port: number;
 	private readonly hostRoot: string;
+	private readonly tempDirKernelRoot: string;
+	private readonly vfsTempHostPath: string;
+	private readonly vfsTempKernelPath: string;
 	private readonly runtime: KernelRuntime;
 	private readonly phpWasmBytes: ArrayBuffer;
 	private readonly cookieJar = new Map<string, string>();
@@ -84,8 +78,19 @@ export class KernelLimitedPHPApi {
 
 	constructor(options: KernelLimitedPHPApiOptions) {
 		this.absoluteUrl = options.serverUrl;
+		this.port = Number(new URL(options.serverUrl).port);
 		this.hostRoot = options.wordPressRootHostPath;
 		this.documentRoot = options.wordPressRootKernelPath;
+		this.tempDirKernelRoot = options.tempDirKernelPath;
+		this.vfsTempHostPath = joinPaths(
+			options.tempDirHostPath,
+			VFS_TEMP_SUBDIR
+		);
+		this.vfsTempKernelPath = joinPaths(
+			options.tempDirKernelPath,
+			VFS_TEMP_SUBDIR
+		);
+		mkdirSync(this.vfsTempHostPath, { recursive: true });
 		this.runtime = options.runtime;
 		this.phpWasmBytes = readWasm(options.phpWasmPath);
 		this.definesPluginPath = joinPaths(
@@ -96,23 +101,9 @@ export class KernelLimitedPHPApi {
 			this.hostRoot,
 			'wp-content/mu-plugins/0-playground-defines.json'
 		);
-		// Survive a CLI restart against a persisted doc root.
-		if (existsSync(this.definesStorePath)) {
-			try {
-				const parsed = JSON.parse(
-					readFileSync(this.definesStorePath, 'utf8')
-				);
-				if (parsed && typeof parsed === 'object') {
-					for (const [k, v] of Object.entries(parsed)) {
-						this.constants.set(
-							k,
-							v as string | number | boolean | null
-						);
-					}
-				}
-			} catch {
-				/* malformed — start fresh */
-			}
+
+		for (const [k, v] of Object.entries(this.readDefinesStore())) {
+			this.constants.set(k, v as string | number | boolean | null);
 		}
 	}
 
@@ -220,74 +211,114 @@ export class KernelLimitedPHPApi {
 			options: { env, cwd: this.documentRoot, stdin },
 		});
 
-		return new PHPResponse(
+		const response = new PHPResponse(
 			200,
 			{},
 			stdout,
 			new TextDecoder().decode(stderr),
 			exitCode
 		);
+
+		if (exitCode !== 0) {
+			throw new Error(
+				`PHP.run() failed with exit code ${exitCode}. \n\n=== Stdout ===\n ` +
+					`${response.text}\n\n=== Stderr ===\n ${response.errors}`
+			);
+		}
+		return response;
 	}
 
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		const url = new URL(request.url, this.absoluteUrl).toString();
-		const headers = new Headers(request.headers ?? {});
+		const url = new URL(request.url, this.absoluteUrl);
+		const headers: Record<string, string> = { host: url.host };
+		for (const [name, value] of Object.entries(request.headers ?? {})) {
+			headers[name.toLowerCase()] = value;
+		}
 		const cookieHeader = this.serializeCookies();
-		if (cookieHeader && !headers.has('cookie')) {
-			headers.set('cookie', cookieHeader);
+		if (cookieHeader && !('cookie' in headers)) {
+			headers['cookie'] = cookieHeader;
 		}
 
-		let body: BodyInit | undefined;
-		if (request.body !== undefined) {
-			if (typeof request.body === 'string') {
-				body = request.body;
-			} else if (request.body instanceof Uint8Array) {
-				body = request.body as BodyInit;
-			} else if (request.body && typeof request.body === 'object') {
-				const form = new FormData();
-				for (const [name, value] of Object.entries(request.body)) {
-					if (value instanceof Uint8Array || value instanceof File) {
-						form.append(name, new Blob([value as BlobPart]));
-					} else {
-						form.append(name, String(value));
-					}
+		let body: Uint8Array | null = null;
+		if (typeof request.body === 'string') {
+			body = new TextEncoder().encode(request.body);
+		} else if (request.body instanceof Uint8Array) {
+			body = request.body;
+		} else if (request.body && typeof request.body === 'object') {
+			const form = new FormData();
+			for (const [name, value] of Object.entries(request.body)) {
+				if (value instanceof Uint8Array || value instanceof File) {
+					form.append(name, new Blob([value as BlobPart]));
+				} else {
+					form.append(name, String(value));
 				}
-				body = form;
 			}
+
+			const encoded = new Response(form);
+
+			headers['content-type'] =
+				encoded.headers.get('content-type') ?? 'multipart/form-data';
+
+			body = new Uint8Array(await encoded.arrayBuffer());
 		}
 
-		const fetchResponse = await fetch(url, {
-			method: request.method ?? 'GET',
-			headers,
-			body,
-			redirect: 'manual',
-		});
+		const kernelResponse = await this.runtime.kernelHost.fetchInKernel(
+			this.port,
+			{
+				method: request.method ?? 'GET',
+				url: url.pathname + url.search,
+				headers,
+				body,
+			},
+			{ timeoutMs: REQUEST_TIMEOUT_MS }
+		);
 
-		const setCookies = collectSetCookieHeaders(fetchResponse.headers);
-		for (const raw of setCookies) {
-			this.ingestSetCookie(raw);
+		if (kernelResponse.status === 504) {
+			logger.warn(
+				`Request to ${url} timed out at the gateway (HTTP 504): ` +
+					`PHP-FPM did not respond within nginx's ` +
+					`fastcgi_read_timeout. This is a timeout, not a PHP error.`
+			);
 		}
 
 		const responseHeaders: Record<string, string[]> = {};
-		fetchResponse.headers.forEach((value, name) => {
+		for (const [name, value] of Object.entries(kernelResponse.headers)) {
 			const key = name.toLowerCase();
-			if (!(key in responseHeaders)) {
-				responseHeaders[key] = [];
-			}
-			responseHeaders[key].push(value);
-		});
-		if (setCookies.length > 0) {
-			responseHeaders['set-cookie'] = setCookies;
+
+			responseHeaders[key] =
+				key === 'set-cookie' ? value.split('\n') : [value];
+		}
+		for (const raw of responseHeaders['set-cookie'] ?? []) {
+			this.ingestSetCookie(raw);
 		}
 
-		const bytes = new Uint8Array(await fetchResponse.arrayBuffer());
 		return new PHPResponse(
-			fetchResponse.status,
+			kernelResponse.status,
 			responseHeaders,
-			bytes,
+			kernelResponse.body,
 			'',
 			0
 		);
+	}
+
+	private readDefinesStore(): Record<string, unknown> {
+		if (!existsSync(this.definesStorePath)) {
+			return {};
+		}
+		try {
+			const parsed = JSON.parse(
+				readFileSync(this.definesStorePath, 'utf8')
+			);
+			if (parsed && typeof parsed === 'object') {
+				return parsed;
+			}
+		} catch {
+			logger.debug(
+				`[posix-kernel] Ignoring malformed defines store at ` +
+					`${this.definesStorePath}.`
+			);
+		}
+		return {};
 	}
 
 	private regenerateDefinesPlugin(): void {
@@ -320,9 +351,6 @@ export class KernelLimitedPHPApi {
 			HOME: '/tmp',
 			PATH: '/usr/local/bin:/usr/bin:/bin',
 			DOCROOT: this.documentRoot,
-			// kernel.spawn processes run as uid 0 (kandelo has real POSIX
-			// uids, unlike classic php-wasm) and wp-cli refuses to run as
-			// root without this opt-in.
 			WP_CLI_ALLOW_ROOT: '1',
 		};
 		if (extra) {
@@ -334,7 +362,18 @@ export class KernelLimitedPHPApi {
 	}
 
 	private translateVfsPathsInCode(code: string): string {
-		return code.replace(VFS_DOCROOT_IN_CODE, this.documentRoot);
+		return code.replace(
+			VFS_PATHS_IN_CODE,
+			(match, _root, offset: number, whole: string) => {
+				if (match === VFS_DOCUMENT_ROOT) {
+					return this.documentRoot;
+				}
+				if (whole.startsWith(this.tempDirKernelRoot, offset)) {
+					return match;
+				}
+				return this.vfsTempKernelPath;
+			}
+		);
 	}
 
 	private serializeCookies(): string {
@@ -377,12 +416,6 @@ export class KernelLimitedPHPApi {
 		}
 	}
 
-	// VFS→host/kernel mapping stays as literal POSIX-prefix matching on
-	// purpose: `@php-wasm/util`'s path helpers assume POSIX throughout and
-	// mis-handle native Windows host paths (e.g. `resolvePathUnder` reads
-	// `C:\...` as relative and rebases it under `/wordpress`). The exact
-	// startsWith checks below only match the POSIX docroot and pass every
-	// other path (incl. absolute Windows host paths) through untouched.
 	private toHost(vfsPath: string): string {
 		if (vfsPath === VFS_DOCUMENT_ROOT) {
 			return this.hostRoot;
@@ -393,8 +426,7 @@ export class KernelLimitedPHPApi {
 				vfsPath.slice(VFS_DOCUMENT_ROOT.length)
 			);
 		}
-		// Blueprint v1 round-trips paths through `documentRoot`; rewrite
-		// back to hostRoot before Node fs.* sees them.
+
 		if (vfsPath === this.documentRoot) {
 			return this.hostRoot;
 		}
@@ -402,6 +434,15 @@ export class KernelLimitedPHPApi {
 			return joinPaths(
 				this.hostRoot,
 				vfsPath.slice(this.documentRoot.length)
+			);
+		}
+		if (vfsPath === VFS_TEMP_DIR) {
+			return this.vfsTempHostPath;
+		}
+		if (vfsPath.startsWith(VFS_TEMP_DIR + '/')) {
+			return joinPaths(
+				this.vfsTempHostPath,
+				vfsPath.slice(VFS_TEMP_DIR.length)
 			);
 		}
 		return vfsPath;
@@ -417,14 +458,23 @@ export class KernelLimitedPHPApi {
 				vfsPath.slice(VFS_DOCUMENT_ROOT.length)
 			);
 		}
+		if (
+			vfsPath === this.tempDirKernelRoot ||
+			vfsPath.startsWith(this.tempDirKernelRoot + '/')
+		) {
+			return vfsPath;
+		}
+		if (vfsPath === VFS_TEMP_DIR) {
+			return this.vfsTempKernelPath;
+		}
+		if (vfsPath.startsWith(VFS_TEMP_DIR + '/')) {
+			return joinPaths(
+				this.vfsTempKernelPath,
+				vfsPath.slice(VFS_TEMP_DIR.length)
+			);
+		}
 		return vfsPath;
 	}
-}
-
-function collectSetCookieHeaders(headers: Headers): string[] {
-	// Cast through unknown: this repo's @types/node predates the
-	// getSetCookie() that Node 24's undici Headers ships.
-	return (headers as unknown as { getSetCookie(): string[] }).getSetCookie();
 }
 
 function phpString(value: string): string {

@@ -31,8 +31,6 @@ describe('--experimental-posix-kernel blueprint v1', () => {
 		});
 		expect([200, 301, 302]).toContain(response.status);
 
-		// nginx serves wordPressRoot directly, so writeFile + mkdir
-		// side effects are reachable over HTTP.
 		const markerResp = await fetch(
 			new URL(
 				'/wp-content/uploads/slice3-marker/hello.txt',

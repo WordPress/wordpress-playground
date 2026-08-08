@@ -215,14 +215,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  # The shipped kernel.wasm is wasm64 (memory64) and the
-                  # host bundle creates `WebAssembly.Memory({ ..., address:
-                  # "i64" })` to match. Node 22's V8 rejects that descriptor;
-                  # the worker-thread init throws and the kernel host hangs
-                  # on the "ready" message. Node 24's V8 13+ accepts it.
                   node-version: 24
-            # host/dist/ and binaries/ are gitignored upstream; build and
-            # fetch them so the kernel-mode specs find their artifacts.
             - name: Build kandelo host
               shell: bash
               working-directory: kandelo/host

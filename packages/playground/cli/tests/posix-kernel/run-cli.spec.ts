@@ -23,7 +23,7 @@ describe(
 				'define-number': { MY_NUMBER_CONSTANT: 42 },
 			});
 
-			await cliServer.playground.writeFile(
+			cliServer.playground.writeFile(
 				'/wordpress/constants.php',
 				`<?php
 					echo "STRING: " . MY_STRING_CONSTANT . "\\n";
@@ -46,20 +46,20 @@ describe(
 		test('should set WordPress version', async () => {
 			const { MinifiedWordPressVersionsList } =
 				await import('@wp-playground/wordpress-builds');
-			// Legacy versions (< 5.0) need legacy PHP and can't boot here.
+
 			const oldestSupportedVersion = MinifiedWordPressVersionsList.filter(
 				(v) => parseFloat(v) >= 5
 			).pop()!;
+
 			await using cliServer = await runCLI({
 				command: 'server',
 				'experimental-posix-kernel': true,
 				port: 0,
 				wp: oldestSupportedVersion,
 			});
-			// Kernel mode serves straight off the host fs — no VFS doc
-			// root — so interpolate the live `documentRoot`.
+
 			const docRoot = cliServer.playground.documentRoot;
-			await cliServer.playground.writeFile(
+			cliServer.playground.writeFile(
 				'/wordpress/version.php',
 				`<?php
 					require_once '${docRoot}/wp-load.php';
@@ -94,13 +94,6 @@ describe(
 			expect(text).toContain('<title>My Blog Name</title>');
 		});
 
-		// Heaviest posix-kernel test: boots WordPress, installs it over HTTP,
-		// then fetches blocky-formats from github.com. Under the suite's
-		// parallel kernels the boot+install phase alone can take ~70s on a
-		// loaded Windows runner, so match the 300s ceiling the other
-		// boot-heavy tests use (auto-prepare/boot/blueprint-v1). Retries stay
-		// to ride out transient git-clone stalls — the shared git client has
-		// no fetch timeout of its own.
 		test(
 			'should run blueprint including git:resources',
 			{ timeout: 300_000, retry: 2 },
@@ -127,6 +120,7 @@ describe(
 						],
 					},
 				});
+
 				const response = await fetch(new URL('/', cliServer.serverUrl));
 				expect(response.status).toBe(200);
 				const text = await response.text();
@@ -135,9 +129,6 @@ describe(
 		);
 
 		test('should exit after run-blueprint instead of serving', async () => {
-			// No `await using`: run-blueprint owns its own teardown. A
-			// returned handle would mean nginx and the kernel host are
-			// still up with nobody left to dispose them.
 			const result = await runCLI({
 				command: 'run-blueprint',
 				'experimental-posix-kernel': true,
@@ -154,14 +145,13 @@ describe(
 		});
 
 		test('should use default site-url when not provided', async () => {
-			// port: 0 to dodge contention with the sibling classic spec.
 			await using cliServer = await runCLI({
 				command: 'server',
 				'experimental-posix-kernel': true,
 				port: 0,
 			});
 			const docRoot = cliServer.playground.documentRoot;
-			await cliServer.playground.writeFile(
+			cliServer.playground.writeFile(
 				'/wordpress/site-url.php',
 				`<?php require_once '${docRoot}/wp-load.php'; echo get_option("siteurl"); ?>`
 			);
@@ -296,8 +286,6 @@ describe(
 			const dummyUrl = new URL('/dummy.txt', cliServer.serverUrl);
 			const res = await new Promise<http.IncomingMessage>(
 				(resolve, reject) => {
-					// http.get instead of fetch so Set-Cookie is visible
-					// without auto-following the redirect.
 					const req = http.get(
 						dummyUrl,
 						{
@@ -330,13 +318,11 @@ describe(
 				port: 0,
 			});
 
-			// Kernel mode has no Express middleware cookie jar; the jar
-			// lives on KernelLimitedPHPApi.request() instead.
-			await cliServer.playground.writeFile(
+			cliServer.playground.writeFile(
 				'/wordpress/set-cookie.php',
 				'<?php setcookie("test_cookie", "hello", 0, "/"); echo "cookie set"; ?>'
 			);
-			await cliServer.playground.writeFile(
+			cliServer.playground.writeFile(
 				'/wordpress/read-cookie.php',
 				'<?php echo isset($_COOKIE["test_cookie"]) ? $_COOKIE["test_cookie"] : "no cookie"; ?>'
 			);
@@ -360,6 +346,43 @@ describe(
 );
 
 describe(
+	'--experimental-posix-kernel blueprint errors',
+	() => {
+		test('reports a PHP failure once across the cause chain', async () => {
+			const error = await runCLI({
+				command: 'run-blueprint',
+				'experimental-posix-kernel': true,
+				blueprint: {
+					steps: [
+						{
+							step: 'runPHP',
+							code: '<?php fwrite(STDERR, "UNIQUE_FATAL_MARKER"); exit(1);',
+						},
+					],
+				},
+			} as any).then(
+				() => null,
+				(e) => e as Error
+			);
+
+			expect(error).toBeInstanceOf(Error);
+			const messages: string[] = [];
+			for (
+				let current: unknown = error;
+				current instanceof Error;
+				current = current.cause
+			) {
+				messages.push(current.message);
+			}
+			const combined = messages.join('\n');
+			expect(combined).toContain('UNIQUE_FATAL_MARKER');
+			expect(combined.match(/UNIQUE_FATAL_MARKER/g)).toHaveLength(1);
+		});
+	},
+	60_000 * 5
+);
+
+describe(
 	'--experimental-posix-kernel port in use',
 	() => {
 		test('uses a free port when the requested port is already taken', async () => {
@@ -370,8 +393,6 @@ describe(
 			});
 
 			try {
-				// Kernel mode silently falls back to a free port via
-				// reserveFreePort() instead of erroring on EADDRINUSE.
 				await using cliServer = await runCLI({
 					command: 'server',
 					'experimental-posix-kernel': true,

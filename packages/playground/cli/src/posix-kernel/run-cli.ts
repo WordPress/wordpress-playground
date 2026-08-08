@@ -1,13 +1,10 @@
-import type { RunCLIArgs } from '../run-cli';
+import { logger } from '@php-wasm/logger';
+import { LogVerbosity, type RunCLIArgs } from '../run-cli';
 import { CLIOutput } from '../cli-output';
 import { resolveBlueprint } from '../resolve-blueprint';
 import type { KernelLimitedPHPApi } from './php-api';
 import { PosixKernelHandler } from './posix-kernel-handler';
 
-/**
- * Server returned by `--experimental-posix-kernel`. Kernel-resident
- * nginx is the front door, so no Node `http.Server` and no worker pool.
- */
 export interface PosixKernelRunCliServer extends AsyncDisposable {
 	serverUrl: string;
 	playground: KernelLimitedPHPApi;
@@ -32,9 +29,15 @@ export async function runCLIWithPosixKernel(
 		}
 	}
 
-	const cliOutput = new CLIOutput({
-		verbosity: args.verbosity || 'normal',
-	});
+	const verbosity = args.quiet
+		? 'quiet'
+		: args.debug
+			? 'debug'
+			: args.verbosity || 'normal';
+	logger.setSeverityFilterLevel(
+		Object.values(LogVerbosity).find((v) => v.name === verbosity)!.severity
+	);
+	const cliOutput = new CLIOutput({ verbosity });
 	const handler = new PosixKernelHandler(args, { cliOutput });
 
 	if (typeof args.blueprint === 'string') {
@@ -50,7 +53,7 @@ export async function runCLIWithPosixKernel(
 		await handler.runBlueprint(api);
 	} catch (e) {
 		await dispose();
-		throw e;
+		throw collapseDuplicatedCauses(e);
 	}
 
 	if (args.command === 'run-blueprint') {
@@ -66,4 +69,19 @@ export async function runCLIWithPosixKernel(
 		playground: api,
 		[Symbol.asyncDispose]: dispose,
 	};
+}
+
+function collapseDuplicatedCauses(error: unknown): unknown {
+	let current = error;
+	while (current instanceof Error && current.cause instanceof Error) {
+		if (
+			current.cause.message &&
+			current.message.includes(current.cause.message)
+		) {
+			current.cause = current.cause.cause;
+			continue;
+		}
+		current = current.cause;
+	}
+	return error;
 }

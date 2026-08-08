@@ -1,5 +1,4 @@
 <?php
-// Reads constants from the sibling JSON store and define()s them.
 
 $store = __DIR__ . '/0-playground-defines.json';
 if (!file_exists($store)) {

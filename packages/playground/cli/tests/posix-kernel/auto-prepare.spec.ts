@@ -12,9 +12,6 @@ describe('--experimental-posix-kernel auto-prepare WordPress', () => {
 			wp: 'latest',
 		});
 
-		// Follow redirects: the first request triggers the cookie-clear
-		// middleware (302 to self). Reaching the body proves PHP + SQLite
-		// are alive on a freshly auto-prepared install.
 		const response = await fetch(cliServer.serverUrl);
 		expect(response.status).toBe(200);
 		const body = await response.text();

@@ -4,11 +4,6 @@ import {
 	setGracefulCleanup as tmpSetGracefulCleanup,
 } from 'tmp-promise';
 
-/**
- * `hostPath` is the native path (used by `fs.*`); `kernelPath` lives
- * under `/tmp/...`, a dir present in kandelo's rootfs.vfs, and is
- * routed back to `hostPath` by extraMounts.
- */
 export interface PosixKernelTempDir {
 	hostPath: string;
 	kernelPath: string;

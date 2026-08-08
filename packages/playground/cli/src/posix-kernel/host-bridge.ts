@@ -1,13 +1,7 @@
-/**
- * Resolve kandelo (sibling repo, not an npm dep) at runtime. Dynamic
- * import keeps vite/esbuild from bundling its wasm artifacts.
- */
-
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { joinPaths } from '@php-wasm/util';
 
-/** Read a wasm file into a standalone ArrayBuffer (no Buffer pool view). */
 export function readWasm(path: string): ArrayBuffer {
 	const buf = readFileSync(path);
 	return buf.buffer.slice(
@@ -26,10 +20,7 @@ export interface NodeKernelHostOptions {
 		hostPath: string;
 		readonly?: boolean;
 	}>;
-	// Attach kandelo's real-TCP backend (`TcpNetworkBackend`) in the
-	// kernel worker so wasm programs (curl.so, PHP openssl streams) can
-	// dial external hosts via Node `net.Socket`. Without this the worker
-	// has no `io.network` and every outbound `connect()` fails.
+
 	enableTcpNetwork?: boolean;
 }
 
@@ -39,6 +30,19 @@ export interface SpawnOptions {
 	stdin?: Uint8Array;
 }
 
+export interface KernelHttpRequest {
+	method: string;
+	url: string;
+	headers: Record<string, string>;
+	body: Uint8Array | null;
+}
+
+export interface KernelHttpResponse {
+	status: number;
+	headers: Record<string, string>;
+	body: Uint8Array;
+}
+
 export interface NodeKernelHost {
 	init(kernelWasmBytes?: ArrayBuffer): Promise<void>;
 	spawn(
@@ -46,6 +50,11 @@ export interface NodeKernelHost {
 		argv: string[],
 		options?: SpawnOptions
 	): Promise<number>;
+	fetchInKernel(
+		port: number,
+		request: KernelHttpRequest,
+		options?: { timeoutMs?: number }
+	): Promise<KernelHttpResponse>;
 	destroy(): Promise<void>;
 }
 
@@ -58,17 +67,8 @@ export interface PosixKernelBinaries {
 	nginxWasm: string;
 	phpFpmWasm: string;
 	phpWasm: string;
-	// PHP zip side module (libzip 1.11.4, DEFLATE-only). Loaded into
-	// php-fpm via `-d extension=zip.so`. Added in kandelo PR #647 —
-	// requires the rebuilt PHP package (revision 4).
 	zipSo: string;
-	// PHP curl side module (libcurl 8.11.1). Loaded into php-fpm via
-	// `-d extension=curl.so`. Added in kandelo PR #648 — requires the
-	// rebuilt PHP package (revision 4).
 	curlSo: string;
-	// PHP Phar side module (kandelo builds PHP with --enable-phar=shared).
-	// Loaded via `-d extension=phar.so`; wp-cli.phar (blueprint wp-cli
-	// step) needs the `Phar` class.
 	pharSo: string;
 }
 
@@ -123,7 +123,6 @@ function resolveKernelBinaries(kernelDir: string): PosixKernelBinaries {
 	};
 }
 
-// Mirrors kandelo's `host/src/binary-resolver.ts` lookup.
 function requireBinary(kernelDir: string, relPath: string): string {
 	for (const root of ['local-binaries', 'binaries']) {
 		const candidate = joinPaths(kernelDir, root, relPath);

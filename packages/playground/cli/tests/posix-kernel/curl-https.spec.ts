@@ -6,23 +6,14 @@ import { bootPosixKernelWordPress } from '../../src/posix-kernel/boot';
 import type { PosixKernelBootResult } from '../../src/posix-kernel/boot';
 import { KernelLimitedPHPApi } from '../../src/posix-kernel/php-api';
 import { prepareWordPressForPosixKernel } from '../../src/posix-kernel/prepare-wordpress';
-import { reserveFreePort } from '../../src/start-server';
 import {
 	createPosixKernelTempDir,
 	type PosixKernelTempDir,
 } from '../../src/posix-kernel/temp-dir';
 
-/**
- * End-to-end proof that curl_exec() completes a fully-verified HTTPS GET:
- * the kernel's real-TCP backend (`enableTcpNetwork`), the Mozilla CA bundle
- * the worker writes to `/etc/ssl/certs/ca-certificates.crt`, and the
- * `curl.cainfo` pointing `curl.so`'s empty trust store at it. Verification
- * is forced ON, so a broken link fails at `connect()` or SSL rather than
- * silently passing.
- */
+const TEST_PORT = 49152 + (process.pid % 16384);
+
 describe('--experimental-posix-kernel HTTPS via curl.cainfo', () => {
-	// Pinned to a specific commit so the file can't change underfoot; the
-	// URL is HTTPS and served with a certificate chaining to a Mozilla root.
 	const README_URL =
 		'https://raw.githubusercontent.com/WordPress/wordpress-playground/' +
 		'5e5ba3e0f5b984ceadd5cbe6e661828c14621d25/README.md';
@@ -40,9 +31,8 @@ describe('--experimental-posix-kernel HTTPS via curl.cainfo', () => {
 			wordPressRoot: wordPressRootHostPath,
 			wpVersionQuery: 'latest',
 		});
-		const port = await reserveFreePort();
 		booted = await bootPosixKernelWordPress({
-			port,
+			port: TEST_PORT,
 			wordPressRootHostPath,
 			wordPressRootKernelPath,
 			tempDirHostPath: tempDir.hostPath,
@@ -52,6 +42,8 @@ describe('--experimental-posix-kernel HTTPS via curl.cainfo', () => {
 			serverUrl: booted.serverUrl,
 			wordPressRootHostPath,
 			wordPressRootKernelPath,
+			tempDirHostPath: tempDir.hostPath,
+			tempDirKernelPath: tempDir.kernelPath,
 			phpWasmPath: booted.runtime.phpWasmPath,
 			runtime: booted.runtime,
 		});
@@ -90,10 +82,4 @@ describe('--experimental-posix-kernel HTTPS via curl.cainfo', () => {
 			expect(response.text).toBe(`LEN:${README_BYTES}`);
 		}
 	);
-
-	// openssl-streams parity (`file_get_contents()` over HTTPS) is not
-	// covered: it works in the browser but currently fails on the CLI
-	// because PHP's blocking stream connect surfaces kandelo's non-blocking
-	// `-EAGAIN`. That gap is in kandelo's PHP-streams/TCP interaction, not
-	// in the `curl.cainfo` wiring this test proves.
 });

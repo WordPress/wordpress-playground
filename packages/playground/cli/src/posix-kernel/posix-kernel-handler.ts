@@ -7,16 +7,12 @@ import {
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { mkdirSync } from 'node:fs';
-// Default `import path from 'path'` (not a named `node:path` import): the
-// CLI is bundled with vite, which maps `node:path` to a browser-external
-// stub that only exposes a default export. `path.resolve` also keeps
-// native separators, which `@php-wasm/util` would rewrite on Windows.
 import path from 'path';
 import { type UniversalPHP } from '@php-wasm/universal';
 import { type Mount } from '@php-wasm/cli-util';
 import { type RunCLIArgs, mergeDefinedConstants } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
-import { isPortInUse, reserveFreePort } from '../start-server';
+import { isPortInUse } from '../start-server';
 import { bootPosixKernelWordPress } from './boot';
 import { KernelLimitedPHPApi } from './php-api';
 import {
@@ -31,11 +27,6 @@ export interface PosixKernelBootHandle {
 	dispose: () => Promise<void>;
 }
 
-/**
- * Boots Playground CLI under kandelo (nginx + PHP-FPM). Counterpart to
- * BlueprintsV{1,2}Handler; bypasses the Express server and PHP.wasm
- * worker pool entirely.
- */
 export class PosixKernelHandler {
 	private args: RunCLIArgs;
 	private cliOutput: CLIOutput;
@@ -46,42 +37,34 @@ export class PosixKernelHandler {
 	}
 
 	async bootWordPress(): Promise<PosixKernelBootHandle> {
-		const allMounts: Mount[] = [
-			...((this.args['mount'] as Mount[]) || []),
-			...((this.args['mount-before-install'] as Mount[]) || []),
-		];
-		const wordPressMount = allMounts.find(
-			(mount) =>
-				mount.vfsPath.replace(/\/$/, '') === '/wordpress' &&
-				mount.hostPath
-		);
+		const isWordPressMount = (mount: Mount) =>
+			mount.vfsPath.replace(/\/$/, '') === '/wordpress' &&
+			Boolean(mount.hostPath);
 
-		// Only `server` keeps the well-known port. `run-blueprint` exits
-		// once the Blueprint is done, so it takes an ephemeral port and
-		// never collides with a running server. Mirrors `selectedPort`
-		// in run-cli.ts.
-		const requestedPort =
-			this.args.command === 'server' ? (this.args.port ?? 9400) : 0;
-		const port =
-			requestedPort === 0 || (await isPortInUse(requestedPort))
-				? await reserveFreePort()
-				: requestedPort;
+		const installableWordPressMount = (
+			(this.args['mount-before-install'] as Mount[]) || []
+		).find(isWordPressMount);
+
+		const wordPressMount =
+			installableWordPressMount ??
+			((this.args['mount'] as Mount[]) || []).find(isWordPressMount);
+
+		const port = await this.selectPort();
 
 		const tempDir = await createPosixKernelTempDir();
 
 		let wordPressRootHostPath: string;
-		// Kernel-facing WP root must live under a dir present in
-		// rootfs.vfs; arbitrary host paths don't qualify. Stage under
-		// tempDir.kernelPath and let extraMounts route to the host path.
+
 		const nginxRootHostPath = path.join(tempDir.hostPath, 'wordpress');
+
 		if (wordPressMount) {
-			// `--mount host:vfs` keeps the host path verbatim (see
-			// parseMountWithDelimiterArguments), so a relative value must be
-			// cwd-resolved the same way mounts.ts does.
 			wordPressRootHostPath = path.resolve(wordPressMount.hostPath);
 			mkdirSync(nginxRootHostPath, { recursive: true });
 		} else {
 			wordPressRootHostPath = nginxRootHostPath;
+		}
+
+		if (!wordPressMount || wordPressMount === installableWordPressMount) {
 			try {
 				await prepareWordPressForPosixKernel({
 					wordPressRoot: wordPressRootHostPath,
@@ -93,6 +76,7 @@ export class PosixKernelHandler {
 				throw e;
 			}
 		}
+
 		const wordPressRootKernelPath = `${tempDir.kernelPath}/wordpress`;
 
 		this.cliOutput.print(`Booting WordPress under kandelo...`);
@@ -105,6 +89,8 @@ export class PosixKernelHandler {
 				wordPressRootKernelPath,
 				tempDirHostPath: tempDir.hostPath,
 				tempDirKernelPath: tempDir.kernelPath,
+				requireHostTcpPort: this.args.command === 'server',
+				quiet: this.cliOutput.isQuiet,
 			});
 		} catch (e) {
 			await tempDir.cleanup();
@@ -125,12 +111,12 @@ export class PosixKernelHandler {
 			serverUrl: booted.serverUrl,
 			wordPressRootHostPath,
 			wordPressRootKernelPath,
+			tempDirHostPath: tempDir.hostPath,
+			tempDirKernelPath: tempDir.kernelPath,
 			phpWasmPath: booted.runtime.phpWasmPath,
 			runtime: booted.runtime,
 		});
 
-		// Apply CLI constants before the install probe so the installer
-		// sees the same WP_DEBUG* defaults as classic mode.
 		const cliConstants = mergeDefinedConstants(this.args);
 		for (const [name, value] of Object.entries(cliConstants)) {
 			api.defineConstant(name, value as string | number | boolean | null);
@@ -143,8 +129,6 @@ export class PosixKernelHandler {
 			throw e;
 		}
 
-		// Arm the marker after install so the install probe sees a clean
-		// pipeline. router.php consumes the marker on the next request.
 		booted.resetFirstRequestMarker();
 
 		return { serverUrl: booted.serverUrl, api, dispose };
@@ -176,10 +160,23 @@ export class PosixKernelHandler {
 			{ progress: tracker, additionalSteps }
 		);
 		if (compiled) {
-			// runBlueprintV1Steps types its second arg as UniversalPHP; the
-			// shim implements every method v1 steps actually call.
 			await runBlueprintV1Steps(compiled, api as unknown as UniversalPHP);
 		}
+	}
+
+	private async selectPort(): Promise<number> {
+		const requestedPort =
+			this.args.command === 'server' ? (this.args.port ?? 9400) : 0;
+		if (requestedPort !== 0 && !(await isPortInUse(requestedPort))) {
+			return requestedPort;
+		}
+		for (let attempt = 0; attempt < 20; attempt++) {
+			const candidate = nextCandidatePort();
+			if (!(await isPortInUse(candidate))) {
+				return candidate;
+			}
+		}
+		throw new Error('Could not find a free TCP port for nginx.');
 	}
 
 	private getEffectiveBlueprint(): BlueprintV1Declaration | undefined {
@@ -206,4 +203,16 @@ export class PosixKernelHandler {
 			merged.login !== undefined;
 		return hasContent ? merged : undefined;
 	}
+}
+
+const EPHEMERAL_PORT_START = 49152;
+const EPHEMERAL_PORT_SPAN = 16384;
+let portSequence = 0;
+
+function nextCandidatePort(): number {
+	portSequence += 1;
+	return (
+		EPHEMERAL_PORT_START +
+		((process.pid * 61 + portSequence * 4093) % EPHEMERAL_PORT_SPAN)
+	);
 }

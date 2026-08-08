@@ -35,7 +35,6 @@ const DOWNLOAD_DIR =
 	process.env['KANDELO_PINNED_ARCHIVE_DIR'] ??
 	join(tmpdir(), `kandelo-pinned-${process.pid}`);
 
-// Keep in sync with NEEDED in fetch-kandelo-binaries.mts.
 const PACKAGES = ['kernel', 'userspace', 'rootfs', 'nginx', 'php'];
 
 main().catch((error: unknown) => {
@@ -123,11 +122,6 @@ function rustHostTarget(): string {
 	return host;
 }
 
-/**
- * Read the ABI version the submodule checkout builds against. Kandelo's
- * own `run.sh` reads the same constant with the same pattern, so the
- * release tag and the archive names always follow the checkout.
- */
 function readAbiVersion(): string {
 	const lib = readFileSync(
 		join(KANDELO_DIR, 'crates/shared/src/lib.rs'),
@@ -142,10 +136,6 @@ function readAbiVersion(): string {
 	return abiVersion;
 }
 
-/**
- * Run kandelo's xtask (compiling it on first use) and return its stdout.
- * cargo's own build output stays on stderr and is passed through.
- */
 function xtask(hostTarget: string, args: string[]): string {
 	return execFileSync(
 		'cargo',
@@ -168,10 +158,6 @@ function xtask(hostTarget: string, args: string[]): string {
 	).trim();
 }
 
-/**
- * Split an xtask cache-path basename like `php-8.3.15-rev15-wasm32-f39e66db`
- * into version ("8.3.15") and revision ("15").
- */
 function parseCacheBasename(
 	pkg: string,
 	base: string

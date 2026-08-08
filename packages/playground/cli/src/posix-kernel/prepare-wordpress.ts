@@ -1,13 +1,7 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { decodeZip } from '@php-wasm/stream-compression';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import {
-	chmodSync,
-	mkdirSync,
-	writeFileSync,
-	existsSync,
-	copyFileSync,
-} from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
 import { dirname, joinPaths } from '@php-wasm/util';
 import {
 	cachedDownload,
@@ -43,7 +37,6 @@ export async function prepareWordPressForPosixKernel(
 	let wpVersion: string;
 
 	if (existsSync(joinPaths(wordPressRoot, 'wp-settings.php'))) {
-		// Don't ping the release API for cached installs.
 		wpVersion = 'cached';
 		skipped = true;
 	} else {
@@ -75,12 +68,6 @@ export async function prepareWordPressForPosixKernel(
 	return { wordPressRoot, wpVersion, skipped };
 }
 
-/**
- * Drive WP's installer over HTTP. Idempotent: a 200 root probe means
- * already-installed. HTTP rather than programmatic `wp_install()` because
- * a standalone php.wasm CLI hangs loading the SQLite drop-in, which
- * needs the per-request state nginx + php-fpm establish.
- */
 export async function ensureWordPressInstalled(
 	api: KernelLimitedPHPApi
 ): Promise<void> {
@@ -100,15 +87,12 @@ export async function ensureWordPressInstalled(
 		user_name: 'admin',
 		admin_password: 'password',
 		admin_password2: 'password',
-		// Without `pw_weak`, install.php rejects "password" and re-renders.
 		pw_weak: '1',
 		admin_email: 'admin@example.com',
 		blog_public: '1',
 		Submit: 'Install WordPress',
 	}).toString();
-	// Under heavy CI load the first POST occasionally comes back as the
-	// installer form instead of the success page even though nothing is
-	// wrong with the site; re-probe and retry before giving up.
+
 	const attempts = 3;
 	let lastHtml = '';
 	for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -133,8 +117,7 @@ export async function ensureWordPressInstalled(
 		) {
 			return;
 		}
-		// The POST may have installed the site despite the odd response;
-		// a root probe that no longer redirects to install.php is proof.
+
 		const recheck = await requestAwaitingReadiness(api, {
 			method: 'GET',
 			url: '/',
@@ -153,9 +136,6 @@ export async function ensureWordPressInstalled(
 	);
 }
 
-// Boot waits for nginx/php-fpm to open their ports, not for a php-fpm worker to
-// be ready to serve a FastCGI request, so the first requests after boot can
-// bad-gateway under CI load until a worker comes up.
 const TRANSIENT_GATEWAY_STATUSES = new Set([502, 503, 504]);
 
 async function requestAwaitingReadiness(
@@ -193,11 +173,6 @@ function ensureAutoLoginMuPlugin(wordPressRoot: string): void {
 	writeFileSync(path, AUTO_LOGIN_MU_PLUGIN_PHP);
 }
 
-/**
- * No-op wp_mail() mu-plugin. wp_install() → wp_new_blog_notification()
- * calls PHPMailer → popen("sendmail"), which kandelo's fork+exec
- * exit_group(127)s on, killing the FPM worker mid-install.
- */
 function ensureDisableWpMailMuPlugin(wordPressRoot: string): void {
 	const path = joinPaths(
 		wordPressRoot,
@@ -254,17 +229,9 @@ function ensureWpConfig(wordPressRoot: string): void {
 function ensureDatabaseDir(wordPressRoot: string): void {
 	const databaseDir = joinPaths(wordPressRoot, 'wp-content/database');
 	mkdirSync(databaseDir, { recursive: true });
-	// FPM workers (uid 99) need world-write: kandelo's HostFS maps host
-	// files to uid 0, and the SQLite drop-in wp_die()s if !is_writable.
-	chmodSync(databaseDir, 0o777);
 }
 
 interface ExtractZipOptions {
-	/**
-	 * If set, only entries whose path starts with `<stripLeadingDir>/`
-	 * (or `<stripLeadingDir>-<suffix>/` for versioned plugin zips) are
-	 * kept, with that prefix removed from every output path.
-	 */
 	stripLeadingDir?: string;
 }
 
@@ -273,7 +240,6 @@ async function extractZipToDir(
 	destDir: string,
 	options: ExtractZipOptions = {}
 ): Promise<void> {
-	// decodeZip reads via a BYOB reader, which requires `type: 'bytes'`.
 	const stream = new ReadableStream({
 		type: 'bytes',
 		start(controller) {

@@ -1,11 +1,5 @@
-import {
-	writeFileSync,
-	mkdirSync,
-	chmodSync,
-	existsSync,
-	copyFileSync,
-} from 'node:fs';
-import { connect } from 'node:net';
+import { writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { logger } from '@php-wasm/logger';
 import { basename, joinPaths } from '@php-wasm/util';
 import {
@@ -14,7 +8,6 @@ import {
 	type NodeKernelHost,
 	type SpawnOptions,
 } from './host-bridge';
-import { reserveFreePort } from '../start-server';
 
 import ROUTER_PHP from './router.php?raw';
 import NGINX_CONF_TEMPLATE from './configs/nginx.conf?raw';
@@ -28,6 +21,8 @@ export interface PosixKernelBootOptions {
 	wordPressRootKernelPath: string;
 	tempDirHostPath: string;
 	tempDirKernelPath: string;
+	requireHostTcpPort?: boolean;
+	quiet?: boolean;
 }
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -49,11 +44,10 @@ export interface PosixKernelBootResult extends AsyncDisposable {
 	[Symbol.asyncDispose](): Promise<void>;
 }
 
-const FPM_BOOT_GRACE_MS = 2_000;
-// Parallel forks cold-start several kernels at once; 15s flaked on
-// busy boxes and 60s still flaked on loaded CI runners (vitest runs
-// several kernel-booting suites concurrently).
-const NGINX_READY_TIMEOUT_MS = 180_000;
+const READINESS_TIMEOUT_MS = 180_000;
+const HOST_TCP_TIMEOUT_MS = 10_000;
+const PROBE_INTERVAL_MS = 150;
+const PROBE_PATH = '/?__playground_probe=1';
 
 export async function bootPosixKernelWordPress(
 	options: PosixKernelBootOptions
@@ -67,10 +61,6 @@ export async function bootPosixKernelWordPress(
 	}
 
 	mkdirSync(options.tempDirHostPath, { recursive: true });
-	// FPM workers run as uid 99: dir must be world-traversable for
-	// SCRIPT_FILENAME and world-writable for router.php's @unlink of
-	// the first-request marker.
-	chmodSync(options.tempDirHostPath, 0o777);
 	for (const sub of ['client_body_temp', 'fastcgi_temp', 'logs']) {
 		mkdirSync(joinPaths(options.tempDirHostPath, sub), { recursive: true });
 	}
@@ -82,15 +72,11 @@ export async function bootPosixKernelWordPress(
 	const phpFpmBytes = readWasm(bridge.binaries.phpFpmWasm);
 	const nginxBytes = readWasm(bridge.binaries.nginxWasm);
 
-	// A kandelo fetch may place the extensions as symlinks into
-	// ~/.cache/kandelo, and kandelo's host-directory mount can't stat
-	// through symlinks that leave the mount root — dlopen would fail with
-	// "cannot stat library". Copy the real files into the boot temp dir
-	// and mount the copies at /usr/lib/php/extensions.
 	const phpExtensionsHostDir = joinPaths(
 		options.tempDirHostPath,
 		'php-extensions'
 	);
+
 	mkdirSync(phpExtensionsHostDir, { recursive: true });
 	for (const soHostPath of [
 		bridge.binaries.zipSo,
@@ -102,12 +88,15 @@ export async function bootPosixKernelWordPress(
 			joinPaths(phpExtensionsHostDir, basename(soHostPath))
 		);
 	}
+
 	const phpExtensionsKernelDir = '/usr/lib/php/extensions';
 
-	// kandelo's TCP bridge maps a kernel `listen()` to a real
-	// `net.createServer().listen(port, "0.0.0.0")`, so two concurrent
-	// kernels can't share a hard-coded fpm port.
-	const fpmPort = await reserveFreePort();
+	const fpmSocketKernelPath = joinPaths(
+		options.tempDirKernelPath,
+		'php-fpm.sock'
+	);
+
+	const bootId = randomUUID();
 
 	writeFileSync(joinPaths(options.tempDirHostPath, 'router.php'), ROUTER_PHP);
 	const routerScriptKernelPath = joinPaths(
@@ -116,15 +105,13 @@ export async function bootPosixKernelWordPress(
 	);
 	writeFileSync(
 		joinPaths(options.tempDirHostPath, 'php-fpm.conf'),
-		PHP_FPM_CONF.replaceAll('__FPM_PORT__', String(fpmPort))
+		PHP_FPM_CONF.replaceAll('__FPM_SOCKET__', fpmSocketKernelPath)
 	);
 	const fpmConfKernelPath = joinPaths(
 		options.tempDirKernelPath,
 		'php-fpm.conf'
 	);
-	// Path is wired into nginx now but the file is created later by the
-	// handler, after ensureWordPressInstalled — if it existed during the
-	// install probe, router.php would 302 it and defeat install detection.
+
 	const firstRequestMarkerHostPath = joinPaths(
 		options.tempDirHostPath,
 		'first-request-pending'
@@ -137,7 +124,8 @@ export async function bootPosixKernelWordPress(
 	const renderedNginxConfKernelPath = renderNginxConf({
 		host,
 		port: options.port,
-		fpmPort,
+		fpmSocketKernelPath,
+		bootId,
 		serverName: options.serverName ?? 'localhost',
 		wordPressRootKernelPath: options.wordPressRootKernelPath,
 		routerScriptKernelPath,
@@ -147,11 +135,6 @@ export async function bootPosixKernelWordPress(
 		template: NGINX_CONF_TEMPLATE,
 	});
 
-	// kandelo emits every stdout/stderr chunk with pid=0 (no per-pid
-	// demux yet), so spawnCapturing serializes behind a chain and routes
-	// bytes to whichever capture is active at receive time. Concurrent
-	// nginx/php-fpm log lines land in that buffer — acceptable because v1
-	// callsites don't drive HTTP traffic during a captured run.
 	interface ActiveCapture {
 		stdout: Uint8Array[];
 		stderr: Uint8Array[];
@@ -160,13 +143,8 @@ export async function bootPosixKernelWordPress(
 	let activeCapture: ActiveCapture | null = null;
 
 	const kernelHost = new bridge.NodeKernelHost({
-		maxWorkers: 8,
+		maxWorkers: 16,
 		rootfsImage: 'default',
-		// Always on, mirroring the browser kernel, which attaches its TLS
-		// backend regardless of `features.networking`. The browser gates
-		// networking one layer up (disabling `curl_exec`/`allow_url_fopen`
-		// in the FPM pool), not at the transport; the CLI doesn't wire that
-		// PHP-level gate yet.
 		enableTcpNetwork: true,
 		extraMounts: [
 			{
@@ -186,18 +164,19 @@ export async function bootPosixKernelWordPress(
 		onStdout: (_pid, data) => {
 			if (activeCapture) {
 				activeCapture.stdout.push(data);
-			} else {
+			} else if (!options.quiet) {
 				process.stdout.write(data);
 			}
 		},
 		onStderr: (_pid, data) => {
 			if (activeCapture) {
 				activeCapture.stderr.push(data);
-			} else {
+			} else if (!options.quiet) {
 				process.stderr.write(data);
 			}
 		},
 	});
+
 	await kernelHost.init();
 
 	let disposed = false;
@@ -206,7 +185,9 @@ export async function bootPosixKernelWordPress(
 		if (disposed) {
 			return;
 		}
+
 		disposed = true;
+
 		try {
 			await kernelHost.destroy();
 		} catch (e) {
@@ -217,26 +198,59 @@ export async function bootPosixKernelWordPress(
 	};
 
 	try {
-		spawnNginx(
+		const nginx = spawnLongRunning(
 			kernelHost,
+			'nginx',
 			nginxBytes,
-			renderedNginxConfKernelPath,
+			[
+				'nginx',
+				'-p',
+				`${options.tempDirKernelPath}/`,
+				'-c',
+				renderedNginxConfKernelPath,
+			],
 			options.tempDirKernelPath
 		);
-		spawnPhpFpm(
+		const phpFpm = spawnLongRunning(
 			kernelHost,
+			'php-fpm',
 			phpFpmBytes,
-			fpmConfKernelPath,
+			[
+				'php-fpm',
+				'-y',
+				fpmConfKernelPath,
+				'-c',
+				'/dev/null',
+				'-d',
+				'extension_dir=/usr/lib/php/extensions',
+				'-d',
+				'extension=zip.so',
+				'-d',
+				'extension=curl.so',
+				'-d',
+				'extension=phar.so',
+				'-d',
+				'curl.cainfo=/etc/ssl/certs/ca-certificates.crt',
+				'--nodaemonize',
+				'-R',
+			],
 			options.wordPressRootKernelPath
 		);
-		// FPM is kernel-internal; probe loopback, not the user-chosen
-		// nginx bind host.
-		await waitForLoopback(DEFAULT_HOST, fpmPort, FPM_BOOT_GRACE_MS).catch(
-			() => {
-				/* nginx will retry */
-			}
+
+		await waitForFile(
+			joinPaths(options.tempDirHostPath, 'php-fpm.sock'),
+			phpFpm
 		);
-		await waitForLoopback(host, options.port, NGINX_READY_TIMEOUT_MS);
+		await waitForInKernelReadiness({
+			kernelHost,
+			port: options.port,
+			hostHeader: `${host}:${options.port}`,
+			bootId,
+			daemons: [nginx, phpFpm],
+		});
+		if (options.requireHostTcpPort) {
+			await waitForHostTcpPort(host, options.port, bootId);
+		}
 	} catch (e) {
 		await dispose();
 		throw e;
@@ -268,8 +282,7 @@ export async function bootPosixKernelWordPress(
 					}
 				}
 			});
-			// Keep the chain alive on rejection so the next queued capture
-			// can still proceed.
+
 			captureChain = next.catch(() => undefined);
 			return next;
 		},
@@ -303,7 +316,8 @@ function concatBytes(chunks: Uint8Array[]): Uint8Array {
 function renderNginxConf(args: {
 	host: string;
 	port: number;
-	fpmPort: number;
+	fpmSocketKernelPath: string;
+	bootId: string;
 	serverName: string;
 	wordPressRootKernelPath: string;
 	routerScriptKernelPath: string;
@@ -315,7 +329,8 @@ function renderNginxConf(args: {
 	const rendered = args.template
 		.replaceAll('__HOST__', args.host)
 		.replaceAll('__PORT__', String(args.port))
-		.replaceAll('__FPM_PORT__', String(args.fpmPort))
+		.replaceAll('__FPM_SOCKET__', args.fpmSocketKernelPath)
+		.replaceAll('__BOOT_ID__', args.bootId)
 		.replaceAll('__SERVER_NAME__', args.serverName)
 		.replaceAll('__WORDPRESS_ROOT__', args.wordPressRootKernelPath)
 		.replaceAll('__ROUTER_SCRIPT__', args.routerScriptKernelPath)
@@ -326,58 +341,13 @@ function renderNginxConf(args: {
 		);
 	const outHostPath = joinPaths(args.tempDirHostPath, 'nginx.conf');
 	writeFileSync(outHostPath, rendered);
-	// Return the kernel path: nginx parses argv through musl, which only
-	// treats `/`-rooted paths as absolute.
+
 	return joinPaths(args.tempDirKernelPath, 'nginx.conf');
 }
 
-function spawnPhpFpm(
-	host: NodeKernelHost,
-	bytes: ArrayBuffer,
-	confPath: string,
-	cwd: string
-): void {
-	spawnLongRunning(
-		host,
-		'php-fpm',
-		bytes,
-		[
-			'php-fpm',
-			'-y',
-			confPath,
-			'-c',
-			'/dev/null',
-			'-d',
-			'extension_dir=/usr/lib/php/extensions',
-			'-d',
-			'extension=zip.so',
-			'-d',
-			'extension=curl.so',
-			'-d',
-			'extension=phar.so',
-			// The WASM curl.so has no built-in CA bundle; point it at the
-			// one the kernel worker installs. Mirrors vfs-builder.ts.
-			'-d',
-			'curl.cainfo=/etc/ssl/certs/ca-certificates.crt',
-			'--nodaemonize',
-		],
-		cwd
-	);
-}
-
-function spawnNginx(
-	host: NodeKernelHost,
-	bytes: ArrayBuffer,
-	confPath: string,
-	cwd: string
-): void {
-	spawnLongRunning(
-		host,
-		'nginx',
-		bytes,
-		['nginx', '-p', `${cwd}/`, '-c', confPath],
-		cwd
-	);
+interface DaemonHandle {
+	name: string;
+	exitStatus: number | null;
 }
 
 function spawnLongRunning(
@@ -386,49 +356,141 @@ function spawnLongRunning(
 	bytes: ArrayBuffer,
 	argv: string[],
 	cwd: string
-): void {
+): DaemonHandle {
+	const handle: DaemonHandle = { name, exitStatus: null };
 	host.spawn(bytes, argv, {
 		env: ['HOME=/tmp', 'PATH=/usr/local/bin:/usr/bin:/bin'],
 		cwd,
 	}).then(
 		(status) => {
+			handle.exitStatus = status;
 			logger.debug(`[posix-kernel] ${name} exited with status ${status}`);
 		},
 		(error) => {
+			handle.exitStatus = -1;
 			logger.error(
 				`[posix-kernel] ${name} spawn failed: ${describeError(error)}`
 			);
 		}
 	);
+	return handle;
 }
 
-async function waitForLoopback(
-	host: string,
-	port: number,
-	timeoutMs: number
+async function waitForFile(
+	hostPath: string,
+	daemon: DaemonHandle
 ): Promise<void> {
-	const deadline = Date.now() + timeoutMs;
-	let lastError: unknown;
+	const deadline = Date.now() + READINESS_TIMEOUT_MS;
 	while (Date.now() < deadline) {
-		try {
-			await new Promise<void>((resolve, reject) => {
-				const socket = connect({ port, host });
-				socket.once('connect', () => {
-					socket.end();
-					resolve();
-				});
-				socket.once('error', reject);
-			});
-			return;
-		} catch (e) {
-			lastError = e;
-			await new Promise((resolve) => setTimeout(resolve, 150));
+		if (daemon.exitStatus !== null) {
+			throw new Error(
+				`${daemon.name} exited with status ${daemon.exitStatus} ` +
+					`before WordPress became ready.`
+			);
 		}
+		if (existsSync(hostPath)) {
+			return;
+		}
+		await delay(PROBE_INTERVAL_MS);
 	}
 	throw new Error(
-		`Timed out waiting for ${host}:${port} after ${timeoutMs}ms ` +
-			`(${describeError(lastError)}).`
+		`${daemon.name} did not create ${hostPath} within ` +
+			`${READINESS_TIMEOUT_MS}ms.`
 	);
+}
+
+async function waitForInKernelReadiness(args: {
+	kernelHost: NodeKernelHost;
+	port: number;
+	hostHeader: string;
+	bootId: string;
+	daemons: DaemonHandle[];
+}): Promise<void> {
+	const deadline = Date.now() + READINESS_TIMEOUT_MS;
+	let lastFailure = 'no probe completed';
+	while (Date.now() < deadline) {
+		const dead = args.daemons.find((d) => d.exitStatus !== null);
+		if (dead) {
+			throw new Error(
+				`${dead.name} exited with status ${dead.exitStatus} before ` +
+					`WordPress became ready.`
+			);
+		}
+		try {
+			const response = await args.kernelHost.fetchInKernel(
+				args.port,
+				{
+					method: 'GET',
+					url: PROBE_PATH,
+					headers: { Host: args.hostHeader },
+					body: null,
+				},
+				{ timeoutMs: 5_000 }
+			);
+			if (
+				response.status === 200 &&
+				new TextDecoder().decode(response.body) === args.bootId
+			) {
+				return;
+			}
+			lastFailure =
+				response.status === 502
+					? `PHP-FPM is not accepting connections yet (HTTP 502)`
+					: `HTTP ${response.status}`;
+		} catch (e) {
+			lastFailure = describeError(e);
+		}
+		await delay(PROBE_INTERVAL_MS);
+	}
+	throw new Error(
+		`nginx + PHP-FPM did not become ready within ` +
+			`${READINESS_TIMEOUT_MS}ms (last probe: ${lastFailure}).`
+	);
+}
+
+async function waitForHostTcpPort(
+	host: string,
+	port: number,
+	bootId: string
+): Promise<void> {
+	const deadline = Date.now() + HOST_TCP_TIMEOUT_MS;
+	let lastFailure = 'no probe completed';
+	while (Date.now() < deadline) {
+		try {
+			const response = await fetch(`http://${host}:${port}${PROBE_PATH}`);
+			const body = await response.text();
+			if (response.status === 200 && body === bootId) {
+				return;
+			}
+			throw new Error(
+				`Port ${port} is already in use by another server ` +
+					`(http://${host}:${port} answered with a different site).`
+			);
+		} catch (e) {
+			if (!isConnectionRefused(e)) {
+				throw e;
+			}
+			lastFailure = describeError(e);
+		}
+		await delay(PROBE_INTERVAL_MS);
+	}
+	throw new Error(
+		`nginx never opened ${host}:${port} on the host ` +
+			`(last probe: ${lastFailure}).`
+	);
+}
+
+function isConnectionRefused(e: unknown): boolean {
+	const cause = e instanceof Error ? (e.cause ?? e) : e;
+	return (
+		typeof cause === 'object' &&
+		cause !== null &&
+		(cause as { code?: string }).code === 'ECONNREFUSED'
+	);
+}
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function describeError(e: unknown): string {

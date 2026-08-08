@@ -1,5 +1,5 @@
 import {
-	chmodSync,
+	mkdirSync,
 	mkdtempSync,
 	readFileSync,
 	rmSync,
@@ -26,11 +26,12 @@ import type {
 } from '../../src/posix-kernel/boot';
 import { KernelLimitedPHPApi } from '../../src/posix-kernel/php-api';
 import { prepareWordPressForPosixKernel } from '../../src/posix-kernel/prepare-wordpress';
-import { reserveFreePort } from '../../src/start-server';
 import {
 	createPosixKernelTempDir,
 	type PosixKernelTempDir,
 } from '../../src/posix-kernel/temp-dir';
+
+const TEST_PORT = 49152 + (process.pid % 16384);
 
 describe('--experimental-posix-kernel KernelLimitedPHPApi.run stdout capture', () => {
 	let tempDir: PosixKernelTempDir;
@@ -45,9 +46,8 @@ describe('--experimental-posix-kernel KernelLimitedPHPApi.run stdout capture', (
 			wordPressRoot: wordPressRootHostPath,
 			wpVersionQuery: 'latest',
 		});
-		const port = await reserveFreePort();
 		booted = await bootPosixKernelWordPress({
-			port,
+			port: TEST_PORT,
 			wordPressRootHostPath,
 			wordPressRootKernelPath,
 			tempDirHostPath: tempDir.hostPath,
@@ -57,6 +57,8 @@ describe('--experimental-posix-kernel KernelLimitedPHPApi.run stdout capture', (
 			serverUrl: booted.serverUrl,
 			wordPressRootHostPath,
 			wordPressRootKernelPath,
+			tempDirHostPath: tempDir.hostPath,
+			tempDirKernelPath: tempDir.kernelPath,
 			phpWasmPath: booted.runtime.phpWasmPath,
 			runtime: booted.runtime,
 		});
@@ -89,6 +91,14 @@ describe('--experimental-posix-kernel KernelLimitedPHPApi.run stdout capture', (
 		}
 	}, 120_000);
 
+	it('lets in-kernel PHP read a /tmp file staged through writeFile', async () => {
+		api.writeFile('/tmp/staged-probe.txt', 'STAGED_OK');
+		const response = await api.run({
+			code: `<?php echo file_get_contents('/tmp/staged-probe.txt');`,
+		});
+		expect(response.text).toBe('STAGED_OK');
+	}, 60_000);
+
 	it('resolves scriptPath against the kernel-side doc root', async () => {
 		api.writeFile(
 			'/wordpress/script-path-probe.php',
@@ -117,28 +127,34 @@ function makeStubRuntime(): KernelRuntime & {
 }
 
 describe('KernelLimitedPHPApi (unit)', () => {
+	let tempDirHostPath: string;
 	let hostRoot: string;
 	let fakeWasmPath: string;
 	let api: KernelLimitedPHPApi;
 	let runtime: ReturnType<typeof makeStubRuntime>;
 
+	const tempDirKernelPath = '/tmp/kernel-doc';
+
 	beforeEach(() => {
-		hostRoot = mkdtempSync(join(tmpdir(), 'kernel-php-api-unit-'));
-		chmodSync(hostRoot, 0o755);
-		fakeWasmPath = join(hostRoot, 'fake.wasm');
+		tempDirHostPath = mkdtempSync(join(tmpdir(), 'kernel-php-api-unit-'));
+		hostRoot = join(tempDirHostPath, 'wordpress');
+		mkdirSync(hostRoot, { recursive: true });
+		fakeWasmPath = join(tempDirHostPath, 'fake.wasm');
 		writeFileSync(fakeWasmPath, new Uint8Array([0x00, 0x61, 0x73, 0x6d]));
 		runtime = makeStubRuntime();
 		api = new KernelLimitedPHPApi({
 			serverUrl: 'http://127.0.0.1:0',
 			wordPressRootHostPath: hostRoot,
-			wordPressRootKernelPath: '/tmp/kernel-doc/wordpress',
+			wordPressRootKernelPath: `${tempDirKernelPath}/wordpress`,
+			tempDirHostPath,
+			tempDirKernelPath,
 			phpWasmPath: fakeWasmPath,
 			runtime,
 		});
 	});
 
 	afterEach(() => {
-		rmSync(hostRoot, { recursive: true, force: true });
+		rmSync(tempDirHostPath, { recursive: true, force: true });
 	});
 
 	describe('path translation', () => {
@@ -155,14 +171,66 @@ describe('KernelLimitedPHPApi (unit)', () => {
 		it('reads back a file written under the documentRoot prefix', () => {
 			writeFileSync(join(hostRoot, 'bar.txt'), 'bar');
 			expect(
-				api.readFileAsText('/tmp/kernel-doc/wordpress/bar.txt')
+				api.readFileAsText(`${tempDirKernelPath}/wordpress/bar.txt`)
 			).toBe('bar');
 		});
 
-		it('passes-through unrelated absolute host paths', () => {
-			const probe = join(hostRoot, 'probe.txt');
-			writeFileSync(probe, 'probe');
-			expect(api.readFileAsText(probe)).toBe('probe');
+		it('passes a native Windows host path through untranslated', async () => {
+			await api.run({ scriptPath: 'C:\\sites\\probe.php' });
+			const argv = runtime.spawnCapturing.mock.calls[0][0]
+				.argv as string[];
+			expect(argv[argv.length - 1]).toBe('C:\\sites\\probe.php');
+		});
+
+		it('writes /tmp/foo.zip into the kernel-visible scratch dir', () => {
+			api.writeFile('/tmp/foo.zip', 'zip');
+			expect(
+				readFileSync(
+					join(tempDirHostPath, 'vfs-tmp', 'foo.zip'),
+					'utf8'
+				)
+			).toBe('zip');
+		});
+
+		it('resolves the bare /tmp root to the scratch dir', () => {
+			expect(api.isDir('/tmp')).toBe(true);
+			expect(api.listFiles('/tmp')).toEqual([]);
+		});
+
+		it('reads back a /tmp file the host wrote to the scratch dir', () => {
+			writeFileSync(join(tempDirHostPath, 'vfs-tmp', 'baz.txt'), 'baz');
+			expect(api.readFileAsText('/tmp/baz.txt')).toBe('baz');
+		});
+
+		it('leaves an already-kernel script path alone', async () => {
+			const scriptPath = `${tempDirKernelPath}/wordpress/run-cli.php`;
+			await api.run({ scriptPath });
+			const argv = runtime.spawnCapturing.mock.calls[0][0]
+				.argv as string[];
+			expect(argv[argv.length - 1]).toBe(scriptPath);
+		});
+
+		it('resolves a /tmp script path to the same place writeFile used', async () => {
+			api.writeFile('/tmp/probe.php', '<?php');
+			await api.run({ scriptPath: '/tmp/probe.php' });
+			const argv = runtime.spawnCapturing.mock.calls[0][0]
+				.argv as string[];
+			expect(argv[argv.length - 1]).toBe(
+				`${tempDirKernelPath}/vfs-tmp/probe.php`
+			);
+		});
+	});
+
+	describe('run() failure semantics', () => {
+		it('throws on a non-zero exit code, mirroring PHP.run()', async () => {
+			runtime.spawnCapturing.mockResolvedValueOnce({
+				exitCode: 255,
+				stdout: new Uint8Array(),
+				stderr: new TextEncoder().encode('Fatal error: boom'),
+			});
+			await expect(api.run({ code: '<?php exit(255);' })).rejects.toThrow(
+				/exit code 255[\s\S]*Fatal error: boom/
+			);
 		});
 	});
 
@@ -187,6 +255,40 @@ describe('KernelLimitedPHPApi (unit)', () => {
 			expect(code).not.toContain("'/wordpress/foo'");
 		});
 
+		it('rewrites /tmp references to the kernel-visible scratch dir', async () => {
+			await api.run({ code: "<?php echo '/tmp/file.zip';" });
+
+			const argv = runtime.spawnCapturing.mock.calls[0][0]
+				.argv as string[];
+			const code = argv[argv.length - 1];
+			expect(code).toContain(
+				`echo '${tempDirKernelPath}/vfs-tmp/file.zip'`
+			);
+			expect(code).not.toContain("'/tmp/file.zip'");
+		});
+
+		it('leaves an already-kernel path under the mount root alone', async () => {
+			const kernelPath = `${tempDirKernelPath}/wordpress/x.php`;
+			await api.run({ code: `<?php echo '${kernelPath}';` });
+
+			const argv = runtime.spawnCapturing.mock.calls[0][0]
+				.argv as string[];
+			expect(argv[argv.length - 1]).toContain(`echo '${kernelPath}'`);
+		});
+
+		it('rewrites /tmp references passed through env', async () => {
+			await api.run({
+				code: '<?php echo 1;',
+				env: { PLAYGROUND_UNZIP_ZIP_PATH: '/tmp/file.zip' },
+			});
+
+			const env = runtime.spawnCapturing.mock.calls[0][0].options
+				.env as string[];
+			expect(env).toContain(
+				`PLAYGROUND_UNZIP_ZIP_PATH=${tempDirKernelPath}/vfs-tmp/file.zip`
+			);
+		});
+
 		it('rejects non-finite numbers when serializing constants', async () => {
 			api.defineConstant('BAD', Number.POSITIVE_INFINITY);
 			await expect(api.run({ code: '<?php echo 1;' })).rejects.toThrow(
@@ -199,7 +301,9 @@ describe('KernelLimitedPHPApi (unit)', () => {
 			const second = new KernelLimitedPHPApi({
 				serverUrl: 'http://127.0.0.1:0',
 				wordPressRootHostPath: hostRoot,
-				wordPressRootKernelPath: '/tmp/kernel-doc/wordpress',
+				wordPressRootKernelPath: `${tempDirKernelPath}/wordpress`,
+				tempDirHostPath,
+				tempDirKernelPath,
 				phpWasmPath: fakeWasmPath,
 				runtime,
 			});

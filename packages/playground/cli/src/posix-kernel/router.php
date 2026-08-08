@@ -1,17 +1,14 @@
 <?php
-/**
- * Single FastCGI entry point. The kernel-built nginx lacks PCRE, so it
- * can't dispatch by extension — every request lands here and is routed
- * to a static file, an existing PHP file, or WordPress's index.php.
- */
 
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $docRoot = $_SERVER['DOCUMENT_ROOT'];
 $file = $docRoot . $uri;
 
-// First-request middleware: clear a stale `playground_auto_login_already_happened`
-// cookie if present. @unlink is atomic, so only one FPM worker consumes
-// the marker. The handler arms it post-install so the install probe falls through.
+if (isset($_GET['__playground_probe'])) {
+    header('Content-Type: text/plain');
+    exit($_SERVER['PLAYGROUND_BOOT_ID'] ?? '');
+}
+
 $firstRequestMarker = $_SERVER['PLAYGROUND_FIRST_REQUEST_MARKER'] ?? '';
 if ($firstRequestMarker !== '' && @unlink($firstRequestMarker)) {
     $cookieHeader = $_SERVER['HTTP_COOKIE'] ?? '';
@@ -24,8 +21,6 @@ if ($firstRequestMarker !== '' && @unlink($firstRequestMarker)) {
     }
 }
 
-// Apply CLI-defined constants before bare PHP files that bypass WP.
-// The same file is also loaded by WordPress as a mu-plugin.
 $definesScript = $docRoot . '/wp-content/mu-plugins/0-playground-defines.php';
 
 if (is_file($definesScript)) {
@@ -67,8 +62,6 @@ if ($uri !== '/' && is_file($file)) {
 	}
 }
 
-// DirectoryIndex: /wp-admin/ etc. land on a directory; without this
-// they'd fall through to the WP front-end and miss the admin dashboard.
 if (is_dir($file)) {
 	$dirIndex = rtrim($file, '/') . '/index.php';
 	if (is_file($dirIndex)) {
