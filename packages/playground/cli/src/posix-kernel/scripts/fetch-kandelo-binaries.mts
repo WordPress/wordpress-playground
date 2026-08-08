@@ -4,7 +4,7 @@
  * against the committed pinned index (kandelo-pinned-binaries-index.toml).
  *
  * Why not `kandelo/scripts/fetch-binaries.sh`:
- * - It resolves against the live `binaries-abi-v39` release index, which
+ * - It resolves against the live `binaries-abi-v<N>` release index, which
  *   kandelo CI republishes (including from unmerged branches), so its
  *   cache keys can stop matching the kandelo submodule pin at any moment.
  * - It compiles kandelo's Rust `xtask` resolver, which adds a Rust
@@ -24,8 +24,8 @@
  *
  * Downloads are verified against the pinned sha256 and cached in
  * ~/.cache/wp-playground-kandelo/. After bumping the kandelo submodule,
- * regenerate the pinned index with scripts/generate-kandelo-pinned-index.mts
- * and commit both together; this script fails loudly when the index was
+ * regenerate the pinned index with generate-kandelo-pinned-index.mts and
+ * commit both together; this script fails loudly when the index was
  * generated for a different submodule commit.
  *
  * Requires Node >= 22.18 (zstdDecompressSync in node:zlib and TypeScript
@@ -68,11 +68,9 @@ interface ManifestOutput {
 	wasm?: string;
 }
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INDEX_PATH = join(
-	REPO_ROOT,
-	'scripts/kandelo-pinned-binaries-index.toml'
-);
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(SCRIPT_DIR, '../../../../../..');
+const INDEX_PATH = join(SCRIPT_DIR, 'kandelo-pinned-binaries-index.toml');
 const SUBMODULE_DIR = join(REPO_ROOT, 'kandelo');
 const BINARIES_DIR = join(SUBMODULE_DIR, 'binaries');
 const CACHE_DIR = join(homedir(), '.cache', 'wp-playground-kandelo');
@@ -116,9 +114,8 @@ async function main(): Promise<void> {
 
 /**
  * Minimal parser for the pinned index this repo generates itself
- * (scripts/generate-kandelo-pinned-index.mts): a `generator = "..."`
- * header plus [[packages]] blocks with name / archive_url /
- * archive_sha256 keys.
+ * (generate-kandelo-pinned-index.mts): a `generator = "..."` header plus
+ * [[packages]] blocks with name / archive_url / archive_sha256 keys.
  */
 function parsePinnedIndex(toml: string): PinnedIndex {
 	const generator = toml.match(/^generator\s*=\s*"([^"]*)"/m)?.[1] ?? '';
@@ -182,7 +179,8 @@ function verifySubmodulePin(generator: string): void {
 		fail(
 			`pinned index was generated for kandelo ${pinned} but the ` +
 				`submodule is at ${actual}. Run ` +
-				`scripts/generate-kandelo-pinned-index.mts and commit the ` +
+				`packages/playground/cli/src/posix-kernel/scripts/` +
+				`generate-kandelo-pinned-index.mts and commit the ` +
 				`regenerated index together with the submodule bump.`
 		);
 	}

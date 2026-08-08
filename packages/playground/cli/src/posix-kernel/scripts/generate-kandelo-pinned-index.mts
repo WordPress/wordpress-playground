@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Regenerate `scripts/kandelo-pinned-binaries-index.toml` for the current
- * kandelo submodule checkout. Run this after bumping the kandelo submodule
- * and commit the regenerated index together with the bump:
+ * Regenerate `kandelo-pinned-binaries-index.toml` for the current kandelo
+ * submodule checkout. Run this after bumping the kandelo submodule and
+ * commit the regenerated index together with the bump:
  *
- *     node scripts/generate-kandelo-pinned-index.mts
+ *     node packages/playground/cli/src/posix-kernel/scripts/generate-kandelo-pinned-index.mts
  *
- * For each package listed in `scripts/fetch-kandelo-binaries.mts` this:
+ * For each package listed in `fetch-kandelo-binaries.mts` this:
  * - asks xtask for the package's cache_key_sha at the current checkout,
  * - downloads the matching immutable release archive (fails if the
  *   release doesn't carry a build for that cache key yet — wait for
@@ -26,16 +26,16 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
+const SCRIPT_DIR = fileURLToPath(new URL('.', import.meta.url));
+const REPO_ROOT = resolve(SCRIPT_DIR, '../../../../../..');
 const KANDELO_DIR = join(REPO_ROOT, 'kandelo');
-const OUT = join(REPO_ROOT, 'scripts/kandelo-pinned-binaries-index.toml');
-const RELEASE_BASE =
-	'https://github.com/Automattic/kandelo/releases/download/binaries-abi-v39';
+const OUT = join(SCRIPT_DIR, 'kandelo-pinned-binaries-index.toml');
+const RELEASES_BASE = 'https://github.com/Automattic/kandelo/releases/download';
 const DOWNLOAD_DIR =
 	process.env['KANDELO_PINNED_ARCHIVE_DIR'] ??
 	join(tmpdir(), `kandelo-pinned-${process.pid}`);
 
-// Keep in sync with NEEDED in scripts/fetch-kandelo-binaries.mts.
+// Keep in sync with NEEDED in fetch-kandelo-binaries.mts.
 const PACKAGES = ['kernel', 'userspace', 'rootfs', 'nginx', 'php'];
 
 main().catch((error: unknown) => {
@@ -49,9 +49,11 @@ async function main(): Promise<void> {
 	const pin = execFileSync('git', ['-C', KANDELO_DIR, 'rev-parse', 'HEAD'], {
 		encoding: 'utf8',
 	}).trim();
+	const abiVersion = readAbiVersion();
+	const releaseBase = `${RELEASES_BASE}/binaries-abi-v${abiVersion}`;
 
 	const sections = [
-		`abi_version = 39`,
+		`abi_version = ${abiVersion}`,
 		`generated_at = "${generatedAt}"`,
 		`generator = "wordpress-playground pinned snapshot (kandelo @ ${pin})"`,
 	];
@@ -76,9 +78,9 @@ async function main(): Promise<void> {
 			basename(cachePath)
 		);
 		const archive =
-			`${pkg}-${version}-rev${revision}-abi39-wasm32-` +
+			`${pkg}-${version}-rev${revision}-abi${abiVersion}-wasm32-` +
 			`${cacheKey.slice(0, 8)}.tar.zst`;
-		const url = `${RELEASE_BASE}/${archive}`;
+		const url = `${releaseBase}/${archive}`;
 
 		log(
 			`--- ${pkg}: version=${version} rev=${revision} key=${cacheKey.slice(0, 8)}`
@@ -119,6 +121,25 @@ function rustHostTarget(): string {
 		fail(`could not read the host target from \`rustc -vV\``);
 	}
 	return host;
+}
+
+/**
+ * Read the ABI version the submodule checkout builds against. Kandelo's
+ * own `run.sh` reads the same constant with the same pattern, so the
+ * release tag and the archive names always follow the checkout.
+ */
+function readAbiVersion(): string {
+	const lib = readFileSync(
+		join(KANDELO_DIR, 'crates/shared/src/lib.rs'),
+		'utf8'
+	);
+	const abiVersion = lib.match(/^pub const ABI_VERSION: u32 = (\d+);$/m)?.[1];
+	if (!abiVersion) {
+		fail(
+			`could not read ABI_VERSION from kandelo/crates/shared/src/lib.rs`
+		);
+	}
+	return abiVersion;
 }
 
 /**

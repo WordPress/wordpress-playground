@@ -68,8 +68,10 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
-import type { KernelLimitedPHPApi } from './posix-kernel/php-api';
-import { PosixKernelHandler } from './posix-kernel/posix-kernel-handler';
+import {
+	type PosixKernelRunCliServer,
+	runCLIWithPosixKernel,
+} from './posix-kernel/run-cli';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	type Mount,
@@ -937,22 +939,14 @@ export interface RunCLIServer extends AsyncDisposable {
 	};
 }
 
-/**
- * Server returned by `--experimental-posix-kernel`. Kernel-resident
- * nginx is the front door, so no Node `http.Server` and no worker pool.
- */
-export interface PosixKernelRunCliServer extends AsyncDisposable {
-	serverUrl: string;
-	playground: KernelLimitedPHPApi;
-	[Symbol.asyncDispose](): Promise<void>;
-}
-
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
 
 // Re-export merge functions from defines.ts
 export { mergeDefinedConstants } from './defines';
+
+export type { PosixKernelRunCliServer };
 
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
@@ -2198,53 +2192,6 @@ function openInBrowser(url: string): void {
 			logger.debug(`Could not open browser: ${error.message}`);
 		}
 	});
-}
-
-async function runCLIWithPosixKernel(
-	args: RunCLIArgs
-): Promise<PosixKernelRunCliServer> {
-	if (args.command !== 'server') {
-		throw new Error(
-			'--experimental-posix-kernel currently only supports the "server" command.'
-		);
-	}
-
-	for (const flag of ['xdebug', 'redis', 'memcached'] as const) {
-		if (args[flag]) {
-			throw new Error(
-				`--${flag} is not supported with --experimental-posix-kernel yet.`
-			);
-		}
-	}
-
-	const cliOutput = new CLIOutput({
-		verbosity: args.verbosity || 'normal',
-	});
-	const handler = new PosixKernelHandler(args, { cliOutput });
-
-	if (typeof args.blueprint === 'string') {
-		args.blueprint = await resolveBlueprint({
-			sourceString: args.blueprint,
-			blueprintMayReadAdjacentFiles:
-				args['blueprint-may-read-adjacent-files'] === true,
-		});
-	}
-
-	const { serverUrl, api, dispose } = await handler.bootWordPress();
-	try {
-		await handler.runBlueprint(api);
-	} catch (e) {
-		await dispose();
-		throw e;
-	}
-
-	cliOutput.print(`WordPress is ready at ${serverUrl}`);
-
-	return {
-		serverUrl,
-		playground: api,
-		[Symbol.asyncDispose]: dispose,
-	};
 }
 
 async function zipSite(

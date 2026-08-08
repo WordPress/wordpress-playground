@@ -134,6 +134,25 @@ describe(
 			}
 		);
 
+		test('should exit after run-blueprint instead of serving', async () => {
+			// No `await using`: run-blueprint owns its own teardown. A
+			// returned handle would mean nginx and the kernel host are
+			// still up with nobody left to dispose them.
+			const result = await runCLI({
+				command: 'run-blueprint',
+				'experimental-posix-kernel': true,
+				blueprint: {
+					steps: [
+						{
+							step: 'setSiteOptions',
+							options: { blogname: 'My Blog Name' },
+						},
+					],
+				},
+			});
+			expect(result).toBeUndefined();
+		});
+
 		test('should use default site-url when not provided', async () => {
 			// port: 0 to dodge contention with the sibling classic spec.
 			await using cliServer = await runCLI({
@@ -374,13 +393,15 @@ describe(
 );
 
 describe('--experimental-posix-kernel flag validation', () => {
-	test('rejects non-server commands', async () => {
+	test('rejects unsupported commands', async () => {
 		await expect(
 			runCLI({
 				command: 'build-snapshot' as any,
 				'experimental-posix-kernel': true,
 			} as any)
-		).rejects.toThrow(/only supports the "server" command/);
+		).rejects.toThrow(
+			/only supports the "server" and "run-blueprint" commands/
+		);
 	});
 
 	test('rejects --xdebug', async () => {

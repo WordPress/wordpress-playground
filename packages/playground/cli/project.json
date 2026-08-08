@@ -147,7 +147,6 @@
 				"{workspaceRoot}/coverage/packages/playground/cli-posix-kernel"
 			],
 			"options": {
-				"passWithNoTests": true,
 				"configFile": "packages/playground/cli/vite.posix-kernel.config.ts",
 				"reportsDirectory": "../../../coverage/packages/playground/cli-posix-kernel"
 			}

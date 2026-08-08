@@ -56,7 +56,12 @@ export class PosixKernelHandler {
 				mount.hostPath
 		);
 
-		const requestedPort = this.args.port ?? 9400;
+		// Only `server` keeps the well-known port. `run-blueprint` exits
+		// once the Blueprint is done, so it takes an ephemeral port and
+		// never collides with a running server. Mirrors `selectedPort`
+		// in run-cli.ts.
+		const requestedPort =
+			this.args.command === 'server' ? (this.args.port ?? 9400) : 0;
 		const port =
 			requestedPort === 0 || (await isPortInUse(requestedPort))
 				? await reserveFreePort()

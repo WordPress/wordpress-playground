@@ -143,7 +143,7 @@ const external = [
 	'@wp-playground/blueprints',
 ];
 
-export const cliViteConfig = {
+export default defineConfig({
 	root: __dirname,
 	base: './',
 	assetsInclude: ['**/*.ini'],
@@ -208,19 +208,10 @@ export const cliViteConfig = {
 		testTimeout: 30000,
 		poolOptions: {
 			forks: {
-				// Cap concurrency so per-fork kandelo + nginx + php-fpm
-				// cold-starts stay within NGINX_READY_TIMEOUT_MS. minForks
-				// is set explicitly because tinypool rejects a CPU-derived
-				// default that exceeds maxForks.
-				maxForks: 2,
-				minForks: 1,
 				execArgv: [
 					'--experimental-strip-types',
 					'--experimental-transform-types',
 					'--disable-warning=ExperimentalWarning',
-					// kandelo's kernel.wasm needs WebAssembly exnref, which
-					// Node 24's V8 keeps behind a flag.
-					'--experimental-wasm-exnref',
 					// Use our own ESM loader to help resolve modules within the Worker script.
 					'--import',
 					// Convert path to file:// URL because it is required for running in Windows.
@@ -234,6 +225,4 @@ export const cliViteConfig = {
 			},
 		},
 	},
-};
-
-export default defineConfig(cliViteConfig);
+});
