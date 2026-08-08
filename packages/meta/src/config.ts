@@ -2,7 +2,7 @@ const gitRepoOwner = 'WordPress';
 export const config = {
 	slug: 'wordpress-playground',
 	name: 'Playground',
-	team: 'Playgrouns Core',
+	team: 'Playground Core',
 	versionMilestoneFormat: '%(name)s %(major)s.%(minor)s',
 	githubRepositoryOwner: gitRepoOwner,
 	githubRepositoryName: 'playground',

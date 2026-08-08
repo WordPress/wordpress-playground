@@ -16,6 +16,9 @@ export default async function runExecutor(options: BuiltScriptExecutorSchema) {
 	const result = spawnSync('node', args, {
 		stdio: 'inherit',
 	});
+	if (result.error) {
+		throw result.error;
+	}
 	return {
 		success: result.status === 0,
 	};
