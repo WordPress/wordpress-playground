@@ -12,6 +12,32 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.49] (2026-08-10) 
+
+### Documentation
+
+- [docs] Correct "Open AI" branding to "OpenAI". ([#4245](https://github.com/WordPress/wordpress-playground/pull/4245))
+
+### Website
+
+- Add lightweight saved-site export API. ([#4219](https://github.com/WordPress/wordpress-playground/pull/4219))
+- Configure saved-site export API deployment. ([#4220](https://github.com/WordPress/wordpress-playground/pull/4220))
+- End-to-end Test for api.html site export. ([#4231](https://github.com/WordPress/wordpress-playground/pull/4231))
+- Explain the saved-site export API page. ([#4233](https://github.com/WordPress/wordpress-playground/pull/4233))
+- Hide incomplete autosaves from recovery. ([#4244](https://github.com/WordPress/wordpress-playground/pull/4244))
+- Prevent storage end-to-end retries from canceling CI. ([#4249](https://github.com/WordPress/wordpress-playground/pull/4249))
+
+### Bug Fixes
+
+- Fix doc screenshots skill Markdown. ([#4239](https://github.com/WordPress/wordpress-playground/pull/4239))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@amitraj2203 @ashfame @brandonpayton
+
+
 ## [v3.1.48] (2026-08-03) 
 
 ### Documentation
