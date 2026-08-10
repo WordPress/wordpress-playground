@@ -150,6 +150,11 @@ export interface UIState {
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
 	blueprintInstallMessage: string | null;
+	/**
+	 * Transient notice for work the app did on its own, such as an automatic
+	 * backup. Nothing else tells the user a file just landed on their device.
+	 */
+	backgroundNotice: string | null;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -188,6 +193,7 @@ const initialState: UIState = {
 		!isMobile,
 	siteManagerSection: 'site-details',
 	blueprintInstallMessage: null,
+	backgroundNotice: null,
 };
 
 const uiSlice = createSlice({
@@ -264,6 +270,12 @@ const uiSlice = createSlice({
 		) => {
 			state.blueprintInstallMessage = action.payload;
 		},
+		setBackgroundNotice: (
+			state,
+			action: PayloadAction<string | null>
+		) => {
+			state.backgroundNotice = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -313,6 +325,7 @@ export const {
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setBlueprintInstallMessage,
+	setBackgroundNotice,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
