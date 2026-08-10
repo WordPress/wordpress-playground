@@ -20,9 +20,17 @@ import {
 import { getWordPressVersionOptions } from './wordpress-version-options';
 
 type ConfigurableFields = Record<
-	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
+	keyof SiteFormData &
+		('wpVersion' | 'gutenbergBranch' | 'language' | 'multisite'),
 	boolean
 >;
+
+const GutenbergBranchOptions = [
+	{ label: 'No branch preview', value: '' },
+	{ label: 'Gutenberg trunk', value: 'trunk' },
+	{ label: 'WordPress next (wp/next)', value: 'wp/next' },
+	{ label: 'WordPress latest (wp/latest)', value: 'wp/latest' },
+];
 
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;
@@ -38,6 +46,7 @@ export interface SiteSettingsFormProps {
 export interface SiteFormData {
 	phpVersion: AllPHPVersion;
 	wpVersion: string;
+	gutenbergBranch: string;
 	language: string;
 	withNetworking: boolean;
 	multisite: boolean;
@@ -57,6 +66,7 @@ export function UnconnectedSiteSettingsForm({
 	defaultValues = {},
 	enabledFields = {
 		wpVersion: true,
+		gutenbergBranch: true,
 		language: true,
 		multisite: true,
 	},
@@ -65,6 +75,7 @@ export function UnconnectedSiteSettingsForm({
 		() => ({
 			phpVersion: RecommendedPHPVersion as AllPHPVersion,
 			wpVersion: 'latest',
+			gutenbergBranch: '',
 			language: '',
 			withNetworking: true,
 			multisite: false,
@@ -171,6 +182,25 @@ export function UnconnectedSiteSettingsForm({
 		];
 	}, [forcedPhpVersion]);
 
+	const gutenbergBranchOptions = useMemo(() => {
+		if (
+			!mergedDefaults.gutenbergBranch ||
+			GutenbergBranchOptions.some(
+				({ value }) => value === mergedDefaults.gutenbergBranch
+			)
+		) {
+			return GutenbergBranchOptions;
+		}
+		return [
+			GutenbergBranchOptions[0],
+			{
+				label: `${mergedDefaults.gutenbergBranch} (current branch)`,
+				value: mergedDefaults.gutenbergBranch,
+			},
+			...GutenbergBranchOptions.slice(1),
+		];
+	}, [mergedDefaults.gutenbergBranch]);
+
 	return (
 		<form
 			onSubmit={handleSubmit(onSubmit)}
@@ -220,6 +250,27 @@ export function UnconnectedSiteSettingsForm({
 								/>
 							)}
 						</div>
+					)}
+				/>
+
+				<Controller
+					control={control}
+					name="gutenbergBranch"
+					disabled={!enabledFields.gutenbergBranch}
+					render={({ field: { onChange, ...rest } }) => (
+						<SelectControl
+							size="compact"
+							__nextHasNoMarginBottom={true}
+							label="Gutenberg Branch"
+							labelPosition="side"
+							disabled={!enabledFields.gutenbergBranch}
+							className={css.addSiteInput}
+							options={gutenbergBranchOptions}
+							onChange={(value, extra) => {
+								onChange(extra?.event);
+							}}
+							{...rest}
+						/>
 					)}
 				/>
 
