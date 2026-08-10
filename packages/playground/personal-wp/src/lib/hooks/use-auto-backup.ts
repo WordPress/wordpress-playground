@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { usePlaygroundClient } from '../use-playground-client';
-import { useActiveSite } from '../state/redux/store';
+import { useActiveSite, useAppDispatch } from '../state/redux/store';
+import { setBackgroundNotice } from '../state/redux/slice-ui';
 import { useBackup } from './use-backup';
 import { shouldAutoBackup } from './use-auto-backup-utils';
+
+const NOTICE_DURATION_MS = 6000;
 
 export function useAutoBackup() {
 	const playground = usePlaygroundClient();
 	const activeSite = useActiveSite();
+	const dispatch = useAppDispatch();
 	const { performBackup } = useBackup();
 	const hasTriggeredRef = useRef(false);
 	const siteSlugRef = useRef<string | null>(null);
@@ -46,12 +50,26 @@ export function useAutoBackup() {
 		hasTriggeredRef.current = true;
 
 		// Delay the backup slightly to let the UI settle after WordPress boots
-		const timeoutId = setTimeout(() => {
-			performBackup();
+		let noticeTimeoutId: ReturnType<typeof setTimeout> | undefined;
+		const timeoutId = setTimeout(async () => {
+			const succeeded = await performBackup();
+			if (!succeeded) {
+				return;
+			}
+			// This is the one moment the app moves data off the device without
+			// being asked. Saying so is the difference between a private
+			// product and one that merely claims to be.
+			dispatch(
+				setBackgroundNotice('Backup saved to your Downloads folder')
+			);
+			noticeTimeoutId = setTimeout(() => {
+				dispatch(setBackgroundNotice(null));
+			}, NOTICE_DURATION_MS);
 		}, 3000);
 
 		return () => {
 			clearTimeout(timeoutId);
+			clearTimeout(noticeTimeoutId);
 		};
-	}, [playground, activeSite, performBackup]);
+	}, [playground, activeSite, performBackup, dispatch]);
 }
