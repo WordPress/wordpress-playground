@@ -1,5 +1,14 @@
-import { Button, Flex, FlexItem, Icon, TabPanel } from '@wordpress/components';
-import { chevronLeft, close, trash, external, upload } from '@wordpress/icons';
+import {
+	Button,
+	Flex,
+	FlexItem,
+	Icon,
+	Notice,
+	SelectControl,
+	TabPanel,
+	ToggleControl,
+} from '@wordpress/components';
+import { chevronLeft, close, trash, upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -51,6 +60,26 @@ const SiteFileBrowser = lazy(() =>
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
+const DEV_TOOLS_STORAGE_KEY = 'playground-personal-wp-show-dev-tools';
+
+// The developer tools preference belongs to the person, not to a site or a tab:
+// someone who turns them on once should not have to find the switch again in
+// another tab, and someone who never turns them on should never meet them.
+function getShowDevTools(): boolean {
+	try {
+		return localStorage.getItem(DEV_TOOLS_STORAGE_KEY) === 'true';
+	} catch {
+		return false;
+	}
+}
+
+function setShowDevTools(show: boolean): void {
+	try {
+		localStorage.setItem(DEV_TOOLS_STORAGE_KEY, show ? 'true' : 'false');
+	} catch {
+		// Silently fail if localStorage is not available
+	}
+}
 
 function getSiteLastTab(siteSlug: string): string | null {
 	try {
@@ -456,12 +485,12 @@ function BackupSection() {
 		? `Last download: ${getRelativeDate(new Date(lastBackup.timestamp))}`
 		: 'Never backed up';
 
-	const handleAutoBackupChange = (e: ChangeEvent<HTMLSelectElement>) => {
+	const handleAutoBackupChange = (value: string) => {
 		dispatch(
 			updateSiteMetadata({
 				slug: activeSite.slug,
 				metadata: {
-					autoBackupInterval: e.target.value as AutoBackupInterval,
+					autoBackupInterval: value as AutoBackupInterval,
 				},
 			})
 		);
@@ -470,49 +499,49 @@ function BackupSection() {
 	return (
 		<div className={css.aboutSection}>
 			<h4 className={css.aboutSectionTitle}>Backup</h4>
-			{isDependentMode ? (
-				<p>
-					Backups are managed from the main tab that has the active
-					connection.
+			<p>
+					Your site is stored in this browser. Browser data can be
+					cleared unexpectedly, so regular backups keep your WordPress
+					safe.
 				</p>
-			) : (
-				<>
-					<p>
-						Your site is stored in this browser. Browser data can be
-						cleared unexpectedly, so regular backups keep your
-						WordPress safe.
-					</p>
-					<div className={css.backupControls}>
-						<div className={css.backupRow}>
-							<select
-								className={css.backupSelect}
-								value={autoBackupSelectValue}
-								onChange={handleAutoBackupChange}
-							>
-								{autoBackupOptions.map((option) => (
-									<option
-										key={option.value}
-										value={option.value}
-									>
-										{option.label}
-									</option>
-								))}
-							</select>
-							<button
-								className={css.backupNowButton}
-								onClick={performBackup}
-								disabled={isBackingUp || isRestoring}
-								type="button"
-							>
-								{isBackingUp ? 'Backing up...' : 'Backup now'}
-							</button>
-							<input
-								type="file"
-								ref={restoreInputRef}
-								onChange={handleRestore}
-								accept=".zip,application/zip"
-								style={{ display: 'none' }}
-							/>
+				{backupHistory.length === 0 && (
+					<Notice status="warning" isDismissible={false}>
+						No backup yet. If this browser clears its data, your
+						site is gone — and there is no server to restore it
+						from.
+					</Notice>
+				)}
+				<div className={css.backupControls}>
+					<div className={css.backupRow}>
+						{/* SelectControl rather than a bare <select>: the raw
+						    element carried no label, id or name, so it reached
+						    assistive tech with no accessible name at all. */}
+						<SelectControl
+							__nextHasNoMarginBottom
+							className={css.backupSelect}
+							label="Automatic backups"
+							hideLabelFromVision
+							value={autoBackupSelectValue}
+							options={autoBackupOptions}
+							onChange={handleAutoBackupChange}
+							disabled={isDependentMode}
+						/>
+						<button
+							className={css.backupNowButton}
+							onClick={performBackup}
+							disabled={isBackingUp || isRestoring}
+							type="button"
+						>
+							{isBackingUp ? 'Backing up...' : 'Backup now'}
+						</button>
+						<input
+							type="file"
+							ref={restoreInputRef}
+							onChange={handleRestore}
+							accept=".zip,application/zip"
+							style={{ display: 'none' }}
+						/>
+						{!isDependentMode && (
 							<button
 								className={css.backupNowButton}
 								onClick={handleRestoreClick}
@@ -524,41 +553,37 @@ function BackupSection() {
 								<Icon icon={upload} size={16} />
 								{isRestoring ? 'Restoring...' : 'Restore'}
 							</button>
-						</div>
-						<span className={css.backupStatus}>
-							{lastBackupText}
-							{backupHistory.length > 0 && (
-								<button
-									className={css.historyToggle}
-									onClick={() => setShowHistory(!showHistory)}
-									type="button"
-								>
-									{showHistory
-										? 'hide history'
-										: `${backupHistory.length} backup${backupHistory.length === 1 ? '' : 's'}`}
-								</button>
-							)}
-						</span>
+						)}
 					</div>
-					{showHistory && (
-						<ul className={css.backupHistory}>
-							{backupHistory.map((entry, index) => (
-								<li
-									key={index}
-									className={css.backupHistoryItem}
-								>
-									<span>{entry.filename}</span>
-									<span className={css.backupHistoryDate}>
-										{getRelativeDate(
-											new Date(entry.timestamp)
-										)}
-									</span>
-								</li>
-							))}
-						</ul>
-					)}
-				</>
-			)}
+					<span className={css.backupStatus}>
+						{lastBackupText}
+						{backupHistory.length > 0 && (
+							<button
+								className={css.historyToggle}
+								onClick={() => setShowHistory(!showHistory)}
+								type="button"
+							>
+								{showHistory
+									? 'hide history'
+									: `${backupHistory.length} backup${backupHistory.length === 1 ? '' : 's'}`}
+							</button>
+						)}
+					</span>
+				</div>
+				{showHistory && (
+					<ul className={css.backupHistory}>
+						{backupHistory.map((entry, index) => (
+							<li key={index} className={css.backupHistoryItem}>
+								<span>{entry.filename}</span>
+								<span className={css.backupHistoryDate}>
+									{getRelativeDate(
+										new Date(entry.timestamp)
+									)}
+								</span>
+							</li>
+						))}
+					</ul>
+				)}
 		</div>
 	);
 }
@@ -674,26 +699,17 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 			</p>
 
 			<InstallAppsSection siteSlug={siteSlug} />
+			{/* Backup comes before remote access: it is the only thing standing
+			    between this user and total data loss, and there is no host to
+			    recover from. */}
+			<BackupSection />
 			{!isDependentMode && (
 				<>
 					<RemoteAccessSection />
-					<BackupSection />
 					<RecoverySection />
 				</>
 			)}
 			{isDependentMode && <DependentTabToolsNotice />}
-
-			<div className={css.aboutSection}>
-				<a
-					href="https://playground.wordpress.net"
-					target="_blank"
-					rel="noopener noreferrer"
-					className={css.externalLink}
-				>
-					<Icon icon={external} size={16} />
-					<span>Open playground.wordpress.net</span>
-				</a>
-			</div>
 		</div>
 	);
 }
@@ -701,10 +717,10 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 function DependentTabToolsNotice() {
 	return (
 		<div className={css.dependentTabToolsNotice}>
-			<h4>Runtime-only: backups, recovery, reset</h4>
+			<h4>Recovery and reset are in your other tab</h4>
 			<p>
-				This tab can view, navigate, and install apps. Backups,
-				recovery, and reset controls need the tab running the WordPress
+				This tab can view, navigate, install apps, and back up your
+				site. Recovery and reset need the tab running the WordPress
 				runtime.
 			</p>
 		</div>
@@ -724,8 +740,10 @@ export function SiteInfoPanel({
 }) {
 	const dispatch = useAppDispatch();
 
-	// Load the last active tab for this site
-	const validTabs = ['about', 'files', 'database', 'logs'];
+	// Load the last active tab for this site. Only the two top-level tabs are
+	// restorable — the developer panels live inside Advanced and must never be
+	// what someone meets when they open Site Tools.
+	const validTabs = ['about', 'advanced'];
 	const [initialTabName] = useState(() => {
 		const lastTab = getSiteLastTab(site.slug);
 		if (lastTab && validTabs.includes(lastTab)) {
@@ -733,6 +751,12 @@ export function SiteInfoPanel({
 		}
 		return 'about';
 	});
+
+	const [showDevTools, setShowDevToolsState] = useState(getShowDevTools);
+	const handleShowDevToolsChange = (next: boolean) => {
+		setShowDevToolsState(next);
+		setShowDevTools(next);
+	};
 
 	// Resolve documentRoot from playground client, or use fallback for direct OPFS access
 	// Initialize to "/" for OPFS sites so the file browser can render immediately
@@ -886,16 +910,8 @@ export function SiteInfoPanel({
 								title: 'About',
 							},
 							{
-								name: 'files',
-								title: 'Files',
-							},
-							{
-								name: 'database',
-								title: 'Database',
-							},
-							{
-								name: 'logs',
-								title: 'Logs',
+								name: 'advanced',
+								title: 'Advanced',
 							},
 						]}
 					>
@@ -915,64 +931,22 @@ export function SiteInfoPanel({
 									<AboutTab siteSlug={site.slug} />
 								</div>
 								<div
-									className={classNames(
-										css.tabContents,
-										css.fileBrowserTab,
-										{
-											[css.tabHidden]:
-												tab.name !== 'files',
-										}
-									)}
-									hidden={tab.name !== 'files'}
+									className={classNames(css.tabContents, {
+										[css.tabHidden]:
+											tab.name !== 'advanced',
+									})}
+									hidden={tab.name !== 'advanced'}
 								>
-									<Suspense
-										fallback={
-											<div className={css.padded}>
-												Loading file browser...
-											</div>
-										}
-									>
-										{documentRoot && (
-											<SiteFileBrowser
-												key={site.slug}
-												site={site}
-												isVisible={tab.name === 'files'}
-												documentRoot={documentRoot}
-											/>
-										)}
-									</Suspense>
-								</div>
-								<div
-									className={classNames(
-										css.tabContents,
-										css.padded,
-										{
-											[css.tabHidden]:
-												tab.name !== 'database',
-										}
-									)}
-									hidden={tab.name !== 'database'}
-								>
-									<SiteDatabasePanel
+									<AdvancedTab
+										site={site}
 										playground={playground}
-									/>
-								</div>
-								<div
-									className={classNames(
-										css.tabContents,
-										css.padded,
-										{
-											[css.tabHidden]:
-												tab.name !== 'logs',
+										documentRoot={documentRoot}
+										showDevTools={showDevTools}
+										onShowDevToolsChange={
+											handleShowDevToolsChange
 										}
-									)}
-									hidden={tab.name !== 'logs'}
-								>
-									<div
-										className={classNames(css.logsWrapper)}
-									>
-										<SiteLogs className={css.logsSection} />
-									</div>
+										isVisible={tab.name === 'advanced'}
+									/>
 								</div>
 							</>
 						)}
@@ -980,5 +954,108 @@ export function SiteInfoPanel({
 				</FlexItem>
 			</Flex>
 		</section>
+	);
+}
+
+function AdvancedTab({
+	site,
+	playground,
+	documentRoot,
+	showDevTools,
+	onShowDevToolsChange,
+	isVisible,
+}: {
+	site: SiteInfo;
+	playground?: PlaygroundClient;
+	documentRoot: string | null;
+	showDevTools: boolean;
+	onShowDevToolsChange: (next: boolean) => void;
+	isVisible: boolean;
+}) {
+	return (
+		<div className={css.advancedTab}>
+			<div className={css.padded}>
+				<ToggleControl
+					__nextHasNoMarginBottom
+					label="Show developer tools"
+					help="Browse the site's files, open its database, and read PHP logs. You don't need these to use your WordPress."
+					checked={showDevTools}
+					onChange={onShowDevToolsChange}
+				/>
+			</div>
+			{showDevTools && (
+				<TabPanel
+					className={css.devTabs}
+					tabs={[
+						{ name: 'files', title: 'Files' },
+						{ name: 'database', title: 'Database' },
+						{ name: 'logs', title: 'Logs' },
+					]}
+				>
+					{(devTab) => (
+						<>
+							<div
+								className={classNames(
+									css.tabContents,
+									css.fileBrowserTab,
+									{
+										[css.tabHidden]:
+											devTab.name !== 'files',
+									}
+								)}
+								hidden={devTab.name !== 'files'}
+							>
+								<Suspense
+									fallback={
+										<div className={css.padded}>
+											Loading file browser...
+										</div>
+									}
+								>
+									{documentRoot && (
+										<SiteFileBrowser
+											key={site.slug}
+											site={site}
+											isVisible={
+												isVisible &&
+												devTab.name === 'files'
+											}
+											documentRoot={documentRoot}
+										/>
+									)}
+								</Suspense>
+							</div>
+							<div
+								className={classNames(
+									css.tabContents,
+									css.padded,
+									{
+										[css.tabHidden]:
+											devTab.name !== 'database',
+									}
+								)}
+								hidden={devTab.name !== 'database'}
+							>
+								<SiteDatabasePanel playground={playground} />
+							</div>
+							<div
+								className={classNames(
+									css.tabContents,
+									css.padded,
+									{
+										[css.tabHidden]: devTab.name !== 'logs',
+									}
+								)}
+								hidden={devTab.name !== 'logs'}
+							>
+								<div className={classNames(css.logsWrapper)}>
+									<SiteLogs className={css.logsSection} />
+								</div>
+							</div>
+						</>
+					)}
+				</TabPanel>
+			)}
+		</div>
 	);
 }
