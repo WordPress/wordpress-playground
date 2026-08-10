@@ -171,7 +171,7 @@ ob_start();
 for ($i = 0; $i < 11; $i++) {
 	$columns = array();
 	for ($j = 0; $j < 11; $j++) {
-		$columns[] = "c$j varchar(191) NOT NULL DEFAULT '' COMMENT 'stress comment $j'";
+		$columns[] = "c$j varchar(500) NOT NULL DEFAULT '' COMMENT 'stress comment $j'";
 	}
 
 	$table = $wpdb->prefix . 'playground_stress_' . $i;

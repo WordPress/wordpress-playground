@@ -1,5 +1,6 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
 
@@ -8,6 +9,7 @@ export type SiteError =
 	| 'directory-handle-permission-denied'
 	| 'directory-handle-directory-does-not-exist'
 	| 'directory-handle-unknown-error'
+	| 'browser-storage-cleanup-failed'
 	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
@@ -16,9 +18,19 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
+	| 'resource-unavailable'
 	| 'resource-download-failed';
 
-export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+export type DockPaneSection =
+	| 'new'
+	| 'playgrounds'
+	| 'blueprint'
+	| 'settings'
+	| 'database'
+	| 'files'
+	| 'logs'
+	| 'share'
+	| 'save';
 
 export const modalSlugs = {
 	LOG: 'log',
@@ -160,14 +172,28 @@ export interface UIState {
 	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
-	siteManagerIsOpen: boolean;
-	siteManagerSection: SiteManagerSection;
+	shareExportOpen: boolean;
+	siteImportProgress?: ProgressDetails;
+	dockPaneIsOpen: boolean;
+	dockPaneSection: DockPaneSection;
+	/**
+	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
+	 * pane does not discard the user's work.
+	 */
+	writeOwnBlueprintDraft?: string;
+	/** Playground slug from which the current authoring draft was seeded. */
+	writeOwnSeededSlug?: string;
+	dockOperationNotice?: {
+		status?: 'error' | 'success';
+		title: string;
+		message?: string;
+	};
 }
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
 
-const shouldOpenSiteManagerByDefault = false;
+const shouldOpenDockPaneByDefault = false;
 
 const initialState: UIState = {
 	/**
@@ -189,21 +215,28 @@ const initialState: UIState = {
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
-	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
-	// even if they seem redundant. We may experiment which toggling the manager
-	// to be open by default or closed by default, and we do not want to lose
-	// specific reasons for the manager to be closed.
-	siteManagerIsOpen:
-		shouldOpenSiteManagerByDefault &&
-		// The site manager should not be shown at all in seamless mode.
+	shareExportOpen: false,
+	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
+	// even if they seem redundant. We may experiment with toggling the Dock
+	// pane to be open by default or closed by default, and we do not want to
+	// lose specific reasons for the Dock pane to be closed.
+	dockPaneIsOpen:
+		// The Dock pane should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
-		// We do not expect to render the Playground app UI in an iframe.
-		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on small screens (mobile/tablet),
-		// as that would mean seeing something that's not Playground filling
-		// your entire screen – quite a confusing experience.
-		window.innerWidth >= BREAKPOINTS.tablet,
-	siteManagerSection: 'site-details',
+		(query.get('overlay') !== null ||
+			(shouldOpenDockPaneByDefault &&
+				// We do not expect to render the Playground app UI in an iframe.
+				!isEmbeddedInAnIframe &&
+				// Don't default to the Dock pane on small screens (mobile/tablet),
+				// as that would mean seeing something that's not Playground filling
+				// your entire screen – quite a confusing experience.
+				window.innerWidth >= BREAKPOINTS.tablet)),
+	dockPaneSection:
+		query.get('overlay') === 'blueprints' || query.get('overlay') === 'new'
+			? 'new'
+			: query.get('overlay') !== null
+				? 'playgrounds'
+				: 'settings',
 };
 
 const uiSlice = createSlice({
@@ -265,14 +298,38 @@ const uiSlice = createSlice({
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
-		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
-			state.siteManagerIsOpen = action.payload;
+		setDockPaneOpen: (state, action: PayloadAction<boolean>) => {
+			state.dockPaneIsOpen = action.payload;
 		},
-		setSiteManagerSection: (
+		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
+			state.shareExportOpen = action.payload;
+		},
+		setSiteImportProgress: (
 			state,
-			action: PayloadAction<SiteManagerSection>
+			action: PayloadAction<ProgressDetails | undefined>
 		) => {
-			state.siteManagerSection = action.payload;
+			state.siteImportProgress = action.payload;
+		},
+		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
+			state.dockPaneSection = action.payload;
+		},
+		setWriteOwnBlueprintDraft: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnBlueprintDraft = action.payload;
+		},
+		setWriteOwnSeededSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnSeededSlug = action.payload;
+		},
+		setDockOperationNotice: (
+			state,
+			action: PayloadAction<UIState['dockOperationNotice']>
+		) => {
+			state.dockOperationNotice = action.payload;
 		},
 		setSiteSlugToRename: (
 			state,
@@ -334,8 +391,13 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setShareExportOpen,
+	setSiteImportProgress,
+	setDockPaneOpen,
+	setDockPaneSection,
+	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
+	setDockOperationNotice,
 	setSiteSlugToRename,
 	setSiteSlugToDelete,
 	setSiteSlugToSave,

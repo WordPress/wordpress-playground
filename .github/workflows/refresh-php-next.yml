@@ -6,9 +6,9 @@ on:
             php_ref:
                 description: 'php-src ref to build (defaults to php-src development branch)'
                 required: false
-    # Refresh PHP next binaries every 4 days at 6am UTC.
+    # Refresh PHP next binaries before the weekly website deploy.
     schedule:
-        - cron: '0 6 */4 * *'
+        - cron: '0 6 * * 2'
 
 concurrency:
     group: refresh-php-next
@@ -18,7 +18,7 @@ concurrency:
 permissions: {}
 
 jobs:
-    build_publish_and_deploy:
+    build_and_publish:
         # Only run this workflow on the playground repo, from the trunk branch,
         # and when triggered by a Playground maintainer.
         if: >
@@ -38,7 +38,6 @@ jobs:
         timeout-minutes: 240
         permissions:
             contents: write # Required to push the refreshed PHP next branch.
-            actions: write # Required to trigger the deploy-website workflow.
         environment:
             name: wordpress-assets
         steps:
@@ -79,8 +78,3 @@ jobs:
                   git config --global user.email "deployment_bot@users.noreply.github.com"
                   git -C "$publish_worktree" commit -m "Refresh PHP next builds"
                   git -C "$publish_worktree" push --force origin HEAD:"$branch"
-            - name: Deploy website
-              uses: benc-uk/workflow-dispatch@v1
-              with:
-                  workflow: deploy-website.yml
-                  token: ${{ secrets.GITHUB_TOKEN }}

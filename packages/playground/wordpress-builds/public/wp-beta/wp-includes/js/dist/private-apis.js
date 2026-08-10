@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).privateApis = (() => {
@@ -27,15 +28,19 @@ var wp;
 
   // packages/private-apis/build-module/implementation.mjs
   var CORE_MODULES_USING_PRIVATE_APIS = [
+    "@wordpress/admin-ui",
+    "@wordpress/api-fetch",
     "@wordpress/block-directory",
     "@wordpress/block-editor",
     "@wordpress/block-library",
     "@wordpress/blocks",
     "@wordpress/boot",
     "@wordpress/commands",
+    "@wordpress/compose",
     "@wordpress/connectors",
     "@wordpress/workflows",
     "@wordpress/components",
+    "@wordpress/content-types",
     "@wordpress/core-commands",
     "@wordpress/core-data",
     "@wordpress/customize-widgets",
@@ -53,15 +58,20 @@ var wp;
     "@wordpress/route",
     "@wordpress/router",
     "@wordpress/routes",
+    "@wordpress/storybook",
     "@wordpress/sync",
     "@wordpress/theme",
     "@wordpress/dataviews",
     "@wordpress/fields",
     "@wordpress/lazy-editor",
+    "@wordpress/media-editor",
     "@wordpress/media-utils",
     "@wordpress/upload-media",
+    "@wordpress/global-styles-engine",
     "@wordpress/global-styles-ui",
-    "@wordpress/ui"
+    "@wordpress/ui",
+    "@wordpress/views",
+    "@wordpress/widget-dashboard"
   ];
   var requiredConsent = "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.";
   var __dangerousOptInToUnstableAPIsOnlyForCoreModules = (consent, moduleName) => {
@@ -105,4 +115,6 @@ var wp;
   var lockedData = /* @__PURE__ */ new WeakMap();
   var __private = /* @__PURE__ */ Symbol("Private API ID");
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).privateApis = wp.privateApis;
 })();

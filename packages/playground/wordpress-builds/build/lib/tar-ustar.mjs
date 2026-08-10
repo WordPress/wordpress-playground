@@ -18,7 +18,8 @@
 // file-count parity with the ZIP baseline.
 //
 // Determinism policy: entries are emitted in a fixed byte-wise sort with
-// mtime=0, uid=gid=0, empty uname/gname, and a fixed mode.
+// mtime=0, uid=gid=0, empty uname/gname, and fixed modes. Files use typeflag
+// '0'; empty directories that no file re-creates use typeflag '5'.
 //
 // Reused semantics: entry-name sanitization mirrors sanitizeTarPath() in the
 // runtime extractor: reject backslashes, absolute paths, and ".." segments;
@@ -49,21 +50,53 @@ export function sanitizeArchivePath(name) {
 }
 
 /**
- * Turn a { path -> Uint8Array } map into a sorted, sanitized, files-only entry
- * list ready for createUstarTar(). Directory keys (trailing "/") are dropped;
- * unsafe file paths throw. The sort is a stable byte-wise comparison on the
- * sanitized name so two runs over the same input yield an identical archive.
+ * Turn a { path -> Uint8Array } map into a sorted, sanitized entry list ready
+ * for createUstarTar(). Each entry is tagged `{ type: "file", name, data }` or
+ * `{ type: "dir", name }`.
+ *
+ * Directory members (trailing "/") are preserved only when no file will create
+ * them implicitly. That keeps explicitly empty directories from disappearing
+ * while avoiding redundant directory headers for every file parent.
+ *
+ * Unsafe paths throw for both files and directories. The sort is a stable
+ * byte-wise comparison on the sanitized name so two runs over the same input
+ * yield an identical archive.
  */
 export function normalizeEntries(fileMap) {
-	const entries = [];
+	const files = [];
+	const dirCandidates = [];
 	for (const rawName of Object.keys(fileMap)) {
 		const isDirectory = rawName.endsWith('/');
 		const name = sanitizeArchivePath(
 			isDirectory ? rawName.slice(0, -1) : rawName
 		);
-		if (isDirectory) continue; // directory member, skip
 		if (!name) continue;
-		entries.push({ name, data: fileMap[rawName] });
+		if (isDirectory) {
+			dirCandidates.push(name);
+		} else {
+			files.push({ type: 'file', name, data: fileMap[rawName] });
+		}
+	}
+
+	// Every ancestor directory of a kept file is created implicitly by the
+	// extractor; collect them so we never emit a redundant directory member.
+	const impliedDirs = new Set();
+	for (const file of files) {
+		let index = file.name.lastIndexOf('/');
+		while (index > 0) {
+			const dir = file.name.slice(0, index);
+			if (impliedDirs.has(dir)) break;
+			impliedDirs.add(dir);
+			index = dir.lastIndexOf('/');
+		}
+	}
+
+	const seenDirs = new Set();
+	const entries = [...files];
+	for (const name of dirCandidates) {
+		if (impliedDirs.has(name) || seenDirs.has(name)) continue;
+		seenDirs.add(name);
+		entries.push({ type: 'dir', name });
 	}
 	// Byte-wise (codepoint) sort — NOT localeCompare, which is locale-sensitive
 	// and would make the archive non-reproducible across environments.
@@ -238,8 +271,9 @@ function readOctal(block, offset, length) {
 
 /**
  * Minimal tar reader that understands USTAR entries (incl. the prefix/name
- * split) and GNU `././@LongLink` names. Returns [{ name, data }] for files.
- * Used by tests to prove round-trip fidelity.
+ * split) and GNU `././@LongLink` names. Returns `{ name, data }` for files and
+ * `{ name, type: "dir" }` for directories. Used by tests to prove round-trip
+ * fidelity.
  */
 export function readUstarTar(buffer) {
 	const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
@@ -265,11 +299,13 @@ export function readUstarTar(buffer) {
 			pendingName = data.toString('utf8').replace(/\0.*$/, '');
 			continue;
 		}
-		if (typeflag === '5') continue; // directory
-		if (typeflag !== '0' && typeflag !== '\0') continue; // non-file types
-
 		const name = pendingName ?? (prefix ? `${prefix}/${rawName}` : rawName);
 		pendingName = null;
+		if (typeflag === '5' || name.endsWith('/')) {
+			entries.push({ name: name.replace(/\/+$/, ''), type: 'dir' });
+			continue;
+		}
+		if (typeflag !== '0' && typeflag !== '\0') continue; // non-file types
 		entries.push({ name, data: Uint8Array.prototype.slice.call(data) });
 	}
 	return entries;

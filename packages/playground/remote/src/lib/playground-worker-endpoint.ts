@@ -2,7 +2,7 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
+import { joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
 	PHPWebExtension,
@@ -38,6 +38,7 @@ import type {
 } from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
+	MountStillActiveError,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -71,6 +72,8 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	/** A caller-provided WordPress archive used instead of downloading one. */
+	wordPressZip?: File;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
@@ -81,9 +84,7 @@ export type WorkerBootOptions = {
 	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
-	/** When true, skip default WP install and run Blueprints v2 in the worker */
-	experimentalBlueprintsV2Runner?: boolean;
-	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
+	/** Blueprint v2 declaration used for worker-side execution or preflight checks. */
 	blueprint?: BlueprintDeclaration;
 	/**
 	 * How to handle WordPress installation.
@@ -115,9 +116,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 * A string representing the version of WordPress that was loaded.
 	 */
 	loadedWordPressVersion: string | undefined;
-
-	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
-		[];
 
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
@@ -237,12 +235,25 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				/**
+				 * The remote runtime has no mail server. Capture sendmail stdin as an
+				 * event through a null transport; consumers must relay the message if
+				 * they want it delivered.
+				 */
+				php.setCommandSpawnHandler(
+					'sendmail',
+					sendmailSpawnHandler(php)
+				);
+
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [
 						'/tmp',
 						requestHandler.documentRoot,
 						'/internal/shared',
 						'/internal/symlinks',
+						// Runtime-installed tools are shared state. Share their filesystem
+						// boundary instead of mounting individual tool directories.
+						'/tools',
 					];
 					const pathsToProxy = pathsToShareBetweenPhpInstances.filter(
 						(path) => !isPathToSharedFS(php, path)
@@ -456,31 +467,38 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		await opfsMount.flush();
 	}
 
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	async unmountOpfs(mountpoint: string) {
-		const opfsMount = this.opfsMounts[mountpoint];
 		const unmount = this.unmounts[mountpoint];
-		if (opfsMount === undefined || unmount === undefined) {
+		if (
+			this.opfsMounts[mountpoint] === undefined ||
+			unmount === undefined
+		) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		let flushError: unknown;
-		try {
-			await opfsMount.flush();
-		} catch (error) {
-			flushError = error;
-		}
+		let mountIsStillActive = false;
 		try {
 			await unmount();
 		} catch (error) {
-			if (flushError === undefined) {
-				throw error;
+			if (error instanceof MountStillActiveError) {
+				// PHP retained its callback and journal. Keep endpoint tracking
+				// aligned, but do not expose this internal lifecycle signal.
+				mountIsStillActive = true;
+				throw error.cause;
 			}
-			logger.error(error);
+			throw error;
 		} finally {
-			delete this.unmounts[mountpoint];
-			delete this.opfsMounts[mountpoint];
-		}
-		if (flushError !== undefined) {
-			throw flushError;
+			if (!mountIsStillActive) {
+				delete this.unmounts[mountpoint];
+				delete this.opfsMounts[mountpoint];
+			}
 		}
 	}
 
@@ -494,16 +512,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
-	}
-
-	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another
-	// way of listening for events.
-	async onBlueprintMessage(listener: (message: any) => void | Promise<void>) {
-		this.blueprintMessageListeners.push(listener);
-		return async () => {
-			this.blueprintMessageListeners =
-				this.blueprintMessageListeners.filter((l) => l !== listener);
-		};
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars

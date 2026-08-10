@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
 			onDownloadProgress: vi.fn(),
 		},
 		compileBlueprintForExecution: vi.fn(),
+		resolveBlueprintV2WordPressSource: vi.fn(),
 		resolveRuntimeConfiguration: vi.fn(),
 		consumeAPI: vi.fn(),
 		collectPhpLogs: vi.fn(),
@@ -29,6 +30,10 @@ vi.mock('@php-wasm/universal', () => ({
 
 vi.mock('@wp-playground/blueprints', () => ({
 	compileBlueprintForExecution: mocks.compileBlueprintForExecution,
+	isBlueprintBundle: (blueprint: unknown) =>
+		!!blueprint &&
+		typeof (blueprint as { read?: unknown }).read === 'function',
+	resolveBlueprintV2WordPressSource: mocks.resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration: mocks.resolveRuntimeConfiguration,
 }));
 
@@ -40,6 +45,7 @@ describe('BlueprintsV2Handler', () => {
 		mocks.playground.isReady.mockResolvedValue(undefined);
 		mocks.playground.onDownloadProgress.mockResolvedValue(undefined);
 		mocks.compiledRun.mockResolvedValue(undefined);
+		mocks.resolveBlueprintV2WordPressSource.mockResolvedValue(undefined);
 		mocks.compileBlueprintForExecution.mockImplementation(
 			async (blueprint) => ({
 				version: 2,
@@ -127,6 +133,52 @@ describe('BlueprintsV2Handler', () => {
 		expect(onClientConnected).toHaveBeenCalledWith(mocks.playground);
 	});
 
+	it('boots PHP-only Blueprints without installing WordPress', async () => {
+		const iframe = createIframe();
+		const blueprint = {
+			version: 2,
+			wordpressVersion: 'none',
+		} as const;
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint,
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+				wordPressZip: undefined,
+			})
+		);
+		expect(mocks.resolveBlueprintV2WordPressSource).not.toHaveBeenCalled();
+	});
+
+	it('does not preflight existing WordPress files for PHP-only Blueprints', async () => {
+		const iframe = createIframe();
+		const blueprint = {
+			version: 2,
+			wordpressVersion: 'none',
+		} as const;
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+				blueprint: undefined,
+			})
+		);
+	});
+
 	it('does not pipe remote progress when progress UI is disabled', async () => {
 		const iframe = createIframe();
 		const blueprint = {
@@ -146,6 +198,87 @@ describe('BlueprintsV2Handler', () => {
 		await handler.bootPlayground(iframe, progressTracker);
 
 		expect(progressTracker.pipe).not.toHaveBeenCalled();
+	});
+
+	it('passes resolved v2 WordPress archives to the worker', async () => {
+		const iframe = createIframe();
+		const blueprint = {
+			version: 2,
+			wordpressVersion: './wordpress.zip',
+		} as const;
+		const wordPressZip = new File(['wordpress'], 'wordpress.zip');
+		mocks.resolveBlueprintV2WordPressSource.mockResolvedValue(wordPressZip);
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint,
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.resolveBlueprintV2WordPressSource).toHaveBeenCalledWith(
+			blueprint,
+			expect.objectContaining({ streamBundledFile: undefined })
+		);
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({ wordPressZip })
+		);
+	});
+
+	it('passes mounted-site constraints to the worker preflight', async () => {
+		const iframe = createIframe();
+		const blueprint = {
+			version: 2,
+			wordpressVersion: {
+				min: '6.8',
+			},
+			siteOptions: {
+				blogname: 'Existing site',
+			},
+		} as const;
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({
+				blueprint: {
+					version: 2,
+					wordpressVersion: blueprint.wordpressVersion,
+				},
+			})
+		);
+		expect(mocks.compileBlueprintForExecution).toHaveBeenCalledWith(
+			blueprint,
+			expect.objectContaining({
+				siteMode: 'apply-to-existing-site',
+			})
+		);
+	});
+
+	it('does not validate WordPress downloaded for a new site', async () => {
+		const iframe = createIframe();
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: { version: 2 },
+			wordpressInstallMode: 'download-and-install',
+		});
+
+		await handler.bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({ blueprint: undefined })
+		);
+		expect(mocks.compileBlueprintForExecution).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ siteMode: 'create-new-site' })
+		);
 	});
 });
 

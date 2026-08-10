@@ -6,10 +6,17 @@
  */
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
-import type { SiteMetadata } from '../redux/slice-sites';
-import type { SiteInfo } from '../redux/slice-sites';
+import type {
+	SiteInfo,
+	SiteMetadata,
+	SiteMetadataChanges,
+} from '../redux/slice-sites';
+import type { OriginalUrlParams } from '../original-url-params';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
+import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
+import type { Ignore } from 'ignore';
+import ignore from 'ignore';
 import {
 	type ExtraLibrary,
 	type PHPConstants,
@@ -34,6 +41,8 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+// 0o40755 = 0o40000 | 0o755; ZIP stores it in externalFileAttributes' upper 16 bits.
+const ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES = 0o40755 << 16;
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -45,13 +54,29 @@ export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
  * It's different from SiteInfo:
  * * It extends SiteMetadata instead of embedding it.
  * * It adds slug to SiteMetadata so we can recover it after a page reload.
- * * It's not concerned with any extra information stored in SiteInfo by the redux store.
+ * * It keeps the setup URL params that settings and sharing panes need after reload.
+ * * It's not concerned with any other extra information stored in SiteInfo by
+ *   the redux store.
  *
  * I'm not yet sure whether that's the right approach. Let's keep going and find out as the
  * design matures.
  */
 export interface StoredSiteMetadata extends SiteMetadata {
 	slug: string;
+	originalUrlParams?: OriginalUrlParams;
+}
+
+type StoredSiteChanges = {
+	metadata?: SiteMetadataChanges;
+	originalUrlParams?: OriginalUrlParams;
+};
+
+export interface ExportSavedSiteAsZipOptions {
+	/**
+	 * Gitignore-style exclusion patterns applied relative to the saved site root.
+	 * Patterns starting with `!` re-include paths.
+	 */
+	excludePatterns?: readonly string[];
 }
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
@@ -72,32 +97,76 @@ class OpfsSiteStorage {
 		this.root = root;
 	}
 
-	async create(slug: string, metadata: SiteMetadata): Promise<void> {
+	/**
+	 * Creates an OPFS site directory and stores its reloadable metadata.
+	 */
+	async create(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: OriginalUrlParams
+	): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		const existingSiteDirName = await this.findExistingSiteDirName(slug);
 		if (existingSiteDirName) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
 		}
-
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
 		});
-		await opfsWriteFile(
+		await writeOpfsFile(
 			getSiteMetadataPath(newSiteDirName),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
-	async update(slug: string, metadata: SiteMetadata): Promise<void> {
-		const siteDirName = await this.findExistingSiteDirName(slug);
-		if (!siteDirName) {
-			throw new Error(`Site with slug '${slug}' does not exist.`);
-		}
+	/**
+	 * Merges changes into a stored site's latest OPFS metadata.
+	 *
+	 * Every tab has its own Redux snapshot, so replacing the complete metadata
+	 * object can restore stale fields written by another tab. The Web Lock keeps
+	 * the read, merge, and write in one origin-wide transaction. Callers receive
+	 * the merged site so their local state also includes changes from other tabs.
+	 *
+	 * Browsers without the Web Locks API still perform the same merge, but cannot
+	 * prevent another tab from writing between the read and write.
+	 *
+	 * @param slug Slug of the stored site to update.
+	 * @param changes Metadata and setup URL fields to merge.
+	 * @returns The merged site information written to OPFS.
+	 */
+	async update(slug: string, changes: StoredSiteChanges): Promise<SiteInfo> {
+		return await withSiteMetadataLock(slug, async () => {
+			const siteDirName = await this.findExistingSiteDirName(slug);
+			if (!siteDirName) {
+				throw new Error(`Site with slug '${slug}' does not exist.`);
+			}
 
-		await opfsWriteFile(
-			getSiteMetadataPath(siteDirName),
-			await metadataToStoredFormat(slug, metadata)
-		);
+			const siteDirectory =
+				await this.root.getDirectoryHandle(siteDirName);
+			const currentSite = await this.readSiteFromDirHandle(siteDirectory);
+			const updatedSite: SiteInfo = {
+				...currentSite,
+				...changes,
+				metadata: {
+					...currentSite.metadata,
+					...changes.metadata,
+					runtimeConfiguration: {
+						...currentSite.metadata.runtimeConfiguration,
+						...changes.metadata?.runtimeConfiguration,
+					},
+				},
+			};
+
+			await writeOpfsFile(
+				getSiteMetadataPath(siteDirName),
+				await metadataToStoredFormat(
+					slug,
+					updatedSite.metadata,
+					updatedSite.originalUrlParams
+				)
+			);
+			return updatedSite;
+		});
 	}
 
 	async list(): Promise<SiteInfo[]> {
@@ -121,12 +190,93 @@ class OpfsSiteStorage {
 		return sites;
 	}
 
+	/**
+	 * Lists persisted site metadata without loading Blueprint bundles.
+	 */
+	async listMetadata(): Promise<SiteInfo[]> {
+		const sites: SiteInfo[] = [];
+		for await (const entry of this.root.values()) {
+			if (entry.kind === 'directory') {
+				try {
+					const site = await this.readStoredSiteMetadata(entry);
+					sites.push(site);
+				} catch (error) {
+					logger.error(`Error reading site ${entry.name}:`, error);
+				}
+			}
+		}
+		return sites;
+	}
+
 	async read(slug: string): Promise<SiteInfo | undefined> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
 			return undefined;
 		}
 		return await this.readSite(siteDirName);
+	}
+
+	/**
+	 * Returns a ZIP for a saved OPFS Playground that is actually exportable.
+	 *
+	 * WordPress-looking files prove nothing. `wp-config.php`, plugins, uploads,
+	 * or a SQLite database can be leftovers from an interrupted save. The only
+	 * authority here is `wp-runtime.json`, and even that is not enough if it says
+	 * the first OPFS sync is still pending or an in-place reset is unfinished.
+	 * Do not add file-based heuristics here.
+	 *
+	 * Return `undefined` for those cases. A missing ZIP is correct; a ZIP of
+	 * half-written or mismatched files is just corrupt output with a nicer file
+	 * extension.
+	 */
+	async exportSavedSiteAsZip(
+		slug: string,
+		options: ExportSavedSiteAsZipOptions = {}
+	): Promise<Blob | undefined> {
+		const siteDirectory = await this.getSavedSiteDirectory(slug);
+		if (!siteDirectory) {
+			return undefined;
+		}
+		return await zipDirectory(siteDirectory, options.excludePatterns);
+	}
+
+	/**
+	 * Opens the saved-site directory only if its metadata says the files are complete.
+	 *
+	 * This intentionally re-reads `wp-runtime.json` after `findExistingSiteDirName()`.
+	 * The earlier lookup finds a candidate. This method verifies the candidate still
+	 * exists, still has metadata, and is not marked as half-saved or mid-reset.
+	 */
+	private async getSavedSiteDirectory(
+		slug: string
+	): Promise<FileSystemDirectoryHandle | undefined> {
+		const siteDirName = await this.findExistingSiteDirName(slug);
+		if (!siteDirName) {
+			return undefined;
+		}
+		try {
+			const siteDirectory =
+				await this.root.getDirectoryHandle(siteDirName);
+			const site = await this.readStoredSiteMetadata(siteDirectory);
+			// If bootSiteClient() refuses to mount these files, export must
+			// refuse them too. Otherwise we hand callers a ZIP of files we
+			// already know are incomplete or being replaced.
+			if (
+				site.metadata.initialOpfsSyncPending === true ||
+				site.metadata.opfsSiteRemovalPending === true
+			) {
+				return undefined;
+			}
+			return siteDirectory;
+		} catch (error) {
+			// The first lookup only proved the metadata existed at that
+			// instant. Another tab can delete the directory or wp-runtime.json
+			// before export starts. That is not an exportable Playground.
+			if (isMissingOpfsEntry(error)) {
+				return undefined;
+			}
+			throw error;
+		}
 	}
 
 	private async readSite(siteDirName: string) {
@@ -140,15 +290,7 @@ class OpfsSiteStorage {
 	private async readSiteFromDirHandle(
 		siteDirectory: FileSystemDirectoryHandle
 	) {
-		const siteInfoFileHandle = await siteDirectory.getFileHandle(
-			SITE_METADATA_FILENAME
-		);
-		const file = await siteInfoFileHandle.getFile();
-		// TODO: Read metadata file and parse and validate via JSON schema
-		// TODO: Backfill site info file if missing, detecting actual WP version if possible
-		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
-		//         to the site files import flow.
-		const siteInfo = storedFormatToMetadata(await file.text());
+		const siteInfo = await this.readStoredSiteMetadata(siteDirectory);
 		const sitePath = joinPaths(OPFS_SITES_ROOT_PATH, siteDirectory.name);
 		const isLegacyDirectoryName =
 			siteDirectory.name !== getDirectoryNameForSlug(siteInfo.slug);
@@ -175,6 +317,26 @@ class OpfsSiteStorage {
 		return siteInfo;
 	}
 
+	/**
+	 * Reads the saved Playground metadata file from an OPFS site directory.
+	 *
+	 * Keep site loading and ZIP export on this same parser. If the metadata format
+	 * changes, both paths need to agree on what the saved site state means.
+	 */
+	private async readStoredSiteMetadata(
+		siteDirectory: FileSystemDirectoryHandle
+	) {
+		const siteInfoFileHandle = await siteDirectory.getFileHandle(
+			SITE_METADATA_FILENAME
+		);
+		const file = await siteInfoFileHandle.getFile();
+		// TODO: Read metadata file and parse and validate via JSON schema
+		// TODO: Backfill site info file if missing, detecting actual WP version if possible
+		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
+		//         to the site files import flow.
+		return storedFormatToMetadata(await file.text());
+	}
+
 	async delete(slug: string): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
@@ -187,12 +349,11 @@ class OpfsSiteStorage {
 	 * Removes WordPress files from an OPFS-backed site while preserving the
 	 * site metadata file and the editable Blueprint bundle directory.
 	 *
-	 * Autosaved Playgrounds use this before running their edited setup again:
-	 * the Playground keeps the same slug, name, and Blueprint bundle, but
-	 * WordPress must be recreated from that setup instead of reusing files from
-	 * the previous run.
+	 * Boot uses this to finish same-site resets interrupted under older Playground
+	 * builds. Keep the metadata file and editable Blueprint bundle; delete
+	 * everything else because those entries belong to the previous setup.
 	 */
-	async resetSiteFiles(slug: string): Promise<void> {
+	async removeWordPressFilesKeepMetadata(slug: string): Promise<void> {
 		const siteDirName = await this.findExistingSiteDirName(slug);
 		if (!siteDirName) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
@@ -200,9 +361,9 @@ class OpfsSiteStorage {
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
 		const namesToDelete: string[] = [];
 		for await (const [name] of siteDirectory.entries()) {
-			// Recreating an autosaved Playground rebuilds WordPress in the same
-			// OPFS site directory. Keep the metadata and editable Blueprint
-			// bundle so the autosave keeps its slug and setup recipe.
+			// The next boot still needs the site metadata and the edited
+			// Blueprint bundle. Everything else belongs to the old WordPress
+			// tree and must be removed before the new setup runs.
 			if (name === SITE_METADATA_FILENAME || name === BUNDLE_DIR_NAME) {
 				continue;
 			}
@@ -246,17 +407,44 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 
 export const isOpfsAvailable = !!opfsSiteStorage;
 
+/**
+ * Runs a site metadata transaction under an origin-wide exclusive lock.
+ *
+ * Web Locks coordinate same-origin tabs and workers. The callback begins only
+ * after an earlier transaction for the same site finishes, and the browser
+ * releases the lock when the callback settles. Different sites use different
+ * lock names and remain independent.
+ *
+ * @param slug Slug used to identify the site transaction.
+ * @param transaction Read, merge, and write operation to serialize.
+ * @returns The transaction result.
+ */
+async function withSiteMetadataLock<T>(
+	slug: string,
+	transaction: () => Promise<T>
+): Promise<T> {
+	if (!navigator.locks) {
+		return await transaction();
+	}
+	return await navigator.locks.request(
+		`wordpress-playground:site-metadata:${slug}`,
+		transaction
+	);
+}
+
 function getSiteMetadataPath(siteDirName: string) {
 	return joinPaths(OPFS_SITES_ROOT_PATH, siteDirName, SITE_METADATA_FILENAME);
 }
 
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
+	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata,
+	originalUrlParams?: OriginalUrlParams
 ): Promise<string> {
 	return JSON.stringify(
 		{
 			slug,
+			originalUrlParams,
 			originalBlueprintSource,
 			/**
 			 * Site metadata stores Blueprint declaration JSON, not arbitrary
@@ -278,7 +466,9 @@ async function metadataToStoredFormat(
 }
 
 function storedFormatToMetadata(data: string) {
-	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
+	const { slug, originalUrlParams, ...metadata } = JSON.parse(
+		data
+	) as StoredSiteMetadata;
 
 	/**
 	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
@@ -329,6 +519,7 @@ function storedFormatToMetadata(data: string) {
 
 	return {
 		slug,
+		originalUrlParams,
 		metadata,
 	};
 }
@@ -364,6 +555,74 @@ function isMissingOpfsEntry(error: unknown) {
 	return name === 'NotFoundError' || name === 'TypeMismatchError';
 }
 
+/**
+ * Writes an OPFS directory into a ZIP Blob.
+ *
+ * Return the Blob. Do not turn it into a `Uint8Array`: download and upload
+ * callers can use the Blob directly, and converting it copies the whole archive
+ * for no useful reason.
+ */
+async function zipDirectory(
+	directory: FileSystemDirectoryHandle,
+	excludePatterns: readonly string[] = []
+) {
+	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
+	const pathMatcher = ignore().add(excludePatterns);
+	try {
+		await addDirectoryEntries(zipWriter, directory, '', pathMatcher);
+		return await zipWriter.close();
+	} catch (error) {
+		await zipWriter.close().catch(() => undefined);
+		throw error;
+	}
+}
+
+/**
+ * Adds every file and empty directory below `directory` to `zipWriter`.
+ *
+ * Directory entries are explicit because empty directories otherwise disappear
+ * from ZIP archives. Files go through `BlobReader` so zip.js reads from the
+ * browser `File` object instead of us first copying each file into memory.
+ */
+async function addDirectoryEntries(
+	zipWriter: ZipWriter<Blob>,
+	directory: FileSystemDirectoryHandle,
+	relativeDirPath: string,
+	pathMatcher: Ignore
+) {
+	for await (const [name, entry] of directory.entries()) {
+		const relativePath = relativeDirPath
+			? joinPaths(relativeDirPath, name)
+			: name;
+
+		if (entry.kind === 'directory') {
+			const archivePath = `${relativePath}/`;
+			// Descendants cannot be re-included while their parent remains ignored.
+			if (pathMatcher.ignores(archivePath)) {
+				continue;
+			}
+			await zipWriter.add(archivePath, undefined, {
+				directory: true,
+				externalFileAttributes: ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES,
+			});
+			await addDirectoryEntries(
+				zipWriter,
+				entry,
+				relativePath,
+				pathMatcher
+			);
+		} else {
+			if (pathMatcher.ignores(relativePath)) {
+				continue;
+			}
+			await zipWriter.add(
+				relativePath,
+				new BlobReader(await entry.getFile())
+			);
+		}
+	}
+}
+
 export async function deleteDirectory(path: string) {
 	let parentDirHandle = await navigator.storage.getDirectory();
 
@@ -377,9 +636,53 @@ export async function deleteDirectory(path: string) {
 	await parentDirHandle.removeEntry(targetName!, { recursive: true });
 }
 
-async function opfsWriteFile(path: string, content: string) {
-	// Note: Safari appears to require a worker to write OPFS file content,
-	// and that is why we're using a worker here.
+const lastWriteByPath = new Map<string, Promise<void>>();
+
+/**
+ * Writes file content to OPFS after earlier writes to the same path finish.
+ *
+ * OPFS sync access handles are exclusive. Starting two workers for the same
+ * metadata file can therefore make one worker fail with
+ * `NoModificationAllowedError`. Chaining writes by path prevents that race
+ * without making metadata writes for unrelated Playgrounds wait.
+ *
+ * A rejected write does not block later writes. The completed chain is removed
+ * only while it remains the newest write for its path, so an earlier write
+ * cannot discard a later write that is already waiting.
+ *
+ * @param path Absolute OPFS path to write.
+ * @param content Complete file content that should replace the current file.
+ */
+async function writeOpfsFile(path: string, content: string): Promise<void> {
+	const previousWrite = lastWriteByPath.get(path);
+	const write = (previousWrite ?? Promise.resolve())
+		.catch(() => undefined)
+		.then(() => writeOpfsFileInWorker(path, content));
+	lastWriteByPath.set(path, write);
+
+	try {
+		await write;
+	} finally {
+		if (lastWriteByPath.get(path) === write) {
+			lastWriteByPath.delete(path);
+		}
+	}
+}
+
+/**
+ * Runs one OPFS file write in the metadata worker.
+ *
+ * Safari requires the synchronous OPFS access handle used by this worker. The
+ * worker reports structured failures through its message channel and is always
+ * terminated after completion, failure, or timeout.
+ *
+ * @param path Absolute OPFS path to write.
+ * @param content Complete file content that should replace the current file.
+ */
+async function writeOpfsFileInWorker(
+	path: string,
+	content: string
+): Promise<void> {
 	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
 
 	const channel = new MessageChannel();
@@ -388,6 +691,14 @@ async function opfsWriteFile(path: string, content: string) {
 		channel.port1.onmessage = function (event: MessageEvent) {
 			if (event.data === 'done') {
 				resolve();
+			} else if (event.data?.type === 'error') {
+				logger.error('Error in OPFS write worker.', event.data);
+				reject(
+					new Error(
+						`The browser storage worker failed while writing ${path}. See the preceding OPFS worker log for details.`,
+						{ cause: event.data.error }
+					)
+				);
 			} else {
 				reject(
 					new Error(
@@ -396,13 +707,35 @@ async function opfsWriteFile(path: string, content: string) {
 				);
 			}
 		};
-		worker.onerror = reject;
+		worker.onerror = (event) => {
+			const detail =
+				event instanceof ErrorEvent && event.message
+					? ` ${event.message}`
+					: '';
+			reject(
+				new Error(
+					`The browser storage worker failed while writing ${path} at ${metadataWorkerUrl}.${detail}`
+				)
+			);
+		};
 	});
+	let timeoutId: ReturnType<typeof setTimeout>;
 	const promiseToTimeout = new Promise<void>((resolve, reject) => {
-		setTimeout(() => reject(new Error('timeout')), 5000);
+		timeoutId = setTimeout(
+			() =>
+				reject(
+					new Error(
+						`The browser storage worker did not finish writing ${path} within 5 seconds.`
+					)
+				),
+			5000
+		);
 	});
 
-	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(() =>
-		worker.terminate()
+	return Promise.race<void>([promiseToWrite, promiseToTimeout]).finally(
+		() => {
+			clearTimeout(timeoutId);
+			worker.terminate();
+		}
 	);
 }

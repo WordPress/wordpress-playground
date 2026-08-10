@@ -50,6 +50,51 @@ describe('Blueprint step importWxr', () => {
 		});
 	};
 
+	const createAuthorUsers = async (usernames: string[]) => {
+		await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			foreach (json_decode(getenv('USERNAMES'), true) as $username) {
+				if (get_user_by('login', $username)) {
+					continue;
+				}
+				$user_id = wp_create_user(
+					$username,
+					'password',
+					$username . '@example.com'
+				);
+				$user = new WP_User($user_id);
+				$user->set_role('author');
+			}
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+				USERNAMES: JSON.stringify(usernames),
+			},
+		});
+	};
+
+	const getPostAuthorLogins = async (postSlugs: string[]) => {
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$post_author_logins = [];
+			foreach (json_decode(getenv('POST_SLUGS'), true) as $post_slug) {
+				$post = get_page_by_path($post_slug, OBJECT, 'post');
+				$author = $post ? get_user_by('ID', $post->post_author) : null;
+				$post_author_logins[$post_slug] = $author ? $author->user_login : null;
+			}
+			echo json_encode($post_author_logins);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+				POST_SLUGS: JSON.stringify(postSlugs),
+			},
+		});
+
+		return result.json as Record<string, string | null>;
+	};
+
 	let importerPlugin: ArrayBuffer | undefined = undefined;
 	beforeAll(async () => {
 		const pluginResource = new CorePluginResource({
@@ -672,6 +717,300 @@ describe('Blueprint step importWxr', () => {
 	);
 
 	it(
+		'Should map imported authors to configured local users',
+		async () => {
+			await createAuthorUsers(['wxr_mapped_author']);
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorWxr(
+							'remote_author',
+							'Mapped Author Post',
+							'mapped-author-post',
+							501
+						),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'map',
+				authorsMap: {
+					remote_author: 'wxr_mapped_author',
+				},
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$post = get_page_by_path('mapped-author-post', OBJECT, 'post');
+			$author = $post ? get_user_by('ID', $post->post_author) : null;
+			echo json_encode($author ? $author->user_login : null);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toBe('wxr_mapped_author');
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should map multiple imported authors without reindexing them',
+		async () => {
+			await createAuthorUsers(['wxr_mapped_alice', 'wxr_mapped_bob']);
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorsWxr([
+							{
+								authorLogin: 'remote_alice',
+								postTitle: 'Mapped Alice Post',
+								postSlug: 'mapped-alice-post',
+								importId: 601,
+							},
+							{
+								authorLogin: 'remote_bob',
+								postTitle: 'Mapped Bob Post',
+								postSlug: 'mapped-bob-post',
+								importId: 602,
+							},
+						]),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'map',
+				authorsMap: {
+					remote_alice: 'wxr_mapped_alice',
+					remote_bob: 'wxr_mapped_bob',
+				},
+			});
+
+			await expect(
+				getPostAuthorLogins(['mapped-alice-post', 'mapped-bob-post'])
+			).resolves.toEqual({
+				'mapped-alice-post': 'wxr_mapped_alice',
+				'mapped-bob-post': 'wxr_mapped_bob',
+			});
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should reject missing or invalid imported author maps',
+		async () => {
+			const createFile = (importId: number) =>
+				new File(
+					[
+						createAuthorWxr(
+							'remote_author',
+							'Invalid Author Map Post',
+							'invalid-author-map-post',
+							importId
+						),
+					],
+					'import.wxr'
+				);
+
+			await expect(
+				importWxr(php, {
+					file: createFile(701),
+					authorsMode: 'map',
+					authorsMap: {},
+				})
+			).rejects.toThrow(
+				/Missing local user mapping for WXR author.*remote_author/
+			);
+
+			await expect(
+				importWxr(php, {
+					file: createFile(702),
+					authorsMode: 'map',
+					authorsMap: {
+						remote_author: 'missing_local_author',
+					},
+				})
+			).rejects.toThrow(
+				/Could not find local user.*missing_local_author.*remote_author/
+			);
+
+			await expect(
+				importWxr(php, {
+					file: createFile(703),
+					authorsMode: 'map',
+					authorsMap: {
+						remote_author: '',
+					},
+				})
+			).rejects.toThrow(
+				/Invalid local user mapping for WXR author.*remote_author/
+			);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should use explicit author maps before default-author fallback',
+		async () => {
+			await createAuthorUsers(['wxr_partially_mapped_author']);
+
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorsWxr([
+							{
+								authorLogin: 'remote_mapped',
+								postTitle: 'Partially Mapped Post',
+								postSlug: 'partially-mapped-post',
+								importId: 801,
+							},
+							{
+								authorLogin: 'remote_unmapped',
+								postTitle: 'Defaulted Author Post',
+								postSlug: 'defaulted-author-post',
+								importId: 802,
+							},
+						]),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'default-author',
+				authorsMap: {
+					remote_mapped: 'wxr_partially_mapped_author',
+				},
+			});
+
+			await expect(
+				getPostAuthorLogins([
+					'partially-mapped-post',
+					'defaulted-author-post',
+				])
+			).resolves.toEqual({
+				'partially-mapped-post': 'wxr_partially_mapped_author',
+				'defaulted-author-post': 'admin',
+			});
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should create users for imported authors when requested',
+		async () => {
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorWxr(
+							'remote_author',
+							'Created Author Post',
+							'created-author-post',
+							502
+						),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'create',
+				importUsers: true,
+			});
+
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$post = get_page_by_path('created-author-post', OBJECT, 'post');
+			$author = $post ? get_user_by('ID', $post->post_author) : null;
+			echo json_encode([
+				'user_exists' => (bool) get_user_by('login', 'remote_author'),
+				'post_author' => $author ? $author->user_login : null,
+			]);
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(result.json).toEqual({
+				user_exists: true,
+				post_author: 'remote_author',
+			});
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should use the default author when user importing is disabled',
+		async () => {
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorWxr(
+							'remote_author',
+							'Create Disabled Post',
+							'create-disabled-post',
+							901
+						),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'create',
+				importUsers: false,
+			});
+
+			const authorLogins = await getPostAuthorLogins([
+				'create-disabled-post',
+			]);
+			const result = await php.run({
+				code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			echo json_encode((bool) get_user_by('login', 'remote_author'));
+			`,
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+
+			expect(authorLogins).toEqual({
+				'create-disabled-post': 'admin',
+			});
+			expect(result.json).toBe(false);
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
+		'Should derive missing WXR authors from post creators',
+		async () => {
+			await importWxr(php, {
+				file: new File(
+					[
+						createAuthorsWxr(
+							[
+								{
+									authorLogin: 'derived_remote_author',
+									postTitle: 'Derived Author Post',
+									postSlug: 'derived-author-post',
+									importId: 1001,
+								},
+							],
+							false
+						),
+					],
+					'import.wxr'
+				),
+				authorsMode: 'create',
+				importUsers: true,
+			});
+
+			await expect(
+				getPostAuthorLogins(['derived-author-post'])
+			).resolves.toEqual({
+				'derived-author-post': 'derived_remote_author',
+			});
+		},
+		{ timeout: 30_000 }
+	);
+
+	it(
 		'Should fail when the configured default author does not exist',
 		async () => {
 			const fileData = await readFile(
@@ -692,3 +1031,112 @@ describe('Blueprint step importWxr', () => {
 		{ timeout: 30_000 }
 	);
 });
+
+/**
+ * Creates a minimal WXR file with one author and one post.
+ */
+function createAuthorWxr(
+	authorLogin: string,
+	postTitle: string,
+	postSlug: string,
+	importId: number
+) {
+	return createAuthorsWxr([
+		{
+			authorLogin,
+			postTitle,
+			postSlug,
+			importId,
+		},
+	]);
+}
+
+type WxrAuthorPost = {
+	authorLogin: string;
+	postTitle: string;
+	postSlug: string;
+	importId: number;
+};
+
+/**
+ * Creates a minimal WXR file with author and post entries.
+ */
+function createAuthorsWxr(
+	posts: WxrAuthorPost[],
+	includeAuthorElements = true
+) {
+	const authorsByLogin = new Map<string, WxrAuthorPost>();
+	for (const post of posts) {
+		if (!authorsByLogin.has(post.authorLogin)) {
+			authorsByLogin.set(post.authorLogin, post);
+		}
+	}
+
+	return `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Author import</title>
+	<link>https://example.com</link>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+	${
+		includeAuthorElements
+			? Array.from(authorsByLogin.values())
+					.map(createWxrAuthor)
+					.join('\n')
+			: ''
+	}
+	${posts.map(createWxrPost).join('\n')}
+</channel>
+</rss>`;
+}
+
+/**
+ * Creates one WXR author entry.
+ */
+function createWxrAuthor(post: WxrAuthorPost) {
+	return `<wp:author>
+		<wp:author_id>${post.importId}</wp:author_id>
+		<wp:author_login><![CDATA[${post.authorLogin}]]></wp:author_login>
+		<wp:author_email><![CDATA[${post.authorLogin}@example.com]]></wp:author_email>
+		<wp:author_display_name><![CDATA[${post.authorLogin}]]></wp:author_display_name>
+		<wp:author_first_name><![CDATA[]]></wp:author_first_name>
+		<wp:author_last_name><![CDATA[]]></wp:author_last_name>
+	</wp:author>`;
+}
+
+/**
+ * Creates one WXR post entry.
+ */
+function createWxrPost(post: WxrAuthorPost) {
+	return `<item>
+		<title><![CDATA[${post.postTitle}]]></title>
+		<link>https://example.com/${post.postSlug}/</link>
+		<pubDate>Wed, 01 Jan 2025 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[${post.authorLogin}]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=${post.importId}</guid>
+		<description></description>
+		<content:encoded><![CDATA[<p>Imported author post</p>]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>${post.importId}</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-01 00:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-01 00:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-01 00:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[open]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[${post.postSlug}]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>`;
+}

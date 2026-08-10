@@ -110,6 +110,7 @@ function readTreeIntoFileMap(root) {
 			const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
 			if (entry.isDirectory()) {
 				walk(abs, rel);
+				fileMap[`${rel}/`] = new Uint8Array();
 			} else if (entry.isFile()) {
 				// `wordpress-static.zip` is served from
 				// packages/playground/wordpress-builds/public/wp-<version>/ for
@@ -153,18 +154,23 @@ function buildOne(slug, windowLog, deleteZip = false) {
 		});
 		const fileMap = readTreeIntoFileMap(tmp);
 		const entries = normalizeEntries(fileMap);
+		const files = entries.filter((entry) => entry.type !== 'dir');
+		const dirCount = entries.length - files.length;
 		const uncompressedBytes = entries.reduce(
-			(n, e) => n + e.data.length,
+			(n, e) => n + (e.type === 'dir' ? 0 : e.data.length),
 			0
 		);
 		const tar = createUstarTar(entries, { mtime: 0 });
 		const compressed = compressTarZst(tar, windowLog);
+		const tarMib = (tar.length / 1048576).toFixed(2);
+		const compressedMib = (compressed.length / 1048576).toFixed(2);
 		const outPath = path.join(WP_DIR, `wp-${slug}.tar.zst`);
 		writeFileSync(outPath, compressed);
 		const sha256 = createHash('sha256').update(compressed).digest('hex');
 		const meta = {
 			slug,
-			fileCount: entries.length,
+			fileCount: files.length,
+			dirCount,
 			size: compressed.length,
 			sha256,
 			uncompressedBytes,
@@ -172,8 +178,9 @@ function buildOne(slug, windowLog, deleteZip = false) {
 			windowLog,
 		};
 		console.log(
-			`wp-${slug}: ${entries.length} files, tar ${(tar.length / 1048576).toFixed(2)} MiB ` +
-				`→ tar.zst ${(compressed.length / 1048576).toFixed(2)} MiB (wlog ${windowLog}), sha256 ${sha256.slice(0, 12)}…`
+			`wp-${slug}: ${files.length} files, ${dirCount} dirs, ` +
+				`tar ${tarMib} MiB → tar.zst ${compressedMib} MiB ` +
+				`(wlog ${windowLog}), sha256 ${sha256.slice(0, 12)}…`
 		);
 		if (deleteZip) {
 			// The zip is now a transient build source; tar.zst is the shipped
@@ -198,8 +205,7 @@ function validateZipListing(zipPath) {
 		if (name.startsWith('/')) {
 			throw new Error(`Unsafe ZIP entry path (absolute): ${name}`);
 		}
-		if (name.endsWith('/')) continue;
-		sanitizeArchivePath(name);
+		sanitizeArchivePath(name.endsWith('/') ? name.slice(0, -1) : name);
 	}
 }
 
@@ -249,8 +255,12 @@ function verify(versions) {
 		process.exit(1);
 	}
 	for (const [slug, meta] of Object.entries(readArtifactMeta(versions))) {
+		const dirCount = meta.dirCount ?? 0;
+		const dirCountLabel = dirCount === 1 ? '1 dir' : `${dirCount} dirs`;
 		console.log(
-			`OK  wp-${slug}.tar.zst (${meta.size} bytes, ${meta.fileCount} files, ${meta.sha256.slice(0, 12)}…)`
+			`OK  wp-${slug}.tar.zst (` +
+				`${meta.size} bytes, ${meta.fileCount} files, ` +
+				`${dirCountLabel}, ${meta.sha256.slice(0, 12)}…)`
 		);
 	}
 }
@@ -338,10 +348,13 @@ function readOneArtifactMeta(slug) {
 		throw new Error(`Missing committed artifact: ${tarZst}`);
 	}
 	const bytes = readFileSync(tarZst);
+	const entries = readUstarTar(zlib.zstdDecompressSync(bytes));
+	const fileCount = entries.filter((entry) => entry.type !== 'dir').length;
 	return {
 		size: statSync(tarZst).size,
 		sha256: createHash('sha256').update(bytes).digest('hex'),
-		fileCount: readUstarTar(zlib.zstdDecompressSync(bytes)).length,
+		fileCount,
+		dirCount: entries.length - fileCount,
 	};
 }
 

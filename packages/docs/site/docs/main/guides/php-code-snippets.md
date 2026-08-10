@@ -126,6 +126,26 @@ escaping every `<` character.
 </php-snippet>
 ```
 
+A literal `</script>` still closes the child script element, even when it is
+inside a PHP string. Use JSON-encoded child payloads when the PHP source or
+expected output contains that sequence:
+
+```html
+<php-snippet name="example.php">
+	<script type="application/x-php+json">
+		"\u003C?php\necho '\u003C/script\u003E';"
+	</script>
+	<script type="text/expected-output+json">
+		"\u003C/script\u003E"
+	</script>
+</php-snippet>
+```
+
+Both payloads are parsed as JSON and must decode to strings; other JSON values
+are rejected. Encode `<` as `\u003C` so the HTML parser never sees a literal
+`</script>`. `JSON.stringify()` does not escape `<` by itself. The unencoded
+`application/x-php` and `text/expected-output` types remain supported.
+
 Very short snippets can also be written as text, as long as PHP opening tags are
 escaped:
 

@@ -53,7 +53,6 @@ export const PLAYGROUND_QUERY_KEYS = [
 	'import-content',
 	'page-title',
 	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
-	'experimental-blueprints-v2-runner',
 ];
 
 /**

@@ -68,6 +68,12 @@
  * Focus styles.
  */
 /**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
  * Applies editor left position to the selector passed as argument
  */
 /**
@@ -137,7 +143,7 @@
 }
 
 .block-directory-compact-list__item-title {
-  font-weight: 499;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
 
 .block-directory-compact-list__item-author {
@@ -163,7 +169,9 @@
   height: auto;
   padding: 12px;
   margin: 0;
-  appearance: none;
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
   background: none;
   border: 0;
   text-align: left;
@@ -177,7 +185,7 @@
   position: relative;
 }
 .block-directory-downloadable-block-list-item:not([aria-disabled=true]) {
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control, pointer);
 }
 .block-directory-downloadable-block-list-item:hover {
   box-shadow: 0 0 0 var(--wp-admin-border-width-focus) var(--wp-admin-theme-color);
@@ -222,7 +230,7 @@
 
 .block-directory-downloadable-block-list-item__title {
   display: block;
-  font-weight: 600;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
 
 .block-directory-downloadable-block-list-item__author {

@@ -1,7 +1,4 @@
 /**
- * Typography
- */
-/**
  * SCSS Variables.
  *
  * Please use variables from this sheet to ensure consistency across the UI.
@@ -46,6 +43,22 @@
  * React Native specific.
  * These variables do not appear to be used anywhere else.
  */
+.components-popover__content:has(.dataviews-media-field__attached-to) {
+  margin-bottom: 96px;
+}
+
+.components-popover__content:has(.dataviews-media-field__attached-to):has(.components-form-token-field__suggestions-list) {
+  margin-bottom: 0;
+}
+
+.components-popover__content:has(.dataviews-media-field__attached-to) .components-form-token-field__suggestions-list {
+  height: 96px;
+  max-height: none;
+}
+
+/**
+ * Typography
+ */
 /**
  * Breakpoints & Media Queries
  */
@@ -66,6 +79,12 @@
  */
 /**
  * Focus styles.
+ */
+/**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
  */
 /**
  * Applies editor left position to the selector passed as argument
@@ -100,6 +119,7 @@
 .media-author-field__avatar img {
   width: 16px;
   height: 16px;
+  -o-object-fit: cover;
   object-fit: cover;
   opacity: 1;
   border-radius: 100%;
@@ -135,6 +155,17 @@
   overflow: hidden;
 }
 
+.dataviews-view-table .dataviews-media-field__filename,
+.dataviews-view-grid .dataviews-media-field__filename,
+.dataviews-view-list .dataviews-media-field__filename {
+  display: inline-block;
+  max-inline-size: 15ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
 .dataviews-media-field__media-thumbnail {
   display: flex;
   align-items: center;
@@ -142,10 +173,24 @@
   height: 100%;
 }
 
+@media not (prefers-reduced-motion) {
+  .dataviews-media-field__media-thumbnail.is-loading img, .dataviews-media-field__media-thumbnail.is-loaded img {
+    transition: opacity 0.1s linear;
+  }
+}
+.dataviews-media-field__media-thumbnail.is-loading img {
+  opacity: 0;
+}
+
+.dataviews-media-field__media-thumbnail.is-loaded img {
+  opacity: 1;
+}
+
 .dataviews-media-field__media-thumbnail--image {
   display: block;
   width: 100%;
   height: 100%;
+  -o-object-fit: cover;
   object-fit: cover;
 }
 
@@ -167,8 +212,8 @@
   padding: 0 16px;
   width: 100%;
   container-type: inline-size;
-  font-family: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-  font-weight: 400;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-weight: var(--wpds-typography-font-weight-default, 400);
   font-size: 12px;
   line-height: 16px;
 }
@@ -252,6 +297,12 @@
  * Focus styles.
  */
 /**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
  * Applies editor left position to the selector passed as argument
  */
 /**
@@ -275,7 +326,7 @@
   padding-bottom: 8px;
 }
 .media-upload-modal .components-modal__frame.is-full-screen .components-modal__content {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 .media-upload-modal .components-modal__content {
   padding: 0;
@@ -283,12 +334,39 @@
 .media-upload-modal .dataviews-picker-wrapper > .dataviews__view-actions {
   padding-top: 8px;
 }
-.media-upload-modal .dataviews-footer {
-  padding-bottom: 8px;
+.media-upload-modal .media-upload-modal__footer {
+  position: sticky;
+  bottom: 0;
+  background-color: inherit;
+  z-index: 2;
 }
-.media-upload-modal .media-upload-modal__snackbar {
+.media-upload-modal .media-upload-modal__footer.is-uploading .dataviews-picker-footer__bulk-selection {
+  visibility: hidden;
+}
+.media-upload-modal .media-upload-modal__footer .dataviews-footer {
+  position: static;
+  z-index: auto;
+}
+.media-upload-modal .media-upload-modal__upload-status {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--wp-dataviews-color-background, #fff);
+  right: 24px;
+  top: 1px;
+  bottom: 1px;
+  z-index: 1;
+}
+.media-upload-modal .media-upload-modal__upload-status .components-spinner {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.media-upload-modal__snackbar {
   position: fixed;
-  bottom: 24px;
+  bottom: var(--wpds-dimension-size-md, 32px);
   right: 0;
   left: 0;
   padding-inline: 16px;
@@ -297,6 +375,57 @@
   flex-direction: column;
   pointer-events: none;
 }
-.media-upload-modal .media-upload-modal__snackbar .components-snackbar {
+.media-upload-modal__snackbar .components-snackbar {
   margin-inline: auto;
+}
+.media-upload-modal__snackbar {
+  z-index: 200000;
+}
+.media-upload-modal__snackbar > div {
+  transform: none !important;
+  transform-origin: 100% !important;
+}
+
+.media-upload-modal__upload-status__popover .components-popover__content {
+  width: 320px;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__item .components-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  font-size: 12px;
 }

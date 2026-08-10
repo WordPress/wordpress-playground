@@ -329,22 +329,19 @@ describe('StreamingTarParser', () => {
 		{
 			fixture: 'bsdtar-ustar.tar',
 			description: 'libarchive bsdtar --format=ustar',
-			expectedPath:
-				'wp-content/themes/' + 'p'.repeat(120) + '/style.css',
+			expectedPath: 'wp-content/themes/' + 'p'.repeat(120) + '/style.css',
 			expectedContents: 'body{color:red}\n',
 		},
 		{
 			fixture: 'bsdtar-gnutar.tar',
 			description: 'libarchive bsdtar --format=gnutar',
-			expectedPath:
-				'wp-content/plugins/' + 'q'.repeat(180) + '/main.php',
+			expectedPath: 'wp-content/plugins/' + 'q'.repeat(180) + '/main.php',
 			expectedContents: '<?php echo "plugin";\n',
 		},
 		{
 			fixture: 'bsdtar-pax.tar',
 			description: 'libarchive bsdtar --format=pax',
-			expectedPath:
-				'wp-content/plugins/' + 'q'.repeat(180) + '/main.php',
+			expectedPath: 'wp-content/plugins/' + 'q'.repeat(180) + '/main.php',
 			expectedContents: '<?php echo "plugin";\n',
 		},
 	])(
@@ -507,9 +504,7 @@ describe('StreamingTarParser', () => {
 
 	it('throws when a USTAR prefix path escapes the extraction root', () => {
 		expect(() =>
-			collect(
-				buildTar([{ name: 'escape.txt', prefix: '..', data: 'x' }])
-			)
+			collect(buildTar([{ name: 'escape.txt', prefix: '..', data: 'x' }]))
 		).toThrow(/path traversal/);
 	});
 
@@ -548,7 +543,6 @@ describe('StreamingTarParser', () => {
 	});
 });
 
-
 describe('extractTarStreamToPhp', () => {
 	it('writes files and creates parent directories in MEMFS', async () => {
 		const { php, files, dirs } = fakePhp();
@@ -564,6 +558,18 @@ describe('extractTarStreamToPhp', () => {
 		expect(text(files.get('/wordpress/wp-includes/version.php'))).toBe('v');
 		expect(dirs.has('/wordpress/wp-includes')).toBe(true);
 		expect(stats.fileCount).toBe(2);
+	});
+
+	it('creates explicit empty directories in MEMFS', async () => {
+		const { php, dirs } = fakePhp();
+		const stream = streamOf(
+			buildTar([{ name: 'wp-content/upgrade', type: 'dir' }])
+		);
+		const stats = await extractTarStreamToPhp(stream, php, '/wordpress');
+
+		expect(dirs.has('/wordpress/wp-content/upgrade')).toBe(true);
+		expect(stats.dirCount).toBe(1);
+		expect(stats.fileCount).toBe(0);
 	});
 
 	it('respects overwriteFiles=false by skipping existing files', async () => {
@@ -600,9 +606,7 @@ describe('extractTarStreamToPhp', () => {
 
 	it('keeps targetRoot=/ writes absolute', async () => {
 		const { php, files } = fakePhp();
-		const stream = streamOf(
-			buildTar([{ name: 'index.php', data: 'x' }])
-		);
+		const stream = streamOf(buildTar([{ name: 'index.php', data: 'x' }]));
 
 		await extractTarStreamToPhp(stream, php, '/');
 
@@ -610,7 +614,6 @@ describe('extractTarStreamToPhp', () => {
 		expect(files.has('index.php')).toBe(false);
 	});
 });
-
 
 async function collectStream(stream: ReadableStream<Uint8Array>) {
 	const entries: TarEntry[] = [];
@@ -685,7 +688,10 @@ async function withoutNativeDecompressionStream<T>(callback: () => Promise<T>) {
 describe('createDecodedTarStream + zstddec fallback', () => {
 	it('streams a .tar.zst fixture through zstddec into the tar parser', async () => {
 		await withoutNativeDecompressionStream(async () => {
-			const stream = await createDecodedTarStream(ZSTD_TAR_FIXTURE, 'zstd');
+			const stream = await createDecodedTarStream(
+				ZSTD_TAR_FIXTURE,
+				'zstd'
+			);
 			const { entries, stats } = await collectStream(stream);
 			const binary = Buffer.alloc(3000);
 			for (let i = 0; i < binary.length; i += 1) {

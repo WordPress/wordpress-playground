@@ -1,7 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- in-package build helper
-import { normalizeEntries, readUstarTar } from '../../build/lib/tar-ustar.mjs';
+import {
+	createUstarTar,
+	normalizeEntries,
+	readUstarTar,
+} from '../../build/lib/tar-ustar.mjs';
 // zstddec (WASM) decodes the tar.zst on any Node version; node:zlib zstd would
 // need Node >= 22.15, but the CI unit-test job runs Node 20.
 import { ZSTDDecoder } from 'zstddec/stream';
@@ -19,6 +23,46 @@ describe('WordPress core bundle assets', () => {
 				[name]: new Uint8Array(),
 			})
 		).toThrow(message);
+	});
+
+	it('preserves only explicit directories with no file descendants', () => {
+		const entries = normalizeEntries({
+			'wp-content/': new Uint8Array(),
+			'wp-content/plugins/': new Uint8Array(),
+			'wp-content/plugins/akismet/akismet.php': new TextEncoder().encode(
+				'<?php'
+			),
+			'wp-content/upgrade/': new Uint8Array(),
+		});
+
+		expect(
+			entries.map((entry: { name: string; type?: string }) => ({
+				name: entry.name,
+				type: entry.type ?? 'file',
+			}))
+		).toEqual([
+			{ name: 'wp-content/plugins/akismet/akismet.php', type: 'file' },
+			{ name: 'wp-content/upgrade', type: 'dir' },
+		]);
+	});
+
+	it('round-trips explicit directory entries without counting them as files', () => {
+		const entries = normalizeEntries({
+			'wp-content/cache/': new Uint8Array(),
+			'wp-includes/version.php': new TextEncoder().encode('<?php'),
+		});
+		const tarEntries = readUstarTar(createUstarTar(entries)) as Array<{
+			name: string;
+			type?: string;
+		}>;
+
+		expect(tarEntries).toEqual([
+			{ name: 'wp-content/cache', type: 'dir' },
+			{ name: 'wp-includes/version.php', data: expect.any(Uint8Array) },
+		]);
+		expect(tarEntries.filter((entry) => entry.type !== 'dir')).toHaveLength(
+			1
+		);
 	});
 
 	it('ships CSS files that WordPress core reads from PHP', async () => {

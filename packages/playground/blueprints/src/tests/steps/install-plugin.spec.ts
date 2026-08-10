@@ -243,6 +243,48 @@ echo json_encode(array(
 		}
 	});
 
+	it('should activate a single PHP file plugin', async () => {
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		const wpPhp = await handler.getPrimaryPhp();
+
+		try {
+			await installPlugin(wpPhp, {
+				pluginData: new File(
+					[
+						`<?php
+/**
+ * Plugin Name: Single File Plugin
+ */
+`,
+					],
+					'single-file-plugin.php'
+				),
+				options: {
+					activate: true,
+				},
+			});
+
+			const response = await wpPhp.run({
+				code: `<?php
+require '/wordpress/wp-load.php';
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+echo json_encode(is_plugin_active('single-file-plugin.php'));
+`,
+			});
+
+			expect(response.json).toBe(true);
+		} finally {
+			wpPhp.exit();
+			await handler[Symbol.asyncDispose]();
+		}
+	});
+
 	it('should report missing plugin files when setting activationOptions', async () => {
 		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>

@@ -41,6 +41,20 @@ export interface WebClientMixin extends ProgressReceiver {
 	getCurrentURL(): Promise<string>;
 
 	/**
+	 * Renders the site's front page in a disposable 1024×768 browsing context
+	 * and returns a compact 320×240 image.
+	 *
+	 * This method does not persist the image or synchronize it with OPFS.
+	 * Callers own the result's lifecycle and must discard it if the site changes
+	 * while the asynchronous capture is running.
+	 *
+	 * DOM cloning and canvas rendering run in the captured document's event
+	 * loop. A worker handles supported resource fetches, while explicit task
+	 * yields keep that document responsive during cloning.
+	 */
+	captureSiteThumbnail(): Promise<SiteThumbnail>;
+
+	/**
 	 * Sets the iframe sandbox flags.
 	 * @param flags The iframe sandbox flags.
 	 */
@@ -68,10 +82,25 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	flushOpfs(mountpoint: string): Promise<void>;
 
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	unmountOpfs(mountpoint: string): Promise<void>;
 
 	boot(options: WorkerBootOptions): Promise<void>;
 }
+
+export type SiteThumbnail = {
+	/** The encoded image's MIME type. */
+	mime: string;
+	/** The base64 payload without a data URL prefix. */
+	data: string;
+};
 
 /**
  * The Playground Client interface.

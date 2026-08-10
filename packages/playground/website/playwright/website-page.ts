@@ -24,6 +24,7 @@ export class WebsitePage {
 
 	async waitForPlaygroundShell(page = this.page) {
 		const controls = [
+			page.getByRole('navigation', { name: 'Playground tools' }),
 			page.getByLabel('Open Site Manager'),
 			page.getByRole('button', { name: /Site Manager/ }),
 			page.getByRole('button', { name: /This Playground/ }),
@@ -63,55 +64,84 @@ export class WebsitePage {
 	}
 
 	async ensureSiteManagerIsOpen() {
+		await this.waitForPlaygroundShell();
+		const dock = this.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		if (await dock.isVisible()) {
+			await this.openDockPane('Site Settings', 'Site Settings pane');
+			return;
+		}
+
 		const siteManagerButton = this.page.getByRole('button', {
 			name: /Site Manager/,
 		});
-		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
-		if (isPressed !== 'true') {
+		if ((await siteManagerButton.getAttribute('aria-pressed')) !== 'true') {
 			await siteManagerButton.click();
 		}
-		// Wait for the site info panel section to be visible
 		await expect(
 			this.page.locator('section[class*="site-info-panel"]')
 		).toBeVisible();
 	}
 
 	async ensureSiteManagerIsClosed() {
-		const siteManagerButton = this.page.getByRole('button', {
-			name: /Site Manager/,
+		const dock = this.page.getByRole('navigation', {
+			name: 'Playground tools',
 		});
-		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
-		if (isPressed === 'true') {
-			await siteManagerButton.click();
+		if (await dock.isVisible()) {
+			const pressedTool = dock.locator('button[aria-pressed="true"]');
+			if ((await pressedTool.count()) > 0) {
+				await pressedTool.first().click();
+			}
+		} else {
+			const siteManagerButton = this.page.getByRole('button', {
+				name: /Site Manager/,
+			});
+			if ((await siteManagerButton.count()) > 0) {
+				const isPressed =
+					await siteManagerButton.getAttribute('aria-pressed');
+				if (isPressed === 'true') {
+					await siteManagerButton.click();
+				}
+			}
 		}
-		// Wait for the site info panel section to be hidden
 		await expect(
-			this.page.locator('section[class*="site-info-panel"]')
+			this.page.locator('[role="dialog"][aria-label$=" pane"]')
 		).not.toBeVisible();
 	}
 
 	/**
-	 * Opens the Your Playgrounds overlay and waits for its content to render.
+	 * Opens one Dock destination and waits for its pane to replace any old pane.
 	 */
-	async openSavedPlaygroundsOverlay() {
-		await this.page
-			.getByRole('button', { name: 'Your Playgrounds' })
-			.click();
+	async openDockPane(toolName: string, paneName = `${toolName} pane`) {
+		const dock = this.page.getByRole('navigation', {
+			name: 'Playground tools',
+		});
+		const tool = dock.getByRole('button', { name: toolName });
+		if ((await tool.getAttribute('aria-pressed')) !== 'true') {
+			await tool.click();
+		}
 		await expect(
-			this.page
-				.locator('[class*="overlay"]')
-				.filter({ hasText: 'Playground' })
+			this.page.getByRole('dialog', { name: paneName })
 		).toBeVisible();
 	}
 
-	async closeSavedPlaygroundsOverlay() {
-		const overlay = this.page
-			.locator('[class*="overlay"]')
-			.filter({ hasText: 'Playground' });
-		if (await overlay.isVisible()) {
+	/**
+	 * Opens the Your Playgrounds pane and waits for its current content.
+	 */
+	async openPlaygroundsPane() {
+		await this.openDockPane('Your Playgrounds');
+	}
+
+	/** Closes the Your Playgrounds pane when it is currently visible. */
+	async closePlaygroundsPane() {
+		const pane = this.page.getByRole('dialog', {
+			name: 'Your Playgrounds pane',
+		});
+		if (await pane.isVisible()) {
 			await this.page.keyboard.press('Escape');
 		}
-		await expect(overlay).not.toBeVisible();
+		await expect(pane).not.toBeVisible();
 	}
 
 	async getSiteTitle(): Promise<string> {
