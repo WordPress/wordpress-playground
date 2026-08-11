@@ -1,6 +1,7 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { Page } from '@playwright/test';
+import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -1265,8 +1266,10 @@ test.describe('Database panel', () => {
 });
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
-test.describe('Default Playground storage', () => {
-	test.describe.configure({ mode: 'serial' });
+// The `@storage` tag routes this group to the one-worker CI storage lane.
+test.describe('Default Playground storage', { tag: '@storage' }, () => {
+	// Default mode prevents storage overlap while retrying only the failed test.
+	test.describe.configure({ mode: 'default' });
 
 	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
@@ -3432,6 +3435,24 @@ echo get_option('blogname');
 				activeSite?.persistence === 'autosave'
 			);
 		});
+		const initialAutosave = await getActivePlaygroundSite(website.page);
+		const initialAutosaveDirectory = getDirectoryNameForSlug(
+			initialAutosave.slug
+		);
+		await expect
+			.poll(() =>
+				website.page.evaluate(async (siteDirectoryName) => {
+					const root = await navigator.storage.getDirectory();
+					const sites = await root.getDirectoryHandle('sites');
+					const site =
+						await sites.getDirectoryHandle(siteDirectoryName);
+					const metadata =
+						await site.getFileHandle('wp-runtime.json');
+					return JSON.parse(await (await metadata.getFile()).text())
+						.initialOpfsSyncPending;
+				}, initialAutosaveDirectory)
+			)
+			.toBe(false);
 
 		await website.goto(setupUrl);
 		await expect(

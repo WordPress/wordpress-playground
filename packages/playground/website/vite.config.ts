@@ -262,6 +262,17 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					// Production serves api.html from the origin root. Preserve that
+					// URL in development even though the website uses a Vite base.
+					server.middlewares.use((req, _res, next) => {
+						if (
+							req.url === '/api.html' ||
+							req.url?.startsWith('/api.html?')
+						) {
+							req.url = `/website-server${req.url}`;
+						}
+						next();
+					});
 					if (process.env['PLAYGROUND_PR_PREVIEW_MOCKS'] === 'true') {
 						registerPrPreviewMockMiddleware(server);
 					}
@@ -281,7 +292,7 @@ export default defineConfig(({ command, mode }) => {
 							);
 							res.end(
 								`export * from ${JSON.stringify(
-									`/@fs/${clientIndexPath}`
+									`${server.config.base}@fs${clientIndexPath}`
 								)};`
 							);
 						}
@@ -378,6 +389,7 @@ export default defineConfig(({ command, mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
+					api: fileURLToPath(new URL('./api.html', import.meta.url)),
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
 					),
@@ -453,6 +465,25 @@ export default defineConfig(({ command, mode }) => {
 						// Optional, lazy loaded Blueprint Editor package
 						if (id.includes('blueprint-editor')) {
 							return 'optional/blueprint-editor';
+						}
+
+						// Vite builds api.html and the website in one Rollup graph. In Rollup 4,
+						// a manual chunk also claims its static dependencies by default.
+						// The Blueprint editor and api.html both depend on OPFS storage, so without
+						// this rule the editor chunk claims that shared code. As a result, api.html
+						// must preload the large editor and CodeMirror chunks just to use OPFS.
+						//
+						// The proper fix is to enable `onlyExplicitManualChunks`, which makes manual
+						// chunks claim only the modules explicitly assigned to them. With our current
+						// imports, that produces circular chunks between the application and CodeMirror
+						// code, making their execution order unsafe. We must untangle those imports
+						// before enabling the option globally.
+						//
+						// Until then, assign the API entry to its own manual chunk. This keeps its static
+						// dependency graph, including OPFS storage, out of the optional editor chunk.
+						// See https://rollupjs.org/configuration-options/#output-onlyexplicitmanualchunks
+						if (id.endsWith('/src/lib/boot-playground-api.ts')) {
+							return 'opfs-site-storage';
 						}
 					},
 					assetFileNames: (chunkInfo) => {
