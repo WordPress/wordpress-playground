@@ -5,10 +5,20 @@ import {
 	type StepDefinition,
 	type UniversalPHP,
 	compileBlueprintV1,
+	phpVar,
 	runBlueprintV1Steps,
 } from '@wp-playground/client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { InlineProgress } from '../../pane-loading';
 import css from './style.module.css';
+import { getTerminalErrorMessage } from './terminal-error';
+import {
+	addCommandToHistory,
+	loadTerminalHistory,
+	saveTerminalHistory,
+} from './terminal-history';
+import { getWpCliCommandError } from './wp-cli-command';
+import { formatWpCliOutput } from './wp-cli-output';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -19,10 +29,11 @@ type TerminalEntry = {
 	command: string;
 	output: string;
 	status: 'success' | 'error';
+	durationMs: number;
 };
 
-const DEFAULT_PHP_CODE = "echo get_option( 'blogname' );";
-const DEFAULT_WP_CLI_COMMAND = 'wp option get blogname';
+const PHP_SESSION_STATE_PATH = '/tmp/playground-terminal-php-session';
+const PHP_INCOMPLETE_INPUT_MARKER = '__PLAYGROUND_PHP_INCOMPLETE_INPUT__';
 
 export function SiteTerminalPanel({
 	playground,
@@ -30,13 +41,33 @@ export function SiteTerminalPanel({
 	playground: PlaygroundClient | undefined;
 }) {
 	const [mode, setMode] = useState<TerminalMode>('php');
-	const [phpCode, setPhpCode] = useState(DEFAULT_PHP_CODE);
-	const [wpCliCommand, setWpCliCommand] = useState(DEFAULT_WP_CLI_COMMAND);
-	const [entries, setEntries] = useState<TerminalEntry[]>([]);
+	const [phpCode, setPhpCode] = useState('');
+	const [wpCliCommand, setWpCliCommand] = useState('');
+	const [entriesByMode, setEntriesByMode] = useState<
+		Record<TerminalMode, TerminalEntry[]>
+	>({
+		php: [],
+		'wp-cli': [],
+	});
 	const [isRunning, setIsRunning] = useState(false);
+	const [commandHistory, setCommandHistory] = useState(loadTerminalHistory);
+	const historyPosition = useRef<Record<TerminalMode, number>>({
+		php: -1,
+		'wp-cli': -1,
+	});
+	const draftBeforeHistory = useRef<Record<TerminalMode, string>>({
+		php: '',
+		'wp-cli': '',
+	});
+	const outputRef = useRef<HTMLDivElement>(null);
 
 	const command = mode === 'php' ? phpCode : wpCliCommand;
+	const entries = entriesByMode[mode];
 	const canRun = !!playground && !!command.trim() && !isRunning;
+
+	useEffect(() => {
+		outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
+	}, [entries, isRunning]);
 
 	async function runCommand() {
 		if (!playground || !canRun) {
@@ -44,23 +75,43 @@ export function SiteTerminalPanel({
 		}
 
 		setIsRunning(true);
+		const startedAt = performance.now();
 		try {
-			const output =
-				mode === 'php'
-					? await runPHP(playground, phpCode)
-					: await runWpCli(playground, wpCliCommand);
+			const wpCliCommandError =
+				mode === 'wp-cli'
+					? getWpCliCommandError(`wp ${wpCliCommand}`)
+					: undefined;
+			if (wpCliCommandError) {
+				throw new Error(wpCliCommandError);
+			}
+			let output: string;
+			if (mode === 'php') {
+				const result = await runPHP(playground, phpCode);
+				if (result.incomplete) {
+					setPhpCode(`${phpCode}\n`);
+					return;
+				}
+				output = result.output;
+			} else {
+				output = await runWpCli(playground, `wp ${wpCliCommand}`);
+			}
+			recordCommand(mode, command);
 			appendEntry({
 				mode,
 				command,
 				output,
 				status: 'success',
+				durationMs: performance.now() - startedAt,
 			});
+			setCurrentCommand('');
 		} catch (error) {
+			recordCommand(mode, command);
 			appendEntry({
 				mode,
 				command,
 				output: getErrorOutput(error),
 				status: 'error',
+				durationMs: performance.now() - startedAt,
 			});
 		} finally {
 			setIsRunning(false);
@@ -68,78 +119,145 @@ export function SiteTerminalPanel({
 	}
 
 	function appendEntry(entry: TerminalEntry) {
-		setEntries((current) => [...current, entry]);
+		setEntriesByMode((current) => ({
+			...current,
+			[entry.mode]: [...current[entry.mode], entry],
+		}));
+	}
+
+	function recordCommand(commandMode: TerminalMode, value: string) {
+		setCommandHistory((current) => {
+			const next = addCommandToHistory(current, commandMode, value);
+			saveTerminalHistory(next);
+			return next;
+		});
+		historyPosition.current[commandMode] = -1;
+	}
+
+	function setCurrentCommand(value: string) {
+		if (mode === 'php') {
+			setPhpCode(value);
+		} else {
+			setWpCliCommand(value);
+		}
+	}
+
+	function updateCurrentCommand(value: string) {
+		historyPosition.current[mode] = -1;
+		draftBeforeHistory.current[mode] = value;
+		setCurrentCommand(value);
+	}
+
+	function navigateHistory(direction: 'older' | 'newer') {
+		const history = commandHistory[mode];
+		if (history.length === 0) {
+			return;
+		}
+
+		const currentPosition = historyPosition.current[mode];
+		if (direction === 'older') {
+			if (currentPosition === -1) {
+				draftBeforeHistory.current[mode] = command;
+			}
+			const nextPosition = Math.min(
+				currentPosition + 1,
+				history.length - 1
+			);
+			historyPosition.current[mode] = nextPosition;
+			setCurrentCommand(history[nextPosition]);
+			return;
+		}
+
+		if (currentPosition <= 0) {
+			historyPosition.current[mode] = -1;
+			setCurrentCommand(draftBeforeHistory.current[mode]);
+			return;
+		}
+
+		const nextPosition = currentPosition - 1;
+		historyPosition.current[mode] = nextPosition;
+		setCurrentCommand(history[nextPosition]);
+	}
+
+	function clearOutput() {
+		setEntriesByMode((current) => ({
+			...current,
+			[mode]: [],
+		}));
 	}
 
 	return (
 		<div className={css.terminalPanel}>
 			<div className={css.toolbar}>
-				<div className={css.modeTabs} role="tablist">
+				<div
+					className={css.modeTabs}
+					role="tablist"
+					aria-label="Terminal mode"
+				>
 					<Button
-						variant={mode === 'php' ? 'primary' : 'secondary'}
+						className={`${css.modeTab} ${
+							mode === 'php' ? css.modeTabActive : ''
+						}`}
 						onClick={() => setMode('php')}
-						aria-pressed={mode === 'php'}
+						role="tab"
+						aria-selected={mode === 'php'}
+						aria-controls="terminal-session"
 					>
 						PHP
 					</Button>
 					<Button
-						variant={mode === 'wp-cli' ? 'primary' : 'secondary'}
+						className={`${css.modeTab} ${
+							mode === 'wp-cli' ? css.modeTabActive : ''
+						}`}
 						onClick={() => setMode('wp-cli')}
-						aria-pressed={mode === 'wp-cli'}
+						role="tab"
+						aria-selected={mode === 'wp-cli'}
+						aria-controls="terminal-session"
 					>
 						WP-CLI
 					</Button>
 				</div>
 				<Button
 					variant="secondary"
-					onClick={() => setEntries([])}
+					onClick={clearOutput}
 					disabled={entries.length === 0 || isRunning}
 				>
 					Clear
 				</Button>
 			</div>
-			<TextareaControl
-				__nextHasNoMarginBottom
-				label={mode === 'php' ? 'PHP code' : 'WP-CLI command'}
-				value={command}
-				rows={mode === 'php' ? 12 : 3}
-				className={css.commandInput}
-				help={
-					mode === 'php'
-						? 'Runs with WordPress loaded. The opening <?php tag is optional.'
-						: 'Runs through a Blueprint wp-cli step. The command must start with wp.'
-				}
-				onChange={(value) => {
-					if (mode === 'php') {
-						setPhpCode(value);
-					} else {
-						setWpCliCommand(value);
-					}
-				}}
-			/>
-			<div className={css.actions}>
-				<Button
-					variant="primary"
-					onClick={runCommand}
-					disabled={!canRun}
-					isBusy={isRunning}
-				>
-					Run
-				</Button>
-			</div>
-			<div className={css.output} aria-live="polite">
-				{entries.length === 0 ? (
+			<div
+				id="terminal-session"
+				className={css.output}
+				role="tabpanel"
+				aria-live="polite"
+				ref={outputRef}
+			>
+				{!playground ? (
+					<InlineProgress message="WordPress is still loading. The terminal will be ready in a moment." />
+				) : entries.length === 0 ? (
 					<div className={css.emptyOutput}>
-						Command output will appear here.
+						{mode === 'php'
+							? 'PHP session ready. WordPress is loaded.'
+							: 'WP-CLI session ready.'}
 					</div>
 				) : (
 					entries.map((entry, index) => (
 						<div className={css.entry} key={index}>
-							<div className={css.prompt}>
-								<span>
-									{entry.mode === 'php' ? 'php' : 'wp-cli'}$
-								</span>{' '}
-								{entry.command}
+							<div className={css.entryHeader}>
+								<div className={css.prompt}>
+									<span>
+										{entry.mode === 'php'
+											? 'php >'
+											: '$ wp'}
+									</span>{' '}
+									{entry.command}
+								</div>
+								<span
+									className={css.executionTime}
+									title="Execution time"
+								>
+									{formatExecutionTime(entry.durationMs)}
+								</span>
 							</div>
 							<pre
 								className={
@@ -153,6 +271,49 @@ export function SiteTerminalPanel({
 						</div>
 					))
 				)}
+				<div className={css.activePrompt}>
+					<span className={css.promptLabel}>
+						{mode === 'php' ? 'php >' : '$ wp'}
+					</span>
+					<TextareaControl
+						__nextHasNoMarginBottom
+						hideLabelFromVision
+						label={mode === 'php' ? 'PHP code' : 'WP-CLI command'}
+						value={command}
+						disabled={!playground}
+						rows={Math.max(1, command.split('\n').length)}
+						className={css.commandInput}
+						placeholder={
+							mode === 'php'
+								? "echo get_option( 'blogname' );"
+								: 'option get blogname'
+						}
+						onChange={updateCurrentCommand}
+						onKeyDown={(event) => {
+							if (event.key === 'ArrowUp') {
+								event.preventDefault();
+								navigateHistory('older');
+							} else if (event.key === 'ArrowDown') {
+								event.preventDefault();
+								navigateHistory('newer');
+							} else if (
+								event.key === 'Enter' &&
+								!event.shiftKey
+							) {
+								event.preventDefault();
+								runCommand();
+							}
+						}}
+					/>
+					<Button
+						variant="primary"
+						onClick={runCommand}
+						disabled={!canRun}
+						isBusy={isRunning}
+					>
+						Run
+					</Button>
+				</div>
 			</div>
 		</div>
 	);
@@ -163,7 +324,17 @@ async function runPHP(playground: PlaygroundClient, code: string) {
 	const response = await playground.run({
 		code: getWordPressPHPCode(code, documentRoot),
 	});
-	return formatResponse(response);
+	const incomplete = response.errors.includes(PHP_INCOMPLETE_INPUT_MARKER);
+	return {
+		incomplete,
+		output: formatResponse({
+			text: response.text,
+			errors: response.errors
+				.replace(PHP_INCOMPLETE_INPUT_MARKER, '')
+				.trim(),
+			exitCode: response.exitCode,
+		}),
+	};
 }
 
 async function runWpCli(playground: PlaygroundClient, command: string) {
@@ -189,13 +360,82 @@ async function runWpCli(playground: PlaygroundClient, command: string) {
 		}
 	);
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
-	return formatResponseLike(wpCliOutput);
+	return formatWpCliOutput(formatResponseLike(wpCliOutput));
 }
 
 function getWordPressPHPCode(code: string, documentRoot: string) {
 	const codeWithoutOpeningTag = code.replace(/^\s*<\?php\s*/i, '');
 	const wpLoadPath = joinPaths(documentRoot, 'wp-load.php');
-	return `<?php require_once ${JSON.stringify(wpLoadPath)};\n${codeWithoutOpeningTag}`;
+	return `<?php
+require_once ${phpVar(wpLoadPath)};
+(function () {
+	$playground_repl_has_error_handler = false;
+	try {
+		$playground_repl_state = @unserialize(
+			@file_get_contents(${phpVar(PHP_SESSION_STATE_PATH)})
+		);
+		if (is_array($playground_repl_state)) {
+			extract($playground_repl_state);
+		}
+		unset($playground_repl_state);
+
+		set_error_handler(function ($severity, $message) {
+			file_put_contents(
+				'php://stderr',
+				"Warning: {$message}\\n",
+				FILE_APPEND
+			);
+			return true;
+		});
+		$playground_repl_has_error_handler = true;
+		eval(${phpVar(codeWithoutOpeningTag)});
+	} catch (Throwable $playground_repl_error) {
+		if (
+			$playground_repl_error instanceof ParseError &&
+			(
+				strpos(
+					$playground_repl_error->getMessage(),
+					'unexpected end of file'
+				) !== false ||
+				strpos($playground_repl_error->getMessage(), 'Unclosed') === 0
+			)
+		) {
+			file_put_contents(
+				'php://stderr',
+				${phpVar(PHP_INCOMPLETE_INPUT_MARKER)},
+				FILE_APPEND
+			);
+		} else {
+			file_put_contents(
+				'php://stderr',
+				get_class($playground_repl_error) . ': ' .
+				$playground_repl_error->getMessage() . "\\n",
+				FILE_APPEND
+			);
+		}
+	} finally {
+		if ($playground_repl_has_error_handler) {
+			restore_error_handler();
+		}
+		$playground_repl_state = get_defined_vars();
+		unset($playground_repl_state['playground_repl_state']);
+		unset($playground_repl_state['playground_repl_error']);
+		unset($playground_repl_state['playground_repl_has_error_handler']);
+		try {
+			file_put_contents(
+				${phpVar(PHP_SESSION_STATE_PATH)},
+				serialize($playground_repl_state)
+			);
+		} catch (Throwable $playground_repl_error) {
+			file_put_contents(
+				'php://stderr',
+				'Could not save the PHP session: ' .
+				$playground_repl_error->getMessage() . "\\n",
+				FILE_APPEND
+			);
+		}
+	}
+})();`;
 }
 
 function formatResponse(response: {
@@ -208,12 +448,19 @@ function formatResponse(response: {
 		parts.push(response.text.trimEnd());
 	}
 	if (response.errors) {
-		parts.push(response.errors.trimEnd());
+		parts.push(getTerminalErrorMessage(response.errors.trimEnd()));
 	}
 	if (response.exitCode !== 0) {
 		parts.push(`Exit code: ${response.exitCode}`);
 	}
 	return parts.join('\n');
+}
+
+function formatExecutionTime(durationMs: number) {
+	if (durationMs < 1000) {
+		return `${Math.round(durationMs)} ms`;
+	}
+	return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
 function formatResponseLike(response: unknown) {
@@ -243,7 +490,7 @@ function getErrorOutput(error: unknown) {
 	}
 
 	if (error instanceof Error) {
-		return error.message;
+		return getTerminalErrorMessage(error.message);
 	}
 	return String(error);
 }

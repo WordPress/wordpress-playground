@@ -139,9 +139,39 @@ This will ensure your code works reliably regardless of the current working dire
 		  "--path=${documentRoot}"
 		], ${phpVar(argsWithRewrittenPaths)});
 
-		// Provide stdin, stdout, stderr streams outside of
-		// the CLI SAPI.
-		define('STDIN', fopen('php://stdin', 'rb'));
+		// Fail before a command can treat missing interactive input as an empty
+		// value. The Blueprint step has no way to provide STDIN.
+		class Playground_No_Stdin_Stream {
+			public $context;
+
+			public function stream_open($path, $mode, $options, &$opened_path) {
+				return true;
+			}
+
+			public function stream_eof() {
+				throw new RuntimeException(
+					'This WP-CLI command tried to read from STDIN, but the wp-cli ' .
+					'Blueprint step does not support interactive input. Provide all ' .
+					'required arguments.'
+				);
+			}
+
+			public function stream_read($count) {
+				return $this->stream_eof();
+			}
+
+			public function stream_stat() {
+				return [];
+			}
+		}
+
+		stream_wrapper_register(
+			'playground-no-stdin',
+			Playground_No_Stdin_Stream::class
+		);
+		define('STDIN', fopen('playground-no-stdin://input', 'rb'));
+
+		// Provide stdout and stderr streams outside of the CLI SAPI.
 		define('STDOUT', fopen('php://stdout', 'wb'));
 		define('STDERR', fopen('php://stderr', 'wb'));
 
