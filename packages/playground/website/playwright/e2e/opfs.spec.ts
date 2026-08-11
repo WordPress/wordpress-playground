@@ -2,7 +2,13 @@ import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
-import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
+import { joinPaths } from '@php-wasm/util';
+import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
+import {
+	getDirectoryNameForSlug,
+	getDirectoryPathForSlug,
+	getOpfsSiteDurabilityLockName,
+} from '../../src/lib/state/opfs/opfs-site-path';
 import { readFile } from 'node:fs/promises';
 
 /**
@@ -760,6 +766,89 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 				{ timeout: 3000 }
 			)
 			.toBe(markerContents);
+	});
+
+	test('should wait for pooled PHP writes before exporting an autosaved OPFS site', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS and Web Locks which aren't available in Playwright's flavor of ${browserName}.`
+		);
+
+		await website.goto(`./?random=${Date.now()}`);
+		await website.page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites?.getClient())
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const site = await getActivePlaygroundSite(website.page);
+		await waitForInitialOpfsSync(website.page, site.slug);
+
+		const markerName = `pooled-export-${Date.now()}.txt`;
+		const markerContents = 'exported after the pooled PHP request';
+		const documentRoot = await website.page.evaluate(async () => {
+			const playground = (window as any).playgroundSites.getClient();
+			return await playground.documentRoot;
+		});
+		const markerPath = joinPaths(documentRoot, 'wp-content', markerName);
+		const archiveMarkerPath = joinPaths('wp-content', markerName);
+		const durabilityLockName = getOpfsSiteDurabilityLockName(
+			getDirectoryPathForSlug(site.slug)
+		);
+
+		await holdDurabilityLock(website.page, durabilityLockName);
+		try {
+			const liveMarkerContents = await website.page.evaluate(
+				async ({ markerPath, markerContents }) => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					const primaryRequest = playground.run({
+						code: '<?php usleep(500000);',
+					});
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					const pooledRequest = playground.run({
+						code: `<?php file_put_contents(${JSON.stringify(
+							markerPath
+						)}, ${JSON.stringify(markerContents)});`,
+					});
+					await Promise.all([primaryRequest, pooledRequest]);
+					return await playground.readFileAsText(markerPath);
+				},
+				{ markerPath, markerContents }
+			);
+			expect(liveMarkerContents).toBe(markerContents);
+
+			await expect
+				.poll(
+					() => getPendingLockModes(website.page, durabilityLockName),
+					{ timeout: 5000 }
+				)
+				.toEqual(['exclusive']);
+
+			await startSavedSiteExport(
+				website.page,
+				site.slug,
+				archiveMarkerPath
+			);
+			await expect
+				.poll(
+					() => getPendingLockModes(website.page, durabilityLockName),
+					{ timeout: 5000 }
+				)
+				.toEqual(['exclusive', 'shared']);
+
+			await releaseDurabilityLock(website.page);
+			const zipBytes = await finishSavedSiteExport(website.page);
+			await expect(
+				readZipTextFile(zipBytes, archiveMarkerPath)
+			).resolves.toBe(markerContents);
+		} finally {
+			await releaseDurabilityLock(website.page);
+		}
 	});
 
 	test('should switch between sites', async ({ website, browserName }) => {
@@ -2268,3 +2357,126 @@ PHP;
 		});
 	});
 });
+
+async function holdDurabilityLock(page: Page, lockName: string) {
+	await page.evaluate(async (name) => {
+		const state = ((window as any).__opfsExportDurabilityTest = {});
+		await new Promise<void>((lockHeld) => {
+			state.blockingLockPromise = navigator.locks.request(
+				name,
+				{ mode: 'exclusive' },
+				async () => {
+					await new Promise<void>((releaseLock) => {
+						state.releaseLock = releaseLock;
+						lockHeld();
+					});
+				}
+			);
+		});
+	}, lockName);
+}
+
+async function getPendingLockModes(page: Page, lockName: string) {
+	return await page.evaluate(async (name) => {
+		const snapshot = await navigator.locks.query();
+		return snapshot.pending
+			.filter((lock) => lock.name === name)
+			.map((lock) => lock.mode)
+			.sort();
+	}, lockName);
+}
+
+async function startSavedSiteExport(
+	page: Page,
+	siteSlug: string,
+	markerPath: string
+) {
+	await page.evaluate(
+		async ({ slug, exportedMarkerPath }) => {
+			const state = (window as any).__opfsExportDurabilityTest;
+			if (!state) {
+				throw new Error('The durability test lock is not held.');
+			}
+
+			const iframe = document.createElement('iframe');
+			iframe.hidden = true;
+			iframe.sandbox.add('allow-scripts');
+			iframe.sandbox.add('allow-same-origin');
+			document.body.appendChild(iframe);
+
+			try {
+				const clientUrl = new URL(
+					'client/index.js',
+					window.location.href
+				).href;
+				const { startPlaygroundAPI } = await import(clientUrl);
+				const api = await startPlaygroundAPI({
+					iframe,
+					apiUrl: new URL('/api.html', window.location.origin).href,
+				});
+				state.exportPromise = (async () => {
+					try {
+						const zip = await api.exportSavedSiteAsZip(slug, {
+							excludePatterns: [
+								'/*',
+								'!/wp-content/',
+								'/wp-content/*',
+								`!/${exportedMarkerPath}`,
+							],
+						});
+						if (!zip) {
+							throw new Error(
+								`Saved site "${slug}" was not exported.`
+							);
+						}
+						return Array.from(
+							new Uint8Array(await zip.arrayBuffer())
+						);
+					} finally {
+						iframe.remove();
+					}
+				})();
+			} catch (error) {
+				iframe.remove();
+				throw error;
+			}
+		},
+		{ slug: siteSlug, exportedMarkerPath: markerPath }
+	);
+}
+
+async function releaseDurabilityLock(page: Page) {
+	await page.evaluate(async () => {
+		const state = (window as any).__opfsExportDurabilityTest;
+		if (!state) {
+			return;
+		}
+		state.releaseLock?.();
+		state.releaseLock = undefined;
+		await state.blockingLockPromise;
+	});
+}
+
+async function finishSavedSiteExport(page: Page): Promise<number[]> {
+	return await page.evaluate(async () => {
+		const exportPromise = (window as any).__opfsExportDurabilityTest
+			?.exportPromise;
+		if (!exportPromise) {
+			throw new Error('The saved-site export was not started.');
+		}
+		return await exportPromise;
+	});
+}
+
+async function readZipTextFile(zipBytes: number[], path: string) {
+	const zipReader = new ZipReader(
+		new BlobReader(new Blob([Uint8Array.from(zipBytes)]))
+	);
+	try {
+		const entries = await zipReader.getEntries();
+		const entry = entries.find((candidate) => candidate.filename === path);
+		return entry ? await entry.getData!(new TextWriter()) : undefined;
+	} finally {
+		await zipReader.close();
+	}
+}
