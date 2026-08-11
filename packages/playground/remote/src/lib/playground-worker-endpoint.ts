@@ -63,6 +63,8 @@ import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transp
 
 let activeRequestHandler: PHPRequestHandler | undefined;
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
+type PHPEventType = Parameters<PHPWorker['addEventListener']>[0];
+type PHPEventListener = Parameters<PHPWorker['addEventListener']>[1];
 
 export interface MountDescriptor {
 	mountpoint: string;
@@ -123,6 +125,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	private phpEventSubscriptions = new Map<
+		number,
+		{ eventType: PHPEventType; relay: PHPEventListener }
+	>();
+	private nextPHPEventSubscriptionId = 1;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
@@ -134,6 +141,34 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 			this.downloadMonitor.monitorFetch(fetch(input, init));
 		this.memoizedFetch = createMemoizedFetch(monitoredFetch);
+	}
+
+	/**
+	 * Registers and removes the listener within this worker. Passing the listener
+	 * back through Comlink for removal would create a different function proxy.
+	 * @internal
+	 */
+	__internal_subscribeToPHPEvent(
+		eventType: PHPEventType,
+		listener: PHPEventListener
+	) {
+		const relay: PHPEventListener = (event) => listener(event);
+		this.addEventListener(eventType, relay);
+		const subscriptionId = this.nextPHPEventSubscriptionId++;
+		this.phpEventSubscriptions.set(subscriptionId, {
+			eventType,
+			relay,
+		});
+		return subscriptionId;
+	}
+
+	__internal_unsubscribeFromPHPEvent(subscriptionId: number) {
+		const subscription = this.phpEventSubscriptions.get(subscriptionId);
+		if (!subscription) {
+			return;
+		}
+		this.removeEventListener(subscription.eventType, subscription.relay);
+		this.phpEventSubscriptions.delete(subscriptionId);
 	}
 
 	protected computeSiteUrl(scope: string) {
@@ -239,10 +274,15 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				 * The remote runtime has no mail server. Capture sendmail stdin as an
 				 * event through a null transport; consumers must relay the message if
 				 * they want it delivered.
+				 *
+				 * Dispatch directly through the worker endpoint. HTTP requests acquire
+				 * PHP instances without going through PHPWorker.acquirePHPInstance().
 				 */
 				php.setCommandSpawnHandler(
 					'sendmail',
-					sendmailSpawnHandler(php)
+					sendmailSpawnHandler({
+						dispatchEvent: (event) => this.dispatchEvent(event),
+					})
 				);
 
 				if (!isPrimary) {

@@ -1,20 +1,31 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { phpEventStdinTransfer } from '@php-wasm/util';
 
 const bootRequestHandlerMock = vi.hoisted(() => vi.fn());
+const sendmailSpawnHandlerMock = vi.hoisted(() =>
+	vi.fn<(eventTarget: { dispatchEvent(event: unknown): void }) => () => void>(
+		() => vi.fn()
+	)
+);
 
 vi.mock('@wp-playground/wordpress', async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	bootRequestHandler: bootRequestHandlerMock,
 }));
+vi.mock('@php-wasm/util', async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	sendmailSpawnHandler: sendmailSpawnHandlerMock,
+}));
 
 describe('remote sendmail transport', () => {
 	afterEach(() => {
 		bootRequestHandlerMock.mockReset();
+		sendmailSpawnHandlerMock.mockClear();
 		vi.unstubAllGlobals();
 	});
 
-	it('registers sendmail capture when a PHP instance is created', async () => {
+	it('routes sendmail events from created PHP instances through the endpoint', async () => {
 		vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
 		vi.stubGlobal('location', { href: 'http://playground.test/' });
 		const setCommandSpawnHandler = vi.fn();
@@ -47,6 +58,8 @@ describe('remote sendmail transport', () => {
 			}
 		}
 		const endpoint = new TestEndpoint({} as EmscriptenDownloadMonitor);
+		const listener = vi.fn();
+		endpoint.addEventListener('sendmail.spawned', listener);
 
 		await endpoint.createRequestHandlerForTest();
 
@@ -55,5 +68,16 @@ describe('remote sendmail transport', () => {
 			'sendmail',
 			expect.any(Function)
 		);
+
+		const event = {
+			type: 'sendmail.spawned',
+			stdin: new ReadableStream<Uint8Array>(),
+			[phpEventStdinTransfer]: true,
+		} as const;
+		const eventTarget = sendmailSpawnHandlerMock.mock.calls[0][0];
+		eventTarget.dispatchEvent(event);
+
+		expect(listener).toHaveBeenCalledOnce();
+		expect(listener).toHaveBeenCalledWith(event);
 	});
 });
