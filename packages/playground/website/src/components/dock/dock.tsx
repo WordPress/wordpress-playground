@@ -16,6 +16,7 @@ import { CSSTransition } from 'react-transition-group';
 import { Icon } from '@wordpress/components';
 import {
 	close,
+	code,
 	envelope,
 	external,
 	grid,
@@ -119,6 +120,12 @@ const DOCK_ITEMS: DockItem[] = [
 		icon: <DockDatabaseIcon />,
 	},
 	{
+		section: 'terminal',
+		label: 'Terminal',
+		ariaLabel: 'Terminal',
+		icon: <Icon icon={code} size={24} />,
+	},
+	{
 		section: 'files',
 		label: 'Files',
 		ariaLabel: 'Files',
@@ -171,6 +178,10 @@ const PANE_COPY: Record<
 		description:
 			'Inspect and edit the SQLite database behind this Playground.',
 	},
+	terminal: {
+		title: 'Terminal',
+		description: 'Run PHP snippets or WP-CLI commands in this Playground.',
+	},
 	files: {
 		title: 'Files',
 		description: 'Browse and edit the active Playground filesystem.',
@@ -221,8 +232,8 @@ export function Dock({
 	const isMobile = useIsMobileDock();
 	const isEditorSection =
 		section === 'blueprint' || section === 'files' || section === 'mail';
-	// Logs hold long monospace records, so they get a wider pane.
-	const isWideSection = section === 'logs';
+	// Logs and Terminal hold long monospace records, so they get a wider pane.
+	const isWideSection = section === 'logs' || section === 'terminal';
 	const isFixedHeightSection =
 		section === 'new' ||
 		section === 'mail' ||
