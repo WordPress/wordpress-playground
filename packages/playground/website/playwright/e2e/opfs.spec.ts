@@ -709,11 +709,14 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 
 		const markerName = `pooled-request-${Date.now()}.txt`;
 		const markerContents = 'written by the pooled PHP instance';
+		const documentRoot = await website.page.evaluate(async () => {
+			const playground = (window as any).playgroundSites.getClient();
+			return await playground.documentRoot;
+		});
+		const markerPath = joinPaths(documentRoot, 'wp-content', markerName);
 		const liveMarkerContents = await website.page.evaluate(
-			async ({ markerName, markerContents }) => {
+			async ({ markerPath, markerContents }) => {
 				const playground = (window as any).playgroundSites.getClient();
-				const documentRoot = await playground.documentRoot;
-				const markerPath = `${documentRoot}/wp-content/${markerName}`;
 				const primaryRequest = playground.run({
 					code: '<?php usleep(500000);',
 				});
@@ -726,7 +729,7 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 				await Promise.all([primaryRequest, pooledRequest]);
 				return await playground.readFileAsText(markerPath);
 			},
-			{ markerName, markerContents }
+			{ markerPath, markerContents }
 		);
 		expect(liveMarkerContents).toBe(markerContents);
 
