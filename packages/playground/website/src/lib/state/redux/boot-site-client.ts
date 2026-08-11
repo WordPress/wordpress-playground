@@ -2,7 +2,6 @@ import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	getOpfsSiteDurabilityLockName,
-	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
 import { addClientInfo, updateClientInfo } from './slice-clients';
@@ -112,12 +111,7 @@ export function bootSiteClient(
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
-			// @TODO: Remove backcompat code after 2024-12-01.
-			const siteDirectoryPath = (site.metadata as any)[
-				legacyOpfsPathSymbol
-			]
-				? (site.metadata as any)[legacyOpfsPathSymbol]
-				: getDirectoryPathForSlug(site.slug);
+			const siteDirectoryPath = getDirectoryPathForSlug(site.slug);
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
