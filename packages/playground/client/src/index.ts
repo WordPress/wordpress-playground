@@ -55,12 +55,23 @@ import { BlueprintsV1Handler } from './blueprints-v1-handler';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
+const WORDPRESS_FILES_WILL_BE_REPLACED_PARAM =
+	'wordpress-files-will-be-replaced';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * Indicates that the installed WordPress files will be replaced immediately
+	 * after boot. Update prefetching and automatic static-file backfilling are
+	 * skipped for the throwaway installation. The caller must backfill the
+	 * replacement when needed.
+	 *
+	 * @internal
+	 */
+	willReplaceWordPressFiles?: boolean;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -192,8 +203,13 @@ export async function startPlaygroundWeb(
 
 	const remoteUrlWithoutLegacyRunner = new URL(remoteUrl, remoteOrigin);
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
+	remoteUrlWithoutLegacyRunner.searchParams.delete(
+		WORDPRESS_FILES_WILL_BE_REPLACED_PARAM
+	);
 	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
+		[WORDPRESS_FILES_WILL_BE_REPLACED_PARAM]:
+			options.willReplaceWordPressFiles,
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
 		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)

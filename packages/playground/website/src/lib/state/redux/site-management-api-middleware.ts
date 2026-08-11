@@ -908,6 +908,9 @@ export function createSitesAPI(
 						{ wordPressFilesZip },
 						{ tracker }
 					);
+					// Startup backfilling was suppressed for the throwaway install.
+					// Complete the imported filesystem before refreshing or persisting it.
+					await playground.backfillStaticFilesRemovedFromMinifiedBuild();
 					await playground.goTo('/').catch((error) => {
 						logger.error('Failed to refresh imported site', error);
 						throw error;

@@ -423,8 +423,7 @@ async function saveSiteViaDockPane(
 	// If a custom name is provided, update it
 	if (customName) {
 		const nameInput = pane.getByLabel('Playground name');
-		await nameInput.fill('');
-		await nameInput.type(customName);
+		await nameInput.fill(customName);
 	}
 
 	if (storageType === 'opfs') {

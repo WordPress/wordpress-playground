@@ -44,7 +44,10 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
-import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
+import {
+	hasSiteFirstBootInitializer,
+	runSiteFirstBootInitializer,
+} from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
 
@@ -253,6 +256,11 @@ export function bootSiteClient(
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 				pathAliases: [PHPMYADMIN_PATH_ALIAS],
+				// First-boot initialization owns the WordPress filesystem until it
+				// has imported and backfilled the replacement.
+				willReplaceWordPressFiles: hasSiteFirstBootInitializer(
+					site.slug
+				),
 			});
 		} catch (e) {
 			if (signal.aborted) {

@@ -37,6 +37,8 @@ import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?work
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
+const WORDPRESS_FILES_WILL_BE_REPLACED_PARAM =
+	'wordpress-files-will-be-replaced';
 
 function getWorkerUrl(): string {
 	const query = new URL(document.location.href).searchParams;
@@ -509,6 +511,12 @@ export async function bootPlaygroundRemote() {
 			} catch (e) {
 				setAPIError(e as Error);
 				throw e;
+			}
+
+			if (query.has(WORDPRESS_FILES_WILL_BE_REPLACED_PARAM)) {
+				// The caller will replace WordPress files, then explicitly backfill
+				// the imported filesystem.
+				return;
 			}
 
 			/**
