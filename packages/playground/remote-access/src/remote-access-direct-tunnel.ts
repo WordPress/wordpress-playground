@@ -945,9 +945,7 @@ export class DirectTunnelHost {
 			const siteName =
 				(await getWordPressSiteName(this.playgroundClient)) ||
 				'playground';
-			const bytes = await zipWpContent(this.playgroundClient, {
-				selfContained: true,
-			});
+			const bytes = await zipWpContent(this.playgroundClient);
 			const totalChunks = Math.ceil(
 				bytes.length / DATA_CHANNEL_CHUNK_SIZE
 			);

@@ -23,6 +23,12 @@ export type { PHPSendmailSpawnedEvent } from './spawn-handlers/sendmail';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
+export {
+	decodeBase64ToString,
+	decodeBase64ToUint8Array,
+	encodeStringAsBase64,
+	encodeUint8ArrayAsBase64,
+} from './base64';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export * from './php-vars';

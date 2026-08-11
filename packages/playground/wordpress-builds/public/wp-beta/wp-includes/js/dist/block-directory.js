@@ -1,3 +1,4 @@
+(function() {
 var wp;
 (wp ||= {}).blockDirectory = (() => {
   var __create = Object.create;
@@ -9195,6 +9196,10 @@ var wp;
     return typeof wp?.components === "object" && wp.components !== null;
   }
   var cachedSlot = null;
+  function ensureSlotIsAccessible(element) {
+    element.setAttribute("aria-hidden", "false");
+    return element;
+  }
   function createSlot(ownerDocument2) {
     const element = ownerDocument2.createElement("div");
     element.setAttribute(WP_COMPAT_OVERLAY_SLOT_ATTRIBUTE, "");
@@ -9216,19 +9221,19 @@ var wp;
       return void 0;
     }
     if (cachedSlot && cachedSlot.ownerDocument === ownerDocument2 && cachedSlot.isConnected) {
-      return cachedSlot;
+      return ensureSlotIsAccessible(cachedSlot);
     }
     const existing = ownerDocument2.querySelector(
       `[${WP_COMPAT_OVERLAY_SLOT_ATTRIBUTE}]`
     );
     if (existing instanceof HTMLDivElement) {
-      cachedSlot = existing;
-      return existing;
+      cachedSlot = ensureSlotIsAccessible(existing);
+      return cachedSlot;
     }
     if (cachedSlot?.isConnected) {
       cachedSlot.remove();
     }
-    cachedSlot = createSlot(ownerDocument2);
+    cachedSlot = ensureSlotIsAccessible(createSlot(ownerDocument2));
     return cachedSlot;
   }
 
@@ -10258,3 +10263,5 @@ use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.developme
    * LICENSE file in the root directory of this source tree.
    *)
 */
+(window.wp ||= {}).blockDirectory = wp.blockDirectory;
+})();
