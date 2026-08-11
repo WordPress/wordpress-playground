@@ -1,11 +1,13 @@
 /**
- * Prevents WordPress fatal-error documents from flooding the terminal.
+ * Prevents WordPress fatal-error documents and PHP stack traces from flooding
+ * the terminal.
  */
 export function getTerminalErrorMessage(message: string) {
-	const unsupportedStdinMessage =
-		'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint step does not support interactive input. Provide all required arguments.';
-	if (message.includes(unsupportedStdinMessage)) {
-		return unsupportedStdinMessage;
+	const uncaughtException = message.match(
+		/Uncaught [\w\\]+: ([\s\S]*?)\n\s*Stack trace:/
+	);
+	if (uncaughtException) {
+		return uncaughtException[1].trim();
 	}
 
 	if (

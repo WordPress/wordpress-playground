@@ -1,11 +1,11 @@
 import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import type { FileReference } from '../v1/resources';
+import type { UrlReference } from '../v1/resources';
 import { logger } from '@php-wasm/logger';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';
-export const defaultWpCliResource: FileReference = {
+export const defaultWpCliResource: UrlReference = {
 	resource: 'url',
 	/**
 	 * Use compression for downloading the wp-cli.phar file.
@@ -19,6 +19,10 @@ export const defaultWpCliResource: FileReference = {
 	 */
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
+
+const stdinUnsupportedMessage =
+	'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint ' +
+	'step does not support interactive input. Provide all required arguments.';
 
 export const assertWpCli = async (
 	playground: UniversalPHP,
@@ -150,9 +154,7 @@ This will ensure your code works reliably regardless of the current working dire
 
 			public function stream_eof() {
 				throw new RuntimeException(
-					'This WP-CLI command tried to read from STDIN, but the wp-cli ' .
-					'Blueprint step does not support interactive input. Provide all ' .
-					'required arguments.'
+					${phpVar(stdinUnsupportedMessage)}
 				);
 			}
 

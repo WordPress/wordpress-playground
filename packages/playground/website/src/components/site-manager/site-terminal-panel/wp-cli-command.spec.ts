@@ -1,4 +1,15 @@
-import { getWpCliCommandError } from './wp-cli-command';
+import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
+
+describe('stripWpPrefix', () => {
+	it.each([
+		['wp option get blogname', 'option get blogname'],
+		['wp', ''],
+		['option get blogname', 'option get blogname'],
+		['wpackagist list', 'wpackagist list'],
+	])('normalizes %s', (command, expected) => {
+		expect(stripWpPrefix(command)).toBe(expected);
+	});
+});
 
 describe('getWpCliCommandError', () => {
 	it.each([

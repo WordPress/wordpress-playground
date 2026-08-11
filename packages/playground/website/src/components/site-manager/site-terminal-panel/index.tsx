@@ -1,12 +1,13 @@
 import { Button, TextareaControl } from '@wordpress/components';
 import { joinPaths } from '@php-wasm/util';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import {
 	type PlaygroundClient,
-	type StepDefinition,
 	type UniversalPHP,
-	compileBlueprintV1,
+	defaultWpCliPath,
+	defaultWpCliResource,
 	phpVar,
-	runBlueprintV1Steps,
+	wpCLI,
 } from '@wp-playground/client';
 import { useEffect, useRef, useState } from 'react';
 import { InlineProgress } from '../../pane-loading';
@@ -17,7 +18,7 @@ import {
 	loadTerminalHistory,
 	saveTerminalHistory,
 } from './terminal-history';
-import { getWpCliCommandError } from './wp-cli-command';
+import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
 import { formatWpCliOutput } from './wp-cli-output';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -50,6 +51,7 @@ export function SiteTerminalPanel({
 		'wp-cli': [],
 	});
 	const [isRunning, setIsRunning] = useState(false);
+	const [isAwaitingMoreInput, setIsAwaitingMoreInput] = useState(false);
 	const [commandHistory, setCommandHistory] = useState(loadTerminalHistory);
 	const historyPosition = useRef<Record<TerminalMode, number>>({
 		php: -1,
@@ -74,42 +76,51 @@ export function SiteTerminalPanel({
 			return;
 		}
 
+		/**
+		 * `wp` is rendered as part of the prompt, so a pasted `wp ...` command
+		 * must not run as `wp wp ...`.
+		 */
+		const submittedCommand =
+			mode === 'wp-cli' ? stripWpPrefix(wpCliCommand.trim()) : phpCode;
+
 		setIsRunning(true);
+		setIsAwaitingMoreInput(false);
 		const startedAt = performance.now();
 		try {
 			const wpCliCommandError =
 				mode === 'wp-cli'
-					? getWpCliCommandError(`wp ${wpCliCommand}`)
+					? getWpCliCommandError(`wp ${submittedCommand}`)
 					: undefined;
 			if (wpCliCommandError) {
 				throw new Error(wpCliCommandError);
 			}
 			let output: string;
 			if (mode === 'php') {
-				const result = await runPHP(playground, phpCode);
+				const result = await runPHP(playground, submittedCommand);
 				if (result.incomplete) {
-					setPhpCode(`${phpCode}\n`);
+					setPhpCode(`${submittedCommand}\n`);
+					setIsAwaitingMoreInput(true);
 					return;
 				}
 				output = result.output;
 			} else {
-				output = await runWpCli(playground, `wp ${wpCliCommand}`);
+				output = await runWpCli(playground, `wp ${submittedCommand}`);
 			}
-			recordCommand(mode, command);
+			recordCommand(mode, submittedCommand);
 			appendEntry({
 				mode,
-				command,
+				command: submittedCommand,
 				output,
 				status: 'success',
 				durationMs: performance.now() - startedAt,
 			});
-			setCurrentCommand('');
+			resetCurrentCommand();
 		} catch (error) {
-			recordCommand(mode, command);
+			recordCommand(mode, submittedCommand);
 			appendEntry({
 				mode,
-				command,
-				output: getErrorOutput(error),
+				command: submittedCommand,
+				output: getErrorOutput(error, mode),
 				status: 'error',
 				durationMs: performance.now() - startedAt,
 			});
@@ -126,12 +137,20 @@ export function SiteTerminalPanel({
 	}
 
 	function recordCommand(commandMode: TerminalMode, value: string) {
-		setCommandHistory((current) => {
-			const next = addCommandToHistory(current, commandMode, value);
-			saveTerminalHistory(next);
-			return next;
-		});
+		if (value.trim()) {
+			setCommandHistory((current) => {
+				const next = addCommandToHistory(current, commandMode, value);
+				saveTerminalHistory(next);
+				return next;
+			});
+		}
 		historyPosition.current[commandMode] = -1;
+	}
+
+	function resetCurrentCommand() {
+		draftBeforeHistory.current[mode] = '';
+		historyPosition.current[mode] = -1;
+		setCurrentCommand('');
 	}
 
 	function setCurrentCommand(value: string) {
@@ -290,12 +309,22 @@ export function SiteTerminalPanel({
 						}
 						onChange={updateCurrentCommand}
 						onKeyDown={(event) => {
-							if (event.key === 'ArrowUp') {
-								event.preventDefault();
-								navigateHistory('older');
-							} else if (event.key === 'ArrowDown') {
-								event.preventDefault();
-								navigateHistory('newer');
+							const direction = getHistoryDirection(event.key);
+							if (direction) {
+								/**
+								 * Multi-line input needs the arrow keys to move
+								 * the caret between lines. Only the outermost
+								 * lines browse the history.
+								 */
+								if (
+									isCaretOnOutermostLine(
+										event.currentTarget,
+										direction
+									)
+								) {
+									event.preventDefault();
+									navigateHistory(direction);
+								}
 							} else if (
 								event.key === 'Enter' &&
 								!event.shiftKey
@@ -314,6 +343,12 @@ export function SiteTerminalPanel({
 						Run
 					</Button>
 				</div>
+				{mode === 'php' && isAwaitingMoreInput && (
+					<div className={css.continuationHint}>
+						Incomplete PHP code. Keep typing to finish the
+						statement, then press Enter.
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -337,30 +372,36 @@ async function runPHP(playground: PlaygroundClient, code: string) {
 	};
 }
 
+/**
+ * Runs the wp-cli step handler directly instead of going through the Blueprint
+ * runner, which would navigate the site to its landing page after every command.
+ */
 async function runWpCli(playground: PlaygroundClient, command: string) {
-	let wpCliOutput: unknown;
-	const steps: StepDefinition[] = [
-		{
-			step: 'wp-cli',
-			command,
-		},
-	];
-	const blueprint = await compileBlueprintV1(
-		{
-			extraLibraries: ['wp-cli'],
-			steps,
-		},
-		{
-			corsProxy: corsProxyUrl,
-			onStepCompleted: (output, step) => {
-				if (step.step === 'wp-cli') {
-					wpCliOutput = output;
-				}
-			},
-		}
+	await installWpCli(playground);
+	const response = await wpCLI(playground as UniversalPHP, { command });
+	return formatWpCliOutput(formatResponseLike(response));
+}
+
+async function installWpCli(playground: PlaygroundClient) {
+	if (await playground.fileExists(defaultWpCliPath)) {
+		return;
+	}
+
+	const response = await fetchWithCorsProxy(
+		defaultWpCliResource.url,
+		undefined,
+		corsProxyUrl,
+		await playground.absoluteUrl
 	);
-	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
-	return formatWpCliOutput(formatResponseLike(wpCliOutput));
+	if (!response.ok) {
+		throw new Error(
+			`Could not download WP-CLI from ${defaultWpCliResource.url}.`
+		);
+	}
+	await playground.writeFile(
+		defaultWpCliPath,
+		new Uint8Array(await response.arrayBuffer())
+	);
 }
 
 function getWordPressPHPCode(code: string, documentRoot: string) {
@@ -463,22 +504,44 @@ function formatExecutionTime(durationMs: number) {
 	return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
+/**
+ * `text` is a prototype getter on PHPResponse, so it is missing from responses
+ * that crossed the worker boundary as plain structured-clone data. Decode the
+ * bytes instead of relying on it.
+ */
 function formatResponseLike(response: unknown) {
-	if (
-		response &&
-		typeof response === 'object' &&
-		'text' in response &&
-		'errors' in response &&
-		'exitCode' in response
-	) {
-		return formatResponse(
-			response as { text: string; errors: string; exitCode: number }
-		);
+	if (!response || typeof response !== 'object') {
+		return '';
 	}
-	return '';
+
+	const { text, bytes, errors, exitCode } = response as {
+		text?: unknown;
+		bytes?: unknown;
+		errors?: unknown;
+		exitCode?: unknown;
+	};
+	if (typeof errors !== 'string' || typeof exitCode !== 'number') {
+		return '';
+	}
+
+	return formatResponse({
+		text:
+			typeof text === 'string'
+				? text
+				: bytes instanceof Uint8Array
+					? new TextDecoder().decode(bytes)
+					: '',
+		errors,
+		exitCode,
+	});
 }
 
-function getErrorOutput(error: unknown) {
+function getErrorOutput(error: unknown, mode: TerminalMode) {
+	const output = getErrorText(error);
+	return mode === 'wp-cli' ? formatWpCliOutput(output) : output;
+}
+
+function getErrorText(error: unknown) {
 	const response =
 		typeof error === 'object' && error && 'response' in error
 			? (error as { response?: unknown }).response
@@ -493,4 +556,27 @@ function getErrorOutput(error: unknown) {
 		return getTerminalErrorMessage(error.message);
 	}
 	return String(error);
+}
+
+function getHistoryDirection(key: string) {
+	if (key === 'ArrowUp') {
+		return 'older' as const;
+	}
+	if (key === 'ArrowDown') {
+		return 'newer' as const;
+	}
+	return undefined;
+}
+
+function isCaretOnOutermostLine(
+	textarea: HTMLTextAreaElement,
+	direction: 'older' | 'newer'
+) {
+	const { selectionStart, selectionEnd, value } = textarea;
+	if (selectionStart !== selectionEnd) {
+		return false;
+	}
+	return direction === 'older'
+		? !value.slice(0, selectionStart).includes('\n')
+		: !value.slice(selectionStart).includes('\n');
 }

@@ -34,12 +34,12 @@ describe('getTerminalErrorMessage', () => {
 		);
 	});
 
-	it('extracts the unsupported STDIN message from a PHP stack trace', () => {
+	it('extracts the exception message from a PHP stack trace', () => {
 		const explanation =
-			'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint step does not support interactive input. Provide all required arguments.';
+			'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint step does not support interactive input.';
 		expect(
 			getTerminalErrorMessage(
-				`PHP Fatal error: Uncaught RuntimeException: ${explanation}\nStack trace:\n#0`
+				`PHP Fatal error: Uncaught RuntimeException: ${explanation}\nStack trace:\n#0 {main}\n  thrown in /wordpress/run-cli.php on line 12`
 			)
 		).toBe(explanation);
 	});

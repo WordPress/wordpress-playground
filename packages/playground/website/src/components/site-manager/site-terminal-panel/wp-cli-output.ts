@@ -6,7 +6,7 @@ export function formatWpCliOutput(output: string) {
 		output
 			.replace(/^#!\/usr\/bin\/env php\r?\n/, '')
 			// eslint-disable-next-line no-control-regex
-			.replace(/\u001b?\[[0-9;]*m/g, '')
+			.replace(/\u001b\[[0-9;]*m/g, '')
 			.trim()
 	);
 }

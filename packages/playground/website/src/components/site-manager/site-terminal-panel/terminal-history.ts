@@ -1,3 +1,5 @@
+import { stripWpPrefix } from './wp-cli-command';
+
 export type TerminalMode = 'php' | 'wp-cli';
 export type TerminalHistory = Record<TerminalMode, string[]>;
 
@@ -57,8 +59,4 @@ function getStringArray(value: unknown) {
 				.filter((entry): entry is string => typeof entry === 'string')
 				.slice(0, MAX_HISTORY_ENTRIES)
 		: [];
-}
-
-function stripWpPrefix(command: string) {
-	return command.replace(/^wp(?:\s+|$)/, '');
 }

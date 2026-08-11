@@ -125,3 +125,8 @@
 	flex: 0 0 auto;
 	padding-top: 9px;
 }
+
+.continuationHint {
+	color: #a7aaad;
+	margin-top: 4px;
+}
