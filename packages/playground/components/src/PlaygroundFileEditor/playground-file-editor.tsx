@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import classNames from 'classnames';
-import { Button, Notice } from '@wordpress/components';
+import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
+import { basename, dirname } from '@php-wasm/util';
 
 const SAVE_DEBOUNCE_MS = 1500;
+const MANUAL_SAVING_FEEDBACK_DELAY_MS = 700;
+const MANUAL_SAVED_FEEDBACK_DURATION_MS = 1000;
 
 const SaveState = {
 	IDLE: 'idle',
@@ -25,6 +29,9 @@ export type PlaygroundFileEditorProps = {
 	documentRoot: string;
 	initialPath?: string | null;
 	placeholderText?: string;
+	dockPresentation?: boolean;
+	/** Mobile Dock title row where the current path should be rendered. */
+	mobileHeaderTarget?: Element | null;
 };
 
 type PendingSave = {
@@ -44,6 +51,8 @@ export function PlaygroundFileEditor({
 	documentRoot,
 	initialPath = null,
 	placeholderText = 'Select a file to view or edit its contents.',
+	dockPresentation = false,
+	mobileHeaderTarget = null,
 }: PlaygroundFileEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
@@ -53,6 +62,9 @@ export function PlaygroundFileEditor({
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [manualSaveFeedback, setManualSaveFeedback] = useState<
+		'idle' | 'waiting' | 'saving' | 'saved'
+	>('idle');
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -67,6 +79,7 @@ export function PlaygroundFileEditor({
 		filesystem
 	);
 	const pendingSaveRef = useRef<PendingSave | null>(null);
+	const manualSaveRef = useRef<PendingSave | null>(null);
 	const lastWriteByFilesystemRef = useRef(
 		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
 	);
@@ -86,6 +99,7 @@ export function PlaygroundFileEditor({
 	 */
 	const saveFile = useCallback(async (pendingSave: PendingSave) => {
 		const { filesystem, path, content } = pendingSave;
+		const isManualSave = manualSaveRef.current === pendingSave;
 		const writes = lastWriteByFilesystemRef.current;
 		const previousWrite = writes.get(filesystem);
 		// A failed write reports its own error, but must not poison later writes.
@@ -115,11 +129,17 @@ export function PlaygroundFileEditor({
 		if (writes.get(filesystem) === writePromise) {
 			writes.delete(filesystem);
 		}
+		if (manualSaveRef.current === pendingSave) {
+			manualSaveRef.current = null;
+		}
 		if (ownsVisibleBuffer) {
 			setSaveState(writeFailed ? SaveState.ERROR : SaveState.SAVED);
 			setSaveError(
 				writeFailed ? 'Could not save changes. Try again.' : null
 			);
+			if (isManualSave) {
+				setManualSaveFeedback(writeFailed ? 'idle' : 'saved');
+			}
 		}
 	}, []);
 
@@ -274,6 +294,44 @@ export function PlaygroundFileEditor({
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
 
+	// A new edit or file selection cancels feedback from an older manual save.
+	useEffect(() => {
+		if (
+			manualSaveFeedback === 'idle' ||
+			saveState === SaveState.SAVING ||
+			saveState === SaveState.SAVED
+		) {
+			return;
+		}
+		setManualSaveFeedback('idle');
+	}, [manualSaveFeedback, saveState]);
+
+	useEffect(() => {
+		if (manualSaveFeedback !== 'saved') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() => setManualSaveFeedback('idle'),
+			MANUAL_SAVED_FEEDBACK_DURATION_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
+
+	// Fast manual writes go straight to "Saved" instead of flashing "Saving…".
+	useEffect(() => {
+		if (manualSaveFeedback !== 'waiting') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() =>
+				setManualSaveFeedback((feedback) =>
+					feedback === 'waiting' ? 'saving' : feedback
+				),
+			MANUAL_SAVING_FEEDBACK_DELAY_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
+
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
 			// Save cursor position of current file before switching
@@ -407,23 +465,96 @@ export function PlaygroundFileEditor({
 		if (!pendingSaveRef.current) {
 			return;
 		}
+		manualSaveRef.current = pendingSaveRef.current;
+		setManualSaveFeedback('waiting');
 		setSaveState(SaveState.SAVING);
 		flushPendingSave();
 	}, [flushPendingSave]);
 
+	const handleDockManualSave = useCallback(() => {
+		if (
+			!pendingSaveRef.current &&
+			saveState === SaveState.ERROR &&
+			filesystem &&
+			currentPath
+		) {
+			pendingSaveRef.current = {
+				filesystem,
+				path: currentPath,
+				content: code,
+			};
+		}
+		if (!pendingSaveRef.current) {
+			return;
+		}
+		setSaveError(null);
+		handleManualSave();
+	}, [code, currentPath, filesystem, handleManualSave, saveState]);
+
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
+	const dockSaveTooltip = getDockSaveTooltip(saveState);
+	let dockSaveButtonLabel = 'Save';
+	if (saveState === SaveState.ERROR) {
+		dockSaveButtonLabel = 'Retry';
+	} else if (
+		saveState === SaveState.SAVED &&
+		manualSaveFeedback === 'saved'
+	) {
+		dockSaveButtonLabel = 'Saved';
+	} else if (
+		saveState === SaveState.SAVING &&
+		manualSaveFeedback === 'saving'
+	) {
+		dockSaveButtonLabel = 'Saving…';
+	}
+	const dockHasUnsavedChanges =
+		saveState === SaveState.PENDING ||
+		saveState === SaveState.SAVING ||
+		saveState === SaveState.ERROR;
 
 	if (!filesystem) {
 		return (
-			<div className={styles['container']}>
+			<div
+				className={classNames(styles['container'], {
+					[styles['dockPresentation']]: dockPresentation,
+				})}
+			>
 				<div className={styles['placeholder']}>{placeholderText}</div>
 			</div>
 		);
 	}
+	const currentDirectory = currentPath ? dirname(currentPath) : null;
+	const currentFilename = currentPath ? basename(currentPath) : null;
+	const editorPath = (
+		<div
+			className={classNames(styles['editorPath'], {
+				[styles['editorPathPlaceholder']]: !currentPath?.length,
+				[styles['editorPathPortaled']]: mobileHeaderTarget,
+			})}
+			title={currentPath ?? undefined}
+		>
+			{currentDirectory && currentFilename ? (
+				<>
+					<span className={styles['editorPathDirectory']}>
+						{currentDirectory === '/' ? '' : currentDirectory}
+					</span>
+					<span className={styles['editorPathFilename']}>
+						/{currentFilename}
+					</span>
+				</>
+			) : (
+				`Browse files under ${documentRoot}`
+			)}
+		</div>
+	);
 
 	return (
-		<div className={styles['container']}>
+		<div
+			className={classNames(styles['container'], {
+				[styles['dockPresentation']]: dockPresentation,
+			})}
+		>
 			<div
 				className={classNames(styles['content'], {
 					[styles['sidebarOpen']]: showExplorerOnMobile,
@@ -443,10 +574,17 @@ export function PlaygroundFileEditor({
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
 						documentRoot={documentRoot}
+						dockPresentation={dockPresentation}
+						useWordPressTooltips={dockPresentation}
 					/>
 				</aside>
 				<section className={styles['editorWrapper']}>
-					<div className={styles['editorHeader']}>
+					<div
+						className={classNames(styles['editorHeader'], {
+							[styles['editorHeaderPathPortaled']]:
+								mobileHeaderTarget,
+						})}
+					>
 						<Button
 							className={styles['mobileToggle']}
 							variant="secondary"
@@ -458,24 +596,45 @@ export function PlaygroundFileEditor({
 								? 'Hide files'
 								: 'Browse files'}
 						</Button>
-						<div
-							className={classNames(styles['editorPath'], {
-								[styles['editorPathPlaceholder']]:
-									!currentPath?.length,
-							})}
-						>
-							{currentPath?.length
-								? currentPath
-								: `Browse files under ${documentRoot}`}
-						</div>
-						<div
-							className={classNames(
-								styles['saveStatus'],
-								saveStatusClassName
-							)}
-						>
-							{saveStatusLabel}
-						</div>
+						{mobileHeaderTarget
+							? createPortal(editorPath, mobileHeaderTarget)
+							: editorPath}
+						{dockPresentation && !readOnly && currentPath ? (
+							<div className={styles['editorHeaderActions']}>
+								{dockHasUnsavedChanges ? (
+									<span
+										className={styles['dockDirtyIndicator']}
+										aria-hidden="true"
+									/>
+								) : null}
+								<Tooltip text={dockSaveTooltip} placement="top">
+									<Button
+										variant="secondary"
+										className={styles['dockSaveButton']}
+										isDestructive={
+											saveState === SaveState.ERROR
+										}
+										onClick={handleDockManualSave}
+									>
+										{dockSaveButtonLabel}
+									</Button>
+								</Tooltip>
+							</div>
+						) : !dockPresentation ? (
+							<div
+								className={classNames(
+									styles['saveStatus'],
+									saveStatusClassName
+								)}
+							>
+								{saveStatusLabel}
+							</div>
+						) : null}
+						{dockPresentation && !readOnly && currentPath ? (
+							<VisuallyHidden role="status" aria-live="polite">
+								{dockSaveTooltip}
+							</VisuallyHidden>
+						) : null}
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>
@@ -538,5 +697,18 @@ function getSaveStatusClassName(
 			return styleSheet['saveStatusError'];
 		default:
 			return undefined;
+	}
+}
+
+function getDockSaveTooltip(saveState: SaveState) {
+	switch (saveState) {
+		case SaveState.PENDING:
+			return 'Unsaved changes. Click to save now.';
+		case SaveState.SAVING:
+			return 'Saving changes…';
+		case SaveState.ERROR:
+			return 'Saving failed. Click to retry.';
+		default:
+			return 'All changes saved.';
 	}
 }

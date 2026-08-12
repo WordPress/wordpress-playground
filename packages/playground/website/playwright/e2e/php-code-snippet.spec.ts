@@ -68,6 +68,82 @@ test.describe('php-code-snippet embed', () => {
 		}
 	});
 
+	test('decodes JSON-encoded child payloads', async ({ page }) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+		await page.evaluate(() => {
+			document.body.insertAdjacentHTML(
+				'beforeend',
+				String.raw`
+					<php-snippet name="json-payload.php">
+						<script type="application/x-php+json">
+							"\u003C?php\necho '\u003C/script\u003E';"
+						</script>
+						<script type="text/expected-output+json">
+							"\u003C/script\u003E"
+						</script>
+					</php-snippet>
+				`
+			);
+		});
+
+		const snippet = await waitForRenderedPhpSnippet(
+			page,
+			'php-snippet[name="json-payload.php"]'
+		);
+		await expect(snippet.locator('textarea.ta')).toHaveValue(
+			"<?php\necho '</script>';"
+		);
+		await expect(snippet.locator('.output-body')).toHaveText('</script>');
+	});
+
+	test('rejects JSON child payloads that are not strings', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+
+		const rejected = await page.evaluate(async () => {
+			const codeSnippet = document.createElement(
+				'php-snippet'
+			) as HTMLElement & {
+				_readCode(): Promise<string>;
+			};
+			const codeScript = document.createElement('script');
+			codeScript.type = 'application/x-php+json';
+			codeScript.textContent = '{}';
+			codeSnippet.append(codeScript);
+
+			let code = false;
+			try {
+				await codeSnippet._readCode();
+			} catch (error) {
+				code = error instanceof TypeError;
+			}
+
+			const outputSnippet = document.createElement(
+				'php-snippet'
+			) as HTMLElement & {
+				_readExpectedOutput(): string | null;
+			};
+			const outputScript = document.createElement('script');
+			outputScript.type = 'text/expected-output+json';
+			outputScript.textContent = 'null';
+			outputSnippet.append(outputScript);
+
+			let output = false;
+			try {
+				outputSnippet._readExpectedOutput();
+			} catch (error) {
+				output = error instanceof TypeError;
+			}
+
+			return { code, output };
+		});
+
+		expect(rejected).toEqual({ code: true, output: true });
+	});
+
 	test('runnable snippets are editable by default unless readonly', async ({
 		page,
 	}) => {

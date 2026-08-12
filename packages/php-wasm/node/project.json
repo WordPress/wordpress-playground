@@ -170,6 +170,7 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
+					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
@@ -185,6 +186,7 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
+					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]

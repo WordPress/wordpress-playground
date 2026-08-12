@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import {
-	wpContentFilesExcludedFromExport,
+	getLegacyPlaygroundRuntimeWpContentPaths,
 	zipWpContent,
 } from '@wp-playground/client';
 
@@ -42,6 +42,7 @@ import MultiplePathsInput from './multiple-paths-input';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
+	className?: string;
 	initialValues?: Partial<ExportFormValues>;
 	initialFilesBeforeChanges?: any[];
 	allowZipExport?: boolean;
@@ -84,6 +85,7 @@ export interface ExportFormValues {
 
 export default function GitHubExportForm({
 	playground,
+	className,
 	onExported,
 	onClose,
 	initialValues = {},
@@ -388,12 +390,17 @@ export default function GitHubExportForm({
 			}
 
 			const allPlaygroundFiles: FileEntry[] = [];
+			const excludedWpContentPaths =
+				await getLegacyPlaygroundRuntimeWpContentPaths(
+					playground,
+					joinPaths(docroot, 'wp-content')
+				);
 			for (const path of relativeExportPaths) {
 				const iterator = iterateFiles(
 					playground,
 					joinPaths(fromPlaygroundRoot, path),
 					{
-						exceptPaths: wpContentFilesExcludedFromExport,
+						exceptPaths: excludedWpContentPaths,
 					}
 				);
 				for await (const file of iterator) {
@@ -459,7 +466,11 @@ export default function GitHubExportForm({
 
 	if (pushResult) {
 		return (
-			<form id="export-playground-form" onSubmit={handleSubmit}>
+			<form
+				id="export-playground-form"
+				className={className}
+				onSubmit={handleSubmit}
+			>
 				<h2>
 					Pull Request{' '}
 					{formValues.prAction === 'create' ? 'created' : 'updated'}!
@@ -486,8 +497,13 @@ export default function GitHubExportForm({
 				)}
 
 				<div className={forms.submitRow}>
-					<Button variant="primary" size="large" onClick={onClose}>
-						Close this modal
+					<Button
+						type="button"
+						variant="primary"
+						size="large"
+						onClick={onClose}
+					>
+						Done
 					</Button>
 				</div>
 			</form>
@@ -495,8 +511,12 @@ export default function GitHubExportForm({
 	}
 
 	return (
-		<GitHubOAuthGuard>
-			<form id="export-playground-form" onSubmit={handleSubmit}>
+		<GitHubOAuthGuard intro="Export plugins, themes, or a wp-content directory to a GitHub repository.">
+			<form
+				id="export-playground-form"
+				className={className}
+				onSubmit={handleSubmit}
+			>
 				<p>
 					You may export WordPress plugins, themes, and entire
 					wp-content directories as pull requests to any public GitHub
@@ -778,7 +798,13 @@ export default function GitHubExportForm({
 									)}
 								</div>
 								{allowZipExport ? (
+									/*
+									 * Playground ZIPs are now complete snapshots, so do not offer to
+									 * commit one alongside the GitHub file export. Retain this control
+									 * and its export path until GitHub ZIP exports are revisited.
+									 */
 									<div
+										hidden
 										className={`${forms.formGroup} ${forms.formGroupLast}`}
 									>
 										<label>

@@ -32,6 +32,21 @@ describe('DockPane', () => {
 		expect(markup).toContain('Editor content');
 	});
 
+	it('can replace the description with richer header content', () => {
+		const markup = renderToStaticMarkup(
+			<DockPane
+				title="Blueprint"
+				description="Plain description"
+				headerSubtitle={<a href="/docs">Blueprint documentation</a>}
+			>
+				<p>Editor content</p>
+			</DockPane>
+		);
+
+		expect(markup).toContain('Blueprint documentation');
+		expect(markup).not.toContain('Plain description');
+	});
+
 	it('renders a disabled close button when pane closing is blocked', () => {
 		const markup = renderToStaticMarkup(
 			<DockPane

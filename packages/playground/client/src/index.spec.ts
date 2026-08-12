@@ -31,7 +31,7 @@ vi.mock('./blueprints-v2-handler', () => ({
 	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
 }));
 
-import { startPlaygroundWeb } from './index';
+import { startPlaygroundAPI, startPlaygroundWeb } from './index';
 
 describe('startPlaygroundWeb', () => {
 	afterEach(() => {
@@ -52,7 +52,6 @@ describe('startPlaygroundWeb', () => {
 				remoteUrl:
 					'http://localhost/remote.html?blueprints-runner=v2&existing=1',
 				progressTracker: createProgressTracker(),
-				siteName: 'Curious Harbor',
 				blueprint: {
 					steps: [],
 				},
@@ -63,9 +62,6 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV2Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
 		expect(iframe.src).toContain('existing=1');
-		expect(new URL(iframe.src).searchParams.get('progressbarTitle')).toBe(
-			'Curious Harbor'
-		);
 	});
 
 	it('routes Blueprint v2 declarations through the v2 handler', async () => {
@@ -122,6 +118,20 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV2Handler).toHaveBeenCalledTimes(1);
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
+	});
+});
+
+describe('startPlaygroundAPI', () => {
+	it.each([
+		['a different endpoint', 'http://localhost/remote.html'],
+		['an untrusted origin', 'https://example.com/api.html'],
+	])('rejects %s', async (_description, apiUrl) => {
+		await expect(
+			startPlaygroundAPI({
+				iframe: createIframe(),
+				apiUrl,
+			})
+		).rejects.toThrow('Invalid API URL');
 	});
 });
 

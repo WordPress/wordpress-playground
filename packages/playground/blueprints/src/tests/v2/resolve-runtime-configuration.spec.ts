@@ -128,6 +128,21 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
+	it('loads requested PHP extensions from Playground application options', async () => {
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						loadPhpExtensions: ['intl'],
+					},
+				},
+			})
+		).resolves.toMatchObject({
+			intl: true,
+		});
+	});
+
 	it('resolves constants from the declaration', async () => {
 		const constants = {
 			WP_DEBUG: true,

@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).compose = (() => {
@@ -32,6 +33,13 @@ var wp;
   ));
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+  // package-external:@wordpress/private-apis
+  var require_private_apis = __commonJS({
+    "package-external:@wordpress/private-apis"(exports, module) {
+      module.exports = window.wp.privateApis;
+    }
+  });
+
   // vendor-external:react/jsx-runtime
   var require_jsx_runtime = __commonJS({
     "vendor-external:react/jsx-runtime"(exports, module) {
@@ -64,13 +72,6 @@ var wp;
   var require_dom = __commonJS({
     "package-external:@wordpress/dom"(exports, module) {
       module.exports = window.wp.dom;
-    }
-  });
-
-  // package-external:@wordpress/keycodes
-  var require_keycodes = __commonJS({
-    "package-external:@wordpress/keycodes"(exports, module) {
-      module.exports = window.wp.keycodes;
     }
   });
 
@@ -529,6 +530,13 @@ var wp;
     }
   });
 
+  // package-external:@wordpress/keycodes
+  var require_keycodes = __commonJS({
+    "package-external:@wordpress/keycodes"(exports, module) {
+      module.exports = window.wp.keycodes;
+    }
+  });
+
   // package-external:@wordpress/undo-manager
   var require_undo_manager = __commonJS({
     "package-external:@wordpress/undo-manager"(exports, module) {
@@ -564,6 +572,7 @@ var wp;
     ifCondition: () => if_condition_default,
     observableMap: () => observableMap,
     pipe: () => pipe_default,
+    privateApis: () => privateApis,
     pure: () => pure_default,
     throttle: () => throttle,
     useAsyncList: () => use_async_list_default,
@@ -839,6 +848,96 @@ var wp;
     };
   }
 
+  // packages/compose/build-module/lock-unlock.mjs
+  var import_private_apis = __toESM(require_private_apis(), 1);
+  var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
+    "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
+    "@wordpress/compose"
+  );
+
+  // packages/compose/build-module/utils/subscribe-delegated-listener/index.mjs
+  var registries = /* @__PURE__ */ new WeakMap();
+  function subscribeDelegatedListener(target, eventType, callback, capture = false) {
+    const ownerDoc = target.ownerDocument;
+    const root = ownerDoc ?? target;
+    const isWindow = ownerDoc === void 0;
+    let perRoot = registries.get(root);
+    if (!perRoot) {
+      perRoot = /* @__PURE__ */ new Map();
+      registries.set(root, perRoot);
+    }
+    const key = capture ? `${eventType}:capture` : eventType;
+    let perEvent = perRoot.get(key);
+    if (!perEvent) {
+      perEvent = /* @__PURE__ */ new WeakMap();
+      perRoot.set(key, perEvent);
+      const subscribers = perEvent;
+      root.addEventListener(
+        eventType,
+        (event) => {
+          if (isWindow) {
+            const set2 = subscribers.get(root);
+            if (set2) {
+              for (const cb of set2) {
+                cb(event);
+              }
+            }
+            return;
+          }
+          if (capture) {
+            const path = [];
+            let current = event.target;
+            while (current) {
+              path.push(current);
+              if (current === root) {
+                break;
+              }
+              current = current.parentNode;
+            }
+            for (let i = path.length - 1; i >= 0; i--) {
+              const set2 = subscribers.get(path[i]);
+              if (set2) {
+                for (const cb of set2) {
+                  cb(event);
+                }
+              }
+            }
+          } else {
+            let current = event.target;
+            while (current) {
+              const set2 = subscribers.get(current);
+              if (set2) {
+                for (const cb of set2) {
+                  cb(event);
+                }
+              }
+              if (current === root) {
+                break;
+              }
+              current = current.parentNode;
+            }
+          }
+        },
+        capture
+      );
+    }
+    let set = perEvent.get(target);
+    if (!set) {
+      set = /* @__PURE__ */ new Set();
+      perEvent.set(target, set);
+    }
+    set.add(callback);
+    return () => {
+      set.delete(callback);
+    };
+  }
+
+  // packages/compose/build-module/private-apis.mjs
+  var privateApis = {};
+  lock(privateApis, {
+    subscribeDelegatedListener
+  });
+
   // packages/compose/build-module/higher-order/pipe.mjs
   var basePipe = (reverse = false) => (...funcs) => (...args) => {
     const functions = funcs.flat();
@@ -875,8 +974,13 @@ var wp;
   // packages/compose/build-module/higher-order/pure/index.mjs
   var import_is_shallow_equal = __toESM(require_is_shallow_equal(), 1);
   var import_element = __toESM(require_element(), 1);
+  var import_deprecated = __toESM(require_deprecated(), 1);
   var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
   var pure = createHigherOrderComponent(function(WrappedComponent) {
+    (0, import_deprecated.default)("wp.compose.pure", {
+      since: "7.1",
+      alternative: "Use `memo` or `PureComponent` instead"
+    });
     if (WrappedComponent.prototype instanceof import_element.Component) {
       return class extends WrappedComponent {
         shouldComponentUpdate(nextProps, nextState) {
@@ -897,7 +1001,7 @@ var wp;
 
   // packages/compose/build-module/higher-order/with-global-events/index.mjs
   var import_element2 = __toESM(require_element(), 1);
-  var import_deprecated = __toESM(require_deprecated(), 1);
+  var import_deprecated2 = __toESM(require_deprecated(), 1);
 
   // packages/compose/build-module/higher-order/with-global-events/listener.mjs
   var Listener = class {
@@ -938,7 +1042,7 @@ var wp;
   var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
   var listener = new listener_default();
   function withGlobalEvents(eventTypesToHandlers) {
-    (0, import_deprecated.default)("wp.compose.withGlobalEvents", {
+    (0, import_deprecated2.default)("wp.compose.withGlobalEvents", {
       since: "5.7",
       alternative: "useEffect"
     });
@@ -1073,10 +1177,10 @@ var wp;
 
   // packages/compose/build-module/higher-order/with-state/index.mjs
   var import_element5 = __toESM(require_element(), 1);
-  var import_deprecated2 = __toESM(require_deprecated(), 1);
+  var import_deprecated3 = __toESM(require_deprecated(), 1);
   var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
   function withState(initialState = {}) {
-    (0, import_deprecated2.default)("wp.compose.withState", {
+    (0, import_deprecated3.default)("wp.compose.withState", {
       since: "5.8",
       alternative: "wp.element.useState"
     });
@@ -1126,14 +1230,8 @@ var wp;
           return;
         }
         const action = shiftKey ? "findPrevious" : "findNext";
-        const nextElement = import_dom.focus.tabbable[action](
-          /** @type {HTMLElement} */
-          target
-        ) || null;
-        if (
-          /** @type {HTMLElement} */
-          target.contains(nextElement)
-        ) {
+        const nextElement = import_dom.focus.tabbable[action](target) || null;
+        if (target.contains(nextElement)) {
           event.preventDefault();
           nextElement?.focus();
           return;
@@ -1159,7 +1257,7 @@ var wp;
 
   // packages/compose/build-module/hooks/use-copy-on-click/index.mjs
   var import_element8 = __toESM(require_element(), 1);
-  var import_deprecated3 = __toESM(require_deprecated(), 1);
+  var import_deprecated4 = __toESM(require_deprecated(), 1);
 
   // packages/compose/build-module/hooks/use-copy-to-clipboard/index.mjs
   var import_element7 = __toESM(require_element(), 1);
@@ -1231,7 +1329,7 @@ var wp;
 
   // packages/compose/build-module/hooks/use-copy-on-click/index.mjs
   function useCopyOnClick(ref, text, timeout = 4e3) {
-    (0, import_deprecated3.default)("wp.compose.useCopyOnClick", {
+    (0, import_deprecated4.default)("wp.compose.useCopyOnClick", {
       since: "5.8",
       alternative: "wp.compose.useCopyToClipboard"
     });
@@ -1293,11 +1391,10 @@ var wp;
 
   // packages/compose/build-module/hooks/use-dialog/index.mjs
   var import_element13 = __toESM(require_element(), 1);
-  var import_keycodes = __toESM(require_keycodes(), 1);
 
   // packages/compose/build-module/hooks/use-focus-on-mount/index.mjs
-  var import_element9 = __toESM(require_element(), 1);
   var import_dom2 = __toESM(require_dom(), 1);
+  var import_element9 = __toESM(require_element(), 1);
   function useFocusOnMount(focusOnMount = "firstElement") {
     const focusOnMountRef = (0, import_element9.useRef)(focusOnMount);
     const setFocus = (target) => {
@@ -1308,12 +1405,11 @@ var wp;
         preventScroll: true
       });
     };
-    const timerIdRef = (0, import_element9.useRef)(void 0);
     (0, import_element9.useEffect)(() => {
       focusOnMountRef.current = focusOnMount;
     }, [focusOnMount]);
     return useRefEffect((node) => {
-      if (!node || focusOnMountRef.current === false) {
+      if (focusOnMountRef.current === false) {
         return;
       }
       if (node.contains(node.ownerDocument?.activeElement ?? null)) {
@@ -1323,14 +1419,11 @@ var wp;
         setFocus(node);
         return;
       }
-      timerIdRef.current = setTimeout(() => {
+      const timerId = setTimeout(() => {
         if (focusOnMountRef.current === "firstInputElement") {
-          let formInput = null;
-          if (typeof window !== "undefined" && node instanceof window.Element) {
-            formInput = node.querySelector(
-              'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
-            );
-          }
+          const formInput = node.querySelector(
+            'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+          );
           if (formInput) {
             setFocus(formInput);
             return;
@@ -1342,9 +1435,7 @@ var wp;
         }
       }, 0);
       return () => {
-        if (timerIdRef.current) {
-          clearTimeout(timerIdRef.current);
-        }
+        clearTimeout(timerId);
       };
     }, []);
   }
@@ -1354,31 +1445,34 @@ var wp;
   var origin = null;
   function useFocusReturn(onFocusReturn) {
     const ref = (0, import_element10.useRef)(null);
-    const focusedBeforeMount = (0, import_element10.useRef)(null);
-    const onFocusReturnRef = (0, import_element10.useRef)(onFocusReturn);
+    const focusedBeforeMountRef = (0, import_element10.useRef)(null);
+    const onFocusReturnRef = (0, import_element10.useRef)(
+      onFocusReturn
+    );
     (0, import_element10.useEffect)(() => {
       onFocusReturnRef.current = onFocusReturn;
     }, [onFocusReturn]);
     return (0, import_element10.useCallback)((node) => {
       if (node) {
         ref.current = node;
-        if (focusedBeforeMount.current) {
+        if (focusedBeforeMountRef.current) {
           return;
         }
         const activeDocument = node.ownerDocument.activeElement instanceof window.HTMLIFrameElement ? node.ownerDocument.activeElement.contentDocument : node.ownerDocument;
-        focusedBeforeMount.current = activeDocument?.activeElement ?? null;
-      } else if (focusedBeforeMount.current) {
+        focusedBeforeMountRef.current = activeDocument?.activeElement ?? null;
+      } else if (focusedBeforeMountRef.current) {
         const isFocused = ref.current?.contains(
-          ref.current?.ownerDocument.activeElement
+          ref.current?.ownerDocument.activeElement ?? null
         );
         if (ref.current?.isConnected && !isFocused) {
-          origin ??= focusedBeforeMount.current;
+          origin ??= focusedBeforeMountRef.current;
           return;
         }
         if (onFocusReturnRef.current) {
           onFocusReturnRef.current();
         } else {
-          (!focusedBeforeMount.current.isConnected ? origin : focusedBeforeMount.current)?.focus();
+          const elementToFocus = !focusedBeforeMountRef.current.isConnected ? origin : focusedBeforeMountRef.current;
+          elementToFocus?.focus();
         }
         origin = null;
       }
@@ -1463,40 +1557,54 @@ var wp;
   var import_element12 = __toESM(require_element(), 1);
   function assignRef(ref, value) {
     if (typeof ref === "function") {
-      ref(value);
+      const returned = ref(value);
+      return typeof returned === "function" ? returned : void 0;
     } else if (ref && ref.hasOwnProperty("current")) {
       ref.current = value;
     }
+    return void 0;
+  }
+  function detachRef(ref, index, cleanups) {
+    const cleanup = cleanups[index];
+    if (cleanup) {
+      cleanups[index] = void 0;
+      cleanup();
+    } else {
+      assignRef(ref, null);
+    }
   }
   function useMergeRefs(refs) {
-    const element = (0, import_element12.useRef)(null);
-    const isAttachedRef = (0, import_element12.useRef)(false);
-    const didElementChangeRef = (0, import_element12.useRef)(false);
-    const previousRefsRef = (0, import_element12.useRef)([]);
+    const elementRef = (0, import_element12.useRef)(null);
+    const attachedRefsRef = (0, import_element12.useRef)([]);
     const currentRefsRef = (0, import_element12.useRef)(refs);
+    const cleanupsRef = (0, import_element12.useRef)([]);
     currentRefsRef.current = refs;
     (0, import_element12.useLayoutEffect)(() => {
-      if (didElementChangeRef.current === false && isAttachedRef.current === true) {
-        refs.forEach((ref, index) => {
-          const previousRef = previousRefsRef.current[index];
-          if (ref !== previousRef) {
-            assignRef(previousRef, null);
-            assignRef(ref, element.current);
-          }
-        });
+      const element = elementRef.current;
+      if (element === null) {
+        return;
       }
-      previousRefsRef.current = refs;
+      refs.forEach((ref, index) => {
+        const attachedRef = attachedRefsRef.current[index];
+        if (ref !== attachedRef) {
+          detachRef(attachedRef, index, cleanupsRef.current);
+          cleanupsRef.current[index] = assignRef(ref, element);
+        }
+      });
+      attachedRefsRef.current = refs;
     }, refs);
-    (0, import_element12.useLayoutEffect)(() => {
-      didElementChangeRef.current = false;
-    });
     return (0, import_element12.useCallback)((value) => {
-      assignRef(element, value);
-      didElementChangeRef.current = true;
-      isAttachedRef.current = value !== null;
-      const refsToAssign = value ? currentRefsRef.current : previousRefsRef.current;
-      for (const ref of refsToAssign) {
-        assignRef(ref, value);
+      elementRef.current = value;
+      if (value === null) {
+        attachedRefsRef.current.forEach((ref, index) => {
+          detachRef(ref, index, cleanupsRef.current);
+        });
+        attachedRefsRef.current = [];
+      } else {
+        attachedRefsRef.current = currentRefsRef.current;
+        attachedRefsRef.current.forEach((ref, index) => {
+          cleanupsRef.current[index] = assignRef(ref, value);
+        });
       }
     }, []);
   }
@@ -1518,26 +1626,23 @@ var wp;
         currentOptions.current.onClose();
       }
     });
-    const closeOnEscapeRef = (0, import_element13.useCallback)((node) => {
-      if (!node) {
-        return;
+    const onKeyDown = (0, import_element13.useCallback)((event) => {
+      currentOptions.current?.onKeyDown?.(event);
+      if (event.key === "Escape" && !event.defaultPrevented && currentOptions.current?.onClose) {
+        event.preventDefault();
+        event.stopPropagation();
+        currentOptions.current.onClose();
       }
-      node.addEventListener("keydown", (event) => {
-        if (event.keyCode === import_keycodes.ESCAPE && !event.defaultPrevented && currentOptions.current?.onClose) {
-          event.preventDefault();
-          currentOptions.current.onClose();
-        }
-      });
     }, []);
     return [
       useMergeRefs([
         constrainTabbing ? constrainedTabbingRef : null,
         options.focusOnMount !== false ? focusReturnRef : null,
-        options.focusOnMount !== false ? focusOnMountRef : null,
-        closeOnEscapeRef
+        options.focusOnMount !== false ? focusOnMountRef : null
       ]),
       {
         ...focusOutsideProps,
+        onKeyDown,
         tabIndex: -1
       }
     ];
@@ -1617,7 +1722,11 @@ var wp;
   var use_isomorphic_layout_effect_default = useIsomorphicLayoutEffect;
 
   // packages/compose/build-module/hooks/use-dragging/index.mjs
-  function useDragging({ onDragStart, onDragMove, onDragEnd }) {
+  function useDragging({
+    onDragStart,
+    onDragMove,
+    onDragEnd
+  }) {
     const [isDragging, setIsDragging] = (0, import_element16.useState)(false);
     const eventsRef = (0, import_element16.useRef)({
       onDragStart,
@@ -1629,26 +1738,27 @@ var wp;
       eventsRef.current.onDragMove = onDragMove;
       eventsRef.current.onDragEnd = onDragEnd;
     }, [onDragStart, onDragMove, onDragEnd]);
-    const onMouseMove = (0, import_element16.useCallback)(
-      (event) => eventsRef.current.onDragMove && eventsRef.current.onDragMove(event),
-      []
+    const onMouseMove = (0, import_element16.useCallback)((event) => {
+      eventsRef.current.onDragMove?.(event);
+    }, []);
+    const endDrag = (0, import_element16.useCallback)(
+      function endDrag2(event) {
+        eventsRef.current.onDragEnd?.(event);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", endDrag2);
+        setIsDragging(false);
+      },
+      [onMouseMove]
     );
-    const endDrag = (0, import_element16.useCallback)((event) => {
-      if (eventsRef.current.onDragEnd) {
-        eventsRef.current.onDragEnd(event);
-      }
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", endDrag);
-      setIsDragging(false);
-    }, []);
-    const startDrag = (0, import_element16.useCallback)((event) => {
-      if (eventsRef.current.onDragStart) {
-        eventsRef.current.onDragStart(event);
-      }
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", endDrag);
-      setIsDragging(true);
-    }, []);
+    const startDrag = (0, import_element16.useCallback)(
+      (event) => {
+        eventsRef.current.onDragStart?.(event);
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", endDrag);
+        setIsDragging(true);
+      },
+      [onMouseMove, endDrag]
+    );
     (0, import_element16.useEffect)(() => {
       return () => {
         if (isDragging) {
@@ -1656,7 +1766,7 @@ var wp;
           document.removeEventListener("mouseup", endDrag);
         }
       };
-    }, [isDragging]);
+    }, [isDragging, onMouseMove, endDrag]);
     return {
       startDrag,
       endDrag,
@@ -1700,12 +1810,11 @@ var wp;
 
   // packages/compose/build-module/hooks/use-keyboard-shortcut/index.mjs
   var import_element17 = __toESM(require_element(), 1);
-  var import_keycodes2 = __toESM(require_keycodes(), 1);
+  var import_keycodes = __toESM(require_keycodes(), 1);
   function useKeyboardShortcut(shortcuts, callback, {
     bindGlobal = false,
     eventName = "keydown",
     isDisabled = false,
-    // This is important for performance considerations.
     target
   } = {}) {
     const currentCallbackRef = (0, import_element17.useRef)(callback);
@@ -1721,8 +1830,6 @@ var wp;
           // We were passing `document` here previously, so to successfully cast it to Element we must cast it first to `unknown`.
           // Not sure if this is a mistake but it was the behavior previous to the addition of types so we're just doing what's
           // necessary to maintain the existing behavior.
-          /** @type {Element} */
-          /** @type {unknown} */
           document
         )
       );
@@ -1734,7 +1841,7 @@ var wp;
         );
         const hasAlt = modifiers.has("alt");
         const hasShift = modifiers.has("shift");
-        if ((0, import_keycodes2.isAppleOS)() && (modifiers.size === 1 && hasAlt || modifiers.size === 2 && hasAlt && hasShift)) {
+        if ((0, import_keycodes.isAppleOS)() && (modifiers.size === 1 && hasAlt || modifiers.size === 2 && hasAlt && hasShift)) {
           throw new Error(
             `Cannot bind ${shortcut}. Alt and Shift+Alt modifiers are reserved for character input.`
           );
@@ -1756,47 +1863,53 @@ var wp;
   // packages/compose/build-module/hooks/use-media-query/index.mjs
   var import_element18 = __toESM(require_element(), 1);
   var perWindowCache = /* @__PURE__ */ new WeakMap();
-  function getMediaQueryList(view, query) {
-    if (!query) {
-      return null;
+  var EMPTY_SUBSCRIBER = {
+    subscribe: () => () => {
+    },
+    getValue: () => false
+  };
+  function getMQLSubscriber(view, query) {
+    if (!view || !query || typeof view.matchMedia !== "function") {
+      return EMPTY_SUBSCRIBER;
     }
-    const matchMediaCache = perWindowCache.get(view) ?? /* @__PURE__ */ new Map();
-    if (!perWindowCache.has(view)) {
-      perWindowCache.set(view, matchMediaCache);
+    let queryCache = perWindowCache.get(view);
+    if (!queryCache) {
+      queryCache = /* @__PURE__ */ new Map();
+      perWindowCache.set(view, queryCache);
     }
-    let match = matchMediaCache.get(query);
-    if (match) {
-      return match;
+    const cached = queryCache.get(query);
+    if (cached) {
+      return cached;
     }
-    if (typeof view?.matchMedia === "function") {
-      match = view.matchMedia(query);
-      matchMediaCache.set(query, match);
-      return match;
-    }
-    return null;
-  }
-  function useMediaQuery(query, view = window) {
-    const source = (0, import_element18.useMemo)(() => {
-      const mediaQueryList = getMediaQueryList(view, query);
-      return {
-        subscribe(onStoreChange) {
-          if (!mediaQueryList) {
-            return () => {
-            };
-          }
-          mediaQueryList.addEventListener?.("change", onStoreChange);
-          return () => {
-            mediaQueryList.removeEventListener?.(
-              "change",
-              onStoreChange
-            );
-          };
-        },
-        getValue() {
-          return mediaQueryList?.matches ?? false;
+    const mediaQueryList = view.matchMedia(query);
+    const listeners = /* @__PURE__ */ new Set();
+    const notify = () => {
+      for (const listener2 of listeners) {
+        listener2();
+      }
+    };
+    const subscriber = {
+      subscribe(onStoreChange) {
+        if (listeners.size === 0) {
+          mediaQueryList.addEventListener?.("change", notify);
         }
-      };
-    }, [view, query]);
+        listeners.add(onStoreChange);
+        return () => {
+          listeners.delete(onStoreChange);
+          if (listeners.size === 0) {
+            mediaQueryList.removeEventListener?.("change", notify);
+          }
+        };
+      },
+      getValue() {
+        return mediaQueryList.matches;
+      }
+    };
+    queryCache.set(query, subscriber);
+    return subscriber;
+  }
+  function useMediaQuery(query, view = typeof window !== "undefined" ? window : void 0) {
+    const source = getMQLSubscriber(view, query);
     return (0, import_element18.useSyncExternalStore)(
       source.subscribe,
       source.getValue,
@@ -1915,12 +2028,9 @@ var wp;
     ">=": (breakpointValue, width) => width >= breakpointValue,
     "<": (breakpointValue, width) => width < breakpointValue
   };
-  var ViewportMatchWidthContext = (0, import_element21.createContext)(
-    /** @type {null | number} */
-    null
-  );
+  var ViewportMatchWidthContext = (0, import_element21.createContext)(null);
   ViewportMatchWidthContext.displayName = "ViewportMatchWidthContext";
-  var useViewportMatch = (breakpoint, operator = ">=", view = window) => {
+  var useViewportMatch = (breakpoint, operator = ">=", view = typeof window !== "undefined" ? window : void 0) => {
     const simulatedWidth = (0, import_element21.useContext)(ViewportMatchWidthContext);
     const mediaQuery = !simulatedWidth && `(${CONDITIONS[operator]}: ${BREAKPOINTS[breakpoint]}px)`;
     const mediaQueryResult = useMediaQuery(mediaQuery || void 0, view);
@@ -2067,18 +2177,11 @@ var wp;
   function useWarnOnChange(object, prefix = "Change detection") {
     const previousValues = usePrevious(object);
     Object.entries(previousValues ?? []).forEach(([key, value]) => {
-      if (value !== object[
-        /** @type {keyof typeof object} */
-        key
-      ]) {
+      if (value !== object[key]) {
         console.warn(
           `${prefix}: ${key} key changed:`,
           value,
-          object[
-            /** @type {keyof typeof object} */
-            key
-          ]
-          /* eslint-enable jsdoc/check-types */
+          object[key]
         );
       }
     });
@@ -2202,10 +2305,7 @@ var wp;
         }
         function onDragEnter(event) {
           event.preventDefault();
-          if (element.contains(
-            /** @type {Node} */
-            event.relatedTarget
-          )) {
+          if (element.contains(event.relatedTarget)) {
             return;
           }
           if (_onDragEnter) {
@@ -2299,19 +2399,21 @@ var wp;
   // packages/compose/build-module/hooks/use-fixed-window-list/index.mjs
   var import_element28 = __toESM(require_element(), 1);
   var import_dom3 = __toESM(require_dom(), 1);
-  var import_keycodes3 = __toESM(require_keycodes(), 1);
+  var import_keycodes2 = __toESM(require_keycodes(), 1);
   var DEFAULT_INIT_WINDOW_SIZE = 30;
   function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
     const initWindowSize = options?.initWindowSize ?? DEFAULT_INIT_WINDOW_SIZE;
     const useWindowing = options?.useWindowing ?? true;
-    const [fixedListWindow, setFixedListWindow] = (0, import_element28.useState)({
-      visibleItems: initWindowSize,
-      start: 0,
-      end: initWindowSize,
-      itemInView: (index) => {
-        return index >= 0 && index <= initWindowSize;
+    const [fixedListWindow, setFixedListWindow] = (0, import_element28.useState)(
+      {
+        visibleItems: initWindowSize,
+        start: 0,
+        end: initWindowSize,
+        itemInView: (index) => {
+          return index >= 0 && index <= initWindowSize;
+        }
       }
-    });
+    );
     (0, import_element28.useLayoutEffect)(() => {
       if (!useWindowing) {
         return;
@@ -2386,20 +2488,20 @@ var wp;
       const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
       const handleKeyDown = (event) => {
         switch (event.keyCode) {
-          case import_keycodes3.HOME: {
+          case import_keycodes2.HOME: {
             return scrollContainer?.scrollTo({ top: 0 });
           }
-          case import_keycodes3.END: {
+          case import_keycodes2.END: {
             return scrollContainer?.scrollTo({
               top: totalItems * itemHeight
             });
           }
-          case import_keycodes3.PAGEUP: {
+          case import_keycodes2.PAGEUP: {
             return scrollContainer?.scrollTo({
               top: scrollContainer.scrollTop - fixedListWindow.visibleItems * itemHeight
             });
           }
-          case import_keycodes3.PAGEDOWN: {
+          case import_keycodes2.PAGEDOWN: {
             return scrollContainer?.scrollTo({
               top: scrollContainer.scrollTop + fixedListWindow.visibleItems * itemHeight
             });
@@ -2440,4 +2542,6 @@ var wp;
     return (0, import_element29.useSyncExternalStore)(subscribe, getValue, getValue);
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).compose = wp.compose;
 })();

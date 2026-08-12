@@ -1,0 +1,597 @@
+{
+	"handbook": {
+		"title": "WordPress Playground",
+		"slug": "handbook",
+		"markdown_source": "docs/main/intro.md",
+		"parent": null,
+		"order": 10
+	},
+	"quick-start-guide": {
+		"title": "Quick Start Guide",
+		"slug": "quick-start-guide",
+		"markdown_source": "docs/main/quick-start-guide.md",
+		"parent": "handbook",
+		"order": 10
+	},
+	"web-instance": {
+		"title": "Web Instance",
+		"slug": "web-instance",
+		"markdown_source": "docs/main/web-instance.md",
+		"parent": "handbook",
+		"order": 20
+	},
+	"troubleshooting": {
+		"title": "Troubleshooting",
+		"slug": "troubleshooting",
+		"markdown_source": "docs/main/troubleshooting.md",
+		"parent": "handbook",
+		"order": 30
+	},
+	"about": {
+		"title": "About WordPress Playground",
+		"slug": "about",
+		"markdown_source": "docs/main/about/index.md",
+		"parent": "handbook",
+		"order": 40
+	},
+	"about/build": {
+		"title": "Build",
+		"slug": "build",
+		"markdown_source": "docs/main/about/build.md",
+		"parent": "about",
+		"order": 10
+	},
+	"about/test": {
+		"title": "Test",
+		"slug": "test",
+		"markdown_source": "docs/main/about/test.md",
+		"parent": "about",
+		"order": 20
+	},
+	"about/launch": {
+		"title": "Launch",
+		"slug": "launch",
+		"markdown_source": "docs/main/about/launch.md",
+		"parent": "about",
+		"order": 30
+	},
+	"guides": {
+		"title": "Guides",
+		"slug": "guides",
+		"markdown_source": "docs/main/guides/index.md",
+		"parent": "handbook",
+		"order": 50
+	},
+	"guides/php-code-snippets": {
+		"title": "PHP code snippets and embeds",
+		"slug": "php-code-snippets",
+		"markdown_source": "docs/main/guides/php-code-snippets.md",
+		"parent": "guides",
+		"order": 10
+	},
+	"guides/php-frameworks": {
+		"title": "Run PHP frameworks in Playground",
+		"slug": "php-frameworks",
+		"markdown_source": "docs/main/guides/php-frameworks.md",
+		"parent": "guides",
+		"order": 20
+	},
+	"guides/agent-skill-wp-playground": {
+		"title": "Using the WordPress Playground Agent Skill",
+		"slug": "agent-skill-wp-playground",
+		"markdown_source": "docs/main/guides/agent-skill-wp-playground.md",
+		"parent": "guides",
+		"order": 30
+	},
+	"guides/wordpress-native-ios-app": {
+		"title": "WordPress Playground in native iOS apps",
+		"slug": "wordpress-native-ios-app",
+		"markdown_source": "docs/main/guides/wordpress-native-ios-app.md",
+		"parent": "guides",
+		"order": 40
+	},
+	"guides/for-plugin-developers": {
+		"title": "WordPress Playground for Plugin Developers",
+		"slug": "for-plugin-developers",
+		"markdown_source": "docs/main/guides/for-plugin-developers.md",
+		"parent": "guides",
+		"order": 50
+	},
+	"guides/for-theme-developers": {
+		"title": "WordPress Playground for Theme Developers",
+		"slug": "for-theme-developers",
+		"markdown_source": "docs/main/guides/for-theme-developers.md",
+		"parent": "guides",
+		"order": 60
+	},
+	"guides/providing-content-for-your-demo": {
+		"title": "Providing content for your demo with Playground",
+		"slug": "providing-content-for-your-demo",
+		"markdown_source": "docs/main/guides/providing-content-for-your-demo.md",
+		"parent": "guides",
+		"order": 70
+	},
+	"guides/github-action-pr-preview": {
+		"title": "Adding PR Preview Buttons with GitHub Actions",
+		"slug": "github-action-pr-preview",
+		"markdown_source": "docs/main/guides/github-action-pr-preview.md",
+		"parent": "guides",
+		"order": 80
+	},
+	"guides/playground-for-everyone": {
+		"title": "WordPress Playground for Everyone",
+		"slug": "playground-for-everyone",
+		"markdown_source": "docs/main/guides/playground-for-everyone.md",
+		"parent": "guides",
+		"order": 90
+	},
+	"guides/programmatic-playground-cli": {
+		"title": "Programmatic Usage of Playground CLI",
+		"slug": "programmatic-playground-cli",
+		"markdown_source": "docs/main/guides/programmatic-playground-cli.md",
+		"parent": "guides",
+		"order": 100
+	},
+	"guides/phpunit-testing": {
+		"title": "Running PHPUnit with the Playground CLI",
+		"slug": "phpunit-testing",
+		"markdown_source": "docs/main/guides/phpunit-testing.md",
+		"parent": "guides",
+		"order": 110
+	},
+	"guides/e2e-testing-with-playwright": {
+		"title": "E2E Testing with Playwright and WordPress Playground",
+		"slug": "e2e-testing-with-playwright",
+		"markdown_source": "docs/main/guides/e2e-testing-with-playwright.md",
+		"parent": "guides",
+		"order": 120
+	},
+	"contributing": {
+		"title": "Contributing to WordPress Playground project",
+		"slug": "contributing",
+		"markdown_source": "docs/main/contributing/index.md",
+		"parent": "handbook",
+		"order": 60
+	},
+	"contributing/code": {
+		"title": "Code contributions",
+		"slug": "code",
+		"markdown_source": "docs/main/contributing/code.md",
+		"parent": "contributing",
+		"order": 10
+	},
+	"contributing/releases": {
+		"title": "Releasing packages",
+		"slug": "releases",
+		"markdown_source": "docs/main/contributing/releases.md",
+		"parent": "contributing",
+		"order": 20
+	},
+	"contributing/coding-standards": {
+		"title": "Coding principles",
+		"slug": "coding-standards",
+		"markdown_source": "docs/main/contributing/coding-standards.md",
+		"parent": "contributing",
+		"order": 30
+	},
+	"contributing/contributor-day": {
+		"title": "WordCamp Contributor Day",
+		"slug": "contributor-day",
+		"markdown_source": "docs/main/contributing/contributor-day.md",
+		"parent": "contributing",
+		"order": 40
+	},
+	"contributing/contributor-badge": {
+		"title": "WordPress Playground Contributor Badge",
+		"slug": "contributor-badge",
+		"markdown_source": "docs/main/contributing/contributor-badge.md",
+		"parent": "contributing",
+		"order": 50
+	},
+	"contributing/contributor-day-table-lead": {
+		"title": "Contributor Day Table Leadership Guide",
+		"slug": "contributor-day-table-lead",
+		"markdown_source": "docs/main/contributing/contributor-day-table-lead.md",
+		"parent": "contributing",
+		"order": 60
+	},
+	"contributing/documentation": {
+		"title": "Documentation contributions",
+		"slug": "documentation",
+		"markdown_source": "docs/main/contributing/documentation.md",
+		"parent": "contributing",
+		"order": 70
+	},
+	"contributing/translations": {
+		"title": "Contributions to translations",
+		"slug": "translations",
+		"markdown_source": "docs/main/contributing/translations.md",
+		"parent": "contributing",
+		"order": 80
+	},
+	"resources": {
+		"title": "Links and Resources",
+		"slug": "resources",
+		"markdown_source": "docs/main/resources.md",
+		"parent": "handbook",
+		"order": 70
+	},
+	"changelog": {
+		"title": "Changelog",
+		"slug": "changelog",
+		"markdown_source": "docs/main/changelog.md",
+		"parent": "handbook",
+		"order": 80
+	},
+	"blueprints": {
+		"title": "Blueprints",
+		"slug": "blueprints",
+		"markdown_source": "docs/blueprints/intro.md",
+		"parent": null,
+		"order": 20
+	},
+	"blueprints/getting-started": {
+		"title": "Getting started",
+		"slug": "getting-started",
+		"markdown_source": "docs/blueprints/01-index.md",
+		"parent": "blueprints",
+		"order": 10
+	},
+	"blueprints/tutorial": {
+		"title": "Blueprints 101",
+		"slug": "tutorial",
+		"markdown_source": "docs/blueprints/tutorial/index.md",
+		"parent": "blueprints",
+		"order": 20
+	},
+	"blueprints/tutorial/what-are-blueprints": {
+		"title": "What are Blueprints?",
+		"slug": "what-are-blueprints",
+		"markdown_source": "docs/blueprints/tutorial/01-what-are-blueprints-what-you-can-do-with-them.md",
+		"parent": "blueprints/tutorial",
+		"order": 10
+	},
+	"blueprints/tutorial/how-to-load-run": {
+		"title": "How to run Blueprints",
+		"slug": "how-to-load-run",
+		"markdown_source": "docs/blueprints/tutorial/02-how-to-load-run-blueprints.md",
+		"parent": "blueprints/tutorial",
+		"order": 20
+	},
+	"blueprints/tutorial/build-your-first": {
+		"title": "Build your first Blueprint",
+		"slug": "build-your-first",
+		"markdown_source": "docs/blueprints/tutorial/03-build-your-first-blueprint.md",
+		"parent": "blueprints/tutorial",
+		"order": 30
+	},
+	"blueprints/using-blueprints": {
+		"title": "Using Blueprints",
+		"slug": "using-blueprints",
+		"markdown_source": "docs/blueprints/02-using-blueprints.md",
+		"parent": "blueprints",
+		"order": 30
+	},
+	"blueprints/data-format": {
+		"title": "Blueprint data format",
+		"slug": "data-format",
+		"markdown_source": "docs/blueprints/03-data-format.md",
+		"parent": "blueprints",
+		"order": 40
+	},
+	"blueprints/steps": {
+		"title": "Steps",
+		"slug": "steps",
+		"markdown_source": "docs/blueprints/05-steps.md",
+		"parent": "blueprints",
+		"order": 50
+	},
+	"blueprints/steps/resources": {
+		"title": "Resources References",
+		"slug": "resources",
+		"markdown_source": "docs/blueprints/04-resources.md",
+		"parent": "blueprints/steps",
+		"order": 10
+	},
+	"blueprints/steps/shorthands": {
+		"title": "Shorthands",
+		"slug": "shorthands",
+		"markdown_source": "docs/blueprints/05-steps-shorthands.md",
+		"parent": "blueprints/steps",
+		"order": 20
+	},
+	"blueprints/steps/api-consistency": {
+		"title": "API Consistency",
+		"slug": "api-consistency",
+		"markdown_source": "docs/blueprints/07-json-api-and-function-api.md",
+		"parent": "blueprints/steps",
+		"order": 30
+	},
+	"blueprints/bundles": {
+		"title": "Blueprint Bundles",
+		"slug": "bundles",
+		"markdown_source": "docs/blueprints/06-bundles.md",
+		"parent": "blueprints",
+		"order": 60
+	},
+	"blueprints/examples": {
+		"title": "Examples",
+		"slug": "examples",
+		"markdown_source": "docs/blueprints/08-examples.md",
+		"parent": "blueprints",
+		"order": 70
+	},
+	"blueprints/troubleshoot-and-debug": {
+		"title": "Troubleshoot and debug",
+		"slug": "troubleshoot-and-debug",
+		"markdown_source": "docs/blueprints/09-troubleshoot-and-debug-blueprints.md",
+		"parent": "blueprints",
+		"order": 80
+	},
+	"developers": {
+		"title": "WordPress Playground Developers Docs",
+		"slug": "developers",
+		"markdown_source": "docs/developers/intro-devs.md",
+		"parent": null,
+		"order": 30
+	},
+	"developers/build-an-app": {
+		"title": "Quick Start Guide for Developers",
+		"slug": "build-an-app",
+		"markdown_source": "docs/developers/03-build-an-app/01-index.md",
+		"parent": "developers",
+		"order": 10
+	},
+	"developers/local-development": {
+		"title": "Local Development",
+		"slug": "local-development",
+		"markdown_source": "docs/developers/05-local-development/intro.md",
+		"parent": "developers",
+		"order": 20
+	},
+	"developers/local-development/wp-playground-cli": {
+		"title": "Playground CLI",
+		"slug": "wp-playground-cli",
+		"markdown_source": "docs/developers/05-local-development/04-wp-playground-cli.md",
+		"parent": "developers/local-development",
+		"order": 10
+	},
+	"developers/local-development/vscode-extension": {
+		"title": "VS Code extension",
+		"slug": "vscode-extension",
+		"markdown_source": "docs/developers/05-local-development/02-vscode-extension.md",
+		"parent": "developers/local-development",
+		"order": 20
+	},
+	"developers/local-development/php-wasm-node": {
+		"title": "Using WordPress Playground in Node.js",
+		"slug": "php-wasm-node",
+		"markdown_source": "docs/developers/05-local-development/03-php-wasm-node.md",
+		"parent": "developers/local-development",
+		"order": 30
+	},
+	"developers/xdebug": {
+		"title": "Debugging with Xdebug in WordPress Playground",
+		"slug": "xdebug",
+		"markdown_source": "docs/developers/07-xdebug/01-introduction.md",
+		"parent": "developers",
+		"order": 30
+	},
+	"developers/xdebug/getting-started": {
+		"title": "Getting Started with Xdebug",
+		"slug": "getting-started",
+		"markdown_source": "docs/developers/07-xdebug/02-getting-started.md",
+		"parent": "developers/xdebug",
+		"order": 10
+	},
+	"developers/apis": {
+		"title": "APIs overview",
+		"slug": "apis",
+		"markdown_source": "docs/developers/06-apis/01-index.md",
+		"parent": "developers",
+		"order": 40
+	},
+	"developers/apis/query-api": {
+		"title": "Query API",
+		"slug": "query-api",
+		"markdown_source": "docs/developers/06-apis/query-api/01-index.md",
+		"parent": "developers/apis",
+		"order": 10
+	},
+	"developers/apis/sites-api": {
+		"title": "Sites API",
+		"slug": "sites-api",
+		"markdown_source": "docs/developers/06-apis/sites-api/01-index.md",
+		"parent": "developers/apis",
+		"order": 20
+	},
+	"developers/apis/javascript-api": {
+		"title": "JavaScript API",
+		"slug": "javascript-api",
+		"markdown_source": "docs/developers/06-apis/javascript-api/01-index.md",
+		"parent": "developers/apis",
+		"order": 30
+	},
+	"developers/apis/javascript-api/index-html-vs-remote-html": {
+		"title": "remote.html vs index.html",
+		"slug": "index-html-vs-remote-html",
+		"markdown_source": "docs/developers/06-apis/javascript-api/02-index-html-vs-remote-html.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 10
+	},
+	"developers/apis/javascript-api/playground-api-client": {
+		"title": "Playground API Client",
+		"slug": "playground-api-client",
+		"markdown_source": "docs/developers/06-apis/javascript-api/03-playground-api-client.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 20
+	},
+	"developers/apis/javascript-api/blueprint-json": {
+		"title": "Blueprints JSON and the API Client",
+		"slug": "blueprint-json",
+		"markdown_source": "docs/developers/06-apis/javascript-api/04-blueprint-json-in-api-client.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 30
+	},
+	"developers/apis/javascript-api/blueprint-functions": {
+		"title": "Blueprints Functions and the API Client",
+		"slug": "blueprint-functions",
+		"markdown_source": "docs/developers/06-apis/javascript-api/05-blueprint-functions-in-api-client.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 40
+	},
+	"developers/apis/javascript-api/mount-data": {
+		"title": "Mount data",
+		"slug": "mount-data",
+		"markdown_source": "docs/developers/06-apis/javascript-api/06-mount-data.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 50
+	},
+	"developers/apis/javascript-api/php-extensions": {
+		"title": "Loading PHP extensions",
+		"slug": "php-extensions",
+		"markdown_source": "docs/developers/06-apis/javascript-api/07-php-extensions.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 60
+	},
+	"developers/apis/javascript-api/build-php-extensions": {
+		"title": "Building PHP extensions",
+		"slug": "build-php-extensions",
+		"markdown_source": "docs/developers/06-apis/javascript-api/08-build-php-extensions.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 70
+	},
+	"developers/apis/javascript-api/php-extension-dependencies": {
+		"title": "PHP extension dependencies",
+		"slug": "php-extension-dependencies",
+		"markdown_source": "docs/developers/06-apis/javascript-api/09-php-extension-dependencies.md",
+		"parent": "developers/apis/javascript-api",
+		"order": 80
+	},
+	"developers/architecture": {
+		"title": "Architecture overview",
+		"slug": "architecture",
+		"markdown_source": "docs/developers/23-architecture/01-index.md",
+		"parent": "developers",
+		"order": 50
+	},
+	"developers/architecture/wasm-php-overview": {
+		"title": "WebAssembly PHP",
+		"slug": "wasm-php-overview",
+		"markdown_source": "docs/developers/23-architecture/02-wasm-php-overview.md",
+		"parent": "developers/architecture",
+		"order": 10
+	},
+	"developers/architecture/wasm-php-compiling": {
+		"title": "Compiling PHP",
+		"slug": "wasm-php-compiling",
+		"markdown_source": "docs/developers/23-architecture/03-wasm-php-compiling.md",
+		"parent": "developers/architecture",
+		"order": 20
+	},
+	"developers/architecture/wasm-php-javascript-module": {
+		"title": "PHP.js JavaScript module",
+		"slug": "wasm-php-javascript-module",
+		"markdown_source": "docs/developers/23-architecture/04-wasm-php-javascript-module.md",
+		"parent": "developers/architecture",
+		"order": 30
+	},
+	"developers/architecture/wasm-php-filesystem": {
+		"title": "PHP Filesystem",
+		"slug": "wasm-php-filesystem",
+		"markdown_source": "docs/developers/23-architecture/05-wasm-php-filesystem.md",
+		"parent": "developers/architecture",
+		"order": 40
+	},
+	"developers/architecture/wasm-asyncify": {
+		"title": "Asyncify",
+		"slug": "wasm-asyncify",
+		"markdown_source": "docs/developers/23-architecture/07-wasm-asyncify.md",
+		"parent": "developers/architecture",
+		"order": 50
+	},
+	"developers/architecture/browser-concepts": {
+		"title": "Running PHP apps in the browser with ServiceWorkers and Worker Threads",
+		"slug": "browser-concepts",
+		"markdown_source": "docs/developers/23-architecture/08-browser-concepts.md",
+		"parent": "developers/architecture",
+		"order": 60
+	},
+	"developers/architecture/browser-tab-orchestrates-execution": {
+		"title": "Browser tab orchestrates the execution",
+		"slug": "browser-tab-orchestrates-execution",
+		"markdown_source": "docs/developers/23-architecture/09-browser-tab-orchestrates-execution.md",
+		"parent": "developers/architecture",
+		"order": 70
+	},
+	"developers/architecture/browser-iframe-rendering": {
+		"title": "Iframe-based rendering",
+		"slug": "browser-iframe-rendering",
+		"markdown_source": "docs/developers/23-architecture/10-browser-iframe-rendering.md",
+		"parent": "developers/architecture",
+		"order": 80
+	},
+	"developers/architecture/browser-php-worker-threads": {
+		"title": "PHP Worker Threads",
+		"slug": "browser-php-worker-threads",
+		"markdown_source": "docs/developers/23-architecture/11-browser-php-worker-threads.md",
+		"parent": "developers/architecture",
+		"order": 90
+	},
+	"developers/architecture/browser-service-workers": {
+		"title": "Service Workers",
+		"slug": "browser-service-workers",
+		"markdown_source": "docs/developers/23-architecture/12-browser-service-workers.md",
+		"parent": "developers/architecture",
+		"order": 100
+	},
+	"developers/architecture/browser-scopes": {
+		"title": "Scopes",
+		"slug": "browser-scopes",
+		"markdown_source": "docs/developers/23-architecture/13-browser-scopes.md",
+		"parent": "developers/architecture",
+		"order": 110
+	},
+	"developers/architecture/browser-cross-process-communication": {
+		"title": "Cross-process communication",
+		"slug": "browser-cross-process-communication",
+		"markdown_source": "docs/developers/23-architecture/14-browser-cross-process-communication.md",
+		"parent": "developers/architecture",
+		"order": 120
+	},
+	"developers/architecture/wordpress": {
+		"title": "WordPress support",
+		"slug": "wordpress",
+		"markdown_source": "docs/developers/23-architecture/15-wordpress.md",
+		"parent": "developers/architecture",
+		"order": 130
+	},
+	"developers/architecture/wordpress-database": {
+		"title": "How does it work?",
+		"slug": "wordpress-database",
+		"markdown_source": "docs/developers/23-architecture/16-wordpress-database.md",
+		"parent": "developers/architecture",
+		"order": 140
+	},
+	"developers/architecture/browser-wordpress": {
+		"title": "Bundling WordPress for the browser",
+		"slug": "browser-wordpress",
+		"markdown_source": "docs/developers/23-architecture/17-browser-wordpress.md",
+		"parent": "developers/architecture",
+		"order": 150
+	},
+	"developers/architecture/host-your-own-playground": {
+		"title": "Host your own Playground",
+		"slug": "host-your-own-playground",
+		"markdown_source": "docs/developers/23-architecture/18-host-your-own-playground.md",
+		"parent": "developers/architecture",
+		"order": 160
+	},
+	"developers/limitations": {
+		"title": "Limitations",
+		"slug": "limitations",
+		"markdown_source": "docs/developers/24-limitations/01-index.md",
+		"parent": "developers",
+		"order": 60
+	}
+}

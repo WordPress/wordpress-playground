@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).blockSerializationDefaultParser = (() => {
@@ -148,7 +149,7 @@ var wp;
   function parseJSON(input) {
     try {
       return JSON.parse(input);
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -225,4 +226,6 @@ var wp;
     output.push(block);
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).blockSerializationDefaultParser = wp.blockSerializationDefaultParser;
 })();

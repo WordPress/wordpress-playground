@@ -116,6 +116,34 @@ export const useActiveSite = () => useAppSelector(selectActiveSite);
  */
 export const useActiveStoredSite = () => useAppSelector(selectActiveStoredSite);
 
+const YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY =
+	'playground-you-have-autosave-nudge-enabled';
+
+/** Reads whether matching autosaves should be offered on the current device. */
+export function isYouHaveAutosaveNudgeEnabled(): boolean {
+	try {
+		return (
+			localStorage.getItem(
+				YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY
+			) !== 'false'
+		);
+	} catch {
+		return true;
+	}
+}
+
+/** Persists whether matching autosaves should be offered on the current device. */
+export function setYouHaveAutosaveNudgeEnabled(enabled: boolean): void {
+	try {
+		localStorage.setItem(
+			YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY,
+			String(enabled)
+		);
+	} catch {
+		// The current dismissal still succeeds when private storage is unavailable.
+	}
+}
+
 /**
  * Returns the temporary site for the current browser session, when one exists.
  */

@@ -258,7 +258,10 @@ DeleteSelected = Button.extend(/** @lends wp.media.view.DeleteSelectedButton.pro
 	},
 
 	render: function() {
+		// Set size silently before calling base render to avoid nested renders.
+		this.model.set( 'size', '', { silent: true } );
 		Button.prototype.render.apply( this, arguments );
+
 		if ( this.controller.isModeActive( 'select' ) ) {
 			this.$el.addClass( 'delete-selected-button' );
 		} else {
@@ -319,7 +322,7 @@ SelectModeToggle = Button.extend(/** @lends wp.media.view.SelectModeToggle.proto
 
 	render: function() {
 		Button.prototype.render.apply( this, arguments );
-		this.$el.addClass( 'select-mode-toggle-button button-compact' );
+		this.$el.addClass( 'select-mode-toggle-button' );
 		return this;
 	},
 
@@ -331,7 +334,7 @@ SelectModeToggle = Button.extend(/** @lends wp.media.view.SelectModeToggle.proto
 		// @todo The Frame should be doing all of this.
 		if ( this.controller.isModeActive( 'select' ) ) {
 			this.model.set( {
-				size: 'large',
+				size: '',
 				text: l10n.cancel
 			} );
 			children.not( '.spinner, .media-button' ).hide();
@@ -405,6 +408,7 @@ module.exports = Details;
 
 var Frame = wp.media.view.Frame,
 	MediaFrame = wp.media.view.MediaFrame,
+	l10n = wp.media.view.l10n,
 
 	$ = jQuery,
 	EditAttachments;
@@ -437,6 +441,30 @@ EditAttachments = MediaFrame.extend(/** @lends wp.media.view.MediaFrame.EditAtta
 		'click .left':  'previousMediaItem',
 		'click .right': 'nextMediaItem'
 	},
+
+	/**
+	 * Announces to screen readers the attachment shown after previous/next navigation.
+	 *
+	 * @since 7.1.0
+	 *
+	 * @param {Object} model The attachment model.
+	 * @return {void}
+	 */
+	announceMediaItemDebounced: _.debounce( function( model ) {
+		var title;
+
+		if ( ! model ) {
+			return;
+		}
+
+		title = model.get( 'title' ) || model.get( 'filename' ) || model.get( 'id' );
+
+		if ( ! title ) {
+			return;
+		}
+
+		wp.a11y.speak( l10n.mediaItemViewed.replace( '%s', title ) );
+	}, 500 ),
 
 	initialize: function() {
 		Frame.prototype.initialize.apply( this, arguments );
@@ -501,6 +529,8 @@ EditAttachments = MediaFrame.extend(/** @lends wp.media.view.MediaFrame.EditAtta
 				// Move focus back to the original item in the grid if possible.
 				$( 'li.attachment[data-id="' + this.model.get( 'id' ) +'"]' ).trigger( 'focus' );
 				this.resetRoute();
+				// Cancel any pending navigation announcement.
+				this.announceMediaItemDebounced.cancel();
 			}, this ) );
 
 			// Set this frame as the modal's content.
@@ -607,26 +637,34 @@ EditAttachments = MediaFrame.extend(/** @lends wp.media.view.MediaFrame.EditAtta
 	 * Click handler to switch to the previous media item.
 	 */
 	previousMediaItem: function() {
+		var model;
+
 		if ( ! this.hasPrevious() ) {
 			return;
 		}
 
-		this.trigger( 'refresh', this.library.at( this.getCurrentIndex() - 1 ) );
+		model = this.library.at( this.getCurrentIndex() - 1 );
+		this.trigger( 'refresh', model );
 		// Move focus to the Previous button. When there are no more items, to the Next button.
 		this.focusNavButton( this.hasPrevious() ? '.left' : '.right' );
+		this.announceMediaItemDebounced( model );
 	},
 
 	/**
 	 * Click handler to switch to the next media item.
 	 */
 	nextMediaItem: function() {
+		var model;
+
 		if ( ! this.hasNext() ) {
 			return;
 		}
 
-		this.trigger( 'refresh', this.library.at( this.getCurrentIndex() + 1 ) );
+		model = this.library.at( this.getCurrentIndex() + 1 );
+		this.trigger( 'refresh', model );
 		// Move focus to the Next button. When there are no more items, to the Previous button.
 		this.focusNavButton( this.hasNext() ? '.right' : '.left' );
+		this.announceMediaItemDebounced( model );
 	},
 
 	/**
@@ -652,25 +690,28 @@ EditAttachments = MediaFrame.extend(/** @lends wp.media.view.MediaFrame.EditAtta
 		return ( this.getCurrentIndex() - 1 ) > -1;
 	},
 	/**
-	 * Respond to the keyboard events: right arrow, left arrow, except when
-	 * focus is in a textarea or input field.
+	 * Respond to the keyboard events: Alt + right arrow, Alt + left arrow,
+	 * except when focus is in a form field. Requires the Alt modifier key to
+	 * avoid interfering with screen reader navigation.
 	 */
 	keyEvent: function( event ) {
-		if ( ( 'INPUT' === event.target.nodeName || 'TEXTAREA' === event.target.nodeName ) && ! event.target.disabled ) {
+		if ( ( 'INPUT' === event.target.nodeName || 'TEXTAREA' === event.target.nodeName || 'SELECT' === event.target.nodeName ) && ! event.target.disabled ) {
 			return;
 		}
 
-		// Return if Ctrl + Shift or Shift key pressed
-		if ( event.shiftKey || ( event.ctrlKey && event.shiftKey ) ) {
+		// Arrow key navigation requires Alt key to avoid interfering with screen reader navigation.
+		if ( ! event.altKey ) {
 			return;
 		}
 
-		// The right arrow key.
+		// Alt + right arrow key.
 		if ( 39 === event.keyCode ) {
+			event.preventDefault();
 			this.nextMediaItem();
 		}
-		// The left arrow key.
+		// Alt + left arrow key.
 		if ( 37 === event.keyCode ) {
+			event.preventDefault();
 			this.previousMediaItem();
 		}
 	},
@@ -790,8 +831,9 @@ Manage = MediaFrame.extend(/** @lends wp.media.view.MediaFrame.Manage.prototype 
 
 				if ( val ) {
 					url += '?search=' + val;
-					this.gridRouter.navigate( this.gridRouter.baseUrl( url ), { replace: true } );
 				}
+
+				this.gridRouter.navigate( this.gridRouter.baseUrl( url ), { replace: true } );
 			}, 1000 );
 
 		// Update the URL when entering search string (at most once per second).
@@ -984,17 +1026,17 @@ module.exports = Manage;
 /******/ 	});
 /************************************************************************/
 /******/ 	// The module cache
-/******/ 	var __webpack_module_cache__ = {};
+/******/ 	const __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
-/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		const cachedModule = __webpack_module_cache__[moduleId];
 /******/ 		if (cachedModule !== undefined) {
 /******/ 			return cachedModule.exports;
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
-/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 		const module = __webpack_module_cache__[moduleId] = {
 /******/ 			// no module.id needed
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}

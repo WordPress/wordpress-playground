@@ -1749,6 +1749,7 @@ body.full-overlay-active {
 	background: transparent;
 	border: none;
 	height: 45px;
+	min-width: 50px;
 	padding: 0 3px;
 	margin: 0 -4px 0 0;
 	box-shadow: none;
@@ -1768,9 +1769,9 @@ body.full-overlay-active {
 .wp-full-overlay-footer .devices button:before {
 	display: inline-block;
 	-webkit-font-smoothing: antialiased;
-	font: normal 20px/30px "dashicons";
+	font: normal 20px/20px "dashicons";
 	vertical-align: top;
-	margin: 3px 0;
+	margin: 0 0 -2px;
 	padding: 4px 8px;
 	color: #646970;
 }
@@ -1811,6 +1812,12 @@ body.full-overlay-active {
 .wp-full-overlay-footer .devices .preview-mobile:before {
 	content: "\f470";
 	content: "\f470" / '';
+}
+
+.wp-full-overlay-footer .devices .devices__preview-label {
+	display: block;
+	font-size: 10px;
+	line-height: 1;
 }
 
 @media screen and (max-width: 1024px) {
@@ -1968,6 +1975,11 @@ body.full-overlay-active {
 	margin: 7px 0 0 10px; /* Vertically center 32px button in 45px header */
 	min-height: 32px;
 	line-height: 2.30769231; /* 30px for 32px height with 13px font */
+}
+
+.theme-install-overlay .wp-full-overlay-header .button.updating-message:before,
+.theme-install-overlay .wp-full-overlay-header .button.updated-message:before {
+	line-height: 1.5; /* 30px (20px * 1.5) - matches the button above */
 }
 
 .theme-install-overlay .wp-full-overlay-sidebar {

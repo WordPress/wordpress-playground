@@ -68,6 +68,12 @@
  * Focus styles.
  */
 /**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
  * Applies editor left position to the selector passed as argument
  */
 /**
@@ -223,6 +229,7 @@
   position: absolute;
   width: 1px;
   word-wrap: normal !important;
+  word-break: normal !important;
 }
 
 .screen-reader-text:focus {
@@ -256,46 +263,66 @@ html :where(.has-border-color) {
   border-style: solid;
 }
 
-html :where([style*=border-color]) {
+html :where([style^=border-color],
+[style*=";border-color"],
+[style*="; border-color"]) {
   border-style: solid;
 }
 
-html :where([style*=border-top-color]) {
+html :where([style^=border-top-color],
+[style*=";border-top-color"],
+[style*="; border-top-color"]) {
   border-top-style: solid;
 }
 
-html :where([style*=border-right-color]) {
+html :where([style^=border-right-color],
+[style*=";border-right-color"],
+[style*="; border-right-color"]) {
   /*rtl:ignore*/
   border-right-style: solid;
 }
 
-html :where([style*=border-bottom-color]) {
+html :where([style^=border-bottom-color],
+[style*=";border-bottom-color"],
+[style*="; border-bottom-color"]) {
   border-bottom-style: solid;
 }
 
-html :where([style*=border-left-color]) {
+html :where([style^=border-left-color],
+[style*=";border-left-color"],
+[style*="; border-left-color"]) {
   /*rtl:ignore*/
   border-left-style: solid;
 }
 
-html :where([style*=border-width]) {
+html :where([style^=border-width],
+[style*=";border-width"],
+[style*="; border-width"]) {
   border-style: solid;
 }
 
-html :where([style*=border-top-width]) {
+html :where([style^=border-top-width],
+[style*=";border-top-width"],
+[style*="; border-top-width"]) {
   border-top-style: solid;
 }
 
-html :where([style*=border-right-width]) {
+html :where([style^=border-right-width],
+[style*=";border-right-width"],
+[style*="; border-right-width"]) {
   /*rtl:ignore*/
   border-right-style: solid;
 }
 
-html :where([style*=border-bottom-width]) {
+html :where([style^=border-bottom-width],
+[style*=";border-bottom-width"],
+[style*="; border-bottom-width"]) {
   border-bottom-style: solid;
 }
 
-html :where([style*=border-left-width]) {
+html :where([style^=border-left-width],
+[style*=";border-left-width"],
+[style*="; border-left-width"]) {
   /*rtl:ignore*/
   border-left-style: solid;
 }
@@ -316,15 +343,11 @@ html :where(img[class*=wp-image-]) {
 }
 
 html :where(.is-position-sticky) {
-  /* stylelint-disable length-zero-no-unit -- 0px is set explicitly so that it can be used in a calc value. */
   --wp-admin--admin-bar--position-offset: var(--wp-admin--admin-bar--height, 0px);
-  /* stylelint-enable length-zero-no-unit */
 }
 
 @media screen and (max-width: 600px) {
   html :where(.is-position-sticky) {
-    /* stylelint-disable length-zero-no-unit -- 0px is set explicitly so that it can be used in a calc value. */
     --wp-admin--admin-bar--position-offset: 0px;
-    /* stylelint-enable length-zero-no-unit */
   }
 }

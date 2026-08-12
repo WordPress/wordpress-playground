@@ -275,6 +275,9 @@ export const __testing = {
 	resetStreamBodySupported(): void {
 		streamBodySupported = undefined;
 	},
+	setStreamBodySupported(value: boolean): void {
+		streamBodySupported = value;
+	},
 };
 
 /**

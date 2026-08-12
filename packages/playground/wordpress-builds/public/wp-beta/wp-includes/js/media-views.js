@@ -403,7 +403,7 @@ Cropper = wp.media.controller.State.extend(/** @lends wp.media.controller.Croppe
 						selection.set({cropDetails: controller.state().imgSelect.getSelection()});
 
 						this.$el.text(l10n.cropping);
-						this.$el.attr('disabled', true);
+						this.$el.prop( 'disabled', true );
 
 						controller.state().doCrop( selection ).done( function( croppedImage ) {
 							controller.trigger('cropped', croppedImage );
@@ -2913,10 +2913,20 @@ Attachment = View.extend(/** @lends wp.media.view.Attachment.prototype */{
 	template:  wp.template('attachment'),
 
 	attributes: function() {
+		var ariaLabel = this.model.get( 'title' );
+
+		if ( ! ariaLabel ) {
+			if ( this.model.get( 'uploading' ) ) {
+				ariaLabel = wp.i18n.__( 'uploading…' );
+			} else {
+				ariaLabel = wp.i18n.__( '(no title)' );
+			}
+		}
+
 		return {
 			'tabIndex':     0,
 			'role':         'checkbox',
-			'aria-label':   this.model.get( 'title' ) || wp.i18n.__( 'uploading…' ),
+			'aria-label':   ariaLabel,
 			'aria-checked': false,
 			'data-id':      this.model.get( 'id' )
 		};
@@ -4580,7 +4590,7 @@ AttachmentsBrowser = View.extend(/** @lends wp.media.view.AttachmentsBrowser.pro
 				this.toolbar.set( 'filters', Filters.render() );
 			}
 		}
-		
+
 		/*
 		 * Feels odd to bring the global media library switcher into the Attachment browser view.
 		 * Is this a use case for doAction( 'add:toolbar-items:attachments-browser', this.toolbar );
@@ -4598,7 +4608,7 @@ AttachmentsBrowser = View.extend(/** @lends wp.media.view.AttachmentsBrowser.pro
 			}).render() );
 
 			// DateFilter is a <select>, a label element needs to be rendered before.
-			this.toolbar.set( 'dateFilter', new wp.media.view.Label({
+			this.toolbar.set( 'dateFilterLabel', new wp.media.view.Label({
 				value: l10n.filterByDate,
 				attributes: {
 					'for': 'media-attachment-date-filters'
@@ -4685,6 +4695,7 @@ AttachmentsBrowser = View.extend(/** @lends wp.media.view.AttachmentsBrowser.pro
 					text: l10n.deletePermanently,
 					controller: this.controller,
 					priority: -55,
+					size: '',
 					click: function() {
 						var removed = [],
 							destroy = [],
@@ -5256,7 +5267,7 @@ var Button = wp.media.View.extend(/** @lends wp.media.view.Button.prototype */{
 		classes = _.uniq( classes.concat( this.options.classes ) );
 		this.el.className = classes.join(' ');
 
-		this.$el.attr( 'disabled', model.disabled );
+		this.$el.prop( 'disabled', model.disabled );
 		this.$el.text( this.model.get('text') );
 
 		return this;
@@ -10384,17 +10395,17 @@ module.exports = View;
 /******/ 	});
 /************************************************************************/
 /******/ 	// The module cache
-/******/ 	var __webpack_module_cache__ = {};
+/******/ 	const __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
-/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		const cachedModule = __webpack_module_cache__[moduleId];
 /******/ 		if (cachedModule !== undefined) {
 /******/ 			return cachedModule.exports;
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
-/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 		const module = __webpack_module_cache__[moduleId] = {
 /******/ 			// no module.id needed
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}
