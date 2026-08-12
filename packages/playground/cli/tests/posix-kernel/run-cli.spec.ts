@@ -6,6 +6,7 @@ import {
 	type CLIServerResult,
 } from '../../src/run-cli';
 import { describe, expect, test, vi } from 'vitest';
+import { fetchWhenReady } from './readiness';
 
 describe(
 	'run-cli with --experimental-posix-kernel',
@@ -32,7 +33,7 @@ describe(
 					echo "FALSE: " . (MY_FALSE_CONSTANT ? 'true' : 'false') . "\\n";
 					`
 			);
-			const response = await fetch(
+			const response = await fetchWhenReady(
 				new URL('/constants.php', cliServer.serverUrl)
 			);
 			expect(response.status).toBe(200);
@@ -66,7 +67,7 @@ describe(
 					echo get_bloginfo("version");
 					?>`
 			);
-			const response = await fetch(
+			const response = await fetchWhenReady(
 				new URL('/version.php', cliServer.serverUrl)
 			);
 			expect(response.status).toBe(200);
@@ -88,7 +89,9 @@ describe(
 					],
 				},
 			});
-			const response = await fetch(new URL('/', cliServer.serverUrl));
+			const response = await fetchWhenReady(
+				new URL('/', cliServer.serverUrl)
+			);
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('<title>My Blog Name</title>');
@@ -121,7 +124,9 @@ describe(
 					},
 				});
 
-				const response = await fetch(new URL('/', cliServer.serverUrl));
+				const response = await fetchWhenReady(
+					new URL('/', cliServer.serverUrl)
+				);
 				expect(response.status).toBe(200);
 				const text = await response.text();
 				expect(text).toContain('My WordPress Website');
@@ -155,7 +160,7 @@ describe(
 				'/wordpress/site-url.php',
 				`<?php require_once '${docRoot}/wp-load.php'; echo get_option("siteurl"); ?>`
 			);
-			const response = await fetch(
+			const response = await fetchWhenReady(
 				new URL('/site-url.php', cliServer.serverUrl)
 			);
 			expect(response.status).toBe(200);
@@ -195,7 +200,7 @@ describe(
 					]);
 					`
 				);
-				const response = await fetch(
+				const response = await fetchWhenReady(
 					new URL('/check-consts.php', cliServer.serverUrl)
 				);
 				return JSON.parse(await response.text());
@@ -403,7 +408,7 @@ describe(
 				expect(assignedPort).not.toBe(blockedPort);
 				expect(assignedPort).toBeGreaterThan(0);
 
-				const response = await fetch(cliServer.serverUrl);
+				const response = await fetchWhenReady(cliServer.serverUrl);
 				expect(response.status).toBe(200);
 			} finally {
 				blockingServer.close();

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runCLI } from '../../src/run-cli';
 import { stripRootDir } from '../../src/posix-kernel/prepare-wordpress';
+import { fetchWhenReady } from './readiness';
 
 describe('--experimental-posix-kernel auto-prepare WordPress', () => {
 	it('downloads WordPress + SQLite and serves the installer when no /wordpress mount is given', async () => {
@@ -12,7 +13,7 @@ describe('--experimental-posix-kernel auto-prepare WordPress', () => {
 			wp: 'latest',
 		});
 
-		const response = await fetch(cliServer.serverUrl);
+		const response = await fetchWhenReady(cliServer.serverUrl);
 		expect(response.status).toBe(200);
 		const body = await response.text();
 		expect(body.toLowerCase()).toMatch(/wordpress|wp-/);
