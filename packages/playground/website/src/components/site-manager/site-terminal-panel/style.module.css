@@ -64,19 +64,36 @@
 	text-decoration: underline;
 }
 
-.commandEditor textarea {
+.commandEditor {
 	background: #ffffff;
 	border: 1px solid var(--interactive-border, #c3c4c7);
 	border-radius: 4px;
 	box-shadow: none;
 	color: var(--ink, #1e1e1e);
+	min-height: 240px;
+	overflow: hidden;
+}
+
+.commandEditor :global(.cm-editor) {
 	font-family:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 	font-size: 13px;
+	height: 240px;
 	line-height: 20px;
-	min-height: 240px;
-	padding: 12px;
-	resize: vertical;
+}
+
+.commandEditor :global(.cm-scroller) {
+	overflow: auto;
+}
+
+.commandEditor :global(.cm-gutters) {
+	background: #f6f7f7;
+	border-right: 1px solid var(--interactive-border, #c3c4c7);
+	color: #8c8f94;
+}
+
+.commandEditor :global(.cm-focused) {
+	outline: 1px solid var(--wp-admin-theme-color, #3858e9);
 }
 
 .wpCliCombobox {
@@ -175,13 +192,30 @@
 	white-space: pre-wrap;
 }
 
+.resultWithEntry {
+	padding: 0;
+}
+
 .resultHeader {
-	align-items: flex-start;
+	background: #111111;
 	color: #a7aaad;
+	padding: 14px 14px 8px;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.resultHeaderRow {
+	align-items: flex-start;
 	display: flex;
 	gap: 12px;
 	justify-content: space-between;
-	margin-bottom: 8px;
+}
+
+.resultMeta {
+	align-items: center;
+	display: flex;
+	gap: 8px;
 }
 
 .resultActions {
@@ -190,14 +224,31 @@
 	gap: 8px;
 }
 
-.resultActions button,
-.resultActions button:hover,
-.resultActions button:focus {
+.result .resultHeader .resultActions :global(.components-button.is-tertiary) {
+	background: rgba(255, 255, 255, 0.08);
 	color: #f6f7f7;
 }
 
-.resultActions button:disabled,
-.resultActions button:disabled:hover {
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:hover:not(:disabled)),
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:focus) {
+	background: rgba(255, 255, 255, 0.14);
+	color: #f6f7f7;
+}
+
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:disabled),
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:disabled:hover) {
 	color: #646970;
 }
 
@@ -207,8 +258,6 @@
 }
 
 .copyResult {
-	background: rgba(255, 255, 255, 0.08);
-	color: #f6f7f7;
 	min-width: 24px;
 	opacity: 0.72;
 	padding: 2px;
@@ -216,13 +265,32 @@
 }
 
 .historyButton {
-	color: #f6f7f7;
 	min-width: 24px;
 	padding: 2px;
 }
 
-.historyButton:disabled {
-	color: #646970;
+.historyConfirmation {
+	align-items: center;
+	border-top: 1px solid rgba(255, 255, 255, 0.16);
+	display: flex;
+	flex-wrap: wrap;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	gap: 8px 16px;
+	justify-content: space-between;
+	margin-top: 8px;
+	padding-top: 8px;
+}
+
+.historyConfirmationActions {
+	display: flex;
+	gap: 4px;
+}
+
+.result
+	.resultHeader
+	.historyConfirmation
+	:global(.components-button.is-tertiary) {
+	color: #f6f7f7;
 }
 
 .result:hover .copyResult,
@@ -233,8 +301,7 @@
 
 .copyResult:hover,
 .copyResult:focus {
-	background: rgba(255, 255, 255, 0.14);
-	color: #f6f7f7;
+	opacity: 1;
 }
 
 .emptyOutput {
@@ -242,14 +309,23 @@
 }
 
 .executionTime {
-	color: #a7aaad;
+	color: #8c8f94;
 	flex: 0 0 auto;
+}
+
+.executionTime::before {
+	content: '·';
+	margin-right: 8px;
 }
 
 .result pre {
 	margin: 0;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
+}
+
+.resultWithEntry pre {
+	padding: 0 14px 14px;
 }
 
 .errorOutput {

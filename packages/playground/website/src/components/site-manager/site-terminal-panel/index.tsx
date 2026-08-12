@@ -1,4 +1,6 @@
-import { Button, Icon, TextareaControl } from '@wordpress/components';
+import { EditorView, keymap } from '@codemirror/view';
+import { php } from '@codemirror/lang-php';
+import { Button, Icon } from '@wordpress/components';
 import { joinPaths } from '@php-wasm/util';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import {
@@ -22,6 +24,7 @@ import {
 import type { TerminalHistoryEntry } from './terminal-history';
 import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
 import { formatWpCliOutput } from './wp-cli-output';
+import { CodeEditor } from '@wp-playground/components';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -37,8 +40,8 @@ const PHP_SNIPPETS = [
 		code: "echo get_option( 'blogname' );",
 	},
 	{
-		label: 'Current user',
-		code: 'print_r( wp_get_current_user()->data );',
+		label: 'Site URL',
+		code: 'echo home_url();',
 	},
 	{
 		label: 'List posts',
@@ -133,10 +136,34 @@ export function SiteTerminalPanel({
 	});
 	const [isRunning, setIsRunning] = useState(false);
 	const [isAwaitingMoreInput, setIsAwaitingMoreInput] = useState(false);
+	const [pendingHistoryIndex, setPendingHistoryIndex] = useState<
+		number | null
+	>(null);
 	const [copiedOutput, copyOutput] = useCopyToClipboard();
 	const [isWpCliSuggestionsOpen, setIsWpCliSuggestionsOpen] = useState(false);
 	const [activeWpCliSuggestion, setActiveWpCliSuggestion] = useState(-1);
 	const wpCliInputRef = useRef<HTMLInputElement>(null);
+	const runCommandRef = useRef<() => void>(() => undefined);
+	const phpLanguageRef = useRef(php({ plain: true }));
+	const phpEditorExtensionsRef = useRef([
+		EditorView.contentAttributes.of({ 'aria-label': 'PHP code' }),
+		keymap.of([
+			{
+				key: 'Mod-Enter',
+				run: () => {
+					runCommandRef.current();
+					return true;
+				},
+			},
+			{
+				key: 'Ctrl-Enter',
+				run: () => {
+					runCommandRef.current();
+					return true;
+				},
+			},
+		]),
+	]);
 	const wpCliComboboxRef = useRef<HTMLDivElement>(null);
 
 	const command = mode === 'php' ? phpCode : wpCliCommand;
@@ -154,6 +181,7 @@ export function SiteTerminalPanel({
 		if (!playground || !canRun) {
 			return;
 		}
+		setPendingHistoryIndex(null);
 
 		/**
 		 * The runner accepts commands with or without the executable. Normalize
@@ -205,6 +233,7 @@ export function SiteTerminalPanel({
 			setIsRunning(false);
 		}
 	}
+	runCommandRef.current = runCommand;
 
 	function appendEntry(entryMode: TerminalMode, entry: TerminalEntry) {
 		setEntriesByMode((current) => {
@@ -253,10 +282,22 @@ export function SiteTerminalPanel({
 				? activeEntryIndex - 1
 				: activeEntryIndex + 1;
 		const nextEntry = entries[nextIndex];
-		if (!nextEntry || !confirmReplaceModifiedInput()) {
+		if (!nextEntry) {
 			return;
 		}
+		if (activeEntry && command !== activeEntry.command) {
+			setPendingHistoryIndex(nextIndex);
+			return;
+		}
+		openHistoryEntry(nextIndex);
+	}
 
+	function openHistoryEntry(nextIndex: number) {
+		const nextEntry = entries[nextIndex];
+		if (!nextEntry) {
+			return;
+		}
+		setPendingHistoryIndex(null);
 		setActiveEntryIndexByMode((current) => ({
 			...current,
 			[mode]: nextIndex,
@@ -264,15 +305,6 @@ export function SiteTerminalPanel({
 		setCurrentCommand(nextEntry.command);
 		setIsAwaitingMoreInput(false);
 		closeWpCliSuggestions();
-	}
-
-	function confirmReplaceModifiedInput() {
-		if (!activeEntry || command === activeEntry.command) {
-			return true;
-		}
-		return window.confirm(
-			'You have edits that are not in history. Discard them and open another history entry?'
-		);
 	}
 
 	function closeWpCliSuggestions() {
@@ -314,14 +346,8 @@ export function SiteTerminalPanel({
 		}, 0);
 	}
 
-	function handlePhpKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-		if (isRunShortcut(event)) {
-			event.preventDefault();
-			runCommand();
-		}
-	}
-
-	function clearOutput() {
+	function clearHistory() {
+		setPendingHistoryIndex(null);
 		setEntriesByMode((current) => {
 			const next = {
 				...current,
@@ -344,7 +370,10 @@ export function SiteTerminalPanel({
 						className={`${css.modeTab} ${
 							mode === 'php' ? css.modeTabActive : ''
 						}`}
-						onClick={() => setMode('php')}
+						onClick={() => {
+							setPendingHistoryIndex(null);
+							setMode('php');
+						}}
 						aria-pressed={mode === 'php'}
 					>
 						PHP
@@ -353,7 +382,10 @@ export function SiteTerminalPanel({
 						className={`${css.modeTab} ${
 							mode === 'wp-cli' ? css.modeTabActive : ''
 						}`}
-						onClick={() => setMode('wp-cli')}
+						onClick={() => {
+							setPendingHistoryIndex(null);
+							setMode('wp-cli');
+						}}
 						aria-pressed={mode === 'wp-cli'}
 					>
 						WP-CLI
@@ -361,10 +393,11 @@ export function SiteTerminalPanel({
 				</div>
 				<Button
 					variant="secondary"
-					onClick={clearOutput}
+					onClick={clearHistory}
 					disabled={entries.length === 0 || isRunning}
+					title={`Clear ${mode === 'php' ? 'PHP' : 'WP-CLI'} history`}
 				>
-					Clear
+					Clear history
 				</Button>
 			</div>
 			<div className={css.runner}>
@@ -392,17 +425,16 @@ export function SiteTerminalPanel({
 								WordPress PHP reference
 							</a>
 						</div>
-						<TextareaControl
-							__nextHasNoMarginBottom
-							hideLabelFromVision
-							label="PHP code"
-							value={phpCode}
-							disabled={!playground}
-							rows={Math.max(12, phpCode.split('\n').length)}
-							className={css.commandEditor}
-							placeholder="echo get_option( 'blogname' );"
+						<CodeEditor
+							code={phpCode}
 							onChange={updateCurrentCommand}
-							onKeyDown={handlePhpKeyDown}
+							currentPath={null}
+							language={phpLanguageRef.current}
+							additionalExtensions={
+								phpEditorExtensionsRef.current
+							}
+							readOnly={!playground}
+							className={css.commandEditor}
 						/>
 					</>
 				) : (
@@ -506,7 +538,12 @@ export function SiteTerminalPanel({
 						Run
 					</Button>
 				</div>
-				<div className={css.result} aria-live="polite">
+				<div
+					className={`${css.result} ${
+						activeEntry ? css.resultWithEntry : ''
+					}`}
+					aria-live="polite"
+				>
 					{!playground ? (
 						<InlineProgress
 							message={`WordPress is still loading. The ${mode === 'php' ? 'PHP' : 'WP-CLI'} runner will be ready in a moment.`}
@@ -514,67 +551,116 @@ export function SiteTerminalPanel({
 					) : activeEntry ? (
 						<>
 							<div className={css.resultHeader}>
-								<span>
-									Result {activeEntryIndex + 1} of{' '}
-									{entries.length}
-								</span>
-								<div className={css.resultActions}>
-									<Button
-										className={css.historyButton}
-										size="compact"
-										variant="tertiary"
-										aria-label="Previous result"
-										title="Previous result"
-										disabled={!canNavigatePrevious}
-										onClick={() =>
-											navigateRunHistory('previous')
-										}
-									>
-										<Icon icon={chevronLeft} size={18} />
-									</Button>
-									<Button
-										className={css.historyButton}
-										size="compact"
-										variant="tertiary"
-										aria-label="Next result"
-										title="Next result"
-										disabled={!canNavigateNext}
-										onClick={() =>
-											navigateRunHistory('next')
-										}
-									>
-										<Icon icon={chevronRight} size={18} />
-									</Button>
-									<span
-										className={css.executionTime}
-										title="Execution time"
-									>
-										{formatExecutionTime(
-											activeEntry.durationMs
-										)}
-									</span>
-									<Button
-										className={css.copyResult}
-										size="compact"
-										variant="tertiary"
-										aria-label="Copy result"
-										title="Copy result"
-										onClick={() =>
-											copyOutput(
-												getEntryDisplayOutput(
-													activeEntry
-												)
-											)
-										}
-									>
-										<Icon
-											icon={
-												copiedOutput ? check : copySmall
+								<div className={css.resultHeaderRow}>
+									<div className={css.resultMeta}>
+										<span>
+											Result {activeEntryIndex + 1} of{' '}
+											{entries.length}
+										</span>
+										<span
+											className={css.executionTime}
+											title="Execution time"
+										>
+											{formatExecutionTime(
+												activeEntry.durationMs
+											)}
+										</span>
+									</div>
+									<div className={css.resultActions}>
+										<Button
+											className={css.historyButton}
+											size="compact"
+											variant="tertiary"
+											aria-label="Previous result"
+											title="Previous result"
+											disabled={!canNavigatePrevious}
+											onClick={() =>
+												navigateRunHistory('previous')
 											}
-											size={18}
-										/>
-									</Button>
+										>
+											<Icon
+												icon={chevronLeft}
+												size={18}
+											/>
+										</Button>
+										<Button
+											className={css.historyButton}
+											size="compact"
+											variant="tertiary"
+											aria-label="Next result"
+											title="Next result"
+											disabled={!canNavigateNext}
+											onClick={() =>
+												navigateRunHistory('next')
+											}
+										>
+											<Icon
+												icon={chevronRight}
+												size={18}
+											/>
+										</Button>
+										<Button
+											className={css.copyResult}
+											size="compact"
+											variant="tertiary"
+											aria-label="Copy result"
+											title="Copy result"
+											onClick={() =>
+												copyOutput(
+													getEntryDisplayOutput(
+														activeEntry
+													)
+												)
+											}
+										>
+											<Icon
+												icon={
+													copiedOutput
+														? check
+														: copySmall
+												}
+												size={18}
+											/>
+										</Button>
+									</div>
 								</div>
+								{pendingHistoryIndex !== null && (
+									<div
+										className={css.historyConfirmation}
+										role="alert"
+									>
+										<span>
+											Discard your edits and open the
+											selected result?
+										</span>
+										<div
+											className={
+												css.historyConfirmationActions
+											}
+										>
+											<Button
+												size="compact"
+												variant="primary"
+												onClick={() =>
+													openHistoryEntry(
+														pendingHistoryIndex
+													)
+												}
+											>
+												Discard changes
+											</Button>
+											<Button
+												size="compact"
+												variant="tertiary"
+												onClick={() =>
+													setPendingHistoryIndex(null)
+												}
+											>
+												Cancel
+											</Button>
+										</div>
+									</div>
+								)}
 							</div>
 							<pre
 								className={
@@ -748,10 +834,6 @@ function getHistoryCommand(mode: TerminalMode, command: string) {
 
 function getEntryDisplayOutput(entry: TerminalEntry) {
 	return entry.output || '(no output)';
-}
-
-function isRunShortcut(event: React.KeyboardEvent) {
-	return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
 }
 
 function useCopyToClipboard(): [boolean, (text: string) => void] {
