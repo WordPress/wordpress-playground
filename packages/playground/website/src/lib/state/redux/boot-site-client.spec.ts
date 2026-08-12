@@ -55,7 +55,6 @@ vi.mock('./store', () => ({
 
 vi.mock('../opfs/opfs-site-storage', () => ({
 	getDirectoryPathForSlug: (slug: string) => `/sites/${slug}`,
-	getOpfsSiteDurabilityLockName: (path: string) => `durability:${path}`,
 	legacyOpfsPathSymbol: Symbol('legacyOpfsPath'),
 	opfsSiteStorage: {
 		removeWordPressFilesKeepMetadata: vi.fn(),
@@ -443,8 +442,6 @@ describe('bootSiteClient', () => {
 			expect.objectContaining({
 				mounts: [
 					expect.objectContaining({
-						durabilityLockName:
-							'durability:/sites/site-stored-save',
 						device: expect.objectContaining({
 							path: '/sites/site-stored-save',
 						}),

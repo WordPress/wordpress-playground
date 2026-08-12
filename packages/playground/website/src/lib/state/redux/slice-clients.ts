@@ -1,7 +1,8 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
 import type { SyncProgress } from '@php-wasm/web';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import type { MountDevice } from '@wp-playground/storage';
+import type { PlaygroundClient } from '@wp-playground/remote';
 
 export type OpfsSync =
 	| {
@@ -18,7 +19,10 @@ export interface ClientInfo {
 	client: PlaygroundClient;
 	siteSlug: string;
 	url: string;
-	opfsMountDescriptor?: Omit<MountDescriptor, 'initialSyncDirection'>;
+	opfsMountDescriptor?: {
+		device: MountDevice;
+		mountpoint: string;
+	};
 	opfsSync?: OpfsSync;
 }
 

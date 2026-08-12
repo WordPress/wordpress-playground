@@ -101,52 +101,6 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
 	});
 
-	it('holds the configured durability lock while flushing journaled changes', async () => {
-		const lockRequested = deferred<void>();
-		const grantLock = deferred<void>();
-		const requestLock = vi.fn(
-			async (
-				_name: string,
-				_options: LockOptions,
-				callback: () => Promise<void>
-			) => {
-				lockRequested.resolve();
-				await grantLock.promise;
-				return await callback();
-			}
-		);
-		vi.stubGlobal('navigator', { locks: { request: requestLock } });
-
-		try {
-			const { FS, files, php } = createFakePhp();
-			const opfsRoot = new MemoryDirectoryHandle('root');
-			const mount = journalFSEventsToOpfs(
-				php,
-				opfsRoot as unknown as FileSystemDirectoryHandle,
-				'/wordpress',
-				{ durabilityLockName: 'site-durability-lock' }
-			);
-
-			files.set('/wordpress/file.txt', encode('saved'));
-			FS.write({ path: '/wordpress/file.txt' });
-			const flush = mount.flush();
-			await lockRequested.promise;
-
-			expect(opfsRoot.files.has('file.txt')).toBe(false);
-			expect(requestLock).toHaveBeenCalledWith(
-				'site-durability-lock',
-				{ mode: 'exclusive' },
-				expect.any(Function)
-			);
-
-			grantLock.resolve();
-			await flush;
-			expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
-		} finally {
-			vi.unstubAllGlobals();
-		}
-	});
-
 	it.each(['filesystem.write', 'request.end'] as const)(
 		'flushes pending writes when %s is dispatched',
 		async (eventType) => {
