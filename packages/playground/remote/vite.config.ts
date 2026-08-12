@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
+import { configDefaults } from 'vitest/config';
 import { join } from 'path';
 import { fileURLToPath } from 'node:url';
 import dts from 'vite-plugin-dts';
@@ -220,6 +221,10 @@ export default defineConfig(({ mode }) => {
 			},
 			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			// The posix-kernel specs depend on the `kandelo/` submodule,
+			// whose deps are only installed in "posix-kernel"-named CI jobs.
+			// They run via `test-remote-posix-kernel`, not the generic shards.
+			exclude: [...configDefaults.exclude, 'src/lib/posix-kernel/**'],
 			reporters: ['default'],
 		},
 	};
