@@ -3,7 +3,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
-import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import {
+	legacyOpfsPathSymbol,
+	opfsSiteStorage,
+} from '../opfs/opfs-site-storage';
 import { bootSiteClient } from './boot-site-client';
 import reducer, { sitesSlice, type SiteInfo } from './slice-sites';
 import type { PlaygroundReduxState } from './store';
@@ -53,6 +56,7 @@ vi.mock('./store', () => ({
 vi.mock('../opfs/opfs-site-storage', () => ({
 	getDirectoryPathForSlug: (slug: string) => `/sites/${slug}`,
 	getOpfsSiteDurabilityLockName: (path: string) => `durability:${path}`,
+	legacyOpfsPathSymbol: Symbol('legacyOpfsPath'),
 	opfsSiteStorage: {
 		removeWordPressFilesKeepMetadata: vi.fn(),
 		update: vi.fn(),
@@ -351,10 +355,6 @@ describe('bootSiteClient', () => {
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
 				mounts: [
 					expect.objectContaining({
-						durabilityLockName: 'durability:/sites/stored-save',
-						device: expect.objectContaining({
-							path: '/sites/stored-save',
-						}),
 						initialSyncDirection: 'opfs-to-memfs',
 					}),
 				],
@@ -423,6 +423,35 @@ describe('bootSiteClient', () => {
 			state.sites.entities['stored-save']
 				.urlToRestoreAfterRuntimeSettingsChange
 		).toBeUndefined();
+	});
+
+	it('mounts legacy OPFS directories from stored metadata', async () => {
+		const site = createSite('stored-save', {
+			loadedFromStorage: true,
+			metadata: {
+				[legacyOpfsPathSymbol]: '/sites/site-stored-save',
+			} as Partial<SiteInfo['metadata']>,
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('stored-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				mounts: [
+					expect.objectContaining({
+						durabilityLockName:
+							'durability:/sites/site-stored-save',
+						device: expect.objectContaining({
+							path: '/sites/site-stored-save',
+						}),
+					}),
+				],
+			})
+		);
 	});
 
 	it('boots local directories as existing saved sites', async () => {
