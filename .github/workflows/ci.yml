@@ -226,6 +226,32 @@ jobs:
               run: node packages/playground/cli/src/posix-kernel/scripts/fetch-kandelo-binaries.mts
             - name: Run posix-kernel test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli-posix-kernel --output-style=stream
+    test-remote-posix-kernel:
+        needs: set-nx-shas
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 20
+            # The specs resolve `kandelo/` from source, so only its own
+            # `fzstd` dependency needs installing — no host build or wasm
+            # binaries.
+            - name: Install kandelo host dependencies
+              shell: bash
+              working-directory: kandelo/host
+              run: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --no-audit --no-fund
+            - name: Run remote posix-kernel unit tests
+              run: node node_modules/nx/bin/nx affected --target=test-remote-posix-kernel --output-style=stream
     test-file-locking:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -391,6 +417,67 @@ jobs:
               with:
                   name: playwright-snapshots-${{ matrix.browser }}${{ matrix.test_group && format('-{0}', matrix.test_group) || '' }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
+                  if-no-files-found: ignore
+
+    test-e2e-playwright-posix-kernel:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        strategy:
+            fail-fast: false
+            matrix:
+                # 6 shards, chromium only. Each shard is a SEPARATE runner
+                # running workers:1 (kernel boots starve each other on a
+                # single 2-core runner — see playwright.posix-kernel.config.ts),
+                # so parallelism comes from more runners, not more workers.
+                # More shards = less wall-clock per shard without boot
+                # contention. Playwright keeps serial (mode:'serial') files
+                # whole on one shard, so the floor is the heaviest single file.
+                include:
+                    - browser: 'chromium'
+                      shard: '1/6'
+                      shard_name: '1-of-6'
+                    - browser: 'chromium'
+                      shard: '2/6'
+                      shard_name: '2-of-6'
+                    - browser: 'chromium'
+                      shard: '3/6'
+                      shard_name: '3-of-6'
+                    - browser: 'chromium'
+                      shard: '4/6'
+                      shard_name: '4-of-6'
+                    - browser: 'chromium'
+                      shard: '5/6'
+                      shard_name: '5-of-6'
+                    - browser: 'chromium'
+                      shard: '6/6'
+                      shard_name: '6-of-6'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            # host/dist/ and binaries/ are gitignored upstream; build and
+            # fetch them so the kernel-mode specs find their artifacts.
+            - name: Build kandelo host
+              shell: bash
+              working-directory: kandelo/host
+              run: |
+                  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --no-audit --no-fund
+                  npm run build
+            - name: Fetch kandelo wasm binaries
+              run: node packages/playground/cli/src/posix-kernel/scripts/fetch-kandelo-binaries.mts
+            - name: Install Playwright Browser
+              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+            - name: Run Playwright tests (posix-kernel) - ${{ matrix.browser }} (shard ${{ matrix.shard }})
+              run: sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.posix-kernel.config.ts --project=${{ matrix.browser }} --shard=${{ matrix.shard }}
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report-posix-kernel-${{ matrix.browser }}-shard-${{ matrix.shard_name }}
+                  path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
 
     test-e2e-personal-wp:
