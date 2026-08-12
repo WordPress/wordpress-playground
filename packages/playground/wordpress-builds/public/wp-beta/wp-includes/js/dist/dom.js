@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).dom = (() => {
@@ -611,6 +612,11 @@ var wp;
     const containerRect = container.getBoundingClientRect();
     const x = isReverseDir ? containerRect.left + 1 : containerRect.right - 1;
     const y = isReverse ? containerRect.top + 1 : containerRect.bottom - 1;
+    const isFarFromVerticalEdge = (y < 0 || y > defaultView.innerHeight) && rangeRect.top >= 0 && rangeRect.bottom <= defaultView.innerHeight;
+    const isFarFromHorizontalEdge = (x < 0 || x > defaultView.innerWidth) && rangeRect.left >= 0 && rangeRect.right <= defaultView.innerWidth;
+    if (isFarFromVerticalEdge || !onlyVertical && isFarFromHorizontalEdge) {
+      return false;
+    }
     const testRange = scrollIfNoRange(
       container,
       isReverse,
@@ -1083,4 +1089,6 @@ var wp;
   // packages/dom/build-module/index.mjs
   var focus = { focusable: focusable_exports, tabbable: tabbable_exports };
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).dom = wp.dom;
 })();

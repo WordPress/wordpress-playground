@@ -24,6 +24,7 @@ import {
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
@@ -41,10 +42,11 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
+import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -95,12 +97,9 @@ export function bootSiteClient(
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
-			} else if (
-				site.loadedFromStorage === true &&
-				site.metadata.initialOpfsSyncPending === true
-			) {
-				// If the initial OPFS sync was interrupted, the site files are incomplete
-				// and we can't boot this site.
+			} else if (hasUnfinishedInitialOpfsSyncFromStorage(site)) {
+				// The initial OPFS copy has not finished in storage, so the site files
+				// are incomplete and we cannot boot this site yet.
 				dispatch(
 					setActiveSiteError({
 						error: 'initial-opfs-sync-interrupted',
@@ -253,12 +252,7 @@ export function bootSiteClient(
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
-				pathAliases: [
-					{
-						urlPrefix: '/phpmyadmin',
-						fsPath: PHPMYADMIN_INSTALL_PATH,
-					},
-				],
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
 			if (signal.aborted) {
@@ -420,18 +414,17 @@ export function bootSiteClient(
 				signal,
 				siteSlugToReturnToIfBlueprintFails:
 					site.metadata.siteSlugToReturnToIfBlueprintFails,
-			}).then(() => {
-				const storedSite = selectSiteBySlug(getState(), site.slug);
-				if (
-					!signal.aborted &&
-					storedSite?.metadata.initialOpfsSyncPending === false
-				) {
-					void captureAndPersistSiteThumbnail({
-						playground: connectedPlayground,
-						siteSlug: site.slug,
-						dispatch,
-					});
+			}).then((syncSucceeded) => {
+				if (!syncSucceeded) {
+					return;
 				}
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+					getState,
+					signal,
+				});
 			});
 		} else {
 			try {
@@ -470,6 +463,8 @@ export function bootSiteClient(
 					playground: connectedPlayground,
 					siteSlug: site.slug,
 					dispatch,
+					getState,
+					signal,
 				});
 			}
 		}
@@ -624,10 +619,12 @@ function waitForPendingOpfsSiteRemovalRetry(
 }
 
 /**
- * Copies files created during a saved site's first boot from MEMFS into OPFS.
+ * Copies files and live PHP constants from a saved site's first boot into
+ * browser storage.
  *
  * The iframe is already usable when this runs. Redux keeps showing sync
- * progress until the copy succeeds, then future boots can mount OPFS normally.
+ * progress until the file copy, final journal flush, and constant snapshot
+ * succeed. Future boots can then mount OPFS normally.
  */
 async function syncInitialOpfsFilesInBackground({
 	playground,
@@ -645,7 +642,7 @@ async function syncInitialOpfsFilesInBackground({
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
 	siteSlugToReturnToIfBlueprintFails?: string;
-}) {
+}): Promise<boolean> {
 	let shouldReportProgress = true;
 	try {
 		// The first OPFS copy can outlive the iframe that started it. Once the
@@ -675,16 +672,29 @@ async function syncInitialOpfsFilesInBackground({
 			}
 		);
 		if (signal.aborted) {
-			return;
+			return false;
+		}
+		// mountOpfs() starts the final journal flush without waiting for it.
+		// Keep the syncing viewport alive until changes captured during the
+		// initial copy have reached OPFS.
+		await playground.flushOpfs(mountDescriptor.mountpoint);
+		if (signal.aborted) {
+			return false;
+		}
+		const playgroundDefinedConstants =
+			await getPlaygroundDefinedPHPConstants(playground);
+		if (signal.aborted) {
+			return false;
 		}
 		// Clear the return target in the same metadata write that completes the
-		// initial copy so failed copies retain their recovery action.
+		// initial sync so failed copies retain their recovery action.
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
+					playgroundDefinedConstants,
 					...(siteSlugToReturnToIfBlueprintFails
 						? { siteSlugToReturnToIfBlueprintFails: undefined }
 						: {}),
@@ -692,7 +702,7 @@ async function syncInitialOpfsFilesInBackground({
 			})
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		dispatch(
 			updateClientInfo({
@@ -702,9 +712,10 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
+		return true;
 	} catch (error: unknown) {
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		logger.error('Error syncing saved Playground to OPFS', error);
 		dispatch(
@@ -718,7 +729,7 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
-		return;
+		return false;
 	} finally {
 		// Progress is reported from a worker. Once the sync settles, ignore any
 		// queued progress message so it cannot overwrite the final UI state.

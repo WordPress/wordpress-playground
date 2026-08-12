@@ -1,5 +1,6 @@
 import css from './style.module.css';
 import classNames from 'classnames';
+import { createPortal } from 'react-dom';
 import {
 	Spinner,
 	DropdownMenu,
@@ -68,6 +69,7 @@ import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
@@ -146,7 +148,6 @@ type CreationTabId =
 interface SavedPlaygroundsPanelProps {
 	onClose: () => void;
 	panel: 'playgrounds' | 'new';
-	onCloseBlockedChange: (isBlocked: boolean) => void;
 	onPaneHeaderChange: (header: DockPaneHeaderOverride | undefined) => void;
 }
 
@@ -156,7 +157,6 @@ interface SavedPlaygroundsPanelProps {
 export function SavedPlaygroundsPanel({
 	onClose,
 	panel,
-	onCloseBlockedChange,
 	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
@@ -172,6 +172,7 @@ export function SavedPlaygroundsPanel({
 	const playground = usePlaygroundClient();
 	const localFsAvailability = useLocalFsAvailability(playground ?? undefined);
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
+	const zipDragDepthRef = useRef(0);
 	const panelRootRef = useRef<HTMLDivElement>(null);
 	const creationPanelRef = useRef<HTMLDivElement>(null);
 	const inlineRename = useInlineRename();
@@ -179,6 +180,8 @@ export function SavedPlaygroundsPanel({
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showAllStoredSites, setShowAllStoredSites] = useState(false);
 	const [isImportingZip, setIsImportingZip] = useState(false);
+	const [isDraggingZip, setIsDraggingZip] = useState(false);
+	const [zipImportError, setZipImportError] = useState<string>();
 	const zipImportPendingRef = useRef(false);
 	// A mouse click can put the cursor in the newly selected form straight away.
 	// Keyboard and touch activation otherwise keep their focus on the tab. The
@@ -231,11 +234,6 @@ export function SavedPlaygroundsPanel({
 	const writeOwnSeededSlug = useAppSelector(
 		(state) => state.ui.writeOwnSeededSlug
 	);
-
-	useEffect(() => {
-		onCloseBlockedChange(isImportingZip);
-		return () => onCloseBlockedChange(false);
-	}, [isImportingZip, onCloseBlockedChange]);
 
 	useEffect(() => {
 		if (isCreationTabDisabled(activeCreationTab, offline)) {
@@ -322,41 +320,165 @@ export function SavedPlaygroundsPanel({
 		}
 	}, [panel]);
 
-	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-		if (zipImportPendingRef.current) {
-			e.target.value = '';
-			return;
-		}
-
-		zipImportPendingRef.current = true;
-		setIsImportingZip(true);
-		try {
-			await sitesAPI.createNewSiteFromZip(file);
-			const importedPlayground = sitesAPI.getClient();
-			window.setTimeout(() => {
-				void importedPlayground?.goTo('/').catch((error) => {
-					logger.error('Failed to refresh imported site', error);
-				});
-			}, 200);
-			alert(
-				'File imported! This Playground instance has been updated and will refresh shortly.'
-			);
-			onClose();
-		} catch (error) {
-			logger.error(error);
-			alert(
-				'Unable to import file. Is it a valid WordPress Playground export?'
-			);
-		} finally {
-			zipImportPendingRef.current = false;
-			setIsImportingZip(false);
-			if (zipFileInputRef.current) {
-				zipFileInputRef.current.value = '';
-			}
+	const handleImportZip = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (file) {
+			void importZipFile(file);
 		}
 	};
+
+	/**
+	 * Imports a ZIP and reports readiness before any initial browser save finishes.
+	 *
+	 * A rejection after readiness replaces the success notice instead of
+	 * reopening the import pane, which closed when the import started.
+	 */
+	const importZipFile = useCallback(
+		async (file: File) => {
+			if (zipImportPendingRef.current) {
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+				return;
+			}
+			if (!file.name.toLowerCase().endsWith('.zip')) {
+				setZipImportError('Choose a WordPress Playground .zip export.');
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+				return;
+			}
+
+			zipImportPendingRef.current = true;
+			setIsImportingZip(true);
+			setZipImportError(undefined);
+			onClose();
+			let playgroundLoaded = false;
+			try {
+				await sitesAPI.createNewSiteFromZip(file, {
+					onPlaygroundLoaded: (storage) => {
+						playgroundLoaded = true;
+						dispatch(
+							setDockOperationNotice({
+								status: 'success',
+								title: 'Playground imported',
+								message:
+									storage === 'temporary'
+										? 'Your Playground is ready. It’s available until you close this page.'
+										: 'Your Playground is ready. Autosave will finish in the background.',
+							})
+						);
+					},
+				});
+			} catch (error) {
+				logger.error(error);
+				if (playgroundLoaded) {
+					dispatch(
+						setDockOperationNotice({
+							status: 'error',
+							title: 'Couldn’t autosave imported Playground',
+							message:
+								'The imported page was ready, but its browser autosave failed.',
+						})
+					);
+					return;
+				}
+				setZipImportError(
+					'Unable to import this file. Is it a valid WordPress Playground export?'
+				);
+				dispatch(setDockPaneOpen(true));
+			} finally {
+				zipImportPendingRef.current = false;
+				setIsImportingZip(false);
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+			}
+		},
+		[dispatch, onClose, sitesAPI]
+	);
+
+	useEffect(() => {
+		if (panel !== 'new' || activeCreationTab !== 'zip' || isImportingZip) {
+			return;
+		}
+		let dragLeaveTimer: number | undefined;
+
+		function handleDragEnter(event: DragEvent) {
+			if (!hasFiles(event)) {
+				return;
+			}
+			event.preventDefault();
+			cancelPendingDragLeave();
+			zipDragDepthRef.current += 1;
+			setIsDraggingZip(true);
+		}
+
+		function handleDragOver(event: DragEvent) {
+			if (!hasFiles(event)) {
+				return;
+			}
+			event.preventDefault();
+			if (event.dataTransfer) {
+				event.dataTransfer.dropEffect = 'copy';
+			}
+		}
+
+		function handleDragLeave(event: DragEvent) {
+			if (zipDragDepthRef.current === 0) {
+				return;
+			}
+			event.preventDefault();
+			zipDragDepthRef.current -= 1;
+			if (zipDragDepthRef.current === 0) {
+				dragLeaveTimer = window.setTimeout(() => {
+					dragLeaveTimer = undefined;
+					if (zipDragDepthRef.current === 0) {
+						setIsDraggingZip(false);
+					}
+				}, 50);
+			}
+		}
+
+		function handleDrop(event: DragEvent) {
+			if (!hasFiles(event)) {
+				return;
+			}
+			event.preventDefault();
+			cancelPendingDragLeave();
+			zipDragDepthRef.current = 0;
+			setIsDraggingZip(false);
+			const file = event.dataTransfer?.files[0];
+			if (file) {
+				void importZipFile(file);
+			}
+		}
+
+		function hasFiles(event: DragEvent) {
+			return event.dataTransfer?.types.includes('Files') ?? false;
+		}
+
+		function cancelPendingDragLeave() {
+			if (dragLeaveTimer !== undefined) {
+				window.clearTimeout(dragLeaveTimer);
+				dragLeaveTimer = undefined;
+			}
+		}
+
+		document.addEventListener('dragenter', handleDragEnter, true);
+		document.addEventListener('dragover', handleDragOver, true);
+		document.addEventListener('dragleave', handleDragLeave, true);
+		document.addEventListener('drop', handleDrop, true);
+		return () => {
+			document.removeEventListener('dragenter', handleDragEnter, true);
+			document.removeEventListener('dragover', handleDragOver, true);
+			document.removeEventListener('dragleave', handleDragLeave, true);
+			document.removeEventListener('drop', handleDrop, true);
+			cancelPendingDragLeave();
+			zipDragDepthRef.current = 0;
+			setIsDraggingZip(false);
+		};
+	}, [activeCreationTab, importZipFile, isImportingZip, panel]);
 
 	const {
 		data: blueprintsData,
@@ -407,6 +529,7 @@ export function SavedPlaygroundsPanel({
 			);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t open “${site?.metadata.name ?? slug}”`,
 					message: 'This Playground is still available in your list.',
 				})
@@ -521,6 +644,7 @@ export function SavedPlaygroundsPanel({
 			logger.error('Error storing Playground in the browser', error);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t store “${site.metadata.name}” in browser storage`,
 					message: 'No changes were made to this Playground.',
 				})
@@ -561,6 +685,7 @@ export function SavedPlaygroundsPanel({
 			logger.error('Error saving Playground to a local directory', error);
 			dispatch(
 				setDockOperationNotice({
+					status: 'error',
 					title: `Couldn’t save ${site.metadata.name} locally`,
 					message: 'The Playground in your browser is unchanged.',
 				})
@@ -588,6 +713,19 @@ export function SavedPlaygroundsPanel({
 			getRuntimeLabel(site),
 			`Started from ${getSourceLabel(site)}`,
 		].join(' · ');
+	};
+
+	// Each lifecycle state wears its own monochrome pill: dashed = unsaved,
+	// outlined = autosaved, filled = saved. The pill's substance (not a color)
+	// encodes how permanent the Playground is.
+	const getCurrentSiteStatusPill = (site: SiteInfo) => {
+		if (site.metadata.storage === 'none') {
+			return { label: 'Unsaved', className: css.statusPillUnsaved };
+		}
+		if (isAutosavedSite(site)) {
+			return { label: 'Autosaved', className: css.statusPillAutosaved };
+		}
+		return { label: 'Saved', className: css.statusPillSaved };
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
@@ -937,25 +1075,25 @@ export function SavedPlaygroundsPanel({
 		});
 	}
 
-	// Every row carries one calm "..." menu (no separate buttons). It groups the
-	// two save destinations — "Save in browser storage" (OPFS) and "Save in a
-	// local directory…" — above Rename / Delete. Clicking anywhere on the row switches
-	// to it. The menu only lists what applies to that Playground's storage.
+	// Every row carries one calm "..." menu (no separate buttons). Temporary
+	// Playgrounds show the save destinations. Stored Playgrounds show the current
+	// destination and explain why the other one is unavailable. Autosaves also
+	// offer one way to keep them permanently. Clicking anywhere on the row
+	// switches to it.
 	function renderRowActions(site: SiteInfo) {
 		const isAutosave = isAutosavedSite(site);
 		const isTemporary = site.metadata.storage === 'none';
 		const isStored = !isTemporary;
-		// Temporary and autosaved Playgrounds live in the browser and can be
-		// stored permanently in the browser (OPFS) and/or copied to a local
-		// directory. Already-saved and local-directory Playgrounds can't.
-		const canStoreInBrowser =
-			(isTemporary || isAutosave) && isOpfsAvailable;
-		const canSaveToLocal =
-			(isTemporary || isAutosave) && localFsAvailability === 'available';
-		const hasSaveActions = canStoreInBrowser || canSaveToLocal;
-		if (!hasSaveActions && !isStored) {
-			return null;
-		}
+		const isActiveSite = site.slug === activeSite?.slug;
+		// Temporary Playgrounds have not chosen storage yet, so they show both
+		// destinations and explain any unavailable option. A stored Playground's
+		// backend is fixed. An autosave can only be kept permanently in place.
+		const localFsUnavailableReason =
+			localFsAvailability === 'available'
+				? undefined
+				: localFsAvailability === null
+					? 'Checking availability…'
+					: 'Not available in this browser';
 		return (
 			<div className={css.siteRowActions}>
 				<DropdownMenu
@@ -963,49 +1101,97 @@ export function SavedPlaygroundsPanel({
 					label={`Actions for ${site.metadata.name}`}
 					className={css.siteRowMenu}
 					toggleProps={{ disabled: isImportingZip }}
-					popoverProps={{ placement: 'bottom-end' }}
+					popoverProps={{ placement: 'top-end' }}
 				>
 					{({ onClose: closeMenu }) => (
 						<>
-							{hasSaveActions && (
+							{isStored && (
 								<MenuGroup>
-									{canStoreInBrowser && (
-										<MenuItem
-											onClick={() =>
-												handleStoreInBrowser(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Save in browser storage
-										</MenuItem>
-									)}
-									{canSaveToLocal && (
-										<MenuItem
-											onClick={() =>
-												handleSaveToLocalDirectory(
-													site,
-													closeMenu
-												)
-											}
-										>
-											Save in a local directory…
-										</MenuItem>
-									)}
-								</MenuGroup>
-							)}
-							{site.metadata.storage === 'opfs' && (
-								<MenuGroup>
-									<MenuItem icon={check} disabled>
-										Saved in browser storage
+									<MenuItem
+										disabled
+										icon={
+											site.metadata.storage === 'opfs'
+												? check
+												: undefined
+										}
+										info={
+											site.metadata.storage !== 'opfs'
+												? 'Storage can’t be changed'
+												: undefined
+										}
+									>
+										{site.metadata.storage === 'opfs'
+											? 'Saved in browser storage'
+											: 'Save in browser storage'}
+									</MenuItem>
+									<MenuItem
+										disabled
+										icon={
+											site.metadata.storage === 'local-fs'
+												? check
+												: undefined
+										}
+										info={
+											site.metadata.storage !== 'local-fs'
+												? 'Storage can’t be changed'
+												: undefined
+										}
+									>
+										{site.metadata.storage === 'local-fs'
+											? 'Saved in a local directory'
+											: 'Save in a local directory'}
 									</MenuItem>
 								</MenuGroup>
 							)}
-							{site.metadata.storage === 'local-fs' && (
+							{isTemporary && (
+								<MenuGroup label="Save Playground">
+									<MenuItem
+										disabled={!isOpfsAvailable}
+										info={
+											!isOpfsAvailable
+												? 'Not available in this browser'
+												: undefined
+										}
+										onClick={() =>
+											handleStoreInBrowser(
+												site,
+												closeMenu
+											)
+										}
+									>
+										Save in browser storage
+									</MenuItem>
+									<MenuItem
+										disabled={!!localFsUnavailableReason}
+										info={localFsUnavailableReason}
+										onClick={() =>
+											handleSaveToLocalDirectory(
+												site,
+												closeMenu
+											)
+										}
+									>
+										Save in a local directory…
+									</MenuItem>
+								</MenuGroup>
+							)}
+							{isAutosave && (
 								<MenuGroup>
-									<MenuItem icon={check} disabled>
-										Saved in a local directory
+									<MenuItem
+										disabled={!isOpfsAvailable}
+										info={
+											!isOpfsAvailable
+												? 'Browser storage is unavailable'
+												: undefined
+										}
+										onClick={() =>
+											handleStoreInBrowser(
+												site,
+												closeMenu
+											)
+										}
+									>
+										Keep autosave permanently
 									</MenuItem>
 								</MenuGroup>
 							)}
@@ -1019,14 +1205,30 @@ export function SavedPlaygroundsPanel({
 									>
 										Rename
 									</MenuItem>
-									<MenuItem
+									{/* You can't delete the Playground you're currently in:
+									    deleting it would swap the view out from under you.
+									    Switch away first, then delete it as an ordinary
+									    background Playground. */}
+									<MenuItemWithDescription
 										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
+										info={
+											isActiveSite
+												? 'Switch to another Playground first to delete this one.'
+												: undefined
+										}
+										aria-disabled={isActiveSite}
+										onClick={
+											isActiveSite
+												? undefined
+												: () =>
+														handleDeleteSite(
+															site,
+															closeMenu
+														)
 										}
 									>
 										Delete
-									</MenuItem>
+									</MenuItemWithDescription>
 								</MenuGroup>
 							)}
 						</>
@@ -1098,9 +1300,7 @@ export function SavedPlaygroundsPanel({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
-		// A temporary Playground is lost on refresh — call that out right on its
-		// row so the list mirrors the dock's yellow "Unsaved" status.
-		const isUnsaved = site.metadata.storage === 'none';
+		const statusPill = getCurrentSiteStatusPill(site);
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1111,11 +1311,14 @@ export function SavedPlaygroundsPanel({
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
-							{isUnsaved && (
-								<span className={css.unsavedBadge}>
-									Unsaved
-								</span>
-							)}
+							<span
+								className={classNames(
+									css.statusPill,
+									statusPill.className
+								)}
+							>
+								{statusPill.label}
+							</span>
 						</span>
 						{activeSiteSyncLabel ? (
 							<span className={css.siteRowSaving}>
@@ -1431,6 +1634,7 @@ export function SavedPlaygroundsPanel({
 				return (
 					<div className={css.inlineForm}>
 						<GitHubImportForm
+							inline
 							playground={playground!}
 							showRepositoryDetails={isGitHubImportDetailsOpen}
 							onRepositoryResolved={() => {
@@ -1491,25 +1695,58 @@ export function SavedPlaygroundsPanel({
 				);
 			case 'zip':
 				return (
-					<div className={css.inlineForm}>
-						<p className={css.inlineFormHint}>
-							Import a WordPress Playground <code>.zip</code>{' '}
-							export to start a new Playground from it.
-						</p>
-						<div className={css.inlineFormActions}>
-							<Button
-								variant="primary"
+					<>
+						{isDraggingZip &&
+							createPortal(
+								<div
+									className={css.zipDropOverlay}
+									data-cy="zip-drop-overlay"
+									aria-hidden="true"
+								>
+									<span className={css.zipDropOverlayIcon}>
+										<Icon icon={upload} size={56} />
+									</span>
+									<span className={css.zipDropOverlayTitle}>
+										Drop a Playground ZIP here
+									</span>
+								</div>,
+								document.body
+							)}
+						<div className={css.inlineForm}>
+							<p className={css.inlineFormHint}>
+								Import a WordPress Playground <code>.zip</code>{' '}
+								export to start a new Playground from it.
+							</p>
+							<button
+								type="button"
+								className={css.zipDropzone}
 								data-cy="restore-from-zip"
-								isBusy={isImportingZip}
 								disabled={isImportingZip}
 								onClick={() => zipFileInputRef.current?.click()}
 							>
-								{isImportingZip
-									? 'Importing…'
-									: 'Choose a .zip file…'}
-							</Button>
+								<span className={css.zipDropzoneIcon}>
+									<Icon icon={upload} size={32} />
+								</span>
+								<span className={css.zipDropzoneTitle}>
+									Drop a Playground ZIP here
+								</span>
+								<span className={css.zipDropzoneHint}>
+									or click to choose a file
+								</span>
+							</button>
+							{zipImportError && (
+								<div
+									className={classNames(
+										css.zipImportStatus,
+										css.zipImportError
+									)}
+									role="alert"
+								>
+									{zipImportError}
+								</div>
+							)}
 						</div>
-					</div>
+					</>
 				);
 			default:
 				return null;
@@ -1606,7 +1843,7 @@ export function SavedPlaygroundsPanel({
 				ref={zipFileInputRef}
 				onChange={handleImportZip}
 				accept=".zip,application/zip"
-				style={{ display: 'none' }}
+				className={css.zipFileInput}
 			/>
 			{panel !== 'new' && renderYourPlaygroundsSection()}
 			{panel !== 'playgrounds' && renderNewPlaygroundSection()}

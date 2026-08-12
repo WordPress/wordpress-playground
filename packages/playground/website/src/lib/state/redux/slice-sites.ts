@@ -35,6 +35,7 @@ import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isStoredSite,
 	isTemporarySite,
@@ -53,6 +54,7 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	isOpfsBackedSite,
@@ -171,7 +173,7 @@ export function updateSiteMetadata({
 	changes,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	changes: SiteMetadataChanges;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -185,10 +187,7 @@ export function updateSiteMetadata({
 			updateSite({
 				slug,
 				changes: {
-					metadata: {
-						...storedSite.metadata,
-						...changes,
-					},
+					metadata: changes,
 				},
 			})
 		);
@@ -234,7 +233,9 @@ export function updateSite({
 	changes,
 }: {
 	slug: string;
-	changes: Partial<SiteInfo>;
+	changes: Omit<Partial<SiteInfo>, 'metadata' | 'slug'> & {
+		metadata?: SiteMetadataChanges;
+	};
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -243,20 +244,24 @@ export function updateSite({
 		if ('storage' in changes) {
 			throw new Error('Cannot update storage for a site.');
 		}
+		if ('slug' in changes) {
+			throw new Error('Cannot update the slug for a site.');
+		}
 		const existingSite = selectSiteBySlug(getState(), slug);
 		if (!existingSite) {
 			throw new Error(`Site not found: ${slug}`);
 		}
-		const { metadata, ...topLevelChanges } = changes;
-		const updatedSite = {
+		let updatedSite: SiteInfo = {
 			...existingSite,
-			...topLevelChanges,
-			metadata: metadata
-				? {
-						...existingSite.metadata,
-						...metadata,
-					}
-				: existingSite.metadata,
+			...changes,
+			metadata: {
+				...existingSite.metadata,
+				...changes.metadata,
+				runtimeConfiguration: {
+					...existingSite.metadata.runtimeConfiguration,
+					...changes.metadata?.runtimeConfiguration,
+				},
+			},
 		};
 		if (updatedSite.metadata.storage !== 'none') {
 			if (!opfsSiteStorage) {
@@ -264,19 +269,17 @@ export function updateSite({
 					'Cannot update a saved Playground because browser storage is not available.'
 				);
 			}
-			await opfsSiteStorage.update(
-				updatedSite.slug,
-				updatedSite.metadata,
-				updatedSite.originalUrlParams
-			);
+			const persistedSite = await opfsSiteStorage.update(slug, changes);
+			updatedSite = {
+				...updatedSite,
+				...persistedSite,
+			};
 		}
+		const { slug: updatedSlug, ...updatedSiteChanges } = updatedSite;
 		dispatch(
 			sitesSlice.actions.updateSite({
-				id: slug,
-				changes: {
-					...topLevelChanges,
-					...(metadata ? { metadata: updatedSite.metadata } : {}),
-				},
+				id: updatedSlug,
+				changes: updatedSiteChanges,
 			})
 		);
 	};
@@ -407,15 +410,19 @@ export function pruneAutosavedSites(
 /**
  * Checks whether a stored Playground may be offered as an autosave.
  *
- * A Blueprint run uses autosave persistence before its initial OPFS copy
- * succeeds. Its return target marks it unfinished, so callers withhold it from
- * Recent and matching-setup restore suggestions until that copy succeeds.
+ * An unfinished first OPFS copy loaded from storage cannot boot yet. A
+ * Blueprint run also uses autosave persistence before that copy succeeds.
+ * Callers withhold both from Recent and matching-setup restore suggestions.
  *
  * @param site The Playground whose autosave lifecycle should be checked.
  * @returns Whether the Playground is a restorable autosave.
  */
 export function isRestorableAutosavedSite(site: SiteInfo) {
-	return isAutosavedSite(site) && !isUnfinishedBlueprintRun(site);
+	return (
+		isAutosavedSite(site) &&
+		!hasUnfinishedInitialOpfsSyncFromStorage(site) &&
+		!isUnfinishedBlueprintRun(site)
+	);
 }
 
 /**
@@ -688,7 +695,25 @@ export function createStoredSite(
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
-		const sites = selectAllSites(getState());
+		// Redux belongs to this tab, while OPFS is shared across same-origin
+		// tabs. Read metadata from storage so records created after this tab
+		// loaded still participate in allocation.
+		const sitesBySlug = new Map<string, SiteInfo>(
+			selectAllSites(getState()).map((site) => [site.slug, site])
+		);
+		try {
+			for (const site of await opfsSiteStorage.listMetadata()) {
+				// Fresh OPFS metadata replaces the same site's Redux snapshot.
+				sitesBySlug.set(site.slug, site);
+			}
+		} catch (error) {
+			logger.warn(
+				'Unable to list stored Playgrounds before choosing a new site slug.',
+				error
+			);
+			// Creating the OPFS record still refuses to overwrite an occupied slug.
+		}
+		const sites = [...sitesBySlug.values()];
 		let displayName = siteName;
 		let slugBaseName = siteName;
 		if (!preferredSlug) {
@@ -912,6 +937,19 @@ export interface SiteMetadata {
 	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
 }
+
+/**
+ * Fields to merge into existing site metadata.
+ *
+ * Runtime configuration is also a patch so one settings change does not
+ * restore unrelated runtime fields from an older tab's Redux snapshot.
+ */
+export type SiteMetadataChanges = Omit<
+	Partial<SiteMetadata>,
+	'runtimeConfiguration'
+> & {
+	runtimeConfiguration?: Partial<SiteMetadata['runtimeConfiguration']>;
+};
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
 export { sitesSlice };
