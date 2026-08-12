@@ -403,6 +403,27 @@ function playground_get_custom_response_headers( $requested_path ) {
 
 	if ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
+	} elseif ( 'remote-posix-kernel.html' === $filename ) {
+		// The kandelo kernel remote allocates SharedArrayBuffer, which
+		// browsers only enable on cross-origin isolated documents.
+		return array(
+			'Cross-Origin-Opener-Policy: same-origin',
+			'Cross-Origin-Embedder-Policy: require-corp',
+			'Document-Isolation-Policy: isolate-and-require-corp',
+			'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+		);
+	} elseif ( playground_is_worker_script( $filename ) ) {
+		// Dedicated worker scripts must carry a COEP header compatible
+		// with the document that spawns them. The kernel-mode remote
+		// (`?experimental=kandelo`) is COEP `require-corp` and the
+		// opted-in parent page is COEP `credentialless`; `require-corp`
+		// on the worker script satisfies both, and browsers ignore the
+		// header on non-worker loads. These files are hash-named and
+		// immutable, so keep them edge-cacheable.
+		return array(
+			'Cross-Origin-Embedder-Policy: require-corp',
+			'A8C-Edge-Cache: cache',
+		);
 	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php', 'relay.php' ), true ) ) {
 		return array( 'Cache-Control: no-store' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
@@ -417,7 +438,18 @@ function playground_get_custom_response_headers( $requested_path ) {
 		'/index.html' === $requested_path ||
 		'/api.html' === $requested_path
 	) {
-		return array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
+		$headers = array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
+		if ( playground_request_opts_into_kandelo() ) {
+			// The website only switches the iframe to the kernel-mode
+			// remote when the parent document is cross-origin isolated.
+			// Sent only on opt-in because COOP `same-origin` breaks the
+			// GitHub OAuth popup flow; COEP `credentialless` (rather
+			// than `require-corp`) keeps cross-origin subresources
+			// loading without CORP headers.
+			$headers[] = 'Cross-Origin-Opener-Policy: same-origin';
+			$headers[] = 'Cross-Origin-Embedder-Policy: credentialless';
+		}
+		return $headers;
 	} elseif (
 		in_array(
 			$filename,
@@ -439,6 +471,31 @@ function playground_get_custom_response_headers( $requested_path ) {
 		);
 	}
 
+	return false;
+}
+
+function playground_request_opts_into_kandelo() {
+	return isset( $_GET['experimental'] ) && 'kandelo' === $_GET['experimental'];
+}
+
+function playground_is_worker_script( $filename ) {
+	$worker_script_prefixes = array(
+		// Spawned by the remote iframe (classic and kernel-mode).
+		'playground-worker-endpoint-',
+		// Spawned by the kernel-mode remote (`remote-posix-kernel.html`).
+		'browser-kernel-worker-entry-',
+		'worker-entry-browser-',
+		// Spawned by the website when saving a site to OPFS.
+		'opfs-site-storage-worker-',
+	);
+	if ( ! str_ends_with( $filename, '.js' ) ) {
+		return false;
+	}
+	foreach ( $worker_script_prefixes as $prefix ) {
+		if ( str_starts_with( $filename, $prefix ) ) {
+			return true;
+		}
+	}
 	return false;
 }
 
