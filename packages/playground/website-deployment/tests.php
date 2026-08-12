@@ -69,6 +69,82 @@ assert_throws(
     }
 );
 
+assert_equal(
+    json_encode( array(
+        'Cross-Origin-Opener-Policy: same-origin',
+        'Cross-Origin-Embedder-Policy: require-corp',
+        'Document-Isolation-Policy: isolate-and-require-corp',
+        'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+    ) ),
+    json_encode( playground_get_custom_response_headers( '/remote-posix-kernel.html' ) ),
+    'The kernel-mode remote entry must be served cross-origin isolated'
+);
+
+assert_equal(
+    true,
+    playground_is_static_file_needing_special_treatment( '/remote-posix-kernel.html' ),
+    'The kernel-mode remote entry must be served via PHP so its headers apply'
+);
+
+foreach ( array(
+    '/playground-worker-endpoint-CgltsLwW.js',
+    '/browser-kernel-worker-entry-CG9-Ll6m.js',
+    '/worker-entry-browser-l3O2__qb.js',
+    '/assets/opfs-site-storage-worker-for-safari-pJM5slyx.js',
+) as $worker_script_path ) {
+    assert_equal(
+        json_encode( array(
+            'Cross-Origin-Embedder-Policy: require-corp',
+            'A8C-Edge-Cache: cache',
+        ) ),
+        json_encode( playground_get_custom_response_headers( $worker_script_path ) ),
+        "Worker script '$worker_script_path' must carry a COEP header so cross-origin isolated documents can spawn it"
+    );
+    assert_equal(
+        true,
+        playground_is_static_file_needing_special_treatment( $worker_script_path ),
+        "Worker script '$worker_script_path' must be served via PHP so its headers apply"
+    );
+}
+
+assert_equal(
+    false,
+    playground_get_custom_response_headers( '/assets/index-DPZBRXIa.js' ),
+    'Non-worker scripts must keep the default header treatment'
+);
+
+unset( $_GET['experimental'] );
+assert_equal(
+    json_encode( array(
+        'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+    ) ),
+    json_encode( playground_get_custom_response_headers( '/index.html' ) ),
+    'Without the kandelo opt-in, index.html must not be cross-origin isolated'
+);
+
+$_GET['experimental'] = 'other';
+assert_equal(
+    json_encode( array(
+        'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+    ) ),
+    json_encode( playground_get_custom_response_headers( '/index.html' ) ),
+    'Other experimental values must not opt into cross-origin isolation'
+);
+
+$_GET['experimental'] = 'kandelo';
+foreach ( array( '/', '/index.html' ) as $kandelo_opt_in_path ) {
+    assert_equal(
+        json_encode( array(
+            'Cache-Control: max-age=0, no-cache, no-store, must-revalidate',
+            'Cross-Origin-Opener-Policy: same-origin',
+            'Cross-Origin-Embedder-Policy: credentialless',
+        ) ),
+        json_encode( playground_get_custom_response_headers( $kandelo_opt_in_path ) ),
+        "With ?experimental=kandelo, '$kandelo_opt_in_path' must opt into cross-origin isolation"
+    );
+}
+unset( $_GET['experimental'] );
+
 $mywp_event_headers = playground_get_custom_response_headers( '/mywp-event.php' );
 assert_equal(
     true,
