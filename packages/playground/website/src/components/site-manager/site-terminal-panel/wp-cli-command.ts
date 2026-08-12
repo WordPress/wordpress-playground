@@ -5,7 +5,7 @@ const NON_TERMINATING_COMMANDS = new Set(['server', 'shell']);
  * run as `wp wp ...`. The terminal renders the executable as part of the prompt.
  */
 export function stripWpPrefix(command: string) {
-	return command.replace(/^wp(?:\s+|$)/, '');
+	return command.trim().replace(/^\$\s*/, '').replace(/^wp(?:\s+|$)/, '');
 }
 
 const GLOBAL_PARAMETERS_WITH_VALUES = new Set([

@@ -208,19 +208,13 @@ export function SiteTerminalPanel({
 	return (
 		<div className={css.terminalPanel}>
 			<div className={css.toolbar}>
-				<div
-					className={css.modeTabs}
-					role="tablist"
-					aria-label="Terminal mode"
-				>
+				<div className={css.modeTabs} aria-label="Terminal mode">
 					<Button
 						className={`${css.modeTab} ${
 							mode === 'php' ? css.modeTabActive : ''
 						}`}
 						onClick={() => setMode('php')}
-						role="tab"
-						aria-selected={mode === 'php'}
-						aria-controls="terminal-session"
+						aria-pressed={mode === 'php'}
 					>
 						PHP
 					</Button>
@@ -229,9 +223,7 @@ export function SiteTerminalPanel({
 							mode === 'wp-cli' ? css.modeTabActive : ''
 						}`}
 						onClick={() => setMode('wp-cli')}
-						role="tab"
-						aria-selected={mode === 'wp-cli'}
-						aria-controls="terminal-session"
+						aria-pressed={mode === 'wp-cli'}
 					>
 						WP-CLI
 					</Button>
@@ -247,7 +239,6 @@ export function SiteTerminalPanel({
 			<div
 				id="terminal-session"
 				className={css.output}
-				role="tabpanel"
 				aria-live="polite"
 				ref={outputRef}
 			>
@@ -525,15 +516,24 @@ function formatResponseLike(response: unknown) {
 	}
 
 	return formatResponse({
-		text:
-			typeof text === 'string'
-				? text
-				: bytes instanceof Uint8Array
-					? new TextDecoder().decode(bytes)
-					: '',
+		text: typeof text === 'string' ? text : decodeBytes(bytes),
 		errors,
 		exitCode,
 	});
+}
+
+function decodeBytes(bytes: unknown) {
+	if (bytes instanceof ArrayBuffer) {
+		return new TextDecoder().decode(bytes);
+	}
+
+	if (ArrayBuffer.isView(bytes)) {
+		return new TextDecoder().decode(
+			new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+		);
+	}
+
+	return '';
 }
 
 function getErrorOutput(error: unknown, mode: TerminalMode) {
