@@ -319,6 +319,11 @@ const remoteOrigin =
 	import.meta.env.MODE == 'development'
 		? devRemoteOrigin
 		: officialRemoteOrigin;
+const validRemotePathnames = [
+	'/remote.html',
+	// Kernel-mode entry used by `?experimental=kandelo` sessions.
+	'/remote-posix-kernel.html',
+];
 /**
  * Assert that the remote origin is likely compatible with this client library.
  *
@@ -344,15 +349,20 @@ function assertLikelyCompatibleRemotePath(
 ) {
 	const url = new URL(urlString, remoteOrigin);
 	const endpointName = expectedPath === '/api.html' ? 'API' : 'remote';
+	const validPathnames =
+		expectedPath === '/remote.html' ? validRemotePathnames : [expectedPath];
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
-		url.pathname === expectedPath;
+		validPathnames.includes(url.pathname);
 
 	if (!validRemote) {
 		throw new Error(
 			`Invalid ${endpointName} URL: ${url}. ` +
-				`Expected ${endpointName} URL to have a path of "${expectedPath}" based ` +
+				`Expected ${endpointName} URL to have a path of ` +
+				`${validPathnames
+					.map((pathname) => `"${pathname}"`)
+					.join(' or ')} based ` +
 				`on one of the following origins:\n ${validRemoteOrigins.join(
 					'\n'
 				)}`
