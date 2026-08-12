@@ -10,15 +10,16 @@ import {
 	wpCLI,
 } from '@wp-playground/client';
 import { useEffect, useRef, useState } from 'react';
-import { check, copySmall } from '@wordpress/icons';
+import { check, chevronLeft, chevronRight, copySmall } from '@wordpress/icons';
 import { InlineProgress } from '../../pane-loading';
 import css from './style.module.css';
 import { getTerminalErrorMessage } from './terminal-error';
 import {
-	addCommandToHistory,
+	appendEntryToHistory,
 	loadTerminalHistory,
 	saveTerminalHistory,
 } from './terminal-history';
+import type { TerminalHistoryEntry } from './terminal-history';
 import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
 import { formatWpCliOutput } from './wp-cli-output';
 // @ts-ignore
@@ -26,13 +27,7 @@ import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 type TerminalMode = 'php' | 'wp-cli';
 
-type TerminalEntry = {
-	mode: TerminalMode;
-	command: string;
-	output: string;
-	status: 'success' | 'error';
-	durationMs: number;
-};
+type TerminalEntry = TerminalHistoryEntry;
 
 const PHP_INCOMPLETE_INPUT_MARKER = '__PLAYGROUND_PHP_INCOMPLETE_INPUT__';
 const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
@@ -121,35 +116,38 @@ export function SiteTerminalPanel({
 	playground: PlaygroundClient | undefined;
 }) {
 	const [mode, setMode] = useState<TerminalMode>('php');
-	const [phpCode, setPhpCode] = useState('');
-	const [wpCliCommand, setWpCliCommand] = useState('');
-	const [entriesByMode, setEntriesByMode] = useState<
-		Record<TerminalMode, TerminalEntry[]>
+	const [initialHistory] = useState(loadTerminalHistory);
+	const [phpCode, setPhpCode] = useState(
+		initialHistory.php.at(-1)?.command || ''
+	);
+	const [wpCliCommand, setWpCliCommand] = useState(
+		initialHistory['wp-cli'].at(-1)?.command || ''
+	);
+	const [entriesByMode, setEntriesByMode] =
+		useState<Record<TerminalMode, TerminalEntry[]>>(initialHistory);
+	const [activeEntryIndexByMode, setActiveEntryIndexByMode] = useState<
+		Record<TerminalMode, number>
 	>({
-		php: [],
-		'wp-cli': [],
+		php: initialHistory.php.length - 1,
+		'wp-cli': initialHistory['wp-cli'].length - 1,
 	});
 	const [isRunning, setIsRunning] = useState(false);
 	const [isAwaitingMoreInput, setIsAwaitingMoreInput] = useState(false);
 	const [copiedOutput, copyOutput] = useCopyToClipboard();
 	const [isWpCliSuggestionsOpen, setIsWpCliSuggestionsOpen] = useState(false);
 	const [activeWpCliSuggestion, setActiveWpCliSuggestion] = useState(-1);
-	const [commandHistory, setCommandHistory] = useState(loadTerminalHistory);
-	const historyPosition = useRef<Record<TerminalMode, number>>({
-		php: -1,
-		'wp-cli': -1,
-	});
-	const draftBeforeHistory = useRef<Record<TerminalMode, string>>({
-		php: '',
-		'wp-cli': '',
-	});
 	const wpCliInputRef = useRef<HTMLInputElement>(null);
 	const wpCliComboboxRef = useRef<HTMLDivElement>(null);
 
 	const command = mode === 'php' ? phpCode : wpCliCommand;
 	const entries = entriesByMode[mode];
-	const latestEntry = entries.at(-1);
+	const activeEntryIndex = activeEntryIndexByMode[mode];
+	const activeEntry =
+		activeEntryIndex >= 0 ? entries[activeEntryIndex] : undefined;
 	const canRun = !!playground && !!command.trim() && !isRunning;
+	const canNavigatePrevious = activeEntryIndex > 0;
+	const canNavigateNext =
+		activeEntryIndex >= 0 && activeEntryIndex < entries.length - 1;
 	const wpCliSuggestions = getWpCliSuggestions(wpCliCommand);
 
 	async function runCommand() {
@@ -190,33 +188,34 @@ export function SiteTerminalPanel({
 			} else {
 				output = await runWpCli(playground, `wp ${submittedCommand}`);
 			}
-			appendEntry({
-				mode,
-				command: submittedCommand,
+			appendEntry(mode, {
+				command: getHistoryCommand(mode, submittedCommand),
 				output,
 				status: 'success',
 				durationMs: performance.now() - startedAt,
 			});
-			recordCommand(mode, getHistoryCommand(mode, submittedCommand));
 		} catch (error) {
-			appendEntry({
-				mode,
-				command: submittedCommand,
+			appendEntry(mode, {
+				command: getHistoryCommand(mode, submittedCommand),
 				output: getErrorOutput(error, mode),
 				status: 'error',
 				durationMs: performance.now() - startedAt,
 			});
-			recordCommand(mode, getHistoryCommand(mode, submittedCommand));
 		} finally {
 			setIsRunning(false);
 		}
 	}
 
-	function appendEntry(entry: TerminalEntry) {
-		setEntriesByMode((current) => ({
-			...current,
-			[entry.mode]: [entry],
-		}));
+	function appendEntry(entryMode: TerminalMode, entry: TerminalEntry) {
+		setEntriesByMode((current) => {
+			const next = appendEntryToHistory(current, entryMode, entry);
+			saveTerminalHistory(next);
+			setActiveEntryIndexByMode((currentIndexes) => ({
+				...currentIndexes,
+				[entryMode]: next[entryMode].length - 1,
+			}));
+			return next;
+		});
 	}
 
 	function setCurrentCommand(value: string) {
@@ -228,14 +227,10 @@ export function SiteTerminalPanel({
 	}
 
 	function updateCurrentCommand(value: string) {
-		historyPosition.current[mode] = -1;
-		draftBeforeHistory.current[mode] = value;
 		setCurrentCommand(value);
 	}
 
 	function updateWpCliCommand(value: string) {
-		historyPosition.current['wp-cli'] = -1;
-		draftBeforeHistory.current['wp-cli'] = value;
 		setWpCliCommand(value);
 		setActiveWpCliSuggestion(-1);
 		setIsWpCliSuggestionsOpen(true);
@@ -250,54 +245,34 @@ export function SiteTerminalPanel({
 
 	function selectPhpSnippet(code: string) {
 		setPhpCode(code);
-		historyPosition.current.php = -1;
-		draftBeforeHistory.current.php = code;
 	}
 
-	function recordCommand(commandMode: TerminalMode, value: string) {
-		if (value.trim()) {
-			setCommandHistory((current) => {
-				const next = addCommandToHistory(current, commandMode, value);
-				saveTerminalHistory(next);
-				return next;
-			});
-		}
-		historyPosition.current[commandMode] = -1;
-		draftBeforeHistory.current[commandMode] = '';
-	}
-
-	function navigateHistory(direction: 'older' | 'newer') {
-		const history = commandHistory[mode];
-		if (history.length === 0) {
+	function navigateRunHistory(direction: 'previous' | 'next') {
+		const nextIndex =
+			direction === 'previous'
+				? activeEntryIndex - 1
+				: activeEntryIndex + 1;
+		const nextEntry = entries[nextIndex];
+		if (!nextEntry || !confirmReplaceModifiedInput()) {
 			return;
 		}
 
-		const currentPosition = historyPosition.current[mode];
-		if (direction === 'older') {
-			if (currentPosition === -1) {
-				draftBeforeHistory.current[mode] = command;
-			}
-			const nextPosition = Math.min(
-				currentPosition + 1,
-				history.length - 1
-			);
-			historyPosition.current[mode] = nextPosition;
-			setCurrentCommand(history[nextPosition]);
-			closeWpCliSuggestions();
-			return;
-		}
-
-		if (currentPosition <= 0) {
-			historyPosition.current[mode] = -1;
-			setCurrentCommand(draftBeforeHistory.current[mode]);
-			closeWpCliSuggestions();
-			return;
-		}
-
-		const nextPosition = currentPosition - 1;
-		historyPosition.current[mode] = nextPosition;
-		setCurrentCommand(history[nextPosition]);
+		setActiveEntryIndexByMode((current) => ({
+			...current,
+			[mode]: nextIndex,
+		}));
+		setCurrentCommand(nextEntry.command);
+		setIsAwaitingMoreInput(false);
 		closeWpCliSuggestions();
+	}
+
+	function confirmReplaceModifiedInput() {
+		if (!activeEntry || command === activeEntry.command) {
+			return true;
+		}
+		return window.confirm(
+			'You have edits that are not in history. Discard them and open another history entry?'
+		);
 	}
 
 	function closeWpCliSuggestions() {
@@ -307,16 +282,7 @@ export function SiteTerminalPanel({
 
 	function handleWpCliKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
 		const suggestionsCount = wpCliSuggestions.length;
-		if (event.key === 'ArrowUp' && activeWpCliSuggestion === -1) {
-			event.preventDefault();
-			navigateHistory('older');
-		} else if (
-			event.key === 'ArrowDown' &&
-			historyPosition.current['wp-cli'] !== -1
-		) {
-			event.preventDefault();
-			navigateHistory('newer');
-		} else if (event.key === 'ArrowDown' && suggestionsCount > 0) {
+		if (event.key === 'ArrowDown' && suggestionsCount > 0) {
 			event.preventDefault();
 			setIsWpCliSuggestionsOpen(true);
 			setActiveWpCliSuggestion((index) => (index + 1) % suggestionsCount);
@@ -352,23 +318,21 @@ export function SiteTerminalPanel({
 		if (isRunShortcut(event)) {
 			event.preventDefault();
 			runCommand();
-			return;
-		}
-
-		const direction = getHistoryDirection(event.key);
-		if (
-			direction &&
-			isCaretOnOutermostLine(event.currentTarget, direction)
-		) {
-			event.preventDefault();
-			navigateHistory(direction);
 		}
 	}
 
 	function clearOutput() {
-		setEntriesByMode((current) => ({
+		setEntriesByMode((current) => {
+			const next = {
+				...current,
+				[mode]: [],
+			};
+			saveTerminalHistory(next);
+			return next;
+		});
+		setActiveEntryIndexByMode((current) => ({
 			...current,
-			[mode]: [],
+			[mode]: -1,
 		}));
 	}
 
@@ -547,17 +511,46 @@ export function SiteTerminalPanel({
 						<InlineProgress
 							message={`WordPress is still loading. The ${mode === 'php' ? 'PHP' : 'WP-CLI'} runner will be ready in a moment.`}
 						/>
-					) : latestEntry ? (
+					) : activeEntry ? (
 						<>
 							<div className={css.resultHeader}>
-								<span>Result</span>
+								<span>
+									Result {activeEntryIndex + 1} of{' '}
+									{entries.length}
+								</span>
 								<div className={css.resultActions}>
+									<Button
+										className={css.historyButton}
+										size="compact"
+										variant="tertiary"
+										aria-label="Previous result"
+										title="Previous result"
+										disabled={!canNavigatePrevious}
+										onClick={() =>
+											navigateRunHistory('previous')
+										}
+									>
+										<Icon icon={chevronLeft} size={18} />
+									</Button>
+									<Button
+										className={css.historyButton}
+										size="compact"
+										variant="tertiary"
+										aria-label="Next result"
+										title="Next result"
+										disabled={!canNavigateNext}
+										onClick={() =>
+											navigateRunHistory('next')
+										}
+									>
+										<Icon icon={chevronRight} size={18} />
+									</Button>
 									<span
 										className={css.executionTime}
 										title="Execution time"
 									>
 										{formatExecutionTime(
-											latestEntry.durationMs
+											activeEntry.durationMs
 										)}
 									</span>
 									<Button
@@ -569,7 +562,7 @@ export function SiteTerminalPanel({
 										onClick={() =>
 											copyOutput(
 												getEntryDisplayOutput(
-													latestEntry
+													activeEntry
 												)
 											)
 										}
@@ -585,12 +578,12 @@ export function SiteTerminalPanel({
 							</div>
 							<pre
 								className={
-									latestEntry.status === 'error'
+									activeEntry.status === 'error'
 										? css.errorOutput
 										: undefined
 								}
 							>
-								{getEntryDisplayOutput(latestEntry)}
+								{getEntryDisplayOutput(activeEntry)}
 							</pre>
 						</>
 					) : (
@@ -759,29 +752,6 @@ function getEntryDisplayOutput(entry: TerminalEntry) {
 
 function isRunShortcut(event: React.KeyboardEvent) {
 	return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
-}
-
-function getHistoryDirection(key: string) {
-	if (key === 'ArrowUp') {
-		return 'older' as const;
-	}
-	if (key === 'ArrowDown') {
-		return 'newer' as const;
-	}
-	return undefined;
-}
-
-function isCaretOnOutermostLine(
-	textarea: HTMLTextAreaElement,
-	direction: 'older' | 'newer'
-) {
-	const { selectionStart, selectionEnd, value } = textarea;
-	if (selectionStart !== selectionEnd) {
-		return false;
-	}
-	return direction === 'older'
-		? !value.slice(0, selectionStart).includes('\n')
-		: !value.slice(selectionStart).includes('\n');
 }
 
 function useCopyToClipboard(): [boolean, (text: string) => void] {

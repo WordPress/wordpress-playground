@@ -1,7 +1,15 @@
 import { stripWpPrefix } from './wp-cli-command';
 
 export type TerminalMode = 'php' | 'wp-cli';
-export type TerminalHistory = Record<TerminalMode, string[]>;
+
+export type TerminalHistoryEntry = {
+	command: string;
+	output: string;
+	status: 'success' | 'error';
+	durationMs: number;
+};
+
+export type TerminalHistory = Record<TerminalMode, TerminalHistoryEntry[]>;
 
 const STORAGE_KEY = 'playground-terminal-command-history';
 const MAX_HISTORY_ENTRIES = 100;
@@ -19,8 +27,8 @@ export function loadTerminalHistory(): TerminalHistory {
 	try {
 		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
 		return {
-			php: getStringArray(stored?.php),
-			'wp-cli': getStringArray(stored?.['wp-cli']).map(ensureWpCliPrefix),
+			php: getEntries(stored?.php, 'php'),
+			'wp-cli': getEntries(stored?.['wp-cli'], 'wp-cli'),
 		};
 	} catch {
 		return EMPTY_HISTORY;
@@ -39,28 +47,61 @@ export function saveTerminalHistory(history: TerminalHistory) {
 	}
 }
 
-export function addCommandToHistory(
+export function appendEntryToHistory(
 	history: TerminalHistory,
 	mode: TerminalMode,
-	command: string
+	entry: TerminalHistoryEntry
 ): TerminalHistory {
 	return {
 		...history,
-		[mode]: [
-			command,
-			...history[mode].filter((entry) => entry !== command),
-		].slice(0, MAX_HISTORY_ENTRIES),
+		[mode]: [...history[mode], entry].slice(-MAX_HISTORY_ENTRIES),
 	};
 }
 
-function getStringArray(value: unknown) {
+function getEntries(value: unknown, mode: TerminalMode) {
 	return Array.isArray(value)
 		? value
-				.filter((entry): entry is string => typeof entry === 'string')
-				.slice(0, MAX_HISTORY_ENTRIES)
+				.map((entry) => normalizeEntry(entry, mode))
+				.filter(
+					(entry): entry is TerminalHistoryEntry =>
+						entry !== undefined
+				)
+				.slice(-MAX_HISTORY_ENTRIES)
 		: [];
 }
 
-function ensureWpCliPrefix(command: string) {
-	return `wp ${stripWpPrefix(command)}`;
+function normalizeEntry(entry: unknown, mode: TerminalMode) {
+	if (typeof entry === 'string') {
+		return {
+			command: normalizeCommand(entry, mode),
+			output: '',
+			status: 'success' as const,
+			durationMs: 0,
+		};
+	}
+
+	if (!entry || typeof entry !== 'object') {
+		return undefined;
+	}
+
+	const maybeEntry = entry as Partial<TerminalHistoryEntry>;
+	if (
+		typeof maybeEntry.command !== 'string' ||
+		typeof maybeEntry.output !== 'string' ||
+		(maybeEntry.status !== 'success' && maybeEntry.status !== 'error') ||
+		typeof maybeEntry.durationMs !== 'number'
+	) {
+		return undefined;
+	}
+
+	return {
+		command: normalizeCommand(maybeEntry.command, mode),
+		output: maybeEntry.output,
+		status: maybeEntry.status,
+		durationMs: maybeEntry.durationMs,
+	};
+}
+
+function normalizeCommand(command: string, mode: TerminalMode) {
+	return mode === 'wp-cli' ? `wp ${stripWpPrefix(command)}` : command;
 }

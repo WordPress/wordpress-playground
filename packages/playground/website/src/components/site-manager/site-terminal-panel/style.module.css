@@ -199,6 +199,16 @@
 	transition: opacity 0.12s ease;
 }
 
+.historyButton {
+	color: #f6f7f7;
+	min-width: 24px;
+	padding: 2px;
+}
+
+.historyButton:disabled {
+	color: #646970;
+}
+
 .result:hover .copyResult,
 .result:focus-within .copyResult,
 .copyResult:focus {
@@ -212,6 +222,10 @@
 }
 
 .copyResult svg {
+	fill: currentColor;
+}
+
+.historyButton svg {
 	fill: currentColor;
 }
 
