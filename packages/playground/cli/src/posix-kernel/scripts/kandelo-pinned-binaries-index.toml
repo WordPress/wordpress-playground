@@ -35,10 +35,10 @@ revision = 9
 
 [packages.binary.wasm32]
 status = "success"
-archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/rootfs-0.1.0-rev9-abi42-wasm32-25c7e543.tar.zst"
-archive_sha256 = "834eb032292ad4aea09ac26372a64b07125ac78e18cffe8ecfb420b43f6d42f3"
-cache_key_sha = "25c7e543400e62afdaa2c575e8a7c7a0f9b2c77597810a7656768b01fea34669"
-built_at = "2026-08-08T13:26:57Z"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/rootfs-0.1.0-rev9-abi42-wasm32-ff81843d.tar.zst"
+archive_sha256 = "6c08e5faaeaedac9436126665fdfc47c845ed52fb095bfbfacb7f13d87800c14"
+cache_key_sha = "ff81843d99a2699451a1657b159564926aada23bea704149f4e36aca038bf901"
+built_at = "2026-08-11T15:48:35Z"
 built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
 
 [[packages]]
@@ -64,5 +64,57 @@ status = "success"
 archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/php-8.3.15-rev15-abi42-wasm32-8583b755.tar.zst"
 archive_sha256 = "64899aced71cbccc78c5a0c6c5a71bebc78ae68ba87dec6ddd64fd2a55a04f64"
 cache_key_sha = "8583b755c9eb5a6877e101b3330473d7b5248c7f1e1a8983461811fb04f61476"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "coreutils"
+version = "9.6"
+revision = 3
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/coreutils-9.6-rev3-abi42-wasm32-c4417121.tar.zst"
+archive_sha256 = "7c0fa1852887498803dd588ca6b5ef7be0dd6c352019ec1b4c87a86c7aa3dde1"
+cache_key_sha = "c44171215c792087144a3dc8bd76f9a37f2f8311ed3d7b29e0ce1ae8fb79a76a"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "dash"
+version = "0.5.12"
+revision = 3
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/dash-0.5.12-rev3-abi42-wasm32-226bda53.tar.zst"
+archive_sha256 = "3f56e0d9a1d56ea6bebac0cea599dba1b18e2e7119da01e6b45825db96ff1f91"
+cache_key_sha = "226bda53ce2d316d11744de02e555a09e870f3bb5a5ee3d3e79d8a47f0612bef"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "dinit"
+version = "0.19.4"
+revision = 5
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/dinit-0.19.4-rev5-abi42-wasm32-db68fc36.tar.zst"
+archive_sha256 = "78b696f5393e42d45d0eef5c78c79bb4416d6a114b976f9194895b23706ebef2"
+cache_key_sha = "db68fc369364580e6690bb1097fa27d4eb7a1449574f24b6ab1202c60ff51f1b"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "less"
+version = "668"
+revision = 2
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/less-668-rev2-abi42-wasm32-84d17399.tar.zst"
+archive_sha256 = "f6f64a0f14890e505f596d25c713e3eed6905c26d1ad6874216d3328ce5ff286"
+cache_key_sha = "84d1739981ea64e5f9c23cd586c4840d412737b235ba41875c1d4cafaecbf88b"
 built_at = "2026-08-08T13:26:57Z"
 built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"

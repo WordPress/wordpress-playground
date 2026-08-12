@@ -74,7 +74,17 @@ const SUBMODULE_DIR = join(REPO_ROOT, 'kandelo');
 const BINARIES_DIR = join(SUBMODULE_DIR, 'binaries');
 const CACHE_DIR = join(homedir(), '.cache', 'wp-playground-kandelo');
 
-const NEEDED = ['kernel', 'userspace', 'rootfs', 'nginx', 'php'];
+const NEEDED = [
+	'kernel',
+	'userspace',
+	'rootfs',
+	'nginx',
+	'php',
+	'coreutils',
+	'dash',
+	'dinit',
+	'less',
+];
 
 const TOP_LEVEL_PACKAGES = new Set(['kernel', 'userspace', 'rootfs']);
 
