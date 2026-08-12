@@ -1,4 +1,4 @@
-import { Button, TextareaControl } from '@wordpress/components';
+import { Button, Icon, TextareaControl } from '@wordpress/components';
 import { joinPaths } from '@php-wasm/util';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import {
@@ -10,14 +10,10 @@ import {
 	wpCLI,
 } from '@wp-playground/client';
 import { useEffect, useRef, useState } from 'react';
+import { check, copySmall } from '@wordpress/icons';
 import { InlineProgress } from '../../pane-loading';
 import css from './style.module.css';
 import { getTerminalErrorMessage } from './terminal-error';
-import {
-	addCommandToHistory,
-	loadTerminalHistory,
-	saveTerminalHistory,
-} from './terminal-history';
 import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
 import { formatWpCliOutput } from './wp-cli-output';
 // @ts-ignore
@@ -51,25 +47,12 @@ export function SiteTerminalPanel({
 	});
 	const [isRunning, setIsRunning] = useState(false);
 	const [isAwaitingMoreInput, setIsAwaitingMoreInput] = useState(false);
-	const [commandHistory, setCommandHistory] = useState(loadTerminalHistory);
-	const historyPosition = useRef<Record<TerminalMode, number>>({
-		php: -1,
-		'wp-cli': -1,
-	});
-	const draftBeforeHistory = useRef<Record<TerminalMode, string>>({
-		php: '',
-		'wp-cli': '',
-	});
-	const outputRef = useRef<HTMLDivElement>(null);
+	const [copiedOutput, copyOutput] = useCopyToClipboard();
 
 	const command = mode === 'php' ? phpCode : wpCliCommand;
 	const entries = entriesByMode[mode];
-	const latestPhpEntry = entriesByMode.php.at(-1);
+	const latestEntry = entries.at(-1);
 	const canRun = !!playground && !!command.trim() && !isRunning;
-
-	useEffect(() => {
-		outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
-	}, [entries, isRunning]);
 
 	async function runCommand() {
 		if (!playground || !canRun) {
@@ -77,8 +60,8 @@ export function SiteTerminalPanel({
 		}
 
 		/**
-		 * `wp` is rendered as part of the prompt, so a pasted `wp ...` command
-		 * must not run as `wp wp ...`.
+		 * The runner accepts commands with or without the executable. Normalize
+		 * pasted `wp ...` commands so they do not run as `wp wp ...`.
 		 */
 		const submittedCommand =
 			mode === 'wp-cli' ? stripWpPrefix(wpCliCommand.trim()) : phpCode;
@@ -113,7 +96,6 @@ export function SiteTerminalPanel({
 				status: 'success',
 				durationMs: performance.now() - startedAt,
 			});
-			recordCompletedCommand(mode, submittedCommand);
 		} catch (error) {
 			appendEntry({
 				mode,
@@ -122,7 +104,6 @@ export function SiteTerminalPanel({
 				status: 'error',
 				durationMs: performance.now() - startedAt,
 			});
-			recordCompletedCommand(mode, submittedCommand);
 		} finally {
 			setIsRunning(false);
 		}
@@ -131,36 +112,8 @@ export function SiteTerminalPanel({
 	function appendEntry(entry: TerminalEntry) {
 		setEntriesByMode((current) => ({
 			...current,
-			[entry.mode]:
-				entry.mode === 'php'
-					? [entry]
-					: [...current[entry.mode], entry],
+			[entry.mode]: [entry],
 		}));
-	}
-
-	function recordCompletedCommand(commandMode: TerminalMode, value: string) {
-		if (commandMode === 'php') {
-			return;
-		}
-		recordCommand(commandMode, value);
-		resetCurrentCommand();
-	}
-
-	function recordCommand(commandMode: TerminalMode, value: string) {
-		if (value.trim()) {
-			setCommandHistory((current) => {
-				const next = addCommandToHistory(current, commandMode, value);
-				saveTerminalHistory(next);
-				return next;
-			});
-		}
-		historyPosition.current[commandMode] = -1;
-	}
-
-	function resetCurrentCommand() {
-		draftBeforeHistory.current[mode] = '';
-		historyPosition.current[mode] = -1;
-		setCurrentCommand('');
 	}
 
 	function setCurrentCommand(value: string) {
@@ -172,40 +125,7 @@ export function SiteTerminalPanel({
 	}
 
 	function updateCurrentCommand(value: string) {
-		historyPosition.current[mode] = -1;
-		draftBeforeHistory.current[mode] = value;
 		setCurrentCommand(value);
-	}
-
-	function navigateHistory(direction: 'older' | 'newer') {
-		const history = commandHistory[mode];
-		if (history.length === 0) {
-			return;
-		}
-
-		const currentPosition = historyPosition.current[mode];
-		if (direction === 'older') {
-			if (currentPosition === -1) {
-				draftBeforeHistory.current[mode] = command;
-			}
-			const nextPosition = Math.min(
-				currentPosition + 1,
-				history.length - 1
-			);
-			historyPosition.current[mode] = nextPosition;
-			setCurrentCommand(history[nextPosition]);
-			return;
-		}
-
-		if (currentPosition <= 0) {
-			historyPosition.current[mode] = -1;
-			setCurrentCommand(draftBeforeHistory.current[mode]);
-			return;
-		}
-
-		const nextPosition = currentPosition - 1;
-		historyPosition.current[mode] = nextPosition;
-		setCurrentCommand(history[nextPosition]);
 	}
 
 	function clearOutput() {
@@ -246,158 +166,101 @@ export function SiteTerminalPanel({
 					Clear
 				</Button>
 			</div>
-			{mode === 'php' ? (
-				<div className={css.phpRunner}>
-					<TextareaControl
-						__nextHasNoMarginBottom
-						hideLabelFromVision
-						label="PHP code"
-						value={phpCode}
-						disabled={!playground}
-						rows={Math.max(12, phpCode.split('\n').length)}
-						className={css.phpCodeInput}
-						placeholder="echo get_option( 'blogname' );"
-						onChange={updateCurrentCommand}
-					/>
-					<div className={css.actions}>
-						<Button
-							variant="primary"
-							onClick={runCommand}
-							disabled={!canRun}
-							isBusy={isRunning}
-						>
-							Run
-						</Button>
-					</div>
-					<div className={css.result} aria-live="polite">
-						{!playground ? (
-							<InlineProgress message="WordPress is still loading. The PHP runner will be ready in a moment." />
-						) : latestPhpEntry ? (
-							<>
-								<div className={css.resultHeader}>
-									<span>Result</span>
+			<div className={css.runner}>
+				<TextareaControl
+					__nextHasNoMarginBottom
+					hideLabelFromVision
+					label={mode === 'php' ? 'PHP code' : 'WP-CLI command'}
+					value={command}
+					disabled={!playground}
+					rows={Math.max(
+						mode === 'php' ? 12 : 6,
+						command.split('\n').length
+					)}
+					className={css.commandEditor}
+					placeholder={
+						mode === 'php'
+							? "echo get_option( 'blogname' );"
+							: 'wp option get blogname'
+					}
+					onChange={updateCurrentCommand}
+				/>
+				<div className={css.actions}>
+					<Button
+						variant="primary"
+						onClick={runCommand}
+						disabled={!canRun}
+						isBusy={isRunning}
+					>
+						Run
+					</Button>
+				</div>
+				<div className={css.result} aria-live="polite">
+					{!playground ? (
+						<InlineProgress
+							message={`WordPress is still loading. The ${mode === 'php' ? 'PHP' : 'WP-CLI'} runner will be ready in a moment.`}
+						/>
+					) : latestEntry ? (
+						<>
+							<div className={css.resultHeader}>
+								<span>Result</span>
+								<div className={css.resultActions}>
 									<span
 										className={css.executionTime}
 										title="Execution time"
 									>
 										{formatExecutionTime(
-											latestPhpEntry.durationMs
+											latestEntry.durationMs
 										)}
 									</span>
-								</div>
-								<pre
-									className={
-										latestPhpEntry.status === 'error'
-											? css.errorOutput
-											: undefined
-									}
-								>
-									{latestPhpEntry.output || '(no output)'}
-								</pre>
-							</>
-						) : (
-							<div className={css.emptyOutput}>
-								Run PHP code to see the result.
-							</div>
-						)}
-					</div>
-					{isAwaitingMoreInput && (
-						<div className={css.continuationHint}>
-							Incomplete PHP code. Keep typing to finish the
-							statement, then run it again.
-						</div>
-					)}
-				</div>
-			) : (
-				<div
-					id="terminal-session"
-					className={css.output}
-					aria-live="polite"
-					ref={outputRef}
-				>
-					{!playground ? (
-						<InlineProgress message="WordPress is still loading. The terminal will be ready in a moment." />
-					) : entries.length === 0 ? (
-						<div className={css.emptyOutput}>
-							WP-CLI session ready.
-						</div>
-					) : (
-						entries.map((entry, index) => (
-							<div className={css.entry} key={index}>
-								<div className={css.entryHeader}>
-									<div className={css.prompt}>
-										<span>$ wp</span> {entry.command}
-									</div>
-									<span
-										className={css.executionTime}
-										title="Execution time"
+									<Button
+										className={css.copyResult}
+										size="compact"
+										variant="tertiary"
+										aria-label="Copy result"
+										title="Copy result"
+										onClick={() =>
+											copyOutput(
+												getEntryDisplayOutput(
+													latestEntry
+												)
+											)
+										}
 									>
-										{formatExecutionTime(entry.durationMs)}
-									</span>
+										<Icon
+											icon={
+												copiedOutput ? check : copySmall
+											}
+											size={18}
+										/>
+									</Button>
 								</div>
-								<pre
-									className={
-										entry.status === 'error'
-											? css.errorOutput
-											: undefined
-									}
-								>
-									{entry.output || '(no output)'}
-								</pre>
 							</div>
-						))
-					)}
-					<div className={css.activePrompt}>
-						<span className={css.promptLabel}>$ wp</span>
-						<TextareaControl
-							__nextHasNoMarginBottom
-							hideLabelFromVision
-							label="WP-CLI command"
-							value={command}
-							disabled={!playground}
-							rows={Math.max(1, command.split('\n').length)}
-							className={css.commandInput}
-							placeholder="option get blogname"
-							onChange={updateCurrentCommand}
-							onKeyDown={(event) => {
-								const direction = getHistoryDirection(
-									event.key
-								);
-								if (direction) {
-									/**
-									 * Multi-line input needs the arrow keys to move
-									 * the caret between lines. Only the outermost
-									 * lines browse the history.
-									 */
-									if (
-										isCaretOnOutermostLine(
-											event.currentTarget,
-											direction
-										)
-									) {
-										event.preventDefault();
-										navigateHistory(direction);
-									}
-								} else if (
-									event.key === 'Enter' &&
-									!event.shiftKey
-								) {
-									event.preventDefault();
-									runCommand();
+							<pre
+								className={
+									latestEntry.status === 'error'
+										? css.errorOutput
+										: undefined
 								}
-							}}
-						/>
-						<Button
-							variant="primary"
-							onClick={runCommand}
-							disabled={!canRun}
-							isBusy={isRunning}
-						>
-							Run
-						</Button>
-					</div>
+							>
+								{getEntryDisplayOutput(latestEntry)}
+							</pre>
+						</>
+					) : (
+						<div className={css.emptyOutput}>
+							Run{' '}
+							{mode === 'php' ? 'PHP code' : 'a WP-CLI command'}{' '}
+							to see the result.
+						</div>
+					)}
 				</div>
-			)}
+				{mode === 'php' && isAwaitingMoreInput && (
+					<div className={css.continuationHint}>
+						Incomplete PHP code. Keep typing to finish the
+						statement, then run it again.
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -527,6 +390,30 @@ function formatExecutionTime(durationMs: number) {
 	return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
+function getEntryDisplayOutput(entry: TerminalEntry) {
+	return entry.output || '(no output)';
+}
+
+function useCopyToClipboard(): [boolean, (text: string) => void] {
+	const [copied, setCopied] = useState(false);
+	const timerRef = useRef<number>();
+	useEffect(() => () => window.clearTimeout(timerRef.current), []);
+	const copy = (text: string) => {
+		void navigator.clipboard?.writeText(text).then(
+			() => {
+				setCopied(true);
+				window.clearTimeout(timerRef.current);
+				timerRef.current = window.setTimeout(
+					() => setCopied(false),
+					1600
+				);
+			},
+			() => {}
+		);
+	};
+	return [copied, copy];
+}
+
 /**
  * `text` is a prototype getter on PHPResponse, so it is missing from responses
  * that crossed the worker boundary as plain structured-clone data. Decode the
@@ -588,27 +475,4 @@ function getErrorText(error: unknown) {
 		return getTerminalErrorMessage(error.message);
 	}
 	return String(error);
-}
-
-function getHistoryDirection(key: string) {
-	if (key === 'ArrowUp') {
-		return 'older' as const;
-	}
-	if (key === 'ArrowDown') {
-		return 'newer' as const;
-	}
-	return undefined;
-}
-
-function isCaretOnOutermostLine(
-	textarea: HTMLTextAreaElement,
-	direction: 'older' | 'newer'
-) {
-	const { selectionStart, selectionEnd, value } = textarea;
-	if (selectionStart !== selectionEnd) {
-		return false;
-	}
-	return direction === 'older'
-		? !value.slice(0, selectionStart).includes('\n')
-		: !value.slice(selectionStart).includes('\n');
 }

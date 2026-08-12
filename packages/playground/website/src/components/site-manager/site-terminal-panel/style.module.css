@@ -37,26 +37,7 @@
 	color: var(--ink, #1e1e1e);
 }
 
-.commandInput {
-	flex: 1;
-	min-width: 0;
-}
-
-.commandInput textarea {
-	background: transparent;
-	border: 0;
-	box-shadow: none;
-	color: #f6f7f7;
-	font-family:
-		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-	font-size: 12px;
-	line-height: 18px;
-	min-height: 36px;
-	padding: 8px;
-	resize: none;
-}
-
-.phpRunner {
+.runner {
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
@@ -64,7 +45,7 @@
 	min-height: 0;
 }
 
-.phpCodeInput textarea {
+.commandEditor textarea {
 	background: #ffffff;
 	border: 1px solid var(--interactive-border, #c3c4c7);
 	border-radius: 4px;
@@ -82,21 +63,6 @@
 .actions {
 	display: flex;
 	justify-content: flex-end;
-}
-
-.output {
-	background: #111111;
-	border-radius: 4px;
-	color: #f6f7f7;
-	flex: 1 1 auto;
-	font-family:
-		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-	font-size: 12px;
-	line-height: 18px;
-	min-height: 180px;
-	overflow: auto;
-	padding: 14px;
-	white-space: pre-wrap;
 }
 
 .result {
@@ -123,42 +89,30 @@
 	margin-bottom: 8px;
 }
 
+.resultActions {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+}
+
+.copyResult {
+	color: #a7aaad;
+	min-width: 24px;
+	padding: 2px;
+}
+
+.copyResult:hover,
+.copyResult:focus {
+	color: #f6f7f7;
+}
+
 .emptyOutput {
 	color: #a7aaad;
-}
-
-.entry + .entry {
-	border-top: 1px solid #3c434a;
-	margin-top: 14px;
-	padding-top: 14px;
-}
-
-.entryHeader {
-	align-items: flex-start;
-	display: flex;
-	gap: 12px;
-	justify-content: space-between;
-	margin-bottom: 8px;
-}
-
-.prompt {
-	color: #72aee6;
-	overflow-wrap: anywhere;
-}
-
-.prompt span {
-	color: #00d084;
 }
 
 .executionTime {
 	color: #a7aaad;
 	flex: 0 0 auto;
-}
-
-.entry pre {
-	margin: 0;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
 }
 
 .result pre {
@@ -169,19 +123,6 @@
 
 .errorOutput {
 	color: #ffb6b6;
-}
-
-.activePrompt {
-	align-items: flex-start;
-	display: flex;
-	gap: 8px;
-	margin-top: 14px;
-}
-
-.promptLabel {
-	color: #00d084;
-	flex: 0 0 auto;
-	padding-top: 9px;
 }
 
 .continuationHint {
