@@ -2,10 +2,13 @@ const NON_TERMINATING_COMMANDS = new Set(['server', 'shell']);
 
 /**
  * Removes the `wp` executable so that pasting a full `wp ...` command does not
- * run as `wp wp ...`. The terminal renders the executable as part of the prompt.
+ * run as `wp wp ...`.
  */
 export function stripWpPrefix(command: string) {
-	return command.trim().replace(/^\$\s*/, '').replace(/^wp(?:\s+|$)/, '');
+	return command
+		.trim()
+		.replace(/^\$\s*/, '')
+		.replace(/^wp(?:\s+|$)/, '');
 }
 
 const GLOBAL_PARAMETERS_WITH_VALUES = new Set([

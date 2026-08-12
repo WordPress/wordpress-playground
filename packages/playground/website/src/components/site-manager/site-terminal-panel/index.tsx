@@ -14,6 +14,11 @@ import { check, copySmall } from '@wordpress/icons';
 import { InlineProgress } from '../../pane-loading';
 import css from './style.module.css';
 import { getTerminalErrorMessage } from './terminal-error';
+import {
+	addCommandToHistory,
+	loadTerminalHistory,
+	saveTerminalHistory,
+} from './terminal-history';
 import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
 import { formatWpCliOutput } from './wp-cli-output';
 // @ts-ignore
@@ -30,6 +35,35 @@ type TerminalEntry = {
 };
 
 const PHP_INCOMPLETE_INPUT_MARKER = '__PLAYGROUND_PHP_INCOMPLETE_INPUT__';
+const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
+const PHP_SNIPPETS = [
+	{
+		label: 'Site title',
+		code: "echo get_option( 'blogname' );",
+	},
+	{
+		label: 'Current user',
+		code: 'print_r( wp_get_current_user()->data );',
+	},
+	{
+		label: 'List posts',
+		code: `foreach ( get_posts() as $post ) {
+	echo $post->post_title . "\\n";
+}`,
+	},
+	{
+		label: 'Create post',
+		code: `$post_id = wp_insert_post( [
+	'post_title' => 'Hello from Playground',
+	'post_status' => 'publish',
+] );
+echo "Created post {$post_id}\\n";`,
+	},
+	{
+		label: 'Active plugins',
+		code: "print_r( get_option( 'active_plugins' ) );",
+	},
+];
 const WP_CLI_SUGGESTIONS = [
 	{
 		command: 'wp option get blogname',
@@ -100,6 +134,15 @@ export function SiteTerminalPanel({
 	const [copiedOutput, copyOutput] = useCopyToClipboard();
 	const [isWpCliSuggestionsOpen, setIsWpCliSuggestionsOpen] = useState(false);
 	const [activeWpCliSuggestion, setActiveWpCliSuggestion] = useState(-1);
+	const [commandHistory, setCommandHistory] = useState(loadTerminalHistory);
+	const historyPosition = useRef<Record<TerminalMode, number>>({
+		php: -1,
+		'wp-cli': -1,
+	});
+	const draftBeforeHistory = useRef<Record<TerminalMode, string>>({
+		php: '',
+		'wp-cli': '',
+	});
 	const wpCliInputRef = useRef<HTMLInputElement>(null);
 	const wpCliComboboxRef = useRef<HTMLDivElement>(null);
 
@@ -154,6 +197,7 @@ export function SiteTerminalPanel({
 				status: 'success',
 				durationMs: performance.now() - startedAt,
 			});
+			recordCommand(mode, getHistoryCommand(mode, submittedCommand));
 		} catch (error) {
 			appendEntry({
 				mode,
@@ -162,6 +206,7 @@ export function SiteTerminalPanel({
 				status: 'error',
 				durationMs: performance.now() - startedAt,
 			});
+			recordCommand(mode, getHistoryCommand(mode, submittedCommand));
 		} finally {
 			setIsRunning(false);
 		}
@@ -183,10 +228,14 @@ export function SiteTerminalPanel({
 	}
 
 	function updateCurrentCommand(value: string) {
+		historyPosition.current[mode] = -1;
+		draftBeforeHistory.current[mode] = value;
 		setCurrentCommand(value);
 	}
 
 	function updateWpCliCommand(value: string) {
+		historyPosition.current['wp-cli'] = -1;
+		draftBeforeHistory.current['wp-cli'] = value;
 		setWpCliCommand(value);
 		setActiveWpCliSuggestion(-1);
 		setIsWpCliSuggestionsOpen(true);
@@ -199,6 +248,58 @@ export function SiteTerminalPanel({
 		wpCliInputRef.current?.focus();
 	}
 
+	function selectPhpSnippet(code: string) {
+		setPhpCode(code);
+		historyPosition.current.php = -1;
+		draftBeforeHistory.current.php = code;
+	}
+
+	function recordCommand(commandMode: TerminalMode, value: string) {
+		if (value.trim()) {
+			setCommandHistory((current) => {
+				const next = addCommandToHistory(current, commandMode, value);
+				saveTerminalHistory(next);
+				return next;
+			});
+		}
+		historyPosition.current[commandMode] = -1;
+		draftBeforeHistory.current[commandMode] = '';
+	}
+
+	function navigateHistory(direction: 'older' | 'newer') {
+		const history = commandHistory[mode];
+		if (history.length === 0) {
+			return;
+		}
+
+		const currentPosition = historyPosition.current[mode];
+		if (direction === 'older') {
+			if (currentPosition === -1) {
+				draftBeforeHistory.current[mode] = command;
+			}
+			const nextPosition = Math.min(
+				currentPosition + 1,
+				history.length - 1
+			);
+			historyPosition.current[mode] = nextPosition;
+			setCurrentCommand(history[nextPosition]);
+			closeWpCliSuggestions();
+			return;
+		}
+
+		if (currentPosition <= 0) {
+			historyPosition.current[mode] = -1;
+			setCurrentCommand(draftBeforeHistory.current[mode]);
+			closeWpCliSuggestions();
+			return;
+		}
+
+		const nextPosition = currentPosition - 1;
+		historyPosition.current[mode] = nextPosition;
+		setCurrentCommand(history[nextPosition]);
+		closeWpCliSuggestions();
+	}
+
 	function closeWpCliSuggestions() {
 		setIsWpCliSuggestionsOpen(false);
 		setActiveWpCliSuggestion(-1);
@@ -206,7 +307,16 @@ export function SiteTerminalPanel({
 
 	function handleWpCliKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
 		const suggestionsCount = wpCliSuggestions.length;
-		if (event.key === 'ArrowDown' && suggestionsCount > 0) {
+		if (event.key === 'ArrowUp' && activeWpCliSuggestion === -1) {
+			event.preventDefault();
+			navigateHistory('older');
+		} else if (
+			event.key === 'ArrowDown' &&
+			historyPosition.current['wp-cli'] !== -1
+		) {
+			event.preventDefault();
+			navigateHistory('newer');
+		} else if (event.key === 'ArrowDown' && suggestionsCount > 0) {
 			event.preventDefault();
 			setIsWpCliSuggestionsOpen(true);
 			setActiveWpCliSuggestion((index) => (index + 1) % suggestionsCount);
@@ -236,6 +346,23 @@ export function SiteTerminalPanel({
 				closeWpCliSuggestions();
 			}
 		}, 0);
+	}
+
+	function handlePhpKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+		if (isRunShortcut(event)) {
+			event.preventDefault();
+			runCommand();
+			return;
+		}
+
+		const direction = getHistoryDirection(event.key);
+		if (
+			direction &&
+			isCaretOnOutermostLine(event.currentTarget, direction)
+		) {
+			event.preventDefault();
+			navigateHistory(direction);
+		}
 	}
 
 	function clearOutput() {
@@ -278,23 +405,42 @@ export function SiteTerminalPanel({
 			</div>
 			<div className={css.runner}>
 				{mode === 'php' ? (
-					<TextareaControl
-						__nextHasNoMarginBottom
-						hideLabelFromVision
-						label="PHP code"
-						value={phpCode}
-						disabled={!playground}
-						rows={Math.max(12, phpCode.split('\n').length)}
-						className={css.commandEditor}
-						placeholder="echo get_option( 'blogname' );"
-						onChange={updateCurrentCommand}
-						onKeyDown={(event) => {
-							if (isRunShortcut(event)) {
-								event.preventDefault();
-								runCommand();
-							}
-						}}
-					/>
+					<>
+						<div className={css.phpSnippets}>
+							{PHP_SNIPPETS.map((snippet) => (
+								<Button
+									key={snippet.label}
+									size="compact"
+									variant="tertiary"
+									onClick={() =>
+										selectPhpSnippet(snippet.code)
+									}
+								>
+									{snippet.label}
+								</Button>
+							))}
+							<a
+								className={css.phpDocsLink}
+								href={WORDPRESS_PHP_DOCS_URL}
+								target="_blank"
+								rel="noreferrer"
+							>
+								WordPress PHP reference
+							</a>
+						</div>
+						<TextareaControl
+							__nextHasNoMarginBottom
+							hideLabelFromVision
+							label="PHP code"
+							value={phpCode}
+							disabled={!playground}
+							rows={Math.max(12, phpCode.split('\n').length)}
+							className={css.commandEditor}
+							placeholder="echo get_option( 'blogname' );"
+							onChange={updateCurrentCommand}
+							onKeyDown={handlePhpKeyDown}
+						/>
+					</>
 				) : (
 					<div className={css.wpCliCombobox} ref={wpCliComboboxRef}>
 						<input
@@ -603,12 +749,39 @@ function getWpCliSuggestions(input: string) {
 	);
 }
 
+function getHistoryCommand(mode: TerminalMode, command: string) {
+	return mode === 'wp-cli' ? `wp ${command}` : command;
+}
+
 function getEntryDisplayOutput(entry: TerminalEntry) {
 	return entry.output || '(no output)';
 }
 
 function isRunShortcut(event: React.KeyboardEvent) {
 	return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
+}
+
+function getHistoryDirection(key: string) {
+	if (key === 'ArrowUp') {
+		return 'older' as const;
+	}
+	if (key === 'ArrowDown') {
+		return 'newer' as const;
+	}
+	return undefined;
+}
+
+function isCaretOnOutermostLine(
+	textarea: HTMLTextAreaElement,
+	direction: 'older' | 'newer'
+) {
+	const { selectionStart, selectionEnd, value } = textarea;
+	if (selectionStart !== selectionEnd) {
+		return false;
+	}
+	return direction === 'older'
+		? !value.slice(0, selectionStart).includes('\n')
+		: !value.slice(selectionStart).includes('\n');
 }
 
 function useCopyToClipboard(): [boolean, (text: string) => void] {

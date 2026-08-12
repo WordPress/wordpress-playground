@@ -45,6 +45,25 @@
 	min-height: 0;
 }
 
+.phpSnippets {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.phpDocsLink {
+	color: var(--wp-admin-theme-color, #3858e9);
+	font-size: 12px;
+	margin-left: auto;
+	text-decoration: none;
+}
+
+.phpDocsLink:hover,
+.phpDocsLink:focus {
+	text-decoration: underline;
+}
+
 .commandEditor textarea {
 	background: #ffffff;
 	border: 1px solid var(--interactive-border, #c3c4c7);
@@ -172,9 +191,10 @@
 }
 
 .copyResult {
-	color: #a7aaad;
+	background: rgba(255, 255, 255, 0.08);
+	color: #f6f7f7;
 	min-width: 24px;
-	opacity: 0;
+	opacity: 0.72;
 	padding: 2px;
 	transition: opacity 0.12s ease;
 }
@@ -187,7 +207,12 @@
 
 .copyResult:hover,
 .copyResult:focus {
+	background: rgba(255, 255, 255, 0.14);
 	color: #f6f7f7;
+}
+
+.copyResult svg {
+	fill: currentColor;
 }
 
 .emptyOutput {
