@@ -115,6 +115,9 @@ export class PlaygroundRoute {
 				'mcp',
 				'mcp-port',
 				'can-save',
+				// Dropping it would silently switch `?experimental=kandelo`
+				// sessions back to the classic runtime.
+				'experimental',
 			];
 			const preserveParams: Record<string, string | null> = {};
 			for (const param of preserveParamsKeys) {
