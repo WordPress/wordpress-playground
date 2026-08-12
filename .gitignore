@@ -68,6 +68,10 @@ php.js.bak
 **/playwright-report/
 **/blob-report/
 
+# Experimental posix-kernel e2e "install-once" snapshot, captured at runtime
+# by the Playwright globalSetup and served to every test.
+packages/playground/website/playwright/.posix-kernel-cache/
+
 # @php-wasm/cli saves this file to disk so PHP has access to it.
 # Since it is dynamically generated from the Node.js TLS module,
 # we do not want to commit it to the repository.
