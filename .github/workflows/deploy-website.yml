@@ -76,8 +76,29 @@ jobs:
                   # Allow deploying a specific ref for folks who want to pin a specific version.
                   ref: ${{ vars.GIT_REF_TO_DEPLOY }}
             - uses: ./.github/actions/prepare-playground
+              with:
+                  # The kandelo binary fetch script needs Node >= 22.18;
+                  # 24 matches the posix-kernel CI jobs.
+                  node-version: 24
             - name: Sync PHP next build assets
               run: npm run sync:php-next
+            # host/dist/ and binaries/ are gitignored upstream; build and
+            # fetch them so the kernel-mode remote build finds its
+            # artifacts. Mirrors the posix-kernel jobs in ci.yml.
+            - name: Build kandelo host
+              shell: bash
+              working-directory: kandelo/host
+              run: |
+                  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --no-audit --no-fund
+                  npm run build
+            - name: Fetch kandelo wasm binaries
+              run: node packages/playground/cli/src/posix-kernel/scripts/fetch-kandelo-binaries.mts
+            # Built before the website so `build:wasm-wordpress-net`
+            # packages the kernel-mode remote into the artifact.
+            - name: Build the kernel-mode remote
+              run: npx nx run playground-remote:build-experimental-posix-kernel
+              env:
+                  CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
             - run: npx nx build playground-website
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
