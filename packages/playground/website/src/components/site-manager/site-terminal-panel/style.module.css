@@ -60,6 +60,81 @@
 	resize: vertical;
 }
 
+.wpCliCombobox {
+	position: relative;
+}
+
+.wpCliInput {
+	background: #ffffff;
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 4px;
+	box-shadow: none;
+	color: var(--ink, #1e1e1e);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 13px;
+	line-height: 20px;
+	min-height: 40px;
+	padding: 9px 12px;
+	width: 100%;
+}
+
+.wpCliInput:focus {
+	border-color: var(--wp-admin-theme-color, #3858e9);
+	box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #3858e9);
+	outline: none;
+}
+
+.wpCliInput:disabled {
+	background: #f6f7f7;
+	color: #8c8f94;
+}
+
+.wpCliSuggestions {
+	background: #ffffff;
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+	left: 0;
+	list-style: none;
+	margin: 4px 0 0;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 4px 0;
+	position: absolute;
+	right: 0;
+	top: 100%;
+	z-index: 10;
+}
+
+.wpCliSuggestion {
+	cursor: pointer;
+	display: grid;
+	gap: 2px;
+	grid-template-columns: minmax(0, 1fr);
+	padding: 8px 12px;
+}
+
+.wpCliSuggestion:hover,
+.wpCliSuggestionActive {
+	background: #f0f6fc;
+}
+
+.wpCliSuggestionCommand {
+	color: var(--ink, #1e1e1e);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 13px;
+	line-height: 18px;
+	overflow-wrap: anywhere;
+}
+
+.wpCliSuggestionDescription {
+	color: #646970;
+	font-size: 12px;
+	line-height: 16px;
+}
+
 .actions {
 	display: flex;
 	justify-content: flex-end;
@@ -77,6 +152,7 @@
 	min-height: 160px;
 	overflow: auto;
 	padding: 14px;
+	position: relative;
 	white-space: pre-wrap;
 }
 
@@ -98,7 +174,15 @@
 .copyResult {
 	color: #a7aaad;
 	min-width: 24px;
+	opacity: 0;
 	padding: 2px;
+	transition: opacity 0.12s ease;
+}
+
+.result:hover .copyResult,
+.result:focus-within .copyResult,
+.copyResult:focus {
+	opacity: 1;
 }
 
 .copyResult:hover,

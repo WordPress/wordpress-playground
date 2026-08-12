@@ -30,6 +30,56 @@ type TerminalEntry = {
 };
 
 const PHP_INCOMPLETE_INPUT_MARKER = '__PLAYGROUND_PHP_INCOMPLETE_INPUT__';
+const WP_CLI_SUGGESTIONS = [
+	{
+		command: 'wp option get blogname',
+		description: 'Show the site title.',
+	},
+	{
+		command: 'wp option update blogname "My Playground"',
+		description: 'Change the site title.',
+	},
+	{
+		command: 'wp plugin list',
+		description: 'List installed plugins.',
+	},
+	{
+		command: 'wp plugin activate gutenberg',
+		description: 'Activate a plugin.',
+	},
+	{
+		command: 'wp theme list',
+		description: 'List installed themes.',
+	},
+	{
+		command: 'wp theme activate twentytwentyfour',
+		description: 'Activate a theme.',
+	},
+	{
+		command: 'wp post list',
+		description: 'List posts.',
+	},
+	{
+		command: 'wp post create --post_title="Hello" --post_status=publish',
+		description: 'Create a post.',
+	},
+	{
+		command: 'wp user list',
+		description: 'List users.',
+	},
+	{
+		command: 'wp rewrite flush',
+		description: 'Flush rewrite rules.',
+	},
+	{
+		command: 'wp search-replace old.example new.example --dry-run',
+		description: 'Preview a search and replace.',
+	},
+	{
+		command: 'wp cache flush',
+		description: 'Clear the object cache.',
+	},
+];
 
 export function SiteTerminalPanel({
 	playground,
@@ -48,11 +98,16 @@ export function SiteTerminalPanel({
 	const [isRunning, setIsRunning] = useState(false);
 	const [isAwaitingMoreInput, setIsAwaitingMoreInput] = useState(false);
 	const [copiedOutput, copyOutput] = useCopyToClipboard();
+	const [isWpCliSuggestionsOpen, setIsWpCliSuggestionsOpen] = useState(false);
+	const [activeWpCliSuggestion, setActiveWpCliSuggestion] = useState(-1);
+	const wpCliInputRef = useRef<HTMLInputElement>(null);
+	const wpCliComboboxRef = useRef<HTMLDivElement>(null);
 
 	const command = mode === 'php' ? phpCode : wpCliCommand;
 	const entries = entriesByMode[mode];
 	const latestEntry = entries.at(-1);
 	const canRun = !!playground && !!command.trim() && !isRunning;
+	const wpCliSuggestions = getWpCliSuggestions(wpCliCommand);
 
 	async function runCommand() {
 		if (!playground || !canRun) {
@@ -66,6 +121,9 @@ export function SiteTerminalPanel({
 		const submittedCommand =
 			mode === 'wp-cli' ? stripWpPrefix(wpCliCommand.trim()) : phpCode;
 
+		if (mode === 'wp-cli') {
+			closeWpCliSuggestions();
+		}
 		setIsRunning(true);
 		setIsAwaitingMoreInput(false);
 		const startedAt = performance.now();
@@ -128,6 +186,58 @@ export function SiteTerminalPanel({
 		setCurrentCommand(value);
 	}
 
+	function updateWpCliCommand(value: string) {
+		setWpCliCommand(value);
+		setActiveWpCliSuggestion(-1);
+		setIsWpCliSuggestionsOpen(true);
+	}
+
+	function selectWpCliSuggestion(commandSuggestion: string) {
+		setWpCliCommand(commandSuggestion);
+		setActiveWpCliSuggestion(-1);
+		setIsWpCliSuggestionsOpen(false);
+		wpCliInputRef.current?.focus();
+	}
+
+	function closeWpCliSuggestions() {
+		setIsWpCliSuggestionsOpen(false);
+		setActiveWpCliSuggestion(-1);
+	}
+
+	function handleWpCliKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+		const suggestionsCount = wpCliSuggestions.length;
+		if (event.key === 'ArrowDown' && suggestionsCount > 0) {
+			event.preventDefault();
+			setIsWpCliSuggestionsOpen(true);
+			setActiveWpCliSuggestion((index) => (index + 1) % suggestionsCount);
+		} else if (event.key === 'ArrowUp' && suggestionsCount > 0) {
+			event.preventDefault();
+			setIsWpCliSuggestionsOpen(true);
+			setActiveWpCliSuggestion((index) =>
+				index <= 0 ? suggestionsCount - 1 : index - 1
+			);
+		} else if (event.key === 'Enter') {
+			event.preventDefault();
+			if (isWpCliSuggestionsOpen && activeWpCliSuggestion >= 0) {
+				selectWpCliSuggestion(
+					wpCliSuggestions[activeWpCliSuggestion].command
+				);
+				return;
+			}
+			runCommand();
+		} else if (event.key === 'Escape') {
+			closeWpCliSuggestions();
+		}
+	}
+
+	function handleWpCliBlur() {
+		setTimeout(() => {
+			if (!wpCliComboboxRef.current?.contains(document.activeElement)) {
+				closeWpCliSuggestions();
+			}
+		}, 0);
+	}
+
 	function clearOutput() {
 		setEntriesByMode((current) => ({
 			...current,
@@ -167,24 +277,115 @@ export function SiteTerminalPanel({
 				</Button>
 			</div>
 			<div className={css.runner}>
-				<TextareaControl
-					__nextHasNoMarginBottom
-					hideLabelFromVision
-					label={mode === 'php' ? 'PHP code' : 'WP-CLI command'}
-					value={command}
-					disabled={!playground}
-					rows={Math.max(
-						mode === 'php' ? 12 : 6,
-						command.split('\n').length
-					)}
-					className={css.commandEditor}
-					placeholder={
-						mode === 'php'
-							? "echo get_option( 'blogname' );"
-							: 'wp option get blogname'
-					}
-					onChange={updateCurrentCommand}
-				/>
+				{mode === 'php' ? (
+					<TextareaControl
+						__nextHasNoMarginBottom
+						hideLabelFromVision
+						label="PHP code"
+						value={phpCode}
+						disabled={!playground}
+						rows={Math.max(12, phpCode.split('\n').length)}
+						className={css.commandEditor}
+						placeholder="echo get_option( 'blogname' );"
+						onChange={updateCurrentCommand}
+						onKeyDown={(event) => {
+							if (isRunShortcut(event)) {
+								event.preventDefault();
+								runCommand();
+							}
+						}}
+					/>
+				) : (
+					<div className={css.wpCliCombobox} ref={wpCliComboboxRef}>
+						<input
+							ref={wpCliInputRef}
+							className={css.wpCliInput}
+							type="text"
+							value={wpCliCommand}
+							disabled={!playground}
+							placeholder="wp option get blogname"
+							aria-label="WP-CLI command"
+							autoComplete="off"
+							role="combobox"
+							aria-autocomplete="list"
+							aria-haspopup="listbox"
+							aria-expanded={isWpCliSuggestionsOpen}
+							aria-controls={
+								isWpCliSuggestionsOpen
+									? 'wp-cli-command-suggestions'
+									: undefined
+							}
+							aria-activedescendant={
+								isWpCliSuggestionsOpen &&
+								activeWpCliSuggestion >= 0
+									? `wp-cli-command-suggestion-${activeWpCliSuggestion}`
+									: undefined
+							}
+							onChange={(event) =>
+								updateWpCliCommand(event.target.value)
+							}
+							onFocus={() => setIsWpCliSuggestionsOpen(true)}
+							onBlur={handleWpCliBlur}
+							onKeyDown={handleWpCliKeyDown}
+						/>
+						{isWpCliSuggestionsOpen &&
+							wpCliSuggestions.length > 0 && (
+								<ul
+									id="wp-cli-command-suggestions"
+									role="listbox"
+									className={css.wpCliSuggestions}
+								>
+									{wpCliSuggestions.map(
+										(suggestion, index) => (
+											<li
+												key={suggestion.command}
+												id={`wp-cli-command-suggestion-${index}`}
+												role="option"
+												aria-selected={
+													index ===
+													activeWpCliSuggestion
+												}
+												className={
+													index ===
+													activeWpCliSuggestion
+														? `${css.wpCliSuggestion} ${css.wpCliSuggestionActive}`
+														: css.wpCliSuggestion
+												}
+												onMouseDown={(event) =>
+													event.preventDefault()
+												}
+												onMouseEnter={() =>
+													setActiveWpCliSuggestion(
+														index
+													)
+												}
+												onClick={() =>
+													selectWpCliSuggestion(
+														suggestion.command
+													)
+												}
+											>
+												<span
+													className={
+														css.wpCliSuggestionCommand
+													}
+												>
+													{suggestion.command}
+												</span>
+												<span
+													className={
+														css.wpCliSuggestionDescription
+													}
+												>
+													{suggestion.description}
+												</span>
+											</li>
+										)
+									)}
+								</ul>
+							)}
+					</div>
+				)}
 				<div className={css.actions}>
 					<Button
 						variant="primary"
@@ -390,8 +591,24 @@ function formatExecutionTime(durationMs: number) {
 	return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
+function getWpCliSuggestions(input: string) {
+	const normalizedInput = stripWpPrefix(input.trim()).toLowerCase();
+	if (!normalizedInput) {
+		return WP_CLI_SUGGESTIONS;
+	}
+	return WP_CLI_SUGGESTIONS.filter((suggestion) =>
+		stripWpPrefix(suggestion.command)
+			.toLowerCase()
+			.includes(normalizedInput)
+	);
+}
+
 function getEntryDisplayOutput(entry: TerminalEntry) {
 	return entry.output || '(no output)';
+}
+
+function isRunShortcut(event: React.KeyboardEvent) {
+	return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
 }
 
 function useCopyToClipboard(): [boolean, (text: string) => void] {
