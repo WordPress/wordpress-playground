@@ -56,6 +56,34 @@
 	resize: none;
 }
 
+.phpRunner {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 12px;
+	min-height: 0;
+}
+
+.phpCodeInput textarea {
+	background: #ffffff;
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 4px;
+	box-shadow: none;
+	color: var(--ink, #1e1e1e);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 13px;
+	line-height: 20px;
+	min-height: 240px;
+	padding: 12px;
+	resize: vertical;
+}
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+}
+
 .output {
 	background: #111111;
 	border-radius: 4px;
@@ -69,6 +97,30 @@
 	overflow: auto;
 	padding: 14px;
 	white-space: pre-wrap;
+}
+
+.result {
+	background: #111111;
+	border-radius: 4px;
+	color: #f6f7f7;
+	flex: 1 1 auto;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 12px;
+	line-height: 18px;
+	min-height: 160px;
+	overflow: auto;
+	padding: 14px;
+	white-space: pre-wrap;
+}
+
+.resultHeader {
+	align-items: flex-start;
+	color: #a7aaad;
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
+	margin-bottom: 8px;
 }
 
 .emptyOutput {
@@ -104,6 +156,12 @@
 }
 
 .entry pre {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.result pre {
 	margin: 0;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;

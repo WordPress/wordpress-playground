@@ -33,7 +33,6 @@ type TerminalEntry = {
 	durationMs: number;
 };
 
-const PHP_SESSION_STATE_PATH = '/tmp/playground-terminal-php-session';
 const PHP_INCOMPLETE_INPUT_MARKER = '__PLAYGROUND_PHP_INCOMPLETE_INPUT__';
 
 export function SiteTerminalPanel({
@@ -65,6 +64,7 @@ export function SiteTerminalPanel({
 
 	const command = mode === 'php' ? phpCode : wpCliCommand;
 	const entries = entriesByMode[mode];
+	const latestPhpEntry = entriesByMode.php.at(-1);
 	const canRun = !!playground && !!command.trim() && !isRunning;
 
 	useEffect(() => {
@@ -106,7 +106,6 @@ export function SiteTerminalPanel({
 			} else {
 				output = await runWpCli(playground, `wp ${submittedCommand}`);
 			}
-			recordCommand(mode, submittedCommand);
 			appendEntry({
 				mode,
 				command: submittedCommand,
@@ -114,9 +113,8 @@ export function SiteTerminalPanel({
 				status: 'success',
 				durationMs: performance.now() - startedAt,
 			});
-			resetCurrentCommand();
+			recordCompletedCommand(mode, submittedCommand);
 		} catch (error) {
-			recordCommand(mode, submittedCommand);
 			appendEntry({
 				mode,
 				command: submittedCommand,
@@ -124,6 +122,7 @@ export function SiteTerminalPanel({
 				status: 'error',
 				durationMs: performance.now() - startedAt,
 			});
+			recordCompletedCommand(mode, submittedCommand);
 		} finally {
 			setIsRunning(false);
 		}
@@ -132,8 +131,19 @@ export function SiteTerminalPanel({
 	function appendEntry(entry: TerminalEntry) {
 		setEntriesByMode((current) => ({
 			...current,
-			[entry.mode]: [...current[entry.mode], entry],
+			[entry.mode]:
+				entry.mode === 'php'
+					? [entry]
+					: [...current[entry.mode], entry],
 		}));
+	}
+
+	function recordCompletedCommand(commandMode: TerminalMode, value: string) {
+		if (commandMode === 'php') {
+			return;
+		}
+		recordCommand(commandMode, value);
+		resetCurrentCommand();
 	}
 
 	function recordCommand(commandMode: TerminalMode, value: string) {
@@ -236,111 +246,158 @@ export function SiteTerminalPanel({
 					Clear
 				</Button>
 			</div>
-			<div
-				id="terminal-session"
-				className={css.output}
-				aria-live="polite"
-				ref={outputRef}
-			>
-				{!playground ? (
-					<InlineProgress message="WordPress is still loading. The terminal will be ready in a moment." />
-				) : entries.length === 0 ? (
-					<div className={css.emptyOutput}>
-						{mode === 'php'
-							? 'PHP session ready. WordPress is loaded.'
-							: 'WP-CLI session ready.'}
-					</div>
-				) : (
-					entries.map((entry, index) => (
-						<div className={css.entry} key={index}>
-							<div className={css.entryHeader}>
-								<div className={css.prompt}>
-									<span>
-										{entry.mode === 'php'
-											? 'php >'
-											: '$ wp'}
-									</span>{' '}
-									{entry.command}
-								</div>
-								<span
-									className={css.executionTime}
-									title="Execution time"
-								>
-									{formatExecutionTime(entry.durationMs)}
-								</span>
-							</div>
-							<pre
-								className={
-									entry.status === 'error'
-										? css.errorOutput
-										: undefined
-								}
-							>
-								{entry.output || '(no output)'}
-							</pre>
-						</div>
-					))
-				)}
-				<div className={css.activePrompt}>
-					<span className={css.promptLabel}>
-						{mode === 'php' ? 'php >' : '$ wp'}
-					</span>
+			{mode === 'php' ? (
+				<div className={css.phpRunner}>
 					<TextareaControl
 						__nextHasNoMarginBottom
 						hideLabelFromVision
-						label={mode === 'php' ? 'PHP code' : 'WP-CLI command'}
-						value={command}
+						label="PHP code"
+						value={phpCode}
 						disabled={!playground}
-						rows={Math.max(1, command.split('\n').length)}
-						className={css.commandInput}
-						placeholder={
-							mode === 'php'
-								? "echo get_option( 'blogname' );"
-								: 'option get blogname'
-						}
+						rows={Math.max(12, phpCode.split('\n').length)}
+						className={css.phpCodeInput}
+						placeholder="echo get_option( 'blogname' );"
 						onChange={updateCurrentCommand}
-						onKeyDown={(event) => {
-							const direction = getHistoryDirection(event.key);
-							if (direction) {
-								/**
-								 * Multi-line input needs the arrow keys to move
-								 * the caret between lines. Only the outermost
-								 * lines browse the history.
-								 */
-								if (
-									isCaretOnOutermostLine(
-										event.currentTarget,
-										direction
-									)
+					/>
+					<div className={css.actions}>
+						<Button
+							variant="primary"
+							onClick={runCommand}
+							disabled={!canRun}
+							isBusy={isRunning}
+						>
+							Run
+						</Button>
+					</div>
+					<div className={css.result} aria-live="polite">
+						{!playground ? (
+							<InlineProgress message="WordPress is still loading. The PHP runner will be ready in a moment." />
+						) : latestPhpEntry ? (
+							<>
+								<div className={css.resultHeader}>
+									<span>Result</span>
+									<span
+										className={css.executionTime}
+										title="Execution time"
+									>
+										{formatExecutionTime(
+											latestPhpEntry.durationMs
+										)}
+									</span>
+								</div>
+								<pre
+									className={
+										latestPhpEntry.status === 'error'
+											? css.errorOutput
+											: undefined
+									}
+								>
+									{latestPhpEntry.output || '(no output)'}
+								</pre>
+							</>
+						) : (
+							<div className={css.emptyOutput}>
+								Run PHP code to see the result.
+							</div>
+						)}
+					</div>
+					{isAwaitingMoreInput && (
+						<div className={css.continuationHint}>
+							Incomplete PHP code. Keep typing to finish the
+							statement, then run it again.
+						</div>
+					)}
+				</div>
+			) : (
+				<div
+					id="terminal-session"
+					className={css.output}
+					aria-live="polite"
+					ref={outputRef}
+				>
+					{!playground ? (
+						<InlineProgress message="WordPress is still loading. The terminal will be ready in a moment." />
+					) : entries.length === 0 ? (
+						<div className={css.emptyOutput}>
+							WP-CLI session ready.
+						</div>
+					) : (
+						entries.map((entry, index) => (
+							<div className={css.entry} key={index}>
+								<div className={css.entryHeader}>
+									<div className={css.prompt}>
+										<span>$ wp</span> {entry.command}
+									</div>
+									<span
+										className={css.executionTime}
+										title="Execution time"
+									>
+										{formatExecutionTime(entry.durationMs)}
+									</span>
+								</div>
+								<pre
+									className={
+										entry.status === 'error'
+											? css.errorOutput
+											: undefined
+									}
+								>
+									{entry.output || '(no output)'}
+								</pre>
+							</div>
+						))
+					)}
+					<div className={css.activePrompt}>
+						<span className={css.promptLabel}>$ wp</span>
+						<TextareaControl
+							__nextHasNoMarginBottom
+							hideLabelFromVision
+							label="WP-CLI command"
+							value={command}
+							disabled={!playground}
+							rows={Math.max(1, command.split('\n').length)}
+							className={css.commandInput}
+							placeholder="option get blogname"
+							onChange={updateCurrentCommand}
+							onKeyDown={(event) => {
+								const direction = getHistoryDirection(
+									event.key
+								);
+								if (direction) {
+									/**
+									 * Multi-line input needs the arrow keys to move
+									 * the caret between lines. Only the outermost
+									 * lines browse the history.
+									 */
+									if (
+										isCaretOnOutermostLine(
+											event.currentTarget,
+											direction
+										)
+									) {
+										event.preventDefault();
+										navigateHistory(direction);
+									}
+								} else if (
+									event.key === 'Enter' &&
+									!event.shiftKey
 								) {
 									event.preventDefault();
-									navigateHistory(direction);
+									runCommand();
 								}
-							} else if (
-								event.key === 'Enter' &&
-								!event.shiftKey
-							) {
-								event.preventDefault();
-								runCommand();
-							}
-						}}
-					/>
-					<Button
-						variant="primary"
-						onClick={runCommand}
-						disabled={!canRun}
-						isBusy={isRunning}
-					>
-						Run
-					</Button>
-				</div>
-				{mode === 'php' && isAwaitingMoreInput && (
-					<div className={css.continuationHint}>
-						Incomplete PHP code. Keep typing to finish the
-						statement, then press Enter.
+							}}
+						/>
+						<Button
+							variant="primary"
+							onClick={runCommand}
+							disabled={!canRun}
+							isBusy={isRunning}
+						>
+							Run
+						</Button>
 					</div>
-				)}
-			</div>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -403,14 +460,6 @@ require_once ${phpVar(wpLoadPath)};
 (function () {
 	$playground_repl_has_error_handler = false;
 	try {
-		$playground_repl_state = @unserialize(
-			@file_get_contents(${phpVar(PHP_SESSION_STATE_PATH)})
-		);
-		if (is_array($playground_repl_state)) {
-			extract($playground_repl_state);
-		}
-		unset($playground_repl_state);
-
 		set_error_handler(function ($severity, $message) {
 			file_put_contents(
 				'php://stderr',
@@ -448,23 +497,6 @@ require_once ${phpVar(wpLoadPath)};
 	} finally {
 		if ($playground_repl_has_error_handler) {
 			restore_error_handler();
-		}
-		$playground_repl_state = get_defined_vars();
-		unset($playground_repl_state['playground_repl_state']);
-		unset($playground_repl_state['playground_repl_error']);
-		unset($playground_repl_state['playground_repl_has_error_handler']);
-		try {
-			file_put_contents(
-				${phpVar(PHP_SESSION_STATE_PATH)},
-				serialize($playground_repl_state)
-			);
-		} catch (Throwable $playground_repl_error) {
-			file_put_contents(
-				'php://stderr',
-				'Could not save the PHP session: ' .
-				$playground_repl_error->getMessage() . "\\n",
-				FILE_APPEND
-			);
 		}
 	}
 })();`;
