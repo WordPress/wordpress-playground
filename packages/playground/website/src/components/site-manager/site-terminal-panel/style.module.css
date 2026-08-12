@@ -190,6 +190,22 @@
 	gap: 8px;
 }
 
+.resultActions button,
+.resultActions button:hover,
+.resultActions button:focus {
+	color: #f6f7f7;
+}
+
+.resultActions button:disabled,
+.resultActions button:disabled:hover {
+	color: #646970;
+}
+
+.resultActions button svg,
+.resultActions button svg path {
+	fill: currentColor;
+}
+
 .copyResult {
 	background: rgba(255, 255, 255, 0.08);
 	color: #f6f7f7;
@@ -219,14 +235,6 @@
 .copyResult:focus {
 	background: rgba(255, 255, 255, 0.14);
 	color: #f6f7f7;
-}
-
-.copyResult svg {
-	fill: currentColor;
-}
-
-.historyButton svg {
-	fill: currentColor;
 }
 
 .emptyOutput {
