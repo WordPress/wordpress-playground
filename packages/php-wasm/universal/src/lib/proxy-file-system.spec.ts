@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PHP } from './php';
-import type { PHPEvent } from './universal-php';
 import { proxyFileSystem } from './proxy-file-system';
 
 describe('proxyFileSystem', () => {
@@ -10,7 +9,7 @@ describe('proxyFileSystem', () => {
 		const onProxiedRequestEnd = vi.fn();
 
 		sourceOfTruth.php.addEventListener(
-			'proxyfs.request.end' as PHPEvent['type'],
+			'proxyfs.request.end',
 			onProxiedRequestEnd
 		);
 		await proxyFileSystem(sourceOfTruth.php, replica.php, ['/wordpress']);
@@ -22,10 +21,7 @@ describe('proxyFileSystem', () => {
 });
 
 function createFakePhp() {
-	const listeners = new Map<
-		string,
-		Set<(event: { type: string }) => void>
-	>();
+	const listeners = new Map<string, Set<(event: { type: string }) => void>>();
 	const privateSymbol = Symbol('private');
 	const runtime = {
 		phpVersion: { major: 8 },

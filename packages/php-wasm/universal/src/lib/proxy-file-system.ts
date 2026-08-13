@@ -221,6 +221,15 @@ export async function proxyFileSystem(
 			};
 		});
 	}
+
+	/**
+	 * Filesystem listeners belong to the source-of-truth PHP instance, but a
+	 * request using PROXYFS ends on the replica. Forward that lifecycle event
+	 * so the filesystem owner can finish work such as flushing journals.
+	 */
+	replica.addEventListener('request.end', () => {
+		sourceOfTruth.dispatchEvent({ type: 'proxyfs.request.end' });
+	});
 }
 
 /**

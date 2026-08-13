@@ -101,7 +101,11 @@ describe('journalFSEventsToOpfs', () => {
 		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('saved');
 	});
 
-	it.each(['filesystem.write', 'request.end'] as const)(
+	it.each([
+		'filesystem.write',
+		'request.end',
+		'proxyfs.request.end',
+	] as const)(
 		'flushes pending writes when %s is dispatched',
 		async (eventType) => {
 			const flushed = deferred<void>();
@@ -259,6 +263,9 @@ describe('journalFSEventsToOpfs', () => {
 		const requestEndListener = addEventListener.mock.calls.find(
 			([eventType]) => eventType === 'request.end'
 		)![1];
+		const proxyFsRequestEndListener = addEventListener.mock.calls.find(
+			([eventType]) => eventType === 'proxyfs.request.end'
+		)![1];
 		const filesystemWriteListener = addEventListener.mock.calls.find(
 			([eventType]) => eventType === 'filesystem.write'
 		)![1];
@@ -276,6 +283,10 @@ describe('journalFSEventsToOpfs', () => {
 		expect(removeEventListener).toHaveBeenCalledWith(
 			'request.end',
 			requestEndListener
+		);
+		expect(removeEventListener).toHaveBeenCalledWith(
+			'proxyfs.request.end',
+			proxyFsRequestEndListener
 		);
 		expect(FS.write).toBe(originalWrite);
 	});
