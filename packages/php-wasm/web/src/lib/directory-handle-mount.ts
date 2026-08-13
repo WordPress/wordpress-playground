@@ -513,6 +513,8 @@ export function journalFSEventsToOpfs(
 	}
 
 	php.addEventListener('request.end', flushInBackground);
+	// Replica writes enter this journal through PROXYFS, but their request.end
+	// event fires only on the replica. Flush when proxyFileSystem forwards it.
 	php.addEventListener('proxyfs.request.end', flushInBackground);
 	php.addEventListener('filesystem.write', flushInBackground);
 	return {

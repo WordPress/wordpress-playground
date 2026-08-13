@@ -735,18 +735,21 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 			return await playground.documentRoot;
 		});
 		const markerPath = joinPaths(documentRoot, 'wp-content', markerName);
-		const primaryMarkerPath = `/primary-php-${testId}`;
+		const primaryOnlyMarkerPath = `/primary-php-${testId}`;
 
 		const result = await website.page.evaluate(
 			async ({
 				markerContents,
 				markerPath,
-				primaryMarkerPath,
+				primaryOnlyMarkerPath,
 				testId,
 			}) => {
 				const playground = (window as any).playgroundSites.getClient();
+				// This random path is outside the proxied filesystems. Writing it through
+				// the client creates it only on the primary, so each request can report
+				// which pooled PHP instance handled it.
 				await playground.writeFile(
-					primaryMarkerPath,
+					primaryOnlyMarkerPath,
 					'only the primary PHP instance can see this file'
 				);
 
@@ -766,13 +769,13 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 				// file barriers so the first occupies the primary and the second uses a
 				// replica, then finish the primary before the replica writes the marker.
 				const firstRequestBarrierPath = `/tmp/barrier-first-${testId}`;
-				const primaryRequest = playground.run({
+				const firstRequest = playground.run({
 					code: `<?php
 file_put_contents(${JSON.stringify(firstRequestBarrierPath)}, 'ready');
 while (file_get_contents(${JSON.stringify(firstRequestBarrierPath)}) !== 'release') {
 	usleep(1000);
 }
-echo file_exists(${JSON.stringify(primaryMarkerPath)})
+echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 	? 'primary'
 	: 'secondary';
 `,
@@ -780,7 +783,7 @@ echo file_exists(${JSON.stringify(primaryMarkerPath)})
 				await waitForFile(firstRequestBarrierPath);
 
 				const secondRequestBarrierPath = `/tmp/barrier-second-${testId}`;
-				const secondaryRequest = playground.run({
+				const secondRequest = playground.run({
 					code: `<?php
 file_put_contents(${JSON.stringify(secondRequestBarrierPath)}, 'ready');
 while (file_get_contents(${JSON.stringify(secondRequestBarrierPath)}) !== 'release') {
@@ -790,7 +793,7 @@ file_put_contents(
 	${JSON.stringify(markerPath)},
 	${JSON.stringify(markerContents)}
 );
-echo file_exists(${JSON.stringify(primaryMarkerPath)})
+echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 	? 'primary'
 	: 'secondary';
 `,
@@ -798,22 +801,22 @@ echo file_exists(${JSON.stringify(primaryMarkerPath)})
 				await waitForFile(secondRequestBarrierPath);
 
 				await playground.writeFile(firstRequestBarrierPath, 'release');
-				const primaryResponse = await primaryRequest;
+				const firstResponse = await firstRequest;
 				await playground.writeFile(secondRequestBarrierPath, 'release');
-				const secondaryResponse = await secondaryRequest;
+				const secondResponse = await secondRequest;
 
 				return {
 					liveMarkerContents:
 						await playground.readFileAsText(markerPath),
-					primaryRole: primaryResponse.text,
-					secondaryRole: secondaryResponse.text,
+					firstRequestRole: firstResponse.text,
+					secondRequestRole: secondResponse.text,
 				};
 			},
-			{ markerContents, markerPath, primaryMarkerPath, testId }
+			{ markerContents, markerPath, primaryOnlyMarkerPath, testId }
 		);
 
-		expect(result.primaryRole).toBe('primary');
-		expect(result.secondaryRole).toBe('secondary');
+		expect(result.firstRequestRole).toBe('primary');
+		expect(result.secondRequestRole).toBe('secondary');
 		// The write reached the shared live VFS, isolating persistence as the
 		// only possible cause if the same bytes are missing from OPFS below.
 		expect(result.liveMarkerContents).toBe(markerContents);
