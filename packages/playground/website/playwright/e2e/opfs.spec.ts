@@ -2,6 +2,7 @@ import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
+import { joinPaths } from '@php-wasm/util';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 import { readFile } from 'node:fs/promises';
 
@@ -680,6 +681,232 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 				storage: 'opfs',
 				persistence: 'autosave',
 			});
+	});
+
+	test('should persist pooled PHP request writes to an autosaved OPFS site', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		await website.goto(`./?random=${Date.now()}`);
+		await website.page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites?.getClient())
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const site = await getActivePlaygroundSite(website.page);
+		await waitForInitialOpfsSync(website.page, site.slug);
+
+		const testId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+		const markerName = `pooled-request-${testId}.txt`;
+		const markerContents = 'written by a pooled PHP instance';
+		const documentRoot = await website.page.evaluate(async () => {
+			const playground = (window as any).playgroundSites.getClient();
+			return await playground.documentRoot;
+		});
+		const markerPath = joinPaths(documentRoot, 'wp-content', markerName);
+		const primaryMarkerPath = `/primary-php-${testId}`;
+
+		try {
+			const result = await website.page.evaluate(
+				async ({
+					markerContents,
+					markerPath,
+					primaryMarkerPath,
+					testId,
+				}) => {
+					const playground = (
+						window as any
+					).playgroundSites.getClient();
+					await playground.writeFile(
+						primaryMarkerPath,
+						'only the primary PHP instance can see this file'
+					);
+
+					const heldRequests: Array<{
+						reader: ReadableStreamDefaultReader<Uint8Array>;
+						releasePath: string;
+						response: { finished: Promise<void> };
+						role: string;
+					}> = [];
+					const startHeldRequest = async (releasePath: string) => {
+						const response = await playground.runStream({
+							code: `<?php
+$role = file_exists(${JSON.stringify(primaryMarkerPath)})
+	? 'primary'
+	: 'secondary';
+echo "$role\\n";
+flush();
+while (!file_exists(${JSON.stringify(releasePath)})) {
+	usleep(1000);
+}
+`,
+						});
+						const reader = response.stdout.getReader();
+						const decoder = new TextDecoder();
+						let output = '';
+						while (!output.includes('\n')) {
+							const chunk = await reader.read();
+							if (chunk.done) {
+								throw new Error(
+									'PHP request ended before identifying its pool role.'
+								);
+							}
+							output += decoder.decode(chunk.value, {
+								stream: true,
+							});
+						}
+						const heldRequest = {
+							reader,
+							releasePath,
+							response,
+							role: output.trim(),
+						};
+						heldRequests.push(heldRequest);
+						return heldRequest;
+					};
+					const releaseHeldRequest = async (heldRequest: {
+						reader: ReadableStreamDefaultReader<Uint8Array>;
+						releasePath: string;
+						response: { finished: Promise<void> };
+					}) => {
+						await playground.writeFile(
+							heldRequest.releasePath,
+							'release'
+						);
+						await heldRequest.response.finished;
+						heldRequest.reader.releaseLock();
+						heldRequests.splice(
+							heldRequests.indexOf(heldRequest),
+							1
+						);
+					};
+
+					try {
+						let primaryRequest = await startHeldRequest(
+							`/tmp/release-first-${testId}`
+						);
+						if (primaryRequest.role === 'secondary') {
+							const secondaryRequest = primaryRequest;
+							primaryRequest = await startHeldRequest(
+								`/tmp/release-second-${testId}`
+							);
+							if (primaryRequest.role !== 'primary') {
+								throw new Error(
+									`Expected the second held request to use the primary PHP instance, got ${primaryRequest.role}.`
+								);
+							}
+							await releaseHeldRequest(secondaryRequest);
+						} else if (primaryRequest.role !== 'primary') {
+							throw new Error(
+								`Unknown PHP instance role: ${primaryRequest.role}`
+							);
+						}
+
+						(window as any).__pooledOpfsPersistenceTest = {
+							primaryRequest,
+						};
+						const pooledResponse = await playground.run({
+							code: `<?php
+$role = file_exists(${JSON.stringify(primaryMarkerPath)})
+	? 'primary'
+	: 'secondary';
+file_put_contents(
+	${JSON.stringify(markerPath)},
+	${JSON.stringify(markerContents)}
+);
+echo $role;
+`,
+						});
+						return {
+							liveMarkerContents:
+								await playground.readFileAsText(markerPath),
+							pooledRequestRole: pooledResponse.text,
+						};
+					} catch (error) {
+						for (const heldRequest of [...heldRequests]) {
+							await releaseHeldRequest(heldRequest);
+						}
+						delete (window as any).__pooledOpfsPersistenceTest;
+						throw error;
+					}
+				},
+				{ markerContents, markerPath, primaryMarkerPath, testId }
+			);
+
+			// The marker-writing request cannot report "secondary" unless the
+			// identified primary instance is still occupied by the held request.
+			expect(result.pooledRequestRole).toBe('secondary');
+			// The write reached the shared live VFS, isolating persistence as the
+			// only possible cause if the same bytes are missing from OPFS below.
+			expect(result.liveMarkerContents).toBe(markerContents);
+
+			// Keep the primary PHP request occupied while observing OPFS. This
+			// proves the secondary request's writes persist without another PHP
+			// request providing a later, unrelated journal flush trigger.
+			await expect
+				.poll(
+					() =>
+						website.page.evaluate(
+							async ({ directoryName, markerName }) => {
+								try {
+									const root =
+										await navigator.storage.getDirectory();
+									const sites =
+										await root.getDirectoryHandle('sites');
+									const siteDirectory =
+										await sites.getDirectoryHandle(
+											directoryName
+										);
+									const wpContent =
+										await siteDirectory.getDirectoryHandle(
+											'wp-content'
+										);
+									const marker =
+										await wpContent.getFileHandle(
+											markerName
+										);
+									return await (
+										await marker.getFile()
+									).text();
+								} catch (error) {
+									if (error?.name === 'NotFoundError') {
+										return undefined;
+									}
+									throw error;
+								}
+							},
+							{
+								directoryName: getDirectoryNameForSlug(
+									site.slug
+								),
+								markerName,
+							}
+						),
+					{ timeout: 3000 }
+				)
+				.toBe(markerContents);
+		} finally {
+			await website.page.evaluate(async () => {
+				const state = (window as any).__pooledOpfsPersistenceTest;
+				if (!state) {
+					return;
+				}
+				const playground = (window as any).playgroundSites.getClient();
+				await playground.writeFile(
+					state.primaryRequest.releasePath,
+					'release'
+				);
+				await state.primaryRequest.response.finished;
+				state.primaryRequest.reader.releaseLock();
+				delete (window as any).__pooledOpfsPersistenceTest;
+			});
+		}
 	});
 
 	test('should switch between sites', async ({ website, browserName }) => {
