@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).blocks = (() => {
@@ -8267,11 +8268,13 @@ ${p3}`
   // packages/blocks/build-module/api/index.mjs
   var fieldsKey = /* @__PURE__ */ Symbol("fields");
   var formKey = /* @__PURE__ */ Symbol("form");
+  var editableRootKey = /* @__PURE__ */ Symbol("editableRoot");
   var privateApis = {};
   lock(privateApis, {
     isContentBlock,
     fieldsKey,
     formKey,
+    editableRootKey,
     parseRawBlock
   });
 
@@ -8306,3 +8309,5 @@ is-plain-object/dist/is-plain-object.mjs:
    * Released under the MIT License.
    *)
 */
+(window.wp ||= {}).blocks = wp.blocks;
+})();

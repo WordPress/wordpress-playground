@@ -206,6 +206,7 @@ const sidebars = {
 						'developers/architecture/wasm-php-compiling',
 						'developers/architecture/wasm-php-javascript-module',
 						'developers/architecture/wasm-php-filesystem',
+						'developers/architecture/php-wasm-packages',
 						'developers/architecture/wasm-asyncify',
 						'developers/architecture/browser-concepts',
 						'developers/architecture/browser-tab-orchestrates-execution',

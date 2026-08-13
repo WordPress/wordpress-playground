@@ -70,7 +70,7 @@
 }
 
 .section-title {
-	color: var(--color-gray-900);
+	color: var(--ink);
 	padding: 0;
 	margin: 0;
 	font-size: 14px;
@@ -78,7 +78,7 @@
 }
 
 .gray-link {
-	color: var(--color-gray-600) !important;
+	color: var(--ink-muted) !important;
 }
 
 .button-no-padding {
@@ -144,7 +144,7 @@
 	letter-spacing: -0.01em;
 
 	/* Gutenberg/Gray 900 */
-	color: var(--color-gray-900);
+	color: var(--ink);
 
 	display: flex;
 	align-items: baseline;
@@ -225,7 +225,7 @@
 }
 
 .danger {
-	color: var(--color-alert-red);
+	color: var(--destructive);
 }
 
 .blueprint-wrapper {
@@ -241,7 +241,7 @@
 	justify-content: flex-end;
 	gap: 12px;
 	padding: 10px 20px 10px 16px;
-	border-bottom: 1px solid var(--color-gray-200);
+	border-bottom: 1px solid var(--divider);
 	background: #ffffff;
 	flex-wrap: wrap;
 }

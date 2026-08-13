@@ -58,7 +58,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		const [lastSavedPlaygroundsPanel, setLastSavedPlaygroundsPanel] =
 			useState<'new' | 'playgrounds'>('playgrounds');
 		const [sharePanelMounted, setSharePanelMounted] = useState(false);
-		const closeSavePane = useCallback(
+		const closeDockPane = useCallback(
 			() => dispatch(setDockPaneOpen(false)),
 			[dispatch]
 		);
@@ -87,7 +87,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 				isVisible && activeSite ? (
 					<SaveSiteModal
 						asPane
-						onClose={closeSavePane}
+						onClose={closeDockPane}
 						onCloseBlockedChange={onPaneCloseBlockedChange}
 					/>
 				) : null;
@@ -118,8 +118,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 									? activeSection
 									: lastSavedPlaygroundsPanel
 							}
-							onClose={() => dispatch(setDockPaneOpen(false))}
-							onCloseBlockedChange={onPaneCloseBlockedChange}
+							onClose={closeDockPane}
 							onPaneHeaderChange={onNewPlaygroundHeaderChange}
 						/>
 					</div>

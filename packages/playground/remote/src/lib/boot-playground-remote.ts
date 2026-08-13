@@ -152,7 +152,6 @@ export async function bootPlaygroundRemote() {
 		async addEventListener(event, listener) {
 			return await phpWorkerApi.addEventListener(event, (phpEvent) => {
 				if (
-					phpEvent.type === 'sendmail.spawned' &&
 					'stdin' in phpEvent &&
 					typeof phpEvent.stdin === 'object' &&
 					phpEvent.stdin !== null &&
