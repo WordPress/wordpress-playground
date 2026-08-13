@@ -414,7 +414,7 @@ export function bootSiteClient(
 							}
 							dispatch(
 								addClientEmail({
-									siteSlug,
+									siteSlug: site.slug,
 									email,
 								})
 							);
