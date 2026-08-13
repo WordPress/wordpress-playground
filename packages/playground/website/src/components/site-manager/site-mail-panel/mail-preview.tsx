@@ -11,6 +11,7 @@ import {
 	formatAddress,
 	formatAddressList,
 	getMailSubject,
+	replaceCidReferences,
 } from './mail-display';
 import css from './style.module.css';
 
@@ -34,23 +35,13 @@ export function MailPreview({ mail }: { mail: Email }) {
 
 	let emailBody: string;
 	if (mail.html) {
-		emailBody = mail.html;
-		const relatedAttachments = mail.attachments
-			.map((attachment) => ({
-				attachment,
-				contentId: attachment.contentId?.trim().replace(/^<|>$/g, ''),
+		emailBody = replaceCidReferences(
+			mail.html,
+			mail.attachments.map((attachment) => ({
+				contentId: attachment.contentId,
+				url: attachmentResources.get(attachment)?.url,
 			}))
-			.filter(({ contentId }) => contentId)
-			.sort((a, b) => b.contentId!.length - a.contentId!.length);
-
-		for (const { attachment, contentId } of relatedAttachments) {
-			const resource = attachmentResources.get(attachment);
-			if (resource) {
-				emailBody = emailBody
-					.split(`cid:${contentId}`)
-					.join(resource.url);
-			}
-		}
+		);
 	} else if (mail.text) {
 		emailBody = renderToStaticMarkup(<pre>{mail.text}</pre>);
 	} else {

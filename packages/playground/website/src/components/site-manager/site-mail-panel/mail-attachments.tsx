@@ -19,21 +19,7 @@ export function useAttachmentResources(
 	useEffect(() => {
 		const nextResources = new Map<Attachment, AttachmentResource>();
 		for (const attachment of attachments) {
-			let content: BlobPart = attachment.content;
-			if (attachment.content instanceof ArrayBuffer) {
-				content = attachment.content;
-			} else if (attachment.content instanceof Uint8Array) {
-				content = Uint8Array.from(attachment.content).buffer;
-			} else if (attachment.encoding === 'base64') {
-				const decoded = atob(attachment.content);
-				const bytes = new Uint8Array(decoded.length);
-				for (let index = 0; index < decoded.length; index++) {
-					bytes[index] = decoded.charCodeAt(index);
-				}
-				content = bytes.buffer;
-			}
-
-			const blob = new Blob([content], {
+			const blob = new Blob([attachment.content], {
 				type: attachment.mimeType,
 			});
 			nextResources.set(attachment, {

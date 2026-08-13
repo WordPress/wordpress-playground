@@ -18,3 +18,22 @@ export function formatAddress(address: Address): string {
 	}
 	return address.address || address.name;
 }
+
+export function replaceCidReferences(
+	html: string,
+	references: Array<{ contentId?: string; url?: string }>
+): string {
+	const resolvedReferences: Array<{ contentId: string; url: string }> = [];
+	for (const { contentId, url } of references) {
+		const normalizedContentId = contentId?.trim().replace(/^<|>$/g, '');
+		if (!normalizedContentId || !url) continue;
+		resolvedReferences.push({ contentId: normalizedContentId, url });
+	}
+	resolvedReferences.sort((a, b) => b.contentId.length - a.contentId.length);
+
+	let result = html;
+	for (const { contentId, url } of resolvedReferences) {
+		result = result.split(`cid:${contentId}`).join(url);
+	}
+	return result;
+}

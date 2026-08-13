@@ -8,7 +8,7 @@
 .mail-panel__list {
 	min-width: 0;
 	overflow-y: auto;
-	border-right: 1px solid var(--color-gray-200);
+	border-right: 1px solid var(--divider);
 }
 
 .mail-panel__list-header {
@@ -16,12 +16,12 @@
 	top: 0;
 	z-index: 1;
 	padding: 12px 16px;
-	background: #ffffff;
-	border-bottom: 1px solid var(--color-gray-200);
+	background: var(--surface-raised);
+	border-bottom: 1px solid var(--divider);
 }
 
 .mail-panel__list-item[aria-pressed='true'] {
-	background: var(--wp-components-color-gray-100, #f0f0f0);
+	background: var(--surface-recessed);
 }
 
 .mail-panel__preview {
@@ -82,7 +82,7 @@
 	.mail-panel {
 		display: flex;
 		flex-direction: column;
-		background: var(--wp-components-color-gray-100, #f0f0f0);
+		background: var(--app-background-recessed);
 	}
 
 	.mail-panel__list {
@@ -90,14 +90,14 @@
 		max-height: 34%;
 		border-right: 0;
 		border-bottom: 0;
-		background: #ffffff;
+		background: var(--surface-raised);
 	}
 
 	.mail-panel__preview {
 		margin: 12px;
 		padding: 16px;
-		background: #ffffff;
-		border: 1px solid var(--color-gray-300, #dddddd);
+		background: var(--surface-raised);
+		border: 1px solid var(--divider);
 		border-radius: 8px;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 		box-sizing: border-box;
