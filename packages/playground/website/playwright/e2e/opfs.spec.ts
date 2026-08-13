@@ -751,8 +751,14 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 				);
 
 				const waitForFile = async (path: string) => {
+					const deadline = Date.now() + 10_000;
 					while (!(await playground.fileExists(path))) {
-						await new Promise(requestAnimationFrame);
+						if (Date.now() >= deadline) {
+							throw new Error(
+								`Timed out waiting for file: ${path}`
+							);
+						}
+						await new Promise((resolve) => setTimeout(resolve, 10));
 					}
 				};
 
