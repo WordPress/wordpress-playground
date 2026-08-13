@@ -712,31 +712,30 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		const markerPath = joinPaths(documentRoot, 'wp-content', markerName);
 		const primaryMarkerPath = `/primary-php-${testId}`;
 
-		try {
-			const result = await website.page.evaluate(
-				async ({
-					markerContents,
-					markerPath,
+		const result = await website.page.evaluate(
+			async ({
+				markerContents,
+				markerPath,
+				primaryMarkerPath,
+				testId,
+			}) => {
+				const playground = (window as any).playgroundSites.getClient();
+				await playground.writeFile(
 					primaryMarkerPath,
-					testId,
-				}) => {
-					const playground = (
-						window as any
-					).playgroundSites.getClient();
-					await playground.writeFile(
-						primaryMarkerPath,
-						'only the primary PHP instance can see this file'
-					);
+					'only the primary PHP instance can see this file'
+				);
 
-					const heldRequests: Array<{
-						reader: ReadableStreamDefaultReader<Uint8Array>;
-						releasePath: string;
-						response: { finished: Promise<void> };
-						role: string;
-					}> = [];
-					const startHeldRequest = async (releasePath: string) => {
-						const response = await playground.runStream({
-							code: `<?php
+				const heldProcesses: Array<{
+					reader: ReadableStreamDefaultReader<Uint8Array>;
+					releasePath: string;
+					response: { finished: Promise<void> };
+					role: string;
+				}> = [];
+				const startHeldPhpProcess = async (releasePath: string) => {
+					const response = await playground.cli([
+						'php',
+						'-r',
+						`
 $role = file_exists(${JSON.stringify(primaryMarkerPath)})
 	? 'primary'
 	: 'secondary';
@@ -746,73 +745,74 @@ while (!file_exists(${JSON.stringify(releasePath)})) {
 	usleep(1000);
 }
 `,
-						});
-						const reader = response.stdout.getReader();
-						const decoder = new TextDecoder();
-						let output = '';
-						while (!output.includes('\n')) {
-							const chunk = await reader.read();
-							if (chunk.done) {
-								throw new Error(
-									'PHP request ended before identifying its pool role.'
-								);
-							}
-							output += decoder.decode(chunk.value, {
-								stream: true,
-							});
-						}
-						const heldRequest = {
-							reader,
-							releasePath,
-							response,
-							role: output.trim(),
-						};
-						heldRequests.push(heldRequest);
-						return heldRequest;
-					};
-					const releaseHeldRequest = async (heldRequest: {
-						reader: ReadableStreamDefaultReader<Uint8Array>;
-						releasePath: string;
-						response: { finished: Promise<void> };
-					}) => {
-						await playground.writeFile(
-							heldRequest.releasePath,
-							'release'
-						);
-						await heldRequest.response.finished;
-						heldRequest.reader.releaseLock();
-						heldRequests.splice(
-							heldRequests.indexOf(heldRequest),
-							1
-						);
-					};
-
-					try {
-						let primaryRequest = await startHeldRequest(
-							`/tmp/release-first-${testId}`
-						);
-						if (primaryRequest.role === 'secondary') {
-							const secondaryRequest = primaryRequest;
-							primaryRequest = await startHeldRequest(
-								`/tmp/release-second-${testId}`
-							);
-							if (primaryRequest.role !== 'primary') {
-								throw new Error(
-									`Expected the second held request to use the primary PHP instance, got ${primaryRequest.role}.`
-								);
-							}
-							await releaseHeldRequest(secondaryRequest);
-						} else if (primaryRequest.role !== 'primary') {
+					]);
+					const reader = response.stdout.getReader();
+					const decoder = new TextDecoder();
+					let output = '';
+					while (!output.includes('\n')) {
+						const chunk = await reader.read();
+						if (chunk.done) {
 							throw new Error(
-								`Unknown PHP instance role: ${primaryRequest.role}`
+								'PHP process ended before identifying its pool role.'
 							);
 						}
+						output += decoder.decode(chunk.value, {
+							stream: true,
+						});
+					}
+					const heldProcess = {
+						reader,
+						releasePath,
+						response,
+						role: output.trim(),
+					};
+					heldProcesses.push(heldProcess);
+					return heldProcess;
+				};
+				const finishHeldPhpProcess = async (heldProcess: {
+					reader: ReadableStreamDefaultReader<Uint8Array>;
+					releasePath: string;
+					response: { finished: Promise<void> };
+				}) => {
+					await heldProcess.response.finished;
+					heldProcess.reader.releaseLock();
+					heldProcesses.splice(heldProcesses.indexOf(heldProcess), 1);
+				};
+				const releaseHeldPhpProcess = async (heldProcess: {
+					reader: ReadableStreamDefaultReader<Uint8Array>;
+					releasePath: string;
+					response: { finished: Promise<void> };
+				}) => {
+					await playground.writeFile(
+						heldProcess.releasePath,
+						'release'
+					);
+					await finishHeldPhpProcess(heldProcess);
+				};
 
-						(window as any).__pooledOpfsPersistenceTest = {
-							primaryRequest,
-						};
-						const pooledResponse = await playground.run({
-							code: `<?php
+				try {
+					let primaryProcess = await startHeldPhpProcess(
+						`/tmp/release-first-${testId}`
+					);
+					if (primaryProcess.role === 'secondary') {
+						const secondaryProcess = primaryProcess;
+						primaryProcess = await startHeldPhpProcess(
+							`/tmp/release-second-${testId}`
+						);
+						if (primaryProcess.role !== 'primary') {
+							throw new Error(
+								`Expected the second held process to use the primary PHP instance, got ${primaryProcess.role}.`
+							);
+						}
+						await releaseHeldPhpProcess(secondaryProcess);
+					} else if (primaryProcess.role !== 'primary') {
+						throw new Error(
+							`Unknown PHP instance role: ${primaryProcess.role}`
+						);
+					}
+
+					const pooledResponse = await playground.run({
+						code: `<?php
 $role = file_exists(${JSON.stringify(primaryMarkerPath)})
 	? 'primary'
 	: 'secondary';
@@ -820,93 +820,76 @@ file_put_contents(
 	${JSON.stringify(markerPath)},
 	${JSON.stringify(markerContents)}
 );
+file_put_contents(
+	${JSON.stringify(primaryProcess.releasePath)},
+	'release'
+);
 echo $role;
 `,
-						});
-						return {
-							liveMarkerContents:
-								await playground.readFileAsText(markerPath),
-							pooledRequestRole: pooledResponse.text,
-						};
-					} catch (error) {
-						for (const heldRequest of [...heldRequests]) {
-							await releaseHeldRequest(heldRequest);
-						}
-						delete (window as any).__pooledOpfsPersistenceTest;
-						throw error;
+					});
+					await finishHeldPhpProcess(primaryProcess);
+					const result = {
+						liveMarkerContents:
+							await playground.readFileAsText(markerPath),
+						pooledRequestRole: pooledResponse.text,
+					};
+					return result;
+				} catch (error) {
+					for (const heldProcess of [...heldProcesses]) {
+						await releaseHeldPhpProcess(heldProcess);
 					}
-				},
-				{ markerContents, markerPath, primaryMarkerPath, testId }
-			);
-
-			// The marker-writing request cannot report "secondary" unless the
-			// identified primary instance is still occupied by the held request.
-			expect(result.pooledRequestRole).toBe('secondary');
-			// The write reached the shared live VFS, isolating persistence as the
-			// only possible cause if the same bytes are missing from OPFS below.
-			expect(result.liveMarkerContents).toBe(markerContents);
-
-			// Keep the primary PHP request occupied while observing OPFS. This
-			// proves the secondary request's writes persist without another PHP
-			// request providing a later, unrelated journal flush trigger.
-			await expect
-				.poll(
-					() =>
-						website.page.evaluate(
-							async ({ directoryName, markerName }) => {
-								try {
-									const root =
-										await navigator.storage.getDirectory();
-									const sites =
-										await root.getDirectoryHandle('sites');
-									const siteDirectory =
-										await sites.getDirectoryHandle(
-											directoryName
-										);
-									const wpContent =
-										await siteDirectory.getDirectoryHandle(
-											'wp-content'
-										);
-									const marker =
-										await wpContent.getFileHandle(
-											markerName
-										);
-									return await (
-										await marker.getFile()
-									).text();
-								} catch (error) {
-									if (error?.name === 'NotFoundError') {
-										return undefined;
-									}
-									throw error;
-								}
-							},
-							{
-								directoryName: getDirectoryNameForSlug(
-									site.slug
-								),
-								markerName,
-							}
-						),
-					{ timeout: 3000 }
-				)
-				.toBe(markerContents);
-		} finally {
-			await website.page.evaluate(async () => {
-				const state = (window as any).__pooledOpfsPersistenceTest;
-				if (!state) {
-					return;
+					throw error;
 				}
-				const playground = (window as any).playgroundSites.getClient();
-				await playground.writeFile(
-					state.primaryRequest.releasePath,
-					'release'
-				);
-				await state.primaryRequest.response.finished;
-				state.primaryRequest.reader.releaseLock();
-				delete (window as any).__pooledOpfsPersistenceTest;
-			});
-		}
+			},
+			{ markerContents, markerPath, primaryMarkerPath, testId }
+		);
+
+		// The marker-writing request cannot report "secondary" unless the
+		// identified primary instance was occupied by the held CLI process.
+		expect(result.pooledRequestRole).toBe('secondary');
+		// The write reached the shared live VFS, isolating persistence as the
+		// only possible cause if the same bytes are missing from OPFS below.
+		expect(result.liveMarkerContents).toBe(markerContents);
+
+		// The secondary request releases the primary CLI process through the VFS.
+		// CLI completion does not dispatch request.end, so the secondary request
+		// is the only persistence trigger before this assertion.
+		await expect
+			.poll(
+				() =>
+					website.page.evaluate(
+						async ({ directoryName, markerName }) => {
+							try {
+								const root =
+									await navigator.storage.getDirectory();
+								const sites =
+									await root.getDirectoryHandle('sites');
+								const siteDirectory =
+									await sites.getDirectoryHandle(
+										directoryName
+									);
+								const wpContent =
+									await siteDirectory.getDirectoryHandle(
+										'wp-content'
+									);
+								const marker =
+									await wpContent.getFileHandle(markerName);
+								return await (await marker.getFile()).text();
+							} catch (error) {
+								if (error?.name === 'NotFoundError') {
+									return undefined;
+								}
+								throw error;
+							}
+						},
+						{
+							directoryName: getDirectoryNameForSlug(site.slug),
+							markerName,
+						}
+					),
+				{ timeout: 3000 }
+			)
+			.toBe(markerContents);
 	});
 
 	test('should switch between sites', async ({ website, browserName }) => {

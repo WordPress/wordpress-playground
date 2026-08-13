@@ -11,14 +11,6 @@ export interface PHPRequestEndEvent {
 }
 
 /**
- * Emitted by a filesystem owner when a request using its filesystem through
- * PROXYFS ends.
- */
-export interface PHPProxyFSRequestEndEvent {
-	type: 'proxyfs.request.end';
-}
-
-/**
  * Represents an error event related to the PHP request.
  */
 export interface PHPRequestErrorEvent {
@@ -56,7 +48,6 @@ export interface PHPFilesystemWriteEvent {
  */
 export type PHPEvent =
 	| PHPRequestEndEvent
-	| PHPProxyFSRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeExitEvent
