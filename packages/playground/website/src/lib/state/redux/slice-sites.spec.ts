@@ -5,6 +5,7 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
+	let listMetadata: ReturnType<typeof vi.fn>;
 	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -15,8 +16,22 @@ describe('stored sites', () => {
 		vi.resetModules();
 		createSite = vi.fn();
 		deleteSite = vi.fn();
+		listMetadata = vi.fn().mockResolvedValue([]);
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
+		updateSiteStorage.mockImplementation(async (slug, changes) => {
+			const site = createSiteInfo({ slug });
+			return {
+				...site,
+				...('originalUrlParams' in changes
+					? { originalUrlParams: changes.originalUrlParams }
+					: {}),
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
+		});
 		persistBlueprintBundle = vi.fn();
 		deleteBlueprintBundle = vi.fn();
 		resolveRuntimeConfiguration = vi.fn();
@@ -24,6 +39,7 @@ describe('stored sites', () => {
 		vi.doMock('@php-wasm/logger', () => ({
 			logger: {
 				error: loggerError,
+				warn: vi.fn(),
 			},
 		}));
 		vi.doMock('@wp-playground/common', () => ({
@@ -54,6 +70,7 @@ describe('stored sites', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				delete: deleteSite,
+				listMetadata,
 				update: updateSiteStorage,
 			},
 		}));
@@ -94,16 +111,27 @@ describe('stored sites', () => {
 		vi.doUnmock('./store');
 	});
 
-	it('classifies a normal autosave but not an unfinished Blueprint run as restorable', async () => {
+	it('only classifies bootable autosaves as restorable', async () => {
 		const { isRestorableAutosavedSite } = await import('./slice-sites');
 		const autosave = createSiteInfo({ slug: 'autosave' });
 		autosave.metadata.persistence = 'autosave';
+		const inProgressAutosave = createSiteInfo({ slug: 'in-progress' });
+		inProgressAutosave.metadata.persistence = 'autosave';
+		inProgressAutosave.metadata.initialOpfsSyncPending = true;
+		const storedUnfinishedAutosave = createSiteInfo({
+			slug: 'stored-unfinished',
+		});
+		storedUnfinishedAutosave.loadedFromStorage = true;
+		storedUnfinishedAutosave.metadata.persistence = 'autosave';
+		storedUnfinishedAutosave.metadata.initialOpfsSyncPending = true;
 		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
 		unfinishedRun.metadata.persistence = 'autosave';
 		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
 			'source-site';
 
 		expect(isRestorableAutosavedSite(autosave)).toBe(true);
+		expect(isRestorableAutosavedSite(inProgressAutosave)).toBe(true);
+		expect(isRestorableAutosavedSite(storedUnfinishedAutosave)).toBe(false);
 		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 
@@ -155,23 +183,16 @@ describe('stored sites', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			updatedMetadata,
-			originalUrlParams
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 	});
 
 	it('updates redux only after persisted metadata is written', async () => {
@@ -184,8 +205,15 @@ describe('stored sites', () => {
 			),
 		};
 		const order: string[] = [];
-		updateSiteStorage.mockImplementation(async () => {
+		updateSiteStorage.mockImplementation(async (_slug, changes) => {
 			order.push('opfs');
+			return {
+				...site,
+				metadata: {
+					...site.metadata,
+					...changes.metadata,
+				},
+			};
 		});
 		const dispatch = vi.fn((action) => {
 			order.push('redux');
@@ -194,15 +222,10 @@ describe('stored sites', () => {
 			};
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: updatedMetadata,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
@@ -224,16 +247,11 @@ describe('stored sites', () => {
 			state.sites = sitesSlice.reducer(state.sites, action);
 			return action;
 		});
-		const updatedMetadata = {
-			...site.metadata,
-			name: 'Renamed Playground',
-		};
-
 		await expect(
 			updateSite({
 				slug: site.slug,
 				changes: {
-					metadata: updatedMetadata,
+					metadata: { name: 'Renamed Playground' },
 				},
 			})(dispatch as any, () => state as any)
 		).rejects.toThrow(storageError);
@@ -261,21 +279,13 @@ describe('stored sites', () => {
 		await updateSite({
 			slug: site.slug,
 			changes: {
-				metadata: {
-					name: 'Renamed Playground',
-				} as any,
+				metadata: { name: 'Renamed Playground' },
 			},
 		})(dispatch as any, () => state as any);
 
-		expect(updateSiteStorage).toHaveBeenCalledWith(
-			site.slug,
-			expect.objectContaining({
-				name: 'Renamed Playground',
-				storage: 'opfs',
-				runtimeConfiguration: site.metadata.runtimeConfiguration,
-			}),
-			undefined
-		);
+		expect(updateSiteStorage).toHaveBeenCalledWith(site.slug, {
+			metadata: { name: 'Renamed Playground' },
+		});
 		expect(state.sites.entities[site.slug]?.metadata).toEqual({
 			...site.metadata,
 			name: 'Renamed Playground',

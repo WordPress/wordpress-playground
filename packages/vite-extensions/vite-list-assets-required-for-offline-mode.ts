@@ -78,6 +78,8 @@ const patternsToNotCache = [
 	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
 	/^\/assets\/extensions\/.*/, // All extension assets (Intl, ICU, etc.)
 	/^\/client\/.*/, // Client package files arent't used by the web version of Playground
+	'/api.html', // The external API endpoint is not required by the website.
+	/^\/assets\/api-.*\.js$/, // The API entry chunk is loaded on demand with api.html.
 	'/php-playground.html', // The PHP playground is a separate page that is not part of the web version of Playground
 ];
 

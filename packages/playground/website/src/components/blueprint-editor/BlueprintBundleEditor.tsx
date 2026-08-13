@@ -9,14 +9,14 @@ import {
 import { logger } from '@php-wasm/logger';
 import {
 	Button,
-	Dropdown,
+	DropdownMenu,
 	Icon,
 	MenuGroup,
 	MenuItem,
 	Notice,
 	Tooltip as WpTooltip,
 } from '@wordpress/components';
-import { chevronDown, download, help, link } from '@wordpress/icons';
+import { chevronDown, download, help, link, warning } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -32,7 +32,6 @@ import {
 	forwardRef,
 	useCallback,
 	useEffect,
-	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -76,6 +75,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -315,7 +315,6 @@ export const BlueprintBundleEditor = forwardRef<
 	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -343,7 +342,6 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		return state.clients.entities[storedSiteSlug]?.opfsSync?.status;
 	});
-	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -527,14 +525,9 @@ export const BlueprintBundleEditor = forwardRef<
 			);
 			const changes = {
 				metadata: {
-					...site.metadata,
 					originalBlueprintSource: { type: 'none' as const },
 					originalBlueprint: filesystem,
 					runtimeConfiguration,
-					initialOpfsSyncPending:
-						site.metadata.initialOpfsSyncPending,
-					playgroundDefinedConstants:
-						site.metadata.playgroundDefinedConstants,
 					whenCreated: Date.now(),
 				},
 				originalUrlParams: undefined,
@@ -776,11 +769,17 @@ export const BlueprintBundleEditor = forwardRef<
 			anchor.click();
 			document.body.removeChild(anchor);
 			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Blueprint downloaded',
+				})
+			);
 		} catch (error) {
 			logger.error('Failed to download bundle', error);
 			setSaveError('Could not download bundle. Try again.');
 		}
-	}, [filesystem]);
+	}, [filesystem, dispatch]);
 
 	const handleShareBlueprint = async () => {
 		if (false === newUrl) {
@@ -792,8 +791,12 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			await navigator.clipboard.writeText(newUrl);
 
-			setSuccessMessage('Link copied to clipboard!');
-			setTimeout(() => setSuccessMessage(null), 2000);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Link copied to clipboard',
+				})
+			);
 		} catch (error) {
 			logger.error('Failed to share blueprint', error);
 			setSaveError('Could not copy link. Try again.');
@@ -824,62 +827,54 @@ export const BlueprintBundleEditor = forwardRef<
 		</Button>
 	);
 	const dockExportDropdown = (
-		<Dropdown
+		<DropdownMenu
 			className={styles.editorExport}
+			icon={null}
+			label="Export"
+			toggleProps={{
+				variant: 'secondary',
+				className: classNames(
+					styles.editorToolbarButton,
+					styles.editorExportToggle
+				),
+				showTooltip: false,
+				children: (
+					<>
+						Export
+						<Icon icon={chevronDown} size={16} />
+					</>
+				),
+			}}
 			popoverProps={{
 				placement: 'bottom-end',
 			}}
-			renderToggle={({ isOpen, onToggle }) => (
-				<Button
-					variant="secondary"
-					className={classNames(
-						styles.editorToolbarButton,
-						styles.editorExportToggle
-					)}
-					onClick={onToggle}
-					aria-expanded={isOpen}
-					aria-haspopup="menu"
-				>
-					Export
-					<Icon icon={chevronDown} size={16} />
-				</Button>
-			)}
-			renderContent={({ onClose }) => (
-				<MenuGroup>
-					<MenuItem
+		>
+			{({ onClose }) => (
+				<MenuGroup className={styles.editorExportMenu}>
+					<MenuItemWithDescription
 						icon={link}
-						className={
+						info={
 							!isBundleShareable
-								? styles.exportMenuItemWithHint
+								? 'Multi-file Blueprints can’t be shared as a URL — download a zip instead.'
 								: undefined
 						}
-						aria-label="Copy Blueprint URL"
-						aria-describedby={
-							!isBundleShareable
-								? copyBlueprintUrlHintId
+						aria-disabled={!isBundleShareable}
+						onClick={
+							isBundleShareable
+								? () => {
+										handleShareBlueprint();
+										onClose();
+									}
 								: undefined
 						}
-						disabled={!isBundleShareable}
-						onClick={() => {
-							handleShareBlueprint();
-							onClose();
-						}}
 					>
-						<span className={styles.exportMenuItemBody}>
-							<span>Copy Blueprint URL</span>
-							{!isBundleShareable && (
-								<span
-									id={copyBlueprintUrlHintId}
-									className={styles.exportMenuItemHint}
-								>
-									Multi-file Blueprints can’t be shared as a
-									URL — download a zip instead.
-								</span>
-							)}
-						</span>
-					</MenuItem>
+						Copy Blueprint URL
+					</MenuItemWithDescription>
+					{/* Start on the available action. ArrowUp still reaches the
+					    unavailable item's explanation. */}
 					<MenuItem
 						icon={download}
+						autoFocus={!isBundleShareable}
 						onClick={() => {
 							handleDownloadBundle();
 							onClose();
@@ -889,7 +884,7 @@ export const BlueprintBundleEditor = forwardRef<
 					</MenuItem>
 				</MenuGroup>
 			)}
-		/>
+		</DropdownMenu>
 	);
 	const dockDocsLink = (
 		<WpTooltip
@@ -967,6 +962,7 @@ export const BlueprintBundleEditor = forwardRef<
 							{...(dockPresentation
 								? {
 										title: 'Blueprint',
+										mobileSubsectionTitle: 'Files',
 										showBinaryPreviewHeader: false,
 										dockPresentation: true,
 										useWordPressTooltips: true,
@@ -1077,13 +1073,6 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{successMessage ? (
-							<div style={{ padding: '8px 16px' }}>
-								<Notice status="success" isDismissible={false}>
-									{successMessage}
-								</Notice>
-							</div>
-						) : null}
 						{!dockPresentation &&
 						!readOnly &&
 						!isBundleShareable ? (
@@ -1101,19 +1090,22 @@ export const BlueprintBundleEditor = forwardRef<
 						(opfsSyncStatus === 'syncing' ||
 							!siteIsUnfinishedBlueprintRun) ? (
 							<p className={styles.runHint}>
-								{isWaitingToRun ? (
-									'Run will wait for this Playground to finish saving.'
-								) : (
-									<>
-										Running this Blueprint creates a fresh
-										autosaved Playground. “
-										{site?.metadata.name}” stays in{' '}
-										{isAutosaved
-											? 'Recent autosaves'
-											: 'Saved Playgrounds'}
-										.
-									</>
-								)}
+								<Icon icon={warning} size={18} />
+								<span>
+									{isWaitingToRun ? (
+										'Run will wait for this Playground to finish saving.'
+									) : (
+										<>
+											Running this Blueprint creates a
+											fresh autosaved Playground. “
+											{site?.metadata.name}” stays in{' '}
+											{isAutosaved
+												? 'Recent autosaves'
+												: 'Saved Playgrounds'}
+											.
+										</>
+									)}
+								</span>
 							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
