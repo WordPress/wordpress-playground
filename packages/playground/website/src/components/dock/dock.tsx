@@ -16,6 +16,7 @@ import { CSSTransition } from 'react-transition-group';
 import { Icon } from '@wordpress/components';
 import {
 	close,
+	envelope,
 	external,
 	grid,
 	list,
@@ -130,6 +131,12 @@ const DOCK_ITEMS: DockItem[] = [
 		icon: <Icon icon={list} size={24} />,
 	},
 	{
+		section: 'mail',
+		label: 'Email',
+		ariaLabel: 'Email',
+		icon: <Icon icon={envelope} size={24} />,
+	},
+	{
 		section: 'share',
 		label: 'Export',
 		ariaLabel: 'Export',
@@ -172,6 +179,10 @@ const PANE_COPY: Record<
 		title: 'PHP error log',
 		description: 'Errors, warnings, and notices from your site.',
 	},
+	mail: {
+		title: 'Email',
+		description: 'Preview messages sent by this Playground.',
+	},
 	share: {
 		title: 'Export',
 		description: '',
@@ -208,11 +219,14 @@ export function Dock({
 	const paneCopy = PANE_COPY[section];
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
-	const isEditorSection = section === 'blueprint' || section === 'files';
+	const isEditorSection =
+		section === 'blueprint' || section === 'files' || section === 'mail';
 	// Logs hold long monospace records, so they get a wider pane.
 	const isWideSection = section === 'logs';
 	const isFixedHeightSection =
-		section === 'new' || (section === 'share' && shareExportOpen);
+		section === 'new' ||
+		section === 'mail' ||
+		(section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =

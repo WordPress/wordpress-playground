@@ -1,0 +1,169 @@
+:host(.mail-attachments) {
+	all: initial;
+	display: block;
+}
+
+.mail-attachments__content,
+.mail-attachments__separator,
+.mail-attachments__heading,
+.mail-attachments__list,
+.mail-attachments__item,
+.mail-attachments__card,
+.mail-attachments__media,
+.mail-attachments__preview,
+.mail-attachments__preview-content,
+.mail-attachments__placeholder,
+.mail-attachments__actions,
+.mail-attachments__size,
+.mail-attachments__download-link,
+.mail-attachments__download-icon,
+.mail-attachments__details {
+	box-sizing: border-box;
+}
+
+.mail-attachments__content {
+	display: block;
+	min-width: 0;
+	padding: 16px 16px 0;
+	color: #1e1e1e;
+	font:
+		14px/1.5 -apple-system,
+		BlinkMacSystemFont,
+		Segoe UI,
+		Roboto,
+		Oxygen-Sans,
+		Ubuntu,
+		Cantarell,
+		Helvetica Neue,
+		sans-serif;
+}
+
+.mail-attachments__separator {
+	height: 0;
+	margin: 0 0 16px;
+	border: 0;
+	border-top: 1px solid #dddddd;
+}
+
+.mail-attachments__heading {
+	margin: 0 0 8px;
+	font-size: 15px;
+	line-height: 20px;
+}
+
+.mail-attachments__list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+	gap: 12px;
+	width: 100%;
+	margin: 0;
+	padding: 2px 2px 8px;
+	list-style: none;
+}
+
+.mail-attachments__item {
+	min-width: 0;
+}
+
+.mail-attachments__card {
+	height: 100%;
+	overflow: hidden;
+	border: 1px solid #dddddd;
+	border-radius: 2px;
+	background: #ffffff;
+}
+
+.mail-attachments__media {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 80px;
+	overflow: hidden;
+	background: #f0f0f0;
+}
+
+.mail-attachments__preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.mail-attachments__preview-content {
+	display: block;
+}
+
+.mail-attachments__preview-content--visual {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.mail-attachments__preview-content--audio {
+	width: calc(100% - 24px);
+}
+
+.mail-attachments__placeholder {
+	width: 32px;
+	height: 32px;
+	fill: #757575;
+}
+
+.mail-attachments__actions {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	opacity: 0;
+	pointer-events: none;
+	color: #757575;
+	font-size: 12px;
+	background: #f0f0f0;
+}
+
+.mail-attachments__card:hover .mail-attachments__preview,
+.mail-attachments__card:focus-within .mail-attachments__preview {
+	opacity: 0;
+}
+
+.mail-attachments__card:hover .mail-attachments__actions,
+.mail-attachments__card:focus-within .mail-attachments__actions {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.mail-attachments__download-link {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+	color: #3858e9;
+	font-size: 13px;
+	text-decoration: none;
+	pointer-events: auto;
+}
+
+.mail-attachments__download-link:hover {
+	text-decoration: underline;
+}
+
+.mail-attachments__details {
+	min-width: 0;
+	padding: 8px 12px;
+	overflow: hidden;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.mail-attachments__preview,
+	.mail-attachments__actions {
+		transition: opacity 120ms ease-out;
+	}
+}
