@@ -425,7 +425,7 @@ describe.each(blueprintVersions)(
 				skip();
 			}
 
-			const testArgs: Partial<RunCLIArgs> =
+			const testArgs: Partial<Omit<RunCLIArgs, 'command' | 'cwd'>> =
 				version === 2
 					? { allow: 'follow-symlinks' }
 					: { followSymlinks: true };
@@ -1862,7 +1862,7 @@ describe('php command', () => {
 	});
 
 	async function capturePhpWorkingDirectory(
-		args: Partial<Omit<RunCLIArgs, 'command'>>
+		args: Partial<Omit<Extract<RunCLIArgs, { command: 'php' }>, 'command'>>
 	): Promise<string> {
 		const skipWordPressSetup =
 			args.autoMount === undefined

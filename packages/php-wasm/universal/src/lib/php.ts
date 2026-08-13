@@ -1708,10 +1708,17 @@ export class PHP implements Disposable {
 				try {
 					this.chdir(options.cwd);
 				} catch (error) {
+					const errno =
+						typeof error === 'object' &&
+						error !== null &&
+						'errno' in error &&
+						typeof error.errno === 'number'
+							? error.errno
+							: undefined;
 					const fileSystemError = getEmscriptenFsError(error);
-					if (fileSystemError !== undefined) {
+					if (fileSystemError !== undefined && errno !== undefined) {
 						throw new ErrnoError(
-							(error as { errno: number }).errno,
+							errno,
 							`Could not change the PHP working directory to "${options.cwd}": ${fileSystemError}`,
 							{ cause: error }
 						);

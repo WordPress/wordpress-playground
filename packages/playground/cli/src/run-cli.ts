@@ -829,7 +829,7 @@ export function resolveWorkerCount(value: number | 'auto' | undefined): number {
 	return value;
 }
 
-export interface RunCLIArgs {
+interface RunCLIBaseArgs {
 	/**
 	 * `_` holds positional tokens in the order they appeared.
 	 * `_[0]` will typically be the command name.
@@ -839,8 +839,6 @@ export interface RunCLIArgs {
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
-	cwd?: string;
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -915,6 +913,22 @@ export interface RunCLIArgs {
 	skipBrowser?: boolean;
 	reset?: boolean;
 }
+
+export type RunCLIArgs = RunCLIBaseArgs &
+	(
+		| {
+				command: 'php';
+				cwd?: string;
+		  }
+		| {
+				command:
+					| 'start'
+					| 'server'
+					| 'run-blueprint'
+					| 'build-snapshot';
+				cwd?: never;
+		  }
+	);
 
 export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
