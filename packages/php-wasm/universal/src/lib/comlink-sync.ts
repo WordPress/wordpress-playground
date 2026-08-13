@@ -392,9 +392,8 @@ export type ProxyOrClone<T> = T extends ProxyMarked ? Remote<T> : T;
 /**
  * Inverse of `ProxyOrClone<T>`.
  */
-export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
-	? Local<T>
-	: T;
+export type UnproxyOrClone<T> =
+	T extends RemoteObject<ProxyMarked> ? Local<T> : T;
 
 /**
  * Takes the raw type of a remote object in the other thread and returns the type as it is visible
@@ -439,7 +438,7 @@ export type Remote<T> =
 					...args: {
 						[I in keyof TArguments]: UnproxyOrClone<TArguments[I]>;
 					}
-			  ) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
+				) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -452,7 +451,7 @@ export type Remote<T> =
 							>;
 						}
 					): Promisify<Remote<TInstance>>;
-			  }
+				}
 			: unknown) &
 		// Include additional special comlink methods available on the proxy.
 		ProxyMethods;
@@ -478,8 +477,8 @@ export type Local<T> =
 					...args: {
 						[I in keyof TArguments]: ProxyOrClone<TArguments[I]>;
 					}
-			  ) => // The raw function could either be sync or async, but is always proxied automatically
-			  MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
+				) => // The raw function could either be sync or async, but is always proxied automatically
+				MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -493,7 +492,7 @@ export type Local<T> =
 						}
 					): // The raw constructor could either be sync or async, but is always proxied automatically
 					MaybePromise<Local<Unpromisify<TInstance>>>;
-			  }
+				}
 			: unknown);
 
 const isObject = (val: unknown): val is object =>
@@ -806,12 +805,56 @@ function unregisterProxy(proxy: object) {
 	}
 }
 
+/**
+ * Cache for proxy objects keyed by endpoint and path.
+ *
+ * This prevents creating new proxy objects on every property access,
+ * which would otherwise accumulate in the FinalizationRegistry and
+ * cause progressive performance degradation over many calls.
+ *
+ * Using WeakMap ensures the cache is automatically cleaned up when
+ * the endpoint is garbage collected.
+ */
+const proxyCache = new WeakMap<Endpoint, Map<string, object>>();
+
+function getCachedProxy<T>(
+	ep: Endpoint,
+	pathKey: string
+): Remote<T> | undefined {
+	const cache = proxyCache.get(ep);
+	return cache?.get(pathKey) as Remote<T> | undefined;
+}
+
+function setCachedProxy(ep: Endpoint, pathKey: string, proxy: object): void {
+	let cache = proxyCache.get(ep);
+	if (!cache) {
+		cache = new Map();
+		proxyCache.set(ep, cache);
+	}
+	cache.set(pathKey, proxy);
+}
+
+function clearProxyCache(ep: Endpoint): void {
+	proxyCache.delete(ep);
+}
+
 function createProxy<T>(
 	ep: Endpoint,
 	pendingListeners: PendingListenersMap,
 	path: (string | number | symbol)[] = [],
 	target: object = function () {}
 ): Remote<T> {
+	// Check cache for existing proxy (only for string/number paths, not symbols)
+	const isCacheable = path.every((p) => typeof p !== 'symbol');
+	const pathKey = isCacheable ? path.join('\0') : '';
+
+	if (isCacheable) {
+		const cached = getCachedProxy<T>(ep, pathKey);
+		if (cached) {
+			return cached;
+		}
+	}
+
 	let isProxyReleased = false;
 	const proxy = new Proxy(target, {
 		get(_target, prop) {
@@ -819,6 +862,7 @@ function createProxy<T>(
 			if (prop === releaseProxy) {
 				return () => {
 					unregisterProxy(proxy);
+					clearProxyCache(ep);
 					releaseEndpoint(ep);
 					pendingListeners.clear();
 					isProxyReleased = true;
@@ -893,6 +937,12 @@ function createProxy<T>(
 			).then(fromWireValue);
 		},
 	});
+
+	// Cache the proxy before registering and returning
+	if (isCacheable) {
+		setCachedProxy(ep, pathKey, proxy);
+	}
+
 	registerProxy(proxy, ep);
 	return proxy as any;
 }
