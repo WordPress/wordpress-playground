@@ -1,7 +1,14 @@
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PHPResponse } from '@php-wasm/universal';
 import { describe, expect, it } from 'vitest';
 
-import { ensureWordPressInstalled } from '../../src/posix-kernel/prepare-wordpress';
+import {
+	ensureDbDropIn,
+	ensureSqliteIntegrationPlugin,
+	ensureWordPressInstalled,
+} from '../../src/posix-kernel/prepare-wordpress';
 import type { KernelLimitedPHPApi } from '../../src/posix-kernel/php-api';
 
 function response(
@@ -69,5 +76,67 @@ describe('ensureWordPressInstalled gateway readiness', () => {
 
 		await expect(ensureWordPressInstalled(api)).resolves.toBeUndefined();
 		expect(calls).toEqual([{ method: 'GET', url: '/' }]);
+	});
+
+	it('rejects an HTTP 500 on the initial probe', async () => {
+		const { api } = fakeApi(() =>
+			response(500, {
+				body: 'Error establishing a database connection',
+			})
+		);
+
+		await expect(ensureWordPressInstalled(api)).rejects.toThrow(
+			'readiness probe failed: HTTP 500'
+		);
+	});
+
+	it('rejects an HTTP 500 on the post-install recheck', async () => {
+		let probes = 0;
+		const { api } = fakeApi((method) => {
+			if (method === 'POST') {
+				return response(200, { body: 'installer output' });
+			}
+			probes++;
+			return probes === 1
+				? response(302, { location: '/wp-admin/install.php' })
+				: response(500);
+		});
+
+		await expect(ensureWordPressInstalled(api)).rejects.toThrow(
+			'post-install recheck failed: HTTP 500'
+		);
+	});
+});
+
+describe('ensureSqliteIntegrationPlugin', () => {
+	it('extracts the bundled archive and creates the db.php drop-in', async () => {
+		const wordPressRoot = mkdtempSync(join(tmpdir(), 'posix-sqlite-'));
+		try {
+			await ensureSqliteIntegrationPlugin(wordPressRoot);
+			const pluginDir = join(
+				wordPressRoot,
+				'wp-content/plugins/sqlite-database-integration'
+			);
+			expect(existsSync(join(pluginDir, 'load.php'))).toBe(true);
+			expect(existsSync(join(pluginDir, 'db.copy'))).toBe(true);
+
+			ensureDbDropIn(wordPressRoot);
+			expect(existsSync(join(wordPressRoot, 'wp-content/db.php'))).toBe(
+				true
+			);
+		} finally {
+			rmSync(wordPressRoot, { recursive: true, force: true });
+		}
+	});
+
+	it('throws instead of creating an empty db-less site', () => {
+		const wordPressRoot = mkdtempSync(join(tmpdir(), 'posix-sqlite-'));
+		try {
+			expect(() => ensureDbDropIn(wordPressRoot)).toThrow(
+				'db.copy not found'
+			);
+		} finally {
+			rmSync(wordPressRoot, { recursive: true, force: true });
+		}
 	});
 });

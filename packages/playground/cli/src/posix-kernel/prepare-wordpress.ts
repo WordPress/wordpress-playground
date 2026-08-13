@@ -54,7 +54,7 @@ export async function prepareWordPressForPosixKernel(
 
 		onStatus?.('Extracting WordPress');
 		await extractZipToDir(wpZipBytes, wordPressRoot, {
-			stripLeadingDir: 'wordpress',
+			stripRootDir: true,
 		});
 	}
 
@@ -75,6 +75,7 @@ export async function ensureWordPressInstalled(
 		method: 'GET',
 		url: '/',
 	});
+	assertNonErrorResponse(probe, 'readiness probe');
 	const probeLocation = probe.headers['location']?.[0] ?? '';
 	const installRequired =
 		probe.httpStatusCode === 302 && probeLocation.includes('install.php');
@@ -122,6 +123,7 @@ export async function ensureWordPressInstalled(
 			method: 'GET',
 			url: '/',
 		});
+		assertNonErrorResponse(recheck, 'post-install recheck');
 		const recheckLocation = recheck.headers['location']?.[0] ?? '';
 		const stillRequired =
 			recheck.httpStatusCode === 302 &&
@@ -133,6 +135,17 @@ export async function ensureWordPressInstalled(
 	throw new Error(
 		`WordPress installer did not report success: ` +
 			`${lastHtml.slice(0, 1000)}`
+	);
+}
+
+function assertNonErrorResponse(response: PHPResponse, context: string): void {
+	if (response.httpStatusCode < 400) {
+		return;
+	}
+	const body = new TextDecoder().decode(response.bytes);
+	throw new Error(
+		`WordPress ${context} failed: HTTP ${response.httpStatusCode}: ` +
+			`${body.slice(0, 1000)}`
 	);
 }
 
@@ -185,7 +198,7 @@ function ensureDisableWpMailMuPlugin(wordPressRoot: string): void {
 	writeFileSync(path, DISABLE_WP_MAIL_MU_PLUGIN_PHP);
 }
 
-async function ensureSqliteIntegrationPlugin(
+export async function ensureSqliteIntegrationPlugin(
 	wordPressRoot: string,
 	onStatus?: (message: string) => void
 ): Promise<void> {
@@ -198,24 +211,33 @@ async function ensureSqliteIntegrationPlugin(
 	}
 	onStatus?.('Installing SQLite Database Integration');
 	mkdirSync(sqlitePluginDir, { recursive: true });
-	const sqliteZip = await fetchSqliteIntegration('v2.1.16');
+	const sqliteZip = await fetchSqliteIntegration('trunk');
 	const sqliteZipBytes = new Uint8Array(await sqliteZip.arrayBuffer());
 	await extractZipToDir(sqliteZipBytes, sqlitePluginDir, {
-		stripLeadingDir: 'sqlite-database-integration',
+		stripRootDir: true,
 	});
+	if (!existsSync(joinPaths(sqlitePluginDir, 'load.php'))) {
+		throw new Error(
+			`SQLite integration archive did not contain load.php ` +
+				`under its root directory`
+		);
+	}
 }
 
-function ensureDbDropIn(wordPressRoot: string): void {
+export function ensureDbDropIn(wordPressRoot: string): void {
 	const wpContent = joinPaths(wordPressRoot, 'wp-content');
 	const dbDropIn = joinPaths(wpContent, 'db.php');
+	if (existsSync(dbDropIn)) {
+		return;
+	}
 	const source = joinPaths(
 		wpContent,
 		'plugins/sqlite-database-integration/db.copy'
 	);
-	mkdirSync(wpContent, { recursive: true });
-	if (!existsSync(dbDropIn) && existsSync(source)) {
-		copyFileSync(source, dbDropIn);
+	if (!existsSync(source)) {
+		throw new Error(`SQLite integration db.copy not found at ${source}`);
 	}
+	copyFileSync(source, dbDropIn);
 }
 
 function ensureWpConfig(wordPressRoot: string): void {
@@ -232,7 +254,7 @@ function ensureDatabaseDir(wordPressRoot: string): void {
 }
 
 interface ExtractZipOptions {
-	stripLeadingDir?: string;
+	stripRootDir?: boolean;
 }
 
 async function extractZipToDir(
@@ -259,11 +281,8 @@ async function extractZipToDir(
 			continue;
 		}
 		let pathStr = value.name;
-		if (options.stripLeadingDir !== undefined) {
-			const stripped = stripLeadingDirPrefix(
-				pathStr,
-				options.stripLeadingDir
-			);
+		if (options.stripRootDir) {
+			const stripped = stripRootDir(pathStr);
 			if (stripped === null) {
 				continue;
 			}
@@ -283,23 +302,10 @@ async function extractZipToDir(
 	}
 }
 
-export function stripLeadingDirPrefix(
-	path: string,
-	dirName: string
-): string | null {
-	const exactPrefix = `${dirName}/`;
-	if (path === exactPrefix) {
-		return '';
+export function stripRootDir(path: string): string | null {
+	const slash = path.indexOf('/');
+	if (slash === -1) {
+		return null;
 	}
-	if (path.startsWith(exactPrefix)) {
-		return path.slice(exactPrefix.length);
-	}
-	const versionedPrefix = `${dirName}-`;
-	if (path.startsWith(versionedPrefix)) {
-		const slash = path.indexOf('/');
-		if (slash > -1) {
-			return path.slice(slash + 1);
-		}
-	}
-	return null;
+	return path.slice(slash + 1);
 }
