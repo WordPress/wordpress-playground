@@ -729,39 +729,49 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 					);
 
 					const heldRequests: Array<{
+						reader: ReadableStreamDefaultReader<Uint8Array>;
 						releasePath: string;
 						response: { finished: Promise<void> };
 						role: string;
 					}> = [];
-					const startHeldRequest = async (
-						releasePath: string,
-						rolePath: string
-					) => {
+					const startHeldRequest = async (releasePath: string) => {
 						const response = await playground.runStream({
 							code: `<?php
 $role = file_exists(${JSON.stringify(primaryMarkerPath)})
 	? 'primary'
 	: 'secondary';
-file_put_contents(${JSON.stringify(rolePath)}, $role);
+echo "$role\\n";
+flush();
 while (!file_exists(${JSON.stringify(releasePath)})) {
 	usleep(1000);
 }
 `,
 						});
-						while (!(await playground.fileExists(rolePath))) {
-							// Each remote filesystem check yields to the worker that is
-							// running the held request. No elapsed duration controls which
-							// PHP instance the process manager selects.
+						const reader = response.stdout.getReader();
+						const decoder = new TextDecoder();
+						let output = '';
+						while (!output.includes('\n')) {
+							const chunk = await reader.read();
+							if (chunk.done) {
+								throw new Error(
+									'PHP request ended before identifying its pool role.'
+								);
+							}
+							output += decoder.decode(chunk.value, {
+								stream: true,
+							});
 						}
 						const heldRequest = {
+							reader,
 							releasePath,
 							response,
-							role: await playground.readFileAsText(rolePath),
+							role: output.trim(),
 						};
 						heldRequests.push(heldRequest);
 						return heldRequest;
 					};
 					const releaseHeldRequest = async (heldRequest: {
+						reader: ReadableStreamDefaultReader<Uint8Array>;
 						releasePath: string;
 						response: { finished: Promise<void> };
 					}) => {
@@ -770,6 +780,7 @@ while (!file_exists(${JSON.stringify(releasePath)})) {
 							'release'
 						);
 						await heldRequest.response.finished;
+						heldRequest.reader.releaseLock();
 						heldRequests.splice(
 							heldRequests.indexOf(heldRequest),
 							1
@@ -778,14 +789,12 @@ while (!file_exists(${JSON.stringify(releasePath)})) {
 
 					try {
 						let primaryRequest = await startHeldRequest(
-							`/tmp/release-first-${testId}`,
-							`/tmp/role-first-${testId}`
+							`/tmp/release-first-${testId}`
 						);
 						if (primaryRequest.role === 'secondary') {
 							const secondaryRequest = primaryRequest;
 							primaryRequest = await startHeldRequest(
-								`/tmp/release-second-${testId}`,
-								`/tmp/role-second-${testId}`
+								`/tmp/release-second-${testId}`
 							);
 							if (primaryRequest.role !== 'primary') {
 								throw new Error(
@@ -894,6 +903,7 @@ echo $role;
 					'release'
 				);
 				await state.primaryRequest.response.finished;
+				state.primaryRequest.reader.releaseLock();
 				delete (window as any).__pooledOpfsPersistenceTest;
 			});
 		}
