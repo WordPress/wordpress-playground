@@ -439,6 +439,7 @@ export function journalFSEventsToOpfs(
 		const inFlightFlush = flushPromise;
 		unbindJournal();
 		php.removeEventListener('request.end', flushInBackground);
+		php.removeEventListener('proxyfs.request.end', flushInBackground);
 		php.removeEventListener('filesystem.write', flushInBackground);
 		try {
 			await inFlightFlush;
@@ -512,6 +513,7 @@ export function journalFSEventsToOpfs(
 	}
 
 	php.addEventListener('request.end', flushInBackground);
+	php.addEventListener('proxyfs.request.end', flushInBackground);
 	php.addEventListener('filesystem.write', flushInBackground);
 	return {
 		flush,
