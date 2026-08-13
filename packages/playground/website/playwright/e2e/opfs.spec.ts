@@ -493,6 +493,31 @@ async function waitForInitialOpfsSync(page: Page, siteSlug: string) {
 		.toBe(false);
 }
 
+async function readOpfsWpContentFile(
+	page: Page,
+	siteSlug: string,
+	filename: string
+) {
+	return page.evaluate(
+		async ({ directoryName, filename }) => {
+			try {
+				const root = await navigator.storage.getDirectory();
+				const sites = await root.getDirectoryHandle('sites');
+				const site = await sites.getDirectoryHandle(directoryName);
+				const wpContent = await site.getDirectoryHandle('wp-content');
+				const file = await wpContent.getFileHandle(filename);
+				return await (await file.getFile()).text();
+			} catch (error) {
+				if (error?.name === 'NotFoundError') {
+					return undefined;
+				}
+				throw error;
+			}
+		},
+		{ directoryName: getDirectoryNameForSlug(siteSlug), filename }
+	);
+}
+
 async function waitForActivePlaygroundSiteSlug(
 	page: Page,
 	matchesSlug: (slug: string) => boolean
@@ -725,168 +750,73 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 					'only the primary PHP instance can see this file'
 				);
 
-				const heldProcesses: Array<{
-					reader: ReadableStreamDefaultReader<Uint8Array>;
-					releasePath: string;
-					response: { finished: Promise<void> };
-					role: string;
-				}> = [];
-				const startHeldPhpProcess = async (releasePath: string) => {
-					const response = await playground.cli([
-						'php',
-						'-r',
-						`
-$role = file_exists(${JSON.stringify(primaryMarkerPath)})
-	? 'primary'
-	: 'secondary';
-echo "$role\\n";
-flush();
-while (!file_exists(${JSON.stringify(releasePath)})) {
+				const waitForFile = async (path: string) => {
+					while (!(await playground.fileExists(path))) {
+						await new Promise(requestAnimationFrame);
+					}
+				};
+
+				const primaryReadyPath = `/tmp/ready-primary-${testId}`;
+				const primaryReleasePath = `/tmp/release-primary-${testId}`;
+				const primaryRequest = playground.run({
+					code: `<?php
+file_put_contents(${JSON.stringify(primaryReadyPath)}, 'ready');
+while (!file_exists(${JSON.stringify(primaryReleasePath)})) {
 	usleep(1000);
 }
-`,
-					]);
-					const reader = response.stdout.getReader();
-					const decoder = new TextDecoder();
-					let output = '';
-					while (!output.includes('\n')) {
-						const chunk = await reader.read();
-						if (chunk.done) {
-							throw new Error(
-								'PHP process ended before identifying its pool role.'
-							);
-						}
-						output += decoder.decode(chunk.value, {
-							stream: true,
-						});
-					}
-					const heldProcess = {
-						reader,
-						releasePath,
-						response,
-						role: output.trim(),
-					};
-					heldProcesses.push(heldProcess);
-					return heldProcess;
-				};
-				const finishHeldPhpProcess = async (heldProcess: {
-					reader: ReadableStreamDefaultReader<Uint8Array>;
-					releasePath: string;
-					response: { finished: Promise<void> };
-				}) => {
-					await heldProcess.response.finished;
-					heldProcess.reader.releaseLock();
-					heldProcesses.splice(heldProcesses.indexOf(heldProcess), 1);
-				};
-				const releaseHeldPhpProcess = async (heldProcess: {
-					reader: ReadableStreamDefaultReader<Uint8Array>;
-					releasePath: string;
-					response: { finished: Promise<void> };
-				}) => {
-					await playground.writeFile(
-						heldProcess.releasePath,
-						'release'
-					);
-					await finishHeldPhpProcess(heldProcess);
-				};
-
-				try {
-					let primaryProcess = await startHeldPhpProcess(
-						`/tmp/release-first-${testId}`
-					);
-					if (primaryProcess.role === 'secondary') {
-						const secondaryProcess = primaryProcess;
-						primaryProcess = await startHeldPhpProcess(
-							`/tmp/release-second-${testId}`
-						);
-						if (primaryProcess.role !== 'primary') {
-							throw new Error(
-								`Expected the second held process to use the primary PHP instance, got ${primaryProcess.role}.`
-							);
-						}
-						await releaseHeldPhpProcess(secondaryProcess);
-					} else if (primaryProcess.role !== 'primary') {
-						throw new Error(
-							`Unknown PHP instance role: ${primaryProcess.role}`
-						);
-					}
-
-					const pooledResponse = await playground.run({
-						code: `<?php
-$role = file_exists(${JSON.stringify(primaryMarkerPath)})
+echo file_exists(${JSON.stringify(primaryMarkerPath)})
 	? 'primary'
 	: 'secondary';
+`,
+				});
+				await waitForFile(primaryReadyPath);
+
+				const secondaryReadyPath = `/tmp/ready-secondary-${testId}`;
+				const secondaryReleasePath = `/tmp/release-secondary-${testId}`;
+				const secondaryRequest = playground.run({
+					code: `<?php
+file_put_contents(${JSON.stringify(secondaryReadyPath)}, 'ready');
+while (!file_exists(${JSON.stringify(secondaryReleasePath)})) {
+	usleep(1000);
+}
 file_put_contents(
 	${JSON.stringify(markerPath)},
 	${JSON.stringify(markerContents)}
 );
-file_put_contents(
-	${JSON.stringify(primaryProcess.releasePath)},
-	'release'
-);
-echo $role;
+echo file_exists(${JSON.stringify(primaryMarkerPath)})
+	? 'primary'
+	: 'secondary';
 `,
-					});
-					await finishHeldPhpProcess(primaryProcess);
-					const result = {
-						liveMarkerContents:
-							await playground.readFileAsText(markerPath),
-						pooledRequestRole: pooledResponse.text,
-					};
-					return result;
-				} catch (error) {
-					for (const heldProcess of [...heldProcesses]) {
-						await releaseHeldPhpProcess(heldProcess);
-					}
-					throw error;
-				}
+				});
+				await waitForFile(secondaryReadyPath);
+
+				await playground.writeFile(primaryReleasePath, 'release');
+				const primaryResponse = await primaryRequest;
+				await playground.writeFile(secondaryReleasePath, 'release');
+				const secondaryResponse = await secondaryRequest;
+
+				return {
+					liveMarkerContents:
+						await playground.readFileAsText(markerPath),
+					primaryRole: primaryResponse.text,
+					secondaryRole: secondaryResponse.text,
+				};
 			},
 			{ markerContents, markerPath, primaryMarkerPath, testId }
 		);
 
-		// The marker-writing request cannot report "secondary" unless the
-		// identified primary instance was occupied by the held CLI process.
-		expect(result.pooledRequestRole).toBe('secondary');
+		expect(result.primaryRole).toBe('primary');
+		expect(result.secondaryRole).toBe('secondary');
 		// The write reached the shared live VFS, isolating persistence as the
 		// only possible cause if the same bytes are missing from OPFS below.
 		expect(result.liveMarkerContents).toBe(markerContents);
 
-		// The secondary request releases the primary CLI process through the VFS.
-		// CLI completion does not dispatch request.end, so the secondary request
-		// is the only persistence trigger before this assertion.
+		// The primary request has fully ended before the secondary is allowed to
+		// write. Thus only the secondary request can trigger this persistence.
 		await expect
 			.poll(
 				() =>
-					website.page.evaluate(
-						async ({ directoryName, markerName }) => {
-							try {
-								const root =
-									await navigator.storage.getDirectory();
-								const sites =
-									await root.getDirectoryHandle('sites');
-								const siteDirectory =
-									await sites.getDirectoryHandle(
-										directoryName
-									);
-								const wpContent =
-									await siteDirectory.getDirectoryHandle(
-										'wp-content'
-									);
-								const marker =
-									await wpContent.getFileHandle(markerName);
-								return await (await marker.getFile()).text();
-							} catch (error) {
-								if (error?.name === 'NotFoundError') {
-									return undefined;
-								}
-								throw error;
-							}
-						},
-						{
-							directoryName: getDirectoryNameForSlug(site.slug),
-							markerName,
-						}
-					),
+					readOpfsWpContentFile(website.page, site.slug, markerName),
 				{ timeout: 3000 }
 			)
 			.toBe(markerContents);
