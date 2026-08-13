@@ -221,12 +221,6 @@ export async function proxyFileSystem(
 			};
 		});
 	}
-
-	// Filesystem listeners belong to the source of truth. Notify them when a
-	// request using that filesystem through PROXYFS finishes on the replica.
-	replica.addEventListener('request.end', () => {
-		sourceOfTruth.dispatchEvent({ type: 'proxyfs.request.end' });
-	});
 }
 
 /**

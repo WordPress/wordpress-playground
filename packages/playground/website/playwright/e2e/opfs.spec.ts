@@ -756,12 +756,14 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 					}
 				};
 
-				const primaryReadyPath = `/tmp/ready-primary-${testId}`;
-				const primaryReleasePath = `/tmp/release-primary-${testId}`;
+				// The pool does not expose replica selection. Hold two requests behind
+				// file barriers so the first occupies the primary and the second uses a
+				// replica, then finish the primary before the replica writes the marker.
+				const firstRequestBarrierPath = `/tmp/barrier-first-${testId}`;
 				const primaryRequest = playground.run({
 					code: `<?php
-file_put_contents(${JSON.stringify(primaryReadyPath)}, 'ready');
-while (!file_exists(${JSON.stringify(primaryReleasePath)})) {
+file_put_contents(${JSON.stringify(firstRequestBarrierPath)}, 'ready');
+while (file_get_contents(${JSON.stringify(firstRequestBarrierPath)}) !== 'release') {
 	usleep(1000);
 }
 echo file_exists(${JSON.stringify(primaryMarkerPath)})
@@ -769,14 +771,13 @@ echo file_exists(${JSON.stringify(primaryMarkerPath)})
 	: 'secondary';
 `,
 				});
-				await waitForFile(primaryReadyPath);
+				await waitForFile(firstRequestBarrierPath);
 
-				const secondaryReadyPath = `/tmp/ready-secondary-${testId}`;
-				const secondaryReleasePath = `/tmp/release-secondary-${testId}`;
+				const secondRequestBarrierPath = `/tmp/barrier-second-${testId}`;
 				const secondaryRequest = playground.run({
 					code: `<?php
-file_put_contents(${JSON.stringify(secondaryReadyPath)}, 'ready');
-while (!file_exists(${JSON.stringify(secondaryReleasePath)})) {
+file_put_contents(${JSON.stringify(secondRequestBarrierPath)}, 'ready');
+while (file_get_contents(${JSON.stringify(secondRequestBarrierPath)}) !== 'release') {
 	usleep(1000);
 }
 file_put_contents(
@@ -788,11 +789,11 @@ echo file_exists(${JSON.stringify(primaryMarkerPath)})
 	: 'secondary';
 `,
 				});
-				await waitForFile(secondaryReadyPath);
+				await waitForFile(secondRequestBarrierPath);
 
-				await playground.writeFile(primaryReleasePath, 'release');
+				await playground.writeFile(firstRequestBarrierPath, 'release');
 				const primaryResponse = await primaryRequest;
-				await playground.writeFile(secondaryReleasePath, 'release');
+				await playground.writeFile(secondRequestBarrierPath, 'release');
 				const secondaryResponse = await secondaryRequest;
 
 				return {
