@@ -44,6 +44,11 @@
  *                         share the same blueprint share one runtime — the
  *                         blueprint is JSON-stringified and folded into the
  *                         cache key.
+ *   bootstrap="wp-load"  CSS-selector-or-id of a hidden PHP script to run
+ *                         before this snippet on every execution.
+ *   php-fragment          treat the visible code as a PHP fragment without an
+ *                         opening tag. Fragments containing <?php or <?= are
+ *                         rejected instead of being rewritten ambiguously.
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */
@@ -54,6 +59,19 @@ const DEFAULT_WP = 'latest';
 const DOCS_URL =
 	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const PLAYGROUND_URL = 'https://wordpress.org/playground/';
+const BOOTSTRAP_ENVIRONMENT_VARIABLE = 'PLAYGROUND_PHP_SNIPPET_BOOTSTRAP';
+const BOOTSTRAP_PRELOAD_PATH =
+	'/internal/shared/preload/php-code-snippet-bootstrap.php';
+const BOOTSTRAP_PRELOAD_CODE = `<?php
+$playground_php_snippet_bootstrap = getenv( '${BOOTSTRAP_ENVIRONMENT_VARIABLE}' );
+if (
+	false !== $playground_php_snippet_bootstrap &&
+	'' !== $playground_php_snippet_bootstrap
+) {
+	require $playground_php_snippet_bootstrap;
+}
+unset( $playground_php_snippet_bootstrap );`;
+let nextSnippetId = 0;
 
 /**
  * Minimal duck-typed port of @php-wasm/progress's ProgressTracker.
@@ -740,6 +758,7 @@ class PhpSnippet extends HTMLElement {
 	constructor() {
 		super();
 		this.attachShadow({ mode: 'open' });
+		this._snippetId = ++nextSnippetId;
 		this._code = '';
 		this._expectedOutput = null;
 		this._ready = Promise.resolve();
@@ -972,6 +991,13 @@ class PhpSnippet extends HTMLElement {
 		try {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
+			const bootstrap = resolveBootstrap(this);
+			const phpFragment = this.hasAttribute('php-fragment');
+			if (phpFragment && /<\?(?:php|=)/i.test(code)) {
+				throw new Error(
+					'<php-snippet php-fragment> code must not contain <?php or <?= opening tags.'
+				);
+			}
 			const client = await getSharedClient(
 				{
 					origin:
@@ -991,7 +1017,13 @@ class PhpSnippet extends HTMLElement {
 				}
 			);
 			this._setRunButtonProgress('Running', 100);
-			const response = await client.run({ code });
+			const response = await runPhpSnippet(client, {
+				code,
+				bootstrap,
+				phpFragment,
+				name: this.getAttribute('name'),
+				snippetId: this._snippetId,
+			});
 			outputBody.textContent = response.text || '(no output)';
 			if (response.errors) {
 				outputBody.textContent +=
@@ -1059,6 +1091,76 @@ class PhpSnippet extends HTMLElement {
 		};
 		outputBody.addEventListener('animationend', clear);
 	}
+}
+
+/**
+ * Resolve a snippet's `bootstrap` attribute to complete PHP source.
+ *
+ * The referenced element must be an inert PHP script. Empty scripts are
+ * treated like an omitted bootstrap so existing snippet execution keeps its
+ * eval-mode filename and path behavior.
+ */
+function resolveBootstrap(snippet) {
+	const ref = snippet.getAttribute('bootstrap');
+	if (!ref) return null;
+
+	let element = null;
+	try {
+		element = snippet.ownerDocument.querySelector(ref);
+	} catch {
+		// Invalid selector — fall through to getElementById.
+	}
+	if (!element) element = snippet.ownerDocument.getElementById(ref);
+	if (!element) {
+		throw new Error(
+			`<php-snippet bootstrap="${ref}"> could not find a matching element on the page.`
+		);
+	}
+	if (
+		!(element instanceof HTMLScriptElement) ||
+		!['application/x-php', 'application/x-php+json'].includes(element.type)
+	) {
+		throw new Error(
+			`<php-snippet bootstrap="${ref}"> must reference a <script type="application/x-php"> or <script type="application/x-php+json"> element.`
+		);
+	}
+
+	return readScriptPayload(element).trim() || null;
+}
+
+async function runPhpSnippet(
+	client,
+	{ code, bootstrap, phpFragment, name, snippetId }
+) {
+	if (!bootstrap && !phpFragment) {
+		return await client.run({ code });
+	}
+
+	const filename = sanitizePhpFilename(name);
+	const snippetDirectory = `/tmp/php-snippet-${snippetId}`;
+	if (!(await client.fileExists(snippetDirectory))) {
+		await client.mkdir(snippetDirectory);
+	}
+	const snippetPath = `${snippetDirectory}/${filename}`;
+	await client.writeFile(snippetPath, phpFragment ? `<?php ${code}` : code);
+
+	const request = { scriptPath: snippetPath };
+	if (bootstrap) {
+		const bootstrapPath = `${snippetDirectory}/bootstrap.php`;
+		await client.writeFile(bootstrapPath, bootstrap);
+		await client.writeFile(BOOTSTRAP_PRELOAD_PATH, BOOTSTRAP_PRELOAD_CODE);
+		request.env = {
+			[BOOTSTRAP_ENVIRONMENT_VARIABLE]: bootstrapPath,
+		};
+	}
+
+	return await client.run(request);
+}
+
+function sanitizePhpFilename(name) {
+	if (!name || name.startsWith('.')) return 'snippet.php';
+	const sanitized = name.replace(/[^A-Za-z0-9._-]/g, '-');
+	return sanitized && !sanitized.startsWith('.') ? sanitized : 'snippet.php';
 }
 
 /**

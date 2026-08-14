@@ -144,6 +144,111 @@ test.describe('php-code-snippet embed', () => {
 		expect(rejected).toEqual({ code: true, output: true });
 	});
 
+	test('runs fragments with hidden bootstrap code and real filenames', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+		await page.evaluate(() => {
+			document.body.insertAdjacentHTML(
+				'beforeend',
+				String.raw`
+					<script id="wordpress-bootstrap" type="application/x-php">
+						<?php require_once '/wordpress/wp-load.php';
+					</script>
+					<php-snippet id="bootstrapped-fragment" name="site-title.php" bootstrap="#wordpress-bootstrap" php-fragment>
+						<script type="application/x-php">
+							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
+						</script>
+					</php-snippet>
+					<php-snippet id="unbootstrapped-fragment" name="../secret.php" php-fragment>
+						<script type="application/x-php">
+							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
+						</script>
+					</php-snippet>
+				`
+			);
+		});
+		await ensurePlaygroundClientIsServed(page);
+		await page
+			.locator('#bootstrapped-fragment, #unbootstrapped-fragment')
+			.evaluateAll((snippets) => {
+				for (const snippet of snippets) {
+					snippet.setAttribute(
+						'playground-origin',
+						window.location.origin
+					);
+				}
+			});
+
+		const bootstrapped = await waitForRenderedPhpSnippet(
+			page,
+			'#bootstrapped-fragment'
+		);
+		await expect(bootstrapped.locator('textarea.ta')).toHaveValue(
+			"echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
+		);
+		await bootstrapped.locator('.run').click();
+		await expect(bootstrapped.locator('.output-body')).toHaveText(
+			'wordpress|site-title.php:1',
+			{ timeout: 240_000 }
+		);
+
+		const unbootstrapped = await waitForRenderedPhpSnippet(
+			page,
+			'#unbootstrapped-fragment'
+		);
+		await unbootstrapped.locator('.run').click();
+		await expect(unbootstrapped.locator('.output-body')).toHaveText(
+			'plain|snippet.php:1',
+			{ timeout: 30_000 }
+		);
+		await expect(
+			page.locator('iframe[title="PHP Snippet runtime"]')
+		).toHaveCount(1);
+	});
+
+	test('rejects missing bootstraps and opening tags in fragments before boot', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+		await page.evaluate(() => {
+			document.body.insertAdjacentHTML(
+				'beforeend',
+				String.raw`
+					<php-snippet id="missing-bootstrap" bootstrap="#not-on-this-page">
+						<script type="application/x-php"><?php echo 'never';</script>
+					</php-snippet>
+					<php-snippet id="tagged-fragment" php-fragment>
+						<script type="application/x-php"><?php echo 'ambiguous';</script>
+					</php-snippet>
+				`
+			);
+		});
+
+		const missing = await waitForRenderedPhpSnippet(
+			page,
+			'#missing-bootstrap'
+		);
+		await missing.locator('.run').click();
+		await expect(missing.locator('.output-body')).toContainText(
+			'could not find a matching element'
+		);
+
+		const tagged = await waitForRenderedPhpSnippet(
+			page,
+			'#tagged-fragment'
+		);
+		await tagged.locator('.run').click();
+		await expect(tagged.locator('.output-body')).toContainText(
+			'must not contain <?php or <?= opening tags'
+		);
+		await expect(
+			page.locator('iframe[title="PHP Snippet runtime"]')
+		).toHaveCount(0);
+	});
+
 	test('runnable snippets are editable by default unless readonly', async ({
 		page,
 	}) => {

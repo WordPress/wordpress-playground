@@ -195,6 +195,39 @@ the WordPress download and boot step:
 </php-snippet>
 ```
 
+### Hide repeated bootstrap code
+
+Use `bootstrap` when code must run before every execution but should not appear
+in the editable example. Point it at a complete PHP script by id or CSS
+selector:
+
+```html
+<script id="wordpress-bootstrap" type="application/x-php">
+	<?php
+	require_once '/wordpress/wp-load.php';
+</script>
+
+<php-snippet name="site-title.php" bootstrap="#wordpress-bootstrap" php-fragment>
+	<script type="application/x-php">
+		echo get_bloginfo( 'name' );
+	</script>
+</php-snippet>
+```
+
+The bootstrap remains outside the visible editor and runs before every click,
+including after the reader edits the snippet. Snippets with different
+bootstraps can still share one runtime.
+
+`php-fragment` says the visible source omits its PHP opening tag. Playground
+adds the opener on the first line of the execution file, so PHP errors still
+point to the displayed line and the `name` attribute. A fragment containing
+`<?php` or `<?=` is rejected; remove `php-fragment` when the source is already
+a complete PHP file.
+
+Without `php-fragment`, bootstrap-backed snippets must include their own PHP
+opening tag. `bootstrap` and `php-fragment` are independent, so fragments also
+work without hidden setup code.
+
 ## Edit examples in place
 
 Runnable snippets are editable by default. The edited code is kept only in the
@@ -468,6 +501,8 @@ fields.
 | Several runnable examples in one article              | `<php-snippet>`                 |
 | A tutorial step where readers should edit code inline | `<php-snippet>`                 |
 | Shared setup across examples                          | `<php-snippet blueprint="...">` |
+| Hidden PHP setup before every run                     | `<php-snippet bootstrap="...">` |
+| PHP source without an opening tag                     | `<php-snippet php-fragment>`    |
 | A pure PHP language example                           | `<php-snippet wp="none">`       |
 | A runnable example that should not be edited          | `<php-snippet readonly>`        |
 | A single full-page editor with a shareable URL        | Standalone PHP Playground       |
