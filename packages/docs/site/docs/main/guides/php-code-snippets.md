@@ -220,9 +220,9 @@ bootstraps can still share one runtime.
 
 `php-fragment` says the visible source omits its PHP opening tag. Playground
 adds the opener on the first line of the execution file, so PHP errors still
-point to the displayed line and the `name` attribute. A fragment containing
-`<?php` or `<?=` is rejected; remove `php-fragment` when the source is already
-a complete PHP file.
+point to the displayed line and the `name` attribute. A fragment starting with
+`<?php` or `<?=` is rejected; remove `php-fragment` when the source is already a
+complete PHP file.
 
 Without `php-fragment`, bootstrap-backed snippets must include their own PHP
 opening tag. `bootstrap` and `php-fragment` are independent, so fragments also

@@ -47,7 +47,7 @@
  *   bootstrap="wp-load"  CSS-selector-or-id of a hidden PHP script to run
  *                         before this snippet on every execution.
  *   php-fragment          treat the visible code as a PHP fragment without an
- *                         opening tag. Fragments containing <?php or <?= are
+ *                         opening tag. Fragments starting with <?php or <?= are
  *                         rejected instead of being rewritten ambiguously.
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
@@ -993,7 +993,7 @@ class PhpSnippet extends HTMLElement {
 				resolveSetupBlueprint(this);
 			const bootstrap = resolveBootstrap(this);
 			const phpFragment = this.hasAttribute('php-fragment');
-			if (phpFragment && /<\?(?:php|=)/i.test(code)) {
+			if (phpFragment && /^\s*<\?(?:php|=)/i.test(code)) {
 				throw new Error(
 					'<php-snippet php-fragment> code must not contain <?php or <?= opening tags.'
 				);

@@ -158,7 +158,7 @@ test.describe('php-code-snippet embed', () => {
 					</script>
 					<php-snippet id="bootstrapped-fragment" name="site-title.php" bootstrap="#wordpress-bootstrap" php-fragment>
 						<script type="application/x-php">
-							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
+							echo '<?php|' . ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
 						</script>
 					</php-snippet>
 					<php-snippet id="unbootstrapped-fragment" name="../secret.php" php-fragment>
@@ -186,11 +186,11 @@ test.describe('php-code-snippet embed', () => {
 			'#bootstrapped-fragment'
 		);
 		await expect(bootstrapped.locator('textarea.ta')).toHaveValue(
-			"echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
+			"echo '<?php|' . ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
 		);
 		await bootstrapped.locator('.run').click();
 		await expect(bootstrapped.locator('.output-body')).toHaveText(
-			'wordpress|site-title.php:1',
+			'<?php|wordpress|site-title.php:1',
 			{ timeout: 240_000 }
 		);
 
