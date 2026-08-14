@@ -2,6 +2,7 @@ import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { BrowserContext, Page } from '@playwright/test';
 import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
+import { joinPaths } from '@php-wasm/util';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 import { readFile } from 'node:fs/promises';
 
@@ -492,6 +493,31 @@ async function waitForInitialOpfsSync(page: Page, siteSlug: string) {
 		.toBe(false);
 }
 
+async function readOpfsWpContentFile(
+	page: Page,
+	siteSlug: string,
+	filename: string
+) {
+	return page.evaluate(
+		async ({ directoryName, filename }) => {
+			try {
+				const root = await navigator.storage.getDirectory();
+				const sites = await root.getDirectoryHandle('sites');
+				const site = await sites.getDirectoryHandle(directoryName);
+				const wpContent = await site.getDirectoryHandle('wp-content');
+				const file = await wpContent.getFileHandle(filename);
+				return await (await file.getFile()).text();
+			} catch (error) {
+				if (error?.name === 'NotFoundError') {
+					return undefined;
+				}
+				throw error;
+			}
+		},
+		{ directoryName: getDirectoryNameForSlug(siteSlug), filename }
+	);
+}
+
 async function waitForActivePlaygroundSiteSlug(
 	page: Page,
 	matchesSlug: (slug: string) => boolean
@@ -680,6 +706,130 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 				storage: 'opfs',
 				persistence: 'autosave',
 			});
+	});
+
+	test('should persist pooled PHP request writes to an autosaved OPFS site', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		await website.goto(`./?random=${Date.now()}`);
+		await website.page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites?.getClient())
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		const site = await getActivePlaygroundSite(website.page);
+		await waitForInitialOpfsSync(website.page, site.slug);
+
+		const testId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+		const markerName = `pooled-request-${testId}.txt`;
+		const markerContents = 'written by a pooled PHP instance';
+		const documentRoot = await website.page.evaluate(async () => {
+			const playground = (window as any).playgroundSites.getClient();
+			return await playground.documentRoot;
+		});
+		const markerPath = joinPaths(documentRoot, 'wp-content', markerName);
+		const primaryOnlyMarkerPath = `/primary-php-${testId}`;
+
+		const result = await website.page.evaluate(
+			async ({
+				markerContents,
+				markerPath,
+				primaryOnlyMarkerPath,
+				testId,
+			}) => {
+				const playground = (window as any).playgroundSites.getClient();
+				// This random path is outside the proxied filesystems. Writing it through
+				// the client creates it only on the primary, so each request can report
+				// which pooled PHP instance handled it.
+				await playground.writeFile(
+					primaryOnlyMarkerPath,
+					'only the primary PHP instance can see this file'
+				);
+
+				const waitForFile = async (path: string) => {
+					const deadline = Date.now() + 10_000;
+					while (!(await playground.fileExists(path))) {
+						if (Date.now() >= deadline) {
+							throw new Error(
+								`Timed out waiting for file: ${path}`
+							);
+						}
+						await new Promise((resolve) => setTimeout(resolve, 10));
+					}
+				};
+
+				// The pool does not expose replica selection. Hold two requests behind
+				// file barriers so the first occupies the primary and the second uses a
+				// replica, then finish the primary before the replica writes the marker.
+				const firstRequestBarrierPath = `/tmp/barrier-first-${testId}`;
+				const firstRequest = playground.run({
+					code: `<?php
+file_put_contents(${JSON.stringify(firstRequestBarrierPath)}, 'ready');
+while (file_get_contents(${JSON.stringify(firstRequestBarrierPath)}) !== 'release') {
+	usleep(1000);
+}
+echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
+	? 'primary'
+	: 'secondary';
+`,
+				});
+				await waitForFile(firstRequestBarrierPath);
+
+				const secondRequestBarrierPath = `/tmp/barrier-second-${testId}`;
+				const secondRequest = playground.run({
+					code: `<?php
+file_put_contents(${JSON.stringify(secondRequestBarrierPath)}, 'ready');
+while (file_get_contents(${JSON.stringify(secondRequestBarrierPath)}) !== 'release') {
+	usleep(1000);
+}
+file_put_contents(
+	${JSON.stringify(markerPath)},
+	${JSON.stringify(markerContents)}
+);
+echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
+	? 'primary'
+	: 'secondary';
+`,
+				});
+				await waitForFile(secondRequestBarrierPath);
+
+				await playground.writeFile(firstRequestBarrierPath, 'release');
+				const firstResponse = await firstRequest;
+				await playground.writeFile(secondRequestBarrierPath, 'release');
+				const secondResponse = await secondRequest;
+
+				return {
+					liveMarkerContents:
+						await playground.readFileAsText(markerPath),
+					firstRequestRole: firstResponse.text,
+					secondRequestRole: secondResponse.text,
+				};
+			},
+			{ markerContents, markerPath, primaryOnlyMarkerPath, testId }
+		);
+
+		expect(result.firstRequestRole).toBe('primary');
+		expect(result.secondRequestRole).toBe('secondary');
+		// The write reached the shared live VFS, isolating persistence as the
+		// only possible cause if the same bytes are missing from OPFS below.
+		expect(result.liveMarkerContents).toBe(markerContents);
+
+		// The primary request has fully ended before the secondary is allowed to
+		// write. Thus only the secondary request can trigger this persistence.
+		await expect
+			.poll(
+				() =>
+					readOpfsWpContentFile(website.page, site.slug, markerName),
+				{ timeout: 3000 }
+			)
+			.toBe(markerContents);
 	});
 
 	test('should switch between sites', async ({ website, browserName }) => {
