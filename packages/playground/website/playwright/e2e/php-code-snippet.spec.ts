@@ -158,7 +158,8 @@ test.describe('php-code-snippet embed', () => {
 					</script>
 					<php-snippet id="wordpress-fragment" name="site-title.php" run-before="#load-wordpress" php-fragment>
 						<script type="application/x-php">
-							echo '<?php|' . ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
+							/* The complete form would start with <?php. */
+							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
 						</script>
 					</php-snippet>
 					<php-snippet id="plain-fragment" name="../secret.php" php-fragment>
@@ -186,11 +187,11 @@ test.describe('php-code-snippet embed', () => {
 			'#wordpress-fragment'
 		);
 		await expect(wordpressFragment.locator('textarea.ta')).toHaveValue(
-			"echo '<?php|' . ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
+			"/* The complete form would start with <?php. */\necho ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
 		);
 		await wordpressFragment.locator('.run').click();
 		await expect(wordpressFragment.locator('.output-body')).toHaveText(
-			'<?php|wordpress|site-title.php:1',
+			'wordpress|site-title.php:2',
 			{ timeout: 240_000 }
 		);
 
