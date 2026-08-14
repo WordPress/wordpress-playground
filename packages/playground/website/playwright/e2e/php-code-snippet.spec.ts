@@ -144,7 +144,7 @@ test.describe('php-code-snippet embed', () => {
 		expect(rejected).toEqual({ code: true, output: true });
 	});
 
-	test('runs fragments with hidden code before them and real filenames', async ({
+	test('runs snippets with implicit opening tags and real filenames', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
@@ -156,13 +156,13 @@ test.describe('php-code-snippet embed', () => {
 					<script id="load-wordpress" type="application/x-php">
 						<?php require_once '/wordpress/wp-load.php';
 					</script>
-					<php-snippet id="wordpress-fragment" name="site-title.php" auto-prepend-script="#load-wordpress" php-fragment>
+					<php-snippet id="wordpress-implicit-tag" name="site-title.php" auto-prepend-script="#load-wordpress" implicit-php-open-tag>
 						<script type="application/x-php">
 							/* The complete form would start with <?php. */
 							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
 						</script>
 					</php-snippet>
-					<php-snippet id="plain-fragment" name="../secret.php" php-fragment>
+					<php-snippet id="plain-implicit-tag" name="../secret.php" implicit-php-open-tag>
 						<script type="application/x-php">
 							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
 						</script>
@@ -172,7 +172,7 @@ test.describe('php-code-snippet embed', () => {
 		});
 		await ensurePlaygroundClientIsServed(page);
 		await page
-			.locator('#wordpress-fragment, #plain-fragment')
+			.locator('#wordpress-implicit-tag, #plain-implicit-tag')
 			.evaluateAll((snippets) => {
 				for (const snippet of snippets) {
 					snippet.setAttribute(
@@ -182,25 +182,25 @@ test.describe('php-code-snippet embed', () => {
 				}
 			});
 
-		const wordpressFragment = await waitForRenderedPhpSnippet(
+		const wordpressSnippet = await waitForRenderedPhpSnippet(
 			page,
-			'#wordpress-fragment'
+			'#wordpress-implicit-tag'
 		);
-		await expect(wordpressFragment.locator('textarea.ta')).toHaveValue(
+		await expect(wordpressSnippet.locator('textarea.ta')).toHaveValue(
 			"/* The complete form would start with <?php. */\necho ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
 		);
-		await wordpressFragment.locator('.run').click();
-		await expect(wordpressFragment.locator('.output-body')).toHaveText(
+		await wordpressSnippet.locator('.run').click();
+		await expect(wordpressSnippet.locator('.output-body')).toHaveText(
 			'wordpress|site-title.php:2',
 			{ timeout: 240_000 }
 		);
 
-		const plainFragment = await waitForRenderedPhpSnippet(
+		const plainSnippet = await waitForRenderedPhpSnippet(
 			page,
-			'#plain-fragment'
+			'#plain-implicit-tag'
 		);
-		await plainFragment.locator('.run').click();
-		await expect(plainFragment.locator('.output-body')).toHaveText(
+		await plainSnippet.locator('.run').click();
+		await expect(plainSnippet.locator('.output-body')).toHaveText(
 			'plain|snippet.php:1',
 			{ timeout: 30_000 }
 		);
@@ -209,7 +209,7 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(1);
 	});
 
-	test('rejects missing prepended scripts and opening tags in fragments before boot', async ({
+	test('rejects missing prepended scripts and explicit opening tags before boot', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
@@ -221,7 +221,7 @@ test.describe('php-code-snippet embed', () => {
 					<php-snippet id="missing-auto-prepend" auto-prepend-script="#not-on-this-page">
 						<script type="application/x-php"><?php echo 'never';</script>
 					</php-snippet>
-					<php-snippet id="tagged-fragment" php-fragment>
+					<php-snippet id="explicit-opening-tag" implicit-php-open-tag>
 						<script type="application/x-php"><?php echo 'ambiguous';</script>
 					</php-snippet>
 				`
@@ -239,11 +239,11 @@ test.describe('php-code-snippet embed', () => {
 
 		const tagged = await waitForRenderedPhpSnippet(
 			page,
-			'#tagged-fragment'
+			'#explicit-opening-tag'
 		);
 		await tagged.locator('.run').click();
 		await expect(tagged.locator('.output-body')).toContainText(
-			'must not contain <?php or <?= opening tags'
+			'must not start with a <?php or <?= opening tag'
 		);
 		await expect(
 			page.locator('iframe[title="PHP Snippet runtime"]')

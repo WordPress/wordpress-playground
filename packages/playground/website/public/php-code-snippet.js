@@ -48,9 +48,10 @@
  *                         CSS-selector-or-id of a hidden PHP script to run
  *                         before this snippet on every execution, mirroring
  *                         PHP's auto_prepend_file directive.
- *   php-fragment          treat the visible code as a PHP fragment without an
- *                         opening tag. Fragments starting with <?php or <?= are
- *                         rejected instead of being rewritten ambiguously.
+ *   implicit-php-open-tag
+ *                         add a PHP opening tag before the visible code. Code
+ *                         starting with <?php or <?= is rejected instead of
+ *                         being rewritten ambiguously.
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */
@@ -995,10 +996,10 @@ class PhpSnippet extends HTMLElement {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
 			const autoPrependScript = resolveAutoPrependScript(this);
-			const phpFragment = this.hasAttribute('php-fragment');
-			if (phpFragment && /^\s*<\?(?:php|=)/i.test(code)) {
+			const implicitPhpOpenTag = this.hasAttribute('implicit-php-open-tag');
+			if (implicitPhpOpenTag && /^\s*<\?(?:php|=)/i.test(code)) {
 				throw new Error(
-					'<php-snippet php-fragment> code must not contain <?php or <?= opening tags.'
+					'<php-snippet implicit-php-open-tag> code must not start with a <?php or <?= opening tag.'
 				);
 			}
 			const client = await getSharedClient(
@@ -1023,7 +1024,7 @@ class PhpSnippet extends HTMLElement {
 			const response = await runPhpSnippet(client, {
 				code,
 				autoPrependScript,
-				phpFragment,
+				implicitPhpOpenTag,
 				name: this.getAttribute('name'),
 				snippetId: this._snippetId,
 			});
@@ -1133,9 +1134,9 @@ function resolveAutoPrependScript(snippet) {
 
 async function runPhpSnippet(
 	client,
-	{ code, autoPrependScript, phpFragment, name, snippetId }
+	{ code, autoPrependScript, implicitPhpOpenTag, name, snippetId }
 ) {
-	if (!autoPrependScript && !phpFragment) {
+	if (!autoPrependScript && !implicitPhpOpenTag) {
 		return await client.run({ code });
 	}
 
@@ -1145,7 +1146,10 @@ async function runPhpSnippet(
 		await client.mkdir(snippetDirectory);
 	}
 	const snippetPath = `${snippetDirectory}/${filename}`;
-	await client.writeFile(snippetPath, phpFragment ? `<?php ${code}` : code);
+	await client.writeFile(
+		snippetPath,
+		implicitPhpOpenTag ? `<?php ${code}` : code
+	);
 
 	const request = { scriptPath: snippetPath };
 	if (autoPrependScript) {
