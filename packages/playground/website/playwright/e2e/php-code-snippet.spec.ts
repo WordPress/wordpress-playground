@@ -144,7 +144,7 @@ test.describe('php-code-snippet embed', () => {
 		expect(rejected).toEqual({ code: true, output: true });
 	});
 
-	test('runs fragments with hidden bootstrap code and real filenames', async ({
+	test('runs fragments with hidden code before them and real filenames', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
@@ -153,15 +153,15 @@ test.describe('php-code-snippet embed', () => {
 			document.body.insertAdjacentHTML(
 				'beforeend',
 				String.raw`
-					<script id="wordpress-bootstrap" type="application/x-php">
+					<script id="load-wordpress" type="application/x-php">
 						<?php require_once '/wordpress/wp-load.php';
 					</script>
-					<php-snippet id="bootstrapped-fragment" name="site-title.php" bootstrap="#wordpress-bootstrap" php-fragment>
+					<php-snippet id="wordpress-fragment" name="site-title.php" run-before="#load-wordpress" php-fragment>
 						<script type="application/x-php">
 							echo '<?php|' . ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
 						</script>
 					</php-snippet>
-					<php-snippet id="unbootstrapped-fragment" name="../secret.php" php-fragment>
+					<php-snippet id="plain-fragment" name="../secret.php" php-fragment>
 						<script type="application/x-php">
 							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
 						</script>
@@ -171,7 +171,7 @@ test.describe('php-code-snippet embed', () => {
 		});
 		await ensurePlaygroundClientIsServed(page);
 		await page
-			.locator('#bootstrapped-fragment, #unbootstrapped-fragment')
+			.locator('#wordpress-fragment, #plain-fragment')
 			.evaluateAll((snippets) => {
 				for (const snippet of snippets) {
 					snippet.setAttribute(
@@ -181,25 +181,25 @@ test.describe('php-code-snippet embed', () => {
 				}
 			});
 
-		const bootstrapped = await waitForRenderedPhpSnippet(
+		const wordpressFragment = await waitForRenderedPhpSnippet(
 			page,
-			'#bootstrapped-fragment'
+			'#wordpress-fragment'
 		);
-		await expect(bootstrapped.locator('textarea.ta')).toHaveValue(
+		await expect(wordpressFragment.locator('textarea.ta')).toHaveValue(
 			"echo '<?php|' . ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
 		);
-		await bootstrapped.locator('.run').click();
-		await expect(bootstrapped.locator('.output-body')).toHaveText(
+		await wordpressFragment.locator('.run').click();
+		await expect(wordpressFragment.locator('.output-body')).toHaveText(
 			'<?php|wordpress|site-title.php:1',
 			{ timeout: 240_000 }
 		);
 
-		const unbootstrapped = await waitForRenderedPhpSnippet(
+		const plainFragment = await waitForRenderedPhpSnippet(
 			page,
-			'#unbootstrapped-fragment'
+			'#plain-fragment'
 		);
-		await unbootstrapped.locator('.run').click();
-		await expect(unbootstrapped.locator('.output-body')).toHaveText(
+		await plainFragment.locator('.run').click();
+		await expect(plainFragment.locator('.output-body')).toHaveText(
 			'plain|snippet.php:1',
 			{ timeout: 30_000 }
 		);
@@ -208,7 +208,7 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(1);
 	});
 
-	test('rejects missing bootstraps and opening tags in fragments before boot', async ({
+	test('rejects missing run-before scripts and opening tags in fragments before boot', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
@@ -217,7 +217,7 @@ test.describe('php-code-snippet embed', () => {
 			document.body.insertAdjacentHTML(
 				'beforeend',
 				String.raw`
-					<php-snippet id="missing-bootstrap" bootstrap="#not-on-this-page">
+					<php-snippet id="missing-run-before" run-before="#not-on-this-page">
 						<script type="application/x-php"><?php echo 'never';</script>
 					</php-snippet>
 					<php-snippet id="tagged-fragment" php-fragment>
@@ -229,7 +229,7 @@ test.describe('php-code-snippet embed', () => {
 
 		const missing = await waitForRenderedPhpSnippet(
 			page,
-			'#missing-bootstrap'
+			'#missing-run-before'
 		);
 		await missing.locator('.run').click();
 		await expect(missing.locator('.output-body')).toContainText(

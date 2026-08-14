@@ -44,7 +44,7 @@
  *                         share the same blueprint share one runtime — the
  *                         blueprint is JSON-stringified and folded into the
  *                         cache key.
- *   bootstrap="wp-load"  CSS-selector-or-id of a hidden PHP script to run
+ *   run-before="wp-load" CSS-selector-or-id of a hidden PHP script to run
  *                         before this snippet on every execution.
  *   php-fragment          treat the visible code as a PHP fragment without an
  *                         opening tag. Fragments starting with <?php or <?= are
@@ -59,18 +59,18 @@ const DEFAULT_WP = 'latest';
 const DOCS_URL =
 	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const PLAYGROUND_URL = 'https://wordpress.org/playground/';
-const BOOTSTRAP_ENVIRONMENT_VARIABLE = 'PLAYGROUND_PHP_SNIPPET_BOOTSTRAP';
-const BOOTSTRAP_PRELOAD_PATH =
-	'/internal/shared/preload/php-code-snippet-bootstrap.php';
-const BOOTSTRAP_PRELOAD_CODE = `<?php
-$playground_php_snippet_bootstrap = getenv( '${BOOTSTRAP_ENVIRONMENT_VARIABLE}' );
+const RUN_BEFORE_ENVIRONMENT_VARIABLE = 'PLAYGROUND_PHP_SNIPPET_RUN_BEFORE';
+const RUN_BEFORE_PRELOAD_PATH =
+	'/internal/shared/preload/php-code-snippet-run-before.php';
+const RUN_BEFORE_PRELOAD_CODE = `<?php
+$playground_php_snippet_run_before = getenv( '${RUN_BEFORE_ENVIRONMENT_VARIABLE}' );
 if (
-	false !== $playground_php_snippet_bootstrap &&
-	'' !== $playground_php_snippet_bootstrap
+	false !== $playground_php_snippet_run_before &&
+	'' !== $playground_php_snippet_run_before
 ) {
-	require $playground_php_snippet_bootstrap;
+	require $playground_php_snippet_run_before;
 }
-unset( $playground_php_snippet_bootstrap );`;
+unset( $playground_php_snippet_run_before );`;
 let nextSnippetId = 0;
 
 /**
@@ -991,7 +991,7 @@ class PhpSnippet extends HTMLElement {
 		try {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
-			const bootstrap = resolveBootstrap(this);
+			const runBefore = resolveRunBefore(this);
 			const phpFragment = this.hasAttribute('php-fragment');
 			if (phpFragment && /^\s*<\?(?:php|=)/i.test(code)) {
 				throw new Error(
@@ -1019,7 +1019,7 @@ class PhpSnippet extends HTMLElement {
 			this._setRunButtonProgress('Running', 100);
 			const response = await runPhpSnippet(client, {
 				code,
-				bootstrap,
+				runBefore,
 				phpFragment,
 				name: this.getAttribute('name'),
 				snippetId: this._snippetId,
@@ -1094,14 +1094,14 @@ class PhpSnippet extends HTMLElement {
 }
 
 /**
- * Resolve a snippet's `bootstrap` attribute to complete PHP source.
+ * Resolve a snippet's `run-before` attribute to complete PHP source.
  *
  * The referenced element must be an inert PHP script. Empty scripts are
- * treated like an omitted bootstrap so existing snippet execution keeps its
- * eval-mode filename and path behavior.
+ * treated like an omitted run-before script so existing snippet execution
+ * keeps its eval-mode filename and path behavior.
  */
-function resolveBootstrap(snippet) {
-	const ref = snippet.getAttribute('bootstrap');
+function resolveRunBefore(snippet) {
+	const ref = snippet.getAttribute('run-before');
 	if (!ref) return null;
 
 	let element = null;
@@ -1113,7 +1113,7 @@ function resolveBootstrap(snippet) {
 	if (!element) element = snippet.ownerDocument.getElementById(ref);
 	if (!element) {
 		throw new Error(
-			`<php-snippet bootstrap="${ref}"> could not find a matching element on the page.`
+			`<php-snippet run-before="${ref}"> could not find a matching element on the page.`
 		);
 	}
 	if (
@@ -1121,7 +1121,7 @@ function resolveBootstrap(snippet) {
 		!['application/x-php', 'application/x-php+json'].includes(element.type)
 	) {
 		throw new Error(
-			`<php-snippet bootstrap="${ref}"> must reference a <script type="application/x-php"> or <script type="application/x-php+json"> element.`
+			`<php-snippet run-before="${ref}"> must reference a <script type="application/x-php"> or <script type="application/x-php+json"> element.`
 		);
 	}
 
@@ -1130,9 +1130,9 @@ function resolveBootstrap(snippet) {
 
 async function runPhpSnippet(
 	client,
-	{ code, bootstrap, phpFragment, name, snippetId }
+	{ code, runBefore, phpFragment, name, snippetId }
 ) {
-	if (!bootstrap && !phpFragment) {
+	if (!runBefore && !phpFragment) {
 		return await client.run({ code });
 	}
 
@@ -1145,12 +1145,12 @@ async function runPhpSnippet(
 	await client.writeFile(snippetPath, phpFragment ? `<?php ${code}` : code);
 
 	const request = { scriptPath: snippetPath };
-	if (bootstrap) {
-		const bootstrapPath = `${snippetDirectory}/bootstrap.php`;
-		await client.writeFile(bootstrapPath, bootstrap);
-		await client.writeFile(BOOTSTRAP_PRELOAD_PATH, BOOTSTRAP_PRELOAD_CODE);
+	if (runBefore) {
+		const runBeforePath = `${snippetDirectory}/run-before.php`;
+		await client.writeFile(runBeforePath, runBefore);
+		await client.writeFile(RUN_BEFORE_PRELOAD_PATH, RUN_BEFORE_PRELOAD_CODE);
 		request.env = {
-			[BOOTSTRAP_ENVIRONMENT_VARIABLE]: bootstrapPath,
+			[RUN_BEFORE_ENVIRONMENT_VARIABLE]: runBeforePath,
 		};
 	}
 
