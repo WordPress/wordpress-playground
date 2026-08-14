@@ -156,7 +156,7 @@ test.describe('php-code-snippet embed', () => {
 					<script id="load-wordpress" type="application/x-php">
 						<?php require_once '/wordpress/wp-load.php';
 					</script>
-					<php-snippet id="wordpress-fragment" name="site-title.php" run-before="#load-wordpress" php-fragment>
+					<php-snippet id="wordpress-fragment" name="site-title.php" auto-prepend-script="#load-wordpress" php-fragment>
 						<script type="application/x-php">
 							/* The complete form would start with <?php. */
 							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
@@ -209,7 +209,7 @@ test.describe('php-code-snippet embed', () => {
 		).toHaveCount(1);
 	});
 
-	test('rejects missing run-before scripts and opening tags in fragments before boot', async ({
+	test('rejects missing prepended scripts and opening tags in fragments before boot', async ({
 		page,
 	}) => {
 		await page.goto(DEMO_URL);
@@ -218,7 +218,7 @@ test.describe('php-code-snippet embed', () => {
 			document.body.insertAdjacentHTML(
 				'beforeend',
 				String.raw`
-					<php-snippet id="missing-run-before" run-before="#not-on-this-page">
+					<php-snippet id="missing-auto-prepend" auto-prepend-script="#not-on-this-page">
 						<script type="application/x-php"><?php echo 'never';</script>
 					</php-snippet>
 					<php-snippet id="tagged-fragment" php-fragment>
@@ -230,7 +230,7 @@ test.describe('php-code-snippet embed', () => {
 
 		const missing = await waitForRenderedPhpSnippet(
 			page,
-			'#missing-run-before'
+			'#missing-auto-prepend'
 		);
 		await missing.locator('.run').click();
 		await expect(missing.locator('.output-body')).toContainText(

@@ -195,11 +195,14 @@ the WordPress download and boot step:
 </php-snippet>
 ```
 
-### Run hidden setup code before a snippet
+### Automatically prepend a hidden PHP script
 
-Use `run-before` when code must run before every execution but should not appear
-in the editable example. Point it at a complete PHP script by id or CSS
-selector:
+`auto-prepend-script` mirrors PHP's
+[`auto_prepend_file`](https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file)
+`php.ini` directive: the referenced PHP script runs before the snippet's main
+file on every request. Unlike the PHP directive, the attribute takes the id or
+CSS selector of an inert PHP `<script>` element. Use it when setup code should
+not appear in the editable example:
 
 ```html
 <script id="load-wordpress" type="application/x-php">
@@ -207,16 +210,16 @@ selector:
 	require_once '/wordpress/wp-load.php';
 </script>
 
-<php-snippet name="site-title.php" run-before="#load-wordpress" php-fragment>
+<php-snippet name="site-title.php" auto-prepend-script="#load-wordpress" php-fragment>
 	<script type="application/x-php">
 		echo get_bloginfo( 'name' );
 	</script>
 </php-snippet>
 ```
 
-The referenced script remains outside the visible editor and runs before every click,
-including after the reader edits the snippet. Snippets with different
-`run-before` scripts can still share one runtime.
+The referenced script remains outside the visible editor and runs before every
+click, including after the reader edits the snippet. Snippets with different
+auto-prepended scripts can still share one runtime.
 
 `php-fragment` says the visible source omits its PHP opening tag. Playground
 adds the opener on the first line of the execution file, so PHP errors still
@@ -224,9 +227,9 @@ point to the displayed line and the `name` attribute. A fragment starting with
 `<?php` or `<?=` is rejected; remove `php-fragment` when the source is already a
 complete PHP file.
 
-Without `php-fragment`, snippets using `run-before` must include their own PHP
-opening tag. `run-before` and `php-fragment` are independent, so fragments also
-work without hidden setup code.
+Without `php-fragment`, snippets using `auto-prepend-script` must include their
+own PHP opening tag. `auto-prepend-script` and `php-fragment` are independent,
+so fragments also work without hidden setup code.
 
 ## Edit examples in place
 
@@ -496,17 +499,17 @@ fields.
 
 ## Which embed should you use?
 
-| Use case                                              | Use                             |
-| ----------------------------------------------------- | ------------------------------- |
-| Several runnable examples in one article              | `<php-snippet>`                 |
-| A tutorial step where readers should edit code inline | `<php-snippet>`                 |
-| Shared setup across examples                          | `<php-snippet blueprint="...">` |
-| Hidden PHP setup before every run                     | `<php-snippet run-before="...">` |
-| PHP source without an opening tag                     | `<php-snippet php-fragment>`    |
-| A pure PHP language example                           | `<php-snippet wp="none">`       |
-| A runnable example that should not be edited          | `<php-snippet readonly>`        |
-| A single full-page editor with a shareable URL        | Standalone PHP Playground       |
-| A complete WordPress site preview                     | Standard Playground iframe      |
+| Use case                                              | Use                                       |
+| ----------------------------------------------------- | ----------------------------------------- |
+| Several runnable examples in one article              | `<php-snippet>`                           |
+| A tutorial step where readers should edit code inline | `<php-snippet>`                           |
+| Shared setup across examples                          | `<php-snippet blueprint="...">`           |
+| Hidden PHP setup before every run                     | `<php-snippet auto-prepend-script="...">` |
+| PHP source without an opening tag                     | `<php-snippet php-fragment>`              |
+| A pure PHP language example                           | `<php-snippet wp="none">`                 |
+| A runnable example that should not be edited          | `<php-snippet readonly>`                  |
+| A single full-page editor with a shareable URL        | Standalone PHP Playground                 |
+| A complete WordPress site preview                     | Standard Playground iframe                |
 
 ## Troubleshooting
 

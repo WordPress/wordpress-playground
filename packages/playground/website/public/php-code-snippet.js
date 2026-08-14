@@ -44,8 +44,10 @@
  *                         share the same blueprint share one runtime — the
  *                         blueprint is JSON-stringified and folded into the
  *                         cache key.
- *   run-before="wp-load" CSS-selector-or-id of a hidden PHP script to run
- *                         before this snippet on every execution.
+ *   auto-prepend-script="wp-load"
+ *                         CSS-selector-or-id of a hidden PHP script to run
+ *                         before this snippet on every execution, mirroring
+ *                         PHP's auto_prepend_file directive.
  *   php-fragment          treat the visible code as a PHP fragment without an
  *                         opening tag. Fragments starting with <?php or <?= are
  *                         rejected instead of being rewritten ambiguously.
@@ -59,18 +61,19 @@ const DEFAULT_WP = 'latest';
 const DOCS_URL =
 	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const PLAYGROUND_URL = 'https://wordpress.org/playground/';
-const RUN_BEFORE_ENVIRONMENT_VARIABLE = 'PLAYGROUND_PHP_SNIPPET_RUN_BEFORE';
-const RUN_BEFORE_PRELOAD_PATH =
-	'/internal/shared/preload/php-code-snippet-run-before.php';
-const RUN_BEFORE_PRELOAD_CODE = `<?php
-$playground_php_snippet_run_before = getenv( '${RUN_BEFORE_ENVIRONMENT_VARIABLE}' );
+const AUTO_PREPEND_SCRIPT_ENVIRONMENT_VARIABLE =
+	'PLAYGROUND_PHP_SNIPPET_AUTO_PREPEND_SCRIPT';
+const AUTO_PREPEND_SCRIPT_PRELOAD_PATH =
+	'/internal/shared/preload/php-code-snippet-auto-prepend-script.php';
+const AUTO_PREPEND_SCRIPT_PRELOAD_CODE = `<?php
+$playground_php_snippet_auto_prepend_script = getenv( '${AUTO_PREPEND_SCRIPT_ENVIRONMENT_VARIABLE}' );
 if (
-	false !== $playground_php_snippet_run_before &&
-	'' !== $playground_php_snippet_run_before
+	false !== $playground_php_snippet_auto_prepend_script &&
+	'' !== $playground_php_snippet_auto_prepend_script
 ) {
-	require $playground_php_snippet_run_before;
+	require $playground_php_snippet_auto_prepend_script;
 }
-unset( $playground_php_snippet_run_before );`;
+unset( $playground_php_snippet_auto_prepend_script );`;
 let nextSnippetId = 0;
 
 /**
@@ -991,7 +994,7 @@ class PhpSnippet extends HTMLElement {
 		try {
 			const { blueprint, key: blueprintKey } =
 				resolveSetupBlueprint(this);
-			const runBefore = resolveRunBefore(this);
+			const autoPrependScript = resolveAutoPrependScript(this);
 			const phpFragment = this.hasAttribute('php-fragment');
 			if (phpFragment && /^\s*<\?(?:php|=)/i.test(code)) {
 				throw new Error(
@@ -1019,7 +1022,7 @@ class PhpSnippet extends HTMLElement {
 			this._setRunButtonProgress('Running', 100);
 			const response = await runPhpSnippet(client, {
 				code,
-				runBefore,
+				autoPrependScript,
 				phpFragment,
 				name: this.getAttribute('name'),
 				snippetId: this._snippetId,
@@ -1094,14 +1097,14 @@ class PhpSnippet extends HTMLElement {
 }
 
 /**
- * Resolve a snippet's `run-before` attribute to complete PHP source.
+ * Resolve a snippet's `auto-prepend-script` attribute to complete PHP source.
  *
  * The referenced element must be an inert PHP script. Empty scripts are
- * treated like an omitted run-before script so existing snippet execution
+ * treated like an omitted auto-prepend script so existing snippet execution
  * keeps its eval-mode filename and path behavior.
  */
-function resolveRunBefore(snippet) {
-	const ref = snippet.getAttribute('run-before');
+function resolveAutoPrependScript(snippet) {
+	const ref = snippet.getAttribute('auto-prepend-script');
 	if (!ref) return null;
 
 	let element = null;
@@ -1113,7 +1116,7 @@ function resolveRunBefore(snippet) {
 	if (!element) element = snippet.ownerDocument.getElementById(ref);
 	if (!element) {
 		throw new Error(
-			`<php-snippet run-before="${ref}"> could not find a matching element on the page.`
+			`<php-snippet auto-prepend-script="${ref}"> could not find a matching element on the page.`
 		);
 	}
 	if (
@@ -1121,7 +1124,7 @@ function resolveRunBefore(snippet) {
 		!['application/x-php', 'application/x-php+json'].includes(element.type)
 	) {
 		throw new Error(
-			`<php-snippet run-before="${ref}"> must reference a <script type="application/x-php"> or <script type="application/x-php+json"> element.`
+			`<php-snippet auto-prepend-script="${ref}"> must reference a <script type="application/x-php"> or <script type="application/x-php+json"> element.`
 		);
 	}
 
@@ -1130,9 +1133,9 @@ function resolveRunBefore(snippet) {
 
 async function runPhpSnippet(
 	client,
-	{ code, runBefore, phpFragment, name, snippetId }
+	{ code, autoPrependScript, phpFragment, name, snippetId }
 ) {
-	if (!runBefore && !phpFragment) {
+	if (!autoPrependScript && !phpFragment) {
 		return await client.run({ code });
 	}
 
@@ -1145,12 +1148,16 @@ async function runPhpSnippet(
 	await client.writeFile(snippetPath, phpFragment ? `<?php ${code}` : code);
 
 	const request = { scriptPath: snippetPath };
-	if (runBefore) {
-		const runBeforePath = `${snippetDirectory}/run-before.php`;
-		await client.writeFile(runBeforePath, runBefore);
-		await client.writeFile(RUN_BEFORE_PRELOAD_PATH, RUN_BEFORE_PRELOAD_CODE);
+	if (autoPrependScript) {
+		const autoPrependScriptPath =
+			`${snippetDirectory}/auto-prepend-script.php`;
+		await client.writeFile(autoPrependScriptPath, autoPrependScript);
+		await client.writeFile(
+			AUTO_PREPEND_SCRIPT_PRELOAD_PATH,
+			AUTO_PREPEND_SCRIPT_PRELOAD_CODE
+		);
 		request.env = {
-			[RUN_BEFORE_ENVIRONMENT_VARIABLE]: runBeforePath,
+			[AUTO_PREPEND_SCRIPT_ENVIRONMENT_VARIABLE]: autoPrependScriptPath,
 		};
 	}
 
