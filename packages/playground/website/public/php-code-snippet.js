@@ -50,8 +50,8 @@
  *                         PHP's auto_prepend_file directive.
  *   implicit-php-open-tag
  *                         add a PHP opening tag before the visible code. Code
- *                         starting with <?php or <?= is rejected instead of
- *                         being rewritten ambiguously.
+ *                         starting with any PHP opening tag is rejected
+ *                         instead of being rewritten ambiguously.
  *   playground-origin="https://playground.wordpress.net"
  *                         override the runtime origin (useful for local dev)
  */
@@ -59,6 +59,15 @@
 const DEFAULT_ORIGIN = 'https://playground.wordpress.net';
 const DEFAULT_PHP = '8.4';
 const DEFAULT_WP = 'latest';
+const PHP_SCRIPT_TYPES = [
+	'application/x-php',
+	'application/x-php+json',
+	'text/x-php',
+	'text/php',
+];
+const PHP_SCRIPT_SELECTOR = PHP_SCRIPT_TYPES.map(
+	(type) => `script[type="${type}"]`
+).join(', ');
 const DOCS_URL =
 	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const PLAYGROUND_URL = 'https://wordpress.org/playground/';
@@ -288,27 +297,16 @@ async function bootRuntime({ origin, php, wp, blueprint }, entry) {
 /**
  * Resolve a snippet's `blueprint` attribute to a Blueprint object.
  *
- * The lookup tries in order: a CSS selector, then `getElementById`, then
- * (if neither matched) returns null. The element is expected to be a
- * <template> whose textContent is a JSON Blueprint. The text is parsed
- * once per snippet but the resulting cache key collapses identical
- * blueprints into a single runtime boot.
+ * The lookup tries a CSS selector, then `getElementById`, and throws when
+ * neither matches. The element is expected to be a <template> whose
+ * textContent is a JSON Blueprint. The text is parsed once per snippet but
+ * the resulting cache key collapses identical blueprints into a single
+ * runtime boot.
  */
 function resolveSetupBlueprint(snippet) {
 	const ref = snippet.getAttribute('blueprint');
 	if (!ref) return { blueprint: null, key: '' };
-	let el = null;
-	try {
-		el = snippet.ownerDocument.querySelector(ref);
-	} catch {
-		// Invalid selector — fall through to getElementById.
-	}
-	if (!el) el = snippet.ownerDocument.getElementById(ref);
-	if (!el) {
-		throw new Error(
-			`<php-snippet blueprint="${ref}"> could not find a matching element on the page.`
-		);
-	}
+	const el = resolveElementReference(snippet, 'blueprint', ref);
 	const source =
 		el.tagName === 'TEMPLATE' ? el.content.textContent : el.textContent;
 	const text = (source || '').trim();
@@ -865,9 +863,7 @@ class PhpSnippet extends HTMLElement {
 			}
 			return await res.text();
 		}
-		const script = this.querySelector(
-			'script[type="application/x-php"], script[type="application/x-php+json"], script[type="text/x-php"], script[type="text/php"]'
-		);
+		const script = this.querySelector(PHP_SCRIPT_SELECTOR);
 		if (script) return readScriptPayload(script);
 		return dedentLeading(this.textContent || '');
 	}
@@ -997,9 +993,9 @@ class PhpSnippet extends HTMLElement {
 				resolveSetupBlueprint(this);
 			const autoPrependScript = resolveAutoPrependScript(this);
 			const implicitPhpOpenTag = this.hasAttribute('implicit-php-open-tag');
-			if (implicitPhpOpenTag && /^\s*<\?(?:php|=)/i.test(code)) {
+			if (implicitPhpOpenTag && /^\s*<\?/.test(code)) {
 				throw new Error(
-					'<php-snippet implicit-php-open-tag> code must not start with a <?php or <?= opening tag.'
+					'<php-snippet implicit-php-open-tag> code must not start with a PHP opening tag.'
 				);
 			}
 			const client = await getSharedClient(
@@ -1108,6 +1104,30 @@ function resolveAutoPrependScript(snippet) {
 	const ref = snippet.getAttribute('auto-prepend-script');
 	if (!ref) return null;
 
+	const element = resolveElementReference(
+		snippet,
+		'auto-prepend-script',
+		ref
+	);
+	if (
+		!(element instanceof HTMLScriptElement) ||
+		!PHP_SCRIPT_TYPES.includes(element.type)
+	) {
+		throw new Error(
+			`<php-snippet auto-prepend-script="${ref}"> must reference a PHP <script> with one of these types: ${PHP_SCRIPT_TYPES.join(', ')}.`
+		);
+	}
+
+	const code = readScriptPayload(element).trim();
+	if (code && !/^<\?php(?:\s|$)/i.test(code)) {
+		throw new Error(
+			`<php-snippet auto-prepend-script="${ref}"> source must start with a <?php opening tag.`
+		);
+	}
+	return code || null;
+}
+
+function resolveElementReference(snippet, attribute, ref) {
 	let element = null;
 	try {
 		element = snippet.ownerDocument.querySelector(ref);
@@ -1117,19 +1137,10 @@ function resolveAutoPrependScript(snippet) {
 	if (!element) element = snippet.ownerDocument.getElementById(ref);
 	if (!element) {
 		throw new Error(
-			`<php-snippet auto-prepend-script="${ref}"> could not find a matching element on the page.`
+			`<php-snippet ${attribute}="${ref}"> could not find a matching element on the page.`
 		);
 	}
-	if (
-		!(element instanceof HTMLScriptElement) ||
-		!['application/x-php', 'application/x-php+json'].includes(element.type)
-	) {
-		throw new Error(
-			`<php-snippet auto-prepend-script="${ref}"> must reference a <script type="application/x-php"> or <script type="application/x-php+json"> element.`
-		);
-	}
-
-	return readScriptPayload(element).trim() || null;
+	return element;
 }
 
 async function runPhpSnippet(
@@ -1142,36 +1153,37 @@ async function runPhpSnippet(
 
 	const filename = sanitizePhpFilename(name);
 	const snippetDirectory = `/tmp/php-snippet-${snippetId}`;
-	if (!(await client.fileExists(snippetDirectory))) {
-		await client.mkdir(snippetDirectory);
-	}
+	await client.mkdir(snippetDirectory);
 	const snippetPath = `${snippetDirectory}/${filename}`;
-	await client.writeFile(
-		snippetPath,
-		implicitPhpOpenTag ? `<?php ${code}` : code
-	);
-
 	const request = { scriptPath: snippetPath };
+	const writes = [
+		client.writeFile(
+			snippetPath,
+			implicitPhpOpenTag ? `<?php ${code}` : code
+		),
+	];
 	if (autoPrependScript) {
 		const autoPrependScriptPath =
-			`${snippetDirectory}/auto-prepend-script.php`;
-		await client.writeFile(autoPrependScriptPath, autoPrependScript);
-		await client.writeFile(
-			AUTO_PREPEND_SCRIPT_PRELOAD_PATH,
-			AUTO_PREPEND_SCRIPT_PRELOAD_CODE
+			`${snippetDirectory}/.auto-prepend-script.php`;
+		writes.push(
+			client.writeFile(autoPrependScriptPath, autoPrependScript),
+			client.writeFile(
+				AUTO_PREPEND_SCRIPT_PRELOAD_PATH,
+				AUTO_PREPEND_SCRIPT_PRELOAD_CODE
+			)
 		);
 		request.env = {
 			[AUTO_PREPEND_SCRIPT_ENVIRONMENT_VARIABLE]: autoPrependScriptPath,
 		};
 	}
+	await Promise.all(writes);
 
 	return await client.run(request);
 }
 
 function sanitizePhpFilename(name) {
 	if (!name || name.startsWith('.')) return 'snippet.php';
-	const sanitized = name.replace(/[^A-Za-z0-9._-]/g, '-');
-	return sanitized && !sanitized.startsWith('.') ? sanitized : 'snippet.php';
+	return name.replace(/[^A-Za-z0-9._-]/g, '-');
 }
 
 /**

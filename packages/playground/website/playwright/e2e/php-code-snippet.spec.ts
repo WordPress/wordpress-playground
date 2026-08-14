@@ -153,10 +153,10 @@ test.describe('php-code-snippet embed', () => {
 			document.body.insertAdjacentHTML(
 				'beforeend',
 				String.raw`
-					<script id="load-wordpress" type="application/x-php">
+					<script id="load-wordpress" type="text/x-php">
 						<?php require_once '/wordpress/wp-load.php';
 					</script>
-					<php-snippet id="wordpress-implicit-tag" name="site-title.php" auto-prepend-script="#load-wordpress" implicit-php-open-tag>
+					<php-snippet id="wordpress-implicit-tag" name="auto-prepend-script.php" auto-prepend-script="#load-wordpress" implicit-php-open-tag>
 						<script type="application/x-php">
 							/* The complete form would start with <?php. */
 							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
@@ -191,7 +191,7 @@ test.describe('php-code-snippet embed', () => {
 		);
 		await wordpressSnippet.locator('.run').click();
 		await expect(wordpressSnippet.locator('.output-body')).toHaveText(
-			'wordpress|site-title.php:2',
+			'wordpress|auto-prepend-script.php:2',
 			{ timeout: 240_000 }
 		);
 
@@ -221,8 +221,12 @@ test.describe('php-code-snippet embed', () => {
 					<php-snippet id="missing-auto-prepend" auto-prepend-script="#not-on-this-page">
 						<script type="application/x-php"><?php echo 'never';</script>
 					</php-snippet>
+					<script id="setup-without-opening-tag" type="application/x-php">echo 'never';</script>
+					<php-snippet id="missing-auto-prepend-opening-tag" auto-prepend-script="#setup-without-opening-tag">
+						<script type="application/x-php"><?php echo 'never';</script>
+					</php-snippet>
 					<php-snippet id="explicit-opening-tag" implicit-php-open-tag>
-						<script type="application/x-php"><?php echo 'ambiguous';</script>
+						<script type="application/x-php"><? echo 'ambiguous';</script>
 					</php-snippet>
 				`
 			);
@@ -237,13 +241,22 @@ test.describe('php-code-snippet embed', () => {
 			'could not find a matching element'
 		);
 
+		const missingOpeningTag = await waitForRenderedPhpSnippet(
+			page,
+			'#missing-auto-prepend-opening-tag'
+		);
+		await missingOpeningTag.locator('.run').click();
+		await expect(missingOpeningTag.locator('.output-body')).toContainText(
+			'source must start with a <?php opening tag'
+		);
+
 		const tagged = await waitForRenderedPhpSnippet(
 			page,
 			'#explicit-opening-tag'
 		);
 		await tagged.locator('.run').click();
 		await expect(tagged.locator('.output-body')).toContainText(
-			'must not start with a <?php or <?= opening tag'
+			'must not start with a PHP opening tag'
 		);
 		await expect(
 			page.locator('iframe[title="PHP Snippet runtime"]')

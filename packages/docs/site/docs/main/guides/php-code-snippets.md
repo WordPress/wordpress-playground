@@ -217,15 +217,17 @@ not appear in the editable example:
 </php-snippet>
 ```
 
-The referenced script remains outside the visible editor and runs before every
-click, including after the reader edits the snippet. Snippets with different
-auto-prepended scripts can still share one runtime.
+The referenced script must start with `<?php`. It remains outside the visible
+editor and runs before every click, including after the reader edits the
+snippet. Snippets with different auto-prepended scripts can still share one
+runtime.
 
 `implicit-php-open-tag` adds the PHP opening tag omitted from the visible
 source. Playground adds it on the first line of the execution file, so PHP
-errors still point to the displayed line and the `name` attribute. Code
-starting with `<?php` or `<?=` is rejected; remove `implicit-php-open-tag` when
-the source is already a complete PHP file.
+errors still point to the displayed line. Diagnostics use a filesystem-safe
+form of the `name` attribute as the filename. Code starting with any PHP
+opening tag (`<?php`, `<?=`, or `<?`) is rejected; remove
+`implicit-php-open-tag` when the source is already a complete PHP file.
 
 Without `implicit-php-open-tag`, snippets using `auto-prepend-script` must
 include their own PHP opening tag. The two attributes are independent, so an
