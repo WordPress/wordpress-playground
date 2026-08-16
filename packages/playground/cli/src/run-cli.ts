@@ -84,6 +84,7 @@ import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_ENTRY_PATH,
 	PHPMYADMIN_INSTALL_PATH,
+	PHPMYADMIN_URL_PATH,
 } from '@wp-playground/tools';
 import { jspi } from 'wasm-feature-detect';
 
@@ -389,7 +390,7 @@ export async function parseOptionsAndRunCLI(
 					'Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: /phpmyadmin).',
 				type: 'string',
 				coerce: (value?: string) =>
-					'' === value ? '/phpmyadmin' : value,
+					'' === value ? PHPMYADMIN_URL_PATH : value,
 			},
 		};
 
@@ -1032,7 +1033,7 @@ export async function runCLI(
 	// Setup phpMyAdmin if enabled.
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
-			args.phpmyadmin = '/phpmyadmin';
+			args.phpmyadmin = PHPMYADMIN_URL_PATH;
 		}
 
 		// Set up path alias for phpMyAdmin.

@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).richText = (() => {
@@ -1761,7 +1762,7 @@ var wp;
     if (activeElement === element) {
       return true;
     }
-    if (!activeElement || !activeElement.isContentEditable || !element.isContentEditable || !activeElement.contains(element)) {
+    if (!activeElement || activeElement.contentEditable !== "true" || element.contentEditable !== "true" || !activeElement.contains(element)) {
       return false;
     }
     const selection = ownerDocument.defaultView.getSelection();
@@ -1986,7 +1987,12 @@ var wp;
     function onCopy(event) {
       const { record, handleChange } = props.current;
       const { ownerDocument } = element;
-      if (isCollapsed(record.current) || !element.contains(ownerDocument.activeElement) && !ownsSelection(element)) {
+      if (
+        // Another handler may have already claimed the clipboard, e.g.
+        // the block editor copying the whole block when its entire
+        // text is selected.
+        event.defaultPrevented || isCollapsed(record.current) || !element.contains(ownerDocument.activeElement) && !ownsSelection(element)
+      ) {
         return;
       }
       const selectedRecord = slice(record.current);
@@ -2342,7 +2348,7 @@ var wp;
         };
         selectionSnapshot = void 0;
       } else {
-        applyRecord(record.current, { domOnly: true });
+        applyRecord(record.current);
       }
       onSelectionChange(record.current.start, record.current.end);
       window.queueMicrotask(handleSelectionChange);
@@ -3128,4 +3134,6 @@ var wp;
   function __experimentalRichText() {
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).richText = wp.richText;
 })();

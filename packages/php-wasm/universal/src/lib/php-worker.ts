@@ -38,6 +38,7 @@ export type LimitedPHPApi = Pick<
 	| 'fileExists'
 	| 'chdir'
 	| 'run'
+	| 'runStream'
 	| 'onMessage'
 > & {
 	documentRoot: PHP['documentRoot'];
@@ -64,6 +65,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	private chroot: string | null = null;
 
 	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
+	#phpInstancesWithWorkerListeners = new WeakSet<PHP>();
 
 	onMessageListeners: MessageListener[] = [];
 	/** @inheritDoc */
@@ -215,6 +217,42 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		} finally {
 			reap();
 		}
+	}
+
+	/**
+	 * Starts a PHP request and returns its output streams before PHP exits.
+	 *
+	 * A pooled PHP instance remains checked out until `response.finished`
+	 * settles. If the request fails before returning a response, the instance
+	 * is released immediately. A non-zero PHP exit is exposed through
+	 * `response.exitCode` instead of making this method reject.
+	 *
+	 * @param request - PHP code or script path, request metadata, and environment.
+	 * @returns A streamed response whose output can be consumed incrementally.
+	 * @throws When a PHP instance cannot be acquired or the request cannot start.
+	 */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		const state = _private.get(this)!;
+		const primaryPhp = state.php;
+		if (
+			!state.requestHandler &&
+			!primaryPhp?.requestHandler &&
+			primaryPhp
+		) {
+			return await primaryPhp.runStream(request);
+		}
+		const { php, reap } = await this.acquirePHPInstance();
+		let response: StreamedPHPResponse;
+		try {
+			response = await php.runStream(request);
+		} catch (error) {
+			reap();
+			throw error;
+		}
+		// The caller still owns the response streams. Keep this PHP instance
+		// checked out until the process behind those streams has finished.
+		void response.finished.finally(reap);
+		return response;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.cli */
@@ -408,6 +446,10 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	}
 
 	protected registerWorkerListeners(php: PHP) {
+		if (this.#phpInstancesWithWorkerListeners.has(php)) {
+			return;
+		}
+		this.#phpInstancesWithWorkerListeners.add(php);
 		php.addEventListener('*', async (event) => {
 			this.dispatchEvent(event);
 		});

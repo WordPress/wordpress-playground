@@ -26,7 +26,7 @@ export {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 export { phpVar, phpVars } from '@php-wasm/util';
-export type { PlaygroundClient, MountDescriptor };
+export type { PlaygroundClient, MountDescriptor, SiteThumbnail };
 
 import {
 	BlueprintReflection,
@@ -41,8 +41,12 @@ import type {
 } from '@wp-playground/blueprints';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import type { PathAlias } from '@php-wasm/universal';
+import type {
+	MountDescriptor,
+	PlaygroundClient,
+	SiteThumbnail,
+} from '@wp-playground/remote';
+import { consumeAPI, type PathAlias } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -143,6 +147,27 @@ export interface StartPlaygroundWebOptions extends Omit<
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
 
+// Redefined here to avoid an import from the private Playground website package
+export interface ExportSavedSiteAsZipOptions {
+	/**
+	 * Gitignore-style exclusion patterns applied relative to the saved site root.
+	 * Patterns starting with `!` re-include paths.
+	 */
+	excludePatterns?: readonly string[];
+}
+
+export interface PlaygroundAPIClient {
+	exportSavedSiteAsZip(
+		slug: string,
+		options?: ExportSavedSiteAsZipOptions
+	): Promise<Blob | undefined>;
+}
+
+export interface StartPlaygroundAPIOptions {
+	iframe: HTMLIFrameElement;
+	apiUrl: string;
+}
+
 /**
  * Loads playground in iframe and returns a PlaygroundClient instance.
  *
@@ -177,10 +202,7 @@ export async function startPlaygroundWeb(
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
-	await new Promise((resolve) => {
-		iframe.src = remoteUrl;
-		iframe.addEventListener('load', resolve, false);
-	});
+	await loadIframe(iframe, remoteUrl);
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
@@ -190,6 +212,38 @@ export async function startPlaygroundWeb(
 	progressTracker.finish();
 
 	return playground;
+}
+
+/**
+ * Loads the lightweight Playground API endpoint without booting WordPress.
+ *
+ * The API endpoint and saved OPFS site must share an origin and storage partition.
+ */
+export async function startPlaygroundAPI(
+	options: StartPlaygroundAPIOptions
+): Promise<PlaygroundAPIClient> {
+	const { iframe, apiUrl } = options;
+	assertLikelyCompatibleAPIOrigin(apiUrl);
+	allowStorageAccessByUserActivation(iframe);
+	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
+
+	await loadIframe(iframe, resolvedAPIUrl);
+
+	const api = consumeAPI<PlaygroundAPIClient>(
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
+	);
+	await api.isConnected();
+	await api.isReady();
+
+	return api;
+}
+
+function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
+	return new Promise((resolve) => {
+		iframe.addEventListener('load', () => resolve(), { once: true });
+		iframe.src = url;
+	});
 }
 
 async function shouldUseBlueprintV2Handler(
@@ -261,16 +315,28 @@ const remoteOrigin =
  * @param remoteHtmlUrl The URL for remote.html
  */
 function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl, remoteOrigin);
+	assertLikelyCompatibleRemotePath(remoteHtmlUrl, '/remote.html');
+}
+
+function assertLikelyCompatibleAPIOrigin(apiUrl: string) {
+	assertLikelyCompatibleRemotePath(apiUrl, '/api.html');
+}
+
+function assertLikelyCompatibleRemotePath(
+	urlString: string,
+	expectedPath: '/remote.html' | '/api.html'
+) {
+	const url = new URL(urlString, remoteOrigin);
+	const endpointName = expectedPath === '/api.html' ? 'API' : 'remote';
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
-		url.pathname === '/remote.html';
+		url.pathname === expectedPath;
 
 	if (!validRemote) {
 		throw new Error(
-			`Invalid remote URL: ${url}. ` +
-				'Expected remote URL to have a path of "/remote.html" based ' +
+			`Invalid ${endpointName} URL: ${url}. ` +
+				`Expected ${endpointName} URL to have a path of "${expectedPath}" based ` +
 				`on one of the following origins:\n ${validRemoteOrigins.join(
 					'\n'
 				)}`

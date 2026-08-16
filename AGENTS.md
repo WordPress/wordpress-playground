@@ -54,7 +54,8 @@ npx nx build <package-name>              # Build specific package
 # Testing
 npm test                                 # Run all tests
 npx nx test <package-name>               # Test specific package
-npx nx e2e playground-website            # Run end-to-end tests
+npx nx e2e playground-website            # Run website Cypress E2E tests
+npx nx run playground-website:e2e:playwright:ci # Run website Playwright E2E tests
 
 # Running a single test file
 npx nx test <package-name> --testFile=<test-file-name>
@@ -171,6 +172,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   adjacent screens and reuse the existing shared component, variant, sizing, and design tokens. Add
   bespoke CSS only when shared primitives cannot express the required behavior, and verify the result
   side by side with neighboring UI.
+- **Progress states:** Use `PaneLoading` when an entire Dock pane is unavailable and `InlineProgress`
+  when an operation leaves the surrounding pane visible. Keep progress inside an action button only
+  when the button is the sole progress surface; do not show a second spinner or invent another loading
+  container for the same operation.
 - **Path manipulation**: Never use ad-hoc string operations for file paths. Use
   the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
   `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)

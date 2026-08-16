@@ -44,12 +44,14 @@ function ignoreSerializableCheck<S>(
 			// Ignore these field paths in all actions
 			ignoredActionPaths: [
 				/payload\.(changes\.)?client/,
+				/payload\.email/,
 				/payload\.(changes\.)?opfsMountDescriptor\.device\.handle/,
 				/.+\.originalBlueprint/,
 			],
 			// Ignore these paths in the state
 			ignoredPaths: [
 				/clients\.entities\.[^.]+\.client/,
+				/clients\.entities\.[^.]+\.emails/,
 				/clients\.entities\.[^.]+\.opfsMountDescriptor\.device\.handle/,
 				/.+\.originalBlueprint/,
 			],
