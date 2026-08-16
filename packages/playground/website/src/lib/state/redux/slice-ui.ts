@@ -29,6 +29,7 @@ export type DockPaneSection =
 	| 'database'
 	| 'files'
 	| 'logs'
+	| 'mail'
 	| 'share'
 	| 'save';
 

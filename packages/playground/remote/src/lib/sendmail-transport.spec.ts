@@ -67,13 +67,25 @@ describe('remote sendmail transport', () => {
 		);
 	});
 
-	it('registers sendmail capture when a PHP instance is created', async () => {
+	it('captures and forwards sendmail events from a created PHP instance', async () => {
 		vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
 		vi.stubGlobal('location', { href: 'http://playground.test/' });
 		const setCommandSpawnHandler = vi.fn();
+		const phpListeners: Array<(event: { type: string }) => void> = [];
 		const php = {
 			requestHandler: undefined,
 			setCommandSpawnHandler,
+			addEventListener: vi.fn(
+				(
+					eventType: string,
+					listener: (event: { type: string }) => void
+				) => {
+					if (eventType === '*') {
+						phpListeners.push(listener);
+					}
+				}
+			),
+			onMessage: vi.fn(),
 		};
 		const requestHandler = {
 			documentRoot: '/wordpress',
@@ -100,6 +112,10 @@ describe('remote sendmail transport', () => {
 			}
 		}
 		const endpoint = new TestEndpoint({} as EmscriptenDownloadMonitor);
+		const received: Array<{ type: string }> = [];
+		endpoint.addEventListener('sendmail.spawned', (event) => {
+			received.push(event);
+		});
 
 		await endpoint.createRequestHandlerForTest();
 
@@ -108,5 +124,10 @@ describe('remote sendmail transport', () => {
 			'sendmail',
 			expect.any(Function)
 		);
+
+		const event = { type: 'sendmail.spawned' };
+		await Promise.all(phpListeners.map((listener) => listener(event)));
+
+		expect(received).toEqual([event]);
 	});
 });

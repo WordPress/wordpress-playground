@@ -1,6 +1,6 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { decodeBase64ToString } from '../../base64';
+import { decodeBase64ToString } from '@php-wasm/util';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
 import { isAppBasePath } from './app-base-url';
 import { HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM } from '../../health-check-recovery';

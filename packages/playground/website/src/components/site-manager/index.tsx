@@ -45,7 +45,8 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			activeSection === 'files' ||
 			activeSection === 'blueprint' ||
 			activeSection === 'database' ||
-			activeSection === 'logs'
+			activeSection === 'logs' ||
+			activeSection === 'mail'
 				? activeSection
 				: null;
 		const activeSiteTab = isVisible ? selectedSiteTab : null;
