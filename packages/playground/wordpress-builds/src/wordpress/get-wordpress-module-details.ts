@@ -61,9 +61,9 @@ export function getWordPressModuleDetails(
 				format: 'tar.zst',
 				container: 'tar',
 				codec: 'zstd',
-				size: 4902800,
-				sha256: "0df8c74c253702e4addd0ff86ddb6efdb543a06309057fe82d0577226fb036f9",
-				fileCount: 1845,
+				size: 4671931,
+				sha256: "e5045523831af3884c961e33e95fc4f85337b9adf9584de2c4d189ef839d5e78",
+				fileCount: 1844,
 				url: url_beta,
 			};
 			
@@ -73,8 +73,8 @@ export function getWordPressModuleDetails(
 				format: 'tar.zst',
 				container: 'tar',
 				codec: 'zstd',
-				size: 4685024,
-				sha256: "3f189748907aba3e362d52b29ef225b22c0e6dd131ce95038f4e47639211acaa",
+				size: 4687384,
+				sha256: "76c5b10613edf2d31a521ef269153bc4248fc9bc4ab66634286e3024d6e43495",
 				fileCount: 1812,
 				url: url_7_0,
 			};
@@ -85,8 +85,8 @@ export function getWordPressModuleDetails(
 				format: 'tar.zst',
 				container: 'tar',
 				codec: 'zstd',
-				size: 4291546,
-				sha256: "2e85882163a84f4880dd8a4ff1add93fac2665c567c7acee1cf1ada0ab6eab83",
+				size: 4292323,
+				sha256: "816f9fb2bec46f13334bd15318ce652de3cdc51d7c03076dc546327237100d4b",
 				fileCount: 1597,
 				url: url_6_9,
 			};
@@ -97,8 +97,8 @@ export function getWordPressModuleDetails(
 				format: 'tar.zst',
 				container: 'tar',
 				codec: 'zstd',
-				size: 4330126,
-				sha256: "d3f54db44abe7eccde8f9423dd07b114eeeebbeaa74e23a3b6df477423c132cf",
+				size: 4331397,
+				sha256: "3924929e8f6bcf97e2493ef41c077c2b03a11196cb137034994661ea16c946eb",
 				fileCount: 1537,
 				url: url_6_8,
 			};
@@ -109,9 +109,9 @@ export function getWordPressModuleDetails(
 				format: 'tar.zst',
 				container: 'tar',
 				codec: 'zstd',
-				size: 4301100,
-				sha256: "a8e62ab5954d2c5d8988764a2003695bbb10f454aec302512f84b49251410cc7",
-				fileCount: 1528,
+				size: 4301555,
+				sha256: "eee1e6b00b3886a6b387229323ee311960ff61502aebdb3ef03e06eb78b4fc87",
+				fileCount: 1531,
 				url: url_6_7,
 			};
 			
