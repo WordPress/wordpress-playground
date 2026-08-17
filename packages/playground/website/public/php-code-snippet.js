@@ -869,7 +869,7 @@ class PhpSnippet extends HTMLElement {
 	}
 
 	_render() {
-		const name = this.getAttribute('name') || 'snippet.php';
+		const name = sanitizePhpFilename(this.getAttribute('name') || 'snippet.php');
 		const runnable = this.getAttribute('runnable') !== 'false';
 		const editable =
 			runnable &&
