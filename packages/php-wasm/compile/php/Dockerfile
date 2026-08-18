@@ -1168,6 +1168,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysqlnd_mysqlnd_conn_data_set_charset_pub",\
 "mysqlnd_mysqlnd_conn_data_set_server_option_pub",\
 "mysqlnd_mysqlnd_conn_data_store_result_pub",\
+"mysqlnd_mysqlnd_conn_data_close_pub",\
+"mysqlnd_mysqlnd_conn_data_send_close_pub",\
 "mysqlnd_mysqlnd_conn_data_tx_begin_pub",\
 "mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "mysqlnd_mysqlnd_pfc_receive_pub",\
@@ -1284,6 +1286,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_mysqlnd_conn_data_simple_command_pub",\
 "php_mysqlnd_conn_data_simple_command_send_request_pub",\
 "php_mysqlnd_conn_data_store_result_pub",\
+"php_mysqlnd_conn_data_close_pub",\
+"php_mysqlnd_conn_data_send_close_pub",\
 "php_mysqlnd_conn_data_tx_begin_pub",\
 "php_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "php_mysqlnd_eof_read",\
@@ -2025,6 +2029,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_lcg_value",\
 "zif_method_exists",\
 "zif_mysqli_begin_transaction",\
+"zif_mysqli_close",\
+"zif_mysqli_commit",\
 "zif_mysqli_connect",\
 "zif_mysqli_data_seek",\
 "zif_mysqli_errno",\
@@ -2040,8 +2046,10 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_mysqli_poll",\
 "zif_mysqli_prepare",\
 "zif_mysqli_query",\
+"zif_mysqli_report",\
 "zif_mysqli_real_connect",\
 "zif_mysqli_reap_async_query",\
+"zif_mysqli_rollback",\
 "zif_mysqli_select_db",\
 "zif_mysqli_set_charset",\
 "zif_mysqli_stmt_execute",\
