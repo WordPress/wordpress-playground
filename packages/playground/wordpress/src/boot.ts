@@ -396,10 +396,10 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			php.requestHandler = requestHandler;
 		}
 		if (options.phpIniEntries) {
-			setPhpIniEntries(php, options.phpIniEntries);
+			await setPhpIniEntries(php, options.phpIniEntries);
 		}
 
-		applyLegacyPhpIniOverrides(php, {
+		await applyLegacyPhpIniOverrides(php, {
 			phpVersion: options.phpVersion,
 			phpIniEntries: options.phpIniEntries,
 		});
