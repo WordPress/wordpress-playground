@@ -1168,6 +1168,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysqlnd_mysqlnd_conn_data_set_charset_pub",\
 "mysqlnd_mysqlnd_conn_data_set_server_option_pub",\
 "mysqlnd_mysqlnd_conn_data_store_result_pub",\
+"mysqlnd_mysqlnd_conn_data_tx_begin_pub",\
 "mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "mysqlnd_mysqlnd_pfc_receive_pub",\
 "mysqlnd_mysqlnd_pfc_send_pub",\
@@ -1283,6 +1284,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_mysqlnd_conn_data_simple_command_pub",\
 "php_mysqlnd_conn_data_simple_command_send_request_pub",\
 "php_mysqlnd_conn_data_store_result_pub",\
+"php_mysqlnd_conn_data_tx_begin_pub",\
 "php_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "php_mysqlnd_eof_read",\
 "php_mysqlnd_greet_read",\
