@@ -1124,6 +1124,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysqli_commit_or_rollback_libmysql",\
 "mysqli_common_connect",\
 "mysqlnd_stream_array_from_fd_set",\
+"mysqlnd_stream_array_to_fd_set",\
 "mysqlnd_caching_sha2_handle_server_response",\
 "mysqlnd_com_handshake_run",\
 "mysqlnd_com_init_db_run",\
