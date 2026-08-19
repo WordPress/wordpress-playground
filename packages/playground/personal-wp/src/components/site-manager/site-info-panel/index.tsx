@@ -500,90 +500,84 @@ function BackupSection() {
 		<div className={css.aboutSection}>
 			<h4 className={css.aboutSectionTitle}>Backup</h4>
 			<p>
-					Your site is stored in this browser. Browser data can be
-					cleared unexpectedly, so regular backups keep your WordPress
-					safe.
-				</p>
-				{backupHistory.length === 0 && (
-					<Notice status="warning" isDismissible={false}>
-						No backup yet. If this browser clears its data, your
-						site is gone — and there is no server to restore it
-						from.
-					</Notice>
-				)}
-				<div className={css.backupControls}>
-					<div className={css.backupRow}>
-						{/* SelectControl rather than a bare <select>: the raw
+				Your site is stored in this browser. Browser data can be cleared
+				unexpectedly, so regular backups keep your WordPress safe.
+			</p>
+			{backupHistory.length === 0 && (
+				<Notice status="warning" isDismissible={false}>
+					No backup yet. If this browser clears its data, your site is
+					gone — and there is no server to restore it from.
+				</Notice>
+			)}
+			<div className={css.backupControls}>
+				<div className={css.backupRow}>
+					{/* SelectControl rather than a bare <select>: the raw
 						    element carried no label, id or name, so it reached
 						    assistive tech with no accessible name at all. */}
-						<SelectControl
-							__nextHasNoMarginBottom
-							className={css.backupSelect}
-							label="Automatic backups"
-							hideLabelFromVision
-							value={autoBackupSelectValue}
-							options={autoBackupOptions}
-							onChange={handleAutoBackupChange}
-							disabled={isDependentMode}
-						/>
+					<SelectControl
+						__nextHasNoMarginBottom
+						className={css.backupSelect}
+						label="Automatic backups"
+						hideLabelFromVision
+						value={autoBackupSelectValue}
+						options={autoBackupOptions}
+						onChange={handleAutoBackupChange}
+						disabled={isDependentMode}
+					/>
+					<button
+						className={css.backupNowButton}
+						onClick={performBackup}
+						disabled={isBackingUp || isRestoring}
+						type="button"
+					>
+						{isBackingUp ? 'Backing up...' : 'Backup now'}
+					</button>
+					<input
+						type="file"
+						ref={restoreInputRef}
+						onChange={handleRestore}
+						accept=".zip,application/zip"
+						style={{ display: 'none' }}
+					/>
+					{!isDependentMode && (
 						<button
 							className={css.backupNowButton}
-							onClick={performBackup}
-							disabled={isBackingUp || isRestoring}
+							onClick={handleRestoreClick}
+							disabled={!playground || isBackingUp || isRestoring}
 							type="button"
 						>
-							{isBackingUp ? 'Backing up...' : 'Backup now'}
+							<Icon icon={upload} size={16} />
+							{isRestoring ? 'Restoring...' : 'Restore'}
 						</button>
-						<input
-							type="file"
-							ref={restoreInputRef}
-							onChange={handleRestore}
-							accept=".zip,application/zip"
-							style={{ display: 'none' }}
-						/>
-						{!isDependentMode && (
-							<button
-								className={css.backupNowButton}
-								onClick={handleRestoreClick}
-								disabled={
-									!playground || isBackingUp || isRestoring
-								}
-								type="button"
-							>
-								<Icon icon={upload} size={16} />
-								{isRestoring ? 'Restoring...' : 'Restore'}
-							</button>
-						)}
-					</div>
-					<span className={css.backupStatus}>
-						{lastBackupText}
-						{backupHistory.length > 0 && (
-							<button
-								className={css.historyToggle}
-								onClick={() => setShowHistory(!showHistory)}
-								type="button"
-							>
-								{showHistory
-									? 'hide history'
-									: `${backupHistory.length} backup${backupHistory.length === 1 ? '' : 's'}`}
-							</button>
-						)}
-					</span>
+					)}
 				</div>
-				{showHistory && (
-					<ul className={css.backupHistory}>
-						{backupHistory.map((entry, index) => (
-							<li key={index} className={css.backupHistoryItem}>
-								<span>{entry.filename}</span>
-								<span className={css.backupHistoryDate}>
-									{getRelativeDate(
-										new Date(entry.timestamp)
-									)}
-								</span>
-							</li>
-						))}
-					</ul>
-				)}
+				<span className={css.backupStatus}>
+					{lastBackupText}
+					{backupHistory.length > 0 && (
+						<button
+							className={css.historyToggle}
+							onClick={() => setShowHistory(!showHistory)}
+							type="button"
+						>
+							{showHistory
+								? 'hide history'
+								: `${backupHistory.length} backup${backupHistory.length === 1 ? '' : 's'}`}
+						</button>
+					)}
+				</span>
+			</div>
+			{showHistory && (
+				<ul className={css.backupHistory}>
+					{backupHistory.map((entry, index) => (
+						<li key={index} className={css.backupHistoryItem}>
+							<span>{entry.filename}</span>
+							<span className={css.backupHistoryDate}>
+								{getRelativeDate(new Date(entry.timestamp))}
+							</span>
+						</li>
+					))}
+				</ul>
+			)}
 		</div>
 	);
 }
@@ -720,8 +714,8 @@ function DependentTabToolsNotice() {
 			<h4>Recovery and reset are in your other tab</h4>
 			<p>
 				This tab can view, navigate, install apps, and back up your
-				site. Recovery and reset need the tab running the WordPress
-				runtime.
+				site. Recovery and reset need the tab where you first opened My
+				WordPress.
 			</p>
 		</div>
 	);
@@ -913,6 +907,20 @@ export function SiteInfoPanel({
 								name: 'advanced',
 								title: 'Advanced',
 							},
+							// Developer tools re-add these three tabs to this
+							// same bar rather than opening a second one, so
+							// turning them off just makes the tabs disappear
+							// again instead of leaving a nested bar behind.
+							...(showDevTools
+								? [
+										{ name: 'files', title: 'Files' },
+										{
+											name: 'database',
+											title: 'Database',
+										},
+										{ name: 'logs', title: 'Logs' },
+									]
+								: []),
 						]}
 					>
 						{(tab) => (
@@ -938,16 +946,84 @@ export function SiteInfoPanel({
 									hidden={tab.name !== 'advanced'}
 								>
 									<AdvancedTab
-										site={site}
-										playground={playground}
-										documentRoot={documentRoot}
 										showDevTools={showDevTools}
 										onShowDevToolsChange={
 											handleShowDevToolsChange
 										}
-										isVisible={tab.name === 'advanced'}
 									/>
 								</div>
+								{showDevTools && (
+									<>
+										<div
+											className={classNames(
+												css.tabContents,
+												css.fileBrowserTab,
+												{
+													[css.tabHidden]:
+														tab.name !== 'files',
+												}
+											)}
+											hidden={tab.name !== 'files'}
+										>
+											<Suspense
+												fallback={
+													<div className={css.padded}>
+														Loading file browser...
+													</div>
+												}
+											>
+												{documentRoot && (
+													<SiteFileBrowser
+														key={site.slug}
+														site={site}
+														isVisible={
+															tab.name === 'files'
+														}
+														documentRoot={
+															documentRoot
+														}
+													/>
+												)}
+											</Suspense>
+										</div>
+										<div
+											className={classNames(
+												css.tabContents,
+												css.padded,
+												{
+													[css.tabHidden]:
+														tab.name !== 'database',
+												}
+											)}
+											hidden={tab.name !== 'database'}
+										>
+											<SiteDatabasePanel
+												playground={playground}
+											/>
+										</div>
+										<div
+											className={classNames(
+												css.tabContents,
+												css.padded,
+												{
+													[css.tabHidden]:
+														tab.name !== 'logs',
+												}
+											)}
+											hidden={tab.name !== 'logs'}
+										>
+											<div
+												className={classNames(
+													css.logsWrapper
+												)}
+											>
+												<SiteLogs
+													className={css.logsSection}
+												/>
+											</div>
+										</div>
+									</>
+								)}
 							</>
 						)}
 					</TabPanel>
@@ -958,19 +1034,11 @@ export function SiteInfoPanel({
 }
 
 function AdvancedTab({
-	site,
-	playground,
-	documentRoot,
 	showDevTools,
 	onShowDevToolsChange,
-	isVisible,
 }: {
-	site: SiteInfo;
-	playground?: PlaygroundClient;
-	documentRoot: string | null;
 	showDevTools: boolean;
 	onShowDevToolsChange: (next: boolean) => void;
-	isVisible: boolean;
 }) {
 	return (
 		<div className={css.advancedTab}>
@@ -983,79 +1051,6 @@ function AdvancedTab({
 					onChange={onShowDevToolsChange}
 				/>
 			</div>
-			{showDevTools && (
-				<TabPanel
-					className={css.devTabs}
-					tabs={[
-						{ name: 'files', title: 'Files' },
-						{ name: 'database', title: 'Database' },
-						{ name: 'logs', title: 'Logs' },
-					]}
-				>
-					{(devTab) => (
-						<>
-							<div
-								className={classNames(
-									css.tabContents,
-									css.fileBrowserTab,
-									{
-										[css.tabHidden]:
-											devTab.name !== 'files',
-									}
-								)}
-								hidden={devTab.name !== 'files'}
-							>
-								<Suspense
-									fallback={
-										<div className={css.padded}>
-											Loading file browser...
-										</div>
-									}
-								>
-									{documentRoot && (
-										<SiteFileBrowser
-											key={site.slug}
-											site={site}
-											isVisible={
-												isVisible &&
-												devTab.name === 'files'
-											}
-											documentRoot={documentRoot}
-										/>
-									)}
-								</Suspense>
-							</div>
-							<div
-								className={classNames(
-									css.tabContents,
-									css.padded,
-									{
-										[css.tabHidden]:
-											devTab.name !== 'database',
-									}
-								)}
-								hidden={devTab.name !== 'database'}
-							>
-								<SiteDatabasePanel playground={playground} />
-							</div>
-							<div
-								className={classNames(
-									css.tabContents,
-									css.padded,
-									{
-										[css.tabHidden]: devTab.name !== 'logs',
-									}
-								)}
-								hidden={devTab.name !== 'logs'}
-							>
-								<div className={classNames(css.logsWrapper)}>
-									<SiteLogs className={css.logsSection} />
-								</div>
-							</div>
-						</>
-					)}
-				</TabPanel>
-			)}
 		</div>
 	);
 }
