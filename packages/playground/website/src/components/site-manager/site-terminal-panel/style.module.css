@@ -324,15 +324,14 @@
 	overflow-wrap: anywhere;
 }
 
-.resultWithEntry pre {
+.resultBody {
 	padding: 0 14px 14px;
+}
+
+.resultBody pre + pre {
+	margin-top: 8px;
 }
 
 .errorOutput {
 	color: #ffb6b6;
-}
-
-.continuationHint {
-	color: #a7aaad;
-	margin-top: 4px;
 }

@@ -5,6 +5,7 @@ export type TerminalMode = 'php' | 'wp-cli';
 export type TerminalHistoryEntry = {
 	command: string;
 	output: string;
+	error?: string;
 	status: 'success' | 'error';
 	durationMs: number;
 };
@@ -94,12 +95,16 @@ function normalizeEntry(entry: unknown, mode: TerminalMode) {
 		return undefined;
 	}
 
-	return {
+	const normalizedEntry: TerminalHistoryEntry = {
 		command: normalizeCommand(maybeEntry.command, mode),
 		output: maybeEntry.output,
 		status: maybeEntry.status,
 		durationMs: maybeEntry.durationMs,
 	};
+	if (typeof maybeEntry.error === 'string') {
+		normalizedEntry.error = maybeEntry.error;
+	}
+	return normalizedEntry;
 }
 
 function normalizeCommand(command: string, mode: TerminalMode) {

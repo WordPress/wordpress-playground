@@ -19,18 +19,22 @@ describe('getTerminalErrorMessage', () => {
 	});
 
 	it('preserves ordinary PHP errors', () => {
-		expect(getTerminalErrorMessage('ParseError: unexpected token')).toBe(
-			'ParseError: unexpected token'
-		);
+		expect(
+			getTerminalErrorMessage('ParseError: unexpected token on line 1', {
+				line: 1,
+				character: 7,
+			})
+		).toBe('ParseError: unexpected token on line 1, character 7');
 	});
 
 	it('explains an incomplete PHP statement', () => {
 		expect(
 			getTerminalErrorMessage(
-				'ParseError: syntax error, unexpected end of file'
+				'ParseError: syntax error, unexpected end of file, expecting "," or ";" on line 3',
+				{ line: 2, character: 14 }
 			)
 		).toBe(
-			'Incomplete PHP code. Add a missing semicolon, closing bracket, or brace. Use Shift+Enter to continue on another line.'
+			'ParseError on line 2, character 14: Incomplete PHP code. Check for a missing semicolon or closing delimiter.'
 		);
 	});
 

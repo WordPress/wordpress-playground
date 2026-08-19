@@ -32,7 +32,6 @@ type TerminalMode = 'php' | 'wp-cli';
 
 type TerminalEntry = TerminalHistoryEntry;
 
-const PHP_INCOMPLETE_INPUT_MARKER = '__PLAYGROUND_PHP_INCOMPLETE_INPUT__';
 const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
 const PHP_SNIPPETS = [
 	{
@@ -135,7 +134,6 @@ export function SiteTerminalPanel({
 		'wp-cli': initialHistory['wp-cli'].length - 1,
 	});
 	const [isRunning, setIsRunning] = useState(false);
-	const [isAwaitingMoreInput, setIsAwaitingMoreInput] = useState(false);
 	const [pendingHistoryIndex, setPendingHistoryIndex] = useState<
 		number | null
 	>(null);
@@ -194,7 +192,6 @@ export function SiteTerminalPanel({
 			closeWpCliSuggestions();
 		}
 		setIsRunning(true);
-		setIsAwaitingMoreInput(false);
 		const startedAt = performance.now();
 		try {
 			const wpCliCommandError =
@@ -205,27 +202,28 @@ export function SiteTerminalPanel({
 				throw new Error(wpCliCommandError);
 			}
 			let output: string;
+			let entryError: string | undefined;
+			let status: TerminalEntry['status'] = 'success';
 			if (mode === 'php') {
 				const result = await runPHP(playground, submittedCommand);
-				if (result.incomplete) {
-					setPhpCode(`${submittedCommand}\n`);
-					setIsAwaitingMoreInput(true);
-					return;
-				}
 				output = result.output;
+				entryError = result.error;
+				status = result.status;
 			} else {
 				output = await runWpCli(playground, `wp ${submittedCommand}`);
 			}
 			appendEntry(mode, {
 				command: getHistoryCommand(mode, submittedCommand),
 				output,
-				status: 'success',
+				error: entryError,
+				status,
 				durationMs: performance.now() - startedAt,
 			});
 		} catch (error) {
 			appendEntry(mode, {
 				command: getHistoryCommand(mode, submittedCommand),
-				output: getErrorOutput(error, mode),
+				output: '',
+				error: getErrorOutput(error, mode),
 				status: 'error',
 				durationMs: performance.now() - startedAt,
 			});
@@ -303,7 +301,6 @@ export function SiteTerminalPanel({
 			[mode]: nextIndex,
 		}));
 		setCurrentCommand(nextEntry.command);
-		setIsAwaitingMoreInput(false);
 		closeWpCliSuggestions();
 	}
 
@@ -662,15 +659,28 @@ export function SiteTerminalPanel({
 									</div>
 								)}
 							</div>
-							<pre
-								className={
-									activeEntry.status === 'error'
-										? css.errorOutput
-										: undefined
-								}
-							>
-								{getEntryDisplayOutput(activeEntry)}
-							</pre>
+							<div className={css.resultBody}>
+								{activeEntry.output && (
+									<pre
+										className={
+											activeEntry.status === 'error' &&
+											!activeEntry.error
+												? css.errorOutput
+												: undefined
+										}
+									>
+										{activeEntry.output}
+									</pre>
+								)}
+								{activeEntry.error && (
+									<pre className={css.errorOutput}>
+										{activeEntry.error}
+									</pre>
+								)}
+								{!activeEntry.output && !activeEntry.error && (
+									<pre>(no output)</pre>
+								)}
+							</div>
 						</>
 					) : (
 						<div className={css.emptyOutput}>
@@ -680,12 +690,6 @@ export function SiteTerminalPanel({
 						</div>
 					)}
 				</div>
-				{mode === 'php' && isAwaitingMoreInput && (
-					<div className={css.continuationHint}>
-						Incomplete PHP code. Keep typing to finish the
-						statement, then run it again.
-					</div>
-				)}
 			</div>
 		</div>
 	);
@@ -696,17 +700,48 @@ async function runPHP(playground: PlaygroundClient, code: string) {
 	const response = await playground.run({
 		code: getWordPressPHPCode(code, documentRoot),
 	});
-	const incomplete = response.errors.includes(PHP_INCOMPLETE_INPUT_MARKER);
+	const errors = response.errors.trim();
 	return {
-		incomplete,
-		output: formatResponse({
-			text: response.text,
-			errors: response.errors
-				.replace(PHP_INCOMPLETE_INPUT_MARKER, '')
-				.trim(),
-			exitCode: response.exitCode,
-		}),
+		status: errors ? ('error' as const) : ('success' as const),
+		output: response.text.trimEnd(),
+		error: formatPhpError(errors, response.exitCode, code),
 	};
+}
+
+function formatPhpError(errors: string, exitCode: number, code: string) {
+	const parts = [];
+	if (errors) {
+		parts.push(
+			getTerminalErrorMessage(errors, getPhpSyntaxErrorPosition(code))
+		);
+	}
+	if (exitCode !== 0) {
+		parts.push(`Exit code: ${exitCode}`);
+	}
+	return parts.join('\n') || undefined;
+}
+
+function getPhpSyntaxErrorPosition(code: string) {
+	const tree = php({ plain: true }).language.parser.parse(code);
+	const cursor = tree.cursor();
+	while (true) {
+		if (cursor.type.isError) {
+			const beforeError = code.slice(0, cursor.from);
+			const lastLineBreak = beforeError.lastIndexOf('\n');
+			return {
+				line: beforeError.split('\n').length,
+				character: cursor.from - lastLineBreak,
+			};
+		}
+		if (cursor.firstChild()) {
+			continue;
+		}
+		while (!cursor.nextSibling()) {
+			if (!cursor.parent()) {
+				return undefined;
+			}
+		}
+	}
 }
 
 /**
@@ -749,10 +784,10 @@ require_once ${phpVar(wpLoadPath)};
 (function () {
 	$playground_repl_has_error_handler = false;
 	try {
-		set_error_handler(function ($severity, $message) {
+		set_error_handler(function ($severity, $message, $file, $line) {
 			file_put_contents(
 				'php://stderr',
-				"Warning: {$message}\\n",
+				"Warning: {$message} on line {$line}\\n",
 				FILE_APPEND
 			);
 			return true;
@@ -760,29 +795,13 @@ require_once ${phpVar(wpLoadPath)};
 		$playground_repl_has_error_handler = true;
 		eval(${phpVar(codeWithoutOpeningTag)});
 	} catch (Throwable $playground_repl_error) {
-		if (
-			$playground_repl_error instanceof ParseError &&
-			(
-				strpos(
-					$playground_repl_error->getMessage(),
-					'unexpected end of file'
-				) !== false ||
-				strpos($playground_repl_error->getMessage(), 'Unclosed') === 0
-			)
-		) {
-			file_put_contents(
-				'php://stderr',
-				${phpVar(PHP_INCOMPLETE_INPUT_MARKER)},
-				FILE_APPEND
-			);
-		} else {
-			file_put_contents(
-				'php://stderr',
-				get_class($playground_repl_error) . ': ' .
-				$playground_repl_error->getMessage() . "\\n",
-				FILE_APPEND
-			);
-		}
+		file_put_contents(
+			'php://stderr',
+			get_class($playground_repl_error) . ': ' .
+			$playground_repl_error->getMessage() . ' on line ' .
+			$playground_repl_error->getLine() . "\\n",
+			FILE_APPEND
+		);
 	} finally {
 		if ($playground_repl_has_error_handler) {
 			restore_error_handler();
@@ -833,7 +852,9 @@ function getHistoryCommand(mode: TerminalMode, command: string) {
 }
 
 function getEntryDisplayOutput(entry: TerminalEntry) {
-	return entry.output || '(no output)';
+	return (
+		[entry.output, entry.error].filter(Boolean).join('\n') || '(no output)'
+	);
 }
 
 function useCopyToClipboard(): [boolean, (text: string) => void] {
