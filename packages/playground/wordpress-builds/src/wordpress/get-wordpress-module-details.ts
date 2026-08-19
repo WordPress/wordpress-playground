@@ -1,6 +1,8 @@
 // @ts-ignore
 import url_beta from './wp-beta.tar.zst?url';
 // @ts-ignore
+import url_7_1 from './wp-7.1.tar.zst?url';
+// @ts-ignore
 import url_7_0 from './wp-7.0.tar.zst?url';
 // @ts-ignore
 import url_6_9 from './wp-6.9.tar.zst?url';
@@ -42,7 +44,7 @@ export interface WordPressModuleDetails {
 }
 
 export function getWordPressModuleDetails(
-	wpVersion: string = "7.0"
+	wpVersion: string = "7.1"
 ): WordPressModuleDetails {
 	switch (wpVersion) {
 		
@@ -65,6 +67,18 @@ export function getWordPressModuleDetails(
 				sha256: "e5045523831af3884c961e33e95fc4f85337b9adf9584de2c4d189ef839d5e78",
 				fileCount: 1844,
 				url: url_beta,
+			};
+			
+		case '7.1':
+			/** @ts-ignore */
+			return {
+				format: 'tar.zst',
+				container: 'tar',
+				codec: 'zstd',
+				size: 4672610,
+				sha256: "34c5730426643c63dbaa54c8b37b27a70f558a5178e6147b7ac3b4eb3e419195",
+				fileCount: 1844,
+				url: url_7_1,
 			};
 			
 		case '7.0':
