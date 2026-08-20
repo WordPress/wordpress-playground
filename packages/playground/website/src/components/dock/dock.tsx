@@ -58,6 +58,7 @@ import {
 	getDockPaneStyle,
 } from './dock-positioning';
 import { DOCK_TOOLS, getDockTool } from './tool-registry';
+import { usePosixKernelAvailability } from '../posix-kernel/use-posix-kernel-availability';
 import { useDeveloperTools } from './use-developer-tools';
 import css from './style.module.css';
 
@@ -100,6 +101,10 @@ export function Dock({
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneCopy = getDockTool(section);
+	const posixKernelAvailable = usePosixKernelAvailability(clientInfo?.client);
+	const paneDescription =
+		(posixKernelAvailable && paneCopy.posixKernelDescription) ||
+		paneCopy.description;
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = paneCopy.layout === 'editor';
@@ -1076,7 +1081,7 @@ export function Dock({
 					description={
 						section === 'settings' && activeSite
 							? undefined
-							: paneCopy.description
+							: paneDescription
 					}
 					headerSubtitle={
 						section === 'settings' && activeSite ? (
