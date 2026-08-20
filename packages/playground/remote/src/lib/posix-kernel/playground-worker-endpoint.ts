@@ -57,6 +57,7 @@ import { prepareWordPressZips } from './prepare-wordpress';
 import { buildVfsImage } from './vfs-builder';
 import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
+import { KernelTerminalManager, type TerminalSize } from './terminal';
 import { CookieJar } from './cookie-jar';
 import type { HttpRequest, HttpResponse } from './host-bridge';
 import type { MountDescriptor } from '../playground-worker-endpoint';
@@ -259,6 +260,13 @@ export class KernelPlaygroundWorkerEndpoint {
 	 * a later mount with the same name succeeds.
 	 */
 	private readonly opfsMounts = new Set<string>();
+	/**
+	 * PTY shell sessions for the website's terminal pane. Created after
+	 * boot alongside the spawn adapter; deliberately independent of it —
+	 * PTY output routes per-pid, so a live shell never touches the
+	 * adapter's singleton capture slot. See `terminal.ts`.
+	 */
+	private terminals: KernelTerminalManager | undefined;
 	/**
 	 * The {@link buildVfsImage} inputs captured on the full-build boot path,
 	 * kept so {@link captureVfsImage} can rebuild the image with the
@@ -683,6 +691,61 @@ export class KernelPlaygroundWorkerEndpoint {
 		return `${url.pathname}${url.search}${url.hash}`;
 	}
 
+	/**
+	 * Runtime marker for the website's terminal pane gating
+	 * (`use-terminal-available.ts`). The classic worker endpoints have
+	 * no such method, so calling it there rejects and the caller treats
+	 * that as "not the kernel runtime". A method, not a boolean field:
+	 * `proxyClone` in `@php-wasm/universal`'s `api.ts` has no `boolean`
+	 * case, so a boolean field never survives the Comlink hop. The URL
+	 * param can't serve as the signal either — the kernel dev server
+	 * aliases `/remote.html` to this runtime without
+	 * `?experimental=kandelo`.
+	 */
+	async isPosixKernel(): Promise<boolean> {
+		return true;
+	}
+
+	/**
+	 * Spawn an interactive shell on a kernel PTY. `onOutput` / `onExit`
+	 * arrive Comlink-proxied from the website's terminal pane through
+	 * the iframe wrapper in `boot-playground-remote.ts:startTerminal`.
+	 * Returns the kernel pid the pane passes back to
+	 * {@link writeToTerminal} / {@link resizeTerminal}.
+	 */
+	async startTerminal(
+		size: TerminalSize,
+		onOutput: (chunk: Uint8Array) => void,
+		onExit: (code: number) => void
+	): Promise<number> {
+		return await this.requireTerminals('startTerminal').start(
+			size,
+			onOutput,
+			onExit
+		);
+	}
+
+	async writeToTerminal(pid: number, data: Uint8Array): Promise<void> {
+		this.requireTerminals('writeToTerminal').write(pid, data);
+	}
+
+	async resizeTerminal(
+		pid: number,
+		rows: number,
+		cols: number
+	): Promise<void> {
+		this.requireTerminals('resizeTerminal').resize(pid, rows, cols);
+	}
+
+	private requireTerminals(method: string): KernelTerminalManager {
+		if (!this.terminals) {
+			throw new Error(
+				`KernelPlaygroundWorkerEndpoint.${method}: kernel is not booted.`
+			);
+		}
+		return this.terminals;
+	}
+
 	private async doBoot(options: KernelWorkerBootOptions): Promise<void> {
 		this.absoluteUrl = setURLScope(
 			wordPressSiteUrl,
@@ -901,6 +964,7 @@ export class KernelPlaygroundWorkerEndpoint {
 		});
 		this.bindApiMethods(api);
 		this.api = api;
+		this.terminals = new KernelTerminalManager(this.kernel.kernel);
 
 		// Block until the kernel-resident nginx/php-fpm actually answer.
 		// Deferred out of `bootKernelWordPress` to here — after the spawn

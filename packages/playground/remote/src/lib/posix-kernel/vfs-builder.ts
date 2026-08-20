@@ -73,6 +73,7 @@ import intlSoUrl from '@kernel-binary/programs/wasm32/php/intl.so?url';
 // Staged only alongside `intl.so` on the intl opt-in path.
 import icuDatUrl from '@kernel-binary/programs/wasm32/php/icu.dat?url';
 import dashUrl from '@kernel-binary/programs/wasm32/dash.wasm?url';
+import bashUrl from '@kernel-binary/programs/wasm32/bash.wasm?url';
 import coreutilsUrl from '@kernel-binary/programs/wasm32/coreutils.wasm?url';
 import lessUrl from '@kernel-binary/programs/wasm32/less.wasm?url';
 import dinitUrl from '@kernel-binary/programs/wasm32/dinit/dinit.wasm?url';
@@ -165,6 +166,7 @@ export async function buildVfsImage(
 	populateSystem(fs);
 	await populateServerBinaries(fs, options.withIntl === true);
 	await populateUserBinaries(fs);
+	populateBashRc(fs);
 	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
@@ -408,18 +410,41 @@ async function populateServerBinaries(
  * `php` lands at `/usr/local/bin/php` (matches the upstream demo's
  * convention in `kandelo/examples/browser/pages/php/main.ts`);
  * `less` lands at `/usr/bin/less` (upstream's `shell-vfs-build.ts`
- * convention). The php.wasm bytes are also fetched a second time by
+ * convention); `bash` lands at `/bin/bash`, the interactive shell for
+ * the website's terminal pane (`terminal.ts` spawns it) — `/bin/sh`
+ * stays dash. The php.wasm bytes are also fetched a second time by
  * `playground-worker-endpoint.ts` for the host-side
  * `KernelSpawnAdapter`; the browser's HTTP cache dedupes the two
  * `fetch()` calls so this redundancy is essentially free.
  */
 async function populateUserBinaries(fs: MemoryFileSystem): Promise<void> {
-	const [phpBytes, lessBytes] = await Promise.all([
+	const [phpBytes, lessBytes, bashBytes] = await Promise.all([
 		fetchBinary(phpUrl),
 		fetchBinary(lessUrl),
+		fetchBinary(bashUrl),
 	]);
 	writeVfsBinary(fs, '/usr/local/bin/php', phpBytes);
 	writeVfsBinary(fs, '/usr/bin/less', lessBytes);
+	writeVfsBinary(fs, '/bin/bash', bashBytes);
+}
+
+function populateBashRc(fs: MemoryFileSystem): void {
+	writeVfsFile(
+		fs,
+		'/etc/bashrc',
+		`alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias clear='printf "\\e[H\\e[2J\\e[3J"'
+PS1='\\[\\e[1;32m\\]\\w\\[\\e[0m\\] $ '
+PROMPT_COMMAND='(( COLUMNS > 0 )) && printf "%\${COLUMNS}s\\r" ""'
+playground() {
+  printf '\\n'
+  printf '\\e[38;2;56;88;233mThis shell runs inside the WordPress Playground Kandelo kernel.\\e[0m\\n\\n'
+  printf 'Available binaries: wp, php, bash, less, grep, and GNU coreutils.\\n\\n'
+  printf 'Clear the screen with "clear" or Ctrl+L.\\n\\n'
+}
+`
+	);
 }
 
 /**

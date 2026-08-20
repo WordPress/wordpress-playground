@@ -207,6 +207,19 @@ export async function bootPlaygroundRemote() {
 		async unmountOpfs(mountpoint: string) {
 			return await kernelWorkerApi.unmountOpfs(mountpoint);
 		},
+		// Explicit wrapper for the same `DataCloneError` reason as
+		// `mountOpfs` above: `onOutput` / `onExit` must go through
+		// Comlink's FUNCTION transfer handler, which only engages on an
+		// explicit method call. `writeToTerminal` / `resizeTerminal`
+		// carry plain data and reach the worker via the fall-through
+		// proxy without a wrapper.
+		async startTerminal(
+			size: { cols: number; rows: number },
+			onOutput: (chunk: Uint8Array) => void,
+			onExit: (code: number) => void
+		) {
+			return await kernelWorkerApi.startTerminal(size, onOutput, onExit);
+		},
 		// Test-only: the e2e globalSetup boots once, drives the installer,
 		// then calls this to read the installed SQLite database back out and
 		// persist it as the snapshot every other test boots from.
