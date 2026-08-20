@@ -167,26 +167,28 @@ This will ensure your code works reliably regardless of the current working dire
 			}
 		}
 
-		$playground_no_stdin_scheme =
-			'playground-no-stdin-' . str_replace('.', '-', uniqid('', true));
-		if (
-			!stream_wrapper_register(
-				$playground_no_stdin_scheme,
-				Playground_No_Stdin_Stream::class
-			)
-		) {
-			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
-		}
-		$playground_no_stdin = fopen(
-			$playground_no_stdin_scheme . '://input',
-			'rb'
-		);
-		if (!is_resource($playground_no_stdin)) {
-			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
-		}
 		// The kernel-mode (posix-kernel) CLI SAPI predefines these constants,
 		// so guard against redefinition warnings on stderr.
-		if (!defined('STDIN')) define('STDIN', $playground_no_stdin);
+		if (!defined('STDIN')) {
+			$playground_no_stdin_scheme =
+				'playground-no-stdin-' . str_replace('.', '-', uniqid('', true));
+			if (
+				!stream_wrapper_register(
+					$playground_no_stdin_scheme,
+					Playground_No_Stdin_Stream::class
+				)
+			) {
+				throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
+			}
+			$playground_no_stdin = fopen(
+				$playground_no_stdin_scheme . '://input',
+				'rb'
+			);
+			if (!is_resource($playground_no_stdin)) {
+				throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
+			}
+			define('STDIN', $playground_no_stdin);
+		}
 
 		// Provide stdout and stderr streams outside of the CLI SAPI.
 		if (!defined('STDOUT')) define('STDOUT', fopen('php://stdout', 'wb'));

@@ -8,6 +8,7 @@ import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
 import { useDockPaneEditorHeaderSlot } from '../../dock/dock-pane';
+import { usePosixKernelAvailability } from '../../posix-kernel/use-posix-kernel-availability';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { SiteMailPanel } from '../site-mail-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
@@ -25,6 +26,12 @@ const SiteBlueprintBundleEditor = lazy(() =>
 
 const SiteTerminalPanel = lazy(() =>
 	import('../site-terminal-panel').then((m) => ({
+		default: m.SiteTerminalPanel,
+	}))
+);
+
+const KernelTerminalPanel = lazy(() =>
+	import('../../posix-kernel/site-terminal-panel').then((m) => ({
 		default: m.SiteTerminalPanel,
 	}))
 );
@@ -58,6 +65,7 @@ export function SiteToolPanels({
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
 	const editorHeaderSlot = useDockPaneEditorHeaderSlot();
 	const activeMobileHeaderSlot = mobileUi ? editorHeaderSlot : null;
+	const posixKernelAvailable = usePosixKernelAvailability(playground);
 	const settingsMounted =
 		activeTabName === 'settings' || mountedTabNames.includes('settings');
 	const filesMounted =
@@ -204,7 +212,14 @@ export function SiteToolPanels({
 					<Suspense
 						fallback={<PaneLoading message="Loading Terminal…" />}
 					>
-						<SiteTerminalPanel playground={playground} />
+						{posixKernelAvailable ? (
+							<KernelTerminalPanel
+								playground={playground}
+								isVisible={activeTabName === 'terminal'}
+							/>
+						) : (
+							<SiteTerminalPanel playground={playground} />
+						)}
 					</Suspense>
 				</div>
 			)}
