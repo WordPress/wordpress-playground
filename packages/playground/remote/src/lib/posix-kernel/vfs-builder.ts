@@ -154,6 +154,7 @@ export async function buildVfsImage(
 	populateSystem(fs);
 	await populateServerBinaries(fs, options.withIntl === true);
 	await populateUserBinaries(fs);
+	populateBashRc(fs);
 	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
@@ -430,6 +431,24 @@ async function populateServerBinaries(
  */
 async function populateUserBinaries(fs: KandeloImageFs): Promise<void> {
 	writeVfsBinary(fs, '/usr/local/bin/php', await fetchBinary(phpUrl));
+}
+
+function populateBashRc(fs: KandeloImageFs): void {
+	writeVfsFile(
+		fs,
+		'/etc/bashrc',
+		`alias ls='ls --color=auto'
+alias clear='printf "\\e[H\\e[2J\\e[3J"'
+PS1='\\[\\e[1;32m\\]\\w\\[\\e[0m\\] $ '
+PROMPT_COMMAND='(( COLUMNS > 0 )) && printf "%\${COLUMNS}s\\r" ""'
+playground() {
+  printf '\\n'
+  printf '\\e[38;2;56;88;233mThis shell runs inside the WordPress Playground Kandelo kernel.\\e[0m\\n\\n'
+  printf 'Available binaries: wp, php, bash, and GNU coreutils.\\n\\n'
+  printf 'Clear the screen with "clear" or Ctrl+L.\\n\\n'
+}
+`
+	);
 }
 
 /**
