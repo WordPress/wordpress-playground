@@ -140,6 +140,13 @@ export interface BuildVfsImageOptions {
 	 */
 	withIntl?: boolean;
 	/**
+	 * The wp-cli.phar bytes to stage at `/usr/local/bin/wp-cli.phar`,
+	 * together with a `wp` wrapper script, so the terminal pane's shell
+	 * can drive the live site with WP-CLI. Staged in every image,
+	 * PHP-only mode included. See {@link populateWpCli}.
+	 */
+	wpCliPharBytes: Uint8Array;
+	/**
 	 * A previously-captured SQLite database (the bytes of
 	 * `wp-content/database/wordpress.db` from an already-installed site).
 	 * When present, it is written into the image so the booted site is
@@ -166,6 +173,7 @@ export async function buildVfsImage(
 	populateSystem(fs);
 	await populateServerBinaries(fs, options.withIntl === true);
 	await populateUserBinaries(fs);
+	populateWpCli(fs, options.wpCliPharBytes);
 	populateBashRc(fs);
 	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
@@ -426,6 +434,42 @@ async function populateUserBinaries(fs: MemoryFileSystem): Promise<void> {
 	writeVfsBinary(fs, '/usr/local/bin/php', phpBytes);
 	writeVfsBinary(fs, '/usr/bin/less', lessBytes);
 	writeVfsBinary(fs, '/bin/bash', bashBytes);
+}
+
+/**
+ * WP-CLI for the terminal pane: the phar plus a `wp` wrapper script,
+ * both at `/usr/local/bin` (already on the boot env's PATH). NOT
+ * `/tmp/wp-cli.phar` — the `wp-cli` blueprint step's location — because
+ * kandelo mounts an empty scratch memfs over `/tmp` on every boot,
+ * shadowing anything the image stages there (same trap as `/root`, see
+ * {@link populateBashRc}).
+ *
+ * The wrapper's `-d` flags mirror `PHP_EXTENSION_ARGS` in `php-api.ts`
+ * (minus the opt-in `intl.so`) so `wp` behaves like every other direct
+ * `php` spawn: `phar.so` is what makes the phar runnable at all, and
+ * `zend.max_allowed_stack_size` raises a graceful PHP fatal on deep
+ * recursion before V8's ~50-frame budget kills the worker.
+ * `WP_CLI_ALLOW_ROOT` because the shell runs as uid 0 and WP-CLI
+ * refuses to run as root without the opt-in.
+ */
+function populateWpCli(fs: MemoryFileSystem, pharBytes: Uint8Array): void {
+	writeVfsBinary(fs, '/usr/local/bin/wp-cli.phar', pharBytes, 0o644);
+	writeVfsFile(
+		fs,
+		'/usr/local/bin/wp',
+		`#!/bin/sh
+export WP_CLI_ALLOW_ROOT=1
+exec php \\
+  -d extension_dir=/usr/lib/php/extensions \\
+  -d extension=zip.so \\
+  -d extension=curl.so \\
+  -d extension=phar.so \\
+  -d curl.cainfo=/etc/ssl/certs/ca-certificates.crt \\
+  -d zend.max_allowed_stack_size=131072 \\
+  /usr/local/bin/wp-cli.phar "$@"
+`,
+		0o755
+	);
 }
 
 function populateBashRc(fs: MemoryFileSystem): void {

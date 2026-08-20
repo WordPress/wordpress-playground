@@ -53,7 +53,7 @@ import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 
 import { bootKernelWordPress, type KernelBootResult } from './boot';
-import { prepareWordPressZips } from './prepare-wordpress';
+import { downloadWpCliPhar, prepareWordPressZips } from './prepare-wordpress';
 import { buildVfsImage } from './vfs-builder';
 import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
@@ -205,6 +205,7 @@ interface VfsBuildInputs {
 	sqliteZipBytes?: Uint8Array;
 	wpZipStripLeadingDir?: string;
 	wpStaticZipBytes?: Uint8Array;
+	wpCliPharBytes: Uint8Array;
 	withNetworking: boolean;
 	withIntl: boolean;
 }
@@ -847,25 +848,32 @@ export class KernelPlaygroundWorkerEndpoint {
 				logger.debug(
 					`[posix-kernel] preparing WordPress zips (scope=${options.scope})`
 				);
-				const zips = await prepareWordPressZips({
-					wpVersionQuery,
-					sqliteVersion: options.sqliteDriverVersion,
-					corsProxyUrl,
-					monitor: this.downloadMonitor,
-					onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
-				});
+			} else {
+				logger.debug(
+					'[posix-kernel] PHP-only mode ' +
+						'(wordpressInstallMode=do-not-attempt-installing); ' +
+						'skipping WordPress download'
+				);
+			}
+			const [zips, wpCliPharBytes] = await Promise.all([
+				bootWordPress
+					? prepareWordPressZips({
+							wpVersionQuery,
+							sqliteVersion: options.sqliteDriverVersion,
+							corsProxyUrl,
+							monitor: this.downloadMonitor,
+							onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
+						})
+					: undefined,
+				downloadWpCliPhar(this.downloadMonitor),
+			]);
+			if (zips) {
 				wpZipBytes = zips.wpZipBytes;
 				sqliteZipBytes = zips.sqliteZipBytes;
 				wpZipStripLeadingDir = zips.wpZipStripLeadingDir;
 				wpStaticZipBytes = zips.wpStaticZipBytes;
 				logger.debug(
 					`[posix-kernel] WordPress ${zips.wpVersion} downloaded`
-				);
-			} else {
-				logger.debug(
-					'[posix-kernel] PHP-only mode ' +
-						'(wordpressInstallMode=do-not-attempt-installing); ' +
-						'skipping WordPress download'
 				);
 			}
 
@@ -917,6 +925,7 @@ export class KernelPlaygroundWorkerEndpoint {
 				sqliteZipBytes,
 				wpZipStripLeadingDir,
 				wpStaticZipBytes,
+				wpCliPharBytes,
 				withNetworking,
 				withIntl,
 			};

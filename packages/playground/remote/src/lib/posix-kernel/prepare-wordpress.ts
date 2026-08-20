@@ -25,6 +25,7 @@ import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import {
 	getSqliteDriverModuleDetails,
 	getWordPressModuleDetails,
+	getWpCliModuleDetails,
 	MinifiedWordPressVersionsList,
 	wpVersionToStaticAssetsDirectory,
 } from '@wp-playground/wordpress-builds';
@@ -107,7 +108,7 @@ export async function prepareWordPressZips(
 		: null;
 	if (bundled && !/^https?:\/\//.test(bundled.url)) {
 		onStatus(`Downloading WordPress ${wpVersionQuery}`);
-		wpZipBytes = await fetchZipBytes(bundled.url, monitor, bundled.size);
+		wpZipBytes = await fetchBytes(bundled.url, monitor, bundled.size);
 		wpVersion = wpVersionQuery;
 		// Bundled core builds (`wp-X.Y.tar.zst`) are flat — files sit at
 		// the archive root, no `wordpress/` wrapper to strip.
@@ -122,13 +123,13 @@ export async function prepareWordPressZips(
 		if (staticDir) {
 			const staticUrl = `/${staticDir}/wordpress-static.zip`;
 			onStatus(`Downloading WordPress static assets ${wpVersionQuery}`);
-			wpStaticZipBytes = await fetchZipBytes(staticUrl, monitor);
+			wpStaticZipBytes = await fetchBytes(staticUrl, monitor);
 		}
 	} else {
 		onStatus(`Resolving WordPress ${wpVersionQuery}`);
 		const release = await resolveWordPressRelease(wpVersionQuery);
 		onStatus(`Downloading WordPress ${release.version}`);
-		wpZipBytes = await fetchZipBytes(
+		wpZipBytes = await fetchBytes(
 			maybeProxyUrl(release.releaseUrl, options.corsProxyUrl),
 			monitor
 		);
@@ -143,7 +144,7 @@ export async function prepareWordPressZips(
 
 	onStatus(`Downloading sqlite-database-integration ${sqliteVersion}`);
 	const sqliteDetails = getSqliteDriverModuleDetails(sqliteVersion);
-	const sqliteZipBytes = await fetchZipBytes(
+	const sqliteZipBytes = await fetchBytes(
 		sqliteDetails.url,
 		monitor,
 		sqliteDetails.size
@@ -158,7 +159,14 @@ export async function prepareWordPressZips(
 	};
 }
 
-async function fetchZipBytes(
+export async function downloadWpCliPhar(
+	monitor?: EmscriptenDownloadMonitor
+): Promise<Uint8Array> {
+	const details = getWpCliModuleDetails();
+	return await fetchBytes(details.url, monitor, details.size);
+}
+
+async function fetchBytes(
 	url: string,
 	monitor?: EmscriptenDownloadMonitor,
 	expectedSize?: number
