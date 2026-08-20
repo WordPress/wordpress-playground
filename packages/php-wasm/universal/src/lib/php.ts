@@ -8,6 +8,7 @@ import {
 	phpEventStdinTransfer,
 	splitShellCommand,
 } from '@php-wasm/util';
+import { coerceCliStdin } from './cli-stdin';
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import { FSHelpers } from './fs-helpers';
@@ -1685,12 +1686,31 @@ export class PHP implements Disposable {
 	 * longer usable and should be discarded. This is because PHP
 	 * internally cleans up all the resources and calls exit().
 	 *
+	 * ## Stdin
+	 *
+	 * When `options.stdin` is provided, its bytes are delivered to PHP's
+	 * standard input for the duration of the CLI invocation. Inside PHP,
+	 * reads from `php://stdin`, `fread(STDIN, …)`, `file_get_contents(
+	 * 'php://stdin')`, and running a script from stdin (e.g.
+	 * `php < script.php`) all observe these bytes. This is how a consumer
+	 * like a CLI host process hands a user's piped input to PHP when the
+	 * runtime lives across an IPC or worker-thread boundary from the
+	 * user's shell.
+	 *
+	 * When `options.stdin` is omitted, PHP uses the runtime's existing stdin
+	 * behavior. On Node this preserves Emscripten's `process.stdin.fd`
+	 * fallback; browser runtimes report EOF.
+	 *
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
 	 */
 	async cli(
 		argv: string[],
-		options: { env?: Record<string, string>; cwd?: string } = {}
+		options: {
+			env?: Record<string, string>;
+			cwd?: string;
+			stdin?: string | Uint8Array | ReadableStream<Uint8Array>;
+		} = {}
 	): Promise<StreamedPHPResponse> {
 		if (basename(argv[0] ?? '') !== 'php') {
 			return this.subProcess(argv, options);
@@ -1700,9 +1720,35 @@ export class PHP implements Disposable {
 			this.#rotationOptions.needsRotating = true;
 		}
 
+		// Resolve stdin bytes BEFORE acquiring the semaphore so we don't
+		// hold the runtime while awaiting an external ReadableStream.
+		let stdinBytes: Uint8Array | null = null;
+		if (options.stdin !== undefined) {
+			stdinBytes = await coerceCliStdin(options.stdin);
+		}
+
 		const release = await this.semaphore.acquire();
 
 		return await this.#executeWithErrorHandling(() => {
+			// Populate the per-runtime CLI stdin state installed by
+			// loadPHPRuntime. This MUST happen inside
+			// #executeWithErrorHandling so it runs AFTER any runtime
+			// rotation — otherwise the bytes land on the old runtime's
+			// state and the new runtime's Module.stdin shim sees no
+			// bytes. If the state is unavailable (caller supplied a
+			// custom Module.stdin callback), fall back to the runtime's
+			// own stdin wiring and ignore our option.
+			//
+			// Always reset the state at call entry — even when no
+			// stdin was provided — so a subsequent invocation never
+			// reads stale bytes from a prior call (defense in depth
+			// against runtime-rotation edge cases).
+			const cliStdinState = this[__private__dont__use].cliStdinState;
+			if (cliStdinState) {
+				cliStdinState.bytes = stdinBytes;
+				cliStdinState.cursor = 0;
+			}
+
 			const env = options.env || {};
 			for (const [key, value] of Object.entries(env)) {
 				this.#setEnv(key, value);

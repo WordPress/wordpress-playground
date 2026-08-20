@@ -74,6 +74,12 @@ export {
 } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
+export {
+	createCliStdinState,
+	createCliStdinCallback,
+	coerceCliStdin,
+} from './cli-stdin';
+export type { CliStdinState } from './cli-stdin';
 export { phpEventStdinTransfer } from '@php-wasm/util';
 export type {
 	PHPEventWithStdinTransfer,

@@ -396,13 +396,13 @@ Este bundle de Blueprint seria um arquivo zip contendo os seguintes arquivos:
 <!-- This Blueprint bundle would be zip file containing the following files: -->
 
 - `/blueprint.json` - A declaração do blueprint descrita acima
-      <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
+    <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
 - `/my-theme.zip` - Um pacote de tema
-      <!-- - `/my-theme.zip` - A theme package -->
+    <!-- - `/my-theme.zip` - A theme package -->
 - `/my-plugin.zip` - Um pacote de plugin
-      <!-- - `/my-plugin.zip` - A plugin package -->
+    <!-- - `/my-plugin.zip` - A plugin package -->
 - `/assets/custom-page.html` - Um arquivo HTML personalizado
-      <!-- - `/assets/custom-page.html` - A custom HTML file -->
+    <!-- - `/assets/custom-page.html` - A custom HTML file -->
 
 Você pode usar este bundle de Blueprint ao:
 

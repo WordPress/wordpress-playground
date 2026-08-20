@@ -6,7 +6,13 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import { spawn } from 'child_process';
-import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'fs';
+import {
+	chmodSync,
+	existsSync,
+	fstatSync,
+	mkdtempSync,
+	writeFileSync,
+} from 'fs';
 import os from 'os';
 import { rootCertificates } from 'tls';
 import {
@@ -252,7 +258,33 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		args.unshift('-c', defaultPhpIniPath);
 	}
 
-	const response = await php.cli(['php', ...args]);
+	// Forward host stdin to PHP only when fd 0 is a real pipe or file
+	// (e.g. `echo foo | php-wasm-cli -r '…'` or `php-wasm-cli < script.php`).
+	// CI often exposes a non-TTY stdin that is neither a pipe nor a file; blindly
+	// draining every non-TTY stdin can block forever before PHP starts.
+	let hostStdin: Buffer | undefined;
+	const stdinStat = fstatSync(0);
+	if (stdinStat.isFIFO() || stdinStat.isFile()) {
+		// Normalize each chunk to a Buffer. Node's async iterator on
+		// `process.stdin` yields Buffers in binary mode (the default),
+		// but yields strings if an upstream dependency called
+		// `process.stdin.setEncoding()`. `Buffer.concat` throws on
+		// strings, so coerce defensively.
+		const chunks: Buffer[] = [];
+		for await (const chunk of process.stdin) {
+			chunks.push(
+				Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string)
+			);
+		}
+		if (chunks.length > 0) {
+			hostStdin = Buffer.concat(chunks);
+		}
+	}
+
+	const response = await php.cli(
+		['php', ...args],
+		hostStdin ? { stdin: hostStdin } : {}
+	);
 	response.stderr.pipeTo(
 		new WritableStream({
 			write(chunk) {

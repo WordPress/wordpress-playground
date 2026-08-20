@@ -185,7 +185,9 @@ async function readParsedObject<T>(
 		format: 'parsed',
 	});
 	if (result.type !== expectedType) {
-		throw new Error(`Expected ${oid} to be a ${expectedType}, got ${result.type}.`);
+		throw new Error(
+			`Expected ${oid} to be a ${expectedType}, got ${result.type}.`
+		);
 	}
 	return result.object as T;
 }
@@ -258,10 +260,7 @@ export function pathSegmentMatchesPattern(
 		return segment === pattern;
 	}
 	return new RegExp(
-		`^${pattern
-			.split('*')
-			.map(escapeRegExp)
-			.join('.*')}$`
+		`^${pattern.split('*').map(escapeRegExp).join('.*')}$`
 	).test(segment);
 }
 
@@ -344,7 +343,9 @@ export function parseUploadPackResponse(response: Buffer): Buffer {
 
 function pktLine(value: string | Buffer): Buffer {
 	const payload = Buffer.isBuffer(value) ? value : Buffer.from(value);
-	const header = Buffer.from((payload.length + 4).toString(16).padStart(4, '0'));
+	const header = Buffer.from(
+		(payload.length + 4).toString(16).padStart(4, '0')
+	);
 	return Buffer.concat([header, payload]);
 }
 

@@ -191,6 +191,9 @@ export async function loadNodeRuntime(
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
+		// Preserve Emscripten's historical Node stdin behavior when
+		// PHP.cli() is called without an explicit stdin option.
+		cliStdinFallback: createNodeStdinFallback(),
 		phpWasmAsyncMode,
 		processId,
 		// For legacy PHP: pre-create php.ini via a preRun step. See
@@ -394,6 +397,43 @@ export async function loadNodeRuntime(
 
 	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
 	return runtimeId;
+}
+
+function createNodeStdinFallback(): () => number | null {
+	let bytes = new Uint8Array();
+	let cursor = 0;
+
+	return () => {
+		if (cursor >= bytes.length) {
+			const buffer = Buffer.alloc(256);
+			let bytesRead = 0;
+			try {
+				bytesRead = fs.readSync(
+					process.stdin.fd,
+					buffer,
+					0,
+					buffer.length,
+					null
+				);
+			} catch (error) {
+				if (String(error).includes('EOF')) {
+					return null;
+				}
+				throw error;
+			}
+			if (bytesRead === 0) {
+				return null;
+			}
+			// Match Emscripten's default callback, which decodes its Node
+			// buffer as UTF-8 before returning input bytes to the TTY.
+			bytes = new TextEncoder().encode(
+				buffer.subarray(0, bytesRead).toString('utf8')
+			);
+			cursor = 0;
+		}
+
+		return bytes[cursor++];
+	};
 }
 
 /**

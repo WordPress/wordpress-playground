@@ -42,7 +42,7 @@ jobs:
         timeout-minutes: 120
         permissions:
             contents: write # Required to clone the repo and push the rebuilt WordPress commit.
-            actions: write  # Required to trigger the deploy-website workflow via workflow_dispatch.
+            actions: write # Required to trigger the deploy-website workflow via workflow_dispatch.
         steps:
             - uses: actions/checkout@v4
               with:
