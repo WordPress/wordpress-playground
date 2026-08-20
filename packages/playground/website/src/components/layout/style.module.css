@@ -21,6 +21,11 @@ body {
 	height: 100dvh;
 	min-width: var(--site-view-min-width);
 	position: relative;
+	/* Matches the Dock's own transform transition (dock/style.module.css) so a
+	   full-width Dock collapsing/expanding resizes the site view in step with
+	   the Dock sliding, instead of snapping straight to the end size and
+	   leaving the still-sliding Dock overlapping the freshly resized iframe. */
+	transition: height 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .site-view-content {
@@ -84,6 +89,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.site-view,
 	.site-view-content,
 	.site-view-content-blurred,
 	.preview-dismiss,
