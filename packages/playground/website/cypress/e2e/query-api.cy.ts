@@ -197,21 +197,23 @@ describe('Query API', () => {
 		// });
 
 		function checkIfGutenbergIsPatched() {
-			// Check if the inserter button is styled.
-			// If Gutenberg wasn't correctly patched,
-			// the inserter will look like a default
-			// browser button.
+			// If Gutenberg wasn't correctly patched, the editor-canvas
+			// iframe renders no blocks and loads no stylesheets.
 			cy.wordPressDocument()
 				.find('iframe[name="editor-canvas"]', {
 					// Give GitHub CI plenty of time
 					timeout: 60000 * 10,
 				})
 				.its('0.contentDocument')
-				.find('.block-editor-inserter__toggle', {
+				.find('.block-editor-block-list__layout', {
 					// Give GitHub CI plenty of time
 					timeout: 60000 * 10,
 				})
-				.should('not.have.css', 'background-color', undefined);
+				.should('exist');
+			cy.wordPressDocument()
+				.find('iframe[name="editor-canvas"]')
+				.its('0.contentDocument.styleSheets')
+				.should('have.length.greaterThan', 0);
 		}
 	});
 });
