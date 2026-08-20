@@ -184,6 +184,11 @@ export async function buildVfsImage(
 	// so the doc root must exist even in PHP-only mode.
 	ensureDirRecursive(fs, '/var/www/html');
 	if (options.wpZipBytes) {
+		// Classic Playground's docroot is `/wordpress`; php-api.ts rewrites
+		// the absolute form in blueprint code, and this symlink covers the
+		// relative `wordpress/...` form resolved from the docroot cwd.
+		symlink(fs, '/var/www/html', '/var/www/html/wordpress');
+
 		onStatus('Writing wp-config.php');
 		writeVfsFile(fs, '/var/www/html/wp-config.php', WP_CONFIG_PHP);
 
