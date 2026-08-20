@@ -5,6 +5,7 @@ export {
 	LatestSqliteDriverVersion,
 } from './sqlite-database-integration/get-sqlite-driver-module';
 export { getSqliteDriverModuleDetails } from './sqlite-database-integration/get-sqlite-driver-module-details';
+export { getWpCliModuleDetails } from './wp-cli/get-wp-cli-module-details';
 import MinifiedWordPressVersions from './wordpress/wp-versions.json';
 
 export { MinifiedWordPressVersions };
