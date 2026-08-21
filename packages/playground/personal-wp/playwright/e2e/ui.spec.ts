@@ -138,7 +138,15 @@ test('should open phpMyAdmin from the Database tools', async ({
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
 	await website.ensureSiteToolsIsOpen();
-	await website.page.getByRole('tab', { name: 'Database' }).click();
+	// The Database tab is a developer tool and only appears once the
+	// "Show developer tools" switch on the Advanced tab is turned on.
+	const databaseTab = website.page.getByRole('tab', { name: 'Database' });
+	await expect(databaseTab).toHaveCount(0);
+	await website.page.getByRole('tab', { name: 'Advanced' }).click();
+	await website.page
+		.getByRole('checkbox', { name: 'Show developer tools' })
+		.check();
+	await databaseTab.click();
 
 	const phpMyAdminButton = website.page.getByRole('button', {
 		name: 'Open phpMyAdmin',
