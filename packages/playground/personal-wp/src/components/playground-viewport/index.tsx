@@ -280,11 +280,11 @@ function renderCard(
 				card.theme
 			)}">${card.icon}</div>
           <div class="text"><div class="label">${card.label}</div><div class="sub">${
-			card.sub
-		}</div></div>
+				card.sub
+			}</div></div>
         </label>
         <div class="card-detail"><div class="detail-inner">
-          <label class="detail-close" for="${idPrefix}0" aria-hidden="true">×</label>
+          <label class="detail-close" for="${idPrefix}0"><span aria-hidden="true">×</span><span class="visually-hidden">Close</span></label>
           ${detailHeader}
           ${card.detail}
         </div></div>
@@ -564,7 +564,9 @@ function getWhatsNewHtml(): string {
 			(c, i) =>
 				`<input type="radio" name="wcard" id="w${
 					i + 1
-				}" class="card-toggle" aria-label="${c.label} — ${c.sub}">`
+				}" class="card-toggle" aria-label="${c.label} — ${escapeHtml(
+					c.sub
+				)}">`
 		)
 		.join('\n    ');
 
@@ -599,7 +601,7 @@ function getWhatsNewHtml(): string {
 			}</div></div>
         </label>
         <div class="card-detail"><div class="detail-inner">
-          <label class="detail-close" for="w0" aria-hidden="true">×</label>
+          <label class="detail-close" for="w0"><span aria-hidden="true">×</span><span class="visually-hidden">Close</span></label>
           <p class="detail-body">${c.detail}</p>
         </div></div>
       </div>`;
@@ -838,6 +840,11 @@ function getCardStageCss(): string {
     background: var(--bg-warm); color: var(--ink-soft);
     font-size: 12px; line-height: 20px; text-align: center;
     cursor: pointer; font-style: normal;
+  }
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
 
   .detail-label {

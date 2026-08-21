@@ -51,9 +51,12 @@ export function useAutoBackup() {
 
 		// Delay the backup slightly to let the UI settle after WordPress boots
 		let noticeTimeoutId: ReturnType<typeof setTimeout> | undefined;
+		// performBackup() can resolve after this effect was cleaned up (site
+		// switch, unmount). Don't announce a backup for a site that is gone.
+		let cancelled = false;
 		const timeoutId = setTimeout(async () => {
 			const succeeded = await performBackup();
-			if (!succeeded) {
+			if (!succeeded || cancelled) {
 				return;
 			}
 			// This is the one moment the app moves data off the device without
@@ -68,6 +71,7 @@ export function useAutoBackup() {
 		}, 3000);
 
 		return () => {
+			cancelled = true;
 			clearTimeout(timeoutId);
 			clearTimeout(noticeTimeoutId);
 		};
