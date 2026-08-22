@@ -33,13 +33,20 @@ function formatBackupFilename(siteName: string): string {
 }
 
 /**
- * Sums the bytes zipWpContent() would archive: wp-content minus the legacy
- * runtime paths, plus wp-config.php. The result is uncompressed, so it's an
- * upper bound rather than the exact zip size.
+ * Estimates the size of the zip zipWpContent() would produce: wp-content
+ * minus the legacy runtime paths, plus wp-config.php.
+ *
+ * Files in formats that are already compressed (images, fonts, media,
+ * archives) barely shrink under deflate, while text and SQLite files
+ * typically end up at 10-30% of their size. The factors below were
+ * calibrated against a real backup and land within ~10% of the zip size,
+ * erring high.
  */
 export async function estimateBackupSize(
 	playground: NonNullable<ReturnType<typeof usePlaygroundClient>>
 ): Promise<number | null> {
+	const COMPRESSED_FORMAT_FACTOR = 0.97;
+	const OTHER_FORMAT_FACTOR = 0.25;
 	try {
 		const documentRoot = await playground.documentRoot;
 		const wpContentPath = joinPaths(documentRoot, 'wp-content');
@@ -53,11 +60,37 @@ export async function estimateBackupSize(
 			wpContentPath,
 			wpConfigPath: joinPaths(documentRoot, 'wp-config.php'),
 			excludedPaths,
+			compressedExtensions: [
+				'jpg',
+				'jpeg',
+				'png',
+				'gif',
+				'webp',
+				'avif',
+				'heic',
+				'woff',
+				'woff2',
+				'mp3',
+				'mp4',
+				'm4a',
+				'webm',
+				'ogg',
+				'zip',
+				'gz',
+				'bz2',
+				'xz',
+				'zst',
+				'7z',
+				'rar',
+				'pdf',
+			],
 		});
 		const response = await playground.run({
 			code: `<?php
 				$excluded = ${js.excludedPaths};
-				$total = @filesize(${js.wpConfigPath}) ?: 0;
+				$compressedExtensions = array_flip(${js.compressedExtensions});
+				$compressed = 0;
+				$other = @filesize(${js.wpConfigPath}) ?: 0;
 				$iterator = new RecursiveIteratorIterator(
 					new RecursiveCallbackFilterIterator(
 						new RecursiveDirectoryIterator(
@@ -70,15 +103,26 @@ export async function estimateBackupSize(
 					)
 				);
 				foreach ($iterator as $file) {
-					if ($file->isFile()) {
-						$total += $file->getSize();
+					if (!$file->isFile()) {
+						continue;
+					}
+					$extension = strtolower($file->getExtension());
+					if (isset($compressedExtensions[$extension])) {
+						$compressed += $file->getSize();
+					} else {
+						$other += $file->getSize();
 					}
 				}
-				echo $total;
+				echo json_encode(array('compressed' => $compressed, 'other' => $other));
 			`,
 		});
-		const total = Number(response.text.trim());
-		return Number.isFinite(total) ? total : null;
+		const { compressed, other } = JSON.parse(response.text.trim());
+		if (!Number.isFinite(compressed) || !Number.isFinite(other)) {
+			return null;
+		}
+		return Math.round(
+			compressed * COMPRESSED_FORMAT_FACTOR + other * OTHER_FORMAT_FACTOR
+		);
 	} catch (error) {
 		logger.debug('Could not estimate backup size:', error);
 		return null;
