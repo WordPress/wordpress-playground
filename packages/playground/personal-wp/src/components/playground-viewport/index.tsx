@@ -39,10 +39,12 @@ import {
 	setAutoBackupDue,
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
+import type { PlaygroundClient } from '@wp-playground/client';
 import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
-import { useBackup } from '../../lib/hooks/use-backup';
+import { estimateBackupSize, useBackup } from '../../lib/hooks/use-backup';
+import { formatBytes } from '../../lib/utils/format-bytes';
 import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
@@ -1624,6 +1626,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				</Button>
 				{autoBackupDue && canBackupNow && (
 					<AutoBackupPrompt
+						playground={isDependentMode ? null : playground}
 						onDownload={performBackup}
 						onDismiss={() => dispatch(setAutoBackupDue(false))}
 					/>
@@ -1634,12 +1637,31 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 }
 
 function AutoBackupPrompt({
+	playground,
 	onDownload,
 	onDismiss,
 }: {
+	playground: PlaygroundClient | null | undefined;
 	onDownload: () => void;
 	onDismiss: () => void;
 }) {
+	const [sizeEstimate, setSizeEstimate] = useState<number | null>(null);
+
+	useEffect(() => {
+		if (!playground) {
+			return;
+		}
+		let cancelled = false;
+		estimateBackupSize(playground).then((size) => {
+			if (!cancelled) {
+				setSizeEstimate(size);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [playground]);
+
 	return (
 		<div className={css.autoBackupPrompt} role="status" aria-live="polite">
 			<p className={css.autoBackupPromptText}>
@@ -1651,7 +1673,7 @@ function AutoBackupPrompt({
 				>
 					Click here to download it
 				</button>
-				.
+				{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate)})`}.
 			</p>
 			<button
 				type="button"
