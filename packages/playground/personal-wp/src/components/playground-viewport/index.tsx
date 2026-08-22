@@ -1673,7 +1673,8 @@ function AutoBackupPrompt({
 				>
 					Click here to download it
 				</button>
-				{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate)})`}.
+				{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate, 0)})`}
+				{'.'}
 			</p>
 			<button
 				type="button"
