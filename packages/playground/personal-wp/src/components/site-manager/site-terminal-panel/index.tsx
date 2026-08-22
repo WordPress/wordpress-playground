@@ -40,14 +40,10 @@ type TerminalEntry = TerminalHistoryEntry;
 const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
 const PHP_SNIPPETS = [
 	{
-		label: 'Installed apps',
-		code: `foreach ( apply_filters( 'my_apps_plugins', array() ) as $slug => $app ) {
-	echo "{$slug}: {$app['name']} → {$app['url']}\\n";
+		label: 'Core abilities',
+		code: `foreach ( wp_get_abilities( array( 'namespace' => 'core' ) ) as $ability ) {
+	echo $ability->get_name() . ': ' . $ability->get_description() . "\\n";
 }`,
-	},
-	{
-		label: 'Custom apps',
-		code: "print_r( get_option( 'my_apps_additional_apps' ) );",
 	},
 	{
 		label: 'Plugin versions',
@@ -63,10 +59,6 @@ foreach ( get_plugins() as $file => $plugin ) {
 	{
 		label: 'Current user',
 		code: 'print_r( wp_get_current_user()->data );',
-	},
-	{
-		label: 'Versions',
-		code: "echo 'WordPress ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION;",
 	},
 ];
 const WP_CLI_SUGGESTIONS = [
