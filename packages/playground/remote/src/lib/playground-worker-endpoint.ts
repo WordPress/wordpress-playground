@@ -2,7 +2,7 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import { formatBytes, joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
 import type {
 	DirectoryHandleMount,
 	PHPWebExtension,
@@ -99,6 +99,16 @@ export type WorkerBootOptions = {
 };
 
 /** @inheritDoc PHPClient */
+/**
+ * Dispatched by the worker as the runtime boot advances to a new step.
+ * Listen with `addEventListener('boot.progress', ...)`.
+ */
+export interface BootProgressEvent {
+	type: 'boot.progress';
+	/** Human-readable description of the step that just started. */
+	caption: string;
+}
+
 export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	booted = false;
 
@@ -689,6 +699,7 @@ async function fetchWithInMemoryResume(
 	}
 ): Promise<Response> {
 	const stallTimeoutMs = options.stallTimeoutMs ?? 15000;
+	// Consecutive failed attempts before giving up. Resets when bytes arrive.
 	const maxRetries = options.maxRetries ?? 10;
 	const firstFetch = await fetchRuntimeChunk(url, init, 0);
 	const responseHeaders = new Headers(firstFetch.response.headers);
@@ -725,6 +736,9 @@ async function fetchWithInMemoryResume(
 						}
 						if (value) {
 							loaded += value.byteLength;
+							// Count consecutive failures only; a stall that
+							// recovers should not eat into the retry budget.
+							retries = 0;
 							controller.enqueue(value);
 						}
 					}
@@ -820,18 +834,6 @@ function readWithTimeout(
 			clearTimeout(timeout);
 		}
 	});
-}
-
-function formatBytes(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-	const megabytes = bytes / 1024 / 1024;
-	if (megabytes >= 1) {
-		return `${megabytes.toFixed(1)} MB`;
-	}
-	const kilobytes = bytes / 1024;
-	return `${kilobytes.toFixed(0)} KB`;
 }
 
 function createNullPrototypeRecord<T>() {

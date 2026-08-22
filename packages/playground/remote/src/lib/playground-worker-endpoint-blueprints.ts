@@ -2,6 +2,7 @@ import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
 import {
 	PlaygroundWorkerEndpoint,
+	type BootProgressEvent,
 	type WorkerBootOptions,
 } from './playground-worker-endpoint';
 import { randomString } from '@php-wasm/util';
@@ -96,7 +97,7 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 					: 'download-and-install');
 			const siteUrl = this.computeSiteUrl(scope);
 			const reportBootProgress = (caption: string) => {
-				this.dispatchEvent({
+				this.dispatchEvent<BootProgressEvent>({
 					type: 'boot.progress',
 					caption,
 				});

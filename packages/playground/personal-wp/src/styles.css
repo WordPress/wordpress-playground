@@ -159,7 +159,7 @@ body {
 	height: 100%;
 	background: #fff;
 	color: #1e1e1e;
-	color-scheme: light;
+	color-scheme: light dark;
 	/* The same font settings as in wp-admin */
 	font-size: 13px;
 	font-family:
@@ -233,6 +233,14 @@ h4 {
 	width: 100%;
 	background: #fff;
 	color: #1e1e1e;
+}
+
+@media (prefers-color-scheme: dark) {
+	body,
+	#root {
+		background: #111;
+		color: #f0f0f1;
+	}
 }
 
 #root.lazy-loading {

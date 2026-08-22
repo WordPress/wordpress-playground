@@ -13,6 +13,8 @@ import {
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
+import { formatBytes } from '@php-wasm/util';
+import type { BootProgressEvent } from '@wp-playground/remote';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -39,7 +41,11 @@ export class BlueprintsV1Handler {
 			onClientConnected,
 			pathAliases,
 			disableProgressBar,
+			detailedProgressCaptions,
 		} = this.options;
+		const setProgressCaption = detailedProgressCaptions
+			? (caption: string) => progressTracker.setCaption(caption)
+			: () => {};
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
 
@@ -52,15 +58,9 @@ export class BlueprintsV1Handler {
 			iframe.contentWindow!,
 			iframe.ownerDocument!.defaultView!
 		) as PlaygroundClient;
-		setProgressCaption(
-			progressTracker,
-			'Waiting for remote Playground runtime'
-		);
+		setProgressCaption('Waiting for remote Playground runtime');
 		await playground.isConnected();
-		setProgressCaption(
-			progressTracker,
-			'Resolving Playground runtime versions'
-		);
+		setProgressCaption('Resolving Playground runtime versions');
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);
 		}
@@ -82,7 +82,7 @@ export class BlueprintsV1Handler {
 			}
 		};
 		const ensureRuntimeDownloadHeartbeat = () => {
-			if (runtimeDownloadHeartbeat) {
+			if (runtimeDownloadHeartbeat || !detailedProgressCaptions) {
 				return;
 			}
 			runtimeDownloadHeartbeat = setInterval(() => {
@@ -97,7 +97,6 @@ export class BlueprintsV1Handler {
 					return;
 				}
 				setProgressCaption(
-					progressTracker,
 					formatRuntimeDownloadCaption(
 						runtimeDownload.label,
 						runtimeDownload.loaded,
@@ -121,7 +120,7 @@ export class BlueprintsV1Handler {
 				typeof total !== 'number' ||
 				total <= 0
 			) {
-				setProgressCaption(progressTracker, getDownloadLabel(fileName));
+				setProgressCaption(getDownloadLabel(fileName));
 				return;
 			}
 			runtimeDownload = {
@@ -133,7 +132,6 @@ export class BlueprintsV1Handler {
 			if (loaded >= total) {
 				stopRuntimeDownloadHeartbeat();
 				setProgressCaption(
-					progressTracker,
 					getCompletedDownloadCaption(runtimeDownload.label, total)
 				);
 				return;
@@ -149,7 +147,6 @@ export class BlueprintsV1Handler {
 			);
 			ensureRuntimeDownloadHeartbeat();
 			setProgressCaption(
-				progressTracker,
 				formatRuntimeDownloadCaption(
 					runtimeDownload.label,
 					runtimeDownload.loaded,
@@ -159,11 +156,11 @@ export class BlueprintsV1Handler {
 				)
 			);
 		});
-		await playground.addEventListener?.('boot.progress', (event: any) => {
-			if (typeof event.caption === 'string') {
-				setProgressCaption(progressTracker, event.caption);
-			}
-		});
+		if (detailedProgressCaptions) {
+			await playground.addEventListener('boot.progress', (event) => {
+				setProgressCaption((event as BootProgressEvent).caption);
+			});
+		}
 		// Blueprint's `preferredVersions.wp: false` is the declarative way to
 		// opt out of WordPress. Bundles carry their declaration inside a JSON
 		// file we haven't read here, so we only honor the flag for inline
@@ -191,33 +188,33 @@ export class BlueprintsV1Handler {
 					'`preferredVersions.wp: false`. Pick one.'
 			);
 		}
-		setProgressCaption(progressTracker, 'Booting PHP and WordPress');
-		await playground.boot({
-			mounts,
-			sapiName,
-			scope: scope ?? Math.random().toFixed(16),
-			wordpressInstallMode: resolvedWordPressInstallMode,
-			phpVersion: runtimeConfiguration.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
-			extensions,
-			withNetworking: runtimeConfiguration.networking,
-			corsProxyUrl: corsProxy,
-			sqliteDriverVersion,
-			pathAliases,
-		});
-		setProgressCaption(
-			progressTracker,
-			'Waiting for WordPress to be ready'
-		);
-		await playground.isReady();
-		downloadProgress.finish();
-		stopRuntimeDownloadHeartbeat();
+		try {
+			setProgressCaption('Booting PHP and WordPress');
+			await playground.boot({
+				mounts,
+				sapiName,
+				scope: scope ?? Math.random().toFixed(16),
+				wordpressInstallMode: resolvedWordPressInstallMode,
+				phpVersion: runtimeConfiguration.phpVersion,
+				wpVersion: runtimeConfiguration.wpVersion,
+				extensions,
+				withNetworking: runtimeConfiguration.networking,
+				corsProxyUrl: corsProxy,
+				sqliteDriverVersion,
+				pathAliases,
+			});
+			setProgressCaption('Waiting for WordPress to be ready');
+			await playground.isReady();
+			downloadProgress.finish();
+		} finally {
+			stopRuntimeDownloadHeartbeat();
+		}
 
-		setProgressCaption(progressTracker, 'Connecting Playground client');
+		setProgressCaption('Connecting Playground client');
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		setProgressCaption(progressTracker, 'Preparing blueprint steps');
+		setProgressCaption('Preparing blueprint steps');
 		const reflection = await BlueprintReflection.create(blueprint);
 		if (reflection.getVersion() === 1) {
 			const compiled = await compileBlueprintV1(blueprint, {
@@ -227,7 +224,7 @@ export class BlueprintsV1Handler {
 				corsProxy,
 				gitAdditionalHeadersCallback,
 			});
-			setProgressCaption(progressTracker, 'Running blueprint steps');
+			setProgressCaption('Running blueprint steps');
 			await runBlueprintV1Steps(compiled, playground);
 		}
 
@@ -333,13 +330,6 @@ interface RuntimeDownloadProgress {
 	updatedAt: number;
 }
 
-function setProgressCaption(
-	progressTracker: ProgressTracker,
-	caption: string
-): void {
-	progressTracker.setCaption?.(caption);
-}
-
 function formatRuntimeDownloadCaption(
 	label: string,
 	loaded: number,
@@ -377,16 +367,4 @@ function getCompletedDownloadCaption(label: string, total: number): string {
 		return `Compiling PHP runtime (100%, ${formatBytes(total)} downloaded)`;
 	}
 	return `Preparing downloaded files (100%, ${formatBytes(total)} downloaded)`;
-}
-
-function formatBytes(bytes: number): string {
-	if (bytes < 1024) {
-		return `${bytes} B`;
-	}
-	const megabytes = bytes / 1024 / 1024;
-	if (megabytes >= 1) {
-		return `${megabytes.toFixed(1)} MB`;
-	}
-	const kilobytes = bytes / 1024;
-	return `${kilobytes.toFixed(0)} KB`;
 }

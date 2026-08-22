@@ -11,6 +11,8 @@ import type {
 	WorkerBootOptions,
 } from './playground-worker-endpoint';
 
+export type { BootProgressEvent } from './playground-worker-endpoint';
+
 export interface WebClientMixin extends ProgressReceiver {
 	/**
 	 * Sets the progress bar options.

@@ -39,7 +39,7 @@
 				margin: 0;
 				background: #fff;
 				color: #1e1e1e;
-				color-scheme: light;
+				color-scheme: light dark;
 			}
 			#initial-loading-screen {
 				position: fixed;
@@ -80,6 +80,21 @@
 				border-radius: inherit;
 				background: #3858e9;
 				animation: initial-loading 1.2s ease-in-out infinite;
+			}
+			@media (prefers-color-scheme: dark) {
+				html,
+				body,
+				#root,
+				#initial-loading-screen {
+					background: #111;
+					color: #f0f0f1;
+				}
+				#initial-loading-screen .initial-loading-caption {
+					color: #a7aaad;
+				}
+				#initial-loading-screen .initial-loading-track {
+					background: #3c434a;
+				}
 			}
 			@keyframes initial-loading {
 				0% {

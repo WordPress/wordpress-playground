@@ -208,6 +208,10 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(doActivate());
 });
 
+function isResumeRangeRequest(request: Request): boolean {
+	return /^bytes=[1-9]\d*-$/.test(request.headers.get('range') ?? '');
+}
+
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
 		return;
@@ -402,9 +406,11 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Deliberate partial requests are used to resume stalled runtime downloads.
-	// Do not strip their Range header or cache the 206 Partial Content response.
-	if (event.request.headers.has('range')) {
+	// A resumed runtime download asks for `bytes=<offset>-` with a non-zero
+	// offset. Pass it through untouched: cacheFirstFetch() would strip the
+	// Range header (a Safari workaround for incidental ranges) and the 206
+	// response must not be cached. Other Range requests keep the usual path.
+	if (isResumeRangeRequest(event.request)) {
 		event.respondWith(fetch(event.request));
 		return;
 	}

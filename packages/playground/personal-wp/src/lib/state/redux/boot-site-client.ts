@@ -304,6 +304,7 @@ export function bootSiteClient(
 				scope: site.slug,
 				blueprint,
 				disableProgressBar: true,
+				detailedProgressCaptions: true,
 				progressTracker,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
