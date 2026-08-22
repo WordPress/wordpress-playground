@@ -410,10 +410,10 @@ async function copyUrl(url: string): Promise<boolean> {
 type AutoBackupInterval = NonNullable<SiteMetadata['autoBackupInterval']>;
 
 const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
-	{ value: 'none', label: 'No auto-download' },
-	{ value: 'daily', label: 'Auto-download daily' },
-	{ value: 'every-2-days', label: 'Auto-download every 2 days' },
-	{ value: 'weekly', label: 'Auto-download weekly' },
+	{ value: 'none', label: 'No reminder' },
+	{ value: 'daily', label: 'Remind daily' },
+	{ value: 'every-2-days', label: 'Remind every 2 days' },
+	{ value: 'weekly', label: 'Remind weekly' },
 ];
 
 function BackupSection() {
@@ -517,7 +517,7 @@ function BackupSection() {
 					<SelectControl
 						__nextHasNoMarginBottom
 						className={css.backupSelect}
-						label="Automatic backups"
+						label="Backup reminders"
 						hideLabelFromVision
 						value={autoBackupSelectValue}
 						options={autoBackupOptions}
