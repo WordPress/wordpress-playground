@@ -1,11 +1,11 @@
 import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import type { FileReference } from '../v1/resources';
+import type { UrlReference } from '../v1/resources';
 import { logger } from '@php-wasm/logger';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';
-export const defaultWpCliResource: FileReference = {
+export const defaultWpCliResource: UrlReference = {
 	resource: 'url',
 	/**
 	 * Use compression for downloading the wp-cli.phar file.
@@ -19,6 +19,10 @@ export const defaultWpCliResource: FileReference = {
 	 */
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
+
+const stdinUnsupportedMessage =
+	'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint ' +
+	'step does not support interactive input. Provide all required arguments.';
 
 export const assertWpCli = async (
 	playground: UniversalPHP,
@@ -139,9 +143,50 @@ This will ensure your code works reliably regardless of the current working dire
 		  "--path=${documentRoot}"
 		], ${phpVar(argsWithRewrittenPaths)});
 
-		// Provide stdin, stdout, stderr streams outside of
-		// the CLI SAPI.
-		define('STDIN', fopen('php://stdin', 'rb'));
+		// Fail before a command can treat missing interactive input as an empty
+		// value. The Blueprint step has no way to provide STDIN.
+		class Playground_No_Stdin_Stream {
+			public $context;
+
+			public function stream_open($path, $mode, $options, &$opened_path) {
+				return true;
+			}
+
+			public function stream_eof() {
+				throw new RuntimeException(
+					${phpVar(stdinUnsupportedMessage)}
+				);
+			}
+
+			public function stream_read($count) {
+				return $this->stream_eof();
+			}
+
+			public function stream_stat() {
+				return [];
+			}
+		}
+
+		$playground_no_stdin_scheme =
+			'playground-no-stdin-' . str_replace('.', '-', uniqid('', true));
+		if (
+			!stream_wrapper_register(
+				$playground_no_stdin_scheme,
+				Playground_No_Stdin_Stream::class
+			)
+		) {
+			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
+		}
+		$playground_no_stdin = fopen(
+			$playground_no_stdin_scheme . '://input',
+			'rb'
+		);
+		if (!is_resource($playground_no_stdin)) {
+			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
+		}
+		define('STDIN', $playground_no_stdin);
+
+		// Provide stdout and stderr streams outside of the CLI SAPI.
 		define('STDOUT', fopen('php://stdout', 'wb'));
 		define('STDERR', fopen('php://stderr', 'wb'));
 

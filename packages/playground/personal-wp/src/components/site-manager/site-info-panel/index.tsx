@@ -58,6 +58,11 @@ import css from './style.module.css';
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
+const SiteTerminalPanel = lazy(() =>
+	import('../site-terminal-panel').then((m) => ({
+		default: m.SiteTerminalPanel,
+	}))
+);
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
 const DEV_TOOLS_STORAGE_KEY = 'playground-personal-wp-show-dev-tools';
@@ -907,7 +912,7 @@ export function SiteInfoPanel({
 								name: 'advanced',
 								title: 'Advanced',
 							},
-							// Developer tools re-add these three tabs to this
+							// Developer tools re-add these four tabs to this
 							// same bar rather than opening a second one, so
 							// turning them off just makes the tabs disappear
 							// again instead of leaving a nested bar behind.
@@ -919,6 +924,7 @@ export function SiteInfoPanel({
 											title: 'Database',
 										},
 										{ name: 'logs', title: 'Logs' },
+										{ name: 'terminal', title: 'Terminal' },
 									]
 								: []),
 						]}
@@ -1022,6 +1028,29 @@ export function SiteInfoPanel({
 												/>
 											</div>
 										</div>
+										<div
+											className={classNames(
+												css.tabContents,
+												css.padded,
+												{
+													[css.tabHidden]:
+														tab.name !== 'terminal',
+												}
+											)}
+											hidden={tab.name !== 'terminal'}
+										>
+											<Suspense
+												fallback={
+													<div className={css.padded}>
+														Loading terminal...
+													</div>
+												}
+											>
+												<SiteTerminalPanel
+													playground={playground}
+												/>
+											</Suspense>
+										</div>
 									</>
 								)}
 							</>
@@ -1046,7 +1075,7 @@ function AdvancedTab({
 				<ToggleControl
 					__nextHasNoMarginBottom
 					label="Show developer tools"
-					help="Browse the site's files, open its database, and read PHP logs. You don't need these to use your WordPress."
+					help="Browse the site's files, open its database, read PHP logs, and run PHP or WP-CLI. You don't need these to use your WordPress."
 					checked={showDevTools}
 					onChange={onShowDevToolsChange}
 				/>
