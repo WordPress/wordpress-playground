@@ -5,6 +5,7 @@ import {
 } from '../use-playground-client';
 import { useActiveSite, useAppDispatch } from '../state/redux/store';
 import { updateSiteMetadata } from '../state/redux/slice-sites';
+import { setAutoBackupDue } from '../state/redux/slice-ui';
 import { zipWpContent } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import saveAs from 'file-saver';
@@ -65,7 +66,11 @@ export function useBackup() {
 			if (isRequestingRemote) return false;
 			setIsRequestingRemote(true);
 			try {
-				return await requestRemoteBackup(activeSite.slug);
+				const succeeded = await requestRemoteBackup(activeSite.slug);
+				if (succeeded) {
+					dispatch(setAutoBackupDue(false));
+				}
+				return succeeded;
 			} finally {
 				setIsRequestingRemote(false);
 			}
@@ -105,6 +110,8 @@ export function useBackup() {
 					})
 				);
 			}
+			// A backup from any entry point satisfies the reminder.
+			dispatch(setAutoBackupDue(false));
 
 			return true;
 		} finally {

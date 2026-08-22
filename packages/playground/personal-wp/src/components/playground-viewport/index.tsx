@@ -36,11 +36,13 @@ import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import {
 	setBlueprintInstallMessage,
+	setAutoBackupDue,
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
 import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
+import { useBackup } from '../../lib/hooks/use-backup';
 import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
@@ -1050,9 +1052,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	);
 	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
-	const backgroundNotice = useAppSelector(
-		(state) => state.ui.backgroundNotice
-	);
+	const autoBackupDue = useAppSelector((state) => state.ui.autoBackupDue);
+	const { performBackup } = useBackup();
+	// performBackup() is a no-op until WordPress has booted and a client can
+	// serve the request, so only ask the user to click once that is the case.
+	const canBackupNow =
+		!isBooting &&
+		(isDependentMode ? mainTabStatus === 'connected' : !!playground);
 	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
 
 	const loadingScreenHtml = useMemo(
@@ -1567,11 +1573,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			{installingBlueprint && (
 				<div className={css.installBanner}>{installingBlueprint}</div>
 			)}
-			{!installingBlueprint && backgroundNotice && (
-				<div className={css.installBanner} role="status">
-					{backgroundNotice}
-				</div>
-			)}
 			{blueprintInstallDialogRequest && (
 				<BlueprintInstallDialog
 					blueprintUrl={blueprintInstallDialogRequest.blueprintUrl}
@@ -1621,7 +1622,45 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				>
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
+				{autoBackupDue && canBackupNow && (
+					<AutoBackupPrompt
+						onDownload={performBackup}
+						onDismiss={() => dispatch(setAutoBackupDue(false))}
+					/>
+				)}
 			</div>
+		</div>
+	);
+}
+
+function AutoBackupPrompt({
+	onDownload,
+	onDismiss,
+}: {
+	onDownload: () => void;
+	onDismiss: () => void;
+}) {
+	return (
+		<div className={css.autoBackupPrompt} role="status" aria-live="polite">
+			<p className={css.autoBackupPromptText}>
+				<strong>Welcome back!</strong> It is time for a backup.{' '}
+				<button
+					type="button"
+					className={css.autoBackupPromptLink}
+					onClick={onDownload}
+				>
+					Click here to download it
+				</button>
+				.
+			</p>
+			<button
+				type="button"
+				className={css.autoBackupPromptDismiss}
+				aria-label="Dismiss backup reminder"
+				onClick={onDismiss}
+			>
+				×
+			</button>
 		</div>
 	);
 }

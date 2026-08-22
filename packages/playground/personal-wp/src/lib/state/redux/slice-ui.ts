@@ -151,10 +151,11 @@ export interface UIState {
 	siteManagerSection: SiteManagerSection;
 	blueprintInstallMessage: string | null;
 	/**
-	 * Transient notice for work the app did on its own, such as an automatic
-	 * backup. Nothing else tells the user a file just landed on their device.
+	 * Set when the active site's backup interval has elapsed. The viewport
+	 * shows a speech bubble on the Site Tools latch inviting the user to
+	 * download a backup; nothing leaves the device until they click it.
 	 */
-	backgroundNotice: string | null;
+	autoBackupDue: boolean;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -193,7 +194,7 @@ const initialState: UIState = {
 		!isMobile,
 	siteManagerSection: 'site-details',
 	blueprintInstallMessage: null,
-	backgroundNotice: null,
+	autoBackupDue: false,
 };
 
 const uiSlice = createSlice({
@@ -270,11 +271,8 @@ const uiSlice = createSlice({
 		) => {
 			state.blueprintInstallMessage = action.payload;
 		},
-		setBackgroundNotice: (
-			state,
-			action: PayloadAction<string | null>
-		) => {
-			state.backgroundNotice = action.payload;
+		setAutoBackupDue: (state, action: PayloadAction<boolean>) => {
+			state.autoBackupDue = action.payload;
 		},
 		setSiteSlugToRename: (
 			state,
@@ -325,7 +323,7 @@ export const {
 	setGitHubAuthRepoUrl,
 	setOffline,
 	setBlueprintInstallMessage,
-	setBackgroundNotice,
+	setAutoBackupDue,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
