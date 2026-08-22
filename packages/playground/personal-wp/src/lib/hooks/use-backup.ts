@@ -5,7 +5,10 @@ import {
 } from '../use-playground-client';
 import { useActiveSite, useAppDispatch } from '../state/redux/store';
 import { updateSiteMetadata } from '../state/redux/slice-sites';
+import { setAutoBackupDue } from '../state/redux/slice-ui';
 import { zipWpContent } from '@wp-playground/client';
+import { getLegacyPlaygroundRuntimeWpContentPaths } from '@wp-playground/blueprints';
+import { joinPaths, phpVars } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import saveAs from 'file-saver';
 import {
@@ -27,6 +30,59 @@ function formatBackupFilename(siteName: string): string {
 	const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
 	const sanitized = sanitizeForFilename(siteName);
 	return `${sanitized}-backup-${date}-${time}.zip`;
+}
+
+/**
+ * Sums the bytes zipWpContent() would archive: wp-content minus the legacy
+ * runtime paths, plus wp-config.php. The result is uncompressed, so it's an
+ * upper bound rather than the exact zip size.
+ */
+export async function estimateBackupSize(
+	playground: NonNullable<ReturnType<typeof usePlaygroundClient>>
+): Promise<number | null> {
+	try {
+		const documentRoot = await playground.documentRoot;
+		const wpContentPath = joinPaths(documentRoot, 'wp-content');
+		const excludedPaths = (
+			await getLegacyPlaygroundRuntimeWpContentPaths(
+				playground,
+				wpContentPath
+			)
+		).map((path) => joinPaths(wpContentPath, path));
+		const js = phpVars({
+			wpContentPath,
+			wpConfigPath: joinPaths(documentRoot, 'wp-config.php'),
+			excludedPaths,
+		});
+		const response = await playground.run({
+			code: `<?php
+				$excluded = ${js.excludedPaths};
+				$total = @filesize(${js.wpConfigPath}) ?: 0;
+				$iterator = new RecursiveIteratorIterator(
+					new RecursiveCallbackFilterIterator(
+						new RecursiveDirectoryIterator(
+							${js.wpContentPath},
+							FilesystemIterator::SKIP_DOTS
+						),
+						function ($current) use ($excluded) {
+							return !in_array($current->getPathname(), $excluded, true);
+						}
+					)
+				);
+				foreach ($iterator as $file) {
+					if ($file->isFile()) {
+						$total += $file->getSize();
+					}
+				}
+				echo $total;
+			`,
+		});
+		const total = Number(response.text.trim());
+		return Number.isFinite(total) ? total : null;
+	} catch (error) {
+		logger.debug('Could not estimate backup size:', error);
+		return null;
+	}
 }
 
 async function getWordPressSiteName(
@@ -65,7 +121,11 @@ export function useBackup() {
 			if (isRequestingRemote) return false;
 			setIsRequestingRemote(true);
 			try {
-				return await requestRemoteBackup(activeSite.slug);
+				const succeeded = await requestRemoteBackup(activeSite.slug);
+				if (succeeded) {
+					dispatch(setAutoBackupDue(false));
+				}
+				return succeeded;
 			} finally {
 				setIsRequestingRemote(false);
 			}
@@ -105,6 +165,8 @@ export function useBackup() {
 					})
 				);
 			}
+			// A backup from any entry point satisfies the reminder.
+			dispatch(setAutoBackupDue(false));
 
 			return true;
 		} finally {
