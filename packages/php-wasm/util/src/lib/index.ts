@@ -21,6 +21,7 @@ export {
 } from './spawn-handlers/sendmail';
 export type { PHPSendmailSpawnedEvent } from './spawn-handlers/sendmail';
 export { randomString } from './random-string';
+export { formatBytes } from './format-bytes';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
 export {

@@ -61,6 +61,14 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
+	/**
+	 * Report fine-grained boot captions (runtime download percentage,
+	 * stall notices, individual WordPress boot steps) through the
+	 * progress tracker instead of the single "Preparing WordPress"
+	 * caption. Off by default so existing embedders keep their
+	 * loading text.
+	 */
+	detailedProgressCaptions?: boolean;
 	blueprint?: BlueprintV1;
 	/**
 	 * PHP extensions to install before the runtime starts.
@@ -200,9 +208,17 @@ export async function startPlaygroundWeb(
 			? '1'
 			: undefined,
 	});
-	progressTracker.setCaption('Preparing WordPress');
+	const { detailedProgressCaptions } = options;
+	progressTracker.setCaption(
+		detailedProgressCaptions
+			? 'Loading Playground iframe'
+			: 'Preparing WordPress'
+	);
 
 	await loadIframe(iframe, remoteUrl);
+	if (detailedProgressCaptions) {
+		progressTracker.setCaption('Connecting to Playground runtime');
+	}
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)

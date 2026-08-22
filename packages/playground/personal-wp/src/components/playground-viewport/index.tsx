@@ -1,4 +1,12 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import type { KeyboardEvent, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
@@ -943,9 +951,8 @@ function getCardStageCss(): string {
   .habit-label.done { color: var(--ink); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
   .habit-streak { font-size: 10px; color: var(--ink-faint); }
 
-  /* Boot progress: checkmarks fill in over time, regardless of expansion
-     state, so opening the card late shows progress already made. Timings
-     are a visual narrative, not real progress. */
+  /* Boot progress: synced to the actual runtime boot caption via
+     LoadingScreenHtml[data-boot-step]. */
   .boot-step .habit-check::after {
     content: '✓';
     position: absolute; inset: 0;
@@ -953,41 +960,50 @@ function getCardStageCss(): string {
     color: var(--accent-on); font-size: 10px; font-weight: 600;
     opacity: 0;
   }
-  .boot-step .habit-check {
-    animation: boot-fill 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  .boot-step .habit-check,
+  .boot-step .habit-check::after,
+  .boot-step .habit-label { transition: 0.2s ease-out; }
+  :host([data-boot-step="1"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="2"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="2"]) .boot-step.bs2 .habit-check,
+  :host([data-boot-step="3"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="3"]) .boot-step.bs2 .habit-check,
+  :host([data-boot-step="3"]) .boot-step.bs3 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs2 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs3 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs4 .habit-check,
+  :host([data-boot-step="5"]) .boot-step .habit-check {
+    background: var(--accent); border-color: var(--accent);
   }
-  .boot-step .habit-check::after {
-    animation: boot-mark 0.3s ease-out forwards;
+  :host([data-boot-step="1"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="2"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="2"]) .boot-step.bs2 .habit-check::after,
+  :host([data-boot-step="3"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="3"]) .boot-step.bs2 .habit-check::after,
+  :host([data-boot-step="3"]) .boot-step.bs3 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs2 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs3 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs4 .habit-check::after,
+  :host([data-boot-step="5"]) .boot-step .habit-check::after {
+    opacity: 1;
   }
-  .boot-step .habit-label {
-    animation: boot-strike 0.3s ease-out forwards;
+  :host([data-boot-step="1"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="2"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="2"]) .boot-step.bs2 .habit-label,
+  :host([data-boot-step="3"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="3"]) .boot-step.bs2 .habit-label,
+  :host([data-boot-step="3"]) .boot-step.bs3 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs2 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs3 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs4 .habit-label,
+  :host([data-boot-step="5"]) .boot-step .habit-label {
+    color: var(--ink);
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-faint);
   }
-  @keyframes boot-fill {
-    to { background: var(--accent); border-color: var(--accent); }
-  }
-  @keyframes boot-mark { to { opacity: 1; } }
-  @keyframes boot-strike {
-    to {
-      color: var(--ink);
-      text-decoration: line-through;
-      text-decoration-color: var(--ink-faint);
-    }
-  }
-  .boot-step.bs1 .habit-check,
-  .boot-step.bs1 .habit-check::after,
-  .boot-step.bs1 .habit-label { animation-delay: 1s; }
-  .boot-step.bs2 .habit-check,
-  .boot-step.bs2 .habit-check::after,
-  .boot-step.bs2 .habit-label { animation-delay: 3s; }
-  .boot-step.bs3 .habit-check,
-  .boot-step.bs3 .habit-check::after,
-  .boot-step.bs3 .habit-label { animation-delay: 6s; }
-  .boot-step.bs4 .habit-check,
-  .boot-step.bs4 .habit-check::after,
-  .boot-step.bs4 .habit-label { animation-delay: 9s; }
-  .boot-step.bs5 .habit-check,
-  .boot-step.bs5 .habit-check::after,
-  .boot-step.bs5 .habit-label { animation-delay: 12s; }
 
   /* Backups wiki */
   .wiki-term { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
@@ -1030,6 +1046,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const [bootProgress, setBootProgress] = useState<ProgressDetails>(
 		getInitialBootProgress
 	);
+	// Captions without a recognizable keyword must not move the checklist
+	// backwards, so only ever advance the step.
+	const [bootStep, setBootStep] = useState(0);
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
@@ -1122,10 +1141,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		setIsBootReady(false);
 		setLoadingInteracted(false);
 		setBootProgress(getInitialBootProgress());
+		setBootStep(0);
 	}, [siteSlug, runtimeConfigString]);
 
 	const handleBootProgress = useCallback((progress: ProgressDetails) => {
 		setBootProgress(progress);
+		const step = getBootChecklistStep(progress);
+		setBootStep((current) => Math.max(current, step));
 	}, []);
 
 	const handleBootReady = useCallback(() => {
@@ -1592,6 +1614,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				<LoadingScreen
 					html={loadingScreenHtml}
 					progress={bootProgress}
+					bootStep={bootStep}
 					onInteract={handleLoadingInteract}
 					showReadyButton={showReadyButton}
 					onStart={() => setIsBooting(false)}
@@ -1691,19 +1714,21 @@ function AutoBackupPrompt({
 function getInitialBootProgress(): ProgressDetails {
 	return {
 		progress: 0,
-		caption: 'Preparing WordPress',
+		caption: 'Loading Playground iframe',
 	};
 }
 
 function LoadingScreen({
 	html,
 	progress,
+	bootStep,
 	onInteract,
 	showReadyButton,
 	onStart,
 }: {
 	html: string;
 	progress: ProgressDetails;
+	bootStep: number;
 	onInteract: () => void;
 	showReadyButton: boolean;
 	onStart: () => void;
@@ -1727,7 +1752,7 @@ function LoadingScreen({
 			onTouchStart={onInteract}
 			onWheel={onInteract}
 		>
-			<LoadingScreenHtml html={html} />
+			<LoadingScreenHtml html={html} bootStep={bootStep} />
 			<LoadingProgress
 				progress={progress}
 				showReadyButton={showReadyButton}
@@ -1739,13 +1764,15 @@ function LoadingScreen({
 
 const LoadingScreenHtml = memo(function LoadingScreenHtml({
 	html,
+	bootStep,
 }: {
 	html: string;
+	bootStep: number;
 }) {
 	const hostRef = useRef<HTMLDivElement>(null);
 	const renderedHtmlRef = useRef<string | null>(null);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (renderedHtmlRef.current === html) {
 			return;
 		}
@@ -1759,8 +1786,56 @@ const LoadingScreenHtml = memo(function LoadingScreenHtml({
 		renderedHtmlRef.current = html;
 	}, [html]);
 
+	useLayoutEffect(() => {
+		hostRef.current?.setAttribute('data-boot-step', String(bootStep));
+	}, [bootStep]);
+
 	return <div ref={hostRef} className={css.loadingScreenHtml} />;
 });
+
+function getBootChecklistStep(progress: ProgressDetails): number {
+	if (progress.progress >= 100) {
+		return 5;
+	}
+	const caption = progress.caption.toLowerCase();
+	if (
+		caption.includes('finalizing') ||
+		caption.includes('runtime ready') ||
+		caption.includes('wordpress boot complete') ||
+		caption.includes('waiting for wordpress to be ready') ||
+		caption.includes('connecting playground client')
+	) {
+		return 5;
+	}
+	if (
+		caption.includes('database') ||
+		caption.includes('sqlite') ||
+		caption.includes('starting php') ||
+		caption.includes('wordpress constants') ||
+		caption.includes('existing wordpress installation')
+	) {
+		return 4;
+	}
+	if (
+		caption.includes('wordpress download') ||
+		caption.includes('extracting wordpress') ||
+		caption.includes('wordpress files') ||
+		caption.includes('wordpress installer')
+	) {
+		return 3;
+	}
+	if (caption.includes('php runtime')) {
+		return 2;
+	}
+	if (
+		caption.includes('playground') ||
+		caption.includes('wasm') ||
+		caption.includes('iframe')
+	) {
+		return 1;
+	}
+	return 0;
+}
 
 function getSanitizedLoadingScreenNodes(html: string): Node[] {
 	const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -1809,7 +1884,15 @@ function LoadingProgress({
 						className={css.loadingProgressCaption}
 						aria-live="polite"
 					>
-						{progress.caption}
+						<span
+							className={css.loadingProgressCaptionText}
+							title={progress.caption}
+						>
+							{progress.caption}
+						</span>
+						<span className={css.loadingProgressPercent}>
+							{Math.round(progressValue)}%
+						</span>
 					</div>
 					<div className={css.loadingProgressTrack}>
 						<div

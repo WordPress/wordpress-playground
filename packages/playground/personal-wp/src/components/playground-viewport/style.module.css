@@ -36,6 +36,7 @@
 	z-index: 10;
 	overflow: hidden;
 	background: #fff;
+	color: #1e1e1e;
 }
 
 .loading-screen-html {
@@ -62,13 +63,31 @@
 }
 
 .loading-progress-caption {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: start;
 	margin-bottom: 8px;
-	overflow: hidden;
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1.3;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+}
+
+/* Two lines are reserved so a longer caption wraps instead of being cut
+   off, and the card does not jump in height between captions. */
+.loading-progress-caption-text {
+	display: -webkit-box;
+	min-width: 0;
+	min-height: calc(2 * 1.3em);
+	overflow: hidden;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.loading-progress-percent {
+	font-variant-numeric: tabular-nums;
+	color: #50575e;
 }
 
 .loading-progress-track {
@@ -98,13 +117,15 @@
 	cursor: pointer;
 }
 
-.loading-ready-button:hover {
+.loading-ready-button:hover,
+.loading-ready-button:focus-visible {
 	background: #2145e6;
 }
 
 @media (prefers-color-scheme: dark) {
 	.loading-screen {
 		background: #111;
+		color: #f0f0f1;
 	}
 
 	.loading-progress {
@@ -112,6 +133,10 @@
 		background: rgba(30, 30, 30, 0.88);
 		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
 		color: #f0f0f1;
+	}
+
+	.loading-progress-percent {
+		color: #a7aaad;
 	}
 
 	.loading-progress-track {
