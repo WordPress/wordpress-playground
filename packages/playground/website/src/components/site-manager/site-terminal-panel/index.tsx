@@ -12,7 +12,13 @@ import {
 	wpCLI,
 } from '@wp-playground/client';
 import { useEffect, useRef, useState } from 'react';
-import { check, chevronLeft, chevronRight, copySmall } from '@wordpress/icons';
+import {
+	check,
+	chevronLeft,
+	chevronRight,
+	code,
+	copySmall,
+} from '@wordpress/icons';
 import { InlineProgress } from '../../pane-loading';
 import css from './style.module.css';
 import { getTerminalErrorMessage } from './terminal-error';
@@ -400,12 +406,24 @@ export function SiteTerminalPanel({
 			<div className={css.runner}>
 				{mode === 'php' ? (
 					<>
-						<div className={css.phpSnippets}>
+						<div
+							className={css.phpSnippets}
+							role="group"
+							aria-label="Example PHP snippets"
+						>
+							<span className={css.phpSnippetsLabel}>
+								Try an example:
+							</span>
 							{PHP_SNIPPETS.map((snippet) => (
 								<Button
 									key={snippet.label}
+									className={css.phpSnippet}
 									size="compact"
-									variant="tertiary"
+									variant="secondary"
+									icon={code}
+									iconSize={16}
+									label={`Insert example: ${snippet.code}`}
+									showTooltip
 									onClick={() =>
 										selectPhpSnippet(snippet.code)
 									}

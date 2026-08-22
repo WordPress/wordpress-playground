@@ -52,6 +52,18 @@
 	gap: 6px;
 }
 
+.phpSnippetsLabel {
+	color: var(--ink-soft, #50575e);
+	font-size: 12px;
+}
+
+.phpSnippet {
+	border-style: dashed;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 12px;
+}
+
 .phpDocsLink {
 	color: var(--wp-admin-theme-color, #3858e9);
 	font-size: 12px;
