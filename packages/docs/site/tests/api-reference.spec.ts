@@ -8,7 +8,7 @@ const apiPath =
 	`${normalizedBasePath === '/' ? '' : normalizedBasePath}/api`;
 
 test.describe('Docs API reference', () => {
-	test('loads without runtime errors', async ({ page }) => {
+	test('loads without runtime errors', async ({ page, baseURL }) => {
 		const pageErrors: Error[] = [];
 		const consoleErrors: string[] = [];
 
@@ -25,6 +25,17 @@ test.describe('Docs API reference', () => {
 				}
 				consoleErrors.push(text);
 			}
+		});
+
+		// This test covers the docs build, not third-party widgets such as
+		// the kapa.ai assistant. Serve every cross-origin request an empty
+		// response so they never load and can't fail the test.
+		const docsOrigin = new URL(baseURL!).origin;
+		await page.route('**/*', (route) => {
+			if (new URL(route.request().url()).origin === docsOrigin) {
+				return route.continue();
+			}
+			return route.fulfill({ status: 200, body: '' });
 		});
 
 		await page.goto(apiPath, {
