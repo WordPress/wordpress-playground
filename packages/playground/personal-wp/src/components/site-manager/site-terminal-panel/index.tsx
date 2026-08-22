@@ -40,30 +40,33 @@ type TerminalEntry = TerminalHistoryEntry;
 const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
 const PHP_SNIPPETS = [
 	{
-		label: 'Site title',
-		code: "echo get_option( 'blogname' );",
-	},
-	{
-		label: 'Site URL',
-		code: 'echo home_url();',
-	},
-	{
-		label: 'List posts',
-		code: `foreach ( get_posts() as $post ) {
-	echo $post->post_title . "\\n";
+		label: 'Installed apps',
+		code: `foreach ( apply_filters( 'my_apps_plugins', array() ) as $slug => $app ) {
+	echo "{$slug}: {$app['name']} → {$app['url']}\\n";
 }`,
 	},
 	{
-		label: 'Create post',
-		code: `$post_id = wp_insert_post( [
-	'post_title' => 'Hello from Playground',
-	'post_status' => 'publish',
-] );
-echo "Created post {$post_id}\\n";`,
+		label: 'Custom apps',
+		code: "print_r( get_option( 'my_apps_additional_apps' ) );",
+	},
+	{
+		label: 'Plugin versions',
+		code: `require_once ABSPATH . 'wp-admin/includes/plugin.php';
+foreach ( get_plugins() as $file => $plugin ) {
+	echo "{$plugin['Name']} {$plugin['Version']} ({$file})\\n";
+}`,
 	},
 	{
 		label: 'Active plugins',
 		code: "print_r( get_option( 'active_plugins' ) );",
+	},
+	{
+		label: 'Current user',
+		code: 'print_r( wp_get_current_user()->data );',
+	},
+	{
+		label: 'Versions',
+		code: "echo 'WordPress ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION;",
 	},
 ];
 const WP_CLI_SUGGESTIONS = [

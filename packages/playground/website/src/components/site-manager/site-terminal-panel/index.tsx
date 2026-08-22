@@ -41,8 +41,8 @@ type TerminalEntry = TerminalHistoryEntry;
 const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
 const PHP_SNIPPETS = [
 	{
-		label: 'Site title',
-		code: "echo get_option( 'blogname' );",
+		label: 'Versions',
+		code: "echo 'WordPress ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION;",
 	},
 	{
 		label: 'Site URL',
