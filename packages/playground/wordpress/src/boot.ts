@@ -275,7 +275,10 @@ export async function bootWordPress(
 	 * them. This is needed because some WordPress backups and exports may not
 	 * include definitions for some of the necessary constants.
 	 */
-	options.onProgress?.('Preparing wp-config.php');
+	// This is the first PHP script of the boot, so it also pays for PHP
+	// module startup and (on V8) lazy WASM compilation. Say so in the caption
+	// rather than blaming wp-config.php for a multi-second pause on mobile.
+	options.onProgress?.('Starting PHP');
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {

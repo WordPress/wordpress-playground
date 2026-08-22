@@ -1810,7 +1810,7 @@ function getBootChecklistStep(progress: ProgressDetails): number {
 	if (
 		caption.includes('database') ||
 		caption.includes('sqlite') ||
-		caption.includes('wp-config') ||
+		caption.includes('starting php') ||
 		caption.includes('wordpress constants') ||
 		caption.includes('existing wordpress installation')
 	) {
