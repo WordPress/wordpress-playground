@@ -66,19 +66,23 @@
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;
 	gap: 10px;
-	align-items: baseline;
-	min-height: 17px;
+	align-items: start;
 	margin-bottom: 8px;
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1.3;
 }
 
+/* Two lines are reserved so a longer caption wraps instead of being cut
+   off, and the card does not jump in height between captions. */
 .loading-progress-caption-text {
+	display: -webkit-box;
 	min-width: 0;
+	min-height: calc(2 * 1.3em);
 	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
 }
 
 .loading-progress-percent {

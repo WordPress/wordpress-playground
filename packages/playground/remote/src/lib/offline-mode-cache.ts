@@ -168,11 +168,11 @@ export async function hasCachedResponse(
 }
 
 export async function putCachedResponse(
-	url: string,
+	request: RequestInfo,
 	response: Response
 ): Promise<void> {
 	const offlineModeCache = await promisedOfflineModeCache;
-	await offlineModeCache.put(url, response);
+	await offlineModeCache.put(request, response);
 }
 
 export function shouldCacheUrl(url: URL) {

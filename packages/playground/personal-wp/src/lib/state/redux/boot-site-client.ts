@@ -288,7 +288,7 @@ export function bootSiteClient(
 			(event: ProgressTrackerEvent) => {
 				onProgress?.({
 					progress: event.detail.progress,
-					caption: `Playground runtime: ${event.detail.caption}`,
+					caption: event.detail.caption,
 				});
 			}
 		);

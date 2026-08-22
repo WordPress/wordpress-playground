@@ -775,8 +775,13 @@ async function fetchWithInMemoryResume(
 	});
 	const [runtimeBody, cacheBody] = body.tee();
 	const response = new Response(runtimeBody, responseInit);
-	putCachedResponse(url, new Response(cacheBody, responseInit)).catch(
-		(error) => logger.warn('Failed to cache PHP runtime response', error)
+	// Key the cache entry by the same request the runtime fetch used so
+	// later lookups (cacheFirstFetch, hasCachedResponse) match it.
+	putCachedResponse(
+		new Request(url, init),
+		new Response(cacheBody, responseInit)
+	).catch((error) =>
+		logger.warn('Failed to cache PHP runtime response', error)
 	);
 	Object.defineProperty(response, 'url', {
 		value: url,

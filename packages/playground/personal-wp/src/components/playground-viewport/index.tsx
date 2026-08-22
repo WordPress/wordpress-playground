@@ -1046,6 +1046,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const [bootProgress, setBootProgress] = useState<ProgressDetails>(
 		getInitialBootProgress
 	);
+	// Captions without a recognizable keyword must not move the checklist
+	// backwards, so only ever advance the step.
+	const [bootStep, setBootStep] = useState(0);
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
@@ -1138,10 +1141,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		setIsBootReady(false);
 		setLoadingInteracted(false);
 		setBootProgress(getInitialBootProgress());
+		setBootStep(0);
 	}, [siteSlug, runtimeConfigString]);
 
 	const handleBootProgress = useCallback((progress: ProgressDetails) => {
 		setBootProgress(progress);
+		const step = getBootChecklistStep(progress);
+		setBootStep((current) => Math.max(current, step));
 	}, []);
 
 	const handleBootReady = useCallback(() => {
@@ -1608,7 +1614,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				<LoadingScreen
 					html={loadingScreenHtml}
 					progress={bootProgress}
-					bootStep={getBootChecklistStep(bootProgress)}
+					bootStep={bootStep}
 					onInteract={handleLoadingInteract}
 					showReadyButton={showReadyButton}
 					onStart={() => setIsBooting(false)}

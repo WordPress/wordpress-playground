@@ -136,23 +136,13 @@ export class BlueprintsV1Handler {
 				);
 				return;
 			}
-			const percent = Math.max(
-				0,
-				Math.min(
-					99,
-					Math.floor(
-						(runtimeDownload.loaded / runtimeDownload.total) * 100
-					)
-				)
-			);
 			ensureRuntimeDownloadHeartbeat();
 			setProgressCaption(
 				formatRuntimeDownloadCaption(
 					runtimeDownload.label,
 					runtimeDownload.loaded,
 					runtimeDownload.total,
-					0,
-					percent
+					0
 				)
 			);
 		});
@@ -330,20 +320,21 @@ interface RuntimeDownloadProgress {
 	updatedAt: number;
 }
 
+/**
+ * Keep these short: the Personal WP progress card is ~400px wide and the
+ * percentage is rendered next to the caption, so it is not repeated here.
+ */
 function formatRuntimeDownloadCaption(
 	label: string,
 	loaded: number,
 	total: number,
-	stalledForMs: number,
-	percent = Math.max(0, Math.min(99, Math.floor((loaded / total) * 100)))
+	stalledForMs: number
 ): string {
 	const stalledSuffix =
 		stalledForMs >= 5000
-			? `, no data for ${Math.floor(
-					stalledForMs / 1000
-				)}s; waiting to resume`
+			? ` – stalled ${Math.floor(stalledForMs / 1000)}s, retrying`
 			: '';
-	return `${label} ${percent}% (${formatBytes(loaded)} / ${formatBytes(total)}${stalledSuffix})`;
+	return `${label} (${formatBytes(loaded)} of ${formatBytes(total)})${stalledSuffix}`;
 }
 
 function getDownloadLabel(fileName?: string): string {
@@ -364,7 +355,7 @@ function getDownloadLabel(fileName?: string): string {
 
 function getCompletedDownloadCaption(label: string, total: number): string {
 	if (label === 'Downloading PHP runtime') {
-		return `Compiling PHP runtime (100%, ${formatBytes(total)} downloaded)`;
+		return `Compiling PHP runtime (${formatBytes(total)})`;
 	}
-	return `Preparing downloaded files (100%, ${formatBytes(total)} downloaded)`;
+	return `Preparing downloaded files (${formatBytes(total)})`;
 }
