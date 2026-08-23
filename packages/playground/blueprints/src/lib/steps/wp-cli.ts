@@ -51,8 +51,9 @@ WP_CLI::add_command(
 			);
 		}
 
-		$wpdb->suppress_errors( true );
-		$rows = $wpdb->get_results( $sql, ARRAY_A );
+		$suppressed = $wpdb->suppress_errors( true );
+		$rows       = $wpdb->get_results( $sql, ARRAY_A );
+		$wpdb->suppress_errors( $suppressed );
 		if ( '' !== $wpdb->last_error ) {
 			// The SQLite driver reports errors as an HTML debug dump. Surface
 			// only the underlying database error message.
@@ -77,7 +78,7 @@ WP_CLI::add_command(
 			array(
 				'type'     => 'positional',
 				'name'     => 'sql',
-				'optional' => true,
+				'optional' => false,
 			),
 		),
 		'when'      => 'after_wp_load',
