@@ -1,0 +1,364 @@
+.terminalPanel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	height: 100%;
+	min-height: 0;
+}
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.modeTabs {
+	background: var(--surface-control-hover, #f0f0f0);
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 8px;
+	display: flex;
+	gap: 2px;
+	padding: 3px;
+}
+
+.modeTab {
+	border-radius: 5px;
+	box-shadow: none;
+	color: var(--ink-soft, #50575e);
+}
+
+.modeTabActive,
+.modeTabActive:hover {
+	background: var(--surface-raised, #ffffff);
+	box-shadow:
+		inset 0 0 0 1px var(--interactive-border, #c3c4c7),
+		0 1px 2px rgba(0, 0, 0, 0.08);
+	color: var(--ink, #1e1e1e);
+}
+
+.runner {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 12px;
+	min-height: 0;
+}
+
+.phpSnippets {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.phpSnippetsLabel {
+	color: var(--ink-soft, #50575e);
+	font-size: 12px;
+}
+
+.phpSnippet {
+	border-style: dashed;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 12px;
+}
+
+.phpDocsLink {
+	color: var(--wp-admin-theme-color, #3858e9);
+	font-size: 12px;
+	margin-left: auto;
+	text-decoration: none;
+}
+
+.phpDocsLink:hover,
+.phpDocsLink:focus {
+	text-decoration: underline;
+}
+
+.commandEditor {
+	background: #ffffff;
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 4px;
+	box-shadow: none;
+	color: var(--ink, #1e1e1e);
+	min-height: 240px;
+	overflow: hidden;
+}
+
+.commandEditor :global(.cm-editor) {
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 13px;
+	height: 240px;
+	line-height: 20px;
+}
+
+.commandEditor :global(.cm-scroller) {
+	overflow: auto;
+}
+
+.commandEditor :global(.cm-gutters) {
+	background: #f6f7f7;
+	border-right: 1px solid var(--interactive-border, #c3c4c7);
+	color: #8c8f94;
+}
+
+.commandEditor :global(.cm-focused) {
+	outline: 1px solid var(--wp-admin-theme-color, #3858e9);
+}
+
+.wpCliCombobox {
+	position: relative;
+}
+
+.wpCliInput {
+	background: #ffffff;
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 4px;
+	box-shadow: none;
+	color: var(--ink, #1e1e1e);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 13px;
+	line-height: 20px;
+	min-height: 40px;
+	padding: 9px 12px;
+	width: 100%;
+}
+
+.wpCliInput:focus {
+	border-color: var(--wp-admin-theme-color, #3858e9);
+	box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #3858e9);
+	outline: none;
+}
+
+.wpCliInput:disabled {
+	background: #f6f7f7;
+	color: #8c8f94;
+}
+
+.wpCliSuggestions {
+	background: #ffffff;
+	border: 1px solid var(--interactive-border, #c3c4c7);
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+	left: 0;
+	list-style: none;
+	margin: 4px 0 0;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 4px 0;
+	position: absolute;
+	right: 0;
+	top: 100%;
+	z-index: 10;
+}
+
+.wpCliSuggestion {
+	cursor: pointer;
+	display: grid;
+	gap: 2px;
+	grid-template-columns: minmax(0, 1fr);
+	padding: 8px 12px;
+}
+
+.wpCliSuggestion:hover,
+.wpCliSuggestionActive {
+	background: #f0f6fc;
+}
+
+.wpCliSuggestionCommand {
+	color: var(--ink, #1e1e1e);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 13px;
+	line-height: 18px;
+	overflow-wrap: anywhere;
+}
+
+.wpCliSuggestionDescription {
+	color: #646970;
+	font-size: 12px;
+	line-height: 16px;
+}
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.result {
+	background: #111111;
+	border-radius: 4px;
+	color: #f6f7f7;
+	flex: 1 1 auto;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 12px;
+	line-height: 18px;
+	min-height: 160px;
+	overflow: auto;
+	padding: 14px;
+	position: relative;
+	white-space: pre-wrap;
+}
+
+.resultWithEntry {
+	padding: 0;
+}
+
+.resultHeader {
+	background: #111111;
+	color: #a7aaad;
+	padding: 14px 14px 8px;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.resultHeaderRow {
+	align-items: flex-start;
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
+}
+
+.resultMeta {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+}
+
+.resultActions {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+}
+
+.result .resultHeader .resultActions :global(.components-button.is-tertiary) {
+	background: rgba(255, 255, 255, 0.08);
+	color: #f6f7f7;
+}
+
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:hover:not(:disabled)),
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:focus) {
+	background: rgba(255, 255, 255, 0.14);
+	color: #f6f7f7;
+}
+
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:disabled),
+.result
+	.resultHeader
+	.resultActions
+	:global(.components-button.is-tertiary:disabled:hover) {
+	color: #646970;
+}
+
+.resultActions button svg,
+.resultActions button svg path {
+	fill: currentColor;
+}
+
+.copyResult {
+	min-width: 24px;
+	opacity: 0.72;
+	padding: 2px;
+	transition: opacity 0.12s ease;
+}
+
+.historyButton {
+	min-width: 24px;
+	padding: 2px;
+}
+
+.historyConfirmation {
+	align-items: center;
+	border-top: 1px solid rgba(255, 255, 255, 0.16);
+	display: flex;
+	flex-wrap: wrap;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	gap: 8px 16px;
+	justify-content: space-between;
+	margin-top: 8px;
+	padding-top: 8px;
+}
+
+.historyConfirmationActions {
+	display: flex;
+	gap: 4px;
+}
+
+.result
+	.resultHeader
+	.historyConfirmation
+	:global(.components-button.is-tertiary) {
+	color: #f6f7f7;
+}
+
+.result:hover .copyResult,
+.result:focus-within .copyResult,
+.copyResult:focus {
+	opacity: 1;
+}
+
+.copyResult:hover,
+.copyResult:focus {
+	opacity: 1;
+}
+
+.emptyOutput {
+	color: #a7aaad;
+}
+
+.executionTime {
+	color: #8c8f94;
+	flex: 0 0 auto;
+}
+
+.executionTime::before {
+	content: '·';
+	margin-right: 8px;
+}
+
+.result pre {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.resultBody {
+	padding: 0 14px 14px;
+}
+
+.resultBody pre + pre {
+	margin-top: 8px;
+}
+
+.errorOutput {
+	color: #ffb6b6;
+}
+
+.inlineProgress {
+	align-items: center;
+	background: var(--surface-recessed, #f0f0f1);
+	border-radius: 8px;
+	color: var(--ink-muted, #656a71);
+	display: flex;
+	gap: 8px;
+	padding: 12px 16px;
+}
+
+.inlineProgressText {
+	font-size: 13px;
+	line-height: 1.4;
+}

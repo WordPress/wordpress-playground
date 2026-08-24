@@ -1,4 +1,12 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import type { KeyboardEvent, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
@@ -36,11 +44,15 @@ import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import {
 	setBlueprintInstallMessage,
+	setAutoBackupDue,
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
+import type { PlaygroundClient } from '@wp-playground/client';
 import { playgroundLogo } from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
+import { estimateBackupSize, useBackup } from '../../lib/hooks/use-backup';
+import { formatBytes } from '../../lib/utils/format-bytes';
 import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
@@ -270,18 +282,25 @@ function renderCard(
 		'detailLabel' in card
 			? `<div class="detail-label">${card.detailLabel}</div>`
 			: '';
+	// The card front is the label for the card's radio, and the close affordance
+	// is a sibling rather than a descendant: nesting one label inside another is
+	// invalid and leaves assistive tech guessing which control was activated.
 	return `
-      <label class="card c${n}" for="${idPrefix}${n}">
-        <div class="card-front">
-          <div class="icon" style="${iconStyle(card.theme)}">${card.icon}</div>
-          <div class="text"><div class="label">${card.label}</div><div class="sub">${card.sub}</div></div>
-        </div>
+      <div class="card c${n}">
+        <label class="card-front" for="${idPrefix}${n}">
+          <div class="icon" aria-hidden="true" style="${iconStyle(
+				card.theme
+			)}">${card.icon}</div>
+          <div class="text"><div class="label">${card.label}</div><div class="sub">${
+				card.sub
+			}</div></div>
+        </label>
         <div class="card-detail"><div class="detail-inner">
-          <label class="detail-close" for="${idPrefix}0">×</label>
+          <label class="detail-close" for="${idPrefix}0"><span aria-hidden="true">×</span><span class="visually-hidden">Close</span></label>
           ${detailHeader}
           ${card.detail}
         </div></div>
-      </label>`;
+      </div>`;
 }
 
 function renderIntroPanelInner(
@@ -290,10 +309,12 @@ function renderIntroPanelInner(
 	opts: { backToggle?: boolean } = {}
 ): string {
 	const radios = NEW_USER_CARDS.map(
-		(_, i) =>
+		(card, i) =>
 			`<input type="radio" name="${radioName}" id="${idPrefix}${
 				i + 1
-			}" class="card-toggle">`
+			}" class="card-toggle" aria-label="${escapeHtml(
+				`${card.label} — ${card.sub}`
+			)}">`
 	).join('\n    ');
 
 	const backToggle = opts.backToggle
@@ -301,7 +322,7 @@ function renderIntroPanelInner(
 		: '';
 
 	return `
-    <input type="radio" name="${radioName}" id="${idPrefix}0" class="card-toggle" checked>
+    <input type="radio" name="${radioName}" id="${idPrefix}0" class="card-toggle" checked aria-label="No card open">
     ${radios}
 
     <h1 class="headline">A small world,<br>just for <em>you</em>.</h1>
@@ -332,8 +353,19 @@ function getIntroPanelCss(idPrefix: string, scope: string): string {
 		(_, i) =>
 			`#${idPrefix}${i + 1}:checked ~ .field .c${i + 1} .card-detail`
 	).join(',\n  ');
+	// The radios are visually hidden, so focus has to be surfaced on the card
+	// they control or keyboard users cannot tell where they are.
+	const focusSel = NEW_USER_CARDS.map(
+		(_, i) => `#${idPrefix}${i + 1}:focus-visible ~ .field .c${i + 1}`
+	).join(',\n  ');
 
 	return `
+  ${focusSel} {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    z-index: 21;
+  }
+
   /* Positions + rotations — rotate excluded from keyframes so transition owns it.
      Top values are deliberately jittered between siblings so cards don't sit in
      rigid horizontal rows. */
@@ -397,7 +429,25 @@ function getSwapCss(): string {
   .stage:has(#show-intro) .intro-panel { display: none; }
   .stage:has(#show-intro:checked) .welcome-back-panel { display: none; }
   .stage:has(#show-intro:checked) .intro-panel { display: flex; }
-  #show-intro { display: none; }
+  /* Visually hidden, not removed: this checkbox is the only way to move between
+     the returning-user and first-run panels, so it has to stay focusable. */
+  #show-intro {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+  #show-intro:focus-visible ~ .welcome-back-panel .intro-toggle,
+  #show-intro:focus-visible ~ .intro-panel .back-toggle {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
 
   .intro-toggle, .back-toggle {
     display: inline-block;
@@ -520,13 +570,23 @@ function getWhatsNewHtml(): string {
 
 	const radios = cards
 		.map(
-			(_, i) =>
-				`<input type="radio" name="wcard" id="w${i + 1}" class="card-toggle">`
+			// `label` is already escaped where it is built, so it is safe to
+			// interpolate into the attribute as-is; escaping twice would show
+			// entity text to screen readers.
+			(c, i) =>
+				`<input type="radio" name="wcard" id="w${
+					i + 1
+				}" class="card-toggle" aria-label="${c.label} — ${escapeHtml(
+					c.sub
+				)}">`
 		)
 		.join('\n    ');
 
 	const expandSel = cards
 		.map((_, i) => `#w${i + 1}:checked ~ .field .c${i + 1}`)
+		.join(', ');
+	const focusSel = cards
+		.map((_, i) => `#w${i + 1}:focus-visible ~ .field .c${i + 1}`)
 		.join(', ');
 	const detailSel = cards
 		.map((_, i) => `#w${i + 1}:checked ~ .field .c${i + 1} .card-detail`)
@@ -543,16 +603,20 @@ function getWhatsNewHtml(): string {
 			const sideStyle = c.left ? `left:${c.left}` : `right:${c.right}`;
 			const style = `top:${c.top};${sideStyle};rotate:${c.rotate};animation:drift-in 1s cubic-bezier(0.16,1,0.3,1) ${c.delay} forwards`;
 			return `
-      <label class="card c${i + 1}" for="w${i + 1}" style="${style}">
-        <div class="card-front">
-          <div class="icon" style="${iconStyle(c.theme)}">${c.icon}</div>
-          <div class="text"><div class="label">${c.label}</div><div class="sub">${c.sub}</div></div>
-        </div>
+      <div class="card c${i + 1}" style="${style}">
+        <label class="card-front" for="w${i + 1}">
+          <div class="icon" aria-hidden="true" style="${iconStyle(
+				c.theme
+			)}">${c.icon}</div>
+          <div class="text"><div class="label">${c.label}</div><div class="sub">${
+				c.sub
+			}</div></div>
+        </label>
         <div class="card-detail"><div class="detail-inner">
-          <label class="detail-close" for="w0">×</label>
+          <label class="detail-close" for="w0"><span aria-hidden="true">×</span><span class="visually-hidden">Close</span></label>
           <p class="detail-body">${c.detail}</p>
         </div></div>
-      </label>`;
+      </div>`;
 		})
 		.join('');
 
@@ -570,6 +634,11 @@ function getWhatsNewHtml(): string {
     box-shadow: 0 2px 4px var(--shadow-md), 0 16px 40px var(--shadow-xl) !important;
   }
   ${detailSel} { max-height: 260px; }
+  ${focusSel} {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    z-index: 21;
+  }
   ${bottomSel ? `${bottomSel} { transform: translateY(-140px) !important; }` : ''}
 
   @media (min-width: 640px) {
@@ -580,7 +649,7 @@ function getWhatsNewHtml(): string {
   <input type="checkbox" id="show-intro">
 
   <div class="welcome-back-panel">
-    <input type="radio" name="wcard" id="w0" class="card-toggle" checked>
+    <input type="radio" name="wcard" id="w0" class="card-toggle" checked aria-label="No card open">
     ${radios}
 
     <h1 class="headline">Welcome <em>back.</em></h1>
@@ -735,7 +804,6 @@ function getCardStageCss(): string {
     position: absolute;
     width: 180px;
     opacity: 0;
-    cursor: pointer;
     display: block;
     background: var(--card-bg);
     border: 1px solid var(--thread);
@@ -758,6 +826,7 @@ function getCardStageCss(): string {
     display: flex;
     align-items: center;
     gap: 12px;
+    cursor: pointer;
   }
   .card-front .icon {
     width: 34px; height: 34px;
@@ -783,6 +852,11 @@ function getCardStageCss(): string {
     background: var(--bg-warm); color: var(--ink-soft);
     font-size: 12px; line-height: 20px; text-align: center;
     cursor: pointer; font-style: normal;
+  }
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
 
   .detail-label {
@@ -810,7 +884,22 @@ function getCardStageCss(): string {
     100% { opacity: 1; translate: 0 0;    scale: 1;    }
   }
 
-  .card-toggle { display: none; position: absolute; }
+  /* Visually hidden but still focusable and announced. display:none would drop
+     these out of the accessibility tree entirely, which is what made the whole
+     card field keyboard- and screen-reader-inoperable. There is no JS in this
+     shadow root (scripts and on* handlers are stripped), so these radios are
+     the only mechanism the cards have. */
+  .card-toggle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
 
   /* Journal */
   .entry-date { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
@@ -862,9 +951,8 @@ function getCardStageCss(): string {
   .habit-label.done { color: var(--ink); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
   .habit-streak { font-size: 10px; color: var(--ink-faint); }
 
-  /* Boot progress: checkmarks fill in over time, regardless of expansion
-     state, so opening the card late shows progress already made. Timings
-     are a visual narrative, not real progress. */
+  /* Boot progress: synced to the actual runtime boot caption via
+     LoadingScreenHtml[data-boot-step]. */
   .boot-step .habit-check::after {
     content: '✓';
     position: absolute; inset: 0;
@@ -872,41 +960,50 @@ function getCardStageCss(): string {
     color: var(--accent-on); font-size: 10px; font-weight: 600;
     opacity: 0;
   }
-  .boot-step .habit-check {
-    animation: boot-fill 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  .boot-step .habit-check,
+  .boot-step .habit-check::after,
+  .boot-step .habit-label { transition: 0.2s ease-out; }
+  :host([data-boot-step="1"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="2"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="2"]) .boot-step.bs2 .habit-check,
+  :host([data-boot-step="3"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="3"]) .boot-step.bs2 .habit-check,
+  :host([data-boot-step="3"]) .boot-step.bs3 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs1 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs2 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs3 .habit-check,
+  :host([data-boot-step="4"]) .boot-step.bs4 .habit-check,
+  :host([data-boot-step="5"]) .boot-step .habit-check {
+    background: var(--accent); border-color: var(--accent);
   }
-  .boot-step .habit-check::after {
-    animation: boot-mark 0.3s ease-out forwards;
+  :host([data-boot-step="1"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="2"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="2"]) .boot-step.bs2 .habit-check::after,
+  :host([data-boot-step="3"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="3"]) .boot-step.bs2 .habit-check::after,
+  :host([data-boot-step="3"]) .boot-step.bs3 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs1 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs2 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs3 .habit-check::after,
+  :host([data-boot-step="4"]) .boot-step.bs4 .habit-check::after,
+  :host([data-boot-step="5"]) .boot-step .habit-check::after {
+    opacity: 1;
   }
-  .boot-step .habit-label {
-    animation: boot-strike 0.3s ease-out forwards;
+  :host([data-boot-step="1"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="2"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="2"]) .boot-step.bs2 .habit-label,
+  :host([data-boot-step="3"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="3"]) .boot-step.bs2 .habit-label,
+  :host([data-boot-step="3"]) .boot-step.bs3 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs1 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs2 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs3 .habit-label,
+  :host([data-boot-step="4"]) .boot-step.bs4 .habit-label,
+  :host([data-boot-step="5"]) .boot-step .habit-label {
+    color: var(--ink);
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-faint);
   }
-  @keyframes boot-fill {
-    to { background: var(--accent); border-color: var(--accent); }
-  }
-  @keyframes boot-mark { to { opacity: 1; } }
-  @keyframes boot-strike {
-    to {
-      color: var(--ink);
-      text-decoration: line-through;
-      text-decoration-color: var(--ink-faint);
-    }
-  }
-  .boot-step.bs1 .habit-check,
-  .boot-step.bs1 .habit-check::after,
-  .boot-step.bs1 .habit-label { animation-delay: 1s; }
-  .boot-step.bs2 .habit-check,
-  .boot-step.bs2 .habit-check::after,
-  .boot-step.bs2 .habit-label { animation-delay: 3s; }
-  .boot-step.bs3 .habit-check,
-  .boot-step.bs3 .habit-check::after,
-  .boot-step.bs3 .habit-label { animation-delay: 6s; }
-  .boot-step.bs4 .habit-check,
-  .boot-step.bs4 .habit-check::after,
-  .boot-step.bs4 .habit-label { animation-delay: 9s; }
-  .boot-step.bs5 .habit-check,
-  .boot-step.bs5 .habit-check::after,
-  .boot-step.bs5 .habit-label { animation-delay: 12s; }
 
   /* Backups wiki */
   .wiki-term { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
@@ -949,6 +1046,9 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const [bootProgress, setBootProgress] = useState<ProgressDetails>(
 		getInitialBootProgress
 	);
+	// Captions without a recognizable keyword must not move the checklist
+	// backwards, so only ever advance the step.
+	const [bootStep, setBootStep] = useState(0);
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
@@ -973,6 +1073,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	);
 	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	const autoBackupDue = useAppSelector((state) => state.ui.autoBackupDue);
+	const { performBackup } = useBackup();
+	// performBackup() is a no-op until WordPress has booted and a client can
+	// serve the request, so only ask the user to click once that is the case.
+	const canBackupNow =
+		!isBooting &&
+		(isDependentMode ? mainTabStatus === 'connected' : !!playground);
 	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
 
 	const loadingScreenHtml = useMemo(
@@ -1034,10 +1141,13 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		setIsBootReady(false);
 		setLoadingInteracted(false);
 		setBootProgress(getInitialBootProgress());
+		setBootStep(0);
 	}, [siteSlug, runtimeConfigString]);
 
 	const handleBootProgress = useCallback((progress: ProgressDetails) => {
 		setBootProgress(progress);
+		const step = getBootChecklistStep(progress);
+		setBootStep((current) => Math.max(current, step));
 	}, []);
 
 	const handleBootReady = useCallback(() => {
@@ -1504,6 +1614,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				<LoadingScreen
 					html={loadingScreenHtml}
 					progress={bootProgress}
+					bootStep={bootStep}
 					onInteract={handleLoadingInteract}
 					showReadyButton={showReadyButton}
 					onStart={() => setIsBooting(false)}
@@ -1536,7 +1647,66 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				>
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
+				{autoBackupDue && canBackupNow && (
+					<AutoBackupPrompt
+						playground={isDependentMode ? null : playground}
+						onDownload={performBackup}
+						onDismiss={() => dispatch(setAutoBackupDue(false))}
+					/>
+				)}
 			</div>
+		</div>
+	);
+}
+
+function AutoBackupPrompt({
+	playground,
+	onDownload,
+	onDismiss,
+}: {
+	playground: PlaygroundClient | null | undefined;
+	onDownload: () => void;
+	onDismiss: () => void;
+}) {
+	const [sizeEstimate, setSizeEstimate] = useState<number | null>(null);
+
+	useEffect(() => {
+		if (!playground) {
+			return;
+		}
+		let cancelled = false;
+		estimateBackupSize(playground).then((size) => {
+			if (!cancelled) {
+				setSizeEstimate(size);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [playground]);
+
+	return (
+		<div className={css.autoBackupPrompt} role="status" aria-live="polite">
+			<p className={css.autoBackupPromptText}>
+				<strong>Welcome back!</strong> It is time for a backup.{' '}
+				<button
+					type="button"
+					className={css.autoBackupPromptLink}
+					onClick={onDownload}
+				>
+					Click here to download it
+				</button>
+				{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate, 0)})`}
+				{'.'}
+			</p>
+			<button
+				type="button"
+				className={css.autoBackupPromptDismiss}
+				aria-label="Dismiss backup reminder"
+				onClick={onDismiss}
+			>
+				×
+			</button>
 		</div>
 	);
 }
@@ -1544,19 +1714,21 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 function getInitialBootProgress(): ProgressDetails {
 	return {
 		progress: 0,
-		caption: 'Preparing WordPress',
+		caption: 'Loading Playground iframe',
 	};
 }
 
 function LoadingScreen({
 	html,
 	progress,
+	bootStep,
 	onInteract,
 	showReadyButton,
 	onStart,
 }: {
 	html: string;
 	progress: ProgressDetails;
+	bootStep: number;
 	onInteract: () => void;
 	showReadyButton: boolean;
 	onStart: () => void;
@@ -1569,16 +1741,18 @@ function LoadingScreen({
 	};
 
 	return (
+		// No tabIndex here: the card radios inside the shadow root are real
+		// focus stops now, and their events bubble out to these handlers. A
+		// focusable wrapper would only add an anonymous, unlabelled tab stop.
 		<div
 			className={css.loadingScreen}
-			tabIndex={0}
 			onClick={onInteract}
 			onKeyDown={handleKeyDown}
 			onPointerDown={onInteract}
 			onTouchStart={onInteract}
 			onWheel={onInteract}
 		>
-			<LoadingScreenHtml html={html} />
+			<LoadingScreenHtml html={html} bootStep={bootStep} />
 			<LoadingProgress
 				progress={progress}
 				showReadyButton={showReadyButton}
@@ -1590,13 +1764,15 @@ function LoadingScreen({
 
 const LoadingScreenHtml = memo(function LoadingScreenHtml({
 	html,
+	bootStep,
 }: {
 	html: string;
+	bootStep: number;
 }) {
 	const hostRef = useRef<HTMLDivElement>(null);
 	const renderedHtmlRef = useRef<string | null>(null);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (renderedHtmlRef.current === html) {
 			return;
 		}
@@ -1610,8 +1786,56 @@ const LoadingScreenHtml = memo(function LoadingScreenHtml({
 		renderedHtmlRef.current = html;
 	}, [html]);
 
+	useLayoutEffect(() => {
+		hostRef.current?.setAttribute('data-boot-step', String(bootStep));
+	}, [bootStep]);
+
 	return <div ref={hostRef} className={css.loadingScreenHtml} />;
 });
+
+function getBootChecklistStep(progress: ProgressDetails): number {
+	if (progress.progress >= 100) {
+		return 5;
+	}
+	const caption = progress.caption.toLowerCase();
+	if (
+		caption.includes('finalizing') ||
+		caption.includes('runtime ready') ||
+		caption.includes('wordpress boot complete') ||
+		caption.includes('waiting for wordpress to be ready') ||
+		caption.includes('connecting playground client')
+	) {
+		return 5;
+	}
+	if (
+		caption.includes('database') ||
+		caption.includes('sqlite') ||
+		caption.includes('starting php') ||
+		caption.includes('wordpress constants') ||
+		caption.includes('existing wordpress installation')
+	) {
+		return 4;
+	}
+	if (
+		caption.includes('wordpress download') ||
+		caption.includes('extracting wordpress') ||
+		caption.includes('wordpress files') ||
+		caption.includes('wordpress installer')
+	) {
+		return 3;
+	}
+	if (caption.includes('php runtime')) {
+		return 2;
+	}
+	if (
+		caption.includes('playground') ||
+		caption.includes('wasm') ||
+		caption.includes('iframe')
+	) {
+		return 1;
+	}
+	return 0;
+}
 
 function getSanitizedLoadingScreenNodes(html: string): Node[] {
 	const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -1660,7 +1884,15 @@ function LoadingProgress({
 						className={css.loadingProgressCaption}
 						aria-live="polite"
 					>
-						{progress.caption}
+						<span
+							className={css.loadingProgressCaptionText}
+							title={progress.caption}
+						>
+							{progress.caption}
+						</span>
+						<span className={css.loadingProgressPercent}>
+							{Math.round(progressValue)}%
+						</span>
 					</div>
 					<div className={css.loadingProgressTrack}>
 						<div

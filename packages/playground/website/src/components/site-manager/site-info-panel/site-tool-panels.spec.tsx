@@ -41,6 +41,10 @@ vi.mock('../site-database-panel', () => ({
 	SiteDatabasePanel: () => <div data-testid="database">Database tools</div>,
 }));
 
+vi.mock('../site-terminal-panel', () => ({
+	SiteTerminalPanel: () => <div data-testid="terminal">Terminal</div>,
+}));
+
 vi.mock('../../log-modal', () => ({
 	SiteLogs: () => <div data-testid="logs">Site logs</div>,
 }));
@@ -94,14 +98,20 @@ describe('SiteToolPanels', () => {
 
 		const database = findTool('database');
 		expect(database.closest('[hidden]')).toBeNull();
-		for (const name of ['settings', 'files', 'blueprint', 'logs']) {
+		for (const name of [
+			'settings',
+			'files',
+			'blueprint',
+			'terminal',
+			'logs',
+		]) {
 			expect(findOptionalTool(name)).toBeNull();
 		}
 
-		await renderPanels('logs', playground);
+		await renderPanels('terminal', playground);
 		expect(findTool('database')).toBe(database);
 		expect(database.closest('[hidden]')).not.toBeNull();
-		expect(findTool('logs').closest('[hidden]')).toBeNull();
+		expect(findTool('terminal').closest('[hidden]')).toBeNull();
 	});
 
 	it('enables the Blueprint editor Dock presentation', async () => {
