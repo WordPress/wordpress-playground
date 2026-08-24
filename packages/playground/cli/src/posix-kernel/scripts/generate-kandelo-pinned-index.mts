@@ -43,6 +43,7 @@ const PACKAGES = [
 	'php',
 	'coreutils',
 	'dash',
+	'bash',
 	'dinit',
 	'less',
 ];

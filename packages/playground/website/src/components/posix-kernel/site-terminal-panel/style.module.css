@@ -1,0 +1,13 @@
+.terminal {
+	flex-grow: 1;
+	min-height: 0;
+	height: 100%;
+	background: #1e1e1e;
+	padding: 8px 0 8px 8px;
+}
+
+.terminal :global(.xterm),
+.terminal :global(.xterm-viewport),
+.terminal :global(.xterm-screen) {
+	height: 100%;
+}

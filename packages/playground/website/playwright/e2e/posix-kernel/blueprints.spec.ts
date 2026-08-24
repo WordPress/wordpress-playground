@@ -959,3 +959,24 @@ test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({
 	// The sitemap is rendered with XSLT styling, showing "XML Sitemap" heading
 	await expect(wordpress.locator('body')).toContainText('XML Sitemap');
 });
+
+test('runPHP should resolve relative wordpress/ paths', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/',
+		steps: [
+			{
+				step: 'runPHP',
+				code: `<?php
+					require 'wordpress/wp-load.php';
+					update_option('blogname', 'Docroot symlink');
+				`,
+			},
+		],
+	};
+
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('Docroot symlink');
+});

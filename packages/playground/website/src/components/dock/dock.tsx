@@ -45,6 +45,7 @@ import {
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
+import { usePosixKernelAvailability } from '../posix-kernel/use-posix-kernel-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
@@ -152,7 +153,7 @@ const DOCK_ITEMS: DockItem[] = [
 ];
 
 const PANE_COPY: Record<
-	DockPaneSection,
+	DockPaneSection | 'posixKernelTerminal',
 	{ title: string; description: string }
 > = {
 	new: {
@@ -181,6 +182,10 @@ const PANE_COPY: Record<
 	terminal: {
 		title: 'Terminal',
 		description: 'Run PHP snippets or WP-CLI commands in this Playground.',
+	},
+	posixKernelTerminal: {
+		title: 'Terminal',
+		description: 'Run shell commands inside this Playground.',
 	},
 	files: {
 		title: 'Files',
@@ -227,7 +232,11 @@ export function Dock({
 	);
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
-	const paneCopy = PANE_COPY[section];
+	const posixKernelAvailable = usePosixKernelAvailability(clientInfo?.client);
+	const paneCopy =
+		section === 'terminal' && posixKernelAvailable
+			? PANE_COPY.posixKernelTerminal
+			: PANE_COPY[section];
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection =

@@ -94,6 +94,19 @@ built_at = "2026-08-08T13:26:57Z"
 built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
 
 [[packages]]
+name = "bash"
+version = "5.2.37"
+revision = 5
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/bash-5.2.37-rev5-abi42-wasm32-012336da.tar.zst"
+archive_sha256 = "7412b079f0e2c20228a675261d45ced047ca658ece5a11f903ee979056c0e7f6"
+cache_key_sha = "012336da4d490e68d3e200ec8d29e641d5946d6bec4c9e309d6f3bccedf9985b"
+built_at = "2026-08-19T16:20:20Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
 name = "dinit"
 version = "0.19.4"
 revision = 5

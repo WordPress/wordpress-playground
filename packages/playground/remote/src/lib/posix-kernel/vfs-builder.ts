@@ -73,6 +73,7 @@ import intlSoUrl from '@kernel-binary/programs/wasm32/php/intl.so?url';
 // Staged only alongside `intl.so` on the intl opt-in path.
 import icuDatUrl from '@kernel-binary/programs/wasm32/php/icu.dat?url';
 import dashUrl from '@kernel-binary/programs/wasm32/dash.wasm?url';
+import bashUrl from '@kernel-binary/programs/wasm32/bash.wasm?url';
 import coreutilsUrl from '@kernel-binary/programs/wasm32/coreutils.wasm?url';
 import lessUrl from '@kernel-binary/programs/wasm32/less.wasm?url';
 import dinitUrl from '@kernel-binary/programs/wasm32/dinit/dinit.wasm?url';
@@ -139,6 +140,13 @@ export interface BuildVfsImageOptions {
 	 */
 	withIntl?: boolean;
 	/**
+	 * The wp-cli.phar bytes to stage at `/usr/local/bin/wp-cli.phar`,
+	 * together with a `wp` wrapper script, so the terminal pane's shell
+	 * can drive the live site with WP-CLI. Staged in every image,
+	 * PHP-only mode included. See {@link populateWpCli}.
+	 */
+	wpCliPharBytes: Uint8Array;
+	/**
 	 * A previously-captured SQLite database (the bytes of
 	 * `wp-content/database/wordpress.db` from an already-installed site).
 	 * When present, it is written into the image so the booted site is
@@ -165,6 +173,8 @@ export async function buildVfsImage(
 	populateSystem(fs);
 	await populateServerBinaries(fs, options.withIntl === true);
 	await populateUserBinaries(fs);
+	populateWpCli(fs, options.wpCliPharBytes);
+	populateBashRc(fs);
 	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
@@ -174,6 +184,11 @@ export async function buildVfsImage(
 	// so the doc root must exist even in PHP-only mode.
 	ensureDirRecursive(fs, '/var/www/html');
 	if (options.wpZipBytes) {
+		// Classic Playground's docroot is `/wordpress`; php-api.ts rewrites
+		// the absolute form in blueprint code, and this symlink covers the
+		// relative `wordpress/...` form resolved from the docroot cwd.
+		symlink(fs, '/var/www/html', '/var/www/html/wordpress');
+
 		onStatus('Writing wp-config.php');
 		writeVfsFile(fs, '/var/www/html/wp-config.php', WP_CONFIG_PHP);
 
@@ -408,18 +423,77 @@ async function populateServerBinaries(
  * `php` lands at `/usr/local/bin/php` (matches the upstream demo's
  * convention in `kandelo/examples/browser/pages/php/main.ts`);
  * `less` lands at `/usr/bin/less` (upstream's `shell-vfs-build.ts`
- * convention). The php.wasm bytes are also fetched a second time by
+ * convention); `bash` lands at `/bin/bash`, the interactive shell for
+ * the website's terminal pane (`terminal.ts` spawns it) — `/bin/sh`
+ * stays dash. The php.wasm bytes are also fetched a second time by
  * `playground-worker-endpoint.ts` for the host-side
  * `KernelSpawnAdapter`; the browser's HTTP cache dedupes the two
  * `fetch()` calls so this redundancy is essentially free.
  */
 async function populateUserBinaries(fs: MemoryFileSystem): Promise<void> {
-	const [phpBytes, lessBytes] = await Promise.all([
+	const [phpBytes, lessBytes, bashBytes] = await Promise.all([
 		fetchBinary(phpUrl),
 		fetchBinary(lessUrl),
+		fetchBinary(bashUrl),
 	]);
 	writeVfsBinary(fs, '/usr/local/bin/php', phpBytes);
 	writeVfsBinary(fs, '/usr/bin/less', lessBytes);
+	writeVfsBinary(fs, '/bin/bash', bashBytes);
+}
+
+/**
+ * WP-CLI for the terminal pane: the phar plus a `wp` wrapper script,
+ * both at `/usr/local/bin` (already on the boot env's PATH). NOT
+ * `/tmp/wp-cli.phar` — the `wp-cli` blueprint step's location — because
+ * kandelo mounts an empty scratch memfs over `/tmp` on every boot,
+ * shadowing anything the image stages there (same trap as `/root`, see
+ * {@link populateBashRc}).
+ *
+ * The wrapper's `-d` flags mirror `PHP_EXTENSION_ARGS` in `php-api.ts`
+ * (minus the opt-in `intl.so`) so `wp` behaves like every other direct
+ * `php` spawn: `phar.so` is what makes the phar runnable at all, and
+ * `zend.max_allowed_stack_size` raises a graceful PHP fatal on deep
+ * recursion before V8's ~50-frame budget kills the worker.
+ * `WP_CLI_ALLOW_ROOT` because the shell runs as uid 0 and WP-CLI
+ * refuses to run as root without the opt-in.
+ */
+function populateWpCli(fs: MemoryFileSystem, pharBytes: Uint8Array): void {
+	writeVfsBinary(fs, '/usr/local/bin/wp-cli.phar', pharBytes, 0o644);
+	writeVfsFile(
+		fs,
+		'/usr/local/bin/wp',
+		`#!/bin/sh
+export WP_CLI_ALLOW_ROOT=1
+exec php \\
+  -d extension_dir=/usr/lib/php/extensions \\
+  -d extension=zip.so \\
+  -d extension=curl.so \\
+  -d extension=phar.so \\
+  -d curl.cainfo=/etc/ssl/certs/ca-certificates.crt \\
+  -d zend.max_allowed_stack_size=131072 \\
+  /usr/local/bin/wp-cli.phar "$@"
+`,
+		0o755
+	);
+}
+
+function populateBashRc(fs: MemoryFileSystem): void {
+	writeVfsFile(
+		fs,
+		'/etc/bashrc',
+		`alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias clear='printf "\\e[H\\e[2J\\e[3J"'
+PS1='\\[\\e[1;32m\\]\\w\\[\\e[0m\\] $ '
+PROMPT_COMMAND='(( COLUMNS > 0 )) && printf "%\${COLUMNS}s\\r" ""'
+playground() {
+  printf '\\n'
+  printf '\\e[38;2;56;88;233mThis shell runs inside the WordPress Playground Kandelo kernel.\\e[0m\\n\\n'
+  printf 'Available binaries: wp, php, bash, less, grep, and GNU coreutils.\\n\\n'
+  printf 'Clear the screen with "clear" or Ctrl+L.\\n\\n'
+}
+`
+	);
 }
 
 /**

@@ -82,6 +82,7 @@ const NEEDED = [
 	'php',
 	'coreutils',
 	'dash',
+	'bash',
 	'dinit',
 	'less',
 ];
