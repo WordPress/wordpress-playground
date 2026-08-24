@@ -71,6 +71,26 @@ describe('ensureWordPressInstalled gateway readiness', () => {
 		await expect(ensureWordPressInstalled(api)).rejects.toThrow('HTTP 502');
 	});
 
+	it('does not report success while the recheck returns a transient bad-gateway', async () => {
+		let posts = 0;
+		let gets = 0;
+		const { api } = fakeApi((method) => {
+			if (method === 'POST') {
+				posts++;
+				return posts === 1
+					? response(200, { body: 'not yet' })
+					: response(200, { body: 'Success' });
+			}
+			gets++;
+			return gets === 1
+				? response(302, { location: '/wp-admin/install.php' })
+				: response(502);
+		});
+
+		await expect(ensureWordPressInstalled(api)).resolves.toBeUndefined();
+		expect(posts).toBe(2);
+	});
+
 	it('does not POST when the site is already installed', async () => {
 		const { api, calls } = fakeApi(() => response(200));
 

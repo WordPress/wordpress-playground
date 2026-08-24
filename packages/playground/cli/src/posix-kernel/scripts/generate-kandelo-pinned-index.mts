@@ -35,7 +35,17 @@ const DOWNLOAD_DIR =
 	process.env['KANDELO_PINNED_ARCHIVE_DIR'] ??
 	join(tmpdir(), `kandelo-pinned-${process.pid}`);
 
-const PACKAGES = ['kernel', 'userspace', 'rootfs', 'nginx', 'php'];
+const PACKAGES = [
+	'kernel',
+	'userspace',
+	'rootfs',
+	'nginx',
+	'php',
+	'coreutils',
+	'dash',
+	'dinit',
+	'less',
+];
 
 main().catch((error: unknown) => {
 	fail(error instanceof Error ? error.message : String(error));

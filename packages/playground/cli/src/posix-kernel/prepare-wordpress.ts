@@ -94,8 +94,9 @@ export async function ensureWordPressInstalled(
 		Submit: 'Install WordPress',
 	}).toString();
 
-	const attempts = 3;
+	const attempts = 5;
 	let lastHtml = '';
+	let lastStatus = 0;
 	for (let attempt = 1; attempt <= attempts; attempt++) {
 		const installResponse = await requestAwaitingReadiness(api, {
 			method: 'POST',
@@ -105,36 +106,35 @@ export async function ensureWordPressInstalled(
 			},
 			body: formBody,
 		});
-		if (installResponse.httpStatusCode !== 200) {
-			throw new Error(
-				`WordPress install request failed: HTTP ` +
-					`${installResponse.httpStatusCode}`
-			);
+		lastStatus = installResponse.httpStatusCode;
+		if (installResponse.httpStatusCode === 200) {
+			lastHtml = new TextDecoder().decode(installResponse.bytes);
+			if (
+				lastHtml.includes('Success') ||
+				lastHtml.includes('WordPress has been installed')
+			) {
+				return;
+			}
 		}
-		lastHtml = new TextDecoder().decode(installResponse.bytes);
-		if (
-			lastHtml.includes('Success') ||
-			lastHtml.includes('WordPress has been installed')
-		) {
-			return;
-		}
-
 		const recheck = await requestAwaitingReadiness(api, {
 			method: 'GET',
 			url: '/',
 		});
-		assertNonErrorResponse(recheck, 'post-install recheck');
-		const recheckLocation = recheck.headers['location']?.[0] ?? '';
-		const stillRequired =
-			recheck.httpStatusCode === 302 &&
-			recheckLocation.includes('install.php');
-		if (!stillRequired) {
-			return;
+		if (!TRANSIENT_GATEWAY_STATUSES.has(recheck.httpStatusCode)) {
+			assertNonErrorResponse(recheck, 'post-install recheck');
+			const recheckLocation = recheck.headers['location']?.[0] ?? '';
+			const stillRequired =
+				recheck.httpStatusCode === 302 &&
+				recheckLocation.includes('install.php');
+			if (!stillRequired) {
+				return;
+			}
 		}
 	}
 	throw new Error(
-		`WordPress installer did not report success: ` +
-			`${lastHtml.slice(0, 1000)}`
+		`WordPress install request failed: HTTP ${lastStatus} ` +
+			`(no success after ${attempts} attempts)` +
+			(lastHtml ? `: ${lastHtml.slice(0, 1000)}` : '')
 	);
 }
 
