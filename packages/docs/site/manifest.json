@@ -209,9 +209,9 @@
 		"parent": "contributing",
 		"order": 80
 	},
-	"resources": {
+	"links-and-resources": {
 		"title": "Links and Resources",
-		"slug": "resources",
+		"slug": "links-and-resources",
 		"markdown_source": "docs/main/resources.md",
 		"parent": "handbook",
 		"order": 70
@@ -377,9 +377,9 @@
 		"parent": "developers",
 		"order": 30
 	},
-	"developers/xdebug/getting-started": {
+	"developers/xdebug/xdebug-getting-started": {
 		"title": "Getting Started with Xdebug",
-		"slug": "getting-started",
+		"slug": "xdebug-getting-started",
 		"markdown_source": "docs/developers/07-xdebug/02-getting-started.md",
 		"parent": "developers/xdebug",
 		"order": 10
