@@ -5,7 +5,10 @@ import {
 } from '../use-playground-client';
 import { useActiveSite, useAppDispatch } from '../state/redux/store';
 import { updateSiteMetadata } from '../state/redux/slice-sites';
+import { setAutoBackupDue } from '../state/redux/slice-ui';
 import { zipWpContent } from '@wp-playground/client';
+import { getLegacyPlaygroundRuntimeWpContentPaths } from '@wp-playground/blueprints';
+import { joinPaths, phpVars } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import saveAs from 'file-saver';
 import {
@@ -27,6 +30,103 @@ function formatBackupFilename(siteName: string): string {
 	const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
 	const sanitized = sanitizeForFilename(siteName);
 	return `${sanitized}-backup-${date}-${time}.zip`;
+}
+
+/**
+ * Estimates the size of the zip zipWpContent() would produce: wp-content
+ * minus the legacy runtime paths, plus wp-config.php.
+ *
+ * Files in formats that are already compressed (images, fonts, media,
+ * archives) barely shrink under deflate, while text and SQLite files
+ * typically end up at 10-30% of their size. The factors below were
+ * calibrated against a real backup and land within ~10% of the zip size,
+ * erring high.
+ */
+export async function estimateBackupSize(
+	playground: NonNullable<ReturnType<typeof usePlaygroundClient>>
+): Promise<number | null> {
+	const COMPRESSED_FORMAT_FACTOR = 0.97;
+	const OTHER_FORMAT_FACTOR = 0.25;
+	try {
+		const documentRoot = await playground.documentRoot;
+		const wpContentPath = joinPaths(documentRoot, 'wp-content');
+		const excludedPaths = (
+			await getLegacyPlaygroundRuntimeWpContentPaths(
+				playground,
+				wpContentPath
+			)
+		).map((path) => joinPaths(wpContentPath, path));
+		const js = phpVars({
+			wpContentPath,
+			wpConfigPath: joinPaths(documentRoot, 'wp-config.php'),
+			excludedPaths,
+			compressedExtensions: [
+				'jpg',
+				'jpeg',
+				'png',
+				'gif',
+				'webp',
+				'avif',
+				'heic',
+				'woff',
+				'woff2',
+				'mp3',
+				'mp4',
+				'm4a',
+				'webm',
+				'ogg',
+				'zip',
+				'gz',
+				'bz2',
+				'xz',
+				'zst',
+				'7z',
+				'rar',
+				'pdf',
+			],
+		});
+		const response = await playground.run({
+			code: `<?php
+				$excluded = ${js.excludedPaths};
+				$compressedExtensions = array_flip(${js.compressedExtensions});
+				$compressed = 0;
+				$other = @filesize(${js.wpConfigPath}) ?: 0;
+				$iterator = new RecursiveIteratorIterator(
+					new RecursiveCallbackFilterIterator(
+						new RecursiveDirectoryIterator(
+							${js.wpContentPath},
+							FilesystemIterator::SKIP_DOTS
+						),
+						function ($current) use ($excluded) {
+							return !in_array($current->getPathname(), $excluded, true);
+						}
+					)
+				);
+				foreach ($iterator as $file) {
+					if (!$file->isFile()) {
+						continue;
+					}
+					$extension = strtolower($file->getExtension());
+					if (isset($compressedExtensions[$extension])) {
+						$compressed += $file->getSize();
+					} else {
+						$other += $file->getSize();
+					}
+				}
+				echo json_encode(array('compressed' => $compressed, 'other' => $other));
+			`,
+		});
+		const { compressed, other } = JSON.parse(response.text.trim());
+		if (!Number.isFinite(compressed) || !Number.isFinite(other)) {
+			return null;
+		}
+		return Math.round(
+			compressed * COMPRESSED_FORMAT_FACTOR + other * OTHER_FORMAT_FACTOR
+		);
+	} catch (error) {
+		logger.debug('Could not estimate backup size:', error);
+		return null;
+	}
 }
 
 async function getWordPressSiteName(
@@ -65,7 +165,11 @@ export function useBackup() {
 			if (isRequestingRemote) return false;
 			setIsRequestingRemote(true);
 			try {
-				return await requestRemoteBackup(activeSite.slug);
+				const succeeded = await requestRemoteBackup(activeSite.slug);
+				if (succeeded) {
+					dispatch(setAutoBackupDue(false));
+				}
+				return succeeded;
 			} finally {
 				setIsRequestingRemote(false);
 			}
@@ -105,6 +209,8 @@ export function useBackup() {
 					})
 				);
 			}
+			// A backup from any entry point satisfies the reminder.
+			dispatch(setAutoBackupDue(false));
 
 			return true;
 		} finally {
