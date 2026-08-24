@@ -10,3 +10,13 @@ Header set Access-Control-Allow-Origin "*"
 Header unset ETag
 Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
 </FilesMatch>
+<FilesMatch "remote-posix-kernel\.html">
+Header set Cross-Origin-Opener-Policy "same-origin"
+Header set Cross-Origin-Embedder-Policy "require-corp"
+Header set Document-Isolation-Policy "isolate-and-require-corp"
+Header unset ETag
+Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
+</FilesMatch>
+<FilesMatch "^(playground-worker-endpoint-|browser-kernel-worker-entry-|worker-entry-browser-|opfs-site-storage-worker-).*\.js$">
+Header set Cross-Origin-Embedder-Policy "require-corp"
+</FilesMatch>

@@ -57,6 +57,13 @@
 				"cwd": "packages/playground/remote"
 			}
 		},
+		"build-experimental-posix-kernel": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite build --config packages/playground/remote/vite.posix-kernel.config.ts"
+			},
+			"dependsOn": ["playground-blueprints:build:blueprint-schema"]
+		},
 		"preview": {
 			"executor": "@nx/vite:preview-server",
 			"defaultConfiguration": "production",
