@@ -94,6 +94,20 @@ describe('Blueprint step wpCLI', () => {
 		});
 		expect(currentName.text).toBe(originalName.text);
 	});
+
+	it('should run wp db query through $wpdb instead of the mysql binary', async () => {
+		const result = await wpCLI(php, {
+			command:
+				'wp db query "SELECT COUNT(*) AS posts FROM wp_posts" --no-color',
+		});
+		expect(result.text).toContain('| posts |');
+
+		await expect(
+			wpCLI(php, {
+				command: 'wp db query "SELECT nope FROM wp_options" --no-color',
+			})
+		).rejects.toThrow('no such column: nope');
+	});
 });
 
 describe('splitShellCommand', () => {
