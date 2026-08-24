@@ -77,6 +77,23 @@ describe('Blueprint step wpCLI', () => {
 			})
 		).rejects.toThrow('Error: Command failed');
 	});
+
+	it('should reject STDIN reads before a command can mutate state', async () => {
+		const originalName = await wpCLI(php, {
+			command: 'wp option get blogname --no-color',
+		});
+
+		await expect(
+			wpCLI(php, {
+				command: 'wp option update blogname --no-color',
+			})
+		).rejects.toThrow('does not support interactive input');
+
+		const currentName = await wpCLI(php, {
+			command: 'wp option get blogname --no-color',
+		});
+		expect(currentName.text).toBe(originalName.text);
+	});
 });
 
 describe('splitShellCommand', () => {

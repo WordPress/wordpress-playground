@@ -23,11 +23,18 @@ const SiteBlueprintBundleEditor = lazy(() =>
 	}))
 );
 
+const SiteTerminalPanel = lazy(() =>
+	import('../site-terminal-panel').then((m) => ({
+		default: m.SiteTerminalPanel,
+	}))
+);
+
 export type SiteInfoTabName =
 	| 'settings'
 	| 'files'
 	| 'blueprint'
 	| 'database'
+	| 'terminal'
 	| 'logs'
 	| 'mail';
 
@@ -59,6 +66,8 @@ export function SiteToolPanels({
 		activeTabName === 'blueprint' || mountedTabNames.includes('blueprint');
 	const databaseMounted =
 		activeTabName === 'database' || mountedTabNames.includes('database');
+	const terminalMounted =
+		activeTabName === 'terminal' || mountedTabNames.includes('terminal');
 	const logsMounted =
 		activeTabName === 'logs' || mountedTabNames.includes('logs');
 	const mailMounted =
@@ -179,6 +188,24 @@ export function SiteToolPanels({
 					hidden={activeTabName !== 'database'}
 				>
 					<SiteDatabasePanel playground={playground} />
+				</div>
+			)}
+			{terminalMounted && (
+				<div
+					className={classNames(
+						css.tabContents,
+						css.toolTabContents,
+						{
+							[css.tabHidden]: activeTabName !== 'terminal',
+						}
+					)}
+					hidden={activeTabName !== 'terminal'}
+				>
+					<Suspense
+						fallback={<PaneLoading message="Loading Terminal…" />}
+					>
+						<SiteTerminalPanel playground={playground} />
+					</Suspense>
 				</div>
 			)}
 			{logsMounted && (
