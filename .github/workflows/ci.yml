@@ -348,18 +348,23 @@ jobs:
                   else
                     sudo CI=true PLAYWRIGHT_TEST_GROUP=${{ matrix.test_group || 'regular' }} npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   fi
+            # Only upload reports and snapshots for failed runs — they exist
+            # to debug failures and update snapshots, and uploading them on
+            # every run is the repository's largest source of artifact storage.
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-report-${{ matrix.browser }}${{ matrix.test_group && format('-{0}', matrix.test_group) || '' }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-snapshots-${{ matrix.browser }}${{ matrix.test_group && format('-{0}', matrix.test_group) || '' }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-e2e-personal-wp:
         runs-on: ubuntu-latest
@@ -376,11 +381,12 @@ jobs:
             - name: Run personal-wp Playwright e2e tests
               run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=chromium
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-personal-wp-report
                   path: packages/playground/personal-wp/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-e2e-components:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -398,11 +404,12 @@ jobs:
             - name: Run Playwright tests for components
               run: npx nx e2e playground-components
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-components-report
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
     test-e2e-mcp:
@@ -422,11 +429,12 @@ jobs:
             - name: Run MCP e2e tests
               run: npx nx test:mcp playground-mcp
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-mcp-report
                   path: packages/playground/mcp/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-docs-api-reference:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -444,11 +452,12 @@ jobs:
             - name: Verify docs API reference
               run: npx nx run docs-site:api-e2e
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: docs-api-e2e-report
                   path: packages/docs/site/test-results/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-built-npm-packages:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
