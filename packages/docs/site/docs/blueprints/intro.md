@@ -9,12 +9,6 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 # Blueprints Docs
 
-<div class="callout callout-tip">
-
-Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-
-</div>
-
 Hi! Welcome to WordPress Playground Blueprints documentation.
 
 Blueprints are JSON files for setting up your very own WordPress Playground instance. This subsite (Blueprints Docs) is where you will find all the information you need to use Blueprints.
