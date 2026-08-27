@@ -26,7 +26,7 @@ type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
-import { PhpWasmError } from '@php-wasm/util';
+import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
 // @ts-ignore
@@ -150,7 +150,21 @@ export async function bootPlaygroundRemote() {
 			return phpWorkerApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await phpWorkerApi.addEventListener(event, listener);
+			return await phpWorkerApi.addEventListener(event, (phpEvent) => {
+				if (
+					'stdin' in phpEvent &&
+					typeof phpEvent.stdin === 'object' &&
+					phpEvent.stdin !== null &&
+					typeof phpEvent.stdin.getReader === 'function'
+				) {
+					listener({
+						...phpEvent,
+						[phpEventStdinTransfer]: true,
+					});
+					return;
+				}
+				listener(phpEvent);
+			});
 		},
 		async removeEventListener(event, listener) {
 			return await phpWorkerApi.removeEventListener(event, listener);

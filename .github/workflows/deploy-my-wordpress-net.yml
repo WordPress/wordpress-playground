@@ -84,6 +84,10 @@ jobs:
               with:
                   name: my-wordpress-net
                   path: my-wordpress-net.tar.gz
+                  # The build is deployed via SSH below; the artifact is only
+                  # a debugging aid and doesn't need long retention. At ~620 MB
+                  # per weekly build, the default retention adds up quickly.
+                  retention-days: 7
 
             - name: Deploy my.wordpress.net build
               shell: bash

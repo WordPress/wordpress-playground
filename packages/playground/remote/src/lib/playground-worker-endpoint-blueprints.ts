@@ -2,6 +2,7 @@ import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
 import {
 	PlaygroundWorkerEndpoint,
+	type BootProgressEvent,
 	type WorkerBootOptions,
 } from './playground-worker-endpoint';
 import { randomString } from '@php-wasm/util';
@@ -95,7 +96,14 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 					? 'install-from-existing-files-if-needed'
 					: 'download-and-install');
 			const siteUrl = this.computeSiteUrl(scope);
+			const reportBootProgress = (caption: string) => {
+				this.dispatchEvent<BootProgressEvent>({
+					type: 'boot.progress',
+					caption,
+				});
+			};
 
+			reportBootProgress('Creating Playground request handler');
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
@@ -105,6 +113,7 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 				withNetworking,
 				phpVersion: phpVersion!,
 				pathAliases,
+				onProgress: reportBootProgress,
 			});
 
 			// `nightly` and `latest` are aliases for a concrete build. Resolve
@@ -133,6 +142,7 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 				resolvedWordPressInstallMode === 'download-and-install' &&
 				!wordPressZip
 			) {
+				reportBootProgress('Preparing WordPress download');
 				if (this.requestedWordPressVersion!.startsWith('http')) {
 					wordPressRequest = this.downloadMonitor
 						.monitorFetch(
@@ -216,11 +226,14 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 			// PHP-only mode: the caller asked us to skip WordPress boot entirely.
 			// Apply mounts and stop, so the caller gets a usable PHP runtime.
 			if (resolvedWordPressInstallMode === 'do-not-attempt-installing') {
+				reportBootProgress('Creating PHP runtime');
 				const primaryPhp = await requestHandler.getPrimaryPhp();
 				for (const mount of mounts) {
+					reportBootProgress('Mounting WordPress files');
 					await endpoint.mountOpfsIntoPhp(primaryPhp, mount);
 				}
 				this.__internal_setRequestHandler(requestHandler);
+				reportBootProgress('PHP runtime ready');
 				setApiReady();
 				return;
 			}
@@ -239,10 +252,12 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 			this.downloadMonitor.expectAssets({
 				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
 			});
+			reportBootProgress('Preparing SQLite integration download');
 			const sqliteIntegrationRequest = this.downloadMonitor.monitorFetch(
 				fetch(sqliteDriverModuleDetails.url)
 			);
 
+			reportBootProgress('Booting WordPress');
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
@@ -311,13 +326,16 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 						}
 					},
 				},
+				onProgress: reportBootProgress,
 			});
 
+			reportBootProgress('Finalizing WordPress runtime');
 			await this.finalizeAfterBoot(
 				requestHandler,
 				withNetworking,
 				knownRemoteAssetPaths
 			);
+			reportBootProgress('WordPress runtime ready');
 			setApiReady();
 		} catch (e) {
 			setAPIError(e as Error);
