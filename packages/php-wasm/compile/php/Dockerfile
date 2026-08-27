@@ -2191,7 +2191,14 @@ RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 # MAIN_MODULE=2 can retain only the PHP extension ABI instead of every symbol.
 # EXPORTED_FUNCTIONS uses Emscripten's JS-facing leading underscore, so a PHP
 # symbol such as _emalloc intentionally becomes __emalloc in that list.
+#
+# External extensions are JSPI-only (see compile-extension's ExtensionAsyncMode),
+# so skip this for asyncify builds, which can never load one and would otherwise
+# pay the binary-size cost of retaining the whole libphp ABI as dead weight.
 RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
 	/root/emsdk/upstream/bin/llvm-nm \
 		--defined-only \
 		--extern-only \
