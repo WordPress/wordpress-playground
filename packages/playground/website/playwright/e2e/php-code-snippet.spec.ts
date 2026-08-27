@@ -144,6 +144,125 @@ test.describe('php-code-snippet embed', () => {
 		expect(rejected).toEqual({ code: true, output: true });
 	});
 
+	test('runs snippets with implicit opening tags and real filenames', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+		await page.evaluate(() => {
+			document.body.insertAdjacentHTML(
+				'beforeend',
+				String.raw`
+					<script id="load-wordpress" type="text/x-php">
+						<?php require_once '/wordpress/wp-load.php';
+					</script>
+					<php-snippet id="wordpress-implicit-tag" name="auto-prepend-script.php" auto-prepend-script="#load-wordpress" implicit-php-open-tag>
+						<script type="application/x-php">
+							/* The complete form would start with <?php. */
+							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
+						</script>
+					</php-snippet>
+					<php-snippet id="plain-implicit-tag" name="../secret.php" implicit-php-open-tag>
+						<script type="application/x-php">
+							echo ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;
+						</script>
+					</php-snippet>
+				`
+			);
+		});
+		await ensurePlaygroundClientIsServed(page);
+		await page
+			.locator('#wordpress-implicit-tag, #plain-implicit-tag')
+			.evaluateAll((snippets) => {
+				for (const snippet of snippets) {
+					snippet.setAttribute(
+						'playground-origin',
+						window.location.origin
+					);
+				}
+			});
+
+		const wordpressSnippet = await waitForRenderedPhpSnippet(
+			page,
+			'#wordpress-implicit-tag'
+		);
+		await expect(wordpressSnippet.locator('textarea.ta')).toHaveValue(
+			"/* The complete form would start with <?php. */\necho ( function_exists( 'get_bloginfo' ) ? 'wordpress' : 'plain' ) . '|' . basename( __FILE__ ) . ':' . __LINE__;"
+		);
+		await wordpressSnippet.locator('.run').click();
+		await expect(wordpressSnippet.locator('.output-body')).toHaveText(
+			'wordpress|auto-prepend-script.php:2',
+			{ timeout: 240_000 }
+		);
+
+		const plainSnippet = await waitForRenderedPhpSnippet(
+			page,
+			'#plain-implicit-tag'
+		);
+		await plainSnippet.locator('.run').click();
+		await expect(plainSnippet.locator('.output-body')).toHaveText(
+			'plain|snippet.php:1',
+			{ timeout: 30_000 }
+		);
+		await expect(
+			page.locator('iframe[title="PHP Snippet runtime"]')
+		).toHaveCount(1);
+	});
+
+	test('rejects missing prepended scripts and explicit opening tags before boot', async ({
+		page,
+	}) => {
+		await page.goto(DEMO_URL);
+		await waitForPhpSnippetDefinition(page);
+		await page.evaluate(() => {
+			document.body.insertAdjacentHTML(
+				'beforeend',
+				String.raw`
+					<php-snippet id="missing-auto-prepend" auto-prepend-script="#not-on-this-page">
+						<script type="application/x-php"><?php echo 'never';</script>
+					</php-snippet>
+					<script id="setup-without-opening-tag" type="application/x-php">echo 'never';</script>
+					<php-snippet id="missing-auto-prepend-opening-tag" auto-prepend-script="#setup-without-opening-tag">
+						<script type="application/x-php"><?php echo 'never';</script>
+					</php-snippet>
+					<php-snippet id="explicit-opening-tag" implicit-php-open-tag>
+						<script type="application/x-php"><? echo 'ambiguous';</script>
+					</php-snippet>
+				`
+			);
+		});
+
+		const missing = await waitForRenderedPhpSnippet(
+			page,
+			'#missing-auto-prepend'
+		);
+		await missing.locator('.run').click();
+		await expect(missing.locator('.output-body')).toContainText(
+			'could not find a matching element'
+		);
+
+		const missingOpeningTag = await waitForRenderedPhpSnippet(
+			page,
+			'#missing-auto-prepend-opening-tag'
+		);
+		await missingOpeningTag.locator('.run').click();
+		await expect(missingOpeningTag.locator('.output-body')).toContainText(
+			'source must start with a <?php opening tag'
+		);
+
+		const tagged = await waitForRenderedPhpSnippet(
+			page,
+			'#explicit-opening-tag'
+		);
+		await tagged.locator('.run').click();
+		await expect(tagged.locator('.output-body')).toContainText(
+			'must not start with a PHP opening tag'
+		);
+		await expect(
+			page.locator('iframe[title="PHP Snippet runtime"]')
+		).toHaveCount(0);
+	});
+
 	test('runnable snippets are editable by default unless readonly', async ({
 		page,
 	}) => {

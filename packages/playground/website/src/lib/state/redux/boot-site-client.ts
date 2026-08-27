@@ -4,7 +4,11 @@ import {
 	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
-import { addClientInfo, updateClientInfo } from './slice-clients';
+import {
+	addClientInfo,
+	addClientEmail,
+	updateClientInfo,
+} from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
@@ -44,6 +48,8 @@ import {
 } from './error-utils';
 import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
+import PostalMime from 'postal-mime';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
@@ -370,6 +376,7 @@ export function bootSiteClient(
 				siteSlug: site.slug,
 				url: '/',
 				client: connectedPlayground,
+				emails: [],
 				opfsMountDescriptor: mountDescriptor,
 				opfsSync: mountDescriptorForInitialOpfsSync
 					? {
@@ -379,6 +386,44 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		let emailProcessingQueue = Promise.resolve();
+		try {
+			await connectedPlayground.addEventListener(
+				'sendmail.spawned',
+				(event) => {
+					const { stdin } = event as PHPSendmailSpawnedEvent;
+					emailProcessingQueue = emailProcessingQueue.then(
+						async () => {
+							if (signal.aborted) {
+								await stdin.cancel().catch(() => {});
+								return;
+							}
+							let email;
+							try {
+								email = await PostalMime.parse(stdin);
+							} catch (error) {
+								logger.error(
+									'Failed to parse captured email',
+									error
+								);
+								return;
+							}
+							if (signal.aborted) {
+								return;
+							}
+							dispatch(
+								addClientEmail({
+									siteSlug: site.slug,
+									email,
+								})
+							);
+						}
+					);
+				}
+			);
+		} catch (error) {
+			logger.error('Failed to start capturing emails', error);
+		}
 		try {
 			await runSiteFirstBootInitializer(site.slug, connectedPlayground);
 		} catch (error) {

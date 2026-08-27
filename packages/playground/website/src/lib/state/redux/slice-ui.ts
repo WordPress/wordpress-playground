@@ -27,8 +27,10 @@ export type DockPaneSection =
 	| 'blueprint'
 	| 'settings'
 	| 'database'
+	| 'terminal'
 	| 'files'
 	| 'logs'
+	| 'mail'
 	| 'share'
 	| 'save';
 

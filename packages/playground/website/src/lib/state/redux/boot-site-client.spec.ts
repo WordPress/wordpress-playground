@@ -821,6 +821,118 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('stores captured emails newest first', async () => {
+		const { client, emitSendmail } = createSendmailPlaygroundClient();
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(client);
+				return client;
+			}
+		);
+		const state = createState(
+			createSite('email-order', { loadedFromStorage: true })
+		);
+		const dispatch = createDispatch(state);
+		let closeOlderEmail = () => {};
+		const olderEmailStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(createRawEmail('Older'));
+				closeOlderEmail = () => controller.close();
+			},
+		});
+
+		await bootSiteClient('email-order', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		emitSendmail(olderEmailStream);
+		emitSendmail(createEmailStream('Newer'));
+		// Complete the newer message first. Only a sequential queue keeps the
+		// still-open older message ahead of it.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		closeOlderEmail();
+
+		await vi.waitFor(() =>
+			expect(
+				state.clients.entities['email-order']?.emails.map(
+					(email) => email.subject
+				)
+			).toEqual(['Newer', 'Older'])
+		);
+	});
+
+	it('continues capturing emails after a parse failure', async () => {
+		const { client, emitSendmail } = createSendmailPlaygroundClient();
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(client);
+				return client;
+			}
+		);
+		const state = createState(
+			createSite('email-failure', { loadedFromStorage: true })
+		);
+		const dispatch = createDispatch(state);
+		const failedEmailStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.error(new Error('Email stream failed'));
+			},
+		});
+
+		await bootSiteClient(
+			'email-failure',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		emitSendmail(failedEmailStream);
+		emitSendmail(createEmailStream('Still captured'));
+
+		await vi.waitFor(() =>
+			expect(
+				state.clients.entities['email-failure']?.emails.map(
+					(email) => email.subject
+				)
+			).toEqual(['Still captured'])
+		);
+	});
+
+	it('does not store an email parsed after abort', async () => {
+		const { client, emitSendmail } = createSendmailPlaygroundClient();
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(client);
+				return client;
+			}
+		);
+		const state = createState(
+			createSite('email-abort', { loadedFromStorage: true })
+		);
+		const dispatch = createDispatch(state);
+		const abortController = new AbortController();
+		let closeEmail = () => {};
+		const emailStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(createRawEmail('Discarded'));
+				closeEmail = () => controller.close();
+			},
+		});
+
+		await bootSiteClient('email-abort', document.createElement('iframe'), {
+			signal: abortController.signal,
+		})(dispatch, () => state);
+
+		emitSendmail(emailStream);
+		// Let parsing start before the abort so the post-parse check is what
+		// discards the message.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		abortController.abort();
+		closeEmail();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(state.clients.entities['email-abort']?.emails).toEqual([]);
+	});
+
 	it('does not capture a thumbnail after the initial OPFS copy fails', async () => {
 		let rejectMount!: (error: Error) => void;
 		const mountFinished = new Promise<void>((_, reject) => {
@@ -979,10 +1091,57 @@ function createSite(
 
 function createPlaygroundClient(overrides: Record<string, unknown> = {}): any {
 	return {
+		addEventListener: vi.fn(async () => undefined),
 		fileExists: vi.fn(async () => false),
 		mountOpfs: vi.fn(async () => undefined),
 		flushOpfs: vi.fn(async () => undefined),
 		onNavigation: vi.fn(),
 		...overrides,
 	};
+}
+
+function createSendmailPlaygroundClient() {
+	let sendmailListener:
+		| ((event: { stdin: ReadableStream<Uint8Array> }) => void)
+		| undefined;
+	const client = createPlaygroundClient({
+		addEventListener: vi.fn(
+			async (
+				eventType: string,
+				listener: (event: { stdin: ReadableStream<Uint8Array> }) => void
+			) => {
+				if (eventType === 'sendmail.spawned') {
+					sendmailListener = listener;
+				}
+			}
+		),
+	});
+	return {
+		client,
+		emitSendmail(stdin: ReadableStream<Uint8Array>) {
+			sendmailListener!({ stdin });
+		},
+	};
+}
+
+function createEmailStream(subject: string) {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(createRawEmail(subject));
+			controller.close();
+		},
+	});
+}
+
+function createRawEmail(subject: string) {
+	return new TextEncoder().encode(
+		[
+			'From: sender@example.com',
+			'To: recipient@example.com',
+			`Subject: ${subject}`,
+			'',
+			'Body',
+			'',
+		].join('\r\n')
+	);
 }
