@@ -2205,6 +2205,80 @@ describe('other run-cli behaviors', () => {
 		});
 	});
 
+	describe('php.ini entries', () => {
+		async function getIniValue(name: string, cliArgs: string[]) {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+				'--workers=1',
+				...cliArgs,
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+			await cliServer.playground.writeFile(
+				'/wordpress/check-ini.php',
+				`<?php echo ini_get(${JSON.stringify(name)});`
+			);
+			const response = await fetch(
+				new URL('/check-ini.php', cliServer.serverUrl)
+			);
+			return await response.text();
+		}
+
+		test('should set a php.ini entry via --php-ini', async () => {
+			// Confirm the default value before confirming it can be overridden.
+			expect(await getIniValue('memory_limit', [])).not.toBe('777M');
+
+			expect(
+				await getIniValue('memory_limit', [
+					'--php-ini',
+					'memory_limit',
+					'777M',
+				])
+			).toBe('777M');
+		});
+
+		test('should set an extension entry via --php-ini', async () => {
+			// Confirm the value Xdebug ships before confirming it can be
+			// overridden. php.ini alone cannot override it, because PHP reads
+			// the extension ini file afterwards.
+			expect(await getIniValue('xdebug.mode', ['--xdebug'])).not.toBe(
+				'develop,trace,profile'
+			);
+
+			expect(
+				await getIniValue('xdebug.mode', [
+					'--xdebug',
+					'--php-ini',
+					'xdebug.mode',
+					'develop,trace,profile',
+				])
+			).toBe('develop,trace,profile');
+		});
+
+		test('should set a php.ini entry under the Blueprints v2 handler', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const blueprintPath = path.join(tmpDir, 'blueprint.json');
+			await writeFile(blueprintPath, JSON.stringify({ version: 2 }));
+			try {
+				expect(
+					await getIniValue('memory_limit', [
+						`--blueprint=${blueprintPath}`,
+						'--php-ini',
+						'memory_limit',
+						'777M',
+					])
+				).toBe('777M');
+			} finally {
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
+	});
+
 	describe('return types', () => {
 		test('runCLI returns void for run-blueprint command', async () => {
 			const result = await runCLI({
