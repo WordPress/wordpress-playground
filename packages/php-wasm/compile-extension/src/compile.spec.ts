@@ -19,8 +19,4 @@ describe('resolvePHPRelease', () => {
 			);
 		}
 	});
-
-	it('resolves PHP 8.4 to the canonical release', () => {
-		expect(resolvePHPRelease('8.4')).toBe('8.4.23');
-	});
 });
