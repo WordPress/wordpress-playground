@@ -115,14 +115,25 @@ import { readFile } from 'node:fs/promises';
 
 const modulePath = process.argv[2];
 const module = new WebAssembly.Module(await readFile(modulePath));
-const hasGetModule = WebAssembly.Module.exports(module).some(
-	({ kind, name }) => kind === 'function' && name === 'get_module'
+const exports = WebAssembly.Module.exports(module);
+
+// A regular PHP module extension exposes get_module(); a Zend extension such
+// as Xdebug or opcache is loaded via zend_extension= and exposes the well-known
+// zend_extension_entry symbol that PHP's zend_load_extension() looks up. Accept
+// either so we still reject a .so with no entry point at all while supporting
+// the manifest's loadWithIniDirective: 'zend_extension' path.
+const hasEntryPoint = exports.some(
+	({ kind, name }) =>
+		(kind === 'function' && name === 'get_module') ||
+		name === 'zend_extension_entry'
 );
 
-if (!hasGetModule) {
+if (!hasEntryPoint) {
 	throw new Error(
-		`${modulePath} does not export PHP's get_module() entry point. ` +
-			'PHP extensions must include config.h and call ZEND_GET_MODULE().'
+		`${modulePath} exposes neither PHP's get_module() nor a Zend ` +
+			'extension entry point. A module extension must include config.h ' +
+			'and call ZEND_GET_MODULE(); a Zend extension must export ' +
+			'zend_extension_entry.'
 	);
 }
 EOF
