@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 13647077;
+export const dependenciesTotalSize = 14003347;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7161,11 +7161,6 @@ export function init(RuntimeName, PHPLoader) {
 				const interval = setInterval(pump, 20);
 				pump();
 			} else {
-				/**
-				 * Descriptor 0 was not provided, so the child process must observe EOF.
-				 * Closing stdin explicitly lets spawn handlers distinguish that case from
-				 * a valid pipe whose first bytes have not arrived yet.
-				 */
 				cp.stdin.end();
 			}
 			return ProcInfo.pid;
@@ -8034,168 +8029,5747 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	}
 	__asyncjs__js_module_onMessage.sig = 'iii';
-	var _php_date_get_date_ce,
+	var _php_time,
+		_php_date_get_date_ce,
+		_php_date_get_immutable_ce,
 		_php_date_get_interface_ce,
 		_php_date_get_timezone_ce,
+		_php_date_get_interval_ce,
+		_php_date_get_period_ce,
+		_zm_startup_date,
+		_date_object_period_get_iterator,
+		_zm_shutdown_date,
+		_zm_activate_date,
+		_zm_deactivate_date,
+		_zm_info_date,
+		_zm_post_zend_deactivate_date,
+		_php_date_parse_tzfile_wrapper,
 		_get_timezone_info,
+		_php_format_date,
+		_php_idate,
+		_zif_date,
+		_zif_gmdate,
+		_zif_idate,
+		_php_date_set_tzdb,
+		_php_parse_date,
+		_zif_strtotime,
+		_php_mktime,
+		_zif_mktime,
+		_zif_gmmktime,
+		_zif_checkdate,
+		_php_strftime,
+		_zif_strftime,
+		_zif_gmstrftime,
+		_zif_time,
+		_zif_localtime,
+		_zif_getdate,
+		_php_date_instantiate,
+		_php_date_initialize,
+		_zif_date_create,
+		_zif_date_create_immutable,
+		_zif_date_create_from_format,
+		_zif_date_create_immutable_from_format,
+		_zim_DateTime___construct,
+		_zim_DateTimeImmutable___construct,
+		_zim_DateTime_createFromImmutable,
+		_zim_DateTime_createFromInterface,
+		_zim_DateTimeImmutable_createFromMutable,
+		_zim_DateTimeImmutable_createFromInterface,
+		_zim_DateTime___set_state,
+		_zim_DateTimeImmutable___set_state,
+		_zim_DateTime___wakeup,
+		_zim_DateTimeImmutable___wakeup,
+		_zif_date_get_last_errors,
+		_php_date_do_return_parsed_time,
+		_zif_date_parse,
+		_zif_date_parse_from_format,
+		_zif_date_format,
+		_zif_date_modify,
+		_zim_DateTimeImmutable_modify,
+		_zif_date_add,
+		_zim_DateTimeImmutable_add,
+		_zif_date_sub,
+		_zim_DateTimeImmutable_sub,
+		_zif_date_timezone_get,
+		_zif_date_timezone_set,
+		_zim_DateTimeImmutable_setTimezone,
+		_zif_date_offset_get,
+		_zif_date_time_set,
+		_zim_DateTimeImmutable_setTime,
+		_zif_date_date_set,
+		_zim_DateTimeImmutable_setDate,
+		_zif_date_isodate_set,
+		_zim_DateTimeImmutable_setISODate,
+		_zif_date_timestamp_set,
+		_zim_DateTimeImmutable_setTimestamp,
+		_zif_date_timestamp_get,
+		_zif_date_diff,
+		_zif_timezone_open,
+		_zim_DateTimeZone___construct,
+		_zim_DateTimeZone___set_state,
+		_zim_DateTimeZone___wakeup,
+		_zif_timezone_name_get,
+		_zif_timezone_name_from_abbr,
+		_zif_timezone_offset_get,
+		_zif_timezone_transitions_get,
+		_zif_timezone_location_get,
+		_zim_DateInterval___construct,
+		_zim_DateInterval___set_state,
+		_zim_DateInterval___wakeup,
+		_zif_date_interval_create_from_date_string,
+		_zif_date_interval_format,
+		_zim_DatePeriod___construct,
+		_zim_DatePeriod_getStartDate,
+		_zim_DatePeriod_getEndDate,
+		_zim_DatePeriod_getDateInterval,
+		_zim_DatePeriod_getRecurrences,
+		_zim_DatePeriod_getIterator,
+		_zif_timezone_identifiers_list,
+		_zif_timezone_version_get,
+		_zif_timezone_abbreviations_list,
+		_zif_date_default_timezone_set,
+		_zif_date_default_timezone_get,
+		_zif_date_sunrise,
+		_zif_date_sunset,
+		_zif_date_sun_info,
+		_zim_DatePeriod___set_state,
+		_zim_DatePeriod___wakeup,
+		_timelib_astro_rise_set_altitude,
+		_timelib_ts_to_j2000,
+		_timelib_ts_to_julianday,
+		_timelib_day_of_week,
+		_timelib_iso_day_of_week,
+		_timelib_day_of_year,
+		_timelib_days_in_month,
+		_timelib_isoweek_from_date,
+		_timelib_isodate_from_date,
+		_timelib_daynr_from_weeknr,
+		_timelib_date_from_isodate,
+		_timelib_valid_time,
+		_timelib_valid_date,
+		_timelib_parse_zone,
+		_timelib_strtotime,
+		_timelib_parse_from_format,
+		_timelib_parse_from_format_with_map,
+		_timelib_fill_holes,
+		_timelib_timezone_id_from_abbr,
+		_timelib_timezone_abbreviations_list,
+		_timelib_dump_tzinfo,
+		_timelib_builtin_db,
+		_timelib_timezone_identifiers_list,
+		_timelib_timezone_id_is_valid,
+		_timelib_parse_tzfile,
+		_timelib_tzinfo_dtor,
+		_timelib_tzinfo_clone,
+		_timelib_timestamp_is_in_dst,
+		_timelib_get_time_zone_info,
+		_timelib_get_current_offset,
+		_timelib_get_error_message,
+		_timelib_time_ctor,
+		_timelib_time_dtor,
+		_timelib_time_compare,
+		_timelib_time_clone,
+		_timelib_rel_time_ctor,
+		_timelib_rel_time_dtor,
+		_timelib_rel_time_clone,
+		_timelib_time_tz_abbr_update,
+		_timelib_time_offset_ctor,
+		_timelib_time_offset_dtor,
+		_timelib_get_tz_abbr_ptr,
+		_timelib_error_container_dtor,
+		_timelib_date_to_int,
+		_timelib_decimal_hour_to_hms,
+		_timelib_hms_to_decimal_hour,
+		_timelib_strcasecmp,
+		_timelib_strncasecmp,
+		_timelib_dump_date,
+		_timelib_dump_rel_time,
+		_timelib_do_rel_normalize,
+		_timelib_do_normalize,
+		_timelib_update_ts,
+		_timelib_unixtime2gmt,
+		_timelib_update_from_sse,
+		_timelib_unixtime2local,
+		_timelib_set_timezone_from_offset,
+		_timelib_set_timezone_from_abbr,
+		_timelib_set_timezone,
+		_timelib_apply_localtime,
+		_timelib_strtointerval,
+		_timelib_diff,
+		_timelib_add,
+		_timelib_sub,
+		_php_libxml_error_handler,
+		_php_libxml_node_free_list,
+		_php_libxml_decrement_doc_ref,
+		_php_libxml_issue_error,
+		_php_libxml_ctx_error,
+		_php_libxml_ctx_warning,
+		_php_libxml_structured_error_handler,
+		_php_libxml_initialize,
+		_php_libxml_shutdown,
+		_php_libxml_switch_context,
+		_zif_libxml_set_streams_context,
+		_zif_libxml_use_internal_errors,
+		_zif_libxml_get_last_error,
+		_zif_libxml_get_errors,
+		_zif_libxml_clear_errors,
+		_php_libxml_disable_entity_loader,
+		_zif_libxml_disable_entity_loader,
+		_zif_libxml_set_external_entity_loader,
+		_php_libxml_xmlCheckUTF8,
+		_php_libxml_register_export,
+		_php_libxml_import_node,
+		_php_libxml_increment_node_ptr,
+		_php_libxml_decrement_node_ptr,
+		_php_libxml_increment_doc_ref,
+		_php_libxml_node_free_resource,
+		_php_libxml_node_decrement_resource,
+		_zm_startup_openssl,
+		_zm_shutdown_openssl,
+		_zm_info_openssl,
+		_zm_globals_ctor_openssl,
+		_zm_globals_dtor_openssl,
+		_php_openssl_store_errors,
+		_php_openssl_get_stream_from_ssl_handle,
+		_php_openssl_get_ssl_stream_data_index,
+		_zif_openssl_get_cert_locations,
+		_zif_openssl_x509_export_to_file,
+		_zif_openssl_spki_new,
+		_zif_openssl_spki_verify,
+		_zif_openssl_spki_export,
+		_zif_openssl_spki_export_challenge,
+		_zif_openssl_x509_export,
+		_php_openssl_x509_fingerprint,
+		_zif_openssl_x509_fingerprint,
+		_zif_openssl_x509_check_private_key,
+		_zif_openssl_x509_verify,
+		_zif_openssl_x509_parse,
+		_zif_openssl_x509_checkpurpose,
+		_zif_openssl_x509_read,
+		_zif_openssl_x509_free,
+		_zif_openssl_pkcs12_export_to_file,
+		_zif_openssl_pkcs12_export,
+		_zif_openssl_pkcs12_read,
+		_zif_openssl_csr_export_to_file,
+		_zif_openssl_csr_export,
+		_zif_openssl_csr_sign,
+		_zif_openssl_csr_new,
+		_zif_openssl_csr_get_subject,
+		_zif_openssl_csr_get_public_key,
+		_zif_openssl_pkey_new,
+		_zif_openssl_pkey_export_to_file,
+		_zif_openssl_pkey_export,
+		_zif_openssl_pkey_get_public,
+		_zif_openssl_pkey_free,
+		_zif_openssl_pkey_get_private,
+		_zif_openssl_pkey_get_details,
+		_zif_openssl_dh_compute_key,
+		_zif_openssl_pkey_derive,
+		_zif_openssl_pbkdf2,
+		_zif_openssl_pkcs7_verify,
+		_zif_openssl_pkcs7_encrypt,
+		_zif_openssl_pkcs7_read,
+		_zif_openssl_pkcs7_sign,
+		_zif_openssl_pkcs7_decrypt,
+		_zif_openssl_cms_verify,
+		_zif_openssl_cms_encrypt,
+		_zif_openssl_cms_read,
+		_zif_openssl_cms_sign,
+		_zif_openssl_cms_decrypt,
+		_zif_openssl_private_encrypt,
+		_zif_openssl_private_decrypt,
+		_zif_openssl_public_encrypt,
+		_zif_openssl_public_decrypt,
+		_zif_openssl_error_string,
+		_zif_openssl_sign,
+		_zif_openssl_verify,
+		_zif_openssl_seal,
+		_zif_openssl_open,
+		_zif_openssl_get_md_methods,
+		_zif_openssl_get_cipher_methods,
+		_zif_openssl_get_curve_names,
+		_zif_openssl_digest,
+		_php_openssl_encrypt,
+		_zif_openssl_encrypt,
+		_php_openssl_decrypt,
+		_zif_openssl_decrypt,
+		_php_openssl_cipher_iv_length,
+		_zif_openssl_cipher_iv_length,
+		_php_openssl_random_pseudo_bytes,
+		_zif_openssl_random_pseudo_bytes,
+		_php_openssl_setup_crypto,
+		_php_openssl_ssl_socket_factory,
+		__pcre2_auto_possessify_8,
+		_php_pcre2_code_copy,
+		_php_pcre2_code_copy_with_tables,
+		_php_pcre2_code_free,
+		__pcre2_check_escape_8,
+		_php_pcre2_compile,
+		_php_pcre2_config,
+		__pcre2_memctl_malloc_8,
+		_php_pcre2_general_context_create,
+		_php_pcre2_compile_context_create,
+		_php_pcre2_match_context_create,
+		_php_pcre2_convert_context_create,
+		_php_pcre2_general_context_copy,
+		_php_pcre2_compile_context_copy,
+		_php_pcre2_match_context_copy,
+		_php_pcre2_convert_context_copy,
+		_php_pcre2_general_context_free,
+		_php_pcre2_compile_context_free,
+		_php_pcre2_match_context_free,
+		_php_pcre2_convert_context_free,
+		_php_pcre2_set_character_tables,
+		_php_pcre2_set_bsr,
+		_php_pcre2_set_max_pattern_length,
+		_php_pcre2_set_newline,
+		_php_pcre2_set_parens_nest_limit,
+		_php_pcre2_set_compile_extra_options,
+		_php_pcre2_set_compile_recursion_guard,
+		_php_pcre2_set_callout,
+		_pcre2_set_substitute_callout_8,
+		_php_pcre2_set_heap_limit,
+		_php_pcre2_set_match_limit,
+		_php_pcre2_set_depth_limit,
+		_php_pcre2_set_offset_limit,
+		_php_pcre2_set_recursion_limit,
+		_php_pcre2_set_recursion_memory_management,
+		_php_pcre2_set_glob_separator,
+		_php_pcre2_set_glob_escape,
+		_php_pcre2_dfa_match,
+		_php_pcre2_get_error_message,
+		_php_pcre2_jit_compile,
+		_php_pcre2_jit_match,
+		__pcre2_jit_free_rodata_8,
+		__pcre2_jit_free_8,
+		_php_pcre2_jit_free_unused_memory,
+		_php_pcre2_jit_stack_create,
+		_php_pcre2_jit_stack_assign,
+		_php_pcre2_jit_stack_free,
+		__pcre2_jit_get_target_8,
+		__pcre2_jit_get_size_8,
+		_php_pcre2_maketables,
+		_pcre2_maketables_free_8,
+		_php_pcre2_match,
+		_php_pcre2_match_data_create,
+		_php_pcre2_match_data_create_from_pattern,
+		_php_pcre2_match_data_free,
+		_php_pcre2_get_mark,
+		_php_pcre2_get_ovector_pointer,
+		_php_pcre2_get_ovector_count,
+		_php_pcre2_get_startchar,
+		_pcre2_get_match_data_size_8,
+		__pcre2_is_newline_8,
+		__pcre2_was_newline_8,
+		__pcre2_ord2utf_8,
+		_php_pcre2_pattern_info,
+		_php_pcre2_callout_enumerate,
+		_php_pcre2_serialize_encode,
+		_php_pcre2_serialize_decode,
+		_php_pcre2_serialize_get_number_of_codes,
+		_php_pcre2_serialize_free,
+		__pcre2_strcmp_8,
+		__pcre2_strcmp_c8_8,
+		__pcre2_strncmp_8,
+		__pcre2_strncmp_c8_8,
+		__pcre2_strlen_8,
+		__pcre2_strcpy_c8_8,
+		__pcre2_study_8,
+		_php_pcre2_substitute,
+		_php_pcre2_substring_copy_byname,
+		_php_pcre2_substring_nametable_scan,
+		_php_pcre2_substring_copy_bynumber,
+		_php_pcre2_substring_length_bynumber,
+		_php_pcre2_substring_get_byname,
+		_php_pcre2_substring_get_bynumber,
+		_php_pcre2_substring_free,
+		_php_pcre2_substring_length_byname,
+		_php_pcre2_substring_list_get,
+		_php_pcre2_substring_list_free,
+		_php_pcre2_substring_number_from_name,
+		__pcre2_valid_utf_8,
+		__pcre2_xclass_8,
+		__pcre2_find_bracket_8,
+		_pcre2_pattern_convert_8,
+		_pcre2_converted_pattern_free_8,
+		__pcre2_extuni_8,
+		__pcre2_script_run_8,
+		_pcre_get_compiled_regex_cache_ex,
+		_pcre_get_compiled_regex_cache,
+		_pcre_get_compiled_regex,
+		_pcre_get_compiled_regex_ex,
+		_php_pcre_create_match_data,
+		_php_pcre_free_match_data,
+		_php_pcre_match_impl,
+		_zif_preg_match,
+		_zif_preg_match_all,
+		_php_pcre_replace,
+		_php_pcre_replace_impl,
+		_zif_preg_replace,
+		_zif_preg_replace_callback,
+		_zif_preg_replace_callback_array,
+		_zif_preg_filter,
+		_zif_preg_split,
+		_php_pcre_split_impl,
+		_zif_preg_quote,
+		_zif_preg_grep,
+		_php_pcre_grep_impl,
+		_zif_preg_last_error,
+		_zif_preg_last_error_msg,
+		_php_pcre_mctx,
+		_php_pcre_gctx,
+		_php_pcre_cctx,
+		_php_pcre_pce_incref,
+		_php_pcre_pce_decref,
+		_php_pcre_pce_re,
+		_zim_SQLite3_open,
+		_zim_SQLite3_close,
+		_zim_SQLite3_exec,
+		_zim_SQLite3_version,
+		_zim_SQLite3_lastInsertRowID,
+		_zim_SQLite3_lastErrorCode,
+		_zim_SQLite3_lastExtendedErrorCode,
+		_zim_SQLite3_enableExtendedResultCodes,
+		_zim_SQLite3_lastErrorMsg,
+		_zim_SQLite3_busyTimeout,
+		_zim_SQLite3_loadExtension,
+		_zim_SQLite3_changes,
+		_zim_SQLite3_escapeString,
+		_zim_SQLite3_prepare,
+		_zim_SQLite3_query,
+		_zim_SQLite3_querySingle,
+		_zim_SQLite3_createFunction,
+		_zim_SQLite3_createAggregate,
+		_zim_SQLite3_createCollation,
+		_zim_SQLite3_openBlob,
+		_zim_SQLite3_enableExceptions,
+		_zim_SQLite3_setAuthorizer,
+		_zim_SQLite3_backup,
+		_zim_SQLite3Stmt_paramCount,
+		_zim_SQLite3Stmt_close,
+		_zim_SQLite3Stmt_reset,
+		_zim_SQLite3Stmt_clear,
+		_zim_SQLite3Stmt_readOnly,
+		_zim_SQLite3Stmt_getSQL,
+		_zim_SQLite3Stmt_bindParam,
+		_zim_SQLite3Stmt_bindValue,
+		_zim_SQLite3Stmt_execute,
+		_zim_SQLite3Stmt___construct,
+		_zim_SQLite3Result_numColumns,
+		_zim_SQLite3Result_columnName,
+		_zim_SQLite3Result_columnType,
+		_zim_SQLite3Result_fetchArray,
+		_zim_SQLite3Result_reset,
+		_zim_SQLite3Result_finalize,
+		_zim_SQLite3Result___construct,
+		_zm_startup_sqlite3,
+		_zm_shutdown_sqlite3,
+		_zm_info_sqlite3,
+		_zif_ob_gzhandler,
+		_zif_zlib_get_coding_type,
+		_zif_gzfile,
+		_zif_gzopen,
+		_zif_readgzfile,
+		_zif_zlib_encode,
+		_zif_zlib_decode,
+		_zif_gzdeflate,
+		_zif_gzencode,
+		_zif_gzcompress,
+		_zif_gzinflate,
+		_zif_gzdecode,
+		_zif_gzuncompress,
+		_zif_inflate_init,
+		_zif_inflate_add,
+		_zif_inflate_get_status,
+		_zif_inflate_get_read_len,
+		_zif_deflate_init,
+		_zif_deflate_add,
+		_php_stream_gzopen,
+		_zm_startup_bcmath,
+		_zm_shutdown_bcmath,
+		_zm_info_bcmath,
+		_OnUpdateScale,
+		_zif_bcadd,
+		_zif_bcsub,
+		_zif_bcmul,
+		_zif_bcdiv,
+		_zif_bcmod,
+		_zif_bcpowmod,
+		_zif_bcpow,
+		_zif_bcsqrt,
+		_zif_bccomp,
+		_zif_bcscale,
+		_bc_add,
+		_bc_divide,
+		__bc_new_num_ex,
+		__bc_free_num_ex,
+		_bc_init_numbers,
+		_bc_copy_num,
+		_bc_init_num,
+		_bc_is_neg,
+		_bc_raisemod,
+		_bc_sub,
+		__bc_do_compare,
+		_bc_compare,
+		_bc_divmod,
+		_bc_modulo,
+		_bc_int2num,
+		_bc_num2long,
+		_bc_out_long,
+		_bc_out_num,
+		_bc_multiply,
+		_bc_sqrt,
+		_bc_is_zero_for_scale,
+		_bc_is_zero,
+		_pn,
+		_pv,
+		__bc_do_add,
+		__bc_do_sub,
+		_bc_is_near_zero,
+		_bc_num2str_ex,
+		_bc_raise,
+		__bc_rm_leading_zeros,
+		_bc_str2num,
+		_zm_startup_calendar,
+		_zm_info_calendar,
+		_zif_cal_info,
+		_zif_cal_days_in_month,
+		_zif_cal_to_jd,
+		_zif_cal_from_jd,
+		_zif_jdtogregorian,
+		_zif_gregoriantojd,
+		_zif_jdtojulian,
+		_zif_juliantojd,
+		_zif_jdtojewish,
+		_zif_jewishtojd,
+		_zif_jdtofrench,
+		_zif_frenchtojd,
+		_zif_jddayofweek,
+		_zif_jdmonthname,
+		_DayOfWeek,
+		_SdnToFrench,
+		_FrenchToSdn,
+		_SdnToGregorian,
+		_GregorianToSdn,
+		_SdnToJewish,
+		_JewishToSdn,
+		_SdnToJulian,
+		_JulianToSdn,
+		_zif_easter_date,
+		_zif_easter_days,
+		_zif_unixtojd,
+		_zif_jdtounix,
+		_zif_ctype_alnum,
+		_zif_ctype_alpha,
+		_zif_ctype_cntrl,
+		_zif_ctype_digit,
+		_zif_ctype_lower,
+		_zif_ctype_graph,
+		_zif_ctype_print,
+		_zif_ctype_punct,
+		_zif_ctype_space,
+		_zif_ctype_upper,
+		_zif_ctype_xdigit,
+		__php_curl_verify_handlers,
+		_zm_startup_curl,
+		_curl_cast_object,
+		_zm_shutdown_curl,
+		_zm_info_curl,
+		_init_curl_handle,
+		__php_setup_easy_copy_handlers,
+		_zif_curl_version,
+		_init_curl_handle_into_zval,
+		_zif_curl_init,
+		_zif_curl_copy_handle,
+		_zif_curl_setopt,
+		_zif_curl_setopt_array,
+		__php_curl_cleanup_handle,
+		_zif_curl_exec,
+		_zif_curl_getinfo,
+		_zif_curl_error,
+		_zif_curl_errno,
+		_zif_curl_close,
+		_zif_curl_strerror,
+		_zif_curl_reset,
+		_zif_curl_escape,
+		_zif_curl_unescape,
+		_zif_curl_pause,
+		_zif_curl_multi_init,
+		__php_curl_multi_cleanup_list,
+		_zif_curl_multi_add_handle,
+		_zif_curl_multi_remove_handle,
+		_zif_curl_multi_select,
+		_zif_curl_multi_exec,
+		_zif_curl_multi_getcontent,
+		_zif_curl_multi_info_read,
+		_zif_curl_multi_close,
+		_zif_curl_multi_errno,
+		_zif_curl_multi_strerror,
+		_zif_curl_multi_setopt,
+		_curl_multi_free_obj,
+		_curl_multi_register_class,
+		_zif_curl_share_init,
+		_zif_curl_share_close,
+		_zif_curl_share_setopt,
+		_zif_curl_share_errno,
+		_zif_curl_share_strerror,
+		_curl_share_free_obj,
+		_curl_share_register_class,
+		_zim_CURLFile___construct,
+		_zif_curl_file_create,
+		_zim_CURLFile_getFilename,
+		_zim_CURLFile_getMimeType,
+		_zim_CURLFile_getPostFilename,
+		_zim_CURLFile_setMimeType,
+		_zim_CURLFile_setPostFilename,
+		_curlfile_register_class,
+		_zif_dns_check_record,
+		_zif_dns_get_record,
+		_zif_dns_get_mx,
+		_zm_info_dns_polyfill,
+		_zm_startup_dns_polyfill,
+		_zm_shutdown_dns_polyfill,
+		_dom_node_is_read_only,
+		_dom_node_children_valid,
+		_dom_get_doc_props,
+		_dom_set_doc_classmap,
+		_dom_get_doc_classmap,
+		_dom_get_strict_error,
+		_dom_object_get_node,
+		_php_dom_object_get_data,
+		_dom_read_property,
+		_dom_write_property,
+		_php_dom_export_node,
+		_zif_dom_import_simplexml,
+		_php_dom_create_object,
+		_zm_startup_dom,
+		_dom_objects_free_storage,
+		_dom_nnodemap_objects_free_storage,
+		_dom_objects_new,
+		_dom_nnodemap_objects_new,
+		_dom_xpath_objects_free_storage,
+		_dom_xpath_objects_new,
+		_zm_shutdown_dom,
+		_zm_info_dom,
+		_node_list_unlink,
+		_dom_namednode_iter,
+		_php_dom_create_iterator,
+		_php_dom_create_implementation,
+		_dom_hierarchy,
+		_dom_has_feature,
+		_dom_get_elements_by_tag_name_ns_raw,
+		_dom_normalize,
+		_dom_set_old_ns,
+		_dom_reconcile_ns,
+		_dom_check_qname,
+		_dom_get_ns,
+		_dom_get_nsdecl,
+		_zim_DOMAttr___construct,
+		_dom_attr_name_read,
+		_dom_attr_specified_read,
+		_dom_attr_value_read,
+		_dom_attr_value_write,
+		_dom_attr_owner_element_read,
+		_dom_attr_schema_type_info_read,
+		_zim_DOMAttr_isId,
+		_dom_document_doctype_read,
+		_dom_document_implementation_read,
+		_dom_document_document_element_read,
+		_dom_document_encoding_read,
+		_dom_document_encoding_write,
+		_dom_document_standalone_read,
+		_dom_document_standalone_write,
+		_dom_document_version_read,
+		_dom_document_version_write,
+		_dom_document_strict_error_checking_read,
+		_dom_document_strict_error_checking_write,
+		_dom_document_format_output_read,
+		_dom_document_format_output_write,
+		_dom_document_validate_on_parse_read,
+		_dom_document_validate_on_parse_write,
+		_dom_document_resolve_externals_read,
+		_dom_document_resolve_externals_write,
+		_dom_document_preserve_whitespace_read,
+		_dom_document_preserve_whitespace_write,
+		_dom_document_recover_read,
+		_dom_document_recover_write,
+		_dom_document_substitue_entities_read,
+		_dom_document_substitue_entities_write,
+		_dom_document_document_uri_read,
+		_dom_document_document_uri_write,
+		_dom_document_config_read,
+		_zim_DOMDocument_createElement,
+		_zim_DOMDocument_createDocumentFragment,
+		_zim_DOMDocument_createTextNode,
+		_zim_DOMDocument_createComment,
+		_zim_DOMDocument_createCDATASection,
+		_zim_DOMDocument_createProcessingInstruction,
+		_zim_DOMDocument_createAttribute,
+		_zim_DOMDocument_createEntityReference,
+		_zim_DOMDocument_getElementsByTagName,
+		_zim_DOMDocument_importNode,
+		_zim_DOMDocument_createElementNS,
+		_zim_DOMDocument_createAttributeNS,
+		_zim_DOMDocument_getElementsByTagNameNS,
+		_zim_DOMDocument_getElementById,
+		_zim_DOMDocument_adoptNode,
+		_zim_DOMDocument_normalizeDocument,
+		_zim_DOMDocument___construct,
+		__dom_get_valid_file_path,
+		_zim_DOMDocument_load,
+		_zim_DOMDocument_loadXML,
+		_zim_DOMDocument_save,
+		_zim_DOMDocument_saveXML,
+		_zim_DOMDocument_xinclude,
+		_zim_DOMDocument_validate,
+		_zim_DOMDocument_schemaValidate,
+		_zim_DOMDocument_schemaValidateSource,
+		_zim_DOMDocument_relaxNGValidate,
+		_zim_DOMDocument_relaxNGValidateSource,
+		_zim_DOMDocument_loadHTMLFile,
+		_zim_DOMDocument_loadHTML,
+		_zim_DOMDocument_saveHTMLFile,
+		_zim_DOMDocument_saveHTML,
+		_zim_DOMDocument_registerNodeClass,
+		_zim_DOMDocument_append,
+		_zim_DOMDocument_prepend,
+		_php_dom_throw_error_with_message,
+		_php_dom_throw_error,
+		_dom_parent_node_first_element_child_read,
+		_dom_parent_node_last_element_child_read,
+		_dom_parent_node_child_element_count,
+		_dom_zvals_to_fragment,
+		_dom_parent_node_append,
+		_dom_parent_node_prepend,
+		_dom_parent_node_after,
+		_dom_parent_node_before,
+		_dom_child_node_remove,
+		_zim_DOMProcessingInstruction___construct,
+		_dom_processinginstruction_target_read,
+		_dom_processinginstruction_data_read,
+		_dom_processinginstruction_data_write,
+		_zim_DOMCdataSection___construct,
+		_zim_DOMDocumentFragment___construct,
+		_zim_DOMDocumentFragment_appendXML,
+		_zim_DOMDocumentFragment_append,
+		_zim_DOMDocumentFragment_prepend,
+		_zim_DOMImplementation_hasFeature,
+		_zim_DOMImplementation_createDocumentType,
+		_zim_DOMImplementation_createDocument,
+		_zim_DOMImplementation_getFeature,
+		_zim_DOMElement___construct,
+		_dom_element_tag_name_read,
+		_dom_element_schema_type_info_read,
+		_zim_DOMElement_getAttribute,
+		_zim_DOMElement_setAttribute,
+		_zim_DOMElement_removeAttribute,
+		_zim_DOMElement_getAttributeNode,
+		_zim_DOMElement_setAttributeNode,
+		_zim_DOMElement_removeAttributeNode,
+		_zim_DOMElement_getElementsByTagName,
+		_zim_DOMElement_getAttributeNS,
+		_zim_DOMElement_setAttributeNS,
+		_zim_DOMElement_removeAttributeNS,
+		_zim_DOMElement_getAttributeNodeNS,
+		_zim_DOMElement_setAttributeNodeNS,
+		_zim_DOMElement_getElementsByTagNameNS,
+		_zim_DOMElement_hasAttribute,
+		_zim_DOMElement_hasAttributeNS,
+		_zim_DOMElement_setIdAttribute,
+		_zim_DOMElement_setIdAttributeNS,
+		_zim_DOMElement_setIdAttributeNode,
+		_zim_DOMElement_remove,
+		_zim_DOMElement_after,
+		_zim_DOMElement_before,
+		_zim_DOMElement_append,
+		_zim_DOMElement_prepend,
+		_zim_DOMElement_replaceWith,
+		_dom_node_node_name_read,
+		_dom_node_node_value_read,
+		_dom_node_node_value_write,
+		_dom_node_node_type_read,
+		_dom_node_parent_node_read,
+		_dom_node_child_nodes_read,
+		_dom_node_first_child_read,
+		_dom_node_last_child_read,
+		_dom_node_previous_sibling_read,
+		_dom_node_next_sibling_read,
+		_dom_node_previous_element_sibling_read,
+		_dom_node_next_element_sibling_read,
+		_dom_node_attributes_read,
+		_dom_node_owner_document_read,
+		_dom_node_namespace_uri_read,
+		_dom_node_prefix_read,
+		_dom_node_prefix_write,
+		_dom_node_local_name_read,
+		_dom_node_base_uri_read,
+		_dom_node_text_content_read,
+		_dom_node_text_content_write,
+		_zim_DOMNode_insertBefore,
+		_zim_DOMNode_replaceChild,
+		_zim_DOMNode_removeChild,
+		_zim_DOMNode_appendChild,
+		_zim_DOMNode_hasChildNodes,
+		_zim_DOMNode_cloneNode,
+		_zim_DOMNode_normalize,
+		_zim_DOMNode_isSupported,
+		_zim_DOMNode_hasAttributes,
+		_zim_DOMNode_isSameNode,
+		_zim_DOMNode_lookupPrefix,
+		_zim_DOMNode_isDefaultNamespace,
+		_zim_DOMNode_lookupNamespaceURI,
+		_zim_DOMNode_C14N,
+		_zim_DOMNode_C14NFile,
+		_zim_DOMNode_getNodePath,
+		_zim_DOMNode_getLineNo,
+		_dom_characterdata_data_read,
+		_dom_characterdata_data_write,
+		_dom_characterdata_length_read,
+		_zim_DOMCharacterData_substringData,
+		_zim_DOMCharacterData_appendData,
+		_zim_DOMCharacterData_insertData,
+		_zim_DOMCharacterData_deleteData,
+		_zim_DOMCharacterData_replaceData,
+		_zim_DOMCharacterData_remove,
+		_zim_DOMCharacterData_after,
+		_zim_DOMCharacterData_before,
+		_zim_DOMCharacterData_replaceWith,
+		_dom_documenttype_name_read,
+		_dom_documenttype_entities_read,
+		_dom_documenttype_notations_read,
+		_dom_documenttype_public_id_read,
+		_dom_documenttype_system_id_read,
+		_dom_documenttype_internal_subset_read,
+		_dom_entity_public_id_read,
+		_dom_entity_system_id_read,
+		_dom_entity_notation_name_read,
+		_dom_entity_actual_encoding_read,
+		_dom_entity_actual_encoding_write,
+		_dom_entity_encoding_read,
+		_dom_entity_encoding_write,
+		_dom_entity_version_read,
+		_dom_entity_version_write,
+		_dom_nodelist_length_read,
+		_zim_DOMNodeList_count,
+		_zim_DOMNodeList_item,
+		_zim_DOMNodeList_getIterator,
+		_zim_DOMText___construct,
+		_dom_text_whole_text_read,
+		_zim_DOMText_splitText,
+		_zim_DOMText_isWhitespaceInElementContent,
+		_zim_DOMComment___construct,
+		_zim_DOMEntityReference___construct,
+		_dom_notation_public_id_read,
+		_dom_notation_system_id_read,
+		_zim_DOMXPath___construct,
+		_dom_xpath_document_read,
+		_dom_xpath_register_node_ns_read,
+		_dom_xpath_register_node_ns_write,
+		_zim_DOMXPath_registerNamespace,
+		_zim_DOMXPath_query,
+		_zim_DOMXPath_evaluate,
+		_zim_DOMXPath_registerPhpFunctions,
+		_create_notation,
+		_php_dom_libxml_hash_iter,
+		_php_dom_libxml_notation_iter,
+		_php_dom_iterator_current_data,
+		_php_dom_get_iterator,
+		_dom_namednodemap_length_read,
+		_zim_DOMNamedNodeMap_getNamedItem,
+		_zim_DOMNamedNodeMap_item,
+		_zim_DOMNamedNodeMap_getNamedItemNS,
+		_zim_DOMNamedNodeMap_count,
+		_zim_DOMNamedNodeMap_getIterator,
+		_zm_info_exif,
+		_OnUpdateEncode,
+		_OnUpdateDecode,
+		_zm_startup_exif,
+		_zm_shutdown_exif,
+		_zif_exif_tagname,
+		_zif_exif_read_data,
+		_zif_exif_thumbnail,
+		_zif_exif_imagetype,
+		_finfo_objects_new,
+		_finfo_resource_destructor,
+		_zm_startup_finfo,
+		_zm_info_fileinfo,
+		_zif_finfo_open,
+		_zif_finfo_close,
+		_zif_finfo_set_flags,
+		_zif_finfo_file,
+		_zif_finfo_buffer,
+		_zif_mime_content_type,
+		_file_ms_free,
+		_file_ms_alloc,
+		_file_apprentice,
+		_file_signextend,
+		_file_showstr,
+		_file_pstring_length_size,
+		_file_pstring_get_length,
+		_file_magicfind,
+		_file_ascmagic,
+		_file_ascmagic_with_encoding,
+		_cdf_tole2,
+		_cdf_tole4,
+		_cdf_tole8,
+		_cdf_swap_header,
+		_cdf_unpack_header,
+		_cdf_swap_dir,
+		_cdf_swap_class,
+		_cdf_unpack_dir,
+		_cdf_zero_stream,
+		_cdf_read_header,
+		_cdf_read_sector,
+		_cdf_read_short_sector,
+		_cdf_read_sat,
+		_cdf_count_chain,
+		_cdf_read_long_sector_chain,
+		_cdf_read_short_sector_chain,
+		_cdf_read_sector_chain,
+		_cdf_read_dir,
+		_cdf_read_ssat,
+		_cdf_read_short_stream,
+		_cdf_read_doc_summary_info,
+		_cdf_read_user_stream,
+		_cdf_read_summary_info,
+		_cdf_find_stream,
+		_cdf_read_property_info,
+		_cdf_unpack_summary_info,
+		_cdf_unpack_catalog,
+		_cdf_print_classid,
+		_cdf_print_property_name,
+		_cdf_print_elapsed_time,
+		_cdf_u16tos8,
+		_cdf_timestamp_to_timespec,
+		_cdf_timespec_to_timestamp,
+		_cdf_ctime,
+		_file_encoding,
+		_file_looks_utf8,
+		_file_fsmagic,
+		_file_copystr,
+		_file_checkfmt,
+		_file_printf,
+		_file_error,
+		_file_magerror,
+		_file_oomem,
+		_file_badseek,
+		_file_badread,
+		_file_separator,
+		_file_default,
+		_file_buffer,
+		_file_reset,
+		_file_getbuffer,
+		_file_check_mem,
+		_file_printedlen,
+		_file_replace,
+		_file_push_buffer,
+		_file_pop_buffer,
+		_file_printable,
+		_file_parse_guid,
+		_file_print_guid,
+		_file_is_json,
+		_file_is_tar,
+		_magic_open,
+		_magic_close,
+		_magic_load,
+		_magic_compile,
+		_magic_check,
+		_magic_list,
+		_magic_descriptor,
+		_magic_file,
+		_magic_stream,
+		_magic_buffer,
+		_magic_error,
+		_magic_errno,
+		_magic_getflags,
+		_magic_setflags,
+		_magic_version,
+		_magic_setparam,
+		_magic_getparam,
+		_file_mdump,
+		_file_fmttime,
+		_file_magwarn,
+		_file_trycdf,
+		_file_softmagic,
+		_convert_libmagic_pattern,
+		_der_offs,
+		_der_cmp,
+		_buffer_init,
+		_buffer_fini,
+		_buffer_fill,
+		_file_is_csv,
+		_zm_startup_filter,
+		_zm_shutdown_filter,
+		_zm_deactivate_filter,
+		_zm_info_filter,
+		_zif_filter_has_var,
+		_zif_filter_input,
+		_zif_filter_var,
+		_zif_filter_input_array,
+		_zif_filter_var_array,
+		_zif_filter_list,
+		_zif_filter_id,
+		_php_filter_string,
+		_php_filter_encoded,
+		_php_filter_special_chars,
+		_php_filter_full_special_chars,
+		_php_filter_unsafe_raw,
+		_php_filter_email,
+		_php_filter_url,
+		_php_filter_number_int,
+		_php_filter_number_float,
+		_php_filter_add_slashes,
+		_php_filter_int,
+		_php_filter_boolean,
+		_php_filter_float,
+		_php_filter_validate_regexp,
+		_php_filter_validate_domain,
+		_php_filter_validate_url,
+		_php_filter_validate_email,
+		_php_filter_validate_ip,
+		_php_filter_validate_mac,
+		_php_filter_callback,
+		_php_gd_libgdimageptr_from_zval_p,
+		_php_gd_image_object_create,
+		_php_gd_assign_libgdimageptr_as_extgdimage,
+		_zm_startup_gd,
+		_php_gd_error_method,
+		_zm_shutdown_gd,
+		_zm_deactivate_gd,
+		_zm_info_gd,
+		_zif_gd_info,
+		_zif_imageloadfont,
+		_zif_imagesetstyle,
+		_zif_imagecreatetruecolor,
+		_zif_imageistruecolor,
+		_zif_imagetruecolortopalette,
+		_zif_imagepalettetotruecolor,
+		_zif_imagecolormatch,
+		_zif_imagesetthickness,
+		_zif_imagefilledellipse,
+		_zif_imagefilledarc,
+		_zif_imagealphablending,
+		_zif_imagesavealpha,
+		_zif_imagelayereffect,
+		_zif_imagecolorallocatealpha,
+		_zif_imagecolorresolvealpha,
+		_zif_imagecolorclosestalpha,
+		_zif_imagecolorexactalpha,
+		_zif_imagecopyresampled,
+		_zif_imagerotate,
+		_zif_imagesettile,
+		_zif_imagesetbrush,
+		_zif_imagecreate,
+		_zif_imagetypes,
+		_zif_imagecreatefromstring,
+		_zif_imagecreatefromgif,
+		_zif_imagecreatefromjpeg,
+		_zif_imagecreatefrompng,
+		_zif_imagecreatefromwebp,
+		_zif_imagecreatefromxbm,
+		_zif_imagecreatefromwbmp,
+		_zif_imagecreatefromgd,
+		_zif_imagecreatefromgd2,
+		_zif_imagecreatefromgd2part,
+		_zif_imagecreatefrombmp,
+		_zif_imagecreatefromtga,
+		_zif_imagexbm,
+		_zif_imagegif,
+		_zif_imagepng,
+		_zif_imagewebp,
+		_zif_imagejpeg,
+		_zif_imagewbmp,
+		_zif_imagegd,
+		_zif_imagegd2,
+		_zif_imagebmp,
+		_zif_imagedestroy,
+		_zif_imagecolorallocate,
+		_zif_imagepalettecopy,
+		_zif_imagecolorat,
+		_zif_imagecolorclosest,
+		_zif_imagecolorclosesthwb,
+		_zif_imagecolordeallocate,
+		_zif_imagecolorresolve,
+		_zif_imagecolorexact,
+		_zif_imagecolorset,
+		_zif_imagecolorsforindex,
+		_zif_imagegammacorrect,
+		_zif_imagesetpixel,
+		_zif_imageline,
+		_zif_imagedashedline,
+		_zif_imagerectangle,
+		_zif_imagefilledrectangle,
+		_zif_imagearc,
+		_zif_imageellipse,
+		_zif_imagefilltoborder,
+		_zif_imagefill,
+		_zif_imagecolorstotal,
+		_zif_imagecolortransparent,
+		_zif_imageinterlace,
+		_zif_imagepolygon,
+		_zif_imageopenpolygon,
+		_zif_imagefilledpolygon,
+		_zif_imagefontwidth,
+		_zif_imagefontheight,
+		_zif_imagechar,
+		_zif_imagecharup,
+		_zif_imagestring,
+		_zif_imagestringup,
+		_zif_imagecopy,
+		_zif_imagecopymerge,
+		_zif_imagecopymergegray,
+		_zif_imagecopyresized,
+		_zif_imagesx,
+		_zif_imagesy,
+		_zif_imagesetclip,
+		_zif_imagegetclip,
+		_zif_imagefilter,
+		_zif_imageconvolution,
+		_zif_imageflip,
+		_zif_imageantialias,
+		_zif_imagecrop,
+		_zif_imagecropauto,
+		_zif_imagescale,
+		_zif_imageaffine,
+		_zif_imageaffinematrixget,
+		_zif_imageaffinematrixconcat,
+		_zif_imagegetinterpolation,
+		_zif_imagesetinterpolation,
+		_zif_imageresolution,
+		_gd_stderr_error,
+		_gd_error,
+		_gd_error_ex,
+		_gdSetErrorMethod,
+		_gdClearErrorMethod,
+		_php_gd_gdImageCreate,
+		_php_gd_gdImageCreateTrueColor,
+		_php_gd_gdImageDestroy,
+		_php_gd_gdImageColorClosest,
+		_php_gd_gdImageColorClosestAlpha,
+		_php_gd_gdImageColorClosestHWB,
+		_php_gd_gdImageColorExact,
+		_php_gd_gdImageColorExactAlpha,
+		_php_gd_gdImageColorAllocate,
+		_php_gd_gdImageColorAllocateAlpha,
+		_php_gd_gdImageColorResolve,
+		_php_gd_gdImageColorResolveAlpha,
+		_php_gd_gdImageColorDeallocate,
+		_php_gd_gdImageColorTransparent,
+		_php_gd_gdImagePaletteCopy,
+		_php_gd_gdImageSetPixel,
+		_php_gd_gdImageGetPixel,
+		_php_gd_gdAlphaBlend,
+		_gdLayerOverlay,
+		_gdLayerMultiply,
+		_php_gd_gdImageGetTrueColorPixel,
+		_php_gd_gdImageAABlend,
+		_php_gd_gdImageLine,
+		_php_gd_gdImageAALine,
+		_php_gd_gdImageDashedLine,
+		_php_gd_gdImageChar,
+		_php_gd_gdImageCharUp,
+		_php_gd_gdImageString,
+		_php_gd_gdImageStringUp,
+		_php_gd_gdImageString16,
+		_php_gd_gdImageStringUp16,
+		_php_gd_lsqrt,
+		_php_gd_gdImageArc,
+		_php_gd_gdImageFilledArc,
+		_php_gd_gdImageFilledPolygon,
+		_php_gd_gdCompareInt,
+		_php_gd_gdImageEllipse,
+		_php_gd_gdImageFilledEllipse,
+		_php_gd_gdImageFillToBorder,
+		_php_gd_gdImageFill,
+		_php_gd_gdImageRectangle,
+		_php_gd_gdImageFilledRectangle,
+		_php_gd_gdImageCopy,
+		_php_gd_gdImageCopyMerge,
+		_php_gd_gdImageCopyMergeGray,
+		_php_gd_gdImageCopyResized,
+		_php_gd_gdImageCopyResampled,
+		_php_gd_gdImagePolygon,
+		_gdImageOpenPolygon,
+		_php_gd_gdImageSetStyle,
+		_php_gd_gdImageSetThickness,
+		_php_gd_gdImageSetBrush,
+		_php_gd_gdImageSetTile,
+		_php_gd_gdImageSetAntiAliased,
+		_php_gd_gdImageSetAntiAliasedDontBlend,
+		_php_gd_gdImageInterlace,
+		_php_gd_gdImageCompare,
+		_php_gd_gdImageAlphaBlending,
+		_php_gd_gdImageSaveAlpha,
+		_php_gd_gdImageSetClip,
+		_php_gd_gdImageGetClip,
+		_gdImageSetResolution,
+		_gdImagePaletteToTrueColor,
+		_php_gd__gdGetColors,
+		_php_gd_gdImageCreateFromGd,
+		_php_gd_gdImageCreateFromGdCtx,
+		_php_gd_gdImageCreateFromGdPtr,
+		_php_gd__gdPutColors,
+		_php_gd_gdImageGd,
+		_php_gd_gdImageGdPtr,
+		_php_gd_gdImageCreateFromGd2,
+		_php_gd_gdImageCreateFromGd2Ctx,
+		_php_gd_gdImageCreateFromGd2Ptr,
+		_php_gd_gdImageCreateFromGd2PartPtr,
+		_php_gd_gdImageCreateFromGd2PartCtx,
+		_php_gd_gdImageCreateFromGd2Part,
+		_php_gd_gdImageGd2,
+		_php_gd_gdImageGd2Ptr,
+		_php_gd_Putword,
+		_php_gd_Putchar,
+		_php_gd_gdPutC,
+		_php_gd_gdPutWord,
+		_php_gd_gdPutInt,
+		_php_gd_gdGetC,
+		_php_gd_gdGetByte,
+		_php_gd_gdGetWord,
+		_gdGetWordLSB,
+		_php_gd_gdGetInt,
+		_gdGetIntLSB,
+		_php_gd_gdPutBuf,
+		_php_gd_gdGetBuf,
+		_php_gd_gdSeek,
+		_php_gd_gdTell,
+		_php_gd_gdNewDynamicCtx,
+		_php_gd_gdNewDynamicCtxEx,
+		_php_gd_gdDPExtractData,
+		_php_gd_gdNewFileCtx,
+		_php_gd_gdImagePngToSink,
+		_php_gd_gdImageCreateFromPngSource,
+		_php_gd_gdNewSSCtx,
+		_gdImageCreateFromWebp,
+		_gdImageCreateFromWebpCtx,
+		_gdImageCreateFromWebpPtr,
+		_gdImageWebpCtx,
+		_gdImageWebpEx,
+		_gdImageWebp,
+		_gdImageWebpPtr,
+		_gdImageWebpPtrEx,
+		_gdPngGetVersionString,
+		_php_gd_gdImageCreateFromPng,
+		_php_gd_gdImageCreateFromPngCtx,
+		_php_gd_gdImageCreateFromPngPtr,
+		_php_gd_gdImagePngEx,
+		_php_gd_gdImagePngCtxEx,
+		_php_gd_gdImagePng,
+		_php_gd_gdImagePngPtr,
+		_php_gd_gdImagePngPtrEx,
+		_php_gd_gdImagePngCtx,
+		_gdJpegGetVersionString,
+		_php_gd_gdImageJpeg,
+		_php_gd_gdImageJpegCtx,
+		_php_gd_gdImageJpegPtr,
+		_php_gd_term_destination,
+		_php_gd_empty_output_buffer,
+		_php_gd_init_destination,
+		_php_gd_gdImageCreateFromJpeg,
+		_gdImageCreateFromJpegCtxEx,
+		_gdImageCreateFromJpegEx,
+		_php_gd_term_source,
+		_php_gd_skip_input_data,
+		_php_gd_fill_input_buffer,
+		_php_gd_init_source,
+		_php_gd_gdImageCreateFromJpegPtr,
+		_gdImageCreateFromJpegPtrEx,
+		_php_gd_gdImageCreateFromJpegCtx,
+		_php_gd_jpeg_gdIOCtx_src,
+		_php_gd_jpeg_gdIOCtx_dest,
+		_php_gd_gdFontGetTiny,
+		_php_gd_gdFontGetSmall,
+		_php_gd_gdFontGetMediumBold,
+		_php_gd_gdFontGetLarge,
+		_php_gd_gdFontGetGiant,
+		_php_gd_gdImageStringTTF,
+		_php_gd_gdImageStringFT,
+		_php_gd_gdImageStringFTEx,
+		_php_gd_any2eucjp,
+		_php_gd_getmbi,
+		_php_gd_putmbi,
+		_php_gd_skipheader,
+		_php_gd_createwbmp,
+		_php_gd_readwbmp,
+		_php_gd_writewbmp,
+		_php_gd_freewbmp,
+		_php_gd_printwbmp,
+		_php_gd_gd_putout,
+		_php_gd_gd_getin,
+		_php_gd_gdImageWBMPCtx,
+		_php_gd_gdImageCreateFromWBMPCtx,
+		_php_gd_gdImageCreateFromWBMP,
+		_php_gd_gdImageCreateFromWBMPPtr,
+		_php_gd_gdImageWBMP,
+		_php_gd_gdImageWBMPPtr,
+		_php_gd_gd_strtok_r,
+		_php_gd_gdImageCreatePaletteFromTrueColor,
+		_php_gd_gdImageTrueColorToPalette,
+		_php_gd_gdImageCreateFromGifSource,
+		_php_gd_gdImageCreateFromGifCtx,
+		_php_gd_gdImageCreateFromGif,
+		_php_gd_gdImageCreateFromXbm,
+		_php_gd_gdCtxPrintf,
+		_php_gd_gdImageXbmCtx,
+		_php_gd_gdImageGifPtr,
+		_php_gd_gdImageGif,
+		_php_gd_gdImageGifCtx,
+		_overflow2,
+		_gdImageScatter,
+		_gdImageScatterEx,
+		_gdImageScatterColor,
+		_php_gd_gdImageNegate,
+		_php_gd_gdImageGrayScale,
+		_php_gd_gdImageBrightness,
+		_php_gd_gdImageContrast,
+		_php_gd_gdImageColor,
+		_php_gd_gdImageConvolution,
+		_php_gd_gdImageSelectiveBlur,
+		_php_gd_gdImageEdgeDetectQuick,
+		_php_gd_gdImageGaussianBlur,
+		_php_gd_gdImageEmboss,
+		_php_gd_gdImageMeanRemoval,
+		_php_gd_gdImageSmooth,
+		_gdImagePixelate,
+		_php_gd_gdImageSkewX,
+		_php_gd_gdImageSkewY,
+		_php_gd_gdImageRotate90,
+		_php_gd_gdImageRotate180,
+		_php_gd_gdImageRotate270,
+		_php_gd_gdImageColorMatch,
+		_gdImageFlipVertical,
+		_gdImageFlipHorizontal,
+		_gdImageFlipBoth,
+		_gdImageCrop,
+		_gdImageCropAuto,
+		_gdImageCropThreshold,
+		_getPixelInterpolated,
+		_gdImageScaleTwoPass,
+		_gdImageSetInterpolationMethod,
+		_gdImageScaleNearestNeighbour,
+		_gdImageScaleBilinear,
+		_gdImageScaleBicubicFixed,
+		_gdImageScale,
+		_gdImageRotateNearestNeighbour,
+		_gdTransformAffineBoundingBox,
+		_gdImageRotateGeneric,
+		_gdImageRotateBilinear,
+		_gdImageRotateBicubicFixed,
+		_gdImageRotateInterpolated,
+		_gdDumpRect,
+		_gdTransformAffineGetImage,
+		_gdTransformAffineCopy,
+		_gdImageGetInterpolationMethod,
+		_gdAffineApplyToPointF,
+		_gdAffineInvert,
+		_gdAffineFlip,
+		_gdAffineConcat,
+		_gdAffineIdentity,
+		_gdAffineScale,
+		_gdAffineRotate,
+		_gdAffineShearHorizontal,
+		_gdAffineShearVertical,
+		_gdAffineTranslate,
+		_gdAffineExpansion,
+		_gdAffineRectilinear,
+		_gdAffineEqual,
+		_gdImageBmpPtr,
+		_gdImageBmpCtx,
+		_gdImageBmp,
+		_gdImageCreateFromBmp,
+		_gdImageCreateFromBmpCtx,
+		_gdImageCreateFromBmpPtr,
+		_gdImageCreateFromTga,
+		_gdImageCreateFromTgaCtx,
+		_read_header_tga,
+		_read_image_tga,
+		_gdImageCreateFromTgaPtr,
+		_free_tga,
+		_php_hash_fetch_ops,
+		_php_hash_register_algo,
+		_php_hash_copy,
+		_php_hash_serialize_spec,
+		_php_hash_unserialize_spec,
+		_php_hash_serialize,
+		_php_hash_unserialize,
+		_zif_hash,
+		_zif_hash_file,
+		_zif_hash_hmac,
+		_zif_hash_hmac_file,
+		_zif_hash_init,
+		_zif_hash_update,
+		_zif_hash_update_stream,
+		_zif_hash_update_file,
+		_zif_hash_final,
+		_zif_hash_copy,
+		_zif_hash_algos,
+		_zif_hash_hmac_algos,
+		_zif_hash_hkdf,
+		_zif_hash_pbkdf2,
+		_zif_hash_equals,
+		_zim_HashContext___construct,
+		_zim_HashContext___serialize,
+		_zim_HashContext___unserialize,
+		_zm_startup_hash,
+		_zm_shutdown_hash,
+		_zm_info_hash,
+		_PHP_MD4Init,
+		_PHP_MD4Update,
+		_PHP_MD4Final,
+		_PHP_MD2Init,
+		_PHP_MD2Update,
+		_PHP_MD2Final,
+		_PHP_SHA256Init,
+		_PHP_SHA256Update,
+		_PHP_SHA256Final,
+		_PHP_SHA224Init,
+		_PHP_SHA224Update,
+		_PHP_SHA224Final,
+		_PHP_SHA384Init,
+		_PHP_SHA384Update,
+		_PHP_SHA384Final,
+		_PHP_SHA512Init,
+		_PHP_SHA512_256Init,
+		_PHP_SHA512_224Init,
+		_PHP_SHA512Update,
+		_PHP_SHA512Final,
+		_PHP_SHA512_256Final,
+		_PHP_SHA512_224Final,
+		_PHP_RIPEMD128Init,
+		_PHP_RIPEMD128Update,
+		_PHP_RIPEMD128Final,
+		_PHP_RIPEMD160Init,
+		_PHP_RIPEMD160Update,
+		_PHP_RIPEMD160Final,
+		_PHP_RIPEMD256Init,
+		_PHP_RIPEMD256Update,
+		_PHP_RIPEMD256Final,
+		_PHP_RIPEMD320Init,
+		_PHP_RIPEMD320Update,
+		_PHP_RIPEMD320Final,
+		_PHP_3HAVAL128Init,
+		_PHP_HAVALUpdate,
+		_PHP_HAVAL128Final,
+		_PHP_3HAVAL160Init,
+		_PHP_HAVAL160Final,
+		_PHP_3HAVAL192Init,
+		_PHP_HAVAL192Final,
+		_PHP_3HAVAL224Init,
+		_PHP_HAVAL224Final,
+		_PHP_3HAVAL256Init,
+		_PHP_HAVAL256Final,
+		_PHP_4HAVAL128Init,
+		_PHP_4HAVAL160Init,
+		_PHP_4HAVAL192Init,
+		_PHP_4HAVAL224Init,
+		_PHP_4HAVAL256Init,
+		_PHP_5HAVAL128Init,
+		_PHP_5HAVAL160Init,
+		_PHP_5HAVAL192Init,
+		_PHP_5HAVAL224Init,
+		_PHP_5HAVAL256Init,
+		_PHP_3TIGERInit,
+		_PHP_4TIGERInit,
+		_PHP_TIGERUpdate,
+		_PHP_TIGER128Final,
+		_PHP_TIGER160Final,
+		_PHP_TIGER192Final,
+		_PHP_GOSTInit,
+		_PHP_GOSTInitCrypto,
+		_PHP_GOSTUpdate,
+		_PHP_GOSTFinal,
+		_PHP_SNEFRUInit,
+		_PHP_SNEFRUUpdate,
+		_PHP_SNEFRUFinal,
+		_PHP_WHIRLPOOLInit,
+		_PHP_WHIRLPOOLUpdate,
+		_PHP_WHIRLPOOLFinal,
+		_PHP_ADLER32Init,
+		_PHP_ADLER32Update,
+		_PHP_ADLER32Final,
+		_PHP_ADLER32Copy,
+		_PHP_CRC32Init,
+		_PHP_CRC32Update,
+		_PHP_CRC32BUpdate,
+		_PHP_CRC32CUpdate,
+		_PHP_CRC32LEFinal,
+		_PHP_CRC32BEFinal,
+		_PHP_CRC32Copy,
+		_PHP_FNV132Init,
+		_PHP_FNV132Update,
+		_PHP_FNV132Final,
+		_PHP_FNV1a32Update,
+		_PHP_FNV164Init,
+		_PHP_FNV164Update,
+		_PHP_FNV164Final,
+		_PHP_FNV1a64Update,
+		_PHP_JOAATInit,
+		_PHP_JOAATUpdate,
+		_PHP_JOAATFinal,
+		_KeccakP1600_SetBytesInLaneToZero,
+		_KeccakP1600_Initialize,
+		_KeccakP1600_AddByte,
+		_KeccakP1600_AddBytesInLane,
+		_KeccakP1600_AddLanes,
+		_KeccakP1600_AddBytes,
+		_KeccakP1600_OverwriteBytesInLane,
+		_KeccakP1600_OverwriteLanes,
+		_KeccakP1600_OverwriteBytes,
+		_KeccakP1600_OverwriteWithZeroes,
+		_KeccakP1600_ExtractBytesInLane,
+		_KeccakP1600_ExtractLanes,
+		_KeccakP1600_ExtractBytes,
+		_KeccakP1600_ExtractAndAddBytesInLane,
+		_KeccakP1600_ExtractAndAddLanes,
+		_KeccakP1600_ExtractAndAddBytes,
+		_KeccakP1600_Permute_Nrounds,
+		_KeccakP1600_Permute_12rounds,
+		_KeccakP1600_Permute_24rounds,
+		_Keccak_HashInitialize,
+		_Keccak_HashUpdate,
+		_Keccak_HashFinal,
+		_Keccak_HashSqueeze,
+		_KeccakWidth1600_Sponge,
+		_KeccakWidth1600_SpongeInitialize,
+		_KeccakWidth1600_SpongeAbsorb,
+		_KeccakWidth1600_SpongeAbsorbLastFewBits,
+		_KeccakWidth1600_SpongeSqueeze,
+		_KeccakWidth1600_12rounds_Sponge,
+		_KeccakWidth1600_12rounds_SpongeInitialize,
+		_KeccakWidth1600_12rounds_SpongeAbsorb,
+		_KeccakWidth1600_12rounds_SpongeAbsorbLastFewBits,
+		_KeccakWidth1600_12rounds_SpongeSqueeze,
+		_PHP_SHA3224Init,
+		_PHP_SHA3224Update,
+		_PHP_SHA3224Final,
+		_PHP_SHA3256Init,
+		_PHP_SHA3256Update,
+		_PHP_SHA3256Final,
+		_PHP_SHA3384Init,
+		_PHP_SHA3384Update,
+		_PHP_SHA3384Final,
+		_PHP_SHA3512Init,
+		_PHP_SHA3512Update,
+		_PHP_SHA3512Final,
+		_zm_startup_miconv,
+		_zm_shutdown_miconv,
+		_zm_info_miconv,
+		_php_iconv_string,
+		_zif_iconv_strlen,
+		_zif_iconv_substr,
+		_zif_iconv_strpos,
+		_zif_iconv_strrpos,
+		_zif_iconv_mime_encode,
+		_zif_iconv_mime_decode,
+		_zif_iconv_mime_decode_headers,
+		_zif_iconv,
+		_zif_iconv_set_encoding,
+		_zif_iconv_get_encoding,
+		_php_json_encode_ex,
+		_php_json_encode,
+		_php_json_decode_ex,
+		_zif_json_encode,
+		_zif_json_decode,
+		_zif_json_last_error,
+		_zif_json_last_error_msg,
+		_php_json_encode_zval,
+		_php_json_yyparse,
+		_php_json_parser_error_code,
+		_php_json_parser_init_ex,
+		_php_json_parser_init,
+		_php_json_parse,
+		_php_json_scanner_init,
+		_php_json_scan,
+		_zm_startup_mbstring,
+		_zm_shutdown_mbstring,
+		_zm_activate_mbstring,
+		_zm_deactivate_mbstring,
+		_zm_info_mbstring,
+		_php_mb_safe_strrchr_ex,
+		_zif_mb_language,
+		_zif_mb_internal_encoding,
+		_zif_mb_http_input,
+		_zif_mb_http_output,
+		_zif_mb_detect_order,
+		_zif_mb_substitute_character,
+		_zif_mb_preferred_mime_name,
+		_zif_mb_parse_str,
+		_zif_mb_output_handler,
+		_zif_mb_str_split,
+		_zif_mb_strlen,
+		_zif_mb_strpos,
+		_zif_mb_strrpos,
+		_zif_mb_stripos,
+		_php_mb_stripos,
+		_zif_mb_strripos,
+		_zif_mb_strstr,
+		_zif_mb_strrchr,
+		_zif_mb_stristr,
+		_zif_mb_strrichr,
+		_zif_mb_substr_count,
+		_zif_mb_substr,
+		_zif_mb_strcut,
+		_zif_mb_strwidth,
+		_zif_mb_strimwidth,
+		_php_mb_convert_encoding_ex,
+		_php_mb_convert_encoding,
+		_php_mb_convert_encoding_recursive,
+		_zif_mb_convert_encoding,
+		_zif_mb_convert_case,
+		_zif_mb_strtoupper,
+		_zif_mb_strtolower,
+		_zif_mb_detect_encoding,
+		_zif_mb_list_encodings,
+		_zif_mb_encoding_aliases,
+		_zif_mb_encode_mimeheader,
+		_zif_mb_decode_mimeheader,
+		_zif_mb_convert_kana,
+		_zif_mb_convert_variables,
+		_zif_mb_encode_numericentity,
+		_zif_mb_decode_numericentity,
+		_zif_mb_send_mail,
+		_zif_mb_get_info,
+		_php_mb_check_encoding,
+		_zif_mb_check_encoding,
+		_zif_mb_ord,
+		_zif_mb_chr,
+		_zif_mb_scrub,
+		_php_mb_mbchar_bytes_ex,
+		_php_mb_mbchar_bytes,
+		_php_mb_safe_strrchr,
+		_php_unicode_is_prop1,
+		_php_unicode_is_prop,
+		_php_unicode_tofold_raw,
+		_php_unicode_convert_case,
+		_mbstr_treat_data,
+		__php_mb_encoding_handler_ex,
+		_php_mb_post_handler,
+		_php_mb_regex_globals_alloc,
+		_php_mb_regex_globals_free,
+		_zm_startup_mb_regex,
+		_zm_shutdown_mb_regex,
+		_zm_activate_mb_regex,
+		_zm_deactivate_mb_regex,
+		_php_mb_regex_get_default_mbctype,
+		_zm_info_mb_regex,
+		_php_mb_regex_set_mbctype,
+		_php_mb_regex_set_default_mbctype,
+		_php_mb_regex_get_mbctype,
+		_php_mb_regex_get_mbctype_encoding,
+		_zif_mb_regex_encoding,
+		_zif_mb_ereg,
+		_zif_mb_eregi,
+		_zif_mb_ereg_replace,
+		_zif_mb_eregi_replace,
+		_zif_mb_ereg_replace_callback,
+		_zif_mb_split,
+		_zif_mb_ereg_match,
+		_zif_mb_ereg_search,
+		_zif_mb_ereg_search_pos,
+		_zif_mb_ereg_search_regs,
+		_zif_mb_ereg_search_init,
+		_zif_mb_ereg_search_getregs,
+		_zif_mb_ereg_search_getpos,
+		_zif_mb_ereg_search_setpos,
+		_zif_mb_regex_set_options,
+		_mbfl_filt_conv_any_7bit,
+		_mbfl_filt_conv_7bit_any,
+		_mbfl_filt_conv_ascii_wchar,
+		_mbfl_filt_conv_wchar_ascii,
+		_mbfl_filt_conv_base64enc,
+		_mbfl_filt_conv_base64enc_flush,
+		_mbfl_filt_conv_base64dec,
+		_mbfl_filt_conv_base64dec_flush,
+		_mbfl_filt_conv_big5_wchar,
+		_mbfl_filt_conv_wchar_big5,
+		_mbfl_filt_conv_byte2be_wchar,
+		_mbfl_filt_conv_wchar_byte2be,
+		_mbfl_filt_conv_byte2le_wchar,
+		_mbfl_filt_conv_wchar_byte2le,
+		_mbfl_filt_conv_byte4be_wchar,
+		_mbfl_filt_conv_wchar_byte4be,
+		_mbfl_filt_conv_byte4le_wchar,
+		_mbfl_filt_conv_wchar_byte4le,
+		_mbfl_filt_conv_wchar_cp1251,
+		_mbfl_filt_conv_cp1251_wchar,
+		_mbfl_filt_conv_cp1252_wchar,
+		_mbfl_filt_conv_wchar_cp1252,
+		_mbfl_filt_conv_cp1254_wchar,
+		_mbfl_filt_conv_wchar_cp1254,
+		_mbfl_filt_conv_jis_ms_wchar,
+		_mbfl_filt_conv_wchar_jis_ms,
+		_mbfl_filt_conv_wchar_cp50221,
+		_mbfl_filt_conv_wchar_cp50220raw,
+		_mbfl_filt_conv_wchar_cp50222,
+		_mbfl_filt_conv_wchar_cp50222_flush,
+		_mbfl_filt_conv_cp51932_wchar,
+		_mbfl_filt_conv_wchar_cp51932,
+		_mbfl_filt_conv_wchar_cp850,
+		_mbfl_filt_conv_cp850_wchar,
+		_mbfl_filt_conv_wchar_cp866,
+		_mbfl_filt_conv_cp866_wchar,
+		_mbfl_filt_conv_cp932_wchar,
+		_mbfl_filt_conv_wchar_cp932,
+		_mbfl_filt_conv_cp936_wchar,
+		_mbfl_filt_conv_wchar_cp936,
+		_mbfl_filt_conv_gb18030_wchar,
+		_mbfl_filt_conv_wchar_gb18030,
+		_mbfl_bisec_srch,
+		_mbfl_bisec_srch2,
+		_mbfl_filt_conv_euccn_wchar,
+		_mbfl_filt_conv_wchar_euccn,
+		_mbfl_filt_ident_eucjp,
+		_mbfl_filt_conv_eucjp_wchar,
+		_mbfl_filt_conv_wchar_eucjp,
+		_mbfl_filt_conv_eucjpwin_wchar,
+		_mbfl_filt_conv_wchar_eucjpwin,
+		_mbfl_filt_conv_euckr_wchar,
+		_mbfl_filt_conv_wchar_euckr,
+		_mbfl_filt_conv_euctw_wchar,
+		_mbfl_filt_conv_wchar_euctw,
+		_mbfl_filt_conv_html_enc,
+		_mbfl_filt_conv_html_enc_flush,
+		_mbfl_filt_conv_html_dec_ctor,
+		_mbfl_filt_conv_html_dec_dtor,
+		_mbfl_filt_conv_html_dec,
+		_mbfl_filt_conv_html_dec_flush,
+		_mbfl_filt_conv_html_dec_copy,
+		_mbfl_filt_conv_hz_wchar,
+		_mbfl_filt_conv_wchar_hz,
+		_mbfl_filt_conv_any_hz_flush,
+		_mbfl_filt_ident_2022jpms,
+		_mbfl_filt_conv_2022jpms_wchar,
+		_mbfl_filt_conv_wchar_2022jpms,
+		_mbfl_filt_conv_any_2022jpms_flush,
+		_mbfl_filt_conv_2022jp_mobile_wchar,
+		_mbfl_filt_conv_wchar_2022jp_mobile,
+		_mbfl_filt_conv_wchar_2022kr,
+		_mbfl_filt_conv_any_2022kr_flush,
+		_mbfl_filt_conv_2022kr_wchar,
+		_mbfl_filt_conv_8859_1_wchar,
+		_mbfl_filt_conv_wchar_8859_1,
+		_mbfl_filt_conv_8859_10_wchar,
+		_mbfl_filt_conv_wchar_8859_10,
+		_mbfl_filt_conv_8859_13_wchar,
+		_mbfl_filt_conv_wchar_8859_13,
+		_mbfl_filt_conv_8859_14_wchar,
+		_mbfl_filt_conv_wchar_8859_14,
+		_mbfl_filt_conv_8859_15_wchar,
+		_mbfl_filt_conv_wchar_8859_15,
+		_mbfl_filt_conv_8859_16_wchar,
+		_mbfl_filt_conv_wchar_8859_16,
+		_mbfl_filt_conv_8859_2_wchar,
+		_mbfl_filt_conv_wchar_8859_2,
+		_mbfl_filt_conv_8859_3_wchar,
+		_mbfl_filt_conv_wchar_8859_3,
+		_mbfl_filt_conv_8859_4_wchar,
+		_mbfl_filt_conv_wchar_8859_4,
+		_mbfl_filt_conv_8859_5_wchar,
+		_mbfl_filt_conv_wchar_8859_5,
+		_mbfl_filt_conv_8859_6_wchar,
+		_mbfl_filt_conv_wchar_8859_6,
+		_mbfl_filt_conv_8859_7_wchar,
+		_mbfl_filt_conv_wchar_8859_7,
+		_mbfl_filt_conv_8859_8_wchar,
+		_mbfl_filt_conv_wchar_8859_8,
+		_mbfl_filt_conv_8859_9_wchar,
+		_mbfl_filt_conv_wchar_8859_9,
+		_mbfl_filt_conv_jis_wchar,
+		_mbfl_filt_conv_wchar_jis,
+		_mbfl_filt_conv_any_jis_flush,
+		_mbfl_filt_conv_wchar_2022jp,
+		_mbfl_filt_conv_wchar_koi8r,
+		_mbfl_filt_conv_koi8r_wchar,
+		_mbfl_filt_conv_wchar_armscii8,
+		_mbfl_filt_conv_armscii8_wchar,
+		_mbfl_filt_conv_qprintenc,
+		_mbfl_filt_conv_qprintenc_flush,
+		_mbfl_filt_conv_qprintdec,
+		_mbfl_filt_conv_qprintdec_flush,
+		_mbfl_filt_ident_sjis,
+		_mbfl_filt_conv_sjis_wchar,
+		_mbfl_filt_conv_wchar_sjis,
+		_mbfl_filt_conv_sjis_open_wchar,
+		_mbfl_filt_conv_wchar_sjis_open,
+		_mbfl_filt_conv_sjis_mobile_wchar,
+		_mbfilter_sjis_emoji_docomo2unicode,
+		_mbfilter_sjis_emoji_kddi2unicode,
+		_mbfilter_sjis_emoji_sb2unicode,
+		_mbfl_filt_conv_wchar_sjis_mobile,
+		_mbfilter_unicode2sjis_emoji_docomo,
+		_mbfilter_unicode2sjis_emoji_kddi,
+		_mbfilter_unicode2sjis_emoji_sb,
+		_mbfl_filt_conv_sjis_mobile_flush,
+		_mbfilter_conv_map_tbl,
+		_mbfilter_conv_r_map_tbl,
+		_mbfl_filt_conv_sjis_mac_wchar,
+		_mbfl_filt_conv_wchar_sjis_mac,
+		_mbfl_filt_conv_jis2004_wchar,
+		_mbfl_filt_conv_wchar_jis2004,
+		_mbfl_filt_conv_jis2004_flush,
+		_mbfl_filt_tl_jisx0201_jisx0208_init,
+		_mbfl_filt_tl_jisx0201_jisx0208,
+		_mbfl_filt_tl_jisx0201_jisx0208_flush,
+		_mbfl_filt_conv_ucs2_wchar,
+		_mbfl_filt_conv_wchar_ucs2be,
+		_mbfl_filt_conv_ucs2be_wchar,
+		_mbfl_filt_conv_ucs2le_wchar,
+		_mbfl_filt_conv_wchar_ucs2le,
+		_mbfl_filt_conv_ucs4_wchar,
+		_mbfl_filt_conv_wchar_ucs4be,
+		_mbfl_filt_conv_ucs4be_wchar,
+		_mbfl_filt_conv_ucs4le_wchar,
+		_mbfl_filt_conv_wchar_ucs4le,
+		_mbfl_filt_conv_uhc_wchar,
+		_mbfl_filt_conv_wchar_uhc,
+		_mbfl_filt_conv_utf16_wchar,
+		_mbfl_filt_conv_wchar_utf16be,
+		_mbfl_filt_conv_utf16be_wchar,
+		_mbfl_filt_conv_utf16le_wchar,
+		_mbfl_filt_conv_wchar_utf16le,
+		_mbfl_filt_conv_utf32_wchar,
+		_mbfl_filt_conv_wchar_utf32be,
+		_mbfl_filt_conv_utf32be_wchar,
+		_mbfl_filt_conv_utf32le_wchar,
+		_mbfl_filt_conv_wchar_utf32le,
+		_mbfl_filt_conv_utf7_wchar,
+		_mbfl_filt_conv_wchar_utf7,
+		_mbfl_filt_conv_wchar_utf7_flush,
+		_mbfl_filt_conv_utf7imap_wchar,
+		_mbfl_filt_conv_wchar_utf7imap,
+		_mbfl_filt_conv_wchar_utf7imap_flush,
+		_mbfl_filt_ident_utf8,
+		_mbfl_filt_conv_utf8_wchar,
+		_mbfl_filt_conv_utf8_wchar_flush,
+		_mbfl_filt_conv_wchar_utf8,
+		_mbfl_filt_put_invalid_char,
+		_mbfl_filt_conv_utf8_mobile_wchar,
+		_mbfl_filt_conv_wchar_utf8_mobile,
+		_mbfl_filt_conv_uudec,
+		_mbfl_filt_conv_wchar_koi8u,
+		_mbfl_filt_conv_koi8u_wchar,
+		_mbfl_buffer_converter_new,
+		_mbfl_buffer_converter_delete,
+		_mbfl_buffer_converter_illegal_mode,
+		_mbfl_buffer_converter_illegal_substchar,
+		_mbfl_buffer_converter_feed,
+		_mbfl_buffer_converter_flush,
+		_mbfl_buffer_converter_result,
+		_mbfl_buffer_converter_feed_result,
+		_mbfl_buffer_illegalchars,
+		_mbfl_encoding_detector_new,
+		_mbfl_encoding_detector_delete,
+		_mbfl_encoding_detector_feed,
+		_mbfl_encoding_detector_judge,
+		_mbfl_convert_encoding,
+		_mbfl_identify_encoding,
+		_mbfl_strlen,
+		_mbfl_strpos,
+		_mbfl_substr_count,
+		_mbfl_substr,
+		_mbfl_strcut,
+		_mbfl_strwidth,
+		_mbfl_strimwidth,
+		_mbfl_ja_jp_hantozen,
+		_mime_header_encoder_result,
+		_mime_header_encoder_new,
+		_mime_header_encoder_delete,
+		_mbfl_mime_header_encode,
+		_mime_header_decoder_result,
+		_mime_header_decoder_new,
+		_mime_header_decoder_delete,
+		_mbfl_mime_header_decode,
+		_mbfl_filt_decode_htmlnumericentity_flush,
+		_mbfl_html_numeric_entity,
+		_mbfl_filt_conv_pass,
+		_mbfl_convert_filter_new,
+		_mbfl_convert_filter_get_vtbl,
+		_mbfl_convert_filter_new2,
+		_mbfl_convert_filter_delete,
+		_mbfl_convert_filter_feed,
+		_mbfl_convert_filter_feed_string,
+		_mbfl_convert_filter_flush,
+		_mbfl_convert_filter_reset,
+		_mbfl_convert_filter_copy,
+		_mbfl_convert_filter_devcat,
+		_mbfl_convert_filter_strcat,
+		_mbfl_filt_conv_illegal_output,
+		_mbfl_filt_conv_common_ctor,
+		_mbfl_filt_conv_common_flush,
+		_mbfl_name2encoding,
+		_mbfl_no2encoding,
+		_mbfl_name2no_encoding,
+		_mbfl_no_encoding2name,
+		_mbfl_get_supported_encodings,
+		_mbfl_no2preferred_mime_name,
+		_mbfl_filter_output_pipe,
+		_mbfl_filter_output_null,
+		_mbfl_identify_filter_get_vtbl,
+		_mbfl_identify_filter_new,
+		_mbfl_identify_filter_init,
+		_mbfl_identify_filter_new2,
+		_mbfl_identify_filter_init2,
+		_mbfl_identify_filter_delete,
+		_mbfl_filt_ident_common_ctor,
+		_mbfl_filt_ident_false,
+		_mbfl_filt_ident_false_ctor,
+		_mbfl_filt_ident_true,
+		_mbfl_name2language,
+		_mbfl_no2language,
+		_mbfl_name2no_language,
+		_mbfl_no_language2name,
+		_mbfl_memory_device_init,
+		_mbfl_memory_device_realloc,
+		_mbfl_memory_device_clear,
+		_mbfl_memory_device_reset,
+		_mbfl_memory_device_unput,
+		_mbfl_memory_device_result,
+		_mbfl_memory_device_output,
+		_mbfl_memory_device_strcat,
+		_mbfl_memory_device_strncat,
+		_mbfl_memory_device_devcat,
+		_mbfl_wchar_device_init,
+		_mbfl_wchar_device_clear,
+		_mbfl_wchar_device_output,
+		_mbfl_string_init,
+		_mbfl_string_init_set,
+		_mbfl_string_clear,
+		_zend_accel_schedule_restart_if_necessary,
+		_zend_accel_schedule_restart,
+		_accel_new_interned_string,
+		_zend_get_file_handle_timestamp,
+		_validate_timestamp_and_record,
+		_validate_timestamp_and_record_ex,
+		_accel_make_persistent_key,
+		_zend_accel_invalidate,
+		_accelerator_shm_read_lock,
+		_accelerator_shm_read_unlock,
+		_file_cache_compile_file,
+		_check_persistent_script_access,
+		_persistent_compile_file,
+		_accel_activate,
+		_accel_post_deactivate,
+		_accel_shutdown,
+		_zend_accel_blacklist_init,
+		_zend_accel_blacklist_shutdown,
+		_zend_accel_blacklist_load,
+		_zend_accel_blacklist_is_blacklisted,
+		_zend_accel_blacklist_apply,
+		_zend_accel_error,
+		_zend_accel_hash_clean,
+		_zend_accel_hash_init,
+		_zend_accel_hash_update,
+		_zend_accel_hash_find,
+		_zend_accel_hash_find_entry,
+		_zend_accel_hash_str_find,
+		_zend_accel_hash_str_find_entry,
+		_zend_accel_hash_unlink,
+		_zend_accel_override_file_functions,
+		_zend_accel_info,
+		_start_accel_module,
+		_zif_opcache_get_status,
+		_zif_opcache_get_configuration,
+		_zif_opcache_reset,
+		_zif_opcache_invalidate,
+		_zif_opcache_compile_file,
+		_zif_opcache_is_script_cached,
+		_zend_accel_script_persist,
+		_zend_accel_script_persist_calc,
+		_zend_file_cache_script_store,
+		_zend_file_cache_script_load,
+		_zend_file_cache_invalidate,
+		_zend_shared_alloc_create_lock,
+		_zend_shared_alloc_startup,
+		_zend_shared_alloc,
+		_zend_shared_alloc_shutdown,
+		_zend_shared_memdup_size,
+		_zend_shared_memdup_get_put_free,
+		_zend_shared_memdup_put_free,
+		_zend_shared_memdup_free,
+		_zend_shared_memdup_get_put,
+		_zend_shared_memdup_put,
+		_zend_shared_memdup,
+		_zend_shared_memdup_arena_put,
+		_zend_shared_memdup_arena,
+		_zend_shared_alloc_safe_unlock,
+		_zend_shared_alloc_unlock,
+		_zend_shared_alloc_lock,
+		_zend_shared_alloc_init_xlat_table,
+		_zend_shared_alloc_destroy_xlat_table,
+		_zend_shared_alloc_clear_xlat_table,
+		_zend_shared_alloc_checkpoint_xlat_table,
+		_zend_shared_alloc_restore_xlat_table,
+		_zend_shared_alloc_register_xlat_entry,
+		_zend_shared_alloc_get_xlat_entry,
+		_zend_shared_alloc_get_free_memory,
+		_zend_shared_alloc_save_state,
+		_zend_shared_alloc_restore_state,
+		_zend_accel_get_shared_model,
+		_zend_accel_shared_protect,
+		_zend_accel_in_shm,
+		_create_persistent_script,
+		_free_persistent_script,
+		_zend_accel_move_user_functions,
+		_zend_accel_move_user_classes,
+		_zend_accel_load_script,
+		_zend_adler32,
+		_zend_accel_script_checksum,
+		_zm_startup_opcache,
+		_zm_shutdown_opcache,
+		_zend_optimizer_collect_constant,
+		_zend_optimizer_eval_binary_op,
+		_zend_optimizer_eval_unary_op,
+		_zend_optimizer_eval_cast,
+		_zend_optimizer_eval_strlen,
+		_zend_optimizer_get_collected_constant,
+		_zend_optimizer_add_literal,
+		_zend_optimizer_update_op1_const,
+		_zend_optimizer_update_op2_const,
+		_zend_optimizer_classify_function,
+		_zend_optimizer_replace_by_const,
+		_zend_optimizer_migrate_jump,
+		_zend_optimizer_shift_jump,
+		_zend_optimizer_get_called_func,
+		_zend_optimizer_get_loop_var_def,
+		_zend_foreach_op_array,
+		_zend_optimize_script,
+		_zend_optimizer_startup,
+		_zend_optimizer_shutdown,
+		_zend_optimizer_pass1,
+		_zend_optimizer_pass3,
+		_zend_optimize_func_calls,
+		_zend_optimizer_get_persistent_constant,
+		_zend_optimize_cfg,
+		_zend_optimize_temporary_variables,
+		_zend_optimizer_nop_removal,
+		_zend_optimizer_compact_literals,
+		_zend_cfg_remark_reachable_blocks,
+		_zend_build_cfg,
+		_zend_cfg_build_predecessors,
+		_zend_cfg_compute_dominators_tree,
+		_zend_cfg_identify_loops,
+		_zend_dfg_add_use_def_op,
+		_zend_build_dfg,
+		_zend_dfa_analyze_op_array,
+		_zend_dfa_optimize_calls,
+		_zend_dfa_optimize_op_array,
+		_zend_optimize_dfa,
+		_zend_ssa_rename_op,
+		_zend_build_ssa,
+		_zend_ssa_compute_use_def_chains,
+		_zend_ssa_unlink_use_chain,
+		_zend_ssa_remove_instr,
+		_zend_ssa_remove_phi,
+		_zend_ssa_remove_uses_of_var,
+		_zend_ssa_remove_predecessor,
+		_zend_ssa_rename_var_uses,
+		_zend_ssa_remove_block,
+		_zend_ssa_find_sccs,
+		_zend_ssa_find_false_dependencies,
+		_minOR,
+		_maxOR,
+		_minAND,
+		_maxAND,
+		_minXOR,
+		_maxXOR,
+		_zend_inference_calc_range,
+		_zend_inference_propagate_range,
+		_zend_inference_init_range,
+		_zend_inference_widening_meet,
+		_zend_inference_narrowing_meet,
+		_zend_array_element_type,
+		_zend_fetch_arg_info_type,
+		_zend_update_type_info,
+		_zend_infer_types_ex,
+		_zend_init_func_return_info,
+		_zend_func_return_info,
+		_zend_ssa_inference,
+		_zend_inference_check_recursive_dependencies,
+		_zend_may_throw_ex,
+		_zend_may_throw,
+		_zend_get_func_info,
+		_zend_func_info_startup,
+		_zend_func_info_shutdown,
+		_zend_analyze_calls,
+		_zend_build_call_graph,
+		_zend_analyze_call_graph,
+		_zend_build_call_map,
+		_sccp_optimize_op_array,
+		_scdf_mark_edge_feasible,
+		_scdf_init,
+		_scdf_solve,
+		_scdf_remove_unreachable_blocks,
+		_dce_optimize_op_array,
+		_zend_ssa_escape_analysis,
+		_zend_optimizer_compact_vars,
+		_zend_dump_ht,
+		_zend_dump_const,
+		_zend_dump_var,
+		_zend_dump_ssa_var,
+		_zend_dump_op,
+		_zend_dump_op_array_name,
+		_zend_dump_op_array,
+		_zend_dump_dominators,
+		_zend_dump_variables,
+		_zend_dump_ssa_variables,
+		_zend_dump_dfg,
+		_zend_dump_phi_placement,
+		_php_pdo_list_entry,
+		_php_pdo_get_dbh_ce,
+		_php_pdo_get_exception,
+		_php_pdo_str_tolower_dup,
+		_zif_pdo_drivers,
+		_zm_startup_pdo,
+		_zm_shutdown_pdo,
+		_zm_info_pdo,
+		_php_pdo_register_driver,
+		_php_pdo_unregister_driver,
+		_pdo_find_driver,
+		_php_pdo_parse_data_source,
+		_php_pdo_int64_to_str,
+		_pdo_throw_exception,
+		_pdo_raise_impl_error,
+		_pdo_handle_error,
+		_zim_PDO___construct,
+		_zim_PDO_prepare,
+		_zim_PDO_beginTransaction,
+		_zim_PDO_commit,
+		_zim_PDO_rollBack,
+		_zim_PDO_inTransaction,
+		_zim_PDO_setAttribute,
+		_zim_PDO_getAttribute,
+		_zim_PDO_exec,
+		_zim_PDO_lastInsertId,
+		_zim_PDO_errorCode,
+		_zim_PDO_errorInfo,
+		_zim_PDO_query,
+		_zim_PDO_quote,
+		_zim_PDO_getAvailableDrivers,
+		_pdo_hash_methods,
+		_pdo_dbh_init,
+		_pdo_dbh_new,
+		_php_pdo_pdbh_dtor,
+		_pdo_stmt_describe_columns,
+		_php_pdo_stmt_set_column_count,
+		_zim_PDOStatement_execute,
+		_zim_PDOStatement_fetch,
+		_zim_PDOStatement_fetchObject,
+		_zim_PDOStatement_fetchColumn,
+		_zim_PDOStatement_fetchAll,
+		_zim_PDOStatement_bindValue,
+		_zim_PDOStatement_bindParam,
+		_zim_PDOStatement_bindColumn,
+		_zim_PDOStatement_rowCount,
+		_zim_PDOStatement_errorCode,
+		_zim_PDOStatement_errorInfo,
+		_zim_PDOStatement_setAttribute,
+		_zim_PDOStatement_getAttribute,
+		_zim_PDOStatement_columnCount,
+		_zim_PDOStatement_getColumnMeta,
+		_pdo_stmt_setup_fetch_mode,
+		_zim_PDOStatement_setFetchMode,
+		_zim_PDOStatement_nextRowset,
+		_zim_PDOStatement_closeCursor,
+		_zim_PDOStatement_debugDumpParams,
+		_zim_PDOStatement_getIterator,
+		_php_pdo_free_statement,
+		_pdo_dbstmt_free_storage,
+		_pdo_dbstmt_new,
+		_pdo_stmt_iter_get,
+		_pdo_row_free_storage,
+		_pdo_row_new,
+		_pdo_stmt_init,
+		_pdo_parse_params,
+		_pdo_sqlstate_fini_error_table,
+		_pdo_sqlstate_init_error_table,
+		_pdo_sqlstate_state_to_description,
+		_zm_startup_pdo_sqlite,
+		_zm_shutdown_pdo_sqlite,
+		_zm_info_pdo_sqlite,
+		__pdo_sqlite_error,
+		_zim_PDO_SQLite_Ext_sqliteCreateFunction,
+		_zim_PDO_SQLite_Ext_sqliteCreateAggregate,
+		_zim_PDO_SQLite_Ext_sqliteCreateCollation,
+		_phar_get_link_source,
+		_phar_get_efp,
+		_phar_open_archive_fp,
+		_phar_seek_efp,
+		_phar_mount_entry,
+		_phar_find_in_include_path,
+		_phar_get_archive,
+		_phar_get_entry_data,
+		_phar_get_entry_info_dir,
+		_phar_copy_on_write,
+		_phar_create_writeable_entry,
+		_phar_separate_entry_fp,
+		_phar_open_entry_fp,
+		_phar_get_entry_info,
+		_phar_get_or_create_entry_data,
+		_phar_add_virtual_dirs,
+		_phar_copy_entry_fp,
+		_phar_decompress_filter,
+		_phar_open_jit,
+		_phar_resolve_alias,
+		_phar_free_alias,
+		_phar_compress_filter,
+		_phar_verify_signature,
+		_phar_create_signature,
+		_phar_is_tar,
+		_phar_open_or_create_tar,
+		_phar_parse_tarfile,
+		_phar_tar_setmetadata,
+		_phar_tar_flush,
+		_phar_parse_zipfile,
+		_phar_open_or_create_zip,
+		_phar_zip_flush,
+		_phar_parse_url,
+		_phar_dostat,
+		_phar_fileperms,
+		_phar_fileinode,
+		_phar_filesize,
+		_phar_fileowner,
+		_phar_filegroup,
+		_phar_fileatime,
+		_phar_filemtime,
+		_phar_filectime,
+		_phar_filetype,
+		_phar_is_writable,
+		_phar_is_readable,
+		_phar_is_executable,
+		_phar_file_exists,
+		_phar_is_dir,
+		_phar_lstat,
+		_phar_stat,
+		_phar_intercept_functions,
+		_phar_release_functions,
+		_phar_intercept_functions_init,
+		_phar_intercept_functions_shutdown,
+		_phar_save_orig_functions,
+		_phar_restore_orig_functions,
+		_phar_wrapper_open_dir,
+		_phar_wrapper_mkdir,
+		_phar_wrapper_rmdir,
+		_phar_ini_modify_handler,
+		_phar_ini_cache_list,
+		_phar_open_from_filename,
+		_phar_destroy_phar_data,
+		_phar_metadata_tracker_free,
+		_phar_archive_delref,
+		_destroy_phar_manifest_entry_int,
+		_destroy_phar_manifest_entry,
+		_phar_entry_delref,
+		_phar_entry_remove,
+		_phar_flush,
+		_phar_create_default_stub,
+		_phar_open_parsed_phar,
+		_phar_metadata_tracker_try_ensure_has_serialized_data,
+		_phar_metadata_tracker_unserialize_or_copy,
+		_phar_metadata_tracker_has_data,
+		_phar_metadata_tracker_copy,
+		_phar_metadata_tracker_clone,
+		_phar_parse_metadata_lazy,
+		_phar_open_or_create_filename,
+		_phar_detect_phar_fname_ext,
+		_phar_create_or_parse_filename,
+		_phar_request_initialize,
+		_phar_fix_filepath,
+		_phar_split_fname,
+		_phar_open_executed_filename,
+		_phar_postprocess_file,
+		_zm_globals_ctor_phar,
+		_zm_globals_dtor_phar,
+		_zm_startup_phar,
+		_zm_shutdown_phar,
+		_zm_deactivate_phar,
+		_zm_info_phar,
+		_zim_Phar_running,
+		_zim_Phar_mount,
+		_zim_Phar_webPhar,
+		_zim_Phar_mungServer,
+		_zim_Phar_interceptFileFuncs,
+		_zim_Phar_createDefaultStub,
+		_zim_Phar_mapPhar,
+		_zim_Phar_loadPhar,
+		_zim_Phar_apiVersion,
+		_zim_Phar_canCompress,
+		_zim_Phar_canWrite,
+		_zim_Phar_isValidPharFilename,
+		_zim_Phar___construct,
+		_zim_Phar_getSupportedSignatures,
+		_zim_Phar_getSupportedCompression,
+		_zim_Phar_unlinkArchive,
+		_zim_Phar___destruct,
+		_zim_Phar_buildFromDirectory,
+		_zim_Phar_buildFromIterator,
+		_zim_Phar_count,
+		_zim_Phar_isFileFormat,
+		_zim_Phar_convertToExecutable,
+		_zim_Phar_convertToData,
+		_zim_Phar_isCompressed,
+		_zim_Phar_isWritable,
+		_zim_Phar_delete,
+		_zim_Phar_getAlias,
+		_zim_Phar_getPath,
+		_zim_Phar_setAlias,
+		_zim_Phar_getVersion,
+		_zim_Phar_startBuffering,
+		_zim_Phar_isBuffering,
+		_zim_Phar_stopBuffering,
+		_zim_Phar_setStub,
+		_zim_Phar_setDefaultStub,
+		_zim_Phar_setSignatureAlgorithm,
+		_zim_Phar_getSignature,
+		_zim_Phar_getModified,
+		_zim_Phar_compress,
+		_zim_Phar_decompress,
+		_zim_Phar_compressFiles,
+		_zim_Phar_decompressFiles,
+		_zim_Phar_copy,
+		_zim_Phar_offsetExists,
+		_zim_Phar_offsetGet,
+		_zim_Phar_offsetSet,
+		_zim_Phar_offsetUnset,
+		_zim_Phar_addEmptyDir,
+		_zim_Phar_addFile,
+		_zim_Phar_addFromString,
+		_zim_Phar_getStub,
+		_zim_Phar_hasMetadata,
+		_zim_Phar_getMetadata,
+		_zim_Phar_setMetadata,
+		_zim_Phar_delMetadata,
+		_zim_Phar_extractTo,
+		_zim_PharFileInfo___construct,
+		_zim_PharFileInfo___destruct,
+		_zim_PharFileInfo_getCompressedSize,
+		_zim_PharFileInfo_isCompressed,
+		_zim_PharFileInfo_getCRC32,
+		_zim_PharFileInfo_isCRCChecked,
+		_zim_PharFileInfo_getPharFlags,
+		_zim_PharFileInfo_chmod,
+		_zim_PharFileInfo_hasMetadata,
+		_zim_PharFileInfo_getMetadata,
+		_zim_PharFileInfo_setMetadata,
+		_zim_PharFileInfo_delMetadata,
+		_zim_PharFileInfo_getContent,
+		_zim_PharFileInfo_compress,
+		_zim_PharFileInfo_decompress,
+		_phar_object_init,
+		_phar_path_check,
+		_zif_post_message_to_js,
+		_zm_info_post_message_to_js,
+		_zend_reflection_class_factory,
+		_zim_ReflectionClass___clone,
+		_zim_Reflection_getModifierNames,
+		_zim_ReflectionFunction___construct,
+		_zim_ReflectionFunction___toString,
+		_zim_ReflectionFunctionAbstract_getName,
+		_zim_ReflectionFunctionAbstract_isClosure,
+		_zim_ReflectionFunctionAbstract_getClosureThis,
+		_zim_ReflectionFunctionAbstract_getClosureScopeClass,
+		_zim_ReflectionFunctionAbstract_getClosureCalledClass,
+		_zim_ReflectionFunction_getClosure,
+		_zim_ReflectionFunctionAbstract_isInternal,
+		_zim_ReflectionFunctionAbstract_isUserDefined,
+		_zim_ReflectionFunction_isDisabled,
+		_zim_ReflectionFunctionAbstract_getFileName,
+		_zim_ReflectionFunctionAbstract_getStartLine,
+		_zim_ReflectionFunctionAbstract_getEndLine,
+		_zim_ReflectionFunctionAbstract_getDocComment,
+		_zim_ReflectionFunctionAbstract_getAttributes,
+		_zim_ReflectionFunctionAbstract_getStaticVariables,
+		_zim_ReflectionFunction_invoke,
+		_zim_ReflectionFunction_invokeArgs,
+		_zim_ReflectionFunctionAbstract_returnsReference,
+		_zim_ReflectionFunctionAbstract_getNumberOfParameters,
+		_zim_ReflectionFunctionAbstract_getNumberOfRequiredParameters,
+		_zim_ReflectionFunctionAbstract_getParameters,
+		_zim_ReflectionFunctionAbstract_getExtension,
+		_zim_ReflectionFunctionAbstract_getExtensionName,
+		_zim_ReflectionGenerator___construct,
+		_zim_ReflectionGenerator_getTrace,
+		_zim_ReflectionGenerator_getExecutingLine,
+		_zim_ReflectionGenerator_getExecutingFile,
+		_zim_ReflectionGenerator_getFunction,
+		_zim_ReflectionGenerator_getThis,
+		_zim_ReflectionGenerator_getExecutingGenerator,
+		_zim_ReflectionParameter___construct,
+		_zim_ReflectionParameter___toString,
+		_zim_ReflectionParameter_getName,
+		_zim_ReflectionParameter_getDeclaringFunction,
+		_zim_ReflectionParameter_getDeclaringClass,
+		_zim_ReflectionParameter_getClass,
+		_zim_ReflectionParameter_hasType,
+		_zim_ReflectionParameter_getType,
+		_zim_ReflectionParameter_isArray,
+		_zim_ReflectionParameter_isCallable,
+		_zim_ReflectionParameter_allowsNull,
+		_zim_ReflectionParameter_isPassedByReference,
+		_zim_ReflectionParameter_canBePassedByValue,
+		_zim_ReflectionParameter_getAttributes,
+		_zim_ReflectionParameter_getPosition,
+		_zim_ReflectionParameter_isOptional,
+		_zim_ReflectionParameter_isDefaultValueAvailable,
+		_zim_ReflectionParameter_getDefaultValue,
+		_zim_ReflectionParameter_isDefaultValueConstant,
+		_zim_ReflectionParameter_getDefaultValueConstantName,
+		_zim_ReflectionParameter_isVariadic,
+		_zim_ReflectionParameter_isPromoted,
+		_zim_ReflectionType_allowsNull,
+		_zim_ReflectionType___toString,
+		_zim_ReflectionNamedType_getName,
+		_zim_ReflectionNamedType_isBuiltin,
+		_zim_ReflectionUnionType_getTypes,
+		_zim_ReflectionMethod___construct,
+		_zim_ReflectionMethod___toString,
+		_zim_ReflectionMethod_getClosure,
+		_zim_ReflectionMethod_invoke,
+		_zim_ReflectionMethod_invokeArgs,
+		_zim_ReflectionMethod_isFinal,
+		_zim_ReflectionMethod_isAbstract,
+		_zim_ReflectionMethod_isPublic,
+		_zim_ReflectionMethod_isPrivate,
+		_zim_ReflectionMethod_isProtected,
+		_zim_ReflectionMethod_isStatic,
+		_zim_ReflectionFunctionAbstract_isDeprecated,
+		_zim_ReflectionFunctionAbstract_isGenerator,
+		_zim_ReflectionFunctionAbstract_isVariadic,
+		_zim_ReflectionFunctionAbstract_inNamespace,
+		_zim_ReflectionFunctionAbstract_getNamespaceName,
+		_zim_ReflectionFunctionAbstract_getShortName,
+		_zim_ReflectionFunctionAbstract_hasReturnType,
+		_zim_ReflectionFunctionAbstract_getReturnType,
+		_zim_ReflectionMethod_isConstructor,
+		_zim_ReflectionMethod_isDestructor,
+		_zim_ReflectionMethod_getModifiers,
+		_zim_ReflectionMethod_getDeclaringClass,
+		_zim_ReflectionMethod_getPrototype,
+		_zim_ReflectionMethod_setAccessible,
+		_zim_ReflectionClassConstant___construct,
+		_zim_ReflectionClassConstant___toString,
+		_zim_ReflectionClassConstant_getName,
+		_zim_ReflectionClassConstant_isPublic,
+		_zim_ReflectionClassConstant_isPrivate,
+		_zim_ReflectionClassConstant_isProtected,
+		_zim_ReflectionClassConstant_getModifiers,
+		_zim_ReflectionClassConstant_getValue,
+		_zim_ReflectionClassConstant_getDeclaringClass,
+		_zim_ReflectionClassConstant_getDocComment,
+		_zim_ReflectionClassConstant_getAttributes,
+		_zim_ReflectionClass___construct,
+		_zim_ReflectionClass_getStaticProperties,
+		_zim_ReflectionClass_getStaticPropertyValue,
+		_zim_ReflectionClass_setStaticPropertyValue,
+		_zim_ReflectionClass_getDefaultProperties,
+		_zim_ReflectionClass___toString,
+		_zim_ReflectionClass_getName,
+		_zim_ReflectionClass_isInternal,
+		_zim_ReflectionClass_isUserDefined,
+		_zim_ReflectionClass_isAnonymous,
+		_zim_ReflectionClass_getFileName,
+		_zim_ReflectionClass_getStartLine,
+		_zim_ReflectionClass_getEndLine,
+		_zim_ReflectionClass_getDocComment,
+		_zim_ReflectionClass_getAttributes,
+		_zim_ReflectionClass_getConstructor,
+		_zim_ReflectionClass_hasMethod,
+		_zim_ReflectionClass_getMethod,
+		_zim_ReflectionClass_getMethods,
+		_zim_ReflectionClass_hasProperty,
+		_zim_ReflectionClass_getProperty,
+		_zim_ReflectionClass_getProperties,
+		_zim_ReflectionClass_hasConstant,
+		_zim_ReflectionClass_getConstants,
+		_zim_ReflectionClass_getReflectionConstants,
+		_zim_ReflectionClass_getConstant,
+		_zim_ReflectionClass_getReflectionConstant,
+		_zim_ReflectionClass_isInstantiable,
+		_zim_ReflectionClass_isCloneable,
+		_zim_ReflectionClass_isInterface,
+		_zim_ReflectionClass_isTrait,
+		_zim_ReflectionClass_isFinal,
+		_zim_ReflectionClass_isAbstract,
+		_zim_ReflectionClass_getModifiers,
+		_zim_ReflectionClass_isInstance,
+		_zim_ReflectionClass_newInstance,
+		_zim_ReflectionClass_newInstanceWithoutConstructor,
+		_zim_ReflectionClass_newInstanceArgs,
+		_zim_ReflectionClass_getInterfaces,
+		_zim_ReflectionClass_getInterfaceNames,
+		_zim_ReflectionClass_getTraits,
+		_zim_ReflectionClass_getTraitNames,
+		_zim_ReflectionClass_getTraitAliases,
+		_zim_ReflectionClass_getParentClass,
+		_zim_ReflectionClass_isSubclassOf,
+		_zim_ReflectionClass_implementsInterface,
+		_zim_ReflectionClass_isIterable,
+		_zim_ReflectionClass_getExtension,
+		_zim_ReflectionClass_getExtensionName,
+		_zim_ReflectionClass_inNamespace,
+		_zim_ReflectionClass_getNamespaceName,
+		_zim_ReflectionClass_getShortName,
+		_zim_ReflectionObject___construct,
+		_zim_ReflectionProperty___construct,
+		_zim_ReflectionProperty___toString,
+		_zim_ReflectionProperty_getName,
+		_zim_ReflectionProperty_isPublic,
+		_zim_ReflectionProperty_isPrivate,
+		_zim_ReflectionProperty_isProtected,
+		_zim_ReflectionProperty_isStatic,
+		_zim_ReflectionProperty_isDefault,
+		_zim_ReflectionProperty_isPromoted,
+		_zim_ReflectionProperty_getModifiers,
+		_zim_ReflectionProperty_getValue,
+		_zim_ReflectionProperty_setValue,
+		_zim_ReflectionProperty_isInitialized,
+		_zim_ReflectionProperty_getDeclaringClass,
+		_zim_ReflectionProperty_getDocComment,
+		_zim_ReflectionProperty_getAttributes,
+		_zim_ReflectionProperty_setAccessible,
+		_zim_ReflectionProperty_getType,
+		_zim_ReflectionProperty_hasType,
+		_zim_ReflectionProperty_hasDefaultValue,
+		_zim_ReflectionProperty_getDefaultValue,
+		_zim_ReflectionExtension___construct,
+		_zim_ReflectionExtension___toString,
+		_zim_ReflectionExtension_getName,
+		_zim_ReflectionExtension_getVersion,
+		_zim_ReflectionExtension_getFunctions,
+		_zim_ReflectionExtension_getConstants,
+		_zim_ReflectionExtension_getINIEntries,
+		_zim_ReflectionExtension_getClasses,
+		_zim_ReflectionExtension_getClassNames,
+		_zim_ReflectionExtension_getDependencies,
+		_zim_ReflectionExtension_info,
+		_zim_ReflectionExtension_isPersistent,
+		_zim_ReflectionExtension_isTemporary,
+		_zim_ReflectionZendExtension___construct,
+		_zim_ReflectionZendExtension___toString,
+		_zim_ReflectionZendExtension_getName,
+		_zim_ReflectionZendExtension_getVersion,
+		_zim_ReflectionZendExtension_getAuthor,
+		_zim_ReflectionZendExtension_getURL,
+		_zim_ReflectionZendExtension_getCopyright,
+		_zim_ReflectionReference___construct,
+		_zim_ReflectionReference_fromArrayElement,
+		_zim_ReflectionReference_getId,
+		_zim_ReflectionAttribute___construct,
+		_zim_ReflectionAttribute___clone,
+		_zim_ReflectionAttribute_getName,
+		_zim_ReflectionAttribute_getTarget,
+		_zim_ReflectionAttribute_isRepeated,
+		_zim_ReflectionAttribute_getArguments,
+		_zim_ReflectionAttribute_newInstance,
+		_zm_startup_reflection,
+		_zm_info_reflection,
+		_zim_SessionHandler_open,
+		_zim_SessionHandler_close,
+		_zim_SessionHandler_read,
+		_zim_SessionHandler_write,
+		_zim_SessionHandler_destroy,
+		_zim_SessionHandler_gc,
+		_zim_SessionHandler_create_sid,
+		_php_session_destroy,
+		_php_add_session_var,
+		_php_set_session_var,
+		_php_get_session_var,
+		_php_session_create_id,
+		_php_session_valid_key,
+		_ps_srlzr_encode_php_serialize,
+		_ps_srlzr_decode_php_serialize,
+		_ps_srlzr_encode_php_binary,
+		_ps_srlzr_decode_php_binary,
+		_ps_srlzr_encode_php,
+		_ps_srlzr_decode_php,
+		_php_session_register_serializer,
+		_php_session_register_module,
+		_php_session_validate_sid,
+		_php_session_update_timestamp,
+		__php_find_ps_module,
+		__php_find_ps_serializer,
+		_php_session_reset_id,
+		_php_session_start,
+		_php_session_flush,
+		_session_adapt_url,
+		_zif_session_set_cookie_params,
+		_zif_session_get_cookie_params,
+		_zif_session_name,
+		_zif_session_module_name,
+		_zif_session_set_save_handler,
+		_zif_session_save_path,
+		_zif_session_id,
+		_zif_session_regenerate_id,
+		_zif_session_create_id,
+		_zif_session_cache_limiter,
+		_zif_session_cache_expire,
+		_zif_session_encode,
+		_zif_session_decode,
+		_zif_session_start,
+		_zif_session_destroy,
+		_zif_session_unset,
+		_zif_session_gc,
+		_zif_session_write_close,
+		_zif_session_abort,
+		_zif_session_reset,
+		_zif_session_status,
+		_zif_session_register_shutdown,
+		_ps_open_files,
+		_ps_close_files,
+		_ps_read_files,
+		_ps_write_files,
+		_ps_delete_files,
+		_ps_gc_files,
+		_ps_create_sid_files,
+		_ps_validate_sid_files,
+		_ps_update_timestamp_files,
+		_ps_open_user,
+		_ps_close_user,
+		_ps_read_user,
+		_ps_write_user,
+		_ps_delete_user,
+		_ps_gc_user,
+		_ps_create_sid_user,
+		_ps_validate_sid_user,
+		_ps_update_timestamp_user,
+		_sxe_get_element_class_entry,
+		_zim_SimpleXMLElement_xpath,
+		_zim_SimpleXMLElement_registerXPathNamespace,
+		_zim_SimpleXMLElement_asXML,
+		_zim_SimpleXMLElement_getNamespaces,
+		_zim_SimpleXMLElement_getDocNamespaces,
+		_zim_SimpleXMLElement_children,
+		_zim_SimpleXMLElement_getName,
+		_zim_SimpleXMLElement_attributes,
+		_zim_SimpleXMLElement_addChild,
+		_zim_SimpleXMLElement_addAttribute,
+		_zim_SimpleXMLElement___toString,
+		_zim_SimpleXMLElement_count,
+		_zim_SimpleXMLElement_rewind,
+		_php_sxe_rewind_iterator,
+		_zim_SimpleXMLElement_valid,
+		_zim_SimpleXMLElement_current,
+		_zim_SimpleXMLElement_key,
+		_zim_SimpleXMLElement_next,
+		_php_sxe_move_forward_iterator,
+		_zim_SimpleXMLElement_hasChildren,
+		_zim_SimpleXMLElement_getChildren,
+		_sxe_object_new,
+		_zif_simplexml_load_file,
+		_zif_simplexml_load_string,
+		_zim_SimpleXMLElement___construct,
+		_php_sxe_get_iterator,
+		_simplexml_export_node,
+		_zif_simplexml_import_dom,
+		_zm_startup_simplexml,
+		_zm_shutdown_simplexml,
+		_zm_info_simplexml,
+		_zm_startup_soap,
+		_zm_shutdown_soap,
+		_zm_activate_soap,
+		_zm_info_soap,
+		_OnUpdateCacheMode,
+		_zim_SoapParam___construct,
+		_zim_SoapHeader___construct,
+		_zim_SoapFault___construct,
+		_zim_SoapFault___toString,
+		_zim_SoapVar___construct,
+		_zim_SoapServer___construct,
+		_zim_SoapServer_setPersistence,
+		_zim_SoapServer_setClass,
+		_zim_SoapServer_setObject,
+		_zim_SoapServer_getFunctions,
+		_zim_SoapServer_addFunction,
+		_zim_SoapServer_handle,
+		_zim_SoapServer_fault,
+		_zim_SoapServer_addSoapHeader,
+		_zif_use_soap_error_handler,
+		_zif_is_soap_fault,
+		_zim_SoapClient___construct,
+		_soap_client_call_impl,
+		_add_soap_fault,
+		_zim_SoapClient___call,
+		_zim_SoapClient___soapCall,
+		_zim_SoapClient___getFunctions,
+		_zim_SoapClient___getTypes,
+		_zim_SoapClient___getLastRequest,
+		_zim_SoapClient___getLastResponse,
+		_zim_SoapClient___getLastRequestHeaders,
+		_zim_SoapClient___getLastResponseHeaders,
+		_zim_SoapClient___doRequest,
+		_zim_SoapClient___setCookie,
+		_zim_SoapClient___getCookies,
+		_zim_SoapClient___setSoapHeaders,
+		_zim_SoapClient___setLocation,
+		_get_conversion,
+		_encode_add_ns,
+		_master_to_zval,
+		_whiteSpace_replace,
+		_whiteSpace_collapse,
+		_master_to_xml,
+		_to_xml_user,
+		_to_zval_user,
+		_sdl_guess_convert_zval,
+		_sdl_guess_convert_xml,
+		_encode_reset_ns,
+		_encode_finish,
+		_delete_encoder,
+		_delete_encoder_persistent,
+		_proxy_authentication,
+		_basic_authentication,
+		_http_context_headers,
+		_make_http_soap_request,
+		_parse_packet_soap,
+		_load_schema,
+		_delete_type,
+		_delete_attribute,
+		_delete_model,
+		_schema_min_max,
+		_delete_extra_attribute,
+		_schema_pass2,
+		_delete_model_persistent,
+		_delete_restriction_var_int,
+		_delete_restriction_var_char_int,
+		_delete_type_persistent,
+		_delete_restriction_var_int_persistent,
+		_delete_restriction_var_char_persistent_int,
+		_delete_extra_attribute_persistent,
+		_delete_attribute_persistent,
+		_delete_restriction_var_char,
+		_delete_restriction_var_char_persistent,
+		_get_encoder_from_prefix,
+		_get_encoder,
+		_get_encoder_ex,
+		_get_binding_from_type,
+		_get_binding_from_name,
+		_sdl_set_uri_credentials,
+		_sdl_restore_uri_credentials,
+		_get_sdl,
+		_delete_sdl_impl,
+		_delete_sdl,
+		_soap_xmlParseFile,
+		_soap_xmlParseMemory,
+		_attr_find_ns,
+		_node_find_ns,
+		_attr_is_equal_ex,
+		_node_is_equal_ex,
+		_get_attribute_ex,
+		_get_node_ex,
+		_get_node_recurisve_ex,
+		_get_node_with_attribute_ex,
+		_get_node_with_attribute_recursive_ex,
+		_parse_namespace,
+		_zif_class_parents,
+		_zif_class_implements,
+		_zif_class_uses,
+		_zif_spl_classes,
+		_zif_spl_autoload,
+		_zif_spl_autoload_extensions,
+		_zif_spl_autoload_call,
+		_zif_spl_autoload_register,
+		_zif_spl_autoload_unregister,
+		_zif_spl_autoload_functions,
+		_zif_spl_object_hash,
+		_php_spl_object_hash,
+		_zif_spl_object_id,
+		_zm_info_spl,
+		_zm_startup_spl,
+		_zm_activate_spl,
+		_zm_deactivate_spl,
+		_spl_register_interface,
+		_spl_register_std_class,
+		_spl_register_sub_class,
+		_spl_register_property,
+		_spl_add_class_name,
+		_spl_add_interfaces,
+		_spl_add_traits,
+		_spl_add_classes,
+		_spl_gen_private_prop_name,
+		_spl_offset_convert_to_long,
+		_zim_RecursiveIteratorIterator___construct,
+		_zim_RecursiveIteratorIterator_rewind,
+		_zim_RecursiveIteratorIterator_valid,
+		_zim_RecursiveIteratorIterator_key,
+		_zim_RecursiveIteratorIterator_current,
+		_zim_RecursiveIteratorIterator_next,
+		_zim_RecursiveIteratorIterator_getDepth,
+		_zim_RecursiveIteratorIterator_getSubIterator,
+		_zim_RecursiveIteratorIterator_getInnerIterator,
+		_zim_RecursiveIteratorIterator_beginIteration,
+		_zim_RecursiveIteratorIterator_endIteration,
+		_zim_RecursiveIteratorIterator_callHasChildren,
+		_zim_RecursiveIteratorIterator_callGetChildren,
+		_zim_RecursiveIteratorIterator_beginChildren,
+		_zim_RecursiveIteratorIterator_endChildren,
+		_zim_RecursiveIteratorIterator_nextElement,
+		_zim_RecursiveIteratorIterator_setMaxDepth,
+		_zim_RecursiveIteratorIterator_getMaxDepth,
+		_zim_RecursiveTreeIterator___construct,
+		_zim_RecursiveTreeIterator_setPrefixPart,
+		_zim_RecursiveTreeIterator_getPrefix,
+		_zim_RecursiveTreeIterator_setPostfix,
+		_zim_RecursiveTreeIterator_getEntry,
+		_zim_RecursiveTreeIterator_getPostfix,
+		_zim_RecursiveTreeIterator_current,
+		_zim_RecursiveTreeIterator_key,
+		_zim_FilterIterator___construct,
+		_zim_CallbackFilterIterator___construct,
+		_zim_IteratorIterator_getInnerIterator,
+		_zim_IteratorIterator_rewind,
+		_zim_IteratorIterator_valid,
+		_zim_IteratorIterator_key,
+		_zim_IteratorIterator_current,
+		_zim_IteratorIterator_next,
+		_zim_FilterIterator_rewind,
+		_zim_FilterIterator_next,
+		_zim_RecursiveCallbackFilterIterator___construct,
+		_zim_RecursiveFilterIterator___construct,
+		_zim_RecursiveFilterIterator_hasChildren,
+		_zim_RecursiveFilterIterator_getChildren,
+		_zim_RecursiveCallbackFilterIterator_getChildren,
+		_zim_ParentIterator___construct,
+		_zim_RegexIterator___construct,
+		_zim_CallbackFilterIterator_accept,
+		_zim_RegexIterator_accept,
+		_zim_RegexIterator_getRegex,
+		_zim_RegexIterator_getMode,
+		_zim_RegexIterator_setMode,
+		_zim_RegexIterator_getFlags,
+		_zim_RegexIterator_setFlags,
+		_zim_RegexIterator_getPregFlags,
+		_zim_RegexIterator_setPregFlags,
+		_zim_RecursiveRegexIterator___construct,
+		_zim_RecursiveRegexIterator_getChildren,
+		_zim_RecursiveRegexIterator_accept,
+		_zim_LimitIterator___construct,
+		_zim_LimitIterator_rewind,
+		_zim_LimitIterator_valid,
+		_zim_LimitIterator_next,
+		_zim_LimitIterator_seek,
+		_zim_LimitIterator_getPosition,
+		_zim_CachingIterator___construct,
+		_zim_CachingIterator_rewind,
+		_zim_CachingIterator_valid,
+		_zim_CachingIterator_next,
+		_zim_CachingIterator_hasNext,
+		_zim_CachingIterator___toString,
+		_zim_CachingIterator_offsetSet,
+		_zim_CachingIterator_offsetGet,
+		_zim_CachingIterator_offsetUnset,
+		_zim_CachingIterator_offsetExists,
+		_zim_CachingIterator_getCache,
+		_zim_CachingIterator_getFlags,
+		_zim_CachingIterator_setFlags,
+		_zim_CachingIterator_count,
+		_zim_RecursiveCachingIterator___construct,
+		_zim_RecursiveCachingIterator_hasChildren,
+		_zim_RecursiveCachingIterator_getChildren,
+		_zim_IteratorIterator___construct,
+		_zim_NoRewindIterator___construct,
+		_zim_NoRewindIterator_rewind,
+		_zim_NoRewindIterator_valid,
+		_zim_NoRewindIterator_key,
+		_zim_NoRewindIterator_current,
+		_zim_NoRewindIterator_next,
+		_zim_InfiniteIterator___construct,
+		_zim_InfiniteIterator_next,
+		_zim_EmptyIterator_rewind,
+		_zim_EmptyIterator_valid,
+		_zim_EmptyIterator_key,
+		_zim_EmptyIterator_current,
+		_zim_EmptyIterator_next,
+		_spl_append_it_next_iterator,
+		_spl_append_it_fetch,
+		_spl_append_it_next,
+		_zim_AppendIterator___construct,
+		_zim_AppendIterator_append,
+		_zim_AppendIterator_current,
+		_zim_AppendIterator_rewind,
+		_zim_AppendIterator_valid,
+		_zim_AppendIterator_next,
+		_zim_AppendIterator_getIteratorIndex,
+		_zim_AppendIterator_getArrayIterator,
+		_spl_iterator_apply,
+		_zif_iterator_to_array,
+		_zif_iterator_count,
+		_zif_iterator_apply,
+		_zm_startup_spl_iterators,
+		_zim_ArrayObject_offsetExists,
+		_zim_ArrayObject_offsetGet,
+		_zim_ArrayObject_offsetSet,
+		_spl_array_iterator_append,
+		_zim_ArrayObject_append,
+		_zim_ArrayObject_offsetUnset,
+		_zim_ArrayObject_getArrayCopy,
+		_spl_array_get_iterator,
+		_zim_ArrayObject___construct,
+		_zim_ArrayIterator___construct,
+		_zim_ArrayObject_setIteratorClass,
+		_zim_ArrayObject_getIteratorClass,
+		_zim_ArrayObject_getFlags,
+		_zim_ArrayObject_setFlags,
+		_zim_ArrayObject_exchangeArray,
+		_zim_ArrayObject_getIterator,
+		_zim_ArrayIterator_rewind,
+		_zim_ArrayIterator_seek,
+		_spl_array_object_count_elements,
+		_zim_ArrayObject_count,
+		_zim_ArrayObject_asort,
+		_zim_ArrayObject_ksort,
+		_zim_ArrayObject_uasort,
+		_zim_ArrayObject_uksort,
+		_zim_ArrayObject_natsort,
+		_zim_ArrayObject_natcasesort,
+		_zim_ArrayIterator_current,
+		_zim_ArrayIterator_key,
+		_spl_array_iterator_key,
+		_zim_ArrayIterator_next,
+		_zim_ArrayIterator_valid,
+		_zim_RecursiveArrayIterator_hasChildren,
+		_zim_RecursiveArrayIterator_getChildren,
+		_zim_ArrayObject_serialize,
+		_zim_ArrayObject_unserialize,
+		_zim_ArrayObject___serialize,
+		_zim_ArrayObject___unserialize,
+		_zim_ArrayObject___debugInfo,
+		_zm_startup_spl_array,
+		_spl_filesystem_object_get_path,
+		_spl_filesystem_info_set_filename,
+		_spl_filesystem_object_get_method_check,
+		_spl_filesystem_object_construct,
+		_zim_DirectoryIterator___construct,
+		_zim_DirectoryIterator_rewind,
+		_zim_DirectoryIterator_key,
+		_zim_DirectoryIterator_current,
+		_zim_DirectoryIterator_next,
+		_zim_DirectoryIterator_seek,
+		_zim_DirectoryIterator_valid,
+		_zim_SplFileInfo_getPath,
+		_zim_SplFileInfo_getFilename,
+		_zim_DirectoryIterator_getFilename,
+		_zim_SplFileInfo_getExtension,
+		_zim_DirectoryIterator_getExtension,
+		_zim_SplFileInfo_getBasename,
+		_zim_DirectoryIterator_getBasename,
+		_zim_SplFileInfo_getPathname,
+		_zim_FilesystemIterator_key,
+		_zim_FilesystemIterator_current,
+		_zim_DirectoryIterator_isDot,
+		_zim_SplFileInfo___construct,
+		_zim_SplFileInfo_getPerms,
+		_zim_SplFileInfo_getInode,
+		_zim_SplFileInfo_getSize,
+		_zim_SplFileInfo_getOwner,
+		_zim_SplFileInfo_getGroup,
+		_zim_SplFileInfo_getATime,
+		_zim_SplFileInfo_getMTime,
+		_zim_SplFileInfo_getCTime,
+		_zim_SplFileInfo_getType,
+		_zim_SplFileInfo_isWritable,
+		_zim_SplFileInfo_isReadable,
+		_zim_SplFileInfo_isExecutable,
+		_zim_SplFileInfo_isFile,
+		_zim_SplFileInfo_isDir,
+		_zim_SplFileInfo_isLink,
+		_zim_SplFileInfo_getLinkTarget,
+		_zim_SplFileInfo_getRealPath,
+		_zim_SplFileInfo_openFile,
+		_zim_SplFileInfo_setFileClass,
+		_zim_SplFileInfo_setInfoClass,
+		_zim_SplFileInfo_getFileInfo,
+		_zim_SplFileInfo_getPathInfo,
+		_zim_SplFileInfo___debugInfo,
+		_zim_SplFileInfo__bad_state_ex,
+		_zim_FilesystemIterator___construct,
+		_zim_FilesystemIterator_rewind,
+		_zim_FilesystemIterator_getFlags,
+		_zim_FilesystemIterator_setFlags,
+		_zim_RecursiveDirectoryIterator_hasChildren,
+		_zim_RecursiveDirectoryIterator_getChildren,
+		_zim_RecursiveDirectoryIterator_getSubPath,
+		_zim_RecursiveDirectoryIterator_getSubPathname,
+		_zim_RecursiveDirectoryIterator___construct,
+		_zim_GlobIterator___construct,
+		_zim_GlobIterator_count,
+		_spl_filesystem_dir_get_iterator,
+		_spl_filesystem_tree_get_iterator,
+		_zim_SplFileObject___construct,
+		_zim_SplTempFileObject___construct,
+		_zim_SplFileObject_rewind,
+		_zim_SplFileObject_eof,
+		_zim_SplFileObject_valid,
+		_zim_SplFileObject_fgets,
+		_zim_SplFileObject_current,
+		_zim_SplFileObject_key,
+		_zim_SplFileObject_next,
+		_zim_SplFileObject_setFlags,
+		_zim_SplFileObject_getFlags,
+		_zim_SplFileObject_setMaxLineLen,
+		_zim_SplFileObject_getMaxLineLen,
+		_zim_SplFileObject_hasChildren,
+		_zim_SplFileObject_getChildren,
+		_zim_SplFileObject_fgetcsv,
+		_zim_SplFileObject_fputcsv,
+		_zim_SplFileObject_setCsvControl,
+		_zim_SplFileObject_getCsvControl,
+		_zim_SplFileObject_flock,
+		_zim_SplFileObject_fflush,
+		_zim_SplFileObject_ftell,
+		_zim_SplFileObject_fseek,
+		_zim_SplFileObject_fgetc,
+		_zim_SplFileObject_fpassthru,
+		_zim_SplFileObject_fscanf,
+		_zim_SplFileObject_fwrite,
+		_zim_SplFileObject_fread,
+		_zim_SplFileObject_fstat,
+		_zim_SplFileObject_ftruncate,
+		_zim_SplFileObject_seek,
+		_zm_startup_spl_directory,
+		_zm_startup_spl_exceptions,
+		_spl_SplObjectStorage_free_storage,
+		_spl_object_storage_attach,
+		_spl_object_storage_addall,
+		_spl_object_storage_contains,
+		_zim_SplObjectStorage_attach,
+		_zim_SplObjectStorage_detach,
+		_zim_SplObjectStorage_getHash,
+		_zim_SplObjectStorage_offsetGet,
+		_zim_SplObjectStorage_addAll,
+		_zim_SplObjectStorage_removeAll,
+		_zim_SplObjectStorage_removeAllExcept,
+		_zim_SplObjectStorage_contains,
+		_zim_SplObjectStorage_count,
+		_zim_SplObjectStorage_rewind,
+		_zim_SplObjectStorage_valid,
+		_zim_SplObjectStorage_key,
+		_zim_SplObjectStorage_current,
+		_zim_SplObjectStorage_getInfo,
+		_zim_SplObjectStorage_setInfo,
+		_zim_SplObjectStorage_next,
+		_zim_SplObjectStorage_serialize,
+		_zim_SplObjectStorage_unserialize,
+		_zim_SplObjectStorage___serialize,
+		_zim_SplObjectStorage___unserialize,
+		_zim_SplObjectStorage___debugInfo,
+		_zim_MultipleIterator___construct,
+		_zim_MultipleIterator_getFlags,
+		_zim_MultipleIterator_setFlags,
+		_zim_MultipleIterator_attachIterator,
+		_zim_MultipleIterator_detachIterator,
+		_zim_MultipleIterator_containsIterator,
+		_zim_MultipleIterator_countIterators,
+		_zim_MultipleIterator_rewind,
+		_zim_MultipleIterator_next,
+		_zim_MultipleIterator_valid,
+		_zim_MultipleIterator_current,
+		_zim_MultipleIterator_key,
+		_zm_startup_spl_observer,
+		_zim_SplDoublyLinkedList_push,
+		_zim_SplDoublyLinkedList_unshift,
+		_zim_SplDoublyLinkedList_pop,
+		_zim_SplDoublyLinkedList_shift,
+		_zim_SplDoublyLinkedList_top,
+		_zim_SplDoublyLinkedList_bottom,
+		_zim_SplDoublyLinkedList_count,
+		_zim_SplDoublyLinkedList_isEmpty,
+		_zim_SplDoublyLinkedList_setIteratorMode,
+		_zim_SplDoublyLinkedList_getIteratorMode,
+		_zim_SplDoublyLinkedList_offsetExists,
+		_zim_SplDoublyLinkedList_offsetGet,
+		_zim_SplDoublyLinkedList_offsetSet,
+		_zim_SplDoublyLinkedList_offsetUnset,
+		_zim_SplDoublyLinkedList_key,
+		_zim_SplDoublyLinkedList_prev,
+		_zim_SplDoublyLinkedList_next,
+		_zim_SplDoublyLinkedList_valid,
+		_zim_SplDoublyLinkedList_rewind,
+		_zim_SplDoublyLinkedList_current,
+		_zim_SplDoublyLinkedList_serialize,
+		_zim_SplDoublyLinkedList_unserialize,
+		_zim_SplDoublyLinkedList___serialize,
+		_zim_SplDoublyLinkedList___unserialize,
+		_zim_SplDoublyLinkedList_add,
+		_zim_SplDoublyLinkedList___debugInfo,
+		_spl_dllist_get_iterator,
+		_zm_startup_spl_dllist,
+		_zim_SplHeap_count,
+		_zim_SplHeap_isEmpty,
+		_zim_SplHeap_insert,
+		_zim_SplHeap_extract,
+		_zim_SplPriorityQueue_insert,
+		_zim_SplPriorityQueue_extract,
+		_zim_SplPriorityQueue_top,
+		_zim_SplPriorityQueue_setExtractFlags,
+		_zim_SplPriorityQueue_getExtractFlags,
+		_zim_SplHeap_recoverFromCorruption,
+		_zim_SplHeap_isCorrupted,
+		_zim_SplPriorityQueue_compare,
+		_zim_SplHeap_top,
+		_zim_SplMinHeap_compare,
+		_zim_SplMaxHeap_compare,
+		_zim_SplHeap_key,
+		_zim_SplHeap_next,
+		_zim_SplHeap_valid,
+		_zim_SplHeap_rewind,
+		_zim_SplHeap_current,
+		_zim_SplPriorityQueue_current,
+		_zim_SplHeap___debugInfo,
+		_zim_SplPriorityQueue___debugInfo,
+		_spl_heap_get_iterator,
+		_spl_pqueue_get_iterator,
+		_zm_startup_spl_heap,
+		_zim_SplFixedArray___construct,
+		_zim_SplFixedArray___wakeup,
+		_zim_SplFixedArray_count,
+		_zim_SplFixedArray_toArray,
+		_zim_SplFixedArray_fromArray,
+		_zim_SplFixedArray_getSize,
+		_zim_SplFixedArray_setSize,
+		_zim_SplFixedArray_offsetExists,
+		_zim_SplFixedArray_offsetGet,
+		_zim_SplFixedArray_offsetSet,
+		_zim_SplFixedArray_offsetUnset,
+		_zim_SplFixedArray_getIterator,
+		_spl_fixedarray_get_iterator,
+		_zm_startup_spl_fixedarray,
+		__crypt_extended_init,
+		__crypt_extended_r,
+		_php_crypt_blowfish_rn,
+		_php_sha512_crypt_r,
+		_php_sha512_crypt,
+		___php_stpncpy,
+		___php_mempcpy,
+		_php_sha256_crypt_r,
+		_php_sha256_crypt,
+		_php_init_crypt_r,
+		_php_shutdown_crypt_r,
+		__crypt_extended_init_r,
+		_php_md5_crypt_r,
+		_zm_startup_array,
+		_zm_shutdown_array,
+		_zif_krsort,
+		_zif_ksort,
+		_php_count_recursive,
+		_zif_count,
+		_zif_natsort,
+		_zif_natcasesort,
+		_zif_asort,
+		_zif_arsort,
+		_zif_sort,
+		_zif_rsort,
+		_zif_usort,
+		_zif_uasort,
+		_zif_uksort,
+		_zif_end,
+		_zif_prev,
+		_zif_next,
+		_zif_reset,
+		_zif_current,
+		_zif_key,
+		_zif_min,
+		_zif_max,
+		_zif_array_walk,
+		_zif_array_walk_recursive,
+		_zif_in_array,
+		_zif_array_search,
+		_php_prefix_varname,
+		_zif_extract,
+		_zif_compact,
+		_zif_array_fill,
+		_zif_array_fill_keys,
+		_zif_range,
+		_zif_shuffle,
+		_zif_array_push,
+		_zif_array_pop,
+		_zif_array_shift,
+		_zif_array_unshift,
+		_zif_array_splice,
+		_zif_array_slice,
+		_php_array_merge_recursive,
+		_php_array_merge,
+		_php_array_replace_recursive,
+		_zif_array_merge,
+		_zif_array_merge_recursive,
+		_zif_array_replace,
+		_zif_array_replace_recursive,
+		_zif_array_keys,
+		_zif_array_key_first,
+		_zif_array_key_last,
+		_zif_array_values,
+		_zif_array_count_values,
+		_zif_array_column,
+		_zif_array_reverse,
+		_zif_array_pad,
+		_zif_array_flip,
+		_zif_array_change_key_case,
+		_zif_array_unique,
+		_zif_array_intersect_key,
+		_zif_array_intersect_ukey,
+		_zif_array_intersect,
+		_zif_array_uintersect,
+		_zif_array_intersect_assoc,
+		_zif_array_intersect_uassoc,
+		_zif_array_uintersect_assoc,
+		_zif_array_uintersect_uassoc,
+		_zif_array_diff_key,
+		_zif_array_diff_ukey,
+		_zif_array_diff,
+		_zif_array_udiff,
+		_zif_array_diff_assoc,
+		_zif_array_diff_uassoc,
+		_zif_array_udiff_assoc,
+		_zif_array_udiff_uassoc,
+		_php_multisort_compare,
+		_zif_array_multisort,
+		_zif_array_rand,
+		_zif_array_sum,
+		_zif_array_product,
+		_zif_array_reduce,
+		_zif_array_filter,
+		_zif_array_map,
+		_zif_array_key_exists,
+		_zif_array_chunk,
+		_zif_array_combine,
+		_php_base64_encode,
+		_php_base64_decode_ex,
+		_zif_base64_encode,
+		_zif_base64_decode,
+		_zm_startup_basic,
+		_zm_shutdown_basic,
+		_zm_activate_basic,
+		_zm_deactivate_basic,
+		_zm_info_basic,
+		_php_get_nan,
+		_php_get_inf,
+		_zif_constant,
+		_zif_inet_ntop,
+		_zif_inet_pton,
+		_zif_ip2long,
+		_zif_long2ip,
+		_zif_getenv,
+		_zif_putenv,
+		_zif_getopt,
+		_zif_flush,
+		_zif_sleep,
+		_zif_usleep,
+		_zif_time_nanosleep,
+		_zif_time_sleep_until,
+		_zif_get_current_user,
+		_zif_get_cfg_var,
+		_zif_error_log,
+		__php_error_log_ex,
+		__php_error_log,
+		_zif_error_get_last,
+		_zif_error_clear_last,
+		_zif_call_user_func,
+		_zif_call_user_func_array,
+		_zif_forward_static_call,
+		_zif_forward_static_call_array,
+		_php_call_shutdown_functions,
+		_php_free_shutdown_functions,
+		_zif_register_shutdown_function,
+		_append_user_shutdown_function,
+		_register_user_shutdown_function,
+		_remove_user_shutdown_function,
+		_php_get_highlight_struct,
+		_zif_highlight_file,
+		_zif_php_strip_whitespace,
+		_zif_highlight_string,
+		_zif_ini_get,
+		_zif_ini_get_all,
+		_zif_ini_set,
+		_zif_ini_restore,
+		_zif_set_include_path,
+		_zif_get_include_path,
+		_zif_print_r,
+		_zif_connection_aborted,
+		_zif_connection_status,
+		_zif_ignore_user_abort,
+		_zif_getservbyname,
+		_zif_getservbyport,
+		_zif_getprotobyname,
+		_zif_getprotobynumber,
+		_zif_register_tick_function,
+		_zif_unregister_tick_function,
+		_zif_is_uploaded_file,
+		_zif_move_uploaded_file,
+		_zif_parse_ini_file,
+		_zif_parse_ini_string,
+		_zif_sys_getloadavg,
+		_OnChangeBrowscap,
+		_zm_startup_browscap,
+		_zm_deactivate_browscap,
+		_zm_shutdown_browscap,
+		_zif_get_browser,
+		_zif_crc32,
+		_zm_startup_crypt,
+		_zm_shutdown_crypt,
+		_php_crypt,
+		_zif_crypt,
+		_php_std_date,
+		_zif_strptime,
+		_zm_activate_dir,
+		_zm_startup_dir,
+		_zif_opendir,
+		_zif_dir,
+		_zif_closedir,
+		_zif_chroot,
+		_zif_chdir,
+		_zif_getcwd,
+		_zif_rewinddir,
+		_zif_readdir,
+		_zif_glob,
+		_zif_scandir,
+		_zif_dl,
+		_php_load_extension,
+		_php_dl,
+		_php_load_shlib,
+		_zm_info_dl,
+		_zif_gethostname,
+		_zif_gethostbyaddr,
+		_zif_gethostbyname,
+		_zif_gethostbynamel,
+		_zm_startup_exec,
+		_php_exec_old,
+		_zif_exec,
+		_zif_system,
+		_zif_passthru,
+		_php_escape_shell_cmd,
+		_php_escape_shell_arg,
+		_zif_escapeshellcmd,
+		_zif_escapeshellarg,
+		_zif_shell_exec,
+		_zif_proc_nice,
+		_php_le_stream_context,
+		_zm_startup_file,
+		_zm_shutdown_file,
+		_php_flock_common,
+		_zif_flock,
+		_zif_get_meta_tags,
+		_php_next_meta_token,
+		_zif_file_get_contents,
+		_zif_file_put_contents,
+		_zif_file,
+		_zif_tempnam,
+		_zif_tmpfile,
+		_zif_fopen,
+		_zif_fclose,
+		_zif_popen,
+		_zif_pclose,
+		_zif_feof,
+		_zif_fgets,
+		_zif_fgetc,
+		_zif_fscanf,
+		_zif_fwrite,
+		_zif_fflush,
+		_zif_rewind,
+		_zif_ftell,
+		_zif_fseek,
+		_php_mkdir_ex,
+		_php_mkdir,
+		_zif_mkdir,
+		_zif_rmdir,
+		_zif_readfile,
+		_zif_umask,
+		_zif_fpassthru,
+		_zif_rename,
+		_zif_unlink,
+		_zif_ftruncate,
+		_php_fstat,
+		_zif_fstat,
+		_zif_copy,
+		_php_copy_file_ctx,
+		_php_copy_file,
+		_php_copy_file_ex,
+		_zif_fread,
+		_zif_fputcsv,
+		_php_fputcsv,
+		_zif_fgetcsv,
+		_php_fgetcsv,
+		_zif_realpath,
+		_zif_fnmatch,
+		_zif_sys_get_temp_dir,
+		_zm_activate_filestat,
+		_zm_deactivate_filestat,
+		_zif_disk_total_space,
+		_zif_disk_free_space,
+		_php_get_gid_by_name,
+		_zif_chgrp,
+		_zif_lchgrp,
+		_php_get_uid_by_name,
+		_zif_chown,
+		_zif_lchown,
+		_zif_chmod,
+		_zif_touch,
+		_php_clear_stat_cache,
+		_zif_clearstatcache,
+		_php_stat,
+		_zif_fileperms,
+		_zif_fileinode,
+		_zif_filesize,
+		_zif_fileowner,
+		_zif_filegroup,
+		_zif_fileatime,
+		_zif_filemtime,
+		_zif_filectime,
+		_zif_filetype,
+		_zif_is_writable,
+		_zif_is_readable,
+		_zif_is_executable,
+		_zif_is_file,
+		_zif_is_dir,
+		_zif_is_link,
+		_zif_file_exists,
+		_zif_lstat,
+		_zif_stat,
+		_zif_realpath_cache_size,
+		_zif_realpath_cache_get,
+		_php_flock,
+		_php_sprintf_get_argnum,
+		_zif_sprintf,
+		_zif_vsprintf,
+		_zif_printf,
+		_zif_vprintf,
+		_zif_fprintf,
+		_zif_vfprintf,
+		_zif_fsockopen,
+		_zif_pfsockopen,
+		_zif_header,
+		_zif_header_remove,
+		_php_header,
+		_php_setcookie,
+		_zif_setcookie,
+		_zif_setrawcookie,
+		_zif_headers_sent,
+		_zif_headers_list,
+		_zif_http_response_code,
+		_php_next_utf8_char,
+		_php_unescape_html_entities,
+		_php_escape_html_entities,
+		_php_escape_html_entities_ex,
+		_register_html_constants,
+		_zif_htmlspecialchars,
+		_zif_htmlspecialchars_decode,
+		_zif_html_entity_decode,
+		_zif_htmlentities,
+		_zif_get_html_translation_table,
+		_zm_startup_imagetypes,
+		_php_image_type_to_mime_type,
+		_zif_image_type_to_mime_type,
+		_zif_image_type_to_extension,
+		_php_getimagetype,
+		_zif_getimagesize,
+		_zif_getimagesizefromstring,
+		_php_info_print_module,
 		_php_info_print_table_header,
 		_php_info_print_table_row,
 		_php_info_print_table_start,
 		_php_info_print_table_end,
+		_php_info_print_style,
+		_php_info_html_esc,
+		_php_get_uname,
+		_php_print_info_htmlhead,
+		_php_print_info,
+		_php_info_print_box_start,
+		_php_info_print_box_end,
+		_php_info_print_hr,
+		_php_info_print_table_colspan_header,
+		_php_info_print_table_row_ex,
+		_register_phpinfo_constants,
+		_zif_phpinfo,
+		_zif_phpversion,
+		_zif_phpcredits,
+		_zif_php_sapi_name,
+		_zif_php_uname,
+		_zif_php_ini_scanned_files,
+		_zif_php_ini_loaded_file,
+		_zif_iptcembed,
+		_zif_iptcparse,
+		_php_combined_lcg,
+		_zm_startup_lcg,
+		_zif_lcg_value,
+		_zif_readlink,
+		_zif_linkinfo,
+		_zif_symlink,
+		_zif_link,
+		_php_mail_build_headers,
+		_zif_mail,
+		_php_mail,
+		_php_mail_log_crlf_to_spaces,
+		_php_mail_log_to_syslog,
+		_php_mail_log_to_file,
+		_zm_info_mail,
+		__php_math_round,
+		_zif_abs,
+		_zif_ceil,
+		_zif_floor,
+		_zif_round,
+		_zif_sin,
+		_zif_cos,
+		_zif_tan,
+		_zif_asin,
+		_zif_acos,
+		_zif_atan,
+		_zif_atan2,
+		_zif_sinh,
+		_zif_cosh,
+		_zif_tanh,
+		_zif_asinh,
+		_zif_acosh,
+		_zif_atanh,
+		_zif_pi,
+		_zif_is_finite,
+		_zif_is_infinite,
+		_zif_is_nan,
+		_zif_pow,
+		_zif_exp,
+		_zif_expm1,
+		_zif_log1p,
+		_zif_log,
+		_zif_log10,
+		_zif_sqrt,
+		_zif_hypot,
+		_zif_deg2rad,
+		_zif_rad2deg,
+		__php_math_basetolong,
+		__php_math_basetozval,
+		__php_math_longtobase,
+		__php_math_zvaltobase,
+		_zif_bindec,
+		_zif_hexdec,
+		_zif_octdec,
+		_zif_decbin,
+		_zif_decoct,
+		_zif_dechex,
+		_zif_base_convert,
+		__php_math_number_format,
+		__php_math_number_format_ex,
+		_zif_number_format,
+		_zif_fmod,
+		_zif_fdiv,
+		_zif_intdiv,
+		_make_digest,
+		_make_digest_ex,
+		_zif_md5,
+		_PHP_MD5Final,
+		_PHP_MD5Init,
+		_PHP_MD5Update,
+		_zif_md5_file,
+		_zif_metaphone,
+		_zif_microtime,
+		_zif_gettimeofday,
+		_zif_getrusage,
+		_zif_pack,
+		_zif_unpack,
+		_zm_startup_pack,
+		_php_statpage,
+		_php_getuid,
+		_php_getgid,
+		_zif_getmyuid,
+		_zif_getmygid,
+		_zif_getmypid,
+		_zif_getmyinode,
+		_php_getlastmod,
+		_zif_getlastmod,
+		_php_quot_print_decode,
+		_php_quot_print_encode,
+		_zif_quoted_printable_decode,
+		_zif_quoted_printable_encode,
+		_php_srand,
+		_php_rand,
+		_zif_rand,
+		_php_mt_srand,
+		_php_mt_rand,
+		_zif_mt_srand,
+		_php_mt_rand_range,
+		_php_mt_rand_common,
+		_zif_mt_rand,
+		_zif_mt_getrandmax,
+		_zm_startup_mt_rand,
+		_zif_soundex,
+		_register_string_constants,
+		_localeconv_r,
+		_zif_bin2hex,
+		_zif_hex2bin,
+		_zif_strspn,
+		_zif_strcspn,
+		_zm_startup_nl_langinfo,
+		_zif_nl_langinfo,
+		_zif_strcoll,
+		_php_trim,
+		_zif_trim,
+		_zif_rtrim,
+		_zif_ltrim,
+		_zif_wordwrap,
+		_php_explode,
+		_php_explode_negative_limit,
+		_zif_explode,
+		_php_implode,
+		_zif_implode,
+		_zif_strtok,
+		_php_strtoupper,
+		_php_string_toupper,
+		_zif_strtoupper,
 		_php_strtolower,
+		_php_string_tolower,
+		_zif_strtolower,
+		_php_basename,
+		_zif_basename,
+		_php_dirname,
+		_zif_dirname,
+		_zif_pathinfo,
+		_php_stristr,
+		_php_strspn,
+		_php_strcspn,
+		_zif_stristr,
+		_zif_strstr,
+		_zif_str_contains,
+		_zif_str_starts_with,
+		_zif_str_ends_with,
+		_zif_strpos,
+		_zif_stripos,
+		_zif_strrpos,
+		_zif_strripos,
+		_zif_strrchr,
+		_zif_chunk_split,
+		_zif_substr,
+		_zif_substr_replace,
+		_zif_quotemeta,
+		_zif_ord,
+		_zif_chr,
+		_zif_ucfirst,
+		_zif_lcfirst,
+		_zif_ucwords,
+		_php_strtr,
+		_php_str_to_str,
+		_zif_strtr,
+		_zif_strrev,
+		_zif_similar_text,
+		_zif_addcslashes,
+		_php_addcslashes_str,
+		_zif_addslashes,
+		_php_addslashes,
+		_zif_stripcslashes,
+		_php_stripcslashes,
+		_zif_stripslashes,
+		_php_stripslashes,
+		_php_addcslashes,
+		_zif_str_replace,
+		_zif_str_ireplace,
+		_zif_hebrev,
+		_zif_nl2br,
+		_zif_strip_tags,
+		_php_strip_tags_ex,
+		_php_tag_find,
+		_zif_setlocale,
+		_zif_parse_str,
+		_php_strip_tags,
+		_zif_str_getcsv,
+		_zif_str_repeat,
+		_zif_count_chars,
+		_string_natural_compare_function_ex,
+		_string_natural_case_compare_function,
+		_string_natural_compare_function,
+		_zif_strnatcmp,
+		_zif_localeconv,
+		_zif_strnatcasecmp,
+		_zif_substr_count,
+		_zif_str_pad,
+		_zif_sscanf,
+		_zif_str_rot13,
+		_zif_str_shuffle,
+		_zif_str_word_count,
+		_zif_str_split,
+		_zif_strpbrk,
+		_zif_substr_compare,
+		_zif_utf8_encode,
+		_zif_utf8_decode,
+		_ValidateFormat,
+		_php_sscanf_internal,
+		_zm_startup_syslog,
+		_zm_activate_syslog,
+		_zm_shutdown_syslog,
+		_zif_openlog,
+		_zif_closelog,
+		_zif_syslog,
+		_zif_gettype,
+		_zif_get_debug_type,
+		_zif_settype,
+		_zif_intval,
+		_zif_floatval,
+		_zif_boolval,
+		_zif_strval,
+		_zif_is_null,
+		_zif_is_resource,
+		_zif_is_bool,
+		_zif_is_int,
+		_zif_is_float,
+		_zif_is_string,
+		_zif_is_array,
+		_zif_is_object,
+		_zif_is_numeric,
+		_zif_is_scalar,
+		_zif_is_callable,
+		_zif_is_iterable,
+		_zif_is_countable,
+		_zif_uniqid,
+		_php_url_free,
+		_php_replace_controlchars_ex,
+		_php_replace_controlchars,
+		_php_url_parse,
+		_php_url_parse_ex2,
+		_php_url_parse_ex,
+		_zif_parse_url,
+		_php_url_encode,
+		_zif_urlencode,
+		_zif_urldecode,
+		_php_url_decode,
+		_php_raw_url_encode,
+		_zif_rawurlencode,
+		_zif_rawurldecode,
+		_php_raw_url_decode,
+		_zif_get_headers,
+		_php_var_dump,
+		_zif_var_dump,
+		_php_debug_zval_dump,
+		_zif_debug_zval_dump,
+		_php_var_export_ex,
+		_php_var_export,
+		_zif_var_export,
+		_php_var_serialize,
+		_php_var_serialize_init,
+		_php_var_serialize_destroy,
+		_zif_serialize,
+		_php_unserialize_with_options,
+		_zif_unserialize,
+		_zif_memory_get_usage,
+		_zif_memory_get_peak_usage,
+		_zm_startup_var,
+		_php_canonicalize_version,
+		_php_version_compare,
+		_zif_version_compare,
+		_zm_startup_assert,
+		_zm_shutdown_assert,
+		_zm_deactivate_assert,
+		_zm_info_assert,
+		_zif_assert,
+		_zif_assert_options,
+		_strnatcmp_ex,
+		_zif_levenshtein,
+		_php_register_incomplete_class,
+		_php_lookup_class_name,
+		_php_store_class_name,
+		_php_url_scanner_adapt_single_url,
+		_php_url_scanner_add_session_var,
+		_php_url_scanner_add_var,
+		_php_url_scanner_reset_session_vars,
+		_php_url_scanner_reset_vars,
+		_php_url_scanner_reset_session_var,
+		_php_url_scanner_reset_var,
+		_zm_startup_url_scanner_ex,
+		_zm_shutdown_url_scanner_ex,
+		_zm_activate_url_scanner_ex,
+		_zm_deactivate_url_scanner_ex,
+		_php_stream_url_wrap_ftp,
+		_php_stream_ftp_opendir,
+		_php_stream_url_wrap_http,
+		_php_stream_url_wrap_php,
+		_php_print_credits,
+		_php_info_print_css,
+		_php_var_unserialize_init,
+		_php_var_unserialize_destroy,
+		_var_destroy,
+		_php_var_unserialize_get_allowed_classes,
+		_php_var_unserialize_set_allowed_classes,
+		_php_var_unserialize_set_max_depth,
+		_php_var_unserialize_get_max_depth,
+		_php_var_unserialize_set_cur_depth,
+		_php_var_unserialize_get_cur_depth,
+		_var_push_dtor,
+		_var_tmp_var,
+		_var_replace,
+		_php_var_unserialize,
+		_make_sha1_digest,
+		_zif_sha1,
+		_PHP_SHA1Final,
+		_PHP_SHA1Init,
+		_PHP_SHA1Update,
+		_zif_sha1_file,
+		_zim_php_user_filter_filter,
+		_zim_php_user_filter_onCreate,
+		_zim_php_user_filter_onClose,
+		_zm_startup_user_filters,
+		_zm_deactivate_user_filters,
+		_userfilter_filter,
+		_zif_stream_bucket_make_writeable,
+		_zif_stream_bucket_prepend,
+		_zif_stream_bucket_append,
+		_zif_stream_bucket_new,
+		_zif_stream_get_filters,
+		_zif_stream_filter_register,
+		_php_uuencode,
+		_php_uudecode,
+		_zif_convert_uuencode,
+		_zif_convert_uudecode,
+		_zm_startup_standard_filters,
+		_zm_shutdown_standard_filters,
+		_zif_stream_socket_pair,
+		_zif_stream_socket_client,
+		_zif_stream_socket_server,
+		_zif_stream_socket_accept,
+		_zif_stream_socket_get_name,
+		_zif_stream_socket_sendto,
+		_zif_stream_socket_recvfrom,
+		_zif_stream_get_contents,
+		_zif_stream_copy_to_stream,
+		_zif_stream_get_meta_data,
+		_zif_stream_get_transports,
+		_zif_stream_get_wrappers,
+		_zif_stream_select,
+		_zif_stream_context_get_options,
+		_zif_stream_context_set_option,
+		_zif_stream_context_set_params,
+		_zif_stream_context_get_params,
+		_zif_stream_context_get_default,
+		_zif_stream_context_set_default,
+		_zif_stream_context_create,
+		_zif_stream_filter_prepend,
+		_zif_stream_filter_append,
+		_zif_stream_filter_remove,
+		_zif_stream_get_line,
+		_zif_stream_set_blocking,
+		_zif_stream_set_timeout,
+		_zif_stream_set_write_buffer,
+		_zif_stream_set_chunk_size,
+		_zif_stream_set_read_buffer,
+		_zif_stream_socket_enable_crypto,
+		_zif_stream_resolve_include_path,
+		_zif_stream_is_local,
+		_zif_stream_supports_lock,
+		_zif_stream_isatty,
+		_zif_stream_socket_shutdown,
+		_php_url_encode_hash_ex,
+		_zif_http_build_query,
+		_php_password_algo_register,
+		_php_password_algo_unregister,
+		_zm_startup_password,
+		_zm_shutdown_password,
+		_php_password_algo_default,
+		_php_password_algo_find,
+		_php_password_algo_extract_ident,
+		_php_password_algo_identify_ex,
+		_zif_password_get_info,
+		_zif_password_needs_rehash,
+		_zif_password_verify,
+		_zif_password_hash,
+		_zif_password_algos,
+		_zm_startup_random,
+		_zm_shutdown_random,
+		_php_random_bytes,
+		_zif_random_bytes,
+		_php_random_int,
+		_zif_random_int,
+		_php_inet_ntop,
+		_zif_net_get_interfaces,
+		_zm_startup_hrtime,
+		_zif_hrtime,
+		_php_hrtime_current,
+		_tokenizer_token_get_all_register_constants,
+		_zm_startup_tokenizer,
+		_zm_info_tokenizer,
+		_zim_PhpToken_tokenize,
+		_on_event,
+		_zim_PhpToken___construct,
+		_zim_PhpToken_is,
+		_zim_PhpToken_isIgnorable,
+		_zim_PhpToken_getTokenName,
+		_zim_PhpToken___toString,
+		_zif_token_get_all,
+		_zif_token_name,
+		_tokenizer_register_constants,
+		_get_token_type_name,
+		_wasm_memory_storage_chunk_alloc,
+		_wasm_memory_storage_chunk_free,
+		_zm_startup_wasm_memory_storage,
+		_zm_shutdown_wasm_memory_storage,
+		_zm_info_wasm_memory_storage,
+		_zm_startup_xml,
+		_zm_info_xml,
+		__xml_startElementHandler,
+		__xml_endElementHandler,
+		__xml_characterDataHandler,
+		__xml_processingInstructionHandler,
+		__xml_defaultHandler,
+		__xml_unparsedEntityDeclHandler,
+		__xml_notationDeclHandler,
+		__xml_externalEntityRefHandler,
+		__xml_startNamespaceDeclHandler,
+		__xml_endNamespaceDeclHandler,
+		_zif_xml_parser_create,
+		_zif_xml_parser_create_ns,
+		_zif_xml_set_object,
+		_zif_xml_set_element_handler,
+		_zif_xml_set_character_data_handler,
+		_zif_xml_set_processing_instruction_handler,
+		_zif_xml_set_default_handler,
+		_zif_xml_set_unparsed_entity_decl_handler,
+		_zif_xml_set_notation_decl_handler,
+		_zif_xml_set_external_entity_ref_handler,
+		_zif_xml_set_start_namespace_decl_handler,
+		_zif_xml_set_end_namespace_decl_handler,
+		_zif_xml_parse,
+		_zif_xml_parse_into_struct,
+		_zif_xml_get_error_code,
+		_zif_xml_error_string,
+		_zif_xml_get_current_line_number,
+		_zif_xml_get_current_column_number,
+		_zif_xml_get_current_byte_index,
+		_zif_xml_parser_free,
+		_zif_xml_parser_set_option,
+		_zif_xml_parser_get_option,
+		_php_XML_ParserCreate,
+		_php_XML_ParserCreate_MM,
+		_php_XML_ParserCreateNS,
+		_php_XML_SetUserData,
+		_XML_GetUserData,
+		_php_XML_SetElementHandler,
+		_php_XML_SetCharacterDataHandler,
+		_php_XML_SetProcessingInstructionHandler,
+		_php_XML_SetCommentHandler,
+		_php_XML_SetDefaultHandler,
+		_php_XML_SetUnparsedEntityDeclHandler,
+		_php_XML_SetNotationDeclHandler,
+		_php_XML_SetExternalEntityRefHandler,
+		_php_XML_SetStartNamespaceDeclHandler,
+		_php_XML_SetEndNamespaceDeclHandler,
+		_php_XML_Parse,
+		_php_XML_GetErrorCode,
+		_php_XML_ErrorString,
+		_php_XML_GetCurrentLineNumber,
+		_php_XML_GetCurrentColumnNumber,
+		_php_XML_GetCurrentByteIndex,
+		_php_XML_GetCurrentByteCount,
+		_php_XML_ExpatVersion,
+		_php_XML_ParserFree,
+		_xmlreader_get_property_ptr_ptr,
+		_xmlreader_read_property,
+		_xmlreader_write_property,
+		__xmlreader_get_valid_file_path,
+		_zm_startup_xmlreader,
+		_xmlreader_objects_free_storage,
+		_xmlreader_objects_new,
+		_zm_shutdown_xmlreader,
+		_zm_info_xmlreader,
+		_xmlreader_objects_clone,
+		_zim_XMLReader_close,
+		_zim_XMLReader_getAttribute,
+		_zim_XMLReader_getAttributeNo,
+		_zim_XMLReader_getAttributeNs,
+		_zim_XMLReader_getParserProperty,
+		_zim_XMLReader_isValid,
+		_zim_XMLReader_lookupNamespace,
+		_zim_XMLReader_moveToAttribute,
+		_zim_XMLReader_moveToAttributeNo,
+		_zim_XMLReader_moveToAttributeNs,
+		_zim_XMLReader_moveToElement,
+		_zim_XMLReader_moveToFirstAttribute,
+		_zim_XMLReader_moveToNextAttribute,
+		_zim_XMLReader_read,
+		_zim_XMLReader_next,
+		_zim_XMLReader_open,
+		_zim_XMLReader_readInnerXml,
+		_zim_XMLReader_readOuterXml,
+		_zim_XMLReader_readString,
+		_zim_XMLReader_setSchema,
+		_zim_XMLReader_setParserProperty,
+		_zim_XMLReader_setRelaxNGSchema,
+		_zim_XMLReader_setRelaxNGSchemaSource,
+		_zim_XMLReader_XML,
+		_zim_XMLReader_expand,
+		_zif_xmlwriter_set_indent,
+		_zif_xmlwriter_set_indent_string,
+		_zif_xmlwriter_start_attribute,
+		_zif_xmlwriter_end_attribute,
+		_zif_xmlwriter_start_attribute_ns,
+		_zif_xmlwriter_write_attribute,
+		_zif_xmlwriter_write_attribute_ns,
+		_zif_xmlwriter_start_element,
+		_zif_xmlwriter_start_element_ns,
+		_zif_xmlwriter_end_element,
+		_zif_xmlwriter_full_end_element,
+		_zif_xmlwriter_write_element,
+		_zif_xmlwriter_write_element_ns,
+		_zif_xmlwriter_start_pi,
+		_zif_xmlwriter_end_pi,
+		_zif_xmlwriter_write_pi,
+		_zif_xmlwriter_start_cdata,
+		_zif_xmlwriter_end_cdata,
+		_zif_xmlwriter_write_cdata,
+		_zif_xmlwriter_write_raw,
+		_zif_xmlwriter_text,
+		_zif_xmlwriter_start_comment,
+		_zif_xmlwriter_end_comment,
+		_zif_xmlwriter_write_comment,
+		_zif_xmlwriter_start_document,
+		_zif_xmlwriter_end_document,
+		_zif_xmlwriter_start_dtd,
+		_zif_xmlwriter_end_dtd,
+		_zif_xmlwriter_write_dtd,
+		_zif_xmlwriter_start_dtd_element,
+		_zif_xmlwriter_end_dtd_element,
+		_zif_xmlwriter_write_dtd_element,
+		_zif_xmlwriter_start_dtd_attlist,
+		_zif_xmlwriter_end_dtd_attlist,
+		_zif_xmlwriter_write_dtd_attlist,
+		_zif_xmlwriter_start_dtd_entity,
+		_zif_xmlwriter_end_dtd_entity,
+		_zif_xmlwriter_write_dtd_entity,
+		_zif_xmlwriter_open_uri,
+		_zif_xmlwriter_open_memory,
+		_zif_xmlwriter_output_memory,
+		_zif_xmlwriter_flush,
+		_php_zip_glob,
+		_php_zip_pcre,
+		_zif_zip_open,
+		_zif_zip_close,
+		_zif_zip_read,
+		_zif_zip_entry_open,
+		_zif_zip_entry_close,
+		_zif_zip_entry_read,
+		_zif_zip_entry_name,
+		_zif_zip_entry_compressedsize,
+		_zif_zip_entry_filesize,
+		_zif_zip_entry_compressionmethod,
+		_zim_ZipArchive_open,
+		_zim_ZipArchive_setPassword,
+		_zim_ZipArchive_close,
+		_zim_ZipArchive_count,
+		_zim_ZipArchive_getStatusString,
+		_zim_ZipArchive_addEmptyDir,
+		_zim_ZipArchive_addGlob,
+		_zim_ZipArchive_addPattern,
+		_zim_ZipArchive_addFile,
+		_zim_ZipArchive_replaceFile,
+		_zim_ZipArchive_addFromString,
+		_zim_ZipArchive_statName,
+		_zim_ZipArchive_statIndex,
+		_zim_ZipArchive_locateName,
+		_zim_ZipArchive_getNameIndex,
+		_zim_ZipArchive_setArchiveComment,
+		_zim_ZipArchive_getArchiveComment,
+		_zim_ZipArchive_setCommentName,
+		_zim_ZipArchive_setCommentIndex,
+		_zim_ZipArchive_setExternalAttributesName,
+		_zim_ZipArchive_setExternalAttributesIndex,
+		_zim_ZipArchive_getExternalAttributesName,
+		_zim_ZipArchive_getExternalAttributesIndex,
+		_zim_ZipArchive_setEncryptionName,
+		_zim_ZipArchive_setEncryptionIndex,
+		_zim_ZipArchive_getCommentName,
+		_zim_ZipArchive_getCommentIndex,
+		_zim_ZipArchive_setCompressionName,
+		_zim_ZipArchive_setCompressionIndex,
+		_zim_ZipArchive_setMtimeName,
+		_zim_ZipArchive_setMtimeIndex,
+		_zim_ZipArchive_deleteIndex,
+		_zim_ZipArchive_deleteName,
+		_zim_ZipArchive_renameIndex,
+		_zim_ZipArchive_renameName,
+		_zim_ZipArchive_unchangeIndex,
+		_zim_ZipArchive_unchangeName,
+		_zim_ZipArchive_unchangeAll,
+		_zim_ZipArchive_unchangeArchive,
+		_zim_ZipArchive_extractTo,
+		_zim_ZipArchive_getFromName,
+		_zim_ZipArchive_getFromIndex,
+		_zim_ZipArchive_getStream,
+		_zim_ZipArchive_registerProgressCallback,
+		_zim_ZipArchive_registerCancelCallback,
+		_zim_ZipArchive_isCompressionMethodSupported,
+		_zim_ZipArchive_isEncryptionMethodSupported,
+		_php_stream_zip_open,
+		_php_stream_zip_opener,
+		_php_get_internal_encoding,
+		_php_get_input_encoding,
+		_php_get_output_encoding,
+		_php_during_module_startup,
+		_php_during_module_shutdown,
+		_php_get_module_initialized,
+		_php_log_err_with_severity,
+		_php_write,
+		_php_printf,
+		_php_printf_unchecked,
+		_php_verror,
 		_php_error_docref,
+		_php_error_docref1,
+		_php_error_docref2,
+		_php_html_puts,
+		_php_get_current_user,
+		_zif_set_time_limit,
+		_php_stream_open_for_zend_ex,
+		_php_on_timeout,
+		_php_request_startup,
+		_php_request_shutdown,
+		_php_com_initialize,
+		_zm_info_php_core,
+		_php_register_extensions,
+		_php_module_startup,
+		_php_module_shutdown_wrapper,
+		_php_module_shutdown,
+		_php_execute_script,
+		_php_execute_simple_script,
+		_php_handle_aborted_connection,
+		_php_handle_auth_data,
+		_php_lint_script,
+		_php_gcvt,
 		_ap_php_snprintf,
+		_ap_php_conv_10,
+		_php_conv_fp,
+		_ap_php_conv_p2,
 		_ap_php_slprintf,
+		_ap_php_vslprintf,
 		_ap_php_vsnprintf,
+		_ap_php_vasprintf,
+		_ap_php_asprintf,
+		_php_printf_to_smart_string,
+		_php_printf_to_smart_str,
+		_OnUpdateBaseDir,
+		_php_check_open_basedir_ex,
+		_php_check_specific_open_basedir,
+		_expand_filepath_with_mode,
+		_expand_filepath,
+		_php_check_open_basedir,
+		_php_fopen_primary_script,
+		_php_resolve_path,
+		_php_fopen_with_path,
+		_php_strip_url_passwd,
+		_expand_filepath_ex,
 		_display_ini_entries,
+		_config_zval_dtor,
+		_php_init_config,
+		_php_shutdown_config,
+		_php_ini_register_extensions,
+		_php_parse_user_ini_file,
+		_php_ini_activate_config,
+		_php_ini_has_per_dir_config,
+		_php_ini_activate_per_dir_config,
+		_php_ini_has_per_host_config,
+		_php_ini_activate_per_host_config,
+		_cfg_get_entry_ex,
+		_cfg_get_entry,
+		_cfg_get_long,
+		_cfg_get_double,
+		_cfg_get_string,
+		_php_ini_get_configuration_hash,
+		_sapi_startup,
+		_sapi_shutdown,
+		_sapi_free_header,
+		_zif_header_register_callback,
+		_sapi_handle_post,
+		_sapi_read_post_block,
+		_sapi_read_standard_form_data,
+		_sapi_get_default_content_type,
+		_sapi_get_default_content_type_header,
+		_sapi_apply_default_charset,
+		_sapi_activate_headers_only,
+		_sapi_activate,
+		_sapi_deactivate_module,
+		_sapi_deactivate_destroy,
+		_sapi_deactivate,
+		_sapi_initialize_empty_request,
+		_sapi_add_header_ex,
+		_sapi_header_op,
+		_sapi_send_headers,
+		_sapi_register_post_entries,
+		_sapi_register_post_entry,
+		_sapi_unregister_post_entry,
+		_sapi_register_default_post_reader,
+		_sapi_register_treat_data,
+		_sapi_register_input_filter,
+		_sapi_flush,
+		_sapi_get_stat,
+		_sapi_getenv,
+		_sapi_get_fd,
+		_sapi_force_http_10,
+		_sapi_get_target_uid,
+		_sapi_get_target_gid,
+		_sapi_get_request_time,
+		_sapi_terminate_process,
+		_sapi_add_request_header,
+		_php_rfc1867_register_constants,
+		_destroy_uploaded_files_hash,
+		_rfc1867_post_handler,
+		_php_rfc1867_set_multibyte_callbacks,
+		_php_default_post_reader,
+		_php_startup_sapi_content_types,
+		_php_setup_sapi_content_types,
+		__php_import_environment_variables,
+		_php_register_variable,
+		_php_register_variable_ex,
+		_php_register_variable_safe,
+		_php_std_post_handler,
+		_php_default_input_filter,
+		_php_default_treat_data,
+		_php_std_auto_global_callback,
+		_php_build_argv,
+		_php_hash_environment,
+		_php_startup_auto_globals,
+		_php_startup_ticks,
+		_php_deactivate_ticks,
+		_php_shutdown_ticks,
+		_php_add_tick_function,
+		_php_remove_tick_function,
+		_php_run_ticks,
+		_php_network_freeaddresses,
+		_php_network_getaddresses,
+		_php_network_connect_socket,
+		_php_socket_error_str,
+		_php_network_bind_socket_to_local_addr,
+		_php_network_parse_network_address_with_port,
+		_php_network_populate_name_from_sockaddr,
+		_php_network_get_peer_name,
+		_php_network_get_sock_name,
+		_php_network_accept_incoming,
+		_php_network_connect_socket_to_host,
+		_php_any_addr,
+		_php_sockaddr_size,
+		_php_socket_strerror,
+		__php_stream_sock_open_from_socket,
+		__php_stream_sock_open_host,
+		_php_set_sock_blocking,
+		__php_emit_fd_setsize_warning,
+		_gethostname_re,
+		_php_network_gethostbyname,
+		_php_get_temporary_directory,
+		_php_open_temporary_fd_ex,
+		_php_open_temporary_fd,
+		_php_open_temporary_file,
+		_php_output_startup,
+		_php_output_shutdown,
+		_php_output_activate,
+		_php_output_deactivate,
+		_php_output_handler_dtor,
+		_php_output_handler_free,
+		_php_output_register_constants,
+		_php_output_set_status,
+		_php_output_get_status,
+		_php_output_write_unbuffered,
+		_php_output_write,
+		_php_output_flush,
+		_php_output_flush_all,
+		_php_output_clean,
+		_php_output_clean_all,
+		_php_output_end,
+		_php_output_end_all,
+		_php_output_discard,
+		_php_output_discard_all,
+		_php_output_get_level,
+		_php_output_get_contents,
+		_php_output_get_length,
+		_php_output_get_active_handler,
+		_php_output_start_default,
+		_php_output_handler_create_internal,
+		_php_output_handler_start,
+		_php_output_start_devnull,
+		_php_output_start_user,
+		_php_output_handler_create_user,
+		_php_output_start_internal,
+		_php_output_handler_set_context,
+		_php_output_handler_alias,
+		_php_output_handler_started,
+		_php_output_handler_conflict,
+		_php_output_handler_conflict_register,
+		_php_output_handler_reverse_conflict_register,
+		_php_output_handler_alias_register,
+		_php_output_handler_hook,
+		_php_output_set_implicit_flush,
+		_php_output_get_start_filename,
+		_php_output_get_start_lineno,
+		_zif_ob_start,
+		_zif_ob_flush,
+		_zif_ob_clean,
+		_zif_ob_end_flush,
+		_zif_ob_end_clean,
+		_zif_ob_get_flush,
+		_zif_ob_get_clean,
+		_zif_ob_get_contents,
+		_zif_ob_get_level,
+		_zif_ob_get_length,
+		_zif_ob_list_handlers,
+		_zif_ob_get_status,
+		_zif_ob_implicit_flush,
+		_zif_output_reset_rewrite_vars,
+		_zif_output_add_rewrite_var,
+		_php_getopt,
+		_php_openlog,
+		_php_closelog,
+		_php_syslog,
+		_php_file_le_stream,
+		_php_file_le_pstream,
+		_php_file_le_stream_filter,
+		__php_stream_get_url_stream_wrappers_hash,
+		_php_stream_get_url_stream_wrappers_hash_global,
+		_zm_deactivate_streams,
+		_php_stream_encloses,
+		_php_stream_from_persistent_id,
+		_php_stream_display_wrapper_errors,
+		_php_stream_tidy_wrapper_error_log,
+		_php_stream_wrapper_log_error,
+		__php_stream_alloc,
+		__php_stream_free_enclosed,
+		__php_stream_free,
+		__php_stream_flush,
+		__php_stream_fill_read_buffer,
+		__php_stream_read,
+		_php_stream_read_to_str,
+		__php_stream_eof,
+		__php_stream_set_option,
+		__php_stream_putc,
+		__php_stream_write,
+		__php_stream_getc,
+		__php_stream_puts,
+		__php_stream_stat,
+		_php_stream_locate_eol,
+		__php_stream_get_line,
+		_php_stream_get_record,
+		__php_stream_printf,
+		__php_stream_tell,
+		__php_stream_seek,
+		__php_stream_truncate_set_size,
+		__php_stream_passthru,
+		__php_stream_copy_to_mem,
+		__php_stream_copy_to_stream_ex,
+		__php_stream_copy_to_stream,
+		_php_shutdown_stream_hashes,
+		_php_init_stream_wrappers,
+		_php_shutdown_stream_wrappers,
+		_php_register_url_stream_wrapper,
+		_php_unregister_url_stream_wrapper,
+		_php_register_url_stream_wrapper_volatile,
+		_php_unregister_url_stream_wrapper_volatile,
+		_php_stream_locate_url_wrapper,
+		__php_stream_mkdir,
+		__php_stream_rmdir,
+		__php_stream_stat_path,
+		__php_stream_opendir,
+		__php_stream_readdir,
+		__php_stream_open_wrapper_ex,
+		_php_stream_context_set,
+		_php_stream_notification_notify,
+		_php_stream_context_free,
+		_php_stream_notification_free,
+		_php_stream_context_alloc,
+		_php_stream_notification_alloc,
+		_php_stream_context_get_option,
+		_php_stream_context_set_option,
+		_php_stream_dirent_alphasort,
+		_php_stream_dirent_alphasortr,
+		__php_stream_scandir,
+		_php_stream_mode_sanitize_fdopen_fopencookie,
+		__php_stream_cast,
+		__php_stream_open_wrapper_as_file,
+		__php_stream_make_seekable,
+		_php_stream_mode_from_str,
+		__php_stream_mode_to_str,
+		__php_stream_memory_create,
+		__php_stream_memory_open,
+		__php_stream_memory_get_buffer,
+		__php_stream_temp_create_ex,
+		__php_stream_temp_create,
+		__php_stream_temp_open,
+		_php_get_stream_filters_hash_global,
+		__php_get_stream_filters_hash,
+		_php_stream_filter_register_factory,
+		_php_stream_filter_unregister_factory,
+		_php_stream_filter_register_factory_volatile,
+		_php_stream_bucket_new,
+		_php_stream_bucket_make_writeable,
+		_php_stream_bucket_unlink,
+		_php_stream_bucket_delref,
+		_php_stream_bucket_split,
+		_php_stream_bucket_prepend,
+		_php_stream_bucket_append,
+		_php_stream_filter_create,
+		__php_stream_filter_alloc,
+		_php_stream_filter_free,
+		_php_stream_filter_prepend_ex,
+		__php_stream_filter_prepend,
+		_php_stream_filter_append_ex,
+		__php_stream_filter_append,
+		__php_stream_filter_flush,
+		_php_stream_filter_remove,
+		_php_stream_parse_fopen_modes,
+		__php_stream_fopen_temporary_file,
+		__php_stream_fopen_tmpfile,
+		__php_stream_fopen_from_fd,
+		__php_stream_fopen_from_file,
+		__php_stream_fopen_from_pipe,
+		__php_stream_fopen,
+		__php_stream_fopen_with_path,
+		_zm_startup_user_streams,
+		_zif_stream_wrapper_register,
+		_zif_stream_wrapper_unregister,
+		_zif_stream_wrapper_restore,
+		_php_stream_xport_get_hash,
+		_php_stream_xport_register,
+		_php_stream_xport_unregister,
+		__php_stream_xport_create,
+		_php_stream_xport_listen,
+		_php_stream_xport_connect,
+		_php_stream_xport_bind,
+		_php_stream_xport_accept,
+		_php_stream_xport_get_name,
+		_php_stream_xport_crypto_setup,
+		_php_stream_xport_crypto_enable,
+		_php_stream_xport_recvfrom,
+		_php_stream_xport_sendto,
+		_php_stream_xport_shutdown,
+		_php_stream_generic_socket_factory,
+		__php_stream_mmap_range,
+		__php_stream_mmap_unmap,
+		__php_stream_mmap_unmap_ex,
+		__php_glob_stream_get_path,
+		__php_glob_stream_get_pattern,
+		__php_glob_stream_get_count,
+		_zendparse,
+		_startup_scanner,
+		_shutdown_scanner,
+		_zend_save_lexical_state,
+		_zend_restore_lexical_state,
+		_zend_destroy_file_handle,
+		_zend_lex_tstring,
+		_zend_multibyte_set_filter,
+		_open_file_for_scanning,
+		_compile_file,
+		_zend_compile_string_to_ast,
+		_zend_prepare_string_for_scanning,
+		_compile_filename,
+		_zend_get_scanned_file_offset,
+		_compile_string,
+		_highlight_file,
+		_highlight_string,
+		_zend_multibyte_yyinput_again,
+		_lex_scan,
+		_zend_parse_ini_file,
+		_ini_parse,
+		_zend_parse_ini_string,
+		_shutdown_ini_scanner,
+		_zend_ini_scanner_get_lineno,
+		_zend_ini_scanner_get_filename,
+		_zend_ini_open_file_for_scanning,
+		_zend_ini_prepare_string_for_scanning,
+		_ini_lex,
+		_zend_mm_gc,
+		_zend_mm_shutdown,
+		__zend_mm_alloc,
+		__zend_mm_free,
+		__zend_mm_realloc,
+		__zend_mm_realloc2,
+		__zend_mm_block_size,
+		_is_zend_mm,
+		_is_zend_ptr,
+		__emalloc_8,
+		__emalloc_16,
 		__emalloc_24,
 		__emalloc_32,
 		__emalloc_40,
+		__emalloc_48,
 		__emalloc_56,
+		__emalloc_64,
+		__emalloc_80,
+		__emalloc_96,
 		__emalloc_112,
 		__emalloc_128,
+		__emalloc_160,
+		__emalloc_192,
+		__emalloc_224,
+		__emalloc_256,
 		__emalloc_320,
+		__emalloc_384,
+		__emalloc_448,
+		__emalloc_512,
+		__emalloc_640,
+		__emalloc_768,
+		__emalloc_896,
+		__emalloc_1024,
 		__emalloc_1280,
+		__emalloc_1536,
+		__emalloc_1792,
+		__emalloc_2048,
+		__emalloc_2560,
+		__emalloc_3072,
+		__emalloc_large,
+		__emalloc_huge,
+		__efree_8,
+		__efree_16,
+		__efree_24,
+		__efree_32,
+		__efree_40,
+		__efree_48,
 		__efree_56,
+		__efree_64,
+		__efree_80,
+		__efree_96,
+		__efree_112,
+		__efree_128,
+		__efree_160,
+		__efree_192,
+		__efree_224,
+		__efree_256,
+		__efree_320,
+		__efree_384,
+		__efree_448,
+		__efree_512,
+		__efree_640,
+		__efree_768,
+		__efree_896,
+		__efree_1024,
+		__efree_1280,
+		__efree_1536,
+		__efree_1792,
+		__efree_2048,
+		__efree_2560,
+		__efree_3072,
+		__efree_large,
+		__efree_huge,
 		__emalloc,
 		__efree,
 		__erealloc,
+		__erealloc2,
+		__zend_mem_block_size,
 		__safe_emalloc,
+		__safe_malloc,
 		___zend_malloc,
 		__safe_erealloc,
+		__safe_realloc,
+		___zend_realloc,
 		__ecalloc,
 		__estrdup,
 		__estrndup,
+		_zend_strndup,
+		_zend_set_memory_limit_ex,
+		_zend_set_memory_limit,
+		_zend_memory_usage,
+		_zend_memory_peak_usage,
+		_shutdown_memory_manager,
+		_start_memory_manager,
+		_zend_mm_set_heap,
+		_zend_mm_get_heap,
+		_zend_mm_is_custom_heap,
+		_zend_mm_set_custom_handlers,
+		_zend_mm_get_custom_handlers,
+		_zend_mm_get_storage,
+		_zend_mm_startup,
+		_zend_mm_startup_ex,
+		___zend_calloc,
+		_zend_assert_valid_class_name,
+		_zend_oparray_context_begin,
+		_zend_oparray_context_end,
+		_zend_file_context_begin,
+		_zend_file_context_end,
+		_zend_init_compiler_data_structures,
+		_file_handle_dtor,
+		_init_compiler,
+		_shutdown_compiler,
+		_zend_restore_compiled_filename,
+		_zend_set_compiled_filename,
+		_zend_get_compiled_filename,
+		_zend_get_compiled_lineno,
+		_zend_is_compiling,
+		_zend_stop_lexing,
+		_zend_do_free,
+		_zend_add_class_modifier,
+		_zend_add_member_modifier,
+		_zend_create_member_string,
+		_zend_concat_names,
+		_zend_prefix_with_ns,
+		_zend_resolve_non_class_name,
+		_zend_resolve_function_name,
+		_zend_resolve_const_name,
+		_zend_resolve_class_name,
+		_zend_get_class_fetch_type,
+		_zend_resolve_class_name_ast,
+		_function_add_ref,
+		_do_bind_function,
+		_do_bind_class,
+		_zend_type_to_string_resolved,
+		_zend_type_to_string,
+		_zend_build_delayed_early_binding_list,
+		_zend_do_delayed_early_binding,
+		_zend_mangle_property_name,
+		_zend_unmangle_property_name_ex,
+		_zend_do_extended_stmt,
+		_zend_do_extended_fcall_begin,
+		_zend_do_extended_fcall_end,
+		_zend_is_auto_global_str,
+		_zend_is_auto_global,
+		_zend_register_auto_global,
+		_zend_activate_auto_globals,
+		_zendlex,
+		_zend_initialize_class_data,
+		_zend_get_compiled_variable_name,
+		_zend_ast_append_str,
+		_zend_negate_num_string,
+		_zend_verify_namespace,
+		_zend_dirname,
+		_zend_is_smart_branch,
+		_zend_emit_final_return,
+		_zend_compile_static_prop,
+		_zend_compile_expr,
+		_zend_is_assign_to_self,
+		_zend_compile_assign,
+		_zend_delayed_compile_var,
+		_zend_compile_var,
+		_zend_compile_assign_ref,
+		_zend_compile_compound_assign,
+		_zend_compile_args,
+		_zend_get_call_op,
+		_zend_compile_call_common,
+		_zend_compile_function_name,
+		_zend_compile_ns_call,
+		_zend_compile_dynamic_call,
+		_zend_compile_func_strlen,
+		_zend_compile_func_typecheck,
+		_zend_compile_func_cast,
+		_zend_compile_func_defined,
+		_zend_compile_func_chr,
+		_zend_compile_func_ord,
+		_zend_compile_func_cufa,
+		_zend_compile_func_cuf,
+		_zend_compile_func_count,
+		_zend_compile_func_get_class,
+		_zend_compile_func_get_called_class,
+		_zend_compile_func_gettype,
+		_zend_compile_func_num_args,
+		_zend_compile_func_get_args,
+		_zend_compile_func_array_key_exists,
+		_zend_compile_func_array_slice,
+		_zend_try_compile_special_func,
+		_zend_compile_call,
+		_zend_compile_method_call,
+		_zend_compile_static_call,
+		_zend_compile_new,
+		_zend_compile_class_decl,
+		_zend_compile_stmt,
+		_zend_compile_clone,
+		_zend_compile_global_var,
+		_zend_compile_static_var,
+		_zend_const_expr_to_zval,
+		_zend_eval_const_expr,
+		_zend_compile_const_expr,
+		_zend_compile_unset,
+		_zend_compile_return,
+		_zend_compile_echo,
+		_zend_compile_throw,
+		_zend_compile_break_continue,
+		_zend_resolve_goto_label,
+		_zend_compile_goto,
+		_zend_compile_label,
+		_zend_compile_while,
+		_zend_compile_for,
+		_zend_compile_foreach,
+		_zend_compile_if,
+		_zend_compile_switch,
+		_zend_compile_try,
+		_zend_compile_declare,
+		_zend_compile_func_decl,
+		_zend_compile_prop_decl,
+		_zend_compile_class_const_decl,
+		_zend_compile_use_trait,
+		_zend_compile_group_use,
+		_zend_compile_use,
+		_zend_compile_const_decl,
+		_zend_compile_namespace,
+		_zend_compile_halt_compiler,
+		_zend_compile_do_while,
+		_zend_compile_expr_list,
+		_zend_compile_match,
+		_zend_handle_encoding_declaration,
+		_zend_compile_stmt_list,
+		_zend_set_function_arg_flags,
+		_zend_compile_params,
+		_zend_begin_method_decl,
+		_zend_compile_prop_group,
+		_zend_compile_class_const_group,
+		_zend_compile_implements,
+		_zend_compile_top_stmt,
+		_zend_binary_op_produces_error,
+		_zend_unary_op_produces_error,
+		_zend_compile_binary_op,
+		_zend_compile_greater,
+		_zend_compile_unary_op,
+		_zend_compile_unary_pm,
+		_zend_compile_short_circuiting,
+		_zend_compile_post_incdec,
+		_zend_compile_pre_incdec,
+		_zend_compile_cast,
+		_zend_compile_conditional,
+		_zend_compile_coalesce,
+		_zend_compile_assign_coalesce,
+		_zend_compile_print,
+		_zend_compile_exit,
+		_zend_compile_yield,
+		_zend_compile_yield_from,
+		_zend_compile_instanceof,
+		_zend_compile_include_or_eval,
+		_zend_compile_isset_or_empty,
+		_zend_compile_silence,
+		_zend_compile_shell_exec,
+		_zend_compile_array,
+		_zend_compile_const,
+		_zend_compile_class_const,
+		_zend_compile_class_name,
+		_zend_compile_magic_const,
+		_zend_is_allowed_in_const_expr,
+		_zend_compile_const_expr_class_const,
+		_zend_compile_const_expr_class_name,
+		_zend_compile_const_expr_const,
+		_zend_compile_const_expr_magic_const,
+		_free_zend_constant,
+		_clean_module_constants,
+		_zend_startup_constants,
+		_zend_register_standard_constants,
+		_zend_register_constant,
 		_zend_register_long_constant,
+		_zend_register_bool_constant,
+		_zend_register_null_constant,
+		_zend_shutdown_constants,
+		__zend_get_special_const,
+		_zend_register_double_constant,
+		_zend_register_stringl_constant,
 		_zend_register_string_constant,
+		_zend_verify_const_access,
+		_zend_get_constant_str,
+		_zend_get_constant,
+		_zend_get_constant_ex,
+		_init_executor,
+		_shutdown_destructors,
+		_shutdown_executor,
 		_get_active_class_name,
+		_zend_is_executing,
 		_get_active_function_name,
+		_get_active_function_or_method_name,
+		_get_function_or_method_name,
+		_get_active_function_arg_name,
+		_get_function_arg_name,
+		_zend_get_executed_filename,
+		_zend_get_executed_filename_ex,
+		_zend_get_executed_lineno,
 		_zend_get_executed_scope,
+		_zval_update_constant_ex,
+		_zval_update_constant,
 		__call_user_function_impl,
 		_zend_call_function,
+		_zend_timeout,
 		_zend_call_known_function,
 		_zend_call_known_instance_method_with_2_params,
+		_zend_is_valid_class_name,
 		_zend_lookup_class_ex,
+		_zend_lookup_class,
+		_zend_get_called_scope,
+		_zend_get_this_object,
+		_zend_eval_stringl,
+		_zend_eval_string,
+		_zend_eval_stringl_ex,
+		_zend_eval_string_ex,
+		_zend_set_timeout,
+		_zend_unset_timeout,
+		_zend_fetch_class,
+		_zend_fetch_class_by_name,
+		_zend_delete_global_variable,
+		_zend_rebuild_symbol_table,
+		_zend_attach_symbol_table,
+		_zend_detach_symbol_table,
+		_zend_set_local_var,
+		_zend_set_local_var_str,
+		_zend_html_putc,
+		_zend_html_puts,
+		_zend_highlight,
+		_zend_strip,
+		_zend_llist_init,
+		_zend_llist_add_element,
+		_zend_llist_prepend_element,
+		_zend_llist_del_element,
+		_zend_llist_destroy,
+		_zend_llist_clean,
+		_zend_llist_remove_tail,
+		_zend_llist_copy,
+		_zend_llist_apply_with_del,
+		_zend_llist_apply,
+		_zend_llist_sort,
+		_zend_llist_apply_with_argument,
+		_zend_llist_apply_with_arguments,
+		_zend_llist_count,
+		_zend_llist_get_first_ex,
+		_zend_llist_get_last_ex,
+		_zend_llist_get_next_ex,
+		_zend_llist_get_prev_ex,
+		_zend_get_opcode_name,
+		_zend_get_opcode_flags,
+		_init_op_array,
+		_destroy_zend_function,
+		_zend_function_dtor,
 		_destroy_op_array,
+		_zend_type_release,
+		_zend_free_internal_arg_info,
+		_zend_cleanup_internal_class_data,
+		_destroy_zend_class,
+		_zend_class_add_ref,
+		_zend_recalc_live_ranges,
+		_pass_two,
+		_get_unary_op,
+		_get_binary_op,
+		_zend_atoi,
+		_zend_atol,
+		_convert_scalar_to_number,
 		__is_numeric_string_ex,
 		_convert_to_long,
+		_convert_to_long_base,
 		_zval_get_long_func,
 		_convert_to_double,
+		_convert_to_null,
+		_convert_to_boolean,
+		__convert_to_string,
+		_zend_long_to_str,
 		__try_convert_to_string,
+		_zval_try_get_string_func,
+		_convert_to_array,
+		_convert_to_object,
 		_zval_get_double_func,
 		_zval_get_string_func,
+		_add_function,
+		_sub_function,
+		_mul_function,
+		_pow_function,
+		_div_function,
+		_mod_function,
+		_boolean_xor_function,
 		_zend_is_true,
+		_zend_object_is_true,
+		_boolean_not_function,
+		_bitwise_not_function,
+		_bitwise_or_function,
+		_bitwise_and_function,
+		_bitwise_xor_function,
+		_shift_left_function,
+		_shift_right_function,
+		_concat_function,
+		_string_compare_function_ex,
+		_zend_binary_strcasecmp_l,
 		_zend_binary_strcmp,
+		_string_compare_function,
+		_string_case_compare_function,
+		_string_locale_compare_function,
 		_numeric_compare_function,
 		_compare_function,
+		_zend_compare,
+		_zendi_smart_strcmp,
+		_zend_compare_arrays,
+		_zend_is_identical,
+		_is_identical_function,
+		_is_not_identical_function,
+		_is_equal_function,
+		_is_not_equal_function,
+		_is_smaller_function,
+		_is_smaller_or_equal_function,
+		_zend_class_implements_interface,
 		_instanceof_function_slow,
+		_increment_function,
+		_is_numeric_str_function,
+		_decrement_function,
 		_zend_str_tolower_copy,
+		_zend_str_tolower_dup,
+		_zend_str_tolower,
+		_zend_str_tolower_dup_ex,
+		_zend_string_tolower_ex,
+		_zend_binary_strncmp,
+		_zend_binary_strcasecmp,
+		_zend_binary_strncasecmp,
+		_zend_binary_strncasecmp_l,
+		_zend_binary_zval_strcmp,
+		_zend_binary_zval_strncmp,
+		_zend_binary_zval_strcasecmp,
+		_zend_binary_zval_strncasecmp,
+		_zendi_smart_streq,
+		_zend_compare_symbol_tables,
+		_zend_compare_objects,
+		_zend_locale_sprintf_double,
 		_zend_memnstr_ex,
+		_zend_memnrstr_ex,
+		_zend_dval_to_lval_slow,
+		_zend_ptr_stack_init_ex,
+		_zend_ptr_stack_init,
+		_zend_ptr_stack_n_push,
+		_zend_ptr_stack_n_pop,
+		_zend_ptr_stack_destroy,
+		_zend_ptr_stack_apply,
+		_zend_ptr_stack_reverse_apply,
+		_zend_ptr_stack_clean,
+		_zend_ptr_stack_num_elements,
+		_zend_stack_init,
+		_zend_stack_push,
+		_zend_stack_top,
+		_zend_stack_del_top,
+		_zend_stack_int_top,
+		_zend_stack_is_empty,
+		_zend_stack_destroy,
+		_zend_stack_base,
+		_zend_stack_count,
+		_zend_stack_apply,
+		_zend_stack_apply_with_argument,
+		_zend_stack_clean,
+		_rc_dtor_func,
 		_zval_ptr_dtor,
+		_zval_internal_ptr_dtor,
 		_zval_add_ref,
+		_zval_copy_ctor_func,
+		_zend_vspprintf,
 		_zend_spprintf,
+		_zend_spprintf_unchecked,
+		_zend_vstrpprintf,
 		_zend_strpprintf,
+		_zend_strpprintf_unchecked,
 		_zend_make_printable_zval,
+		_zend_print_zval,
+		_zend_print_flat_zval_r,
+		_zend_print_zval_r_to_str,
+		_zend_print_zval_r,
+		_zend_startup,
+		_zend_register_standard_ini_entries,
+		_zend_post_startup,
+		_zend_shutdown,
+		_zend_set_utility_values,
+		_zenderror,
 		__zend_bailout,
+		_zend_output_debug_string,
+		_zend_append_version_info,
+		_get_zend_version,
+		_zend_activate,
+		_zend_call_destructors,
+		_zend_deactivate,
+		_zend_message_dispatcher,
+		_zend_get_configuration_directive,
+		_zend_error_at,
 		_zend_error,
+		_zend_error_at_noreturn,
+		_zend_error_noreturn,
+		_zend_error_zstr,
 		_zend_throw_error,
+		_zend_type_error,
 		_zend_argument_count_error,
+		_zend_value_error,
+		_zend_user_exception_handler,
+		_zend_execute_scripts,
+		_zend_make_compiled_string_description,
+		_free_estring,
+		_zend_map_ptr_reset,
+		_zend_map_ptr_new,
+		_zend_map_ptr_extend,
 		__zend_get_parameters_array_ex,
+		_zend_copy_parameters_array,
+		_zend_wrong_param_count,
+		_zend_get_type_by_const,
+		_zend_zval_type_name,
+		_zend_zval_get_legacy_type,
 		_zend_wrong_parameters_none_error,
 		_zend_wrong_parameters_count_error,
 		_zend_wrong_parameter_error,
 		_zend_argument_type_error,
+		_zend_wrong_parameter_type_error,
+		_zend_wrong_callback_error,
+		_zend_wrong_parameter_class_error,
+		_zend_wrong_parameter_class_or_null_error,
+		_zend_wrong_parameter_class_or_string_error,
+		_zend_wrong_parameter_class_or_string_or_null_error,
+		_zend_wrong_parameter_class_or_long_error,
+		_zend_wrong_parameter_class_or_long_or_null_error,
 		_zend_argument_value_error,
+		_zend_unexpected_extra_named_error,
+		_zend_argument_error_variadic,
 		_zend_argument_error,
+		_zend_parse_arg_class,
+		_zend_parse_arg_bool_weak,
+		_zend_parse_arg_bool_slow,
+		_zend_parse_arg_long_weak,
 		_zend_parse_arg_long_slow,
+		_zend_parse_arg_double_weak,
+		_zend_parse_arg_double_slow,
+		_zend_parse_arg_number_slow,
+		_zend_parse_arg_str_weak,
 		_zend_parse_arg_str_slow,
 		_zend_parse_arg_str_or_long_slow,
+		_zend_parse_parameter,
+		_zend_is_callable_at_frame,
 		_zend_release_fcall_info_cache,
+		_zend_parse_parameters_ex,
 		_zend_parse_parameters,
 		_zend_parse_method_parameters,
+		_zend_parse_method_parameters_ex,
+		_zend_merge_properties,
+		_zend_update_class_constants,
 		_object_properties_init,
+		_object_properties_init_ex,
+		_object_properties_load,
+		_object_and_properties_init,
 		_object_init_ex,
+		_object_init,
 		_add_assoc_long_ex,
+		_add_assoc_null_ex,
 		_add_assoc_bool_ex,
+		_add_assoc_resource_ex,
+		_add_assoc_double_ex,
 		_add_assoc_str_ex,
 		_add_assoc_string_ex,
+		_add_assoc_stringl_ex,
+		_add_assoc_zval_ex,
+		_add_index_long,
+		_add_index_null,
+		_add_index_bool,
+		_add_index_resource,
+		_add_index_double,
+		_add_index_str,
 		_add_index_string,
+		_add_index_stringl,
 		_add_next_index_long,
+		_add_next_index_null,
+		_add_next_index_bool,
+		_add_next_index_resource,
+		_add_next_index_double,
 		_add_next_index_str,
 		_add_next_index_string,
 		_add_next_index_stringl,
+		_array_set_zval_key,
+		_add_property_long_ex,
+		_add_property_zval_ex,
+		_add_property_bool_ex,
+		_add_property_null_ex,
+		_add_property_resource_ex,
+		_add_property_double_ex,
+		_add_property_str_ex,
+		_add_property_string_ex,
+		_add_property_stringl_ex,
+		_zend_startup_module_ex,
+		_zend_collect_module_handlers,
+		_zend_startup_modules,
+		_zend_destroy_modules,
+		_zend_register_module_ex,
+		_zend_register_functions,
+		_zend_unregister_functions,
+		_zend_check_magic_method_implementation,
+		_zend_add_magic_method,
+		_zend_register_internal_module,
+		_zend_next_free_module,
+		_zend_startup_module,
+		_zend_get_module_started,
+		_module_destructor,
+		_zend_activate_modules,
+		_zend_deactivate_modules,
+		_zend_cleanup_internal_classes,
+		_zend_post_deactivate_modules,
 		_zend_register_internal_class_ex,
 		_zend_register_internal_class,
 		_zend_class_implements,
 		_zend_register_internal_interface,
+		_zend_register_class_alias_ex,
+		_zend_set_hash_symbol,
+		_zend_disable_functions,
+		_zend_disable_class,
+		_zend_get_callable_name_ex,
+		_zend_get_callable_name,
+		_zend_is_callable_ex,
 		_zend_is_callable,
+		_zend_make_callable,
 		_zend_fcall_info_init,
+		_zend_fcall_info_args_clear,
+		_zend_fcall_info_args_save,
+		_zend_fcall_info_args_restore,
+		_zend_fcall_info_args_ex,
+		_zend_fcall_info_args,
+		_zend_fcall_info_argp,
+		_zend_fcall_info_argv,
+		_zend_fcall_info_argn,
+		_zend_fcall_info_call,
+		_zend_get_module_version,
+		_zend_declare_typed_property,
+		_zend_try_assign_typed_ref_ex,
+		_zend_try_assign_typed_ref,
+		_zend_try_assign_typed_ref_null,
+		_zend_try_assign_typed_ref_bool,
 		_zend_try_assign_typed_ref_long,
+		_zend_try_assign_typed_ref_double,
+		_zend_try_assign_typed_ref_empty_string,
+		_zend_try_assign_typed_ref_str,
+		_zend_try_assign_typed_ref_string,
+		_zend_try_assign_typed_ref_stringl,
 		_zend_try_assign_typed_ref_arr,
+		_zend_try_assign_typed_ref_res,
+		_zend_try_assign_typed_ref_zval,
+		_zend_try_assign_typed_ref_zval_ex,
+		_zend_declare_property_ex,
 		_zend_declare_property,
 		_zend_declare_property_null,
+		_zend_declare_property_bool,
+		_zend_declare_property_long,
+		_zend_declare_property_double,
+		_zend_declare_property_string,
+		_zend_declare_property_stringl,
 		_zend_declare_class_constant_ex,
+		_zend_declare_class_constant,
 		_zend_declare_class_constant_null,
 		_zend_declare_class_constant_long,
+		_zend_declare_class_constant_bool,
 		_zend_declare_class_constant_double,
+		_zend_declare_class_constant_stringl,
 		_zend_declare_class_constant_string,
+		_zend_update_property_ex,
 		_zend_update_property,
+		_zend_update_property_null,
+		_zend_unset_property,
+		_zend_update_property_bool,
+		_zend_update_property_long,
+		_zend_update_property_double,
+		_zend_update_property_str,
+		_zend_update_property_string,
+		_zend_update_property_stringl,
+		_zend_update_static_property_ex,
+		_zend_update_static_property,
+		_zend_update_static_property_null,
+		_zend_update_static_property_bool,
+		_zend_update_static_property_long,
+		_zend_update_static_property_double,
+		_zend_update_static_property_string,
+		_zend_update_static_property_stringl,
+		_zend_read_property_ex,
+		_zend_read_property,
+		_zend_read_static_property_ex,
+		_zend_read_static_property,
+		_zend_save_error_handling,
 		_zend_replace_error_handling,
 		_zend_restore_error_handling,
+		_zend_get_object_type,
 		_zend_is_iterable,
+		_zend_is_countable,
+		_zend_get_default_from_internal_arg_info,
+		_zend_load_extension,
+		_zend_load_extension_handle,
+		_zend_get_extension,
+		_zend_register_extension,
+		_zend_extension_dispatch_message,
+		_zend_startup_extensions_mechanism,
+		_zend_extension_dtor,
+		_zend_startup_extensions,
+		_zend_shutdown_extensions,
+		_zend_get_resource_handle,
+		_zend_get_op_array_extension_handle,
+		_zend_get_op_array_extension_handles,
+		_zend_extensions_op_array_persist_calc,
+		_zend_extensions_op_array_persist,
+		_zend_hash_str_find_ptr_lc,
 		_zend_hash_str_find,
+		_zend_hash_find_ptr_lc,
 		__zend_hash_init,
 		__zend_new_array_0,
 		__zend_new_array,
+		_zend_new_pair,
+		_zend_hash_real_init,
+		_zend_hash_real_init_packed,
+		_zend_hash_real_init_mixed,
+		_zend_hash_packed_to_hash,
+		_zend_hash_rehash,
+		_zend_hash_to_packed,
+		_zend_hash_extend,
+		_zend_hash_discard,
 		_zend_array_count,
+		_zend_hash_get_current_pos,
+		_zend_hash_iterator_add,
+		_zend_hash_iterator_pos,
+		_zend_hash_iterator_pos_ex,
+		_zend_array_dup,
+		_zend_hash_iterator_del,
+		_zend_hash_iterators_lower_pos,
+		__zend_hash_iterators_update,
+		_zend_hash_iterators_advance,
+		_zend_hash_add_or_update,
+		_zend_hash_add,
+		_zend_hash_add_new,
 		_zend_hash_update,
+		_zend_hash_update_ind,
+		_zend_hash_str_add_or_update,
+		_zend_hash_str_add,
+		_zend_hash_str_add_new,
 		_zend_hash_str_update,
+		_zend_hash_str_update_ind,
+		_zend_hash_index_add_empty_element,
+		_zend_hash_index_add,
+		_zend_hash_add_empty_element,
+		_zend_hash_str_add_empty_element,
+		_zend_hash_index_add_or_update,
+		_zend_hash_index_add_new,
 		_zend_hash_next_index_insert,
+		_zend_hash_next_index_insert_new,
 		_zend_hash_index_update,
+		_zend_hash_set_bucket_key,
+		_zend_hash_del_bucket,
+		_zend_hash_del,
+		_zend_hash_del_ind,
+		_zend_hash_str_del_ind,
+		_zend_hash_str_del,
+		_zend_hash_index_del,
 		_zend_hash_destroy,
 		_zend_array_destroy,
+		_zend_hash_clean,
+		_zend_symtable_clean,
+		_zend_hash_graceful_destroy,
+		_zend_hash_graceful_reverse_destroy,
+		_zend_hash_apply,
+		_zend_hash_apply_with_argument,
+		_zend_hash_apply_with_arguments,
+		_zend_hash_reverse_apply,
 		_zend_hash_copy,
+		_zend_hash_merge,
+		_zend_hash_merge_ex,
+		_zend_hash_find,
+		__zend_hash_find_known_hash,
 		_zend_hash_index_find,
+		__zend_hash_index_find,
+		_zend_hash_internal_pointer_reset_ex,
+		_zend_hash_internal_pointer_end_ex,
 		_zend_hash_move_forward_ex,
+		_zend_hash_move_backwards_ex,
+		_zend_hash_get_current_key_ex,
 		_zend_hash_get_current_key_zval_ex,
 		_zend_hash_get_current_key_type_ex,
 		_zend_hash_get_current_data_ex,
+		_zend_hash_bucket_swap,
+		_zend_hash_bucket_renum_swap,
+		_zend_hash_bucket_packed_swap,
 		_zend_hash_sort_ex,
+		_zend_hash_compare,
+		_zend_hash_minmax,
+		__zend_handle_numeric_str_ex,
+		_zend_symtable_to_proptable,
+		_zend_proptable_to_symtable,
+		_zend_list_insert,
+		_zend_list_delete,
+		_zend_list_free,
+		_zend_list_close,
+		_zend_register_resource,
+		_zend_fetch_resource2,
+		_zend_fetch_resource,
+		_zend_fetch_resource_ex,
+		_zend_fetch_resource2_ex,
+		_list_entry_destructor,
+		_plist_entry_destructor,
+		_zend_init_rsrc_list,
+		_zend_init_rsrc_plist,
+		_zend_close_rsrc_list,
+		_zend_destroy_rsrc_list,
+		_zend_clean_module_rsrc_dtors,
+		_zend_register_list_destructors_ex,
+		_zend_fetch_list_dtor_id,
+		_zend_init_rsrc_list_dtors,
+		_zend_destroy_rsrc_list_dtors,
+		_zend_rsrc_list_get_rsrc_type,
+		_zend_register_persistent_resource_ex,
+		_zend_register_persistent_resource,
+		_zm_startup_core,
+		_zend_startup_builtin_functions,
+		_zif_zend_version,
+		_zif_gc_mem_caches,
+		_zif_gc_collect_cycles,
+		_zif_gc_enabled,
+		_zif_gc_enable,
+		_zif_gc_disable,
+		_zif_gc_status,
+		_zif_func_num_args,
+		_zif_func_get_arg,
+		_zif_func_get_args,
+		_zif_strlen,
+		_zif_strcmp,
+		_zif_strncmp,
+		_zif_strcasecmp,
+		_zif_strncasecmp,
+		_zif_error_reporting,
+		_zif_define,
+		_zif_defined,
+		_zif_get_class,
+		_zif_get_called_class,
+		_zif_get_parent_class,
+		_zif_is_subclass_of,
+		_zif_is_a,
+		_zif_get_class_vars,
+		_zif_get_object_vars,
+		_zif_get_mangled_object_vars,
+		_zif_get_class_methods,
+		_zif_method_exists,
+		_zif_property_exists,
+		_zif_class_exists,
+		_zif_interface_exists,
+		_zif_trait_exists,
+		_zif_function_exists,
+		_zif_class_alias,
+		_zif_get_included_files,
+		_zif_trigger_error,
+		_zif_set_error_handler,
+		_zif_restore_error_handler,
+		_zif_set_exception_handler,
+		_zif_restore_exception_handler,
+		_zif_get_declared_traits,
+		_zif_get_declared_classes,
+		_zif_get_declared_interfaces,
+		_zif_get_defined_functions,
+		_zif_get_defined_vars,
+		_zif_get_resource_type,
+		_zif_get_resource_id,
+		_zif_get_resources,
+		_zif_get_loaded_extensions,
+		_zif_get_defined_constants,
+		_debug_print_backtrace_args,
+		_zif_debug_print_backtrace,
+		_zend_fetch_debug_backtrace,
+		_zif_debug_backtrace,
+		_zif_extension_loaded,
+		_zif_get_extension_funcs,
+		_validate_attribute,
+		_zend_get_attribute_value,
+		_zim_Attribute___construct,
+		_zend_get_attribute,
+		_zend_get_attribute_str,
+		_zend_get_parameter_attribute,
+		_zend_get_parameter_attribute_str,
+		_zend_get_attribute_target_names,
+		_zend_is_attribute_repeated,
+		_zend_add_attribute,
+		_zend_internal_attribute_register,
+		_zend_internal_attribute_get,
+		_zend_register_attribute_ce,
+		_zend_attributes_shutdown,
+		_zend_vm_stack_init,
+		_zend_vm_stack_init_ex,
+		_zend_vm_stack_destroy,
+		_zend_vm_stack_extend,
+		_zend_get_compiled_variable_value,
+		_zend_cannot_pass_by_reference,
+		_zend_verify_arg_error,
+		_zend_verify_scalar_type_hint,
+		_zend_verify_property_type_error,
+		_zend_verify_property_type,
+		_zend_value_instanceof_static,
+		_zend_missing_arg_error,
+		_zend_verify_return_error,
+		_zend_deprecated_function,
+		_zend_undefined_offset_write,
+		_zend_undefined_index_write,
+		_zend_param_must_be_ref,
+		_zend_fetch_dimension_const,
+		_zend_verify_ref_array_assignable,
+		_zend_throw_ref_type_error_type,
+		_zend_throw_ref_type_error_zval,
+		_zend_throw_conflicting_coercion_error,
+		_zend_verify_ref_assignable_zval,
+		_zend_assign_to_typed_ref,
+		_zend_verify_prop_assignable_by_ref,
+		_zend_ref_add_type_source,
+		_zend_ref_del_type_source,
+		_execute_internal,
+		_zend_clean_and_cache_symbol_table,
+		_zend_free_compiled_variables,
+		_zend_fetch_function,
+		_zend_fetch_function_str,
+		_zend_init_func_run_time_cache,
+		_zend_init_func_execute_data,
+		_zend_init_code_execute_data,
+		_zend_init_execute_data,
+		_zend_vm_stack_copy_call_frame,
+		_zend_unfinished_calls_gc,
+		_zend_cleanup_unfinished_execution,
+		_zend_free_extra_named_params,
+		_zend_handle_named_arg,
+		_zend_handle_undef_args,
+		_execute_ex,
 		_zend_execute,
+		_zend_vm_init,
+		_zend_vm_dtor,
+		_zend_serialize_opcode_handler,
+		_zend_deserialize_opcode_handler,
+		_zend_get_opcode_handler_func,
+		_zend_get_halt_op,
+		_zend_vm_kind,
+		_zend_vm_set_opcode_handler,
+		_zend_vm_set_opcode_handler_ex,
+		_zend_vm_call_opcode_handler,
+		_zend_set_user_opcode_handler,
+		_zend_get_user_opcode_handler,
+		_zend_get_zval_ptr,
+		_zend_ini_startup,
+		_zend_ini_shutdown,
+		_zend_ini_dtor,
+		_zend_ini_global_shutdown,
+		_zend_ini_deactivate,
+		_zend_ini_sort_entries,
 		_zend_register_ini_entries,
 		_zend_unregister_ini_entries,
 		_zend_alter_ini_entry,
+		_zend_alter_ini_entry_ex,
+		_zend_alter_ini_entry_chars,
+		_zend_alter_ini_entry_chars_ex,
+		_zend_restore_ini_entry,
+		_zend_ini_register_displayer,
+		_zend_ini_long,
+		_zend_ini_double,
+		_zend_ini_string_ex,
+		_zend_ini_string,
+		_zend_ini_get_value,
+		_zend_ini_parse_bool,
 		_zend_ini_boolean_displayer_cb,
+		_zend_ini_color_displayer_cb,
+		_display_link_numbers,
 		_OnUpdateBool,
 		_OnUpdateLong,
+		_OnUpdateLongGEZero,
+		_OnUpdateReal,
+		_OnUpdateString,
 		_OnUpdateStringUnempty,
+		_zend_insert_sort,
 		_zend_sort,
+		_zend_multibyte_set_functions,
+		_zend_multibyte_set_script_encoding_by_string,
+		_zend_multibyte_restore_functions,
+		_zend_multibyte_get_functions,
+		_zend_multibyte_fetch_encoding,
+		_zend_multibyte_get_encoding_name,
+		_zend_multibyte_check_lexer_compatibility,
+		_zend_multibyte_encoding_detector,
+		_zend_multibyte_encoding_converter,
+		_zend_multibyte_parse_encoding_list,
+		_zend_multibyte_get_internal_encoding,
+		_zend_multibyte_get_script_encoding,
+		_zend_multibyte_set_script_encoding,
+		_zend_multibyte_set_internal_encoding,
+		_zend_ts_hash_init,
+		_zend_ts_hash_destroy,
+		_zend_ts_hash_clean,
+		_zend_ts_hash_add,
+		_zend_ts_hash_update,
+		_zend_ts_hash_next_index_insert,
+		_zend_ts_hash_index_update,
+		_zend_ts_hash_add_empty_element,
+		_zend_ts_hash_graceful_destroy,
+		_zend_ts_hash_apply,
+		_zend_ts_hash_apply_with_argument,
+		_zend_ts_hash_apply_with_arguments,
+		_zend_ts_hash_reverse_apply,
+		_zend_ts_hash_del,
+		_zend_ts_hash_index_del,
+		_zend_ts_hash_find,
+		_zend_ts_hash_index_find,
+		_zend_ts_hash_copy,
+		_zend_ts_hash_copy_to_hash,
+		_zend_ts_hash_merge,
+		_zend_ts_hash_merge_ex,
+		_zend_ts_hash_sort,
+		_zend_ts_hash_compare,
+		_zend_ts_hash_minmax,
+		_zend_ts_hash_num_elements,
+		_zend_ts_hash_rehash,
+		_zend_ts_hash_str_find,
+		_zend_ts_hash_str_update,
+		_zend_ts_hash_str_add,
+		_zend_stream_init_fp,
+		_zend_stream_init_filename,
+		_zend_stream_open,
+		_zend_stream_fixup,
+		_zend_file_handle_dtor,
+		_zend_compare_file_handles,
+		_zend_register_iterator_wrapper,
 		_zend_iterator_init,
 		_zend_iterator_dtor,
+		_zend_iterator_unwrap,
 		_zend_call_method,
+		_zend_user_it_new_iterator,
+		_zend_user_it_invalidate_current,
+		_zend_user_it_valid,
+		_zend_user_it_get_current_data,
+		_zend_user_it_get_current_key,
+		_zend_user_it_move_forward,
+		_zend_user_it_rewind,
+		_zend_user_it_get_new_iterator,
+		_zend_user_serialize,
+		_zend_user_unserialize,
 		_zend_class_serialize_deny,
 		_zend_class_unserialize_deny,
 		_zend_create_internal_iterator_zval,
+		_zim_InternalIterator___construct,
+		_zim_InternalIterator_current,
+		_zim_InternalIterator_key,
+		_zim_InternalIterator_next,
+		_zim_InternalIterator_valid,
+		_zim_InternalIterator_rewind,
+		_zend_register_interfaces,
+		_zend_get_exception_base,
+		_zend_exception_set_previous,
+		_zend_is_unwind_exit,
+		_zend_exception_save,
+		_zend_exception_restore,
+		_zend_throw_exception_internal,
+		_zend_exception_error,
+		_zend_clear_exception,
+		_zim_Exception___clone,
 		_zend_throw_exception,
+		_zim_Exception___construct,
+		_zim_Exception___wakeup,
+		_zim_ErrorException___construct,
+		_zim_Exception_getFile,
+		_zim_Exception_getLine,
+		_zim_Exception_getMessage,
+		_zim_Exception_getCode,
+		_zim_Exception_getTrace,
+		_zim_ErrorException_getSeverity,
+		_zim_Exception_getTraceAsString,
+		_zim_Exception_getPrevious,
+		_zim_Exception___toString,
+		_zend_register_default_exception,
+		_zend_exception_get_default,
+		_zend_get_error_exception,
 		_zend_throw_exception_ex,
+		_zend_throw_error_exception,
 		_zend_throw_exception_object,
+		_zend_throw_unwind_exit,
+		_zend_startup_strtod,
+		_zend_shutdown_strtod,
 		_zend_strtod,
+		_zend_freedtoa,
+		_zend_dtoa,
+		_zend_hex_strtod,
+		_zend_oct_strtod,
+		_zend_bin_strtod,
+		_gc_globals_ctor,
+		_gc_globals_dtor,
+		_gc_reset,
+		_gc_enable,
+		_gc_enabled,
+		_gc_protect,
+		_gc_protected,
 		_gc_possible_root,
+		_gc_remove_from_buffer,
+		_zend_gc_collect_cycles,
+		_zend_gc_get_status,
+		_zend_get_gc_buffer_create,
+		_zend_get_gc_buffer_grow,
+		_zim_Closure___invoke,
+		_zim_Closure_call,
+		_zend_create_closure,
+		_zim_Closure_bind,
+		_zim_Closure_bindTo,
+		_zim_Closure_fromCallable,
+		_zend_get_closure_invoke_method,
+		_zend_get_closure_method_def,
+		_zend_get_closure_this_ptr,
+		_zend_closure_get_closure,
+		_zim_Closure___construct,
+		_zend_register_closure_ce,
+		_zend_create_fake_closure,
+		_zend_closure_bind_var,
+		_zend_closure_bind_var_ex,
+		_zend_weakrefs_hash_add,
+		_zend_weakrefs_hash_del,
+		_zend_weakrefs_init,
+		_zend_weakrefs_notify,
+		_zend_weakrefs_shutdown,
+		_zim_WeakReference___construct,
+		_zim_WeakReference_create,
+		_zim_WeakReference_get,
+		_zim_WeakMap_offsetGet,
+		_zim_WeakMap_offsetSet,
+		_zim_WeakMap_offsetExists,
+		_zim_WeakMap_offsetUnset,
+		_zim_WeakMap_count,
+		_zim_WeakMap_getIterator,
+		_zend_register_weakref_ce,
+		_zend_init_fpu,
+		_zend_shutdown_fpu,
+		_zend_ensure_fpu_mode,
+		_zend_string_hash_func,
+		_zend_hash_func,
+		_zend_interned_strings_init,
+		_zend_interned_strings_dtor,
+		_zend_interned_string_find_permanent,
+		_zend_interned_strings_activate,
+		_zend_interned_strings_deactivate,
+		_zend_interned_strings_set_request_storage_handlers,
+		_zend_interned_strings_switch_storage,
+		_zend_string_concat2,
+		_zend_string_concat3,
+		_zend_signal_handler_defer,
+		_zend_signal_handler_unblock,
+		_zend_sigaction,
+		_zend_signal,
+		_zend_signal_activate,
+		_zend_signal_deactivate,
+		_zend_signal_init,
+		_zend_signal_startup,
+		_zend_generator_restore_call_stack,
+		_zend_generator_freeze_call_stack,
+		_zend_generator_close,
+		_zend_generator_check_placeholder_frame,
+		_zend_generator_yield_from,
+		_zend_generator_update_root,
+		_zend_generator_update_current,
+		_zend_generator_resume,
+		_zim_Generator_rewind,
+		_zim_Generator_valid,
+		_zim_Generator_current,
+		_zim_Generator_key,
+		_zim_Generator_next,
+		_zim_Generator_send,
+		_zim_Generator_throw,
+		_zim_Generator_getReturn,
+		_zend_generator_get_iterator,
+		_zend_register_generator_ce,
+		_virtual_cwd_main_cwd_init,
+		_virtual_cwd_startup,
+		_virtual_cwd_shutdown,
+		_virtual_cwd_activate,
+		_virtual_cwd_deactivate,
+		_virtual_getcwd_ex,
+		_virtual_getcwd,
+		_realpath_cache_clean,
+		_realpath_cache_del,
+		_realpath_cache_lookup,
+		_realpath_cache_size,
+		_realpath_cache_max_buckets,
+		_realpath_cache_get_buckets,
+		_virtual_file_ex,
+		_virtual_chdir,
+		_virtual_chdir_file,
+		_virtual_realpath,
+		_virtual_filepath_ex,
+		_virtual_filepath,
+		_virtual_fopen,
+		_virtual_access,
+		_virtual_utime,
+		_virtual_chmod,
+		_virtual_chown,
+		_virtual_open,
+		_virtual_creat,
+		_virtual_rename,
+		_virtual_stat,
+		_virtual_lstat,
+		_virtual_unlink,
+		_virtual_mkdir,
+		_virtual_rmdir,
+		_virtual_opendir,
+		_virtual_popen,
+		_tsrm_realpath,
+		_zend_ast_create_znode,
+		_zend_ast_create_zval_with_lineno,
+		_zend_ast_create_zval_ex,
+		_zend_ast_create_zval,
+		_zend_ast_create_zval_from_str,
+		_zend_ast_create_zval_from_long,
+		_zend_ast_create_constant,
+		_zend_ast_create_class_const_or_name,
+		_zend_ast_create_1,
+		_zend_ast_create_2,
+		_zend_ast_create_decl,
+		_zend_ast_create_0,
+		_zend_ast_create_3,
+		_zend_ast_create_4,
+		_zend_ast_create_5,
+		_zend_ast_create_list_0,
+		_zend_ast_create_list_1,
+		_zend_ast_create_list_2,
+		_zend_ast_list_add,
+		_zend_ast_evaluate,
+		_zend_ast_copy,
+		_zend_ast_destroy,
+		_zend_ast_ref_destroy,
+		_zend_ast_apply,
+		_zend_ast_export,
+		_zend_ast_with_attributes,
 		_zend_object_std_init,
 		_zend_object_std_dtor,
 		_zend_objects_destroy_object,
 		_zend_objects_new,
 		_zend_objects_clone_members,
+		_zend_objects_clone_obj,
+		_rebuild_object_properties,
 		_zend_std_get_properties,
+		_zend_std_get_gc,
+		_zend_std_get_debug_info,
+		_zend_get_property_info,
+		_zend_check_property_access,
+		_zend_get_property_guard,
 		_zend_std_read_property,
 		_zend_std_write_property,
+		_zend_std_read_dimension,
+		_zend_std_cast_object_tostring,
+		_zend_std_write_dimension,
+		_zend_std_has_dimension,
 		_zend_std_get_property_ptr_ptr,
+		_zend_std_unset_property,
+		_zend_std_unset_dimension,
+		_zend_check_protected,
+		_zend_get_call_trampoline_func,
 		_zend_std_get_method,
+		_zend_std_get_static_method,
+		_zend_class_init_statics,
+		_zend_std_get_static_property_with_info,
+		_zend_std_get_static_property,
+		_zend_std_unset_static_property,
+		_zend_std_get_constructor,
 		_zend_std_compare_objects,
+		_zend_objects_not_comparable,
 		_zend_std_has_property,
+		_zend_std_get_class_name,
+		_zend_std_get_closure,
+		_zend_std_get_properties_for,
+		_zend_get_properties_for,
+		_zend_objects_store_init,
+		_zend_objects_store_destroy,
+		_zend_objects_store_call_destructors,
+		_zend_objects_store_mark_destructed,
+		_zend_objects_store_free_object_storage,
+		_zend_objects_store_put,
 		_zend_objects_store_del,
+		_zend_register_default_classes,
+		_zend_visibility_string,
+		_property_types_compatible,
+		_zend_build_properties_info_table,
+		_zend_do_inheritance_ex,
 		_zend_do_implement_interface,
+		_zend_verify_abstract_class,
+		_zend_do_link_class,
+		_zend_try_early_bind,
 		_smart_str_erealloc,
+		_smart_str_realloc,
+		_smart_str_append_escaped,
+		_smart_str_append_printf,
+		__smart_string_alloc_persistent,
+		__smart_string_alloc,
+		_zend_cpu_startup,
+		_zend_cpu_supports,
+		___jit_debug_register_code,
+		_zend_gdb_register_code,
+		_zend_gdb_unregister_all,
+		_zend_gdb_present,
+		_zend_observer_fcall_register,
+		_zend_observer_startup,
+		_zend_observer_post_startup,
+		_zend_observer_activate,
+		_zend_observer_deactivate,
+		_zend_observer_shutdown,
+		_zend_observer_generator_resume,
+		_zend_observer_fcall_begin,
+		_zend_observer_fcall_end,
+		_zend_observer_fcall_end_all,
+		_zend_observer_error_register,
+		_zend_observer_error_notify,
+		_zend_add_system_entropy,
+		_zend_startup_system_id,
+		_zend_finalize_system_id,
+		_php_embed_init,
+		_php_embed_shutdown,
+		_php_register_internal_extensions,
 		_strtoll,
 		_strlen,
 		_munmap,
@@ -8211,11 +13785,13 @@ export function init(RuntimeName, PHPLoader) {
 		___wasm_longjmp,
 		_atoi,
 		_memchr,
+		_strncasecmp,
 		_snprintf,
 		_dlopen,
 		_dlsym,
 		_dlclose,
 		_getenv,
+		_explicit_bzero,
 		_strrchr,
 		_realloc,
 		___errno_location,
@@ -8255,6 +13831,7 @@ export function init(RuntimeName, PHPLoader) {
 		_atan2,
 		_acos,
 		_localtime_r,
+		_sscanf,
 		_tan,
 		_asin,
 		_atan,
@@ -8371,14 +13948,7452 @@ export function init(RuntimeName, PHPLoader) {
 		wasmTable,
 		wasmMemory;
 	function assignWasmExports(wasmExports) {
+		_php_time = Module['_php_time'] = wasmExports['php_time'];
 		_php_date_get_date_ce = Module['_php_date_get_date_ce'] =
 			wasmExports['php_date_get_date_ce'];
+		_php_date_get_immutable_ce = Module['_php_date_get_immutable_ce'] =
+			wasmExports['php_date_get_immutable_ce'];
 		_php_date_get_interface_ce = Module['_php_date_get_interface_ce'] =
 			wasmExports['php_date_get_interface_ce'];
 		_php_date_get_timezone_ce = Module['_php_date_get_timezone_ce'] =
 			wasmExports['php_date_get_timezone_ce'];
+		_php_date_get_interval_ce = Module['_php_date_get_interval_ce'] =
+			wasmExports['php_date_get_interval_ce'];
+		_php_date_get_period_ce = Module['_php_date_get_period_ce'] =
+			wasmExports['php_date_get_period_ce'];
+		_zm_startup_date = Module['_zm_startup_date'] =
+			wasmExports['zm_startup_date'];
+		_date_object_period_get_iterator = Module[
+			'_date_object_period_get_iterator'
+		] = wasmExports['date_object_period_get_iterator'];
+		_zm_shutdown_date = Module['_zm_shutdown_date'] =
+			wasmExports['zm_shutdown_date'];
+		_zm_activate_date = Module['_zm_activate_date'] =
+			wasmExports['zm_activate_date'];
+		_zm_deactivate_date = Module['_zm_deactivate_date'] =
+			wasmExports['zm_deactivate_date'];
+		_zm_info_date = Module['_zm_info_date'] = wasmExports['zm_info_date'];
+		_zm_post_zend_deactivate_date = Module[
+			'_zm_post_zend_deactivate_date'
+		] = wasmExports['zm_post_zend_deactivate_date'];
+		_php_date_parse_tzfile_wrapper = Module[
+			'_php_date_parse_tzfile_wrapper'
+		] = wasmExports['php_date_parse_tzfile_wrapper'];
 		_get_timezone_info = Module['_get_timezone_info'] =
 			wasmExports['get_timezone_info'];
+		_php_format_date = Module['_php_format_date'] =
+			wasmExports['php_format_date'];
+		_php_idate = Module['_php_idate'] = wasmExports['php_idate'];
+		_zif_date = Module['_zif_date'] = wasmExports['zif_date'];
+		_zif_gmdate = Module['_zif_gmdate'] = wasmExports['zif_gmdate'];
+		_zif_idate = Module['_zif_idate'] = wasmExports['zif_idate'];
+		_php_date_set_tzdb = Module['_php_date_set_tzdb'] =
+			wasmExports['php_date_set_tzdb'];
+		_php_parse_date = Module['_php_parse_date'] =
+			wasmExports['php_parse_date'];
+		_zif_strtotime = Module['_zif_strtotime'] =
+			wasmExports['zif_strtotime'];
+		_php_mktime = Module['_php_mktime'] = wasmExports['php_mktime'];
+		_zif_mktime = Module['_zif_mktime'] = wasmExports['zif_mktime'];
+		_zif_gmmktime = Module['_zif_gmmktime'] = wasmExports['zif_gmmktime'];
+		_zif_checkdate = Module['_zif_checkdate'] =
+			wasmExports['zif_checkdate'];
+		_php_strftime = Module['_php_strftime'] = wasmExports['php_strftime'];
+		_zif_strftime = Module['_zif_strftime'] = wasmExports['zif_strftime'];
+		_zif_gmstrftime = Module['_zif_gmstrftime'] =
+			wasmExports['zif_gmstrftime'];
+		_zif_time = Module['_zif_time'] = wasmExports['zif_time'];
+		_zif_localtime = Module['_zif_localtime'] =
+			wasmExports['zif_localtime'];
+		_zif_getdate = Module['_zif_getdate'] = wasmExports['zif_getdate'];
+		_php_date_instantiate = Module['_php_date_instantiate'] =
+			wasmExports['php_date_instantiate'];
+		_php_date_initialize = Module['_php_date_initialize'] =
+			wasmExports['php_date_initialize'];
+		_zif_date_create = Module['_zif_date_create'] =
+			wasmExports['zif_date_create'];
+		_zif_date_create_immutable = Module['_zif_date_create_immutable'] =
+			wasmExports['zif_date_create_immutable'];
+		_zif_date_create_from_format = Module['_zif_date_create_from_format'] =
+			wasmExports['zif_date_create_from_format'];
+		_zif_date_create_immutable_from_format = Module[
+			'_zif_date_create_immutable_from_format'
+		] = wasmExports['zif_date_create_immutable_from_format'];
+		_zim_DateTime___construct = Module['_zim_DateTime___construct'] =
+			wasmExports['zim_DateTime___construct'];
+		_zim_DateTimeImmutable___construct = Module[
+			'_zim_DateTimeImmutable___construct'
+		] = wasmExports['zim_DateTimeImmutable___construct'];
+		_zim_DateTime_createFromImmutable = Module[
+			'_zim_DateTime_createFromImmutable'
+		] = wasmExports['zim_DateTime_createFromImmutable'];
+		_zim_DateTime_createFromInterface = Module[
+			'_zim_DateTime_createFromInterface'
+		] = wasmExports['zim_DateTime_createFromInterface'];
+		_zim_DateTimeImmutable_createFromMutable = Module[
+			'_zim_DateTimeImmutable_createFromMutable'
+		] = wasmExports['zim_DateTimeImmutable_createFromMutable'];
+		_zim_DateTimeImmutable_createFromInterface = Module[
+			'_zim_DateTimeImmutable_createFromInterface'
+		] = wasmExports['zim_DateTimeImmutable_createFromInterface'];
+		_zim_DateTime___set_state = Module['_zim_DateTime___set_state'] =
+			wasmExports['zim_DateTime___set_state'];
+		_zim_DateTimeImmutable___set_state = Module[
+			'_zim_DateTimeImmutable___set_state'
+		] = wasmExports['zim_DateTimeImmutable___set_state'];
+		_zim_DateTime___wakeup = Module['_zim_DateTime___wakeup'] =
+			wasmExports['zim_DateTime___wakeup'];
+		_zim_DateTimeImmutable___wakeup = Module[
+			'_zim_DateTimeImmutable___wakeup'
+		] = wasmExports['zim_DateTimeImmutable___wakeup'];
+		_zif_date_get_last_errors = Module['_zif_date_get_last_errors'] =
+			wasmExports['zif_date_get_last_errors'];
+		_php_date_do_return_parsed_time = Module[
+			'_php_date_do_return_parsed_time'
+		] = wasmExports['php_date_do_return_parsed_time'];
+		_zif_date_parse = Module['_zif_date_parse'] =
+			wasmExports['zif_date_parse'];
+		_zif_date_parse_from_format = Module['_zif_date_parse_from_format'] =
+			wasmExports['zif_date_parse_from_format'];
+		_zif_date_format = Module['_zif_date_format'] =
+			wasmExports['zif_date_format'];
+		_zif_date_modify = Module['_zif_date_modify'] =
+			wasmExports['zif_date_modify'];
+		_zim_DateTimeImmutable_modify = Module[
+			'_zim_DateTimeImmutable_modify'
+		] = wasmExports['zim_DateTimeImmutable_modify'];
+		_zif_date_add = Module['_zif_date_add'] = wasmExports['zif_date_add'];
+		_zim_DateTimeImmutable_add = Module['_zim_DateTimeImmutable_add'] =
+			wasmExports['zim_DateTimeImmutable_add'];
+		_zif_date_sub = Module['_zif_date_sub'] = wasmExports['zif_date_sub'];
+		_zim_DateTimeImmutable_sub = Module['_zim_DateTimeImmutable_sub'] =
+			wasmExports['zim_DateTimeImmutable_sub'];
+		_zif_date_timezone_get = Module['_zif_date_timezone_get'] =
+			wasmExports['zif_date_timezone_get'];
+		_zif_date_timezone_set = Module['_zif_date_timezone_set'] =
+			wasmExports['zif_date_timezone_set'];
+		_zim_DateTimeImmutable_setTimezone = Module[
+			'_zim_DateTimeImmutable_setTimezone'
+		] = wasmExports['zim_DateTimeImmutable_setTimezone'];
+		_zif_date_offset_get = Module['_zif_date_offset_get'] =
+			wasmExports['zif_date_offset_get'];
+		_zif_date_time_set = Module['_zif_date_time_set'] =
+			wasmExports['zif_date_time_set'];
+		_zim_DateTimeImmutable_setTime = Module[
+			'_zim_DateTimeImmutable_setTime'
+		] = wasmExports['zim_DateTimeImmutable_setTime'];
+		_zif_date_date_set = Module['_zif_date_date_set'] =
+			wasmExports['zif_date_date_set'];
+		_zim_DateTimeImmutable_setDate = Module[
+			'_zim_DateTimeImmutable_setDate'
+		] = wasmExports['zim_DateTimeImmutable_setDate'];
+		_zif_date_isodate_set = Module['_zif_date_isodate_set'] =
+			wasmExports['zif_date_isodate_set'];
+		_zim_DateTimeImmutable_setISODate = Module[
+			'_zim_DateTimeImmutable_setISODate'
+		] = wasmExports['zim_DateTimeImmutable_setISODate'];
+		_zif_date_timestamp_set = Module['_zif_date_timestamp_set'] =
+			wasmExports['zif_date_timestamp_set'];
+		_zim_DateTimeImmutable_setTimestamp = Module[
+			'_zim_DateTimeImmutable_setTimestamp'
+		] = wasmExports['zim_DateTimeImmutable_setTimestamp'];
+		_zif_date_timestamp_get = Module['_zif_date_timestamp_get'] =
+			wasmExports['zif_date_timestamp_get'];
+		_zif_date_diff = Module['_zif_date_diff'] =
+			wasmExports['zif_date_diff'];
+		_zif_timezone_open = Module['_zif_timezone_open'] =
+			wasmExports['zif_timezone_open'];
+		_zim_DateTimeZone___construct = Module[
+			'_zim_DateTimeZone___construct'
+		] = wasmExports['zim_DateTimeZone___construct'];
+		_zim_DateTimeZone___set_state = Module[
+			'_zim_DateTimeZone___set_state'
+		] = wasmExports['zim_DateTimeZone___set_state'];
+		_zim_DateTimeZone___wakeup = Module['_zim_DateTimeZone___wakeup'] =
+			wasmExports['zim_DateTimeZone___wakeup'];
+		_zif_timezone_name_get = Module['_zif_timezone_name_get'] =
+			wasmExports['zif_timezone_name_get'];
+		_zif_timezone_name_from_abbr = Module['_zif_timezone_name_from_abbr'] =
+			wasmExports['zif_timezone_name_from_abbr'];
+		_zif_timezone_offset_get = Module['_zif_timezone_offset_get'] =
+			wasmExports['zif_timezone_offset_get'];
+		_zif_timezone_transitions_get = Module[
+			'_zif_timezone_transitions_get'
+		] = wasmExports['zif_timezone_transitions_get'];
+		_zif_timezone_location_get = Module['_zif_timezone_location_get'] =
+			wasmExports['zif_timezone_location_get'];
+		_zim_DateInterval___construct = Module[
+			'_zim_DateInterval___construct'
+		] = wasmExports['zim_DateInterval___construct'];
+		_zim_DateInterval___set_state = Module[
+			'_zim_DateInterval___set_state'
+		] = wasmExports['zim_DateInterval___set_state'];
+		_zim_DateInterval___wakeup = Module['_zim_DateInterval___wakeup'] =
+			wasmExports['zim_DateInterval___wakeup'];
+		_zif_date_interval_create_from_date_string = Module[
+			'_zif_date_interval_create_from_date_string'
+		] = wasmExports['zif_date_interval_create_from_date_string'];
+		_zif_date_interval_format = Module['_zif_date_interval_format'] =
+			wasmExports['zif_date_interval_format'];
+		_zim_DatePeriod___construct = Module['_zim_DatePeriod___construct'] =
+			wasmExports['zim_DatePeriod___construct'];
+		_zim_DatePeriod_getStartDate = Module['_zim_DatePeriod_getStartDate'] =
+			wasmExports['zim_DatePeriod_getStartDate'];
+		_zim_DatePeriod_getEndDate = Module['_zim_DatePeriod_getEndDate'] =
+			wasmExports['zim_DatePeriod_getEndDate'];
+		_zim_DatePeriod_getDateInterval = Module[
+			'_zim_DatePeriod_getDateInterval'
+		] = wasmExports['zim_DatePeriod_getDateInterval'];
+		_zim_DatePeriod_getRecurrences = Module[
+			'_zim_DatePeriod_getRecurrences'
+		] = wasmExports['zim_DatePeriod_getRecurrences'];
+		_zim_DatePeriod_getIterator = Module['_zim_DatePeriod_getIterator'] =
+			wasmExports['zim_DatePeriod_getIterator'];
+		_zif_timezone_identifiers_list = Module[
+			'_zif_timezone_identifiers_list'
+		] = wasmExports['zif_timezone_identifiers_list'];
+		_zif_timezone_version_get = Module['_zif_timezone_version_get'] =
+			wasmExports['zif_timezone_version_get'];
+		_zif_timezone_abbreviations_list = Module[
+			'_zif_timezone_abbreviations_list'
+		] = wasmExports['zif_timezone_abbreviations_list'];
+		_zif_date_default_timezone_set = Module[
+			'_zif_date_default_timezone_set'
+		] = wasmExports['zif_date_default_timezone_set'];
+		_zif_date_default_timezone_get = Module[
+			'_zif_date_default_timezone_get'
+		] = wasmExports['zif_date_default_timezone_get'];
+		_zif_date_sunrise = Module['_zif_date_sunrise'] =
+			wasmExports['zif_date_sunrise'];
+		_zif_date_sunset = Module['_zif_date_sunset'] =
+			wasmExports['zif_date_sunset'];
+		_zif_date_sun_info = Module['_zif_date_sun_info'] =
+			wasmExports['zif_date_sun_info'];
+		_zim_DatePeriod___set_state = Module['_zim_DatePeriod___set_state'] =
+			wasmExports['zim_DatePeriod___set_state'];
+		_zim_DatePeriod___wakeup = Module['_zim_DatePeriod___wakeup'] =
+			wasmExports['zim_DatePeriod___wakeup'];
+		_timelib_astro_rise_set_altitude = Module[
+			'_timelib_astro_rise_set_altitude'
+		] = wasmExports['timelib_astro_rise_set_altitude'];
+		_timelib_ts_to_j2000 = Module['_timelib_ts_to_j2000'] =
+			wasmExports['timelib_ts_to_j2000'];
+		_timelib_ts_to_julianday = Module['_timelib_ts_to_julianday'] =
+			wasmExports['timelib_ts_to_julianday'];
+		_timelib_day_of_week = Module['_timelib_day_of_week'] =
+			wasmExports['timelib_day_of_week'];
+		_timelib_iso_day_of_week = Module['_timelib_iso_day_of_week'] =
+			wasmExports['timelib_iso_day_of_week'];
+		_timelib_day_of_year = Module['_timelib_day_of_year'] =
+			wasmExports['timelib_day_of_year'];
+		_timelib_days_in_month = Module['_timelib_days_in_month'] =
+			wasmExports['timelib_days_in_month'];
+		_timelib_isoweek_from_date = Module['_timelib_isoweek_from_date'] =
+			wasmExports['timelib_isoweek_from_date'];
+		_timelib_isodate_from_date = Module['_timelib_isodate_from_date'] =
+			wasmExports['timelib_isodate_from_date'];
+		_timelib_daynr_from_weeknr = Module['_timelib_daynr_from_weeknr'] =
+			wasmExports['timelib_daynr_from_weeknr'];
+		_timelib_date_from_isodate = Module['_timelib_date_from_isodate'] =
+			wasmExports['timelib_date_from_isodate'];
+		_timelib_valid_time = Module['_timelib_valid_time'] =
+			wasmExports['timelib_valid_time'];
+		_timelib_valid_date = Module['_timelib_valid_date'] =
+			wasmExports['timelib_valid_date'];
+		_timelib_parse_zone = Module['_timelib_parse_zone'] =
+			wasmExports['timelib_parse_zone'];
+		_timelib_strtotime = Module['_timelib_strtotime'] =
+			wasmExports['timelib_strtotime'];
+		_timelib_parse_from_format = Module['_timelib_parse_from_format'] =
+			wasmExports['timelib_parse_from_format'];
+		_timelib_parse_from_format_with_map = Module[
+			'_timelib_parse_from_format_with_map'
+		] = wasmExports['timelib_parse_from_format_with_map'];
+		_timelib_fill_holes = Module['_timelib_fill_holes'] =
+			wasmExports['timelib_fill_holes'];
+		_timelib_timezone_id_from_abbr = Module[
+			'_timelib_timezone_id_from_abbr'
+		] = wasmExports['timelib_timezone_id_from_abbr'];
+		_timelib_timezone_abbreviations_list = Module[
+			'_timelib_timezone_abbreviations_list'
+		] = wasmExports['timelib_timezone_abbreviations_list'];
+		_timelib_dump_tzinfo = Module['_timelib_dump_tzinfo'] =
+			wasmExports['timelib_dump_tzinfo'];
+		_timelib_builtin_db = Module['_timelib_builtin_db'] =
+			wasmExports['timelib_builtin_db'];
+		_timelib_timezone_identifiers_list = Module[
+			'_timelib_timezone_identifiers_list'
+		] = wasmExports['timelib_timezone_identifiers_list'];
+		_timelib_timezone_id_is_valid = Module[
+			'_timelib_timezone_id_is_valid'
+		] = wasmExports['timelib_timezone_id_is_valid'];
+		_timelib_parse_tzfile = Module['_timelib_parse_tzfile'] =
+			wasmExports['timelib_parse_tzfile'];
+		_timelib_tzinfo_dtor = Module['_timelib_tzinfo_dtor'] =
+			wasmExports['timelib_tzinfo_dtor'];
+		_timelib_tzinfo_clone = Module['_timelib_tzinfo_clone'] =
+			wasmExports['timelib_tzinfo_clone'];
+		_timelib_timestamp_is_in_dst = Module['_timelib_timestamp_is_in_dst'] =
+			wasmExports['timelib_timestamp_is_in_dst'];
+		_timelib_get_time_zone_info = Module['_timelib_get_time_zone_info'] =
+			wasmExports['timelib_get_time_zone_info'];
+		_timelib_get_current_offset = Module['_timelib_get_current_offset'] =
+			wasmExports['timelib_get_current_offset'];
+		_timelib_get_error_message = Module['_timelib_get_error_message'] =
+			wasmExports['timelib_get_error_message'];
+		_timelib_time_ctor = Module['_timelib_time_ctor'] =
+			wasmExports['timelib_time_ctor'];
+		_timelib_time_dtor = Module['_timelib_time_dtor'] =
+			wasmExports['timelib_time_dtor'];
+		_timelib_time_compare = Module['_timelib_time_compare'] =
+			wasmExports['timelib_time_compare'];
+		_timelib_time_clone = Module['_timelib_time_clone'] =
+			wasmExports['timelib_time_clone'];
+		_timelib_rel_time_ctor = Module['_timelib_rel_time_ctor'] =
+			wasmExports['timelib_rel_time_ctor'];
+		_timelib_rel_time_dtor = Module['_timelib_rel_time_dtor'] =
+			wasmExports['timelib_rel_time_dtor'];
+		_timelib_rel_time_clone = Module['_timelib_rel_time_clone'] =
+			wasmExports['timelib_rel_time_clone'];
+		_timelib_time_tz_abbr_update = Module['_timelib_time_tz_abbr_update'] =
+			wasmExports['timelib_time_tz_abbr_update'];
+		_timelib_time_offset_ctor = Module['_timelib_time_offset_ctor'] =
+			wasmExports['timelib_time_offset_ctor'];
+		_timelib_time_offset_dtor = Module['_timelib_time_offset_dtor'] =
+			wasmExports['timelib_time_offset_dtor'];
+		_timelib_get_tz_abbr_ptr = Module['_timelib_get_tz_abbr_ptr'] =
+			wasmExports['timelib_get_tz_abbr_ptr'];
+		_timelib_error_container_dtor = Module[
+			'_timelib_error_container_dtor'
+		] = wasmExports['timelib_error_container_dtor'];
+		_timelib_date_to_int = Module['_timelib_date_to_int'] =
+			wasmExports['timelib_date_to_int'];
+		_timelib_decimal_hour_to_hms = Module['_timelib_decimal_hour_to_hms'] =
+			wasmExports['timelib_decimal_hour_to_hms'];
+		_timelib_hms_to_decimal_hour = Module['_timelib_hms_to_decimal_hour'] =
+			wasmExports['timelib_hms_to_decimal_hour'];
+		_timelib_strcasecmp = Module['_timelib_strcasecmp'] =
+			wasmExports['timelib_strcasecmp'];
+		_timelib_strncasecmp = Module['_timelib_strncasecmp'] =
+			wasmExports['timelib_strncasecmp'];
+		_timelib_dump_date = Module['_timelib_dump_date'] =
+			wasmExports['timelib_dump_date'];
+		_timelib_dump_rel_time = Module['_timelib_dump_rel_time'] =
+			wasmExports['timelib_dump_rel_time'];
+		_timelib_do_rel_normalize = Module['_timelib_do_rel_normalize'] =
+			wasmExports['timelib_do_rel_normalize'];
+		_timelib_do_normalize = Module['_timelib_do_normalize'] =
+			wasmExports['timelib_do_normalize'];
+		_timelib_update_ts = Module['_timelib_update_ts'] =
+			wasmExports['timelib_update_ts'];
+		_timelib_unixtime2gmt = Module['_timelib_unixtime2gmt'] =
+			wasmExports['timelib_unixtime2gmt'];
+		_timelib_update_from_sse = Module['_timelib_update_from_sse'] =
+			wasmExports['timelib_update_from_sse'];
+		_timelib_unixtime2local = Module['_timelib_unixtime2local'] =
+			wasmExports['timelib_unixtime2local'];
+		_timelib_set_timezone_from_offset = Module[
+			'_timelib_set_timezone_from_offset'
+		] = wasmExports['timelib_set_timezone_from_offset'];
+		_timelib_set_timezone_from_abbr = Module[
+			'_timelib_set_timezone_from_abbr'
+		] = wasmExports['timelib_set_timezone_from_abbr'];
+		_timelib_set_timezone = Module['_timelib_set_timezone'] =
+			wasmExports['timelib_set_timezone'];
+		_timelib_apply_localtime = Module['_timelib_apply_localtime'] =
+			wasmExports['timelib_apply_localtime'];
+		_timelib_strtointerval = Module['_timelib_strtointerval'] =
+			wasmExports['timelib_strtointerval'];
+		_timelib_diff = Module['_timelib_diff'] = wasmExports['timelib_diff'];
+		_timelib_add = Module['_timelib_add'] = wasmExports['timelib_add'];
+		_timelib_sub = Module['_timelib_sub'] = wasmExports['timelib_sub'];
+		_php_libxml_error_handler = Module['_php_libxml_error_handler'] =
+			wasmExports['php_libxml_error_handler'];
+		_php_libxml_node_free_list = Module['_php_libxml_node_free_list'] =
+			wasmExports['php_libxml_node_free_list'];
+		_php_libxml_decrement_doc_ref = Module[
+			'_php_libxml_decrement_doc_ref'
+		] = wasmExports['php_libxml_decrement_doc_ref'];
+		_php_libxml_issue_error = Module['_php_libxml_issue_error'] =
+			wasmExports['php_libxml_issue_error'];
+		_php_libxml_ctx_error = Module['_php_libxml_ctx_error'] =
+			wasmExports['php_libxml_ctx_error'];
+		_php_libxml_ctx_warning = Module['_php_libxml_ctx_warning'] =
+			wasmExports['php_libxml_ctx_warning'];
+		_php_libxml_structured_error_handler = Module[
+			'_php_libxml_structured_error_handler'
+		] = wasmExports['php_libxml_structured_error_handler'];
+		_php_libxml_initialize = Module['_php_libxml_initialize'] =
+			wasmExports['php_libxml_initialize'];
+		_php_libxml_shutdown = Module['_php_libxml_shutdown'] =
+			wasmExports['php_libxml_shutdown'];
+		_php_libxml_switch_context = Module['_php_libxml_switch_context'] =
+			wasmExports['php_libxml_switch_context'];
+		_zif_libxml_set_streams_context = Module[
+			'_zif_libxml_set_streams_context'
+		] = wasmExports['zif_libxml_set_streams_context'];
+		_zif_libxml_use_internal_errors = Module[
+			'_zif_libxml_use_internal_errors'
+		] = wasmExports['zif_libxml_use_internal_errors'];
+		_zif_libxml_get_last_error = Module['_zif_libxml_get_last_error'] =
+			wasmExports['zif_libxml_get_last_error'];
+		_zif_libxml_get_errors = Module['_zif_libxml_get_errors'] =
+			wasmExports['zif_libxml_get_errors'];
+		_zif_libxml_clear_errors = Module['_zif_libxml_clear_errors'] =
+			wasmExports['zif_libxml_clear_errors'];
+		_php_libxml_disable_entity_loader = Module[
+			'_php_libxml_disable_entity_loader'
+		] = wasmExports['php_libxml_disable_entity_loader'];
+		_zif_libxml_disable_entity_loader = Module[
+			'_zif_libxml_disable_entity_loader'
+		] = wasmExports['zif_libxml_disable_entity_loader'];
+		_zif_libxml_set_external_entity_loader = Module[
+			'_zif_libxml_set_external_entity_loader'
+		] = wasmExports['zif_libxml_set_external_entity_loader'];
+		_php_libxml_xmlCheckUTF8 = Module['_php_libxml_xmlCheckUTF8'] =
+			wasmExports['php_libxml_xmlCheckUTF8'];
+		_php_libxml_register_export = Module['_php_libxml_register_export'] =
+			wasmExports['php_libxml_register_export'];
+		_php_libxml_import_node = Module['_php_libxml_import_node'] =
+			wasmExports['php_libxml_import_node'];
+		_php_libxml_increment_node_ptr = Module[
+			'_php_libxml_increment_node_ptr'
+		] = wasmExports['php_libxml_increment_node_ptr'];
+		_php_libxml_decrement_node_ptr = Module[
+			'_php_libxml_decrement_node_ptr'
+		] = wasmExports['php_libxml_decrement_node_ptr'];
+		_php_libxml_increment_doc_ref = Module[
+			'_php_libxml_increment_doc_ref'
+		] = wasmExports['php_libxml_increment_doc_ref'];
+		_php_libxml_node_free_resource = Module[
+			'_php_libxml_node_free_resource'
+		] = wasmExports['php_libxml_node_free_resource'];
+		_php_libxml_node_decrement_resource = Module[
+			'_php_libxml_node_decrement_resource'
+		] = wasmExports['php_libxml_node_decrement_resource'];
+		_zm_startup_openssl = Module['_zm_startup_openssl'] =
+			wasmExports['zm_startup_openssl'];
+		_zm_shutdown_openssl = Module['_zm_shutdown_openssl'] =
+			wasmExports['zm_shutdown_openssl'];
+		_zm_info_openssl = Module['_zm_info_openssl'] =
+			wasmExports['zm_info_openssl'];
+		_zm_globals_ctor_openssl = Module['_zm_globals_ctor_openssl'] =
+			wasmExports['zm_globals_ctor_openssl'];
+		_zm_globals_dtor_openssl = Module['_zm_globals_dtor_openssl'] =
+			wasmExports['zm_globals_dtor_openssl'];
+		_php_openssl_store_errors = Module['_php_openssl_store_errors'] =
+			wasmExports['php_openssl_store_errors'];
+		_php_openssl_get_stream_from_ssl_handle = Module[
+			'_php_openssl_get_stream_from_ssl_handle'
+		] = wasmExports['php_openssl_get_stream_from_ssl_handle'];
+		_php_openssl_get_ssl_stream_data_index = Module[
+			'_php_openssl_get_ssl_stream_data_index'
+		] = wasmExports['php_openssl_get_ssl_stream_data_index'];
+		_zif_openssl_get_cert_locations = Module[
+			'_zif_openssl_get_cert_locations'
+		] = wasmExports['zif_openssl_get_cert_locations'];
+		_zif_openssl_x509_export_to_file = Module[
+			'_zif_openssl_x509_export_to_file'
+		] = wasmExports['zif_openssl_x509_export_to_file'];
+		_zif_openssl_spki_new = Module['_zif_openssl_spki_new'] =
+			wasmExports['zif_openssl_spki_new'];
+		_zif_openssl_spki_verify = Module['_zif_openssl_spki_verify'] =
+			wasmExports['zif_openssl_spki_verify'];
+		_zif_openssl_spki_export = Module['_zif_openssl_spki_export'] =
+			wasmExports['zif_openssl_spki_export'];
+		_zif_openssl_spki_export_challenge = Module[
+			'_zif_openssl_spki_export_challenge'
+		] = wasmExports['zif_openssl_spki_export_challenge'];
+		_zif_openssl_x509_export = Module['_zif_openssl_x509_export'] =
+			wasmExports['zif_openssl_x509_export'];
+		_php_openssl_x509_fingerprint = Module[
+			'_php_openssl_x509_fingerprint'
+		] = wasmExports['php_openssl_x509_fingerprint'];
+		_zif_openssl_x509_fingerprint = Module[
+			'_zif_openssl_x509_fingerprint'
+		] = wasmExports['zif_openssl_x509_fingerprint'];
+		_zif_openssl_x509_check_private_key = Module[
+			'_zif_openssl_x509_check_private_key'
+		] = wasmExports['zif_openssl_x509_check_private_key'];
+		_zif_openssl_x509_verify = Module['_zif_openssl_x509_verify'] =
+			wasmExports['zif_openssl_x509_verify'];
+		_zif_openssl_x509_parse = Module['_zif_openssl_x509_parse'] =
+			wasmExports['zif_openssl_x509_parse'];
+		_zif_openssl_x509_checkpurpose = Module[
+			'_zif_openssl_x509_checkpurpose'
+		] = wasmExports['zif_openssl_x509_checkpurpose'];
+		_zif_openssl_x509_read = Module['_zif_openssl_x509_read'] =
+			wasmExports['zif_openssl_x509_read'];
+		_zif_openssl_x509_free = Module['_zif_openssl_x509_free'] =
+			wasmExports['zif_openssl_x509_free'];
+		_zif_openssl_pkcs12_export_to_file = Module[
+			'_zif_openssl_pkcs12_export_to_file'
+		] = wasmExports['zif_openssl_pkcs12_export_to_file'];
+		_zif_openssl_pkcs12_export = Module['_zif_openssl_pkcs12_export'] =
+			wasmExports['zif_openssl_pkcs12_export'];
+		_zif_openssl_pkcs12_read = Module['_zif_openssl_pkcs12_read'] =
+			wasmExports['zif_openssl_pkcs12_read'];
+		_zif_openssl_csr_export_to_file = Module[
+			'_zif_openssl_csr_export_to_file'
+		] = wasmExports['zif_openssl_csr_export_to_file'];
+		_zif_openssl_csr_export = Module['_zif_openssl_csr_export'] =
+			wasmExports['zif_openssl_csr_export'];
+		_zif_openssl_csr_sign = Module['_zif_openssl_csr_sign'] =
+			wasmExports['zif_openssl_csr_sign'];
+		_zif_openssl_csr_new = Module['_zif_openssl_csr_new'] =
+			wasmExports['zif_openssl_csr_new'];
+		_zif_openssl_csr_get_subject = Module['_zif_openssl_csr_get_subject'] =
+			wasmExports['zif_openssl_csr_get_subject'];
+		_zif_openssl_csr_get_public_key = Module[
+			'_zif_openssl_csr_get_public_key'
+		] = wasmExports['zif_openssl_csr_get_public_key'];
+		_zif_openssl_pkey_new = Module['_zif_openssl_pkey_new'] =
+			wasmExports['zif_openssl_pkey_new'];
+		_zif_openssl_pkey_export_to_file = Module[
+			'_zif_openssl_pkey_export_to_file'
+		] = wasmExports['zif_openssl_pkey_export_to_file'];
+		_zif_openssl_pkey_export = Module['_zif_openssl_pkey_export'] =
+			wasmExports['zif_openssl_pkey_export'];
+		_zif_openssl_pkey_get_public = Module['_zif_openssl_pkey_get_public'] =
+			wasmExports['zif_openssl_pkey_get_public'];
+		_zif_openssl_pkey_free = Module['_zif_openssl_pkey_free'] =
+			wasmExports['zif_openssl_pkey_free'];
+		_zif_openssl_pkey_get_private = Module[
+			'_zif_openssl_pkey_get_private'
+		] = wasmExports['zif_openssl_pkey_get_private'];
+		_zif_openssl_pkey_get_details = Module[
+			'_zif_openssl_pkey_get_details'
+		] = wasmExports['zif_openssl_pkey_get_details'];
+		_zif_openssl_dh_compute_key = Module['_zif_openssl_dh_compute_key'] =
+			wasmExports['zif_openssl_dh_compute_key'];
+		_zif_openssl_pkey_derive = Module['_zif_openssl_pkey_derive'] =
+			wasmExports['zif_openssl_pkey_derive'];
+		_zif_openssl_pbkdf2 = Module['_zif_openssl_pbkdf2'] =
+			wasmExports['zif_openssl_pbkdf2'];
+		_zif_openssl_pkcs7_verify = Module['_zif_openssl_pkcs7_verify'] =
+			wasmExports['zif_openssl_pkcs7_verify'];
+		_zif_openssl_pkcs7_encrypt = Module['_zif_openssl_pkcs7_encrypt'] =
+			wasmExports['zif_openssl_pkcs7_encrypt'];
+		_zif_openssl_pkcs7_read = Module['_zif_openssl_pkcs7_read'] =
+			wasmExports['zif_openssl_pkcs7_read'];
+		_zif_openssl_pkcs7_sign = Module['_zif_openssl_pkcs7_sign'] =
+			wasmExports['zif_openssl_pkcs7_sign'];
+		_zif_openssl_pkcs7_decrypt = Module['_zif_openssl_pkcs7_decrypt'] =
+			wasmExports['zif_openssl_pkcs7_decrypt'];
+		_zif_openssl_cms_verify = Module['_zif_openssl_cms_verify'] =
+			wasmExports['zif_openssl_cms_verify'];
+		_zif_openssl_cms_encrypt = Module['_zif_openssl_cms_encrypt'] =
+			wasmExports['zif_openssl_cms_encrypt'];
+		_zif_openssl_cms_read = Module['_zif_openssl_cms_read'] =
+			wasmExports['zif_openssl_cms_read'];
+		_zif_openssl_cms_sign = Module['_zif_openssl_cms_sign'] =
+			wasmExports['zif_openssl_cms_sign'];
+		_zif_openssl_cms_decrypt = Module['_zif_openssl_cms_decrypt'] =
+			wasmExports['zif_openssl_cms_decrypt'];
+		_zif_openssl_private_encrypt = Module['_zif_openssl_private_encrypt'] =
+			wasmExports['zif_openssl_private_encrypt'];
+		_zif_openssl_private_decrypt = Module['_zif_openssl_private_decrypt'] =
+			wasmExports['zif_openssl_private_decrypt'];
+		_zif_openssl_public_encrypt = Module['_zif_openssl_public_encrypt'] =
+			wasmExports['zif_openssl_public_encrypt'];
+		_zif_openssl_public_decrypt = Module['_zif_openssl_public_decrypt'] =
+			wasmExports['zif_openssl_public_decrypt'];
+		_zif_openssl_error_string = Module['_zif_openssl_error_string'] =
+			wasmExports['zif_openssl_error_string'];
+		_zif_openssl_sign = Module['_zif_openssl_sign'] =
+			wasmExports['zif_openssl_sign'];
+		_zif_openssl_verify = Module['_zif_openssl_verify'] =
+			wasmExports['zif_openssl_verify'];
+		_zif_openssl_seal = Module['_zif_openssl_seal'] =
+			wasmExports['zif_openssl_seal'];
+		_zif_openssl_open = Module['_zif_openssl_open'] =
+			wasmExports['zif_openssl_open'];
+		_zif_openssl_get_md_methods = Module['_zif_openssl_get_md_methods'] =
+			wasmExports['zif_openssl_get_md_methods'];
+		_zif_openssl_get_cipher_methods = Module[
+			'_zif_openssl_get_cipher_methods'
+		] = wasmExports['zif_openssl_get_cipher_methods'];
+		_zif_openssl_get_curve_names = Module['_zif_openssl_get_curve_names'] =
+			wasmExports['zif_openssl_get_curve_names'];
+		_zif_openssl_digest = Module['_zif_openssl_digest'] =
+			wasmExports['zif_openssl_digest'];
+		_php_openssl_encrypt = Module['_php_openssl_encrypt'] =
+			wasmExports['php_openssl_encrypt'];
+		_zif_openssl_encrypt = Module['_zif_openssl_encrypt'] =
+			wasmExports['zif_openssl_encrypt'];
+		_php_openssl_decrypt = Module['_php_openssl_decrypt'] =
+			wasmExports['php_openssl_decrypt'];
+		_zif_openssl_decrypt = Module['_zif_openssl_decrypt'] =
+			wasmExports['zif_openssl_decrypt'];
+		_php_openssl_cipher_iv_length = Module[
+			'_php_openssl_cipher_iv_length'
+		] = wasmExports['php_openssl_cipher_iv_length'];
+		_zif_openssl_cipher_iv_length = Module[
+			'_zif_openssl_cipher_iv_length'
+		] = wasmExports['zif_openssl_cipher_iv_length'];
+		_php_openssl_random_pseudo_bytes = Module[
+			'_php_openssl_random_pseudo_bytes'
+		] = wasmExports['php_openssl_random_pseudo_bytes'];
+		_zif_openssl_random_pseudo_bytes = Module[
+			'_zif_openssl_random_pseudo_bytes'
+		] = wasmExports['zif_openssl_random_pseudo_bytes'];
+		_php_openssl_setup_crypto = Module['_php_openssl_setup_crypto'] =
+			wasmExports['php_openssl_setup_crypto'];
+		_php_openssl_ssl_socket_factory = Module[
+			'_php_openssl_ssl_socket_factory'
+		] = wasmExports['php_openssl_ssl_socket_factory'];
+		__pcre2_auto_possessify_8 = Module['__pcre2_auto_possessify_8'] =
+			wasmExports['_pcre2_auto_possessify_8'];
+		_php_pcre2_code_copy = Module['_php_pcre2_code_copy'] =
+			wasmExports['php_pcre2_code_copy'];
+		_php_pcre2_code_copy_with_tables = Module[
+			'_php_pcre2_code_copy_with_tables'
+		] = wasmExports['php_pcre2_code_copy_with_tables'];
+		_php_pcre2_code_free = Module['_php_pcre2_code_free'] =
+			wasmExports['php_pcre2_code_free'];
+		__pcre2_check_escape_8 = Module['__pcre2_check_escape_8'] =
+			wasmExports['_pcre2_check_escape_8'];
+		_php_pcre2_compile = Module['_php_pcre2_compile'] =
+			wasmExports['php_pcre2_compile'];
+		_php_pcre2_config = Module['_php_pcre2_config'] =
+			wasmExports['php_pcre2_config'];
+		__pcre2_memctl_malloc_8 = Module['__pcre2_memctl_malloc_8'] =
+			wasmExports['_pcre2_memctl_malloc_8'];
+		_php_pcre2_general_context_create = Module[
+			'_php_pcre2_general_context_create'
+		] = wasmExports['php_pcre2_general_context_create'];
+		_php_pcre2_compile_context_create = Module[
+			'_php_pcre2_compile_context_create'
+		] = wasmExports['php_pcre2_compile_context_create'];
+		_php_pcre2_match_context_create = Module[
+			'_php_pcre2_match_context_create'
+		] = wasmExports['php_pcre2_match_context_create'];
+		_php_pcre2_convert_context_create = Module[
+			'_php_pcre2_convert_context_create'
+		] = wasmExports['php_pcre2_convert_context_create'];
+		_php_pcre2_general_context_copy = Module[
+			'_php_pcre2_general_context_copy'
+		] = wasmExports['php_pcre2_general_context_copy'];
+		_php_pcre2_compile_context_copy = Module[
+			'_php_pcre2_compile_context_copy'
+		] = wasmExports['php_pcre2_compile_context_copy'];
+		_php_pcre2_match_context_copy = Module[
+			'_php_pcre2_match_context_copy'
+		] = wasmExports['php_pcre2_match_context_copy'];
+		_php_pcre2_convert_context_copy = Module[
+			'_php_pcre2_convert_context_copy'
+		] = wasmExports['php_pcre2_convert_context_copy'];
+		_php_pcre2_general_context_free = Module[
+			'_php_pcre2_general_context_free'
+		] = wasmExports['php_pcre2_general_context_free'];
+		_php_pcre2_compile_context_free = Module[
+			'_php_pcre2_compile_context_free'
+		] = wasmExports['php_pcre2_compile_context_free'];
+		_php_pcre2_match_context_free = Module[
+			'_php_pcre2_match_context_free'
+		] = wasmExports['php_pcre2_match_context_free'];
+		_php_pcre2_convert_context_free = Module[
+			'_php_pcre2_convert_context_free'
+		] = wasmExports['php_pcre2_convert_context_free'];
+		_php_pcre2_set_character_tables = Module[
+			'_php_pcre2_set_character_tables'
+		] = wasmExports['php_pcre2_set_character_tables'];
+		_php_pcre2_set_bsr = Module['_php_pcre2_set_bsr'] =
+			wasmExports['php_pcre2_set_bsr'];
+		_php_pcre2_set_max_pattern_length = Module[
+			'_php_pcre2_set_max_pattern_length'
+		] = wasmExports['php_pcre2_set_max_pattern_length'];
+		_php_pcre2_set_newline = Module['_php_pcre2_set_newline'] =
+			wasmExports['php_pcre2_set_newline'];
+		_php_pcre2_set_parens_nest_limit = Module[
+			'_php_pcre2_set_parens_nest_limit'
+		] = wasmExports['php_pcre2_set_parens_nest_limit'];
+		_php_pcre2_set_compile_extra_options = Module[
+			'_php_pcre2_set_compile_extra_options'
+		] = wasmExports['php_pcre2_set_compile_extra_options'];
+		_php_pcre2_set_compile_recursion_guard = Module[
+			'_php_pcre2_set_compile_recursion_guard'
+		] = wasmExports['php_pcre2_set_compile_recursion_guard'];
+		_php_pcre2_set_callout = Module['_php_pcre2_set_callout'] =
+			wasmExports['php_pcre2_set_callout'];
+		_pcre2_set_substitute_callout_8 = Module[
+			'_pcre2_set_substitute_callout_8'
+		] = wasmExports['pcre2_set_substitute_callout_8'];
+		_php_pcre2_set_heap_limit = Module['_php_pcre2_set_heap_limit'] =
+			wasmExports['php_pcre2_set_heap_limit'];
+		_php_pcre2_set_match_limit = Module['_php_pcre2_set_match_limit'] =
+			wasmExports['php_pcre2_set_match_limit'];
+		_php_pcre2_set_depth_limit = Module['_php_pcre2_set_depth_limit'] =
+			wasmExports['php_pcre2_set_depth_limit'];
+		_php_pcre2_set_offset_limit = Module['_php_pcre2_set_offset_limit'] =
+			wasmExports['php_pcre2_set_offset_limit'];
+		_php_pcre2_set_recursion_limit = Module[
+			'_php_pcre2_set_recursion_limit'
+		] = wasmExports['php_pcre2_set_recursion_limit'];
+		_php_pcre2_set_recursion_memory_management = Module[
+			'_php_pcre2_set_recursion_memory_management'
+		] = wasmExports['php_pcre2_set_recursion_memory_management'];
+		_php_pcre2_set_glob_separator = Module[
+			'_php_pcre2_set_glob_separator'
+		] = wasmExports['php_pcre2_set_glob_separator'];
+		_php_pcre2_set_glob_escape = Module['_php_pcre2_set_glob_escape'] =
+			wasmExports['php_pcre2_set_glob_escape'];
+		_php_pcre2_dfa_match = Module['_php_pcre2_dfa_match'] =
+			wasmExports['php_pcre2_dfa_match'];
+		_php_pcre2_get_error_message = Module['_php_pcre2_get_error_message'] =
+			wasmExports['php_pcre2_get_error_message'];
+		_php_pcre2_jit_compile = Module['_php_pcre2_jit_compile'] =
+			wasmExports['php_pcre2_jit_compile'];
+		_php_pcre2_jit_match = Module['_php_pcre2_jit_match'] =
+			wasmExports['php_pcre2_jit_match'];
+		__pcre2_jit_free_rodata_8 = Module['__pcre2_jit_free_rodata_8'] =
+			wasmExports['_pcre2_jit_free_rodata_8'];
+		__pcre2_jit_free_8 = Module['__pcre2_jit_free_8'] =
+			wasmExports['_pcre2_jit_free_8'];
+		_php_pcre2_jit_free_unused_memory = Module[
+			'_php_pcre2_jit_free_unused_memory'
+		] = wasmExports['php_pcre2_jit_free_unused_memory'];
+		_php_pcre2_jit_stack_create = Module['_php_pcre2_jit_stack_create'] =
+			wasmExports['php_pcre2_jit_stack_create'];
+		_php_pcre2_jit_stack_assign = Module['_php_pcre2_jit_stack_assign'] =
+			wasmExports['php_pcre2_jit_stack_assign'];
+		_php_pcre2_jit_stack_free = Module['_php_pcre2_jit_stack_free'] =
+			wasmExports['php_pcre2_jit_stack_free'];
+		__pcre2_jit_get_target_8 = Module['__pcre2_jit_get_target_8'] =
+			wasmExports['_pcre2_jit_get_target_8'];
+		__pcre2_jit_get_size_8 = Module['__pcre2_jit_get_size_8'] =
+			wasmExports['_pcre2_jit_get_size_8'];
+		_php_pcre2_maketables = Module['_php_pcre2_maketables'] =
+			wasmExports['php_pcre2_maketables'];
+		_pcre2_maketables_free_8 = Module['_pcre2_maketables_free_8'] =
+			wasmExports['pcre2_maketables_free_8'];
+		_php_pcre2_match = Module['_php_pcre2_match'] =
+			wasmExports['php_pcre2_match'];
+		_php_pcre2_match_data_create = Module['_php_pcre2_match_data_create'] =
+			wasmExports['php_pcre2_match_data_create'];
+		_php_pcre2_match_data_create_from_pattern = Module[
+			'_php_pcre2_match_data_create_from_pattern'
+		] = wasmExports['php_pcre2_match_data_create_from_pattern'];
+		_php_pcre2_match_data_free = Module['_php_pcre2_match_data_free'] =
+			wasmExports['php_pcre2_match_data_free'];
+		_php_pcre2_get_mark = Module['_php_pcre2_get_mark'] =
+			wasmExports['php_pcre2_get_mark'];
+		_php_pcre2_get_ovector_pointer = Module[
+			'_php_pcre2_get_ovector_pointer'
+		] = wasmExports['php_pcre2_get_ovector_pointer'];
+		_php_pcre2_get_ovector_count = Module['_php_pcre2_get_ovector_count'] =
+			wasmExports['php_pcre2_get_ovector_count'];
+		_php_pcre2_get_startchar = Module['_php_pcre2_get_startchar'] =
+			wasmExports['php_pcre2_get_startchar'];
+		_pcre2_get_match_data_size_8 = Module['_pcre2_get_match_data_size_8'] =
+			wasmExports['pcre2_get_match_data_size_8'];
+		__pcre2_is_newline_8 = Module['__pcre2_is_newline_8'] =
+			wasmExports['_pcre2_is_newline_8'];
+		__pcre2_was_newline_8 = Module['__pcre2_was_newline_8'] =
+			wasmExports['_pcre2_was_newline_8'];
+		__pcre2_ord2utf_8 = Module['__pcre2_ord2utf_8'] =
+			wasmExports['_pcre2_ord2utf_8'];
+		_php_pcre2_pattern_info = Module['_php_pcre2_pattern_info'] =
+			wasmExports['php_pcre2_pattern_info'];
+		_php_pcre2_callout_enumerate = Module['_php_pcre2_callout_enumerate'] =
+			wasmExports['php_pcre2_callout_enumerate'];
+		_php_pcre2_serialize_encode = Module['_php_pcre2_serialize_encode'] =
+			wasmExports['php_pcre2_serialize_encode'];
+		_php_pcre2_serialize_decode = Module['_php_pcre2_serialize_decode'] =
+			wasmExports['php_pcre2_serialize_decode'];
+		_php_pcre2_serialize_get_number_of_codes = Module[
+			'_php_pcre2_serialize_get_number_of_codes'
+		] = wasmExports['php_pcre2_serialize_get_number_of_codes'];
+		_php_pcre2_serialize_free = Module['_php_pcre2_serialize_free'] =
+			wasmExports['php_pcre2_serialize_free'];
+		__pcre2_strcmp_8 = Module['__pcre2_strcmp_8'] =
+			wasmExports['_pcre2_strcmp_8'];
+		__pcre2_strcmp_c8_8 = Module['__pcre2_strcmp_c8_8'] =
+			wasmExports['_pcre2_strcmp_c8_8'];
+		__pcre2_strncmp_8 = Module['__pcre2_strncmp_8'] =
+			wasmExports['_pcre2_strncmp_8'];
+		__pcre2_strncmp_c8_8 = Module['__pcre2_strncmp_c8_8'] =
+			wasmExports['_pcre2_strncmp_c8_8'];
+		__pcre2_strlen_8 = Module['__pcre2_strlen_8'] =
+			wasmExports['_pcre2_strlen_8'];
+		__pcre2_strcpy_c8_8 = Module['__pcre2_strcpy_c8_8'] =
+			wasmExports['_pcre2_strcpy_c8_8'];
+		__pcre2_study_8 = Module['__pcre2_study_8'] =
+			wasmExports['_pcre2_study_8'];
+		_php_pcre2_substitute = Module['_php_pcre2_substitute'] =
+			wasmExports['php_pcre2_substitute'];
+		_php_pcre2_substring_copy_byname = Module[
+			'_php_pcre2_substring_copy_byname'
+		] = wasmExports['php_pcre2_substring_copy_byname'];
+		_php_pcre2_substring_nametable_scan = Module[
+			'_php_pcre2_substring_nametable_scan'
+		] = wasmExports['php_pcre2_substring_nametable_scan'];
+		_php_pcre2_substring_copy_bynumber = Module[
+			'_php_pcre2_substring_copy_bynumber'
+		] = wasmExports['php_pcre2_substring_copy_bynumber'];
+		_php_pcre2_substring_length_bynumber = Module[
+			'_php_pcre2_substring_length_bynumber'
+		] = wasmExports['php_pcre2_substring_length_bynumber'];
+		_php_pcre2_substring_get_byname = Module[
+			'_php_pcre2_substring_get_byname'
+		] = wasmExports['php_pcre2_substring_get_byname'];
+		_php_pcre2_substring_get_bynumber = Module[
+			'_php_pcre2_substring_get_bynumber'
+		] = wasmExports['php_pcre2_substring_get_bynumber'];
+		_php_pcre2_substring_free = Module['_php_pcre2_substring_free'] =
+			wasmExports['php_pcre2_substring_free'];
+		_php_pcre2_substring_length_byname = Module[
+			'_php_pcre2_substring_length_byname'
+		] = wasmExports['php_pcre2_substring_length_byname'];
+		_php_pcre2_substring_list_get = Module[
+			'_php_pcre2_substring_list_get'
+		] = wasmExports['php_pcre2_substring_list_get'];
+		_php_pcre2_substring_list_free = Module[
+			'_php_pcre2_substring_list_free'
+		] = wasmExports['php_pcre2_substring_list_free'];
+		_php_pcre2_substring_number_from_name = Module[
+			'_php_pcre2_substring_number_from_name'
+		] = wasmExports['php_pcre2_substring_number_from_name'];
+		__pcre2_valid_utf_8 = Module['__pcre2_valid_utf_8'] =
+			wasmExports['_pcre2_valid_utf_8'];
+		__pcre2_xclass_8 = Module['__pcre2_xclass_8'] =
+			wasmExports['_pcre2_xclass_8'];
+		__pcre2_find_bracket_8 = Module['__pcre2_find_bracket_8'] =
+			wasmExports['_pcre2_find_bracket_8'];
+		_pcre2_pattern_convert_8 = Module['_pcre2_pattern_convert_8'] =
+			wasmExports['pcre2_pattern_convert_8'];
+		_pcre2_converted_pattern_free_8 = Module[
+			'_pcre2_converted_pattern_free_8'
+		] = wasmExports['pcre2_converted_pattern_free_8'];
+		__pcre2_extuni_8 = Module['__pcre2_extuni_8'] =
+			wasmExports['_pcre2_extuni_8'];
+		__pcre2_script_run_8 = Module['__pcre2_script_run_8'] =
+			wasmExports['_pcre2_script_run_8'];
+		_pcre_get_compiled_regex_cache_ex = Module[
+			'_pcre_get_compiled_regex_cache_ex'
+		] = wasmExports['pcre_get_compiled_regex_cache_ex'];
+		_pcre_get_compiled_regex_cache = Module[
+			'_pcre_get_compiled_regex_cache'
+		] = wasmExports['pcre_get_compiled_regex_cache'];
+		_pcre_get_compiled_regex = Module['_pcre_get_compiled_regex'] =
+			wasmExports['pcre_get_compiled_regex'];
+		_pcre_get_compiled_regex_ex = Module['_pcre_get_compiled_regex_ex'] =
+			wasmExports['pcre_get_compiled_regex_ex'];
+		_php_pcre_create_match_data = Module['_php_pcre_create_match_data'] =
+			wasmExports['php_pcre_create_match_data'];
+		_php_pcre_free_match_data = Module['_php_pcre_free_match_data'] =
+			wasmExports['php_pcre_free_match_data'];
+		_php_pcre_match_impl = Module['_php_pcre_match_impl'] =
+			wasmExports['php_pcre_match_impl'];
+		_zif_preg_match = Module['_zif_preg_match'] =
+			wasmExports['zif_preg_match'];
+		_zif_preg_match_all = Module['_zif_preg_match_all'] =
+			wasmExports['zif_preg_match_all'];
+		_php_pcre_replace = Module['_php_pcre_replace'] =
+			wasmExports['php_pcre_replace'];
+		_php_pcre_replace_impl = Module['_php_pcre_replace_impl'] =
+			wasmExports['php_pcre_replace_impl'];
+		_zif_preg_replace = Module['_zif_preg_replace'] =
+			wasmExports['zif_preg_replace'];
+		_zif_preg_replace_callback = Module['_zif_preg_replace_callback'] =
+			wasmExports['zif_preg_replace_callback'];
+		_zif_preg_replace_callback_array = Module[
+			'_zif_preg_replace_callback_array'
+		] = wasmExports['zif_preg_replace_callback_array'];
+		_zif_preg_filter = Module['_zif_preg_filter'] =
+			wasmExports['zif_preg_filter'];
+		_zif_preg_split = Module['_zif_preg_split'] =
+			wasmExports['zif_preg_split'];
+		_php_pcre_split_impl = Module['_php_pcre_split_impl'] =
+			wasmExports['php_pcre_split_impl'];
+		_zif_preg_quote = Module['_zif_preg_quote'] =
+			wasmExports['zif_preg_quote'];
+		_zif_preg_grep = Module['_zif_preg_grep'] =
+			wasmExports['zif_preg_grep'];
+		_php_pcre_grep_impl = Module['_php_pcre_grep_impl'] =
+			wasmExports['php_pcre_grep_impl'];
+		_zif_preg_last_error = Module['_zif_preg_last_error'] =
+			wasmExports['zif_preg_last_error'];
+		_zif_preg_last_error_msg = Module['_zif_preg_last_error_msg'] =
+			wasmExports['zif_preg_last_error_msg'];
+		_php_pcre_mctx = Module['_php_pcre_mctx'] =
+			wasmExports['php_pcre_mctx'];
+		_php_pcre_gctx = Module['_php_pcre_gctx'] =
+			wasmExports['php_pcre_gctx'];
+		_php_pcre_cctx = Module['_php_pcre_cctx'] =
+			wasmExports['php_pcre_cctx'];
+		_php_pcre_pce_incref = Module['_php_pcre_pce_incref'] =
+			wasmExports['php_pcre_pce_incref'];
+		_php_pcre_pce_decref = Module['_php_pcre_pce_decref'] =
+			wasmExports['php_pcre_pce_decref'];
+		_php_pcre_pce_re = Module['_php_pcre_pce_re'] =
+			wasmExports['php_pcre_pce_re'];
+		_zim_SQLite3_open = Module['_zim_SQLite3_open'] =
+			wasmExports['zim_SQLite3_open'];
+		_zim_SQLite3_close = Module['_zim_SQLite3_close'] =
+			wasmExports['zim_SQLite3_close'];
+		_zim_SQLite3_exec = Module['_zim_SQLite3_exec'] =
+			wasmExports['zim_SQLite3_exec'];
+		_zim_SQLite3_version = Module['_zim_SQLite3_version'] =
+			wasmExports['zim_SQLite3_version'];
+		_zim_SQLite3_lastInsertRowID = Module['_zim_SQLite3_lastInsertRowID'] =
+			wasmExports['zim_SQLite3_lastInsertRowID'];
+		_zim_SQLite3_lastErrorCode = Module['_zim_SQLite3_lastErrorCode'] =
+			wasmExports['zim_SQLite3_lastErrorCode'];
+		_zim_SQLite3_lastExtendedErrorCode = Module[
+			'_zim_SQLite3_lastExtendedErrorCode'
+		] = wasmExports['zim_SQLite3_lastExtendedErrorCode'];
+		_zim_SQLite3_enableExtendedResultCodes = Module[
+			'_zim_SQLite3_enableExtendedResultCodes'
+		] = wasmExports['zim_SQLite3_enableExtendedResultCodes'];
+		_zim_SQLite3_lastErrorMsg = Module['_zim_SQLite3_lastErrorMsg'] =
+			wasmExports['zim_SQLite3_lastErrorMsg'];
+		_zim_SQLite3_busyTimeout = Module['_zim_SQLite3_busyTimeout'] =
+			wasmExports['zim_SQLite3_busyTimeout'];
+		_zim_SQLite3_loadExtension = Module['_zim_SQLite3_loadExtension'] =
+			wasmExports['zim_SQLite3_loadExtension'];
+		_zim_SQLite3_changes = Module['_zim_SQLite3_changes'] =
+			wasmExports['zim_SQLite3_changes'];
+		_zim_SQLite3_escapeString = Module['_zim_SQLite3_escapeString'] =
+			wasmExports['zim_SQLite3_escapeString'];
+		_zim_SQLite3_prepare = Module['_zim_SQLite3_prepare'] =
+			wasmExports['zim_SQLite3_prepare'];
+		_zim_SQLite3_query = Module['_zim_SQLite3_query'] =
+			wasmExports['zim_SQLite3_query'];
+		_zim_SQLite3_querySingle = Module['_zim_SQLite3_querySingle'] =
+			wasmExports['zim_SQLite3_querySingle'];
+		_zim_SQLite3_createFunction = Module['_zim_SQLite3_createFunction'] =
+			wasmExports['zim_SQLite3_createFunction'];
+		_zim_SQLite3_createAggregate = Module['_zim_SQLite3_createAggregate'] =
+			wasmExports['zim_SQLite3_createAggregate'];
+		_zim_SQLite3_createCollation = Module['_zim_SQLite3_createCollation'] =
+			wasmExports['zim_SQLite3_createCollation'];
+		_zim_SQLite3_openBlob = Module['_zim_SQLite3_openBlob'] =
+			wasmExports['zim_SQLite3_openBlob'];
+		_zim_SQLite3_enableExceptions = Module[
+			'_zim_SQLite3_enableExceptions'
+		] = wasmExports['zim_SQLite3_enableExceptions'];
+		_zim_SQLite3_setAuthorizer = Module['_zim_SQLite3_setAuthorizer'] =
+			wasmExports['zim_SQLite3_setAuthorizer'];
+		_zim_SQLite3_backup = Module['_zim_SQLite3_backup'] =
+			wasmExports['zim_SQLite3_backup'];
+		_zim_SQLite3Stmt_paramCount = Module['_zim_SQLite3Stmt_paramCount'] =
+			wasmExports['zim_SQLite3Stmt_paramCount'];
+		_zim_SQLite3Stmt_close = Module['_zim_SQLite3Stmt_close'] =
+			wasmExports['zim_SQLite3Stmt_close'];
+		_zim_SQLite3Stmt_reset = Module['_zim_SQLite3Stmt_reset'] =
+			wasmExports['zim_SQLite3Stmt_reset'];
+		_zim_SQLite3Stmt_clear = Module['_zim_SQLite3Stmt_clear'] =
+			wasmExports['zim_SQLite3Stmt_clear'];
+		_zim_SQLite3Stmt_readOnly = Module['_zim_SQLite3Stmt_readOnly'] =
+			wasmExports['zim_SQLite3Stmt_readOnly'];
+		_zim_SQLite3Stmt_getSQL = Module['_zim_SQLite3Stmt_getSQL'] =
+			wasmExports['zim_SQLite3Stmt_getSQL'];
+		_zim_SQLite3Stmt_bindParam = Module['_zim_SQLite3Stmt_bindParam'] =
+			wasmExports['zim_SQLite3Stmt_bindParam'];
+		_zim_SQLite3Stmt_bindValue = Module['_zim_SQLite3Stmt_bindValue'] =
+			wasmExports['zim_SQLite3Stmt_bindValue'];
+		_zim_SQLite3Stmt_execute = Module['_zim_SQLite3Stmt_execute'] =
+			wasmExports['zim_SQLite3Stmt_execute'];
+		_zim_SQLite3Stmt___construct = Module['_zim_SQLite3Stmt___construct'] =
+			wasmExports['zim_SQLite3Stmt___construct'];
+		_zim_SQLite3Result_numColumns = Module[
+			'_zim_SQLite3Result_numColumns'
+		] = wasmExports['zim_SQLite3Result_numColumns'];
+		_zim_SQLite3Result_columnName = Module[
+			'_zim_SQLite3Result_columnName'
+		] = wasmExports['zim_SQLite3Result_columnName'];
+		_zim_SQLite3Result_columnType = Module[
+			'_zim_SQLite3Result_columnType'
+		] = wasmExports['zim_SQLite3Result_columnType'];
+		_zim_SQLite3Result_fetchArray = Module[
+			'_zim_SQLite3Result_fetchArray'
+		] = wasmExports['zim_SQLite3Result_fetchArray'];
+		_zim_SQLite3Result_reset = Module['_zim_SQLite3Result_reset'] =
+			wasmExports['zim_SQLite3Result_reset'];
+		_zim_SQLite3Result_finalize = Module['_zim_SQLite3Result_finalize'] =
+			wasmExports['zim_SQLite3Result_finalize'];
+		_zim_SQLite3Result___construct = Module[
+			'_zim_SQLite3Result___construct'
+		] = wasmExports['zim_SQLite3Result___construct'];
+		_zm_startup_sqlite3 = Module['_zm_startup_sqlite3'] =
+			wasmExports['zm_startup_sqlite3'];
+		_zm_shutdown_sqlite3 = Module['_zm_shutdown_sqlite3'] =
+			wasmExports['zm_shutdown_sqlite3'];
+		_zm_info_sqlite3 = Module['_zm_info_sqlite3'] =
+			wasmExports['zm_info_sqlite3'];
+		_zif_ob_gzhandler = Module['_zif_ob_gzhandler'] =
+			wasmExports['zif_ob_gzhandler'];
+		_zif_zlib_get_coding_type = Module['_zif_zlib_get_coding_type'] =
+			wasmExports['zif_zlib_get_coding_type'];
+		_zif_gzfile = Module['_zif_gzfile'] = wasmExports['zif_gzfile'];
+		_zif_gzopen = Module['_zif_gzopen'] = wasmExports['zif_gzopen'];
+		_zif_readgzfile = Module['_zif_readgzfile'] =
+			wasmExports['zif_readgzfile'];
+		_zif_zlib_encode = Module['_zif_zlib_encode'] =
+			wasmExports['zif_zlib_encode'];
+		_zif_zlib_decode = Module['_zif_zlib_decode'] =
+			wasmExports['zif_zlib_decode'];
+		_zif_gzdeflate = Module['_zif_gzdeflate'] =
+			wasmExports['zif_gzdeflate'];
+		_zif_gzencode = Module['_zif_gzencode'] = wasmExports['zif_gzencode'];
+		_zif_gzcompress = Module['_zif_gzcompress'] =
+			wasmExports['zif_gzcompress'];
+		_zif_gzinflate = Module['_zif_gzinflate'] =
+			wasmExports['zif_gzinflate'];
+		_zif_gzdecode = Module['_zif_gzdecode'] = wasmExports['zif_gzdecode'];
+		_zif_gzuncompress = Module['_zif_gzuncompress'] =
+			wasmExports['zif_gzuncompress'];
+		_zif_inflate_init = Module['_zif_inflate_init'] =
+			wasmExports['zif_inflate_init'];
+		_zif_inflate_add = Module['_zif_inflate_add'] =
+			wasmExports['zif_inflate_add'];
+		_zif_inflate_get_status = Module['_zif_inflate_get_status'] =
+			wasmExports['zif_inflate_get_status'];
+		_zif_inflate_get_read_len = Module['_zif_inflate_get_read_len'] =
+			wasmExports['zif_inflate_get_read_len'];
+		_zif_deflate_init = Module['_zif_deflate_init'] =
+			wasmExports['zif_deflate_init'];
+		_zif_deflate_add = Module['_zif_deflate_add'] =
+			wasmExports['zif_deflate_add'];
+		_php_stream_gzopen = Module['_php_stream_gzopen'] =
+			wasmExports['php_stream_gzopen'];
+		_zm_startup_bcmath = Module['_zm_startup_bcmath'] =
+			wasmExports['zm_startup_bcmath'];
+		_zm_shutdown_bcmath = Module['_zm_shutdown_bcmath'] =
+			wasmExports['zm_shutdown_bcmath'];
+		_zm_info_bcmath = Module['_zm_info_bcmath'] =
+			wasmExports['zm_info_bcmath'];
+		_OnUpdateScale = Module['_OnUpdateScale'] =
+			wasmExports['OnUpdateScale'];
+		_zif_bcadd = Module['_zif_bcadd'] = wasmExports['zif_bcadd'];
+		_zif_bcsub = Module['_zif_bcsub'] = wasmExports['zif_bcsub'];
+		_zif_bcmul = Module['_zif_bcmul'] = wasmExports['zif_bcmul'];
+		_zif_bcdiv = Module['_zif_bcdiv'] = wasmExports['zif_bcdiv'];
+		_zif_bcmod = Module['_zif_bcmod'] = wasmExports['zif_bcmod'];
+		_zif_bcpowmod = Module['_zif_bcpowmod'] = wasmExports['zif_bcpowmod'];
+		_zif_bcpow = Module['_zif_bcpow'] = wasmExports['zif_bcpow'];
+		_zif_bcsqrt = Module['_zif_bcsqrt'] = wasmExports['zif_bcsqrt'];
+		_zif_bccomp = Module['_zif_bccomp'] = wasmExports['zif_bccomp'];
+		_zif_bcscale = Module['_zif_bcscale'] = wasmExports['zif_bcscale'];
+		_bc_add = Module['_bc_add'] = wasmExports['bc_add'];
+		_bc_divide = Module['_bc_divide'] = wasmExports['bc_divide'];
+		__bc_new_num_ex = Module['__bc_new_num_ex'] =
+			wasmExports['_bc_new_num_ex'];
+		__bc_free_num_ex = Module['__bc_free_num_ex'] =
+			wasmExports['_bc_free_num_ex'];
+		_bc_init_numbers = Module['_bc_init_numbers'] =
+			wasmExports['bc_init_numbers'];
+		_bc_copy_num = Module['_bc_copy_num'] = wasmExports['bc_copy_num'];
+		_bc_init_num = Module['_bc_init_num'] = wasmExports['bc_init_num'];
+		_bc_is_neg = Module['_bc_is_neg'] = wasmExports['bc_is_neg'];
+		_bc_raisemod = Module['_bc_raisemod'] = wasmExports['bc_raisemod'];
+		_bc_sub = Module['_bc_sub'] = wasmExports['bc_sub'];
+		__bc_do_compare = Module['__bc_do_compare'] =
+			wasmExports['_bc_do_compare'];
+		_bc_compare = Module['_bc_compare'] = wasmExports['bc_compare'];
+		_bc_divmod = Module['_bc_divmod'] = wasmExports['bc_divmod'];
+		_bc_modulo = Module['_bc_modulo'] = wasmExports['bc_modulo'];
+		_bc_int2num = Module['_bc_int2num'] = wasmExports['bc_int2num'];
+		_bc_num2long = Module['_bc_num2long'] = wasmExports['bc_num2long'];
+		_bc_out_long = Module['_bc_out_long'] = wasmExports['bc_out_long'];
+		_bc_out_num = Module['_bc_out_num'] = wasmExports['bc_out_num'];
+		_bc_multiply = Module['_bc_multiply'] = wasmExports['bc_multiply'];
+		_bc_sqrt = Module['_bc_sqrt'] = wasmExports['bc_sqrt'];
+		_bc_is_zero_for_scale = Module['_bc_is_zero_for_scale'] =
+			wasmExports['bc_is_zero_for_scale'];
+		_bc_is_zero = Module['_bc_is_zero'] = wasmExports['bc_is_zero'];
+		_pn = Module['_pn'] = wasmExports['pn'];
+		_pv = Module['_pv'] = wasmExports['pv'];
+		__bc_do_add = Module['__bc_do_add'] = wasmExports['_bc_do_add'];
+		__bc_do_sub = Module['__bc_do_sub'] = wasmExports['_bc_do_sub'];
+		_bc_is_near_zero = Module['_bc_is_near_zero'] =
+			wasmExports['bc_is_near_zero'];
+		_bc_num2str_ex = Module['_bc_num2str_ex'] =
+			wasmExports['bc_num2str_ex'];
+		_bc_raise = Module['_bc_raise'] = wasmExports['bc_raise'];
+		__bc_rm_leading_zeros = Module['__bc_rm_leading_zeros'] =
+			wasmExports['_bc_rm_leading_zeros'];
+		_bc_str2num = Module['_bc_str2num'] = wasmExports['bc_str2num'];
+		_zm_startup_calendar = Module['_zm_startup_calendar'] =
+			wasmExports['zm_startup_calendar'];
+		_zm_info_calendar = Module['_zm_info_calendar'] =
+			wasmExports['zm_info_calendar'];
+		_zif_cal_info = Module['_zif_cal_info'] = wasmExports['zif_cal_info'];
+		_zif_cal_days_in_month = Module['_zif_cal_days_in_month'] =
+			wasmExports['zif_cal_days_in_month'];
+		_zif_cal_to_jd = Module['_zif_cal_to_jd'] =
+			wasmExports['zif_cal_to_jd'];
+		_zif_cal_from_jd = Module['_zif_cal_from_jd'] =
+			wasmExports['zif_cal_from_jd'];
+		_zif_jdtogregorian = Module['_zif_jdtogregorian'] =
+			wasmExports['zif_jdtogregorian'];
+		_zif_gregoriantojd = Module['_zif_gregoriantojd'] =
+			wasmExports['zif_gregoriantojd'];
+		_zif_jdtojulian = Module['_zif_jdtojulian'] =
+			wasmExports['zif_jdtojulian'];
+		_zif_juliantojd = Module['_zif_juliantojd'] =
+			wasmExports['zif_juliantojd'];
+		_zif_jdtojewish = Module['_zif_jdtojewish'] =
+			wasmExports['zif_jdtojewish'];
+		_zif_jewishtojd = Module['_zif_jewishtojd'] =
+			wasmExports['zif_jewishtojd'];
+		_zif_jdtofrench = Module['_zif_jdtofrench'] =
+			wasmExports['zif_jdtofrench'];
+		_zif_frenchtojd = Module['_zif_frenchtojd'] =
+			wasmExports['zif_frenchtojd'];
+		_zif_jddayofweek = Module['_zif_jddayofweek'] =
+			wasmExports['zif_jddayofweek'];
+		_zif_jdmonthname = Module['_zif_jdmonthname'] =
+			wasmExports['zif_jdmonthname'];
+		_DayOfWeek = Module['_DayOfWeek'] = wasmExports['DayOfWeek'];
+		_SdnToFrench = Module['_SdnToFrench'] = wasmExports['SdnToFrench'];
+		_FrenchToSdn = Module['_FrenchToSdn'] = wasmExports['FrenchToSdn'];
+		_SdnToGregorian = Module['_SdnToGregorian'] =
+			wasmExports['SdnToGregorian'];
+		_GregorianToSdn = Module['_GregorianToSdn'] =
+			wasmExports['GregorianToSdn'];
+		_SdnToJewish = Module['_SdnToJewish'] = wasmExports['SdnToJewish'];
+		_JewishToSdn = Module['_JewishToSdn'] = wasmExports['JewishToSdn'];
+		_SdnToJulian = Module['_SdnToJulian'] = wasmExports['SdnToJulian'];
+		_JulianToSdn = Module['_JulianToSdn'] = wasmExports['JulianToSdn'];
+		_zif_easter_date = Module['_zif_easter_date'] =
+			wasmExports['zif_easter_date'];
+		_zif_easter_days = Module['_zif_easter_days'] =
+			wasmExports['zif_easter_days'];
+		_zif_unixtojd = Module['_zif_unixtojd'] = wasmExports['zif_unixtojd'];
+		_zif_jdtounix = Module['_zif_jdtounix'] = wasmExports['zif_jdtounix'];
+		_zif_ctype_alnum = Module['_zif_ctype_alnum'] =
+			wasmExports['zif_ctype_alnum'];
+		_zif_ctype_alpha = Module['_zif_ctype_alpha'] =
+			wasmExports['zif_ctype_alpha'];
+		_zif_ctype_cntrl = Module['_zif_ctype_cntrl'] =
+			wasmExports['zif_ctype_cntrl'];
+		_zif_ctype_digit = Module['_zif_ctype_digit'] =
+			wasmExports['zif_ctype_digit'];
+		_zif_ctype_lower = Module['_zif_ctype_lower'] =
+			wasmExports['zif_ctype_lower'];
+		_zif_ctype_graph = Module['_zif_ctype_graph'] =
+			wasmExports['zif_ctype_graph'];
+		_zif_ctype_print = Module['_zif_ctype_print'] =
+			wasmExports['zif_ctype_print'];
+		_zif_ctype_punct = Module['_zif_ctype_punct'] =
+			wasmExports['zif_ctype_punct'];
+		_zif_ctype_space = Module['_zif_ctype_space'] =
+			wasmExports['zif_ctype_space'];
+		_zif_ctype_upper = Module['_zif_ctype_upper'] =
+			wasmExports['zif_ctype_upper'];
+		_zif_ctype_xdigit = Module['_zif_ctype_xdigit'] =
+			wasmExports['zif_ctype_xdigit'];
+		__php_curl_verify_handlers = Module['__php_curl_verify_handlers'] =
+			wasmExports['_php_curl_verify_handlers'];
+		_zm_startup_curl = Module['_zm_startup_curl'] =
+			wasmExports['zm_startup_curl'];
+		_curl_cast_object = Module['_curl_cast_object'] =
+			wasmExports['curl_cast_object'];
+		_zm_shutdown_curl = Module['_zm_shutdown_curl'] =
+			wasmExports['zm_shutdown_curl'];
+		_zm_info_curl = Module['_zm_info_curl'] = wasmExports['zm_info_curl'];
+		_init_curl_handle = Module['_init_curl_handle'] =
+			wasmExports['init_curl_handle'];
+		__php_setup_easy_copy_handlers = Module[
+			'__php_setup_easy_copy_handlers'
+		] = wasmExports['_php_setup_easy_copy_handlers'];
+		_zif_curl_version = Module['_zif_curl_version'] =
+			wasmExports['zif_curl_version'];
+		_init_curl_handle_into_zval = Module['_init_curl_handle_into_zval'] =
+			wasmExports['init_curl_handle_into_zval'];
+		_zif_curl_init = Module['_zif_curl_init'] =
+			wasmExports['zif_curl_init'];
+		_zif_curl_copy_handle = Module['_zif_curl_copy_handle'] =
+			wasmExports['zif_curl_copy_handle'];
+		_zif_curl_setopt = Module['_zif_curl_setopt'] =
+			wasmExports['zif_curl_setopt'];
+		_zif_curl_setopt_array = Module['_zif_curl_setopt_array'] =
+			wasmExports['zif_curl_setopt_array'];
+		__php_curl_cleanup_handle = Module['__php_curl_cleanup_handle'] =
+			wasmExports['_php_curl_cleanup_handle'];
+		_zif_curl_exec = Module['_zif_curl_exec'] =
+			wasmExports['zif_curl_exec'];
+		_zif_curl_getinfo = Module['_zif_curl_getinfo'] =
+			wasmExports['zif_curl_getinfo'];
+		_zif_curl_error = Module['_zif_curl_error'] =
+			wasmExports['zif_curl_error'];
+		_zif_curl_errno = Module['_zif_curl_errno'] =
+			wasmExports['zif_curl_errno'];
+		_zif_curl_close = Module['_zif_curl_close'] =
+			wasmExports['zif_curl_close'];
+		_zif_curl_strerror = Module['_zif_curl_strerror'] =
+			wasmExports['zif_curl_strerror'];
+		_zif_curl_reset = Module['_zif_curl_reset'] =
+			wasmExports['zif_curl_reset'];
+		_zif_curl_escape = Module['_zif_curl_escape'] =
+			wasmExports['zif_curl_escape'];
+		_zif_curl_unescape = Module['_zif_curl_unescape'] =
+			wasmExports['zif_curl_unescape'];
+		_zif_curl_pause = Module['_zif_curl_pause'] =
+			wasmExports['zif_curl_pause'];
+		_zif_curl_multi_init = Module['_zif_curl_multi_init'] =
+			wasmExports['zif_curl_multi_init'];
+		__php_curl_multi_cleanup_list = Module[
+			'__php_curl_multi_cleanup_list'
+		] = wasmExports['_php_curl_multi_cleanup_list'];
+		_zif_curl_multi_add_handle = Module['_zif_curl_multi_add_handle'] =
+			wasmExports['zif_curl_multi_add_handle'];
+		_zif_curl_multi_remove_handle = Module[
+			'_zif_curl_multi_remove_handle'
+		] = wasmExports['zif_curl_multi_remove_handle'];
+		_zif_curl_multi_select = Module['_zif_curl_multi_select'] =
+			wasmExports['zif_curl_multi_select'];
+		_zif_curl_multi_exec = Module['_zif_curl_multi_exec'] =
+			wasmExports['zif_curl_multi_exec'];
+		_zif_curl_multi_getcontent = Module['_zif_curl_multi_getcontent'] =
+			wasmExports['zif_curl_multi_getcontent'];
+		_zif_curl_multi_info_read = Module['_zif_curl_multi_info_read'] =
+			wasmExports['zif_curl_multi_info_read'];
+		_zif_curl_multi_close = Module['_zif_curl_multi_close'] =
+			wasmExports['zif_curl_multi_close'];
+		_zif_curl_multi_errno = Module['_zif_curl_multi_errno'] =
+			wasmExports['zif_curl_multi_errno'];
+		_zif_curl_multi_strerror = Module['_zif_curl_multi_strerror'] =
+			wasmExports['zif_curl_multi_strerror'];
+		_zif_curl_multi_setopt = Module['_zif_curl_multi_setopt'] =
+			wasmExports['zif_curl_multi_setopt'];
+		_curl_multi_free_obj = Module['_curl_multi_free_obj'] =
+			wasmExports['curl_multi_free_obj'];
+		_curl_multi_register_class = Module['_curl_multi_register_class'] =
+			wasmExports['curl_multi_register_class'];
+		_zif_curl_share_init = Module['_zif_curl_share_init'] =
+			wasmExports['zif_curl_share_init'];
+		_zif_curl_share_close = Module['_zif_curl_share_close'] =
+			wasmExports['zif_curl_share_close'];
+		_zif_curl_share_setopt = Module['_zif_curl_share_setopt'] =
+			wasmExports['zif_curl_share_setopt'];
+		_zif_curl_share_errno = Module['_zif_curl_share_errno'] =
+			wasmExports['zif_curl_share_errno'];
+		_zif_curl_share_strerror = Module['_zif_curl_share_strerror'] =
+			wasmExports['zif_curl_share_strerror'];
+		_curl_share_free_obj = Module['_curl_share_free_obj'] =
+			wasmExports['curl_share_free_obj'];
+		_curl_share_register_class = Module['_curl_share_register_class'] =
+			wasmExports['curl_share_register_class'];
+		_zim_CURLFile___construct = Module['_zim_CURLFile___construct'] =
+			wasmExports['zim_CURLFile___construct'];
+		_zif_curl_file_create = Module['_zif_curl_file_create'] =
+			wasmExports['zif_curl_file_create'];
+		_zim_CURLFile_getFilename = Module['_zim_CURLFile_getFilename'] =
+			wasmExports['zim_CURLFile_getFilename'];
+		_zim_CURLFile_getMimeType = Module['_zim_CURLFile_getMimeType'] =
+			wasmExports['zim_CURLFile_getMimeType'];
+		_zim_CURLFile_getPostFilename = Module[
+			'_zim_CURLFile_getPostFilename'
+		] = wasmExports['zim_CURLFile_getPostFilename'];
+		_zim_CURLFile_setMimeType = Module['_zim_CURLFile_setMimeType'] =
+			wasmExports['zim_CURLFile_setMimeType'];
+		_zim_CURLFile_setPostFilename = Module[
+			'_zim_CURLFile_setPostFilename'
+		] = wasmExports['zim_CURLFile_setPostFilename'];
+		_curlfile_register_class = Module['_curlfile_register_class'] =
+			wasmExports['curlfile_register_class'];
+		_zif_dns_check_record = Module['_zif_dns_check_record'] =
+			wasmExports['zif_dns_check_record'];
+		_zif_dns_get_record = Module['_zif_dns_get_record'] =
+			wasmExports['zif_dns_get_record'];
+		_zif_dns_get_mx = Module['_zif_dns_get_mx'] =
+			wasmExports['zif_dns_get_mx'];
+		_zm_info_dns_polyfill = Module['_zm_info_dns_polyfill'] =
+			wasmExports['zm_info_dns_polyfill'];
+		_zm_startup_dns_polyfill = Module['_zm_startup_dns_polyfill'] =
+			wasmExports['zm_startup_dns_polyfill'];
+		_zm_shutdown_dns_polyfill = Module['_zm_shutdown_dns_polyfill'] =
+			wasmExports['zm_shutdown_dns_polyfill'];
+		_dom_node_is_read_only = Module['_dom_node_is_read_only'] =
+			wasmExports['dom_node_is_read_only'];
+		_dom_node_children_valid = Module['_dom_node_children_valid'] =
+			wasmExports['dom_node_children_valid'];
+		_dom_get_doc_props = Module['_dom_get_doc_props'] =
+			wasmExports['dom_get_doc_props'];
+		_dom_set_doc_classmap = Module['_dom_set_doc_classmap'] =
+			wasmExports['dom_set_doc_classmap'];
+		_dom_get_doc_classmap = Module['_dom_get_doc_classmap'] =
+			wasmExports['dom_get_doc_classmap'];
+		_dom_get_strict_error = Module['_dom_get_strict_error'] =
+			wasmExports['dom_get_strict_error'];
+		_dom_object_get_node = Module['_dom_object_get_node'] =
+			wasmExports['dom_object_get_node'];
+		_php_dom_object_get_data = Module['_php_dom_object_get_data'] =
+			wasmExports['php_dom_object_get_data'];
+		_dom_read_property = Module['_dom_read_property'] =
+			wasmExports['dom_read_property'];
+		_dom_write_property = Module['_dom_write_property'] =
+			wasmExports['dom_write_property'];
+		_php_dom_export_node = Module['_php_dom_export_node'] =
+			wasmExports['php_dom_export_node'];
+		_zif_dom_import_simplexml = Module['_zif_dom_import_simplexml'] =
+			wasmExports['zif_dom_import_simplexml'];
+		_php_dom_create_object = Module['_php_dom_create_object'] =
+			wasmExports['php_dom_create_object'];
+		_zm_startup_dom = Module['_zm_startup_dom'] =
+			wasmExports['zm_startup_dom'];
+		_dom_objects_free_storage = Module['_dom_objects_free_storage'] =
+			wasmExports['dom_objects_free_storage'];
+		_dom_nnodemap_objects_free_storage = Module[
+			'_dom_nnodemap_objects_free_storage'
+		] = wasmExports['dom_nnodemap_objects_free_storage'];
+		_dom_objects_new = Module['_dom_objects_new'] =
+			wasmExports['dom_objects_new'];
+		_dom_nnodemap_objects_new = Module['_dom_nnodemap_objects_new'] =
+			wasmExports['dom_nnodemap_objects_new'];
+		_dom_xpath_objects_free_storage = Module[
+			'_dom_xpath_objects_free_storage'
+		] = wasmExports['dom_xpath_objects_free_storage'];
+		_dom_xpath_objects_new = Module['_dom_xpath_objects_new'] =
+			wasmExports['dom_xpath_objects_new'];
+		_zm_shutdown_dom = Module['_zm_shutdown_dom'] =
+			wasmExports['zm_shutdown_dom'];
+		_zm_info_dom = Module['_zm_info_dom'] = wasmExports['zm_info_dom'];
+		_node_list_unlink = Module['_node_list_unlink'] =
+			wasmExports['node_list_unlink'];
+		_dom_namednode_iter = Module['_dom_namednode_iter'] =
+			wasmExports['dom_namednode_iter'];
+		_php_dom_create_iterator = Module['_php_dom_create_iterator'] =
+			wasmExports['php_dom_create_iterator'];
+		_php_dom_create_implementation = Module[
+			'_php_dom_create_implementation'
+		] = wasmExports['php_dom_create_implementation'];
+		_dom_hierarchy = Module['_dom_hierarchy'] =
+			wasmExports['dom_hierarchy'];
+		_dom_has_feature = Module['_dom_has_feature'] =
+			wasmExports['dom_has_feature'];
+		_dom_get_elements_by_tag_name_ns_raw = Module[
+			'_dom_get_elements_by_tag_name_ns_raw'
+		] = wasmExports['dom_get_elements_by_tag_name_ns_raw'];
+		_dom_normalize = Module['_dom_normalize'] =
+			wasmExports['dom_normalize'];
+		_dom_set_old_ns = Module['_dom_set_old_ns'] =
+			wasmExports['dom_set_old_ns'];
+		_dom_reconcile_ns = Module['_dom_reconcile_ns'] =
+			wasmExports['dom_reconcile_ns'];
+		_dom_check_qname = Module['_dom_check_qname'] =
+			wasmExports['dom_check_qname'];
+		_dom_get_ns = Module['_dom_get_ns'] = wasmExports['dom_get_ns'];
+		_dom_get_nsdecl = Module['_dom_get_nsdecl'] =
+			wasmExports['dom_get_nsdecl'];
+		_zim_DOMAttr___construct = Module['_zim_DOMAttr___construct'] =
+			wasmExports['zim_DOMAttr___construct'];
+		_dom_attr_name_read = Module['_dom_attr_name_read'] =
+			wasmExports['dom_attr_name_read'];
+		_dom_attr_specified_read = Module['_dom_attr_specified_read'] =
+			wasmExports['dom_attr_specified_read'];
+		_dom_attr_value_read = Module['_dom_attr_value_read'] =
+			wasmExports['dom_attr_value_read'];
+		_dom_attr_value_write = Module['_dom_attr_value_write'] =
+			wasmExports['dom_attr_value_write'];
+		_dom_attr_owner_element_read = Module['_dom_attr_owner_element_read'] =
+			wasmExports['dom_attr_owner_element_read'];
+		_dom_attr_schema_type_info_read = Module[
+			'_dom_attr_schema_type_info_read'
+		] = wasmExports['dom_attr_schema_type_info_read'];
+		_zim_DOMAttr_isId = Module['_zim_DOMAttr_isId'] =
+			wasmExports['zim_DOMAttr_isId'];
+		_dom_document_doctype_read = Module['_dom_document_doctype_read'] =
+			wasmExports['dom_document_doctype_read'];
+		_dom_document_implementation_read = Module[
+			'_dom_document_implementation_read'
+		] = wasmExports['dom_document_implementation_read'];
+		_dom_document_document_element_read = Module[
+			'_dom_document_document_element_read'
+		] = wasmExports['dom_document_document_element_read'];
+		_dom_document_encoding_read = Module['_dom_document_encoding_read'] =
+			wasmExports['dom_document_encoding_read'];
+		_dom_document_encoding_write = Module['_dom_document_encoding_write'] =
+			wasmExports['dom_document_encoding_write'];
+		_dom_document_standalone_read = Module[
+			'_dom_document_standalone_read'
+		] = wasmExports['dom_document_standalone_read'];
+		_dom_document_standalone_write = Module[
+			'_dom_document_standalone_write'
+		] = wasmExports['dom_document_standalone_write'];
+		_dom_document_version_read = Module['_dom_document_version_read'] =
+			wasmExports['dom_document_version_read'];
+		_dom_document_version_write = Module['_dom_document_version_write'] =
+			wasmExports['dom_document_version_write'];
+		_dom_document_strict_error_checking_read = Module[
+			'_dom_document_strict_error_checking_read'
+		] = wasmExports['dom_document_strict_error_checking_read'];
+		_dom_document_strict_error_checking_write = Module[
+			'_dom_document_strict_error_checking_write'
+		] = wasmExports['dom_document_strict_error_checking_write'];
+		_dom_document_format_output_read = Module[
+			'_dom_document_format_output_read'
+		] = wasmExports['dom_document_format_output_read'];
+		_dom_document_format_output_write = Module[
+			'_dom_document_format_output_write'
+		] = wasmExports['dom_document_format_output_write'];
+		_dom_document_validate_on_parse_read = Module[
+			'_dom_document_validate_on_parse_read'
+		] = wasmExports['dom_document_validate_on_parse_read'];
+		_dom_document_validate_on_parse_write = Module[
+			'_dom_document_validate_on_parse_write'
+		] = wasmExports['dom_document_validate_on_parse_write'];
+		_dom_document_resolve_externals_read = Module[
+			'_dom_document_resolve_externals_read'
+		] = wasmExports['dom_document_resolve_externals_read'];
+		_dom_document_resolve_externals_write = Module[
+			'_dom_document_resolve_externals_write'
+		] = wasmExports['dom_document_resolve_externals_write'];
+		_dom_document_preserve_whitespace_read = Module[
+			'_dom_document_preserve_whitespace_read'
+		] = wasmExports['dom_document_preserve_whitespace_read'];
+		_dom_document_preserve_whitespace_write = Module[
+			'_dom_document_preserve_whitespace_write'
+		] = wasmExports['dom_document_preserve_whitespace_write'];
+		_dom_document_recover_read = Module['_dom_document_recover_read'] =
+			wasmExports['dom_document_recover_read'];
+		_dom_document_recover_write = Module['_dom_document_recover_write'] =
+			wasmExports['dom_document_recover_write'];
+		_dom_document_substitue_entities_read = Module[
+			'_dom_document_substitue_entities_read'
+		] = wasmExports['dom_document_substitue_entities_read'];
+		_dom_document_substitue_entities_write = Module[
+			'_dom_document_substitue_entities_write'
+		] = wasmExports['dom_document_substitue_entities_write'];
+		_dom_document_document_uri_read = Module[
+			'_dom_document_document_uri_read'
+		] = wasmExports['dom_document_document_uri_read'];
+		_dom_document_document_uri_write = Module[
+			'_dom_document_document_uri_write'
+		] = wasmExports['dom_document_document_uri_write'];
+		_dom_document_config_read = Module['_dom_document_config_read'] =
+			wasmExports['dom_document_config_read'];
+		_zim_DOMDocument_createElement = Module[
+			'_zim_DOMDocument_createElement'
+		] = wasmExports['zim_DOMDocument_createElement'];
+		_zim_DOMDocument_createDocumentFragment = Module[
+			'_zim_DOMDocument_createDocumentFragment'
+		] = wasmExports['zim_DOMDocument_createDocumentFragment'];
+		_zim_DOMDocument_createTextNode = Module[
+			'_zim_DOMDocument_createTextNode'
+		] = wasmExports['zim_DOMDocument_createTextNode'];
+		_zim_DOMDocument_createComment = Module[
+			'_zim_DOMDocument_createComment'
+		] = wasmExports['zim_DOMDocument_createComment'];
+		_zim_DOMDocument_createCDATASection = Module[
+			'_zim_DOMDocument_createCDATASection'
+		] = wasmExports['zim_DOMDocument_createCDATASection'];
+		_zim_DOMDocument_createProcessingInstruction = Module[
+			'_zim_DOMDocument_createProcessingInstruction'
+		] = wasmExports['zim_DOMDocument_createProcessingInstruction'];
+		_zim_DOMDocument_createAttribute = Module[
+			'_zim_DOMDocument_createAttribute'
+		] = wasmExports['zim_DOMDocument_createAttribute'];
+		_zim_DOMDocument_createEntityReference = Module[
+			'_zim_DOMDocument_createEntityReference'
+		] = wasmExports['zim_DOMDocument_createEntityReference'];
+		_zim_DOMDocument_getElementsByTagName = Module[
+			'_zim_DOMDocument_getElementsByTagName'
+		] = wasmExports['zim_DOMDocument_getElementsByTagName'];
+		_zim_DOMDocument_importNode = Module['_zim_DOMDocument_importNode'] =
+			wasmExports['zim_DOMDocument_importNode'];
+		_zim_DOMDocument_createElementNS = Module[
+			'_zim_DOMDocument_createElementNS'
+		] = wasmExports['zim_DOMDocument_createElementNS'];
+		_zim_DOMDocument_createAttributeNS = Module[
+			'_zim_DOMDocument_createAttributeNS'
+		] = wasmExports['zim_DOMDocument_createAttributeNS'];
+		_zim_DOMDocument_getElementsByTagNameNS = Module[
+			'_zim_DOMDocument_getElementsByTagNameNS'
+		] = wasmExports['zim_DOMDocument_getElementsByTagNameNS'];
+		_zim_DOMDocument_getElementById = Module[
+			'_zim_DOMDocument_getElementById'
+		] = wasmExports['zim_DOMDocument_getElementById'];
+		_zim_DOMDocument_adoptNode = Module['_zim_DOMDocument_adoptNode'] =
+			wasmExports['zim_DOMDocument_adoptNode'];
+		_zim_DOMDocument_normalizeDocument = Module[
+			'_zim_DOMDocument_normalizeDocument'
+		] = wasmExports['zim_DOMDocument_normalizeDocument'];
+		_zim_DOMDocument___construct = Module['_zim_DOMDocument___construct'] =
+			wasmExports['zim_DOMDocument___construct'];
+		__dom_get_valid_file_path = Module['__dom_get_valid_file_path'] =
+			wasmExports['_dom_get_valid_file_path'];
+		_zim_DOMDocument_load = Module['_zim_DOMDocument_load'] =
+			wasmExports['zim_DOMDocument_load'];
+		_zim_DOMDocument_loadXML = Module['_zim_DOMDocument_loadXML'] =
+			wasmExports['zim_DOMDocument_loadXML'];
+		_zim_DOMDocument_save = Module['_zim_DOMDocument_save'] =
+			wasmExports['zim_DOMDocument_save'];
+		_zim_DOMDocument_saveXML = Module['_zim_DOMDocument_saveXML'] =
+			wasmExports['zim_DOMDocument_saveXML'];
+		_zim_DOMDocument_xinclude = Module['_zim_DOMDocument_xinclude'] =
+			wasmExports['zim_DOMDocument_xinclude'];
+		_zim_DOMDocument_validate = Module['_zim_DOMDocument_validate'] =
+			wasmExports['zim_DOMDocument_validate'];
+		_zim_DOMDocument_schemaValidate = Module[
+			'_zim_DOMDocument_schemaValidate'
+		] = wasmExports['zim_DOMDocument_schemaValidate'];
+		_zim_DOMDocument_schemaValidateSource = Module[
+			'_zim_DOMDocument_schemaValidateSource'
+		] = wasmExports['zim_DOMDocument_schemaValidateSource'];
+		_zim_DOMDocument_relaxNGValidate = Module[
+			'_zim_DOMDocument_relaxNGValidate'
+		] = wasmExports['zim_DOMDocument_relaxNGValidate'];
+		_zim_DOMDocument_relaxNGValidateSource = Module[
+			'_zim_DOMDocument_relaxNGValidateSource'
+		] = wasmExports['zim_DOMDocument_relaxNGValidateSource'];
+		_zim_DOMDocument_loadHTMLFile = Module[
+			'_zim_DOMDocument_loadHTMLFile'
+		] = wasmExports['zim_DOMDocument_loadHTMLFile'];
+		_zim_DOMDocument_loadHTML = Module['_zim_DOMDocument_loadHTML'] =
+			wasmExports['zim_DOMDocument_loadHTML'];
+		_zim_DOMDocument_saveHTMLFile = Module[
+			'_zim_DOMDocument_saveHTMLFile'
+		] = wasmExports['zim_DOMDocument_saveHTMLFile'];
+		_zim_DOMDocument_saveHTML = Module['_zim_DOMDocument_saveHTML'] =
+			wasmExports['zim_DOMDocument_saveHTML'];
+		_zim_DOMDocument_registerNodeClass = Module[
+			'_zim_DOMDocument_registerNodeClass'
+		] = wasmExports['zim_DOMDocument_registerNodeClass'];
+		_zim_DOMDocument_append = Module['_zim_DOMDocument_append'] =
+			wasmExports['zim_DOMDocument_append'];
+		_zim_DOMDocument_prepend = Module['_zim_DOMDocument_prepend'] =
+			wasmExports['zim_DOMDocument_prepend'];
+		_php_dom_throw_error_with_message = Module[
+			'_php_dom_throw_error_with_message'
+		] = wasmExports['php_dom_throw_error_with_message'];
+		_php_dom_throw_error = Module['_php_dom_throw_error'] =
+			wasmExports['php_dom_throw_error'];
+		_dom_parent_node_first_element_child_read = Module[
+			'_dom_parent_node_first_element_child_read'
+		] = wasmExports['dom_parent_node_first_element_child_read'];
+		_dom_parent_node_last_element_child_read = Module[
+			'_dom_parent_node_last_element_child_read'
+		] = wasmExports['dom_parent_node_last_element_child_read'];
+		_dom_parent_node_child_element_count = Module[
+			'_dom_parent_node_child_element_count'
+		] = wasmExports['dom_parent_node_child_element_count'];
+		_dom_zvals_to_fragment = Module['_dom_zvals_to_fragment'] =
+			wasmExports['dom_zvals_to_fragment'];
+		_dom_parent_node_append = Module['_dom_parent_node_append'] =
+			wasmExports['dom_parent_node_append'];
+		_dom_parent_node_prepend = Module['_dom_parent_node_prepend'] =
+			wasmExports['dom_parent_node_prepend'];
+		_dom_parent_node_after = Module['_dom_parent_node_after'] =
+			wasmExports['dom_parent_node_after'];
+		_dom_parent_node_before = Module['_dom_parent_node_before'] =
+			wasmExports['dom_parent_node_before'];
+		_dom_child_node_remove = Module['_dom_child_node_remove'] =
+			wasmExports['dom_child_node_remove'];
+		_zim_DOMProcessingInstruction___construct = Module[
+			'_zim_DOMProcessingInstruction___construct'
+		] = wasmExports['zim_DOMProcessingInstruction___construct'];
+		_dom_processinginstruction_target_read = Module[
+			'_dom_processinginstruction_target_read'
+		] = wasmExports['dom_processinginstruction_target_read'];
+		_dom_processinginstruction_data_read = Module[
+			'_dom_processinginstruction_data_read'
+		] = wasmExports['dom_processinginstruction_data_read'];
+		_dom_processinginstruction_data_write = Module[
+			'_dom_processinginstruction_data_write'
+		] = wasmExports['dom_processinginstruction_data_write'];
+		_zim_DOMCdataSection___construct = Module[
+			'_zim_DOMCdataSection___construct'
+		] = wasmExports['zim_DOMCdataSection___construct'];
+		_zim_DOMDocumentFragment___construct = Module[
+			'_zim_DOMDocumentFragment___construct'
+		] = wasmExports['zim_DOMDocumentFragment___construct'];
+		_zim_DOMDocumentFragment_appendXML = Module[
+			'_zim_DOMDocumentFragment_appendXML'
+		] = wasmExports['zim_DOMDocumentFragment_appendXML'];
+		_zim_DOMDocumentFragment_append = Module[
+			'_zim_DOMDocumentFragment_append'
+		] = wasmExports['zim_DOMDocumentFragment_append'];
+		_zim_DOMDocumentFragment_prepend = Module[
+			'_zim_DOMDocumentFragment_prepend'
+		] = wasmExports['zim_DOMDocumentFragment_prepend'];
+		_zim_DOMImplementation_hasFeature = Module[
+			'_zim_DOMImplementation_hasFeature'
+		] = wasmExports['zim_DOMImplementation_hasFeature'];
+		_zim_DOMImplementation_createDocumentType = Module[
+			'_zim_DOMImplementation_createDocumentType'
+		] = wasmExports['zim_DOMImplementation_createDocumentType'];
+		_zim_DOMImplementation_createDocument = Module[
+			'_zim_DOMImplementation_createDocument'
+		] = wasmExports['zim_DOMImplementation_createDocument'];
+		_zim_DOMImplementation_getFeature = Module[
+			'_zim_DOMImplementation_getFeature'
+		] = wasmExports['zim_DOMImplementation_getFeature'];
+		_zim_DOMElement___construct = Module['_zim_DOMElement___construct'] =
+			wasmExports['zim_DOMElement___construct'];
+		_dom_element_tag_name_read = Module['_dom_element_tag_name_read'] =
+			wasmExports['dom_element_tag_name_read'];
+		_dom_element_schema_type_info_read = Module[
+			'_dom_element_schema_type_info_read'
+		] = wasmExports['dom_element_schema_type_info_read'];
+		_zim_DOMElement_getAttribute = Module['_zim_DOMElement_getAttribute'] =
+			wasmExports['zim_DOMElement_getAttribute'];
+		_zim_DOMElement_setAttribute = Module['_zim_DOMElement_setAttribute'] =
+			wasmExports['zim_DOMElement_setAttribute'];
+		_zim_DOMElement_removeAttribute = Module[
+			'_zim_DOMElement_removeAttribute'
+		] = wasmExports['zim_DOMElement_removeAttribute'];
+		_zim_DOMElement_getAttributeNode = Module[
+			'_zim_DOMElement_getAttributeNode'
+		] = wasmExports['zim_DOMElement_getAttributeNode'];
+		_zim_DOMElement_setAttributeNode = Module[
+			'_zim_DOMElement_setAttributeNode'
+		] = wasmExports['zim_DOMElement_setAttributeNode'];
+		_zim_DOMElement_removeAttributeNode = Module[
+			'_zim_DOMElement_removeAttributeNode'
+		] = wasmExports['zim_DOMElement_removeAttributeNode'];
+		_zim_DOMElement_getElementsByTagName = Module[
+			'_zim_DOMElement_getElementsByTagName'
+		] = wasmExports['zim_DOMElement_getElementsByTagName'];
+		_zim_DOMElement_getAttributeNS = Module[
+			'_zim_DOMElement_getAttributeNS'
+		] = wasmExports['zim_DOMElement_getAttributeNS'];
+		_zim_DOMElement_setAttributeNS = Module[
+			'_zim_DOMElement_setAttributeNS'
+		] = wasmExports['zim_DOMElement_setAttributeNS'];
+		_zim_DOMElement_removeAttributeNS = Module[
+			'_zim_DOMElement_removeAttributeNS'
+		] = wasmExports['zim_DOMElement_removeAttributeNS'];
+		_zim_DOMElement_getAttributeNodeNS = Module[
+			'_zim_DOMElement_getAttributeNodeNS'
+		] = wasmExports['zim_DOMElement_getAttributeNodeNS'];
+		_zim_DOMElement_setAttributeNodeNS = Module[
+			'_zim_DOMElement_setAttributeNodeNS'
+		] = wasmExports['zim_DOMElement_setAttributeNodeNS'];
+		_zim_DOMElement_getElementsByTagNameNS = Module[
+			'_zim_DOMElement_getElementsByTagNameNS'
+		] = wasmExports['zim_DOMElement_getElementsByTagNameNS'];
+		_zim_DOMElement_hasAttribute = Module['_zim_DOMElement_hasAttribute'] =
+			wasmExports['zim_DOMElement_hasAttribute'];
+		_zim_DOMElement_hasAttributeNS = Module[
+			'_zim_DOMElement_hasAttributeNS'
+		] = wasmExports['zim_DOMElement_hasAttributeNS'];
+		_zim_DOMElement_setIdAttribute = Module[
+			'_zim_DOMElement_setIdAttribute'
+		] = wasmExports['zim_DOMElement_setIdAttribute'];
+		_zim_DOMElement_setIdAttributeNS = Module[
+			'_zim_DOMElement_setIdAttributeNS'
+		] = wasmExports['zim_DOMElement_setIdAttributeNS'];
+		_zim_DOMElement_setIdAttributeNode = Module[
+			'_zim_DOMElement_setIdAttributeNode'
+		] = wasmExports['zim_DOMElement_setIdAttributeNode'];
+		_zim_DOMElement_remove = Module['_zim_DOMElement_remove'] =
+			wasmExports['zim_DOMElement_remove'];
+		_zim_DOMElement_after = Module['_zim_DOMElement_after'] =
+			wasmExports['zim_DOMElement_after'];
+		_zim_DOMElement_before = Module['_zim_DOMElement_before'] =
+			wasmExports['zim_DOMElement_before'];
+		_zim_DOMElement_append = Module['_zim_DOMElement_append'] =
+			wasmExports['zim_DOMElement_append'];
+		_zim_DOMElement_prepend = Module['_zim_DOMElement_prepend'] =
+			wasmExports['zim_DOMElement_prepend'];
+		_zim_DOMElement_replaceWith = Module['_zim_DOMElement_replaceWith'] =
+			wasmExports['zim_DOMElement_replaceWith'];
+		_dom_node_node_name_read = Module['_dom_node_node_name_read'] =
+			wasmExports['dom_node_node_name_read'];
+		_dom_node_node_value_read = Module['_dom_node_node_value_read'] =
+			wasmExports['dom_node_node_value_read'];
+		_dom_node_node_value_write = Module['_dom_node_node_value_write'] =
+			wasmExports['dom_node_node_value_write'];
+		_dom_node_node_type_read = Module['_dom_node_node_type_read'] =
+			wasmExports['dom_node_node_type_read'];
+		_dom_node_parent_node_read = Module['_dom_node_parent_node_read'] =
+			wasmExports['dom_node_parent_node_read'];
+		_dom_node_child_nodes_read = Module['_dom_node_child_nodes_read'] =
+			wasmExports['dom_node_child_nodes_read'];
+		_dom_node_first_child_read = Module['_dom_node_first_child_read'] =
+			wasmExports['dom_node_first_child_read'];
+		_dom_node_last_child_read = Module['_dom_node_last_child_read'] =
+			wasmExports['dom_node_last_child_read'];
+		_dom_node_previous_sibling_read = Module[
+			'_dom_node_previous_sibling_read'
+		] = wasmExports['dom_node_previous_sibling_read'];
+		_dom_node_next_sibling_read = Module['_dom_node_next_sibling_read'] =
+			wasmExports['dom_node_next_sibling_read'];
+		_dom_node_previous_element_sibling_read = Module[
+			'_dom_node_previous_element_sibling_read'
+		] = wasmExports['dom_node_previous_element_sibling_read'];
+		_dom_node_next_element_sibling_read = Module[
+			'_dom_node_next_element_sibling_read'
+		] = wasmExports['dom_node_next_element_sibling_read'];
+		_dom_node_attributes_read = Module['_dom_node_attributes_read'] =
+			wasmExports['dom_node_attributes_read'];
+		_dom_node_owner_document_read = Module[
+			'_dom_node_owner_document_read'
+		] = wasmExports['dom_node_owner_document_read'];
+		_dom_node_namespace_uri_read = Module['_dom_node_namespace_uri_read'] =
+			wasmExports['dom_node_namespace_uri_read'];
+		_dom_node_prefix_read = Module['_dom_node_prefix_read'] =
+			wasmExports['dom_node_prefix_read'];
+		_dom_node_prefix_write = Module['_dom_node_prefix_write'] =
+			wasmExports['dom_node_prefix_write'];
+		_dom_node_local_name_read = Module['_dom_node_local_name_read'] =
+			wasmExports['dom_node_local_name_read'];
+		_dom_node_base_uri_read = Module['_dom_node_base_uri_read'] =
+			wasmExports['dom_node_base_uri_read'];
+		_dom_node_text_content_read = Module['_dom_node_text_content_read'] =
+			wasmExports['dom_node_text_content_read'];
+		_dom_node_text_content_write = Module['_dom_node_text_content_write'] =
+			wasmExports['dom_node_text_content_write'];
+		_zim_DOMNode_insertBefore = Module['_zim_DOMNode_insertBefore'] =
+			wasmExports['zim_DOMNode_insertBefore'];
+		_zim_DOMNode_replaceChild = Module['_zim_DOMNode_replaceChild'] =
+			wasmExports['zim_DOMNode_replaceChild'];
+		_zim_DOMNode_removeChild = Module['_zim_DOMNode_removeChild'] =
+			wasmExports['zim_DOMNode_removeChild'];
+		_zim_DOMNode_appendChild = Module['_zim_DOMNode_appendChild'] =
+			wasmExports['zim_DOMNode_appendChild'];
+		_zim_DOMNode_hasChildNodes = Module['_zim_DOMNode_hasChildNodes'] =
+			wasmExports['zim_DOMNode_hasChildNodes'];
+		_zim_DOMNode_cloneNode = Module['_zim_DOMNode_cloneNode'] =
+			wasmExports['zim_DOMNode_cloneNode'];
+		_zim_DOMNode_normalize = Module['_zim_DOMNode_normalize'] =
+			wasmExports['zim_DOMNode_normalize'];
+		_zim_DOMNode_isSupported = Module['_zim_DOMNode_isSupported'] =
+			wasmExports['zim_DOMNode_isSupported'];
+		_zim_DOMNode_hasAttributes = Module['_zim_DOMNode_hasAttributes'] =
+			wasmExports['zim_DOMNode_hasAttributes'];
+		_zim_DOMNode_isSameNode = Module['_zim_DOMNode_isSameNode'] =
+			wasmExports['zim_DOMNode_isSameNode'];
+		_zim_DOMNode_lookupPrefix = Module['_zim_DOMNode_lookupPrefix'] =
+			wasmExports['zim_DOMNode_lookupPrefix'];
+		_zim_DOMNode_isDefaultNamespace = Module[
+			'_zim_DOMNode_isDefaultNamespace'
+		] = wasmExports['zim_DOMNode_isDefaultNamespace'];
+		_zim_DOMNode_lookupNamespaceURI = Module[
+			'_zim_DOMNode_lookupNamespaceURI'
+		] = wasmExports['zim_DOMNode_lookupNamespaceURI'];
+		_zim_DOMNode_C14N = Module['_zim_DOMNode_C14N'] =
+			wasmExports['zim_DOMNode_C14N'];
+		_zim_DOMNode_C14NFile = Module['_zim_DOMNode_C14NFile'] =
+			wasmExports['zim_DOMNode_C14NFile'];
+		_zim_DOMNode_getNodePath = Module['_zim_DOMNode_getNodePath'] =
+			wasmExports['zim_DOMNode_getNodePath'];
+		_zim_DOMNode_getLineNo = Module['_zim_DOMNode_getLineNo'] =
+			wasmExports['zim_DOMNode_getLineNo'];
+		_dom_characterdata_data_read = Module['_dom_characterdata_data_read'] =
+			wasmExports['dom_characterdata_data_read'];
+		_dom_characterdata_data_write = Module[
+			'_dom_characterdata_data_write'
+		] = wasmExports['dom_characterdata_data_write'];
+		_dom_characterdata_length_read = Module[
+			'_dom_characterdata_length_read'
+		] = wasmExports['dom_characterdata_length_read'];
+		_zim_DOMCharacterData_substringData = Module[
+			'_zim_DOMCharacterData_substringData'
+		] = wasmExports['zim_DOMCharacterData_substringData'];
+		_zim_DOMCharacterData_appendData = Module[
+			'_zim_DOMCharacterData_appendData'
+		] = wasmExports['zim_DOMCharacterData_appendData'];
+		_zim_DOMCharacterData_insertData = Module[
+			'_zim_DOMCharacterData_insertData'
+		] = wasmExports['zim_DOMCharacterData_insertData'];
+		_zim_DOMCharacterData_deleteData = Module[
+			'_zim_DOMCharacterData_deleteData'
+		] = wasmExports['zim_DOMCharacterData_deleteData'];
+		_zim_DOMCharacterData_replaceData = Module[
+			'_zim_DOMCharacterData_replaceData'
+		] = wasmExports['zim_DOMCharacterData_replaceData'];
+		_zim_DOMCharacterData_remove = Module['_zim_DOMCharacterData_remove'] =
+			wasmExports['zim_DOMCharacterData_remove'];
+		_zim_DOMCharacterData_after = Module['_zim_DOMCharacterData_after'] =
+			wasmExports['zim_DOMCharacterData_after'];
+		_zim_DOMCharacterData_before = Module['_zim_DOMCharacterData_before'] =
+			wasmExports['zim_DOMCharacterData_before'];
+		_zim_DOMCharacterData_replaceWith = Module[
+			'_zim_DOMCharacterData_replaceWith'
+		] = wasmExports['zim_DOMCharacterData_replaceWith'];
+		_dom_documenttype_name_read = Module['_dom_documenttype_name_read'] =
+			wasmExports['dom_documenttype_name_read'];
+		_dom_documenttype_entities_read = Module[
+			'_dom_documenttype_entities_read'
+		] = wasmExports['dom_documenttype_entities_read'];
+		_dom_documenttype_notations_read = Module[
+			'_dom_documenttype_notations_read'
+		] = wasmExports['dom_documenttype_notations_read'];
+		_dom_documenttype_public_id_read = Module[
+			'_dom_documenttype_public_id_read'
+		] = wasmExports['dom_documenttype_public_id_read'];
+		_dom_documenttype_system_id_read = Module[
+			'_dom_documenttype_system_id_read'
+		] = wasmExports['dom_documenttype_system_id_read'];
+		_dom_documenttype_internal_subset_read = Module[
+			'_dom_documenttype_internal_subset_read'
+		] = wasmExports['dom_documenttype_internal_subset_read'];
+		_dom_entity_public_id_read = Module['_dom_entity_public_id_read'] =
+			wasmExports['dom_entity_public_id_read'];
+		_dom_entity_system_id_read = Module['_dom_entity_system_id_read'] =
+			wasmExports['dom_entity_system_id_read'];
+		_dom_entity_notation_name_read = Module[
+			'_dom_entity_notation_name_read'
+		] = wasmExports['dom_entity_notation_name_read'];
+		_dom_entity_actual_encoding_read = Module[
+			'_dom_entity_actual_encoding_read'
+		] = wasmExports['dom_entity_actual_encoding_read'];
+		_dom_entity_actual_encoding_write = Module[
+			'_dom_entity_actual_encoding_write'
+		] = wasmExports['dom_entity_actual_encoding_write'];
+		_dom_entity_encoding_read = Module['_dom_entity_encoding_read'] =
+			wasmExports['dom_entity_encoding_read'];
+		_dom_entity_encoding_write = Module['_dom_entity_encoding_write'] =
+			wasmExports['dom_entity_encoding_write'];
+		_dom_entity_version_read = Module['_dom_entity_version_read'] =
+			wasmExports['dom_entity_version_read'];
+		_dom_entity_version_write = Module['_dom_entity_version_write'] =
+			wasmExports['dom_entity_version_write'];
+		_dom_nodelist_length_read = Module['_dom_nodelist_length_read'] =
+			wasmExports['dom_nodelist_length_read'];
+		_zim_DOMNodeList_count = Module['_zim_DOMNodeList_count'] =
+			wasmExports['zim_DOMNodeList_count'];
+		_zim_DOMNodeList_item = Module['_zim_DOMNodeList_item'] =
+			wasmExports['zim_DOMNodeList_item'];
+		_zim_DOMNodeList_getIterator = Module['_zim_DOMNodeList_getIterator'] =
+			wasmExports['zim_DOMNodeList_getIterator'];
+		_zim_DOMText___construct = Module['_zim_DOMText___construct'] =
+			wasmExports['zim_DOMText___construct'];
+		_dom_text_whole_text_read = Module['_dom_text_whole_text_read'] =
+			wasmExports['dom_text_whole_text_read'];
+		_zim_DOMText_splitText = Module['_zim_DOMText_splitText'] =
+			wasmExports['zim_DOMText_splitText'];
+		_zim_DOMText_isWhitespaceInElementContent = Module[
+			'_zim_DOMText_isWhitespaceInElementContent'
+		] = wasmExports['zim_DOMText_isWhitespaceInElementContent'];
+		_zim_DOMComment___construct = Module['_zim_DOMComment___construct'] =
+			wasmExports['zim_DOMComment___construct'];
+		_zim_DOMEntityReference___construct = Module[
+			'_zim_DOMEntityReference___construct'
+		] = wasmExports['zim_DOMEntityReference___construct'];
+		_dom_notation_public_id_read = Module['_dom_notation_public_id_read'] =
+			wasmExports['dom_notation_public_id_read'];
+		_dom_notation_system_id_read = Module['_dom_notation_system_id_read'] =
+			wasmExports['dom_notation_system_id_read'];
+		_zim_DOMXPath___construct = Module['_zim_DOMXPath___construct'] =
+			wasmExports['zim_DOMXPath___construct'];
+		_dom_xpath_document_read = Module['_dom_xpath_document_read'] =
+			wasmExports['dom_xpath_document_read'];
+		_dom_xpath_register_node_ns_read = Module[
+			'_dom_xpath_register_node_ns_read'
+		] = wasmExports['dom_xpath_register_node_ns_read'];
+		_dom_xpath_register_node_ns_write = Module[
+			'_dom_xpath_register_node_ns_write'
+		] = wasmExports['dom_xpath_register_node_ns_write'];
+		_zim_DOMXPath_registerNamespace = Module[
+			'_zim_DOMXPath_registerNamespace'
+		] = wasmExports['zim_DOMXPath_registerNamespace'];
+		_zim_DOMXPath_query = Module['_zim_DOMXPath_query'] =
+			wasmExports['zim_DOMXPath_query'];
+		_zim_DOMXPath_evaluate = Module['_zim_DOMXPath_evaluate'] =
+			wasmExports['zim_DOMXPath_evaluate'];
+		_zim_DOMXPath_registerPhpFunctions = Module[
+			'_zim_DOMXPath_registerPhpFunctions'
+		] = wasmExports['zim_DOMXPath_registerPhpFunctions'];
+		_create_notation = Module['_create_notation'] =
+			wasmExports['create_notation'];
+		_php_dom_libxml_hash_iter = Module['_php_dom_libxml_hash_iter'] =
+			wasmExports['php_dom_libxml_hash_iter'];
+		_php_dom_libxml_notation_iter = Module[
+			'_php_dom_libxml_notation_iter'
+		] = wasmExports['php_dom_libxml_notation_iter'];
+		_php_dom_iterator_current_data = Module[
+			'_php_dom_iterator_current_data'
+		] = wasmExports['php_dom_iterator_current_data'];
+		_php_dom_get_iterator = Module['_php_dom_get_iterator'] =
+			wasmExports['php_dom_get_iterator'];
+		_dom_namednodemap_length_read = Module[
+			'_dom_namednodemap_length_read'
+		] = wasmExports['dom_namednodemap_length_read'];
+		_zim_DOMNamedNodeMap_getNamedItem = Module[
+			'_zim_DOMNamedNodeMap_getNamedItem'
+		] = wasmExports['zim_DOMNamedNodeMap_getNamedItem'];
+		_zim_DOMNamedNodeMap_item = Module['_zim_DOMNamedNodeMap_item'] =
+			wasmExports['zim_DOMNamedNodeMap_item'];
+		_zim_DOMNamedNodeMap_getNamedItemNS = Module[
+			'_zim_DOMNamedNodeMap_getNamedItemNS'
+		] = wasmExports['zim_DOMNamedNodeMap_getNamedItemNS'];
+		_zim_DOMNamedNodeMap_count = Module['_zim_DOMNamedNodeMap_count'] =
+			wasmExports['zim_DOMNamedNodeMap_count'];
+		_zim_DOMNamedNodeMap_getIterator = Module[
+			'_zim_DOMNamedNodeMap_getIterator'
+		] = wasmExports['zim_DOMNamedNodeMap_getIterator'];
+		_zm_info_exif = Module['_zm_info_exif'] = wasmExports['zm_info_exif'];
+		_OnUpdateEncode = Module['_OnUpdateEncode'] =
+			wasmExports['OnUpdateEncode'];
+		_OnUpdateDecode = Module['_OnUpdateDecode'] =
+			wasmExports['OnUpdateDecode'];
+		_zm_startup_exif = Module['_zm_startup_exif'] =
+			wasmExports['zm_startup_exif'];
+		_zm_shutdown_exif = Module['_zm_shutdown_exif'] =
+			wasmExports['zm_shutdown_exif'];
+		_zif_exif_tagname = Module['_zif_exif_tagname'] =
+			wasmExports['zif_exif_tagname'];
+		_zif_exif_read_data = Module['_zif_exif_read_data'] =
+			wasmExports['zif_exif_read_data'];
+		_zif_exif_thumbnail = Module['_zif_exif_thumbnail'] =
+			wasmExports['zif_exif_thumbnail'];
+		_zif_exif_imagetype = Module['_zif_exif_imagetype'] =
+			wasmExports['zif_exif_imagetype'];
+		_finfo_objects_new = Module['_finfo_objects_new'] =
+			wasmExports['finfo_objects_new'];
+		_finfo_resource_destructor = Module['_finfo_resource_destructor'] =
+			wasmExports['finfo_resource_destructor'];
+		_zm_startup_finfo = Module['_zm_startup_finfo'] =
+			wasmExports['zm_startup_finfo'];
+		_zm_info_fileinfo = Module['_zm_info_fileinfo'] =
+			wasmExports['zm_info_fileinfo'];
+		_zif_finfo_open = Module['_zif_finfo_open'] =
+			wasmExports['zif_finfo_open'];
+		_zif_finfo_close = Module['_zif_finfo_close'] =
+			wasmExports['zif_finfo_close'];
+		_zif_finfo_set_flags = Module['_zif_finfo_set_flags'] =
+			wasmExports['zif_finfo_set_flags'];
+		_zif_finfo_file = Module['_zif_finfo_file'] =
+			wasmExports['zif_finfo_file'];
+		_zif_finfo_buffer = Module['_zif_finfo_buffer'] =
+			wasmExports['zif_finfo_buffer'];
+		_zif_mime_content_type = Module['_zif_mime_content_type'] =
+			wasmExports['zif_mime_content_type'];
+		_file_ms_free = Module['_file_ms_free'] = wasmExports['file_ms_free'];
+		_file_ms_alloc = Module['_file_ms_alloc'] =
+			wasmExports['file_ms_alloc'];
+		_file_apprentice = Module['_file_apprentice'] =
+			wasmExports['file_apprentice'];
+		_file_signextend = Module['_file_signextend'] =
+			wasmExports['file_signextend'];
+		_file_showstr = Module['_file_showstr'] = wasmExports['file_showstr'];
+		_file_pstring_length_size = Module['_file_pstring_length_size'] =
+			wasmExports['file_pstring_length_size'];
+		_file_pstring_get_length = Module['_file_pstring_get_length'] =
+			wasmExports['file_pstring_get_length'];
+		_file_magicfind = Module['_file_magicfind'] =
+			wasmExports['file_magicfind'];
+		_file_ascmagic = Module['_file_ascmagic'] =
+			wasmExports['file_ascmagic'];
+		_file_ascmagic_with_encoding = Module['_file_ascmagic_with_encoding'] =
+			wasmExports['file_ascmagic_with_encoding'];
+		_cdf_tole2 = Module['_cdf_tole2'] = wasmExports['cdf_tole2'];
+		_cdf_tole4 = Module['_cdf_tole4'] = wasmExports['cdf_tole4'];
+		_cdf_tole8 = Module['_cdf_tole8'] = wasmExports['cdf_tole8'];
+		_cdf_swap_header = Module['_cdf_swap_header'] =
+			wasmExports['cdf_swap_header'];
+		_cdf_unpack_header = Module['_cdf_unpack_header'] =
+			wasmExports['cdf_unpack_header'];
+		_cdf_swap_dir = Module['_cdf_swap_dir'] = wasmExports['cdf_swap_dir'];
+		_cdf_swap_class = Module['_cdf_swap_class'] =
+			wasmExports['cdf_swap_class'];
+		_cdf_unpack_dir = Module['_cdf_unpack_dir'] =
+			wasmExports['cdf_unpack_dir'];
+		_cdf_zero_stream = Module['_cdf_zero_stream'] =
+			wasmExports['cdf_zero_stream'];
+		_cdf_read_header = Module['_cdf_read_header'] =
+			wasmExports['cdf_read_header'];
+		_cdf_read_sector = Module['_cdf_read_sector'] =
+			wasmExports['cdf_read_sector'];
+		_cdf_read_short_sector = Module['_cdf_read_short_sector'] =
+			wasmExports['cdf_read_short_sector'];
+		_cdf_read_sat = Module['_cdf_read_sat'] = wasmExports['cdf_read_sat'];
+		_cdf_count_chain = Module['_cdf_count_chain'] =
+			wasmExports['cdf_count_chain'];
+		_cdf_read_long_sector_chain = Module['_cdf_read_long_sector_chain'] =
+			wasmExports['cdf_read_long_sector_chain'];
+		_cdf_read_short_sector_chain = Module['_cdf_read_short_sector_chain'] =
+			wasmExports['cdf_read_short_sector_chain'];
+		_cdf_read_sector_chain = Module['_cdf_read_sector_chain'] =
+			wasmExports['cdf_read_sector_chain'];
+		_cdf_read_dir = Module['_cdf_read_dir'] = wasmExports['cdf_read_dir'];
+		_cdf_read_ssat = Module['_cdf_read_ssat'] =
+			wasmExports['cdf_read_ssat'];
+		_cdf_read_short_stream = Module['_cdf_read_short_stream'] =
+			wasmExports['cdf_read_short_stream'];
+		_cdf_read_doc_summary_info = Module['_cdf_read_doc_summary_info'] =
+			wasmExports['cdf_read_doc_summary_info'];
+		_cdf_read_user_stream = Module['_cdf_read_user_stream'] =
+			wasmExports['cdf_read_user_stream'];
+		_cdf_read_summary_info = Module['_cdf_read_summary_info'] =
+			wasmExports['cdf_read_summary_info'];
+		_cdf_find_stream = Module['_cdf_find_stream'] =
+			wasmExports['cdf_find_stream'];
+		_cdf_read_property_info = Module['_cdf_read_property_info'] =
+			wasmExports['cdf_read_property_info'];
+		_cdf_unpack_summary_info = Module['_cdf_unpack_summary_info'] =
+			wasmExports['cdf_unpack_summary_info'];
+		_cdf_unpack_catalog = Module['_cdf_unpack_catalog'] =
+			wasmExports['cdf_unpack_catalog'];
+		_cdf_print_classid = Module['_cdf_print_classid'] =
+			wasmExports['cdf_print_classid'];
+		_cdf_print_property_name = Module['_cdf_print_property_name'] =
+			wasmExports['cdf_print_property_name'];
+		_cdf_print_elapsed_time = Module['_cdf_print_elapsed_time'] =
+			wasmExports['cdf_print_elapsed_time'];
+		_cdf_u16tos8 = Module['_cdf_u16tos8'] = wasmExports['cdf_u16tos8'];
+		_cdf_timestamp_to_timespec = Module['_cdf_timestamp_to_timespec'] =
+			wasmExports['cdf_timestamp_to_timespec'];
+		_cdf_timespec_to_timestamp = Module['_cdf_timespec_to_timestamp'] =
+			wasmExports['cdf_timespec_to_timestamp'];
+		_cdf_ctime = Module['_cdf_ctime'] = wasmExports['cdf_ctime'];
+		_file_encoding = Module['_file_encoding'] =
+			wasmExports['file_encoding'];
+		_file_looks_utf8 = Module['_file_looks_utf8'] =
+			wasmExports['file_looks_utf8'];
+		_file_fsmagic = Module['_file_fsmagic'] = wasmExports['file_fsmagic'];
+		_file_copystr = Module['_file_copystr'] = wasmExports['file_copystr'];
+		_file_checkfmt = Module['_file_checkfmt'] =
+			wasmExports['file_checkfmt'];
+		_file_printf = Module['_file_printf'] = wasmExports['file_printf'];
+		_file_error = Module['_file_error'] = wasmExports['file_error'];
+		_file_magerror = Module['_file_magerror'] =
+			wasmExports['file_magerror'];
+		_file_oomem = Module['_file_oomem'] = wasmExports['file_oomem'];
+		_file_badseek = Module['_file_badseek'] = wasmExports['file_badseek'];
+		_file_badread = Module['_file_badread'] = wasmExports['file_badread'];
+		_file_separator = Module['_file_separator'] =
+			wasmExports['file_separator'];
+		_file_default = Module['_file_default'] = wasmExports['file_default'];
+		_file_buffer = Module['_file_buffer'] = wasmExports['file_buffer'];
+		_file_reset = Module['_file_reset'] = wasmExports['file_reset'];
+		_file_getbuffer = Module['_file_getbuffer'] =
+			wasmExports['file_getbuffer'];
+		_file_check_mem = Module['_file_check_mem'] =
+			wasmExports['file_check_mem'];
+		_file_printedlen = Module['_file_printedlen'] =
+			wasmExports['file_printedlen'];
+		_file_replace = Module['_file_replace'] = wasmExports['file_replace'];
+		_file_push_buffer = Module['_file_push_buffer'] =
+			wasmExports['file_push_buffer'];
+		_file_pop_buffer = Module['_file_pop_buffer'] =
+			wasmExports['file_pop_buffer'];
+		_file_printable = Module['_file_printable'] =
+			wasmExports['file_printable'];
+		_file_parse_guid = Module['_file_parse_guid'] =
+			wasmExports['file_parse_guid'];
+		_file_print_guid = Module['_file_print_guid'] =
+			wasmExports['file_print_guid'];
+		_file_is_json = Module['_file_is_json'] = wasmExports['file_is_json'];
+		_file_is_tar = Module['_file_is_tar'] = wasmExports['file_is_tar'];
+		_magic_open = Module['_magic_open'] = wasmExports['magic_open'];
+		_magic_close = Module['_magic_close'] = wasmExports['magic_close'];
+		_magic_load = Module['_magic_load'] = wasmExports['magic_load'];
+		_magic_compile = Module['_magic_compile'] =
+			wasmExports['magic_compile'];
+		_magic_check = Module['_magic_check'] = wasmExports['magic_check'];
+		_magic_list = Module['_magic_list'] = wasmExports['magic_list'];
+		_magic_descriptor = Module['_magic_descriptor'] =
+			wasmExports['magic_descriptor'];
+		_magic_file = Module['_magic_file'] = wasmExports['magic_file'];
+		_magic_stream = Module['_magic_stream'] = wasmExports['magic_stream'];
+		_magic_buffer = Module['_magic_buffer'] = wasmExports['magic_buffer'];
+		_magic_error = Module['_magic_error'] = wasmExports['magic_error'];
+		_magic_errno = Module['_magic_errno'] = wasmExports['magic_errno'];
+		_magic_getflags = Module['_magic_getflags'] =
+			wasmExports['magic_getflags'];
+		_magic_setflags = Module['_magic_setflags'] =
+			wasmExports['magic_setflags'];
+		_magic_version = Module['_magic_version'] =
+			wasmExports['magic_version'];
+		_magic_setparam = Module['_magic_setparam'] =
+			wasmExports['magic_setparam'];
+		_magic_getparam = Module['_magic_getparam'] =
+			wasmExports['magic_getparam'];
+		_file_mdump = Module['_file_mdump'] = wasmExports['file_mdump'];
+		_file_fmttime = Module['_file_fmttime'] = wasmExports['file_fmttime'];
+		_file_magwarn = Module['_file_magwarn'] = wasmExports['file_magwarn'];
+		_file_trycdf = Module['_file_trycdf'] = wasmExports['file_trycdf'];
+		_file_softmagic = Module['_file_softmagic'] =
+			wasmExports['file_softmagic'];
+		_convert_libmagic_pattern = Module['_convert_libmagic_pattern'] =
+			wasmExports['convert_libmagic_pattern'];
+		_der_offs = Module['_der_offs'] = wasmExports['der_offs'];
+		_der_cmp = Module['_der_cmp'] = wasmExports['der_cmp'];
+		_buffer_init = Module['_buffer_init'] = wasmExports['buffer_init'];
+		_buffer_fini = Module['_buffer_fini'] = wasmExports['buffer_fini'];
+		_buffer_fill = Module['_buffer_fill'] = wasmExports['buffer_fill'];
+		_file_is_csv = Module['_file_is_csv'] = wasmExports['file_is_csv'];
+		_zm_startup_filter = Module['_zm_startup_filter'] =
+			wasmExports['zm_startup_filter'];
+		_zm_shutdown_filter = Module['_zm_shutdown_filter'] =
+			wasmExports['zm_shutdown_filter'];
+		_zm_deactivate_filter = Module['_zm_deactivate_filter'] =
+			wasmExports['zm_deactivate_filter'];
+		_zm_info_filter = Module['_zm_info_filter'] =
+			wasmExports['zm_info_filter'];
+		_zif_filter_has_var = Module['_zif_filter_has_var'] =
+			wasmExports['zif_filter_has_var'];
+		_zif_filter_input = Module['_zif_filter_input'] =
+			wasmExports['zif_filter_input'];
+		_zif_filter_var = Module['_zif_filter_var'] =
+			wasmExports['zif_filter_var'];
+		_zif_filter_input_array = Module['_zif_filter_input_array'] =
+			wasmExports['zif_filter_input_array'];
+		_zif_filter_var_array = Module['_zif_filter_var_array'] =
+			wasmExports['zif_filter_var_array'];
+		_zif_filter_list = Module['_zif_filter_list'] =
+			wasmExports['zif_filter_list'];
+		_zif_filter_id = Module['_zif_filter_id'] =
+			wasmExports['zif_filter_id'];
+		_php_filter_string = Module['_php_filter_string'] =
+			wasmExports['php_filter_string'];
+		_php_filter_encoded = Module['_php_filter_encoded'] =
+			wasmExports['php_filter_encoded'];
+		_php_filter_special_chars = Module['_php_filter_special_chars'] =
+			wasmExports['php_filter_special_chars'];
+		_php_filter_full_special_chars = Module[
+			'_php_filter_full_special_chars'
+		] = wasmExports['php_filter_full_special_chars'];
+		_php_filter_unsafe_raw = Module['_php_filter_unsafe_raw'] =
+			wasmExports['php_filter_unsafe_raw'];
+		_php_filter_email = Module['_php_filter_email'] =
+			wasmExports['php_filter_email'];
+		_php_filter_url = Module['_php_filter_url'] =
+			wasmExports['php_filter_url'];
+		_php_filter_number_int = Module['_php_filter_number_int'] =
+			wasmExports['php_filter_number_int'];
+		_php_filter_number_float = Module['_php_filter_number_float'] =
+			wasmExports['php_filter_number_float'];
+		_php_filter_add_slashes = Module['_php_filter_add_slashes'] =
+			wasmExports['php_filter_add_slashes'];
+		_php_filter_int = Module['_php_filter_int'] =
+			wasmExports['php_filter_int'];
+		_php_filter_boolean = Module['_php_filter_boolean'] =
+			wasmExports['php_filter_boolean'];
+		_php_filter_float = Module['_php_filter_float'] =
+			wasmExports['php_filter_float'];
+		_php_filter_validate_regexp = Module['_php_filter_validate_regexp'] =
+			wasmExports['php_filter_validate_regexp'];
+		_php_filter_validate_domain = Module['_php_filter_validate_domain'] =
+			wasmExports['php_filter_validate_domain'];
+		_php_filter_validate_url = Module['_php_filter_validate_url'] =
+			wasmExports['php_filter_validate_url'];
+		_php_filter_validate_email = Module['_php_filter_validate_email'] =
+			wasmExports['php_filter_validate_email'];
+		_php_filter_validate_ip = Module['_php_filter_validate_ip'] =
+			wasmExports['php_filter_validate_ip'];
+		_php_filter_validate_mac = Module['_php_filter_validate_mac'] =
+			wasmExports['php_filter_validate_mac'];
+		_php_filter_callback = Module['_php_filter_callback'] =
+			wasmExports['php_filter_callback'];
+		_php_gd_libgdimageptr_from_zval_p = Module[
+			'_php_gd_libgdimageptr_from_zval_p'
+		] = wasmExports['php_gd_libgdimageptr_from_zval_p'];
+		_php_gd_image_object_create = Module['_php_gd_image_object_create'] =
+			wasmExports['php_gd_image_object_create'];
+		_php_gd_assign_libgdimageptr_as_extgdimage = Module[
+			'_php_gd_assign_libgdimageptr_as_extgdimage'
+		] = wasmExports['php_gd_assign_libgdimageptr_as_extgdimage'];
+		_zm_startup_gd = Module['_zm_startup_gd'] =
+			wasmExports['zm_startup_gd'];
+		_php_gd_error_method = Module['_php_gd_error_method'] =
+			wasmExports['php_gd_error_method'];
+		_zm_shutdown_gd = Module['_zm_shutdown_gd'] =
+			wasmExports['zm_shutdown_gd'];
+		_zm_deactivate_gd = Module['_zm_deactivate_gd'] =
+			wasmExports['zm_deactivate_gd'];
+		_zm_info_gd = Module['_zm_info_gd'] = wasmExports['zm_info_gd'];
+		_zif_gd_info = Module['_zif_gd_info'] = wasmExports['zif_gd_info'];
+		_zif_imageloadfont = Module['_zif_imageloadfont'] =
+			wasmExports['zif_imageloadfont'];
+		_zif_imagesetstyle = Module['_zif_imagesetstyle'] =
+			wasmExports['zif_imagesetstyle'];
+		_zif_imagecreatetruecolor = Module['_zif_imagecreatetruecolor'] =
+			wasmExports['zif_imagecreatetruecolor'];
+		_zif_imageistruecolor = Module['_zif_imageistruecolor'] =
+			wasmExports['zif_imageistruecolor'];
+		_zif_imagetruecolortopalette = Module['_zif_imagetruecolortopalette'] =
+			wasmExports['zif_imagetruecolortopalette'];
+		_zif_imagepalettetotruecolor = Module['_zif_imagepalettetotruecolor'] =
+			wasmExports['zif_imagepalettetotruecolor'];
+		_zif_imagecolormatch = Module['_zif_imagecolormatch'] =
+			wasmExports['zif_imagecolormatch'];
+		_zif_imagesetthickness = Module['_zif_imagesetthickness'] =
+			wasmExports['zif_imagesetthickness'];
+		_zif_imagefilledellipse = Module['_zif_imagefilledellipse'] =
+			wasmExports['zif_imagefilledellipse'];
+		_zif_imagefilledarc = Module['_zif_imagefilledarc'] =
+			wasmExports['zif_imagefilledarc'];
+		_zif_imagealphablending = Module['_zif_imagealphablending'] =
+			wasmExports['zif_imagealphablending'];
+		_zif_imagesavealpha = Module['_zif_imagesavealpha'] =
+			wasmExports['zif_imagesavealpha'];
+		_zif_imagelayereffect = Module['_zif_imagelayereffect'] =
+			wasmExports['zif_imagelayereffect'];
+		_zif_imagecolorallocatealpha = Module['_zif_imagecolorallocatealpha'] =
+			wasmExports['zif_imagecolorallocatealpha'];
+		_zif_imagecolorresolvealpha = Module['_zif_imagecolorresolvealpha'] =
+			wasmExports['zif_imagecolorresolvealpha'];
+		_zif_imagecolorclosestalpha = Module['_zif_imagecolorclosestalpha'] =
+			wasmExports['zif_imagecolorclosestalpha'];
+		_zif_imagecolorexactalpha = Module['_zif_imagecolorexactalpha'] =
+			wasmExports['zif_imagecolorexactalpha'];
+		_zif_imagecopyresampled = Module['_zif_imagecopyresampled'] =
+			wasmExports['zif_imagecopyresampled'];
+		_zif_imagerotate = Module['_zif_imagerotate'] =
+			wasmExports['zif_imagerotate'];
+		_zif_imagesettile = Module['_zif_imagesettile'] =
+			wasmExports['zif_imagesettile'];
+		_zif_imagesetbrush = Module['_zif_imagesetbrush'] =
+			wasmExports['zif_imagesetbrush'];
+		_zif_imagecreate = Module['_zif_imagecreate'] =
+			wasmExports['zif_imagecreate'];
+		_zif_imagetypes = Module['_zif_imagetypes'] =
+			wasmExports['zif_imagetypes'];
+		_zif_imagecreatefromstring = Module['_zif_imagecreatefromstring'] =
+			wasmExports['zif_imagecreatefromstring'];
+		_zif_imagecreatefromgif = Module['_zif_imagecreatefromgif'] =
+			wasmExports['zif_imagecreatefromgif'];
+		_zif_imagecreatefromjpeg = Module['_zif_imagecreatefromjpeg'] =
+			wasmExports['zif_imagecreatefromjpeg'];
+		_zif_imagecreatefrompng = Module['_zif_imagecreatefrompng'] =
+			wasmExports['zif_imagecreatefrompng'];
+		_zif_imagecreatefromwebp = Module['_zif_imagecreatefromwebp'] =
+			wasmExports['zif_imagecreatefromwebp'];
+		_zif_imagecreatefromxbm = Module['_zif_imagecreatefromxbm'] =
+			wasmExports['zif_imagecreatefromxbm'];
+		_zif_imagecreatefromwbmp = Module['_zif_imagecreatefromwbmp'] =
+			wasmExports['zif_imagecreatefromwbmp'];
+		_zif_imagecreatefromgd = Module['_zif_imagecreatefromgd'] =
+			wasmExports['zif_imagecreatefromgd'];
+		_zif_imagecreatefromgd2 = Module['_zif_imagecreatefromgd2'] =
+			wasmExports['zif_imagecreatefromgd2'];
+		_zif_imagecreatefromgd2part = Module['_zif_imagecreatefromgd2part'] =
+			wasmExports['zif_imagecreatefromgd2part'];
+		_zif_imagecreatefrombmp = Module['_zif_imagecreatefrombmp'] =
+			wasmExports['zif_imagecreatefrombmp'];
+		_zif_imagecreatefromtga = Module['_zif_imagecreatefromtga'] =
+			wasmExports['zif_imagecreatefromtga'];
+		_zif_imagexbm = Module['_zif_imagexbm'] = wasmExports['zif_imagexbm'];
+		_zif_imagegif = Module['_zif_imagegif'] = wasmExports['zif_imagegif'];
+		_zif_imagepng = Module['_zif_imagepng'] = wasmExports['zif_imagepng'];
+		_zif_imagewebp = Module['_zif_imagewebp'] =
+			wasmExports['zif_imagewebp'];
+		_zif_imagejpeg = Module['_zif_imagejpeg'] =
+			wasmExports['zif_imagejpeg'];
+		_zif_imagewbmp = Module['_zif_imagewbmp'] =
+			wasmExports['zif_imagewbmp'];
+		_zif_imagegd = Module['_zif_imagegd'] = wasmExports['zif_imagegd'];
+		_zif_imagegd2 = Module['_zif_imagegd2'] = wasmExports['zif_imagegd2'];
+		_zif_imagebmp = Module['_zif_imagebmp'] = wasmExports['zif_imagebmp'];
+		_zif_imagedestroy = Module['_zif_imagedestroy'] =
+			wasmExports['zif_imagedestroy'];
+		_zif_imagecolorallocate = Module['_zif_imagecolorallocate'] =
+			wasmExports['zif_imagecolorallocate'];
+		_zif_imagepalettecopy = Module['_zif_imagepalettecopy'] =
+			wasmExports['zif_imagepalettecopy'];
+		_zif_imagecolorat = Module['_zif_imagecolorat'] =
+			wasmExports['zif_imagecolorat'];
+		_zif_imagecolorclosest = Module['_zif_imagecolorclosest'] =
+			wasmExports['zif_imagecolorclosest'];
+		_zif_imagecolorclosesthwb = Module['_zif_imagecolorclosesthwb'] =
+			wasmExports['zif_imagecolorclosesthwb'];
+		_zif_imagecolordeallocate = Module['_zif_imagecolordeallocate'] =
+			wasmExports['zif_imagecolordeallocate'];
+		_zif_imagecolorresolve = Module['_zif_imagecolorresolve'] =
+			wasmExports['zif_imagecolorresolve'];
+		_zif_imagecolorexact = Module['_zif_imagecolorexact'] =
+			wasmExports['zif_imagecolorexact'];
+		_zif_imagecolorset = Module['_zif_imagecolorset'] =
+			wasmExports['zif_imagecolorset'];
+		_zif_imagecolorsforindex = Module['_zif_imagecolorsforindex'] =
+			wasmExports['zif_imagecolorsforindex'];
+		_zif_imagegammacorrect = Module['_zif_imagegammacorrect'] =
+			wasmExports['zif_imagegammacorrect'];
+		_zif_imagesetpixel = Module['_zif_imagesetpixel'] =
+			wasmExports['zif_imagesetpixel'];
+		_zif_imageline = Module['_zif_imageline'] =
+			wasmExports['zif_imageline'];
+		_zif_imagedashedline = Module['_zif_imagedashedline'] =
+			wasmExports['zif_imagedashedline'];
+		_zif_imagerectangle = Module['_zif_imagerectangle'] =
+			wasmExports['zif_imagerectangle'];
+		_zif_imagefilledrectangle = Module['_zif_imagefilledrectangle'] =
+			wasmExports['zif_imagefilledrectangle'];
+		_zif_imagearc = Module['_zif_imagearc'] = wasmExports['zif_imagearc'];
+		_zif_imageellipse = Module['_zif_imageellipse'] =
+			wasmExports['zif_imageellipse'];
+		_zif_imagefilltoborder = Module['_zif_imagefilltoborder'] =
+			wasmExports['zif_imagefilltoborder'];
+		_zif_imagefill = Module['_zif_imagefill'] =
+			wasmExports['zif_imagefill'];
+		_zif_imagecolorstotal = Module['_zif_imagecolorstotal'] =
+			wasmExports['zif_imagecolorstotal'];
+		_zif_imagecolortransparent = Module['_zif_imagecolortransparent'] =
+			wasmExports['zif_imagecolortransparent'];
+		_zif_imageinterlace = Module['_zif_imageinterlace'] =
+			wasmExports['zif_imageinterlace'];
+		_zif_imagepolygon = Module['_zif_imagepolygon'] =
+			wasmExports['zif_imagepolygon'];
+		_zif_imageopenpolygon = Module['_zif_imageopenpolygon'] =
+			wasmExports['zif_imageopenpolygon'];
+		_zif_imagefilledpolygon = Module['_zif_imagefilledpolygon'] =
+			wasmExports['zif_imagefilledpolygon'];
+		_zif_imagefontwidth = Module['_zif_imagefontwidth'] =
+			wasmExports['zif_imagefontwidth'];
+		_zif_imagefontheight = Module['_zif_imagefontheight'] =
+			wasmExports['zif_imagefontheight'];
+		_zif_imagechar = Module['_zif_imagechar'] =
+			wasmExports['zif_imagechar'];
+		_zif_imagecharup = Module['_zif_imagecharup'] =
+			wasmExports['zif_imagecharup'];
+		_zif_imagestring = Module['_zif_imagestring'] =
+			wasmExports['zif_imagestring'];
+		_zif_imagestringup = Module['_zif_imagestringup'] =
+			wasmExports['zif_imagestringup'];
+		_zif_imagecopy = Module['_zif_imagecopy'] =
+			wasmExports['zif_imagecopy'];
+		_zif_imagecopymerge = Module['_zif_imagecopymerge'] =
+			wasmExports['zif_imagecopymerge'];
+		_zif_imagecopymergegray = Module['_zif_imagecopymergegray'] =
+			wasmExports['zif_imagecopymergegray'];
+		_zif_imagecopyresized = Module['_zif_imagecopyresized'] =
+			wasmExports['zif_imagecopyresized'];
+		_zif_imagesx = Module['_zif_imagesx'] = wasmExports['zif_imagesx'];
+		_zif_imagesy = Module['_zif_imagesy'] = wasmExports['zif_imagesy'];
+		_zif_imagesetclip = Module['_zif_imagesetclip'] =
+			wasmExports['zif_imagesetclip'];
+		_zif_imagegetclip = Module['_zif_imagegetclip'] =
+			wasmExports['zif_imagegetclip'];
+		_zif_imagefilter = Module['_zif_imagefilter'] =
+			wasmExports['zif_imagefilter'];
+		_zif_imageconvolution = Module['_zif_imageconvolution'] =
+			wasmExports['zif_imageconvolution'];
+		_zif_imageflip = Module['_zif_imageflip'] =
+			wasmExports['zif_imageflip'];
+		_zif_imageantialias = Module['_zif_imageantialias'] =
+			wasmExports['zif_imageantialias'];
+		_zif_imagecrop = Module['_zif_imagecrop'] =
+			wasmExports['zif_imagecrop'];
+		_zif_imagecropauto = Module['_zif_imagecropauto'] =
+			wasmExports['zif_imagecropauto'];
+		_zif_imagescale = Module['_zif_imagescale'] =
+			wasmExports['zif_imagescale'];
+		_zif_imageaffine = Module['_zif_imageaffine'] =
+			wasmExports['zif_imageaffine'];
+		_zif_imageaffinematrixget = Module['_zif_imageaffinematrixget'] =
+			wasmExports['zif_imageaffinematrixget'];
+		_zif_imageaffinematrixconcat = Module['_zif_imageaffinematrixconcat'] =
+			wasmExports['zif_imageaffinematrixconcat'];
+		_zif_imagegetinterpolation = Module['_zif_imagegetinterpolation'] =
+			wasmExports['zif_imagegetinterpolation'];
+		_zif_imagesetinterpolation = Module['_zif_imagesetinterpolation'] =
+			wasmExports['zif_imagesetinterpolation'];
+		_zif_imageresolution = Module['_zif_imageresolution'] =
+			wasmExports['zif_imageresolution'];
+		_gd_stderr_error = Module['_gd_stderr_error'] =
+			wasmExports['gd_stderr_error'];
+		_gd_error = Module['_gd_error'] = wasmExports['gd_error'];
+		_gd_error_ex = Module['_gd_error_ex'] = wasmExports['gd_error_ex'];
+		_gdSetErrorMethod = Module['_gdSetErrorMethod'] =
+			wasmExports['gdSetErrorMethod'];
+		_gdClearErrorMethod = Module['_gdClearErrorMethod'] =
+			wasmExports['gdClearErrorMethod'];
+		_php_gd_gdImageCreate = Module['_php_gd_gdImageCreate'] =
+			wasmExports['php_gd_gdImageCreate'];
+		_php_gd_gdImageCreateTrueColor = Module[
+			'_php_gd_gdImageCreateTrueColor'
+		] = wasmExports['php_gd_gdImageCreateTrueColor'];
+		_php_gd_gdImageDestroy = Module['_php_gd_gdImageDestroy'] =
+			wasmExports['php_gd_gdImageDestroy'];
+		_php_gd_gdImageColorClosest = Module['_php_gd_gdImageColorClosest'] =
+			wasmExports['php_gd_gdImageColorClosest'];
+		_php_gd_gdImageColorClosestAlpha = Module[
+			'_php_gd_gdImageColorClosestAlpha'
+		] = wasmExports['php_gd_gdImageColorClosestAlpha'];
+		_php_gd_gdImageColorClosestHWB = Module[
+			'_php_gd_gdImageColorClosestHWB'
+		] = wasmExports['php_gd_gdImageColorClosestHWB'];
+		_php_gd_gdImageColorExact = Module['_php_gd_gdImageColorExact'] =
+			wasmExports['php_gd_gdImageColorExact'];
+		_php_gd_gdImageColorExactAlpha = Module[
+			'_php_gd_gdImageColorExactAlpha'
+		] = wasmExports['php_gd_gdImageColorExactAlpha'];
+		_php_gd_gdImageColorAllocate = Module['_php_gd_gdImageColorAllocate'] =
+			wasmExports['php_gd_gdImageColorAllocate'];
+		_php_gd_gdImageColorAllocateAlpha = Module[
+			'_php_gd_gdImageColorAllocateAlpha'
+		] = wasmExports['php_gd_gdImageColorAllocateAlpha'];
+		_php_gd_gdImageColorResolve = Module['_php_gd_gdImageColorResolve'] =
+			wasmExports['php_gd_gdImageColorResolve'];
+		_php_gd_gdImageColorResolveAlpha = Module[
+			'_php_gd_gdImageColorResolveAlpha'
+		] = wasmExports['php_gd_gdImageColorResolveAlpha'];
+		_php_gd_gdImageColorDeallocate = Module[
+			'_php_gd_gdImageColorDeallocate'
+		] = wasmExports['php_gd_gdImageColorDeallocate'];
+		_php_gd_gdImageColorTransparent = Module[
+			'_php_gd_gdImageColorTransparent'
+		] = wasmExports['php_gd_gdImageColorTransparent'];
+		_php_gd_gdImagePaletteCopy = Module['_php_gd_gdImagePaletteCopy'] =
+			wasmExports['php_gd_gdImagePaletteCopy'];
+		_php_gd_gdImageSetPixel = Module['_php_gd_gdImageSetPixel'] =
+			wasmExports['php_gd_gdImageSetPixel'];
+		_php_gd_gdImageGetPixel = Module['_php_gd_gdImageGetPixel'] =
+			wasmExports['php_gd_gdImageGetPixel'];
+		_php_gd_gdAlphaBlend = Module['_php_gd_gdAlphaBlend'] =
+			wasmExports['php_gd_gdAlphaBlend'];
+		_gdLayerOverlay = Module['_gdLayerOverlay'] =
+			wasmExports['gdLayerOverlay'];
+		_gdLayerMultiply = Module['_gdLayerMultiply'] =
+			wasmExports['gdLayerMultiply'];
+		_php_gd_gdImageGetTrueColorPixel = Module[
+			'_php_gd_gdImageGetTrueColorPixel'
+		] = wasmExports['php_gd_gdImageGetTrueColorPixel'];
+		_php_gd_gdImageAABlend = Module['_php_gd_gdImageAABlend'] =
+			wasmExports['php_gd_gdImageAABlend'];
+		_php_gd_gdImageLine = Module['_php_gd_gdImageLine'] =
+			wasmExports['php_gd_gdImageLine'];
+		_php_gd_gdImageAALine = Module['_php_gd_gdImageAALine'] =
+			wasmExports['php_gd_gdImageAALine'];
+		_php_gd_gdImageDashedLine = Module['_php_gd_gdImageDashedLine'] =
+			wasmExports['php_gd_gdImageDashedLine'];
+		_php_gd_gdImageChar = Module['_php_gd_gdImageChar'] =
+			wasmExports['php_gd_gdImageChar'];
+		_php_gd_gdImageCharUp = Module['_php_gd_gdImageCharUp'] =
+			wasmExports['php_gd_gdImageCharUp'];
+		_php_gd_gdImageString = Module['_php_gd_gdImageString'] =
+			wasmExports['php_gd_gdImageString'];
+		_php_gd_gdImageStringUp = Module['_php_gd_gdImageStringUp'] =
+			wasmExports['php_gd_gdImageStringUp'];
+		_php_gd_gdImageString16 = Module['_php_gd_gdImageString16'] =
+			wasmExports['php_gd_gdImageString16'];
+		_php_gd_gdImageStringUp16 = Module['_php_gd_gdImageStringUp16'] =
+			wasmExports['php_gd_gdImageStringUp16'];
+		_php_gd_lsqrt = Module['_php_gd_lsqrt'] = wasmExports['php_gd_lsqrt'];
+		_php_gd_gdImageArc = Module['_php_gd_gdImageArc'] =
+			wasmExports['php_gd_gdImageArc'];
+		_php_gd_gdImageFilledArc = Module['_php_gd_gdImageFilledArc'] =
+			wasmExports['php_gd_gdImageFilledArc'];
+		_php_gd_gdImageFilledPolygon = Module['_php_gd_gdImageFilledPolygon'] =
+			wasmExports['php_gd_gdImageFilledPolygon'];
+		_php_gd_gdCompareInt = Module['_php_gd_gdCompareInt'] =
+			wasmExports['php_gd_gdCompareInt'];
+		_php_gd_gdImageEllipse = Module['_php_gd_gdImageEllipse'] =
+			wasmExports['php_gd_gdImageEllipse'];
+		_php_gd_gdImageFilledEllipse = Module['_php_gd_gdImageFilledEllipse'] =
+			wasmExports['php_gd_gdImageFilledEllipse'];
+		_php_gd_gdImageFillToBorder = Module['_php_gd_gdImageFillToBorder'] =
+			wasmExports['php_gd_gdImageFillToBorder'];
+		_php_gd_gdImageFill = Module['_php_gd_gdImageFill'] =
+			wasmExports['php_gd_gdImageFill'];
+		_php_gd_gdImageRectangle = Module['_php_gd_gdImageRectangle'] =
+			wasmExports['php_gd_gdImageRectangle'];
+		_php_gd_gdImageFilledRectangle = Module[
+			'_php_gd_gdImageFilledRectangle'
+		] = wasmExports['php_gd_gdImageFilledRectangle'];
+		_php_gd_gdImageCopy = Module['_php_gd_gdImageCopy'] =
+			wasmExports['php_gd_gdImageCopy'];
+		_php_gd_gdImageCopyMerge = Module['_php_gd_gdImageCopyMerge'] =
+			wasmExports['php_gd_gdImageCopyMerge'];
+		_php_gd_gdImageCopyMergeGray = Module['_php_gd_gdImageCopyMergeGray'] =
+			wasmExports['php_gd_gdImageCopyMergeGray'];
+		_php_gd_gdImageCopyResized = Module['_php_gd_gdImageCopyResized'] =
+			wasmExports['php_gd_gdImageCopyResized'];
+		_php_gd_gdImageCopyResampled = Module['_php_gd_gdImageCopyResampled'] =
+			wasmExports['php_gd_gdImageCopyResampled'];
+		_php_gd_gdImagePolygon = Module['_php_gd_gdImagePolygon'] =
+			wasmExports['php_gd_gdImagePolygon'];
+		_gdImageOpenPolygon = Module['_gdImageOpenPolygon'] =
+			wasmExports['gdImageOpenPolygon'];
+		_php_gd_gdImageSetStyle = Module['_php_gd_gdImageSetStyle'] =
+			wasmExports['php_gd_gdImageSetStyle'];
+		_php_gd_gdImageSetThickness = Module['_php_gd_gdImageSetThickness'] =
+			wasmExports['php_gd_gdImageSetThickness'];
+		_php_gd_gdImageSetBrush = Module['_php_gd_gdImageSetBrush'] =
+			wasmExports['php_gd_gdImageSetBrush'];
+		_php_gd_gdImageSetTile = Module['_php_gd_gdImageSetTile'] =
+			wasmExports['php_gd_gdImageSetTile'];
+		_php_gd_gdImageSetAntiAliased = Module[
+			'_php_gd_gdImageSetAntiAliased'
+		] = wasmExports['php_gd_gdImageSetAntiAliased'];
+		_php_gd_gdImageSetAntiAliasedDontBlend = Module[
+			'_php_gd_gdImageSetAntiAliasedDontBlend'
+		] = wasmExports['php_gd_gdImageSetAntiAliasedDontBlend'];
+		_php_gd_gdImageInterlace = Module['_php_gd_gdImageInterlace'] =
+			wasmExports['php_gd_gdImageInterlace'];
+		_php_gd_gdImageCompare = Module['_php_gd_gdImageCompare'] =
+			wasmExports['php_gd_gdImageCompare'];
+		_php_gd_gdImageAlphaBlending = Module['_php_gd_gdImageAlphaBlending'] =
+			wasmExports['php_gd_gdImageAlphaBlending'];
+		_php_gd_gdImageSaveAlpha = Module['_php_gd_gdImageSaveAlpha'] =
+			wasmExports['php_gd_gdImageSaveAlpha'];
+		_php_gd_gdImageSetClip = Module['_php_gd_gdImageSetClip'] =
+			wasmExports['php_gd_gdImageSetClip'];
+		_php_gd_gdImageGetClip = Module['_php_gd_gdImageGetClip'] =
+			wasmExports['php_gd_gdImageGetClip'];
+		_gdImageSetResolution = Module['_gdImageSetResolution'] =
+			wasmExports['gdImageSetResolution'];
+		_gdImagePaletteToTrueColor = Module['_gdImagePaletteToTrueColor'] =
+			wasmExports['gdImagePaletteToTrueColor'];
+		_php_gd__gdGetColors = Module['_php_gd__gdGetColors'] =
+			wasmExports['php_gd__gdGetColors'];
+		_php_gd_gdImageCreateFromGd = Module['_php_gd_gdImageCreateFromGd'] =
+			wasmExports['php_gd_gdImageCreateFromGd'];
+		_php_gd_gdImageCreateFromGdCtx = Module[
+			'_php_gd_gdImageCreateFromGdCtx'
+		] = wasmExports['php_gd_gdImageCreateFromGdCtx'];
+		_php_gd_gdImageCreateFromGdPtr = Module[
+			'_php_gd_gdImageCreateFromGdPtr'
+		] = wasmExports['php_gd_gdImageCreateFromGdPtr'];
+		_php_gd__gdPutColors = Module['_php_gd__gdPutColors'] =
+			wasmExports['php_gd__gdPutColors'];
+		_php_gd_gdImageGd = Module['_php_gd_gdImageGd'] =
+			wasmExports['php_gd_gdImageGd'];
+		_php_gd_gdImageGdPtr = Module['_php_gd_gdImageGdPtr'] =
+			wasmExports['php_gd_gdImageGdPtr'];
+		_php_gd_gdImageCreateFromGd2 = Module['_php_gd_gdImageCreateFromGd2'] =
+			wasmExports['php_gd_gdImageCreateFromGd2'];
+		_php_gd_gdImageCreateFromGd2Ctx = Module[
+			'_php_gd_gdImageCreateFromGd2Ctx'
+		] = wasmExports['php_gd_gdImageCreateFromGd2Ctx'];
+		_php_gd_gdImageCreateFromGd2Ptr = Module[
+			'_php_gd_gdImageCreateFromGd2Ptr'
+		] = wasmExports['php_gd_gdImageCreateFromGd2Ptr'];
+		_php_gd_gdImageCreateFromGd2PartPtr = Module[
+			'_php_gd_gdImageCreateFromGd2PartPtr'
+		] = wasmExports['php_gd_gdImageCreateFromGd2PartPtr'];
+		_php_gd_gdImageCreateFromGd2PartCtx = Module[
+			'_php_gd_gdImageCreateFromGd2PartCtx'
+		] = wasmExports['php_gd_gdImageCreateFromGd2PartCtx'];
+		_php_gd_gdImageCreateFromGd2Part = Module[
+			'_php_gd_gdImageCreateFromGd2Part'
+		] = wasmExports['php_gd_gdImageCreateFromGd2Part'];
+		_php_gd_gdImageGd2 = Module['_php_gd_gdImageGd2'] =
+			wasmExports['php_gd_gdImageGd2'];
+		_php_gd_gdImageGd2Ptr = Module['_php_gd_gdImageGd2Ptr'] =
+			wasmExports['php_gd_gdImageGd2Ptr'];
+		_php_gd_Putword = Module['_php_gd_Putword'] =
+			wasmExports['php_gd_Putword'];
+		_php_gd_Putchar = Module['_php_gd_Putchar'] =
+			wasmExports['php_gd_Putchar'];
+		_php_gd_gdPutC = Module['_php_gd_gdPutC'] =
+			wasmExports['php_gd_gdPutC'];
+		_php_gd_gdPutWord = Module['_php_gd_gdPutWord'] =
+			wasmExports['php_gd_gdPutWord'];
+		_php_gd_gdPutInt = Module['_php_gd_gdPutInt'] =
+			wasmExports['php_gd_gdPutInt'];
+		_php_gd_gdGetC = Module['_php_gd_gdGetC'] =
+			wasmExports['php_gd_gdGetC'];
+		_php_gd_gdGetByte = Module['_php_gd_gdGetByte'] =
+			wasmExports['php_gd_gdGetByte'];
+		_php_gd_gdGetWord = Module['_php_gd_gdGetWord'] =
+			wasmExports['php_gd_gdGetWord'];
+		_gdGetWordLSB = Module['_gdGetWordLSB'] = wasmExports['gdGetWordLSB'];
+		_php_gd_gdGetInt = Module['_php_gd_gdGetInt'] =
+			wasmExports['php_gd_gdGetInt'];
+		_gdGetIntLSB = Module['_gdGetIntLSB'] = wasmExports['gdGetIntLSB'];
+		_php_gd_gdPutBuf = Module['_php_gd_gdPutBuf'] =
+			wasmExports['php_gd_gdPutBuf'];
+		_php_gd_gdGetBuf = Module['_php_gd_gdGetBuf'] =
+			wasmExports['php_gd_gdGetBuf'];
+		_php_gd_gdSeek = Module['_php_gd_gdSeek'] =
+			wasmExports['php_gd_gdSeek'];
+		_php_gd_gdTell = Module['_php_gd_gdTell'] =
+			wasmExports['php_gd_gdTell'];
+		_php_gd_gdNewDynamicCtx = Module['_php_gd_gdNewDynamicCtx'] =
+			wasmExports['php_gd_gdNewDynamicCtx'];
+		_php_gd_gdNewDynamicCtxEx = Module['_php_gd_gdNewDynamicCtxEx'] =
+			wasmExports['php_gd_gdNewDynamicCtxEx'];
+		_php_gd_gdDPExtractData = Module['_php_gd_gdDPExtractData'] =
+			wasmExports['php_gd_gdDPExtractData'];
+		_php_gd_gdNewFileCtx = Module['_php_gd_gdNewFileCtx'] =
+			wasmExports['php_gd_gdNewFileCtx'];
+		_php_gd_gdImagePngToSink = Module['_php_gd_gdImagePngToSink'] =
+			wasmExports['php_gd_gdImagePngToSink'];
+		_php_gd_gdImageCreateFromPngSource = Module[
+			'_php_gd_gdImageCreateFromPngSource'
+		] = wasmExports['php_gd_gdImageCreateFromPngSource'];
+		_php_gd_gdNewSSCtx = Module['_php_gd_gdNewSSCtx'] =
+			wasmExports['php_gd_gdNewSSCtx'];
+		_gdImageCreateFromWebp = Module['_gdImageCreateFromWebp'] =
+			wasmExports['gdImageCreateFromWebp'];
+		_gdImageCreateFromWebpCtx = Module['_gdImageCreateFromWebpCtx'] =
+			wasmExports['gdImageCreateFromWebpCtx'];
+		_gdImageCreateFromWebpPtr = Module['_gdImageCreateFromWebpPtr'] =
+			wasmExports['gdImageCreateFromWebpPtr'];
+		_gdImageWebpCtx = Module['_gdImageWebpCtx'] =
+			wasmExports['gdImageWebpCtx'];
+		_gdImageWebpEx = Module['_gdImageWebpEx'] =
+			wasmExports['gdImageWebpEx'];
+		_gdImageWebp = Module['_gdImageWebp'] = wasmExports['gdImageWebp'];
+		_gdImageWebpPtr = Module['_gdImageWebpPtr'] =
+			wasmExports['gdImageWebpPtr'];
+		_gdImageWebpPtrEx = Module['_gdImageWebpPtrEx'] =
+			wasmExports['gdImageWebpPtrEx'];
+		_gdPngGetVersionString = Module['_gdPngGetVersionString'] =
+			wasmExports['gdPngGetVersionString'];
+		_php_gd_gdImageCreateFromPng = Module['_php_gd_gdImageCreateFromPng'] =
+			wasmExports['php_gd_gdImageCreateFromPng'];
+		_php_gd_gdImageCreateFromPngCtx = Module[
+			'_php_gd_gdImageCreateFromPngCtx'
+		] = wasmExports['php_gd_gdImageCreateFromPngCtx'];
+		_php_gd_gdImageCreateFromPngPtr = Module[
+			'_php_gd_gdImageCreateFromPngPtr'
+		] = wasmExports['php_gd_gdImageCreateFromPngPtr'];
+		_php_gd_gdImagePngEx = Module['_php_gd_gdImagePngEx'] =
+			wasmExports['php_gd_gdImagePngEx'];
+		_php_gd_gdImagePngCtxEx = Module['_php_gd_gdImagePngCtxEx'] =
+			wasmExports['php_gd_gdImagePngCtxEx'];
+		_php_gd_gdImagePng = Module['_php_gd_gdImagePng'] =
+			wasmExports['php_gd_gdImagePng'];
+		_php_gd_gdImagePngPtr = Module['_php_gd_gdImagePngPtr'] =
+			wasmExports['php_gd_gdImagePngPtr'];
+		_php_gd_gdImagePngPtrEx = Module['_php_gd_gdImagePngPtrEx'] =
+			wasmExports['php_gd_gdImagePngPtrEx'];
+		_php_gd_gdImagePngCtx = Module['_php_gd_gdImagePngCtx'] =
+			wasmExports['php_gd_gdImagePngCtx'];
+		_gdJpegGetVersionString = Module['_gdJpegGetVersionString'] =
+			wasmExports['gdJpegGetVersionString'];
+		_php_gd_gdImageJpeg = Module['_php_gd_gdImageJpeg'] =
+			wasmExports['php_gd_gdImageJpeg'];
+		_php_gd_gdImageJpegCtx = Module['_php_gd_gdImageJpegCtx'] =
+			wasmExports['php_gd_gdImageJpegCtx'];
+		_php_gd_gdImageJpegPtr = Module['_php_gd_gdImageJpegPtr'] =
+			wasmExports['php_gd_gdImageJpegPtr'];
+		_php_gd_term_destination = Module['_php_gd_term_destination'] =
+			wasmExports['php_gd_term_destination'];
+		_php_gd_empty_output_buffer = Module['_php_gd_empty_output_buffer'] =
+			wasmExports['php_gd_empty_output_buffer'];
+		_php_gd_init_destination = Module['_php_gd_init_destination'] =
+			wasmExports['php_gd_init_destination'];
+		_php_gd_gdImageCreateFromJpeg = Module[
+			'_php_gd_gdImageCreateFromJpeg'
+		] = wasmExports['php_gd_gdImageCreateFromJpeg'];
+		_gdImageCreateFromJpegCtxEx = Module['_gdImageCreateFromJpegCtxEx'] =
+			wasmExports['gdImageCreateFromJpegCtxEx'];
+		_gdImageCreateFromJpegEx = Module['_gdImageCreateFromJpegEx'] =
+			wasmExports['gdImageCreateFromJpegEx'];
+		_php_gd_term_source = Module['_php_gd_term_source'] =
+			wasmExports['php_gd_term_source'];
+		_php_gd_skip_input_data = Module['_php_gd_skip_input_data'] =
+			wasmExports['php_gd_skip_input_data'];
+		_php_gd_fill_input_buffer = Module['_php_gd_fill_input_buffer'] =
+			wasmExports['php_gd_fill_input_buffer'];
+		_php_gd_init_source = Module['_php_gd_init_source'] =
+			wasmExports['php_gd_init_source'];
+		_php_gd_gdImageCreateFromJpegPtr = Module[
+			'_php_gd_gdImageCreateFromJpegPtr'
+		] = wasmExports['php_gd_gdImageCreateFromJpegPtr'];
+		_gdImageCreateFromJpegPtrEx = Module['_gdImageCreateFromJpegPtrEx'] =
+			wasmExports['gdImageCreateFromJpegPtrEx'];
+		_php_gd_gdImageCreateFromJpegCtx = Module[
+			'_php_gd_gdImageCreateFromJpegCtx'
+		] = wasmExports['php_gd_gdImageCreateFromJpegCtx'];
+		_php_gd_jpeg_gdIOCtx_src = Module['_php_gd_jpeg_gdIOCtx_src'] =
+			wasmExports['php_gd_jpeg_gdIOCtx_src'];
+		_php_gd_jpeg_gdIOCtx_dest = Module['_php_gd_jpeg_gdIOCtx_dest'] =
+			wasmExports['php_gd_jpeg_gdIOCtx_dest'];
+		_php_gd_gdFontGetTiny = Module['_php_gd_gdFontGetTiny'] =
+			wasmExports['php_gd_gdFontGetTiny'];
+		_php_gd_gdFontGetSmall = Module['_php_gd_gdFontGetSmall'] =
+			wasmExports['php_gd_gdFontGetSmall'];
+		_php_gd_gdFontGetMediumBold = Module['_php_gd_gdFontGetMediumBold'] =
+			wasmExports['php_gd_gdFontGetMediumBold'];
+		_php_gd_gdFontGetLarge = Module['_php_gd_gdFontGetLarge'] =
+			wasmExports['php_gd_gdFontGetLarge'];
+		_php_gd_gdFontGetGiant = Module['_php_gd_gdFontGetGiant'] =
+			wasmExports['php_gd_gdFontGetGiant'];
+		_php_gd_gdImageStringTTF = Module['_php_gd_gdImageStringTTF'] =
+			wasmExports['php_gd_gdImageStringTTF'];
+		_php_gd_gdImageStringFT = Module['_php_gd_gdImageStringFT'] =
+			wasmExports['php_gd_gdImageStringFT'];
+		_php_gd_gdImageStringFTEx = Module['_php_gd_gdImageStringFTEx'] =
+			wasmExports['php_gd_gdImageStringFTEx'];
+		_php_gd_any2eucjp = Module['_php_gd_any2eucjp'] =
+			wasmExports['php_gd_any2eucjp'];
+		_php_gd_getmbi = Module['_php_gd_getmbi'] =
+			wasmExports['php_gd_getmbi'];
+		_php_gd_putmbi = Module['_php_gd_putmbi'] =
+			wasmExports['php_gd_putmbi'];
+		_php_gd_skipheader = Module['_php_gd_skipheader'] =
+			wasmExports['php_gd_skipheader'];
+		_php_gd_createwbmp = Module['_php_gd_createwbmp'] =
+			wasmExports['php_gd_createwbmp'];
+		_php_gd_readwbmp = Module['_php_gd_readwbmp'] =
+			wasmExports['php_gd_readwbmp'];
+		_php_gd_writewbmp = Module['_php_gd_writewbmp'] =
+			wasmExports['php_gd_writewbmp'];
+		_php_gd_freewbmp = Module['_php_gd_freewbmp'] =
+			wasmExports['php_gd_freewbmp'];
+		_php_gd_printwbmp = Module['_php_gd_printwbmp'] =
+			wasmExports['php_gd_printwbmp'];
+		_php_gd_gd_putout = Module['_php_gd_gd_putout'] =
+			wasmExports['php_gd_gd_putout'];
+		_php_gd_gd_getin = Module['_php_gd_gd_getin'] =
+			wasmExports['php_gd_gd_getin'];
+		_php_gd_gdImageWBMPCtx = Module['_php_gd_gdImageWBMPCtx'] =
+			wasmExports['php_gd_gdImageWBMPCtx'];
+		_php_gd_gdImageCreateFromWBMPCtx = Module[
+			'_php_gd_gdImageCreateFromWBMPCtx'
+		] = wasmExports['php_gd_gdImageCreateFromWBMPCtx'];
+		_php_gd_gdImageCreateFromWBMP = Module[
+			'_php_gd_gdImageCreateFromWBMP'
+		] = wasmExports['php_gd_gdImageCreateFromWBMP'];
+		_php_gd_gdImageCreateFromWBMPPtr = Module[
+			'_php_gd_gdImageCreateFromWBMPPtr'
+		] = wasmExports['php_gd_gdImageCreateFromWBMPPtr'];
+		_php_gd_gdImageWBMP = Module['_php_gd_gdImageWBMP'] =
+			wasmExports['php_gd_gdImageWBMP'];
+		_php_gd_gdImageWBMPPtr = Module['_php_gd_gdImageWBMPPtr'] =
+			wasmExports['php_gd_gdImageWBMPPtr'];
+		_php_gd_gd_strtok_r = Module['_php_gd_gd_strtok_r'] =
+			wasmExports['php_gd_gd_strtok_r'];
+		_php_gd_gdImageCreatePaletteFromTrueColor = Module[
+			'_php_gd_gdImageCreatePaletteFromTrueColor'
+		] = wasmExports['php_gd_gdImageCreatePaletteFromTrueColor'];
+		_php_gd_gdImageTrueColorToPalette = Module[
+			'_php_gd_gdImageTrueColorToPalette'
+		] = wasmExports['php_gd_gdImageTrueColorToPalette'];
+		_php_gd_gdImageCreateFromGifSource = Module[
+			'_php_gd_gdImageCreateFromGifSource'
+		] = wasmExports['php_gd_gdImageCreateFromGifSource'];
+		_php_gd_gdImageCreateFromGifCtx = Module[
+			'_php_gd_gdImageCreateFromGifCtx'
+		] = wasmExports['php_gd_gdImageCreateFromGifCtx'];
+		_php_gd_gdImageCreateFromGif = Module['_php_gd_gdImageCreateFromGif'] =
+			wasmExports['php_gd_gdImageCreateFromGif'];
+		_php_gd_gdImageCreateFromXbm = Module['_php_gd_gdImageCreateFromXbm'] =
+			wasmExports['php_gd_gdImageCreateFromXbm'];
+		_php_gd_gdCtxPrintf = Module['_php_gd_gdCtxPrintf'] =
+			wasmExports['php_gd_gdCtxPrintf'];
+		_php_gd_gdImageXbmCtx = Module['_php_gd_gdImageXbmCtx'] =
+			wasmExports['php_gd_gdImageXbmCtx'];
+		_php_gd_gdImageGifPtr = Module['_php_gd_gdImageGifPtr'] =
+			wasmExports['php_gd_gdImageGifPtr'];
+		_php_gd_gdImageGif = Module['_php_gd_gdImageGif'] =
+			wasmExports['php_gd_gdImageGif'];
+		_php_gd_gdImageGifCtx = Module['_php_gd_gdImageGifCtx'] =
+			wasmExports['php_gd_gdImageGifCtx'];
+		_overflow2 = Module['_overflow2'] = wasmExports['overflow2'];
+		_gdImageScatter = Module['_gdImageScatter'] =
+			wasmExports['gdImageScatter'];
+		_gdImageScatterEx = Module['_gdImageScatterEx'] =
+			wasmExports['gdImageScatterEx'];
+		_gdImageScatterColor = Module['_gdImageScatterColor'] =
+			wasmExports['gdImageScatterColor'];
+		_php_gd_gdImageNegate = Module['_php_gd_gdImageNegate'] =
+			wasmExports['php_gd_gdImageNegate'];
+		_php_gd_gdImageGrayScale = Module['_php_gd_gdImageGrayScale'] =
+			wasmExports['php_gd_gdImageGrayScale'];
+		_php_gd_gdImageBrightness = Module['_php_gd_gdImageBrightness'] =
+			wasmExports['php_gd_gdImageBrightness'];
+		_php_gd_gdImageContrast = Module['_php_gd_gdImageContrast'] =
+			wasmExports['php_gd_gdImageContrast'];
+		_php_gd_gdImageColor = Module['_php_gd_gdImageColor'] =
+			wasmExports['php_gd_gdImageColor'];
+		_php_gd_gdImageConvolution = Module['_php_gd_gdImageConvolution'] =
+			wasmExports['php_gd_gdImageConvolution'];
+		_php_gd_gdImageSelectiveBlur = Module['_php_gd_gdImageSelectiveBlur'] =
+			wasmExports['php_gd_gdImageSelectiveBlur'];
+		_php_gd_gdImageEdgeDetectQuick = Module[
+			'_php_gd_gdImageEdgeDetectQuick'
+		] = wasmExports['php_gd_gdImageEdgeDetectQuick'];
+		_php_gd_gdImageGaussianBlur = Module['_php_gd_gdImageGaussianBlur'] =
+			wasmExports['php_gd_gdImageGaussianBlur'];
+		_php_gd_gdImageEmboss = Module['_php_gd_gdImageEmboss'] =
+			wasmExports['php_gd_gdImageEmboss'];
+		_php_gd_gdImageMeanRemoval = Module['_php_gd_gdImageMeanRemoval'] =
+			wasmExports['php_gd_gdImageMeanRemoval'];
+		_php_gd_gdImageSmooth = Module['_php_gd_gdImageSmooth'] =
+			wasmExports['php_gd_gdImageSmooth'];
+		_gdImagePixelate = Module['_gdImagePixelate'] =
+			wasmExports['gdImagePixelate'];
+		_php_gd_gdImageSkewX = Module['_php_gd_gdImageSkewX'] =
+			wasmExports['php_gd_gdImageSkewX'];
+		_php_gd_gdImageSkewY = Module['_php_gd_gdImageSkewY'] =
+			wasmExports['php_gd_gdImageSkewY'];
+		_php_gd_gdImageRotate90 = Module['_php_gd_gdImageRotate90'] =
+			wasmExports['php_gd_gdImageRotate90'];
+		_php_gd_gdImageRotate180 = Module['_php_gd_gdImageRotate180'] =
+			wasmExports['php_gd_gdImageRotate180'];
+		_php_gd_gdImageRotate270 = Module['_php_gd_gdImageRotate270'] =
+			wasmExports['php_gd_gdImageRotate270'];
+		_php_gd_gdImageColorMatch = Module['_php_gd_gdImageColorMatch'] =
+			wasmExports['php_gd_gdImageColorMatch'];
+		_gdImageFlipVertical = Module['_gdImageFlipVertical'] =
+			wasmExports['gdImageFlipVertical'];
+		_gdImageFlipHorizontal = Module['_gdImageFlipHorizontal'] =
+			wasmExports['gdImageFlipHorizontal'];
+		_gdImageFlipBoth = Module['_gdImageFlipBoth'] =
+			wasmExports['gdImageFlipBoth'];
+		_gdImageCrop = Module['_gdImageCrop'] = wasmExports['gdImageCrop'];
+		_gdImageCropAuto = Module['_gdImageCropAuto'] =
+			wasmExports['gdImageCropAuto'];
+		_gdImageCropThreshold = Module['_gdImageCropThreshold'] =
+			wasmExports['gdImageCropThreshold'];
+		_getPixelInterpolated = Module['_getPixelInterpolated'] =
+			wasmExports['getPixelInterpolated'];
+		_gdImageScaleTwoPass = Module['_gdImageScaleTwoPass'] =
+			wasmExports['gdImageScaleTwoPass'];
+		_gdImageSetInterpolationMethod = Module[
+			'_gdImageSetInterpolationMethod'
+		] = wasmExports['gdImageSetInterpolationMethod'];
+		_gdImageScaleNearestNeighbour = Module[
+			'_gdImageScaleNearestNeighbour'
+		] = wasmExports['gdImageScaleNearestNeighbour'];
+		_gdImageScaleBilinear = Module['_gdImageScaleBilinear'] =
+			wasmExports['gdImageScaleBilinear'];
+		_gdImageScaleBicubicFixed = Module['_gdImageScaleBicubicFixed'] =
+			wasmExports['gdImageScaleBicubicFixed'];
+		_gdImageScale = Module['_gdImageScale'] = wasmExports['gdImageScale'];
+		_gdImageRotateNearestNeighbour = Module[
+			'_gdImageRotateNearestNeighbour'
+		] = wasmExports['gdImageRotateNearestNeighbour'];
+		_gdTransformAffineBoundingBox = Module[
+			'_gdTransformAffineBoundingBox'
+		] = wasmExports['gdTransformAffineBoundingBox'];
+		_gdImageRotateGeneric = Module['_gdImageRotateGeneric'] =
+			wasmExports['gdImageRotateGeneric'];
+		_gdImageRotateBilinear = Module['_gdImageRotateBilinear'] =
+			wasmExports['gdImageRotateBilinear'];
+		_gdImageRotateBicubicFixed = Module['_gdImageRotateBicubicFixed'] =
+			wasmExports['gdImageRotateBicubicFixed'];
+		_gdImageRotateInterpolated = Module['_gdImageRotateInterpolated'] =
+			wasmExports['gdImageRotateInterpolated'];
+		_gdDumpRect = Module['_gdDumpRect'] = wasmExports['gdDumpRect'];
+		_gdTransformAffineGetImage = Module['_gdTransformAffineGetImage'] =
+			wasmExports['gdTransformAffineGetImage'];
+		_gdTransformAffineCopy = Module['_gdTransformAffineCopy'] =
+			wasmExports['gdTransformAffineCopy'];
+		_gdImageGetInterpolationMethod = Module[
+			'_gdImageGetInterpolationMethod'
+		] = wasmExports['gdImageGetInterpolationMethod'];
+		_gdAffineApplyToPointF = Module['_gdAffineApplyToPointF'] =
+			wasmExports['gdAffineApplyToPointF'];
+		_gdAffineInvert = Module['_gdAffineInvert'] =
+			wasmExports['gdAffineInvert'];
+		_gdAffineFlip = Module['_gdAffineFlip'] = wasmExports['gdAffineFlip'];
+		_gdAffineConcat = Module['_gdAffineConcat'] =
+			wasmExports['gdAffineConcat'];
+		_gdAffineIdentity = Module['_gdAffineIdentity'] =
+			wasmExports['gdAffineIdentity'];
+		_gdAffineScale = Module['_gdAffineScale'] =
+			wasmExports['gdAffineScale'];
+		_gdAffineRotate = Module['_gdAffineRotate'] =
+			wasmExports['gdAffineRotate'];
+		_gdAffineShearHorizontal = Module['_gdAffineShearHorizontal'] =
+			wasmExports['gdAffineShearHorizontal'];
+		_gdAffineShearVertical = Module['_gdAffineShearVertical'] =
+			wasmExports['gdAffineShearVertical'];
+		_gdAffineTranslate = Module['_gdAffineTranslate'] =
+			wasmExports['gdAffineTranslate'];
+		_gdAffineExpansion = Module['_gdAffineExpansion'] =
+			wasmExports['gdAffineExpansion'];
+		_gdAffineRectilinear = Module['_gdAffineRectilinear'] =
+			wasmExports['gdAffineRectilinear'];
+		_gdAffineEqual = Module['_gdAffineEqual'] =
+			wasmExports['gdAffineEqual'];
+		_gdImageBmpPtr = Module['_gdImageBmpPtr'] =
+			wasmExports['gdImageBmpPtr'];
+		_gdImageBmpCtx = Module['_gdImageBmpCtx'] =
+			wasmExports['gdImageBmpCtx'];
+		_gdImageBmp = Module['_gdImageBmp'] = wasmExports['gdImageBmp'];
+		_gdImageCreateFromBmp = Module['_gdImageCreateFromBmp'] =
+			wasmExports['gdImageCreateFromBmp'];
+		_gdImageCreateFromBmpCtx = Module['_gdImageCreateFromBmpCtx'] =
+			wasmExports['gdImageCreateFromBmpCtx'];
+		_gdImageCreateFromBmpPtr = Module['_gdImageCreateFromBmpPtr'] =
+			wasmExports['gdImageCreateFromBmpPtr'];
+		_gdImageCreateFromTga = Module['_gdImageCreateFromTga'] =
+			wasmExports['gdImageCreateFromTga'];
+		_gdImageCreateFromTgaCtx = Module['_gdImageCreateFromTgaCtx'] =
+			wasmExports['gdImageCreateFromTgaCtx'];
+		_read_header_tga = Module['_read_header_tga'] =
+			wasmExports['read_header_tga'];
+		_read_image_tga = Module['_read_image_tga'] =
+			wasmExports['read_image_tga'];
+		_gdImageCreateFromTgaPtr = Module['_gdImageCreateFromTgaPtr'] =
+			wasmExports['gdImageCreateFromTgaPtr'];
+		_free_tga = Module['_free_tga'] = wasmExports['free_tga'];
+		_php_hash_fetch_ops = Module['_php_hash_fetch_ops'] =
+			wasmExports['php_hash_fetch_ops'];
+		_php_hash_register_algo = Module['_php_hash_register_algo'] =
+			wasmExports['php_hash_register_algo'];
+		_php_hash_copy = Module['_php_hash_copy'] =
+			wasmExports['php_hash_copy'];
+		_php_hash_serialize_spec = Module['_php_hash_serialize_spec'] =
+			wasmExports['php_hash_serialize_spec'];
+		_php_hash_unserialize_spec = Module['_php_hash_unserialize_spec'] =
+			wasmExports['php_hash_unserialize_spec'];
+		_php_hash_serialize = Module['_php_hash_serialize'] =
+			wasmExports['php_hash_serialize'];
+		_php_hash_unserialize = Module['_php_hash_unserialize'] =
+			wasmExports['php_hash_unserialize'];
+		_zif_hash = Module['_zif_hash'] = wasmExports['zif_hash'];
+		_zif_hash_file = Module['_zif_hash_file'] =
+			wasmExports['zif_hash_file'];
+		_zif_hash_hmac = Module['_zif_hash_hmac'] =
+			wasmExports['zif_hash_hmac'];
+		_zif_hash_hmac_file = Module['_zif_hash_hmac_file'] =
+			wasmExports['zif_hash_hmac_file'];
+		_zif_hash_init = Module['_zif_hash_init'] =
+			wasmExports['zif_hash_init'];
+		_zif_hash_update = Module['_zif_hash_update'] =
+			wasmExports['zif_hash_update'];
+		_zif_hash_update_stream = Module['_zif_hash_update_stream'] =
+			wasmExports['zif_hash_update_stream'];
+		_zif_hash_update_file = Module['_zif_hash_update_file'] =
+			wasmExports['zif_hash_update_file'];
+		_zif_hash_final = Module['_zif_hash_final'] =
+			wasmExports['zif_hash_final'];
+		_zif_hash_copy = Module['_zif_hash_copy'] =
+			wasmExports['zif_hash_copy'];
+		_zif_hash_algos = Module['_zif_hash_algos'] =
+			wasmExports['zif_hash_algos'];
+		_zif_hash_hmac_algos = Module['_zif_hash_hmac_algos'] =
+			wasmExports['zif_hash_hmac_algos'];
+		_zif_hash_hkdf = Module['_zif_hash_hkdf'] =
+			wasmExports['zif_hash_hkdf'];
+		_zif_hash_pbkdf2 = Module['_zif_hash_pbkdf2'] =
+			wasmExports['zif_hash_pbkdf2'];
+		_zif_hash_equals = Module['_zif_hash_equals'] =
+			wasmExports['zif_hash_equals'];
+		_zim_HashContext___construct = Module['_zim_HashContext___construct'] =
+			wasmExports['zim_HashContext___construct'];
+		_zim_HashContext___serialize = Module['_zim_HashContext___serialize'] =
+			wasmExports['zim_HashContext___serialize'];
+		_zim_HashContext___unserialize = Module[
+			'_zim_HashContext___unserialize'
+		] = wasmExports['zim_HashContext___unserialize'];
+		_zm_startup_hash = Module['_zm_startup_hash'] =
+			wasmExports['zm_startup_hash'];
+		_zm_shutdown_hash = Module['_zm_shutdown_hash'] =
+			wasmExports['zm_shutdown_hash'];
+		_zm_info_hash = Module['_zm_info_hash'] = wasmExports['zm_info_hash'];
+		_PHP_MD4Init = Module['_PHP_MD4Init'] = wasmExports['PHP_MD4Init'];
+		_PHP_MD4Update = Module['_PHP_MD4Update'] =
+			wasmExports['PHP_MD4Update'];
+		_PHP_MD4Final = Module['_PHP_MD4Final'] = wasmExports['PHP_MD4Final'];
+		_PHP_MD2Init = Module['_PHP_MD2Init'] = wasmExports['PHP_MD2Init'];
+		_PHP_MD2Update = Module['_PHP_MD2Update'] =
+			wasmExports['PHP_MD2Update'];
+		_PHP_MD2Final = Module['_PHP_MD2Final'] = wasmExports['PHP_MD2Final'];
+		_PHP_SHA256Init = Module['_PHP_SHA256Init'] =
+			wasmExports['PHP_SHA256Init'];
+		_PHP_SHA256Update = Module['_PHP_SHA256Update'] =
+			wasmExports['PHP_SHA256Update'];
+		_PHP_SHA256Final = Module['_PHP_SHA256Final'] =
+			wasmExports['PHP_SHA256Final'];
+		_PHP_SHA224Init = Module['_PHP_SHA224Init'] =
+			wasmExports['PHP_SHA224Init'];
+		_PHP_SHA224Update = Module['_PHP_SHA224Update'] =
+			wasmExports['PHP_SHA224Update'];
+		_PHP_SHA224Final = Module['_PHP_SHA224Final'] =
+			wasmExports['PHP_SHA224Final'];
+		_PHP_SHA384Init = Module['_PHP_SHA384Init'] =
+			wasmExports['PHP_SHA384Init'];
+		_PHP_SHA384Update = Module['_PHP_SHA384Update'] =
+			wasmExports['PHP_SHA384Update'];
+		_PHP_SHA384Final = Module['_PHP_SHA384Final'] =
+			wasmExports['PHP_SHA384Final'];
+		_PHP_SHA512Init = Module['_PHP_SHA512Init'] =
+			wasmExports['PHP_SHA512Init'];
+		_PHP_SHA512_256Init = Module['_PHP_SHA512_256Init'] =
+			wasmExports['PHP_SHA512_256Init'];
+		_PHP_SHA512_224Init = Module['_PHP_SHA512_224Init'] =
+			wasmExports['PHP_SHA512_224Init'];
+		_PHP_SHA512Update = Module['_PHP_SHA512Update'] =
+			wasmExports['PHP_SHA512Update'];
+		_PHP_SHA512Final = Module['_PHP_SHA512Final'] =
+			wasmExports['PHP_SHA512Final'];
+		_PHP_SHA512_256Final = Module['_PHP_SHA512_256Final'] =
+			wasmExports['PHP_SHA512_256Final'];
+		_PHP_SHA512_224Final = Module['_PHP_SHA512_224Final'] =
+			wasmExports['PHP_SHA512_224Final'];
+		_PHP_RIPEMD128Init = Module['_PHP_RIPEMD128Init'] =
+			wasmExports['PHP_RIPEMD128Init'];
+		_PHP_RIPEMD128Update = Module['_PHP_RIPEMD128Update'] =
+			wasmExports['PHP_RIPEMD128Update'];
+		_PHP_RIPEMD128Final = Module['_PHP_RIPEMD128Final'] =
+			wasmExports['PHP_RIPEMD128Final'];
+		_PHP_RIPEMD160Init = Module['_PHP_RIPEMD160Init'] =
+			wasmExports['PHP_RIPEMD160Init'];
+		_PHP_RIPEMD160Update = Module['_PHP_RIPEMD160Update'] =
+			wasmExports['PHP_RIPEMD160Update'];
+		_PHP_RIPEMD160Final = Module['_PHP_RIPEMD160Final'] =
+			wasmExports['PHP_RIPEMD160Final'];
+		_PHP_RIPEMD256Init = Module['_PHP_RIPEMD256Init'] =
+			wasmExports['PHP_RIPEMD256Init'];
+		_PHP_RIPEMD256Update = Module['_PHP_RIPEMD256Update'] =
+			wasmExports['PHP_RIPEMD256Update'];
+		_PHP_RIPEMD256Final = Module['_PHP_RIPEMD256Final'] =
+			wasmExports['PHP_RIPEMD256Final'];
+		_PHP_RIPEMD320Init = Module['_PHP_RIPEMD320Init'] =
+			wasmExports['PHP_RIPEMD320Init'];
+		_PHP_RIPEMD320Update = Module['_PHP_RIPEMD320Update'] =
+			wasmExports['PHP_RIPEMD320Update'];
+		_PHP_RIPEMD320Final = Module['_PHP_RIPEMD320Final'] =
+			wasmExports['PHP_RIPEMD320Final'];
+		_PHP_3HAVAL128Init = Module['_PHP_3HAVAL128Init'] =
+			wasmExports['PHP_3HAVAL128Init'];
+		_PHP_HAVALUpdate = Module['_PHP_HAVALUpdate'] =
+			wasmExports['PHP_HAVALUpdate'];
+		_PHP_HAVAL128Final = Module['_PHP_HAVAL128Final'] =
+			wasmExports['PHP_HAVAL128Final'];
+		_PHP_3HAVAL160Init = Module['_PHP_3HAVAL160Init'] =
+			wasmExports['PHP_3HAVAL160Init'];
+		_PHP_HAVAL160Final = Module['_PHP_HAVAL160Final'] =
+			wasmExports['PHP_HAVAL160Final'];
+		_PHP_3HAVAL192Init = Module['_PHP_3HAVAL192Init'] =
+			wasmExports['PHP_3HAVAL192Init'];
+		_PHP_HAVAL192Final = Module['_PHP_HAVAL192Final'] =
+			wasmExports['PHP_HAVAL192Final'];
+		_PHP_3HAVAL224Init = Module['_PHP_3HAVAL224Init'] =
+			wasmExports['PHP_3HAVAL224Init'];
+		_PHP_HAVAL224Final = Module['_PHP_HAVAL224Final'] =
+			wasmExports['PHP_HAVAL224Final'];
+		_PHP_3HAVAL256Init = Module['_PHP_3HAVAL256Init'] =
+			wasmExports['PHP_3HAVAL256Init'];
+		_PHP_HAVAL256Final = Module['_PHP_HAVAL256Final'] =
+			wasmExports['PHP_HAVAL256Final'];
+		_PHP_4HAVAL128Init = Module['_PHP_4HAVAL128Init'] =
+			wasmExports['PHP_4HAVAL128Init'];
+		_PHP_4HAVAL160Init = Module['_PHP_4HAVAL160Init'] =
+			wasmExports['PHP_4HAVAL160Init'];
+		_PHP_4HAVAL192Init = Module['_PHP_4HAVAL192Init'] =
+			wasmExports['PHP_4HAVAL192Init'];
+		_PHP_4HAVAL224Init = Module['_PHP_4HAVAL224Init'] =
+			wasmExports['PHP_4HAVAL224Init'];
+		_PHP_4HAVAL256Init = Module['_PHP_4HAVAL256Init'] =
+			wasmExports['PHP_4HAVAL256Init'];
+		_PHP_5HAVAL128Init = Module['_PHP_5HAVAL128Init'] =
+			wasmExports['PHP_5HAVAL128Init'];
+		_PHP_5HAVAL160Init = Module['_PHP_5HAVAL160Init'] =
+			wasmExports['PHP_5HAVAL160Init'];
+		_PHP_5HAVAL192Init = Module['_PHP_5HAVAL192Init'] =
+			wasmExports['PHP_5HAVAL192Init'];
+		_PHP_5HAVAL224Init = Module['_PHP_5HAVAL224Init'] =
+			wasmExports['PHP_5HAVAL224Init'];
+		_PHP_5HAVAL256Init = Module['_PHP_5HAVAL256Init'] =
+			wasmExports['PHP_5HAVAL256Init'];
+		_PHP_3TIGERInit = Module['_PHP_3TIGERInit'] =
+			wasmExports['PHP_3TIGERInit'];
+		_PHP_4TIGERInit = Module['_PHP_4TIGERInit'] =
+			wasmExports['PHP_4TIGERInit'];
+		_PHP_TIGERUpdate = Module['_PHP_TIGERUpdate'] =
+			wasmExports['PHP_TIGERUpdate'];
+		_PHP_TIGER128Final = Module['_PHP_TIGER128Final'] =
+			wasmExports['PHP_TIGER128Final'];
+		_PHP_TIGER160Final = Module['_PHP_TIGER160Final'] =
+			wasmExports['PHP_TIGER160Final'];
+		_PHP_TIGER192Final = Module['_PHP_TIGER192Final'] =
+			wasmExports['PHP_TIGER192Final'];
+		_PHP_GOSTInit = Module['_PHP_GOSTInit'] = wasmExports['PHP_GOSTInit'];
+		_PHP_GOSTInitCrypto = Module['_PHP_GOSTInitCrypto'] =
+			wasmExports['PHP_GOSTInitCrypto'];
+		_PHP_GOSTUpdate = Module['_PHP_GOSTUpdate'] =
+			wasmExports['PHP_GOSTUpdate'];
+		_PHP_GOSTFinal = Module['_PHP_GOSTFinal'] =
+			wasmExports['PHP_GOSTFinal'];
+		_PHP_SNEFRUInit = Module['_PHP_SNEFRUInit'] =
+			wasmExports['PHP_SNEFRUInit'];
+		_PHP_SNEFRUUpdate = Module['_PHP_SNEFRUUpdate'] =
+			wasmExports['PHP_SNEFRUUpdate'];
+		_PHP_SNEFRUFinal = Module['_PHP_SNEFRUFinal'] =
+			wasmExports['PHP_SNEFRUFinal'];
+		_PHP_WHIRLPOOLInit = Module['_PHP_WHIRLPOOLInit'] =
+			wasmExports['PHP_WHIRLPOOLInit'];
+		_PHP_WHIRLPOOLUpdate = Module['_PHP_WHIRLPOOLUpdate'] =
+			wasmExports['PHP_WHIRLPOOLUpdate'];
+		_PHP_WHIRLPOOLFinal = Module['_PHP_WHIRLPOOLFinal'] =
+			wasmExports['PHP_WHIRLPOOLFinal'];
+		_PHP_ADLER32Init = Module['_PHP_ADLER32Init'] =
+			wasmExports['PHP_ADLER32Init'];
+		_PHP_ADLER32Update = Module['_PHP_ADLER32Update'] =
+			wasmExports['PHP_ADLER32Update'];
+		_PHP_ADLER32Final = Module['_PHP_ADLER32Final'] =
+			wasmExports['PHP_ADLER32Final'];
+		_PHP_ADLER32Copy = Module['_PHP_ADLER32Copy'] =
+			wasmExports['PHP_ADLER32Copy'];
+		_PHP_CRC32Init = Module['_PHP_CRC32Init'] =
+			wasmExports['PHP_CRC32Init'];
+		_PHP_CRC32Update = Module['_PHP_CRC32Update'] =
+			wasmExports['PHP_CRC32Update'];
+		_PHP_CRC32BUpdate = Module['_PHP_CRC32BUpdate'] =
+			wasmExports['PHP_CRC32BUpdate'];
+		_PHP_CRC32CUpdate = Module['_PHP_CRC32CUpdate'] =
+			wasmExports['PHP_CRC32CUpdate'];
+		_PHP_CRC32LEFinal = Module['_PHP_CRC32LEFinal'] =
+			wasmExports['PHP_CRC32LEFinal'];
+		_PHP_CRC32BEFinal = Module['_PHP_CRC32BEFinal'] =
+			wasmExports['PHP_CRC32BEFinal'];
+		_PHP_CRC32Copy = Module['_PHP_CRC32Copy'] =
+			wasmExports['PHP_CRC32Copy'];
+		_PHP_FNV132Init = Module['_PHP_FNV132Init'] =
+			wasmExports['PHP_FNV132Init'];
+		_PHP_FNV132Update = Module['_PHP_FNV132Update'] =
+			wasmExports['PHP_FNV132Update'];
+		_PHP_FNV132Final = Module['_PHP_FNV132Final'] =
+			wasmExports['PHP_FNV132Final'];
+		_PHP_FNV1a32Update = Module['_PHP_FNV1a32Update'] =
+			wasmExports['PHP_FNV1a32Update'];
+		_PHP_FNV164Init = Module['_PHP_FNV164Init'] =
+			wasmExports['PHP_FNV164Init'];
+		_PHP_FNV164Update = Module['_PHP_FNV164Update'] =
+			wasmExports['PHP_FNV164Update'];
+		_PHP_FNV164Final = Module['_PHP_FNV164Final'] =
+			wasmExports['PHP_FNV164Final'];
+		_PHP_FNV1a64Update = Module['_PHP_FNV1a64Update'] =
+			wasmExports['PHP_FNV1a64Update'];
+		_PHP_JOAATInit = Module['_PHP_JOAATInit'] =
+			wasmExports['PHP_JOAATInit'];
+		_PHP_JOAATUpdate = Module['_PHP_JOAATUpdate'] =
+			wasmExports['PHP_JOAATUpdate'];
+		_PHP_JOAATFinal = Module['_PHP_JOAATFinal'] =
+			wasmExports['PHP_JOAATFinal'];
+		_KeccakP1600_SetBytesInLaneToZero = Module[
+			'_KeccakP1600_SetBytesInLaneToZero'
+		] = wasmExports['KeccakP1600_SetBytesInLaneToZero'];
+		_KeccakP1600_Initialize = Module['_KeccakP1600_Initialize'] =
+			wasmExports['KeccakP1600_Initialize'];
+		_KeccakP1600_AddByte = Module['_KeccakP1600_AddByte'] =
+			wasmExports['KeccakP1600_AddByte'];
+		_KeccakP1600_AddBytesInLane = Module['_KeccakP1600_AddBytesInLane'] =
+			wasmExports['KeccakP1600_AddBytesInLane'];
+		_KeccakP1600_AddLanes = Module['_KeccakP1600_AddLanes'] =
+			wasmExports['KeccakP1600_AddLanes'];
+		_KeccakP1600_AddBytes = Module['_KeccakP1600_AddBytes'] =
+			wasmExports['KeccakP1600_AddBytes'];
+		_KeccakP1600_OverwriteBytesInLane = Module[
+			'_KeccakP1600_OverwriteBytesInLane'
+		] = wasmExports['KeccakP1600_OverwriteBytesInLane'];
+		_KeccakP1600_OverwriteLanes = Module['_KeccakP1600_OverwriteLanes'] =
+			wasmExports['KeccakP1600_OverwriteLanes'];
+		_KeccakP1600_OverwriteBytes = Module['_KeccakP1600_OverwriteBytes'] =
+			wasmExports['KeccakP1600_OverwriteBytes'];
+		_KeccakP1600_OverwriteWithZeroes = Module[
+			'_KeccakP1600_OverwriteWithZeroes'
+		] = wasmExports['KeccakP1600_OverwriteWithZeroes'];
+		_KeccakP1600_ExtractBytesInLane = Module[
+			'_KeccakP1600_ExtractBytesInLane'
+		] = wasmExports['KeccakP1600_ExtractBytesInLane'];
+		_KeccakP1600_ExtractLanes = Module['_KeccakP1600_ExtractLanes'] =
+			wasmExports['KeccakP1600_ExtractLanes'];
+		_KeccakP1600_ExtractBytes = Module['_KeccakP1600_ExtractBytes'] =
+			wasmExports['KeccakP1600_ExtractBytes'];
+		_KeccakP1600_ExtractAndAddBytesInLane = Module[
+			'_KeccakP1600_ExtractAndAddBytesInLane'
+		] = wasmExports['KeccakP1600_ExtractAndAddBytesInLane'];
+		_KeccakP1600_ExtractAndAddLanes = Module[
+			'_KeccakP1600_ExtractAndAddLanes'
+		] = wasmExports['KeccakP1600_ExtractAndAddLanes'];
+		_KeccakP1600_ExtractAndAddBytes = Module[
+			'_KeccakP1600_ExtractAndAddBytes'
+		] = wasmExports['KeccakP1600_ExtractAndAddBytes'];
+		_KeccakP1600_Permute_Nrounds = Module['_KeccakP1600_Permute_Nrounds'] =
+			wasmExports['KeccakP1600_Permute_Nrounds'];
+		_KeccakP1600_Permute_12rounds = Module[
+			'_KeccakP1600_Permute_12rounds'
+		] = wasmExports['KeccakP1600_Permute_12rounds'];
+		_KeccakP1600_Permute_24rounds = Module[
+			'_KeccakP1600_Permute_24rounds'
+		] = wasmExports['KeccakP1600_Permute_24rounds'];
+		_Keccak_HashInitialize = Module['_Keccak_HashInitialize'] =
+			wasmExports['Keccak_HashInitialize'];
+		_Keccak_HashUpdate = Module['_Keccak_HashUpdate'] =
+			wasmExports['Keccak_HashUpdate'];
+		_Keccak_HashFinal = Module['_Keccak_HashFinal'] =
+			wasmExports['Keccak_HashFinal'];
+		_Keccak_HashSqueeze = Module['_Keccak_HashSqueeze'] =
+			wasmExports['Keccak_HashSqueeze'];
+		_KeccakWidth1600_Sponge = Module['_KeccakWidth1600_Sponge'] =
+			wasmExports['KeccakWidth1600_Sponge'];
+		_KeccakWidth1600_SpongeInitialize = Module[
+			'_KeccakWidth1600_SpongeInitialize'
+		] = wasmExports['KeccakWidth1600_SpongeInitialize'];
+		_KeccakWidth1600_SpongeAbsorb = Module[
+			'_KeccakWidth1600_SpongeAbsorb'
+		] = wasmExports['KeccakWidth1600_SpongeAbsorb'];
+		_KeccakWidth1600_SpongeAbsorbLastFewBits = Module[
+			'_KeccakWidth1600_SpongeAbsorbLastFewBits'
+		] = wasmExports['KeccakWidth1600_SpongeAbsorbLastFewBits'];
+		_KeccakWidth1600_SpongeSqueeze = Module[
+			'_KeccakWidth1600_SpongeSqueeze'
+		] = wasmExports['KeccakWidth1600_SpongeSqueeze'];
+		_KeccakWidth1600_12rounds_Sponge = Module[
+			'_KeccakWidth1600_12rounds_Sponge'
+		] = wasmExports['KeccakWidth1600_12rounds_Sponge'];
+		_KeccakWidth1600_12rounds_SpongeInitialize = Module[
+			'_KeccakWidth1600_12rounds_SpongeInitialize'
+		] = wasmExports['KeccakWidth1600_12rounds_SpongeInitialize'];
+		_KeccakWidth1600_12rounds_SpongeAbsorb = Module[
+			'_KeccakWidth1600_12rounds_SpongeAbsorb'
+		] = wasmExports['KeccakWidth1600_12rounds_SpongeAbsorb'];
+		_KeccakWidth1600_12rounds_SpongeAbsorbLastFewBits = Module[
+			'_KeccakWidth1600_12rounds_SpongeAbsorbLastFewBits'
+		] = wasmExports['KeccakWidth1600_12rounds_SpongeAbsorbLastFewBits'];
+		_KeccakWidth1600_12rounds_SpongeSqueeze = Module[
+			'_KeccakWidth1600_12rounds_SpongeSqueeze'
+		] = wasmExports['KeccakWidth1600_12rounds_SpongeSqueeze'];
+		_PHP_SHA3224Init = Module['_PHP_SHA3224Init'] =
+			wasmExports['PHP_SHA3224Init'];
+		_PHP_SHA3224Update = Module['_PHP_SHA3224Update'] =
+			wasmExports['PHP_SHA3224Update'];
+		_PHP_SHA3224Final = Module['_PHP_SHA3224Final'] =
+			wasmExports['PHP_SHA3224Final'];
+		_PHP_SHA3256Init = Module['_PHP_SHA3256Init'] =
+			wasmExports['PHP_SHA3256Init'];
+		_PHP_SHA3256Update = Module['_PHP_SHA3256Update'] =
+			wasmExports['PHP_SHA3256Update'];
+		_PHP_SHA3256Final = Module['_PHP_SHA3256Final'] =
+			wasmExports['PHP_SHA3256Final'];
+		_PHP_SHA3384Init = Module['_PHP_SHA3384Init'] =
+			wasmExports['PHP_SHA3384Init'];
+		_PHP_SHA3384Update = Module['_PHP_SHA3384Update'] =
+			wasmExports['PHP_SHA3384Update'];
+		_PHP_SHA3384Final = Module['_PHP_SHA3384Final'] =
+			wasmExports['PHP_SHA3384Final'];
+		_PHP_SHA3512Init = Module['_PHP_SHA3512Init'] =
+			wasmExports['PHP_SHA3512Init'];
+		_PHP_SHA3512Update = Module['_PHP_SHA3512Update'] =
+			wasmExports['PHP_SHA3512Update'];
+		_PHP_SHA3512Final = Module['_PHP_SHA3512Final'] =
+			wasmExports['PHP_SHA3512Final'];
+		_zm_startup_miconv = Module['_zm_startup_miconv'] =
+			wasmExports['zm_startup_miconv'];
+		_zm_shutdown_miconv = Module['_zm_shutdown_miconv'] =
+			wasmExports['zm_shutdown_miconv'];
+		_zm_info_miconv = Module['_zm_info_miconv'] =
+			wasmExports['zm_info_miconv'];
+		_php_iconv_string = Module['_php_iconv_string'] =
+			wasmExports['php_iconv_string'];
+		_zif_iconv_strlen = Module['_zif_iconv_strlen'] =
+			wasmExports['zif_iconv_strlen'];
+		_zif_iconv_substr = Module['_zif_iconv_substr'] =
+			wasmExports['zif_iconv_substr'];
+		_zif_iconv_strpos = Module['_zif_iconv_strpos'] =
+			wasmExports['zif_iconv_strpos'];
+		_zif_iconv_strrpos = Module['_zif_iconv_strrpos'] =
+			wasmExports['zif_iconv_strrpos'];
+		_zif_iconv_mime_encode = Module['_zif_iconv_mime_encode'] =
+			wasmExports['zif_iconv_mime_encode'];
+		_zif_iconv_mime_decode = Module['_zif_iconv_mime_decode'] =
+			wasmExports['zif_iconv_mime_decode'];
+		_zif_iconv_mime_decode_headers = Module[
+			'_zif_iconv_mime_decode_headers'
+		] = wasmExports['zif_iconv_mime_decode_headers'];
+		_zif_iconv = Module['_zif_iconv'] = wasmExports['zif_iconv'];
+		_zif_iconv_set_encoding = Module['_zif_iconv_set_encoding'] =
+			wasmExports['zif_iconv_set_encoding'];
+		_zif_iconv_get_encoding = Module['_zif_iconv_get_encoding'] =
+			wasmExports['zif_iconv_get_encoding'];
+		_php_json_encode_ex = Module['_php_json_encode_ex'] =
+			wasmExports['php_json_encode_ex'];
+		_php_json_encode = Module['_php_json_encode'] =
+			wasmExports['php_json_encode'];
+		_php_json_decode_ex = Module['_php_json_decode_ex'] =
+			wasmExports['php_json_decode_ex'];
+		_zif_json_encode = Module['_zif_json_encode'] =
+			wasmExports['zif_json_encode'];
+		_zif_json_decode = Module['_zif_json_decode'] =
+			wasmExports['zif_json_decode'];
+		_zif_json_last_error = Module['_zif_json_last_error'] =
+			wasmExports['zif_json_last_error'];
+		_zif_json_last_error_msg = Module['_zif_json_last_error_msg'] =
+			wasmExports['zif_json_last_error_msg'];
+		_php_json_encode_zval = Module['_php_json_encode_zval'] =
+			wasmExports['php_json_encode_zval'];
+		_php_json_yyparse = Module['_php_json_yyparse'] =
+			wasmExports['php_json_yyparse'];
+		_php_json_parser_error_code = Module['_php_json_parser_error_code'] =
+			wasmExports['php_json_parser_error_code'];
+		_php_json_parser_init_ex = Module['_php_json_parser_init_ex'] =
+			wasmExports['php_json_parser_init_ex'];
+		_php_json_parser_init = Module['_php_json_parser_init'] =
+			wasmExports['php_json_parser_init'];
+		_php_json_parse = Module['_php_json_parse'] =
+			wasmExports['php_json_parse'];
+		_php_json_scanner_init = Module['_php_json_scanner_init'] =
+			wasmExports['php_json_scanner_init'];
+		_php_json_scan = Module['_php_json_scan'] =
+			wasmExports['php_json_scan'];
+		_zm_startup_mbstring = Module['_zm_startup_mbstring'] =
+			wasmExports['zm_startup_mbstring'];
+		_zm_shutdown_mbstring = Module['_zm_shutdown_mbstring'] =
+			wasmExports['zm_shutdown_mbstring'];
+		_zm_activate_mbstring = Module['_zm_activate_mbstring'] =
+			wasmExports['zm_activate_mbstring'];
+		_zm_deactivate_mbstring = Module['_zm_deactivate_mbstring'] =
+			wasmExports['zm_deactivate_mbstring'];
+		_zm_info_mbstring = Module['_zm_info_mbstring'] =
+			wasmExports['zm_info_mbstring'];
+		_php_mb_safe_strrchr_ex = Module['_php_mb_safe_strrchr_ex'] =
+			wasmExports['php_mb_safe_strrchr_ex'];
+		_zif_mb_language = Module['_zif_mb_language'] =
+			wasmExports['zif_mb_language'];
+		_zif_mb_internal_encoding = Module['_zif_mb_internal_encoding'] =
+			wasmExports['zif_mb_internal_encoding'];
+		_zif_mb_http_input = Module['_zif_mb_http_input'] =
+			wasmExports['zif_mb_http_input'];
+		_zif_mb_http_output = Module['_zif_mb_http_output'] =
+			wasmExports['zif_mb_http_output'];
+		_zif_mb_detect_order = Module['_zif_mb_detect_order'] =
+			wasmExports['zif_mb_detect_order'];
+		_zif_mb_substitute_character = Module['_zif_mb_substitute_character'] =
+			wasmExports['zif_mb_substitute_character'];
+		_zif_mb_preferred_mime_name = Module['_zif_mb_preferred_mime_name'] =
+			wasmExports['zif_mb_preferred_mime_name'];
+		_zif_mb_parse_str = Module['_zif_mb_parse_str'] =
+			wasmExports['zif_mb_parse_str'];
+		_zif_mb_output_handler = Module['_zif_mb_output_handler'] =
+			wasmExports['zif_mb_output_handler'];
+		_zif_mb_str_split = Module['_zif_mb_str_split'] =
+			wasmExports['zif_mb_str_split'];
+		_zif_mb_strlen = Module['_zif_mb_strlen'] =
+			wasmExports['zif_mb_strlen'];
+		_zif_mb_strpos = Module['_zif_mb_strpos'] =
+			wasmExports['zif_mb_strpos'];
+		_zif_mb_strrpos = Module['_zif_mb_strrpos'] =
+			wasmExports['zif_mb_strrpos'];
+		_zif_mb_stripos = Module['_zif_mb_stripos'] =
+			wasmExports['zif_mb_stripos'];
+		_php_mb_stripos = Module['_php_mb_stripos'] =
+			wasmExports['php_mb_stripos'];
+		_zif_mb_strripos = Module['_zif_mb_strripos'] =
+			wasmExports['zif_mb_strripos'];
+		_zif_mb_strstr = Module['_zif_mb_strstr'] =
+			wasmExports['zif_mb_strstr'];
+		_zif_mb_strrchr = Module['_zif_mb_strrchr'] =
+			wasmExports['zif_mb_strrchr'];
+		_zif_mb_stristr = Module['_zif_mb_stristr'] =
+			wasmExports['zif_mb_stristr'];
+		_zif_mb_strrichr = Module['_zif_mb_strrichr'] =
+			wasmExports['zif_mb_strrichr'];
+		_zif_mb_substr_count = Module['_zif_mb_substr_count'] =
+			wasmExports['zif_mb_substr_count'];
+		_zif_mb_substr = Module['_zif_mb_substr'] =
+			wasmExports['zif_mb_substr'];
+		_zif_mb_strcut = Module['_zif_mb_strcut'] =
+			wasmExports['zif_mb_strcut'];
+		_zif_mb_strwidth = Module['_zif_mb_strwidth'] =
+			wasmExports['zif_mb_strwidth'];
+		_zif_mb_strimwidth = Module['_zif_mb_strimwidth'] =
+			wasmExports['zif_mb_strimwidth'];
+		_php_mb_convert_encoding_ex = Module['_php_mb_convert_encoding_ex'] =
+			wasmExports['php_mb_convert_encoding_ex'];
+		_php_mb_convert_encoding = Module['_php_mb_convert_encoding'] =
+			wasmExports['php_mb_convert_encoding'];
+		_php_mb_convert_encoding_recursive = Module[
+			'_php_mb_convert_encoding_recursive'
+		] = wasmExports['php_mb_convert_encoding_recursive'];
+		_zif_mb_convert_encoding = Module['_zif_mb_convert_encoding'] =
+			wasmExports['zif_mb_convert_encoding'];
+		_zif_mb_convert_case = Module['_zif_mb_convert_case'] =
+			wasmExports['zif_mb_convert_case'];
+		_zif_mb_strtoupper = Module['_zif_mb_strtoupper'] =
+			wasmExports['zif_mb_strtoupper'];
+		_zif_mb_strtolower = Module['_zif_mb_strtolower'] =
+			wasmExports['zif_mb_strtolower'];
+		_zif_mb_detect_encoding = Module['_zif_mb_detect_encoding'] =
+			wasmExports['zif_mb_detect_encoding'];
+		_zif_mb_list_encodings = Module['_zif_mb_list_encodings'] =
+			wasmExports['zif_mb_list_encodings'];
+		_zif_mb_encoding_aliases = Module['_zif_mb_encoding_aliases'] =
+			wasmExports['zif_mb_encoding_aliases'];
+		_zif_mb_encode_mimeheader = Module['_zif_mb_encode_mimeheader'] =
+			wasmExports['zif_mb_encode_mimeheader'];
+		_zif_mb_decode_mimeheader = Module['_zif_mb_decode_mimeheader'] =
+			wasmExports['zif_mb_decode_mimeheader'];
+		_zif_mb_convert_kana = Module['_zif_mb_convert_kana'] =
+			wasmExports['zif_mb_convert_kana'];
+		_zif_mb_convert_variables = Module['_zif_mb_convert_variables'] =
+			wasmExports['zif_mb_convert_variables'];
+		_zif_mb_encode_numericentity = Module['_zif_mb_encode_numericentity'] =
+			wasmExports['zif_mb_encode_numericentity'];
+		_zif_mb_decode_numericentity = Module['_zif_mb_decode_numericentity'] =
+			wasmExports['zif_mb_decode_numericentity'];
+		_zif_mb_send_mail = Module['_zif_mb_send_mail'] =
+			wasmExports['zif_mb_send_mail'];
+		_zif_mb_get_info = Module['_zif_mb_get_info'] =
+			wasmExports['zif_mb_get_info'];
+		_php_mb_check_encoding = Module['_php_mb_check_encoding'] =
+			wasmExports['php_mb_check_encoding'];
+		_zif_mb_check_encoding = Module['_zif_mb_check_encoding'] =
+			wasmExports['zif_mb_check_encoding'];
+		_zif_mb_ord = Module['_zif_mb_ord'] = wasmExports['zif_mb_ord'];
+		_zif_mb_chr = Module['_zif_mb_chr'] = wasmExports['zif_mb_chr'];
+		_zif_mb_scrub = Module['_zif_mb_scrub'] = wasmExports['zif_mb_scrub'];
+		_php_mb_mbchar_bytes_ex = Module['_php_mb_mbchar_bytes_ex'] =
+			wasmExports['php_mb_mbchar_bytes_ex'];
+		_php_mb_mbchar_bytes = Module['_php_mb_mbchar_bytes'] =
+			wasmExports['php_mb_mbchar_bytes'];
+		_php_mb_safe_strrchr = Module['_php_mb_safe_strrchr'] =
+			wasmExports['php_mb_safe_strrchr'];
+		_php_unicode_is_prop1 = Module['_php_unicode_is_prop1'] =
+			wasmExports['php_unicode_is_prop1'];
+		_php_unicode_is_prop = Module['_php_unicode_is_prop'] =
+			wasmExports['php_unicode_is_prop'];
+		_php_unicode_tofold_raw = Module['_php_unicode_tofold_raw'] =
+			wasmExports['php_unicode_tofold_raw'];
+		_php_unicode_convert_case = Module['_php_unicode_convert_case'] =
+			wasmExports['php_unicode_convert_case'];
+		_mbstr_treat_data = Module['_mbstr_treat_data'] =
+			wasmExports['mbstr_treat_data'];
+		__php_mb_encoding_handler_ex = Module['__php_mb_encoding_handler_ex'] =
+			wasmExports['_php_mb_encoding_handler_ex'];
+		_php_mb_post_handler = Module['_php_mb_post_handler'] =
+			wasmExports['php_mb_post_handler'];
+		_php_mb_regex_globals_alloc = Module['_php_mb_regex_globals_alloc'] =
+			wasmExports['php_mb_regex_globals_alloc'];
+		_php_mb_regex_globals_free = Module['_php_mb_regex_globals_free'] =
+			wasmExports['php_mb_regex_globals_free'];
+		_zm_startup_mb_regex = Module['_zm_startup_mb_regex'] =
+			wasmExports['zm_startup_mb_regex'];
+		_zm_shutdown_mb_regex = Module['_zm_shutdown_mb_regex'] =
+			wasmExports['zm_shutdown_mb_regex'];
+		_zm_activate_mb_regex = Module['_zm_activate_mb_regex'] =
+			wasmExports['zm_activate_mb_regex'];
+		_zm_deactivate_mb_regex = Module['_zm_deactivate_mb_regex'] =
+			wasmExports['zm_deactivate_mb_regex'];
+		_php_mb_regex_get_default_mbctype = Module[
+			'_php_mb_regex_get_default_mbctype'
+		] = wasmExports['php_mb_regex_get_default_mbctype'];
+		_zm_info_mb_regex = Module['_zm_info_mb_regex'] =
+			wasmExports['zm_info_mb_regex'];
+		_php_mb_regex_set_mbctype = Module['_php_mb_regex_set_mbctype'] =
+			wasmExports['php_mb_regex_set_mbctype'];
+		_php_mb_regex_set_default_mbctype = Module[
+			'_php_mb_regex_set_default_mbctype'
+		] = wasmExports['php_mb_regex_set_default_mbctype'];
+		_php_mb_regex_get_mbctype = Module['_php_mb_regex_get_mbctype'] =
+			wasmExports['php_mb_regex_get_mbctype'];
+		_php_mb_regex_get_mbctype_encoding = Module[
+			'_php_mb_regex_get_mbctype_encoding'
+		] = wasmExports['php_mb_regex_get_mbctype_encoding'];
+		_zif_mb_regex_encoding = Module['_zif_mb_regex_encoding'] =
+			wasmExports['zif_mb_regex_encoding'];
+		_zif_mb_ereg = Module['_zif_mb_ereg'] = wasmExports['zif_mb_ereg'];
+		_zif_mb_eregi = Module['_zif_mb_eregi'] = wasmExports['zif_mb_eregi'];
+		_zif_mb_ereg_replace = Module['_zif_mb_ereg_replace'] =
+			wasmExports['zif_mb_ereg_replace'];
+		_zif_mb_eregi_replace = Module['_zif_mb_eregi_replace'] =
+			wasmExports['zif_mb_eregi_replace'];
+		_zif_mb_ereg_replace_callback = Module[
+			'_zif_mb_ereg_replace_callback'
+		] = wasmExports['zif_mb_ereg_replace_callback'];
+		_zif_mb_split = Module['_zif_mb_split'] = wasmExports['zif_mb_split'];
+		_zif_mb_ereg_match = Module['_zif_mb_ereg_match'] =
+			wasmExports['zif_mb_ereg_match'];
+		_zif_mb_ereg_search = Module['_zif_mb_ereg_search'] =
+			wasmExports['zif_mb_ereg_search'];
+		_zif_mb_ereg_search_pos = Module['_zif_mb_ereg_search_pos'] =
+			wasmExports['zif_mb_ereg_search_pos'];
+		_zif_mb_ereg_search_regs = Module['_zif_mb_ereg_search_regs'] =
+			wasmExports['zif_mb_ereg_search_regs'];
+		_zif_mb_ereg_search_init = Module['_zif_mb_ereg_search_init'] =
+			wasmExports['zif_mb_ereg_search_init'];
+		_zif_mb_ereg_search_getregs = Module['_zif_mb_ereg_search_getregs'] =
+			wasmExports['zif_mb_ereg_search_getregs'];
+		_zif_mb_ereg_search_getpos = Module['_zif_mb_ereg_search_getpos'] =
+			wasmExports['zif_mb_ereg_search_getpos'];
+		_zif_mb_ereg_search_setpos = Module['_zif_mb_ereg_search_setpos'] =
+			wasmExports['zif_mb_ereg_search_setpos'];
+		_zif_mb_regex_set_options = Module['_zif_mb_regex_set_options'] =
+			wasmExports['zif_mb_regex_set_options'];
+		_mbfl_filt_conv_any_7bit = Module['_mbfl_filt_conv_any_7bit'] =
+			wasmExports['mbfl_filt_conv_any_7bit'];
+		_mbfl_filt_conv_7bit_any = Module['_mbfl_filt_conv_7bit_any'] =
+			wasmExports['mbfl_filt_conv_7bit_any'];
+		_mbfl_filt_conv_ascii_wchar = Module['_mbfl_filt_conv_ascii_wchar'] =
+			wasmExports['mbfl_filt_conv_ascii_wchar'];
+		_mbfl_filt_conv_wchar_ascii = Module['_mbfl_filt_conv_wchar_ascii'] =
+			wasmExports['mbfl_filt_conv_wchar_ascii'];
+		_mbfl_filt_conv_base64enc = Module['_mbfl_filt_conv_base64enc'] =
+			wasmExports['mbfl_filt_conv_base64enc'];
+		_mbfl_filt_conv_base64enc_flush = Module[
+			'_mbfl_filt_conv_base64enc_flush'
+		] = wasmExports['mbfl_filt_conv_base64enc_flush'];
+		_mbfl_filt_conv_base64dec = Module['_mbfl_filt_conv_base64dec'] =
+			wasmExports['mbfl_filt_conv_base64dec'];
+		_mbfl_filt_conv_base64dec_flush = Module[
+			'_mbfl_filt_conv_base64dec_flush'
+		] = wasmExports['mbfl_filt_conv_base64dec_flush'];
+		_mbfl_filt_conv_big5_wchar = Module['_mbfl_filt_conv_big5_wchar'] =
+			wasmExports['mbfl_filt_conv_big5_wchar'];
+		_mbfl_filt_conv_wchar_big5 = Module['_mbfl_filt_conv_wchar_big5'] =
+			wasmExports['mbfl_filt_conv_wchar_big5'];
+		_mbfl_filt_conv_byte2be_wchar = Module[
+			'_mbfl_filt_conv_byte2be_wchar'
+		] = wasmExports['mbfl_filt_conv_byte2be_wchar'];
+		_mbfl_filt_conv_wchar_byte2be = Module[
+			'_mbfl_filt_conv_wchar_byte2be'
+		] = wasmExports['mbfl_filt_conv_wchar_byte2be'];
+		_mbfl_filt_conv_byte2le_wchar = Module[
+			'_mbfl_filt_conv_byte2le_wchar'
+		] = wasmExports['mbfl_filt_conv_byte2le_wchar'];
+		_mbfl_filt_conv_wchar_byte2le = Module[
+			'_mbfl_filt_conv_wchar_byte2le'
+		] = wasmExports['mbfl_filt_conv_wchar_byte2le'];
+		_mbfl_filt_conv_byte4be_wchar = Module[
+			'_mbfl_filt_conv_byte4be_wchar'
+		] = wasmExports['mbfl_filt_conv_byte4be_wchar'];
+		_mbfl_filt_conv_wchar_byte4be = Module[
+			'_mbfl_filt_conv_wchar_byte4be'
+		] = wasmExports['mbfl_filt_conv_wchar_byte4be'];
+		_mbfl_filt_conv_byte4le_wchar = Module[
+			'_mbfl_filt_conv_byte4le_wchar'
+		] = wasmExports['mbfl_filt_conv_byte4le_wchar'];
+		_mbfl_filt_conv_wchar_byte4le = Module[
+			'_mbfl_filt_conv_wchar_byte4le'
+		] = wasmExports['mbfl_filt_conv_wchar_byte4le'];
+		_mbfl_filt_conv_wchar_cp1251 = Module['_mbfl_filt_conv_wchar_cp1251'] =
+			wasmExports['mbfl_filt_conv_wchar_cp1251'];
+		_mbfl_filt_conv_cp1251_wchar = Module['_mbfl_filt_conv_cp1251_wchar'] =
+			wasmExports['mbfl_filt_conv_cp1251_wchar'];
+		_mbfl_filt_conv_cp1252_wchar = Module['_mbfl_filt_conv_cp1252_wchar'] =
+			wasmExports['mbfl_filt_conv_cp1252_wchar'];
+		_mbfl_filt_conv_wchar_cp1252 = Module['_mbfl_filt_conv_wchar_cp1252'] =
+			wasmExports['mbfl_filt_conv_wchar_cp1252'];
+		_mbfl_filt_conv_cp1254_wchar = Module['_mbfl_filt_conv_cp1254_wchar'] =
+			wasmExports['mbfl_filt_conv_cp1254_wchar'];
+		_mbfl_filt_conv_wchar_cp1254 = Module['_mbfl_filt_conv_wchar_cp1254'] =
+			wasmExports['mbfl_filt_conv_wchar_cp1254'];
+		_mbfl_filt_conv_jis_ms_wchar = Module['_mbfl_filt_conv_jis_ms_wchar'] =
+			wasmExports['mbfl_filt_conv_jis_ms_wchar'];
+		_mbfl_filt_conv_wchar_jis_ms = Module['_mbfl_filt_conv_wchar_jis_ms'] =
+			wasmExports['mbfl_filt_conv_wchar_jis_ms'];
+		_mbfl_filt_conv_wchar_cp50221 = Module[
+			'_mbfl_filt_conv_wchar_cp50221'
+		] = wasmExports['mbfl_filt_conv_wchar_cp50221'];
+		_mbfl_filt_conv_wchar_cp50220raw = Module[
+			'_mbfl_filt_conv_wchar_cp50220raw'
+		] = wasmExports['mbfl_filt_conv_wchar_cp50220raw'];
+		_mbfl_filt_conv_wchar_cp50222 = Module[
+			'_mbfl_filt_conv_wchar_cp50222'
+		] = wasmExports['mbfl_filt_conv_wchar_cp50222'];
+		_mbfl_filt_conv_wchar_cp50222_flush = Module[
+			'_mbfl_filt_conv_wchar_cp50222_flush'
+		] = wasmExports['mbfl_filt_conv_wchar_cp50222_flush'];
+		_mbfl_filt_conv_cp51932_wchar = Module[
+			'_mbfl_filt_conv_cp51932_wchar'
+		] = wasmExports['mbfl_filt_conv_cp51932_wchar'];
+		_mbfl_filt_conv_wchar_cp51932 = Module[
+			'_mbfl_filt_conv_wchar_cp51932'
+		] = wasmExports['mbfl_filt_conv_wchar_cp51932'];
+		_mbfl_filt_conv_wchar_cp850 = Module['_mbfl_filt_conv_wchar_cp850'] =
+			wasmExports['mbfl_filt_conv_wchar_cp850'];
+		_mbfl_filt_conv_cp850_wchar = Module['_mbfl_filt_conv_cp850_wchar'] =
+			wasmExports['mbfl_filt_conv_cp850_wchar'];
+		_mbfl_filt_conv_wchar_cp866 = Module['_mbfl_filt_conv_wchar_cp866'] =
+			wasmExports['mbfl_filt_conv_wchar_cp866'];
+		_mbfl_filt_conv_cp866_wchar = Module['_mbfl_filt_conv_cp866_wchar'] =
+			wasmExports['mbfl_filt_conv_cp866_wchar'];
+		_mbfl_filt_conv_cp932_wchar = Module['_mbfl_filt_conv_cp932_wchar'] =
+			wasmExports['mbfl_filt_conv_cp932_wchar'];
+		_mbfl_filt_conv_wchar_cp932 = Module['_mbfl_filt_conv_wchar_cp932'] =
+			wasmExports['mbfl_filt_conv_wchar_cp932'];
+		_mbfl_filt_conv_cp936_wchar = Module['_mbfl_filt_conv_cp936_wchar'] =
+			wasmExports['mbfl_filt_conv_cp936_wchar'];
+		_mbfl_filt_conv_wchar_cp936 = Module['_mbfl_filt_conv_wchar_cp936'] =
+			wasmExports['mbfl_filt_conv_wchar_cp936'];
+		_mbfl_filt_conv_gb18030_wchar = Module[
+			'_mbfl_filt_conv_gb18030_wchar'
+		] = wasmExports['mbfl_filt_conv_gb18030_wchar'];
+		_mbfl_filt_conv_wchar_gb18030 = Module[
+			'_mbfl_filt_conv_wchar_gb18030'
+		] = wasmExports['mbfl_filt_conv_wchar_gb18030'];
+		_mbfl_bisec_srch = Module['_mbfl_bisec_srch'] =
+			wasmExports['mbfl_bisec_srch'];
+		_mbfl_bisec_srch2 = Module['_mbfl_bisec_srch2'] =
+			wasmExports['mbfl_bisec_srch2'];
+		_mbfl_filt_conv_euccn_wchar = Module['_mbfl_filt_conv_euccn_wchar'] =
+			wasmExports['mbfl_filt_conv_euccn_wchar'];
+		_mbfl_filt_conv_wchar_euccn = Module['_mbfl_filt_conv_wchar_euccn'] =
+			wasmExports['mbfl_filt_conv_wchar_euccn'];
+		_mbfl_filt_ident_eucjp = Module['_mbfl_filt_ident_eucjp'] =
+			wasmExports['mbfl_filt_ident_eucjp'];
+		_mbfl_filt_conv_eucjp_wchar = Module['_mbfl_filt_conv_eucjp_wchar'] =
+			wasmExports['mbfl_filt_conv_eucjp_wchar'];
+		_mbfl_filt_conv_wchar_eucjp = Module['_mbfl_filt_conv_wchar_eucjp'] =
+			wasmExports['mbfl_filt_conv_wchar_eucjp'];
+		_mbfl_filt_conv_eucjpwin_wchar = Module[
+			'_mbfl_filt_conv_eucjpwin_wchar'
+		] = wasmExports['mbfl_filt_conv_eucjpwin_wchar'];
+		_mbfl_filt_conv_wchar_eucjpwin = Module[
+			'_mbfl_filt_conv_wchar_eucjpwin'
+		] = wasmExports['mbfl_filt_conv_wchar_eucjpwin'];
+		_mbfl_filt_conv_euckr_wchar = Module['_mbfl_filt_conv_euckr_wchar'] =
+			wasmExports['mbfl_filt_conv_euckr_wchar'];
+		_mbfl_filt_conv_wchar_euckr = Module['_mbfl_filt_conv_wchar_euckr'] =
+			wasmExports['mbfl_filt_conv_wchar_euckr'];
+		_mbfl_filt_conv_euctw_wchar = Module['_mbfl_filt_conv_euctw_wchar'] =
+			wasmExports['mbfl_filt_conv_euctw_wchar'];
+		_mbfl_filt_conv_wchar_euctw = Module['_mbfl_filt_conv_wchar_euctw'] =
+			wasmExports['mbfl_filt_conv_wchar_euctw'];
+		_mbfl_filt_conv_html_enc = Module['_mbfl_filt_conv_html_enc'] =
+			wasmExports['mbfl_filt_conv_html_enc'];
+		_mbfl_filt_conv_html_enc_flush = Module[
+			'_mbfl_filt_conv_html_enc_flush'
+		] = wasmExports['mbfl_filt_conv_html_enc_flush'];
+		_mbfl_filt_conv_html_dec_ctor = Module[
+			'_mbfl_filt_conv_html_dec_ctor'
+		] = wasmExports['mbfl_filt_conv_html_dec_ctor'];
+		_mbfl_filt_conv_html_dec_dtor = Module[
+			'_mbfl_filt_conv_html_dec_dtor'
+		] = wasmExports['mbfl_filt_conv_html_dec_dtor'];
+		_mbfl_filt_conv_html_dec = Module['_mbfl_filt_conv_html_dec'] =
+			wasmExports['mbfl_filt_conv_html_dec'];
+		_mbfl_filt_conv_html_dec_flush = Module[
+			'_mbfl_filt_conv_html_dec_flush'
+		] = wasmExports['mbfl_filt_conv_html_dec_flush'];
+		_mbfl_filt_conv_html_dec_copy = Module[
+			'_mbfl_filt_conv_html_dec_copy'
+		] = wasmExports['mbfl_filt_conv_html_dec_copy'];
+		_mbfl_filt_conv_hz_wchar = Module['_mbfl_filt_conv_hz_wchar'] =
+			wasmExports['mbfl_filt_conv_hz_wchar'];
+		_mbfl_filt_conv_wchar_hz = Module['_mbfl_filt_conv_wchar_hz'] =
+			wasmExports['mbfl_filt_conv_wchar_hz'];
+		_mbfl_filt_conv_any_hz_flush = Module['_mbfl_filt_conv_any_hz_flush'] =
+			wasmExports['mbfl_filt_conv_any_hz_flush'];
+		_mbfl_filt_ident_2022jpms = Module['_mbfl_filt_ident_2022jpms'] =
+			wasmExports['mbfl_filt_ident_2022jpms'];
+		_mbfl_filt_conv_2022jpms_wchar = Module[
+			'_mbfl_filt_conv_2022jpms_wchar'
+		] = wasmExports['mbfl_filt_conv_2022jpms_wchar'];
+		_mbfl_filt_conv_wchar_2022jpms = Module[
+			'_mbfl_filt_conv_wchar_2022jpms'
+		] = wasmExports['mbfl_filt_conv_wchar_2022jpms'];
+		_mbfl_filt_conv_any_2022jpms_flush = Module[
+			'_mbfl_filt_conv_any_2022jpms_flush'
+		] = wasmExports['mbfl_filt_conv_any_2022jpms_flush'];
+		_mbfl_filt_conv_2022jp_mobile_wchar = Module[
+			'_mbfl_filt_conv_2022jp_mobile_wchar'
+		] = wasmExports['mbfl_filt_conv_2022jp_mobile_wchar'];
+		_mbfl_filt_conv_wchar_2022jp_mobile = Module[
+			'_mbfl_filt_conv_wchar_2022jp_mobile'
+		] = wasmExports['mbfl_filt_conv_wchar_2022jp_mobile'];
+		_mbfl_filt_conv_wchar_2022kr = Module['_mbfl_filt_conv_wchar_2022kr'] =
+			wasmExports['mbfl_filt_conv_wchar_2022kr'];
+		_mbfl_filt_conv_any_2022kr_flush = Module[
+			'_mbfl_filt_conv_any_2022kr_flush'
+		] = wasmExports['mbfl_filt_conv_any_2022kr_flush'];
+		_mbfl_filt_conv_2022kr_wchar = Module['_mbfl_filt_conv_2022kr_wchar'] =
+			wasmExports['mbfl_filt_conv_2022kr_wchar'];
+		_mbfl_filt_conv_8859_1_wchar = Module['_mbfl_filt_conv_8859_1_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_1_wchar'];
+		_mbfl_filt_conv_wchar_8859_1 = Module['_mbfl_filt_conv_wchar_8859_1'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_1'];
+		_mbfl_filt_conv_8859_10_wchar = Module[
+			'_mbfl_filt_conv_8859_10_wchar'
+		] = wasmExports['mbfl_filt_conv_8859_10_wchar'];
+		_mbfl_filt_conv_wchar_8859_10 = Module[
+			'_mbfl_filt_conv_wchar_8859_10'
+		] = wasmExports['mbfl_filt_conv_wchar_8859_10'];
+		_mbfl_filt_conv_8859_13_wchar = Module[
+			'_mbfl_filt_conv_8859_13_wchar'
+		] = wasmExports['mbfl_filt_conv_8859_13_wchar'];
+		_mbfl_filt_conv_wchar_8859_13 = Module[
+			'_mbfl_filt_conv_wchar_8859_13'
+		] = wasmExports['mbfl_filt_conv_wchar_8859_13'];
+		_mbfl_filt_conv_8859_14_wchar = Module[
+			'_mbfl_filt_conv_8859_14_wchar'
+		] = wasmExports['mbfl_filt_conv_8859_14_wchar'];
+		_mbfl_filt_conv_wchar_8859_14 = Module[
+			'_mbfl_filt_conv_wchar_8859_14'
+		] = wasmExports['mbfl_filt_conv_wchar_8859_14'];
+		_mbfl_filt_conv_8859_15_wchar = Module[
+			'_mbfl_filt_conv_8859_15_wchar'
+		] = wasmExports['mbfl_filt_conv_8859_15_wchar'];
+		_mbfl_filt_conv_wchar_8859_15 = Module[
+			'_mbfl_filt_conv_wchar_8859_15'
+		] = wasmExports['mbfl_filt_conv_wchar_8859_15'];
+		_mbfl_filt_conv_8859_16_wchar = Module[
+			'_mbfl_filt_conv_8859_16_wchar'
+		] = wasmExports['mbfl_filt_conv_8859_16_wchar'];
+		_mbfl_filt_conv_wchar_8859_16 = Module[
+			'_mbfl_filt_conv_wchar_8859_16'
+		] = wasmExports['mbfl_filt_conv_wchar_8859_16'];
+		_mbfl_filt_conv_8859_2_wchar = Module['_mbfl_filt_conv_8859_2_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_2_wchar'];
+		_mbfl_filt_conv_wchar_8859_2 = Module['_mbfl_filt_conv_wchar_8859_2'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_2'];
+		_mbfl_filt_conv_8859_3_wchar = Module['_mbfl_filt_conv_8859_3_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_3_wchar'];
+		_mbfl_filt_conv_wchar_8859_3 = Module['_mbfl_filt_conv_wchar_8859_3'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_3'];
+		_mbfl_filt_conv_8859_4_wchar = Module['_mbfl_filt_conv_8859_4_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_4_wchar'];
+		_mbfl_filt_conv_wchar_8859_4 = Module['_mbfl_filt_conv_wchar_8859_4'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_4'];
+		_mbfl_filt_conv_8859_5_wchar = Module['_mbfl_filt_conv_8859_5_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_5_wchar'];
+		_mbfl_filt_conv_wchar_8859_5 = Module['_mbfl_filt_conv_wchar_8859_5'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_5'];
+		_mbfl_filt_conv_8859_6_wchar = Module['_mbfl_filt_conv_8859_6_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_6_wchar'];
+		_mbfl_filt_conv_wchar_8859_6 = Module['_mbfl_filt_conv_wchar_8859_6'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_6'];
+		_mbfl_filt_conv_8859_7_wchar = Module['_mbfl_filt_conv_8859_7_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_7_wchar'];
+		_mbfl_filt_conv_wchar_8859_7 = Module['_mbfl_filt_conv_wchar_8859_7'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_7'];
+		_mbfl_filt_conv_8859_8_wchar = Module['_mbfl_filt_conv_8859_8_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_8_wchar'];
+		_mbfl_filt_conv_wchar_8859_8 = Module['_mbfl_filt_conv_wchar_8859_8'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_8'];
+		_mbfl_filt_conv_8859_9_wchar = Module['_mbfl_filt_conv_8859_9_wchar'] =
+			wasmExports['mbfl_filt_conv_8859_9_wchar'];
+		_mbfl_filt_conv_wchar_8859_9 = Module['_mbfl_filt_conv_wchar_8859_9'] =
+			wasmExports['mbfl_filt_conv_wchar_8859_9'];
+		_mbfl_filt_conv_jis_wchar = Module['_mbfl_filt_conv_jis_wchar'] =
+			wasmExports['mbfl_filt_conv_jis_wchar'];
+		_mbfl_filt_conv_wchar_jis = Module['_mbfl_filt_conv_wchar_jis'] =
+			wasmExports['mbfl_filt_conv_wchar_jis'];
+		_mbfl_filt_conv_any_jis_flush = Module[
+			'_mbfl_filt_conv_any_jis_flush'
+		] = wasmExports['mbfl_filt_conv_any_jis_flush'];
+		_mbfl_filt_conv_wchar_2022jp = Module['_mbfl_filt_conv_wchar_2022jp'] =
+			wasmExports['mbfl_filt_conv_wchar_2022jp'];
+		_mbfl_filt_conv_wchar_koi8r = Module['_mbfl_filt_conv_wchar_koi8r'] =
+			wasmExports['mbfl_filt_conv_wchar_koi8r'];
+		_mbfl_filt_conv_koi8r_wchar = Module['_mbfl_filt_conv_koi8r_wchar'] =
+			wasmExports['mbfl_filt_conv_koi8r_wchar'];
+		_mbfl_filt_conv_wchar_armscii8 = Module[
+			'_mbfl_filt_conv_wchar_armscii8'
+		] = wasmExports['mbfl_filt_conv_wchar_armscii8'];
+		_mbfl_filt_conv_armscii8_wchar = Module[
+			'_mbfl_filt_conv_armscii8_wchar'
+		] = wasmExports['mbfl_filt_conv_armscii8_wchar'];
+		_mbfl_filt_conv_qprintenc = Module['_mbfl_filt_conv_qprintenc'] =
+			wasmExports['mbfl_filt_conv_qprintenc'];
+		_mbfl_filt_conv_qprintenc_flush = Module[
+			'_mbfl_filt_conv_qprintenc_flush'
+		] = wasmExports['mbfl_filt_conv_qprintenc_flush'];
+		_mbfl_filt_conv_qprintdec = Module['_mbfl_filt_conv_qprintdec'] =
+			wasmExports['mbfl_filt_conv_qprintdec'];
+		_mbfl_filt_conv_qprintdec_flush = Module[
+			'_mbfl_filt_conv_qprintdec_flush'
+		] = wasmExports['mbfl_filt_conv_qprintdec_flush'];
+		_mbfl_filt_ident_sjis = Module['_mbfl_filt_ident_sjis'] =
+			wasmExports['mbfl_filt_ident_sjis'];
+		_mbfl_filt_conv_sjis_wchar = Module['_mbfl_filt_conv_sjis_wchar'] =
+			wasmExports['mbfl_filt_conv_sjis_wchar'];
+		_mbfl_filt_conv_wchar_sjis = Module['_mbfl_filt_conv_wchar_sjis'] =
+			wasmExports['mbfl_filt_conv_wchar_sjis'];
+		_mbfl_filt_conv_sjis_open_wchar = Module[
+			'_mbfl_filt_conv_sjis_open_wchar'
+		] = wasmExports['mbfl_filt_conv_sjis_open_wchar'];
+		_mbfl_filt_conv_wchar_sjis_open = Module[
+			'_mbfl_filt_conv_wchar_sjis_open'
+		] = wasmExports['mbfl_filt_conv_wchar_sjis_open'];
+		_mbfl_filt_conv_sjis_mobile_wchar = Module[
+			'_mbfl_filt_conv_sjis_mobile_wchar'
+		] = wasmExports['mbfl_filt_conv_sjis_mobile_wchar'];
+		_mbfilter_sjis_emoji_docomo2unicode = Module[
+			'_mbfilter_sjis_emoji_docomo2unicode'
+		] = wasmExports['mbfilter_sjis_emoji_docomo2unicode'];
+		_mbfilter_sjis_emoji_kddi2unicode = Module[
+			'_mbfilter_sjis_emoji_kddi2unicode'
+		] = wasmExports['mbfilter_sjis_emoji_kddi2unicode'];
+		_mbfilter_sjis_emoji_sb2unicode = Module[
+			'_mbfilter_sjis_emoji_sb2unicode'
+		] = wasmExports['mbfilter_sjis_emoji_sb2unicode'];
+		_mbfl_filt_conv_wchar_sjis_mobile = Module[
+			'_mbfl_filt_conv_wchar_sjis_mobile'
+		] = wasmExports['mbfl_filt_conv_wchar_sjis_mobile'];
+		_mbfilter_unicode2sjis_emoji_docomo = Module[
+			'_mbfilter_unicode2sjis_emoji_docomo'
+		] = wasmExports['mbfilter_unicode2sjis_emoji_docomo'];
+		_mbfilter_unicode2sjis_emoji_kddi = Module[
+			'_mbfilter_unicode2sjis_emoji_kddi'
+		] = wasmExports['mbfilter_unicode2sjis_emoji_kddi'];
+		_mbfilter_unicode2sjis_emoji_sb = Module[
+			'_mbfilter_unicode2sjis_emoji_sb'
+		] = wasmExports['mbfilter_unicode2sjis_emoji_sb'];
+		_mbfl_filt_conv_sjis_mobile_flush = Module[
+			'_mbfl_filt_conv_sjis_mobile_flush'
+		] = wasmExports['mbfl_filt_conv_sjis_mobile_flush'];
+		_mbfilter_conv_map_tbl = Module['_mbfilter_conv_map_tbl'] =
+			wasmExports['mbfilter_conv_map_tbl'];
+		_mbfilter_conv_r_map_tbl = Module['_mbfilter_conv_r_map_tbl'] =
+			wasmExports['mbfilter_conv_r_map_tbl'];
+		_mbfl_filt_conv_sjis_mac_wchar = Module[
+			'_mbfl_filt_conv_sjis_mac_wchar'
+		] = wasmExports['mbfl_filt_conv_sjis_mac_wchar'];
+		_mbfl_filt_conv_wchar_sjis_mac = Module[
+			'_mbfl_filt_conv_wchar_sjis_mac'
+		] = wasmExports['mbfl_filt_conv_wchar_sjis_mac'];
+		_mbfl_filt_conv_jis2004_wchar = Module[
+			'_mbfl_filt_conv_jis2004_wchar'
+		] = wasmExports['mbfl_filt_conv_jis2004_wchar'];
+		_mbfl_filt_conv_wchar_jis2004 = Module[
+			'_mbfl_filt_conv_wchar_jis2004'
+		] = wasmExports['mbfl_filt_conv_wchar_jis2004'];
+		_mbfl_filt_conv_jis2004_flush = Module[
+			'_mbfl_filt_conv_jis2004_flush'
+		] = wasmExports['mbfl_filt_conv_jis2004_flush'];
+		_mbfl_filt_tl_jisx0201_jisx0208_init = Module[
+			'_mbfl_filt_tl_jisx0201_jisx0208_init'
+		] = wasmExports['mbfl_filt_tl_jisx0201_jisx0208_init'];
+		_mbfl_filt_tl_jisx0201_jisx0208 = Module[
+			'_mbfl_filt_tl_jisx0201_jisx0208'
+		] = wasmExports['mbfl_filt_tl_jisx0201_jisx0208'];
+		_mbfl_filt_tl_jisx0201_jisx0208_flush = Module[
+			'_mbfl_filt_tl_jisx0201_jisx0208_flush'
+		] = wasmExports['mbfl_filt_tl_jisx0201_jisx0208_flush'];
+		_mbfl_filt_conv_ucs2_wchar = Module['_mbfl_filt_conv_ucs2_wchar'] =
+			wasmExports['mbfl_filt_conv_ucs2_wchar'];
+		_mbfl_filt_conv_wchar_ucs2be = Module['_mbfl_filt_conv_wchar_ucs2be'] =
+			wasmExports['mbfl_filt_conv_wchar_ucs2be'];
+		_mbfl_filt_conv_ucs2be_wchar = Module['_mbfl_filt_conv_ucs2be_wchar'] =
+			wasmExports['mbfl_filt_conv_ucs2be_wchar'];
+		_mbfl_filt_conv_ucs2le_wchar = Module['_mbfl_filt_conv_ucs2le_wchar'] =
+			wasmExports['mbfl_filt_conv_ucs2le_wchar'];
+		_mbfl_filt_conv_wchar_ucs2le = Module['_mbfl_filt_conv_wchar_ucs2le'] =
+			wasmExports['mbfl_filt_conv_wchar_ucs2le'];
+		_mbfl_filt_conv_ucs4_wchar = Module['_mbfl_filt_conv_ucs4_wchar'] =
+			wasmExports['mbfl_filt_conv_ucs4_wchar'];
+		_mbfl_filt_conv_wchar_ucs4be = Module['_mbfl_filt_conv_wchar_ucs4be'] =
+			wasmExports['mbfl_filt_conv_wchar_ucs4be'];
+		_mbfl_filt_conv_ucs4be_wchar = Module['_mbfl_filt_conv_ucs4be_wchar'] =
+			wasmExports['mbfl_filt_conv_ucs4be_wchar'];
+		_mbfl_filt_conv_ucs4le_wchar = Module['_mbfl_filt_conv_ucs4le_wchar'] =
+			wasmExports['mbfl_filt_conv_ucs4le_wchar'];
+		_mbfl_filt_conv_wchar_ucs4le = Module['_mbfl_filt_conv_wchar_ucs4le'] =
+			wasmExports['mbfl_filt_conv_wchar_ucs4le'];
+		_mbfl_filt_conv_uhc_wchar = Module['_mbfl_filt_conv_uhc_wchar'] =
+			wasmExports['mbfl_filt_conv_uhc_wchar'];
+		_mbfl_filt_conv_wchar_uhc = Module['_mbfl_filt_conv_wchar_uhc'] =
+			wasmExports['mbfl_filt_conv_wchar_uhc'];
+		_mbfl_filt_conv_utf16_wchar = Module['_mbfl_filt_conv_utf16_wchar'] =
+			wasmExports['mbfl_filt_conv_utf16_wchar'];
+		_mbfl_filt_conv_wchar_utf16be = Module[
+			'_mbfl_filt_conv_wchar_utf16be'
+		] = wasmExports['mbfl_filt_conv_wchar_utf16be'];
+		_mbfl_filt_conv_utf16be_wchar = Module[
+			'_mbfl_filt_conv_utf16be_wchar'
+		] = wasmExports['mbfl_filt_conv_utf16be_wchar'];
+		_mbfl_filt_conv_utf16le_wchar = Module[
+			'_mbfl_filt_conv_utf16le_wchar'
+		] = wasmExports['mbfl_filt_conv_utf16le_wchar'];
+		_mbfl_filt_conv_wchar_utf16le = Module[
+			'_mbfl_filt_conv_wchar_utf16le'
+		] = wasmExports['mbfl_filt_conv_wchar_utf16le'];
+		_mbfl_filt_conv_utf32_wchar = Module['_mbfl_filt_conv_utf32_wchar'] =
+			wasmExports['mbfl_filt_conv_utf32_wchar'];
+		_mbfl_filt_conv_wchar_utf32be = Module[
+			'_mbfl_filt_conv_wchar_utf32be'
+		] = wasmExports['mbfl_filt_conv_wchar_utf32be'];
+		_mbfl_filt_conv_utf32be_wchar = Module[
+			'_mbfl_filt_conv_utf32be_wchar'
+		] = wasmExports['mbfl_filt_conv_utf32be_wchar'];
+		_mbfl_filt_conv_utf32le_wchar = Module[
+			'_mbfl_filt_conv_utf32le_wchar'
+		] = wasmExports['mbfl_filt_conv_utf32le_wchar'];
+		_mbfl_filt_conv_wchar_utf32le = Module[
+			'_mbfl_filt_conv_wchar_utf32le'
+		] = wasmExports['mbfl_filt_conv_wchar_utf32le'];
+		_mbfl_filt_conv_utf7_wchar = Module['_mbfl_filt_conv_utf7_wchar'] =
+			wasmExports['mbfl_filt_conv_utf7_wchar'];
+		_mbfl_filt_conv_wchar_utf7 = Module['_mbfl_filt_conv_wchar_utf7'] =
+			wasmExports['mbfl_filt_conv_wchar_utf7'];
+		_mbfl_filt_conv_wchar_utf7_flush = Module[
+			'_mbfl_filt_conv_wchar_utf7_flush'
+		] = wasmExports['mbfl_filt_conv_wchar_utf7_flush'];
+		_mbfl_filt_conv_utf7imap_wchar = Module[
+			'_mbfl_filt_conv_utf7imap_wchar'
+		] = wasmExports['mbfl_filt_conv_utf7imap_wchar'];
+		_mbfl_filt_conv_wchar_utf7imap = Module[
+			'_mbfl_filt_conv_wchar_utf7imap'
+		] = wasmExports['mbfl_filt_conv_wchar_utf7imap'];
+		_mbfl_filt_conv_wchar_utf7imap_flush = Module[
+			'_mbfl_filt_conv_wchar_utf7imap_flush'
+		] = wasmExports['mbfl_filt_conv_wchar_utf7imap_flush'];
+		_mbfl_filt_ident_utf8 = Module['_mbfl_filt_ident_utf8'] =
+			wasmExports['mbfl_filt_ident_utf8'];
+		_mbfl_filt_conv_utf8_wchar = Module['_mbfl_filt_conv_utf8_wchar'] =
+			wasmExports['mbfl_filt_conv_utf8_wchar'];
+		_mbfl_filt_conv_utf8_wchar_flush = Module[
+			'_mbfl_filt_conv_utf8_wchar_flush'
+		] = wasmExports['mbfl_filt_conv_utf8_wchar_flush'];
+		_mbfl_filt_conv_wchar_utf8 = Module['_mbfl_filt_conv_wchar_utf8'] =
+			wasmExports['mbfl_filt_conv_wchar_utf8'];
+		_mbfl_filt_put_invalid_char = Module['_mbfl_filt_put_invalid_char'] =
+			wasmExports['mbfl_filt_put_invalid_char'];
+		_mbfl_filt_conv_utf8_mobile_wchar = Module[
+			'_mbfl_filt_conv_utf8_mobile_wchar'
+		] = wasmExports['mbfl_filt_conv_utf8_mobile_wchar'];
+		_mbfl_filt_conv_wchar_utf8_mobile = Module[
+			'_mbfl_filt_conv_wchar_utf8_mobile'
+		] = wasmExports['mbfl_filt_conv_wchar_utf8_mobile'];
+		_mbfl_filt_conv_uudec = Module['_mbfl_filt_conv_uudec'] =
+			wasmExports['mbfl_filt_conv_uudec'];
+		_mbfl_filt_conv_wchar_koi8u = Module['_mbfl_filt_conv_wchar_koi8u'] =
+			wasmExports['mbfl_filt_conv_wchar_koi8u'];
+		_mbfl_filt_conv_koi8u_wchar = Module['_mbfl_filt_conv_koi8u_wchar'] =
+			wasmExports['mbfl_filt_conv_koi8u_wchar'];
+		_mbfl_buffer_converter_new = Module['_mbfl_buffer_converter_new'] =
+			wasmExports['mbfl_buffer_converter_new'];
+		_mbfl_buffer_converter_delete = Module[
+			'_mbfl_buffer_converter_delete'
+		] = wasmExports['mbfl_buffer_converter_delete'];
+		_mbfl_buffer_converter_illegal_mode = Module[
+			'_mbfl_buffer_converter_illegal_mode'
+		] = wasmExports['mbfl_buffer_converter_illegal_mode'];
+		_mbfl_buffer_converter_illegal_substchar = Module[
+			'_mbfl_buffer_converter_illegal_substchar'
+		] = wasmExports['mbfl_buffer_converter_illegal_substchar'];
+		_mbfl_buffer_converter_feed = Module['_mbfl_buffer_converter_feed'] =
+			wasmExports['mbfl_buffer_converter_feed'];
+		_mbfl_buffer_converter_flush = Module['_mbfl_buffer_converter_flush'] =
+			wasmExports['mbfl_buffer_converter_flush'];
+		_mbfl_buffer_converter_result = Module[
+			'_mbfl_buffer_converter_result'
+		] = wasmExports['mbfl_buffer_converter_result'];
+		_mbfl_buffer_converter_feed_result = Module[
+			'_mbfl_buffer_converter_feed_result'
+		] = wasmExports['mbfl_buffer_converter_feed_result'];
+		_mbfl_buffer_illegalchars = Module['_mbfl_buffer_illegalchars'] =
+			wasmExports['mbfl_buffer_illegalchars'];
+		_mbfl_encoding_detector_new = Module['_mbfl_encoding_detector_new'] =
+			wasmExports['mbfl_encoding_detector_new'];
+		_mbfl_encoding_detector_delete = Module[
+			'_mbfl_encoding_detector_delete'
+		] = wasmExports['mbfl_encoding_detector_delete'];
+		_mbfl_encoding_detector_feed = Module['_mbfl_encoding_detector_feed'] =
+			wasmExports['mbfl_encoding_detector_feed'];
+		_mbfl_encoding_detector_judge = Module[
+			'_mbfl_encoding_detector_judge'
+		] = wasmExports['mbfl_encoding_detector_judge'];
+		_mbfl_convert_encoding = Module['_mbfl_convert_encoding'] =
+			wasmExports['mbfl_convert_encoding'];
+		_mbfl_identify_encoding = Module['_mbfl_identify_encoding'] =
+			wasmExports['mbfl_identify_encoding'];
+		_mbfl_strlen = Module['_mbfl_strlen'] = wasmExports['mbfl_strlen'];
+		_mbfl_strpos = Module['_mbfl_strpos'] = wasmExports['mbfl_strpos'];
+		_mbfl_substr_count = Module['_mbfl_substr_count'] =
+			wasmExports['mbfl_substr_count'];
+		_mbfl_substr = Module['_mbfl_substr'] = wasmExports['mbfl_substr'];
+		_mbfl_strcut = Module['_mbfl_strcut'] = wasmExports['mbfl_strcut'];
+		_mbfl_strwidth = Module['_mbfl_strwidth'] =
+			wasmExports['mbfl_strwidth'];
+		_mbfl_strimwidth = Module['_mbfl_strimwidth'] =
+			wasmExports['mbfl_strimwidth'];
+		_mbfl_ja_jp_hantozen = Module['_mbfl_ja_jp_hantozen'] =
+			wasmExports['mbfl_ja_jp_hantozen'];
+		_mime_header_encoder_result = Module['_mime_header_encoder_result'] =
+			wasmExports['mime_header_encoder_result'];
+		_mime_header_encoder_new = Module['_mime_header_encoder_new'] =
+			wasmExports['mime_header_encoder_new'];
+		_mime_header_encoder_delete = Module['_mime_header_encoder_delete'] =
+			wasmExports['mime_header_encoder_delete'];
+		_mbfl_mime_header_encode = Module['_mbfl_mime_header_encode'] =
+			wasmExports['mbfl_mime_header_encode'];
+		_mime_header_decoder_result = Module['_mime_header_decoder_result'] =
+			wasmExports['mime_header_decoder_result'];
+		_mime_header_decoder_new = Module['_mime_header_decoder_new'] =
+			wasmExports['mime_header_decoder_new'];
+		_mime_header_decoder_delete = Module['_mime_header_decoder_delete'] =
+			wasmExports['mime_header_decoder_delete'];
+		_mbfl_mime_header_decode = Module['_mbfl_mime_header_decode'] =
+			wasmExports['mbfl_mime_header_decode'];
+		_mbfl_filt_decode_htmlnumericentity_flush = Module[
+			'_mbfl_filt_decode_htmlnumericentity_flush'
+		] = wasmExports['mbfl_filt_decode_htmlnumericentity_flush'];
+		_mbfl_html_numeric_entity = Module['_mbfl_html_numeric_entity'] =
+			wasmExports['mbfl_html_numeric_entity'];
+		_mbfl_filt_conv_pass = Module['_mbfl_filt_conv_pass'] =
+			wasmExports['mbfl_filt_conv_pass'];
+		_mbfl_convert_filter_new = Module['_mbfl_convert_filter_new'] =
+			wasmExports['mbfl_convert_filter_new'];
+		_mbfl_convert_filter_get_vtbl = Module[
+			'_mbfl_convert_filter_get_vtbl'
+		] = wasmExports['mbfl_convert_filter_get_vtbl'];
+		_mbfl_convert_filter_new2 = Module['_mbfl_convert_filter_new2'] =
+			wasmExports['mbfl_convert_filter_new2'];
+		_mbfl_convert_filter_delete = Module['_mbfl_convert_filter_delete'] =
+			wasmExports['mbfl_convert_filter_delete'];
+		_mbfl_convert_filter_feed = Module['_mbfl_convert_filter_feed'] =
+			wasmExports['mbfl_convert_filter_feed'];
+		_mbfl_convert_filter_feed_string = Module[
+			'_mbfl_convert_filter_feed_string'
+		] = wasmExports['mbfl_convert_filter_feed_string'];
+		_mbfl_convert_filter_flush = Module['_mbfl_convert_filter_flush'] =
+			wasmExports['mbfl_convert_filter_flush'];
+		_mbfl_convert_filter_reset = Module['_mbfl_convert_filter_reset'] =
+			wasmExports['mbfl_convert_filter_reset'];
+		_mbfl_convert_filter_copy = Module['_mbfl_convert_filter_copy'] =
+			wasmExports['mbfl_convert_filter_copy'];
+		_mbfl_convert_filter_devcat = Module['_mbfl_convert_filter_devcat'] =
+			wasmExports['mbfl_convert_filter_devcat'];
+		_mbfl_convert_filter_strcat = Module['_mbfl_convert_filter_strcat'] =
+			wasmExports['mbfl_convert_filter_strcat'];
+		_mbfl_filt_conv_illegal_output = Module[
+			'_mbfl_filt_conv_illegal_output'
+		] = wasmExports['mbfl_filt_conv_illegal_output'];
+		_mbfl_filt_conv_common_ctor = Module['_mbfl_filt_conv_common_ctor'] =
+			wasmExports['mbfl_filt_conv_common_ctor'];
+		_mbfl_filt_conv_common_flush = Module['_mbfl_filt_conv_common_flush'] =
+			wasmExports['mbfl_filt_conv_common_flush'];
+		_mbfl_name2encoding = Module['_mbfl_name2encoding'] =
+			wasmExports['mbfl_name2encoding'];
+		_mbfl_no2encoding = Module['_mbfl_no2encoding'] =
+			wasmExports['mbfl_no2encoding'];
+		_mbfl_name2no_encoding = Module['_mbfl_name2no_encoding'] =
+			wasmExports['mbfl_name2no_encoding'];
+		_mbfl_no_encoding2name = Module['_mbfl_no_encoding2name'] =
+			wasmExports['mbfl_no_encoding2name'];
+		_mbfl_get_supported_encodings = Module[
+			'_mbfl_get_supported_encodings'
+		] = wasmExports['mbfl_get_supported_encodings'];
+		_mbfl_no2preferred_mime_name = Module['_mbfl_no2preferred_mime_name'] =
+			wasmExports['mbfl_no2preferred_mime_name'];
+		_mbfl_filter_output_pipe = Module['_mbfl_filter_output_pipe'] =
+			wasmExports['mbfl_filter_output_pipe'];
+		_mbfl_filter_output_null = Module['_mbfl_filter_output_null'] =
+			wasmExports['mbfl_filter_output_null'];
+		_mbfl_identify_filter_get_vtbl = Module[
+			'_mbfl_identify_filter_get_vtbl'
+		] = wasmExports['mbfl_identify_filter_get_vtbl'];
+		_mbfl_identify_filter_new = Module['_mbfl_identify_filter_new'] =
+			wasmExports['mbfl_identify_filter_new'];
+		_mbfl_identify_filter_init = Module['_mbfl_identify_filter_init'] =
+			wasmExports['mbfl_identify_filter_init'];
+		_mbfl_identify_filter_new2 = Module['_mbfl_identify_filter_new2'] =
+			wasmExports['mbfl_identify_filter_new2'];
+		_mbfl_identify_filter_init2 = Module['_mbfl_identify_filter_init2'] =
+			wasmExports['mbfl_identify_filter_init2'];
+		_mbfl_identify_filter_delete = Module['_mbfl_identify_filter_delete'] =
+			wasmExports['mbfl_identify_filter_delete'];
+		_mbfl_filt_ident_common_ctor = Module['_mbfl_filt_ident_common_ctor'] =
+			wasmExports['mbfl_filt_ident_common_ctor'];
+		_mbfl_filt_ident_false = Module['_mbfl_filt_ident_false'] =
+			wasmExports['mbfl_filt_ident_false'];
+		_mbfl_filt_ident_false_ctor = Module['_mbfl_filt_ident_false_ctor'] =
+			wasmExports['mbfl_filt_ident_false_ctor'];
+		_mbfl_filt_ident_true = Module['_mbfl_filt_ident_true'] =
+			wasmExports['mbfl_filt_ident_true'];
+		_mbfl_name2language = Module['_mbfl_name2language'] =
+			wasmExports['mbfl_name2language'];
+		_mbfl_no2language = Module['_mbfl_no2language'] =
+			wasmExports['mbfl_no2language'];
+		_mbfl_name2no_language = Module['_mbfl_name2no_language'] =
+			wasmExports['mbfl_name2no_language'];
+		_mbfl_no_language2name = Module['_mbfl_no_language2name'] =
+			wasmExports['mbfl_no_language2name'];
+		_mbfl_memory_device_init = Module['_mbfl_memory_device_init'] =
+			wasmExports['mbfl_memory_device_init'];
+		_mbfl_memory_device_realloc = Module['_mbfl_memory_device_realloc'] =
+			wasmExports['mbfl_memory_device_realloc'];
+		_mbfl_memory_device_clear = Module['_mbfl_memory_device_clear'] =
+			wasmExports['mbfl_memory_device_clear'];
+		_mbfl_memory_device_reset = Module['_mbfl_memory_device_reset'] =
+			wasmExports['mbfl_memory_device_reset'];
+		_mbfl_memory_device_unput = Module['_mbfl_memory_device_unput'] =
+			wasmExports['mbfl_memory_device_unput'];
+		_mbfl_memory_device_result = Module['_mbfl_memory_device_result'] =
+			wasmExports['mbfl_memory_device_result'];
+		_mbfl_memory_device_output = Module['_mbfl_memory_device_output'] =
+			wasmExports['mbfl_memory_device_output'];
+		_mbfl_memory_device_strcat = Module['_mbfl_memory_device_strcat'] =
+			wasmExports['mbfl_memory_device_strcat'];
+		_mbfl_memory_device_strncat = Module['_mbfl_memory_device_strncat'] =
+			wasmExports['mbfl_memory_device_strncat'];
+		_mbfl_memory_device_devcat = Module['_mbfl_memory_device_devcat'] =
+			wasmExports['mbfl_memory_device_devcat'];
+		_mbfl_wchar_device_init = Module['_mbfl_wchar_device_init'] =
+			wasmExports['mbfl_wchar_device_init'];
+		_mbfl_wchar_device_clear = Module['_mbfl_wchar_device_clear'] =
+			wasmExports['mbfl_wchar_device_clear'];
+		_mbfl_wchar_device_output = Module['_mbfl_wchar_device_output'] =
+			wasmExports['mbfl_wchar_device_output'];
+		_mbfl_string_init = Module['_mbfl_string_init'] =
+			wasmExports['mbfl_string_init'];
+		_mbfl_string_init_set = Module['_mbfl_string_init_set'] =
+			wasmExports['mbfl_string_init_set'];
+		_mbfl_string_clear = Module['_mbfl_string_clear'] =
+			wasmExports['mbfl_string_clear'];
+		_zend_accel_schedule_restart_if_necessary = Module[
+			'_zend_accel_schedule_restart_if_necessary'
+		] = wasmExports['zend_accel_schedule_restart_if_necessary'];
+		_zend_accel_schedule_restart = Module['_zend_accel_schedule_restart'] =
+			wasmExports['zend_accel_schedule_restart'];
+		_accel_new_interned_string = Module['_accel_new_interned_string'] =
+			wasmExports['accel_new_interned_string'];
+		_zend_get_file_handle_timestamp = Module[
+			'_zend_get_file_handle_timestamp'
+		] = wasmExports['zend_get_file_handle_timestamp'];
+		_validate_timestamp_and_record = Module[
+			'_validate_timestamp_and_record'
+		] = wasmExports['validate_timestamp_and_record'];
+		_validate_timestamp_and_record_ex = Module[
+			'_validate_timestamp_and_record_ex'
+		] = wasmExports['validate_timestamp_and_record_ex'];
+		_accel_make_persistent_key = Module['_accel_make_persistent_key'] =
+			wasmExports['accel_make_persistent_key'];
+		_zend_accel_invalidate = Module['_zend_accel_invalidate'] =
+			wasmExports['zend_accel_invalidate'];
+		_accelerator_shm_read_lock = Module['_accelerator_shm_read_lock'] =
+			wasmExports['accelerator_shm_read_lock'];
+		_accelerator_shm_read_unlock = Module['_accelerator_shm_read_unlock'] =
+			wasmExports['accelerator_shm_read_unlock'];
+		_file_cache_compile_file = Module['_file_cache_compile_file'] =
+			wasmExports['file_cache_compile_file'];
+		_check_persistent_script_access = Module[
+			'_check_persistent_script_access'
+		] = wasmExports['check_persistent_script_access'];
+		_persistent_compile_file = Module['_persistent_compile_file'] =
+			wasmExports['persistent_compile_file'];
+		_accel_activate = Module['_accel_activate'] =
+			wasmExports['accel_activate'];
+		_accel_post_deactivate = Module['_accel_post_deactivate'] =
+			wasmExports['accel_post_deactivate'];
+		_accel_shutdown = Module['_accel_shutdown'] =
+			wasmExports['accel_shutdown'];
+		_zend_accel_blacklist_init = Module['_zend_accel_blacklist_init'] =
+			wasmExports['zend_accel_blacklist_init'];
+		_zend_accel_blacklist_shutdown = Module[
+			'_zend_accel_blacklist_shutdown'
+		] = wasmExports['zend_accel_blacklist_shutdown'];
+		_zend_accel_blacklist_load = Module['_zend_accel_blacklist_load'] =
+			wasmExports['zend_accel_blacklist_load'];
+		_zend_accel_blacklist_is_blacklisted = Module[
+			'_zend_accel_blacklist_is_blacklisted'
+		] = wasmExports['zend_accel_blacklist_is_blacklisted'];
+		_zend_accel_blacklist_apply = Module['_zend_accel_blacklist_apply'] =
+			wasmExports['zend_accel_blacklist_apply'];
+		_zend_accel_error = Module['_zend_accel_error'] =
+			wasmExports['zend_accel_error'];
+		_zend_accel_hash_clean = Module['_zend_accel_hash_clean'] =
+			wasmExports['zend_accel_hash_clean'];
+		_zend_accel_hash_init = Module['_zend_accel_hash_init'] =
+			wasmExports['zend_accel_hash_init'];
+		_zend_accel_hash_update = Module['_zend_accel_hash_update'] =
+			wasmExports['zend_accel_hash_update'];
+		_zend_accel_hash_find = Module['_zend_accel_hash_find'] =
+			wasmExports['zend_accel_hash_find'];
+		_zend_accel_hash_find_entry = Module['_zend_accel_hash_find_entry'] =
+			wasmExports['zend_accel_hash_find_entry'];
+		_zend_accel_hash_str_find = Module['_zend_accel_hash_str_find'] =
+			wasmExports['zend_accel_hash_str_find'];
+		_zend_accel_hash_str_find_entry = Module[
+			'_zend_accel_hash_str_find_entry'
+		] = wasmExports['zend_accel_hash_str_find_entry'];
+		_zend_accel_hash_unlink = Module['_zend_accel_hash_unlink'] =
+			wasmExports['zend_accel_hash_unlink'];
+		_zend_accel_override_file_functions = Module[
+			'_zend_accel_override_file_functions'
+		] = wasmExports['zend_accel_override_file_functions'];
+		_zend_accel_info = Module['_zend_accel_info'] =
+			wasmExports['zend_accel_info'];
+		_start_accel_module = Module['_start_accel_module'] =
+			wasmExports['start_accel_module'];
+		_zif_opcache_get_status = Module['_zif_opcache_get_status'] =
+			wasmExports['zif_opcache_get_status'];
+		_zif_opcache_get_configuration = Module[
+			'_zif_opcache_get_configuration'
+		] = wasmExports['zif_opcache_get_configuration'];
+		_zif_opcache_reset = Module['_zif_opcache_reset'] =
+			wasmExports['zif_opcache_reset'];
+		_zif_opcache_invalidate = Module['_zif_opcache_invalidate'] =
+			wasmExports['zif_opcache_invalidate'];
+		_zif_opcache_compile_file = Module['_zif_opcache_compile_file'] =
+			wasmExports['zif_opcache_compile_file'];
+		_zif_opcache_is_script_cached = Module[
+			'_zif_opcache_is_script_cached'
+		] = wasmExports['zif_opcache_is_script_cached'];
+		_zend_accel_script_persist = Module['_zend_accel_script_persist'] =
+			wasmExports['zend_accel_script_persist'];
+		_zend_accel_script_persist_calc = Module[
+			'_zend_accel_script_persist_calc'
+		] = wasmExports['zend_accel_script_persist_calc'];
+		_zend_file_cache_script_store = Module[
+			'_zend_file_cache_script_store'
+		] = wasmExports['zend_file_cache_script_store'];
+		_zend_file_cache_script_load = Module['_zend_file_cache_script_load'] =
+			wasmExports['zend_file_cache_script_load'];
+		_zend_file_cache_invalidate = Module['_zend_file_cache_invalidate'] =
+			wasmExports['zend_file_cache_invalidate'];
+		_zend_shared_alloc_create_lock = Module[
+			'_zend_shared_alloc_create_lock'
+		] = wasmExports['zend_shared_alloc_create_lock'];
+		_zend_shared_alloc_startup = Module['_zend_shared_alloc_startup'] =
+			wasmExports['zend_shared_alloc_startup'];
+		_zend_shared_alloc = Module['_zend_shared_alloc'] =
+			wasmExports['zend_shared_alloc'];
+		_zend_shared_alloc_shutdown = Module['_zend_shared_alloc_shutdown'] =
+			wasmExports['zend_shared_alloc_shutdown'];
+		_zend_shared_memdup_size = Module['_zend_shared_memdup_size'] =
+			wasmExports['zend_shared_memdup_size'];
+		_zend_shared_memdup_get_put_free = Module[
+			'_zend_shared_memdup_get_put_free'
+		] = wasmExports['zend_shared_memdup_get_put_free'];
+		_zend_shared_memdup_put_free = Module['_zend_shared_memdup_put_free'] =
+			wasmExports['zend_shared_memdup_put_free'];
+		_zend_shared_memdup_free = Module['_zend_shared_memdup_free'] =
+			wasmExports['zend_shared_memdup_free'];
+		_zend_shared_memdup_get_put = Module['_zend_shared_memdup_get_put'] =
+			wasmExports['zend_shared_memdup_get_put'];
+		_zend_shared_memdup_put = Module['_zend_shared_memdup_put'] =
+			wasmExports['zend_shared_memdup_put'];
+		_zend_shared_memdup = Module['_zend_shared_memdup'] =
+			wasmExports['zend_shared_memdup'];
+		_zend_shared_memdup_arena_put = Module[
+			'_zend_shared_memdup_arena_put'
+		] = wasmExports['zend_shared_memdup_arena_put'];
+		_zend_shared_memdup_arena = Module['_zend_shared_memdup_arena'] =
+			wasmExports['zend_shared_memdup_arena'];
+		_zend_shared_alloc_safe_unlock = Module[
+			'_zend_shared_alloc_safe_unlock'
+		] = wasmExports['zend_shared_alloc_safe_unlock'];
+		_zend_shared_alloc_unlock = Module['_zend_shared_alloc_unlock'] =
+			wasmExports['zend_shared_alloc_unlock'];
+		_zend_shared_alloc_lock = Module['_zend_shared_alloc_lock'] =
+			wasmExports['zend_shared_alloc_lock'];
+		_zend_shared_alloc_init_xlat_table = Module[
+			'_zend_shared_alloc_init_xlat_table'
+		] = wasmExports['zend_shared_alloc_init_xlat_table'];
+		_zend_shared_alloc_destroy_xlat_table = Module[
+			'_zend_shared_alloc_destroy_xlat_table'
+		] = wasmExports['zend_shared_alloc_destroy_xlat_table'];
+		_zend_shared_alloc_clear_xlat_table = Module[
+			'_zend_shared_alloc_clear_xlat_table'
+		] = wasmExports['zend_shared_alloc_clear_xlat_table'];
+		_zend_shared_alloc_checkpoint_xlat_table = Module[
+			'_zend_shared_alloc_checkpoint_xlat_table'
+		] = wasmExports['zend_shared_alloc_checkpoint_xlat_table'];
+		_zend_shared_alloc_restore_xlat_table = Module[
+			'_zend_shared_alloc_restore_xlat_table'
+		] = wasmExports['zend_shared_alloc_restore_xlat_table'];
+		_zend_shared_alloc_register_xlat_entry = Module[
+			'_zend_shared_alloc_register_xlat_entry'
+		] = wasmExports['zend_shared_alloc_register_xlat_entry'];
+		_zend_shared_alloc_get_xlat_entry = Module[
+			'_zend_shared_alloc_get_xlat_entry'
+		] = wasmExports['zend_shared_alloc_get_xlat_entry'];
+		_zend_shared_alloc_get_free_memory = Module[
+			'_zend_shared_alloc_get_free_memory'
+		] = wasmExports['zend_shared_alloc_get_free_memory'];
+		_zend_shared_alloc_save_state = Module[
+			'_zend_shared_alloc_save_state'
+		] = wasmExports['zend_shared_alloc_save_state'];
+		_zend_shared_alloc_restore_state = Module[
+			'_zend_shared_alloc_restore_state'
+		] = wasmExports['zend_shared_alloc_restore_state'];
+		_zend_accel_get_shared_model = Module['_zend_accel_get_shared_model'] =
+			wasmExports['zend_accel_get_shared_model'];
+		_zend_accel_shared_protect = Module['_zend_accel_shared_protect'] =
+			wasmExports['zend_accel_shared_protect'];
+		_zend_accel_in_shm = Module['_zend_accel_in_shm'] =
+			wasmExports['zend_accel_in_shm'];
+		_create_persistent_script = Module['_create_persistent_script'] =
+			wasmExports['create_persistent_script'];
+		_free_persistent_script = Module['_free_persistent_script'] =
+			wasmExports['free_persistent_script'];
+		_zend_accel_move_user_functions = Module[
+			'_zend_accel_move_user_functions'
+		] = wasmExports['zend_accel_move_user_functions'];
+		_zend_accel_move_user_classes = Module[
+			'_zend_accel_move_user_classes'
+		] = wasmExports['zend_accel_move_user_classes'];
+		_zend_accel_load_script = Module['_zend_accel_load_script'] =
+			wasmExports['zend_accel_load_script'];
+		_zend_adler32 = Module['_zend_adler32'] = wasmExports['zend_adler32'];
+		_zend_accel_script_checksum = Module['_zend_accel_script_checksum'] =
+			wasmExports['zend_accel_script_checksum'];
+		_zm_startup_opcache = Module['_zm_startup_opcache'] =
+			wasmExports['zm_startup_opcache'];
+		_zm_shutdown_opcache = Module['_zm_shutdown_opcache'] =
+			wasmExports['zm_shutdown_opcache'];
+		_zend_optimizer_collect_constant = Module[
+			'_zend_optimizer_collect_constant'
+		] = wasmExports['zend_optimizer_collect_constant'];
+		_zend_optimizer_eval_binary_op = Module[
+			'_zend_optimizer_eval_binary_op'
+		] = wasmExports['zend_optimizer_eval_binary_op'];
+		_zend_optimizer_eval_unary_op = Module[
+			'_zend_optimizer_eval_unary_op'
+		] = wasmExports['zend_optimizer_eval_unary_op'];
+		_zend_optimizer_eval_cast = Module['_zend_optimizer_eval_cast'] =
+			wasmExports['zend_optimizer_eval_cast'];
+		_zend_optimizer_eval_strlen = Module['_zend_optimizer_eval_strlen'] =
+			wasmExports['zend_optimizer_eval_strlen'];
+		_zend_optimizer_get_collected_constant = Module[
+			'_zend_optimizer_get_collected_constant'
+		] = wasmExports['zend_optimizer_get_collected_constant'];
+		_zend_optimizer_add_literal = Module['_zend_optimizer_add_literal'] =
+			wasmExports['zend_optimizer_add_literal'];
+		_zend_optimizer_update_op1_const = Module[
+			'_zend_optimizer_update_op1_const'
+		] = wasmExports['zend_optimizer_update_op1_const'];
+		_zend_optimizer_update_op2_const = Module[
+			'_zend_optimizer_update_op2_const'
+		] = wasmExports['zend_optimizer_update_op2_const'];
+		_zend_optimizer_classify_function = Module[
+			'_zend_optimizer_classify_function'
+		] = wasmExports['zend_optimizer_classify_function'];
+		_zend_optimizer_replace_by_const = Module[
+			'_zend_optimizer_replace_by_const'
+		] = wasmExports['zend_optimizer_replace_by_const'];
+		_zend_optimizer_migrate_jump = Module['_zend_optimizer_migrate_jump'] =
+			wasmExports['zend_optimizer_migrate_jump'];
+		_zend_optimizer_shift_jump = Module['_zend_optimizer_shift_jump'] =
+			wasmExports['zend_optimizer_shift_jump'];
+		_zend_optimizer_get_called_func = Module[
+			'_zend_optimizer_get_called_func'
+		] = wasmExports['zend_optimizer_get_called_func'];
+		_zend_optimizer_get_loop_var_def = Module[
+			'_zend_optimizer_get_loop_var_def'
+		] = wasmExports['zend_optimizer_get_loop_var_def'];
+		_zend_foreach_op_array = Module['_zend_foreach_op_array'] =
+			wasmExports['zend_foreach_op_array'];
+		_zend_optimize_script = Module['_zend_optimize_script'] =
+			wasmExports['zend_optimize_script'];
+		_zend_optimizer_startup = Module['_zend_optimizer_startup'] =
+			wasmExports['zend_optimizer_startup'];
+		_zend_optimizer_shutdown = Module['_zend_optimizer_shutdown'] =
+			wasmExports['zend_optimizer_shutdown'];
+		_zend_optimizer_pass1 = Module['_zend_optimizer_pass1'] =
+			wasmExports['zend_optimizer_pass1'];
+		_zend_optimizer_pass3 = Module['_zend_optimizer_pass3'] =
+			wasmExports['zend_optimizer_pass3'];
+		_zend_optimize_func_calls = Module['_zend_optimize_func_calls'] =
+			wasmExports['zend_optimize_func_calls'];
+		_zend_optimizer_get_persistent_constant = Module[
+			'_zend_optimizer_get_persistent_constant'
+		] = wasmExports['zend_optimizer_get_persistent_constant'];
+		_zend_optimize_cfg = Module['_zend_optimize_cfg'] =
+			wasmExports['zend_optimize_cfg'];
+		_zend_optimize_temporary_variables = Module[
+			'_zend_optimize_temporary_variables'
+		] = wasmExports['zend_optimize_temporary_variables'];
+		_zend_optimizer_nop_removal = Module['_zend_optimizer_nop_removal'] =
+			wasmExports['zend_optimizer_nop_removal'];
+		_zend_optimizer_compact_literals = Module[
+			'_zend_optimizer_compact_literals'
+		] = wasmExports['zend_optimizer_compact_literals'];
+		_zend_cfg_remark_reachable_blocks = Module[
+			'_zend_cfg_remark_reachable_blocks'
+		] = wasmExports['zend_cfg_remark_reachable_blocks'];
+		_zend_build_cfg = Module['_zend_build_cfg'] =
+			wasmExports['zend_build_cfg'];
+		_zend_cfg_build_predecessors = Module['_zend_cfg_build_predecessors'] =
+			wasmExports['zend_cfg_build_predecessors'];
+		_zend_cfg_compute_dominators_tree = Module[
+			'_zend_cfg_compute_dominators_tree'
+		] = wasmExports['zend_cfg_compute_dominators_tree'];
+		_zend_cfg_identify_loops = Module['_zend_cfg_identify_loops'] =
+			wasmExports['zend_cfg_identify_loops'];
+		_zend_dfg_add_use_def_op = Module['_zend_dfg_add_use_def_op'] =
+			wasmExports['zend_dfg_add_use_def_op'];
+		_zend_build_dfg = Module['_zend_build_dfg'] =
+			wasmExports['zend_build_dfg'];
+		_zend_dfa_analyze_op_array = Module['_zend_dfa_analyze_op_array'] =
+			wasmExports['zend_dfa_analyze_op_array'];
+		_zend_dfa_optimize_calls = Module['_zend_dfa_optimize_calls'] =
+			wasmExports['zend_dfa_optimize_calls'];
+		_zend_dfa_optimize_op_array = Module['_zend_dfa_optimize_op_array'] =
+			wasmExports['zend_dfa_optimize_op_array'];
+		_zend_optimize_dfa = Module['_zend_optimize_dfa'] =
+			wasmExports['zend_optimize_dfa'];
+		_zend_ssa_rename_op = Module['_zend_ssa_rename_op'] =
+			wasmExports['zend_ssa_rename_op'];
+		_zend_build_ssa = Module['_zend_build_ssa'] =
+			wasmExports['zend_build_ssa'];
+		_zend_ssa_compute_use_def_chains = Module[
+			'_zend_ssa_compute_use_def_chains'
+		] = wasmExports['zend_ssa_compute_use_def_chains'];
+		_zend_ssa_unlink_use_chain = Module['_zend_ssa_unlink_use_chain'] =
+			wasmExports['zend_ssa_unlink_use_chain'];
+		_zend_ssa_remove_instr = Module['_zend_ssa_remove_instr'] =
+			wasmExports['zend_ssa_remove_instr'];
+		_zend_ssa_remove_phi = Module['_zend_ssa_remove_phi'] =
+			wasmExports['zend_ssa_remove_phi'];
+		_zend_ssa_remove_uses_of_var = Module['_zend_ssa_remove_uses_of_var'] =
+			wasmExports['zend_ssa_remove_uses_of_var'];
+		_zend_ssa_remove_predecessor = Module['_zend_ssa_remove_predecessor'] =
+			wasmExports['zend_ssa_remove_predecessor'];
+		_zend_ssa_rename_var_uses = Module['_zend_ssa_rename_var_uses'] =
+			wasmExports['zend_ssa_rename_var_uses'];
+		_zend_ssa_remove_block = Module['_zend_ssa_remove_block'] =
+			wasmExports['zend_ssa_remove_block'];
+		_zend_ssa_find_sccs = Module['_zend_ssa_find_sccs'] =
+			wasmExports['zend_ssa_find_sccs'];
+		_zend_ssa_find_false_dependencies = Module[
+			'_zend_ssa_find_false_dependencies'
+		] = wasmExports['zend_ssa_find_false_dependencies'];
+		_minOR = Module['_minOR'] = wasmExports['minOR'];
+		_maxOR = Module['_maxOR'] = wasmExports['maxOR'];
+		_minAND = Module['_minAND'] = wasmExports['minAND'];
+		_maxAND = Module['_maxAND'] = wasmExports['maxAND'];
+		_minXOR = Module['_minXOR'] = wasmExports['minXOR'];
+		_maxXOR = Module['_maxXOR'] = wasmExports['maxXOR'];
+		_zend_inference_calc_range = Module['_zend_inference_calc_range'] =
+			wasmExports['zend_inference_calc_range'];
+		_zend_inference_propagate_range = Module[
+			'_zend_inference_propagate_range'
+		] = wasmExports['zend_inference_propagate_range'];
+		_zend_inference_init_range = Module['_zend_inference_init_range'] =
+			wasmExports['zend_inference_init_range'];
+		_zend_inference_widening_meet = Module[
+			'_zend_inference_widening_meet'
+		] = wasmExports['zend_inference_widening_meet'];
+		_zend_inference_narrowing_meet = Module[
+			'_zend_inference_narrowing_meet'
+		] = wasmExports['zend_inference_narrowing_meet'];
+		_zend_array_element_type = Module['_zend_array_element_type'] =
+			wasmExports['zend_array_element_type'];
+		_zend_fetch_arg_info_type = Module['_zend_fetch_arg_info_type'] =
+			wasmExports['zend_fetch_arg_info_type'];
+		_zend_update_type_info = Module['_zend_update_type_info'] =
+			wasmExports['zend_update_type_info'];
+		_zend_infer_types_ex = Module['_zend_infer_types_ex'] =
+			wasmExports['zend_infer_types_ex'];
+		_zend_init_func_return_info = Module['_zend_init_func_return_info'] =
+			wasmExports['zend_init_func_return_info'];
+		_zend_func_return_info = Module['_zend_func_return_info'] =
+			wasmExports['zend_func_return_info'];
+		_zend_ssa_inference = Module['_zend_ssa_inference'] =
+			wasmExports['zend_ssa_inference'];
+		_zend_inference_check_recursive_dependencies = Module[
+			'_zend_inference_check_recursive_dependencies'
+		] = wasmExports['zend_inference_check_recursive_dependencies'];
+		_zend_may_throw_ex = Module['_zend_may_throw_ex'] =
+			wasmExports['zend_may_throw_ex'];
+		_zend_may_throw = Module['_zend_may_throw'] =
+			wasmExports['zend_may_throw'];
+		_zend_get_func_info = Module['_zend_get_func_info'] =
+			wasmExports['zend_get_func_info'];
+		_zend_func_info_startup = Module['_zend_func_info_startup'] =
+			wasmExports['zend_func_info_startup'];
+		_zend_func_info_shutdown = Module['_zend_func_info_shutdown'] =
+			wasmExports['zend_func_info_shutdown'];
+		_zend_analyze_calls = Module['_zend_analyze_calls'] =
+			wasmExports['zend_analyze_calls'];
+		_zend_build_call_graph = Module['_zend_build_call_graph'] =
+			wasmExports['zend_build_call_graph'];
+		_zend_analyze_call_graph = Module['_zend_analyze_call_graph'] =
+			wasmExports['zend_analyze_call_graph'];
+		_zend_build_call_map = Module['_zend_build_call_map'] =
+			wasmExports['zend_build_call_map'];
+		_sccp_optimize_op_array = Module['_sccp_optimize_op_array'] =
+			wasmExports['sccp_optimize_op_array'];
+		_scdf_mark_edge_feasible = Module['_scdf_mark_edge_feasible'] =
+			wasmExports['scdf_mark_edge_feasible'];
+		_scdf_init = Module['_scdf_init'] = wasmExports['scdf_init'];
+		_scdf_solve = Module['_scdf_solve'] = wasmExports['scdf_solve'];
+		_scdf_remove_unreachable_blocks = Module[
+			'_scdf_remove_unreachable_blocks'
+		] = wasmExports['scdf_remove_unreachable_blocks'];
+		_dce_optimize_op_array = Module['_dce_optimize_op_array'] =
+			wasmExports['dce_optimize_op_array'];
+		_zend_ssa_escape_analysis = Module['_zend_ssa_escape_analysis'] =
+			wasmExports['zend_ssa_escape_analysis'];
+		_zend_optimizer_compact_vars = Module['_zend_optimizer_compact_vars'] =
+			wasmExports['zend_optimizer_compact_vars'];
+		_zend_dump_ht = Module['_zend_dump_ht'] = wasmExports['zend_dump_ht'];
+		_zend_dump_const = Module['_zend_dump_const'] =
+			wasmExports['zend_dump_const'];
+		_zend_dump_var = Module['_zend_dump_var'] =
+			wasmExports['zend_dump_var'];
+		_zend_dump_ssa_var = Module['_zend_dump_ssa_var'] =
+			wasmExports['zend_dump_ssa_var'];
+		_zend_dump_op = Module['_zend_dump_op'] = wasmExports['zend_dump_op'];
+		_zend_dump_op_array_name = Module['_zend_dump_op_array_name'] =
+			wasmExports['zend_dump_op_array_name'];
+		_zend_dump_op_array = Module['_zend_dump_op_array'] =
+			wasmExports['zend_dump_op_array'];
+		_zend_dump_dominators = Module['_zend_dump_dominators'] =
+			wasmExports['zend_dump_dominators'];
+		_zend_dump_variables = Module['_zend_dump_variables'] =
+			wasmExports['zend_dump_variables'];
+		_zend_dump_ssa_variables = Module['_zend_dump_ssa_variables'] =
+			wasmExports['zend_dump_ssa_variables'];
+		_zend_dump_dfg = Module['_zend_dump_dfg'] =
+			wasmExports['zend_dump_dfg'];
+		_zend_dump_phi_placement = Module['_zend_dump_phi_placement'] =
+			wasmExports['zend_dump_phi_placement'];
+		_php_pdo_list_entry = Module['_php_pdo_list_entry'] =
+			wasmExports['php_pdo_list_entry'];
+		_php_pdo_get_dbh_ce = Module['_php_pdo_get_dbh_ce'] =
+			wasmExports['php_pdo_get_dbh_ce'];
+		_php_pdo_get_exception = Module['_php_pdo_get_exception'] =
+			wasmExports['php_pdo_get_exception'];
+		_php_pdo_str_tolower_dup = Module['_php_pdo_str_tolower_dup'] =
+			wasmExports['php_pdo_str_tolower_dup'];
+		_zif_pdo_drivers = Module['_zif_pdo_drivers'] =
+			wasmExports['zif_pdo_drivers'];
+		_zm_startup_pdo = Module['_zm_startup_pdo'] =
+			wasmExports['zm_startup_pdo'];
+		_zm_shutdown_pdo = Module['_zm_shutdown_pdo'] =
+			wasmExports['zm_shutdown_pdo'];
+		_zm_info_pdo = Module['_zm_info_pdo'] = wasmExports['zm_info_pdo'];
+		_php_pdo_register_driver = Module['_php_pdo_register_driver'] =
+			wasmExports['php_pdo_register_driver'];
+		_php_pdo_unregister_driver = Module['_php_pdo_unregister_driver'] =
+			wasmExports['php_pdo_unregister_driver'];
+		_pdo_find_driver = Module['_pdo_find_driver'] =
+			wasmExports['pdo_find_driver'];
+		_php_pdo_parse_data_source = Module['_php_pdo_parse_data_source'] =
+			wasmExports['php_pdo_parse_data_source'];
+		_php_pdo_int64_to_str = Module['_php_pdo_int64_to_str'] =
+			wasmExports['php_pdo_int64_to_str'];
+		_pdo_throw_exception = Module['_pdo_throw_exception'] =
+			wasmExports['pdo_throw_exception'];
+		_pdo_raise_impl_error = Module['_pdo_raise_impl_error'] =
+			wasmExports['pdo_raise_impl_error'];
+		_pdo_handle_error = Module['_pdo_handle_error'] =
+			wasmExports['pdo_handle_error'];
+		_zim_PDO___construct = Module['_zim_PDO___construct'] =
+			wasmExports['zim_PDO___construct'];
+		_zim_PDO_prepare = Module['_zim_PDO_prepare'] =
+			wasmExports['zim_PDO_prepare'];
+		_zim_PDO_beginTransaction = Module['_zim_PDO_beginTransaction'] =
+			wasmExports['zim_PDO_beginTransaction'];
+		_zim_PDO_commit = Module['_zim_PDO_commit'] =
+			wasmExports['zim_PDO_commit'];
+		_zim_PDO_rollBack = Module['_zim_PDO_rollBack'] =
+			wasmExports['zim_PDO_rollBack'];
+		_zim_PDO_inTransaction = Module['_zim_PDO_inTransaction'] =
+			wasmExports['zim_PDO_inTransaction'];
+		_zim_PDO_setAttribute = Module['_zim_PDO_setAttribute'] =
+			wasmExports['zim_PDO_setAttribute'];
+		_zim_PDO_getAttribute = Module['_zim_PDO_getAttribute'] =
+			wasmExports['zim_PDO_getAttribute'];
+		_zim_PDO_exec = Module['_zim_PDO_exec'] = wasmExports['zim_PDO_exec'];
+		_zim_PDO_lastInsertId = Module['_zim_PDO_lastInsertId'] =
+			wasmExports['zim_PDO_lastInsertId'];
+		_zim_PDO_errorCode = Module['_zim_PDO_errorCode'] =
+			wasmExports['zim_PDO_errorCode'];
+		_zim_PDO_errorInfo = Module['_zim_PDO_errorInfo'] =
+			wasmExports['zim_PDO_errorInfo'];
+		_zim_PDO_query = Module['_zim_PDO_query'] =
+			wasmExports['zim_PDO_query'];
+		_zim_PDO_quote = Module['_zim_PDO_quote'] =
+			wasmExports['zim_PDO_quote'];
+		_zim_PDO_getAvailableDrivers = Module['_zim_PDO_getAvailableDrivers'] =
+			wasmExports['zim_PDO_getAvailableDrivers'];
+		_pdo_hash_methods = Module['_pdo_hash_methods'] =
+			wasmExports['pdo_hash_methods'];
+		_pdo_dbh_init = Module['_pdo_dbh_init'] = wasmExports['pdo_dbh_init'];
+		_pdo_dbh_new = Module['_pdo_dbh_new'] = wasmExports['pdo_dbh_new'];
+		_php_pdo_pdbh_dtor = Module['_php_pdo_pdbh_dtor'] =
+			wasmExports['php_pdo_pdbh_dtor'];
+		_pdo_stmt_describe_columns = Module['_pdo_stmt_describe_columns'] =
+			wasmExports['pdo_stmt_describe_columns'];
+		_php_pdo_stmt_set_column_count = Module[
+			'_php_pdo_stmt_set_column_count'
+		] = wasmExports['php_pdo_stmt_set_column_count'];
+		_zim_PDOStatement_execute = Module['_zim_PDOStatement_execute'] =
+			wasmExports['zim_PDOStatement_execute'];
+		_zim_PDOStatement_fetch = Module['_zim_PDOStatement_fetch'] =
+			wasmExports['zim_PDOStatement_fetch'];
+		_zim_PDOStatement_fetchObject = Module[
+			'_zim_PDOStatement_fetchObject'
+		] = wasmExports['zim_PDOStatement_fetchObject'];
+		_zim_PDOStatement_fetchColumn = Module[
+			'_zim_PDOStatement_fetchColumn'
+		] = wasmExports['zim_PDOStatement_fetchColumn'];
+		_zim_PDOStatement_fetchAll = Module['_zim_PDOStatement_fetchAll'] =
+			wasmExports['zim_PDOStatement_fetchAll'];
+		_zim_PDOStatement_bindValue = Module['_zim_PDOStatement_bindValue'] =
+			wasmExports['zim_PDOStatement_bindValue'];
+		_zim_PDOStatement_bindParam = Module['_zim_PDOStatement_bindParam'] =
+			wasmExports['zim_PDOStatement_bindParam'];
+		_zim_PDOStatement_bindColumn = Module['_zim_PDOStatement_bindColumn'] =
+			wasmExports['zim_PDOStatement_bindColumn'];
+		_zim_PDOStatement_rowCount = Module['_zim_PDOStatement_rowCount'] =
+			wasmExports['zim_PDOStatement_rowCount'];
+		_zim_PDOStatement_errorCode = Module['_zim_PDOStatement_errorCode'] =
+			wasmExports['zim_PDOStatement_errorCode'];
+		_zim_PDOStatement_errorInfo = Module['_zim_PDOStatement_errorInfo'] =
+			wasmExports['zim_PDOStatement_errorInfo'];
+		_zim_PDOStatement_setAttribute = Module[
+			'_zim_PDOStatement_setAttribute'
+		] = wasmExports['zim_PDOStatement_setAttribute'];
+		_zim_PDOStatement_getAttribute = Module[
+			'_zim_PDOStatement_getAttribute'
+		] = wasmExports['zim_PDOStatement_getAttribute'];
+		_zim_PDOStatement_columnCount = Module[
+			'_zim_PDOStatement_columnCount'
+		] = wasmExports['zim_PDOStatement_columnCount'];
+		_zim_PDOStatement_getColumnMeta = Module[
+			'_zim_PDOStatement_getColumnMeta'
+		] = wasmExports['zim_PDOStatement_getColumnMeta'];
+		_pdo_stmt_setup_fetch_mode = Module['_pdo_stmt_setup_fetch_mode'] =
+			wasmExports['pdo_stmt_setup_fetch_mode'];
+		_zim_PDOStatement_setFetchMode = Module[
+			'_zim_PDOStatement_setFetchMode'
+		] = wasmExports['zim_PDOStatement_setFetchMode'];
+		_zim_PDOStatement_nextRowset = Module['_zim_PDOStatement_nextRowset'] =
+			wasmExports['zim_PDOStatement_nextRowset'];
+		_zim_PDOStatement_closeCursor = Module[
+			'_zim_PDOStatement_closeCursor'
+		] = wasmExports['zim_PDOStatement_closeCursor'];
+		_zim_PDOStatement_debugDumpParams = Module[
+			'_zim_PDOStatement_debugDumpParams'
+		] = wasmExports['zim_PDOStatement_debugDumpParams'];
+		_zim_PDOStatement_getIterator = Module[
+			'_zim_PDOStatement_getIterator'
+		] = wasmExports['zim_PDOStatement_getIterator'];
+		_php_pdo_free_statement = Module['_php_pdo_free_statement'] =
+			wasmExports['php_pdo_free_statement'];
+		_pdo_dbstmt_free_storage = Module['_pdo_dbstmt_free_storage'] =
+			wasmExports['pdo_dbstmt_free_storage'];
+		_pdo_dbstmt_new = Module['_pdo_dbstmt_new'] =
+			wasmExports['pdo_dbstmt_new'];
+		_pdo_stmt_iter_get = Module['_pdo_stmt_iter_get'] =
+			wasmExports['pdo_stmt_iter_get'];
+		_pdo_row_free_storage = Module['_pdo_row_free_storage'] =
+			wasmExports['pdo_row_free_storage'];
+		_pdo_row_new = Module['_pdo_row_new'] = wasmExports['pdo_row_new'];
+		_pdo_stmt_init = Module['_pdo_stmt_init'] =
+			wasmExports['pdo_stmt_init'];
+		_pdo_parse_params = Module['_pdo_parse_params'] =
+			wasmExports['pdo_parse_params'];
+		_pdo_sqlstate_fini_error_table = Module[
+			'_pdo_sqlstate_fini_error_table'
+		] = wasmExports['pdo_sqlstate_fini_error_table'];
+		_pdo_sqlstate_init_error_table = Module[
+			'_pdo_sqlstate_init_error_table'
+		] = wasmExports['pdo_sqlstate_init_error_table'];
+		_pdo_sqlstate_state_to_description = Module[
+			'_pdo_sqlstate_state_to_description'
+		] = wasmExports['pdo_sqlstate_state_to_description'];
+		_zm_startup_pdo_sqlite = Module['_zm_startup_pdo_sqlite'] =
+			wasmExports['zm_startup_pdo_sqlite'];
+		_zm_shutdown_pdo_sqlite = Module['_zm_shutdown_pdo_sqlite'] =
+			wasmExports['zm_shutdown_pdo_sqlite'];
+		_zm_info_pdo_sqlite = Module['_zm_info_pdo_sqlite'] =
+			wasmExports['zm_info_pdo_sqlite'];
+		__pdo_sqlite_error = Module['__pdo_sqlite_error'] =
+			wasmExports['_pdo_sqlite_error'];
+		_zim_PDO_SQLite_Ext_sqliteCreateFunction = Module[
+			'_zim_PDO_SQLite_Ext_sqliteCreateFunction'
+		] = wasmExports['zim_PDO_SQLite_Ext_sqliteCreateFunction'];
+		_zim_PDO_SQLite_Ext_sqliteCreateAggregate = Module[
+			'_zim_PDO_SQLite_Ext_sqliteCreateAggregate'
+		] = wasmExports['zim_PDO_SQLite_Ext_sqliteCreateAggregate'];
+		_zim_PDO_SQLite_Ext_sqliteCreateCollation = Module[
+			'_zim_PDO_SQLite_Ext_sqliteCreateCollation'
+		] = wasmExports['zim_PDO_SQLite_Ext_sqliteCreateCollation'];
+		_phar_get_link_source = Module['_phar_get_link_source'] =
+			wasmExports['phar_get_link_source'];
+		_phar_get_efp = Module['_phar_get_efp'] = wasmExports['phar_get_efp'];
+		_phar_open_archive_fp = Module['_phar_open_archive_fp'] =
+			wasmExports['phar_open_archive_fp'];
+		_phar_seek_efp = Module['_phar_seek_efp'] =
+			wasmExports['phar_seek_efp'];
+		_phar_mount_entry = Module['_phar_mount_entry'] =
+			wasmExports['phar_mount_entry'];
+		_phar_find_in_include_path = Module['_phar_find_in_include_path'] =
+			wasmExports['phar_find_in_include_path'];
+		_phar_get_archive = Module['_phar_get_archive'] =
+			wasmExports['phar_get_archive'];
+		_phar_get_entry_data = Module['_phar_get_entry_data'] =
+			wasmExports['phar_get_entry_data'];
+		_phar_get_entry_info_dir = Module['_phar_get_entry_info_dir'] =
+			wasmExports['phar_get_entry_info_dir'];
+		_phar_copy_on_write = Module['_phar_copy_on_write'] =
+			wasmExports['phar_copy_on_write'];
+		_phar_create_writeable_entry = Module['_phar_create_writeable_entry'] =
+			wasmExports['phar_create_writeable_entry'];
+		_phar_separate_entry_fp = Module['_phar_separate_entry_fp'] =
+			wasmExports['phar_separate_entry_fp'];
+		_phar_open_entry_fp = Module['_phar_open_entry_fp'] =
+			wasmExports['phar_open_entry_fp'];
+		_phar_get_entry_info = Module['_phar_get_entry_info'] =
+			wasmExports['phar_get_entry_info'];
+		_phar_get_or_create_entry_data = Module[
+			'_phar_get_or_create_entry_data'
+		] = wasmExports['phar_get_or_create_entry_data'];
+		_phar_add_virtual_dirs = Module['_phar_add_virtual_dirs'] =
+			wasmExports['phar_add_virtual_dirs'];
+		_phar_copy_entry_fp = Module['_phar_copy_entry_fp'] =
+			wasmExports['phar_copy_entry_fp'];
+		_phar_decompress_filter = Module['_phar_decompress_filter'] =
+			wasmExports['phar_decompress_filter'];
+		_phar_open_jit = Module['_phar_open_jit'] =
+			wasmExports['phar_open_jit'];
+		_phar_resolve_alias = Module['_phar_resolve_alias'] =
+			wasmExports['phar_resolve_alias'];
+		_phar_free_alias = Module['_phar_free_alias'] =
+			wasmExports['phar_free_alias'];
+		_phar_compress_filter = Module['_phar_compress_filter'] =
+			wasmExports['phar_compress_filter'];
+		_phar_verify_signature = Module['_phar_verify_signature'] =
+			wasmExports['phar_verify_signature'];
+		_phar_create_signature = Module['_phar_create_signature'] =
+			wasmExports['phar_create_signature'];
+		_phar_is_tar = Module['_phar_is_tar'] = wasmExports['phar_is_tar'];
+		_phar_open_or_create_tar = Module['_phar_open_or_create_tar'] =
+			wasmExports['phar_open_or_create_tar'];
+		_phar_parse_tarfile = Module['_phar_parse_tarfile'] =
+			wasmExports['phar_parse_tarfile'];
+		_phar_tar_setmetadata = Module['_phar_tar_setmetadata'] =
+			wasmExports['phar_tar_setmetadata'];
+		_phar_tar_flush = Module['_phar_tar_flush'] =
+			wasmExports['phar_tar_flush'];
+		_phar_parse_zipfile = Module['_phar_parse_zipfile'] =
+			wasmExports['phar_parse_zipfile'];
+		_phar_open_or_create_zip = Module['_phar_open_or_create_zip'] =
+			wasmExports['phar_open_or_create_zip'];
+		_phar_zip_flush = Module['_phar_zip_flush'] =
+			wasmExports['phar_zip_flush'];
+		_phar_parse_url = Module['_phar_parse_url'] =
+			wasmExports['phar_parse_url'];
+		_phar_dostat = Module['_phar_dostat'] = wasmExports['phar_dostat'];
+		_phar_fileperms = Module['_phar_fileperms'] =
+			wasmExports['phar_fileperms'];
+		_phar_fileinode = Module['_phar_fileinode'] =
+			wasmExports['phar_fileinode'];
+		_phar_filesize = Module['_phar_filesize'] =
+			wasmExports['phar_filesize'];
+		_phar_fileowner = Module['_phar_fileowner'] =
+			wasmExports['phar_fileowner'];
+		_phar_filegroup = Module['_phar_filegroup'] =
+			wasmExports['phar_filegroup'];
+		_phar_fileatime = Module['_phar_fileatime'] =
+			wasmExports['phar_fileatime'];
+		_phar_filemtime = Module['_phar_filemtime'] =
+			wasmExports['phar_filemtime'];
+		_phar_filectime = Module['_phar_filectime'] =
+			wasmExports['phar_filectime'];
+		_phar_filetype = Module['_phar_filetype'] =
+			wasmExports['phar_filetype'];
+		_phar_is_writable = Module['_phar_is_writable'] =
+			wasmExports['phar_is_writable'];
+		_phar_is_readable = Module['_phar_is_readable'] =
+			wasmExports['phar_is_readable'];
+		_phar_is_executable = Module['_phar_is_executable'] =
+			wasmExports['phar_is_executable'];
+		_phar_file_exists = Module['_phar_file_exists'] =
+			wasmExports['phar_file_exists'];
+		_phar_is_dir = Module['_phar_is_dir'] = wasmExports['phar_is_dir'];
+		_phar_lstat = Module['_phar_lstat'] = wasmExports['phar_lstat'];
+		_phar_stat = Module['_phar_stat'] = wasmExports['phar_stat'];
+		_phar_intercept_functions = Module['_phar_intercept_functions'] =
+			wasmExports['phar_intercept_functions'];
+		_phar_release_functions = Module['_phar_release_functions'] =
+			wasmExports['phar_release_functions'];
+		_phar_intercept_functions_init = Module[
+			'_phar_intercept_functions_init'
+		] = wasmExports['phar_intercept_functions_init'];
+		_phar_intercept_functions_shutdown = Module[
+			'_phar_intercept_functions_shutdown'
+		] = wasmExports['phar_intercept_functions_shutdown'];
+		_phar_save_orig_functions = Module['_phar_save_orig_functions'] =
+			wasmExports['phar_save_orig_functions'];
+		_phar_restore_orig_functions = Module['_phar_restore_orig_functions'] =
+			wasmExports['phar_restore_orig_functions'];
+		_phar_wrapper_open_dir = Module['_phar_wrapper_open_dir'] =
+			wasmExports['phar_wrapper_open_dir'];
+		_phar_wrapper_mkdir = Module['_phar_wrapper_mkdir'] =
+			wasmExports['phar_wrapper_mkdir'];
+		_phar_wrapper_rmdir = Module['_phar_wrapper_rmdir'] =
+			wasmExports['phar_wrapper_rmdir'];
+		_phar_ini_modify_handler = Module['_phar_ini_modify_handler'] =
+			wasmExports['phar_ini_modify_handler'];
+		_phar_ini_cache_list = Module['_phar_ini_cache_list'] =
+			wasmExports['phar_ini_cache_list'];
+		_phar_open_from_filename = Module['_phar_open_from_filename'] =
+			wasmExports['phar_open_from_filename'];
+		_phar_destroy_phar_data = Module['_phar_destroy_phar_data'] =
+			wasmExports['phar_destroy_phar_data'];
+		_phar_metadata_tracker_free = Module['_phar_metadata_tracker_free'] =
+			wasmExports['phar_metadata_tracker_free'];
+		_phar_archive_delref = Module['_phar_archive_delref'] =
+			wasmExports['phar_archive_delref'];
+		_destroy_phar_manifest_entry_int = Module[
+			'_destroy_phar_manifest_entry_int'
+		] = wasmExports['destroy_phar_manifest_entry_int'];
+		_destroy_phar_manifest_entry = Module['_destroy_phar_manifest_entry'] =
+			wasmExports['destroy_phar_manifest_entry'];
+		_phar_entry_delref = Module['_phar_entry_delref'] =
+			wasmExports['phar_entry_delref'];
+		_phar_entry_remove = Module['_phar_entry_remove'] =
+			wasmExports['phar_entry_remove'];
+		_phar_flush = Module['_phar_flush'] = wasmExports['phar_flush'];
+		_phar_create_default_stub = Module['_phar_create_default_stub'] =
+			wasmExports['phar_create_default_stub'];
+		_phar_open_parsed_phar = Module['_phar_open_parsed_phar'] =
+			wasmExports['phar_open_parsed_phar'];
+		_phar_metadata_tracker_try_ensure_has_serialized_data = Module[
+			'_phar_metadata_tracker_try_ensure_has_serialized_data'
+		] = wasmExports['phar_metadata_tracker_try_ensure_has_serialized_data'];
+		_phar_metadata_tracker_unserialize_or_copy = Module[
+			'_phar_metadata_tracker_unserialize_or_copy'
+		] = wasmExports['phar_metadata_tracker_unserialize_or_copy'];
+		_phar_metadata_tracker_has_data = Module[
+			'_phar_metadata_tracker_has_data'
+		] = wasmExports['phar_metadata_tracker_has_data'];
+		_phar_metadata_tracker_copy = Module['_phar_metadata_tracker_copy'] =
+			wasmExports['phar_metadata_tracker_copy'];
+		_phar_metadata_tracker_clone = Module['_phar_metadata_tracker_clone'] =
+			wasmExports['phar_metadata_tracker_clone'];
+		_phar_parse_metadata_lazy = Module['_phar_parse_metadata_lazy'] =
+			wasmExports['phar_parse_metadata_lazy'];
+		_phar_open_or_create_filename = Module[
+			'_phar_open_or_create_filename'
+		] = wasmExports['phar_open_or_create_filename'];
+		_phar_detect_phar_fname_ext = Module['_phar_detect_phar_fname_ext'] =
+			wasmExports['phar_detect_phar_fname_ext'];
+		_phar_create_or_parse_filename = Module[
+			'_phar_create_or_parse_filename'
+		] = wasmExports['phar_create_or_parse_filename'];
+		_phar_request_initialize = Module['_phar_request_initialize'] =
+			wasmExports['phar_request_initialize'];
+		_phar_fix_filepath = Module['_phar_fix_filepath'] =
+			wasmExports['phar_fix_filepath'];
+		_phar_split_fname = Module['_phar_split_fname'] =
+			wasmExports['phar_split_fname'];
+		_phar_open_executed_filename = Module['_phar_open_executed_filename'] =
+			wasmExports['phar_open_executed_filename'];
+		_phar_postprocess_file = Module['_phar_postprocess_file'] =
+			wasmExports['phar_postprocess_file'];
+		_zm_globals_ctor_phar = Module['_zm_globals_ctor_phar'] =
+			wasmExports['zm_globals_ctor_phar'];
+		_zm_globals_dtor_phar = Module['_zm_globals_dtor_phar'] =
+			wasmExports['zm_globals_dtor_phar'];
+		_zm_startup_phar = Module['_zm_startup_phar'] =
+			wasmExports['zm_startup_phar'];
+		_zm_shutdown_phar = Module['_zm_shutdown_phar'] =
+			wasmExports['zm_shutdown_phar'];
+		_zm_deactivate_phar = Module['_zm_deactivate_phar'] =
+			wasmExports['zm_deactivate_phar'];
+		_zm_info_phar = Module['_zm_info_phar'] = wasmExports['zm_info_phar'];
+		_zim_Phar_running = Module['_zim_Phar_running'] =
+			wasmExports['zim_Phar_running'];
+		_zim_Phar_mount = Module['_zim_Phar_mount'] =
+			wasmExports['zim_Phar_mount'];
+		_zim_Phar_webPhar = Module['_zim_Phar_webPhar'] =
+			wasmExports['zim_Phar_webPhar'];
+		_zim_Phar_mungServer = Module['_zim_Phar_mungServer'] =
+			wasmExports['zim_Phar_mungServer'];
+		_zim_Phar_interceptFileFuncs = Module['_zim_Phar_interceptFileFuncs'] =
+			wasmExports['zim_Phar_interceptFileFuncs'];
+		_zim_Phar_createDefaultStub = Module['_zim_Phar_createDefaultStub'] =
+			wasmExports['zim_Phar_createDefaultStub'];
+		_zim_Phar_mapPhar = Module['_zim_Phar_mapPhar'] =
+			wasmExports['zim_Phar_mapPhar'];
+		_zim_Phar_loadPhar = Module['_zim_Phar_loadPhar'] =
+			wasmExports['zim_Phar_loadPhar'];
+		_zim_Phar_apiVersion = Module['_zim_Phar_apiVersion'] =
+			wasmExports['zim_Phar_apiVersion'];
+		_zim_Phar_canCompress = Module['_zim_Phar_canCompress'] =
+			wasmExports['zim_Phar_canCompress'];
+		_zim_Phar_canWrite = Module['_zim_Phar_canWrite'] =
+			wasmExports['zim_Phar_canWrite'];
+		_zim_Phar_isValidPharFilename = Module[
+			'_zim_Phar_isValidPharFilename'
+		] = wasmExports['zim_Phar_isValidPharFilename'];
+		_zim_Phar___construct = Module['_zim_Phar___construct'] =
+			wasmExports['zim_Phar___construct'];
+		_zim_Phar_getSupportedSignatures = Module[
+			'_zim_Phar_getSupportedSignatures'
+		] = wasmExports['zim_Phar_getSupportedSignatures'];
+		_zim_Phar_getSupportedCompression = Module[
+			'_zim_Phar_getSupportedCompression'
+		] = wasmExports['zim_Phar_getSupportedCompression'];
+		_zim_Phar_unlinkArchive = Module['_zim_Phar_unlinkArchive'] =
+			wasmExports['zim_Phar_unlinkArchive'];
+		_zim_Phar___destruct = Module['_zim_Phar___destruct'] =
+			wasmExports['zim_Phar___destruct'];
+		_zim_Phar_buildFromDirectory = Module['_zim_Phar_buildFromDirectory'] =
+			wasmExports['zim_Phar_buildFromDirectory'];
+		_zim_Phar_buildFromIterator = Module['_zim_Phar_buildFromIterator'] =
+			wasmExports['zim_Phar_buildFromIterator'];
+		_zim_Phar_count = Module['_zim_Phar_count'] =
+			wasmExports['zim_Phar_count'];
+		_zim_Phar_isFileFormat = Module['_zim_Phar_isFileFormat'] =
+			wasmExports['zim_Phar_isFileFormat'];
+		_zim_Phar_convertToExecutable = Module[
+			'_zim_Phar_convertToExecutable'
+		] = wasmExports['zim_Phar_convertToExecutable'];
+		_zim_Phar_convertToData = Module['_zim_Phar_convertToData'] =
+			wasmExports['zim_Phar_convertToData'];
+		_zim_Phar_isCompressed = Module['_zim_Phar_isCompressed'] =
+			wasmExports['zim_Phar_isCompressed'];
+		_zim_Phar_isWritable = Module['_zim_Phar_isWritable'] =
+			wasmExports['zim_Phar_isWritable'];
+		_zim_Phar_delete = Module['_zim_Phar_delete'] =
+			wasmExports['zim_Phar_delete'];
+		_zim_Phar_getAlias = Module['_zim_Phar_getAlias'] =
+			wasmExports['zim_Phar_getAlias'];
+		_zim_Phar_getPath = Module['_zim_Phar_getPath'] =
+			wasmExports['zim_Phar_getPath'];
+		_zim_Phar_setAlias = Module['_zim_Phar_setAlias'] =
+			wasmExports['zim_Phar_setAlias'];
+		_zim_Phar_getVersion = Module['_zim_Phar_getVersion'] =
+			wasmExports['zim_Phar_getVersion'];
+		_zim_Phar_startBuffering = Module['_zim_Phar_startBuffering'] =
+			wasmExports['zim_Phar_startBuffering'];
+		_zim_Phar_isBuffering = Module['_zim_Phar_isBuffering'] =
+			wasmExports['zim_Phar_isBuffering'];
+		_zim_Phar_stopBuffering = Module['_zim_Phar_stopBuffering'] =
+			wasmExports['zim_Phar_stopBuffering'];
+		_zim_Phar_setStub = Module['_zim_Phar_setStub'] =
+			wasmExports['zim_Phar_setStub'];
+		_zim_Phar_setDefaultStub = Module['_zim_Phar_setDefaultStub'] =
+			wasmExports['zim_Phar_setDefaultStub'];
+		_zim_Phar_setSignatureAlgorithm = Module[
+			'_zim_Phar_setSignatureAlgorithm'
+		] = wasmExports['zim_Phar_setSignatureAlgorithm'];
+		_zim_Phar_getSignature = Module['_zim_Phar_getSignature'] =
+			wasmExports['zim_Phar_getSignature'];
+		_zim_Phar_getModified = Module['_zim_Phar_getModified'] =
+			wasmExports['zim_Phar_getModified'];
+		_zim_Phar_compress = Module['_zim_Phar_compress'] =
+			wasmExports['zim_Phar_compress'];
+		_zim_Phar_decompress = Module['_zim_Phar_decompress'] =
+			wasmExports['zim_Phar_decompress'];
+		_zim_Phar_compressFiles = Module['_zim_Phar_compressFiles'] =
+			wasmExports['zim_Phar_compressFiles'];
+		_zim_Phar_decompressFiles = Module['_zim_Phar_decompressFiles'] =
+			wasmExports['zim_Phar_decompressFiles'];
+		_zim_Phar_copy = Module['_zim_Phar_copy'] =
+			wasmExports['zim_Phar_copy'];
+		_zim_Phar_offsetExists = Module['_zim_Phar_offsetExists'] =
+			wasmExports['zim_Phar_offsetExists'];
+		_zim_Phar_offsetGet = Module['_zim_Phar_offsetGet'] =
+			wasmExports['zim_Phar_offsetGet'];
+		_zim_Phar_offsetSet = Module['_zim_Phar_offsetSet'] =
+			wasmExports['zim_Phar_offsetSet'];
+		_zim_Phar_offsetUnset = Module['_zim_Phar_offsetUnset'] =
+			wasmExports['zim_Phar_offsetUnset'];
+		_zim_Phar_addEmptyDir = Module['_zim_Phar_addEmptyDir'] =
+			wasmExports['zim_Phar_addEmptyDir'];
+		_zim_Phar_addFile = Module['_zim_Phar_addFile'] =
+			wasmExports['zim_Phar_addFile'];
+		_zim_Phar_addFromString = Module['_zim_Phar_addFromString'] =
+			wasmExports['zim_Phar_addFromString'];
+		_zim_Phar_getStub = Module['_zim_Phar_getStub'] =
+			wasmExports['zim_Phar_getStub'];
+		_zim_Phar_hasMetadata = Module['_zim_Phar_hasMetadata'] =
+			wasmExports['zim_Phar_hasMetadata'];
+		_zim_Phar_getMetadata = Module['_zim_Phar_getMetadata'] =
+			wasmExports['zim_Phar_getMetadata'];
+		_zim_Phar_setMetadata = Module['_zim_Phar_setMetadata'] =
+			wasmExports['zim_Phar_setMetadata'];
+		_zim_Phar_delMetadata = Module['_zim_Phar_delMetadata'] =
+			wasmExports['zim_Phar_delMetadata'];
+		_zim_Phar_extractTo = Module['_zim_Phar_extractTo'] =
+			wasmExports['zim_Phar_extractTo'];
+		_zim_PharFileInfo___construct = Module[
+			'_zim_PharFileInfo___construct'
+		] = wasmExports['zim_PharFileInfo___construct'];
+		_zim_PharFileInfo___destruct = Module['_zim_PharFileInfo___destruct'] =
+			wasmExports['zim_PharFileInfo___destruct'];
+		_zim_PharFileInfo_getCompressedSize = Module[
+			'_zim_PharFileInfo_getCompressedSize'
+		] = wasmExports['zim_PharFileInfo_getCompressedSize'];
+		_zim_PharFileInfo_isCompressed = Module[
+			'_zim_PharFileInfo_isCompressed'
+		] = wasmExports['zim_PharFileInfo_isCompressed'];
+		_zim_PharFileInfo_getCRC32 = Module['_zim_PharFileInfo_getCRC32'] =
+			wasmExports['zim_PharFileInfo_getCRC32'];
+		_zim_PharFileInfo_isCRCChecked = Module[
+			'_zim_PharFileInfo_isCRCChecked'
+		] = wasmExports['zim_PharFileInfo_isCRCChecked'];
+		_zim_PharFileInfo_getPharFlags = Module[
+			'_zim_PharFileInfo_getPharFlags'
+		] = wasmExports['zim_PharFileInfo_getPharFlags'];
+		_zim_PharFileInfo_chmod = Module['_zim_PharFileInfo_chmod'] =
+			wasmExports['zim_PharFileInfo_chmod'];
+		_zim_PharFileInfo_hasMetadata = Module[
+			'_zim_PharFileInfo_hasMetadata'
+		] = wasmExports['zim_PharFileInfo_hasMetadata'];
+		_zim_PharFileInfo_getMetadata = Module[
+			'_zim_PharFileInfo_getMetadata'
+		] = wasmExports['zim_PharFileInfo_getMetadata'];
+		_zim_PharFileInfo_setMetadata = Module[
+			'_zim_PharFileInfo_setMetadata'
+		] = wasmExports['zim_PharFileInfo_setMetadata'];
+		_zim_PharFileInfo_delMetadata = Module[
+			'_zim_PharFileInfo_delMetadata'
+		] = wasmExports['zim_PharFileInfo_delMetadata'];
+		_zim_PharFileInfo_getContent = Module['_zim_PharFileInfo_getContent'] =
+			wasmExports['zim_PharFileInfo_getContent'];
+		_zim_PharFileInfo_compress = Module['_zim_PharFileInfo_compress'] =
+			wasmExports['zim_PharFileInfo_compress'];
+		_zim_PharFileInfo_decompress = Module['_zim_PharFileInfo_decompress'] =
+			wasmExports['zim_PharFileInfo_decompress'];
+		_phar_object_init = Module['_phar_object_init'] =
+			wasmExports['phar_object_init'];
+		_phar_path_check = Module['_phar_path_check'] =
+			wasmExports['phar_path_check'];
+		_zif_post_message_to_js = Module['_zif_post_message_to_js'] =
+			wasmExports['zif_post_message_to_js'];
+		_zm_info_post_message_to_js = Module['_zm_info_post_message_to_js'] =
+			wasmExports['zm_info_post_message_to_js'];
+		_zend_reflection_class_factory = Module[
+			'_zend_reflection_class_factory'
+		] = wasmExports['zend_reflection_class_factory'];
+		_zim_ReflectionClass___clone = Module['_zim_ReflectionClass___clone'] =
+			wasmExports['zim_ReflectionClass___clone'];
+		_zim_Reflection_getModifierNames = Module[
+			'_zim_Reflection_getModifierNames'
+		] = wasmExports['zim_Reflection_getModifierNames'];
+		_zim_ReflectionFunction___construct = Module[
+			'_zim_ReflectionFunction___construct'
+		] = wasmExports['zim_ReflectionFunction___construct'];
+		_zim_ReflectionFunction___toString = Module[
+			'_zim_ReflectionFunction___toString'
+		] = wasmExports['zim_ReflectionFunction___toString'];
+		_zim_ReflectionFunctionAbstract_getName = Module[
+			'_zim_ReflectionFunctionAbstract_getName'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getName'];
+		_zim_ReflectionFunctionAbstract_isClosure = Module[
+			'_zim_ReflectionFunctionAbstract_isClosure'
+		] = wasmExports['zim_ReflectionFunctionAbstract_isClosure'];
+		_zim_ReflectionFunctionAbstract_getClosureThis = Module[
+			'_zim_ReflectionFunctionAbstract_getClosureThis'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getClosureThis'];
+		_zim_ReflectionFunctionAbstract_getClosureScopeClass = Module[
+			'_zim_ReflectionFunctionAbstract_getClosureScopeClass'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getClosureScopeClass'];
+		_zim_ReflectionFunctionAbstract_getClosureCalledClass = Module[
+			'_zim_ReflectionFunctionAbstract_getClosureCalledClass'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getClosureCalledClass'];
+		_zim_ReflectionFunction_getClosure = Module[
+			'_zim_ReflectionFunction_getClosure'
+		] = wasmExports['zim_ReflectionFunction_getClosure'];
+		_zim_ReflectionFunctionAbstract_isInternal = Module[
+			'_zim_ReflectionFunctionAbstract_isInternal'
+		] = wasmExports['zim_ReflectionFunctionAbstract_isInternal'];
+		_zim_ReflectionFunctionAbstract_isUserDefined = Module[
+			'_zim_ReflectionFunctionAbstract_isUserDefined'
+		] = wasmExports['zim_ReflectionFunctionAbstract_isUserDefined'];
+		_zim_ReflectionFunction_isDisabled = Module[
+			'_zim_ReflectionFunction_isDisabled'
+		] = wasmExports['zim_ReflectionFunction_isDisabled'];
+		_zim_ReflectionFunctionAbstract_getFileName = Module[
+			'_zim_ReflectionFunctionAbstract_getFileName'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getFileName'];
+		_zim_ReflectionFunctionAbstract_getStartLine = Module[
+			'_zim_ReflectionFunctionAbstract_getStartLine'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getStartLine'];
+		_zim_ReflectionFunctionAbstract_getEndLine = Module[
+			'_zim_ReflectionFunctionAbstract_getEndLine'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getEndLine'];
+		_zim_ReflectionFunctionAbstract_getDocComment = Module[
+			'_zim_ReflectionFunctionAbstract_getDocComment'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getDocComment'];
+		_zim_ReflectionFunctionAbstract_getAttributes = Module[
+			'_zim_ReflectionFunctionAbstract_getAttributes'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getAttributes'];
+		_zim_ReflectionFunctionAbstract_getStaticVariables = Module[
+			'_zim_ReflectionFunctionAbstract_getStaticVariables'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getStaticVariables'];
+		_zim_ReflectionFunction_invoke = Module[
+			'_zim_ReflectionFunction_invoke'
+		] = wasmExports['zim_ReflectionFunction_invoke'];
+		_zim_ReflectionFunction_invokeArgs = Module[
+			'_zim_ReflectionFunction_invokeArgs'
+		] = wasmExports['zim_ReflectionFunction_invokeArgs'];
+		_zim_ReflectionFunctionAbstract_returnsReference = Module[
+			'_zim_ReflectionFunctionAbstract_returnsReference'
+		] = wasmExports['zim_ReflectionFunctionAbstract_returnsReference'];
+		_zim_ReflectionFunctionAbstract_getNumberOfParameters = Module[
+			'_zim_ReflectionFunctionAbstract_getNumberOfParameters'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getNumberOfParameters'];
+		_zim_ReflectionFunctionAbstract_getNumberOfRequiredParameters = Module[
+			'_zim_ReflectionFunctionAbstract_getNumberOfRequiredParameters'
+		] =
+			wasmExports[
+				'zim_ReflectionFunctionAbstract_getNumberOfRequiredParameters'
+			];
+		_zim_ReflectionFunctionAbstract_getParameters = Module[
+			'_zim_ReflectionFunctionAbstract_getParameters'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getParameters'];
+		_zim_ReflectionFunctionAbstract_getExtension = Module[
+			'_zim_ReflectionFunctionAbstract_getExtension'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getExtension'];
+		_zim_ReflectionFunctionAbstract_getExtensionName = Module[
+			'_zim_ReflectionFunctionAbstract_getExtensionName'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getExtensionName'];
+		_zim_ReflectionGenerator___construct = Module[
+			'_zim_ReflectionGenerator___construct'
+		] = wasmExports['zim_ReflectionGenerator___construct'];
+		_zim_ReflectionGenerator_getTrace = Module[
+			'_zim_ReflectionGenerator_getTrace'
+		] = wasmExports['zim_ReflectionGenerator_getTrace'];
+		_zim_ReflectionGenerator_getExecutingLine = Module[
+			'_zim_ReflectionGenerator_getExecutingLine'
+		] = wasmExports['zim_ReflectionGenerator_getExecutingLine'];
+		_zim_ReflectionGenerator_getExecutingFile = Module[
+			'_zim_ReflectionGenerator_getExecutingFile'
+		] = wasmExports['zim_ReflectionGenerator_getExecutingFile'];
+		_zim_ReflectionGenerator_getFunction = Module[
+			'_zim_ReflectionGenerator_getFunction'
+		] = wasmExports['zim_ReflectionGenerator_getFunction'];
+		_zim_ReflectionGenerator_getThis = Module[
+			'_zim_ReflectionGenerator_getThis'
+		] = wasmExports['zim_ReflectionGenerator_getThis'];
+		_zim_ReflectionGenerator_getExecutingGenerator = Module[
+			'_zim_ReflectionGenerator_getExecutingGenerator'
+		] = wasmExports['zim_ReflectionGenerator_getExecutingGenerator'];
+		_zim_ReflectionParameter___construct = Module[
+			'_zim_ReflectionParameter___construct'
+		] = wasmExports['zim_ReflectionParameter___construct'];
+		_zim_ReflectionParameter___toString = Module[
+			'_zim_ReflectionParameter___toString'
+		] = wasmExports['zim_ReflectionParameter___toString'];
+		_zim_ReflectionParameter_getName = Module[
+			'_zim_ReflectionParameter_getName'
+		] = wasmExports['zim_ReflectionParameter_getName'];
+		_zim_ReflectionParameter_getDeclaringFunction = Module[
+			'_zim_ReflectionParameter_getDeclaringFunction'
+		] = wasmExports['zim_ReflectionParameter_getDeclaringFunction'];
+		_zim_ReflectionParameter_getDeclaringClass = Module[
+			'_zim_ReflectionParameter_getDeclaringClass'
+		] = wasmExports['zim_ReflectionParameter_getDeclaringClass'];
+		_zim_ReflectionParameter_getClass = Module[
+			'_zim_ReflectionParameter_getClass'
+		] = wasmExports['zim_ReflectionParameter_getClass'];
+		_zim_ReflectionParameter_hasType = Module[
+			'_zim_ReflectionParameter_hasType'
+		] = wasmExports['zim_ReflectionParameter_hasType'];
+		_zim_ReflectionParameter_getType = Module[
+			'_zim_ReflectionParameter_getType'
+		] = wasmExports['zim_ReflectionParameter_getType'];
+		_zim_ReflectionParameter_isArray = Module[
+			'_zim_ReflectionParameter_isArray'
+		] = wasmExports['zim_ReflectionParameter_isArray'];
+		_zim_ReflectionParameter_isCallable = Module[
+			'_zim_ReflectionParameter_isCallable'
+		] = wasmExports['zim_ReflectionParameter_isCallable'];
+		_zim_ReflectionParameter_allowsNull = Module[
+			'_zim_ReflectionParameter_allowsNull'
+		] = wasmExports['zim_ReflectionParameter_allowsNull'];
+		_zim_ReflectionParameter_isPassedByReference = Module[
+			'_zim_ReflectionParameter_isPassedByReference'
+		] = wasmExports['zim_ReflectionParameter_isPassedByReference'];
+		_zim_ReflectionParameter_canBePassedByValue = Module[
+			'_zim_ReflectionParameter_canBePassedByValue'
+		] = wasmExports['zim_ReflectionParameter_canBePassedByValue'];
+		_zim_ReflectionParameter_getAttributes = Module[
+			'_zim_ReflectionParameter_getAttributes'
+		] = wasmExports['zim_ReflectionParameter_getAttributes'];
+		_zim_ReflectionParameter_getPosition = Module[
+			'_zim_ReflectionParameter_getPosition'
+		] = wasmExports['zim_ReflectionParameter_getPosition'];
+		_zim_ReflectionParameter_isOptional = Module[
+			'_zim_ReflectionParameter_isOptional'
+		] = wasmExports['zim_ReflectionParameter_isOptional'];
+		_zim_ReflectionParameter_isDefaultValueAvailable = Module[
+			'_zim_ReflectionParameter_isDefaultValueAvailable'
+		] = wasmExports['zim_ReflectionParameter_isDefaultValueAvailable'];
+		_zim_ReflectionParameter_getDefaultValue = Module[
+			'_zim_ReflectionParameter_getDefaultValue'
+		] = wasmExports['zim_ReflectionParameter_getDefaultValue'];
+		_zim_ReflectionParameter_isDefaultValueConstant = Module[
+			'_zim_ReflectionParameter_isDefaultValueConstant'
+		] = wasmExports['zim_ReflectionParameter_isDefaultValueConstant'];
+		_zim_ReflectionParameter_getDefaultValueConstantName = Module[
+			'_zim_ReflectionParameter_getDefaultValueConstantName'
+		] = wasmExports['zim_ReflectionParameter_getDefaultValueConstantName'];
+		_zim_ReflectionParameter_isVariadic = Module[
+			'_zim_ReflectionParameter_isVariadic'
+		] = wasmExports['zim_ReflectionParameter_isVariadic'];
+		_zim_ReflectionParameter_isPromoted = Module[
+			'_zim_ReflectionParameter_isPromoted'
+		] = wasmExports['zim_ReflectionParameter_isPromoted'];
+		_zim_ReflectionType_allowsNull = Module[
+			'_zim_ReflectionType_allowsNull'
+		] = wasmExports['zim_ReflectionType_allowsNull'];
+		_zim_ReflectionType___toString = Module[
+			'_zim_ReflectionType___toString'
+		] = wasmExports['zim_ReflectionType___toString'];
+		_zim_ReflectionNamedType_getName = Module[
+			'_zim_ReflectionNamedType_getName'
+		] = wasmExports['zim_ReflectionNamedType_getName'];
+		_zim_ReflectionNamedType_isBuiltin = Module[
+			'_zim_ReflectionNamedType_isBuiltin'
+		] = wasmExports['zim_ReflectionNamedType_isBuiltin'];
+		_zim_ReflectionUnionType_getTypes = Module[
+			'_zim_ReflectionUnionType_getTypes'
+		] = wasmExports['zim_ReflectionUnionType_getTypes'];
+		_zim_ReflectionMethod___construct = Module[
+			'_zim_ReflectionMethod___construct'
+		] = wasmExports['zim_ReflectionMethod___construct'];
+		_zim_ReflectionMethod___toString = Module[
+			'_zim_ReflectionMethod___toString'
+		] = wasmExports['zim_ReflectionMethod___toString'];
+		_zim_ReflectionMethod_getClosure = Module[
+			'_zim_ReflectionMethod_getClosure'
+		] = wasmExports['zim_ReflectionMethod_getClosure'];
+		_zim_ReflectionMethod_invoke = Module['_zim_ReflectionMethod_invoke'] =
+			wasmExports['zim_ReflectionMethod_invoke'];
+		_zim_ReflectionMethod_invokeArgs = Module[
+			'_zim_ReflectionMethod_invokeArgs'
+		] = wasmExports['zim_ReflectionMethod_invokeArgs'];
+		_zim_ReflectionMethod_isFinal = Module[
+			'_zim_ReflectionMethod_isFinal'
+		] = wasmExports['zim_ReflectionMethod_isFinal'];
+		_zim_ReflectionMethod_isAbstract = Module[
+			'_zim_ReflectionMethod_isAbstract'
+		] = wasmExports['zim_ReflectionMethod_isAbstract'];
+		_zim_ReflectionMethod_isPublic = Module[
+			'_zim_ReflectionMethod_isPublic'
+		] = wasmExports['zim_ReflectionMethod_isPublic'];
+		_zim_ReflectionMethod_isPrivate = Module[
+			'_zim_ReflectionMethod_isPrivate'
+		] = wasmExports['zim_ReflectionMethod_isPrivate'];
+		_zim_ReflectionMethod_isProtected = Module[
+			'_zim_ReflectionMethod_isProtected'
+		] = wasmExports['zim_ReflectionMethod_isProtected'];
+		_zim_ReflectionMethod_isStatic = Module[
+			'_zim_ReflectionMethod_isStatic'
+		] = wasmExports['zim_ReflectionMethod_isStatic'];
+		_zim_ReflectionFunctionAbstract_isDeprecated = Module[
+			'_zim_ReflectionFunctionAbstract_isDeprecated'
+		] = wasmExports['zim_ReflectionFunctionAbstract_isDeprecated'];
+		_zim_ReflectionFunctionAbstract_isGenerator = Module[
+			'_zim_ReflectionFunctionAbstract_isGenerator'
+		] = wasmExports['zim_ReflectionFunctionAbstract_isGenerator'];
+		_zim_ReflectionFunctionAbstract_isVariadic = Module[
+			'_zim_ReflectionFunctionAbstract_isVariadic'
+		] = wasmExports['zim_ReflectionFunctionAbstract_isVariadic'];
+		_zim_ReflectionFunctionAbstract_inNamespace = Module[
+			'_zim_ReflectionFunctionAbstract_inNamespace'
+		] = wasmExports['zim_ReflectionFunctionAbstract_inNamespace'];
+		_zim_ReflectionFunctionAbstract_getNamespaceName = Module[
+			'_zim_ReflectionFunctionAbstract_getNamespaceName'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getNamespaceName'];
+		_zim_ReflectionFunctionAbstract_getShortName = Module[
+			'_zim_ReflectionFunctionAbstract_getShortName'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getShortName'];
+		_zim_ReflectionFunctionAbstract_hasReturnType = Module[
+			'_zim_ReflectionFunctionAbstract_hasReturnType'
+		] = wasmExports['zim_ReflectionFunctionAbstract_hasReturnType'];
+		_zim_ReflectionFunctionAbstract_getReturnType = Module[
+			'_zim_ReflectionFunctionAbstract_getReturnType'
+		] = wasmExports['zim_ReflectionFunctionAbstract_getReturnType'];
+		_zim_ReflectionMethod_isConstructor = Module[
+			'_zim_ReflectionMethod_isConstructor'
+		] = wasmExports['zim_ReflectionMethod_isConstructor'];
+		_zim_ReflectionMethod_isDestructor = Module[
+			'_zim_ReflectionMethod_isDestructor'
+		] = wasmExports['zim_ReflectionMethod_isDestructor'];
+		_zim_ReflectionMethod_getModifiers = Module[
+			'_zim_ReflectionMethod_getModifiers'
+		] = wasmExports['zim_ReflectionMethod_getModifiers'];
+		_zim_ReflectionMethod_getDeclaringClass = Module[
+			'_zim_ReflectionMethod_getDeclaringClass'
+		] = wasmExports['zim_ReflectionMethod_getDeclaringClass'];
+		_zim_ReflectionMethod_getPrototype = Module[
+			'_zim_ReflectionMethod_getPrototype'
+		] = wasmExports['zim_ReflectionMethod_getPrototype'];
+		_zim_ReflectionMethod_setAccessible = Module[
+			'_zim_ReflectionMethod_setAccessible'
+		] = wasmExports['zim_ReflectionMethod_setAccessible'];
+		_zim_ReflectionClassConstant___construct = Module[
+			'_zim_ReflectionClassConstant___construct'
+		] = wasmExports['zim_ReflectionClassConstant___construct'];
+		_zim_ReflectionClassConstant___toString = Module[
+			'_zim_ReflectionClassConstant___toString'
+		] = wasmExports['zim_ReflectionClassConstant___toString'];
+		_zim_ReflectionClassConstant_getName = Module[
+			'_zim_ReflectionClassConstant_getName'
+		] = wasmExports['zim_ReflectionClassConstant_getName'];
+		_zim_ReflectionClassConstant_isPublic = Module[
+			'_zim_ReflectionClassConstant_isPublic'
+		] = wasmExports['zim_ReflectionClassConstant_isPublic'];
+		_zim_ReflectionClassConstant_isPrivate = Module[
+			'_zim_ReflectionClassConstant_isPrivate'
+		] = wasmExports['zim_ReflectionClassConstant_isPrivate'];
+		_zim_ReflectionClassConstant_isProtected = Module[
+			'_zim_ReflectionClassConstant_isProtected'
+		] = wasmExports['zim_ReflectionClassConstant_isProtected'];
+		_zim_ReflectionClassConstant_getModifiers = Module[
+			'_zim_ReflectionClassConstant_getModifiers'
+		] = wasmExports['zim_ReflectionClassConstant_getModifiers'];
+		_zim_ReflectionClassConstant_getValue = Module[
+			'_zim_ReflectionClassConstant_getValue'
+		] = wasmExports['zim_ReflectionClassConstant_getValue'];
+		_zim_ReflectionClassConstant_getDeclaringClass = Module[
+			'_zim_ReflectionClassConstant_getDeclaringClass'
+		] = wasmExports['zim_ReflectionClassConstant_getDeclaringClass'];
+		_zim_ReflectionClassConstant_getDocComment = Module[
+			'_zim_ReflectionClassConstant_getDocComment'
+		] = wasmExports['zim_ReflectionClassConstant_getDocComment'];
+		_zim_ReflectionClassConstant_getAttributes = Module[
+			'_zim_ReflectionClassConstant_getAttributes'
+		] = wasmExports['zim_ReflectionClassConstant_getAttributes'];
+		_zim_ReflectionClass___construct = Module[
+			'_zim_ReflectionClass___construct'
+		] = wasmExports['zim_ReflectionClass___construct'];
+		_zim_ReflectionClass_getStaticProperties = Module[
+			'_zim_ReflectionClass_getStaticProperties'
+		] = wasmExports['zim_ReflectionClass_getStaticProperties'];
+		_zim_ReflectionClass_getStaticPropertyValue = Module[
+			'_zim_ReflectionClass_getStaticPropertyValue'
+		] = wasmExports['zim_ReflectionClass_getStaticPropertyValue'];
+		_zim_ReflectionClass_setStaticPropertyValue = Module[
+			'_zim_ReflectionClass_setStaticPropertyValue'
+		] = wasmExports['zim_ReflectionClass_setStaticPropertyValue'];
+		_zim_ReflectionClass_getDefaultProperties = Module[
+			'_zim_ReflectionClass_getDefaultProperties'
+		] = wasmExports['zim_ReflectionClass_getDefaultProperties'];
+		_zim_ReflectionClass___toString = Module[
+			'_zim_ReflectionClass___toString'
+		] = wasmExports['zim_ReflectionClass___toString'];
+		_zim_ReflectionClass_getName = Module['_zim_ReflectionClass_getName'] =
+			wasmExports['zim_ReflectionClass_getName'];
+		_zim_ReflectionClass_isInternal = Module[
+			'_zim_ReflectionClass_isInternal'
+		] = wasmExports['zim_ReflectionClass_isInternal'];
+		_zim_ReflectionClass_isUserDefined = Module[
+			'_zim_ReflectionClass_isUserDefined'
+		] = wasmExports['zim_ReflectionClass_isUserDefined'];
+		_zim_ReflectionClass_isAnonymous = Module[
+			'_zim_ReflectionClass_isAnonymous'
+		] = wasmExports['zim_ReflectionClass_isAnonymous'];
+		_zim_ReflectionClass_getFileName = Module[
+			'_zim_ReflectionClass_getFileName'
+		] = wasmExports['zim_ReflectionClass_getFileName'];
+		_zim_ReflectionClass_getStartLine = Module[
+			'_zim_ReflectionClass_getStartLine'
+		] = wasmExports['zim_ReflectionClass_getStartLine'];
+		_zim_ReflectionClass_getEndLine = Module[
+			'_zim_ReflectionClass_getEndLine'
+		] = wasmExports['zim_ReflectionClass_getEndLine'];
+		_zim_ReflectionClass_getDocComment = Module[
+			'_zim_ReflectionClass_getDocComment'
+		] = wasmExports['zim_ReflectionClass_getDocComment'];
+		_zim_ReflectionClass_getAttributes = Module[
+			'_zim_ReflectionClass_getAttributes'
+		] = wasmExports['zim_ReflectionClass_getAttributes'];
+		_zim_ReflectionClass_getConstructor = Module[
+			'_zim_ReflectionClass_getConstructor'
+		] = wasmExports['zim_ReflectionClass_getConstructor'];
+		_zim_ReflectionClass_hasMethod = Module[
+			'_zim_ReflectionClass_hasMethod'
+		] = wasmExports['zim_ReflectionClass_hasMethod'];
+		_zim_ReflectionClass_getMethod = Module[
+			'_zim_ReflectionClass_getMethod'
+		] = wasmExports['zim_ReflectionClass_getMethod'];
+		_zim_ReflectionClass_getMethods = Module[
+			'_zim_ReflectionClass_getMethods'
+		] = wasmExports['zim_ReflectionClass_getMethods'];
+		_zim_ReflectionClass_hasProperty = Module[
+			'_zim_ReflectionClass_hasProperty'
+		] = wasmExports['zim_ReflectionClass_hasProperty'];
+		_zim_ReflectionClass_getProperty = Module[
+			'_zim_ReflectionClass_getProperty'
+		] = wasmExports['zim_ReflectionClass_getProperty'];
+		_zim_ReflectionClass_getProperties = Module[
+			'_zim_ReflectionClass_getProperties'
+		] = wasmExports['zim_ReflectionClass_getProperties'];
+		_zim_ReflectionClass_hasConstant = Module[
+			'_zim_ReflectionClass_hasConstant'
+		] = wasmExports['zim_ReflectionClass_hasConstant'];
+		_zim_ReflectionClass_getConstants = Module[
+			'_zim_ReflectionClass_getConstants'
+		] = wasmExports['zim_ReflectionClass_getConstants'];
+		_zim_ReflectionClass_getReflectionConstants = Module[
+			'_zim_ReflectionClass_getReflectionConstants'
+		] = wasmExports['zim_ReflectionClass_getReflectionConstants'];
+		_zim_ReflectionClass_getConstant = Module[
+			'_zim_ReflectionClass_getConstant'
+		] = wasmExports['zim_ReflectionClass_getConstant'];
+		_zim_ReflectionClass_getReflectionConstant = Module[
+			'_zim_ReflectionClass_getReflectionConstant'
+		] = wasmExports['zim_ReflectionClass_getReflectionConstant'];
+		_zim_ReflectionClass_isInstantiable = Module[
+			'_zim_ReflectionClass_isInstantiable'
+		] = wasmExports['zim_ReflectionClass_isInstantiable'];
+		_zim_ReflectionClass_isCloneable = Module[
+			'_zim_ReflectionClass_isCloneable'
+		] = wasmExports['zim_ReflectionClass_isCloneable'];
+		_zim_ReflectionClass_isInterface = Module[
+			'_zim_ReflectionClass_isInterface'
+		] = wasmExports['zim_ReflectionClass_isInterface'];
+		_zim_ReflectionClass_isTrait = Module['_zim_ReflectionClass_isTrait'] =
+			wasmExports['zim_ReflectionClass_isTrait'];
+		_zim_ReflectionClass_isFinal = Module['_zim_ReflectionClass_isFinal'] =
+			wasmExports['zim_ReflectionClass_isFinal'];
+		_zim_ReflectionClass_isAbstract = Module[
+			'_zim_ReflectionClass_isAbstract'
+		] = wasmExports['zim_ReflectionClass_isAbstract'];
+		_zim_ReflectionClass_getModifiers = Module[
+			'_zim_ReflectionClass_getModifiers'
+		] = wasmExports['zim_ReflectionClass_getModifiers'];
+		_zim_ReflectionClass_isInstance = Module[
+			'_zim_ReflectionClass_isInstance'
+		] = wasmExports['zim_ReflectionClass_isInstance'];
+		_zim_ReflectionClass_newInstance = Module[
+			'_zim_ReflectionClass_newInstance'
+		] = wasmExports['zim_ReflectionClass_newInstance'];
+		_zim_ReflectionClass_newInstanceWithoutConstructor = Module[
+			'_zim_ReflectionClass_newInstanceWithoutConstructor'
+		] = wasmExports['zim_ReflectionClass_newInstanceWithoutConstructor'];
+		_zim_ReflectionClass_newInstanceArgs = Module[
+			'_zim_ReflectionClass_newInstanceArgs'
+		] = wasmExports['zim_ReflectionClass_newInstanceArgs'];
+		_zim_ReflectionClass_getInterfaces = Module[
+			'_zim_ReflectionClass_getInterfaces'
+		] = wasmExports['zim_ReflectionClass_getInterfaces'];
+		_zim_ReflectionClass_getInterfaceNames = Module[
+			'_zim_ReflectionClass_getInterfaceNames'
+		] = wasmExports['zim_ReflectionClass_getInterfaceNames'];
+		_zim_ReflectionClass_getTraits = Module[
+			'_zim_ReflectionClass_getTraits'
+		] = wasmExports['zim_ReflectionClass_getTraits'];
+		_zim_ReflectionClass_getTraitNames = Module[
+			'_zim_ReflectionClass_getTraitNames'
+		] = wasmExports['zim_ReflectionClass_getTraitNames'];
+		_zim_ReflectionClass_getTraitAliases = Module[
+			'_zim_ReflectionClass_getTraitAliases'
+		] = wasmExports['zim_ReflectionClass_getTraitAliases'];
+		_zim_ReflectionClass_getParentClass = Module[
+			'_zim_ReflectionClass_getParentClass'
+		] = wasmExports['zim_ReflectionClass_getParentClass'];
+		_zim_ReflectionClass_isSubclassOf = Module[
+			'_zim_ReflectionClass_isSubclassOf'
+		] = wasmExports['zim_ReflectionClass_isSubclassOf'];
+		_zim_ReflectionClass_implementsInterface = Module[
+			'_zim_ReflectionClass_implementsInterface'
+		] = wasmExports['zim_ReflectionClass_implementsInterface'];
+		_zim_ReflectionClass_isIterable = Module[
+			'_zim_ReflectionClass_isIterable'
+		] = wasmExports['zim_ReflectionClass_isIterable'];
+		_zim_ReflectionClass_getExtension = Module[
+			'_zim_ReflectionClass_getExtension'
+		] = wasmExports['zim_ReflectionClass_getExtension'];
+		_zim_ReflectionClass_getExtensionName = Module[
+			'_zim_ReflectionClass_getExtensionName'
+		] = wasmExports['zim_ReflectionClass_getExtensionName'];
+		_zim_ReflectionClass_inNamespace = Module[
+			'_zim_ReflectionClass_inNamespace'
+		] = wasmExports['zim_ReflectionClass_inNamespace'];
+		_zim_ReflectionClass_getNamespaceName = Module[
+			'_zim_ReflectionClass_getNamespaceName'
+		] = wasmExports['zim_ReflectionClass_getNamespaceName'];
+		_zim_ReflectionClass_getShortName = Module[
+			'_zim_ReflectionClass_getShortName'
+		] = wasmExports['zim_ReflectionClass_getShortName'];
+		_zim_ReflectionObject___construct = Module[
+			'_zim_ReflectionObject___construct'
+		] = wasmExports['zim_ReflectionObject___construct'];
+		_zim_ReflectionProperty___construct = Module[
+			'_zim_ReflectionProperty___construct'
+		] = wasmExports['zim_ReflectionProperty___construct'];
+		_zim_ReflectionProperty___toString = Module[
+			'_zim_ReflectionProperty___toString'
+		] = wasmExports['zim_ReflectionProperty___toString'];
+		_zim_ReflectionProperty_getName = Module[
+			'_zim_ReflectionProperty_getName'
+		] = wasmExports['zim_ReflectionProperty_getName'];
+		_zim_ReflectionProperty_isPublic = Module[
+			'_zim_ReflectionProperty_isPublic'
+		] = wasmExports['zim_ReflectionProperty_isPublic'];
+		_zim_ReflectionProperty_isPrivate = Module[
+			'_zim_ReflectionProperty_isPrivate'
+		] = wasmExports['zim_ReflectionProperty_isPrivate'];
+		_zim_ReflectionProperty_isProtected = Module[
+			'_zim_ReflectionProperty_isProtected'
+		] = wasmExports['zim_ReflectionProperty_isProtected'];
+		_zim_ReflectionProperty_isStatic = Module[
+			'_zim_ReflectionProperty_isStatic'
+		] = wasmExports['zim_ReflectionProperty_isStatic'];
+		_zim_ReflectionProperty_isDefault = Module[
+			'_zim_ReflectionProperty_isDefault'
+		] = wasmExports['zim_ReflectionProperty_isDefault'];
+		_zim_ReflectionProperty_isPromoted = Module[
+			'_zim_ReflectionProperty_isPromoted'
+		] = wasmExports['zim_ReflectionProperty_isPromoted'];
+		_zim_ReflectionProperty_getModifiers = Module[
+			'_zim_ReflectionProperty_getModifiers'
+		] = wasmExports['zim_ReflectionProperty_getModifiers'];
+		_zim_ReflectionProperty_getValue = Module[
+			'_zim_ReflectionProperty_getValue'
+		] = wasmExports['zim_ReflectionProperty_getValue'];
+		_zim_ReflectionProperty_setValue = Module[
+			'_zim_ReflectionProperty_setValue'
+		] = wasmExports['zim_ReflectionProperty_setValue'];
+		_zim_ReflectionProperty_isInitialized = Module[
+			'_zim_ReflectionProperty_isInitialized'
+		] = wasmExports['zim_ReflectionProperty_isInitialized'];
+		_zim_ReflectionProperty_getDeclaringClass = Module[
+			'_zim_ReflectionProperty_getDeclaringClass'
+		] = wasmExports['zim_ReflectionProperty_getDeclaringClass'];
+		_zim_ReflectionProperty_getDocComment = Module[
+			'_zim_ReflectionProperty_getDocComment'
+		] = wasmExports['zim_ReflectionProperty_getDocComment'];
+		_zim_ReflectionProperty_getAttributes = Module[
+			'_zim_ReflectionProperty_getAttributes'
+		] = wasmExports['zim_ReflectionProperty_getAttributes'];
+		_zim_ReflectionProperty_setAccessible = Module[
+			'_zim_ReflectionProperty_setAccessible'
+		] = wasmExports['zim_ReflectionProperty_setAccessible'];
+		_zim_ReflectionProperty_getType = Module[
+			'_zim_ReflectionProperty_getType'
+		] = wasmExports['zim_ReflectionProperty_getType'];
+		_zim_ReflectionProperty_hasType = Module[
+			'_zim_ReflectionProperty_hasType'
+		] = wasmExports['zim_ReflectionProperty_hasType'];
+		_zim_ReflectionProperty_hasDefaultValue = Module[
+			'_zim_ReflectionProperty_hasDefaultValue'
+		] = wasmExports['zim_ReflectionProperty_hasDefaultValue'];
+		_zim_ReflectionProperty_getDefaultValue = Module[
+			'_zim_ReflectionProperty_getDefaultValue'
+		] = wasmExports['zim_ReflectionProperty_getDefaultValue'];
+		_zim_ReflectionExtension___construct = Module[
+			'_zim_ReflectionExtension___construct'
+		] = wasmExports['zim_ReflectionExtension___construct'];
+		_zim_ReflectionExtension___toString = Module[
+			'_zim_ReflectionExtension___toString'
+		] = wasmExports['zim_ReflectionExtension___toString'];
+		_zim_ReflectionExtension_getName = Module[
+			'_zim_ReflectionExtension_getName'
+		] = wasmExports['zim_ReflectionExtension_getName'];
+		_zim_ReflectionExtension_getVersion = Module[
+			'_zim_ReflectionExtension_getVersion'
+		] = wasmExports['zim_ReflectionExtension_getVersion'];
+		_zim_ReflectionExtension_getFunctions = Module[
+			'_zim_ReflectionExtension_getFunctions'
+		] = wasmExports['zim_ReflectionExtension_getFunctions'];
+		_zim_ReflectionExtension_getConstants = Module[
+			'_zim_ReflectionExtension_getConstants'
+		] = wasmExports['zim_ReflectionExtension_getConstants'];
+		_zim_ReflectionExtension_getINIEntries = Module[
+			'_zim_ReflectionExtension_getINIEntries'
+		] = wasmExports['zim_ReflectionExtension_getINIEntries'];
+		_zim_ReflectionExtension_getClasses = Module[
+			'_zim_ReflectionExtension_getClasses'
+		] = wasmExports['zim_ReflectionExtension_getClasses'];
+		_zim_ReflectionExtension_getClassNames = Module[
+			'_zim_ReflectionExtension_getClassNames'
+		] = wasmExports['zim_ReflectionExtension_getClassNames'];
+		_zim_ReflectionExtension_getDependencies = Module[
+			'_zim_ReflectionExtension_getDependencies'
+		] = wasmExports['zim_ReflectionExtension_getDependencies'];
+		_zim_ReflectionExtension_info = Module[
+			'_zim_ReflectionExtension_info'
+		] = wasmExports['zim_ReflectionExtension_info'];
+		_zim_ReflectionExtension_isPersistent = Module[
+			'_zim_ReflectionExtension_isPersistent'
+		] = wasmExports['zim_ReflectionExtension_isPersistent'];
+		_zim_ReflectionExtension_isTemporary = Module[
+			'_zim_ReflectionExtension_isTemporary'
+		] = wasmExports['zim_ReflectionExtension_isTemporary'];
+		_zim_ReflectionZendExtension___construct = Module[
+			'_zim_ReflectionZendExtension___construct'
+		] = wasmExports['zim_ReflectionZendExtension___construct'];
+		_zim_ReflectionZendExtension___toString = Module[
+			'_zim_ReflectionZendExtension___toString'
+		] = wasmExports['zim_ReflectionZendExtension___toString'];
+		_zim_ReflectionZendExtension_getName = Module[
+			'_zim_ReflectionZendExtension_getName'
+		] = wasmExports['zim_ReflectionZendExtension_getName'];
+		_zim_ReflectionZendExtension_getVersion = Module[
+			'_zim_ReflectionZendExtension_getVersion'
+		] = wasmExports['zim_ReflectionZendExtension_getVersion'];
+		_zim_ReflectionZendExtension_getAuthor = Module[
+			'_zim_ReflectionZendExtension_getAuthor'
+		] = wasmExports['zim_ReflectionZendExtension_getAuthor'];
+		_zim_ReflectionZendExtension_getURL = Module[
+			'_zim_ReflectionZendExtension_getURL'
+		] = wasmExports['zim_ReflectionZendExtension_getURL'];
+		_zim_ReflectionZendExtension_getCopyright = Module[
+			'_zim_ReflectionZendExtension_getCopyright'
+		] = wasmExports['zim_ReflectionZendExtension_getCopyright'];
+		_zim_ReflectionReference___construct = Module[
+			'_zim_ReflectionReference___construct'
+		] = wasmExports['zim_ReflectionReference___construct'];
+		_zim_ReflectionReference_fromArrayElement = Module[
+			'_zim_ReflectionReference_fromArrayElement'
+		] = wasmExports['zim_ReflectionReference_fromArrayElement'];
+		_zim_ReflectionReference_getId = Module[
+			'_zim_ReflectionReference_getId'
+		] = wasmExports['zim_ReflectionReference_getId'];
+		_zim_ReflectionAttribute___construct = Module[
+			'_zim_ReflectionAttribute___construct'
+		] = wasmExports['zim_ReflectionAttribute___construct'];
+		_zim_ReflectionAttribute___clone = Module[
+			'_zim_ReflectionAttribute___clone'
+		] = wasmExports['zim_ReflectionAttribute___clone'];
+		_zim_ReflectionAttribute_getName = Module[
+			'_zim_ReflectionAttribute_getName'
+		] = wasmExports['zim_ReflectionAttribute_getName'];
+		_zim_ReflectionAttribute_getTarget = Module[
+			'_zim_ReflectionAttribute_getTarget'
+		] = wasmExports['zim_ReflectionAttribute_getTarget'];
+		_zim_ReflectionAttribute_isRepeated = Module[
+			'_zim_ReflectionAttribute_isRepeated'
+		] = wasmExports['zim_ReflectionAttribute_isRepeated'];
+		_zim_ReflectionAttribute_getArguments = Module[
+			'_zim_ReflectionAttribute_getArguments'
+		] = wasmExports['zim_ReflectionAttribute_getArguments'];
+		_zim_ReflectionAttribute_newInstance = Module[
+			'_zim_ReflectionAttribute_newInstance'
+		] = wasmExports['zim_ReflectionAttribute_newInstance'];
+		_zm_startup_reflection = Module['_zm_startup_reflection'] =
+			wasmExports['zm_startup_reflection'];
+		_zm_info_reflection = Module['_zm_info_reflection'] =
+			wasmExports['zm_info_reflection'];
+		_zim_SessionHandler_open = Module['_zim_SessionHandler_open'] =
+			wasmExports['zim_SessionHandler_open'];
+		_zim_SessionHandler_close = Module['_zim_SessionHandler_close'] =
+			wasmExports['zim_SessionHandler_close'];
+		_zim_SessionHandler_read = Module['_zim_SessionHandler_read'] =
+			wasmExports['zim_SessionHandler_read'];
+		_zim_SessionHandler_write = Module['_zim_SessionHandler_write'] =
+			wasmExports['zim_SessionHandler_write'];
+		_zim_SessionHandler_destroy = Module['_zim_SessionHandler_destroy'] =
+			wasmExports['zim_SessionHandler_destroy'];
+		_zim_SessionHandler_gc = Module['_zim_SessionHandler_gc'] =
+			wasmExports['zim_SessionHandler_gc'];
+		_zim_SessionHandler_create_sid = Module[
+			'_zim_SessionHandler_create_sid'
+		] = wasmExports['zim_SessionHandler_create_sid'];
+		_php_session_destroy = Module['_php_session_destroy'] =
+			wasmExports['php_session_destroy'];
+		_php_add_session_var = Module['_php_add_session_var'] =
+			wasmExports['php_add_session_var'];
+		_php_set_session_var = Module['_php_set_session_var'] =
+			wasmExports['php_set_session_var'];
+		_php_get_session_var = Module['_php_get_session_var'] =
+			wasmExports['php_get_session_var'];
+		_php_session_create_id = Module['_php_session_create_id'] =
+			wasmExports['php_session_create_id'];
+		_php_session_valid_key = Module['_php_session_valid_key'] =
+			wasmExports['php_session_valid_key'];
+		_ps_srlzr_encode_php_serialize = Module[
+			'_ps_srlzr_encode_php_serialize'
+		] = wasmExports['ps_srlzr_encode_php_serialize'];
+		_ps_srlzr_decode_php_serialize = Module[
+			'_ps_srlzr_decode_php_serialize'
+		] = wasmExports['ps_srlzr_decode_php_serialize'];
+		_ps_srlzr_encode_php_binary = Module['_ps_srlzr_encode_php_binary'] =
+			wasmExports['ps_srlzr_encode_php_binary'];
+		_ps_srlzr_decode_php_binary = Module['_ps_srlzr_decode_php_binary'] =
+			wasmExports['ps_srlzr_decode_php_binary'];
+		_ps_srlzr_encode_php = Module['_ps_srlzr_encode_php'] =
+			wasmExports['ps_srlzr_encode_php'];
+		_ps_srlzr_decode_php = Module['_ps_srlzr_decode_php'] =
+			wasmExports['ps_srlzr_decode_php'];
+		_php_session_register_serializer = Module[
+			'_php_session_register_serializer'
+		] = wasmExports['php_session_register_serializer'];
+		_php_session_register_module = Module['_php_session_register_module'] =
+			wasmExports['php_session_register_module'];
+		_php_session_validate_sid = Module['_php_session_validate_sid'] =
+			wasmExports['php_session_validate_sid'];
+		_php_session_update_timestamp = Module[
+			'_php_session_update_timestamp'
+		] = wasmExports['php_session_update_timestamp'];
+		__php_find_ps_module = Module['__php_find_ps_module'] =
+			wasmExports['_php_find_ps_module'];
+		__php_find_ps_serializer = Module['__php_find_ps_serializer'] =
+			wasmExports['_php_find_ps_serializer'];
+		_php_session_reset_id = Module['_php_session_reset_id'] =
+			wasmExports['php_session_reset_id'];
+		_php_session_start = Module['_php_session_start'] =
+			wasmExports['php_session_start'];
+		_php_session_flush = Module['_php_session_flush'] =
+			wasmExports['php_session_flush'];
+		_session_adapt_url = Module['_session_adapt_url'] =
+			wasmExports['session_adapt_url'];
+		_zif_session_set_cookie_params = Module[
+			'_zif_session_set_cookie_params'
+		] = wasmExports['zif_session_set_cookie_params'];
+		_zif_session_get_cookie_params = Module[
+			'_zif_session_get_cookie_params'
+		] = wasmExports['zif_session_get_cookie_params'];
+		_zif_session_name = Module['_zif_session_name'] =
+			wasmExports['zif_session_name'];
+		_zif_session_module_name = Module['_zif_session_module_name'] =
+			wasmExports['zif_session_module_name'];
+		_zif_session_set_save_handler = Module[
+			'_zif_session_set_save_handler'
+		] = wasmExports['zif_session_set_save_handler'];
+		_zif_session_save_path = Module['_zif_session_save_path'] =
+			wasmExports['zif_session_save_path'];
+		_zif_session_id = Module['_zif_session_id'] =
+			wasmExports['zif_session_id'];
+		_zif_session_regenerate_id = Module['_zif_session_regenerate_id'] =
+			wasmExports['zif_session_regenerate_id'];
+		_zif_session_create_id = Module['_zif_session_create_id'] =
+			wasmExports['zif_session_create_id'];
+		_zif_session_cache_limiter = Module['_zif_session_cache_limiter'] =
+			wasmExports['zif_session_cache_limiter'];
+		_zif_session_cache_expire = Module['_zif_session_cache_expire'] =
+			wasmExports['zif_session_cache_expire'];
+		_zif_session_encode = Module['_zif_session_encode'] =
+			wasmExports['zif_session_encode'];
+		_zif_session_decode = Module['_zif_session_decode'] =
+			wasmExports['zif_session_decode'];
+		_zif_session_start = Module['_zif_session_start'] =
+			wasmExports['zif_session_start'];
+		_zif_session_destroy = Module['_zif_session_destroy'] =
+			wasmExports['zif_session_destroy'];
+		_zif_session_unset = Module['_zif_session_unset'] =
+			wasmExports['zif_session_unset'];
+		_zif_session_gc = Module['_zif_session_gc'] =
+			wasmExports['zif_session_gc'];
+		_zif_session_write_close = Module['_zif_session_write_close'] =
+			wasmExports['zif_session_write_close'];
+		_zif_session_abort = Module['_zif_session_abort'] =
+			wasmExports['zif_session_abort'];
+		_zif_session_reset = Module['_zif_session_reset'] =
+			wasmExports['zif_session_reset'];
+		_zif_session_status = Module['_zif_session_status'] =
+			wasmExports['zif_session_status'];
+		_zif_session_register_shutdown = Module[
+			'_zif_session_register_shutdown'
+		] = wasmExports['zif_session_register_shutdown'];
+		_ps_open_files = Module['_ps_open_files'] =
+			wasmExports['ps_open_files'];
+		_ps_close_files = Module['_ps_close_files'] =
+			wasmExports['ps_close_files'];
+		_ps_read_files = Module['_ps_read_files'] =
+			wasmExports['ps_read_files'];
+		_ps_write_files = Module['_ps_write_files'] =
+			wasmExports['ps_write_files'];
+		_ps_delete_files = Module['_ps_delete_files'] =
+			wasmExports['ps_delete_files'];
+		_ps_gc_files = Module['_ps_gc_files'] = wasmExports['ps_gc_files'];
+		_ps_create_sid_files = Module['_ps_create_sid_files'] =
+			wasmExports['ps_create_sid_files'];
+		_ps_validate_sid_files = Module['_ps_validate_sid_files'] =
+			wasmExports['ps_validate_sid_files'];
+		_ps_update_timestamp_files = Module['_ps_update_timestamp_files'] =
+			wasmExports['ps_update_timestamp_files'];
+		_ps_open_user = Module['_ps_open_user'] = wasmExports['ps_open_user'];
+		_ps_close_user = Module['_ps_close_user'] =
+			wasmExports['ps_close_user'];
+		_ps_read_user = Module['_ps_read_user'] = wasmExports['ps_read_user'];
+		_ps_write_user = Module['_ps_write_user'] =
+			wasmExports['ps_write_user'];
+		_ps_delete_user = Module['_ps_delete_user'] =
+			wasmExports['ps_delete_user'];
+		_ps_gc_user = Module['_ps_gc_user'] = wasmExports['ps_gc_user'];
+		_ps_create_sid_user = Module['_ps_create_sid_user'] =
+			wasmExports['ps_create_sid_user'];
+		_ps_validate_sid_user = Module['_ps_validate_sid_user'] =
+			wasmExports['ps_validate_sid_user'];
+		_ps_update_timestamp_user = Module['_ps_update_timestamp_user'] =
+			wasmExports['ps_update_timestamp_user'];
+		_sxe_get_element_class_entry = Module['_sxe_get_element_class_entry'] =
+			wasmExports['sxe_get_element_class_entry'];
+		_zim_SimpleXMLElement_xpath = Module['_zim_SimpleXMLElement_xpath'] =
+			wasmExports['zim_SimpleXMLElement_xpath'];
+		_zim_SimpleXMLElement_registerXPathNamespace = Module[
+			'_zim_SimpleXMLElement_registerXPathNamespace'
+		] = wasmExports['zim_SimpleXMLElement_registerXPathNamespace'];
+		_zim_SimpleXMLElement_asXML = Module['_zim_SimpleXMLElement_asXML'] =
+			wasmExports['zim_SimpleXMLElement_asXML'];
+		_zim_SimpleXMLElement_getNamespaces = Module[
+			'_zim_SimpleXMLElement_getNamespaces'
+		] = wasmExports['zim_SimpleXMLElement_getNamespaces'];
+		_zim_SimpleXMLElement_getDocNamespaces = Module[
+			'_zim_SimpleXMLElement_getDocNamespaces'
+		] = wasmExports['zim_SimpleXMLElement_getDocNamespaces'];
+		_zim_SimpleXMLElement_children = Module[
+			'_zim_SimpleXMLElement_children'
+		] = wasmExports['zim_SimpleXMLElement_children'];
+		_zim_SimpleXMLElement_getName = Module[
+			'_zim_SimpleXMLElement_getName'
+		] = wasmExports['zim_SimpleXMLElement_getName'];
+		_zim_SimpleXMLElement_attributes = Module[
+			'_zim_SimpleXMLElement_attributes'
+		] = wasmExports['zim_SimpleXMLElement_attributes'];
+		_zim_SimpleXMLElement_addChild = Module[
+			'_zim_SimpleXMLElement_addChild'
+		] = wasmExports['zim_SimpleXMLElement_addChild'];
+		_zim_SimpleXMLElement_addAttribute = Module[
+			'_zim_SimpleXMLElement_addAttribute'
+		] = wasmExports['zim_SimpleXMLElement_addAttribute'];
+		_zim_SimpleXMLElement___toString = Module[
+			'_zim_SimpleXMLElement___toString'
+		] = wasmExports['zim_SimpleXMLElement___toString'];
+		_zim_SimpleXMLElement_count = Module['_zim_SimpleXMLElement_count'] =
+			wasmExports['zim_SimpleXMLElement_count'];
+		_zim_SimpleXMLElement_rewind = Module['_zim_SimpleXMLElement_rewind'] =
+			wasmExports['zim_SimpleXMLElement_rewind'];
+		_php_sxe_rewind_iterator = Module['_php_sxe_rewind_iterator'] =
+			wasmExports['php_sxe_rewind_iterator'];
+		_zim_SimpleXMLElement_valid = Module['_zim_SimpleXMLElement_valid'] =
+			wasmExports['zim_SimpleXMLElement_valid'];
+		_zim_SimpleXMLElement_current = Module[
+			'_zim_SimpleXMLElement_current'
+		] = wasmExports['zim_SimpleXMLElement_current'];
+		_zim_SimpleXMLElement_key = Module['_zim_SimpleXMLElement_key'] =
+			wasmExports['zim_SimpleXMLElement_key'];
+		_zim_SimpleXMLElement_next = Module['_zim_SimpleXMLElement_next'] =
+			wasmExports['zim_SimpleXMLElement_next'];
+		_php_sxe_move_forward_iterator = Module[
+			'_php_sxe_move_forward_iterator'
+		] = wasmExports['php_sxe_move_forward_iterator'];
+		_zim_SimpleXMLElement_hasChildren = Module[
+			'_zim_SimpleXMLElement_hasChildren'
+		] = wasmExports['zim_SimpleXMLElement_hasChildren'];
+		_zim_SimpleXMLElement_getChildren = Module[
+			'_zim_SimpleXMLElement_getChildren'
+		] = wasmExports['zim_SimpleXMLElement_getChildren'];
+		_sxe_object_new = Module['_sxe_object_new'] =
+			wasmExports['sxe_object_new'];
+		_zif_simplexml_load_file = Module['_zif_simplexml_load_file'] =
+			wasmExports['zif_simplexml_load_file'];
+		_zif_simplexml_load_string = Module['_zif_simplexml_load_string'] =
+			wasmExports['zif_simplexml_load_string'];
+		_zim_SimpleXMLElement___construct = Module[
+			'_zim_SimpleXMLElement___construct'
+		] = wasmExports['zim_SimpleXMLElement___construct'];
+		_php_sxe_get_iterator = Module['_php_sxe_get_iterator'] =
+			wasmExports['php_sxe_get_iterator'];
+		_simplexml_export_node = Module['_simplexml_export_node'] =
+			wasmExports['simplexml_export_node'];
+		_zif_simplexml_import_dom = Module['_zif_simplexml_import_dom'] =
+			wasmExports['zif_simplexml_import_dom'];
+		_zm_startup_simplexml = Module['_zm_startup_simplexml'] =
+			wasmExports['zm_startup_simplexml'];
+		_zm_shutdown_simplexml = Module['_zm_shutdown_simplexml'] =
+			wasmExports['zm_shutdown_simplexml'];
+		_zm_info_simplexml = Module['_zm_info_simplexml'] =
+			wasmExports['zm_info_simplexml'];
+		_zm_startup_soap = Module['_zm_startup_soap'] =
+			wasmExports['zm_startup_soap'];
+		_zm_shutdown_soap = Module['_zm_shutdown_soap'] =
+			wasmExports['zm_shutdown_soap'];
+		_zm_activate_soap = Module['_zm_activate_soap'] =
+			wasmExports['zm_activate_soap'];
+		_zm_info_soap = Module['_zm_info_soap'] = wasmExports['zm_info_soap'];
+		_OnUpdateCacheMode = Module['_OnUpdateCacheMode'] =
+			wasmExports['OnUpdateCacheMode'];
+		_zim_SoapParam___construct = Module['_zim_SoapParam___construct'] =
+			wasmExports['zim_SoapParam___construct'];
+		_zim_SoapHeader___construct = Module['_zim_SoapHeader___construct'] =
+			wasmExports['zim_SoapHeader___construct'];
+		_zim_SoapFault___construct = Module['_zim_SoapFault___construct'] =
+			wasmExports['zim_SoapFault___construct'];
+		_zim_SoapFault___toString = Module['_zim_SoapFault___toString'] =
+			wasmExports['zim_SoapFault___toString'];
+		_zim_SoapVar___construct = Module['_zim_SoapVar___construct'] =
+			wasmExports['zim_SoapVar___construct'];
+		_zim_SoapServer___construct = Module['_zim_SoapServer___construct'] =
+			wasmExports['zim_SoapServer___construct'];
+		_zim_SoapServer_setPersistence = Module[
+			'_zim_SoapServer_setPersistence'
+		] = wasmExports['zim_SoapServer_setPersistence'];
+		_zim_SoapServer_setClass = Module['_zim_SoapServer_setClass'] =
+			wasmExports['zim_SoapServer_setClass'];
+		_zim_SoapServer_setObject = Module['_zim_SoapServer_setObject'] =
+			wasmExports['zim_SoapServer_setObject'];
+		_zim_SoapServer_getFunctions = Module['_zim_SoapServer_getFunctions'] =
+			wasmExports['zim_SoapServer_getFunctions'];
+		_zim_SoapServer_addFunction = Module['_zim_SoapServer_addFunction'] =
+			wasmExports['zim_SoapServer_addFunction'];
+		_zim_SoapServer_handle = Module['_zim_SoapServer_handle'] =
+			wasmExports['zim_SoapServer_handle'];
+		_zim_SoapServer_fault = Module['_zim_SoapServer_fault'] =
+			wasmExports['zim_SoapServer_fault'];
+		_zim_SoapServer_addSoapHeader = Module[
+			'_zim_SoapServer_addSoapHeader'
+		] = wasmExports['zim_SoapServer_addSoapHeader'];
+		_zif_use_soap_error_handler = Module['_zif_use_soap_error_handler'] =
+			wasmExports['zif_use_soap_error_handler'];
+		_zif_is_soap_fault = Module['_zif_is_soap_fault'] =
+			wasmExports['zif_is_soap_fault'];
+		_zim_SoapClient___construct = Module['_zim_SoapClient___construct'] =
+			wasmExports['zim_SoapClient___construct'];
+		_soap_client_call_impl = Module['_soap_client_call_impl'] =
+			wasmExports['soap_client_call_impl'];
+		_add_soap_fault = Module['_add_soap_fault'] =
+			wasmExports['add_soap_fault'];
+		_zim_SoapClient___call = Module['_zim_SoapClient___call'] =
+			wasmExports['zim_SoapClient___call'];
+		_zim_SoapClient___soapCall = Module['_zim_SoapClient___soapCall'] =
+			wasmExports['zim_SoapClient___soapCall'];
+		_zim_SoapClient___getFunctions = Module[
+			'_zim_SoapClient___getFunctions'
+		] = wasmExports['zim_SoapClient___getFunctions'];
+		_zim_SoapClient___getTypes = Module['_zim_SoapClient___getTypes'] =
+			wasmExports['zim_SoapClient___getTypes'];
+		_zim_SoapClient___getLastRequest = Module[
+			'_zim_SoapClient___getLastRequest'
+		] = wasmExports['zim_SoapClient___getLastRequest'];
+		_zim_SoapClient___getLastResponse = Module[
+			'_zim_SoapClient___getLastResponse'
+		] = wasmExports['zim_SoapClient___getLastResponse'];
+		_zim_SoapClient___getLastRequestHeaders = Module[
+			'_zim_SoapClient___getLastRequestHeaders'
+		] = wasmExports['zim_SoapClient___getLastRequestHeaders'];
+		_zim_SoapClient___getLastResponseHeaders = Module[
+			'_zim_SoapClient___getLastResponseHeaders'
+		] = wasmExports['zim_SoapClient___getLastResponseHeaders'];
+		_zim_SoapClient___doRequest = Module['_zim_SoapClient___doRequest'] =
+			wasmExports['zim_SoapClient___doRequest'];
+		_zim_SoapClient___setCookie = Module['_zim_SoapClient___setCookie'] =
+			wasmExports['zim_SoapClient___setCookie'];
+		_zim_SoapClient___getCookies = Module['_zim_SoapClient___getCookies'] =
+			wasmExports['zim_SoapClient___getCookies'];
+		_zim_SoapClient___setSoapHeaders = Module[
+			'_zim_SoapClient___setSoapHeaders'
+		] = wasmExports['zim_SoapClient___setSoapHeaders'];
+		_zim_SoapClient___setLocation = Module[
+			'_zim_SoapClient___setLocation'
+		] = wasmExports['zim_SoapClient___setLocation'];
+		_get_conversion = Module['_get_conversion'] =
+			wasmExports['get_conversion'];
+		_encode_add_ns = Module['_encode_add_ns'] =
+			wasmExports['encode_add_ns'];
+		_master_to_zval = Module['_master_to_zval'] =
+			wasmExports['master_to_zval'];
+		_whiteSpace_replace = Module['_whiteSpace_replace'] =
+			wasmExports['whiteSpace_replace'];
+		_whiteSpace_collapse = Module['_whiteSpace_collapse'] =
+			wasmExports['whiteSpace_collapse'];
+		_master_to_xml = Module['_master_to_xml'] =
+			wasmExports['master_to_xml'];
+		_to_xml_user = Module['_to_xml_user'] = wasmExports['to_xml_user'];
+		_to_zval_user = Module['_to_zval_user'] = wasmExports['to_zval_user'];
+		_sdl_guess_convert_zval = Module['_sdl_guess_convert_zval'] =
+			wasmExports['sdl_guess_convert_zval'];
+		_sdl_guess_convert_xml = Module['_sdl_guess_convert_xml'] =
+			wasmExports['sdl_guess_convert_xml'];
+		_encode_reset_ns = Module['_encode_reset_ns'] =
+			wasmExports['encode_reset_ns'];
+		_encode_finish = Module['_encode_finish'] =
+			wasmExports['encode_finish'];
+		_delete_encoder = Module['_delete_encoder'] =
+			wasmExports['delete_encoder'];
+		_delete_encoder_persistent = Module['_delete_encoder_persistent'] =
+			wasmExports['delete_encoder_persistent'];
+		_proxy_authentication = Module['_proxy_authentication'] =
+			wasmExports['proxy_authentication'];
+		_basic_authentication = Module['_basic_authentication'] =
+			wasmExports['basic_authentication'];
+		_http_context_headers = Module['_http_context_headers'] =
+			wasmExports['http_context_headers'];
+		_make_http_soap_request = Module['_make_http_soap_request'] =
+			wasmExports['make_http_soap_request'];
+		_parse_packet_soap = Module['_parse_packet_soap'] =
+			wasmExports['parse_packet_soap'];
+		_load_schema = Module['_load_schema'] = wasmExports['load_schema'];
+		_delete_type = Module['_delete_type'] = wasmExports['delete_type'];
+		_delete_attribute = Module['_delete_attribute'] =
+			wasmExports['delete_attribute'];
+		_delete_model = Module['_delete_model'] = wasmExports['delete_model'];
+		_schema_min_max = Module['_schema_min_max'] =
+			wasmExports['schema_min_max'];
+		_delete_extra_attribute = Module['_delete_extra_attribute'] =
+			wasmExports['delete_extra_attribute'];
+		_schema_pass2 = Module['_schema_pass2'] = wasmExports['schema_pass2'];
+		_delete_model_persistent = Module['_delete_model_persistent'] =
+			wasmExports['delete_model_persistent'];
+		_delete_restriction_var_int = Module['_delete_restriction_var_int'] =
+			wasmExports['delete_restriction_var_int'];
+		_delete_restriction_var_char_int = Module[
+			'_delete_restriction_var_char_int'
+		] = wasmExports['delete_restriction_var_char_int'];
+		_delete_type_persistent = Module['_delete_type_persistent'] =
+			wasmExports['delete_type_persistent'];
+		_delete_restriction_var_int_persistent = Module[
+			'_delete_restriction_var_int_persistent'
+		] = wasmExports['delete_restriction_var_int_persistent'];
+		_delete_restriction_var_char_persistent_int = Module[
+			'_delete_restriction_var_char_persistent_int'
+		] = wasmExports['delete_restriction_var_char_persistent_int'];
+		_delete_extra_attribute_persistent = Module[
+			'_delete_extra_attribute_persistent'
+		] = wasmExports['delete_extra_attribute_persistent'];
+		_delete_attribute_persistent = Module['_delete_attribute_persistent'] =
+			wasmExports['delete_attribute_persistent'];
+		_delete_restriction_var_char = Module['_delete_restriction_var_char'] =
+			wasmExports['delete_restriction_var_char'];
+		_delete_restriction_var_char_persistent = Module[
+			'_delete_restriction_var_char_persistent'
+		] = wasmExports['delete_restriction_var_char_persistent'];
+		_get_encoder_from_prefix = Module['_get_encoder_from_prefix'] =
+			wasmExports['get_encoder_from_prefix'];
+		_get_encoder = Module['_get_encoder'] = wasmExports['get_encoder'];
+		_get_encoder_ex = Module['_get_encoder_ex'] =
+			wasmExports['get_encoder_ex'];
+		_get_binding_from_type = Module['_get_binding_from_type'] =
+			wasmExports['get_binding_from_type'];
+		_get_binding_from_name = Module['_get_binding_from_name'] =
+			wasmExports['get_binding_from_name'];
+		_sdl_set_uri_credentials = Module['_sdl_set_uri_credentials'] =
+			wasmExports['sdl_set_uri_credentials'];
+		_sdl_restore_uri_credentials = Module['_sdl_restore_uri_credentials'] =
+			wasmExports['sdl_restore_uri_credentials'];
+		_get_sdl = Module['_get_sdl'] = wasmExports['get_sdl'];
+		_delete_sdl_impl = Module['_delete_sdl_impl'] =
+			wasmExports['delete_sdl_impl'];
+		_delete_sdl = Module['_delete_sdl'] = wasmExports['delete_sdl'];
+		_soap_xmlParseFile = Module['_soap_xmlParseFile'] =
+			wasmExports['soap_xmlParseFile'];
+		_soap_xmlParseMemory = Module['_soap_xmlParseMemory'] =
+			wasmExports['soap_xmlParseMemory'];
+		_attr_find_ns = Module['_attr_find_ns'] = wasmExports['attr_find_ns'];
+		_node_find_ns = Module['_node_find_ns'] = wasmExports['node_find_ns'];
+		_attr_is_equal_ex = Module['_attr_is_equal_ex'] =
+			wasmExports['attr_is_equal_ex'];
+		_node_is_equal_ex = Module['_node_is_equal_ex'] =
+			wasmExports['node_is_equal_ex'];
+		_get_attribute_ex = Module['_get_attribute_ex'] =
+			wasmExports['get_attribute_ex'];
+		_get_node_ex = Module['_get_node_ex'] = wasmExports['get_node_ex'];
+		_get_node_recurisve_ex = Module['_get_node_recurisve_ex'] =
+			wasmExports['get_node_recurisve_ex'];
+		_get_node_with_attribute_ex = Module['_get_node_with_attribute_ex'] =
+			wasmExports['get_node_with_attribute_ex'];
+		_get_node_with_attribute_recursive_ex = Module[
+			'_get_node_with_attribute_recursive_ex'
+		] = wasmExports['get_node_with_attribute_recursive_ex'];
+		_parse_namespace = Module['_parse_namespace'] =
+			wasmExports['parse_namespace'];
+		_zif_class_parents = Module['_zif_class_parents'] =
+			wasmExports['zif_class_parents'];
+		_zif_class_implements = Module['_zif_class_implements'] =
+			wasmExports['zif_class_implements'];
+		_zif_class_uses = Module['_zif_class_uses'] =
+			wasmExports['zif_class_uses'];
+		_zif_spl_classes = Module['_zif_spl_classes'] =
+			wasmExports['zif_spl_classes'];
+		_zif_spl_autoload = Module['_zif_spl_autoload'] =
+			wasmExports['zif_spl_autoload'];
+		_zif_spl_autoload_extensions = Module['_zif_spl_autoload_extensions'] =
+			wasmExports['zif_spl_autoload_extensions'];
+		_zif_spl_autoload_call = Module['_zif_spl_autoload_call'] =
+			wasmExports['zif_spl_autoload_call'];
+		_zif_spl_autoload_register = Module['_zif_spl_autoload_register'] =
+			wasmExports['zif_spl_autoload_register'];
+		_zif_spl_autoload_unregister = Module['_zif_spl_autoload_unregister'] =
+			wasmExports['zif_spl_autoload_unregister'];
+		_zif_spl_autoload_functions = Module['_zif_spl_autoload_functions'] =
+			wasmExports['zif_spl_autoload_functions'];
+		_zif_spl_object_hash = Module['_zif_spl_object_hash'] =
+			wasmExports['zif_spl_object_hash'];
+		_php_spl_object_hash = Module['_php_spl_object_hash'] =
+			wasmExports['php_spl_object_hash'];
+		_zif_spl_object_id = Module['_zif_spl_object_id'] =
+			wasmExports['zif_spl_object_id'];
+		_zm_info_spl = Module['_zm_info_spl'] = wasmExports['zm_info_spl'];
+		_zm_startup_spl = Module['_zm_startup_spl'] =
+			wasmExports['zm_startup_spl'];
+		_zm_activate_spl = Module['_zm_activate_spl'] =
+			wasmExports['zm_activate_spl'];
+		_zm_deactivate_spl = Module['_zm_deactivate_spl'] =
+			wasmExports['zm_deactivate_spl'];
+		_spl_register_interface = Module['_spl_register_interface'] =
+			wasmExports['spl_register_interface'];
+		_spl_register_std_class = Module['_spl_register_std_class'] =
+			wasmExports['spl_register_std_class'];
+		_spl_register_sub_class = Module['_spl_register_sub_class'] =
+			wasmExports['spl_register_sub_class'];
+		_spl_register_property = Module['_spl_register_property'] =
+			wasmExports['spl_register_property'];
+		_spl_add_class_name = Module['_spl_add_class_name'] =
+			wasmExports['spl_add_class_name'];
+		_spl_add_interfaces = Module['_spl_add_interfaces'] =
+			wasmExports['spl_add_interfaces'];
+		_spl_add_traits = Module['_spl_add_traits'] =
+			wasmExports['spl_add_traits'];
+		_spl_add_classes = Module['_spl_add_classes'] =
+			wasmExports['spl_add_classes'];
+		_spl_gen_private_prop_name = Module['_spl_gen_private_prop_name'] =
+			wasmExports['spl_gen_private_prop_name'];
+		_spl_offset_convert_to_long = Module['_spl_offset_convert_to_long'] =
+			wasmExports['spl_offset_convert_to_long'];
+		_zim_RecursiveIteratorIterator___construct = Module[
+			'_zim_RecursiveIteratorIterator___construct'
+		] = wasmExports['zim_RecursiveIteratorIterator___construct'];
+		_zim_RecursiveIteratorIterator_rewind = Module[
+			'_zim_RecursiveIteratorIterator_rewind'
+		] = wasmExports['zim_RecursiveIteratorIterator_rewind'];
+		_zim_RecursiveIteratorIterator_valid = Module[
+			'_zim_RecursiveIteratorIterator_valid'
+		] = wasmExports['zim_RecursiveIteratorIterator_valid'];
+		_zim_RecursiveIteratorIterator_key = Module[
+			'_zim_RecursiveIteratorIterator_key'
+		] = wasmExports['zim_RecursiveIteratorIterator_key'];
+		_zim_RecursiveIteratorIterator_current = Module[
+			'_zim_RecursiveIteratorIterator_current'
+		] = wasmExports['zim_RecursiveIteratorIterator_current'];
+		_zim_RecursiveIteratorIterator_next = Module[
+			'_zim_RecursiveIteratorIterator_next'
+		] = wasmExports['zim_RecursiveIteratorIterator_next'];
+		_zim_RecursiveIteratorIterator_getDepth = Module[
+			'_zim_RecursiveIteratorIterator_getDepth'
+		] = wasmExports['zim_RecursiveIteratorIterator_getDepth'];
+		_zim_RecursiveIteratorIterator_getSubIterator = Module[
+			'_zim_RecursiveIteratorIterator_getSubIterator'
+		] = wasmExports['zim_RecursiveIteratorIterator_getSubIterator'];
+		_zim_RecursiveIteratorIterator_getInnerIterator = Module[
+			'_zim_RecursiveIteratorIterator_getInnerIterator'
+		] = wasmExports['zim_RecursiveIteratorIterator_getInnerIterator'];
+		_zim_RecursiveIteratorIterator_beginIteration = Module[
+			'_zim_RecursiveIteratorIterator_beginIteration'
+		] = wasmExports['zim_RecursiveIteratorIterator_beginIteration'];
+		_zim_RecursiveIteratorIterator_endIteration = Module[
+			'_zim_RecursiveIteratorIterator_endIteration'
+		] = wasmExports['zim_RecursiveIteratorIterator_endIteration'];
+		_zim_RecursiveIteratorIterator_callHasChildren = Module[
+			'_zim_RecursiveIteratorIterator_callHasChildren'
+		] = wasmExports['zim_RecursiveIteratorIterator_callHasChildren'];
+		_zim_RecursiveIteratorIterator_callGetChildren = Module[
+			'_zim_RecursiveIteratorIterator_callGetChildren'
+		] = wasmExports['zim_RecursiveIteratorIterator_callGetChildren'];
+		_zim_RecursiveIteratorIterator_beginChildren = Module[
+			'_zim_RecursiveIteratorIterator_beginChildren'
+		] = wasmExports['zim_RecursiveIteratorIterator_beginChildren'];
+		_zim_RecursiveIteratorIterator_endChildren = Module[
+			'_zim_RecursiveIteratorIterator_endChildren'
+		] = wasmExports['zim_RecursiveIteratorIterator_endChildren'];
+		_zim_RecursiveIteratorIterator_nextElement = Module[
+			'_zim_RecursiveIteratorIterator_nextElement'
+		] = wasmExports['zim_RecursiveIteratorIterator_nextElement'];
+		_zim_RecursiveIteratorIterator_setMaxDepth = Module[
+			'_zim_RecursiveIteratorIterator_setMaxDepth'
+		] = wasmExports['zim_RecursiveIteratorIterator_setMaxDepth'];
+		_zim_RecursiveIteratorIterator_getMaxDepth = Module[
+			'_zim_RecursiveIteratorIterator_getMaxDepth'
+		] = wasmExports['zim_RecursiveIteratorIterator_getMaxDepth'];
+		_zim_RecursiveTreeIterator___construct = Module[
+			'_zim_RecursiveTreeIterator___construct'
+		] = wasmExports['zim_RecursiveTreeIterator___construct'];
+		_zim_RecursiveTreeIterator_setPrefixPart = Module[
+			'_zim_RecursiveTreeIterator_setPrefixPart'
+		] = wasmExports['zim_RecursiveTreeIterator_setPrefixPart'];
+		_zim_RecursiveTreeIterator_getPrefix = Module[
+			'_zim_RecursiveTreeIterator_getPrefix'
+		] = wasmExports['zim_RecursiveTreeIterator_getPrefix'];
+		_zim_RecursiveTreeIterator_setPostfix = Module[
+			'_zim_RecursiveTreeIterator_setPostfix'
+		] = wasmExports['zim_RecursiveTreeIterator_setPostfix'];
+		_zim_RecursiveTreeIterator_getEntry = Module[
+			'_zim_RecursiveTreeIterator_getEntry'
+		] = wasmExports['zim_RecursiveTreeIterator_getEntry'];
+		_zim_RecursiveTreeIterator_getPostfix = Module[
+			'_zim_RecursiveTreeIterator_getPostfix'
+		] = wasmExports['zim_RecursiveTreeIterator_getPostfix'];
+		_zim_RecursiveTreeIterator_current = Module[
+			'_zim_RecursiveTreeIterator_current'
+		] = wasmExports['zim_RecursiveTreeIterator_current'];
+		_zim_RecursiveTreeIterator_key = Module[
+			'_zim_RecursiveTreeIterator_key'
+		] = wasmExports['zim_RecursiveTreeIterator_key'];
+		_zim_FilterIterator___construct = Module[
+			'_zim_FilterIterator___construct'
+		] = wasmExports['zim_FilterIterator___construct'];
+		_zim_CallbackFilterIterator___construct = Module[
+			'_zim_CallbackFilterIterator___construct'
+		] = wasmExports['zim_CallbackFilterIterator___construct'];
+		_zim_IteratorIterator_getInnerIterator = Module[
+			'_zim_IteratorIterator_getInnerIterator'
+		] = wasmExports['zim_IteratorIterator_getInnerIterator'];
+		_zim_IteratorIterator_rewind = Module['_zim_IteratorIterator_rewind'] =
+			wasmExports['zim_IteratorIterator_rewind'];
+		_zim_IteratorIterator_valid = Module['_zim_IteratorIterator_valid'] =
+			wasmExports['zim_IteratorIterator_valid'];
+		_zim_IteratorIterator_key = Module['_zim_IteratorIterator_key'] =
+			wasmExports['zim_IteratorIterator_key'];
+		_zim_IteratorIterator_current = Module[
+			'_zim_IteratorIterator_current'
+		] = wasmExports['zim_IteratorIterator_current'];
+		_zim_IteratorIterator_next = Module['_zim_IteratorIterator_next'] =
+			wasmExports['zim_IteratorIterator_next'];
+		_zim_FilterIterator_rewind = Module['_zim_FilterIterator_rewind'] =
+			wasmExports['zim_FilterIterator_rewind'];
+		_zim_FilterIterator_next = Module['_zim_FilterIterator_next'] =
+			wasmExports['zim_FilterIterator_next'];
+		_zim_RecursiveCallbackFilterIterator___construct = Module[
+			'_zim_RecursiveCallbackFilterIterator___construct'
+		] = wasmExports['zim_RecursiveCallbackFilterIterator___construct'];
+		_zim_RecursiveFilterIterator___construct = Module[
+			'_zim_RecursiveFilterIterator___construct'
+		] = wasmExports['zim_RecursiveFilterIterator___construct'];
+		_zim_RecursiveFilterIterator_hasChildren = Module[
+			'_zim_RecursiveFilterIterator_hasChildren'
+		] = wasmExports['zim_RecursiveFilterIterator_hasChildren'];
+		_zim_RecursiveFilterIterator_getChildren = Module[
+			'_zim_RecursiveFilterIterator_getChildren'
+		] = wasmExports['zim_RecursiveFilterIterator_getChildren'];
+		_zim_RecursiveCallbackFilterIterator_getChildren = Module[
+			'_zim_RecursiveCallbackFilterIterator_getChildren'
+		] = wasmExports['zim_RecursiveCallbackFilterIterator_getChildren'];
+		_zim_ParentIterator___construct = Module[
+			'_zim_ParentIterator___construct'
+		] = wasmExports['zim_ParentIterator___construct'];
+		_zim_RegexIterator___construct = Module[
+			'_zim_RegexIterator___construct'
+		] = wasmExports['zim_RegexIterator___construct'];
+		_zim_CallbackFilterIterator_accept = Module[
+			'_zim_CallbackFilterIterator_accept'
+		] = wasmExports['zim_CallbackFilterIterator_accept'];
+		_zim_RegexIterator_accept = Module['_zim_RegexIterator_accept'] =
+			wasmExports['zim_RegexIterator_accept'];
+		_zim_RegexIterator_getRegex = Module['_zim_RegexIterator_getRegex'] =
+			wasmExports['zim_RegexIterator_getRegex'];
+		_zim_RegexIterator_getMode = Module['_zim_RegexIterator_getMode'] =
+			wasmExports['zim_RegexIterator_getMode'];
+		_zim_RegexIterator_setMode = Module['_zim_RegexIterator_setMode'] =
+			wasmExports['zim_RegexIterator_setMode'];
+		_zim_RegexIterator_getFlags = Module['_zim_RegexIterator_getFlags'] =
+			wasmExports['zim_RegexIterator_getFlags'];
+		_zim_RegexIterator_setFlags = Module['_zim_RegexIterator_setFlags'] =
+			wasmExports['zim_RegexIterator_setFlags'];
+		_zim_RegexIterator_getPregFlags = Module[
+			'_zim_RegexIterator_getPregFlags'
+		] = wasmExports['zim_RegexIterator_getPregFlags'];
+		_zim_RegexIterator_setPregFlags = Module[
+			'_zim_RegexIterator_setPregFlags'
+		] = wasmExports['zim_RegexIterator_setPregFlags'];
+		_zim_RecursiveRegexIterator___construct = Module[
+			'_zim_RecursiveRegexIterator___construct'
+		] = wasmExports['zim_RecursiveRegexIterator___construct'];
+		_zim_RecursiveRegexIterator_getChildren = Module[
+			'_zim_RecursiveRegexIterator_getChildren'
+		] = wasmExports['zim_RecursiveRegexIterator_getChildren'];
+		_zim_RecursiveRegexIterator_accept = Module[
+			'_zim_RecursiveRegexIterator_accept'
+		] = wasmExports['zim_RecursiveRegexIterator_accept'];
+		_zim_LimitIterator___construct = Module[
+			'_zim_LimitIterator___construct'
+		] = wasmExports['zim_LimitIterator___construct'];
+		_zim_LimitIterator_rewind = Module['_zim_LimitIterator_rewind'] =
+			wasmExports['zim_LimitIterator_rewind'];
+		_zim_LimitIterator_valid = Module['_zim_LimitIterator_valid'] =
+			wasmExports['zim_LimitIterator_valid'];
+		_zim_LimitIterator_next = Module['_zim_LimitIterator_next'] =
+			wasmExports['zim_LimitIterator_next'];
+		_zim_LimitIterator_seek = Module['_zim_LimitIterator_seek'] =
+			wasmExports['zim_LimitIterator_seek'];
+		_zim_LimitIterator_getPosition = Module[
+			'_zim_LimitIterator_getPosition'
+		] = wasmExports['zim_LimitIterator_getPosition'];
+		_zim_CachingIterator___construct = Module[
+			'_zim_CachingIterator___construct'
+		] = wasmExports['zim_CachingIterator___construct'];
+		_zim_CachingIterator_rewind = Module['_zim_CachingIterator_rewind'] =
+			wasmExports['zim_CachingIterator_rewind'];
+		_zim_CachingIterator_valid = Module['_zim_CachingIterator_valid'] =
+			wasmExports['zim_CachingIterator_valid'];
+		_zim_CachingIterator_next = Module['_zim_CachingIterator_next'] =
+			wasmExports['zim_CachingIterator_next'];
+		_zim_CachingIterator_hasNext = Module['_zim_CachingIterator_hasNext'] =
+			wasmExports['zim_CachingIterator_hasNext'];
+		_zim_CachingIterator___toString = Module[
+			'_zim_CachingIterator___toString'
+		] = wasmExports['zim_CachingIterator___toString'];
+		_zim_CachingIterator_offsetSet = Module[
+			'_zim_CachingIterator_offsetSet'
+		] = wasmExports['zim_CachingIterator_offsetSet'];
+		_zim_CachingIterator_offsetGet = Module[
+			'_zim_CachingIterator_offsetGet'
+		] = wasmExports['zim_CachingIterator_offsetGet'];
+		_zim_CachingIterator_offsetUnset = Module[
+			'_zim_CachingIterator_offsetUnset'
+		] = wasmExports['zim_CachingIterator_offsetUnset'];
+		_zim_CachingIterator_offsetExists = Module[
+			'_zim_CachingIterator_offsetExists'
+		] = wasmExports['zim_CachingIterator_offsetExists'];
+		_zim_CachingIterator_getCache = Module[
+			'_zim_CachingIterator_getCache'
+		] = wasmExports['zim_CachingIterator_getCache'];
+		_zim_CachingIterator_getFlags = Module[
+			'_zim_CachingIterator_getFlags'
+		] = wasmExports['zim_CachingIterator_getFlags'];
+		_zim_CachingIterator_setFlags = Module[
+			'_zim_CachingIterator_setFlags'
+		] = wasmExports['zim_CachingIterator_setFlags'];
+		_zim_CachingIterator_count = Module['_zim_CachingIterator_count'] =
+			wasmExports['zim_CachingIterator_count'];
+		_zim_RecursiveCachingIterator___construct = Module[
+			'_zim_RecursiveCachingIterator___construct'
+		] = wasmExports['zim_RecursiveCachingIterator___construct'];
+		_zim_RecursiveCachingIterator_hasChildren = Module[
+			'_zim_RecursiveCachingIterator_hasChildren'
+		] = wasmExports['zim_RecursiveCachingIterator_hasChildren'];
+		_zim_RecursiveCachingIterator_getChildren = Module[
+			'_zim_RecursiveCachingIterator_getChildren'
+		] = wasmExports['zim_RecursiveCachingIterator_getChildren'];
+		_zim_IteratorIterator___construct = Module[
+			'_zim_IteratorIterator___construct'
+		] = wasmExports['zim_IteratorIterator___construct'];
+		_zim_NoRewindIterator___construct = Module[
+			'_zim_NoRewindIterator___construct'
+		] = wasmExports['zim_NoRewindIterator___construct'];
+		_zim_NoRewindIterator_rewind = Module['_zim_NoRewindIterator_rewind'] =
+			wasmExports['zim_NoRewindIterator_rewind'];
+		_zim_NoRewindIterator_valid = Module['_zim_NoRewindIterator_valid'] =
+			wasmExports['zim_NoRewindIterator_valid'];
+		_zim_NoRewindIterator_key = Module['_zim_NoRewindIterator_key'] =
+			wasmExports['zim_NoRewindIterator_key'];
+		_zim_NoRewindIterator_current = Module[
+			'_zim_NoRewindIterator_current'
+		] = wasmExports['zim_NoRewindIterator_current'];
+		_zim_NoRewindIterator_next = Module['_zim_NoRewindIterator_next'] =
+			wasmExports['zim_NoRewindIterator_next'];
+		_zim_InfiniteIterator___construct = Module[
+			'_zim_InfiniteIterator___construct'
+		] = wasmExports['zim_InfiniteIterator___construct'];
+		_zim_InfiniteIterator_next = Module['_zim_InfiniteIterator_next'] =
+			wasmExports['zim_InfiniteIterator_next'];
+		_zim_EmptyIterator_rewind = Module['_zim_EmptyIterator_rewind'] =
+			wasmExports['zim_EmptyIterator_rewind'];
+		_zim_EmptyIterator_valid = Module['_zim_EmptyIterator_valid'] =
+			wasmExports['zim_EmptyIterator_valid'];
+		_zim_EmptyIterator_key = Module['_zim_EmptyIterator_key'] =
+			wasmExports['zim_EmptyIterator_key'];
+		_zim_EmptyIterator_current = Module['_zim_EmptyIterator_current'] =
+			wasmExports['zim_EmptyIterator_current'];
+		_zim_EmptyIterator_next = Module['_zim_EmptyIterator_next'] =
+			wasmExports['zim_EmptyIterator_next'];
+		_spl_append_it_next_iterator = Module['_spl_append_it_next_iterator'] =
+			wasmExports['spl_append_it_next_iterator'];
+		_spl_append_it_fetch = Module['_spl_append_it_fetch'] =
+			wasmExports['spl_append_it_fetch'];
+		_spl_append_it_next = Module['_spl_append_it_next'] =
+			wasmExports['spl_append_it_next'];
+		_zim_AppendIterator___construct = Module[
+			'_zim_AppendIterator___construct'
+		] = wasmExports['zim_AppendIterator___construct'];
+		_zim_AppendIterator_append = Module['_zim_AppendIterator_append'] =
+			wasmExports['zim_AppendIterator_append'];
+		_zim_AppendIterator_current = Module['_zim_AppendIterator_current'] =
+			wasmExports['zim_AppendIterator_current'];
+		_zim_AppendIterator_rewind = Module['_zim_AppendIterator_rewind'] =
+			wasmExports['zim_AppendIterator_rewind'];
+		_zim_AppendIterator_valid = Module['_zim_AppendIterator_valid'] =
+			wasmExports['zim_AppendIterator_valid'];
+		_zim_AppendIterator_next = Module['_zim_AppendIterator_next'] =
+			wasmExports['zim_AppendIterator_next'];
+		_zim_AppendIterator_getIteratorIndex = Module[
+			'_zim_AppendIterator_getIteratorIndex'
+		] = wasmExports['zim_AppendIterator_getIteratorIndex'];
+		_zim_AppendIterator_getArrayIterator = Module[
+			'_zim_AppendIterator_getArrayIterator'
+		] = wasmExports['zim_AppendIterator_getArrayIterator'];
+		_spl_iterator_apply = Module['_spl_iterator_apply'] =
+			wasmExports['spl_iterator_apply'];
+		_zif_iterator_to_array = Module['_zif_iterator_to_array'] =
+			wasmExports['zif_iterator_to_array'];
+		_zif_iterator_count = Module['_zif_iterator_count'] =
+			wasmExports['zif_iterator_count'];
+		_zif_iterator_apply = Module['_zif_iterator_apply'] =
+			wasmExports['zif_iterator_apply'];
+		_zm_startup_spl_iterators = Module['_zm_startup_spl_iterators'] =
+			wasmExports['zm_startup_spl_iterators'];
+		_zim_ArrayObject_offsetExists = Module[
+			'_zim_ArrayObject_offsetExists'
+		] = wasmExports['zim_ArrayObject_offsetExists'];
+		_zim_ArrayObject_offsetGet = Module['_zim_ArrayObject_offsetGet'] =
+			wasmExports['zim_ArrayObject_offsetGet'];
+		_zim_ArrayObject_offsetSet = Module['_zim_ArrayObject_offsetSet'] =
+			wasmExports['zim_ArrayObject_offsetSet'];
+		_spl_array_iterator_append = Module['_spl_array_iterator_append'] =
+			wasmExports['spl_array_iterator_append'];
+		_zim_ArrayObject_append = Module['_zim_ArrayObject_append'] =
+			wasmExports['zim_ArrayObject_append'];
+		_zim_ArrayObject_offsetUnset = Module['_zim_ArrayObject_offsetUnset'] =
+			wasmExports['zim_ArrayObject_offsetUnset'];
+		_zim_ArrayObject_getArrayCopy = Module[
+			'_zim_ArrayObject_getArrayCopy'
+		] = wasmExports['zim_ArrayObject_getArrayCopy'];
+		_spl_array_get_iterator = Module['_spl_array_get_iterator'] =
+			wasmExports['spl_array_get_iterator'];
+		_zim_ArrayObject___construct = Module['_zim_ArrayObject___construct'] =
+			wasmExports['zim_ArrayObject___construct'];
+		_zim_ArrayIterator___construct = Module[
+			'_zim_ArrayIterator___construct'
+		] = wasmExports['zim_ArrayIterator___construct'];
+		_zim_ArrayObject_setIteratorClass = Module[
+			'_zim_ArrayObject_setIteratorClass'
+		] = wasmExports['zim_ArrayObject_setIteratorClass'];
+		_zim_ArrayObject_getIteratorClass = Module[
+			'_zim_ArrayObject_getIteratorClass'
+		] = wasmExports['zim_ArrayObject_getIteratorClass'];
+		_zim_ArrayObject_getFlags = Module['_zim_ArrayObject_getFlags'] =
+			wasmExports['zim_ArrayObject_getFlags'];
+		_zim_ArrayObject_setFlags = Module['_zim_ArrayObject_setFlags'] =
+			wasmExports['zim_ArrayObject_setFlags'];
+		_zim_ArrayObject_exchangeArray = Module[
+			'_zim_ArrayObject_exchangeArray'
+		] = wasmExports['zim_ArrayObject_exchangeArray'];
+		_zim_ArrayObject_getIterator = Module['_zim_ArrayObject_getIterator'] =
+			wasmExports['zim_ArrayObject_getIterator'];
+		_zim_ArrayIterator_rewind = Module['_zim_ArrayIterator_rewind'] =
+			wasmExports['zim_ArrayIterator_rewind'];
+		_zim_ArrayIterator_seek = Module['_zim_ArrayIterator_seek'] =
+			wasmExports['zim_ArrayIterator_seek'];
+		_spl_array_object_count_elements = Module[
+			'_spl_array_object_count_elements'
+		] = wasmExports['spl_array_object_count_elements'];
+		_zim_ArrayObject_count = Module['_zim_ArrayObject_count'] =
+			wasmExports['zim_ArrayObject_count'];
+		_zim_ArrayObject_asort = Module['_zim_ArrayObject_asort'] =
+			wasmExports['zim_ArrayObject_asort'];
+		_zim_ArrayObject_ksort = Module['_zim_ArrayObject_ksort'] =
+			wasmExports['zim_ArrayObject_ksort'];
+		_zim_ArrayObject_uasort = Module['_zim_ArrayObject_uasort'] =
+			wasmExports['zim_ArrayObject_uasort'];
+		_zim_ArrayObject_uksort = Module['_zim_ArrayObject_uksort'] =
+			wasmExports['zim_ArrayObject_uksort'];
+		_zim_ArrayObject_natsort = Module['_zim_ArrayObject_natsort'] =
+			wasmExports['zim_ArrayObject_natsort'];
+		_zim_ArrayObject_natcasesort = Module['_zim_ArrayObject_natcasesort'] =
+			wasmExports['zim_ArrayObject_natcasesort'];
+		_zim_ArrayIterator_current = Module['_zim_ArrayIterator_current'] =
+			wasmExports['zim_ArrayIterator_current'];
+		_zim_ArrayIterator_key = Module['_zim_ArrayIterator_key'] =
+			wasmExports['zim_ArrayIterator_key'];
+		_spl_array_iterator_key = Module['_spl_array_iterator_key'] =
+			wasmExports['spl_array_iterator_key'];
+		_zim_ArrayIterator_next = Module['_zim_ArrayIterator_next'] =
+			wasmExports['zim_ArrayIterator_next'];
+		_zim_ArrayIterator_valid = Module['_zim_ArrayIterator_valid'] =
+			wasmExports['zim_ArrayIterator_valid'];
+		_zim_RecursiveArrayIterator_hasChildren = Module[
+			'_zim_RecursiveArrayIterator_hasChildren'
+		] = wasmExports['zim_RecursiveArrayIterator_hasChildren'];
+		_zim_RecursiveArrayIterator_getChildren = Module[
+			'_zim_RecursiveArrayIterator_getChildren'
+		] = wasmExports['zim_RecursiveArrayIterator_getChildren'];
+		_zim_ArrayObject_serialize = Module['_zim_ArrayObject_serialize'] =
+			wasmExports['zim_ArrayObject_serialize'];
+		_zim_ArrayObject_unserialize = Module['_zim_ArrayObject_unserialize'] =
+			wasmExports['zim_ArrayObject_unserialize'];
+		_zim_ArrayObject___serialize = Module['_zim_ArrayObject___serialize'] =
+			wasmExports['zim_ArrayObject___serialize'];
+		_zim_ArrayObject___unserialize = Module[
+			'_zim_ArrayObject___unserialize'
+		] = wasmExports['zim_ArrayObject___unserialize'];
+		_zim_ArrayObject___debugInfo = Module['_zim_ArrayObject___debugInfo'] =
+			wasmExports['zim_ArrayObject___debugInfo'];
+		_zm_startup_spl_array = Module['_zm_startup_spl_array'] =
+			wasmExports['zm_startup_spl_array'];
+		_spl_filesystem_object_get_path = Module[
+			'_spl_filesystem_object_get_path'
+		] = wasmExports['spl_filesystem_object_get_path'];
+		_spl_filesystem_info_set_filename = Module[
+			'_spl_filesystem_info_set_filename'
+		] = wasmExports['spl_filesystem_info_set_filename'];
+		_spl_filesystem_object_get_method_check = Module[
+			'_spl_filesystem_object_get_method_check'
+		] = wasmExports['spl_filesystem_object_get_method_check'];
+		_spl_filesystem_object_construct = Module[
+			'_spl_filesystem_object_construct'
+		] = wasmExports['spl_filesystem_object_construct'];
+		_zim_DirectoryIterator___construct = Module[
+			'_zim_DirectoryIterator___construct'
+		] = wasmExports['zim_DirectoryIterator___construct'];
+		_zim_DirectoryIterator_rewind = Module[
+			'_zim_DirectoryIterator_rewind'
+		] = wasmExports['zim_DirectoryIterator_rewind'];
+		_zim_DirectoryIterator_key = Module['_zim_DirectoryIterator_key'] =
+			wasmExports['zim_DirectoryIterator_key'];
+		_zim_DirectoryIterator_current = Module[
+			'_zim_DirectoryIterator_current'
+		] = wasmExports['zim_DirectoryIterator_current'];
+		_zim_DirectoryIterator_next = Module['_zim_DirectoryIterator_next'] =
+			wasmExports['zim_DirectoryIterator_next'];
+		_zim_DirectoryIterator_seek = Module['_zim_DirectoryIterator_seek'] =
+			wasmExports['zim_DirectoryIterator_seek'];
+		_zim_DirectoryIterator_valid = Module['_zim_DirectoryIterator_valid'] =
+			wasmExports['zim_DirectoryIterator_valid'];
+		_zim_SplFileInfo_getPath = Module['_zim_SplFileInfo_getPath'] =
+			wasmExports['zim_SplFileInfo_getPath'];
+		_zim_SplFileInfo_getFilename = Module['_zim_SplFileInfo_getFilename'] =
+			wasmExports['zim_SplFileInfo_getFilename'];
+		_zim_DirectoryIterator_getFilename = Module[
+			'_zim_DirectoryIterator_getFilename'
+		] = wasmExports['zim_DirectoryIterator_getFilename'];
+		_zim_SplFileInfo_getExtension = Module[
+			'_zim_SplFileInfo_getExtension'
+		] = wasmExports['zim_SplFileInfo_getExtension'];
+		_zim_DirectoryIterator_getExtension = Module[
+			'_zim_DirectoryIterator_getExtension'
+		] = wasmExports['zim_DirectoryIterator_getExtension'];
+		_zim_SplFileInfo_getBasename = Module['_zim_SplFileInfo_getBasename'] =
+			wasmExports['zim_SplFileInfo_getBasename'];
+		_zim_DirectoryIterator_getBasename = Module[
+			'_zim_DirectoryIterator_getBasename'
+		] = wasmExports['zim_DirectoryIterator_getBasename'];
+		_zim_SplFileInfo_getPathname = Module['_zim_SplFileInfo_getPathname'] =
+			wasmExports['zim_SplFileInfo_getPathname'];
+		_zim_FilesystemIterator_key = Module['_zim_FilesystemIterator_key'] =
+			wasmExports['zim_FilesystemIterator_key'];
+		_zim_FilesystemIterator_current = Module[
+			'_zim_FilesystemIterator_current'
+		] = wasmExports['zim_FilesystemIterator_current'];
+		_zim_DirectoryIterator_isDot = Module['_zim_DirectoryIterator_isDot'] =
+			wasmExports['zim_DirectoryIterator_isDot'];
+		_zim_SplFileInfo___construct = Module['_zim_SplFileInfo___construct'] =
+			wasmExports['zim_SplFileInfo___construct'];
+		_zim_SplFileInfo_getPerms = Module['_zim_SplFileInfo_getPerms'] =
+			wasmExports['zim_SplFileInfo_getPerms'];
+		_zim_SplFileInfo_getInode = Module['_zim_SplFileInfo_getInode'] =
+			wasmExports['zim_SplFileInfo_getInode'];
+		_zim_SplFileInfo_getSize = Module['_zim_SplFileInfo_getSize'] =
+			wasmExports['zim_SplFileInfo_getSize'];
+		_zim_SplFileInfo_getOwner = Module['_zim_SplFileInfo_getOwner'] =
+			wasmExports['zim_SplFileInfo_getOwner'];
+		_zim_SplFileInfo_getGroup = Module['_zim_SplFileInfo_getGroup'] =
+			wasmExports['zim_SplFileInfo_getGroup'];
+		_zim_SplFileInfo_getATime = Module['_zim_SplFileInfo_getATime'] =
+			wasmExports['zim_SplFileInfo_getATime'];
+		_zim_SplFileInfo_getMTime = Module['_zim_SplFileInfo_getMTime'] =
+			wasmExports['zim_SplFileInfo_getMTime'];
+		_zim_SplFileInfo_getCTime = Module['_zim_SplFileInfo_getCTime'] =
+			wasmExports['zim_SplFileInfo_getCTime'];
+		_zim_SplFileInfo_getType = Module['_zim_SplFileInfo_getType'] =
+			wasmExports['zim_SplFileInfo_getType'];
+		_zim_SplFileInfo_isWritable = Module['_zim_SplFileInfo_isWritable'] =
+			wasmExports['zim_SplFileInfo_isWritable'];
+		_zim_SplFileInfo_isReadable = Module['_zim_SplFileInfo_isReadable'] =
+			wasmExports['zim_SplFileInfo_isReadable'];
+		_zim_SplFileInfo_isExecutable = Module[
+			'_zim_SplFileInfo_isExecutable'
+		] = wasmExports['zim_SplFileInfo_isExecutable'];
+		_zim_SplFileInfo_isFile = Module['_zim_SplFileInfo_isFile'] =
+			wasmExports['zim_SplFileInfo_isFile'];
+		_zim_SplFileInfo_isDir = Module['_zim_SplFileInfo_isDir'] =
+			wasmExports['zim_SplFileInfo_isDir'];
+		_zim_SplFileInfo_isLink = Module['_zim_SplFileInfo_isLink'] =
+			wasmExports['zim_SplFileInfo_isLink'];
+		_zim_SplFileInfo_getLinkTarget = Module[
+			'_zim_SplFileInfo_getLinkTarget'
+		] = wasmExports['zim_SplFileInfo_getLinkTarget'];
+		_zim_SplFileInfo_getRealPath = Module['_zim_SplFileInfo_getRealPath'] =
+			wasmExports['zim_SplFileInfo_getRealPath'];
+		_zim_SplFileInfo_openFile = Module['_zim_SplFileInfo_openFile'] =
+			wasmExports['zim_SplFileInfo_openFile'];
+		_zim_SplFileInfo_setFileClass = Module[
+			'_zim_SplFileInfo_setFileClass'
+		] = wasmExports['zim_SplFileInfo_setFileClass'];
+		_zim_SplFileInfo_setInfoClass = Module[
+			'_zim_SplFileInfo_setInfoClass'
+		] = wasmExports['zim_SplFileInfo_setInfoClass'];
+		_zim_SplFileInfo_getFileInfo = Module['_zim_SplFileInfo_getFileInfo'] =
+			wasmExports['zim_SplFileInfo_getFileInfo'];
+		_zim_SplFileInfo_getPathInfo = Module['_zim_SplFileInfo_getPathInfo'] =
+			wasmExports['zim_SplFileInfo_getPathInfo'];
+		_zim_SplFileInfo___debugInfo = Module['_zim_SplFileInfo___debugInfo'] =
+			wasmExports['zim_SplFileInfo___debugInfo'];
+		_zim_SplFileInfo__bad_state_ex = Module[
+			'_zim_SplFileInfo__bad_state_ex'
+		] = wasmExports['zim_SplFileInfo__bad_state_ex'];
+		_zim_FilesystemIterator___construct = Module[
+			'_zim_FilesystemIterator___construct'
+		] = wasmExports['zim_FilesystemIterator___construct'];
+		_zim_FilesystemIterator_rewind = Module[
+			'_zim_FilesystemIterator_rewind'
+		] = wasmExports['zim_FilesystemIterator_rewind'];
+		_zim_FilesystemIterator_getFlags = Module[
+			'_zim_FilesystemIterator_getFlags'
+		] = wasmExports['zim_FilesystemIterator_getFlags'];
+		_zim_FilesystemIterator_setFlags = Module[
+			'_zim_FilesystemIterator_setFlags'
+		] = wasmExports['zim_FilesystemIterator_setFlags'];
+		_zim_RecursiveDirectoryIterator_hasChildren = Module[
+			'_zim_RecursiveDirectoryIterator_hasChildren'
+		] = wasmExports['zim_RecursiveDirectoryIterator_hasChildren'];
+		_zim_RecursiveDirectoryIterator_getChildren = Module[
+			'_zim_RecursiveDirectoryIterator_getChildren'
+		] = wasmExports['zim_RecursiveDirectoryIterator_getChildren'];
+		_zim_RecursiveDirectoryIterator_getSubPath = Module[
+			'_zim_RecursiveDirectoryIterator_getSubPath'
+		] = wasmExports['zim_RecursiveDirectoryIterator_getSubPath'];
+		_zim_RecursiveDirectoryIterator_getSubPathname = Module[
+			'_zim_RecursiveDirectoryIterator_getSubPathname'
+		] = wasmExports['zim_RecursiveDirectoryIterator_getSubPathname'];
+		_zim_RecursiveDirectoryIterator___construct = Module[
+			'_zim_RecursiveDirectoryIterator___construct'
+		] = wasmExports['zim_RecursiveDirectoryIterator___construct'];
+		_zim_GlobIterator___construct = Module[
+			'_zim_GlobIterator___construct'
+		] = wasmExports['zim_GlobIterator___construct'];
+		_zim_GlobIterator_count = Module['_zim_GlobIterator_count'] =
+			wasmExports['zim_GlobIterator_count'];
+		_spl_filesystem_dir_get_iterator = Module[
+			'_spl_filesystem_dir_get_iterator'
+		] = wasmExports['spl_filesystem_dir_get_iterator'];
+		_spl_filesystem_tree_get_iterator = Module[
+			'_spl_filesystem_tree_get_iterator'
+		] = wasmExports['spl_filesystem_tree_get_iterator'];
+		_zim_SplFileObject___construct = Module[
+			'_zim_SplFileObject___construct'
+		] = wasmExports['zim_SplFileObject___construct'];
+		_zim_SplTempFileObject___construct = Module[
+			'_zim_SplTempFileObject___construct'
+		] = wasmExports['zim_SplTempFileObject___construct'];
+		_zim_SplFileObject_rewind = Module['_zim_SplFileObject_rewind'] =
+			wasmExports['zim_SplFileObject_rewind'];
+		_zim_SplFileObject_eof = Module['_zim_SplFileObject_eof'] =
+			wasmExports['zim_SplFileObject_eof'];
+		_zim_SplFileObject_valid = Module['_zim_SplFileObject_valid'] =
+			wasmExports['zim_SplFileObject_valid'];
+		_zim_SplFileObject_fgets = Module['_zim_SplFileObject_fgets'] =
+			wasmExports['zim_SplFileObject_fgets'];
+		_zim_SplFileObject_current = Module['_zim_SplFileObject_current'] =
+			wasmExports['zim_SplFileObject_current'];
+		_zim_SplFileObject_key = Module['_zim_SplFileObject_key'] =
+			wasmExports['zim_SplFileObject_key'];
+		_zim_SplFileObject_next = Module['_zim_SplFileObject_next'] =
+			wasmExports['zim_SplFileObject_next'];
+		_zim_SplFileObject_setFlags = Module['_zim_SplFileObject_setFlags'] =
+			wasmExports['zim_SplFileObject_setFlags'];
+		_zim_SplFileObject_getFlags = Module['_zim_SplFileObject_getFlags'] =
+			wasmExports['zim_SplFileObject_getFlags'];
+		_zim_SplFileObject_setMaxLineLen = Module[
+			'_zim_SplFileObject_setMaxLineLen'
+		] = wasmExports['zim_SplFileObject_setMaxLineLen'];
+		_zim_SplFileObject_getMaxLineLen = Module[
+			'_zim_SplFileObject_getMaxLineLen'
+		] = wasmExports['zim_SplFileObject_getMaxLineLen'];
+		_zim_SplFileObject_hasChildren = Module[
+			'_zim_SplFileObject_hasChildren'
+		] = wasmExports['zim_SplFileObject_hasChildren'];
+		_zim_SplFileObject_getChildren = Module[
+			'_zim_SplFileObject_getChildren'
+		] = wasmExports['zim_SplFileObject_getChildren'];
+		_zim_SplFileObject_fgetcsv = Module['_zim_SplFileObject_fgetcsv'] =
+			wasmExports['zim_SplFileObject_fgetcsv'];
+		_zim_SplFileObject_fputcsv = Module['_zim_SplFileObject_fputcsv'] =
+			wasmExports['zim_SplFileObject_fputcsv'];
+		_zim_SplFileObject_setCsvControl = Module[
+			'_zim_SplFileObject_setCsvControl'
+		] = wasmExports['zim_SplFileObject_setCsvControl'];
+		_zim_SplFileObject_getCsvControl = Module[
+			'_zim_SplFileObject_getCsvControl'
+		] = wasmExports['zim_SplFileObject_getCsvControl'];
+		_zim_SplFileObject_flock = Module['_zim_SplFileObject_flock'] =
+			wasmExports['zim_SplFileObject_flock'];
+		_zim_SplFileObject_fflush = Module['_zim_SplFileObject_fflush'] =
+			wasmExports['zim_SplFileObject_fflush'];
+		_zim_SplFileObject_ftell = Module['_zim_SplFileObject_ftell'] =
+			wasmExports['zim_SplFileObject_ftell'];
+		_zim_SplFileObject_fseek = Module['_zim_SplFileObject_fseek'] =
+			wasmExports['zim_SplFileObject_fseek'];
+		_zim_SplFileObject_fgetc = Module['_zim_SplFileObject_fgetc'] =
+			wasmExports['zim_SplFileObject_fgetc'];
+		_zim_SplFileObject_fpassthru = Module['_zim_SplFileObject_fpassthru'] =
+			wasmExports['zim_SplFileObject_fpassthru'];
+		_zim_SplFileObject_fscanf = Module['_zim_SplFileObject_fscanf'] =
+			wasmExports['zim_SplFileObject_fscanf'];
+		_zim_SplFileObject_fwrite = Module['_zim_SplFileObject_fwrite'] =
+			wasmExports['zim_SplFileObject_fwrite'];
+		_zim_SplFileObject_fread = Module['_zim_SplFileObject_fread'] =
+			wasmExports['zim_SplFileObject_fread'];
+		_zim_SplFileObject_fstat = Module['_zim_SplFileObject_fstat'] =
+			wasmExports['zim_SplFileObject_fstat'];
+		_zim_SplFileObject_ftruncate = Module['_zim_SplFileObject_ftruncate'] =
+			wasmExports['zim_SplFileObject_ftruncate'];
+		_zim_SplFileObject_seek = Module['_zim_SplFileObject_seek'] =
+			wasmExports['zim_SplFileObject_seek'];
+		_zm_startup_spl_directory = Module['_zm_startup_spl_directory'] =
+			wasmExports['zm_startup_spl_directory'];
+		_zm_startup_spl_exceptions = Module['_zm_startup_spl_exceptions'] =
+			wasmExports['zm_startup_spl_exceptions'];
+		_spl_SplObjectStorage_free_storage = Module[
+			'_spl_SplObjectStorage_free_storage'
+		] = wasmExports['spl_SplObjectStorage_free_storage'];
+		_spl_object_storage_attach = Module['_spl_object_storage_attach'] =
+			wasmExports['spl_object_storage_attach'];
+		_spl_object_storage_addall = Module['_spl_object_storage_addall'] =
+			wasmExports['spl_object_storage_addall'];
+		_spl_object_storage_contains = Module['_spl_object_storage_contains'] =
+			wasmExports['spl_object_storage_contains'];
+		_zim_SplObjectStorage_attach = Module['_zim_SplObjectStorage_attach'] =
+			wasmExports['zim_SplObjectStorage_attach'];
+		_zim_SplObjectStorage_detach = Module['_zim_SplObjectStorage_detach'] =
+			wasmExports['zim_SplObjectStorage_detach'];
+		_zim_SplObjectStorage_getHash = Module[
+			'_zim_SplObjectStorage_getHash'
+		] = wasmExports['zim_SplObjectStorage_getHash'];
+		_zim_SplObjectStorage_offsetGet = Module[
+			'_zim_SplObjectStorage_offsetGet'
+		] = wasmExports['zim_SplObjectStorage_offsetGet'];
+		_zim_SplObjectStorage_addAll = Module['_zim_SplObjectStorage_addAll'] =
+			wasmExports['zim_SplObjectStorage_addAll'];
+		_zim_SplObjectStorage_removeAll = Module[
+			'_zim_SplObjectStorage_removeAll'
+		] = wasmExports['zim_SplObjectStorage_removeAll'];
+		_zim_SplObjectStorage_removeAllExcept = Module[
+			'_zim_SplObjectStorage_removeAllExcept'
+		] = wasmExports['zim_SplObjectStorage_removeAllExcept'];
+		_zim_SplObjectStorage_contains = Module[
+			'_zim_SplObjectStorage_contains'
+		] = wasmExports['zim_SplObjectStorage_contains'];
+		_zim_SplObjectStorage_count = Module['_zim_SplObjectStorage_count'] =
+			wasmExports['zim_SplObjectStorage_count'];
+		_zim_SplObjectStorage_rewind = Module['_zim_SplObjectStorage_rewind'] =
+			wasmExports['zim_SplObjectStorage_rewind'];
+		_zim_SplObjectStorage_valid = Module['_zim_SplObjectStorage_valid'] =
+			wasmExports['zim_SplObjectStorage_valid'];
+		_zim_SplObjectStorage_key = Module['_zim_SplObjectStorage_key'] =
+			wasmExports['zim_SplObjectStorage_key'];
+		_zim_SplObjectStorage_current = Module[
+			'_zim_SplObjectStorage_current'
+		] = wasmExports['zim_SplObjectStorage_current'];
+		_zim_SplObjectStorage_getInfo = Module[
+			'_zim_SplObjectStorage_getInfo'
+		] = wasmExports['zim_SplObjectStorage_getInfo'];
+		_zim_SplObjectStorage_setInfo = Module[
+			'_zim_SplObjectStorage_setInfo'
+		] = wasmExports['zim_SplObjectStorage_setInfo'];
+		_zim_SplObjectStorage_next = Module['_zim_SplObjectStorage_next'] =
+			wasmExports['zim_SplObjectStorage_next'];
+		_zim_SplObjectStorage_serialize = Module[
+			'_zim_SplObjectStorage_serialize'
+		] = wasmExports['zim_SplObjectStorage_serialize'];
+		_zim_SplObjectStorage_unserialize = Module[
+			'_zim_SplObjectStorage_unserialize'
+		] = wasmExports['zim_SplObjectStorage_unserialize'];
+		_zim_SplObjectStorage___serialize = Module[
+			'_zim_SplObjectStorage___serialize'
+		] = wasmExports['zim_SplObjectStorage___serialize'];
+		_zim_SplObjectStorage___unserialize = Module[
+			'_zim_SplObjectStorage___unserialize'
+		] = wasmExports['zim_SplObjectStorage___unserialize'];
+		_zim_SplObjectStorage___debugInfo = Module[
+			'_zim_SplObjectStorage___debugInfo'
+		] = wasmExports['zim_SplObjectStorage___debugInfo'];
+		_zim_MultipleIterator___construct = Module[
+			'_zim_MultipleIterator___construct'
+		] = wasmExports['zim_MultipleIterator___construct'];
+		_zim_MultipleIterator_getFlags = Module[
+			'_zim_MultipleIterator_getFlags'
+		] = wasmExports['zim_MultipleIterator_getFlags'];
+		_zim_MultipleIterator_setFlags = Module[
+			'_zim_MultipleIterator_setFlags'
+		] = wasmExports['zim_MultipleIterator_setFlags'];
+		_zim_MultipleIterator_attachIterator = Module[
+			'_zim_MultipleIterator_attachIterator'
+		] = wasmExports['zim_MultipleIterator_attachIterator'];
+		_zim_MultipleIterator_detachIterator = Module[
+			'_zim_MultipleIterator_detachIterator'
+		] = wasmExports['zim_MultipleIterator_detachIterator'];
+		_zim_MultipleIterator_containsIterator = Module[
+			'_zim_MultipleIterator_containsIterator'
+		] = wasmExports['zim_MultipleIterator_containsIterator'];
+		_zim_MultipleIterator_countIterators = Module[
+			'_zim_MultipleIterator_countIterators'
+		] = wasmExports['zim_MultipleIterator_countIterators'];
+		_zim_MultipleIterator_rewind = Module['_zim_MultipleIterator_rewind'] =
+			wasmExports['zim_MultipleIterator_rewind'];
+		_zim_MultipleIterator_next = Module['_zim_MultipleIterator_next'] =
+			wasmExports['zim_MultipleIterator_next'];
+		_zim_MultipleIterator_valid = Module['_zim_MultipleIterator_valid'] =
+			wasmExports['zim_MultipleIterator_valid'];
+		_zim_MultipleIterator_current = Module[
+			'_zim_MultipleIterator_current'
+		] = wasmExports['zim_MultipleIterator_current'];
+		_zim_MultipleIterator_key = Module['_zim_MultipleIterator_key'] =
+			wasmExports['zim_MultipleIterator_key'];
+		_zm_startup_spl_observer = Module['_zm_startup_spl_observer'] =
+			wasmExports['zm_startup_spl_observer'];
+		_zim_SplDoublyLinkedList_push = Module[
+			'_zim_SplDoublyLinkedList_push'
+		] = wasmExports['zim_SplDoublyLinkedList_push'];
+		_zim_SplDoublyLinkedList_unshift = Module[
+			'_zim_SplDoublyLinkedList_unshift'
+		] = wasmExports['zim_SplDoublyLinkedList_unshift'];
+		_zim_SplDoublyLinkedList_pop = Module['_zim_SplDoublyLinkedList_pop'] =
+			wasmExports['zim_SplDoublyLinkedList_pop'];
+		_zim_SplDoublyLinkedList_shift = Module[
+			'_zim_SplDoublyLinkedList_shift'
+		] = wasmExports['zim_SplDoublyLinkedList_shift'];
+		_zim_SplDoublyLinkedList_top = Module['_zim_SplDoublyLinkedList_top'] =
+			wasmExports['zim_SplDoublyLinkedList_top'];
+		_zim_SplDoublyLinkedList_bottom = Module[
+			'_zim_SplDoublyLinkedList_bottom'
+		] = wasmExports['zim_SplDoublyLinkedList_bottom'];
+		_zim_SplDoublyLinkedList_count = Module[
+			'_zim_SplDoublyLinkedList_count'
+		] = wasmExports['zim_SplDoublyLinkedList_count'];
+		_zim_SplDoublyLinkedList_isEmpty = Module[
+			'_zim_SplDoublyLinkedList_isEmpty'
+		] = wasmExports['zim_SplDoublyLinkedList_isEmpty'];
+		_zim_SplDoublyLinkedList_setIteratorMode = Module[
+			'_zim_SplDoublyLinkedList_setIteratorMode'
+		] = wasmExports['zim_SplDoublyLinkedList_setIteratorMode'];
+		_zim_SplDoublyLinkedList_getIteratorMode = Module[
+			'_zim_SplDoublyLinkedList_getIteratorMode'
+		] = wasmExports['zim_SplDoublyLinkedList_getIteratorMode'];
+		_zim_SplDoublyLinkedList_offsetExists = Module[
+			'_zim_SplDoublyLinkedList_offsetExists'
+		] = wasmExports['zim_SplDoublyLinkedList_offsetExists'];
+		_zim_SplDoublyLinkedList_offsetGet = Module[
+			'_zim_SplDoublyLinkedList_offsetGet'
+		] = wasmExports['zim_SplDoublyLinkedList_offsetGet'];
+		_zim_SplDoublyLinkedList_offsetSet = Module[
+			'_zim_SplDoublyLinkedList_offsetSet'
+		] = wasmExports['zim_SplDoublyLinkedList_offsetSet'];
+		_zim_SplDoublyLinkedList_offsetUnset = Module[
+			'_zim_SplDoublyLinkedList_offsetUnset'
+		] = wasmExports['zim_SplDoublyLinkedList_offsetUnset'];
+		_zim_SplDoublyLinkedList_key = Module['_zim_SplDoublyLinkedList_key'] =
+			wasmExports['zim_SplDoublyLinkedList_key'];
+		_zim_SplDoublyLinkedList_prev = Module[
+			'_zim_SplDoublyLinkedList_prev'
+		] = wasmExports['zim_SplDoublyLinkedList_prev'];
+		_zim_SplDoublyLinkedList_next = Module[
+			'_zim_SplDoublyLinkedList_next'
+		] = wasmExports['zim_SplDoublyLinkedList_next'];
+		_zim_SplDoublyLinkedList_valid = Module[
+			'_zim_SplDoublyLinkedList_valid'
+		] = wasmExports['zim_SplDoublyLinkedList_valid'];
+		_zim_SplDoublyLinkedList_rewind = Module[
+			'_zim_SplDoublyLinkedList_rewind'
+		] = wasmExports['zim_SplDoublyLinkedList_rewind'];
+		_zim_SplDoublyLinkedList_current = Module[
+			'_zim_SplDoublyLinkedList_current'
+		] = wasmExports['zim_SplDoublyLinkedList_current'];
+		_zim_SplDoublyLinkedList_serialize = Module[
+			'_zim_SplDoublyLinkedList_serialize'
+		] = wasmExports['zim_SplDoublyLinkedList_serialize'];
+		_zim_SplDoublyLinkedList_unserialize = Module[
+			'_zim_SplDoublyLinkedList_unserialize'
+		] = wasmExports['zim_SplDoublyLinkedList_unserialize'];
+		_zim_SplDoublyLinkedList___serialize = Module[
+			'_zim_SplDoublyLinkedList___serialize'
+		] = wasmExports['zim_SplDoublyLinkedList___serialize'];
+		_zim_SplDoublyLinkedList___unserialize = Module[
+			'_zim_SplDoublyLinkedList___unserialize'
+		] = wasmExports['zim_SplDoublyLinkedList___unserialize'];
+		_zim_SplDoublyLinkedList_add = Module['_zim_SplDoublyLinkedList_add'] =
+			wasmExports['zim_SplDoublyLinkedList_add'];
+		_zim_SplDoublyLinkedList___debugInfo = Module[
+			'_zim_SplDoublyLinkedList___debugInfo'
+		] = wasmExports['zim_SplDoublyLinkedList___debugInfo'];
+		_spl_dllist_get_iterator = Module['_spl_dllist_get_iterator'] =
+			wasmExports['spl_dllist_get_iterator'];
+		_zm_startup_spl_dllist = Module['_zm_startup_spl_dllist'] =
+			wasmExports['zm_startup_spl_dllist'];
+		_zim_SplHeap_count = Module['_zim_SplHeap_count'] =
+			wasmExports['zim_SplHeap_count'];
+		_zim_SplHeap_isEmpty = Module['_zim_SplHeap_isEmpty'] =
+			wasmExports['zim_SplHeap_isEmpty'];
+		_zim_SplHeap_insert = Module['_zim_SplHeap_insert'] =
+			wasmExports['zim_SplHeap_insert'];
+		_zim_SplHeap_extract = Module['_zim_SplHeap_extract'] =
+			wasmExports['zim_SplHeap_extract'];
+		_zim_SplPriorityQueue_insert = Module['_zim_SplPriorityQueue_insert'] =
+			wasmExports['zim_SplPriorityQueue_insert'];
+		_zim_SplPriorityQueue_extract = Module[
+			'_zim_SplPriorityQueue_extract'
+		] = wasmExports['zim_SplPriorityQueue_extract'];
+		_zim_SplPriorityQueue_top = Module['_zim_SplPriorityQueue_top'] =
+			wasmExports['zim_SplPriorityQueue_top'];
+		_zim_SplPriorityQueue_setExtractFlags = Module[
+			'_zim_SplPriorityQueue_setExtractFlags'
+		] = wasmExports['zim_SplPriorityQueue_setExtractFlags'];
+		_zim_SplPriorityQueue_getExtractFlags = Module[
+			'_zim_SplPriorityQueue_getExtractFlags'
+		] = wasmExports['zim_SplPriorityQueue_getExtractFlags'];
+		_zim_SplHeap_recoverFromCorruption = Module[
+			'_zim_SplHeap_recoverFromCorruption'
+		] = wasmExports['zim_SplHeap_recoverFromCorruption'];
+		_zim_SplHeap_isCorrupted = Module['_zim_SplHeap_isCorrupted'] =
+			wasmExports['zim_SplHeap_isCorrupted'];
+		_zim_SplPriorityQueue_compare = Module[
+			'_zim_SplPriorityQueue_compare'
+		] = wasmExports['zim_SplPriorityQueue_compare'];
+		_zim_SplHeap_top = Module['_zim_SplHeap_top'] =
+			wasmExports['zim_SplHeap_top'];
+		_zim_SplMinHeap_compare = Module['_zim_SplMinHeap_compare'] =
+			wasmExports['zim_SplMinHeap_compare'];
+		_zim_SplMaxHeap_compare = Module['_zim_SplMaxHeap_compare'] =
+			wasmExports['zim_SplMaxHeap_compare'];
+		_zim_SplHeap_key = Module['_zim_SplHeap_key'] =
+			wasmExports['zim_SplHeap_key'];
+		_zim_SplHeap_next = Module['_zim_SplHeap_next'] =
+			wasmExports['zim_SplHeap_next'];
+		_zim_SplHeap_valid = Module['_zim_SplHeap_valid'] =
+			wasmExports['zim_SplHeap_valid'];
+		_zim_SplHeap_rewind = Module['_zim_SplHeap_rewind'] =
+			wasmExports['zim_SplHeap_rewind'];
+		_zim_SplHeap_current = Module['_zim_SplHeap_current'] =
+			wasmExports['zim_SplHeap_current'];
+		_zim_SplPriorityQueue_current = Module[
+			'_zim_SplPriorityQueue_current'
+		] = wasmExports['zim_SplPriorityQueue_current'];
+		_zim_SplHeap___debugInfo = Module['_zim_SplHeap___debugInfo'] =
+			wasmExports['zim_SplHeap___debugInfo'];
+		_zim_SplPriorityQueue___debugInfo = Module[
+			'_zim_SplPriorityQueue___debugInfo'
+		] = wasmExports['zim_SplPriorityQueue___debugInfo'];
+		_spl_heap_get_iterator = Module['_spl_heap_get_iterator'] =
+			wasmExports['spl_heap_get_iterator'];
+		_spl_pqueue_get_iterator = Module['_spl_pqueue_get_iterator'] =
+			wasmExports['spl_pqueue_get_iterator'];
+		_zm_startup_spl_heap = Module['_zm_startup_spl_heap'] =
+			wasmExports['zm_startup_spl_heap'];
+		_zim_SplFixedArray___construct = Module[
+			'_zim_SplFixedArray___construct'
+		] = wasmExports['zim_SplFixedArray___construct'];
+		_zim_SplFixedArray___wakeup = Module['_zim_SplFixedArray___wakeup'] =
+			wasmExports['zim_SplFixedArray___wakeup'];
+		_zim_SplFixedArray_count = Module['_zim_SplFixedArray_count'] =
+			wasmExports['zim_SplFixedArray_count'];
+		_zim_SplFixedArray_toArray = Module['_zim_SplFixedArray_toArray'] =
+			wasmExports['zim_SplFixedArray_toArray'];
+		_zim_SplFixedArray_fromArray = Module['_zim_SplFixedArray_fromArray'] =
+			wasmExports['zim_SplFixedArray_fromArray'];
+		_zim_SplFixedArray_getSize = Module['_zim_SplFixedArray_getSize'] =
+			wasmExports['zim_SplFixedArray_getSize'];
+		_zim_SplFixedArray_setSize = Module['_zim_SplFixedArray_setSize'] =
+			wasmExports['zim_SplFixedArray_setSize'];
+		_zim_SplFixedArray_offsetExists = Module[
+			'_zim_SplFixedArray_offsetExists'
+		] = wasmExports['zim_SplFixedArray_offsetExists'];
+		_zim_SplFixedArray_offsetGet = Module['_zim_SplFixedArray_offsetGet'] =
+			wasmExports['zim_SplFixedArray_offsetGet'];
+		_zim_SplFixedArray_offsetSet = Module['_zim_SplFixedArray_offsetSet'] =
+			wasmExports['zim_SplFixedArray_offsetSet'];
+		_zim_SplFixedArray_offsetUnset = Module[
+			'_zim_SplFixedArray_offsetUnset'
+		] = wasmExports['zim_SplFixedArray_offsetUnset'];
+		_zim_SplFixedArray_getIterator = Module[
+			'_zim_SplFixedArray_getIterator'
+		] = wasmExports['zim_SplFixedArray_getIterator'];
+		_spl_fixedarray_get_iterator = Module['_spl_fixedarray_get_iterator'] =
+			wasmExports['spl_fixedarray_get_iterator'];
+		_zm_startup_spl_fixedarray = Module['_zm_startup_spl_fixedarray'] =
+			wasmExports['zm_startup_spl_fixedarray'];
+		__crypt_extended_init = Module['__crypt_extended_init'] =
+			wasmExports['_crypt_extended_init'];
+		__crypt_extended_r = Module['__crypt_extended_r'] =
+			wasmExports['_crypt_extended_r'];
+		_php_crypt_blowfish_rn = Module['_php_crypt_blowfish_rn'] =
+			wasmExports['php_crypt_blowfish_rn'];
+		_php_sha512_crypt_r = Module['_php_sha512_crypt_r'] =
+			wasmExports['php_sha512_crypt_r'];
+		_php_sha512_crypt = Module['_php_sha512_crypt'] =
+			wasmExports['php_sha512_crypt'];
+		___php_stpncpy = Module['___php_stpncpy'] =
+			wasmExports['__php_stpncpy'];
+		___php_mempcpy = Module['___php_mempcpy'] =
+			wasmExports['__php_mempcpy'];
+		_php_sha256_crypt_r = Module['_php_sha256_crypt_r'] =
+			wasmExports['php_sha256_crypt_r'];
+		_php_sha256_crypt = Module['_php_sha256_crypt'] =
+			wasmExports['php_sha256_crypt'];
+		_php_init_crypt_r = Module['_php_init_crypt_r'] =
+			wasmExports['php_init_crypt_r'];
+		_php_shutdown_crypt_r = Module['_php_shutdown_crypt_r'] =
+			wasmExports['php_shutdown_crypt_r'];
+		__crypt_extended_init_r = Module['__crypt_extended_init_r'] =
+			wasmExports['_crypt_extended_init_r'];
+		_php_md5_crypt_r = Module['_php_md5_crypt_r'] =
+			wasmExports['php_md5_crypt_r'];
+		_zm_startup_array = Module['_zm_startup_array'] =
+			wasmExports['zm_startup_array'];
+		_zm_shutdown_array = Module['_zm_shutdown_array'] =
+			wasmExports['zm_shutdown_array'];
+		_zif_krsort = Module['_zif_krsort'] = wasmExports['zif_krsort'];
+		_zif_ksort = Module['_zif_ksort'] = wasmExports['zif_ksort'];
+		_php_count_recursive = Module['_php_count_recursive'] =
+			wasmExports['php_count_recursive'];
+		_zif_count = Module['_zif_count'] = wasmExports['zif_count'];
+		_zif_natsort = Module['_zif_natsort'] = wasmExports['zif_natsort'];
+		_zif_natcasesort = Module['_zif_natcasesort'] =
+			wasmExports['zif_natcasesort'];
+		_zif_asort = Module['_zif_asort'] = wasmExports['zif_asort'];
+		_zif_arsort = Module['_zif_arsort'] = wasmExports['zif_arsort'];
+		_zif_sort = Module['_zif_sort'] = wasmExports['zif_sort'];
+		_zif_rsort = Module['_zif_rsort'] = wasmExports['zif_rsort'];
+		_zif_usort = Module['_zif_usort'] = wasmExports['zif_usort'];
+		_zif_uasort = Module['_zif_uasort'] = wasmExports['zif_uasort'];
+		_zif_uksort = Module['_zif_uksort'] = wasmExports['zif_uksort'];
+		_zif_end = Module['_zif_end'] = wasmExports['zif_end'];
+		_zif_prev = Module['_zif_prev'] = wasmExports['zif_prev'];
+		_zif_next = Module['_zif_next'] = wasmExports['zif_next'];
+		_zif_reset = Module['_zif_reset'] = wasmExports['zif_reset'];
+		_zif_current = Module['_zif_current'] = wasmExports['zif_current'];
+		_zif_key = Module['_zif_key'] = wasmExports['zif_key'];
+		_zif_min = Module['_zif_min'] = wasmExports['zif_min'];
+		_zif_max = Module['_zif_max'] = wasmExports['zif_max'];
+		_zif_array_walk = Module['_zif_array_walk'] =
+			wasmExports['zif_array_walk'];
+		_zif_array_walk_recursive = Module['_zif_array_walk_recursive'] =
+			wasmExports['zif_array_walk_recursive'];
+		_zif_in_array = Module['_zif_in_array'] = wasmExports['zif_in_array'];
+		_zif_array_search = Module['_zif_array_search'] =
+			wasmExports['zif_array_search'];
+		_php_prefix_varname = Module['_php_prefix_varname'] =
+			wasmExports['php_prefix_varname'];
+		_zif_extract = Module['_zif_extract'] = wasmExports['zif_extract'];
+		_zif_compact = Module['_zif_compact'] = wasmExports['zif_compact'];
+		_zif_array_fill = Module['_zif_array_fill'] =
+			wasmExports['zif_array_fill'];
+		_zif_array_fill_keys = Module['_zif_array_fill_keys'] =
+			wasmExports['zif_array_fill_keys'];
+		_zif_range = Module['_zif_range'] = wasmExports['zif_range'];
+		_zif_shuffle = Module['_zif_shuffle'] = wasmExports['zif_shuffle'];
+		_zif_array_push = Module['_zif_array_push'] =
+			wasmExports['zif_array_push'];
+		_zif_array_pop = Module['_zif_array_pop'] =
+			wasmExports['zif_array_pop'];
+		_zif_array_shift = Module['_zif_array_shift'] =
+			wasmExports['zif_array_shift'];
+		_zif_array_unshift = Module['_zif_array_unshift'] =
+			wasmExports['zif_array_unshift'];
+		_zif_array_splice = Module['_zif_array_splice'] =
+			wasmExports['zif_array_splice'];
+		_zif_array_slice = Module['_zif_array_slice'] =
+			wasmExports['zif_array_slice'];
+		_php_array_merge_recursive = Module['_php_array_merge_recursive'] =
+			wasmExports['php_array_merge_recursive'];
+		_php_array_merge = Module['_php_array_merge'] =
+			wasmExports['php_array_merge'];
+		_php_array_replace_recursive = Module['_php_array_replace_recursive'] =
+			wasmExports['php_array_replace_recursive'];
+		_zif_array_merge = Module['_zif_array_merge'] =
+			wasmExports['zif_array_merge'];
+		_zif_array_merge_recursive = Module['_zif_array_merge_recursive'] =
+			wasmExports['zif_array_merge_recursive'];
+		_zif_array_replace = Module['_zif_array_replace'] =
+			wasmExports['zif_array_replace'];
+		_zif_array_replace_recursive = Module['_zif_array_replace_recursive'] =
+			wasmExports['zif_array_replace_recursive'];
+		_zif_array_keys = Module['_zif_array_keys'] =
+			wasmExports['zif_array_keys'];
+		_zif_array_key_first = Module['_zif_array_key_first'] =
+			wasmExports['zif_array_key_first'];
+		_zif_array_key_last = Module['_zif_array_key_last'] =
+			wasmExports['zif_array_key_last'];
+		_zif_array_values = Module['_zif_array_values'] =
+			wasmExports['zif_array_values'];
+		_zif_array_count_values = Module['_zif_array_count_values'] =
+			wasmExports['zif_array_count_values'];
+		_zif_array_column = Module['_zif_array_column'] =
+			wasmExports['zif_array_column'];
+		_zif_array_reverse = Module['_zif_array_reverse'] =
+			wasmExports['zif_array_reverse'];
+		_zif_array_pad = Module['_zif_array_pad'] =
+			wasmExports['zif_array_pad'];
+		_zif_array_flip = Module['_zif_array_flip'] =
+			wasmExports['zif_array_flip'];
+		_zif_array_change_key_case = Module['_zif_array_change_key_case'] =
+			wasmExports['zif_array_change_key_case'];
+		_zif_array_unique = Module['_zif_array_unique'] =
+			wasmExports['zif_array_unique'];
+		_zif_array_intersect_key = Module['_zif_array_intersect_key'] =
+			wasmExports['zif_array_intersect_key'];
+		_zif_array_intersect_ukey = Module['_zif_array_intersect_ukey'] =
+			wasmExports['zif_array_intersect_ukey'];
+		_zif_array_intersect = Module['_zif_array_intersect'] =
+			wasmExports['zif_array_intersect'];
+		_zif_array_uintersect = Module['_zif_array_uintersect'] =
+			wasmExports['zif_array_uintersect'];
+		_zif_array_intersect_assoc = Module['_zif_array_intersect_assoc'] =
+			wasmExports['zif_array_intersect_assoc'];
+		_zif_array_intersect_uassoc = Module['_zif_array_intersect_uassoc'] =
+			wasmExports['zif_array_intersect_uassoc'];
+		_zif_array_uintersect_assoc = Module['_zif_array_uintersect_assoc'] =
+			wasmExports['zif_array_uintersect_assoc'];
+		_zif_array_uintersect_uassoc = Module['_zif_array_uintersect_uassoc'] =
+			wasmExports['zif_array_uintersect_uassoc'];
+		_zif_array_diff_key = Module['_zif_array_diff_key'] =
+			wasmExports['zif_array_diff_key'];
+		_zif_array_diff_ukey = Module['_zif_array_diff_ukey'] =
+			wasmExports['zif_array_diff_ukey'];
+		_zif_array_diff = Module['_zif_array_diff'] =
+			wasmExports['zif_array_diff'];
+		_zif_array_udiff = Module['_zif_array_udiff'] =
+			wasmExports['zif_array_udiff'];
+		_zif_array_diff_assoc = Module['_zif_array_diff_assoc'] =
+			wasmExports['zif_array_diff_assoc'];
+		_zif_array_diff_uassoc = Module['_zif_array_diff_uassoc'] =
+			wasmExports['zif_array_diff_uassoc'];
+		_zif_array_udiff_assoc = Module['_zif_array_udiff_assoc'] =
+			wasmExports['zif_array_udiff_assoc'];
+		_zif_array_udiff_uassoc = Module['_zif_array_udiff_uassoc'] =
+			wasmExports['zif_array_udiff_uassoc'];
+		_php_multisort_compare = Module['_php_multisort_compare'] =
+			wasmExports['php_multisort_compare'];
+		_zif_array_multisort = Module['_zif_array_multisort'] =
+			wasmExports['zif_array_multisort'];
+		_zif_array_rand = Module['_zif_array_rand'] =
+			wasmExports['zif_array_rand'];
+		_zif_array_sum = Module['_zif_array_sum'] =
+			wasmExports['zif_array_sum'];
+		_zif_array_product = Module['_zif_array_product'] =
+			wasmExports['zif_array_product'];
+		_zif_array_reduce = Module['_zif_array_reduce'] =
+			wasmExports['zif_array_reduce'];
+		_zif_array_filter = Module['_zif_array_filter'] =
+			wasmExports['zif_array_filter'];
+		_zif_array_map = Module['_zif_array_map'] =
+			wasmExports['zif_array_map'];
+		_zif_array_key_exists = Module['_zif_array_key_exists'] =
+			wasmExports['zif_array_key_exists'];
+		_zif_array_chunk = Module['_zif_array_chunk'] =
+			wasmExports['zif_array_chunk'];
+		_zif_array_combine = Module['_zif_array_combine'] =
+			wasmExports['zif_array_combine'];
+		_php_base64_encode = Module['_php_base64_encode'] =
+			wasmExports['php_base64_encode'];
+		_php_base64_decode_ex = Module['_php_base64_decode_ex'] =
+			wasmExports['php_base64_decode_ex'];
+		_zif_base64_encode = Module['_zif_base64_encode'] =
+			wasmExports['zif_base64_encode'];
+		_zif_base64_decode = Module['_zif_base64_decode'] =
+			wasmExports['zif_base64_decode'];
+		_zm_startup_basic = Module['_zm_startup_basic'] =
+			wasmExports['zm_startup_basic'];
+		_zm_shutdown_basic = Module['_zm_shutdown_basic'] =
+			wasmExports['zm_shutdown_basic'];
+		_zm_activate_basic = Module['_zm_activate_basic'] =
+			wasmExports['zm_activate_basic'];
+		_zm_deactivate_basic = Module['_zm_deactivate_basic'] =
+			wasmExports['zm_deactivate_basic'];
+		_zm_info_basic = Module['_zm_info_basic'] =
+			wasmExports['zm_info_basic'];
+		_php_get_nan = Module['_php_get_nan'] = wasmExports['php_get_nan'];
+		_php_get_inf = Module['_php_get_inf'] = wasmExports['php_get_inf'];
+		_zif_constant = Module['_zif_constant'] = wasmExports['zif_constant'];
+		_zif_inet_ntop = Module['_zif_inet_ntop'] =
+			wasmExports['zif_inet_ntop'];
+		_zif_inet_pton = Module['_zif_inet_pton'] =
+			wasmExports['zif_inet_pton'];
+		_zif_ip2long = Module['_zif_ip2long'] = wasmExports['zif_ip2long'];
+		_zif_long2ip = Module['_zif_long2ip'] = wasmExports['zif_long2ip'];
+		_zif_getenv = Module['_zif_getenv'] = wasmExports['zif_getenv'];
+		_zif_putenv = Module['_zif_putenv'] = wasmExports['zif_putenv'];
+		_zif_getopt = Module['_zif_getopt'] = wasmExports['zif_getopt'];
+		_zif_flush = Module['_zif_flush'] = wasmExports['zif_flush'];
+		_zif_sleep = Module['_zif_sleep'] = wasmExports['zif_sleep'];
+		_zif_usleep = Module['_zif_usleep'] = wasmExports['zif_usleep'];
+		_zif_time_nanosleep = Module['_zif_time_nanosleep'] =
+			wasmExports['zif_time_nanosleep'];
+		_zif_time_sleep_until = Module['_zif_time_sleep_until'] =
+			wasmExports['zif_time_sleep_until'];
+		_zif_get_current_user = Module['_zif_get_current_user'] =
+			wasmExports['zif_get_current_user'];
+		_zif_get_cfg_var = Module['_zif_get_cfg_var'] =
+			wasmExports['zif_get_cfg_var'];
+		_zif_error_log = Module['_zif_error_log'] =
+			wasmExports['zif_error_log'];
+		__php_error_log_ex = Module['__php_error_log_ex'] =
+			wasmExports['_php_error_log_ex'];
+		__php_error_log = Module['__php_error_log'] =
+			wasmExports['_php_error_log'];
+		_zif_error_get_last = Module['_zif_error_get_last'] =
+			wasmExports['zif_error_get_last'];
+		_zif_error_clear_last = Module['_zif_error_clear_last'] =
+			wasmExports['zif_error_clear_last'];
+		_zif_call_user_func = Module['_zif_call_user_func'] =
+			wasmExports['zif_call_user_func'];
+		_zif_call_user_func_array = Module['_zif_call_user_func_array'] =
+			wasmExports['zif_call_user_func_array'];
+		_zif_forward_static_call = Module['_zif_forward_static_call'] =
+			wasmExports['zif_forward_static_call'];
+		_zif_forward_static_call_array = Module[
+			'_zif_forward_static_call_array'
+		] = wasmExports['zif_forward_static_call_array'];
+		_php_call_shutdown_functions = Module['_php_call_shutdown_functions'] =
+			wasmExports['php_call_shutdown_functions'];
+		_php_free_shutdown_functions = Module['_php_free_shutdown_functions'] =
+			wasmExports['php_free_shutdown_functions'];
+		_zif_register_shutdown_function = Module[
+			'_zif_register_shutdown_function'
+		] = wasmExports['zif_register_shutdown_function'];
+		_append_user_shutdown_function = Module[
+			'_append_user_shutdown_function'
+		] = wasmExports['append_user_shutdown_function'];
+		_register_user_shutdown_function = Module[
+			'_register_user_shutdown_function'
+		] = wasmExports['register_user_shutdown_function'];
+		_remove_user_shutdown_function = Module[
+			'_remove_user_shutdown_function'
+		] = wasmExports['remove_user_shutdown_function'];
+		_php_get_highlight_struct = Module['_php_get_highlight_struct'] =
+			wasmExports['php_get_highlight_struct'];
+		_zif_highlight_file = Module['_zif_highlight_file'] =
+			wasmExports['zif_highlight_file'];
+		_zif_php_strip_whitespace = Module['_zif_php_strip_whitespace'] =
+			wasmExports['zif_php_strip_whitespace'];
+		_zif_highlight_string = Module['_zif_highlight_string'] =
+			wasmExports['zif_highlight_string'];
+		_zif_ini_get = Module['_zif_ini_get'] = wasmExports['zif_ini_get'];
+		_zif_ini_get_all = Module['_zif_ini_get_all'] =
+			wasmExports['zif_ini_get_all'];
+		_zif_ini_set = Module['_zif_ini_set'] = wasmExports['zif_ini_set'];
+		_zif_ini_restore = Module['_zif_ini_restore'] =
+			wasmExports['zif_ini_restore'];
+		_zif_set_include_path = Module['_zif_set_include_path'] =
+			wasmExports['zif_set_include_path'];
+		_zif_get_include_path = Module['_zif_get_include_path'] =
+			wasmExports['zif_get_include_path'];
+		_zif_print_r = Module['_zif_print_r'] = wasmExports['zif_print_r'];
+		_zif_connection_aborted = Module['_zif_connection_aborted'] =
+			wasmExports['zif_connection_aborted'];
+		_zif_connection_status = Module['_zif_connection_status'] =
+			wasmExports['zif_connection_status'];
+		_zif_ignore_user_abort = Module['_zif_ignore_user_abort'] =
+			wasmExports['zif_ignore_user_abort'];
+		_zif_getservbyname = Module['_zif_getservbyname'] =
+			wasmExports['zif_getservbyname'];
+		_zif_getservbyport = Module['_zif_getservbyport'] =
+			wasmExports['zif_getservbyport'];
+		_zif_getprotobyname = Module['_zif_getprotobyname'] =
+			wasmExports['zif_getprotobyname'];
+		_zif_getprotobynumber = Module['_zif_getprotobynumber'] =
+			wasmExports['zif_getprotobynumber'];
+		_zif_register_tick_function = Module['_zif_register_tick_function'] =
+			wasmExports['zif_register_tick_function'];
+		_zif_unregister_tick_function = Module[
+			'_zif_unregister_tick_function'
+		] = wasmExports['zif_unregister_tick_function'];
+		_zif_is_uploaded_file = Module['_zif_is_uploaded_file'] =
+			wasmExports['zif_is_uploaded_file'];
+		_zif_move_uploaded_file = Module['_zif_move_uploaded_file'] =
+			wasmExports['zif_move_uploaded_file'];
+		_zif_parse_ini_file = Module['_zif_parse_ini_file'] =
+			wasmExports['zif_parse_ini_file'];
+		_zif_parse_ini_string = Module['_zif_parse_ini_string'] =
+			wasmExports['zif_parse_ini_string'];
+		_zif_sys_getloadavg = Module['_zif_sys_getloadavg'] =
+			wasmExports['zif_sys_getloadavg'];
+		_OnChangeBrowscap = Module['_OnChangeBrowscap'] =
+			wasmExports['OnChangeBrowscap'];
+		_zm_startup_browscap = Module['_zm_startup_browscap'] =
+			wasmExports['zm_startup_browscap'];
+		_zm_deactivate_browscap = Module['_zm_deactivate_browscap'] =
+			wasmExports['zm_deactivate_browscap'];
+		_zm_shutdown_browscap = Module['_zm_shutdown_browscap'] =
+			wasmExports['zm_shutdown_browscap'];
+		_zif_get_browser = Module['_zif_get_browser'] =
+			wasmExports['zif_get_browser'];
+		_zif_crc32 = Module['_zif_crc32'] = wasmExports['zif_crc32'];
+		_zm_startup_crypt = Module['_zm_startup_crypt'] =
+			wasmExports['zm_startup_crypt'];
+		_zm_shutdown_crypt = Module['_zm_shutdown_crypt'] =
+			wasmExports['zm_shutdown_crypt'];
+		_php_crypt = Module['_php_crypt'] = wasmExports['php_crypt'];
+		_zif_crypt = Module['_zif_crypt'] = wasmExports['zif_crypt'];
+		_php_std_date = Module['_php_std_date'] = wasmExports['php_std_date'];
+		_zif_strptime = Module['_zif_strptime'] = wasmExports['zif_strptime'];
+		_zm_activate_dir = Module['_zm_activate_dir'] =
+			wasmExports['zm_activate_dir'];
+		_zm_startup_dir = Module['_zm_startup_dir'] =
+			wasmExports['zm_startup_dir'];
+		_zif_opendir = Module['_zif_opendir'] = wasmExports['zif_opendir'];
+		_zif_dir = Module['_zif_dir'] = wasmExports['zif_dir'];
+		_zif_closedir = Module['_zif_closedir'] = wasmExports['zif_closedir'];
+		_zif_chroot = Module['_zif_chroot'] = wasmExports['zif_chroot'];
+		_zif_chdir = Module['_zif_chdir'] = wasmExports['zif_chdir'];
+		_zif_getcwd = Module['_zif_getcwd'] = wasmExports['zif_getcwd'];
+		_zif_rewinddir = Module['_zif_rewinddir'] =
+			wasmExports['zif_rewinddir'];
+		_zif_readdir = Module['_zif_readdir'] = wasmExports['zif_readdir'];
+		_zif_glob = Module['_zif_glob'] = wasmExports['zif_glob'];
+		_zif_scandir = Module['_zif_scandir'] = wasmExports['zif_scandir'];
+		_zif_dl = Module['_zif_dl'] = wasmExports['zif_dl'];
+		_php_load_extension = Module['_php_load_extension'] =
+			wasmExports['php_load_extension'];
+		_php_dl = Module['_php_dl'] = wasmExports['php_dl'];
+		_php_load_shlib = Module['_php_load_shlib'] =
+			wasmExports['php_load_shlib'];
+		_zm_info_dl = Module['_zm_info_dl'] = wasmExports['zm_info_dl'];
+		_zif_gethostname = Module['_zif_gethostname'] =
+			wasmExports['zif_gethostname'];
+		_zif_gethostbyaddr = Module['_zif_gethostbyaddr'] =
+			wasmExports['zif_gethostbyaddr'];
+		_zif_gethostbyname = Module['_zif_gethostbyname'] =
+			wasmExports['zif_gethostbyname'];
+		_zif_gethostbynamel = Module['_zif_gethostbynamel'] =
+			wasmExports['zif_gethostbynamel'];
+		_zm_startup_exec = Module['_zm_startup_exec'] =
+			wasmExports['zm_startup_exec'];
+		_php_exec_old = Module['_php_exec_old'] = wasmExports['php_exec_old'];
+		_zif_exec = Module['_zif_exec'] = wasmExports['zif_exec'];
+		_zif_system = Module['_zif_system'] = wasmExports['zif_system'];
+		_zif_passthru = Module['_zif_passthru'] = wasmExports['zif_passthru'];
+		_php_escape_shell_cmd = Module['_php_escape_shell_cmd'] =
+			wasmExports['php_escape_shell_cmd'];
+		_php_escape_shell_arg = Module['_php_escape_shell_arg'] =
+			wasmExports['php_escape_shell_arg'];
+		_zif_escapeshellcmd = Module['_zif_escapeshellcmd'] =
+			wasmExports['zif_escapeshellcmd'];
+		_zif_escapeshellarg = Module['_zif_escapeshellarg'] =
+			wasmExports['zif_escapeshellarg'];
+		_zif_shell_exec = Module['_zif_shell_exec'] =
+			wasmExports['zif_shell_exec'];
+		_zif_proc_nice = Module['_zif_proc_nice'] =
+			wasmExports['zif_proc_nice'];
+		_php_le_stream_context = Module['_php_le_stream_context'] =
+			wasmExports['php_le_stream_context'];
+		_zm_startup_file = Module['_zm_startup_file'] =
+			wasmExports['zm_startup_file'];
+		_zm_shutdown_file = Module['_zm_shutdown_file'] =
+			wasmExports['zm_shutdown_file'];
+		_php_flock_common = Module['_php_flock_common'] =
+			wasmExports['php_flock_common'];
+		_zif_flock = Module['_zif_flock'] = wasmExports['zif_flock'];
+		_zif_get_meta_tags = Module['_zif_get_meta_tags'] =
+			wasmExports['zif_get_meta_tags'];
+		_php_next_meta_token = Module['_php_next_meta_token'] =
+			wasmExports['php_next_meta_token'];
+		_zif_file_get_contents = Module['_zif_file_get_contents'] =
+			wasmExports['zif_file_get_contents'];
+		_zif_file_put_contents = Module['_zif_file_put_contents'] =
+			wasmExports['zif_file_put_contents'];
+		_zif_file = Module['_zif_file'] = wasmExports['zif_file'];
+		_zif_tempnam = Module['_zif_tempnam'] = wasmExports['zif_tempnam'];
+		_zif_tmpfile = Module['_zif_tmpfile'] = wasmExports['zif_tmpfile'];
+		_zif_fopen = Module['_zif_fopen'] = wasmExports['zif_fopen'];
+		_zif_fclose = Module['_zif_fclose'] = wasmExports['zif_fclose'];
+		_zif_popen = Module['_zif_popen'] = wasmExports['zif_popen'];
+		_zif_pclose = Module['_zif_pclose'] = wasmExports['zif_pclose'];
+		_zif_feof = Module['_zif_feof'] = wasmExports['zif_feof'];
+		_zif_fgets = Module['_zif_fgets'] = wasmExports['zif_fgets'];
+		_zif_fgetc = Module['_zif_fgetc'] = wasmExports['zif_fgetc'];
+		_zif_fscanf = Module['_zif_fscanf'] = wasmExports['zif_fscanf'];
+		_zif_fwrite = Module['_zif_fwrite'] = wasmExports['zif_fwrite'];
+		_zif_fflush = Module['_zif_fflush'] = wasmExports['zif_fflush'];
+		_zif_rewind = Module['_zif_rewind'] = wasmExports['zif_rewind'];
+		_zif_ftell = Module['_zif_ftell'] = wasmExports['zif_ftell'];
+		_zif_fseek = Module['_zif_fseek'] = wasmExports['zif_fseek'];
+		_php_mkdir_ex = Module['_php_mkdir_ex'] = wasmExports['php_mkdir_ex'];
+		_php_mkdir = Module['_php_mkdir'] = wasmExports['php_mkdir'];
+		_zif_mkdir = Module['_zif_mkdir'] = wasmExports['zif_mkdir'];
+		_zif_rmdir = Module['_zif_rmdir'] = wasmExports['zif_rmdir'];
+		_zif_readfile = Module['_zif_readfile'] = wasmExports['zif_readfile'];
+		_zif_umask = Module['_zif_umask'] = wasmExports['zif_umask'];
+		_zif_fpassthru = Module['_zif_fpassthru'] =
+			wasmExports['zif_fpassthru'];
+		_zif_rename = Module['_zif_rename'] = wasmExports['zif_rename'];
+		_zif_unlink = Module['_zif_unlink'] = wasmExports['zif_unlink'];
+		_zif_ftruncate = Module['_zif_ftruncate'] =
+			wasmExports['zif_ftruncate'];
+		_php_fstat = Module['_php_fstat'] = wasmExports['php_fstat'];
+		_zif_fstat = Module['_zif_fstat'] = wasmExports['zif_fstat'];
+		_zif_copy = Module['_zif_copy'] = wasmExports['zif_copy'];
+		_php_copy_file_ctx = Module['_php_copy_file_ctx'] =
+			wasmExports['php_copy_file_ctx'];
+		_php_copy_file = Module['_php_copy_file'] =
+			wasmExports['php_copy_file'];
+		_php_copy_file_ex = Module['_php_copy_file_ex'] =
+			wasmExports['php_copy_file_ex'];
+		_zif_fread = Module['_zif_fread'] = wasmExports['zif_fread'];
+		_zif_fputcsv = Module['_zif_fputcsv'] = wasmExports['zif_fputcsv'];
+		_php_fputcsv = Module['_php_fputcsv'] = wasmExports['php_fputcsv'];
+		_zif_fgetcsv = Module['_zif_fgetcsv'] = wasmExports['zif_fgetcsv'];
+		_php_fgetcsv = Module['_php_fgetcsv'] = wasmExports['php_fgetcsv'];
+		_zif_realpath = Module['_zif_realpath'] = wasmExports['zif_realpath'];
+		_zif_fnmatch = Module['_zif_fnmatch'] = wasmExports['zif_fnmatch'];
+		_zif_sys_get_temp_dir = Module['_zif_sys_get_temp_dir'] =
+			wasmExports['zif_sys_get_temp_dir'];
+		_zm_activate_filestat = Module['_zm_activate_filestat'] =
+			wasmExports['zm_activate_filestat'];
+		_zm_deactivate_filestat = Module['_zm_deactivate_filestat'] =
+			wasmExports['zm_deactivate_filestat'];
+		_zif_disk_total_space = Module['_zif_disk_total_space'] =
+			wasmExports['zif_disk_total_space'];
+		_zif_disk_free_space = Module['_zif_disk_free_space'] =
+			wasmExports['zif_disk_free_space'];
+		_php_get_gid_by_name = Module['_php_get_gid_by_name'] =
+			wasmExports['php_get_gid_by_name'];
+		_zif_chgrp = Module['_zif_chgrp'] = wasmExports['zif_chgrp'];
+		_zif_lchgrp = Module['_zif_lchgrp'] = wasmExports['zif_lchgrp'];
+		_php_get_uid_by_name = Module['_php_get_uid_by_name'] =
+			wasmExports['php_get_uid_by_name'];
+		_zif_chown = Module['_zif_chown'] = wasmExports['zif_chown'];
+		_zif_lchown = Module['_zif_lchown'] = wasmExports['zif_lchown'];
+		_zif_chmod = Module['_zif_chmod'] = wasmExports['zif_chmod'];
+		_zif_touch = Module['_zif_touch'] = wasmExports['zif_touch'];
+		_php_clear_stat_cache = Module['_php_clear_stat_cache'] =
+			wasmExports['php_clear_stat_cache'];
+		_zif_clearstatcache = Module['_zif_clearstatcache'] =
+			wasmExports['zif_clearstatcache'];
+		_php_stat = Module['_php_stat'] = wasmExports['php_stat'];
+		_zif_fileperms = Module['_zif_fileperms'] =
+			wasmExports['zif_fileperms'];
+		_zif_fileinode = Module['_zif_fileinode'] =
+			wasmExports['zif_fileinode'];
+		_zif_filesize = Module['_zif_filesize'] = wasmExports['zif_filesize'];
+		_zif_fileowner = Module['_zif_fileowner'] =
+			wasmExports['zif_fileowner'];
+		_zif_filegroup = Module['_zif_filegroup'] =
+			wasmExports['zif_filegroup'];
+		_zif_fileatime = Module['_zif_fileatime'] =
+			wasmExports['zif_fileatime'];
+		_zif_filemtime = Module['_zif_filemtime'] =
+			wasmExports['zif_filemtime'];
+		_zif_filectime = Module['_zif_filectime'] =
+			wasmExports['zif_filectime'];
+		_zif_filetype = Module['_zif_filetype'] = wasmExports['zif_filetype'];
+		_zif_is_writable = Module['_zif_is_writable'] =
+			wasmExports['zif_is_writable'];
+		_zif_is_readable = Module['_zif_is_readable'] =
+			wasmExports['zif_is_readable'];
+		_zif_is_executable = Module['_zif_is_executable'] =
+			wasmExports['zif_is_executable'];
+		_zif_is_file = Module['_zif_is_file'] = wasmExports['zif_is_file'];
+		_zif_is_dir = Module['_zif_is_dir'] = wasmExports['zif_is_dir'];
+		_zif_is_link = Module['_zif_is_link'] = wasmExports['zif_is_link'];
+		_zif_file_exists = Module['_zif_file_exists'] =
+			wasmExports['zif_file_exists'];
+		_zif_lstat = Module['_zif_lstat'] = wasmExports['zif_lstat'];
+		_zif_stat = Module['_zif_stat'] = wasmExports['zif_stat'];
+		_zif_realpath_cache_size = Module['_zif_realpath_cache_size'] =
+			wasmExports['zif_realpath_cache_size'];
+		_zif_realpath_cache_get = Module['_zif_realpath_cache_get'] =
+			wasmExports['zif_realpath_cache_get'];
+		_php_flock = Module['_php_flock'] = wasmExports['php_flock'];
+		_php_sprintf_get_argnum = Module['_php_sprintf_get_argnum'] =
+			wasmExports['php_sprintf_get_argnum'];
+		_zif_sprintf = Module['_zif_sprintf'] = wasmExports['zif_sprintf'];
+		_zif_vsprintf = Module['_zif_vsprintf'] = wasmExports['zif_vsprintf'];
+		_zif_printf = Module['_zif_printf'] = wasmExports['zif_printf'];
+		_zif_vprintf = Module['_zif_vprintf'] = wasmExports['zif_vprintf'];
+		_zif_fprintf = Module['_zif_fprintf'] = wasmExports['zif_fprintf'];
+		_zif_vfprintf = Module['_zif_vfprintf'] = wasmExports['zif_vfprintf'];
+		_zif_fsockopen = Module['_zif_fsockopen'] =
+			wasmExports['zif_fsockopen'];
+		_zif_pfsockopen = Module['_zif_pfsockopen'] =
+			wasmExports['zif_pfsockopen'];
+		_zif_header = Module['_zif_header'] = wasmExports['zif_header'];
+		_zif_header_remove = Module['_zif_header_remove'] =
+			wasmExports['zif_header_remove'];
+		_php_header = Module['_php_header'] = wasmExports['php_header'];
+		_php_setcookie = Module['_php_setcookie'] =
+			wasmExports['php_setcookie'];
+		_zif_setcookie = Module['_zif_setcookie'] =
+			wasmExports['zif_setcookie'];
+		_zif_setrawcookie = Module['_zif_setrawcookie'] =
+			wasmExports['zif_setrawcookie'];
+		_zif_headers_sent = Module['_zif_headers_sent'] =
+			wasmExports['zif_headers_sent'];
+		_zif_headers_list = Module['_zif_headers_list'] =
+			wasmExports['zif_headers_list'];
+		_zif_http_response_code = Module['_zif_http_response_code'] =
+			wasmExports['zif_http_response_code'];
+		_php_next_utf8_char = Module['_php_next_utf8_char'] =
+			wasmExports['php_next_utf8_char'];
+		_php_unescape_html_entities = Module['_php_unescape_html_entities'] =
+			wasmExports['php_unescape_html_entities'];
+		_php_escape_html_entities = Module['_php_escape_html_entities'] =
+			wasmExports['php_escape_html_entities'];
+		_php_escape_html_entities_ex = Module['_php_escape_html_entities_ex'] =
+			wasmExports['php_escape_html_entities_ex'];
+		_register_html_constants = Module['_register_html_constants'] =
+			wasmExports['register_html_constants'];
+		_zif_htmlspecialchars = Module['_zif_htmlspecialchars'] =
+			wasmExports['zif_htmlspecialchars'];
+		_zif_htmlspecialchars_decode = Module['_zif_htmlspecialchars_decode'] =
+			wasmExports['zif_htmlspecialchars_decode'];
+		_zif_html_entity_decode = Module['_zif_html_entity_decode'] =
+			wasmExports['zif_html_entity_decode'];
+		_zif_htmlentities = Module['_zif_htmlentities'] =
+			wasmExports['zif_htmlentities'];
+		_zif_get_html_translation_table = Module[
+			'_zif_get_html_translation_table'
+		] = wasmExports['zif_get_html_translation_table'];
+		_zm_startup_imagetypes = Module['_zm_startup_imagetypes'] =
+			wasmExports['zm_startup_imagetypes'];
+		_php_image_type_to_mime_type = Module['_php_image_type_to_mime_type'] =
+			wasmExports['php_image_type_to_mime_type'];
+		_zif_image_type_to_mime_type = Module['_zif_image_type_to_mime_type'] =
+			wasmExports['zif_image_type_to_mime_type'];
+		_zif_image_type_to_extension = Module['_zif_image_type_to_extension'] =
+			wasmExports['zif_image_type_to_extension'];
+		_php_getimagetype = Module['_php_getimagetype'] =
+			wasmExports['php_getimagetype'];
+		_zif_getimagesize = Module['_zif_getimagesize'] =
+			wasmExports['zif_getimagesize'];
+		_zif_getimagesizefromstring = Module['_zif_getimagesizefromstring'] =
+			wasmExports['zif_getimagesizefromstring'];
+		_php_info_print_module = Module['_php_info_print_module'] =
+			wasmExports['php_info_print_module'];
 		_php_info_print_table_header = Module['_php_info_print_table_header'] =
 			wasmExports['php_info_print_table_header'];
 		_php_info_print_table_row = Module['_php_info_print_table_row'] =
@@ -8387,110 +21402,3004 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['php_info_print_table_start'];
 		_php_info_print_table_end = Module['_php_info_print_table_end'] =
 			wasmExports['php_info_print_table_end'];
+		_php_info_print_style = Module['_php_info_print_style'] =
+			wasmExports['php_info_print_style'];
+		_php_info_html_esc = Module['_php_info_html_esc'] =
+			wasmExports['php_info_html_esc'];
+		_php_get_uname = Module['_php_get_uname'] =
+			wasmExports['php_get_uname'];
+		_php_print_info_htmlhead = Module['_php_print_info_htmlhead'] =
+			wasmExports['php_print_info_htmlhead'];
+		_php_print_info = Module['_php_print_info'] =
+			wasmExports['php_print_info'];
+		_php_info_print_box_start = Module['_php_info_print_box_start'] =
+			wasmExports['php_info_print_box_start'];
+		_php_info_print_box_end = Module['_php_info_print_box_end'] =
+			wasmExports['php_info_print_box_end'];
+		_php_info_print_hr = Module['_php_info_print_hr'] =
+			wasmExports['php_info_print_hr'];
+		_php_info_print_table_colspan_header = Module[
+			'_php_info_print_table_colspan_header'
+		] = wasmExports['php_info_print_table_colspan_header'];
+		_php_info_print_table_row_ex = Module['_php_info_print_table_row_ex'] =
+			wasmExports['php_info_print_table_row_ex'];
+		_register_phpinfo_constants = Module['_register_phpinfo_constants'] =
+			wasmExports['register_phpinfo_constants'];
+		_zif_phpinfo = Module['_zif_phpinfo'] = wasmExports['zif_phpinfo'];
+		_zif_phpversion = Module['_zif_phpversion'] =
+			wasmExports['zif_phpversion'];
+		_zif_phpcredits = Module['_zif_phpcredits'] =
+			wasmExports['zif_phpcredits'];
+		_zif_php_sapi_name = Module['_zif_php_sapi_name'] =
+			wasmExports['zif_php_sapi_name'];
+		_zif_php_uname = Module['_zif_php_uname'] =
+			wasmExports['zif_php_uname'];
+		_zif_php_ini_scanned_files = Module['_zif_php_ini_scanned_files'] =
+			wasmExports['zif_php_ini_scanned_files'];
+		_zif_php_ini_loaded_file = Module['_zif_php_ini_loaded_file'] =
+			wasmExports['zif_php_ini_loaded_file'];
+		_zif_iptcembed = Module['_zif_iptcembed'] =
+			wasmExports['zif_iptcembed'];
+		_zif_iptcparse = Module['_zif_iptcparse'] =
+			wasmExports['zif_iptcparse'];
+		_php_combined_lcg = Module['_php_combined_lcg'] =
+			wasmExports['php_combined_lcg'];
+		_zm_startup_lcg = Module['_zm_startup_lcg'] =
+			wasmExports['zm_startup_lcg'];
+		_zif_lcg_value = Module['_zif_lcg_value'] =
+			wasmExports['zif_lcg_value'];
+		_zif_readlink = Module['_zif_readlink'] = wasmExports['zif_readlink'];
+		_zif_linkinfo = Module['_zif_linkinfo'] = wasmExports['zif_linkinfo'];
+		_zif_symlink = Module['_zif_symlink'] = wasmExports['zif_symlink'];
+		_zif_link = Module['_zif_link'] = wasmExports['zif_link'];
+		_php_mail_build_headers = Module['_php_mail_build_headers'] =
+			wasmExports['php_mail_build_headers'];
+		_zif_mail = Module['_zif_mail'] = wasmExports['zif_mail'];
+		_php_mail = Module['_php_mail'] = wasmExports['php_mail'];
+		_php_mail_log_crlf_to_spaces = Module['_php_mail_log_crlf_to_spaces'] =
+			wasmExports['php_mail_log_crlf_to_spaces'];
+		_php_mail_log_to_syslog = Module['_php_mail_log_to_syslog'] =
+			wasmExports['php_mail_log_to_syslog'];
+		_php_mail_log_to_file = Module['_php_mail_log_to_file'] =
+			wasmExports['php_mail_log_to_file'];
+		_zm_info_mail = Module['_zm_info_mail'] = wasmExports['zm_info_mail'];
+		__php_math_round = Module['__php_math_round'] =
+			wasmExports['_php_math_round'];
+		_zif_abs = Module['_zif_abs'] = wasmExports['zif_abs'];
+		_zif_ceil = Module['_zif_ceil'] = wasmExports['zif_ceil'];
+		_zif_floor = Module['_zif_floor'] = wasmExports['zif_floor'];
+		_zif_round = Module['_zif_round'] = wasmExports['zif_round'];
+		_zif_sin = Module['_zif_sin'] = wasmExports['zif_sin'];
+		_zif_cos = Module['_zif_cos'] = wasmExports['zif_cos'];
+		_zif_tan = Module['_zif_tan'] = wasmExports['zif_tan'];
+		_zif_asin = Module['_zif_asin'] = wasmExports['zif_asin'];
+		_zif_acos = Module['_zif_acos'] = wasmExports['zif_acos'];
+		_zif_atan = Module['_zif_atan'] = wasmExports['zif_atan'];
+		_zif_atan2 = Module['_zif_atan2'] = wasmExports['zif_atan2'];
+		_zif_sinh = Module['_zif_sinh'] = wasmExports['zif_sinh'];
+		_zif_cosh = Module['_zif_cosh'] = wasmExports['zif_cosh'];
+		_zif_tanh = Module['_zif_tanh'] = wasmExports['zif_tanh'];
+		_zif_asinh = Module['_zif_asinh'] = wasmExports['zif_asinh'];
+		_zif_acosh = Module['_zif_acosh'] = wasmExports['zif_acosh'];
+		_zif_atanh = Module['_zif_atanh'] = wasmExports['zif_atanh'];
+		_zif_pi = Module['_zif_pi'] = wasmExports['zif_pi'];
+		_zif_is_finite = Module['_zif_is_finite'] =
+			wasmExports['zif_is_finite'];
+		_zif_is_infinite = Module['_zif_is_infinite'] =
+			wasmExports['zif_is_infinite'];
+		_zif_is_nan = Module['_zif_is_nan'] = wasmExports['zif_is_nan'];
+		_zif_pow = Module['_zif_pow'] = wasmExports['zif_pow'];
+		_zif_exp = Module['_zif_exp'] = wasmExports['zif_exp'];
+		_zif_expm1 = Module['_zif_expm1'] = wasmExports['zif_expm1'];
+		_zif_log1p = Module['_zif_log1p'] = wasmExports['zif_log1p'];
+		_zif_log = Module['_zif_log'] = wasmExports['zif_log'];
+		_zif_log10 = Module['_zif_log10'] = wasmExports['zif_log10'];
+		_zif_sqrt = Module['_zif_sqrt'] = wasmExports['zif_sqrt'];
+		_zif_hypot = Module['_zif_hypot'] = wasmExports['zif_hypot'];
+		_zif_deg2rad = Module['_zif_deg2rad'] = wasmExports['zif_deg2rad'];
+		_zif_rad2deg = Module['_zif_rad2deg'] = wasmExports['zif_rad2deg'];
+		__php_math_basetolong = Module['__php_math_basetolong'] =
+			wasmExports['_php_math_basetolong'];
+		__php_math_basetozval = Module['__php_math_basetozval'] =
+			wasmExports['_php_math_basetozval'];
+		__php_math_longtobase = Module['__php_math_longtobase'] =
+			wasmExports['_php_math_longtobase'];
+		__php_math_zvaltobase = Module['__php_math_zvaltobase'] =
+			wasmExports['_php_math_zvaltobase'];
+		_zif_bindec = Module['_zif_bindec'] = wasmExports['zif_bindec'];
+		_zif_hexdec = Module['_zif_hexdec'] = wasmExports['zif_hexdec'];
+		_zif_octdec = Module['_zif_octdec'] = wasmExports['zif_octdec'];
+		_zif_decbin = Module['_zif_decbin'] = wasmExports['zif_decbin'];
+		_zif_decoct = Module['_zif_decoct'] = wasmExports['zif_decoct'];
+		_zif_dechex = Module['_zif_dechex'] = wasmExports['zif_dechex'];
+		_zif_base_convert = Module['_zif_base_convert'] =
+			wasmExports['zif_base_convert'];
+		__php_math_number_format = Module['__php_math_number_format'] =
+			wasmExports['_php_math_number_format'];
+		__php_math_number_format_ex = Module['__php_math_number_format_ex'] =
+			wasmExports['_php_math_number_format_ex'];
+		_zif_number_format = Module['_zif_number_format'] =
+			wasmExports['zif_number_format'];
+		_zif_fmod = Module['_zif_fmod'] = wasmExports['zif_fmod'];
+		_zif_fdiv = Module['_zif_fdiv'] = wasmExports['zif_fdiv'];
+		_zif_intdiv = Module['_zif_intdiv'] = wasmExports['zif_intdiv'];
+		_make_digest = Module['_make_digest'] = wasmExports['make_digest'];
+		_make_digest_ex = Module['_make_digest_ex'] =
+			wasmExports['make_digest_ex'];
+		_zif_md5 = Module['_zif_md5'] = wasmExports['zif_md5'];
+		_PHP_MD5Final = Module['_PHP_MD5Final'] = wasmExports['PHP_MD5Final'];
+		_PHP_MD5Init = Module['_PHP_MD5Init'] = wasmExports['PHP_MD5Init'];
+		_PHP_MD5Update = Module['_PHP_MD5Update'] =
+			wasmExports['PHP_MD5Update'];
+		_zif_md5_file = Module['_zif_md5_file'] = wasmExports['zif_md5_file'];
+		_zif_metaphone = Module['_zif_metaphone'] =
+			wasmExports['zif_metaphone'];
+		_zif_microtime = Module['_zif_microtime'] =
+			wasmExports['zif_microtime'];
+		_zif_gettimeofday = Module['_zif_gettimeofday'] =
+			wasmExports['zif_gettimeofday'];
+		_zif_getrusage = Module['_zif_getrusage'] =
+			wasmExports['zif_getrusage'];
+		_zif_pack = Module['_zif_pack'] = wasmExports['zif_pack'];
+		_zif_unpack = Module['_zif_unpack'] = wasmExports['zif_unpack'];
+		_zm_startup_pack = Module['_zm_startup_pack'] =
+			wasmExports['zm_startup_pack'];
+		_php_statpage = Module['_php_statpage'] = wasmExports['php_statpage'];
+		_php_getuid = Module['_php_getuid'] = wasmExports['php_getuid'];
+		_php_getgid = Module['_php_getgid'] = wasmExports['php_getgid'];
+		_zif_getmyuid = Module['_zif_getmyuid'] = wasmExports['zif_getmyuid'];
+		_zif_getmygid = Module['_zif_getmygid'] = wasmExports['zif_getmygid'];
+		_zif_getmypid = Module['_zif_getmypid'] = wasmExports['zif_getmypid'];
+		_zif_getmyinode = Module['_zif_getmyinode'] =
+			wasmExports['zif_getmyinode'];
+		_php_getlastmod = Module['_php_getlastmod'] =
+			wasmExports['php_getlastmod'];
+		_zif_getlastmod = Module['_zif_getlastmod'] =
+			wasmExports['zif_getlastmod'];
+		_php_quot_print_decode = Module['_php_quot_print_decode'] =
+			wasmExports['php_quot_print_decode'];
+		_php_quot_print_encode = Module['_php_quot_print_encode'] =
+			wasmExports['php_quot_print_encode'];
+		_zif_quoted_printable_decode = Module['_zif_quoted_printable_decode'] =
+			wasmExports['zif_quoted_printable_decode'];
+		_zif_quoted_printable_encode = Module['_zif_quoted_printable_encode'] =
+			wasmExports['zif_quoted_printable_encode'];
+		_php_srand = Module['_php_srand'] = wasmExports['php_srand'];
+		_php_rand = Module['_php_rand'] = wasmExports['php_rand'];
+		_zif_rand = Module['_zif_rand'] = wasmExports['zif_rand'];
+		_php_mt_srand = Module['_php_mt_srand'] = wasmExports['php_mt_srand'];
+		_php_mt_rand = Module['_php_mt_rand'] = wasmExports['php_mt_rand'];
+		_zif_mt_srand = Module['_zif_mt_srand'] = wasmExports['zif_mt_srand'];
+		_php_mt_rand_range = Module['_php_mt_rand_range'] =
+			wasmExports['php_mt_rand_range'];
+		_php_mt_rand_common = Module['_php_mt_rand_common'] =
+			wasmExports['php_mt_rand_common'];
+		_zif_mt_rand = Module['_zif_mt_rand'] = wasmExports['zif_mt_rand'];
+		_zif_mt_getrandmax = Module['_zif_mt_getrandmax'] =
+			wasmExports['zif_mt_getrandmax'];
+		_zm_startup_mt_rand = Module['_zm_startup_mt_rand'] =
+			wasmExports['zm_startup_mt_rand'];
+		_zif_soundex = Module['_zif_soundex'] = wasmExports['zif_soundex'];
+		_register_string_constants = Module['_register_string_constants'] =
+			wasmExports['register_string_constants'];
+		_localeconv_r = Module['_localeconv_r'] = wasmExports['localeconv_r'];
+		_zif_bin2hex = Module['_zif_bin2hex'] = wasmExports['zif_bin2hex'];
+		_zif_hex2bin = Module['_zif_hex2bin'] = wasmExports['zif_hex2bin'];
+		_zif_strspn = Module['_zif_strspn'] = wasmExports['zif_strspn'];
+		_zif_strcspn = Module['_zif_strcspn'] = wasmExports['zif_strcspn'];
+		_zm_startup_nl_langinfo = Module['_zm_startup_nl_langinfo'] =
+			wasmExports['zm_startup_nl_langinfo'];
+		_zif_nl_langinfo = Module['_zif_nl_langinfo'] =
+			wasmExports['zif_nl_langinfo'];
+		_zif_strcoll = Module['_zif_strcoll'] = wasmExports['zif_strcoll'];
+		_php_trim = Module['_php_trim'] = wasmExports['php_trim'];
+		_zif_trim = Module['_zif_trim'] = wasmExports['zif_trim'];
+		_zif_rtrim = Module['_zif_rtrim'] = wasmExports['zif_rtrim'];
+		_zif_ltrim = Module['_zif_ltrim'] = wasmExports['zif_ltrim'];
+		_zif_wordwrap = Module['_zif_wordwrap'] = wasmExports['zif_wordwrap'];
+		_php_explode = Module['_php_explode'] = wasmExports['php_explode'];
+		_php_explode_negative_limit = Module['_php_explode_negative_limit'] =
+			wasmExports['php_explode_negative_limit'];
+		_zif_explode = Module['_zif_explode'] = wasmExports['zif_explode'];
+		_php_implode = Module['_php_implode'] = wasmExports['php_implode'];
+		_zif_implode = Module['_zif_implode'] = wasmExports['zif_implode'];
+		_zif_strtok = Module['_zif_strtok'] = wasmExports['zif_strtok'];
+		_php_strtoupper = Module['_php_strtoupper'] =
+			wasmExports['php_strtoupper'];
+		_php_string_toupper = Module['_php_string_toupper'] =
+			wasmExports['php_string_toupper'];
+		_zif_strtoupper = Module['_zif_strtoupper'] =
+			wasmExports['zif_strtoupper'];
 		_php_strtolower = Module['_php_strtolower'] =
 			wasmExports['php_strtolower'];
+		_php_string_tolower = Module['_php_string_tolower'] =
+			wasmExports['php_string_tolower'];
+		_zif_strtolower = Module['_zif_strtolower'] =
+			wasmExports['zif_strtolower'];
+		_php_basename = Module['_php_basename'] = wasmExports['php_basename'];
+		_zif_basename = Module['_zif_basename'] = wasmExports['zif_basename'];
+		_php_dirname = Module['_php_dirname'] = wasmExports['php_dirname'];
+		_zif_dirname = Module['_zif_dirname'] = wasmExports['zif_dirname'];
+		_zif_pathinfo = Module['_zif_pathinfo'] = wasmExports['zif_pathinfo'];
+		_php_stristr = Module['_php_stristr'] = wasmExports['php_stristr'];
+		_php_strspn = Module['_php_strspn'] = wasmExports['php_strspn'];
+		_php_strcspn = Module['_php_strcspn'] = wasmExports['php_strcspn'];
+		_zif_stristr = Module['_zif_stristr'] = wasmExports['zif_stristr'];
+		_zif_strstr = Module['_zif_strstr'] = wasmExports['zif_strstr'];
+		_zif_str_contains = Module['_zif_str_contains'] =
+			wasmExports['zif_str_contains'];
+		_zif_str_starts_with = Module['_zif_str_starts_with'] =
+			wasmExports['zif_str_starts_with'];
+		_zif_str_ends_with = Module['_zif_str_ends_with'] =
+			wasmExports['zif_str_ends_with'];
+		_zif_strpos = Module['_zif_strpos'] = wasmExports['zif_strpos'];
+		_zif_stripos = Module['_zif_stripos'] = wasmExports['zif_stripos'];
+		_zif_strrpos = Module['_zif_strrpos'] = wasmExports['zif_strrpos'];
+		_zif_strripos = Module['_zif_strripos'] = wasmExports['zif_strripos'];
+		_zif_strrchr = Module['_zif_strrchr'] = wasmExports['zif_strrchr'];
+		_zif_chunk_split = Module['_zif_chunk_split'] =
+			wasmExports['zif_chunk_split'];
+		_zif_substr = Module['_zif_substr'] = wasmExports['zif_substr'];
+		_zif_substr_replace = Module['_zif_substr_replace'] =
+			wasmExports['zif_substr_replace'];
+		_zif_quotemeta = Module['_zif_quotemeta'] =
+			wasmExports['zif_quotemeta'];
+		_zif_ord = Module['_zif_ord'] = wasmExports['zif_ord'];
+		_zif_chr = Module['_zif_chr'] = wasmExports['zif_chr'];
+		_zif_ucfirst = Module['_zif_ucfirst'] = wasmExports['zif_ucfirst'];
+		_zif_lcfirst = Module['_zif_lcfirst'] = wasmExports['zif_lcfirst'];
+		_zif_ucwords = Module['_zif_ucwords'] = wasmExports['zif_ucwords'];
+		_php_strtr = Module['_php_strtr'] = wasmExports['php_strtr'];
+		_php_str_to_str = Module['_php_str_to_str'] =
+			wasmExports['php_str_to_str'];
+		_zif_strtr = Module['_zif_strtr'] = wasmExports['zif_strtr'];
+		_zif_strrev = Module['_zif_strrev'] = wasmExports['zif_strrev'];
+		_zif_similar_text = Module['_zif_similar_text'] =
+			wasmExports['zif_similar_text'];
+		_zif_addcslashes = Module['_zif_addcslashes'] =
+			wasmExports['zif_addcslashes'];
+		_php_addcslashes_str = Module['_php_addcslashes_str'] =
+			wasmExports['php_addcslashes_str'];
+		_zif_addslashes = Module['_zif_addslashes'] =
+			wasmExports['zif_addslashes'];
+		_php_addslashes = Module['_php_addslashes'] =
+			wasmExports['php_addslashes'];
+		_zif_stripcslashes = Module['_zif_stripcslashes'] =
+			wasmExports['zif_stripcslashes'];
+		_php_stripcslashes = Module['_php_stripcslashes'] =
+			wasmExports['php_stripcslashes'];
+		_zif_stripslashes = Module['_zif_stripslashes'] =
+			wasmExports['zif_stripslashes'];
+		_php_stripslashes = Module['_php_stripslashes'] =
+			wasmExports['php_stripslashes'];
+		_php_addcslashes = Module['_php_addcslashes'] =
+			wasmExports['php_addcslashes'];
+		_zif_str_replace = Module['_zif_str_replace'] =
+			wasmExports['zif_str_replace'];
+		_zif_str_ireplace = Module['_zif_str_ireplace'] =
+			wasmExports['zif_str_ireplace'];
+		_zif_hebrev = Module['_zif_hebrev'] = wasmExports['zif_hebrev'];
+		_zif_nl2br = Module['_zif_nl2br'] = wasmExports['zif_nl2br'];
+		_zif_strip_tags = Module['_zif_strip_tags'] =
+			wasmExports['zif_strip_tags'];
+		_php_strip_tags_ex = Module['_php_strip_tags_ex'] =
+			wasmExports['php_strip_tags_ex'];
+		_php_tag_find = Module['_php_tag_find'] = wasmExports['php_tag_find'];
+		_zif_setlocale = Module['_zif_setlocale'] =
+			wasmExports['zif_setlocale'];
+		_zif_parse_str = Module['_zif_parse_str'] =
+			wasmExports['zif_parse_str'];
+		_php_strip_tags = Module['_php_strip_tags'] =
+			wasmExports['php_strip_tags'];
+		_zif_str_getcsv = Module['_zif_str_getcsv'] =
+			wasmExports['zif_str_getcsv'];
+		_zif_str_repeat = Module['_zif_str_repeat'] =
+			wasmExports['zif_str_repeat'];
+		_zif_count_chars = Module['_zif_count_chars'] =
+			wasmExports['zif_count_chars'];
+		_string_natural_compare_function_ex = Module[
+			'_string_natural_compare_function_ex'
+		] = wasmExports['string_natural_compare_function_ex'];
+		_string_natural_case_compare_function = Module[
+			'_string_natural_case_compare_function'
+		] = wasmExports['string_natural_case_compare_function'];
+		_string_natural_compare_function = Module[
+			'_string_natural_compare_function'
+		] = wasmExports['string_natural_compare_function'];
+		_zif_strnatcmp = Module['_zif_strnatcmp'] =
+			wasmExports['zif_strnatcmp'];
+		_zif_localeconv = Module['_zif_localeconv'] =
+			wasmExports['zif_localeconv'];
+		_zif_strnatcasecmp = Module['_zif_strnatcasecmp'] =
+			wasmExports['zif_strnatcasecmp'];
+		_zif_substr_count = Module['_zif_substr_count'] =
+			wasmExports['zif_substr_count'];
+		_zif_str_pad = Module['_zif_str_pad'] = wasmExports['zif_str_pad'];
+		_zif_sscanf = Module['_zif_sscanf'] = wasmExports['zif_sscanf'];
+		_zif_str_rot13 = Module['_zif_str_rot13'] =
+			wasmExports['zif_str_rot13'];
+		_zif_str_shuffle = Module['_zif_str_shuffle'] =
+			wasmExports['zif_str_shuffle'];
+		_zif_str_word_count = Module['_zif_str_word_count'] =
+			wasmExports['zif_str_word_count'];
+		_zif_str_split = Module['_zif_str_split'] =
+			wasmExports['zif_str_split'];
+		_zif_strpbrk = Module['_zif_strpbrk'] = wasmExports['zif_strpbrk'];
+		_zif_substr_compare = Module['_zif_substr_compare'] =
+			wasmExports['zif_substr_compare'];
+		_zif_utf8_encode = Module['_zif_utf8_encode'] =
+			wasmExports['zif_utf8_encode'];
+		_zif_utf8_decode = Module['_zif_utf8_decode'] =
+			wasmExports['zif_utf8_decode'];
+		_ValidateFormat = Module['_ValidateFormat'] =
+			wasmExports['ValidateFormat'];
+		_php_sscanf_internal = Module['_php_sscanf_internal'] =
+			wasmExports['php_sscanf_internal'];
+		_zm_startup_syslog = Module['_zm_startup_syslog'] =
+			wasmExports['zm_startup_syslog'];
+		_zm_activate_syslog = Module['_zm_activate_syslog'] =
+			wasmExports['zm_activate_syslog'];
+		_zm_shutdown_syslog = Module['_zm_shutdown_syslog'] =
+			wasmExports['zm_shutdown_syslog'];
+		_zif_openlog = Module['_zif_openlog'] = wasmExports['zif_openlog'];
+		_zif_closelog = Module['_zif_closelog'] = wasmExports['zif_closelog'];
+		_zif_syslog = Module['_zif_syslog'] = wasmExports['zif_syslog'];
+		_zif_gettype = Module['_zif_gettype'] = wasmExports['zif_gettype'];
+		_zif_get_debug_type = Module['_zif_get_debug_type'] =
+			wasmExports['zif_get_debug_type'];
+		_zif_settype = Module['_zif_settype'] = wasmExports['zif_settype'];
+		_zif_intval = Module['_zif_intval'] = wasmExports['zif_intval'];
+		_zif_floatval = Module['_zif_floatval'] = wasmExports['zif_floatval'];
+		_zif_boolval = Module['_zif_boolval'] = wasmExports['zif_boolval'];
+		_zif_strval = Module['_zif_strval'] = wasmExports['zif_strval'];
+		_zif_is_null = Module['_zif_is_null'] = wasmExports['zif_is_null'];
+		_zif_is_resource = Module['_zif_is_resource'] =
+			wasmExports['zif_is_resource'];
+		_zif_is_bool = Module['_zif_is_bool'] = wasmExports['zif_is_bool'];
+		_zif_is_int = Module['_zif_is_int'] = wasmExports['zif_is_int'];
+		_zif_is_float = Module['_zif_is_float'] = wasmExports['zif_is_float'];
+		_zif_is_string = Module['_zif_is_string'] =
+			wasmExports['zif_is_string'];
+		_zif_is_array = Module['_zif_is_array'] = wasmExports['zif_is_array'];
+		_zif_is_object = Module['_zif_is_object'] =
+			wasmExports['zif_is_object'];
+		_zif_is_numeric = Module['_zif_is_numeric'] =
+			wasmExports['zif_is_numeric'];
+		_zif_is_scalar = Module['_zif_is_scalar'] =
+			wasmExports['zif_is_scalar'];
+		_zif_is_callable = Module['_zif_is_callable'] =
+			wasmExports['zif_is_callable'];
+		_zif_is_iterable = Module['_zif_is_iterable'] =
+			wasmExports['zif_is_iterable'];
+		_zif_is_countable = Module['_zif_is_countable'] =
+			wasmExports['zif_is_countable'];
+		_zif_uniqid = Module['_zif_uniqid'] = wasmExports['zif_uniqid'];
+		_php_url_free = Module['_php_url_free'] = wasmExports['php_url_free'];
+		_php_replace_controlchars_ex = Module['_php_replace_controlchars_ex'] =
+			wasmExports['php_replace_controlchars_ex'];
+		_php_replace_controlchars = Module['_php_replace_controlchars'] =
+			wasmExports['php_replace_controlchars'];
+		_php_url_parse = Module['_php_url_parse'] =
+			wasmExports['php_url_parse'];
+		_php_url_parse_ex2 = Module['_php_url_parse_ex2'] =
+			wasmExports['php_url_parse_ex2'];
+		_php_url_parse_ex = Module['_php_url_parse_ex'] =
+			wasmExports['php_url_parse_ex'];
+		_zif_parse_url = Module['_zif_parse_url'] =
+			wasmExports['zif_parse_url'];
+		_php_url_encode = Module['_php_url_encode'] =
+			wasmExports['php_url_encode'];
+		_zif_urlencode = Module['_zif_urlencode'] =
+			wasmExports['zif_urlencode'];
+		_zif_urldecode = Module['_zif_urldecode'] =
+			wasmExports['zif_urldecode'];
+		_php_url_decode = Module['_php_url_decode'] =
+			wasmExports['php_url_decode'];
+		_php_raw_url_encode = Module['_php_raw_url_encode'] =
+			wasmExports['php_raw_url_encode'];
+		_zif_rawurlencode = Module['_zif_rawurlencode'] =
+			wasmExports['zif_rawurlencode'];
+		_zif_rawurldecode = Module['_zif_rawurldecode'] =
+			wasmExports['zif_rawurldecode'];
+		_php_raw_url_decode = Module['_php_raw_url_decode'] =
+			wasmExports['php_raw_url_decode'];
+		_zif_get_headers = Module['_zif_get_headers'] =
+			wasmExports['zif_get_headers'];
+		_php_var_dump = Module['_php_var_dump'] = wasmExports['php_var_dump'];
+		_zif_var_dump = Module['_zif_var_dump'] = wasmExports['zif_var_dump'];
+		_php_debug_zval_dump = Module['_php_debug_zval_dump'] =
+			wasmExports['php_debug_zval_dump'];
+		_zif_debug_zval_dump = Module['_zif_debug_zval_dump'] =
+			wasmExports['zif_debug_zval_dump'];
+		_php_var_export_ex = Module['_php_var_export_ex'] =
+			wasmExports['php_var_export_ex'];
+		_php_var_export = Module['_php_var_export'] =
+			wasmExports['php_var_export'];
+		_zif_var_export = Module['_zif_var_export'] =
+			wasmExports['zif_var_export'];
+		_php_var_serialize = Module['_php_var_serialize'] =
+			wasmExports['php_var_serialize'];
+		_php_var_serialize_init = Module['_php_var_serialize_init'] =
+			wasmExports['php_var_serialize_init'];
+		_php_var_serialize_destroy = Module['_php_var_serialize_destroy'] =
+			wasmExports['php_var_serialize_destroy'];
+		_zif_serialize = Module['_zif_serialize'] =
+			wasmExports['zif_serialize'];
+		_php_unserialize_with_options = Module[
+			'_php_unserialize_with_options'
+		] = wasmExports['php_unserialize_with_options'];
+		_zif_unserialize = Module['_zif_unserialize'] =
+			wasmExports['zif_unserialize'];
+		_zif_memory_get_usage = Module['_zif_memory_get_usage'] =
+			wasmExports['zif_memory_get_usage'];
+		_zif_memory_get_peak_usage = Module['_zif_memory_get_peak_usage'] =
+			wasmExports['zif_memory_get_peak_usage'];
+		_zm_startup_var = Module['_zm_startup_var'] =
+			wasmExports['zm_startup_var'];
+		_php_canonicalize_version = Module['_php_canonicalize_version'] =
+			wasmExports['php_canonicalize_version'];
+		_php_version_compare = Module['_php_version_compare'] =
+			wasmExports['php_version_compare'];
+		_zif_version_compare = Module['_zif_version_compare'] =
+			wasmExports['zif_version_compare'];
+		_zm_startup_assert = Module['_zm_startup_assert'] =
+			wasmExports['zm_startup_assert'];
+		_zm_shutdown_assert = Module['_zm_shutdown_assert'] =
+			wasmExports['zm_shutdown_assert'];
+		_zm_deactivate_assert = Module['_zm_deactivate_assert'] =
+			wasmExports['zm_deactivate_assert'];
+		_zm_info_assert = Module['_zm_info_assert'] =
+			wasmExports['zm_info_assert'];
+		_zif_assert = Module['_zif_assert'] = wasmExports['zif_assert'];
+		_zif_assert_options = Module['_zif_assert_options'] =
+			wasmExports['zif_assert_options'];
+		_strnatcmp_ex = Module['_strnatcmp_ex'] = wasmExports['strnatcmp_ex'];
+		_zif_levenshtein = Module['_zif_levenshtein'] =
+			wasmExports['zif_levenshtein'];
+		_php_register_incomplete_class = Module[
+			'_php_register_incomplete_class'
+		] = wasmExports['php_register_incomplete_class'];
+		_php_lookup_class_name = Module['_php_lookup_class_name'] =
+			wasmExports['php_lookup_class_name'];
+		_php_store_class_name = Module['_php_store_class_name'] =
+			wasmExports['php_store_class_name'];
+		_php_url_scanner_adapt_single_url = Module[
+			'_php_url_scanner_adapt_single_url'
+		] = wasmExports['php_url_scanner_adapt_single_url'];
+		_php_url_scanner_add_session_var = Module[
+			'_php_url_scanner_add_session_var'
+		] = wasmExports['php_url_scanner_add_session_var'];
+		_php_url_scanner_add_var = Module['_php_url_scanner_add_var'] =
+			wasmExports['php_url_scanner_add_var'];
+		_php_url_scanner_reset_session_vars = Module[
+			'_php_url_scanner_reset_session_vars'
+		] = wasmExports['php_url_scanner_reset_session_vars'];
+		_php_url_scanner_reset_vars = Module['_php_url_scanner_reset_vars'] =
+			wasmExports['php_url_scanner_reset_vars'];
+		_php_url_scanner_reset_session_var = Module[
+			'_php_url_scanner_reset_session_var'
+		] = wasmExports['php_url_scanner_reset_session_var'];
+		_php_url_scanner_reset_var = Module['_php_url_scanner_reset_var'] =
+			wasmExports['php_url_scanner_reset_var'];
+		_zm_startup_url_scanner_ex = Module['_zm_startup_url_scanner_ex'] =
+			wasmExports['zm_startup_url_scanner_ex'];
+		_zm_shutdown_url_scanner_ex = Module['_zm_shutdown_url_scanner_ex'] =
+			wasmExports['zm_shutdown_url_scanner_ex'];
+		_zm_activate_url_scanner_ex = Module['_zm_activate_url_scanner_ex'] =
+			wasmExports['zm_activate_url_scanner_ex'];
+		_zm_deactivate_url_scanner_ex = Module[
+			'_zm_deactivate_url_scanner_ex'
+		] = wasmExports['zm_deactivate_url_scanner_ex'];
+		_php_stream_url_wrap_ftp = Module['_php_stream_url_wrap_ftp'] =
+			wasmExports['php_stream_url_wrap_ftp'];
+		_php_stream_ftp_opendir = Module['_php_stream_ftp_opendir'] =
+			wasmExports['php_stream_ftp_opendir'];
+		_php_stream_url_wrap_http = Module['_php_stream_url_wrap_http'] =
+			wasmExports['php_stream_url_wrap_http'];
+		_php_stream_url_wrap_php = Module['_php_stream_url_wrap_php'] =
+			wasmExports['php_stream_url_wrap_php'];
+		_php_print_credits = Module['_php_print_credits'] =
+			wasmExports['php_print_credits'];
+		_php_info_print_css = Module['_php_info_print_css'] =
+			wasmExports['php_info_print_css'];
+		_php_var_unserialize_init = Module['_php_var_unserialize_init'] =
+			wasmExports['php_var_unserialize_init'];
+		_php_var_unserialize_destroy = Module['_php_var_unserialize_destroy'] =
+			wasmExports['php_var_unserialize_destroy'];
+		_var_destroy = Module['_var_destroy'] = wasmExports['var_destroy'];
+		_php_var_unserialize_get_allowed_classes = Module[
+			'_php_var_unserialize_get_allowed_classes'
+		] = wasmExports['php_var_unserialize_get_allowed_classes'];
+		_php_var_unserialize_set_allowed_classes = Module[
+			'_php_var_unserialize_set_allowed_classes'
+		] = wasmExports['php_var_unserialize_set_allowed_classes'];
+		_php_var_unserialize_set_max_depth = Module[
+			'_php_var_unserialize_set_max_depth'
+		] = wasmExports['php_var_unserialize_set_max_depth'];
+		_php_var_unserialize_get_max_depth = Module[
+			'_php_var_unserialize_get_max_depth'
+		] = wasmExports['php_var_unserialize_get_max_depth'];
+		_php_var_unserialize_set_cur_depth = Module[
+			'_php_var_unserialize_set_cur_depth'
+		] = wasmExports['php_var_unserialize_set_cur_depth'];
+		_php_var_unserialize_get_cur_depth = Module[
+			'_php_var_unserialize_get_cur_depth'
+		] = wasmExports['php_var_unserialize_get_cur_depth'];
+		_var_push_dtor = Module['_var_push_dtor'] =
+			wasmExports['var_push_dtor'];
+		_var_tmp_var = Module['_var_tmp_var'] = wasmExports['var_tmp_var'];
+		_var_replace = Module['_var_replace'] = wasmExports['var_replace'];
+		_php_var_unserialize = Module['_php_var_unserialize'] =
+			wasmExports['php_var_unserialize'];
+		_make_sha1_digest = Module['_make_sha1_digest'] =
+			wasmExports['make_sha1_digest'];
+		_zif_sha1 = Module['_zif_sha1'] = wasmExports['zif_sha1'];
+		_PHP_SHA1Final = Module['_PHP_SHA1Final'] =
+			wasmExports['PHP_SHA1Final'];
+		_PHP_SHA1Init = Module['_PHP_SHA1Init'] = wasmExports['PHP_SHA1Init'];
+		_PHP_SHA1Update = Module['_PHP_SHA1Update'] =
+			wasmExports['PHP_SHA1Update'];
+		_zif_sha1_file = Module['_zif_sha1_file'] =
+			wasmExports['zif_sha1_file'];
+		_zim_php_user_filter_filter = Module['_zim_php_user_filter_filter'] =
+			wasmExports['zim_php_user_filter_filter'];
+		_zim_php_user_filter_onCreate = Module[
+			'_zim_php_user_filter_onCreate'
+		] = wasmExports['zim_php_user_filter_onCreate'];
+		_zim_php_user_filter_onClose = Module['_zim_php_user_filter_onClose'] =
+			wasmExports['zim_php_user_filter_onClose'];
+		_zm_startup_user_filters = Module['_zm_startup_user_filters'] =
+			wasmExports['zm_startup_user_filters'];
+		_zm_deactivate_user_filters = Module['_zm_deactivate_user_filters'] =
+			wasmExports['zm_deactivate_user_filters'];
+		_userfilter_filter = Module['_userfilter_filter'] =
+			wasmExports['userfilter_filter'];
+		_zif_stream_bucket_make_writeable = Module[
+			'_zif_stream_bucket_make_writeable'
+		] = wasmExports['zif_stream_bucket_make_writeable'];
+		_zif_stream_bucket_prepend = Module['_zif_stream_bucket_prepend'] =
+			wasmExports['zif_stream_bucket_prepend'];
+		_zif_stream_bucket_append = Module['_zif_stream_bucket_append'] =
+			wasmExports['zif_stream_bucket_append'];
+		_zif_stream_bucket_new = Module['_zif_stream_bucket_new'] =
+			wasmExports['zif_stream_bucket_new'];
+		_zif_stream_get_filters = Module['_zif_stream_get_filters'] =
+			wasmExports['zif_stream_get_filters'];
+		_zif_stream_filter_register = Module['_zif_stream_filter_register'] =
+			wasmExports['zif_stream_filter_register'];
+		_php_uuencode = Module['_php_uuencode'] = wasmExports['php_uuencode'];
+		_php_uudecode = Module['_php_uudecode'] = wasmExports['php_uudecode'];
+		_zif_convert_uuencode = Module['_zif_convert_uuencode'] =
+			wasmExports['zif_convert_uuencode'];
+		_zif_convert_uudecode = Module['_zif_convert_uudecode'] =
+			wasmExports['zif_convert_uudecode'];
+		_zm_startup_standard_filters = Module['_zm_startup_standard_filters'] =
+			wasmExports['zm_startup_standard_filters'];
+		_zm_shutdown_standard_filters = Module[
+			'_zm_shutdown_standard_filters'
+		] = wasmExports['zm_shutdown_standard_filters'];
+		_zif_stream_socket_pair = Module['_zif_stream_socket_pair'] =
+			wasmExports['zif_stream_socket_pair'];
+		_zif_stream_socket_client = Module['_zif_stream_socket_client'] =
+			wasmExports['zif_stream_socket_client'];
+		_zif_stream_socket_server = Module['_zif_stream_socket_server'] =
+			wasmExports['zif_stream_socket_server'];
+		_zif_stream_socket_accept = Module['_zif_stream_socket_accept'] =
+			wasmExports['zif_stream_socket_accept'];
+		_zif_stream_socket_get_name = Module['_zif_stream_socket_get_name'] =
+			wasmExports['zif_stream_socket_get_name'];
+		_zif_stream_socket_sendto = Module['_zif_stream_socket_sendto'] =
+			wasmExports['zif_stream_socket_sendto'];
+		_zif_stream_socket_recvfrom = Module['_zif_stream_socket_recvfrom'] =
+			wasmExports['zif_stream_socket_recvfrom'];
+		_zif_stream_get_contents = Module['_zif_stream_get_contents'] =
+			wasmExports['zif_stream_get_contents'];
+		_zif_stream_copy_to_stream = Module['_zif_stream_copy_to_stream'] =
+			wasmExports['zif_stream_copy_to_stream'];
+		_zif_stream_get_meta_data = Module['_zif_stream_get_meta_data'] =
+			wasmExports['zif_stream_get_meta_data'];
+		_zif_stream_get_transports = Module['_zif_stream_get_transports'] =
+			wasmExports['zif_stream_get_transports'];
+		_zif_stream_get_wrappers = Module['_zif_stream_get_wrappers'] =
+			wasmExports['zif_stream_get_wrappers'];
+		_zif_stream_select = Module['_zif_stream_select'] =
+			wasmExports['zif_stream_select'];
+		_zif_stream_context_get_options = Module[
+			'_zif_stream_context_get_options'
+		] = wasmExports['zif_stream_context_get_options'];
+		_zif_stream_context_set_option = Module[
+			'_zif_stream_context_set_option'
+		] = wasmExports['zif_stream_context_set_option'];
+		_zif_stream_context_set_params = Module[
+			'_zif_stream_context_set_params'
+		] = wasmExports['zif_stream_context_set_params'];
+		_zif_stream_context_get_params = Module[
+			'_zif_stream_context_get_params'
+		] = wasmExports['zif_stream_context_get_params'];
+		_zif_stream_context_get_default = Module[
+			'_zif_stream_context_get_default'
+		] = wasmExports['zif_stream_context_get_default'];
+		_zif_stream_context_set_default = Module[
+			'_zif_stream_context_set_default'
+		] = wasmExports['zif_stream_context_set_default'];
+		_zif_stream_context_create = Module['_zif_stream_context_create'] =
+			wasmExports['zif_stream_context_create'];
+		_zif_stream_filter_prepend = Module['_zif_stream_filter_prepend'] =
+			wasmExports['zif_stream_filter_prepend'];
+		_zif_stream_filter_append = Module['_zif_stream_filter_append'] =
+			wasmExports['zif_stream_filter_append'];
+		_zif_stream_filter_remove = Module['_zif_stream_filter_remove'] =
+			wasmExports['zif_stream_filter_remove'];
+		_zif_stream_get_line = Module['_zif_stream_get_line'] =
+			wasmExports['zif_stream_get_line'];
+		_zif_stream_set_blocking = Module['_zif_stream_set_blocking'] =
+			wasmExports['zif_stream_set_blocking'];
+		_zif_stream_set_timeout = Module['_zif_stream_set_timeout'] =
+			wasmExports['zif_stream_set_timeout'];
+		_zif_stream_set_write_buffer = Module['_zif_stream_set_write_buffer'] =
+			wasmExports['zif_stream_set_write_buffer'];
+		_zif_stream_set_chunk_size = Module['_zif_stream_set_chunk_size'] =
+			wasmExports['zif_stream_set_chunk_size'];
+		_zif_stream_set_read_buffer = Module['_zif_stream_set_read_buffer'] =
+			wasmExports['zif_stream_set_read_buffer'];
+		_zif_stream_socket_enable_crypto = Module[
+			'_zif_stream_socket_enable_crypto'
+		] = wasmExports['zif_stream_socket_enable_crypto'];
+		_zif_stream_resolve_include_path = Module[
+			'_zif_stream_resolve_include_path'
+		] = wasmExports['zif_stream_resolve_include_path'];
+		_zif_stream_is_local = Module['_zif_stream_is_local'] =
+			wasmExports['zif_stream_is_local'];
+		_zif_stream_supports_lock = Module['_zif_stream_supports_lock'] =
+			wasmExports['zif_stream_supports_lock'];
+		_zif_stream_isatty = Module['_zif_stream_isatty'] =
+			wasmExports['zif_stream_isatty'];
+		_zif_stream_socket_shutdown = Module['_zif_stream_socket_shutdown'] =
+			wasmExports['zif_stream_socket_shutdown'];
+		_php_url_encode_hash_ex = Module['_php_url_encode_hash_ex'] =
+			wasmExports['php_url_encode_hash_ex'];
+		_zif_http_build_query = Module['_zif_http_build_query'] =
+			wasmExports['zif_http_build_query'];
+		_php_password_algo_register = Module['_php_password_algo_register'] =
+			wasmExports['php_password_algo_register'];
+		_php_password_algo_unregister = Module[
+			'_php_password_algo_unregister'
+		] = wasmExports['php_password_algo_unregister'];
+		_zm_startup_password = Module['_zm_startup_password'] =
+			wasmExports['zm_startup_password'];
+		_zm_shutdown_password = Module['_zm_shutdown_password'] =
+			wasmExports['zm_shutdown_password'];
+		_php_password_algo_default = Module['_php_password_algo_default'] =
+			wasmExports['php_password_algo_default'];
+		_php_password_algo_find = Module['_php_password_algo_find'] =
+			wasmExports['php_password_algo_find'];
+		_php_password_algo_extract_ident = Module[
+			'_php_password_algo_extract_ident'
+		] = wasmExports['php_password_algo_extract_ident'];
+		_php_password_algo_identify_ex = Module[
+			'_php_password_algo_identify_ex'
+		] = wasmExports['php_password_algo_identify_ex'];
+		_zif_password_get_info = Module['_zif_password_get_info'] =
+			wasmExports['zif_password_get_info'];
+		_zif_password_needs_rehash = Module['_zif_password_needs_rehash'] =
+			wasmExports['zif_password_needs_rehash'];
+		_zif_password_verify = Module['_zif_password_verify'] =
+			wasmExports['zif_password_verify'];
+		_zif_password_hash = Module['_zif_password_hash'] =
+			wasmExports['zif_password_hash'];
+		_zif_password_algos = Module['_zif_password_algos'] =
+			wasmExports['zif_password_algos'];
+		_zm_startup_random = Module['_zm_startup_random'] =
+			wasmExports['zm_startup_random'];
+		_zm_shutdown_random = Module['_zm_shutdown_random'] =
+			wasmExports['zm_shutdown_random'];
+		_php_random_bytes = Module['_php_random_bytes'] =
+			wasmExports['php_random_bytes'];
+		_zif_random_bytes = Module['_zif_random_bytes'] =
+			wasmExports['zif_random_bytes'];
+		_php_random_int = Module['_php_random_int'] =
+			wasmExports['php_random_int'];
+		_zif_random_int = Module['_zif_random_int'] =
+			wasmExports['zif_random_int'];
+		_php_inet_ntop = Module['_php_inet_ntop'] =
+			wasmExports['php_inet_ntop'];
+		_zif_net_get_interfaces = Module['_zif_net_get_interfaces'] =
+			wasmExports['zif_net_get_interfaces'];
+		_zm_startup_hrtime = Module['_zm_startup_hrtime'] =
+			wasmExports['zm_startup_hrtime'];
+		_zif_hrtime = Module['_zif_hrtime'] = wasmExports['zif_hrtime'];
+		_php_hrtime_current = Module['_php_hrtime_current'] =
+			wasmExports['php_hrtime_current'];
+		_tokenizer_token_get_all_register_constants = Module[
+			'_tokenizer_token_get_all_register_constants'
+		] = wasmExports['tokenizer_token_get_all_register_constants'];
+		_zm_startup_tokenizer = Module['_zm_startup_tokenizer'] =
+			wasmExports['zm_startup_tokenizer'];
+		_zm_info_tokenizer = Module['_zm_info_tokenizer'] =
+			wasmExports['zm_info_tokenizer'];
+		_zim_PhpToken_tokenize = Module['_zim_PhpToken_tokenize'] =
+			wasmExports['zim_PhpToken_tokenize'];
+		_on_event = Module['_on_event'] = wasmExports['on_event'];
+		_zim_PhpToken___construct = Module['_zim_PhpToken___construct'] =
+			wasmExports['zim_PhpToken___construct'];
+		_zim_PhpToken_is = Module['_zim_PhpToken_is'] =
+			wasmExports['zim_PhpToken_is'];
+		_zim_PhpToken_isIgnorable = Module['_zim_PhpToken_isIgnorable'] =
+			wasmExports['zim_PhpToken_isIgnorable'];
+		_zim_PhpToken_getTokenName = Module['_zim_PhpToken_getTokenName'] =
+			wasmExports['zim_PhpToken_getTokenName'];
+		_zim_PhpToken___toString = Module['_zim_PhpToken___toString'] =
+			wasmExports['zim_PhpToken___toString'];
+		_zif_token_get_all = Module['_zif_token_get_all'] =
+			wasmExports['zif_token_get_all'];
+		_zif_token_name = Module['_zif_token_name'] =
+			wasmExports['zif_token_name'];
+		_tokenizer_register_constants = Module[
+			'_tokenizer_register_constants'
+		] = wasmExports['tokenizer_register_constants'];
+		_get_token_type_name = Module['_get_token_type_name'] =
+			wasmExports['get_token_type_name'];
+		_wasm_memory_storage_chunk_alloc = Module[
+			'_wasm_memory_storage_chunk_alloc'
+		] = wasmExports['wasm_memory_storage_chunk_alloc'];
+		_wasm_memory_storage_chunk_free = Module[
+			'_wasm_memory_storage_chunk_free'
+		] = wasmExports['wasm_memory_storage_chunk_free'];
+		_zm_startup_wasm_memory_storage = Module[
+			'_zm_startup_wasm_memory_storage'
+		] = wasmExports['zm_startup_wasm_memory_storage'];
+		_zm_shutdown_wasm_memory_storage = Module[
+			'_zm_shutdown_wasm_memory_storage'
+		] = wasmExports['zm_shutdown_wasm_memory_storage'];
+		_zm_info_wasm_memory_storage = Module['_zm_info_wasm_memory_storage'] =
+			wasmExports['zm_info_wasm_memory_storage'];
+		_zm_startup_xml = Module['_zm_startup_xml'] =
+			wasmExports['zm_startup_xml'];
+		_zm_info_xml = Module['_zm_info_xml'] = wasmExports['zm_info_xml'];
+		__xml_startElementHandler = Module['__xml_startElementHandler'] =
+			wasmExports['_xml_startElementHandler'];
+		__xml_endElementHandler = Module['__xml_endElementHandler'] =
+			wasmExports['_xml_endElementHandler'];
+		__xml_characterDataHandler = Module['__xml_characterDataHandler'] =
+			wasmExports['_xml_characterDataHandler'];
+		__xml_processingInstructionHandler = Module[
+			'__xml_processingInstructionHandler'
+		] = wasmExports['_xml_processingInstructionHandler'];
+		__xml_defaultHandler = Module['__xml_defaultHandler'] =
+			wasmExports['_xml_defaultHandler'];
+		__xml_unparsedEntityDeclHandler = Module[
+			'__xml_unparsedEntityDeclHandler'
+		] = wasmExports['_xml_unparsedEntityDeclHandler'];
+		__xml_notationDeclHandler = Module['__xml_notationDeclHandler'] =
+			wasmExports['_xml_notationDeclHandler'];
+		__xml_externalEntityRefHandler = Module[
+			'__xml_externalEntityRefHandler'
+		] = wasmExports['_xml_externalEntityRefHandler'];
+		__xml_startNamespaceDeclHandler = Module[
+			'__xml_startNamespaceDeclHandler'
+		] = wasmExports['_xml_startNamespaceDeclHandler'];
+		__xml_endNamespaceDeclHandler = Module[
+			'__xml_endNamespaceDeclHandler'
+		] = wasmExports['_xml_endNamespaceDeclHandler'];
+		_zif_xml_parser_create = Module['_zif_xml_parser_create'] =
+			wasmExports['zif_xml_parser_create'];
+		_zif_xml_parser_create_ns = Module['_zif_xml_parser_create_ns'] =
+			wasmExports['zif_xml_parser_create_ns'];
+		_zif_xml_set_object = Module['_zif_xml_set_object'] =
+			wasmExports['zif_xml_set_object'];
+		_zif_xml_set_element_handler = Module['_zif_xml_set_element_handler'] =
+			wasmExports['zif_xml_set_element_handler'];
+		_zif_xml_set_character_data_handler = Module[
+			'_zif_xml_set_character_data_handler'
+		] = wasmExports['zif_xml_set_character_data_handler'];
+		_zif_xml_set_processing_instruction_handler = Module[
+			'_zif_xml_set_processing_instruction_handler'
+		] = wasmExports['zif_xml_set_processing_instruction_handler'];
+		_zif_xml_set_default_handler = Module['_zif_xml_set_default_handler'] =
+			wasmExports['zif_xml_set_default_handler'];
+		_zif_xml_set_unparsed_entity_decl_handler = Module[
+			'_zif_xml_set_unparsed_entity_decl_handler'
+		] = wasmExports['zif_xml_set_unparsed_entity_decl_handler'];
+		_zif_xml_set_notation_decl_handler = Module[
+			'_zif_xml_set_notation_decl_handler'
+		] = wasmExports['zif_xml_set_notation_decl_handler'];
+		_zif_xml_set_external_entity_ref_handler = Module[
+			'_zif_xml_set_external_entity_ref_handler'
+		] = wasmExports['zif_xml_set_external_entity_ref_handler'];
+		_zif_xml_set_start_namespace_decl_handler = Module[
+			'_zif_xml_set_start_namespace_decl_handler'
+		] = wasmExports['zif_xml_set_start_namespace_decl_handler'];
+		_zif_xml_set_end_namespace_decl_handler = Module[
+			'_zif_xml_set_end_namespace_decl_handler'
+		] = wasmExports['zif_xml_set_end_namespace_decl_handler'];
+		_zif_xml_parse = Module['_zif_xml_parse'] =
+			wasmExports['zif_xml_parse'];
+		_zif_xml_parse_into_struct = Module['_zif_xml_parse_into_struct'] =
+			wasmExports['zif_xml_parse_into_struct'];
+		_zif_xml_get_error_code = Module['_zif_xml_get_error_code'] =
+			wasmExports['zif_xml_get_error_code'];
+		_zif_xml_error_string = Module['_zif_xml_error_string'] =
+			wasmExports['zif_xml_error_string'];
+		_zif_xml_get_current_line_number = Module[
+			'_zif_xml_get_current_line_number'
+		] = wasmExports['zif_xml_get_current_line_number'];
+		_zif_xml_get_current_column_number = Module[
+			'_zif_xml_get_current_column_number'
+		] = wasmExports['zif_xml_get_current_column_number'];
+		_zif_xml_get_current_byte_index = Module[
+			'_zif_xml_get_current_byte_index'
+		] = wasmExports['zif_xml_get_current_byte_index'];
+		_zif_xml_parser_free = Module['_zif_xml_parser_free'] =
+			wasmExports['zif_xml_parser_free'];
+		_zif_xml_parser_set_option = Module['_zif_xml_parser_set_option'] =
+			wasmExports['zif_xml_parser_set_option'];
+		_zif_xml_parser_get_option = Module['_zif_xml_parser_get_option'] =
+			wasmExports['zif_xml_parser_get_option'];
+		_php_XML_ParserCreate = Module['_php_XML_ParserCreate'] =
+			wasmExports['php_XML_ParserCreate'];
+		_php_XML_ParserCreate_MM = Module['_php_XML_ParserCreate_MM'] =
+			wasmExports['php_XML_ParserCreate_MM'];
+		_php_XML_ParserCreateNS = Module['_php_XML_ParserCreateNS'] =
+			wasmExports['php_XML_ParserCreateNS'];
+		_php_XML_SetUserData = Module['_php_XML_SetUserData'] =
+			wasmExports['php_XML_SetUserData'];
+		_XML_GetUserData = Module['_XML_GetUserData'] =
+			wasmExports['XML_GetUserData'];
+		_php_XML_SetElementHandler = Module['_php_XML_SetElementHandler'] =
+			wasmExports['php_XML_SetElementHandler'];
+		_php_XML_SetCharacterDataHandler = Module[
+			'_php_XML_SetCharacterDataHandler'
+		] = wasmExports['php_XML_SetCharacterDataHandler'];
+		_php_XML_SetProcessingInstructionHandler = Module[
+			'_php_XML_SetProcessingInstructionHandler'
+		] = wasmExports['php_XML_SetProcessingInstructionHandler'];
+		_php_XML_SetCommentHandler = Module['_php_XML_SetCommentHandler'] =
+			wasmExports['php_XML_SetCommentHandler'];
+		_php_XML_SetDefaultHandler = Module['_php_XML_SetDefaultHandler'] =
+			wasmExports['php_XML_SetDefaultHandler'];
+		_php_XML_SetUnparsedEntityDeclHandler = Module[
+			'_php_XML_SetUnparsedEntityDeclHandler'
+		] = wasmExports['php_XML_SetUnparsedEntityDeclHandler'];
+		_php_XML_SetNotationDeclHandler = Module[
+			'_php_XML_SetNotationDeclHandler'
+		] = wasmExports['php_XML_SetNotationDeclHandler'];
+		_php_XML_SetExternalEntityRefHandler = Module[
+			'_php_XML_SetExternalEntityRefHandler'
+		] = wasmExports['php_XML_SetExternalEntityRefHandler'];
+		_php_XML_SetStartNamespaceDeclHandler = Module[
+			'_php_XML_SetStartNamespaceDeclHandler'
+		] = wasmExports['php_XML_SetStartNamespaceDeclHandler'];
+		_php_XML_SetEndNamespaceDeclHandler = Module[
+			'_php_XML_SetEndNamespaceDeclHandler'
+		] = wasmExports['php_XML_SetEndNamespaceDeclHandler'];
+		_php_XML_Parse = Module['_php_XML_Parse'] =
+			wasmExports['php_XML_Parse'];
+		_php_XML_GetErrorCode = Module['_php_XML_GetErrorCode'] =
+			wasmExports['php_XML_GetErrorCode'];
+		_php_XML_ErrorString = Module['_php_XML_ErrorString'] =
+			wasmExports['php_XML_ErrorString'];
+		_php_XML_GetCurrentLineNumber = Module[
+			'_php_XML_GetCurrentLineNumber'
+		] = wasmExports['php_XML_GetCurrentLineNumber'];
+		_php_XML_GetCurrentColumnNumber = Module[
+			'_php_XML_GetCurrentColumnNumber'
+		] = wasmExports['php_XML_GetCurrentColumnNumber'];
+		_php_XML_GetCurrentByteIndex = Module['_php_XML_GetCurrentByteIndex'] =
+			wasmExports['php_XML_GetCurrentByteIndex'];
+		_php_XML_GetCurrentByteCount = Module['_php_XML_GetCurrentByteCount'] =
+			wasmExports['php_XML_GetCurrentByteCount'];
+		_php_XML_ExpatVersion = Module['_php_XML_ExpatVersion'] =
+			wasmExports['php_XML_ExpatVersion'];
+		_php_XML_ParserFree = Module['_php_XML_ParserFree'] =
+			wasmExports['php_XML_ParserFree'];
+		_xmlreader_get_property_ptr_ptr = Module[
+			'_xmlreader_get_property_ptr_ptr'
+		] = wasmExports['xmlreader_get_property_ptr_ptr'];
+		_xmlreader_read_property = Module['_xmlreader_read_property'] =
+			wasmExports['xmlreader_read_property'];
+		_xmlreader_write_property = Module['_xmlreader_write_property'] =
+			wasmExports['xmlreader_write_property'];
+		__xmlreader_get_valid_file_path = Module[
+			'__xmlreader_get_valid_file_path'
+		] = wasmExports['_xmlreader_get_valid_file_path'];
+		_zm_startup_xmlreader = Module['_zm_startup_xmlreader'] =
+			wasmExports['zm_startup_xmlreader'];
+		_xmlreader_objects_free_storage = Module[
+			'_xmlreader_objects_free_storage'
+		] = wasmExports['xmlreader_objects_free_storage'];
+		_xmlreader_objects_new = Module['_xmlreader_objects_new'] =
+			wasmExports['xmlreader_objects_new'];
+		_zm_shutdown_xmlreader = Module['_zm_shutdown_xmlreader'] =
+			wasmExports['zm_shutdown_xmlreader'];
+		_zm_info_xmlreader = Module['_zm_info_xmlreader'] =
+			wasmExports['zm_info_xmlreader'];
+		_xmlreader_objects_clone = Module['_xmlreader_objects_clone'] =
+			wasmExports['xmlreader_objects_clone'];
+		_zim_XMLReader_close = Module['_zim_XMLReader_close'] =
+			wasmExports['zim_XMLReader_close'];
+		_zim_XMLReader_getAttribute = Module['_zim_XMLReader_getAttribute'] =
+			wasmExports['zim_XMLReader_getAttribute'];
+		_zim_XMLReader_getAttributeNo = Module[
+			'_zim_XMLReader_getAttributeNo'
+		] = wasmExports['zim_XMLReader_getAttributeNo'];
+		_zim_XMLReader_getAttributeNs = Module[
+			'_zim_XMLReader_getAttributeNs'
+		] = wasmExports['zim_XMLReader_getAttributeNs'];
+		_zim_XMLReader_getParserProperty = Module[
+			'_zim_XMLReader_getParserProperty'
+		] = wasmExports['zim_XMLReader_getParserProperty'];
+		_zim_XMLReader_isValid = Module['_zim_XMLReader_isValid'] =
+			wasmExports['zim_XMLReader_isValid'];
+		_zim_XMLReader_lookupNamespace = Module[
+			'_zim_XMLReader_lookupNamespace'
+		] = wasmExports['zim_XMLReader_lookupNamespace'];
+		_zim_XMLReader_moveToAttribute = Module[
+			'_zim_XMLReader_moveToAttribute'
+		] = wasmExports['zim_XMLReader_moveToAttribute'];
+		_zim_XMLReader_moveToAttributeNo = Module[
+			'_zim_XMLReader_moveToAttributeNo'
+		] = wasmExports['zim_XMLReader_moveToAttributeNo'];
+		_zim_XMLReader_moveToAttributeNs = Module[
+			'_zim_XMLReader_moveToAttributeNs'
+		] = wasmExports['zim_XMLReader_moveToAttributeNs'];
+		_zim_XMLReader_moveToElement = Module['_zim_XMLReader_moveToElement'] =
+			wasmExports['zim_XMLReader_moveToElement'];
+		_zim_XMLReader_moveToFirstAttribute = Module[
+			'_zim_XMLReader_moveToFirstAttribute'
+		] = wasmExports['zim_XMLReader_moveToFirstAttribute'];
+		_zim_XMLReader_moveToNextAttribute = Module[
+			'_zim_XMLReader_moveToNextAttribute'
+		] = wasmExports['zim_XMLReader_moveToNextAttribute'];
+		_zim_XMLReader_read = Module['_zim_XMLReader_read'] =
+			wasmExports['zim_XMLReader_read'];
+		_zim_XMLReader_next = Module['_zim_XMLReader_next'] =
+			wasmExports['zim_XMLReader_next'];
+		_zim_XMLReader_open = Module['_zim_XMLReader_open'] =
+			wasmExports['zim_XMLReader_open'];
+		_zim_XMLReader_readInnerXml = Module['_zim_XMLReader_readInnerXml'] =
+			wasmExports['zim_XMLReader_readInnerXml'];
+		_zim_XMLReader_readOuterXml = Module['_zim_XMLReader_readOuterXml'] =
+			wasmExports['zim_XMLReader_readOuterXml'];
+		_zim_XMLReader_readString = Module['_zim_XMLReader_readString'] =
+			wasmExports['zim_XMLReader_readString'];
+		_zim_XMLReader_setSchema = Module['_zim_XMLReader_setSchema'] =
+			wasmExports['zim_XMLReader_setSchema'];
+		_zim_XMLReader_setParserProperty = Module[
+			'_zim_XMLReader_setParserProperty'
+		] = wasmExports['zim_XMLReader_setParserProperty'];
+		_zim_XMLReader_setRelaxNGSchema = Module[
+			'_zim_XMLReader_setRelaxNGSchema'
+		] = wasmExports['zim_XMLReader_setRelaxNGSchema'];
+		_zim_XMLReader_setRelaxNGSchemaSource = Module[
+			'_zim_XMLReader_setRelaxNGSchemaSource'
+		] = wasmExports['zim_XMLReader_setRelaxNGSchemaSource'];
+		_zim_XMLReader_XML = Module['_zim_XMLReader_XML'] =
+			wasmExports['zim_XMLReader_XML'];
+		_zim_XMLReader_expand = Module['_zim_XMLReader_expand'] =
+			wasmExports['zim_XMLReader_expand'];
+		_zif_xmlwriter_set_indent = Module['_zif_xmlwriter_set_indent'] =
+			wasmExports['zif_xmlwriter_set_indent'];
+		_zif_xmlwriter_set_indent_string = Module[
+			'_zif_xmlwriter_set_indent_string'
+		] = wasmExports['zif_xmlwriter_set_indent_string'];
+		_zif_xmlwriter_start_attribute = Module[
+			'_zif_xmlwriter_start_attribute'
+		] = wasmExports['zif_xmlwriter_start_attribute'];
+		_zif_xmlwriter_end_attribute = Module['_zif_xmlwriter_end_attribute'] =
+			wasmExports['zif_xmlwriter_end_attribute'];
+		_zif_xmlwriter_start_attribute_ns = Module[
+			'_zif_xmlwriter_start_attribute_ns'
+		] = wasmExports['zif_xmlwriter_start_attribute_ns'];
+		_zif_xmlwriter_write_attribute = Module[
+			'_zif_xmlwriter_write_attribute'
+		] = wasmExports['zif_xmlwriter_write_attribute'];
+		_zif_xmlwriter_write_attribute_ns = Module[
+			'_zif_xmlwriter_write_attribute_ns'
+		] = wasmExports['zif_xmlwriter_write_attribute_ns'];
+		_zif_xmlwriter_start_element = Module['_zif_xmlwriter_start_element'] =
+			wasmExports['zif_xmlwriter_start_element'];
+		_zif_xmlwriter_start_element_ns = Module[
+			'_zif_xmlwriter_start_element_ns'
+		] = wasmExports['zif_xmlwriter_start_element_ns'];
+		_zif_xmlwriter_end_element = Module['_zif_xmlwriter_end_element'] =
+			wasmExports['zif_xmlwriter_end_element'];
+		_zif_xmlwriter_full_end_element = Module[
+			'_zif_xmlwriter_full_end_element'
+		] = wasmExports['zif_xmlwriter_full_end_element'];
+		_zif_xmlwriter_write_element = Module['_zif_xmlwriter_write_element'] =
+			wasmExports['zif_xmlwriter_write_element'];
+		_zif_xmlwriter_write_element_ns = Module[
+			'_zif_xmlwriter_write_element_ns'
+		] = wasmExports['zif_xmlwriter_write_element_ns'];
+		_zif_xmlwriter_start_pi = Module['_zif_xmlwriter_start_pi'] =
+			wasmExports['zif_xmlwriter_start_pi'];
+		_zif_xmlwriter_end_pi = Module['_zif_xmlwriter_end_pi'] =
+			wasmExports['zif_xmlwriter_end_pi'];
+		_zif_xmlwriter_write_pi = Module['_zif_xmlwriter_write_pi'] =
+			wasmExports['zif_xmlwriter_write_pi'];
+		_zif_xmlwriter_start_cdata = Module['_zif_xmlwriter_start_cdata'] =
+			wasmExports['zif_xmlwriter_start_cdata'];
+		_zif_xmlwriter_end_cdata = Module['_zif_xmlwriter_end_cdata'] =
+			wasmExports['zif_xmlwriter_end_cdata'];
+		_zif_xmlwriter_write_cdata = Module['_zif_xmlwriter_write_cdata'] =
+			wasmExports['zif_xmlwriter_write_cdata'];
+		_zif_xmlwriter_write_raw = Module['_zif_xmlwriter_write_raw'] =
+			wasmExports['zif_xmlwriter_write_raw'];
+		_zif_xmlwriter_text = Module['_zif_xmlwriter_text'] =
+			wasmExports['zif_xmlwriter_text'];
+		_zif_xmlwriter_start_comment = Module['_zif_xmlwriter_start_comment'] =
+			wasmExports['zif_xmlwriter_start_comment'];
+		_zif_xmlwriter_end_comment = Module['_zif_xmlwriter_end_comment'] =
+			wasmExports['zif_xmlwriter_end_comment'];
+		_zif_xmlwriter_write_comment = Module['_zif_xmlwriter_write_comment'] =
+			wasmExports['zif_xmlwriter_write_comment'];
+		_zif_xmlwriter_start_document = Module[
+			'_zif_xmlwriter_start_document'
+		] = wasmExports['zif_xmlwriter_start_document'];
+		_zif_xmlwriter_end_document = Module['_zif_xmlwriter_end_document'] =
+			wasmExports['zif_xmlwriter_end_document'];
+		_zif_xmlwriter_start_dtd = Module['_zif_xmlwriter_start_dtd'] =
+			wasmExports['zif_xmlwriter_start_dtd'];
+		_zif_xmlwriter_end_dtd = Module['_zif_xmlwriter_end_dtd'] =
+			wasmExports['zif_xmlwriter_end_dtd'];
+		_zif_xmlwriter_write_dtd = Module['_zif_xmlwriter_write_dtd'] =
+			wasmExports['zif_xmlwriter_write_dtd'];
+		_zif_xmlwriter_start_dtd_element = Module[
+			'_zif_xmlwriter_start_dtd_element'
+		] = wasmExports['zif_xmlwriter_start_dtd_element'];
+		_zif_xmlwriter_end_dtd_element = Module[
+			'_zif_xmlwriter_end_dtd_element'
+		] = wasmExports['zif_xmlwriter_end_dtd_element'];
+		_zif_xmlwriter_write_dtd_element = Module[
+			'_zif_xmlwriter_write_dtd_element'
+		] = wasmExports['zif_xmlwriter_write_dtd_element'];
+		_zif_xmlwriter_start_dtd_attlist = Module[
+			'_zif_xmlwriter_start_dtd_attlist'
+		] = wasmExports['zif_xmlwriter_start_dtd_attlist'];
+		_zif_xmlwriter_end_dtd_attlist = Module[
+			'_zif_xmlwriter_end_dtd_attlist'
+		] = wasmExports['zif_xmlwriter_end_dtd_attlist'];
+		_zif_xmlwriter_write_dtd_attlist = Module[
+			'_zif_xmlwriter_write_dtd_attlist'
+		] = wasmExports['zif_xmlwriter_write_dtd_attlist'];
+		_zif_xmlwriter_start_dtd_entity = Module[
+			'_zif_xmlwriter_start_dtd_entity'
+		] = wasmExports['zif_xmlwriter_start_dtd_entity'];
+		_zif_xmlwriter_end_dtd_entity = Module[
+			'_zif_xmlwriter_end_dtd_entity'
+		] = wasmExports['zif_xmlwriter_end_dtd_entity'];
+		_zif_xmlwriter_write_dtd_entity = Module[
+			'_zif_xmlwriter_write_dtd_entity'
+		] = wasmExports['zif_xmlwriter_write_dtd_entity'];
+		_zif_xmlwriter_open_uri = Module['_zif_xmlwriter_open_uri'] =
+			wasmExports['zif_xmlwriter_open_uri'];
+		_zif_xmlwriter_open_memory = Module['_zif_xmlwriter_open_memory'] =
+			wasmExports['zif_xmlwriter_open_memory'];
+		_zif_xmlwriter_output_memory = Module['_zif_xmlwriter_output_memory'] =
+			wasmExports['zif_xmlwriter_output_memory'];
+		_zif_xmlwriter_flush = Module['_zif_xmlwriter_flush'] =
+			wasmExports['zif_xmlwriter_flush'];
+		_php_zip_glob = Module['_php_zip_glob'] = wasmExports['php_zip_glob'];
+		_php_zip_pcre = Module['_php_zip_pcre'] = wasmExports['php_zip_pcre'];
+		_zif_zip_open = Module['_zif_zip_open'] = wasmExports['zif_zip_open'];
+		_zif_zip_close = Module['_zif_zip_close'] =
+			wasmExports['zif_zip_close'];
+		_zif_zip_read = Module['_zif_zip_read'] = wasmExports['zif_zip_read'];
+		_zif_zip_entry_open = Module['_zif_zip_entry_open'] =
+			wasmExports['zif_zip_entry_open'];
+		_zif_zip_entry_close = Module['_zif_zip_entry_close'] =
+			wasmExports['zif_zip_entry_close'];
+		_zif_zip_entry_read = Module['_zif_zip_entry_read'] =
+			wasmExports['zif_zip_entry_read'];
+		_zif_zip_entry_name = Module['_zif_zip_entry_name'] =
+			wasmExports['zif_zip_entry_name'];
+		_zif_zip_entry_compressedsize = Module[
+			'_zif_zip_entry_compressedsize'
+		] = wasmExports['zif_zip_entry_compressedsize'];
+		_zif_zip_entry_filesize = Module['_zif_zip_entry_filesize'] =
+			wasmExports['zif_zip_entry_filesize'];
+		_zif_zip_entry_compressionmethod = Module[
+			'_zif_zip_entry_compressionmethod'
+		] = wasmExports['zif_zip_entry_compressionmethod'];
+		_zim_ZipArchive_open = Module['_zim_ZipArchive_open'] =
+			wasmExports['zim_ZipArchive_open'];
+		_zim_ZipArchive_setPassword = Module['_zim_ZipArchive_setPassword'] =
+			wasmExports['zim_ZipArchive_setPassword'];
+		_zim_ZipArchive_close = Module['_zim_ZipArchive_close'] =
+			wasmExports['zim_ZipArchive_close'];
+		_zim_ZipArchive_count = Module['_zim_ZipArchive_count'] =
+			wasmExports['zim_ZipArchive_count'];
+		_zim_ZipArchive_getStatusString = Module[
+			'_zim_ZipArchive_getStatusString'
+		] = wasmExports['zim_ZipArchive_getStatusString'];
+		_zim_ZipArchive_addEmptyDir = Module['_zim_ZipArchive_addEmptyDir'] =
+			wasmExports['zim_ZipArchive_addEmptyDir'];
+		_zim_ZipArchive_addGlob = Module['_zim_ZipArchive_addGlob'] =
+			wasmExports['zim_ZipArchive_addGlob'];
+		_zim_ZipArchive_addPattern = Module['_zim_ZipArchive_addPattern'] =
+			wasmExports['zim_ZipArchive_addPattern'];
+		_zim_ZipArchive_addFile = Module['_zim_ZipArchive_addFile'] =
+			wasmExports['zim_ZipArchive_addFile'];
+		_zim_ZipArchive_replaceFile = Module['_zim_ZipArchive_replaceFile'] =
+			wasmExports['zim_ZipArchive_replaceFile'];
+		_zim_ZipArchive_addFromString = Module[
+			'_zim_ZipArchive_addFromString'
+		] = wasmExports['zim_ZipArchive_addFromString'];
+		_zim_ZipArchive_statName = Module['_zim_ZipArchive_statName'] =
+			wasmExports['zim_ZipArchive_statName'];
+		_zim_ZipArchive_statIndex = Module['_zim_ZipArchive_statIndex'] =
+			wasmExports['zim_ZipArchive_statIndex'];
+		_zim_ZipArchive_locateName = Module['_zim_ZipArchive_locateName'] =
+			wasmExports['zim_ZipArchive_locateName'];
+		_zim_ZipArchive_getNameIndex = Module['_zim_ZipArchive_getNameIndex'] =
+			wasmExports['zim_ZipArchive_getNameIndex'];
+		_zim_ZipArchive_setArchiveComment = Module[
+			'_zim_ZipArchive_setArchiveComment'
+		] = wasmExports['zim_ZipArchive_setArchiveComment'];
+		_zim_ZipArchive_getArchiveComment = Module[
+			'_zim_ZipArchive_getArchiveComment'
+		] = wasmExports['zim_ZipArchive_getArchiveComment'];
+		_zim_ZipArchive_setCommentName = Module[
+			'_zim_ZipArchive_setCommentName'
+		] = wasmExports['zim_ZipArchive_setCommentName'];
+		_zim_ZipArchive_setCommentIndex = Module[
+			'_zim_ZipArchive_setCommentIndex'
+		] = wasmExports['zim_ZipArchive_setCommentIndex'];
+		_zim_ZipArchive_setExternalAttributesName = Module[
+			'_zim_ZipArchive_setExternalAttributesName'
+		] = wasmExports['zim_ZipArchive_setExternalAttributesName'];
+		_zim_ZipArchive_setExternalAttributesIndex = Module[
+			'_zim_ZipArchive_setExternalAttributesIndex'
+		] = wasmExports['zim_ZipArchive_setExternalAttributesIndex'];
+		_zim_ZipArchive_getExternalAttributesName = Module[
+			'_zim_ZipArchive_getExternalAttributesName'
+		] = wasmExports['zim_ZipArchive_getExternalAttributesName'];
+		_zim_ZipArchive_getExternalAttributesIndex = Module[
+			'_zim_ZipArchive_getExternalAttributesIndex'
+		] = wasmExports['zim_ZipArchive_getExternalAttributesIndex'];
+		_zim_ZipArchive_setEncryptionName = Module[
+			'_zim_ZipArchive_setEncryptionName'
+		] = wasmExports['zim_ZipArchive_setEncryptionName'];
+		_zim_ZipArchive_setEncryptionIndex = Module[
+			'_zim_ZipArchive_setEncryptionIndex'
+		] = wasmExports['zim_ZipArchive_setEncryptionIndex'];
+		_zim_ZipArchive_getCommentName = Module[
+			'_zim_ZipArchive_getCommentName'
+		] = wasmExports['zim_ZipArchive_getCommentName'];
+		_zim_ZipArchive_getCommentIndex = Module[
+			'_zim_ZipArchive_getCommentIndex'
+		] = wasmExports['zim_ZipArchive_getCommentIndex'];
+		_zim_ZipArchive_setCompressionName = Module[
+			'_zim_ZipArchive_setCompressionName'
+		] = wasmExports['zim_ZipArchive_setCompressionName'];
+		_zim_ZipArchive_setCompressionIndex = Module[
+			'_zim_ZipArchive_setCompressionIndex'
+		] = wasmExports['zim_ZipArchive_setCompressionIndex'];
+		_zim_ZipArchive_setMtimeName = Module['_zim_ZipArchive_setMtimeName'] =
+			wasmExports['zim_ZipArchive_setMtimeName'];
+		_zim_ZipArchive_setMtimeIndex = Module[
+			'_zim_ZipArchive_setMtimeIndex'
+		] = wasmExports['zim_ZipArchive_setMtimeIndex'];
+		_zim_ZipArchive_deleteIndex = Module['_zim_ZipArchive_deleteIndex'] =
+			wasmExports['zim_ZipArchive_deleteIndex'];
+		_zim_ZipArchive_deleteName = Module['_zim_ZipArchive_deleteName'] =
+			wasmExports['zim_ZipArchive_deleteName'];
+		_zim_ZipArchive_renameIndex = Module['_zim_ZipArchive_renameIndex'] =
+			wasmExports['zim_ZipArchive_renameIndex'];
+		_zim_ZipArchive_renameName = Module['_zim_ZipArchive_renameName'] =
+			wasmExports['zim_ZipArchive_renameName'];
+		_zim_ZipArchive_unchangeIndex = Module[
+			'_zim_ZipArchive_unchangeIndex'
+		] = wasmExports['zim_ZipArchive_unchangeIndex'];
+		_zim_ZipArchive_unchangeName = Module['_zim_ZipArchive_unchangeName'] =
+			wasmExports['zim_ZipArchive_unchangeName'];
+		_zim_ZipArchive_unchangeAll = Module['_zim_ZipArchive_unchangeAll'] =
+			wasmExports['zim_ZipArchive_unchangeAll'];
+		_zim_ZipArchive_unchangeArchive = Module[
+			'_zim_ZipArchive_unchangeArchive'
+		] = wasmExports['zim_ZipArchive_unchangeArchive'];
+		_zim_ZipArchive_extractTo = Module['_zim_ZipArchive_extractTo'] =
+			wasmExports['zim_ZipArchive_extractTo'];
+		_zim_ZipArchive_getFromName = Module['_zim_ZipArchive_getFromName'] =
+			wasmExports['zim_ZipArchive_getFromName'];
+		_zim_ZipArchive_getFromIndex = Module['_zim_ZipArchive_getFromIndex'] =
+			wasmExports['zim_ZipArchive_getFromIndex'];
+		_zim_ZipArchive_getStream = Module['_zim_ZipArchive_getStream'] =
+			wasmExports['zim_ZipArchive_getStream'];
+		_zim_ZipArchive_registerProgressCallback = Module[
+			'_zim_ZipArchive_registerProgressCallback'
+		] = wasmExports['zim_ZipArchive_registerProgressCallback'];
+		_zim_ZipArchive_registerCancelCallback = Module[
+			'_zim_ZipArchive_registerCancelCallback'
+		] = wasmExports['zim_ZipArchive_registerCancelCallback'];
+		_zim_ZipArchive_isCompressionMethodSupported = Module[
+			'_zim_ZipArchive_isCompressionMethodSupported'
+		] = wasmExports['zim_ZipArchive_isCompressionMethodSupported'];
+		_zim_ZipArchive_isEncryptionMethodSupported = Module[
+			'_zim_ZipArchive_isEncryptionMethodSupported'
+		] = wasmExports['zim_ZipArchive_isEncryptionMethodSupported'];
+		_php_stream_zip_open = Module['_php_stream_zip_open'] =
+			wasmExports['php_stream_zip_open'];
+		_php_stream_zip_opener = Module['_php_stream_zip_opener'] =
+			wasmExports['php_stream_zip_opener'];
+		_php_get_internal_encoding = Module['_php_get_internal_encoding'] =
+			wasmExports['php_get_internal_encoding'];
+		_php_get_input_encoding = Module['_php_get_input_encoding'] =
+			wasmExports['php_get_input_encoding'];
+		_php_get_output_encoding = Module['_php_get_output_encoding'] =
+			wasmExports['php_get_output_encoding'];
+		_php_during_module_startup = Module['_php_during_module_startup'] =
+			wasmExports['php_during_module_startup'];
+		_php_during_module_shutdown = Module['_php_during_module_shutdown'] =
+			wasmExports['php_during_module_shutdown'];
+		_php_get_module_initialized = Module['_php_get_module_initialized'] =
+			wasmExports['php_get_module_initialized'];
+		_php_log_err_with_severity = Module['_php_log_err_with_severity'] =
+			wasmExports['php_log_err_with_severity'];
+		_php_write = Module['_php_write'] = wasmExports['php_write'];
+		_php_printf = Module['_php_printf'] = wasmExports['php_printf'];
+		_php_printf_unchecked = Module['_php_printf_unchecked'] =
+			wasmExports['php_printf_unchecked'];
+		_php_verror = Module['_php_verror'] = wasmExports['php_verror'];
 		_php_error_docref = Module['_php_error_docref'] =
 			wasmExports['php_error_docref'];
+		_php_error_docref1 = Module['_php_error_docref1'] =
+			wasmExports['php_error_docref1'];
+		_php_error_docref2 = Module['_php_error_docref2'] =
+			wasmExports['php_error_docref2'];
+		_php_html_puts = Module['_php_html_puts'] =
+			wasmExports['php_html_puts'];
+		_php_get_current_user = Module['_php_get_current_user'] =
+			wasmExports['php_get_current_user'];
+		_zif_set_time_limit = Module['_zif_set_time_limit'] =
+			wasmExports['zif_set_time_limit'];
+		_php_stream_open_for_zend_ex = Module['_php_stream_open_for_zend_ex'] =
+			wasmExports['php_stream_open_for_zend_ex'];
+		_php_on_timeout = Module['_php_on_timeout'] =
+			wasmExports['php_on_timeout'];
+		_php_request_startup = Module['_php_request_startup'] =
+			wasmExports['php_request_startup'];
+		_php_request_shutdown = Module['_php_request_shutdown'] =
+			wasmExports['php_request_shutdown'];
+		_php_com_initialize = Module['_php_com_initialize'] =
+			wasmExports['php_com_initialize'];
+		_zm_info_php_core = Module['_zm_info_php_core'] =
+			wasmExports['zm_info_php_core'];
+		_php_register_extensions = Module['_php_register_extensions'] =
+			wasmExports['php_register_extensions'];
+		_php_module_startup = Module['_php_module_startup'] =
+			wasmExports['php_module_startup'];
+		_php_module_shutdown_wrapper = Module['_php_module_shutdown_wrapper'] =
+			wasmExports['php_module_shutdown_wrapper'];
+		_php_module_shutdown = Module['_php_module_shutdown'] =
+			wasmExports['php_module_shutdown'];
+		_php_execute_script = Module['_php_execute_script'] =
+			wasmExports['php_execute_script'];
+		_php_execute_simple_script = Module['_php_execute_simple_script'] =
+			wasmExports['php_execute_simple_script'];
+		_php_handle_aborted_connection = Module[
+			'_php_handle_aborted_connection'
+		] = wasmExports['php_handle_aborted_connection'];
+		_php_handle_auth_data = Module['_php_handle_auth_data'] =
+			wasmExports['php_handle_auth_data'];
+		_php_lint_script = Module['_php_lint_script'] =
+			wasmExports['php_lint_script'];
+		_php_gcvt = Module['_php_gcvt'] = wasmExports['php_gcvt'];
 		_ap_php_snprintf = Module['_ap_php_snprintf'] =
 			wasmExports['ap_php_snprintf'];
+		_ap_php_conv_10 = Module['_ap_php_conv_10'] =
+			wasmExports['ap_php_conv_10'];
+		_php_conv_fp = Module['_php_conv_fp'] = wasmExports['php_conv_fp'];
+		_ap_php_conv_p2 = Module['_ap_php_conv_p2'] =
+			wasmExports['ap_php_conv_p2'];
 		_ap_php_slprintf = Module['_ap_php_slprintf'] =
 			wasmExports['ap_php_slprintf'];
+		_ap_php_vslprintf = Module['_ap_php_vslprintf'] =
+			wasmExports['ap_php_vslprintf'];
 		_ap_php_vsnprintf = Module['_ap_php_vsnprintf'] =
 			wasmExports['ap_php_vsnprintf'];
+		_ap_php_vasprintf = Module['_ap_php_vasprintf'] =
+			wasmExports['ap_php_vasprintf'];
+		_ap_php_asprintf = Module['_ap_php_asprintf'] =
+			wasmExports['ap_php_asprintf'];
+		_php_printf_to_smart_string = Module['_php_printf_to_smart_string'] =
+			wasmExports['php_printf_to_smart_string'];
+		_php_printf_to_smart_str = Module['_php_printf_to_smart_str'] =
+			wasmExports['php_printf_to_smart_str'];
+		_OnUpdateBaseDir = Module['_OnUpdateBaseDir'] =
+			wasmExports['OnUpdateBaseDir'];
+		_php_check_open_basedir_ex = Module['_php_check_open_basedir_ex'] =
+			wasmExports['php_check_open_basedir_ex'];
+		_php_check_specific_open_basedir = Module[
+			'_php_check_specific_open_basedir'
+		] = wasmExports['php_check_specific_open_basedir'];
+		_expand_filepath_with_mode = Module['_expand_filepath_with_mode'] =
+			wasmExports['expand_filepath_with_mode'];
+		_expand_filepath = Module['_expand_filepath'] =
+			wasmExports['expand_filepath'];
+		_php_check_open_basedir = Module['_php_check_open_basedir'] =
+			wasmExports['php_check_open_basedir'];
+		_php_fopen_primary_script = Module['_php_fopen_primary_script'] =
+			wasmExports['php_fopen_primary_script'];
+		_php_resolve_path = Module['_php_resolve_path'] =
+			wasmExports['php_resolve_path'];
+		_php_fopen_with_path = Module['_php_fopen_with_path'] =
+			wasmExports['php_fopen_with_path'];
+		_php_strip_url_passwd = Module['_php_strip_url_passwd'] =
+			wasmExports['php_strip_url_passwd'];
+		_expand_filepath_ex = Module['_expand_filepath_ex'] =
+			wasmExports['expand_filepath_ex'];
 		_display_ini_entries = Module['_display_ini_entries'] =
 			wasmExports['display_ini_entries'];
+		_config_zval_dtor = Module['_config_zval_dtor'] =
+			wasmExports['config_zval_dtor'];
+		_php_init_config = Module['_php_init_config'] =
+			wasmExports['php_init_config'];
+		_php_shutdown_config = Module['_php_shutdown_config'] =
+			wasmExports['php_shutdown_config'];
+		_php_ini_register_extensions = Module['_php_ini_register_extensions'] =
+			wasmExports['php_ini_register_extensions'];
+		_php_parse_user_ini_file = Module['_php_parse_user_ini_file'] =
+			wasmExports['php_parse_user_ini_file'];
+		_php_ini_activate_config = Module['_php_ini_activate_config'] =
+			wasmExports['php_ini_activate_config'];
+		_php_ini_has_per_dir_config = Module['_php_ini_has_per_dir_config'] =
+			wasmExports['php_ini_has_per_dir_config'];
+		_php_ini_activate_per_dir_config = Module[
+			'_php_ini_activate_per_dir_config'
+		] = wasmExports['php_ini_activate_per_dir_config'];
+		_php_ini_has_per_host_config = Module['_php_ini_has_per_host_config'] =
+			wasmExports['php_ini_has_per_host_config'];
+		_php_ini_activate_per_host_config = Module[
+			'_php_ini_activate_per_host_config'
+		] = wasmExports['php_ini_activate_per_host_config'];
+		_cfg_get_entry_ex = Module['_cfg_get_entry_ex'] =
+			wasmExports['cfg_get_entry_ex'];
+		_cfg_get_entry = Module['_cfg_get_entry'] =
+			wasmExports['cfg_get_entry'];
+		_cfg_get_long = Module['_cfg_get_long'] = wasmExports['cfg_get_long'];
+		_cfg_get_double = Module['_cfg_get_double'] =
+			wasmExports['cfg_get_double'];
+		_cfg_get_string = Module['_cfg_get_string'] =
+			wasmExports['cfg_get_string'];
+		_php_ini_get_configuration_hash = Module[
+			'_php_ini_get_configuration_hash'
+		] = wasmExports['php_ini_get_configuration_hash'];
+		_sapi_startup = Module['_sapi_startup'] = wasmExports['sapi_startup'];
+		_sapi_shutdown = Module['_sapi_shutdown'] =
+			wasmExports['sapi_shutdown'];
+		_sapi_free_header = Module['_sapi_free_header'] =
+			wasmExports['sapi_free_header'];
+		_zif_header_register_callback = Module[
+			'_zif_header_register_callback'
+		] = wasmExports['zif_header_register_callback'];
+		_sapi_handle_post = Module['_sapi_handle_post'] =
+			wasmExports['sapi_handle_post'];
+		_sapi_read_post_block = Module['_sapi_read_post_block'] =
+			wasmExports['sapi_read_post_block'];
+		_sapi_read_standard_form_data = Module[
+			'_sapi_read_standard_form_data'
+		] = wasmExports['sapi_read_standard_form_data'];
+		_sapi_get_default_content_type = Module[
+			'_sapi_get_default_content_type'
+		] = wasmExports['sapi_get_default_content_type'];
+		_sapi_get_default_content_type_header = Module[
+			'_sapi_get_default_content_type_header'
+		] = wasmExports['sapi_get_default_content_type_header'];
+		_sapi_apply_default_charset = Module['_sapi_apply_default_charset'] =
+			wasmExports['sapi_apply_default_charset'];
+		_sapi_activate_headers_only = Module['_sapi_activate_headers_only'] =
+			wasmExports['sapi_activate_headers_only'];
+		_sapi_activate = Module['_sapi_activate'] =
+			wasmExports['sapi_activate'];
+		_sapi_deactivate_module = Module['_sapi_deactivate_module'] =
+			wasmExports['sapi_deactivate_module'];
+		_sapi_deactivate_destroy = Module['_sapi_deactivate_destroy'] =
+			wasmExports['sapi_deactivate_destroy'];
+		_sapi_deactivate = Module['_sapi_deactivate'] =
+			wasmExports['sapi_deactivate'];
+		_sapi_initialize_empty_request = Module[
+			'_sapi_initialize_empty_request'
+		] = wasmExports['sapi_initialize_empty_request'];
+		_sapi_add_header_ex = Module['_sapi_add_header_ex'] =
+			wasmExports['sapi_add_header_ex'];
+		_sapi_header_op = Module['_sapi_header_op'] =
+			wasmExports['sapi_header_op'];
+		_sapi_send_headers = Module['_sapi_send_headers'] =
+			wasmExports['sapi_send_headers'];
+		_sapi_register_post_entries = Module['_sapi_register_post_entries'] =
+			wasmExports['sapi_register_post_entries'];
+		_sapi_register_post_entry = Module['_sapi_register_post_entry'] =
+			wasmExports['sapi_register_post_entry'];
+		_sapi_unregister_post_entry = Module['_sapi_unregister_post_entry'] =
+			wasmExports['sapi_unregister_post_entry'];
+		_sapi_register_default_post_reader = Module[
+			'_sapi_register_default_post_reader'
+		] = wasmExports['sapi_register_default_post_reader'];
+		_sapi_register_treat_data = Module['_sapi_register_treat_data'] =
+			wasmExports['sapi_register_treat_data'];
+		_sapi_register_input_filter = Module['_sapi_register_input_filter'] =
+			wasmExports['sapi_register_input_filter'];
+		_sapi_flush = Module['_sapi_flush'] = wasmExports['sapi_flush'];
+		_sapi_get_stat = Module['_sapi_get_stat'] =
+			wasmExports['sapi_get_stat'];
+		_sapi_getenv = Module['_sapi_getenv'] = wasmExports['sapi_getenv'];
+		_sapi_get_fd = Module['_sapi_get_fd'] = wasmExports['sapi_get_fd'];
+		_sapi_force_http_10 = Module['_sapi_force_http_10'] =
+			wasmExports['sapi_force_http_10'];
+		_sapi_get_target_uid = Module['_sapi_get_target_uid'] =
+			wasmExports['sapi_get_target_uid'];
+		_sapi_get_target_gid = Module['_sapi_get_target_gid'] =
+			wasmExports['sapi_get_target_gid'];
+		_sapi_get_request_time = Module['_sapi_get_request_time'] =
+			wasmExports['sapi_get_request_time'];
+		_sapi_terminate_process = Module['_sapi_terminate_process'] =
+			wasmExports['sapi_terminate_process'];
+		_sapi_add_request_header = Module['_sapi_add_request_header'] =
+			wasmExports['sapi_add_request_header'];
+		_php_rfc1867_register_constants = Module[
+			'_php_rfc1867_register_constants'
+		] = wasmExports['php_rfc1867_register_constants'];
+		_destroy_uploaded_files_hash = Module['_destroy_uploaded_files_hash'] =
+			wasmExports['destroy_uploaded_files_hash'];
+		_rfc1867_post_handler = Module['_rfc1867_post_handler'] =
+			wasmExports['rfc1867_post_handler'];
+		_php_rfc1867_set_multibyte_callbacks = Module[
+			'_php_rfc1867_set_multibyte_callbacks'
+		] = wasmExports['php_rfc1867_set_multibyte_callbacks'];
+		_php_default_post_reader = Module['_php_default_post_reader'] =
+			wasmExports['php_default_post_reader'];
+		_php_startup_sapi_content_types = Module[
+			'_php_startup_sapi_content_types'
+		] = wasmExports['php_startup_sapi_content_types'];
+		_php_setup_sapi_content_types = Module[
+			'_php_setup_sapi_content_types'
+		] = wasmExports['php_setup_sapi_content_types'];
+		__php_import_environment_variables = Module[
+			'__php_import_environment_variables'
+		] = wasmExports['_php_import_environment_variables'];
+		_php_register_variable = Module['_php_register_variable'] =
+			wasmExports['php_register_variable'];
+		_php_register_variable_ex = Module['_php_register_variable_ex'] =
+			wasmExports['php_register_variable_ex'];
+		_php_register_variable_safe = Module['_php_register_variable_safe'] =
+			wasmExports['php_register_variable_safe'];
+		_php_std_post_handler = Module['_php_std_post_handler'] =
+			wasmExports['php_std_post_handler'];
+		_php_default_input_filter = Module['_php_default_input_filter'] =
+			wasmExports['php_default_input_filter'];
+		_php_default_treat_data = Module['_php_default_treat_data'] =
+			wasmExports['php_default_treat_data'];
+		_php_std_auto_global_callback = Module[
+			'_php_std_auto_global_callback'
+		] = wasmExports['php_std_auto_global_callback'];
+		_php_build_argv = Module['_php_build_argv'] =
+			wasmExports['php_build_argv'];
+		_php_hash_environment = Module['_php_hash_environment'] =
+			wasmExports['php_hash_environment'];
+		_php_startup_auto_globals = Module['_php_startup_auto_globals'] =
+			wasmExports['php_startup_auto_globals'];
+		_php_startup_ticks = Module['_php_startup_ticks'] =
+			wasmExports['php_startup_ticks'];
+		_php_deactivate_ticks = Module['_php_deactivate_ticks'] =
+			wasmExports['php_deactivate_ticks'];
+		_php_shutdown_ticks = Module['_php_shutdown_ticks'] =
+			wasmExports['php_shutdown_ticks'];
+		_php_add_tick_function = Module['_php_add_tick_function'] =
+			wasmExports['php_add_tick_function'];
+		_php_remove_tick_function = Module['_php_remove_tick_function'] =
+			wasmExports['php_remove_tick_function'];
+		_php_run_ticks = Module['_php_run_ticks'] =
+			wasmExports['php_run_ticks'];
+		_php_network_freeaddresses = Module['_php_network_freeaddresses'] =
+			wasmExports['php_network_freeaddresses'];
+		_php_network_getaddresses = Module['_php_network_getaddresses'] =
+			wasmExports['php_network_getaddresses'];
+		_php_network_connect_socket = Module['_php_network_connect_socket'] =
+			wasmExports['php_network_connect_socket'];
+		_php_socket_error_str = Module['_php_socket_error_str'] =
+			wasmExports['php_socket_error_str'];
+		_php_network_bind_socket_to_local_addr = Module[
+			'_php_network_bind_socket_to_local_addr'
+		] = wasmExports['php_network_bind_socket_to_local_addr'];
+		_php_network_parse_network_address_with_port = Module[
+			'_php_network_parse_network_address_with_port'
+		] = wasmExports['php_network_parse_network_address_with_port'];
+		_php_network_populate_name_from_sockaddr = Module[
+			'_php_network_populate_name_from_sockaddr'
+		] = wasmExports['php_network_populate_name_from_sockaddr'];
+		_php_network_get_peer_name = Module['_php_network_get_peer_name'] =
+			wasmExports['php_network_get_peer_name'];
+		_php_network_get_sock_name = Module['_php_network_get_sock_name'] =
+			wasmExports['php_network_get_sock_name'];
+		_php_network_accept_incoming = Module['_php_network_accept_incoming'] =
+			wasmExports['php_network_accept_incoming'];
+		_php_network_connect_socket_to_host = Module[
+			'_php_network_connect_socket_to_host'
+		] = wasmExports['php_network_connect_socket_to_host'];
+		_php_any_addr = Module['_php_any_addr'] = wasmExports['php_any_addr'];
+		_php_sockaddr_size = Module['_php_sockaddr_size'] =
+			wasmExports['php_sockaddr_size'];
+		_php_socket_strerror = Module['_php_socket_strerror'] =
+			wasmExports['php_socket_strerror'];
+		__php_stream_sock_open_from_socket = Module[
+			'__php_stream_sock_open_from_socket'
+		] = wasmExports['_php_stream_sock_open_from_socket'];
+		__php_stream_sock_open_host = Module['__php_stream_sock_open_host'] =
+			wasmExports['_php_stream_sock_open_host'];
+		_php_set_sock_blocking = Module['_php_set_sock_blocking'] =
+			wasmExports['php_set_sock_blocking'];
+		__php_emit_fd_setsize_warning = Module[
+			'__php_emit_fd_setsize_warning'
+		] = wasmExports['_php_emit_fd_setsize_warning'];
+		_gethostname_re = Module['_gethostname_re'] =
+			wasmExports['gethostname_re'];
+		_php_network_gethostbyname = Module['_php_network_gethostbyname'] =
+			wasmExports['php_network_gethostbyname'];
+		_php_get_temporary_directory = Module['_php_get_temporary_directory'] =
+			wasmExports['php_get_temporary_directory'];
+		_php_open_temporary_fd_ex = Module['_php_open_temporary_fd_ex'] =
+			wasmExports['php_open_temporary_fd_ex'];
+		_php_open_temporary_fd = Module['_php_open_temporary_fd'] =
+			wasmExports['php_open_temporary_fd'];
+		_php_open_temporary_file = Module['_php_open_temporary_file'] =
+			wasmExports['php_open_temporary_file'];
+		_php_output_startup = Module['_php_output_startup'] =
+			wasmExports['php_output_startup'];
+		_php_output_shutdown = Module['_php_output_shutdown'] =
+			wasmExports['php_output_shutdown'];
+		_php_output_activate = Module['_php_output_activate'] =
+			wasmExports['php_output_activate'];
+		_php_output_deactivate = Module['_php_output_deactivate'] =
+			wasmExports['php_output_deactivate'];
+		_php_output_handler_dtor = Module['_php_output_handler_dtor'] =
+			wasmExports['php_output_handler_dtor'];
+		_php_output_handler_free = Module['_php_output_handler_free'] =
+			wasmExports['php_output_handler_free'];
+		_php_output_register_constants = Module[
+			'_php_output_register_constants'
+		] = wasmExports['php_output_register_constants'];
+		_php_output_set_status = Module['_php_output_set_status'] =
+			wasmExports['php_output_set_status'];
+		_php_output_get_status = Module['_php_output_get_status'] =
+			wasmExports['php_output_get_status'];
+		_php_output_write_unbuffered = Module['_php_output_write_unbuffered'] =
+			wasmExports['php_output_write_unbuffered'];
+		_php_output_write = Module['_php_output_write'] =
+			wasmExports['php_output_write'];
+		_php_output_flush = Module['_php_output_flush'] =
+			wasmExports['php_output_flush'];
+		_php_output_flush_all = Module['_php_output_flush_all'] =
+			wasmExports['php_output_flush_all'];
+		_php_output_clean = Module['_php_output_clean'] =
+			wasmExports['php_output_clean'];
+		_php_output_clean_all = Module['_php_output_clean_all'] =
+			wasmExports['php_output_clean_all'];
+		_php_output_end = Module['_php_output_end'] =
+			wasmExports['php_output_end'];
+		_php_output_end_all = Module['_php_output_end_all'] =
+			wasmExports['php_output_end_all'];
+		_php_output_discard = Module['_php_output_discard'] =
+			wasmExports['php_output_discard'];
+		_php_output_discard_all = Module['_php_output_discard_all'] =
+			wasmExports['php_output_discard_all'];
+		_php_output_get_level = Module['_php_output_get_level'] =
+			wasmExports['php_output_get_level'];
+		_php_output_get_contents = Module['_php_output_get_contents'] =
+			wasmExports['php_output_get_contents'];
+		_php_output_get_length = Module['_php_output_get_length'] =
+			wasmExports['php_output_get_length'];
+		_php_output_get_active_handler = Module[
+			'_php_output_get_active_handler'
+		] = wasmExports['php_output_get_active_handler'];
+		_php_output_start_default = Module['_php_output_start_default'] =
+			wasmExports['php_output_start_default'];
+		_php_output_handler_create_internal = Module[
+			'_php_output_handler_create_internal'
+		] = wasmExports['php_output_handler_create_internal'];
+		_php_output_handler_start = Module['_php_output_handler_start'] =
+			wasmExports['php_output_handler_start'];
+		_php_output_start_devnull = Module['_php_output_start_devnull'] =
+			wasmExports['php_output_start_devnull'];
+		_php_output_start_user = Module['_php_output_start_user'] =
+			wasmExports['php_output_start_user'];
+		_php_output_handler_create_user = Module[
+			'_php_output_handler_create_user'
+		] = wasmExports['php_output_handler_create_user'];
+		_php_output_start_internal = Module['_php_output_start_internal'] =
+			wasmExports['php_output_start_internal'];
+		_php_output_handler_set_context = Module[
+			'_php_output_handler_set_context'
+		] = wasmExports['php_output_handler_set_context'];
+		_php_output_handler_alias = Module['_php_output_handler_alias'] =
+			wasmExports['php_output_handler_alias'];
+		_php_output_handler_started = Module['_php_output_handler_started'] =
+			wasmExports['php_output_handler_started'];
+		_php_output_handler_conflict = Module['_php_output_handler_conflict'] =
+			wasmExports['php_output_handler_conflict'];
+		_php_output_handler_conflict_register = Module[
+			'_php_output_handler_conflict_register'
+		] = wasmExports['php_output_handler_conflict_register'];
+		_php_output_handler_reverse_conflict_register = Module[
+			'_php_output_handler_reverse_conflict_register'
+		] = wasmExports['php_output_handler_reverse_conflict_register'];
+		_php_output_handler_alias_register = Module[
+			'_php_output_handler_alias_register'
+		] = wasmExports['php_output_handler_alias_register'];
+		_php_output_handler_hook = Module['_php_output_handler_hook'] =
+			wasmExports['php_output_handler_hook'];
+		_php_output_set_implicit_flush = Module[
+			'_php_output_set_implicit_flush'
+		] = wasmExports['php_output_set_implicit_flush'];
+		_php_output_get_start_filename = Module[
+			'_php_output_get_start_filename'
+		] = wasmExports['php_output_get_start_filename'];
+		_php_output_get_start_lineno = Module['_php_output_get_start_lineno'] =
+			wasmExports['php_output_get_start_lineno'];
+		_zif_ob_start = Module['_zif_ob_start'] = wasmExports['zif_ob_start'];
+		_zif_ob_flush = Module['_zif_ob_flush'] = wasmExports['zif_ob_flush'];
+		_zif_ob_clean = Module['_zif_ob_clean'] = wasmExports['zif_ob_clean'];
+		_zif_ob_end_flush = Module['_zif_ob_end_flush'] =
+			wasmExports['zif_ob_end_flush'];
+		_zif_ob_end_clean = Module['_zif_ob_end_clean'] =
+			wasmExports['zif_ob_end_clean'];
+		_zif_ob_get_flush = Module['_zif_ob_get_flush'] =
+			wasmExports['zif_ob_get_flush'];
+		_zif_ob_get_clean = Module['_zif_ob_get_clean'] =
+			wasmExports['zif_ob_get_clean'];
+		_zif_ob_get_contents = Module['_zif_ob_get_contents'] =
+			wasmExports['zif_ob_get_contents'];
+		_zif_ob_get_level = Module['_zif_ob_get_level'] =
+			wasmExports['zif_ob_get_level'];
+		_zif_ob_get_length = Module['_zif_ob_get_length'] =
+			wasmExports['zif_ob_get_length'];
+		_zif_ob_list_handlers = Module['_zif_ob_list_handlers'] =
+			wasmExports['zif_ob_list_handlers'];
+		_zif_ob_get_status = Module['_zif_ob_get_status'] =
+			wasmExports['zif_ob_get_status'];
+		_zif_ob_implicit_flush = Module['_zif_ob_implicit_flush'] =
+			wasmExports['zif_ob_implicit_flush'];
+		_zif_output_reset_rewrite_vars = Module[
+			'_zif_output_reset_rewrite_vars'
+		] = wasmExports['zif_output_reset_rewrite_vars'];
+		_zif_output_add_rewrite_var = Module['_zif_output_add_rewrite_var'] =
+			wasmExports['zif_output_add_rewrite_var'];
+		_php_getopt = Module['_php_getopt'] = wasmExports['php_getopt'];
+		_php_openlog = Module['_php_openlog'] = wasmExports['php_openlog'];
+		_php_closelog = Module['_php_closelog'] = wasmExports['php_closelog'];
+		_php_syslog = Module['_php_syslog'] = wasmExports['php_syslog'];
+		_php_file_le_stream = Module['_php_file_le_stream'] =
+			wasmExports['php_file_le_stream'];
+		_php_file_le_pstream = Module['_php_file_le_pstream'] =
+			wasmExports['php_file_le_pstream'];
+		_php_file_le_stream_filter = Module['_php_file_le_stream_filter'] =
+			wasmExports['php_file_le_stream_filter'];
+		__php_stream_get_url_stream_wrappers_hash = Module[
+			'__php_stream_get_url_stream_wrappers_hash'
+		] = wasmExports['_php_stream_get_url_stream_wrappers_hash'];
+		_php_stream_get_url_stream_wrappers_hash_global = Module[
+			'_php_stream_get_url_stream_wrappers_hash_global'
+		] = wasmExports['php_stream_get_url_stream_wrappers_hash_global'];
+		_zm_deactivate_streams = Module['_zm_deactivate_streams'] =
+			wasmExports['zm_deactivate_streams'];
+		_php_stream_encloses = Module['_php_stream_encloses'] =
+			wasmExports['php_stream_encloses'];
+		_php_stream_from_persistent_id = Module[
+			'_php_stream_from_persistent_id'
+		] = wasmExports['php_stream_from_persistent_id'];
+		_php_stream_display_wrapper_errors = Module[
+			'_php_stream_display_wrapper_errors'
+		] = wasmExports['php_stream_display_wrapper_errors'];
+		_php_stream_tidy_wrapper_error_log = Module[
+			'_php_stream_tidy_wrapper_error_log'
+		] = wasmExports['php_stream_tidy_wrapper_error_log'];
+		_php_stream_wrapper_log_error = Module[
+			'_php_stream_wrapper_log_error'
+		] = wasmExports['php_stream_wrapper_log_error'];
+		__php_stream_alloc = Module['__php_stream_alloc'] =
+			wasmExports['_php_stream_alloc'];
+		__php_stream_free_enclosed = Module['__php_stream_free_enclosed'] =
+			wasmExports['_php_stream_free_enclosed'];
+		__php_stream_free = Module['__php_stream_free'] =
+			wasmExports['_php_stream_free'];
+		__php_stream_flush = Module['__php_stream_flush'] =
+			wasmExports['_php_stream_flush'];
+		__php_stream_fill_read_buffer = Module[
+			'__php_stream_fill_read_buffer'
+		] = wasmExports['_php_stream_fill_read_buffer'];
+		__php_stream_read = Module['__php_stream_read'] =
+			wasmExports['_php_stream_read'];
+		_php_stream_read_to_str = Module['_php_stream_read_to_str'] =
+			wasmExports['php_stream_read_to_str'];
+		__php_stream_eof = Module['__php_stream_eof'] =
+			wasmExports['_php_stream_eof'];
+		__php_stream_set_option = Module['__php_stream_set_option'] =
+			wasmExports['_php_stream_set_option'];
+		__php_stream_putc = Module['__php_stream_putc'] =
+			wasmExports['_php_stream_putc'];
+		__php_stream_write = Module['__php_stream_write'] =
+			wasmExports['_php_stream_write'];
+		__php_stream_getc = Module['__php_stream_getc'] =
+			wasmExports['_php_stream_getc'];
+		__php_stream_puts = Module['__php_stream_puts'] =
+			wasmExports['_php_stream_puts'];
+		__php_stream_stat = Module['__php_stream_stat'] =
+			wasmExports['_php_stream_stat'];
+		_php_stream_locate_eol = Module['_php_stream_locate_eol'] =
+			wasmExports['php_stream_locate_eol'];
+		__php_stream_get_line = Module['__php_stream_get_line'] =
+			wasmExports['_php_stream_get_line'];
+		_php_stream_get_record = Module['_php_stream_get_record'] =
+			wasmExports['php_stream_get_record'];
+		__php_stream_printf = Module['__php_stream_printf'] =
+			wasmExports['_php_stream_printf'];
+		__php_stream_tell = Module['__php_stream_tell'] =
+			wasmExports['_php_stream_tell'];
+		__php_stream_seek = Module['__php_stream_seek'] =
+			wasmExports['_php_stream_seek'];
+		__php_stream_truncate_set_size = Module[
+			'__php_stream_truncate_set_size'
+		] = wasmExports['_php_stream_truncate_set_size'];
+		__php_stream_passthru = Module['__php_stream_passthru'] =
+			wasmExports['_php_stream_passthru'];
+		__php_stream_copy_to_mem = Module['__php_stream_copy_to_mem'] =
+			wasmExports['_php_stream_copy_to_mem'];
+		__php_stream_copy_to_stream_ex = Module[
+			'__php_stream_copy_to_stream_ex'
+		] = wasmExports['_php_stream_copy_to_stream_ex'];
+		__php_stream_copy_to_stream = Module['__php_stream_copy_to_stream'] =
+			wasmExports['_php_stream_copy_to_stream'];
+		_php_shutdown_stream_hashes = Module['_php_shutdown_stream_hashes'] =
+			wasmExports['php_shutdown_stream_hashes'];
+		_php_init_stream_wrappers = Module['_php_init_stream_wrappers'] =
+			wasmExports['php_init_stream_wrappers'];
+		_php_shutdown_stream_wrappers = Module[
+			'_php_shutdown_stream_wrappers'
+		] = wasmExports['php_shutdown_stream_wrappers'];
+		_php_register_url_stream_wrapper = Module[
+			'_php_register_url_stream_wrapper'
+		] = wasmExports['php_register_url_stream_wrapper'];
+		_php_unregister_url_stream_wrapper = Module[
+			'_php_unregister_url_stream_wrapper'
+		] = wasmExports['php_unregister_url_stream_wrapper'];
+		_php_register_url_stream_wrapper_volatile = Module[
+			'_php_register_url_stream_wrapper_volatile'
+		] = wasmExports['php_register_url_stream_wrapper_volatile'];
+		_php_unregister_url_stream_wrapper_volatile = Module[
+			'_php_unregister_url_stream_wrapper_volatile'
+		] = wasmExports['php_unregister_url_stream_wrapper_volatile'];
+		_php_stream_locate_url_wrapper = Module[
+			'_php_stream_locate_url_wrapper'
+		] = wasmExports['php_stream_locate_url_wrapper'];
+		__php_stream_mkdir = Module['__php_stream_mkdir'] =
+			wasmExports['_php_stream_mkdir'];
+		__php_stream_rmdir = Module['__php_stream_rmdir'] =
+			wasmExports['_php_stream_rmdir'];
+		__php_stream_stat_path = Module['__php_stream_stat_path'] =
+			wasmExports['_php_stream_stat_path'];
+		__php_stream_opendir = Module['__php_stream_opendir'] =
+			wasmExports['_php_stream_opendir'];
+		__php_stream_readdir = Module['__php_stream_readdir'] =
+			wasmExports['_php_stream_readdir'];
+		__php_stream_open_wrapper_ex = Module['__php_stream_open_wrapper_ex'] =
+			wasmExports['_php_stream_open_wrapper_ex'];
+		_php_stream_context_set = Module['_php_stream_context_set'] =
+			wasmExports['php_stream_context_set'];
+		_php_stream_notification_notify = Module[
+			'_php_stream_notification_notify'
+		] = wasmExports['php_stream_notification_notify'];
+		_php_stream_context_free = Module['_php_stream_context_free'] =
+			wasmExports['php_stream_context_free'];
+		_php_stream_notification_free = Module[
+			'_php_stream_notification_free'
+		] = wasmExports['php_stream_notification_free'];
+		_php_stream_context_alloc = Module['_php_stream_context_alloc'] =
+			wasmExports['php_stream_context_alloc'];
+		_php_stream_notification_alloc = Module[
+			'_php_stream_notification_alloc'
+		] = wasmExports['php_stream_notification_alloc'];
+		_php_stream_context_get_option = Module[
+			'_php_stream_context_get_option'
+		] = wasmExports['php_stream_context_get_option'];
+		_php_stream_context_set_option = Module[
+			'_php_stream_context_set_option'
+		] = wasmExports['php_stream_context_set_option'];
+		_php_stream_dirent_alphasort = Module['_php_stream_dirent_alphasort'] =
+			wasmExports['php_stream_dirent_alphasort'];
+		_php_stream_dirent_alphasortr = Module[
+			'_php_stream_dirent_alphasortr'
+		] = wasmExports['php_stream_dirent_alphasortr'];
+		__php_stream_scandir = Module['__php_stream_scandir'] =
+			wasmExports['_php_stream_scandir'];
+		_php_stream_mode_sanitize_fdopen_fopencookie = Module[
+			'_php_stream_mode_sanitize_fdopen_fopencookie'
+		] = wasmExports['php_stream_mode_sanitize_fdopen_fopencookie'];
+		__php_stream_cast = Module['__php_stream_cast'] =
+			wasmExports['_php_stream_cast'];
+		__php_stream_open_wrapper_as_file = Module[
+			'__php_stream_open_wrapper_as_file'
+		] = wasmExports['_php_stream_open_wrapper_as_file'];
+		__php_stream_make_seekable = Module['__php_stream_make_seekable'] =
+			wasmExports['_php_stream_make_seekable'];
+		_php_stream_mode_from_str = Module['_php_stream_mode_from_str'] =
+			wasmExports['php_stream_mode_from_str'];
+		__php_stream_mode_to_str = Module['__php_stream_mode_to_str'] =
+			wasmExports['_php_stream_mode_to_str'];
+		__php_stream_memory_create = Module['__php_stream_memory_create'] =
+			wasmExports['_php_stream_memory_create'];
+		__php_stream_memory_open = Module['__php_stream_memory_open'] =
+			wasmExports['_php_stream_memory_open'];
+		__php_stream_memory_get_buffer = Module[
+			'__php_stream_memory_get_buffer'
+		] = wasmExports['_php_stream_memory_get_buffer'];
+		__php_stream_temp_create_ex = Module['__php_stream_temp_create_ex'] =
+			wasmExports['_php_stream_temp_create_ex'];
+		__php_stream_temp_create = Module['__php_stream_temp_create'] =
+			wasmExports['_php_stream_temp_create'];
+		__php_stream_temp_open = Module['__php_stream_temp_open'] =
+			wasmExports['_php_stream_temp_open'];
+		_php_get_stream_filters_hash_global = Module[
+			'_php_get_stream_filters_hash_global'
+		] = wasmExports['php_get_stream_filters_hash_global'];
+		__php_get_stream_filters_hash = Module[
+			'__php_get_stream_filters_hash'
+		] = wasmExports['_php_get_stream_filters_hash'];
+		_php_stream_filter_register_factory = Module[
+			'_php_stream_filter_register_factory'
+		] = wasmExports['php_stream_filter_register_factory'];
+		_php_stream_filter_unregister_factory = Module[
+			'_php_stream_filter_unregister_factory'
+		] = wasmExports['php_stream_filter_unregister_factory'];
+		_php_stream_filter_register_factory_volatile = Module[
+			'_php_stream_filter_register_factory_volatile'
+		] = wasmExports['php_stream_filter_register_factory_volatile'];
+		_php_stream_bucket_new = Module['_php_stream_bucket_new'] =
+			wasmExports['php_stream_bucket_new'];
+		_php_stream_bucket_make_writeable = Module[
+			'_php_stream_bucket_make_writeable'
+		] = wasmExports['php_stream_bucket_make_writeable'];
+		_php_stream_bucket_unlink = Module['_php_stream_bucket_unlink'] =
+			wasmExports['php_stream_bucket_unlink'];
+		_php_stream_bucket_delref = Module['_php_stream_bucket_delref'] =
+			wasmExports['php_stream_bucket_delref'];
+		_php_stream_bucket_split = Module['_php_stream_bucket_split'] =
+			wasmExports['php_stream_bucket_split'];
+		_php_stream_bucket_prepend = Module['_php_stream_bucket_prepend'] =
+			wasmExports['php_stream_bucket_prepend'];
+		_php_stream_bucket_append = Module['_php_stream_bucket_append'] =
+			wasmExports['php_stream_bucket_append'];
+		_php_stream_filter_create = Module['_php_stream_filter_create'] =
+			wasmExports['php_stream_filter_create'];
+		__php_stream_filter_alloc = Module['__php_stream_filter_alloc'] =
+			wasmExports['_php_stream_filter_alloc'];
+		_php_stream_filter_free = Module['_php_stream_filter_free'] =
+			wasmExports['php_stream_filter_free'];
+		_php_stream_filter_prepend_ex = Module[
+			'_php_stream_filter_prepend_ex'
+		] = wasmExports['php_stream_filter_prepend_ex'];
+		__php_stream_filter_prepend = Module['__php_stream_filter_prepend'] =
+			wasmExports['_php_stream_filter_prepend'];
+		_php_stream_filter_append_ex = Module['_php_stream_filter_append_ex'] =
+			wasmExports['php_stream_filter_append_ex'];
+		__php_stream_filter_append = Module['__php_stream_filter_append'] =
+			wasmExports['_php_stream_filter_append'];
+		__php_stream_filter_flush = Module['__php_stream_filter_flush'] =
+			wasmExports['_php_stream_filter_flush'];
+		_php_stream_filter_remove = Module['_php_stream_filter_remove'] =
+			wasmExports['php_stream_filter_remove'];
+		_php_stream_parse_fopen_modes = Module[
+			'_php_stream_parse_fopen_modes'
+		] = wasmExports['php_stream_parse_fopen_modes'];
+		__php_stream_fopen_temporary_file = Module[
+			'__php_stream_fopen_temporary_file'
+		] = wasmExports['_php_stream_fopen_temporary_file'];
+		__php_stream_fopen_tmpfile = Module['__php_stream_fopen_tmpfile'] =
+			wasmExports['_php_stream_fopen_tmpfile'];
+		__php_stream_fopen_from_fd = Module['__php_stream_fopen_from_fd'] =
+			wasmExports['_php_stream_fopen_from_fd'];
+		__php_stream_fopen_from_file = Module['__php_stream_fopen_from_file'] =
+			wasmExports['_php_stream_fopen_from_file'];
+		__php_stream_fopen_from_pipe = Module['__php_stream_fopen_from_pipe'] =
+			wasmExports['_php_stream_fopen_from_pipe'];
+		__php_stream_fopen = Module['__php_stream_fopen'] =
+			wasmExports['_php_stream_fopen'];
+		__php_stream_fopen_with_path = Module['__php_stream_fopen_with_path'] =
+			wasmExports['_php_stream_fopen_with_path'];
+		_zm_startup_user_streams = Module['_zm_startup_user_streams'] =
+			wasmExports['zm_startup_user_streams'];
+		_zif_stream_wrapper_register = Module['_zif_stream_wrapper_register'] =
+			wasmExports['zif_stream_wrapper_register'];
+		_zif_stream_wrapper_unregister = Module[
+			'_zif_stream_wrapper_unregister'
+		] = wasmExports['zif_stream_wrapper_unregister'];
+		_zif_stream_wrapper_restore = Module['_zif_stream_wrapper_restore'] =
+			wasmExports['zif_stream_wrapper_restore'];
+		_php_stream_xport_get_hash = Module['_php_stream_xport_get_hash'] =
+			wasmExports['php_stream_xport_get_hash'];
+		_php_stream_xport_register = Module['_php_stream_xport_register'] =
+			wasmExports['php_stream_xport_register'];
+		_php_stream_xport_unregister = Module['_php_stream_xport_unregister'] =
+			wasmExports['php_stream_xport_unregister'];
+		__php_stream_xport_create = Module['__php_stream_xport_create'] =
+			wasmExports['_php_stream_xport_create'];
+		_php_stream_xport_listen = Module['_php_stream_xport_listen'] =
+			wasmExports['php_stream_xport_listen'];
+		_php_stream_xport_connect = Module['_php_stream_xport_connect'] =
+			wasmExports['php_stream_xport_connect'];
+		_php_stream_xport_bind = Module['_php_stream_xport_bind'] =
+			wasmExports['php_stream_xport_bind'];
+		_php_stream_xport_accept = Module['_php_stream_xport_accept'] =
+			wasmExports['php_stream_xport_accept'];
+		_php_stream_xport_get_name = Module['_php_stream_xport_get_name'] =
+			wasmExports['php_stream_xport_get_name'];
+		_php_stream_xport_crypto_setup = Module[
+			'_php_stream_xport_crypto_setup'
+		] = wasmExports['php_stream_xport_crypto_setup'];
+		_php_stream_xport_crypto_enable = Module[
+			'_php_stream_xport_crypto_enable'
+		] = wasmExports['php_stream_xport_crypto_enable'];
+		_php_stream_xport_recvfrom = Module['_php_stream_xport_recvfrom'] =
+			wasmExports['php_stream_xport_recvfrom'];
+		_php_stream_xport_sendto = Module['_php_stream_xport_sendto'] =
+			wasmExports['php_stream_xport_sendto'];
+		_php_stream_xport_shutdown = Module['_php_stream_xport_shutdown'] =
+			wasmExports['php_stream_xport_shutdown'];
+		_php_stream_generic_socket_factory = Module[
+			'_php_stream_generic_socket_factory'
+		] = wasmExports['php_stream_generic_socket_factory'];
+		__php_stream_mmap_range = Module['__php_stream_mmap_range'] =
+			wasmExports['_php_stream_mmap_range'];
+		__php_stream_mmap_unmap = Module['__php_stream_mmap_unmap'] =
+			wasmExports['_php_stream_mmap_unmap'];
+		__php_stream_mmap_unmap_ex = Module['__php_stream_mmap_unmap_ex'] =
+			wasmExports['_php_stream_mmap_unmap_ex'];
+		__php_glob_stream_get_path = Module['__php_glob_stream_get_path'] =
+			wasmExports['_php_glob_stream_get_path'];
+		__php_glob_stream_get_pattern = Module[
+			'__php_glob_stream_get_pattern'
+		] = wasmExports['_php_glob_stream_get_pattern'];
+		__php_glob_stream_get_count = Module['__php_glob_stream_get_count'] =
+			wasmExports['_php_glob_stream_get_count'];
+		_zendparse = Module['_zendparse'] = wasmExports['zendparse'];
+		_startup_scanner = Module['_startup_scanner'] =
+			wasmExports['startup_scanner'];
+		_shutdown_scanner = Module['_shutdown_scanner'] =
+			wasmExports['shutdown_scanner'];
+		_zend_save_lexical_state = Module['_zend_save_lexical_state'] =
+			wasmExports['zend_save_lexical_state'];
+		_zend_restore_lexical_state = Module['_zend_restore_lexical_state'] =
+			wasmExports['zend_restore_lexical_state'];
+		_zend_destroy_file_handle = Module['_zend_destroy_file_handle'] =
+			wasmExports['zend_destroy_file_handle'];
+		_zend_lex_tstring = Module['_zend_lex_tstring'] =
+			wasmExports['zend_lex_tstring'];
+		_zend_multibyte_set_filter = Module['_zend_multibyte_set_filter'] =
+			wasmExports['zend_multibyte_set_filter'];
+		_open_file_for_scanning = Module['_open_file_for_scanning'] =
+			wasmExports['open_file_for_scanning'];
+		_compile_file = Module['_compile_file'] = wasmExports['compile_file'];
+		_zend_compile_string_to_ast = Module['_zend_compile_string_to_ast'] =
+			wasmExports['zend_compile_string_to_ast'];
+		_zend_prepare_string_for_scanning = Module[
+			'_zend_prepare_string_for_scanning'
+		] = wasmExports['zend_prepare_string_for_scanning'];
+		_compile_filename = Module['_compile_filename'] =
+			wasmExports['compile_filename'];
+		_zend_get_scanned_file_offset = Module[
+			'_zend_get_scanned_file_offset'
+		] = wasmExports['zend_get_scanned_file_offset'];
+		_compile_string = Module['_compile_string'] =
+			wasmExports['compile_string'];
+		_highlight_file = Module['_highlight_file'] =
+			wasmExports['highlight_file'];
+		_highlight_string = Module['_highlight_string'] =
+			wasmExports['highlight_string'];
+		_zend_multibyte_yyinput_again = Module[
+			'_zend_multibyte_yyinput_again'
+		] = wasmExports['zend_multibyte_yyinput_again'];
+		_lex_scan = Module['_lex_scan'] = wasmExports['lex_scan'];
+		_zend_parse_ini_file = Module['_zend_parse_ini_file'] =
+			wasmExports['zend_parse_ini_file'];
+		_ini_parse = Module['_ini_parse'] = wasmExports['ini_parse'];
+		_zend_parse_ini_string = Module['_zend_parse_ini_string'] =
+			wasmExports['zend_parse_ini_string'];
+		_shutdown_ini_scanner = Module['_shutdown_ini_scanner'] =
+			wasmExports['shutdown_ini_scanner'];
+		_zend_ini_scanner_get_lineno = Module['_zend_ini_scanner_get_lineno'] =
+			wasmExports['zend_ini_scanner_get_lineno'];
+		_zend_ini_scanner_get_filename = Module[
+			'_zend_ini_scanner_get_filename'
+		] = wasmExports['zend_ini_scanner_get_filename'];
+		_zend_ini_open_file_for_scanning = Module[
+			'_zend_ini_open_file_for_scanning'
+		] = wasmExports['zend_ini_open_file_for_scanning'];
+		_zend_ini_prepare_string_for_scanning = Module[
+			'_zend_ini_prepare_string_for_scanning'
+		] = wasmExports['zend_ini_prepare_string_for_scanning'];
+		_ini_lex = Module['_ini_lex'] = wasmExports['ini_lex'];
+		_zend_mm_gc = Module['_zend_mm_gc'] = wasmExports['zend_mm_gc'];
+		_zend_mm_shutdown = Module['_zend_mm_shutdown'] =
+			wasmExports['zend_mm_shutdown'];
+		__zend_mm_alloc = Module['__zend_mm_alloc'] =
+			wasmExports['_zend_mm_alloc'];
+		__zend_mm_free = Module['__zend_mm_free'] =
+			wasmExports['_zend_mm_free'];
+		__zend_mm_realloc = Module['__zend_mm_realloc'] =
+			wasmExports['_zend_mm_realloc'];
+		__zend_mm_realloc2 = Module['__zend_mm_realloc2'] =
+			wasmExports['_zend_mm_realloc2'];
+		__zend_mm_block_size = Module['__zend_mm_block_size'] =
+			wasmExports['_zend_mm_block_size'];
+		_is_zend_mm = Module['_is_zend_mm'] = wasmExports['is_zend_mm'];
+		_is_zend_ptr = Module['_is_zend_ptr'] = wasmExports['is_zend_ptr'];
+		__emalloc_8 = Module['__emalloc_8'] = wasmExports['_emalloc_8'];
+		__emalloc_16 = Module['__emalloc_16'] = wasmExports['_emalloc_16'];
 		__emalloc_24 = Module['__emalloc_24'] = wasmExports['_emalloc_24'];
 		__emalloc_32 = Module['__emalloc_32'] = wasmExports['_emalloc_32'];
 		__emalloc_40 = Module['__emalloc_40'] = wasmExports['_emalloc_40'];
+		__emalloc_48 = Module['__emalloc_48'] = wasmExports['_emalloc_48'];
 		__emalloc_56 = Module['__emalloc_56'] = wasmExports['_emalloc_56'];
+		__emalloc_64 = Module['__emalloc_64'] = wasmExports['_emalloc_64'];
+		__emalloc_80 = Module['__emalloc_80'] = wasmExports['_emalloc_80'];
+		__emalloc_96 = Module['__emalloc_96'] = wasmExports['_emalloc_96'];
 		__emalloc_112 = Module['__emalloc_112'] = wasmExports['_emalloc_112'];
 		__emalloc_128 = Module['__emalloc_128'] = wasmExports['_emalloc_128'];
+		__emalloc_160 = Module['__emalloc_160'] = wasmExports['_emalloc_160'];
+		__emalloc_192 = Module['__emalloc_192'] = wasmExports['_emalloc_192'];
+		__emalloc_224 = Module['__emalloc_224'] = wasmExports['_emalloc_224'];
+		__emalloc_256 = Module['__emalloc_256'] = wasmExports['_emalloc_256'];
 		__emalloc_320 = Module['__emalloc_320'] = wasmExports['_emalloc_320'];
+		__emalloc_384 = Module['__emalloc_384'] = wasmExports['_emalloc_384'];
+		__emalloc_448 = Module['__emalloc_448'] = wasmExports['_emalloc_448'];
+		__emalloc_512 = Module['__emalloc_512'] = wasmExports['_emalloc_512'];
+		__emalloc_640 = Module['__emalloc_640'] = wasmExports['_emalloc_640'];
+		__emalloc_768 = Module['__emalloc_768'] = wasmExports['_emalloc_768'];
+		__emalloc_896 = Module['__emalloc_896'] = wasmExports['_emalloc_896'];
+		__emalloc_1024 = Module['__emalloc_1024'] =
+			wasmExports['_emalloc_1024'];
 		__emalloc_1280 = Module['__emalloc_1280'] =
 			wasmExports['_emalloc_1280'];
+		__emalloc_1536 = Module['__emalloc_1536'] =
+			wasmExports['_emalloc_1536'];
+		__emalloc_1792 = Module['__emalloc_1792'] =
+			wasmExports['_emalloc_1792'];
+		__emalloc_2048 = Module['__emalloc_2048'] =
+			wasmExports['_emalloc_2048'];
+		__emalloc_2560 = Module['__emalloc_2560'] =
+			wasmExports['_emalloc_2560'];
+		__emalloc_3072 = Module['__emalloc_3072'] =
+			wasmExports['_emalloc_3072'];
+		__emalloc_large = Module['__emalloc_large'] =
+			wasmExports['_emalloc_large'];
+		__emalloc_huge = Module['__emalloc_huge'] =
+			wasmExports['_emalloc_huge'];
+		__efree_8 = Module['__efree_8'] = wasmExports['_efree_8'];
+		__efree_16 = Module['__efree_16'] = wasmExports['_efree_16'];
+		__efree_24 = Module['__efree_24'] = wasmExports['_efree_24'];
+		__efree_32 = Module['__efree_32'] = wasmExports['_efree_32'];
+		__efree_40 = Module['__efree_40'] = wasmExports['_efree_40'];
+		__efree_48 = Module['__efree_48'] = wasmExports['_efree_48'];
 		__efree_56 = Module['__efree_56'] = wasmExports['_efree_56'];
+		__efree_64 = Module['__efree_64'] = wasmExports['_efree_64'];
+		__efree_80 = Module['__efree_80'] = wasmExports['_efree_80'];
+		__efree_96 = Module['__efree_96'] = wasmExports['_efree_96'];
+		__efree_112 = Module['__efree_112'] = wasmExports['_efree_112'];
+		__efree_128 = Module['__efree_128'] = wasmExports['_efree_128'];
+		__efree_160 = Module['__efree_160'] = wasmExports['_efree_160'];
+		__efree_192 = Module['__efree_192'] = wasmExports['_efree_192'];
+		__efree_224 = Module['__efree_224'] = wasmExports['_efree_224'];
+		__efree_256 = Module['__efree_256'] = wasmExports['_efree_256'];
+		__efree_320 = Module['__efree_320'] = wasmExports['_efree_320'];
+		__efree_384 = Module['__efree_384'] = wasmExports['_efree_384'];
+		__efree_448 = Module['__efree_448'] = wasmExports['_efree_448'];
+		__efree_512 = Module['__efree_512'] = wasmExports['_efree_512'];
+		__efree_640 = Module['__efree_640'] = wasmExports['_efree_640'];
+		__efree_768 = Module['__efree_768'] = wasmExports['_efree_768'];
+		__efree_896 = Module['__efree_896'] = wasmExports['_efree_896'];
+		__efree_1024 = Module['__efree_1024'] = wasmExports['_efree_1024'];
+		__efree_1280 = Module['__efree_1280'] = wasmExports['_efree_1280'];
+		__efree_1536 = Module['__efree_1536'] = wasmExports['_efree_1536'];
+		__efree_1792 = Module['__efree_1792'] = wasmExports['_efree_1792'];
+		__efree_2048 = Module['__efree_2048'] = wasmExports['_efree_2048'];
+		__efree_2560 = Module['__efree_2560'] = wasmExports['_efree_2560'];
+		__efree_3072 = Module['__efree_3072'] = wasmExports['_efree_3072'];
+		__efree_large = Module['__efree_large'] = wasmExports['_efree_large'];
+		__efree_huge = Module['__efree_huge'] = wasmExports['_efree_huge'];
 		__emalloc = Module['__emalloc'] = wasmExports['_emalloc'];
 		__efree = Module['__efree'] = wasmExports['_efree'];
 		__erealloc = Module['__erealloc'] = wasmExports['_erealloc'];
+		__erealloc2 = Module['__erealloc2'] = wasmExports['_erealloc2'];
+		__zend_mem_block_size = Module['__zend_mem_block_size'] =
+			wasmExports['_zend_mem_block_size'];
 		__safe_emalloc = Module['__safe_emalloc'] =
 			wasmExports['_safe_emalloc'];
+		__safe_malloc = Module['__safe_malloc'] = wasmExports['_safe_malloc'];
 		___zend_malloc = Module['___zend_malloc'] =
 			wasmExports['__zend_malloc'];
 		__safe_erealloc = Module['__safe_erealloc'] =
 			wasmExports['_safe_erealloc'];
+		__safe_realloc = Module['__safe_realloc'] =
+			wasmExports['_safe_realloc'];
+		___zend_realloc = Module['___zend_realloc'] =
+			wasmExports['__zend_realloc'];
 		__ecalloc = Module['__ecalloc'] = wasmExports['_ecalloc'];
 		__estrdup = Module['__estrdup'] = wasmExports['_estrdup'];
 		__estrndup = Module['__estrndup'] = wasmExports['_estrndup'];
+		_zend_strndup = Module['_zend_strndup'] = wasmExports['zend_strndup'];
+		_zend_set_memory_limit_ex = Module['_zend_set_memory_limit_ex'] =
+			wasmExports['zend_set_memory_limit_ex'];
+		_zend_set_memory_limit = Module['_zend_set_memory_limit'] =
+			wasmExports['zend_set_memory_limit'];
+		_zend_memory_usage = Module['_zend_memory_usage'] =
+			wasmExports['zend_memory_usage'];
+		_zend_memory_peak_usage = Module['_zend_memory_peak_usage'] =
+			wasmExports['zend_memory_peak_usage'];
+		_shutdown_memory_manager = Module['_shutdown_memory_manager'] =
+			wasmExports['shutdown_memory_manager'];
+		_start_memory_manager = Module['_start_memory_manager'] =
+			wasmExports['start_memory_manager'];
+		_zend_mm_set_heap = Module['_zend_mm_set_heap'] =
+			wasmExports['zend_mm_set_heap'];
+		_zend_mm_get_heap = Module['_zend_mm_get_heap'] =
+			wasmExports['zend_mm_get_heap'];
+		_zend_mm_is_custom_heap = Module['_zend_mm_is_custom_heap'] =
+			wasmExports['zend_mm_is_custom_heap'];
+		_zend_mm_set_custom_handlers = Module['_zend_mm_set_custom_handlers'] =
+			wasmExports['zend_mm_set_custom_handlers'];
+		_zend_mm_get_custom_handlers = Module['_zend_mm_get_custom_handlers'] =
+			wasmExports['zend_mm_get_custom_handlers'];
+		_zend_mm_get_storage = Module['_zend_mm_get_storage'] =
+			wasmExports['zend_mm_get_storage'];
+		_zend_mm_startup = Module['_zend_mm_startup'] =
+			wasmExports['zend_mm_startup'];
+		_zend_mm_startup_ex = Module['_zend_mm_startup_ex'] =
+			wasmExports['zend_mm_startup_ex'];
+		___zend_calloc = Module['___zend_calloc'] =
+			wasmExports['__zend_calloc'];
+		_zend_assert_valid_class_name = Module[
+			'_zend_assert_valid_class_name'
+		] = wasmExports['zend_assert_valid_class_name'];
+		_zend_oparray_context_begin = Module['_zend_oparray_context_begin'] =
+			wasmExports['zend_oparray_context_begin'];
+		_zend_oparray_context_end = Module['_zend_oparray_context_end'] =
+			wasmExports['zend_oparray_context_end'];
+		_zend_file_context_begin = Module['_zend_file_context_begin'] =
+			wasmExports['zend_file_context_begin'];
+		_zend_file_context_end = Module['_zend_file_context_end'] =
+			wasmExports['zend_file_context_end'];
+		_zend_init_compiler_data_structures = Module[
+			'_zend_init_compiler_data_structures'
+		] = wasmExports['zend_init_compiler_data_structures'];
+		_file_handle_dtor = Module['_file_handle_dtor'] =
+			wasmExports['file_handle_dtor'];
+		_init_compiler = Module['_init_compiler'] =
+			wasmExports['init_compiler'];
+		_shutdown_compiler = Module['_shutdown_compiler'] =
+			wasmExports['shutdown_compiler'];
+		_zend_restore_compiled_filename = Module[
+			'_zend_restore_compiled_filename'
+		] = wasmExports['zend_restore_compiled_filename'];
+		_zend_set_compiled_filename = Module['_zend_set_compiled_filename'] =
+			wasmExports['zend_set_compiled_filename'];
+		_zend_get_compiled_filename = Module['_zend_get_compiled_filename'] =
+			wasmExports['zend_get_compiled_filename'];
+		_zend_get_compiled_lineno = Module['_zend_get_compiled_lineno'] =
+			wasmExports['zend_get_compiled_lineno'];
+		_zend_is_compiling = Module['_zend_is_compiling'] =
+			wasmExports['zend_is_compiling'];
+		_zend_stop_lexing = Module['_zend_stop_lexing'] =
+			wasmExports['zend_stop_lexing'];
+		_zend_do_free = Module['_zend_do_free'] = wasmExports['zend_do_free'];
+		_zend_add_class_modifier = Module['_zend_add_class_modifier'] =
+			wasmExports['zend_add_class_modifier'];
+		_zend_add_member_modifier = Module['_zend_add_member_modifier'] =
+			wasmExports['zend_add_member_modifier'];
+		_zend_create_member_string = Module['_zend_create_member_string'] =
+			wasmExports['zend_create_member_string'];
+		_zend_concat_names = Module['_zend_concat_names'] =
+			wasmExports['zend_concat_names'];
+		_zend_prefix_with_ns = Module['_zend_prefix_with_ns'] =
+			wasmExports['zend_prefix_with_ns'];
+		_zend_resolve_non_class_name = Module['_zend_resolve_non_class_name'] =
+			wasmExports['zend_resolve_non_class_name'];
+		_zend_resolve_function_name = Module['_zend_resolve_function_name'] =
+			wasmExports['zend_resolve_function_name'];
+		_zend_resolve_const_name = Module['_zend_resolve_const_name'] =
+			wasmExports['zend_resolve_const_name'];
+		_zend_resolve_class_name = Module['_zend_resolve_class_name'] =
+			wasmExports['zend_resolve_class_name'];
+		_zend_get_class_fetch_type = Module['_zend_get_class_fetch_type'] =
+			wasmExports['zend_get_class_fetch_type'];
+		_zend_resolve_class_name_ast = Module['_zend_resolve_class_name_ast'] =
+			wasmExports['zend_resolve_class_name_ast'];
+		_function_add_ref = Module['_function_add_ref'] =
+			wasmExports['function_add_ref'];
+		_do_bind_function = Module['_do_bind_function'] =
+			wasmExports['do_bind_function'];
+		_do_bind_class = Module['_do_bind_class'] =
+			wasmExports['do_bind_class'];
+		_zend_type_to_string_resolved = Module[
+			'_zend_type_to_string_resolved'
+		] = wasmExports['zend_type_to_string_resolved'];
+		_zend_type_to_string = Module['_zend_type_to_string'] =
+			wasmExports['zend_type_to_string'];
+		_zend_build_delayed_early_binding_list = Module[
+			'_zend_build_delayed_early_binding_list'
+		] = wasmExports['zend_build_delayed_early_binding_list'];
+		_zend_do_delayed_early_binding = Module[
+			'_zend_do_delayed_early_binding'
+		] = wasmExports['zend_do_delayed_early_binding'];
+		_zend_mangle_property_name = Module['_zend_mangle_property_name'] =
+			wasmExports['zend_mangle_property_name'];
+		_zend_unmangle_property_name_ex = Module[
+			'_zend_unmangle_property_name_ex'
+		] = wasmExports['zend_unmangle_property_name_ex'];
+		_zend_do_extended_stmt = Module['_zend_do_extended_stmt'] =
+			wasmExports['zend_do_extended_stmt'];
+		_zend_do_extended_fcall_begin = Module[
+			'_zend_do_extended_fcall_begin'
+		] = wasmExports['zend_do_extended_fcall_begin'];
+		_zend_do_extended_fcall_end = Module['_zend_do_extended_fcall_end'] =
+			wasmExports['zend_do_extended_fcall_end'];
+		_zend_is_auto_global_str = Module['_zend_is_auto_global_str'] =
+			wasmExports['zend_is_auto_global_str'];
+		_zend_is_auto_global = Module['_zend_is_auto_global'] =
+			wasmExports['zend_is_auto_global'];
+		_zend_register_auto_global = Module['_zend_register_auto_global'] =
+			wasmExports['zend_register_auto_global'];
+		_zend_activate_auto_globals = Module['_zend_activate_auto_globals'] =
+			wasmExports['zend_activate_auto_globals'];
+		_zendlex = Module['_zendlex'] = wasmExports['zendlex'];
+		_zend_initialize_class_data = Module['_zend_initialize_class_data'] =
+			wasmExports['zend_initialize_class_data'];
+		_zend_get_compiled_variable_name = Module[
+			'_zend_get_compiled_variable_name'
+		] = wasmExports['zend_get_compiled_variable_name'];
+		_zend_ast_append_str = Module['_zend_ast_append_str'] =
+			wasmExports['zend_ast_append_str'];
+		_zend_negate_num_string = Module['_zend_negate_num_string'] =
+			wasmExports['zend_negate_num_string'];
+		_zend_verify_namespace = Module['_zend_verify_namespace'] =
+			wasmExports['zend_verify_namespace'];
+		_zend_dirname = Module['_zend_dirname'] = wasmExports['zend_dirname'];
+		_zend_is_smart_branch = Module['_zend_is_smart_branch'] =
+			wasmExports['zend_is_smart_branch'];
+		_zend_emit_final_return = Module['_zend_emit_final_return'] =
+			wasmExports['zend_emit_final_return'];
+		_zend_compile_static_prop = Module['_zend_compile_static_prop'] =
+			wasmExports['zend_compile_static_prop'];
+		_zend_compile_expr = Module['_zend_compile_expr'] =
+			wasmExports['zend_compile_expr'];
+		_zend_is_assign_to_self = Module['_zend_is_assign_to_self'] =
+			wasmExports['zend_is_assign_to_self'];
+		_zend_compile_assign = Module['_zend_compile_assign'] =
+			wasmExports['zend_compile_assign'];
+		_zend_delayed_compile_var = Module['_zend_delayed_compile_var'] =
+			wasmExports['zend_delayed_compile_var'];
+		_zend_compile_var = Module['_zend_compile_var'] =
+			wasmExports['zend_compile_var'];
+		_zend_compile_assign_ref = Module['_zend_compile_assign_ref'] =
+			wasmExports['zend_compile_assign_ref'];
+		_zend_compile_compound_assign = Module[
+			'_zend_compile_compound_assign'
+		] = wasmExports['zend_compile_compound_assign'];
+		_zend_compile_args = Module['_zend_compile_args'] =
+			wasmExports['zend_compile_args'];
+		_zend_get_call_op = Module['_zend_get_call_op'] =
+			wasmExports['zend_get_call_op'];
+		_zend_compile_call_common = Module['_zend_compile_call_common'] =
+			wasmExports['zend_compile_call_common'];
+		_zend_compile_function_name = Module['_zend_compile_function_name'] =
+			wasmExports['zend_compile_function_name'];
+		_zend_compile_ns_call = Module['_zend_compile_ns_call'] =
+			wasmExports['zend_compile_ns_call'];
+		_zend_compile_dynamic_call = Module['_zend_compile_dynamic_call'] =
+			wasmExports['zend_compile_dynamic_call'];
+		_zend_compile_func_strlen = Module['_zend_compile_func_strlen'] =
+			wasmExports['zend_compile_func_strlen'];
+		_zend_compile_func_typecheck = Module['_zend_compile_func_typecheck'] =
+			wasmExports['zend_compile_func_typecheck'];
+		_zend_compile_func_cast = Module['_zend_compile_func_cast'] =
+			wasmExports['zend_compile_func_cast'];
+		_zend_compile_func_defined = Module['_zend_compile_func_defined'] =
+			wasmExports['zend_compile_func_defined'];
+		_zend_compile_func_chr = Module['_zend_compile_func_chr'] =
+			wasmExports['zend_compile_func_chr'];
+		_zend_compile_func_ord = Module['_zend_compile_func_ord'] =
+			wasmExports['zend_compile_func_ord'];
+		_zend_compile_func_cufa = Module['_zend_compile_func_cufa'] =
+			wasmExports['zend_compile_func_cufa'];
+		_zend_compile_func_cuf = Module['_zend_compile_func_cuf'] =
+			wasmExports['zend_compile_func_cuf'];
+		_zend_compile_func_count = Module['_zend_compile_func_count'] =
+			wasmExports['zend_compile_func_count'];
+		_zend_compile_func_get_class = Module['_zend_compile_func_get_class'] =
+			wasmExports['zend_compile_func_get_class'];
+		_zend_compile_func_get_called_class = Module[
+			'_zend_compile_func_get_called_class'
+		] = wasmExports['zend_compile_func_get_called_class'];
+		_zend_compile_func_gettype = Module['_zend_compile_func_gettype'] =
+			wasmExports['zend_compile_func_gettype'];
+		_zend_compile_func_num_args = Module['_zend_compile_func_num_args'] =
+			wasmExports['zend_compile_func_num_args'];
+		_zend_compile_func_get_args = Module['_zend_compile_func_get_args'] =
+			wasmExports['zend_compile_func_get_args'];
+		_zend_compile_func_array_key_exists = Module[
+			'_zend_compile_func_array_key_exists'
+		] = wasmExports['zend_compile_func_array_key_exists'];
+		_zend_compile_func_array_slice = Module[
+			'_zend_compile_func_array_slice'
+		] = wasmExports['zend_compile_func_array_slice'];
+		_zend_try_compile_special_func = Module[
+			'_zend_try_compile_special_func'
+		] = wasmExports['zend_try_compile_special_func'];
+		_zend_compile_call = Module['_zend_compile_call'] =
+			wasmExports['zend_compile_call'];
+		_zend_compile_method_call = Module['_zend_compile_method_call'] =
+			wasmExports['zend_compile_method_call'];
+		_zend_compile_static_call = Module['_zend_compile_static_call'] =
+			wasmExports['zend_compile_static_call'];
+		_zend_compile_new = Module['_zend_compile_new'] =
+			wasmExports['zend_compile_new'];
+		_zend_compile_class_decl = Module['_zend_compile_class_decl'] =
+			wasmExports['zend_compile_class_decl'];
+		_zend_compile_stmt = Module['_zend_compile_stmt'] =
+			wasmExports['zend_compile_stmt'];
+		_zend_compile_clone = Module['_zend_compile_clone'] =
+			wasmExports['zend_compile_clone'];
+		_zend_compile_global_var = Module['_zend_compile_global_var'] =
+			wasmExports['zend_compile_global_var'];
+		_zend_compile_static_var = Module['_zend_compile_static_var'] =
+			wasmExports['zend_compile_static_var'];
+		_zend_const_expr_to_zval = Module['_zend_const_expr_to_zval'] =
+			wasmExports['zend_const_expr_to_zval'];
+		_zend_eval_const_expr = Module['_zend_eval_const_expr'] =
+			wasmExports['zend_eval_const_expr'];
+		_zend_compile_const_expr = Module['_zend_compile_const_expr'] =
+			wasmExports['zend_compile_const_expr'];
+		_zend_compile_unset = Module['_zend_compile_unset'] =
+			wasmExports['zend_compile_unset'];
+		_zend_compile_return = Module['_zend_compile_return'] =
+			wasmExports['zend_compile_return'];
+		_zend_compile_echo = Module['_zend_compile_echo'] =
+			wasmExports['zend_compile_echo'];
+		_zend_compile_throw = Module['_zend_compile_throw'] =
+			wasmExports['zend_compile_throw'];
+		_zend_compile_break_continue = Module['_zend_compile_break_continue'] =
+			wasmExports['zend_compile_break_continue'];
+		_zend_resolve_goto_label = Module['_zend_resolve_goto_label'] =
+			wasmExports['zend_resolve_goto_label'];
+		_zend_compile_goto = Module['_zend_compile_goto'] =
+			wasmExports['zend_compile_goto'];
+		_zend_compile_label = Module['_zend_compile_label'] =
+			wasmExports['zend_compile_label'];
+		_zend_compile_while = Module['_zend_compile_while'] =
+			wasmExports['zend_compile_while'];
+		_zend_compile_for = Module['_zend_compile_for'] =
+			wasmExports['zend_compile_for'];
+		_zend_compile_foreach = Module['_zend_compile_foreach'] =
+			wasmExports['zend_compile_foreach'];
+		_zend_compile_if = Module['_zend_compile_if'] =
+			wasmExports['zend_compile_if'];
+		_zend_compile_switch = Module['_zend_compile_switch'] =
+			wasmExports['zend_compile_switch'];
+		_zend_compile_try = Module['_zend_compile_try'] =
+			wasmExports['zend_compile_try'];
+		_zend_compile_declare = Module['_zend_compile_declare'] =
+			wasmExports['zend_compile_declare'];
+		_zend_compile_func_decl = Module['_zend_compile_func_decl'] =
+			wasmExports['zend_compile_func_decl'];
+		_zend_compile_prop_decl = Module['_zend_compile_prop_decl'] =
+			wasmExports['zend_compile_prop_decl'];
+		_zend_compile_class_const_decl = Module[
+			'_zend_compile_class_const_decl'
+		] = wasmExports['zend_compile_class_const_decl'];
+		_zend_compile_use_trait = Module['_zend_compile_use_trait'] =
+			wasmExports['zend_compile_use_trait'];
+		_zend_compile_group_use = Module['_zend_compile_group_use'] =
+			wasmExports['zend_compile_group_use'];
+		_zend_compile_use = Module['_zend_compile_use'] =
+			wasmExports['zend_compile_use'];
+		_zend_compile_const_decl = Module['_zend_compile_const_decl'] =
+			wasmExports['zend_compile_const_decl'];
+		_zend_compile_namespace = Module['_zend_compile_namespace'] =
+			wasmExports['zend_compile_namespace'];
+		_zend_compile_halt_compiler = Module['_zend_compile_halt_compiler'] =
+			wasmExports['zend_compile_halt_compiler'];
+		_zend_compile_do_while = Module['_zend_compile_do_while'] =
+			wasmExports['zend_compile_do_while'];
+		_zend_compile_expr_list = Module['_zend_compile_expr_list'] =
+			wasmExports['zend_compile_expr_list'];
+		_zend_compile_match = Module['_zend_compile_match'] =
+			wasmExports['zend_compile_match'];
+		_zend_handle_encoding_declaration = Module[
+			'_zend_handle_encoding_declaration'
+		] = wasmExports['zend_handle_encoding_declaration'];
+		_zend_compile_stmt_list = Module['_zend_compile_stmt_list'] =
+			wasmExports['zend_compile_stmt_list'];
+		_zend_set_function_arg_flags = Module['_zend_set_function_arg_flags'] =
+			wasmExports['zend_set_function_arg_flags'];
+		_zend_compile_params = Module['_zend_compile_params'] =
+			wasmExports['zend_compile_params'];
+		_zend_begin_method_decl = Module['_zend_begin_method_decl'] =
+			wasmExports['zend_begin_method_decl'];
+		_zend_compile_prop_group = Module['_zend_compile_prop_group'] =
+			wasmExports['zend_compile_prop_group'];
+		_zend_compile_class_const_group = Module[
+			'_zend_compile_class_const_group'
+		] = wasmExports['zend_compile_class_const_group'];
+		_zend_compile_implements = Module['_zend_compile_implements'] =
+			wasmExports['zend_compile_implements'];
+		_zend_compile_top_stmt = Module['_zend_compile_top_stmt'] =
+			wasmExports['zend_compile_top_stmt'];
+		_zend_binary_op_produces_error = Module[
+			'_zend_binary_op_produces_error'
+		] = wasmExports['zend_binary_op_produces_error'];
+		_zend_unary_op_produces_error = Module[
+			'_zend_unary_op_produces_error'
+		] = wasmExports['zend_unary_op_produces_error'];
+		_zend_compile_binary_op = Module['_zend_compile_binary_op'] =
+			wasmExports['zend_compile_binary_op'];
+		_zend_compile_greater = Module['_zend_compile_greater'] =
+			wasmExports['zend_compile_greater'];
+		_zend_compile_unary_op = Module['_zend_compile_unary_op'] =
+			wasmExports['zend_compile_unary_op'];
+		_zend_compile_unary_pm = Module['_zend_compile_unary_pm'] =
+			wasmExports['zend_compile_unary_pm'];
+		_zend_compile_short_circuiting = Module[
+			'_zend_compile_short_circuiting'
+		] = wasmExports['zend_compile_short_circuiting'];
+		_zend_compile_post_incdec = Module['_zend_compile_post_incdec'] =
+			wasmExports['zend_compile_post_incdec'];
+		_zend_compile_pre_incdec = Module['_zend_compile_pre_incdec'] =
+			wasmExports['zend_compile_pre_incdec'];
+		_zend_compile_cast = Module['_zend_compile_cast'] =
+			wasmExports['zend_compile_cast'];
+		_zend_compile_conditional = Module['_zend_compile_conditional'] =
+			wasmExports['zend_compile_conditional'];
+		_zend_compile_coalesce = Module['_zend_compile_coalesce'] =
+			wasmExports['zend_compile_coalesce'];
+		_zend_compile_assign_coalesce = Module[
+			'_zend_compile_assign_coalesce'
+		] = wasmExports['zend_compile_assign_coalesce'];
+		_zend_compile_print = Module['_zend_compile_print'] =
+			wasmExports['zend_compile_print'];
+		_zend_compile_exit = Module['_zend_compile_exit'] =
+			wasmExports['zend_compile_exit'];
+		_zend_compile_yield = Module['_zend_compile_yield'] =
+			wasmExports['zend_compile_yield'];
+		_zend_compile_yield_from = Module['_zend_compile_yield_from'] =
+			wasmExports['zend_compile_yield_from'];
+		_zend_compile_instanceof = Module['_zend_compile_instanceof'] =
+			wasmExports['zend_compile_instanceof'];
+		_zend_compile_include_or_eval = Module[
+			'_zend_compile_include_or_eval'
+		] = wasmExports['zend_compile_include_or_eval'];
+		_zend_compile_isset_or_empty = Module['_zend_compile_isset_or_empty'] =
+			wasmExports['zend_compile_isset_or_empty'];
+		_zend_compile_silence = Module['_zend_compile_silence'] =
+			wasmExports['zend_compile_silence'];
+		_zend_compile_shell_exec = Module['_zend_compile_shell_exec'] =
+			wasmExports['zend_compile_shell_exec'];
+		_zend_compile_array = Module['_zend_compile_array'] =
+			wasmExports['zend_compile_array'];
+		_zend_compile_const = Module['_zend_compile_const'] =
+			wasmExports['zend_compile_const'];
+		_zend_compile_class_const = Module['_zend_compile_class_const'] =
+			wasmExports['zend_compile_class_const'];
+		_zend_compile_class_name = Module['_zend_compile_class_name'] =
+			wasmExports['zend_compile_class_name'];
+		_zend_compile_magic_const = Module['_zend_compile_magic_const'] =
+			wasmExports['zend_compile_magic_const'];
+		_zend_is_allowed_in_const_expr = Module[
+			'_zend_is_allowed_in_const_expr'
+		] = wasmExports['zend_is_allowed_in_const_expr'];
+		_zend_compile_const_expr_class_const = Module[
+			'_zend_compile_const_expr_class_const'
+		] = wasmExports['zend_compile_const_expr_class_const'];
+		_zend_compile_const_expr_class_name = Module[
+			'_zend_compile_const_expr_class_name'
+		] = wasmExports['zend_compile_const_expr_class_name'];
+		_zend_compile_const_expr_const = Module[
+			'_zend_compile_const_expr_const'
+		] = wasmExports['zend_compile_const_expr_const'];
+		_zend_compile_const_expr_magic_const = Module[
+			'_zend_compile_const_expr_magic_const'
+		] = wasmExports['zend_compile_const_expr_magic_const'];
+		_free_zend_constant = Module['_free_zend_constant'] =
+			wasmExports['free_zend_constant'];
+		_clean_module_constants = Module['_clean_module_constants'] =
+			wasmExports['clean_module_constants'];
+		_zend_startup_constants = Module['_zend_startup_constants'] =
+			wasmExports['zend_startup_constants'];
+		_zend_register_standard_constants = Module[
+			'_zend_register_standard_constants'
+		] = wasmExports['zend_register_standard_constants'];
+		_zend_register_constant = Module['_zend_register_constant'] =
+			wasmExports['zend_register_constant'];
 		_zend_register_long_constant = Module['_zend_register_long_constant'] =
 			wasmExports['zend_register_long_constant'];
+		_zend_register_bool_constant = Module['_zend_register_bool_constant'] =
+			wasmExports['zend_register_bool_constant'];
+		_zend_register_null_constant = Module['_zend_register_null_constant'] =
+			wasmExports['zend_register_null_constant'];
+		_zend_shutdown_constants = Module['_zend_shutdown_constants'] =
+			wasmExports['zend_shutdown_constants'];
+		__zend_get_special_const = Module['__zend_get_special_const'] =
+			wasmExports['_zend_get_special_const'];
+		_zend_register_double_constant = Module[
+			'_zend_register_double_constant'
+		] = wasmExports['zend_register_double_constant'];
+		_zend_register_stringl_constant = Module[
+			'_zend_register_stringl_constant'
+		] = wasmExports['zend_register_stringl_constant'];
 		_zend_register_string_constant = Module[
 			'_zend_register_string_constant'
 		] = wasmExports['zend_register_string_constant'];
+		_zend_verify_const_access = Module['_zend_verify_const_access'] =
+			wasmExports['zend_verify_const_access'];
+		_zend_get_constant_str = Module['_zend_get_constant_str'] =
+			wasmExports['zend_get_constant_str'];
+		_zend_get_constant = Module['_zend_get_constant'] =
+			wasmExports['zend_get_constant'];
+		_zend_get_constant_ex = Module['_zend_get_constant_ex'] =
+			wasmExports['zend_get_constant_ex'];
+		_init_executor = Module['_init_executor'] =
+			wasmExports['init_executor'];
+		_shutdown_destructors = Module['_shutdown_destructors'] =
+			wasmExports['shutdown_destructors'];
+		_shutdown_executor = Module['_shutdown_executor'] =
+			wasmExports['shutdown_executor'];
 		_get_active_class_name = Module['_get_active_class_name'] =
 			wasmExports['get_active_class_name'];
+		_zend_is_executing = Module['_zend_is_executing'] =
+			wasmExports['zend_is_executing'];
 		_get_active_function_name = Module['_get_active_function_name'] =
 			wasmExports['get_active_function_name'];
+		_get_active_function_or_method_name = Module[
+			'_get_active_function_or_method_name'
+		] = wasmExports['get_active_function_or_method_name'];
+		_get_function_or_method_name = Module['_get_function_or_method_name'] =
+			wasmExports['get_function_or_method_name'];
+		_get_active_function_arg_name = Module[
+			'_get_active_function_arg_name'
+		] = wasmExports['get_active_function_arg_name'];
+		_get_function_arg_name = Module['_get_function_arg_name'] =
+			wasmExports['get_function_arg_name'];
+		_zend_get_executed_filename = Module['_zend_get_executed_filename'] =
+			wasmExports['zend_get_executed_filename'];
+		_zend_get_executed_filename_ex = Module[
+			'_zend_get_executed_filename_ex'
+		] = wasmExports['zend_get_executed_filename_ex'];
+		_zend_get_executed_lineno = Module['_zend_get_executed_lineno'] =
+			wasmExports['zend_get_executed_lineno'];
 		_zend_get_executed_scope = Module['_zend_get_executed_scope'] =
 			wasmExports['zend_get_executed_scope'];
+		_zval_update_constant_ex = Module['_zval_update_constant_ex'] =
+			wasmExports['zval_update_constant_ex'];
+		_zval_update_constant = Module['_zval_update_constant'] =
+			wasmExports['zval_update_constant'];
 		__call_user_function_impl = Module['__call_user_function_impl'] =
 			wasmExports['_call_user_function_impl'];
 		_zend_call_function = Module['_zend_call_function'] =
 			wasmExports['zend_call_function'];
+		_zend_timeout = Module['_zend_timeout'] = wasmExports['zend_timeout'];
 		_zend_call_known_function = Module['_zend_call_known_function'] =
 			wasmExports['zend_call_known_function'];
 		_zend_call_known_instance_method_with_2_params = Module[
 			'_zend_call_known_instance_method_with_2_params'
 		] = wasmExports['zend_call_known_instance_method_with_2_params'];
+		_zend_is_valid_class_name = Module['_zend_is_valid_class_name'] =
+			wasmExports['zend_is_valid_class_name'];
 		_zend_lookup_class_ex = Module['_zend_lookup_class_ex'] =
 			wasmExports['zend_lookup_class_ex'];
+		_zend_lookup_class = Module['_zend_lookup_class'] =
+			wasmExports['zend_lookup_class'];
+		_zend_get_called_scope = Module['_zend_get_called_scope'] =
+			wasmExports['zend_get_called_scope'];
+		_zend_get_this_object = Module['_zend_get_this_object'] =
+			wasmExports['zend_get_this_object'];
+		_zend_eval_stringl = Module['_zend_eval_stringl'] =
+			wasmExports['zend_eval_stringl'];
+		_zend_eval_string = Module['_zend_eval_string'] =
+			wasmExports['zend_eval_string'];
+		_zend_eval_stringl_ex = Module['_zend_eval_stringl_ex'] =
+			wasmExports['zend_eval_stringl_ex'];
+		_zend_eval_string_ex = Module['_zend_eval_string_ex'] =
+			wasmExports['zend_eval_string_ex'];
+		_zend_set_timeout = Module['_zend_set_timeout'] =
+			wasmExports['zend_set_timeout'];
+		_zend_unset_timeout = Module['_zend_unset_timeout'] =
+			wasmExports['zend_unset_timeout'];
+		_zend_fetch_class = Module['_zend_fetch_class'] =
+			wasmExports['zend_fetch_class'];
+		_zend_fetch_class_by_name = Module['_zend_fetch_class_by_name'] =
+			wasmExports['zend_fetch_class_by_name'];
+		_zend_delete_global_variable = Module['_zend_delete_global_variable'] =
+			wasmExports['zend_delete_global_variable'];
+		_zend_rebuild_symbol_table = Module['_zend_rebuild_symbol_table'] =
+			wasmExports['zend_rebuild_symbol_table'];
+		_zend_attach_symbol_table = Module['_zend_attach_symbol_table'] =
+			wasmExports['zend_attach_symbol_table'];
+		_zend_detach_symbol_table = Module['_zend_detach_symbol_table'] =
+			wasmExports['zend_detach_symbol_table'];
+		_zend_set_local_var = Module['_zend_set_local_var'] =
+			wasmExports['zend_set_local_var'];
+		_zend_set_local_var_str = Module['_zend_set_local_var_str'] =
+			wasmExports['zend_set_local_var_str'];
+		_zend_html_putc = Module['_zend_html_putc'] =
+			wasmExports['zend_html_putc'];
+		_zend_html_puts = Module['_zend_html_puts'] =
+			wasmExports['zend_html_puts'];
+		_zend_highlight = Module['_zend_highlight'] =
+			wasmExports['zend_highlight'];
+		_zend_strip = Module['_zend_strip'] = wasmExports['zend_strip'];
+		_zend_llist_init = Module['_zend_llist_init'] =
+			wasmExports['zend_llist_init'];
+		_zend_llist_add_element = Module['_zend_llist_add_element'] =
+			wasmExports['zend_llist_add_element'];
+		_zend_llist_prepend_element = Module['_zend_llist_prepend_element'] =
+			wasmExports['zend_llist_prepend_element'];
+		_zend_llist_del_element = Module['_zend_llist_del_element'] =
+			wasmExports['zend_llist_del_element'];
+		_zend_llist_destroy = Module['_zend_llist_destroy'] =
+			wasmExports['zend_llist_destroy'];
+		_zend_llist_clean = Module['_zend_llist_clean'] =
+			wasmExports['zend_llist_clean'];
+		_zend_llist_remove_tail = Module['_zend_llist_remove_tail'] =
+			wasmExports['zend_llist_remove_tail'];
+		_zend_llist_copy = Module['_zend_llist_copy'] =
+			wasmExports['zend_llist_copy'];
+		_zend_llist_apply_with_del = Module['_zend_llist_apply_with_del'] =
+			wasmExports['zend_llist_apply_with_del'];
+		_zend_llist_apply = Module['_zend_llist_apply'] =
+			wasmExports['zend_llist_apply'];
+		_zend_llist_sort = Module['_zend_llist_sort'] =
+			wasmExports['zend_llist_sort'];
+		_zend_llist_apply_with_argument = Module[
+			'_zend_llist_apply_with_argument'
+		] = wasmExports['zend_llist_apply_with_argument'];
+		_zend_llist_apply_with_arguments = Module[
+			'_zend_llist_apply_with_arguments'
+		] = wasmExports['zend_llist_apply_with_arguments'];
+		_zend_llist_count = Module['_zend_llist_count'] =
+			wasmExports['zend_llist_count'];
+		_zend_llist_get_first_ex = Module['_zend_llist_get_first_ex'] =
+			wasmExports['zend_llist_get_first_ex'];
+		_zend_llist_get_last_ex = Module['_zend_llist_get_last_ex'] =
+			wasmExports['zend_llist_get_last_ex'];
+		_zend_llist_get_next_ex = Module['_zend_llist_get_next_ex'] =
+			wasmExports['zend_llist_get_next_ex'];
+		_zend_llist_get_prev_ex = Module['_zend_llist_get_prev_ex'] =
+			wasmExports['zend_llist_get_prev_ex'];
+		_zend_get_opcode_name = Module['_zend_get_opcode_name'] =
+			wasmExports['zend_get_opcode_name'];
+		_zend_get_opcode_flags = Module['_zend_get_opcode_flags'] =
+			wasmExports['zend_get_opcode_flags'];
+		_init_op_array = Module['_init_op_array'] =
+			wasmExports['init_op_array'];
+		_destroy_zend_function = Module['_destroy_zend_function'] =
+			wasmExports['destroy_zend_function'];
+		_zend_function_dtor = Module['_zend_function_dtor'] =
+			wasmExports['zend_function_dtor'];
 		_destroy_op_array = Module['_destroy_op_array'] =
 			wasmExports['destroy_op_array'];
+		_zend_type_release = Module['_zend_type_release'] =
+			wasmExports['zend_type_release'];
+		_zend_free_internal_arg_info = Module['_zend_free_internal_arg_info'] =
+			wasmExports['zend_free_internal_arg_info'];
+		_zend_cleanup_internal_class_data = Module[
+			'_zend_cleanup_internal_class_data'
+		] = wasmExports['zend_cleanup_internal_class_data'];
+		_destroy_zend_class = Module['_destroy_zend_class'] =
+			wasmExports['destroy_zend_class'];
+		_zend_class_add_ref = Module['_zend_class_add_ref'] =
+			wasmExports['zend_class_add_ref'];
+		_zend_recalc_live_ranges = Module['_zend_recalc_live_ranges'] =
+			wasmExports['zend_recalc_live_ranges'];
+		_pass_two = Module['_pass_two'] = wasmExports['pass_two'];
+		_get_unary_op = Module['_get_unary_op'] = wasmExports['get_unary_op'];
+		_get_binary_op = Module['_get_binary_op'] =
+			wasmExports['get_binary_op'];
+		_zend_atoi = Module['_zend_atoi'] = wasmExports['zend_atoi'];
+		_zend_atol = Module['_zend_atol'] = wasmExports['zend_atol'];
+		_convert_scalar_to_number = Module['_convert_scalar_to_number'] =
+			wasmExports['convert_scalar_to_number'];
 		__is_numeric_string_ex = Module['__is_numeric_string_ex'] =
 			wasmExports['_is_numeric_string_ex'];
 		_convert_to_long = Module['_convert_to_long'] =
 			wasmExports['convert_to_long'];
+		_convert_to_long_base = Module['_convert_to_long_base'] =
+			wasmExports['convert_to_long_base'];
 		_zval_get_long_func = Module['_zval_get_long_func'] =
 			wasmExports['zval_get_long_func'];
 		_convert_to_double = Module['_convert_to_double'] =
 			wasmExports['convert_to_double'];
+		_convert_to_null = Module['_convert_to_null'] =
+			wasmExports['convert_to_null'];
+		_convert_to_boolean = Module['_convert_to_boolean'] =
+			wasmExports['convert_to_boolean'];
+		__convert_to_string = Module['__convert_to_string'] =
+			wasmExports['_convert_to_string'];
+		_zend_long_to_str = Module['_zend_long_to_str'] =
+			wasmExports['zend_long_to_str'];
 		__try_convert_to_string = Module['__try_convert_to_string'] =
 			wasmExports['_try_convert_to_string'];
+		_zval_try_get_string_func = Module['_zval_try_get_string_func'] =
+			wasmExports['zval_try_get_string_func'];
+		_convert_to_array = Module['_convert_to_array'] =
+			wasmExports['convert_to_array'];
+		_convert_to_object = Module['_convert_to_object'] =
+			wasmExports['convert_to_object'];
 		_zval_get_double_func = Module['_zval_get_double_func'] =
 			wasmExports['zval_get_double_func'];
 		_zval_get_string_func = Module['_zval_get_string_func'] =
 			wasmExports['zval_get_string_func'];
+		_add_function = Module['_add_function'] = wasmExports['add_function'];
+		_sub_function = Module['_sub_function'] = wasmExports['sub_function'];
+		_mul_function = Module['_mul_function'] = wasmExports['mul_function'];
+		_pow_function = Module['_pow_function'] = wasmExports['pow_function'];
+		_div_function = Module['_div_function'] = wasmExports['div_function'];
+		_mod_function = Module['_mod_function'] = wasmExports['mod_function'];
+		_boolean_xor_function = Module['_boolean_xor_function'] =
+			wasmExports['boolean_xor_function'];
 		_zend_is_true = Module['_zend_is_true'] = wasmExports['zend_is_true'];
+		_zend_object_is_true = Module['_zend_object_is_true'] =
+			wasmExports['zend_object_is_true'];
+		_boolean_not_function = Module['_boolean_not_function'] =
+			wasmExports['boolean_not_function'];
+		_bitwise_not_function = Module['_bitwise_not_function'] =
+			wasmExports['bitwise_not_function'];
+		_bitwise_or_function = Module['_bitwise_or_function'] =
+			wasmExports['bitwise_or_function'];
+		_bitwise_and_function = Module['_bitwise_and_function'] =
+			wasmExports['bitwise_and_function'];
+		_bitwise_xor_function = Module['_bitwise_xor_function'] =
+			wasmExports['bitwise_xor_function'];
+		_shift_left_function = Module['_shift_left_function'] =
+			wasmExports['shift_left_function'];
+		_shift_right_function = Module['_shift_right_function'] =
+			wasmExports['shift_right_function'];
+		_concat_function = Module['_concat_function'] =
+			wasmExports['concat_function'];
+		_string_compare_function_ex = Module['_string_compare_function_ex'] =
+			wasmExports['string_compare_function_ex'];
+		_zend_binary_strcasecmp_l = Module['_zend_binary_strcasecmp_l'] =
+			wasmExports['zend_binary_strcasecmp_l'];
 		_zend_binary_strcmp = Module['_zend_binary_strcmp'] =
 			wasmExports['zend_binary_strcmp'];
+		_string_compare_function = Module['_string_compare_function'] =
+			wasmExports['string_compare_function'];
+		_string_case_compare_function = Module[
+			'_string_case_compare_function'
+		] = wasmExports['string_case_compare_function'];
+		_string_locale_compare_function = Module[
+			'_string_locale_compare_function'
+		] = wasmExports['string_locale_compare_function'];
 		_numeric_compare_function = Module['_numeric_compare_function'] =
 			wasmExports['numeric_compare_function'];
 		_compare_function = Module['_compare_function'] =
 			wasmExports['compare_function'];
+		_zend_compare = Module['_zend_compare'] = wasmExports['zend_compare'];
+		_zendi_smart_strcmp = Module['_zendi_smart_strcmp'] =
+			wasmExports['zendi_smart_strcmp'];
+		_zend_compare_arrays = Module['_zend_compare_arrays'] =
+			wasmExports['zend_compare_arrays'];
+		_zend_is_identical = Module['_zend_is_identical'] =
+			wasmExports['zend_is_identical'];
+		_is_identical_function = Module['_is_identical_function'] =
+			wasmExports['is_identical_function'];
+		_is_not_identical_function = Module['_is_not_identical_function'] =
+			wasmExports['is_not_identical_function'];
+		_is_equal_function = Module['_is_equal_function'] =
+			wasmExports['is_equal_function'];
+		_is_not_equal_function = Module['_is_not_equal_function'] =
+			wasmExports['is_not_equal_function'];
+		_is_smaller_function = Module['_is_smaller_function'] =
+			wasmExports['is_smaller_function'];
+		_is_smaller_or_equal_function = Module[
+			'_is_smaller_or_equal_function'
+		] = wasmExports['is_smaller_or_equal_function'];
+		_zend_class_implements_interface = Module[
+			'_zend_class_implements_interface'
+		] = wasmExports['zend_class_implements_interface'];
 		_instanceof_function_slow = Module['_instanceof_function_slow'] =
 			wasmExports['instanceof_function_slow'];
+		_increment_function = Module['_increment_function'] =
+			wasmExports['increment_function'];
+		_is_numeric_str_function = Module['_is_numeric_str_function'] =
+			wasmExports['is_numeric_str_function'];
+		_decrement_function = Module['_decrement_function'] =
+			wasmExports['decrement_function'];
 		_zend_str_tolower_copy = Module['_zend_str_tolower_copy'] =
 			wasmExports['zend_str_tolower_copy'];
+		_zend_str_tolower_dup = Module['_zend_str_tolower_dup'] =
+			wasmExports['zend_str_tolower_dup'];
+		_zend_str_tolower = Module['_zend_str_tolower'] =
+			wasmExports['zend_str_tolower'];
+		_zend_str_tolower_dup_ex = Module['_zend_str_tolower_dup_ex'] =
+			wasmExports['zend_str_tolower_dup_ex'];
+		_zend_string_tolower_ex = Module['_zend_string_tolower_ex'] =
+			wasmExports['zend_string_tolower_ex'];
+		_zend_binary_strncmp = Module['_zend_binary_strncmp'] =
+			wasmExports['zend_binary_strncmp'];
+		_zend_binary_strcasecmp = Module['_zend_binary_strcasecmp'] =
+			wasmExports['zend_binary_strcasecmp'];
+		_zend_binary_strncasecmp = Module['_zend_binary_strncasecmp'] =
+			wasmExports['zend_binary_strncasecmp'];
+		_zend_binary_strncasecmp_l = Module['_zend_binary_strncasecmp_l'] =
+			wasmExports['zend_binary_strncasecmp_l'];
+		_zend_binary_zval_strcmp = Module['_zend_binary_zval_strcmp'] =
+			wasmExports['zend_binary_zval_strcmp'];
+		_zend_binary_zval_strncmp = Module['_zend_binary_zval_strncmp'] =
+			wasmExports['zend_binary_zval_strncmp'];
+		_zend_binary_zval_strcasecmp = Module['_zend_binary_zval_strcasecmp'] =
+			wasmExports['zend_binary_zval_strcasecmp'];
+		_zend_binary_zval_strncasecmp = Module[
+			'_zend_binary_zval_strncasecmp'
+		] = wasmExports['zend_binary_zval_strncasecmp'];
+		_zendi_smart_streq = Module['_zendi_smart_streq'] =
+			wasmExports['zendi_smart_streq'];
+		_zend_compare_symbol_tables = Module['_zend_compare_symbol_tables'] =
+			wasmExports['zend_compare_symbol_tables'];
+		_zend_compare_objects = Module['_zend_compare_objects'] =
+			wasmExports['zend_compare_objects'];
+		_zend_locale_sprintf_double = Module['_zend_locale_sprintf_double'] =
+			wasmExports['zend_locale_sprintf_double'];
 		_zend_memnstr_ex = Module['_zend_memnstr_ex'] =
 			wasmExports['zend_memnstr_ex'];
+		_zend_memnrstr_ex = Module['_zend_memnrstr_ex'] =
+			wasmExports['zend_memnrstr_ex'];
+		_zend_dval_to_lval_slow = Module['_zend_dval_to_lval_slow'] =
+			wasmExports['zend_dval_to_lval_slow'];
+		_zend_ptr_stack_init_ex = Module['_zend_ptr_stack_init_ex'] =
+			wasmExports['zend_ptr_stack_init_ex'];
+		_zend_ptr_stack_init = Module['_zend_ptr_stack_init'] =
+			wasmExports['zend_ptr_stack_init'];
+		_zend_ptr_stack_n_push = Module['_zend_ptr_stack_n_push'] =
+			wasmExports['zend_ptr_stack_n_push'];
+		_zend_ptr_stack_n_pop = Module['_zend_ptr_stack_n_pop'] =
+			wasmExports['zend_ptr_stack_n_pop'];
+		_zend_ptr_stack_destroy = Module['_zend_ptr_stack_destroy'] =
+			wasmExports['zend_ptr_stack_destroy'];
+		_zend_ptr_stack_apply = Module['_zend_ptr_stack_apply'] =
+			wasmExports['zend_ptr_stack_apply'];
+		_zend_ptr_stack_reverse_apply = Module[
+			'_zend_ptr_stack_reverse_apply'
+		] = wasmExports['zend_ptr_stack_reverse_apply'];
+		_zend_ptr_stack_clean = Module['_zend_ptr_stack_clean'] =
+			wasmExports['zend_ptr_stack_clean'];
+		_zend_ptr_stack_num_elements = Module['_zend_ptr_stack_num_elements'] =
+			wasmExports['zend_ptr_stack_num_elements'];
+		_zend_stack_init = Module['_zend_stack_init'] =
+			wasmExports['zend_stack_init'];
+		_zend_stack_push = Module['_zend_stack_push'] =
+			wasmExports['zend_stack_push'];
+		_zend_stack_top = Module['_zend_stack_top'] =
+			wasmExports['zend_stack_top'];
+		_zend_stack_del_top = Module['_zend_stack_del_top'] =
+			wasmExports['zend_stack_del_top'];
+		_zend_stack_int_top = Module['_zend_stack_int_top'] =
+			wasmExports['zend_stack_int_top'];
+		_zend_stack_is_empty = Module['_zend_stack_is_empty'] =
+			wasmExports['zend_stack_is_empty'];
+		_zend_stack_destroy = Module['_zend_stack_destroy'] =
+			wasmExports['zend_stack_destroy'];
+		_zend_stack_base = Module['_zend_stack_base'] =
+			wasmExports['zend_stack_base'];
+		_zend_stack_count = Module['_zend_stack_count'] =
+			wasmExports['zend_stack_count'];
+		_zend_stack_apply = Module['_zend_stack_apply'] =
+			wasmExports['zend_stack_apply'];
+		_zend_stack_apply_with_argument = Module[
+			'_zend_stack_apply_with_argument'
+		] = wasmExports['zend_stack_apply_with_argument'];
+		_zend_stack_clean = Module['_zend_stack_clean'] =
+			wasmExports['zend_stack_clean'];
+		_rc_dtor_func = Module['_rc_dtor_func'] = wasmExports['rc_dtor_func'];
 		_zval_ptr_dtor = Module['_zval_ptr_dtor'] =
 			wasmExports['zval_ptr_dtor'];
+		_zval_internal_ptr_dtor = Module['_zval_internal_ptr_dtor'] =
+			wasmExports['zval_internal_ptr_dtor'];
 		_zval_add_ref = Module['_zval_add_ref'] = wasmExports['zval_add_ref'];
+		_zval_copy_ctor_func = Module['_zval_copy_ctor_func'] =
+			wasmExports['zval_copy_ctor_func'];
+		_zend_vspprintf = Module['_zend_vspprintf'] =
+			wasmExports['zend_vspprintf'];
 		_zend_spprintf = Module['_zend_spprintf'] =
 			wasmExports['zend_spprintf'];
+		_zend_spprintf_unchecked = Module['_zend_spprintf_unchecked'] =
+			wasmExports['zend_spprintf_unchecked'];
+		_zend_vstrpprintf = Module['_zend_vstrpprintf'] =
+			wasmExports['zend_vstrpprintf'];
 		_zend_strpprintf = Module['_zend_strpprintf'] =
 			wasmExports['zend_strpprintf'];
+		_zend_strpprintf_unchecked = Module['_zend_strpprintf_unchecked'] =
+			wasmExports['zend_strpprintf_unchecked'];
 		_zend_make_printable_zval = Module['_zend_make_printable_zval'] =
 			wasmExports['zend_make_printable_zval'];
+		_zend_print_zval = Module['_zend_print_zval'] =
+			wasmExports['zend_print_zval'];
+		_zend_print_flat_zval_r = Module['_zend_print_flat_zval_r'] =
+			wasmExports['zend_print_flat_zval_r'];
+		_zend_print_zval_r_to_str = Module['_zend_print_zval_r_to_str'] =
+			wasmExports['zend_print_zval_r_to_str'];
+		_zend_print_zval_r = Module['_zend_print_zval_r'] =
+			wasmExports['zend_print_zval_r'];
+		_zend_startup = Module['_zend_startup'] = wasmExports['zend_startup'];
+		_zend_register_standard_ini_entries = Module[
+			'_zend_register_standard_ini_entries'
+		] = wasmExports['zend_register_standard_ini_entries'];
+		_zend_post_startup = Module['_zend_post_startup'] =
+			wasmExports['zend_post_startup'];
+		_zend_shutdown = Module['_zend_shutdown'] =
+			wasmExports['zend_shutdown'];
+		_zend_set_utility_values = Module['_zend_set_utility_values'] =
+			wasmExports['zend_set_utility_values'];
+		_zenderror = Module['_zenderror'] = wasmExports['zenderror'];
 		__zend_bailout = Module['__zend_bailout'] =
 			wasmExports['_zend_bailout'];
+		_zend_output_debug_string = Module['_zend_output_debug_string'] =
+			wasmExports['zend_output_debug_string'];
+		_zend_append_version_info = Module['_zend_append_version_info'] =
+			wasmExports['zend_append_version_info'];
+		_get_zend_version = Module['_get_zend_version'] =
+			wasmExports['get_zend_version'];
+		_zend_activate = Module['_zend_activate'] =
+			wasmExports['zend_activate'];
+		_zend_call_destructors = Module['_zend_call_destructors'] =
+			wasmExports['zend_call_destructors'];
+		_zend_deactivate = Module['_zend_deactivate'] =
+			wasmExports['zend_deactivate'];
+		_zend_message_dispatcher = Module['_zend_message_dispatcher'] =
+			wasmExports['zend_message_dispatcher'];
+		_zend_get_configuration_directive = Module[
+			'_zend_get_configuration_directive'
+		] = wasmExports['zend_get_configuration_directive'];
+		_zend_error_at = Module['_zend_error_at'] =
+			wasmExports['zend_error_at'];
 		_zend_error = Module['_zend_error'] = wasmExports['zend_error'];
+		_zend_error_at_noreturn = Module['_zend_error_at_noreturn'] =
+			wasmExports['zend_error_at_noreturn'];
+		_zend_error_noreturn = Module['_zend_error_noreturn'] =
+			wasmExports['zend_error_noreturn'];
+		_zend_error_zstr = Module['_zend_error_zstr'] =
+			wasmExports['zend_error_zstr'];
 		_zend_throw_error = Module['_zend_throw_error'] =
 			wasmExports['zend_throw_error'];
+		_zend_type_error = Module['_zend_type_error'] =
+			wasmExports['zend_type_error'];
 		_zend_argument_count_error = Module['_zend_argument_count_error'] =
 			wasmExports['zend_argument_count_error'];
+		_zend_value_error = Module['_zend_value_error'] =
+			wasmExports['zend_value_error'];
+		_zend_user_exception_handler = Module['_zend_user_exception_handler'] =
+			wasmExports['zend_user_exception_handler'];
+		_zend_execute_scripts = Module['_zend_execute_scripts'] =
+			wasmExports['zend_execute_scripts'];
+		_zend_make_compiled_string_description = Module[
+			'_zend_make_compiled_string_description'
+		] = wasmExports['zend_make_compiled_string_description'];
+		_free_estring = Module['_free_estring'] = wasmExports['free_estring'];
+		_zend_map_ptr_reset = Module['_zend_map_ptr_reset'] =
+			wasmExports['zend_map_ptr_reset'];
+		_zend_map_ptr_new = Module['_zend_map_ptr_new'] =
+			wasmExports['zend_map_ptr_new'];
+		_zend_map_ptr_extend = Module['_zend_map_ptr_extend'] =
+			wasmExports['zend_map_ptr_extend'];
 		__zend_get_parameters_array_ex = Module[
 			'__zend_get_parameters_array_ex'
 		] = wasmExports['_zend_get_parameters_array_ex'];
+		_zend_copy_parameters_array = Module['_zend_copy_parameters_array'] =
+			wasmExports['zend_copy_parameters_array'];
+		_zend_wrong_param_count = Module['_zend_wrong_param_count'] =
+			wasmExports['zend_wrong_param_count'];
+		_zend_get_type_by_const = Module['_zend_get_type_by_const'] =
+			wasmExports['zend_get_type_by_const'];
+		_zend_zval_type_name = Module['_zend_zval_type_name'] =
+			wasmExports['zend_zval_type_name'];
+		_zend_zval_get_legacy_type = Module['_zend_zval_get_legacy_type'] =
+			wasmExports['zend_zval_get_legacy_type'];
 		_zend_wrong_parameters_none_error = Module[
 			'_zend_wrong_parameters_none_error'
 		] = wasmExports['zend_wrong_parameters_none_error'];
@@ -8501,47 +24410,205 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_wrong_parameter_error'];
 		_zend_argument_type_error = Module['_zend_argument_type_error'] =
 			wasmExports['zend_argument_type_error'];
+		_zend_wrong_parameter_type_error = Module[
+			'_zend_wrong_parameter_type_error'
+		] = wasmExports['zend_wrong_parameter_type_error'];
+		_zend_wrong_callback_error = Module['_zend_wrong_callback_error'] =
+			wasmExports['zend_wrong_callback_error'];
+		_zend_wrong_parameter_class_error = Module[
+			'_zend_wrong_parameter_class_error'
+		] = wasmExports['zend_wrong_parameter_class_error'];
+		_zend_wrong_parameter_class_or_null_error = Module[
+			'_zend_wrong_parameter_class_or_null_error'
+		] = wasmExports['zend_wrong_parameter_class_or_null_error'];
+		_zend_wrong_parameter_class_or_string_error = Module[
+			'_zend_wrong_parameter_class_or_string_error'
+		] = wasmExports['zend_wrong_parameter_class_or_string_error'];
+		_zend_wrong_parameter_class_or_string_or_null_error = Module[
+			'_zend_wrong_parameter_class_or_string_or_null_error'
+		] = wasmExports['zend_wrong_parameter_class_or_string_or_null_error'];
+		_zend_wrong_parameter_class_or_long_error = Module[
+			'_zend_wrong_parameter_class_or_long_error'
+		] = wasmExports['zend_wrong_parameter_class_or_long_error'];
+		_zend_wrong_parameter_class_or_long_or_null_error = Module[
+			'_zend_wrong_parameter_class_or_long_or_null_error'
+		] = wasmExports['zend_wrong_parameter_class_or_long_or_null_error'];
 		_zend_argument_value_error = Module['_zend_argument_value_error'] =
 			wasmExports['zend_argument_value_error'];
+		_zend_unexpected_extra_named_error = Module[
+			'_zend_unexpected_extra_named_error'
+		] = wasmExports['zend_unexpected_extra_named_error'];
+		_zend_argument_error_variadic = Module[
+			'_zend_argument_error_variadic'
+		] = wasmExports['zend_argument_error_variadic'];
 		_zend_argument_error = Module['_zend_argument_error'] =
 			wasmExports['zend_argument_error'];
+		_zend_parse_arg_class = Module['_zend_parse_arg_class'] =
+			wasmExports['zend_parse_arg_class'];
+		_zend_parse_arg_bool_weak = Module['_zend_parse_arg_bool_weak'] =
+			wasmExports['zend_parse_arg_bool_weak'];
+		_zend_parse_arg_bool_slow = Module['_zend_parse_arg_bool_slow'] =
+			wasmExports['zend_parse_arg_bool_slow'];
+		_zend_parse_arg_long_weak = Module['_zend_parse_arg_long_weak'] =
+			wasmExports['zend_parse_arg_long_weak'];
 		_zend_parse_arg_long_slow = Module['_zend_parse_arg_long_slow'] =
 			wasmExports['zend_parse_arg_long_slow'];
+		_zend_parse_arg_double_weak = Module['_zend_parse_arg_double_weak'] =
+			wasmExports['zend_parse_arg_double_weak'];
+		_zend_parse_arg_double_slow = Module['_zend_parse_arg_double_slow'] =
+			wasmExports['zend_parse_arg_double_slow'];
+		_zend_parse_arg_number_slow = Module['_zend_parse_arg_number_slow'] =
+			wasmExports['zend_parse_arg_number_slow'];
+		_zend_parse_arg_str_weak = Module['_zend_parse_arg_str_weak'] =
+			wasmExports['zend_parse_arg_str_weak'];
 		_zend_parse_arg_str_slow = Module['_zend_parse_arg_str_slow'] =
 			wasmExports['zend_parse_arg_str_slow'];
 		_zend_parse_arg_str_or_long_slow = Module[
 			'_zend_parse_arg_str_or_long_slow'
 		] = wasmExports['zend_parse_arg_str_or_long_slow'];
+		_zend_parse_parameter = Module['_zend_parse_parameter'] =
+			wasmExports['zend_parse_parameter'];
+		_zend_is_callable_at_frame = Module['_zend_is_callable_at_frame'] =
+			wasmExports['zend_is_callable_at_frame'];
 		_zend_release_fcall_info_cache = Module[
 			'_zend_release_fcall_info_cache'
 		] = wasmExports['zend_release_fcall_info_cache'];
+		_zend_parse_parameters_ex = Module['_zend_parse_parameters_ex'] =
+			wasmExports['zend_parse_parameters_ex'];
 		_zend_parse_parameters = Module['_zend_parse_parameters'] =
 			wasmExports['zend_parse_parameters'];
 		_zend_parse_method_parameters = Module[
 			'_zend_parse_method_parameters'
 		] = wasmExports['zend_parse_method_parameters'];
+		_zend_parse_method_parameters_ex = Module[
+			'_zend_parse_method_parameters_ex'
+		] = wasmExports['zend_parse_method_parameters_ex'];
+		_zend_merge_properties = Module['_zend_merge_properties'] =
+			wasmExports['zend_merge_properties'];
+		_zend_update_class_constants = Module['_zend_update_class_constants'] =
+			wasmExports['zend_update_class_constants'];
 		_object_properties_init = Module['_object_properties_init'] =
 			wasmExports['object_properties_init'];
+		_object_properties_init_ex = Module['_object_properties_init_ex'] =
+			wasmExports['object_properties_init_ex'];
+		_object_properties_load = Module['_object_properties_load'] =
+			wasmExports['object_properties_load'];
+		_object_and_properties_init = Module['_object_and_properties_init'] =
+			wasmExports['object_and_properties_init'];
 		_object_init_ex = Module['_object_init_ex'] =
 			wasmExports['object_init_ex'];
+		_object_init = Module['_object_init'] = wasmExports['object_init'];
 		_add_assoc_long_ex = Module['_add_assoc_long_ex'] =
 			wasmExports['add_assoc_long_ex'];
+		_add_assoc_null_ex = Module['_add_assoc_null_ex'] =
+			wasmExports['add_assoc_null_ex'];
 		_add_assoc_bool_ex = Module['_add_assoc_bool_ex'] =
 			wasmExports['add_assoc_bool_ex'];
+		_add_assoc_resource_ex = Module['_add_assoc_resource_ex'] =
+			wasmExports['add_assoc_resource_ex'];
+		_add_assoc_double_ex = Module['_add_assoc_double_ex'] =
+			wasmExports['add_assoc_double_ex'];
 		_add_assoc_str_ex = Module['_add_assoc_str_ex'] =
 			wasmExports['add_assoc_str_ex'];
 		_add_assoc_string_ex = Module['_add_assoc_string_ex'] =
 			wasmExports['add_assoc_string_ex'];
+		_add_assoc_stringl_ex = Module['_add_assoc_stringl_ex'] =
+			wasmExports['add_assoc_stringl_ex'];
+		_add_assoc_zval_ex = Module['_add_assoc_zval_ex'] =
+			wasmExports['add_assoc_zval_ex'];
+		_add_index_long = Module['_add_index_long'] =
+			wasmExports['add_index_long'];
+		_add_index_null = Module['_add_index_null'] =
+			wasmExports['add_index_null'];
+		_add_index_bool = Module['_add_index_bool'] =
+			wasmExports['add_index_bool'];
+		_add_index_resource = Module['_add_index_resource'] =
+			wasmExports['add_index_resource'];
+		_add_index_double = Module['_add_index_double'] =
+			wasmExports['add_index_double'];
+		_add_index_str = Module['_add_index_str'] =
+			wasmExports['add_index_str'];
 		_add_index_string = Module['_add_index_string'] =
 			wasmExports['add_index_string'];
+		_add_index_stringl = Module['_add_index_stringl'] =
+			wasmExports['add_index_stringl'];
 		_add_next_index_long = Module['_add_next_index_long'] =
 			wasmExports['add_next_index_long'];
+		_add_next_index_null = Module['_add_next_index_null'] =
+			wasmExports['add_next_index_null'];
+		_add_next_index_bool = Module['_add_next_index_bool'] =
+			wasmExports['add_next_index_bool'];
+		_add_next_index_resource = Module['_add_next_index_resource'] =
+			wasmExports['add_next_index_resource'];
+		_add_next_index_double = Module['_add_next_index_double'] =
+			wasmExports['add_next_index_double'];
 		_add_next_index_str = Module['_add_next_index_str'] =
 			wasmExports['add_next_index_str'];
 		_add_next_index_string = Module['_add_next_index_string'] =
 			wasmExports['add_next_index_string'];
 		_add_next_index_stringl = Module['_add_next_index_stringl'] =
 			wasmExports['add_next_index_stringl'];
+		_array_set_zval_key = Module['_array_set_zval_key'] =
+			wasmExports['array_set_zval_key'];
+		_add_property_long_ex = Module['_add_property_long_ex'] =
+			wasmExports['add_property_long_ex'];
+		_add_property_zval_ex = Module['_add_property_zval_ex'] =
+			wasmExports['add_property_zval_ex'];
+		_add_property_bool_ex = Module['_add_property_bool_ex'] =
+			wasmExports['add_property_bool_ex'];
+		_add_property_null_ex = Module['_add_property_null_ex'] =
+			wasmExports['add_property_null_ex'];
+		_add_property_resource_ex = Module['_add_property_resource_ex'] =
+			wasmExports['add_property_resource_ex'];
+		_add_property_double_ex = Module['_add_property_double_ex'] =
+			wasmExports['add_property_double_ex'];
+		_add_property_str_ex = Module['_add_property_str_ex'] =
+			wasmExports['add_property_str_ex'];
+		_add_property_string_ex = Module['_add_property_string_ex'] =
+			wasmExports['add_property_string_ex'];
+		_add_property_stringl_ex = Module['_add_property_stringl_ex'] =
+			wasmExports['add_property_stringl_ex'];
+		_zend_startup_module_ex = Module['_zend_startup_module_ex'] =
+			wasmExports['zend_startup_module_ex'];
+		_zend_collect_module_handlers = Module[
+			'_zend_collect_module_handlers'
+		] = wasmExports['zend_collect_module_handlers'];
+		_zend_startup_modules = Module['_zend_startup_modules'] =
+			wasmExports['zend_startup_modules'];
+		_zend_destroy_modules = Module['_zend_destroy_modules'] =
+			wasmExports['zend_destroy_modules'];
+		_zend_register_module_ex = Module['_zend_register_module_ex'] =
+			wasmExports['zend_register_module_ex'];
+		_zend_register_functions = Module['_zend_register_functions'] =
+			wasmExports['zend_register_functions'];
+		_zend_unregister_functions = Module['_zend_unregister_functions'] =
+			wasmExports['zend_unregister_functions'];
+		_zend_check_magic_method_implementation = Module[
+			'_zend_check_magic_method_implementation'
+		] = wasmExports['zend_check_magic_method_implementation'];
+		_zend_add_magic_method = Module['_zend_add_magic_method'] =
+			wasmExports['zend_add_magic_method'];
+		_zend_register_internal_module = Module[
+			'_zend_register_internal_module'
+		] = wasmExports['zend_register_internal_module'];
+		_zend_next_free_module = Module['_zend_next_free_module'] =
+			wasmExports['zend_next_free_module'];
+		_zend_startup_module = Module['_zend_startup_module'] =
+			wasmExports['zend_startup_module'];
+		_zend_get_module_started = Module['_zend_get_module_started'] =
+			wasmExports['zend_get_module_started'];
+		_module_destructor = Module['_module_destructor'] =
+			wasmExports['module_destructor'];
+		_zend_activate_modules = Module['_zend_activate_modules'] =
+			wasmExports['zend_activate_modules'];
+		_zend_deactivate_modules = Module['_zend_deactivate_modules'] =
+			wasmExports['zend_deactivate_modules'];
+		_zend_cleanup_internal_classes = Module[
+			'_zend_cleanup_internal_classes'
+		] = wasmExports['zend_cleanup_internal_classes'];
+		_zend_post_deactivate_modules = Module[
+			'_zend_post_deactivate_modules'
+		] = wasmExports['zend_post_deactivate_modules'];
 		_zend_register_internal_class_ex = Module[
 			'_zend_register_internal_class_ex'
 		] = wasmExports['zend_register_internal_class_ex'];
@@ -8553,71 +24620,392 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_register_internal_interface = Module[
 			'_zend_register_internal_interface'
 		] = wasmExports['zend_register_internal_interface'];
+		_zend_register_class_alias_ex = Module[
+			'_zend_register_class_alias_ex'
+		] = wasmExports['zend_register_class_alias_ex'];
+		_zend_set_hash_symbol = Module['_zend_set_hash_symbol'] =
+			wasmExports['zend_set_hash_symbol'];
+		_zend_disable_functions = Module['_zend_disable_functions'] =
+			wasmExports['zend_disable_functions'];
+		_zend_disable_class = Module['_zend_disable_class'] =
+			wasmExports['zend_disable_class'];
+		_zend_get_callable_name_ex = Module['_zend_get_callable_name_ex'] =
+			wasmExports['zend_get_callable_name_ex'];
+		_zend_get_callable_name = Module['_zend_get_callable_name'] =
+			wasmExports['zend_get_callable_name'];
+		_zend_is_callable_ex = Module['_zend_is_callable_ex'] =
+			wasmExports['zend_is_callable_ex'];
 		_zend_is_callable = Module['_zend_is_callable'] =
 			wasmExports['zend_is_callable'];
+		_zend_make_callable = Module['_zend_make_callable'] =
+			wasmExports['zend_make_callable'];
 		_zend_fcall_info_init = Module['_zend_fcall_info_init'] =
 			wasmExports['zend_fcall_info_init'];
+		_zend_fcall_info_args_clear = Module['_zend_fcall_info_args_clear'] =
+			wasmExports['zend_fcall_info_args_clear'];
+		_zend_fcall_info_args_save = Module['_zend_fcall_info_args_save'] =
+			wasmExports['zend_fcall_info_args_save'];
+		_zend_fcall_info_args_restore = Module[
+			'_zend_fcall_info_args_restore'
+		] = wasmExports['zend_fcall_info_args_restore'];
+		_zend_fcall_info_args_ex = Module['_zend_fcall_info_args_ex'] =
+			wasmExports['zend_fcall_info_args_ex'];
+		_zend_fcall_info_args = Module['_zend_fcall_info_args'] =
+			wasmExports['zend_fcall_info_args'];
+		_zend_fcall_info_argp = Module['_zend_fcall_info_argp'] =
+			wasmExports['zend_fcall_info_argp'];
+		_zend_fcall_info_argv = Module['_zend_fcall_info_argv'] =
+			wasmExports['zend_fcall_info_argv'];
+		_zend_fcall_info_argn = Module['_zend_fcall_info_argn'] =
+			wasmExports['zend_fcall_info_argn'];
+		_zend_fcall_info_call = Module['_zend_fcall_info_call'] =
+			wasmExports['zend_fcall_info_call'];
+		_zend_get_module_version = Module['_zend_get_module_version'] =
+			wasmExports['zend_get_module_version'];
+		_zend_declare_typed_property = Module['_zend_declare_typed_property'] =
+			wasmExports['zend_declare_typed_property'];
+		_zend_try_assign_typed_ref_ex = Module[
+			'_zend_try_assign_typed_ref_ex'
+		] = wasmExports['zend_try_assign_typed_ref_ex'];
+		_zend_try_assign_typed_ref = Module['_zend_try_assign_typed_ref'] =
+			wasmExports['zend_try_assign_typed_ref'];
+		_zend_try_assign_typed_ref_null = Module[
+			'_zend_try_assign_typed_ref_null'
+		] = wasmExports['zend_try_assign_typed_ref_null'];
+		_zend_try_assign_typed_ref_bool = Module[
+			'_zend_try_assign_typed_ref_bool'
+		] = wasmExports['zend_try_assign_typed_ref_bool'];
 		_zend_try_assign_typed_ref_long = Module[
 			'_zend_try_assign_typed_ref_long'
 		] = wasmExports['zend_try_assign_typed_ref_long'];
+		_zend_try_assign_typed_ref_double = Module[
+			'_zend_try_assign_typed_ref_double'
+		] = wasmExports['zend_try_assign_typed_ref_double'];
+		_zend_try_assign_typed_ref_empty_string = Module[
+			'_zend_try_assign_typed_ref_empty_string'
+		] = wasmExports['zend_try_assign_typed_ref_empty_string'];
+		_zend_try_assign_typed_ref_str = Module[
+			'_zend_try_assign_typed_ref_str'
+		] = wasmExports['zend_try_assign_typed_ref_str'];
+		_zend_try_assign_typed_ref_string = Module[
+			'_zend_try_assign_typed_ref_string'
+		] = wasmExports['zend_try_assign_typed_ref_string'];
+		_zend_try_assign_typed_ref_stringl = Module[
+			'_zend_try_assign_typed_ref_stringl'
+		] = wasmExports['zend_try_assign_typed_ref_stringl'];
 		_zend_try_assign_typed_ref_arr = Module[
 			'_zend_try_assign_typed_ref_arr'
 		] = wasmExports['zend_try_assign_typed_ref_arr'];
+		_zend_try_assign_typed_ref_res = Module[
+			'_zend_try_assign_typed_ref_res'
+		] = wasmExports['zend_try_assign_typed_ref_res'];
+		_zend_try_assign_typed_ref_zval = Module[
+			'_zend_try_assign_typed_ref_zval'
+		] = wasmExports['zend_try_assign_typed_ref_zval'];
+		_zend_try_assign_typed_ref_zval_ex = Module[
+			'_zend_try_assign_typed_ref_zval_ex'
+		] = wasmExports['zend_try_assign_typed_ref_zval_ex'];
+		_zend_declare_property_ex = Module['_zend_declare_property_ex'] =
+			wasmExports['zend_declare_property_ex'];
 		_zend_declare_property = Module['_zend_declare_property'] =
 			wasmExports['zend_declare_property'];
 		_zend_declare_property_null = Module['_zend_declare_property_null'] =
 			wasmExports['zend_declare_property_null'];
+		_zend_declare_property_bool = Module['_zend_declare_property_bool'] =
+			wasmExports['zend_declare_property_bool'];
+		_zend_declare_property_long = Module['_zend_declare_property_long'] =
+			wasmExports['zend_declare_property_long'];
+		_zend_declare_property_double = Module[
+			'_zend_declare_property_double'
+		] = wasmExports['zend_declare_property_double'];
+		_zend_declare_property_string = Module[
+			'_zend_declare_property_string'
+		] = wasmExports['zend_declare_property_string'];
+		_zend_declare_property_stringl = Module[
+			'_zend_declare_property_stringl'
+		] = wasmExports['zend_declare_property_stringl'];
 		_zend_declare_class_constant_ex = Module[
 			'_zend_declare_class_constant_ex'
 		] = wasmExports['zend_declare_class_constant_ex'];
+		_zend_declare_class_constant = Module['_zend_declare_class_constant'] =
+			wasmExports['zend_declare_class_constant'];
 		_zend_declare_class_constant_null = Module[
 			'_zend_declare_class_constant_null'
 		] = wasmExports['zend_declare_class_constant_null'];
 		_zend_declare_class_constant_long = Module[
 			'_zend_declare_class_constant_long'
 		] = wasmExports['zend_declare_class_constant_long'];
+		_zend_declare_class_constant_bool = Module[
+			'_zend_declare_class_constant_bool'
+		] = wasmExports['zend_declare_class_constant_bool'];
 		_zend_declare_class_constant_double = Module[
 			'_zend_declare_class_constant_double'
 		] = wasmExports['zend_declare_class_constant_double'];
+		_zend_declare_class_constant_stringl = Module[
+			'_zend_declare_class_constant_stringl'
+		] = wasmExports['zend_declare_class_constant_stringl'];
 		_zend_declare_class_constant_string = Module[
 			'_zend_declare_class_constant_string'
 		] = wasmExports['zend_declare_class_constant_string'];
+		_zend_update_property_ex = Module['_zend_update_property_ex'] =
+			wasmExports['zend_update_property_ex'];
 		_zend_update_property = Module['_zend_update_property'] =
 			wasmExports['zend_update_property'];
+		_zend_update_property_null = Module['_zend_update_property_null'] =
+			wasmExports['zend_update_property_null'];
+		_zend_unset_property = Module['_zend_unset_property'] =
+			wasmExports['zend_unset_property'];
+		_zend_update_property_bool = Module['_zend_update_property_bool'] =
+			wasmExports['zend_update_property_bool'];
+		_zend_update_property_long = Module['_zend_update_property_long'] =
+			wasmExports['zend_update_property_long'];
+		_zend_update_property_double = Module['_zend_update_property_double'] =
+			wasmExports['zend_update_property_double'];
+		_zend_update_property_str = Module['_zend_update_property_str'] =
+			wasmExports['zend_update_property_str'];
+		_zend_update_property_string = Module['_zend_update_property_string'] =
+			wasmExports['zend_update_property_string'];
+		_zend_update_property_stringl = Module[
+			'_zend_update_property_stringl'
+		] = wasmExports['zend_update_property_stringl'];
+		_zend_update_static_property_ex = Module[
+			'_zend_update_static_property_ex'
+		] = wasmExports['zend_update_static_property_ex'];
+		_zend_update_static_property = Module['_zend_update_static_property'] =
+			wasmExports['zend_update_static_property'];
+		_zend_update_static_property_null = Module[
+			'_zend_update_static_property_null'
+		] = wasmExports['zend_update_static_property_null'];
+		_zend_update_static_property_bool = Module[
+			'_zend_update_static_property_bool'
+		] = wasmExports['zend_update_static_property_bool'];
+		_zend_update_static_property_long = Module[
+			'_zend_update_static_property_long'
+		] = wasmExports['zend_update_static_property_long'];
+		_zend_update_static_property_double = Module[
+			'_zend_update_static_property_double'
+		] = wasmExports['zend_update_static_property_double'];
+		_zend_update_static_property_string = Module[
+			'_zend_update_static_property_string'
+		] = wasmExports['zend_update_static_property_string'];
+		_zend_update_static_property_stringl = Module[
+			'_zend_update_static_property_stringl'
+		] = wasmExports['zend_update_static_property_stringl'];
+		_zend_read_property_ex = Module['_zend_read_property_ex'] =
+			wasmExports['zend_read_property_ex'];
+		_zend_read_property = Module['_zend_read_property'] =
+			wasmExports['zend_read_property'];
+		_zend_read_static_property_ex = Module[
+			'_zend_read_static_property_ex'
+		] = wasmExports['zend_read_static_property_ex'];
+		_zend_read_static_property = Module['_zend_read_static_property'] =
+			wasmExports['zend_read_static_property'];
+		_zend_save_error_handling = Module['_zend_save_error_handling'] =
+			wasmExports['zend_save_error_handling'];
 		_zend_replace_error_handling = Module['_zend_replace_error_handling'] =
 			wasmExports['zend_replace_error_handling'];
 		_zend_restore_error_handling = Module['_zend_restore_error_handling'] =
 			wasmExports['zend_restore_error_handling'];
+		_zend_get_object_type = Module['_zend_get_object_type'] =
+			wasmExports['zend_get_object_type'];
 		_zend_is_iterable = Module['_zend_is_iterable'] =
 			wasmExports['zend_is_iterable'];
+		_zend_is_countable = Module['_zend_is_countable'] =
+			wasmExports['zend_is_countable'];
+		_zend_get_default_from_internal_arg_info = Module[
+			'_zend_get_default_from_internal_arg_info'
+		] = wasmExports['zend_get_default_from_internal_arg_info'];
+		_zend_load_extension = Module['_zend_load_extension'] =
+			wasmExports['zend_load_extension'];
+		_zend_load_extension_handle = Module['_zend_load_extension_handle'] =
+			wasmExports['zend_load_extension_handle'];
+		_zend_get_extension = Module['_zend_get_extension'] =
+			wasmExports['zend_get_extension'];
+		_zend_register_extension = Module['_zend_register_extension'] =
+			wasmExports['zend_register_extension'];
+		_zend_extension_dispatch_message = Module[
+			'_zend_extension_dispatch_message'
+		] = wasmExports['zend_extension_dispatch_message'];
+		_zend_startup_extensions_mechanism = Module[
+			'_zend_startup_extensions_mechanism'
+		] = wasmExports['zend_startup_extensions_mechanism'];
+		_zend_extension_dtor = Module['_zend_extension_dtor'] =
+			wasmExports['zend_extension_dtor'];
+		_zend_startup_extensions = Module['_zend_startup_extensions'] =
+			wasmExports['zend_startup_extensions'];
+		_zend_shutdown_extensions = Module['_zend_shutdown_extensions'] =
+			wasmExports['zend_shutdown_extensions'];
+		_zend_get_resource_handle = Module['_zend_get_resource_handle'] =
+			wasmExports['zend_get_resource_handle'];
+		_zend_get_op_array_extension_handle = Module[
+			'_zend_get_op_array_extension_handle'
+		] = wasmExports['zend_get_op_array_extension_handle'];
+		_zend_get_op_array_extension_handles = Module[
+			'_zend_get_op_array_extension_handles'
+		] = wasmExports['zend_get_op_array_extension_handles'];
+		_zend_extensions_op_array_persist_calc = Module[
+			'_zend_extensions_op_array_persist_calc'
+		] = wasmExports['zend_extensions_op_array_persist_calc'];
+		_zend_extensions_op_array_persist = Module[
+			'_zend_extensions_op_array_persist'
+		] = wasmExports['zend_extensions_op_array_persist'];
+		_zend_hash_str_find_ptr_lc = Module['_zend_hash_str_find_ptr_lc'] =
+			wasmExports['zend_hash_str_find_ptr_lc'];
 		_zend_hash_str_find = Module['_zend_hash_str_find'] =
 			wasmExports['zend_hash_str_find'];
+		_zend_hash_find_ptr_lc = Module['_zend_hash_find_ptr_lc'] =
+			wasmExports['zend_hash_find_ptr_lc'];
 		__zend_hash_init = Module['__zend_hash_init'] =
 			wasmExports['_zend_hash_init'];
 		__zend_new_array_0 = Module['__zend_new_array_0'] =
 			wasmExports['_zend_new_array_0'];
 		__zend_new_array = Module['__zend_new_array'] =
 			wasmExports['_zend_new_array'];
+		_zend_new_pair = Module['_zend_new_pair'] =
+			wasmExports['zend_new_pair'];
+		_zend_hash_real_init = Module['_zend_hash_real_init'] =
+			wasmExports['zend_hash_real_init'];
+		_zend_hash_real_init_packed = Module['_zend_hash_real_init_packed'] =
+			wasmExports['zend_hash_real_init_packed'];
+		_zend_hash_real_init_mixed = Module['_zend_hash_real_init_mixed'] =
+			wasmExports['zend_hash_real_init_mixed'];
+		_zend_hash_packed_to_hash = Module['_zend_hash_packed_to_hash'] =
+			wasmExports['zend_hash_packed_to_hash'];
+		_zend_hash_rehash = Module['_zend_hash_rehash'] =
+			wasmExports['zend_hash_rehash'];
+		_zend_hash_to_packed = Module['_zend_hash_to_packed'] =
+			wasmExports['zend_hash_to_packed'];
+		_zend_hash_extend = Module['_zend_hash_extend'] =
+			wasmExports['zend_hash_extend'];
+		_zend_hash_discard = Module['_zend_hash_discard'] =
+			wasmExports['zend_hash_discard'];
 		_zend_array_count = Module['_zend_array_count'] =
 			wasmExports['zend_array_count'];
+		_zend_hash_get_current_pos = Module['_zend_hash_get_current_pos'] =
+			wasmExports['zend_hash_get_current_pos'];
+		_zend_hash_iterator_add = Module['_zend_hash_iterator_add'] =
+			wasmExports['zend_hash_iterator_add'];
+		_zend_hash_iterator_pos = Module['_zend_hash_iterator_pos'] =
+			wasmExports['zend_hash_iterator_pos'];
+		_zend_hash_iterator_pos_ex = Module['_zend_hash_iterator_pos_ex'] =
+			wasmExports['zend_hash_iterator_pos_ex'];
+		_zend_array_dup = Module['_zend_array_dup'] =
+			wasmExports['zend_array_dup'];
+		_zend_hash_iterator_del = Module['_zend_hash_iterator_del'] =
+			wasmExports['zend_hash_iterator_del'];
+		_zend_hash_iterators_lower_pos = Module[
+			'_zend_hash_iterators_lower_pos'
+		] = wasmExports['zend_hash_iterators_lower_pos'];
+		__zend_hash_iterators_update = Module['__zend_hash_iterators_update'] =
+			wasmExports['_zend_hash_iterators_update'];
+		_zend_hash_iterators_advance = Module['_zend_hash_iterators_advance'] =
+			wasmExports['zend_hash_iterators_advance'];
+		_zend_hash_add_or_update = Module['_zend_hash_add_or_update'] =
+			wasmExports['zend_hash_add_or_update'];
+		_zend_hash_add = Module['_zend_hash_add'] =
+			wasmExports['zend_hash_add'];
+		_zend_hash_add_new = Module['_zend_hash_add_new'] =
+			wasmExports['zend_hash_add_new'];
 		_zend_hash_update = Module['_zend_hash_update'] =
 			wasmExports['zend_hash_update'];
+		_zend_hash_update_ind = Module['_zend_hash_update_ind'] =
+			wasmExports['zend_hash_update_ind'];
+		_zend_hash_str_add_or_update = Module['_zend_hash_str_add_or_update'] =
+			wasmExports['zend_hash_str_add_or_update'];
+		_zend_hash_str_add = Module['_zend_hash_str_add'] =
+			wasmExports['zend_hash_str_add'];
+		_zend_hash_str_add_new = Module['_zend_hash_str_add_new'] =
+			wasmExports['zend_hash_str_add_new'];
 		_zend_hash_str_update = Module['_zend_hash_str_update'] =
 			wasmExports['zend_hash_str_update'];
+		_zend_hash_str_update_ind = Module['_zend_hash_str_update_ind'] =
+			wasmExports['zend_hash_str_update_ind'];
+		_zend_hash_index_add_empty_element = Module[
+			'_zend_hash_index_add_empty_element'
+		] = wasmExports['zend_hash_index_add_empty_element'];
+		_zend_hash_index_add = Module['_zend_hash_index_add'] =
+			wasmExports['zend_hash_index_add'];
+		_zend_hash_add_empty_element = Module['_zend_hash_add_empty_element'] =
+			wasmExports['zend_hash_add_empty_element'];
+		_zend_hash_str_add_empty_element = Module[
+			'_zend_hash_str_add_empty_element'
+		] = wasmExports['zend_hash_str_add_empty_element'];
+		_zend_hash_index_add_or_update = Module[
+			'_zend_hash_index_add_or_update'
+		] = wasmExports['zend_hash_index_add_or_update'];
+		_zend_hash_index_add_new = Module['_zend_hash_index_add_new'] =
+			wasmExports['zend_hash_index_add_new'];
 		_zend_hash_next_index_insert = Module['_zend_hash_next_index_insert'] =
 			wasmExports['zend_hash_next_index_insert'];
+		_zend_hash_next_index_insert_new = Module[
+			'_zend_hash_next_index_insert_new'
+		] = wasmExports['zend_hash_next_index_insert_new'];
 		_zend_hash_index_update = Module['_zend_hash_index_update'] =
 			wasmExports['zend_hash_index_update'];
+		_zend_hash_set_bucket_key = Module['_zend_hash_set_bucket_key'] =
+			wasmExports['zend_hash_set_bucket_key'];
+		_zend_hash_del_bucket = Module['_zend_hash_del_bucket'] =
+			wasmExports['zend_hash_del_bucket'];
+		_zend_hash_del = Module['_zend_hash_del'] =
+			wasmExports['zend_hash_del'];
+		_zend_hash_del_ind = Module['_zend_hash_del_ind'] =
+			wasmExports['zend_hash_del_ind'];
+		_zend_hash_str_del_ind = Module['_zend_hash_str_del_ind'] =
+			wasmExports['zend_hash_str_del_ind'];
+		_zend_hash_str_del = Module['_zend_hash_str_del'] =
+			wasmExports['zend_hash_str_del'];
+		_zend_hash_index_del = Module['_zend_hash_index_del'] =
+			wasmExports['zend_hash_index_del'];
 		_zend_hash_destroy = Module['_zend_hash_destroy'] =
 			wasmExports['zend_hash_destroy'];
 		_zend_array_destroy = Module['_zend_array_destroy'] =
 			wasmExports['zend_array_destroy'];
+		_zend_hash_clean = Module['_zend_hash_clean'] =
+			wasmExports['zend_hash_clean'];
+		_zend_symtable_clean = Module['_zend_symtable_clean'] =
+			wasmExports['zend_symtable_clean'];
+		_zend_hash_graceful_destroy = Module['_zend_hash_graceful_destroy'] =
+			wasmExports['zend_hash_graceful_destroy'];
+		_zend_hash_graceful_reverse_destroy = Module[
+			'_zend_hash_graceful_reverse_destroy'
+		] = wasmExports['zend_hash_graceful_reverse_destroy'];
+		_zend_hash_apply = Module['_zend_hash_apply'] =
+			wasmExports['zend_hash_apply'];
+		_zend_hash_apply_with_argument = Module[
+			'_zend_hash_apply_with_argument'
+		] = wasmExports['zend_hash_apply_with_argument'];
+		_zend_hash_apply_with_arguments = Module[
+			'_zend_hash_apply_with_arguments'
+		] = wasmExports['zend_hash_apply_with_arguments'];
+		_zend_hash_reverse_apply = Module['_zend_hash_reverse_apply'] =
+			wasmExports['zend_hash_reverse_apply'];
 		_zend_hash_copy = Module['_zend_hash_copy'] =
 			wasmExports['zend_hash_copy'];
+		_zend_hash_merge = Module['_zend_hash_merge'] =
+			wasmExports['zend_hash_merge'];
+		_zend_hash_merge_ex = Module['_zend_hash_merge_ex'] =
+			wasmExports['zend_hash_merge_ex'];
+		_zend_hash_find = Module['_zend_hash_find'] =
+			wasmExports['zend_hash_find'];
+		__zend_hash_find_known_hash = Module['__zend_hash_find_known_hash'] =
+			wasmExports['_zend_hash_find_known_hash'];
 		_zend_hash_index_find = Module['_zend_hash_index_find'] =
 			wasmExports['zend_hash_index_find'];
+		__zend_hash_index_find = Module['__zend_hash_index_find'] =
+			wasmExports['_zend_hash_index_find'];
+		_zend_hash_internal_pointer_reset_ex = Module[
+			'_zend_hash_internal_pointer_reset_ex'
+		] = wasmExports['zend_hash_internal_pointer_reset_ex'];
+		_zend_hash_internal_pointer_end_ex = Module[
+			'_zend_hash_internal_pointer_end_ex'
+		] = wasmExports['zend_hash_internal_pointer_end_ex'];
 		_zend_hash_move_forward_ex = Module['_zend_hash_move_forward_ex'] =
 			wasmExports['zend_hash_move_forward_ex'];
+		_zend_hash_move_backwards_ex = Module['_zend_hash_move_backwards_ex'] =
+			wasmExports['zend_hash_move_backwards_ex'];
+		_zend_hash_get_current_key_ex = Module[
+			'_zend_hash_get_current_key_ex'
+		] = wasmExports['zend_hash_get_current_key_ex'];
 		_zend_hash_get_current_key_zval_ex = Module[
 			'_zend_hash_get_current_key_zval_ex'
 		] = wasmExports['zend_hash_get_current_key_zval_ex'];
@@ -8627,29 +25015,565 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_hash_get_current_data_ex = Module[
 			'_zend_hash_get_current_data_ex'
 		] = wasmExports['zend_hash_get_current_data_ex'];
+		_zend_hash_bucket_swap = Module['_zend_hash_bucket_swap'] =
+			wasmExports['zend_hash_bucket_swap'];
+		_zend_hash_bucket_renum_swap = Module['_zend_hash_bucket_renum_swap'] =
+			wasmExports['zend_hash_bucket_renum_swap'];
+		_zend_hash_bucket_packed_swap = Module[
+			'_zend_hash_bucket_packed_swap'
+		] = wasmExports['zend_hash_bucket_packed_swap'];
 		_zend_hash_sort_ex = Module['_zend_hash_sort_ex'] =
 			wasmExports['zend_hash_sort_ex'];
+		_zend_hash_compare = Module['_zend_hash_compare'] =
+			wasmExports['zend_hash_compare'];
+		_zend_hash_minmax = Module['_zend_hash_minmax'] =
+			wasmExports['zend_hash_minmax'];
+		__zend_handle_numeric_str_ex = Module['__zend_handle_numeric_str_ex'] =
+			wasmExports['_zend_handle_numeric_str_ex'];
+		_zend_symtable_to_proptable = Module['_zend_symtable_to_proptable'] =
+			wasmExports['zend_symtable_to_proptable'];
+		_zend_proptable_to_symtable = Module['_zend_proptable_to_symtable'] =
+			wasmExports['zend_proptable_to_symtable'];
+		_zend_list_insert = Module['_zend_list_insert'] =
+			wasmExports['zend_list_insert'];
+		_zend_list_delete = Module['_zend_list_delete'] =
+			wasmExports['zend_list_delete'];
+		_zend_list_free = Module['_zend_list_free'] =
+			wasmExports['zend_list_free'];
+		_zend_list_close = Module['_zend_list_close'] =
+			wasmExports['zend_list_close'];
+		_zend_register_resource = Module['_zend_register_resource'] =
+			wasmExports['zend_register_resource'];
+		_zend_fetch_resource2 = Module['_zend_fetch_resource2'] =
+			wasmExports['zend_fetch_resource2'];
+		_zend_fetch_resource = Module['_zend_fetch_resource'] =
+			wasmExports['zend_fetch_resource'];
+		_zend_fetch_resource_ex = Module['_zend_fetch_resource_ex'] =
+			wasmExports['zend_fetch_resource_ex'];
+		_zend_fetch_resource2_ex = Module['_zend_fetch_resource2_ex'] =
+			wasmExports['zend_fetch_resource2_ex'];
+		_list_entry_destructor = Module['_list_entry_destructor'] =
+			wasmExports['list_entry_destructor'];
+		_plist_entry_destructor = Module['_plist_entry_destructor'] =
+			wasmExports['plist_entry_destructor'];
+		_zend_init_rsrc_list = Module['_zend_init_rsrc_list'] =
+			wasmExports['zend_init_rsrc_list'];
+		_zend_init_rsrc_plist = Module['_zend_init_rsrc_plist'] =
+			wasmExports['zend_init_rsrc_plist'];
+		_zend_close_rsrc_list = Module['_zend_close_rsrc_list'] =
+			wasmExports['zend_close_rsrc_list'];
+		_zend_destroy_rsrc_list = Module['_zend_destroy_rsrc_list'] =
+			wasmExports['zend_destroy_rsrc_list'];
+		_zend_clean_module_rsrc_dtors = Module[
+			'_zend_clean_module_rsrc_dtors'
+		] = wasmExports['zend_clean_module_rsrc_dtors'];
+		_zend_register_list_destructors_ex = Module[
+			'_zend_register_list_destructors_ex'
+		] = wasmExports['zend_register_list_destructors_ex'];
+		_zend_fetch_list_dtor_id = Module['_zend_fetch_list_dtor_id'] =
+			wasmExports['zend_fetch_list_dtor_id'];
+		_zend_init_rsrc_list_dtors = Module['_zend_init_rsrc_list_dtors'] =
+			wasmExports['zend_init_rsrc_list_dtors'];
+		_zend_destroy_rsrc_list_dtors = Module[
+			'_zend_destroy_rsrc_list_dtors'
+		] = wasmExports['zend_destroy_rsrc_list_dtors'];
+		_zend_rsrc_list_get_rsrc_type = Module[
+			'_zend_rsrc_list_get_rsrc_type'
+		] = wasmExports['zend_rsrc_list_get_rsrc_type'];
+		_zend_register_persistent_resource_ex = Module[
+			'_zend_register_persistent_resource_ex'
+		] = wasmExports['zend_register_persistent_resource_ex'];
+		_zend_register_persistent_resource = Module[
+			'_zend_register_persistent_resource'
+		] = wasmExports['zend_register_persistent_resource'];
+		_zm_startup_core = Module['_zm_startup_core'] =
+			wasmExports['zm_startup_core'];
+		_zend_startup_builtin_functions = Module[
+			'_zend_startup_builtin_functions'
+		] = wasmExports['zend_startup_builtin_functions'];
+		_zif_zend_version = Module['_zif_zend_version'] =
+			wasmExports['zif_zend_version'];
+		_zif_gc_mem_caches = Module['_zif_gc_mem_caches'] =
+			wasmExports['zif_gc_mem_caches'];
+		_zif_gc_collect_cycles = Module['_zif_gc_collect_cycles'] =
+			wasmExports['zif_gc_collect_cycles'];
+		_zif_gc_enabled = Module['_zif_gc_enabled'] =
+			wasmExports['zif_gc_enabled'];
+		_zif_gc_enable = Module['_zif_gc_enable'] =
+			wasmExports['zif_gc_enable'];
+		_zif_gc_disable = Module['_zif_gc_disable'] =
+			wasmExports['zif_gc_disable'];
+		_zif_gc_status = Module['_zif_gc_status'] =
+			wasmExports['zif_gc_status'];
+		_zif_func_num_args = Module['_zif_func_num_args'] =
+			wasmExports['zif_func_num_args'];
+		_zif_func_get_arg = Module['_zif_func_get_arg'] =
+			wasmExports['zif_func_get_arg'];
+		_zif_func_get_args = Module['_zif_func_get_args'] =
+			wasmExports['zif_func_get_args'];
+		_zif_strlen = Module['_zif_strlen'] = wasmExports['zif_strlen'];
+		_zif_strcmp = Module['_zif_strcmp'] = wasmExports['zif_strcmp'];
+		_zif_strncmp = Module['_zif_strncmp'] = wasmExports['zif_strncmp'];
+		_zif_strcasecmp = Module['_zif_strcasecmp'] =
+			wasmExports['zif_strcasecmp'];
+		_zif_strncasecmp = Module['_zif_strncasecmp'] =
+			wasmExports['zif_strncasecmp'];
+		_zif_error_reporting = Module['_zif_error_reporting'] =
+			wasmExports['zif_error_reporting'];
+		_zif_define = Module['_zif_define'] = wasmExports['zif_define'];
+		_zif_defined = Module['_zif_defined'] = wasmExports['zif_defined'];
+		_zif_get_class = Module['_zif_get_class'] =
+			wasmExports['zif_get_class'];
+		_zif_get_called_class = Module['_zif_get_called_class'] =
+			wasmExports['zif_get_called_class'];
+		_zif_get_parent_class = Module['_zif_get_parent_class'] =
+			wasmExports['zif_get_parent_class'];
+		_zif_is_subclass_of = Module['_zif_is_subclass_of'] =
+			wasmExports['zif_is_subclass_of'];
+		_zif_is_a = Module['_zif_is_a'] = wasmExports['zif_is_a'];
+		_zif_get_class_vars = Module['_zif_get_class_vars'] =
+			wasmExports['zif_get_class_vars'];
+		_zif_get_object_vars = Module['_zif_get_object_vars'] =
+			wasmExports['zif_get_object_vars'];
+		_zif_get_mangled_object_vars = Module['_zif_get_mangled_object_vars'] =
+			wasmExports['zif_get_mangled_object_vars'];
+		_zif_get_class_methods = Module['_zif_get_class_methods'] =
+			wasmExports['zif_get_class_methods'];
+		_zif_method_exists = Module['_zif_method_exists'] =
+			wasmExports['zif_method_exists'];
+		_zif_property_exists = Module['_zif_property_exists'] =
+			wasmExports['zif_property_exists'];
+		_zif_class_exists = Module['_zif_class_exists'] =
+			wasmExports['zif_class_exists'];
+		_zif_interface_exists = Module['_zif_interface_exists'] =
+			wasmExports['zif_interface_exists'];
+		_zif_trait_exists = Module['_zif_trait_exists'] =
+			wasmExports['zif_trait_exists'];
+		_zif_function_exists = Module['_zif_function_exists'] =
+			wasmExports['zif_function_exists'];
+		_zif_class_alias = Module['_zif_class_alias'] =
+			wasmExports['zif_class_alias'];
+		_zif_get_included_files = Module['_zif_get_included_files'] =
+			wasmExports['zif_get_included_files'];
+		_zif_trigger_error = Module['_zif_trigger_error'] =
+			wasmExports['zif_trigger_error'];
+		_zif_set_error_handler = Module['_zif_set_error_handler'] =
+			wasmExports['zif_set_error_handler'];
+		_zif_restore_error_handler = Module['_zif_restore_error_handler'] =
+			wasmExports['zif_restore_error_handler'];
+		_zif_set_exception_handler = Module['_zif_set_exception_handler'] =
+			wasmExports['zif_set_exception_handler'];
+		_zif_restore_exception_handler = Module[
+			'_zif_restore_exception_handler'
+		] = wasmExports['zif_restore_exception_handler'];
+		_zif_get_declared_traits = Module['_zif_get_declared_traits'] =
+			wasmExports['zif_get_declared_traits'];
+		_zif_get_declared_classes = Module['_zif_get_declared_classes'] =
+			wasmExports['zif_get_declared_classes'];
+		_zif_get_declared_interfaces = Module['_zif_get_declared_interfaces'] =
+			wasmExports['zif_get_declared_interfaces'];
+		_zif_get_defined_functions = Module['_zif_get_defined_functions'] =
+			wasmExports['zif_get_defined_functions'];
+		_zif_get_defined_vars = Module['_zif_get_defined_vars'] =
+			wasmExports['zif_get_defined_vars'];
+		_zif_get_resource_type = Module['_zif_get_resource_type'] =
+			wasmExports['zif_get_resource_type'];
+		_zif_get_resource_id = Module['_zif_get_resource_id'] =
+			wasmExports['zif_get_resource_id'];
+		_zif_get_resources = Module['_zif_get_resources'] =
+			wasmExports['zif_get_resources'];
+		_zif_get_loaded_extensions = Module['_zif_get_loaded_extensions'] =
+			wasmExports['zif_get_loaded_extensions'];
+		_zif_get_defined_constants = Module['_zif_get_defined_constants'] =
+			wasmExports['zif_get_defined_constants'];
+		_debug_print_backtrace_args = Module['_debug_print_backtrace_args'] =
+			wasmExports['debug_print_backtrace_args'];
+		_zif_debug_print_backtrace = Module['_zif_debug_print_backtrace'] =
+			wasmExports['zif_debug_print_backtrace'];
+		_zend_fetch_debug_backtrace = Module['_zend_fetch_debug_backtrace'] =
+			wasmExports['zend_fetch_debug_backtrace'];
+		_zif_debug_backtrace = Module['_zif_debug_backtrace'] =
+			wasmExports['zif_debug_backtrace'];
+		_zif_extension_loaded = Module['_zif_extension_loaded'] =
+			wasmExports['zif_extension_loaded'];
+		_zif_get_extension_funcs = Module['_zif_get_extension_funcs'] =
+			wasmExports['zif_get_extension_funcs'];
+		_validate_attribute = Module['_validate_attribute'] =
+			wasmExports['validate_attribute'];
+		_zend_get_attribute_value = Module['_zend_get_attribute_value'] =
+			wasmExports['zend_get_attribute_value'];
+		_zim_Attribute___construct = Module['_zim_Attribute___construct'] =
+			wasmExports['zim_Attribute___construct'];
+		_zend_get_attribute = Module['_zend_get_attribute'] =
+			wasmExports['zend_get_attribute'];
+		_zend_get_attribute_str = Module['_zend_get_attribute_str'] =
+			wasmExports['zend_get_attribute_str'];
+		_zend_get_parameter_attribute = Module[
+			'_zend_get_parameter_attribute'
+		] = wasmExports['zend_get_parameter_attribute'];
+		_zend_get_parameter_attribute_str = Module[
+			'_zend_get_parameter_attribute_str'
+		] = wasmExports['zend_get_parameter_attribute_str'];
+		_zend_get_attribute_target_names = Module[
+			'_zend_get_attribute_target_names'
+		] = wasmExports['zend_get_attribute_target_names'];
+		_zend_is_attribute_repeated = Module['_zend_is_attribute_repeated'] =
+			wasmExports['zend_is_attribute_repeated'];
+		_zend_add_attribute = Module['_zend_add_attribute'] =
+			wasmExports['zend_add_attribute'];
+		_zend_internal_attribute_register = Module[
+			'_zend_internal_attribute_register'
+		] = wasmExports['zend_internal_attribute_register'];
+		_zend_internal_attribute_get = Module['_zend_internal_attribute_get'] =
+			wasmExports['zend_internal_attribute_get'];
+		_zend_register_attribute_ce = Module['_zend_register_attribute_ce'] =
+			wasmExports['zend_register_attribute_ce'];
+		_zend_attributes_shutdown = Module['_zend_attributes_shutdown'] =
+			wasmExports['zend_attributes_shutdown'];
+		_zend_vm_stack_init = Module['_zend_vm_stack_init'] =
+			wasmExports['zend_vm_stack_init'];
+		_zend_vm_stack_init_ex = Module['_zend_vm_stack_init_ex'] =
+			wasmExports['zend_vm_stack_init_ex'];
+		_zend_vm_stack_destroy = Module['_zend_vm_stack_destroy'] =
+			wasmExports['zend_vm_stack_destroy'];
+		_zend_vm_stack_extend = Module['_zend_vm_stack_extend'] =
+			wasmExports['zend_vm_stack_extend'];
+		_zend_get_compiled_variable_value = Module[
+			'_zend_get_compiled_variable_value'
+		] = wasmExports['zend_get_compiled_variable_value'];
+		_zend_cannot_pass_by_reference = Module[
+			'_zend_cannot_pass_by_reference'
+		] = wasmExports['zend_cannot_pass_by_reference'];
+		_zend_verify_arg_error = Module['_zend_verify_arg_error'] =
+			wasmExports['zend_verify_arg_error'];
+		_zend_verify_scalar_type_hint = Module[
+			'_zend_verify_scalar_type_hint'
+		] = wasmExports['zend_verify_scalar_type_hint'];
+		_zend_verify_property_type_error = Module[
+			'_zend_verify_property_type_error'
+		] = wasmExports['zend_verify_property_type_error'];
+		_zend_verify_property_type = Module['_zend_verify_property_type'] =
+			wasmExports['zend_verify_property_type'];
+		_zend_value_instanceof_static = Module[
+			'_zend_value_instanceof_static'
+		] = wasmExports['zend_value_instanceof_static'];
+		_zend_missing_arg_error = Module['_zend_missing_arg_error'] =
+			wasmExports['zend_missing_arg_error'];
+		_zend_verify_return_error = Module['_zend_verify_return_error'] =
+			wasmExports['zend_verify_return_error'];
+		_zend_deprecated_function = Module['_zend_deprecated_function'] =
+			wasmExports['zend_deprecated_function'];
+		_zend_undefined_offset_write = Module['_zend_undefined_offset_write'] =
+			wasmExports['zend_undefined_offset_write'];
+		_zend_undefined_index_write = Module['_zend_undefined_index_write'] =
+			wasmExports['zend_undefined_index_write'];
+		_zend_param_must_be_ref = Module['_zend_param_must_be_ref'] =
+			wasmExports['zend_param_must_be_ref'];
+		_zend_fetch_dimension_const = Module['_zend_fetch_dimension_const'] =
+			wasmExports['zend_fetch_dimension_const'];
+		_zend_verify_ref_array_assignable = Module[
+			'_zend_verify_ref_array_assignable'
+		] = wasmExports['zend_verify_ref_array_assignable'];
+		_zend_throw_ref_type_error_type = Module[
+			'_zend_throw_ref_type_error_type'
+		] = wasmExports['zend_throw_ref_type_error_type'];
+		_zend_throw_ref_type_error_zval = Module[
+			'_zend_throw_ref_type_error_zval'
+		] = wasmExports['zend_throw_ref_type_error_zval'];
+		_zend_throw_conflicting_coercion_error = Module[
+			'_zend_throw_conflicting_coercion_error'
+		] = wasmExports['zend_throw_conflicting_coercion_error'];
+		_zend_verify_ref_assignable_zval = Module[
+			'_zend_verify_ref_assignable_zval'
+		] = wasmExports['zend_verify_ref_assignable_zval'];
+		_zend_assign_to_typed_ref = Module['_zend_assign_to_typed_ref'] =
+			wasmExports['zend_assign_to_typed_ref'];
+		_zend_verify_prop_assignable_by_ref = Module[
+			'_zend_verify_prop_assignable_by_ref'
+		] = wasmExports['zend_verify_prop_assignable_by_ref'];
+		_zend_ref_add_type_source = Module['_zend_ref_add_type_source'] =
+			wasmExports['zend_ref_add_type_source'];
+		_zend_ref_del_type_source = Module['_zend_ref_del_type_source'] =
+			wasmExports['zend_ref_del_type_source'];
+		_execute_internal = Module['_execute_internal'] =
+			wasmExports['execute_internal'];
+		_zend_clean_and_cache_symbol_table = Module[
+			'_zend_clean_and_cache_symbol_table'
+		] = wasmExports['zend_clean_and_cache_symbol_table'];
+		_zend_free_compiled_variables = Module[
+			'_zend_free_compiled_variables'
+		] = wasmExports['zend_free_compiled_variables'];
+		_zend_fetch_function = Module['_zend_fetch_function'] =
+			wasmExports['zend_fetch_function'];
+		_zend_fetch_function_str = Module['_zend_fetch_function_str'] =
+			wasmExports['zend_fetch_function_str'];
+		_zend_init_func_run_time_cache = Module[
+			'_zend_init_func_run_time_cache'
+		] = wasmExports['zend_init_func_run_time_cache'];
+		_zend_init_func_execute_data = Module['_zend_init_func_execute_data'] =
+			wasmExports['zend_init_func_execute_data'];
+		_zend_init_code_execute_data = Module['_zend_init_code_execute_data'] =
+			wasmExports['zend_init_code_execute_data'];
+		_zend_init_execute_data = Module['_zend_init_execute_data'] =
+			wasmExports['zend_init_execute_data'];
+		_zend_vm_stack_copy_call_frame = Module[
+			'_zend_vm_stack_copy_call_frame'
+		] = wasmExports['zend_vm_stack_copy_call_frame'];
+		_zend_unfinished_calls_gc = Module['_zend_unfinished_calls_gc'] =
+			wasmExports['zend_unfinished_calls_gc'];
+		_zend_cleanup_unfinished_execution = Module[
+			'_zend_cleanup_unfinished_execution'
+		] = wasmExports['zend_cleanup_unfinished_execution'];
+		_zend_free_extra_named_params = Module[
+			'_zend_free_extra_named_params'
+		] = wasmExports['zend_free_extra_named_params'];
+		_zend_handle_named_arg = Module['_zend_handle_named_arg'] =
+			wasmExports['zend_handle_named_arg'];
+		_zend_handle_undef_args = Module['_zend_handle_undef_args'] =
+			wasmExports['zend_handle_undef_args'];
+		_execute_ex = Module['_execute_ex'] = wasmExports['execute_ex'];
 		_zend_execute = Module['_zend_execute'] = wasmExports['zend_execute'];
+		_zend_vm_init = Module['_zend_vm_init'] = wasmExports['zend_vm_init'];
+		_zend_vm_dtor = Module['_zend_vm_dtor'] = wasmExports['zend_vm_dtor'];
+		_zend_serialize_opcode_handler = Module[
+			'_zend_serialize_opcode_handler'
+		] = wasmExports['zend_serialize_opcode_handler'];
+		_zend_deserialize_opcode_handler = Module[
+			'_zend_deserialize_opcode_handler'
+		] = wasmExports['zend_deserialize_opcode_handler'];
+		_zend_get_opcode_handler_func = Module[
+			'_zend_get_opcode_handler_func'
+		] = wasmExports['zend_get_opcode_handler_func'];
+		_zend_get_halt_op = Module['_zend_get_halt_op'] =
+			wasmExports['zend_get_halt_op'];
+		_zend_vm_kind = Module['_zend_vm_kind'] = wasmExports['zend_vm_kind'];
+		_zend_vm_set_opcode_handler = Module['_zend_vm_set_opcode_handler'] =
+			wasmExports['zend_vm_set_opcode_handler'];
+		_zend_vm_set_opcode_handler_ex = Module[
+			'_zend_vm_set_opcode_handler_ex'
+		] = wasmExports['zend_vm_set_opcode_handler_ex'];
+		_zend_vm_call_opcode_handler = Module['_zend_vm_call_opcode_handler'] =
+			wasmExports['zend_vm_call_opcode_handler'];
+		_zend_set_user_opcode_handler = Module[
+			'_zend_set_user_opcode_handler'
+		] = wasmExports['zend_set_user_opcode_handler'];
+		_zend_get_user_opcode_handler = Module[
+			'_zend_get_user_opcode_handler'
+		] = wasmExports['zend_get_user_opcode_handler'];
+		_zend_get_zval_ptr = Module['_zend_get_zval_ptr'] =
+			wasmExports['zend_get_zval_ptr'];
+		_zend_ini_startup = Module['_zend_ini_startup'] =
+			wasmExports['zend_ini_startup'];
+		_zend_ini_shutdown = Module['_zend_ini_shutdown'] =
+			wasmExports['zend_ini_shutdown'];
+		_zend_ini_dtor = Module['_zend_ini_dtor'] =
+			wasmExports['zend_ini_dtor'];
+		_zend_ini_global_shutdown = Module['_zend_ini_global_shutdown'] =
+			wasmExports['zend_ini_global_shutdown'];
+		_zend_ini_deactivate = Module['_zend_ini_deactivate'] =
+			wasmExports['zend_ini_deactivate'];
+		_zend_ini_sort_entries = Module['_zend_ini_sort_entries'] =
+			wasmExports['zend_ini_sort_entries'];
 		_zend_register_ini_entries = Module['_zend_register_ini_entries'] =
 			wasmExports['zend_register_ini_entries'];
 		_zend_unregister_ini_entries = Module['_zend_unregister_ini_entries'] =
 			wasmExports['zend_unregister_ini_entries'];
 		_zend_alter_ini_entry = Module['_zend_alter_ini_entry'] =
 			wasmExports['zend_alter_ini_entry'];
+		_zend_alter_ini_entry_ex = Module['_zend_alter_ini_entry_ex'] =
+			wasmExports['zend_alter_ini_entry_ex'];
+		_zend_alter_ini_entry_chars = Module['_zend_alter_ini_entry_chars'] =
+			wasmExports['zend_alter_ini_entry_chars'];
+		_zend_alter_ini_entry_chars_ex = Module[
+			'_zend_alter_ini_entry_chars_ex'
+		] = wasmExports['zend_alter_ini_entry_chars_ex'];
+		_zend_restore_ini_entry = Module['_zend_restore_ini_entry'] =
+			wasmExports['zend_restore_ini_entry'];
+		_zend_ini_register_displayer = Module['_zend_ini_register_displayer'] =
+			wasmExports['zend_ini_register_displayer'];
+		_zend_ini_long = Module['_zend_ini_long'] =
+			wasmExports['zend_ini_long'];
+		_zend_ini_double = Module['_zend_ini_double'] =
+			wasmExports['zend_ini_double'];
+		_zend_ini_string_ex = Module['_zend_ini_string_ex'] =
+			wasmExports['zend_ini_string_ex'];
+		_zend_ini_string = Module['_zend_ini_string'] =
+			wasmExports['zend_ini_string'];
+		_zend_ini_get_value = Module['_zend_ini_get_value'] =
+			wasmExports['zend_ini_get_value'];
+		_zend_ini_parse_bool = Module['_zend_ini_parse_bool'] =
+			wasmExports['zend_ini_parse_bool'];
 		_zend_ini_boolean_displayer_cb = Module[
 			'_zend_ini_boolean_displayer_cb'
 		] = wasmExports['zend_ini_boolean_displayer_cb'];
+		_zend_ini_color_displayer_cb = Module['_zend_ini_color_displayer_cb'] =
+			wasmExports['zend_ini_color_displayer_cb'];
+		_display_link_numbers = Module['_display_link_numbers'] =
+			wasmExports['display_link_numbers'];
 		_OnUpdateBool = Module['_OnUpdateBool'] = wasmExports['OnUpdateBool'];
 		_OnUpdateLong = Module['_OnUpdateLong'] = wasmExports['OnUpdateLong'];
+		_OnUpdateLongGEZero = Module['_OnUpdateLongGEZero'] =
+			wasmExports['OnUpdateLongGEZero'];
+		_OnUpdateReal = Module['_OnUpdateReal'] = wasmExports['OnUpdateReal'];
+		_OnUpdateString = Module['_OnUpdateString'] =
+			wasmExports['OnUpdateString'];
 		_OnUpdateStringUnempty = Module['_OnUpdateStringUnempty'] =
 			wasmExports['OnUpdateStringUnempty'];
+		_zend_insert_sort = Module['_zend_insert_sort'] =
+			wasmExports['zend_insert_sort'];
 		_zend_sort = Module['_zend_sort'] = wasmExports['zend_sort'];
+		_zend_multibyte_set_functions = Module[
+			'_zend_multibyte_set_functions'
+		] = wasmExports['zend_multibyte_set_functions'];
+		_zend_multibyte_set_script_encoding_by_string = Module[
+			'_zend_multibyte_set_script_encoding_by_string'
+		] = wasmExports['zend_multibyte_set_script_encoding_by_string'];
+		_zend_multibyte_restore_functions = Module[
+			'_zend_multibyte_restore_functions'
+		] = wasmExports['zend_multibyte_restore_functions'];
+		_zend_multibyte_get_functions = Module[
+			'_zend_multibyte_get_functions'
+		] = wasmExports['zend_multibyte_get_functions'];
+		_zend_multibyte_fetch_encoding = Module[
+			'_zend_multibyte_fetch_encoding'
+		] = wasmExports['zend_multibyte_fetch_encoding'];
+		_zend_multibyte_get_encoding_name = Module[
+			'_zend_multibyte_get_encoding_name'
+		] = wasmExports['zend_multibyte_get_encoding_name'];
+		_zend_multibyte_check_lexer_compatibility = Module[
+			'_zend_multibyte_check_lexer_compatibility'
+		] = wasmExports['zend_multibyte_check_lexer_compatibility'];
+		_zend_multibyte_encoding_detector = Module[
+			'_zend_multibyte_encoding_detector'
+		] = wasmExports['zend_multibyte_encoding_detector'];
+		_zend_multibyte_encoding_converter = Module[
+			'_zend_multibyte_encoding_converter'
+		] = wasmExports['zend_multibyte_encoding_converter'];
+		_zend_multibyte_parse_encoding_list = Module[
+			'_zend_multibyte_parse_encoding_list'
+		] = wasmExports['zend_multibyte_parse_encoding_list'];
+		_zend_multibyte_get_internal_encoding = Module[
+			'_zend_multibyte_get_internal_encoding'
+		] = wasmExports['zend_multibyte_get_internal_encoding'];
+		_zend_multibyte_get_script_encoding = Module[
+			'_zend_multibyte_get_script_encoding'
+		] = wasmExports['zend_multibyte_get_script_encoding'];
+		_zend_multibyte_set_script_encoding = Module[
+			'_zend_multibyte_set_script_encoding'
+		] = wasmExports['zend_multibyte_set_script_encoding'];
+		_zend_multibyte_set_internal_encoding = Module[
+			'_zend_multibyte_set_internal_encoding'
+		] = wasmExports['zend_multibyte_set_internal_encoding'];
+		_zend_ts_hash_init = Module['_zend_ts_hash_init'] =
+			wasmExports['zend_ts_hash_init'];
+		_zend_ts_hash_destroy = Module['_zend_ts_hash_destroy'] =
+			wasmExports['zend_ts_hash_destroy'];
+		_zend_ts_hash_clean = Module['_zend_ts_hash_clean'] =
+			wasmExports['zend_ts_hash_clean'];
+		_zend_ts_hash_add = Module['_zend_ts_hash_add'] =
+			wasmExports['zend_ts_hash_add'];
+		_zend_ts_hash_update = Module['_zend_ts_hash_update'] =
+			wasmExports['zend_ts_hash_update'];
+		_zend_ts_hash_next_index_insert = Module[
+			'_zend_ts_hash_next_index_insert'
+		] = wasmExports['zend_ts_hash_next_index_insert'];
+		_zend_ts_hash_index_update = Module['_zend_ts_hash_index_update'] =
+			wasmExports['zend_ts_hash_index_update'];
+		_zend_ts_hash_add_empty_element = Module[
+			'_zend_ts_hash_add_empty_element'
+		] = wasmExports['zend_ts_hash_add_empty_element'];
+		_zend_ts_hash_graceful_destroy = Module[
+			'_zend_ts_hash_graceful_destroy'
+		] = wasmExports['zend_ts_hash_graceful_destroy'];
+		_zend_ts_hash_apply = Module['_zend_ts_hash_apply'] =
+			wasmExports['zend_ts_hash_apply'];
+		_zend_ts_hash_apply_with_argument = Module[
+			'_zend_ts_hash_apply_with_argument'
+		] = wasmExports['zend_ts_hash_apply_with_argument'];
+		_zend_ts_hash_apply_with_arguments = Module[
+			'_zend_ts_hash_apply_with_arguments'
+		] = wasmExports['zend_ts_hash_apply_with_arguments'];
+		_zend_ts_hash_reverse_apply = Module['_zend_ts_hash_reverse_apply'] =
+			wasmExports['zend_ts_hash_reverse_apply'];
+		_zend_ts_hash_del = Module['_zend_ts_hash_del'] =
+			wasmExports['zend_ts_hash_del'];
+		_zend_ts_hash_index_del = Module['_zend_ts_hash_index_del'] =
+			wasmExports['zend_ts_hash_index_del'];
+		_zend_ts_hash_find = Module['_zend_ts_hash_find'] =
+			wasmExports['zend_ts_hash_find'];
+		_zend_ts_hash_index_find = Module['_zend_ts_hash_index_find'] =
+			wasmExports['zend_ts_hash_index_find'];
+		_zend_ts_hash_copy = Module['_zend_ts_hash_copy'] =
+			wasmExports['zend_ts_hash_copy'];
+		_zend_ts_hash_copy_to_hash = Module['_zend_ts_hash_copy_to_hash'] =
+			wasmExports['zend_ts_hash_copy_to_hash'];
+		_zend_ts_hash_merge = Module['_zend_ts_hash_merge'] =
+			wasmExports['zend_ts_hash_merge'];
+		_zend_ts_hash_merge_ex = Module['_zend_ts_hash_merge_ex'] =
+			wasmExports['zend_ts_hash_merge_ex'];
+		_zend_ts_hash_sort = Module['_zend_ts_hash_sort'] =
+			wasmExports['zend_ts_hash_sort'];
+		_zend_ts_hash_compare = Module['_zend_ts_hash_compare'] =
+			wasmExports['zend_ts_hash_compare'];
+		_zend_ts_hash_minmax = Module['_zend_ts_hash_minmax'] =
+			wasmExports['zend_ts_hash_minmax'];
+		_zend_ts_hash_num_elements = Module['_zend_ts_hash_num_elements'] =
+			wasmExports['zend_ts_hash_num_elements'];
+		_zend_ts_hash_rehash = Module['_zend_ts_hash_rehash'] =
+			wasmExports['zend_ts_hash_rehash'];
+		_zend_ts_hash_str_find = Module['_zend_ts_hash_str_find'] =
+			wasmExports['zend_ts_hash_str_find'];
+		_zend_ts_hash_str_update = Module['_zend_ts_hash_str_update'] =
+			wasmExports['zend_ts_hash_str_update'];
+		_zend_ts_hash_str_add = Module['_zend_ts_hash_str_add'] =
+			wasmExports['zend_ts_hash_str_add'];
+		_zend_stream_init_fp = Module['_zend_stream_init_fp'] =
+			wasmExports['zend_stream_init_fp'];
+		_zend_stream_init_filename = Module['_zend_stream_init_filename'] =
+			wasmExports['zend_stream_init_filename'];
+		_zend_stream_open = Module['_zend_stream_open'] =
+			wasmExports['zend_stream_open'];
+		_zend_stream_fixup = Module['_zend_stream_fixup'] =
+			wasmExports['zend_stream_fixup'];
+		_zend_file_handle_dtor = Module['_zend_file_handle_dtor'] =
+			wasmExports['zend_file_handle_dtor'];
+		_zend_compare_file_handles = Module['_zend_compare_file_handles'] =
+			wasmExports['zend_compare_file_handles'];
+		_zend_register_iterator_wrapper = Module[
+			'_zend_register_iterator_wrapper'
+		] = wasmExports['zend_register_iterator_wrapper'];
 		_zend_iterator_init = Module['_zend_iterator_init'] =
 			wasmExports['zend_iterator_init'];
 		_zend_iterator_dtor = Module['_zend_iterator_dtor'] =
 			wasmExports['zend_iterator_dtor'];
+		_zend_iterator_unwrap = Module['_zend_iterator_unwrap'] =
+			wasmExports['zend_iterator_unwrap'];
 		_zend_call_method = Module['_zend_call_method'] =
 			wasmExports['zend_call_method'];
+		_zend_user_it_new_iterator = Module['_zend_user_it_new_iterator'] =
+			wasmExports['zend_user_it_new_iterator'];
+		_zend_user_it_invalidate_current = Module[
+			'_zend_user_it_invalidate_current'
+		] = wasmExports['zend_user_it_invalidate_current'];
+		_zend_user_it_valid = Module['_zend_user_it_valid'] =
+			wasmExports['zend_user_it_valid'];
+		_zend_user_it_get_current_data = Module[
+			'_zend_user_it_get_current_data'
+		] = wasmExports['zend_user_it_get_current_data'];
+		_zend_user_it_get_current_key = Module[
+			'_zend_user_it_get_current_key'
+		] = wasmExports['zend_user_it_get_current_key'];
+		_zend_user_it_move_forward = Module['_zend_user_it_move_forward'] =
+			wasmExports['zend_user_it_move_forward'];
+		_zend_user_it_rewind = Module['_zend_user_it_rewind'] =
+			wasmExports['zend_user_it_rewind'];
+		_zend_user_it_get_new_iterator = Module[
+			'_zend_user_it_get_new_iterator'
+		] = wasmExports['zend_user_it_get_new_iterator'];
+		_zend_user_serialize = Module['_zend_user_serialize'] =
+			wasmExports['zend_user_serialize'];
+		_zend_user_unserialize = Module['_zend_user_unserialize'] =
+			wasmExports['zend_user_unserialize'];
 		_zend_class_serialize_deny = Module['_zend_class_serialize_deny'] =
 			wasmExports['zend_class_serialize_deny'];
 		_zend_class_unserialize_deny = Module['_zend_class_unserialize_deny'] =
@@ -8657,15 +25581,394 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_create_internal_iterator_zval = Module[
 			'_zend_create_internal_iterator_zval'
 		] = wasmExports['zend_create_internal_iterator_zval'];
+		_zim_InternalIterator___construct = Module[
+			'_zim_InternalIterator___construct'
+		] = wasmExports['zim_InternalIterator___construct'];
+		_zim_InternalIterator_current = Module[
+			'_zim_InternalIterator_current'
+		] = wasmExports['zim_InternalIterator_current'];
+		_zim_InternalIterator_key = Module['_zim_InternalIterator_key'] =
+			wasmExports['zim_InternalIterator_key'];
+		_zim_InternalIterator_next = Module['_zim_InternalIterator_next'] =
+			wasmExports['zim_InternalIterator_next'];
+		_zim_InternalIterator_valid = Module['_zim_InternalIterator_valid'] =
+			wasmExports['zim_InternalIterator_valid'];
+		_zim_InternalIterator_rewind = Module['_zim_InternalIterator_rewind'] =
+			wasmExports['zim_InternalIterator_rewind'];
+		_zend_register_interfaces = Module['_zend_register_interfaces'] =
+			wasmExports['zend_register_interfaces'];
+		_zend_get_exception_base = Module['_zend_get_exception_base'] =
+			wasmExports['zend_get_exception_base'];
+		_zend_exception_set_previous = Module['_zend_exception_set_previous'] =
+			wasmExports['zend_exception_set_previous'];
+		_zend_is_unwind_exit = Module['_zend_is_unwind_exit'] =
+			wasmExports['zend_is_unwind_exit'];
+		_zend_exception_save = Module['_zend_exception_save'] =
+			wasmExports['zend_exception_save'];
+		_zend_exception_restore = Module['_zend_exception_restore'] =
+			wasmExports['zend_exception_restore'];
+		_zend_throw_exception_internal = Module[
+			'_zend_throw_exception_internal'
+		] = wasmExports['zend_throw_exception_internal'];
+		_zend_exception_error = Module['_zend_exception_error'] =
+			wasmExports['zend_exception_error'];
+		_zend_clear_exception = Module['_zend_clear_exception'] =
+			wasmExports['zend_clear_exception'];
+		_zim_Exception___clone = Module['_zim_Exception___clone'] =
+			wasmExports['zim_Exception___clone'];
 		_zend_throw_exception = Module['_zend_throw_exception'] =
 			wasmExports['zend_throw_exception'];
+		_zim_Exception___construct = Module['_zim_Exception___construct'] =
+			wasmExports['zim_Exception___construct'];
+		_zim_Exception___wakeup = Module['_zim_Exception___wakeup'] =
+			wasmExports['zim_Exception___wakeup'];
+		_zim_ErrorException___construct = Module[
+			'_zim_ErrorException___construct'
+		] = wasmExports['zim_ErrorException___construct'];
+		_zim_Exception_getFile = Module['_zim_Exception_getFile'] =
+			wasmExports['zim_Exception_getFile'];
+		_zim_Exception_getLine = Module['_zim_Exception_getLine'] =
+			wasmExports['zim_Exception_getLine'];
+		_zim_Exception_getMessage = Module['_zim_Exception_getMessage'] =
+			wasmExports['zim_Exception_getMessage'];
+		_zim_Exception_getCode = Module['_zim_Exception_getCode'] =
+			wasmExports['zim_Exception_getCode'];
+		_zim_Exception_getTrace = Module['_zim_Exception_getTrace'] =
+			wasmExports['zim_Exception_getTrace'];
+		_zim_ErrorException_getSeverity = Module[
+			'_zim_ErrorException_getSeverity'
+		] = wasmExports['zim_ErrorException_getSeverity'];
+		_zim_Exception_getTraceAsString = Module[
+			'_zim_Exception_getTraceAsString'
+		] = wasmExports['zim_Exception_getTraceAsString'];
+		_zim_Exception_getPrevious = Module['_zim_Exception_getPrevious'] =
+			wasmExports['zim_Exception_getPrevious'];
+		_zim_Exception___toString = Module['_zim_Exception___toString'] =
+			wasmExports['zim_Exception___toString'];
+		_zend_register_default_exception = Module[
+			'_zend_register_default_exception'
+		] = wasmExports['zend_register_default_exception'];
+		_zend_exception_get_default = Module['_zend_exception_get_default'] =
+			wasmExports['zend_exception_get_default'];
+		_zend_get_error_exception = Module['_zend_get_error_exception'] =
+			wasmExports['zend_get_error_exception'];
 		_zend_throw_exception_ex = Module['_zend_throw_exception_ex'] =
 			wasmExports['zend_throw_exception_ex'];
+		_zend_throw_error_exception = Module['_zend_throw_error_exception'] =
+			wasmExports['zend_throw_error_exception'];
 		_zend_throw_exception_object = Module['_zend_throw_exception_object'] =
 			wasmExports['zend_throw_exception_object'];
+		_zend_throw_unwind_exit = Module['_zend_throw_unwind_exit'] =
+			wasmExports['zend_throw_unwind_exit'];
+		_zend_startup_strtod = Module['_zend_startup_strtod'] =
+			wasmExports['zend_startup_strtod'];
+		_zend_shutdown_strtod = Module['_zend_shutdown_strtod'] =
+			wasmExports['zend_shutdown_strtod'];
 		_zend_strtod = Module['_zend_strtod'] = wasmExports['zend_strtod'];
+		_zend_freedtoa = Module['_zend_freedtoa'] =
+			wasmExports['zend_freedtoa'];
+		_zend_dtoa = Module['_zend_dtoa'] = wasmExports['zend_dtoa'];
+		_zend_hex_strtod = Module['_zend_hex_strtod'] =
+			wasmExports['zend_hex_strtod'];
+		_zend_oct_strtod = Module['_zend_oct_strtod'] =
+			wasmExports['zend_oct_strtod'];
+		_zend_bin_strtod = Module['_zend_bin_strtod'] =
+			wasmExports['zend_bin_strtod'];
+		_gc_globals_ctor = Module['_gc_globals_ctor'] =
+			wasmExports['gc_globals_ctor'];
+		_gc_globals_dtor = Module['_gc_globals_dtor'] =
+			wasmExports['gc_globals_dtor'];
+		_gc_reset = Module['_gc_reset'] = wasmExports['gc_reset'];
+		_gc_enable = Module['_gc_enable'] = wasmExports['gc_enable'];
+		_gc_enabled = Module['_gc_enabled'] = wasmExports['gc_enabled'];
+		_gc_protect = Module['_gc_protect'] = wasmExports['gc_protect'];
+		_gc_protected = Module['_gc_protected'] = wasmExports['gc_protected'];
 		_gc_possible_root = Module['_gc_possible_root'] =
 			wasmExports['gc_possible_root'];
+		_gc_remove_from_buffer = Module['_gc_remove_from_buffer'] =
+			wasmExports['gc_remove_from_buffer'];
+		_zend_gc_collect_cycles = Module['_zend_gc_collect_cycles'] =
+			wasmExports['zend_gc_collect_cycles'];
+		_zend_gc_get_status = Module['_zend_gc_get_status'] =
+			wasmExports['zend_gc_get_status'];
+		_zend_get_gc_buffer_create = Module['_zend_get_gc_buffer_create'] =
+			wasmExports['zend_get_gc_buffer_create'];
+		_zend_get_gc_buffer_grow = Module['_zend_get_gc_buffer_grow'] =
+			wasmExports['zend_get_gc_buffer_grow'];
+		_zim_Closure___invoke = Module['_zim_Closure___invoke'] =
+			wasmExports['zim_Closure___invoke'];
+		_zim_Closure_call = Module['_zim_Closure_call'] =
+			wasmExports['zim_Closure_call'];
+		_zend_create_closure = Module['_zend_create_closure'] =
+			wasmExports['zend_create_closure'];
+		_zim_Closure_bind = Module['_zim_Closure_bind'] =
+			wasmExports['zim_Closure_bind'];
+		_zim_Closure_bindTo = Module['_zim_Closure_bindTo'] =
+			wasmExports['zim_Closure_bindTo'];
+		_zim_Closure_fromCallable = Module['_zim_Closure_fromCallable'] =
+			wasmExports['zim_Closure_fromCallable'];
+		_zend_get_closure_invoke_method = Module[
+			'_zend_get_closure_invoke_method'
+		] = wasmExports['zend_get_closure_invoke_method'];
+		_zend_get_closure_method_def = Module['_zend_get_closure_method_def'] =
+			wasmExports['zend_get_closure_method_def'];
+		_zend_get_closure_this_ptr = Module['_zend_get_closure_this_ptr'] =
+			wasmExports['zend_get_closure_this_ptr'];
+		_zend_closure_get_closure = Module['_zend_closure_get_closure'] =
+			wasmExports['zend_closure_get_closure'];
+		_zim_Closure___construct = Module['_zim_Closure___construct'] =
+			wasmExports['zim_Closure___construct'];
+		_zend_register_closure_ce = Module['_zend_register_closure_ce'] =
+			wasmExports['zend_register_closure_ce'];
+		_zend_create_fake_closure = Module['_zend_create_fake_closure'] =
+			wasmExports['zend_create_fake_closure'];
+		_zend_closure_bind_var = Module['_zend_closure_bind_var'] =
+			wasmExports['zend_closure_bind_var'];
+		_zend_closure_bind_var_ex = Module['_zend_closure_bind_var_ex'] =
+			wasmExports['zend_closure_bind_var_ex'];
+		_zend_weakrefs_hash_add = Module['_zend_weakrefs_hash_add'] =
+			wasmExports['zend_weakrefs_hash_add'];
+		_zend_weakrefs_hash_del = Module['_zend_weakrefs_hash_del'] =
+			wasmExports['zend_weakrefs_hash_del'];
+		_zend_weakrefs_init = Module['_zend_weakrefs_init'] =
+			wasmExports['zend_weakrefs_init'];
+		_zend_weakrefs_notify = Module['_zend_weakrefs_notify'] =
+			wasmExports['zend_weakrefs_notify'];
+		_zend_weakrefs_shutdown = Module['_zend_weakrefs_shutdown'] =
+			wasmExports['zend_weakrefs_shutdown'];
+		_zim_WeakReference___construct = Module[
+			'_zim_WeakReference___construct'
+		] = wasmExports['zim_WeakReference___construct'];
+		_zim_WeakReference_create = Module['_zim_WeakReference_create'] =
+			wasmExports['zim_WeakReference_create'];
+		_zim_WeakReference_get = Module['_zim_WeakReference_get'] =
+			wasmExports['zim_WeakReference_get'];
+		_zim_WeakMap_offsetGet = Module['_zim_WeakMap_offsetGet'] =
+			wasmExports['zim_WeakMap_offsetGet'];
+		_zim_WeakMap_offsetSet = Module['_zim_WeakMap_offsetSet'] =
+			wasmExports['zim_WeakMap_offsetSet'];
+		_zim_WeakMap_offsetExists = Module['_zim_WeakMap_offsetExists'] =
+			wasmExports['zim_WeakMap_offsetExists'];
+		_zim_WeakMap_offsetUnset = Module['_zim_WeakMap_offsetUnset'] =
+			wasmExports['zim_WeakMap_offsetUnset'];
+		_zim_WeakMap_count = Module['_zim_WeakMap_count'] =
+			wasmExports['zim_WeakMap_count'];
+		_zim_WeakMap_getIterator = Module['_zim_WeakMap_getIterator'] =
+			wasmExports['zim_WeakMap_getIterator'];
+		_zend_register_weakref_ce = Module['_zend_register_weakref_ce'] =
+			wasmExports['zend_register_weakref_ce'];
+		_zend_init_fpu = Module['_zend_init_fpu'] =
+			wasmExports['zend_init_fpu'];
+		_zend_shutdown_fpu = Module['_zend_shutdown_fpu'] =
+			wasmExports['zend_shutdown_fpu'];
+		_zend_ensure_fpu_mode = Module['_zend_ensure_fpu_mode'] =
+			wasmExports['zend_ensure_fpu_mode'];
+		_zend_string_hash_func = Module['_zend_string_hash_func'] =
+			wasmExports['zend_string_hash_func'];
+		_zend_hash_func = Module['_zend_hash_func'] =
+			wasmExports['zend_hash_func'];
+		_zend_interned_strings_init = Module['_zend_interned_strings_init'] =
+			wasmExports['zend_interned_strings_init'];
+		_zend_interned_strings_dtor = Module['_zend_interned_strings_dtor'] =
+			wasmExports['zend_interned_strings_dtor'];
+		_zend_interned_string_find_permanent = Module[
+			'_zend_interned_string_find_permanent'
+		] = wasmExports['zend_interned_string_find_permanent'];
+		_zend_interned_strings_activate = Module[
+			'_zend_interned_strings_activate'
+		] = wasmExports['zend_interned_strings_activate'];
+		_zend_interned_strings_deactivate = Module[
+			'_zend_interned_strings_deactivate'
+		] = wasmExports['zend_interned_strings_deactivate'];
+		_zend_interned_strings_set_request_storage_handlers = Module[
+			'_zend_interned_strings_set_request_storage_handlers'
+		] = wasmExports['zend_interned_strings_set_request_storage_handlers'];
+		_zend_interned_strings_switch_storage = Module[
+			'_zend_interned_strings_switch_storage'
+		] = wasmExports['zend_interned_strings_switch_storage'];
+		_zend_string_concat2 = Module['_zend_string_concat2'] =
+			wasmExports['zend_string_concat2'];
+		_zend_string_concat3 = Module['_zend_string_concat3'] =
+			wasmExports['zend_string_concat3'];
+		_zend_signal_handler_defer = Module['_zend_signal_handler_defer'] =
+			wasmExports['zend_signal_handler_defer'];
+		_zend_signal_handler_unblock = Module['_zend_signal_handler_unblock'] =
+			wasmExports['zend_signal_handler_unblock'];
+		_zend_sigaction = Module['_zend_sigaction'] =
+			wasmExports['zend_sigaction'];
+		_zend_signal = Module['_zend_signal'] = wasmExports['zend_signal'];
+		_zend_signal_activate = Module['_zend_signal_activate'] =
+			wasmExports['zend_signal_activate'];
+		_zend_signal_deactivate = Module['_zend_signal_deactivate'] =
+			wasmExports['zend_signal_deactivate'];
+		_zend_signal_init = Module['_zend_signal_init'] =
+			wasmExports['zend_signal_init'];
+		_zend_signal_startup = Module['_zend_signal_startup'] =
+			wasmExports['zend_signal_startup'];
+		_zend_generator_restore_call_stack = Module[
+			'_zend_generator_restore_call_stack'
+		] = wasmExports['zend_generator_restore_call_stack'];
+		_zend_generator_freeze_call_stack = Module[
+			'_zend_generator_freeze_call_stack'
+		] = wasmExports['zend_generator_freeze_call_stack'];
+		_zend_generator_close = Module['_zend_generator_close'] =
+			wasmExports['zend_generator_close'];
+		_zend_generator_check_placeholder_frame = Module[
+			'_zend_generator_check_placeholder_frame'
+		] = wasmExports['zend_generator_check_placeholder_frame'];
+		_zend_generator_yield_from = Module['_zend_generator_yield_from'] =
+			wasmExports['zend_generator_yield_from'];
+		_zend_generator_update_root = Module['_zend_generator_update_root'] =
+			wasmExports['zend_generator_update_root'];
+		_zend_generator_update_current = Module[
+			'_zend_generator_update_current'
+		] = wasmExports['zend_generator_update_current'];
+		_zend_generator_resume = Module['_zend_generator_resume'] =
+			wasmExports['zend_generator_resume'];
+		_zim_Generator_rewind = Module['_zim_Generator_rewind'] =
+			wasmExports['zim_Generator_rewind'];
+		_zim_Generator_valid = Module['_zim_Generator_valid'] =
+			wasmExports['zim_Generator_valid'];
+		_zim_Generator_current = Module['_zim_Generator_current'] =
+			wasmExports['zim_Generator_current'];
+		_zim_Generator_key = Module['_zim_Generator_key'] =
+			wasmExports['zim_Generator_key'];
+		_zim_Generator_next = Module['_zim_Generator_next'] =
+			wasmExports['zim_Generator_next'];
+		_zim_Generator_send = Module['_zim_Generator_send'] =
+			wasmExports['zim_Generator_send'];
+		_zim_Generator_throw = Module['_zim_Generator_throw'] =
+			wasmExports['zim_Generator_throw'];
+		_zim_Generator_getReturn = Module['_zim_Generator_getReturn'] =
+			wasmExports['zim_Generator_getReturn'];
+		_zend_generator_get_iterator = Module['_zend_generator_get_iterator'] =
+			wasmExports['zend_generator_get_iterator'];
+		_zend_register_generator_ce = Module['_zend_register_generator_ce'] =
+			wasmExports['zend_register_generator_ce'];
+		_virtual_cwd_main_cwd_init = Module['_virtual_cwd_main_cwd_init'] =
+			wasmExports['virtual_cwd_main_cwd_init'];
+		_virtual_cwd_startup = Module['_virtual_cwd_startup'] =
+			wasmExports['virtual_cwd_startup'];
+		_virtual_cwd_shutdown = Module['_virtual_cwd_shutdown'] =
+			wasmExports['virtual_cwd_shutdown'];
+		_virtual_cwd_activate = Module['_virtual_cwd_activate'] =
+			wasmExports['virtual_cwd_activate'];
+		_virtual_cwd_deactivate = Module['_virtual_cwd_deactivate'] =
+			wasmExports['virtual_cwd_deactivate'];
+		_virtual_getcwd_ex = Module['_virtual_getcwd_ex'] =
+			wasmExports['virtual_getcwd_ex'];
+		_virtual_getcwd = Module['_virtual_getcwd'] =
+			wasmExports['virtual_getcwd'];
+		_realpath_cache_clean = Module['_realpath_cache_clean'] =
+			wasmExports['realpath_cache_clean'];
+		_realpath_cache_del = Module['_realpath_cache_del'] =
+			wasmExports['realpath_cache_del'];
+		_realpath_cache_lookup = Module['_realpath_cache_lookup'] =
+			wasmExports['realpath_cache_lookup'];
+		_realpath_cache_size = Module['_realpath_cache_size'] =
+			wasmExports['realpath_cache_size'];
+		_realpath_cache_max_buckets = Module['_realpath_cache_max_buckets'] =
+			wasmExports['realpath_cache_max_buckets'];
+		_realpath_cache_get_buckets = Module['_realpath_cache_get_buckets'] =
+			wasmExports['realpath_cache_get_buckets'];
+		_virtual_file_ex = Module['_virtual_file_ex'] =
+			wasmExports['virtual_file_ex'];
+		_virtual_chdir = Module['_virtual_chdir'] =
+			wasmExports['virtual_chdir'];
+		_virtual_chdir_file = Module['_virtual_chdir_file'] =
+			wasmExports['virtual_chdir_file'];
+		_virtual_realpath = Module['_virtual_realpath'] =
+			wasmExports['virtual_realpath'];
+		_virtual_filepath_ex = Module['_virtual_filepath_ex'] =
+			wasmExports['virtual_filepath_ex'];
+		_virtual_filepath = Module['_virtual_filepath'] =
+			wasmExports['virtual_filepath'];
+		_virtual_fopen = Module['_virtual_fopen'] =
+			wasmExports['virtual_fopen'];
+		_virtual_access = Module['_virtual_access'] =
+			wasmExports['virtual_access'];
+		_virtual_utime = Module['_virtual_utime'] =
+			wasmExports['virtual_utime'];
+		_virtual_chmod = Module['_virtual_chmod'] =
+			wasmExports['virtual_chmod'];
+		_virtual_chown = Module['_virtual_chown'] =
+			wasmExports['virtual_chown'];
+		_virtual_open = Module['_virtual_open'] = wasmExports['virtual_open'];
+		_virtual_creat = Module['_virtual_creat'] =
+			wasmExports['virtual_creat'];
+		_virtual_rename = Module['_virtual_rename'] =
+			wasmExports['virtual_rename'];
+		_virtual_stat = Module['_virtual_stat'] = wasmExports['virtual_stat'];
+		_virtual_lstat = Module['_virtual_lstat'] =
+			wasmExports['virtual_lstat'];
+		_virtual_unlink = Module['_virtual_unlink'] =
+			wasmExports['virtual_unlink'];
+		_virtual_mkdir = Module['_virtual_mkdir'] =
+			wasmExports['virtual_mkdir'];
+		_virtual_rmdir = Module['_virtual_rmdir'] =
+			wasmExports['virtual_rmdir'];
+		_virtual_opendir = Module['_virtual_opendir'] =
+			wasmExports['virtual_opendir'];
+		_virtual_popen = Module['_virtual_popen'] =
+			wasmExports['virtual_popen'];
+		_tsrm_realpath = Module['_tsrm_realpath'] =
+			wasmExports['tsrm_realpath'];
+		_zend_ast_create_znode = Module['_zend_ast_create_znode'] =
+			wasmExports['zend_ast_create_znode'];
+		_zend_ast_create_zval_with_lineno = Module[
+			'_zend_ast_create_zval_with_lineno'
+		] = wasmExports['zend_ast_create_zval_with_lineno'];
+		_zend_ast_create_zval_ex = Module['_zend_ast_create_zval_ex'] =
+			wasmExports['zend_ast_create_zval_ex'];
+		_zend_ast_create_zval = Module['_zend_ast_create_zval'] =
+			wasmExports['zend_ast_create_zval'];
+		_zend_ast_create_zval_from_str = Module[
+			'_zend_ast_create_zval_from_str'
+		] = wasmExports['zend_ast_create_zval_from_str'];
+		_zend_ast_create_zval_from_long = Module[
+			'_zend_ast_create_zval_from_long'
+		] = wasmExports['zend_ast_create_zval_from_long'];
+		_zend_ast_create_constant = Module['_zend_ast_create_constant'] =
+			wasmExports['zend_ast_create_constant'];
+		_zend_ast_create_class_const_or_name = Module[
+			'_zend_ast_create_class_const_or_name'
+		] = wasmExports['zend_ast_create_class_const_or_name'];
+		_zend_ast_create_1 = Module['_zend_ast_create_1'] =
+			wasmExports['zend_ast_create_1'];
+		_zend_ast_create_2 = Module['_zend_ast_create_2'] =
+			wasmExports['zend_ast_create_2'];
+		_zend_ast_create_decl = Module['_zend_ast_create_decl'] =
+			wasmExports['zend_ast_create_decl'];
+		_zend_ast_create_0 = Module['_zend_ast_create_0'] =
+			wasmExports['zend_ast_create_0'];
+		_zend_ast_create_3 = Module['_zend_ast_create_3'] =
+			wasmExports['zend_ast_create_3'];
+		_zend_ast_create_4 = Module['_zend_ast_create_4'] =
+			wasmExports['zend_ast_create_4'];
+		_zend_ast_create_5 = Module['_zend_ast_create_5'] =
+			wasmExports['zend_ast_create_5'];
+		_zend_ast_create_list_0 = Module['_zend_ast_create_list_0'] =
+			wasmExports['zend_ast_create_list_0'];
+		_zend_ast_create_list_1 = Module['_zend_ast_create_list_1'] =
+			wasmExports['zend_ast_create_list_1'];
+		_zend_ast_create_list_2 = Module['_zend_ast_create_list_2'] =
+			wasmExports['zend_ast_create_list_2'];
+		_zend_ast_list_add = Module['_zend_ast_list_add'] =
+			wasmExports['zend_ast_list_add'];
+		_zend_ast_evaluate = Module['_zend_ast_evaluate'] =
+			wasmExports['zend_ast_evaluate'];
+		_zend_ast_copy = Module['_zend_ast_copy'] =
+			wasmExports['zend_ast_copy'];
+		_zend_ast_destroy = Module['_zend_ast_destroy'] =
+			wasmExports['zend_ast_destroy'];
+		_zend_ast_ref_destroy = Module['_zend_ast_ref_destroy'] =
+			wasmExports['zend_ast_ref_destroy'];
+		_zend_ast_apply = Module['_zend_ast_apply'] =
+			wasmExports['zend_ast_apply'];
+		_zend_ast_export = Module['_zend_ast_export'] =
+			wasmExports['zend_ast_export'];
+		_zend_ast_with_attributes = Module['_zend_ast_with_attributes'] =
+			wasmExports['zend_ast_with_attributes'];
 		_zend_object_std_init = Module['_zend_object_std_init'] =
 			wasmExports['zend_object_std_init'];
 		_zend_object_std_dtor = Module['_zend_object_std_dtor'] =
@@ -8676,27 +25979,180 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_objects_new'];
 		_zend_objects_clone_members = Module['_zend_objects_clone_members'] =
 			wasmExports['zend_objects_clone_members'];
+		_zend_objects_clone_obj = Module['_zend_objects_clone_obj'] =
+			wasmExports['zend_objects_clone_obj'];
+		_rebuild_object_properties = Module['_rebuild_object_properties'] =
+			wasmExports['rebuild_object_properties'];
 		_zend_std_get_properties = Module['_zend_std_get_properties'] =
 			wasmExports['zend_std_get_properties'];
+		_zend_std_get_gc = Module['_zend_std_get_gc'] =
+			wasmExports['zend_std_get_gc'];
+		_zend_std_get_debug_info = Module['_zend_std_get_debug_info'] =
+			wasmExports['zend_std_get_debug_info'];
+		_zend_get_property_info = Module['_zend_get_property_info'] =
+			wasmExports['zend_get_property_info'];
+		_zend_check_property_access = Module['_zend_check_property_access'] =
+			wasmExports['zend_check_property_access'];
+		_zend_get_property_guard = Module['_zend_get_property_guard'] =
+			wasmExports['zend_get_property_guard'];
 		_zend_std_read_property = Module['_zend_std_read_property'] =
 			wasmExports['zend_std_read_property'];
 		_zend_std_write_property = Module['_zend_std_write_property'] =
 			wasmExports['zend_std_write_property'];
+		_zend_std_read_dimension = Module['_zend_std_read_dimension'] =
+			wasmExports['zend_std_read_dimension'];
+		_zend_std_cast_object_tostring = Module[
+			'_zend_std_cast_object_tostring'
+		] = wasmExports['zend_std_cast_object_tostring'];
+		_zend_std_write_dimension = Module['_zend_std_write_dimension'] =
+			wasmExports['zend_std_write_dimension'];
+		_zend_std_has_dimension = Module['_zend_std_has_dimension'] =
+			wasmExports['zend_std_has_dimension'];
 		_zend_std_get_property_ptr_ptr = Module[
 			'_zend_std_get_property_ptr_ptr'
 		] = wasmExports['zend_std_get_property_ptr_ptr'];
+		_zend_std_unset_property = Module['_zend_std_unset_property'] =
+			wasmExports['zend_std_unset_property'];
+		_zend_std_unset_dimension = Module['_zend_std_unset_dimension'] =
+			wasmExports['zend_std_unset_dimension'];
+		_zend_check_protected = Module['_zend_check_protected'] =
+			wasmExports['zend_check_protected'];
+		_zend_get_call_trampoline_func = Module[
+			'_zend_get_call_trampoline_func'
+		] = wasmExports['zend_get_call_trampoline_func'];
 		_zend_std_get_method = Module['_zend_std_get_method'] =
 			wasmExports['zend_std_get_method'];
+		_zend_std_get_static_method = Module['_zend_std_get_static_method'] =
+			wasmExports['zend_std_get_static_method'];
+		_zend_class_init_statics = Module['_zend_class_init_statics'] =
+			wasmExports['zend_class_init_statics'];
+		_zend_std_get_static_property_with_info = Module[
+			'_zend_std_get_static_property_with_info'
+		] = wasmExports['zend_std_get_static_property_with_info'];
+		_zend_std_get_static_property = Module[
+			'_zend_std_get_static_property'
+		] = wasmExports['zend_std_get_static_property'];
+		_zend_std_unset_static_property = Module[
+			'_zend_std_unset_static_property'
+		] = wasmExports['zend_std_unset_static_property'];
+		_zend_std_get_constructor = Module['_zend_std_get_constructor'] =
+			wasmExports['zend_std_get_constructor'];
 		_zend_std_compare_objects = Module['_zend_std_compare_objects'] =
 			wasmExports['zend_std_compare_objects'];
+		_zend_objects_not_comparable = Module['_zend_objects_not_comparable'] =
+			wasmExports['zend_objects_not_comparable'];
 		_zend_std_has_property = Module['_zend_std_has_property'] =
 			wasmExports['zend_std_has_property'];
+		_zend_std_get_class_name = Module['_zend_std_get_class_name'] =
+			wasmExports['zend_std_get_class_name'];
+		_zend_std_get_closure = Module['_zend_std_get_closure'] =
+			wasmExports['zend_std_get_closure'];
+		_zend_std_get_properties_for = Module['_zend_std_get_properties_for'] =
+			wasmExports['zend_std_get_properties_for'];
+		_zend_get_properties_for = Module['_zend_get_properties_for'] =
+			wasmExports['zend_get_properties_for'];
+		_zend_objects_store_init = Module['_zend_objects_store_init'] =
+			wasmExports['zend_objects_store_init'];
+		_zend_objects_store_destroy = Module['_zend_objects_store_destroy'] =
+			wasmExports['zend_objects_store_destroy'];
+		_zend_objects_store_call_destructors = Module[
+			'_zend_objects_store_call_destructors'
+		] = wasmExports['zend_objects_store_call_destructors'];
+		_zend_objects_store_mark_destructed = Module[
+			'_zend_objects_store_mark_destructed'
+		] = wasmExports['zend_objects_store_mark_destructed'];
+		_zend_objects_store_free_object_storage = Module[
+			'_zend_objects_store_free_object_storage'
+		] = wasmExports['zend_objects_store_free_object_storage'];
+		_zend_objects_store_put = Module['_zend_objects_store_put'] =
+			wasmExports['zend_objects_store_put'];
 		_zend_objects_store_del = Module['_zend_objects_store_del'] =
 			wasmExports['zend_objects_store_del'];
+		_zend_register_default_classes = Module[
+			'_zend_register_default_classes'
+		] = wasmExports['zend_register_default_classes'];
+		_zend_visibility_string = Module['_zend_visibility_string'] =
+			wasmExports['zend_visibility_string'];
+		_property_types_compatible = Module['_property_types_compatible'] =
+			wasmExports['property_types_compatible'];
+		_zend_build_properties_info_table = Module[
+			'_zend_build_properties_info_table'
+		] = wasmExports['zend_build_properties_info_table'];
+		_zend_do_inheritance_ex = Module['_zend_do_inheritance_ex'] =
+			wasmExports['zend_do_inheritance_ex'];
 		_zend_do_implement_interface = Module['_zend_do_implement_interface'] =
 			wasmExports['zend_do_implement_interface'];
+		_zend_verify_abstract_class = Module['_zend_verify_abstract_class'] =
+			wasmExports['zend_verify_abstract_class'];
+		_zend_do_link_class = Module['_zend_do_link_class'] =
+			wasmExports['zend_do_link_class'];
+		_zend_try_early_bind = Module['_zend_try_early_bind'] =
+			wasmExports['zend_try_early_bind'];
 		_smart_str_erealloc = Module['_smart_str_erealloc'] =
 			wasmExports['smart_str_erealloc'];
+		_smart_str_realloc = Module['_smart_str_realloc'] =
+			wasmExports['smart_str_realloc'];
+		_smart_str_append_escaped = Module['_smart_str_append_escaped'] =
+			wasmExports['smart_str_append_escaped'];
+		_smart_str_append_printf = Module['_smart_str_append_printf'] =
+			wasmExports['smart_str_append_printf'];
+		__smart_string_alloc_persistent = Module[
+			'__smart_string_alloc_persistent'
+		] = wasmExports['_smart_string_alloc_persistent'];
+		__smart_string_alloc = Module['__smart_string_alloc'] =
+			wasmExports['_smart_string_alloc'];
+		_zend_cpu_startup = Module['_zend_cpu_startup'] =
+			wasmExports['zend_cpu_startup'];
+		_zend_cpu_supports = Module['_zend_cpu_supports'] =
+			wasmExports['zend_cpu_supports'];
+		___jit_debug_register_code = Module['___jit_debug_register_code'] =
+			wasmExports['__jit_debug_register_code'];
+		_zend_gdb_register_code = Module['_zend_gdb_register_code'] =
+			wasmExports['zend_gdb_register_code'];
+		_zend_gdb_unregister_all = Module['_zend_gdb_unregister_all'] =
+			wasmExports['zend_gdb_unregister_all'];
+		_zend_gdb_present = Module['_zend_gdb_present'] =
+			wasmExports['zend_gdb_present'];
+		_zend_observer_fcall_register = Module[
+			'_zend_observer_fcall_register'
+		] = wasmExports['zend_observer_fcall_register'];
+		_zend_observer_startup = Module['_zend_observer_startup'] =
+			wasmExports['zend_observer_startup'];
+		_zend_observer_post_startup = Module['_zend_observer_post_startup'] =
+			wasmExports['zend_observer_post_startup'];
+		_zend_observer_activate = Module['_zend_observer_activate'] =
+			wasmExports['zend_observer_activate'];
+		_zend_observer_deactivate = Module['_zend_observer_deactivate'] =
+			wasmExports['zend_observer_deactivate'];
+		_zend_observer_shutdown = Module['_zend_observer_shutdown'] =
+			wasmExports['zend_observer_shutdown'];
+		_zend_observer_generator_resume = Module[
+			'_zend_observer_generator_resume'
+		] = wasmExports['zend_observer_generator_resume'];
+		_zend_observer_fcall_begin = Module['_zend_observer_fcall_begin'] =
+			wasmExports['zend_observer_fcall_begin'];
+		_zend_observer_fcall_end = Module['_zend_observer_fcall_end'] =
+			wasmExports['zend_observer_fcall_end'];
+		_zend_observer_fcall_end_all = Module['_zend_observer_fcall_end_all'] =
+			wasmExports['zend_observer_fcall_end_all'];
+		_zend_observer_error_register = Module[
+			'_zend_observer_error_register'
+		] = wasmExports['zend_observer_error_register'];
+		_zend_observer_error_notify = Module['_zend_observer_error_notify'] =
+			wasmExports['zend_observer_error_notify'];
+		_zend_add_system_entropy = Module['_zend_add_system_entropy'] =
+			wasmExports['zend_add_system_entropy'];
+		_zend_startup_system_id = Module['_zend_startup_system_id'] =
+			wasmExports['zend_startup_system_id'];
+		_zend_finalize_system_id = Module['_zend_finalize_system_id'] =
+			wasmExports['zend_finalize_system_id'];
+		_php_embed_init = Module['_php_embed_init'] =
+			wasmExports['php_embed_init'];
+		_php_embed_shutdown = Module['_php_embed_shutdown'] =
+			wasmExports['php_embed_shutdown'];
+		_php_register_internal_extensions = Module[
+			'_php_register_internal_extensions'
+		] = wasmExports['php_register_internal_extensions'];
 		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_strlen = Module['_strlen'] = wasmExports['strlen'];
 		_munmap = Module['_munmap'] = wasmExports['munmap'];
@@ -8718,11 +26174,14 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__wasm_longjmp'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
 		_memchr = Module['_memchr'] = wasmExports['memchr'];
+		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
 		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
 		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
 		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
 		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
 		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		_strrchr = Module['_strrchr'] = wasmExports['strrchr'];
 		_realloc = Module['_realloc'] = wasmExports['realloc'];
 		___errno_location = Module['___errno_location'] =
@@ -8763,6 +26222,7 @@ export function init(RuntimeName, PHPLoader) {
 		_atan2 = Module['_atan2'] = wasmExports['atan2'];
 		_acos = Module['_acos'] = wasmExports['acos'];
 		_localtime_r = Module['_localtime_r'] = wasmExports['localtime_r'];
+		_sscanf = Module['_sscanf'] = wasmExports['sscanf'];
 		_tan = Module['_tan'] = wasmExports['tan'];
 		_asin = Module['_asin'] = wasmExports['asin'];
 		_atan = Module['_atan'] = wasmExports['atan'];
@@ -8944,60 +26404,1272 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
-	var _file_globals = (Module['_file_globals'] = 11426968);
-	var _sapi_module = (Module['_sapi_module'] = 11373372);
-	var _sapi_globals = (Module['_sapi_globals'] = 11373520);
-	var _compiler_globals = (Module['_compiler_globals'] = 11429216);
-	var _executor_globals = (Module['_executor_globals'] = 11429592);
-	var _zend_compile_string = (Module['_zend_compile_string'] = 11430756);
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 11285492);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11285496);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11285500);
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 11285504);
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 11285508);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11285512);
-	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 11285516);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11427512);
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 11427496);
+	var _date_ce_date = (Module['_date_ce_date'] = 11293840);
+	var _date_ce_immutable = (Module['_date_ce_immutable'] = 11293844);
+	var _date_ce_interface = (Module['_date_ce_interface'] = 11293848);
+	var _date_ce_timezone = (Module['_date_ce_timezone'] = 11293852);
+	var _date_ce_interval = (Module['_date_ce_interval'] = 11293856);
+	var _date_ce_period = (Module['_date_ce_period'] = 11293860);
+	var _php_date_global_timezone_db_enabled = (Module[
+		'_php_date_global_timezone_db_enabled'
+	] = 11293888);
+	var _php_date_global_timezone_db = (Module['_php_date_global_timezone_db'] =
+		11293884);
+	var _date_globals = (Module['_date_globals'] = 11293864);
+	var _date_module_entry = (Module['_date_module_entry'] = 10746788);
+	var _timezonedb_builtin = (Module['_timezonedb_builtin'] = 10725344);
+	var _timezonedb_idx_builtin = (Module['_timezonedb_idx_builtin'] =
+		10720576);
+	var _timelib_timezone_db_data_builtin = (Module[
+		'_timelib_timezone_db_data_builtin'
+	] = 679584);
+	var _timelib_error_messages = (Module['_timelib_error_messages'] =
+		10725360);
+	var _libxml_module_entry = (Module['_libxml_module_entry'] = 10932336);
+	var _php_openssl_certificate_ce = (Module['_php_openssl_certificate_ce'] =
+		11380184);
+	var _php_openssl_request_ce = (Module['_php_openssl_request_ce'] =
+		11380288);
+	var _php_openssl_pkey_ce = (Module['_php_openssl_pkey_ce'] = 11380392);
+	var _openssl_globals = (Module['_openssl_globals'] = 11380176);
+	var _openssl_module_entry = (Module['_openssl_module_entry'] = 10933920);
+	var _php_openssl_socket_ops = (Module['_php_openssl_socket_ops'] =
+		10932576);
+	var __pcre2_default_tables_8 = (Module['__pcre2_default_tables_8'] =
+		1386448);
+	var __pcre2_default_compile_context_8 = (Module[
+		'__pcre2_default_compile_context_8'
+	] = 10902808);
+	var __pcre2_default_match_context_8 = (Module[
+		'__pcre2_default_match_context_8'
+	] = 10902848);
+	var __pcre2_default_convert_context_8 = (Module[
+		'__pcre2_default_convert_context_8'
+	] = 10902892);
+	var __pcre2_OP_lengths_8 = (Module['__pcre2_OP_lengths_8'] = 1387536);
+	var __pcre2_hspace_list_8 = (Module['__pcre2_hspace_list_8'] = 1387712);
+	var __pcre2_vspace_list_8 = (Module['__pcre2_vspace_list_8'] = 1387792);
+	var __pcre2_callout_start_delims_8 = (Module[
+		'__pcre2_callout_start_delims_8'
+	] = 1387824);
+	var __pcre2_callout_end_delims_8 = (Module['__pcre2_callout_end_delims_8'] =
+		1387872);
+	var __pcre2_utf8_table1 = (Module['__pcre2_utf8_table1'] = 1387920);
+	var __pcre2_utf8_table1_size = (Module['__pcre2_utf8_table1_size'] =
+		1387944);
+	var __pcre2_utf8_table2 = (Module['__pcre2_utf8_table2'] = 1387952);
+	var __pcre2_utf8_table3 = (Module['__pcre2_utf8_table3'] = 1387984);
+	var __pcre2_utf8_table4 = (Module['__pcre2_utf8_table4'] = 1388016);
+	var __pcre2_ucp_gentype_8 = (Module['__pcre2_ucp_gentype_8'] = 1388080);
+	var __pcre2_ucp_gbtable_8 = (Module['__pcre2_ucp_gbtable_8'] = 1388208);
+	var __pcre2_utt_names_8 = (Module['__pcre2_utt_names_8'] = 1388272);
+	var __pcre2_utt_8 = (Module['__pcre2_utt_8'] = 1389904);
+	var __pcre2_utt_size_8 = (Module['__pcre2_utt_size_8'] = 1391112);
+	var __pcre2_unicode_version_8 = (Module['__pcre2_unicode_version_8'] =
+		10902912);
+	var __pcre2_ucd_caseless_sets_8 = (Module['__pcre2_ucd_caseless_sets_8'] =
+		1391120);
+	var __pcre2_ucd_digit_sets_8 = (Module['__pcre2_ucd_digit_sets_8'] =
+		1391568);
+	var __pcre2_ucd_script_sets_8 = (Module['__pcre2_ucd_script_sets_8'] =
+		1391840);
+	var __pcre2_ucd_records_8 = (Module['__pcre2_ucd_records_8'] = 1392128);
+	var __pcre2_ucd_stage1_8 = (Module['__pcre2_ucd_stage1_8'] = 1403840);
+	var __pcre2_ucd_stage2_8 = (Module['__pcre2_ucd_stage2_8'] = 1421248);
+	var _pcre_globals = (Module['_pcre_globals'] = 11294808);
+	var _pcre_module_entry = (Module['_pcre_module_entry'] = 10903424);
+	var _sqlite3_globals = (Module['_sqlite3_globals'] = 11384592);
+	var _php_sqlite3_stmt_entry = (Module['_php_sqlite3_stmt_entry'] =
+		11384600);
+	var _php_sqlite3_result_entry = (Module['_php_sqlite3_result_entry'] =
+		11384604);
+	var _php_sqlite3_sc_entry = (Module['_php_sqlite3_sc_entry'] = 11384608);
+	var _sqlite3_module_entry = (Module['_sqlite3_module_entry'] = 10939104);
+	var _zlib_globals = (Module['_zlib_globals'] = 11384912);
+	var _inflate_context_ce = (Module['_inflate_context_ce'] = 11384952);
+	var _deflate_context_ce = (Module['_deflate_context_ce'] = 11384956);
+	var _php_zlib_module_entry = (Module['_php_zlib_module_entry'] = 10941036);
+	var _php_stream_gzio_ops = (Module['_php_stream_gzio_ops'] = 10940284);
+	var _php_stream_gzip_wrapper = (Module['_php_stream_gzip_wrapper'] =
+		10940364);
+	var _php_zlib_filter_factory = (Module['_php_zlib_filter_factory'] =
+		10940376);
+	var _bcmath_globals = (Module['_bcmath_globals'] = 11385160);
+	var _bcmath_module_entry = (Module['_bcmath_module_entry'] = 10942636);
+	var _mul_base_digits = (Module['_mul_base_digits'] = 10942400);
+	var _calendar_module_entry = (Module['_calendar_module_entry'] = 10944060);
+	var _DayNameShort = (Module['_DayNameShort'] = 10943168);
+	var _DayNameLong = (Module['_DayNameLong'] = 10943200);
+	var _FrenchMonthName = (Module['_FrenchMonthName'] = 10943616);
+	var _MonthNameShort = (Module['_MonthNameShort'] = 10943488);
+	var _MonthNameLong = (Module['_MonthNameLong'] = 10943552);
+	var _monthsPerYear = (Module['_monthsPerYear'] = 1514336);
+	var _JewishMonthNameLeap = (Module['_JewishMonthNameLeap'] = 10943232);
+	var _JewishMonthName = (Module['_JewishMonthName'] = 10943296);
+	var _JewishMonthHebNameLeap = (Module['_JewishMonthHebNameLeap'] =
+		10943360);
+	var _JewishMonthHebName = (Module['_JewishMonthHebName'] = 10943424);
+	var _ctype_module_entry = (Module['_ctype_module_entry'] = 10945120);
+	var _curl_ce = (Module['_curl_ce'] = 11385384);
+	var _curl_share_ce = (Module['_curl_share_ce'] = 11385488);
+	var _curl_module_entry = (Module['_curl_module_entry'] = 10946180);
+	var _curl_multi_ce = (Module['_curl_multi_ce'] = 11385176);
+	var _curl_CURLFile_class = (Module['_curl_CURLFile_class'] = 11385380);
+	var _dns_polyfill_functions = (Module['_dns_polyfill_functions'] =
+		10947808);
+	var _dns_polyfill_module_entry = (Module['_dns_polyfill_module_entry'] =
+		10947928);
+	var _dom_node_class_entry = (Module['_dom_node_class_entry'] = 11385492);
+	var _dom_object_handlers = (Module['_dom_object_handlers'] = 11385496);
+	var _dom_nnodemap_object_handlers = (Module[
+		'_dom_nnodemap_object_handlers'
+	] = 11385596);
+	var _dom_domexception_class_entry = (Module[
+		'_dom_domexception_class_entry'
+	] = 11385752);
+	var _dom_parentnode_class_entry = (Module['_dom_parentnode_class_entry'] =
+		11385756);
+	var _dom_childnode_class_entry = (Module['_dom_childnode_class_entry'] =
+		11385760);
+	var _dom_domimplementation_class_entry = (Module[
+		'_dom_domimplementation_class_entry'
+	] = 11385764);
+	var _dom_namespace_node_class_entry = (Module[
+		'_dom_namespace_node_class_entry'
+	] = 11385824);
+	var _dom_documentfragment_class_entry = (Module[
+		'_dom_documentfragment_class_entry'
+	] = 11385888);
+	var _dom_document_class_entry = (Module['_dom_document_class_entry'] =
+		11385952);
+	var _dom_nodelist_class_entry = (Module['_dom_nodelist_class_entry'] =
+		11386016);
+	var _dom_namednodemap_class_entry = (Module[
+		'_dom_namednodemap_class_entry'
+	] = 11386080);
+	var _dom_characterdata_class_entry = (Module[
+		'_dom_characterdata_class_entry'
+	] = 11386144);
+	var _dom_attr_class_entry = (Module['_dom_attr_class_entry'] = 11386208);
+	var _dom_element_class_entry = (Module['_dom_element_class_entry'] =
+		11386272);
+	var _dom_text_class_entry = (Module['_dom_text_class_entry'] = 11386336);
+	var _dom_comment_class_entry = (Module['_dom_comment_class_entry'] =
+		11386400);
+	var _dom_cdatasection_class_entry = (Module[
+		'_dom_cdatasection_class_entry'
+	] = 11386404);
+	var _dom_documenttype_class_entry = (Module[
+		'_dom_documenttype_class_entry'
+	] = 11386408);
+	var _dom_notation_class_entry = (Module['_dom_notation_class_entry'] =
+		11386472);
+	var _dom_entity_class_entry = (Module['_dom_entity_class_entry'] =
+		11386536);
+	var _dom_entityreference_class_entry = (Module[
+		'_dom_entityreference_class_entry'
+	] = 11386600);
+	var _dom_processinginstruction_class_entry = (Module[
+		'_dom_processinginstruction_class_entry'
+	] = 11386604);
+	var _dom_xpath_object_handlers = (Module['_dom_xpath_object_handlers'] =
+		11386664);
+	var _dom_xpath_class_entry = (Module['_dom_xpath_class_entry'] = 11386764);
+	var _dom_module_entry = (Module['_dom_module_entry'] = 10948168);
+	var _exif_globals = (Module['_exif_globals'] = 11386824);
+	var _exif_module_entry = (Module['_exif_module_entry'] = 10954052);
+	var _finfo_class_entry = (Module['_finfo_class_entry'] = 11387384);
+	var _fileinfo_module_entry = (Module['_fileinfo_module_entry'] = 10962396);
+	var _php_magic_database = (Module['_php_magic_database'] = 1516624);
+	var _file_formats = (Module['_file_formats'] = 11386864);
+	var _file_names = (Module['_file_names'] = 11387072);
+	var _file_nformats = (Module['_file_nformats'] = 1516612);
+	var _file_nnames = (Module['_file_nnames'] = 1516616);
+	var _filter_globals = (Module['_filter_globals'] = 11387392);
+	var _filter_module_entry = (Module['_filter_module_entry'] = 10963136);
+	var _gd_image_ce = (Module['_gd_image_ce'] = 11387588);
+	var _gd_module_entry = (Module['_gd_module_entry'] = 10966160);
+	var _php_gd_gdFontTiny = (Module['_php_gd_gdFontTiny'] = 10964084);
+	var _php_gd_gdFontTinyRep = (Module['_php_gd_gdFontTinyRep'] = 10964064);
+	var _php_gd_gdFontSmall = (Module['_php_gd_gdFontSmall'] = 10964108);
+	var _php_gd_gdFontSmallRep = (Module['_php_gd_gdFontSmallRep'] = 10964088);
+	var _php_gd_gdFontMediumBold = (Module['_php_gd_gdFontMediumBold'] =
+		10964132);
+	var _php_gd_gdFontMediumBoldRep = (Module['_php_gd_gdFontMediumBoldRep'] =
+		10964112);
+	var _php_gd_gdFontLarge = (Module['_php_gd_gdFontLarge'] = 10964156);
+	var _php_gd_gdFontLargeRep = (Module['_php_gd_gdFontLargeRep'] = 10964136);
+	var _php_gd_gdFontGiant = (Module['_php_gd_gdFontGiant'] = 10964060);
+	var _php_gd_gdFontGiantRep = (Module['_php_gd_gdFontGiantRep'] = 10964040);
+	var _php_gd_gdCosT = (Module['_php_gd_gdCosT'] = 8174128);
+	var _php_gd_gdSinT = (Module['_php_gd_gdSinT'] = 8175568);
+	var _php_hash_hashtable = (Module['_php_hash_hashtable'] = 11387600);
+	var _php_hashcontext_ce = (Module['_php_hashcontext_ce'] = 11387656);
+	var _hash_module_entry = (Module['_hash_module_entry'] = 10973984);
+	var _php_hash_md5_ops = (Module['_php_hash_md5_ops'] = 10971084);
+	var _php_hash_md4_ops = (Module['_php_hash_md4_ops'] = 10971132);
+	var _php_hash_md2_ops = (Module['_php_hash_md2_ops'] = 10971180);
+	var _php_hash_sha1_ops = (Module['_php_hash_sha1_ops'] = 10971228);
+	var _php_hash_sha256_ops = (Module['_php_hash_sha256_ops'] = 10971276);
+	var _php_hash_sha224_ops = (Module['_php_hash_sha224_ops'] = 10971324);
+	var _php_hash_sha384_ops = (Module['_php_hash_sha384_ops'] = 10971372);
+	var _php_hash_sha512_ops = (Module['_php_hash_sha512_ops'] = 10971420);
+	var _php_hash_sha512_256_ops = (Module['_php_hash_sha512_256_ops'] =
+		10971468);
+	var _php_hash_sha512_224_ops = (Module['_php_hash_sha512_224_ops'] =
+		10971516);
+	var _php_hash_ripemd128_ops = (Module['_php_hash_ripemd128_ops'] =
+		10971756);
+	var _php_hash_ripemd160_ops = (Module['_php_hash_ripemd160_ops'] =
+		10971804);
+	var _php_hash_ripemd256_ops = (Module['_php_hash_ripemd256_ops'] =
+		10971852);
+	var _php_hash_ripemd320_ops = (Module['_php_hash_ripemd320_ops'] =
+		10971900);
+	var _php_hash_3haval128_ops = (Module['_php_hash_3haval128_ops'] =
+		10972860);
+	var _php_hash_3haval160_ops = (Module['_php_hash_3haval160_ops'] =
+		10972908);
+	var _php_hash_3haval192_ops = (Module['_php_hash_3haval192_ops'] =
+		10972956);
+	var _php_hash_3haval224_ops = (Module['_php_hash_3haval224_ops'] =
+		10973004);
+	var _php_hash_3haval256_ops = (Module['_php_hash_3haval256_ops'] =
+		10973052);
+	var _php_hash_4haval128_ops = (Module['_php_hash_4haval128_ops'] =
+		10973100);
+	var _php_hash_4haval160_ops = (Module['_php_hash_4haval160_ops'] =
+		10973148);
+	var _php_hash_4haval192_ops = (Module['_php_hash_4haval192_ops'] =
+		10973196);
+	var _php_hash_4haval224_ops = (Module['_php_hash_4haval224_ops'] =
+		10973244);
+	var _php_hash_4haval256_ops = (Module['_php_hash_4haval256_ops'] =
+		10973292);
+	var _php_hash_5haval128_ops = (Module['_php_hash_5haval128_ops'] =
+		10973340);
+	var _php_hash_5haval160_ops = (Module['_php_hash_5haval160_ops'] =
+		10973388);
+	var _php_hash_5haval192_ops = (Module['_php_hash_5haval192_ops'] =
+		10973436);
+	var _php_hash_5haval224_ops = (Module['_php_hash_5haval224_ops'] =
+		10973484);
+	var _php_hash_5haval256_ops = (Module['_php_hash_5haval256_ops'] =
+		10973532);
+	var _php_hash_3tiger128_ops = (Module['_php_hash_3tiger128_ops'] =
+		10971996);
+	var _php_hash_3tiger160_ops = (Module['_php_hash_3tiger160_ops'] =
+		10972044);
+	var _php_hash_3tiger192_ops = (Module['_php_hash_3tiger192_ops'] =
+		10972092);
+	var _php_hash_4tiger128_ops = (Module['_php_hash_4tiger128_ops'] =
+		10972140);
+	var _php_hash_4tiger160_ops = (Module['_php_hash_4tiger160_ops'] =
+		10972188);
+	var _php_hash_4tiger192_ops = (Module['_php_hash_4tiger192_ops'] =
+		10972236);
+	var _php_hash_gost_ops = (Module['_php_hash_gost_ops'] = 10972332);
+	var _php_hash_gost_crypto_ops = (Module['_php_hash_gost_crypto_ops'] =
+		10972380);
+	var _php_hash_snefru_ops = (Module['_php_hash_snefru_ops'] = 10972284);
+	var _php_hash_whirlpool_ops = (Module['_php_hash_whirlpool_ops'] =
+		10971948);
+	var _php_hash_adler32_ops = (Module['_php_hash_adler32_ops'] = 10972428);
+	var _php_hash_crc32_ops = (Module['_php_hash_crc32_ops'] = 10972476);
+	var _php_hash_crc32b_ops = (Module['_php_hash_crc32b_ops'] = 10972524);
+	var _php_hash_crc32c_ops = (Module['_php_hash_crc32c_ops'] = 10972572);
+	var _php_hash_fnv132_ops = (Module['_php_hash_fnv132_ops'] = 10972620);
+	var _php_hash_fnv1a32_ops = (Module['_php_hash_fnv1a32_ops'] = 10972668);
+	var _php_hash_fnv164_ops = (Module['_php_hash_fnv164_ops'] = 10972716);
+	var _php_hash_fnv1a64_ops = (Module['_php_hash_fnv1a64_ops'] = 10972764);
+	var _php_hash_joaat_ops = (Module['_php_hash_joaat_ops'] = 10972812);
+	var _php_hash_sha3_224_ops = (Module['_php_hash_sha3_224_ops'] = 10971564);
+	var _php_hash_sha3_256_ops = (Module['_php_hash_sha3_256_ops'] = 10971612);
+	var _php_hash_sha3_384_ops = (Module['_php_hash_sha3_384_ops'] = 10971660);
+	var _php_hash_sha3_512_ops = (Module['_php_hash_sha3_512_ops'] = 10971708);
+	var _iconv_globals = (Module['_iconv_globals'] = 11387760);
+	var _iconv_module_entry = (Module['_iconv_module_entry'] = 10975196);
+	var _php_json_serializable_ce = (Module['_php_json_serializable_ce'] =
+		11387808);
+	var _php_json_exception_ce = (Module['_php_json_exception_ce'] = 11387804);
+	var _json_globals = (Module['_json_globals'] = 11387792);
+	var _json_module_entry = (Module['_json_module_entry'] = 10976196);
+	var _mbstring_globals = (Module['_mbstring_globals'] = 11387816);
+	var _mbstring_module_entry = (Module['_mbstring_module_entry'] = 10990160);
+	var _mbfl_html_entity_list = (Module['_mbfl_html_entity_list'] = 10977328);
+	var _mbfl_encoding_7bit = (Module['_mbfl_encoding_7bit'] = 10976888);
+	var _vtbl_8bit_7bit = (Module['_vtbl_8bit_7bit'] = 10976920);
+	var _vtbl_7bit_8bit = (Module['_vtbl_7bit_8bit'] = 10976948);
+	var _vtbl_ascii_wchar = (Module['_vtbl_ascii_wchar'] = 10980720);
+	var _vtbl_wchar_ascii = (Module['_vtbl_wchar_ascii'] = 10980748);
+	var _mbfl_encoding_ascii = (Module['_mbfl_encoding_ascii'] = 10980776);
+	var _vtbl_identify_ascii = (Module['_vtbl_identify_ascii'] = 10980808);
+	var _mbfl_encoding_base64 = (Module['_mbfl_encoding_base64'] = 10976644);
+	var _vtbl_8bit_b64 = (Module['_vtbl_8bit_b64'] = 10976676);
+	var _vtbl_b64_8bit = (Module['_vtbl_b64_8bit'] = 10976704);
+	var _vtbl_big5_wchar = (Module['_vtbl_big5_wchar'] = 10983680);
+	var _vtbl_wchar_big5 = (Module['_vtbl_wchar_big5'] = 10983708);
+	var _mbfl_encoding_big5 = (Module['_mbfl_encoding_big5'] = 10983736);
+	var _vtbl_cp950_wchar = (Module['_vtbl_cp950_wchar'] = 10983768);
+	var _vtbl_wchar_cp950 = (Module['_vtbl_wchar_cp950'] = 10983796);
+	var _mbfl_encoding_cp950 = (Module['_mbfl_encoding_cp950'] = 10983824);
+	var _vtbl_identify_big5 = (Module['_vtbl_identify_big5'] = 10983856);
+	var _vtbl_identify_cp950 = (Module['_vtbl_identify_cp950'] = 10983868);
+	var _vtbl_byte2be_wchar = (Module['_vtbl_byte2be_wchar'] = 10976976);
+	var _vtbl_wchar_byte2be = (Module['_vtbl_wchar_byte2be'] = 10977004);
+	var _mbfl_encoding_byte2be = (Module['_mbfl_encoding_byte2be'] = 10977032);
+	var _vtbl_byte2le_wchar = (Module['_vtbl_byte2le_wchar'] = 10977064);
+	var _vtbl_wchar_byte2le = (Module['_vtbl_wchar_byte2le'] = 10977092);
+	var _mbfl_encoding_byte2le = (Module['_mbfl_encoding_byte2le'] = 10977120);
+	var _vtbl_byte4be_wchar = (Module['_vtbl_byte4be_wchar'] = 10977152);
+	var _vtbl_wchar_byte4be = (Module['_vtbl_wchar_byte4be'] = 10977180);
+	var _mbfl_encoding_byte4be = (Module['_mbfl_encoding_byte4be'] = 10977208);
+	var _vtbl_byte4le_wchar = (Module['_vtbl_byte4le_wchar'] = 10977240);
+	var _vtbl_wchar_byte4le = (Module['_vtbl_wchar_byte4le'] = 10977268);
+	var _mbfl_encoding_byte4le = (Module['_mbfl_encoding_byte4le'] = 10977296);
+	var _vtbl_cp1251_wchar = (Module['_vtbl_cp1251_wchar'] = 10984240);
+	var _vtbl_wchar_cp1251 = (Module['_vtbl_wchar_cp1251'] = 10984268);
+	var _mbfl_encoding_cp1251 = (Module['_mbfl_encoding_cp1251'] = 10984296);
+	var _vtbl_identify_cp1251 = (Module['_vtbl_identify_cp1251'] = 10984328);
+	var _vtbl_cp1252_wchar = (Module['_vtbl_cp1252_wchar'] = 10984704);
+	var _vtbl_wchar_cp1252 = (Module['_vtbl_wchar_cp1252'] = 10984732);
+	var _mbfl_encoding_cp1252 = (Module['_mbfl_encoding_cp1252'] = 10984760);
+	var _vtbl_identify_cp1252 = (Module['_vtbl_identify_cp1252'] = 10984792);
+	var _vtbl_cp1254_wchar = (Module['_vtbl_cp1254_wchar'] = 10984832);
+	var _vtbl_wchar_cp1254 = (Module['_vtbl_wchar_cp1254'] = 10984860);
+	var _mbfl_encoding_cp1254 = (Module['_mbfl_encoding_cp1254'] = 10984888);
+	var _vtbl_identify_cp1254 = (Module['_vtbl_identify_cp1254'] = 10984920);
+	var _vtbl_jis_ms_wchar = (Module['_vtbl_jis_ms_wchar'] = 10986660);
+	var _vtbl_wchar_jis_ms = (Module['_vtbl_wchar_jis_ms'] = 10986688);
+	var _mbfl_encoding_jis_ms = (Module['_mbfl_encoding_jis_ms'] = 10986716);
+	var _vtbl_cp50220_wchar = (Module['_vtbl_cp50220_wchar'] = 10986748);
+	var _vtbl_wchar_cp50220 = (Module['_vtbl_wchar_cp50220'] = 10986776);
+	var _mbfl_encoding_cp50220 = (Module['_mbfl_encoding_cp50220'] = 10986804);
+	var _vtbl_cp50220raw_wchar = (Module['_vtbl_cp50220raw_wchar'] = 10986836);
+	var _vtbl_wchar_cp50220raw = (Module['_vtbl_wchar_cp50220raw'] = 10986864);
+	var _mbfl_encoding_cp50220raw = (Module['_mbfl_encoding_cp50220raw'] =
+		10986892);
+	var _vtbl_cp50221_wchar = (Module['_vtbl_cp50221_wchar'] = 10986924);
+	var _vtbl_wchar_cp50221 = (Module['_vtbl_wchar_cp50221'] = 10986952);
+	var _mbfl_encoding_cp50221 = (Module['_mbfl_encoding_cp50221'] = 10986980);
+	var _vtbl_cp50222_wchar = (Module['_vtbl_cp50222_wchar'] = 10987012);
+	var _vtbl_wchar_cp50222 = (Module['_vtbl_wchar_cp50222'] = 10987040);
+	var _mbfl_encoding_cp50222 = (Module['_mbfl_encoding_cp50222'] = 10987068);
+	var _vtbl_identify_jis_ms = (Module['_vtbl_identify_jis_ms'] = 10987100);
+	var _vtbl_identify_cp50220 = (Module['_vtbl_identify_cp50220'] = 10987112);
+	var _vtbl_identify_cp50220raw = (Module['_vtbl_identify_cp50220raw'] =
+		10987124);
+	var _vtbl_identify_cp50221 = (Module['_vtbl_identify_cp50221'] = 10987136);
+	var _vtbl_identify_cp50222 = (Module['_vtbl_identify_cp50222'] = 10987148);
+	var _vtbl_identify_cp51932 = (Module['_vtbl_identify_cp51932'] = 10982760);
+	var _vtbl_cp51932_wchar = (Module['_vtbl_cp51932_wchar'] = 10982780);
+	var _vtbl_wchar_cp51932 = (Module['_vtbl_wchar_cp51932'] = 10982808);
+	var _mbfl_encoding_cp51932 = (Module['_mbfl_encoding_cp51932'] = 10982836);
+	var _vtbl_cp850_wchar = (Module['_vtbl_cp850_wchar'] = 10986532);
+	var _vtbl_wchar_cp850 = (Module['_vtbl_wchar_cp850'] = 10986560);
+	var _mbfl_encoding_cp850 = (Module['_mbfl_encoding_cp850'] = 10986588);
+	var _vtbl_identify_cp850 = (Module['_vtbl_identify_cp850'] = 10986620);
+	var _vtbl_cp866_wchar = (Module['_vtbl_cp866_wchar'] = 10984372);
+	var _vtbl_wchar_cp866 = (Module['_vtbl_wchar_cp866'] = 10984400);
+	var _mbfl_encoding_cp866 = (Module['_mbfl_encoding_cp866'] = 10984428);
+	var _vtbl_identify_cp866 = (Module['_vtbl_identify_cp866'] = 10984460);
+	var _vtbl_cp932_wchar = (Module['_vtbl_cp932_wchar'] = 10981776);
+	var _vtbl_wchar_cp932 = (Module['_vtbl_wchar_cp932'] = 10981804);
+	var _mbfl_encoding_cp932 = (Module['_mbfl_encoding_cp932'] = 10981832);
+	var _vtbl_identify_cp932 = (Module['_vtbl_identify_cp932'] = 10981864);
+	var _cp936_ucs_table = (Module['_cp936_ucs_table'] = 8444944);
+	var _ucs_a1_cp936_table = (Module['_ucs_a1_cp936_table'] = 8493152);
+	var _ucs_a2_cp936_table = (Module['_ucs_a2_cp936_table'] = 8495376);
+	var _ucs_a3_cp936_table = (Module['_ucs_a3_cp936_table'] = 8498976);
+	var _ucs_i_cp936_table = (Module['_ucs_i_cp936_table'] = 8501552);
+	var _ucs_cf_cp936_table = (Module['_ucs_cf_cp936_table'] = 8544128);
+	var _ucs_sfv_cp936_table = (Module['_ucs_sfv_cp936_table'] = 8544208);
+	var _ucs_hff_s_cp936_table = (Module['_ucs_hff_s_cp936_table'] = 8544280);
+	var _cp936_ucs_table_size = (Module['_cp936_ucs_table_size'] = 8493136);
+	var _ucs_a1_cp936_table_min = (Module['_ucs_a1_cp936_table_min'] = 8495364);
+	var _ucs_a1_cp936_table_max = (Module['_ucs_a1_cp936_table_max'] = 8495368);
+	var _ucs_a2_cp936_table_min = (Module['_ucs_a2_cp936_table_min'] = 8498960);
+	var _ucs_a2_cp936_table_max = (Module['_ucs_a2_cp936_table_max'] = 8498964);
+	var _ucs_a3_cp936_table_min = (Module['_ucs_a3_cp936_table_min'] = 8501536);
+	var _ucs_a3_cp936_table_max = (Module['_ucs_a3_cp936_table_max'] = 8501540);
+	var _ucs_i_cp936_table_min = (Module['_ucs_i_cp936_table_min'] = 8544048);
+	var _ucs_i_cp936_table_max = (Module['_ucs_i_cp936_table_max'] = 8544052);
+	var _ucs_ci_cp936_table_min = (Module['_ucs_ci_cp936_table_min'] = 8544056);
+	var _ucs_ci_cp936_table_max = (Module['_ucs_ci_cp936_table_max'] = 8544060);
+	var _ucs_ci_s_cp936_table = (Module['_ucs_ci_s_cp936_table'] = 8544064);
+	var _ucs_cf_cp936_table_min = (Module['_ucs_cf_cp936_table_min'] = 8544192);
+	var _ucs_cf_cp936_table_max = (Module['_ucs_cf_cp936_table_max'] = 8544196);
+	var _ucs_sfv_cp936_table_min = (Module['_ucs_sfv_cp936_table_min'] =
+		8544272);
+	var _ucs_sfv_cp936_table_max = (Module['_ucs_sfv_cp936_table_max'] =
+		8544276);
+	var _ucs_hff_cp936_table_min = (Module['_ucs_hff_cp936_table_min'] =
+		8544292);
+	var _ucs_hff_cp936_table_max = (Module['_ucs_hff_cp936_table_max'] =
+		8544296);
+	var _vtbl_cp936_wchar = (Module['_vtbl_cp936_wchar'] = 10981300);
+	var _vtbl_wchar_cp936 = (Module['_vtbl_wchar_cp936'] = 10981328);
+	var _mbfl_encoding_cp936 = (Module['_mbfl_encoding_cp936'] = 10981356);
+	var _vtbl_identify_cp936 = (Module['_vtbl_identify_cp936'] = 10981388);
+	var _vtbl_gb18030_wchar = (Module['_vtbl_gb18030_wchar'] = 10981412);
+	var _vtbl_wchar_gb18030 = (Module['_vtbl_wchar_gb18030'] = 10981440);
+	var _mbfl_encoding_gb18030 = (Module['_mbfl_encoding_gb18030'] = 10981468);
+	var _vtbl_identify_gb18030 = (Module['_vtbl_identify_gb18030'] = 10981500);
+	var _vtbl_euccn_wchar = (Module['_vtbl_euccn_wchar'] = 10983336);
+	var _vtbl_wchar_euccn = (Module['_vtbl_wchar_euccn'] = 10983364);
+	var _mbfl_encoding_euc_cn = (Module['_mbfl_encoding_euc_cn'] = 10983392);
+	var _vtbl_identify_euccn = (Module['_vtbl_identify_euccn'] = 10983424);
+	var _mblen_table_eucjp = (Module['_mblen_table_eucjp'] = 8443392);
+	var _vtbl_eucjp_wchar = (Module['_vtbl_eucjp_wchar'] = 10980964);
+	var _vtbl_wchar_eucjp = (Module['_vtbl_wchar_eucjp'] = 10980992);
+	var _mbfl_encoding_euc_jp = (Module['_mbfl_encoding_euc_jp'] = 10981020);
+	var _vtbl_identify_eucjp = (Module['_vtbl_identify_eucjp'] = 10981052);
+	var _vtbl_eucjp2004_wchar = (Module['_vtbl_eucjp2004_wchar'] = 10981660);
+	var _vtbl_wchar_eucjp2004 = (Module['_vtbl_wchar_eucjp2004'] = 10981688);
+	var _mbfl_encoding_eucjp2004 = (Module['_mbfl_encoding_eucjp2004'] =
+		10981716);
+	var _vtbl_identify_eucjp2004 = (Module['_vtbl_identify_eucjp2004'] =
+		10981748);
+	var _vtbl_identify_eucjpwin = (Module['_vtbl_identify_eucjpwin'] =
+		10981176);
+	var _vtbl_eucjpwin_wchar = (Module['_vtbl_eucjpwin_wchar'] = 10981200);
+	var _vtbl_wchar_eucjpwin = (Module['_vtbl_wchar_eucjpwin'] = 10981228);
+	var _mbfl_encoding_eucjp_win = (Module['_mbfl_encoding_eucjp_win'] =
+		10981256);
+	var _vtbl_euckr_wchar = (Module['_vtbl_euckr_wchar'] = 10984016);
+	var _vtbl_wchar_euckr = (Module['_vtbl_wchar_euckr'] = 10984044);
+	var _mbfl_encoding_euc_kr = (Module['_mbfl_encoding_euc_kr'] = 10984072);
+	var _vtbl_identify_euckr = (Module['_vtbl_identify_euckr'] = 10984104);
+	var _vtbl_euctw_wchar = (Module['_vtbl_euctw_wchar'] = 10983552);
+	var _vtbl_wchar_euctw = (Module['_vtbl_wchar_euctw'] = 10983580);
+	var _mbfl_encoding_euc_tw = (Module['_mbfl_encoding_euc_tw'] = 10983608);
+	var _vtbl_identify_euctw = (Module['_vtbl_identify_euctw'] = 10983640);
+	var _vtbl_html_wchar = (Module['_vtbl_html_wchar'] = 10979364);
+	var _vtbl_wchar_html = (Module['_vtbl_wchar_html'] = 10979392);
+	var _mbfl_encoding_html_ent = (Module['_mbfl_encoding_html_ent'] =
+		10979420);
+	var _vtbl_hz_wchar = (Module['_vtbl_hz_wchar'] = 10983436);
+	var _vtbl_wchar_hz = (Module['_vtbl_wchar_hz'] = 10983464);
+	var _mbfl_encoding_hz = (Module['_mbfl_encoding_hz'] = 10983492);
+	var _vtbl_identify_hz = (Module['_vtbl_identify_hz'] = 10983524);
+	var _vtbl_2022jpms_wchar = (Module['_vtbl_2022jpms_wchar'] = 10982084);
+	var _vtbl_wchar_2022jpms = (Module['_vtbl_wchar_2022jpms'] = 10982112);
+	var _mbfl_encoding_2022jpms = (Module['_mbfl_encoding_2022jpms'] =
+		10982140);
+	var _vtbl_identify_2022jpms = (Module['_vtbl_identify_2022jpms'] =
+		10982172);
+	var _vtbl_2022jp_2004_wchar = (Module['_vtbl_2022jp_2004_wchar'] =
+		10982184);
+	var _vtbl_wchar_2022jp_2004 = (Module['_vtbl_wchar_2022jp_2004'] =
+		10982212);
+	var _mbfl_encoding_2022jp_2004 = (Module['_mbfl_encoding_2022jp_2004'] =
+		10982240);
+	var _vtbl_identify_2022jp_2004 = (Module['_vtbl_identify_2022jp_2004'] =
+		10982272);
+	var _vtbl_2022jp_kddi_wchar = (Module['_vtbl_2022jp_kddi_wchar'] =
+		10982660);
+	var _vtbl_wchar_2022jp_kddi = (Module['_vtbl_wchar_2022jp_kddi'] =
+		10982688);
+	var _mbfl_encoding_2022jp_kddi = (Module['_mbfl_encoding_2022jp_kddi'] =
+		10982716);
+	var _vtbl_identify_2022jp_kddi = (Module['_vtbl_identify_2022jp_kddi'] =
+		10982748);
+	var _vtbl_2022kr_wchar = (Module['_vtbl_2022kr_wchar'] = 10984116);
+	var _vtbl_wchar_2022kr = (Module['_vtbl_wchar_2022kr'] = 10984144);
+	var _mbfl_encoding_2022kr = (Module['_mbfl_encoding_2022kr'] = 10984172);
+	var _vtbl_identify_2022kr = (Module['_vtbl_identify_2022kr'] = 10984204);
+	var _vtbl_8859_1_wchar = (Module['_vtbl_8859_1_wchar'] = 10984944);
+	var _vtbl_wchar_8859_1 = (Module['_vtbl_wchar_8859_1'] = 10984972);
+	var _mbfl_encoding_8859_1 = (Module['_mbfl_encoding_8859_1'] = 10985e3);
+	var _vtbl_identify_8859_1 = (Module['_vtbl_identify_8859_1'] = 10985032);
+	var _vtbl_8859_10_wchar = (Module['_vtbl_8859_10_wchar'] = 10985952);
+	var _vtbl_wchar_8859_10 = (Module['_vtbl_wchar_8859_10'] = 10985980);
+	var _mbfl_encoding_8859_10 = (Module['_mbfl_encoding_8859_10'] = 10986008);
+	var _vtbl_identify_8859_10 = (Module['_vtbl_identify_8859_10'] = 10986040);
+	var _vtbl_8859_13_wchar = (Module['_vtbl_8859_13_wchar'] = 10986060);
+	var _vtbl_wchar_8859_13 = (Module['_vtbl_wchar_8859_13'] = 10986088);
+	var _mbfl_encoding_8859_13 = (Module['_mbfl_encoding_8859_13'] = 10986116);
+	var _vtbl_identify_8859_13 = (Module['_vtbl_identify_8859_13'] = 10986148);
+	var _vtbl_8859_14_wchar = (Module['_vtbl_8859_14_wchar'] = 10986172);
+	var _vtbl_wchar_8859_14 = (Module['_vtbl_wchar_8859_14'] = 10986200);
+	var _mbfl_encoding_8859_14 = (Module['_mbfl_encoding_8859_14'] = 10986228);
+	var _vtbl_identify_8859_14 = (Module['_vtbl_identify_8859_14'] = 10986260);
+	var _vtbl_8859_15_wchar = (Module['_vtbl_8859_15_wchar'] = 10986280);
+	var _vtbl_wchar_8859_15 = (Module['_vtbl_wchar_8859_15'] = 10986308);
+	var _mbfl_encoding_8859_15 = (Module['_mbfl_encoding_8859_15'] = 10986336);
+	var _vtbl_identify_8859_15 = (Module['_vtbl_identify_8859_15'] = 10986368);
+	var _vtbl_8859_16_wchar = (Module['_vtbl_8859_16_wchar'] = 10987788);
+	var _vtbl_wchar_8859_16 = (Module['_vtbl_wchar_8859_16'] = 10987816);
+	var _mbfl_encoding_8859_16 = (Module['_mbfl_encoding_8859_16'] = 10987844);
+	var _vtbl_identify_8859_16 = (Module['_vtbl_identify_8859_16'] = 10987876);
+	var _vtbl_8859_2_wchar = (Module['_vtbl_8859_2_wchar'] = 10985056);
+	var _vtbl_wchar_8859_2 = (Module['_vtbl_wchar_8859_2'] = 10985084);
+	var _mbfl_encoding_8859_2 = (Module['_mbfl_encoding_8859_2'] = 10985112);
+	var _vtbl_identify_8859_2 = (Module['_vtbl_identify_8859_2'] = 10985144);
+	var _vtbl_8859_3_wchar = (Module['_vtbl_8859_3_wchar'] = 10985168);
+	var _vtbl_wchar_8859_3 = (Module['_vtbl_wchar_8859_3'] = 10985196);
+	var _mbfl_encoding_8859_3 = (Module['_mbfl_encoding_8859_3'] = 10985224);
+	var _vtbl_identify_8859_3 = (Module['_vtbl_identify_8859_3'] = 10985256);
+	var _vtbl_8859_4_wchar = (Module['_vtbl_8859_4_wchar'] = 10985280);
+	var _vtbl_wchar_8859_4 = (Module['_vtbl_wchar_8859_4'] = 10985308);
+	var _mbfl_encoding_8859_4 = (Module['_mbfl_encoding_8859_4'] = 10985336);
+	var _vtbl_identify_8859_4 = (Module['_vtbl_identify_8859_4'] = 10985368);
+	var _vtbl_8859_5_wchar = (Module['_vtbl_8859_5_wchar'] = 10985392);
+	var _vtbl_wchar_8859_5 = (Module['_vtbl_wchar_8859_5'] = 10985420);
+	var _mbfl_encoding_8859_5 = (Module['_mbfl_encoding_8859_5'] = 10985448);
+	var _vtbl_identify_8859_5 = (Module['_vtbl_identify_8859_5'] = 10985480);
+	var _vtbl_8859_6_wchar = (Module['_vtbl_8859_6_wchar'] = 10985504);
+	var _vtbl_wchar_8859_6 = (Module['_vtbl_wchar_8859_6'] = 10985532);
+	var _mbfl_encoding_8859_6 = (Module['_mbfl_encoding_8859_6'] = 10985560);
+	var _vtbl_identify_8859_6 = (Module['_vtbl_identify_8859_6'] = 10985592);
+	var _vtbl_8859_7_wchar = (Module['_vtbl_8859_7_wchar'] = 10985616);
+	var _vtbl_wchar_8859_7 = (Module['_vtbl_wchar_8859_7'] = 10985644);
+	var _mbfl_encoding_8859_7 = (Module['_mbfl_encoding_8859_7'] = 10985672);
+	var _vtbl_identify_8859_7 = (Module['_vtbl_identify_8859_7'] = 10985704);
+	var _vtbl_8859_8_wchar = (Module['_vtbl_8859_8_wchar'] = 10985728);
+	var _vtbl_wchar_8859_8 = (Module['_vtbl_wchar_8859_8'] = 10985756);
+	var _mbfl_encoding_8859_8 = (Module['_mbfl_encoding_8859_8'] = 10985784);
+	var _vtbl_identify_8859_8 = (Module['_vtbl_identify_8859_8'] = 10985816);
+	var _vtbl_8859_9_wchar = (Module['_vtbl_8859_9_wchar'] = 10985840);
+	var _vtbl_wchar_8859_9 = (Module['_vtbl_wchar_8859_9'] = 10985868);
+	var _mbfl_encoding_8859_9 = (Module['_mbfl_encoding_8859_9'] = 10985896);
+	var _vtbl_identify_8859_9 = (Module['_vtbl_identify_8859_9'] = 10985928);
+	var _vtbl_jis_wchar = (Module['_vtbl_jis_wchar'] = 10981876);
+	var _vtbl_wchar_jis = (Module['_vtbl_wchar_jis'] = 10981904);
+	var _mbfl_encoding_jis = (Module['_mbfl_encoding_jis'] = 10981932);
+	var _vtbl_2022jp_wchar = (Module['_vtbl_2022jp_wchar'] = 10981964);
+	var _vtbl_wchar_2022jp = (Module['_vtbl_wchar_2022jp'] = 10981992);
+	var _mbfl_encoding_2022jp = (Module['_mbfl_encoding_2022jp'] = 10982020);
+	var _vtbl_identify_jis = (Module['_vtbl_identify_jis'] = 10982052);
+	var _vtbl_identify_2022jp = (Module['_vtbl_identify_2022jp'] = 10982064);
+	var _vtbl_koi8r_wchar = (Module['_vtbl_koi8r_wchar'] = 10984484);
+	var _vtbl_wchar_koi8r = (Module['_vtbl_wchar_koi8r'] = 10984512);
+	var _mbfl_encoding_koi8r = (Module['_mbfl_encoding_koi8r'] = 10984540);
+	var _vtbl_identify_koi8r = (Module['_vtbl_identify_koi8r'] = 10984572);
+	var _vtbl_armscii8_wchar = (Module['_vtbl_armscii8_wchar'] = 10986404);
+	var _vtbl_wchar_armscii8 = (Module['_vtbl_wchar_armscii8'] = 10986432);
+	var _mbfl_encoding_armscii8 = (Module['_mbfl_encoding_armscii8'] =
+		10986460);
+	var _vtbl_identify_armscii8 = (Module['_vtbl_identify_armscii8'] =
+		10986492);
+	var _mbfl_encoding_qprint = (Module['_mbfl_encoding_qprint'] = 10976800);
+	var _vtbl_8bit_qprint = (Module['_vtbl_8bit_qprint'] = 10976832);
+	var _vtbl_qprint_8bit = (Module['_vtbl_qprint_8bit'] = 10976860);
+	var _jisx0208_ucs_table = (Module['_jisx0208_ucs_table'] = 8359632);
+	var _ucs_a1_jis_table = (Module['_ucs_a1_jis_table'] = 8389696);
+	var _ucs_a2_jis_table = (Module['_ucs_a2_jis_table'] = 8391952);
+	var _ucs_i_jis_table = (Module['_ucs_i_jis_table'] = 8400672);
+	var _ucs_r_jis_table_min = (Module['_ucs_r_jis_table_min'] = 10980820);
+	var _ucs_r_jis_table_max = (Module['_ucs_r_jis_table_max'] = 10980824);
+	var _ucs_r_jis_table = (Module['_ucs_r_jis_table'] = 8442672);
+	var _cp932ext1_ucs_table = (Module['_cp932ext1_ucs_table'] = 8357872);
+	var _cp932ext1_ucs_table_min = (Module['_cp932ext1_ucs_table_min'] =
+		8358060);
+	var _cp932ext1_ucs_table_max = (Module['_cp932ext1_ucs_table_max'] =
+		8358064);
+	var _cp932ext2_ucs_table = (Module['_cp932ext2_ucs_table'] = 8358080);
+	var _cp932ext2_ucs_table_min = (Module['_cp932ext2_ucs_table_min'] =
+		8358832);
+	var _cp932ext2_ucs_table_max = (Module['_cp932ext2_ucs_table_max'] =
+		8358836);
+	var _cp932ext3_ucs_table = (Module['_cp932ext3_ucs_table'] = 8358848);
+	var _cp932ext3_ucs_table_min = (Module['_cp932ext3_ucs_table_min'] =
+		8359624);
+	var _cp932ext3_ucs_table_max = (Module['_cp932ext3_ucs_table_max'] =
+		8359628);
+	var _jisx0208_ucs_table_size = (Module['_jisx0208_ucs_table_size'] =
+		8375248);
+	var _jisx0212_ucs_table = (Module['_jisx0212_ucs_table'] = 8375264);
+	var _jisx0212_ucs_table_size = (Module['_jisx0212_ucs_table_size'] =
+		8389688);
+	var _ucs_a1_jis_table_min = (Module['_ucs_a1_jis_table_min'] = 8391936);
+	var _ucs_a1_jis_table_max = (Module['_ucs_a1_jis_table_max'] = 8391940);
+	var _ucs_a2_jis_table_min = (Module['_ucs_a2_jis_table_min'] = 8400656);
+	var _ucs_a2_jis_table_max = (Module['_ucs_a2_jis_table_max'] = 8400660);
+	var _ucs_i_jis_table_min = (Module['_ucs_i_jis_table_min'] = 8442656);
+	var _ucs_i_jis_table_max = (Module['_ucs_i_jis_table_max'] = 8442660);
+	var _mblen_table_sjis = (Module['_mblen_table_sjis'] = 8443136);
+	var _vtbl_sjis_wchar = (Module['_vtbl_sjis_wchar'] = 10980840);
+	var _vtbl_wchar_sjis = (Module['_vtbl_wchar_sjis'] = 10980868);
+	var _mbfl_encoding_sjis = (Module['_mbfl_encoding_sjis'] = 10980896);
+	var _vtbl_identify_sjis = (Module['_vtbl_identify_sjis'] = 10980928);
+	var _vtbl_sjis_open_wchar = (Module['_vtbl_sjis_open_wchar'] = 10981076);
+	var _vtbl_wchar_sjis_open = (Module['_vtbl_wchar_sjis_open'] = 10981104);
+	var _mbfl_encoding_sjis_open = (Module['_mbfl_encoding_sjis_open'] =
+		10981132);
+	var _vtbl_identify_sjis_open = (Module['_vtbl_identify_sjis_open'] =
+		10981164);
+	var _vtbl_sjis_docomo_wchar = (Module['_vtbl_sjis_docomo_wchar'] =
+		10982304);
+	var _vtbl_wchar_sjis_docomo = (Module['_vtbl_wchar_sjis_docomo'] =
+		10982332);
+	var _mbfl_encoding_sjis_docomo = (Module['_mbfl_encoding_sjis_docomo'] =
+		10982360);
+	var _vtbl_sjis_kddi_wchar = (Module['_vtbl_sjis_kddi_wchar'] = 10982416);
+	var _vtbl_wchar_sjis_kddi = (Module['_vtbl_wchar_sjis_kddi'] = 10982444);
+	var _mbfl_encoding_sjis_kddi = (Module['_mbfl_encoding_sjis_kddi'] =
+		10982472);
+	var _vtbl_sjis_sb_wchar = (Module['_vtbl_sjis_sb_wchar'] = 10982528);
+	var _vtbl_wchar_sjis_sb = (Module['_vtbl_wchar_sjis_sb'] = 10982556);
+	var _mbfl_encoding_sjis_sb = (Module['_mbfl_encoding_sjis_sb'] = 10982584);
+	var _vtbl_identify_sjis_docomo = (Module['_vtbl_identify_sjis_docomo'] =
+		10982616);
+	var _vtbl_identify_sjis_kddi = (Module['_vtbl_identify_sjis_kddi'] =
+		10982628);
+	var _vtbl_identify_sjis_sb = (Module['_vtbl_identify_sjis_sb'] = 10982640);
+	var _mbfl_docomo2uni_pua = (Module['_mbfl_docomo2uni_pua'] = 8621440);
+	var _mbfl_kddi2uni_pua = (Module['_mbfl_kddi2uni_pua'] = 8621472);
+	var _mbfl_sb2uni_pua = (Module['_mbfl_sb2uni_pua'] = 8621520);
+	var _mbfl_kddi2uni_pua_b = (Module['_mbfl_kddi2uni_pua_b'] = 8621568);
+	var _vtbl_sjis_mac_wchar = (Module['_vtbl_sjis_mac_wchar'] = 10987624);
+	var _vtbl_wchar_sjis_mac = (Module['_vtbl_wchar_sjis_mac'] = 10987652);
+	var _mbfl_encoding_sjis_mac = (Module['_mbfl_encoding_sjis_mac'] =
+		10987680);
+	var _vtbl_identify_sjis_mac = (Module['_vtbl_identify_sjis_mac'] =
+		10987712);
+	var _vtbl_sjis2004_wchar = (Module['_vtbl_sjis2004_wchar'] = 10981524);
+	var _vtbl_wchar_sjis2004 = (Module['_vtbl_wchar_sjis2004'] = 10981552);
+	var _mbfl_encoding_sjis2004 = (Module['_mbfl_encoding_sjis2004'] =
+		10981580);
+	var _vtbl_identify_sjis2004 = (Module['_vtbl_identify_sjis2004'] =
+		10981612);
+	var _vtbl_tl_jisx0201_jisx0208 = (Module['_vtbl_tl_jisx0201_jisx0208'] =
+		10986632);
+	var _vtbl_ucs2_wchar = (Module['_vtbl_ucs2_wchar'] = 10979744);
+	var _vtbl_wchar_ucs2 = (Module['_vtbl_wchar_ucs2'] = 10979772);
+	var _mbfl_encoding_ucs2 = (Module['_mbfl_encoding_ucs2'] = 10979800);
+	var _vtbl_ucs2be_wchar = (Module['_vtbl_ucs2be_wchar'] = 10979832);
+	var _vtbl_wchar_ucs2be = (Module['_vtbl_wchar_ucs2be'] = 10979860);
+	var _mbfl_encoding_ucs2be = (Module['_mbfl_encoding_ucs2be'] = 10979888);
+	var _vtbl_ucs2le_wchar = (Module['_vtbl_ucs2le_wchar'] = 10979920);
+	var _vtbl_wchar_ucs2le = (Module['_vtbl_wchar_ucs2le'] = 10979948);
+	var _mbfl_encoding_ucs2le = (Module['_mbfl_encoding_ucs2le'] = 10979976);
+	var _vtbl_ucs4_wchar = (Module['_vtbl_ucs4_wchar'] = 10979464);
+	var _vtbl_wchar_ucs4 = (Module['_vtbl_wchar_ucs4'] = 10979492);
+	var _mbfl_encoding_ucs4 = (Module['_mbfl_encoding_ucs4'] = 10979520);
+	var _vtbl_ucs4be_wchar = (Module['_vtbl_ucs4be_wchar'] = 10979552);
+	var _vtbl_wchar_ucs4be = (Module['_vtbl_wchar_ucs4be'] = 10979580);
+	var _mbfl_encoding_ucs4be = (Module['_mbfl_encoding_ucs4be'] = 10979608);
+	var _vtbl_ucs4le_wchar = (Module['_vtbl_ucs4le_wchar'] = 10979640);
+	var _vtbl_wchar_ucs4le = (Module['_vtbl_wchar_ucs4le'] = 10979668);
+	var _mbfl_encoding_ucs4le = (Module['_mbfl_encoding_ucs4le'] = 10979696);
+	var _uhc1_ucs_table = (Module['_uhc1_ucs_table'] = 8859280);
+	var _uhc2_ucs_table = (Module['_uhc2_ucs_table'] = 8871456);
+	var _uhc3_ucs_table = (Module['_uhc3_ucs_table'] = 8885904);
+	var _ucs_a1_uhc_table = (Module['_ucs_a1_uhc_table'] = 8896256);
+	var _ucs_a2_uhc_table = (Module['_ucs_a2_uhc_table'] = 8898480);
+	var _ucs_a3_uhc_table = (Module['_ucs_a3_uhc_table'] = 8901792);
+	var _ucs_i_uhc_table = (Module['_ucs_i_uhc_table'] = 8904304);
+	var _ucs_s_uhc_table = (Module['_ucs_s_uhc_table'] = 8946624);
+	var _ucs_r1_uhc_table = (Module['_ucs_r1_uhc_table'] = 8969488);
+	var _ucs_r2_uhc_table = (Module['_ucs_r2_uhc_table'] = 8970544);
+	var _uhc1_ucs_table_size = (Module['_uhc1_ucs_table_size'] = 8871440);
+	var _uhc2_ucs_table_size = (Module['_uhc2_ucs_table_size'] = 8885896);
+	var _uhc3_ucs_table_size = (Module['_uhc3_ucs_table_size'] = 8896244);
+	var _ucs_a1_uhc_table_min = (Module['_ucs_a1_uhc_table_min'] = 8898468);
+	var _ucs_a1_uhc_table_max = (Module['_ucs_a1_uhc_table_max'] = 8898472);
+	var _ucs_a2_uhc_table_min = (Module['_ucs_a2_uhc_table_min'] = 8901772);
+	var _ucs_a2_uhc_table_max = (Module['_ucs_a2_uhc_table_max'] = 8901776);
+	var _ucs_a3_uhc_table_min = (Module['_ucs_a3_uhc_table_min'] = 8904284);
+	var _ucs_a3_uhc_table_max = (Module['_ucs_a3_uhc_table_max'] = 8904288);
+	var _ucs_i_uhc_table_min = (Module['_ucs_i_uhc_table_min'] = 8946604);
+	var _ucs_i_uhc_table_max = (Module['_ucs_i_uhc_table_max'] = 8946608);
+	var _ucs_s_uhc_table_min = (Module['_ucs_s_uhc_table_min'] = 8969480);
+	var _ucs_s_uhc_table_max = (Module['_ucs_s_uhc_table_max'] = 8969484);
+	var _ucs_r1_uhc_table_min = (Module['_ucs_r1_uhc_table_min'] = 8970536);
+	var _ucs_r1_uhc_table_max = (Module['_ucs_r1_uhc_table_max'] = 8970540);
+	var _ucs_r2_uhc_table_min = (Module['_ucs_r2_uhc_table_min'] = 8971008);
+	var _ucs_r2_uhc_table_max = (Module['_ucs_r2_uhc_table_max'] = 8971012);
+	var _vtbl_uhc_wchar = (Module['_vtbl_uhc_wchar'] = 10983888);
+	var _vtbl_wchar_uhc = (Module['_vtbl_wchar_uhc'] = 10983916);
+	var _mbfl_encoding_uhc = (Module['_mbfl_encoding_uhc'] = 10983944);
+	var _vtbl_identify_uhc = (Module['_vtbl_identify_uhc'] = 10983976);
+	var _vtbl_utf16_wchar = (Module['_vtbl_utf16_wchar'] = 10980288);
+	var _vtbl_wchar_utf16 = (Module['_vtbl_wchar_utf16'] = 10980316);
+	var _mbfl_encoding_utf16 = (Module['_mbfl_encoding_utf16'] = 10980344);
+	var _vtbl_utf16be_wchar = (Module['_vtbl_utf16be_wchar'] = 10980376);
+	var _vtbl_wchar_utf16be = (Module['_vtbl_wchar_utf16be'] = 10980404);
+	var _mbfl_encoding_utf16be = (Module['_mbfl_encoding_utf16be'] = 10980432);
+	var _vtbl_utf16le_wchar = (Module['_vtbl_utf16le_wchar'] = 10980464);
+	var _vtbl_wchar_utf16le = (Module['_vtbl_wchar_utf16le'] = 10980492);
+	var _mbfl_encoding_utf16le = (Module['_mbfl_encoding_utf16le'] = 10980520);
+	var _vtbl_utf32_wchar = (Module['_vtbl_utf32_wchar'] = 10980016);
+	var _vtbl_wchar_utf32 = (Module['_vtbl_wchar_utf32'] = 10980044);
+	var _mbfl_encoding_utf32 = (Module['_mbfl_encoding_utf32'] = 10980072);
+	var _vtbl_utf32be_wchar = (Module['_vtbl_utf32be_wchar'] = 10980104);
+	var _vtbl_wchar_utf32be = (Module['_vtbl_wchar_utf32be'] = 10980132);
+	var _mbfl_encoding_utf32be = (Module['_mbfl_encoding_utf32be'] = 10980160);
+	var _vtbl_utf32le_wchar = (Module['_vtbl_utf32le_wchar'] = 10980192);
+	var _vtbl_wchar_utf32le = (Module['_vtbl_wchar_utf32le'] = 10980220);
+	var _mbfl_encoding_utf32le = (Module['_mbfl_encoding_utf32le'] = 10980248);
+	var _vtbl_utf7_wchar = (Module['_vtbl_utf7_wchar'] = 10980560);
+	var _vtbl_wchar_utf7 = (Module['_vtbl_wchar_utf7'] = 10980588);
+	var _mbfl_encoding_utf7 = (Module['_mbfl_encoding_utf7'] = 10980616);
+	var _vtbl_identify_utf7 = (Module['_vtbl_identify_utf7'] = 10980648);
+	var _vtbl_utf7imap_wchar = (Module['_vtbl_utf7imap_wchar'] = 10987524);
+	var _vtbl_wchar_utf7imap = (Module['_vtbl_wchar_utf7imap'] = 10987552);
+	var _mbfl_encoding_utf7imap = (Module['_mbfl_encoding_utf7imap'] =
+		10987580);
+	var _mblen_table_utf8 = (Module['_mblen_table_utf8'] = 8979072);
+	var _vtbl_utf8_wchar = (Module['_vtbl_utf8_wchar'] = 10987424);
+	var _vtbl_wchar_utf8 = (Module['_vtbl_wchar_utf8'] = 10987452);
+	var _mbfl_encoding_utf8 = (Module['_mbfl_encoding_utf8'] = 10987480);
+	var _vtbl_identify_utf8 = (Module['_vtbl_identify_utf8'] = 10987512);
+	var _vtbl_utf8_docomo_wchar = (Module['_vtbl_utf8_docomo_wchar'] =
+		10982880);
+	var _vtbl_wchar_utf8_docomo = (Module['_vtbl_wchar_utf8_docomo'] =
+		10982908);
+	var _mbfl_encoding_utf8_docomo = (Module['_mbfl_encoding_utf8_docomo'] =
+		10982936);
+	var _vtbl_utf8_kddi_a_wchar = (Module['_vtbl_utf8_kddi_a_wchar'] =
+		10982968);
+	var _vtbl_wchar_utf8_kddi_a = (Module['_vtbl_wchar_utf8_kddi_a'] =
+		10982996);
+	var _mbfl_encoding_utf8_kddi_a = (Module['_mbfl_encoding_utf8_kddi_a'] =
+		10983024);
+	var _vtbl_utf8_kddi_b_wchar = (Module['_vtbl_utf8_kddi_b_wchar'] =
+		10983072);
+	var _vtbl_wchar_utf8_kddi_b = (Module['_vtbl_wchar_utf8_kddi_b'] =
+		10983100);
+	var _mbfl_encoding_utf8_kddi_b = (Module['_mbfl_encoding_utf8_kddi_b'] =
+		10983128);
+	var _vtbl_utf8_sb_wchar = (Module['_vtbl_utf8_sb_wchar'] = 10983172);
+	var _vtbl_wchar_utf8_sb = (Module['_vtbl_wchar_utf8_sb'] = 10983200);
+	var _mbfl_encoding_utf8_sb = (Module['_mbfl_encoding_utf8_sb'] = 10983228);
+	var _vtbl_identify_utf8_docomo = (Module['_vtbl_identify_utf8_docomo'] =
+		10983260);
+	var _vtbl_identify_utf8_kddi_a = (Module['_vtbl_identify_utf8_kddi_a'] =
+		10983272);
+	var _vtbl_identify_utf8_kddi_b = (Module['_vtbl_identify_utf8_kddi_b'] =
+		10983284);
+	var _vtbl_identify_utf8_sb = (Module['_vtbl_identify_utf8_sb'] = 10983296);
+	var _mbfl_encoding_uuencode = (Module['_mbfl_encoding_uuencode'] =
+		10976732);
+	var _vtbl_uuencode_8bit = (Module['_vtbl_uuencode_8bit'] = 10976764);
+	var _vtbl_koi8u_wchar = (Module['_vtbl_koi8u_wchar'] = 10984596);
+	var _vtbl_wchar_koi8u = (Module['_vtbl_wchar_koi8u'] = 10984624);
+	var _mbfl_encoding_koi8u = (Module['_mbfl_encoding_koi8u'] = 10984652);
+	var _vtbl_identify_koi8u = (Module['_vtbl_identify_koi8u'] = 10984684);
+	var _vtbl_8bit_wchar = (Module['_vtbl_8bit_wchar'] = 10976524);
+	var _vtbl_wchar_8bit = (Module['_vtbl_wchar_8bit'] = 10976552);
+	var _mbfl_encoding_8bit = (Module['_mbfl_encoding_8bit'] = 10976580);
+	var _mbfl_encoding_pass = (Module['_mbfl_encoding_pass'] = 10988240);
+	var _vtbl_pass = (Module['_vtbl_pass'] = 10988272);
+	var _mbfl_encoding_wchar = (Module['_mbfl_encoding_wchar'] = 10976612);
+	var _mbfl_language_german = (Module['_mbfl_language_german'] = 10988720);
+	var _mbfl_language_english = (Module['_mbfl_language_english'] = 10988684);
+	var _mbfl_language_japanese = (Module['_mbfl_language_japanese'] =
+		10988572);
+	var _mbfl_language_korean = (Module['_mbfl_language_korean'] = 10988600);
+	var _mbfl_language_neutral = (Module['_mbfl_language_neutral'] = 10988860);
+	var _mbfl_language_russian = (Module['_mbfl_language_russian'] = 10988748);
+	var _mbfl_language_uni = (Module['_mbfl_language_uni'] = 10988544);
+	var _mbfl_language_simplified_chinese = (Module[
+		'_mbfl_language_simplified_chinese'
+	] = 10988628);
+	var _mbfl_language_traditional_chinese = (Module[
+		'_mbfl_language_traditional_chinese'
+	] = 10988656);
+	var _mbfl_language_armenian = (Module['_mbfl_language_armenian'] =
+		10988804);
+	var _mbfl_language_turkish = (Module['_mbfl_language_turkish'] = 10988832);
+	var _mbfl_language_ukrainian = (Module['_mbfl_language_ukrainian'] =
+		10988776);
+	var _accel_globals = (Module['_accel_globals'] = 11392288);
+	var _accel_shared_globals = (Module['_accel_shared_globals'] = 11392268);
+	var _file_cache_only = (Module['_file_cache_only'] = 11392280);
+	var _accel_startup_ok = (Module['_accel_startup_ok'] = 11392272);
+	var _zps_api_failure_reason = (Module['_zps_api_failure_reason'] =
+		11392276);
+	var _extension_version_info = (Module['_extension_version_info'] =
+		11005916);
+	var _zend_extension_entry = (Module['_zend_extension_entry'] = 11005936);
+	var _accel_blacklist = (Module['_accel_blacklist'] = 11392240);
+	var _lock_file = (Module['_lock_file'] = 11392064);
+	var _smm_shared_globals = (Module['_smm_shared_globals'] = 11392068);
+	var _opcache_module_entry = (Module['_opcache_module_entry'] = 11006040);
+	var _zend_func_info_rid = (Module['_zend_func_info_rid'] = 10994432);
+	var _pdo_dbh_ce = (Module['_pdo_dbh_ce'] = 11427256);
+	var _pdo_exception_ce = (Module['_pdo_exception_ce'] = 11427260);
+	var _pdo_driver_hash = (Module['_pdo_driver_hash'] = 11427264);
+	var _pdo_module_entry = (Module['_pdo_module_entry'] = 11024504);
+	var _pdo_dbstmt_ce = (Module['_pdo_dbstmt_ce'] = 11427320);
+	var _pdo_row_ce = (Module['_pdo_row_ce'] = 11427324);
+	var _pdo_row_object_handlers = (Module['_pdo_row_object_handlers'] =
+		11427052);
+	var _pdo_dbstmt_object_handlers = (Module['_pdo_dbstmt_object_handlers'] =
+		11426952);
+	var _pdo_sqlite_module_entry = (Module['_pdo_sqlite_module_entry'] =
+		11025072);
+	var _pdo_sqlite_driver = (Module['_pdo_sqlite_driver'] = 11024688);
+	var _sqlite_stmt_methods = (Module['_sqlite_stmt_methods'] = 11024640);
+	var _phar_ops = (Module['_phar_ops'] = 11029556);
+	var _phar_stream_wops = (Module['_phar_stream_wops'] = 11029592);
+	var _php_stream_phar_wrapper = (Module['_php_stream_phar_wrapper'] =
+		11029636);
+	var _phar_dir_ops = (Module['_phar_dir_ops'] = 11029520);
+	var _phar_globals = (Module['_phar_globals'] = 11427432);
+	var _cached_phars = (Module['_cached_phars'] = 11427896);
+	var _cached_alias = (Module['_cached_alias'] = 11427840);
+	var _phar_orig_compile_file = (Module['_phar_orig_compile_file'] =
+		11427952);
+	var _phar_save_resolve_path = (Module['_phar_save_resolve_path'] =
+		11427956);
+	var _phar_module_entry = (Module['_phar_module_entry'] = 11029648);
+	var _post_message_to_js_functions = (Module[
+		'_post_message_to_js_functions'
+	] = 11030048);
+	var _post_message_to_js_module_entry = (Module[
+		'_post_message_to_js_module_entry'
+	] = 11030088);
+	var _reflection_class_ptr = (Module['_reflection_class_ptr'] = 11428332);
+	var _reflection_exception_ptr = (Module['_reflection_exception_ptr'] =
+		11428336);
+	var _reflection_attribute_ptr = (Module['_reflection_attribute_ptr'] =
+		11428524);
+	var _reflection_parameter_ptr = (Module['_reflection_parameter_ptr'] =
+		11428484);
+	var _reflection_extension_ptr = (Module['_reflection_extension_ptr'] =
+		11428516);
+	var _reflection_function_ptr = (Module['_reflection_function_ptr'] =
+		11428476);
+	var _reflection_method_ptr = (Module['_reflection_method_ptr'] = 11428500);
+	var _reflection_named_type_ptr = (Module['_reflection_named_type_ptr'] =
+		11428492);
+	var _reflection_union_type_ptr = (Module['_reflection_union_type_ptr'] =
+		11428496);
+	var _reflection_property_ptr = (Module['_reflection_property_ptr'] =
+		11428508);
+	var _reflection_class_constant_ptr = (Module[
+		'_reflection_class_constant_ptr'
+	] = 11428512);
+	var _reflection_reference_ptr = (Module['_reflection_reference_ptr'] =
+		11428340);
+	var _reflection_globals = (Module['_reflection_globals'] = 11428344);
+	var _reflection_ptr = (Module['_reflection_ptr'] = 11428464);
+	var _reflector_ptr = (Module['_reflector_ptr'] = 11428468);
+	var _reflection_function_abstract_ptr = (Module[
+		'_reflection_function_abstract_ptr'
+	] = 11428472);
+	var _reflection_generator_ptr = (Module['_reflection_generator_ptr'] =
+		11428480);
+	var _reflection_type_ptr = (Module['_reflection_type_ptr'] = 11428488);
+	var _reflection_object_ptr = (Module['_reflection_object_ptr'] = 11428504);
+	var _reflection_zend_extension_ptr = (Module[
+		'_reflection_zend_extension_ptr'
+	] = 11428520);
+	var _reflection_module_entry = (Module['_reflection_module_entry'] =
+		11038352);
+	var _ps_globals = (Module['_ps_globals'] = 11428528);
+	var _php_session_iface_entry = (Module['_php_session_iface_entry'] =
+		11428880);
+	var _php_session_id_iface_entry = (Module['_php_session_id_iface_entry'] =
+		11428884);
+	var _php_session_update_timestamp_iface_entry = (Module[
+		'_php_session_update_timestamp_iface_entry'
+	] = 11428888);
+	var _php_session_class_entry = (Module['_php_session_class_entry'] =
+		11428892);
+	var _session_module_entry = (Module['_session_module_entry'] = 11040032);
+	var _ps_mod_files = (Module['_ps_mod_files'] = 11039508);
+	var _ps_mod_user = (Module['_ps_mod_user'] = 11039468);
+	var _sxe_class_entry = (Module['_sxe_class_entry'] = 11428904);
+	var _ce_SimpleXMLElement = (Module['_ce_SimpleXMLElement'] = 11429008);
+	var _ce_SimpleXMLIterator = (Module['_ce_SimpleXMLIterator'] = 11429012);
+	var _simplexml_module_entry = (Module['_simplexml_module_entry'] =
+		11043232);
+	var _soap_globals = (Module['_soap_globals'] = 11429024);
+	var _soap_var_class_entry = (Module['_soap_var_class_entry'] = 11429340);
+	var _le_url = (Module['_le_url'] = 11429016);
+	var _soap_module_entry = (Module['_soap_module_entry'] = 11046684);
+	var _defaultEncoding = (Module['_defaultEncoding'] = 11044544);
+	var _numDefaultEncodings = (Module['_numDefaultEncodings'] = 11046616);
+	var _spl_globals = (Module['_spl_globals'] = 11426872);
+	var _spl_module_entry = (Module['_spl_module_entry'] = 11018880);
+	var _spl_ce_RecursiveIteratorIterator = (Module[
+		'_spl_ce_RecursiveIteratorIterator'
+	] = 11425816);
+	var _spl_ce_RecursiveCachingIterator = (Module[
+		'_spl_ce_RecursiveCachingIterator'
+	] = 11425864);
+	var _spl_ce_RecursiveIterator = (Module['_spl_ce_RecursiveIterator'] =
+		11425836);
+	var _spl_ce_RecursiveTreeIterator = (Module[
+		'_spl_ce_RecursiveTreeIterator'
+	] = 11425820);
+	var _spl_ce_FilterIterator = (Module['_spl_ce_FilterIterator'] = 11425824);
+	var _spl_ce_CallbackFilterIterator = (Module[
+		'_spl_ce_CallbackFilterIterator'
+	] = 11425828);
+	var _spl_ce_RecursiveCallbackFilterIterator = (Module[
+		'_spl_ce_RecursiveCallbackFilterIterator'
+	] = 11425832);
+	var _spl_ce_RecursiveFilterIterator = (Module[
+		'_spl_ce_RecursiveFilterIterator'
+	] = 11425840);
+	var _spl_ce_ParentIterator = (Module['_spl_ce_ParentIterator'] = 11425844);
+	var _spl_ce_RegexIterator = (Module['_spl_ce_RegexIterator'] = 11425848);
+	var _spl_ce_RecursiveRegexIterator = (Module[
+		'_spl_ce_RecursiveRegexIterator'
+	] = 11425852);
+	var _spl_ce_LimitIterator = (Module['_spl_ce_LimitIterator'] = 11425856);
+	var _spl_ce_SeekableIterator = (Module['_spl_ce_SeekableIterator'] =
+		11426088);
+	var _spl_ce_CachingIterator = (Module['_spl_ce_CachingIterator'] =
+		11425860);
+	var _spl_ce_IteratorIterator = (Module['_spl_ce_IteratorIterator'] =
+		11425868);
+	var _spl_ce_NoRewindIterator = (Module['_spl_ce_NoRewindIterator'] =
+		11425872);
+	var _spl_ce_InfiniteIterator = (Module['_spl_ce_InfiniteIterator'] =
+		11425876);
+	var _spl_ce_AppendIterator = (Module['_spl_ce_AppendIterator'] = 11425880);
+	var _spl_ce_OuterIterator = (Module['_spl_ce_OuterIterator'] = 11426084);
+	var _spl_ce_EmptyIterator = (Module['_spl_ce_EmptyIterator'] = 11426092);
+	var _spl_ce_ArrayIterator = (Module['_spl_ce_ArrayIterator'] = 11425604);
+	var _spl_handler_ArrayObject = (Module['_spl_handler_ArrayObject'] =
+		11425612);
+	var _spl_handler_ArrayIterator = (Module['_spl_handler_ArrayIterator'] =
+		11425712);
+	var _spl_ce_ArrayObject = (Module['_spl_ce_ArrayObject'] = 11425608);
+	var _spl_ce_RecursiveArrayIterator = (Module[
+		'_spl_ce_RecursiveArrayIterator'
+	] = 11425812);
+	var _spl_ce_RecursiveDirectoryIterator = (Module[
+		'_spl_ce_RecursiveDirectoryIterator'
+	] = 11426096);
+	var _spl_ce_SplFileObject = (Module['_spl_ce_SplFileObject'] = 11426100);
+	var _spl_ce_SplFileInfo = (Module['_spl_ce_SplFileInfo'] = 11426104);
+	var _spl_ce_DirectoryIterator = (Module['_spl_ce_DirectoryIterator'] =
+		11426208);
+	var _spl_ce_FilesystemIterator = (Module['_spl_ce_FilesystemIterator'] =
+		11426212);
+	var _spl_ce_GlobIterator = (Module['_spl_ce_GlobIterator'] = 11426316);
+	var _spl_ce_SplTempFileObject = (Module['_spl_ce_SplTempFileObject'] =
+		11426320);
+	var _spl_ce_LogicException = (Module['_spl_ce_LogicException'] = 11425552);
+	var _spl_ce_BadFunctionCallException = (Module[
+		'_spl_ce_BadFunctionCallException'
+	] = 11425556);
+	var _spl_ce_BadMethodCallException = (Module[
+		'_spl_ce_BadMethodCallException'
+	] = 11425560);
+	var _spl_ce_DomainException = (Module['_spl_ce_DomainException'] =
+		11425564);
+	var _spl_ce_InvalidArgumentException = (Module[
+		'_spl_ce_InvalidArgumentException'
+	] = 11425568);
+	var _spl_ce_LengthException = (Module['_spl_ce_LengthException'] =
+		11425572);
+	var _spl_ce_OutOfRangeException = (Module['_spl_ce_OutOfRangeException'] =
+		11425576);
+	var _spl_ce_RuntimeException = (Module['_spl_ce_RuntimeException'] =
+		11425580);
+	var _spl_ce_OutOfBoundsException = (Module['_spl_ce_OutOfBoundsException'] =
+		11425584);
+	var _spl_ce_OverflowException = (Module['_spl_ce_OverflowException'] =
+		11425588);
+	var _spl_ce_RangeException = (Module['_spl_ce_RangeException'] = 11425592);
+	var _spl_ce_UnderflowException = (Module['_spl_ce_UnderflowException'] =
+		11425596);
+	var _spl_ce_UnexpectedValueException = (Module[
+		'_spl_ce_UnexpectedValueException'
+	] = 11425600);
+	var _spl_ce_SplObjectStorage = (Module['_spl_ce_SplObjectStorage'] =
+		11426324);
+	var _spl_ce_SplObserver = (Module['_spl_ce_SplObserver'] = 11426328);
+	var _spl_ce_SplSubject = (Module['_spl_ce_SplSubject'] = 11426332);
+	var _spl_handler_SplObjectStorage = (Module[
+		'_spl_handler_SplObjectStorage'
+	] = 11426336);
+	var _spl_ce_MultipleIterator = (Module['_spl_ce_MultipleIterator'] =
+		11426436);
+	var _spl_ce_SplDoublyLinkedList = (Module['_spl_ce_SplDoublyLinkedList'] =
+		11426440);
+	var _spl_handler_SplDoublyLinkedList = (Module[
+		'_spl_handler_SplDoublyLinkedList'
+	] = 11426444);
+	var _spl_ce_SplQueue = (Module['_spl_ce_SplQueue'] = 11426544);
+	var _spl_ce_SplStack = (Module['_spl_ce_SplStack'] = 11426548);
+	var _spl_ce_SplHeap = (Module['_spl_ce_SplHeap'] = 11426656);
+	var _spl_ce_SplPriorityQueue = (Module['_spl_ce_SplPriorityQueue'] =
+		11426660);
+	var _spl_handler_SplHeap = (Module['_spl_handler_SplHeap'] = 11426664);
+	var _spl_ce_SplMinHeap = (Module['_spl_ce_SplMinHeap'] = 11426764);
+	var _spl_ce_SplMaxHeap = (Module['_spl_ce_SplMaxHeap'] = 11426768);
+	var _spl_handler_SplPriorityQueue = (Module[
+		'_spl_handler_SplPriorityQueue'
+	] = 11426772);
+	var _spl_ce_SplFixedArray = (Module['_spl_ce_SplFixedArray'] = 11426552);
+	var _spl_handler_SplFixedArray = (Module['_spl_handler_SplFixedArray'] =
+		11426556);
+	var _array_globals = (Module['_array_globals'] = 11373456);
+	var _basic_globals = (Module['_basic_globals'] = 11373544);
+	var _basic_functions_module = (Module['_basic_functions_module'] =
+		10916272);
+	var _browscap_globals = (Module['_browscap_globals'] = 11295004);
+	var _dir_globals = (Module['_dir_globals'] = 11373444);
+	var _file_globals = (Module['_file_globals'] = 11430744);
+	var _php_sig_gif = (Module['_php_sig_gif'] = 1511344);
+	var _php_sig_psd = (Module['_php_sig_psd'] = 1511347);
+	var _php_sig_bmp = (Module['_php_sig_bmp'] = 1511351);
+	var _php_sig_swf = (Module['_php_sig_swf'] = 1511353);
+	var _php_sig_swc = (Module['_php_sig_swc'] = 1511356);
+	var _php_sig_jpg = (Module['_php_sig_jpg'] = 1511359);
+	var _php_sig_png = (Module['_php_sig_png'] = 1511362);
+	var _php_sig_tif_ii = (Module['_php_sig_tif_ii'] = 1511370);
+	var _php_sig_tif_mm = (Module['_php_sig_tif_mm'] = 1511374);
+	var _php_sig_jpc = (Module['_php_sig_jpc'] = 1511378);
+	var _php_sig_jp2 = (Module['_php_sig_jp2'] = 1511381);
+	var _php_sig_iff = (Module['_php_sig_iff'] = 1511393);
+	var _php_sig_ico = (Module['_php_sig_ico'] = 1511397);
+	var _php_sig_riff = (Module['_php_sig_riff'] = 1511401);
+	var _php_sig_webp = (Module['_php_sig_webp'] = 1511405);
+	var _php_tiff_bytes_per_format = (Module['_php_tiff_bytes_per_format'] =
+		1511424);
+	var _machine_little_endian = (Module['_machine_little_endian'] = 11294800);
+	var _assert_globals = (Module['_assert_globals'] = 11373464);
+	var _php_ce_incomplete_class = (Module['_php_ce_incomplete_class'] =
+		11293628);
+	var _php_stream_ftp_wrapper = (Module['_php_stream_ftp_wrapper'] =
+		10905580);
+	var _php_stream_http_wrapper = (Module['_php_stream_http_wrapper'] =
+		10905488);
+	var _php_stream_output_ops = (Module['_php_stream_output_ops'] = 10905316);
+	var _php_stream_input_ops = (Module['_php_stream_input_ops'] = 10905352);
+	var _php_stream_php_wrapper = (Module['_php_stream_php_wrapper'] =
+		10905432);
+	var _php_password_algo_bcrypt = (Module['_php_password_algo_bcrypt'] =
+		10904548);
+	var _random_globals = (Module['_random_globals'] = 11303580);
+	var _php_token_ce = (Module['_php_token_ce'] = 11429544);
+	var _tokenizer_module_entry = (Module['_tokenizer_module_entry'] =
+		11049500);
+	var _wasm_memory_storage_struct = (Module['_wasm_memory_storage_struct'] =
+		11049936);
+	var _wasm_memory_storage_module_entry = (Module[
+		'_wasm_memory_storage_module_entry'
+	] = 11049956);
+	var _xml_encodings = (Module['_xml_encodings'] = 11051152);
+	var _xml_globals = (Module['_xml_globals'] = 11429548);
+	var _xml_module_entry = (Module['_xml_module_entry'] = 11051052);
+	var _xmlreader_class_entry = (Module['_xmlreader_class_entry'] = 11429828);
+	var _xmlreader_module_entry = (Module['_xmlreader_module_entry'] =
+		11051824);
+	var _xmlwriter_module_entry = (Module['_xmlwriter_module_entry'] =
+		11053820);
+	var _zip_module_entry = (Module['_zip_module_entry'] = 11057612);
+	var _php_stream_zipio_ops = (Module['_php_stream_zipio_ops'] = 11057296);
+	var _php_stream_zip_wrapper = (Module['_php_stream_zip_wrapper'] =
+		11057376);
+	var _core_globals = (Module['_core_globals'] = 11430240);
+	var _php_register_internal_extensions_func = (Module[
+		'_php_register_internal_extensions_func'
+	] = 11061060);
+	var _php_internal_encoding_changed = (Module[
+		'_php_internal_encoding_changed'
+	] = 11430728);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 11293696);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 11293700);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 11293704);
+	var _sapi_module = (Module['_sapi_module'] = 11377148);
+	var _sapi_globals = (Module['_sapi_globals'] = 11377296);
+	var _php_rfc1867_callback = (Module['_php_rfc1867_callback'] = 11377136);
+	var _php_import_environment_variables = (Module[
+		'_php_import_environment_variables'
+	] = 10720272);
+	var _output_globals = (Module['_output_globals'] = 11294292);
+	var _php_output_default_handler_name = (Module[
+		'_php_output_default_handler_name'
+	] = 1386384);
+	var _php_output_devnull_handler_name = (Module[
+		'_php_output_devnull_handler_name'
+	] = 1386416);
+	var _php_optidx = (Module['_php_optidx'] = 10905592);
+	var _php_stream_memory_ops = (Module['_php_stream_memory_ops'] = 10720276);
+	var _php_stream_temp_ops = (Module['_php_stream_temp_ops'] = 10720312);
+	var _php_stream_rfc2397_ops = (Module['_php_stream_rfc2397_ops'] =
+		10720348);
+	var _php_stream_rfc2397_wops = (Module['_php_stream_rfc2397_wops'] =
+		10720384);
+	var _php_stream_rfc2397_wrapper = (Module['_php_stream_rfc2397_wrapper'] =
+		10720428);
+	var _php_stream_stdio_ops = (Module['_php_stream_stdio_ops'] = 10932e3);
+	var _php_plain_files_wrapper = (Module['_php_plain_files_wrapper'] =
+		10931988);
+	var _php_stream_userspace_ops = (Module['_php_stream_userspace_ops'] =
+		10904916);
+	var _php_stream_userspace_dir_ops = (Module[
+		'_php_stream_userspace_dir_ops'
+	] = 10904952);
+	var _php_stream_unix_socket_ops = (Module['_php_stream_unix_socket_ops'] =
+		10905240);
+	var _php_stream_unixdg_socket_ops = (Module[
+		'_php_stream_unixdg_socket_ops'
+	] = 10905276);
+	var _php_stream_udp_socket_ops = (Module['_php_stream_udp_socket_ops'] =
+		10905204);
+	var _php_stream_socket_ops = (Module['_php_stream_socket_ops'] = 10905168);
+	var _php_stream_generic_socket_ops = (Module[
+		'_php_stream_generic_socket_ops'
+	] = 10905132);
+	var _php_glob_stream_ops = (Module['_php_glob_stream_ops'] = 10720480);
+	var _php_glob_stream_wrapper = (Module['_php_glob_stream_wrapper'] =
+		10720560);
+	var _language_scanner_globals = (Module['_language_scanner_globals'] =
+		11431128);
+	var _ini_scanner_globals = (Module['_ini_scanner_globals'] = 11293632);
+	var _zend_mm_use_huge_pages = (Module['_zend_mm_use_huge_pages'] =
+		11432984);
+	var _compiler_globals = (Module['_compiler_globals'] = 11432992);
+	var _executor_globals = (Module['_executor_globals'] = 11433368);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 11434528);
+	var _zend_compile_string = (Module['_zend_compile_string'] = 11434532);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 11432880);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 11432884);
+	var _zend_autoload = (Module['_zend_autoload'] = 11432888);
+	var _empty_fcall_info = (Module['_empty_fcall_info'] = 9079912);
+	var _empty_fcall_info_cache = (Module['_empty_fcall_info_cache'] = 9079960);
+	var _zend_printf_to_smart_string = (Module['_zend_printf_to_smart_string'] =
+		11432912);
+	var _zend_printf_to_smart_str = (Module['_zend_printf_to_smart_str'] =
+		11432916);
+	var _zend_write = (Module['_zend_write'] = 11432920);
+	var _zend_printf = (Module['_zend_printf'] = 11432924);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 11432928);
+	var _zend_fopen = (Module['_zend_fopen'] = 11432932);
+	var _zend_stream_open_function = (Module['_zend_stream_open_function'] =
+		11432936);
+	var _zend_ticks_function = (Module['_zend_ticks_function'] = 11432948);
+	var _zend_on_timeout = (Module['_zend_on_timeout'] = 11432952);
+	var _zend_getenv = (Module['_zend_getenv'] = 11432956);
+	var _zend_interrupt_function = (Module['_zend_interrupt_function'] =
+		11432964);
+	var _zend_resolve_path = (Module['_zend_resolve_path'] = 11432960);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 11432900);
+	var _zend_uv = (Module['_zend_uv'] = 11432980);
+	var _zend_standard_class_def = (Module['_zend_standard_class_def'] =
+		11432896);
+	var _zend_post_shutdown_cb = (Module['_zend_post_shutdown_cb'] = 11432904);
+	var _zend_preload_autoload = (Module['_zend_preload_autoload'] = 11432908);
+	var _zend_dtrace_enabled = (Module['_zend_dtrace_enabled'] = 11432981);
+	var _module_registry = (Module['_module_registry'] = 11431768);
+	var _zend_extensions = (Module['_zend_extensions'] = 11431096);
+	var _zend_extension_flags = (Module['_zend_extension_flags'] = 11431088);
+	var _zend_op_array_extension_handles = (Module[
+		'_zend_op_array_extension_handles'
+	] = 11431092);
+	var _zend_empty_array = (Module['_zend_empty_array'] = 11080504);
+	var _le_index_ptr = (Module['_le_index_ptr'] = 11434592);
+	var _zend_builtin_module = (Module['_zend_builtin_module'] = 11032212);
+	var _zend_ce_attribute = (Module['_zend_ce_attribute'] = 11428328);
+	var _zend_pass_function = (Module['_zend_pass_function'] = 11065852);
+	var _zend_multibyte_encoding_utf32be = (Module[
+		'_zend_multibyte_encoding_utf32be'
+	] = 10718020);
+	var _zend_multibyte_encoding_utf32le = (Module[
+		'_zend_multibyte_encoding_utf32le'
+	] = 10718024);
+	var _zend_multibyte_encoding_utf16be = (Module[
+		'_zend_multibyte_encoding_utf16be'
+	] = 10718028);
+	var _zend_multibyte_encoding_utf16le = (Module[
+		'_zend_multibyte_encoding_utf16le'
+	] = 10718032);
+	var _zend_multibyte_encoding_utf8 = (Module[
+		'_zend_multibyte_encoding_utf8'
+	] = 10718036);
+	var _zend_ce_internal_iterator = (Module['_zend_ce_internal_iterator'] =
+		11289248);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 11289252);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11289256);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11289260);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 11289264);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 11289268);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11289272);
+	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 11289276);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11431288);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 11431404);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 11431272);
+	var _zend_ce_parse_error = (Module['_zend_ce_parse_error'] = 11431276);
+	var _zend_ce_compile_error = (Module['_zend_ce_compile_error'] = 11431280);
+	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
+		11431284);
+	var _zend_ce_type_error = (Module['_zend_ce_type_error'] = 11431292);
+	var _zend_ce_argument_count_error = (Module[
+		'_zend_ce_argument_count_error'
+	] = 11431296);
+	var _zend_ce_error_exception = (Module['_zend_ce_error_exception'] =
+		11431400);
+	var _zend_ce_value_error = (Module['_zend_ce_value_error'] = 11431408);
+	var _zend_ce_arithmetic_error = (Module['_zend_ce_arithmetic_error'] =
+		11431412);
 	var _zend_ce_division_by_zero_error = (Module[
 		'_zend_ce_division_by_zero_error'
-	] = 11427640);
+	] = 11431416);
 	var _zend_ce_unhandled_match_error = (Module[
 		'_zend_ce_unhandled_match_error'
-	] = 11427984);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 11283920);
+	] = 11431760);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 11288820);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 11427960);
+	var _zend_ce_weakref = (Module['_zend_ce_weakref'] = 11428064);
+	var _zend_ce_weakmap = (Module['_zend_ce_weakmap'] = 11428168);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 11287680);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 11287684);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		11283988);
-	var _zend_one_char_string = (Module['_zend_one_char_string'] = 11284e3);
-	var _std_object_handlers = (Module['_std_object_handlers'] = 11076516);
+		11287748);
+	var _zend_new_interned_string = (Module['_zend_new_interned_string'] =
+		11287744);
+	var _zend_one_char_string = (Module['_zend_one_char_string'] = 11287760);
+	var _zend_signal_globals = (Module['_zend_signal_globals'] = 11377680);
+	var _zend_ce_generator = (Module['_zend_ce_generator'] = 11392072);
+	var _zend_ce_ClosedGeneratorException = (Module[
+		'_zend_ce_ClosedGeneratorException'
+	] = 11392076);
+	var _cwd_globals = (Module['_cwd_globals'] = 11289400);
+	var _zend_ast_process = (Module['_zend_ast_process'] = 11431268);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11080036);
+	var ___jit_debug_descriptor = (Module['___jit_debug_descriptor'] =
+		11281440);
+	var _zend_observers_fcall_list = (Module['_zend_observers_fcall_list'] =
+		11379912);
+	var _zend_observer_error_callbacks = (Module[
+		'_zend_observer_error_callbacks'
+	] = 11379940);
+	var _zend_observer_fcall_op_array_extension = (Module[
+		'_zend_observer_fcall_op_array_extension'
+	] = 11379968);
+	var _zend_system_id = (Module['_zend_system_id'] = 11431056);
+	var _php_embed_module = (Module['_php_embed_module'] = 11281208);
+	var _HARDCODED_EMBED_INI = (Module['_HARDCODED_EMBED_INI'] = 10717152);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 11277104);
+	var _stdout = (Module['_stdout'] = 11280624);
 	var __playground_zend_side_module_data_exports = (Module[
 		'__playground_zend_side_module_data_exports'
-	] = 11077712);
+	] = 11081232);
 	var __playground_zend_side_module_function_exports = (Module[
 		'__playground_zend_side_module_function_exports'
-	] = 11077808);
-	var _timezone = (Module['_timezone'] = 11459672);
-	var _tzname = (Module['_tzname'] = 11459680);
-	var ___heap_base = 12521936;
+	] = 11081328);
+	var _timezone = (Module['_timezone'] = 11463448);
+	var _tzname = (Module['_tzname'] = 11463456);
+	var ___heap_base = 12527760;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		11473340);
+		11479176);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 11277392);
+	] = 11280912);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 11277352);
+	] = 11280872);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 11277444);
+	] = 11280964);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 11277564);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11277640);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11277660);
+	] = 11281084);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11281160);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11281180);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncjs__js_module_onMessage,
