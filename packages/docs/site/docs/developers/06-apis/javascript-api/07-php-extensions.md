@@ -54,6 +54,11 @@ The old `withIntl`, `withXdebug`, `withRedis`, and `withMemcached` options are
 still accepted where they already existed. New code should use `extensions`
 because it also supports external extensions.
 
+Each extension ships its own ini file, which PHP reads after `php.ini`. To
+change a setting an extension sets itself, such as `xdebug.mode`, pass the
+extension's ini file path to `setPhpIniEntries()` — see
+[Tracing and Profiling with Xdebug](/developers/xdebug/trace-and-profile).
+
 ## External extensions
 
 An external extension needs a WebAssembly `.so` built for the same PHP version
