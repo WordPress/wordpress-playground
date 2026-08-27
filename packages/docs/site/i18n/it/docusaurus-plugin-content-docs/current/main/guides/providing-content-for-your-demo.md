@@ -369,14 +369,14 @@ creare articoli da contenuti esistenti e importare immagini:
 Check the
 [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image)
 example from the
-[Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+[Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/)
 to see the full example showing the connection between the content and the
 featured image.
 -->
 
 Consulta l’esempio
 [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image)
-nella [galleria dei Blueprint](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+nella [galleria dei Blueprint](https://wordpress.github.io/blueprints/)
 per vedere il collegamento tra il contenuto e l’immagine in evidenza.
 
 </div>
