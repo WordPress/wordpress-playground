@@ -131,6 +131,10 @@ export async function registerWebMCPTools(
 		}
 	}
 	if (failedRegistrations.length > 0) {
+		controller.abort();
+		if (registrationController === controller) {
+			registrationController = null;
+		}
 		throw new Error(
 			'Failed to register WebMCP tools: ' +
 				failedRegistrations
