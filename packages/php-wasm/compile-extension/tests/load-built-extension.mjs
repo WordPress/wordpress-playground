@@ -8,17 +8,28 @@ import {
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
-const [manifestPath, phpVersion, code, expectedOutput, runtimeLoaderPath] =
-	process.argv.slice(2);
+const [
+	manifestPath,
+	phpVersion,
+	code,
+	expectedOutput,
+	runtimeLoaderPath,
+	iniDirective,
+] = process.argv.slice(2);
 
 if (!manifestPath || !phpVersion || !code) {
 	throw new Error(
-		'Usage: load-built-extension.mjs <manifest> <php-version> <php-code> <expected-output> [runtime-loader]'
+		'Usage: load-built-extension.mjs <manifest> <php-version> <php-code> <expected-output> [runtime-loader] [ini-directive]'
 	);
 }
 
 const php = runtimeLoaderPath
-	? await loadFreshRuntime(manifestPath, phpVersion, runtimeLoaderPath)
+	? await loadFreshRuntime(
+			manifestPath,
+			phpVersion,
+			runtimeLoaderPath,
+			iniDirective
+		)
 	: new PHP(
 			await loadNodeRuntime(phpVersion, {
 				emscriptenOptions: { processId: 1 },
@@ -48,7 +59,12 @@ try {
 	php.exit();
 }
 
-async function loadFreshRuntime(manifestPath, phpVersion, runtimeLoaderPath) {
+async function loadFreshRuntime(
+	manifestPath,
+	phpVersion,
+	runtimeLoaderPath,
+	iniDirective
+) {
 	const runtimeModule = await import(pathToFileURL(runtimeLoaderPath).href);
 	const extension = await resolvePHPExtension({
 		source: {
@@ -56,6 +72,9 @@ async function loadFreshRuntime(manifestPath, phpVersion, runtimeLoaderPath) {
 			manifestUrl: pathToFileURL(manifestPath).href,
 		},
 		phpVersion,
+		// Generated manifests do not record a directive yet, so let callers
+		// force `zend_extension=` for a pure Zend extension.
+		...(iniDirective ? { loadWithIniDirective: iniDirective } : {}),
 		fetch: async (url) => {
 			const response =
 				new URL(url).protocol === 'file:'
