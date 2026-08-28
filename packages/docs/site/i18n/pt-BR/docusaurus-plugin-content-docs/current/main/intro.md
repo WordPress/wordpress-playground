@@ -75,7 +75,7 @@ Este hub de documentação foca-se em ajudá-lo a começar a trabalhar com o Wor
     Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/launch) your products.
 -   **[Guides](/guides)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
 -   **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
--   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+-   **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 -->
 
 - **[Guia de início rápido](/quick-start-guide)**: Para aqueles que querem começar com o WordPress Playground, neste guia você aprenderá como colocar rapidamente no ar [um site WordPress](/quick-start-guide#start-a-new-wordpress-site) para [testar um bloco, um tema ou um plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) ou para [testar uma versão específica do WordPress ou PHP](/quick-start-guide#use-a-specific-wordpress-or-php-version).
@@ -83,7 +83,7 @@ Este hub de documentação foca-se em ajudá-lo a começar a trabalhar com o Wor
 - **[Sobre o WP Playground](/about)**: Visite esta seção para aprender sobre o WordPress Playground, o quão seguro ele é, o que você pode fazer com o Playground e algumas das suas limitações. Descubra como tirar proveito do WordPress Playground para [Construir](/about/build), [Testar](/about/test) e [Lançar](/about/launch) os seus produtos.
 - **[Guias](/guides/)**: Explore estes guias para aprender mais a fundo sobre alguns dos conceitos ou aplicações práticas mais populares do WordPress Playground!
 - **[Contribuir](/contributing/)**: O WordPress Playground é um projeto de código aberto (open-source) e todas as contribuições são bem-vindas. Você pode contribuir com o projeto ajudando com o código, com o design, com a documentação ou com a organização de tarefas. Nesta seção, você encontrará informações sobre como contribuir para o projeto.
-- **[Links e recursos](/resources)**: Uma compilação de links úteis e recursos relacionados com o WordPress Playground.
+- **[Links e recursos](/links-and-resources)**: Uma compilação de links úteis e recursos relacionados com o WordPress Playground.
 
 <!--
 ## First steps
@@ -135,7 +135,7 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
--   Review [links and resources](/resources)
+-   Review [links and resources](/links-and-resources)
 -   Choose the right API for your app:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
@@ -144,7 +144,7 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 -->
 
 - Leia sobre [APIs do Playground](/developers/apis/) e sobre alguns conceitos básicos.
-- [Links e recursos](/resources)
+- [Links e recursos](/links-and-resources)
 - Escolha a API adequada para a sua aplicação:
     - [API de Consulta](/developers/apis/query-api) permite realizar operações básicas usando apenas parâmetros de consulta.
     - [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.

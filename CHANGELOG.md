@@ -4,6 +4,52 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.51] (2026-08-24) 
+
+### Website
+
+- Auto-prepend PHP scripts before snippet execution. ([#4262](https://github.com/WordPress/wordpress-playground/pull/4262))
+- Fix CI end-to-end failures after WP 7.1 / Gutenberg 23.8. ([#4274](https://github.com/WordPress/wordpress-playground/pull/4274))
+- Improve Personal WP loading resilience. ([#4275](https://github.com/WordPress/wordpress-playground/pull/4275))
+
+#### Blueprints
+
+- Add Terminal to the Dock. ([#3808](https://github.com/WordPress/wordpress-playground/pull/3808))
+
+### Various
+
+- [personal-wp] Backup reminder follow-ups. ([#4276](https://github.com/WordPress/wordpress-playground/pull/4276))
+- [personal-wp] Review my WordPress UI with impeccable. ([#4255](https://github.com/WordPress/wordpress-playground/pull/4255))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @fellyph
+
+
+## [v3.1.50] (2026-08-17) 
+
+### Experiments
+
+
+#### PHP WebAssembly
+
+- [PHP-WASM] Add shared Base64 helpers. ([#3726](https://github.com/WordPress/wordpress-playground/pull/3726))
+
+### PHP WebAssembly
+
+- Persist pooled PHP writes to saved sites. ([#4260](https://github.com/WordPress/wordpress-playground/pull/4260))
+- [Website] Add captured mail viewer. ([#4000](https://github.com/WordPress/wordpress-playground/pull/4000))
+- [Website] Forward captured sendmail messages. ([#4103](https://github.com/WordPress/wordpress-playground/pull/4103))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ashfame @bgrgicak
+
+
 ## [v3.1.49] (2026-08-10) 
 
 ### Documentation

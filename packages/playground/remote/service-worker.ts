@@ -208,6 +208,10 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(doActivate());
 });
 
+function isResumeRangeRequest(request: Request): boolean {
+	return /^bytes=[1-9]\d*-$/.test(request.headers.get('range') ?? '');
+}
+
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
 		return;
@@ -399,6 +403,15 @@ self.addEventListener('fetch', (event) => {
 		url.pathname === '/'
 	) {
 		event.respondWith(networkFirstFetch(event.request));
+		return;
+	}
+
+	// A resumed runtime download asks for `bytes=<offset>-` with a non-zero
+	// offset. Pass it through untouched: cacheFirstFetch() would strip the
+	// Range header (a Safari workaround for incidental ranges) and the 206
+	// response must not be cached. Other Range requests keep the usual path.
+	if (isResumeRangeRequest(event.request)) {
+		event.respondWith(fetch(event.request));
 		return;
 	}
 

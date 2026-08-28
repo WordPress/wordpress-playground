@@ -59,6 +59,14 @@
 	display: none !important;
 }
 
+.advanced-tab {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
 .file-browser-tab {
 	overflow: hidden;
 }
@@ -567,6 +575,7 @@
 
 .backup-row {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
 	align-items: center;
 }
@@ -596,14 +605,12 @@
 	cursor: not-allowed;
 }
 
+/* SelectControl brings its own control styling from @wordpress/components; this
+   only governs how the field shares the row. The basis keeps the longest option
+   readable, and the row wraps rather than clipping the value on narrow panels. */
 .backup-select {
-	padding: 6px 10px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 13px;
-	background: #fff;
-	color: #1e1e1e;
-	width: 100%;
+	flex: 1 1 12rem;
+	min-width: 12rem;
 }
 
 .backup-status {

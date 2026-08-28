@@ -1,6 +1,6 @@
 ---
 title: Mga Link at Resources
-slug: /resources
+slug: /links-and-resources
 description: Isang piniling listahan ng mga kapaki-pakinabang na link sa mga app, tool, artikulo, at video para matuto pa tungkol sa WordPress Playground.
 ---
 

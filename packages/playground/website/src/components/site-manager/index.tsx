@@ -45,6 +45,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			activeSection === 'files' ||
 			activeSection === 'blueprint' ||
 			activeSection === 'database' ||
+			activeSection === 'terminal' ||
 			activeSection === 'logs' ||
 			activeSection === 'mail'
 				? activeSection
