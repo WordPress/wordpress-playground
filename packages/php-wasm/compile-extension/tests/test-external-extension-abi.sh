@@ -62,8 +62,11 @@ const soPath = process.argv[2];
 const module = new WebAssembly.Module(await readFile(soPath));
 const imports = WebAssembly.Module.imports(module).map(({ name }) => name);
 
-if (!imports.includes('emalloc')) {
-	throw new Error(`${soPath} does not import the stable emalloc() symbol.`);
+// Emscripten side modules import PHP's allocator with a leading underscore:
+// the stable entry point is `_emalloc`, and the specialized shortcuts are
+// `_emalloc_<size>` (e.g. `_emalloc_160`).
+if (!imports.includes('_emalloc')) {
+	throw new Error(`${soPath} does not import the stable _emalloc() symbol.`);
 }
 const specialized = imports.filter((name) => /^_?emalloc_\d+$/.test(name));
 if (specialized.length > 0) {
