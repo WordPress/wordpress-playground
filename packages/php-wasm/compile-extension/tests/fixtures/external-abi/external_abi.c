@@ -13,6 +13,13 @@ PHP_FUNCTION(external_abi_probe)
 	zval value;
 	char cleared[4] = {1, 1, 1, 1};
 	int parsed = 0;
+	/*
+	 * Allocate compile-time-constant sizes on purpose. These are the calls
+	 * that PHP would otherwise specialize into build-specific _emalloc_<size>()
+	 * symbols; the Dockerfile.ext HAVE_BUILTIN_CONSTANT_P undef keeps them on
+	 * the stable _emalloc() entry point, and loading this extension against a
+	 * separately built runtime proves that entry point resolves.
+	 */
 	void *first = emalloc(160);
 	void *second = emalloc(448);
 	zend_string *algorithm = zend_string_init("bcrypt", sizeof("bcrypt") - 1, 0);
