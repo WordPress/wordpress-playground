@@ -324,9 +324,10 @@ self.addEventListener('fetch', (event) => {
 	 * For example, the following request fetching the list of all the Blueprints
 	 * from the Blueprints directory:
 	 *
-	 * https://playground.wordpress.net/proxy/network-first-fetch/https://playground.wordpress.net/blueprints/index.json
+	 * https://playground.wordpress.net/proxy/network-first-fetch/
+	 *     https://playground.wordpress.net/blueprints/index.json
 	 *
-	 * would be proxied to:
+	 * (a single URL, wrapped here) would be proxied to:
 	 *
 	 * https://playground.wordpress.net/blueprints/index.json
 	 *

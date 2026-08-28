@@ -148,11 +148,10 @@ export default defineConfig(({ command, mode }) => {
 	 * actual URL is resolved at runtime in src/lib/blueprints-directory.ts.
 	 */
 	const blueprintsDirectoryUrl =
-		'BLUEPRINTS_DIRECTORY_URL' in process.env
-			? process.env.BLUEPRINTS_DIRECTORY_URL
-			: mode === 'production'
-				? undefined
-				: 'https://raw.githubusercontent.com/WordPress/blueprints/trunk';
+		process.env.BLUEPRINTS_DIRECTORY_URL?.trim() ||
+		(mode === 'production'
+			? undefined
+			: 'https://raw.githubusercontent.com/WordPress/blueprints/trunk');
 
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env

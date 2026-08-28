@@ -53,16 +53,13 @@ export default defineConfig(({ command, mode }) => {
 	 * my.wordpress.net keeps booting when GitHub is down. Development reads
 	 * GitHub directly. See packages/playground/website/scripts/sync-blueprints-mirror.mjs.
 	 */
-	const blueprintsDirectoryUrl =
-		'BLUEPRINTS_DIRECTORY_URL' in process.env
-			? process.env.BLUEPRINTS_DIRECTORY_URL
-			: isProductionBuild
-				? 'https://playground.wordpress.net/blueprints'
-				: 'https://raw.githubusercontent.com/WordPress/blueprints/trunk';
-	const defaultBlueprintUrl = `${blueprintsDirectoryUrl!.replace(
-		/\/+$/,
-		''
-	)}/blueprints/my-wordpress/blueprint.json`;
+	const blueprintsDirectoryUrl = (
+		process.env.BLUEPRINTS_DIRECTORY_URL?.trim() ||
+		(isProductionBuild
+			? 'https://playground.wordpress.net/blueprints'
+			: 'https://raw.githubusercontent.com/WordPress/blueprints/trunk')
+	).replace(/\/+$/, '');
+	const defaultBlueprintUrl = `${blueprintsDirectoryUrl}/blueprints/my-wordpress/blueprint.json`;
 	const personalWpUsageStatsEndpoint =
 		'PERSONAL_WP_USAGE_STATS_ENDPOINT' in process.env
 			? process.env.PERSONAL_WP_USAGE_STATS_ENDPOINT

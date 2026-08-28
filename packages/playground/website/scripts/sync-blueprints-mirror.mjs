@@ -74,7 +74,9 @@ const REWRITABLE_EXTENSIONS = new Set([
  * regardless of the owner's letter case, the ref (`trunk`, `refs/heads/trunk`,
  * or a commit SHA) and whether the URL is JSON-escaped (`\/`).
  *
- * Group 1 is the path within the repository.
+ * The match covers the URL prefix up to and including the slash after the
+ * ref, so replacing it with the mirror base URL leaves the repository path
+ * intact.
  */
 const SELF_REFERENCE_PATTERN =
 	/https?:(?:\\?\/){2}raw\.githubusercontent\.com(?:\\?\/)wordpress(?:\\?\/)blueprints(?:\\?\/)(?:refs(?:\\?\/)heads(?:\\?\/))?[^/\\"'\s]+(?:\\?\/)/gi;
