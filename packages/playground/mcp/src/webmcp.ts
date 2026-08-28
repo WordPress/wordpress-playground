@@ -75,7 +75,6 @@ export async function registerWebMCPTools(
 	// Abort any previous registration before re-registering.
 	registrationController?.abort();
 	registrationController = new AbortController();
-	registrationController = new AbortController();
 	const controller = registrationController;
 	const signal = controller.signal;
 
