@@ -14,13 +14,17 @@ export const BLUEPRINTS_MIRROR_PATH = '/blueprints';
  *
  * In production this is the same-origin mirror, so booting Playground does not
  * depend on GitHub being reachable. In development it points at the GitHub
- * repository directly.
+ * repository directly. A relative `BLUEPRINTS_DIRECTORY_URL` such as
+ * `/website-server/blueprints` is resolved against the current origin, so it
+ * works whichever port the dev server ends up on.
  */
 export function getBlueprintsDirectoryUrl(): string {
-	if (blueprintsDirectoryUrl) {
-		return blueprintsDirectoryUrl.replace(/\/+$/, '');
-	}
-	return new URL(BLUEPRINTS_MIRROR_PATH, window.location.origin).toString();
+	return new URL(
+		blueprintsDirectoryUrl || BLUEPRINTS_MIRROR_PATH,
+		window.location.origin
+	)
+		.toString()
+		.replace(/\/+$/, '');
 }
 
 /**
