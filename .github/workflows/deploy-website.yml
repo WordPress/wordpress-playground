@@ -78,6 +78,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Sync PHP next build assets
               run: npm run sync:php-next
+            - name: Mirror the Blueprints directory
+              run: npm run sync:blueprints
             - run: npx nx build playground-website
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}

@@ -47,8 +47,22 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
-	const defaultBlueprintUrl =
-		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/blueprint.json';
+	/**
+	 * Production loads the default Blueprint from the mirror of the
+	 * WordPress/blueprints repository on playground.wordpress.net, so that
+	 * my.wordpress.net keeps booting when GitHub is down. Development reads
+	 * GitHub directly. See packages/playground/website/scripts/sync-blueprints-mirror.mjs.
+	 */
+	const blueprintsDirectoryUrl =
+		'BLUEPRINTS_DIRECTORY_URL' in process.env
+			? process.env.BLUEPRINTS_DIRECTORY_URL
+			: isProductionBuild
+				? 'https://playground.wordpress.net/blueprints'
+				: 'https://raw.githubusercontent.com/WordPress/blueprints/trunk';
+	const defaultBlueprintUrl = `${blueprintsDirectoryUrl!.replace(
+		/\/+$/,
+		''
+	)}/blueprints/my-wordpress/blueprint.json`;
 	const personalWpUsageStatsEndpoint =
 		'PERSONAL_WP_USAGE_STATS_ENDPOINT' in process.env
 			? process.env.PERSONAL_WP_USAGE_STATS_ENDPOINT

@@ -324,11 +324,11 @@ self.addEventListener('fetch', (event) => {
 	 * For example, the following request fetching the list of all the Blueprints
 	 * from the Blueprints directory:
 	 *
-	 * https://playground.wordpress.net/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
+	 * https://playground.wordpress.net/proxy/network-first-fetch/https://playground.wordpress.net/blueprints/index.json
 	 *
 	 * would be proxied to:
 	 *
-	 * https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
+	 * https://playground.wordpress.net/blueprints/index.json
 	 *
 	 * And the response would be cached for when Playground is running in the
 	 * offline mode.
@@ -402,6 +402,17 @@ self.addEventListener('fetch', (event) => {
 		url.pathname === '/api.html' ||
 		url.pathname === '/'
 	) {
+		event.respondWith(networkFirstFetch(event.request));
+		return;
+	}
+
+	/**
+	 * The same-origin mirror of the WordPress/blueprints repository is
+	 * refreshed independently of website deployments, so a cached copy
+	 * would otherwise stay stale until the next Playground build. Prefer the
+	 * network and fall back to the cache when offline.
+	 */
+	if (url.pathname.startsWith('/blueprints/')) {
 		event.respondWith(networkFirstFetch(event.request));
 		return;
 	}

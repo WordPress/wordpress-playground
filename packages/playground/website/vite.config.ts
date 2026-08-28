@@ -137,6 +137,23 @@ const prPreviewMockScenarios: Record<
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
+	/**
+	 * Where the website loads the WordPress/blueprints directory from: the
+	 * welcome Blueprint, the gallery index, and Blueprint previews.
+	 *
+	 * Production serves a same-origin mirror (see
+	 * scripts/sync-blueprints-mirror.mjs) so Playground keeps booting when
+	 * GitHub is down. Development reads GitHub directly, which avoids the
+	 * 68 MB sync step for local work. `undefined` means "same origin"; the
+	 * actual URL is resolved at runtime in src/lib/blueprints-directory.ts.
+	 */
+	const blueprintsDirectoryUrl =
+		'BLUEPRINTS_DIRECTORY_URL' in process.env
+			? process.env.BLUEPRINTS_DIRECTORY_URL
+			: mode === 'production'
+				? undefined
+				: 'https://raw.githubusercontent.com/WordPress/blueprints/trunk';
+
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
@@ -257,6 +274,13 @@ export default defineConfig(({ command, mode }) => {
 				name: 'cors-proxy-url',
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
+			}),
+			virtualModule({
+				name: 'blueprints-directory-url',
+				content: `
+				export const blueprintsDirectoryUrl = ${JSON.stringify(
+					blueprintsDirectoryUrl
+				)};`,
 			}),
 			// GitHub OAuth flow
 			{

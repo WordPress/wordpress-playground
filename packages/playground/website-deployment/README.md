@@ -27,6 +27,15 @@ The main Playground site uses `apply-update.sh`. The My WordPress site uses
 `my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
 updates do not affect the main Playground deployment path.
 
+The website build also ships a mirror of the [WordPress/blueprints](https://github.com/WordPress/blueprints)
+repository under `/blueprints/` (see `packages/playground/website/scripts/sync-blueprints-mirror.mjs`),
+so booting Playground does not depend on GitHub being available. The
+"Refresh Blueprints mirror" workflow updates just that directory in between
+website deployments via `apply-blueprints-mirror-update.sh`. The mirror is
+served via PHP (set aside under `static-files-to-serve-via-php/blueprints/`)
+so it can carry CORS headers: my.wordpress.net loads its default Blueprint
+from it cross-origin.
+
 During deployment, we consult `custom-redirects-lib.php` about each file, and if it needs special treatment (e.g., URL rewrites, redirects, etc), it is set aside into the `<web-root>/static-files-to-serve-via-php/` folder with its relative path otherwise preserved. For example, if a file `a/b/c/playground.png` requires special handling, it is moved to `<web-root>/static-files-to-serve-via-php/a/b/c/playground.png`. Nginx will no longer find the file based on the request URI `a/b/c/playground.png` and will delegate the request to PHP, giving us a chance to customize how the file is served.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.
