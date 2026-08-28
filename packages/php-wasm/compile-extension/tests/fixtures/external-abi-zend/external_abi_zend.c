@@ -7,8 +7,8 @@
 
 /*
  * A pure Zend extension, like Xdebug or opcache: it exposes a
- * zend_extension_entry (and, via ZEND_EXTENSION(), the extension_version_info
- * that PHP's zend_load_extension() looks up) but intentionally has NO
+ * zend_extension_entry and the extension_version_info stamp that PHP's
+ * zend_load_extension() looks up, but intentionally has NO
  * ZEND_GET_MODULE()/get_module() entry point. It is loaded with a
  * `zend_extension=` directive rather than `extension=`.
  *
@@ -30,7 +30,16 @@ ZEND_DLEXPORT int external_abi_zend_startup(zend_extension *extension)
 	return SUCCESS;
 }
 
-ZEND_EXTENSION();
+/*
+ * Emit the version stamp that PHP's zend_load_extension() checks. This is what
+ * the ZEND_EXTENSION() macro produces, but that macro expands to ZEND_EXT_API,
+ * which is not defined in this extension build's header context; ZEND_DLEXPORT
+ * gives the same default visibility and is already used above.
+ */
+ZEND_DLEXPORT zend_extension_version_info extension_version_info = {
+	ZEND_EXTENSION_API_NO,
+	ZEND_EXTENSION_BUILD_ID
+};
 
 ZEND_DLEXPORT zend_extension zend_extension_entry = {
 	"external_abi_zend",
