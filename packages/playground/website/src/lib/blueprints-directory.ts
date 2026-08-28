@@ -19,12 +19,11 @@ export const BLUEPRINTS_MIRROR_PATH = '/blueprints';
  * works whichever port the dev server ends up on.
  */
 export function getBlueprintsDirectoryUrl(): string {
-	return new URL(
-		blueprintsDirectoryUrl || BLUEPRINTS_MIRROR_PATH,
-		window.location.origin
-	)
-		.toString()
-		.replace(/\/+$/, '');
+	const configured = blueprintsDirectoryUrl || BLUEPRINTS_MIRROR_PATH;
+	const absolute = /^https?:\/\//i.test(configured)
+		? configured
+		: new URL(configured, window.location.origin).toString();
+	return absolute.replace(/\/+$/, '');
 }
 
 /**
