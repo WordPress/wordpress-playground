@@ -54,3 +54,48 @@ npm run dev:docs
 ```
 
 The documentation site opens in a new browser tab and refreshes automatically with each change. Continue to edit the relevant file in your code editor and test the changes in real-time.
+
+
+
+## Step-by-step: Editing documentation via the GitHub UI
+
+This guide walks you through editing a documentation page directly on GitHub — 
+no local setup or command line needed. It's perfect for fixing typos, improving 
+explanations, or adding missing information.
+
+### Before you start
+
+- Make sure you have a [GitHub account](https://github.com/signup). It's free!
+- You must be logged in to GitHub.
+
+### 1. Find the file you want to edit
+
+Browse to `packages/docs/site/docs/` in the repository and find the `.md` file 
+for the documentation page you want to edit.
+
+### 2. Open the editor
+
+Click on the file, then click the **pencil icon (✏️)** in the top-right corner. 
+This opens GitHub's built-in web editor.
+
+### 3. Make your changes
+
+Edit directly in the browser. Use the **Preview** tab to check how it looks.
+
+### 4. Commit your changes
+
+Scroll down to **"Commit changes"** and:
+1. Write a short commit message (e.g. `Fix typo in quick-start guide`)
+2. Select **"Create a new branch for this commit and start a pull request"**
+3. Name your branch (e.g. `docs/fix-typo-quickstart`)
+4. Click **"Propose changes"**
+
+### 5. Open a Pull Request
+
+1. Give your PR a clear title
+2. Explain what you changed and why
+3. Reference the issue: `Fixes #2540`
+4. Click **"Create pull request"**
+
+A maintainer will review your contribution. Thank you for contributing! 🎉
+
