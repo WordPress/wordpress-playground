@@ -142,10 +142,13 @@ export async function registerWebMCPTools(
 }
 
 function getModelContext(): ModelContext | undefined {
-	if (typeof document !== 'undefined') {
-		return document.modelContext;
+	if (typeof document === 'undefined') {
+		return undefined;
 	}
-	return undefined;
+	const modelContext = document.modelContext;
+	return typeof modelContext?.registerTool === 'function'
+		? modelContext
+		: undefined;
 }
 
 function createSiteManagementTools(
