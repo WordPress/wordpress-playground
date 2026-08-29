@@ -1,0 +1,10 @@
+{
+	"name": "@wp-playground/pr-labels",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Path/package/type label logic for the Auto-label workflow. Standalone (not an npm workspace member); minimatch is its only runtime dependency and is installed here so the workflow needs no ad-hoc install.",
+	"dependencies": {
+		"minimatch": "9.0.5"
+	}
+}
