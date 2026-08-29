@@ -1,5 +1,4 @@
 import {
-	getPhpIniEntries,
 	PHP,
 	PHPProcessManager,
 	sandboxedSpawnHandlerFactory,
@@ -11,7 +10,7 @@ import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
-import { loadNodeRuntime } from '..';
+import { bindUserSpace, loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { spawn } from 'child_process';
 
@@ -505,69 +504,77 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		/**
-		 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
-		 */
-		describe('dns_* function warnings', { skip }, () => {
-			it('dns_check_record should throw a warning', async () => {
-				const result = await php.run({
-					code: `<?php
-					dns_check_record('w.org', 2);
-				`,
-				});
-				expect(result.text).toContain(
-					'dns_check_record() always returns false in PHP.wasm.'
-				);
-			});
-		});
-
 		describe('dns_* functions()', { skip }, () => {
-			beforeEach(async () => {
-				await setPhpIniEntries(php, {
-					...getPhpIniEntries(php),
-					// Disable warnings to test the function output
-					error_reporting: 'E_ALL & ~E_WARNING',
+			/** @issue https://github.com/WordPress/wordpress-playground/issues/4171 */
+			it('uses the resolver bridge for canonical DNS types', async () => {
+				const runtime = await loadNodeRuntime(phpVersion as any, {
+					emscriptenOptions: {
+						bindUserSpace: (context) => ({
+							...bindUserSpace({} as any, context),
+							dnsResolve: async (_hostname, type) => {
+								switch (type) {
+									case 'A':
+										return 'A\t3139322e302e322e31';
+									case 'AAAA':
+										return 'AAAA\t323030313a6462383a3a31';
+									case 'MX':
+										return 'MX\t3130\t6d61696c2e6578616d706c652e74657374';
+									default:
+										return '';
+								}
+							},
+						}),
+					},
 				});
-			});
-			it('dns_check_record should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(dns_check_record('w.org', 2));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
-			});
-			it('checkdnsrr should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(checkdnsrr('w.org', 2));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
-			});
-			it('dns_get_record should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(dns_get_record('w.org'));
-				`,
-				});
-				expect(result.text).toEqual('array(0) {\n}\n');
-			});
-			it('dns_get_mx should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(dns_get_mx('', $mxhosts));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
-			});
-			it('getmxrr should exist and be possible to run', async () => {
-				const result = await php.run({
-					code: `<?php
-					var_dump(getmxrr('', $mxhosts));
-				`,
-				});
-				expect(result.text).toEqual('bool(false)\n');
+				const bridgedPhp = new PHP(runtime);
+				try {
+					const lowercase = await bridgedPhp.run({
+						code: `<?php
+							echo json_encode(checkdnsrr('example.test', 'a'));
+						`,
+					});
+					expect(JSON.parse(lowercase.text)).toBe(true);
+
+					const mixedCase = await bridgedPhp.run({
+						code: `<?php
+							echo json_encode(checkdnsrr('example.test', 'aAaA'));
+						`,
+					});
+					expect(JSON.parse(mixedCase.text)).toBe(true);
+
+					const records = await bridgedPhp.run({
+						code: `<?php
+							echo json_encode(dns_get_record('example.test', DNS_A));
+						`,
+					});
+					expect(JSON.parse(records.text)).toEqual([
+						{
+							host: 'example.test',
+							class: 'IN',
+							ttl: 0,
+							type: 'A',
+							ip: '192.0.2.1',
+						},
+					]);
+
+					const mx = await bridgedPhp.run({
+						code: `<?php
+							$mxHosts = array(); $mxWeights = array();
+							echo json_encode(array(
+								'mx' => getmxrr('example.test', $mxHosts, $mxWeights),
+								'mxHosts' => $mxHosts,
+								'mxWeights' => $mxWeights
+							));
+						`,
+					});
+					expect(JSON.parse(mx.text)).toEqual({
+						mx: true,
+						mxHosts: ['mail.example.test'],
+						mxWeights: [10],
+					});
+				} finally {
+					bridgedPhp.exit();
+				}
 			});
 		});
 

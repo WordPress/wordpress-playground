@@ -11,7 +11,20 @@ import type {
 	WholeFileLockOp,
 } from '@php-wasm/universal';
 import type { WasmKernelSpace } from './wasm-kernel-space';
-import { lookup } from 'dns/promises';
+import {
+	lookup,
+	resolve4,
+	resolve6,
+	resolveCaa,
+	resolveCname,
+	resolveMx,
+	resolveNaptr,
+	resolveNs,
+	resolvePtr,
+	resolveSoa,
+	resolveSrv,
+	resolveTxt,
+} from 'dns/promises';
 
 type FSNode = Emscripten.FS.FSNode;
 
@@ -109,7 +122,45 @@ export type WasmUserSpaceAPI = {
 	fd_close: (fd: number) => number;
 	js_release_file_locks: () => void;
 	gethostbyname: (hostname: string) => Promise<string>;
+	dnsResolve: (hostname: string, type: string) => Promise<string>;
 };
+
+export function serializeDnsRecords(type: string, results: unknown): string {
+	const encode = (value: string | number) =>
+		Buffer.from(String(value)).toString('hex');
+	const record = (kind: string, ...fields: Array<string | number>) =>
+		[kind, ...fields.map(encode)].join('\t');
+	if (['A', 'AAAA', 'CNAME', 'NS', 'PTR'].includes(type))
+		return (results as string[])
+			.map((value) => record(type, value))
+			.join('\n');
+	if (type === 'CAA')
+		return (
+			results as Array<{
+				critical: number;
+				issue?: string;
+				issuewild?: string;
+				iodef?: string;
+			}>
+		)
+			.flatMap(({ critical, issue, issuewild, iodef }) => [
+				...(issue ? [record('CAA', critical, 'issue', issue)] : []),
+				...(issuewild
+					? [record('CAA', critical, 'issuewild', issuewild)]
+					: []),
+				...(iodef ? [record('CAA', critical, 'iodef', iodef)] : []),
+			])
+			.join('\n');
+	if (type === 'MX')
+		return (results as Array<{ priority: number; exchange: string }>)
+			.map(({ priority, exchange }) => record('MX', priority, exchange))
+			.join('\n');
+	if (type === 'TXT')
+		return (results as string[][])
+			.map((entries) => record('TXT', entries.join(''), ...entries))
+			.join('\n');
+	return '';
+}
 
 export function bindUserSpace(
 	{ fileLockManager }: WasmKernelSpace,
@@ -1019,11 +1070,109 @@ export function bindUserSpace(
 		return address;
 	}
 
+	/**
+	 * Encode resolver records for the DNS polyfill. Hex keeps field boundaries
+	 * unambiguous without making the C extension depend on PHP's JSON API.
+	 */
+	async function dnsResolve(hostname: string, type: string): Promise<string> {
+		const encode = (value: string | number) =>
+			Buffer.from(String(value)).toString('hex');
+		const record = (kind: string, ...fields: Array<string | number>) =>
+			[kind, ...fields.map(encode)].join('\t');
+
+		try {
+			switch (type) {
+				case 'A':
+					return serializeDnsRecords(type, await resolve4(hostname));
+				case 'AAAA':
+					return serializeDnsRecords(type, await resolve6(hostname));
+				case 'CAA':
+					return serializeDnsRecords(
+						type,
+						await resolveCaa(hostname)
+					);
+				case 'CNAME':
+					return serializeDnsRecords(
+						type,
+						await resolveCname(hostname)
+					);
+				case 'MX':
+					return serializeDnsRecords(type, await resolveMx(hostname));
+				case 'NAPTR':
+					return (await resolveNaptr(hostname))
+						.map(
+							({
+								flags,
+								service,
+								regexp,
+								replacement,
+								order,
+								preference,
+							}) =>
+								record(
+									'NAPTR',
+									order,
+									preference,
+									flags,
+									service,
+									regexp,
+									replacement
+								)
+						)
+						.join('\n');
+				case 'NS':
+					return serializeDnsRecords(type, await resolveNs(hostname));
+				case 'PTR':
+					return serializeDnsRecords(
+						type,
+						await resolvePtr(hostname)
+					);
+				case 'SOA': {
+					const {
+						nsname,
+						hostmaster,
+						serial,
+						refresh,
+						retry,
+						expire,
+						minttl,
+					} = await resolveSoa(hostname);
+					return record(
+						'SOA',
+						nsname,
+						hostmaster,
+						serial,
+						refresh,
+						retry,
+						expire,
+						minttl
+					);
+				}
+				case 'SRV':
+					return (await resolveSrv(hostname))
+						.map(({ priority, weight, port, name }) =>
+							record('SRV', priority, weight, port, name)
+						)
+						.join('\n');
+				case 'TXT':
+					return serializeDnsRecords(
+						type,
+						await resolveTxt(hostname)
+					);
+				default:
+					return '';
+			}
+		} catch {
+			return '';
+		}
+	}
+
 	return {
 		fcntl64,
 		flock,
 		fd_close,
 		js_release_file_locks,
 		gethostbyname,
+		dnsResolve,
 	};
 }
