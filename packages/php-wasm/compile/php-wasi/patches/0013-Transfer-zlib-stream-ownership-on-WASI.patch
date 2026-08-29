@@ -1,0 +1,51 @@
+From 7e0e88c42f956e7cbcf86593320106a4991d6bee Mon Sep 17 00:00:00 2001
+From: WordPress Playground <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 06:30:00 +0200
+Subject: [PATCH] Transfer zlib stream ownership on WASI
+
+WASI does not provide dup(). Let gzdopen() inspect the descriptor while the
+PHP stream still owns it. If gzdopen() succeeds, free the PHP stream while
+preserving its handle so gzclose() becomes the only close. If it fails, the
+unchanged PHP stream cleanup still closes the descriptor.
+
+Keep the existing duplicated-descriptor behavior on other platforms.
+---
+ ext/zlib/zlib_fopen_wrapper.c | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/ext/zlib/zlib_fopen_wrapper.c b/ext/zlib/zlib_fopen_wrapper.c
+index 34eabef4a1..dd85038ef6 100644
+--- a/ext/zlib/zlib_fopen_wrapper.c
++++ b/ext/zlib/zlib_fopen_wrapper.c
+@@ -132,8 +132,17 @@ php_stream *php_stream_gzopen(php_stream_wrapper *wrapper, const char *path, cons
+ 
+ 		if (SUCCESS == php_stream_cast(innerstream, PHP_STREAM_AS_FD, (void **) &fd, REPORT_ERRORS)) {
+ 			self = emalloc(sizeof(*self));
++#ifdef PHP_WASI
++			self->stream = NULL;
++			self->gz_file = gzdopen(fd, mode);
++			if (self->gz_file) {
++				php_stream_free(innerstream, PHP_STREAM_FREE_CLOSE_CASTED);
++				innerstream = NULL;
++			}
++#else
+ 			self->stream = innerstream;
+ 			self->gz_file = gzdopen(dup(fd), mode);
++#endif
+ 
+ 			if (self->gz_file) {
+ 				zval *zlevel = context ? php_stream_context_get_option(context, "zlib", "level") : NULL;
+@@ -158,7 +167,9 @@ php_stream *php_stream_gzopen(php_stream_wrapper *wrapper, const char *path, cons
+ 			}
+ 		}
+ 
+-		php_stream_close(innerstream);
++		if (innerstream) {
++			php_stream_close(innerstream);
++		}
+ 	}
+ 
+ 	return NULL;
+-- 
+2.51.0
+

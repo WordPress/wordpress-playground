@@ -1,0 +1,3 @@
+case	burst_rss_mib	idle_rss_mib	home_p50_ms	home_p95_ms	search_p50_ms	search_p95_ms	post_p50_ms	post_p95_ms	editor_p50_ms	editor_p95_ms	load_duration_s	load_requests	load_successes	load_errors	successful_rps	peak_tree_rss_mib	load_home_requests	load_search_requests	load_post_requests	load_editor_requests
+wasmtime	146	120	12	29	16	30	19	38	28	55	2.304	160	159	1	69	151	40	40	40	40
+native-php	95	85	10	20	12	24	14	28	20	40	1.600	160	160	0	100	100	40	40	40	40

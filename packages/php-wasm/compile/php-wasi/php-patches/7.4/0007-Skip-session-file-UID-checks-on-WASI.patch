@@ -1,0 +1,25 @@
+From 42d5a407d256617d7d341ffdefcdfe059ee81aee Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:43:20 +0200
+Subject: [PATCH 06/11] Port PHP 7.4 WASI patch 0006
+
+---
+ ext/session/mod_files.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ext/session/mod_files.c b/ext/session/mod_files.c
+index cb8138e6..88ed2dc3 100644
+--- a/ext/session/mod_files.c
++++ b/ext/session/mod_files.c
+@@ -194,7 +194,7 @@ static void ps_files_open(ps_files *data, const char *key)
+ #endif
+ 
+ 		if (data->fd != -1) {
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 			/* check that this session file was created by us or root – we
+ 			   don't want to end up accepting the sessions of another webapp
+ 
+-- 
+2.50.1
+

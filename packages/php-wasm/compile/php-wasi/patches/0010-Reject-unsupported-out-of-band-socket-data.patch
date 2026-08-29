@@ -1,0 +1,30 @@
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index eb0dd25bf6..f2e8a31f2f 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -408,7 +408,12 @@ static int php_tcp_sockop_set_option(php_stream *stream, int option, int value,
+ 				case STREAM_XPORT_OP_SEND:
+ 					flags = 0;
+ 					if ((xparam->inputs.flags & STREAM_OOB) == STREAM_OOB) {
++#ifdef MSG_OOB
+ 						flags |= MSG_OOB;
++#else
++						xparam->outputs.returncode = -1;
++						return PHP_STREAM_OPTION_RETURN_OK;
++#endif
+ 					}
+ 					xparam->outputs.returncode = sock_sendto(sock,
+ 							xparam->inputs.buf, xparam->inputs.buflen,
+@@ -426,7 +431,12 @@ static int php_tcp_sockop_set_option(php_stream *stream, int option, int value,
+ 				case STREAM_XPORT_OP_RECV:
+ 					flags = 0;
+ 					if ((xparam->inputs.flags & STREAM_OOB) == STREAM_OOB) {
++#ifdef MSG_OOB
+ 						flags |= MSG_OOB;
++#else
++						xparam->outputs.returncode = -1;
++						return PHP_STREAM_OPTION_RETURN_OK;
++#endif
+ 					}
+ 					if ((xparam->inputs.flags & STREAM_PEEK) == STREAM_PEEK) {
+ 						flags |= MSG_PEEK;

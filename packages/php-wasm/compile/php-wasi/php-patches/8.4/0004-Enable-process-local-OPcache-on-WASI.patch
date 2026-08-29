@@ -1,0 +1,650 @@
+From 8154d1224a1f9848afdeb78c43b45ea9596232c9 Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:30 +0200
+Subject: [PATCH 04/12] Enable process-local OPcache on WASI
+
+---
+ Zend/zend_extensions.c                |  6 +-
+ ext/opcache/ZendAccelerator.c         | 77 ++++++++++++++++++++------
+ ext/opcache/ZendAccelerator.h         | 49 ++++++++++++++++
+ ext/opcache/config.m4                 | 13 ++++-
+ ext/opcache/opcache_module.c          | 30 ++++++++++
+ ext/opcache/php_opcache.h             |  7 +++
+ ext/opcache/shared_alloc_wasi.c       | 80 +++++++++++++++++++++++++++
+ ext/opcache/zend_accelerator_debug.c  |  2 +
+ ext/opcache/zend_accelerator_module.c |  3 +-
+ ext/opcache/zend_file_cache.c         |  2 +-
+ ext/opcache/zend_shared_alloc.c       | 21 +++++--
+ ext/opcache/zend_shared_alloc.h       |  4 ++
+ 12 files changed, 262 insertions(+), 32 deletions(-)
+ create mode 100644 ext/opcache/opcache_module.c
+ create mode 100644 ext/opcache/php_opcache.h
+ create mode 100644 ext/opcache/shared_alloc_wasi.c
+
+diff --git a/Zend/zend_extensions.c b/Zend/zend_extensions.c
+index fecea4fa..c0e2b8db 100644
+--- a/Zend/zend_extensions.c
++++ b/Zend/zend_extensions.c
+@@ -149,7 +149,7 @@ zend_result zend_load_extension_handle(DL_HANDLE handle, const char *path)
+ 
+ void zend_register_extension(zend_extension *new_extension, DL_HANDLE handle)
+ {
+-#if ZEND_EXTENSIONS_SUPPORT
++#if ZEND_EXTENSIONS_SUPPORT || defined(PHP_WASI)
+ 	zend_extension extension;
+ 
+ 	extension = *new_extension;
+@@ -181,7 +181,7 @@ void zend_register_extension(zend_extension *new_extension, DL_HANDLE handle)
+ 
+ static void zend_extension_shutdown(zend_extension *extension)
+ {
+-#if ZEND_EXTENSIONS_SUPPORT
++#if ZEND_EXTENSIONS_SUPPORT || defined(PHP_WASI)
+ 	if (extension->shutdown) {
+ 		extension->shutdown(extension);
+ 	}
+@@ -191,7 +191,7 @@ static void zend_extension_shutdown(zend_extension *extension)
+ /* int return due to zend linked list API */
+ static int zend_extension_startup(zend_extension *extension)
+ {
+-#if ZEND_EXTENSIONS_SUPPORT
++#if ZEND_EXTENSIONS_SUPPORT || defined(PHP_WASI)
+ 	if (extension->startup) {
+ 		if (extension->startup(extension)!=SUCCESS) {
+ 			return 1;
+diff --git a/ext/opcache/ZendAccelerator.c b/ext/opcache/ZendAccelerator.c
+index dca5f607..8949da0a 100644
+--- a/ext/opcache/ZendAccelerator.c
++++ b/ext/opcache/ZendAccelerator.c
+@@ -86,10 +86,12 @@ typedef int gid_t;
+ 
+ #ifndef ZEND_WIN32
+ # include <sys/types.h>
++# ifndef PHP_WASI
+ # include <sys/wait.h>
+ # include <sys/ipc.h>
+ # include <pwd.h>
+ # include <grp.h>
++# endif
+ #endif
+ 
+ #include <sys/stat.h>
+@@ -268,7 +270,9 @@ static ZEND_INI_MH(accel_include_path_on_modify)
+ 
+ static inline void accel_restart_enter(void)
+ {
+-#ifdef ZEND_WIN32
++#if defined(PHP_WASI)
++	/* Component-local state has no concurrent process to lock out. */
++#elif defined(ZEND_WIN32)
+ 	INCREMENT(restart_in);
+ #else
+ 	struct flock restart_in_progress;
+@@ -287,7 +291,9 @@ static inline void accel_restart_enter(void)
+ 
+ static inline void accel_restart_leave(void)
+ {
+-#ifdef ZEND_WIN32
++#if defined(PHP_WASI)
++	ZCSG(restart_in_progress) = false;
++#elif defined(ZEND_WIN32)
+ 	ZCSG(restart_in_progress) = false;
+ 	DECREMENT(restart_in);
+ #else
+@@ -308,7 +314,9 @@ static inline void accel_restart_leave(void)
+ static inline int accel_restart_is_active(void)
+ {
+ 	if (ZCSG(restart_in_progress)) {
+-#ifndef ZEND_WIN32
++#if defined(PHP_WASI)
++		return 1;
++#elif !defined(ZEND_WIN32)
+ 		struct flock restart_check;
+ 
+ 		restart_check.l_type = F_WRLCK;
+@@ -336,7 +344,9 @@ static inline int accel_restart_is_active(void)
+ /* Creates a read lock for SHM access */
+ static inline zend_result accel_activate_add(void)
+ {
+-#ifdef ZEND_WIN32
++#if defined(PHP_WASI)
++	/* The Store mutex serializes access to this component-local cache. */
++#elif defined(ZEND_WIN32)
+ 	SHM_UNPROTECT();
+ 	INCREMENT(mem_usage);
+ 	SHM_PROTECT();
+@@ -359,7 +369,9 @@ static inline zend_result accel_activate_add(void)
+ /* Releases a lock for SHM access */
+ static inline void accel_deactivate_sub(void)
+ {
+-#ifdef ZEND_WIN32
++#ifdef PHP_WASI
++	/* No process-shared usage lock exists for an instance-local arena. */
++#elif defined(ZEND_WIN32)
+ 	if (ZCG(counted)) {
+ 		SHM_UNPROTECT();
+ 		DECREMENT(mem_usage);
+@@ -382,7 +394,9 @@ static inline void accel_deactivate_sub(void)
+ 
+ static inline void accel_unlock_all(void)
+ {
+-#ifdef ZEND_WIN32
++#ifdef PHP_WASI
++	return;
++#elif defined(ZEND_WIN32)
+ 	accel_deactivate_sub();
+ #else
+ 	if (lock_file == -1) {
+@@ -827,7 +841,7 @@ static void accel_use_shm_interned_strings(void)
+ 	HANDLE_UNBLOCK_INTERRUPTIONS();
+ }
+ 
+-#ifndef ZEND_WIN32
++#if !defined(ZEND_WIN32) && !defined(PHP_WASI)
+ static inline void kill_all_lockers(struct flock *mem_usage_check)
+ {
+ 	int tries;
+@@ -894,14 +908,15 @@ static inline void kill_all_lockers(struct flock *mem_usage_check)
+ 
+ static inline bool accel_is_inactive(void)
+ {
+-#ifdef ZEND_WIN32
++#if defined(PHP_WASI)
++	return true;
++#elif defined(ZEND_WIN32)
+ 	/* on Windows, we don't need kill_all_lockers() because SAPIs
+ 	   that work on Windows don't manage child processes (and we
+ 	   can't do anything about hanging threads anyway); therefore
+ 	   on Windows, we can simply manage this counter with atomics
+ 	   instead of flocks (atomics are much faster but they don't
+ 	   provide us with the PID of locker processes) */
+-
+ 	if (LOCKVAL(mem_usage) == 0) {
+ 		return true;
+ 	}
+@@ -937,7 +952,7 @@ static inline bool accel_is_inactive(void)
+ static int zend_get_stream_timestamp(const char *filename, zend_stat_t *statbuf)
+ {
+ 	php_stream_wrapper *wrapper;
+-	php_stream_statbuf stream_statbuf;
++	php_stream_statbuf stream_statbuf = {0};
+ 	int ret, er;
+ 
+ 	if (!filename) {
+@@ -970,6 +985,25 @@ static int zend_get_stream_timestamp(const char *filename, zend_stat_t *statbuf)
+ 	return SUCCESS;
+ }
+ 
++static inline accel_time_t zend_accel_stat_timestamp(const zend_stat_t *statbuf)
++{
++#ifdef PHP_WASI
++	accel_time_t seconds;
++	accel_time_t nanoseconds;
++	if (__builtin_mul_overflow(
++			(accel_time_t) statbuf->st_mtim.tv_sec,
++			(accel_time_t) ZEND_ACCEL_NANOSECONDS_PER_SECOND,
++			&seconds)
++		|| __builtin_add_overflow(
++			seconds, (accel_time_t) statbuf->st_mtim.tv_nsec, &nanoseconds)) {
++		return 0;
++	}
++	return zend_accel_timestamp_encode(nanoseconds);
++#else
++	return statbuf->st_mtime;
++#endif
++}
++
+ #ifdef ZEND_WIN32
+ static accel_time_t zend_get_file_handle_timestamp_win(zend_file_handle *file_handle, size_t *size)
+ {
+@@ -1032,7 +1066,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
+ 			if (size) {
+ 				*size = tmpbuf->st_size;
+ 			}
+-			return tmpbuf->st_mtime;
++			return zend_accel_stat_timestamp(tmpbuf);
+ 		}
+ 	}
+ 
+@@ -1072,7 +1106,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
+ 		case ZEND_HANDLE_STREAM:
+ 			{
+ 				php_stream *stream = (php_stream *)file_handle->handle.stream.handle;
+-				php_stream_statbuf sb;
++				php_stream_statbuf sb = {0};
+ 				int ret, er;
+ 
+ 				if (!stream ||
+@@ -1104,7 +1138,7 @@ accel_time_t zend_get_file_handle_timestamp(zend_file_handle *file_handle, size_
+ 	if (size) {
+ 		*size = statbuf.st_size;
+ 	}
+-	return statbuf.st_mtime;
++	return zend_accel_stat_timestamp(&statbuf);
+ }
+ 
+ static inline int do_validate_timestamps(zend_persistent_script *persistent_script, zend_file_handle *file_handle)
+@@ -1789,7 +1823,8 @@ static zend_persistent_script *opcache_compile_file(zend_file_handle *file_handl
+ 
+ 		/* check if file is too new (may be it's not written completely yet) */
+ 		if (ZCG(accel_directives).file_update_protection &&
+-		    ((accel_time_t)(ZCG(request_time) - ZCG(accel_directives).file_update_protection) < timestamp)) {
++		    (zend_accel_timestamp_from_seconds(
++		        ZCG(request_time) - ZCG(accel_directives).file_update_protection) < timestamp)) {
+ 			*op_array_p = accelerator_orig_compile_file(file_handle, type);
+ 			return NULL;
+ 		}
+@@ -2842,6 +2877,9 @@ static inline zend_result accel_find_sapi(void)
+ 		"fuzzer",
+ 		"frankenphp",
+ 		"ngx-php",
++#ifdef PHP_WASI
++		"wasi-component",
++#endif
+ 		NULL
+ 	};
+ 	const char **sapi_name;
+@@ -4788,7 +4826,7 @@ static void preload_send_header(sapi_header_struct *sapi_header, void *server_co
+ {
+ }
+ 
+-#ifndef ZEND_WIN32
++#if !defined(ZEND_WIN32) && !defined(PHP_WASI)
+ static zend_result accel_finish_startup_preload(bool in_child)
+ {
+ 	zend_result ret = SUCCESS;
+@@ -4958,7 +4996,7 @@ static zend_result accel_finish_startup_preload_subprocess(pid_t *pid)
+ 
+ 	return SUCCESS;
+ }
+-#endif /* ZEND_WIN32 */
++#endif /* !ZEND_WIN32 && !PHP_WASI */
+ 
+ static zend_result accel_finish_startup(void)
+ {
+@@ -4970,7 +5008,10 @@ static zend_result accel_finish_startup(void)
+ 		return SUCCESS;
+ 	}
+ 
+-#ifdef ZEND_WIN32
++#if defined(PHP_WASI)
++	zend_accel_error_noreturn(ACCEL_LOG_ERROR, "Preloading is not supported on WASI");
++	return FAILURE;
++#elif defined(ZEND_WIN32)
+ 	zend_accel_error_noreturn(ACCEL_LOG_ERROR, "Preloading is not supported on Windows");
+ 	return FAILURE;
+ #else /* ZEND_WIN32 */
+@@ -5024,7 +5065,7 @@ static zend_result accel_finish_startup(void)
+ 			return FAILURE;
+ 		}
+ 	}
+-#endif /* ZEND_WIN32 */
++#endif
+ }
+ 
+ static void accel_activate(void) {
+diff --git a/ext/opcache/ZendAccelerator.h b/ext/opcache/ZendAccelerator.h
+index 486074ef..5d43291a 100644
+--- a/ext/opcache/ZendAccelerator.h
++++ b/ext/opcache/ZendAccelerator.h
+@@ -104,6 +104,55 @@ typedef unsigned __int64 accel_time_t;
+ typedef time_t accel_time_t;
+ #endif
+ 
++#ifdef PHP_WASI
++# define ZEND_ACCEL_NANOSECONDS_PER_SECOND 1000000000LL
++
++/* Reserve zero for OPcache's "timestamp unavailable" sentinel. */
++static inline accel_time_t zend_accel_timestamp_encode(accel_time_t timestamp)
++{
++	accel_time_t encoded;
++	if (timestamp >= 0) {
++		if (__builtin_add_overflow(timestamp, (accel_time_t) 1, &encoded)) {
++			return 0;
++		}
++		return encoded;
++	}
++	return timestamp;
++}
++
++static inline accel_time_t zend_accel_timestamp_decode(accel_time_t timestamp)
++{
++	return timestamp > 0 ? timestamp - 1 : timestamp;
++}
++#endif
++
++static inline accel_time_t zend_accel_timestamp_from_seconds(time_t timestamp)
++{
++#ifdef PHP_WASI
++	accel_time_t nanoseconds;
++	if (__builtin_mul_overflow(
++			(accel_time_t) timestamp,
++			(accel_time_t) ZEND_ACCEL_NANOSECONDS_PER_SECOND,
++			&nanoseconds)) {
++		return 0;
++	}
++	return zend_accel_timestamp_encode(nanoseconds);
++#else
++	return (accel_time_t) timestamp;
++#endif
++}
++
++static inline time_t zend_accel_timestamp_seconds(accel_time_t timestamp)
++{
++#ifdef PHP_WASI
++	return (time_t) (
++		zend_accel_timestamp_decode(timestamp) / ZEND_ACCEL_NANOSECONDS_PER_SECOND
++	);
++#else
++	return (time_t) timestamp;
++#endif
++}
++
+ typedef enum _zend_accel_restart_reason {
+ 	ACCEL_RESTART_OOM,    /* restart because of out of memory */
+ 	ACCEL_RESTART_HASH,   /* restart because of hash overflow */
+diff --git a/ext/opcache/config.m4 b/ext/opcache/config.m4
+index 8f6d5ab7..9a4b27c5 100644
+--- a/ext/opcache/config.m4
++++ b/ext/opcache/config.m4
+@@ -26,8 +26,14 @@ PHP_ARG_WITH([capstone],
+   [no])
+ 
+ if test "$PHP_OPCACHE" != "no"; then
+-  dnl Always build as shared extension.
+-  ext_shared=yes
++  dnl WASI components cannot load shared libraries, so build OPcache into PHP.
++  if test "$WASI" = "yes"; then
++    ext_shared=no
++    OPCACHE_WASI_SRC="shared_alloc_wasi.c opcache_module.c"
++  else
++    ext_shared=yes
++    OPCACHE_WASI_SRC=""
++  fi
+ 
+   AS_VAR_IF([PHP_HUGE_CODE_PAGES], [yes],
+     [AC_DEFINE([HAVE_HUGE_CODE_PAGES], [1],
+@@ -324,6 +330,7 @@ int main(void) {
+   ])
+ 
+   PHP_NEW_EXTENSION([opcache], m4_normalize([
++      $OPCACHE_WASI_SRC
+       shared_alloc_mmap.c
+       shared_alloc_posix.c
+       shared_alloc_shm.c
+@@ -346,7 +353,7 @@ int main(void) {
+   PHP_ADD_EXTENSION_DEP(opcache, date)
+   PHP_ADD_EXTENSION_DEP(opcache, pcre)
+ 
+-  if test "$php_cv_shm_ipc" != "yes" && test "$php_cv_shm_mmap_posix" != "yes" && test "$php_cv_shm_mmap_anon" != "yes"; then
++  if test "$WASI" != "yes" && test "$php_cv_shm_ipc" != "yes" && test "$php_cv_shm_mmap_posix" != "yes" && test "$php_cv_shm_mmap_anon" != "yes"; then
+     AC_MSG_FAILURE(m4_text_wrap([
+       No supported shared memory caching support was found when configuring
+       opcache.
+diff --git a/ext/opcache/opcache_module.c b/ext/opcache/opcache_module.c
+new file mode 100644
+index 00000000..a3284b25
+--- /dev/null
++++ b/ext/opcache/opcache_module.c
+@@ -0,0 +1,30 @@
++/* Glue that registers OPcache when it is linked as a static extension. */
++
++#include "php.h"
++#include "php_opcache.h"
++#include "Zend/zend_extensions.h"
++
++PHP_MINIT_FUNCTION(opcache)
++{
++	extern zend_extension zend_extension_entry;
++	zend_register_extension(&zend_extension_entry, NULL);
++	return SUCCESS;
++}
++
++PHP_MSHUTDOWN_FUNCTION(opcache)
++{
++	return SUCCESS;
++}
++
++zend_module_entry opcache_module_entry = {
++	STANDARD_MODULE_HEADER,
++	"opcache",
++	NULL,
++	PHP_MINIT(opcache),
++	PHP_MSHUTDOWN(opcache),
++	NULL,
++	NULL,
++	NULL,
++	PHP_VERSION,
++	STANDARD_MODULE_PROPERTIES
++};
+diff --git a/ext/opcache/php_opcache.h b/ext/opcache/php_opcache.h
+new file mode 100644
+index 00000000..89d10918
+--- /dev/null
++++ b/ext/opcache/php_opcache.h
+@@ -0,0 +1,7 @@
++#ifndef PHP_OPCACHE_H
++#define PHP_OPCACHE_H
++
++extern zend_module_entry opcache_module_entry;
++#define phpext_opcache_ptr &opcache_module_entry
++
++#endif /* PHP_OPCACHE_H */
+diff --git a/ext/opcache/shared_alloc_wasi.c b/ext/opcache/shared_alloc_wasi.c
+new file mode 100644
+index 00000000..03596616
+--- /dev/null
++++ b/ext/opcache/shared_alloc_wasi.c
+@@ -0,0 +1,80 @@
++/*
++   +----------------------------------------------------------------------+
++   | Zend OPcache                                                         |
++   +----------------------------------------------------------------------+
++   | Copyright (c) The PHP Group                                          |
++   +----------------------------------------------------------------------+
++   | This source file is subject to version 3.01 of the PHP license,      |
++   | that is bundled with this package in the file LICENSE, and is        |
++   | available through the world-wide-web at the following url:           |
++   | https://www.php.net/license/3_01.txt                                 |
++   +----------------------------------------------------------------------+
++*/
++
++#include "zend_shared_alloc.h"
++
++#ifdef PHP_WASI
++
++#include <stdlib.h>
++
++/*
++ * A Playground PHP component is an isolated, single-process worker. Its
++ * persistent linear memory is therefore the process-local shared arena that
++ * OPcache needs; no cross-process mmap transport is required or available.
++ */
++static int create_segments(
++	size_t requested_size,
++	zend_shared_segment ***shared_segments_p,
++	int *shared_segments_count,
++	const char **error_in
++)
++{
++	zend_shared_segment *shared_segment;
++	void *memory = calloc(1, requested_size);
++
++	if (memory == NULL) {
++		*error_in = "calloc";
++		return ALLOC_FAILURE;
++	}
++
++	*shared_segments_p = (zend_shared_segment **) calloc(
++		1,
++		sizeof(zend_shared_segment) + sizeof(void *)
++	);
++	if (*shared_segments_p == NULL) {
++		free(memory);
++		*error_in = "calloc";
++		return ALLOC_FAILURE;
++	}
++
++	shared_segment = (zend_shared_segment *) (
++		(char *) (*shared_segments_p) + sizeof(void *)
++	);
++	(*shared_segments_p)[0] = shared_segment;
++	*shared_segments_count = 1;
++
++	shared_segment->p = memory;
++	shared_segment->pos = 0;
++	shared_segment->size = requested_size;
++
++	return ALLOC_SUCCESS;
++}
++
++static int detach_segment(zend_shared_segment *shared_segment)
++{
++	free(shared_segment->p);
++	return 0;
++}
++
++static size_t segment_type_size(void)
++{
++	return sizeof(zend_shared_segment);
++}
++
++const zend_shared_memory_handlers zend_alloc_wasi_handlers = {
++	create_segments,
++	detach_segment,
++	segment_type_size
++};
++
++#endif /* PHP_WASI */
+diff --git a/ext/opcache/zend_accelerator_debug.c b/ext/opcache/zend_accelerator_debug.c
+index b2a3105d..33bb3d93 100644
+--- a/ext/opcache/zend_accelerator_debug.c
++++ b/ext/opcache/zend_accelerator_debug.c
+@@ -25,6 +25,8 @@
+ #include <time.h>
+ #ifdef ZEND_WIN32
+ # include <process.h>
++#else
++# include <unistd.h>
+ #endif
+ #include "ZendAccelerator.h"
+ 
+diff --git a/ext/opcache/zend_accelerator_module.c b/ext/opcache/zend_accelerator_module.c
+index ffa09aaf..469313a8 100644
+--- a/ext/opcache/zend_accelerator_module.c
++++ b/ext/opcache/zend_accelerator_module.c
+@@ -622,7 +622,8 @@ static int accelerator_get_scripts(zval *return_value)
+ 			add_assoc_stringl(&persistent_script_report, "last_used", str, len);
+ 			add_assoc_long(&persistent_script_report, "last_used_timestamp", script->dynamic_members.last_used);
+ 			if (ZCG(accel_directives).validate_timestamps) {
+-				add_assoc_long(&persistent_script_report, "timestamp", (zend_long)script->timestamp);
++				add_assoc_long(&persistent_script_report, "timestamp",
++					(zend_long) zend_accel_timestamp_seconds(script->timestamp));
+ 			}
+ 			timerclear(&exec_time);
+ 			timerclear(&fetch_time);
+diff --git a/ext/opcache/zend_file_cache.c b/ext/opcache/zend_file_cache.c
+index 53607bf7..2c66a204 100644
+--- a/ext/opcache/zend_file_cache.c
++++ b/ext/opcache/zend_file_cache.c
+@@ -94,7 +94,7 @@ static int zend_file_cache_flock(int fd, int op)
+ 	}
+ 	return -1;
+ }
+-#elif defined(HAVE_FLOCK)
++#elif defined(HAVE_FLOCK) || defined(PHP_WASI)
+ # define zend_file_cache_flock flock
+ #else
+ # define LOCK_SH 0
+diff --git a/ext/opcache/zend_shared_alloc.c b/ext/opcache/zend_shared_alloc.c
+index 8516493d..7528d6c7 100644
+--- a/ext/opcache/zend_shared_alloc.c
++++ b/ext/opcache/zend_shared_alloc.c
+@@ -64,6 +64,9 @@ static char lockfile_name[MAXPATHLEN];
+ #endif
+ 
+ static const zend_shared_memory_handler_entry handler_table[] = {
++#ifdef PHP_WASI
++	{ "wasi", &zend_alloc_wasi_handlers },
++#endif
+ #ifdef USE_MMAP
+ 	{ "mmap", &zend_alloc_mmap_handlers },
+ #endif
+@@ -79,7 +82,7 @@ static const zend_shared_memory_handler_entry handler_table[] = {
+ 	{ NULL, NULL}
+ };
+ 
+-#ifndef ZEND_WIN32
++#if !defined(ZEND_WIN32) && !defined(PHP_WASI)
+ void zend_shared_alloc_create_lock(char *lockfile_path)
+ {
+ 	int val;
+@@ -190,7 +193,9 @@ int zend_shared_alloc_startup(size_t requested_size, size_t reserved_size)
+ 	smm_shared_globals = &tmp_shared_globals;
+ 	ZSMMG(shared_free) = requested_size - reserved_size; /* goes to tmp_shared_globals.shared_free */
+ 
+-#ifndef ZEND_WIN32
++#if defined(PHP_WASI)
++	/* The arena is instance-local and the Store executes requests serially. */
++#elif !defined(ZEND_WIN32)
+ 	zend_shared_alloc_create_lock(ZCG(accel_directives).lockfile_path);
+ #else
+ 	zend_shared_alloc_create_lock();
+@@ -331,7 +336,7 @@ void zend_shared_alloc_shutdown(void)
+ 	}
+ 	ZSMMG(shared_segments) = NULL;
+ 	g_shared_alloc_handler = NULL;
+-#ifndef ZEND_WIN32
++#if !defined(ZEND_WIN32) && !defined(PHP_WASI)
+ 	close(lock_file);
+ 
+ # ifdef ZTS
+@@ -482,7 +487,9 @@ void zend_shared_alloc_lock(void)
+ {
+ 	ZEND_ASSERT(!ZCG(locked));
+ 
+-#ifndef ZEND_WIN32
++#if defined(PHP_WASI)
++	/* One serialized request stream owns this component-local arena. */
++#elif !defined(ZEND_WIN32)
+ 	struct flock mem_write_lock;
+ 
+ 	mem_write_lock.l_type = F_WRLCK;
+@@ -521,7 +528,7 @@ void zend_shared_alloc_unlock(void)
+ {
+ 	ZEND_ASSERT(ZCG(locked));
+ 
+-#ifndef ZEND_WIN32
++#if !defined(ZEND_WIN32) && !defined(PHP_WASI)
+ 	struct flock mem_write_unlock;
+ 
+ 	mem_write_unlock.l_type = F_UNLCK;
+@@ -532,7 +539,9 @@ void zend_shared_alloc_unlock(void)
+ 
+ 	ZCG(locked) = 0;
+ 
+-#ifndef ZEND_WIN32
++#if defined(PHP_WASI)
++	/* One serialized request stream owns this component-local arena. */
++#elif !defined(ZEND_WIN32)
+ 	if (fcntl(lock_file, F_SETLK, &mem_write_unlock) == -1) {
+ 		zend_accel_error_noreturn(ACCEL_LOG_ERROR, "Cannot remove lock - %s (%d)", strerror(errno), errno);
+ 	}
+diff --git a/ext/opcache/zend_shared_alloc.h b/ext/opcache/zend_shared_alloc.h
+index 41cba0bb..c34487ed 100644
+--- a/ext/opcache/zend_shared_alloc.h
++++ b/ext/opcache/zend_shared_alloc.h
+@@ -121,6 +121,10 @@ typedef struct _zend_smm_shared_globals {
+ 
+ ZEND_EXT_API extern zend_smm_shared_globals *smm_shared_globals;
+ 
++#ifdef PHP_WASI
++extern const zend_shared_memory_handlers zend_alloc_wasi_handlers;
++#endif
++
+ #define ZSMMG(element)		(smm_shared_globals->element)
+ 
+ #define SHARED_ALLOC_REATTACHED		(SUCCESS+1)
+-- 
+2.50.1
+

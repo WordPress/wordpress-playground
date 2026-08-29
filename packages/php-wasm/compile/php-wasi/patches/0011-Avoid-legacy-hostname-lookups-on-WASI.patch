@@ -1,0 +1,24 @@
+diff --git a/main/network.c b/main/network.c
+index 6f28c265b3..27f8190931 100644
+--- a/main/network.c
++++ b/main/network.c
+@@ -1292,7 +1292,7 @@ PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
+ }
+ #endif
+ 
+-#if defined(HAVE_GETHOSTBYNAME_R)
++#if defined(HAVE_GETHOSTBYNAME_R) && !defined(PHP_WASI)
+ #ifdef HAVE_FUNC_GETHOSTBYNAME_R_6
+ struct hostent * gethostname_re (const char *host,struct hostent *hostbuf,char **tmphstbuf,size_t *hstbuflen)
+ {
+@@ -1364,7 +1364,9 @@ struct hostent * gethostname_re (const char *host,struct hostent *hostbuf,char **
+ #endif
+ 
+ PHPAPI struct hostent*	php_network_gethostbyname(const char *name) {
+-#if !defined(HAVE_GETHOSTBYNAME_R)
++#if defined(PHP_WASI)
++	return NULL;
++#elif !defined(HAVE_GETHOSTBYNAME_R)
+ 	return gethostbyname(name);
+ #else
+ 	if (FG(tmp_host_buf)) {

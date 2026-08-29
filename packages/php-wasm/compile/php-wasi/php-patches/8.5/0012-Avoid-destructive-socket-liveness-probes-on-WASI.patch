@@ -1,0 +1,52 @@
+From 7f5dfde78a196b4725f89780185019b2d532deda Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:33 +0200
+Subject: [PATCH 12/12] Avoid destructive socket liveness probes on WASI
+
+---
+ main/streams/xp_socket.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index 49d673e8..3c9a5fcb 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -342,7 +342,9 @@ static int php_sockop_set_option(php_stream *stream, int option, int value, void
+ 		case PHP_STREAM_OPTION_CHECK_LIVENESS:
+ 			{
+ 				struct timeval tv;
++#ifndef PHP_WASI
+ 				char buf;
++#endif
+ 				int alive = 1;
+ 
+ 				if (value == -1) {
+@@ -357,6 +359,17 @@ static int php_sockop_set_option(php_stream *stream, int option, int value, void
+ 					tv.tv_usec = 0;
+ 				}
+ 
++#ifdef PHP_WASI
++				if (sock->socket == -1) {
++					alive = 0;
++				} else {
++					int events = php_pollfd_for(sock->socket, PHP_POLLREADABLE|POLLPRI, &tv);
++
++					if (events < 0 || (events & (POLLERR|POLLHUP|POLLNVAL))) {
++						alive = 0;
++					}
++				}
++#else
+ 				if (sock->socket == -1) {
+ 					alive = 0;
+ 				} else if (
+@@ -386,6 +399,7 @@ static int php_sockop_set_option(php_stream *stream, int option, int value, void
+ 						}
+ 					}
+ 				}
++#endif
+ 				return alive ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+ 			}
+ 
+-- 
+2.50.1
+

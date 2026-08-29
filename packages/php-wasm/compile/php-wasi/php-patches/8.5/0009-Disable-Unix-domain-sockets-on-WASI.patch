@@ -1,0 +1,53 @@
+From 7494bc09ec0a974d72513f0137d07e27fba38fad Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:40:32 +0200
+Subject: [PATCH 09/12] Disable Unix domain sockets on WASI
+
+---
+ main/network.c           | 2 +-
+ main/streams/streams.c   | 2 +-
+ main/streams/xp_socket.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/main/network.c b/main/network.c
+index bff2ab2e..209a791b 100644
+--- a/main/network.c
++++ b/main/network.c
+@@ -61,7 +61,7 @@
+ 
+ #include "php_network.h"
+ 
+-#if defined(PHP_WIN32) || defined(__riscos__)
++#if defined(PHP_WIN32) || defined(__riscos__) || defined(PHP_WASI)
+ #undef AF_UNIX
+ #endif
+ 
+diff --git a/main/streams/streams.c b/main/streams/streams.c
+index 73fdc785..a4f7093c 100644
+--- a/main/streams/streams.c
++++ b/main/streams/streams.c
+@@ -1899,7 +1899,7 @@ zend_result php_init_stream_wrappers(int module_number)
+ 	return (php_stream_xport_register("tcp", php_stream_generic_socket_factory) == SUCCESS
+ 			&&
+ 			php_stream_xport_register("udp", php_stream_generic_socket_factory) == SUCCESS
+-#if defined(AF_UNIX) && !(defined(PHP_WIN32) || defined(__riscos__))
++#if defined(AF_UNIX) && !(defined(PHP_WIN32) || defined(__riscos__) || defined(PHP_WASI))
+ 			&&
+ 			php_stream_xport_register("unix", php_stream_generic_socket_factory) == SUCCESS
+ 			&&
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index ac419493..56c5c306 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -19,7 +19,7 @@
+ #include "streams/php_streams_int.h"
+ #include "php_network.h"
+ 
+-#if defined(PHP_WIN32) || defined(__riscos__)
++#if defined(PHP_WIN32) || defined(__riscos__) || defined(PHP_WASI)
+ # undef AF_UNIX
+ #endif
+ 
+-- 
+2.50.1
+

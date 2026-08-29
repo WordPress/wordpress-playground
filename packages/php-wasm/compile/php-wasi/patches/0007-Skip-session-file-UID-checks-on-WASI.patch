@@ -1,0 +1,29 @@
+From: WordPress Playground contributors
+Subject: [PATCH] Skip session file UID checks on WASI
+
+WASI Preview 2 filesystems are capability based and do not expose a Unix user
+identity model. wasi-libc consequently has no getuid() or geteuid(), so PHP's
+Unix session-file ownership check cannot be compiled for this target.
+
+The component host already limits session files to explicitly preopened
+directories, and the native Playground host provides a private writable /tmp.
+Keep the ownership check on Unix hosts and rely on those capability and host
+filesystem boundaries for WASI.
+---
+ ext/session/mod_files.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ext/session/mod_files.c b/ext/session/mod_files.c
+--- a/ext/session/mod_files.c
++++ b/ext/session/mod_files.c
+@@ -190,7 +190,7 @@ static void ps_files_open(ps_files *data, /* const */ zend_string *key)
+ #endif
+ 
+ 		if (data->fd != -1) {
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 			/* check that this session file was created by us or root – we
+ 			   don't want to end up accepting the sessions of another webapp
+ 
+-- 
+2.47.3

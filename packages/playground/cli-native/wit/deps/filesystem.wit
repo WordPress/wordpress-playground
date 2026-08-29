@@ -1,0 +1,10 @@
+package wasi:filesystem@0.2.12;
+
+/// The nominal resource type shared with WASI filesystem Preview 2.
+///
+/// The custom lock world only borrows descriptors, so the rest of the standard
+/// filesystem interface is deliberately omitted. Bindgen integration must map
+/// this type to Wasmtime WASI's existing descriptor binding.
+interface types {
+    resource descriptor;
+}

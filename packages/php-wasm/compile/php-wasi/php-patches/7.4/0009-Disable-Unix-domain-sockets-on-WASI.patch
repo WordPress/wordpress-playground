@@ -1,0 +1,53 @@
+From f033a71e4a8ead66d0dcfad2cff040fb1b0358c3 Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:43:20 +0200
+Subject: [PATCH 08/11] Port PHP 7.4 WASI patch 0008
+
+---
+ main/network.c           | 2 +-
+ main/streams/streams.c   | 2 +-
+ main/streams/xp_socket.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/main/network.c b/main/network.c
+index 5b997337..f6b9a2d1 100644
+--- a/main/network.c
++++ b/main/network.c
+@@ -68,7 +68,7 @@ int inet_aton(const char *, struct in_addr *);
+ 
+ #include "php_network.h"
+ 
+-#if defined(PHP_WIN32) || defined(__riscos__)
++#if defined(PHP_WIN32) || defined(__riscos__) || defined(PHP_WASI)
+ #undef AF_UNIX
+ #endif
+ 
+diff --git a/main/streams/streams.c b/main/streams/streams.c
+index a320a90b..8804d5e9 100644
+--- a/main/streams/streams.c
++++ b/main/streams/streams.c
+@@ -1725,7 +1725,7 @@ int php_init_stream_wrappers(int module_number)
+ 	return (php_stream_xport_register("tcp", php_stream_generic_socket_factory) == SUCCESS
+ 			&&
+ 			php_stream_xport_register("udp", php_stream_generic_socket_factory) == SUCCESS
+-#if defined(AF_UNIX) && !(defined(PHP_WIN32) || defined(__riscos__))
++#if defined(AF_UNIX) && !(defined(PHP_WIN32) || defined(__riscos__) || defined(PHP_WASI))
+ 			&&
+ 			php_stream_xport_register("unix", php_stream_generic_socket_factory) == SUCCESS
+ 			&&
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index 46b23b63..c08f7d4e 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -21,7 +21,7 @@
+ #include "streams/php_streams_int.h"
+ #include "php_network.h"
+ 
+-#if defined(PHP_WIN32) || defined(__riscos__)
++#if defined(PHP_WIN32) || defined(__riscos__) || defined(PHP_WASI)
+ # undef AF_UNIX
+ #endif
+ 
+-- 
+2.50.1
+

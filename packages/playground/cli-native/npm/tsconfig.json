@@ -1,0 +1,17 @@
+{
+	"extends": "../../../../tsconfig.base.json",
+	"compilerOptions": {
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM", "ESNext.Disposable"],
+		"types": ["node", "vitest/globals"],
+		"strict": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"declaration": true,
+		"outDir": "../../../../dist/out-tsc/cli-native-npm"
+	},
+	"include": ["src/**/*.ts", "tests/**/*.ts", "vite.config.ts"]
+}

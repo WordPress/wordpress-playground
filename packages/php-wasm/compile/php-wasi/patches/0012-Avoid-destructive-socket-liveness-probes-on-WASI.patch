@@ -1,0 +1,40 @@
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index 2ddb4b4181..c32039f32e 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -320,7 +320,9 @@ static int php_sockop_set_option(php_stream *stream, int option, int value, void
+ 		case PHP_STREAM_OPTION_CHECK_LIVENESS:
+ 			{
+ 				struct timeval tv;
++#ifndef PHP_WASI
+ 				char buf;
++#endif
+ 				int alive = 1;
+ 
+ 				if (value == -1) {
+@@ -335,6 +337,17 @@ static int php_sockop_set_option(php_stream *stream, int option, int value, void
+ 					tv.tv_usec = 0;
+ 				}
+ 
++#ifdef PHP_WASI
++				if (sock->socket == -1) {
++					alive = 0;
++				} else {
++					int events = php_pollfd_for(sock->socket, PHP_POLLREADABLE|POLLPRI, &tv);
++
++					if (events < 0 || (events & (POLLERR|POLLHUP|POLLNVAL))) {
++						alive = 0;
++					}
++				}
++#else
+ 				if (sock->socket == -1) {
+ 					alive = 0;
+ 				} else if (
+@@ -359,6 +372,7 @@ static int php_sockop_set_option(php_stream *stream, int option, int value, void
+ 						alive = 0;
+ 					}
+ 				}
++#endif
+ 				return alive ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+ 			}
+ 

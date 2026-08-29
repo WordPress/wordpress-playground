@@ -33,14 +33,21 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+                  ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
             - name: Read version from lerna.json
               id: version
               run: |
-                  VERSION=$(jq -r '.version' lerna.json)
+                  VERSION="$(node -p "require('./lerna.json').version")"
                   echo "version=$VERSION" >> "$GITHUB_OUTPUT"
                   echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+            - name: Read the post-run changelog from trunk
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  git fetch --depth=1 origin trunk
+                  git show origin/trunk:CHANGELOG.md > "$RUNNER_TEMP/CHANGELOG.md"
 
             - name: Extract changelog for this version
               id: changelog
@@ -66,7 +73,7 @@ jobs:
 
                       # While in the section for this version, print lines.
                       found
-                  ' CHANGELOG.md)
+                  ' "$RUNNER_TEMP/CHANGELOG.md")
                   if [ -z "$CHANGELOG" ]; then
                       CHANGELOG="No changelog entries for this release."
                   fi
@@ -103,4 +110,4 @@ jobs:
                   gh release create "$TAG" \
                       --title "WordPress Playground $TAG" \
                       --notes-file /tmp/release-body.md \
-                      --target trunk
+                      --target "${{ github.event.workflow_run.head_sha || github.sha }}"

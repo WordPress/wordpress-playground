@@ -1,0 +1,73 @@
+diff --git a/src/libmemcached/connect.cc b/src/libmemcached/connect.cc
+index b71db71..9cdbb3e 100644
+--- a/src/libmemcached/connect.cc
++++ b/src/libmemcached/connect.cc
+@@ -195,6 +195,7 @@ static bool set_socket_options(memcached_instance_st *server) {
+ #  endif // SO_NOSIGPIPE
+ #endif   // _WIN32
+ 
++#ifdef SO_LINGER
+   if (server->root->flags.no_block) {
+     struct linger linger;
+ 
+@@ -205,6 +206,7 @@ static bool set_socket_options(memcached_instance_st *server) {
+     (void) (error);
+     assert(error == 0);
+   }
++#endif
+ 
+   if (TCP_NODELAY) {
+     if (server->root->flags.tcp_nodelay) {
+@@ -256,7 +258,7 @@ static bool set_socket_options(memcached_instance_st *server) {
+ }
+ 
+ static memcached_return_t unix_socket_connect(memcached_instance_st *server) {
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(__wasi__)
+   WATCHPOINT_ASSERT(server->fd == INVALID_SOCKET);
+ 
+   do {
+diff --git a/src/libmemcached/io.cc b/src/libmemcached/io.cc
+index 1455140..b9e95b7 100644
+--- a/src/libmemcached/io.cc
++++ b/src/libmemcached/io.cc
+@@ -17,6 +17,12 @@
+ #include "p9y/poll.hpp"
+ #include "p9y/clock_gettime.hpp"
+ 
++#ifdef __wasi__
++#  define MEMCACHED_RECV_FLAGS 0
++#else
++#  define MEMCACHED_RECV_FLAGS MSG_NOSIGNAL
++#endif
++
+ void initialize_binary_request(memcached_instance_st *server,
+                                protocol_binary_request_header &header) {
+   server->request_id++;
+@@ -47,7 +53,7 @@ static bool repack_input_buffer(memcached_instance_st *instance) {
+       /* Just try a single read to grab what's available */
+       ssize_t nr;
+       if ((nr = ::recv(instance->fd, instance->read_ptr + instance->read_buffer_length,
+-                       MEMCACHED_MAX_BUFFER - instance->read_buffer_length, MSG_NOSIGNAL))
++                       MEMCACHED_MAX_BUFFER - instance->read_buffer_length, MEMCACHED_RECV_FLAGS))
+           <= 0)
+       {
+         if (nr == 0) {
+@@ -372,6 +378,7 @@ static memcached_return_t _io_fill(memcached_instance_st *instance) {
+   ssize_t data_read;
+   do {
+-    data_read = ::recv(instance->fd, instance->read_buffer, MEMCACHED_MAX_BUFFER, MSG_NOSIGNAL);
++    data_read =
++        ::recv(instance->fd, instance->read_buffer, MEMCACHED_MAX_BUFFER, MEMCACHED_RECV_FLAGS);
+     int local_errno = get_socket_errno(); // We cache in case memcached_quit_server() modifies errno
+ 
+     if (data_read == SOCKET_ERROR) {
+@@ -503,7 +510,7 @@ memcached_return_t memcached_io_slurp(memcached_instance_st *instance) {
+   ssize_t data_read;
+   char buffer[MEMCACHED_MAX_BUFFER];
+   do {
+-    data_read = ::recv(instance->fd, instance->read_buffer, sizeof(buffer), MSG_NOSIGNAL);
++    data_read = ::recv(instance->fd, instance->read_buffer, sizeof(buffer), MEMCACHED_RECV_FLAGS);
+     if (data_read == SOCKET_ERROR) {
+       switch (get_socket_errno()) {
+       case EINTR: // We just retry

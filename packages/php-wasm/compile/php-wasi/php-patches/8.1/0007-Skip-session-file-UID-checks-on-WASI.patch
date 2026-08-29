@@ -1,0 +1,25 @@
+From 4f5cd92097f5e1169e4256a8b77960cb677773f1 Mon Sep 17 00:00:00 2001
+From: port <port@example.invalid>
+Date: Sat, 18 Jul 2026 04:29:18 +0200
+Subject: [PATCH 06/11] Skip session file UID checks on WASI
+
+---
+ ext/session/mod_files.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ext/session/mod_files.c b/ext/session/mod_files.c
+index e774de74..4e8ccd1c 100644
+--- a/ext/session/mod_files.c
++++ b/ext/session/mod_files.c
+@@ -192,7 +192,7 @@ static void ps_files_open(ps_files *data, const char *key)
+ #endif
+ 
+ 		if (data->fd != -1) {
+-#ifndef PHP_WIN32
++#if !defined(PHP_WIN32) && !defined(PHP_WASI)
+ 			/* check that this session file was created by us or root – we
+ 			   don't want to end up accepting the sessions of another webapp
+ 
+-- 
+2.50.1
+

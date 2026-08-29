@@ -1,0 +1,29 @@
+From: WordPress Playground contributors
+Subject: [PATCH] Use WASI randomness for PHP's CSPRNG
+
+PHP's generic Unix entropy path only attempts getrandom() on a small set of
+explicitly recognized kernels and otherwise opens /dev/urandom. Capability-
+based WASI guests do not have a /dev/urandom device node.
+
+Use wasi-libc's arc4random_buf() implementation, which obtains secure bytes
+from wasi:random/random and supports arbitrary request sizes.
+---
+ ext/random/random.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ext/random/random.c b/ext/random/random.c
+--- a/ext/random/random.c
++++ b/ext/random/random.c
+@@ -485,7 +485,9 @@ PHPAPI zend_long php_rand(void)
+ /* {{{ php_random_bytes */
+ PHPAPI int php_random_bytes(void *bytes, size_t size, bool should_throw)
+ {
+-#ifdef PHP_WIN32
++#ifdef PHP_WASI
++	arc4random_buf(bytes, size);
++#elif defined(PHP_WIN32)
+ 	/* Defer to CryptGenRandom on Windows */
+ 	if (php_win32_get_random_bytes(bytes, size) == FAILURE) {
+ 		if (should_throw) {
+-- 
+2.47.3

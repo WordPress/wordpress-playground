@@ -1,0 +1,36 @@
+From 49b6652405ee11d597393cca68599ecec4063cfc Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 04:23:31 +0200
+Subject: [PATCH] Avoid legacy hostname lookups on WASI
+
+---
+ main/network.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/main/network.c b/main/network.c
+index b52fd0e4..6a0d2110 100644
+--- a/main/network.c
++++ b/main/network.c
+@@ -1352,7 +1352,7 @@ PHPAPI int php_poll2(php_pollfd *ufds, unsigned int nfds, int timeout)
+ }
+ #endif
+ 
+-#if defined(HAVE_GETHOSTBYNAME_R)
++#if defined(HAVE_GETHOSTBYNAME_R) && !defined(PHP_WASI)
+ #ifdef HAVE_FUNC_GETHOSTBYNAME_R_6
+ struct hostent * gethostname_re (const char *host,struct hostent *hostbuf,char **tmphstbuf,size_t *hstbuflen)
+ {
+@@ -1424,7 +1424,9 @@ struct hostent * gethostname_re (const char *host,struct hostent *hostbuf,char *
+ #endif
+ 
+ PHPAPI struct hostent*	php_network_gethostbyname(const char *name) {
+-#if !defined(HAVE_GETHOSTBYNAME_R)
++#if defined(PHP_WASI)
++	return NULL;
++#elif !defined(HAVE_GETHOSTBYNAME_R)
+ 	return gethostbyname(name);
+ #else
+ 	if (FG(tmp_host_buf)) {
+-- 
+2.50.1
+

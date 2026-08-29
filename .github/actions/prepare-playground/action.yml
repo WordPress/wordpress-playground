@@ -1,8 +1,8 @@
-name: Clone the repository, install dependencies, and configures nx variables
+name: Clone the repository, install dependencies, and configure Nx variables
+description: Prepare a Playground checkout, dependencies, and Nx environment variables.
 
 inputs:
     node-version:
-        type: string
         required: true
         description: 'Node.js version to use'
         default: '20'

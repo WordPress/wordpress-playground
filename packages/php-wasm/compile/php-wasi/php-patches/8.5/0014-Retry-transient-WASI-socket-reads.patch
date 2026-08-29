@@ -1,0 +1,60 @@
+From 0668518ede3429a39edafc3223fdd5558e8287cf Mon Sep 17 00:00:00 2001
+From: WordPress Playground contributors <playground@wordpress.org>
+Date: Sat, 18 Jul 2026 14:15:00 +0200
+Subject: [PATCH 14/14] Retry transient WASI socket reads
+
+WASI stream readiness is advisory, so recv() may still report
+EWOULDBLOCK after a successful poll. Resume the normal poll/read loop
+only for blocking reads that intended to wait; buffered reads and
+zero-timeout reads keep their existing non-waiting behavior.
+---
+ main/streams/xp_socket.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/main/streams/xp_socket.c b/main/streams/xp_socket.c
+index 3c9a5fcb..0668518e 100644
+--- a/main/streams/xp_socket.c
++++ b/main/streams/xp_socket.c
+@@ -159,12 +159,16 @@
+ static ssize_t php_sockop_read(php_stream *stream, char *buf, size_t count)
+ {
+ 	php_netstream_data_t *sock = (php_netstream_data_t*)stream->abstract;
++	int recv_flags;
++	bool retry_after_would_block;
+ 
+ 	if (!sock || sock->socket == -1) {
+ 		return -1;
+ 	}
+ 
+-	int recv_flags = 0;
++retry:
++	recv_flags = 0;
++	retry_after_would_block = false;
+ 	/* Special handling for blocking read. */
+ 	if (sock->is_blocked) {
+ 		/* Find out if there is any data buffered from the previous read. */
+@@ -172,6 +176,7 @@ static ssize_t php_sockop_read(php_stream *stream, char *buf, size_t count)
+ 		/* No need to wait if there is any data buffered or no timeout. */
+ 		bool dont_wait = has_buffered_data ||
+ 				(sock->timeout.tv_sec == 0 && sock->timeout.tv_usec == 0);
++		retry_after_would_block = !dont_wait;
+ 		/* Set MSG_DONTWAIT if no wait is needed or there is unlimited timeout which was
+ 		 * added by fix for #41984 committed in 9343c5404. */
+ 		if (dont_wait || sock->timeout.tv_sec != -1) {
+@@ -193,6 +198,14 @@ static ssize_t php_sockop_read(php_stream *stream, char *buf, size_t count)
+ 
+ 	if (nr_bytes < 0) {
+ 		if (PHP_IS_TRANSIENT_ERROR(err)) {
++#ifdef PHP_WASI
++			/* WASI stream readiness is advisory. A nonblocking read may still
++			 * report EWOULDBLOCK after poll() declared the stream readable. Keep
++			 * blocking reads in their normal poll/read loop, as the write path does. */
++			if (retry_after_would_block) {
++				goto retry;
++			}
++#endif
+ 			nr_bytes = 0;
+ 		} else {
+ 			stream->eof = 1;
+-- 
+2.50.1
