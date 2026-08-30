@@ -58,9 +58,11 @@ jobs:
                   fetch-depth: 0 # Full base history so the merge-base is present.
             # Install the label modules' dependencies from their own
             # package.json + lockfile. Scoped to that dir, so it does not touch
-            # the repo's workspaces.
+            # the repo's workspaces. --ignore-scripts: this job has
+            # pull-requests:write and the deps need no lifecycle scripts, so
+            # don't run any (defense-in-depth against a supply-chain foothold).
             - name: Install label matcher dependencies
-              run: npm ci --no-audit --no-fund --prefix packages/meta/src/pr-labels
+              run: npm ci --no-audit --no-fund --ignore-scripts --prefix packages/meta/src/pr-labels
             - name: Apply labels
               run: node packages/meta/bin/label-pr.mjs
               env:
@@ -69,4 +71,5 @@ jobs:
                   # Passed as env (not interpolated into the shell), so an
                   # attacker-controlled title can't inject commands.
                   PR_TITLE: ${{ github.event.pull_request.title }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
                   GITHUB_TOKEN: ${{ github.token }}
