@@ -35,7 +35,11 @@ const prNumber = requireEnv('PR_NUMBER');
 const baseSha = requireEnv('BASE_SHA');
 const prTitle = requireEnv('PR_TITLE');
 
-const git = (...args) => execFileSync('git', args).toString();
+// A big PR's diff output can exceed execFileSync's 1 MiB default buffer, which
+// would throw ENOBUFS and fail the job — the opposite of handling large PRs. Use
+// a generous cap. (Harmless for the tiny rev-parse output.)
+const git = (...args) =>
+	execFileSync('git', args, { maxBuffer: 64 * 1024 * 1024 }).toString();
 execFileSync(
 	'git',
 	['fetch', '--no-tags', 'origin', `refs/pull/${prNumber}/head`],
@@ -45,8 +49,11 @@ const head = git('rev-parse', 'FETCH_HEAD').trim();
 
 // One `git diff --numstat` yields both the changed-file list (for path globs)
 // and per-file line counts (for package ranking). See parse-git-numstat.mjs.
+// --no-renames so a rename is reported as a literal delete + add (full paths),
+// not git's brace-compressed "a/{old => new}/b" form, which no glob or package
+// prefix would match.
 const fileStats = parseGitNumstat(
-	git('diff', '--numstat', `${baseSha}...${head}`)
+	git('diff', '--numstat', '--no-renames', `${baseSha}...${head}`)
 );
 const changedFiles = fileStats.map((f) => f.path);
 

@@ -37,6 +37,21 @@ test('ignores blank lines and a trailing newline', () => {
 	]);
 });
 
+test('a rename (under --no-renames) parses as two literal-path entries', () => {
+	// The runner passes --no-renames, so git reports a cross-directory rename as
+	// a delete of the old path + an add of the new one, each with its full path
+	// (never the brace-compressed "a/{old => new}/b" form). Each entry then lands
+	// under its own package/glob.
+	const stdout = [
+		'0\t8\tpackages/php-wasm/web/a.ts',
+		'8\t0\tpackages/playground/cli/a.ts',
+	].join('\n');
+	assert.deepEqual(parseGitNumstat(stdout), [
+		{ path: 'packages/php-wasm/web/a.ts', lines: 8 },
+		{ path: 'packages/playground/cli/a.ts', lines: 8 },
+	]);
+});
+
 test('empty output yields no entries', () => {
 	assert.deepEqual(parseGitNumstat(''), []);
 });
