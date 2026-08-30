@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseGitNumstat } from './parse-git-numstat.mjs';
+import { parseGitNumstat } from './git-numstat.mjs';
 
 // Run locally with:
 //   node --test "packages/meta/src/pr-labels/**/*.test.mjs"

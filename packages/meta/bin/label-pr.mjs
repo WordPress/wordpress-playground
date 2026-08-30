@@ -29,33 +29,23 @@ import { execFileSync } from 'node:child_process';
 import { matchPathLabels } from '../src/pr-labels/match-path-labels.mjs';
 import { rankPackageLabels } from '../src/pr-labels/rank-package-labels.mjs';
 import { matchTypeLabel } from '../src/pr-labels/match-type-label.mjs';
-import { parseGitNumstat } from '../src/pr-labels/parse-git-numstat.mjs';
+import { changedFileStats } from '../src/pr-labels/git-numstat.mjs';
 
 const prNumber = requireEnv('PR_NUMBER');
 const baseSha = requireEnv('BASE_SHA');
 const prTitle = requireEnv('PR_TITLE');
 
-// A big PR's diff output can exceed execFileSync's 1 MiB default buffer, which
-// would throw ENOBUFS and fail the job — the opposite of handling large PRs. Use
-// a generous cap. (Harmless for the tiny rev-parse output.)
-const git = (...args) =>
-	execFileSync('git', args, { maxBuffer: 64 * 1024 * 1024 }).toString();
 execFileSync(
 	'git',
 	['fetch', '--no-tags', 'origin', `refs/pull/${prNumber}/head`],
 	{ stdio: 'inherit' }
 );
-const head = git('rev-parse', 'FETCH_HEAD').trim();
+const head = execFileSync('git', ['rev-parse', 'FETCH_HEAD']).toString().trim();
 
-// One `git diff --numstat` yields both the changed-file list (for path globs)
-// and per-file line counts (for package ranking). See parse-git-numstat.mjs.
-//   -z           NUL-terminated records with VERBATIM (unquoted) paths, so a
-//                path with a tab / non-ASCII byte still matches its prefix/glob.
-//   --no-renames a rename is reported as a literal delete + add (full paths),
-//                not git's brace-compressed "a/{old => new}/b" form.
-const fileStats = parseGitNumstat(
-	git('diff', '--numstat', '-z', '--no-renames', `${baseSha}...${head}`)
-);
+// One `git diff --numstat` feeds both the changed-file list (for path globs) and
+// the per-file line counts (for package ranking). git-numstat.mjs owns the diff
+// invocation and its flags (-z, --no-renames) and parses the result.
+const fileStats = changedFileStats(baseSha, head);
 const changedFiles = fileStats.map((f) => f.path);
 
 const labels = [
