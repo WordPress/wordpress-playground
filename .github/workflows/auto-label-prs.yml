@@ -2,9 +2,8 @@ name: Auto-label PRs
 
 # Applies the repository's PR labels in a single flow:
 #
-#   - [Aspect] / [Focus] / [Feature] / [Type] Documentation — from the path
-#     globs in .github/labeler.yml. No count limit; a wide refactor can match
-#     many of them legitimately.
+#   - [Aspect] / [Focus] / [Feature] / [Type] Documentation — from path globs.
+#     No count limit; a wide refactor can match many of them legitimately.
 #   - [Package][...] — ranks packages by total lines changed (additions +
 #     deletions, file count as tiebreaker) and applies at most the top 3.
 #     Without this cap a cross-cutting change gets a wall of package labels.
@@ -21,10 +20,11 @@ name: Auto-label PRs
 # tree hashes and never serializes blob content). One `git diff --numstat` feeds
 # every label set, so there is one labeling flow, not two.
 #
-# The labeling logic — and its unit tests — live in
-# packages/meta/src/pr-labels/*.mjs; this workflow only gathers inputs and
-# invokes packages/meta/bin/label-pr.mjs, which reads nothing on its own
-# (not .github/labeler.yml, not the event payload) and gets everything via env.
+# The labeling logic AND the label rules (which globs/prefixes map to which
+# labels) — plus their unit tests — live in packages/meta/src/pr-labels/*.mjs.
+# This workflow only gathers the PR facts and invokes
+# packages/meta/bin/label-pr.mjs, which reads nothing on its own (no config
+# file, no event payload) and gets everything via env.
 #
 # History note: an earlier version used GitHub Models (actions/ai-inference) to
 # suggest labels. It returned 403 because GitHub Models access in Actions is
@@ -56,22 +56,11 @@ jobs:
             - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
               with:
                   fetch-depth: 0 # Full base history so the merge-base is present.
-            # Install the label modules' one dependency (minimatch) from their
-            # own package.json + lockfile. Scoped to that dir, so it does not
-            # touch the repo's workspaces.
+            # Install the label modules' dependencies from their own
+            # package.json + lockfile. Scoped to that dir, so it does not touch
+            # the repo's workspaces.
             - name: Install label matcher dependencies
               run: npm ci --no-audit --no-fund --prefix packages/meta/src/pr-labels
-            # The runner is decoupled from the config: the workflow reads
-            # labeler.yml and passes it in as JSON. yq is preinstalled on
-            # GitHub-hosted ubuntu runners.
-            - name: Read labeler config as JSON
-              id: config
-              run: |
-                  {
-                      echo 'json<<LABELER_CONFIG_EOF'
-                      yq -o=json '.' .github/labeler.yml
-                      echo 'LABELER_CONFIG_EOF'
-                  } >> "$GITHUB_OUTPUT"
             - name: Apply labels
               run: node packages/meta/bin/label-pr.mjs
               env:
@@ -80,5 +69,4 @@ jobs:
                   # Passed as env (not interpolated into the shell), so an
                   # attacker-controlled title can't inject commands.
                   PR_TITLE: ${{ github.event.pull_request.title }}
-                  LABELER_CONFIG: ${{ steps.config.outputs.json }}
                   GITHUB_TOKEN: ${{ github.token }}

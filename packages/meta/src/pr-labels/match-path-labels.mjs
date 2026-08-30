@@ -4,44 +4,19 @@
 import { minimatch } from 'minimatch';
 
 /**
- * Compute the path-based labels for a pull request.
- *
- * WHY this exists (instead of just using actions/labeler):
- *   actions/labeler reads a PR's changed files from GitHub's `pulls.listFiles`
- *   API, which makes GitHub generate the full PR diff. That request times out
- *   ("Sorry, this diff is taking too long to generate") on PRs that change a
- *   lot of binary data — e.g. recompiled PHP.wasm builds — and the action then
- *   fails the `paths` job, which is a required check, and blocks the merge.
- *   The caller lists changed files with `git diff` (which compares tree hashes
- *   and is instant regardless of PR size) and passes them here, so labeling
- *   no longer depends on GitHub's diff generation.
- *
- * WHAT is supported:
- *   Only the one labeler feature .github/labeler.yml actually uses —
- *
- *       <label>:
- *         - changed-files:
- *             - any-glob-to-any-file: [ ...globs ]
- *
- *   i.e. "apply <label> if any glob matches any changed file". Glob matching
- *   uses minimatch with `{ dot: true }`, identical to actions/labeler v5, so
- *   results match for this config.
- *
- *   Every other labeler feature (any-glob-to-all-files, all-globs-to-any-file,
- *   all-globs-to-all-files, base-branch, head-branch, or more than one entry
- *   under a label) is intentionally NOT implemented. Rather than silently
- *   ignore such a rule and mislabel PRs, this throws — so a future labeler.yml
- *   change fails loudly and whoever makes it extends this module (and its
- *   tests) instead.
+ * Compute the path-based labels for a pull request: apply a label when any of
+ * its globs matches any changed file. Glob matching uses minimatch with
+ * `{ dot: true }` (so dotfiles match), the same default actions/labeler used
+ * before we replaced it.
  *
  * @param {string[]} changedFiles - Paths changed in the PR.
- * @param {Record<string, unknown>} config - Parsed .github/labeler.yml.
+ * @param {Record<string, string[]>} rules - label -> globs (see
+ *   PATH_LABEL_RULES).
  * @returns {string[]} Labels whose globs match at least one changed file.
  */
-export function matchPathLabels(changedFiles, config) {
+export function matchPathLabels(changedFiles, rules = PATH_LABEL_RULES) {
 	const labels = [];
-	for (const [label, rules] of Object.entries(config ?? {})) {
-		const globs = globsForLabel(label, rules);
+	for (const [label, globs] of Object.entries(rules)) {
 		const matched = globs.some((glob) =>
 			changedFiles.some((file) => minimatch(file, glob, { dot: true }))
 		);
@@ -52,61 +27,52 @@ export function matchPathLabels(changedFiles, config) {
 	return labels;
 }
 
-/**
- * Extract the `any-glob-to-any-file` globs for one label, rejecting any config
- * shape this module does not implement (see WHAT is supported, above).
- */
-function globsForLabel(label, rules) {
-	if (!Array.isArray(rules) || rules.length !== 1) {
-		throw unsupported(label, 'expected exactly one `changed-files` entry');
-	}
-	const [rule] = rules;
-	const ruleKeys = Object.keys(rule ?? {});
-	if (ruleKeys.length !== 1 || ruleKeys[0] !== 'changed-files') {
-		throw unsupported(
-			label,
-			`only \`changed-files\` is supported, saw ${JSON.stringify(ruleKeys)}`
-		);
-	}
-	const clauses = rule['changed-files'];
-	if (!Array.isArray(clauses)) {
-		throw unsupported(label, '`changed-files` must be a list');
-	}
-
-	const globs = [];
-	for (const clause of clauses) {
-		const clauseKeys = Object.keys(clause ?? {});
-		if (
-			clauseKeys.length !== 1 ||
-			clauseKeys[0] !== 'any-glob-to-any-file'
-		) {
-			throw unsupported(
-				label,
-				`only \`any-glob-to-any-file\` is supported, saw ${JSON.stringify(
-					clauseKeys
-				)}`
-			);
-		}
-		const value = clause['any-glob-to-any-file'];
-		if (Array.isArray(value)) {
-			globs.push(...value);
-		} else if (typeof value === 'string') {
-			globs.push(value);
-		} else {
-			throw unsupported(
-				label,
-				'`any-glob-to-any-file` must be a string or list of globs'
-			);
-		}
-	}
-	return globs;
-}
-
-function unsupported(label, detail) {
-	return new Error(
-		`Unsupported .github/labeler.yml rule for "${label}": ${detail}. ` +
-			'packages/meta/src/pr-labels/match-path-labels.mjs implements only ' +
-			'`changed-files: [{ any-glob-to-any-file: [...] }]`. Extend it and its ' +
-			'tests to support the new rule.'
-	);
-}
+// Path-based labels: the ones that map cleanly to paths AND have no count
+// limit — [Aspect], [Focus], [Feature], and [Type] Documentation. A wide
+// refactor can legitimately match many of them.
+//
+// [Package][...] labels are NOT here — rank-package-labels.mjs ranks packages
+// by lines changed and caps the count. [Type] labels other than Documentation
+// are NOT here either — match-type-label.mjs infers one from the PR title.
+//
+// This used to live in .github/labeler.yml (consumed by actions/labeler). Now
+// that we match globs ourselves, it lives here as plain data alongside the
+// other label rules — one source of truth, unit-testable, no YAML parsing.
+export const PATH_LABEL_RULES = {
+	// [Aspect] * — cross-cutting concerns inferable from paths.
+	'[Aspect] Browser': [
+		'packages/php-wasm/web/**',
+		'packages/php-wasm/web-service-worker/**',
+		'packages/playground/website/**',
+		'packages/playground/remote/**',
+	],
+	'[Aspect] Node.js': [
+		'packages/php-wasm/node/**',
+		'packages/php-wasm/cli/**',
+		'packages/playground/cli/**',
+	],
+	'[Aspect] Service Worker': [
+		'packages/php-wasm/web-service-worker/**',
+		'**/service-worker*.{ts,js}',
+	],
+	'[Aspect] Sqlite': ['**/sqlite*/**'],
+	'[Aspect] WordPress': [
+		'packages/playground/wordpress/**',
+		'packages/playground/wordpress-builds/**',
+	],
+	'[Aspect] Website': [
+		'packages/playground/website/**',
+		'packages/playground/website-extras/**',
+	],
+	// [Feature] / [Focus] — only the few that map cleanly to paths.
+	'[Feature] PHP.wasm': [
+		'packages/php-wasm/compile/**',
+		'packages/php-wasm/universal/**',
+	],
+	'[Focus] Developer Tools': [
+		'packages/playground/devtools-extension/**',
+		'packages/php-wasm/xdebug-bridge/**',
+	],
+	// [Type] Documentation — the one [Type] label with a clean path heuristic.
+	'[Type] Documentation': ['packages/docs/**', '**/*.md'],
+};

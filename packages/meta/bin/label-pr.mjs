@@ -11,18 +11,18 @@
 // `git diff` compares tree hashes locally, so it is instant regardless of PR
 // size.
 //
-// Decoupled from the workflow's config: this runner does NOT read
-// .github/labeler.yml or the event payload. The workflow passes everything in.
+// The label rules (path globs, package prefixes, title prefixes) live in the
+// ../src/pr-labels/*.mjs modules, so this runner only reads the PR facts the
+// workflow passes in — no config files, no event payload.
 //
 // Inputs (all provided by the workflow):
 //   PR_NUMBER          pull request number
 //   BASE_SHA           base commit SHA to diff the PR head against
 //   PR_TITLE           PR title (for the conventional-commit [Type] label)
-//   LABELER_CONFIG     labeler config as JSON: { <label>: <rules>, ... }
 //   GITHUB_REPOSITORY  "owner/repo"
 //   GITHUB_TOKEN       token with pull-requests:write
 //
-// (minimatch, the label modules' only dependency, is installed from
+// (The label modules' only dependency is installed from
 // ../src/pr-labels/package.json before this runs; it resolves via a normal
 // import.)
 import { execFileSync } from 'node:child_process';
@@ -37,7 +37,6 @@ import { parseGitNumstat } from '../src/pr-labels/parse-git-numstat.mjs';
 const prNumber = requireEnv('PR_NUMBER');
 const baseSha = requireEnv('BASE_SHA');
 const prTitle = requireEnv('PR_TITLE');
-const config = JSON.parse(requireEnv('LABELER_CONFIG'));
 
 const git = (...args) => execFileSync('git', args).toString();
 execFileSync(
@@ -55,7 +54,7 @@ const fileStats = parseGitNumstat(
 const changedFiles = fileStats.map((f) => f.path);
 
 const labels = [
-	...matchPathLabels(changedFiles, config),
+	...matchPathLabels(changedFiles),
 	...rankPackageLabels(fileStats, PACKAGE_RULES),
 ];
 const typeLabel = matchTypeLabel(prTitle);
