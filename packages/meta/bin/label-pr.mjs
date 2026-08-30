@@ -49,11 +49,12 @@ const head = git('rev-parse', 'FETCH_HEAD').trim();
 
 // One `git diff --numstat` yields both the changed-file list (for path globs)
 // and per-file line counts (for package ranking). See parse-git-numstat.mjs.
-// --no-renames so a rename is reported as a literal delete + add (full paths),
-// not git's brace-compressed "a/{old => new}/b" form, which no glob or package
-// prefix would match.
+//   -z           NUL-terminated records with VERBATIM (unquoted) paths, so a
+//                path with a tab / non-ASCII byte still matches its prefix/glob.
+//   --no-renames a rename is reported as a literal delete + add (full paths),
+//                not git's brace-compressed "a/{old => new}/b" form.
 const fileStats = parseGitNumstat(
-	git('diff', '--numstat', '--no-renames', `${baseSha}...${head}`)
+	git('diff', '--numstat', '-z', '--no-renames', `${baseSha}...${head}`)
 );
 const changedFiles = fileStats.map((f) => f.path);
 

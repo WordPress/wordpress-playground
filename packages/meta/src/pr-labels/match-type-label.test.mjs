@@ -18,6 +18,21 @@ test('scoped prefix is recognized, e.g. fix(cli):', () => {
 	assert.equal(matchTypeLabel('fix(cli): handle flag'), '[Type] Bug');
 });
 
+test('unscoped breaking-change marker is recognized: fix!:', () => {
+	assert.equal(matchTypeLabel('fix!: remove legacy behavior'), '[Type] Bug');
+});
+
+test('unscoped breaking-change marker is recognized: feat!:', () => {
+	assert.equal(matchTypeLabel('feat!: drop old API'), '[Type] Enhancement');
+});
+
+test('scoped breaking-change marker is recognized: feat(scope)!:', () => {
+	assert.equal(
+		matchTypeLabel('feat(cli)!: remove API'),
+		'[Type] Enhancement'
+	);
+});
+
 test('perf: -> Performance', () => {
 	assert.equal(matchTypeLabel('perf: cache modules'), '[Type] Performance');
 });

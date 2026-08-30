@@ -109,10 +109,14 @@ export const PACKAGE_RULES = [
 // `[titlePrefixRegExp, label]` pairs. Only prefixes with an unambiguous target
 // label are listed; refactor / chore / test / build / ci are intentionally
 // absent, so we apply nothing rather than guess.
+//
+// Each pattern accepts an optional scope and an optional `!` breaking marker
+// before the colon, matching the conventional-commits spec — e.g. `fix:`,
+// `fix(cli):`, `fix!:`, and `feat(cli)!:` all match.
 // ---------------------------------------------------------------------------
 export const TYPE_RULES = [
-	[/^fix(\(|:)/i, '[Type] Bug'],
-	[/^feat(ure)?(\(|:)/i, '[Type] Enhancement'],
-	[/^perf(\(|:)/i, '[Type] Performance'],
-	[/^docs(\(|:)/i, '[Type] Documentation'],
+	[/^fix(?:\([^)]*\))?!?:/i, '[Type] Bug'],
+	[/^feat(?:ure)?(?:\([^)]*\))?!?:/i, '[Type] Enhancement'],
+	[/^perf(?:\([^)]*\))?!?:/i, '[Type] Performance'],
+	[/^docs(?:\([^)]*\))?!?:/i, '[Type] Documentation'],
 ];
