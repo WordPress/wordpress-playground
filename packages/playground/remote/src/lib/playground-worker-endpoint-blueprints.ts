@@ -28,6 +28,19 @@ self.postMessage('worker-script-started');
 
 const downloadMonitor = new EmscriptenDownloadMonitor();
 
+/**
+ * Maps the WordPress version aliases accepted by `boot()` to the concrete
+ * builds they stand for.
+ *
+ * Resolving them up front keeps the alias out of `requestedWordPressVersion`,
+ * so the loaded-version check in `finalizeAfterBoot()` compares two build
+ * versions instead of an alias and a version.
+ */
+const wordPressVersionAliases = new Map<string, string>([
+	['latest', LatestMinifiedWordPressVersion],
+	['nightly', 'trunk'],
+]);
+
 class ArtifactExpiredError extends Error {
 	constructor(message = 'GitHub artifact expired') {
 		super(message);
@@ -116,16 +129,8 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 				onProgress: reportBootProgress,
 			});
 
-			// `nightly` and `latest` are aliases for a concrete build. Resolve
-			// them here so the loaded-version check in finalizeAfterBoot()
-			// compares two build versions instead of an alias and a version.
-			if (wpVersion === 'nightly') {
-				this.requestedWordPressVersion = 'trunk';
-			} else if (wpVersion === 'latest') {
-				this.requestedWordPressVersion = LatestMinifiedWordPressVersion;
-			} else {
-				this.requestedWordPressVersion = wpVersion;
-			}
+			this.requestedWordPressVersion =
+				wordPressVersionAliases.get(wpVersion) ?? wpVersion;
 			const isMinifiedVersion = MinifiedWordPressVersionsList.includes(
 				this.requestedWordPressVersion
 			);
