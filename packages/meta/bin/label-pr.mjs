@@ -27,10 +27,7 @@
 // import.)
 import { execFileSync } from 'node:child_process';
 import { matchPathLabels } from '../src/pr-labels/match-path-labels.mjs';
-import {
-	rankPackageLabels,
-	PACKAGE_RULES,
-} from '../src/pr-labels/rank-package-labels.mjs';
+import { rankPackageLabels } from '../src/pr-labels/rank-package-labels.mjs';
 import { matchTypeLabel } from '../src/pr-labels/match-type-label.mjs';
 import { parseGitNumstat } from '../src/pr-labels/parse-git-numstat.mjs';
 
@@ -55,7 +52,7 @@ const changedFiles = fileStats.map((f) => f.path);
 
 const labels = [
 	...matchPathLabels(changedFiles),
-	...rankPackageLabels(fileStats, PACKAGE_RULES),
+	...rankPackageLabels(fileStats),
 ];
 const typeLabel = matchTypeLabel(prTitle);
 if (typeLabel) {
