@@ -32,7 +32,7 @@ import {
 	PACKAGE_RULES,
 } from '../src/pr-labels/rank-package-labels.mjs';
 import { matchTypeLabel } from '../src/pr-labels/match-type-label.mjs';
-import { parseNumstat } from '../src/pr-labels/parse-numstat.mjs';
+import { parseGitNumstat } from '../src/pr-labels/parse-git-numstat.mjs';
 
 const prNumber = requireEnv('PR_NUMBER');
 const baseSha = requireEnv('BASE_SHA');
@@ -48,8 +48,8 @@ execFileSync(
 const head = git('rev-parse', 'FETCH_HEAD').trim();
 
 // One `git diff --numstat` yields both the changed-file list (for path globs)
-// and per-file line counts (for package ranking). See parse-numstat.mjs.
-const fileStats = parseNumstat(
+// and per-file line counts (for package ranking). See parse-git-numstat.mjs.
+const fileStats = parseGitNumstat(
 	git('diff', '--numstat', `${baseSha}...${head}`)
 );
 const changedFiles = fileStats.map((f) => f.path);

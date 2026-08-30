@@ -13,7 +13,7 @@
  * @param {string} stdout - Raw `git diff --numstat` output.
  * @returns {{ path: string, lines: number }[]}
  */
-export function parseNumstat(stdout) {
+export function parseGitNumstat(stdout) {
 	return stdout
 		.split('\n')
 		.filter(Boolean)
