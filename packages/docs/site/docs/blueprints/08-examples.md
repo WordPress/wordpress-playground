@@ -205,21 +205,18 @@ For a detailed explanation of why this is needed, refer to the [Troubleshoot and
 
 ## Load PHP code on every request (mu-plugin)
 
-Use the `writeFile` step to add code to a mu-plugin that runs on every request.
+Use the `writeFile` step to add code to `mu-plugins`, where it runs on every request.
 
 <BlueprintExample blueprint={{
-	"landingPage": "/category/uncategorized/",
-	"features": {
-		"networking": true
-	},
+	"landingPage": "/wp-admin/",
 	"steps": [
 		{
 			"step": "login"
 		},
 		{
 			"step": "writeFile",
-			"path": "/wordpress/wp-content/mu-plugins/rewrite.php",
-			"data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
+			"path": "/wordpress/wp-content/mu-plugins/demo-footer.php",
+			"data": "<?php add_filter( 'admin_footer_text', function () { return 'Added by mu-plugin code.'; } );"
 		}
 	]
 }} />
