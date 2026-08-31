@@ -57,35 +57,69 @@ if (typeLabel) {
 	labels.push(typeLabel);
 }
 // De-dup: e.g. [Type] Documentation can come from both a path glob and the
-// title. GitHub's addLabels is idempotent, but a clean set keeps logs readable.
-const uniqueLabels = [...new Set(labels)];
-
+// title.
+const computedLabels = [...new Set(labels)];
 console.log(
-	`Changed files: ${changedFiles.length}. Labels: ${JSON.stringify(
-		uniqueLabels
+	`Changed files: ${changedFiles.length}. Computed labels: ${JSON.stringify(
+		computedLabels
 	)}`
 );
-if (uniqueLabels.length === 0) {
+if (computedLabels.length === 0) {
+	console.log('No labels matched; nothing to do.');
 	process.exit(0);
 }
 
+// Add only the labels not already on the PR, and log the delta so each run is a
+// clear record of what it changed. This flow only ever ADDS labels (it never
+// removes), matching the previous actions/labeler `sync-labels: false` setting.
 const [owner, repo] = requireEnv('GITHUB_REPOSITORY').split('/');
-const response = await fetch(
-	`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`,
-	{
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${requireEnv('GITHUB_TOKEN')}`,
-			Accept: 'application/vnd.github+json',
-			'X-GitHub-Api-Version': '2022-11-28',
-		},
-		body: JSON.stringify({ labels: uniqueLabels }),
-	}
+const token = requireEnv('GITHUB_TOKEN');
+
+const currentLabels = (
+	await githubApi('GET', `/issues/${prNumber}/labels?per_page=100`)
+).map((label) => label.name);
+const alreadyPresent = computedLabels.filter((label) =>
+	currentLabels.includes(label)
 );
-if (!response.ok) {
-	throw new Error(
-		`Failed to add labels (${response.status}): ${await response.text()}`
+const labelsToAdd = computedLabels.filter(
+	(label) => !currentLabels.includes(label)
+);
+console.log(`Already present: ${JSON.stringify(alreadyPresent)}`);
+
+if (labelsToAdd.length === 0) {
+	console.log('All computed labels already present; no changes to make.');
+	process.exit(0);
+}
+
+console.log(`Adding labels: ${JSON.stringify(labelsToAdd)}`);
+const updatedLabels = await githubApi('POST', `/issues/${prNumber}/labels`, {
+	labels: labelsToAdd,
+});
+console.log(
+	`Done. Labels on PR now: ${JSON.stringify(
+		updatedLabels.map((label) => label.name).sort()
+	)}`
+);
+
+async function githubApi(method, path, body) {
+	const response = await fetch(
+		`https://api.github.com/repos/${owner}/${repo}${path}`,
+		{
+			method,
+			headers: {
+				Authorization: `Bearer ${token}`,
+				Accept: 'application/vnd.github+json',
+				'X-GitHub-Api-Version': '2022-11-28',
+			},
+			body: body === undefined ? undefined : JSON.stringify(body),
+		}
 	);
+	if (!response.ok) {
+		throw new Error(
+			`${method} ${path} failed (${response.status}): ${await response.text()}`
+		);
+	}
+	return response.json();
 }
 
 function requireEnv(name) {
