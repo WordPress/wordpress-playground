@@ -1,0 +1,2 @@
+This file stands in for generated PHP-next runtime files during end-to-end builds.
+The PHP-next sync replaces this directory for local development and deployment.
