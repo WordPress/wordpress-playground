@@ -55,7 +55,24 @@ jobs:
             # head is safe.
             - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
               with:
-                  fetch-depth: 0 # Full base history so the merge-base is present.
+                  # Minimal fetch for `git diff base...head` (three-dot, see
+                  # git-numstat.mjs). It needs the merge-base of the base and
+                  # head, plus the blobs of the files that actually changed —
+                  # nothing else.
+                  #   fetch-depth: 0  — full COMMIT+TREE graph so the merge-base
+                  #     is present. A stale PR's merge-base can be far back, so a
+                  #     fixed shallow depth would break the diff.
+                  #   filter: blob:none — blobless partial clone: skip every
+                  #     historical blob (this repo commits huge PHP.wasm/
+                  #     WordPress binaries across all history) and let git lazily
+                  #     fetch only the changed blobs the diff reads.
+                  #   sparse-checkout — materialize only the label scripts this
+                  #     job runs, so checkout doesn't pull HEAD's big binaries
+                  #     into the working tree either. The diff reads the object
+                  #     DB, not the tree, so this doesn't affect it.
+                  fetch-depth: 0
+                  filter: blob:none
+                  sparse-checkout: packages/meta
             # Install the label modules' dependencies from their own
             # package.json + lockfile. Scoped to that dir, so it does not touch
             # the repo's workspaces. --ignore-scripts: this job has
