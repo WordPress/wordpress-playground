@@ -2,6 +2,7 @@ FS
 UTF8ToString
 ___errno_location
 ___wrap_select
+_explicit_bzero
 _emscripten_sleep
 _exit
 _malloc
@@ -17,6 +18,8 @@ _rename
 _rmdir
 _sqlite3_auto_extension
 _sqlite3_cancel_auto_extension
+_sscanf
+_strncasecmp
 _strtoll
 _unlink
 _php_wasm_init
