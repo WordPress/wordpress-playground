@@ -120,6 +120,11 @@ const config = {
 					editUrl:
 						'https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/',
 
+					// Point the "Edit this page" link to the localized
+					// source file (i18n/<locale>/...) instead of the
+					// English source when viewing a translated page.
+					editLocalizedFiles: true,
+
 					async sidebarItemsGenerator({
 						defaultSidebarItemsGenerator,
 						...args
