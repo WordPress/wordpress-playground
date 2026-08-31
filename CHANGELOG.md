@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.52] (2026-08-31) 
+
+### Blueprints
+
+- Run `wp db query` through `$wpdb` in the wp-cli step. ([#4277](https://github.com/WordPress/wordpress-playground/pull/4277))
+
+### Documentation
+
+- Docs: Replace rewrite-flushing writeFile examples. ([#3806](https://github.com/WordPress/wordpress-playground/pull/3806))
+- [docs] Rename duplicate manifest slugs breaking developer.wordpress.org pages. ([#4266](https://github.com/WordPress/wordpress-playground/pull/4266))
+
+### Website
+
+- [MCP] Update WebMCP registration API. ([#3844](https://github.com/WordPress/wordpress-playground/pull/3844))
+
+### Various
+
+- CI: Slim down the Auto-label PR checkout to the minimum needed. ([#4291](https://github.com/WordPress/wordpress-playground/pull/4291))
+- [CI] Label PRs from git diff instead of the pulls.listFiles API. ([#4290](https://github.com/WordPress/wordpress-playground/pull/4290))
+- [CI] Reduce Actions artifact storage from Playwright and deploy uploads. ([#4279](https://github.com/WordPress/wordpress-playground/pull/4279))
+- [CI] Republish packages missing after a partial NPM release. ([#4270](https://github.com/WordPress/wordpress-playground/pull/4270))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @bgrgicak @brandonpayton @ekamran @mho22 @obenland
+
+
 ## [v3.1.51] (2026-08-24) 
 
 ### Website
