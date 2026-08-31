@@ -167,11 +167,6 @@ export function SiteToolPanels({
 							site={site}
 							className={classNames(css.blueprintEditor)}
 							dockPresentation
-							mobileHeaderTarget={
-								activeTabName === 'blueprint'
-									? activeMobileHeaderSlot
-									: null
-							}
 						/>
 					</Suspense>
 				</div>

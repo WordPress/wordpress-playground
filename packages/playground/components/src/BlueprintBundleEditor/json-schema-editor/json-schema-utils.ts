@@ -257,7 +257,8 @@ export function resolveSchemaRefs(
 		if (!resolvedRef) {
 			break;
 		}
-		const { $ref: _ref, ...overrides } = resolvedSchema;
+		const overrides = { ...resolvedSchema };
+		delete overrides.$ref;
 		resolvedSchema = { ...resolvedRef, ...overrides };
 	}
 

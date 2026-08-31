@@ -641,7 +641,7 @@ function selectBlueprintDeclarationSchema(
 		resolveSchemaRefs(versionedOption, rootSchema),
 		rootSchema
 	);
-	const versionProperty = versionedSchema.properties?.version;
+	const versionProperty = versionedSchema.properties?.['version'];
 	if (!versionProperty) {
 		return versionlessSchema;
 	}

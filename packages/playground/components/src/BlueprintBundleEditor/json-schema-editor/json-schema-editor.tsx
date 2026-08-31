@@ -35,6 +35,7 @@ import {
 	type Tooltip,
 	type ViewUpdate,
 } from '@codemirror/view';
+import React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	inferLanguageFromBlueprint,
