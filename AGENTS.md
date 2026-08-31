@@ -25,6 +25,19 @@ This is an NX monorepo with npm workspaces. All commands use NX for task orchest
 
 **Node.js version**: This project requires a specific Node.js version (defined in `.nvmrc` and the `engines` field in root `package.json`). Before running any commands, ensure the correct version is active (e.g., via `nvm use` or other version manager).
 
+### Initial Setup
+
+From a fresh clone or new worktree, set up the repository before running builds,
+tests, or dev servers:
+
+```bash
+nvm use
+npm ci
+```
+
+This is especially important for worktree-based agent tools, which may create a
+working tree without installing dependencies.
+
 ### Common Commands
 
 ```bash
@@ -41,7 +54,8 @@ npx nx build <package-name>              # Build specific package
 # Testing
 npm test                                 # Run all tests
 npx nx test <package-name>               # Test specific package
-npx nx e2e playground-website            # Run end-to-end tests
+npx nx e2e playground-website            # Run website Cypress E2E tests
+npx nx run playground-website:e2e:playwright:ci # Run website Playwright E2E tests
 
 # Running a single test file
 npx nx test <package-name> --testFile=<test-file-name>
@@ -154,7 +168,29 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
     - `scope:independent-from-php-binaries` packages cannot depend on `scope:php-binaries`
 - **Function ordering:** First caller, then callee. When function A calls function B, write first A, then B.
 - **Method ordering:** First public, then protected, then private. Respect **Function ordering** as well.
-- **Path manipulation**: Never use ad-hoc string operations for file paths. Use the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`, `basename`, `normalizePath`, etc.) instead of Node.js `path` (which can produce Windows-style paths). If the package you're modifying has its own `paths.ts`, prefer that; otherwise import from `@php-wasm/util`. New path helpers should be co-located with the existing `paths.ts` in the relevant package, with tests.
+- **UI consistency:** Before adding custom control styles or wrappers, inspect equivalent controls in
+  adjacent screens and reuse the existing shared component, variant, sizing, and design tokens. Add
+  bespoke CSS only when shared primitives cannot express the required behavior, and verify the result
+  side by side with neighboring UI.
+- **Progress states:** Use `PaneLoading` when an entire Dock pane is unavailable and `InlineProgress`
+  when an operation leaves the surrounding pane visible. Keep progress inside an action button only
+  when the button is the sole progress surface; do not show a second spinner or invent another loading
+  container for the same operation.
+- **Path manipulation**: Never use ad-hoc string operations for file paths. Use
+  the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
+  `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)
+  instead of Node.js `path` (which can produce Windows-style paths). If the
+  package you're modifying has its own `paths.ts`, prefer that; otherwise
+  import from `@php-wasm/util`. Do not invent regex/string-splitting path
+  normalization, prefix stripping, traversal checks, or separator rewriting
+  when an existing path utility applies. Preserve valid path bytes such as
+  backslashes unless an existing native-path conversion helper explicitly calls
+  for changing them. New path helpers should be co-located with the existing
+  `paths.ts` in the relevant package, with tests.
+- **Review feedback pattern**: When feedback points out invented regexes,
+  duplicate helpers, speculative wrappers, or byte-changing normalization,
+  treat that as a signal to simplify the model and use existing utilities
+  instead of defending the new abstraction.
 
 ### Testing
 
@@ -163,6 +199,35 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **Coverage**: Reports to `coverage/packages/<package-name>`
 - **E2E tests**: Playwright and Cypress for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
+
+#### Test-value gate
+
+Tests are maintenance code. Do not add one merely because production code
+changed.
+
+Do not test:
+
+- literal JSX or static configuration;
+- copy, CSS classes, visual variants, element counts, or ordering;
+- exact pixel dimensions, spacing values, or other CSS outcomes copied into
+  unit-test fixtures;
+- presentation-only visibility controlled by an adjacent conditional;
+- behavior that would change only when someone intentionally reverses the
+  product decision.
+
+Before adding a test, name all three:
+
+1. The stable contract it protects.
+2. A plausible accidental regression.
+3. The independent code path that could cause that regression.
+
+If you cannot name all three concretely, do not add the test.
+
+A test is not independent when its expected value must be edited whenever
+adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
+
+Use screenshots and manual interaction for visual-only changes. Tests are not
+required for every PR. Never add tests simply to make a PR appear complete.
 
 ### Package Structure
 
@@ -231,8 +296,7 @@ npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 
 - **Default branch**: `trunk` is the primary development branch
 - **Never use bare `git push`**: Always specify remote and branch explicitly
-- **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1 --recurse-submodules`
-- **Submodules**: isomorphic-git submodule provides browser-based git operations
+- **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1`
 
 ### Working with PHP Binaries
 
@@ -264,13 +328,17 @@ Located in `packages/nx-extensions/src/executors/`:
 - `packages/playground/cli/`: CLI tool implementation
 - `packages/docs/`: Docusaurus documentation site
 - `packages/meta/`: Internal tooling (ESLint plugin, changelog)
-- `isomorphic-git/`: Git operations in browser (submodule)
 
 ## Documentation
 
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- When adding screenshots to Markdown docs, use the raw GitHub URL for the
+  committed asset, for example
+  `https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/...`.
+  Relative `/img/...` links work in Docusaurus but are not preserved by the
+  WordPress.org handbook importer.
 
 ## Important Notes
 

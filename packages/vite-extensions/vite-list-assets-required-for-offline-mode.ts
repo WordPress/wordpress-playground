@@ -60,7 +60,9 @@ const patternsToNotCache = [
 	 */
 	/^\/assets\/php_.*\.wasm$/, // PHP WASM files
 	/^\/assets\/php_.*\.js$/, // PHP JS files
-	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
+	// Minified WordPress builds: tar.zst core bundles (vite hashes to
+	// wp-<v>.tar-<hash>.zst, so the emitted extension is .zst) + zip static bundles.
+	/^\/assets\/wp-.*\.(zip|zst)$/,
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
 	/^\/assets\/blueprints-.*\.phar$/, // Blueprints v2 runner
 
@@ -76,6 +78,8 @@ const patternsToNotCache = [
 	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
 	/^\/assets\/extensions\/.*/, // All extension assets (Intl, ICU, etc.)
 	/^\/client\/.*/, // Client package files arent't used by the web version of Playground
+	'/api.html', // The external API endpoint is not required by the website.
+	/^\/assets\/api-.*\.js$/, // The API entry chunk is loaded on demand with api.html.
 	'/php-playground.html', // The PHP playground is a separate page that is not part of the web version of Playground
 ];
 

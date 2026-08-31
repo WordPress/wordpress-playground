@@ -1,7 +1,7 @@
 /**
  * WebMCP registration for WordPress Playground.
  *
- * Registers playground tools with `navigator.modelContext` (the
+ * Registers playground tools with `document.modelContext` (the
  * Chrome WebMCP API) so that browser-side AI agents can interact
  * with the running Playground site.
  */
@@ -41,12 +41,12 @@ interface ModelContext {
 	registerTool(
 		tool: ModelContextTool,
 		options?: { signal?: AbortSignal }
-	): void;
+	): Promise<void> | void;
 	readonly tools: ModelContextTool[];
 }
 
 declare global {
-	interface Navigator {
+	interface Document {
 		modelContext?: ModelContext;
 	}
 }
@@ -64,15 +64,19 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
 	return active;
 }
 
-export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
-	if (typeof navigator === 'undefined' || !navigator.modelContext) {
+export async function registerWebMCPTools(
+	config: PlaygroundBridgeConfig
+): Promise<void> {
+	const modelContext = getModelContext();
+	if (!modelContext) {
 		return;
 	}
 
 	// Abort any previous registration before re-registering.
 	registrationController?.abort();
 	registrationController = new AbortController();
-	const signal = registrationController.signal;
+	const controller = registrationController;
+	const signal = controller.signal;
 
 	function getActiveClient(): PlaygroundClient {
 		const client = config.getClient();
@@ -111,9 +115,45 @@ export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
 	// Site management tools
 	tools.push(...createSiteManagementTools(config));
 
-	for (const tool of tools) {
-		navigator.modelContext.registerTool(tool, { signal });
+	const results = await Promise.allSettled(
+		tools.map(async (tool) => {
+			await modelContext.registerTool(tool, { signal });
+		})
+	);
+	const failedRegistrations: Array<{ name: string; reason: unknown }> = [];
+	for (const [index, result] of results.entries()) {
+		if (result.status === 'rejected') {
+			failedRegistrations.push({
+				name: tools[index].name,
+				reason: result.reason,
+			});
+		}
 	}
+	if (failedRegistrations.length > 0) {
+		controller.abort();
+		if (registrationController === controller) {
+			registrationController = null;
+		}
+		throw new Error(
+			'Failed to register WebMCP tools: ' +
+				failedRegistrations
+					.map(
+						({ name, reason }) =>
+							`${name} (${stringifyError(reason)})`
+					)
+					.join(', ')
+		);
+	}
+}
+
+function getModelContext(): ModelContext | undefined {
+	if (typeof document === 'undefined') {
+		return undefined;
+	}
+	const modelContext = document.modelContext;
+	return typeof modelContext?.registerTool === 'function'
+		? modelContext
+		: undefined;
 }
 
 function createSiteManagementTools(

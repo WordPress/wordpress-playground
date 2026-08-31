@@ -1,0 +1,133 @@
+/* Autosave and local-directory status are both anchored Dock callouts. Keep
+   their anatomy here so spacing, hierarchy, and actions stay aligned. */
+.card {
+	display: flex;
+	align-items: stretch;
+	flex-direction: column;
+	gap: 14px;
+	box-sizing: border-box;
+	width: min(400px, calc(100vw - 32px));
+	padding: 20px;
+	color: #1e1e1e;
+}
+
+/* The popover shell carries the card visuals so its caret can blend into the
+   card. The doubled class also outranks Dropdown's content padding regardless
+   of stylesheet injection order. */
+.surface,
+.popover.popover :global(.components-popover__content) {
+	background: #fff;
+	border-radius: 12px;
+	box-shadow:
+		0 0 0 1px rgb(0 0 0 / 6%),
+		0 8px 20px rgb(0 0 0 / 18%),
+		0 24px 64px rgb(0 0 0 / 28%);
+}
+
+.popover.popover :global(.components-popover__content) {
+	width: auto;
+	padding: 0;
+}
+
+/* The stock caret is 14px square. The triangle path only fills the top half
+   of its box, so a 32px box draws a 32×16 caret pointing at the button. */
+.popover :global(.components-popover__arrow) {
+	width: 32px;
+	height: 32px;
+}
+
+.popover :global(.components-popover__arrow.is-top) {
+	bottom: -32px !important;
+}
+
+.popover :global(.components-popover__triangle-border) {
+	stroke: transparent;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.eyebrow {
+	color: #757575;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.16em;
+	line-height: 16px;
+	text-transform: uppercase;
+}
+
+.dismiss:global(.components-button.has-icon) {
+	width: 28px;
+	min-width: 28px;
+	height: 28px;
+	margin: -4px -6px -4px 0;
+	padding: 0;
+	color: #646970;
+}
+
+.dismiss:global(.components-button.has-icon):hover {
+	color: #1e1e1e;
+}
+
+.identity {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.avatar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 44px;
+	height: 44px;
+	background: #f0f0f0;
+	border-radius: 12px;
+}
+
+.identityCopy {
+	min-width: 0;
+}
+
+.identityTitle {
+	overflow: hidden;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 20px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.identityMeta {
+	margin-top: 2px;
+	color: #757575;
+	font-size: 13px;
+	line-height: 18px;
+}
+
+.primaryAction:global(.components-button.is-primary) {
+	justify-content: center;
+	width: 100%;
+	height: 44px;
+	font-size: 14px;
+}
+
+.hint {
+	margin: 2px 0 0;
+	color: #757575;
+	font-size: 13px;
+	line-height: 19px;
+}
+
+@media (max-width: 600px) {
+	/* Both callouts use the same compact spacing on phones. */
+	.card {
+		gap: 12px;
+		padding: 16px;
+	}
+}

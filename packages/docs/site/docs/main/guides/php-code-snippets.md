@@ -126,6 +126,26 @@ escaping every `<` character.
 </php-snippet>
 ```
 
+A literal `</script>` still closes the child script element, even when it is
+inside a PHP string. Use JSON-encoded child payloads when the PHP source or
+expected output contains that sequence:
+
+```html
+<php-snippet name="example.php">
+	<script type="application/x-php+json">
+		"\u003C?php\necho '\u003C/script\u003E';"
+	</script>
+	<script type="text/expected-output+json">
+		"\u003C/script\u003E"
+	</script>
+</php-snippet>
+```
+
+Both payloads are parsed as JSON and must decode to strings; other JSON values
+are rejected. Encode `<` as `\u003C` so the HTML parser never sees a literal
+`</script>`. `JSON.stringify()` does not escape `<` by itself. The unencoded
+`application/x-php` and `text/expected-output` types remain supported.
+
 Very short snippets can also be written as text, as long as PHP opening tags are
 escaped:
 
@@ -174,6 +194,44 @@ the WordPress download and boot step:
 	</script>
 </php-snippet>
 ```
+
+### Automatically prepend a hidden PHP script
+
+`auto-prepend-script` mirrors PHP's
+[`auto_prepend_file`](https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file)
+`php.ini` directive: the referenced PHP script runs before the snippet's main
+file on every request. Unlike the PHP directive, the attribute takes the id or
+CSS selector of an inert PHP `<script>` element. Use it when setup code should
+not appear in the editable example:
+
+```html
+<script id="load-wordpress" type="application/x-php">
+	<?php
+	require_once '/wordpress/wp-load.php';
+</script>
+
+<php-snippet name="site-title.php" auto-prepend-script="#load-wordpress" implicit-php-open-tag>
+	<script type="application/x-php">
+		echo get_bloginfo( 'name' );
+	</script>
+</php-snippet>
+```
+
+The referenced script must start with `<?php`. It remains outside the visible
+editor and runs before every click, including after the reader edits the
+snippet. Snippets with different auto-prepended scripts can still share one
+runtime.
+
+`implicit-php-open-tag` adds the PHP opening tag omitted from the visible
+source. Playground adds it on the first line of the execution file, so PHP
+errors still point to the displayed line. Diagnostics use a filesystem-safe
+form of the `name` attribute as the filename. Code starting with any PHP
+opening tag (`<?php`, `<?=`, or `<?`) is rejected; remove
+`implicit-php-open-tag` when the source is already a complete PHP file.
+
+Without `implicit-php-open-tag`, snippets using `auto-prepend-script` must
+include their own PHP opening tag. The two attributes are independent, so an
+implicit opening tag also works without an auto-prepended script.
 
 ## Edit examples in place
 
@@ -443,15 +501,17 @@ fields.
 
 ## Which embed should you use?
 
-| Use case                                              | Use                             |
-| ----------------------------------------------------- | ------------------------------- |
-| Several runnable examples in one article              | `<php-snippet>`                 |
-| A tutorial step where readers should edit code inline | `<php-snippet>`                 |
-| Shared setup across examples                          | `<php-snippet blueprint="...">` |
-| A pure PHP language example                           | `<php-snippet wp="none">`       |
-| A runnable example that should not be edited          | `<php-snippet readonly>`        |
-| A single full-page editor with a shareable URL        | Standalone PHP Playground       |
-| A complete WordPress site preview                     | Standard Playground iframe      |
+| Use case                                              | Use                                       |
+| ----------------------------------------------------- | ----------------------------------------- |
+| Several runnable examples in one article              | `<php-snippet>`                           |
+| A tutorial step where readers should edit code inline | `<php-snippet>`                           |
+| Shared setup across examples                          | `<php-snippet blueprint="...">`           |
+| Hidden PHP setup before every run                     | `<php-snippet auto-prepend-script="...">` |
+| PHP source without an opening tag                     | `<php-snippet implicit-php-open-tag>`     |
+| A pure PHP language example                           | `<php-snippet wp="none">`                 |
+| A runnable example that should not be edited          | `<php-snippet readonly>`                  |
+| A single full-page editor with a shareable URL        | Standalone PHP Playground                 |
+| A complete WordPress site preview                     | Standard Playground iframe                |
 
 ## Troubleshooting
 

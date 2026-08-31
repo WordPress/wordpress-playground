@@ -33,6 +33,9 @@ if (!function_exists('mysql_select_db')) {
 if (!function_exists('mysql_set_charset')) {
 	function mysql_set_charset() { return true; }
 }
+if (!defined('MYSQL_ASSOC')) define('MYSQL_ASSOC', 1);
+if (!defined('MYSQL_NUM')) define('MYSQL_NUM', 2);
+if (!defined('MYSQL_BOTH')) define('MYSQL_BOTH', 3);
 // Functional mysql_* stubs that delegate to $wpdb (SQLite driver).
 $GLOBALS['_mysql_results'] = array();
 $GLOBALS['_mysql_result_id'] = 0;
@@ -96,6 +99,23 @@ if (!function_exists('mysql_fetch_row')) {
 		if ($r['index'] >= count($r['rows'])) return null;
 		$row = $r['rows'][$r['index']++];
 		return array_values((array)$row);
+	}
+}
+if (!function_exists('mysql_fetch_assoc')) {
+	function mysql_fetch_assoc($result) {
+		if (!isset($GLOBALS['_mysql_results'][$result])) return null;
+		$r = &$GLOBALS['_mysql_results'][$result];
+		if ($r['index'] >= count($r['rows'])) return null;
+		return (array)$r['rows'][$r['index']++];
+	}
+}
+if (!function_exists('mysql_fetch_array')) {
+	function mysql_fetch_array($result, $result_type = null) {
+		$row = mysql_fetch_assoc($result);
+		if ($row === null) return null;
+		if ($result_type === MYSQL_ASSOC) return $row;
+		if ($result_type === MYSQL_NUM) return array_values($row);
+		return array_merge(array_values($row), $row);
 	}
 }
 if (!function_exists('mysql_fetch_object')) {

@@ -1,3 +1,4 @@
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import type { Remote } from './comlink-sync';
 import type { Pooled } from './object-pool-proxy';
 import type { LimitedPHPApi } from './php-worker';
@@ -7,6 +8,14 @@ import type { LimitedPHPApi } from './php-worker';
  */
 export interface PHPRequestEndEvent {
 	type: 'request.end';
+}
+
+/**
+ * Emitted by a filesystem owner when a request using its filesystem through
+ * PROXYFS ends.
+ */
+export interface PHPProxyFSRequestEndEvent {
+	type: 'proxyfs.request.end';
 }
 
 /**
@@ -33,7 +42,7 @@ export interface PHPRuntimeBeforeExitEvent {
 }
 
 /**
- * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, unlink).
+ * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, cp, unlink).
  * This event is used to trigger journal flushing for persistent storage.
  */
 export interface PHPFilesystemWriteEvent {
@@ -47,10 +56,12 @@ export interface PHPFilesystemWriteEvent {
  */
 export type PHPEvent =
 	| PHPRequestEndEvent
+	| PHPProxyFSRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeExitEvent
-	| PHPFilesystemWriteEvent;
+	| PHPFilesystemWriteEvent
+	| PHPSendmailSpawnedEvent;
 
 /**
  * A callback function that handles PHP events.

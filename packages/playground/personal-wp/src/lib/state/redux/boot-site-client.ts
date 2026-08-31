@@ -20,6 +20,9 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
+import { ProgressTracker } from '@php-wasm/progress';
+import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import { setActiveSiteError } from './slice-ui';
@@ -30,6 +33,7 @@ import {
 	selectBlueprintResolvedFromUrl,
 	setBlueprintResolvedFromUrl,
 } from './slice-sites';
+import type { SiteMetadata } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import {
@@ -40,6 +44,18 @@ import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
+import {
+	getUsageStatsDate,
+	getBlueprintUsageStatsProperties,
+	getSiteUsageStatsProperties,
+	isUsageStatsAllowedOnCurrentHost,
+	logPersonalWpEvent,
+	shouldLogReturningVisitUsageStats,
+} from '../../personalwp/usage-stats';
+import {
+	isHealthCheckRecoveryBlueprint,
+	isHealthCheckRecoveryUrl,
+} from '../../health-check-recovery';
 
 export interface BootSiteClientOptions {
 	signal: AbortSignal;
@@ -47,6 +63,10 @@ export interface BootSiteClientOptions {
 	clearUrlAfterBlueprintApplied?: boolean;
 	/** Auto-login when WordPress is already installed */
 	autoLogin?: boolean;
+	/** Receive boot progress events from the Playground client */
+	onProgress?: (progress: ProgressDetails) => void;
+	/** Called when the iframe is ready to be shown */
+	onReady?: () => void;
 }
 
 export function bootSiteClient(
@@ -58,12 +78,19 @@ export function bootSiteClient(
 		signal,
 		clearUrlAfterBlueprintApplied = false,
 		autoLogin = false,
+		onProgress,
+		onReady,
 	} = options;
 
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const reportBootProgress = (progress: number, caption: string) => {
+			onProgress?.({ progress, caption });
+		};
+
+		reportBootProgress(1, 'Reading site settings');
 		signal.onabort = () => {
 			destroyTabCoordinator();
 			dispatch(removeClientInfo(siteSlug));
@@ -73,10 +100,11 @@ export function bootSiteClient(
 		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
 		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
 		const hasUrlBlueprint =
-			urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
+			!!urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
+			reportBootProgress(3, 'Preparing browser storage');
 			mountDescriptor = {
 				device: {
 					type: 'opfs',
@@ -88,6 +116,7 @@ export function bootSiteClient(
 				mountpoint: '/wordpress',
 			} as const;
 		} else if (site.metadata.storage === 'local-fs') {
+			reportBootProgress(3, 'Loading local folder access');
 			let localDirectoryHandle;
 			try {
 				localDirectoryHandle = await loadDirectoryHandle(site.slug);
@@ -113,6 +142,7 @@ export function bootSiteClient(
 		let isWordPressInstalled = false;
 		if (mountDescriptor) {
 			try {
+				reportBootProgress(6, 'Checking existing WordPress files');
 				isWordPressInstalled = await playgroundAvailableInOpfs(
 					await directoryHandleFromMountDevice(mountDescriptor.device)
 				);
@@ -136,10 +166,17 @@ export function bootSiteClient(
 				return;
 			}
 		}
+		reportBootProgress(
+			8,
+			isWordPressInstalled
+				? 'Found existing WordPress files'
+				: 'No existing WordPress install found'
+		);
 
 		// Only one tab may run the Personal WP runtime at a time. Other tabs
 		// preserve their iframe and observe the browser-managed main-tab locks.
 		if (site.metadata.storage !== 'none') {
+			reportBootProgress(10, 'Checking for another open tab');
 			const tabInfo = await initTabCoordinator(site.slug, {
 				onMainTabStatusChange: (mainTabStatus) => {
 					if (!selectClientInfoBySiteSlug(getState(), site.slug)) {
@@ -159,6 +196,7 @@ export function bootSiteClient(
 			});
 
 			if (tabInfo.isDependentMode) {
+				reportBootProgress(14, 'Connecting to the main tab');
 				bootDependentModeClient({
 					siteSlug: site.slug,
 					iframe,
@@ -166,6 +204,7 @@ export function bootSiteClient(
 					getState,
 					signal,
 					mainTabStatus: tabInfo.mainTabStatus || 'missing',
+					onReady,
 				});
 				logger.info(
 					'Playground running in dependent mode - using the main tab worker'
@@ -174,6 +213,7 @@ export function bootSiteClient(
 			}
 		}
 
+		reportBootProgress(16, 'Preparing boot blueprint');
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
 			blueprint = {
@@ -223,37 +263,53 @@ export function bootSiteClient(
 			blueprint.preferredVersions?.wp === false;
 
 		// Check if we're in recovery mode (Health Check troubleshooting).
-		// In recovery mode, skip the WordPress install check to avoid
-		// loading WordPress before blueprint steps run. The check would
-		// load WordPress and crash due to a broken plugin.
-		const urlBlueprintLandingPage = hasUrlBlueprint
-			? urlBlueprint.blueprint.landingPage
-			: undefined;
-		const isRecoveryMode = urlBlueprintLandingPage?.includes(
-			'health-check-disable-plugin-hash'
-		);
+		// Recovery mode uses 'do-not-attempt-installing' to skip the
+		// isWordPressInstalled() check that would load WordPress and crash
+		// due to a broken plugin.
+		const isRecoveryMode =
+			isHealthCheckRecoveryUrl(new URL(window.location.href)) ||
+			(hasUrlBlueprint &&
+				isHealthCheckRecoveryBlueprint(urlBlueprint.blueprint));
 		const wordpressInstallMode =
 			blueprintRequestedNoWordPress || isRecoveryMode
 				? 'do-not-attempt-installing'
 				: isWordPressInstalled
 					? 'install-from-existing-files-if-needed'
 					: 'download-and-install';
+		reportBootProgress(
+			18,
+			getWordPressInstallModeCaption(wordpressInstallMode)
+		);
 
 		let playground: PlaygroundClient | undefined = undefined;
+		const progressTracker = new ProgressTracker();
+		progressTracker.addEventListener(
+			'progress',
+			(event: ProgressTrackerEvent) => {
+				onProgress?.({
+					progress: event.detail.progress,
+					caption: event.detail.caption,
+				});
+			}
+		);
+		progressTracker.addEventListener('done', () => {
+			reportBootProgress(100, 'WordPress runtime is ready');
+			onReady?.();
+		});
 		try {
+			reportBootProgress(20, 'Starting Playground runtime');
 			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
-				experimentalBlueprintsV2Runner:
-					!isWordPressInstalled &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
+				disableProgressBar: true,
+				detailedProgressCaptions: true,
+				progressTracker,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
+					reportBootProgress(88, 'Connected to Playground client');
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
@@ -267,8 +323,10 @@ export function bootSiteClient(
 					: [],
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
+			reportBootProgress(100, 'Boot failed');
 			logger.error(e);
 			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
@@ -324,8 +382,10 @@ export function bootSiteClient(
 			return;
 		}
 
+		reportBootProgress(92, 'Setting up browser message relay');
 		setupPostMessageRelay(iframe, document.location.origin);
 
+		reportBootProgress(94, 'Registering active WordPress client');
 		dispatch(
 			addClientInfo({
 				siteSlug: site.slug,
@@ -348,8 +408,30 @@ export function bootSiteClient(
 			);
 		});
 
+		const bootCompletedAt = Date.now();
+		const usageStatsMetadata = logBootUsageStats({
+			site,
+			hasUrlBlueprint,
+			urlBlueprint: hasUrlBlueprint ? urlBlueprint.blueprint : undefined,
+			isWordPressInstalled,
+			wordpressInstallMode,
+			bootCompletedAt,
+		});
+		if (site.metadata.storage !== 'none') {
+			dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					metadata: {
+						lastAccessDate: bootCompletedAt,
+						...usageStatsMetadata,
+					},
+				})
+			);
+		}
+
 		// Clear URL blueprint after successful boot
 		if (hasUrlBlueprint) {
+			reportBootProgress(96, 'Cleaning up launch URL');
 			dispatch(setBlueprintResolvedFromUrl(null));
 			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
@@ -367,7 +449,83 @@ export function bootSiteClient(
 			destroyTabCoordinator();
 			dispatch(removeClientInfo(site.slug));
 		};
+		reportBootProgress(100, 'WordPress is ready');
 	};
+}
+
+function logBootUsageStats({
+	site,
+	hasUrlBlueprint,
+	urlBlueprint,
+	isWordPressInstalled,
+	wordpressInstallMode,
+	bootCompletedAt,
+}: {
+	site: ReturnType<typeof selectSiteBySlug>;
+	hasUrlBlueprint: boolean;
+	urlBlueprint?: BlueprintV1Declaration;
+	isWordPressInstalled: boolean;
+	wordpressInstallMode: string;
+	bootCompletedAt: number;
+}): BootUsageStatsMetadata {
+	if (
+		!site ||
+		site.metadata.storage === 'none' ||
+		!isUsageStatsAllowedOnCurrentHost()
+	) {
+		return {};
+	}
+
+	const siteProperties = getSiteUsageStatsProperties(
+		site.metadata,
+		bootCompletedAt
+	);
+	const metadata: BootUsageStatsMetadata = {};
+	if (wordpressInstallMode === 'download-and-install') {
+		logPersonalWpEvent('wordpress_installed', {
+			...siteProperties,
+			original_blueprint_source:
+				site.metadata.originalBlueprintSource.type,
+		});
+	} else if (
+		isWordPressInstalled &&
+		shouldLogReturningVisitUsageStats(site.metadata, bootCompletedAt)
+	) {
+		logPersonalWpEvent('returning_visit', siteProperties);
+		metadata.lastUsageStatsReturningVisitDate =
+			getUsageStatsDate(bootCompletedAt);
+	}
+
+	if (hasUrlBlueprint && urlBlueprint) {
+		logPersonalWpEvent('blueprint_installed', {
+			...siteProperties,
+			trigger: 'url',
+			...getBlueprintUsageStatsProperties(urlBlueprint),
+		});
+	}
+
+	return metadata;
+}
+
+type BootUsageStatsMetadata = Pick<
+	SiteMetadata,
+	'lastUsageStatsReturningVisitDate'
+>;
+
+function getWordPressInstallModeCaption(
+	wordpressInstallMode:
+		| 'do-not-attempt-installing'
+		| 'install-from-existing-files-if-needed'
+		| 'download-and-install'
+): string {
+	switch (wordpressInstallMode) {
+		case 'do-not-attempt-installing':
+			return 'Skipping WordPress installation';
+		case 'install-from-existing-files-if-needed':
+			return 'Booting from existing WordPress files';
+		case 'download-and-install':
+			return 'Downloading and installing WordPress';
+	}
 }
 
 function bootDependentModeClient({
@@ -377,6 +535,7 @@ function bootDependentModeClient({
 	getState,
 	signal,
 	mainTabStatus,
+	onReady,
 }: {
 	siteSlug: string;
 	iframe: HTMLIFrameElement;
@@ -384,6 +543,7 @@ function bootDependentModeClient({
 	getState: () => PlaygroundReduxState;
 	signal: AbortSignal;
 	mainTabStatus: 'connected' | 'booting' | 'missing';
+	onReady?: () => void;
 }): void {
 	const remoteUrl = getRemoteUrl();
 	const scopedSiteUrl = `/scope:${encodeURIComponent(siteSlug)}/`;
@@ -414,6 +574,9 @@ function bootDependentModeClient({
 				changes: { url },
 			})
 		);
+	};
+	const markIframeReady = () => {
+		onReady?.();
 	};
 
 	const existingClient = selectClientInfoBySiteSlug(getState(), siteSlug);
@@ -453,9 +616,13 @@ function bootDependentModeClient({
 	);
 
 	iframe.addEventListener('load', updateUrlFromIframe);
+	iframe.addEventListener('load', markIframeReady, { once: true });
 	signal.addEventListener(
 		'abort',
-		() => iframe.removeEventListener('load', updateUrlFromIframe),
+		() => {
+			iframe.removeEventListener('load', updateUrlFromIframe);
+			iframe.removeEventListener('load', markIframeReady);
+		},
 		{ once: true }
 	);
 

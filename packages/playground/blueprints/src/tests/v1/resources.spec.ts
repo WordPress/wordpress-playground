@@ -138,8 +138,12 @@ describe('GitDirectoryResource', () => {
 					.trim();
 				expect(currentCommit).toBe(commit);
 
-				// Verify the remote is configured correctly
-				const remoteUrl = execSync('git remote get-url origin', gitEnv)
+				// Verify the configured remote without applying global url.*.insteadOf
+				// rewrites, which may inject local credential helpers into the URL.
+				const remoteUrl = execSync(
+					'git config --get remote.origin.url',
+					gitEnv
+				)
 					.toString()
 					.trim();
 				expect(remoteUrl).toBe(

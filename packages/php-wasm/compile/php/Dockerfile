@@ -60,10 +60,8 @@ fi
 COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
-	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
 	cp -r /root/builds-libzip/jspi/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 else \
-	cp -r /root/builds-libzip/asyncify/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
 	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 fi
 
@@ -461,11 +459,6 @@ RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams
 # to an unused identifier "php_exec_old", and then we mark php_exec as extern.
 RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; int php_exec_old\1/g' /root/php-src/ext/standard/exec.c
 
-# Provide a custom implementation of the VCWD_POPEN() function that handles spawning
-# the process inside PHP_FUNCTION(popen).
-RUN /root/replace.sh 's/#define VCWD_POPEN.+/#define VCWD_POPEN(command, type) wasm_popen(command,type)/g' /root/php-src/Zend/zend_virtual_cwd.h
-RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/php-src/Zend/zend_virtual_cwd.h
-
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
@@ -717,6 +710,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_init_config",\
 "zend_register_constant",\
 "zend_register_ini_entries_ex",\
+"php_mail",\
 "php_module_startup",\
 "wasm_sapi_module_startup",\
 "__fseeko_unlocked",\
@@ -1681,7 +1675,10 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "wasm_php_exec",\
 "wasm_php_stream_flush",\
 "wasm_php_stream_read",\
+"wasm_pclose",\
 "wasm_popen",\
+"__wrap_pclose",\
+"__wrap_popen",\
 "wasm_read",\
 "wasm_sapi_handle_request",\
 "wasm_sapi_request_shutdown",\
@@ -2045,6 +2042,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_passthru",\
 "zif_phar_file_get_contents",\
 "zif_phar_fopen",\
+"zif_mail",\
+"zif_pclose",\
 "zif_popen",\
 "zif_post_message_to_js",\
 "zif_preg_replace_callback",\
@@ -2186,6 +2185,39 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 COPY ./compile/php/exported-functions.list /root/exported-functions.list
 COPY ./compile/php/zend-side-module-exports.c /root/zend-side-module-exports.c
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
+
+# External phpize extensions are not available while this main module is linked.
+# Export the complete public symbol surface of the matching libphp archive so
+# MAIN_MODULE=2 retains the PHP extension ABI for externally built side modules
+# to dynamically link against.
+#
+# Add the ABI to the wasm export list (`-Wl,--export=`) ONLY, not to
+# EXPORTED_FUNCTIONS. A side module resolves imports against the main module's
+# `wasmExports` (which `--export` populates), so that is all linking needs.
+# Emscripten still emits a `_sym = Module['_sym'] = wasmExports['sym']` JS alias
+# for every wasm export regardless of EXPORTED_FUNCTIONS; those ABI aliases are
+# dead weight (nothing in our JS/TS reads them) and are removed after linking by
+# strip-unused-abi-export-aliases.mjs. Keeping .JS_ABI_EXPORTS free of the ABI
+# also lets that step derive the strip set cleanly as (ABI) minus (JS exports).
+#
+# External extensions are JSPI-only (see compile-extension's ExtensionAsyncMode),
+# so skip this for asyncify builds, which can never load one and would otherwise
+# pay the binary-size cost of retaining the whole libphp ABI as dead weight.
+RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
+	/root/emsdk/upstream/bin/llvm-nm \
+		--defined-only \
+		--extern-only \
+		--format=just-symbols \
+		/root/lib/libphp.a \
+		| grep -v '^[[:space:]]*$' \
+		| grep -v ':$' \
+		| LC_ALL=C sort -u \
+		> /root/.PHP_EXTENSION_ABI_EXPORTS; \
+	cat /root/.PHP_EXTENSION_ABI_EXPORTS \
+		>> /root/.WASM_ABI_EXPORTS
 
 RUN set -eux; \
 	if [ "$WITH_JSPI" != "yes" ]; then \
@@ -2359,6 +2391,23 @@ RUN set -eux; \
 	sed 's/^/-Wl,--export=/' \
 	> /root/.wasm-exports
 
+# Derive the JS aliases to strip after linking: the libphp ABI symbols that are
+# exported to wasm for side-module linking but are NOT part of the JS-facing
+# export set (.JS_ABI_EXPORTS). These get a dead `Module['_sym']` alias in the
+# generated loader that nothing reads. Names use Emscripten's JS leading
+# underscore so they match the loader's alias declarations directly.
+RUN set -eux; \
+	: > /root/.PHP_EXTENSION_ABI_JS_STRIP; \
+	if [ -s /root/.PHP_EXTENSION_ABI_EXPORTS ]; then \
+		sed 's/^/_/' /root/.PHP_EXTENSION_ABI_EXPORTS \
+			| grep -v '^[[:space:]]*$' \
+			| LC_ALL=C sort -u > /root/.abi-js-names; \
+		LC_ALL=C sort -u /root/.JS_ABI_EXPORTS \
+			| grep -v '^[[:space:]]*$' > /root/.js-keep-names; \
+		LC_ALL=C comm -23 /root/.abi-js-names /root/.js-keep-names \
+			> /root/.PHP_EXTENSION_ABI_JS_STRIP; \
+	fi
+
 
 # Build the final .wasm file
 RUN mkdir /root/output
@@ -2376,7 +2425,7 @@ RUN set -euxo pipefail; \
 	ZEND_SIDE_MODULE_EXPORT_SOURCE=""; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_pclose,__wrap_popen,__wrap_pclose,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 		ZEND_SIDE_MODULE_EXPORT_SOURCE="/root/zend-side-module-exports.c"; \
 	else \
@@ -2433,6 +2482,8 @@ RUN set -euxo pipefail; \
 	-Wl,@/root/.wasm-exports \
 	-Wl,--wrap=usleep \
 	-Wl,--wrap=select \
+	-Wl,--wrap=popen \
+	-Wl,--wrap=pclose \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
@@ -2453,6 +2504,23 @@ RUN set -euxo pipefail; \
 #         mkdir -p /root/output/terminfo/x && \
 #         cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/; \
 #     fi
+
+# Strip the dead JS aliases Emscripten emits for the externally-linkable libphp
+# ABI (see strip-unused-abi-export-aliases.mjs). The wasm exports stay; only the
+# unused `Module['_sym']` aliases are removed. No-op when the strip list is empty
+# (asyncify builds, or builds without the external-extension ABI).
+#
+# A stronger, Emscripten-native alternative — `-sDECLARE_ASM_MODULE_EXPORTS=0` —
+# would avoid emitting these aliases entirely, but it is global and would break
+# `ccall` (getCFunc reads `Module['_x']`), our custom js-library glue, and the
+# `PHPLoader['malloc']`/`['free']` patches. That trade-off is documented in
+# strip-unused-abi-export-aliases.mjs; this targeted strip is the lower-risk path.
+COPY ./compile/php/strip-unused-abi-export-aliases.mjs /root/strip-unused-abi-export-aliases.mjs
+RUN set -eux; \
+	source /root/emsdk/emsdk_env.sh; \
+	node /root/strip-unused-abi-export-aliases.mjs \
+		/build/output/php.js \
+		/root/.PHP_EXTENSION_ABI_JS_STRIP
 
 # Postprocess the build php.js module:
 COPY ./compile/php/esm-node-boilerplate.js /root/esm-node-boilerplate.js

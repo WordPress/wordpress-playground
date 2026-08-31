@@ -6,7 +6,6 @@ updates:
           interval: 'daily'
       exclude-paths:
           - packages/playground/wordpress-builds/public/**
-          - isomorphic-git/**
       ignore:
           # Ignore all non-security updates - only allow security updates for high or critical vulnerabilities
           - dependency-name: '*'

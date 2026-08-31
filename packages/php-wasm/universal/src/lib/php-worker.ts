@@ -1,4 +1,5 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { phpEventStdinTransfer } from '@php-wasm/util';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
@@ -30,12 +31,14 @@ export type LimitedPHPApi = Pick<
 	| 'writeFile'
 	| 'unlink'
 	| 'mv'
+	| 'cp'
 	| 'rmdir'
 	| 'listFiles'
 	| 'isDir'
 	| 'fileExists'
 	| 'chdir'
 	| 'run'
+	| 'runStream'
 	| 'onMessage'
 > & {
 	documentRoot: PHP['documentRoot'];
@@ -62,6 +65,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	private chroot: string | null = null;
 
 	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
+	#phpInstancesWithWorkerListeners = new WeakSet<PHP>();
 
 	onMessageListeners: MessageListener[] = [];
 	/** @inheritDoc */
@@ -165,6 +169,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		return _private.get(this)!.php!.mv(fromPath, toPath);
 	}
 
+	/** @inheritDoc @php-wasm/universal!PHP.cp  */
+	async cp(fromPath: string, toPath: string) {
+		return _private.get(this)!.php!.cp(fromPath, toPath);
+	}
+
 	/** @inheritDoc @php-wasm/universal!PHP.rmdir  */
 	async rmdir(path: string, options?: RmDirOptions) {
 		return _private.get(this)!.php!.rmdir(path, options);
@@ -208,6 +217,42 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		} finally {
 			reap();
 		}
+	}
+
+	/**
+	 * Starts a PHP request and returns its output streams before PHP exits.
+	 *
+	 * A pooled PHP instance remains checked out until `response.finished`
+	 * settles. If the request fails before returning a response, the instance
+	 * is released immediately. A non-zero PHP exit is exposed through
+	 * `response.exitCode` instead of making this method reject.
+	 *
+	 * @param request - PHP code or script path, request metadata, and environment.
+	 * @returns A streamed response whose output can be consumed incrementally.
+	 * @throws When a PHP instance cannot be acquired or the request cannot start.
+	 */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		const state = _private.get(this)!;
+		const primaryPhp = state.php;
+		if (
+			!state.requestHandler &&
+			!primaryPhp?.requestHandler &&
+			primaryPhp
+		) {
+			return await primaryPhp.runStream(request);
+		}
+		const { php, reap } = await this.acquirePHPInstance();
+		let response: StreamedPHPResponse;
+		try {
+			response = await php.runStream(request);
+		} catch (error) {
+			reap();
+			throw error;
+		}
+		// The caller still owns the response streams. Keep this PHP instance
+		// checked out until the process behind those streams has finished.
+		void response.finished.finally(reap);
+		return response;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.cli */
@@ -362,17 +407,49 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
-	protected dispatchEvent<Event extends PHPWorkerEvent>(event: Event) {
+	protected dispatchEvent<EventType extends PHPWorkerEvent>(
+		event: EventType
+	) {
 		const listeners = this.#eventListeners.get(event.type);
 		if (!listeners) {
 			return;
 		}
-		for (const listener of listeners) {
+		// Callbacks may mutate the Set. Dispatch the listeners that matched at entry.
+		const eventListeners = [...listeners];
+		const transfersStdin =
+			phpEventStdinTransfer in event &&
+			event[phpEventStdinTransfer] === true &&
+			'stdin' in event &&
+			typeof ReadableStream !== 'undefined' &&
+			event.stdin instanceof ReadableStream;
+		if (eventListeners.length > 1 && transfersStdin) {
+			/**
+			 * Split the unassigned stream branch before each transfer, then give the
+			 * final listener what remains. Unread branches may buffer the full input
+			 * because tee() does not coordinate backpressure.
+			 */
+			let remainingStdin = event.stdin as ReadableStream<Uint8Array>;
+			for (let index = 0; index < eventListeners.length - 1; index++) {
+				const [stdin, nextStdin] = remainingStdin.tee();
+				remainingStdin = nextStdin;
+				eventListeners[index]({ ...event, stdin } as EventType);
+			}
+			eventListeners[eventListeners.length - 1]({
+				...event,
+				stdin: remainingStdin,
+			} as EventType);
+			return;
+		}
+		for (const listener of eventListeners) {
 			listener(event);
 		}
 	}
 
 	protected registerWorkerListeners(php: PHP) {
+		if (this.#phpInstancesWithWorkerListeners.has(php)) {
+			return;
+		}
+		this.#phpInstancesWithWorkerListeners.add(php);
 		php.addEventListener('*', async (event) => {
 			this.dispatchEvent(event);
 		});

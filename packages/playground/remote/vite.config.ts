@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { join } from 'path';
+import { fileURLToPath } from 'node:url';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
@@ -14,8 +15,11 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 
 const plugins = [
 	viteTsConfigPaths({
@@ -66,10 +70,13 @@ export default defineConfig(({ mode }) => {
 			'**/*.wasm',
 			'**/*.so',
 			'**/*.dat',
-			'**/*.phar',
 			'*.zip',
+			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
 		// dependencies.

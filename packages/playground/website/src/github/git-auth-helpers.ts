@@ -1,5 +1,5 @@
 import { oAuthState } from './state';
-import { encodeStringAsBase64 } from '../lib/base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 function isGitHubUrl(url: string): boolean {
 	try {

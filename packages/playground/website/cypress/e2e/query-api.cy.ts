@@ -28,10 +28,14 @@ describe('Query API', () => {
 	describe('option `wp`', () => {
 		it('should load WordPress latest by default', () => {
 			cy.visit('/?url=/wp-admin/');
-			const expectedBodyClass =
-				'version-' + LatestSupportedWordPressVersion.replace('.', '-');
+			// WordPress derives the admin body branch class from (float) $wp_version.
+			const expectedBranchClass =
+				'branch-' +
+				parseFloat(LatestSupportedWordPressVersion)
+					.toString()
+					.replace('.', '-');
 			cy.wordPressDocument()
-				.find(`body.${expectedBodyClass}`)
+				.find(`body.${expectedBranchClass}`)
 				.should('exist');
 		});
 
@@ -193,21 +197,27 @@ describe('Query API', () => {
 		// });
 
 		function checkIfGutenbergIsPatched() {
-			// Check if the inserter button is styled.
-			// If Gutenberg wasn't correctly patched,
-			// the inserter will look like a default
-			// browser button.
+			// Check that the editor canvas loaded its stylesheets. If the
+			// canvas frame wasn't correctly patched, its CSS requests 404
+			// and blocks render with browser-default styles. The
+			// `overflow-wrap` rule comes from block-editor's content.css
+			// and the browser default is `normal`.
+			//
+			// The block list always contains at least the post title block,
+			// unlike the default block appender that Gutenberg 23.8 replaced
+			// with a real (ghost) paragraph block.
 			cy.wordPressDocument()
 				.find('iframe[name="editor-canvas"]', {
 					// Give GitHub CI plenty of time
 					timeout: 60000 * 10,
 				})
 				.its('0.contentDocument')
-				.find('.block-editor-inserter__toggle', {
+				.find('.block-editor-block-list__block', {
 					// Give GitHub CI plenty of time
 					timeout: 60000 * 10,
 				})
-				.should('not.have.css', 'background-color', undefined);
+				.first()
+				.should('have.css', 'overflow-wrap', 'break-word');
 		}
 	});
 });
@@ -222,7 +232,7 @@ if (!Cypress.env('CI')) {
 			// Wait for the Playground to finish loading
 			cy.wordPressDocument().its('body').should('exist');
 
-			cy.get('[data-cy="dropdown-menu"]').click();
+			cy.get('[aria-label="Export"]').click();
 			cy.get('[data-cy="download-as-zip"]').click();
 			const downloadsFolder = Cypress.config('downloadsFolder');
 			cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
@@ -243,7 +253,7 @@ if (!Cypress.env('CI')) {
 
 			// Download a zip file
 			const downloadsFolder = Cypress.config('downloadsFolder');
-			cy.get('[data-cy="dropdown-menu"]').click();
+			cy.get('[aria-label="Export"]').click();
 			cy.get('[data-cy="download-as-zip"]').click();
 			cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
 				'have.length.above',
@@ -259,12 +269,11 @@ if (!Cypress.env('CI')) {
 				.should('not.contain', 'Cypress tests – site title');
 
 			// Import the zip file
-			cy.get('[data-cy="dropdown-menu"]').click();
-			cy.get('[data-cy="restore-from-zip"]').click();
-			cy.get('#import-select-file').selectFile(
-				`${downloadsFolder}/wordpress-playground.zip`
+			cy.get('[aria-label="New Playground"]').click();
+			cy.get('input[type="file"][accept*=".zip"]').selectFile(
+				`${downloadsFolder}/wordpress-playground.zip`,
+				{ force: true }
 			);
-			cy.get('#import-submit--btn').click();
 
 			// Wait for the Playground to reload
 			cy.wordPressDocument().its('body').should('exist');

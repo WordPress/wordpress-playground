@@ -52,14 +52,13 @@
  * While this strategy enables fast load times and an offline experience, it also
  * creates a substantial challenge.
  *
- * When a new Playground version is deployed, all the clients will load an old
- * version of the `remote.html` file on their next visit. Unfortunately, that old
- * `remote.html` file contains hardcoded references to assets that may not be
- * cached and no longer exist in the new webapp build.
+ * When a new Playground version is deployed, clients may load an old entry
+ * document such as `remote.html` or `api.html`. That document contains
+ * hardcoded references to assets that may no longer exist in the new build.
  *
- * To solve this problem, we use the **Network first** strategy when `remote.html`
- * is requested. This introduces a small network overhead, but it guarantees loading
- * the most recent version of `remote.html` and all the referenced assets.
+ * To solve this problem, we use the **Network first** strategy for entry
+ * documents. This introduces a small network overhead, but guarantees loading
+ * the most recent document and all its referenced assets.
  *
  * Similarly, we use the **Network first** strategy for the `/` path. This is
  * useful in situations where the user didn't visit Playground in a while,
@@ -67,8 +66,8 @@
  * If we loaded the cached version, they'd see the old Playground website on their
  * first visit and then the new Playground website only on their second visit.
  *
- * There's still a small window of time between loading the remote.html file and
- * fetching the new assets when a new deployment would break the application.
+ * There's still a small window between loading an entry document and fetching
+ * its assets when a new deployment would break the application.
  * This should be very rare, but when it happens we provide an error message asking
  * the user to reload the page.
  *
@@ -125,6 +124,13 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import {
+	getRemoteAccessRelayMapping,
+	getRemoteAccessRelayMappingFromUrl,
+	handleRemoteAccessRelayMessage,
+	handleRemoteAccessRelayProbe,
+	handleRemoteAccessRelayRequest,
+} from '@wp-playground/remote-access';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -134,6 +140,10 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+self.addEventListener('message', (event) => {
+	handleRemoteAccessRelayMessage(event);
+});
 
 /**
  * Forces the browser to always use the latest service worker.
@@ -198,6 +208,10 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(doActivate());
 });
 
+function isResumeRangeRequest(request: Request): boolean {
+	return /^bytes=[1-9]\d*-$/.test(request.headers.get('range') ?? '');
+}
+
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
 		return;
@@ -210,9 +224,14 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
+	// imports them during development. Sending them through WordPress turns the
+	// module graph into scoped 404 responses.
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
-		url.pathname.startsWith('/client/index.js');
+		url.pathname.startsWith('/client/index.js') ||
+		url.pathname.startsWith('/relay/') ||
+		url.pathname.startsWith('/@fs/');
 	if (isReservedUrl) {
 		return;
 	}
@@ -221,8 +240,50 @@ self.addEventListener('fetch', (event) => {
 		return event.respondWith(documentIsolationPolicyHtml());
 	}
 
+	// Vite bundles
+	// `packages/playground/remote/src/lib/capture-site-thumbnail.ts` as the renderer
+	// and `modern-screenshot/worker` as its resource worker. Their requests originate
+	// from a scoped WordPress document, so the generic referrer handling below would
+	// redirect them into that site's virtual URL namespace, where WordPress returns
+	// a 404. Fetch these marked app assets directly instead.
+	const isSiteThumbnailModule =
+		url.searchParams.has('playground-site-thumbnail-module') &&
+		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
+			/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname));
+	const isSiteThumbnailWorker =
+		event.request.destination === 'worker' &&
+		url.searchParams.has('playground-site-thumbnail-worker');
+	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
+		return event.respondWith(
+			shouldCacheUrl(url)
+				? cacheFirstFetch(event.request)
+				: fetch(event.request)
+		);
+	}
+
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
+		if (url.searchParams.has('remote-access-probe')) {
+			return event.respondWith(
+				handleRemoteAccessRelayProbe(
+					scope,
+					url.searchParams.get('remote-access-probe')
+				)
+			);
+		}
+		const remoteAccessRelayMapping =
+			getRemoteAccessRelayMapping(scope) ||
+			getRemoteAccessRelayMappingFromUrl(scope, url);
+		if (remoteAccessRelayMapping) {
+			return event.respondWith(
+				handleRemoteAccessRelayRequest(
+					event,
+					remoteAccessRelayMapping
+				).then((response) =>
+					applyCrossOriginIsolationHeaders(response, scope)
+				)
+			);
+		}
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
 				applyCrossOriginIsolationHeaders(response, scope)
@@ -307,7 +368,8 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	/**
-	 * Always fetch the fresh version of `/remote.html` and `/` from the network.
+	 * Always fetch fresh versions of `/remote.html`, `/api.html`, and `/` from
+	 * the network.
 	 *
 	 * This is the secret sauce that enables seamless upgrades of the
 	 * running Playground clients when a new version is deployed on
@@ -316,13 +378,14 @@ self.addEventListener('fetch', (event) => {
 	 * ## The problem with deployments
 	 *
 	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, the remote.html file we've cached
-	 * for offline usage still holds references to those assets.
+	 * previous app version. Meanwhile, cached entry documents still hold
+	 * references to those assets.
 	 *
-	 * If we just loaded the cached remote.html file, the site would crash
+	 * If we just loaded a cached entry document, the client would crash
 	 * with seemingly random errors.
 	 *
-	 * Instead, we fetch the most recent version of remote.html from the network.
+	 * Instead, we fetch the most recent version of each entry document from
+	 * the network.
 	 * It references the static assets that are now available on the server and
 	 * should work just fine.
 	 *
@@ -334,8 +397,21 @@ self.addEventListener('fetch', (event) => {
 	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
 	 * details.
 	 */
-	if (url.pathname === '/remote.html' || url.pathname === '/') {
+	if (
+		url.pathname === '/remote.html' ||
+		url.pathname === '/api.html' ||
+		url.pathname === '/'
+	) {
 		event.respondWith(networkFirstFetch(event.request));
+		return;
+	}
+
+	// A resumed runtime download asks for `bytes=<offset>-` with a non-zero
+	// offset. Pass it through untouched: cacheFirstFetch() would strip the
+	// Range header (a Safari workaround for incidental ranges) and the 206
+	// response must not be cached. Other Range requests keep the usual path.
+	if (isResumeRangeRequest(event.request)) {
+		event.respondWith(fetch(event.request));
 		return;
 	}
 

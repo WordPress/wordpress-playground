@@ -415,16 +415,18 @@ describe('fetchWithCorsProxy', () => {
 
 	/**
 	 * These tests exercise the non-streaming fallback path (Safari/Firefox)
-	 * by resetting the cached probe result and mocking the
-	 * `supportsReadableStreamBody` probe fetch to reject. The probe now
-	 * fires inside the retry (catch) path — after the direct fetch fails —
-	 * so mock ordering is: [direct fetch, probe, CORS proxy fetch].
-	 *
-	 * The GET case has no request body, so there is no probe; only
-	 * direct-fetch behavior is exercised.
+	 * by forcing `supportsReadableStreamBody()` to return `false` in
+	 * beforeEach, then asserting it before each test runs. Because the cached
+	 * result is already set, no probe fetch fires during the retry path — mock
+	 * ordering is just: [direct fetch, CORS proxy fetch].
 	 */
 	describe('non-streaming fallback (Safari/Firefox)', () => {
-		beforeEach(() => {
+		beforeEach(async () => {
+			__testing.setStreamBodySupported(false);
+			expect(await supportsReadableStreamBody()).toBe(false);
+		});
+
+		afterEach(() => {
 			__testing.resetStreamBodySupported();
 		});
 
@@ -454,14 +456,11 @@ describe('fetchWithCorsProxy', () => {
 			const corsProxyHeaders = new Headers();
 			corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
 
-			// Mock ordering: direct fetch → probe → CORS proxy fetch.
-			// The probe fires inside the catch block after direct fails.
+			// Streaming is already forced unsupported in beforeEach, so no
+			// probe fires — mock ordering is just: direct fetch → CORS proxy.
 			const fetchMock = vi
 				.spyOn(globalThis, 'fetch')
 				.mockRejectedValueOnce(new Error('CORS'))
-				.mockRejectedValueOnce(
-					new TypeError('ReadableStream uploading is not supported')
-				)
 				.mockResolvedValueOnce(
 					new Response('proxied', { headers: corsProxyHeaders })
 				);
@@ -477,9 +476,8 @@ describe('fetchWithCorsProxy', () => {
 				'https://proxy.test/?url='
 			);
 
-			// direct + probe + proxy
-			expect(fetchMock).toHaveBeenCalledTimes(3);
-			const proxyReq = fetchMock.mock.calls[2][0] as Request;
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const proxyReq = fetchMock.mock.calls[1][0] as Request;
 			expect(proxyReq.url).toBe(
 				'https://proxy.test/?url=https://example.com/upload'
 			);

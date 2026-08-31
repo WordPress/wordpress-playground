@@ -141,7 +141,7 @@ Personal Playground is deployed to my.wordpress.net via the `deploy-my-wordpress
 1. Builds the package with `npx nx build playground-personal-wp`
 2. Uploads the build as an artifact
 3. Deploys to WP Cloud hosting via rsync/SSH
-4. Uses the shared `website-deployment/` scripts for server configuration
+4. Applies the update with `website-deployment/my-wordpress-net/apply-update.sh`
 
 ### Required Secrets
 
