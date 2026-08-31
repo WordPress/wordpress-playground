@@ -60,6 +60,7 @@ const patternsToNotCache = [
 	 */
 	/^\/assets\/php_.*\.wasm$/, // PHP WASM files
 	/^\/assets\/php_.*\.js$/, // PHP JS files
+	/^\/php-next\/.*/, // PHP next runtime files
 	// Minified WordPress builds: tar.zst core bundles (vite hashes to
 	// wp-<v>.tar-<hash>.zst, so the emitted extension is .zst) + zip static bundles.
 	/^\/assets\/wp-.*\.(zip|zst)$/,
