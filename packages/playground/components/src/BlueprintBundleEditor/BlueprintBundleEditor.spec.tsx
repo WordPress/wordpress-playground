@@ -93,6 +93,34 @@ describe('BlueprintBundleEditor', () => {
 		expect(blueprintAtPreview).toBe('{"steps":[{"step":"login"}]}');
 	});
 
+	it('saves the latest edit before returning the bundle', async () => {
+		const editorRef = await renderEditor();
+		let blueprintContent: string | undefined;
+
+		act(() => mocks.changeCode?.('{"steps":[{"step":"login"}]}'));
+		await act(async () => {
+			const bundle = await editorRef.current?.getBundle();
+			blueprintContent = await bundle?.readFileAsText('/blueprint.json');
+		});
+
+		expect(blueprintContent).toBe('{"steps":[{"step":"login"}]}');
+	});
+
+	it('does not return a bundle when the pending edit cannot be saved', async () => {
+		vi.spyOn(filesystem, 'writeFile').mockRejectedValueOnce(
+			new Error('disk full')
+		);
+		const editorRef = await renderEditor();
+		let bundleWasReturned = true;
+
+		act(() => mocks.changeCode?.('{"steps":[{"step":"login"}]}'));
+		await act(async () => {
+			bundleWasReturned = Boolean(await editorRef.current?.getBundle());
+		});
+
+		expect(bundleWasReturned).toBe(false);
+	});
+
 	it('does not preview when the pending edit cannot be saved', async () => {
 		vi.spyOn(filesystem, 'writeFile').mockRejectedValueOnce(
 			new Error('disk full')
@@ -107,6 +135,56 @@ describe('BlueprintBundleEditor', () => {
 		expect(container.textContent).toContain(
 			'Could not save changes. Try again.'
 		);
+	});
+
+	it('clears a preview error after a successful retry', async () => {
+		const onPreview = vi
+			.fn()
+			.mockRejectedValueOnce(new Error('Preview failed'))
+			.mockResolvedValueOnce(undefined);
+		const editorRef = await renderEditor({ onPreview });
+
+		await act(async () => editorRef.current?.preview());
+		expect(container.textContent).toContain(
+			'Could not preview Blueprint. Try again.'
+		);
+
+		await act(async () => editorRef.current?.preview());
+		expect(container.textContent).not.toContain(
+			'Could not preview Blueprint. Try again.'
+		);
+	});
+
+	it('drops a pending edit when the filesystem changes', async () => {
+		const originalFilesystem = filesystem;
+		const editorRef = await renderEditor();
+		const replacementFilesystem = new EventedFilesystem(
+			new InMemoryFilesystemBackend()
+		);
+		await replacementFilesystem.writeFile(
+			'/blueprint.json',
+			'{"steps":[{"step":"replacement"}]}'
+		);
+
+		act(() => mocks.changeCode?.('{"steps":[{"step":"stale"}]}'));
+		act(() => {
+			root.render(
+				<BlueprintBundleEditor
+					ref={editorRef}
+					filesystem={replacementFilesystem}
+				/>
+			);
+		});
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 250));
+		});
+
+		expect(await originalFilesystem.readFileAsText('/blueprint.json')).toBe(
+			'{"steps":[]}'
+		);
+		expect(
+			await replacementFilesystem.readFileAsText('/blueprint.json')
+		).toBe('{"steps":[{"step":"replacement"}]}');
 	});
 
 	it('reports changes made through the shared filesystem', async () => {

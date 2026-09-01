@@ -276,7 +276,7 @@ describe('SiteBlueprintBundleEditor', () => {
 
 		expect(mocks.createStoredSite).not.toHaveBeenCalled();
 		expect(mocks.resolveRuntimeConfiguration).toHaveBeenCalledWith(
-			filesystem
+			filesystem.backend
 		);
 		expect(mocks.updateSite).toHaveBeenCalledWith({
 			slug: site.slug,
@@ -334,9 +334,12 @@ describe('SiteBlueprintBundleEditor', () => {
 
 		const { filesystem, onPreview } = await renderEditor(sourceSite);
 		let preview!: Promise<void>;
+		let duplicatePreview!: Promise<void>;
 		act(() => {
 			preview = onPreview(filesystem);
+			duplicatePreview = onPreview(filesystem);
 		});
+		await act(async () => duplicatePreview);
 		await act(async () => Promise.resolve());
 		expect(mocks.createStoredSite).not.toHaveBeenCalled();
 
@@ -373,10 +376,12 @@ describe('SiteBlueprintBundleEditor', () => {
 		await expect(onPreview(filesystem)).rejects.toThrow(
 			'Could not create site'
 		);
+		expect(mocks.setDockOperationNotice).not.toHaveBeenCalled();
 		await act(async () => onPreview(filesystem));
 
 		expect(mocks.createStoredSite).toHaveBeenCalledTimes(2);
 		expect(mocks.setActiveSite).toHaveBeenCalledWith(newSite.slug);
+		expect(mocks.setDockOperationNotice).toHaveBeenCalledOnce();
 	});
 
 	async function renderEditor(site: SiteInfo): Promise<{

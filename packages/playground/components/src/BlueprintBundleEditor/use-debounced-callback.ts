@@ -21,15 +21,16 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 		callbackRef.current = callback;
 	}, [callback, ...dependencies]);
 
-	// Cleanup on unmount
+	// Drop a pending call when its dependencies change or the component unmounts.
 	useEffect(() => {
 		return () => {
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current);
+				timeoutRef.current = null;
 			}
 			pendingArgsRef.current = null;
 		};
-	}, []);
+	}, [delay, ...dependencies]);
 
 	return useMemo(() => {
 		function debounced(...args: Parameters<T>) {

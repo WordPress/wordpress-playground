@@ -32,8 +32,7 @@ import {
 	Modal,
 	SelectControl,
 } from '@wordpress/components';
-import React from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	languageLabels,
 	type SupportedLanguage,

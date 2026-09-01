@@ -448,27 +448,15 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 	const handlePreview = useCallback(
 		async (previewFilesystem: EventedFilesystem) => {
-			if (runInProgressRef.current || !(await waitForOpfsSync())) {
+			if (runInProgressRef.current) {
 				return;
 			}
 			runInProgressRef.current = true;
-			const runInNewPlayground = isStoredSite(site);
 			try {
-				dispatch(
-					setDockOperationNotice(
-						runInNewPlayground
-							? {
-									status: 'success',
-									title: 'Blueprint is running in a new Playground',
-									message: 'Opening the new Playground now.',
-								}
-							: {
-									status: 'success',
-									title: 'Blueprint is running',
-									message: 'Recreating this Playground now.',
-								}
-					)
-				);
+				if (!(await waitForOpfsSync())) {
+					return;
+				}
+				const runInNewPlayground = isStoredSite(site);
 
 				if (runInNewPlayground) {
 					const returnSiteSlug =
@@ -485,6 +473,13 @@ export const SiteBlueprintBundleEditor = forwardRef<
 									returnSiteSlug,
 							}
 						)
+					);
+					dispatch(
+						setDockOperationNotice({
+							status: 'success',
+							title: 'Blueprint is running in a new Playground',
+							message: 'Opening the new Playground now.',
+						})
 					);
 					dispatch(setDockPaneOpen(false));
 					dispatch(setActiveSite(newSite.slug));
@@ -510,7 +505,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 				}
 
 				const runtimeConfiguration = await resolveRuntimeConfiguration(
-					previewFilesystem as any
+					previewFilesystem.backend
 				);
 				dispatch(removeClientInfo(site.slug));
 				await dispatch(
@@ -527,6 +522,13 @@ export const SiteBlueprintBundleEditor = forwardRef<
 							},
 							originalUrlParams: undefined,
 						},
+					})
+				);
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running',
+						message: 'Recreating this Playground now.',
 					})
 				);
 			} catch (error) {

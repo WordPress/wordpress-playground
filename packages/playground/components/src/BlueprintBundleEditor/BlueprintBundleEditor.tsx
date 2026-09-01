@@ -136,6 +136,11 @@ export const BlueprintBundleEditor = forwardRef<
 		[currentPath, isPreviewing, readOnly, saveFile]
 	);
 
+	const flushPendingSave = useCallback(async (): Promise<boolean> => {
+		saveFile.flush();
+		return saveBarrierRef.current;
+	}, [saveFile]);
+
 	// Load initial blueprint.json and focus tree
 	useEffect(() => {
 		let cancelled = false;
@@ -176,10 +181,10 @@ export const BlueprintBundleEditor = forwardRef<
 		previewInProgressRef.current = true;
 		setIsPreviewing(true);
 		try {
-			saveFile.flush();
-			if (!(await saveBarrierRef.current)) {
+			if (!(await flushPendingSave())) {
 				return;
 			}
+			setSaveError(null);
 			await onPreview(filesystem);
 		} catch (error) {
 			logger.error('Failed to preview Blueprint', error);
@@ -188,7 +193,7 @@ export const BlueprintBundleEditor = forwardRef<
 			previewInProgressRef.current = false;
 			setIsPreviewing(false);
 		}
-	}, [filesystem, hasValidationErrors, onPreview, saveFile]);
+	}, [filesystem, flushPendingSave, hasValidationErrors, onPreview]);
 
 	const handleFileOpened = useCallback(
 		(path: string, content: string, shouldFocus = true) => {
@@ -339,8 +344,7 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleDownloadBundle = useCallback(async () => {
 		try {
-			saveFile.flush();
-			if (!(await saveBarrierRef.current)) {
+			if (!(await flushPendingSave())) {
 				return;
 			}
 			const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
@@ -375,16 +379,20 @@ export const BlueprintBundleEditor = forwardRef<
 			logger.error('Failed to download bundle', error);
 			setSaveError('Could not download bundle. Try again.');
 		}
-	}, [filesystem, saveFile]);
+	}, [filesystem, flushPendingSave]);
+
+	const handleGetBundle = useCallback(async () => {
+		return (await flushPendingSave()) ? filesystem : null;
+	}, [filesystem, flushPendingSave]);
 
 	useImperativeHandle(
 		ref,
 		() => ({
 			downloadBundle: handleDownloadBundle,
-			getBundle: async () => filesystem,
+			getBundle: handleGetBundle,
 			preview: handlePreview,
 		}),
-		[filesystem, handleDownloadBundle, handlePreview]
+		[handleDownloadBundle, handleGetBundle, handlePreview]
 	);
 
 	const mobileExplorerToggle = (
