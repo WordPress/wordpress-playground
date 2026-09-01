@@ -88,22 +88,25 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
+	const hadServiceWorkerRegistration = !!(await sw.getRegistration());
 	const registration = await sw.register(serviceWorkerUrl + '', {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:
 		updateViaCache: 'none',
 	});
 
-	// Check if there's a new service worker available and, if so, enqueue
-	// the update:
-	try {
-		await registration.update();
-	} catch (e) {
-		// registration.update() throws if it can't reach the server.
-		// We're swallowing the error to keep the app working in offline mode
-		// or when playground.wordpress.net is down. We can be sure we have a
-		// functional service worker at this point because sw.register() succeeded.
-		logger.error('Failed to update service worker.', e);
+	// register() already fetches the Service Worker on the first visit. Existing
+	// registrations still need an explicit check for a newly deployed version.
+	if (hadServiceWorkerRegistration) {
+		try {
+			await registration.update();
+		} catch (e) {
+			// registration.update() throws if it can't reach the server.
+			// We're swallowing the error to keep the app working in offline mode
+			// or when playground.wordpress.net is down. We can be sure we have a
+			// functional service worker at this point because sw.register() succeeded.
+			logger.error('Failed to update service worker.', e);
+		}
 	}
 
 	/**
