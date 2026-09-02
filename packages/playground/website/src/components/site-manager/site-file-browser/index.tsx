@@ -1,4 +1,4 @@
-import { Icon } from '@wordpress/components';
+import { Icon, Notice } from '@wordpress/components';
 import { useMemo, useRef, useState } from 'react';
 import { logger } from '@php-wasm/logger';
 import { basename } from '@php-wasm/util';
@@ -61,6 +61,7 @@ export function SiteFileBrowser({
 	} | null>(null);
 	const [isMounting, setIsMounting] = useState(false);
 	const [mountError, setMountError] = useState<string | null>(null);
+	const [blueprintNotice, setBlueprintNotice] = useState<string | null>(null);
 
 	const handleMountSubmit = async (
 		submission: MountGitDirectorySubmission
@@ -126,7 +127,7 @@ export function SiteFileBrowser({
 				);
 			}
 
-			const appended = appendGitDirectoryStepToOriginalBlueprint(
+			const appended = await appendGitDirectoryStepToOriginalBlueprint(
 				site.metadata.originalBlueprint,
 				step
 			);
@@ -144,6 +145,10 @@ export function SiteFileBrowser({
 			};
 			if (appended) {
 				changes.originalBlueprint = appended.updated;
+			} else {
+				setBlueprintNotice(
+					`${targetFolderName} was mounted, but this Playground's Blueprint bundles local files, so it couldn't be updated automatically. Add an "${step.step}" step for ${url} yourself if you want it reflected there.`
+				);
 			}
 			await dispatch(updateSiteMetadata({ slug: site.slug, changes }));
 
@@ -165,7 +170,7 @@ export function SiteFileBrowser({
 		}
 	};
 
-	const handlePathRenamed = (oldPath: string, newPath: string) => {
+	const handlePathRenamed = async (oldPath: string, newPath: string) => {
 		const source = site.metadata.gitDirectorySources?.[oldPath];
 		if (!source) {
 			return;
@@ -180,20 +185,42 @@ export function SiteFileBrowser({
 			gitDirectorySources: newGitDirectorySources,
 		};
 		if (source.blueprintStepIndex !== undefined) {
-			const patched = patchGitDirectoryStepFolderName(
+			const patched = await patchGitDirectoryStepFolderName(
 				site.metadata.originalBlueprint,
 				source.blueprintStepIndex,
 				basename(newPath)
 			);
 			if (patched) {
 				changes.originalBlueprint = patched;
+			} else {
+				setBlueprintNotice(
+					`${basename(newPath)} was renamed, but this Playground's Blueprint could no longer be updated to match — its step still uses the old folder name.`
+				);
 			}
 		}
-		void dispatch(updateSiteMetadata({ slug: site.slug, changes }));
+		await dispatch(updateSiteMetadata({ slug: site.slug, changes }));
 	};
 
 	return (
-		<>
+		<div style={{ position: 'relative', height: '100%' }}>
+			{blueprintNotice ? (
+				<div
+					style={{
+						position: 'absolute',
+						top: 0,
+						left: 0,
+						right: 0,
+						zIndex: 10,
+					}}
+				>
+					<Notice
+						status="warning"
+						onRemove={() => setBlueprintNotice(null)}
+					>
+						{blueprintNotice}
+					</Notice>
+				</div>
+			) : null}
 			<PlaygroundFileEditor
 				ref={fileEditorRef}
 				filesystem={filesystem}
@@ -206,6 +233,7 @@ export function SiteFileBrowser({
 				pathBadges={pathBadges}
 				onMountFromGit={(kind, parentPath) => {
 					setMountError(null);
+					setBlueprintNotice(null);
 					setMountRequest({ kind, parentPath });
 				}}
 				onPathRenamed={handlePathRenamed}
@@ -219,7 +247,7 @@ export function SiteFileBrowser({
 					onCancel={() => setMountRequest(null)}
 				/>
 			) : null}
-		</>
+		</div>
 	);
 }
 
