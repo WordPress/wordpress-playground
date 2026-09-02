@@ -37,6 +37,7 @@ import {
 	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
+import { extractGitDirectorySource } from './git-directory-sources';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -238,28 +239,21 @@ export function bootSiteClient(
 		// surfaced as a badge in the Files browser.
 		const gitDirectorySources: Record<string, GitDirectorySource> = {};
 		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
-			if (step.step !== 'installPlugin' && step.step !== 'installTheme') {
+			const extracted = extractGitDirectorySource(step, result);
+			if (!extracted) {
 				return;
 			}
-			const resource =
-				(step as any).pluginData ?? (step as any).themeData;
-			if (
-				!resource ||
-				typeof resource !== 'object' ||
-				resource.resource !== 'git:directory'
-			) {
-				return;
-			}
-			const assetPath = (result as { assetPath?: string } | undefined)
-				?.assetPath;
-			if (!assetPath) {
-				return;
-			}
-			gitDirectorySources[assetPath] = {
-				url: resource.url,
-				ref: resource.ref,
-				refType: resource.refType,
-				path: resource.path,
+			// `blueprint` is the same `originalBlueprint` object reference on
+			// this path (see the `blueprint = site.metadata.originalBlueprint`
+			// assignment above), so its index in `steps` also identifies the
+			// step within `originalBlueprint` for a later rename to patch.
+			const steps = Array.isArray((blueprint as any)?.steps)
+				? ((blueprint as any).steps as unknown[])
+				: null;
+			const stepIndex = steps ? steps.indexOf(step) : -1;
+			gitDirectorySources[extracted.assetPath] = {
+				...extracted.source,
+				...(stepIndex >= 0 ? { blueprintStepIndex: stepIndex } : {}),
 			};
 		};
 		try {

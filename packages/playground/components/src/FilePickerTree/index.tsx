@@ -96,6 +96,15 @@ export type FilePickerTreeProps = {
 	onDoubleClickFile?: (path: string) => void;
 	/** Badges to render next to specific paths, keyed by absolute path. */
 	pathBadges?: Record<string, PathBadge>;
+	/**
+	 * Called when the user picks "Mount via git…" from the context menu on
+	 * the top-level `wp-content/plugins` or `wp-content/themes` folder.
+	 * Host-agnostic — the repository can be on GitHub, GitLab, or any other
+	 * git remote.
+	 */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/** Called after a folder is successfully renamed (not for files). */
+	onPathRenamed?: (oldPath: string, newPath: string) => void;
 };
 
 export type FilePickerTreeHandle = {
@@ -164,10 +173,20 @@ export const FilePickerTree = forwardRef<
 		onSelect = () => {},
 		onDoubleClickFile,
 		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
 	},
 	ref
 ) {
 	const normalizedRoot = useMemo(() => joinPaths('/', root || '/'), [root]);
+	const pluginsPath = useMemo(
+		() => joinPaths(normalizedRoot, 'wp-content', 'plugins'),
+		[normalizedRoot]
+	);
+	const themesPath = useMemo(
+		() => joinPaths(normalizedRoot, 'wp-content', 'themes'),
+		[normalizedRoot]
+	);
 
 	const [expanded, setExpanded] = useState<ExpandedNodePaths>(() => {
 		if (!initialSelectedPath) {
@@ -1265,6 +1284,9 @@ export const FilePickerTree = forwardRef<
 			}
 			if (candidateIsDir) {
 				remapPathState(path, candidateNormalized);
+				if (!isPending) {
+					onPathRenamed?.(path, candidateNormalized);
+				}
 			}
 			if (selectedPath === path) {
 				onSelect(candidateNormalized);
@@ -1409,6 +1431,25 @@ export const FilePickerTree = forwardRef<
 								Create directory
 							</MenuItem>
 						)}
+						{onMountFromGit &&
+							contextMenu.type === 'folder' &&
+							(contextMenu.absPath === pluginsPath ||
+								contextMenu.absPath === themesPath) && (
+								<MenuItem
+									role="menuitem"
+									onClick={() => {
+										setContextMenu(null);
+										onMountFromGit(
+											contextMenu.absPath === pluginsPath
+												? 'plugin'
+												: 'theme',
+											contextMenu.absPath
+										);
+									}}
+								>
+									Mount via git…
+								</MenuItem>
+							)}
 						<MenuItem
 							role="menuitem"
 							onClick={() => {
