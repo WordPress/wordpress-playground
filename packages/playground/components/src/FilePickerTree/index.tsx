@@ -1909,7 +1909,7 @@ const FileName: React.FC<{
 	const badgeRef = useRef<HTMLSpanElement>(null);
 	const [tooltipAnchor, setTooltipAnchor] = useState<{
 		top: number;
-		right: number;
+		left: number;
 	} | null>(null);
 	return (
 		<>
@@ -1942,7 +1942,7 @@ const FileName: React.FC<{
 						if (rect) {
 							setTooltipAnchor({
 								top: rect.top,
-								right: window.innerWidth - rect.right,
+								left: rect.left,
 							});
 						}
 					}}
@@ -1956,7 +1956,7 @@ const FileName: React.FC<{
 									role="tooltip"
 									style={{
 										top: tooltipAnchor.top,
-										right: tooltipAnchor.right,
+										left: tooltipAnchor.left,
 									}}
 								>
 									{badge.tooltip}
