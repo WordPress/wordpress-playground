@@ -1,11 +1,12 @@
 import type { StepDefinition } from '@wp-playground/blueprints';
+import type { GitDirectorySource } from './slice-sites';
 import {
-	appendGitDirectoryStepToOriginalBlueprint,
+	buildGitDirectoryStep,
+	buildUpdatedBlueprintDeclaration,
 	deriveFolderNameFromGitUrl,
 	extractGitDirectorySource,
 	normalizeGitUrl,
 	parseGitHubTreeUrl,
-	patchGitDirectoryStepFolderName,
 } from './git-directory-sources';
 
 const gitInstallPluginStep: StepDefinition = {
@@ -17,6 +18,12 @@ const gitInstallPluginStep: StepDefinition = {
 		path: 'packages/playground',
 	},
 } as any;
+
+const gitSource: GitDirectorySource = {
+	url: 'https://github.com/WordPress/wordpress-playground',
+	ref: 'trunk',
+	path: 'packages/playground',
+};
 
 /** A minimal bundle-shaped mock: anything with a `read()` method satisfies `isBlueprintBundle`. */
 function mockBundle(declaration: Record<string, unknown>) {
@@ -64,148 +71,135 @@ describe('extractGitDirectorySource', () => {
 	});
 });
 
-describe('appendGitDirectoryStepToOriginalBlueprint', () => {
-	it('appends the step to an existing declaration and reports its index', async () => {
+describe('buildGitDirectoryStep', () => {
+	it('builds an installPlugin step for a plugins-folder path', () => {
+		const step = buildGitDirectoryStep(
+			'/wordpress/wp-content/plugins/hello-dolly',
+			gitSource
+		) as any;
+		expect(step.step).toBe('installPlugin');
+		expect(step.pluginData).toEqual({
+			resource: 'git:directory',
+			url: gitSource.url,
+			ref: gitSource.ref,
+			path: gitSource.path,
+		});
+		expect(step.options).toEqual({
+			activate: false,
+			targetFolderName: 'hello-dolly',
+		});
+	});
+
+	it('builds an installTheme step for a themes-folder path', () => {
+		const step = buildGitDirectoryStep(
+			'/wordpress/wp-content/themes/my-theme',
+			gitSource
+		) as any;
+		expect(step.step).toBe('installTheme');
+		expect(step.themeData.resource).toBe('git:directory');
+		expect(step.options.targetFolderName).toBe('my-theme');
+	});
+
+	it('uses the current basename, reflecting a rename', () => {
+		const step = buildGitDirectoryStep(
+			'/wordpress/wp-content/plugins/renamed-plugin',
+			gitSource
+		) as any;
+		expect(step.options.targetFolderName).toBe('renamed-plugin');
+	});
+
+	it('omits refType/path when absent', () => {
+		const step = buildGitDirectoryStep('/wordpress/wp-content/plugins/x', {
+			url: gitSource.url,
+			ref: gitSource.ref,
+		}) as any;
+		expect(step.pluginData).toEqual({
+			resource: 'git:directory',
+			url: gitSource.url,
+			ref: gitSource.ref,
+		});
+	});
+});
+
+describe('buildUpdatedBlueprintDeclaration', () => {
+	it('appends a step only for sources marked addedLive', async () => {
 		const originalBlueprint = { steps: [{ step: 'login' }] };
-		const result = await appendGitDirectoryStepToOriginalBlueprint(
+		const declaration = await buildUpdatedBlueprintDeclaration(
 			originalBlueprint,
-			gitInstallPluginStep
+			{
+				'/wordpress/wp-content/plugins/from-boot': gitSource, // not addedLive
+				'/wordpress/wp-content/plugins/from-mount': {
+					...gitSource,
+					addedLive: true,
+				},
+			}
 		);
-		expect(result).not.toBeNull();
-		expect(result!.stepIndex).toBe(1);
-		expect((result!.updated as any).steps).toEqual([
-			{ step: 'login' },
-			gitInstallPluginStep,
-		]);
+		expect((declaration as any).steps).toHaveLength(2);
+		expect((declaration as any).steps[0]).toEqual({ step: 'login' });
+		expect((declaration as any).steps[1].options.targetFolderName).toBe(
+			'from-mount'
+		);
 		// The original declaration is not mutated in place.
 		expect(originalBlueprint.steps).toHaveLength(1);
 	});
 
+	it('returns the base declaration unchanged when there are no live mounts', async () => {
+		const originalBlueprint = { steps: [{ step: 'login' }] };
+		const declaration = await buildUpdatedBlueprintDeclaration(
+			originalBlueprint,
+			{ '/wordpress/wp-content/plugins/from-boot': gitSource }
+		);
+		expect(declaration).toEqual(originalBlueprint);
+	});
+
+	it('returns an empty declaration when originalBlueprint is missing and there are no live mounts', async () => {
+		expect(
+			await buildUpdatedBlueprintDeclaration(undefined, undefined)
+		).toEqual({});
+	});
+
 	it('seeds a steps array when originalBlueprint has none', async () => {
-		const result = await appendGitDirectoryStepToOriginalBlueprint(
+		const declaration = await buildUpdatedBlueprintDeclaration(
 			{ preferredVersions: { php: '8.2' } },
-			gitInstallPluginStep
-		);
-		expect(result!.stepIndex).toBe(0);
-		expect((result!.updated as any).steps).toEqual([gitInstallPluginStep]);
-	});
-
-	it('seeds a steps array when originalBlueprint is missing entirely', async () => {
-		const result = await appendGitDirectoryStepToOriginalBlueprint(
-			undefined,
-			gitInstallPluginStep
-		);
-		expect(result!.stepIndex).toBe(0);
-		expect((result!.updated as any).steps).toEqual([gitInstallPluginStep]);
-	});
-
-	it('returns null for a real bundle whose declaration references bundled files', async () => {
-		const bundle = mockBundle({
-			steps: [
-				{
-					step: 'importFile',
-					file: { resource: 'bundled', path: 'content.xml' },
+			{
+				'/wordpress/wp-content/plugins/from-mount': {
+					...gitSource,
+					addedLive: true,
 				},
-			],
-		});
-		expect(
-			await appendGitDirectoryStepToOriginalBlueprint(
-				bundle,
-				gitInstallPluginStep
-			)
-		).toBeNull();
+			}
+		);
+		expect((declaration as any).steps).toHaveLength(1);
 	});
 
-	it('returns null when the bundle cannot be read as JSON', async () => {
-		const bundle = { read: async () => new Blob(['not json']) };
-		expect(
-			await appendGitDirectoryStepToOriginalBlueprint(
-				bundle,
-				gitInstallPluginStep
-			)
-		).toBeNull();
-	});
-
-	it('flattens a bundle-shaped wrapper into a plain declaration when it references no bundled files', async () => {
+	it('flattens a bundle-shaped wrapper into a plain declaration', async () => {
 		// This is the shape a plain remote-JSON Blueprint (e.g. the default
 		// "New Playground" welcome Blueprint, or `?blueprint-url=...`) takes
 		// once wrapped for `resource: "bundled"` resolution — see
-		// resolveRemoteBlueprint(). It carries no bundled files itself, so
-		// it should be safely appendable.
+		// resolveRemoteBlueprint(). Since this is only ever used to build a
+		// preview (never written back to the site), it's safe to read
+		// through it regardless of what it wraps.
 		const wrapper = mockBundle({ steps: [{ step: 'login' }] });
-		const result = await appendGitDirectoryStepToOriginalBlueprint(
-			wrapper,
-			gitInstallPluginStep
-		);
-		expect(result).not.toBeNull();
-		expect(result!.stepIndex).toBe(1);
-		expect((result!.updated as any).steps).toEqual([
+		const declaration = await buildUpdatedBlueprintDeclaration(wrapper, {
+			'/wordpress/wp-content/plugins/from-mount': {
+				...gitSource,
+				addedLive: true,
+			},
+		});
+		expect((declaration as any).steps).toEqual([
 			{ step: 'login' },
-			gitInstallPluginStep,
+			expect.objectContaining({ step: 'installPlugin' }),
 		]);
 	});
-});
 
-describe('patchGitDirectoryStepFolderName', () => {
-	it('sets targetFolderName on the step at the given index', async () => {
-		const originalBlueprint = { steps: [gitInstallPluginStep] };
-		const patched = await patchGitDirectoryStepFolderName(
-			originalBlueprint,
-			0,
-			'renamed-plugin'
-		);
-		expect((patched as any).steps[0].options.targetFolderName).toBe(
-			'renamed-plugin'
-		);
-		// Everything else about the step is preserved.
-		expect((patched as any).steps[0].pluginData).toEqual(
-			(gitInstallPluginStep as any).pluginData
-		);
-	});
-
-	it('preserves other existing options', async () => {
-		const stepWithOptions: StepDefinition = {
-			...gitInstallPluginStep,
-			options: { activate: false },
-		} as any;
-		const patched = await patchGitDirectoryStepFolderName(
-			{ steps: [stepWithOptions] },
-			0,
-			'renamed-plugin'
-		);
-		expect((patched as any).steps[0].options).toEqual({
-			activate: false,
-			targetFolderName: 'renamed-plugin',
+	it('falls back to an empty base when a bundle cannot be read as JSON', async () => {
+		const bundle = { read: async () => new Blob(['not json']) };
+		const declaration = await buildUpdatedBlueprintDeclaration(bundle, {
+			'/wordpress/wp-content/plugins/from-mount': {
+				...gitSource,
+				addedLive: true,
+			},
 		});
-	});
-
-	it('returns null when the index does not point at an install step', async () => {
-		const originalBlueprint = { steps: [{ step: 'login' }] };
-		expect(
-			await patchGitDirectoryStepFolderName(originalBlueprint, 0, 'x')
-		).toBeNull();
-	});
-
-	it('returns null when the index is out of range', async () => {
-		const originalBlueprint = { steps: [gitInstallPluginStep] };
-		expect(
-			await patchGitDirectoryStepFolderName(originalBlueprint, 5, 'x')
-		).toBeNull();
-	});
-
-	it('returns null for a real bundle whose declaration references bundled files', async () => {
-		const bundle = mockBundle({
-			steps: [
-				gitInstallPluginStep,
-				{
-					step: 'importFile',
-					file: { resource: 'bundled', path: 'content.xml' },
-				},
-			],
-		});
-		expect(
-			await patchGitDirectoryStepFolderName(bundle, 0, 'renamed-plugin')
-		).toBeNull();
+		expect((declaration as any).steps).toHaveLength(1);
 	});
 });
 

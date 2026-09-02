@@ -46,31 +46,24 @@ export function extractGitDirectorySource(
 }
 
 /**
- * Resolves `originalBlueprint` to a plain, editable declaration object, or
- * null when it can't be safely turned into one.
+ * Resolves `originalBlueprint` to a plain declaration object, best-effort.
  *
  * `originalBlueprint` is bundle-shaped (has a `.read()` method,
- * `isBlueprintBundle()`) in two very different situations:
- *  - A real ZIP-style Blueprint bundle, carrying local files (e.g. a WXR
- *    import or a zipped plugin) that its declaration references via
- *    `resource: "bundled"`. Flattening this to a plain declaration would
- *    silently break those references on the next boot — those files only
- *    exist inside the bundle.
- *  - A read-only wrapper Playground puts around *any* remote-JSON
- *    Blueprint (e.g. `?blueprint-url=...`, or the default "New Playground"
- *    welcome Blueprint) purely so `resource: "bundled"` references would
- *    resolve relative to the URL it was fetched from. When the
- *    declaration doesn't actually use any `bundled` reference, this
- *    wrapper carries no information worth preserving, and can be safely
- *    flattened.
- *
- * This distinguishes the two by inspecting the declaration itself rather
- * than the wrapper: if it references a `resource: "bundled"` value
- * anywhere, treat it as non-appendable.
+ * `isBlueprintBundle()`) both for a real ZIP-style Blueprint bundle (which
+ * carries local files its declaration references via
+ * `resource: "bundled"`) and for the read-only wrapper Playground puts
+ * around *any* remote-JSON Blueprint (e.g. `?blueprint-url=...`, or the
+ * default "New Playground" welcome Blueprint) purely so `resource:
+ * "bundled"` references would resolve relative to the URL it was fetched
+ * from. Either way, only its `blueprint.json` declaration — not any
+ * bundled files — is of interest here: this is only ever used to build a
+ * *preview* the user can inspect and compare, never written back to the
+ * site, so there's nothing to lose by dropping bundled-file references
+ * that can't be represented outside the original bundle.
  */
-async function resolveAppendableDeclaration(
+async function resolveDeclaration(
 	originalBlueprint: unknown
-): Promise<Record<string, unknown> | null> {
+): Promise<Record<string, unknown>> {
 	if (!originalBlueprint) {
 		return {};
 	}
@@ -79,87 +72,68 @@ async function resolveAppendableDeclaration(
 			? (originalBlueprint as Record<string, unknown>)
 			: {};
 	}
-	let declaration: Record<string, unknown>;
 	try {
-		declaration = (await getBlueprintDeclaration(
+		return (await getBlueprintDeclaration(
 			originalBlueprint as any
 		)) as Record<string, unknown>;
 	} catch {
-		return null;
+		return {};
 	}
-	if (JSON.stringify(declaration).includes('"resource":"bundled"')) {
-		return null;
-	}
-	return declaration;
 }
 
 /**
- * Appends a step to a site's `originalBlueprint`, returning the updated
- * value and the new step's index. Returns null when `originalBlueprint`
- * can't be safely turned into an editable declaration (see
- * `resolveAppendableDeclaration`).
+ * Builds the `installPlugin`/`installTheme` step for one git-mounted
+ * folder, from its current path (which reflects any rename) and recorded
+ * source. The install kind (plugin vs theme) is inferred from the path.
  */
-export async function appendGitDirectoryStepToOriginalBlueprint(
+export function buildGitDirectoryStep(
+	path: string,
+	source: GitDirectorySource
+): StepDefinition {
+	const targetFolderName = path.split('/').filter(Boolean).pop() || path;
+	const resource = {
+		resource: 'git:directory' as const,
+		url: source.url,
+		ref: source.ref,
+		...(source.refType ? { refType: source.refType } : {}),
+		...(source.path ? { path: source.path } : {}),
+	};
+	return path.includes('/wp-content/themes/')
+		? ({
+				step: 'installTheme',
+				themeData: resource,
+				options: { activate: false, targetFolderName },
+			} as StepDefinition)
+		: ({
+				step: 'installPlugin',
+				pluginData: resource,
+				options: { activate: false, targetFolderName },
+			} as StepDefinition);
+}
+
+/**
+ * Builds a full Blueprint declaration reflecting the site's original
+ * Blueprint plus every plugin/theme mounted live via "Mount via git…"
+ * (`source.addedLive`) — freshly generated from current state every time,
+ * so it's always accurate regardless of renames and never requires
+ * mutating the site's stored Blueprint in place. Meant for the user to
+ * open and compare against the original, not to replace it.
+ */
+export async function buildUpdatedBlueprintDeclaration(
 	originalBlueprint: unknown,
-	step: StepDefinition
-): Promise<{ updated: unknown; stepIndex: number } | null> {
-	const base = await resolveAppendableDeclaration(originalBlueprint);
-	if (!base) {
-		return null;
-	}
+	gitDirectorySources: Record<string, GitDirectorySource> | undefined
+): Promise<Record<string, unknown>> {
+	const base = await resolveDeclaration(originalBlueprint);
 	const existingSteps = Array.isArray(base['steps'])
 		? (base['steps'] as unknown[])
 		: [];
-	const updatedSteps = [...existingSteps, step];
-	return {
-		updated: { ...base, steps: updatedSteps },
-		stepIndex: updatedSteps.length - 1,
-	};
-}
-
-/**
- * Patches the `targetFolderName` of an `installPlugin`/`installTheme` step
- * at `stepIndex` within a site's `originalBlueprint`, e.g. after the user
- * renames the folder it installed into.
- *
- * Returns null when `originalBlueprint` can't be safely turned into an
- * editable declaration (see `resolveAppendableDeclaration`), or when the
- * step at `stepIndex` no longer looks like an install step (the Blueprint
- * may have been hand-edited since).
- */
-export async function patchGitDirectoryStepFolderName(
-	originalBlueprint: unknown,
-	stepIndex: number,
-	newFolderName: string
-): Promise<unknown | null> {
-	const base = await resolveAppendableDeclaration(originalBlueprint);
-	if (!base) {
-		return null;
+	const liveSteps = Object.entries(gitDirectorySources ?? {})
+		.filter(([, source]) => source.addedLive)
+		.map(([path, source]) => buildGitDirectoryStep(path, source));
+	if (liveSteps.length === 0) {
+		return base;
 	}
-	const steps = Array.isArray(base['steps'])
-		? (base['steps'] as unknown[])
-		: null;
-	const existingStep = steps?.[stepIndex] as
-		| { step?: string; options?: Record<string, unknown> }
-		| undefined;
-	if (
-		!steps ||
-		!existingStep ||
-		typeof existingStep !== 'object' ||
-		(existingStep.step !== 'installPlugin' &&
-			existingStep.step !== 'installTheme')
-	) {
-		return null;
-	}
-	const updatedSteps = [...steps];
-	updatedSteps[stepIndex] = {
-		...existingStep,
-		options: {
-			...existingStep.options,
-			targetFolderName: newFolderName,
-		},
-	};
-	return { ...base, steps: updatedSteps };
+	return { ...base, steps: [...existingSteps, ...liveSteps] };
 }
 
 /**
