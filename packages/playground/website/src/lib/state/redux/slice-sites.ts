@@ -893,14 +893,13 @@ export interface GitDirectorySource {
 	/** The path to the directory within the git repository, if not the root. */
 	path?: string;
 	/**
-	 * Index of the corresponding `installPlugin`/`installTheme` step within
-	 * `SiteMetadata.originalBlueprint`'s `steps` array, when known. Lets a
-	 * later rename of the mounted folder patch that step's
-	 * `options.targetFolderName` to match. Absent when `originalBlueprint`
-	 * is a filesystem bundle rather than a plain declaration (the step
-	 * can't be safely patched in that case).
+	 * True when this folder was mounted live via the Files browser's "Mount
+	 * via git…" action, rather than by a Blueprint step that ran at boot.
+	 * Distinguishes the two so a generated Blueprint preview (see
+	 * `buildUpdatedBlueprintDeclaration`) only adds steps for the ones not
+	 * already part of the original Blueprint.
 	 */
-	blueprintStepIndex?: number;
+	addedLive?: boolean;
 }
 
 // TODO: Create a schema for this as the design matures

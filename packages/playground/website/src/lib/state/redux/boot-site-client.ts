@@ -243,18 +243,10 @@ export function bootSiteClient(
 			if (!extracted) {
 				return;
 			}
-			// `blueprint` is the same `originalBlueprint` object reference on
-			// this path (see the `blueprint = site.metadata.originalBlueprint`
-			// assignment above), so its index in `steps` also identifies the
-			// step within `originalBlueprint` for a later rename to patch.
-			const steps = Array.isArray((blueprint as any)?.steps)
-				? ((blueprint as any).steps as unknown[])
-				: null;
-			const stepIndex = steps ? steps.indexOf(step) : -1;
-			gitDirectorySources[extracted.assetPath] = {
-				...extracted.source,
-				...(stepIndex >= 0 ? { blueprintStepIndex: stepIndex } : {}),
-			};
+			// No `addedLive` flag: this step ran as part of the site's own
+			// Blueprint at boot, so it's already represented there — unlike
+			// a folder mounted afterwards via the Files browser.
+			gitDirectorySources[extracted.assetPath] = extracted.source;
 		};
 		try {
 			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
