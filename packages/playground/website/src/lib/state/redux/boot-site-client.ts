@@ -387,17 +387,27 @@ export function bootSiteClient(
 		const connectedPlayground = playground as PlaygroundClient;
 
 		if (Object.keys(gitDirectorySources).length > 0) {
-			await dispatch(
-				updateSiteMetadata({
-					slug: site.slug,
-					changes: {
-						gitDirectorySources: {
-							...site.metadata.gitDirectorySources,
-							...gitDirectorySources,
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							gitDirectorySources: {
+								...site.metadata.gitDirectorySources,
+								...gitDirectorySources,
+							},
 						},
-					},
-				})
-			);
+					})
+				);
+			} catch (error) {
+				// Best-effort: the site is already connected at this point,
+				// so a failure to persist provenance metadata shouldn't
+				// abort the rest of client setup below.
+				logger.error(
+					'Error persisting git directory source metadata',
+					error
+				);
+			}
 		}
 
 		setupPostMessageRelay(iframe, document.location.origin);
