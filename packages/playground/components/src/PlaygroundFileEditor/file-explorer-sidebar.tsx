@@ -13,6 +13,7 @@ import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
 	type FilePickerTreeHandle,
+	type PathBadge,
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
@@ -49,6 +50,8 @@ export type FileExplorerSidebarProps = {
 	showBinaryPreviewHeader?: boolean;
 	dockPresentation?: boolean;
 	useWordPressTooltips?: boolean;
+	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
 };
 
 /**
@@ -69,6 +72,7 @@ export function FileExplorerSidebar({
 	showBinaryPreviewHeader = true,
 	dockPresentation = false,
 	useWordPressTooltips = false,
+	pathBadges,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -398,6 +402,7 @@ export function FileExplorerSidebar({
 					filesystem={filesystem}
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}
+					pathBadges={pathBadges}
 					onSelect={async (path) => {
 						if (!path) {
 							setSelectedDirPath(documentRoot);

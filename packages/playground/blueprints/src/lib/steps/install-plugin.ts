@@ -103,8 +103,13 @@ export interface InstallPluginOptions {
  * @param pluginData The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
+export interface InstallPluginResult {
+	assetPath: string;
+}
+
 export const installPlugin: StepHandler<
-	InstallPluginStep<File, Directory>
+	InstallPluginStep<File, Directory>,
+	Promise<InstallPluginResult | undefined>
 > = async (
 	playground,
 	{ pluginData, pluginZipFile, ifAlreadyInstalled, options = {} },
@@ -232,6 +237,8 @@ export const installPlugin: StepHandler<
 				}
 			}
 		}
+
+		return { assetPath };
 	} catch (error) {
 		if (options.onError === 'skip-plugin') {
 			const skippedPluginName = progressName() || 'unknown plugin';
