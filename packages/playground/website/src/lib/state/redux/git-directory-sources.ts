@@ -1,4 +1,5 @@
 import {
+	getBlueprintDeclaration,
 	isBlueprintBundle,
 	type StepDefinition,
 } from '@wp-playground/blueprints';
@@ -45,26 +46,67 @@ export function extractGitDirectorySource(
 }
 
 /**
- * Appends a step to a site's `originalBlueprint`, returning the updated
- * value and the new step's index.
+ * Resolves `originalBlueprint` to a plain, editable declaration object, or
+ * null when it can't be safely turned into one.
  *
- * Returns null when `originalBlueprint` is a filesystem-backed
- * `BlueprintBundle` rather than a plain declaration — bundles back
- * saved/bundled sites and are intentionally left untouched here, the same
- * way `SiteBlueprintBundleEditor` avoids mutating a persisted bundle in
- * place.
+ * `originalBlueprint` is bundle-shaped (has a `.read()` method,
+ * `isBlueprintBundle()`) in two very different situations:
+ *  - A real ZIP-style Blueprint bundle, carrying local files (e.g. a WXR
+ *    import or a zipped plugin) that its declaration references via
+ *    `resource: "bundled"`. Flattening this to a plain declaration would
+ *    silently break those references on the next boot — those files only
+ *    exist inside the bundle.
+ *  - A read-only wrapper Playground puts around *any* remote-JSON
+ *    Blueprint (e.g. `?blueprint-url=...`, or the default "New Playground"
+ *    welcome Blueprint) purely so `resource: "bundled"` references would
+ *    resolve relative to the URL it was fetched from. When the
+ *    declaration doesn't actually use any `bundled` reference, this
+ *    wrapper carries no information worth preserving, and can be safely
+ *    flattened.
+ *
+ * This distinguishes the two by inspecting the declaration itself rather
+ * than the wrapper: if it references a `resource: "bundled"` value
+ * anywhere, treat it as non-appendable.
  */
-export function appendGitDirectoryStepToOriginalBlueprint(
-	originalBlueprint: unknown,
-	step: StepDefinition
-): { updated: unknown; stepIndex: number } | null {
-	if (originalBlueprint && isBlueprintBundle(originalBlueprint)) {
-		return null;
+async function resolveAppendableDeclaration(
+	originalBlueprint: unknown
+): Promise<Record<string, unknown> | null> {
+	if (!originalBlueprint) {
+		return {};
 	}
-	const base =
-		originalBlueprint && typeof originalBlueprint === 'object'
+	if (!isBlueprintBundle(originalBlueprint)) {
+		return typeof originalBlueprint === 'object'
 			? (originalBlueprint as Record<string, unknown>)
 			: {};
+	}
+	let declaration: Record<string, unknown>;
+	try {
+		declaration = (await getBlueprintDeclaration(
+			originalBlueprint as any
+		)) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+	if (JSON.stringify(declaration).includes('"resource":"bundled"')) {
+		return null;
+	}
+	return declaration;
+}
+
+/**
+ * Appends a step to a site's `originalBlueprint`, returning the updated
+ * value and the new step's index. Returns null when `originalBlueprint`
+ * can't be safely turned into an editable declaration (see
+ * `resolveAppendableDeclaration`).
+ */
+export async function appendGitDirectoryStepToOriginalBlueprint(
+	originalBlueprint: unknown,
+	step: StepDefinition
+): Promise<{ updated: unknown; stepIndex: number } | null> {
+	const base = await resolveAppendableDeclaration(originalBlueprint);
+	if (!base) {
+		return null;
+	}
 	const existingSteps = Array.isArray(base['steps'])
 		? (base['steps'] as unknown[])
 		: [];
@@ -80,19 +122,20 @@ export function appendGitDirectoryStepToOriginalBlueprint(
  * at `stepIndex` within a site's `originalBlueprint`, e.g. after the user
  * renames the folder it installed into.
  *
- * Returns null when `originalBlueprint` is a filesystem bundle, or when
- * the step at `stepIndex` no longer looks like an install step (the
- * Blueprint may have been hand-edited since).
+ * Returns null when `originalBlueprint` can't be safely turned into an
+ * editable declaration (see `resolveAppendableDeclaration`), or when the
+ * step at `stepIndex` no longer looks like an install step (the Blueprint
+ * may have been hand-edited since).
  */
-export function patchGitDirectoryStepFolderName(
+export async function patchGitDirectoryStepFolderName(
 	originalBlueprint: unknown,
 	stepIndex: number,
 	newFolderName: string
-): unknown | null {
-	if (!originalBlueprint || isBlueprintBundle(originalBlueprint)) {
+): Promise<unknown | null> {
+	const base = await resolveAppendableDeclaration(originalBlueprint);
+	if (!base) {
 		return null;
 	}
-	const base = originalBlueprint as Record<string, unknown>;
 	const steps = Array.isArray(base['steps'])
 		? (base['steps'] as unknown[])
 		: null;

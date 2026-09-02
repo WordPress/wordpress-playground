@@ -18,6 +18,13 @@ const gitInstallPluginStep: StepDefinition = {
 	},
 } as any;
 
+/** A minimal bundle-shaped mock: anything with a `read()` method satisfies `isBlueprintBundle`. */
+function mockBundle(declaration: Record<string, unknown>) {
+	return {
+		read: async () => new Blob([JSON.stringify(declaration)]),
+	};
+}
+
 describe('extractGitDirectorySource', () => {
 	it('extracts the repo, ref, and resolved path from a git:directory installPlugin step', () => {
 		const extracted = extractGitDirectorySource(gitInstallPluginStep, {
@@ -58,9 +65,9 @@ describe('extractGitDirectorySource', () => {
 });
 
 describe('appendGitDirectoryStepToOriginalBlueprint', () => {
-	it('appends the step to an existing declaration and reports its index', () => {
+	it('appends the step to an existing declaration and reports its index', async () => {
 		const originalBlueprint = { steps: [{ step: 'login' }] };
-		const result = appendGitDirectoryStepToOriginalBlueprint(
+		const result = await appendGitDirectoryStepToOriginalBlueprint(
 			originalBlueprint,
 			gitInstallPluginStep
 		);
@@ -74,8 +81,8 @@ describe('appendGitDirectoryStepToOriginalBlueprint', () => {
 		expect(originalBlueprint.steps).toHaveLength(1);
 	});
 
-	it('seeds a steps array when originalBlueprint has none', () => {
-		const result = appendGitDirectoryStepToOriginalBlueprint(
+	it('seeds a steps array when originalBlueprint has none', async () => {
+		const result = await appendGitDirectoryStepToOriginalBlueprint(
 			{ preferredVersions: { php: '8.2' } },
 			gitInstallPluginStep
 		);
@@ -83,26 +90,66 @@ describe('appendGitDirectoryStepToOriginalBlueprint', () => {
 		expect((result!.updated as any).steps).toEqual([gitInstallPluginStep]);
 	});
 
-	it('returns null for a filesystem-backed BlueprintBundle', () => {
-		const bundle = {
-			listFiles: async () => [],
-			isDir: async () => false,
-			read: async () => new Blob(),
-			fileExists: async () => false,
-		};
+	it('seeds a steps array when originalBlueprint is missing entirely', async () => {
+		const result = await appendGitDirectoryStepToOriginalBlueprint(
+			undefined,
+			gitInstallPluginStep
+		);
+		expect(result!.stepIndex).toBe(0);
+		expect((result!.updated as any).steps).toEqual([gitInstallPluginStep]);
+	});
+
+	it('returns null for a real bundle whose declaration references bundled files', async () => {
+		const bundle = mockBundle({
+			steps: [
+				{
+					step: 'importFile',
+					file: { resource: 'bundled', path: 'content.xml' },
+				},
+			],
+		});
 		expect(
-			appendGitDirectoryStepToOriginalBlueprint(
+			await appendGitDirectoryStepToOriginalBlueprint(
 				bundle,
 				gitInstallPluginStep
 			)
 		).toBeNull();
 	});
+
+	it('returns null when the bundle cannot be read as JSON', async () => {
+		const bundle = { read: async () => new Blob(['not json']) };
+		expect(
+			await appendGitDirectoryStepToOriginalBlueprint(
+				bundle,
+				gitInstallPluginStep
+			)
+		).toBeNull();
+	});
+
+	it('flattens a bundle-shaped wrapper into a plain declaration when it references no bundled files', async () => {
+		// This is the shape a plain remote-JSON Blueprint (e.g. the default
+		// "New Playground" welcome Blueprint, or `?blueprint-url=...`) takes
+		// once wrapped for `resource: "bundled"` resolution — see
+		// resolveRemoteBlueprint(). It carries no bundled files itself, so
+		// it should be safely appendable.
+		const wrapper = mockBundle({ steps: [{ step: 'login' }] });
+		const result = await appendGitDirectoryStepToOriginalBlueprint(
+			wrapper,
+			gitInstallPluginStep
+		);
+		expect(result).not.toBeNull();
+		expect(result!.stepIndex).toBe(1);
+		expect((result!.updated as any).steps).toEqual([
+			{ step: 'login' },
+			gitInstallPluginStep,
+		]);
+	});
 });
 
 describe('patchGitDirectoryStepFolderName', () => {
-	it('sets targetFolderName on the step at the given index', () => {
+	it('sets targetFolderName on the step at the given index', async () => {
 		const originalBlueprint = { steps: [gitInstallPluginStep] };
-		const patched = patchGitDirectoryStepFolderName(
+		const patched = await patchGitDirectoryStepFolderName(
 			originalBlueprint,
 			0,
 			'renamed-plugin'
@@ -116,12 +163,12 @@ describe('patchGitDirectoryStepFolderName', () => {
 		);
 	});
 
-	it('preserves other existing options', () => {
+	it('preserves other existing options', async () => {
 		const stepWithOptions: StepDefinition = {
 			...gitInstallPluginStep,
 			options: { activate: false },
 		} as any;
-		const patched = patchGitDirectoryStepFolderName(
+		const patched = await patchGitDirectoryStepFolderName(
 			{ steps: [stepWithOptions] },
 			0,
 			'renamed-plugin'
@@ -132,17 +179,32 @@ describe('patchGitDirectoryStepFolderName', () => {
 		});
 	});
 
-	it('returns null when the index does not point at an install step', () => {
+	it('returns null when the index does not point at an install step', async () => {
 		const originalBlueprint = { steps: [{ step: 'login' }] };
 		expect(
-			patchGitDirectoryStepFolderName(originalBlueprint, 0, 'x')
+			await patchGitDirectoryStepFolderName(originalBlueprint, 0, 'x')
 		).toBeNull();
 	});
 
-	it('returns null when the index is out of range', () => {
+	it('returns null when the index is out of range', async () => {
 		const originalBlueprint = { steps: [gitInstallPluginStep] };
 		expect(
-			patchGitDirectoryStepFolderName(originalBlueprint, 5, 'x')
+			await patchGitDirectoryStepFolderName(originalBlueprint, 5, 'x')
+		).toBeNull();
+	});
+
+	it('returns null for a real bundle whose declaration references bundled files', async () => {
+		const bundle = mockBundle({
+			steps: [
+				gitInstallPluginStep,
+				{
+					step: 'importFile',
+					file: { resource: 'bundled', path: 'content.xml' },
+				},
+			],
+		});
+		expect(
+			await patchGitDirectoryStepFolderName(bundle, 0, 'renamed-plugin')
 		).toBeNull();
 	});
 });
