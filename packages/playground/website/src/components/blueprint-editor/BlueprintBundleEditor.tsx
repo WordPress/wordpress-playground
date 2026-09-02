@@ -91,7 +91,7 @@ const BLUEPRINT_JSON_PATH = '/blueprint.json';
  * mutate the site's stored Blueprint in place (which would be unsafe or
  * impossible for some Blueprint shapes — see `buildUpdatedBlueprintDeclaration`).
  */
-const GIT_MOUNTS_PREVIEW_PATH = '/blueprint-with-git-mounts.json';
+const GIT_MOUNTS_PREVIEW_PATH = '/blueprint-updated.json';
 
 /**
  * Format a validation error into a human-readable message for the error panel
@@ -449,7 +449,7 @@ export const BlueprintBundleEditor = forwardRef<
 		};
 	}, [filesystem]);
 
-	// Keep a `/blueprint-with-git-mounts.json` preview in sync whenever a
+	// Keep a `/blueprint-updated.json` preview in sync whenever a
 	// plugin/theme is mounted live (or renamed) via the Files browser's
 	// "Mount via git…" action, so it's there to compare against
 	// `blueprint.json` even if this editor was already open when that
