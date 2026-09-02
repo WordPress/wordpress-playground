@@ -892,6 +892,15 @@ export interface GitDirectorySource {
 	refType?: 'branch' | 'tag' | 'commit' | 'refname';
 	/** The path to the directory within the git repository, if not the root. */
 	path?: string;
+	/**
+	 * Index of the corresponding `installPlugin`/`installTheme` step within
+	 * `SiteMetadata.originalBlueprint`'s `steps` array, when known. Lets a
+	 * later rename of the mounted folder patch that step's
+	 * `options.targetFolderName` to match. Absent when `originalBlueprint`
+	 * is a filesystem bundle rather than a plain declaration (the step
+	 * can't be safely patched in that case).
+	 */
+	blueprintStepIndex?: number;
 }
 
 // TODO: Create a schema for this as the design matures

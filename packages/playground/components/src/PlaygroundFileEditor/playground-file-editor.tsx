@@ -1,10 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
+	useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PathBadge } from '../FilePickerTree';
-import { FileExplorerSidebar } from './file-explorer-sidebar';
+import {
+	FileExplorerSidebar,
+	type FileExplorerSidebarHandle,
+} from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
@@ -35,6 +45,10 @@ export type PlaygroundFileEditorProps = {
 	mobileHeaderTarget?: Element | null;
 	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
 	pathBadges?: Record<string, PathBadge>;
+	/** See `FilePickerTreeProps.onMountFromGit`. */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/** See `FilePickerTreeProps.onPathRenamed`. */
+	onPathRenamed?: (oldPath: string, newPath: string) => void;
 };
 
 type PendingSave = {
@@ -43,21 +57,44 @@ type PendingSave = {
 	content: string;
 };
 
+export type PlaygroundFileEditorHandle = {
+	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
+	refreshPath: (path: string) => Promise<void>;
+};
+
 /**
  * A reusable file browser component with a file tree on the left and
  * a code editor on the right. Supports auto-save with debouncing,
  * cursor position preservation, and binary file handling.
  */
-export function PlaygroundFileEditor({
-	filesystem,
-	isVisible = true,
-	documentRoot,
-	initialPath = null,
-	placeholderText = 'Select a file to view or edit its contents.',
-	dockPresentation = false,
-	mobileHeaderTarget = null,
-	pathBadges,
-}: PlaygroundFileEditorProps) {
+export const PlaygroundFileEditor = forwardRef<
+	PlaygroundFileEditorHandle,
+	PlaygroundFileEditorProps
+>(function PlaygroundFileEditor(
+	{
+		filesystem,
+		isVisible = true,
+		documentRoot,
+		initialPath = null,
+		placeholderText = 'Select a file to view or edit its contents.',
+		dockPresentation = false,
+		mobileHeaderTarget = null,
+		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
+	},
+	ref
+) {
+	const sidebarRef = useRef<FileExplorerSidebarHandle | null>(null);
+	useImperativeHandle(
+		ref,
+		() => ({
+			refreshPath: async (path: string) => {
+				await sidebarRef.current?.refreshPath(path);
+			},
+		}),
+		[]
+	);
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
 	);
@@ -570,6 +607,7 @@ export function PlaygroundFileEditor({
 				/>
 				<aside className={styles['sidebarWrapper']}>
 					<FileExplorerSidebar
+						ref={sidebarRef}
 						filesystem={filesystem}
 						currentPath={currentPath}
 						selectedDirPath={selectedDirPath}
@@ -581,6 +619,8 @@ export function PlaygroundFileEditor({
 						dockPresentation={dockPresentation}
 						useWordPressTooltips={dockPresentation}
 						pathBadges={pathBadges}
+						onMountFromGit={onMountFromGit}
+						onPathRenamed={onPathRenamed}
 					/>
 				</aside>
 				<section className={styles['editorWrapper']}>
@@ -673,7 +713,7 @@ export function PlaygroundFileEditor({
 			</div>
 		</div>
 	);
-}
+});
 
 function getSaveStatusLabel(saveState: SaveState, saveError: string | null) {
 	switch (saveState) {

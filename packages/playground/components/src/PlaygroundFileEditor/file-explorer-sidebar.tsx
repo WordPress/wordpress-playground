@@ -1,5 +1,7 @@
 import React, {
+	forwardRef,
 	useEffect,
+	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
@@ -52,30 +54,57 @@ export type FileExplorerSidebarProps = {
 	useWordPressTooltips?: boolean;
 	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
 	pathBadges?: Record<string, PathBadge>;
+	/** See `FilePickerTreeProps.onMountFromGit`. */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/** See `FilePickerTreeProps.onPathRenamed`. */
+	onPathRenamed?: (oldPath: string, newPath: string) => void;
+};
+
+export type FileExplorerSidebarHandle = {
+	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
+	refreshPath: (path: string) => Promise<void>;
 };
 
 /**
  * Renders the file explorer and opens selected files in the editor preview area.
  */
-export function FileExplorerSidebar({
-	filesystem,
-	currentPath,
-	selectedDirPath,
-	setSelectedDirPath,
-	onFileOpened,
-	onSelectionCleared,
-	onShowMessage,
-	documentRoot,
-	readOnly = false,
-	title = 'Files',
-	mobileSubsectionTitle,
-	showBinaryPreviewHeader = true,
-	dockPresentation = false,
-	useWordPressTooltips = false,
-	pathBadges,
-}: FileExplorerSidebarProps) {
+export const FileExplorerSidebar = forwardRef<
+	FileExplorerSidebarHandle,
+	FileExplorerSidebarProps
+>(function FileExplorerSidebar(
+	{
+		filesystem,
+		currentPath,
+		selectedDirPath,
+		setSelectedDirPath,
+		onFileOpened,
+		onSelectionCleared,
+		onShowMessage,
+		documentRoot,
+		readOnly = false,
+		title = 'Files',
+		mobileSubsectionTitle,
+		showBinaryPreviewHeader = true,
+		dockPresentation = false,
+		useWordPressTooltips = false,
+		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
+	},
+	ref
+) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			refreshPath: async (path: string) => {
+				await treeRef.current?.refresh(path);
+			},
+		}),
+		[]
+	);
 
 	const treeInitialPath = useMemo(() => {
 		return currentPath
@@ -403,6 +432,8 @@ export function FileExplorerSidebar({
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}
 					pathBadges={pathBadges}
+					onMountFromGit={onMountFromGit}
+					onPathRenamed={onPathRenamed}
 					onSelect={async (path) => {
 						if (!path) {
 							setSelectedDirPath(documentRoot);
@@ -429,7 +460,7 @@ export function FileExplorerSidebar({
 			</div>
 		</div>
 	);
-}
+});
 
 function FileActionTooltip({
 	label,
