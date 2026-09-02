@@ -66,7 +66,7 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	/**
 	 * Subscribes to the WebMCP tools a plugin registers with
-	 * `navigator.modelContext` inside the WordPress document.
+	 * `document.modelContext` inside the WordPress document.
 	 *
 	 * The callback receives the complete tool list every time it changes, and
 	 * once with the current list when it subscribes. A navigation to a page

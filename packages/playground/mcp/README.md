@@ -94,7 +94,7 @@ A plugin running inside Playground can register its own WebMCP tools, and both t
 add_action( 'wp_head', function () {
 	?>
 	<script>
-	navigator.modelContext.registerTool( {
+	document.modelContext.registerTool( {
 		name: 'create_order',
 		description: 'Creates a draft order.',
 		inputSchema: { type: 'object', properties: { sku: { type: 'string' } } },
@@ -132,7 +132,7 @@ Documents WordPress renders no head for — `admin-ajax.php`, REST routes, stati
 
 A browser tab shows one site at a time, so the tools always belong to the active site. Switching sites restarts the proxy against the new one, and tool names need no per-site qualifier.
 
-`navigator.modelContext` (and `document.modelContext`) is provided by Playground's mu-plugin inside every WordPress document, so a plugin can rely on it being there.
+`document.modelContext` is provided by Playground's mu-plugin inside every WordPress document, so a plugin can rely on it being there.
 
 ### Reading the tools
 
@@ -153,7 +153,7 @@ __PLAYGROUND_WEBMCP__.tools();
 __PLAYGROUND_WEBMCP__.call('create_order', { sku: 'X' });
 ```
 
-If a tool is missing, switch the devtools console to the `wp` frame and run `navigator.modelContext.tools.map( t => t.name )`. An empty list there means the plugin never registered; a list there but not on the page means the announcement did not cross the frame boundary.
+If a tool is missing, switch the devtools console to the `wp` frame and run `document.modelContext.tools.map( t => t.name )`. An empty list there means the plugin never registered; a list there but not on the page means the announcement did not cross the frame boundary.
 
 ## Security
 

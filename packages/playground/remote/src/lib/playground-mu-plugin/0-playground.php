@@ -370,10 +370,10 @@ add_action('admin_head', 'playground_enable_site_thumbnail_capture');
  * * every registration change announces the full tool list to the parent;
  * * the parent asks this document to run a tool and receives the JSON result.
  *
- * The registry is installed as an own property on `navigator` and `document`,
- * shadowing a native implementation if the browser has one. Playground owns
- * the proxy that surfaces these tools to the agent, so the inner document must
- * not register them with the browser behind Playground's back.
+ * The registry is installed as an own property on `document`, shadowing a
+ * native implementation if the browser has one. Playground owns the proxy that
+ * surfaces these tools to the agent, so the inner document must not register
+ * them with the browser behind Playground's back.
  *
  * @see packages/playground/remote/src/lib/webmcp-frame-bridge.ts
  */
@@ -493,10 +493,6 @@ function playground_enable_webmcp_bridge() {
 				}
 			};
 
-			Object.defineProperty(navigator, 'modelContext', {
-				configurable: true,
-				value: modelContext
-			});
 			Object.defineProperty(document, 'modelContext', {
 				configurable: true,
 				value: modelContext

@@ -9,7 +9,7 @@ const TOOL_PLUGIN = `<?php
 add_action('wp_head', function () {
 	?>
 	<script>
-	navigator.modelContext.registerTool({
+	document.modelContext.registerTool({
 		name: 'site_greeting',
 		description: 'Greets someone using the WordPress site name.',
 		inputSchema: {

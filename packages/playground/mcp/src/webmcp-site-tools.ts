@@ -3,7 +3,7 @@
  * tools of the Playground page itself.
  *
  * A plugin running in Playground can register tools with
- * `navigator.modelContext`, but that registry lives in a nested,
+ * `document.modelContext`, but that registry lives in a nested,
  * service-worker-served iframe an agent never sees. This proxy mirrors those
  * tools onto the top-level `document.modelContext` and forwards each call back
  * into the WordPress document:

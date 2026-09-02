@@ -21,7 +21,7 @@ const CALL_TIMEOUT_MS = 60000;
 const ANNOUNCE_PROBE_TIMEOUT_MS = 1000;
 
 /**
- * A tool a plugin registered with `navigator.modelContext` inside the
+ * A tool a plugin registered with `document.modelContext` inside the
  * WordPress document, as seen from outside that document.
  *
  * `execute` does not survive the frame boundary, so only the descriptive
