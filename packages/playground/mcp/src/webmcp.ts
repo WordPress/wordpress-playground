@@ -21,7 +21,7 @@ const siteToolDefinitions = getSiteToolDefinitions();
 
 // -- WebMCP type declarations --
 
-interface ModelContextTool {
+export interface ModelContextTool {
 	name: string;
 	description: string;
 	inputSchema?: Record<string, unknown>;
@@ -32,11 +32,11 @@ interface ModelContextTool {
 	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
 }
 
-interface ModelContextClient {
+export interface ModelContextClient {
 	requestUserInteraction(callback: () => Promise<unknown>): Promise<unknown>;
 }
 
-interface ModelContext {
+export interface ModelContext {
 	provideContext(options: { tools: ModelContextTool[] }): void;
 	registerTool(
 		tool: ModelContextTool,
@@ -146,7 +146,7 @@ export async function registerWebMCPTools(
 	}
 }
 
-function getModelContext(): ModelContext | undefined {
+export function getModelContext(): ModelContext | undefined {
 	if (typeof document === 'undefined') {
 		return undefined;
 	}

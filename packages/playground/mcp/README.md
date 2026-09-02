@@ -86,6 +86,73 @@ The [Playground Website](https://playground.wordpress.net/) also supports [WebMC
 
 > **Note:** WebMCP is still a draft proposal and not widely supported.
 
+### Tools registered by the WordPress site
+
+A plugin running inside Playground can register its own WebMCP tools, and Personal Playground re-advertises them as tools of the page:
+
+```php
+add_action( 'wp_head', function () {
+	?>
+	<script>
+	navigator.modelContext.registerTool( {
+		name: 'create_order',
+		description: 'Creates a draft order.',
+		inputSchema: { type: 'object', properties: { sku: { type: 'string' } } },
+		execute: async ( input ) => ( { orderId: await createOrder( input.sku ) } ),
+	} );
+	</script>
+	<?php
+} );
+```
+
+WordPress runs in a nested iframe an agent never sees, so Playground proxies these tools:
+
+```
+agent → document.modelContext (Playground page)
+      → PlaygroundClient.callWebMCPTool()   (Comlink)
+      → remote frame                        (postMessage)
+      → WordPress document                  (the plugin's execute())
+```
+
+Tool names, descriptions and input schemas are carried over unchanged, and results must be JSON-serializable. A tool whose name collides with a built-in `playground_*` tool is skipped and a warning is logged.
+
+### Tool lifetime
+
+Tools belong to the document that registered them, exactly as in WebMCP, and the page shows what the iframe currently holds. Registering at any time works — a tool added a second after load, or from a click handler, is picked up as soon as it appears — but **every navigation starts from an empty list**.
+
+That catches people out: hooking only `wp_head` means the tools are gone the moment the user opens wp-admin. Register on every context the tools should cover:
+
+```php
+add_action( 'wp_head', 'my_register_tools' );
+add_action( 'admin_head', 'my_register_tools' );
+add_action( 'login_head', 'my_register_tools' );
+```
+
+Documents WordPress renders no head for — `admin-ajax.php`, REST routes, static files, a PDF — carry no tools, and the previous page's tools are withdrawn rather than left behind to fail when called.
+
+`navigator.modelContext` (and `document.modelContext`) is provided by Playground's mu-plugin inside every WordPress document, so a plugin can rely on it being there.
+
+### Reading the tools
+
+Playground's own tools and the site's tools both live on `document.modelContext`:
+
+```js
+document.modelContext.tools.map((tool) => tool.name);
+
+await document.modelContext.tools.find((tool) => tool.name === 'create_order').execute({ sku: 'X' });
+```
+
+WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-testing`, and no other browser does. Personal Playground therefore installs a polyfill when the browser has none, so `document.modelContext` is there either way. The polyfill is a registry, not an agent — it holds the tools for whoever asks, and steps aside wherever WebMCP is native.
+
+The dev server also narrows the view to the site's own tools, which is handy while building a plugin:
+
+```js
+__PLAYGROUND_WEBMCP__.tools();
+__PLAYGROUND_WEBMCP__.call('create_order', { sku: 'X' });
+```
+
+If a tool is missing, switch the devtools console to the `wp` frame and run `navigator.modelContext.tools.map( t => t.name )`. An empty list there means the plugin never registered; a list there but not on the page means the announcement did not cross the frame boundary.
+
 ## Security
 
 The MCP bridge runs locally and is only accessible from your machine — connections are origin-restricted and require a token generated at server startup, preventing other websites from hijacking it.
