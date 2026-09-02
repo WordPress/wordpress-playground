@@ -1,0 +1,109 @@
+import { test, expect } from '@playwright/test';
+
+/**
+ * A plugin that registers a WebMCP tool inside the WordPress document. The
+ * tool returns a value only PHP knows, which proves the call really executed
+ * in the site rather than in the proxy.
+ */
+const TOOL_PLUGIN = `<?php
+add_action('wp_head', function () {
+	?>
+	<script>
+	navigator.modelContext.registerTool({
+		name: 'site_greeting',
+		description: 'Greets someone using the WordPress site name.',
+		inputSchema: {
+			type: 'object',
+			properties: { name: { type: 'string' } },
+			required: ['name'],
+		},
+		execute: async (input) => ({
+			greeting: 'Hello ' + input.name + ' from ' +
+				<?php echo json_encode(get_bloginfo('name')); ?>,
+		}),
+	});
+	</script>
+	<?php
+}, 20);
+`;
+
+/**
+ * Unlike `webmcp.spec.ts` this installs no `document.modelContext` mock: the
+ * website's polyfill has to provide it, which is what an ordinary browser
+ * without WebMCP support relies on.
+ */
+test('the website proxies tools registered by the site', async ({ page }) => {
+	await page.goto('/');
+	await expect(
+		page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.frameLocator('#wp')
+			.locator('body')
+	).not.toBeEmpty();
+
+	const run = (name: string, input: Record<string, unknown> = {}) =>
+		page.evaluate(
+			({ name, input }) =>
+				(document as any).modelContext.tools
+					.find((tool: { name: string }) => tool.name === name)
+					.execute(input),
+			{ name, input }
+		);
+	const toolNames = () =>
+		page.evaluate(() =>
+			(document as any).modelContext.tools.map(
+				(tool: { name: string }) => tool.name
+			)
+		);
+
+	// Playground's tools land on the polyfill before the site has booted, so
+	// wait until one of them can actually reach the client.
+	await expect
+		.poll(
+			() =>
+				page.evaluate(async () => {
+					const tool = (document as any).modelContext?.tools.find(
+						(candidate: { name: string }) =>
+							candidate.name === 'playground_get_site_info'
+					);
+					if (!tool) {
+						return false;
+					}
+					const info = await tool.execute({});
+					return typeof info?.wpVersion === 'string';
+				}),
+			{ timeout: 60_000, intervals: [1_000] }
+		)
+		.toBe(true);
+
+	await run('playground_mkdir', { path: '/wordpress/wp-content/mu-plugins' });
+	await run('playground_write_file', {
+		path: '/wordpress/wp-content/mu-plugins/webmcp-tool.php',
+		contents: TOOL_PLUGIN,
+	});
+	await run('playground_navigate', { path: '/' });
+
+	await expect
+		.poll(toolNames, { timeout: 60_000, intervals: [1_000] })
+		.toContain('site_greeting');
+
+	const result = await run('site_greeting', { name: 'Playground' });
+	expect(result.greeting).toContain('Hello Playground from ');
+
+	// A document Playground does not inject the registry into announces
+	// nothing, so the tool must not stay advertised on its predecessor's
+	// behalf — and must come back on return.
+	await run('playground_navigate', {
+		path: '/wp-admin/admin-ajax.php?action=nope',
+	});
+	await expect
+		.poll(toolNames, { timeout: 30_000, intervals: [500] })
+		.not.toContain('site_greeting');
+
+	await run('playground_navigate', { path: '/' });
+	await expect
+		.poll(toolNames, { timeout: 30_000, intervals: [500] })
+		.toContain('site_greeting');
+});

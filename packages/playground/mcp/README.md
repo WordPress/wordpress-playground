@@ -88,7 +88,7 @@ The [Playground Website](https://playground.wordpress.net/) also supports [WebMC
 
 ### Tools registered by the WordPress site
 
-A plugin running inside Playground can register its own WebMCP tools, and Personal Playground re-advertises them as tools of the page:
+A plugin running inside Playground can register its own WebMCP tools, and both the Playground website and Personal Playground re-advertise them as tools of the page:
 
 ```php
 add_action( 'wp_head', function () {
@@ -130,6 +130,8 @@ add_action( 'login_head', 'my_register_tools' );
 
 Documents WordPress renders no head for — `admin-ajax.php`, REST routes, static files, a PDF — carry no tools, and the previous page's tools are withdrawn rather than left behind to fail when called.
 
+A browser tab shows one site at a time, so the tools always belong to the active site. Switching sites restarts the proxy against the new one, and tool names need no per-site qualifier.
+
 `navigator.modelContext` (and `document.modelContext`) is provided by Playground's mu-plugin inside every WordPress document, so a plugin can rely on it being there.
 
 ### Reading the tools
@@ -142,9 +144,9 @@ document.modelContext.tools.map((tool) => tool.name);
 await document.modelContext.tools.find((tool) => tool.name === 'create_order').execute({ sku: 'X' });
 ```
 
-WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-testing`, and no other browser does. Personal Playground therefore installs a polyfill when the browser has none, so `document.modelContext` is there either way. The polyfill is a registry, not an agent — it holds the tools for whoever asks, and steps aside wherever WebMCP is native.
+WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-testing`, and no other browser does. Playground therefore installs a polyfill when the browser has none, so `document.modelContext` is there either way. The polyfill is a registry, not an agent — it holds the tools for whoever asks, and steps aside wherever WebMCP is native.
 
-The dev server also narrows the view to the site's own tools, which is handy while building a plugin:
+Personal Playground's dev server also narrows the view to the site's own tools, which is handy while building a plugin:
 
 ```js
 __PLAYGROUND_WEBMCP__.tools();
