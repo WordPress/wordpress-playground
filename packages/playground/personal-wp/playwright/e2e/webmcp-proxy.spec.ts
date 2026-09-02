@@ -168,6 +168,27 @@ test.describe('WebMCP proxy', () => {
 			.poll(toolNames, { timeout: 30_000, intervals: [500] })
 			.toContain('site_greeting');
 
+		// The login screen is deliberately left out: it fires neither
+		// `wp_head` nor `admin_head`, so it carries no registry and proxies
+		// nothing. `reauth=1` reaches the form despite the auto-login.
+		await page.evaluate(async () => {
+			await (window as any).__webmcpExecutors['playground_navigate']({
+				path: '/wp-login.php?reauth=1',
+			});
+		});
+		await expect
+			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.not.toContain('site_greeting');
+
+		await page.evaluate(async () => {
+			await (window as any).__webmcpExecutors['playground_navigate']({
+				path: '/',
+			});
+		});
+		await expect
+			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.toContain('site_greeting');
+
 		// Navigating to a page that registers nothing withdraws the tool.
 		await page.evaluate(async () => {
 			const executors = (window as any).__webmcpExecutors;

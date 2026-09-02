@@ -48,18 +48,6 @@ export interface WebMCPSiteToolProxy {
 }
 
 /**
- * Names Playground registers itself. A site tool may not take one of them
- * over, or an agent asking to execute PHP would reach the site's plugin
- * instead.
- */
-function reservedToolNames(): Set<string> {
-	return new Set([
-		...Object.keys(toolDefinitions),
-		...Object.keys(getSiteToolDefinitions()),
-	]);
-}
-
-/**
  * Starts mirroring `client`'s in-site WebMCP tools onto this page.
  *
  * Every announcement carries the full tool list, so the previous registration
@@ -148,6 +136,18 @@ export function startWebMCPSiteToolProxy(
 			siteTools = [];
 		},
 	};
+}
+
+/**
+ * Names Playground registers itself. A site tool may not take one of them
+ * over, or an agent asking to execute PHP would reach the site's plugin
+ * instead.
+ */
+function reservedToolNames(): Set<string> {
+	return new Set([
+		...Object.keys(toolDefinitions),
+		...Object.keys(getSiteToolDefinitions()),
+	]);
 }
 
 function proxyTool(

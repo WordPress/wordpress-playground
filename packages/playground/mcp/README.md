@@ -107,7 +107,7 @@ add_action( 'wp_head', function () {
 
 WordPress runs in a nested iframe an agent never sees, so Playground proxies these tools:
 
-```
+```text
 agent → document.modelContext (Playground page)
       → PlaygroundClient.callWebMCPTool()   (Comlink)
       → remote frame                        (postMessage)
@@ -125,14 +125,27 @@ That catches people out: hooking only `wp_head` means the tools are gone the mom
 ```php
 add_action( 'wp_head', 'my_register_tools' );
 add_action( 'admin_head', 'my_register_tools' );
-add_action( 'login_head', 'my_register_tools' );
 ```
 
 Documents WordPress renders no head for — `admin-ajax.php`, REST routes, static files, a PDF — carry no tools, and the previous page's tools are withdrawn rather than left behind to fail when called.
 
 A browser tab shows one site at a time, so the tools always belong to the active site. Switching sites restarts the proxy against the new one, and tool names need no per-site qualifier.
 
-`document.modelContext` is provided by Playground's mu-plugin inside every WordPress document, so a plugin can rely on it being there.
+`document.modelContext` is provided by Playground's mu-plugin on `wp_head` and `admin_head`, which covers the front end and wp-admin.
+
+**The login screen is deliberately not covered.** `wp-login.php` fires neither hook, so that document has no registry and proxies no tools; a site's tools come back when the user leaves it. `login_head` still fires there, so a plugin hooking it must feature-detect rather than assume the registry exists — worth doing anywhere, since most browsers do not implement WebMCP:
+
+```php
+add_action( 'login_head', function () {
+	?>
+	<script>
+	if ( document.modelContext ) {
+		document.modelContext.registerTool( { /* … */ } );
+	}
+	</script>
+	<?php
+} );
+```
 
 ### Reading the tools
 

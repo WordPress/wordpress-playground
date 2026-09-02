@@ -21,6 +21,7 @@
  * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
  */
 
+import { logger } from '@php-wasm/logger';
 import type {
 	ModelContext,
 	ModelContextClient,
@@ -85,10 +86,18 @@ export function installWebMCPPolyfill(): boolean {
 		},
 	};
 
-	Object.defineProperty(document, 'modelContext', {
-		configurable: true,
-		value: modelContext,
-	});
+	try {
+		Object.defineProperty(document, 'modelContext', {
+			configurable: true,
+			value: modelContext,
+		});
+	} catch (error) {
+		// A non-configurable `modelContext` cannot be replaced. Callers wire
+		// up the MCP bridge right after this, so failing loudly here would
+		// cost them the parts that do not need WebMCP at all.
+		logger.warn('Failed to install the WebMCP polyfill:', error);
+		return false;
+	}
 	return true;
 }
 
