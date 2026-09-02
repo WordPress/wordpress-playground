@@ -8,7 +8,10 @@ import {
 } from '@wp-playground/client';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { createGitAuthHeaders } from '../../../github/git-auth-helpers';
+import {
+	createGitAuthHeaders,
+	isGitHubUrl,
+} from '../../../github/git-auth-helpers';
 import { useAppDispatch } from '../../../lib/state/redux/store';
 import {
 	updateSiteMetadata,
@@ -118,6 +121,9 @@ export function SiteFileBrowser({
 			const mountedSource =
 				extracted as ExtractedGitDirectorySource | null;
 			if (!mountedSource) {
+				// The files are already on disk at this point — reveal them
+				// before reporting that provenance couldn't be recorded.
+				await fileEditorRef.current?.refreshPath(parentPath);
 				throw new Error(
 					'The repository was fetched, but Playground could not determine where it was installed.'
 				);
@@ -200,19 +206,6 @@ export function SiteFileBrowser({
 			) : null}
 		</>
 	);
-}
-
-/**
- * Whether a git remote URL points at github.com, to show the recognizable
- * GitHub mark instead of the generic git icon.
- */
-function isGitHubUrl(url: string): boolean {
-	try {
-		const { hostname } = new URL(url);
-		return hostname === 'github.com' || hostname === 'www.github.com';
-	} catch {
-		return false;
-	}
 }
 
 /**

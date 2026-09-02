@@ -3,6 +3,7 @@ import {
 	isBlueprintBundle,
 	type StepDefinition,
 } from '@wp-playground/blueprints';
+import { basename, dirname } from '@php-wasm/util';
 import type { GitDirectorySource } from './slice-sites';
 
 export interface ExtractedGitDirectorySource {
@@ -46,6 +47,63 @@ export function extractGitDirectorySource(
 }
 
 /**
+ * Builds a full Blueprint declaration reflecting the site's original
+ * Blueprint plus every plugin/theme mounted live via "Mount via git…"
+ * (`source.addedLive`) — freshly generated from current state every time,
+ * so it's always accurate regardless of renames and never requires
+ * mutating the site's stored Blueprint in place. Meant for the user to
+ * open and compare against the original, not to replace it.
+ */
+export async function buildUpdatedBlueprintDeclaration(
+	originalBlueprint: unknown,
+	gitDirectorySources: Record<string, GitDirectorySource> | undefined
+): Promise<Record<string, unknown>> {
+	const base = await resolveDeclaration(originalBlueprint);
+	const existingSteps = Array.isArray(base['steps'])
+		? (base['steps'] as unknown[])
+		: [];
+	const liveSteps = Object.entries(gitDirectorySources ?? {})
+		.filter(([, source]) => source.addedLive)
+		.map(([path, source]) => buildGitDirectoryStep(path, source));
+	if (liveSteps.length === 0) {
+		return base;
+	}
+	return { ...base, steps: [...existingSteps, ...liveSteps] };
+}
+
+/**
+ * Builds the `installPlugin`/`installTheme` step for one git-mounted
+ * folder, from its current path (which reflects any rename) and recorded
+ * source. The install kind (plugin vs theme) is inferred from the path's
+ * parent directory name rather than a hardcoded document root, so it
+ * doesn't assume `/wordpress` is the site's document root.
+ */
+export function buildGitDirectoryStep(
+	path: string,
+	source: GitDirectorySource
+): StepDefinition {
+	const targetFolderName = basename(path);
+	const resource = {
+		resource: 'git:directory' as const,
+		url: source.url,
+		ref: source.ref,
+		...(source.refType ? { refType: source.refType } : {}),
+		...(source.path ? { path: source.path } : {}),
+	};
+	return basename(dirname(path)) === 'themes'
+		? ({
+				step: 'installTheme',
+				themeData: resource,
+				options: { activate: false, targetFolderName },
+			} as StepDefinition)
+		: ({
+				step: 'installPlugin',
+				pluginData: resource,
+				options: { activate: false, targetFolderName },
+			} as StepDefinition);
+}
+
+/**
  * Resolves `originalBlueprint` to a plain declaration object, best-effort.
  *
  * `originalBlueprint` is bundle-shaped (has a `.read()` method,
@@ -79,61 +137,6 @@ async function resolveDeclaration(
 	} catch {
 		return {};
 	}
-}
-
-/**
- * Builds the `installPlugin`/`installTheme` step for one git-mounted
- * folder, from its current path (which reflects any rename) and recorded
- * source. The install kind (plugin vs theme) is inferred from the path.
- */
-export function buildGitDirectoryStep(
-	path: string,
-	source: GitDirectorySource
-): StepDefinition {
-	const targetFolderName = path.split('/').filter(Boolean).pop() || path;
-	const resource = {
-		resource: 'git:directory' as const,
-		url: source.url,
-		ref: source.ref,
-		...(source.refType ? { refType: source.refType } : {}),
-		...(source.path ? { path: source.path } : {}),
-	};
-	return path.includes('/wp-content/themes/')
-		? ({
-				step: 'installTheme',
-				themeData: resource,
-				options: { activate: false, targetFolderName },
-			} as StepDefinition)
-		: ({
-				step: 'installPlugin',
-				pluginData: resource,
-				options: { activate: false, targetFolderName },
-			} as StepDefinition);
-}
-
-/**
- * Builds a full Blueprint declaration reflecting the site's original
- * Blueprint plus every plugin/theme mounted live via "Mount via git…"
- * (`source.addedLive`) — freshly generated from current state every time,
- * so it's always accurate regardless of renames and never requires
- * mutating the site's stored Blueprint in place. Meant for the user to
- * open and compare against the original, not to replace it.
- */
-export async function buildUpdatedBlueprintDeclaration(
-	originalBlueprint: unknown,
-	gitDirectorySources: Record<string, GitDirectorySource> | undefined
-): Promise<Record<string, unknown>> {
-	const base = await resolveDeclaration(originalBlueprint);
-	const existingSteps = Array.isArray(base['steps'])
-		? (base['steps'] as unknown[])
-		: [];
-	const liveSteps = Object.entries(gitDirectorySources ?? {})
-		.filter(([, source]) => source.addedLive)
-		.map(([path, source]) => buildGitDirectoryStep(path, source));
-	if (liveSteps.length === 0) {
-		return base;
-	}
-	return { ...base, steps: [...existingSteps, ...liveSteps] };
 }
 
 /**
