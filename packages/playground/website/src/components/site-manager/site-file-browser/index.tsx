@@ -1,9 +1,14 @@
+import { Icon } from '@wordpress/components';
 import { useMemo } from 'react';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { PlaygroundFileEditor } from '@wp-playground/components';
+import {
+	PlaygroundFileEditor,
+	type PathBadge,
+} from '@wp-playground/components';
+import { GitHubIcon } from '../../../github/github';
 
 export function SiteFileBrowser({
 	site,
@@ -18,6 +23,7 @@ export function SiteFileBrowser({
 }) {
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
+	const pathBadges = useGitDirectoryPathBadges(site);
 
 	return (
 		<PlaygroundFileEditor
@@ -28,8 +34,39 @@ export function SiteFileBrowser({
 			placeholderText="Start this Playground to browse and edit its files."
 			dockPresentation
 			mobileHeaderTarget={mobileHeaderTarget}
+			pathBadges={pathBadges}
 		/>
 	);
+}
+
+/**
+ * Builds a "from GitHub" badge for every plugin/theme folder that was
+ * installed via a Blueprint's `git:directory` resource.
+ */
+function useGitDirectoryPathBadges(
+	site: SiteInfo
+): Record<string, PathBadge> | undefined {
+	return useMemo(() => {
+		const sources = site.metadata.gitDirectorySources;
+		if (!sources || Object.keys(sources).length === 0) {
+			return undefined;
+		}
+		const badges: Record<string, PathBadge> = {};
+		for (const [path, source] of Object.entries(sources)) {
+			const refLabel =
+				source.refType && source.refType !== 'branch'
+					? `${source.refType} ${source.ref}`
+					: `branch ${source.ref}`;
+			const repoLabel = source.url
+				.replace(/^https?:\/\//, '')
+				.replace(/\.git$/, '');
+			badges[path] = {
+				icon: <Icon width={14} icon={GitHubIcon} />,
+				tooltip: `From GitHub: ${repoLabel} (${refLabel})`,
+			};
+		}
+		return badges;
+	}, [site.metadata.gitDirectorySources]);
 }
 
 /**

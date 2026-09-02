@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import type { PathBadge } from '../FilePickerTree';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
@@ -32,6 +33,8 @@ export type PlaygroundFileEditorProps = {
 	dockPresentation?: boolean;
 	/** Mobile Dock title row where the current path should be rendered. */
 	mobileHeaderTarget?: Element | null;
+	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
 };
 
 type PendingSave = {
@@ -53,6 +56,7 @@ export function PlaygroundFileEditor({
 	placeholderText = 'Select a file to view or edit its contents.',
 	dockPresentation = false,
 	mobileHeaderTarget = null,
+	pathBadges,
 }: PlaygroundFileEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
@@ -576,6 +580,7 @@ export function PlaygroundFileEditor({
 						documentRoot={documentRoot}
 						dockPresentation={dockPresentation}
 						useWordPressTooltips={dockPresentation}
+						pathBadges={pathBadges}
 					/>
 				</aside>
 				<section className={styles['editorWrapper']}>

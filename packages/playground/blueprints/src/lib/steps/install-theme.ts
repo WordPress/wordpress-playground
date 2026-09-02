@@ -83,8 +83,13 @@ export interface InstallThemeOptions {
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
+export interface InstallThemeResult {
+	assetPath: string;
+}
+
 export const installTheme: StepHandler<
-	InstallThemeStep<File, Directory>
+	InstallThemeStep<File, Directory>,
+	Promise<InstallThemeResult | undefined>
 > = async (
 	playground,
 	{ themeData, themeZipFile, ifAlreadyInstalled, options = {} },
@@ -104,6 +109,7 @@ export const installTheme: StepHandler<
 		const targetFolderName =
 			'targetFolderName' in options ? options.targetFolderName : '';
 		let assetFolderName = '';
+		let assetPath = '';
 		if (themeData instanceof File) {
 			// @TODO: Consider validating whether this is a zip file?
 			const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
@@ -119,6 +125,7 @@ export const installTheme: StepHandler<
 				targetFolderName: targetFolderName,
 			});
 			assetFolderName = assetResult.assetFolderName;
+			assetPath = assetResult.assetFolderPath;
 		} else {
 			assetNiceName = themeData.name;
 			assetFolderName = targetFolderName || assetNiceName;
@@ -140,6 +147,7 @@ export const installTheme: StepHandler<
 				'themes',
 				assetFolderName
 			);
+			assetPath = themeDirectoryPath;
 			let shouldWriteThemeFiles = true;
 			/**
 			 * Directory themes are written directly instead of going through
@@ -196,6 +204,8 @@ export const installTheme: StepHandler<
 				progress
 			);
 		}
+
+		return { assetPath };
 	} catch (error) {
 		if (onError === 'skip-theme') {
 			const skippedThemeName = progressName() || 'unknown theme';

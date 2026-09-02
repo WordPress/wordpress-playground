@@ -12,6 +12,7 @@ import {
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
+	type OnStepCompleted,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -28,6 +29,7 @@ import {
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
+	type GitDirectorySource,
 	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
@@ -231,6 +233,35 @@ export function bootSiteClient(
 		}
 
 		let playground: PlaygroundClient | undefined = undefined;
+		// Collects git:directory provenance for any installPlugin/installTheme
+		// step this boot runs, so it can be persisted into site metadata and
+		// surfaced as a badge in the Files browser.
+		const gitDirectorySources: Record<string, GitDirectorySource> = {};
+		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
+			if (step.step !== 'installPlugin' && step.step !== 'installTheme') {
+				return;
+			}
+			const resource =
+				(step as any).pluginData ?? (step as any).themeData;
+			if (
+				!resource ||
+				typeof resource !== 'object' ||
+				resource.resource !== 'git:directory'
+			) {
+				return;
+			}
+			const assetPath = (result as { assetPath?: string } | undefined)
+				?.assetPath;
+			if (!assetPath) {
+				return;
+			}
+			gitDirectorySources[assetPath] = {
+				url: resource.url,
+				ref: resource.ref,
+				refType: resource.refType,
+				path: resource.path,
+			};
+		};
 		try {
 			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
 				site.originalUrlParams?.searchParams?.['php-extension'],
@@ -254,6 +285,7 @@ export function bootSiteClient(
 				},
 				// Log Blueprint events
 				onBlueprintValidated: logBlueprintEvents,
+				onBlueprintStepCompleted,
 				mounts,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
@@ -367,6 +399,20 @@ export function bootSiteClient(
 			return;
 		}
 		const connectedPlayground = playground as PlaygroundClient;
+
+		if (Object.keys(gitDirectorySources).length > 0) {
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						gitDirectorySources: {
+							...site.metadata.gitDirectorySources,
+							...gitDirectorySources,
+						},
+					},
+				})
+			);
+		}
 
 		setupPostMessageRelay(iframe, document.location.origin);
 

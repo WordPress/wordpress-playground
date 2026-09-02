@@ -26,6 +26,7 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { file, folder } from '../icons';
 import css from './style.module.css';
 
@@ -78,6 +79,12 @@ export type FileNode = {
 	children?: FileNode[];
 };
 
+/** A small icon + tooltip shown next to a specific file/folder path. */
+export type PathBadge = {
+	icon: React.ReactNode;
+	tooltip: string;
+};
+
 export type FilePickerTreeProps = {
 	withContextMenu?: boolean;
 	/** Disables filesystem mutations while preserving selection and previews. */
@@ -87,6 +94,8 @@ export type FilePickerTreeProps = {
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
 	onDoubleClickFile?: (path: string) => void;
+	/** Badges to render next to specific paths, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
 };
 
 export type FilePickerTreeHandle = {
@@ -154,6 +163,7 @@ export const FilePickerTree = forwardRef<
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
+		pathBadges,
 	},
 	ref
 ) {
@@ -1342,6 +1352,7 @@ export const FilePickerTree = forwardRef<
 						onDrop={readOnly ? undefined : handleNodeDrop}
 						rootPath={normalizedRoot}
 						onDoubleClickFile={onDoubleClickFile}
+						pathBadges={pathBadges}
 					/>
 				))}
 			</TreeGrid>
@@ -1485,6 +1496,7 @@ const NodeRow: React.FC<{
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
 	onDoubleClickFile?: (path: string) => void;
+	pathBadges?: Record<string, PathBadge>;
 }> = ({
 	node,
 	level,
@@ -1512,6 +1524,7 @@ const NodeRow: React.FC<{
 	onDrop,
 	rootPath,
 	onDoubleClickFile,
+	pathBadges,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
@@ -1740,6 +1753,7 @@ const NodeRow: React.FC<{
 										}
 										level={level}
 										hideName
+										badge={pathBadges?.[path]}
 									/>
 									<input
 										ref={renameInputRef}
@@ -1794,6 +1808,7 @@ const NodeRow: React.FC<{
 											node.type === 'folder' && isExpanded
 										}
 										level={level}
+										badge={pathBadges?.[path]}
 									/>
 								</Button>
 							)}
@@ -1832,6 +1847,7 @@ const NodeRow: React.FC<{
 						onDrop={onDrop}
 						rootPath={rootPath}
 						onDoubleClickFile={onDoubleClickFile}
+						pathBadges={pathBadges}
 					/>
 				))}
 		</>
@@ -1843,11 +1859,17 @@ const FileName: React.FC<{
 	level: number;
 	isOpen?: boolean;
 	hideName?: boolean;
-}> = ({ node, level, isOpen, hideName = false }) => {
+	badge?: PathBadge;
+}> = ({ node, level, isOpen, hideName = false, badge }) => {
 	const indent: string[] = [];
 	for (let i = 0; i < level; i++) {
 		indent.push('&nbsp;&nbsp;&nbsp;&nbsp;');
 	}
+	const badgeRef = useRef<HTMLSpanElement>(null);
+	const [tooltipAnchor, setTooltipAnchor] = useState<{
+		top: number;
+		right: number;
+	} | null>(null);
 	return (
 		<>
 			<span
@@ -1861,6 +1883,48 @@ const FileName: React.FC<{
 			)}
 			<Icon width={16} icon={node.type === 'folder' ? folder : file} />
 			{!hideName && <span className={css['fileName']}>{node.name}</span>}
+			{badge ? (
+				// A plain hover-controlled DOM tooltip is used here instead of
+				// the WordPress `Tooltip` component: this badge is nested
+				// inside the row's own clickable Button, and Ariakit's hover
+				// handling (which Tooltip is built on) does not reliably
+				// trigger for an element nested inside another interactive
+				// element. The tooltip itself is portaled to `document.body`
+				// and positioned from the badge's screen coordinates so it
+				// escapes the file tree sidebar's clipping/scroll container.
+				<span
+					ref={badgeRef}
+					className={css['pathBadge']}
+					aria-label={badge.tooltip}
+					onMouseEnter={() => {
+						const rect = badgeRef.current?.getBoundingClientRect();
+						if (rect) {
+							setTooltipAnchor({
+								top: rect.top,
+								right: window.innerWidth - rect.right,
+							});
+						}
+					}}
+					onMouseLeave={() => setTooltipAnchor(null)}
+				>
+					{badge.icon}
+					{tooltipAnchor
+						? createPortal(
+								<span
+									className={css['pathBadgeTooltip']}
+									role="tooltip"
+									style={{
+										top: tooltipAnchor.top,
+										right: tooltipAnchor.right,
+									}}
+								>
+									{badge.tooltip}
+								</span>,
+								document.body
+							)
+						: null}
+				</span>
+			) : null}
 		</>
 	);
 };
