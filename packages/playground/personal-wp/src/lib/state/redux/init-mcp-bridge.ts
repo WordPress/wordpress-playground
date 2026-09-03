@@ -6,7 +6,6 @@ import type {
 	WebMCPSiteToolProxy,
 } from '@wp-playground/mcp/client';
 import {
-	installWebMCPPolyfill,
 	registerWebMCPTools,
 	startMcpBridge,
 	startWebMCPSiteToolProxy,
@@ -122,11 +121,6 @@ startListening({
 				};
 			},
 		};
-
-		// Without WebMCP support there is no `document.modelContext` to
-		// register into, and neither Playground's tools nor the site's would
-		// be reachable through the standard API.
-		installWebMCPPolyfill();
 
 		void registerWebMCPTools(mcpConfig).catch((error) => {
 			logger.warn('WebMCP registration failed:', error);

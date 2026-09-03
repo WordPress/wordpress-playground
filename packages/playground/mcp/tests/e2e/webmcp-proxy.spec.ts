@@ -28,11 +28,40 @@ add_action('wp_head', function () {
 `;
 
 /**
- * Unlike `webmcp.spec.ts` this installs no `document.modelContext` mock: the
- * website's polyfill has to provide it, which is what an ordinary browser
- * without WebMCP support relies on.
+ * Playwright runs a stock Chromium with no `document.modelContext`, so stand
+ * in for the browser's registry the way `webmcp.spec.ts` does.
  */
+const webmcpMock = () => {
+	type MockTool = {
+		name: string;
+		execute: (input: Record<string, unknown>) => Promise<unknown>;
+	};
+	const registeredTools: MockTool[] = [];
+
+	Object.defineProperty(document as any, 'modelContext', {
+		configurable: true,
+		value: {
+			get tools() {
+				return registeredTools;
+			},
+			async registerTool(
+				tool: MockTool,
+				options?: { signal?: AbortSignal }
+			) {
+				registeredTools.push(tool);
+				options?.signal?.addEventListener('abort', () => {
+					const index = registeredTools.indexOf(tool);
+					if (index !== -1) {
+						registeredTools.splice(index, 1);
+					}
+				});
+			},
+		},
+	});
+};
+
 test('the website proxies tools registered by the site', async ({ page }) => {
+	await page.addInitScript(webmcpMock);
 	await page.goto('/');
 	await expect(
 		page

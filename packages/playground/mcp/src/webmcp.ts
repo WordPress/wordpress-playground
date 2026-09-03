@@ -32,11 +32,11 @@ export interface ModelContextTool {
 	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
 }
 
-export interface ModelContextClient {
+interface ModelContextClient {
 	requestUserInteraction(callback: () => Promise<unknown>): Promise<unknown>;
 }
 
-export interface ModelContext {
+interface ModelContext {
 	provideContext(options: { tools: ModelContextTool[] }): void;
 	registerTool(
 		tool: ModelContextTool,

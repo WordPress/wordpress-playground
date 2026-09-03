@@ -133,7 +133,7 @@ A browser tab shows one site at a time, so the tools always belong to the active
 
 `document.modelContext` is provided by Playground's mu-plugin on `wp_head` and `admin_head`, which covers the front end and wp-admin.
 
-Chrome 150 deprecated `navigator.modelContext` in favour of `document.modelContext` but still serves it, so Playground does the same: the deprecated global returns the very same registry and warns once on first access. A plugin that has not migrated keeps working here exactly as it does in Chrome. Write new code against `document.modelContext` — the alias goes when Chrome removes it.
+Chrome 150 deprecated `navigator.modelContext` in favour of `document.modelContext` but still serves it, so the mu-plugin does the same: inside the WordPress document the deprecated global returns the very same registry and warns once on first access. A plugin that has not migrated keeps working here exactly as it does in Chrome. Write new code against `document.modelContext` — the alias goes when Chrome removes it.
 
 **The login screen is deliberately not covered.** `wp-login.php` fires neither hook, so that document has no registry and proxies no tools; a site's tools come back when the user leaves it. `login_head` still fires there, so a plugin hooking it must feature-detect rather than assume the registry exists — worth doing anywhere, since most browsers do not implement WebMCP:
 
@@ -159,9 +159,7 @@ document.modelContext.tools.map((tool) => tool.name);
 await document.modelContext.tools.find((tool) => tool.name === 'create_order').execute({ sku: 'X' });
 ```
 
-WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-testing`, and no other browser does. Playground therefore installs a polyfill when the browser has none, so `document.modelContext` is there either way, and steps aside wherever WebMCP is native.
-
-The polyfill is a registry, not an agent, and it does not make a browser's built-in agent work: that agent reads the browser's own implementation, not a JavaScript object a page defines. What the polyfill gives you is the standard API surface for everything running in the page — an extension or userscript driving Playground, your own scripting, and the tests — without which none of it could reach the site's tools outside Chrome's flag.
+WebMCP is a draft, so this needs a browser that implements it: Chrome behind `chrome://flags/#enable-webmcp-testing`, or an extension that provides `document.modelContext` itself. Playground registers into whichever it finds and registers nothing when there is none — the site's tools still cross the frame boundary either way, so an embedder can reach them through `PlaygroundClient.onWebMCPToolsChanged()` and `callWebMCPTool()` regardless of browser support.
 
 If a tool is missing, switch the devtools console to the `wp` frame and run `document.modelContext.tools.map( t => t.name )`. An empty list there means the plugin never registered; a list there but not on the page means the announcement did not cross the frame boundary.
 
