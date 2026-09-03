@@ -106,4 +106,15 @@ test('the website proxies tools registered by the site', async ({ page }) => {
 	await expect
 		.poll(toolNames, { timeout: 30_000, intervals: [500] })
 		.toContain('site_greeting');
+
+	// Removing the plugin takes its tools with it, leaving Playground's own
+	// tools registered.
+	await run('playground_delete_file', {
+		path: '/wordpress/wp-content/mu-plugins/webmcp-tool.php',
+	});
+	await run('playground_navigate', { path: '/' });
+	await expect
+		.poll(toolNames, { timeout: 30_000, intervals: [500] })
+		.not.toContain('site_greeting');
+	expect(await toolNames()).toContain('playground_execute_php');
 });

@@ -63,6 +63,21 @@ add_action('wp_head', function () {
 				<?php echo json_encode(get_bloginfo('name')); ?>,
 		}),
 	});
+
+	// Lets the test add and withdraw a tool while the page stays put.
+	var extra = null;
+	window.__addExtraTool = function () {
+		extra = new AbortController();
+		document.modelContext.registerTool({
+			name: 'site_extra',
+			description: 'Registered after the document loaded.',
+			inputSchema: { type: 'object', properties: {} },
+			execute: async () => ({ ok: true }),
+		}, { signal: extra.signal });
+	};
+	window.__withdrawExtraTool = function () {
+		extra.abort();
+	};
 	</script>
 	<?php
 }, 20);
@@ -141,15 +156,31 @@ test.describe('WebMCP proxy', () => {
 		);
 		expect(result.greeting).toContain('Hello Playground from ');
 
-		// A document Playground does not inject the registry into announces
-		// nothing, so the tool must not stay advertised on its predecessor's
-		// behalf — and must come back on return.
 		const toolNames = () =>
 			page.evaluate(() =>
 				(window as any).__webmcpTools.map(
 					(tool: { name: string }) => tool.name
 				)
 			);
+
+		// A plugin can add and withdraw tools while the page stays put, so
+		// the proxy must follow the registry rather than page loads.
+		const wordpress = website.wordpress().locator('body');
+		await wordpress.evaluate(() => (window as any).__addExtraTool());
+		await expect
+			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.toContain('site_extra');
+
+		await wordpress.evaluate(() => (window as any).__withdrawExtraTool());
+		await expect
+			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.not.toContain('site_extra');
+		// Withdrawing one tool leaves the rest alone.
+		expect(await toolNames()).toContain('site_greeting');
+
+		// A document Playground does not inject the registry into announces
+		// nothing, so the tool must not stay advertised on its predecessor's
+		// behalf — and must come back on return.
 		await page.evaluate(async () => {
 			await (window as any).__webmcpExecutors['playground_navigate']({
 				path: '/wp-admin/admin-ajax.php?action=nope',

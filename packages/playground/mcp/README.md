@@ -157,7 +157,9 @@ document.modelContext.tools.map((tool) => tool.name);
 await document.modelContext.tools.find((tool) => tool.name === 'create_order').execute({ sku: 'X' });
 ```
 
-WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-testing`, and no other browser does. Playground therefore installs a polyfill when the browser has none, so `document.modelContext` is there either way. The polyfill is a registry, not an agent — it holds the tools for whoever asks, and steps aside wherever WebMCP is native.
+WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-testing`, and no other browser does. Playground therefore installs a polyfill when the browser has none, so `document.modelContext` is there either way, and steps aside wherever WebMCP is native.
+
+The polyfill is a registry, not an agent, and it does not make a browser's built-in agent work: that agent reads the browser's own implementation, not a JavaScript object a page defines. What the polyfill gives you is the standard API surface for everything running in the page — an extension or userscript driving Playground, your own scripting, and the tests — without which none of it could reach the site's tools outside Chrome's flag.
 
 Personal Playground's dev server also narrows the view to the site's own tools, which is handy while building a plugin:
 
