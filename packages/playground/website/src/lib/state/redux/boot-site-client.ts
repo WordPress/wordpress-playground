@@ -13,6 +13,7 @@ import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	type OnStepCompleted,
+	type GitDirectoryReference,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -29,7 +30,6 @@ import {
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
-	type GitDirectorySource,
 	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
@@ -237,15 +237,12 @@ export function bootSiteClient(
 		// Collects git:directory provenance for any installPlugin/installTheme
 		// step this boot runs, so it can be persisted into site metadata and
 		// surfaced as a badge in the Files browser.
-		const gitDirectorySources: Record<string, GitDirectorySource> = {};
+		const gitDirectorySources: Record<string, GitDirectoryReference> = {};
 		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
 			const extracted = extractGitDirectorySource(step, result);
 			if (!extracted) {
 				return;
 			}
-			// No `addedLive` flag: this step ran as part of the site's own
-			// Blueprint at boot, so it's already represented there — unlike
-			// a folder mounted afterwards via the Files browser.
 			gitDirectorySources[extracted.assetPath] = extracted.source;
 		};
 		try {

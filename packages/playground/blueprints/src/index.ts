@@ -41,6 +41,7 @@ export type {
 	CoreThemeResource,
 	FetchResource,
 	FileReference,
+	GitDirectoryReference,
 	LiteralReference,
 	LiteralResource,
 	Resource,

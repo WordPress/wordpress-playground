@@ -80,11 +80,15 @@ export function SiteFileBrowser({
 				path: submission.path,
 			};
 			const targetFolderName = deriveFolderNameFromGitUrl(url);
+			// A repository's derived folder name can collide with a plugin
+			// or theme that's already installed — refuse to overwrite it
+			// rather than silently deleting the existing folder's contents.
 			const step: StepDefinition =
 				kind === 'plugin'
 					? {
 							step: 'installPlugin',
 							pluginData: resource,
+							ifAlreadyInstalled: 'error',
 							options: {
 								activate: false,
 								targetFolderName,
@@ -93,6 +97,7 @@ export function SiteFileBrowser({
 					: {
 							step: 'installTheme',
 							themeData: resource,
+							ifAlreadyInstalled: 'error',
 							options: {
 								activate: false,
 								targetFolderName,
@@ -132,10 +137,7 @@ export function SiteFileBrowser({
 			const changes: SiteMetadataChanges = {
 				gitDirectorySources: {
 					...site.metadata.gitDirectorySources,
-					[mountedSource.assetPath]: {
-						...mountedSource.source,
-						addedLive: true,
-					},
+					[mountedSource.assetPath]: mountedSource.source,
 				},
 			};
 			await dispatch(updateSiteMetadata({ slug: site.slug, changes }));
@@ -225,10 +227,14 @@ function useGitDirectoryPathBadges(
 		}
 		const badges: Record<string, PathBadge> = {};
 		for (const [path, source] of Object.entries(sources)) {
-			const refLabel =
-				source.refType && source.refType !== 'branch'
-					? `${source.refType} ${source.ref}`
-					: `branch ${source.ref}`;
+			// `refType` is only known when the Blueprint step declared it
+			// explicitly — the "Mount via git…" form accepts a branch, tag,
+			// or commit in one free-text field and never sets it. Falling
+			// back to "branch" here would mislabel a tag or commit, so show
+			// the bare ref instead when the type isn't actually known.
+			const refLabel = source.refType
+				? `${source.refType} ${source.ref}`
+				: source.ref;
 			const repoLabel = source.url
 				.replace(/^https?:\/\//, '')
 				.replace(/\.git$/, '');

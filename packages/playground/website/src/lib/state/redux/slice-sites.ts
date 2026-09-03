@@ -14,6 +14,7 @@ import {
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
 	BlueprintFetchError,
+	type GitDirectoryReference,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -878,30 +879,6 @@ export type SiteLogo = SiteImage;
  */
 export type SiteThumbnail = SiteImage;
 
-/**
- * Where a plugin or theme folder installed via a Blueprint's `git:directory`
- * resource came from, so the Files browser can show it was pulled from
- * GitHub rather than authored locally.
- */
-export interface GitDirectorySource {
-	/** The URL of the git repository the folder was pulled from. */
-	url: string;
-	/** The ref (branch, tag, or commit) that was checked out. */
-	ref: string;
-	/** Explicit hint about the ref type (branch, tag, commit, refname). */
-	refType?: 'branch' | 'tag' | 'commit' | 'refname';
-	/** The path to the directory within the git repository, if not the root. */
-	path?: string;
-	/**
-	 * True when this folder was mounted live via the Files browser's "Mount
-	 * via git…" action, rather than by a Blueprint step that ran at boot.
-	 * Distinguishes the two so a generated Blueprint preview (see
-	 * `buildUpdatedBlueprintDeclaration`) only adds steps for the ones not
-	 * already part of the original Blueprint.
-	 */
-	addedLive?: boolean;
-}
-
 // TODO: Create a schema for this as the design matures
 /**
  * The Site metadata that is persisted.
@@ -965,7 +942,7 @@ export interface SiteMetadata {
 	 * resource, keyed by their absolute install path (as it appears in the
 	 * Files browser, e.g. `/wordpress/wp-content/plugins/hello-dolly`).
 	 */
-	gitDirectorySources?: Record<string, GitDirectorySource>;
+	gitDirectorySources?: Record<string, GitDirectoryReference>;
 }
 
 /**
