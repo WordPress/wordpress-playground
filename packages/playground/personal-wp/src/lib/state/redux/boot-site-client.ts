@@ -48,6 +48,7 @@ import {
 	getUsageStatsDate,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
+	getStreakUsageStatsUpdate,
 	isUsageStatsAllowedOnCurrentHost,
 	logPersonalWpEvent,
 	shouldLogReturningVisitUsageStats,
@@ -504,12 +505,27 @@ function logBootUsageStats({
 		});
 	}
 
+	const streakUpdate = getStreakUsageStatsUpdate(
+		site.metadata,
+		bootCompletedAt
+	);
+	Object.assign(metadata, streakUpdate.metadata);
+	for (const streakEvent of streakUpdate.events) {
+		logPersonalWpEvent(streakEvent.event, streakEvent.properties);
+	}
+
 	return metadata;
 }
 
 type BootUsageStatsMetadata = Pick<
 	SiteMetadata,
-	'lastUsageStatsReturningVisitDate'
+	| 'lastUsageStatsReturningVisitDate'
+	| 'lastDailyStreakDate'
+	| 'dailyStreak'
+	| 'lastWeeklyStreakWeekStart'
+	| 'weeklyStreak'
+	| 'lastMonthlyStreakMonth'
+	| 'monthlyStreak'
 >;
 
 function getWordPressInstallModeCaption(
