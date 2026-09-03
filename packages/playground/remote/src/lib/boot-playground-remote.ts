@@ -15,6 +15,7 @@ import type {
 } from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
 import type { SiteThumbnail, WebClientMixin } from './playground-client';
+import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
@@ -130,6 +131,7 @@ export async function bootPlaygroundRemote() {
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	const webMCPBridge = createWebMCPFrameBridge(wpFrame);
 	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
@@ -382,6 +384,12 @@ export async function bootPlaygroundRemote() {
 		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
+		},
+		async onWebMCPToolsChanged(fn) {
+			webMCPBridge.subscribe(fn);
+		},
+		async callWebMCPTool(name, args) {
+			return await webMCPBridge.callTool(name, args);
 		},
 		/**
 		 * This function is merely here to explicitly call workerApi.onMessage.
