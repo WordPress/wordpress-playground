@@ -35,7 +35,6 @@ export interface WebMCPToolDescriptor {
 }
 
 export interface WebMCPFrameBridge {
-	getTools(): WebMCPToolDescriptor[];
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
 	callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
@@ -161,9 +160,6 @@ export function createWebMCPFrameBridge(
 	}
 
 	return {
-		getTools() {
-			return tools;
-		},
 		subscribe(listener) {
 			listeners.add(listener);
 			// Replay the current list so a late subscriber is not left

@@ -151,25 +151,6 @@ startListening({
 		};
 		syncSiteToolProxy();
 
-		if (import.meta.env.DEV) {
-			// `document.modelContext` mixes the site's tools in with
-			// Playground's own. This narrows the view to the site while
-			// building a plugin:
-			//
-			//     __PLAYGROUND_WEBMCP__.tools()
-			//     __PLAYGROUND_WEBMCP__.call('my_tool', { arg: 1 })
-			(window as any).__PLAYGROUND_WEBMCP__ = {
-				tools: () => siteToolProxy?.getTools() ?? [],
-				isAdvertised: () => siteToolProxy?.isAdvertised() ?? false,
-				call: (name: string, args: Record<string, unknown> = {}) =>
-					siteToolProxy
-						? siteToolProxy.callTool(name, args)
-						: Promise.reject(
-								new Error('The Playground site is not loaded.')
-							),
-			};
-		}
-
 		const getRequestedMcpPort = (): number | null => {
 			const mcpPort = new URLSearchParams(window.location.search).get(
 				'mcp-port'

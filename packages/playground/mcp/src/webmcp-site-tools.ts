@@ -28,22 +28,6 @@ import type { ModelContextTool } from './webmcp';
 import { getModelContext } from './webmcp';
 
 export interface WebMCPSiteToolProxy {
-	/**
-	 * The tools the WordPress document currently offers, whether or not this
-	 * browser can advertise them. Useful for confirming that a plugin's
-	 * registration was picked up.
-	 */
-	getTools(): WebMCPToolDescriptor[];
-
-	/**
-	 * Whether the tools are advertised to an agent. False in a browser without
-	 * WebMCP support, where the tools are still detected but have nowhere to go.
-	 */
-	isAdvertised(): boolean;
-
-	/** Runs one of the site's tools. */
-	callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
-
 	stop(): void;
 }
 
@@ -53,23 +37,25 @@ export interface WebMCPSiteToolProxy {
  * Every announcement carries the full tool list, so the previous registration
  * is aborted and the new list registered in its place. Returns a handle that
  * unregisters everything it registered.
- *
- * The site is observed even in a browser without WebMCP support, where the
- * handle is the only way to see what the site offers. Observing costs one
- * subscription: the WordPress document announces its tools either way.
  */
 export function startWebMCPSiteToolProxy(
 	client: PlaygroundClient
 ): WebMCPSiteToolProxy {
-	const modelContext = getModelContext();
+	const maybeModelContext = getModelContext();
+	if (!maybeModelContext) {
+		// Nothing can be advertised, so there is nothing to observe for.
+		return { stop: () => {} };
+	}
+	// `register` is hoisted, so it does not inherit the narrowing above.
+	const modelContext = maybeModelContext;
+
 	const reserved = reservedToolNames();
 	let registration: AbortController | null = null;
 	let stopped = false;
 	let registeredDescriptors = '';
-	let siteTools: WebMCPToolDescriptor[] = [];
 
 	async function register(tools: WebMCPToolDescriptor[]) {
-		if (stopped || !modelContext) {
+		if (stopped) {
 			return;
 		}
 		// Registration is asynchronous, so a burst of announcements could
@@ -111,7 +97,6 @@ export function startWebMCPSiteToolProxy(
 
 	client
 		.onWebMCPToolsChanged((tools: WebMCPToolDescriptor[]) => {
-			siteTools = tools;
 			void register(tools);
 		})
 		.catch((error) => {
@@ -119,21 +104,11 @@ export function startWebMCPSiteToolProxy(
 		});
 
 	return {
-		getTools() {
-			return siteTools;
-		},
-		isAdvertised() {
-			return !!modelContext;
-		},
-		callTool(name, args) {
-			return client.callWebMCPTool(name, args ?? {});
-		},
 		stop() {
 			stopped = true;
 			registration?.abort();
 			registration = null;
 			registeredDescriptors = '';
-			siteTools = [];
 		},
 	};
 }

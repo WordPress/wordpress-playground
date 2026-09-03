@@ -161,13 +161,6 @@ WebMCP is a draft: Chrome implements it behind `chrome://flags/#enable-webmcp-te
 
 The polyfill is a registry, not an agent, and it does not make a browser's built-in agent work: that agent reads the browser's own implementation, not a JavaScript object a page defines. What the polyfill gives you is the standard API surface for everything running in the page — an extension or userscript driving Playground, your own scripting, and the tests — without which none of it could reach the site's tools outside Chrome's flag.
 
-Personal Playground's dev server also narrows the view to the site's own tools, which is handy while building a plugin:
-
-```js
-__PLAYGROUND_WEBMCP__.tools();
-__PLAYGROUND_WEBMCP__.call('create_order', { sku: 'X' });
-```
-
 If a tool is missing, switch the devtools console to the `wp` frame and run `document.modelContext.tools.map( t => t.name )`. An empty list there means the plugin never registered; a list there but not on the page means the announcement did not cross the frame boundary.
 
 ## Security
