@@ -65,10 +65,12 @@ add_action('wp_head', function () {
 	});
 
 	// Lets the test add and withdraw a tool while the page stays put.
+	// Registers through the deprecated \`navigator\` alias on purpose: Chrome
+	// still serves it, so an unmigrated plugin must reach the same registry.
 	var extra = null;
 	window.__addExtraTool = function () {
 		extra = new AbortController();
-		document.modelContext.registerTool({
+		navigator.modelContext.registerTool({
 			name: 'site_extra',
 			description: 'Registered after the document loaded.',
 			inputSchema: { type: 'object', properties: {} },

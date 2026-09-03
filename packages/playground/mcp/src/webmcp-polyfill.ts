@@ -91,6 +91,7 @@ export function installWebMCPPolyfill(): boolean {
 			configurable: true,
 			value: modelContext,
 		});
+		installDeprecatedNavigatorAlias(modelContext);
 	} catch (error) {
 		// A non-configurable `modelContext` cannot be replaced. Callers wire
 		// up the MCP bridge right after this, so failing loudly here would
@@ -99,6 +100,32 @@ export function installWebMCPPolyfill(): boolean {
 		return false;
 	}
 	return true;
+}
+
+/**
+ * Serves the deprecated `navigator.modelContext` alongside the canonical
+ * `document.modelContext`.
+ *
+ * Chrome 150 deprecated the `navigator` getter but still serves it, so code
+ * written against it keeps working there and would break only where this
+ * polyfill stands in. Warn once on first access, as the platform does, and
+ * drop this when Chrome removes it.
+ */
+function installDeprecatedNavigatorAlias(modelContext: ModelContext) {
+	let warned = false;
+	Object.defineProperty(navigator, 'modelContext', {
+		configurable: true,
+		get() {
+			if (!warned) {
+				warned = true;
+				logger.warn(
+					'navigator.modelContext is deprecated and will be removed. ' +
+						'Use document.modelContext instead.'
+				);
+			}
+			return modelContext;
+		},
+	});
 }
 
 /**

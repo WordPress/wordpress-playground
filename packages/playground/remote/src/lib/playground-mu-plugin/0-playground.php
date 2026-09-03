@@ -498,6 +498,25 @@ function playground_enable_webmcp_bridge() {
 				value: modelContext
 			});
 
+			// Chrome 150 deprecated `navigator.modelContext` in favour of
+			// `document.modelContext` but still serves it, so a plugin that
+			// has not migrated works there and would break only here. Mirror
+			// the platform, warning once, and drop this when Chrome does.
+			var warnedAboutNavigator = false;
+			Object.defineProperty(navigator, 'modelContext', {
+				configurable: true,
+				get: function () {
+					if (!warnedAboutNavigator) {
+						warnedAboutNavigator = true;
+						console.warn(
+							'navigator.modelContext is deprecated and will be ' +
+							'removed. Use document.modelContext instead.'
+						);
+					}
+					return modelContext;
+				}
+			});
+
 			// A minimal WebMCP client. The agent lives in the top-level page,
 			// so this document cannot prompt the user itself.
 			var toolClient = {

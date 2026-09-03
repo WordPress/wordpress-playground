@@ -133,6 +133,8 @@ A browser tab shows one site at a time, so the tools always belong to the active
 
 `document.modelContext` is provided by Playground's mu-plugin on `wp_head` and `admin_head`, which covers the front end and wp-admin.
 
+Chrome 150 deprecated `navigator.modelContext` in favour of `document.modelContext` but still serves it, so Playground does the same: the deprecated global returns the very same registry and warns once on first access. A plugin that has not migrated keeps working here exactly as it does in Chrome. Write new code against `document.modelContext` — the alias goes when Chrome removes it.
+
 **The login screen is deliberately not covered.** `wp-login.php` fires neither hook, so that document has no registry and proxies no tools; a site's tools come back when the user leaves it. `login_head` still fires there, so a plugin hooking it must feature-detect rather than assume the registry exists — worth doing anywhere, since most browsers do not implement WebMCP:
 
 ```php
