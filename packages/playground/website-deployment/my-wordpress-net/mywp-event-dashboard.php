@@ -11,6 +11,7 @@ const MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES = array( 'day', 'hour' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
 
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_dashboard_handle_request();
@@ -1312,6 +1313,16 @@ function mywp_event_dashboard_render_engagement_area(
 				selected range &mdash; not a lifetime unique-user count, and not
 				directly comparable to each other across different-length ranges.
 			</p>
+			<p class="muted">
+				Streak tracking started on
+				<?php echo mywp_event_dashboard_h(
+					mywp_event_dashboard_format_date(
+						MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE
+					)
+				); ?>. Every site's streak began at 1 from that date, so
+				expect low streak numbers for a while &mdash; they don't yet
+				reflect how long sites had actually been used before then.
+			</p>
 		</div>
 		<div class="grid">
 			<div class="panel">
@@ -1866,6 +1877,11 @@ function mywp_event_dashboard_filter_url( $range, $granularity, $area = null ) {
 
 function mywp_event_dashboard_number( $value ) {
 	return number_format( (int) $value );
+}
+
+function mywp_event_dashboard_format_date( $date ) {
+	$timestamp = strtotime( $date );
+	return false === $timestamp ? $date : gmdate( 'F j, Y', $timestamp );
 }
 
 function mywp_event_dashboard_h( $value ) {
