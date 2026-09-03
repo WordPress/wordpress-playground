@@ -852,6 +852,12 @@ ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
 /**
+ * Descriptor budget served without touching the heap. Callers such as
+ * mysqlnd watch very few descriptors, so this covers the common case.
+ */
+#define WASM_SELECT_STACK_FDS 32
+
+/**
  * select(2).
  */
 EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
@@ -883,11 +889,30 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 		original_except_fds = *except_fds;
 	}
 
-	php_pollfd *poll_fds = max_fd > 0 ? calloc(max_fd, sizeof(php_pollfd)) : NULL;
-	if (max_fd > 0 && !poll_fds)
+	/**
+	 * select() runs on hot paths such as mysqlnd's poll loop, which typically
+	 * watches one or two descriptors. Serve those from the stack and only fall
+	 * back to the heap for genuinely large descriptor sets.
+	 */
+	php_pollfd stack_poll_fds[WASM_SELECT_STACK_FDS];
+	php_pollfd *poll_fds = NULL;
+	int poll_fds_on_heap = 0;
+	if (max_fd > 0)
 	{
-		errno = ENOMEM;
-		return -1;
+		if (max_fd <= WASM_SELECT_STACK_FDS)
+		{
+			poll_fds = stack_poll_fds;
+		}
+		else
+		{
+			poll_fds = calloc(max_fd, sizeof(php_pollfd));
+			if (!poll_fds)
+			{
+				errno = ENOMEM;
+				return -1;
+			}
+			poll_fds_on_heap = 1;
+		}
 	}
 
 	int poll_fd_count = 0;
@@ -910,6 +935,7 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 		{
 			poll_fds[poll_fd_count].fd = fd;
 			poll_fds[poll_fd_count].events = events;
+			poll_fds[poll_fd_count].revents = 0;
 			poll_fd_count++;
 		}
 	}
@@ -942,11 +968,17 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 		if (poll_result < 0)
 		{
 			const int poll_errno = errno;
-			free(poll_fds);
+			if (poll_fds_on_heap) free(poll_fds);
 			errno = poll_errno;
 			return -1;
 		}
 
+		/**
+		 * POSIX defines the return value as "the total number of bits set in
+		 * the bit masks", so a descriptor that is ready in more than one set
+		 * contributes once per set. Counting unique descriptors instead would
+		 * under-report readiness to callers such as mysqlnd.
+		 */
 		int ready_count = 0;
 		for (int i = 0; i < poll_fd_count; i++)
 		{
@@ -954,7 +986,7 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 			const short revents = poll_fds[i].revents;
 			if (revents & POLLNVAL)
 			{
-				free(poll_fds);
+				if (poll_fds_on_heap) free(poll_fds);
 				errno = EBADF;
 				return -1;
 			}
@@ -977,13 +1009,13 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 		}
 		if (ready_count > 0)
 		{
-			free(poll_fds);
+			if (poll_fds_on_heap) free(poll_fds);
 			return ready_count;
 		}
 
 		if (timeout_is_zero)
 		{
-			free(poll_fds);
+			if (poll_fds_on_heap) free(poll_fds);
 			return 0;
 		}
 
@@ -993,7 +1025,7 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 			const double remaining = deadline - emscripten_get_now();
 			if (remaining <= 0)
 			{
-				free(poll_fds);
+				if (poll_fds_on_heap) free(poll_fds);
 				return 0;
 			}
 			if (remaining < sleepms)
