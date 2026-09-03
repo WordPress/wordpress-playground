@@ -11,6 +11,7 @@ const MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES = array( 'day', 'hour' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
 
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_dashboard_handle_request();
@@ -996,6 +997,7 @@ function mywp_event_dashboard_get_current_area( $groups ) {
 				'new-installs',
 				'returning-visitors',
 				'blueprint-installs',
+				'engagement',
 				'remote-access',
 				'health-check',
 				'sidebar',
@@ -1016,6 +1018,7 @@ function mywp_event_dashboard_area( $type, $plugin_slug = null ) {
 		'new-installs' => 'New installs',
 		'returning-visitors' => 'Returning visitors',
 		'blueprint-installs' => 'Blueprint installs',
+		'engagement' => 'Engagement',
 		'remote-access' => 'Remote Access',
 		'health-check' => 'Health Check',
 		'sidebar' => 'Site Tools',
@@ -1048,6 +1051,7 @@ function mywp_event_dashboard_render_area_controls(
 		mywp_event_dashboard_area( 'new-installs' ),
 		mywp_event_dashboard_area( 'returning-visitors' ),
 		mywp_event_dashboard_area( 'blueprint-installs' ),
+		mywp_event_dashboard_area( 'engagement' ),
 		mywp_event_dashboard_area( 'remote-access' ),
 		mywp_event_dashboard_area( 'health-check' ),
 		mywp_event_dashboard_area( 'sidebar' ),
@@ -1178,7 +1182,17 @@ function mywp_event_dashboard_render_area(
 					'blueprint_installed:trigger',
 					'blueprint_installed:request_source',
 					'blueprint_installed:blueprint_source',
+					'blueprint_installed:previous_visit_age_bucket',
+					'blueprint_installed:site_age_bucket',
 				),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'engagement':
+			mywp_event_dashboard_render_engagement_area(
 				$stats,
 				$groups,
 				$metric_definitions
@@ -1264,9 +1278,91 @@ function mywp_event_dashboard_render_overview_area( $stats, $groups ) {
 			<p class="muted">New installs, returning visits, and blueprint installs over time.</p>
 		</div>
 		<div class="panel">
-			<?php mywp_event_dashboard_render_timeline( $stats['timeline'] ); ?>
+			<?php
+			mywp_event_dashboard_render_timeline(
+				mywp_event_dashboard_filter_timeline_values(
+					$stats['timeline'],
+					mywp_event_dashboard_primary_event_values()
+				)
+			);
+			?>
 		</div>
 	</section>
+	<?php
+}
+
+function mywp_event_dashboard_render_engagement_area(
+	$stats,
+	$groups,
+	$metric_definitions
+) {
+	$daily_active = mywp_event_dashboard_event_count( $groups, 'daily_streak' );
+	$weekly_active = mywp_event_dashboard_event_count( $groups, 'weekly_streak' );
+	$monthly_active = mywp_event_dashboard_event_count( $groups, 'monthly_streak' );
+	$timeline = mywp_event_dashboard_filter_timeline_values(
+		$stats['timeline'],
+		array( 'daily_streak', 'weekly_streak', 'monthly_streak' )
+	);
+	?>
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Engagement</h2>
+			<p class="muted">
+				Each site reports at most one ping per day/week/month, so these
+				counts are a privacy-preserving proxy for active sites in the
+				selected range &mdash; not a lifetime unique-user count, and not
+				directly comparable to each other across different-length ranges.
+			</p>
+			<p class="muted">
+				Streak tracking started on
+				<?php echo mywp_event_dashboard_h(
+					mywp_event_dashboard_format_date(
+						MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE
+					)
+				); ?>. Every site's streak began at 1 from that date, so
+				expect low streak numbers for a while &mdash; they don't yet
+				reflect how long sites had actually been used before then.
+			</p>
+		</div>
+		<div class="grid">
+			<div class="panel">
+				<div class="muted">Daily active sites</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $daily_active ); ?></div>
+				<div class="kpi-detail">Sum of one-ping-per-day site activity in range</div>
+			</div>
+			<div class="panel">
+				<div class="muted">Weekly active sites</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $weekly_active ); ?></div>
+				<div class="kpi-detail">Sum of one-ping-per-week site activity in range</div>
+			</div>
+			<div class="panel">
+				<div class="muted">Monthly active sites</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $monthly_active ); ?></div>
+				<div class="kpi-detail">Sum of one-ping-per-month site activity in range</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Engagement trend</h2>
+		</div>
+		<div class="panel">
+			<?php mywp_event_dashboard_render_timeline( $timeline ); ?>
+		</div>
+	</section>
+
+	<?php mywp_event_dashboard_render_metric_section(
+		'Streak distribution',
+		'Consecutive periods in a row each reporting site has been active for.',
+		array(
+			'daily_streak:bucket',
+			'weekly_streak:bucket',
+			'monthly_streak:bucket',
+		),
+		$groups,
+		$metric_definitions
+	); ?>
 	<?php
 }
 
@@ -1535,8 +1631,8 @@ function mywp_event_dashboard_render_timeline_legend( $event_values ) {
 	echo '</div>';
 }
 
-function mywp_event_dashboard_order_event_values( $event_values ) {
-	$preferred_order = array(
+function mywp_event_dashboard_primary_event_values() {
+	return array(
 		'wordpress_installed',
 		'returning_visit',
 		'blueprint_installed',
@@ -1545,6 +1641,10 @@ function mywp_event_dashboard_order_event_values( $event_values ) {
 		'sidebar_opened',
 		'backup_restored',
 	);
+}
+
+function mywp_event_dashboard_order_event_values( $event_values ) {
+	$preferred_order = mywp_event_dashboard_primary_event_values();
 	$ordered_values = array();
 	foreach ( $preferred_order as $event_value ) {
 		if ( in_array( $event_value, $event_values, true ) ) {
@@ -1649,6 +1749,8 @@ function mywp_event_dashboard_metric_sections() {
 				'blueprint_installed:trigger',
 				'blueprint_installed:request_source',
 				'blueprint_installed:blueprint_source',
+				'blueprint_installed:previous_visit_age_bucket',
+				'blueprint_installed:site_age_bucket',
 			),
 		),
 	);
@@ -1695,6 +1797,9 @@ function mywp_event_dashboard_event_color( $event ) {
 		'health_check_installed' => '#5b5fc7',
 		'sidebar_opened' => '#007cba',
 		'backup_restored' => '#008a20',
+		'daily_streak' => '#0a7a69',
+		'weekly_streak' => '#3858e9',
+		'monthly_streak' => '#b26200',
 	);
 
 	if ( isset( $colors[ $event ] ) ) {
@@ -1723,6 +1828,9 @@ function mywp_event_dashboard_event_label( $event ) {
 		'health_check_installed' => 'Health Check installs',
 		'sidebar_opened' => 'Site Tools opens',
 		'backup_restored' => 'Backup restores',
+		'daily_streak' => 'Daily active',
+		'weekly_streak' => 'Weekly active',
+		'monthly_streak' => 'Monthly active',
 	);
 
 	return $labels[ $event ] ?? $event;
@@ -1740,6 +1848,11 @@ function mywp_event_dashboard_metric_definitions() {
 		'blueprint_installed:request_source' => 'Blueprint Installs: Request Source',
 		'blueprint_installed:blueprint_source' => 'Blueprint Installs: Source Class',
 		'blueprint_installed:plugin_slug' => 'Blueprint Installs: Plugin Slug',
+		'blueprint_installed:previous_visit_age_bucket' => 'Blueprint Installs: Previous Visit Age',
+		'blueprint_installed:site_age_bucket' => 'Blueprint Installs: Site Age',
+		'daily_streak:bucket' => 'Daily Streak (consecutive days)',
+		'weekly_streak:bucket' => 'Weekly Streak (consecutive weeks)',
+		'monthly_streak:bucket' => 'Monthly Streak (consecutive months)',
 	);
 }
 
@@ -1764,6 +1877,17 @@ function mywp_event_dashboard_filter_url( $range, $granularity, $area = null ) {
 
 function mywp_event_dashboard_number( $value ) {
 	return number_format( (int) $value );
+}
+
+function mywp_event_dashboard_format_date( $date ) {
+	$parsed = DateTime::createFromFormat(
+		'!Y-m-d',
+		$date,
+		new DateTimeZone( 'UTC' )
+	);
+	return false === $parsed
+		? $date
+		: gmdate( 'F j, Y', $parsed->getTimestamp() );
 }
 
 function mywp_event_dashboard_h( $value ) {

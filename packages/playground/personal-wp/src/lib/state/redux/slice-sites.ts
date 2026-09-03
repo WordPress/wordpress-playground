@@ -597,6 +597,30 @@ export interface SiteMetadata {
 	lastUsageStatsReturningVisitDate?: string;
 
 	/**
+	 * UTC date of the last day this site reported a daily-streak usage
+	 * stats event, and the number of consecutive days (including that one)
+	 * it was reported for.
+	 */
+	lastDailyStreakDate?: string;
+	dailyStreak?: number;
+
+	/**
+	 * UTC date of the Monday starting the last week this site reported a
+	 * weekly-streak usage stats event, and the number of consecutive weeks
+	 * (including that one) it was reported for.
+	 */
+	lastWeeklyStreakWeekStart?: string;
+	weeklyStreak?: number;
+
+	/**
+	 * UTC year-month (YYYY-MM) of the last month this site reported a
+	 * monthly-streak usage stats event, and the number of consecutive
+	 * months (including that one) it was reported for.
+	 */
+	lastMonthlyStreakMonth?: string;
+	monthlyStreak?: number;
+
+	/**
 	 * Timestamps for one-off migrations applied to this site.
 	 */
 	appliedMigrations?: Record<string, number>;
