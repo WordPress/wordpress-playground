@@ -1484,6 +1484,14 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			);
 			if (installBlueprintMessage) {
 				void installBlueprintFromRelay(event, installBlueprintMessage);
+				return;
+			}
+
+			const backupSiteMessage = getBackupSiteMessageData(
+				relayValidation.data
+			);
+			if (backupSiteMessage) {
+				void backupSiteFromRelay(event, backupSiteMessage);
 			}
 		}
 		window.addEventListener('message', handleMessage);
@@ -1493,8 +1501,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	}, [
 		applyBlueprint,
 		applyBlueprintInMainTab,
+		canBackupNow,
 		hasLocalRuntimeClient,
 		isDependentMode,
+		mainTabStatus,
+		performBackup,
 		requestBlueprintInstallConfirmation,
 		siteSlug,
 		url,
@@ -1564,6 +1575,47 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						usageStatsRequestSource,
 					})),
 		});
+	}
+
+	async function backupSiteFromRelay(
+		event: MessageEvent,
+		message: BackupSiteMessageData
+	) {
+		const { requestId } = message;
+		if (!canBackupNow) {
+			postBackupSiteResult(event, {
+				requestId,
+				status: 'error',
+				error: isDependentMode
+					? getMainTabUnavailableMessage(mainTabStatus)
+					: 'Playground is not ready.',
+			});
+			return;
+		}
+
+		// Zipping a site takes a while. Acknowledge the request right away so
+		// the requesting page can tell a slow backup apart from a Personal
+		// Playground that does not support this message at all.
+		postBackupSiteResult(event, { requestId, status: 'started' });
+
+		try {
+			const succeeded = await performBackup();
+			postBackupSiteResult(event, {
+				requestId,
+				status: succeeded ? 'success' : 'error',
+				...(succeeded
+					? {}
+					: {
+							error: 'The backup could not be created. Another backup may still be running.',
+						}),
+			});
+		} catch (e) {
+			postBackupSiteResult(event, {
+				requestId,
+				status: 'error',
+				error: getErrorMessage(e),
+			});
+		}
 	}
 
 	// Reflect the WordPress URL in the browser's address bar.
@@ -2156,6 +2208,12 @@ type InstallBlueprintMessageData = {
 	requestId?: string;
 };
 
+type BackupSiteMessageData = {
+	type: 'relay';
+	relayType: 'backup-site';
+	requestId?: string;
+};
+
 type BlueprintInstallDialogRequest = {
 	blueprintUrl: string;
 };
@@ -2194,6 +2252,14 @@ type InstallBlueprintResultMessage = {
 	blueprintUrl: string;
 	requestId?: string;
 	status: InstallBlueprintResult['status'] | 'cancelled';
+	error?: string;
+};
+
+type BackupSiteResultMessage = {
+	type: 'relay';
+	relayType: 'backup-site-result';
+	requestId?: string;
+	status: 'started' | 'success' | 'error';
 	error?: string;
 };
 
@@ -2240,6 +2306,19 @@ function getInstallBlueprintMessageData(
 		type: 'relay',
 		relayType: 'install-blueprint',
 		blueprintUrl: data.blueprintUrl,
+		requestId: getRequestId(data),
+	};
+}
+
+function getBackupSiteMessageData(
+	data: RelayMessageData
+): BackupSiteMessageData | undefined {
+	if (data.relayType !== 'backup-site') {
+		return;
+	}
+	return {
+		type: 'relay',
+		relayType: 'backup-site',
 		requestId: getRequestId(data),
 	};
 }
@@ -2305,6 +2384,23 @@ function postInstallBlueprintResult(
 			relayType: 'install-blueprint-result',
 			...result,
 		} satisfies InstallBlueprintResultMessage,
+		event.origin
+	);
+}
+
+function postBackupSiteResult(
+	event: MessageEvent,
+	result: Omit<BackupSiteResultMessage, 'type' | 'relayType'>
+) {
+	if (!event.source) {
+		return;
+	}
+	(event.source as Window).postMessage(
+		{
+			type: 'relay',
+			relayType: 'backup-site-result',
+			...result,
+		} satisfies BackupSiteResultMessage,
 		event.origin
 	);
 }
