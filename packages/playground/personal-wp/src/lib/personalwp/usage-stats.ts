@@ -248,6 +248,12 @@ function getStreakState(
  * Returns the new streak state when `currentPeriodKey` starts a period that
  * hasn't been reported yet, or `undefined` when it was already reported
  * (the per-period dedupe that keeps event counts privacy-preserving).
+ *
+ * Period keys (YYYY-MM-DD or YYYY-MM) sort the same lexicographically as
+ * chronologically, so a `currentPeriodKey` that isn't strictly after the
+ * last recorded one — including one from a backward-skewed client clock —
+ * is treated as already reported rather than as a gap that resets the
+ * streak and re-emits an event for a period that was already counted.
  */
 function advanceStreak(
 	previous: StreakState | undefined,
@@ -257,7 +263,7 @@ function advanceStreak(
 		currentPeriodKey: string
 	) => boolean
 ): StreakState | undefined {
-	if (previous?.periodKey === currentPeriodKey) {
+	if (previous && previous.periodKey >= currentPeriodKey) {
 		return undefined;
 	}
 

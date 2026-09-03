@@ -318,6 +318,29 @@ describe('Personal WP usage stats', () => {
 		expect(JSON.stringify(properties)).not.toContain('token=secret');
 	});
 
+	it('ignores a backward clock jump instead of resetting and re-emitting the streak', () => {
+		const day1 = Date.UTC(2026, 5, 10);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		metadata = { ...metadata, ...first.metadata };
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { bucket: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		// The client's clock jumps back to before the last-recorded day.
+		const clockSkewedBackward = getStreakUsageStatsUpdate(
+			metadata,
+			day1 - 3 * DAY
+		);
+		expect(clockSkewedBackward.events).toEqual([]);
+		expect(clockSkewedBackward.metadata).toEqual({});
+	});
+
 	it('advances the daily streak once per day and resets after a gap', () => {
 		const day1 = Date.UTC(2026, 5, 1);
 		let metadata = {} as SiteMetadata;

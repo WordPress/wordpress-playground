@@ -1880,8 +1880,14 @@ function mywp_event_dashboard_number( $value ) {
 }
 
 function mywp_event_dashboard_format_date( $date ) {
-	$timestamp = strtotime( $date );
-	return false === $timestamp ? $date : gmdate( 'F j, Y', $timestamp );
+	$parsed = DateTime::createFromFormat(
+		'!Y-m-d',
+		$date,
+		new DateTimeZone( 'UTC' )
+	);
+	return false === $parsed
+		? $date
+		: gmdate( 'F j, Y', $parsed->getTimestamp() );
 }
 
 function mywp_event_dashboard_h( $value ) {
