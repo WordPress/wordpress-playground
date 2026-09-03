@@ -1,6 +1,7 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { Page } from '@playwright/test';
+import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -904,11 +905,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 		.getByRole('menuitem', { name: 'Copy Blueprint URL' })
 		.click();
 
-	// Verify success message appears in the notice component
+	// Verify the copy confirmation surfaces in the Dock success toast
 	await expect(
 		website.page
-			.locator('.components-notice')
-			.getByText('Link copied to clipboard!')
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Link copied to clipboard' })
 	).toBeVisible();
 
 	// Verify clipboard contains the correct URL format
@@ -1265,8 +1266,10 @@ test.describe('Database panel', () => {
 });
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
-test.describe('Default Playground storage', () => {
-	test.describe.configure({ mode: 'serial' });
+// The `@storage` tag routes this group to the one-worker CI storage lane.
+test.describe('Default Playground storage', { tag: '@storage' }, () => {
+	// Default mode prevents storage overlap while retrying only the failed test.
+	test.describe.configure({ mode: 'default' });
 
 	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
@@ -1431,6 +1434,75 @@ test.describe('Default Playground storage', () => {
 				/\d+%/.test(statusAnnouncement ?? '')
 			)
 		).toBe(false);
+	});
+
+	test('should keep the Blueprint loading status visible while its filesystem initializes', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('blueprint-loading')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.evaluate(() => {
+			let releaseBlueprintBundleDirectory!: () => void;
+			const blueprintBundleDirectoryCanOpen = new Promise<void>(
+				(resolve) => {
+					releaseBlueprintBundleDirectory = resolve;
+				}
+			);
+			const directoryHandlePrototype =
+				FileSystemDirectoryHandle.prototype;
+			const getDirectoryHandle =
+				directoryHandlePrototype.getDirectoryHandle;
+			(window as any).__releaseBlueprintBundleDirectory =
+				releaseBlueprintBundleDirectory;
+			(window as any).__originalBlueprintGetDirectoryHandle =
+				getDirectoryHandle;
+			directoryHandlePrototype.getDirectoryHandle = async function (
+				name,
+				options
+			) {
+				if (name === 'blueprint-bundle') {
+					(window as any).__blueprintBundleDirectoryRequested = true;
+					await blueprintBundleDirectoryCanOpen;
+				}
+				return await getDirectoryHandle.call(this, name, options);
+			};
+		});
+
+		try {
+			await website.openDockPane('Current Blueprint', 'Blueprint pane');
+			await website.page.waitForFunction(
+				() =>
+					(window as any).__blueprintBundleDirectoryRequested === true
+			);
+			await expect(
+				website.page
+					.getByRole('dialog', { name: 'Blueprint pane' })
+					.getByRole('status')
+			).toHaveText('Loading the Blueprint editor…');
+		} finally {
+			await website.page.evaluate(() => {
+				(window as any).__releaseBlueprintBundleDirectory();
+				FileSystemDirectoryHandle.prototype.getDirectoryHandle = (
+					window as any
+				).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__releaseBlueprintBundleDirectory;
+				delete (window as any).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__blueprintBundleDirectoryRequested;
+			});
+		}
+
+		await expect(
+			website.page
+				.getByRole('dialog', { name: 'Blueprint pane' })
+				.getByRole('button', { name: 'Create new file' })
+		).toBeVisible();
 	});
 
 	test('should edit a Blueprint for an autosaved Playground and run it in a new Playground', async ({
@@ -1627,7 +1699,6 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({
 			timeout: 120000,
 		});
-		const autosavedSite = await getActivePlaygroundSite(website.page);
 
 		await website.openDockPane('Site Settings');
 
@@ -1660,7 +1731,7 @@ test.describe('Default Playground storage', () => {
 			name: /Create a fresh Playground/,
 		});
 		await expect(freshMenuItem).toContainText(
-			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
+			'Your current Playground stays in Recent autosaves until 5 newer autosaves replace it.'
 		);
 		await expect(applyMenuItem).toBeFocused();
 		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'false');
@@ -1896,7 +1967,7 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('menuitem', {
 				name: /Create a fresh Playground/,
 			})
-		).toContainText(`“${storedSite.name}” stays in Saved Playgrounds.`);
+		).toContainText('Your current Playground stays in Saved Playgrounds.');
 		await website.page.keyboard.press('Escape');
 		await website.page.getByLabel('Language').selectOption('pl_PL');
 		await website.page
@@ -1908,8 +1979,11 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
-		const freshSite = await getActivePlaygroundSite(website.page);
-		expect(freshSite.slug).not.toBe(storedSite.slug);
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: storedSite.slug });
 		await expect
 			.poll(() =>
 				website.page.evaluate(
@@ -1937,17 +2011,12 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
 		).toBeVisible({ timeout: 120000 });
-		const originalSite = await getActivePlaygroundSite(website.page);
-		const activeSite = await website.page.evaluate(async (originalSlug) => {
+		const activeSite = await website.page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
 			const slug = `operation-error-active-${Date.now().toString(36)}`;
-			await api.createNewSavedSite(slug, undefined, {
-				persistence: 'autosave',
-				updateUrl: false,
-				excludeFromPruning: [originalSlug],
-			});
+			await api.createNewTemporarySite(slug);
 			return api.list().find((site: any) => site.slug === slug);
-		}, originalSite.slug);
+		});
 		await website.page.evaluate(() => {
 			Object.defineProperty(window, 'showDirectoryPicker', {
 				configurable: true,
@@ -2189,7 +2258,7 @@ test.describe('Default Playground storage', () => {
 		await pullRequestTab.click();
 		await expect(
 			newPane.getByRole('textbox', {
-				name: 'WordPress Core or Gutenberg',
+				name: 'PR number or GitHub URL',
 			})
 		).toBeVisible();
 		await expect(
@@ -3366,6 +3435,24 @@ echo get_option('blogname');
 				activeSite?.persistence === 'autosave'
 			);
 		});
+		const initialAutosave = await getActivePlaygroundSite(website.page);
+		const initialAutosaveDirectory = getDirectoryNameForSlug(
+			initialAutosave.slug
+		);
+		await expect
+			.poll(() =>
+				website.page.evaluate(async (siteDirectoryName) => {
+					const root = await navigator.storage.getDirectory();
+					const sites = await root.getDirectoryHandle('sites');
+					const site =
+						await sites.getDirectoryHandle(siteDirectoryName);
+					const metadata =
+						await site.getFileHandle('wp-runtime.json');
+					return JSON.parse(await (await metadata.getFile()).text())
+						.initialOpfsSyncPending;
+				}, initialAutosaveDirectory)
+			)
+			.toBe(false);
 
 		await website.goto(setupUrl);
 		await expect(

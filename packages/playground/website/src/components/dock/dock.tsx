@@ -16,6 +16,8 @@ import { CSSTransition } from 'react-transition-group';
 import { Icon } from '@wordpress/components';
 import {
 	close,
+	code,
+	envelope,
 	external,
 	grid,
 	list,
@@ -37,6 +39,7 @@ import {
 } from '../../lib/dock-full-width';
 import {
 	getActiveClientInfo,
+	selectActiveSiteError,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -117,6 +120,12 @@ const DOCK_ITEMS: DockItem[] = [
 		icon: <DockDatabaseIcon />,
 	},
 	{
+		section: 'terminal',
+		label: 'Terminal',
+		ariaLabel: 'Terminal',
+		icon: <Icon icon={code} size={24} />,
+	},
+	{
 		section: 'files',
 		label: 'Files',
 		ariaLabel: 'Files',
@@ -127,6 +136,12 @@ const DOCK_ITEMS: DockItem[] = [
 		label: 'Logs',
 		ariaLabel: 'Logs',
 		icon: <Icon icon={list} size={24} />,
+	},
+	{
+		section: 'mail',
+		label: 'Email',
+		ariaLabel: 'Email',
+		icon: <Icon icon={envelope} size={24} />,
 	},
 	{
 		section: 'share',
@@ -163,6 +178,10 @@ const PANE_COPY: Record<
 		description:
 			'Inspect and edit the SQLite database behind this Playground.',
 	},
+	terminal: {
+		title: 'Terminal',
+		description: 'Run PHP snippets or WP-CLI commands in this Playground.',
+	},
 	files: {
 		title: 'Files',
 		description: 'Browse and edit the active Playground filesystem.',
@@ -170,6 +189,10 @@ const PANE_COPY: Record<
 	logs: {
 		title: 'PHP error log',
 		description: 'Errors, warnings, and notices from your site.',
+	},
+	mail: {
+		title: 'Email',
+		description: 'Preview messages sent by this Playground.',
 	},
 	share: {
 		title: 'Export',
@@ -192,6 +215,7 @@ export function Dock({
 	const dispatch = useAppDispatch();
 	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
+	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const section = useAppSelector((state) => state.ui.dockPaneSection);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
 	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
@@ -206,11 +230,14 @@ export function Dock({
 	const paneCopy = PANE_COPY[section];
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
-	const isEditorSection = section === 'blueprint' || section === 'files';
-	// Logs hold long monospace records, so they get a wider pane.
-	const isWideSection = section === 'logs';
+	const isEditorSection =
+		section === 'blueprint' || section === 'files' || section === 'mail';
+	// Logs and Terminal hold long monospace records, so they get a wider pane.
+	const isWideSection = section === 'logs' || section === 'terminal';
 	const isFixedHeightSection =
-		section === 'new' || (section === 'share' && shareExportOpen);
+		section === 'new' ||
+		section === 'mail' ||
+		(section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
@@ -659,6 +686,7 @@ export function Dock({
 		const rect = dock.getBoundingClientRect();
 		const startX = event.clientX;
 		const startCenter = rect.left + rect.width / 2;
+		const initialDockCenter = dockCenter;
 		const halfWidth = dock.offsetWidth / 2;
 		const pointerId = event.pointerId;
 		const capturePointer = () => {
@@ -706,7 +734,12 @@ export function Dock({
 		};
 
 		/** Finishes a drag without also activating the pressed Dock control. */
-		const finishDockDrag = () => {
+		const finishDockDrag = () => completeDockDrag(false);
+
+		/** Restores the Dock when pointer ownership ends without a pointerup. */
+		const cancelDockDrag = () => completeDockDrag(true);
+
+		const completeDockDrag = (cancelled: boolean) => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
 			// Let the next click target the restored corner launcher instead of
@@ -749,6 +782,14 @@ export function Dock({
 				setDockSheen(0);
 			}
 
+			if (cancelled) {
+				dragSideRef.current = null;
+				setCornerSide(null);
+				setDockCenter(initialDockCenter);
+				setDockSheen(0);
+				return;
+			}
+
 			if (dragSideRef.current !== null && dockPaneIsOpen) {
 				// An open pane owns the expanded Dock. Refuse a fold that would hide
 				// both the tool in use and its launcher.
@@ -768,11 +809,15 @@ export function Dock({
 		dragCleanupRef.current = () => {
 			window.removeEventListener('pointermove', moveDock, true);
 			window.removeEventListener('pointerup', finishDockDrag, true);
-			window.removeEventListener('pointercancel', finishDockDrag, true);
+			window.removeEventListener('pointercancel', cancelDockDrag, true);
+			window.removeEventListener('blur', cancelDockDrag);
+			dock.removeEventListener('lostpointercapture', cancelDockDrag);
 		};
 		window.addEventListener('pointermove', moveDock, true);
 		window.addEventListener('pointerup', finishDockDrag, true);
-		window.addEventListener('pointercancel', finishDockDrag, true);
+		window.addEventListener('pointercancel', cancelDockDrag, true);
+		window.addEventListener('blur', cancelDockDrag);
+		dock.addEventListener('lostpointercapture', cancelDockDrag);
 	};
 
 	/** Reveals the grab sheen, softened while the pointer is over a control. */
@@ -1152,8 +1197,8 @@ export function Dock({
 					headerOverride={paneHeaderOverride}
 					className={classNames({
 						[css.hostPaneHidden]:
-							!dockPaneIsOpen && paneExitComplete,
-						[css.paneSave]: section === 'save',
+							Boolean(activeSiteError) ||
+							(!dockPaneIsOpen && paneExitComplete),
 						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}

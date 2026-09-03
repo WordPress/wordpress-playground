@@ -5,6 +5,7 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
+	let listMetadata: ReturnType<typeof vi.fn>;
 	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -15,6 +16,7 @@ describe('stored sites', () => {
 		vi.resetModules();
 		createSite = vi.fn();
 		deleteSite = vi.fn();
+		listMetadata = vi.fn().mockResolvedValue([]);
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
 		updateSiteStorage.mockImplementation(async (slug, changes) => {
@@ -37,6 +39,7 @@ describe('stored sites', () => {
 		vi.doMock('@php-wasm/logger', () => ({
 			logger: {
 				error: loggerError,
+				warn: vi.fn(),
 			},
 		}));
 		vi.doMock('@wp-playground/common', () => ({
@@ -67,6 +70,7 @@ describe('stored sites', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				delete: deleteSite,
+				listMetadata,
 				update: updateSiteStorage,
 			},
 		}));
@@ -107,16 +111,27 @@ describe('stored sites', () => {
 		vi.doUnmock('./store');
 	});
 
-	it('classifies a normal autosave but not an unfinished Blueprint run as restorable', async () => {
+	it('only classifies bootable autosaves as restorable', async () => {
 		const { isRestorableAutosavedSite } = await import('./slice-sites');
 		const autosave = createSiteInfo({ slug: 'autosave' });
 		autosave.metadata.persistence = 'autosave';
+		const inProgressAutosave = createSiteInfo({ slug: 'in-progress' });
+		inProgressAutosave.metadata.persistence = 'autosave';
+		inProgressAutosave.metadata.initialOpfsSyncPending = true;
+		const storedUnfinishedAutosave = createSiteInfo({
+			slug: 'stored-unfinished',
+		});
+		storedUnfinishedAutosave.loadedFromStorage = true;
+		storedUnfinishedAutosave.metadata.persistence = 'autosave';
+		storedUnfinishedAutosave.metadata.initialOpfsSyncPending = true;
 		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
 		unfinishedRun.metadata.persistence = 'autosave';
 		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
 			'source-site';
 
 		expect(isRestorableAutosavedSite(autosave)).toBe(true);
+		expect(isRestorableAutosavedSite(inProgressAutosave)).toBe(true);
+		expect(isRestorableAutosavedSite(storedUnfinishedAutosave)).toBe(false);
 		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 

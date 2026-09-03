@@ -9,6 +9,7 @@ import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
 import { useDockPaneEditorHeaderSlot } from '../../dock/dock-pane';
 import { SiteDatabasePanel } from '../site-database-panel';
+import { SiteMailPanel } from '../site-mail-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import css from './style.module.css';
 
@@ -22,12 +23,20 @@ const SiteBlueprintBundleEditor = lazy(() =>
 	}))
 );
 
+const SiteTerminalPanel = lazy(() =>
+	import('../site-terminal-panel').then((m) => ({
+		default: m.SiteTerminalPanel,
+	}))
+);
+
 export type SiteInfoTabName =
 	| 'settings'
 	| 'files'
 	| 'blueprint'
 	| 'database'
-	| 'logs';
+	| 'terminal'
+	| 'logs'
+	| 'mail';
 
 /** Renders the tool surfaces selected by the site information tabs. */
 export function SiteToolPanels({
@@ -57,8 +66,12 @@ export function SiteToolPanels({
 		activeTabName === 'blueprint' || mountedTabNames.includes('blueprint');
 	const databaseMounted =
 		activeTabName === 'database' || mountedTabNames.includes('database');
+	const terminalMounted =
+		activeTabName === 'terminal' || mountedTabNames.includes('terminal');
 	const logsMounted =
 		activeTabName === 'logs' || mountedTabNames.includes('logs');
+	const mailMounted =
+		activeTabName === 'mail' || mountedTabNames.includes('mail');
 
 	// Mount each tool lazily, then retain its draft, selection, scroll position,
 	// and subscriptions while another Dock destination is visible.
@@ -177,6 +190,24 @@ export function SiteToolPanels({
 					<SiteDatabasePanel playground={playground} />
 				</div>
 			)}
+			{terminalMounted && (
+				<div
+					className={classNames(
+						css.tabContents,
+						css.toolTabContents,
+						{
+							[css.tabHidden]: activeTabName !== 'terminal',
+						}
+					)}
+					hidden={activeTabName !== 'terminal'}
+				>
+					<Suspense
+						fallback={<PaneLoading message="Loading Terminal…" />}
+					>
+						<SiteTerminalPanel playground={playground} />
+					</Suspense>
+				</div>
+			)}
 			{logsMounted && (
 				<div
 					className={classNames(
@@ -191,6 +222,16 @@ export function SiteToolPanels({
 					<div className={classNames(css.logsWrapper)}>
 						<SiteLogs className={css.logsSection} />
 					</div>
+				</div>
+			)}
+			{mailMounted && (
+				<div
+					className={classNames(css.tabContents, css.mailTab, {
+						[css.tabHidden]: activeTabName !== 'mail',
+					})}
+					hidden={activeTabName !== 'mail'}
+				>
+					<SiteMailPanel />
 				</div>
 			)}
 		</>

@@ -1,8 +1,17 @@
 /* Inline (dock pane) actions: a single left-aligned primary, matching the other
    New-pane flows. The modal variant keeps the right-aligned Cancel/Submit row. */
+.inline-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.inline-description {
+	margin: 0;
+}
+
 .inline-actions {
 	display: flex;
-	margin-top: 12px;
 }
 
 .progress {
@@ -23,14 +32,14 @@
 }
 
 .feedback-title {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	line-height: 1.4;
 }
 
 .feedback-message {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	font-size: 13px;
 	line-height: 1.5;
 	margin-top: 2px;
@@ -44,7 +53,7 @@
 
 .repository-choice:global(.components-button.is-secondary) {
 	align-items: center;
-	background: var(--paper-2, #faf8f5);
+	background: var(--surface-raised);
 	border-radius: var(--radius-control, 6px);
 	box-sizing: border-box;
 	cursor: pointer;
@@ -64,16 +73,16 @@
 .repository-choice:global(
 	.components-button.is-secondary:hover:not(:disabled)
 ) {
-	background: var(--paper-4, #e7e2da);
-	box-shadow: inset 0 0 0 1px var(--line-hover, rgba(33, 32, 29, 0.22));
+	background: var(--surface-control-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 }
 
 .repository-choices
 	.repository-choice:global(
 		.components-button.is-secondary:active:not(:disabled)
 	) {
-	background: var(--paper-5, #e2dcd2);
-	box-shadow: inset 0 0 0 1px var(--line-hover, rgba(33, 32, 29, 0.22));
+	background: var(--surface-control-active);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 }
 
 .repository-choice:global(
@@ -97,7 +106,7 @@
 
 .repository-choice-logo {
 	align-items: center;
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 	display: flex;
 	flex: none;
 	height: 48px;
@@ -120,7 +129,7 @@
 }
 
 .repository-choice-title {
-	color: var(--ink, #21201d);
+	color: var(--ink);
 	font-size: 14px;
 	font-weight: 600;
 	line-height: 1.4;
@@ -128,7 +137,7 @@
 }
 
 .repository-choice-meta {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	display: flex;
 	flex-direction: column;
 	font-size: 12px;
@@ -149,7 +158,7 @@
 
 .repository-choice-action {
 	align-items: center;
-	color: var(--action-icon, #4f4b45);
+	color: var(--action-icon);
 	display: flex;
 	flex: none;
 	margin-left: 12px;

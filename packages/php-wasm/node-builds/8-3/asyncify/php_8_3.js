@@ -13,10 +13,10 @@ const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname
 		: path.dirname(fileURLToPath(import.meta.url));
-const dependencyFilename = path.join(currentDirPath, '8_3_32', 'php_8_3.wasm');
+const dependencyFilename = path.join(currentDirPath, '8_3_33', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 23491147;
-const phpVersionString = '8.3.32';
+export const dependenciesTotalSize = 23485474;
+const phpVersionString = '8.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -10957,6 +10957,7 @@ export function init(RuntimeName, PHPLoader) {
 		_dlclose,
 		_strcmp,
 		_getenv,
+		_explicit_bzero,
 		___wasm_setjmp,
 		___wasm_setjmp_test,
 		_emscripten_longjmp,
@@ -11016,6 +11017,7 @@ export function init(RuntimeName, PHPLoader) {
 		_log,
 		_log2,
 		_fmod,
+		_sscanf,
 		_wasm_php_exec,
 		_socket,
 		_freeaddrinfo,
@@ -11670,6 +11672,8 @@ export function init(RuntimeName, PHPLoader) {
 		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
 		_strcmp = Module['_strcmp'] = wasmExports['strcmp'];
 		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		___wasm_setjmp = Module['___wasm_setjmp'] =
 			wasmExports['__wasm_setjmp'];
 		___wasm_setjmp_test = Module['___wasm_setjmp_test'] =
@@ -11733,6 +11737,7 @@ export function init(RuntimeName, PHPLoader) {
 		_log = Module['_log'] = wasmExports['log'];
 		_log2 = Module['_log2'] = wasmExports['log2'];
 		_fmod = Module['_fmod'] = wasmExports['fmod'];
+		_sscanf = Module['_sscanf'] = wasmExports['sscanf'];
 		_wasm_php_exec = Module['_wasm_php_exec'] =
 			wasmExports['wasm_php_exec'];
 		_socket = Module['_socket'] = wasmExports['socket'];

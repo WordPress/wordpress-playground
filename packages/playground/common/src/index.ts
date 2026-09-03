@@ -47,8 +47,8 @@ const UNZIP_PROGRESS_LINE_PREFIX = 'PLAYGROUND_UNZIP_PROGRESS:';
  *
  * For example, 250 one-byte files are extracted as three batches of 100, 100,
  * and 50 files. An `onProgress` callback receives an update after each batch.
- * Entries remain atomic, so a single file larger than 400 KiB finishes before
- * the update.
+ * Browser delivery may group fast consecutive updates. Entries remain atomic,
+ * so a single file larger than 400 KiB finishes before the update.
  *
  * `ZipArchive` follows symlinks already present in the destination. Do not
  * extract into a directory containing untrusted symlinks.
@@ -136,6 +136,7 @@ export const unzipFile = async (
 			$uncompressedBytesProcessed = 0;
 			$filesSinceUpdate = 0;
 			$uncompressedBytesSinceUpdate = 0;
+			$lastProgressYieldAt = 0;
 			$entriesToExtract = array();
 			for ($i = 0; $i < $zip->numFiles; $i++) {
 				$stat = $zip->statIndex($i);
@@ -172,7 +173,8 @@ export const unzipFile = async (
 							$filesProcessed,
 							$totalFiles,
 							$uncompressedBytesProcessed,
-							$totalUncompressedBytes
+							$totalUncompressedBytes,
+							$lastProgressYieldAt
 						);
 					}
 					$filesSinceUpdate = 0;
@@ -191,7 +193,8 @@ export const unzipFile = async (
 					$filesProcessed,
 					$totalFiles,
 					$uncompressedBytesProcessed,
-					$totalUncompressedBytes
+					$totalUncompressedBytes,
+					$lastProgressYieldAt
 				);
 			}
 		} catch (Exception $e) {
@@ -230,6 +233,7 @@ export const unzipFile = async (
 		 * @param int    $totalFiles                 Total files in the archive.
 		 * @param int    $uncompressedBytesProcessed Bytes processed so far.
 		 * @param int    $totalUncompressedBytes     Total uncompressed bytes.
+		 * @param float  $lastProgressYieldAt        Last event-loop yield time.
 		 * @return void
 		 */
 		function reportUnzipProgress(
@@ -237,8 +241,15 @@ export const unzipFile = async (
 			$filesProcessed,
 			$totalFiles,
 			$uncompressedBytesProcessed,
-			$totalUncompressedBytes
+			$totalUncompressedBytes,
+			&$lastProgressYieldAt
 		) {
+			$now = microtime(true);
+			// Limit event-loop yields to keep large imports fast.
+			$shouldYield =
+				$lastProgressYieldAt === 0 ||
+				$filesProcessed === $totalFiles ||
+				$now - $lastProgressYieldAt >= 0.05;
 			echo $linePrefix . json_encode(array(
 				'filesProcessed' => $filesProcessed,
 				'totalFiles' => $totalFiles,
@@ -246,6 +257,13 @@ export const unzipFile = async (
 				'totalUncompressedBytes' => $totalUncompressedBytes,
 			)) . "\\n";
 			flush();
+			// PHP 5.2's Asyncify build cannot suspend from a nested function call.
+			if ($shouldYield && PHP_MAJOR_VERSION >= 7) {
+				// PHP runs synchronously inside the worker. Yield so stdout can cross
+				// the worker boundary before extraction finishes.
+				usleep(0);
+				$lastProgressYieldAt = microtime(true);
+			}
 		}
 		`;
 		const request: PHPRunOptions = {

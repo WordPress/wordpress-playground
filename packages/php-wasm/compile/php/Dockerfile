@@ -60,10 +60,8 @@ fi
 COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
-	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
 	cp -r /root/builds-libzip/jspi/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 else \
-	cp -r /root/builds-libzip/asyncify/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
 	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 fi
 
@@ -2202,6 +2200,39 @@ COPY ./compile/php/exported-functions.list /root/exported-functions.list
 COPY ./compile/php/zend-side-module-exports.c /root/zend-side-module-exports.c
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 
+# External phpize extensions are not available while this main module is linked.
+# Export the complete public symbol surface of the matching libphp archive so
+# MAIN_MODULE=2 retains the PHP extension ABI for externally built side modules
+# to dynamically link against.
+#
+# Add the ABI to the wasm export list (`-Wl,--export=`) ONLY, not to
+# EXPORTED_FUNCTIONS. A side module resolves imports against the main module's
+# `wasmExports` (which `--export` populates), so that is all linking needs.
+# Emscripten still emits a `_sym = Module['_sym'] = wasmExports['sym']` JS alias
+# for every wasm export regardless of EXPORTED_FUNCTIONS; those ABI aliases are
+# dead weight (nothing in our JS/TS reads them) and are removed after linking by
+# strip-unused-abi-export-aliases.mjs. Keeping .JS_ABI_EXPORTS free of the ABI
+# also lets that step derive the strip set cleanly as (ABI) minus (JS exports).
+#
+# External extensions are JSPI-only (see compile-extension's ExtensionAsyncMode),
+# so skip this for asyncify builds, which can never load one and would otherwise
+# pay the binary-size cost of retaining the whole libphp ABI as dead weight.
+RUN set -eux; \
+	if [ "$WITH_JSPI" != "yes" ]; then \
+		exit 0; \
+	fi; \
+	/root/emsdk/upstream/bin/llvm-nm \
+		--defined-only \
+		--extern-only \
+		--format=just-symbols \
+		/root/lib/libphp.a \
+		| grep -v '^[[:space:]]*$' \
+		| grep -v ':$' \
+		| LC_ALL=C sort -u \
+		> /root/.PHP_EXTENSION_ABI_EXPORTS; \
+	cat /root/.PHP_EXTENSION_ABI_EXPORTS \
+		>> /root/.WASM_ABI_EXPORTS
+
 RUN set -eux; \
 	if [ "$WITH_JSPI" != "yes" ]; then \
 		exit 0; \
@@ -2374,6 +2405,23 @@ RUN set -eux; \
 	sed 's/^/-Wl,--export=/' \
 	> /root/.wasm-exports
 
+# Derive the JS aliases to strip after linking: the libphp ABI symbols that are
+# exported to wasm for side-module linking but are NOT part of the JS-facing
+# export set (.JS_ABI_EXPORTS). These get a dead `Module['_sym']` alias in the
+# generated loader that nothing reads. Names use Emscripten's JS leading
+# underscore so they match the loader's alias declarations directly.
+RUN set -eux; \
+	: > /root/.PHP_EXTENSION_ABI_JS_STRIP; \
+	if [ -s /root/.PHP_EXTENSION_ABI_EXPORTS ]; then \
+		sed 's/^/_/' /root/.PHP_EXTENSION_ABI_EXPORTS \
+			| grep -v '^[[:space:]]*$' \
+			| LC_ALL=C sort -u > /root/.abi-js-names; \
+		LC_ALL=C sort -u /root/.JS_ABI_EXPORTS \
+			| grep -v '^[[:space:]]*$' > /root/.js-keep-names; \
+		LC_ALL=C comm -23 /root/.abi-js-names /root/.js-keep-names \
+			> /root/.PHP_EXTENSION_ABI_JS_STRIP; \
+	fi
+
 
 # Build the final .wasm file
 RUN mkdir /root/output
@@ -2470,6 +2518,23 @@ RUN set -euxo pipefail; \
 #         mkdir -p /root/output/terminfo/x && \
 #         cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/; \
 #     fi
+
+# Strip the dead JS aliases Emscripten emits for the externally-linkable libphp
+# ABI (see strip-unused-abi-export-aliases.mjs). The wasm exports stay; only the
+# unused `Module['_sym']` aliases are removed. No-op when the strip list is empty
+# (asyncify builds, or builds without the external-extension ABI).
+#
+# A stronger, Emscripten-native alternative — `-sDECLARE_ASM_MODULE_EXPORTS=0` —
+# would avoid emitting these aliases entirely, but it is global and would break
+# `ccall` (getCFunc reads `Module['_x']`), our custom js-library glue, and the
+# `PHPLoader['malloc']`/`['free']` patches. That trade-off is documented in
+# strip-unused-abi-export-aliases.mjs; this targeted strip is the lower-risk path.
+COPY ./compile/php/strip-unused-abi-export-aliases.mjs /root/strip-unused-abi-export-aliases.mjs
+RUN set -eux; \
+	source /root/emsdk/emsdk_env.sh; \
+	node /root/strip-unused-abi-export-aliases.mjs \
+		/build/output/php.js \
+		/root/.PHP_EXTENSION_ABI_JS_STRIP
 
 # Postprocess the build php.js module:
 COPY ./compile/php/esm-node-boilerplate.js /root/esm-node-boilerplate.js

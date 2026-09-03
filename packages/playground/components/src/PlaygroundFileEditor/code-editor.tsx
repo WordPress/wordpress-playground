@@ -184,6 +184,7 @@ export type CodeEditorProps = {
 	code: string;
 	onChange: (next: string) => void;
 	currentPath: string | null;
+	language?: LanguageSupport;
 	className?: string;
 	onSaveShortcut?: () => void;
 	readOnly?: boolean;
@@ -196,6 +197,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			code,
 			onChange,
 			currentPath,
+			language,
 			className,
 			onSaveShortcut,
 			readOnly = false,
@@ -277,7 +279,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					rectangularSelection(),
 					crosshairCursor(),
 					clickBelowContentExtension,
-					languageCompartmentRef.current.of(php()),
+					languageCompartmentRef.current.of(language ?? php()),
 					editableCompartmentRef.current.of(
 						EditorView.editable.of(!readOnly)
 					),
@@ -361,6 +363,13 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			if (!view) {
 				return;
 			}
+			if (language) {
+				view.dispatch({
+					effects:
+						languageCompartmentRef.current.reconfigure(language),
+				});
+				return;
+			}
 
 			// Check if it's a PHP file
 			const extension = currentPath?.split('.').pop()?.toLowerCase();
@@ -389,7 +398,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			return () => {
 				cancelled = true;
 			};
-		}, [currentPath]);
+		}, [currentPath, language]);
 
 		useEffect(() => {
 			const view = viewRef.current;

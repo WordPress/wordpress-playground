@@ -34,7 +34,7 @@ Ang hub na ito ay nakatuon sa pagsisimula sa WordPress Playground at hinati sa m
 - **[Tungkol sa Playground](/about)**: Malaman kung ano ang WordPress Playground, gaano ito kaligtasan, at ang mga kasalukuyang limitasyon nito. Tuklasin kung paano gamitin ang Playground para [Build](/about/build), [Test](/about/test), at [Launch](/about/launch).
 - **[Mga Gabay](/guides)**: Komprehensibong gabay para matuto ng bagong kasanayan, makakuha ng step-by-step na instruksyon, at mahatak ang mahahalagang kaalaman.
 - **[Pag-aambag](/contributing)**: Maligayang pagdating sa lahat ng kontribyutor—mula sa code, disenyo, dokumentasyon, hanggang triage.
-- **[Mga Link at Recursos](/resources)**: Koleksyon ng mga kapaki-pakinabang na link at resources tungkol sa WordPress Playground.
+- **[Mga Link at Recursos](/links-and-resources)**: Koleksyon ng mga kapaki-pakinabang na link at resources tungkol sa WordPress Playground.
 
 ## Mga Unang Hakbang
 
@@ -57,7 +57,7 @@ Basahin ang [**Introduction to Playground: running WordPress in the browser**](h
 Kung ikaw ay developer o tech user, maaari mong direktang tingnan ang mga API:
 
 - Basahin ang tungkol sa [Playground APIs](/developers/apis/) at mga pangunahing konsepto
-- Suriin ang [mga link at resources](/resources)
+- Suriin ang [mga link at resources](/links-and-resources)
 - Piliin ang tamang API para sa iyong app:
     - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
     - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file

@@ -214,11 +214,20 @@ export function EnsurePlaygroundSiteIsSelected({
 			if (shouldUseTemporarySite) {
 				await sitesAPI.createNewTemporarySite();
 			} else {
-				// A matching autosave may already be waiting for its first OPFS
-				// sync. Keep it selected instead of creating a duplicate for the
-				// same setup URL.
+				// `initialOpfsSyncPending` describes two different situations:
+				//
+				// 1. A site created in this tab is still copying WordPress files
+				//    into OPFS. If this effect runs again before the copy finishes,
+				//    keep that site active instead of creating a duplicate.
+				// 2. A site loaded from OPFS still has the flag because an earlier
+				//    tab closed or reloaded during the copy. That site is incomplete
+				//    and cannot boot. For example, "Start a new Playground" must be
+				//    allowed to create a different site instead of keeping it active.
+				//
+				// `loadedFromStorage` distinguishes the interrupted second case.
 				if (
 					activeSite &&
+					activeSite.loadedFromStorage !== true &&
 					isAutosavedSite(activeSite) &&
 					activeSite.metadata.initialOpfsSyncPending &&
 					getAutosaveFingerprintFromSite(activeSite) ===

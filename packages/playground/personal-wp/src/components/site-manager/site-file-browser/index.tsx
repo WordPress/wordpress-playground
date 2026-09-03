@@ -33,7 +33,10 @@ export function SiteFileBrowser({
 			filesystem={filesystem}
 			documentRoot={documentRoot}
 			isVisible={isVisible}
-			initialPath={`${documentRoot}/wp-config.php`}
+			// Nothing is auto-opened: the browser used to greet people with
+			// wp-config.php, which put database credentials on screen as the
+			// first thing anyone saw here.
+			initialPath={null}
 			placeholderText="Start this Playground to browse and edit its files."
 		/>
 	);
