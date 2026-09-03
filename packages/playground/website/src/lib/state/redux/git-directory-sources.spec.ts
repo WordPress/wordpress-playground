@@ -1,5 +1,7 @@
-import type { StepDefinition } from '@wp-playground/blueprints';
-import type { GitDirectorySource } from './slice-sites';
+import type {
+	StepDefinition,
+	GitDirectoryReference,
+} from '@wp-playground/blueprints';
 import {
 	buildGitDirectoryStep,
 	buildUpdatedBlueprintDeclaration,
@@ -19,7 +21,8 @@ const gitInstallPluginStep: StepDefinition = {
 	},
 } as any;
 
-const gitSource: GitDirectorySource = {
+const gitSource: GitDirectoryReference = {
+	resource: 'git:directory',
 	url: 'https://github.com/WordPress/wordpress-playground',
 	ref: 'trunk',
 	path: 'packages/playground',
@@ -40,9 +43,9 @@ describe('extractGitDirectorySource', () => {
 		expect(extracted).toEqual({
 			assetPath: '/wordpress/wp-content/plugins/hello-dolly',
 			source: {
+				resource: 'git:directory',
 				url: 'https://github.com/WordPress/wordpress-playground',
 				ref: 'trunk',
-				refType: undefined,
 				path: 'packages/playground',
 			},
 		});
@@ -67,6 +70,18 @@ describe('extractGitDirectorySource', () => {
 	it('returns null when the step result carries no assetPath', () => {
 		expect(
 			extractGitDirectorySource(gitInstallPluginStep, undefined)
+		).toBeNull();
+	});
+
+	it('returns null when ifAlreadyInstalled:skip left a pre-existing folder untouched', () => {
+		// `installPlugin` still reports `assetPath` for activation purposes
+		// even when it skipped writing over an unrelated existing folder —
+		// that folder didn't actually come from this git resource.
+		expect(
+			extractGitDirectorySource(gitInstallPluginStep, {
+				assetPath: '/wordpress/wp-content/plugins/hello-dolly',
+				skippedExisting: true,
+			})
 		).toBeNull();
 	});
 });
@@ -110,6 +125,7 @@ describe('buildGitDirectoryStep', () => {
 
 	it('omits refType/path when absent', () => {
 		const step = buildGitDirectoryStep('/wordpress/wp-content/plugins/x', {
+			resource: 'git:directory',
 			url: gitSource.url,
 			ref: gitSource.ref,
 		}) as any;
@@ -121,53 +137,74 @@ describe('buildGitDirectoryStep', () => {
 	});
 });
 
+// A second, distinct source (different repo) representing a plugin
+// mounted live that was never part of the original Blueprint.
+const gitSourceFromMount: GitDirectoryReference = {
+	resource: 'git:directory',
+	url: 'https://github.com/WordPress/wordpress-develop',
+	ref: 'trunk',
+};
+
 describe('buildUpdatedBlueprintDeclaration', () => {
-	it('appends a step only for sources marked addedLive', async () => {
-		const originalBlueprint = { steps: [{ step: 'login' }] };
-		const declaration = await buildUpdatedBlueprintDeclaration(
-			originalBlueprint,
-			{
-				'/wordpress/wp-content/plugins/from-boot': gitSource, // not addedLive
-				'/wordpress/wp-content/plugins/from-mount': {
-					...gitSource,
-					addedLive: true,
-				},
-			}
-		);
-		expect((declaration as any).steps).toHaveLength(2);
+	it('appends a step only for sources not already declared by the original Blueprint', async () => {
+		const originalBlueprint = {
+			steps: [{ step: 'login' }, gitInstallPluginStep],
+		};
+		const { declaration, hasAdditions } =
+			await buildUpdatedBlueprintDeclaration(originalBlueprint, {
+				// Matches `gitInstallPluginStep` above — already declared.
+				'/wordpress/wp-content/plugins/from-boot': gitSource,
+				'/wordpress/wp-content/plugins/from-mount': gitSourceFromMount,
+			});
+		expect(hasAdditions).toBe(true);
+		expect((declaration as any).steps).toHaveLength(3);
 		expect((declaration as any).steps[0]).toEqual({ step: 'login' });
-		expect((declaration as any).steps[1].options.targetFolderName).toBe(
+		expect((declaration as any).steps[1]).toBe(gitInstallPluginStep);
+		expect((declaration as any).steps[2].options.targetFolderName).toBe(
 			'from-mount'
 		);
 		// The original declaration is not mutated in place.
-		expect(originalBlueprint.steps).toHaveLength(1);
+		expect(originalBlueprint.steps).toHaveLength(2);
 	});
 
-	it('returns the base declaration unchanged when there are no live mounts', async () => {
-		const originalBlueprint = { steps: [{ step: 'login' }] };
-		const declaration = await buildUpdatedBlueprintDeclaration(
-			originalBlueprint,
-			{ '/wordpress/wp-content/plugins/from-boot': gitSource }
-		);
+	it('reports no additions when every recorded source is already declared', async () => {
+		const originalBlueprint = { steps: [gitInstallPluginStep] };
+		const { declaration, hasAdditions } =
+			await buildUpdatedBlueprintDeclaration(originalBlueprint, {
+				'/wordpress/wp-content/plugins/from-boot': gitSource,
+			});
+		expect(hasAdditions).toBe(false);
 		expect(declaration).toEqual(originalBlueprint);
 	});
 
+	it('does not duplicate a step when the same repo is mounted live again', async () => {
+		// Mounting a repo via "Mount via git…" that's already declared in
+		// the Blueprint shouldn't produce a second, redundant step.
+		const originalBlueprint = { steps: [gitInstallPluginStep] };
+		const { hasAdditions } = await buildUpdatedBlueprintDeclaration(
+			originalBlueprint,
+			{ '/wordpress/wp-content/plugins/moved-elsewhere': gitSource }
+		);
+		expect(hasAdditions).toBe(false);
+	});
+
 	it('returns an empty declaration when originalBlueprint is missing and there are no live mounts', async () => {
-		expect(
-			await buildUpdatedBlueprintDeclaration(undefined, undefined)
-		).toEqual({});
+		const { declaration, hasAdditions } =
+			await buildUpdatedBlueprintDeclaration(undefined, undefined);
+		expect(declaration).toEqual({});
+		expect(hasAdditions).toBe(false);
 	});
 
 	it('seeds a steps array when originalBlueprint has none', async () => {
-		const declaration = await buildUpdatedBlueprintDeclaration(
-			{ preferredVersions: { php: '8.2' } },
-			{
-				'/wordpress/wp-content/plugins/from-mount': {
-					...gitSource,
-					addedLive: true,
-				},
-			}
-		);
+		const { declaration, hasAdditions } =
+			await buildUpdatedBlueprintDeclaration(
+				{ preferredVersions: { php: '8.2' } },
+				{
+					'/wordpress/wp-content/plugins/from-mount':
+						gitSourceFromMount,
+				}
+			);
+		expect(hasAdditions).toBe(true);
 		expect((declaration as any).steps).toHaveLength(1);
 	});
 
@@ -179,12 +216,12 @@ describe('buildUpdatedBlueprintDeclaration', () => {
 		// preview (never written back to the site), it's safe to read
 		// through it regardless of what it wraps.
 		const wrapper = mockBundle({ steps: [{ step: 'login' }] });
-		const declaration = await buildUpdatedBlueprintDeclaration(wrapper, {
-			'/wordpress/wp-content/plugins/from-mount': {
-				...gitSource,
-				addedLive: true,
-			},
-		});
+		const { declaration } = await buildUpdatedBlueprintDeclaration(
+			wrapper,
+			{
+				'/wordpress/wp-content/plugins/from-mount': gitSourceFromMount,
+			}
+		);
 		expect((declaration as any).steps).toEqual([
 			{ step: 'login' },
 			expect.objectContaining({ step: 'installPlugin' }),
@@ -193,11 +230,8 @@ describe('buildUpdatedBlueprintDeclaration', () => {
 
 	it('falls back to an empty base when a bundle cannot be read as JSON', async () => {
 		const bundle = { read: async () => new Blob(['not json']) };
-		const declaration = await buildUpdatedBlueprintDeclaration(bundle, {
-			'/wordpress/wp-content/plugins/from-mount': {
-				...gitSource,
-				addedLive: true,
-			},
+		const { declaration } = await buildUpdatedBlueprintDeclaration(bundle, {
+			'/wordpress/wp-content/plugins/from-mount': gitSourceFromMount,
 		});
 		expect((declaration as any).steps).toHaveLength(1);
 	});

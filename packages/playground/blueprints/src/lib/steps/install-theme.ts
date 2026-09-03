@@ -85,6 +85,12 @@ export interface InstallThemeOptions {
  */
 export interface InstallThemeResult {
 	assetPath: string;
+	/**
+	 * True when `assetPath` already held an unrelated, pre-existing
+	 * installation and `ifAlreadyInstalled: 'skip'` left it untouched — so
+	 * `assetPath` was not actually populated by this step's `themeData`.
+	 */
+	skippedExisting?: boolean;
 }
 
 export const installTheme: StepHandler<
@@ -104,6 +110,7 @@ export const installTheme: StepHandler<
 
 	const onError = options.onError ?? 'throw';
 	let assetNiceName = '';
+	let skippedExisting = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
 		const targetFolderName =
@@ -161,6 +168,7 @@ export const installTheme: StepHandler<
 				}
 				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
 					shouldWriteThemeFiles = false;
+					skippedExisting = true;
 				} else if (ifAlreadyInstalled === 'error') {
 					throw new Error(
 						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because it already exists and ` +
@@ -205,7 +213,7 @@ export const installTheme: StepHandler<
 			);
 		}
 
-		return { assetPath };
+		return { assetPath, skippedExisting };
 	} catch (error) {
 		if (onError === 'skip-theme') {
 			const skippedThemeName = progressName() || 'unknown theme';

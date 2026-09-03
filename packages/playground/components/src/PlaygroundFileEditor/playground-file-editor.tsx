@@ -48,7 +48,7 @@ export type PlaygroundFileEditorProps = {
 	/** See `FilePickerTreeProps.onMountFromGit`. */
 	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
 	/** See `FilePickerTreeProps.onPathRenamed`. */
-	onPathRenamed?: (oldPath: string, newPath: string) => void;
+	onPathRenamed?: (oldPath: string, newPath: string) => void | Promise<void>;
 };
 
 type PendingSave = {

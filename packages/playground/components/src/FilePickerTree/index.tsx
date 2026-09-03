@@ -103,8 +103,13 @@ export type FilePickerTreeProps = {
 	 * git remote.
 	 */
 	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
-	/** Called after a folder is successfully renamed (not for files). */
-	onPathRenamed?: (oldPath: string, newPath: string) => void;
+	/**
+	 * Called after a folder is successfully renamed (not for files).
+	 * Awaited before the rename operation settles, so a caller that persists
+	 * provenance keyed by path (e.g. git-mount metadata) can serialize
+	 * consecutive renames instead of racing a stale read of its own state.
+	 */
+	onPathRenamed?: (oldPath: string, newPath: string) => void | Promise<void>;
 };
 
 export type FilePickerTreeHandle = {
@@ -1285,7 +1290,7 @@ export const FilePickerTree = forwardRef<
 			if (candidateIsDir) {
 				remapPathState(path, candidateNormalized);
 				if (!isPending) {
-					onPathRenamed?.(path, candidateNormalized);
+					await onPathRenamed?.(path, candidateNormalized);
 				}
 			}
 			if (selectedPath === path) {

@@ -62,8 +62,24 @@ export function MountGitDirectoryModal({
 		});
 	};
 
+	/**
+	 * Escape, the overlay, and the close icon all route through here — block
+	 * them while a mount is in flight so closing the modal can't hide a
+	 * fetch/install that's still running and will still mutate the site.
+	 */
+	const handleRequestClose = () => {
+		if (!isBusy) {
+			onCancel();
+		}
+	};
+
 	return (
-		<Modal title={`Mount ${kind} via git`} onRequestClose={onCancel} small>
+		<Modal
+			title={`Mount ${kind} via git`}
+			onRequestClose={handleRequestClose}
+			isDismissible={!isBusy}
+			small
+		>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();

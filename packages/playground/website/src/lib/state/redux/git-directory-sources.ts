@@ -2,19 +2,21 @@ import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 	type StepDefinition,
+	type GitDirectoryReference,
 } from '@wp-playground/blueprints';
 import { basename, dirname } from '@php-wasm/util';
-import type { GitDirectorySource } from './slice-sites';
 
 export interface ExtractedGitDirectorySource {
 	assetPath: string;
-	source: GitDirectorySource;
+	source: GitDirectoryReference;
 }
 
 /**
  * Reads the git:directory provenance (repo URL, ref, path) and the
  * resolved install path off a completed installPlugin/installTheme step,
- * or returns null when the step isn't a git:directory install.
+ * or returns null when the step isn't a git:directory install, or when
+ * `ifAlreadyInstalled: 'skip'` left an unrelated pre-existing folder in
+ * place rather than actually installing from this resource.
  */
 export function extractGitDirectorySource(
 	step: StepDefinition,
@@ -31,44 +33,93 @@ export function extractGitDirectorySource(
 	) {
 		return null;
 	}
-	const assetPath = (result as { assetPath?: string } | undefined)?.assetPath;
-	if (!assetPath) {
+	const { assetPath, skippedExisting } =
+		(result as
+			| { assetPath?: string; skippedExisting?: boolean }
+			| undefined) ?? {};
+	if (!assetPath || skippedExisting) {
 		return null;
 	}
 	return {
 		assetPath,
-		source: {
-			url: resource.url,
-			ref: resource.ref,
-			refType: resource.refType,
-			path: resource.path,
-		},
+		source: resource as GitDirectoryReference,
 	};
 }
 
 /**
  * Builds a full Blueprint declaration reflecting the site's original
- * Blueprint plus every plugin/theme mounted live via "Mount via git…"
- * (`source.addedLive`) — freshly generated from current state every time,
- * so it's always accurate regardless of renames and never requires
- * mutating the site's stored Blueprint in place. Meant for the user to
- * open and compare against the original, not to replace it.
+ * Blueprint plus every plugin/theme mounted live via "Mount via git…" —
+ * i.e. every recorded source whose git repo/ref/path isn't already
+ * declared by an existing step — freshly generated from current state
+ * every time, so it's always accurate regardless of renames and never
+ * requires mutating the site's stored Blueprint in place. Meant for the
+ * user to open and compare against the original, not to replace it.
+ *
+ * `hasAdditions` tells the caller whether any step was actually appended,
+ * so it can skip writing/showing a preview that's identical to the
+ * original Blueprint.
  */
 export async function buildUpdatedBlueprintDeclaration(
 	originalBlueprint: unknown,
-	gitDirectorySources: Record<string, GitDirectorySource> | undefined
-): Promise<Record<string, unknown>> {
+	gitDirectorySources: Record<string, GitDirectoryReference> | undefined
+): Promise<{ declaration: Record<string, unknown>; hasAdditions: boolean }> {
 	const base = await resolveDeclaration(originalBlueprint);
 	const existingSteps = Array.isArray(base['steps'])
 		? (base['steps'] as unknown[])
 		: [];
 	const liveSteps = Object.entries(gitDirectorySources ?? {})
-		.filter(([, source]) => source.addedLive)
+		.filter(([, source]) => !isDeclaredByStep(existingSteps, source))
 		.map(([path, source]) => buildGitDirectoryStep(path, source));
 	if (liveSteps.length === 0) {
-		return base;
+		return { declaration: base, hasAdditions: false };
 	}
-	return { ...base, steps: [...existingSteps, ...liveSteps] };
+	return {
+		declaration: { ...base, steps: [...existingSteps, ...liveSteps] },
+		hasAdditions: true,
+	};
+}
+
+/**
+ * Whether one of `steps` already installs from the same git repo/ref/path
+ * as `source`, regardless of where it ended up on disk — the source of
+ * truth for "is this already part of the Blueprint" instead of a stored
+ * flag, so it can't drift from the Blueprint it's meant to describe.
+ */
+function isDeclaredByStep(
+	steps: unknown[],
+	source: GitDirectoryReference
+): boolean {
+	return steps.some((step) => {
+		if (
+			!step ||
+			typeof step !== 'object' ||
+			((step as { step?: unknown }).step !== 'installPlugin' &&
+				(step as { step?: unknown }).step !== 'installTheme')
+		) {
+			return false;
+		}
+		const resource =
+			(step as { pluginData?: unknown; themeData?: unknown })
+				.pluginData ??
+			(step as { pluginData?: unknown; themeData?: unknown }).themeData;
+		if (
+			!resource ||
+			typeof resource !== 'object' ||
+			(resource as { resource?: unknown }).resource !== 'git:directory'
+		) {
+			return false;
+		}
+		const reference = resource as {
+			url?: string;
+			ref?: string;
+			path?: string;
+		};
+		return (
+			reference.url === source.url &&
+			reference.ref === source.ref &&
+			(reference.path ?? undefined) === (source.path ?? undefined)
+		);
+	});
 }
 
 /**
@@ -80,25 +131,18 @@ export async function buildUpdatedBlueprintDeclaration(
  */
 export function buildGitDirectoryStep(
 	path: string,
-	source: GitDirectorySource
+	source: GitDirectoryReference
 ): StepDefinition {
 	const targetFolderName = basename(path);
-	const resource = {
-		resource: 'git:directory' as const,
-		url: source.url,
-		ref: source.ref,
-		...(source.refType ? { refType: source.refType } : {}),
-		...(source.path ? { path: source.path } : {}),
-	};
 	return basename(dirname(path)) === 'themes'
 		? ({
 				step: 'installTheme',
-				themeData: resource,
+				themeData: source,
 				options: { activate: false, targetFolderName },
 			} as StepDefinition)
 		: ({
 				step: 'installPlugin',
-				pluginData: resource,
+				pluginData: source,
 				options: { activate: false, targetFolderName },
 			} as StepDefinition);
 }

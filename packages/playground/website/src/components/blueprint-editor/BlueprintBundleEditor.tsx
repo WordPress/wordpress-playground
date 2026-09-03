@@ -464,10 +464,7 @@ export const BlueprintBundleEditor = forwardRef<
 	// happened.
 	useEffect(() => {
 		const gitDirectorySources = site?.metadata.gitDirectorySources;
-		const hasLiveMounts = Object.values(gitDirectorySources ?? {}).some(
-			(source) => source.addedLive
-		);
-		if (!site || !hasLiveMounts) {
+		if (!site || !gitDirectorySources) {
 			return;
 		}
 		// Claim this run's turn immediately (synchronously): if a newer run
@@ -477,11 +474,16 @@ export const BlueprintBundleEditor = forwardRef<
 		let cancelled = false;
 		(async () => {
 			try {
-				const declaration = await buildUpdatedBlueprintDeclaration(
-					site.metadata.originalBlueprint,
-					gitDirectorySources
-				);
-				if (cancelled || previewWriteSeqRef.current !== seq) {
+				const { declaration, hasAdditions } =
+					await buildUpdatedBlueprintDeclaration(
+						site.metadata.originalBlueprint,
+						gitDirectorySources
+					);
+				if (
+					!hasAdditions ||
+					cancelled ||
+					previewWriteSeqRef.current !== seq
+				) {
 					return;
 				}
 				await filesystem.writeFile(

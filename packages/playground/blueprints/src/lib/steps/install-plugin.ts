@@ -105,6 +105,12 @@ export interface InstallPluginOptions {
  */
 export interface InstallPluginResult {
 	assetPath: string;
+	/**
+	 * True when `assetPath` already held an unrelated, pre-existing
+	 * installation and `ifAlreadyInstalled: 'skip'` left it untouched — so
+	 * `assetPath` was not actually populated by this step's `pluginData`.
+	 */
+	skippedExisting?: boolean;
 }
 
 export const installPlugin: StepHandler<
@@ -124,6 +130,7 @@ export const installPlugin: StepHandler<
 
 	let assetPath = '';
 	let assetNiceName = '';
+	let skippedExisting = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 
 	const looksLikeZipFile = async (file: File): Promise<boolean> => {
@@ -196,15 +203,39 @@ export const installPlugin: StepHandler<
 				pluginsDirectoryPath,
 				targetFolderName || pluginData.name
 			);
-			await writeFiles(
-				playground,
-				pluginDirectoryPath,
-				pluginData.files,
-				{
-					rmRoot: true,
-				}
-			);
 			assetPath = pluginDirectoryPath;
+			let shouldWritePluginFiles = true;
+			/**
+			 * Directory plugins are written directly instead of going
+			 * through `installAsset()`, so apply the same
+			 * `ifAlreadyInstalled` rule here.
+			 */
+			if (await playground.fileExists(pluginDirectoryPath)) {
+				if (!(await playground.isDir(pluginDirectoryPath))) {
+					throw new Error(
+						`Cannot install plugin ${assetNiceName} to ${pluginDirectoryPath} because a file with the same name already exists. Note it's a file, not a directory! Is this by mistake?`
+					);
+				}
+				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
+					shouldWritePluginFiles = false;
+					skippedExisting = true;
+				} else if (ifAlreadyInstalled === 'error') {
+					throw new Error(
+						`Cannot install plugin ${assetNiceName} to ${pluginDirectoryPath} because it already exists and ` +
+							`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+					);
+				}
+			}
+			if (shouldWritePluginFiles) {
+				await writeFiles(
+					playground,
+					pluginDirectoryPath,
+					pluginData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
 		}
 
 		// Activate
@@ -238,7 +269,7 @@ export const installPlugin: StepHandler<
 			}
 		}
 
-		return { assetPath };
+		return { assetPath, skippedExisting };
 	} catch (error) {
 		if (options.onError === 'skip-plugin') {
 			const skippedPluginName = progressName() || 'unknown plugin';
