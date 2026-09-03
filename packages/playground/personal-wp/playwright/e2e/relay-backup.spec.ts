@@ -8,6 +8,13 @@ test('should download a site backup requested by a relay message', async ({
 	wordpress,
 }) => {
 	await website.goto('./');
+	// WordPress renders behind the loading screen, so a non-empty frame body
+	// is not yet a booted site: while the loading screen is up, a backup is
+	// refused the same way the Site Tools button is unavailable. Wait for it
+	// to go away.
+	await expect(
+		website.page.getByRole('progressbar', { name: 'Loading WordPress' })
+	).toHaveCount(0);
 
 	const downloadPromise = website.page.waitForEvent('download');
 	const result = await wordpress.locator('body').evaluate(

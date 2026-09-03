@@ -128,6 +128,10 @@ Waiting for it lets a page tell a slow backup apart from an older Personal
 Playground that ignores the message, so it can fall back to pointing at Site
 Tools. `success` or `error` follows once the zip is done.
 
+A request that arrives before the site has finished coming up waits for it, up
+to 15 seconds, rather than being refused — the page doing the asking was served
+by that site, so it is generally the shell's state that is behind.
+
 No confirmation dialog is shown: the file only reaches the user's own disk, the
 requesting page never gets to read it, and a browser download is visible anyway.
 Only one backup runs at a time; a request that arrives while one is in flight
