@@ -813,6 +813,19 @@ export class RawBytesFetch {
 		 * is handled above when choosing the target URL because fetch does not
 		 * support Host spoofing.
 		 */
+		/*
+		 * User-Agent is not a CORS-safelisted request header, and PHP sends one
+		 * with every request (WordPress sets its own). Forwarding it turns every
+		 * cross-origin request into a preflighted one, and few servers answer an
+		 * OPTIONS preflight with the CORS headers the browser then requires. The
+		 * CORS proxy fallback does not help either: its Access-Control-Allow-Headers
+		 * does not list User-Agent, so the preflight to the proxy fails as well and
+		 * the request is never sent.
+		 *
+		 * Chrome already ignores a User-Agent set through fetch() and sends its own,
+		 * so this only changes what Firefox does, and it changes it to match Chrome.
+		 * The browser fills in its own User-Agent for the outgoing request.
+		 */
 		for (const header of [
 			'Connection',
 			'Content-Length',
@@ -825,6 +838,7 @@ export class RawBytesFetch {
 			'Trailer',
 			'Transfer-Encoding',
 			'Upgrade',
+			'User-Agent',
 		]) {
 			normalizedHeaders.delete(header);
 		}
