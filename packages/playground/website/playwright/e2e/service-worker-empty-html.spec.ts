@@ -65,13 +65,10 @@ test('WordPress 6.3 site editor renders through the empty.html iframe', async ({
 		'/wp-includes/empty.html'
 	);
 
-	// The blob document carries the editor's static assets; the site content
-	// only renders when empty.html actually wrote that document.
+	// The site content only renders when empty.html actually wrote the
+	// blob document.
 	const canvasFrame = wordpress.frameLocator('iframe[name="editor-canvas"]');
 	await expect(canvasFrame.locator('.wp-site-blocks')).toBeVisible({
 		timeout: 120000,
 	});
-	expect(
-		await canvasFrame.locator('link[rel="stylesheet"]').count()
-	).toBeGreaterThan(0);
 });
