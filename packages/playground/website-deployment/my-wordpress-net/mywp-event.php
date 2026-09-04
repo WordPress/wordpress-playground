@@ -14,6 +14,9 @@ const MYWP_EVENT_ALLOWED_EVENTS = array(
 	'health_check_installed',
 	'sidebar_opened',
 	'backup_restored',
+	'daily_streak',
+	'weekly_streak',
+	'monthly_streak',
 );
 
 if ( 'cli' !== php_sapi_name() ) {
@@ -248,6 +251,23 @@ function mywp_event_collect_stat_bumps( $payload ) {
 		return $bumps;
 	}
 
+	if (
+		in_array(
+			$event,
+			array( 'daily_streak', 'weekly_streak', 'monthly_streak' ),
+			true
+		)
+	) {
+		mywp_event_add_allowed_property(
+			$bumps,
+			$event,
+			'bucket',
+			$properties,
+			mywp_event_streak_buckets( $event )
+		);
+		return $bumps;
+	}
+
 	mywp_event_add_allowed_property(
 		$bumps,
 		$event,
@@ -394,6 +414,23 @@ function mywp_event_age_buckets() {
 		'31-90-days',
 		'over-90-days',
 	);
+}
+
+/**
+ * Must match the bucket boundaries in usage-stats.ts (getDailyStreakBucket,
+ * getWeeklyStreakBucket, getMonthlyStreakBucket) — these are the values the
+ * client is allowed to send for each streak event's `bucket` property.
+ */
+function mywp_event_streak_buckets( $event ) {
+	if ( 'daily_streak' === $event ) {
+		return array( '1', '2', '3-6', '7-13', '14-29', '30+' );
+	}
+
+	if ( 'weekly_streak' === $event ) {
+		return array( '1', '2', '3-4', '5-8', '9+' );
+	}
+
+	return array( '1', '2', '3', '4-6', '7-12', '13+' );
 }
 
 function mywp_event_sync_bump_extra( $dbh, $name, $value, $num, $today, $hour ) {
