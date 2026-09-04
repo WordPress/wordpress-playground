@@ -393,7 +393,92 @@ assert_equal(
     'Dashboard should reject unsafe plugin slugs'
 );
 
+$_GET = array(
+    'area' => 'plugin',
+    'plugin_slug' => 'travel-app',
+);
+assert_equal(
+    'traveler',
+    mywp_event_dashboard_get_current_area( array() )['plugin_slug'],
+    'Dashboard should open the current slug for a renamed plugin link'
+);
+
 $_GET = $mywp_event_get_snapshot;
+
+$folded_plugin_slug_rows = mywp_event_dashboard_fold_renamed_plugin_slug_rows(
+    array(
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'friends',
+            'views' => 7,
+        ),
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'travel-app',
+            'views' => 5,
+        ),
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'traveler',
+            'views' => 4,
+        ),
+        array(
+            'name' => 'blueprint_installed:blueprint_source',
+            'value' => 'travel-app',
+            'views' => 2,
+        ),
+    )
+);
+assert_equal(
+    'blueprint_installed:blueprint_source=travel-app:2,'
+        . 'blueprint_installed:plugin_slug=traveler:9,'
+        . 'blueprint_installed:plugin_slug=friends:7',
+    implode(
+        ',',
+        array_map(
+            function ( $row ) {
+                return "{$row['name']}={$row['value']}:{$row['views']}";
+            },
+            $folded_plugin_slug_rows
+        )
+    ),
+    'Dashboard should merge renamed plugin slugs and keep the query ordering'
+);
+
+$folded_plugin_slug_timeline =
+    mywp_event_dashboard_fold_renamed_plugin_slug_timeline(
+        array(
+            array(
+                'period' => '2026-09-01',
+                'value' => 'travel-app',
+                'views' => 3,
+            ),
+            array(
+                'period' => '2026-09-01',
+                'value' => 'traveler',
+                'views' => 2,
+            ),
+            array(
+                'period' => '2026-09-02',
+                'value' => 'wordcamp-companion',
+                'views' => 1,
+            ),
+        )
+    );
+assert_equal(
+    '2026-09-01=traveler:5,'
+        . '2026-09-02=session-planner-for-wordcamps:1',
+    implode(
+        ',',
+        array_map(
+            function ( $row ) {
+                return "{$row['period']}={$row['value']}:{$row['views']}";
+            },
+            $folded_plugin_slug_timeline
+        )
+    ),
+    'Dashboard should merge renamed plugin slugs within a timeline period'
+);
 
 assert_equal(
     '/mywp-event-dashboard.php?range=90&granularity=hour&area=plugin&plugin_slug=friends',

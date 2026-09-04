@@ -13,6 +13,17 @@ const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
 const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
 
+/**
+ * Plugin slugs that changed when an app was renamed. The stats tables keep the
+ * raw values that were reported at install time, so the dashboard folds the
+ * previous slug into the current one while reading them and each app shows up
+ * as a single entry.
+ */
+const MYWP_EVENT_DASHBOARD_RENAMED_PLUGIN_SLUGS = array(
+	'travel-app' => 'traveler',
+	'wordcamp-companion' => 'session-planner-for-wordcamps',
+);
+
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_dashboard_handle_request();
 }
@@ -618,7 +629,7 @@ function mywp_event_dashboard_query_rollup(
 	}
 	mysqli_stmt_close( $statement );
 
-	return $rows;
+	return mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows );
 }
 
 function mywp_event_dashboard_query_event_timeline(
@@ -674,7 +685,93 @@ function mywp_event_dashboard_query_metric_timeline(
 	}
 	mysqli_stmt_close( $statement );
 
+	if ( 'blueprint_installed:plugin_slug' === $metric_name ) {
+		return mywp_event_dashboard_fold_renamed_plugin_slug_timeline( $rows );
+	}
+
 	return $rows;
+}
+
+/**
+ * Merges rollup rows whose plugin slug changed into the row for the current
+ * slug, keeping the `name` ASC, `views` DESC, `value` ASC order the query uses.
+ */
+function mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		if ( 'blueprint_installed:plugin_slug' === $row['name'] ) {
+			$row['value'] = mywp_event_dashboard_canonical_plugin_slug(
+				$row['value']
+			);
+		}
+
+		$key = $row['name'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	$folded = array_values( $folded );
+	usort(
+		$folded,
+		function ( $a, $b ) {
+			if ( $a['name'] !== $b['name'] ) {
+				return strcmp( $a['name'], $b['name'] );
+			}
+			if ( $a['views'] !== $b['views'] ) {
+				return $b['views'] - $a['views'];
+			}
+			return strcmp( $a['value'], $b['value'] );
+		}
+	);
+
+	return $folded;
+}
+
+/**
+ * Merges timeline rows whose plugin slug changed into the row for the current
+ * slug, keeping the `period` ASC, `value` ASC order the query uses.
+ */
+function mywp_event_dashboard_fold_renamed_plugin_slug_timeline( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		$row['value'] = mywp_event_dashboard_canonical_plugin_slug(
+			$row['value']
+		);
+
+		$key = $row['period'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	$folded = array_values( $folded );
+	usort(
+		$folded,
+		function ( $a, $b ) {
+			if ( $a['period'] !== $b['period'] ) {
+				return strcmp( $a['period'], $b['period'] );
+			}
+			return strcmp( $a['value'], $b['value'] );
+		}
+	);
+
+	return $folded;
+}
+
+function mywp_event_dashboard_canonical_plugin_slug( $plugin_slug ) {
+	if ( ! is_string( $plugin_slug ) ) {
+		return $plugin_slug;
+	}
+
+	return MYWP_EVENT_DASHBOARD_RENAMED_PLUGIN_SLUGS[ $plugin_slug ]
+		?? $plugin_slug;
 }
 
 function mywp_event_dashboard_group_rows( $rows ) {
@@ -982,7 +1079,9 @@ function mywp_event_dashboard_get_current_area( $groups ) {
 	}
 
 	if ( 'plugin' === $area ) {
-		$plugin_slug = $_GET['plugin_slug'] ?? '';
+		$plugin_slug = mywp_event_dashboard_canonical_plugin_slug(
+			$_GET['plugin_slug'] ?? ''
+		);
 		if ( mywp_event_dashboard_is_safe_plugin_slug( $plugin_slug ) ) {
 			return mywp_event_dashboard_area( 'plugin', $plugin_slug );
 		}
