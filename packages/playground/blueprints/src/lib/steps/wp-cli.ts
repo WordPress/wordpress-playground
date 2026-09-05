@@ -248,11 +248,13 @@ This will ensure your code works reliably regardless of the current working dire
 		if (!is_resource($playground_no_stdin)) {
 			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
 		}
-		define('STDIN', $playground_no_stdin);
+		// The kernel-mode (posix-kernel) CLI SAPI predefines these constants,
+		// so guard against redefinition warnings on stderr.
+		if (!defined('STDIN')) define('STDIN', $playground_no_stdin);
 
 		// Provide stdout and stderr streams outside of the CLI SAPI.
-		define('STDOUT', fopen('php://stdout', 'wb'));
-		define('STDERR', fopen('php://stderr', 'wb'));
+		if (!defined('STDOUT')) define('STDOUT', fopen('php://stdout', 'wb'));
+		if (!defined('STDERR')) define('STDERR', fopen('php://stderr', 'wb'));
 
 		require( ${phpVar(wpCliPath)} );
 		`
