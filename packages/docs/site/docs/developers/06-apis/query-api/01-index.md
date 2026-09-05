@@ -49,6 +49,11 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `mcp-port`         | `7999`                | Sets the WebSocket port used by the MCP bridge to communicate with the MCP server. For example, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                                            |
 | `overlay`          |                       | Opens a Playground tool on page load. Supports `new` for the Dock's **New** pane. For example, `?overlay=new`. `blueprints` is kept as a compatibility alias that opens the same **New** pane, so `?overlay=blueprints` still works. The parameter is removed from the URL when the pane is closed.                                                                                                                                                                         |
 
+The **Gutenberg Branch** control in **Site Settings** provides shortcuts for
+`trunk`, `wp/next`, and `wp/latest`. WordPress Core branch artifacts are not
+available through a `core-branch` parameter; use the **WordPress Version**
+control for release, beta, and trunk builds instead.
+
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
 
 ```html
