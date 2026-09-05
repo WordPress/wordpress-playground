@@ -12,6 +12,8 @@ import {
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
+	type OnStepCompleted,
+	type GitDirectoryReference,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -35,6 +37,7 @@ import {
 	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
+import { extractGitDirectorySource } from './git-directory-sources';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -231,6 +234,17 @@ export function bootSiteClient(
 		}
 
 		let playground: PlaygroundClient | undefined = undefined;
+		// Collects git:directory provenance for any installPlugin/installTheme
+		// step this boot runs, so it can be persisted into site metadata and
+		// surfaced as a badge in the Files browser.
+		const gitDirectorySources: Record<string, GitDirectoryReference> = {};
+		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
+			const extracted = extractGitDirectorySource(step, result);
+			if (!extracted) {
+				return;
+			}
+			gitDirectorySources[extracted.assetPath] = extracted.source;
+		};
 		try {
 			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
 				site.originalUrlParams?.searchParams?.['php-extension'],
@@ -254,6 +268,7 @@ export function bootSiteClient(
 				},
 				// Log Blueprint events
 				onBlueprintValidated: logBlueprintEvents,
+				onBlueprintStepCompleted,
 				mounts,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
@@ -367,6 +382,30 @@ export function bootSiteClient(
 			return;
 		}
 		const connectedPlayground = playground as PlaygroundClient;
+
+		if (Object.keys(gitDirectorySources).length > 0) {
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							gitDirectorySources: {
+								...site.metadata.gitDirectorySources,
+								...gitDirectorySources,
+							},
+						},
+					})
+				);
+			} catch (error) {
+				// Best-effort: the site is already connected at this point,
+				// so a failure to persist provenance metadata shouldn't
+				// abort the rest of client setup below.
+				logger.error(
+					'Error persisting git directory source metadata',
+					error
+				);
+			}
+		}
 
 		setupPostMessageRelay(iframe, document.location.origin);
 

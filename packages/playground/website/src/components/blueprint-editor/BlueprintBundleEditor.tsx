@@ -41,7 +41,9 @@ import {
 	CodeEditor,
 	FileExplorerSidebar,
 	type CodeEditorHandle,
+	type FileExplorerSidebarHandle,
 } from '@wp-playground/components';
+import { buildUpdatedBlueprintDeclaration } from '../../lib/state/redux/git-directory-sources';
 import {
 	formatEditor,
 	getStringNodeAtPosition,
@@ -81,6 +83,15 @@ import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
+/**
+ * A read-only companion file this editor generates automatically, showing
+ * the Blueprint plus any plugins/themes mounted live via the Files
+ * browser's "Mount via git…" action — kept fresh so the user can open it
+ * and compare against `blueprint.json`, without this editor ever having to
+ * mutate the site's stored Blueprint in place (which would be unsafe or
+ * impossible for some Blueprint shapes — see `buildUpdatedBlueprintDeclaration`).
+ */
+const GIT_MOUNTS_PREVIEW_PATH = '/blueprint-updated.json';
 
 /**
  * Format a validation error into a human-readable message for the error panel
@@ -375,6 +386,11 @@ export const BlueprintBundleEditor = forwardRef<
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
+	const sidebarRef = useRef<FileExplorerSidebarHandle | null>(null);
+	// Guards the git-mounts preview write below against writing a stale
+	// declaration if two runs of that effect overlap (e.g. a mount and a
+	// rename happening close together).
+	const previewWriteSeqRef = useRef(0);
 	/**
 	 * `flush()` starts the latest delayed save. This ordered promise also includes
 	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
@@ -403,7 +419,11 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
-			if (readOnly || isBlueprintRunPending) {
+			if (
+				readOnly ||
+				isBlueprintRunPending ||
+				currentPath === GIT_MOUNTS_PREVIEW_PATH
+			) {
 				return;
 			}
 			setCode(newCode);
@@ -436,6 +456,59 @@ export const BlueprintBundleEditor = forwardRef<
 			cancelled = true;
 		};
 	}, [filesystem]);
+
+	// Keep a `/blueprint-updated.json` preview in sync whenever a
+	// plugin/theme is mounted live (or renamed) via the Files browser's
+	// "Mount via git…" action, so it's there to compare against
+	// `blueprint.json` even if this editor was already open when that
+	// happened.
+	useEffect(() => {
+		const gitDirectorySources = site?.metadata.gitDirectorySources;
+		if (!site || !gitDirectorySources) {
+			return;
+		}
+		// Claim this run's turn immediately (synchronously): if a newer run
+		// starts before this one's write happens, its check below will see
+		// a mismatch and skip writing a now-stale declaration.
+		const seq = ++previewWriteSeqRef.current;
+		let cancelled = false;
+		(async () => {
+			try {
+				const { declaration, hasAdditions } =
+					await buildUpdatedBlueprintDeclaration(
+						site.metadata.originalBlueprint,
+						gitDirectorySources
+					);
+				if (
+					!hasAdditions ||
+					cancelled ||
+					previewWriteSeqRef.current !== seq
+				) {
+					return;
+				}
+				await filesystem.writeFile(
+					GIT_MOUNTS_PREVIEW_PATH,
+					JSON.stringify(declaration, null, 2)
+				);
+				if (previewWriteSeqRef.current !== seq) {
+					return;
+				}
+				await sidebarRef.current?.refreshPath('/');
+			} catch (error) {
+				logger.error(
+					'Failed to write the Blueprint preview with git mounts',
+					error
+				);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		filesystem,
+		site?.metadata.originalBlueprint,
+		site?.metadata.gitDirectorySources,
+	]);
 
 	// Sync the URL hash from the hook to the browser's location
 	useEffect(() => {
@@ -950,6 +1023,7 @@ export const BlueprintBundleEditor = forwardRef<
 						)}
 					>
 						<FileExplorerSidebar
+							ref={sidebarRef}
 							filesystem={filesystem}
 							currentPath={currentPath}
 							selectedDirPath={selectedDirPath}
@@ -1122,7 +1196,10 @@ export const BlueprintBundleEditor = forwardRef<
 										currentPath={currentPath}
 										className={styles.editor}
 										readOnly={
-											readOnly || isBlueprintRunPending
+											readOnly ||
+											isBlueprintRunPending ||
+											currentPath ===
+												GIT_MOUNTS_PREVIEW_PATH
 										}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH

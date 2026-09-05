@@ -289,7 +289,7 @@ describe('Blueprint step installTheme', () => {
 		});
 
 		it('should apply ifAlreadyInstalled to directory theme resources', async () => {
-			await installTheme(php, {
+			const overwriteResult = await installTheme(php, {
 				themeData: {
 					name: 'test-theme',
 					files: {
@@ -301,8 +301,9 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
+			expect(overwriteResult?.skippedExisting).toBeFalsy();
 
-			await installTheme(php, {
+			const skipResult = await installTheme(php, {
 				themeData: {
 					name: 'test-theme',
 					files: {
@@ -314,6 +315,7 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
+			expect(skipResult?.skippedExisting).toBe(true);
 			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
 				'Theme Name: Existing Directory Theme'
 			);
