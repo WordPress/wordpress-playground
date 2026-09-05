@@ -151,6 +151,14 @@ The `start` command supports these common optional arguments. Run `npx @wp-playg
 - `--reset`: Delete the stored site directory and start fresh.
 - `--no-auto-mount`: Disable automatic project detection.
 
+The `php` command supports the shared runtime and mount options plus:
+
+- `--cwd=<vfs-path>`: Set the PHP process working directory to a virtual filesystem path.
+
+When `--cwd` is omitted, a single auto-mounted directory becomes the working directory
+automatically. With manual mounts or multiple auto-mounts, PHP keeps its default
+working directory unless you provide `--cwd`.
+
 The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.

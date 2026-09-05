@@ -534,6 +534,14 @@ export async function parseOptionsAndRunCLI(
 			},
 		};
 
+		const phpCommandOnlyOptions: Record<string, YargsOptions> = {
+			cwd: {
+				describe:
+					'Virtual filesystem path to use as the PHP process working directory.',
+				type: 'string',
+			},
+		};
+
 		const yargsObject = yargs(argsToParse)
 			.usage('Usage: wp-playground <command> [options]')
 			.command(
@@ -580,7 +588,10 @@ export async function parseOptionsAndRunCLI(
 					})
 			)
 			.command('php', 'Run a PHP script', (yargsInstance: Argv) =>
-				yargsInstance.options({ ...sharedOptions })
+				yargsInstance.options({
+					...sharedOptions,
+					...phpCommandOnlyOptions,
+				})
 			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
@@ -818,7 +829,7 @@ export function resolveWorkerCount(value: number | 'auto' | undefined): number {
 	return value;
 }
 
-export interface RunCLIArgs {
+interface RunCLIBaseArgs {
 	/**
 	 * `_` holds positional tokens in the order they appeared.
 	 * `_[0]` will typically be the command name.
@@ -828,7 +839,6 @@ export interface RunCLIArgs {
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -903,6 +913,22 @@ export interface RunCLIArgs {
 	skipBrowser?: boolean;
 	reset?: boolean;
 }
+
+export type RunCLIArgs = RunCLIBaseArgs &
+	(
+		| {
+				command: 'php';
+				cwd?: string;
+		  }
+		| {
+				command:
+					| 'start'
+					| 'server'
+					| 'run-blueprint'
+					| 'build-snapshot';
+				cwd?: never;
+		  }
+	);
 
 export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
@@ -984,6 +1010,22 @@ export async function runCLI(
 			args = { ...args, autoMount: process.cwd() };
 		}
 		args = expandAutoMounts(args);
+	}
+
+	let phpCommandCwd: string | undefined;
+	if (args.command === 'php') {
+		phpCommandCwd = args.cwd;
+		if (phpCommandCwd === undefined) {
+			const mounts = [
+				...(args['mount-before-install'] || []),
+				...(args.mount || []),
+			];
+			const hasManualMounts = mounts.some((mount) => !mount.autoMounted);
+			const autoMounts = mounts.filter((mount) => mount.autoMounted);
+			if (!hasManualMounts && autoMounts.length === 1) {
+				phpCommandCwd = autoMounts[0].vfsPath;
+			}
+		}
 	}
 
 	// Keeping the '--quiet' option to preserve backward compatibility
@@ -1665,7 +1707,9 @@ export async function runCLI(
 							'/internal/shared/bin/php',
 							...(args['_'] || []).slice(1),
 						];
-						const response = await playgroundPool.cli(argv);
+						const response = await playgroundPool.cli(argv, {
+							cwd: phpCommandCwd,
+						});
 						const [exitCode] = await Promise.all([
 							response.exitCode,
 							response.stdout.pipeTo(
