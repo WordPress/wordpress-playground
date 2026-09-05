@@ -1,10 +1,20 @@
 ---
-title: Using Blueprints
+title: Using Blueprints (v1 legacy)
 slug: /blueprints/using-blueprints
-description: Discover the different ways to use Blueprints, including via URL fragment, query parameter, bundles, and the JavaScript API.
+description: Legacy Blueprint v1 documentation. Discover the different ways to use Blueprints, including via URL fragment, query parameter, bundles, and the JavaScript API.
 ---
 
 # Using Blueprints
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 You can use Blueprints in one of the following ways:
 
