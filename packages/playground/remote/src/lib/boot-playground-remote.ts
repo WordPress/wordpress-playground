@@ -225,7 +225,7 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(data.url);
 					if (path !== lastPath) {
 						lastPath = path;
-						fn(path);
+						fn(path, { title: data.title });
 					}
 				} catch {
 					// Ignore JSON parse errors
@@ -267,7 +267,13 @@ export async function bootPlaygroundRemote() {
 					);
 					if (path !== lastPath) {
 						lastPath = path;
-						fn(path);
+						let title: string | undefined;
+						try {
+							title = contentWindow.document?.title || undefined;
+						} catch {
+							// Cross-origin access denied
+						}
+						fn(path, { title });
 					}
 				} catch {
 					// @TODO: The above call can fail if the remote iframe
