@@ -1,7 +1,6 @@
 ---
 slug: /developers/limitations
-<!-- description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, temporary storage by design, iframe quirks, and WP-CLI support. -->
-description: Conoce las limitaciones actuales de WordPress Playground, incluyendo comportamientos específicos del navegador, almacenamiento temporal por diseño, peculiaridades de iframe y soporte de WP-CLI.
+description: Conoce las limitaciones actuales de WordPress Playground, incluidos los comportamientos específicos del navegador, las restricciones de persistencia y recuperación, las peculiaridades de iframe y la compatibilidad con WP-CLI.
 ---
 
 <!-- # Limitations -->
@@ -20,57 +19,46 @@ Puedes seguir el estado de estos problemas en el [tablero del proyecto Playgroun
 
 ## En el navegador
 
-<!-- ### Temporary by design -->
+<!-- ### Browser storage and recovery -->
 
-### Temporal por diseño
+### Almacenamiento y recuperación en el navegador
 
-<!-- Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications. -->
+<!-- Playground runs WordPress in the browser. New Playgrounds are autosaved when -->
+<!-- browser storage and saving are available, and they appear in **Your -->
+<!-- Playgrounds**. Playground keeps up to five recent autosaves. After five exist, -->
+<!-- creating another deletes the oldest one. Autosaves are recovery points, not -->
+<!-- long-term backups. Store an autosave permanently or export a ZIP when you want -->
+<!-- to keep it. -->
 
-Playground crea instancias frescas de WordPress en cada carga de página. Actualizar la página del navegador descarta todos los cambios en la base de datos, archivos subidos y modificaciones.
+Playground ejecuta WordPress en el navegador. Los Playgrounds nuevos se guardan automáticamente cuando el almacenamiento y el guardado del navegador están disponibles, y aparecen en **Tus Playgrounds**. Playground conserva hasta cinco autoguardados recientes. Cuando ya existen cinco, crear otro elimina el más antiguo. Los autoguardados son puntos de recuperación, no copias de seguridad a largo plazo. Almacena un autoguardado permanentemente o exporta un ZIP cuando quieras conservarlo.
 
-<!-- **Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate. -->
+<!-- Use these storage modes deliberately: -->
 
-**Por qué sucede esto**: Playground transmite WordPress directamente a tu navegador en lugar de servirlo desde un servidor tradicional. Cada actualización comienza desde cero.
+Usa estos modos de almacenamiento de forma deliberada:
 
-<!-- **To persist your work:** -->
+<!-- - **Autosaved**: stored in browser storage and retained only while it is one of up to five recent autosaves. -->
+<!-- - **Saved**: stored permanently in browser storage or saved to a local directory. -->
+<!-- - **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes. -->
 
-**Para conservar tu trabajo:**
+- **Guardado automáticamente**: se almacena en el navegador y solo se conserva mientras sea uno de los cinco autoguardados recientes.
+- **Guardado**: se almacena permanentemente en el navegador o se guarda en un directorio local.
+- **Temporal**: se crea con `?storage=temp` o cuando el guardado no está disponible. Se descarta al cerrar la pestaña o actualizar la página del navegador.
 
-<!-- - **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar. -->
-<!-- - **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage -->
+<!-- The Playground **Refresh page** button reloads the WordPress page inside the current Playground. Browser refresh (Cmd+R or F5) reloads the whole Playground app. A stored or autosaved Playground can recover after that reload, but a temporary Playground cannot. -->
 
-- **Guardar**: Activa el almacenamiento del navegador mediante el botón "Guardar" (arriba a la derecha, junto a la barra de direcciones), antes de actualizar la página a través de la barra del navegador.
-- **Para desarrollo**: Usa [Playground CLI](/developers/local-development/wp-playground-cli) que soporta almacenamiento local persistente
+El botón **Actualizar página** de Playground vuelve a cargar la página de WordPress dentro del Playground actual. La actualización del navegador (Cmd+R o F5) vuelve a cargar toda la aplicación Playground. Un Playground almacenado o autoguardado puede recuperarse después, pero uno temporal no.
 
-<!-- :::tip -->
-<!-- The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance. -->
-<!-- ::: -->
+<!-- ![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp) -->
 
-<div class="callout callout-tip">
+![Los controles del Dock para actualizar WordPress, abrir las opciones de almacenamiento y exportar el Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 
-El botón de actualización dedicado dentro de Playground solo recarga el contenido de WordPress—preserva tu estado de PHP/WP. El botón de actualización del navegador (F5 o Cmd+R) destruye la instancia completa.
+<!-- Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup. -->
 
-</div>
+El almacenamiento del navegador sigue perteneciendo al navegador. La presión de almacenamiento, la navegación privada, los cambios de perfil o el borrado de los datos del sitio pueden eliminarlo. Exporta un ZIP cuando necesites una copia de seguridad portátil.
 
-![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
+<!-- ![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp) -->
 
-<blockquote>
-<figure>
-<!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
-<figcaption><i>1. Exportando Playground:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
-
-</figure>
-
-<figure>
-<!-- <figcaption><i>2. Save button:</i></figcaption> -->
-<figcaption><i>2. Botón Guardar:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
-
-</figure>
-</blockquote>
+![El panel Tus Playgrounds con el Playground actual](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 <!-- ### Browser support -->
 
@@ -98,7 +86,9 @@ Playground aprovecha las tecnologías web modernas y debería funcionar de maner
 
 Los tiempos de carga varían según lo que Playground necesita configurar:
 
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+<!-- ![Playground performance graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp) -->
+
+![Gráfico de rendimiento de Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 <!-- **Factors that affect performance:** -->
 
@@ -113,6 +103,10 @@ Los tiempos de carga varían según lo que Playground necesita configurar:
 - **Velocidad de red**: Los archivos WASM son de 15-30MB
 - **Memoria del dispositivo**: Los dispositivos con poca memoria pueden experimentar ralentizaciones
 - **Navegador**: Chrome/Edge tienen mejor rendimiento; Safari es ligeramente más lento
+
+<!-- <blockquote> -->
+<!-- <strong>Note:</strong> Opera Mini support is not currently confirmed. -->
+<!-- </blockquote> -->
 
 <blockquote>
 <!-- <strong>Note:</strong> Opera Mini support is not currently confirmed. -->

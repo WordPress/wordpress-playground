@@ -67,65 +67,50 @@ Some more examples of this workflow:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ફોલ્ડર સાથે સિંક્રોનાઈઝ કરો અને GitHub Pull Requests બનાવો
+## તમારા Playground ને local folder સાથે sync કરો અને GitHub Pull Requests બનાવો
 
 <!--
-## Synchronize your playground instance with a local folder and create GitHub Pull Requests
+In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save
+in a local directory**, click **Choose...**, and select a directory dedicated
+to this Playground. After granting write access, click **Save**. Playground
+copies the current site into the selected directory and overwrites files with
+matching names; it does not import an existing site from that directory.
 -->
 
-![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
+Dock માં **Autosaved** અથવા **Unsaved** save status પર click કરો, **Save in a local
+directory** પસંદ કરો, **Choose...** પર click કરો અને આ Playground માટે dedicated
+directory પસંદ કરો. Write access આપ્યા પછી **Save** પર click કરો. Playground વર્તમાન
+site ને પસંદ કરેલી directory માં copy કરે છે અને matching names વાળી files overwrite
+કરે છે; તે directory માંથી હાલની site import કરતું નથી.
 
 <!--
-[Storage Type Device Snapshot](../_assets/storage-type-device.png)
+![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 -->
 
-Google Chrome સાથે તમે તમારી પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ડિરેક્ટરી સાથે સિંક્રોનાઈઝ કરી શકો છો, જે નીચે મુજબ હોઈ શકે:
+![Local-directory storage પસંદ કરેલું Store permanently pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 
 <!--
-With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
+Local-directory storage uses the File System Access API, so availability depends on browser and platform support for choosing and writing to directories. Chromium-based desktop browsers usually support it. Browsers without that capability can still use browser storage and ZIP export. See [Browser support](/developers/limitations#browser-support) for the broader compatibility model.
 -->
 
-- ખાલી ડિરેક્ટરી – આ પ્લેગ્રાઉન્ડ સાચવવા અને સિંક શરૂ કરવા માટે
-- એકઝિસ્ટિંગ ડિરેક્ટરી – તેને અહીં લોડ કરવા અને સિંક શરૂ કરવા માટે
+Local-directory storage File System Access API વાપરે છે, તેથી directory પસંદ કરવાની અને
+તેમાં લખવાની સુવિધા browser અને platform support પર આધારિત છે. Chromium આધારિત desktop
+browsers સામાન્ય રીતે support કરે છે. બીજા browsers browser storage અને ZIP export
+વાપરી શકે છે. વધુ માટે [Browser support](/developers/limitations#browser-support) જુઓ.
 
 <!--
--   And empty directory – to save this Playground and start syncing
--   An existing directory – to load it here and start syncing
+Files changed in Playground are written to the selected directory. Files changed on disk are not pulled into the running Playground automatically. For a local-directory Playground, open the **Saved** status menu in the Dock and choose **Reload files from disk** when you want Playground to read the current files from the directory.
 -->
 
-<div class="callout callout-info">
-
-આ ફીચર હાલમાં માત્ર Google Chrome માટે જ ઉપલબ્ધ છે. હજી સુધી આ અન્ય બ્રાઉઝર્સ સાથે કામ કરશે નહીં.
-
-</div>
+Playground માં બદલાયેલી files પસંદ કરેલી directory માં લખાય છે. Disk પર બદલાયેલી files
+ચાલતા Playground માં આપમેળે આવતી નથી. Local-directory Playground માટે Dock માં
+**Saved** status menu ખોલો અને **Reload files from disk** પસંદ કરો.
 
 <!--
-<div class="callout callout-info">
-
-This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
-
-</div>
+With this workflow, you can create GitHub PRs directly from changes made in your local directory.
 -->
 
-કનેક્શનની બંને બાજુએ કરેલા ફેરફારો અંગે:
-
-<!--
-Regarding changes done on both sides of the connection:
--->
-
-- પ્લેગ્રાઉન્ડમાં બદલાયેલી ફાઈલો તમારા કમ્પ્યુટરમાં સિંક્રોનાઈઝ થશે.
-- તમારા કમ્પ્યુટરમાં બદલાયેલી ફાઈલો પ્લેગ્રાઉન્ડમાં સિંક્રોનાઈઝ નહીં થાય. તેના માટે તમને "Sync local files" બટન ક્લિક કરવું પડશે.
-
-<!--
--   Files changed in Playground will be synchronized to your computer.
--   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
--->
-
-આ વર્કફ્લો સાથે તમે તમારી લોકલ ડિરેક્ટરીમાં કરેલા ફેરફારોથી સીધા GitHub PRs બનાવી શકો છો.
-
-<!--
-With this workflow you can create directly GitHub PRs from your changes done on your local directory.
--->
+આ workflow સાથે local directory માં કરેલા ફેરફારોથી સીધા GitHub PRs બનાવી શકો છો.
 
 આ વર્કફ્લોને એક્શનમાં જોવા માટે અહીં એક નાનું ડેમો જુઓ:
 

@@ -43,9 +43,18 @@ With this workflow, you could build a block theme completely in your browser and
 
 Você pode conectar sua instância do Playground a um repositório GitHub e criar um Pull Request com as alterações que fez através da interface do WordPress, aproveitando o plugin [Create Block Theme](https://wordpress.org/plugins/create-block-theme/).
 
+<!--
+With this workflow, you could build a block theme completely in your browser and save your changes to GitHub, or you could improve/fix an existing one.
+-->
+
 Com este fluxo de trabalho, você pode construir um tema de blocos completamente no seu navegador e salvar suas alterações no GitHub, ou pode melhorar/corrigir um existente.
 
 <iframe width="800" src="https://www.youtube.com/embed/94KnoFhQg1g" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<!--
+<p></p>
+Some more examples of this workflow:
+-->
 
 <p></p>
 
@@ -62,60 +71,50 @@ Mais alguns exemplos deste fluxo de trabalho:
 - [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
-## Synchronize your playground instance with a local folder and create GitHub Pull Requests
+## Synchronize your Playground with a local folder and create GitHub Pull Requests
 -->
 
-## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub
-
-![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
+## Sincronizar seu Playground com uma pasta local e criar pull requests no GitHub
 
 <!--
-With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
-
--   And empty directory – to save this Playground and start syncing
--   An existing directory – to load it here and start syncing
+In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save
+in a local directory**, click **Choose...**, and select a directory dedicated
+to this Playground. After granting write access, click **Save**. Playground
+copies the current site into the selected directory and overwrites files with
+matching names; it does not import an existing site from that directory.
 -->
 
-Com o Google Chrome você pode sincronizar sua instância do Playground com um diretório local, que pode ser:
-
-- Um diretório vazio – para salvar este Playground e começar a sincronizar
-- Um diretório existente – para carregá-lo aqui e começar a sincronizar
+No Dock, clique no status de salvamento **Salvo automaticamente** ou **Não salvo**, selecione **Salvar em uma pasta local**, clique em **Escolher...** e selecione uma pasta dedicada a esse Playground. Depois de conceder acesso de gravação, clique em **Salvar**. O Playground copia o site atual para a pasta selecionada e substitui arquivos com o mesmo nome. Ele não importa um site que já esteja nessa pasta.
 
 <!--
-<div class="callout callout-info">
-
-This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
-
-</div>
+![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 -->
 
-<div class="callout callout-info">
-
-Este recurso está disponível apenas para o Google Chrome por enquanto. Não funcionará com outros navegadores ainda.
-
-</div>
+![O painel Armazenar permanentemente com o armazenamento em uma pasta local selecionado](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 
 <!--
-Regarding changes done on both sides of the connection:
-
--   Files changed in Playground will be synchronized to your computer.
--   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
-
-With this workflow you can create directly GitHub PRs from your changes done on your local directory.
+Local-directory storage uses the File System Access API, so availability depends on browser and platform support for choosing and writing to directories. Chromium-based desktop browsers usually support it. Browsers without that capability can still use browser storage and ZIP export. See [Browser support](/developers/limitations#browser-support) for the broader compatibility model.
 -->
 
-Quanto às alterações feitas em ambos os lados da conexão:
+O armazenamento em uma pasta local usa a File System Access API. Portanto, a disponibilidade depende da compatibilidade do navegador e da plataforma com a seleção e a gravação em pastas. Navegadores para computador baseados em Chromium geralmente são compatíveis. Navegadores sem esse recurso ainda podem usar o armazenamento do navegador e a exportação de ZIP. Consulte a seção [Suporte a navegadores](/developers/limitations#browser-support) para entender o modelo de compatibilidade mais amplo.
 
-- Arquivos alterados no Playground serão sincronizados para o seu computador.
-- Arquivos alterados no seu computador não serão sincronizados para o Playground. Você precisará clicar no botão "Sync local files".
+<!--
+Files changed in Playground are written to the selected directory. Files changed on disk are not pulled into the running Playground automatically. For a local-directory Playground, open the **Saved** status menu in the Dock and choose **Reload files from disk** when you want Playground to read the current files from the directory.
+-->
 
-Com este fluxo de trabalho você pode criar diretamente PRs do GitHub a partir das suas alterações feitas no seu diretório local.
+Os arquivos alterados no Playground são gravados na pasta selecionada. Os arquivos alterados no disco não são carregados automaticamente no Playground em execução. Em um Playground armazenado em uma pasta local, abra o menu do status **Salvo** no Dock e escolha **Recarregar arquivos do disco** quando quiser que o Playground leia os arquivos atuais da pasta.
+
+<!--
+With this workflow, you can create GitHub PRs directly from changes made in your local directory.
+-->
+
+Com esse fluxo de trabalho, você pode criar pull requests no GitHub diretamente das alterações feitas na pasta local.
 
 <!--
 See here a little demo of this workflow in action:
 -->
 
-Veja aqui uma pequena demonstração deste fluxo de trabalho em ação:
+Veja uma breve demonstração desse fluxo de trabalho:
 
 <iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
@@ -137,6 +136,10 @@ Another interesting app built on top of Playground is **Translate Live** (see [e
 
 O Playground pode ser combinado com diferentes APIs para criar ferramentas incríveis. As possibilidades são infinitas.
 
+<!--
+You can [use WordPress Playground in Node.js](/developers/local-development/php-wasm-node) to create new tools. The [@php-wasm/node package](https://npmjs.org/@php-wasm/node), which ships the PHP WebAssembly runtime, is the package used for [https://playground.wordpress.net/](https://playground.wordpress.net/), for example.
+-->
+
 Você pode [usar o WordPress Playground no Node.js](/developers/local-development/php-wasm-node) para criar novas ferramentas. O pacote [@php-wasm/node](https://npmjs.org/@php-wasm/node), que envia o runtime PHP WebAssembly, é o pacote usado para [https://playground.wordpress.net/](https://playground.wordpress.net/), por exemplo.
 
 Outro aplicativo interessante construído sobre o Playground é o **Translate Live** (veja [exemplo](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) que, em combinação com a OpenAI, fornece uma ferramenta de traduções WordPress "no local" onde as traduções podem ser vistas e modificadas em seu contexto real (veja exemplo). Leia mais sobre esta ferramenta em [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
@@ -157,7 +160,15 @@ Read [Introducing Offline Mode and PWA Support for WordPress Playground](https:/
 
 Quando você visita pela primeira vez [playground.wordpress.net](https://playground.wordpress.net/), seu navegador automaticamente armazena em cache todos os arquivos necessários para usar o Playground. A partir desse momento, você pode acessar [playground.wordpress.net](https://playground.wordpress.net/), mesmo sem conexão com a internet, garantindo que você pode continuar trabalhando em seus projetos sem interrupções.
 
+<!--
+You can also install Playground on your device as a Progressive Web App (PWA) to launch the Playground directly from your home screen—just like a native app.
+-->
+
 Você também pode instalar o Playground no seu dispositivo como um Progressive Web App (PWA) para lançar o Playground diretamente da sua tela inicial—exatamente como um aplicativo nativo.
+
+<!--
+Read [Introducing Offline Mode and PWA Support for WordPress Playground](https://make.wordpress.org/playground/2024/08/05/offline-mode-and-pwa-support/) for more info.
+-->
 
 Leia [Introducing Offline Mode and PWA Support for WordPress Playground](https://make.wordpress.org/playground/2024/08/05/offline-mode-and-pwa-support/) para mais informações.
 

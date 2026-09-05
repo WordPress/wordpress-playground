@@ -1,20 +1,20 @@
 ---
-title: Guia de início rápido
+title: Guida rapida
 slug: /quick-start-guide
-description: Um guia de 5 minutos para começar a usar o Playground. Aprenda a testar plugins e temas e a usar diferentes versões do WordPress e do PHP.
+description: Una guida di 5 minuti per iniziare a usare Playground. Scopri come testare plugin, provare temi e usare versioni diverse di WP/PHP.
 ---
 
 <!--
 # Start using WordPress Playground in 5 minutes
 -->
 
-# Comece a usar o WordPress Playground em 5 minutos
+# Inizia a usare WordPress Playground in 5 minuti
 
 <!--
 WordPress Playground can help you with any of the following:
 -->
 
-O WordPress Playground pode ajudar você com qualquer uma destas tarefas:
+WordPress Playground può aiutarti in tutte queste attività:
 
 import TOCInline from '@theme/TOCInline';
 
@@ -24,31 +24,27 @@ import TOCInline from '@theme/TOCInline';
 This page will guide you through each of these. Oh, and if you're a visual learner – here's a video. Some interface details in the video predate the Dock; follow the written steps below for the current UI.
 -->
 
-Esta página orienta você em cada uma delas. Se você prefere aprender com recursos visuais, assista ao vídeo abaixo. Alguns detalhes da interface no vídeo são anteriores ao Dock. Siga as etapas escritas abaixo para usar a interface atual.
+Questa pagina ti guiderà attraverso ognuna di esse. Se preferisci imparare in modo visivo, ecco un video. Alcuni dettagli dell'interfaccia mostrati nel video sono precedenti al Dock: segui i passaggi scritti qui sotto per l'interfaccia attuale.
 
-<!--
 <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
--->
-
-<iframe width="752" height="423.2" title="Primeiros passos com o WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
 
 <!--
 ## Start a new WordPress site
 -->
 
-## Iniciar um novo site WordPress
+## Avvia un nuovo sito WordPress
 
 <!--
 Open the [official demo on playground.wordpress.net](https://playground.wordpress.net/) to start WordPress in your browser.
 -->
 
-Abra a [demonstração oficial em playground.wordpress.net](https://playground.wordpress.net/) para iniciar o WordPress no navegador.
+Apri la [demo ufficiale su playground.wordpress.net](https://playground.wordpress.net/) per avviare WordPress nel tuo browser.
 
 <!--
 You can create pages, upload plugins, install themes, import content, and do most things you would do on a regular WordPress site.
 -->
 
-Você pode criar páginas, enviar plugins, instalar temas, importar conteúdo e fazer quase tudo o que faria em um site WordPress comum.
+Puoi creare pagine, caricare plugin, installare temi, importare contenuti e fare quasi tutto ciò che faresti in un normale sito WordPress.
 
 <!--
 When browser storage is available, new Playgrounds are autosaved. You can find
@@ -56,7 +52,7 @@ up to five recent autosaves in **Your Playgrounds** from the Dock. If you need a
 site that is discarded on refresh, open Playground with `?storage=temp`.
 -->
 
-Quando o armazenamento do navegador está disponível, novos Playgrounds são salvos automaticamente. Você encontra até cinco salvamentos automáticos recentes em **Seus Playgrounds**, no Dock. Se precisar de um site que seja descartado ao atualizar a página, abra o Playground com `?storage=temp`.
+Quando l'archiviazione del browser è disponibile, i nuovi Playground vengono salvati automaticamente. Puoi trovare fino a cinque salvataggi automatici recenti in **I tuoi Playground**, dal Dock. Se ti serve un sito che venga eliminato all'aggiornamento della pagina, apri Playground con `?storage=temp`.
 
 <div class="callout callout-info">
 
@@ -64,7 +60,7 @@ Quando o armazenamento do navegador está disponível, novos Playgrounds são sa
 **WordPress Playground is private**
 -->
 
-**O WordPress Playground é privado**
+**WordPress Playground è privato**
 
 <!--
 The Playground runs locally in your browser. It does not upload your site
@@ -73,7 +69,7 @@ you can store the Playground permanently, export it as a ZIP, or start over
 from **New Playground**.
 -->
 
-O Playground é executado localmente no navegador. Ele não envia seu site, a menos que você escolha uma ação como **Exportar para o GitHub**. Quando terminar, você pode armazenar o Playground permanentemente, exportá-lo como ZIP ou recomeçar em **Novo Playground**.
+Playground viene eseguito in locale nel tuo browser. Non carica il tuo sito da nessuna parte, a meno che tu non scelga un'azione come **Esporta su GitHub**. Quando hai finito, puoi archiviare il Playground in modo permanente, esportarlo come ZIP oppure ricominciare da **Nuovo Playground**.
 
 </div>
 
@@ -81,19 +77,19 @@ O Playground é executado localmente no navegador. Ele não envia seu site, a me
 ## Try a block, a theme, or a plugin
 -->
 
-## Testar um bloco, um tema ou um plugin
+## Prova un blocco, un tema o un plugin
 
 <!--
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
 -->
 
-Você pode enviar qualquer plugin ou tema em [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
+Puoi caricare qualsiasi plugin o tema in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
 
 <!--
 To save a few clicks, you can preinstall plugins or themes from the WordPress plugin directory by adding a `plugin` or `theme` parameter to the URL. For example, to install the coblocks plugin, you can use this URL:
 -->
 
-Para economizar alguns cliques, adicione um parâmetro `plugin` ou `theme` à URL para pré-instalar plugins ou temas do diretório do WordPress. Por exemplo, use esta URL para instalar o plugin coblocks:
+Per risparmiare qualche clic, puoi preinstallare plugin o temi dalla directory dei plugin di WordPress aggiungendo un parametro `plugin` o `theme` all'URL. Per esempio, per installare il plugin coblocks puoi usare questo URL:
 
 https://playground.wordpress.net/?plugin=coblocks
 
@@ -101,7 +97,7 @@ https://playground.wordpress.net/?plugin=coblocks
 Or this URL to preinstall the `pendant` theme:
 -->
 
-Use esta URL para pré-instalar o tema `pendant`:
+Oppure questo URL per preinstallare il tema `pendant`:
 
 https://playground.wordpress.net/?theme=pendant
 
@@ -109,7 +105,7 @@ https://playground.wordpress.net/?theme=pendant
 In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters:
 -->
 
-Para instalar vários temas e plugins, repita os parâmetros `theme` ou `plugin`:
+Se vuoi installare più temi e plugin, puoi ripetere i parametri `theme` o `plugin`:
 
 https://playground.wordpress.net/?theme=pendant&theme=acai
 
@@ -117,7 +113,7 @@ https://playground.wordpress.net/?theme=pendant&theme=acai
 You can also mix and match these parameters and even add multiple plugins:
 -->
 
-Você também pode combinar esses parâmetros e adicionar vários plugins:
+Puoi anche combinare questi parametri e aggiungere più plugin:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
@@ -125,26 +121,26 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 -->
 
-Isso é chamado de [API de consulta](/developers/apis/query-api/). Saiba mais na [documentação da API](/developers/apis/query-api/).
+Questa funzionalità si chiama [Query API](/developers/apis/query-api/) e puoi approfondirla [qui](/developers/apis/query-api/).
 
 <!--
 ## Store a Playground in browser storage
 -->
 
-## Armazenar um Playground no navegador
+## Archivia un Playground nell'archiviazione del browser
 
 <!--
 Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
 permanently**, then choose **Save in browser storage**.
 -->
 
-Clique no status **Salvo automaticamente** ou **Não salvo** no Dock para abrir **Armazenar permanentemente**. Depois, escolha **Salvar no armazenamento do navegador**.
+Fai clic sullo stato **Salvato automaticamente** o **Non salvato** nel Dock per aprire **Archivia in modo permanente**, quindi scegli **Salva nell'archiviazione del browser**.
 
 <!--
 ![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 -->
 
-![O painel Armazenar permanentemente com o nome do Playground e o botão Salvar](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
+![Il pannello Archivia in modo permanente con il nome del Playground e il pulsante Salva](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 <!--
 A saved browser Playground appears in **Your Playgrounds**. Autosaves also
@@ -152,85 +148,85 @@ appear there, but Playground keeps up to five recent autosaves. Store a
 Playground permanently when you want to keep it beyond the autosave lifecycle.
 -->
 
-Um Playground armazenado no navegador aparece em **Seus Playgrounds**. Os salvamentos automáticos também aparecem ali, mas o Playground mantém até cinco deles. Armazene um Playground permanentemente quando quiser mantê-lo além do ciclo de vida dos salvamentos automáticos.
+Un Playground salvato nel browser compare in **I tuoi Playground**. Anche i salvataggi automatici compaiono lì, ma Playground ne conserva al massimo cinque recenti. Archivia un Playground in modo permanente quando vuoi conservarlo oltre il ciclo di vita dei salvataggi automatici.
 
 <!--
 Browser storage still belongs to the browser. Export a ZIP when you need a file you can move, archive, or restore later.
 -->
 
-O armazenamento do navegador ainda pertence ao navegador. Exporte um ZIP quando precisar de um arquivo que possa mover, arquivar ou restaurar depois.
+L'archiviazione del browser resta comunque nelle mani del browser. Esporta uno ZIP quando ti serve un file che puoi spostare, archiviare o ripristinare in seguito.
 
 <!--
 ## Export a portable ZIP
 -->
 
-## Exportar um ZIP portátil
+## Esporta uno ZIP portabile
 
 <!--
 Open **Export** from the Dock and use **Download as .zip**.
 -->
 
-Abra **Exportar** no Dock e use **Baixar como .zip**.
+Apri **Esporta** dal Dock e usa **Scarica come .zip**.
 
 <!--
 ![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 -->
 
-![O painel Exportar com Baixar como .zip destacado](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+![Il pannello Esporta con Scarica come .zip evidenziato](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 <!--
 The exported file contains the current files, database, plugins, themes, uploads, and edits. You can restore it in Playground or host it on a server that supports PHP and SQLite.
 -->
 
-O arquivo exportado contém os arquivos, o banco de dados, os plugins, os temas, os arquivos enviados e as edições atuais. Você pode restaurá-lo no Playground ou hospedá-lo em um servidor compatível com PHP e SQLite.
+Il file esportato contiene i file, il database, i plugin, i temi, i caricamenti e le modifiche correnti. Puoi ripristinarlo in Playground oppure ospitarlo su un server che supporta PHP e SQLite.
 
 <!--
 The SQLite database file is included at `wp-content/database/.ht.sqlite`. Files starting with a dot are hidden by default on most operating systems, so you may need to enable hidden files in your file manager.
 -->
 
-O arquivo do banco de dados SQLite fica em `wp-content/database/.ht.sqlite`. Arquivos cujo nome começa com ponto ficam ocultos por padrão na maioria dos sistemas operacionais. Talvez seja necessário habilitar a exibição de arquivos ocultos no gerenciador de arquivos.
+Il file del database SQLite è incluso in `wp-content/database/.ht.sqlite`. I file che iniziano con un punto sono nascosti per impostazione predefinita nella maggior parte dei sistemi operativi, quindi potresti dover attivare la visualizzazione dei file nascosti nel gestore file.
 
 <!--
 ## Restore a ZIP
 -->
 
-## Restaurar um ZIP
+## Ripristina uno ZIP
 
 <!--
 Open **New Playground** from the Dock, choose **Import zip**, and select the ZIP file.
 -->
 
-Abra **Novo Playground** no Dock, escolha **Importar zip** e selecione o arquivo ZIP.
+Apri **Nuovo Playground** dal Dock, scegli **Importa zip** e seleziona il file ZIP.
 
 <!--
 ![The New Playground pane with Import zip selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 -->
 
-![O painel Novo Playground com Importar zip selecionado](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
+![Il pannello Nuovo Playground con Importa zip selezionato](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
 <!--
 This restores the files and database from the ZIP into a new Playground.
 -->
 
-Isso restaura os arquivos e o banco de dados do ZIP em um novo Playground.
+In questo modo i file e il database contenuti nello ZIP vengono ripristinati in un nuovo Playground.
 
 <!--
 ## Use a specific WordPress or PHP version
 -->
 
-## Usar uma versão específica do WordPress ou do PHP
+## Usa una versione specifica di WordPress o PHP
 
 <!--
 Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
 -->
 
-Abra **Configurações do site** no Dock para escolher as opções de WordPress, PHP, idioma, rede multisite e acesso à rede.
+Apri **Impostazioni del sito** dal Dock per scegliere le opzioni di WordPress, PHP, lingua, multisito e rete.
 
 <!--
 ![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 -->
 
-![O painel Configurações do site](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+![Il pannello Impostazioni del sito](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <div class="callout callout-info">
 
@@ -238,13 +234,13 @@ Abra **Configurações do site** no Dock para escolher as opções de WordPress,
 **Test your plugin or theme**
 -->
 
-**Teste seu plugin ou tema**
+**Testa il tuo plugin o tema**
 
 <!--
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 -->
 
-Testar a compatibilidade com tantas versões do WordPress e do PHP sempre foi trabalhoso. O WordPress Playground facilita esse processo. Aproveite essa possibilidade.
+Testare la compatibilità con così tante versioni di WordPress e PHP è sempre stato faticoso. WordPress Playground rende questo processo immediato: approfittane!
 
 </div>
 
@@ -252,7 +248,7 @@ Testar a compatibilidade com tantas versões do WordPress e do PHP sempre foi tr
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
 -->
 
-Você também pode usar os [parâmetros de consulta](/developers/apis/query-api) `wp` e `php` para abrir o Playground com as versões corretas já carregadas:
+Puoi anche usare i [parametri di query](/developers/apis/query-api) `wp` e `php` per aprire Playground con le versioni corrette già caricate:
 
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
@@ -263,19 +259,19 @@ Você também pode usar os [parâmetros de consulta](/developers/apis/query-api)
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 -->
 
-Isso é chamado de [API de consulta](/developers/apis/query-api/). Saiba mais na [documentação da API](/developers/apis/query-api/).
+Questa funzionalità si chiama [Query API](/developers/apis/query-api/) e puoi approfondirla [qui](/developers/apis/query-api/).
 
 <!--
 Use `php=next` to preview the next PHP version built from the php-src development branch. For example, see the [PHP 8.6 feature preview](https://playground.wordpress.net/php-8-6.html).
 -->
 
-Use `php=next` para pré-visualizar a próxima versão do PHP, criada a partir do branch de desenvolvimento php-src. Por exemplo, veja a [prévia dos recursos do PHP 8.6](https://playground.wordpress.net/php-8-6.html).
+Usa `php=next` per provare in anteprima la prossima versione di PHP compilata dal branch di sviluppo di php-src. Per esempio, guarda l'[anteprima delle funzionalità di PHP 8.6](https://playground.wordpress.net/php-8-6.html).
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
 -->
 
-Para saber como preparar conteúdo para demonstrações, consulte o [guia sobre como fornecer conteúdo para sua demonstração](/guides/providing-content-for-your-demo).
+Per saperne di più su come preparare i contenuti per le demo, consulta la guida [Fornire contenuti per la tua demo](/guides/providing-content-for-your-demo).
 
 <div class="callout callout-info">
 
@@ -283,13 +279,13 @@ Para saber como preparar conteúdo para demonstrações, consulte o [guia sobre 
 **Major versions only**
 -->
 
-**Somente versões principais**
+**Solo versioni major**
 
 <!--
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. Generic aliases like `latest` and `next` are exceptions.
 -->
 
-Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e receber a versão mais recente dessa linha. No entanto, não pode solicitar versões secundárias antigas, portanto `wp=6.1.2` e `php=7.4.9` não funcionam. Aliases genéricos, como `latest` e `next`, são exceções.
+Puoi indicare versioni major come `wp=6.2` o `php=8.1` e ottenere la release più recente di quella linea. Non puoi però richiedere versioni minor precedenti: né `wp=6.1.2` né `php=7.4.9` funzioneranno. Gli alias generici come `latest` e `next` sono un'eccezione.
 
 </div>
 
@@ -297,40 +293,40 @@ Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e recebe
 ## Import a WXR file
 -->
 
-## Importar um arquivo WXR
+## Importa un file WXR
 
 <!--
 You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
 -->
 
-Você pode importar um arquivo de exportação do WordPress enviando um arquivo WXR em [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
+Puoi importare un file di esportazione di WordPress caricando un file WXR in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
 
 <!--
 You can also use [JSON Blueprints](/blueprints). See [getting started with Blueprints](/blueprints/getting-started) to learn more.
 -->
 
-Também é possível usar [Blueprints JSON](/blueprints). Consulte os [primeiros passos com Blueprints](/blueprints/getting-started) para saber mais.
+Puoi anche usare i [Blueprint JSON](/blueprints). Consulta [Iniziare con i Blueprint](/blueprints/getting-started) per saperne di più.
 
 <!--
 This is different from restoring a Playground ZIP. A WXR file imports WordPress content into an existing site. A Playground ZIP restores files and the database into a new Playground.
 -->
 
-Isso é diferente de restaurar um ZIP do Playground. Um arquivo WXR importa conteúdo do WordPress para um site existente. Um ZIP do Playground restaura arquivos e o banco de dados em um novo Playground.
+Questa operazione è diversa dal ripristino di uno ZIP di Playground. Un file WXR importa contenuti di WordPress in un sito esistente, mentre uno ZIP di Playground ripristina i file e il database in un nuovo Playground.
 
 <!--
 ## Build apps with WordPress Playground
 -->
 
-## Criar aplicativos com o WordPress Playground
+## Crea applicazioni con WordPress Playground
 
 <!--
 WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
 -->
 
-O WordPress Playground é programável. Isso significa que você pode [criar aplicativos WordPress](/developers/build-your-first-app), configurar demonstrações de plugins e até usá-lo como um [ambiente de desenvolvimento local](/developers/local-development/) sem configuração.
+WordPress Playground è programmabile: puoi [creare applicazioni WordPress](/developers/build-your-first-app), preparare demo di plugin e persino usarlo come [ambiente di sviluppo locale](/developers/local-development/) senza alcuna configurazione.
 
 <!--
 To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
 -->
 
-Para saber mais sobre desenvolvimento com o WordPress Playground, consulte a seção de [início rápido para desenvolvimento](/developers/build-your-first-app).
+Per saperne di più sullo sviluppo con WordPress Playground, consulta la sezione [guida rapida per lo sviluppo](/developers/build-your-first-app).

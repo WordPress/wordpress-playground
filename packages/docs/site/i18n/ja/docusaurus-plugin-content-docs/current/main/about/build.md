@@ -64,67 +64,47 @@ Some more examples of this workflow:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## プレイグラウンドインスタンスをローカルフォルダと同期し、GitHub プルリクエストを作成する
+## Playground をローカルフォルダーと同期し、GitHub プルリクエストを作成する
 
 <!--
-## Synchronize your playground instance with a local folder and create GitHub Pull Requests
+In the Dock, click the **Autosaved** or **Unsaved** save status, select **Save
+in a local directory**, click **Choose...**, and select a directory dedicated
+to this Playground. After granting write access, click **Save**. Playground
+copies the current site into the selected directory and overwrites files with
+matching names; it does not import an existing site from that directory.
 -->
 
-![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
-
-Google Chrome を使用すると、Playground インスタンスを次のいずれかのローカル ディレクトリと同期できます。
+Dock の**自動保存済み**または**未保存**をクリックし、**ローカルディレクトリに保存**、**選択...**の順に選択して、この Playground 専用のディレクトリを指定します。書き込みアクセスを許可したら、**保存**をクリックします。Playground は現在のサイトを選択したディレクトリにコピーし、同名のファイルを上書きします。そのディレクトリにある既存のサイトはインポートされません。
 
 <!--
-With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
+![The Store permanently pane with local-directory storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 -->
 
-- 空のディレクトリ – このプレイグラウンドを保存して同期を開始します
-- 既存のディレクトリ – ここで読み込み、同期を開始します
+![ローカルディレクトリへの保存が選択された「永続的に保存」パネル](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-local-directory.webp)
 
 <!--
--   And empty directory – to save this Playground and start syncing
--   An existing directory – to load it here and start syncing
+Local-directory storage uses the File System Access API, so availability depends on browser and platform support for choosing and writing to directories. Chromium-based desktop browsers usually support it. Browsers without that capability can still use browser storage and ZIP export. See [Browser support](/developers/limitations#browser-support) for the broader compatibility model.
 -->
 
-<div class="callout callout-info">
-
-この機能は現在 Google Chrome でのみご利用いただけます。他のブラウザではご利用いただけません。
-
-</div>
+ローカルディレクトリへの保存には File System Access API を使用します。そのため、利用できるかどうかは、ディレクトリの選択と書き込みに対するブラウザおよびプラットフォームの対応状況によって異なります。通常、Chromium ベースのデスクトップブラウザは対応しています。対応していないブラウザでも、ブラウザストレージと ZIP エクスポートは使用できます。対応状況について詳しくは、[ブラウザサポート](/developers/limitations#browser-support)をご覧ください。
 
 <!--
-<div class="callout callout-info">
-
-This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
-
-</div>
+Files changed in Playground are written to the selected directory. Files changed on disk are not pulled into the running Playground automatically. For a local-directory Playground, open the **Saved** status menu in the Dock and choose **Reload files from disk** when you want Playground to read the current files from the directory.
 -->
 
-接続の両側で行われた変更について:
+Playground で変更したファイルは、選択したディレクトリに書き込まれます。ディスク上で変更したファイルが、実行中の Playground に自動で読み込まれることはありません。ローカルディレクトリに保存した Playground でディレクトリ内の最新ファイルを読み込むには、Dock の**保存済み**ステータスメニューを開き、**ディスクからファイルを再読み込み**を選択します。
 
 <!--
-Regarding changes done on both sides of the connection:
+With this workflow, you can create GitHub PRs directly from changes made in your local directory.
 -->
 
-- Playground で変更されたファイルはコンピュータに同期されます。
-- コンピュータで変更されたファイルは Playground に同期されません。「ローカルファイルを同期」ボタンをクリックする必要があります。
-
-<!--
--   Files changed in Playground will be synchronized to your computer.
--   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
--->
-
-このワークフローを使用すると、ローカル ディレクトリで行われた変更から直接 GitHub PR を作成できます。
-
-<!--
-With this workflow you can create directly GitHub PRs from your changes done on your local directory.
--->
-
-このワークフローの実際のデモを次に示します。
+このワークフローを使うと、ローカルディレクトリで行った変更から GitHub PR を直接作成できます。
 
 <!--
 See here a little demo of this workflow in action:
 -->
+
+次の動画では、このワークフローの動作を確認できます。
 
 <iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 

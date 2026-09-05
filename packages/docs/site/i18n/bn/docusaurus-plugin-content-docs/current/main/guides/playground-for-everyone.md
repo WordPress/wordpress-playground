@@ -69,26 +69,18 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 - আগে কখনও চেষ্টা করেননি এমন সব ফিচার এক্সপ্লোর করা
 
 <!--
-By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
+By default, WordPress Playground loads a landing page that introduces Playground. To start with a plain WordPress install, open **New** in the Dock and choose **Vanilla WordPress** from the Blueprint gallery.
 -->
 
-ডিফল্টভাবে, ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কিছু ফিচারের সাথে পরিচিত করার জন্য একটি ল্যান্ডিং পেজ লোড করে এবং সেখান থেকে আপনি এর সম্পর্কে আরও জানতে পারেন। তবে আপনি ল্যান্ডিং পেজ ছাড়াই একদম ভ্যানিলা ওয়ার্ডপ্রেস ভার্সন লোড করতে পারেন। প্লেগ্রাউন্ড লঞ্চিং প্যানেলে, ভ্যানিলা ওয়ার্ডপ্রেস ভার্সন লোড করার একটি অপশন রয়েছে।
+ডিফল্টভাবে ওয়ার্ডপ্রেস Playground একটি পরিচিতিমূলক landing page লোড করে। সাধারণ
+ওয়ার্ডপ্রেস ইনস্টল দিয়ে শুরু করতে Dock-এর **New** খুলুন এবং Blueprint gallery থেকে
+**Vanilla WordPress** বেছে নিন।
 
 <!--
-1. Open Launch WordPress Panel
-   ![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
+![The Dock New button and the Blueprint gallery with Vanilla WordPress selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 -->
 
-১. লঞ্চ ওয়ার্ডপ্রেস প্যানেল খুলুন
-![Launch WordPress Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/open-playground-dashboard.webp)
-
-<!--
-2. Select to load a Vanilla WordPress version
-   ![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
--->
-
-২. একটি ভ্যানিলা ওয়ার্ডপ্রেস ভার্সন লোড করতে সিলেক্ট করুন
-![Launching Vanilla WordPress](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/launch-vanilla-wordpress.webp)
+![Dock-এর New বোতাম এবং Vanilla WordPress নির্বাচিত Blueprint gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 <!--
 ## If You're Learning WordPress
@@ -134,29 +126,20 @@ You can inspect columns, headings, images, and buttons — and see exactly how t
 #### Explore the Blueprint Library
 -->
 
-#### ব্লুপ্রিন্ট লাইব্রেরি এক্সপ্লোর করুন
+#### Blueprint লাইব্রেরি ঘুরে দেখুন
 
 <!--
-At the Launch WordPress Playground panel, you will have access to the Blueprint Library, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground, Art Gallery, E-commerce, and Web Portfolio are some of the examples.
+Open **New** in the Dock to browse the Blueprint gallery. The gallery has examples for art galleries, stores, portfolios, learning environments, and many other starting points.
 -->
 
-প্লেগ্রাউন্ড লঞ্চ প্যানেলে আপনি ব্লুপ্রিন্ট লাইব্রেরিতে একসেস পাবেন। এটি ৪০টিরও বেশি ব্লুপ্রিন্টের একটি সেট যা আপনাকে অনুপ্রাণিত করবে এবং ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার করে বিভিন্ন ধরণের ওয়েবসাইট যেমন আর্ট গ্যালারি, ই-কমার্স এবং ওয়েব পোর্টফলিও ট্রাই করতে দিবে।
+Blueprint gallery দেখতে Dock-এর **New** খুলুন। Gallery-তে art gallery, store,
+portfolio, learning environment এবং আরও অনেক ধরনের শুরুর উদাহরণ রয়েছে।
 
 <!--
-1. Open the Blueprint gallery at the Playground Launch Panel
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
+![Opening the Blueprint gallery from the Dock New button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 -->
 
-১. প্লেগ্রাউন্ড লঞ্চ প্যানেলে ব্লুপ্রিন্ট গ্যালারি খুলুন
-![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
-
-<!--
-1. Navigate and select the Blueprint to launch at WordPress Playground
-   ![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
--->
-
-২. ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে লঞ্চ করার জন্য কাঙ্ক্ষিত ব্লুপ্রিন্টটি সিলেক্ট করুন
-![Open blueprint Gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/list-of-blueprints.webp)
+![Dock-এর New বোতাম থেকে Blueprint gallery খোলা](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/open-blueprints-gallery.webp)
 
 <!--
 ### Try New Features Safely
@@ -165,10 +148,18 @@ At the Launch WordPress Playground panel, you will have access to the Blueprint 
 ### নতুন ফিচারগুলো নিরাপদে চেষ্টা করুন
 
 <!--
-When the WordPress team releases new features, you can test them in Playground before they affect your real site. Select any WordPress version from the settings panel to explore what's new — or what's coming next.
+When the WordPress team releases new features, you can test them in Playground before they affect your real site. Open **Site Settings** from the Dock to choose a WordPress or PHP version.
 -->
 
-যখন ওয়ার্ডপ্রেস টিম নতুন ফিচার রিলিজ করে, তখন আপনার আসল সাইটকে প্রভাবিত করার আগে আপনি প্লেগ্রাউন্ডে সেগুলো টেস্ট করতে পারেন। সেটিং প্যানেল থেকে যেকোনো ওয়ার্ডপ্রেস ভার্সন সিলেক্ট করে নতুন কী এসেছে — বা ভবিষ্যতে কী আসতে চলেছে তা এক্সপ্লোর করুন।
+ওয়ার্ডপ্রেস টিম নতুন ফিচার রিলিজ করলে আসল সাইটে প্রভাব ফেলার আগে Playground-এ সেগুলো
+পরীক্ষা করতে পারেন। ওয়ার্ডপ্রেস বা PHP সংস্করণ বেছে নিতে Dock থেকে **Site Settings**
+খুলুন।
+
+<!--
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+-->
+
+![Site Settings পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <!--
 ## If You Own a WordPress Site
@@ -250,7 +241,15 @@ Every Playground runs independently in your browser. Nothing syncs to any extern
 
 <div class="callout callout-info">
 
+<!--
+**Your Real Site Stays Safe**
+-->
+
 **আপনার আসল সাইটটি নিরাপদে থাকে**
+
+<!--
+Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
+-->
 
 প্রতিটি প্লেগ্রাউন্ড আপনার ব্রাউজারে স্বাধীনভাবে চলে। কোনো কিছুই কোনো বাইরের সার্ভারের সাথে সিঙ্ক হয় না এবং কোনো কিছুই আপনার লাইভ ওয়ার্ডপ্রেস সাইটকে প্রভাবিত করে না।
 
@@ -291,10 +290,14 @@ Want to try a different font size? Adjust spacing? Change colors? Load a Playgro
 ৩. ফলাফল তাৎক্ষণিকভাবে দেখুন
 
 <!--
-If you like what you see, recreate those changes on your real site. If not, just close the tab — no cleanup required.
+If you like what you see, recreate those changes on your real site. If not,
+start another Playground. The experiment may remain as a recent autosave until
+newer autosaves replace it.
 -->
 
-আপনি যদি পরিবর্তনগুলো পছন্দ করেন, তবে সেগুলো আপনার আসল সাইটে প্রয়োগ করুন। আর না হলে, শুধু ট্যাবটি বন্ধ করে দিন — কোনো কিছু ক্লিন-আপ করার প্রয়োজন নেই।
+পরিবর্তনগুলো পছন্দ হলে আসল সাইটে আবার তৈরি করুন। পছন্দ না হলে আরেকটি Playground
+শুরু করুন। নতুন autosave পুরোনোগুলো সরিয়ে দেওয়ার আগে পর্যন্ত পরীক্ষাটি recent autosave
+হিসেবে থাকতে পারে।
 
 <!--
 ## Yes, You Can Save Your Work
@@ -315,22 +318,43 @@ If you like what you see, recreate those changes on your real site. If not, just
 ### আপনার ব্রাউজারে সেভ করুন
 
 <!--
-1. Now WordPress Playground teels you if your Playground instance is unsaved on the top right
-2. Click on **Save** (yellow button)
-3. Set the name of your instance
+New Playgrounds are autosaved when browser storage is available. The Dock shows the save status next to the address field.
 -->
 
-১. আপনার প্লেগ্রাউন্ড ইনস্ট্যান্সটি সেভ করা না থাকলে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড এখন আপনাকে ডানদিকের উপরে তা জানাবে
-২. **সেভ** (হলুদ বাটন)-এ ক্লিক করুন
-৩. আপনার ইনস্ট্যান্সের নাম সেট করুন
-
-![Saving Playgrounds](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
+ব্রাউজার স্টোরেজ পাওয়া গেলে নতুন Playground autosave হয়। Dock ঠিকানা ফিল্ডের পাশে
+সেভ স্ট্যাটাস দেখায়।
 
 <!--
-Playground generates a unique link for your saved site. Bookmark it, and you can return to exactly where you left off.
+![The Autosaved status in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
 -->
 
-প্লেগ্রাউন্ড আপনার সেভ করা সাইটের জন্য একটি ইউনিক লিঙ্ক জেনারেট করে। এটি বুকমার্ক করে রাখুন এবং আপনি ঠিক যেখান থেকে শেষ করেছিলেন সেখান থেকেই আবার শুরু করতে পারবেন।
+![Dock-এ Autosaved স্ট্যাটাস](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/unsaved-playground-warning.webp)
+
+<!--
+Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
+-->
+
+সাম্প্রতিক autosave-এ ফিরতে Dock থেকে **Your Playgrounds** খুলুন। Playground সর্বোচ্চ
+পাঁচটি recent autosave রাখে।
+
+<!--
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+-->
+
+![বর্তমান Playground-সহ Your Playgrounds পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+
+<!--
+To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
+-->
+
+কোনো autosave স্থায়ীভাবে রাখতে Dock-এর **Autosaved** স্ট্যাটাসে ক্লিক করুন,
+**Save in browser storage** বেছে নিন এবং সংরক্ষণ করুন।
+
+<!--
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
+-->
+
+![Playground নাম এবং Save বোতাম সহ Store permanently পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 <!--
 ### Download as a ZIP File
@@ -339,26 +363,33 @@ Playground generates a unique link for your saved site. Bookmark it, and you can
 ### ZIP ফাইল হিসেবে ডাউনলোড করুন
 
 <!--
-Need to move your work elsewhere? Choose **Download as .zip** to export your entire Playground — including plugins, themes, and content. You can restore it later or even host it on a real server.
+Need to move your work elsewhere? Open **Export** and choose **Download as .zip**. The ZIP contains the current files, database, plugins, themes, uploads, and edits. You can restore it later with **New → Import zip** or host it on a server that supports PHP and SQLite.
 -->
 
-আপনার কাজ অন্য কোথাও নিতে চান? আপনার পুরো প্লেগ্রাউন্ডটি — যার মধ্যে প্লাগইন, থিম এবং কন্টেন্ট রয়েছে — এক্সপোর্ট করার জন্য **.zip হিসেবে ডাউনলোড করুন** বেছে নিন। আপনি এটি পরে রিস্টোর করতে পারেন অথবা এমনকি একটি আসল সার্ভারে হোস্ট করতে পারেন।
+কাজটি অন্য কোথাও নিতে চান? **Export** খুলে **Download as .zip** বেছে নিন। ZIP-এ
+বর্তমান ফাইল, ডেটাবেস, প্লাগইন, থিম, আপলোড ও সম্পাদনা থাকে। পরে **New → Import zip**
+দিয়ে এটি পুনরুদ্ধার করতে অথবা PHP ও SQLite সমর্থিত সার্ভারে হোস্ট করতে পারেন।
 
 <!--
-<div class="callout callout-tip">
-
-**Keep Your Playground Link**
-
-When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
-
-</div>
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 -->
 
+![Download as .zip হাইলাইট করা Export পেন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+
 <div class="callout callout-tip">
 
-**আপনার প্লেগ্রাউন্ড লিঙ্কটি সংরক্ষণ করুন**
+<!--
+**Keep a portable backup**
+-->
 
-আপনি যখন ব্রাউজারে সেভ করবেন, তখন এটি যে ইউনিক URL জেনারেট করবে তা কপি করে রাখুন। আপনার সেভ করা কাজে ফিরে আসার জন্য এই লিঙ্কটিই একমাত্র উপায়।
+**একটি বহনযোগ্য ব্যাকআপ রাখুন**
+
+<!--
+Browser storage belongs to your browser profile and can be cleared or evicted. Export a ZIP when you need a file you can move or archive.
+-->
+
+Browser storage আপনার browser profile-এর অংশ এবং সেটি মুছে বা সরিয়ে দেওয়া হতে পারে।
+সরানো বা archive করা যায় এমন file দরকার হলে ZIP export করুন।
 
 </div>
 

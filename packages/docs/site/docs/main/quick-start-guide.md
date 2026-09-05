@@ -64,7 +64,7 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
 permanently**, then choose **Save in browser storage**.
 
-![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
+![The Store permanently pane with a Playground name and the Save button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 A saved browser Playground appears in **Your Playgrounds**. Autosaves also
 appear there, but Playground keeps up to five recent autosaves. Store a
@@ -76,7 +76,7 @@ Browser storage still belongs to the browser. Export a ZIP when you need a file 
 
 Open **Export** from the Dock and use **Download as .zip**.
 
-![The Export pane with ZIP, setup link, and GitHub options](/img/dock/dock-export-playground.webp)
+![The Export pane with Download as .zip highlighted](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 The exported file contains the current files, database, plugins, themes, uploads, and edits. You can restore it in Playground or host it on a server that supports PHP and SQLite.
 
@@ -86,7 +86,7 @@ The SQLite database file is included at `wp-content/database/.ht.sqlite`. Files 
 
 Open **New Playground** from the Dock, choose **Import zip**, and select the ZIP file.
 
-![The New Playground pane with Import zip selected](/img/dock/dock-new-playground-import-zip.webp)
+![The New Playground pane with Import zip selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
 This restores the files and database from the ZIP into a new Playground.
 
@@ -94,7 +94,7 @@ This restores the files and database from the ZIP into a new Playground.
 
 Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
 
-![The Site Settings pane](/img/dock/dock-site-settings.webp)
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <div class="callout callout-info">
 
