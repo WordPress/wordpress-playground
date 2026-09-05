@@ -1,6 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import net from 'node:net';
 import { Worker } from 'node:worker_threads';
 import type * as ChildProcess from 'child_process';
 import {
@@ -84,6 +85,87 @@ describe.each(blueprintVersions)(
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('8.0');
+		});
+
+		test('should run PHP without inheriting booted WordPress symbols', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				workers: 2,
+			});
+
+			const workerResponse = await cliServer.playground.run({
+				code: `<?php
+				require_once '/wordpress/wp-load.php';
+				echo function_exists('add_filter') ? 'booted' : 'missing';`,
+			});
+			expect(workerResponse.text).toBe('booted');
+
+			const freshResponses = await Promise.all(
+				Array.from({ length: 4 }, (_, index) =>
+					cliServer.playground.runInFreshProcess({
+						code: `<?php
+						echo function_exists('add_filter') ? 'booted:' : 'clean:';
+						require_once '/wordpress/wp-load.php';
+						echo function_exists('add_filter') ? 'loaded:${index}' : 'missing';`,
+					})
+				)
+			);
+			expect(freshResponses.map((response) => response.text)).toEqual([
+				'clean:loaded:0',
+				'clean:loaded:1',
+				'clean:loaded:2',
+				'clean:loaded:3',
+			]);
+
+			await expect(
+				cliServer.playground.runInFreshProcess({
+					code: '<?php syntax error',
+				})
+			).rejects.toThrow();
+			const recoveredResponse =
+				await cliServer.playground.runInFreshProcess({
+					code: '<?php echo "recovered";',
+				});
+			expect(recoveredResponse.text).toBe('recovered');
+		});
+
+		test('should preserve server-first TCP networking in a fresh PHP process', async () => {
+			const tcpServer = net.createServer((socket) => {
+				socket.end(Buffer.from([0x0a, 0x4d, 0x79, 0x53, 0x51, 0x4c]));
+			});
+			await new Promise<void>((resolve) =>
+				tcpServer.listen(0, '127.0.0.1', resolve)
+			);
+			const address = tcpServer.address();
+			if (!address || typeof address === 'string') {
+				throw new Error('TCP fixture did not expose a port');
+			}
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					php: '8.4',
+					workers: 2,
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
+				const response = await cliServer.playground.runInFreshProcess({
+					code: `<?php
+					$socket = fsockopen('127.0.0.1', ${address.port}, $errno, $error, 5);
+					if (!$socket) { throw new RuntimeException($error, $errno); }
+					echo bin2hex(fread($socket, 6));`,
+				});
+				expect(response.text).toBe('0a4d7953514c');
+			} finally {
+				await new Promise<void>((resolve, reject) =>
+					tcpServer.close((error) =>
+						error ? reject(error) : resolve()
+					)
+				);
+			}
 		});
 
 		test('should have Intl extension enabled by default', async () => {
