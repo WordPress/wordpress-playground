@@ -99,6 +99,20 @@ assert_equal(
     'Playground API entry point should not be edge cached'
 );
 
+$blueprints_mirror_headers = playground_get_custom_response_headers(
+    '/blueprints/blueprints/my-wordpress/blueprint.json'
+);
+assert_equal(
+    true,
+    in_array( 'Access-Control-Allow-Origin: *', $blueprints_mirror_headers, true ),
+    'Blueprints mirror files should be loadable cross-origin by my.wordpress.net'
+);
+assert_equal(
+    true,
+    playground_is_static_file_needing_special_treatment( '/blueprints/index.json' ),
+    'Blueprints mirror files should be served via PHP so they get custom headers'
+);
+
 $mywp_event_server_snapshot = $_SERVER;
 
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';

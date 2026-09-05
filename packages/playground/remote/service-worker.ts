@@ -291,6 +291,26 @@ self.addEventListener('fetch', (event) => {
 		);
 	}
 
+	/**
+	 * The same-origin mirror of the WordPress/blueprints repository.
+	 *
+	 * This must come before the scoped-referrer redirect below: Blueprints
+	 * embed mirror URLs in site content (e.g. the welcome Blueprint's cover
+	 * image), so the browser requests them from inside a scoped WordPress
+	 * page. Redirecting those into the scope would send them to the PHP
+	 * worker, which does not have the files.
+	 *
+	 * The mirror is refreshed independently of website deployments, so a
+	 * cached copy would otherwise stay stale until the next Playground build.
+	 * Prefer the network and fall back to the cache when offline.
+	 *
+	 * `/website-server/` is the Vite base path of the website in development.
+	 */
+	if (/^(\/website-server)?\/blueprints\//.test(url.pathname)) {
+		event.respondWith(networkFirstFetch(event.request));
+		return;
+	}
+
 	let referrerUrl;
 	try {
 		referrerUrl = new URL(event.request.referrer);
@@ -324,11 +344,12 @@ self.addEventListener('fetch', (event) => {
 	 * For example, the following request fetching the list of all the Blueprints
 	 * from the Blueprints directory:
 	 *
-	 * https://playground.wordpress.net/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
+	 * https://playground.wordpress.net/proxy/network-first-fetch/
+	 *     https://playground.wordpress.net/blueprints/index.json
 	 *
-	 * would be proxied to:
+	 * (a single URL, wrapped here) would be proxied to:
 	 *
-	 * https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
+	 * https://playground.wordpress.net/blueprints/index.json
 	 *
 	 * And the response would be cached for when Playground is running in the
 	 * offline mode.

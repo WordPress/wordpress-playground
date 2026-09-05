@@ -88,3 +88,4 @@ default.profraw
 
 # Git worktrees – a convenient, non-agent-specific place for worktrees
 .worktrees
+packages/playground/website/public/blueprints/

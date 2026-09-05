@@ -48,7 +48,8 @@
 			},
 			"dependsOn": [
 				"^build",
-				"playground-blueprints:build:blueprint-schema"
+				"playground-blueprints:build:blueprint-schema",
+				"sync-blueprints-mirror"
 			]
 		},
 		"dev": {
@@ -80,6 +81,14 @@
 					"buildTarget": "playground-website:build:standalone:production",
 					"hmr": false
 				}
+			}
+		},
+		"sync-blueprints-mirror": {
+			"executor": "nx:run-commands",
+			"cache": false,
+			"options": {
+				"command": "node packages/playground/website/scripts/sync-blueprints-mirror.mjs",
+				"parallel": false
 			}
 		},
 		"sync-php-next-assets": {
