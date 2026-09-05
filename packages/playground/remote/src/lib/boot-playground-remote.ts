@@ -132,6 +132,7 @@ export async function bootPlaygroundRemote() {
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webMCPBridge = createWebMCPFrameBridge(wpFrame);
+	let editorNoticeBottomOffset: number | undefined;
 	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
@@ -382,6 +383,15 @@ export async function bootPlaygroundRemote() {
 				sandbox: wpFrame.getAttribute('sandbox'),
 			});
 		},
+		async setEditorNoticeBottomOffset(bottom) {
+			editorNoticeBottomOffset =
+				typeof bottom === 'number' &&
+				Number.isFinite(bottom) &&
+				bottom > 0
+					? bottom
+					: undefined;
+			postEditorNoticeBottomOffset();
+		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
 		},
@@ -576,6 +586,17 @@ export async function bootPlaygroundRemote() {
 			}
 		},
 	};
+	wpFrame.addEventListener('load', postEditorNoticeBottomOffset);
+
+	function postEditorNoticeBottomOffset() {
+		wpFrame.contentWindow?.postMessage(
+			{
+				type: 'playground-editor-notice-bottom-offset',
+				bottom: editorNoticeBottomOffset,
+			},
+			'*'
+		);
+	}
 
 	await phpWorkerApi.isConnected();
 
