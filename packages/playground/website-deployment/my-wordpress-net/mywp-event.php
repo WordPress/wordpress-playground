@@ -298,6 +298,31 @@ function mywp_event_collect_stat_bumps( $payload ) {
 				'remote-url',
 			)
 		);
+		/*
+		 * The client classifies document.referrer into this closed vocabulary
+		 * before sending it, so the referrer URL itself never reaches the
+		 * server. Re-checking it here keeps the reported cardinality fixed
+		 * even if a client sends something else. Must match
+		 * ReferrerSourceClass in usage-stats.ts.
+		 */
+		mywp_event_add_allowed_property(
+			$bumps,
+			$event,
+			'referrer_source',
+			$properties,
+			array(
+				'direct',
+				'github',
+				'hacker-news',
+				'internal',
+				'make-wordpress-org',
+				'other-external',
+				'reddit',
+				'search',
+				'wordpress-org',
+				'x',
+			)
+		);
 	}
 
 	if ( 'blueprint_installed' === $event ) {

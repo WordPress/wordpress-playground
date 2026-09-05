@@ -46,6 +46,18 @@ export type PersonalWpUsageStatsOptions = {
 	fetchImpl?: typeof fetch;
 };
 
+export type ReferrerSourceClass =
+	| 'direct'
+	| 'github'
+	| 'hacker-news'
+	| 'internal'
+	| 'make-wordpress-org'
+	| 'other-external'
+	| 'reddit'
+	| 'search'
+	| 'wordpress-org'
+	| 'x';
+
 type BlueprintSourceClass =
 	| 'same-origin'
 	| 'wordpress-org'
@@ -91,6 +103,20 @@ const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
 const MAX_PLUGIN_SLUGS = 10;
 const UNKNOWN_PLUGIN_SLUG = 'unknown';
 const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
+const SEARCH_ENGINE_DOMAINS = [
+	'baidu.com',
+	'bing.com',
+	'duckduckgo.com',
+	'ecosia.org',
+	'qwant.com',
+	'search.brave.com',
+	'startpage.com',
+	'yahoo.com',
+	'yandex.com',
+	'yandex.ru',
+];
+/** Matches google.com and its country domains (google.de, google.co.uk). */
+const GOOGLE_SEARCH_HOST = /^google\.[a-z]{2,3}(\.[a-z]{2})?$/;
 
 export function logPersonalWpEvent(
 	event: PersonalWpUsageStatsEvent,
@@ -407,6 +433,87 @@ export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
 		return 'github';
 	}
 	return 'external-url';
+}
+
+/**
+ * Classifies the referring site into a small closed vocabulary so that a
+ * traffic spike can be attributed to a source without the referrer URL ever
+ * leaving the browser. Anything unrecognized becomes `other-external`, which
+ * keeps the reported cardinality fixed: a referrer that sent a single visit
+ * is never recorded, so it cannot narrow down who that visitor was.
+ *
+ * Modern browsers default to `strict-origin-when-cross-origin`, so the origin
+ * usually survives even though the path does not. Referrals from native apps,
+ * from sites sending `no-referrer`, and from HTTPS to HTTP send nothing at all
+ * and are reported as `direct`.
+ */
+export function classifyReferrer(
+	referrer = globalThis.document?.referrer ?? ''
+): ReferrerSourceClass {
+	if (!referrer) {
+		return 'direct';
+	}
+
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(referrer);
+	} catch {
+		return 'other-external';
+	}
+
+	if (parsedUrl.origin === globalThis.location?.origin) {
+		return 'internal';
+	}
+
+	const host = parsedUrl.hostname.toLowerCase();
+	// make.wordpress.org is a subdomain of wordpress.org, so it has to be
+	// matched before the wordpress.org check that would otherwise absorb it.
+	if (isHostOrSubdomain(host, 'make.wordpress.org')) {
+		return 'make-wordpress-org';
+	}
+	if (isHostOrSubdomain(host, 'wordpress.org')) {
+		return 'wordpress-org';
+	}
+	if (isHostOrSubdomain(host, 'news.ycombinator.com')) {
+		return 'hacker-news';
+	}
+	if (
+		isHostOrSubdomain(host, 'reddit.com') ||
+		isHostOrSubdomain(host, 'redd.it')
+	) {
+		return 'reddit';
+	}
+	if (
+		isHostOrSubdomain(host, 'x.com') ||
+		isHostOrSubdomain(host, 'twitter.com') ||
+		isHostOrSubdomain(host, 't.co')
+	) {
+		return 'x';
+	}
+	if (
+		isHostOrSubdomain(host, 'github.com') ||
+		host === 'raw.githubusercontent.com'
+	) {
+		return 'github';
+	}
+	if (isSearchEngineHost(host)) {
+		return 'search';
+	}
+	return 'other-external';
+}
+
+function isSearchEngineHost(host: string): boolean {
+	const bareHost = host.startsWith('www.') ? host.slice(4) : host;
+	if (GOOGLE_SEARCH_HOST.test(bareHost)) {
+		return true;
+	}
+	return SEARCH_ENGINE_DOMAINS.some((domain) =>
+		isHostOrSubdomain(host, domain)
+	);
+}
+
+function isHostOrSubdomain(host: string, domain: string): boolean {
+	return host === domain || host.endsWith(`.${domain}`);
 }
 
 function getAgeBucket(timestamp: number | undefined, now: number): string {

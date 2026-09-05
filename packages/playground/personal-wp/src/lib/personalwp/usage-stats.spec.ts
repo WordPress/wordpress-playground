@@ -3,6 +3,7 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { SiteMetadata } from '../state/redux/slice-sites';
 import {
 	classifyBlueprintUrl,
+	classifyReferrer,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
 	getStreakUsageStatsUpdate,
@@ -296,6 +297,56 @@ describe('Personal WP usage stats', () => {
 			'data-url'
 		);
 		expect(classifyBlueprintUrl('http://[invalid')).toBe('invalid-url');
+	});
+
+	it('classifies referrers instead of reporting them', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(classifyReferrer('')).toBe('direct');
+		expect(classifyReferrer('https://my.wordpress.net/builder')).toBe(
+			'internal'
+		);
+		expect(classifyReferrer('https://news.ycombinator.com/item?id=1')).toBe(
+			'hacker-news'
+		);
+		expect(classifyReferrer('https://www.google.co.uk/search?q=x')).toBe(
+			'search'
+		);
+		expect(classifyReferrer('https://example.com/a-blog-post')).toBe(
+			'other-external'
+		);
+		expect(classifyReferrer('not a url')).toBe('other-external');
+	});
+
+	it('reports make.wordpress.org separately from wordpress.org', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(classifyReferrer('https://make.wordpress.org/core/')).toBe(
+			'make-wordpress-org'
+		);
+		expect(classifyReferrer('https://wordpress.org/plugins/')).toBe(
+			'wordpress-org'
+		);
+		expect(classifyReferrer('https://developer.wordpress.org/')).toBe(
+			'wordpress-org'
+		);
+	});
+
+	it('does not treat a look-alike host as a known referrer', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(classifyReferrer('https://notwordpress.org/')).toBe(
+			'other-external'
+		);
+		expect(classifyReferrer('https://wordpress.org.example.com/')).toBe(
+			'other-external'
+		);
 	});
 
 	it('does not report blueprint identifiers', () => {

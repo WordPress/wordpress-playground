@@ -45,6 +45,7 @@ import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
 import {
+	classifyReferrer,
 	getUsageStatsDate,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
@@ -487,6 +488,7 @@ function logBootUsageStats({
 			...siteProperties,
 			original_blueprint_source:
 				site.metadata.originalBlueprintSource.type,
+			referrer_source: classifyReferrer(),
 		});
 	} else if (
 		isWordPressInstalled &&
