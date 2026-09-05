@@ -16,7 +16,7 @@ description: જાણો કે કેવી રીતે થીમ્સ, પ�
 
 [https://playground.wordpress.net/?theme=pendant&plugin=gutenberg](https://playground.wordpress.net/?theme=pendant&plugin=gutenberg)
 
-પરંતુ તમે [બ્લુપ્રિન્ટ્સનો ઉપયોગ કરીને વધુ વિસ્તૃત કોન્ફિગરેશન્સ](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) નું પણ ટેસ્ટ કરી શકો છો, ઉદાહરણ તરીકે જિસ્ટમાંથી પ્લગઇનના કોડનું ટેસ્ટિંગ (જુઓ [બ્લુપ્રિન્ટ](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) અને [લાઈવ ડેમો](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
+પરંતુ તમે [બ્લુપ્રિન્ટ્સનો ઉપયોગ કરીને વધુ વિસ્તૃત કોન્ફિગરેશન્સ](https://wordpress.github.io/blueprints/) નું પણ ટેસ્ટ કરી શકો છો, ઉદાહરણ તરીકે જિસ્ટમાંથી પ્લગઇનના કોડનું ટેસ્ટિંગ (જુઓ [બ્લુપ્રિન્ટ](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) અને [લાઈવ ડેમો](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
 
 ## પુલ રિક્વેસ્ટ્સનું લાઈવ પ્રિવ્યુ જુઓ
 

@@ -120,7 +120,7 @@ GitHub રિપોઝિટરીમાં સંગ્રહિત પ્લ�
 
 <div class="callout callout-info">
 
-[Gist માંથી પ્લગઇન ઇન્સ્ટોલ કરો](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) ઉદાહરણ [બ્લુપ્રિન્ટ્સ ગેલેરી](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) માં દર્શાવેલ છે કે gist માંથી કોડમાંથી પ્લગઇન કેવી રીતે લોડ કરવું
+[Gist માંથી પ્લગઇન ઇન્સ્ટોલ કરો](https://playground.wordpress.net/builder/builder.html?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json#{%22meta%22:{%22title%22:%22Install%20plugin%20from%20a%20gist%22,%22author%22:%22zieladam%22,%22description%22:%22Install%20and%20activate%20a%20WordPress%20plugin%20from%20a%20.php%20file%20stored%20in%20a%20gist.%22,%22categories%22:[%22plugins%22]},%22landingPage%22:%22/wp-admin/plugins.php%22,%22preferredVersions%22:{%22wp%22:%22beta%22,%22php%22:%228.0%22},%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/0-plugin.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php%22}},{%22step%22:%22activatePlugin%22,%22pluginName%22:%22Block%20Hooks%20Demo%22,%22pluginPath%22:%220-plugin.php%22}]}) ઉદાહરણ [બ્લુપ્રિન્ટ્સ ગેલેરી](https://wordpress.github.io/blueprints/) માં દર્શાવેલ છે કે gist માંથી કોડમાંથી પ્લગઇન કેવી રીતે લોડ કરવું
 
 </div>
 
@@ -132,7 +132,7 @@ GitHub રિપોઝિટરીમાં સંગ્રહિત પ્લ�
 
 પ્લેગ્રાઉન્ડ પ્રોજેક્ટ દ્વારા પ્રદાન કરેલ કેટલાક ઉપયોગી સાધનો અને સંસાધનો છે:
 
-- વાસ્તવિક-વિશ્વ કોડ ઉદાહરણો જોવા માટે [બ્લુપ્રિન્ટ્સ ગેલેરી](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) તપાસો વર્ડપ્રેસ પ્લેગ્રાઉન્ડ નો વિવિધ સેટ અપ સાથે વર્ડપ્રેસ સાઇટ લોંચ કરવા માટે.
+- વાસ્તવિક-વિશ્વ કોડ ઉદાહરણો જોવા માટે [બ્લુપ્રિન્ટ્સ ગેલેરી](https://developer.wordpress.org/playground/blueprints/examples/) તપાસો વર્ડપ્રેસ પ્લેગ્રાઉન્ડ નો વિવિધ સેટ અપ સાથે વર્ડપ્રેસ સાઇટ લોંચ કરવા માટે.
 - [વર્ડપ્રેસ પ્લેટ પ્લેટફોર્મ સ્ટેપ લાઇબ્રેરી](https://akirk.github.io/playground-step-library/#) સાધન બ્લુપ્રિન્ટ્ માટે પગલાંઓ ખેંચીને અથવા ક્લિક કરીને દ્રશ્ય ઇન્ટરફેસ પ્રદાન કરે છે. તમે તમારા પોતાના પગલાંઓ પણ બનાવી શકો છો!
 - [બ્લુપ્રિન્ટ્સ બિલ્ડર](https://playground.wordpress.net/builder/builder.html) સાધન તમને તમારો બ્લુપ્રિન્ટ્ ઑનલાઇન સંપાદિત કરવા અને તેને સીધું પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સમાં ચલાવવા દે છે.
 
