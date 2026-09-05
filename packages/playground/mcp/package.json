@@ -22,6 +22,10 @@
 			"import": "./client.js",
 			"require": "./client.cjs"
 		},
+		"./api": {
+			"import": "./api.js",
+			"require": "./api.cjs"
+		},
 		"./package.json": "./package.json"
 	},
 	"publishConfig": {
