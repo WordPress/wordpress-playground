@@ -1,6 +1,16 @@
 import { logger } from '@php-wasm/logger';
 import { dirname, ensureAbsolutePath } from '@php-wasm/util';
-import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
+import {
+	type Blueprint,
+	BlueprintReflection,
+	resolveRuntimeConfiguration,
+} from '@wp-playground/blueprints';
+import {
+	type BlueprintBundleEditorHandle,
+	BlueprintBundleEditor,
+} from '@wp-playground/components';
+import { Button, Icon } from '@wordpress/components';
+import { link } from '@wordpress/icons';
 import {
 	type AsyncWritableFilesystem,
 	copyFilesystem,
@@ -11,25 +21,39 @@ import {
 import classNames from 'classnames';
 import {
 	forwardRef,
+	useCallback,
 	useEffect,
 	useImperativeHandle,
+	useMemo,
 	useRef,
 	useState,
 } from 'react';
 import { persistBlueprintBundle } from '../../lib/state/opfs/opfs-blueprint-bundle-storage';
 import {
+	createStoredSite,
 	isAutosavedSite,
 	isExplicitlySavedSite,
+	isStoredSite,
+	isUnfinishedBlueprintRun,
+	pruneAutosavedSites,
+	removeSite,
 	type SiteInfo,
+	updateSite,
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch } from '../../lib/state/redux/store';
-import { PaneLoading } from '../pane-loading';
-import styles from './blueprint-bundle-editor.module.css';
+import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
-	type BlueprintBundleEditorHandle,
-	BlueprintBundleEditor,
-} from './BlueprintBundleEditor';
+	setActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
+import {
+	setDockOperationNotice,
+	setDockPaneOpen,
+} from '../../lib/state/redux/slice-ui';
+import { PaneLoading } from '../pane-loading';
+import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
+import styles from './site-blueprint-bundle-editor.module.css';
 
 /**
  * Check if an object implements the writable filesystem backend interface.
@@ -221,7 +245,6 @@ type SiteBlueprintBundleEditorProps = {
 	className?: string;
 	site: SiteInfo;
 	dockPresentation?: boolean;
-	mobileHeaderTarget?: Element | null;
 };
 
 /**
@@ -232,15 +255,21 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	SiteBlueprintBundleEditorHandle,
 	SiteBlueprintBundleEditorProps
 >(function SiteBlueprintBundleEditor(
-	{ className, site, dockPresentation = false, mobileHeaderTarget = null },
+	{ className, site, dockPresentation = false },
 	ref
 ) {
 	const dispatch = useAppDispatch();
 	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
 		null
 	);
+	const [blueprintContent, setBlueprintContent] = useState('');
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
+	const runInProgressRef = useRef(false);
+	const opfsWaiterRef = useRef<{
+		siteSlug: string;
+		resolve: (success: boolean) => void;
+	} | null>(null);
 
 	// Autosaves edit their own persisted Blueprint draft so changes survive a
 	// reload. Running that draft copies it into a fresh Playground instead of
@@ -248,6 +277,31 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	// draft so editing cannot change the preserved Blueprint.
 	const isAutosaved = isAutosavedSite(site);
 	const isExplicitlySaved = isExplicitlySavedSite(site);
+	const isStored = isStoredSite(site);
+	const siteIsUnfinishedBlueprintRun = isUnfinishedBlueprintRun(site);
+	// The metadata flag can remain set after a failed boot. Wait only while the
+	// live client reports an active copy.
+	const opfsSyncStatus = useAppSelector((state) =>
+		isStored
+			? state.clients.entities[site.slug]?.opfsSync?.status
+			: undefined
+	);
+	const { urlHash, isShareable } = useBlueprintUrlHash(
+		filesystem,
+		blueprintContent
+	);
+	const nextUrl = useMemo(() => {
+		const url = new URL(window.location.href);
+		if (urlHash) {
+			url.hash = urlHash;
+		} else if (url.hash) {
+			url.hash = '';
+		} else {
+			return null;
+		}
+		return url.toString();
+	}, [urlHash]);
+	const sharedUrl = urlHash ? nextUrl : null;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -319,6 +373,174 @@ export const SiteBlueprintBundleEditor = forwardRef<
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [dispatch, site.slug, isAutosaved, isExplicitlySaved]);
 
+	const handleBundleChange = useCallback(
+		async (changedFilesystem: EventedFilesystem) => {
+			try {
+				setBlueprintContent(
+					await changedFilesystem.readFileAsText('/blueprint.json')
+				);
+			} catch {
+				setBlueprintContent('');
+			}
+		},
+		[]
+	);
+
+	useEffect(() => {
+		if (filesystem) {
+			void handleBundleChange(filesystem);
+		}
+	}, [filesystem, handleBundleChange]);
+
+	// Sync the URL hash from the hook to the browser's location.
+	useEffect(() => {
+		if (nextUrl) {
+			window.history.replaceState(null, '', nextUrl);
+		}
+	}, [nextUrl]);
+
+	const handleShare = useCallback(async () => {
+		if (!sharedUrl) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(sharedUrl);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Link copied to clipboard',
+				})
+			);
+		} catch (error) {
+			logger.error('Failed to share Blueprint', error);
+		}
+	}, [dispatch, sharedUrl]);
+
+	const waitForOpfsSync = useCallback((): Promise<boolean> => {
+		if (opfsSyncStatus !== 'syncing') {
+			return Promise.resolve(opfsSyncStatus !== 'error');
+		}
+		return new Promise((resolve) => {
+			opfsWaiterRef.current = { siteSlug: site.slug, resolve };
+		});
+	}, [opfsSyncStatus, site.slug]);
+
+	// Keep the package callback pending while the source Playground is copying.
+	// This also keeps editor writes locked until the bundle is safe to read.
+	useEffect(() => {
+		const waiter = opfsWaiterRef.current;
+		if (!waiter || opfsSyncStatus === 'syncing') {
+			return;
+		}
+		opfsWaiterRef.current = null;
+		waiter.resolve(
+			waiter.siteSlug === site.slug && opfsSyncStatus !== 'error'
+		);
+	}, [opfsSyncStatus, site.slug]);
+
+	useEffect(
+		() => () => {
+			opfsWaiterRef.current?.resolve(false);
+			opfsWaiterRef.current = null;
+		},
+		[]
+	);
+
+	const handlePreview = useCallback(
+		async (previewFilesystem: EventedFilesystem) => {
+			if (runInProgressRef.current) {
+				return;
+			}
+			runInProgressRef.current = true;
+			try {
+				if (!(await waitForOpfsSync())) {
+					return;
+				}
+				const runInNewPlayground = isStoredSite(site);
+
+				if (runInNewPlayground) {
+					const returnSiteSlug =
+						site.metadata.siteSlugToReturnToIfBlueprintFails ??
+						site.slug;
+					const newSite = await dispatch(
+						createStoredSite(
+							site.metadata.name,
+							previewFilesystem.backend,
+							undefined,
+							{
+								persistence: 'autosave',
+								siteSlugToReturnToIfBlueprintFails:
+									returnSiteSlug,
+							}
+						)
+					);
+					dispatch(
+						setDockOperationNotice({
+							status: 'success',
+							title: 'Blueprint is running in a new Playground',
+							message: 'Opening the new Playground now.',
+						})
+					);
+					dispatch(setDockPaneOpen(false));
+					dispatch(setActiveSite(newSite.slug));
+					if (siteIsUnfinishedBlueprintRun) {
+						try {
+							await dispatch(removeSite(site.slug));
+						} catch (error) {
+							logger.error(
+								'Failed to discard Blueprint run',
+								error
+							);
+							// Pruning while the failed run still counts toward the
+							// limit could discard an unrelated Playground.
+							return;
+						}
+					}
+					await dispatch(
+						pruneAutosavedSites({
+							excludeSlugs: [returnSiteSlug, newSite.slug],
+						})
+					);
+					return;
+				}
+
+				const runtimeConfiguration = await resolveRuntimeConfiguration(
+					previewFilesystem.backend
+				);
+				dispatch(removeClientInfo(site.slug));
+				await dispatch(
+					updateSite({
+						slug: site.slug,
+						changes: {
+							metadata: {
+								originalBlueprintSource: {
+									type: 'none' as const,
+								},
+								originalBlueprint: previewFilesystem,
+								runtimeConfiguration,
+								whenCreated: Date.now(),
+							},
+							originalUrlParams: undefined,
+						},
+					})
+				);
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running',
+						message: 'Recreating this Playground now.',
+					})
+				);
+			} catch (error) {
+				logger.error('Failed to run Blueprint', error);
+				throw error;
+			} finally {
+				runInProgressRef.current = false;
+			}
+		},
+		[dispatch, site, siteIsUnfinishedBlueprintRun, waitForOpfsSync]
+	);
+
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -331,16 +553,35 @@ export const SiteBlueprintBundleEditor = forwardRef<
 	);
 
 	return (
-		<div className={classNames(styles.container, className)}>
+		<div
+			className={classNames(styles.container, className, {
+				[styles.dockPresentation]: dockPresentation,
+			})}
+		>
 			{filesystem ? (
-				<BlueprintBundleEditor
-					ref={innerEditorRef}
-					filesystem={filesystem}
-					site={site}
-					className={className}
-					dockPresentation={dockPresentation}
-					mobileHeaderTarget={mobileHeaderTarget}
-				/>
+				<>
+					<div className={styles.siteActions}>
+						<Button
+							variant="tertiary"
+							onClick={handleShare}
+							disabled={!isShareable || !sharedUrl}
+							title={
+								isShareable
+									? 'Copy link to Blueprint'
+									: 'Multi-file Blueprints cannot be shared by URL'
+							}
+						>
+							<Icon icon={link} />
+							Copy Blueprint URL
+						</Button>
+					</div>
+					<BlueprintBundleEditor
+						ref={innerEditorRef}
+						filesystem={filesystem}
+						onChange={handleBundleChange}
+						onPreview={handlePreview}
+					/>
+				</>
 			) : (
 				<PaneLoading message="Loading the Blueprint editor…" />
 			)}

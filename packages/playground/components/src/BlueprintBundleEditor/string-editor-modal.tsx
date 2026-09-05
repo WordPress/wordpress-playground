@@ -25,9 +25,14 @@ import {
 	keymap,
 	lineNumbers,
 } from '@codemirror/view';
-import { Button, Flex, FlexItem, SelectControl } from '@wordpress/components';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal } from '../modal';
+import {
+	Button,
+	Flex,
+	FlexItem,
+	Modal,
+	SelectControl,
+} from '@wordpress/components';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	languageLabels,
 	type SupportedLanguage,
@@ -210,9 +215,9 @@ export function StringEditorModal({
 		<Modal
 			title="Edit String"
 			onRequestClose={onClose}
-			className={css.stringEditorModal}
+			className={css['stringEditorModal']}
 		>
-			<div className={css.languageSelector}>
+			<div className={css['languageSelector']}>
 				<SelectControl
 					label="Language"
 					value={language}
@@ -223,8 +228,8 @@ export function StringEditorModal({
 					__nextHasNoMarginBottom
 				/>
 			</div>
-			<div className={css.editorContainer} ref={editorRef} />
-			<Flex justify="flex-end" className={css.buttons}>
+			<div className={css['editorContainer']} ref={editorRef} />
+			<Flex justify="flex-end" className={css['buttons']}>
 				<FlexItem>
 					<Button variant="tertiary" onClick={onClose}>
 						Cancel

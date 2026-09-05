@@ -1,0 +1,19 @@
+.container {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.dockPresentation {
+	min-width: 0;
+}
+
+.siteActions {
+	display: flex;
+	justify-content: flex-end;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--divider);
+	background: var(--surface-raised, #fff);
+}

@@ -5,7 +5,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, vi } from 'vitest';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import publicBlueprintSchema from '../../../../../blueprints/public/blueprint-schema.json';
+import publicBlueprintSchema from '../../../../blueprints/public/blueprint-schema.json';
 import { jsonSchemaCompletion } from './jsonSchemaCompletion';
 import type { JSONSchema } from './types';
 

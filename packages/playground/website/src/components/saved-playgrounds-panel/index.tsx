@@ -79,9 +79,9 @@ import type { DockPaneHeaderOverride } from '../dock/dock-pane';
  * CodeMirror; it arrives only when the user chooses to author a Blueprint.
  */
 const BlueprintAuthoringEditor = lazy(() =>
-	import('../blueprint-editor/json-schema-editor/json-schema-editor').then(
-		(module) => ({ default: module.JSONSchemaEditor })
-	)
+	import('../blueprint-editor/BlueprintAuthoringEditor').then((module) => ({
+		default: module.JSONSchemaEditor,
+	}))
 );
 
 /**

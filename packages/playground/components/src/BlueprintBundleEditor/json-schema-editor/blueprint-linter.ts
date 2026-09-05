@@ -164,10 +164,11 @@ export function createBlueprintLinter(
 						// highlight just the unknown property, not the entire object
 						if (
 							error.keyword === 'additionalProperties' &&
-							error.params?.additionalProperty
+							error.params?.['additionalProperty']
 						) {
-							const propName = error.params
-								.additionalProperty as string;
+							const propName = error.params[
+								'additionalProperty'
+							] as string;
 							const extendedPath = [...pathSegments, propName];
 							const propNode = findNodeAtLocation(
 								tree,
@@ -309,18 +310,18 @@ function formatErrorMessage(error: {
 
 	// Add more context based on the error type
 	if (error.keyword === 'additionalProperties' && error.params) {
-		const prop = error.params.additionalProperty;
+		const prop = error.params['additionalProperty'];
 		message = `Unknown property "${prop}"`;
 	} else if (error.keyword === 'required' && error.params) {
-		const prop = error.params.missingProperty;
+		const prop = error.params['missingProperty'];
 		message = `Missing required property "${prop}"`;
 	} else if (error.keyword === 'enum' && error.params) {
-		const allowed = error.params.allowedValues;
+		const allowed = error.params['allowedValues'];
 		if (Array.isArray(allowed)) {
 			message = `Value must be one of: ${allowed.join(', ')}`;
 		}
 	} else if (error.keyword === 'type' && error.params) {
-		const expected = error.params.type;
+		const expected = error.params['type'];
 		message = `Expected ${expected}`;
 	}
 
