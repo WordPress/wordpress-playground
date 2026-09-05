@@ -11,6 +11,7 @@ import type {
 import {
 	isLegacyPHPVersion,
 	PHP,
+	PHP_EXTENSIONS_DIR,
 	PHPRequestHandler,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
@@ -417,7 +418,28 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			php.requestHandler = requestHandler;
 		}
 		if (options.phpIniEntries) {
-			setPhpIniEntries(php, options.phpIniEntries);
+			// PHP reads php.ini first and the extension ini files after, so an
+			// entry such as `xdebug.mode` set in php.ini loses to the value
+			// xdebug.ini ships. Entries named after an extension that has its
+			// own ini file go to that file. Every other entry goes to php.ini.
+			const entriesByPath = new Map<string | undefined, PhpIniOptions>();
+			for (const [key, value] of Object.entries(options.phpIniEntries)) {
+				const [extensionName, setting] = key.split('.');
+				const extensionIniPath = setting
+					? joinPaths(PHP_EXTENSIONS_DIR, `${extensionName}.ini`)
+					: undefined;
+				const path =
+					extensionIniPath && (await php.fileExists(extensionIniPath))
+						? extensionIniPath
+						: undefined;
+				entriesByPath.set(path, {
+					...entriesByPath.get(path),
+					[key]: value,
+				});
+			}
+			for (const [path, pathEntries] of entriesByPath) {
+				await setPhpIniEntries(php, pathEntries, path);
+			}
 		}
 
 		applyLegacyPhpIniOverrides(php, {
