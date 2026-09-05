@@ -1,10 +1,7 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import {
-	consumeAPI,
-	isLegacyPHPVersion,
-	type Pooled,
-} from '@php-wasm/universal';
+import { isLegacyPHPVersion, type Pooled } from '@php-wasm/universal';
+import { consumeAPI } from '@php-wasm/universal/playground-rpc';
 import type {
 	BlueprintBundle,
 	BlueprintV2Declaration,

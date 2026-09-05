@@ -2,15 +2,14 @@ import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
+import { PHPWorker, sandboxedSpawnHandlerFactory } from '@php-wasm/universal';
 import {
-	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
 	exposeSyncAPI,
-	sandboxedSpawnHandlerFactory,
-} from '@php-wasm/universal';
+} from '@php-wasm/universal/playground-rpc';
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
@@ -93,10 +92,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	/**
 	 * Call this method before boot() to use file locking.
 	 *
-	 * This method is separate from boot() to simplify the related Comlink.transferHandlers
-	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
+	 * The dedicated MessagePort keeps synchronous lock traffic separate from the
+	 * asynchronous worker API and transfers ownership instead of cloning the port.
 	 *
-	 * @see comlink-sync.ts
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	async useFileLockManager(port: MessagePort) {
@@ -236,7 +234,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
 
-	// Provide a named disposal method that can be invoked via comlink.
+	// Provide a named disposal method that can be invoked over RPC.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
 	}
@@ -306,16 +304,15 @@ async function createPHPWorker(
 
 	return {
 		php: handler,
-		reap: () => {
+		reap: async () => {
 			try {
-				handler.dispose();
-			} catch {
-				/** */
-			}
-			try {
-				spawnedWorker.worker.terminate();
-			} catch {
-				/** */
+				await handler.dispose();
+			} finally {
+				try {
+					await handler[releaseApiProxy]();
+				} finally {
+					await spawnedWorker.worker.terminate();
+				}
 			}
 		},
 	};
