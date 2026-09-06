@@ -391,6 +391,8 @@ export const BlueprintBundleEditor = forwardRef<
 	// declaration if two runs of that effect overlap (e.g. a mount and a
 	// rename happening close together).
 	const previewWriteSeqRef = useRef(0);
+	const previewWriteBarrierRef = useRef<Promise<void>>(Promise.resolve());
+	const latestBlueprintDeclarationRef = useRef<unknown>(undefined);
 	/**
 	 * `flush()` starts the latest delayed save. This ordered promise also includes
 	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
@@ -437,11 +439,18 @@ export const BlueprintBundleEditor = forwardRef<
 	// Load initial blueprint.json and focus tree
 	useEffect(() => {
 		let cancelled = false;
+		latestBlueprintDeclarationRef.current = undefined;
 		(async () => {
 			try {
 				const blueprintJsonContent =
 					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 				if (cancelled) return;
+				try {
+					latestBlueprintDeclarationRef.current =
+						JSON.parse(blueprintJsonContent);
+				} catch {
+					latestBlueprintDeclarationRef.current = undefined;
+				}
 				setCurrentPath(BLUEPRINT_JSON_PATH);
 				setDisplayPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
@@ -462,6 +471,8 @@ export const BlueprintBundleEditor = forwardRef<
 	// "Mount via git…" action, so it's there to compare against
 	// `blueprint.json` even if this editor was already open when that
 	// happened.
+	const currentBlueprintCode =
+		currentPath === BLUEPRINT_JSON_PATH ? code : undefined;
 	useEffect(() => {
 		const gitDirectorySources = site?.metadata.gitDirectorySources;
 		if (!site || !gitDirectorySources) {
@@ -474,26 +485,47 @@ export const BlueprintBundleEditor = forwardRef<
 		let cancelled = false;
 		(async () => {
 			try {
-				const { declaration, hasAdditions } =
+				if (currentBlueprintCode !== undefined) {
+					try {
+						latestBlueprintDeclarationRef.current =
+							JSON.parse(currentBlueprintCode);
+					} catch {
+						return;
+					}
+				}
+				const { declaration, hasChanges } =
 					await buildUpdatedBlueprintDeclaration(
-						site.metadata.originalBlueprint,
+						latestBlueprintDeclarationRef.current ??
+							site.metadata.originalBlueprint,
 						gitDirectorySources
 					);
 				if (
-					!hasAdditions ||
+					!hasChanges ||
 					cancelled ||
 					previewWriteSeqRef.current !== seq
 				) {
 					return;
 				}
-				await filesystem.writeFile(
-					GIT_MOUNTS_PREVIEW_PATH,
-					JSON.stringify(declaration, null, 2)
-				);
-				if (previewWriteSeqRef.current !== seq) {
-					return;
-				}
-				await sidebarRef.current?.refreshPath('/');
+				const previewContent = JSON.stringify(declaration, null, 2);
+				previewWriteBarrierRef.current = previewWriteBarrierRef.current
+					.catch(() => undefined)
+					.then(async () => {
+						if (cancelled || previewWriteSeqRef.current !== seq) {
+							return;
+						}
+						await filesystem.writeFile(
+							GIT_MOUNTS_PREVIEW_PATH,
+							previewContent
+						);
+						if (previewWriteSeqRef.current !== seq) {
+							return;
+						}
+						if (currentPath === GIT_MOUNTS_PREVIEW_PATH) {
+							setCode(previewContent);
+						}
+						await sidebarRef.current?.refreshPath('/');
+					});
+				await previewWriteBarrierRef.current;
 			} catch (error) {
 				logger.error(
 					'Failed to write the Blueprint preview with git mounts',
@@ -506,6 +538,8 @@ export const BlueprintBundleEditor = forwardRef<
 		};
 	}, [
 		filesystem,
+		currentBlueprintCode,
+		currentPath,
 		site?.metadata.originalBlueprint,
 		site?.metadata.gitDirectorySources,
 	]);
