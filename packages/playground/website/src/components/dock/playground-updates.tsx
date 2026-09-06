@@ -1,4 +1,4 @@
-import { Icon, external } from '@wordpress/icons';
+import { Icon, arrowUp } from '@wordpress/icons';
 import type { usePlaygroundUpdates } from '../../lib/hooks/use-playground-updates';
 import { PaneLoading } from '../pane-loading';
 import css from './playground-updates.module.css';
@@ -49,8 +49,12 @@ export function PlaygroundUpdates({
 										)}
 									</time>
 									<h3>
-										{post.title}
-										<Icon icon={external} size={16} />
+										<span>{post.title}</span>
+										<Icon
+											className={css.linkArrow}
+											icon={arrowUp}
+											size={14}
+										/>
 									</h3>
 								</a>
 							</li>
@@ -64,7 +68,8 @@ export function PlaygroundUpdates({
 				target="_blank"
 				rel="noopener noreferrer"
 			>
-				All Playground updates <Icon icon={external} size={16} />
+				All Playground updates
+				<Icon className={css.linkArrow} icon={arrowUp} size={14} />
 			</a>
 		</div>
 	);

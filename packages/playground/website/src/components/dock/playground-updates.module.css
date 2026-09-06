@@ -1,5 +1,11 @@
 .updates {
-	padding: 0 var(--pane-inline-padding) var(--space-6);
+	flex: 1;
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.45;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 0 var(--pane-inline-padding) var(--pane-inline-padding);
 }
 
 .posts {
@@ -15,31 +21,40 @@
 .posts a {
 	color: var(--ink);
 	display: block;
-	padding: var(--space-4) 0;
+	padding: 19px 0;
 	text-decoration: none;
 }
 
-.posts time,
-.notice {
+.posts time {
 	color: var(--ink-muted);
-	font-size: 13px;
+	display: block;
+	font-size: 12px;
+	margin-bottom: 5px;
 }
 
 .posts h3 {
-	align-items: baseline;
+	align-items: flex-start;
 	display: flex;
-	font-size: 15px;
-	font-weight: 600;
-	gap: var(--space-3);
+	font-size: 14px;
+	font-weight: 500;
+	gap: 14px;
 	justify-content: space-between;
-	line-height: 1.4;
-	margin: var(--space-1) 0;
+	line-height: inherit;
+	margin: 0;
 }
 
-.posts svg,
-.blog-link svg {
+.posts h3 span {
+	min-width: 0;
+}
+
+.link-arrow {
 	fill: currentColor;
 	flex-shrink: 0;
+	transform: rotate(45deg);
+}
+
+.posts .link-arrow {
+	margin-top: 3px;
 }
 
 .posts a:hover h3,
@@ -50,7 +65,23 @@
 .blog-link {
 	align-items: center;
 	display: inline-flex;
-	font-size: 13px;
 	gap: var(--space-2);
 	margin-top: var(--space-4);
+	text-decoration: none;
+}
+
+.posts a:hover h3 span,
+.blog-link:hover {
+	text-decoration: underline;
+}
+
+.notice {
+	color: var(--ink-muted);
+	font-size: 13px;
+}
+
+@media (pointer: coarse) {
+	.blog-link {
+		min-height: 44px;
+	}
 }

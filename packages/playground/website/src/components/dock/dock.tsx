@@ -13,7 +13,7 @@ import type {
 	PointerEvent as ReactPointerEvent,
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
-import { Icon } from '@wordpress/components';
+import { Button, Icon } from '@wordpress/components';
 import {
 	close,
 	code,
@@ -1201,6 +1201,17 @@ export function Dock({
 								<Icon icon={plus} size={20} />
 								New Playground
 							</button>
+						) : section === 'updates' ? (
+							<Button
+								className={css.updatesClose}
+								icon={close}
+								iconSize={20}
+								size="compact"
+								variant="tertiary"
+								label="Close updates"
+								disabled={paneCloseBlocked}
+								onClick={() => dispatch(setDockPaneOpen(false))}
+							/>
 						) : undefined
 					}
 					headerOverride={paneHeaderOverride}
@@ -1209,6 +1220,7 @@ export function Dock({
 							Boolean(activeSiteError) ||
 							(!dockPaneIsOpen && paneExitComplete),
 						[css.paneWide]: isWideSection,
+						[css.paneUpdates]: section === 'updates',
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
