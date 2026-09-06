@@ -5,6 +5,8 @@ const MYWP_EVENT_RATE_LIMIT_CAPACITY = 300;
 const MYWP_EVENT_RATE_LIMIT_FILL_RATE_PER_MINUTE = 120;
 const MYWP_EVENT_MAX_PLUGIN_SLUGS = 10;
 const MYWP_EVENT_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+/* Must match SAFE_REFERRER_HOST in usage-stats.ts. */
+const MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,127}$/';
 
 const MYWP_EVENT_ALLOWED_EVENTS = array(
 	'wordpress_installed',
@@ -299,29 +301,18 @@ function mywp_event_collect_stat_bumps( $payload ) {
 			)
 		);
 		/*
-		 * The client classifies document.referrer into this closed vocabulary
-		 * before sending it, so the referrer URL itself never reaches the
-		 * server. Re-checking it here keeps the reported cardinality fixed
-		 * even if a client sends something else. Must match
-		 * ReferrerSourceClass in usage-stats.ts.
+		 * The client reduces document.referrer to a bare host before sending
+		 * it, so the path and query never reach the server. Re-checking the
+		 * shape here keeps a client from storing something that isn't a host
+		 * in the rollup. Hosts seen too rarely to be a traffic source are
+		 * folded together when the dashboard reads them back.
 		 */
-		mywp_event_add_allowed_property(
+		mywp_event_add_safe_property(
 			$bumps,
 			$event,
 			'referrer_source',
 			$properties,
-			array(
-				'direct',
-				'github',
-				'hacker-news',
-				'internal',
-				'make-wordpress-org',
-				'other-external',
-				'reddit',
-				'search',
-				'wordpress-org',
-				'x',
-			)
+			MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN
 		);
 	}
 
@@ -380,6 +371,19 @@ function mywp_event_add_allowed_property(
 ) {
 	$value = $properties[ $property ] ?? null;
 	if ( in_array( $value, $allowed_values, true ) ) {
+		mywp_event_add_bump( $bumps, "$event:$property", $value );
+	}
+}
+
+function mywp_event_add_safe_property(
+	&$bumps,
+	$event,
+	$property,
+	$properties,
+	$pattern
+) {
+	$value = $properties[ $property ] ?? null;
+	if ( is_string( $value ) && preg_match( $pattern, $value ) ) {
 		mywp_event_add_bump( $bumps, "$event:$property", $value );
 	}
 }

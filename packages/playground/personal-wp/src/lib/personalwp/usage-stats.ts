@@ -46,18 +46,6 @@ export type PersonalWpUsageStatsOptions = {
 	fetchImpl?: typeof fetch;
 };
 
-export type ReferrerSourceClass =
-	| 'direct'
-	| 'github'
-	| 'hacker-news'
-	| 'internal'
-	| 'make-wordpress-org'
-	| 'other-external'
-	| 'reddit'
-	| 'search'
-	| 'wordpress-org'
-	| 'x';
-
 type BlueprintSourceClass =
 	| 'same-origin'
 	| 'wordpress-org'
@@ -103,20 +91,14 @@ const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
 const MAX_PLUGIN_SLUGS = 10;
 const UNKNOWN_PLUGIN_SLUG = 'unknown';
 const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
-const SEARCH_ENGINE_DOMAINS = [
-	'baidu.com',
-	'bing.com',
-	'duckduckgo.com',
-	'ecosia.org',
-	'qwant.com',
-	'search.brave.com',
-	'startpage.com',
-	'yahoo.com',
-	'yandex.com',
-	'yandex.ru',
-];
-/** Matches google.com and its country domains (google.de, google.co.uk). */
-const GOOGLE_SEARCH_HOST = /^google\.[a-z]{2,3}(\.[a-z]{2})?$/;
+/**
+ * Host shape accepted for reporting. Bounded at 128 characters to match the
+ * `value` column the stats rollup stores it in, and restricted to the
+ * characters the endpoint accepts so a host is never silently dropped there.
+ */
+const SAFE_REFERRER_HOST = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+/** Trailing label of an IPv4 literal, which is reported as `unknown`. */
+const IPV4_LAST_LABEL = /^\d+$/;
 
 export function logPersonalWpEvent(
 	event: PersonalWpUsageStatsEvent,
@@ -436,20 +418,26 @@ export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
 }
 
 /**
- * Classifies the referring site into a small closed vocabulary so that a
- * traffic spike can be attributed to a source without the referrer URL ever
- * leaving the browser. Anything unrecognized becomes `other-external`, which
- * keeps the reported cardinality fixed: a referrer that sent a single visit
- * is never recorded, so it cannot narrow down who that visitor was.
+ * Reduces the referring site to a bare hostname so a traffic spike can be
+ * attributed to its source. Only the host is reported: the path and query,
+ * which are where a referrer says what someone was reading, never leave the
+ * browser.
+ *
+ * Hosts that identify a place rather than a site are reported as `unknown`
+ * instead: single-label intranet names (`wiki`, `localhost`) and IP literals
+ * are no use for spotting a traffic source and are the kind most likely to
+ * point at one person's network. Every reported host therefore contains a
+ * dot, which is also what keeps a host from colliding with the `direct`,
+ * `internal` and `unknown` markers.
  *
  * Modern browsers default to `strict-origin-when-cross-origin`, so the origin
  * usually survives even though the path does not. Referrals from native apps,
  * from sites sending `no-referrer`, and from HTTPS to HTTP send nothing at all
  * and are reported as `direct`.
  */
-export function classifyReferrer(
+export function normalizeReferrer(
 	referrer = globalThis.document?.referrer ?? ''
-): ReferrerSourceClass {
+): string {
 	if (!referrer) {
 		return 'direct';
 	}
@@ -458,62 +446,29 @@ export function classifyReferrer(
 	try {
 		parsedUrl = new URL(referrer);
 	} catch {
-		return 'other-external';
+		return 'unknown';
 	}
 
+	if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+		return 'unknown';
+	}
 	if (parsedUrl.origin === globalThis.location?.origin) {
 		return 'internal';
 	}
 
-	const host = parsedUrl.hostname.toLowerCase();
-	// make.wordpress.org is a subdomain of wordpress.org, so it has to be
-	// matched before the wordpress.org check that would otherwise absorb it.
-	if (isHostOrSubdomain(host, 'make.wordpress.org')) {
-		return 'make-wordpress-org';
-	}
-	if (isHostOrSubdomain(host, 'wordpress.org')) {
-		return 'wordpress-org';
-	}
-	if (isHostOrSubdomain(host, 'news.ycombinator.com')) {
-		return 'hacker-news';
-	}
+	const host = parsedUrl.hostname
+		.toLowerCase()
+		.replace(/^www\./, '')
+		.replace(/\.$/, '');
+	const labels = host.split('.');
 	if (
-		isHostOrSubdomain(host, 'reddit.com') ||
-		isHostOrSubdomain(host, 'redd.it')
+		labels.length < 2 ||
+		!SAFE_REFERRER_HOST.test(host) ||
+		IPV4_LAST_LABEL.test(labels[labels.length - 1])
 	) {
-		return 'reddit';
+		return 'unknown';
 	}
-	if (
-		isHostOrSubdomain(host, 'x.com') ||
-		isHostOrSubdomain(host, 'twitter.com') ||
-		isHostOrSubdomain(host, 't.co')
-	) {
-		return 'x';
-	}
-	if (
-		isHostOrSubdomain(host, 'github.com') ||
-		host === 'raw.githubusercontent.com'
-	) {
-		return 'github';
-	}
-	if (isSearchEngineHost(host)) {
-		return 'search';
-	}
-	return 'other-external';
-}
-
-function isSearchEngineHost(host: string): boolean {
-	const bareHost = host.startsWith('www.') ? host.slice(4) : host;
-	if (GOOGLE_SEARCH_HOST.test(bareHost)) {
-		return true;
-	}
-	return SEARCH_ENGINE_DOMAINS.some((domain) =>
-		isHostOrSubdomain(host, domain)
-	);
-}
-
-function isHostOrSubdomain(host: string, domain: string): boolean {
-	return host === domain || host.endsWith(`.${domain}`);
+	return host;
 }
 
 function getAgeBucket(timestamp: number | undefined, now: number): string {

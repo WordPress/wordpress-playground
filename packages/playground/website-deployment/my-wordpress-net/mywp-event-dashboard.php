@@ -12,6 +12,21 @@ const MYWP_EVENT_DASHBOARD_ALLOWED_FORMATS = array( 'html', 'json' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRIC = 'wordpress_installed:referrer_source';
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER = 'other-external';
+/**
+ * Referring hosts are stored as they arrive, but a host seen fewer times than
+ * this in the selected range is shown folded into `other-external`. A host
+ * that sent one visit cannot indicate a traffic source, and reporting it on
+ * its own alongside the timeline would come close to reporting the visit.
+ */
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS = 5;
+/* Reported in place of a host, so never folded away. */
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS = array(
+	'direct',
+	'internal',
+	'unknown',
+);
 const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
 
 /**
@@ -648,7 +663,9 @@ function mywp_event_dashboard_query_rollup(
 	}
 	mysqli_stmt_close( $statement );
 
-	return mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows );
+	return mywp_event_dashboard_fold_rare_referrer_source_rows(
+		mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows )
+	);
 }
 
 function mywp_event_dashboard_query_event_timeline(
@@ -712,6 +729,38 @@ function mywp_event_dashboard_query_metric_timeline(
 }
 
 /**
+ * Merges referring hosts below the reporting threshold into a single
+ * `other-external` row, keeping the order the query uses. The stored rows are
+ * left alone; this only bounds what the dashboard and the JSON output show.
+ */
+function mywp_event_dashboard_fold_rare_referrer_source_rows( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		if (
+			MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRIC === $row['name'] &&
+			$row['views'] < MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS &&
+			! in_array(
+				$row['value'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS,
+				true
+			)
+		) {
+			$row['value'] = MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER;
+		}
+
+		$key = $row['name'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	return mywp_event_dashboard_sort_rollup_rows( array_values( $folded ) );
+}
+
+/**
  * Merges rollup rows whose plugin slug changed into the row for the current
  * slug, keeping the `name` ASC, `views` DESC, `value` ASC order the query uses.
  */
@@ -733,9 +782,16 @@ function mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows ) {
 		$folded[ $key ] = $row;
 	}
 
-	$folded = array_values( $folded );
+	return mywp_event_dashboard_sort_rollup_rows( array_values( $folded ) );
+}
+
+/**
+ * Restores the `name` ASC, `views` DESC, `value` ASC order the rollup query
+ * returns, which folding rows together disturbs.
+ */
+function mywp_event_dashboard_sort_rollup_rows( $rows ) {
 	usort(
-		$folded,
+		$rows,
 		function ( $a, $b ) {
 			if ( $a['name'] !== $b['name'] ) {
 				return strcmp( $a['name'], $b['name'] );
@@ -747,7 +803,7 @@ function mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows ) {
 		}
 	);
 
-	return $folded;
+	return $rows;
 }
 
 /**
