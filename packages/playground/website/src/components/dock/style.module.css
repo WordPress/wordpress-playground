@@ -73,6 +73,46 @@
 	min-width: 0;
 }
 
+.dock-updates {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 9px;
+	color: var(--ink-bright-on-dark);
+	cursor: pointer;
+	display: inline-flex;
+	flex-shrink: 0;
+	font: inherit;
+	font-size: 13px;
+	gap: 6px;
+	min-height: 34px;
+	padding: 0 8px;
+	white-space: nowrap;
+}
+
+.dock-updates:hover,
+.dock-updates[aria-expanded='true'] {
+	background: var(--chrome-control-hover-background);
+}
+
+.dock-updates:focus-visible {
+	outline: 2px solid var(--accent-soft);
+	outline-offset: -2px;
+}
+
+.dock-updates:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.dock-updates-dot {
+	background: var(--accent-soft);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 6px;
+	width: 6px;
+}
+
 /* The active Playground's name is kept in the DOM for screen readers and as the
    stable "Playground title" hook, but not shown — the save-status pill carries
    the only visible status, and the name would just repeat it for unsaved sites. */

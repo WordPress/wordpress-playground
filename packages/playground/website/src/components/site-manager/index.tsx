@@ -7,6 +7,8 @@ import {
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
+import { PlaygroundUpdates } from '../dock/playground-updates';
+import type { usePlaygroundUpdates } from '../../lib/hooks/use-playground-updates';
 import { SavedPlaygroundsPanel } from '../saved-playgrounds-panel';
 import { SaveSiteModal } from '../save-site-modal';
 import { SiteInfoPanel, type SiteInfoTabName } from './site-info-panel';
@@ -17,6 +19,7 @@ export type SiteManagerProps = {
 	className?: string;
 	isVisible: boolean;
 	mobileUi: boolean;
+	updates: Pick<ReturnType<typeof usePlaygroundUpdates>, 'posts' | 'status'>;
 	onPaneCloseBlockedChange: (isBlocked: boolean) => void;
 	onNewPlaygroundHeaderChange: (
 		header: DockPaneHeaderOverride | undefined
@@ -30,6 +33,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			className,
 			isVisible,
 			mobileUi,
+			updates,
 			onPaneCloseBlockedChange,
 			onNewPlaygroundHeaderChange,
 		},
@@ -83,7 +87,9 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		}, [activeSection]);
 
 		let activePanel: JSX.Element | null = null;
-		if (activeSection === 'save') {
+		if (activeSection === 'updates') {
+			activePanel = <PlaygroundUpdates {...updates} />;
+		} else if (activeSection === 'save') {
 			activePanel =
 				isVisible && activeSite ? (
 					<SaveSiteModal

@@ -32,7 +32,8 @@ export type DockPaneSection =
 	| 'logs'
 	| 'mail'
 	| 'share'
-	| 'save';
+	| 'save'
+	| 'updates';
 
 export const modalSlugs = {
 	LOG: 'log',

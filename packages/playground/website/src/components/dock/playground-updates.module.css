@@ -1,0 +1,56 @@
+.updates {
+	padding: 0 var(--pane-inline-padding) var(--space-6);
+}
+
+.posts {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.posts li {
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+.posts a {
+	color: var(--ink);
+	display: block;
+	padding: var(--space-4) 0;
+	text-decoration: none;
+}
+
+.posts time,
+.notice {
+	color: var(--ink-muted);
+	font-size: 13px;
+}
+
+.posts h3 {
+	align-items: baseline;
+	display: flex;
+	font-size: 15px;
+	font-weight: 600;
+	gap: var(--space-3);
+	justify-content: space-between;
+	line-height: 1.4;
+	margin: var(--space-1) 0;
+}
+
+.posts svg,
+.blog-link svg {
+	fill: currentColor;
+	flex-shrink: 0;
+}
+
+.posts a:hover h3,
+.blog-link {
+	color: var(--accent-link);
+}
+
+.blog-link {
+	align-items: center;
+	display: inline-flex;
+	font-size: 13px;
+	gap: var(--space-2);
+	margin-top: var(--space-4);
+}

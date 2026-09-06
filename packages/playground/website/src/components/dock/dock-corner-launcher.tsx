@@ -9,6 +9,7 @@ export type DockCornerLauncherProps = {
 	children: ReactNode;
 	isDragging?: boolean;
 	isFolding?: boolean;
+	hasNotification?: boolean;
 	ariaLabel?: string;
 	title?: string;
 	onClick?: MouseEventHandler<HTMLButtonElement>;
@@ -27,6 +28,7 @@ export function DockCornerLauncher({
 	children,
 	isDragging = false,
 	isFolding = false,
+	hasNotification = false,
 	ariaLabel = 'Show Playground tools',
 	title = 'Drag out or click to show Playground tools',
 	onClick,
@@ -43,7 +45,9 @@ export function DockCornerLauncher({
 				[css.dockCornerRight]: side === 'right',
 				[css.dockCornerDragging]: isDragging,
 			})}
-			aria-label={ariaLabel}
+			aria-label={
+				hasNotification ? `${ariaLabel} — unread updates` : ariaLabel
+			}
 			title={title}
 			disabled={isFolding}
 			onPointerDown={onPointerDown}
@@ -55,6 +59,9 @@ export function DockCornerLauncher({
 			<span className={css.dockCornerLogo} aria-hidden="true">
 				{children}
 			</span>
+			{hasNotification && (
+				<span className={css.dockItemDot} aria-hidden="true" />
+			)}
 		</button>
 	);
 }
