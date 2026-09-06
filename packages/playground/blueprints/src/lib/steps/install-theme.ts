@@ -109,14 +109,15 @@ export const installTheme: StepHandler<
 	}
 
 	const onError = options.onError ?? 'throw';
+	let assetPath = '';
 	let assetNiceName = '';
 	let skippedExisting = false;
+	let installationCompleted = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
 		const targetFolderName =
 			'targetFolderName' in options ? options.targetFolderName : '';
 		let assetFolderName = '';
-		let assetPath = '';
 		if (themeData instanceof File) {
 			// @TODO: Consider validating whether this is a zip file?
 			const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
@@ -187,6 +188,7 @@ export const installTheme: StepHandler<
 				);
 			}
 		}
+		installationCompleted = Boolean(assetPath);
 
 		const activate = 'activate' in options ? options.activate : true;
 		if (activate) {
@@ -222,7 +224,9 @@ export const installTheme: StepHandler<
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
-			return;
+			return installationCompleted
+				? { assetPath, skippedExisting }
+				: undefined;
 		}
 		throw error;
 	}

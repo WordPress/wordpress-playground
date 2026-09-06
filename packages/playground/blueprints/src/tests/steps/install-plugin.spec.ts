@@ -160,6 +160,36 @@ describe('Blueprint step installPlugin', () => {
 		}
 	});
 
+	it('should return the installed path when activation is skipped after failing', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			const result = await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `<?php\n/**\n * Plugin Name: Test Plugin\n */`,
+					},
+				},
+				options: {
+					activate: true,
+					onError: 'skip-plugin',
+				},
+			});
+
+			expect(result).toEqual({
+				assetPath: installedPluginPath,
+				skippedExisting: false,
+			});
+			expect(php.fileExists(`${installedPluginPath}/index.php`)).toBe(
+				true
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
+	});
+
 	it('should use humanReadableName when skipping plugin installation errors', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
