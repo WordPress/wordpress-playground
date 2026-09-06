@@ -131,6 +131,7 @@ export const installPlugin: StepHandler<
 	let assetPath = '';
 	let assetNiceName = '';
 	let skippedExisting = false;
+	let installationCompleted = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 
 	const looksLikeZipFile = async (file: File): Promise<boolean> => {
@@ -237,6 +238,7 @@ export const installPlugin: StepHandler<
 				);
 			}
 		}
+		installationCompleted = Boolean(assetPath);
 
 		// Activate
 		const activate = 'activate' in options ? options.activate : true;
@@ -278,7 +280,9 @@ export const installPlugin: StepHandler<
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
-			return;
+			return installationCompleted
+				? { assetPath, skippedExisting }
+				: undefined;
 		}
 		throw error;
 	}
