@@ -89,9 +89,40 @@
 }
 
 .dock-tools {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
+.dock-tool-row {
 	align-items: stretch;
 	display: flex;
+	flex: 1;
 	gap: 2px;
+	min-width: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	justify-content: safe center;
+	scrollbar-width: none;
+}
+
+.dock-tool-row::-webkit-scrollbar {
+	display: none;
+}
+
+.developer-tools {
+	display: flex;
+	flex: none;
+	align-items: stretch;
+	gap: 2px;
+}
+
+.developer-tools[hidden] {
+	display: none;
+}
+
+.developer-toggle {
+	flex: none;
 }
 
 /* Group divider before the "Blueprint" tool. The line is a short, vertically
@@ -733,7 +764,7 @@
 
 	/* Tools scroll horizontally when they overflow; the scrollbar is hidden
 	   (swipe to scroll), and buttons keep their size instead of squashing. */
-	.dock-tools {
+	.dock-tool-row {
 		max-height: 80px;
 		overflow-x: auto;
 		overflow-y: hidden;
@@ -744,7 +775,7 @@
 		justify-content: safe center;
 	}
 
-	.dock-tools::-webkit-scrollbar {
+	.dock-tool-row::-webkit-scrollbar {
 		display: none;
 	}
 
@@ -1128,10 +1159,6 @@
 
 .dock-full.dock-collapsed {
 	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
-}
-
-.dock-full .dock-tools {
-	justify-content: center;
 }
 
 /* No drag handle: while the dock can move, its whole dark chrome is the grab

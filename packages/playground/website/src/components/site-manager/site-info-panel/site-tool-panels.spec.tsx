@@ -27,6 +27,7 @@ vi.mock('../../blueprint-editor/SiteBlueprintBundleEditor', () => ({
 	}) => (
 		<div data-testid="blueprint" data-dock-presentation={dockPresentation}>
 			Blueprint editor
+			<input aria-label="Blueprint draft" defaultValue="initial draft" />
 		</div>
 	),
 }));
@@ -112,6 +113,17 @@ describe('SiteToolPanels', () => {
 		expect(findTool('database')).toBe(database);
 		expect(database.closest('[hidden]')).not.toBeNull();
 		expect(findTool('terminal').closest('[hidden]')).toBeNull();
+	});
+
+	it('retains an editor draft when all tools close and the editor reopens', async () => {
+		await renderPanels('blueprint', playground);
+		const input = container.querySelector('input')!;
+		input.value = 'unsaved changes';
+		await renderPanels(null, playground);
+		expect(input.closest('[hidden]')).not.toBeNull();
+		await renderPanels('blueprint', playground);
+		expect(container.querySelector('input')).toBe(input);
+		expect(input.value).toBe('unsaved changes');
 	});
 
 	it('enables the Blueprint editor Dock presentation', async () => {
