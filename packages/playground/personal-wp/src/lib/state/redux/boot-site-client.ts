@@ -483,18 +483,24 @@ function logBootUsageStats({
 		bootCompletedAt
 	);
 	const metadata: BootUsageStatsMetadata = {};
+	// Reported for both ways of arriving, so a channel can be read for new
+	// and returning sites alike.
+	const referrerSource = normalizeReferrer();
 	if (wordpressInstallMode === 'download-and-install') {
 		logPersonalWpEvent('wordpress_installed', {
 			...siteProperties,
 			original_blueprint_source:
 				site.metadata.originalBlueprintSource.type,
-			referrer_source: normalizeReferrer(),
+			referrer_source: referrerSource,
 		});
 	} else if (
 		isWordPressInstalled &&
 		shouldLogReturningVisitUsageStats(site.metadata, bootCompletedAt)
 	) {
-		logPersonalWpEvent('returning_visit', siteProperties);
+		logPersonalWpEvent('returning_visit', {
+			...siteProperties,
+			referrer_source: referrerSource,
+		});
 		metadata.lastUsageStatsReturningVisitDate =
 			getUsageStatsDate(bootCompletedAt);
 	}

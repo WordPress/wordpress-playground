@@ -12,7 +12,10 @@ const MYWP_EVENT_DASHBOARD_ALLOWED_FORMATS = array( 'html', 'json' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
-const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRIC = 'wordpress_installed:referrer_source';
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS = array(
+	'wordpress_installed:referrer_source',
+	'returning_visit:referrer_source',
+);
 const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER = 'other-external';
 /**
  * Referring hosts are stored as they arrive, but a host seen fewer times than
@@ -737,7 +740,11 @@ function mywp_event_dashboard_fold_rare_referrer_source_rows( $rows ) {
 	$folded = array();
 	foreach ( $rows as $row ) {
 		if (
-			MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRIC === $row['name'] &&
+			in_array(
+				$row['name'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS,
+				true
+			) &&
 			$row['views'] < MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS &&
 			! in_array(
 				$row['value'],
@@ -1405,6 +1412,7 @@ function mywp_event_dashboard_render_area(
 				'Visits to existing Personal WP sites.',
 				'returning_visit',
 				array(
+					'returning_visit:referrer_source',
 					'returning_visit:previous_visit_age_bucket',
 					'returning_visit:site_age_bucket',
 				),
@@ -1978,6 +1986,7 @@ function mywp_event_dashboard_metric_sections() {
 			'description' => 'Signals that explain new-site and returning-site usage.',
 			'metrics' => array(
 				'wordpress_installed:referrer_source',
+				'returning_visit:referrer_source',
 				'wordpress_installed:original_blueprint_source',
 				'wordpress_installed:site_age_bucket',
 				'wordpress_installed:previous_visit_age_bucket',
@@ -2086,6 +2095,7 @@ function mywp_event_dashboard_metric_definitions() {
 		'wordpress_installed:previous_visit_age_bucket' => 'New Installs: Previous Visit Age',
 		'wordpress_installed:original_blueprint_source' => 'New Installs: Original Blueprint Source',
 		'wordpress_installed:referrer_source' => 'New Installs: Referrer Source',
+		'returning_visit:referrer_source' => 'Returning Visits: Referrer Source',
 		'returning_visit:site_age_bucket' => 'Returning Visits: Site Age',
 		'returning_visit:previous_visit_age_bucket' => 'Returning Visits: Previous Visit Age',
 		'blueprint_installed:trigger' => 'Blueprint Installs: Trigger',

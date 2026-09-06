@@ -5,6 +5,10 @@ const MYWP_EVENT_RATE_LIMIT_CAPACITY = 300;
 const MYWP_EVENT_RATE_LIMIT_FILL_RATE_PER_MINUTE = 120;
 const MYWP_EVENT_MAX_PLUGIN_SLUGS = 10;
 const MYWP_EVENT_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_REFERRER_SOURCE_EVENTS = array(
+	'wordpress_installed',
+	'returning_visit',
+);
 /* Must match SAFE_REFERRER_HOST in usage-stats.ts. */
 const MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,127}$/';
 
@@ -300,13 +304,17 @@ function mywp_event_collect_stat_bumps( $payload ) {
 				'remote-url',
 			)
 		);
-		/*
-		 * The client reduces document.referrer to a bare host before sending
-		 * it, so the path and query never reach the server. Re-checking the
-		 * shape here keeps a client from storing something that isn't a host
-		 * in the rollup. Hosts seen too rarely to be a traffic source are
-		 * folded together when the dashboard reads them back.
-		 */
+	}
+
+	/*
+	 * Recorded for both ways of arriving, so a channel can be read for new
+	 * and returning sites alike. The client reduces document.referrer to a
+	 * bare host before sending it, so the path and query never reach the
+	 * server. Re-checking the shape here keeps a client from storing
+	 * something that isn't a host in the rollup. Hosts seen too rarely to be
+	 * a traffic source are folded together when the dashboard reads them back.
+	 */
+	if ( in_array( $event, MYWP_EVENT_REFERRER_SOURCE_EVENTS, true ) ) {
 		mywp_event_add_safe_property(
 			$bumps,
 			$event,
