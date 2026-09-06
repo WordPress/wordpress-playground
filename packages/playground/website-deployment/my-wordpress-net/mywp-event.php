@@ -9,8 +9,16 @@ const MYWP_EVENT_REFERRER_SOURCE_EVENTS = array(
 	'wordpress_installed',
 	'returning_visit',
 );
+/* Reported in place of a host. Must match usage-stats.ts. */
+const MYWP_EVENT_REFERRER_SOURCE_MARKERS = array(
+	'direct',
+	'internal',
+	'unknown',
+);
 /* Must match SAFE_REFERRER_HOST in usage-stats.ts. */
 const MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,127}$/';
+/* Trailing label of an IPv4 literal. IPv6 has no match for the pattern above. */
+const MYWP_EVENT_IPV4_LAST_LABEL_PATTERN = '/^\d+$/';
 
 const MYWP_EVENT_ALLOWED_EVENTS = array(
 	'wordpress_installed',
@@ -315,13 +323,7 @@ function mywp_event_collect_stat_bumps( $payload ) {
 	 * a traffic source are folded together when the dashboard reads them back.
 	 */
 	if ( in_array( $event, MYWP_EVENT_REFERRER_SOURCE_EVENTS, true ) ) {
-		mywp_event_add_safe_property(
-			$bumps,
-			$event,
-			'referrer_source',
-			$properties,
-			MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN
-		);
+		mywp_event_add_referrer_source_bump( $bumps, $event, $properties );
 	}
 
 	if ( 'blueprint_installed' === $event ) {
@@ -383,17 +385,42 @@ function mywp_event_add_allowed_property(
 	}
 }
 
-function mywp_event_add_safe_property(
-	&$bumps,
-	$event,
-	$property,
-	$properties,
-	$pattern
-) {
-	$value = $properties[ $property ] ?? null;
-	if ( is_string( $value ) && preg_match( $pattern, $value ) ) {
-		mywp_event_add_bump( $bumps, "$event:$property", $value );
+function mywp_event_add_referrer_source_bump( &$bumps, $event, $properties ) {
+	$value = $properties['referrer_source'] ?? null;
+	if ( ! is_string( $value ) ) {
+		return;
 	}
+
+	if (
+		! in_array( $value, MYWP_EVENT_REFERRER_SOURCE_MARKERS, true ) &&
+		! mywp_event_is_reportable_referrer_host( $value )
+	) {
+		return;
+	}
+
+	mywp_event_add_bump( $bumps, "$event:referrer_source", $value );
+}
+
+/**
+ * Applies the same rule the client does, so a client that skips it cannot
+ * store a host the client would have refused to send. Single-label names and
+ * IP literals identify a network rather than a site, and rejecting them is
+ * also what keeps a host from colliding with the markers above.
+ */
+function mywp_event_is_reportable_referrer_host( $host ) {
+	if ( ! preg_match( MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN, $host ) ) {
+		return false;
+	}
+
+	$labels = explode( '.', $host );
+	if ( count( $labels ) < 2 ) {
+		return false;
+	}
+
+	return ! preg_match(
+		MYWP_EVENT_IPV4_LAST_LABEL_PATTERN,
+		$labels[ count( $labels ) - 1 ]
+	);
 }
 
 function mywp_event_add_safe_list_bumps(
