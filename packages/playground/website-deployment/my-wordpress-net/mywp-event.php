@@ -13,6 +13,7 @@ const MYWP_EVENT_REFERRER_SOURCE_EVENTS = array(
 const MYWP_EVENT_REFERRER_SOURCE_MARKERS = array(
 	'direct',
 	'internal',
+	'private-address',
 	'unknown',
 );
 /* Must match SAFE_REFERRER_HOST in usage-stats.ts. */
@@ -404,8 +405,9 @@ function mywp_event_add_referrer_source_bump( &$bumps, $event, $properties ) {
 /**
  * Applies the same rule the client does, so a client that skips it cannot
  * store a host the client would have refused to send. Single-label names and
- * IP literals identify a network rather than a site, and rejecting them is
- * also what keeps a host from colliding with the markers above.
+ * IP literals name a network rather than a site; the client reports those as
+ * `private-address`, and rejecting them here is also what keeps a host from
+ * colliding with the markers above.
  */
 function mywp_event_is_reportable_referrer_host( $host ) {
 	if ( ! preg_match( MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN, $host ) ) {

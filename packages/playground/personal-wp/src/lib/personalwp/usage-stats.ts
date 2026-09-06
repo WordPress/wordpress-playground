@@ -423,12 +423,13 @@ export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
  * which are where a referrer says what someone was reading, never leave the
  * browser.
  *
- * Hosts that identify a place rather than a site are reported as `unknown`
- * instead: single-label intranet names (`wiki`, `localhost`) and IP literals
- * are no use for spotting a traffic source and are the kind most likely to
- * point at one person's network. Every reported host therefore contains a
- * dot, which is also what keeps a host from colliding with the `direct`,
- * `internal` and `unknown` markers.
+ * Hosts that name a network rather than a site are reported as
+ * `private-address`: single-label intranet names (`wiki`, `localhost`) and IP
+ * literals are no use for spotting a traffic source and are the kind most
+ * likely to point at one person's network. They are kept apart from
+ * `unknown`, which means the referrer could not be read at all, so a rise in
+ * either can be told from the other. Every reported host therefore contains a
+ * dot, which is also what keeps a host from colliding with a marker.
  *
  * Modern browsers default to `strict-origin-when-cross-origin`, so the origin
  * usually survives even though the path does not. Referrals from native apps,
@@ -460,13 +461,13 @@ export function normalizeReferrer(
 		.toLowerCase()
 		.replace(/^www\./, '')
 		.replace(/\.$/, '');
-	const labels = host.split('.');
-	if (
-		labels.length < 2 ||
-		!SAFE_REFERRER_HOST.test(host) ||
-		IPV4_LAST_LABEL.test(labels[labels.length - 1])
-	) {
+	if (!SAFE_REFERRER_HOST.test(host)) {
 		return 'unknown';
+	}
+
+	const labels = host.split('.');
+	if (labels.length < 2 || IPV4_LAST_LABEL.test(labels[labels.length - 1])) {
+		return 'private-address';
 	}
 	return host;
 }

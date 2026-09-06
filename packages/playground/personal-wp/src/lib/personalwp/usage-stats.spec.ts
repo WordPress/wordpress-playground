@@ -332,16 +332,25 @@ describe('Personal WP usage stats', () => {
 		);
 	});
 
-	it('does not report hosts that identify a network rather than a site', () => {
+	it('reports a host that names a network as private-address', () => {
 		vi.stubGlobal('location', {
 			origin: 'https://my.wordpress.net',
 		});
 
-		expect(normalizeReferrer('http://wiki/page')).toBe('unknown');
-		expect(normalizeReferrer('http://localhost:3000/')).toBe('unknown');
-		expect(normalizeReferrer('http://192.168.1.5/dashboard')).toBe(
-			'unknown'
+		expect(normalizeReferrer('http://wiki/page')).toBe('private-address');
+		expect(normalizeReferrer('http://localhost:3000/')).toBe(
+			'private-address'
 		);
+		expect(normalizeReferrer('http://192.168.1.5/dashboard')).toBe(
+			'private-address'
+		);
+	});
+
+	it('keeps an unreadable referrer apart from a private address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
 		expect(normalizeReferrer('android-app://com.example.reader')).toBe(
 			'unknown'
 		);

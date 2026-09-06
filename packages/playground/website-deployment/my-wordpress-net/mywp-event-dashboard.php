@@ -28,6 +28,7 @@ const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS = 5;
 const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS = array(
 	'direct',
 	'internal',
+	'private-address',
 	'unknown',
 );
 const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';

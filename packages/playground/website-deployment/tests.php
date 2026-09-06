@@ -101,7 +101,10 @@ assert_equal(
 
 // The client reduces document.referrer to a bare host, but a client that
 // skips that must not be able to store something else in the rollup.
-foreach ( array( 'direct', 'internal', 'unknown' ) as $mywp_event_marker ) {
+foreach (
+    array( 'direct', 'internal', 'private-address', 'unknown' )
+    as $mywp_event_marker
+) {
     assert_equal(
         false,
         mywp_event_is_reportable_referrer_host( $mywp_event_marker ),
@@ -139,6 +142,12 @@ foreach (
         "Referring host $mywp_event_rejected_host should be rejected"
     );
 }
+
+assert_equal(
+    false,
+    mywp_event_is_reportable_referrer_host( 'private-address' ),
+    'private-address stands in for a host rather than being one'
+);
 
 $mywp_event_referrer_bumps = array();
 mywp_event_add_referrer_source_bump(
