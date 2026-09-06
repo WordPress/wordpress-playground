@@ -48,78 +48,284 @@ export function extractGitDirectorySource(
 
 /**
  * Builds a full Blueprint declaration reflecting the site's original
- * Blueprint plus every plugin/theme mounted live via "Mount via git…" —
- * i.e. every recorded source whose git repo/ref/path isn't already
- * declared by an existing step — freshly generated from current state
- * every time, so it's always accurate regardless of renames and never
- * requires mutating the site's stored Blueprint in place. Meant for the
- * user to open and compare against the original, not to replace it.
+ * Blueprint plus every recorded git-mounted plugin and theme. Existing
+ * declarations are matched one-to-one by install kind and git source, then
+ * updated to use the folder's current name. Unmatched mounts are appended.
+ * Blueprint v1 and v2 keep their respective declaration shapes.
  *
- * `hasAdditions` tells the caller whether any step was actually appended,
- * so it can skip writing/showing a preview that's identical to the
- * original Blueprint.
+ * `hasChanges` tells the caller whether a mount was appended or an existing
+ * target directory name changed.
  */
 export async function buildUpdatedBlueprintDeclaration(
 	originalBlueprint: unknown,
 	gitDirectorySources: Record<string, GitDirectoryReference> | undefined
-): Promise<{ declaration: Record<string, unknown>; hasAdditions: boolean }> {
+): Promise<{ declaration: Record<string, unknown>; hasChanges: boolean }> {
 	const base = await resolveDeclaration(originalBlueprint);
-	const existingSteps = Array.isArray(base['steps'])
+	const mounts = Object.entries(gitDirectorySources ?? {}).map(
+		([path, source]) => ({
+			path,
+			source,
+			kind: getInstallKind(path),
+			targetFolderName: basename(path),
+		})
+	);
+	return base['version'] === 2
+		? updateBlueprintV2(base, mounts)
+		: updateBlueprintV1(base, mounts);
+}
+
+type InstallKind = 'plugin' | 'theme';
+type GitMount = {
+	path: string;
+	source: GitDirectoryReference;
+	kind: InstallKind;
+	targetFolderName: string;
+};
+type DeclaredGitInstall = {
+	kind: InstallKind;
+	source: GitDirectoryReference;
+	targetFolderName: string;
+	setTargetFolderName: (name: string) => void;
+};
+
+/** Adds and renames git installs while preserving the Blueprint v1 step list. */
+function updateBlueprintV1(
+	base: Record<string, unknown>,
+	mounts: GitMount[]
+): { declaration: Record<string, unknown>; hasChanges: boolean } {
+	const originalSteps = Array.isArray(base['steps'])
 		? (base['steps'] as unknown[])
 		: [];
-	const liveSteps = Object.entries(gitDirectorySources ?? {})
-		.filter(([, source]) => !isDeclaredByStep(existingSteps, source))
-		.map(([path, source]) => buildGitDirectoryStep(path, source));
-	if (liveSteps.length === 0) {
-		return { declaration: base, hasAdditions: false };
-	}
-	return {
-		declaration: { ...base, steps: [...existingSteps, ...liveSteps] },
-		hasAdditions: true,
-	};
+	const steps = [...originalSteps];
+	const declaredInstalls = originalSteps.flatMap(
+		(step, index): DeclaredGitInstall[] => {
+			if (!isRecord(step)) {
+				return [];
+			}
+			const kind =
+				step['step'] === 'installPlugin'
+					? 'plugin'
+					: step['step'] === 'installTheme'
+						? 'theme'
+						: null;
+			const source =
+				kind === 'plugin' ? step['pluginData'] : step['themeData'];
+			if (!kind || !isGitDirectoryReference(source)) {
+				return [];
+			}
+			const options = isRecord(step['options']) ? step['options'] : {};
+			return [
+				{
+					kind,
+					source,
+					targetFolderName:
+						typeof options['targetFolderName'] === 'string'
+							? options['targetFolderName']
+							: inferTargetFolderName(source),
+					setTargetFolderName: (targetFolderName) => {
+						steps[index] = {
+							...step,
+							options: { ...options, targetFolderName },
+						};
+					},
+				},
+			];
+		}
+	);
+	const hasChanges = reconcileGitMounts(mounts, declaredInstalls, (mount) =>
+		steps.push(buildGitDirectoryStep(mount.path, mount.source))
+	);
+	return hasChanges
+		? { declaration: { ...base, steps }, hasChanges: true }
+		: { declaration: base, hasChanges: false };
 }
 
 /**
- * Whether one of `steps` already installs from the same git repo/ref/path
- * as `source`, regardless of where it ended up on disk — the source of
- * truth for "is this already part of the Blueprint" instead of a stored
- * flag, so it can't drift from the Blueprint it's meant to describe.
+ * Adds and renames git installs in Blueprint v2 plugin and theme fields.
  */
-function isDeclaredByStep(
-	steps: unknown[],
-	source: GitDirectoryReference
-): boolean {
-	return steps.some((step) => {
-		if (
-			!step ||
-			typeof step !== 'object' ||
-			((step as { step?: unknown }).step !== 'installPlugin' &&
-				(step as { step?: unknown }).step !== 'installTheme')
-		) {
-			return false;
+function updateBlueprintV2(
+	base: Record<string, unknown>,
+	mounts: GitMount[]
+): { declaration: Record<string, unknown>; hasChanges: boolean } {
+	const plugins = Array.isArray(base['plugins']) ? [...base['plugins']] : [];
+	const themes = Array.isArray(base['themes']) ? [...base['themes']] : [];
+	let activeTheme = base['activeTheme'];
+	const locations = [
+		...plugins.map((definition, index) => ({
+			kind: 'plugin' as const,
+			definition,
+			update: (value: unknown) => {
+				plugins[index] = value;
+			},
+		})),
+		...themes.map((definition, index) => ({
+			kind: 'theme' as const,
+			definition,
+			update: (value: unknown) => {
+				themes[index] = value;
+			},
+		})),
+		...(activeTheme === undefined
+			? []
+			: [
+					{
+						kind: 'theme' as const,
+						definition: activeTheme,
+						update: (value: unknown) => {
+							activeTheme = value;
+						},
+					},
+				]),
+	];
+	const declaredInstalls = locations.flatMap(
+		({ kind, definition, update }): DeclaredGitInstall[] => {
+			const source = getBlueprintV2GitSource(definition);
+			if (!source) {
+				return [];
+			}
+			return [
+				{
+					kind,
+					source,
+					targetFolderName:
+						isRecord(definition) &&
+						typeof definition['targetDirectoryName'] === 'string'
+							? definition['targetDirectoryName']
+							: inferTargetFolderName(source),
+					setTargetFolderName: (targetDirectoryName) =>
+						update(
+							isRecord(definition) && 'source' in definition
+								? { ...definition, targetDirectoryName }
+								: { source: definition, targetDirectoryName }
+						),
+				},
+			];
 		}
-		const resource =
-			(step as { pluginData?: unknown; themeData?: unknown })
-				.pluginData ??
-			(step as { pluginData?: unknown; themeData?: unknown }).themeData;
-		if (
-			!resource ||
-			typeof resource !== 'object' ||
-			(resource as { resource?: unknown }).resource !== 'git:directory'
-		) {
-			return false;
-		}
-		const reference = resource as {
-			url?: string;
-			ref?: string;
-			path?: string;
+	);
+	const hasChanges = reconcileGitMounts(mounts, declaredInstalls, (mount) => {
+		const definition = {
+			source: {
+				gitRepository: mount.source.url,
+				ref: mount.source.ref,
+				...(mount.source.path
+					? { pathInRepository: mount.source.path }
+					: {}),
+			},
+			...(mount.kind === 'plugin' ? { active: false } : {}),
+			targetDirectoryName: mount.targetFolderName,
 		};
-		return (
-			reference.url === source.url &&
-			reference.ref === source.ref &&
-			(reference.path ?? undefined) === (source.path ?? undefined)
-		);
+		(mount.kind === 'theme' ? themes : plugins).push(definition);
 	});
+	if (!hasChanges) {
+		return { declaration: base, hasChanges: false };
+	}
+	return {
+		declaration: {
+			...base,
+			...(plugins.length > 0 ? { plugins } : {}),
+			...(themes.length > 0 ? { themes } : {}),
+			...(activeTheme !== undefined ? { activeTheme } : {}),
+		},
+		hasChanges: true,
+	};
+}
+
+/** Matches each recorded mount once, renaming or appending as needed. */
+function reconcileGitMounts(
+	mounts: GitMount[],
+	declaredInstalls: DeclaredGitInstall[],
+	append: (mount: GitMount) => void
+): boolean {
+	const matchedDeclarationIndexes = new Set<number>();
+	let hasChanges = false;
+	for (const mount of mounts) {
+		const index = declaredInstalls.findIndex(
+			(declared, declaredIndex) =>
+				!matchedDeclarationIndexes.has(declaredIndex) &&
+				declared.kind === mount.kind &&
+				sameGitSource(declared.source, mount.source)
+		);
+		if (index === -1) {
+			append(mount);
+			hasChanges = true;
+			continue;
+		}
+		matchedDeclarationIndexes.add(index);
+		if (
+			declaredInstalls[index].targetFolderName !== mount.targetFolderName
+		) {
+			declaredInstalls[index].setTargetFolderName(mount.targetFolderName);
+			hasChanges = true;
+		}
+	}
+	return hasChanges;
+}
+
+/** Returns a v1-shaped git source from a Blueprint v2 install definition. */
+function getBlueprintV2GitSource(
+	definition: unknown
+): GitDirectoryReference | null {
+	if (!isRecord(definition)) {
+		return null;
+	}
+	const source = isRecord(definition['source'])
+		? definition['source']
+		: definition;
+	if (typeof source['gitRepository'] !== 'string') {
+		return null;
+	}
+	return {
+		resource: 'git:directory',
+		url: source['gitRepository'],
+		ref: typeof source['ref'] === 'string' ? source['ref'] : 'HEAD',
+		path:
+			typeof source['pathInRepository'] === 'string'
+				? source['pathInRepository']
+				: '',
+	};
+}
+
+/** Compares the complete git source identity used by Blueprint v1. */
+function sameGitSource(
+	left: GitDirectoryReference,
+	right: GitDirectoryReference
+) {
+	return (
+		left.url === right.url &&
+		left.ref === right.ref &&
+		(left.path || undefined) === (right.path || undefined) &&
+		left.refType === right.refType &&
+		left['.git'] === right['.git']
+	);
+}
+
+/** Infers the default install directory name from a git source. */
+function inferTargetFolderName(source: GitDirectoryReference) {
+	return source.path
+		? basename(source.path)
+		: deriveFolderNameFromGitUrl(source.url);
+}
+
+/** Returns the install kind represented by a WordPress content path. */
+function getInstallKind(path: string): InstallKind {
+	return basename(dirname(path)) === 'themes' ? 'theme' : 'plugin';
+}
+
+/** Narrows unknown JSON-like values to records. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Narrows a JSON-like value to a Blueprint v1 git directory source. */
+function isGitDirectoryReference(
+	value: unknown
+): value is GitDirectoryReference {
+	return (
+		isRecord(value) &&
+		value['resource'] === 'git:directory' &&
+		typeof value['url'] === 'string' &&
+		typeof value['ref'] === 'string'
+	);
 }
 
 /**

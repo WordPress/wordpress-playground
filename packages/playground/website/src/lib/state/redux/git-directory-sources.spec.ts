@@ -1,6 +1,7 @@
-import type {
-	StepDefinition,
-	GitDirectoryReference,
+import {
+	validateBlueprintDeclaration,
+	type GitDirectoryReference,
+	type StepDefinition,
 } from '@wp-playground/blueprints';
 import {
 	buildGitDirectoryStep,
@@ -150,13 +151,13 @@ describe('buildUpdatedBlueprintDeclaration', () => {
 		const originalBlueprint = {
 			steps: [{ step: 'login' }, gitInstallPluginStep],
 		};
-		const { declaration, hasAdditions } =
+		const { declaration, hasChanges } =
 			await buildUpdatedBlueprintDeclaration(originalBlueprint, {
 				// Matches `gitInstallPluginStep` above — already declared.
-				'/wordpress/wp-content/plugins/from-boot': gitSource,
+				'/wordpress/wp-content/plugins/playground': gitSource,
 				'/wordpress/wp-content/plugins/from-mount': gitSourceFromMount,
 			});
-		expect(hasAdditions).toBe(true);
+		expect(hasChanges).toBe(true);
 		expect((declaration as any).steps).toHaveLength(3);
 		expect((declaration as any).steps[0]).toEqual({ step: 'login' });
 		expect((declaration as any).steps[1]).toBe(gitInstallPluginStep);
@@ -167,36 +168,120 @@ describe('buildUpdatedBlueprintDeclaration', () => {
 		expect(originalBlueprint.steps).toHaveLength(2);
 	});
 
-	it('reports no additions when every recorded source is already declared', async () => {
+	it('reports no changes when every recorded source is already declared', async () => {
 		const originalBlueprint = { steps: [gitInstallPluginStep] };
-		const { declaration, hasAdditions } =
+		const { declaration, hasChanges } =
 			await buildUpdatedBlueprintDeclaration(originalBlueprint, {
-				'/wordpress/wp-content/plugins/from-boot': gitSource,
+				'/wordpress/wp-content/plugins/playground': gitSource,
 			});
-		expect(hasAdditions).toBe(false);
+		expect(hasChanges).toBe(false);
 		expect(declaration).toEqual(originalBlueprint);
 	});
 
-	it('does not duplicate a step when the same repo is mounted live again', async () => {
-		// Mounting a repo via "Mount via git…" that's already declared in
-		// the Blueprint shouldn't produce a second, redundant step.
+	it('updates the original step when its installed directory is renamed', async () => {
 		const originalBlueprint = { steps: [gitInstallPluginStep] };
-		const { hasAdditions } = await buildUpdatedBlueprintDeclaration(
-			originalBlueprint,
-			{ '/wordpress/wp-content/plugins/moved-elsewhere': gitSource }
+		const { declaration, hasChanges } =
+			await buildUpdatedBlueprintDeclaration(originalBlueprint, {
+				'/wordpress/wp-content/plugins/moved-elsewhere': gitSource,
+			});
+		expect(hasChanges).toBe(true);
+		expect((declaration as any).steps).toHaveLength(1);
+		expect((declaration as any).steps[0].options.targetFolderName).toBe(
+			'moved-elsewhere'
 		);
-		expect(hasAdditions).toBe(false);
+	});
+
+	it('does not confuse a theme declaration with a plugin from the same source', async () => {
+		const originalBlueprint = {
+			steps: [
+				{
+					step: 'installTheme',
+					themeData: gitSource,
+					options: { targetFolderName: 'playground' },
+				},
+			],
+		};
+		const { declaration } = await buildUpdatedBlueprintDeclaration(
+			originalBlueprint,
+			{ '/wordpress/wp-content/plugins/playground': gitSource }
+		);
+
+		expect((declaration as any).steps).toHaveLength(2);
+		expect((declaration as any).steps[1].step).toBe('installPlugin');
+	});
+
+	it('keeps Blueprint v2 valid when adding a git-mounted plugin', async () => {
+		const { declaration, hasChanges } =
+			await buildUpdatedBlueprintDeclaration(
+				{ version: 2 },
+				{
+					'/wordpress/wp-content/plugins/from-mount':
+						gitSourceFromMount,
+				}
+			);
+
+		expect(hasChanges).toBe(true);
+		expect(declaration).toEqual({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						gitRepository: gitSourceFromMount.url,
+						ref: gitSourceFromMount.ref,
+					},
+					active: false,
+					targetDirectoryName: 'from-mount',
+				},
+			],
+		});
+		await expect(
+			validateBlueprintDeclaration(declaration)
+		).resolves.toEqual({
+			valid: true,
+		});
+	});
+
+	it('renames an active Blueprint v2 theme without installing it twice', async () => {
+		const originalBlueprint = {
+			version: 2,
+			activeTheme: {
+				source: {
+					gitRepository: gitSource.url,
+					ref: gitSource.ref,
+					pathInRepository: gitSource.path,
+				},
+				targetDirectoryName: 'old-theme-name',
+			},
+		};
+		const { declaration } = await buildUpdatedBlueprintDeclaration(
+			originalBlueprint,
+			{ '/wordpress/wp-content/themes/new-theme-name': gitSource }
+		);
+
+		expect(declaration).toEqual({
+			...originalBlueprint,
+			activeTheme: {
+				...originalBlueprint.activeTheme,
+				targetDirectoryName: 'new-theme-name',
+			},
+		});
+		expect(declaration).not.toHaveProperty('themes');
+		await expect(
+			validateBlueprintDeclaration(declaration)
+		).resolves.toEqual({
+			valid: true,
+		});
 	});
 
 	it('returns an empty declaration when originalBlueprint is missing and there are no live mounts', async () => {
-		const { declaration, hasAdditions } =
+		const { declaration, hasChanges } =
 			await buildUpdatedBlueprintDeclaration(undefined, undefined);
 		expect(declaration).toEqual({});
-		expect(hasAdditions).toBe(false);
+		expect(hasChanges).toBe(false);
 	});
 
 	it('seeds a steps array when originalBlueprint has none', async () => {
-		const { declaration, hasAdditions } =
+		const { declaration, hasChanges } =
 			await buildUpdatedBlueprintDeclaration(
 				{ preferredVersions: { php: '8.2' } },
 				{
@@ -204,7 +289,7 @@ describe('buildUpdatedBlueprintDeclaration', () => {
 						gitSourceFromMount,
 				}
 			);
-		expect(hasAdditions).toBe(true);
+		expect(hasChanges).toBe(true);
 		expect((declaration as any).steps).toHaveLength(1);
 	});
 
