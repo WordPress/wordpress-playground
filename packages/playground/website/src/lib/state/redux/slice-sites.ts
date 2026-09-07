@@ -28,6 +28,7 @@ import {
 } from '../opfs/opfs-blueprint-bundle-storage';
 import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
+import { getBlueprintsDirectoryFileUrl } from '../../blueprints-directory';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
@@ -67,8 +68,7 @@ export type {
 	SitePersistence,
 } from './site-lifecycle';
 
-const DEFAULT_BLUEPRINT =
-	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
+const DEFAULT_BLUEPRINT_PATH = 'blueprints/welcome/blueprint.json';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -563,7 +563,7 @@ export function setTemporarySiteSpec(
 		try {
 			resolvedBlueprint = await resolveBlueprintFromURL(
 				playgroundUrlWithQueryApiArgs,
-				DEFAULT_BLUEPRINT
+				getBlueprintsDirectoryFileUrl(DEFAULT_BLUEPRINT_PATH)
 			);
 		} catch (e) {
 			logger.error(
@@ -796,7 +796,7 @@ export const setStoredSiteSpec = createStoredSite;
 async function resolveSiteBlueprintFromUrl(playgroundUrlWithQueryApiArgs: URL) {
 	const resolvedBlueprint = await resolveBlueprintFromURL(
 		playgroundUrlWithQueryApiArgs,
-		DEFAULT_BLUEPRINT
+		getBlueprintsDirectoryFileUrl(DEFAULT_BLUEPRINT_PATH)
 	);
 	return prepareResolvedBlueprint(
 		resolvedBlueprint,

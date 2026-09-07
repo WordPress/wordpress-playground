@@ -412,6 +412,14 @@ function playground_get_custom_response_headers( $requested_path ) {
 			'Content-Encoding: identity',
 			'Access-Control-Allow-Origin: *',
 		);
+	} elseif ( str_starts_with( $requested_path, '/blueprints/' ) ) {
+		// The mirror of the WordPress/blueprints repository is loaded
+		// cross-origin by my.wordpress.net and refreshed independently of
+		// website deployments, so allow CORS and keep the cache short.
+		return array(
+			'Access-Control-Allow-Origin: *',
+			'Cache-Control: max-age=300',
+		);
 	} elseif (
 		'/' === $requested_path ||
 		'/index.html' === $requested_path ||

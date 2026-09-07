@@ -97,7 +97,7 @@ echo Syncing staged files to production
 rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/
 
 echo Purging edge cache
-curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" \
+curl -sS --fail -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" \
         > /dev/null \
         && echo "Edge cache purged" \
         || (>&2 echo "Failed to purge edge cache" && false)

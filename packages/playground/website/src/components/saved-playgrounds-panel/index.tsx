@@ -36,6 +36,7 @@ import {
 	Suspense,
 } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { getBlueprintsDirectoryFileUrl } from '../../lib/blueprints-directory';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { logger } from '@php-wasm/logger';
@@ -485,7 +486,9 @@ export function SavedPlaygroundsPanel({
 		isLoading: blueprintsLoading,
 		isError: blueprintsError,
 	} = useFetch<Record<string, BlueprintsIndexEntry>>(
-		'/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json'
+		// The service worker proxy caches the index for offline use and
+		// refreshes it from the network on every load.
+		`/proxy/network-first-fetch/${getBlueprintsDirectoryFileUrl('index.json')}`
 	);
 
 	const allBlueprints: BlueprintsIndexEntry[] = [
@@ -817,10 +820,8 @@ export function SavedPlaygroundsPanel({
 			PlaygroundRoute.newSite({
 				query: {
 					name: 'Blueprint preview',
-					'blueprint-url': `https://raw.githubusercontent.com/WordPress/blueprints/trunk/${blueprintPath.replace(
-						/^\//,
-						''
-					)}`,
+					'blueprint-url':
+						getBlueprintsDirectoryFileUrl(blueprintPath),
 				},
 			})
 		);
