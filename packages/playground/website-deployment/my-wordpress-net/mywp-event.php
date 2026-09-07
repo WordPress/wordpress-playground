@@ -5,6 +5,21 @@ const MYWP_EVENT_RATE_LIMIT_CAPACITY = 300;
 const MYWP_EVENT_RATE_LIMIT_FILL_RATE_PER_MINUTE = 120;
 const MYWP_EVENT_MAX_PLUGIN_SLUGS = 10;
 const MYWP_EVENT_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_REFERRER_SOURCE_EVENTS = array(
+	'wordpress_installed',
+	'returning_visit',
+);
+/* Reported in place of a host. Must match usage-stats.ts. */
+const MYWP_EVENT_REFERRER_SOURCE_MARKERS = array(
+	'direct',
+	'internal',
+	'private-address',
+	'unknown',
+);
+/* Must match SAFE_REFERRER_HOST in usage-stats.ts. */
+const MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,127}$/';
+/* Trailing label of an IPv4 literal. IPv6 has no match for the pattern above. */
+const MYWP_EVENT_IPV4_LAST_LABEL_PATTERN = '/^\d+$/';
 
 const MYWP_EVENT_ALLOWED_EVENTS = array(
 	'wordpress_installed',
@@ -300,6 +315,18 @@ function mywp_event_collect_stat_bumps( $payload ) {
 		);
 	}
 
+	/*
+	 * Recorded for both ways of arriving, so a channel can be read for new
+	 * and returning sites alike. The client reduces document.referrer to a
+	 * bare host before sending it, so the path and query never reach the
+	 * server. Re-checking the shape here keeps a client from storing
+	 * something that isn't a host in the rollup. Hosts seen too rarely to be
+	 * a traffic source are folded together when the dashboard reads them back.
+	 */
+	if ( in_array( $event, MYWP_EVENT_REFERRER_SOURCE_EVENTS, true ) ) {
+		mywp_event_add_referrer_source_bump( $bumps, $event, $properties );
+	}
+
 	if ( 'blueprint_installed' === $event ) {
 		mywp_event_add_blueprint_bumps( $bumps, $properties );
 	}
@@ -357,6 +384,48 @@ function mywp_event_add_allowed_property(
 	if ( in_array( $value, $allowed_values, true ) ) {
 		mywp_event_add_bump( $bumps, "$event:$property", $value );
 	}
+}
+
+function mywp_event_add_referrer_source_bump( &$bumps, $event, $properties ) {
+	$value = $properties['referrer_source'] ?? null;
+	if ( ! is_string( $value ) ) {
+		return;
+	}
+
+	if (
+		! in_array( $value, MYWP_EVENT_REFERRER_SOURCE_MARKERS, true ) &&
+		! mywp_event_is_reportable_referrer_host( $value )
+	) {
+		return;
+	}
+
+	mywp_event_add_bump( $bumps, "$event:referrer_source", $value );
+}
+
+/**
+ * Applies the same rule the client does, so a client that skips it cannot
+ * store a host the client would have refused to send. Single-label names and
+ * IP literals name a network rather than a site; the client reports those as
+ * `private-address`, and rejecting them here is also what keeps a host from
+ * colliding with the markers above.
+ */
+function mywp_event_is_reportable_referrer_host( $host ) {
+	if ( ! preg_match( MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN, $host ) ) {
+		return false;
+	}
+	if ( 0 === strpos( $host, 'www.' ) || '.' === substr( $host, -1 ) ) {
+		return false;
+	}
+
+	$labels = explode( '.', $host );
+	if ( count( $labels ) < 2 ) {
+		return false;
+	}
+
+	return ! preg_match(
+		MYWP_EVENT_IPV4_LAST_LABEL_PATTERN,
+		$labels[ count( $labels ) - 1 ]
+	);
 }
 
 function mywp_event_add_safe_list_bumps(

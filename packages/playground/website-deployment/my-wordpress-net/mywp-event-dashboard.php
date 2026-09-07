@@ -8,9 +8,29 @@ const MYWP_EVENT_DASHBOARD_STATE_TTL = 600;
 const MYWP_EVENT_DASHBOARD_PATH = '/mywp-event-dashboard.php';
 const MYWP_EVENT_DASHBOARD_ALLOWED_RANGES = array( 7, 30, 90 );
 const MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES = array( 'day', 'hour' );
+const MYWP_EVENT_DASHBOARD_ALLOWED_FORMATS = array( 'html', 'json' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS = array(
+	'wordpress_installed:referrer_source',
+	'returning_visit:referrer_source',
+);
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER = 'other-external';
+/**
+ * Referring hosts are stored as they arrive, but a host seen fewer times than
+ * this in the selected range is shown folded into `other-external`. A host
+ * that sent one visit cannot indicate a traffic source, and reporting it on
+ * its own alongside the timeline would come close to reporting the visit.
+ */
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS = 5;
+/* Reported in place of a host, so never folded away. */
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS = array(
+	'direct',
+	'internal',
+	'private-address',
+	'unknown',
+);
 const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
 
 /**
@@ -63,6 +83,12 @@ function mywp_event_dashboard_handle_request() {
 
 	$range = mywp_event_dashboard_get_range();
 	$granularity = mywp_event_dashboard_get_granularity();
+	$format = mywp_event_dashboard_get_format();
+	// Sent before the HEAD check so a HEAD request advertises the same type
+	// the matching GET would return.
+	if ( 'json' === $format ) {
+		header( 'Content-Type: application/json; charset=utf-8' );
+	}
 
 	try {
 		$stats = mywp_event_dashboard_load_stats(
@@ -75,6 +101,11 @@ function mywp_event_dashboard_handle_request() {
 	}
 
 	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
+	}
+
+	if ( 'json' === $format ) {
+		mywp_event_dashboard_render_json( $stats );
 		return;
 	}
 
@@ -560,6 +591,13 @@ function mywp_event_dashboard_get_granularity() {
 		: 'day';
 }
 
+function mywp_event_dashboard_get_format() {
+	$format = $_GET['format'] ?? 'html';
+	return in_array( $format, MYWP_EVENT_DASHBOARD_ALLOWED_FORMATS, true )
+		? $format
+		: 'html';
+}
+
 function mywp_event_dashboard_load_stats( $dbh, $range, $granularity ) {
 	$table = 'hour' === $granularity
 		? 'mywp_event_stats_hourly'
@@ -629,7 +667,9 @@ function mywp_event_dashboard_query_rollup(
 	}
 	mysqli_stmt_close( $statement );
 
-	return mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows );
+	return mywp_event_dashboard_fold_rare_referrer_source_rows(
+		mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows )
+	);
 }
 
 function mywp_event_dashboard_query_event_timeline(
@@ -693,6 +733,42 @@ function mywp_event_dashboard_query_metric_timeline(
 }
 
 /**
+ * Merges referring hosts below the reporting threshold into a single
+ * `other-external` row, keeping the order the query uses. The stored rows are
+ * left alone; this only bounds what the dashboard and the JSON output show.
+ */
+function mywp_event_dashboard_fold_rare_referrer_source_rows( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		if (
+			in_array(
+				$row['name'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS,
+				true
+			) &&
+			$row['views'] < MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS &&
+			! in_array(
+				$row['value'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS,
+				true
+			)
+		) {
+			$row['value'] = MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER;
+		}
+
+		$key = $row['name'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	return mywp_event_dashboard_sort_rollup_rows( array_values( $folded ) );
+}
+
+/**
  * Merges rollup rows whose plugin slug changed into the row for the current
  * slug, keeping the `name` ASC, `views` DESC, `value` ASC order the query uses.
  */
@@ -714,9 +790,16 @@ function mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows ) {
 		$folded[ $key ] = $row;
 	}
 
-	$folded = array_values( $folded );
+	return mywp_event_dashboard_sort_rollup_rows( array_values( $folded ) );
+}
+
+/**
+ * Restores the `name` ASC, `views` DESC, `value` ASC order the rollup query
+ * returns, which folding rows together disturbs.
+ */
+function mywp_event_dashboard_sort_rollup_rows( $rows ) {
 	usort(
-		$folded,
+		$rows,
 		function ( $a, $b ) {
 			if ( $a['name'] !== $b['name'] ) {
 				return strcmp( $a['name'], $b['name'] );
@@ -728,7 +811,7 @@ function mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows ) {
 		}
 	);
 
-	return $folded;
+	return $rows;
 }
 
 /**
@@ -784,6 +867,73 @@ function mywp_event_dashboard_group_rows( $rows ) {
 		$groups[ $name ][] = $row;
 	}
 	return $groups;
+}
+
+/**
+ * Emits the same numbers the HTML dashboard renders, without the navigation
+ * chrome, so a spike can be analysed by a script instead of by reading bars.
+ * Every area's breakdown is included at once because the JSON consumer has no
+ * area to switch between.
+ */
+function mywp_event_dashboard_render_json( $stats ) {
+	$groups = mywp_event_dashboard_group_rows( $stats['rows'] );
+	$events = $groups['event'] ?? array();
+
+	$metrics = array();
+	foreach ( $groups as $name => $rows ) {
+		if ( 'event' !== $name ) {
+			$metrics[ $name ] = mywp_event_dashboard_json_views_by_value( $rows );
+		}
+	}
+
+	echo json_encode(
+		array(
+			'schema' => 'mywp-event-dashboard/v1',
+			'generated_at' => gmdate( 'c' ),
+			'range' => $stats['range'],
+			'granularity' => $stats['granularity'],
+			'since' => $stats['since'],
+			'total_events' => mywp_event_dashboard_sum_views( $events ),
+			'events' => mywp_event_dashboard_json_views_by_value( $events ),
+			'metrics' => (object) $metrics,
+			'timeline' => mywp_event_dashboard_json_timeline( $stats['timeline'] ),
+			'blueprint_plugin_slug_timeline' => mywp_event_dashboard_json_timeline(
+				$stats['blueprint_plugin_slug_timeline']
+			),
+		),
+		JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+	);
+}
+
+function mywp_event_dashboard_json_views_by_value( $rows ) {
+	$views = array();
+	foreach ( $rows as $row ) {
+		$views[ $row['value'] ] = $row['views'];
+	}
+	return (object) $views;
+}
+
+function mywp_event_dashboard_json_timeline( $rows ) {
+	$periods = array();
+	foreach ( $rows as $row ) {
+		$period = $row['period'];
+		if ( ! isset( $periods[ $period ] ) ) {
+			$periods[ $period ] = array(
+				'period' => $period,
+				'total' => 0,
+				'values' => array(),
+			);
+		}
+		$periods[ $period ]['values'][ $row['value'] ] = $row['views'];
+		$periods[ $period ]['total'] += $row['views'];
+	}
+
+	$timeline = array();
+	foreach ( $periods as $period ) {
+		$period['values'] = (object) $period['values'];
+		$timeline[] = $period;
+	}
+	return $timeline;
 }
 
 function mywp_event_dashboard_render( $stats, $current_user ) {
@@ -1246,6 +1396,7 @@ function mywp_event_dashboard_render_area(
 				'First-use events for new Personal WP sites.',
 				'wordpress_installed',
 				array(
+					'wordpress_installed:referrer_source',
 					'wordpress_installed:original_blueprint_source',
 					'wordpress_installed:site_age_bucket',
 					'wordpress_installed:previous_visit_age_bucket',
@@ -1262,6 +1413,7 @@ function mywp_event_dashboard_render_area(
 				'Visits to existing Personal WP sites.',
 				'returning_visit',
 				array(
+					'returning_visit:referrer_source',
 					'returning_visit:previous_visit_age_bucket',
 					'returning_visit:site_age_bucket',
 				),
@@ -1834,6 +1986,8 @@ function mywp_event_dashboard_metric_sections() {
 		'Growth and Retention' => array(
 			'description' => 'Signals that explain new-site and returning-site usage.',
 			'metrics' => array(
+				'wordpress_installed:referrer_source',
+				'returning_visit:referrer_source',
 				'wordpress_installed:original_blueprint_source',
 				'wordpress_installed:site_age_bucket',
 				'wordpress_installed:previous_visit_age_bucket',
@@ -1941,6 +2095,8 @@ function mywp_event_dashboard_metric_definitions() {
 		'wordpress_installed:site_age_bucket' => 'New Installs: Site Age',
 		'wordpress_installed:previous_visit_age_bucket' => 'New Installs: Previous Visit Age',
 		'wordpress_installed:original_blueprint_source' => 'New Installs: Original Blueprint Source',
+		'wordpress_installed:referrer_source' => 'New Installs: Referrer Source',
+		'returning_visit:referrer_source' => 'Returning Visits: Referrer Source',
 		'returning_visit:site_age_bucket' => 'Returning Visits: Site Age',
 		'returning_visit:previous_visit_age_bucket' => 'Returning Visits: Previous Visit Age',
 		'blueprint_installed:trigger' => 'Blueprint Installs: Trigger',

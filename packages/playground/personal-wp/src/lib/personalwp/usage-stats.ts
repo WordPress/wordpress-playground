@@ -91,6 +91,16 @@ const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
 const MAX_PLUGIN_SLUGS = 10;
 const UNKNOWN_PLUGIN_SLUG = 'unknown';
 const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
+/**
+ * Host shape accepted for reporting. Bounded at 128 characters to match the
+ * `value` column the stats rollup stores it in, and restricted to the
+ * characters the endpoint accepts so a host is never silently dropped there.
+ */
+const SAFE_REFERRER_HOST = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+/** Trailing label of an IPv4 literal, which is reported as `private-address`. */
+const IPV4_LAST_LABEL = /^\d+$/;
+/** IPv6 literals retain square brackets in URL.hostname. */
+const IPV6_LITERAL = /^\[[0-9a-f:]+\]$/i;
 
 export function logPersonalWpEvent(
 	event: PersonalWpUsageStatsEvent,
@@ -407,6 +417,64 @@ export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
 		return 'github';
 	}
 	return 'external-url';
+}
+
+/**
+ * Reduces the referring site to a bare hostname so a traffic spike can be
+ * attributed to its source. Only the host is reported: the path and query,
+ * which are where a referrer says what someone was reading, never leave the
+ * browser.
+ *
+ * Hosts that name a network rather than a site are reported as
+ * `private-address`: single-label intranet names (`wiki`, `localhost`) and IP
+ * literals are no use for spotting a traffic source and are the kind most
+ * likely to point at one person's network. They are kept apart from
+ * `unknown`, which means the referrer could not be read at all, so a rise in
+ * either can be told from the other. Every reported host therefore contains a
+ * dot, which is also what keeps a host from colliding with a marker.
+ *
+ * Modern browsers default to `strict-origin-when-cross-origin`, so the origin
+ * usually survives even though the path does not. Referrals from native apps,
+ * from sites sending `no-referrer`, and from HTTPS to HTTP send nothing at all
+ * and are reported as `direct`.
+ */
+export function normalizeReferrer(
+	referrer = globalThis.document?.referrer ?? ''
+): string {
+	if (!referrer) {
+		return 'direct';
+	}
+
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(referrer);
+	} catch {
+		return 'unknown';
+	}
+
+	if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+		return 'unknown';
+	}
+	if (parsedUrl.origin === globalThis.location?.origin) {
+		return 'internal';
+	}
+
+	const host = parsedUrl.hostname
+		.toLowerCase()
+		.replace(/^www\./, '')
+		.replace(/\.$/, '');
+	if (IPV6_LITERAL.test(host)) {
+		return 'private-address';
+	}
+	if (!SAFE_REFERRER_HOST.test(host)) {
+		return 'unknown';
+	}
+
+	const labels = host.split('.');
+	if (labels.length < 2 || IPV4_LAST_LABEL.test(labels[labels.length - 1])) {
+		return 'private-address';
+	}
+	return host;
 }
 
 function getAgeBucket(timestamp: number | undefined, now: number): string {

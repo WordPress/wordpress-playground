@@ -99,6 +99,80 @@ assert_equal(
     'Playground API entry point should not be edge cached'
 );
 
+// The client reduces document.referrer to a bare host, but a client that
+// skips that must not be able to store something else in the rollup.
+foreach (
+    array( 'direct', 'internal', 'private-address', 'unknown' )
+    as $mywp_event_marker
+) {
+    assert_equal(
+        false,
+        mywp_event_is_reportable_referrer_host( $mywp_event_marker ),
+        'Markers stand in for a host rather than being one'
+    );
+}
+
+foreach (
+    array( 'news.ycombinator.com', 'make.wordpress.org', 'a.b.example.co.uk' )
+    as $mywp_event_host
+) {
+    assert_equal(
+        true,
+        mywp_event_is_reportable_referrer_host( $mywp_event_host ),
+        "Referring host $mywp_event_host should be reportable"
+    );
+}
+
+foreach (
+    array(
+        'localhost',
+        'wiki',
+        '192.168.1.5',
+        '10.0.0.1',
+        'www.example.com',
+        'example.com.',
+        'Example.com',
+        'exam ple.com',
+        'exa/mple.com',
+        str_repeat( 'a', 130 ) . '.example.com',
+    )
+    as $mywp_event_rejected_host
+) {
+    assert_equal(
+        false,
+        mywp_event_is_reportable_referrer_host( $mywp_event_rejected_host ),
+        "Referring host $mywp_event_rejected_host should be rejected"
+    );
+}
+
+assert_equal(
+    false,
+    mywp_event_is_reportable_referrer_host( 'private-address' ),
+    'private-address stands in for a host rather than being one'
+);
+
+$mywp_event_referrer_bumps = array();
+mywp_event_add_referrer_source_bump(
+    $mywp_event_referrer_bumps,
+    'returning_visit',
+    array( 'referrer_source' => 'localhost' )
+);
+mywp_event_add_referrer_source_bump(
+    $mywp_event_referrer_bumps,
+    'returning_visit',
+    array( 'referrer_source' => 'direct' )
+);
+mywp_event_add_referrer_source_bump(
+    $mywp_event_referrer_bumps,
+    'returning_visit',
+    array( 'referrer_source' => 'make.wordpress.org' )
+);
+assert_equal(
+    'direct,make.wordpress.org',
+    implode( ',', array_column( $mywp_event_referrer_bumps, 'value' ) ),
+    'Only markers and reportable hosts are recorded'
+);
+
 $mywp_event_server_snapshot = $_SERVER;
 
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';

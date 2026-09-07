@@ -3,6 +3,7 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { SiteMetadata } from '../state/redux/slice-sites';
 import {
 	classifyBlueprintUrl,
+	normalizeReferrer,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
 	getStreakUsageStatsUpdate,
@@ -296,6 +297,73 @@ describe('Personal WP usage stats', () => {
 			'data-url'
 		);
 		expect(classifyBlueprintUrl('http://[invalid')).toBe('invalid-url');
+	});
+
+	it('reports only the referring host, never the path', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('')).toBe('direct');
+		expect(normalizeReferrer('https://my.wordpress.net/builder')).toBe(
+			'internal'
+		);
+		expect(
+			normalizeReferrer('https://news.ycombinator.com/item?id=1')
+		).toBe('news.ycombinator.com');
+		expect(normalizeReferrer('https://www.example.com/a-post#top')).toBe(
+			'example.com'
+		);
+		expect(normalizeReferrer('https://Blog.Example.CO.UK:8443/x')).toBe(
+			'blog.example.co.uk'
+		);
+	});
+
+	it('keeps make.wordpress.org distinct from wordpress.org', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('https://make.wordpress.org/core/')).toBe(
+			'make.wordpress.org'
+		);
+		expect(normalizeReferrer('https://wordpress.org/plugins/')).toBe(
+			'wordpress.org'
+		);
+	});
+
+	it('reports a host that names a network as private-address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('http://wiki/page')).toBe('private-address');
+		expect(normalizeReferrer('http://localhost:3000/')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://192.168.1.5/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[::1]/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[2001:db8::1]/dashboard')).toBe(
+			'private-address'
+		);
+	});
+
+	it('keeps an unreadable referrer apart from a private address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('android-app://com.example.reader')).toBe(
+			'unknown'
+		);
+		expect(normalizeReferrer('not a url')).toBe('unknown');
+		expect(
+			normalizeReferrer(`https://${'a'.repeat(130)}.example.com/`)
+		).toBe('unknown');
 	});
 
 	it('does not report blueprint identifiers', () => {
