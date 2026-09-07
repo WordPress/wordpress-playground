@@ -97,8 +97,10 @@ const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
  * characters the endpoint accepts so a host is never silently dropped there.
  */
 const SAFE_REFERRER_HOST = /^[a-z0-9][a-z0-9._-]{0,127}$/;
-/** Trailing label of an IPv4 literal, which is reported as `unknown`. */
+/** Trailing label of an IPv4 literal, which is reported as `private-address`. */
 const IPV4_LAST_LABEL = /^\d+$/;
+/** IPv6 literals retain square brackets in URL.hostname. */
+const IPV6_LITERAL = /^\[[0-9a-f:]+\]$/i;
 
 export function logPersonalWpEvent(
 	event: PersonalWpUsageStatsEvent,
@@ -461,6 +463,9 @@ export function normalizeReferrer(
 		.toLowerCase()
 		.replace(/^www\./, '')
 		.replace(/\.$/, '');
+	if (IPV6_LITERAL.test(host)) {
+		return 'private-address';
+	}
 	if (!SAFE_REFERRER_HOST.test(host)) {
 		return 'unknown';
 	}

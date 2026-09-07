@@ -129,6 +129,8 @@ foreach (
         'wiki',
         '192.168.1.5',
         '10.0.0.1',
+        'www.example.com',
+        'example.com.',
         'Example.com',
         'exam ple.com',
         'exa/mple.com',

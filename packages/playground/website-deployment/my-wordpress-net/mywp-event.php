@@ -413,6 +413,9 @@ function mywp_event_is_reportable_referrer_host( $host ) {
 	if ( ! preg_match( MYWP_EVENT_SAFE_REFERRER_SOURCE_PATTERN, $host ) ) {
 		return false;
 	}
+	if ( 0 === strpos( $host, 'www.' ) || '.' === substr( $host, -1 ) ) {
+		return false;
+	}
 
 	$labels = explode( '.', $host );
 	if ( count( $labels ) < 2 ) {

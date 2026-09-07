@@ -344,6 +344,12 @@ describe('Personal WP usage stats', () => {
 		expect(normalizeReferrer('http://192.168.1.5/dashboard')).toBe(
 			'private-address'
 		);
+		expect(normalizeReferrer('http://[::1]/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[2001:db8::1]/dashboard')).toBe(
+			'private-address'
+		);
 	});
 
 	it('keeps an unreadable referrer apart from a private address', () => {
