@@ -5,11 +5,14 @@ import {
 	classifyBlueprintUrl,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
+	getStreakUsageStatsUpdate,
 	getUsageStatsDate,
 	isUsageStatsAllowedOnCurrentHost,
 	logPersonalWpEvent,
 	shouldLogReturningVisitUsageStats,
 } from './usage-stats';
+
+const DAY = 24 * 60 * 60 * 1000;
 
 describe('Personal WP usage stats', () => {
 	afterEach(() => {
@@ -313,5 +316,154 @@ describe('Personal WP usage stats', () => {
 			blueprint_source: 'same-origin',
 		});
 		expect(JSON.stringify(properties)).not.toContain('token=secret');
+	});
+
+	it('ignores a backward clock jump instead of resetting and re-emitting the streak', () => {
+		const day1 = Date.UTC(2026, 5, 10);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		metadata = { ...metadata, ...first.metadata };
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { bucket: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		// The client's clock jumps back to before the last-recorded day.
+		const clockSkewedBackward = getStreakUsageStatsUpdate(
+			metadata,
+			day1 - 3 * DAY
+		);
+		expect(clockSkewedBackward.events).toEqual([]);
+		expect(clockSkewedBackward.metadata).toEqual({});
+	});
+
+	it('advances the daily streak once per day and resets after a gap', () => {
+		const day1 = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		expect(first.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { bucket: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const laterSameDay = getStreakUsageStatsUpdate(
+			metadata,
+			day1 + 12 * 60 * 60 * 1000
+		);
+		expect(laterSameDay.events).toEqual([]);
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { bucket: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		const afterGap = getStreakUsageStatsUpdate(metadata, day1 + 4 * DAY);
+		expect(afterGap.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { bucket: '1' },
+		});
+	});
+
+	it('walks the daily streak bucket boundaries across consecutive days', () => {
+		const start = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+		const buckets: string[] = [];
+
+		for (let day = 0; day < 31; day++) {
+			const update = getStreakUsageStatsUpdate(
+				metadata,
+				start + day * DAY
+			);
+			metadata = { ...metadata, ...update.metadata };
+			const dailyEvent = update.events.find(
+				(event) => event.event === 'daily_streak'
+			);
+			buckets.push(dailyEvent!.properties.bucket as string);
+		}
+
+		expect(buckets[0]).toBe('1');
+		expect(buckets[1]).toBe('2');
+		expect(buckets[2]).toBe('3-6');
+		expect(buckets[5]).toBe('3-6');
+		expect(buckets[6]).toBe('7-13');
+		expect(buckets[13]).toBe('14-29');
+		expect(buckets[29]).toBe('30+');
+	});
+
+	it('advances the weekly streak across calendar weeks and resets on a skipped week', () => {
+		const monday1 = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, monday1);
+		expect(first.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { bucket: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const fridaySameWeek = getStreakUsageStatsUpdate(
+			metadata,
+			monday1 + 4 * DAY
+		);
+		expect(
+			fridaySameWeek.events.some(
+				(event) => event.event === 'weekly_streak'
+			)
+		).toBe(false);
+
+		const monday2 = getStreakUsageStatsUpdate(metadata, monday1 + 7 * DAY);
+		expect(monday2.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { bucket: '2' },
+		});
+		metadata = { ...metadata, ...monday2.metadata };
+
+		const mondaySkippedWeek = getStreakUsageStatsUpdate(
+			metadata,
+			monday1 + 21 * DAY
+		);
+		expect(mondaySkippedWeek.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { bucket: '1' },
+		});
+	});
+
+	it('advances the monthly streak across a year boundary and resets on a skipped month', () => {
+		const december = Date.UTC(2025, 11, 15);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, december);
+		expect(first.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { bucket: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const january = getStreakUsageStatsUpdate(
+			metadata,
+			Date.UTC(2026, 0, 10)
+		);
+		expect(january.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { bucket: '2' },
+		});
+		metadata = { ...metadata, ...january.metadata };
+
+		const marchSkippedFebruary = getStreakUsageStatsUpdate(
+			metadata,
+			Date.UTC(2026, 2, 5)
+		);
+		expect(marchSkippedFebruary.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { bucket: '1' },
+		});
 	});
 });

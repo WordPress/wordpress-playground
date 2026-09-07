@@ -355,6 +355,255 @@ add_action('wp_head', 'playground_enable_site_thumbnail_capture');
 add_action('admin_head', 'playground_enable_site_thumbnail_capture');
 
 /**
+ * Exposes a WebMCP `modelContext` inside the WordPress document and proxies it
+ * to the Playground frame.
+ *
+ * WordPress runs in a nested, service-worker-served iframe. A browser agent
+ * driving the top-level Playground page cannot see tools a plugin registers in
+ * that inner document, and the remote frame cannot read the inner document
+ * either — under Document-Isolation-Policy synchronous cross-frame DOM access
+ * is blocked even between same-origin frames.
+ *
+ * This script therefore implements the tool registry on the WordPress side and
+ * mirrors it over `postMessage()`:
+ *
+ * * every registration change announces the full tool list to the parent;
+ * * the parent asks this document to run a tool and receives the JSON result.
+ *
+ * The registry is installed as an own property on `document`, shadowing a
+ * native implementation if the browser has one. Playground owns the proxy that
+ * surfaces these tools to the agent, so the inner document must not register
+ * them with the browser behind Playground's back.
+ *
+ * @see packages/playground/remote/src/lib/webmcp-frame-bridge.ts
+ */
+function playground_enable_webmcp_bridge() {
+	?>
+	<script>
+		(function () {
+			if (window.__playgroundWebmcpBridgeEnabled || window.parent === window) {
+				return;
+			}
+			window.__playgroundWebmcpBridgeEnabled = true;
+
+			var TOOLS_CHANGED = 'playground-webmcp-tools-changed';
+			var LIST_TOOLS = 'playground-webmcp-list-tools';
+			var CALL_TOOL = 'playground-webmcp-call-tool';
+			var CALL_RESULT = 'playground-webmcp-call-result';
+
+			// The remote frame is same-origin with this document.
+			var parentOrigin = window.location.origin;
+			var tools = new Map();
+			var announceScheduled = false;
+
+			/**
+			 * Announces the current tool list to the parent frame.
+			 *
+			 * Batched on a microtask so a plugin registering ten tools in a
+			 * row produces one message rather than ten.
+			 */
+			function announce() {
+				if (announceScheduled) {
+					return;
+				}
+				announceScheduled = true;
+				Promise.resolve().then(function () {
+					announceScheduled = false;
+					var described = [];
+					tools.forEach(function (tool) {
+						described.push({
+							name: tool.name,
+							description:
+								typeof tool.description === 'string'
+									? tool.description
+									: '',
+							inputSchema: toPlainObject(tool.inputSchema),
+							annotations: toPlainObject(tool.annotations)
+						});
+					});
+					window.parent.postMessage(
+						{ type: TOOLS_CHANGED, tools: described },
+						parentOrigin
+					);
+				});
+			}
+
+			/**
+			 * Drops anything a structured clone would reject, such as the
+			 * functions and class instances a schema builder may leave behind.
+			 */
+			function toPlainObject(value) {
+				if (!value || typeof value !== 'object') {
+					return undefined;
+				}
+				try {
+					return JSON.parse(JSON.stringify(value));
+				} catch (e) {
+					return undefined;
+				}
+			}
+
+			function addTool(tool, options) {
+				if (
+					!tool ||
+					typeof tool.name !== 'string' ||
+					!tool.name ||
+					typeof tool.execute !== 'function'
+				) {
+					throw new TypeError(
+						'A WebMCP tool needs a name and an execute() function.'
+					);
+				}
+				tools.set(tool.name, tool);
+				var signal = options && options.signal;
+				if (signal) {
+					if (signal.aborted) {
+						tools.delete(tool.name);
+					} else {
+						signal.addEventListener('abort', function () {
+							if (tools.get(tool.name) === tool) {
+								tools.delete(tool.name);
+								announce();
+							}
+						});
+					}
+				}
+				announce();
+			}
+
+			var modelContext = {
+				get tools() {
+					return Array.from(tools.values());
+				},
+				registerTool: function (tool, options) {
+					addTool(tool, options);
+					return Promise.resolve();
+				},
+				provideContext: function (context) {
+					tools.clear();
+					var provided = (context && context.tools) || [];
+					for (var i = 0; i < provided.length; i++) {
+						addTool(provided[i]);
+					}
+					announce();
+				},
+				clearContext: function () {
+					tools.clear();
+					announce();
+				}
+			};
+
+			Object.defineProperty(document, 'modelContext', {
+				configurable: true,
+				value: modelContext
+			});
+
+			// Chrome 150 deprecated `navigator.modelContext` in favour of
+			// `document.modelContext` but still serves it, so a plugin that
+			// has not migrated works there and would break only here. Mirror
+			// the platform, warning once, and drop this when Chrome does.
+			var warnedAboutNavigator = false;
+			Object.defineProperty(navigator, 'modelContext', {
+				configurable: true,
+				get: function () {
+					if (!warnedAboutNavigator) {
+						warnedAboutNavigator = true;
+						console.warn(
+							'navigator.modelContext is deprecated and will be ' +
+							'removed. Use document.modelContext instead.'
+						);
+					}
+					return modelContext;
+				}
+			});
+
+			// A minimal WebMCP client. The agent lives in the top-level page,
+			// so this document cannot prompt the user itself.
+			var toolClient = {
+				requestUserInteraction: function (callback) {
+					return Promise.resolve().then(callback);
+				}
+			};
+
+			function respond(callId, result, error) {
+				var message = { type: CALL_RESULT, callId: callId };
+				if (error) {
+					message.error = error;
+				} else {
+					try {
+						message.resultJson = JSON.stringify(
+							result === undefined ? null : result
+						);
+					} catch (e) {
+						message.error =
+							'The tool returned a value that cannot be serialized to JSON.';
+					}
+				}
+				window.parent.postMessage(message, parentOrigin);
+			}
+
+			window.addEventListener('message', function (event) {
+				// The origin marks the trust boundary; checking the source as
+				// well keeps another same-origin frame from invoking tools.
+				if (
+					event.source !== window.parent ||
+					event.origin !== parentOrigin ||
+					!event.data
+				) {
+					return;
+				}
+				if (event.data.type === LIST_TOOLS) {
+					announce();
+					return;
+				}
+				if (event.data.type !== CALL_TOOL) {
+					return;
+				}
+				var callId = event.data.callId;
+				var tool = tools.get(event.data.name);
+				if (!tool) {
+					respond(
+						callId,
+						null,
+						'Unknown WebMCP tool: ' + event.data.name
+					);
+					return;
+				}
+				Promise.resolve()
+					.then(function () {
+						return tool.execute(
+							event.data.arguments || {},
+							toolClient
+						);
+					})
+					.then(
+						function (result) {
+							respond(callId, result, null);
+						},
+						function (error) {
+							respond(
+								callId,
+								null,
+								error && error.message
+									? error.message
+									: String(error)
+							);
+						}
+					);
+			});
+
+			// Announce right away so the parent replaces the previous
+			// document's tools on every navigation, even when this page
+			// registers none.
+			announce();
+		})();
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_enable_webmcp_bridge');
+add_action('admin_head', 'playground_enable_webmcp_bridge');
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.

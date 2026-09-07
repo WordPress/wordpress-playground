@@ -1,8 +1,15 @@
 import { createListenerMiddleware } from '@reduxjs/toolkit';
 import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import type { McpBridgeHandle } from '@wp-playground/mcp/client';
-import { registerWebMCPTools, startMcpBridge } from '@wp-playground/mcp/client';
+import type {
+	McpBridgeHandle,
+	WebMCPSiteToolProxy,
+} from '@wp-playground/mcp/client';
+import {
+	registerWebMCPTools,
+	startMcpBridge,
+	startWebMCPSiteToolProxy,
+} from '@wp-playground/mcp/client';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
 import {
@@ -119,6 +126,25 @@ startListening({
 			logger.warn('WebMCP registration failed:', error);
 		});
 
+		/**
+		 * Mirrors the WebMCP tools a plugin registers inside the WordPress
+		 * document onto this page, so an agent driving Playground can call
+		 * them. The proxy is tied to one client, so it restarts whenever the
+		 * site is booted or replaced.
+		 */
+		let siteToolProxy: WebMCPSiteToolProxy | null = null;
+		let proxiedClient: PlaygroundClient | undefined;
+		const syncSiteToolProxy = () => {
+			const client = mcpConfig.getClient();
+			if (client === proxiedClient) {
+				return;
+			}
+			proxiedClient = client;
+			siteToolProxy?.stop();
+			siteToolProxy = client ? startWebMCPSiteToolProxy(client) : null;
+		};
+		syncSiteToolProxy();
+
 		const getRequestedMcpPort = (): number | null => {
 			const mcpPort = new URLSearchParams(window.location.search).get(
 				'mcp-port'
@@ -198,6 +224,7 @@ startListening({
 					action.type === 'ui/setActiveSite'),
 			effect: () => {
 				syncMcpBridge();
+				syncSiteToolProxy();
 				handle?.notifySitesChanged();
 			},
 		});
