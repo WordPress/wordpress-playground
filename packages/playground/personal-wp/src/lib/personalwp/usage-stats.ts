@@ -21,7 +21,10 @@ export type PersonalWpUsageStatsEvent =
 	| 'remote_access_started'
 	| 'health_check_installed'
 	| 'sidebar_opened'
-	| 'backup_restored';
+	| 'backup_restored'
+	| 'daily_streak'
+	| 'weekly_streak'
+	| 'monthly_streak';
 
 export type PersonalWpUsageStatsProperties = Record<string, JsonValue>;
 export type BlueprintInstallUsageStatsTrigger =
@@ -60,6 +63,28 @@ type BlueprintUsageStatsProperties = {
 type BlueprintUsageStatsOptions = {
 	requestSource?: BlueprintInstallUsageStatsRequestSource;
 };
+
+export type StreakUsageStatsMetadata = Pick<
+	SiteMetadata,
+	| 'lastDailyStreakDate'
+	| 'dailyStreak'
+	| 'lastWeeklyStreakWeekStart'
+	| 'weeklyStreak'
+	| 'lastMonthlyStreakMonth'
+	| 'monthlyStreak'
+>;
+
+export type StreakUsageStatsEvent = {
+	event: 'daily_streak' | 'weekly_streak' | 'monthly_streak';
+	properties: PersonalWpUsageStatsProperties;
+};
+
+export type StreakUsageStatsUpdate = {
+	metadata: StreakUsageStatsMetadata;
+	events: StreakUsageStatsEvent[];
+};
+
+type StreakState = { streak: number; periodKey: string };
 
 const EVENT_SCHEMA = 'personal-wp-event/v1';
 const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
@@ -133,6 +158,197 @@ export function shouldLogReturningVisitUsageStats(
 
 export function getUsageStatsDate(timestamp: number): string {
 	return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+export function getUsageStatsWeekStart(timestamp: number): string {
+	const date = new Date(timestamp);
+	const utcDate = new Date(
+		Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+	);
+	const daysSinceMonday = (utcDate.getUTCDay() + 6) % 7;
+	utcDate.setUTCDate(utcDate.getUTCDate() - daysSinceMonday);
+	return utcDate.toISOString().slice(0, 10);
+}
+
+export function getUsageStatsMonth(timestamp: number): string {
+	return new Date(timestamp).toISOString().slice(0, 7);
+}
+
+/**
+ * Computes streak updates for a site at all three granularities. A streak
+ * only advances when the new period immediately follows the last recorded
+ * one; any gap (or a first-ever visit) resets it to 1. Each granularity
+ * reports at most once per period, so summing the resulting event counts
+ * server-side gives a privacy-preserving proxy for distinct active sites
+ * per day/week/month without any per-site identifier ever being sent.
+ */
+export function getStreakUsageStatsUpdate(
+	metadata: SiteMetadata,
+	now: number
+): StreakUsageStatsUpdate {
+	const metadataUpdate: StreakUsageStatsMetadata = {};
+	const events: StreakUsageStatsEvent[] = [];
+
+	const daily = advanceStreak(
+		getStreakState(metadata.lastDailyStreakDate, metadata.dailyStreak),
+		getUsageStatsDate(now),
+		isNextDay
+	);
+	if (daily) {
+		metadataUpdate.lastDailyStreakDate = daily.periodKey;
+		metadataUpdate.dailyStreak = daily.streak;
+		events.push({
+			event: 'daily_streak',
+			properties: { bucket: getDailyStreakBucket(daily.streak) },
+		});
+	}
+
+	const weekly = advanceStreak(
+		getStreakState(
+			metadata.lastWeeklyStreakWeekStart,
+			metadata.weeklyStreak
+		),
+		getUsageStatsWeekStart(now),
+		isNextWeek
+	);
+	if (weekly) {
+		metadataUpdate.lastWeeklyStreakWeekStart = weekly.periodKey;
+		metadataUpdate.weeklyStreak = weekly.streak;
+		events.push({
+			event: 'weekly_streak',
+			properties: { bucket: getWeeklyStreakBucket(weekly.streak) },
+		});
+	}
+
+	const monthly = advanceStreak(
+		getStreakState(metadata.lastMonthlyStreakMonth, metadata.monthlyStreak),
+		getUsageStatsMonth(now),
+		isNextMonth
+	);
+	if (monthly) {
+		metadataUpdate.lastMonthlyStreakMonth = monthly.periodKey;
+		metadataUpdate.monthlyStreak = monthly.streak;
+		events.push({
+			event: 'monthly_streak',
+			properties: { bucket: getMonthlyStreakBucket(monthly.streak) },
+		});
+	}
+
+	return { metadata: metadataUpdate, events };
+}
+
+function getStreakState(
+	periodKey: string | undefined,
+	streak: number | undefined
+): StreakState | undefined {
+	return periodKey && streak ? { periodKey, streak } : undefined;
+}
+
+/**
+ * Returns the new streak state when `currentPeriodKey` starts a period that
+ * hasn't been reported yet, or `undefined` when it was already reported
+ * (the per-period dedupe that keeps event counts privacy-preserving).
+ *
+ * Period keys (YYYY-MM-DD or YYYY-MM) sort the same lexicographically as
+ * chronologically, so a `currentPeriodKey` that isn't strictly after the
+ * last recorded one — including one from a backward-skewed client clock —
+ * is treated as already reported rather than as a gap that resets the
+ * streak and re-emits an event for a period that was already counted.
+ */
+function advanceStreak(
+	previous: StreakState | undefined,
+	currentPeriodKey: string,
+	isImmediatelyFollowing: (
+		previousPeriodKey: string,
+		currentPeriodKey: string
+	) => boolean
+): StreakState | undefined {
+	if (previous && previous.periodKey >= currentPeriodKey) {
+		return undefined;
+	}
+
+	const streak =
+		previous && isImmediatelyFollowing(previous.periodKey, currentPeriodKey)
+			? previous.streak + 1
+			: 1;
+	return { streak, periodKey: currentPeriodKey };
+}
+
+function isNextDay(previousDate: string, currentDate: string): boolean {
+	return addUtcDays(previousDate, 1) === currentDate;
+}
+
+function isNextWeek(
+	previousWeekStart: string,
+	currentWeekStart: string
+): boolean {
+	return addUtcDays(previousWeekStart, 7) === currentWeekStart;
+}
+
+function isNextMonth(previousMonth: string, currentMonth: string): boolean {
+	const [year, month] = previousMonth.split('-').map(Number);
+	const next = new Date(Date.UTC(year, month, 1));
+	return next.toISOString().slice(0, 7) === currentMonth;
+}
+
+function addUtcDays(date: string, days: number): string {
+	const next = new Date(`${date}T00:00:00.000Z`);
+	next.setUTCDate(next.getUTCDate() + days);
+	return next.toISOString().slice(0, 10);
+}
+
+function getDailyStreakBucket(streak: number): string {
+	if (streak <= 1) {
+		return '1';
+	}
+	if (streak === 2) {
+		return '2';
+	}
+	if (streak <= 6) {
+		return '3-6';
+	}
+	if (streak <= 13) {
+		return '7-13';
+	}
+	if (streak <= 29) {
+		return '14-29';
+	}
+	return '30+';
+}
+
+function getWeeklyStreakBucket(streak: number): string {
+	if (streak <= 1) {
+		return '1';
+	}
+	if (streak === 2) {
+		return '2';
+	}
+	if (streak <= 4) {
+		return '3-4';
+	}
+	if (streak <= 8) {
+		return '5-8';
+	}
+	return '9+';
+}
+
+function getMonthlyStreakBucket(streak: number): string {
+	if (streak <= 1) {
+		return '1';
+	}
+	if (streak === 2) {
+		return '2';
+	}
+	if (streak === 3) {
+		return '3';
+	}
+	if (streak <= 6) {
+		return '4-6';
+	}
+	if (streak <= 12) {
+		return '7-12';
+	}
+	return '13+';
 }
 
 export function getBlueprintUsageStatsProperties(

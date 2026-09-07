@@ -5,6 +5,7 @@ import type { ProgressReceiver } from '@php-wasm/progress';
 import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
 import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
 import type { ProgressBarOptions } from './progress-bar';
+import type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
 import type {
 	PlaygroundWorkerEndpoint,
 	MountDescriptor,
@@ -12,6 +13,7 @@ import type {
 } from './playground-worker-endpoint';
 
 export type { BootProgressEvent } from './playground-worker-endpoint';
+export type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -61,6 +63,30 @@ export interface WebClientMixin extends ProgressReceiver {
 	 * @param flags The iframe sandbox flags.
 	 */
 	setIframeSandboxFlags(flags: string[]): Promise<void>;
+
+	/**
+	 * Subscribes to the WebMCP tools a plugin registers with
+	 * `document.modelContext` inside the WordPress document.
+	 *
+	 * The callback receives the complete tool list every time it changes, and
+	 * once with the current list when it subscribes. A navigation to a page
+	 * that registers no tools reports an empty list.
+	 */
+	onWebMCPToolsChanged(
+		fn: (tools: WebMCPToolDescriptor[]) => void
+	): Promise<void>;
+
+	/**
+	 * Runs one of those tools inside the WordPress document and returns its
+	 * JSON-serializable result.
+	 *
+	 * @param name The tool name as announced by `onWebMCPToolsChanged`.
+	 * @param args The tool input.
+	 */
+	callWebMCPTool(
+		name: string,
+		args: Record<string, unknown>
+	): Promise<unknown>;
 
 	/**
 	 * The onDownloadProgress event listener.

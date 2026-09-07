@@ -564,30 +564,14 @@ reportServiceWorkerMetrics(self);
 const controlledIframe = `
 window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
 	const source = window.wp.element.useMemo(function () {
-		/**
-		 * A synchronous function to read a blob URL as text.
-		 *
-		 * @param {string} url
-		 * @returns {string}
-		 */
-		const __playground_readBlobAsText = function (url) {
-			try {
-				let xhr = new XMLHttpRequest();
-				xhr.open('GET', url, false);
-				xhr.overrideMimeType('text/plain;charset=utf-8');
-				xhr.send();
-				return xhr.responseText;
-			} catch(e) {
-				return '';
-			}
-		};
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
 			return '/wp-includes/empty.html';
 		} else if (props.src && props.src.startsWith('blob:')) {
 			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
-			// Let's pass the document content to empty.html and render it there.
-			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+			// Pass the blob URL – never the document content – to empty.html, which
+			// fetches and renders it itself. Only same-origin blob: URLs are honored.
+			return '/wp-includes/empty.html#' + encodeURIComponent(props.src);
 		} else {
 			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
 			return props.src;
@@ -603,6 +587,39 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 		})
 	)
 });`;
+
+/**
+ * Inline script served as /wp-includes/empty.html.
+ *
+ * The URL fragment may name a same-origin blob: URL created by the block editor
+ * (WordPress 6.3). The script fetches that blob and writes its content into the
+ * document. The fragment is never written directly: anything other than a blob:
+ * URL on this origin is ignored, so a crafted link cannot inject markup into
+ * the Playground origin. The synchronous XHR runs during the initial parse, so
+ * document.write() lands before the iframe's load event.
+ */
+const emptyHtmlScript = `
+	const hash = window.location.hash.substring(1);
+	if (hash) {
+		let url;
+		try {
+			url = new URL(decodeURIComponent(hash));
+		} catch (e) {}
+		if (
+			url &&
+			url.protocol === 'blob:' &&
+			url.origin === window.location.origin
+		) {
+			try {
+				const xhr = new XMLHttpRequest();
+				xhr.open('GET', url.href, false);
+				xhr.overrideMimeType('text/plain;charset=utf-8');
+				xhr.send();
+				document.write(xhr.responseText);
+			} catch (e) {}
+		}
+	}
+`;
 
 /**
  * The empty HTML file loaded by the patched editor iframe.
@@ -630,7 +647,7 @@ function emptyHtml(scope: string) {
 	}
 
 	return new Response(
-		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
+		'<!doctype html><script>' + emptyHtmlScript + '</script>',
 		{
 			status: 200,
 			headers,
