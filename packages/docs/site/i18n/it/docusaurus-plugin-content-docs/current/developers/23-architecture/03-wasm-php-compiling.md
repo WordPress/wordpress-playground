@@ -1,5 +1,5 @@
 ---
-title: Compilando PHP
+title: Compilare PHP
 slug: /developers/architecture/wasm-php-compiling
 ---
 
@@ -7,19 +7,19 @@ slug: /developers/architecture/wasm-php-compiling
 # Compiling PHP
 -->
 
-# Compilando PHP
+# Compilare PHP
 
 <!--
 The build pipeline lives in a [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
 -->
 
-O processo de compilação está em um [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile). Ele foi originalmente derivado de [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm).
+Il processo di compilazione si trova in un [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile). In origine è stato derivato da [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm).
 
 <!--
 In broad strokes, that `Dockerfile`:
 -->
 
-Em linhas gerais, esse `Dockerfile`:
+A grandi linee, questo `Dockerfile`:
 
 <!--
 - Installs all the necessary linux packages (like `build-essential`)
@@ -31,31 +31,31 @@ Em linhas gerais, esse `Dockerfile`:
 - Transforms the Emscripten's default `php.js` output into an ESM module with additional features.
 -->
 
-- Instala todos os pacotes Linux necessários (como `build-essential`).
-- Baixa o PHP e as bibliotecas necessárias, como `sqlite3`.
-- Aplica algumas correções.
-- Compila tudo usando [Emscripten](https://emscripten.org/), um substituto direto para o compilador C.
-- Compila `php_wasm.c` – uma API conveniente para JavaScript.
-- Gera um arquivo `php.wasm` e um ou mais carregadores JavaScript, dependendo da configuração.
-- Transforma a saída padrão `php.js` do Emscripten em um módulo ESM com recursos adicionais.
+- Installa tutti i pacchetti Linux necessari (come `build-essential`).
+- Scarica PHP e le librerie necessarie, come `sqlite3`.
+- Applica alcune patch.
+- Compila tutto con [Emscripten](https://emscripten.org/), un sostituto diretto del compilatore C.
+- Compila `php_wasm.c`, una comoda API per JavaScript.
+- Genera un file `php.wasm` e uno o più loader JavaScript, a seconda della configurazione.
+- Trasforma l'output predefinito `php.js` di Emscripten in un modulo ESM con funzionalità aggiuntive.
 
 <!--
 To find out more about each step, refer directly to the [Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile).
 -->
 
-Para saber mais sobre cada etapa, consulte diretamente o [Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile).
+Per saperne di più su ogni passaggio, consulta direttamente il [Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile).
 
 <!--
 ### Building
 -->
 
-### Compilação
+### Compilazione
 
 <!--
 With Docker running and the repository dependencies installed, run these commands from the repository root:
 -->
 
-Com o Docker em execução e as dependências do repositório instaladas, execute estes comandos na raiz do repositório:
+Con Docker in esecuzione e le dipendenze del repository installate, esegui questi comandi dalla directory principale del repository:
 
 <!--
 ```sh
@@ -68,10 +68,10 @@ npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
 -->
 
 ```sh
-# Compila todas as versões suportadas do PHP para a web, nos modos JSPI e Asyncify.
+# Compila tutte le versioni PHP supportate per il web, nelle modalità JSPI e Asyncify.
 npx nx recompile-php:all php-wasm-web
 
-# Compila apenas o PHP 8.4 para a web, no modo JSPI.
+# Compila solo PHP 8.4 per il web, in modalità JSPI.
 npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
 ```
 
@@ -79,19 +79,19 @@ npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
 Replace `php-wasm-web` with `php-wasm-node` to build for Node.js, or `recompile-php:jspi` with `recompile-php:asyncify` to build the Asyncify variant. The output goes to `packages/php-wasm/web-builds/<major>-<minor>/<mode>/` or `packages/php-wasm/node-builds/<major>-<minor>/<mode>/`.
 -->
 
-Substitua `php-wasm-web` por `php-wasm-node` para compilar para Node.js, ou `recompile-php:jspi` por `recompile-php:asyncify` para compilar a variante Asyncify. A saída é gravada em `packages/php-wasm/web-builds/<major>-<minor>/<mode>/` ou `packages/php-wasm/node-builds/<major>-<minor>/<mode>/`.
+Sostituisci `php-wasm-web` con `php-wasm-node` per compilare per Node.js, oppure `recompile-php:jspi` con `recompile-php:asyncify` per compilare la variante Asyncify. L'output viene salvato in `packages/php-wasm/web-builds/<major>-<minor>/<mode>/` oppure `packages/php-wasm/node-builds/<major>-<minor>/<mode>/`.
 
 <!--
 ### Debug builds
 -->
 
-### Compilações para depuração {#debug-builds}
+### Build di debug {#debug-builds}
 
 <!--
 Use `--WITH_DEBUG=yes` to build PHP.wasm with readable JavaScript output and DWARF debug information for stepping through C code in a WebAssembly debugger:
 -->
 
-Use `--WITH_DEBUG=yes` para compilar PHP.wasm com saída JavaScript legível e informações de depuração DWARF para executar o código C passo a passo em um depurador WebAssembly:
+Usa `--WITH_DEBUG=yes` per compilare PHP.wasm con un output JavaScript leggibile e informazioni di debug DWARF che consentono di eseguire il codice C passo per passo in un debugger WebAssembly:
 
 <!--
 ```sh
@@ -104,10 +104,10 @@ npx nx recompile-php:jspi php-wasm-node -- --PHP_VERSION=8.4 --WITH_DEBUG=yes
 -->
 
 ```sh
-# Compila o PHP 8.4 para depuração no navegador.
+# Compila PHP 8.4 per il debug nel browser.
 npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4 --WITH_DEBUG=yes
 
-# Compila o PHP 8.4 para depuração no Node.js.
+# Compila PHP 8.4 per il debug in Node.js.
 npx nx recompile-php:jspi php-wasm-node -- --PHP_VERSION=8.4 --WITH_DEBUG=yes
 ```
 
@@ -115,13 +115,13 @@ npx nx recompile-php:jspi php-wasm-node -- --PHP_VERSION=8.4 --WITH_DEBUG=yes
 The same option works with `recompile-php:asyncify`. Debug builds produce larger files and run more slowly than optimized builds. They replace the selected version's artifacts in the output directory described above. Rebuild with `--WITH_DEBUG=no --WITH_SOURCEMAPS=no` to restore an optimized build.
 -->
 
-A mesma opção funciona com `recompile-php:asyncify`. As compilações para depuração geram arquivos maiores e são mais lentas que as compilações otimizadas. Elas substituem os artefatos da versão selecionada no diretório de saída descrito acima. Compile novamente com `--WITH_DEBUG=no --WITH_SOURCEMAPS=no` para restaurar uma compilação otimizada.
+La stessa opzione funziona con `recompile-php:asyncify`. Le build di debug generano file più grandi e vengono eseguite più lentamente delle build ottimizzate. Sostituiscono gli artefatti della versione selezionata nella directory di output descritta sopra. Ricompila con `--WITH_DEBUG=no --WITH_SOURCEMAPS=no` per ripristinare una build ottimizzata.
 
 <!--
 For WebAssembly source maps, use `--WITH_SOURCEMAPS=yes`:
 -->
 
-Para gerar mapas de código-fonte WebAssembly, use `--WITH_SOURCEMAPS=yes`:
+Per generare le mappe dei sorgenti WebAssembly, usa `--WITH_SOURCEMAPS=yes`:
 
 <!--
 ```sh
@@ -137,19 +137,19 @@ npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4 --WITH_SOURCEMAPS=ye
 This generates a `php.wasm.map` file and copies the source files needed for debugging into the build output. For web builds, the source map URL points to the local development server at `http://127.0.0.1:5400`; run `npm run dev` to serve it.
 -->
 
-Isso gera um arquivo `php.wasm.map` e copia os arquivos de código-fonte necessários para depuração para o diretório de saída da compilação. Nas compilações para a web, o URL do mapa de código-fonte aponta para o servidor de desenvolvimento local em `http://127.0.0.1:5400`; execute `npm run dev` para disponibilizá-lo.
+Questo genera un file `php.wasm.map` e copia i file sorgente necessari per il debug nella directory di output della build. Per le build web, l'URL della mappa dei sorgenti punta al server di sviluppo locale all'indirizzo `http://127.0.0.1:5400`; esegui `npm run dev` per renderla disponibile.
 
 <!--
 #### Emscripten options
 -->
 
-#### Opções do Emscripten
+#### Opzioni di Emscripten
 
 <!--
 The build script translates these options into compiler flags in the [PHP Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile):
 -->
 
-O script de compilação converte essas opções em sinalizadores do compilador no [Dockerfile do PHP](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile):
+Lo script di compilazione converte queste opzioni in flag del compilatore nel [Dockerfile di PHP](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile):
 
 <!--
 | Flag           | Purpose                                                                                                | When Playground uses it                                                 |
@@ -160,66 +160,66 @@ O script de compilação converte essas opções em sinalizadores do compilador 
 | `-gsource-map` | Generates a WebAssembly source map from compiler debug information.                                    | `WITH_SOURCEMAPS=yes`.                                                  |
 -->
 
-| Sinalizador    | Finalidade                                                                                       | Quando o Playground o usa                                                     |
-| -------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `-O0`          | Desativa a otimização da saída final de WebAssembly e JavaScript.                                | `WITH_DEBUG=yes` ou `WITH_SOURCEMAPS=yes`, substituindo o padrão `-O3`.       |
-| `-g2`          | Mantém os nomes das funções e o JavaScript legível, sem reter informações DWARF no módulo final. | Compilações para Node.js quando nenhuma das opções de depuração está ativada. |
-| `-g3`          | Mantém informações DWARF para depuração no nível do código-fonte.                                | `WITH_DEBUG=yes` ou `WITH_SOURCEMAPS=yes`.                                    |
-| `-gsource-map` | Gera um mapa de código-fonte WebAssembly a partir das informações de depuração do compilador.    | `WITH_SOURCEMAPS=yes`.                                                        |
+| Flag           | Scopo                                                                                                               | Quando viene usato da Playground                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `-O0`          | Disabilita l'ottimizzazione dell'output finale WebAssembly e JavaScript.                                            | `WITH_DEBUG=yes` oppure `WITH_SOURCEMAPS=yes`, al posto del valore predefinito `-O3`. |
+| `-g2`          | Mantiene i nomi delle funzioni e il JavaScript leggibile, senza conservare le informazioni DWARF nel modulo finale. | Build per Node.js quando nessuna delle opzioni di debug è attiva.                     |
+| `-g3`          | Conserva le informazioni DWARF per il debug a livello di codice sorgente.                                           | `WITH_DEBUG=yes` oppure `WITH_SOURCEMAPS=yes`.                                        |
+| `-gsource-map` | Genera una mappa dei sorgenti WebAssembly a partire dalle informazioni di debug del compilatore.                    | `WITH_SOURCEMAPS=yes`.                                                                |
 
 <!--
 See the [Emscripten compiler reference](https://emscripten.org/docs/tools_reference/emcc.html) for details on these flags.
 -->
 
-Consulte a [referência do compilador Emscripten](https://emscripten.org/docs/tools_reference/emcc.html) para saber mais sobre esses sinalizadores.
+Consulta la [documentazione di riferimento del compilatore Emscripten](https://emscripten.org/docs/tools_reference/emcc.html) per maggiori dettagli su questi flag.
 
 <!--
 #### Runtime assertions
 -->
 
-#### Asserções em tempo de execução
+#### Asserzioni a runtime
 
 <!--
 Debug information and runtime assertions are separate settings. Playground explicitly passes `-s ASSERTIONS=0`, including in debug builds, so `--WITH_DEBUG=yes` does not enable extra runtime checks.
 -->
 
-As informações de depuração e as asserções em tempo de execução são configurações separadas. O Playground passa explicitamente `-s ASSERTIONS=0`, inclusive nas compilações para depuração, portanto `--WITH_DEBUG=yes` não ativa verificações adicionais em tempo de execução.
+Le informazioni di debug e le asserzioni a runtime sono impostazioni separate. Playground passa esplicitamente `-s ASSERTIONS=0`, anche nelle build di debug, quindi `--WITH_DEBUG=yes` non abilita controlli aggiuntivi a runtime.
 
 <!--
 To investigate a runtime failure with assertions, change that setting in the PHP Dockerfile's final `emcc` command and rebuild. Emscripten documents `-s ASSERTIONS=1` for runtime checks and `-s ASSERTIONS=2` for additional, slower checks. There is no `WITH_ASSERTIONS` build option. See the [Emscripten assertions reference](https://emscripten.org/docs/tools_reference/settings_reference.html#assertions).
 -->
 
-Para investigar uma falha em tempo de execução com asserções, altere essa configuração no comando `emcc` final do Dockerfile do PHP e compile novamente. O Emscripten documenta `-s ASSERTIONS=1` para verificações em tempo de execução e `-s ASSERTIONS=2` para verificações adicionais, mais lentas. Não existe uma opção de compilação `WITH_ASSERTIONS`. Consulte a [referência de asserções do Emscripten](https://emscripten.org/docs/tools_reference/settings_reference.html#assertions).
+Per analizzare un errore a runtime con le asserzioni, modifica questa impostazione nel comando `emcc` finale del Dockerfile di PHP e ricompila. Emscripten documenta `-s ASSERTIONS=1` per i controlli a runtime e `-s ASSERTIONS=2` per controlli aggiuntivi, più lenti. Non esiste un’opzione di compilazione `WITH_ASSERTIONS`. Consulta la [documentazione di riferimento sulle asserzioni di Emscripten](https://emscripten.org/docs/tools_reference/settings_reference.html#assertions).
 
 <!--
 Assertions can also report an environment mismatch between `web` and `worker`. Check the build's `ENVIRONMENT` setting and the JavaScript loader's execution context when investigating those errors; see the [discussion in issue #176](https://github.com/WordPress/wordpress-playground/issues/176#issuecomment-1483754022).
 -->
 
-As asserções também podem indicar uma incompatibilidade de ambiente entre `web` e `worker`. Verifique a configuração `ENVIRONMENT` da compilação e o contexto de execução do carregador JavaScript ao investigar esses erros; consulte a [discussão na issue #176](https://github.com/WordPress/wordpress-playground/issues/176#issuecomment-1483754022).
+Le asserzioni possono anche segnalare una mancata corrispondenza dell'ambiente tra `web` e `worker`. Controlla l'impostazione `ENVIRONMENT` della build e il contesto di esecuzione del loader JavaScript quando analizzi questi errori; consulta la [discussione nell'issue #176](https://github.com/WordPress/wordpress-playground/issues/176#issuecomment-1483754022).
 
 <!--
 ### PHP next builds
 -->
 
-### Compilações do PHP next
+### Build di PHP next
 
 <!--
 Playground can also run the next PHP version from the php-src development branch in the web runtime. These builds are published separately from the main repository because the generated WebAssembly files are large and change often.
 -->
 
-O Playground também pode executar a próxima versão do PHP a partir do branch de desenvolvimento do php-src no ambiente web. Essas compilações são publicadas separadamente do repositório principal porque os arquivos WebAssembly gerados são grandes e mudam com frequência.
+Playground può anche eseguire nel runtime web la prossima versione di PHP dal branch di sviluppo di php-src. Queste build vengono pubblicate separatamente dal repository principale perché i file WebAssembly generati sono grandi e cambiano spesso.
 
 <!--
 The nightly refresh workflow builds the php-src development branch, writes the web artifacts to the gitignored `packages/playground/website/public/php-next/` directory, and publishes the result to the `php-next-builds` branch. Website deploys and the local dev server sync that branch before serving `?php=next`.
 -->
 
-O fluxo de atualização noturno compila o branch de desenvolvimento do php-src, grava os artefatos para a web no diretório `packages/playground/website/public/php-next/`, ignorado pelo Git, e publica o resultado no branch `php-next-builds`. As implantações do site e o servidor de desenvolvimento local sincronizam esse branch antes de servir `?php=next`.
+Il workflow di aggiornamento notturno compila il branch di sviluppo di php-src, scrive gli artefatti web nella directory `packages/playground/website/public/php-next/`, ignorata da Git, e pubblica il risultato nel branch `php-next-builds`. Le distribuzioni del sito web e il server di sviluppo locale sincronizzano questo branch prima di servire `?php=next`.
 
 <!--
 To refresh the local copy manually, run:
 -->
 
-Para atualizar a cópia local manualmente, execute:
+Per aggiornare manualmente la copia locale, esegui:
 
 <!--
 ```sh
@@ -235,7 +235,7 @@ npm run sync:php-next
 To rebuild the web artifacts locally from the php-src development branch, run:
 -->
 
-Para recompilar localmente os artefatos para a web a partir do branch de desenvolvimento do php-src, execute:
+Per ricompilare localmente gli artefatti web dal branch di sviluppo di php-src, esegui:
 
 <!--
 ```sh
@@ -251,31 +251,31 @@ npm run recompile:php:web:next
 `php=next` currently ships web main modules only. Matching extension side modules and Playground CLI support are separate follow-up work.
 -->
 
-Atualmente, `php=next` distribui apenas módulos principais para a web. Os módulos auxiliares de extensões correspondentes e o suporte à CLI do Playground serão tratados em trabalhos separados.
+Attualmente `php=next` distribuisce solo i moduli principali per il web. I moduli secondari delle estensioni corrispondenti e il supporto per la CLI di Playground saranno affrontati in attività successive separate.
 
 <!--
 ### PHP extensions
 -->
 
-### Extensões PHP
+### Estensioni PHP
 
 <!--
 PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile).
 -->
 
-O PHP é compilado com várias extensões listadas no [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile).
+PHP viene compilato con diverse estensioni elencate nel [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/Dockerfile).
 
 <!--
 Some extensions, like `zip`, can be turned on or off during the build. Others, like `sqlite3`, are hardcoded.
 -->
 
-Algumas extensões, como `zip`, podem ser ativadas ou desativadas durante a compilação. Outras, como `sqlite3`, são definidas diretamente no código.
+Alcune estensioni, come `zip`, possono essere abilitate o disabilitate durante la compilazione. Altre, come `sqlite3`, sono definite direttamente nel codice.
 
 <!--
 If you need to turn off one of the hardcoded extensions, feel free to open an issue in this repo. Better yet, this project needs contributors. You are more than welcome to open a PR and author the change you need.
 -->
 
-Se você precisa desativar uma das extensões definidas diretamente no código, fique à vontade para abrir uma issue neste repositório. Melhor ainda: este projeto precisa de colaboradores. Você pode abrir um PR e implementar a alteração de que precisa.
+Se hai bisogno di disabilitare una delle estensioni definite direttamente nel codice, puoi aprire un'issue in questo repository. Ancora meglio: questo progetto ha bisogno di collaboratori. Puoi aprire una PR e implementare la modifica di cui hai bisogno.
 
 <!--
 PHP.wasm can also load dynamic `.so` extensions before PHP starts. Built-in
@@ -286,19 +286,19 @@ mode. See [Loading PHP extensions](/developers/apis/javascript-api/php-extension
 for the runtime API.
 -->
 
-PHP.wasm também pode carregar extensões dinâmicas `.so` antes de iniciar o PHP. Extensões dinâmicas integradas, como `intl`, `xdebug`, `redis` e `memcached`, são distribuídas com o pacote Node, e extensões externas podem ser fornecidas com um manifesto que seleciona o artefato correspondente à versão do PHP e ao modo assíncrono ativos. Consulte [Carregando extensões PHP](/developers/apis/javascript-api/php-extensions) para conhecer a API de execução.
+PHP.wasm può anche caricare estensioni dinamiche `.so` prima dell'avvio di PHP. Le estensioni dinamiche integrate, come `intl`, `xdebug`, `redis` e `memcached`, vengono distribuite con il pacchetto Node, mentre le estensioni esterne possono essere fornite con un manifest che seleziona l'artefatto corrispondente alla versione di PHP e alla modalità asincrona attive. Consulta [Caricare estensioni PHP](/developers/apis/javascript-api/php-extensions) per l'API di runtime.
 
 <!--
 ### C API exposed to JavaScript
 -->
 
-### API C exposta ao JavaScript
+### API C esposta a JavaScript
 
 <!--
 The C API exposed to JavaScript lives in the [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) file. The most important functions are:
 -->
 
-A API C exposta ao JavaScript está no arquivo [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c). As funções mais importantes são:
+L'API C esposta a JavaScript si trova nel file [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c). Le funzioni più importanti sono:
 
 <!--
 - `void phpwasm_init()` – It creates a new PHP context and must be called before running any PHP code.
@@ -306,27 +306,27 @@ A API C exposta ao JavaScript está no arquivo [`php_wasm.c`](https://github.com
 - `void phpwasm_refresh()` – Destroy the current PHP context and starts a new one. Call it after running one PHP script and before running another.
 -->
 
-- `void phpwasm_init()` – Cria um novo contexto PHP e deve ser chamada antes de executar qualquer código PHP.
-- `int phpwasm_run(char *code)` – Executa um script PHP e grava a saída em /tmp/stdout e /tmp/stderr. Retorna o código de saída.
-- `void phpwasm_refresh()` – Destrói o contexto PHP atual e inicia um novo. Chame-a após executar um script PHP e antes de executar outro.
+- `void phpwasm_init()` – Crea un nuovo contesto PHP e deve essere chiamata prima di eseguire qualsiasi codice PHP.
+- `int phpwasm_run(char *code)` – Esegue uno script PHP e scrive l'output in /tmp/stdout e /tmp/stderr. Restituisce il codice di uscita.
+- `void phpwasm_refresh()` – Elimina il contesto PHP corrente e ne avvia uno nuovo. Chiamala dopo aver eseguito uno script PHP e prima di eseguirne un altro.
 
 <!--
 Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) to learn more.
 -->
 
-Consulte a documentação no código de [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) para saber mais.
+Consulta la documentazione nel codice di [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) per saperne di più.
 
 <!--
 ### Build configuration
 -->
 
-### Configuração da compilação
+### Configurazione della build
 
 <!--
 The build is configurable via the [Docker `--build-arg` feature](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). You can set them up through the `build.js` script, just run this command to get the usage message:
 -->
 
-A compilação é configurável pelo [recurso `--build-arg` do Docker](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). Você pode definir as opções pelo script `build.js`; execute este comando para ver as instruções de uso:
+La build è configurabile tramite la [funzionalità `--build-arg` di Docker](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). Puoi impostare le opzioni tramite lo script `build.js`; esegui questo comando per visualizzare le istruzioni di utilizzo:
 
 <!--
 ```sh
@@ -342,7 +342,7 @@ npx nx recompile-php:jspi php-wasm-web -- --help
 **Supported build options:**
 -->
 
-**Opções de compilação suportadas:**
+**Opzioni di compilazione supportate:**
 
 <!--
 - `WITH_DEBUG` – `yes` or `no`. Build with DWARF debug information and disable final optimization. See [Debug builds](#debug-builds).
@@ -354,10 +354,10 @@ npx nx recompile-php:jspi php-wasm-web -- --help
 - `WITH_NODEFS` – `yes` or `no`, default: `no`. Whether to include [the Emscripten's NODEFS JavaScript library](https://emscripten.org/docs/api_reference/Filesystem-API.html#filesystem-api-nodefs). It's useful for loading files and mounting directories from the local filesystem when running php.wasm from Node.js.
 -->
 
-- `WITH_DEBUG` – `yes` ou `no`. Compila com informações de depuração DWARF e desativa a otimização final. Consulte [Compilações para depuração](#debug-builds).
-- `WITH_SOURCEMAPS` – `yes` ou `no`. Gera mapas de código-fonte WebAssembly e desativa a otimização final. Consulte [Compilações para depuração](#debug-builds).
-- `PHP_VERSION` – A versão do PHP a compilar, padrão: `8.0.24`. Esse valor deve corresponder a um branch existente do repositório https://github.com/php/php-src.git quando precedido por `PHP-`. Por exemplo, `7.4.0` é válido porque o branch `PHP-7.4.0` existe, mas apenas `7` é inválido porque não existe um branch `PHP-7`. As versões do PHP que sabemos que funcionam são `7.4.*` e `8.0.*`. Outras provavelmente também funcionam, mas não foram testadas.
-- `EMSCRIPTEN_ENVIRONMENT` – `web` ou `node`, padrão: `web`. A plataforma para a qual compilar. Ao compilar para `web`, dois carregadores JavaScript são criados: `php-web.js` e `php-webworker.js`. Ao compilar para Node.js, apenas um carregador chamado `php-node.js` é criado.
-- `WITH_LIBXML` – `yes` ou `no`, padrão: `no`. Define se a compilação inclui `libxml2` e as extensões PHP `dom`, `xml` e `simplexml` (`DOMDocument`, `SimpleXML`, ...).
-- `WITH_LIBZIP` – `yes` ou `no`, padrão: `yes`. Define se a compilação inclui `zlib`, `libzip` e a extensão PHP `zip` (`ZipArchive`).
-- `WITH_NODEFS` – `yes` ou `no`, padrão: `no`. Define se a compilação inclui [a biblioteca JavaScript NODEFS do Emscripten](https://emscripten.org/docs/api_reference/Filesystem-API.html#filesystem-api-nodefs). Ela permite carregar arquivos e montar diretórios do sistema de arquivos local ao executar php.wasm no Node.js.
+- `WITH_DEBUG` – `yes` oppure `no`. Compila con informazioni di debug DWARF e disabilita l'ottimizzazione finale. Consulta [Build di debug](#debug-builds).
+- `WITH_SOURCEMAPS` – `yes` oppure `no`. Genera mappe dei sorgenti WebAssembly e disabilita l'ottimizzazione finale. Consulta [Build di debug](#debug-builds).
+- `PHP_VERSION` – La versione di PHP da compilare, predefinita: `8.0.24`. Questo valore deve corrispondere a un branch esistente del repository https://github.com/php/php-src.git quando preceduto da `PHP-`. Ad esempio, `7.4.0` è valido perché il branch `PHP-7.4.0` esiste, mentre solo `7` non è valido perché non esiste un branch `PHP-7`. Le versioni di PHP note per funzionare sono `7.4.*` e `8.0.*`. È probabile che anche le altre funzionino, ma non sono state provate.
+- `EMSCRIPTEN_ENVIRONMENT` – `web` oppure `node`, predefinito: `web`. La piattaforma di destinazione della compilazione. Per `web` vengono creati due loader JavaScript: `php-web.js` e `php-webworker.js`. Per Node.js viene creato un solo loader, chiamato `php-node.js`.
+- `WITH_LIBXML` – `yes` oppure `no`, predefinito: `no`. Indica se compilare con `libxml2` e le estensioni PHP `dom`, `xml` e `simplexml` (`DOMDocument`, `SimpleXML`, ...).
+- `WITH_LIBZIP` – `yes` oppure `no`, predefinito: `yes`. Indica se compilare con `zlib`, `libzip` e l'estensione PHP `zip` (`ZipArchive`).
+- `WITH_NODEFS` – `yes` oppure `no`, predefinito: `no`. Indica se includere [la libreria JavaScript NODEFS di Emscripten](https://emscripten.org/docs/api_reference/Filesystem-API.html#filesystem-api-nodefs). È utile per caricare file e montare directory del filesystem locale quando si esegue php.wasm da Node.js.
