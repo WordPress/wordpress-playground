@@ -4,6 +4,39 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.53] (2026-09-07) 
+
+### Documentation
+
+- Personal Playground: Let a WordPress page request a site backup. ([#4304](https://github.com/WordPress/wordpress-playground/pull/4304))
+- [Docs] Add GitHub UI documentation contribution guide. ([#3724](https://github.com/WordPress/wordpress-playground/pull/3724))
+- [i18n] Add Bengali (bn) translation for the troubleshooting page. ([#4289](https://github.com/WordPress/wordpress-playground/pull/4289))
+
+### PHP WebAssembly
+
+- Fix external PHP extension ABI exports. ([#4108](https://github.com/WordPress/wordpress-playground/pull/4108))
+
+### Website
+
+- Exclude PHP next from pre-emptive offline loading. ([#4294](https://github.com/WordPress/wordpress-playground/pull/4294))
+- Only render same-origin blob: URLs in the editor iframe's empty.html. ([#4308](https://github.com/WordPress/wordpress-playground/pull/4308))
+
+#### Blueprints
+
+- Proxy WebMCP tools registered inside the WordPress iframe. ([#4301](https://github.com/WordPress/wordpress-playground/pull/4301))
+
+### Various
+
+- Add daily/weekly/monthly activity streaks to Personal WP usage stats. ([#4305](https://github.com/WordPress/wordpress-playground/pull/4305))
+- Fold renamed plugin slugs together in the Personal WP stats dashboard. ([#4306](https://github.com/WordPress/wordpress-playground/pull/4306))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @brandonpayton @chubes4 @ekamran @ikamal7
+
+
 ## [v3.1.52] (2026-08-31) 
 
 ### Blueprints
