@@ -59,6 +59,14 @@ export interface WebClientMixin extends ProgressReceiver {
 	captureSiteThumbnail(): Promise<SiteThumbnail>;
 
 	/**
+	 * Sets the bottom offset for WordPress editor notices.
+	 *
+	 * @internal Used by the Playground website to keep notices clear of its
+	 * floating Dock.
+	 */
+	setEditorNoticeBottomOffset(bottom: number | undefined): Promise<void>;
+
+	/**
 	 * Sets the iframe sandbox flags.
 	 * @param flags The iframe sandbox flags.
 	 */

@@ -46,6 +46,58 @@ add_action('admin_head', function () {
 });
 
 /**
+ * Keeps editor snackbars above the floating Playground Dock.
+ *
+ * The host measures the Dock and relays its bottom offset through the
+ * Playground client. postMessage crosses the iframe boundary even when the
+ * host, remote, and WordPress documents cannot inspect each other's DOM.
+ */
+add_action('admin_footer', function () {
+	?>
+	<style>
+		html.playground-dock-overlaps-admin-notices
+			body.wp-admin .components-snackbar-list {
+			bottom: var(--playground-dock-notice-bottom);
+		}
+	</style>
+	<script>
+		(function () {
+			const root = document.documentElement;
+			window.addEventListener('message', function (event) {
+				// The remote may be cross-origin, so its window identity is the
+				// trust boundary for this presentation-only message.
+				if (
+					event.source !== window.parent ||
+					event.data?.type !== 'playground-editor-notice-bottom-offset'
+				) {
+					return;
+				}
+				const bottom = event.data.bottom;
+				const hasBottomOffset =
+					typeof bottom === 'number' &&
+					Number.isFinite(bottom) &&
+					bottom > 0;
+				root.classList.toggle(
+					'playground-dock-overlaps-admin-notices',
+					hasBottomOffset
+				);
+				if (hasBottomOffset) {
+					root.style.setProperty(
+						'--playground-dock-notice-bottom',
+						`${bottom}px`
+					);
+				} else {
+					root.style.removeProperty(
+						'--playground-dock-notice-bottom'
+					);
+				}
+			});
+		})();
+	</script>
+	<?php
+});
+
+/**
  * Opt Playground pages into browser-native cross-document View Transitions.
  *
  * This lets the browser keep the outgoing page visible until the incoming page
