@@ -519,6 +519,78 @@ assert_equal(
     'Dashboard should merge renamed plugin slugs and keep the query ordering'
 );
 
+$folded_referrer_source_rows =
+    mywp_event_dashboard_fold_rare_referrer_source_rows(
+        array(
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'alex.kirk.at',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'activitypub.blog',
+                'views' => 2,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'automattic.com',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'example.com',
+                'views' => 3,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'wordpress.org',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'wpapps.kirk.at',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'direct',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'returning_visit:referrer_source',
+                'value' => 'make.wordpress.org',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'returning_visit:site_age_bucket',
+                'value' => 'same-day',
+                'views' => 1,
+            ),
+        )
+    );
+assert_equal(
+    'returning_visit:referrer_source=make.wordpress.org:1,'
+        . 'returning_visit:site_age_bucket=same-day:1,'
+        . 'wordpress_installed:referrer_source=other-external:3,'
+        . 'wordpress_installed:referrer_source=activitypub.blog:2,'
+        . 'wordpress_installed:referrer_source=alex.kirk.at:1,'
+        . 'wordpress_installed:referrer_source=automattic.com:1,'
+        . 'wordpress_installed:referrer_source=direct:1,'
+        . 'wordpress_installed:referrer_source=wordpress.org:1,'
+        . 'wordpress_installed:referrer_source=wpapps.kirk.at:1',
+    implode(
+        ',',
+        array_map(
+            function ( $row ) {
+                return "{$row['name']}={$row['value']}:{$row['views']}";
+            },
+            $folded_referrer_source_rows
+        )
+    ),
+    'Dashboard should not fold allowlisted referrer hosts'
+);
+
 $folded_plugin_slug_timeline =
     mywp_event_dashboard_fold_renamed_plugin_slug_timeline(
         array(

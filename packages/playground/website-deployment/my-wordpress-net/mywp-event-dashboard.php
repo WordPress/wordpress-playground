@@ -31,6 +31,14 @@ const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS = array(
 	'private-address',
 	'unknown',
 );
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_ALWAYS_SHOW_HOSTS = array(
+	'alex.kirk.at',
+	'wpapps.kirk.at',
+	'wordpress.org',
+	'make.wordpress.org',
+	'automattic.com',
+	'activitypub.blog',
+);
 const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
 
 /**
@@ -751,6 +759,11 @@ function mywp_event_dashboard_fold_rare_referrer_source_rows( $rows ) {
 				$row['value'],
 				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS,
 				true
+			) &&
+			! in_array(
+				$row['value'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_ALWAYS_SHOW_HOSTS,
+				true
 			)
 		) {
 			$row['value'] = MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER;
@@ -1144,6 +1157,27 @@ function mywp_event_dashboard_render( $stats, $current_user ) {
 			}
 			.metric {
 				margin-bottom: 16px;
+			}
+			.metric-value {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.info-marker {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 16px;
+				height: 16px;
+				border: 1px solid var(--border);
+				border-radius: 50%;
+				color: var(--muted);
+				font-family: sans-serif;
+				font-size: 11px;
+				font-style: normal;
+				font-weight: 700;
+				line-height: 1;
+				cursor: help;
 			}
 			.kpi-detail {
 				margin-top: 8px;
@@ -1911,20 +1945,62 @@ function mywp_event_dashboard_order_event_values( $event_values ) {
 	return $ordered_values;
 }
 
-function mywp_event_dashboard_render_metric_table( $rows ) {
+function mywp_event_dashboard_render_metric_table( $rows, $metric_name ) {
 	$max_views = max( array_column( $rows, 'views' ) );
 	echo '<table><thead><tr><th>Value</th><th>Views</th></tr></thead><tbody>';
 	foreach ( $rows as $row ) {
 		$width = $max_views > 0 ? ( $row['views'] / $max_views ) * 100 : 0;
-		echo '<tr><td><code>' .
-			mywp_event_dashboard_h( $row['value'] ) .
-			'</code><div class="bar"><span style="width:' .
+		echo '<tr><td>' .
+			mywp_event_dashboard_render_metric_value(
+				$metric_name,
+				$row['value']
+			) .
+			'<div class="bar"><span style="width:' .
 			mywp_event_dashboard_h( sprintf( '%.2f%%', $width ) ) .
 			'"></span></div></td><td>' .
 			mywp_event_dashboard_number( $row['views'] ) .
 			'</td></tr>';
 	}
 	echo '</tbody></table>';
+}
+
+function mywp_event_dashboard_render_metric_value( $metric_name, $value ) {
+	$info = mywp_event_dashboard_referrer_source_info( $metric_name, $value );
+	$output = '<span class="metric-value"><code>' .
+		mywp_event_dashboard_h( $value ) .
+		'</code>';
+
+	if ( $info ) {
+		$output .= '<span class="info-marker" title="' .
+			mywp_event_dashboard_h( $info ) .
+			'" aria-label="' .
+			mywp_event_dashboard_h( $info ) .
+			'">i</span>';
+	}
+
+	return $output . '</span>';
+}
+
+function mywp_event_dashboard_referrer_source_info( $metric_name, $value ) {
+	if (
+		! in_array(
+			$metric_name,
+			MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS,
+			true
+		)
+	) {
+		return null;
+	}
+
+	$descriptions = array(
+		'direct' => 'No referrer was sent by the browser.',
+		'internal' => 'The referrer was another page on my.wordpress.net.',
+		'private-address' => 'The referrer looked like a private host, local name, or IP address.',
+		'unknown' => 'The referrer could not be parsed as a reportable web URL.',
+		MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER => 'External referrer hosts below the reporting threshold are grouped here.',
+	);
+
+	return $descriptions[ $value ] ?? null;
 }
 
 function mywp_event_dashboard_sum_views( $rows ) {
@@ -1973,7 +2049,7 @@ function mywp_event_dashboard_render_metric_section(
 			<?php foreach ( $available_metric_names as $metric_name ) : ?>
 				<div class="panel metric">
 					<h2><?php echo mywp_event_dashboard_h( $metric_definitions[ $metric_name ] ?? $metric_name ); ?></h2>
-					<?php mywp_event_dashboard_render_metric_table( $groups[ $metric_name ] ); ?>
+					<?php mywp_event_dashboard_render_metric_table( $groups[ $metric_name ], $metric_name ); ?>
 				</div>
 			<?php endforeach; ?>
 		</div>
