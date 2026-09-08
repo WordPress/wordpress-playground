@@ -1,6 +1,9 @@
 import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
 import type { SiteMetadata } from '../redux/slice-sites';
-import type { opfsSiteStorage as exportedOpfsSiteStorage } from './opfs-site-storage';
+import type {
+	StoredSiteMetadata,
+	opfsSiteStorage as exportedOpfsSiteStorage,
+} from './opfs-site-storage';
 
 describe('opfsSiteStorage', () => {
 	let opfsRoot: MemoryDirectoryHandle;
@@ -80,6 +83,177 @@ describe('opfsSiteStorage', () => {
 
 	afterEach(() => {
 		vi.unstubAllGlobals();
+	});
+
+	describe('abandoned autosaves', () => {
+		const oldPendingAutosave: Partial<StoredSiteMetadata> = {
+			persistence: 'autosave',
+			initialOpfsSyncPending: true,
+			whenCreated: 1,
+		};
+
+		beforeEach(() => {
+			const held = new Set<string>();
+			Object.defineProperty(navigator, 'locks', {
+				configurable: true,
+				value: {
+					request: vi.fn(async (name, options, callback) => {
+						if (typeof options === 'function') {
+							callback = options;
+							options = {};
+						}
+						if (options.ifAvailable && held.has(name)) {
+							return callback(null);
+						}
+						held.add(name);
+						try {
+							return await callback({ name });
+						} finally {
+							held.delete(name);
+						}
+					}),
+				},
+			});
+		});
+
+		it.each(['current', 'legacy'])(
+			'removes an abandoned %s metadata-only autosave',
+			async (format) => {
+				const sitesRoot = await getSitesRoot(opfsRoot);
+				await writeSiteMetadata(
+					sitesRoot,
+					'site-abandoned',
+					'abandoned',
+					{
+						...oldPendingAutosave,
+						...(format === 'legacy'
+							? {
+									initialOpfsSyncPending: undefined,
+									initialOpfsAutosyncPending: true,
+								}
+							: {}),
+					}
+				);
+
+				expect(await storage.list()).toEqual([]);
+				expect(await storage.read('abandoned')).toBeUndefined();
+			}
+		);
+
+		it.each([
+			['explicit save', { persistence: 'explicit' }],
+			['legacy explicit save', { persistence: undefined }],
+			[
+				'completed sync',
+				{
+					initialOpfsSyncPending: false,
+					initialOpfsAutosyncPending: true,
+				},
+			],
+			['unknown sync state', { initialOpfsSyncPending: undefined }],
+			['recent use', { whenLastUsed: Date.now() }],
+			['missing date', { whenCreated: undefined }],
+			['invalid date', { whenCreated: 'yesterday' }],
+			['future date', { whenCreated: Date.now() + 86400000 }],
+			['interrupted reset', { opfsSiteRemovalPending: true }],
+			['local site', { storage: 'local-fs' }],
+		])('preserves a %s', async (_label, metadata) => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(sitesRoot, 'site-kept', 'kept', {
+				...oldPendingAutosave,
+				...metadata,
+			} as Partial<StoredSiteMetadata>);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+			expect(await storage.read('kept')).toBeDefined();
+		});
+
+		it.each(['file', 'directory'])(
+			'preserves any extra %s',
+			async (kind) => {
+				const sitesRoot = await getSitesRoot(opfsRoot);
+				const directory = await writeSiteMetadata(
+					sitesRoot,
+					'site-kept',
+					'kept',
+					oldPendingAutosave
+				);
+				if (kind === 'file') {
+					directory.setFile('notes.txt', 'keep me');
+				} else {
+					await directory.getDirectoryHandle('blueprint-bundle', {
+						create: true,
+					});
+				}
+				expect((await storage.list()).map((site) => site.slug)).toEqual(
+					['kept']
+				);
+			}
+		);
+
+		it('preserves a site created by a still-open document even after the grace period', async () => {
+			await storage.create(
+				'active',
+				createSiteMetadata(oldPendingAutosave)
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'active',
+			]);
+		});
+
+		it('rechecks metadata after acquiring the cleanup lock', async () => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-kept',
+				'kept',
+				oldPendingAutosave
+			);
+			const request = navigator.locks.request.bind(navigator.locks);
+			vi.mocked(navigator.locks.request).mockImplementationOnce(
+				async (name: any, options: any, callback: any) => {
+					await writeSiteMetadata(sitesRoot, 'site-kept', 'kept', {
+						...oldPendingAutosave,
+						persistence: 'explicit',
+					});
+					return request(name, options, callback);
+				}
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+		});
+
+		it('leaves cleanup disabled without Web Locks', async () => {
+			Object.defineProperty(navigator, 'locks', { value: undefined });
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-kept',
+				'kept',
+				oldPendingAutosave
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+		});
+
+		it('still lists a site when deletion fails', async () => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-kept',
+				'kept',
+				oldPendingAutosave
+			);
+			vi.spyOn(sitesRoot, 'removeEntry').mockRejectedValueOnce(
+				new Error('busy')
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+		});
 	});
 
 	it('reads legacy site metadata when the encoded directory is incomplete', async () => {
@@ -431,7 +605,7 @@ async function writeSiteMetadata(
 	sitesRoot: MemoryDirectoryHandle,
 	directoryName: string,
 	slug: string,
-	metadata: Partial<SiteMetadata> = {}
+	metadata: Partial<StoredSiteMetadata> = {}
 ) {
 	const siteDirectory = await sitesRoot.getDirectoryHandle(directoryName, {
 		create: true,
@@ -466,7 +640,7 @@ async function writeOpfsPath(
 }
 
 function createSiteMetadata(
-	metadata: Partial<SiteMetadata> = {}
+	metadata: Partial<StoredSiteMetadata> = {}
 ): SiteMetadata {
 	return {
 		storage: 'opfs',

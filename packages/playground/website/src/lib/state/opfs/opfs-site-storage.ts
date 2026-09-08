@@ -41,6 +41,8 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+const ABANDONED_AUTOSAVE_AGE_MS = 24 * 60 * 60 * 1000;
+const INITIAL_SYNC_LOCK_PREFIX = 'wordpress-playground:initial-opfs-sync:';
 // 0o40755 = 0o40000 | 0o755; ZIP stores it in externalFileAttributes' upper 16 bits.
 const ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES = 0o40755 << 16;
 
@@ -62,6 +64,8 @@ export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
  * design matures.
  */
 export interface StoredSiteMetadata extends SiteMetadata {
+	/** Legacy name of initialOpfsSyncPending. Read old records without writing it back. */
+	initialOpfsAutosyncPending?: boolean;
 	slug: string;
 	originalUrlParams?: OriginalUrlParams;
 }
@@ -109,6 +113,24 @@ class OpfsSiteStorage {
 		const existingSiteDirName = await this.findExistingSiteDirName(slug);
 		if (existingSiteDirName) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
+		}
+		// A new site's files may remain in MEMFS long after metadata is written.
+		// Keep cleanup away for this document's lifetime, including background
+		// sync and retries. Other documents cannot boot a pending stored site.
+		// The browser releases this lock when the document goes away.
+		if (navigator.locks) {
+			await new Promise<void>((resolve, reject) => {
+				void navigator.locks
+					.request(
+						`${INITIAL_SYNC_LOCK_PREFIX}${slug}`,
+						{ mode: 'shared' },
+						() => {
+							resolve();
+							return new Promise<void>(() => {});
+						}
+					)
+					.catch(reject);
+			});
 		}
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
@@ -169,11 +191,30 @@ class OpfsSiteStorage {
 		});
 	}
 
+	/** Loads sites after removing old, inactive, metadata-only autosaves. */
 	async list(): Promise<SiteInfo[]> {
 		const sites: SiteInfo[] = [];
+		// Finish iteration before cleanup mutates the directory.
+		const entries = [];
 		for await (const entry of this.root.values()) {
+			entries.push(entry);
+		}
+		for (const entry of entries) {
 			if (entry.kind === 'directory') {
 				try {
+					if (
+						await this.removeAbandonedAutosave(entry).catch(
+							(error) => {
+								logger.warn(
+									`Unable to clean up autosave ${entry.name}:`,
+									error
+								);
+								return false;
+							}
+						)
+					) {
+						continue;
+					}
 					const site = await this.readSite(entry.name);
 					if (site) {
 						sites.push(site);
@@ -399,6 +440,54 @@ class OpfsSiteStorage {
 
 		return undefined;
 	}
+	/**
+	 * Never infer abandonment from the pending flag alone: a live tab may still
+	 * be installing WordPress in memory. Recheck under both the initial-sync
+	 * lock and the metadata lock so a concurrent save cannot become explicit
+	 * between the check and deletion. Without Web Locks, leave the site alone.
+	 */
+	private async removeAbandonedAutosave(
+		directory: FileSystemDirectoryHandle
+	) {
+		if (!navigator.locks) {
+			return false;
+		}
+		const site = await this.readStoredSiteMetadata(directory);
+		if (!isAbandonedAutosave(site)) {
+			return false;
+		}
+		return await navigator.locks.request(
+			`${INITIAL_SYNC_LOCK_PREFIX}${site.slug}`,
+			{ ifAvailable: true },
+			async (lock) => {
+				if (!lock) {
+					return false;
+				}
+				return await withSiteMetadataLock(site.slug, async () => {
+					if (
+						!isAbandonedAutosave(
+							await this.readStoredSiteMetadata(directory)
+						)
+					) {
+						return false;
+					}
+					for await (const entry of directory.values()) {
+						// Preserve partial copies and Blueprint bundles, even empty ones.
+						if (
+							entry.kind !== 'file' ||
+							entry.name !== SITE_METADATA_FILENAME
+						) {
+							return false;
+						}
+					}
+					await this.root.removeEntry(directory.name, {
+						recursive: true,
+					});
+					return true;
+				});
+			}
+		);
+	}
 }
 
 export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
@@ -406,6 +495,20 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 	: undefined;
 
 export const isOpfsAvailable = !!opfsSiteStorage;
+
+function isAbandonedAutosave(site: SiteInfo) {
+	const lastUsed = site.metadata.whenLastUsed ?? site.metadata.whenCreated;
+	return (
+		site.metadata.storage === 'opfs' &&
+		site.metadata.persistence === 'autosave' &&
+		site.metadata.initialOpfsSyncPending === true &&
+		site.metadata.opfsSiteRemovalPending !== true &&
+		typeof lastUsed === 'number' &&
+		Number.isFinite(lastUsed) &&
+		lastUsed > 0 &&
+		lastUsed <= Date.now() - ABANDONED_AUTOSAVE_AGE_MS
+	);
+}
 
 /**
  * Runs a site metadata transaction under an origin-wide exclusive lock.
@@ -466,9 +569,15 @@ async function metadataToStoredFormat(
 }
 
 function storedFormatToMetadata(data: string) {
-	const { slug, originalUrlParams, ...metadata } = JSON.parse(
-		data
-	) as StoredSiteMetadata;
+	const { slug, originalUrlParams, initialOpfsAutosyncPending, ...metadata } =
+		JSON.parse(data) as StoredSiteMetadata;
+
+	if (
+		metadata.initialOpfsSyncPending === undefined &&
+		initialOpfsAutosyncPending === true
+	) {
+		metadata.initialOpfsSyncPending = true;
+	}
 
 	/**
 	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
