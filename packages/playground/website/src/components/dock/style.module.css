@@ -129,12 +129,6 @@
 	visibility: hidden;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.developer-tools {
-		transition: none;
-	}
-}
-
 .developer-toggle {
 	flex: none;
 }
