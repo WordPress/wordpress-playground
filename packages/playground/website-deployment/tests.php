@@ -942,6 +942,29 @@ assert_equal(
     'Allowed daily streak length was not counted'
 );
 
+$capped_daily_streak_bumps = mywp_event_collect_stat_bumps( array(
+    'schema' => 'personal-wp-event/v1',
+    'app' => 'personal-wp',
+    'event' => 'daily_streak',
+    'properties' => array(
+        'length' => '31+',
+    ),
+) );
+
+assert_equal(
+    true,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '31+',
+            'views' => 1,
+        ),
+        $capped_daily_streak_bumps,
+        true
+    ),
+    'Capped daily streak length was not counted'
+);
+
 assert_equal(
     false,
     in_array(

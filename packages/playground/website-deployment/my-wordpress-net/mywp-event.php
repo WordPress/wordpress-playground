@@ -462,7 +462,7 @@ function mywp_event_add_bump( &$bumps, $name, $value, $views = 1 ) {
 		! is_string( $name ) ||
 		! is_string( $value ) ||
 		! preg_match( '/^[a-z0-9_:.-]{1,80}$/', $name ) ||
-		! preg_match( '/^[A-Za-z0-9_.:\/-]{1,128}$/', $value )
+		! preg_match( '/^[A-Za-z0-9_.:\/+-]{1,128}$/', $value )
 	) {
 		return;
 	}
