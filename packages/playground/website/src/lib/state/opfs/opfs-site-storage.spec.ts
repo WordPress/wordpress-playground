@@ -1,9 +1,6 @@
 import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
 import type { SiteMetadata } from '../redux/slice-sites';
-import type {
-	StoredSiteMetadata,
-	opfsSiteStorage as exportedOpfsSiteStorage,
-} from './opfs-site-storage';
+import type { opfsSiteStorage as exportedOpfsSiteStorage } from './opfs-site-storage';
 
 describe('opfsSiteStorage', () => {
 	let opfsRoot: MemoryDirectoryHandle;
@@ -86,7 +83,7 @@ describe('opfsSiteStorage', () => {
 	});
 
 	describe('abandoned autosaves', () => {
-		const oldPendingAutosave: Partial<StoredSiteMetadata> = {
+		const oldPendingAutosave: Partial<SiteMetadata> = {
 			persistence: 'autosave',
 			initialOpfsSyncPending: true,
 			whenCreated: 1,
@@ -116,40 +113,23 @@ describe('opfsSiteStorage', () => {
 			});
 		});
 
-		it.each(['current', 'legacy'])(
-			'removes an abandoned %s metadata-only autosave',
-			async (format) => {
-				const sitesRoot = await getSitesRoot(opfsRoot);
-				await writeSiteMetadata(
-					sitesRoot,
-					'site-abandoned',
-					'abandoned',
-					{
-						...oldPendingAutosave,
-						...(format === 'legacy'
-							? {
-									initialOpfsSyncPending: undefined,
-									initialOpfsAutosyncPending: true,
-								}
-							: {}),
-					}
-				);
+		it('removes an abandoned metadata-only autosave', async () => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-abandoned',
+				'abandoned',
+				oldPendingAutosave
+			);
 
-				expect(await storage.list()).toEqual([]);
-				expect(await storage.read('abandoned')).toBeUndefined();
-			}
-		);
+			expect(await storage.list()).toEqual([]);
+			expect(await storage.read('abandoned')).toBeUndefined();
+		});
 
 		it.each([
 			['explicit save', { persistence: 'explicit' }],
 			['legacy explicit save', { persistence: undefined }],
-			[
-				'completed sync',
-				{
-					initialOpfsSyncPending: false,
-					initialOpfsAutosyncPending: true,
-				},
-			],
+			['completed sync', { initialOpfsSyncPending: false }],
 			['unknown sync state', { initialOpfsSyncPending: undefined }],
 			['recent use', { whenLastUsed: Date.now() }],
 			['missing date', { whenCreated: undefined }],
@@ -162,7 +142,7 @@ describe('opfsSiteStorage', () => {
 			await writeSiteMetadata(sitesRoot, 'site-kept', 'kept', {
 				...oldPendingAutosave,
 				...metadata,
-			} as Partial<StoredSiteMetadata>);
+			} as Partial<SiteMetadata>);
 			expect((await storage.list()).map((site) => site.slug)).toEqual([
 				'kept',
 			]);
@@ -605,7 +585,7 @@ async function writeSiteMetadata(
 	sitesRoot: MemoryDirectoryHandle,
 	directoryName: string,
 	slug: string,
-	metadata: Partial<StoredSiteMetadata> = {}
+	metadata: Partial<SiteMetadata> = {}
 ) {
 	const siteDirectory = await sitesRoot.getDirectoryHandle(directoryName, {
 		create: true,
@@ -640,7 +620,7 @@ async function writeOpfsPath(
 }
 
 function createSiteMetadata(
-	metadata: Partial<StoredSiteMetadata> = {}
+	metadata: Partial<SiteMetadata> = {}
 ): SiteMetadata {
 	return {
 		storage: 'opfs',

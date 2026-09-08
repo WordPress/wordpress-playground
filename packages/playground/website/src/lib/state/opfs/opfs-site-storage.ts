@@ -64,8 +64,6 @@ export const legacyOpfsPathSymbol = Symbol('legacyOpfsPath');
  * design matures.
  */
 export interface StoredSiteMetadata extends SiteMetadata {
-	/** Legacy name of initialOpfsSyncPending. Read old records without writing it back. */
-	initialOpfsAutosyncPending?: boolean;
 	slug: string;
 	originalUrlParams?: OriginalUrlParams;
 }
@@ -569,15 +567,9 @@ async function metadataToStoredFormat(
 }
 
 function storedFormatToMetadata(data: string) {
-	const { slug, originalUrlParams, initialOpfsAutosyncPending, ...metadata } =
-		JSON.parse(data) as StoredSiteMetadata;
-
-	if (
-		metadata.initialOpfsSyncPending === undefined &&
-		initialOpfsAutosyncPending === true
-	) {
-		metadata.initialOpfsSyncPending = true;
-	}
+	const { slug, originalUrlParams, ...metadata } = JSON.parse(
+		data
+	) as StoredSiteMetadata;
 
 	/**
 	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
