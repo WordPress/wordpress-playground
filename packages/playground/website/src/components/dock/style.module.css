@@ -111,14 +111,28 @@
 }
 
 .developer-tools {
-	display: flex;
 	flex: none;
+	overflow: hidden;
+	transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Measure the full row even while its outer wrapper is closed. */
+.developer-tools-content {
+	display: flex;
+	width: max-content;
 	align-items: stretch;
 	gap: 2px;
 }
 
 .developer-tools[hidden] {
-	display: none;
+	display: block;
+	visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.developer-tools {
+		transition: none;
+	}
 }
 
 .developer-toggle {

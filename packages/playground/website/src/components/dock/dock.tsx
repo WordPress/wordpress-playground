@@ -125,6 +125,8 @@ export function Dock({
 	const hasOpenedPaneRef = useRef(false);
 	const collapseButtonRef = useRef<HTMLButtonElement>(null);
 	const developerToggleRef = useRef<HTMLButtonElement>(null);
+	const developerToolsRef = useRef<HTMLDivElement>(null);
+	const [developerToolsWidth, setDeveloperToolsWidth] = useState(0);
 	const developerTools = useDeveloperTools({
 		developerPaneOpen: dockPaneIsOpen && paneCopy.group === 'developer',
 		paneCloseBlocked,
@@ -193,6 +195,9 @@ export function Dock({
 		const observer = new ResizeObserver(() => {
 			const dock = dockRef.current;
 			const tools = toolsRef.current;
+			if (developerToolsRef.current) {
+				setDeveloperToolsWidth(developerToolsRef.current.offsetWidth);
+			}
 			if (dock) {
 				setDockSize({
 					width: dock.offsetWidth,
@@ -211,6 +216,9 @@ export function Dock({
 		}
 		if (toolsRef.current) {
 			observer.observe(toolsRef.current);
+		}
+		if (developerToolsRef.current) {
+			observer.observe(developerToolsRef.current);
 		}
 		return () => observer.disconnect();
 	}, []);
@@ -1254,13 +1262,23 @@ export function Dock({
 							<div
 								id="playground-developer-tools"
 								className={css.developerTools}
+								style={{
+									width: developerTools.isVisible
+										? developerToolsWidth
+										: 0,
+								}}
 								role="group"
 								aria-label="Developer tools"
 								hidden={!developerTools.isVisible}
 							>
-								{DOCK_TOOLS.filter(
-									(item) => item.group === 'developer'
-								).map(renderTool)}
+								<div
+									className={css.developerToolsContent}
+									ref={developerToolsRef}
+								>
+									{DOCK_TOOLS.filter(
+										(item) => item.group === 'developer'
+									).map(renderTool)}
+								</div>
 							</div>
 						</div>
 						<Tooltip text="Developer tools">
