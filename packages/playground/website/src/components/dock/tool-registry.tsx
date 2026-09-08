@@ -1,7 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Icon } from '@wordpress/components';
 import {
-	code,
 	envelope,
 	external,
 	grid,
@@ -10,7 +9,7 @@ import {
 	plus,
 	wordpress,
 } from '@wordpress/icons';
-import { DockBlueprintIcon, DockDatabaseIcon } from './icons';
+import { DockBlueprintIcon, DockDatabaseIcon, DockTerminalIcon } from './icons';
 import {
 	SettingsTool,
 	FilesTool,
@@ -115,7 +114,7 @@ const definitions = [
 		section: 'terminal',
 		label: 'Terminal',
 		ariaLabel: 'Terminal',
-		icon: <Icon icon={code} size={24} />,
+		icon: <DockTerminalIcon />,
 		group: 'developer',
 		title: 'Terminal',
 		description: 'Run PHP snippets or WP-CLI commands in this Playground.',

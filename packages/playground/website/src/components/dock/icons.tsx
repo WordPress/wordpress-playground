@@ -153,3 +153,53 @@ export function DockFloatingIcon() {
 		</svg>
 	);
 }
+
+/** Lucide code-xml icon. See LICENSE.lucide for attribution and terms. */
+export function DockDeveloperToolsIcon() {
+	return (
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path fill="none" d="m18 16 4-4-4-4" />
+			<path fill="none" d="m6 8-4 4 4 4" />
+			<path fill="none" d="m14.5 4-5 16" />
+		</svg>
+	);
+}
+
+/** Lucide square-terminal icon. See LICENSE.lucide for attribution and terms. */
+export function DockTerminalIcon() {
+	return (
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path fill="none" d="m7 11 2-2-2-2" />
+			<path fill="none" d="M11 13h4" />
+			<rect
+				fill="none"
+				width="18"
+				height="18"
+				x="3"
+				y="3"
+				rx="2"
+				ry="2"
+			/>
+		</svg>
+	);
+}

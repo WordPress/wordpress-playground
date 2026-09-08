@@ -14,7 +14,7 @@ import type {
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { Icon, Tooltip } from '@wordpress/components';
-import { close, pencil, plus, tool } from '@wordpress/icons';
+import { close, pencil, plus } from '@wordpress/icons';
 import type { DockPaneSection } from '../../lib/state/redux/slice-ui';
 import {
 	setDockOperationNotice,
@@ -57,6 +57,7 @@ import {
 	getDockPaneStyle,
 } from './dock-positioning';
 import { DOCK_TOOLS, getDockTool } from './tool-registry';
+import { DockDeveloperToolsIcon } from './icons';
 import { useDeveloperTools } from './use-developer-tools';
 import css from './style.module.css';
 
@@ -1285,7 +1286,7 @@ export function Dock({
 										className={css.dockIcon}
 										aria-hidden="true"
 									>
-										<Icon icon={tool} size={24} />
+										<DockDeveloperToolsIcon />
 									</span>
 									<span className={css.dockLabel}>
 										Dev Tools
