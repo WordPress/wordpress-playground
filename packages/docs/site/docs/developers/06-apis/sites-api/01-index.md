@@ -59,6 +59,7 @@ createNewTemporarySite(
 	settings?: {
 		phpVersion?: string; // e.g. '8.4'
 		wpVersion?: string; // e.g. '6.8', 'latest', 'nightly', 'beta'
+		gutenbergBranch?: string; // e.g. 'trunk', 'wp/next', 'wp/latest'
 		networking?: boolean;
 		language?: string; // e.g. 'pl_PL'
 		multisite?: boolean;
@@ -66,7 +67,7 @@ createNewTemporarySite(
 ): Promise<string>;
 ```
 
-Each setting corresponds to an equivalent [Query API](/developers/apis/query-api) parameter of the same name, with `phpVersion` mapped to `php` and `wpVersion` mapped to `wp`. Other Query API options like `plugin`, `theme`, or `blueprint-url` are not accepted here.
+Each setting corresponds to an equivalent [Query API](/developers/apis/query-api) parameter of the same name, with `phpVersion` mapped to `php`, `wpVersion` mapped to `wp`, and `gutenbergBranch` mapped to `gutenberg-branch`. Other Query API options like `plugin`, `theme`, or `blueprint-url` are not accepted here.
 
 ### `createNewSavedSite(slug?, settings?, options?)`
 
@@ -78,6 +79,7 @@ createNewSavedSite(
 	settings?: {
 		phpVersion?: string;
 		wpVersion?: string;
+		gutenbergBranch?: string;
 		networking?: boolean;
 		language?: string;
 		multisite?: boolean;

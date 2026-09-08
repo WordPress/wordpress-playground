@@ -15,6 +15,7 @@ import type {
 const defaults: SiteFormData = {
 	phpVersion: '8.3',
 	wpVersion: 'latest',
+	gutenbergBranch: '',
 	language: '',
 	withNetworking: true,
 	multisite: false,

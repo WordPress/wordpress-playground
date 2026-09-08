@@ -5,6 +5,7 @@ import { getFreshPlaygroundReason } from './site-settings-actions';
 const defaults: SiteFormData = {
 	phpVersion: '8.3',
 	wpVersion: '6.8',
+	gutenbergBranch: '',
 	language: '',
 	withNetworking: true,
 	multisite: false,
@@ -31,6 +32,15 @@ describe('getFreshPlaygroundReason', () => {
 				defaults
 			)
 		).toBe('Changing WordPress version requires a fresh Playground.');
+	});
+
+	it('requires a fresh Playground for a Gutenberg branch change', () => {
+		expect(
+			getFreshPlaygroundReason(
+				{ ...defaults, gutenbergBranch: 'trunk' },
+				defaults
+			)
+		).toBe('Changing Gutenberg branch requires a fresh Playground.');
 	});
 
 	it('names every setting that prevents applying to the current Playground', () => {
