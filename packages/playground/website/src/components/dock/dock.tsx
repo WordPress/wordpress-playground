@@ -127,7 +127,8 @@ export function Dock({
 	const collapseButtonRef = useRef<HTMLButtonElement>(null);
 	const developerToggleRef = useRef<HTMLButtonElement>(null);
 	const developerToolsRef = useRef<HTMLDivElement>(null);
-	const [developerToolsWidth, setDeveloperToolsWidth] = useState(0);
+	// Keep the natural width until measured, including without ResizeObserver.
+	const [developerToolsWidth, setDeveloperToolsWidth] = useState<number>();
 	const developerTools = useDeveloperTools({
 		developerPaneOpen: dockPaneIsOpen && paneCopy.group === 'developer',
 		paneCloseBlocked,

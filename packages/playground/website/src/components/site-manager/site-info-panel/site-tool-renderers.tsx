@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { Notice } from '@wordpress/components';
 import type { PlaygroundClient } from '@wp-playground/client';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setDockPaneOpen } from '../../../lib/state/redux/slice-ui';
@@ -51,23 +52,55 @@ export function SettingsTool(): JSX.Element {
 	);
 }
 
+/** Retains the file browser after loading and lets failed root lookups be retried. */
 export function FilesTool({
 	site,
 	playground,
 	isVisible,
 	mobileHeaderTarget,
 }: SiteToolPanelProps): JSX.Element {
-	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	const [documentRoot, setDocumentRoot] = useState<string | Error | null>(
+		null
+	);
+	const [loadAttempt, setLoadAttempt] = useState(0);
 	useEffect(() => {
 		let cancelled = false;
 		setDocumentRoot(null);
-		void playground?.documentRoot.then((root) => {
-			if (!cancelled) setDocumentRoot(root);
-		});
+		void playground?.documentRoot.then(
+			(root) => {
+				if (!cancelled) setDocumentRoot(root);
+			},
+			() => {
+				if (!cancelled) {
+					setDocumentRoot(
+						new Error('Could not load Playground files.')
+					);
+				}
+			}
+		);
 		return () => {
 			cancelled = true;
 		};
-	}, [playground]);
+	}, [playground, loadAttempt]);
+	if (documentRoot instanceof Error) {
+		return (
+			<div className={css.padded}>
+				<Notice
+					status="error"
+					isDismissible={false}
+					actions={[
+						{
+							label: 'Retry',
+							onClick: () =>
+								setLoadAttempt((attempt) => attempt + 1),
+						},
+					]}
+				>
+					{documentRoot.message}
+				</Notice>
+			</div>
+		);
+	}
 	return (
 		<Suspense
 			fallback={<PaneLoading message="Loading the file browser…" />}
