@@ -209,7 +209,7 @@ export function getStreakUsageStatsUpdate(
 		metadataUpdate.dailyStreak = daily.streak;
 		events.push({
 			event: 'daily_streak',
-			properties: { bucket: getDailyStreakBucket(daily.streak) },
+			properties: { length: getStreakLength(daily.streak) },
 		});
 	}
 
@@ -226,7 +226,7 @@ export function getStreakUsageStatsUpdate(
 		metadataUpdate.weeklyStreak = weekly.streak;
 		events.push({
 			event: 'weekly_streak',
-			properties: { bucket: getWeeklyStreakBucket(weekly.streak) },
+			properties: { length: getStreakLength(weekly.streak) },
 		});
 	}
 
@@ -240,7 +240,7 @@ export function getStreakUsageStatsUpdate(
 		metadataUpdate.monthlyStreak = monthly.streak;
 		events.push({
 			event: 'monthly_streak',
-			properties: { bucket: getMonthlyStreakBucket(monthly.streak) },
+			properties: { length: getStreakLength(monthly.streak) },
 		});
 	}
 
@@ -307,58 +307,11 @@ function addUtcDays(date: string, days: number): string {
 	return next.toISOString().slice(0, 10);
 }
 
-function getDailyStreakBucket(streak: number): string {
-	if (streak <= 1) {
-		return '1';
+function getStreakLength(streak: number): string {
+	if (streak > 30) {
+		return '31+';
 	}
-	if (streak === 2) {
-		return '2';
-	}
-	if (streak <= 6) {
-		return '3-6';
-	}
-	if (streak <= 13) {
-		return '7-13';
-	}
-	if (streak <= 29) {
-		return '14-29';
-	}
-	return '30+';
-}
-
-function getWeeklyStreakBucket(streak: number): string {
-	if (streak <= 1) {
-		return '1';
-	}
-	if (streak === 2) {
-		return '2';
-	}
-	if (streak <= 4) {
-		return '3-4';
-	}
-	if (streak <= 8) {
-		return '5-8';
-	}
-	return '9+';
-}
-
-function getMonthlyStreakBucket(streak: number): string {
-	if (streak <= 1) {
-		return '1';
-	}
-	if (streak === 2) {
-		return '2';
-	}
-	if (streak === 3) {
-		return '3';
-	}
-	if (streak <= 6) {
-		return '4-6';
-	}
-	if (streak <= 12) {
-		return '7-12';
-	}
-	return '13+';
+	return String(Math.max(streak, 1));
 }
 
 export function getBlueprintUsageStatsProperties(

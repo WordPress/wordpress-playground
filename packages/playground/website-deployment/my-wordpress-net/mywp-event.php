@@ -276,9 +276,9 @@ function mywp_event_collect_stat_bumps( $payload ) {
 		mywp_event_add_allowed_property(
 			$bumps,
 			$event,
-			'bucket',
+			'length',
 			$properties,
-			mywp_event_streak_buckets( $event )
+			mywp_event_streak_lengths()
 		);
 		return $bumps;
 	}
@@ -462,7 +462,7 @@ function mywp_event_add_bump( &$bumps, $name, $value, $views = 1 ) {
 		! is_string( $name ) ||
 		! is_string( $value ) ||
 		! preg_match( '/^[a-z0-9_:.-]{1,80}$/', $name ) ||
-		! preg_match( '/^[A-Za-z0-9_.:\/-]{1,128}$/', $value )
+		! preg_match( '/^[A-Za-z0-9_.:\/+-]{1,128}$/', $value )
 	) {
 		return;
 	}
@@ -485,21 +485,13 @@ function mywp_event_age_buckets() {
 	);
 }
 
-/**
- * Must match the bucket boundaries in usage-stats.ts (getDailyStreakBucket,
- * getWeeklyStreakBucket, getMonthlyStreakBucket) — these are the values the
- * client is allowed to send for each streak event's `bucket` property.
- */
-function mywp_event_streak_buckets( $event ) {
-	if ( 'daily_streak' === $event ) {
-		return array( '1', '2', '3-6', '7-13', '14-29', '30+' );
+function mywp_event_streak_lengths() {
+	$lengths = array();
+	for ( $length = 1; $length <= 30; $length++ ) {
+		$lengths[] = (string) $length;
 	}
-
-	if ( 'weekly_streak' === $event ) {
-		return array( '1', '2', '3-4', '5-8', '9+' );
-	}
-
-	return array( '1', '2', '3', '4-6', '7-12', '13+' );
+	$lengths[] = '31+';
+	return $lengths;
 }
 
 function mywp_event_sync_bump_extra( $dbh, $name, $value, $num, $today, $hour ) {

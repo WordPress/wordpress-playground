@@ -703,6 +703,85 @@ assert_equal(
     'Dashboard should keep the selected timeline value'
 );
 
+$dashboard_streak_timeline = array(
+    array(
+        'period' => '2026-09-01',
+        'value' => 'daily_streak',
+        'views' => 8,
+    ),
+    array(
+        'period' => '2026-09-02',
+        'value' => 'weekly_streak',
+        'views' => 7,
+    ),
+    array(
+        'period' => '2026-09-03',
+        'value' => 'daily_streak',
+        'views' => 9,
+    ),
+    array(
+        'period' => '2026-09-03 08:00',
+        'value' => 'daily_streak',
+        'views' => 3,
+    ),
+    array(
+        'period' => '2026-09-04',
+        'value' => 'daily_streak',
+        'views' => 4,
+    ),
+);
+assert_equal(
+    12,
+    mywp_event_dashboard_timeline_value_count_on_date(
+        $dashboard_streak_timeline,
+        'daily_streak',
+        '2026-09-03'
+    ),
+    'Dashboard should count daily streak pings for one UTC date'
+);
+assert_equal(
+    16,
+    mywp_event_dashboard_timeline_value_count_between_dates(
+        $dashboard_streak_timeline,
+        'daily_streak',
+        '2026-09-03',
+        '2026-09-04'
+    ),
+    'Dashboard should sum daily streak pings across a UTC date range'
+);
+
+$dashboard_streak_length_timeline = array(
+    array(
+        'period' => '2026-09-03',
+        'value' => '1',
+        'views' => 5,
+    ),
+    array(
+        'period' => '2026-09-03',
+        'value' => '3',
+        'views' => 2,
+    ),
+    array(
+        'period' => '2026-09-03 08:00',
+        'value' => '31+',
+        'views' => 1,
+    ),
+    array(
+        'period' => '2026-09-04',
+        'value' => '4',
+        'views' => 9,
+    ),
+);
+assert_equal(
+    3,
+    mywp_event_dashboard_timeline_numeric_value_count_at_least_on_date(
+        $dashboard_streak_length_timeline,
+        3,
+        '2026-09-03'
+    ),
+    'Dashboard should count streak lengths above a threshold for one UTC date'
+);
+
 $event_bumps = mywp_event_collect_stat_bumps( array(
     'schema' => 'personal-wp-event/v1',
     'app' => 'personal-wp',
@@ -838,6 +917,73 @@ assert_equal(
         true
     ),
     'Allowed request source was not counted'
+);
+
+$daily_streak_bumps = mywp_event_collect_stat_bumps( array(
+    'schema' => 'personal-wp-event/v1',
+    'app' => 'personal-wp',
+    'event' => 'daily_streak',
+    'properties' => array(
+        'length' => '3',
+    ),
+) );
+
+assert_equal(
+    true,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '3',
+            'views' => 1,
+        ),
+        $daily_streak_bumps,
+        true
+    ),
+    'Allowed daily streak length was not counted'
+);
+
+$capped_daily_streak_bumps = mywp_event_collect_stat_bumps( array(
+    'schema' => 'personal-wp-event/v1',
+    'app' => 'personal-wp',
+    'event' => 'daily_streak',
+    'properties' => array(
+        'length' => '31+',
+    ),
+) );
+
+assert_equal(
+    true,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '31+',
+            'views' => 1,
+        ),
+        $capped_daily_streak_bumps,
+        true
+    ),
+    'Capped daily streak length was not counted'
+);
+
+assert_equal(
+    false,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '365',
+            'views' => 1,
+        ),
+        mywp_event_collect_stat_bumps( array(
+            'schema' => 'personal-wp-event/v1',
+            'app' => 'personal-wp',
+            'event' => 'daily_streak',
+            'properties' => array(
+                'length' => '365',
+            ),
+        ) ),
+        true
+    ),
+    'Unrecognized daily streak length should not be counted'
 );
 
 $remote_access_bumps = mywp_event_collect_stat_bumps( array(
