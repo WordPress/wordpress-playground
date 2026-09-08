@@ -154,28 +154,7 @@ export function DockFloatingIcon() {
 	);
 }
 
-/** Lucide code-xml icon. See LICENSE.lucide for attribution and terms. */
-export function DockDeveloperToolsIcon() {
-	return (
-		<svg
-			width="24"
-			height="24"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<path fill="none" d="m18 16 4-4-4-4" />
-			<path fill="none" d="m6 8-4 4 4 4" />
-			<path fill="none" d="m14.5 4-5 16" />
-		</svg>
-	);
-}
-
-/** Lucide square-terminal icon. See LICENSE.lucide for attribution and terms. */
+/** Terminal window with a title bar and command prompt. */
 export function DockTerminalIcon() {
 	return (
 		<svg
@@ -184,21 +163,22 @@ export function DockTerminalIcon() {
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth="2"
+			strokeWidth="1.6"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"
 		>
-			<path fill="none" d="m7 11 2-2-2-2" />
-			<path fill="none" d="M11 13h4" />
 			<rect
+				x="2.75"
+				y="4.75"
+				width="18.5"
+				height="14.5"
+				rx="1.5"
 				fill="none"
-				width="18"
-				height="18"
-				x="3"
-				y="3"
-				rx="2"
-				ry="2"
+			/>
+			<path
+				d="M2.75 8.5h18.5M6.5 11.5l2.5 2.5-2.5 2.5M12 16.5h4"
+				fill="none"
 			/>
 		</svg>
 	);
