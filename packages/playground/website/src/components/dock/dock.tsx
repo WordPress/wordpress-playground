@@ -13,7 +13,7 @@ import type {
 	PointerEvent as ReactPointerEvent,
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
-import { Icon } from '@wordpress/components';
+import { Button, Icon } from '@wordpress/components';
 import {
 	close,
 	code,
@@ -46,6 +46,7 @@ import {
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { usePlaygroundUpdates } from '../../lib/hooks/use-playground-updates';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
@@ -202,6 +203,10 @@ const PANE_COPY: Record<
 		title: 'Store permanently',
 		description: '',
 	},
+	updates: {
+		title: 'What’s new in Playground',
+		description: 'From make.wordpress.org/playground',
+	},
 };
 
 /**
@@ -217,6 +222,9 @@ export function Dock({
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
 	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const section = useAppSelector((state) => state.ui.dockPaneSection);
+	const updates = usePlaygroundUpdates(
+		dockPaneIsOpen && section === 'updates' && !activeSiteError
+	);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
 	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
 		useState<DockPaneHeaderOverride>();
@@ -1096,6 +1104,7 @@ export function Dock({
 			{(cornered || isFolding || isMaximizing) && (
 				<DockCornerLauncher
 					side={cornerSide ?? cornerLauncherSideRef.current}
+					hasNotification={updates.hasUnread}
 					isDragging={isMaximizing}
 					isFolding={isFolding}
 					onPointerDown={handleCornerPointerDown}
@@ -1192,6 +1201,17 @@ export function Dock({
 								<Icon icon={plus} size={20} />
 								New Playground
 							</button>
+						) : section === 'updates' ? (
+							<Button
+								className={css.updatesClose}
+								icon={close}
+								iconSize={20}
+								size="compact"
+								variant="tertiary"
+								label="Close updates"
+								disabled={paneCloseBlocked}
+								onClick={() => dispatch(setDockPaneOpen(false))}
+							/>
 						) : undefined
 					}
 					headerOverride={paneHeaderOverride}
@@ -1200,6 +1220,7 @@ export function Dock({
 							Boolean(activeSiteError) ||
 							(!dockPaneIsOpen && paneExitComplete),
 						[css.paneWide]: isWideSection,
+						[css.paneUpdates]: section === 'updates',
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
@@ -1223,6 +1244,7 @@ export function Dock({
 					}}
 				>
 					<SiteManager
+						updates={updates}
 						isVisible={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
@@ -1338,6 +1360,32 @@ export function Dock({
 								/>
 							)}
 						</div>
+						<button
+							type="button"
+							className={css.dockUpdates}
+							aria-label={
+								updates.hasUnread
+									? 'What’s new — unread updates'
+									: 'What’s new'
+							}
+							aria-expanded={
+								dockPaneIsOpen && section === 'updates'
+							}
+							disabled={paneCloseBlocked}
+							onClick={(event) => {
+								// Safari needs explicit focus for the pane's return-focus path.
+								event.currentTarget.focus();
+								openSection('updates');
+							}}
+						>
+							What’s new
+							{updates.hasUnread && (
+								<span
+									className={css.dockUpdatesDot}
+									aria-hidden="true"
+								/>
+							)}
+						</button>
 						<DockTogglePill
 							isCollapsed={isCollapsed}
 							isFullWidth={isFullWidth}

@@ -73,6 +73,47 @@
 	min-width: 0;
 }
 
+.dock-updates {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	color: var(--ink-bright-on-dark);
+	cursor: pointer;
+	display: inline-flex;
+	flex-shrink: 0;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 400;
+	gap: 7px;
+	min-height: 34px;
+	padding: 0 9px;
+	white-space: nowrap;
+}
+
+.dock-updates:hover,
+.dock-updates[aria-expanded='true'] {
+	background: var(--chrome-control-hover-background);
+}
+
+.dock-updates:focus-visible {
+	outline: 2px solid var(--accent-soft);
+	outline-offset: -2px;
+}
+
+.dock-updates:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.dock-updates-dot {
+	background: var(--accent-soft);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 6px;
+	width: 6px;
+}
+
 /* The active Playground's name is kept in the DOM for screen readers and as the
    stable "Playground title" hook, but not shown — the save-status pill carries
    the only visible status, and the name would just repeat it for unsaved sites. */
@@ -458,6 +499,59 @@
 	font-size: 13px;
 	line-height: 1.45;
 	margin: var(--space-2) 0 0;
+}
+
+/* Announcements use a quieter reading layout than the site-tool forms. The
+   same inset aligns the shared header, post details, dividers, and footer. */
+.pane.pane-updates {
+	--pane-inline-padding: 22px;
+	background: var(--surface-raised);
+	font-weight: 400;
+}
+
+.pane-updates .pane-header:has(.pane-description) {
+	align-items: flex-start;
+	gap: var(--space-3);
+	padding: var(--pane-inline-padding) var(--pane-inline-padding) 0;
+}
+
+.pane-updates .pane-header h2 {
+	font-size: 18px;
+	font-weight: 500;
+	letter-spacing: normal;
+	line-height: 1.35;
+}
+
+.pane-updates .pane-description {
+	font-size: 12px;
+	margin-top: 3px;
+}
+
+@media (min-width: 1025px) {
+	.pane.pane-updates {
+		--radius-pane: 12px;
+		width: min(540px, calc(100vw - 40px));
+	}
+}
+
+@media (max-width: 400px) {
+	.pane.pane-updates {
+		--pane-inline-padding: 16px;
+	}
+
+	/* Keep the address readable when save status and updates no longer fit
+	   beside it. Controls wrap together without changing their tab order. */
+	.dock-top-row:has(.dock-updates) {
+		flex-wrap: wrap;
+	}
+
+	.dock-top-row:has(.dock-updates) .dock-address {
+		flex-basis: 100%;
+	}
+
+	.dock-top-row:has(.dock-updates) .dock-status {
+		margin-left: auto;
+	}
 }
 
 /* The active Playground's name sits right under the "This Playground" title as
@@ -925,6 +1019,11 @@
 	   "New Playground" header action is redundant on mobile — hide it so the
 	   close X can own the header's top-right corner without crowding. */
 	.pane-header-action {
+		display: none;
+	}
+
+	/* The shared mobile close control replaces the updates header action. */
+	.pane-updates .updates-close {
 		display: none;
 	}
 
