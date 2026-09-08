@@ -396,7 +396,7 @@ describe('Personal WP usage stats', () => {
 		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
 		expect(day2.events).toContainEqual({
 			event: 'daily_streak',
-			properties: { bucket: '2' },
+			properties: { length: '2' },
 		});
 		metadata = { ...metadata, ...day2.metadata };
 
@@ -416,7 +416,7 @@ describe('Personal WP usage stats', () => {
 		const first = getStreakUsageStatsUpdate(metadata, day1);
 		expect(first.events).toContainEqual({
 			event: 'daily_streak',
-			properties: { bucket: '1' },
+			properties: { length: '1' },
 		});
 		metadata = { ...metadata, ...first.metadata };
 
@@ -429,21 +429,21 @@ describe('Personal WP usage stats', () => {
 		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
 		expect(day2.events).toContainEqual({
 			event: 'daily_streak',
-			properties: { bucket: '2' },
+			properties: { length: '2' },
 		});
 		metadata = { ...metadata, ...day2.metadata };
 
 		const afterGap = getStreakUsageStatsUpdate(metadata, day1 + 4 * DAY);
 		expect(afterGap.events).toContainEqual({
 			event: 'daily_streak',
-			properties: { bucket: '1' },
+			properties: { length: '1' },
 		});
 	});
 
-	it('walks the daily streak bucket boundaries across consecutive days', () => {
+	it('walks the daily streak length boundaries across consecutive days', () => {
 		const start = Date.UTC(2026, 5, 1);
 		let metadata = {} as SiteMetadata;
-		const buckets: string[] = [];
+		const lengths: string[] = [];
 
 		for (let day = 0; day < 31; day++) {
 			const update = getStreakUsageStatsUpdate(
@@ -454,16 +454,12 @@ describe('Personal WP usage stats', () => {
 			const dailyEvent = update.events.find(
 				(event) => event.event === 'daily_streak'
 			);
-			buckets.push(dailyEvent!.properties.bucket as string);
+			lengths.push(dailyEvent!.properties.length as string);
 		}
 
-		expect(buckets[0]).toBe('1');
-		expect(buckets[1]).toBe('2');
-		expect(buckets[2]).toBe('3-6');
-		expect(buckets[5]).toBe('3-6');
-		expect(buckets[6]).toBe('7-13');
-		expect(buckets[13]).toBe('14-29');
-		expect(buckets[29]).toBe('30+');
+		expect(lengths[0]).toBe('1');
+		expect(lengths[29]).toBe('30');
+		expect(lengths[30]).toBe('31+');
 	});
 
 	it('advances the weekly streak across calendar weeks and resets on a skipped week', () => {
@@ -473,7 +469,7 @@ describe('Personal WP usage stats', () => {
 		const first = getStreakUsageStatsUpdate(metadata, monday1);
 		expect(first.events).toContainEqual({
 			event: 'weekly_streak',
-			properties: { bucket: '1' },
+			properties: { length: '1' },
 		});
 		metadata = { ...metadata, ...first.metadata };
 
@@ -490,7 +486,7 @@ describe('Personal WP usage stats', () => {
 		const monday2 = getStreakUsageStatsUpdate(metadata, monday1 + 7 * DAY);
 		expect(monday2.events).toContainEqual({
 			event: 'weekly_streak',
-			properties: { bucket: '2' },
+			properties: { length: '2' },
 		});
 		metadata = { ...metadata, ...monday2.metadata };
 
@@ -500,7 +496,7 @@ describe('Personal WP usage stats', () => {
 		);
 		expect(mondaySkippedWeek.events).toContainEqual({
 			event: 'weekly_streak',
-			properties: { bucket: '1' },
+			properties: { length: '1' },
 		});
 	});
 
@@ -511,7 +507,7 @@ describe('Personal WP usage stats', () => {
 		const first = getStreakUsageStatsUpdate(metadata, december);
 		expect(first.events).toContainEqual({
 			event: 'monthly_streak',
-			properties: { bucket: '1' },
+			properties: { length: '1' },
 		});
 		metadata = { ...metadata, ...first.metadata };
 
@@ -521,7 +517,7 @@ describe('Personal WP usage stats', () => {
 		);
 		expect(january.events).toContainEqual({
 			event: 'monthly_streak',
-			properties: { bucket: '2' },
+			properties: { length: '2' },
 		});
 		metadata = { ...metadata, ...january.metadata };
 
@@ -531,7 +527,7 @@ describe('Personal WP usage stats', () => {
 		);
 		expect(marchSkippedFebruary.events).toContainEqual({
 			event: 'monthly_streak',
-			properties: { bucket: '1' },
+			properties: { length: '1' },
 		});
 	});
 });
