@@ -1259,6 +1259,39 @@ export function Dock({
 							{DOCK_TOOLS.filter(
 								(item) => item.group === 'main'
 							).map(renderTool)}
+							<Tooltip text="Developer tools">
+								<button
+									type="button"
+									ref={developerToggleRef}
+									className={classNames(
+										css.dockItem,
+										css.developerToggle,
+										css.withSeparator,
+										{
+											[css.dockItemActive]:
+												developerTools.isVisible,
+										}
+									)}
+									aria-label="Dev Tools"
+									aria-expanded={developerTools.isVisible}
+									aria-controls="playground-developer-tools"
+									disabled={paneCloseBlocked}
+									onClick={(event) => {
+										event.currentTarget.focus();
+										developerTools.toggle();
+									}}
+								>
+									<span
+										className={css.dockIcon}
+										aria-hidden="true"
+									>
+										<Icon icon={tool} size={24} />
+									</span>
+									<span className={css.dockLabel}>
+										Dev Tools
+									</span>
+								</button>
+							</Tooltip>
 							<div
 								id="playground-developer-tools"
 								className={css.developerTools}
@@ -1281,36 +1314,6 @@ export function Dock({
 								</div>
 							</div>
 						</div>
-						<Tooltip text="Developer tools">
-							<button
-								type="button"
-								ref={developerToggleRef}
-								className={classNames(
-									css.dockItem,
-									css.developerToggle,
-									{
-										[css.dockItemActive]:
-											developerTools.isVisible,
-									}
-								)}
-								aria-label="Dev Tools"
-								aria-expanded={developerTools.isVisible}
-								aria-controls="playground-developer-tools"
-								disabled={paneCloseBlocked}
-								onClick={(event) => {
-									event.currentTarget.focus();
-									developerTools.toggle();
-								}}
-							>
-								<span
-									className={css.dockIcon}
-									aria-hidden="true"
-								>
-									<Icon icon={tool} size={24} />
-								</span>
-								<span className={css.dockLabel}>Dev Tools</span>
-							</button>
-						</Tooltip>
 					</div>
 				</div>
 			</nav>

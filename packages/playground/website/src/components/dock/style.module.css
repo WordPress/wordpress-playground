@@ -133,7 +133,7 @@
 	flex: none;
 }
 
-/* Group divider before the "Blueprint" tool. The line is a short, vertically
+/* Group divider before the "Dev Tools" toggle. The line is a short, vertically
    centered pseudo-element living in the gap — it doesn't pad or border the
    button, so the button's rounded hover/active highlight stays flush in its own
    box (no offset dead strip beside the rounded corners). */

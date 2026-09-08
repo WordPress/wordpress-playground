@@ -46,8 +46,8 @@ a blocked pane close prevents toggling. Storage failures leave session use intac
 ## Rows and responsive behavior
 
 Registry order determines button order within each group. Main actions and enabled
-developer tools share one horizontally scrolling row, with developer tools after
-Export. The Dev Tools toggle stays outside the scroll area so it remains reachable.
+developer tools share one horizontally scrolling row. The Dev Tools toggle follows
+Export, separated by a pale vertical line; its developer tools follow the toggle.
 Keep added buttons inside the existing developer group.
 
 The Dock measures its size and tools container with `ResizeObserver`; those
