@@ -344,7 +344,25 @@ export function Dock({
 		} else if (isCollapsed) {
 			setRecentAutosaveNudgeAnchor(dockStatusRef.current);
 		} else {
-			setRecentAutosaveNudgeAnchor(playgroundsButtonRef.current);
+			const button = playgroundsButtonRef.current;
+			const dock = dockRef.current;
+			if (button && dock) {
+				setRecentAutosaveNudgeAnchor({
+					ownerDocument: button.ownerDocument,
+					getBoundingClientRect: () => {
+						const buttonRect = button.getBoundingClientRect();
+						const dockRect = dock.getBoundingClientRect();
+						// Point toward Playgrounds without covering the address
+						// and save controls in the row above it.
+						return new DOMRect(
+							buttonRect.x,
+							dockRect.y,
+							buttonRect.width,
+							0
+						);
+					},
+				});
+			}
 		}
 		return () => setRecentAutosaveNudgeAnchor(null);
 	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
