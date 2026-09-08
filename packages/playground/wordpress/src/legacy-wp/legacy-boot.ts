@@ -51,13 +51,13 @@ const LEGACY_PHP_DISABLED_NETWORK_FUNCTIONS = [
  * (no-op on modern). Merge instead of overwrite so a caller-supplied
  * disable_functions list is preserved.
  */
-export function applyLegacyPhpIniOverrides(
+export async function applyLegacyPhpIniOverrides(
 	php: PHP,
 	options: {
 		phpVersion?: string;
 		phpIniEntries?: Record<string, string>;
 	}
-): void {
+): Promise<void> {
 	if (!isLegacyPHPVersion(options.phpVersion)) return;
 	const callerDisabled = (options.phpIniEntries?.['disable_functions'] ?? '')
 		.split(',')
@@ -76,7 +76,7 @@ export function applyLegacyPhpIniOverrides(
 	if (!options.phpIniEntries?.['date.timezone']) {
 		iniOverrides['date.timezone'] = 'UTC';
 	}
-	setPhpIniEntries(php, iniOverrides);
+	await setPhpIniEntries(php, iniOverrides);
 }
 
 /**
