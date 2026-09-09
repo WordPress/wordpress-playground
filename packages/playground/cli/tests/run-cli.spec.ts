@@ -86,7 +86,7 @@ describe.each(blueprintVersions)(
 			expect(text).toContain('8.0');
 		});
 
-		test('applies PHP environment bindings to HTTP and programmatic requests', async () => {
+		test('applies PHP environment bindings to programmatic requests', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
@@ -96,18 +96,21 @@ describe.each(blueprintVersions)(
 				blueprint: undefined,
 				phpEnv: { PLAYGROUND_CLI_TEST_ENV: 'request-bound' },
 			});
-			await cliServer.playground.writeFile(
-				'/wordpress/env.php',
-				"<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');"
-			);
-
 			expect(
 				(await cliServer.playground.run({
 					code: "<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');",
 				})).text
 			).toBe('request-bound');
 			expect(
-				await (await fetch(new URL('/env.php', cliServer.serverUrl))).text()
+				(await cliServer.playground.run({
+					code: "<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');",
+					env: { PLAYGROUND_CLI_TEST_ENV: 'per-request' },
+				})).text
+			).toBe('per-request');
+			expect(
+				(await cliServer.playground.run({
+					code: "<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');",
+				})).text
 			).toBe('request-bound');
 		});
 

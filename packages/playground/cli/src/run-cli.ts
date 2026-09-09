@@ -858,8 +858,8 @@ export interface RunCLIArgs {
 	xdebug?: boolean | XdebugOptions;
 	phpExtension?: string[];
 	/**
-	 * Environment bindings applied to each PHP request started by this CLI
-	 * instance. These stay in the request context and are cleared at shutdown.
+	 * Environment bindings applied to programmatic PHP requests. These stay in
+	 * the request context and are cleared at shutdown.
 	 */
 	phpEnv?: Record<string, string>;
 	experimentalUnsafeIdeIntegration?: string[];
@@ -1806,8 +1806,6 @@ export async function runCLI(
 					},
 				};
 			}
-			request = withPhpEnv(request, args.phpEnv);
-
 			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
 			// It might be more efficient to let the worker respond directly
 			const response = await playgroundPool.requestStreamed(request);
