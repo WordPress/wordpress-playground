@@ -1,0 +1,26 @@
+{
+	"name": "@wp-playground/personal-wp-mcp",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"mywp": "./cli.js"
+	},
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"types": "index.d.ts",
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./cli": {
+			"import": "./cli.js",
+			"require": "./cli.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"dependencies": {
+		"@wp-playground/mcp": "*"
+	}
+}

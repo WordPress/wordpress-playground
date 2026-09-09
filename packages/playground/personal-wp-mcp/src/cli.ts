@@ -1,4 +1,6 @@
-import { startMcpServer } from './api';
+import { startMcpServer } from '@wp-playground/mcp/api';
+import { personalWpMcpProfile } from './profile';
+import { registerPersonalWpMcpTools } from './tools';
 
 function getPortFromArgs(): number {
 	const portArg = process.argv.find((a) => a.startsWith('--port='));
@@ -8,10 +10,10 @@ function getPortFromArgs(): number {
 	return 0;
 }
 
-function getBaseUrlFromArgs(): URL | undefined {
+function getBaseUrlFromArgs(): URL {
 	const urlArg = process.argv.find((a) => a.startsWith('--url='));
 	if (!urlArg) {
-		return undefined;
+		return new URL('https://my.wordpress.net/');
 	}
 	const value = urlArg.split('=').slice(1).join('=');
 	try {
@@ -26,11 +28,15 @@ async function main() {
 	await startMcpServer({
 		baseUrl,
 		port: getPortFromArgs(),
+		definition: personalWpMcpProfile,
+		toolRegistrars: [registerPersonalWpMcpTools],
 	});
-	console.error('[MCP] WordPress Playground MCP server running on stdio');
+	// eslint-disable-next-line no-console
+	console.error('[MCP] MyWP MCP server running on stdio');
 }
 
 main().catch((error) => {
+	// eslint-disable-next-line no-console
 	console.error('Fatal error:', error);
 	process.exit(1);
 });
