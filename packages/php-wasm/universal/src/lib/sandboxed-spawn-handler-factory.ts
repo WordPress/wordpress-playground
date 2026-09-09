@@ -3,6 +3,11 @@ import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
 import type { Remote } from './comlink-sync';
 import { logger } from '@php-wasm/logger';
+import yargsParser from 'yargs-parser/browser';
+
+function wait(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -81,7 +86,7 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		if (!['php', 'ls', 'pwd'].includes(binaryName ?? '')) {
+		if (!['php', 'ls', 'pwd', 'rm'].includes(binaryName ?? '')) {
 			// 127 is the exit code "for command not found".
 			processApi.exit(127);
 			return;
@@ -142,7 +147,7 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await wait(10);
 					processApi.exit(0);
 					break;
 				}
@@ -151,8 +156,54 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await wait(10);
 					processApi.exit(0);
+					break;
+				}
+				case 'rm': {
+					const parsedArgs = yargsParser(args.slice(1), {
+						alias: {
+							recursive: ['r'],
+							force: ['f'],
+						},
+						boolean: ['recursive', 'force'],
+					});
+
+					const targets = parsedArgs._.map(String);
+					const isRecursive = parsedArgs.recursive;
+					const isForce = parsedArgs.force;
+
+					const errorMessages = [] as string[];
+
+					for (const target of targets) {
+						if (await php.isDir(target)) {
+							if (isRecursive) {
+								await php.rmdir(target, { recursive: true });
+							} else {
+								errorMessages.push(
+									`rm: ${target}: is a directory`
+								);
+							}
+						} else if (await php.isFile(target)) {
+							await php.unlink(target);
+						} else if (!isForce) {
+							errorMessages.push(
+								`rm: ${target}: No such file or directory`
+							);
+						}
+					}
+
+					const hasErrors = errorMessages.length > 0;
+
+					if (hasErrors) {
+						processApi.stderr(errorMessages.join('\n'));
+						// Technical limitation of subprocesses – we need to
+						// wait before exiting to give consumer a chance to read
+						// the output.
+						await wait(10);
+					}
+
+					processApi.exit(hasErrors ? 1 : 0);
 					break;
 				}
 			}
