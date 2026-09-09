@@ -3,6 +3,7 @@ import { ProcessIdAllocator } from '@php-wasm/universal';
 import {
 	createObjectPoolProxy,
 	type Pooled,
+	type PHPRequest,
 	type PHPRunOptions,
 	type PathAlias,
 	type RemoteAPI,
