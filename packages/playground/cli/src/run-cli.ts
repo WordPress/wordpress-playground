@@ -857,6 +857,11 @@ export interface RunCLIArgs {
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
 	phpExtension?: string[];
+	/**
+	 * Environment bindings applied to each PHP request started by this CLI
+	 * instance. These stay in the request context and are cleared at shutdown.
+	 */
+	phpEnv?: Record<string, string>;
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	workers?: number | 'auto';
@@ -1716,7 +1721,10 @@ export async function runCLI(
 				}
 
 				return {
-					playground: playgroundPool,
+					playground: withPhpEnvForProgrammaticRuns(
+						playgroundPool,
+						args.phpEnv
+					),
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
@@ -1798,6 +1806,7 @@ export async function runCLI(
 					},
 				};
 			}
+			request = withPhpEnv(request, args.phpEnv);
 
 			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
 			// It might be more efficient to let the worker respond directly
@@ -1825,6 +1834,45 @@ export async function runCLI(
 		openInBrowser(server.serverUrl);
 	}
 	return server;
+}
+
+function withPhpEnv<T extends PHPRequest>(request: T, phpEnv?: Record<string, string>): T {
+	if (!phpEnv || Object.keys(phpEnv).length === 0) {
+		return request;
+	}
+
+	return {
+		...request,
+		env: {
+			...phpEnv,
+			...request.env,
+		},
+	};
+}
+
+function withPhpEnvForProgrammaticRuns(
+	playground: Pooled<PlaygroundCliWorker>,
+	phpEnv?: Record<string, string>
+): Pooled<PlaygroundCliWorker> {
+	if (!phpEnv || Object.keys(phpEnv).length === 0) {
+		return playground;
+	}
+
+	return new Proxy(playground, {
+		get(target, property, receiver) {
+			const value = Reflect.get(target, property, receiver);
+			if (
+				(property !== 'run' &&
+					property !== 'request' &&
+					property !== 'requestStreamed') ||
+				typeof value !== 'function'
+			) {
+				return value;
+			}
+
+			return (request: PHPRequest) => value(withPhpEnv(request, phpEnv));
+		},
+	});
 }
 
 /**
