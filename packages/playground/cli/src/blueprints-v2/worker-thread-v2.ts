@@ -1,14 +1,13 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
+import type { RemoteAPI } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
-	exposeSyncAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
@@ -22,7 +21,18 @@ import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
-import { spawnWorkerThread } from '../run-cli';
+import type {
+	ChildWorkerService,
+	WorkerBootRequestHandlerOptions,
+	WorkerConfig,
+	WorkerPlatformConfig,
+} from '../worker-boot';
+import {
+	bootSpawnedChildWorker,
+	CHILD_WORKER_CONTROL_READY,
+	childWorkerServiceTransferPolicy,
+	workerBootApiTransferPolicy,
+} from '../worker-boot';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -39,20 +49,6 @@ export type WorkerBootWordPressOptions = {
 	 */
 	constants?: Record<string, string | number | boolean>;
 };
-
-interface WorkerBootRequestHandlerOptions {
-	siteUrl: string;
-	phpVersion: AllPHPVersion;
-	processId: number;
-	trace: boolean;
-	networking?: boolean;
-	nativeInternalDirPath: string;
-	mountsBeforeWpInstall: Array<Mount>;
-	mountsAfterWpInstall: Array<Mount>;
-	followSymlinks: boolean;
-	extensions?: PHPExtension[];
-	pathAliases?: PathAlias[];
-}
 
 /**
  * Print trace messages from PHP-WASM.
@@ -85,6 +81,14 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
+	/**
+	 * Service exposed by the main thread for creating child workers. Used when
+	 * PHP in this worker shells out (proc_open()/system()): the main thread
+	 * spawns and pre-wires the child so its synchronous flock() calls reach the
+	 * broker directly instead of relaying through this worker — which is blocked
+	 * inside system() while the child runs and would otherwise deadlock it.
+	 */
+	childWorkerService: RemoteAPI<ChildWorkerService> | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -162,11 +166,24 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
-	async bootRequestHandler(options: WorkerBootRequestHandlerOptions) {
+	async bootRequestHandler(
+		platformConfig: WorkerPlatformConfig,
+		workerConfig: WorkerConfig
+	) {
 		if (this.bootedRequestHandler) {
 			throw new Error('Playground already booted');
 		}
 		this.bootedRequestHandler = true;
+		this.childWorkerService = consumeAPI<ChildWorkerService>(
+			workerConfig.childWorkerServicePort,
+			undefined,
+			childWorkerServiceTransferPolicy
+		);
+
+		const options: WorkerBootRequestHandlerOptions = {
+			...platformConfig,
+			processId: workerConfig.processId,
+		};
 
 		try {
 			const requestHandler = await bootRequestHandler({
@@ -187,11 +204,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
 
-					// NOTE: We currently create all request workers up front
-					// and apply post-install mounts to all the workers immediately
-					// following WordPress install. But if we start creating
-					// request-handling workers on-demand, we will to apply post-install
-					// mounts here.
+					// mountAfterWordPressInstall() sets this flag after applying
+					// the mounts to the current runtime. Apply them here as well
+					// whenever the request handler creates a replacement runtime.
 					if (this.bootedWordPress) {
 						await mountResources(php, options.mountsAfterWpInstall);
 					}
@@ -200,19 +215,16 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				cookieStore: false,
 				pathAliases: options.pathAliases,
 				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() => {
-						let effectiveOptions = options;
-						if (!this.bootedWordPress) {
-							// WordPress is not yet booted so skip the post-install mounts.
-							effectiveOptions = {
-								...options,
-								mountsAfterWpInstall: [],
-							};
+					sandboxedSpawnHandlerFactory(async () => {
+						if (!this.childWorkerService) {
+							throw new Error(
+								'Cannot spawn a child PHP process: this ' +
+									'worker has no child-worker service.'
+							);
 						}
-
-						return createPHPWorker(
-							effectiveOptions,
-							this.fileLockManager!
+						return bootSpawnedChildWorker<PlaygroundCliBlueprintV2Worker>(
+							this.childWorkerService,
+							platformConfig
 						);
 					}),
 			});
@@ -220,6 +232,23 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+			if (workerConfig.childWorkerControlPort) {
+				// Spawned workers miss the main WordPress installation flow. This
+				// private endpoint lets the main-thread service apply post-install
+				// mounts before it declares the child ready. The service releases
+				// the API and closes both ports when the child is cleaned up.
+				exposeAPI(
+					{
+						mountAfterWordPressInstall: (mounts: Array<Mount>) =>
+							this.mountAfterWordPressInstall(mounts),
+					},
+					undefined,
+					workerConfig.childWorkerControlPort
+				);
+				workerConfig.childWorkerControlPort.postMessage(
+					CHILD_WORKER_CONTROL_READY
+				);
+			}
 
 			setApiReady();
 		} catch (e) {
@@ -229,9 +258,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	}
 
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
-		// Make sure workers not involved in the WordPress install
-		// process know whether WordPress booted so they can
-		// apply post-install mounts when spawning new PHP workers.
+		// Remember that post-install mounts are active. The request handler may
+		// replace its PHP runtime later, and onPHPInstanceCreated() uses this flag
+		// to apply the same mounts to that replacement.
 		this.bootedWordPress = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
@@ -267,60 +296,6 @@ function createPhpRuntimeFactory(
 	};
 }
 
-/**
- * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
- * It boots from this worker-thread-v2.ts file, but is a separate process.
- *
- * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
- *
- * Why?
- *
- * Because each PHP instance acquires actual OS-level file locks via fcntl() and LockFileEx()
- * syscalls. Running multiple PHP instances from the same OS process would allow them to
- * acquire overlapping locks. Running every PHP instance in a separate OS process ensures
- * any locks that overlap between PHP instances conflict with each other as expected.
- *
- * @param options - The options for the worker.
- * @param fileLockManager - The file lock manager to use.
- * @returns A promise that resolves to the PHP worker.
- */
-async function createPHPWorker(
-	// NOTE: We explicitly remove processId from the options
-	// type so the type system will catch if we try to reuse
-	// our parent's process ID.
-	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
-	fileLockManager: FileLockManager
-) {
-	const spawnedWorker = await spawnWorkerThread('v2');
-
-	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
-		spawnedWorker.phpPort
-	);
-	const fileLockManagerChannel = new MessageChannel();
-	await exposeSyncAPI(fileLockManager, fileLockManagerChannel.port1);
-	await handler.useFileLockManager(fileLockManagerChannel.port2);
-	await handler.bootRequestHandler({
-		...options,
-		processId: spawnedWorker.processId,
-	});
-
-	return {
-		php: handler,
-		reap: () => {
-			try {
-				handler.dispose();
-			} catch {
-				/** */
-			}
-			try {
-				spawnedWorker.worker.terminate();
-			} catch {
-				/** */
-			}
-		},
-	};
-}
-
 process.on('unhandledRejection', (e: any) => {
 	logger.error('Unhandled rejection:', e);
 });
@@ -330,7 +305,8 @@ const phpChannel = new MessageChannel();
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliBlueprintV2Worker(new EmscriptenDownloadMonitor()),
 	undefined,
-	phpChannel.port1
+	phpChannel.port1,
+	workerBootApiTransferPolicy
 );
 
 parentPort?.postMessage(

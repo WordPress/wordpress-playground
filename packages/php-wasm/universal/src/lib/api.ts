@@ -21,6 +21,7 @@ import {
 	nodeProcessEndpoint,
 } from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
+import type { TransferListItem as NodeTransferable } from 'worker_threads';
 
 // NOTE: It seems like we wouldn't have to explicitly specify
 // symbol type here, but it seems to resolve some type errors.
@@ -33,26 +34,328 @@ export type WithAPIState = {
 	 */
 	isConnected: () => Promise<void>;
 	/**
-	 * Resolves to true when the remote API is declares it's
-	 * fully loaded and ready to be used.
+	 * Resolves when the remote API declares that it is fully initialized and
+	 * ready to be used.
 	 */
 	isReady: () => Promise<void>;
 };
 export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
+/**
+ * A value that a transfer policy may add to Comlink's postMessage() transfer
+ * list. Only nested MessagePorts make a policy hook statically required;
+ * transferring other values, such as ArrayBuffers, is an opt-in ownership
+ * decision because it may detach or otherwise invalidate the sender's value.
+ */
+export type APITransferable = Transferable | NodeTransferable;
+
+/** Any callable API member whose arguments and result can be inspected. */
+type AnyMethod = (...args: any[]) => any;
+
+/**
+ * Detect `any` before it reaches the recursive type below. TypeScript lets
+ * `any` take every conditional branch, which would otherwise produce an
+ * unusable or infinitely expanding policy type.
+ */
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+/**
+ * Collapse a union of recursive results to one answer: true when at least one
+ * member contains a MessagePort.
+ */
+type AnyContainsMessagePort<Candidates> = true extends Candidates
+	? true
+	: false;
+
+/**
+ * Detect nested ports in the structured-clone containers TypeScript can
+ * describe directly. `Seen` stops recursive types from expanding forever
+ * without imposing an arbitrary nesting-depth limit.
+ */
+type ContainsMessagePort<T, Seen = never> =
+	IsAny<T> extends true
+		? false
+		: T extends IsomorphicMessagePort
+			? true
+			: T extends AnyMethod
+				? false
+				: T extends Seen
+					? false
+					: T extends readonly (infer Item)[]
+						? ContainsMessagePort<Item, Seen | T>
+						: T extends ReadonlyMap<infer Key, infer Value>
+							? MapContainsMessagePort<Key, Value, Seen | T>
+							: T extends ReadonlySet<infer Item>
+								? ContainsMessagePort<Item, Seen | T>
+								: T extends object
+									? ObjectContainsMessagePort<T, Seen | T>
+									: false;
+
+/** Check both the keys and values because either side of a Map is cloned. */
+type MapContainsMessagePort<Key, Value, Seen> = AnyContainsMessagePort<
+	ContainsMessagePort<Key, Seen> | ContainsMessagePort<Value, Seen>
+>;
+
+/** Check every statically known property of a structured-cloneable object. */
+type ObjectContainsMessagePort<T extends object, Seen> = AnyContainsMessagePort<
+	{
+		[Key in keyof T]-?: ContainsMessagePort<T[Key], Seen>;
+	}[keyof T]
+>;
+
+/**
+ * Top-level MessagePorts are already handled by Comlink. A policy is required
+ * only when a port is nested inside an argument that Comlink otherwise treats
+ * as an ordinary structured-cloned value.
+ */
+type ArgumentNeedsTransferPolicy<Argument> =
+	Argument extends IsomorphicMessagePort
+		? false
+		: ContainsMessagePort<Argument>;
+
+/**
+ * `Parameters` and `ReturnType` inspect only the last signature of an
+ * overloaded method. API contracts that need required-policy checking must
+ * expose nested MessagePorts in that signature or use a non-overloaded method.
+ */
+type ArgumentsNeedTransferPolicy<Method extends AnyMethod> =
+	true extends ArgumentNeedsTransferPolicy<Parameters<Method>[number]>
+		? true
+		: false;
+
+/**
+ * Like arguments, top-level MessagePort results use Comlink's existing
+ * transfer handler. Only a port nested inside the resolved result needs a
+ * policy hook.
+ */
+type ResultNeedsTransferPolicy<Method extends AnyMethod> =
+	Awaited<ReturnType<Method>> extends IsomorphicMessagePort
+		? false
+		: ContainsMessagePort<Awaited<ReturnType<Method>>>;
+
+/**
+ * Describe the hooks for one method. A hook becomes required only when the
+ * method's visible TypeScript signature proves that nested ports are present.
+ */
+type MethodTransferPolicy<Method extends AnyMethod> =
+	(ArgumentsNeedTransferPolicy<Method> extends true
+		? {
+				arguments: (
+					...args: Parameters<Method>
+				) => readonly APITransferable[];
+			}
+		: {
+				arguments?: (
+					...args: Parameters<Method>
+				) => readonly APITransferable[];
+			}) &
+		(ResultNeedsTransferPolicy<Method> extends true
+			? {
+					result: (
+						value: Awaited<ReturnType<Method>>
+					) => readonly APITransferable[];
+				}
+			: {
+					result?: (
+						value: Awaited<ReturnType<Method>>
+					) => readonly APITransferable[];
+				});
+
+/** Follow nested API objects until the policy reaches an actual method. */
+type TransferPolicyNode<Value> = Value extends AnyMethod
+	? MethodTransferPolicy<Value>
+	: Value extends object
+		? APITransferPolicy<Value>
+		: never;
+
+/**
+ * Decide whether a method or any method below a nested API object requires a
+ * policy. This is used to make the corresponding policy property mandatory.
+ */
+type RequiresTransferPolicy<Value> = Value extends AnyMethod
+	? ArgumentsNeedTransferPolicy<Value> extends true
+		? true
+		: ResultNeedsTransferPolicy<Value>
+	: Value extends object
+		? true extends {
+				[Key in keyof Value]-?: RequiresTransferPolicy<Value[Key]>;
+			}[keyof Value]
+			? true
+			: false
+		: false;
+
+/**
+ * Per-method transfer rules for values that structured clone can only carry
+ * when their nested transferables are included in the postMessage() transfer
+ * list. Nested objects mirror nested API method paths.
+ *
+ * The required-policy check detects nested MessagePorts only. They cannot be
+ * structured-cloned without transfer, so a missing hook is unambiguously an
+ * error. Other transferable types remain optional because transferring them
+ * may change ownership semantics; for example, transferring an ArrayBuffer
+ * detaches it from the sender.
+ *
+ * Detection follows statically visible object properties and the element types
+ * of arrays, maps, and sets. It cannot inspect `any`, `unknown`, runtime-only
+ * values, custom containers whose contents are absent from their public
+ * TypeScript shape, or MessagePorts present only in a non-final overload.
+ * Extremely large types are also subject to TypeScript's type-instantiation
+ * limit. Declare an optional hook explicitly for any such shape that may
+ * contain transferables.
+ *
+ * This analysis only decides whether TypeScript requires a hook. At runtime no
+ * object tree is traversed: the hook alone returns the exact transfer list.
+ */
+export type APITransferPolicy<API> = {
+	[Key in keyof API as RequiresTransferPolicy<API[Key]> extends true
+		? Key
+		: never]-?: TransferPolicyNode<API[Key]>;
+} & {
+	[Key in keyof API as RequiresTransferPolicy<API[Key]> extends true
+		? never
+		: Key]?: TransferPolicyNode<API[Key]>;
+};
+
+/**
+ * Define a reusable transfer policy with contextual types for every hook.
+ *
+ * This is intentionally an identity function at runtime. Its purpose is to
+ * make TypeScript check the policy against an API contract while preserving
+ * readable callback parameter types at the declaration site.
+ */
+export function defineAPITransferPolicy<API>(
+	policy: APITransferPolicy<API>
+): APITransferPolicy<API> {
+	return policy;
+}
+
+/**
+ * Make exposeAPI() require its policy argument when the exposed contract
+ * contains a statically visible nested MessagePort.
+ */
+type TransferPolicyArgument<API> =
+	RequiresTransferPolicy<API> extends true
+		? [transferPolicy: APITransferPolicy<API>]
+		: [transferPolicy?: APITransferPolicy<API>];
+
+/**
+ * Describes lifecycle information that the transport cannot discover itself.
+ *
+ * Node.js workers, child processes, and MessagePorts expose lifecycle events,
+ * so consumeAPI() observes them automatically. Web Workers do not have a
+ * standard event for normal termination, and a MessagePort may be backed by a
+ * worker whose lifecycle is managed elsewhere. In those cases, provide the
+ * authoritative termination promise here.
+ */
+export interface ConsumeAPIOptions {
+	endpointTerminated?: PromiseLike<unknown>;
+}
+
+type ConsumeAPIArguments<API> =
+	RequiresTransferPolicy<API> extends true
+		? [transferPolicy: APITransferPolicy<API>, options?: ConsumeAPIOptions]
+		: [
+				transferPolicy?: APITransferPolicy<API>,
+				options?: ConsumeAPIOptions,
+			];
+
+type ExposedAPIContract<Methods, PipedAPI> = Methods &
+	([PipedAPI] extends [undefined] ? unknown : PipedAPI);
+
+/**
+ * Raised when a remote call cannot finish because its worker, process, or
+ * MessagePort terminated.
+ */
+export class RemoteAPIEndpointTerminatedError extends Error {
+	constructor(cause?: unknown) {
+		super(
+			'The remote API endpoint terminated before the operation completed.',
+			{
+				cause,
+			}
+		);
+		this.name = 'RemoteAPIEndpointTerminatedError';
+	}
+}
+
+// A proxy answers every property access, so no duck-typed property check can
+// distinguish it from an endpoint reliably. Track the proxies we create by
+// identity instead.
+const consumedAPIProxies = new WeakSet<object>();
+
+/**
+ * Consume an API whose calls must block the current thread until the remote
+ * side responds.
+ *
+ * This variant is used for synchronous facilities such as file locking and
+ * therefore accepts only a real MessagePort, never another Comlink proxy.
+ */
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
 ): Promise<APIType> {
+	assertIsMessagePort(remote, 'consumeAPISync');
 	setupTransferHandlers();
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	return Comlink.wrapSync<APIType>(remote, transport);
+	const api = Comlink.wrapSync<APIType>(remote, transport);
+	consumedAPIProxies.add(api as object);
+	return api;
 }
 
+/**
+ * Reject anything that isn't a real MessagePort before we wrap it.
+ *
+ * A synchronous Comlink proxy answers *every* property access with a proxied
+ * function, so it duck-types as an endpoint: `postMessage` and
+ * `addEventListener` both look present. Passing one here therefore used to
+ * succeed, and only failed on the first method call — as a 5 second
+ * "Timeout waiting for response", on another thread, under load. That is how
+ * a spawned PHP process silently lost its file lock manager.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3783
+ */
+function assertIsMessagePort(
+	remote: IsomorphicMessagePort,
+	callerName: string
+): void {
+	const value = remote as unknown;
+	if (
+		((typeof value === 'object' && value !== null) ||
+			typeof value === 'function') &&
+		consumedAPIProxies.has(value as object)
+	) {
+		throw new TypeError(
+			`${callerName}() expects a MessagePort but received a Comlink ` +
+				`proxy. Expose the API on a fresh MessageChannel and pass one ` +
+				`of its ports instead of passing the proxy itself.`
+		);
+	}
+	if (
+		remote === null ||
+		typeof remote !== 'object' ||
+		typeof remote.postMessage !== 'function'
+	) {
+		throw new TypeError(
+			`${callerName}() expects a MessagePort but received ` +
+				`${remote === null ? 'null' : typeof remote}.`
+		);
+	}
+}
+
+/**
+ * Consume a remote API. APIs with statically visible nested MessagePorts
+ * require an APITransferPolicy as the third argument.
+ */
 export function consumeAPI<APIType>(
 	remote: Worker | Window | NodeWorker | NodeProcess,
-	context: undefined | EventTarget = undefined
+	context: undefined | EventTarget = undefined,
+	...consumeArguments: ConsumeAPIArguments<APIType>
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
+	const [transferPolicy, options] = consumeArguments;
+	const endpointLifecycle = observeEndpointLifecycle(
+		remote,
+		options?.endpointTerminated
+	);
 
 	let endpoint;
 	/**
@@ -101,17 +404,39 @@ export function consumeAPI<APIType>(
 	 * @TODO: Remove this workaround.
 	 */
 	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
+	const policyAwareApi = applyArgumentTransferPolicy(api, transferPolicy);
+	const lifecycleAwareApi = endpointLifecycle
+		? applyEndpointLifecycle(policyAwareApi, endpointLifecycle)
+		: policyAwareApi;
 	const methods = proxyClone(api);
-	return new Proxy(methods, {
+	const remoteAPI = new Proxy(methods, {
 		get: (target, prop) => {
+			if (prop === releaseProxy) {
+				return () => {
+					endpointLifecycle?.dispose();
+					return policyAwareApi[prop]();
+				};
+			}
 			if (prop === 'isConnected') {
 				return async () => {
 					// Keep retrying until the remote API confirms it's connected.
 					while (true) {
 						try {
-							await runWithTimeout(api.isConnected(), 200);
+							const connectionAttempt = runWithTimeout(
+								api.isConnected(),
+								200
+							);
+							await (endpointLifecycle
+								? completeBeforeEndpointTerminates(
+										connectionAttempt,
+										endpointLifecycle
+									)
+								: connectionAttempt);
 							break;
-						} catch {
+						} catch (error) {
+							if (endpointLifecycle?.terminated) {
+								throw error;
+							}
 							// Timeout exceeded, try again. We can't just use a single
 							// `runWithTimeout` call because it won't reach the remote API
 							// if it's not connected yet. Instead, we need to keep retrying
@@ -121,9 +446,11 @@ export function consumeAPI<APIType>(
 					}
 				};
 			}
-			return (api as any)[prop];
+			return lifecycleAwareApi[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
+	consumedAPIProxies.add(remoteAPI);
+	return remoteAPI;
 }
 
 /**
@@ -260,14 +587,23 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 	Methods & PipedAPI
 >;
 
+/**
+ * Expose local methods and an optional piped API. Contracts with statically
+ * visible nested MessagePorts require an APITransferPolicy as the fourth
+ * argument.
+ */
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: MessagePort | NodeWorker | NodeProcess
+	targetWorker?: MessagePort | NodeWorker | NodeProcess,
+	...transferPolicyArgument: TransferPolicyArgument<
+		ExposedAPIContract<Methods, PipedAPI>
+	>
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
-		pipedApi
+		pipedApi,
+		transferPolicyArgument[0]
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
@@ -294,6 +630,385 @@ export function exposeAPI<Methods, PipedAPI>(
 	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
 }
 
+type RuntimeMethodTransferPolicy = {
+	arguments?: (...args: any[]) => readonly APITransferable[];
+	result?: (value: any) => readonly APITransferable[];
+};
+
+/**
+ * Wrap only the consumer-side methods named by a transfer policy.
+ *
+ * The wrapper asks the policy for the exact nested transferables before each
+ * call. It does not inspect or recursively traverse argument values at runtime.
+ */
+function applyArgumentTransferPolicy(
+	api: any,
+	policy: APITransferPolicy<any> | undefined
+): any {
+	if (!policy) {
+		return api;
+	}
+
+	return new Proxy(api, {
+		get(target, property) {
+			const value = target[property];
+			const policyNode =
+				typeof property === 'string'
+					? (policy as Record<string, unknown>)[property]
+					: undefined;
+			if (!isRuntimeMethodTransferPolicy(policyNode)) {
+				return policyNode && isObjectLike(value)
+					? applyArgumentTransferPolicy(
+							value,
+							policyNode as APITransferPolicy<any>
+						)
+					: value;
+			}
+			if (!policyNode.arguments || typeof value !== 'function') {
+				return value;
+			}
+			return (...args: any[]) => {
+				const transferables = policyNode.arguments!(...args);
+				return value(
+					...attachTransferablesToFirstArgument(args, transferables)
+				);
+			};
+		},
+	});
+}
+
+type EndpointLifecycle = {
+	readonly failure: Promise<never>;
+	readonly terminated: boolean;
+	dispose(): void;
+};
+
+type EndpointTerminationObserver = {
+	readonly terminated: Promise<unknown>;
+	dispose(): void;
+};
+
+/**
+ * Reject every call made through a Comlink proxy when its endpoint terminates.
+ *
+ * Comlink proxies are also used for nested properties and remote value reads,
+ * so this wrapper must preserve both property and function proxy traps. A
+ * regular object clone would turn those nested proxies into plain functions.
+ */
+function applyEndpointLifecycle(api: any, lifecycle: EndpointLifecycle): any {
+	const wrappedValues = new WeakMap<object, object>();
+	return wrapValue(api);
+
+	function wrapValue(value: any): any {
+		if (!isObjectLike(value)) {
+			return value;
+		}
+		const existing = wrappedValues.get(value);
+		if (existing) {
+			return existing;
+		}
+
+		const wrapped = new Proxy(value, {
+			get(target, property, receiver) {
+				const propertyValue = Reflect.get(target, property, receiver);
+				if (property === releaseProxy || !isObjectLike(propertyValue)) {
+					return propertyValue;
+				}
+				if (
+					property === 'then' &&
+					typeof propertyValue === 'function'
+				) {
+					return (
+						onFulfilled: (resolved: unknown) => unknown,
+						onRejected: (error: unknown) => unknown
+					) => {
+						const remoteValue = new Promise((resolve, reject) => {
+							Reflect.apply(propertyValue, target, [
+								resolve,
+								reject,
+							]);
+						});
+						return completeBeforeEndpointTerminates(
+							remoteValue,
+							lifecycle
+						)
+							.then((resolved) =>
+								protectEndpointResult(resolved, lifecycle)
+							)
+							.then(onFulfilled, onRejected);
+					};
+				}
+				return wrapValue(propertyValue);
+			},
+			apply(target, thisArgument, argumentsList) {
+				const operation = Reflect.apply(
+					target as (...args: any[]) => unknown,
+					thisArgument,
+					argumentsList
+				);
+				return completeBeforeEndpointTerminates(
+					operation,
+					lifecycle
+				).then((result) => protectEndpointResult(result, lifecycle));
+			},
+		});
+		wrappedValues.set(value, wrapped);
+		return wrapped;
+	}
+}
+
+/**
+ * Keep asynchronous resources returned by a completed API call tied to the
+ * endpoint that owns them. The call itself may finish before a streamed PHP
+ * response has produced its output or exit code.
+ */
+function protectEndpointResult(
+	result: unknown,
+	lifecycle: EndpointLifecycle
+): unknown {
+	if (result instanceof StreamedPHPResponse) {
+		return new StreamedPHPResponse(
+			interruptStreamWhenEndpointTerminates(
+				result.getHeadersStream(),
+				lifecycle
+			),
+			interruptStreamWhenEndpointTerminates(result.stdout, lifecycle),
+			interruptStreamWhenEndpointTerminates(result.stderr, lifecycle),
+			completeBeforeEndpointTerminates(result.exitCode, lifecycle)
+		);
+	}
+	if (
+		typeof ReadableStream !== 'undefined' &&
+		result instanceof ReadableStream
+	) {
+		return interruptStreamWhenEndpointTerminates(result, lifecycle);
+	}
+	return result;
+}
+
+/**
+ * Turn endpoint termination into a stream error instead of leaving a read
+ * pending forever.
+ */
+function interruptStreamWhenEndpointTerminates<T>(
+	stream: ReadableStream<T>,
+	lifecycle: EndpointLifecycle
+): ReadableStream<T> {
+	const reader = stream.getReader();
+	return new ReadableStream<T>({
+		async pull(controller) {
+			try {
+				const next = await completeBeforeEndpointTerminates(
+					reader.read(),
+					lifecycle
+				);
+				if (next.done) {
+					controller.close();
+				} else {
+					controller.enqueue(next.value);
+				}
+			} catch (error) {
+				controller.error(error);
+				await reader.cancel(error).catch(() => {
+					// The endpoint may already have closed the source stream.
+				});
+			}
+		},
+		cancel(reason) {
+			return reader.cancel(reason);
+		},
+	});
+}
+
+/**
+ * Race one operation against the endpoint lifecycle shared by the whole proxy.
+ */
+function completeBeforeEndpointTerminates<T>(
+	operation: T | PromiseLike<T>,
+	lifecycle: EndpointLifecycle
+): Promise<T> {
+	return Promise.race([Promise.resolve(operation), lifecycle.failure]);
+}
+
+/**
+ * Combine a caller-provided lifecycle signal with lifecycle events available
+ * on Node.js workers, child processes, and MessagePorts.
+ */
+function observeEndpointLifecycle(
+	remote: Worker | Window | NodeWorker | NodeProcess,
+	providedTermination: PromiseLike<unknown> | undefined
+): EndpointLifecycle | undefined {
+	const automaticObserver = observeNodeEndpointTermination(remote);
+	const terminationSignals: Promise<unknown>[] = [];
+	if (providedTermination) {
+		terminationSignals.push(
+			Promise.resolve(providedTermination).then(
+				(value) => value,
+				(error) => error
+			)
+		);
+	}
+	if (automaticObserver) {
+		terminationSignals.push(automaticObserver.terminated);
+	}
+	if (terminationSignals.length === 0) {
+		return undefined;
+	}
+
+	let terminated = false;
+	const termination = Promise.race(terminationSignals);
+	const failure = termination.then((cause): never => {
+		terminated = true;
+		automaticObserver?.dispose();
+		throw new RemoteAPIEndpointTerminatedError(cause);
+	});
+	// The lifecycle may end while no API call is pending. Observe the shared
+	// rejection here; individual calls still receive it through Promise.race().
+	void failure.catch(() => undefined);
+
+	return {
+		failure,
+		get terminated() {
+			return terminated;
+		},
+		dispose() {
+			automaticObserver?.dispose();
+		},
+	};
+}
+
+/**
+ * Observe normal endpoint termination where Node.js exposes a reliable event.
+ *
+ * Browser Worker has no equivalent normal-termination event. Callers managing
+ * one must provide ConsumeAPIOptions.endpointTerminated.
+ */
+function observeNodeEndpointTermination(
+	remote: Worker | Window | NodeWorker | NodeProcess
+): EndpointTerminationObserver | undefined {
+	const candidate = remote as any;
+	if (
+		typeof candidate.send === 'function' &&
+		typeof candidate.addListener === 'function' &&
+		typeof candidate.removeListener === 'function'
+	) {
+		return observeEmitterTermination(candidate, [
+			'disconnect',
+			'exit',
+			'close',
+		]);
+	}
+	if (
+		typeof candidate.on !== 'function' ||
+		typeof candidate.off !== 'function'
+	) {
+		return undefined;
+	}
+	if (typeof candidate.terminate === 'function') {
+		return observeEmitterTermination(candidate, ['exit']);
+	}
+	if (
+		typeof candidate.close === 'function' &&
+		typeof candidate.start === 'function'
+	) {
+		return observeEmitterTermination(candidate, ['close']);
+	}
+	return undefined;
+}
+
+/**
+ * Resolve on the first lifecycle event and detach every remaining listener.
+ */
+function observeEmitterTermination(
+	emitter: {
+		on(event: string, listener: (...args: any[]) => void): void;
+		off(event: string, listener: (...args: any[]) => void): void;
+	},
+	events: string[]
+): EndpointTerminationObserver {
+	let disposed = false;
+	const listeners = new Map<string, (...args: any[]) => void>();
+	let resolveTermination!: (reason: unknown) => void;
+	const terminated = new Promise<unknown>((resolve) => {
+		resolveTermination = resolve;
+	});
+
+	for (const event of events) {
+		const listener = (...args: any[]) => {
+			dispose();
+			resolveTermination({ event, args });
+		};
+		listeners.set(event, listener);
+		emitter.on(event, listener);
+	}
+
+	return { terminated, dispose };
+
+	function dispose(): void {
+		if (disposed) {
+			return;
+		}
+		disposed = true;
+		for (const [event, listener] of listeners) {
+			emitter.off(event, listener);
+		}
+		listeners.clear();
+	}
+}
+
+/**
+ * Put all argument transferables into one Comlink envelope.
+ *
+ * Comlink serializes arguments separately but posts them in one message, so
+ * attaching the combined transfer list to the first argument is sufficient.
+ */
+function attachTransferablesToFirstArgument(
+	args: any[],
+	transferables: readonly APITransferable[]
+): any[] {
+	if (transferables.length === 0) {
+		return args;
+	}
+	if (args.length === 0) {
+		throw new TypeError(
+			'An API argument transfer policy returned transferables for a ' +
+				'method with no arguments.'
+		);
+	}
+	// Comlink serializes each argument separately but combines their transfer
+	// lists in one postMessage() call. One envelope can therefore carry every
+	// transferable referenced anywhere in the complete argument list.
+	const wrappedArgs = [...args];
+	wrappedArgs[0] = createAPITransferEnvelope(wrappedArgs[0], transferables);
+	return wrappedArgs;
+}
+
+/** Distinguish method policy leaves from nested policy objects at runtime. */
+function isRuntimeMethodTransferPolicy(
+	value: unknown
+): value is RuntimeMethodTransferPolicy {
+	return (
+		isObjectLike(value) &&
+		(typeof (value as RuntimeMethodTransferPolicy).arguments ===
+			'function' ||
+			typeof (value as RuntimeMethodTransferPolicy).result === 'function')
+	);
+}
+
+/** Return true for values that JavaScript Proxy can wrap. */
+function isObjectLike(value: unknown): value is object {
+	return (
+		(typeof value === 'object' && value !== null) ||
+		typeof value === 'function'
+	);
+}
+
+/**
+ * Expose a synchronous API over a MessagePort.
+ *
+ * Synchronous APIs currently do not use nested transfer policies because their
+ * shared-memory transport serves the file-locking use case.
+ */
 export async function exposeSyncAPI<Methods>(
 	apiMethods: Methods,
 	port: IsomorphicMessagePort
@@ -305,9 +1020,17 @@ export async function exposeSyncAPI<Methods>(
 	return [setReady, setFailed, exposedApi as Methods];
 }
 
+/**
+ * Build the API object shared by asynchronous and synchronous exposure.
+ *
+ * Besides the caller's methods, every exposed API reports connection and
+ * initialization state. Transfer policies are applied before Comlink receives
+ * the object so result envelopes are created on the exposing side.
+ */
 function prepareForExpose<Methods, PipedAPI>(
 	apiMethods?: Methods,
-	pipedApi?: PipedAPI
+	pipedApi?: PipedAPI,
+	transferPolicy?: APITransferPolicy<any>
 ) {
 	setupTransferHandlers();
 
@@ -320,7 +1043,10 @@ function prepareForExpose<Methods, PipedAPI>(
 		setFailed = reject;
 	});
 
-	const methods = proxyClone(apiMethods);
+	const methods = proxyClone(apiMethods, transferPolicy);
+	const pipedMethods = pipedApi
+		? applyResultTransferPolicy(pipedApi, transferPolicy)
+		: pipedApi;
 	const exposedApi = new Proxy(methods, {
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
@@ -330,19 +1056,144 @@ function prepareForExpose<Methods, PipedAPI>(
 			} else if (prop in target) {
 				return target[prop];
 			}
-			return (pipedApi as any)?.[prop];
+			return (pipedMethods as any)?.[prop];
 		},
 	}) as unknown as PublicAPI<Methods, PipedAPI>;
 
 	return { setReady, setFailed, exposedApi };
 }
 
+/**
+ * Preserve the Comlink proxy's property traps except at method paths whose
+ * results have an explicit transfer policy. In particular, remote value
+ * properties are thenable Comlink proxies; recursively cloning every property
+ * turns those proxies into plain functions and breaks property reads.
+ */
+function applyResultTransferPolicy(
+	api: any,
+	policy: APITransferPolicy<any> | undefined
+): any {
+	if (!policy) {
+		return api;
+	}
+
+	return new Proxy(api, {
+		get(target, property) {
+			const value = target[property];
+			const policyNode =
+				typeof property === 'string'
+					? (policy as Record<string, unknown>)[property]
+					: undefined;
+			if (!isRuntimeMethodTransferPolicy(policyNode)) {
+				return policyNode && isObjectLike(value)
+					? applyResultTransferPolicy(
+							value,
+							policyNode as APITransferPolicy<any>
+						)
+					: value;
+			}
+			if (!policyNode.result || typeof value !== 'function') {
+				return value;
+			}
+			return (...args: any[]) =>
+				Promise.resolve(value(...args)).then((result) =>
+					createAPITransferEnvelope(
+						result,
+						policyNode.result!(result)
+					)
+				);
+		},
+	});
+}
+
+const apiTransferMarker = Symbol('php-wasm-api-transfer');
+const apiTransferHandlerName = 'PHP_WASM_API_TRANSFER';
+
+type APITransferEnvelope = {
+	[apiTransferMarker]: true;
+	value: unknown;
+	transferables: readonly APITransferable[];
+};
+
+type SerializedAPITransferEnvelope = {
+	handler?: string;
+	value: unknown;
+};
+
+/**
+ * Mark a value for the custom transfer handler without changing its
+ * structured-cloned shape on the receiving side.
+ */
+function createAPITransferEnvelope(
+	value: unknown,
+	transferables: readonly APITransferable[]
+): APITransferEnvelope {
+	return {
+		[apiTransferMarker]: true,
+		value,
+		transferables,
+	};
+}
+
 let isTransferHandlersSetup = false;
+
+/**
+ * Register php-wasm's Comlink transfer handlers once per JavaScript realm.
+ *
+ * The API envelope handler delegates normal serialization to any existing
+ * handler, then adds the policy-provided nested transferables to its list.
+ */
 function setupTransferHandlers() {
 	if (isTransferHandlersSetup) {
 		return;
 	}
 	isTransferHandlersSetup = true;
+	Comlink.transferHandlers.set(apiTransferHandlerName, {
+		canHandle: (value): value is APITransferEnvelope =>
+			isObjectLike(value) && apiTransferMarker in value,
+		serialize(
+			envelope: APITransferEnvelope
+		): [SerializedAPITransferEnvelope, Transferable[]] {
+			// Preserve any top-level Comlink serialization that the value would
+			// normally receive, then add the API policy's nested transferables.
+			for (const [name, handler] of Comlink.transferHandlers) {
+				if (
+					name === apiTransferHandlerName ||
+					!handler.canHandle(envelope.value)
+				) {
+					continue;
+				}
+				const [value, automaticallyTransferred] = handler.serialize(
+					envelope.value as never
+				);
+				return [
+					{ handler: name, value },
+					deduplicateTransferables([
+						...automaticallyTransferred,
+						...toComlinkTransferables(envelope.transferables),
+					]),
+				];
+			}
+			return [
+				{ value: envelope.value },
+				deduplicateTransferables(
+					toComlinkTransferables(envelope.transferables)
+				),
+			];
+		},
+		deserialize(envelope: SerializedAPITransferEnvelope): unknown {
+			if (!envelope.handler) {
+				return envelope.value;
+			}
+			const handler = Comlink.transferHandlers.get(envelope.handler);
+			if (!handler) {
+				throw new TypeError(
+					`Unknown Comlink transfer handler "${envelope.handler}".`
+				);
+			}
+			return handler.deserialize(envelope.value as never);
+		},
+	});
 	Comlink.transferHandlers.set('EVENT', {
 		canHandle: (obj): obj is CustomEvent => obj instanceof CustomEvent,
 		serialize: (ev: CustomEvent) => {
@@ -898,17 +1749,57 @@ const throwTransferHandlerCustom: Comlink.TransferHandler<
 
 Comlink.transferHandlers.set('throw', throwTransferHandlerCustom);
 
-function proxyClone(object: any): any {
+/**
+ * Preserve the existing behavior of exposed API objects while adding result
+ * transfer envelopes at policy-selected method paths.
+ *
+ * Plain objects are cloned lazily so nested methods keep their receiver. Values
+ * that need Comlink proxy semantics continue to use Comlink.proxy().
+ */
+function proxyClone(object: any, transferPolicy?: APITransferPolicy<any>): any {
 	return new Proxy(object, {
 		get(target, prop) {
+			const policyNode =
+				typeof prop === 'string'
+					? (transferPolicy as Record<string, unknown> | undefined)?.[
+							prop
+						]
+					: undefined;
+			if (
+				policyNode &&
+				!isRuntimeMethodTransferPolicy(policyNode) &&
+				isObjectLike(target[prop])
+			) {
+				return proxyClone(
+					target[prop],
+					policyNode as APITransferPolicy<any>
+				);
+			}
 			switch (typeof target[prop]) {
 				case 'function':
-					return (...args: any[]) => target[prop](...args);
+					return (...args: any[]) => {
+						const result = target[prop](...args);
+						if (
+							!isRuntimeMethodTransferPolicy(policyNode) ||
+							!policyNode.result
+						) {
+							return result;
+						}
+						return Promise.resolve(result).then((value) =>
+							createAPITransferEnvelope(
+								value,
+								policyNode.result!(value)
+							)
+						);
+					};
 				case 'object':
 					if (target[prop] === null) {
 						return target[prop];
 					}
-					return proxyClone(target[prop]);
+					return proxyClone(
+						target[prop],
+						policyNode as APITransferPolicy<any> | undefined
+					);
 				case 'undefined':
 				case 'number':
 				case 'string':
@@ -918,6 +1809,25 @@ function proxyClone(object: any): any {
 			}
 		},
 	});
+}
+
+/** Include each transferable only once in the final postMessage() list. */
+function deduplicateTransferables(
+	transferables: Transferable[]
+): Transferable[] {
+	return Array.from(new Set(transferables));
+}
+
+/**
+ * Convert the isomorphic public type to Comlink's DOM transfer-list type.
+ *
+ * Node accepts additional worker_threads transferables at runtime even though
+ * Comlink's TypeScript definitions use the browser Transferable type.
+ */
+function toComlinkTransferables(
+	transferables: readonly APITransferable[]
+): Transferable[] {
+	return transferables as readonly Transferable[] as Transferable[];
 }
 
 /**
