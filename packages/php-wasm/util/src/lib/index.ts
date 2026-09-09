@@ -12,7 +12,11 @@ export {
 	ensureAbsolutePath,
 	toPosixPath,
 } from './paths';
-export { createSpawnHandler } from './create-spawn-handler';
+export {
+	createSpawnHandler,
+	type ProcessApi,
+	type ProcessOptions,
+} from './create-spawn-handler';
 export { phpEventStdinTransfer } from './php-event';
 export type { PHPEventWithStdinTransfer } from './php-event';
 export {

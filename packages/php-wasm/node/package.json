@@ -39,6 +39,9 @@
 	"license": "GPL-2.0-or-later",
 	"types": "index.d.ts",
 	"dependencies": {
+		"@zip.js/zip.js": "2.7.57",
+		"just-bash": "3.1.0",
+		"minimatch": "10.1.1",
 		"wasm-feature-detect": "1.8.0"
 	},
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",

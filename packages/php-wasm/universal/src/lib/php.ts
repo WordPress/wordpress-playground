@@ -544,6 +544,29 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Gets serializable metadata for a filesystem entry.
+	 */
+	stat(path: string, follow = true) {
+		const FS = this[__private__dont__use].FS;
+		const stat = follow ? FS.stat(path) : FS.lstat(path);
+		return {
+			isFile: FS.isFile(stat.mode),
+			isDirectory: FS.isDir(stat.mode),
+			isSymbolicLink: FS.isLink(stat.mode),
+			mode: stat.mode,
+			size: stat.size,
+			mtime: Number(stat.mtime),
+		};
+	}
+
+	/**
+	 * Sets access and modification timestamps in milliseconds since Unix epoch.
+	 */
+	utimes(path: string, atime: number, mtime: number) {
+		this[__private__dont__use].FS.utime(path, atime, mtime);
+	}
+
+	/**
 	 * Do not use. Use new PHPRequestHandler() instead.
 	 * @deprecated
 	 */

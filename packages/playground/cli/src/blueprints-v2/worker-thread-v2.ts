@@ -1,5 +1,9 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
+import {
+	loadNodeRuntime,
+	type PHPExtension,
+	vfsShellExecutor,
+} from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import {
@@ -199,22 +203,26 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				sapiName: 'cli',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
-				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() => {
-						let effectiveOptions = options;
-						if (!this.bootedWordPress) {
-							// WordPress is not yet booted so skip the post-install mounts.
-							effectiveOptions = {
-								...options,
-								mountsAfterWpInstall: [],
-							};
-						}
+				spawnHandler: (_getPHPInstance, currentPHP) =>
+					sandboxedSpawnHandlerFactory(
+						() => {
+							let effectiveOptions = options;
+							if (!this.bootedWordPress) {
+								// WordPress is not yet booted so skip the post-install mounts.
+								effectiveOptions = {
+									...options,
+									mountsAfterWpInstall: [],
+								};
+							}
 
-						return createPHPWorker(
-							effectiveOptions,
-							this.fileLockManager!
-						);
-					}),
+							return createPHPWorker(
+								effectiveOptions,
+								this.fileLockManager!
+							);
+						},
+						vfsShellExecutor,
+						currentPHP
+					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
