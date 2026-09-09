@@ -176,6 +176,11 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   when an operation leaves the surrounding pane visible. Keep progress inside an action button only
   when the button is the sole progress surface; do not show a second spinner or invent another loading
   container for the same operation.
+- **Dock tools:** Register destinations in `packages/playground/website/src/components/dock/tool-registry.tsx`.
+  Each entry owns its group, navigation labels/icon, pane copy/layout, and optional site-tool panel.
+  Developer tools use `group: 'developer'` and the shared `SiteToolPanelProps` interface; adapters for
+  existing tools live in `site-info-panel/site-tool-renderers.tsx`. The host mounts panels on first use
+  and retains them until the site changes. Do not add parallel navigation or routing lists.
 - **Path manipulation**: Never use ad-hoc string operations for file paths. Use
   the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
   `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)

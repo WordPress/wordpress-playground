@@ -1,3 +1,4 @@
+import type { DockToolSection as DockPaneSection } from '../../../components/dock/tool-registry';
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import type { ProgressDetails } from '@php-wasm/progress';
@@ -21,18 +22,7 @@ export type SiteError =
 	| 'resource-unavailable'
 	| 'resource-download-failed';
 
-export type DockPaneSection =
-	| 'new'
-	| 'playgrounds'
-	| 'blueprint'
-	| 'settings'
-	| 'database'
-	| 'terminal'
-	| 'files'
-	| 'logs'
-	| 'mail'
-	| 'share'
-	| 'save';
+export type { DockToolSection as DockPaneSection } from '../../../components/dock/tool-registry';
 
 export const modalSlugs = {
 	LOG: 'log',

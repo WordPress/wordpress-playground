@@ -89,12 +89,51 @@
 }
 
 .dock-tools {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
+.dock-tool-row {
 	align-items: stretch;
 	display: flex;
+	flex: 1;
+	gap: 2px;
+	min-width: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	justify-content: safe center;
+	scrollbar-width: none;
+}
+
+.dock-tool-row::-webkit-scrollbar {
+	display: none;
+}
+
+.developer-tools {
+	flex: none;
+	overflow: hidden;
+	transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Measure the full row even while its outer wrapper is closed. */
+.developer-tools-content {
+	display: flex;
+	width: max-content;
+	align-items: stretch;
 	gap: 2px;
 }
 
-/* Group divider before the "Blueprint" tool. The line is a short, vertically
+.developer-tools[hidden] {
+	display: block;
+	visibility: hidden;
+}
+
+.developer-toggle {
+	flex: none;
+}
+
+/* Group divider before the "Dev Tools" toggle. The line is a short, vertically
    centered pseudo-element living in the gap — it doesn't pad or border the
    button, so the button's rounded hover/active highlight stays flush in its own
    box (no offset dead strip beside the rounded corners). */
@@ -733,7 +772,7 @@
 
 	/* Tools scroll horizontally when they overflow; the scrollbar is hidden
 	   (swipe to scroll), and buttons keep their size instead of squashing. */
-	.dock-tools {
+	.dock-tool-row {
 		max-height: 80px;
 		overflow-x: auto;
 		overflow-y: hidden;
@@ -744,7 +783,7 @@
 		justify-content: safe center;
 	}
 
-	.dock-tools::-webkit-scrollbar {
+	.dock-tool-row::-webkit-scrollbar {
 		display: none;
 	}
 
@@ -1128,10 +1167,6 @@
 
 .dock-full.dock-collapsed {
 	transform: translate(-50%) translateY(var(--dock-body-h, 56px));
-}
-
-.dock-full .dock-tools {
-	justify-content: center;
 }
 
 /* No drag handle: while the dock can move, its whole dark chrome is the grab
