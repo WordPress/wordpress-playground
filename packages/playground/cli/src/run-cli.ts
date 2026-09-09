@@ -1834,7 +1834,10 @@ export async function runCLI(
 	return server;
 }
 
-function withPhpEnv<T extends PHPRequest>(request: T, phpEnv?: Record<string, string>): T {
+function withPhpEnv(
+	request: PHPRequest,
+	phpEnv?: Record<string, string>
+): PHPRequest {
 	if (!phpEnv || Object.keys(phpEnv).length === 0) {
 		return request;
 	}
