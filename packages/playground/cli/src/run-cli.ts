@@ -3,7 +3,7 @@ import { ProcessIdAllocator } from '@php-wasm/universal';
 import {
 	createObjectPoolProxy,
 	type Pooled,
-	type PHPRequest,
+	type PHPRunOptions,
 	type PathAlias,
 	type RemoteAPI,
 	type AllPHPVersion,
@@ -1835,9 +1835,9 @@ export async function runCLI(
 }
 
 function withPhpEnv(
-	request: PHPRequest,
+	request: PHPRunOptions,
 	phpEnv?: Record<string, string>
-): PHPRequest {
+): PHPRunOptions {
 	if (!phpEnv || Object.keys(phpEnv).length === 0) {
 		return request;
 	}
@@ -1863,15 +1863,13 @@ function withPhpEnvForProgrammaticRuns(
 		get(target, property, receiver) {
 			const value = Reflect.get(target, property, receiver);
 			if (
-				(property !== 'run' &&
-					property !== 'request' &&
-					property !== 'requestStreamed') ||
+				property !== 'run' ||
 				typeof value !== 'function'
 			) {
 				return value;
 			}
 
-			return (request: PHPRequest) => value(withPhpEnv(request, phpEnv));
+			return (request: PHPRunOptions) => value(withPhpEnv(request, phpEnv));
 		},
 	});
 }
