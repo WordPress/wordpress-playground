@@ -11,10 +11,11 @@ Besides the step debugger, Xdebug can record what your code did after the fact:
 - **`trace` mode** writes every function call, argument, and timing to a `trace.*.xt` file.
 - **`profile` mode** writes a cachegrind file you can open in [Speedscope](https://www.speedscope.app/), KCachegrind, QCachegrind, or PhpStorm.
 
-Playground enables `debug,develop` by default. Turn the other modes on with the
-`--php-ini` flag, which sets any [php.ini setting](https://www.php.net/manual/en/ini.list.php),
-including every [Xdebug setting](https://xdebug.org/docs/all_settings). Entries
-set this way override both the Playground defaults and the Xdebug defaults.
+When started with `--xdebug`, Playground enables the `debug` and `develop`
+modes by default. Use `--php-ini` to enable additional modes or change any
+[php.ini setting](https://www.php.net/manual/en/ini.list.php), including
+[Xdebug settings](https://xdebug.org/docs/all_settings). Values passed this way
+override both Playground's and Xdebug's defaults.
 
 ## Recording a trace and a profile
 
@@ -31,8 +32,8 @@ npx @wp-playground/cli@latest server \
 	--php-ini xdebug.mode debug,develop,trace,profile \
 	--php-ini xdebug.start_with_request trigger \
 	--php-ini xdebug.output_dir /xdebug-output \
-	--php-ini xdebug.trace_output_name trace.%t.%p \
-	--php-ini xdebug.profiler_output_name cachegrind.out.%t.%p
+	--php-ini xdebug.trace_output_name trace.%u.%p \
+	--php-ini xdebug.profiler_output_name cachegrind.out.%u.%p
 ```
 
 Then request the page you want to measure with the `XDEBUG_TRIGGER` parameter:
@@ -65,18 +66,17 @@ Xdebug names the files after the process ID by default, so a second request
 from the same worker overwrites the first one. Playground CLI runs several
 workers, which makes the collision easy to hit.
 
-Adding `%t` (timestamp) to `xdebug.trace_output_name` and
+Adding `%u` (timestamp with microseconds) to `xdebug.trace_output_name` and
 `xdebug.profiler_output_name` keeps one file per request, as in the command
 above. Running with `--workers=1` also keeps the output predictable.
 
 ## Using the library API
 
-PHP reads `php.ini` first and each extension's own ini file after, so the
-value `xdebug.ini` ships wins over the same entry in `php.ini`. Playground
-CLI therefore writes each `--php-ini` entry to the file PHP reads it from:
-entries named after an extension go to that extension's ini file, every other
-entry goes to `php.ini`. Applications built on `@php-wasm/node`, such as
-Studio, write Xdebug entries to `xdebug.ini` with `setPhpIniEntries()`:
+PHP reads `php.ini` before extension-specific ini files, so settings in
+`xdebug.ini` take precedence over matching settings in `php.ini`. The
+Playground CLI writes `xdebug.*` entries to `xdebug.ini` and all other entries
+to `php.ini`. When using `@php-wasm/node` directly, pass the Xdebug ini path to
+`setPhpIniEntries()`:
 
 ```ts
 import { PHP, PHP_EXTENSIONS_DIR, setPhpIniEntries } from '@php-wasm/universal';
@@ -91,8 +91,8 @@ await setPhpIniEntries(
 		'xdebug.mode': 'debug,develop,trace,profile',
 		'xdebug.start_with_request': 'trigger',
 		'xdebug.output_dir': '/xdebug-output',
-		'xdebug.trace_output_name': 'trace.%t.%p',
-		'xdebug.profiler_output_name': 'cachegrind.out.%t.%p',
+		'xdebug.trace_output_name': 'trace.%u.%p',
+		'xdebug.profiler_output_name': 'cachegrind.out.%u.%p',
 	},
 	joinPaths(PHP_EXTENSIONS_DIR, 'xdebug.ini')
 );
