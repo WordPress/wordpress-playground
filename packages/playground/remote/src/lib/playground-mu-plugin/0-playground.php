@@ -247,7 +247,8 @@ function playground_report_url_to_parent() {
 			window.parent.postMessage(
 				JSON.stringify({
 					type: 'playground-url-change',
-					url: window.location.href
+					url: window.location.href,
+					title: document.title
 				}),
 				'*'
 			);
