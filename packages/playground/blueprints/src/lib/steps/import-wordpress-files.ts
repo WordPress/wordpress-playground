@@ -234,8 +234,8 @@ export const importWordPressFiles: StepHandler<
 		// copy of any staged paths that have not moved yet.
 		commitInProgress = importedFilenames.length > 0;
 		for (const fileName of importedFilenames) {
-			await removePath(playground, joinPaths(documentRoot, fileName));
-			await playground.mv(
+			await replacePathPreservingDirectoryRoot(
+				playground,
 				joinPaths(importPath, fileName),
 				joinPaths(documentRoot, fileName)
 			);
@@ -492,4 +492,38 @@ async function removePath(playground: UniversalPHP, path: string) {
 			await playground.unlink(path);
 		}
 	}
+}
+
+async function replacePathPreservingDirectoryRoot(
+	playground: UniversalPHP,
+	fromPath: string,
+	toPath: string
+) {
+	const fromIsDirectory = await playground.isDir(fromPath);
+	const toExists = await playground.fileExists(toPath);
+	const toIsDirectory = toExists && (await playground.isDir(toPath));
+
+	if (fromIsDirectory && toIsDirectory) {
+		const importedNames = await playground.listFiles(fromPath);
+		const importedNameSet = new Set(importedNames);
+		for (const currentName of await playground.listFiles(toPath)) {
+			if (!importedNameSet.has(currentName)) {
+				await removePath(playground, joinPaths(toPath, currentName));
+			}
+		}
+		for (const importedName of importedNames) {
+			await replacePathPreservingDirectoryRoot(
+				playground,
+				joinPaths(fromPath, importedName),
+				joinPaths(toPath, importedName)
+			);
+		}
+		await playground.rmdir(fromPath);
+		return;
+	}
+
+	if (toExists && (fromIsDirectory || toIsDirectory)) {
+		await removePath(playground, toPath);
+	}
+	await playground.mv(fromPath, toPath);
 }
