@@ -157,3 +157,27 @@
 	width: 40px;
 	height: 40px;
 }
+
+.importConflictDialog {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+
+	p {
+		margin: 0;
+	}
+}
+
+.importConflictList {
+	margin: 0;
+	padding-left: 20px;
+	max-height: 160px;
+	overflow-y: auto;
+	word-break: break-all;
+}
+
+.importConflictActions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
