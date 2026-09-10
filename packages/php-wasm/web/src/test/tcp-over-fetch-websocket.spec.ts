@@ -150,6 +150,10 @@ function createTestApp(): Express {
 		});
 	});
 
+	app.get('/request-headers', (req, res) => {
+		res.json(req.headers);
+	});
+
 	app.get('/error', (req, res) => {
 		res.status(500).send('Internal Server Error');
 	});
@@ -328,6 +332,22 @@ describe('TCPOverFetchWebsocket over HTTP', () => {
 		expect(response).toContain('HTTP/1.1 200 OK');
 		expect(response).toContain('Part 1');
 		expect(response).toContain('Part 2');
+	});
+
+	it('should not forward the User-Agent header set by PHP', async () => {
+		// A forwarded User-Agent is not CORS-safelisted and would make every
+		// cross-origin request preflighted. The browser sends its own instead.
+		const socket = await makeRequest({
+			host,
+			port,
+			path: '/request-headers',
+			additionalHeaders:
+				'User-Agent: WordPress/6.8; https://example.com\r\n',
+			outputType: 'stream',
+		});
+		const response = await bufferResponse(socket);
+		expect(response).toContain('HTTP/1.1 200 OK');
+		expect(response).not.toContain('WordPress/6.8');
 	});
 
 	it('should handle an error response', async () => {
