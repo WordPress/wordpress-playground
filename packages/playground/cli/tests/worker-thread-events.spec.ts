@@ -2,8 +2,7 @@ import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PHP } from '@php-wasm/universal';
 import { describe, expect, test, vi } from 'vitest';
 
-import { PlaygroundCliBlueprintV1Worker } from '../src/blueprints-v1/worker-thread-v1';
-import { PlaygroundCliBlueprintV2Worker } from '../src/blueprints-v2/worker-thread-v2';
+import { PlaygroundCliWorker } from '../src/worker-thread';
 
 type PhpEvent = { type: string; [key: string]: unknown };
 type PhpEventListener = (event: PhpEvent) => void | Promise<void>;
@@ -12,7 +11,7 @@ type PhpMessageListener = (message: unknown) => unknown | Promise<unknown>;
 const createMonitor = () =>
 	({
 		addEventListener: vi.fn(),
-	} as unknown as EmscriptenDownloadMonitor);
+	}) as unknown as EmscriptenDownloadMonitor;
 
 const createMockPHP = () => {
 	const eventListeners = new Map<string, Set<PhpEventListener>>();
@@ -38,15 +37,19 @@ const createMockPHP = () => {
 			if (!listeners) {
 				return;
 			}
-			await Promise.all([...listeners].map((listener) => listener(event)));
+			await Promise.all(
+				[...listeners].map((listener) => listener(event))
+			);
 		},
 		emitMessage: async (message: unknown) => {
-			await Promise.all([...messageListeners].map((listener) => listener(message)));
+			await Promise.all(
+				[...messageListeners].map((listener) => listener(message))
+			);
 		},
 	};
 };
 
-class TestableV2Worker extends PlaygroundCliBlueprintV2Worker {
+class TestableWorker extends PlaygroundCliWorker {
 	constructor() {
 		super(createMonitor());
 	}
@@ -56,19 +59,9 @@ class TestableV2Worker extends PlaygroundCliBlueprintV2Worker {
 	}
 }
 
-class TestableV1Worker extends PlaygroundCliBlueprintV1Worker {
-	constructor() {
-		super(createMonitor());
-	}
-
-	attachPhp(php: PHP) {
-		this.registerWorkerListeners(php);
-	}
-}
-
-describe('Playground CLI blueprint workers', () => {
-	test('V2 worker listeners receive events from every PHP instance', async () => {
-		const worker = new TestableV2Worker();
+describe('Playground CLI worker', () => {
+	test('listeners receive events from every PHP instance', async () => {
+		const worker = new TestableWorker();
 		const phpA = createMockPHP();
 		const phpB = createMockPHP();
 		const received: any[] = [];
@@ -90,38 +83,14 @@ describe('Playground CLI blueprint workers', () => {
 		});
 
 		expect(received).toEqual([
-			expect.objectContaining({ type: 'blueprint.progress', source: 'A' }),
-			expect.objectContaining({ type: 'blueprint.progress', source: 'B' }),
-		]);
-		expect(phpA.addEventListener).toHaveBeenCalledWith(
-			'*',
-			expect.any(Function)
-		);
-		expect(phpB.addEventListener).toHaveBeenCalledWith(
-			'*',
-			expect.any(Function)
-		);
-	});
-
-	test('V1 worker listeners receive events from every PHP instance', async () => {
-		const worker = new TestableV1Worker();
-		const phpA = createMockPHP();
-		const phpB = createMockPHP();
-		const received: any[] = [];
-
-		worker.addEventListener('runtime.exit', (event) => {
-			received.push(event);
-		});
-
-		worker.attachPhp(phpA as unknown as PHP);
-		worker.attachPhp(phpB as unknown as PHP);
-
-		await phpA.emitEvent({ type: 'runtime.exit', source: 'A' });
-		await phpB.emitEvent({ type: 'runtime.exit', source: 'B' });
-
-		expect(received).toEqual([
-			expect.objectContaining({ type: 'runtime.exit', source: 'A' }),
-			expect.objectContaining({ type: 'runtime.exit', source: 'B' }),
+			expect.objectContaining({
+				type: 'blueprint.progress',
+				source: 'A',
+			}),
+			expect.objectContaining({
+				type: 'blueprint.progress',
+				source: 'B',
+			}),
 		]);
 		expect(phpA.addEventListener).toHaveBeenCalledWith(
 			'*',
