@@ -68,6 +68,10 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import {
+	type PosixKernelRunCliServer,
+	runCLIWithPosixKernel,
+} from './posix-kernel/run-cli';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	type Mount,
@@ -374,6 +378,15 @@ export async function parseOptionsAndRunCLI(
 				choices: ['', 'vscode', 'phpstorm'],
 				coerce: (value?: string) =>
 					value === '' ? ['vscode', 'phpstorm'] : [value],
+			},
+			'experimental-posix-kernel': {
+				describe:
+					'Run WordPress under nginx + PHP-FPM hosted by kandelo ' +
+					'instead of PHP.wasm. Set KANDELO_DIR to the kandelo ' +
+					'checkout.',
+				type: 'boolean',
+				default: false,
+				hidden: true,
 			},
 			mode: {
 				describe:
@@ -763,7 +776,9 @@ export async function parseOptionsAndRunCLI(
 
 		return {
 			[Symbol.asyncDispose]: () => cliResult[Symbol.asyncDispose](),
-			[internalsKeyForTesting]: { cliServer: cliResult },
+			[internalsKeyForTesting]: {
+				cliServer: cliResult as RunCLIServer,
+			},
 		};
 	} catch (e) {
 		// Validation errors have already been reported to the
@@ -859,6 +874,7 @@ export interface RunCLIArgs {
 	phpExtension?: string[];
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
+	'experimental-posix-kernel'?: boolean;
 	workers?: number | 'auto';
 	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
@@ -930,6 +946,8 @@ export interface RunCLIServer extends AsyncDisposable {
 // Re-export merge functions from defines.ts
 export { mergeDefinedConstants } from './defines';
 
+export type { PosixKernelRunCliServer };
+
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;
@@ -940,14 +958,23 @@ export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
 ): Promise<RunCLIServer>;
 export async function runCLI(
+	args: RunCLIArgs & {
+		command: 'server';
+		'experimental-posix-kernel': true;
+	}
+): Promise<PosixKernelRunCliServer>;
+export async function runCLI(
 	args: RunCLIArgs & { command: 'server' }
 ): Promise<RunCLIServer>;
 export async function runCLI(
 	args: RunCLIArgs
-): Promise<RunCLIServer | number | void>;
+): Promise<RunCLIServer | PosixKernelRunCliServer | number | void>;
 export async function runCLI(
 	args: RunCLIArgs
-): Promise<RunCLIServer | number | void> {
+): Promise<RunCLIServer | PosixKernelRunCliServer | number | void> {
+	if (args['experimental-posix-kernel']) {
+		return await runCLIWithPosixKernel(args);
+	}
 	let playgroundPool: Pooled<PlaygroundCliWorker>;
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()

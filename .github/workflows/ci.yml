@@ -198,7 +198,7 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
         runs-on: ${{ matrix.os }}
-        timeout-minutes: 30
+        timeout-minutes: 60
         permissions:
             contents: read # Required to clone the repo.
         env:
@@ -211,9 +211,41 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
-            - name: Run full test suite
-              run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+                  node-version: 24
+            - name: Run core test suite
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli --output-style=stream
+    test-playground-cli-posix-kernel:
+        needs: set-nx-shas
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 60
+        permissions:
+            contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
+        name: 'test-playground-cli-posix-kernel (${{ matrix.os }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Build kandelo host
+              shell: bash
+              working-directory: kandelo/host
+              run: |
+                  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --no-audit --no-fund
+                  npm run build
+            - name: Fetch kandelo wasm binaries
+              run: node packages/playground/cli/src/posix-kernel/scripts/fetch-kandelo-binaries.mts
+            - name: Run posix-kernel test suite
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli-posix-kernel --output-style=stream
     test-file-locking:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
