@@ -87,7 +87,7 @@ export function RenameSiteModal() {
 				<ModalButtons
 					submitText="Rename"
 					areDisabled={!name.trim()}
-					areBusy={isSubmitting}
+					submitBusy={isSubmitting}
 					onCancel={closeModal}
 				/>
 			</form>
