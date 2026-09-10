@@ -37,11 +37,19 @@ export type WorkerBootWordPressOptions = {
 	 * PHP constants to define via php.defineConstant().
 	 */
 	constants?: Record<string, string | number | boolean>;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 */
+	phpIniEntries?: Record<string, string>;
 };
 
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
 	phpVersion: AllPHPVersion;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 */
+	phpIniEntries?: Record<string, string>;
 	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
@@ -106,6 +114,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
 			constants,
+			phpIniEntries,
 		} = options;
 
 		try {
@@ -134,6 +143,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					'curl.cainfo': '/internal/shared/ca-bundle.crt',
 					allow_url_fopen: '1',
 					disable_functions: '',
+					...phpIniEntries,
 				},
 				dataSqlPath,
 				constants,
@@ -164,6 +174,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				siteUrl: options.siteUrl,
 				phpVersion: options.phpVersion,
 				maxPhpInstances: 1,
+				phpIniEntries: options.phpIniEntries,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!
