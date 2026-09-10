@@ -25,7 +25,10 @@ const playgroundPackageRootUrl = pathToFileURL(
 );
 
 const aliasMap = new Map<string, URL>();
-for (const [alias, paths] of Object.entries(pathAliases)) {
+const aliasesBySpecificity = Object.entries(pathAliases).sort(
+	([left], [right]) => right.length - left.length
+);
+for (const [alias, paths] of aliasesBySpecificity) {
 	// Our config is simple and doesn't use wildcards,
 	// so we can just use the first path
 	const resolvedPath = resolvePath(baseUrl, paths[0]);

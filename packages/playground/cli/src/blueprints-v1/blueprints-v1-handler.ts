@@ -1,11 +1,11 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import {
-	consumeAPI,
 	isLegacyPHPVersion,
 	type Pooled,
 	type UniversalPHP,
 } from '@php-wasm/universal';
+import { consumeAPI } from '@php-wasm/universal/playground-rpc';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -161,7 +161,7 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress('Caching WordPress for next boot');
 			fs.writeFileSync(
 				preinstalledWpContentPath,
-				// Comlink proxy is not assignable to UniversalPHP but
+				// The RPC proxy is not assignable to UniversalPHP but
 				// proxies all method calls transparently at runtime.
 				(await zipDirectory(
 					playground as unknown as UniversalPHP,

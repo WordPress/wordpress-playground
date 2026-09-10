@@ -64,6 +64,9 @@
 				"packages/php-wasm/stream-compression/src/index.ts"
 			],
 			"@php-wasm/universal": ["packages/php-wasm/universal/src/index.ts"],
+			"@php-wasm/universal/playground-rpc": [
+				"packages/php-wasm/universal/src/playground-rpc.ts"
+			],
 			"@php-wasm/universal/mime-types": [
 				"packages/php-wasm/universal/src/lib/mime-types.json"
 			],
