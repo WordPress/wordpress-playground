@@ -48,8 +48,12 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 		) {
 			// Intentionally do not await writing to the cache so the response
 			// promise can be returned immediately and observed for progress events.
+			// A failed write only reduces offline availability, so settle it here
+			// instead of surfacing an unhandled rejection after the response returns.
 			// NOTE: This is a race condition for simultaneous requests for the same asset.
-			offlineModeCache.put(requestWithoutRangeHeader, response.clone());
+			void offlineModeCache
+				.put(requestWithoutRangeHeader, response.clone())
+				.catch(() => undefined);
 		}
 	}
 
@@ -91,8 +95,12 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 	if (response.ok) {
 		// Intentionally do not await writing to the cache so the response
 		// promise can be returned immediately and observed for progress events.
+		// A failed write only reduces offline availability, so settle it here
+		// instead of surfacing an unhandled rejection after the response returns.
 		// NOTE: This is a race condition for simultaneous requests for the same asset.
-		offlineModeCache.put(request, response.clone());
+		void offlineModeCache
+			.put(request, response.clone())
+			.catch(() => undefined);
 		return response;
 	}
 
