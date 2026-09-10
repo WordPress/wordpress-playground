@@ -259,14 +259,14 @@ You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination
 <div class="callout callout-tip">
 
 
-Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
+Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to see the full example showing the connection between the content and the featured image.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-কন্টেন্ট এবং ফিচার্ড ইমেজের মধ্যে সংযোগ দেখানো সম্পূর্ণ উদাহরণ দেখতে [ব্লুপ্রিন্ট গ্যালারি](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) থেকে ["ইমেজ সহ পোস্ট যোগ করতে wp-cli ব্যবহার করুন"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) উদাহরণটি দেখুন।
+কন্টেন্ট এবং ফিচার্ড ইমেজের মধ্যে সংযোগ দেখানো সম্পূর্ণ উদাহরণ দেখতে [ব্লুপ্রিন্ট গ্যালারি](https://wordpress.github.io/blueprints/) থেকে ["ইমেজ সহ পোস্ট যোগ করতে wp-cli ব্যবহার করুন"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) উদাহরণটি দেখুন।
 
 </div>
 

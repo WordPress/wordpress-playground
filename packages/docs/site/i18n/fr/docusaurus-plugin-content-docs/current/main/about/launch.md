@@ -24,9 +24,9 @@ En savoir plus à ce propos sur [Comment utiliser WordPress Playground pour des 
 
 <!-- Read more about this at [How to use WordPress Playground for interactive demos](https://developer.wordpress.org/news/2024/04/25/how-to-use-wordpress-playground-for-interactive-demos/) -->
 
-Trouvez l’inspiration sur le type de démonstration interactive que vous pouvez créer sur la [Galerie de Blueprints (en anglais)](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+Trouvez l’inspiration sur le type de démonstration interactive que vous pouvez créer sur la [Galerie de Blueprints (en anglais)](https://wordpress.github.io/blueprints/)
 
-<!-- Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) -->
+<!-- Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://wordpress.github.io/blueprints/) -->
 
 L’outil [constructeur de Blueprints (en anglais)](https://playground.wordpress.net/builder/builder.html) vous permet de modifier votre blueprint en ligne et de l’exécuter directement dans une instance de Playground.
 
