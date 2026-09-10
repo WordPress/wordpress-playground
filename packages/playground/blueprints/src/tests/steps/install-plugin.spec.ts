@@ -160,6 +160,36 @@ describe('Blueprint step installPlugin', () => {
 		}
 	});
 
+	it('should return the installed path when activation is skipped after failing', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			const result = await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `<?php\n/**\n * Plugin Name: Test Plugin\n */`,
+					},
+				},
+				options: {
+					activate: true,
+					onError: 'skip-plugin',
+				},
+			});
+
+			expect(result).toEqual({
+				assetPath: installedPluginPath,
+				skippedExisting: false,
+			});
+			expect(php.fileExists(`${installedPluginPath}/index.php`)).toBe(
+				true
+			);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
+	});
+
 	it('should use humanReadableName when skipping plugin installation errors', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
@@ -408,6 +438,70 @@ echo json_encode(is_plugin_active('single-file-plugin.php'));
 					},
 				})
 			).rejects.toThrowError();
+		});
+
+		it('should apply ifAlreadyInstalled to directory plugin resources', async () => {
+			const overwriteResult = await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Existing Directory Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(overwriteResult?.skippedExisting).toBeFalsy();
+
+			const skipResult = await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Skipped Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(skipResult?.skippedExisting).toBe(true);
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Existing Directory Plugin');
+
+			await installPlugin(php, {
+				pluginData: {
+					name: pluginName,
+					files: {
+						'index.php': `/**\n * Plugin Name: Overwritten Plugin`,
+					},
+				},
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Overwritten Plugin');
+
+			await expect(
+				installPlugin(php, {
+					pluginData: {
+						name: pluginName,
+						files: {
+							'index.php': `/**\n * Plugin Name: Error Plugin`,
+						},
+					},
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
+					},
+				})
+			).rejects.toThrow(/already exists/);
 		});
 	});
 

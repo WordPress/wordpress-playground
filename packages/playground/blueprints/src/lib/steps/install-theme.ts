@@ -83,8 +83,19 @@ export interface InstallThemeOptions {
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
+export interface InstallThemeResult {
+	assetPath: string;
+	/**
+	 * True when `assetPath` already held an unrelated, pre-existing
+	 * installation and `ifAlreadyInstalled: 'skip'` left it untouched — so
+	 * `assetPath` was not actually populated by this step's `themeData`.
+	 */
+	skippedExisting?: boolean;
+}
+
 export const installTheme: StepHandler<
-	InstallThemeStep<File, Directory>
+	InstallThemeStep<File, Directory>,
+	Promise<InstallThemeResult | undefined>
 > = async (
 	playground,
 	{ themeData, themeZipFile, ifAlreadyInstalled, options = {} },
@@ -98,7 +109,10 @@ export const installTheme: StepHandler<
 	}
 
 	const onError = options.onError ?? 'throw';
+	let assetPath = '';
 	let assetNiceName = '';
+	let skippedExisting = false;
+	let installationCompleted = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
 		const targetFolderName =
@@ -119,6 +133,7 @@ export const installTheme: StepHandler<
 				targetFolderName: targetFolderName,
 			});
 			assetFolderName = assetResult.assetFolderName;
+			assetPath = assetResult.assetFolderPath;
 		} else {
 			assetNiceName = themeData.name;
 			assetFolderName = targetFolderName || assetNiceName;
@@ -140,6 +155,7 @@ export const installTheme: StepHandler<
 				'themes',
 				assetFolderName
 			);
+			assetPath = themeDirectoryPath;
 			let shouldWriteThemeFiles = true;
 			/**
 			 * Directory themes are written directly instead of going through
@@ -153,6 +169,7 @@ export const installTheme: StepHandler<
 				}
 				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
 					shouldWriteThemeFiles = false;
+					skippedExisting = true;
 				} else if (ifAlreadyInstalled === 'error') {
 					throw new Error(
 						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because it already exists and ` +
@@ -171,6 +188,7 @@ export const installTheme: StepHandler<
 				);
 			}
 		}
+		installationCompleted = Boolean(assetPath);
 
 		const activate = 'activate' in options ? options.activate : true;
 		if (activate) {
@@ -196,6 +214,8 @@ export const installTheme: StepHandler<
 				progress
 			);
 		}
+
+		return { assetPath, skippedExisting };
 	} catch (error) {
 		if (onError === 'skip-theme') {
 			const skippedThemeName = progressName() || 'unknown theme';
@@ -204,7 +224,9 @@ export const installTheme: StepHandler<
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
-			return;
+			return installationCompleted
+				? { assetPath, skippedExisting }
+				: undefined;
 		}
 		throw error;
 	}

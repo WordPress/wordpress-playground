@@ -15,6 +15,7 @@ type SiteInfo = SliceSitesModule.SiteInfo;
 
 const EDITED_BLUEPRINT = '{"steps":[{"step":"login"}]}';
 const mocks = vi.hoisted(() => ({
+	buildUpdatedBlueprintDeclaration: vi.fn(),
 	changeCode: undefined as ((code: string) => void) | undefined,
 	clientEntities: {} as Record<
 		string,
@@ -27,6 +28,7 @@ const mocks = vi.hoisted(() => ({
 	pruneAutosavedSites: vi.fn(),
 	removeSite: vi.fn(),
 	resolveRuntimeConfiguration: vi.fn(),
+	renderedCode: '',
 	setActiveSite: vi.fn(),
 	setDockPaneOpen: vi.fn(),
 	updateSite: vi.fn(),
@@ -40,12 +42,20 @@ vi.mock('@wp-playground/blueprints', () => ({
 	resolveRuntimeConfiguration: mocks.resolveRuntimeConfiguration,
 }));
 
+vi.mock('../../lib/state/redux/git-directory-sources', () => ({
+	buildUpdatedBlueprintDeclaration: mocks.buildUpdatedBlueprintDeclaration,
+}));
+
 vi.mock('@wp-playground/components', async () => {
 	const { forwardRef } = await import('react');
 	return {
 		CodeEditor: forwardRef(
-			(props: { onChange: (code: string) => void }, _ref) => {
+			(
+				props: { code: string; onChange: (code: string) => void },
+				_ref
+			) => {
 				mocks.changeCode = props.onChange;
+				mocks.renderedCode = props.code;
 				return null;
 			}
 		),
@@ -119,6 +129,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			writeFile,
 		} as unknown as EventedFilesystem;
 		mocks.changeCode = undefined;
+		mocks.buildUpdatedBlueprintDeclaration.mockReset();
 		mocks.clientEntities = {};
 		mocks.createStoredSite.mockReset();
 		mocks.fileExplorerProps = undefined;
@@ -127,6 +138,7 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		mocks.pruneAutosavedSites.mockReset();
 		mocks.removeSite.mockReset();
 		mocks.resolveRuntimeConfiguration.mockReset();
+		mocks.renderedCode = '';
 		mocks.setActiveSite.mockReset();
 		mocks.setActiveSite.mockImplementation((slug) => ({
 			type: 'set-active-site',
@@ -514,6 +526,89 @@ describe('BlueprintBundleEditor Run barrier', () => {
 			showBinaryPreviewHeader: false,
 			dockPresentation: true,
 			useWordPressTooltips: true,
+		});
+	});
+
+	it('rebuilds the git-mount preview from edited Blueprint JSON', async () => {
+		const sourceSite = createStoredSiteInfo('autosave');
+		sourceSite.metadata.gitDirectorySources = {
+			'/wordpress/wp-content/plugins/example': {
+				resource: 'git:directory',
+				url: 'https://github.com/example/plugin',
+				ref: 'main',
+			},
+		};
+		mocks.buildUpdatedBlueprintDeclaration.mockResolvedValue({
+			declaration: { steps: [{ step: 'login' }] },
+			hasChanges: true,
+		});
+		await renderEditor({ site: sourceSite });
+		mocks.buildUpdatedBlueprintDeclaration.mockClear();
+
+		act(() => mocks.changeCode!(EDITED_BLUEPRINT));
+
+		await vi.waitFor(() => {
+			expect(mocks.buildUpdatedBlueprintDeclaration).toHaveBeenCalledWith(
+				JSON.parse(EDITED_BLUEPRINT),
+				sourceSite.metadata.gitDirectorySources
+			);
+		});
+	});
+
+	it('refreshes the editor when the open git-mount preview changes', async () => {
+		const sourceSite = createStoredSiteInfo('autosave');
+		sourceSite.metadata.gitDirectorySources = {
+			'/wordpress/wp-content/plugins/example': {
+				resource: 'git:directory',
+				url: 'https://github.com/example/plugin',
+				ref: 'main',
+			},
+		};
+		mocks.buildUpdatedBlueprintDeclaration.mockResolvedValue({
+			declaration: { marker: 'first' },
+			hasChanges: true,
+		});
+		await renderEditor({ site: sourceSite });
+		await vi.waitFor(() => {
+			expect(writeFile).toHaveBeenCalledWith(
+				'/blueprint-updated.json',
+				JSON.stringify({ marker: 'first' }, null, 2)
+			);
+		});
+
+		act(() => {
+			(
+				mocks.fileExplorerProps!.onFileOpened as (
+					path: string,
+					content: string
+				) => void
+			)('/blueprint-updated.json', 'old preview');
+		});
+		mocks.buildUpdatedBlueprintDeclaration.mockResolvedValue({
+			declaration: { marker: 'second' },
+			hasChanges: true,
+		});
+		const updatedSite = {
+			...sourceSite,
+			metadata: {
+				...sourceSite.metadata,
+				gitDirectorySources: {
+					...sourceSite.metadata.gitDirectorySources,
+					'/wordpress/wp-content/plugins/another': {
+						resource: 'git:directory' as const,
+						url: 'https://github.com/example/another',
+						ref: 'main',
+					},
+				},
+			},
+		};
+
+		await renderEditor({ site: updatedSite });
+
+		await vi.waitFor(() => {
+			expect(mocks.renderedCode).toBe(
+				JSON.stringify({ marker: 'second' }, null, 2)
+			);
 		});
 	});
 
