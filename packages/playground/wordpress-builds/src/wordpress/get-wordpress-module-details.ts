@@ -63,8 +63,8 @@ export function getWordPressModuleDetails(
 				format: 'tar.zst',
 				container: 'tar',
 				codec: 'zstd',
-				size: 4671931,
-				sha256: "e5045523831af3884c961e33e95fc4f85337b9adf9584de2c4d189ef839d5e78",
+				size: 4672492,
+				sha256: "6f77e8cbc952a9466b31f23eee4a2957140819805fd3729b20efc265836229bb",
 				fileCount: 1844,
 				url: url_beta,
 			};
