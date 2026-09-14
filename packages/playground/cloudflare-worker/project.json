@@ -1,0 +1,34 @@
+{
+	"name": "playground-cloudflare-worker-memory-gate",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/cloudflare-worker/src",
+	"projectType": "application",
+	"targets": {
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "tsc -p packages/playground/cloudflare-worker/tsconfig.typecheck.json --noEmit"
+			}
+		},
+		"test": {
+			"executor": "@nx/vitest:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/cloudflare-worker"
+			],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/playground/cloudflare-worker"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/playground/cloudflare-worker/**/*.ts"
+				],
+				"maxWarnings": 0
+			}
+		}
+	}
+}
