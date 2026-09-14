@@ -1,16 +1,22 @@
+import { dirname } from '@php-wasm/util';
 import { PHP_INI_PATH } from './php';
 import type { UniversalPHP } from './universal-php';
 import { stringify, parse } from 'ini';
 
 /**
- * Reads the php.ini file and returns its entries.
+ * Reads an ini file and returns its entries.
  *
  * @param php The PHP instance.
  * @param entries Optional. If provided, only the specified entries will be returned.
- * @returns The php.ini entries.
+ * @param path The ini file to read. Defaults to the php.ini file.
+ * @returns The ini file entries.
  */
-export async function getPhpIniEntries(php: UniversalPHP, entries?: string[]) {
-	const ini = parse(await php.readFileAsText(PHP_INI_PATH));
+export async function getPhpIniEntries(
+	php: UniversalPHP,
+	entries?: string[],
+	path = PHP_INI_PATH
+) {
+	const ini = parse(await php.readFileAsText(path));
 	if (entries === undefined) {
 		return ini;
 	}
@@ -22,16 +28,24 @@ export async function getPhpIniEntries(php: UniversalPHP, entries?: string[]) {
 }
 
 /**
- * Rewrites the php.ini file with the given entries.
+ * Rewrites an ini file with the given entries.
+ *
+ * PHP reads `php.ini` first, then every `.ini` file in `PHP_INI_SCAN_DIR`,
+ * and the last value read wins. Pass `path` to write to one of those files,
+ * such as the `.ini` file an extension ships. Entries already in the file are
+ * kept. The file and its directory are created when they do not exist yet.
  *
  * @param php The PHP instance.
- * @param entries The entries to write to the php.ini file.
+ * @param entries The entries to write to the ini file.
+ * @param path The ini file to rewrite. Defaults to the php.ini file.
  */
 export async function setPhpIniEntries(
 	php: UniversalPHP,
-	entries: Record<string, unknown>
+	entries: Record<string, unknown>,
+	path = PHP_INI_PATH
 ) {
-	const ini = parse(await php.readFileAsText(PHP_INI_PATH));
+	const exists = await php.fileExists(path);
+	const ini = parse(exists ? await php.readFileAsText(path) : '');
 	for (const [key, value] of Object.entries(entries)) {
 		if (value === undefined || value === null) {
 			delete ini[key];
@@ -39,7 +53,10 @@ export async function setPhpIniEntries(
 			ini[key] = value;
 		}
 	}
-	await php.writeFile(PHP_INI_PATH, stringify(ini));
+	if (!exists) {
+		await php.mkdirTree(dirname(path));
+	}
+	await php.writeFile(path, stringify(ini));
 }
 
 /**
