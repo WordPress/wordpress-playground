@@ -499,24 +499,12 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 let errorTag;
 
 /**
- * Escapes text for interpolation into an HTML document.
- *
- * @param {unknown} value The value to escape.
- * @returns {string} The escaped text.
- */
-const escapeHtml = (value) =>
-	String(value)
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
-
-/**
  * Renders an error in the error iframe.
  *
  * Schema errors quote the Blueprint, which comes from the URL fragment, so the
- * message is untrusted text and belongs in `srcdoc` escaped, never as markup.
+ * message is untrusted text. Setting it as a node's `textContent` and reading
+ * back the serialized markup lets the DOM escape it, instead of hand-rolling
+ * escaping that is easy to get wrong.
  *
  * @param {unknown} error The error to display.
  */
@@ -525,9 +513,9 @@ const showError = (error) => {
 	if (!errorTag) {
 		errorTag = document.getElementById('error-output');
 	}
-	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body><pre>${escapeHtml(
-		error
-	)}</pre></body>`;
+	const pre = document.createElement('pre');
+	pre.textContent = String(error);
+	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${pre.outerHTML}</body>`;
 	errorTag.setAttribute('srcdoc', errDoc);
 };
 const clearError = (error) => {
