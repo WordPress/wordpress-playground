@@ -399,7 +399,7 @@ export function bootSiteClient(
 			})
 		);
 
-		(playground as PlaygroundClient).onNavigation((url) => {
+		(playground as PlaygroundClient).onNavigation((url, options) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
@@ -408,6 +408,9 @@ export function bootSiteClient(
 					},
 				})
 			);
+			if (options?.title) {
+				document.title = options.title;
+			}
 		});
 
 		const bootCompletedAt = Date.now();
