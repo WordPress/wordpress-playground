@@ -1121,6 +1121,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysql_stmt_execute",\
 "mysqli_commit_or_rollback_libmysql",\
 "mysqli_common_connect",\
+"mysqlnd_stream_array_from_fd_set",\
+"mysqlnd_stream_array_to_fd_set",\
 "mysqlnd_caching_sha2_handle_server_response",\
 "mysqlnd_com_handshake_run",\
 "mysqlnd_com_init_db_run",\
@@ -1145,6 +1147,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysqlnd_com_stmt_close_run",\
 "mysqlnd_com_enable_ssl_run",\
 "mysqlnd_com_handshake_run",\
+"mysqlnd_poll",\
 "mysqlnd_connect",\
 "mysqlnd_connection_connect",\
 "mysqlnd_mysqlnd_command_handshake_pub",\
@@ -1163,6 +1166,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "mysqlnd_mysqlnd_conn_data_set_charset_pub",\
 "mysqlnd_mysqlnd_conn_data_set_server_option_pub",\
 "mysqlnd_mysqlnd_conn_data_store_result_pub",\
+"mysqlnd_mysqlnd_conn_data_close_pub",\
+"mysqlnd_mysqlnd_conn_data_send_close_pub",\
+"mysqlnd_mysqlnd_conn_data_tx_begin_pub",\
 "mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "mysqlnd_mysqlnd_pfc_receive_pub",\
 "mysqlnd_mysqlnd_pfc_send_pub",\
@@ -1278,6 +1284,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_mysqlnd_conn_data_simple_command_pub",\
 "php_mysqlnd_conn_data_simple_command_send_request_pub",\
 "php_mysqlnd_conn_data_store_result_pub",\
+"php_mysqlnd_conn_data_close_pub",\
+"php_mysqlnd_conn_data_send_close_pub",\
+"php_mysqlnd_conn_data_tx_begin_pub",\
 "php_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
 "php_mysqlnd_eof_read",\
 "php_mysqlnd_greet_read",\
@@ -2018,6 +2027,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_lcg_value",\
 "zif_method_exists",\
 "zif_mysqli_begin_transaction",\
+"zif_mysqli_close",\
+"zif_mysqli_commit",\
 "zif_mysqli_connect",\
 "zif_mysqli_data_seek",\
 "zif_mysqli_errno",\
@@ -2030,10 +2041,13 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_mysqli_multi_query",\
 "zif_mysqli_next_result",\
 "zif_mysqli_ping",\
+"zif_mysqli_poll",\
 "zif_mysqli_prepare",\
 "zif_mysqli_query",\
+"zif_mysqli_report",\
 "zif_mysqli_real_connect",\
 "zif_mysqli_reap_async_query",\
+"zif_mysqli_rollback",\
 "zif_mysqli_select_db",\
 "zif_mysqli_set_charset",\
 "zif_mysqli_stmt_execute",\
