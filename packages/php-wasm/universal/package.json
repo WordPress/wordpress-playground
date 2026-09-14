@@ -26,6 +26,10 @@
 			"import": "./index.js",
 			"require": "./index.cjs"
 		},
+		"./playground-rpc": {
+			"import": "./playground-rpc.js",
+			"require": "./playground-rpc.cjs"
+		},
 		"./package.json": "./package.json"
 	},
 	"publishConfig": {
