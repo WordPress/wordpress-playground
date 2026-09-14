@@ -501,11 +501,6 @@ let errorTag;
 /**
  * Renders an error in the error iframe.
  *
- * Schema errors quote the Blueprint, which comes from the URL fragment, so the
- * message is untrusted text. Setting it as a node's `textContent` and reading
- * back the serialized markup lets the DOM escape it, instead of hand-rolling
- * escaping that is easy to get wrong.
- *
  * @param {unknown} error The error to display.
  */
 const showError = (error) => {
@@ -513,6 +508,11 @@ const showError = (error) => {
 	if (!errorTag) {
 		errorTag = document.getElementById('error-output');
 	}
+	// The error message is untrusted: schema errors quote the Blueprint, which
+	// comes from the URL fragment. Build the body as a detached DOM node and
+	// read `outerHTML` back rather than interpolating the raw string, so the
+	// DOM escapes the message for us and nothing in it can turn into HTML or
+	// script inside the iframe.
 	const pre = document.createElement('pre');
 	pre.textContent = String(error);
 	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${pre.outerHTML}</body>`;
