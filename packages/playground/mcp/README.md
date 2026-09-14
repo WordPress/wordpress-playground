@@ -44,29 +44,67 @@ Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
 Your AI assistant will ask you to open the Playground website and provide the exact URL. You can also ask it: _"What's the Playground website URL?"_
 The MCP server chooses the local bridge connection automatically, so you do not need to configure it in your MCP client.
 
-To connect to Personal Playground, pass its URL to the MCP server:
+To connect to Personal Playground, use the MyWP MCP package. It wraps the
+generic Playground MCP server and adds MyWP-specific prompts and tools:
 
 ```json
 {
 	"mcpServers": {
-		"wordpress-playground": {
+		"mywp": {
 			"type": "stdio",
 			"command": "npx",
-			"args": ["-y", "@wp-playground/mcp", "--url=https://my.wordpress.net/"]
+			"args": ["-y", "@wp-playground/personal-wp-mcp"]
 		}
 	}
 }
 ```
+
+The MyWP package defaults to `https://my.wordpress.net/`. Pass `--url=...` only
+when connecting it to a different Personal Playground origin.
+
+MCP clients that support prompts can then load `mywp-agent` for the recommended
+MyWP operating instructions. The MyWP MCP server also ships focused skill
+prompts:
+
+- `mywp-skill-abilities`: discover REST routes and WordPress Abilities before
+  falling back to raw PHP.
+- `mywp-skill-file-editing`: inspect and edit files in the MyWP virtual
+  filesystem.
+- `mywp-skill-plugin-development`: create or modify WordPress plugins inside
+  MyWP.
+- `mywp-skill-create-app`: scaffold app-like plugins locally with
+  `create-wp-app`, then sync them into MyWP.
+- `mywp-skill-sync-local-changes`: copy local project changes into the
+  `my.wordpress.net` sandbox.
+
+To sync local changes into MyWP, run the MyWP MCP package connected to
+`https://my.wordpress.net/`. Local files are not mounted automatically: your AI
+client must read local files from your machine, create matching directories under
+`/wordpress/wp-content/` with `playground_mkdir`, and write the changed file
+contents with `playground_write_file`. Verify PHP changes with
+`playground_execute_php` and check the affected route or admin page with
+`playground_request` or `playground_navigate`.
+
+The MyWP profile also exposes `mywp_get_plugin_guidance`, a read-only MCP tool
+that applies AI Assistant filters on the connected site and returns structured
+plugin ability guidance plus a prompt-ready `systemPrompt`. Plugins can hook
+`ai_assistant_ability_domains` to map ability categories/domains to the topics
+users ask about. MCP clients can parse the returned `entries` or merge the
+returned `systemPrompt` into their instructions so they prefer the WordPress
+Abilities API through `playground_request` before lower-level database, file, or
+direct PHP inspection for those topics. The tool also reads
+`ai_assistant_welcome_tips`. These filters are applied directly and do not
+require the AI Assistant plugin to be installed.
 
 For a staging deployment, use that origin instead:
 
 ```json
 {
 	"mcpServers": {
-		"wordpress-playground": {
+		"mywp": {
 			"type": "stdio",
 			"command": "npx",
-			"args": ["-y", "@wp-playground/mcp", "--url=https://mywp.kirk.at/"]
+			"args": ["-y", "@wp-playground/personal-wp-mcp", "--url=https://mywp.kirk.at/"]
 		}
 	}
 }
