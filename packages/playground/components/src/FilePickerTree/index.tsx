@@ -26,6 +26,7 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { file, folder } from '../icons';
 import css from './style.module.css';
 
@@ -78,6 +79,12 @@ export type FileNode = {
 	children?: FileNode[];
 };
 
+/** A small icon + tooltip shown next to a specific file/folder path. */
+export type PathBadge = {
+	icon: React.ReactNode;
+	tooltip: string;
+};
+
 export type FilePickerTreeProps = {
 	withContextMenu?: boolean;
 	/** Disables filesystem mutations while preserving selection and previews. */
@@ -87,6 +94,22 @@ export type FilePickerTreeProps = {
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
 	onDoubleClickFile?: (path: string) => void;
+	/** Badges to render next to specific paths, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
+	/**
+	 * Called when the user picks "Mount via git…" from the context menu on
+	 * the top-level `wp-content/plugins` or `wp-content/themes` folder.
+	 * Host-agnostic — the repository can be on GitHub, GitLab, or any other
+	 * git remote.
+	 */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/**
+	 * Called after a folder is successfully renamed (not for files).
+	 * Awaited before the rename operation settles, so a caller that persists
+	 * provenance keyed by path (e.g. git-mount metadata) can serialize
+	 * consecutive renames instead of racing a stale read of its own state.
+	 */
+	onPathRenamed?: (oldPath: string, newPath: string) => void | Promise<void>;
 };
 
 export type FilePickerTreeHandle = {
@@ -154,10 +177,21 @@ export const FilePickerTree = forwardRef<
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
+		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
 	},
 	ref
 ) {
 	const normalizedRoot = useMemo(() => joinPaths('/', root || '/'), [root]);
+	const pluginsPath = useMemo(
+		() => joinPaths(normalizedRoot, 'wp-content', 'plugins'),
+		[normalizedRoot]
+	);
+	const themesPath = useMemo(
+		() => joinPaths(normalizedRoot, 'wp-content', 'themes'),
+		[normalizedRoot]
+	);
 
 	const [expanded, setExpanded] = useState<ExpandedNodePaths>(() => {
 		if (!initialSelectedPath) {
@@ -1255,6 +1289,9 @@ export const FilePickerTree = forwardRef<
 			}
 			if (candidateIsDir) {
 				remapPathState(path, candidateNormalized);
+				if (!isPending) {
+					await onPathRenamed?.(path, candidateNormalized);
+				}
 			}
 			if (selectedPath === path) {
 				onSelect(candidateNormalized);
@@ -1342,6 +1379,7 @@ export const FilePickerTree = forwardRef<
 						onDrop={readOnly ? undefined : handleNodeDrop}
 						rootPath={normalizedRoot}
 						onDoubleClickFile={onDoubleClickFile}
+						pathBadges={pathBadges}
 					/>
 				))}
 			</TreeGrid>
@@ -1398,6 +1436,25 @@ export const FilePickerTree = forwardRef<
 								Create directory
 							</MenuItem>
 						)}
+						{onMountFromGit &&
+							contextMenu.type === 'folder' &&
+							(contextMenu.absPath === pluginsPath ||
+								contextMenu.absPath === themesPath) && (
+								<MenuItem
+									role="menuitem"
+									onClick={() => {
+										setContextMenu(null);
+										onMountFromGit(
+											contextMenu.absPath === pluginsPath
+												? 'plugin'
+												: 'theme',
+											contextMenu.absPath
+										);
+									}}
+								>
+									Mount via git…
+								</MenuItem>
+							)}
 						<MenuItem
 							role="menuitem"
 							onClick={() => {
@@ -1485,6 +1542,7 @@ const NodeRow: React.FC<{
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
 	onDoubleClickFile?: (path: string) => void;
+	pathBadges?: Record<string, PathBadge>;
 }> = ({
 	node,
 	level,
@@ -1512,6 +1570,7 @@ const NodeRow: React.FC<{
 	onDrop,
 	rootPath,
 	onDoubleClickFile,
+	pathBadges,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
@@ -1740,6 +1799,7 @@ const NodeRow: React.FC<{
 										}
 										level={level}
 										hideName
+										badge={pathBadges?.[path]}
 									/>
 									<input
 										ref={renameInputRef}
@@ -1794,6 +1854,7 @@ const NodeRow: React.FC<{
 											node.type === 'folder' && isExpanded
 										}
 										level={level}
+										badge={pathBadges?.[path]}
 									/>
 								</Button>
 							)}
@@ -1832,6 +1893,7 @@ const NodeRow: React.FC<{
 						onDrop={onDrop}
 						rootPath={rootPath}
 						onDoubleClickFile={onDoubleClickFile}
+						pathBadges={pathBadges}
 					/>
 				))}
 		</>
@@ -1843,11 +1905,17 @@ const FileName: React.FC<{
 	level: number;
 	isOpen?: boolean;
 	hideName?: boolean;
-}> = ({ node, level, isOpen, hideName = false }) => {
+	badge?: PathBadge;
+}> = ({ node, level, isOpen, hideName = false, badge }) => {
 	const indent: string[] = [];
 	for (let i = 0; i < level; i++) {
 		indent.push('&nbsp;&nbsp;&nbsp;&nbsp;');
 	}
+	const badgeRef = useRef<HTMLSpanElement>(null);
+	const [tooltipAnchor, setTooltipAnchor] = useState<{
+		top: number;
+		left: number;
+	} | null>(null);
 	return (
 		<>
 			<span
@@ -1861,6 +1929,48 @@ const FileName: React.FC<{
 			)}
 			<Icon width={16} icon={node.type === 'folder' ? folder : file} />
 			{!hideName && <span className={css['fileName']}>{node.name}</span>}
+			{badge ? (
+				// A plain hover-controlled DOM tooltip is used here instead of
+				// the WordPress `Tooltip` component: this badge is nested
+				// inside the row's own clickable Button, and Ariakit's hover
+				// handling (which Tooltip is built on) does not reliably
+				// trigger for an element nested inside another interactive
+				// element. The tooltip itself is portaled to `document.body`
+				// and positioned from the badge's screen coordinates so it
+				// escapes the file tree sidebar's clipping/scroll container.
+				<span
+					ref={badgeRef}
+					className={css['pathBadge']}
+					aria-label={badge.tooltip}
+					onMouseEnter={() => {
+						const rect = badgeRef.current?.getBoundingClientRect();
+						if (rect) {
+							setTooltipAnchor({
+								top: rect.top,
+								left: rect.left,
+							});
+						}
+					}}
+					onMouseLeave={() => setTooltipAnchor(null)}
+				>
+					{badge.icon}
+					{tooltipAnchor
+						? createPortal(
+								<span
+									className={css['pathBadgeTooltip']}
+									role="tooltip"
+									style={{
+										top: tooltipAnchor.top,
+										left: tooltipAnchor.left,
+									}}
+								>
+									{badge.tooltip}
+								</span>,
+								document.body
+							)
+						: null}
+				</span>
+			) : null}
 		</>
 	);
 };
