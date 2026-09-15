@@ -163,11 +163,11 @@ blueprint={{
 			"data": {
 				"resource": "url",
 				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=60819",
-				"caption": "Downloading Gutenberg PR 47739"
+				"caption": "Downloading Gutenberg PR 60819"
 			},
 			"progress": {
 				"weight": 2,
-				"caption": "Applying Gutenberg PR 47739"
+				"caption": "Applying Gutenberg PR 60819"
 			}
 		},
 		{

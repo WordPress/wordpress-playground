@@ -253,7 +253,7 @@ export default function PreviewPRForm({
 	 * Pull requests must have a usable preview build. Missing or incomplete
 	 * artifacts are translated into an error or a scheduled retry, depending on
 	 * their state. Gutenberg branches skip this verification because the proxy
-	 * selects their most recent artifact by prefix.
+	 * selects the most recent run's matching artifact for the branch.
 	 *
 	 * Repository detection may provide `knownVerification`. Reusing it avoids a
 	 * duplicate request while preserving the same error and retry behavior as a
@@ -278,7 +278,7 @@ export default function PreviewPRForm({
 		setLoadingMessage('Checking GitHub for a preview build…');
 		setSubmitting(true);
 
-		// For branches, skip verification since we'll use the most recent artifact with prefix matching
+		// For branches, skip verification since we'll use the most recent matching artifact
 		// For PRs, verify that the specific PR build exists
 		if (!isBranch) {
 			let verification: PrVerification;
