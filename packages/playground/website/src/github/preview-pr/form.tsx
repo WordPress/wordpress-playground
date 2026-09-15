@@ -88,7 +88,7 @@ export const targetParams = {
 	gutenberg: {
 		repo: 'gutenberg',
 		workflow: 'Build%20Gutenberg%20Plugin%20Zip',
-		artifact: 'gutenberg-plugin',
+		artifact: 'gutenberg.zip',
 		pull: 'github.com/wordpress/gutenberg/pull',
 	},
 };
@@ -238,9 +238,7 @@ export default function PreviewPRForm({
 			? '/plugin-proxy.php'
 			: 'https://playground.wordpress.net/plugin-proxy.php';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For Gutenberg PRs: artifact name is always gutenberg-plugin
-		// For Gutenberg branches: artifact name is always gutenberg-plugin
-		//   (we use prefix matching with trailing dash for branches)
+		// For Gutenberg PRs and branches: artifact name is gutenberg.zip
 		let artifactSuffix = '';
 		if (repo === 'wordpress') {
 			// WordPress only supports PRs, not branches
