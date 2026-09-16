@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { shouldRespawnWithJSPI } from './ensure-jspi';
+import { shouldRespawnWithExnref } from './posix-kernel/ensure-exnref';
 
 function runCLI() {
 	const args = process.argv.slice(2);
@@ -36,15 +37,16 @@ function runCLI() {
 	});
 }
 
-if (shouldRespawnWithJSPI()) {
+const missingV8Flags = [
+	...(shouldRespawnWithJSPI() ? ['--experimental-wasm-jspi'] : []),
+	...(shouldRespawnWithExnref() ? ['--experimental-wasm-exnref'] : []),
+];
+
+if (missingV8Flags.length > 0) {
 	const spawnedAt = Date.now();
 	const child = spawn(
 		process.execPath,
-		[
-			'--experimental-wasm-jspi',
-			...process.execArgv,
-			...process.argv.slice(1),
-		],
+		[...missingV8Flags, ...process.execArgv, ...process.argv.slice(1)],
 		{ stdio: 'inherit' }
 	);
 
@@ -54,18 +56,17 @@ if (shouldRespawnWithJSPI()) {
 	}
 
 	// If spawn() itself fails (e.g. ENOENT), fall back to running
-	// without JSPI in this process. We might be inside of a non-Node
-	// JavaScript runtime that refuses to boot when the `--experimental-wasm-jspi`
-	// flag is present.
+	// without the flags in this process. We might be inside of a non-Node
+	// JavaScript runtime that refuses to boot when they are present.
 	child.on('error', () => {
 		runCLI();
 	});
 
 	child.on('close', (code, signal) => {
-		// If the child exited almost immediately with an error, the
-		// --experimental-wasm-jspi flag was likely rejected by the
-		// runtime. Fall back to running without JSPI in this process
-		// instead of propagating the failure.
+		// If the child exited almost immediately with an error, one of
+		// the flags was likely rejected by the runtime. Fall back to
+		// running without them in this process instead of propagating
+		// the failure.
 		if (code !== 0 && !signal && Date.now() - spawnedAt < 1000) {
 			runCLI();
 			return;

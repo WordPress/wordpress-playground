@@ -1,0 +1,68 @@
+abi_version = 42
+generated_at = "2026-08-08T13:26:57Z"
+generator = "wordpress-playground pinned snapshot (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "kernel"
+version = "0.1.0"
+revision = 1
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/kernel-0.1.0-rev1-abi42-wasm32-7c99137e.tar.zst"
+archive_sha256 = "04967e2e72f25088af87f4931dc8367f064665b140bccc9f4cd5e3afa16bcaf9"
+cache_key_sha = "7c99137ecc1ba603403044403f0c9ac40fd92b6313414cf44e9eb0f1aca9015b"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "userspace"
+version = "0.1.0"
+revision = 1
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/userspace-0.1.0-rev1-abi42-wasm32-6d8a1396.tar.zst"
+archive_sha256 = "ef2248587195a8819a98557aab32ef4580109f3482106d35eca42833944988a1"
+cache_key_sha = "6d8a139641e318347638e2b4a1c5f547c39bb720789980d30cce94a977972fdd"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "rootfs"
+version = "0.1.0"
+revision = 9
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/rootfs-0.1.0-rev9-abi42-wasm32-25c7e543.tar.zst"
+archive_sha256 = "834eb032292ad4aea09ac26372a64b07125ac78e18cffe8ecfb420b43f6d42f3"
+cache_key_sha = "25c7e543400e62afdaa2c575e8a7c7a0f9b2c77597810a7656768b01fea34669"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "nginx"
+version = "1.24.0"
+revision = 2
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/nginx-1.24.0-rev2-abi42-wasm32-6e5a5508.tar.zst"
+archive_sha256 = "d4e88c51117d43fb8fbeb22fb42fb2811dbe2a5e9fa6a8e60880895383bfcebd"
+cache_key_sha = "6e5a5508c265809727e0d599185e7216be72aece52651b8cd1c48c3712770196"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
+
+[[packages]]
+name = "php"
+version = "8.3.15"
+revision = 15
+
+[packages.binary.wasm32]
+status = "success"
+archive_url = "https://github.com/Automattic/kandelo/releases/download/binaries-abi-v42/php-8.3.15-rev15-abi42-wasm32-8583b755.tar.zst"
+archive_sha256 = "64899aced71cbccc78c5a0c6c5a71bebc78ae68ba87dec6ddd64fd2a55a04f64"
+cache_key_sha = "8583b755c9eb5a6877e101b3330473d7b5248c7f1e1a8983461811fb04f61476"
+built_at = "2026-08-08T13:26:57Z"
+built_by = "pinned by wordpress-playground (kandelo @ 8c19f577dcb2ef23855e4f5015847674fdd0d2b9)"
