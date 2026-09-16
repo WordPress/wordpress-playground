@@ -83,13 +83,14 @@ jobs:
 
     # Unit tests for the changelog generator (packages/meta/src/changelog.ts).
     # Like the PR-labeling tests, packages/meta is not an nx project, so they are
-    # not covered by `nx affected --target=test`. They guard the escaping that
-    # protects the deployed changelog, so they run on every PR here in addition
-    # to the update-changelog release-time gate. changelog.ts imports
-    # @octokit/rest and semver, so the suite needs node_modules; prepare-playground
-    # installs them (cached), and bun runs the spec.
+    # not covered by `nx affected --target=test`. They cover the changelog
+    # generator (including the escaping that protects the deployed changelog), so
+    # they run on every PR here in addition to the update-changelog release-time
+    # gate. changelog.ts imports @octokit/rest and semver, so the suite needs
+    # node_modules; prepare-playground installs them (cached), and bun runs the
+    # spec.
     test-changelog:
-        name: 'Test changelog generation'
+        name: 'Changelog generator unit tests'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 10
@@ -102,7 +103,7 @@ jobs:
                   node-version: 22
             - name: Install bun
               run: curl -fsSL https://bun.sh/install | bash
-            - name: Run changelog unit tests
+            - name: Run changelog generator unit tests
               run: PATH="${PATH}:${HOME}/.bun/bin" bun test packages/meta/src/changelog.spec.ts
 
     test-unit-asyncify:

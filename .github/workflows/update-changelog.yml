@@ -61,14 +61,15 @@ jobs:
               run: |
                   curl -fsSL https://bun.sh/install | bash
             # changelog.ts imports @octokit/rest and semver. Install node_modules
-            # so both the escaping test below and the generator can resolve them.
+            # so both the tests below and the generator can resolve them.
             - name: 'Install dependencies'
               run: |
                   PATH="${PATH}:${HOME}/.bun/bin" bun install
-            # Gate generation on the escaping tests: a title escaper regression
-            # would otherwise be committed to trunk and deployed to the docs
-            # Pages origin. Fail here, before anything is generated or pushed.
-            - name: '🧪 Verify changelog title escaping'
+            # Gate generation on the changelog unit tests: a regression here (for
+            # example unsafe title escaping) would otherwise be committed to
+            # trunk and deployed to the docs Pages origin. Fail before anything
+            # is generated or pushed.
+            - name: '🧪 Run changelog generator unit tests'
               run: |
                   PATH="${PATH}:${HOME}/.bun/bin" bun test packages/meta/src/changelog.spec.ts
             - name: '✏️ Generate release changelog'
