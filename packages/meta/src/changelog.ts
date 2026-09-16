@@ -499,14 +499,35 @@ function addTrailingPeriod(text: string): string {
 }
 
 /**
- * Given a text string, escape HTML to be rendered literally in Markdown.
+ * Escape an untrusted string so it renders as literal text in CommonMark.
  *
- * @param {string} text Original text.
+ * PR titles are attacker-controllable — a public author can rename their own
+ * pull request after it is merged — and are interpolated verbatim into the
+ * generated CommonMark changelog. Escaping only HTML (e.g. `<` and `>`) is
+ * insufficient, because the sink is Markdown: unescaped `[](…)`, `![](…)`,
+ * backticks, `#`, `*`, etc. still inject links, images, and structure.
  *
- * @return Text minimally escaped HTML tags.
+ * CommonMark specifies that any ASCII punctuation character may be
+ * backslash-escaped to render literally, and a backslash before any other
+ * character is treated as a literal backslash. Backslash-escaping the entire
+ * ASCII-punctuation set therefore neutralizes every inline construct at once —
+ * including raw HTML tags, since `\<` renders as a literal `<`.
+ *
+ * @see https://spec.commonmark.org/0.31.2/#backslash-escapes
+ *
+ * @param text Original, untrusted text.
+ *
+ * @return Text that renders as literal characters in CommonMark.
  */
-function escapeHtmlForMarkdown(text: string) {
-	return text.replace('<', '&lt;').replace('>', '&gt;');
+function escapeMarkdown(text: string) {
+	// The four ranges are the exact code points the CommonMark spec enumerates
+	// for an "ASCII punctuation character": U+0021–U+002F, U+003A–U+0040,
+	// U+005B–U+0060, and U+007B–U+007E.
+	// https://spec.commonmark.org/0.31.2/#ascii-punctuation-character
+	return text.replace(
+		/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/g,
+		'\\$&'
+	);
 }
 
 /**
@@ -648,7 +669,7 @@ const TITLE_NORMALIZATIONS: Array<WPChangelogNormalization> = [
 	reword,
 	capitalizeAfterColonSeparatedPrefix,
 	addTrailingPeriod,
-	escapeHtmlForMarkdown,
+	escapeMarkdown,
 ];
 
 /**
@@ -1172,6 +1193,7 @@ export {
 	createOmitByLabel,
 	createOmitByLabelPrefix,
 	addTrailingPeriod,
+	escapeMarkdown,
 	getNormalizedTitle,
 	getReleaseChangelog,
 	getIssueType,
