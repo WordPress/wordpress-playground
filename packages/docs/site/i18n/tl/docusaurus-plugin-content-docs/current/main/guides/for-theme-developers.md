@@ -170,7 +170,7 @@ Kapag nagbibigay ng link sa isang WordPress Playground instance na may naka-acti
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
--   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+-   Check the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 -   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
 -   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
@@ -181,7 +181,7 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Ilang kapaki-pakinabang na tool at resources mula sa proyekto ng Playground para magtrabaho sa blueprints:
 
-- Suriin ang [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) upang tuklasin ang mga totoong halimbawa ng kodigo ng paggamit ng WordPress Playground upang maglunsad ng WordPress site na may iba't ibang setup.
+- Suriin ang [Blueprints Gallery](https://wordpress.github.io/blueprints/) upang tuklasin ang mga totoong halimbawa ng kodigo ng paggamit ng WordPress Playground upang maglunsad ng WordPress site na may iba't ibang setup.
 - Ang [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) ay nagbibigay ng visual na interface upang i-drag o i-click ang mga step upang lumikha ng blueprint. Maaari ka ring gumawa ng sarili mong step!
 - Ang [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool ay nagpapahintulot sa iyo na i-edit ang iyong blueprint online at patakbuhin ito nang direkta sa isang Playground instance.
 
@@ -368,14 +368,14 @@ Maaari mo ring gamitin ang [`login`](/blueprints/steps#login) step upang ilunsad
 <!--
 <div class="callout callout-tip">
 
-The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
+The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
 
 </div>
 -->
 
 <div class="callout callout-tip">
 
-Ang ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) at ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) na halimbawa mula sa [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) ay mahusay na sanggunian para sa pag-load, pag-activate, pag-import ng content, at pag-configure ng block theme sa isang Playground instance.
+Ang ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) at ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) na halimbawa mula sa [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) ay mahusay na sanggunian para sa pag-load, pag-activate, pag-import ng content, at pag-configure ng block theme sa isang Playground instance.
 
 </div>
 

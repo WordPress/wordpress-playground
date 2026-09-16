@@ -32,7 +32,7 @@ Key Features:
 
 **ドキュメント**
 
-VS Code 拡張機能は、別の GitHub リポジトリ[Playground Tools](https://github.com/WordPress/playground-tools/)で管理されています。最新のドキュメントは[専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md)をご覧ください。
+VS Code 拡張機能は、別の GitHub リポジトリ[Playground Tools](https://github.com/WordPress/playground-tools/)で管理されています。最新のドキュメントは[専用の README ファイル](https://developer.wordpress.org/playground/developers/local-development/vscode-extension/)をご覧ください。
 
 </div>
 
@@ -41,7 +41,7 @@ VS Code 拡張機能は、別の GitHub リポジトリ[Playground Tools](https:
 
 **Documentation**
 
-The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
+The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://developer.wordpress.org/playground/developers/local-development/vscode-extension/).
 
 </div>
 -->

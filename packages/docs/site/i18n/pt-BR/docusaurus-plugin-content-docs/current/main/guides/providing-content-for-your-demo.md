@@ -396,14 +396,14 @@ existente e importar imagens na instância do Playground:
 Check the
 [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image)
 example from the
-[Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+[Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/)
 to see the full example showing the connection between the content and the
 featured image.
 -->
 
 Confira o exemplo
 [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image)
-da [galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+da [galeria de Blueprints](https://wordpress.github.io/blueprints/)
 para ver a conexão entre o conteúdo e a imagem destacada.
 
 </div>
