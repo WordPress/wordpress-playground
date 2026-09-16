@@ -8,6 +8,7 @@ import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
 import { SiteDatabasePanel } from '../site-database-panel';
+import { SiteBlueprintLibraryPanel } from '../site-blueprint-library-panel';
 import { SiteMailPanel } from '../site-mail-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import css from './style.module.css';
@@ -137,6 +138,12 @@ export function BlueprintTool({
 			/>
 		</Suspense>
 	);
+}
+
+export function BlueprintLibraryTool({
+	playground,
+}: SiteToolPanelProps): JSX.Element {
+	return <SiteBlueprintLibraryPanel playground={playground} />;
 }
 
 export function DatabaseTool({ playground }: SiteToolPanelProps): JSX.Element {

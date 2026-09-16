@@ -1,0 +1,142 @@
+{
+	"version": 1,
+	"source": {
+		"type": "github",
+		"repository": "WordPress/blueprints",
+		"branch": "trunk"
+	},
+	"items": [
+		{
+			"id": "plugin-check",
+			"title": "Plugin Check",
+			"description": "Install and activate the official Plugin Check plugin from WordPress.org.",
+			"author": "WordPress",
+			"categories": ["Development", "Testing"],
+			"blueprint": {
+				"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+				"meta": {
+					"title": "Plugin Check",
+					"description": "Install and activate the official Plugin Check plugin from WordPress.org.",
+					"author": "WordPress",
+					"categories": ["Development", "Testing"]
+				},
+				"landingPage": "/wp-admin/tools.php?page=plugin-check",
+				"steps": [
+					{
+						"step": "installPlugin",
+						"pluginData": {
+							"resource": "wordpress.org/plugins",
+							"slug": "plugin-check"
+						},
+						"options": {
+							"activate": true,
+							"humanReadableName": "Plugin Check"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "query-monitor",
+			"title": "Query Monitor",
+			"description": "Install and activate Query Monitor for inspecting queries, hooks, HTTP calls, and runtime state.",
+			"author": "John Blackbourn",
+			"categories": ["Development", "Debugging", "Performance"],
+			"blueprint": {
+				"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+				"meta": {
+					"title": "Query Monitor",
+					"description": "Install and activate Query Monitor for inspecting queries, hooks, HTTP calls, and runtime state.",
+					"author": "John Blackbourn",
+					"categories": ["Development", "Debugging", "Performance"]
+				},
+				"landingPage": "/wp-admin/",
+				"steps": [
+					{
+						"step": "installPlugin",
+						"pluginData": {
+							"resource": "wordpress.org/plugins",
+							"slug": "query-monitor"
+						},
+						"options": {
+							"activate": true,
+							"humanReadableName": "Query Monitor"
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "wordpress-debug-constants",
+			"title": "WordPress Debug Constants",
+			"description": "Enable WordPress debug logging, on-page debug display, and unminified scripts.",
+			"author": "WordPress Playground",
+			"categories": ["Development", "Debugging"],
+			"blueprint": {
+				"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+				"meta": {
+					"title": "WordPress Debug Constants",
+					"description": "Enable WordPress debug logging, on-page debug display, and unminified scripts.",
+					"author": "WordPress Playground",
+					"categories": ["Development", "Debugging"]
+				},
+				"steps": [
+					{
+						"step": "defineWpConfigConsts",
+						"consts": {
+							"WP_DEBUG": true,
+							"WP_DEBUG_DISPLAY": true,
+							"WP_DEBUG_LOG": true,
+							"SCRIPT_DEBUG": true
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "wordpress-ai-anthropic-connection",
+			"title": "WordPress AI: Anthropic",
+			"description": "Install the WordPress AI provider for Anthropic and configure the Claude API key through WordPress Connections.",
+			"author": "WordPress AI Team",
+			"categories": ["AI", "Development"],
+			"inputs": [
+				{
+					"id": "anthropicApiKey",
+					"label": "Anthropic API key",
+					"type": "secret",
+					"setting": "connectors_ai_anthropic_api_key"
+				}
+			],
+			"blueprint": {
+				"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+				"meta": {
+					"title": "WordPress AI: Anthropic",
+					"description": "Install the WordPress AI provider for Anthropic and configure the Claude API key through WordPress Connections.",
+					"author": "WordPress AI Team",
+					"categories": ["AI", "Development"]
+				},
+				"landingPage": "/wp-admin/options-general.php?page=connections",
+				"steps": [
+					{
+						"step": "installPlugin",
+						"pluginData": {
+							"resource": "wordpress.org/plugins",
+							"slug": "ai-provider-for-anthropic"
+						},
+						"options": {
+							"activate": true,
+							"humanReadableName": "AI Provider for Anthropic"
+						}
+					},
+					{
+						"step": "runPHPWithOptions",
+						"options": {
+							"code": "<?php require_once '/wordpress/wp-load.php'; update_option('connectors_ai_anthropic_api_key', trim(file_get_contents('php://input')));",
+							"body": "{{ secrets.anthropicApiKey }}"
+						}
+					}
+				]
+			}
+		}
+	]
+}
