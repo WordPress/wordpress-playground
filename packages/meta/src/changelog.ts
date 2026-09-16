@@ -504,36 +504,39 @@ function addTrailingPeriod(text: string): string {
  * can rename their own pull request after it is merged), so they must not be
  * able to inject Markdown or HTML.
  *
- * escapeMarkdown backslash-escapes Markdown metacharacters. It deliberately
- * leaves the HTML-significant characters (< > &) for escapeHtml to
- * entity-encode, so the HTML-tag defense does not rely on the Markdown
- * processor honoring backslash escapes.
+ * Two passes are applied here, in this order, and both live in one function
+ * so their division of responsibility and their ordering cannot drift apart:
  *
- * @see https://spec.commonmark.org/0.31.2/#backslash-escapes
- * @see https://spec.commonmark.org/0.31.2/#ascii-punctuation-character
+ * 1. Backslash-escape the Markdown metacharacters: the ASCII-punctuation set
+ *    excluding U+0026 &, U+003C <, and U+003E > (pass 2 owns those). This
+ *    neutralizes links, images, emphasis, headings, etc.
+ *    @see https://spec.commonmark.org/0.31.2/#backslash-escapes
+ *    @see https://spec.commonmark.org/0.31.2/#ascii-punctuation-character
+ * 2. Entity-encode <, >, and & (& first). An independent HTML-safety net so
+ *    a raw tag cannot form even if the Markdown processor mishandles
+ *    backslash escapes.
+ *
+ * Order matters: pass 1 runs first. Pass 2 emits &amp;/&lt;/&gt; entities,
+ * and running pass 1 afterward would backslash-escape the & and ; inside
+ * them and corrupt them. Pass 1 excludes < > & so it never emits an escaped
+ * "\<" that pass 2 would turn into a broken "\&lt;".
  */
-function escapeMarkdown(text: string) {
-	// ASCII-punctuation code points, excluding U+0026 &, U+003C <, and
-	// U+003E > (escapeHtml entity-encodes those): U+0021-U+0025,
+function escapeMarkdownAndHtml(text: string) {
+	// Pass 1: ASCII-punctuation code points, excluding U+0026 &, U+003C <,
+	// and U+003E > (pass 2 entity-encodes those): U+0021-U+0025,
 	// U+0027-U+002F, U+003A-U+003B, U+003D, U+003F-U+0040, U+005B-U+0060,
 	// U+007B-U+007E.
-	return text.replace(
-		/[\u0021-\u0025\u0027-\u002F\u003A-\u003B\u003D\u003F-\u0040\u005B-\u0060\u007B-\u007E]/g,
-		'\\$&'
+	return (
+		text
+			.replace(
+				/[\u0021-\u0025\u0027-\u002F\u003A-\u003B\u003D\u003F-\u0040\u005B-\u0060\u007B-\u007E]/g,
+				'\\$&'
+			)
+			// Pass 2: entity-encode the HTML-significant characters, & first.
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
 	);
-}
-
-/**
- * Entity-encode the HTML-significant characters as a second, independent
- * layer on top of escapeMarkdown, so a raw <, >, or & cannot form an HTML
- * tag even if the Markdown processor mishandles backslash escapes. & is
- * encoded first so the & in &amp;/&lt;/&gt; is not re-encoded.
- */
-function escapeHtml(text: string) {
-	return text
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;');
 }
 
 /**
@@ -675,12 +678,7 @@ const TITLE_NORMALIZATIONS: Array<WPChangelogNormalization> = [
 	reword,
 	capitalizeAfterColonSeparatedPrefix,
 	addTrailingPeriod,
-	// Escape Markdown metacharacters first, then HTML-encode < > &. Order
-	// matters: escapeHtml emits "&amp;"/"&lt;" entities, and running
-	// escapeMarkdown after it would backslash-escape the "&"/";" in those
-	// entities and corrupt them.
-	escapeMarkdown,
-	escapeHtml,
+	escapeMarkdownAndHtml,
 ];
 
 /**
@@ -760,8 +758,8 @@ function getFeatureEntry(
 	// Strip a redundant feature prefix (e.g. "[Blueprints - Fix]" or
 	// "Blueprints: Fix") from the raw title *before* it is normalized and
 	// escaped, so the raw "[", "-", and ":" delimiters these patterns match are
-	// still present. escapeMarkdown backslash-escapes those delimiters, so
-	// cleaning the already-escaped entry would never match.
+	// still present. escapeMarkdownAndHtml backslash-escapes those delimiters,
+	// so cleaning the already-escaped entry would never match.
 	const title = issue.title
 		.replace(new RegExp(`\\[${featureNameRegex} - `, 'i'), '[')
 		.replace(new RegExp(`^${featureNameRegex}: `, 'i'), '');
@@ -1210,8 +1208,7 @@ export {
 	createOmitByLabel,
 	createOmitByLabelPrefix,
 	addTrailingPeriod,
-	escapeMarkdown,
-	escapeHtml,
+	escapeMarkdownAndHtml,
 	getNormalizedTitle,
 	getEntry,
 	getFeatureEntry,

@@ -4,8 +4,7 @@
  */
 import { test, expect } from 'bun:test';
 import {
-	escapeHtml,
-	escapeMarkdown,
+	escapeMarkdownAndHtml,
 	getEntry,
 	getFeatureEntry,
 	getNormalizedTitle,
@@ -13,8 +12,8 @@ import {
 
 // PR titles are attacker-controllable (a public author can rename their own PR
 // after merge) and are interpolated into the generated CommonMark changelog.
-// They are escaped in two independent layers: escapeMarkdown backslash-escapes
-// Markdown metacharacters, and escapeHtml entity-encodes `<`, `>`, and `&`.
+// escapeMarkdownAndHtml backslash-escapes Markdown metacharacters and then
+// entity-encodes `<`, `>`, and `&`, so a title cannot inject active markup.
 
 const issue = (title: string) =>
 	({
@@ -41,22 +40,20 @@ const HOSTILE_TITLES = [
 	'**bold** `code` [ref][1] & # heading',
 ];
 
-test('escapeMarkdown backslash-escapes Markdown metacharacters', () => {
-	const escaped = escapeMarkdown('[a](b) ! ` # * _ { } .');
+test('backslash-escapes Markdown metacharacters', () => {
+	const escaped = escapeMarkdownAndHtml('[a](b) ! ` # * _ { } .');
 	expect(residualMarkup(escaped)).not.toMatch(/[[\]()!`#*]/);
 });
 
-test('escapeMarkdown leaves <, >, and & for escapeHtml', () => {
-	// These are entity-encoded by escapeHtml, not backslash-escaped here, so the
-	// two layers never double-escape the same character.
-	expect(escapeMarkdown('<a> & <b>')).toBe('<a> & <b>');
+test('entity-encodes <, >, and &', () => {
+	expect(escapeMarkdownAndHtml('<a> & <b>')).toBe(
+		'&lt;a&gt; &amp; &lt;b&gt;'
+	);
 });
 
-test('escapeHtml entity-encodes <, >, and &, ampersand first', () => {
-	expect(escapeHtml('<a> & <b>')).toBe('&lt;a&gt; &amp; &lt;b&gt;');
-	// & is encoded before < and >, so a literal "&lt;" in a title is not turned
-	// into a live "<".
-	expect(escapeHtml('&lt;')).toBe('&amp;lt;');
+test('does not double-encode a produced entity (ampersand first)', () => {
+	// "<" becomes "&lt;"; the "&" that introduces is not itself re-encoded.
+	expect(escapeMarkdownAndHtml('<')).toBe('&lt;');
 });
 
 test('a title cannot emit a raw tag, even with a decoy first tag', () => {
@@ -68,7 +65,9 @@ test('a title cannot emit a raw tag, even with a decoy first tag', () => {
 });
 
 test('leaves letters, digits, and spaces untouched', () => {
-	expect(escapeMarkdown('Add PHP 8.4 support')).toBe('Add PHP 8\\.4 support');
+	expect(escapeMarkdownAndHtml('Add PHP 8.4 support')).toBe(
+		'Add PHP 8\\.4 support'
+	);
 });
 
 test('Changelog can be safely generated from hostile PR titles', () => {
