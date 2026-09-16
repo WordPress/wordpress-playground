@@ -60,6 +60,12 @@ jobs:
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
+            # Gate generation on the escaping tests: a title escaper regression
+            # would otherwise be committed to trunk and deployed to the docs
+            # Pages origin. Fail here, before anything is generated or pushed.
+            - name: '🧪 Verify changelog title escaping'
+              run: |
+                  PATH="${PATH}:${HOME}/.bun/bin" bun test packages/meta/src/changelog.spec.ts
             - name: '✏️ Generate release changelog'
               run: |
                   ls ./
