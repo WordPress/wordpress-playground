@@ -7,6 +7,7 @@ import {
 	list,
 	page,
 	plus,
+	tool,
 	wordpress,
 } from '@wordpress/icons';
 import { DockBlueprintIcon, DockDatabaseIcon, DockTerminalIcon } from './icons';
@@ -89,11 +90,12 @@ const definitions = [
 		section: 'blueprint-library',
 		label: 'Extra Tools',
 		ariaLabel: 'Extra Tools',
-		icon: <DockBlueprintIcon />,
+		icon: <Icon icon={tool} size={24} />,
 		group: 'developer',
 		title: 'Extra Tools',
 		description: 'Run optional setup tools on this Playground.',
 		layout: 'wide',
+		fixedHeight: true,
 		Panel: BlueprintLibraryTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},

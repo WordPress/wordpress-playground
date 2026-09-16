@@ -137,6 +137,51 @@
 					}
 				]
 			}
+		},
+		{
+			"id": "wordpress-ai-openai-connection",
+			"title": "WordPress AI: OpenAI",
+			"description": "Install the WordPress AI provider for OpenAI and configure the API key through WordPress Connections.",
+			"author": "WordPress AI Team",
+			"categories": ["AI", "Development"],
+			"inputs": [
+				{
+					"id": "openaiApiKey",
+					"label": "OpenAI API key",
+					"type": "secret",
+					"setting": "connectors_ai_openai_api_key"
+				}
+			],
+			"blueprint": {
+				"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+				"meta": {
+					"title": "WordPress AI: OpenAI",
+					"description": "Install the WordPress AI provider for OpenAI and configure the API key through WordPress Connections.",
+					"author": "WordPress AI Team",
+					"categories": ["AI", "Development"]
+				},
+				"landingPage": "/wp-admin/options-general.php?page=connections",
+				"steps": [
+					{
+						"step": "installPlugin",
+						"pluginData": {
+							"resource": "wordpress.org/plugins",
+							"slug": "ai-provider-for-openai"
+						},
+						"options": {
+							"activate": true,
+							"humanReadableName": "AI Provider for OpenAI"
+						}
+					},
+					{
+						"step": "runPHPWithOptions",
+						"options": {
+							"code": "<?php require_once '/wordpress/wp-load.php'; update_option('connectors_ai_openai_api_key', trim(file_get_contents('php://input')));",
+							"body": "{{ secrets.openaiApiKey }}"
+						}
+					}
+				]
+			}
 		}
 	]
 }

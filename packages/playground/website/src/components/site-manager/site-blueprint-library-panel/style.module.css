@@ -3,13 +3,14 @@
 	flex-direction: column;
 	gap: 16px;
 	padding: 0 24px 24px;
+	flex: 1;
 	min-height: 0;
-	overflow: auto;
+	overflow: hidden;
 }
 
 .toolbar {
 	display: flex;
-	align-items: center;
+	align-items: flex-end;
 	justify-content: space-between;
 	gap: 12px;
 	flex-wrap: wrap;
@@ -26,18 +27,13 @@
 	min-width: 180px;
 }
 
-.categoryGroup {
+.category-tab-panel {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-}
-
-.categoryHeading {
-	margin: 0;
-	color: var(--ink);
-	font-size: 13px;
-	font-weight: 600;
-	line-height: 20px;
+	padding-top: 12px;
+	min-height: 0;
+	overflow: auto;
 }
 
 .item {

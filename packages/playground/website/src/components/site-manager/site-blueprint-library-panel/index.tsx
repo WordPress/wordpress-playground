@@ -22,6 +22,7 @@ import {
 	prepareBlueprintLibraryItem,
 	saveBlueprintLibrarySettings,
 } from '../../../lib/blueprint-library';
+import { DockTabs } from '../../dock/dock-tabs';
 import css from './style.module.css';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -97,6 +98,14 @@ export function SiteBlueprintLibraryPanel({
 		}
 		return [...groups.entries()];
 	}, [catalog, query]);
+	const categoryTabs = useMemo(
+		() =>
+			itemsByCategory.map(([category, items]) => ({
+				name: category,
+				title: `${category} (${items.length})`,
+			})),
+		[itemsByCategory]
+	);
 
 	function updateSettings(
 		updater: (
@@ -250,27 +259,38 @@ export function SiteBlueprintLibraryPanel({
 			{itemsByCategory.length === 0 && !catalogError ? (
 				<div className={css.empty}>No tools found.</div>
 			) : (
-				itemsByCategory.map(([category, items]) => (
-					<section key={category} className={css.categoryGroup}>
-						<h3 className={css.categoryHeading}>{category}</h3>
-						{items.map((item) => (
-							<BlueprintLibraryItemRow
-								key={item.id}
-								item={item}
-								settings={settings}
-								playground={playground}
-								runState={
-									runState?.itemId === item.id
-										? runState
-										: null
-								}
-								onRun={() => void runItem(item)}
-								onToggleAlwaysLoad={toggleAlwaysLoad}
-								onUpdateSecret={updateSecret}
-							/>
-						))}
-					</section>
-				))
+				<DockTabs
+					ariaLabel="Extra Tools categories"
+					tabs={categoryTabs}
+					initialTabName={categoryTabs[0]?.name}
+				>
+					{(tab) => {
+						const items =
+							itemsByCategory.find(
+								([category]) => category === tab.name
+							)?.[1] || [];
+						return (
+							<div className={css.categoryTabPanel}>
+								{items.map((item) => (
+									<BlueprintLibraryItemRow
+										key={item.id}
+										item={item}
+										settings={settings}
+										playground={playground}
+										runState={
+											runState?.itemId === item.id
+												? runState
+												: null
+										}
+										onRun={() => void runItem(item)}
+										onToggleAlwaysLoad={toggleAlwaysLoad}
+										onUpdateSecret={updateSecret}
+									/>
+								))}
+							</div>
+						);
+					}}
+				</DockTabs>
 			)}
 		</div>
 	);
