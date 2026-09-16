@@ -60,6 +60,11 @@ jobs:
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
+            # changelog.ts imports @octokit/rest and semver. Install node_modules
+            # so both the escaping test below and the generator can resolve them.
+            - name: 'Install dependencies'
+              run: |
+                  PATH="${PATH}:${HOME}/.bun/bin" bun install
             # Gate generation on the escaping tests: a title escaper regression
             # would otherwise be committed to trunk and deployed to the docs
             # Pages origin. Fail here, before anything is generated or pushed.
