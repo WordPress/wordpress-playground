@@ -60,8 +60,8 @@ jobs:
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
-            # changelog.ts imports @octokit/rest and semver. Install node_modules
-            # so both the tests below and the generator can resolve them.
+            # The generator imports runtime dependencies that both the tests
+            # below and the generator itself must resolve, so install them.
             - name: 'Install dependencies'
               run: |
                   PATH="${PATH}:${HOME}/.bun/bin" bun install

@@ -86,9 +86,7 @@ jobs:
     # not covered by `nx affected --target=test`. They cover the changelog
     # generator (including the escaping that protects the deployed changelog), so
     # they run on every PR here in addition to the update-changelog release-time
-    # gate. changelog.ts imports @octokit/rest and semver, so the suite needs
-    # node_modules; prepare-playground installs them (cached), and bun runs the
-    # spec.
+    # gate.
     test-changelog:
         name: 'Changelog generator unit tests'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -98,9 +96,11 @@ jobs:
             contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
+            # The generator imports runtime dependencies that must resolve for
+            # the spec to load, so use the shared action to install them.
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 24
             - name: Install bun
               run: curl -fsSL https://bun.sh/install | bash
             - name: Run changelog generator unit tests
