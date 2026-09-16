@@ -499,35 +499,41 @@ function addTrailingPeriod(text: string): string {
 }
 
 /**
- * Escape an untrusted string so it renders as literal text in CommonMark.
+ * Escape an untrusted string so it renders as literal text in the generated
+ * CommonMark changelog. PR titles are attacker-controllable (a public author
+ * can rename their own pull request after it is merged), so they must not be
+ * able to inject Markdown or HTML.
  *
- * PR titles are attacker-controllable — a public author can rename their own
- * pull request after it is merged — and are interpolated verbatim into the
- * generated CommonMark changelog. Escaping only HTML (e.g. `<` and `>`) is
- * insufficient, because the sink is Markdown: unescaped `[](…)`, `![](…)`,
- * backticks, `#`, `*`, etc. still inject links, images, and structure.
- *
- * CommonMark specifies that any ASCII punctuation character may be
- * backslash-escaped to render literally, and a backslash before any other
- * character is treated as a literal backslash. Backslash-escaping the entire
- * ASCII-punctuation set therefore neutralizes every inline construct at once —
- * including raw HTML tags, since `\<` renders as a literal `<`.
+ * escapeMarkdown backslash-escapes Markdown metacharacters. It deliberately
+ * leaves the HTML-significant characters (< > &) for escapeHtml to
+ * entity-encode, so the HTML-tag defense does not rely on the Markdown
+ * processor honoring backslash escapes.
  *
  * @see https://spec.commonmark.org/0.31.2/#backslash-escapes
- *
- * @param text Original, untrusted text.
- *
- * @return Text that renders as literal characters in CommonMark.
+ * @see https://spec.commonmark.org/0.31.2/#ascii-punctuation-character
  */
 function escapeMarkdown(text: string) {
-	// The four ranges are the exact code points the CommonMark spec enumerates
-	// for an "ASCII punctuation character": U+0021–U+002F, U+003A–U+0040,
-	// U+005B–U+0060, and U+007B–U+007E.
-	// https://spec.commonmark.org/0.31.2/#ascii-punctuation-character
+	// ASCII-punctuation code points, excluding U+0026 &, U+003C <, and
+	// U+003E > (escapeHtml entity-encodes those): U+0021-U+0025,
+	// U+0027-U+002F, U+003A-U+003B, U+003D, U+003F-U+0040, U+005B-U+0060,
+	// U+007B-U+007E.
 	return text.replace(
-		/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/g,
+		/[\u0021-\u0025\u0027-\u002F\u003A-\u003B\u003D\u003F-\u0040\u005B-\u0060\u007B-\u007E]/g,
 		'\\$&'
 	);
+}
+
+/**
+ * Entity-encode the HTML-significant characters as a second, independent
+ * layer on top of escapeMarkdown, so a raw <, >, or & cannot form an HTML
+ * tag even if the Markdown processor mishandles backslash escapes. & is
+ * encoded first so the & in &amp;/&lt;/&gt; is not re-encoded.
+ */
+function escapeHtml(text: string) {
+	return text
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;');
 }
 
 /**
@@ -669,7 +675,12 @@ const TITLE_NORMALIZATIONS: Array<WPChangelogNormalization> = [
 	reword,
 	capitalizeAfterColonSeparatedPrefix,
 	addTrailingPeriod,
+	// Escape Markdown metacharacters first, then HTML-encode < > &. Order
+	// matters: escapeHtml emits "&amp;"/"&lt;" entities, and running
+	// escapeMarkdown after it would backslash-escape the "&"/";" in those
+	// entities and corrupt them.
 	escapeMarkdown,
+	escapeHtml,
 ];
 
 /**
@@ -746,9 +757,15 @@ function getFeatureEntry(
 	featureName: string
 ): string | undefined {
 	const featureNameRegex = escapeRegExp(featureName.toLowerCase());
-	return getEntry(issue)
-		?.replace(new RegExp(`\\[${featureNameRegex} \- `, 'i'), '[')
-		.replace(new RegExp(`(?<=^- )${featureNameRegex}: `, 'i'), '');
+	// Strip a redundant feature prefix (e.g. "[Blueprints - Fix]" or
+	// "Blueprints: Fix") from the raw title *before* it is normalized and
+	// escaped, so the raw "[", "-", and ":" delimiters these patterns match are
+	// still present. escapeMarkdown backslash-escapes those delimiters, so
+	// cleaning the already-escaped entry would never match.
+	const title = issue.title
+		.replace(new RegExp(`\\[${featureNameRegex} - `, 'i'), '[')
+		.replace(new RegExp(`^${featureNameRegex}: `, 'i'), '');
+	return getEntry({ ...issue, title });
 }
 
 async function getPreviousReleaseTag(
@@ -1194,7 +1211,10 @@ export {
 	createOmitByLabelPrefix,
 	addTrailingPeriod,
 	escapeMarkdown,
+	escapeHtml,
 	getNormalizedTitle,
+	getEntry,
+	getFeatureEntry,
 	getReleaseChangelog,
 	getIssueType,
 	getIssueFeature,

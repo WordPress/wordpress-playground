@@ -81,6 +81,26 @@ jobs:
             - name: Run PR auto-labeling unit tests
               run: node --test packages/meta/src/pr-labels/*.test.mjs
 
+    # Unit tests for the changelog generator (packages/meta/src/changelog.ts).
+    # Like the PR-labeling tests, packages/meta is not an nx project, so they are
+    # not covered by `nx affected --target=test`. They guard the escaping that
+    # protects the deployed changelog, so they run on every PR here in addition
+    # to the update-changelog release-time gate. Bun's runtime auto-install
+    # resolves the changelog dependencies, matching the `npm run changelog` job.
+    test-changelog:
+        name: 'Test changelog generation'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install bun
+              run: curl -fsSL https://bun.sh/install | bash
+            - name: Run changelog unit tests
+              run: PATH="${PATH}:${HOME}/.bun/bin" bun test packages/meta/src/changelog.spec.ts
+
     test-unit-asyncify:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
