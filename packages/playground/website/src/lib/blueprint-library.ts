@@ -158,7 +158,18 @@ export function mergeBlueprintLibraryItems(
 			missingInputs.push(...prepared.missingInputs);
 			continue;
 		}
-		steps.push(...((prepared.blueprint.steps || []) as StepDefinition[]));
+		steps.push(
+			...((prepared.blueprint.steps || []) as StepDefinition[]).map(
+				(step) => ({
+					...step,
+					progress: {
+						...step.progress,
+						caption:
+							step.progress?.caption ?? `Including ${item.title}`,
+					},
+				})
+			)
+		);
 	}
 
 	return {

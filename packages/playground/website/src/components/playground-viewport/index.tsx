@@ -23,11 +23,6 @@ import {
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
-import {
-	loadBlueprintLibraryCatalog,
-	loadBlueprintLibrarySettings,
-} from '../../lib/blueprint-library';
-import { logger } from '@php-wasm/logger';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -212,40 +207,10 @@ function LoadingViewport({
 	caption: string;
 	progress?: number;
 }) {
-	const [extraTools, setExtraTools] = useState<string[]>([]);
 	const progressPercent =
 		progress !== undefined && progress > 0
 			? Math.round(progress)
 			: undefined;
-
-	useEffect(() => {
-		let cancelled = false;
-		const settings = loadBlueprintLibrarySettings();
-		if (settings.alwaysLoad.length === 0) {
-			setExtraTools([]);
-			return;
-		}
-		void loadBlueprintLibraryCatalog().then(
-			(catalog) => {
-				if (cancelled) {
-					return;
-				}
-				const titles = catalog.items
-					.filter((item) => settings.alwaysLoad.includes(item.id))
-					.map((item) => item.title);
-				setExtraTools(titles);
-			},
-			(error) => {
-				if (!cancelled) {
-					logger.warn('Failed to load Extra Tools catalog', error);
-					setExtraTools([]);
-				}
-			}
-		);
-		return () => {
-			cancelled = true;
-		};
-	}, []);
 
 	return (
 		<div className={css.loadingViewport}>
@@ -274,11 +239,6 @@ function LoadingViewport({
 			>
 				<div className={css.progressBar} />
 			</div>
-			{extraTools.length > 0 && (
-				<p className={css.extraTools}>
-					Including extra tools: {extraTools.join(', ')}
-				</p>
-			)}
 		</div>
 	);
 }
