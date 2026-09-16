@@ -19,10 +19,13 @@ export function getSetupFormDefaultValues(
 	const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
 	const language = searchParams.language;
 	const multisite = searchParams.multisite;
+	const gutenbergBranch = searchParams['gutenberg-branch'];
 	return {
 		// @TODO: Handle an unsupported PHP version coming up here.
 		phpVersion: runtimeConf?.phpVersion as any,
 		wpVersion: runtimeConf?.wpVersion as any,
+		gutenbergBranch:
+			typeof gutenbergBranch === 'string' ? gutenbergBranch : '',
 		withNetworking: runtimeConf?.networking,
 		language: typeof language === 'string' ? language : '',
 		multisite: multisite === 'yes',
@@ -40,6 +43,7 @@ export function getSiteSettingsFromFormData(data: SiteFormData): SiteSettings {
 	return {
 		phpVersion: data.phpVersion,
 		wpVersion: data.wpVersion,
+		gutenbergBranch: data.gutenbergBranch,
 		networking: data.withNetworking,
 		language: data.language,
 		multisite: data.multisite,
