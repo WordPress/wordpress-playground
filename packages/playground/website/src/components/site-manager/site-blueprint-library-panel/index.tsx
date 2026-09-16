@@ -60,11 +60,11 @@ export function SiteBlueprintLibraryPanel({
 			},
 			(error) => {
 				if (!cancelled) {
-					logger.error('Failed to load Blueprint library', error);
+					logger.error('Failed to load Extra Tools', error);
 					setCatalogError(
 						error instanceof Error
 							? error.message
-							: 'Could not load the Blueprint library.'
+							: 'Could not load Extra Tools.'
 					);
 				}
 			}
@@ -154,7 +154,7 @@ export function SiteBlueprintLibraryPanel({
 			);
 			setRunState({ itemId: item.id, status: 'success' });
 		} catch (error) {
-			logger.error('Failed to run Blueprint library item', error);
+			logger.error('Failed to run Extra Tools item', error);
 			setRunState({
 				itemId: item.id,
 				status: 'error',
@@ -173,7 +173,7 @@ export function SiteBlueprintLibraryPanel({
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement('a');
 		anchor.href = url;
-		anchor.download = 'playground-blueprint-library-settings.json';
+		anchor.download = 'playground-extra-tools-settings.json';
 		anchor.click();
 		URL.revokeObjectURL(url);
 	}
@@ -189,7 +189,7 @@ export function SiteBlueprintLibraryPanel({
 			setSettings(nextSettings);
 			setImportError(null);
 		} catch (error) {
-			logger.error('Failed to import Blueprint library settings', error);
+			logger.error('Failed to import Extra Tools settings', error);
 			setImportError('Could not import that JSON file.');
 		} finally {
 			if (importInputRef.current) {
@@ -248,7 +248,7 @@ export function SiteBlueprintLibraryPanel({
 			)}
 
 			{itemsByCategory.length === 0 && !catalogError ? (
-				<div className={css.empty}>No blueprints found.</div>
+				<div className={css.empty}>No tools found.</div>
 			) : (
 				itemsByCategory.map(([category, items]) => (
 					<section key={category} className={css.categoryGroup}>
@@ -333,7 +333,7 @@ function BlueprintLibraryItemRow({
 			<div className={css.itemActions}>
 				<CheckboxControl
 					__nextHasNoMarginBottom
-					label="Always load"
+					label="Always include in new Playgrounds"
 					checked={isAlwaysLoaded}
 					onChange={(checked) => onToggleAlwaysLoad(item.id, checked)}
 				/>

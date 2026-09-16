@@ -3,6 +3,8 @@ import type { StepDefinition } from '@wp-playground/client';
 
 const CATALOG_PATH = 'blueprint-library/index.json';
 const SETTINGS_STORAGE_KEY = 'playground-blueprint-library-settings';
+export const BLUEPRINT_LIBRARY_SETTINGS_CHANGED_EVENT =
+	'playground-blueprint-library-settings-changed';
 
 export type BlueprintLibraryInput = {
 	id: string;
@@ -56,7 +58,7 @@ export async function loadBlueprintLibraryCatalog(): Promise<BlueprintLibraryCat
 	const catalogUrl = `${baseUrl.replace(/\/?$/, '/')}${CATALOG_PATH}`;
 	const response = await fetch(catalogUrl);
 	if (!response.ok) {
-		throw new Error('Could not load the Blueprint library.');
+		throw new Error('Could not load Extra Tools.');
 	}
 	return response.json();
 }
@@ -87,6 +89,11 @@ export function saveBlueprintLibrarySettings(
 		SETTINGS_STORAGE_KEY,
 		JSON.stringify(normalizeBlueprintLibrarySettings(settings))
 	);
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(
+			new Event(BLUEPRINT_LIBRARY_SETTINGS_CHANGED_EVENT)
+		);
+	}
 }
 
 export function normalizeBlueprintLibrarySettings(

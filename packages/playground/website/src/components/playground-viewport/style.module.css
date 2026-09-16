@@ -94,6 +94,10 @@
 	.progress-bar {
 		box-shadow: 0 0 18px rgb(72 103 255 / 0.45);
 	}
+
+	.extra-tools {
+		color: rgb(255 255 255 / 0.72);
+	}
 }
 
 .progress-bar {
@@ -118,6 +122,18 @@
 	width: var(--loading-progress);
 	animation: none;
 	transition: width 150ms ease-out;
+}
+
+.extra-tools {
+	width: calc(100% - 48px);
+	max-width: 520px;
+	margin: 16px 0 0;
+	color: #50575e;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-size: 13px;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+	text-align: center;
 }
 
 @keyframes track-shimmer {

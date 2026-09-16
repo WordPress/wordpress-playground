@@ -208,16 +208,13 @@ export function bootSiteClient(
 					);
 					if (prepared.missingInputs.length > 0) {
 						logger.warn(
-							'Skipped Blueprint library items with missing inputs',
+							'Skipped Extra Tools items with missing inputs',
 							prepared.missingInputs
 						);
 					}
 					blueprint = prepared.blueprint;
 				} catch (error) {
-					logger.warn(
-						'Failed to apply Blueprint library defaults',
-						error
-					);
+					logger.warn('Failed to apply Extra Tools defaults', error);
 				}
 			}
 		}
