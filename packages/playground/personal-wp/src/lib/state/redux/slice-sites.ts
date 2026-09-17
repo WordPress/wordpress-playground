@@ -35,6 +35,7 @@ import {
 	shouldUsePersonalWPBlueprint,
 	loadPersonalBlueprint,
 	resolveUrlParamsForExistingSite,
+	withoutUrlBlueprint,
 } from '../../personalwp';
 
 /**
@@ -319,15 +320,14 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const siteUrl = withoutUrlBlueprint(playgroundUrlWithQueryApiArgs);
 		const siteSlug = personalWPSiteSlug ?? deriveSlugFromSiteName(siteName);
 		const effectiveSiteName = personalWPSiteSlug
 			? deriveSiteNameFromSlug(personalWPSiteSlug)
 			: siteName;
 		const newSiteUrlParams = {
-			searchParams: parseSearchParams(
-				playgroundUrlWithQueryApiArgs.searchParams
-			),
-			hash: playgroundUrlWithQueryApiArgs.hash,
+			searchParams: parseSearchParams(siteUrl.searchParams),
+			hash: siteUrl.hash,
 		};
 
 		const showTemporarySiteError = (params: {
@@ -407,10 +407,9 @@ export function setTemporarySiteSpec(
 			);
 			if (existingDefaultSite) {
 				// Check if there are actionable URL params that should be applied
-				// to the existing site (e.g., ?plugin=friends, ?blueprint-url=...)
-				const blueprint = await resolveUrlParamsForExistingSite(
-					playgroundUrlWithQueryApiArgs
-				);
+				// to the existing site (e.g., ?plugin=friends)
+				const blueprint =
+					await resolveUrlParamsForExistingSite(siteUrl);
 				if (blueprint) {
 					dispatch(
 						sitesSlice.actions.setBlueprintResolvedFromUrl({
@@ -433,18 +432,13 @@ export function setTemporarySiteSpec(
 		// Then create a new site (temporary or personal depending on defaultStorageType)
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
-			if (
-				shouldUsePersonalWPBlueprint(
-					playgroundUrlWithQueryApiArgs,
-					defaultBlueprintUrl
-				)
-			) {
+			if (shouldUsePersonalWPBlueprint(siteUrl, defaultBlueprintUrl)) {
 				resolvedBlueprint = await loadPersonalBlueprint(
 					defaultBlueprintUrl!
 				);
 			} else {
 				resolvedBlueprint = await resolveBlueprintFromURL(
-					playgroundUrlWithQueryApiArgs,
+					siteUrl,
 					defaultBlueprintUrl
 				);
 			}
@@ -475,7 +469,7 @@ export function setTemporarySiteSpec(
 			if (reflection.getVersion() === 1) {
 				resolvedBlueprint.blueprint = await applyQueryOverrides(
 					resolvedBlueprint.blueprint,
-					playgroundUrlWithQueryApiArgs.searchParams
+					siteUrl.searchParams
 				);
 			}
 

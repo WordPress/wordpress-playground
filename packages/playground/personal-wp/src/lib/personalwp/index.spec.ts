@@ -17,9 +17,50 @@ global.window.top = global.window;
 global.fetch = vi.fn();
 
 // Now we can import the module
-const { resolveUrlParamsForExistingSite } = await import('./index');
+const {
+	resolveUrlParamsForExistingSite,
+	shouldUsePersonalWPBlueprint,
+	withoutUrlBlueprint,
+} = await import('./index');
+
+describe('Personal WP launch URLs', () => {
+	it('ignores arbitrary Blueprints while retaining supported options', () => {
+		const original = new URL(
+			'https://my.wordpress.net/?plugin=woocommerce&blueprint-url=https://example.com/blueprint.json#{"steps":[]}'
+		);
+		const safeUrl = withoutUrlBlueprint(original);
+
+		expect(safeUrl.searchParams.get('plugin')).toBe('woocommerce');
+		expect(safeUrl.searchParams.has('blueprint-url')).toBe(false);
+		expect(safeUrl.hash).toBe('');
+		expect(original.searchParams.has('blueprint-url')).toBe(true);
+	});
+
+	it('uses the default Blueprint when only a blocked Blueprint was supplied', () => {
+		const safeUrl = withoutUrlBlueprint(
+			new URL(
+				'https://my.wordpress.net/?blueprint-url=https://example.com/blueprint.json'
+			)
+		);
+		expect(
+			shouldUsePersonalWPBlueprint(
+				safeUrl,
+				'https://example.com/default.json'
+			)
+		).toBe(true);
+	});
+});
 
 describe('resolveUrlParamsForExistingSite', () => {
+	it('does not act on a blocked Blueprint URL', async () => {
+		const url = withoutUrlBlueprint(
+			new URL(
+				'https://my.wordpress.net/?blueprint-url=https://example.com/blueprint.json'
+			)
+		);
+		expect(await resolveUrlParamsForExistingSite(url)).toBeNull();
+		expect(global.fetch).not.toHaveBeenCalled();
+	});
 	it('returns null when no actionable URL params are present', async () => {
 		const url = new URL('https://playground.wordpress.net/');
 		const result = await resolveUrlParamsForExistingSite(url);

@@ -21,11 +21,10 @@ import {
  *
  * Personal sites support two modes:
  * 1. Clean URL (no params): Use the default personal blueprint for initial setup
- * 2. URL with params (e.g., ?plugin=friends): Apply the blueprint from URL params
+ * 2. URL with params (e.g., ?plugin=friends): Apply supported URL options
  *
  * This allows users to customize their personal site by visiting URLs like:
  * - playground.wordpress.net/?plugin=woocommerce
- * - playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint.json
  *
  * Returns true (use default blueprint) when:
  * - We're in the top window (not embedded in an iframe)
@@ -44,6 +43,14 @@ export function shouldUsePersonalWPBlueprint(
 	return (
 		isTopWindow && !hasUrlParams && !hasHashFragment && hasDefaultBlueprint
 	);
+}
+
+/** Keep arbitrary Blueprints from running when someone opens a Personal WP link. */
+export function withoutUrlBlueprint(url: URL): URL {
+	const safeUrl = new URL(url);
+	safeUrl.searchParams.delete('blueprint-url');
+	safeUrl.hash = '';
+	return safeUrl;
 }
 
 /**
@@ -81,7 +88,6 @@ export async function loadPersonalBlueprint(
 const ACTIONABLE_URL_PARAMS = [
 	'plugin',
 	'theme',
-	'blueprint-url',
 	'import-site',
 	'import-wxr',
 	'import-content',
@@ -101,7 +107,6 @@ function hasActionableUrlParams(url: URL): boolean {
  *
  * This enables applying blueprints to existing sites via URLs like:
  * - ?plugin=woocommerce
- * - ?blueprint-url=data:application/json;base64,...
  */
 export async function resolveUrlParamsForExistingSite(
 	url: URL
