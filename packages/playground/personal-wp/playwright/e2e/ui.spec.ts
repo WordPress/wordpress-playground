@@ -1,10 +1,5 @@
 import { test, expect } from '../playground-fixtures';
-import type { Blueprint } from '@wp-playground/blueprints';
-import {
-	PHPMYADMIN_CONFIG_PATH,
-	PHPMYADMIN_INSTALL_PATH,
-	PHPMYADMIN_URL_PATH,
-} from '@wp-playground/tools';
+import { PHPMYADMIN_URL_PATH } from '@wp-playground/tools';
 
 test('should open and close the Site Tools panel', async ({ website }) => {
 	await website.goto('./');
@@ -116,26 +111,7 @@ test('should open phpMyAdmin from the Database tools', async ({
 	website,
 	context,
 }) => {
-	const probeText = 'phpMyAdmin path alias works';
-	const blueprint: Blueprint = {
-		steps: [
-			{
-				step: 'mkdir',
-				path: PHPMYADMIN_INSTALL_PATH,
-			},
-			{
-				step: 'writeFile',
-				path: `${PHPMYADMIN_INSTALL_PATH}/index.php`,
-				data: `<?php echo ${JSON.stringify(probeText)};`,
-			},
-			{
-				step: 'writeFile',
-				path: PHPMYADMIN_CONFIG_PATH,
-				data: '<?php',
-			},
-		],
-	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto('./');
 
 	await website.ensureSiteToolsIsOpen();
 	// The Database tab is a developer tool and only appears once the
@@ -159,5 +135,5 @@ test('should open phpMyAdmin from the Database tools', async ({
 
 	await popup.waitForLoadState();
 	expect(new URL(popup.url()).pathname).toContain(PHPMYADMIN_URL_PATH);
-	await expect(popup.locator('body')).toContainText(probeText);
+	await expect(popup.locator('body')).toContainText('Databases');
 });
