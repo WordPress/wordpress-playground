@@ -370,24 +370,14 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * version of WordPress Playground does by default).
 	 *
 	 * In the request mode, you pass an object containing the request information
-	 * (method, headers, body, etc.) and the path to the PHP file to run:
+	 * (method, headers, body, etc.) and the URL to request:
 	 *
 	 * ```ts
-	 * const php = PHP.load('7.4', {
-	 * 	requestHandler: {
-	 * 		documentRoot: "/www"
-	 * 	}
-	 * })
-	 * php.writeFile("/www/index.php", `<?php echo file_get_contents("php://input");`);
-	 * const result = await php.request({
+	 * const result = await client.request({
 	 * 	method: "GET",
-	 * 	headers: {
-	 * 		"Content-Type": "text/plain"
-	 * 	},
-	 * 	body: "Hello world!",
-	 * 	path: "/www/index.php"
+	 * 	url: "/"
 	 * });
-	 * // result.text === "Hello world!"
+	 * console.log(result.text);
 	 * ```
 	 *
 	 * The `request()` method cannot be used in conjunction with `cli()`.

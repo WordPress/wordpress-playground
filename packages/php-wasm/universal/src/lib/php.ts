@@ -597,9 +597,9 @@ export class PHP implements Disposable {
 	 * found at a that path:
 	 *
 	 * ```ts
-	 * php.writeFile(
+	 * await php.writeFile(
 	 * 	"/www/index.php",
-	 * 	`<?php echo "Hello world!";"`
+	 * 	`<?php echo "Hello world!";`
 	 * );
 	 * const result = await php.run({
 	 * 	scriptPath: "/www/index.php"
