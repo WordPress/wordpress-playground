@@ -6,9 +6,11 @@ import {
 } from './remote-access-direct-tunnel';
 import {
 	bufferRemoteCandidate,
+	buildHostTokenHeaders,
 	createAttemptSignal,
 	flushRemoteCandidates,
 	formatBackupFilename,
+	HOST_TOKEN_HEADER,
 	isAttemptCurrent,
 	normalizeVerificationCode,
 	readAttemptSignal,
@@ -47,6 +49,13 @@ describe('remote access tunnel helpers', () => {
 		expect(isAttemptCurrent('attempt-1', 'attempt-1')).toBe(true);
 		expect(isAttemptCurrent('attempt-1', 'attempt-2')).toBe(false);
 		expect(isAttemptCurrent(null, 'attempt-1')).toBe(false);
+	});
+
+	it('builds host token headers only after the relay issues a token', () => {
+		expect(buildHostTokenHeaders(null)).toEqual({});
+		expect(buildHostTokenHeaders('host-token-1')).toEqual({
+			[HOST_TOKEN_HEADER]: 'host-token-1',
+		});
 	});
 
 	it('normalizes two digit phone verification codes', () => {
@@ -177,6 +186,8 @@ describe('remote access direct tunnel', () => {
 		);
 		Object.assign(host as unknown as Record<string, unknown>, {
 			isActive: true,
+			sessionId: 'session-1',
+			hostToken: 'host-token-1',
 			currentAttemptId: 'attempt-1',
 			dataChannel: {
 				readyState: 'open',
@@ -355,5 +366,128 @@ describe('remote access direct tunnel', () => {
 				guest as unknown as { requestFreshOffer: () => Promise<void> }
 			).requestFreshOffer()
 		).rejects.toThrow('Signal post failed: 400: Invalid signal');
+	});
+
+	it('surfaces relay denial when a host signal lacks a host token', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ error: 'Missing host token' }), {
+				status: 401,
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			})
+		);
+		const host = new DirectTunnelHost(
+			{} as ConstructorParameters<typeof DirectTunnelHost>[0],
+			'https://example.test'
+		);
+		Object.assign(host as unknown as Record<string, unknown>, {
+			sessionId: 'session-1',
+			hostToken: null,
+		});
+
+		await expect(
+			(
+				host as unknown as {
+					postSignal: (
+						to: 'guest',
+						type: 'offer',
+						data: unknown
+					) => Promise<void>;
+				}
+			).postSignal('guest', 'offer', {
+				attemptId: 'attempt-1',
+				payload: { type: 'offer', sdp: 'v=0' },
+			})
+		).rejects.toThrow('Signal post failed: 401: Missing host token');
+	});
+
+	/*
+	 * The relay only accepts host-side signaling from the token holder, which
+	 * is what ties the host's approval to the device that showed the code. A
+	 * host-side call that forgets the header gets rejected, so every one of
+	 * them has to carry it.
+	 */
+	it('sends the host token on every host-side relay call', async () => {
+		const calls: Array<{ url: string; headers: Record<string, string> }> =
+			[];
+		let releasePoll = () => {};
+		const pendingPoll = new Promise<Response>((resolve) => {
+			releasePoll = () =>
+				resolve(
+					new Response(
+						JSON.stringify({
+							messages: [],
+							cursor: 0,
+							hostAlive: true,
+						})
+					)
+				);
+		});
+		vi.spyOn(globalThis, 'fetch').mockImplementation(
+			async (input, init) => {
+				const url = String(input);
+				calls.push({
+					url,
+					headers: { ...((init?.headers ?? {}) as object) },
+				});
+				if (url.includes('action=session')) {
+					return new Response(
+						JSON.stringify({
+							sessionId: 'session-1',
+							shareUrl: 'https://example.test/?share=session-1',
+							accessCode: '123-456',
+							hostToken: 'host-token-1',
+						})
+					);
+				}
+				// Park the long poll so its loop cannot spin during the test.
+				if (url.includes('to=host')) {
+					return pendingPoll;
+				}
+				return new Response('{}');
+			}
+		);
+
+		const host = new DirectTunnelHost(
+			{} as ConstructorParameters<typeof DirectTunnelHost>[0],
+			'https://example.test'
+		);
+		await host.startSharing();
+		await vi.waitFor(() =>
+			expect(calls.some((call) => call.url.includes('to=host'))).toBe(
+				true
+			)
+		);
+		await (
+			host as unknown as {
+				postSignal: (
+					to: 'guest',
+					type: 'offer',
+					data: unknown
+				) => Promise<void>;
+			}
+		).postSignal('guest', 'offer', {
+			attemptId: 'attempt-1',
+			payload: { type: 'offer', sdp: 'v=0' },
+		});
+		await host.stopSharing();
+		releasePoll();
+
+		const hostSideCalls = calls.filter(
+			(call) => !call.url.includes('action=session')
+		);
+		expect(hostSideCalls.map((call) => call.url)).toEqual(
+			expect.arrayContaining([
+				expect.stringContaining('to=host'),
+				expect.stringContaining('action=signal'),
+				expect.stringContaining('action=close'),
+			])
+		);
+		for (const call of hostSideCalls) {
+			expect(call.headers['X-Playground-Host-Token']).toBe(
+				'host-token-1'
+			);
+		}
 	});
 });

@@ -12,6 +12,39 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.54] (2026-09-14) 
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- [Website] Simplify the Dock with modular developer tools. ([#4312](https://github.com/WordPress/wordpress-playground/pull/4312))
+
+### Documentation
+
+- [i18n] Update Tagalog intro.md to match English documentation. ([#4315](https://github.com/WordPress/wordpress-playground/pull/4315))
+- [i18n] Update Tagalog quick start guide for the Dock UI. ([#4314](https://github.com/WordPress/wordpress-playground/pull/4314))
+- [i18n] Update Tagalog web instance documentation for the Dock UI. ([#4313](https://github.com/WordPress/wordpress-playground/pull/4313))
+
+### Website
+
+- Await php.ini writes during boot. ([#4265](https://github.com/WordPress/wordpress-playground/pull/4265))
+- Remove abandoned metadata-only autosaves on site loading. ([#4319](https://github.com/WordPress/wordpress-playground/pull/4319))
+
+### Various
+
+- Add My WordPress referrer marker help. ([#4317](https://github.com/WordPress/wordpress-playground/pull/4317))
+- Record which channel new and returning Personal WP visits came through. ([#4310](https://github.com/WordPress/wordpress-playground/pull/4310))
+- Track exact My WP streak lengths. ([#4318](https://github.com/WordPress/wordpress-playground/pull/4318))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @fellyph @mho22 @rollybueno
+
+
 ## [v3.1.53] (2026-09-07) 
 
 ### Documentation

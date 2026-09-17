@@ -339,6 +339,9 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- The docs build generates handbook Markdown in `packages/docs/site/static/handbook/`
+  from TypeDoc. Regenerate and commit these files when their source docs or API
+  comments change; the WordPress.org importer reads them through `manifest.json`.
 - When adding screenshots to Markdown docs, use the raw GitHub URL for the
   committed asset, for example
   `https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/...`.
