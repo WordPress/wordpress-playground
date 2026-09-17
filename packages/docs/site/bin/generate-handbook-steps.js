@@ -77,9 +77,10 @@ for (const entry of steps) {
 	lines.push('### Parameters', '');
 	for (const property of parameters) {
 		const type = property.type?.name ? ` (${property.type.name})` : '';
+		const optional = property.flags?.isOptional ? ' (optional)' : '';
 		const description = summary(property.comment).replace(/\n/g, '\n  ');
 		lines.push(
-			`- **${property.name}**${type}${description ? ` – ${description}` : ''}`
+			`- **${property.name}**${type}${optional}${description ? ` – ${description}` : ''}`
 		);
 	}
 	lines.push('');

@@ -36,7 +36,7 @@ Activates a WordPress plugin (if it's installed).
 
 ### Parameters
 
-- **pluginName** (string) – Optional. Plugin name to display in the progress bar.
+- **pluginName** (string) (optional) – Optional. Plugin name to display in the progress bar.
 - **pluginPath** (string) – Path to the plugin directory as absolute path
   (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file
   relative to the plugins directory (plugin-name/plugin-name.php).
@@ -178,7 +178,7 @@ This step can be called multiple times, and the constants will be merged.
 ### Parameters
 
 - **consts** (Record) – The constants to define
-- **method** – The method of defining the constants in wp-config.php. Possible values are:
+- **method** (optional) – The method of defining the constants in wp-config.php. Possible values are:
     - rewrite-wp-config: Default. Rewrites the wp-config.php file to
       explicitly call define() with the requested
       name and value. This method alters the file
@@ -190,7 +190,7 @@ This step can be called multiple times, and the constants will be merged.
       constants defined this way may conflict with existing
       define() calls in wp-config.php.
 
-- **virtualize** (boolean)
+- **virtualize** (boolean) (optional)
 
 ### Blueprint API example
 
@@ -233,7 +233,7 @@ This step can be called multiple times, and the constants will be merged.
 
 ### Parameters
 
-- **wpCliPath** (string) – wp-cli.phar path
+- **wpCliPath** (string) (optional) – wp-cli.phar path
 
 ### Blueprint API example
 
@@ -263,7 +263,7 @@ Imports a theme Starter Content into WordPress.
 
 ### Parameters
 
-- **themeSlug** (string) – The name of the theme to import content from.
+- **themeSlug** (string) (optional) – The name of the theme to import content from.
 
 ### Blueprint API example
 
@@ -309,7 +309,7 @@ only when absent from the archive.
 
 ### Parameters
 
-- **pathInZip** (string) – The path inside the zip file where the WordPress files are.
+- **pathInZip** (string) (optional) – The path inside the zip file where the WordPress files are.
 - **wordPressFilesZip** (ResourceType) – The zip file containing the top-level WordPress files and
   directories.
 
@@ -354,14 +354,14 @@ Imports a WXR file into WordPress.
 
 ### Parameters
 
-- **authorsMap** (Record) – Remote WXR author usernames keyed to existing local usernames.
-- **authorsMode** – How to assign imported WXR authors to local WordPress users.
-- **defaultAuthorUsername** (string) – The fallback local user for imported authors that cannot be mapped.
-- **fetchAttachments** (boolean) – Whether to fetch and import attachment files referenced by the WXR file.
+- **authorsMap** (Record) (optional) – Remote WXR author usernames keyed to existing local usernames.
+- **authorsMode** (optional) – How to assign imported WXR authors to local WordPress users.
+- **defaultAuthorUsername** (string) (optional) – The fallback local user for imported authors that cannot be mapped.
+- **fetchAttachments** (boolean) (optional) – Whether to fetch and import attachment files referenced by the WXR file.
 - **file** (ResourceType) – The file to import
-- **importComments** (boolean) – Whether to import comments from the WXR file.
-- **importUsers** (boolean) – Whether to create local users for imported WXR authors.
-- **importer** – The importer to use. Possible values:
+- **importComments** (boolean) (optional) – Whether to import comments from the WXR file.
+- **importUsers** (boolean) (optional) – Whether to create local users for imported WXR authors.
+- **importer** (optional) – The importer to use. Possible values:
     - `default`: The importer from https://github.com/humanmade/WordPress-Importer
     - `data-liberation`: The experimental Data Liberation WXR importer developed at
       https://github.com/WordPress/wordpress-playground/issues/1894
@@ -370,8 +370,8 @@ Imports a WXR file into WordPress.
     Data Liberation importer matures, it will become the only supported
     importer and the `importer` option will be ignored.
 
-- **rewriteUrls** (boolean) – Whether to rewrite imported URLs to the current site URL.
-- **urlMapping** (Record) – Explicit URL replacements to apply when URL rewriting is enabled.
+- **rewriteUrls** (boolean) (optional) – Whether to rewrite imported URLs to the current site URL.
+- **urlMapping** (Record) (optional) – Explicit URL replacements to apply when URL rewriting is enabled.
 
 ### Blueprint API example
 
@@ -414,11 +414,11 @@ Installs a WordPress plugin in the Playground.
 
 ### Parameters
 
-- **ifAlreadyInstalled** – What to do if the asset already exists.
-- **options** (InstallPluginOptions) – Optional installation options.
+- **ifAlreadyInstalled** (optional) – What to do if the asset already exists.
+- **options** (InstallPluginOptions) (optional) – Optional installation options.
 - **pluginData** – The plugin files to install. It can be a plugin zip file, a single PHP
   file, or a directory containing all the plugin files at its root.
-- **pluginZipFile** (FileResource) – @deprecated. Use 'pluginData' instead.
+- **pluginZipFile** (FileResource) (optional) – @deprecated. Use 'pluginData' instead.
 
 ### Blueprint API example
 
@@ -482,11 +482,11 @@ Installs a WordPress theme in the Playground.
 
 ### Parameters
 
-- **ifAlreadyInstalled** – What to do if the asset already exists.
-- **options** (InstallThemeOptions) – Optional installation options.
+- **ifAlreadyInstalled** (optional) – What to do if the asset already exists.
+- **options** (InstallThemeOptions) (optional) – Optional installation options.
 - **themeData** – The theme files to install. It can be either a theme zip file, or a
   directory containing all the theme files at its root.
-- **themeZipFile** (FileResource) – @deprecated. Use 'themeData' instead.
+- **themeZipFile** (FileResource) (optional) – @deprecated. Use 'themeData' instead.
 
 ### Blueprint API example
 
@@ -541,8 +541,8 @@ the plugin is located in and loaded automatically by the `@wp-playground/wordpre
 
 ### Parameters
 
-- **password** (string)
-- **username** (string) – The user to log in as. Defaults to 'admin'.
+- **password** (string) (optional)
+- **username** (string) (optional) – The user to log in as. Defaults to 'admin'.
 
 ### Blueprint API example
 
@@ -659,7 +659,7 @@ removed content.
 
 ### Parameters
 
-- **contentTypes** – Content types to remove. When omitted, all posts, pages, custom post
+- **contentTypes** (optional) – Content types to remove. When omitted, all posts, pages, custom post
   types, and comments are removed.
 
 ### Blueprint API example
@@ -980,8 +980,8 @@ Unzip a zip file.
 ### Parameters
 
 - **extractToPath** (string) – The path to extract the zip file to
-- **zipFile** (ResourceType) – The zip file to extract
-- **zipPath** (string) – The path of the zip file to extract
+- **zipFile** (ResourceType) (optional) – The zip file to extract
+- **zipPath** (string) (optional) – The path of the zip file to extract
 
 ### Blueprint API example
 
@@ -1074,7 +1074,7 @@ Runs PHP code using [WP-CLI](https://developer.wordpress.org/cli/commands/).
 ### Parameters
 
 - **command** – The WP CLI command to run.
-- **wpCliPath** (string) – wp-cli.phar path
+- **wpCliPath** (string) (optional) – wp-cli.phar path
 
 ### Blueprint API example
 
