@@ -2,15 +2,12 @@
 #
 # Verify that the root package.json and all published (non-private) package.json
 # files declare engines.node and engines.npm values matching WordPress Core
-# at the revision pinned below.
+# (wordpress-develop/trunk).
 #
 
 set -euo pipefail
 
-# Pin Core so upstream runtime upgrades cannot break unrelated Playground PRs.
-# Update this revision when Playground adopts new Node.js and npm requirements.
-WP_CORE_REF="515a891cba4981689718d4d4d623aa845706b5c3"
-WP_PACKAGE_JSON_URL="https://raw.githubusercontent.com/WordPress/wordpress-develop/${WP_CORE_REF}/package.json"
+WP_PACKAGE_JSON_URL="https://raw.githubusercontent.com/WordPress/wordpress-develop/trunk/package.json"
 
 echo "Fetching WordPress Core package.json..."
 wp_package_json=$(curl -sf "$WP_PACKAGE_JSON_URL")
