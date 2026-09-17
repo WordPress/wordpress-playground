@@ -282,7 +282,7 @@
 	"blueprints/steps": {
 		"title": "Steps",
 		"slug": "steps",
-		"markdown_source": "docs/blueprints/05-steps.md",
+		"markdown_source": "static/handbook/blueprints-steps.md",
 		"parent": "blueprints",
 		"order": 50
 	},
@@ -422,7 +422,7 @@
 	"developers/apis/javascript-api/playground-api-client": {
 		"title": "Playground API Client",
 		"slug": "playground-api-client",
-		"markdown_source": "docs/developers/06-apis/javascript-api/03-playground-api-client.md",
+		"markdown_source": "static/handbook/playground-api-client.md",
 		"parent": "developers/apis/javascript-api",
 		"order": 20
 	},
