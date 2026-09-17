@@ -27,32 +27,20 @@
 // (The label modules' only dependency is installed from
 // ../src/pr-labels/package.json before this runs; it resolves via a normal
 // import.)
-import { execFileSync } from 'node:child_process';
 import { matchPathLabels } from '../src/pr-labels/match-path-labels.mjs';
 import { rankPackageLabels } from '../src/pr-labels/rank-package-labels.mjs';
 import { matchTypeLabel } from '../src/pr-labels/match-type-label.mjs';
 import { changedFileStats } from '../src/pr-labels/git-numstat.mjs';
+import { resolveDiffRevisions } from '../src/pr-labels/resolve-revisions.mjs';
 
 const prNumber = requireEnv('PR_NUMBER');
 const baseRef = requireEnv('BASE_REF');
 const prTitle = requireEnv('PR_TITLE');
 
-// Resolve the base to the current tip of the base branch. We avoid the webhook's
-// base.sha because it can be stale: when it lags the trunk a PR was updated onto,
-// the diff counts those trunk commits as the PR's own changes and mislabels it.
-// Fetching the branch fresh points the diff at the trunk commit the head really
-// sits on. Do this BEFORE fetching the head, which overwrites FETCH_HEAD.
-execFileSync('git', ['fetch', '--no-tags', 'origin', baseRef], {
-	stdio: 'inherit',
-});
-const base = execFileSync('git', ['rev-parse', 'FETCH_HEAD']).toString().trim();
-
-execFileSync(
-	'git',
-	['fetch', '--no-tags', 'origin', `refs/pull/${prNumber}/head`],
-	{ stdio: 'inherit' }
-);
-const head = execFileSync('git', ['rev-parse', 'FETCH_HEAD']).toString().trim();
+// Resolve the commits to diff: the current tip of the base branch (fetched
+// fresh, not the webhook's stale base.sha) and the PR head. See
+// resolve-revisions.mjs for why the base is re-resolved by branch name.
+const { base, head } = resolveDiffRevisions(baseRef, prNumber);
 
 // One `git diff --numstat` feeds both the changed-file list (for path globs) and
 // the per-file line counts (for package ranking). git-numstat.mjs owns the diff
