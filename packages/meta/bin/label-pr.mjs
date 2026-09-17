@@ -17,10 +17,9 @@
 //
 // Inputs (all provided by the workflow):
 //   PR_NUMBER          pull request number
-//   BASE_REF           base BRANCH name (e.g. "trunk") to diff the PR head
-//                      against. We resolve it to the CURRENT base-branch tip
-//                      ourselves rather than trusting the webhook's stale
-//                      base.sha — see the fetch below.
+//   BASE_REF           base BRANCH name (e.g. "trunk"). We diff against the
+//                      branch's current tip, which the webhook's base.sha can
+//                      lag behind.
 //   PR_TITLE           PR title (for the conventional-commit [Type] label)
 //   GITHUB_REPOSITORY  "owner/repo"
 //   GITHUB_TOKEN       token with pull-requests:write
@@ -38,15 +37,11 @@ const prNumber = requireEnv('PR_NUMBER');
 const baseRef = requireEnv('BASE_REF');
 const prTitle = requireEnv('PR_TITLE');
 
-// Resolve the base against the CURRENT tip of the base branch, not the webhook's
-// github.event.pull_request.base.sha. That payload SHA is a snapshot taken when
-// GitHub built the event, and concurrent synchronize events can carry different,
-// stale values; diffing against a stale base folds trunk commits that were later
-// pulled into the head (via rebase/merge from trunk) into the PR's "changes",
-// mislabeling it with unrelated trunk churn. Fetching the base ref fresh means
-// the three-dot diff's merge-base is the trunk commit actually in the head, so
-// trunk content is excluded. Resolve the base BEFORE fetching the head, since the
-// second fetch overwrites FETCH_HEAD.
+// Resolve the base to the current tip of the base branch. We avoid the webhook's
+// base.sha because it can be stale: when it lags the trunk a PR was updated onto,
+// the diff counts those trunk commits as the PR's own changes and mislabels it.
+// Fetching the branch fresh points the diff at the trunk commit the head really
+// sits on. Do this BEFORE fetching the head, which overwrites FETCH_HEAD.
 execFileSync('git', ['fetch', '--no-tags', 'origin', baseRef], {
 	stdio: 'inherit',
 });
