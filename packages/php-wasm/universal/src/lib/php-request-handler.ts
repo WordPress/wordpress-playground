@@ -373,11 +373,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * (method, headers, body, etc.) and the URL to request:
 	 *
 	 * ```ts
+	 * await client.writeFile(
+	 * 	'/index.php',
+	 * 	`<?php echo file_get_contents('php://input');`
+	 * );
 	 * const result = await client.request({
-	 * 	method: "GET",
-	 * 	url: "/"
+	 * 	url: '/index.php',
+	 * 	method: 'POST',
+	 * 	headers: {
+	 * 		'Content-Type': 'text/plain',
+	 * 	},
+	 * 	body: 'Hello world!',
 	 * });
-	 * console.log(result.text);
+	 * // result.text === 'Hello world!'
 	 * ```
 	 *
 	 * The `request()` method cannot be used in conjunction with `cli()`.
