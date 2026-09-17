@@ -17,7 +17,10 @@
 //
 // Inputs (all provided by the workflow):
 //   PR_NUMBER          pull request number
-//   BASE_SHA           base commit SHA to diff the PR head against
+//   BASE_REF           base BRANCH name (e.g. "trunk") to diff the PR head
+//                      against. We resolve it to the CURRENT base-branch tip
+//                      ourselves rather than trusting the webhook's stale
+//                      base.sha — see the fetch below.
 //   PR_TITLE           PR title (for the conventional-commit [Type] label)
 //   GITHUB_REPOSITORY  "owner/repo"
 //   GITHUB_TOKEN       token with pull-requests:write
@@ -32,8 +35,22 @@ import { matchTypeLabel } from '../src/pr-labels/match-type-label.mjs';
 import { changedFileStats } from '../src/pr-labels/git-numstat.mjs';
 
 const prNumber = requireEnv('PR_NUMBER');
-const baseSha = requireEnv('BASE_SHA');
+const baseRef = requireEnv('BASE_REF');
 const prTitle = requireEnv('PR_TITLE');
+
+// Resolve the base against the CURRENT tip of the base branch, not the webhook's
+// github.event.pull_request.base.sha. That payload SHA is a snapshot taken when
+// GitHub built the event, and concurrent synchronize events can carry different,
+// stale values; diffing against a stale base folds trunk commits that were later
+// pulled into the head (via rebase/merge from trunk) into the PR's "changes",
+// mislabeling it with unrelated trunk churn. Fetching the base ref fresh means
+// the three-dot diff's merge-base is the trunk commit actually in the head, so
+// trunk content is excluded. Resolve the base BEFORE fetching the head, since the
+// second fetch overwrites FETCH_HEAD.
+execFileSync('git', ['fetch', '--no-tags', 'origin', baseRef], {
+	stdio: 'inherit',
+});
+const base = execFileSync('git', ['rev-parse', 'FETCH_HEAD']).toString().trim();
 
 execFileSync(
 	'git',
@@ -45,7 +62,7 @@ const head = execFileSync('git', ['rev-parse', 'FETCH_HEAD']).toString().trim();
 // One `git diff --numstat` feeds both the changed-file list (for path globs) and
 // the per-file line counts (for package ranking). git-numstat.mjs owns the diff
 // invocation and its flags (-z, --no-renames) and parses the result.
-const fileStats = changedFileStats(baseSha, head);
+const fileStats = changedFileStats(base, head);
 const changedFiles = fileStats.map((f) => f.path);
 
 const labels = [

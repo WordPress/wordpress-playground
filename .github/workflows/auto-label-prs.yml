@@ -84,7 +84,20 @@ jobs:
               run: node packages/meta/bin/label-pr.mjs
               env:
                   PR_NUMBER: ${{ github.event.pull_request.number }}
-                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  # The base BRANCH name, not github.event.pull_request.base.sha.
+                  # That payload SHA is a snapshot of the base tip at the moment
+                  # GitHub built the webhook, and concurrent synchronize events
+                  # can carry DIFFERENT, stale values. When a PR is updated from
+                  # trunk (rebase/merge onto a newer trunk than the payload's
+                  # base.sha), the three-dot diff base.sha...head folds every
+                  # trunk commit that landed after that stale SHA — but is now in
+                  # the head — into the PR's "changes", producing a wall of
+                  # spurious labels from unrelated trunk churn (recompiled
+                  # PHP.wasm, version bumps). The runner instead fetches this ref
+                  # fresh and diffs against the CURRENT base tip; since trunk only
+                  # moves forward, any trunk content in the head is an ancestor of
+                  # that tip and the merge-base excludes it.
+                  BASE_REF: ${{ github.event.pull_request.base.ref }}
                   # Passed as env (not interpolated into the shell), so an
                   # attacker-controlled title can't inject commands.
                   PR_TITLE: ${{ github.event.pull_request.title }}
