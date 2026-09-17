@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 14178068;
+export const dependenciesTotalSize = 14178114;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7208,11 +7208,6 @@ export function init(RuntimeName, PHPLoader) {
 				const interval = setInterval(pump, 20);
 				pump();
 			} else {
-				/**
-				 * Descriptor 0 was not provided, so the child process must observe EOF.
-				 * Closing stdin explicitly lets spawn handlers distinguish that case from
-				 * a valid pipe whose first bytes have not arrived yet.
-				 */
 				cp.stdin.end();
 			}
 			return ProcInfo.pid;
@@ -8417,11 +8412,13 @@ export function init(RuntimeName, PHPLoader) {
 		_malloc,
 		_atoi,
 		_memchr,
+		_strncasecmp,
 		_snprintf,
 		_dlopen,
 		_dlsym,
 		_dlclose,
 		_getenv,
+		_explicit_bzero,
 		_strrchr,
 		_realloc,
 		___errno_location,
@@ -8459,6 +8456,7 @@ export function init(RuntimeName, PHPLoader) {
 		_atan2,
 		_acos,
 		_localtime_r,
+		_sscanf,
 		_tan,
 		_asin,
 		_atan,
@@ -8919,11 +8917,14 @@ export function init(RuntimeName, PHPLoader) {
 				wasmExports['malloc'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
 		_memchr = Module['_memchr'] = wasmExports['memchr'];
+		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
 		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
 		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
 		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
 		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
 		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		_strrchr = Module['_strrchr'] = wasmExports['strrchr'];
 		_realloc = Module['_realloc'] = wasmExports['realloc'];
 		___errno_location = Module['___errno_location'] =
@@ -8962,6 +8963,7 @@ export function init(RuntimeName, PHPLoader) {
 		_atan2 = Module['_atan2'] = wasmExports['atan2'];
 		_acos = Module['_acos'] = wasmExports['acos'];
 		_localtime_r = Module['_localtime_r'] = wasmExports['localtime_r'];
+		_sscanf = Module['_sscanf'] = wasmExports['sscanf'];
 		_tan = Module['_tan'] = wasmExports['tan'];
 		_asin = Module['_asin'] = wasmExports['asin'];
 		_atan = Module['_atan'] = wasmExports['atan'];
@@ -9180,37 +9182,37 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var _executor_globals = (Module['_executor_globals'] = 11428536);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11284440);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11284444);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11284456);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11426456);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 11282864);
+	var _executor_globals = (Module['_executor_globals'] = 11428552);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11284456);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11284460);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11284472);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11426472);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 11282880);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		11282932);
-	var _std_object_handlers = (Module['_std_object_handlers'] = 11076020);
+		11282948);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11076036);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 11276352);
-	var _timezone = (Module['_timezone'] = 11458616);
-	var _tzname = (Module['_tzname'] = 11458624);
-	var ___heap_base = 12520352;
+	var _stdout = (Module['_stdout'] = 11276368);
+	var _timezone = (Module['_timezone'] = 11458632);
+	var _tzname = (Module['_tzname'] = 11458640);
+	var ___heap_base = 12520368;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		11471756);
+		11471772);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 11276600);
+	] = 11276616);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 11276560);
+	] = 11276576);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 11276652);
+	] = 11276668);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 11276724);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11276768);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11276788);
+	] = 11276740);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11276784);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11276804);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncify_data: ___asyncify_data,

@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/web-5-2",
-	"version": "3.1.51",
+	"version": "3.1.54",
 	"description": "PHP 5.2 WebAssembly binaries for web (legacy)",
 	"repository": {
 		"type": "git",
@@ -32,7 +32,7 @@
 	"types": "index.d.ts",
 	"license": "GPL-2.0-or-later",
 	"engines": {
-		"node": ">=20.10.0",
-		"npm": ">=10.2.3"
+		"node": ">=24.18.0",
+		"npm": ">=11.16.0"
 	}
 }

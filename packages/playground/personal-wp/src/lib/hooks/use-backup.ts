@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
 	usePlaygroundClient,
 	usePlaygroundClientInfo,
@@ -155,6 +155,12 @@ export function useBackup() {
 	const dispatch = useAppDispatch();
 	const [isBackingUp, setIsBackingUp] = useState(false);
 	const [isRequestingRemote, setIsRequestingRemote] = useState(false);
+	// The state above renders the buttons; these guard the work itself. Two
+	// calls in the same turn — a double click, or two relay requests from a
+	// WordPress page — would both read the state as false and start a backup
+	// each, racing over the backup history.
+	const isBackingUpRef = useRef(false);
+	const isRequestingRemoteRef = useRef(false);
 
 	const isMainMode = clientInfo && !clientInfo.isDependentMode;
 	const isDependentMode = clientInfo?.isDependentMode ?? false;
@@ -162,7 +168,8 @@ export function useBackup() {
 	const performBackup = useCallback(async (): Promise<boolean> => {
 		// In dependent mode, request backup from the main tab
 		if (isDependentMode && activeSite) {
-			if (isRequestingRemote) return false;
+			if (isRequestingRemoteRef.current) return false;
+			isRequestingRemoteRef.current = true;
 			setIsRequestingRemote(true);
 			try {
 				const succeeded = await requestRemoteBackup(activeSite.slug);
@@ -171,14 +178,16 @@ export function useBackup() {
 				}
 				return succeeded;
 			} finally {
+				isRequestingRemoteRef.current = false;
 				setIsRequestingRemote(false);
 			}
 		}
 
-		if (!playground || !activeSite || isBackingUp) {
+		if (!playground || !activeSite || isBackingUpRef.current) {
 			return false;
 		}
 
+		isBackingUpRef.current = true;
 		setIsBackingUp(true);
 		try {
 			// Get site name from WordPress, fall back to metadata
@@ -214,16 +223,10 @@ export function useBackup() {
 
 			return true;
 		} finally {
+			isBackingUpRef.current = false;
 			setIsBackingUp(false);
 		}
-	}, [
-		playground,
-		activeSite,
-		isBackingUp,
-		isRequestingRemote,
-		isDependentMode,
-		dispatch,
-	]);
+	}, [playground, activeSite, isDependentMode, dispatch]);
 
 	// Register this tab as the backup handler when in main mode
 	useEffect(() => {

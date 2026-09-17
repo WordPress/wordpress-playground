@@ -245,6 +245,35 @@ test('should navigate from the address bar suggestions', async ({
 	await expect(address).toHaveValue('/wp-admin/');
 });
 
+test('should retain developer drafts and remember toolbar visibility', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const toggle = dock.getByRole('button', {
+		name: 'Dev Tools',
+		exact: true,
+	});
+	await toggle.click();
+	await website.openDockPane('Terminal');
+	const pane = website.page.getByRole('dialog', { name: 'Terminal pane' });
+	const command = pane.getByRole('textbox', { name: 'PHP code' });
+	await command.fill('echo "draft retained";');
+	await toggle.click();
+	await expect(pane).not.toBeVisible();
+	await expect(toggle).toBeFocused();
+	await toggle.click();
+	await website.openDockPane('Terminal');
+	await expect(command).toHaveText('echo "draft retained";');
+	await website.page.reload();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await toggle.click();
+	await website.page.reload();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
 test('should route tools through one Dock pane', async ({ website }) => {
 	await website.goto('./?storage=temp');
 	const dock = website.page.getByRole('navigation', {

@@ -4,6 +4,101 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.54] (2026-09-14) 
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- [Website] Simplify the Dock with modular developer tools. ([#4312](https://github.com/WordPress/wordpress-playground/pull/4312))
+
+### Documentation
+
+- [i18n] Update Tagalog intro.md to match English documentation. ([#4315](https://github.com/WordPress/wordpress-playground/pull/4315))
+- [i18n] Update Tagalog quick start guide for the Dock UI. ([#4314](https://github.com/WordPress/wordpress-playground/pull/4314))
+- [i18n] Update Tagalog web instance documentation for the Dock UI. ([#4313](https://github.com/WordPress/wordpress-playground/pull/4313))
+
+### Website
+
+- Await php.ini writes during boot. ([#4265](https://github.com/WordPress/wordpress-playground/pull/4265))
+- Remove abandoned metadata-only autosaves on site loading. ([#4319](https://github.com/WordPress/wordpress-playground/pull/4319))
+
+### Various
+
+- Add My WordPress referrer marker help. ([#4317](https://github.com/WordPress/wordpress-playground/pull/4317))
+- Record which channel new and returning Personal WP visits came through. ([#4310](https://github.com/WordPress/wordpress-playground/pull/4310))
+- Track exact My WP streak lengths. ([#4318](https://github.com/WordPress/wordpress-playground/pull/4318))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @fellyph @mho22 @rollybueno
+
+
+## [v3.1.53] (2026-09-07) 
+
+### Documentation
+
+- Personal Playground: Let a WordPress page request a site backup. ([#4304](https://github.com/WordPress/wordpress-playground/pull/4304))
+- [Docs] Add GitHub UI documentation contribution guide. ([#3724](https://github.com/WordPress/wordpress-playground/pull/3724))
+- [i18n] Add Bengali (bn) translation for the troubleshooting page. ([#4289](https://github.com/WordPress/wordpress-playground/pull/4289))
+
+### PHP WebAssembly
+
+- Fix external PHP extension ABI exports. ([#4108](https://github.com/WordPress/wordpress-playground/pull/4108))
+
+### Website
+
+- Exclude PHP next from pre-emptive offline loading. ([#4294](https://github.com/WordPress/wordpress-playground/pull/4294))
+- Only render same-origin blob: URLs in the editor iframe's empty.html. ([#4308](https://github.com/WordPress/wordpress-playground/pull/4308))
+
+#### Blueprints
+
+- Proxy WebMCP tools registered inside the WordPress iframe. ([#4301](https://github.com/WordPress/wordpress-playground/pull/4301))
+
+### Various
+
+- Add daily/weekly/monthly activity streaks to Personal WP usage stats. ([#4305](https://github.com/WordPress/wordpress-playground/pull/4305))
+- Fold renamed plugin slugs together in the Personal WP stats dashboard. ([#4306](https://github.com/WordPress/wordpress-playground/pull/4306))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @brandonpayton @chubes4 @ekamran @ikamal7
+
+
+## [v3.1.52] (2026-08-31) 
+
+### Blueprints
+
+- Run `wp db query` through `$wpdb` in the wp-cli step. ([#4277](https://github.com/WordPress/wordpress-playground/pull/4277))
+
+### Documentation
+
+- Docs: Replace rewrite-flushing writeFile examples. ([#3806](https://github.com/WordPress/wordpress-playground/pull/3806))
+- [docs] Rename duplicate manifest slugs breaking developer.wordpress.org pages. ([#4266](https://github.com/WordPress/wordpress-playground/pull/4266))
+
+### Website
+
+- [MCP] Update WebMCP registration API. ([#3844](https://github.com/WordPress/wordpress-playground/pull/3844))
+
+### Various
+
+- CI: Slim down the Auto-label PR checkout to the minimum needed. ([#4291](https://github.com/WordPress/wordpress-playground/pull/4291))
+- [CI] Label PRs from git diff instead of the pulls.listFiles API. ([#4290](https://github.com/WordPress/wordpress-playground/pull/4290))
+- [CI] Reduce Actions artifact storage from Playwright and deploy uploads. ([#4279](https://github.com/WordPress/wordpress-playground/pull/4279))
+- [CI] Republish packages missing after a partial NPM release. ([#4270](https://github.com/WordPress/wordpress-playground/pull/4270))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @bgrgicak @brandonpayton @ekamran @mho22 @obenland
+
+
 ## [v3.1.51] (2026-08-24) 
 
 ### Website

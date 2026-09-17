@@ -1081,6 +1081,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		!isBooting &&
 		(isDependentMode ? mainTabStatus === 'connected' : !!playground);
 	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
+	// A relay request can arrive while the site is still coming up, and it has
+	// to read the state as of that moment rather than as of the render that
+	// registered the listener.
+	const backupStateRef = useRef({ canBackupNow, performBackup });
+	backupStateRef.current = { canBackupNow, performBackup };
 
 	const loadingScreenHtml = useMemo(
 		() =>
@@ -1484,6 +1489,14 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			);
 			if (installBlueprintMessage) {
 				void installBlueprintFromRelay(event, installBlueprintMessage);
+				return;
+			}
+
+			const backupSiteMessage = getBackupSiteMessageData(
+				relayValidation.data
+			);
+			if (backupSiteMessage) {
+				void backupSiteFromRelay(event, backupSiteMessage);
 			}
 		}
 		window.addEventListener('message', handleMessage);
@@ -1493,8 +1506,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	}, [
 		applyBlueprint,
 		applyBlueprintInMainTab,
+		canBackupNow,
 		hasLocalRuntimeClient,
 		isDependentMode,
+		mainTabStatus,
+		performBackup,
 		requestBlueprintInstallConfirmation,
 		siteSlug,
 		url,
@@ -1564,6 +1580,56 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						usageStatsRequestSource,
 					})),
 		});
+	}
+
+	/**
+	 * Zip the current site for a `backup-site` relay message and report back.
+	 *
+	 * Runs the same backup as the Site Tools button, so a dependent tab
+	 * forwards to the active tab and the download appears there.
+	 */
+	async function backupSiteFromRelay(
+		event: MessageEvent,
+		message: BackupSiteMessageData
+	) {
+		const { requestId } = message;
+		// The page that asked was served by this very site, so a site that
+		// looks unready here is almost always one whose state has not caught
+		// up yet — worth a short wait before refusing.
+		if (!(await waitForBackupReadiness(backupStateRef))) {
+			postBackupSiteResult(event, {
+				requestId,
+				status: 'error',
+				error: isDependentMode
+					? getMainTabUnavailableMessage(mainTabStatus)
+					: 'Playground is not ready.',
+			});
+			return;
+		}
+
+		// Zipping a site takes a while. Acknowledge the request right away so
+		// the requesting page can tell a slow backup apart from a Personal
+		// Playground that does not support this message at all.
+		postBackupSiteResult(event, { requestId, status: 'started' });
+
+		try {
+			const succeeded = await backupStateRef.current.performBackup();
+			postBackupSiteResult(event, {
+				requestId,
+				status: succeeded ? 'success' : 'error',
+				...(succeeded
+					? {}
+					: {
+							error: 'The backup could not be created. Another backup may still be running.',
+						}),
+			});
+		} catch (e) {
+			postBackupSiteResult(event, {
+				requestId,
+				status: 'error',
+				error: getErrorMessage(e),
+			});
+		}
 	}
 
 	// Reflect the WordPress URL in the browser's address bar.
@@ -2156,6 +2222,12 @@ type InstallBlueprintMessageData = {
 	requestId?: string;
 };
 
+type BackupSiteMessageData = {
+	type: 'relay';
+	relayType: 'backup-site';
+	requestId?: string;
+};
+
 type BlueprintInstallDialogRequest = {
 	blueprintUrl: string;
 };
@@ -2194,6 +2266,14 @@ type InstallBlueprintResultMessage = {
 	blueprintUrl: string;
 	requestId?: string;
 	status: InstallBlueprintResult['status'] | 'cancelled';
+	error?: string;
+};
+
+type BackupSiteResultMessage = {
+	type: 'relay';
+	relayType: 'backup-site-result';
+	requestId?: string;
+	status: 'started' | 'success' | 'error';
 	error?: string;
 };
 
@@ -2240,6 +2320,38 @@ function getInstallBlueprintMessageData(
 		type: 'relay',
 		relayType: 'install-blueprint',
 		blueprintUrl: data.blueprintUrl,
+		requestId: getRequestId(data),
+	};
+}
+
+/**
+ * Wait until the site can serve a backup, up to `timeoutMs`.
+ *
+ * Resolves to whether it got there.
+ */
+async function waitForBackupReadiness(
+	stateRef: { current: { canBackupNow: boolean } },
+	timeoutMs = 15000
+): Promise<boolean> {
+	const deadline = Date.now() + timeoutMs;
+	while (!stateRef.current.canBackupNow && Date.now() < deadline) {
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
+	return stateRef.current.canBackupNow;
+}
+
+/**
+ * Read a validated relay message as a backup request, if that is what it is.
+ */
+function getBackupSiteMessageData(
+	data: RelayMessageData
+): BackupSiteMessageData | undefined {
+	if (data.relayType !== 'backup-site') {
+		return;
+	}
+	return {
+		type: 'relay',
+		relayType: 'backup-site',
 		requestId: getRequestId(data),
 	};
 }
@@ -2305,6 +2417,26 @@ function postInstallBlueprintResult(
 			relayType: 'install-blueprint-result',
 			...result,
 		} satisfies InstallBlueprintResultMessage,
+		event.origin
+	);
+}
+
+/**
+ * Send a `backup-site-result` back to the frame that asked for the backup.
+ */
+function postBackupSiteResult(
+	event: MessageEvent,
+	result: Omit<BackupSiteResultMessage, 'type' | 'relayType'>
+) {
+	if (!event.source) {
+		return;
+	}
+	(event.source as Window).postMessage(
+		{
+			type: 'relay',
+			relayType: 'backup-site-result',
+			...result,
+		} satisfies BackupSiteResultMessage,
 		event.origin
 	);
 }

@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 const test = base.extend<{ webmcpPage: Page }>({
 	webmcpPage: async ({ page }, use) => {
-		// WebMCP (navigator.modelContext) is only available in
+		// WebMCP (document.modelContext) is only available in
 		// Chrome 148+ Canary behind chrome://flags/#enable-webmcp-testing.
 		// Playwright uses a stock Chromium that doesn't
 		// expose the API, so we inject a mock before the page
@@ -20,7 +20,7 @@ const test = base.extend<{ webmcpPage: Page }>({
 
 			(window as any).__webmcpExecutors = {};
 
-			Object.defineProperty(navigator as any, 'modelContext', {
+			Object.defineProperty(document as any, 'modelContext', {
 				configurable: true,
 				value: {
 					get tools() {
@@ -30,7 +30,7 @@ const test = base.extend<{ webmcpPage: Page }>({
 						registeredTools.length = 0;
 						(window as any).__webmcpExecutors = {};
 					},
-					registerTool(
+					async registerTool(
 						tool: (typeof registeredTools)[0],
 						options?: { signal?: AbortSignal }
 					) {

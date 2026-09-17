@@ -9,7 +9,8 @@ import {
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 import { SavedPlaygroundsPanel } from '../saved-playgrounds-panel';
 import { SaveSiteModal } from '../save-site-modal';
-import { SiteInfoPanel, type SiteInfoTabName } from './site-info-panel';
+import { SiteInfoPanel } from './site-info-panel';
+import { isSiteToolSection } from '../dock/tool-registry';
 import { SiteSharePanel } from './site-share-panel';
 import css from './style.module.css';
 
@@ -40,16 +41,9 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		const activeSection = useAppSelector(
 			(state) => state.ui.dockPaneSection
 		);
-		const selectedSiteTab: SiteInfoTabName | null =
-			activeSection === 'settings' ||
-			activeSection === 'files' ||
-			activeSection === 'blueprint' ||
-			activeSection === 'database' ||
-			activeSection === 'terminal' ||
-			activeSection === 'logs' ||
-			activeSection === 'mail'
-				? activeSection
-				: null;
+		const selectedSiteTab = isSiteToolSection(activeSection)
+			? activeSection
+			: null;
 		const activeSiteTab = isVisible ? selectedSiteTab : null;
 		const [mountedSiteSlug, setMountedSiteSlug] = useState<string | null>(
 			null

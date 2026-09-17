@@ -45,9 +45,11 @@ import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
 import {
+	normalizeReferrer,
 	getUsageStatsDate,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
+	getStreakUsageStatsUpdate,
 	isUsageStatsAllowedOnCurrentHost,
 	logPersonalWpEvent,
 	shouldLogReturningVisitUsageStats,
@@ -481,17 +483,24 @@ function logBootUsageStats({
 		bootCompletedAt
 	);
 	const metadata: BootUsageStatsMetadata = {};
+	// Reported for both ways of arriving, so a channel can be read for new
+	// and returning sites alike.
+	const referrerSource = normalizeReferrer();
 	if (wordpressInstallMode === 'download-and-install') {
 		logPersonalWpEvent('wordpress_installed', {
 			...siteProperties,
 			original_blueprint_source:
 				site.metadata.originalBlueprintSource.type,
+			referrer_source: referrerSource,
 		});
 	} else if (
 		isWordPressInstalled &&
 		shouldLogReturningVisitUsageStats(site.metadata, bootCompletedAt)
 	) {
-		logPersonalWpEvent('returning_visit', siteProperties);
+		logPersonalWpEvent('returning_visit', {
+			...siteProperties,
+			referrer_source: referrerSource,
+		});
 		metadata.lastUsageStatsReturningVisitDate =
 			getUsageStatsDate(bootCompletedAt);
 	}
@@ -504,12 +513,27 @@ function logBootUsageStats({
 		});
 	}
 
+	const streakUpdate = getStreakUsageStatsUpdate(
+		site.metadata,
+		bootCompletedAt
+	);
+	Object.assign(metadata, streakUpdate.metadata);
+	for (const streakEvent of streakUpdate.events) {
+		logPersonalWpEvent(streakEvent.event, streakEvent.properties);
+	}
+
 	return metadata;
 }
 
 type BootUsageStatsMetadata = Pick<
 	SiteMetadata,
-	'lastUsageStatsReturningVisitDate'
+	| 'lastUsageStatsReturningVisitDate'
+	| 'lastDailyStreakDate'
+	| 'dailyStreak'
+	| 'lastWeeklyStreakWeekStart'
+	| 'weeklyStreak'
+	| 'lastMonthlyStreakMonth'
+	| 'monthlyStreak'
 >;
 
 function getWordPressInstallModeCaption(
