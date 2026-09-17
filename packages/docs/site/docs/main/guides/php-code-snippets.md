@@ -439,7 +439,7 @@ executed, such as incomplete examples or code that depends on external services.
 
 ## Self-host the runtime
 
-Most pages should use the hosted runtime from `https://playground.wordpress.net`.
+Most pages should use the hosted runtime from [playground.wordpress.net](https://playground.wordpress.net).
 Set `playground-origin` when developing Playground itself, testing a self-hosted
 deployment, or pinning examples to infrastructure you control.
 
