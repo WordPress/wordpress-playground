@@ -404,14 +404,12 @@ export function setTemporarySiteSpec(
 				const blueprint = resolveRecoveryBlueprintFromUrl(
 					playgroundUrlWithQueryApiArgs
 				);
-				if (blueprint) {
-					dispatch(
-						sitesSlice.actions.setBlueprintResolvedFromUrl({
-							targetSiteSlug: existingDefaultSite.slug,
-							blueprint,
-						})
-					);
-				}
+				const recovery = blueprint
+					? { targetSiteSlug: existingDefaultSite.slug, blueprint }
+					: null;
+				dispatch(
+					sitesSlice.actions.setBlueprintResolvedFromUrl(recovery)
+				);
 				return existingDefaultSite;
 			}
 		}

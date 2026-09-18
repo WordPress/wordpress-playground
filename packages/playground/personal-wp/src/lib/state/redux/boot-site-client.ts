@@ -103,6 +103,10 @@ export function bootSiteClient(
 		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
 		const hasUrlBlueprint =
 			!!urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
+		if (hasUrlBlueprint) {
+			// Recovery is one-shot even if boot fails before a client connects.
+			dispatch(setBlueprintResolvedFromUrl(null));
+		}
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -431,10 +435,9 @@ export function bootSiteClient(
 			);
 		}
 
-		// Clear URL blueprint after successful boot
+		// Clean up the recovery launch URL after successful boot.
 		if (hasUrlBlueprint) {
 			reportBootProgress(96, 'Cleaning up launch URL');
-			dispatch(setBlueprintResolvedFromUrl(null));
 			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
 				if (isAppBasePath(cleanUrl.pathname)) {
