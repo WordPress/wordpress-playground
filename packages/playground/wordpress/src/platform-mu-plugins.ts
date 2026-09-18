@@ -1,7 +1,7 @@
 import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
- * Writes the Playground platform mu-plugins that run on every
+ * Writes the database metadata preload and platform mu-plugins that run on every
  * supported PHP/WordPress combination — 0-playground.php,
  * sitemap-redirect.php, inline-tinymce-content-css.php.
  *
@@ -13,13 +13,25 @@ export async function writeCommonPlatformMuPlugins(
 	php: UniversalPHP
 ): Promise<void> {
 	await php.writeFile(
-		'/internal/shared/mu-plugins/0-playground.php',
+		'/internal/shared/preload/save-wp-env.php',
 		`<?php
 
-		// Save WordPress environment information to a file.
+		// Save metadata even when a plugin fails before WordPress finishes loading.
+		register_shutdown_function('playground_save_wp_env_info');
+
 		// Named function (not a closure) so this file parses on PHP 5.2.
 		function playground_save_wp_env_info() {
+			global $wpdb;
+			if (!($wpdb instanceof wpdb)) {
+				return;
+			}
 			if (defined('DB_ENGINE') && DB_ENGINE === 'sqlite') {
+				if (!defined('FQDB')) {
+					return;
+				}
+				if (!defined('WP_MYSQL_ON_SQLITE_LOADER_PATH') && !defined('SQLITE_MAIN_FILE')) {
+					return;
+				}
 				$db_info = array(
 					'type' => 'sqlite',
 					'path' => FQDB,
@@ -40,7 +52,12 @@ export async function writeCommonPlatformMuPlugins(
 				file_put_contents($wp_env_file, $wp_env_php);
 			}
 		}
-		add_action('wp_loaded', 'playground_save_wp_env_info');
+		`
+	);
+
+	await php.writeFile(
+		'/internal/shared/mu-plugins/0-playground.php',
+		`<?php
 
         // Needed because gethostbyname( 'wordpress.org' ) returns
         // a private network IP address for some reason.

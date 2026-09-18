@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { joinPaths } from '@php-wasm/util';
+import { getSqliteDatabasePath } from '@wp-playground/tools';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice } from '@wordpress/components';
 import { PlaygroundBootNotice } from '../../pane-loading';
@@ -8,78 +8,45 @@ import { DownloadButton } from './download-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
 
-const RELATIVE_DATABASE_PATH = 'wp-content/database/.ht.sqlite';
-
 export function SiteDatabasePanel({
 	playground,
+	isBooting,
 }: {
 	playground: PlaygroundClient | undefined;
+	isBooting: boolean;
 }) {
-	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	const [databasePath, setDatabasePath] = useState<string | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
 	const [sizeStatus, setSizeStatus] = useState<
 		'loading' | 'ready' | 'unavailable'
-	>('loading');
+	>(isBooting || playground ? 'loading' : 'unavailable');
 
-	// Resolve the real document root instead of assuming /wordpress, which is
-	// wrong for Playgrounds mounted at a different root.
 	useEffect(() => {
-		if (!playground) {
-			setDocumentRoot(null);
-			setDatabaseSize(null);
-			return;
-		}
-		setDocumentRoot(null);
+		setDatabasePath(null);
 		setDatabaseSize(null);
-		let cancelled = false;
-		void playground.documentRoot.then((root) => {
-			if (!cancelled) {
-				setDocumentRoot(root);
-			}
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [playground]);
-
-	const databasePath = documentRoot
-		? joinPaths(documentRoot, RELATIVE_DATABASE_PATH)
-		: null;
-
-	useEffect(() => {
 		if (!playground) {
-			// No client to inspect — don't sit on "Calculating…" forever.
-			setSizeStatus('unavailable');
-			return;
-		}
-		if (!databasePath) {
-			// Client present but the document root is still resolving.
-			setSizeStatus('loading');
+			setSizeStatus(isBooting ? 'loading' : 'unavailable');
 			return;
 		}
 		let cancelled = false;
 		setSizeStatus('loading');
 
 		async function fetchDatabaseSize() {
-			if (!playground || !databasePath) return;
+			if (!playground) return;
 			try {
-				const fileExists = await playground.fileExists(databasePath);
+				const path = await getSqliteDatabasePath(playground);
 				if (cancelled) return;
-				if (fileExists) {
-					const size = await readDatabaseSize(
-						playground,
-						databasePath
-					);
+				setDatabasePath(path);
+				if (await playground.fileExists(path)) {
+					const size = await readDatabaseSize(playground, path);
 					if (cancelled) return;
 					setDatabaseSize(size);
 					setSizeStatus('ready');
-				} else {
-					setDatabaseSize(null);
+				} else if (!cancelled) {
 					setSizeStatus('unavailable');
 				}
 			} catch {
 				if (!cancelled) {
-					setDatabaseSize(null);
 					setSizeStatus('unavailable');
 				}
 			}
@@ -89,7 +56,7 @@ export function SiteDatabasePanel({
 		return () => {
 			cancelled = true;
 		};
-	}, [playground, databasePath]);
+	}, [playground, isBooting]);
 
 	return (
 		<div className={css.databasePanel}>
@@ -98,7 +65,12 @@ export function SiteDatabasePanel({
 				<dd className={css.value}>MySQL emulation backed by SQLite</dd>
 				<dt className={css.label}>Path:</dt>
 				<dd className={css.value}>
-					<code>{databasePath ?? `…/${RELATIVE_DATABASE_PATH}`}</code>
+					<code>
+						{databasePath ??
+							(sizeStatus === 'loading'
+								? 'Loading…'
+								: 'Unavailable')}
+					</code>
 				</dd>
 				<dt className={css.label}>Size:</dt>
 				<dd className={css.value}>
@@ -148,7 +120,7 @@ export function SiteDatabasePanel({
 				</div>
 			) : (
 				<PlaygroundBootNotice
-					show
+					show={isBooting}
 					message="The Playground is still loading — database tools will be ready in a moment."
 				/>
 			)}

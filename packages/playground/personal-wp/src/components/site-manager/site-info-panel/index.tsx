@@ -20,6 +20,7 @@ import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
 import type { SiteMetadata } from '../../../lib/state/redux/slice-sites';
 import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 import {
+	selectActiveSiteError,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -782,6 +783,7 @@ export function SiteInfoPanel({
 		clientInfo && !clientInfo.isDependentMode
 			? clientInfo.client
 			: undefined;
+	const bootError = useAppSelector(selectActiveSiteError);
 
 	// Resolve documentRoot from playground, or use fallback for direct OPFS access
 	useEffect(() => {
@@ -1011,6 +1013,9 @@ export function SiteInfoPanel({
 										>
 											<SiteDatabasePanel
 												playground={playground}
+												isBooting={
+													!clientInfo && !bootError
+												}
 											/>
 										</div>
 										<div
