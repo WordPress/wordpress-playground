@@ -1,8 +1,6 @@
-import { useState } from 'react';
-import { TextControl } from '@wordpress/components';
-import { Modal } from '../../modal';
-import ModalButtons from '../../modal/modal-buttons';
-import { parseGitHubTreeUrl } from '../../../lib/state/redux/git-directory-sources';
+import React, { useState } from 'react';
+import { Button, Flex, Modal, TextControl } from '@wordpress/components';
+import css from './style.module.css';
 
 export interface MountGitDirectorySubmission {
 	url: string;
@@ -78,7 +76,7 @@ export function MountGitDirectoryModal({
 			title={`Mount ${kind} via git`}
 			onRequestClose={handleRequestClose}
 			isDismissible={!isBusy}
-			small
+			className={css['modal']}
 		>
 			<form
 				onSubmit={(e) => {
@@ -113,13 +111,43 @@ export function MountGitDirectoryModal({
 					disabled={isBusy}
 				/>
 				{error ? <p role="alert">{error}</p> : null}
-				<ModalButtons
-					submitText={`Mount ${kind}`}
-					areDisabled={!trimmedUrl || isBusy}
-					areBusy={isBusy}
-					onCancel={onCancel}
-				/>
+				<Flex justify="end" className={css['actions']}>
+					<Button
+						type="button"
+						variant="link"
+						disabled={isBusy}
+						onClick={onCancel}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						variant="primary"
+						isBusy={isBusy}
+						disabled={!trimmedUrl || isBusy}
+					>
+						Mount {kind}
+					</Button>
+				</Flex>
 			</form>
 		</Modal>
 	);
+}
+
+function parseGitHubTreeUrl(
+	input: string
+): { url: string; ref: string } | null {
+	const match = input
+		.trim()
+		.match(
+			/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/]+)\/([^/]+)\/tree\/(.+)$/i
+		);
+	if (!match) {
+		return null;
+	}
+	const [, owner, repo, ref] = match;
+	return {
+		url: `https://github.com/${owner}/${repo.replace(/\.git$/i, '')}`,
+		ref,
+	};
 }

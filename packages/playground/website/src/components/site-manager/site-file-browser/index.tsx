@@ -29,15 +29,13 @@ import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import {
 	PlaygroundFileEditor,
+	MountGitDirectoryModal,
+	type MountGitDirectorySubmission,
 	type PathBadge,
 	type PlaygroundFileEditorHandle,
 } from '@wp-playground/components';
 import { GitIcon } from './git-icon';
 import { GitHubIcon } from '../../../github/github';
-import {
-	MountGitDirectoryModal,
-	type MountGitDirectorySubmission,
-} from './mount-git-directory-modal';
 
 export function SiteFileBrowser({
 	site,

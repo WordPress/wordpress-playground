@@ -13,6 +13,8 @@ import {
 import {
 	type Blueprint,
 	type BlueprintV1Declaration,
+	type GitDirectoryReference,
+	type OnStepCompleted,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -44,6 +46,7 @@ import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
+import { extractGitDirectorySource } from './git-directory-sources';
 import {
 	normalizeReferrer,
 	getUsageStatsDate,
@@ -284,6 +287,13 @@ export function bootSiteClient(
 		);
 
 		let playground: PlaygroundClient | undefined = undefined;
+		const gitDirectorySources: Record<string, GitDirectoryReference> = {};
+		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
+			const extracted = extractGitDirectorySource(step, result);
+			if (extracted) {
+				gitDirectorySources[extracted.assetPath] = extracted.source;
+			}
+		};
 		const progressTracker = new ProgressTracker();
 		progressTracker.addEventListener(
 			'progress',
@@ -315,6 +325,7 @@ export function bootSiteClient(
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
+				onBlueprintStepCompleted,
 				mounts: mountDescriptor
 					? [
 							{
@@ -382,6 +393,23 @@ export function bootSiteClient(
 		if (signal.aborted || !playground) {
 			destroyTabCoordinator();
 			return;
+		}
+		if (Object.keys(gitDirectorySources).length > 0) {
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						metadata: {
+							gitDirectorySources: {
+								...site.metadata.gitDirectorySources,
+								...gitDirectorySources,
+							},
+						},
+					})
+				);
+			} catch (error) {
+				logger.error('Failed to save git directory sources', error);
+			}
 		}
 
 		reportBootProgress(92, 'Setting up browser message relay');
