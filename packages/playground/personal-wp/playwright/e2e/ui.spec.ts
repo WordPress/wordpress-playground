@@ -82,6 +82,34 @@ test('should close the Site Tools panel with its close button', async ({
 	).not.toBeVisible();
 });
 
+test('should save a PHP version change from Advanced settings', async ({
+	website,
+}) => {
+	await website.goto('./');
+	await website.ensureSiteToolsIsOpen();
+	await website.page.getByRole('tab', { name: 'Advanced' }).click();
+
+	const phpVersion = website.page.getByRole('combobox', {
+		name: 'PHP version',
+	});
+	const currentVersion = await phpVersion.inputValue();
+	const nextVersion = currentVersion === '8.4' ? '8.3' : '8.4';
+	await phpVersion.selectOption(nextVersion);
+	await expect(
+		website.page.getByRole('button', { name: 'Apply PHP version' })
+	).toBeEnabled();
+
+	const reloaded = website.page.waitForEvent('load');
+	await website.page
+		.getByRole('button', { name: 'Apply PHP version' })
+		.click();
+	await reloaded;
+	await website.waitForNestedIframes();
+	await website.ensureSiteToolsIsOpen();
+	await website.page.getByRole('tab', { name: 'Advanced' }).click();
+	await expect(phpVersion).toHaveValue(nextVersion);
+});
+
 test('should display the page title as "My WordPress"', async ({ website }) => {
 	await website.goto('./');
 	await expect(website.page).toHaveTitle('My WordPress');
