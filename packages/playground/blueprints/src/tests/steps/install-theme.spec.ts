@@ -185,6 +185,34 @@ describe('Blueprint step installTheme', () => {
 		}
 	});
 
+	it('should return the installed path when activation is skipped after failing', async () => {
+		const loggerWarnSpy = vi
+			.spyOn(logger, 'warn')
+			.mockImplementation(() => {});
+		try {
+			const result = await installTheme(php, {
+				themeData: {
+					name: 'test-theme',
+					files: {
+						'index.php': `<?php\n/**\n * Theme Name: Test Theme\n */`,
+					},
+				},
+				options: {
+					activate: true,
+					onError: 'skip-theme',
+				},
+			});
+
+			expect(result).toEqual({
+				assetPath: '/wordpress/wp-content/themes/test-theme',
+				skippedExisting: false,
+			});
+			expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
+		} finally {
+			loggerWarnSpy.mockRestore();
+		}
+	});
+
 	it('should use humanReadableName when skipping theme errors', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
@@ -289,7 +317,7 @@ describe('Blueprint step installTheme', () => {
 		});
 
 		it('should apply ifAlreadyInstalled to directory theme resources', async () => {
-			await installTheme(php, {
+			const overwriteResult = await installTheme(php, {
 				themeData: {
 					name: 'test-theme',
 					files: {
@@ -301,8 +329,9 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
+			expect(overwriteResult?.skippedExisting).toBeFalsy();
 
-			await installTheme(php, {
+			const skipResult = await installTheme(php, {
 				themeData: {
 					name: 'test-theme',
 					files: {
@@ -314,6 +343,7 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
+			expect(skipResult?.skippedExisting).toBe(true);
 			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
 				'Theme Name: Existing Directory Theme'
 			);

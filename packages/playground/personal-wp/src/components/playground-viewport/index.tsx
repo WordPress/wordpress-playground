@@ -10,6 +10,7 @@ import {
 import type { KeyboardEvent, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
+	type GitDirectoryReference,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
@@ -31,7 +32,9 @@ import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import {
 	markSiteMigrationApplied,
 	selectSiteBySlug,
+	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
+import { extractGitDirectorySource } from '../../lib/state/redux/git-directory-sources';
 import {
 	getMainTabUnavailableMessage,
 	markMainTabReady,
@@ -1227,10 +1230,24 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						setBlueprintInstallStatus(caption);
 					}
 				}) as EventListener);
+				const gitDirectorySources: Record<
+					string,
+					GitDirectoryReference
+				> = {};
 
 				const compiled = await compileBlueprintV1(blueprint, {
 					corsProxy: corsProxyUrl,
 					progress,
+					onStepCompleted: (result, step) => {
+						const extracted = extractGitDirectorySource(
+							step,
+							result
+						);
+						if (extracted) {
+							gitDirectorySources[extracted.assetPath] =
+								extracted.source;
+						}
+					},
 				});
 				await runBlueprintV1Steps(
 					compiled,
@@ -1240,6 +1257,26 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						allowNavigation
 					)
 				);
+				if (site && Object.keys(gitDirectorySources).length > 0) {
+					try {
+						await dispatch(
+							updateSiteMetadata({
+								slug: site.slug,
+								metadata: {
+									gitDirectorySources: {
+										...site.metadata.gitDirectorySources,
+										...gitDirectorySources,
+									},
+								},
+							})
+						);
+					} catch (error) {
+						logger.error(
+							'Failed to save git directory sources',
+							error
+						);
+					}
+				}
 				if (allowNavigation && declaration.landingPage) {
 					setBlueprintInstallStatus('Opening app\u2026');
 					await playground.goTo(declaration.landingPage);
@@ -1278,6 +1315,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		},
 		[
 			clearInstallBannerResetTimeout,
+			dispatch,
 			playground,
 			scheduleInstallBannerReset,
 			setBlueprintInstallStatus,
