@@ -339,6 +339,11 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- Docusaurus generates `manifest.json` and `translation-availability.json` in the
+  build output for the default locale. The handbook manifest derives pages, titles,
+  hierarchy, and order from loaded docs and sidebars. Legacy handbook URL and
+  generated Markdown exceptions live in `plugins/generate-handbook-manifest.js`.
+  Run `npx nx run docs-site:test-plugins` when changing these build plugins.
 - The docs build generates handbook Markdown in `packages/docs/site/static/handbook/`
   from TypeDoc. Regenerate and commit these files when their source docs or API
   comments change; the WordPress.org importer reads them through `manifest.json`.
