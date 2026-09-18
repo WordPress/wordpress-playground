@@ -94,7 +94,7 @@ test('empty output yields no entries', () => {
 // changedFileStats() is where this lives — it runs the real `git diff ...` — so
 // the test asserts on its output directly, contrasting the correct base with the
 // stale one to show the stale base is what reintroduces the churn.
-test('changedFileStats diffs against the base tip given, so a stale base leaks trunk churn but the current tip does not', () => {
+test('changedFileStats lists only the PR files when given the current base, but adds trunk changes when given an older base', () => {
 	// changedFileStats() shells out to `git` in process.cwd() (in the workflow it
 	// runs inside the checked-out repo). Build a disposable repo and run the test
 	// with cwd pointed at it; restore cwd and delete the repo in `finally`.
