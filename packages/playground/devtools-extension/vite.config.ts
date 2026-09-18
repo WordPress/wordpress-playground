@@ -87,6 +87,7 @@ function postBuildPlugin() {
 }
 
 export default defineConfig({
+	root: __dirname,
 	plugins: [
 		react(),
 		viteTsConfigPaths({

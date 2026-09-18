@@ -16,6 +16,11 @@
    +----------------------------------------------------------------------+
  */
 
+#ifndef PHP_WASM_PROC_OPEN_H
+#define PHP_WASM_PROC_OPEN_H
+
+#include "php.h"
+
 typedef int php_file_descriptor_t;
 typedef pid_t php_process_id_t;
 
@@ -31,7 +36,11 @@ typedef struct _php_process_env {
 struct php_process_handle {
 	php_process_id_t child;
 	int npipes;
+#if PHP_MAJOR_VERSION >= 7
 	zend_resource **pipes;
+#else
+	void **pipes;
+#endif
 	char *command;
 	int is_persistent;
 	php_process_env_t env;
@@ -43,3 +52,5 @@ extern int js_open_process(const char *command, char **args, int args_length, in
 extern char *js_create_input_device(int procopen_call_nb);
 
 static int procopen_call_id = 0;
+
+#endif /* PHP_WASM_PROC_OPEN_H */

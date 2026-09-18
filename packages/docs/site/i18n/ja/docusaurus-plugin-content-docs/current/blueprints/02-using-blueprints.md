@@ -15,10 +15,10 @@ slug: /blueprints/using-blueprints
 You can use Blueprints in one of the following ways:
 -->
 
--   URL フラグメントとして Playground に渡す。
--   `blueprint-url` パラメータを使用して URL から読み込む。
--   Blueprint バンドル（ZIP ファイルまたはディレクトリ）を使用する。
--   JavaScript API を使用する。
+- URL フラグメントとして Playground に渡す。
+- `blueprint-url` パラメータを使用して URL から読み込む。
+- Blueprint バンドル（ZIP ファイルまたはディレクトリ）を使用する。
+- JavaScript API を使用する。
 
 <!--
 -   By passing them as a URL fragment to the Playground.
@@ -62,7 +62,8 @@ And then you would go to
 `https://playground.wordpress.net/#{"preferredVersions":{"php":"7.4","wp":"6.5"}}`.
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 JavaScript では、[`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) と [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) を使用して、ブループリントの JSON をコンパクトに圧縮できます。
 例:
 
@@ -77,10 +78,11 @@ const blueprintJson = `{
 const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"7.4","wp":"6.5"}}
 ```
 
-:::
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 In Javascript, you can get a compact version of any blueprint JSON with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) and [`JSON.parse`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse)
 Example:
 
@@ -95,7 +97,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = JSON.stringify(JSON.parse(blueprintJson)); // {"preferredVersions":{"php":"7.4","wp":"6.5"}}
 ```
 
-:::
+</div>
 -->
 
 リンクを貼り付ける必要はありません。「試してみる」ボタンをクリックすると、自動的にコード例が実行されます。
@@ -131,7 +133,8 @@ Some tools, including GitHub, might not format the Blueprint correctly when past
 To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 JavaScript では、グローバル関数 `btoa()` を使用して、任意のブループリント JSON を [Base64 形式](https://developer.mozilla.org/ja/docs/Glossary/Base64#javascript_%E3%81%AE%E5%AF%BE%E5%BF%9C) で取得できます。
 
 例:
@@ -147,10 +150,11 @@ const blueprintJson = `{
 const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 In JavaScript, You can get any blueprint JSON in [Base64 format](https://developer.mozilla.org/en-US/docs/Glossary/Base64#javascript_support) with global function `btoa()`.
 
 Example:
@@ -166,7 +170,7 @@ const blueprintJson = `{
 const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
 ```
 
-:::
+</div>
 -->
 
 ### URL からブループリントを読み込む

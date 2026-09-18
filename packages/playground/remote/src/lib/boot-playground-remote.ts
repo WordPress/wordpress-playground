@@ -1,4 +1,5 @@
 import type { MessageListener } from '@php-wasm/universal';
+import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
@@ -13,35 +14,38 @@ import type {
 	MountDescriptor,
 } from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
-import type { WebClientMixin } from './playground-client';
+import type { SiteThumbnail, WebClientMixin } from './playground-client';
+import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
+// @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
+import siteThumbnailModuleUrl from './capture-site-thumbnail.ts?worker&url';
+
+type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
-import { PhpWasmError } from '@php-wasm/util';
+import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
-// Select worker runtime (v1 or v2) based on query parameter
 // @ts-ignore
-import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
-// @ts-ignore
-import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&url';
+import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?worker&url';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
-	const runner = new URL(document.location.href).searchParams.get(
-		'blueprints-runner'
-	);
-	const isV2 = runner === 'v2';
-	const selected = isV2 ? workerV2Url : workerV1Url;
-	return new URL(selected, origin) + '';
+	const query = new URL(document.location.href).searchParams;
+	const workerUrl = new URL(workerEntryPointUrl, origin);
+	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
+		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
+	}
+	return workerUrl + '';
 }
 
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -127,9 +131,19 @@ export async function bootPlaygroundRemote() {
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	const phpRemoteApi: WebClientMixin = {
+	const webMCPBridge = createWebMCPFrameBridge(wpFrame);
+	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
+		},
+		/**
+		 * Re-expose cli() from this iframe instead of piping through the
+		 * worker proxy. WebKit otherwise receives a Comlink function proxy
+		 * from another Comlink proxy and may dispatch the call to an endpoint
+		 * that has not booted yet.
+		 */
+		async cli(argv, options) {
+			return await phpWorkerApi.cli(argv, options);
 		},
 		async journalFSEvents(root: string, callback) {
 			return phpWorkerApi.journalFSEvents(root, callback);
@@ -138,7 +152,21 @@ export async function bootPlaygroundRemote() {
 			return phpWorkerApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await phpWorkerApi.addEventListener(event, listener);
+			return await phpWorkerApi.addEventListener(event, (phpEvent) => {
+				if (
+					'stdin' in phpEvent &&
+					typeof phpEvent.stdin === 'object' &&
+					phpEvent.stdin !== null &&
+					typeof phpEvent.stdin.getReader === 'function'
+				) {
+					listener({
+						...phpEvent,
+						[phpEventStdinTransfer]: true,
+					});
+					return;
+				}
+				listener(phpEvent);
+			});
 		},
 		async removeEventListener(event, listener) {
 			return await phpWorkerApi.removeEventListener(event, listener);
@@ -311,7 +339,9 @@ export async function bootPlaygroundRemote() {
 			 *      the detailed context.
 			 */
 			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), { once: true });
+				wpFrame.addEventListener('load', () => resolve(), {
+					once: true,
+				});
 			});
 
 			// If the URL is the same, we need to force a reload
@@ -346,8 +376,20 @@ export async function bootPlaygroundRemote() {
 			}
 			return await playground.internalUrlToPath(url);
 		},
+		async captureSiteThumbnail() {
+			return await captureSiteThumbnailFromWordPress({
+				frontPageUrl: await playground.pathToInternalUrl('/'),
+				sandbox: wpFrame.getAttribute('sandbox'),
+			});
+		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
+		},
+		async onWebMCPToolsChanged(fn) {
+			webMCPBridge.subscribe(fn);
+		},
+		async callWebMCPTool(name, args) {
+			return await webMCPBridge.callTool(name, args);
 		},
 		/**
 		 * This function is merely here to explicitly call workerApi.onMessage.
@@ -377,6 +419,10 @@ export async function bootPlaygroundRemote() {
 			onProgress?: SyncProgressCallback
 		) {
 			return await phpWorkerApi.mountOpfs(options, onProgress);
+		},
+
+		async flushOpfs(mountpoint: string) {
+			return await phpWorkerApi.flushOpfs(mountpoint);
 		},
 
 		/**
@@ -423,17 +469,52 @@ export async function bootPlaygroundRemote() {
 						return;
 					}
 
-					// Wait for the PHP API client to be set by bootPlaygroundRemote
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
-					event.source!.postMessage(
-						responseTo(event.data.requestId, result)
-					);
+
+					if (method === 'request') {
+						const streamedResponse = await (
+							phpWorkerApi.requestStreamed as any
+						)(...args);
+						const httpStatusCode =
+							await streamedResponse.httpStatusCode;
+						const headers = await streamedResponse.headers;
+
+						/**
+						 * ReadableStreams are transferable, but cannot be
+						 * transferred to the service worker.
+						 *
+						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+						 * message when the transfer list contains a ReadableStream.
+						 * The call succeeds and the stream detaches from the sender,
+						 * but the message never arrives at the service worker.
+						 *
+						 * To work around this, we bridge the body stream via a MessagePort.
+						 *
+						 * See:
+						 * * https://github.com/whatwg/streams/issues/1063
+						 * * https://github.com/whatwg/streams/issues/276
+						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 */
+						const bodyPort = streamToPort(streamedResponse.stdout);
+						(event.source! as ServiceWorker).postMessage(
+							responseTo(event.data.requestId, {
+								httpStatusCode,
+								headers,
+								bodyPort,
+							}),
+							[bodyPort]
+						);
+					} else {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+						const result = await (phpWorkerApi[method] as Function)(
+							...args
+						);
+						event.source!.postMessage(
+							responseTo(event.data.requestId, result)
+						);
+					}
 				}
 			);
 			sw.startMessages();
@@ -515,6 +596,121 @@ export async function bootPlaygroundRemote() {
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
+}
+
+const SITE_THUMBNAIL_REQUEST = 'playground-capture-site-thumbnail';
+const SITE_THUMBNAIL_RESPONSE = 'playground-site-thumbnail-result';
+const SITE_THUMBNAIL_LOAD_TIMEOUT_MS = 20000;
+const SITE_THUMBNAIL_RENDER_TIMEOUT_MS = 3000;
+
+/**
+ * Loads the front page in a disposable iframe and asks that document to render
+ * itself. The WordPress MU plugin owns the receiving side because the remote
+ * frame cannot inspect the WordPress DOM under Document-Isolation-Policy. A
+ * separate iframe avoids navigating or capturing wp-admin in the visible one.
+ * Every response path removes the iframe and listeners. The load watchdog
+ * covers a page that never loads; once it loads, a shorter deadline bounds the
+ * renderer work.
+ */
+async function captureSiteThumbnailFromWordPress({
+	frontPageUrl,
+	sandbox,
+}: {
+	frontPageUrl: string;
+	sandbox: string | null;
+}): Promise<SiteThumbnail> {
+	const frontPageOrigin = new URL(frontPageUrl).origin;
+	const iframe = document.createElement('iframe');
+	iframe.setAttribute('aria-hidden', 'true');
+	iframe.tabIndex = -1;
+	iframe.style.position = 'fixed';
+	iframe.style.left = '-10000px';
+	iframe.style.top = '0';
+	iframe.style.width = '1024px';
+	iframe.style.height = '768px';
+	iframe.style.opacity = '0';
+	iframe.style.pointerEvents = 'none';
+	if (sandbox) {
+		iframe.setAttribute('sandbox', sandbox);
+	}
+	iframe.src = frontPageUrl;
+
+	return await new Promise<SiteThumbnail>((resolve, reject) => {
+		const requestId = `${Date.now()}-${Math.random()}`;
+		let timeout = setTimeout(onTimeout, SITE_THUMBNAIL_LOAD_TIMEOUT_MS);
+
+		const onMessage = (event: MessageEvent) => {
+			if (
+				event.source !== iframe.contentWindow ||
+				event.origin !== frontPageOrigin ||
+				event.data?.type !== SITE_THUMBNAIL_RESPONSE ||
+				event.data?.requestId !== requestId
+			) {
+				return;
+			}
+			if (event.data.error) {
+				finish(() => reject(new Error(event.data.error)));
+				return;
+			}
+			const thumbnail = event.data.thumbnail;
+			if (
+				typeof thumbnail !== 'object' ||
+				thumbnail === null ||
+				(thumbnail.mime !== 'image/webp' &&
+					thumbnail.mime !== 'image/jpeg') ||
+				typeof thumbnail.data !== 'string' ||
+				thumbnail.data.length === 0
+			) {
+				finish(() =>
+					reject(
+						new Error(
+							'The site thumbnail renderer returned an invalid image.'
+						)
+					)
+				);
+				return;
+			}
+			finish(() => resolve(thumbnail));
+		};
+
+		const onLoad = () => {
+			clearTimeout(timeout);
+			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
+			const moduleUrl = new URL(
+				siteThumbnailModuleUrl,
+				document.location.href
+			);
+			// The marker lets the service worker distinguish this app asset
+			// from a path inside the scoped WordPress site.
+			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');
+			iframe.contentWindow?.postMessage(
+				{
+					type: SITE_THUMBNAIL_REQUEST,
+					requestId,
+					moduleUrl: moduleUrl.href,
+				},
+				frontPageOrigin
+			);
+		};
+
+		function onTimeout() {
+			finish(() =>
+				reject(new Error('Timed out capturing the site thumbnail.'))
+			);
+		}
+
+		function finish(callback: () => void) {
+			clearTimeout(timeout);
+			window.removeEventListener('message', onMessage);
+			iframe.removeEventListener('load', onLoad);
+			iframe.remove();
+			callback();
+		}
+
+		window.addEventListener('message', onMessage);
+		iframe.addEventListener('load', onLoad, { once: true });
+		document.body.append(iframe);
+	});
 }
 
 /**

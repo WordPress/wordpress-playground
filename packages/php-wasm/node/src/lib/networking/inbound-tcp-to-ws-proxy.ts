@@ -1,24 +1,45 @@
-import { createServer } from 'net';
+import { createServer, type Server } from 'net';
 import type { WebSocketServer } from 'ws';
 import { WebSocket } from 'ws';
-import { debugLog } from './utils';
+import { debugLog, getServerPort } from './utils';
 function log(...args: any[]) {
 	debugLog('[TCP Server]', ...args);
 }
 
 export function addTCPServerToWebSocketServerClass(
-	wsListenPort: number,
 	WSServer: typeof WebSocketServer
 ): any {
 	return class PHPWasmWebSocketServer extends WSServer {
+		private tcpToWsProxyServer?: Server;
+
 		constructor(options: any, callback: any) {
 			const requestedPort = options.port;
-			options.port = wsListenPort;
-			listenTCPToWSProxy({
-				tcpListenPort: requestedPort,
-				wsConnectPort: wsListenPort,
+			options.port = 0;
+			super(options, undefined);
+			this.once('listening', () => {
+				this.tcpToWsProxyServer = listenTCPToWSProxy(
+					{
+						tcpListenPort: requestedPort,
+						wsConnectPort: getServerPort(this),
+					},
+					() => callback?.call(this)
+				);
 			});
-			super(options, callback);
+		}
+
+		override close(callback?: (err?: Error) => void) {
+			const tcpToWsProxyServer = this.tcpToWsProxyServer;
+			this.tcpToWsProxyServer = undefined;
+
+			tcpToWsProxyServer?.close(
+				(error: NodeJS.ErrnoException | undefined) => {
+					if (error?.code !== 'ERR_SERVER_NOT_RUNNING') {
+						log('TCP server close error', error);
+					}
+				}
+			);
+
+			return super.close(callback);
 		}
 	};
 }
@@ -28,7 +49,10 @@ export interface InboundTcpToWsProxyOptions {
 	wsConnectHost?: string;
 	wsConnectPort: number;
 }
-export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
+export function listenTCPToWSProxy(
+	options: InboundTcpToWsProxyOptions,
+	onListening?: () => void
+) {
 	options = {
 		wsConnectHost: '127.0.0.1',
 		...options,
@@ -87,5 +111,7 @@ export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
 	});
 	server.listen(tcpListenPort, function () {
 		log('TCP server listening');
+		onListening?.();
 	});
+	return server;
 }

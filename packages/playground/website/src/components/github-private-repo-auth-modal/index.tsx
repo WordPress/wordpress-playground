@@ -1,17 +1,18 @@
 import { Modal } from '../modal';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { Icon } from '@wordpress/components';
+import { Icon, Spinner } from '@wordpress/components';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
 import { staticAnalyzeGitHubURL } from '../../github/analyze-github-url';
-import { buildOAuthRedirectUrl } from '../../github/git-auth-helpers';
-
-const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
+import { oAuthState } from '../../github/state';
+import { connectToGitHub } from '../../github/connect-to-github';
+import { useState } from 'react';
 
 export function GitHubPrivateRepoAuthModal() {
 	const dispatch = useAppDispatch();
 	const repoUrl = useAppSelector((state) => state.ui.githubAuthRepoUrl);
+	const [error, setError] = useState<string>();
 
 	if (!repoUrl) {
 		return null;
@@ -19,10 +20,7 @@ export function GitHubPrivateRepoAuthModal() {
 
 	const { owner, repo } = staticAnalyzeGitHubURL(repoUrl);
 	const displayRepoName = owner && repo ? `${owner}/${repo}` : repoUrl;
-
-	const urlParams = new URLSearchParams();
-	urlParams.set('redirect_uri', buildOAuthRedirectUrl());
-	const oauthUrl = `${OAUTH_FLOW_URL}&${urlParams.toString()}`;
+	const isAuthorizing = oAuthState.value.isAuthorizing;
 
 	return (
 		<Modal
@@ -44,16 +42,39 @@ export function GitHubPrivateRepoAuthModal() {
 					you can connect it to continue.
 				</p>
 
-				<p>
-					<a
-						aria-label="Connect your GitHub account"
-						className={css.githubButton}
-						href={oauthUrl}
-					>
-						<Icon icon={GitHubIcon} />
-						Connect your GitHub account
-					</a>
-				</p>
+				{isAuthorizing ? (
+					<div>
+						<Spinner />
+						<p>
+							Authorization popup opened. Continue in the popup to
+							connect your GitHub account.
+						</p>
+					</div>
+				) : (
+					<p>
+						<a
+							aria-label="Connect your GitHub account"
+							className={css.githubButton}
+							href={new URL(
+								'oauth.php',
+								window.location.href
+							).toString()}
+							onClick={async (event) => {
+								event.preventDefault();
+								await connectToGitHub({
+									setError,
+									onSuccess: () => {
+										dispatch(setActiveModal(null));
+									},
+								});
+							}}
+						>
+							<Icon icon={GitHubIcon} />
+							Connect your GitHub account
+						</a>
+					</p>
+				)}
+				{error ? <p role="alert">{error}</p> : null}
 				<p>
 					<small>
 						Your access token is stored only in memory and will be

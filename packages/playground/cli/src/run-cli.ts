@@ -1,24 +1,34 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
-import type {
-	PHPRequest,
-	RemoteAPI,
-	SupportedPHPVersion,
-	UniversalPHP,
+import { ProcessIdAllocator } from '@php-wasm/universal';
+import {
+	createObjectPoolProxy,
+	type Pooled,
+	type PHPRequest,
+	type PathAlias,
+	type RemoteAPI,
+	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
+	StreamedPHPResponse,
+	HttpCookieStore,
 	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
+	describeError,
 } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
-import { runBlueprintV1Steps } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	BlueprintReflection,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
+import fs, { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -32,15 +42,18 @@ import {
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
 } from './defines';
-import { startServer } from './start-server';
+import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import { FileLockManagerForNode } from '@php-wasm/node';
-import { LoadBalancer } from './load-balancer';
+import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
-import { SupportedPHPVersions } from '@php-wasm/universal';
-import { cpus } from 'os';
-import { jspi } from 'wasm-feature-detect';
+import {
+	AllPHPVersions,
+	isLegacyPHPVersion,
+	isPHPNextVersion,
+	SupportedPHPVersions,
+	FileLockManagerInMemory,
+} from '@php-wasm/universal';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
@@ -62,9 +75,18 @@ import {
 	clearXdebugIDEConfig,
 	createTempDirSymlink,
 	removeTempDirSymlink,
+	makeXdebugConfig,
+	DEFAULT_PATH_SKIPPINGS,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
+import {
+	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_ENTRY_PATH,
+	PHPMYADMIN_INSTALL_PATH,
+	PHPMYADMIN_URL_PATH,
+} from '@wp-playground/tools';
+import { jspi } from 'wasm-feature-detect';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -81,12 +103,63 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
 
+const PlaygroundCLIPHPVersions = AllPHPVersions.filter(
+	(version) => !isPHPNextVersion(version)
+);
+
+/**
+ * Returned by parseOptionsAndRunCLI when the CLI should exit
+ * without starting a long-running server.
+ */
+export interface CLIExitResult {
+	exitCode: number;
+}
+
+/**
+ * Returned by parseOptionsAndRunCLI when a server was started
+ * and is still running.
+ */
+export interface CLIServerResult extends AsyncDisposable {
+	[internalsKeyForTesting]: { cliServer: RunCLIServer };
+}
+
+export type ParseCLIResult = CLIExitResult | CLIServerResult;
+
+/**
+ * Signals a validation failure whose guidance has already been shown to
+ * the user (via yargs' .fail() handler or a cliOutput message).
+ * parseOptionsAndRunCLI catches it and converts it to a CLIExitResult, so
+ * the CLI exits with the given code instead of dumping a stack trace for
+ * what is an expected, user-facing error.
+ *
+ * Usually thrown inside yargs callbacks (which can only signal failure by
+ * throwing) and never seen beyond parseOptionsAndRunCLI. The exception is
+ * the `start` command path (expandStartCommandArgs), which runs inside the
+ * public runCLI() export — a direct library caller can receive this error,
+ * so it carries a human-readable message.
+ *
+ * Exported so library callers can `instanceof`-check it and read
+ * `exitCode` on the errors they catch from runCLI().
+ */
+export class CLIArgsValidationError extends Error {
+	exitCode: number;
+	constructor(exitCode: number, message?: string) {
+		super(message);
+		this.exitCode = exitCode;
+	}
+}
+
 /**
  * Parse the CLI args and run the appropriate command.
  *
+ * Returns a structured result so the caller can decide how to
+ * exit. Only throws for truly unexpected errors.
+ *
  * @param argsToParse string[] The CLI args to parse.
  */
-export async function parseOptionsAndRunCLI(argsToParse: string[]) {
+export async function parseOptionsAndRunCLI(
+	argsToParse: string[]
+): Promise<ParseCLIResult> {
 	try {
 		/**
 		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
@@ -102,7 +175,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: PlaygroundCLIPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -147,6 +220,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-before-install': {
@@ -154,6 +228,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-dir': {
@@ -191,7 +266,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe:
 					'Control how Playground prepares WordPress before booting.',
 				type: 'string',
-				default: 'download-and-install',
+				defaultDescription: 'download-and-install',
 				choices: [
 					'download-and-install',
 					'install-from-existing-files',
@@ -279,6 +354,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			'php-extension': {
+				describe:
+					'Load a custom PHP.wasm extension manifest before PHP starts. Can be a local path, file: URL, or http(s) URL. Can be used multiple times.',
+				type: 'array',
+				string: true,
+				nargs: 1,
+			},
 			'experimental-unsafe-ide-integration': {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
@@ -293,37 +375,61 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: (value?: string) =>
 					value === '' ? ['vscode', 'phpstorm'] : [value],
 			},
-			'experimental-blueprints-v2-runner': {
-				describe: 'Use the experimental Blueprint V2 runner.',
-				type: 'boolean',
-				default: false,
-				// Remove the "hidden" flag once Blueprint V2 is fully supported
-				hidden: true,
-			},
 			mode: {
 				describe:
-					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
+					'Choose whether Blueprint v2 creates a site, applies to an existing site, or only mounts files.',
 				type: 'string',
-				choices: ['create-new-site', 'apply-to-existing-site'],
-				// Remove the "hidden" flag once Blueprint V2 is fully supported
-				hidden: true,
+				choices: [
+					'create-new-site',
+					'apply-to-existing-site',
+					'mount-only',
+				],
+			},
+			phpmyadmin: {
+				describe:
+					'Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: /phpmyadmin).',
+				type: 'string',
+				coerce: (value?: string) =>
+					'' === value ? PHPMYADMIN_URL_PATH : value,
 			},
 		};
 
 		const serverOnlyOptions: Record<string, YargsOptions> = {
 			port: {
-				describe: 'Port to listen on when serving.',
+				describe:
+					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
-				default: 9400,
+			},
+			workers: {
+				describe:
+					'Number of request-handling worker threads. Accepts a ' +
+					'positive integer, or "auto" to use one per CPU core ' +
+					'(minus one). Defaults to min(6, cpus-1).',
+				type: 'string',
+				coerce: (value?: string) => {
+					if (value === undefined) {
+						return undefined;
+					}
+					if (value === 'auto') {
+						return 'auto' as const;
+					}
+					const n = Number(value);
+					if (!Number.isInteger(n) || n < 1) {
+						throw new Error(
+							`Invalid --workers value "${value}": ` +
+								'expected a positive integer or "auto".'
+						);
+					}
+					return n;
+				},
 			},
 			'experimental-multi-worker': {
+				deprecated:
+					'Use --workers=<n|auto> instead. The value of this flag is ignored.',
 				describe:
-					'Enable experimental multi-worker support which requires ' +
-					'a /wordpress directory backed by a real filesystem. ' +
-					'Pass a positive number to specify the number of workers to use. ' +
-					'Otherwise, default to the number of CPUs minus 1.',
+					'Deprecated. Use --workers=<n|auto> to control the ' +
+					'number of request-handling worker threads.',
 				type: 'number',
-				coerce: (value?: number) => value ?? cpus().length - 1,
 			},
 			'experimental-devtools': {
 				describe: 'Enable experimental browser development tools.',
@@ -347,7 +453,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
-				choices: SupportedPHPVersions,
+				choices: PlaygroundCLIPHPVersions,
 			},
 			wp: {
 				describe: 'WordPress version to use.',
@@ -355,9 +461,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: 'latest',
 			},
 			port: {
-				describe: 'Port to listen on.',
+				describe: 'Port to listen on. Defaults to 9400 when available.',
 				type: 'number',
-				default: 9400,
 			},
 			blueprint: {
 				describe:
@@ -374,6 +479,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			'php-extension': sharedOptions['php-extension'],
 			'experimental-unsafe-ide-integration':
 				sharedOptions['experimental-unsafe-ide-integration'],
 			'skip-browser': {
@@ -406,16 +512,18 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
-			'no-auto-mount': {
+			'auto-mount': {
 				describe:
-					'Disable automatic project type detection. Use --mount to manually specify mounts instead.',
+					'Automatically detect project type (plugin, theme, wp-content, or WordPress) and mount accordingly. Use --no-auto-mount to disable and --mount to manually specify mounts instead.',
 				type: 'boolean',
-				default: false,
+				default: true,
 			},
 			// Define constants
 			define: sharedOptions['define'],
 			'define-bool': sharedOptions['define-bool'],
 			'define-number': sharedOptions['define-number'],
+			// Tools
+			phpmyadmin: sharedOptions['phpmyadmin'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -471,6 +579,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						...buildSnapshotOnlyOptions,
 					})
 			)
+			.command('php', 'Run a PHP script', (yargsInstance: Argv) =>
+				yargsInstance.options({ ...sharedOptions })
+			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
 			.conflicts(
@@ -485,10 +596,10 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				if (msg && msg.includes('Please specify a command')) {
 					yargsInstance.showHelp();
 					console.error('\n' + msg);
-					process.exit(1);
+				} else {
+					console.error(msg);
 				}
-				console.error(msg);
-				process.exit(1);
+				throw new CLIArgsValidationError(1);
 			})
 			.strictOptions()
 			.check(async (args) => {
@@ -496,6 +607,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					args['wordpress-install-mode'] =
 						'do-not-attempt-installing';
 					args['wordpressInstallMode'] = 'do-not-attempt-installing';
+				}
+
+				if (args['phpmyadmin'] && args['skip-sqlite-setup']) {
+					throw new Error(
+						'The --phpmyadmin option requires SQLite setup. Remove --skip-sqlite-setup to use phpMyAdmin.'
+					);
 				}
 
 				if (
@@ -508,7 +625,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						new URL(args['wp']);
 					} catch {
 						throw new Error(
-							'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+							'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
 						);
 					}
 				}
@@ -527,12 +644,20 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['auto-mount']) {
+				// For the `start` command, `--auto-mount` is a boolean
+				// toggle (path is taken from `--path`), so skip the
+				// directory validation here. Read the camelCase form for
+				// consistency with the rest of the codebase — yargs-parser
+				// emits both dashed and camelCase keys.
+				const autoMountArg = args['autoMount'];
+				if (
+					args._[0] !== 'start' &&
+					typeof autoMountArg === 'string' &&
+					autoMountArg
+				) {
 					let autoMountIsDir = false;
 					try {
-						const autoMountStats = fs.statSync(
-							args['auto-mount'] as string
-						);
+						const autoMountStats = fs.statSync(autoMountArg);
 						autoMountIsDir = autoMountStats.isDirectory();
 					} catch {
 						autoMountIsDir = false;
@@ -540,77 +665,17 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 					if (!autoMountIsDir) {
 						throw new Error(
-							`The specified --auto-mount path is not a directory: '${args['auto-mount']}'.`
+							`The specified --auto-mount path is not a directory: '${autoMountArg}'.`
 						);
 					}
 				}
 
-				if (args['experimental-multi-worker'] !== undefined) {
-					const cliCommand = args._[0] as string;
-					if (cliCommand !== 'server') {
-						throw new Error(
-							'The --experimental-multi-worker flag is only supported when running the server command.'
-						);
-					}
-					if (
-						args['experimental-multi-worker'] !== undefined &&
-						typeof args['experimental-multi-worker'] === 'number' &&
-						args['experimental-multi-worker'] <= 1
-					) {
-						throw new Error(
-							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
-						);
-					}
-				}
+				const hasExplicitBlueprintsV2Mode = argsToParse.some(
+					(arg) => arg === '--mode' || arg.startsWith('--mode=')
+				);
 
-				if (args['experimental-blueprints-v2-runner'] === true) {
-					if (args['mode'] !== undefined) {
-						if (args['wordpress-install-mode'] !== undefined) {
-							throw new Error(
-								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
-							);
-						}
-						if ('skip-sqlite-setup' in args) {
-							throw new Error(
-								'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
-							);
-						}
-						if (args['auto-mount'] !== undefined) {
-							throw new Error(
-								'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
-							);
-						}
-					} else {
-						// Support the legacy v1 runner options
-						if (
-							args['wordpress-install-mode'] ===
-							'do-not-attempt-installing'
-						) {
-							args['mode'] = 'apply-to-existing-site';
-						} else {
-							args['mode'] = 'create-new-site';
-						}
-					}
-
-					// Support the legacy v1 runner options
-					const allow = (args['allow'] as string[]) || [];
-
-					if (args['followSymlinks'] === true) {
-						allow.push('follow-symlinks');
-					}
-
-					if (args['blueprint-may-read-adjacent-files'] === true) {
-						allow.push('read-local-fs');
-					}
-
-					args['allow'] = allow;
-				} else {
-					if (args['mode'] !== undefined) {
-						throw new Error(
-							'The --mode option requires the --experimentalBlueprintsV2Runner flag.'
-						);
-					}
-				}
+				args['hasExplicitBlueprintsV2Mode'] =
+					hasExplicitBlueprintsV2Mode;
 
 				return true;
 			});
@@ -621,28 +686,59 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const command = args._[0] as string;
 
 		if (
-			!['start', 'run-blueprint', 'server', 'build-snapshot'].includes(
-				command
-			)
+			![
+				'start',
+				'run-blueprint',
+				'server',
+				'build-snapshot',
+				'php',
+			].includes(command)
 		) {
 			yargsObject.showHelp();
-			process.exit(1);
+			throw new CLIArgsValidationError(1);
 		}
 
 		const define = (args['define'] || {}) as Record<string, string>;
-		if (
-			!('WP_DEBUG' in define) &&
-			!('WP_DEBUG_LOG' in define) &&
-			!('WP_DEBUG_DISPLAY' in define)
-		) {
-			define['WP_DEBUG'] = 'true';
-			define['WP_DEBUG_LOG'] = 'true';
-			define['WP_DEBUG_DISPLAY'] = 'true';
+		const defineBool = (args['define-bool'] || {}) as Record<
+			string,
+			boolean
+		>;
+		const defineNumber = (args['define-number'] || {}) as Record<
+			string,
+			number
+		>;
+		const hasDebugDefine = (name: string) => {
+			return name in define || name in defineBool || name in defineNumber;
+		};
+		// Don't default WP_DEBUG* on for legacy PHP: old WordPress
+		// (pre-2.3) prints E_NOTICE output before headers are sent,
+		// which corrupts redirects and breaks the installer. The web
+		// worker path applies the same gate when resolving runtime options.
+		const phpVersionForDebug = (args['php'] ||
+			RecommendedPHPVersion) as AllPHPVersion;
+		const isLegacyPhpForDebug = isLegacyPHPVersion(phpVersionForDebug);
+		const defaultedDebugConstants: string[] = [];
+		if (!isLegacyPhpForDebug) {
+			if (!hasDebugDefine('WP_DEBUG')) {
+				defineBool['WP_DEBUG'] = true;
+				defaultedDebugConstants.push('WP_DEBUG');
+			}
+			if (!hasDebugDefine('WP_DEBUG_LOG')) {
+				defineBool['WP_DEBUG_LOG'] = true;
+				defaultedDebugConstants.push('WP_DEBUG_LOG');
+			}
+			if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+				defineBool['WP_DEBUG_DISPLAY'] = false;
+				defaultedDebugConstants.push('WP_DEBUG_DISPLAY');
+			}
 		}
 
 		const cliArgs = {
 			...args,
 			define,
+			'define-bool': defineBool,
+			'define-number': defineNumber,
+			defaultedDebugConstants,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -654,53 +750,43 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			],
 		} as RunCLIArgs;
 
-		const cliServer = await runCLI(cliArgs);
-		if (cliServer === undefined) {
+		const cliResult = await runCLI(cliArgs);
+		if (typeof cliResult === 'number') {
+			// A one-shot command (e.g. `php`) finished with an
+			// explicit exit code.
+			return { exitCode: cliResult };
+		}
+		if (cliResult === undefined) {
 			// No server was started, so we are done with our work.
-			process.exit(0);
+			return { exitCode: 0 };
 		}
 
-		const cleanUpCliAndExit = (() => {
-			// Remember we are already cleaning up to preclude the possibility
-			// of multiple, conflicting cleanup attempts.
-			let promiseToCleanup: Promise<void>;
-
-			return async () => {
-				if (promiseToCleanup !== undefined) {
-					promiseToCleanup = cliServer[Symbol.asyncDispose]();
-				}
-				await promiseToCleanup;
-				process.exit(0);
-			};
-		})();
-
-		// Playground CLI server must be killed to exit. From the terminal,
-		// this may occur via Ctrl+C which sends SIGINT. Let's handle both
-		// SIGINT and SIGTERM (the default kill signal) to make sure we
-		// clean up after ourselves even if this process is being killed.
-		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
-		process.on('SIGINT', cleanUpCliAndExit);
-		process.on('SIGTERM', cleanUpCliAndExit);
+		return {
+			[Symbol.asyncDispose]: () => cliResult[Symbol.asyncDispose](),
+			[internalsKeyForTesting]: { cliServer: cliResult },
+		};
 	} catch (e) {
-		console.error(e);
-		if (!(e instanceof Error)) {
-			throw e;
+		// Validation errors have already been reported to the
+		// user (e.g. by the yargs .fail() handler). Convert them
+		// to a structured result instead of re-throwing.
+		if (e instanceof CLIArgsValidationError) {
+			return { exitCode: e.exitCode };
 		}
+		// Unexpected error. Show a clean, single-line message for
+		// ordinary failures (port already in use, missing blueprint,
+		// bad mount) and reserve the raw error dump / full stack trace
+		// for --debug. Then re-throw so the caller (cli.ts) can exit
+		// with a non-zero code.
 		const debug = process.argv.includes('--debug');
+		const cliOutput = new CLIOutput({
+			verbosity: debug ? 'debug' : 'normal',
+			writeStream: process.stderr,
+		});
+		cliOutput.printError(describeError(e));
 		if (debug) {
-			printDebugDetails(e);
-		} else {
-			const messageChain = [];
-			let currentError = e;
-			do {
-				messageChain.push(currentError.message);
-				currentError = currentError.cause as Error;
-			} while (currentError instanceof Error);
-			console.error(
-				'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
-			);
+			await printDebugDetails(e);
 		}
-		process.exit(1);
+		throw e;
 	}
 }
 
@@ -714,35 +800,67 @@ function getMountForVfsPath(
 	);
 }
 
+/**
+ * Resolve the --workers flag into a concrete worker count.
+ *
+ * The Math.max(1, ...) guard covers single-core hosts and restricted
+ * environments where `os.cpus()` can return an empty array — without it
+ * the default would drop to 0 and no workers would be spawned.
+ */
+export function resolveWorkerCount(value: number | 'auto' | undefined): number {
+	const cpusMinusOne = Math.max(1, os.cpus().length - 1);
+	if (value === undefined) {
+		return Math.min(6, cpusMinusOne);
+	}
+	if (value === 'auto') {
+		return cpusMinusOne;
+	}
+	return value;
+}
+
 export interface RunCLIArgs {
+	/**
+	 * `_` holds positional tokens in the order they appeared.
+	 * `_[0]` will typically be the command name.
+	 */
+	_?: string[];
 	blueprint?:
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot';
+	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
-	php?: SupportedPHPVersion;
+	php?: AllPHPVersion;
 	port?: number;
 	'site-url'?: string;
 	quiet?: boolean;
 	verbosity?: LogVerbosity;
 	wp?: string;
-	autoMount?: string;
-	experimentalMultiWorker?: number;
+	/**
+	 * For the `server` command (and other long-form commands), this is the
+	 * host path to auto-detect and mount. For the `start` command, this is a
+	 * boolean toggle: `true` (default) enables auto-detection on the
+	 * `--path` directory; `false` (i.e. `--no-auto-mount`) disables it.
+	 */
+	autoMount?: string | boolean;
+	pathAliases?: PathAlias[];
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
+	phpmyadmin?: boolean | string;
 	redis?: boolean;
 	memcached?: boolean;
-	xdebug?: boolean | { ideKey?: string };
+	xdebug?: boolean | XdebugOptions;
+	phpExtension?: string[];
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
-	'experimental-blueprints-v2-runner'?: boolean;
+	workers?: number | 'auto';
+	'experimental-multi-worker'?: number;
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
 	 * PHP string constants defined via --define flag.
@@ -759,6 +877,7 @@ export interface RunCLIArgs {
 	 * Set via php.defineConstant(), process-specific only.
 	 */
 	'define-number'?: Record<string, number>;
+	defaultedDebugConstants?: string[];
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -767,6 +886,7 @@ export interface RunCLIArgs {
 
 	// --------- Blueprint V2 args -----------
 	mode?: 'mount-only' | 'create-new-site' | 'apply-to-existing-site';
+	hasExplicitBlueprintsV2Mode?: boolean;
 
 	// --------- Blueprint V2 args (not available via CLI yet) -----------
 	'db-engine'?: 'sqlite' | 'mysql';
@@ -781,18 +901,17 @@ export interface RunCLIArgs {
 	// --------- Start command args -----------
 	path?: string;
 	skipBrowser?: boolean;
-	noAutoMount?: boolean;
 	reset?: boolean;
 }
 
-type PlaygroundCliWorker =
+export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
 export interface RunCLIServer extends AsyncDisposable {
-	playground: RemoteAPI<PlaygroundCliWorker>;
+	playground: Pooled<PlaygroundCliWorker>;
 	server: Server;
 	serverUrl: string;
 
@@ -801,24 +920,8 @@ export interface RunCLIServer extends AsyncDisposable {
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
-		getWorkerNumberFromProcessId(processId: number): number;
 	};
 }
-
-const bold = (text: string) =>
-	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
-
-const red = (text: string) =>
-	process.stdout.isTTY ? '\x1b[31m' + text + '\x1b[0m' : text;
-
-const dim = (text: string) =>
-	process.stdout.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
-
-const italic = (text: string) =>
-	process.stdout.isTTY ? `\x1b[3m${text}\x1b[0m` : text;
-
-const highlight = (text: string) =>
-	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
@@ -831,23 +934,46 @@ export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;
 export async function runCLI(
+	args: RunCLIArgs & { command: 'php' }
+): Promise<number>;
+export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
 ): Promise<RunCLIServer>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'server' }
 ): Promise<RunCLIServer>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	let loadBalancer: LoadBalancer;
-	let playground: RemoteAPI<PlaygroundCliWorker>;
+export async function runCLI(
+	args: RunCLIArgs
+): Promise<RunCLIServer | number | void>;
+export async function runCLI(
+	args: RunCLIArgs
+): Promise<RunCLIServer | number | void> {
+	let playgroundPool: Pooled<PlaygroundCliWorker>;
+	const cookieStore = args.internalCookieStore
+		? new HttpCookieStore()
+		: undefined;
 
-	const playgroundsToCleanUp: Map<
-		Worker,
+	const spawnedWorkers: SpawnedWorker[] = [];
+	const workerToPlaygroundMap: Map<
+		// TODO: Can this just be the worker, not a data structure with a port?
+		SpawnedWorker,
 		RemoteAPI<PlaygroundCliWorker>
 	> = new Map();
 
+	// Create CLI output handler
+	const cliOutput = new CLIOutput({
+		verbosity: args.verbosity || 'normal',
+	});
+
+	// Full WordPress auto-mounts have historically set
+	// `mode=apply-to-existing-site` even for the v1 flow. Capture whether the
+	// user supplied a mode before `start` or auto-mount expansion can add that
+	// compatibility value.
+	const hasExplicitBlueprintsV2Mode =
+		args.hasExplicitBlueprintsV2Mode ?? args.mode !== undefined;
+
 	if (args.command === 'start') {
-		args = expandStartCommandArgs(args);
+		args = expandStartCommandArgs(args, cliOutput);
 	}
 
 	if (args.autoMount !== undefined) {
@@ -858,10 +984,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			args = { ...args, autoMount: process.cwd() };
 		}
 		args = expandAutoMounts(args);
-	}
-
-	if (args.wordpressInstallMode === undefined) {
-		args.wordpressInstallMode = 'download-and-install';
 	}
 
 	// Keeping the '--quiet' option to preserve backward compatibility
@@ -899,10 +1021,29 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
-	// Create CLI output handler
-	const cliOutput = new CLIOutput({
-		verbosity: args.verbosity || 'normal',
-	});
+	// Disable all extensions for legacy PHP versions — they're not available.
+	const isLegacyPhp = isLegacyPHPVersion(args.php || RecommendedPHPVersion);
+	if (isLegacyPhp) {
+		args.intl = false;
+		args.redis = false;
+		args.memcached = false;
+		args.xdebug = false;
+	}
+
+	// Setup phpMyAdmin if enabled.
+	if (args.phpmyadmin) {
+		if (true === args.phpmyadmin) {
+			args.phpmyadmin = PHPMYADMIN_URL_PATH;
+		}
+
+		// Set up path alias for phpMyAdmin.
+		args['pathAliases'] = [
+			{
+				urlPrefix: args.phpmyadmin,
+				fsPath: PHPMYADMIN_INSTALL_PATH,
+			},
+		];
+	}
 
 	// Display banner for server commands
 	if (args.command === 'server') {
@@ -910,7 +1051,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		cliOutput.printConfig({
 			phpVersion: args.php || RecommendedPHPVersion,
 			wpVersion: args.wp || 'latest',
-			port: (args['port'] as number) || 9400,
+			port: args.port ?? 9400,
 			xdebug: !!args.xdebug,
 			intl: !!args.intl,
 			redis: !!args.redis,
@@ -924,58 +1065,72 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		});
 	}
 
-	const selectedPort =
-		args.command === 'server' ? ((args['port'] as number) ?? 9400) : 0;
+	const selectedPort = args.command === 'server' ? (args.port ?? 9400) : 0;
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
-	const nativeFlockSync =
-		os.platform() === 'win32'
-			? // @TODO: Enable fs-ext here when it works with Windows.
-				undefined
-			: await import('fs-ext')
-					.then((m) => m.flockSync)
-					.catch(() => {
-						// Only show this in debug mode since it's technical and
-						// doesn't affect normal operation
-						logger.debug(
-							'The fs-ext package is not installed. ' +
-								'Internal file locking will not be integrated with ' +
-								'host OS file locking.'
-						);
-						return undefined;
-					});
-	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
+	const fileLockManager = new FileLockManagerInMemory();
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
 
 	const server = await startServer({
-		port: selectedPort,
+		port: args.port
+			? args.port
+			: !(await isPortInUse(selectedPort))
+				? selectedPort
+				: 0,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			const targetWorkerCount =
-				args.command === 'server'
-					? (args.experimentalMultiWorker ?? 1)
-					: 1;
-			const totalWorkersToSpawn =
-				args.command === 'server'
-					? // Account for the initial worker which is discarded by the server after setup.
-						targetWorkerCount + 1
-					: targetWorkerCount;
+			if (args['experimental-multi-worker'] !== undefined) {
+				logger.warn(
+					'--experimental-multi-worker is deprecated and its value is ignored. ' +
+						'Use --workers=<n|auto> instead.'
+				);
+			}
 
-			// Process IDs appear to be defined as `int` in Emscripten:
-			// https://github.com/emscripten-core/emscripten/blob/95d2bf9c5c27b88ab7de6eba2d8e61ea1af977ac/system/lib/libc/musl/arch/emscripten/bits/alltypes.h#L290
-			// and those are typically 32 bits wide in both 32-bit and 64-bit systems.
-			// Apparently, this is a signed type, so we cannot use the leftmost bit.
-			const maxValueForSigned32BitInteger = 2 ** (32 - 1) - 1;
-			const maxProcessIdValue = maxValueForSigned32BitInteger;
-			const processIdSpaceLength = Math.floor(
-				maxProcessIdValue / totalWorkersToSpawn
-			);
+			/**
+			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
+			 * > browsers open several connections to each domain,
+			 * > sending parallel requests. Default was once 2 to 3 connections,
+			 * > but this has now increased to a more common use of 6 parallel connections.
+			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
+			 *
+			 * 6 is therefore a sensible default; --workers=<n|auto> lets
+			 * users override this for multi-client workloads (e2e tests,
+			 * load testing) that need more in-flight requests.
+			 *
+			 * Note: going lower may increase the likelihood of deadlock
+			 * due to workers blocking and waiting for file locks.
+			 */
+			const targetWorkerCount = resolveWorkerCount(args.workers);
+
+			if (targetWorkerCount < 6) {
+				const deadlockNote =
+					'Running fewer than 6 workers may increase the ' +
+					'likelihood of deadlock due to workers blocking on ' +
+					'file locks.';
+				if (args.workers === undefined) {
+					/*
+					 * Default path landed below 6 because the machine has
+					 * fewer than 7 CPUs. Distinct message so users see this
+					 * as a hardware ceiling, not a config mistake.
+					 */
+					logger.warn(
+						`The default worker count has been reduced to ${targetWorkerCount} ` +
+							`because this machine has only ${os.cpus().length} CPU(s). ` +
+							deadlockNote
+					);
+				} else {
+					logger.warn(
+						`Worker count (${targetWorkerCount}) is below the recommended threshold (6). ` +
+							deadlockNote
+					);
+				}
+			}
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
@@ -992,236 +1147,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				await createPlaygroundCliTempDir(tempDirNameDelimiter);
 			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
-			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
-
-			// Always clean up any existing Playground files symlink in the project root.
-			const symlinkName = '.playground-xdebug-root';
-			const symlinkPath = path.join(process.cwd(), symlinkName);
-
-			await removeTempDirSymlink(symlinkPath);
-
-			// Then, if xdebug, and experimental IDE are enabled,
-			// recreate the symlink pointing to the temporary
-			// directory and add the new IDE config.
-			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				await createTempDirSymlink(
-					nativeDir.path,
-					symlinkPath,
-					process.platform
-				);
-
-				const symlinkMount: Mount = {
-					hostPath: path.join('.', path.sep, symlinkName),
-					vfsPath: '/',
-				};
-
-				try {
-					// NOTE: Both the 'clear' and 'add' operations can throw errors.
-					await clearXdebugIDEConfig(IDEConfigName, process.cwd());
-
-					const xdebugOptions =
-						typeof args.xdebug === 'object'
-							? args.xdebug
-							: undefined;
-					const modifiedConfig = await addXdebugIDEConfig({
-						name: IDEConfigName,
-						host: host,
-						port: port,
-						ides: args.experimentalUnsafeIdeIntegration!,
-						cwd: process.cwd(),
-						mounts: [
-							symlinkMount,
-							...(args['mount-before-install'] || []),
-							...(args.mount || []),
-						],
-						ideKey: xdebugOptions?.ideKey,
-					});
-
-					// Display IDE-specific instructions
-					const ides = args.experimentalUnsafeIdeIntegration;
-					const hasVSCode = ides.includes('vscode');
-					const hasPhpStorm = ides.includes('phpstorm');
-					const configFiles = Object.values(modifiedConfig);
-
-					console.log('');
-
-					if (configFiles.length > 0) {
-						console.log(bold(`Xdebug configured successfully`));
-						console.log(
-							highlight(`Updated IDE config: `) +
-								configFiles.join(' ')
-						);
-						console.log(
-							highlight('Playground source root: ') +
-								`.playground-xdebug-root` +
-								italic(
-									dim(
-										` – you can set breakpoints and preview Playground's VFS structure in there.`
-									)
-								)
-						);
-					} else {
-						console.log(bold(`Xdebug configuration failed.`));
-						console.log(
-							'No IDE-specific project settings directory was found in the current working directory.'
-						);
-					}
-
-					console.log('');
-
-					if (hasVSCode && modifiedConfig['vscode']) {
-						console.log(bold('VS Code / Cursor instructions:'));
-						console.log(
-							'  1. Ensure you have installed an IDE extension for PHP Debugging'
-						);
-						console.log(
-							`     (The ${bold('PHP Debug')} extension by ${bold(
-								'Xdebug'
-							)} has been a solid option)`
-						);
-						console.log(
-							'  2. Open the Run and Debug panel on the left sidebar'
-						);
-						console.log(
-							`  3. Select "${italic(
-								IDEConfigName
-							)}" from the dropdown`
-						);
-						console.log('  3. Click "start debugging"');
-						console.log(
-							'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
-						);
-						console.log(
-							'  6. Visit Playground in your browser to hit the breakpoint'
-						);
-						if (hasPhpStorm) {
-							console.log('');
-						}
-					}
-
-					if (hasPhpStorm && modifiedConfig['phpstorm']) {
-						console.log(bold('PhpStorm instructions:'));
-						console.log(
-							`  1. Choose "${italic(
-								IDEConfigName
-							)}" debug configuration in the toolbar`
-						);
-						console.log('  2. Click the debug button (bug icon)`');
-						console.log(
-							'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
-						);
-						console.log(
-							'  4. Visit Playground in your browser to hit the breakpoint'
-						);
-					}
-
-					console.log('');
-				} catch (error) {
-					throw new Error('Could not configure Xdebug', {
-						cause: error,
-					});
-				}
-			}
-
-			// We do not know the system temp dir,
-			// but we can try to infer from the location of the current temp dir.
-			const tempDirRoot = path.dirname(nativeDir.path);
-
-			const twoDaysInMillis = 2 * 24 * 60 * 60 * 1000;
-			const tempDirStaleAgeInMillis = twoDaysInMillis;
-
-			// NOTE: This is an async operation, but we do not care to block on it.
-			// Let's let the cleanup happen as the main thread has time.
-			cleanupStalePlaygroundTempDirs(
-				tempDirNameDelimiter,
-				tempDirStaleAgeInMillis,
-				tempDirRoot
-			);
-
-			// NOTE: We do not add mount declarations for /internal here
-			// because it will be mounted as part of php-wasm init.
-			const nativeInternalDirPath = path.join(nativeDir.path, 'internal');
-			mkdirSync(nativeInternalDirPath);
-
-			const userProvidableNativeSubdirs = [
-				'wordpress',
-				// Note: These dirs are from Emscripten's "default dirs" list:
-				// https://github.com/emscripten-core/emscripten/blob/f431ec220e472e1f8d3db6b52fe23fb377facf30/src/lib/libfs.js#L1400-L1402
-				//
-				// Any Playground process with multiple workers may assume
-				// these are part of a shared filesystem, so let's recognize
-				// them explicitly here.
-				'tmp',
-				'home',
-			];
-
-			for (const subdirName of userProvidableNativeSubdirs) {
-				const isMountingSubdirName = (mount: Mount) =>
-					mount.vfsPath === `/${subdirName}`;
-				const thisSubdirHasAMount =
-					args['mount-before-install']?.some(isMountingSubdirName) ||
-					args['mount']?.some(isMountingSubdirName);
-				if (!thisSubdirHasAMount) {
-					// The user hasn't requested mounting a different native dir for this path,
-					// so let's create a mount from within our native temp dir.
-					const nativeSubdirPath = path.join(
-						nativeDir.path,
-						subdirName
-					);
-					mkdirSync(nativeSubdirPath);
-
-					if (args['mount-before-install'] === undefined) {
-						args['mount-before-install'] = [];
-					}
-
-					// Make the real mount first so any further subdirs are mounted into it.
-					args['mount-before-install'].unshift({
-						vfsPath: `/${subdirName}`,
-						hostPath: nativeSubdirPath,
-					});
-				}
-			}
-
-			if (args['mount-before-install']) {
-				for (const mount of args['mount-before-install']) {
-					logger.debug(
-						`Mount before WP install: ${mount.vfsPath} -> ${mount.hostPath}`
-					);
-				}
-			}
-			if (args['mount']) {
-				for (const mount of args['mount']) {
-					logger.debug(
-						`Mount after WP install: ${mount.vfsPath} -> ${mount.hostPath}`
-					);
-				}
-			}
-
-			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
-			if (args['experimental-blueprints-v2-runner']) {
-				handler = new BlueprintsV2Handler(args, {
-					siteUrl,
-					processIdSpaceLength,
-					cliOutput,
-				});
-			} else {
-				handler = new BlueprintsV1Handler(args, {
-					siteUrl,
-					processIdSpaceLength,
-					cliOutput,
-				});
-
-				if (typeof args.blueprint === 'string') {
-					args.blueprint = await resolveBlueprint({
-						sourceString: args.blueprint,
-						blueprintMayReadAdjacentFiles:
-							args['blueprint-may-read-adjacent-files'] === true,
-					});
-				}
-			}
-
 			// Remember whether we are already disposing so we can avoid:
-			// - we can avoid multiple, conflicting dispose attempts
+			// - multiple, conflicting dispose attempts
 			// - logging that a worker exited while the CLI itself is exiting
 			let disposing = false;
 			const disposeCLI = async function disposeCLI() {
@@ -1231,72 +1158,471 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				disposing = true;
 				await Promise.all(
-					[...playgroundsToCleanUp].map(
-						async ([worker, playground]) => {
-							await playground.dispose();
-							await worker.terminate();
-						}
-					)
+					spawnedWorkers.map(async (spawnedWorker) => {
+						await workerToPlaygroundMap
+							.get(spawnedWorker)
+							?.dispose();
+						await spawnedWorker.worker.terminate();
+					})
 				);
 				if (server) {
-					await new Promise((resolve) => server.close(resolve));
+					await new Promise((resolve) => {
+						server.close(resolve);
+						server.closeAllConnections();
+					});
 				}
 				await nativeDir.cleanup();
 			};
 
-			// Kick off worker threads now to save time later.
-			// There is no need to wait for other async processes to complete.
-			const promisedWorkers = spawnWorkerThreads(
-				totalWorkersToSpawn,
-				handler.getWorkerType(),
-				({ exitCode, workerIndex }) => {
-					// We are already disposing, so worker exit is expected
-					// and does not need to be logged.
-					if (disposing) {
-						return;
-					}
-
-					if (exitCode !== 0) {
-						return;
-					}
-
-					logger.error(
-						`Worker ${workerIndex} exited with code ${exitCode}\n`
-					);
-					// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
-				}
-			);
-
-			cliOutput.startProgress('Starting...');
-
+			// Everything below (symlink setup, Xdebug config, blueprint
+			// resolution, worker boot) can fail. Keep it inside the try so
+			// any failure runs disposeCLI() and cleans up the temp dir
+			// instead of leaking it — important for long-lived library
+			// callers (e.g. Studio) that may retry runCLI().
 			try {
-				const workers = await promisedWorkers;
+				const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
-				const fileLockManagerPort =
-					await exposeFileLockManager(fileLockManager);
+				// Always clean up any existing Playground files symlink in the project root.
+				const symlinkName = '.playground-xdebug-root';
+				const symlinkPath = path.join(process.cwd(), symlinkName);
+
+				await removeTempDirSymlink(symlinkPath);
+
+				// Then, if xdebug is enabled, recreate the symlink
+				// pointing to the temporary directory.
+				if (args.xdebug) {
+					const symlinkMount: Mount = {
+						hostPath: path.join('.', path.sep, symlinkName),
+						vfsPath: '/',
+					};
+
+					const phpVer = args.php || RecommendedPHPVersion;
+					// SupportedPHPVersions is ordered newest-first, so a
+					// lower index means a higher version.
+					const isPhp85OrHigher =
+						SupportedPHPVersions.includes(phpVer as any) &&
+						SupportedPHPVersions.indexOf(phpVer as any) <=
+							SupportedPHPVersions.indexOf('8.5');
+
+					// And, if PHP >= 8.5, add the new Xdebug config.
+					if (isPhp85OrHigher) {
+						await createTempDirSymlink(
+							nativeDir.path,
+							symlinkPath,
+							process.platform
+						);
+
+						args.xdebug = makeXdebugConfig({
+							cwd: process.cwd(),
+							mounts: [
+								symlinkMount,
+								...(args['mount-before-install'] || []),
+								...(args.mount || []),
+							],
+							pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
+						});
+
+						cliOutput.print(
+							cliOutput.bold(`Xdebug configured successfully`)
+						);
+						cliOutput.print(
+							cliOutput.highlight('Playground source root: ') +
+								`.playground-xdebug-root` +
+								cliOutput.italic(
+									cliOutput.dim(
+										` – you can set breakpoints and preview Playground's VFS structure in there.`
+									)
+								)
+						);
+					} else {
+						// Or, if experimental IDE is enabled,
+						// add the IDE config.
+						if (args.experimentalUnsafeIdeIntegration) {
+							await createTempDirSymlink(
+								nativeDir.path,
+								symlinkPath,
+								process.platform
+							);
+
+							try {
+								// NOTE: Both the 'clear' and 'add' operations can throw errors.
+								await clearXdebugIDEConfig(
+									IDEConfigName,
+									process.cwd()
+								);
+
+								const xdebugOptions =
+									typeof args.xdebug === 'object'
+										? args.xdebug
+										: {};
+								const modifiedConfig = await addXdebugIDEConfig(
+									{
+										name: IDEConfigName,
+										host: host,
+										port: port,
+										ides: args.experimentalUnsafeIdeIntegration!,
+										cwd: process.cwd(),
+										mounts: [
+											symlinkMount,
+											...(args['mount-before-install'] ||
+												[]),
+											...(args.mount || []),
+										],
+										pathSkippings: [
+											...DEFAULT_PATH_SKIPPINGS,
+										],
+										ideKey:
+											xdebugOptions.ideKey ||
+											'WPPLAYGROUNDCLI',
+									}
+								);
+
+								// Display IDE-specific instructions
+								const ides =
+									args.experimentalUnsafeIdeIntegration;
+								const hasVSCode = ides.includes('vscode');
+								const hasPhpStorm = ides.includes('phpstorm');
+								const configFiles =
+									Object.values(modifiedConfig);
+
+								cliOutput.print('');
+
+								if (configFiles.length > 0) {
+									cliOutput.print(
+										cliOutput.bold(
+											`Xdebug configured successfully`
+										)
+									);
+									cliOutput.print(
+										cliOutput.highlight(
+											`Updated IDE config: `
+										) + configFiles.join(' ')
+									);
+									cliOutput.print(
+										cliOutput.highlight(
+											'Playground source root: '
+										) +
+											`.playground-xdebug-root` +
+											cliOutput.italic(
+												cliOutput.dim(
+													` – you can set breakpoints and preview Playground's VFS structure in there.`
+												)
+											)
+									);
+								} else {
+									cliOutput.print(
+										cliOutput.bold(
+											`Xdebug configuration failed.`
+										)
+									);
+									cliOutput.print(
+										'No IDE-specific project settings directory was found in the current working directory.'
+									);
+								}
+
+								cliOutput.print('');
+
+								if (hasVSCode && modifiedConfig['vscode']) {
+									cliOutput.print(
+										cliOutput.bold(
+											'VS Code / Cursor instructions:'
+										)
+									);
+									cliOutput.print(
+										'  1. Ensure you have installed an IDE extension for PHP Debugging'
+									);
+									cliOutput.print(
+										`     (The ${cliOutput.bold('PHP Debug')} extension by ${cliOutput.bold(
+											'Xdebug'
+										)} has been a solid option)`
+									);
+									cliOutput.print(
+										'  2. Open the Run and Debug panel on the left sidebar'
+									);
+									cliOutput.print(
+										`  3. Select "${cliOutput.italic(
+											IDEConfigName
+										)}" from the dropdown`
+									);
+									cliOutput.print(
+										' 4. Click "start debugging"'
+									);
+									cliOutput.print(
+										'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+									);
+									cliOutput.print(
+										'  6. Visit Playground in your browser to hit the breakpoint'
+									);
+									if (hasPhpStorm) {
+										cliOutput.print('');
+									}
+								}
+
+								if (hasPhpStorm && modifiedConfig['phpstorm']) {
+									cliOutput.print(
+										cliOutput.bold('PhpStorm instructions:')
+									);
+									cliOutput.print(
+										`  1. Choose "${cliOutput.italic(
+											IDEConfigName
+										)}" debug configuration in the toolbar`
+									);
+									cliOutput.print(
+										'  2. Click the debug button (bug icon)'
+									);
+									cliOutput.print(
+										'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+									);
+									cliOutput.print(
+										'  4. Visit Playground in your browser to hit the breakpoint'
+									);
+								}
+
+								cliOutput.print('');
+							} catch (error) {
+								throw new Error('Could not configure Xdebug', {
+									cause: error,
+								});
+							}
+						}
+					}
+				}
+
+				// We do not know the system temp dir,
+				// but we can try to infer from the location of the current temp dir.
+				const tempDirRoot = path.dirname(nativeDir.path);
+
+				const twoDaysInMillis = 2 * 24 * 60 * 60 * 1000;
+				const tempDirStaleAgeInMillis = twoDaysInMillis;
+
+				// NOTE: This is an async operation, but we do not care to block on it.
+				// Let's let the cleanup happen as the main thread has time.
+				cleanupStalePlaygroundTempDirs(
+					tempDirNameDelimiter,
+					tempDirStaleAgeInMillis,
+					tempDirRoot
+				);
+
+				// NOTE: We do not add mount declarations for /internal here
+				// because it will be mounted as part of php-wasm init.
+				const nativeInternalDirPath = path.join(
+					nativeDir.path,
+					'internal'
+				);
+				mkdirSync(nativeInternalDirPath);
+
+				const userProvidableNativeSubdirs = [
+					'wordpress',
+					'tools',
+					// Note: These dirs are from Emscripten's "default dirs" list:
+					// https://github.com/emscripten-core/emscripten/blob/f431ec220e472e1f8d3db6b52fe23fb377facf30/src/lib/libfs.js#L1400-L1402
+					//
+					// Any Playground process with multiple workers may assume
+					// these are part of a shared filesystem, so let's recognize
+					// them explicitly here.
+					'tmp',
+					'home',
+				];
+
+				for (const subdirName of userProvidableNativeSubdirs) {
+					const isMountingSubdirName = (mount: Mount) =>
+						mount.vfsPath === `/${subdirName}`;
+					const thisSubdirHasAMount =
+						args['mount-before-install']?.some(
+							isMountingSubdirName
+						) || args['mount']?.some(isMountingSubdirName);
+					if (!thisSubdirHasAMount) {
+						// The user hasn't requested mounting a different native dir for this path,
+						// so let's create a mount from within our native temp dir.
+						const nativeSubdirPath = path.join(
+							nativeDir.path,
+							subdirName
+						);
+						mkdirSync(nativeSubdirPath);
+
+						if (args['mount-before-install'] === undefined) {
+							args['mount-before-install'] = [];
+						}
+
+						// Make the real mount first so any further subdirs are mounted into it.
+						args['mount-before-install'].unshift({
+							vfsPath: `/${subdirName}`,
+							hostPath: nativeSubdirPath,
+						});
+					}
+				}
+
+				if (args['mount-before-install']) {
+					for (const mount of args['mount-before-install']) {
+						logger.debug(
+							`Mount before WP install: ${mount.vfsPath} -> ${mount.hostPath}`
+						);
+					}
+				}
+				if (args['mount']) {
+					for (const mount of args['mount']) {
+						logger.debug(
+							`Mount after WP install: ${mount.vfsPath} -> ${mount.hostPath}`
+						);
+					}
+				}
+
+				if (typeof args.blueprint === 'string') {
+					args.blueprint = await resolveBlueprint({
+						sourceString: args.blueprint,
+						blueprintMayReadAdjacentFiles:
+							args['blueprint-may-read-adjacent-files'] === true,
+					});
+				}
+
+				let handler: BlueprintsV1Handler | BlueprintsV2Handler;
+				const useBlueprintsV2Handler =
+					await shouldUseBlueprintsV2Handler(
+						args,
+						hasExplicitBlueprintsV2Mode
+					);
+				if (useBlueprintsV2Handler) {
+					validateAndNormalizeBlueprintsV2Args(
+						args,
+						hasExplicitBlueprintsV2Mode
+					);
+				}
+				if (args.wordpressInstallMode === undefined) {
+					args.wordpressInstallMode = 'download-and-install';
+				}
+				if (useBlueprintsV2Handler) {
+					handler = new BlueprintsV2Handler(args, {
+						siteUrl,
+						cliOutput,
+					});
+				} else {
+					handler = new BlueprintsV1Handler(args, {
+						siteUrl,
+						cliOutput,
+					});
+				}
+
+				const promisesToBoot = [];
+				const workerType = handler.getWorkerType();
+				for (
+					let workerIndex = 0;
+					workerIndex < targetWorkerCount;
+					workerIndex++
+				) {
+					const promiseToBoot = spawnWorkerThread(workerType, {
+						onExit: (exitCode: number) => {
+							// We are already disposing, so worker exit is expected
+							// and does not need to be logged.
+							if (disposing) {
+								return;
+							}
+
+							if (exitCode === 0) {
+								return;
+							}
+
+							logger.error(
+								`Worker ${workerIndex} exited with code ${exitCode}\n`
+							);
+							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
+						},
+					}).then(
+						async (
+							spawnResult: SpawnedWorker
+						): Promise<
+							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
+						> => {
+							// Remember the worker process before booting the Playground
+							// so we can clean it up if there is an error during boot.
+							spawnedWorkers.push(spawnResult);
+
+							const fileLockManagerPort =
+								await exposeFileLockManager(fileLockManager);
+							const playgroundApi =
+								await handler.bootRequestHandler({
+									worker: spawnResult,
+									fileLockManagerPort,
+									nativeInternalDirPath,
+								});
+
+							workerToPlaygroundMap.set(
+								spawnResult,
+								playgroundApi
+							);
+
+							return [spawnResult, playgroundApi];
+						}
+					);
+
+					promisesToBoot.push(promiseToBoot);
+
+					// TODO: Remove this workaround after we remove the inherent race
+					// from @wp-playground/wordpress's bootRequestHandler() function.
+					if (workerIndex === 0) {
+						// Wait for the first worker to boot to avoid a race condition
+						// with writing initial PHP files in bootRequestHandler().
+						// This is the race condition:
+						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
+						// Multiple workers may detect that .boot-files-written does not exist
+						// and proceed to try to write initial boot files.
+						await promiseToBoot;
+					}
+				}
+
+				await Promise.all(promisesToBoot);
+				playgroundPool = createObjectPoolProxy(
+					spawnedWorkers.map(
+						(spawnedWorker) =>
+							workerToPlaygroundMap.get(spawnedWorker)!
+					)
+				);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
 				{
-					// Boot the primary worker using the handler
-					const initialWorker = workers.shift()!;
-					const initialPlayground =
-						await handler.bootAndSetUpInitialPlayground(
-							initialWorker.phpPort,
-							fileLockManagerPort,
-							nativeInternalDirPath
-						);
-					playgroundsToCleanUp.set(
-						initialWorker.worker,
-						initialPlayground
-					);
+					// TODO: Consider how to avoid Xdebug being enabled during boot.
 
-					await initialPlayground.isReady();
+					const messageChannelForPostInstallMounts =
+						new NodeMessageChannel();
+					const mainThreadPostInstallMountsPort =
+						messageChannelForPostInstallMounts.port1;
+					const workerPostInstallMountsPort =
+						messageChannelForPostInstallMounts.port2;
+					await exposeAPI(
+						{
+							applyPostInstallMountsToAllWorkers: async () => {
+								// Apply post-install mounts to workers
+								// one at a time. Each worker's mount handler
+								// creates placeholder files on the shared
+								// host filesystem via NODEFS before mounting.
+								// Concurrent creation races cause ENOTDIR.
+								for (const playground of workerToPlaygroundMap.values()) {
+									await playground!.mountAfterWordPressInstall(
+										args['mount'] || []
+									);
+								}
+							},
+						},
+						undefined,
+						mainThreadPostInstallMountsPort
+					);
+					await handler.bootWordPress(
+						playgroundPool,
+						workerPostInstallMountsPort
+					);
+					mainThreadPostInstallMountsPort.close();
+
 					wordPressReady = true;
 
-					loadBalancer = new LoadBalancer(initialPlayground);
-
-					if (!args['experimental-blueprints-v2-runner']) {
+					if (useBlueprintsV2Handler) {
+						const compiledInputBlueprint =
+							await handler.compileInputBlueprint(
+								args['additional-blueprint-steps'] || []
+							);
+						if (compiledInputBlueprint) {
+							await compiledInputBlueprint.run(playgroundPool);
+						}
+					} else {
 						const compiledBlueprint = await (
 							handler as BlueprintsV1Handler
 						).compileInputBlueprint(
@@ -1306,13 +1632,25 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						if (compiledBlueprint) {
 							await runBlueprintV1Steps(
 								compiledBlueprint,
-								initialPlayground as UniversalPHP
+								playgroundPool
 							);
 						}
 					}
 
+					// If phpMyAdmin is enabled and not already installed, install it.
+					if (
+						args.phpmyadmin &&
+						!(await playgroundPool.fileExists(
+							`${PHPMYADMIN_INSTALL_PATH}/index.php`
+						))
+					) {
+						const steps = await getPhpMyAdminInstallSteps();
+						const compiled = await compileBlueprintV1({ steps });
+						await runBlueprintV1Steps(compiled, playgroundPool);
+					}
+
 					if (args.command === 'build-snapshot') {
-						await zipSite(playground, args.outfile as string);
+						await zipSite(playgroundPool, args.outfile as string);
 						cliOutput.printStatus(`Exported to ${args.outfile}`);
 						await disposeCLI();
 						return;
@@ -1320,86 +1658,104 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						cliOutput.finishProgress('Done');
 						await disposeCLI();
 						return;
+					} else if (args.command === 'php') {
+						const argv = [
+							// @TODO: Import this from somewhere?
+							// Hardcoding it feels fragile.
+							'/internal/shared/bin/php',
+							...(args['_'] || []).slice(1),
+						];
+						const response = await playgroundPool.cli(argv);
+						const [exitCode] = await Promise.all([
+							response.exitCode,
+							response.stdout.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stdout.write(chunk);
+									},
+								})
+							),
+							response.stderr.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stderr.write(chunk);
+									},
+								})
+							),
+						]);
+						await disposeCLI();
+						// Return the exit code so the entry-point
+						// can call process.exit() as a hard cut-off
+						// to ensure Node doesn't hang on open
+						// handles.
+						return exitCode;
 					}
-
-					// We discard the initial Playground worker because it can
-					// be configured differently than post-boot workers.
-					// For example, we do not enable Xdebug by default for the initial worker.
-					await loadBalancer.removeWorker(initialPlayground);
-					await initialPlayground.dispose();
-					await initialWorker.worker.terminate();
-					playgroundsToCleanUp.delete(initialWorker.worker);
 				}
-
-				// Boot additional workers using the handler
-				const initialWorkerProcessIdSpace = processIdSpaceLength;
-				// Just take the first Playground instance to be returned to the caller.
-				[playground] = await Promise.all(
-					workers.map(async (worker, index) => {
-						const firstProcessId =
-							initialWorkerProcessIdSpace +
-							index * processIdSpaceLength;
-
-						const fileLockManagerPort =
-							await exposeFileLockManager(fileLockManager);
-
-						const additionalPlayground =
-							await handler.bootPlayground({
-								worker,
-								fileLockManagerPort,
-								firstProcessId,
-								nativeInternalDirPath,
-							});
-
-						playgroundsToCleanUp.set(
-							worker.worker,
-							additionalPlayground
-						);
-						loadBalancer.addWorker(additionalPlayground);
-
-						return additionalPlayground;
-					})
-				);
 
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
 
+				if (args.phpmyadmin) {
+					const phpMyAdminPath = path.join(
+						args.phpmyadmin as string,
+						PHPMYADMIN_ENTRY_PATH
+					);
+					cliOutput.printPhpMyAdminUrl(
+						new URL(phpMyAdminPath, serverUrl).toString()
+					);
+				}
+
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
-						phpInstance: playground,
+						phpInstance: playgroundPool,
 						phpRoot: '/wordpress',
+						excludedPaths: ['/internal'],
 					});
 
 					bridge.start();
 				}
 
 				return {
-					playground,
+					playground: playgroundPool,
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
-						getWorkerNumberFromProcessId: (processId: number) => {
-							return Math.floor(processId / processIdSpaceLength);
-						},
 					},
 				};
 			} catch (error) {
-				if (args.verbosity !== 'debug') {
-					throw error;
-				}
+				// In debug mode, read the PHP error log before disposing —
+				// disposeCLI() terminates the worker that owns the log file.
 				let phpLogs = '';
-				if (await playground?.fileExists(errorLogPath)) {
-					phpLogs = await playground.readFileAsText(errorLogPath);
+				if (
+					args.verbosity === 'debug' &&
+					(await playgroundPool?.fileExists(errorLogPath))
+				) {
+					phpLogs = await playgroundPool.readFileAsText(errorLogPath);
 				}
-				await disposeCLI();
-				throw new Error(phpLogs, { cause: error });
+				// Always tear down spawned workers, the server, and the temp
+				// dir. A failed boot must not leak worker threads: they keep a
+				// library caller's event loop alive after runCLI() rejects.
+				// Never let a dispose failure mask the original boot error —
+				// log it and rethrow the cause below.
+				try {
+					await disposeCLI();
+				} catch (disposeError) {
+					logger.warn(
+						`Failed to clean up after a boot failure: ${describeError(
+							disposeError
+						)}`
+					);
+				}
+				throw args.verbosity === 'debug'
+					? new Error(phpLogs, { cause: error })
+					: error;
 			}
 		},
-		async handleRequest(request: PHPRequest) {
+		async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
 			if (!wordPressReady) {
-				return PHPResponse.forHttpCode(
+				return StreamedPHPResponse.forHttpCode(
 					502,
 					'WordPress is not ready yet'
 				);
@@ -1424,16 +1780,126 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
 					];
 				}
-				return new PHPResponse(302, headers, new Uint8Array());
+				return StreamedPHPResponse.fromPHPResponse(
+					new PHPResponse(302, headers, new Uint8Array())
+				);
 			}
-			return await loadBalancer.handleRequest(request);
+			if (cookieStore) {
+				request = {
+					...request,
+					headers: {
+						...request.headers,
+						// While we have an internal cookie store, we
+						// completely replace the incoming request's Cookie
+						// header with the cookies from our store. This avoids
+						// getting into a strange state where both browser and
+						// server are managing cookies.
+						cookie: cookieStore.getCookieRequestHeader(),
+					},
+				};
+			}
+
+			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
+			// It might be more efficient to let the worker respond directly
+			const response = await playgroundPool.requestStreamed(request);
+
+			if (cookieStore) {
+				const headers = await response.headers;
+				cookieStore.rememberCookiesFromResponseHeaders(headers);
+				// While we have an internal cookie store, we filter out the
+				// Set-Cookie headers from responses so the browser does not
+				// attempt to manage cookies at the same time as the server.
+				delete headers['set-cookie'];
+			}
+
+			return response;
 		},
 	});
 
-	if (server && args.command === 'start' && !args.skipBrowser) {
+	if (
+		server &&
+		typeof server === 'object' &&
+		args.command === 'start' &&
+		!args.skipBrowser
+	) {
 		openInBrowser(server.serverUrl);
 	}
 	return server;
+}
+
+/**
+ * Selects the native Blueprint v2 CLI path.
+ *
+ * The default CLI path remains the v1 handler. We switch to v2 only when the
+ * caller passes `--mode` or provides a resolved Blueprint v2 declaration.
+ *
+ * `hasExplicitBlueprintsV2Mode` must be captured before `start` or auto-mount
+ * expansion because full WordPress auto-mounts still set
+ * `mode=apply-to-existing-site` for compatibility with the existing v1 CLI
+ * shape. That internal value must not route ordinary v1 auto-mounts to the
+ * native v2 handler. `args.blueprint` must already be resolved before this
+ * function runs so bundled Blueprints can be inspected via
+ * `BlueprintReflection`.
+ */
+async function shouldUseBlueprintsV2Handler(
+	args: RunCLIArgs,
+	hasExplicitBlueprintsV2Mode: boolean
+) {
+	if (hasExplicitBlueprintsV2Mode) {
+		return true;
+	}
+	if (!args.blueprint) {
+		return false;
+	}
+	const reflection = await BlueprintReflection.create(args.blueprint);
+	return reflection.getVersion() === 2;
+}
+
+function validateAndNormalizeBlueprintsV2Args(
+	args: RunCLIArgs,
+	hasExplicitBlueprintsV2Mode: boolean
+) {
+	if (hasExplicitBlueprintsV2Mode) {
+		// `--auto-mount` infers how to prepare WordPress from the detected
+		// project type. `--mode` is an explicit user choice for the same
+		// decision, so accepting both would hide which one won. For `start`,
+		// auto-mount expansion may already have consumed `autoMount`, so also
+		// check the generated auto-mounted WordPress root mount.
+		const autoMountedSiteRoot =
+			getMountForVfsPath(
+				args['mount-before-install'] || [],
+				'/wordpress'
+			) || getMountForVfsPath(args.mount || [], '/wordpress');
+		if (
+			typeof args.autoMount === 'string' ||
+			autoMountedSiteRoot?.autoMounted
+		) {
+			throw new Error(
+				'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+			);
+		}
+		// `--mode` is the v2 execution model. Keep it separate from the
+		// older install-mode switch until we settle a public compatibility
+		// story between the two option families.
+		if (args.wordpressInstallMode !== undefined) {
+			throw new Error(
+				'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
+			);
+		}
+		// `--skip-sqlite-setup` belongs to the v1-style boot/install path.
+		// The native v2 mode path resolves database setup from the v2 runtime
+		// configuration instead.
+		if (args.skipSqliteSetup === true) {
+			throw new Error(
+				'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
+			);
+		}
+		return;
+	}
+
+	if (args.wordpressInstallMode === 'do-not-attempt-installing') {
+		args.mode = 'mount-only';
+	}
 }
 
 /**
@@ -1443,14 +1909,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
  * for the `server` command.)
  */
 function expandStartCommandArgs(
-	args: RunCLIArgs & { reset?: boolean }
+	args: RunCLIArgs & { reset?: boolean },
+	cliOutput: CLIOutput
 ): RunCLIArgs {
 	let newArgs = { ...args, command: 'server' };
 
 	/**
-	 * Enable auto-mount unless explicitly disabled
+	 * Enable auto-mount unless explicitly disabled via `--no-auto-mount`.
+	 *
+	 * yargs-parser's boolean-negation turns `--no-auto-mount` into
+	 * `{ autoMount: false }`, so `args.autoMount === false` is how we detect
+	 * the disabled case. The boolean form is start-command only — downstream
+	 * code treats `autoMount` as a string path, so drop it either way and
+	 * then re-populate it with a resolved path when enabled.
 	 */
-	if (!args.noAutoMount) {
+	const autoMountEnabled = args.autoMount !== false;
+	// Scrub both the camelCase and dashed forms yargs-parser emits so a
+	// stale boolean can't leak into downstream consumers that read either.
+	delete newArgs.autoMount;
+	delete (newArgs as Record<string, unknown>)['auto-mount'];
+
+	if (autoMountEnabled) {
 		newArgs.autoMount = path.resolve(process.cwd(), newArgs['path'] ?? '');
 		newArgs = expandAutoMounts(newArgs as RunCLIArgs);
 		// Delete the autoMount argument to avoid double expansion later on.
@@ -1462,6 +1941,14 @@ function expandStartCommandArgs(
 			newArgs['mount-before-install'] || [],
 			'/wordpress'
 		) || getMountForVfsPath(newArgs.mount || [], '/wordpress');
+	if (
+		existingSiteRootMount?.autoMounted &&
+		newArgs.mode === 'create-new-site'
+	) {
+		throw new Error(
+			'Cannot use --mode=create-new-site with an auto-detected WordPress directory. Use --no-auto-mount, or choose --mode=apply-to-existing-site or --mode=mount-only.'
+		);
+	}
 
 	/**
 	 * Persist the site into a ~/.wordpress-playground/sites/<site-id> directory,
@@ -1494,11 +1981,11 @@ function expandStartCommandArgs(
 			'.wordpress-playground/sites',
 			currentSiteHash
 		);
-		console.log('Site files stored at:', hostPath);
+		cliOutput.print(`Site files stored at: ${hostPath}`);
 
 		if (existsSync(hostPath) && (args['reset'] as boolean)) {
-			console.log('Resetting site...');
-			rmdirSync(hostPath, { recursive: true });
+			cliOutput.print('Resetting site...');
+			rmSync(hostPath, { recursive: true, force: true });
 		}
 		mkdirSync(hostPath, { recursive: true });
 		newArgs['mount-before-install'] = [
@@ -1514,51 +2001,44 @@ function expandStartCommandArgs(
 				: // After that, reuse the WordPress installation from the initial run.
 					'install-from-existing-files-if-needed';
 	} else {
-		console.log('Site files stored at:', existingSiteRootMount?.hostPath);
+		cliOutput.print(
+			`Site files stored at: ${existingSiteRootMount?.hostPath}`
+		);
 		if (args['reset']) {
-			console.log(``);
-			console.log(
-				red(
+			cliOutput.print('');
+			cliOutput.print(
+				cliOutput.red(
 					`This site is not managed by Playground CLI and cannot be reset.`
 				)
 			);
-			console.log(
+			cliOutput.print(
 				`(It's not stored in the ~/.wordpress-playground/sites/<site-id> directory.)`
 			);
-			console.log(``);
-			console.log(
+			cliOutput.print('');
+			cliOutput.print(
 				`You may still remove the site's directory manually if you wish.`
 			);
-			process.exit(1);
+			// The guidance above has already been printed. Use the
+			// validation sentinel so parseOptionsAndRunCLI exits cleanly
+			// instead of routing this expected case through the
+			// unexpected-error path (stack trace + duplicated message).
+			throw new CLIArgsValidationError(
+				1,
+				'This site is not managed by Playground CLI and cannot be reset.'
+			);
 		}
 	}
 
 	return newArgs as RunCLIArgs;
 }
 
+const processIdAllocator = new ProcessIdAllocator();
+
 export type SpawnedWorker = {
+	processId: number;
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
-
-async function spawnWorkerThreads(
-	count: number,
-	workerType: WorkerType,
-	onWorkerExit: (options: { exitCode: number; workerIndex: number }) => void
-): Promise<SpawnedWorker[]> {
-	const promises = [];
-	for (let i = 0; i < count; i++) {
-		const onExit: (code: number) => void = (code: number) => {
-			onWorkerExit({
-				exitCode: code,
-				workerIndex: i,
-			});
-		};
-		const worker = spawnWorkerThread(workerType, { onExit });
-		promises.push(worker);
-	}
-	return Promise.all(promises);
-}
 
 /**
  * A statically analyzable function that spawns a worker thread of a given type.
@@ -1596,20 +2076,29 @@ export function spawnWorkerThread(
 	}
 
 	return new Promise<SpawnedWorker>((resolve, reject) => {
+		const processId = processIdAllocator.claim();
+
 		worker.once('message', function (message: any) {
 			// Let the worker confirm it has initialized.
 			// We could use the 'online' event to detect start of JS execution,
 			// but that would miss initialization errors.
 			if (message.command === 'worker-script-initialized') {
-				resolve({ worker, phpPort: message.phpPort });
+				resolve({
+					processId,
+					worker,
+					phpPort: message.phpPort,
+				});
 			}
 		});
 		worker.once('error', function (e: Error) {
+			processIdAllocator.release(processId);
+
 			console.error(e);
+			const originalMessage =
+				e?.message || (e ? String(e) : 'unknown error');
 			const error = new Error(
-				`Worker failed to load worker. ${
-					e.message ? `Original error: ${e.message}` : ''
-				}`
+				`Worker failed to load. Original error: ${originalMessage}`,
+				{ cause: e }
 			);
 			reject(error);
 		});
@@ -1618,6 +2107,8 @@ export function spawnWorkerThread(
 			spawned = true;
 		});
 		worker.once('exit', (code) => {
+			processIdAllocator.release(processId);
+
 			if (!spawned) {
 				reject(new Error(`Worker exited before spawning: ${code}`));
 			}
@@ -1632,27 +2123,18 @@ export function spawnWorkerThread(
  * @see comlink-sync.ts
  * @see phpwasm-emscripten-library-file-locking-for-node.js
  */
-async function exposeFileLockManager(fileLockManager: FileLockManagerForNode) {
+async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	const { port1, port2 } = new NodeMessageChannel();
-	if (await jspi()) {
-		/**
-		 * When JSPI is available, the worker thread expects an asynchronous API.
-		 *
-		 * @see worker-thread.ts
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		exposeAPI(fileLockManager, null, port1);
-	} else {
-		/**
-		 * When JSPI is not available, the worker thread expects a synchronous API.
-		 *
-		 * @see worker-thread.ts
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		await exposeSyncAPI(fileLockManager, port1);
-	}
+	/**
+	 * Always expose a synchronous API for the file lock manager
+	 * so our injected system call overrides don't have to switch
+	 * between synchronous and asynchronous APIs.
+	 *
+	 * @todo: Fill in the file containing the injected file locking system calls.
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 */
+	await exposeSyncAPI(fileLockManager, port1);
 	return port2;
 }
 
@@ -1686,7 +2168,7 @@ function openInBrowser(url: string): void {
 }
 
 async function zipSite(
-	playground: RemoteAPI<PlaygroundCliWorker>,
+	playground: Pooled<PlaygroundCliWorker>,
 	outfile: string
 ) {
 	await playground.run({

@@ -9,6 +9,7 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default {
+	root: __dirname,
 	base: '/',
 
 	cacheDir: '../../../node_modules/.vite/packages-playground-sync',

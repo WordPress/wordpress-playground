@@ -36,11 +36,11 @@ Any contribution to the WordPress Playground project is highly valued. The Playg
 
 Qualquer contribuição para o projeto WordPress Playground é altamente valorizada. A equipe do Playground reconhece contribuições em várias áreas principais:
 
--   **Código do Playground:** Fazendo alterações de código e revisando o projeto principal.
--   **Interface do Playground:** Melhorando a interface do usuário da experiência web.
--   **Documentação:** Escrevendo, atualizando e revisando documentação.
--   **Tradução:** Traduzindo qualquer parte do projeto.
--   **Galeria de Blueprints:** Criando novos blueprints ou melhorando os existentes.
+- **Código do Playground:** Fazendo alterações de código e revisando o projeto principal.
+- **Interface do Playground:** Melhorando a interface do usuário da experiência web.
+- **Documentação:** Escrevendo, atualizando e revisando documentação.
+- **Tradução:** Traduzindo qualquer parte do projeto.
+- **Galeria de Blueprints:** Criando novos blueprints ou melhorando os existentes.
 
 <!--
 ## Playground Contributor Badge
@@ -54,7 +54,7 @@ To get a Playground Contributor Badge, you must have made at least one eligible 
 
 Para obter um Playground Contributor Badge, você deve ter feito pelo menos uma contribuição elegível da lista acima. A equipe pode optar por conceder o badge para outras contribuições ou uma combinação das acima, a critério da equipe.
 
-![Playground Contributor Badge](@site/static/img/contributing/playground-contributor-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/playground-contributor-badge.webp)
 
 <!--
 ## Playground Team Badge
@@ -68,7 +68,7 @@ If you are currently a contributor and have been actively involved in the Playgr
 
 Se você é atualmente um contribuidor e tem estado ativamente envolvido no projeto Playground nos últimos **doze meses**, você é elegível para um **Playground Team Badge**.
 
-![Playground Contributor Badge](@site/static/img/contributing/playground-team-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/playground-team-badge.webp)
 
 <!--
 ## Requesting a Profile Badge
@@ -85,8 +85,8 @@ If you meet the criteria, you can request a badge. Please include links to resou
 
 Se você atende aos critérios, pode solicitar um badge. Por favor, inclua links para recursos (como pull requests do GitHub, issues ou strings traduzidas) que mostrem que você atendeu aos critérios. Envie uma solicitação nos links abaixo:
 
--   [Contributor Badge](https://profiles.wordpress.org/associations/playground-contributor/)
--   [Team Badge](https://profiles.wordpress.org/associations/playground-team/)
+- [Contributor Badge](https://profiles.wordpress.org/associations/playground-contributor/)
+- [Team Badge](https://profiles.wordpress.org/associations/playground-team/)
 
 <!--
 ### Request form
@@ -94,7 +94,7 @@ Se você atende aos critérios, pode solicitar um badge. Por favor, inclua links
 
 ### Formulário de solicitação
 
-![Playground Contributor Badge](@site/static/img/contributing/request-contributor-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/request-contributor-badge.webp)
 
 <!--
 To access the request, the user should be logged in with their WordPress.org account and open the Request Membership tab, after submitting the required information. A Playground Team Representative will confirm your contribution and assign the badge. The team will perform a weekly review of contributions and award badges at that time. Updates on new badges awarded will be posted during the Playground Team meeting.

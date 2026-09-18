@@ -1,0 +1,725 @@
+import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
+import type { SiteMetadata } from '../redux/slice-sites';
+import type { opfsSiteStorage as exportedOpfsSiteStorage } from './opfs-site-storage';
+
+describe('opfsSiteStorage', () => {
+	let opfsRoot: MemoryDirectoryHandle;
+	let storage: NonNullable<typeof exportedOpfsSiteStorage>;
+	let loadPersistedBlueprintBundle: ReturnType<typeof vi.fn>;
+	let loadPersistedBlueprintBundleFromPath: ReturnType<typeof vi.fn>;
+
+	beforeEach(async () => {
+		vi.resetModules();
+		loadPersistedBlueprintBundle = vi.fn();
+		loadPersistedBlueprintBundleFromPath = vi.fn();
+		const activeWorkerWrites = new Set<string>();
+		opfsRoot = new MemoryDirectoryHandle('');
+		vi.stubGlobal('navigator', {
+			storage: {
+				getDirectory: vi.fn(async () => opfsRoot),
+			},
+		});
+		vi.stubGlobal(
+			'Worker',
+			class {
+				postMessage(
+					message: { path: string; content: string },
+					options?: { transfer?: MessagePort[] }
+				) {
+					const port = options?.transfer?.[0];
+					setTimeout(async () => {
+						if (activeWorkerWrites.has(message.path)) {
+							port?.postMessage({
+								type: 'error',
+								path: message.path,
+								error: {
+									name: 'NoModificationAllowedError',
+									message:
+										'The file is already being written.',
+								},
+							});
+							return;
+						}
+						activeWorkerWrites.add(message.path);
+						try {
+							await new Promise((resolve) =>
+								setTimeout(resolve, 5)
+							);
+							await writeOpfsPath(
+								opfsRoot,
+								message.path,
+								message.content
+							);
+							port?.postMessage('done');
+						} catch (error) {
+							port?.postMessage(
+								error instanceof Error
+									? error.message
+									: String(error)
+							);
+						} finally {
+							activeWorkerWrites.delete(message.path);
+						}
+					}, 0);
+				}
+				terminate() {}
+			}
+		);
+		vi.doMock('./opfs-blueprint-bundle-storage', () => ({
+			BUNDLE_DIR_NAME: 'blueprint-bundle',
+			loadPersistedBlueprintBundle,
+			loadPersistedBlueprintBundleFromPath,
+		}));
+		vi.doMock('@wp-playground/blueprints', () => ({
+			getBlueprintDeclaration: vi.fn(async (blueprint) => blueprint),
+		}));
+
+		const module = await import('./opfs-site-storage');
+		storage = module.opfsSiteStorage!;
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	describe('abandoned autosaves', () => {
+		const oldPendingAutosave: Partial<SiteMetadata> = {
+			persistence: 'autosave',
+			initialOpfsSyncPending: true,
+			whenCreated: 1,
+		};
+
+		beforeEach(() => {
+			const held = new Set<string>();
+			Object.defineProperty(navigator, 'locks', {
+				configurable: true,
+				value: {
+					request: vi.fn(async (name, options, callback) => {
+						if (typeof options === 'function') {
+							callback = options;
+							options = {};
+						}
+						if (options.ifAvailable && held.has(name)) {
+							return callback(null);
+						}
+						held.add(name);
+						try {
+							return await callback({ name });
+						} finally {
+							held.delete(name);
+						}
+					}),
+				},
+			});
+		});
+
+		it('removes an abandoned metadata-only autosave', async () => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-abandoned',
+				'abandoned',
+				oldPendingAutosave
+			);
+
+			expect(await storage.list()).toEqual([]);
+			expect(await storage.read('abandoned')).toBeUndefined();
+		});
+
+		it.each([
+			['explicit save', { persistence: 'explicit' }],
+			['legacy explicit save', { persistence: undefined }],
+			['completed sync', { initialOpfsSyncPending: false }],
+			['unknown sync state', { initialOpfsSyncPending: undefined }],
+			['recent use', { whenLastUsed: Date.now() }],
+			['missing date', { whenCreated: undefined }],
+			['invalid date', { whenCreated: 'yesterday' }],
+			['future date', { whenCreated: Date.now() + 86400000 }],
+			['interrupted reset', { opfsSiteRemovalPending: true }],
+			['local site', { storage: 'local-fs' }],
+		])('preserves a %s', async (_label, metadata) => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(sitesRoot, 'site-kept', 'kept', {
+				...oldPendingAutosave,
+				...metadata,
+			} as Partial<SiteMetadata>);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+			expect(await storage.read('kept')).toBeDefined();
+		});
+
+		it.each(['file', 'directory'])(
+			'preserves any extra %s',
+			async (kind) => {
+				const sitesRoot = await getSitesRoot(opfsRoot);
+				const directory = await writeSiteMetadata(
+					sitesRoot,
+					'site-kept',
+					'kept',
+					oldPendingAutosave
+				);
+				if (kind === 'file') {
+					directory.setFile('notes.txt', 'keep me');
+				} else {
+					await directory.getDirectoryHandle('blueprint-bundle', {
+						create: true,
+					});
+				}
+				expect((await storage.list()).map((site) => site.slug)).toEqual(
+					['kept']
+				);
+			}
+		);
+
+		it('preserves a site created by a still-open document even after the grace period', async () => {
+			await storage.create(
+				'active',
+				createSiteMetadata(oldPendingAutosave)
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'active',
+			]);
+		});
+
+		it('rechecks metadata after acquiring the cleanup lock', async () => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-kept',
+				'kept',
+				oldPendingAutosave
+			);
+			const request = navigator.locks.request.bind(navigator.locks);
+			vi.mocked(navigator.locks.request).mockImplementationOnce(
+				async (name: any, options: any, callback: any) => {
+					await writeSiteMetadata(sitesRoot, 'site-kept', 'kept', {
+						...oldPendingAutosave,
+						persistence: 'explicit',
+					});
+					return request(name, options, callback);
+				}
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+		});
+
+		it('leaves cleanup disabled without Web Locks', async () => {
+			Object.defineProperty(navigator, 'locks', { value: undefined });
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-kept',
+				'kept',
+				oldPendingAutosave
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+		});
+
+		it('still lists a site when deletion fails', async () => {
+			const sitesRoot = await getSitesRoot(opfsRoot);
+			await writeSiteMetadata(
+				sitesRoot,
+				'site-kept',
+				'kept',
+				oldPendingAutosave
+			);
+			vi.spyOn(sitesRoot, 'removeEntry').mockRejectedValueOnce(
+				new Error('busy')
+			);
+			expect((await storage.list()).map((site) => site.slug)).toEqual([
+				'kept',
+			]);
+		});
+	});
+
+	it('reads legacy site metadata when the encoded directory is incomplete', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await sitesRoot.getDirectoryHandle('site-a%2Fb', { create: true });
+		await writeSiteMetadata(sitesRoot, 'site-a-b', 'a/b');
+
+		const site = await storage.read('a/b');
+
+		expect(site).toMatchObject({
+			slug: 'a/b',
+			metadata: {
+				name: 'Test Playground',
+			},
+		});
+	});
+
+	it('does not create a duplicate when legacy site metadata exists', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await sitesRoot.getDirectoryHandle('site-a%2Fb', { create: true });
+		await writeSiteMetadata(sitesRoot, 'site-a-b', 'a/b');
+
+		await expect(
+			storage.create('a/b', createSiteMetadata())
+		).rejects.toThrow("Site with slug 'a/b' already exists.");
+	});
+
+	it('stores setup URL params alongside site metadata', async () => {
+		const originalUrlParams = {
+			searchParams: {
+				language: 'pl_PL',
+				plugin: ['akismet', 'gutenberg'],
+			},
+			hash: '#blueprint',
+		};
+
+		await storage.create(
+			'stored-site',
+			createSiteMetadata(),
+			originalUrlParams
+		);
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			slug: 'stored-site',
+			originalUrlParams,
+		});
+	});
+
+	it('stores the saved Playground thumbnail in site metadata', async () => {
+		const thumbnail = {
+			mime: 'image/webp',
+			data: 'thumbnail-bytes',
+		};
+
+		await storage.create('stored-site', createSiteMetadata({ thumbnail }));
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: { thumbnail },
+		});
+	});
+
+	it('updates setup URL params alongside site metadata', async () => {
+		await storage.create('stored-site', createSiteMetadata(), {
+			searchParams: { language: 'en_US' },
+		});
+		const originalUrlParams = {
+			searchParams: {
+				language: 'pl_PL',
+				multisite: 'yes',
+			},
+		};
+
+		await storage.update('stored-site', {
+			metadata: { name: 'Renamed Playground' },
+			originalUrlParams,
+		});
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: {
+				name: 'Renamed Playground',
+			},
+			originalUrlParams,
+		});
+	});
+
+	it('preserves runtime configuration fields across partial updates', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { phpVersion: '8.2' } },
+		});
+		await storage.update('stored-site', {
+			metadata: { runtimeConfiguration: { networking: false } },
+		});
+
+		await expect(storage.read('stored-site')).resolves.toMatchObject({
+			metadata: {
+				runtimeConfiguration: {
+					phpVersion: '8.2',
+					wpVersion: 'latest',
+					networking: false,
+				},
+			},
+		});
+	});
+
+	it('serializes concurrent metadata updates to the same site', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+
+		await Promise.all([
+			storage.update('stored-site', {
+				metadata: { name: 'First name' },
+			}),
+			storage.update('stored-site', {
+				metadata: { name: 'Second name' },
+			}),
+		]);
+		const site = await storage.read('stored-site');
+		expect(['First name', 'Second name']).toContain(site?.metadata.name);
+	});
+
+	it('deletes the legacy site directory when the encoded directory is incomplete', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await sitesRoot.getDirectoryHandle('site-a%2Fb', { create: true });
+		await writeSiteMetadata(sitesRoot, 'site-a-b', 'a/b');
+
+		await storage.delete('a/b');
+
+		await expect(
+			sitesRoot.getDirectoryHandle('site-a-b')
+		).rejects.toMatchObject({ name: 'NotFoundError' });
+		await expect(
+			sitesRoot.getDirectoryHandle('site-a%2Fb')
+		).resolves.toBeDefined();
+	});
+
+	it('exports complete saved OPFS site files as a ZIP', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-files',
+			'files'
+		);
+		const wpContent = await siteDirectory.getDirectoryHandle('wp-content', {
+			create: true,
+		});
+		wpContent.setFile('hello.txt', 'Hello from OPFS');
+		await wpContent.getDirectoryHandle('empty-cache', { create: true });
+
+		const zipFile = await storage.exportSavedSiteAsZip('files');
+
+		expect(zipFile?.type).toBe('application/zip');
+		const archive = await readZipEntries(zipFile!);
+
+		expect(archive.files.get('wp-content/hello.txt')).toBe(
+			'Hello from OPFS'
+		);
+		expect(archive.files.has('wp-runtime.json')).toBe(true);
+		expect(archive.directories.has('wp-content/empty-cache/')).toBe(true);
+		expect(archive.directories.get('wp-content/empty-cache/')).toBe(0o755);
+	});
+
+	it('applies ordered exclusion patterns when exporting saved site files', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-patterns',
+			'patterns'
+		);
+		const wpAdmin = await siteDirectory.getDirectoryHandle('wp-admin', {
+			create: true,
+		});
+		wpAdmin.setFile('index.php', 'exclude admin');
+		const wpContent = await siteDirectory.getDirectoryHandle('wp-content', {
+			create: true,
+		});
+		const plugins = await wpContent.getDirectoryHandle('plugins', {
+			create: true,
+		});
+		plugins.setFile('hello.php', 'include plugin');
+		const cache = await wpContent.getDirectoryHandle('cache', {
+			create: true,
+		});
+		cache.setFile('cached.html', 'exclude cache');
+
+		const zipFile = await storage.exportSavedSiteAsZip('patterns', {
+			excludePatterns: [
+				'/*',
+				'!/wp-content/',
+				'!/wp-content/**',
+				'/wp-content/cache/',
+				'/wp-content/cache/**',
+			],
+		});
+		const archive = await readZipEntries(zipFile!);
+
+		expect(archive.files.has('wp-runtime.json')).toBe(false);
+		expect(archive.files.has('wp-admin/index.php')).toBe(false);
+		expect(archive.directories.has('wp-content/')).toBe(true);
+		expect(archive.files.get('wp-content/plugins/hello.php')).toBe(
+			'include plugin'
+		);
+		expect(archive.directories.has('wp-content/cache/')).toBe(false);
+		expect(archive.files.has('wp-content/cache/cached.html')).toBe(false);
+	});
+
+	it('does not export directories without saved Playground metadata', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await sitesRoot.getDirectoryHandle(
+			'site-incomplete',
+			{ create: true }
+		);
+		siteDirectory.setFile('wp-config.php', 'not enough to count as saved');
+
+		await expect(
+			storage.exportSavedSiteAsZip('incomplete')
+		).resolves.toBeUndefined();
+	});
+
+	it('does not export saved sites whose initial OPFS sync never finished', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(
+			sitesRoot,
+			'site-pending-sync',
+			'pending-sync',
+			{
+				initialOpfsSyncPending: true,
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('pending-sync')
+		).resolves.toBeUndefined();
+	});
+
+	it('does not export saved sites while old OPFS files are being reset', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(
+			sitesRoot,
+			'site-pending-reset',
+			'pending-reset',
+			{
+				opfsSiteRemovalPending: true,
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('pending-reset')
+		).resolves.toBeUndefined();
+	});
+
+	it('returns undefined when a saved site is deleted after metadata lookup', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(sitesRoot, 'site-deleted', 'deleted');
+		const getDirectoryHandle = sitesRoot.getDirectoryHandle.bind(sitesRoot);
+		let siteDirectoryWasFoundByMetadataLookup = false;
+		vi.spyOn(sitesRoot, 'getDirectoryHandle').mockImplementation(
+			async (name, options) => {
+				if (name !== 'site-deleted' || options?.create) {
+					return await getDirectoryHandle(name, options);
+				}
+				if (siteDirectoryWasFoundByMetadataLookup) {
+					throw createDomException('NotFoundError');
+				}
+				siteDirectoryWasFoundByMetadataLookup = true;
+				return await getDirectoryHandle(name, options);
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('deleted')
+		).resolves.toBeUndefined();
+	});
+
+	it('returns undefined when saved Playground metadata disappears before export starts', async () => {
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		const siteDirectory = await writeSiteMetadata(
+			sitesRoot,
+			'site-missing-metadata',
+			'missing-metadata'
+		);
+		const getFileHandle = siteDirectory.getFileHandle.bind(siteDirectory);
+		let metadataWasFoundByDirectoryLookup = false;
+		vi.spyOn(siteDirectory, 'getFileHandle').mockImplementation(
+			async (name) => {
+				if (name !== 'wp-runtime.json') {
+					return await getFileHandle(name);
+				}
+				if (metadataWasFoundByDirectoryLookup) {
+					throw createDomException('NotFoundError');
+				}
+				metadataWasFoundByDirectoryLookup = true;
+				return await getFileHandle(name);
+			}
+		);
+
+		await expect(
+			storage.exportSavedSiteAsZip('missing-metadata')
+		).resolves.toBeUndefined();
+	});
+
+	it('loads persisted Blueprint bundles for stored bundle metadata', async () => {
+		const bundle = { read: vi.fn(), listFiles: vi.fn(), isDir: vi.fn() };
+		loadPersistedBlueprintBundle.mockResolvedValue(bundle);
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await writeSiteMetadata(sitesRoot, 'site-bundle', 'bundle', {
+			originalBlueprintSource: {
+				type: 'opfs-site',
+			},
+		});
+
+		const site = await storage.read('bundle');
+
+		expect(loadPersistedBlueprintBundle).toHaveBeenCalledWith('bundle');
+		expect(site?.metadata.originalBlueprint).toBe(bundle);
+	});
+});
+
+async function readZipEntries(zipFile: Blob) {
+	const reader = new ZipReader(new BlobReader(zipFile));
+	try {
+		const entries = await reader.getEntries();
+		const files = new Map<string, string>();
+		const directories = new Map<string, number>();
+		for (const entry of entries) {
+			if (entry.directory) {
+				directories.set(
+					entry.filename,
+					(entry.externalFileAttributes >>> 16) & 0o777
+				);
+			} else {
+				files.set(
+					entry.filename,
+					await entry.getData!(new TextWriter())
+				);
+			}
+		}
+		return { files, directories };
+	} finally {
+		await reader.close();
+	}
+}
+
+async function getSitesRoot(opfsRoot: MemoryDirectoryHandle) {
+	return opfsRoot.getDirectoryHandle('sites');
+}
+
+async function writeSiteMetadata(
+	sitesRoot: MemoryDirectoryHandle,
+	directoryName: string,
+	slug: string,
+	metadata: Partial<SiteMetadata> = {}
+) {
+	const siteDirectory = await sitesRoot.getDirectoryHandle(directoryName, {
+		create: true,
+	});
+	siteDirectory.setFile(
+		'wp-runtime.json',
+		JSON.stringify({
+			slug,
+			...createSiteMetadata(metadata),
+		})
+	);
+	return siteDirectory;
+}
+
+async function writeOpfsPath(
+	opfsRoot: MemoryDirectoryHandle,
+	path: string,
+	content: string
+) {
+	const pathParts = path.split('/').filter(Boolean);
+	const fileName = pathParts.pop();
+	if (!fileName) {
+		throw new Error(`Cannot write OPFS file without a file name: ${path}`);
+	}
+	let directory = opfsRoot;
+	for (const pathPart of pathParts) {
+		directory = await directory.getDirectoryHandle(pathPart, {
+			create: true,
+		});
+	}
+	directory.setFile(fileName, content);
+}
+
+function createSiteMetadata(
+	metadata: Partial<SiteMetadata> = {}
+): SiteMetadata {
+	return {
+		storage: 'opfs',
+		id: 'test-site-id',
+		name: 'Test Playground',
+		runtimeConfiguration: {
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			intl: false,
+			networking: true,
+			extraLibraries: [],
+			constants: {},
+		},
+		originalBlueprint: {},
+		originalBlueprintSource: {
+			type: 'none',
+		},
+		...metadata,
+	};
+}
+
+class MemoryDirectoryHandle {
+	kind = 'directory' as const;
+	name: string;
+	private children = new Map<
+		string,
+		MemoryDirectoryHandle | MemoryFileHandle
+	>();
+
+	constructor(name: string) {
+		this.name = name;
+	}
+
+	async getDirectoryHandle(
+		name: string,
+		options?: { create?: boolean }
+	): Promise<MemoryDirectoryHandle> {
+		const entry = this.children.get(name);
+		if (entry instanceof MemoryDirectoryHandle) {
+			return entry;
+		}
+		if (entry) {
+			throw createDomException('TypeMismatchError');
+		}
+		if (options?.create) {
+			const directory = new MemoryDirectoryHandle(name);
+			this.children.set(name, directory);
+			return directory;
+		}
+		throw createDomException('NotFoundError');
+	}
+
+	async getFileHandle(name: string): Promise<MemoryFileHandle> {
+		const entry = this.children.get(name);
+		if (entry instanceof MemoryFileHandle) {
+			return entry;
+		}
+		if (entry) {
+			throw createDomException('TypeMismatchError');
+		}
+		throw createDomException('NotFoundError');
+	}
+
+	async *values() {
+		yield* this.children.values();
+	}
+
+	async *entries() {
+		yield* this.children.entries();
+	}
+
+	async removeEntry(name: string) {
+		if (!this.children.delete(name)) {
+			throw createDomException('NotFoundError');
+		}
+	}
+
+	setFile(name: string, content: string) {
+		this.children.set(name, new MemoryFileHandle(name, content));
+	}
+}
+
+class MemoryFileHandle {
+	kind = 'file' as const;
+	name: string;
+	private content: string;
+
+	constructor(name: string, content: string) {
+		this.name = name;
+		this.content = content;
+	}
+
+	async getFile() {
+		return new Blob([this.content]);
+	}
+}
+
+function createDomException(name: string) {
+	const error = new Error(name);
+	error.name = name;
+	return error;
+}

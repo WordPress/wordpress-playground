@@ -36,9 +36,9 @@ export namespace V2Schema {
 		 * for declaring options or opinions for different application contexts.
 		 *
 		 * To keep Blueprints portable and focused on site creation, this specification
-		 * only allows two Playground-specific options. Other environments cannot declare
-		 * additional options. Future versions of this specification may allow additional
-		 * options – they will be discussed on a case-by-case basis.
+		 * only allows a small set of Playground-specific options. Other environments
+		 * cannot declare additional options. Future versions of this specification may
+		 * allow additional options – they will be discussed on a case-by-case basis.
 		 */
 		applicationOptions?: {
 			/**
@@ -72,8 +72,60 @@ export namespace V2Schema {
 				 * @default false
 				 */
 				networkAccess?: boolean;
+
+				/**
+				 * Optional PHP extensions to load in the Playground runtime before executing
+				 * the Blueprint. Extensions omitted from this list are not disabled.
+				 */
+				loadPhpExtensions?: Array<'intl'>;
 			};
 		};
+
+		/**
+		 * The content from a vanilla WordPress installation to retain before
+		 * applying the rest of the Blueprint. `keep-all` leaves the installation
+		 * unchanged, `empty` removes its posts, pages, and comments, a content type
+		 * retains only that type, and a list retains the selected content types.
+		 *
+		 * This policy runs only when the current invocation creates vanilla
+		 * WordPress. It is skipped when applying the Blueprint to an existing site,
+		 * so it cannot erase content from that site. It is not valid when
+		 * `wordpressVersion` is "none". Metadata and relationships follow their
+		 * parent content. Empty content tables have their sequences reset so
+		 * subsequent imports receive the identifiers they would on a site created
+		 * without default content.
+		 *
+		 * Comments can only be retained together with both posts and pages because
+		 * the schema cannot know which type contains their parent records.
+		 *
+		 * @default "keep-all"
+		 */
+		contentBaseline?:
+			| 'keep-all'
+			| 'empty'
+			| Exclude<ContentType, 'comments'>
+			| [ContentType, ...ContentType[]];
+
+		/**
+		 * The users from a vanilla WordPress installation to retain before applying
+		 * the rest of the Blueprint. `keep-all` retains the administrator created by
+		 * WordPress, while `empty` removes it before creating the users declared by
+		 * this Blueprint.
+		 *
+		 * Empty user tables have their sequences reset before those users are
+		 * created.
+		 *
+		 * An empty user baseline requires an empty content baseline so removing the
+		 * installation administrator cannot silently delete or orphan authored
+		 * content. It also requires at least one declared administrator, ensuring
+		 * the resulting WordPress site remains manageable.
+		 *
+		 * Like `contentBaseline`, this policy is skipped when applying the Blueprint
+		 * to an existing site and is not valid when `wordpressVersion` is "none".
+		 *
+		 * @default "keep-all"
+		 */
+		usersBaseline?: 'keep-all' | 'empty';
 
 		/**
 		 * SITE OPTIONS {{{
@@ -164,28 +216,32 @@ export namespace V2Schema {
 		constants?: WordPressConstants;
 
 		/**
-		 * WordPress version to install.
+		 * WordPress version to install or require.
 		 *
-		 * When we're setting up the entire site, this will be used to resolve the
-		 * installed WordPress version. The latest version matching the constraint
-		 * will be chosen.
+		 * A string selects the version for a newly created site. A branch such as
+		 * `6.8` selects the newest available release in that branch. Strings are
+		 * selection hints and do not reject an existing site. `"none"` boots the
+		 * PHP runtime without downloading WordPress or initializing its database.
 		 *
-		 * When we're applying this Blueprint to an existing site, this will be used
-		 * as an integrity check to verify that the currently installed version of
-		 * WordPress installed on the target site matches the constraint.
+		 * An object declares compatibility bounds. The runner chooses the newest
+		 * available release within those bounds for a new site and verifies an
+		 * existing site's installed version against them. `preferred` influences
+		 * new-site selection without narrowing compatibility.
 		 *
-		 * @default "latest".
+		 * A data reference supplies the WordPress files for a newly created site.
+		 *
+		 * @default "latest"
 		 */
 		wordpressVersion?:
 			| DataSources.WordPressVersion
 			| DataSources.DataReference
 			| {
-					min: DataSources.WordPressVersion;
-					max?: DataSources.WordPressVersion;
+					min: DataSources.WordPressVersionConstraintVersion;
+					max?: DataSources.WordPressVersionConstraintVersion;
 					/**
 					 * @default "latest"
 					 */
-					preferred?: DataSources.WordPressVersion;
+					preferred?: DataSources.WordPressVersionPreferredVersion;
 			  };
 
 		/**
@@ -204,9 +260,9 @@ export namespace V2Schema {
 		phpVersion?:
 			| DataSources.PHPVersion
 			| {
-					min?: DataSources.PHPVersion;
-					recommended?: DataSources.PHPVersion;
-					max?: DataSources.PHPVersion;
+					min?: DataSources.PHPVersionConstraintVersion;
+					recommended?: DataSources.PHPVersionConstraintVersion;
+					max?: DataSources.PHPVersionConstraintVersion;
 			  };
 
 		/**
@@ -221,9 +277,13 @@ export namespace V2Schema {
 		 * @example `"activeTheme": "adventurer@4.6.0"`
 		 * @example
 		 * ```json
-		 * "activeTheme": {
-		 *     "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *     "id": "kanso"
+		 * {
+		 *     "version": 2,
+		 *     "activeTheme": {
+		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *         "targetDirectoryName": "kanso",
+		 *         "importStarterContent": true
+		 *     }
 		 * }
 		 * ```
 		 */
@@ -235,14 +295,17 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * themes: [
-		 *     "stylish-press-theme",
-		 *     "adventurer@4.6.0",
-		 *     {
-		 *         "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
-		 *         "id": "kanso"
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "themes": [
+		 *         "stylish-press-theme",
+		 *         "adventurer@4.6.0",
+		 *         {
+		 *             "source": "https://github.com/richtabor/kanso/archive/refs/heads/main.zip",
+		 *             "targetDirectoryName": "kanso"
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
 		themes?: ThemeDefinition[];
@@ -253,16 +316,20 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * plugins: [
-		 *     "jetpack",
-		 *     "akismet@6.4.3",
-		 *     "./query-monitor.php",
-		 *     "./code-block.zip",
-		 *     {
-		 *         "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
-		 *         "active": false
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "plugins": [
+		 *         "jetpack",
+		 *         "akismet@6.4.3",
+		 *         "./query-monitor.php",
+		 *         "./code-block.zip",
+		 *         {
+		 *             "source": "https://github.com/woocommerce/woocommerce/archive/refs/heads/6.4.3.zip",
+		 *             "active": false
+		 *         }
+		 *     ]
+		 * }
+		 * ```
 		 */
 		plugins?: PluginDefinition[];
 
@@ -272,14 +339,15 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * muPlugins: [
-		 *     {
-		 *         "file": {
+		 * {
+		 *     "version": 2,
+		 *     "muPlugins": [
+		 *         {
 		 *             "filename": "addFilter-0.php",
 		 *             "content": "<?php add_action( 'requests-requests.before_request', function( &$url ) {\n$url = 'https://playground.wordpress.net/cors-proxy.php?' . $url;\n} );"
 		 *         }
-		 *     }
-		 * ]
+		 *     ]
+		 * }
 		 * ```
 		 */
 		muPlugins?: Array<DataSources.DataReference>;
@@ -292,6 +360,8 @@ export namespace V2Schema {
 		 * throw an error.
 		 *
 		 * See https://github.com/WordPress/blueprints-library/issues/32 for more context.
+		 *
+		 * @propertyNames { "pattern": "^[a-z0-9_-]{1,20}$" }
 		 */
 		postTypes?: Record<
 			PostTypeKey,
@@ -338,7 +408,7 @@ export namespace V2Schema {
 		 * }
 		 * ```
 		 */
-		fonts?: Record<string, DataSources.DataReference | FontCollection>;
+		fonts?: Record<string, DataSources.FileDataReference | FontCollection>;
 
 		/**
 		 * A list of media files to upload to the WordPress Media Library – in formats
@@ -387,6 +457,12 @@ export namespace V2Schema {
 
 		additionalStepsAfterExecution?: Array<Step>;
 	};
+
+	/**
+	 * Content types created by a vanilla WordPress installation and controlled
+	 * by `contentBaseline`.
+	 */
+	type ContentType = 'posts' | 'pages' | 'comments';
 
 	type LicenseKeyword =
 		| 'AFL-3.0'
@@ -442,22 +518,25 @@ export namespace V2Schema {
 
 		/**
 		 * A mapping of base URLs to rewrite.
+		 *
+		 * @propertyNames { "$ref": "#/definitions/DataSources.URLReference" }
 		 */
 		urlsMap?: Record<DataSources.URLReference, DataSources.URLReference>;
 	};
 
 	type ContentDefinition =
-		| ({
+		| {
 				type: 'mysql-dump';
-				source: DataSources.DataReference | DataSources.DataReference[];
-		  } & URLMappingConfig)
+				source:
+					| DataSources.FileDataReference
+					| DataSources.FileDataReference[];
+		  }
 		| ({
 				type: 'posts';
 				source:
-					| DataSources.DataReference
-					| DataSources.DataReference[]
+					| DataSources.FileDataReference
 					| WordPressPost
-					| WordPressPost[];
+					| (DataSources.FileDataReference | WordPressPost)[];
 		  } & URLMappingConfig)
 		/**
 		 * WXR files to import.
@@ -465,96 +544,94 @@ export namespace V2Schema {
 		 * Example:
 		 *
 		 * ```json
-		 * content: [
-		 *     {
-		 *         "type": "wxr",
-		 *         "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
-		 *     },
-		 *     {
-		 *         "type": "wxr",
-		 *         "url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
-		 *         "rewriteUrls": true,
-		 *         "fetchStaticAssets": false,
-		 *         "users": false,
-		 *         "comments": false,
-		 *     }
-		 * ]
+		 * {
+		 *     "version": 2,
+		 *     "content": [
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/woo-products.wxr"
+		 *         },
+		 *         {
+		 *             "type": "wxr",
+		 *             "source": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/stylish-press/site-content.wxr",
+		 *             "urlsMode": "rewrite",
+		 *             "staticAssets": "hotlink",
+		 *             "importUsers": false,
+		 *             "importComments": false
+		 *         }
+		 *     ]
+		 * }
 		 * ```
 		 */
-		| ({
-				type: 'wxr';
-				source: DataSources.DataReference;
+		| WXRContentDefinition;
 
-				/**
-				 * Static assets handling.
-				 *
-				 * Possible values:
-				 *
-				 * * "fetch" – Fetch the static assets and save them to the local filesystem.
-				 * * "hotlink" – Hotlink the static assets from the remote site.
-				 *
-				 * @default "fetch".
-				 */
-				staticAssets?: 'fetch' | 'hotlink';
+	type WXRContentDefinition = WXRContentBase &
+		(
+			| {
+					/**
+					 * Map remote authors to existing local authors.
+					 */
+					authorsMode: 'map';
+					authorsMap: Record<RemoteUsername, LocalUsername>;
+			  }
+			| {
+					/**
+					 * How to handle authors that don't exist on the current site.
+					 *
+					 * Possible values:
+					 *
+					 * * "create" – Create a new author.
+					 * * "default-author" – Use the default author.
+					 *
+					 * @default "create".
+					 */
+					authorsMode?: 'create' | 'default-author';
+					authorsMap?: Record<RemoteUsername, LocalUsername>;
+			  }
+		);
 
-				/**
-				 * How to handle authors that don't exist on the current site.
-				 *
-				 * Possible values:
-				 *
-				 * * "create" – Create a new author.
-				 * * "default-author" – Use the default author.
-				 * * "map" – Map the author to an existing author on the current site.
-				 *
-				 * @default "create".
-				 */
-				authorsMode?: 'create' | 'default-author' | 'map';
+	type WXRContentBase = {
+		type: 'wxr';
+		source: DataSources.FileDataReference | DataSources.FileDataReference[];
 
-				/**
-				 * The default author to use when `mode` is "default-author".
-				 *
-				 * @default "admin".
-				 */
-				defaultAuthorUsername?: string;
+		/**
+		 * Static assets handling.
+		 *
+		 * Possible values:
+		 *
+		 * * "fetch" – Fetch the static assets and save them to the local filesystem.
+		 * * "hotlink" – Hotlink the static assets from the remote site.
+		 *
+		 * @default "fetch".
+		 */
+		staticAssets?: 'fetch' | 'hotlink';
 
-				/**
-				 * Map post authors from the remote site to the current site.
-				 *
-				 * When not provided, the importer will attempt to match the authors by
-				 * username, email, or name.
-				 *
-				 * Required when `authorsMode` is "map".
-				 *
-				 * @default undefined.
-				 */
-				authorsMap?: Record<RemoteUsername, LocalUsername>;
+		/**
+		 * The default author to use when `mode` is "default-author".
+		 *
+		 * @default "admin".
+		 */
+		defaultAuthorUsername?: string;
 
-				/**
-				 * Whether to import users from the remote site.
-				 *
-				 * @default false.
-				 */
-				importUsers?: boolean;
+		/**
+		 * Whether to import users from the remote site.
+		 *
+		 * @default false.
+		 */
+		importUsers?: boolean;
 
-				/**
-				 * Whether to import comments from the remote site.
-				 *
-				 * @default false.
-				 */
-				importComments?: boolean;
-
-				/**
-				 * Whether to import site settings from the remote site.
-				 *
-				 * @default false.
-				 */
-				importSiteOptions?: boolean;
-		  } & URLMappingConfig);
+		/**
+		 * Whether to import comments from the remote site.
+		 *
+		 * @default false.
+		 */
+		importComments?: boolean;
+	} & URLMappingConfig;
 
 	type MediaDefinition =
-		| DataSources.DataReference
+		| DataSources.FileDataReference
 		| {
-				source: DataSources.DataReference;
+				source: DataSources.FileDataReference;
 				title?: string;
 				description?: string;
 				alt?: string;
@@ -634,6 +711,8 @@ export namespace V2Schema {
 		/**
 		 * An explicit directory name within wp-content/plugins to install the plugin at.
 		 * If not provided, it will be inferred from the plugin source.
+		 *
+		 * @pattern ^(?!(?:\.|\.\.)$)[^/]+$
 		 */
 		targetDirectoryName?: string;
 
@@ -650,6 +729,13 @@ export namespace V2Schema {
 		 * @default "throw"
 		 */
 		onError?: 'skip-plugin' | 'throw';
+
+		/**
+		 * How to handle a plugin that is already installed.
+		 *
+		 * @default "overwrite"
+		 */
+		ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
 
 		/**
 		 * Human-readable name of the plugin for the progress bar.
@@ -688,8 +774,22 @@ export namespace V2Schema {
 		/**
 		 * An explicit directory name within wp-content/themes to install the theme at.
 		 * If not provided, it will be inferred from the theme source.
+		 *
+		 * @pattern ^(?!(?:\.|\.\.)$)[^/]+$
 		 */
 		targetDirectoryName?: string;
+		/**
+		 * Sometimes it's fine when a theme fails to install.
+		 *
+		 * @default "throw"
+		 */
+		onError?: 'skip-theme' | 'throw';
+		/**
+		 * How to handle a theme that is already installed.
+		 *
+		 * @default "overwrite"
+		 */
+		ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
 		/**
 		 * Human-readable name of the theme for the progress bar.
 		 *
@@ -712,8 +812,8 @@ export namespace V2Schema {
 		humanReadableName?: string;
 	};
 
-	type RemoteUsername = 'string';
-	type LocalUsername = 'string';
+	type RemoteUsername = string;
+	type LocalUsername = string;
 
 	/**
 	 * WordPress register_post_type() arguments representation. {{{
@@ -1174,7 +1274,7 @@ export namespace V2Schema {
 		/** CSS font-display value. */
 		fontDisplay?: 'auto' | 'block' | 'fallback' | 'swap' | 'optional';
 		/** Paths or URLs to the font files. */
-		src: DataSources.DataReference | DataSources.DataReference[];
+		src: DataSources.FileDataReference | DataSources.FileDataReference[];
 		/** CSS font-stretch value. */
 		fontStretch?: string;
 		/** CSS ascent-override value. */
@@ -1479,6 +1579,11 @@ export namespace V2Schema {
 		constants: WordPressConstants;
 	};
 
+	type EnableMultisiteStep = {
+		/** Converts the target WordPress installation into a multisite network. */
+		step: 'enableMultisite';
+	};
+
 	type ImportContentStep = {
 		step: 'importContent';
 		content: ContentDefinition[];
@@ -1518,12 +1623,21 @@ export namespace V2Schema {
 		path: string;
 	};
 
+	type ResetDataStep = {
+		step: 'resetData';
+		/**
+		 * Content types to remove. When omitted, all posts, pages, custom post
+		 * types, and comments are removed.
+		 */
+		contentTypes?: Array<ContentType>;
+	};
+
 	type RunPHPStep = {
 		step: 'runPHP';
 		/**
 		 * The PHP file to execute.
 		 */
-		code: DataSources.DataReference;
+		code: DataSources.FileDataReference;
 		/**
 		 * Environment variables to set for this run.
 		 */
@@ -1532,7 +1646,7 @@ export namespace V2Schema {
 
 	type RunSQLStep = {
 		step: 'runSQL';
-		source: DataSources.DataReference;
+		source: DataSources.FileDataReference;
 	};
 
 	/**
@@ -1564,7 +1678,7 @@ export namespace V2Schema {
 		/**
 		 * The zip file resource to extract.
 		 */
-		zipFile: DataSources.DataReference;
+		zipFile: DataSources.FileDataReference;
 		/**
 		 * The path to extract the zip file to inside the virtual filesystem.
 		 */
@@ -1602,6 +1716,7 @@ export namespace V2Schema {
 		| ActivateThemeStep
 		| CpStep
 		| DefineConstantsStep
+		| EnableMultisiteStep
 		| ImportContentStep
 		| ImportMediaStep
 		| ImportThemeStarterContentStep
@@ -1611,6 +1726,7 @@ export namespace V2Schema {
 		| MvStep
 		| RmStep
 		| RmdirStep
+		| ResetDataStep
 		| RunPHPStep
 		| RunSQLStep
 		| SetSiteLanguageStep

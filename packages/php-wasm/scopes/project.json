@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/scopes/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -37,7 +38,7 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,
@@ -46,7 +47,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/scopes"],
 			"options": {
 				"passWithNoTests": true,
@@ -62,6 +63,5 @@
 				]
 			}
 		}
-	},
-	"tags": []
+	}
 }

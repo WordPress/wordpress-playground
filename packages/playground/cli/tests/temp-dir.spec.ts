@@ -12,12 +12,20 @@ describe('temp-dir', () => {
 
 	let childProcess: ReturnType<typeof fork>;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		const tempDirTestProcessPath = join(
 			__dirname,
 			'temp-dir-test-process.ts'
 		);
 		childProcess = fork(tempDirTestProcessPath);
+		await new Promise<void>((resolve, reject) => {
+			childProcess.on('error', (err) => {
+				reject(err);
+			});
+			childProcess.on('spawn', () => {
+				resolve();
+			});
+		});
 	});
 
 	afterEach(async () => {
@@ -107,7 +115,7 @@ describe('temp-dir', () => {
 		for (const tempDir of tempDirPaths) {
 			expect(fs.existsSync(tempDir)).toBe(false);
 		}
-	});
+	}, 60000 /* Avoid timeout when testing on Windows */);
 	it('should not clean up stale temp dir if the process is still running', async () => {
 		childProcess.send({
 			type: 'create-temp-dir',
@@ -134,7 +142,6 @@ describe('temp-dir', () => {
 			// Wait until the temp dirs can be considered stale.
 			setTimeout(resolve, staleAgeInMillis);
 		});
-
 		expect(childProcess.exitCode).toBe(null);
 		await cleanupStalePlaygroundTempDirs(
 			substrToIdentifyTempDirs,

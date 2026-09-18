@@ -1,0 +1,29 @@
+{
+	"name": "WordPress Playground",
+	"image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/php:1": {}
+	},
+	"remoteEnv": {
+		"VITE_DEVCONTAINER": "true"
+	},
+	"postCreateCommand": "echo \". $PWD/.devcontainer/welcome.sh\" >> /home/node/.bashrc; git submodule update --init --recursive; npm install",
+	"appPort": ["127.0.0.1:5400:5400", "127.0.0.1:9400:9400"],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"dbaeumer.vscode-eslint",
+				"esbenp.prettier-vscode",
+				"nrwl.angular-console"
+			],
+			"settings": {
+				"editor.defaultFormatter": "esbenp.prettier-vscode",
+				"editor.formatOnSave": true
+			}
+		}
+	}
+}

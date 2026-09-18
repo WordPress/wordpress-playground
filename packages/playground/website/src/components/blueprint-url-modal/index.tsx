@@ -3,7 +3,7 @@ import { TextControl } from '@wordpress/components';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import {
 	setActiveModal,
-	setSiteManagerOpen,
+	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
@@ -15,15 +15,21 @@ export function BlueprintUrlModal() {
 
 	const closeModal = () => dispatch(setActiveModal(null));
 
+	/**
+	 * Opens the submitted Blueprint URL as a fresh Playground that may be autosaved.
+	 *
+	 * Intentionally uses `newSite()` instead of `newTemporarySite()` so
+	 * in-app Blueprint runs follow the default browser autosave policy.
+	 */
 	const handleSubmit = () => {
 		const trimmed = url.trim();
 		if (!trimmed) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		closeModal();
 		redirectTo(
-			PlaygroundRoute.newTemporarySite({
+			PlaygroundRoute.newSite({
 				query: {
 					'blueprint-url': trimmed,
 				},

@@ -57,11 +57,11 @@ npm install
 npm run dev
 ```
 
-:::info
+<div class="callout callout-info">
 
 Kung hindi ka sigurado sa mga hakbang sa itaas, bisitahin ang opisyal na [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Tandaan na sa pagkakataong ito, papalitan ng `wp-now` ang `wp-env`.
 
-:::
+</div>
 
 Magbukas ng bagong terminal tab, pumunta sa Gutenberg directory, at simulan ang WordPress gamit ang `wp-now`:
 
@@ -106,6 +106,6 @@ Maaari mong isalin ang suportadong mga WordPress Plugin sa pamamagitan ng pag-lo
 
 May tanong o ideya para sa bagong feature? Nakakita ng bug? May hindi gumana ayon sa inaasahan? Narito kami upang tumulong:
 
--   Sa Contributor Day, maaari mo kaming maabot sa **Playground table**.
--   Magbukas ng isyu sa [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). Kung naka-focus ka sa VS Code extension, NPM package, o mga plugin, magbukas ng isyu sa [Playground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
--   Ibahagi ang iyong feedback sa [**#meta-playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+- Sa Contributor Day, maaari mo kaming maabot sa **Playground table**.
+- Magbukas ng isyu sa [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). Kung naka-focus ka sa VS Code extension, NPM package, o mga plugin, magbukas ng isyu sa [Playground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
+- Ibahagi ang iyong feedback sa [**#meta-playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).

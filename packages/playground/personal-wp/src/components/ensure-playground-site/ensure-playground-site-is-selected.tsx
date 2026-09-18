@@ -18,14 +18,14 @@ import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
+import { getAppBaseUrl, isAppBasePath } from '../../lib/state/url/app-base-url';
 
 /**
  * Ensures the redux store always has an activeSite value.
  *
  * It has two routing modes:
  * * When `site-slug` is provided, it load an existing site
- * * When `site-slug` is missing, it creates a new site using the Query API and Blueprint API
- *   data sourced from the current URL.
+ * * When `site-slug` is missing, it selects or creates the default personal site.
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -95,6 +95,10 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
+			if (!isAppBasePath(url.pathname) && activeSite) {
+				return;
+			}
+
 			// If only the 'modal' parameter changes in searchParams, don't reload the page
 			const notRefreshingParam = 'modal';
 			const oldParams = new URLSearchParams(prevUrl?.search);
@@ -111,8 +115,10 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 
 		ensureSiteIsSelected();
+		// Only re-run when search params or hash change, not when pathname
+		// changes (WordPress navigation reflected via pushState).
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [url.href, requestedSiteSlug, siteListingStatus]);
+	}, [url.search, url.hash, requestedSiteSlug, siteListingStatus]);
 
 	useEffect(() => {
 		if (
@@ -148,8 +154,16 @@ async function createNewTemporarySite(
 	const siteName = requestedSiteSlug
 		? deriveSiteNameFromSlug(requestedSiteSlug)
 		: randomSiteName();
+
+	// Recovery mode is only a Personal WP launch action at the app base path.
+	// Params on reflected WordPress paths belong to WordPress.
+	const currentUrl = new URL(window.location.href);
+	const launchUrl = isAppBasePath(currentUrl.pathname)
+		? currentUrl
+		: getAppBaseUrl();
+
 	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec(siteName, new URL(window.location.href))
+		setTemporarySiteSpec(siteName, launchUrl)
 	);
 	await dispatch(setActiveSite(newSiteInfo.slug));
 }

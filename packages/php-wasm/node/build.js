@@ -40,7 +40,12 @@ async function build() {
 		format: 'cjs',
 		bundle: true,
 		tsconfig: 'packages/php-wasm/node/tsconfig.json',
-		external: ['@php-wasm/*', '@wp-playground/*', 'ws', 'fs-ext'],
+		external: [
+			'@php-wasm/*',
+			'@wp-playground/*',
+			'ws',
+			'fs-ext-extra-prebuilt',
+		],
 		loader: {
 			'.php': 'text',
 			'.ini': 'file',
@@ -70,7 +75,7 @@ async function build() {
 			'ws',
 			'fs',
 			'path',
-			'fs-ext',
+			'fs-ext-extra-prebuilt',
 		],
 		supported: {
 			'dynamic-import': true,

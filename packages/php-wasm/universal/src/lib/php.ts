@@ -3,7 +3,10 @@ import {
 	Semaphore,
 	basename,
 	createSpawnHandler,
+	dirname,
 	joinPaths,
+	phpEventStdinTransfer,
+	splitShellCommand,
 } from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
@@ -47,6 +50,23 @@ export class PHPExecutionFailureError extends Error {
 }
 
 export type UnmountFunction = (() => Promise<any>) | (() => any);
+
+/**
+ * Signals that an unmount failed before the mount was detached.
+ *
+ * Only this error guarantees that the mount remains active and its teardown can
+ * be retried, so registries may retain it. `cause` is the underlying failure that
+ * prevented the unmount. Ordinary unmount errors make no such guarantee.
+ */
+export class MountStillActiveError extends Error {
+	constructor(cause: unknown) {
+		super('The filesystem could not be flushed and remains mounted.', {
+			cause,
+		});
+		this.name = 'MountStillActiveError';
+	}
+}
+
 export type MountHandler = (
 	php: PHP,
 	FS: Emscripten.RootFS,
@@ -63,6 +83,21 @@ type MountObject = {
 	mountHandler: MountHandler;
 	unmount: () => Promise<any>;
 };
+
+/**
+ * Describes the VFS node shape visible at a mount point before rotation.
+ */
+type MountPointSnapshot =
+	| {
+			kind: 'directory';
+	  }
+	| {
+			kind: 'file';
+	  }
+	| {
+			kind: 'symlink';
+			target: string;
+	  };
 
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -83,6 +118,8 @@ export class PHP implements Disposable {
 	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
+	#spawnHandler?: SpawnHandler;
+	#commandSpawnHandlers = new Map<string, SpawnHandler>();
 	#rotationOptions: {
 		enabled: boolean;
 		recreateRuntime: () => Promise<number> | number;
@@ -162,7 +199,33 @@ export class PHP implements Disposable {
 			...(this.#eventListeners.get(event.type) || []),
 			...(this.#eventListeners.get('*') || []),
 		];
-		if (!listeners) {
+		if (listeners.length === 0) {
+			return;
+		}
+		const transfersStdin =
+			phpEventStdinTransfer in event &&
+			event[phpEventStdinTransfer] === true &&
+			'stdin' in event &&
+			typeof ReadableStream !== 'undefined' &&
+			event.stdin instanceof ReadableStream;
+		if (listeners.length > 1 && transfersStdin) {
+			/**
+			 * A stream permits only one active reader, and a transferred stream cannot
+			 * be transferred again. Split the unassigned branch before calling each
+			 * listener, then give the final branch to the final listener. PHPWorker may
+			 * split its wildcard branch again for remote listeners. Unread branches may
+			 * buffer the full input because tee() does not coordinate backpressure.
+			 */
+			let remainingStdin = event.stdin as ReadableStream<Uint8Array>;
+			for (let index = 0; index < listeners.length - 1; index++) {
+				const [stdin, nextStdin] = remainingStdin.tee();
+				remainingStdin = nextStdin;
+				listeners[index]({ ...event, stdin } as Event);
+			}
+			listeners[listeners.length - 1]({
+				...event,
+				stdin: remainingStdin,
+			} as Event);
 			return;
 		}
 		for (const listener of listeners) {
@@ -229,9 +292,61 @@ export class PHP implements Disposable {
 			//		  parent context.
 			// Perhaps this library would be useful:
 			// https://github.com/WebReflection/coincident/
-			handler = createSpawnHandler(eval(handler));
+			handler = createSpawnHandler(eval(handler)) as SpawnHandler;
 		}
-		this[__private__dont__use].spawnProcess = handler;
+		this.#spawnHandler = handler;
+	}
+
+	/**
+	 * Overrides spawning of a specific binary, e.g. `sendmail`. The override
+	 * applies to any argv[0] whose basename matches `command` and takes
+	 * precedence over the handler installed via setSpawnHandler().
+	 */
+	setCommandSpawnHandler(command: string, handler: SpawnHandler) {
+		this.#commandSpawnHandlers.set(command, handler);
+	}
+
+	/**
+	 * Routes every process spawn requested by the PHP runtime.
+	 *
+	 * Commands registered via setCommandSpawnHandler() are dispatched to
+	 * their dedicated handlers; setSpawnHandler() cannot displace them.
+	 * Every other command is delegated to the handler installed via
+	 * setSpawnHandler().
+	 */
+	#dispatchSpawn(
+		command: string | string[],
+		args: string[] = [],
+		options: any = {}
+	) {
+		const commandArray = Array.isArray(command)
+			? command
+			: args.length
+				? [command as string, ...args]
+				: splitShellCommand(command as string);
+		const commandSpawnHandler =
+			commandArray[0] &&
+			this.#commandSpawnHandlers.get(basename(commandArray[0]));
+		if (commandSpawnHandler) {
+			return (commandSpawnHandler as any)(
+				commandArray[0],
+				commandArray.slice(1),
+				options
+			);
+		}
+		if (this.#spawnHandler) {
+			return (this.#spawnHandler as any)(command, args, options);
+		}
+		// Throw the same error the Emscripten runtime used to throw when
+		// no Module["spawnProcess"] was provided. The PHP-side popen() and
+		// proc_open() bindings recognize the SPAWN_UNSUPPORTED code and
+		// translate it to ENOSYS.
+		const error = new Error(
+			`popen(), proc_open() are unsupported on this PHP instance. Call php.setSpawnHandler()
+			and provide a callback to handle spawning processes, or disable popen(), proc_open() via php.ini.`
+		);
+		(error as any).code = 'SPAWN_UNSUPPORTED';
+		throw error;
 	}
 
 	/** @deprecated Use PHPRequestHandler instead. */
@@ -263,6 +378,14 @@ export class PHP implements Disposable {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+		// The runtime never sees user-provided spawn handlers directly –
+		// every spawn flows through the dispatcher so that per-command
+		// handlers cannot be displaced by a setSpawnHandler() call.
+		runtime.spawnProcess = (
+			command: string | string[],
+			args?: string[],
+			options?: any
+		) => this.#dispatchSpawn(command, args, options);
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
 			null,
@@ -462,7 +585,7 @@ export class PHP implements Disposable {
 	 * // result.text === "Hello world!"
 	 * ```
 	 *
-	 * In this mode, information like __DIR__ or __FILE__ isn't very
+	 * In this mode, information like `__DIR__` or `__FILE__` isn't very
 	 * useful because the code is not associated with any file.
 	 *
 	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
@@ -474,9 +597,9 @@ export class PHP implements Disposable {
 	 * found at a that path:
 	 *
 	 * ```ts
-	 * php.writeFile(
+	 * await php.writeFile(
 	 * 	"/www/index.php",
-	 * 	`<?php echo "Hello world!";"`
+	 * 	`<?php echo "Hello world!";`
 	 * );
 	 * const result = await php.run({
 	 * 	scriptPath: "/www/index.php"
@@ -484,8 +607,8 @@ export class PHP implements Disposable {
 	 * // result.text === "Hello world!"
 	 * ```
 	 *
-	 * In this mode, you can rely on path-related information like __DIR__
-	 * or __FILE__.
+	 * In this mode, you can rely on path-related information like `__DIR__`
+	 * or `__FILE__`.
 	 *
 	 * Under the hood, the PHP file is executed with the `php_execute_script`
 	 * C function.
@@ -559,7 +682,7 @@ export class PHP implements Disposable {
 	 * }
 	 * ```
 	 *
-	 * In this mode, information like __DIR__ or __FILE__ isn't very
+	 * In this mode, information like `__DIR__` or `__FILE__` isn't very
 	 * useful because the code is not associated with any file.
 	 *
 	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
@@ -584,8 +707,8 @@ export class PHP implements Disposable {
 	 * }
 	 * ```
 	 *
-	 * In this mode, you can rely on path-related information like __DIR__
-	 * or __FILE__.
+	 * In this mode, you can rely on path-related information like `__DIR__`
+	 * or `__FILE__`.
 	 *
 	 * Under the hood, the PHP file is executed with the `php_execute_script`
 	 * C function.
@@ -1057,10 +1180,14 @@ export class PHP implements Disposable {
 					return e.status;
 				}
 
-				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
-				stdout.controller.error(e);
-				stderr.controller.error(e);
-				headers.controller.error(e);
+				// Non-exit-code errors indicate a WASM runtime crash.
+				// Let's clean up and throw. We use safeStreamError()
+				// because the headers controller may already be closed
+				// if onStdout fired before the crash (onStdout calls
+				// closeHeadersStream()).
+				safeStreamError(stdout.controller, e);
+				safeStreamError(stderr.controller, e);
+				safeStreamError(headers.controller, e);
 				streamsClosed = true;
 
 				/**
@@ -1083,8 +1210,11 @@ export class PHP implements Disposable {
 				throw e;
 			} finally {
 				if (!streamsClosed) {
-					stdout.controller.close();
-					stderr.controller.close();
+					// Close each stream individually so that a failure
+					// in one (e.g. stream cancelled by the consumer)
+					// doesn't prevent the others from being closed.
+					safeStreamClose(stdout.controller);
+					safeStreamClose(stderr.controller);
 					closeHeadersStream();
 					streamsClosed = true;
 				}
@@ -1214,11 +1344,28 @@ export class PHP implements Disposable {
 	 * Moves a file or directory in the PHP filesystem to a
 	 * new location.
 	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
+	 * @param fromPath The path to rename.
+	 * @param toPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
 		const result = FSHelpers.mv(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
+	}
+
+	/**
+	 * Copies a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param fromPath The source path.
+	 * @param toPath The target path.
+	 */
+	cp(fromPath: string, toPath: string) {
+		const result = FSHelpers.copyRecursive(
 			this[__private__dont__use].FS,
 			fromPath,
 			toPath
@@ -1375,7 +1522,6 @@ export class PHP implements Disposable {
 
 		const oldFS = this[__private__dont__use].FS;
 		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
-		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Temporarily set CWD to / and restore it at the end of this method.
 		//
@@ -1402,6 +1548,7 @@ export class PHP implements Disposable {
 		const mountHandlersToReapplyInOrder = Object.entries(this.#mounts).map(
 			([vfsPath, mount]) => ({
 				mountHandler: mount.mountHandler,
+				mountPointSnapshot: snapshotMountPoint(oldFS, vfsPath),
 				vfsPath,
 			})
 		);
@@ -1422,12 +1569,9 @@ export class PHP implements Disposable {
 			// Ignore the exit-related exception
 		}
 
-		// Initialize the new runtime
+		// Initialize the new runtime. The new runtime gets a fresh spawn
+		// dispatcher; the spawn handlers survive on this instance.
 		this.initializeRuntime(runtime);
-
-		if (oldSpawnProcess) {
-			this[__private__dont__use].spawnProcess = oldSpawnProcess;
-		}
 
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
@@ -1451,9 +1595,31 @@ export class PHP implements Disposable {
 		}
 
 		// Re-mount all the mount handlers in order
-		for (const { mountHandler, vfsPath } of mountHandlersToReapplyInOrder) {
-			this.mkdir(vfsPath);
-			await this.mount(vfsPath, mountHandler);
+		for (const {
+			mountHandler,
+			mountPointSnapshot,
+			vfsPath,
+		} of mountHandlersToReapplyInOrder) {
+			try {
+				await this.mount(vfsPath, mountHandler);
+			} catch (e) {
+				if (isMissingMountSourceError(e)) {
+					// Initial mounts still reject missing sources. During rotation,
+					// keep the pre-rotation VFS shape and drop the stale mount.
+					restoreMountPointSnapshot(
+						newFs,
+						vfsPath,
+						mountPointSnapshot
+					);
+					continue;
+				}
+				if (!isMissingMountTargetPathError(e)) {
+					throw e;
+				}
+
+				this.mkdir(vfsPath);
+				await this.mount(vfsPath, mountHandler);
+			}
 		}
 		try {
 			newFs.chdir(oldCWD);
@@ -1469,6 +1635,10 @@ export class PHP implements Disposable {
 
 	/**
 	 * Mounts a filesystem to a given path in the PHP filesystem.
+	 *
+	 * The returned unmount function removes the mount from runtime-rotation
+	 * tracking on success or ordinary failure. `MountStillActiveError` leaves it
+	 * tracked because the handler guarantees the mount remains live and retryable.
 	 *
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
 	 * @param  mountHandler - The mount handler to use.
@@ -1486,14 +1656,23 @@ export class PHP implements Disposable {
 		const mountObject = {
 			mountHandler,
 			unmount: async () => {
-				await unmountCallback();
+				try {
+					await unmountCallback();
+				} catch (error) {
+					if (error instanceof MountStillActiveError) {
+						throw error;
+					}
+					// Unless the callback guarantees that the mount remains live,
+					// retaining it could retry stale teardown state during a later
+					// runtime swap.
+					delete this.#mounts[virtualFSPath];
+					throw error;
+				}
 				delete this.#mounts[virtualFSPath];
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return () => {
-			mountObject.unmount();
-		};
+		return () => mountObject.unmount();
 	}
 
 	/**
@@ -1564,27 +1743,45 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
-		const process = this[__private__dont__use].spawnProcess(
-			argv[0],
-			argv.slice(1),
-			{
-				env: options.env,
-				cwd: options.cwd ?? this.cwd(),
-			}
-		) as ChildProcess;
+		const process = this.#dispatchSpawn(argv[0], argv.slice(1), {
+			env: options.env,
+			cwd: options.cwd ?? this.cwd(),
+		}) as ChildProcess;
 
 		const stderrStream = await createInvertedReadableStream<Uint8Array>();
 		process.on('error', (error) => {
-			stderrStream.controller.error(error);
+			safeStreamError(stderrStream.controller, error);
 		});
-		process.stderr.on('data', (data) => {
-			stderrStream.controller.enqueue(data);
-		});
+		const onStderrData = (data: Uint8Array) => {
+			try {
+				stderrStream.controller.enqueue(data);
+			} catch {
+				// enqueue() throws when the stream is no longer
+				// readable — the consumer cancelled it, someone
+				// called controller.error(), or the stream was
+				// already closed. We swallow the error because
+				// the consumer already knows why the stream ended
+				// (they cancelled, or received the error, or read
+				// all the data). Re-throwing here would propagate
+				// into Node's EventEmitter and crash the process,
+				// which is exactly what this PR fixes. The only
+				// actionable response is to detach the listener
+				// so we stop receiving data we can't deliver.
+				process.stderr.off('data', onStderrData);
+			}
+		};
+		process.stderr.on('data', onStderrData);
 
 		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
-		process.stdout.on('data', (data) => {
-			stdoutStream.controller.enqueue(data);
-		});
+		const onStdoutData = (data: Uint8Array) => {
+			try {
+				stdoutStream.controller.enqueue(data);
+			} catch {
+				// See the comment in onStderrData above.
+				process.stdout.off('data', onStdoutData);
+			}
+		};
+		process.stdout.on('data', onStdoutData);
 
 		process.on('exit', () => {
 			// Delay until next tick to ensure we don't close the streams before
@@ -1687,7 +1884,12 @@ function copyMEMFSNodes(
 		return;
 	}
 
-	const oldNode = source.lookupPath(path);
+	const oldNode = source.lookupPath(path, { follow: false });
+	if (source.isLink(oldNode.node.mode)) {
+		const linkTarget = source.readlink(path);
+		target.symlink(linkTarget, path);
+		return;
+	}
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;
@@ -1700,6 +1902,75 @@ function copyMEMFSNodes(
 	for (const filename of filenames) {
 		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
+}
+
+/**
+ * Captures the VFS node shape hidden by a mount before rotation removes it.
+ */
+function snapshotMountPoint(
+	source: Emscripten.FileSystemInstance,
+	path: string
+): MountPointSnapshot | undefined {
+	try {
+		const oldNode = source.lookupPath(path, { follow: false });
+		if (source.isLink(oldNode.node.mode)) {
+			return { kind: 'symlink', target: source.readlink(path) };
+		}
+		if (source.isDir(oldNode.node.mode)) {
+			return { kind: 'directory' };
+		}
+
+		return { kind: 'file' };
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Recreates the pre-rotation mount point when its backing source disappeared.
+ */
+function restoreMountPointSnapshot(
+	target: Emscripten.FileSystemInstance,
+	path: string,
+	snapshot: MountPointSnapshot | undefined
+) {
+	if (!snapshot || getNodeType(target, path) !== 'missing') {
+		return;
+	}
+
+	if (snapshot.kind === 'directory') {
+		target.mkdirTree(path);
+		return;
+	}
+
+	target.mkdirTree(dirname(path));
+	if (snapshot.kind === 'symlink') {
+		target.symlink(snapshot.target, path);
+	} else {
+		target.writeFile(path, new Uint8Array());
+	}
+}
+
+/**
+ * Indicates whether a mount handler reported that its backing source is gone.
+ */
+function isMissingMountSourceError(error: unknown) {
+	const maybeMissingSourceError = error as {
+		phpWasmMountSourceMissing?: boolean;
+	};
+	return maybeMissingSourceError.phpWasmMountSourceMissing === true;
+}
+
+/**
+ * Indicates whether a mount failed because its target path does not exist yet
+ * inside PHP's filesystem.
+ *
+ * Emscripten reports this as errno 44. Rotation handles it by creating that
+ * target path and trying the mount again; other mount failures should bubble up.
+ */
+function isMissingMountTargetPathError(error: unknown) {
+	const maybeErrnoError = error as { errno?: number };
+	return maybeErrnoError.errno === 44;
 }
 
 /**
@@ -1745,6 +2016,40 @@ async function createInvertedReadableStream<T = BufferSource>(
 		stream,
 		controller,
 	};
+}
+
+/**
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit. This commonly happens
+ * when onStdout closes the headers stream before a WASM crash
+ * propagates to the error-handling code.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// Stream already in a terminal state.
+	}
+}
+
+/**
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * prevent sibling streams from being cleaned up and crash the
+ * Node process.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// Stream already in a terminal state.
+	}
 }
 
 const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {

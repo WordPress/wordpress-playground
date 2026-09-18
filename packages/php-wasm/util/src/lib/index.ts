@@ -8,12 +8,28 @@ export {
 	basename,
 	normalizePath,
 	isParentOf,
+	resolvePathUnder,
 	ensureAbsolutePath,
+	toPosixPath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
+export { phpEventStdinTransfer } from './php-event';
+export type { PHPEventWithStdinTransfer } from './php-event';
+export {
+	sendmailSpawnHandler,
+	SENDMAIL_CAPTURE_MAX_SIZE,
+} from './spawn-handlers/sendmail';
+export type { PHPSendmailSpawnedEvent } from './spawn-handlers/sendmail';
 export { randomString } from './random-string';
+export { formatBytes } from './format-bytes';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
+export {
+	decodeBase64ToString,
+	decodeBase64ToUint8Array,
+	encodeStringAsBase64,
+	encodeUint8ArrayAsBase64,
+} from './base64';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export * from './php-vars';
@@ -36,5 +52,3 @@ export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
 	return concatUint8Arrays(buffers.map((b) => new Uint8Array(b)))
 		.buffer as ArrayBuffer;
 }
-
-export * from './promised';

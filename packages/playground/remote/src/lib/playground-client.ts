@@ -5,11 +5,15 @@ import type { ProgressReceiver } from '@php-wasm/progress';
 import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
 import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
 import type { ProgressBarOptions } from './progress-bar';
+import type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
 import type {
 	PlaygroundWorkerEndpoint,
 	MountDescriptor,
 	WorkerBootOptions,
 } from './playground-worker-endpoint';
+
+export type { BootProgressEvent } from './playground-worker-endpoint';
+export type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -41,10 +45,48 @@ export interface WebClientMixin extends ProgressReceiver {
 	getCurrentURL(): Promise<string>;
 
 	/**
+	 * Renders the site's front page in a disposable 1024×768 browsing context
+	 * and returns a compact 320×240 image.
+	 *
+	 * This method does not persist the image or synchronize it with OPFS.
+	 * Callers own the result's lifecycle and must discard it if the site changes
+	 * while the asynchronous capture is running.
+	 *
+	 * DOM cloning and canvas rendering run in the captured document's event
+	 * loop. A worker handles supported resource fetches, while explicit task
+	 * yields keep that document responsive during cloning.
+	 */
+	captureSiteThumbnail(): Promise<SiteThumbnail>;
+
+	/**
 	 * Sets the iframe sandbox flags.
 	 * @param flags The iframe sandbox flags.
 	 */
 	setIframeSandboxFlags(flags: string[]): Promise<void>;
+
+	/**
+	 * Subscribes to the WebMCP tools a plugin registers with
+	 * `document.modelContext` inside the WordPress document.
+	 *
+	 * The callback receives the complete tool list every time it changes, and
+	 * once with the current list when it subscribes. A navigation to a page
+	 * that registers no tools reports an empty list.
+	 */
+	onWebMCPToolsChanged(
+		fn: (tools: WebMCPToolDescriptor[]) => void
+	): Promise<void>;
+
+	/**
+	 * Runs one of those tools inside the WordPress document and returns its
+	 * JSON-serializable result.
+	 *
+	 * @param name The tool name as announced by `onWebMCPToolsChanged`.
+	 * @param args The tool input.
+	 */
+	callWebMCPTool(
+		name: string,
+		args: Record<string, unknown>
+	): Promise<unknown>;
 
 	/**
 	 * The onDownloadProgress event listener.
@@ -66,17 +108,35 @@ export interface WebClientMixin extends ProgressReceiver {
 		onProgress?: SyncProgressCallback
 	): Promise<void>;
 
+	flushOpfs(mountpoint: string): Promise<void>;
+
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	unmountOpfs(mountpoint: string): Promise<void>;
 
 	boot(options: WorkerBootOptions): Promise<void>;
 }
 
+export type SiteThumbnail = {
+	/** The encoded image's MIME type. */
+	mime: string;
+	/** The base64 payload without a data URL prefix. */
+	data: string;
+};
+
 /**
  * The Playground Client interface.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PlaygroundClient
-	extends RemoteAPI<PlaygroundWorkerEndpoint & WebClientMixin> {}
+export interface PlaygroundClient extends RemoteAPI<
+	PlaygroundWorkerEndpoint & WebClientMixin
+> {}
 
 /*
  * Assert that PlaygroundClient is a superset of UniversalPHP.

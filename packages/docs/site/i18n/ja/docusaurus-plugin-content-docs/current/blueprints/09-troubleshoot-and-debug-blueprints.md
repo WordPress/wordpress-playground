@@ -21,8 +21,8 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 ## Review Common gotchas
 -->
 
--   `wp-load` を require する: `runPHP` ステップを使用して WordPress PHP 関数を実行するには、[wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php) を require する必要があります。そのため、`code` キーの値は `"<?php require_once('wordpress/wp-load.php'); REST_OF_YOUR_CODE"` で始まる必要があります。
--   `networking` を有効にする: wp.org アセット (テーマ、プラグイン、ブロック、パターン) にアクセスしたり、[add_editor_style()](https://developer.wordpress.org/reference/functions/add_editor_style/) を使用してスタイルシートを読み込むには (たとえば、[カスタム ブロック スタイルを作成する](https://developer.wordpress.org/news/2023/02/creating-custom-block-styles-in-wordpress-themes) 場合)、`networking` オプションを有効にする必要があります: `"features": {"networking": true}`。
+- `wp-load` を require する: `runPHP` ステップを使用して WordPress PHP 関数を実行するには、[wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php) を require する必要があります。そのため、`code` キーの値は `"<?php require_once('wordpress/wp-load.php'); REST_OF_YOUR_CODE"` で始まる必要があります。
+- `networking` を有効にする: wp.org アセット (テーマ、プラグイン、ブロック、パターン) にアクセスしたり、[add_editor_style()](https://developer.wordpress.org/reference/functions/add_editor_style/) を使用してスタイルシートを読み込むには (たとえば、[カスタム ブロック スタイルを作成する](https://developer.wordpress.org/news/2023/02/creating-custom-block-styles-in-wordpress-themes) 場合)、`networking` オプションを有効にする必要があります: `"features": {"networking": true}`。
 
 <!--
 -   Require `wp-load`: to run a WordPress PHP function using the `runPHP` step, you’d need to require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php). So, the value of the `code` key should start with `"<?php require_once('wordpress/wp-load.php'); REST_OF_YOUR_CODE"`.
@@ -41,18 +41,22 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 You can use an in-browser [Blueprints editor](https://playground.wordpress.net/builder/builder.html) to build, validate, and preview your Blueprints in the browser.
 -->
 
-:::danger 注意
+<div class="callout callout-warning">
+
+**注意**
 
 エディタは現在開発中であり、埋め込まれたプレイグラウンドの読み込みに失敗する場合があります。回避するには、ページを更新してください。この問題は認識しており、改善に取り組んでいます。
 
-:::
+</div>
 
 <!--
-:::danger Caution
+<div class="callout callout-warning">
+
+**Caution**
 
 The editor is under development and the embedded Playground sometimes fails to load. To get around it, refresh the page. We're aware of that, and are working to improve the experience.
 
-:::
+</div>
 -->
 
 ## ファイルシステムとデータベースを確認する
@@ -73,9 +77,9 @@ Some blueprint steps (such as [`writeFile`](/blueprints/steps#WriteFileStep)) al
 To check the final internal filesystem structure and database (after the blueprint steps have been applied) we can leverage some WordPress plugins that provide a SQL manager and a file explorer such as [`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and [`WPide`](https://wordpress.org/plugins/wpide/) (you can see them in action from https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide)
 -->
 
-:::tip
+<div class="callout callout-tip">
 
-WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（[開発者 > JavaScript API > デバッグとテスト](/developers/apis/javascript-api/#debugging-and-testing) を参照）。いくつか例を挙げます。
+WordPress Playground インスタンスのコンソールから、インスタンスの内部を検査するためのメソッドが多数あります。これらは `window.playground` オブジェクトの一部として公開されています（[開発者 &gt; JavaScript API &gt; デバッグとテスト](/developers/apis/javascript-api/#debugging-and-testing) を参照）。いくつか例を挙げます。
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -86,12 +90,12 @@ true
 
 使用できるメソッドの完全なリストは[こちら](/api/client/interface/PlaygroundClient)で確認できます。
 
-:::
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
 
-There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers > JavaScript API > Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
+There are a bunch of methods we can launch from the console of any WordPress Playground instance to inspect the internals of that instance. They're exposed as part of `window.playground` object (see [Developers &gt; JavaScript API &gt; Debugging and testing](/developers/apis/javascript-api/#debugging-and-testing)). Some examples:
 
 ```
 > await playground.isDir("/wordpress/wp-content/plugins")
@@ -102,7 +106,7 @@ true
 
 Full list of methods we can use is available [here](/api/client/interface/PlaygroundClient)
 
-:::
+</div>
 -->
 
 ## ブラウザコンソールでエラーを確認する
@@ -123,18 +127,18 @@ Chrome、Firefox、Safari\*、Edge で開発者ツールを開くには、Window
 To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS.
 -->
 
-:::caution
+<div class="callout callout-warning">
 
 まだ有効にしていない場合は、開発メニューを有効にします。**Safari > 設定... > 詳細** に移動し、**Web 開発者向けの機能を表示** をオンにします。
 
-:::
+</div>
 
 <!--
-:::caution
+<div class="callout callout-warning">
 
 If you haven't yet, enable the Develop menu: go to **Safari > Settings... > Advanced** and check **Show features for web developers**.
 
-:::
+</div>
 -->
 
 開発者ツールウィンドウでは、ネットワークリクエストの検査、コンソールログの表示、JavaScript のデバッグ、ウェブページに適用されている DOM と CSS スタイルの確認が可能です。これは、ブループリントの問題の診断と修正に不可欠です。
@@ -155,16 +159,20 @@ The developer tools window allows you to inspect network requests, view console 
 You can `error_log` your own error messages through [`runPHP` step](/blueprints/steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](/web-instance#playground-options-menu) or from the browser's console.
 -->
 
-![Log errors snapshot](@site/static/img/blueprints/log-errors.webp)
+![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
 
-:::info
+<div class="callout callout-info">
+
 [「zip としてダウンロード」オプション](/web-instance#playground-options-menu) を使用して Playground インスタンスを `zip` としてダウンロードすると、Playground インスタンスからのすべてのログを含む `debug.log` ファイルもダウンロードされます。
-:::
+
+</div>
 
 <!--
-:::info
+<div class="callout callout-info">
+
 When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance.
-:::
+
+</div>
 -->
 
 ## 助けを求める
@@ -179,10 +187,10 @@ When you download your Playground instance as a `zip` through the ["Download as 
 The community is here to help! If you have questions or comments, [open a new issue](https://github.com/adamziel/blueprints/issues) in this repository. Remember to include the following details:
 -->
 
--   実行しようとしているブループリント。
--   表示されているエラーメッセージ（ある場合）。
--   ブラウザ開発者ツールからの出力全文。
--   問題の理解に役立つ可能性のあるその他の関連情報（OS、ブラウザのバージョンなど）
+- 実行しようとしているブループリント。
+- 表示されているエラーメッセージ（ある場合）。
+- ブラウザ開発者ツールからの出力全文。
+- 問題の理解に役立つ可能性のあるその他の関連情報（OS、ブラウザのバージョンなど）
 
 <!--
 -   The Blueprint you’re trying to run.

@@ -4,6 +4,7 @@ import path from 'path';
 import {
 	LatestSupportedPHPVersion,
 	PHP,
+	proxyFileSystem,
 	type SupportedPHPVersion,
 	__private__dont__use,
 } from '@php-wasm/universal';
@@ -28,16 +29,14 @@ describe.each([true, false])(
 			) =>
 				await loadNodeRuntime(phpVersion, {
 					emscriptenOptions: {
-						phpWasmInitOptions: {
-							/**
-							 * Test both with a natively mounted /internal directory, which
-							 * is what Playground CLI typically does, and without it, which
-							 * is what playground.wordpress.net does.
-							 */
-							nativeInternalDirPath: withNativeInternalDir
-								? nativeInternalDirPath
-								: undefined,
-						},
+						/**
+						 * Test both with a natively mounted /internal directory, which
+						 * is what Playground CLI typically does, and without it, which
+						 * is what playground.wordpress.net does.
+						 */
+						nativeInternalDirPath: withNativeInternalDir
+							? nativeInternalDirPath
+							: undefined,
 					},
 				});
 		});
@@ -111,6 +110,116 @@ describe.each([true, false])(
 
 			// Confirm the local NODEFS mount is not lost
 			expect(php.readFileAsText('/test-root/file')).toBe('playground');
+		});
+
+		it('Preserves a single-file NODEFS mount through PHP runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+			const tempFile = path.join(tempDir, 'file');
+			fs.writeFileSync(tempFile, 'playground');
+
+			try {
+				await php.mount(
+					'/test-file',
+					createNodeFsMountHandler(tempFile)
+				);
+				expect(php.isFile('/test-file')).toBe(true);
+				expect(php.readFileAsText('/test-file')).toBe('playground');
+
+				await php.run({ code: `` });
+				await php.run({ code: `` });
+
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+				expect(php.isFile('/test-file')).toBe(true);
+				expect(php.readFileAsText('/test-file')).toBe('playground');
+			} finally {
+				fs.rmSync(tempDir, { recursive: true, force: true });
+				php.exit();
+			}
+		});
+
+		it('Preserves VFS mount points when NODEFS sources disappear before runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+			const tempFile = path.join(tempDir, 'uploads-tail.txt');
+			const tempMountedDir = path.join(tempDir, 'static-pages');
+			fs.writeFileSync(tempFile, 'tail');
+			fs.mkdirSync(tempMountedDir);
+			fs.writeFileSync(path.join(tempMountedDir, 'index.html'), 'static');
+
+			try {
+				await php.mount(
+					'/wordpress/wp-content/uploads/uploads-tail.txt',
+					createNodeFsMountHandler(tempFile)
+				);
+				await php.mount(
+					'/wordpress/wp-content/uploads/static-pages',
+					createNodeFsMountHandler(tempMountedDir)
+				);
+				php.writeFile(
+					'/wordpress/wp-content/uploads/memfs-sibling.txt',
+					'preserved'
+				);
+
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+
+				await php.run({ code: `` });
+				fs.unlinkSync(tempFile);
+				fs.rmSync(tempMountedDir, { recursive: true });
+
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+
+				await expect(php.run({ code: `` })).resolves.toBeDefined();
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+				expect(
+					php.readFileAsText(
+						'/wordpress/wp-content/uploads/memfs-sibling.txt'
+					)
+				).toBe('preserved');
+
+				await expect(php.run({ code: `` })).resolves.toBeDefined();
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+				expect(
+					php.isFile('/wordpress/wp-content/uploads/uploads-tail.txt')
+				).toBe(true);
+				expect(
+					php.isDir('/wordpress/wp-content/uploads/static-pages')
+				).toBe(true);
+			} finally {
+				fs.rmSync(tempDir, { recursive: true, force: true });
+				php.exit();
+			}
 		});
 
 		it('Preserves 4 WordPress plugin mounts through PHP runtime recreation', async () => {
@@ -322,6 +431,7 @@ describe.each([true, false])(
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1234,
 			});
+			await php.run({ code: `` });
 			// Cause a PHP runtime rotation due to error
 			php.dispatchEvent({
 				type: 'request.error',
@@ -506,6 +616,144 @@ describe.each([true, false])(
 			expect(result2.text).toBe('Hello Again');
 			expect(spawnHandlerCallCount).toBe(2);
 		}, 30_000);
+
+		it('Should preserve command spawn handlers through PHP runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+			const php = new PHP(await recreateRuntimeSpy());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 2,
+			});
+
+			let commandHandlerCallCount = 0;
+			php.setCommandSpawnHandler(
+				'sendmail',
+				createSpawnHandler(
+					async (command: string[], processApi: any) => {
+						commandHandlerCallCount++;
+						expect(command).toEqual(['sendmail', '-t']);
+						processApi.stdout('sent mail\n');
+						await new Promise((resolve) => setTimeout(resolve, 1));
+						processApi.exit(0);
+					}
+				)
+			);
+			await php.setSpawnHandler(() => {
+				throw new Error('generic handler');
+			});
+
+			try {
+				const result1 = await php.run({
+					code: `<?php echo exec("sendmail -t");`,
+				});
+				expect(result1.text).toBe('sent mail');
+				expect(commandHandlerCallCount).toBe(1);
+
+				await php.run({ code: `` });
+
+				const result2 = await php.run({
+					code: `<?php echo exec("sendmail -t");`,
+				});
+				expect(result2.text).toBe('sent mail');
+				expect(commandHandlerCallCount).toBe(2);
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+			} finally {
+				php.exit();
+			}
+		}, 30_000);
+
+		it('Should preserve PROXYFS mounts through PHP runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			// sourceOfTruth holds the files; replica accesses them via PROXYFS.
+			using sourceOfTruth = new PHP(await recreateRuntime());
+			const replica = new PHP(await recreateRuntimeSpy());
+			replica.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			sourceOfTruth.mkdir('/shared');
+			sourceOfTruth.writeFile('/shared/hello.txt', 'from source');
+
+			await proxyFileSystem(sourceOfTruth, replica, ['/shared']);
+
+			// Verify PROXYFS works before rotation
+			expect(replica.readFileAsText('/shared/hello.txt')).toBe(
+				'from source'
+			);
+
+			// Trigger rotation (maxRequests=1, so second request rotates)
+			await replica.run({ code: `<?php echo "trigger rotation";` });
+			await replica.run({ code: `<?php echo "after rotation";` });
+
+			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+
+			// Verify PROXYFS mount survived rotation
+			expect(replica.fileExists('/shared/hello.txt')).toBe(true);
+			expect(replica.readFileAsText('/shared/hello.txt')).toBe(
+				'from source'
+			);
+
+			// Verify the proxy is live — writes on sourceOfTruth are visible
+			sourceOfTruth.writeFile('/shared/new.txt', 'added after rotation');
+			expect(replica.readFileAsText('/shared/new.txt')).toBe(
+				'added after rotation'
+			);
+
+			replica.exit();
+		}, 30_000);
+
+		it(
+			'Should preserve MEMFS symlinks through PHP runtime recreation',
+			{ timeout: 30_000 },
+			async () => {
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime,
+					maxRequests: 1,
+				});
+
+				await php.run({ code: '' });
+
+				php.mkdir('/test-root');
+				php.mkdir('/test-root/directory');
+				php.writeFile('/test-root/directory/file.txt', 'foo');
+				php.symlink('/test-root/directory', '/test-root/link');
+
+				/*
+				 * The name 'link' is visited before 'under-link-*'.
+				 * If copyMEMFSNodes crashes on the symlink, the entries
+				 * after it are never copied to the new runtime.
+				 */
+				php.mkdir('/test-root/under-link-directory');
+				php.writeFile(
+					'/test-root/under-link-directory/file.txt',
+					'bar'
+				);
+				php.writeFile('/test-root/under-link-file.txt', 'baz');
+
+				expect(php.isSymlink('/test-root/link')).toBe(true);
+
+				// Rotate the PHP runtime
+				await php.run({ code: `` });
+
+				expect(php.fileExists('/test-root/link')).toBe(true);
+				expect(php.isSymlink('/test-root/link')).toBe(true);
+				expect(php.readFileAsText('/test-root/link/file.txt')).toBe(
+					'foo'
+				);
+				expect(php.isDir('/test-root/under-link-directory')).toBe(true);
+				expect(
+					php.readFileAsText(
+						'/test-root/under-link-directory/file.txt'
+					)
+				).toBe('bar');
+				expect(
+					php.readFileAsText('/test-root/under-link-file.txt')
+				).toBe('baz');
+			}
+		);
 
 		it('Should preserve NODEFS mount when CWD is the same as mount point', async () => {
 			const php = new PHP(await recreateRuntime());

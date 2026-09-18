@@ -343,7 +343,7 @@ describe.each(configsForRequestTests)(
 			expect(response).toEqual({
 				httpStatusCode: 301,
 				headers: {
-					Location: ['/folder/'],
+					location: ['/folder/'],
 				},
 				bytes: expect.any(Uint8Array),
 				errors: '',

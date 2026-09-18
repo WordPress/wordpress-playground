@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <head>
 	<title>Gutenberg PR Previewer</title>
@@ -22,18 +22,6 @@
 		href="https://fonts.googleapis.com/css?family=Noto+Serif:400,700"
 	/>
 	<link rel="stylesheet" href="./previewer.css" />
-	<script
-		async
-		src="https://www.googletagmanager.com/gtag/js?id=G-SVTNFCP8T7"
-	></script>
-	<script>
-		window.dataLayer = window.dataLayer || [];
-		function gtag() {
-			dataLayer.push(arguments);
-		}
-		gtag('js', new Date());
-		gtag('config', 'G-SVTNFCP8T7');
-	</script>
 </head>
 
 <body>
@@ -76,8 +64,8 @@
 	<div id="links">
 		Powered by
 		<a href="https://developer.wordpress.org/playground">
-			WordPress Playground
-		</a>. To build a previewer like this for your repository, check the
+			WordPress Playground </a
+		>. To build a previewer like this for your repository, check the
 		<a
 			target="_blank"
 			href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/gutenberg.html"
@@ -120,18 +108,7 @@
 			if (submitting) {
 				return;
 			}
-			let prNumber = document.getElementById('pr-number').value;
-
-			// Extract number from a GitHub URL
-			if (
-				prNumber
-					.toLowerCase()
-					.includes('github.com/wordpress/gutenberg/pull')
-			) {
-				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
-			}
-
-			previewPr(prNumber);
+			previewPr(document.getElementById('pr-number').value);
 		});
 
 		async function previewPr(prNumber) {
@@ -140,12 +117,68 @@
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
 
+			prNumber = prNumber.trim();
+
+			// Extract number from a GitHub URL
+			const gutenbergPr = prNumber.match(
+				/github\.com\/wordpress\/gutenberg\/pull\/(\d+)/i
+			);
+			if (gutenbergPr) {
+				prNumber = gutenbergPr[1];
+			}
+
+			if (!/^\d+$/.test(prNumber)) {
+				if (
+					prNumber
+						.toLowerCase()
+						.includes('github.com/wordpress/wordpress-develop/pull')
+				) {
+					const link = document.createElement('a');
+					link.href = './wordpress.html';
+					link.textContent = 'WordPress PR previewer';
+					errorDiv.replaceChildren(
+						'This looks like a WordPress Core PR. Use the ',
+						link,
+						' instead.'
+					);
+				} else {
+					errorDiv.innerText =
+						'Please enter a valid gutenberg PR number or URL.';
+				}
+				submitting = false;
+				submitButton.classList.remove('loading');
+				submitButton.disabled = false;
+				return;
+			}
+
 			// Verify that the PR exists and that GitHub CI finished building it
-			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
+			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
-				errorDiv.innerText = `The PR ${prNumber} does not exist or GitHub CI did not finish building it yet.`;
+				let error = 'invalid_pr_number';
+				try {
+					const json = await response.json();
+					if (json.error) {
+						error = json.error;
+					}
+				} catch (e) {}
+
+				if (error === 'invalid_pr_number') {
+					errorDiv.innerText = `The PR ${prNumber} does not exist.`;
+				} else if (error === 'artifact_invalid') {
+					errorDiv.innerText = `The PR ${prNumber} requires a rebase before it can be previewed.`;
+				} else if (error === 'artifact_expired') {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`;
+				} else if (
+					error === 'no_ci_runs' ||
+					error === 'artifact_not_found' ||
+					error === 'artifact_not_available'
+				) {
+					errorDiv.innerText = `GitHub CI did not finish building the PR ${prNumber} yet. This can take 15 minutes or more. Try again later.`;
+				} else {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`;
+				}
 				submitting = false;
 				submitButton.classList.remove('loading');
 				submitButton.disabled = false;
@@ -163,7 +196,7 @@
 						step: 'login',
 						username: 'admin',
 						password: 'password',
-					}
+					},
 				],
 			};
 			// If there's a import-site query parameter, pass that to the blueprint

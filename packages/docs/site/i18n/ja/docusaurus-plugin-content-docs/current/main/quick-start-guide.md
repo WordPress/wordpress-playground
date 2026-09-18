@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: Playground を使い始めるための5分ガイド。プラグインのテスト、テーマの試用、そして様々なバージョンのWP/PHPの使い方を学びましょう。
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 # 5 分で WordPress Playground を使い始める
 
 <!--
@@ -60,18 +58,22 @@ It's that easy to start!
 The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page!
  -->
 
-:::info WordPress Playground はプライベートです
+<div class="callout callout-info">
+
+**WordPress Playground はプライベートです**
 
 作成したものはすべてブラウザ内に保存され、他の場所には**送信されません**。完成したら、サイトを zip ファイルとしてエクスポートできます。または、ページを更新して最初からやり直すこともできます。
 
-:::
+</div>
 
 <!--
-:::info WordPress Playground is private
+<div class="callout callout-info">
+
+**WordPress Playground is private**
 
 Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
-:::
+</div>
  -->
 
 ## ブロック、テーマ、プラグインを試す
@@ -138,7 +140,7 @@ You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ## サイトを保存する
 
@@ -158,7 +160,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 1. Open the Playground site manager panel:
  -->
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 2. 追加アクションメニューの「.zip としてダウンロード」ボタンを使用します。
 
@@ -166,7 +168,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 2. Use the "Download as .zip" button in the additional actions menu
  -->
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 エクスポートされたファイルには、構築したサイト全体が含まれています。 PHP と SQLite をサポートするサーバーであればどこでもホストできます。 WordPress のコアファイル、プラグイン、テーマ、その他サイトに追加したすべてのファイルが含まれています。
 
@@ -198,7 +200,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 1. Playground ダッシュボードパネルを開きます:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -206,7 +208,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 1. 「Start a new Playground」セクションの最後にある「Import .zip」ボタンを使用します
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 ## 特定の WordPress または PHP バージョンを使用する
 
@@ -220,20 +222,24 @@ WordPress または PHP のバージョンを変更する最も迅速な方法�
 The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
  -->
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
-:::info プラグインまたはテーマをテストする
+<div class="callout callout-info">
+
+**プラグインまたはテーマをテストする**
 
 数多くの WordPress および PHP バージョンとの互換性テストは、いつも面倒でした。 WordPress Playground を使えば、このプロセスが楽になります。ぜひご活用ください !
 
-:::
+</div>
 
 <!--
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
  -->
 
 また、`wp` および `php` [クエリパラメータ](/developers/apis/query-api) を使用して、適切なバージョンがすでにロードされた状態で Playground を開くこともできます。
@@ -245,7 +251,7 @@ You can also use the `wp` and `php` [query parameters](/developers/apis/query-ap
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
-  <ThisIsQueryApi />
+  This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
@@ -253,15 +259,22 @@ To learn more about preparing content for demos, see the [providing content for 
 
 デモのコンテンツ準備の詳細については、[デモのコンテンツ提供ガイド](/guides/providing-content-for-your-demo)を参照してください。
 
-:::info メジャーバージョンのみ
+<div class="callout callout-info">
+
+**メジャーバージョンのみ**
+
 `wp=6.2` や `php=8.1` のようなメジャーバージョンを指定すると、そのバージョンラインの最新リリースが期待されます。ただし、古いマイナーバージョンを指定することはできないため、`wp=6.1.2` や `php=7.4.9` は動作しません。
-:::
+
+</div>
 
 <!--
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
-:::
+
+</div>
  -->
 
 ## WXR ファイルをインポートする

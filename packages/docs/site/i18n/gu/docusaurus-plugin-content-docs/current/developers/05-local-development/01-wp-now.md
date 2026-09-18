@@ -3,14 +3,22 @@ title: wp-now
 slug: /developers/local-development/wp-now
 ---
 
-:::caution પેકેજ ડિપ્રિકેટેડ (deprecated) છે
+<div class="callout callout-warning">
+
+**પેકેજ ડિપ્રિકેટેડ (deprecated) છે**
+
 NPM પેકેજ @wp-now/wp-now ડિપ્રિકેટેડ (deprecated) છે, ભવિષ્યમાં અપડેટ્સ પ્રાપ્ત થશે નહીં. તમારા ડેવલપર ફ્લો પર કમાન્ડ-લાઇન ટૂલનો ઉપયોગ કરવા માટે, NPM પેકેજ `@wp-playground/cli` નો ઉપયોગ કરો.
-:::
+
+</div>
 
 <!--
-:::caution Package deprecated
+<div class="callout callout-warning">
+
+**Package deprecated**
+
 The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.
-:::
+
+</div>
 -->
 
 # wp-now NPM પેકેજ
@@ -31,9 +39,9 @@ The NPM package @wp-now/wp-now is deprecated, won't receive updates in the futur
 Key Features:
 -->
 
--  **કમાન્ડ-લાઇન ઇન્ટરફેસ**: CLI સાથે આરામદાયક વિકાસકર્તાઓ માટે ઉપયોગમાં સરળ.
--  **ઝડપી સેટઅપ**: સેકન્ડોમાં સ્થાનિક વર્ડપ્રેસ વાતાવરણ સેટ કરો.
--  **કસ્ટમાઇઝેબલ**: ચોક્કસ વિકાસ જરૂરિયાતોને અનુરૂપ ગોઠવણી માટે પરવાનગી આપે છે.
+- **કમાન્ડ-લાઇન ઇન્ટરફેસ**: CLI સાથે આરામદાયક વિકાસકર્તાઓ માટે ઉપયોગમાં સરળ.
+- **ઝડપી સેટઅપ**: સેકન્ડોમાં સ્થાનિક વર્ડપ્રેસ વાતાવરણ સેટ કરો.
+- **કસ્ટમાઇઝેબલ**: ચોક્કસ વિકાસ જરૂરિયાતોને અનુરૂપ ગોઠવણી માટે પરવાનગી આપે છે.
 
 <!--
 -   **Command-line Interface**: Easy to use for developers comfortable with CLI.
@@ -47,18 +55,22 @@ Key Features:
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 -->
 
-:::info **દસ્તાવેજીકરણ**
+<div class="callout callout-info">
+
+**દસ્તાવેજીકરણ**
 
 `wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [સમર્પિત README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) માં શોધી શકો છો.
 
-:::
+</div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 `wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md).
 
-:::
+</div>
 -->
 
 ## પ્લગઇન અથવા થીમ ડિરેક્ટરીમાં wp-now લોન્ચ કરો.

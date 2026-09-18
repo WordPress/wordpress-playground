@@ -21,6 +21,7 @@ export interface SiteErrorViewConfig {
 	isDeveloperError: boolean;
 	detailSummaryOverride?: string;
 	hideReportButton?: boolean;
+	hideTroubleshootWithAiButton?: boolean;
 	body: React.ReactNode;
 	actions: React.ReactNode[];
 }
@@ -33,7 +34,12 @@ export function getSiteErrorView(
 	// Show specific error views for certain error types, even if they occurred
 	// during a blueprint step. These errors have dedicated user-friendly views
 	// that provide better guidance than the generic step error view.
-	if (blueprintStepError && error !== 'network-firewall-interference') {
+	if (
+		blueprintStepError &&
+		error !== 'network-firewall-interference' &&
+		error !== 'resource-unavailable' &&
+		error !== 'resource-download-failed'
+	) {
 		return blueprintStepExecutionView(context);
 	}
 
@@ -53,12 +59,100 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'browser-storage-cleanup-failed':
+			return browserStorageCleanupFailedView(context);
+		case 'initial-opfs-sync-interrupted':
+			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
+		case 'resource-unavailable':
+			return resourceUnavailableView(context);
+		case 'resource-download-failed':
+			return resourceDownloadFailedView(context);
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
 	}
+}
+
+function browserStorageCleanupFailedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Close other Playground tabs, then reload',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					An earlier reset was interrupted, and old site files are
+					still in this saved Playground.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						Playground tried to remove those old files again before
+						opening the site, but the browser still would not remove
+						them.
+					</li>
+					<li>
+						Playground stopped because those old files may show the
+						old site instead of the reset site.
+					</li>
+					<li>
+						Close any other Playground tabs that may be using this
+						saved site, then click <strong>Reload</strong>. If no
+						other Playground tabs are open, make sure your browser
+						has free storage, then reload.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-page"
+				onClick={helpers.reloadPage}
+			>
+				Reload
+			</Button>,
+		],
+	};
+}
+
+function initialOpfsSyncInterruptedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Start a new Playground to continue',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					This saved Playground is incomplete and can’t be reopened.
+					Start a new Playground to keep working.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						What happened: the previous save stopped before all
+						WordPress files were copied.
+					</li>
+					<li>
+						This can happen if the tab was closed or reloaded, the
+						browser suspended the page, or the browser ran out of
+						space for saved sites.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-tab"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start a new Playground
+			</Button>,
+		],
+	};
 }
 
 function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
@@ -138,7 +232,7 @@ function blueprintFetchFailedView({
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	const blueprintUrl = getBlueprintSourceUrl(site);
 	return {
-		title: 'Blueprint could not be loaded',
+		title: 'Blueprint could not be downloaded',
 		isDeveloperError: true,
 		detailSummaryOverride: 'Network error details',
 		body: (
@@ -291,20 +385,30 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
  * then falls back to pattern matching in the error message.
  */
 function extractTargetUrl(errorDetails: unknown): string | undefined {
-	if (!errorDetails || typeof errorDetails !== 'object') {
+	if (!errorDetails) {
 		return undefined;
 	}
 
-	const details = errorDetails as Record<string, unknown>;
+	if (typeof errorDetails === 'string') {
+		return extractTargetUrlFromMessage(errorDetails);
+	}
+
+	if (typeof errorDetails !== 'object') {
+		return undefined;
+	}
 
 	// Prefer the structured url property if available
+	const details = errorDetails as Record<string, unknown>;
 	if (typeof details.url === 'string' && details.url) {
 		return details.url;
 	}
 
 	// Fall back to pattern matching in the message for backwards compatibility
 	const message = (details.rawMessage || details.message || '') as string;
+	return extractTargetUrlFromMessage(message);
+}
 
+function extractTargetUrlFromMessage(message: string): string | undefined {
 	// "Could not fetch {url}" from FirewallInterferenceError
 	const fetchMatch = message.match(/Could not fetch ([^\s]+)/);
 	if (fetchMatch) {
@@ -461,9 +565,103 @@ function networkFirewallInterferenceView({
 	};
 }
 
+/**
+ * Builds the error view for a resource that is unavailable for download.
+ *
+ * Displays the error message when available and falls back to a generic message.
+ *
+ * @returns The unavailable-resource view configuration.
+ */
+function resourceUnavailableView({
+	errorDetails,
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	let message = 'A required resource is not available for download.';
+	if (typeof errorDetails === 'string') {
+		message = errorDetails;
+	} else if (
+		errorDetails &&
+		typeof errorDetails === 'object' &&
+		'message' in errorDetails &&
+		typeof errorDetails.message === 'string'
+	) {
+		message = errorDetails.message;
+	}
+	return {
+		title: 'Required resource is unavailable',
+		isDeveloperError: true,
+		hideReportButton: true,
+		detailSummaryOverride: 'Download details',
+		body: <p className={css.errorLead}>{message}</p>,
+		actions: [
+			<Button
+				variant="primary"
+				key="start-without-blueprint"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start without a Blueprint
+			</Button>,
+		],
+	};
+}
+
+function resourceDownloadFailedView({
+	errorDetails,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	const targetUrl = extractTargetUrl(errorDetails);
+	return {
+		title: 'Could not download required files',
+		isDeveloperError: false,
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Playground could not download one or more files it needs to
+					run. This is usually caused by a network problem.
+				</p>
+				{targetUrl ? (
+					<p>
+						Failed file:{' '}
+						<a
+							className={css.errorLink}
+							href={targetUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{targetUrl}
+						</a>
+					</p>
+				) : null}
+				<ul className={css.errorList}>
+					<li>Check your internet connection and try again.</li>
+					<li>
+						A firewall, proxy, or VPN may be blocking the download.
+					</li>
+					<li>
+						Browser extensions such as ad blockers can sometimes
+						interfere with downloads.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload"
+				onClick={() => window.location.reload()}
+			>
+				Reload page
+			</Button>,
+		],
+	};
+}
+
 function genericSiteBootFailedView({
 	blueprintStepError,
 	helpers,
+	errorDetails,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	// If we have a Blueprint step error, the dedicated view will have been used.
 	if (blueprintStepError) {
@@ -473,6 +671,9 @@ function genericSiteBootFailedView({
 			blueprintStepError,
 			helpers,
 		});
+	}
+	if (isIncompleteWordPressBundleError(errorDetails)) {
+		return incompleteWordPressBundleView(helpers);
 	}
 
 	return {
@@ -492,6 +693,56 @@ function genericSiteBootFailedView({
 				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Reload Fresh Playground
+			</Button>,
+		],
+	};
+}
+
+function isIncompleteWordPressBundleError(errorDetails: unknown): boolean {
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return false;
+	}
+	const error = errorDetails as {
+		name?: unknown;
+		originalErrorClassName?: unknown;
+	};
+	return (
+		error.name === 'WordPressBundleFileCountMismatchError' ||
+		error.originalErrorClassName === 'WordPressBundleFileCountMismatchError'
+	);
+}
+
+function incompleteWordPressBundleView(
+	helpers: PresentationHelpers
+): SiteErrorViewConfig {
+	return {
+		title: 'WordPress download was incomplete',
+		isDeveloperError: false,
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Playground stopped because the downloaded WordPress package
+					was missing files.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						This usually means the download was interrupted or a
+						cached copy was damaged.
+					</li>
+					<li>Reload to download WordPress again.</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-incomplete-wordpress"
+				onClick={helpers.reloadPage}
+			>
+				Reload and try again
 			</Button>,
 		],
 	};

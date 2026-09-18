@@ -1208,14 +1208,18 @@ class MessageEncoder {
 			.filter((x): x is Uint8Array => x !== undefined);
 		const extensions = concatUint8Arrays(extensionsParts);
 
+		// This TLS bridge does not implement session resumption or session
+		// caching. Returning an empty session id advertises that clients must
+		// use a full handshake even when curl shares its TLS session cache.
+		const sessionId = new Uint8Array();
 		const body = new Uint8Array([
 			// Version field – 0x03, 0x03 means TLS 1.2
 			...TLS_Version_1_2,
 
 			...serverRandom,
 
-			clientHello.session_id.length,
-			...clientHello.session_id,
+			sessionId.length,
+			...sessionId,
 
 			...as2Bytes(CipherSuites.TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256),
 

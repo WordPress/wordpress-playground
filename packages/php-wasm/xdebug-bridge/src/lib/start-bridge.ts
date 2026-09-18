@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import type { PHP, PHPWorker, RemoteAPI } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import path from 'path';
 import { CDPServer } from './cdp-server';
@@ -11,7 +11,8 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-	phpInstance?: PHP | RemoteAPI<PHPWorker>;
+	excludedPaths?: string[];
+	phpInstance?: UniversalPHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
 	breakOnFirstLine?: boolean;
 };
@@ -19,9 +20,10 @@ export type StartBridgeConfig = {
 export async function startBridge(config: StartBridgeConfig) {
 	const cdpPort = config.cdpPort ?? 9229;
 	const dbgpPort = config.dbgpPort ?? 9003;
-	const cdpHost = config.cdpHost ?? 'localhost';
+	const cdpHost = config.cdpHost ?? '127.0.0.1';
 	const phpRoot = config.phpRoot ?? process.cwd();
 	const breakOnFirstLine = config.breakOnFirstLine ?? false;
+	const excludedPaths = config.excludedPaths ?? [];
 
 	logger.log('Starting XDebug Bridge...');
 
@@ -43,14 +45,26 @@ export async function startBridge(config: StartBridgeConfig) {
 	logger.log(`XDebug receiver running on port ${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');
 
+	function isExcluded(p: string): boolean {
+		return excludedPaths.some(
+			(prefix) => p === prefix || p.startsWith(prefix + '/')
+		);
+	}
+
 	// Recursively get a list of .php files in phpRoot
 	async function getPhpFiles(dir: string): Promise<string[]> {
+		if (isExcluded(dir)) {
+			return [];
+		}
 		const results: string[] = [];
 		const list = config.phpInstance
 			? await config.phpInstance!.listFiles(dir)
 			: readdirSync(dir);
 		for (const file of list) {
 			const filePath = path.join(dir, file);
+			if (isExcluded(filePath)) {
+				continue;
+			}
 			try {
 				// lstat avoids crashes when encountering symlinks
 				const stat = config.phpInstance
@@ -71,8 +85,8 @@ export async function startBridge(config: StartBridgeConfig) {
 	const getPHPFile = config.phpInstance
 		? (path: string) => config.phpInstance!.readFileAsText(path)
 		: config.getPHPFile
-		? config.getPHPFile
-		: (path: string) => readFileSync(path, 'utf-8');
+			? config.getPHPFile
+			: (path: string) => readFileSync(path, 'utf-8');
 
 	const phpFiles = await getPhpFiles(phpRoot);
 	return new XdebugCDPBridge(dbgpSession, cdpServer, {
@@ -80,5 +94,6 @@ export async function startBridge(config: StartBridgeConfig) {
 		phpRoot,
 		getPHPFile,
 		breakOnFirstLine,
+		excludedPaths,
 	});
 }

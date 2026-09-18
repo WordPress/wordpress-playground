@@ -1,0 +1,19 @@
+{
+	"name": "wp-playground/php52-downgrader",
+	"description": "AST-based PHP 7+ -> PHP 5.2 downgrader for the offline SQLite integration plugin patcher.",
+	"type": "library",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.4",
+		"nikic/php-parser": "^5.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"WpPlayground\\Php52Downgrader\\": "src/"
+		}
+	},
+	"config": {
+		"optimize-autoloader": true,
+		"sort-packages": true
+	}
+}

@@ -9,7 +9,7 @@ import type {
 	BlueprintV2,
 	BlueprintV2Declaration,
 } from './v2/blueprint-v2-declaration';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 
 /**
  * A filesystem structure containing a /blueprint.json file and any
@@ -23,7 +23,7 @@ export type BlueprintDeclaration =
 export type Blueprint = BlueprintV1 | BlueprintV2;
 
 export interface RuntimeConfiguration {
-	phpVersion: SupportedPHPVersion;
+	phpVersion: AllPHPVersion;
 	wpVersion: string;
 	intl: boolean;
 	networking: boolean;

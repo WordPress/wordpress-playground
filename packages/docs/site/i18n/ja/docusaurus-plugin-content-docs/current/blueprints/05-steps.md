@@ -39,11 +39,11 @@ Each step is an object that contains a `step` property that specifies the type o
 The following step-related topics are addressed on dedicated pages included in this section:
 -->
 
--   [リソース参照](/blueprints/steps/resources)を使用すると、ブループリントで外部ファイルを使用できます。
+- [リソース参照](/blueprints/steps/resources)を使用すると、ブループリントで外部ファイルを使用できます。
 
--   一部のステップにはショートカットバージョンがあります。詳細については、[ショートカット](/blueprints/steps/shorthands)セクションをご覧ください。
+- 一部のステップにはショートカットバージョンがあります。詳細については、[ショートカット](/blueprints/steps/shorthands)セクションをご覧ください。
 
--   以下にリストされている各ステップには、「ブループリント API」と「関数 API」の両方があります。詳細については、[API の一貫性](/blueprints/steps/api-consistency)ページを参照してください。
+- 以下にリストされている各ステップには、「ブループリント API」と「関数 API」の両方があります。詳細については、[API の一貫性](/blueprints/steps/api-consistency)ページを参照してください。
 
 <!--
 -   [Resources References](/blueprints/steps/resources) allow you use external files in Blueprints.
@@ -53,14 +53,18 @@ The following step-related topics are addressed on dedicated pages included in t
 -   For each step listed below, you'll find both a "Blueprint API" and a "Function API". Refer to the [API Consistency](/blueprints/steps/api-consistency) page for further details.
 -->
 
-:::tip
+<div class="callout callout-tip">
+
 [WordPress Playground ステップライブラリ](https://akirk.github.io/playground-step-library/#) ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。[独自のステップを作成](https://github.com/akirk/playground-step-library/#contributing) することも可能です!
-:::
+
+</div>
 
 <!--
-:::tip
+<div class="callout callout-tip">
+
 The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also [create your own steps](https://github.com/akirk/playground-step-library/#contributing)!
-:::
+
+</div>
 -->
 
 ---

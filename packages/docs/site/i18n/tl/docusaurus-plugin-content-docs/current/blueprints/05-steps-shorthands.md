@@ -149,13 +149,16 @@ O
 
 Ang `shorthand` syntax at ang `step` syntax ay tumutugma sa isa't isa. Ang bawat `step` na tinukoy gamit ang `shorthand` syntax ay idinagdag sa tuktok ng `steps` array sa arbitrary order.
 
-:::info <!-- **Which should you choose?** -->
+<div class="callout callout-info">
+
+**<!-- **Which should you choose?** -->**
+
 **Alin ang dapat mong piliin?**
 
 <!-- -   Use `shorthands` when **brevity** is your main concern. -->
 
--   Gamitin ang `shorthands` kapag ang **kakulangan** ang iyong pangunahing alalahanin.
-<!-- -   Use explicit `steps` when you need more control over the **execution order**. -->
--   Gamitin ang explicit `steps` kapag kailangan mo ng mas maraming kontrol sa **execution order**.
+- Gamitin ang `shorthands` kapag ang **kakulangan** ang iyong pangunahing alalahanin.
+  <!-- -   Use explicit `steps` when you need more control over the **execution order**. -->
+- Gamitin ang explicit `steps` kapag kailangan mo ng mas maraming kontrol sa **execution order**.
 
-:::
+</div>

@@ -12,10 +12,15 @@ on:
         types:
             - completed
 
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
 jobs:
     release:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a Playground maintainer
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
                 github.event.workflow_run.conclusion == 'success' ||
                 github.actor == 'adamziel' ||
@@ -24,11 +29,17 @@ jobs:
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
                 github.actor == 'janjakes' ||
-                github.actor == 'mho22'
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: write # Required to clone the repo, commit, and push the updated changelog.
+            issues: read # Required to query merged pull requests for changelog generation.
+            pull-requests: read # Without it, the issues endpoint strips pull_request data and the changelog comes out empty.
         environment:
             name: wordpress-assets
         env:
@@ -44,10 +55,23 @@ jobs:
                   submodules: recursive
                   ref: trunk
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
+            # The generator imports runtime dependencies that both the tests
+            # below and the generator itself must resolve, so install them.
+            - name: 'Install dependencies'
+              run: |
+                  PATH="${PATH}:${HOME}/.bun/bin" bun install
+            # Gate generation on the changelog unit tests: a regression here (for
+            # example unsafe title escaping) would otherwise be committed to
+            # trunk and deployed to the docs Pages origin. Fail before anything
+            # is generated or pushed.
+            - name: '🧪 Run changelog generator unit tests'
+              run: |
+                  PATH="${PATH}:${HOME}/.bun/bin" bun test packages/meta/src/changelog.spec.ts
             - name: '✏️ Generate release changelog'
               run: |
                   ls ./
@@ -62,7 +86,6 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
                       git commit -m "chore: update changelog" \
                           CHANGELOG.md \

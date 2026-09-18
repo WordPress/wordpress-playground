@@ -1,4 +1,9 @@
 export type { LoaderOptions as PHPWebLoaderOptions } from './load-runtime';
+export type {
+	BuiltInPHPWebExtensionName,
+	PHPWebExtension,
+	RuntimePHPWebExtensionSource,
+} from './extensions/load-extensions';
 
 export { loadWebRuntime } from './load-runtime';
 export { getPHPLoaderModule } from './get-php-loader-module';
@@ -7,6 +12,7 @@ export { setupPostMessageRelay } from './setup-post-message-relay';
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
 export { createDirectoryHandleMountHandler } from './directory-handle-mount';
 export type {
+	DirectoryHandleMount,
 	MountDevice,
 	MountOptions,
 	SyncProgress,
@@ -15,8 +21,12 @@ export type {
 
 export * from './tls/certificates';
 export type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
-export { fetchWithCorsProxy } from './fetch-with-cors-proxy';
-export { FirewallInterferenceError } from './firewall-interference-error';
+// Re-export from web-service-worker to preserve previous exports of
+// the same names from this package.
+export {
+	fetchWithCorsProxy,
+	FirewallInterferenceError,
+} from '@php-wasm/web-service-worker';
 export {
 	consumeAPI,
 	exposeAPI,

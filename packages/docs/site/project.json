@@ -15,6 +15,8 @@
 				"commands": [
 					"node patch-typedoc.js",
 					"cd ../../../; npx typedoc --json packages/docs/site/src/model.json",
+					"node bin/generate-handbook-steps.js",
+					"node bin/generate-handbook-api-client.js",
 					"docusaurus build --out-dir ../../../dist/docs/build"
 				],
 				"parallel": false,
@@ -90,7 +92,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,

@@ -5,6 +5,7 @@ import type { SiteError } from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { BlueprintStepError, PresentationHelpers } from './types';
 import { BlueprintStepErrorDetails } from './blueprint-step-error-details';
+import { getHealthCheckRecoveryUrl } from '../../lib/health-check-recovery';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -21,6 +22,7 @@ export interface SiteErrorViewConfig {
 	isDeveloperError: boolean;
 	detailSummaryOverride?: string;
 	hideReportButton?: boolean;
+	hideTroubleshootWithAiButton?: boolean;
 	body: React.ReactNode;
 	actions: React.ReactNode[];
 }
@@ -33,7 +35,11 @@ export function getSiteErrorView(
 	// Show specific error views for certain error types, even if they occurred
 	// during a blueprint step. These errors have dedicated user-friendly views
 	// that provide better guidance than the generic step error view.
-	if (blueprintStepError && error !== 'network-firewall-interference') {
+	if (
+		blueprintStepError &&
+		error !== 'network-firewall-interference' &&
+		error !== 'resource-download-failed'
+	) {
 		return blueprintStepExecutionView(context);
 	}
 
@@ -55,6 +61,8 @@ export function getSiteErrorView(
 			return directoryHandleUnknownErrorView();
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
+		case 'resource-download-failed':
+			return resourceDownloadFailedView();
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
@@ -461,6 +469,43 @@ function networkFirewallInterferenceView({
 	};
 }
 
+function resourceDownloadFailedView(): SiteErrorViewConfig {
+	return {
+		title: 'Could not download required files',
+		isDeveloperError: false,
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Your WordPress could not download one or more files it needs
+					to run. This is usually caused by a network problem.
+				</p>
+				<ul className={css.errorList}>
+					<li>Check your internet connection and try again.</li>
+					<li>
+						A firewall, proxy, or VPN may be blocking the download.
+					</li>
+					<li>
+						Browser extensions such as ad blockers can sometimes
+						interfere with downloads.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload"
+				onClick={() => window.location.reload()}
+			>
+				Reload page
+			</Button>,
+		],
+	};
+}
+
 function genericSiteBootFailedView({
 	blueprintStepError,
 	helpers,
@@ -476,22 +521,24 @@ function genericSiteBootFailedView({
 	}
 
 	return {
-		title: 'Playground crashed',
+		title: 'WordPress could not start',
 		isDeveloperError: false,
 		detailSummaryOverride: undefined,
 		body: (
 			<p className={css.errorLead}>
-				Something unexpected interrupted the boot process. Reload the
-				tab or spin up a new site.
+				Troubleshooting mode opens this site with plugins disabled. Turn
+				them on one at a time to find the problem.
 			</p>
 		),
 		actions: [
 			<Button
 				variant="primary"
-				key="reload-tab"
-				onClick={helpers.reloadWithoutBlueprint}
+				key="troubleshooting-mode"
+				onClick={() => {
+					window.location.href = getHealthCheckRecoveryUrl();
+				}}
 			>
-				Reload Fresh Playground
+				Start troubleshooting mode
 			</Button>,
 		],
 	};

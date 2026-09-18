@@ -11,6 +11,7 @@ export interface ProgressBarOptions {
 class ProgressBar {
 	element: HTMLDivElement;
 	captionElement: HTMLHeadingElement;
+	statusElement: HTMLDivElement;
 	caption = 'Preparing WordPress';
 	progress = 0;
 	isIndefinite = false;
@@ -18,14 +19,19 @@ class ProgressBar {
 
 	constructor(options: ProgressBarOptions = {}) {
 		this.element = document.createElement('div');
-		this.captionElement = document.createElement('h3');
+		this.captionElement = document.createElement('h1');
+		this.statusElement = document.createElement('div');
+		this.statusElement.setAttribute('role', 'status');
+		this.statusElement.setAttribute('aria-live', 'polite');
+		this.statusElement.setAttribute('aria-atomic', 'true');
 		this.element.appendChild(this.captionElement);
+		this.element.appendChild(this.statusElement);
 		this.setOptions(options);
 	}
 
 	setOptions(options: ProgressBarOptions) {
-		if ('caption' in options && options.caption) {
-			this.caption = options.caption!;
+		if ('caption' in options) {
+			this.caption = options.caption ?? '';
 		}
 		if ('progress' in options) {
 			this.progress = options.progress!;
@@ -59,7 +65,10 @@ class ProgressBar {
 
 		this.captionElement.className = '';
 		this.captionElement.classList.add(css['caption']);
-		this.captionElement.textContent = this.caption + '...';
+		this.captionElement.textContent = this.caption;
+		this.statusElement.className = '';
+		this.statusElement.classList.add(css['visuallyHidden']);
+		this.statusElement.textContent = this.caption;
 
 		const progressBarWrapper = this.element.querySelector(
 			`.${css['wrapper']}`

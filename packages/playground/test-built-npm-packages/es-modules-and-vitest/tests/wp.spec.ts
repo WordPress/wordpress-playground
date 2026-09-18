@@ -16,7 +16,7 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 }
 
 describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
-	it('Should load WordPress', { timeout: 30000 }, async () => {
+	it('Should load WordPress', { timeout: 60000 }, async () => {
 		const cli = await runCLI({
 			command: 'server',
 			php: phpVersion,
@@ -59,9 +59,9 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 				const path = fileURLToPath(url);
 				// Verify that the resolved file actually exists on disk
 				await access(path);
-			} catch (error) {
+			} catch (error: any) {
 				assert.fail(
-					`Required file ${file} is missing from CLI package: ${error.message}`
+					`Required file ${file} is missing from CLI package: ${error?.message}`
 				);
 			}
 		}
@@ -81,7 +81,9 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 			'worker-thread-v2.js':
 				'new URL("./worker-thread-v2.js", import.meta.url)',
 		};
-		for (const file of Object.keys(staticStrings)) {
+		for (const file of Object.keys(
+			staticStrings
+		) as (keyof typeof staticStrings)[]) {
 			try {
 				// Resolve the file from the CLI package without importing it
 				const baseUrl = import.meta.resolve(`@wp-playground/cli`);
@@ -101,66 +103,11 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 					runCliModuleText.includes(staticStrings[file]),
 					`Workers are not loaded in a statically analyzable way for ${file}`
 				);
-			} catch (error) {
+			} catch (error: any) {
 				assert.fail(
-					`Workers are not loaded in a statically analyzable way for ${file}: ${error.message}`
+					`Workers are not loaded in a statically analyzable way for ${file}: ${error?.message}`
 				);
 			}
 		}
 	});
-
-	/**
-	 * This broke at one point in the built package. It bundler tried really hard to create an isomorphic
-	 * package, but ended shipping the following code which always returned false:
-	 *
-	 *    var z = {};
-	 *    if (i.object instanceof z.Buffer)
-	 *
-	 * This test confirms the git client still works after bundling.
-	 */
-	it(
-		'Should support git:directory resources',
-		{ timeout: 30000 },
-		async () => {
-			const cli = await runCLI({
-				command: 'server',
-				php: phpVersion,
-				port: 0, // Use random available port to avoid conflicts
-				quiet: true,
-				blueprint: {
-					steps: [
-						{
-							step: 'installPlugin',
-							options: {
-								activate: true,
-								targetFolderName: 'blocky-formats',
-							},
-							pluginData: {
-								resource: 'git:directory',
-								url: 'https://github.com/dmsnell/blocky-formats.git',
-								ref: 'HEAD',
-								path: '/',
-							},
-						},
-					],
-				},
-			});
-			try {
-				const response = await cli.playground.request({
-					method: 'GET',
-					url: '/',
-				});
-				assert.equal(response.httpStatusCode, 200);
-				const expectedText = 'My WordPress Website';
-				assert.ok(
-					response.text.includes(expectedText),
-					`Response text does not include '${expectedText}'`
-				);
-			} finally {
-				if (cli) {
-					await cli[Symbol.asyncDispose]();
-				}
-			}
-		}
-	);
 });

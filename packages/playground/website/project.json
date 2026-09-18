@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/website/src",
 	"projectType": "application",
+	"tags": ["scope:web-client"],
 	"implicitDependencies": ["playground-remote", "playground-website-extras"],
 	"targets": {
 		"build": {
@@ -54,6 +55,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
@@ -80,6 +82,13 @@
 				}
 			}
 		},
+		"sync-php-next-assets": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/php-wasm/compile/sync-php-next-assets.mjs --optional --if-missing",
+				"parallel": false
+			}
+		},
 		"preview": {
 			"executor": "@nx/vite:preview-server",
 			"options": {
@@ -100,7 +109,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/website"],
 			"options": {
 				"passWithNoTests": true,
@@ -108,7 +117,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,
@@ -169,7 +178,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
+					"PLAYWRIGHT_TEST_GROUP=regular npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts",
+					"PLAYWRIGHT_TEST_GROUP=storage npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts"
 				],
 				"parallel": false
 			}
@@ -220,6 +230,5 @@
 			},
 			"dependsOn": ["build"]
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

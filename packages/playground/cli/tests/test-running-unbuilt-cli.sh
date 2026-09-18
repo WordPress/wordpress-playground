@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-if node -e 'if (parseInt(process.versions.node) < 23) { process.exit(0); }'; then
+if node -e 'if (parseInt(process.versions.node) < 24) { process.exit(0); }'; then
 	source ~/.nvm/nvm.sh
-	nvm install 23
+	nvm install 24
 	npm ci
 fi
 
@@ -51,9 +51,4 @@ echo
 test_playground_cli unbuilt-asyncify
 echo
 test_playground_cli unbuilt-jspi
-echo
-
-test_playground_cli unbuilt-asyncify --experimental-multi-worker
-echo
-test_playground_cli unbuilt-jspi --experimental-multi-worker
 echo

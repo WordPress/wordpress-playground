@@ -5,6 +5,7 @@ import { startPlaygroundWeb } from '@wp-playground/client';
 import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { decodeBlueprintHash } from '../src/lib/state/url/decode-blueprint-hash';
 
 // Use parent dir of the /builder/ dir, reasoning that it is
 // the web app root. This works for:
@@ -496,12 +497,25 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 };
 
 let errorTag;
+
+/**
+ * Renders an error in the error iframe.
+ *
+ * @param {unknown} error The error to display.
+ */
 const showError = (error) => {
 	console.error(error);
 	if (!errorTag) {
 		errorTag = document.getElementById('error-output');
 	}
-	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${error}</body>`;
+	// The error message is untrusted: schema errors quote the Blueprint, which
+	// comes from the URL fragment. Build the body as a detached DOM node and
+	// read `outerHTML` back rather than interpolating the raw string, so the
+	// DOM escapes the message for us and nothing in it can turn into HTML or
+	// script inside the iframe.
+	const pre = document.createElement('pre');
+	pre.textContent = String(error);
+	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${pre.outerHTML}</body>`;
 	errorTag.setAttribute('srcdoc', errDoc);
 };
 const clearError = (error) => {
@@ -572,7 +586,7 @@ const runBlueprint = async (editor) => {
 };
 
 const loadFromHash = (editor) => {
-	const hash = decodeURI(window.location.hash.substr(1));
+	const hash = decodeBlueprintHash(window.location.hash);
 	try {
 		let json = '';
 		try {

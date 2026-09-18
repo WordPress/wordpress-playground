@@ -14,13 +14,13 @@ Depurar código PHP en WebAssembly es diferente de depurar PHP tradicional. Sin 
 
 ## XDebug en WordPress Playground
 
-Para un inicio rápido, consulta la [guía de primeros pasos con Xdebug](/developers/xdebug/getting-started)
+Para un inicio rápido, consulta la [guía de primeros pasos con Xdebug](/developers/xdebug/xdebug-getting-started)
 
 Aprenderás a depurar:
 
--   Lógica de procesamiento de formularios
--   Validación de entrada
--   Hooks y filtros de WordPress
+- Lógica de procesamiento de formularios
+- Validación de entrada
+- Hooks y filtros de WordPress
 
 ## Dos enfoques de depuración
 
@@ -34,9 +34,9 @@ Ambos métodos funcionan con la misma configuración de Xdebug. Incluso puedes u
 
 ## Lo que necesitarás
 
--   Node.js instalado
--   Navegador Chrome o Chromium (para depuración con DevTools)
--   Visual Studio Code o PhpStorm (para depuración con IDE, opcional)
--   Conocimiento básico de desarrollo de plugins de WordPress
+- Node.js instalado
+- Navegador Chrome o Chromium (para depuración con DevTools)
+- Visual Studio Code o PhpStorm (para depuración con IDE, opcional)
+- Conocimiento básico de desarrollo de plugins de WordPress
 
-**Siguiente**: [Primeros Pasos con Xdebug →](/developers/xdebug/getting-started)
+**Siguiente**: [Primeros Pasos con Xdebug →](/developers/xdebug/xdebug-getting-started)

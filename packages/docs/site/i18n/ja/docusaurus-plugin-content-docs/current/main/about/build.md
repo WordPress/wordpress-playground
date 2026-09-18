@@ -56,8 +56,8 @@ With this workflow, you could build a block theme completely in your browser and
 Some more examples of this workflow:
 -->
 
--   [Developer Hours: テストとデモ用の WordPress Playground ブループリントの作成](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [Hallway Hangout のまとめ: Playground、Create-block-theme プラグイン、GitHub を使ったテーマ構築](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [Developer Hours: テストとデモ用の WordPress Playground ブループリントの作成](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [Hallway Hangout のまとめ: Playground、Create-block-theme プラグイン、GitHub を使ったテーマ構築](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 -   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
@@ -70,7 +70,7 @@ Some more examples of this workflow:
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
+![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 Google Chrome を使用すると、Playground インスタンスを次のいずれかのローカル ディレクトリと同期できます。
 
@@ -78,26 +78,26 @@ Google Chrome を使用すると、Playground インスタンスを次のいず�
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 -->
 
--   空のディレクトリ – このプレイグラウンドを保存して同期を開始します
--   既存のディレクトリ – ここで読み込み、同期を開始します
+- 空のディレクトリ – このプレイグラウンドを保存して同期を開始します
+- 既存のディレクトリ – ここで読み込み、同期を開始します
 
 <!--
 -   And empty directory – to save this Playground and start syncing
 -   An existing directory – to load it here and start syncing
 -->
 
-:::info
+<div class="callout callout-info">
 
 この機能は現在 Google Chrome でのみご利用いただけます。他のブラウザではご利用いただけません。
 
-:::
+</div>
 
 <!--
-:::info
+<div class="callout callout-info">
 
 This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
 
-:::
+</div>
 -->
 
 接続の両側で行われた変更について:
@@ -106,8 +106,8 @@ This feature is only available for Google Chrome for now. It won't work with oth
 Regarding changes done on both sides of the connection:
 -->
 
--   Playground で変更されたファイルはコンピュータに同期されます。
--   コンピュータで変更されたファイルは Playground に同期されません。「ローカルファイルを同期」ボタンをクリックする必要があります。
+- Playground で変更されたファイルはコンピュータに同期されます。
+- コンピュータで変更されたファイルは Playground に同期されません。「ローカルファイルを同期」ボタンをクリックする必要があります。
 
 <!--
 -   Files changed in Playground will be synchronized to your computer.
@@ -148,10 +148,10 @@ Playground can be combined with different APIs to create amazing tools. The poss
 You can [use WordPress Playground in Node.js](/developers/local-development/php-wasm-node) to create new tools. The [@php-wasm/node package](https://npmjs.org/@php-wasm/node), which ships the PHP WebAssembly runtime, is the package used for [https://playground.wordpress.net/](https://playground.wordpress.net/), for example.
 -->
 
-Playground をベースに構築されたもう一つの興味深いアプリは、**Translate Live** です（[例](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/) を参照）。Open AI と組み合わせることで、WordPress 翻訳ツールを「その場で」提供し、翻訳を実際の文脈で確認・修正できます（例を参照）。このツールの詳細については、[Translate Live: Translation Playground のアップデート](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) をご覧ください。
+Playground をベースに構築されたもう一つの興味深いアプリは、**Translate Live** です（[例](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/) を参照）。OpenAI と組み合わせることで、WordPress 翻訳ツールを「その場で」提供し、翻訳を実際の文脈で確認・修正できます（例を参照）。このツールの詳細については、[Translate Live: Translation Playground のアップデート](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) をご覧ください。
 
 <!--
-Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with Open AI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with OpenAI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -->
 
 ## オフラインでもネイティブアプリとしても動作

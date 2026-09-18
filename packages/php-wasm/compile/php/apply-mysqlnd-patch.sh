@@ -9,8 +9,8 @@
 TARGET_FILE="php-src/ext/mysqlnd/mysqlnd_connection.c"
 
 if [ ! -f "$TARGET_FILE" ]; then
-    echo "Error: $TARGET_FILE not found"
-    exit 1
+    echo "Skipping mysqlnd patch: $TARGET_FILE not found (may not exist in this PHP version)"
+    exit 0
 fi
 
 if grep -q "effective_host" "$TARGET_FILE"; then
@@ -31,6 +31,13 @@ else
     if [ -f "$TARGET_FILE.bak" ]; then
         mv "$TARGET_FILE.bak" "$TARGET_FILE"
     fi
-    echo "Failed to apply mysqlnd patch to $TARGET_FILE"
+    echo "Warning: Could not apply mysqlnd patch to $TARGET_FILE (pattern not found, may be a different PHP version)"
+    # Older PHP (<7) has different mysqlnd code and we tolerate pattern
+    # misses there. On PHP 7+ the pattern is expected to match; fail
+    # loudly so a silent fallback to Unix sockets never ships.
+    PHP_MAJOR_VERSION="${PHP_VERSION%%.*}"
+    if [ "${PHP_MAJOR_VERSION:-0}" -lt 7 ]; then
+        exit 0
+    fi
     exit 1
 fi

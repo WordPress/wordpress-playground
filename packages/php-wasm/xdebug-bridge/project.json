@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/xdebug-bridge/src",
 	"projectType": "library",
+	"tags": ["scope:php-binaries"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -62,7 +63,7 @@
 			"dependsOn": ["build"]
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/php-wasm/xdebug-bridge"
 			],
@@ -79,6 +80,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-binaries"]
+	}
 }

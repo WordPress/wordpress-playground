@@ -6,8 +6,7 @@
 	},
 	"files": [
 		"../../../node_modules/@nx/react/typings/cssmodule.d.ts",
-		"../../../node_modules/@nx/react/typings/image.d.ts",
-		"src/github/acquire-oauth-token-if-needed.tsx"
+		"../../../node_modules/@nx/react/typings/image.d.ts"
 	],
 	"exclude": [
 		"src/**/*.spec.ts",

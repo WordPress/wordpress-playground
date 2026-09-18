@@ -127,6 +127,8 @@ describe('cross-tab-sync', () => {
 			broadcastMetadataUpdate('my-site', {
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
 				lastAccessDate: 999,
+				lastUsageStatsReturningVisitDate: '2026-05-28',
+				appliedMigrations: { myAppsPluginInstalled: 456 },
 			});
 
 			expect(messages).toHaveLength(1);
@@ -141,6 +143,8 @@ describe('cross-tab-sync', () => {
 			expect(message.changes).toEqual({
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
 				lastAccessDate: 999,
+				lastUsageStatsReturningVisitDate: '2026-05-28',
+				appliedMigrations: { myAppsPluginInstalled: 456 },
 			});
 			expect(message.senderId).toBeTruthy();
 
@@ -162,7 +166,7 @@ describe('cross-tab-sync', () => {
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
 				name: 'should-not-sync',
 				storage: 'opfs',
-				lastUrl: '/wp-admin/',
+				whenCreated: 12345,
 			} as Record<string, unknown>);
 
 			expect(messages).toHaveLength(1);
@@ -174,7 +178,7 @@ describe('cross-tab-sync', () => {
 			});
 			expect(message.changes).not.toHaveProperty('name');
 			expect(message.changes).not.toHaveProperty('storage');
-			expect(message.changes).not.toHaveProperty('lastUrl');
+			expect(message.changes).not.toHaveProperty('whenCreated');
 
 			otherChannel.close();
 		});
@@ -192,7 +196,7 @@ describe('cross-tab-sync', () => {
 
 			broadcastMetadataUpdate('my-site', {
 				name: 'not-syncable',
-				lastUrl: '/wp-admin/',
+				whenCreated: 12345,
 			} as Record<string, unknown>);
 
 			expect(messages).toHaveLength(0);

@@ -17,6 +17,8 @@ import {
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
+import { exec as execCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +30,32 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+import { analyticsInjectionPlugin } from './vite-analytics-plugin';
+
+const exec = promisify(execCb);
+
+// Determine if we are running in a devcontainer.
+const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
+
+// In a devcontainer, bind to 0.0.0.0 so the host can access the server through
+// a port that was published using the devcontainer "appPort" configuration.
+const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
+
+async function setCodespacesPortPublic(port: number, codespaceName: string) {
+	// eslint-disable-next-line no-console
+	console.log(`Publishing port ${port}...`);
+	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
+	for (let i = 0; i < 10; i++) {
+		try {
+			await exec(cmd);
+			return;
+		} catch {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+	}
+}
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -37,16 +65,87 @@ const proxy: CommonServerOptions['proxy'] = {
 	},
 };
 
+/**
+ * Verification outcomes emitted by the local PR-preview middleware.
+ *
+ * `available` and `unavailable` describe HTTP-level responses. The remaining
+ * values are error names returned by the production plugin proxy.
+ */
+type PrPreviewMockResult =
+	| 'available'
+	| 'invalid_pr_number'
+	| 'no_ci_runs'
+	| 'artifact_not_found'
+	| 'artifact_expired'
+	| 'unavailable';
+
+const prPreviewMockMetadata = {
+	'wordpress-develop': {
+		title: 'Update the HTML API to preserve text boundaries',
+		created_at: '2026-06-12T09:30:00Z',
+	},
+	gutenberg: {
+		title: 'Add a data view for managing reusable blocks',
+		created_at: '2026-07-18T14:45:00Z',
+	},
+};
+
+/**
+ * Reserved PR numbers and their independent Core and Gutenberg responses.
+ *
+ * The numbers are active only when local mocks are enabled. Keeping every
+ * scenario here keeps the middleware behavior auditable and easy to compare
+ * with the README table.
+ */
+const prPreviewMockScenarios: Record<
+	string,
+	Record<'wordpress-develop' | 'gutenberg', PrPreviewMockResult>
+> = {
+	'900000001': {
+		'wordpress-develop': 'available',
+		gutenberg: 'invalid_pr_number',
+	},
+	'900000002': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'available',
+	},
+	'900000003': {
+		'wordpress-develop': 'available',
+		gutenberg: 'available',
+	},
+	'900000004': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'invalid_pr_number',
+	},
+	'900000005': {
+		'wordpress-develop': 'unavailable',
+		gutenberg: 'invalid_pr_number',
+	},
+	'900000006': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'no_ci_runs',
+	},
+	'900000007': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'artifact_expired',
+	},
+	'900000008': {
+		'wordpress-develop': 'artifact_not_found',
+		gutenberg: 'invalid_pr_number',
+	},
+};
+
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: '/cors-proxy/?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: '/cors-proxy/?';
 
 	return {
+		root: __dirname,
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
 		// already the same host, but dev builds run two separate servers. See proxy
@@ -56,6 +155,9 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 
 		css: {
 			modules: {
@@ -65,14 +167,19 @@ export default defineConfig(({ command, mode }) => {
 
 		preview: {
 			port: websiteDevServerPort,
-			host: websiteDevServerHost,
+			host: serverHost,
 			proxy,
 		},
 
 		server: {
 			port: websiteDevServerPort,
-			host: websiteDevServerHost,
-			allowedHosts: ['playground.test', 'playground-preview.test'],
+			host: serverHost,
+			allowedHosts: [
+				'playground.test',
+				'playground-preview.test',
+				// Allow Codespaces forwarded port hosts.
+				...(process.env['CODESPACE_NAME'] ? ['.app.github.dev'] : []),
+			],
 			proxy: {
 				...proxy,
 				// Proxy CORS requests to the local PHP CORS proxy server.
@@ -87,11 +194,13 @@ export default defineConfig(({ command, mode }) => {
 				// Proxy requests to the website-extras
 				'^/website-extras/': {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
+					changeOrigin: true,
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				'^[/]((?!website-server|php-next).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+					changeOrigin: true,
 				},
 			},
 			fs: {
@@ -99,6 +208,40 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			// In a devcontainer, Vite prints container IP instead of host IP.
+			// Override the printed URL to show host IP instead (127.0.0.1).
+			isDevcontainer
+				? {
+						name: 'devcontainer-print-urls',
+						configureServer(server: ViteDevServer) {
+							const codespaceName = process.env['CODESPACE_NAME'];
+							const codespacesDomain =
+								process.env[
+									'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN'
+								];
+							server.printUrls = () => {
+								const url =
+									codespacesDomain && codespaceName
+										? `https://${codespaceName}-${websiteDevServerPort}.${codespacesDomain}/website-server/`
+										: `http://127.0.0.1:${websiteDevServerPort}/website-server/`;
+								server.config.logger.info(
+									`  \x1b[32m➜\x1b[0m  \x1b[1mLocal:\x1b[0m   \x1b[36m${url}\x1b[0m`
+								);
+							};
+
+							// Codespaces ports default to private, breaking CORS.
+							// Publish once the tunnel is ready.
+							if (codespaceName) {
+								server.httpServer?.once('listening', () =>
+									setCodespacesPortPublic(
+										websiteDevServerPort,
+										codespaceName
+									)
+								);
+							}
+						},
+					}
+				: null,
 			react({
 				jsxRuntime: 'automatic',
 			}),
@@ -119,6 +262,41 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					// Production serves api.html from the origin root. Preserve that
+					// URL in development even though the website uses a Vite base.
+					server.middlewares.use((req, _res, next) => {
+						if (
+							req.url === '/api.html' ||
+							req.url?.startsWith('/api.html?')
+						) {
+							req.url = `/website-server${req.url}`;
+						}
+						next();
+					});
+					if (process.env['PLAYGROUND_PR_PREVIEW_MOCKS'] === 'true') {
+						registerPrPreviewMockMiddleware(server);
+					}
+					// Let static playground pages import the local client package in dev.
+					server.middlewares.use(
+						'/website-server/client/index.js',
+						(_, res) => {
+							const clientIndexPath = fileURLToPath(
+								new URL(
+									'../client/src/index.ts',
+									import.meta.url
+								)
+							);
+							res.setHeader(
+								'Content-Type',
+								'application/javascript'
+							);
+							res.end(
+								`export * from ${JSON.stringify(
+									`${server.config.base}@fs${clientIndexPath}`
+								)};`
+							);
+						}
+					);
 					server.middlewares.use(oAuthMiddleware);
 				},
 			},
@@ -181,6 +359,7 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			analyticsInjectionPlugin(),
 			{
 				name: 'inject-commit-id',
 				transformIndexHtml(html) {
@@ -210,6 +389,7 @@ export default defineConfig(({ command, mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
+					api: fileURLToPath(new URL('./api.html', import.meta.url)),
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
 					),
@@ -286,6 +466,25 @@ export default defineConfig(({ command, mode }) => {
 						if (id.includes('blueprint-editor')) {
 							return 'optional/blueprint-editor';
 						}
+
+						// Vite builds api.html and the website in one Rollup graph. In Rollup 4,
+						// a manual chunk also claims its static dependencies by default.
+						// The Blueprint editor and api.html both depend on OPFS storage, so without
+						// this rule the editor chunk claims that shared code. As a result, api.html
+						// must preload the large editor and CodeMirror chunks just to use OPFS.
+						//
+						// The proper fix is to enable `onlyExplicitManualChunks`, which makes manual
+						// chunks claim only the modules explicitly assigned to them. With our current
+						// imports, that produces circular chunks between the application and CodeMirror
+						// code, making their execution order unsafe. We must untangle those imports
+						// before enabling the option globally.
+						//
+						// Until then, assign the API entry to its own manual chunk. This keeps its static
+						// dependency graph, including OPFS storage, out of the optional editor chunk.
+						// See https://rollupjs.org/configuration-options/#output-onlyexplicitmanualchunks
+						if (id.endsWith('/src/lib/boot-playground-api.ts')) {
+							return 'opfs-site-storage';
+						}
 					},
 					assetFileNames: (chunkInfo) => {
 						// Split Extensions or associated shared files into separate chunks
@@ -315,3 +514,69 @@ export default defineConfig(({ command, mode }) => {
 		},
 	};
 });
+
+/**
+ * Registers deterministic PR-preview responses on the website dev server.
+ *
+ * The middleware intercepts only `verify_only` requests for the documented
+ * mock PR numbers. Every other plugin-proxy request continues to the normal
+ * development proxy, so enabling the mocks does not replace artifact downloads
+ * or unrelated plugin-proxy features.
+ *
+ * Each scenario returns independent WordPress Core and Gutenberg results. This
+ * exercises repository detection through the same HTTP boundary used in
+ * production while avoiding GitHub credentials, rate limits, and network
+ * availability during local UI testing.
+ *
+ * @param server Vite development server that receives plugin-proxy requests.
+ */
+function registerPrPreviewMockMiddleware(server: ViteDevServer): void {
+	server.config.logger.info(
+		'PR preview mocks enabled. See packages/playground/website/README.md for scenario numbers.'
+	);
+	server.middlewares.use((req, res, next) => {
+		const requestUrl = new URL(req.url || '/', 'http://localhost');
+		if (
+			requestUrl.pathname !== '/plugin-proxy.php' ||
+			!requestUrl.searchParams.has('verify_only')
+		) {
+			next();
+			return;
+		}
+
+		const ref = requestUrl.searchParams.get('pr');
+		const repo = requestUrl.searchParams.get('repo');
+		const scenario = ref ? prPreviewMockScenarios[ref] : undefined;
+		if (
+			!scenario ||
+			(repo !== 'wordpress-develop' && repo !== 'gutenberg')
+		) {
+			next();
+			return;
+		}
+
+		const result = scenario[repo];
+		const metadata = prPreviewMockMetadata[repo];
+		if (result === 'available') {
+			res.statusCode = 200;
+			res.setHeader('Content-Type', 'application/json');
+			res.end(JSON.stringify(metadata));
+			return;
+		}
+		if (result === 'unavailable') {
+			res.statusCode = 502;
+			res.setHeader('Content-Type', 'text/plain');
+			res.end('Bad gateway');
+			return;
+		}
+
+		res.statusCode = 400;
+		res.setHeader('Content-Type', 'application/json');
+		res.end(
+			JSON.stringify({
+				error: result,
+				...(result === 'invalid_pr_number' ? {} : metadata),
+			})
+		);
+	});
+}

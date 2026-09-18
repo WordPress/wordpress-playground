@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WordPress Playground API</title>
+	</head>
+	<body>
+		<p id="api-description" hidden>
+			WordPress Playground uses this page to export saved sites. It isn't
+			intended to be opened directly.
+		</p>
+		<script>
+			if (window.self === window.top) {
+				document.getElementById('api-description').hidden = false;
+			}
+		</script>
+		<script type="module">
+			import { bootPlaygroundAPI } from './src/lib/boot-playground-api';
+
+			if (window.self !== window.top) {
+				window.playgroundAPI = bootPlaygroundAPI();
+			}
+		</script>
+	</body>
+</html>

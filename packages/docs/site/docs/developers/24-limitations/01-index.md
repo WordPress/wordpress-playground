@@ -1,6 +1,6 @@
 ---
 slug: /developers/limitations
-description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, temporary storage by design, iframe quirks, and WP-CLI support.
+description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, browser persistence and recovery constraints, iframe quirks, and WP-CLI support.
 ---
 
 # Limitations
@@ -11,25 +11,28 @@ You can track the status of these issues on the [Playground Project board](https
 
 ## In the browser
 
-### Temporary by design
+### Browser storage and recovery
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar.
+Playground runs WordPress in the browser. New Playgrounds are autosaved when
+browser storage and saving are available, and they appear in **Your
+Playgrounds**. Playground keeps up to five recent autosaves. After five exist,
+creating another deletes the oldest one. Autosaves are recovery points, not
+long-term backups. Store an autosave permanently or export a ZIP when you want
+to keep it.
 
-<blockquote>
-<figure>
-<figcaption><i>1. Exporting Playground:</i></figcaption>
+Use these storage modes deliberately:
 
-![Save Button](@site/static/img/export-playground.webp)
+- **Autosaved**: stored in browser storage and retained only while it is one of up to five recent autosaves.
+- **Saved**: stored permanently in browser storage or saved to a local directory.
+- **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
 
-</figure>
+The Playground **Refresh page** button reloads the WordPress page inside the current Playground. Browser refresh (Cmd+R or F5) reloads the whole Playground app. A stored or autosaved Playground can recover after that reload, but a temporary Playground cannot.
 
-<figure>
-<figcaption><i>2. Save button:</i></figcaption>
+![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 
-![Save Button](@site/static/img/saving-playground.webp)
+Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
 
-</figure>
-</blockquote>
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
 ### Browser support
 
@@ -39,6 +42,26 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 - **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants
 
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
+
+### Performance expectations
+
+Loading times vary based on what Playground needs to set up:
+
+| Scenario                               | Typical Load Time          |
+| -------------------------------------- | -------------------------- |
+| Fresh WordPress (no plugins)           | 5-10 seconds               |
+| With small plugins                     | 10-20 seconds              |
+| With large plugins (e.g., WooCommerce) | 30-60 seconds              |
+| On mobile devices                      | 1.5-2x slower than desktop |
+
+![Playground performance graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+
+**Factors that affect performance:**
+
+- **Plugin size**: Large plugins take longer to install at runtime
+- **Network speed**: WASM files are 15-30MB
+- **Device memory**: Low-memory devices may experience slowdowns
+- **Browser**: Chrome/Edge perform best; Safari slightly slower
 
 <blockquote>
 <strong>Note:</strong> Opera Mini support is not currently confirmed.

@@ -1,27 +1,35 @@
+import type { DockToolSection as DockPaneSection } from '../../../components/dock/tool-registry';
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
+import { BREAKPOINTS } from '../../constants/breakpoints';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
 	| 'directory-handle-permission-denied'
 	| 'directory-handle-directory-does-not-exist'
 	| 'directory-handle-unknown-error'
+	| 'browser-storage-cleanup-failed'
+	| 'initial-opfs-sync-interrupted'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
-	| 'network-firewall-interference';
+	| 'network-firewall-interference'
+	| 'resource-unavailable'
+	| 'resource-download-failed';
 
-export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+export type { DockToolSection as DockPaneSection } from '../../../components/dock/tool-registry';
 
 export const modalSlugs = {
 	LOG: 'log',
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
 	GITHUB_IMPORT: 'github-import',
+	GITHUB_IMPORT_NEW_SITE: 'github-import-new-site',
 	GITHUB_EXPORT: 'github-export',
 	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
@@ -29,6 +37,7 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
+	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
 } as const;
 
@@ -56,21 +65,6 @@ const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
 	if (details instanceof BlueprintStepExecutionError) {
-		// Look for a url property in the cause chain
-		let url: string | undefined;
-		let current: unknown = details.cause;
-		while (current && !url) {
-			if (
-				current &&
-				typeof current === 'object' &&
-				'url' in current &&
-				typeof (current as any).url === 'string'
-			) {
-				url = (current as any).url;
-			}
-			current = current instanceof Error ? current.cause : undefined;
-		}
-
 		return {
 			type: 'blueprint-step-error',
 			stepNumber: details.stepNumber,
@@ -83,7 +77,7 @@ const serializeSiteErrorDetails = (
 					: details.message,
 			name: details.name,
 			stack: details.stack,
-			url,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (details instanceof Error) {
@@ -91,10 +85,7 @@ const serializeSiteErrorDetails = (
 			message: details.message,
 			name: details.name,
 			stack: details.stack,
-			url:
-				'url' in details && typeof details.url === 'string'
-					? details.url
-					: undefined,
+			url: findUrlInCauseChain(details),
 		};
 	}
 	if (typeof details === 'string') {
@@ -136,6 +127,28 @@ const serializeSiteErrorDetails = (
 	}
 };
 
+function findUrlInCauseChain(error: Error): string | undefined {
+	let current: unknown = error;
+	const seen = new Set<Error>();
+	while (current) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+		}
+		if (
+			typeof current === 'object' &&
+			'url' in current &&
+			typeof (current as any).url === 'string'
+		) {
+			return (current as any).url;
+		}
+		current = current instanceof Error ? current.cause : undefined;
+	}
+	return undefined;
+}
+
 export interface UIState {
 	activeSite?: {
 		slug: string;
@@ -144,18 +157,35 @@ export interface UIState {
 	};
 	activeModal: string | null;
 	siteSlugToRename?: string;
+	siteSlugToDelete?: string;
+	/**
+	 * Site the save modal operates on. Defaults to the active site when unset.
+	 */
+	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
-	siteManagerIsOpen: boolean;
-	siteManagerSection: SiteManagerSection;
+	shareExportOpen: boolean;
+	siteImportProgress?: ProgressDetails;
+	dockPaneIsOpen: boolean;
+	dockPaneSection: DockPaneSection;
+	/**
+	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
+	 * pane does not discard the user's work.
+	 */
+	writeOwnBlueprintDraft?: string;
+	/** Playground slug from which the current authoring draft was seeded. */
+	writeOwnSeededSlug?: string;
+	dockOperationNotice?: {
+		status?: 'error' | 'success';
+		title: string;
+		message?: string;
+	};
 }
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
-// @TODO: Centralize these breakpoint sizes.
-const isMobile = window.innerWidth < 875;
 
-const shouldOpenSiteManagerByDefault = false;
+const shouldOpenDockPaneByDefault = false;
 
 const initialState: UIState = {
 	/**
@@ -164,29 +194,41 @@ const initialState: UIState = {
 	 * not by loading a URL with the modal parameter.
 	 * The github-private-repo-auth modal should only be triggered by authentication errors,
 	 * not by loading a URL with the modal parameter.
+	 * The delete-site and rename-site modals require Redux state (siteSlugToDelete /
+	 * siteSlugToRename) that is not persisted in the URL, so they cannot be meaningfully
+	 * restored from a URL parameter.
 	 */
 	activeModal:
 		query.get('modal') === 'error-report' ||
 		query.get('modal') === 'save-site' ||
-		query.get('modal') === 'github-private-repo-auth'
+		query.get('modal') === 'github-private-repo-auth' ||
+		query.get('modal') === 'delete-site' ||
+		query.get('modal') === 'rename-site'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
-	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
-	// even if they seem redundant. We may experiment which toggling the manager
-	// to be open by default or closed by default, and we do not want to lose
-	// specific reasons for the manager to be closed.
-	siteManagerIsOpen:
-		shouldOpenSiteManagerByDefault &&
-		// The site manager should not be shown at all in seamless mode.
+	shareExportOpen: false,
+	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
+	// even if they seem redundant. We may experiment with toggling the Dock
+	// pane to be open by default or closed by default, and we do not want to
+	// lose specific reasons for the Dock pane to be closed.
+	dockPaneIsOpen:
+		// The Dock pane should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
-		// We do not expect to render the Playground app UI in an iframe.
-		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on mobile, as that would mean
-		// seeing something that's not Playground filling your entire screen –
-		// quite a confusing experience.
-		!isMobile,
-	siteManagerSection: 'site-details',
+		(query.get('overlay') !== null ||
+			(shouldOpenDockPaneByDefault &&
+				// We do not expect to render the Playground app UI in an iframe.
+				!isEmbeddedInAnIframe &&
+				// Don't default to the Dock pane on small screens (mobile/tablet),
+				// as that would mean seeing something that's not Playground filling
+				// your entire screen – quite a confusing experience.
+				window.innerWidth >= BREAKPOINTS.tablet)),
+	dockPaneSection:
+		query.get('overlay') === 'blueprints' || query.get('overlay') === 'new'
+			? 'new'
+			: query.get('overlay') !== null
+				? 'playgrounds'
+				: 'settings',
 };
 
 const uiSlice = createSlice({
@@ -248,20 +290,56 @@ const uiSlice = createSlice({
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
-		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
-			state.siteManagerIsOpen = action.payload;
+		setDockPaneOpen: (state, action: PayloadAction<boolean>) => {
+			state.dockPaneIsOpen = action.payload;
 		},
-		setSiteManagerSection: (
+		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
+			state.shareExportOpen = action.payload;
+		},
+		setSiteImportProgress: (
 			state,
-			action: PayloadAction<SiteManagerSection>
+			action: PayloadAction<ProgressDetails | undefined>
 		) => {
-			state.siteManagerSection = action.payload;
+			state.siteImportProgress = action.payload;
+		},
+		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
+			state.dockPaneSection = action.payload;
+		},
+		setWriteOwnBlueprintDraft: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnBlueprintDraft = action.payload;
+		},
+		setWriteOwnSeededSlug: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.writeOwnSeededSlug = action.payload;
+		},
+		setDockOperationNotice: (
+			state,
+			action: PayloadAction<UIState['dockOperationNotice']>
+		) => {
+			state.dockOperationNotice = action.payload;
 		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
 		) => {
 			state.siteSlugToRename = action.payload;
+		},
+		setSiteSlugToDelete: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToDelete = action.payload;
+		},
+		setSiteSlugToSave: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToSave = action.payload;
 		},
 	},
 });
@@ -305,9 +383,16 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
-	setSiteManagerOpen,
-	setSiteManagerSection,
+	setShareExportOpen,
+	setSiteImportProgress,
+	setDockPaneOpen,
+	setDockPaneSection,
+	setWriteOwnBlueprintDraft,
+	setWriteOwnSeededSlug,
+	setDockOperationNotice,
 	setSiteSlugToRename,
+	setSiteSlugToDelete,
+	setSiteSlugToSave,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

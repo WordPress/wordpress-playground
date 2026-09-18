@@ -72,7 +72,10 @@ export function SiteErrorModal({
 
 	const detailText = formatErrorDetails(errorDetails);
 	const shouldShowKapaButton =
-		!isReporting && detailText && kapaAI.isEnabled();
+		!view.hideTroubleshootWithAiButton &&
+		!isReporting &&
+		detailText &&
+		kapaAI.isEnabled();
 
 	return (
 		<Modal

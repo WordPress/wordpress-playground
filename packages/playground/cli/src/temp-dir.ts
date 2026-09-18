@@ -5,10 +5,6 @@ import {
 	dir as tmpDir,
 	setGracefulCleanup as tmpSetGracefulCleanup,
 } from 'tmp-promise';
-// NOTE: We use ps-man rather than more popular packages because there
-// is no native build required to install the package.
-// @ts-ignore -- There are no types for this package.
-import ps from 'ps-man';
 
 /**
  * Create a temp dir for the Playground CLI.
@@ -156,7 +152,7 @@ async function appearsToBeStalePlaygroundTempDir(
 		pid: match[2],
 	};
 
-	if (await doesProcessExist(info.pid, info.executableName)) {
+	if (doesProcessExist(info.pid, info.executableName)) {
 		// It looks like the temp dir's process is still running.
 		return false;
 	}
@@ -170,35 +166,55 @@ async function appearsToBeStalePlaygroundTempDir(
 	return false;
 }
 
-async function doesProcessExist(pid: string, executableName: string) {
-	// Define this type because there are no types for ps.list()
-	type ProcessInfo = {
-		pid: string;
-		command: string;
-	};
-	// Look for an existing process with the same PID and executable name.
-	const [existingProcess] = await new Promise<ProcessInfo[]>(
-		(resolve, reject) => {
-			ps.list(
-				{
-					pid,
-					name: executableName,
-					// Remove path from executable name in the results.
-					clean: true,
-				},
-				(err: any, processes: ProcessInfo[]) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve(processes);
-					}
-				}
-			);
+function doesProcessExist(
+	pid: string,
+	// NOTE: We used to use the executable name as well to reduce the risk
+	// of PID reuse causing false positives, but confirming process name has
+	// been slow on Windows and doesn't seem to be worth the cost. The worst
+	// that happens when a PID is reused by another process is that we don't
+	// delete a stale temp dir.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	_executableName: string
+) {
+	// Use process.kill with signal 0 to check if the process exists.
+	// Signal 0 doesn't actually send a signal — it just checks whether
+	// the process is running. This is instant on all platforms, unlike
+	// the previous ps-man approach which spawned `tasklist` on Windows
+	// (taking ~1 second per call).
+	try {
+		process.kill(Number(pid), 0);
+		return true;
+	} catch (error: unknown) {
+		const errorWithCode = error as { code?: unknown };
+		const code =
+			errorWithCode && typeof errorWithCode.code === 'string'
+				? errorWithCode.code
+				: undefined;
+
+		if (code === 'ESRCH') {
+			// ESRCH means the process does not exist.
+			return false;
 		}
-	);
-	return (
-		!!existingProcess &&
-		existingProcess.pid === pid &&
-		existingProcess.command === executableName
-	);
+
+		if (code === 'EPERM' || code === 'EACCES') {
+			// EPERM/EACCES mean the process exists but we lack permission to signal
+			// it. This is expected on some systems for certain PIDs, so only log
+			// at debug level to avoid noisy logs during normal operation.
+			logger.debug(
+				`Permission denied while checking if process ${pid} exists (code: ${code}).`,
+				error
+			);
+			return true;
+		}
+
+		// For any other unexpected error, assume the process exists to
+		// avoid accidentally deleting a temp dir that may still be in use.
+		logger.warn(
+			`Could not determine if process ${pid} exists due to unexpected error${
+				code ? ` (code: ${code})` : ''
+			}.`,
+			error
+		);
+		return true;
+	}
 }

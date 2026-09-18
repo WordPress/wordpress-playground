@@ -1,0 +1,54 @@
+{
+	"version.label": {
+		"message": "अगला",
+		"description": "The label for version current"
+	},
+	"sidebar.mainSidebar.category.Documentation": {
+		"message": "दस्तावेज़",
+		"description": "The label for category Documentation in sidebar mainSidebar"
+	},
+	"sidebar.mainSidebar.category.About Playground": {
+		"message": "Playground के बारे में",
+		"description": "The label for category About Playground in sidebar mainSidebar"
+	},
+	"sidebar.mainSidebar.category.Guides": {
+		"message": "मार्गदर्शिकाएँ",
+		"description": "The label for category Guides in sidebar mainSidebar"
+	},
+	"sidebar.mainSidebar.category.Contributing": {
+		"message": "योगदान",
+		"description": "The label for category Contributing in sidebar mainSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Blueprints": {
+		"message": "ब्लूप्रिंट्स",
+		"description": "The label for category Blueprints in sidebar blueprintsSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Tutorial": {
+		"message": "ट्यूटोरियल",
+		"description": "The label for category Tutorial in sidebar blueprintsSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Steps": {
+		"message": "चरण",
+		"description": "The label for category Steps in sidebar blueprintsSidebar"
+	},
+	"sidebar.developersSidebar.category.Developers": {
+		"message": "डेवलपर्स",
+		"description": "The label for category Developers in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Local Development": {
+		"message": "स्थानीय विकास",
+		"description": "The label for category Local Development in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Playground APIs": {
+		"message": "Playground API",
+		"description": "The label for category Playground APIs in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Javascript API": {
+		"message": "JavaScript API",
+		"description": "The label for category JavaScript API in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Architecture": {
+		"message": "आर्किटेक्चर",
+		"description": "The label for category Architecture in sidebar developersSidebar"
+	}
+}

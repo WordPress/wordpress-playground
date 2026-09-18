@@ -1,4 +1,5 @@
 import { isURLScoped } from '@php-wasm/scopes';
+import { isDevServer } from './dev-server';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -41,7 +42,10 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 		 * from a stale worker has no benefits. It only takes
 		 * up space.
 		 */
-		if (isCurrentServiceWorkerActive()) {
+		if (
+			isCurrentServiceWorkerActive() &&
+			['GET', 'HEAD'].includes(request.method)
+		) {
 			// Intentionally do not await writing to the cache so the response
 			// promise can be returned immediately and observed for progress events.
 			// NOTE: This is a race condition for simultaneous requests for the same asset.
@@ -163,6 +167,14 @@ export async function hasCachedResponse(
 	return !!cachedResponse;
 }
 
+export async function putCachedResponse(
+	request: RequestInfo,
+	response: Response
+): Promise<void> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	await offlineModeCache.put(request, response);
+}
+
 export function shouldCacheUrl(url: URL) {
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
@@ -172,12 +184,7 @@ export function shouldCacheUrl(url: URL) {
 	 * it dynamically generates assets. Check the README for offline development
 	 * instructions.
 	 */
-	if (
-		url.href.startsWith('http://127.0.0.1:5400/') ||
-		url.href.startsWith('http://localhost:5400/') ||
-		url.href.startsWith('https://playground.test/') ||
-		url.pathname.startsWith('/website-server/')
-	) {
+	if (isDevServer(url)) {
 		return false;
 	}
 

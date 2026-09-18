@@ -50,7 +50,92 @@ Health Check integration detects and recovers from site crashes automatically, e
 
 ### Multi-Tab Support
 
-Sophisticated tab coordination ensures only one worker runs per site. Dependent tabs connect automatically, and a takeover protocol handles tab conflicts gracefully.
+Browser-managed tab coordination ensures only one worker runs per site. Dependent tabs can view and navigate the site while operations that need the active WordPress runtime are forwarded to the active tab.
+
+### WordPress Page Relay Messages
+
+WordPress pages running inside Personal Playground can send supported relay messages to
+the parent window. Messages must use `type: 'relay'` and are only accepted from the
+active Playground iframe tree.
+
+#### Install Blueprint
+
+Use `install-blueprint` to ask Personal Playground to install a blueprint into the
+current site. Personal Playground confirms the action with the user before applying
+the blueprint. Dependent tabs forward the install to the active tab and keep the
+final blueprint navigation in the requesting tab.
+
+```js
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'install-blueprint',
+		blueprintUrl: 'https://example.com/blueprint.json',
+		requestId,
+	},
+	'*'
+);
+```
+
+Response:
+
+```ts
+{
+	type: 'relay';
+	relayType: 'install-blueprint-result';
+	blueprintUrl: string;
+	requestId?: string;
+	status: 'success' | 'error' | 'cancelled';
+	error?: string;
+}
+```
+
+Blueprint URLs must be `https:`, `data:`, or local `http:` URLs. Dependent tabs
+cannot install blueprints and will return an error result.
+
+#### Backup Site
+
+Use `backup-site` to ask Personal Playground to zip the current site and hand the
+file to the browser's downloader — the same backup the Site Tools panel produces.
+Dependent tabs forward the request to the active tab, which is where the download
+then appears.
+
+```js
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'backup-site',
+		requestId,
+	},
+	'*'
+);
+```
+
+Response:
+
+```ts
+{
+	type: 'relay';
+	relayType: 'backup-site-result';
+	requestId?: string;
+	status: 'started' | 'success' | 'error';
+	error?: string;
+}
+```
+
+`started` is sent as soon as the request is accepted, before the site is zipped.
+Waiting for it lets a page tell a slow backup apart from an older Personal
+Playground that ignores the message, so it can fall back to pointing at Site
+Tools. `success` or `error` follows once the zip is done.
+
+A request that arrives before the site has finished coming up waits for it, up
+to 15 seconds, rather than being refused — the page doing the asking was served
+by that site, so it is generally the shell's state that is behind.
+
+No confirmation dialog is shown: the file only reaches the user's own disk, the
+requesting page never gets to read it, and a browser download is visible anyway.
+Only one backup runs at a time; a request that arrives while one is in flight
+comes back as an error.
 
 ### Offline Support
 
@@ -100,7 +185,7 @@ Personal Playground is deployed to my.wordpress.net via the `deploy-my-wordpress
 1. Builds the package with `npx nx build playground-personal-wp`
 2. Uploads the build as an artifact
 3. Deploys to WP Cloud hosting via rsync/SSH
-4. Uses the shared `website-deployment/` scripts for server configuration
+4. Applies the update with `website-deployment/my-wordpress-net/apply-update.sh`
 
 ### Required Secrets
 
@@ -125,7 +210,6 @@ personal-wp/
 │   ├── components/
 │   │   ├── layout/              # Main application layout
 │   │   ├── site-manager/        # Site info, files, and database panels
-│   │   ├── browser-chrome/      # Browser-like UI chrome
 │   │   ├── playground-viewport/ # WordPress iframe container
 │   │   └── ...
 │   └── lib/

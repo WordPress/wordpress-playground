@@ -10,6 +10,7 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
+	root: __dirname,
 	cacheDir: '../../../node_modules/.vite/php-wasm-xdebug-bridge',
 
 	plugins: [

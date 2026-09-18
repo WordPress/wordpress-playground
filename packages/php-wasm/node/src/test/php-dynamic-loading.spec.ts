@@ -1,26 +1,107 @@
-import { loadNodeRuntime } from '..';
+import { loadNodeRuntime, type PHPExtension } from '..';
+import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	PHP,
-	SupportedPHPVersions,
 	proxyFileSystem,
 	setPhpIniEntries,
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import fs from 'fs';
 import { createServer, type AddressInfo } from 'net';
 import { jspi } from 'wasm-feature-detect';
 
 // Check JSPI availability at module load time (top-level await)
 // so the value is available when tests are registered.
 const isJspiAvailable = await jspi();
+const lifecyclePHPVersion = '8.4';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
+
+const bundledLifecycleExtensionNames = [
+	'xdebug',
+	'intl',
+	...(isJspiAvailable ? ['redis', 'memcached'] : []),
+];
+
+const bundledLifecycleLoaderOptions = {
+	extensions: [
+		'xdebug',
+		'intl',
+		...(isJspiAvailable ? (['redis', 'memcached'] as const) : []),
+	] satisfies PHPExtension[],
+};
+
+describe(`Bundled extension lifecycle - PHP ${lifecyclePHPVersion}`, () => {
+	it('keeps enabled extensions loaded after runtime rotation', async () => {
+		const recreateRuntime = vitest.fn(() =>
+			loadNodeRuntime(lifecyclePHPVersion, bundledLifecycleLoaderOptions)
+		);
+		const php = new PHP(await recreateRuntime());
+		php.enableRuntimeRotation({
+			recreateRuntime,
+			maxRequests: 1,
+		});
+
+		try {
+			await expectExtensionsLoaded(php, bundledLifecycleExtensionNames);
+			await expectExtensionsLoaded(php, bundledLifecycleExtensionNames);
+			expect(recreateRuntime).toHaveBeenCalledTimes(2);
+		} finally {
+			php.exit();
+		}
+	}, 30_000);
+
+	it('keeps deprecated with* loader options working', async () => {
+		const extensionNames = [
+			'xdebug',
+			'intl',
+			...(isJspiAvailable ? ['redis', 'memcached'] : []),
+		];
+		const php = new PHP(
+			await loadNodeRuntime(lifecyclePHPVersion, {
+				withXdebug: { ideKey: 'BC_TEST' },
+				withIntl: true,
+				withRedis: isJspiAvailable,
+				withMemcached: isJspiAvailable,
+			})
+		);
+
+		try {
+			await expectExtensionsLoaded(php, extensionNames);
+			expect(
+				php.readFileAsText('/internal/shared/extensions/xdebug.ini')
+			).toContain('xdebug.idekey="BC_TEST"');
+		} finally {
+			php.exit();
+		}
+	}, 30_000);
+});
+
 describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
 		let php: PHP;
+		const isPHP85orHigher =
+			SupportedPHPVersionsList.indexOf(phpVersion) <=
+			SupportedPHPVersions.indexOf('8.5');
 		beforeEach(async () => {
+			const options = isPHP85orHigher
+				? {
+						pathMappings: [
+							{ hostPath: '/foo/', vfsPath: '/bar/baz/' },
+						],
+						pathSkippings: ['/baz/', '/qux.php'],
+					}
+				: true;
+
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withXdebug: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: [
+						typeof options === 'object'
+							? { name: 'xdebug', options }
+							: 'xdebug',
+					],
+				})
 			);
 		});
 
@@ -28,7 +109,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			php.exit();
 		});
 
-		it('does not load dynamically by default', async () => {
+		it('does not load at startup by default', async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
 
 			const result = await php.runStream({
@@ -39,7 +120,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			expect(await result.stdoutText).toEqual('bool(false)\n');
 		});
 
-		it('supports dynamic loading', async () => {
+		it('loads at startup when requested', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('xdebug'));`,
@@ -63,123 +144,128 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				'zend_extension=/internal/shared/extensions/xdebug.so',
 				'xdebug.mode=debug,develop',
 				'xdebug.start_with_request=yes',
-				'xdebug.idekey="PLAYGROUNDCLI"',
+				`xdebug.idekey="${DEFAULT_IDE_KEY}"`,
+				'xdebug.path_mapping=yes',
 			].join('\n');
 
 			expect(entries).toEqual(expected);
 		});
 
-		it('mounts current working directory', async () => {
-			expect(php.listFiles(process.cwd())).toEqual(
-				fs.readdirSync(process.cwd())
-			);
-		});
-
 		it(
-			'communicates with a DBGP client',
+			'handles path mapping and path skipping',
+			{ skip: !isPHP85orHigher },
 			async () => {
-				/**
-				 * Use an ephemeral port to avoid collisions with any stray/debugger
-				 * processes that may already be listening on the default 9003.
-				 * We still verify the full DBGP handshake, only the port is made
-				 * deterministic per-test to remove flakiness.
-				 */
-				const queries = [
-					'feature_set -i 1 -n resolved_breakpoints -v 1',
-					'feature_set -i 2 -n notify_ok -v 1',
-					'feature_set -i 3 -n extended_properties -v 1',
-					'feature_set -i 4 -n breakpoint_include_return_value -v 1',
-					'feature_set -i 5 -n max_children -v 100',
-					'run -i 6',
-					'stop -i 7',
-				];
+				const pathMappings = php.readFileAsText('/.xdebug/path.map');
+				const pathSkippings = php.readFileAsText('/.xdebug/skip.map');
 
-				let responses = '';
-				let i = 0;
-				let stopped = false;
-
-				const server = createServer();
-
-				try {
-					// Start the server on an available port.
-					await new Promise<void>((resolve, reject) => {
-						server.once('error', reject);
-						server.listen(0, '127.0.0.1', resolve);
-					});
-					const { port } = server.address() as AddressInfo;
-
-					// Point Xdebug at the chosen port/host.
-					await setPhpIniEntries(php, {
-						'xdebug.client_port': port,
-						'xdebug.client_host': '127.0.0.1',
-					});
-
-					const handshake = new Promise<void>((resolve, reject) => {
-						const timeout = setTimeout(() => {
-							reject(
-								new Error(
-									'Xdebug did not complete the DBGP handshake in time'
-								)
-							);
-						}, 8000);
-
-						server.on('connection', (tcpSource) => {
-							tcpSource.on('data', (data) => {
-								if (queries[i]) {
-									responses += new TextDecoder().decode(data);
-									const payload = `${Buffer.byteLength(
-										queries[i]
-									)}\x00${queries[i]}\x00`;
-									tcpSource.write(
-										new TextEncoder().encode(payload)
-									);
-									i++;
-								} else if (!stopped) {
-									stopped = true;
-									clearTimeout(timeout);
-									resolve();
-								}
-							});
-						});
-
-						server.once('error', (err) => {
-							clearTimeout(timeout);
-							reject(err);
-						});
-						server.once('close', () => clearTimeout(timeout));
-					});
-
-					const result = await php.runStream({
-						code: `<?php
-					echo "Hello Xdebug World";`,
-					});
-
-					await handshake;
-
-					expect(responses).toContain(
-						'<init xmlns="urn:debugger_protocol_v1"'
-					);
-					expect(responses).toContain('success="1"></response>');
-
-					expect(await result.stdoutText).toEqual(
-						'Hello Xdebug World'
-					);
-				} finally {
-					// Ensure the port is always freed for subsequent PHP versions.
-					if (server.listening) {
-						await new Promise((resolve) => server.close(resolve));
-					}
-				}
-			},
-			{ timeout: 20_000 }
+				expect(pathMappings).toEqual('/bar/baz/ = /foo/');
+				expect(pathSkippings).toEqual(
+					['/baz/ = SKIP', '/qux.php = SKIP'].join('\n')
+				);
+			}
 		);
+
+		it('communicates with a DBGP client', { timeout: 20_000 }, async () => {
+			/**
+			 * Use an ephemeral port to avoid collisions with any stray/debugger
+			 * processes that may already be listening on the default 9003.
+			 * We still verify the full DBGP handshake, only the port is made
+			 * deterministic per-test to remove flakiness.
+			 */
+			const queries = [
+				'feature_set -i 1 -n resolved_breakpoints -v 1',
+				'feature_set -i 2 -n notify_ok -v 1',
+				'feature_set -i 3 -n extended_properties -v 1',
+				'feature_set -i 4 -n breakpoint_include_return_value -v 1',
+				'feature_set -i 5 -n max_children -v 100',
+				'run -i 6',
+				'stop -i 7',
+			];
+
+			let responses = '';
+			let i = 0;
+			let stopped = false;
+
+			const server = createServer();
+
+			try {
+				// Start the server on an available port.
+				await new Promise<void>((resolve, reject) => {
+					server.once('error', reject);
+					server.listen(0, '127.0.0.1', resolve);
+				});
+				const { port } = server.address() as AddressInfo;
+
+				// Point Xdebug at the chosen port/host.
+				await setPhpIniEntries(php, {
+					'xdebug.client_port': port,
+					'xdebug.client_host': '127.0.0.1',
+				});
+
+				const handshake = new Promise<void>((resolve, reject) => {
+					const timeout = setTimeout(() => {
+						reject(
+							new Error(
+								'Xdebug did not complete the DBGP handshake in time'
+							)
+						);
+					}, 8000);
+
+					server.on('connection', (tcpSource) => {
+						tcpSource.on('data', (data) => {
+							if (queries[i]) {
+								responses += new TextDecoder().decode(data);
+								const payload = `${Buffer.byteLength(
+									queries[i]
+								)}\x00${queries[i]}\x00`;
+								tcpSource.write(
+									new TextEncoder().encode(payload)
+								);
+								i++;
+							} else if (!stopped) {
+								stopped = true;
+								clearTimeout(timeout);
+								resolve();
+							}
+						});
+					});
+
+					server.once('error', (err) => {
+						clearTimeout(timeout);
+						reject(err);
+					});
+					server.once('close', () => clearTimeout(timeout));
+				});
+
+				const result = await php.runStream({
+					code: `<?php
+					echo "Hello Xdebug World";`,
+				});
+
+				await handshake;
+
+				expect(responses).toContain(
+					'<init xmlns="urn:debugger_protocol_v1"'
+				);
+				expect(responses).toContain('success="1"></response>');
+
+				expect(await result.stdoutText).toEqual('Hello Xdebug World');
+			} finally {
+				// Ensure the port is always freed for subsequent PHP versions.
+				if (server.listening) {
+					await new Promise((resolve) => server.close(resolve));
+				}
+			}
+		});
 	});
 
 	describe('Intl', () => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withIntl: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['intl'],
+				})
 			);
 		});
 
@@ -187,7 +273,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			php.exit();
 		});
 
-		it('does not load dynamically by default', async () => {
+		it('does not load at startup by default', async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
 
 			const result = await php.runStream({
@@ -201,7 +287,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			);
 		});
 
-		it('supports dynamic loading', async () => {
+		it('loads at startup when requested', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('intl'));
@@ -234,11 +320,11 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		it('reads the icu data in PROXYFS', async () => {
 			const newPhp = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withIntl: true,
+					extensions: ['intl'],
 				})
 			);
 
-			proxyFileSystem(php, newPhp, ['/internal/shared']);
+			await proxyFileSystem(php, newPhp, ['/internal/shared']);
 
 			const response = await newPhp.runStream({
 				code: `<?php
@@ -302,7 +388,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				return;
 			}
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+				await loadNodeRuntime(phpVersion as any, {
+					extensions: ['redis'],
+				})
 			);
 		});
 
@@ -313,7 +401,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it.skipIf(!isJspiAvailable)(
-			'does not load dynamically by default',
+			'does not load at startup by default',
 			async () => {
 				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
@@ -329,15 +417,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'loads at startup when requested',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('redis'));
 					var_dump(class_exists('Redis'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			}
+		);
 
 		it.skipIf(!isJspiAvailable)(
 			'has its own ini file and entries',
@@ -375,7 +468,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, {
-					withMemcached: true,
+					extensions: ['memcached'],
 				})
 			);
 		});
@@ -387,7 +480,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it.skipIf(!isJspiAvailable)(
-			'does not load dynamically by default',
+			'does not load at startup by default',
 			async () => {
 				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
@@ -403,15 +496,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'loads at startup when requested',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('memcached'));
 					var_dump(class_exists('Memcached'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(true)\nbool(true)\n'
+				);
+			}
+		);
 
 		it.skipIf(!isJspiAvailable)(
 			'has its own ini file and entries',
@@ -460,3 +558,26 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		);
 	});
 });
+
+async function expectExtensionsLoaded(php: PHP, extensionNames: string[]) {
+	const result = await php.run({
+		code: `<?php
+			$extensions = ${phpArrayLiteral(extensionNames)};
+			foreach ($extensions as $extension) {
+				echo $extension . ':' . (extension_loaded($extension) ? 'loaded' : 'missing') . "\\n";
+			}
+		`,
+	});
+
+	expect(result.text).toBe(
+		extensionNames
+			.map((extensionName) => `${extensionName}:loaded\n`)
+			.join('')
+	);
+}
+
+function phpArrayLiteral(values: string[]) {
+	return `array(${values
+		.map((value) => `'${value.replaceAll("'", "\\'")}'`)
+		.join(', ')})`;
+}

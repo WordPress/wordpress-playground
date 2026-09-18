@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: Um guia de 5 minutos para começar a usar o Playground. Aprenda a testar plugins, temas e usar diferentes versões de WP/PHP.
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!--
 # Start using WordPress Playground in 5 minutes
 -->
@@ -61,18 +59,22 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 A estrutura inteira do site fica no seu navegador sendo copiado quando você fecha a aba. Quer recomeçar? Basta atualizar a página!
 
 <!--
-:::info WordPress Playground is private
+<div class="callout callout-info">
+
+**WordPress Playground is private**
 
 Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
-:::
+</div>
 -->
 
-:::info O WordPress Playground é privado
+<div class="callout callout-info">
+
+**O WordPress Playground é privado**
 
 Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum servidor remoto, funcionando totalmente de forma privada. Quando terminar, você pode exportar o seu site como um arquivo zip. Ou simplesmente atualize a página e comece de novo!
 
-:::
+</div>
 
 <!--
 ## Try a block, a theme, or a plugin
@@ -118,7 +120,7 @@ Você também pode misturar e combinar esses parâmetros e até mesmo adicionar 
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 ## Save your site
@@ -142,7 +144,7 @@ Para manter o seu site WordPress Playground por mais de uma sessão do navegador
 
 1. Abra o painel do gerenciador de sites do Playground:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!--
 2. Use the "Download as .zip" button in the additional actions menu
@@ -150,7 +152,7 @@ Para manter o seu site WordPress Playground por mais de uma sessão do navegador
 
 2. Use o botão "Download como .zip" no menu de ações adicionais
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -182,7 +184,7 @@ Você pode restaurar o site salvo usando o botão "Importar de .zip" no painel d
 
 1. Abra o painel do painel de controle do Playground:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -190,7 +192,7 @@ Você pode restaurar o site salvo usando o botão "Importar de .zip" no painel d
 
 1. Use o botão "Importar .zip" no final da seção "Iniciar um novo Playground"
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -203,21 +205,25 @@ The easiest way is to use the version switcher on [the official demo site](https
 -->
 
 A maneira mais rápida de trocar a versão do WordPress ou PHP no é utilizando o painel de configurações do [site oficial de demonstração](https://playground.wordpress.net/):
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
 -->
 
-:::info Teste seu plugin ou tema
+<div class="callout callout-info">
+
+**Teste seu plugin ou tema**
 
 Testes de compatibilidade com tantas versões do WordPress e do PHP sempre foram um desafio. O WordPress Playground torna esse processo fácil – use-o a seu favor!
 
-:::
+</div>
 
 <!--
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
@@ -229,7 +235,7 @@ Você também pode usar os [parâmetros de consulta](/developers/apis/query-api)
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
@@ -238,18 +244,22 @@ To learn more about preparing content for demos, see the [providing content for 
 Para saber mais sobre como preparar conteúdo para demonstrações, consulte o [guia de fornecimento de conteúdo para sua demonstração](/guides/providing-content-for-your-demo).
 
 <!--
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
 
-:::
+</div>
 -->
 
-:::info Somente versões principais
+<div class="callout callout-info">
+
+**Somente versões principais**
 
 Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e esperar a versão mais recente nessa linha. No entanto, você não pode solicitar versões secundárias mais antigas, portanto, nem `wp=6.1.2` nem `php=7.4.9` funcionarão.
 
-:::
+</div>
 
 <!--
 ## Import a WXR file

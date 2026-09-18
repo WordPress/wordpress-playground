@@ -22,6 +22,12 @@
 								"notDependOnLibsWithTags": [
 									"scope:php-binaries"
 								]
+							},
+							{
+								"sourceTag": "scope:cli",
+								"notDependOnLibsWithTags": [
+									"scope:browser-only"
+								]
 							}
 						]
 					}

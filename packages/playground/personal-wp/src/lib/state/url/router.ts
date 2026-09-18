@@ -1,42 +1,40 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { decodeBase64ToString } from '../../base64';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
+import { isAppBasePath } from './app-base-url';
+import { HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM } from '../../health-check-recovery';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
 }
 
-interface QueryAPIParams {
-	name?: string;
-	wp?: string;
-	php?: string;
-	language?: string;
-	multisite?: 'yes' | 'no';
-	networking?: 'yes' | 'no';
-	theme?: string[];
-	login?: 'yes' | 'no';
-	plugin?: string[];
-	blueprint?: string;
-	'import-site'?: string;
-	'import-wxr'?: string;
-	'import-content'?: string;
-	url?: string;
-	'blueprint-url'?: string;
-	'page-title'?: string;
-}
-
-export function parseBlueprint(rawData: string) {
-	try {
-		try {
-			return JSON.parse(rawData);
-		} catch {
-			return JSON.parse(decodeBase64ToString(rawData));
-		}
-	} catch {
-		throw new Error('Invalid blueprint');
-	}
-}
+/**
+ * Playground-specific query keys that should be removed from the URL
+ * once they've been consumed by the boot pipeline. Anything outside
+ * this list (e.g. WordPress query vars or plugin-specific params) is
+ * left in place so the URL remains bookmarkable.
+ */
+export const PLAYGROUND_QUERY_KEYS = [
+	'site-slug',
+	'mode',
+	'name',
+	'wp',
+	'php',
+	'language',
+	'multisite',
+	'networking',
+	'theme',
+	'login',
+	'plugin',
+	'url',
+	'blueprint-url',
+	'blueprint',
+	'import-site',
+	'import-wxr',
+	'import-content',
+	'page-title',
+	HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
+];
 
 export class PlaygroundRoute {
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
@@ -45,27 +43,35 @@ export class PlaygroundRoute {
 		} else {
 			// If this is the default site, don't add site-slug to the URL
 			if (personalWPSiteSlug && site.slug === personalWPSiteSlug) {
-				// Preserve blueprint-url and url parameters if present
-				const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-				const preserveParamsKeys = ['blueprint-url', 'url'];
-				const preserveParams: Record<string, string> = {};
-				for (const param of preserveParamsKeys) {
-					const value = baseParams.get(param);
-					if (value !== null) {
-						preserveParams[param] = value;
+				// Strip Playground-specific query params, but keep
+				// anything else (e.g. WordPress query vars like
+				// ?p=42 or plugin-specific params like ?app-store=1)
+				// so the URL remains bookmarkable.
+				const url = new URL(baseUrl, window.location.href);
+				if (isAppBasePath(url.pathname)) {
+					for (const key of PLAYGROUND_QUERY_KEYS) {
+						url.searchParams.delete(key);
 					}
 				}
-				return updateUrl(baseUrl, {
-					searchParams: preserveParams,
-					hash: '',
-				});
+				url.hash = '';
+				return url.toString();
 			}
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const url = new URL(baseUrl, window.location.href);
+			if (!isAppBasePath(url.pathname)) {
+				return updateUrl(
+					url.toString(),
+					{
+						searchParams: { 'site-slug': site.slug },
+						hash: '',
+					},
+					'merge'
+				);
+			}
+			const baseParams = url.searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
 				'login',
-				'url',
 				'page-title',
 			];
 			const preserveParams: Record<string, string | null> = {};
@@ -79,29 +85,5 @@ export class PlaygroundRoute {
 				hash: '',
 			});
 		}
-	}
-	static newTemporarySite(
-		config: {
-			query?: QueryAPIParams;
-			hash?: string;
-		} = {},
-		baseUrl: string = window.location.href
-	) {
-		const query =
-			(config.query as Record<string, string | undefined>) || {};
-		return updateUrl(
-			baseUrl,
-			{
-				searchParams: {
-					...query,
-					// Ensure a part of the URL is unique so we can still
-					// reload the temporary site even if its configuration
-					// hasn't changed.
-					random: Math.random().toString(36).substring(2, 15),
-				},
-				hash: config.hash,
-			},
-			'replace'
-		);
 	}
 }

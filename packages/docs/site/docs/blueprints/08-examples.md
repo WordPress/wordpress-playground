@@ -9,9 +9,11 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 # Blueprints Examples
 
-:::tip
+<div class="callout callout-tip">
+
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-:::
+
+</div>
 
 Let's see some cool things you can do with Blueprints.
 
@@ -94,6 +96,22 @@ wp_insert_post(array(
 ]
 }} />
 
+## Run Symfony without WordPress
+
+Blueprints can also skip the WordPress download and boot a standalone PHP app.
+This example loads a bundled Symfony app with Composer dependencies already
+installed, so it starts without cloning a Git repository or running a Node/Sass
+build in the browser.
+
+The app demonstrates Symfony attribute routes, autowired services, Twig, and
+HttpClient. Its landing page also explains where to open the Playground file
+browser and Blueprint viewer.
+
+<BlueprintExample
+	title="Blueprint URL"
+	blueprintUrl="https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/blueprint.json"
+/>
+
 ## Enable an option on the Gutenberg Experiments page
 
 Here: Switch on the "new admin views" feature.
@@ -122,9 +140,11 @@ You can run WP-CLI commands on a Playground instance either from your terminal o
 
 To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database.
 
-:::note
+<div class="callout callout-info">
+
 If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed.
-:::
+
+</div>
 
 The following Blueprint snippet handles this setup:
 
@@ -185,21 +205,18 @@ For a detailed explanation of why this is needed, refer to the [Troubleshoot and
 
 ## Load PHP code on every request (mu-plugin)
 
-Use the `writeFile` step to add code to a mu-plugin that runs on every request.
+Use the `writeFile` step to add code to `mu-plugins`, where it runs on every request.
 
 <BlueprintExample blueprint={{
-	"landingPage": "/category/uncategorized/",
-	"features": {
-		"networking": true
-	},
+	"landingPage": "/wp-admin/",
 	"steps": [
 		{
 			"step": "login"
 		},
 		{
 			"step": "writeFile",
-			"path": "/wordpress/wp-content/mu-plugins/rewrite.php",
-			"data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
+			"path": "/wordpress/wp-content/mu-plugins/demo-footer.php",
+			"data": "<?php add_filter( 'admin_footer_text', function () { return 'Added by mu-plugin code.'; } );"
 		}
 	]
 }} />

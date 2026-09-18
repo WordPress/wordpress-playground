@@ -10,16 +10,20 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 <!--
 # Blueprints Docs
 
-:::tip
+<div class="callout callout-tip">
+
 Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-:::
+
+</div>
 -->
 
 # Documentação de Blueprints
 
-:::tip
+<div class="callout callout-tip">
+
 Confira a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código do mundo real usando WordPress Playground para iniciar um site WordPress com uma variedade de configurações.
-:::
+
+</div>
 
 <!-- Hi! Welcome to WordPress Playground Blueprints documentation.
 

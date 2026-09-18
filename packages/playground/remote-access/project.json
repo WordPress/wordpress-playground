@@ -1,0 +1,72 @@
+{
+	"name": "playground-remote-access",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/remote-access/src",
+	"projectType": "library",
+	"tags": [],
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/remote-access/README.md dist/packages/playground/remote-access"
+				]
+			},
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/remote-access/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/remote-access",
+				"buildTarget": "playground-remote-access:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/remote-access"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			},
+			"dependsOn": ["^build"]
+		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:vite": {
+			"executor": "@nx/vitest:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/remote-access"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/remote-access"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/playground/remote-access/**/*.ts"
+				],
+				"maxWarnings": 0
+			}
+		}
+	}
+}

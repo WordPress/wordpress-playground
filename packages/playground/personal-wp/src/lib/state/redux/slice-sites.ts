@@ -14,14 +14,7 @@ import {
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
-	BlueprintFetchError,
 } from '@wp-playground/blueprints';
-import {
-	type BlueprintSource,
-	resolveBlueprintFromURL,
-	type ResolvedBlueprint,
-	applyQueryOverrides,
-} from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -32,10 +25,16 @@ import {
 	personalWPSiteSlug,
 } from 'virtual:website-defaults';
 import {
-	shouldUsePersonalWPBlueprint,
 	loadPersonalBlueprint,
-	resolveUrlParamsForExistingSite,
+	resolveRecoveryBlueprintFromUrl,
 } from '../../personalwp';
+
+type BlueprintSource =
+	| { type: 'remote-url'; url: string }
+	| { type: 'personal-blueprint'; url: string }
+	| { type: 'inline-string' }
+	| { type: 'none' }
+	| { type: 'opfs-site' };
 
 /**
  * The Site model used to represent a site within Playground.
@@ -93,7 +92,19 @@ const sitesSlice = createSlice({
 			const { slug, metadata } = action.payload;
 			const site = state.entities[slug];
 			if (site) {
-				site.metadata = { ...site.metadata, ...metadata };
+				const appliedMigrations =
+					metadata.appliedMigrations ||
+					site.metadata.appliedMigrations
+						? {
+								...site.metadata.appliedMigrations,
+								...metadata.appliedMigrations,
+							}
+						: undefined;
+				site.metadata = {
+					...site.metadata,
+					...metadata,
+					...(appliedMigrations ? { appliedMigrations } : {}),
+				};
 			}
 		},
 
@@ -151,10 +162,10 @@ export function deriveSiteNameFromSlug(slug: string) {
  */
 export function updateSiteMetadata({
 	slug,
-	changes,
+	metadata,
 }: {
 	slug: string;
-	changes: Partial<SiteMetadata>;
+	metadata: Partial<SiteMetadata>;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -167,7 +178,35 @@ export function updateSiteMetadata({
 				changes: {
 					metadata: {
 						...storedSite.metadata,
-						...changes,
+						...metadata,
+					},
+				},
+			})
+		);
+	};
+}
+
+export function markSiteMigrationApplied({
+	slug,
+	migration,
+	timestamp = Date.now(),
+}: {
+	slug: string;
+	migration: string;
+	timestamp?: number;
+}) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const storedSite = selectSiteBySlug(getState(), slug);
+		await dispatch(
+			updateSiteMetadata({
+				slug,
+				metadata: {
+					appliedMigrations: {
+						...storedSite.metadata.appliedMigrations,
+						[migration]: timestamp,
 					},
 				},
 			})
@@ -324,11 +363,6 @@ export function setTemporarySiteSpec(
 					resolvedBlueprint.blueprint;
 				errorSite.metadata.originalBlueprintSource =
 					resolvedBlueprint.source;
-			} else if (params.details instanceof BlueprintFetchError) {
-				errorSite.metadata.originalBlueprintSource = {
-					type: 'remote-url',
-					url: params.details.url,
-				};
 			}
 
 			dispatch(sitesSlice.actions.addSite(errorSite));
@@ -366,19 +400,16 @@ export function setTemporarySiteSpec(
 				(site) => site.slug === personalWPSiteSlug
 			);
 			if (existingDefaultSite) {
-				// Check if there are actionable URL params that should be applied
-				// to the existing site (e.g., ?plugin=friends, ?blueprint-url=...)
-				const blueprint = await resolveUrlParamsForExistingSite(
+				// Only the app's Health Check recovery link applies steps on boot.
+				const blueprint = resolveRecoveryBlueprintFromUrl(
 					playgroundUrlWithQueryApiArgs
 				);
-				if (blueprint) {
-					dispatch(
-						sitesSlice.actions.setBlueprintResolvedFromUrl({
-							targetSiteSlug: existingDefaultSite.slug,
-							blueprint,
-						})
-					);
-				}
+				const recovery = blueprint
+					? { targetSiteSlug: existingDefaultSite.slug, blueprint }
+					: null;
+				dispatch(
+					sitesSlice.actions.setBlueprintResolvedFromUrl(recovery)
+				);
 				return existingDefaultSite;
 			}
 		}
@@ -391,23 +422,13 @@ export function setTemporarySiteSpec(
 		}
 
 		// Then create a new site (temporary or personal depending on defaultStorageType)
-		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+		let resolvedBlueprint:
+			| Awaited<ReturnType<typeof loadPersonalBlueprint>>
+			| undefined;
 		try {
-			if (
-				shouldUsePersonalWPBlueprint(
-					playgroundUrlWithQueryApiArgs,
-					defaultBlueprintUrl
-				)
-			) {
-				resolvedBlueprint = await loadPersonalBlueprint(
-					defaultBlueprintUrl!
-				);
-			} else {
-				resolvedBlueprint = await resolveBlueprintFromURL(
-					playgroundUrlWithQueryApiArgs,
-					defaultBlueprintUrl
-				);
-			}
+			resolvedBlueprint = await loadPersonalBlueprint(
+				defaultBlueprintUrl!
+			);
 		} catch (e) {
 			logger.error(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
@@ -429,15 +450,7 @@ export function setTemporarySiteSpec(
 		}
 
 		try {
-			const reflection = await BlueprintReflection.create(
-				resolvedBlueprint.blueprint
-			);
-			if (reflection.getVersion() === 1) {
-				resolvedBlueprint.blueprint = await applyQueryOverrides(
-					resolvedBlueprint.blueprint,
-					playgroundUrlWithQueryApiArgs.searchParams
-				);
-			}
+			await BlueprintReflection.create(resolvedBlueprint.blueprint);
 
 			// Compute the runtime configuration based on the resolved Blueprint:
 			const newSiteInfo: SiteInfo = {
@@ -527,20 +540,14 @@ export interface SiteMetadata {
 	originalBlueprintSource: BlueprintSource;
 
 	/**
-	 * The last URL the user visited in this site.
-	 * Used to restore the user's position when returning to a personal site.
-	 */
-	lastUrl?: string;
-
-	/**
 	 * History of backups for this site.
 	 */
 	backupHistory?: Array<{ filename: string; timestamp: number }>;
 
 	/**
-	 * Auto-backup interval setting.
-	 * - 'none': No auto-backup (default)
-	 * - 'daily': Backup every day
+	 * Auto-backup interval setting. Defaults to 'daily' when unset.
+	 * - 'none': No auto-backup
+	 * - 'daily': Backup every day (default)
 	 * - 'every-2-days': Backup every 2 days
 	 * - 'weekly': Backup every week
 	 * - 'ignore': Never show backup reminders
@@ -556,6 +563,40 @@ export interface SiteMetadata {
 	 * Timestamp of the last time this site was accessed.
 	 */
 	lastAccessDate?: number;
+
+	/**
+	 * UTC date of the last returning-visit usage stats event for this site.
+	 */
+	lastUsageStatsReturningVisitDate?: string;
+
+	/**
+	 * UTC date of the last day this site reported a daily-streak usage
+	 * stats event, and the number of consecutive days (including that one)
+	 * it was reported for.
+	 */
+	lastDailyStreakDate?: string;
+	dailyStreak?: number;
+
+	/**
+	 * UTC date of the Monday starting the last week this site reported a
+	 * weekly-streak usage stats event, and the number of consecutive weeks
+	 * (including that one) it was reported for.
+	 */
+	lastWeeklyStreakWeekStart?: string;
+	weeklyStreak?: number;
+
+	/**
+	 * UTC year-month (YYYY-MM) of the last month this site reported a
+	 * monthly-streak usage stats event, and the number of consecutive
+	 * months (including that one) it was reported for.
+	 */
+	lastMonthlyStreakMonth?: string;
+	monthlyStreak?: number;
+
+	/**
+	 * Timestamps for one-off migrations applied to this site.
+	 */
+	appliedMigrations?: Record<string, number>;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =

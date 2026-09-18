@@ -52,14 +52,13 @@
  * While this strategy enables fast load times and an offline experience, it also
  * creates a substantial challenge.
  *
- * When a new Playground version is deployed, all the clients will load an old
- * version of the `remote.html` file on their next visit. Unfortunately, that old
- * `remote.html` file contains hardcoded references to assets that may not be
- * cached and no longer exist in the new webapp build.
+ * When a new Playground version is deployed, clients may load an old entry
+ * document such as `remote.html` or `api.html`. That document contains
+ * hardcoded references to assets that may no longer exist in the new build.
  *
- * To solve this problem, we use the **Network first** strategy when `remote.html`
- * is requested. This introduces a small network overhead, but it guarantees loading
- * the most recent version of `remote.html` and all the referenced assets.
+ * To solve this problem, we use the **Network first** strategy for entry
+ * documents. This introduces a small network overhead, but guarantees loading
+ * the most recent document and all its referenced assets.
  *
  * Similarly, we use the **Network first** strategy for the `/` path. This is
  * useful in situations where the user didn't visit Playground in a while,
@@ -67,8 +66,8 @@
  * If we loaded the cached version, they'd see the old Playground website on their
  * first visit and then the new Playground website only on their second visit.
  *
- * There's still a small window of time between loading the remote.html file and
- * fetching the new assets when a new deployment would break the application.
+ * There's still a small window between loading an entry document and fetching
+ * its assets when a new deployment would break the application.
  * This should be very rare, but when it happens we provide an error message asking
  * the user to reload the page.
  *
@@ -101,7 +100,12 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
+import {
+	getURLScope,
+	isURLScoped,
+	removeURLScope,
+	setURLScope,
+} from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -120,6 +124,13 @@ import {
 	purgeEverythingFromPreviousRelease,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
+import {
+	getRemoteAccessRelayMapping,
+	getRemoteAccessRelayMappingFromUrl,
+	handleRemoteAccessRelayMessage,
+	handleRemoteAccessRelayProbe,
+	handleRemoteAccessRelayRequest,
+} from '@wp-playground/remote-access';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -129,6 +140,10 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+self.addEventListener('message', (event) => {
+	handleRemoteAccessRelayMessage(event);
+});
 
 /**
  * Forces the browser to always use the latest service worker.
@@ -193,6 +208,10 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(doActivate());
 });
 
+function isResumeRangeRequest(request: Request): boolean {
+	return /^bytes=[1-9]\d*-$/.test(request.headers.get('range') ?? '');
+}
+
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
 		return;
@@ -205,9 +224,14 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
+	// imports them during development. Sending them through WordPress turns the
+	// module graph into scoped 404 responses.
 	const isReservedUrl =
 		url.pathname.startsWith('/plugin-proxy') ||
-		url.pathname.startsWith('/client/index.js');
+		url.pathname.startsWith('/client/index.js') ||
+		url.pathname.startsWith('/relay/') ||
+		url.pathname.startsWith('/@fs/');
 	if (isReservedUrl) {
 		return;
 	}
@@ -216,11 +240,53 @@ self.addEventListener('fetch', (event) => {
 		return event.respondWith(documentIsolationPolicyHtml());
 	}
 
+	// Vite bundles
+	// `packages/playground/remote/src/lib/capture-site-thumbnail.ts` as the renderer
+	// and `modern-screenshot/worker` as its resource worker. Their requests originate
+	// from a scoped WordPress document, so the generic referrer handling below would
+	// redirect them into that site's virtual URL namespace, where WordPress returns
+	// a 404. Fetch these marked app assets directly instead.
+	const isSiteThumbnailModule =
+		url.searchParams.has('playground-site-thumbnail-module') &&
+		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
+			/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname));
+	const isSiteThumbnailWorker =
+		event.request.destination === 'worker' &&
+		url.searchParams.has('playground-site-thumbnail-worker');
+	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
+		return event.respondWith(
+			shouldCacheUrl(url)
+				? cacheFirstFetch(event.request)
+				: fetch(event.request)
+		);
+	}
+
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
+		if (url.searchParams.has('remote-access-probe')) {
+			return event.respondWith(
+				handleRemoteAccessRelayProbe(
+					scope,
+					url.searchParams.get('remote-access-probe')
+				)
+			);
+		}
+		const remoteAccessRelayMapping =
+			getRemoteAccessRelayMapping(scope) ||
+			getRemoteAccessRelayMappingFromUrl(scope, url);
+		if (remoteAccessRelayMapping) {
+			return event.respondWith(
+				handleRemoteAccessRelayRequest(
+					event,
+					remoteAccessRelayMapping
+				).then((response) =>
+					applyCrossOriginIsolationHeaders(response, scope)
+				)
+			);
+		}
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
+				applyCrossOriginIsolationHeaders(response, scope)
 			)
 		);
 	}
@@ -233,12 +299,23 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
+		if (url.origin !== referrerUrl.origin) {
+			// Cross-origin requests can be handled by the service worker when they
+			// are initiated from a page in the service worker's scope.
+			// If this request doesn't have the referrer scope's origin,
+			// let's not intercept it or send it to the scope's WordPress.
+			return;
+		}
+
 		const scope = getURLScope(referrerUrl)!;
-		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
-			)
-		);
+
+		// Let's redirect to a scope URL so that no unscoped page is loaded
+		// while navigating around a scoped WordPress. Otherwise, clicking an
+		// unscoped link from an unscoped page will lose the scope entirely,
+		// and the service worker won't be able to match the request with
+		// the right WordPress instance.
+		const scopedRedirectTarget = setURLScope(event.request.url, scope);
+		return event.respondWith(Response.redirect(scopedRedirectTarget));
 	}
 
 	/**
@@ -291,7 +368,8 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	/**
-	 * Always fetch the fresh version of `/remote.html` and `/` from the network.
+	 * Always fetch fresh versions of `/remote.html`, `/api.html`, and `/` from
+	 * the network.
 	 *
 	 * This is the secret sauce that enables seamless upgrades of the
 	 * running Playground clients when a new version is deployed on
@@ -300,13 +378,14 @@ self.addEventListener('fetch', (event) => {
 	 * ## The problem with deployments
 	 *
 	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, the remote.html file we've cached
-	 * for offline usage still holds references to those assets.
+	 * previous app version. Meanwhile, cached entry documents still hold
+	 * references to those assets.
 	 *
-	 * If we just loaded the cached remote.html file, the site would crash
+	 * If we just loaded a cached entry document, the client would crash
 	 * with seemingly random errors.
 	 *
-	 * Instead, we fetch the most recent version of remote.html from the network.
+	 * Instead, we fetch the most recent version of each entry document from
+	 * the network.
 	 * It references the static assets that are now available on the server and
 	 * should work just fine.
 	 *
@@ -318,8 +397,21 @@ self.addEventListener('fetch', (event) => {
 	 * https://github.com/WordPress/wordpress-playground/issues/1821 for more
 	 * details.
 	 */
-	if (url.pathname === '/remote.html' || url.pathname === '/') {
+	if (
+		url.pathname === '/remote.html' ||
+		url.pathname === '/api.html' ||
+		url.pathname === '/'
+	) {
 		event.respondWith(networkFirstFetch(event.request));
+		return;
+	}
+
+	// A resumed runtime download asks for `bytes=<offset>-` with a non-zero
+	// offset. Pass it through untouched: cacheFirstFetch() would strip the
+	// Range header (a Safari workaround for incidental ranges) and the 206
+	// response must not be cached. Other Range requests keep the usual path.
+	if (isResumeRangeRequest(event.request)) {
+		event.respondWith(fetch(event.request));
 		return;
 	}
 
@@ -472,32 +564,14 @@ reportServiceWorkerMetrics(self);
 const controlledIframe = `
 window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
 	const source = window.wp.element.useMemo(function () {
-		/**
-		 * A synchronous function to read a blob URL as text.
-		 *
-		 * @param {string} url
-		 * @returns {string}
-		 */
-		const __playground_readBlobAsText = function (url) {
-			try {
-				let xhr = new XMLHttpRequest();
-				xhr.open('GET', url, false);
-				xhr.overrideMimeType('text/plain;charset=utf-8');
-				xhr.send();
-				return xhr.responseText;
-			} catch(e) {
-				return '';
-			} finally {
-				URL.revokeObjectURL(url);
-			}
-		};
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
 			return '/wp-includes/empty.html';
 		} else if (props.src && props.src.startsWith('blob:')) {
 			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
-			// Let's pass the document content to empty.html and render it there.
-			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+			// Pass the blob URL – never the document content – to empty.html, which
+			// fetches and renders it itself. Only same-origin blob: URLs are honored.
+			return '/wp-includes/empty.html#' + encodeURIComponent(props.src);
 		} else {
 			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
 			return props.src;
@@ -513,6 +587,39 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 		})
 	)
 });`;
+
+/**
+ * Inline script served as /wp-includes/empty.html.
+ *
+ * The URL fragment may name a same-origin blob: URL created by the block editor
+ * (WordPress 6.3). The script fetches that blob and writes its content into the
+ * document. The fragment is never written directly: anything other than a blob:
+ * URL on this origin is ignored, so a crafted link cannot inject markup into
+ * the Playground origin. The synchronous XHR runs during the initial parse, so
+ * document.write() lands before the iframe's load event.
+ */
+const emptyHtmlScript = `
+	const hash = window.location.hash.substring(1);
+	if (hash) {
+		let url;
+		try {
+			url = new URL(decodeURIComponent(hash));
+		} catch (e) {}
+		if (
+			url &&
+			url.protocol === 'blob:' &&
+			url.origin === window.location.origin
+		) {
+			try {
+				const xhr = new XMLHttpRequest();
+				xhr.open('GET', url.href, false);
+				xhr.overrideMimeType('text/plain;charset=utf-8');
+				xhr.send();
+				document.write(xhr.responseText);
+			} catch (e) {}
+		}
+	}
+`;
 
 /**
  * The empty HTML file loaded by the patched editor iframe.
@@ -540,7 +647,7 @@ function emptyHtml(scope: string) {
 	}
 
 	return new Response(
-		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
+		'<!doctype html><script>' + emptyHtmlScript + '</script>',
 		{
 			status: 200,
 			headers,
@@ -577,15 +684,18 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  * usual way of achieving cross-origin isolation is via the Cross-Origin-Embedder-Policy (COEP)
  * and Cross-Origin-Resource-Policy (CORP) headers.
  *
- * However, COEP/COOP are viral-ish. Once a part of a site sets them, the rest of the site must
- * follow. This breaks external embeds, like YouTube videos, that don't set the necessary headers.
- * Serving them by default on the entire playground.wordpress.net site would break existing
- * WordPress features.
+ * However, COEP/COOP are viral-ish. To access SharedArrayBuffer in the site editor frame,
+ * the entire chain of parent frames must have them set. This includes the two iframes on
+ * playground.wordpress.net and also any site where Playground is embedded. This would break
+ * embedding Playground on other sites that don't set COEP/COOP headers.
  *
- * Gutenberg only uses them in the block editor iframe and only when the
- * client-side media processing experiment is enabled. This is fine for native WordPress, where
- * navigating between wp-admin pages triggers a full page reload, but it's problematic in
- * Playground, where the top-level page remains open the entire time you use WordPress.
+ * Relying on COEP/COOP headers is fine in native WordPress, but problematic in Playground:
+ *
+ * * WordPress can use the COEP/COOP headers in wp-admin as every navigation triggers a full
+ *   page reload and wp-admin rarely gets embedded in iframes on other pages.
+ * * Playground can't easily trigger a full page reload on every navigation – that would destroy
+ *   the current Playground instance. Also, Playground often gets embedded in iframes on other
+ *   pages.
  *
  * ## Document-Isolation-Policy
  *
@@ -606,7 +716,6 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  * Playground rewrites the COEP/COOP headers to Document-Isolation-Policy in the supporting
  * browsers. The support is decided using feature detection. As more browsers implement the
  * specification, they'll automatically start receiving the new header and a better experience.
- *
  *
  * @see boot-playground-remote.ts for the other part of the feature detection logic.
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
@@ -632,24 +741,40 @@ self.addEventListener('message', (event) => {
 });
 
 /**
- * Rewrites COEP/COOP headers to Document-Isolation-Policy for browsers that support it.
+ * Ensures cross-origin isolation is applied consistently for scoped responses.
  *
- * When the browser supports Document-Isolation-Policy, this function:
- * - Removes Cross-Origin-Embedder-Policy (COEP) header
- * - Removes Cross-Origin-Opener-Policy (COOP) header
- * - Adds Document-Isolation-Policy: isolate-and-credentialless
+ * Handles two cases:
  *
- * This enables cross-origin isolation (for SharedArrayBuffer) without breaking
- * external embeds like YouTube videos that don't set COEP/COOP headers.
+ * 1. Response already carries `Document-Isolation-Policy`. This is what
+ *    Gutenberg ≥ 22.6 / Gutenberg PR #75991 sends directly on editor screens in
+ *    Chromium 137+. The response is left as-is, but the scope is tracked so
+ *    that `empty.html` (the block editor's inner iframe) also receives DIP —
+ *    parent and child frames need the same DIP for the editor to function
+ *    (see https://github.com/WordPress/wordpress-playground/pull/3320).
+ *
+ * 2. Response carries COEP/COOP (older Gutenberg, WordPress core's
+ *    `wp_set_up_cross_origin_isolation`, or custom plugins). When the browser
+ *    supports DIP, the COEP/COOP pair is rewritten to the equivalent DIP value
+ *    so the page is cross-origin isolated without making the whole host send
+ *    COEP/COOP — that would break external embeds and third-party embedders of
+ *    Playground.
  *
  * @param response The response to potentially modify
  * @param scope The scope of the request, used to track which scopes have cross-origin isolation
- * @returns A new Response with rewritten headers, or the original response if no rewriting is needed
+ * @returns A new Response with rewritten headers, or the original response if no changes are needed
  */
-function rewriteCoopHeadersToDocumentIsolationPolicy(
+function applyCrossOriginIsolationHeaders(
 	response: Response,
 	scope: string
 ): Response {
+	// If the response already opts into DIP, track the scope so empty.html gets DIP too.
+	// This is the modern path once Gutenberg sends DIP directly — see
+	// https://github.com/WordPress/gutenberg/pull/75991.
+	if (response.headers.has('document-isolation-policy')) {
+		scopesWithCrossOriginIsolation.add(scope);
+		return response;
+	}
+
 	// If we don't know whether the browser supports Document-Isolation-Policy,
 	// or if it doesn't support it, return the original response unchanged.
 	if (!browserSupportsDocumentIsolationPolicy) {
@@ -719,7 +844,7 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
  * with the `Document-Isolation-Policy` header. SharedArrayBuffer is only available
  * in this document if the browser supports `Document-Isolation-Policy`.
  *
- * @see rewriteCoopHeadersToDocumentIsolationPolicy
+ * @see applyCrossOriginIsolationHeaders
  */
 function documentIsolationPolicyHtml() {
 	return new Response(

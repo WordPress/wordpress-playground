@@ -1,15 +1,30 @@
+import {
+	phpEventStdinTransfer,
+	type PHPEventWithStdinTransfer,
+} from '@php-wasm/util';
 import type { PHPResponseData } from './php-response';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
-	nodeEndpoint,
-	type NodeEndpoint,
+	createEndpoint,
+	nodeEndpoint as nodeWorkerEndpoint,
+	releaseProxy,
+	type NodeEndpoint as NodeWorker,
 	type Remote,
 	type Endpoint,
 	type IsomorphicMessagePort,
+	type ProxyMethods,
 } from './comlink-sync';
+import {
+	type NodeProcess,
+	nodeProcessEndpoint,
+} from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
+
+// NOTE: It seems like we wouldn't have to explicitly specify
+// symbol type here, but it seems to resolve some type errors.
+export const releaseApiProxy: typeof releaseProxy = releaseProxy;
 
 export type WithAPIState = {
 	/**
@@ -23,7 +38,7 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
@@ -34,20 +49,46 @@ export async function consumeAPISync<APIType>(
 }
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeEndpoint,
+	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
 	let endpoint;
-	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
+	/**
+	 * Previously we assumed we were running in a Node.js environment
+	 * when `import.meta.url` started with `file://`. But this assumption breaks
+	 * with webpack which emits file URLs for `import.meta.url`.
+	 * https://webpack.js.org/api/module-variables/#importmetaurl
+	 *
+	 * We replaced this with a more explicit check for `process.versions.node`.
+	 * See https://github.com/WordPress/wordpress-playground/pull/3248
+	 */
+	const appearsToBeNodeEnvironment =
+		typeof process !== 'undefined' &&
+		typeof process.versions !== 'undefined' &&
+		typeof process.versions.node !== 'undefined';
 	if (appearsToBeNodeEnvironment) {
-		endpoint = nodeEndpoint(remote as NodeEndpoint);
+		if ('postMessage' in remote) {
+			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
+		} else if ('send' in remote && 'addListener' in remote) {
+			endpoint = nodeProcessEndpoint(remote as NodeProcess);
+		} else {
+			throw new Error(
+				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
+			);
+		}
+	} else if (remote instanceof Worker) {
+		endpoint = remote;
 	} else {
-		endpoint =
-			remote instanceof Worker
-				? remote
-				: Comlink.windowEndpoint(remote as Window, context);
+		const windowEndpoint = Comlink.windowEndpoint(
+			remote as Window,
+			context
+		);
+		const bootstrapApi = Comlink.wrap<WithAPIState>(windowEndpoint);
+		endpoint = deferredEndpoint(
+			connectWindowApiThroughMessagePort(bootstrapApi)
+		);
 	}
 
 	/**
@@ -85,13 +126,133 @@ export function consumeAPI<APIType>(
 	}) as unknown as RemoteAPI<APIType>;
 }
 
+/**
+ * Moves a Window-backed API onto a point-to-point MessagePort.
+ *
+ * Unlike Worker messages, Window messages are visible to the application's main
+ * world and to browser-extension isolated worlds. In Chromium, a browser extension
+ * listener that evaluates `event.data` first can take ownership of a transferred
+ * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 is one
+ * such extension.
+ *
+ * The Window message used here transfers only Comlink's endpoint port. Later API
+ * calls and streams use that port, where unrelated Window listeners cannot
+ * observe them. The handshake is retried because `consumeAPI()` may run before
+ * the remote Window installs its Comlink listener.
+ */
+async function connectWindowApiThroughMessagePort(
+	bootstrapApi: Remote<WithAPIState> & ProxyMethods
+): Promise<MessagePort> {
+	while (true) {
+		try {
+			await runWithTimeout(bootstrapApi.isConnected(), 200);
+			return await bootstrapApi[createEndpoint]();
+		} catch {
+			// The remote Window has not exposed its API yet, or it changed
+			// before the endpoint request completed.
+		}
+	}
+}
+
+/**
+ * Adapts the asynchronous MessagePort handshake to `consumeAPI()`'s synchronous
+ * return type.
+ *
+ * Comlink starts registering listeners and posting requests immediately. Buffer
+ * those operations until the port arrives, then attach and start the listeners
+ * before replaying requests so no response can arrive without a listener.
+ */
+function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
+	let port: MessagePort | undefined;
+	let shouldStart = false;
+	const listeners: Array<{
+		type: string;
+		listener: EventListenerOrEventListenerObject;
+		options?: object;
+	}> = [];
+	const messages: Array<{
+		message: unknown;
+		transfer?: Transferable[];
+	}> = [];
+
+	void portPromise.then((connectedPort) => {
+		port = connectedPort;
+		for (const { type, listener, options } of listeners) {
+			port.addEventListener(type, listener, options);
+		}
+		if (shouldStart) {
+			port.start();
+		}
+		for (const { message, transfer } of messages) {
+			if (transfer) {
+				port.postMessage(message, transfer);
+			} else {
+				port.postMessage(message);
+			}
+		}
+		messages.length = 0;
+	});
+
+	return {
+		postMessage(message, transfer) {
+			if (port) {
+				if (transfer) {
+					port.postMessage(message, transfer);
+				} else {
+					port.postMessage(message);
+				}
+			} else {
+				messages.push({ message, transfer });
+			}
+		},
+		addEventListener(type, listener, options) {
+			if (port) {
+				port.addEventListener(type, listener, options);
+			} else {
+				listeners.push({ type, listener, options });
+			}
+		},
+		removeEventListener(type, listener, options) {
+			if (port) {
+				port.removeEventListener(type, listener, options);
+				return;
+			}
+			const index = listeners.findIndex(
+				(entry) =>
+					entry.type === type &&
+					entry.listener === listener &&
+					entry.options === options
+			);
+			if (index !== -1) {
+				listeners.splice(index, 1);
+			}
+		},
+		start() {
+			if (port) {
+				port.start();
+			} else {
+				shouldStart = true;
+			}
+		},
+	};
+}
+
 async function runWithTimeout<T>(
 	promise: Promise<T>,
 	timeout: number
 ): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
-		setTimeout(reject, timeout);
-		promise.then(resolve);
+		const timeoutId = setTimeout(reject, timeout);
+		promise.then(
+			(value) => {
+				clearTimeout(timeoutId);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timeoutId);
+				reject(error);
+			}
+		);
 	});
 }
 
@@ -102,7 +263,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: NodeEndpoint
+	targetWorker?: MessagePort | NodeWorker | NodeProcess
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -110,9 +271,19 @@ export function exposeAPI<Methods, PipedAPI>(
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
+		if ('addEventListener' in targetWorker) {
+			// TODO: MessagePort satisfies Endpoint at runtime but its
+			// addEventListener overloads don't exactly match EventSource.
+			endpoint = targetWorker as Endpoint;
+		} else if ('postMessage' in targetWorker) {
+			endpoint = nodeWorkerEndpoint(targetWorker);
+		} else if ('send' in targetWorker && 'addListener' in targetWorker) {
+			endpoint = nodeProcessEndpoint(targetWorker);
+		} else {
+			throw new Error(
+				'exposeAPI: targetWorker does not look like a Worker, MessagePort, or Process'
+			);
+		}
 	} else {
 		endpoint =
 			typeof window !== 'undefined'
@@ -129,7 +300,7 @@ export async function exposeSyncAPI<Methods>(
 ): Promise<[() => void, (e: Error) => void, Methods]> {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	const endpoint = nodeEndpoint(port as any);
+	const endpoint = nodeWorkerEndpoint(port as any);
 	Comlink.exposeSync(exposedApi, endpoint, transport);
 	return [setReady, setFailed, exposedApi as Methods];
 }
@@ -208,6 +379,81 @@ function setupTransferHandlers() {
 			return port;
 		},
 	});
+	type SerializedReadableStream = {
+		stream?: ReadableStream<Uint8Array>;
+		port?: MessagePort;
+	};
+	/**
+	 * Keeps the stream live while it crosses the Comlink boundary. Runtimes without
+	 * transferable stream support use the existing MessagePort bridge.
+	 */
+	const readableStreamTransferHandler: Comlink.TransferHandler<
+		ReadableStream<Uint8Array>,
+		SerializedReadableStream
+	> = {
+		canHandle: (obj: unknown): obj is ReadableStream<Uint8Array> =>
+			typeof ReadableStream !== 'undefined' &&
+			obj instanceof ReadableStream,
+		serialize(
+			stream: ReadableStream<Uint8Array>
+		): [SerializedReadableStream, Transferable[]] {
+			if (supportsTransferableStreams()) {
+				return [{ stream }, [stream as unknown as Transferable]];
+			}
+
+			const port = streamToPort(stream);
+			return [{ port }, [port]];
+		},
+		deserialize(
+			data: SerializedReadableStream
+		): ReadableStream<Uint8Array> {
+			return data.stream || portToStream(data.port!);
+		},
+	};
+	Comlink.transferHandlers.set(
+		'READABLE_STREAM',
+		readableStreamTransferHandler
+	);
+	type SerializedEventWithReadableStdin = {
+		type: string;
+		stdin: SerializedReadableStream;
+	};
+	/**
+	 * Transfers a worker event explicitly branded with `phpEventStdinTransfer`.
+	 * Comlink applies a transfer handler to the top-level value only, so it will not
+	 * discover the nested `stdin` stream on its own.
+	 */
+	const eventWithReadableStdinTransferHandler: Comlink.TransferHandler<
+		PHPEventWithStdinTransfer,
+		SerializedEventWithReadableStdin
+	> = {
+		canHandle: (obj: unknown): obj is PHPEventWithStdinTransfer =>
+			typeof obj === 'object' &&
+			obj !== null &&
+			phpEventStdinTransfer in obj &&
+			obj[phpEventStdinTransfer] === true &&
+			'type' in obj &&
+			typeof obj.type === 'string' &&
+			'stdin' in obj &&
+			readableStreamTransferHandler.canHandle(obj.stdin),
+		serialize(event): [SerializedEventWithReadableStdin, Transferable[]] {
+			const [stdin, transferables] =
+				readableStreamTransferHandler.serialize(event.stdin);
+			return [{ ...event, stdin }, transferables];
+		},
+		deserialize(event): PHPEventWithStdinTransfer {
+			// Symbol properties are not structured-cloned. Restore the brand locally.
+			return {
+				...event,
+				stdin: readableStreamTransferHandler.deserialize(event.stdin),
+				[phpEventStdinTransfer]: true,
+			};
+		},
+	};
+	Comlink.transferHandlers.set(
+		'EVENT_WITH_READABLE_STDIN',
+		eventWithReadableStdinTransferHandler
+	);
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
 			typeof obj === 'object' &&
@@ -254,18 +500,29 @@ function setupTransferHandlers() {
 		serialize(obj: StreamedPHPResponse): [any, Transferable[]] {
 			const supportsStreams = supportsTransferableStreams();
 			const exitCodePort = promiseToPort(obj.exitCode);
+			const headersStream = obj.getHeadersStream();
+
 			if (supportsStreams) {
 				const payload = {
 					__type: 'StreamedPHPResponse',
-					headers: (obj as any)['headersStream'],
+					headers: headersStream,
 					stdout: obj.stdout,
 					stderr: obj.stderr,
 					exitCodePort,
 				};
-				return [payload, [exitCodePort]];
+				// ReadableStreams must be explicitly transferred
+				return [
+					payload,
+					[
+						headersStream as unknown as Transferable,
+						obj.stdout as unknown as Transferable,
+						obj.stderr as unknown as Transferable,
+						exitCodePort,
+					],
+				];
 			}
 			// Fallback: bridge streams via MessagePorts
-			const headersPort = streamToPort((obj as any)['headersStream']);
+			const headersPort = streamToPort(headersStream);
 			const stdoutPort = streamToPort(obj.stdout);
 			const stderrPort = streamToPort(obj.stderr);
 			const payload = {
@@ -304,28 +561,31 @@ function setupTransferHandlers() {
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:
 
 /**
- * Safari does not support transferable streams, so we need to fallback to
- * MessagePorts.
- * Feature-detects whether this runtime supports transferring ReadableStreams
- * directly through postMessage (aka "transferable streams"). When false,
- * we must fall back to port-bridged streaming.
+ * Safari does not support transferable streams. Use the MessagePort bridge when
+ * this point-to-point capability probe fails.
  */
+let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
-	try {
-		if (typeof ReadableStream === 'undefined') return false;
-		const { port1 } = new MessageChannel();
-		const rs = new ReadableStream();
-		port1.postMessage(rs as any);
+	if (typeof ReadableStream === 'undefined') {
+		_cachedSupportsTransferableStreams = false;
+	}
+	if (_cachedSupportsTransferableStreams === undefined) {
 		try {
-			port1.close();
+			const { port1 } = new MessageChannel();
+			const rs = new ReadableStream();
+			port1.postMessage(rs, [rs as unknown as Transferable]);
+			try {
+				port1.close();
+			} catch (_e) {
+				void _e;
+			}
+			_cachedSupportsTransferableStreams = true;
 		} catch (_e) {
 			void _e;
+			_cachedSupportsTransferableStreams = false;
 		}
-		return true;
-	} catch (_e) {
-		void _e;
-		return false;
 	}
+	return _cachedSupportsTransferableStreams;
 }
 
 /**
@@ -338,11 +598,21 @@ function supportsTransferableStreams(): boolean {
  *   { t: 'chunk', b: ArrayBuffer } – next binary chunk
  *   { t: 'close' }                 – end of stream
  *   { t: 'error', m: string }      – terminal error
+ *   { t: 'cancel' }                – consumer cancelled the stream
  */
-function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
+export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 	const { port1, port2 } = new MessageChannel();
+	const reader = stream.getReader();
+	const onMessage = (event: MessageEvent) => {
+		if (event.data?.t === 'cancel') {
+			reader.cancel().catch(() => {
+				// The consumer has already cancelled and cannot observe source errors.
+			});
+		}
+	};
+	port1.addEventListener('message', onMessage);
+	port1.start();
 	(async () => {
-		const reader = stream.getReader();
 		try {
 			while (true) {
 				const { done, value } = await reader.read();
@@ -360,12 +630,12 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 					break;
 				}
 				if (value) {
-					// Ensure we transfer an owned buffer
-					const owned =
-						value.byteOffset === 0 &&
-						value.byteLength === value.buffer.byteLength
-							? value
-							: value.slice();
+					/**
+					 * ReadableStream.tee() gives each branch the same chunk object. Transfer
+					 * an owned copy so detaching this buffer does not invalidate another
+					 * listener's branch.
+					 */
+					const owned = value.slice();
 					const buf = owned.buffer;
 					try {
 						port1.postMessage({ t: 'chunk', b: buf }, [
@@ -386,6 +656,7 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 				// Ignore error
 			}
 		} finally {
+			port1.removeEventListener('message', onMessage);
 			try {
 				port1.close();
 			} catch {
@@ -400,7 +671,7 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
  * Reconstructs a ReadableStream from a MessagePort using the inverse of the
  * streamToPort protocol. Each message enqueues data, closes, or errors.
  */
-function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
+export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 	return new ReadableStream<Uint8Array>({
 		start(controller) {
 			const onMessage = (ev: MessageEvent) => {
@@ -408,14 +679,30 @@ function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 				if (!data) return;
 				switch (data.t) {
 					case 'chunk':
-						controller.enqueue(new Uint8Array(data.b));
+						try {
+							controller.enqueue(new Uint8Array(data.b));
+						} catch {
+							// enqueue() throws when the stream is no
+							// longer readable — the consumer cancelled
+							// it, someone called controller.error(),
+							// or the stream was already closed. We
+							// swallow the error because the consumer
+							// already knows why the stream ended. The
+							// only actionable response is to close
+							// the port so the remote side stops
+							// sending.
+							cleanup();
+						}
 						break;
 					case 'close':
-						controller.close();
+						safeStreamClose(controller);
 						cleanup();
 						break;
 					case 'error':
-						controller.error(new Error(data.m || 'Stream error'));
+						safeStreamError(
+							controller,
+							new Error(data.m || 'Stream error')
+						);
 						cleanup();
 						break;
 				}
@@ -451,6 +738,11 @@ function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			}
 		},
 		cancel() {
+			try {
+				port.postMessage({ t: 'cancel' });
+			} catch {
+				// The producer has already closed its port.
+			}
 			try {
 				port.close();
 			} catch {
@@ -626,4 +918,35 @@ function proxyClone(object: any): any {
 			}
 		},
 	});
+}
+
+/**
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// Stream already in a terminal state.
+	}
+}
+
+/**
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// Stream already in a terminal state.
+	}
 }

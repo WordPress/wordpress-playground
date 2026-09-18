@@ -1,5 +1,7 @@
 /// <reference types="vitest" />
-import { join } from 'path';
+import { copyFileSync } from 'fs';
+import { createRequire } from 'module';
+import { dirname, join } from 'path';
 import { pathToFileURL } from 'url';
 import { type PluginOption, defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
@@ -99,40 +101,29 @@ const plugins = [
 		},
 	},
 	/**
-	 * In library mode, Vite bundles all `?url` imports as JS modules with a single,
-	 * base64 export. blueprints.phar is too large for that. We need to preserve it
-	 * as an actual file.
-	 *
-	 * ... more comment tbd ...
-	 *
-	 * @see https://github.com/vitejs/vite/issues/3295
+	 * Copies the bundled SQLite integration plugin zip into the
+	 * output directory so the built CLI can read it at runtime.
 	 */
 	{
-		name: 'build-phars-as-URL-modules-not-data-imports',
+		name: 'copy-sqlite-zip-to-output',
 
-		transform(code, id) {
-			if (id?.includes('.phar')) {
-				// @TODO don't hardcode it
-				// @TODO use URL on the web and path on Node.js
-				return {
-					code: `
-						import { fileURLToPath } from 'url';
-						import { dirname, join } from 'path';
+		writeBundle(options) {
+			const outputDir = options.dir;
+			if (!outputDir) return;
 
-						let pharPath;
-						if (typeof __dirname !== 'undefined') {
-							// CommonJS
-							pharPath = join(__dirname, "./blueprints.phar");
-						} else {
-							// ESM
-							pharPath = join(import.meta.dirname, "./blueprints.phar");
-						}
-
-						export default pharPath;
-					`,
-					map: null,
-				};
-			}
+			const require = createRequire(import.meta.url);
+			const wpBuildsRoot = dirname(
+				require.resolve('@wp-playground/wordpress-builds/package.json')
+			);
+			copyFileSync(
+				join(
+					wpBuildsRoot,
+					'src',
+					'sqlite-database-integration',
+					'sqlite-database-integration-trunk.zip'
+				),
+				join(outputDir, 'sqlite-database-integration.zip')
+			);
 		},
 	},
 	...viteGlobalExtensions,
@@ -152,6 +143,7 @@ const external = [
 ];
 
 export default defineConfig({
+	root: __dirname,
 	base: './',
 	assetsInclude: ['**/*.ini'],
 	cacheDir: '../../../node_modules/.vite/php-cli',

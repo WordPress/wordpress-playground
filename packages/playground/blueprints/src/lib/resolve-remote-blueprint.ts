@@ -2,8 +2,10 @@ import {
 	FetchFilesystem,
 	InMemoryFilesystem,
 	OverlayFilesystem,
+	ChrootFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
+import { basename, dirname, normalizePath } from '@php-wasm/util';
 import type { BlueprintBundle } from './types';
 
 export class BlueprintFetchError extends Error {
@@ -16,6 +18,11 @@ export class BlueprintFetchError extends Error {
 	}
 }
 
+export interface ResolveRemoteBlueprintOptions {
+	fetch?: typeof fetch;
+	corsProxy?: string;
+}
+
 /**
  * Resolves a remote blueprint from a URL.
  *
@@ -23,11 +30,13 @@ export class BlueprintFetchError extends Error {
  * @returns A promise that resolves to the resolved blueprint.
  */
 export async function resolveRemoteBlueprint(
-	url: string
+	url: string,
+	options: ResolveRemoteBlueprintOptions = {}
 ): Promise<BlueprintBundle> {
 	let blueprintBytes: ArrayBuffer;
 	try {
-		const response = await fetch(url, {
+		const fetchBlueprint = options.fetch || fetch;
+		const response = await fetchBlueprint(url, {
 			credentials: 'omit',
 		});
 		if (!response.ok) {
@@ -54,18 +63,87 @@ export async function resolveRemoteBlueprint(
 			}),
 			new FetchFilesystem({
 				baseUrl: url,
+				corsProxy: options.corsProxy,
 			}),
 		]);
 	} catch (error) {
 		// If the blueprint is not a JSON file, check if it's a ZIP file.
 		if (await looksLikeZipFile(blueprintBytes)) {
-			return ZipFilesystem.fromArrayBuffer(blueprintBytes);
+			return createBlueprintBundleFromZip(blueprintBytes);
 		}
 		throw new Error(
 			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
 			{ cause: error }
 		);
 	}
+}
+
+/**
+ * Locates blueprint.json inside a zip archive.
+ *
+ * 1. Checks for blueprint.json at the root.
+ * 2. If not found, looks for a single top-level directory (ignoring
+ *    __MACOSX) and checks for blueprint.json inside it.
+ * 3. Throws if there are multiple top-level directories or no
+ *    blueprint.json is found.
+ */
+function findBlueprintJsonPath(entryPaths: string[]): string {
+	const normalized = entryPaths.map((p) => normalizePath(p));
+
+	if (
+		normalized.some(
+			(p) => basename(p) === 'blueprint.json' && dirname(p) === ''
+		)
+	) {
+		return 'blueprint.json';
+	}
+
+	const topLevelDirs = new Set<string>();
+	for (const p of normalized) {
+		const dir = p.split('/')[0];
+		if (dir && dir !== basename(p)) {
+			// Entry is inside a directory — record the top-level dir.
+			if (dir !== '__MACOSX') {
+				topLevelDirs.add(dir);
+			}
+		}
+	}
+
+	if (topLevelDirs.size > 1) {
+		throw new Error(
+			'ZIP contains multiple top-level directories. ' +
+				'Bundle ZIPs must contain blueprint.json at the root ' +
+				'or inside a single top-level directory.'
+		);
+	}
+
+	if (topLevelDirs.size === 1) {
+		const dir = [...topLevelDirs][0];
+		const candidate = `${dir}/blueprint.json`;
+		if (normalized.includes(candidate)) {
+			return candidate;
+		}
+	}
+
+	throw new Error(
+		'ZIP does not contain a blueprint.json. ' +
+			'Place blueprint.json at the ZIP root or inside a ' +
+			'single top-level directory.'
+	);
+}
+
+/**
+ * Creates a BlueprintBundle from a zip ArrayBuffer. Locates
+ * blueprint.json at the root or inside a single top-level directory.
+ */
+async function createBlueprintBundleFromZip(
+	arrayBuffer: ArrayBuffer
+): Promise<BlueprintBundle> {
+	const zipFs = ZipFilesystem.fromArrayBuffer(arrayBuffer);
+	const entryPaths = await zipFs.getAllFilePaths();
+	const blueprintPath = findBlueprintJsonPath(entryPaths);
+	const dir = dirname(blueprintPath);
+	return dir === '' ? zipFs : new ChrootFilesystem(dir, zipFs);
 }
 
 async function looksLikeZipFile(bytes: ArrayBuffer): Promise<boolean> {

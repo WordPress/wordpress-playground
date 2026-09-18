@@ -1,80 +1,81 @@
-import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
-import type { PlaygroundCliBlueprintV1Worker as PlaygroundCliWorkerV1 } from './blueprints-v1/worker-thread-v1';
-import type { PlaygroundCliBlueprintV2Worker as PlaygroundCliWorkerV2 } from './blueprints-v2/worker-thread-v2';
+// TODO: Is there any reason we should not delete this unused module and its tests?
 
-type PlaygroundCliWorker = PlaygroundCliWorkerV1 | PlaygroundCliWorkerV2;
+import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
 
 // TODO: Let's merge worker management into PHPProcessManager
 // when we can have multiple workers in both CLI and web.
-// ¡ATTENTION!:Please don't expand upon this as an independent abstraction.
+// ¡ATTENTION!:Please don't expand upon this as an independent
+// abstraction.
+// TODO: From Brandon: ^Do you still think this, Adam Ziel?
+//       I think they may be separate
 
-// TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
-type WorkerLoad = {
-	worker: RemoteAPI<PlaygroundCliWorker>;
-	activeRequests: Set<Promise<PHPResponse>>;
+// TODO: Could we just spawn a worker using the factory
+//       function to PHPProcessManager?
+
+export interface LoadBalancerWorker {
+	request(request: PHPRequest): Promise<PHPResponse>;
+}
+
+type InProgressRequest = {
+	request: PHPRequest;
+	promisedResponse: Promise<PHPResponse>;
+};
+type QueuedRequest = {
+	request: PHPRequest;
+	resolve: (response: PHPResponse | PromiseLike<PHPResponse>) => void;
+	reject: (reason?: any) => void;
 };
 export class LoadBalancer {
-	workerLoads: WorkerLoad[] = [];
+	// NOTE: This is just a list of the workers we think we have,
+	// for visibility when debugging. The bookkeeping for load
+	// balancing is done using separate collections of free and
+	// busy workers.
+	workers: LoadBalancerWorker[] = [];
 
-	constructor(
-		// NOTE: We require a worker to start so that a load balancer
-		// may not exist without being able to service requests.
-		// Playground CLI initialization, as of 2025-06-11, requires that
-		// an initial worker is booted alone and initialized via Blueprint
-		// before additional workers are created based on the initialized worker.
-		initialWorker: RemoteAPI<PlaygroundCliWorker>
-	) {
-		this.addWorker(initialWorker);
+	// Workers ready to work.
+	freeWorkers: LoadBalancerWorker[] = [];
+
+	// Workers that are working.
+	busyWorkers = new Map<LoadBalancerWorker, InProgressRequest>();
+
+	// Requests waiting for a worker.
+	queuedRequests: QueuedRequest[] = [];
+
+	constructor(workers: LoadBalancerWorker[]) {
+		this.workers.push(...workers);
+		this.freeWorkers.push(...workers);
 	}
 
-	addWorker(worker: RemoteAPI<PlaygroundCliWorker>) {
-		this.workerLoads.push({
-			worker,
-			activeRequests: new Set(),
+	async handleRequest(request: PHPRequest): Promise<PHPResponse> {
+		const promisedResponse = new Promise<PHPResponse>((resolve, reject) => {
+			this.queuedRequests.push({
+				request,
+				resolve,
+				reject,
+			});
 		});
-	}
-	async removeWorker(worker: RemoteAPI<PlaygroundCliWorker>) {
-		const workerIndex = this.workerLoads.findIndex(
-			(workerLoad) => workerLoad.worker === worker
-		);
-		if (workerIndex === -1) {
-			return;
-		}
-
-		const [removedWorker] = this.workerLoads.splice(workerIndex, 1);
-
-		// A worker can only be considered fully removed once all
-		// its active requests have settled.
-		await Promise.allSettled(removedWorker.activeRequests);
+		this.dispatchQueuedRequests();
+		return promisedResponse;
 	}
 
-	async handleRequest(request: PHPRequest) {
-		let smallestWorkerLoad = this.workerLoads[0];
+	private dispatchQueuedRequests() {
+		while (this.queuedRequests.length > 0 && this.freeWorkers.length > 0) {
+			const { request, resolve, reject } = this.queuedRequests.shift()!;
+			const worker = this.freeWorkers.shift()!;
 
-		// TODO: Is there any way for us to track CPU load so we could avoid
-		//       picking a worker that is under heavy load despite few requests?
-		// Possibly this: https://nodejs.org/api/worker_threads.html#workerperformance
-		// Though we probably don't need to worry about it.
-		for (let i = 1; i < this.workerLoads.length; i++) {
-			const workerLoad = this.workerLoads[i];
-			if (
-				workerLoad.activeRequests.size <
-				smallestWorkerLoad.activeRequests.size
-			) {
-				smallestWorkerLoad = workerLoad;
-			}
+			const promisedResponse = worker.request(request).finally(() => {
+				this.busyWorkers.delete(worker);
+				this.freeWorkers.push(worker);
+
+				this.dispatchQueuedRequests();
+			});
+
+			promisedResponse.then(resolve, reject);
+
+			this.busyWorkers.set(worker, {
+				request,
+				promisedResponse,
+			});
 		}
-
-		// TODO: Add trace facility to Playground CLI to observe internals like request routing.
-
-		const promiseForResponse = smallestWorkerLoad.worker.request(request);
-		smallestWorkerLoad.activeRequests.add(promiseForResponse);
-
-		// Add URL to promise for use while debugging
-		(promiseForResponse as any).url = request.url;
-
-		return promiseForResponse.finally(() => {
-			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
-		});
 	}
 }

@@ -14,6 +14,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig(function () {
 	return {
+		root: __dirname,
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
 		plugins: [

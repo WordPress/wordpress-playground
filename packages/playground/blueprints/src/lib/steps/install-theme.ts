@@ -6,7 +6,7 @@ import type { Directory } from '../v1/resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
-import { joinPaths } from '@php-wasm/util';
+import { basename, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -29,8 +29,10 @@ import { logger } from '@php-wasm/logger';
  * }
  * </code>
  */
-export interface InstallThemeStep<FileResource, DirectoryResource>
-	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
+export interface InstallThemeStep<FileResource, DirectoryResource> extends Pick<
+	InstallAssetOptions,
+	'ifAlreadyInstalled'
+> {
 	/**
 	 * The step identifier.
 	 */
@@ -60,9 +62,18 @@ export interface InstallThemeOptions {
 	 */
 	importStarterContent?: boolean;
 	/**
+	 * Whether installation, activation, or starter-content failures should
+	 * abort the Blueprint.
+	 */
+	onError?: 'skip-theme' | 'throw';
+	/**
 	 * The name of the folder to install the theme to. Defaults to guessing from themeData
 	 */
 	targetFolderName?: string;
+	/**
+	 * Human-readable theme name for the progress caption and skip warning.
+	 */
+	humanReadableName?: string;
 }
 
 /**
@@ -86,61 +97,115 @@ export const installTheme: StepHandler<
 		);
 	}
 
-	const targetFolderName =
-		'targetFolderName' in options ? options.targetFolderName : '';
-	let assetFolderName = '';
+	const onError = options.onError ?? 'throw';
 	let assetNiceName = '';
-	if (themeData instanceof File) {
-		// @TODO: Consider validating whether this is a zip file?
-		const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
-		assetNiceName = zipNameToHumanName(zipFileName);
+	const progressName = () => options.humanReadableName || assetNiceName;
+	try {
+		const targetFolderName =
+			'targetFolderName' in options ? options.targetFolderName : '';
+		let assetFolderName = '';
+		if (themeData instanceof File) {
+			// @TODO: Consider validating whether this is a zip file?
+			const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
+			assetNiceName = zipNameToHumanName(zipFileName);
 
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
-		const assetResult = await installAsset(playground, {
-			ifAlreadyInstalled,
-			zipFile: themeData,
-			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-			targetFolderName: targetFolderName,
-		});
-		assetFolderName = assetResult.assetFolderName;
-	} else {
-		assetNiceName = themeData.name;
-		assetFolderName = targetFolderName || assetNiceName;
+			progress?.tracker.setCaption(
+				`Installing the ${progressName()} theme`
+			);
+			const assetResult = await installAsset(playground, {
+				ifAlreadyInstalled,
+				zipFile: themeData,
+				targetPath: `${await playground.documentRoot}/wp-content/themes`,
+				targetFolderName: targetFolderName,
+			});
+			assetFolderName = assetResult.assetFolderName;
+		} else {
+			assetNiceName = themeData.name;
+			assetFolderName = targetFolderName || assetNiceName;
+			if (
+				!assetFolderName ||
+				basename(assetFolderName) !== assetFolderName
+			) {
+				throw new Error(
+					'Theme folder name must be a single directory name.'
+				);
+			}
 
-		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
-		const themeDirectoryPath = joinPaths(
-			await playground.documentRoot,
-			'wp-content',
-			'themes',
-			assetFolderName
-		);
-		await writeFiles(playground, themeDirectoryPath, themeData.files, {
-			rmRoot: true,
-		});
-	}
+			progress?.tracker.setCaption(
+				`Installing the ${progressName()} theme`
+			);
+			const themeDirectoryPath = joinPaths(
+				await playground.documentRoot,
+				'wp-content',
+				'themes',
+				assetFolderName
+			);
+			let shouldWriteThemeFiles = true;
+			/**
+			 * Directory themes are written directly instead of going through
+			 * `installAsset()`, so apply the same `ifAlreadyInstalled` rule here.
+			 */
+			if (await playground.fileExists(themeDirectoryPath)) {
+				if (!(await playground.isDir(themeDirectoryPath))) {
+					throw new Error(
+						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because a file with the same name already exists. Note it's a file, not a directory! Is this by mistake?`
+					);
+				}
+				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
+					shouldWriteThemeFiles = false;
+				} else if (ifAlreadyInstalled === 'error') {
+					throw new Error(
+						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because it already exists and ` +
+							`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+					);
+				}
+			}
+			if (shouldWriteThemeFiles) {
+				await writeFiles(
+					playground,
+					themeDirectoryPath,
+					themeData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
+		}
 
-	const activate = 'activate' in options ? options.activate : true;
-	if (activate) {
-		await activateTheme(
-			playground,
-			{
-				themeFolderName: assetFolderName,
-			},
-			progress
-		);
-	}
+		const activate = 'activate' in options ? options.activate : true;
+		if (activate) {
+			await activateTheme(
+				playground,
+				{
+					themeFolderName: assetFolderName,
+				},
+				progress
+			);
+		}
 
-	const importStarterContent =
-		'importStarterContent' in options
-			? options.importStarterContent
-			: false;
-	if (importStarterContent) {
-		await importThemeStarterContent(
-			playground,
-			{
-				themeSlug: assetFolderName,
-			},
-			progress
-		);
+		const importStarterContent =
+			'importStarterContent' in options
+				? options.importStarterContent
+				: false;
+		if (importStarterContent) {
+			await importThemeStarterContent(
+				playground,
+				{
+					themeSlug: assetFolderName,
+				},
+				progress
+			);
+		}
+	} catch (error) {
+		if (onError === 'skip-theme') {
+			const skippedThemeName = progressName() || 'unknown theme';
+			logger.warn(
+				`Skipping theme installation for ${skippedThemeName} after failure: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+			return;
+		}
+		throw error;
 	}
 };

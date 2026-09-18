@@ -1,9 +1,13 @@
 import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { type Extension, StateEffect, StateField } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import { findNodeAtLocation, parseTree } from 'jsonc-parser';
 import {
-	validateBlueprint,
+	findNodeAtLocation,
+	parseTree,
+	type Node as JsonNode,
+} from 'jsonc-parser';
+import {
+	validateBlueprintDeclaration,
 	type BlueprintValidationResult,
 } from '@wp-playground/blueprints';
 
@@ -47,7 +51,7 @@ export function createBlueprintLinter(
 		validationStateField,
 		lintGutter(),
 		linter(
-			(view: EditorView): Diagnostic[] => {
+			async (view: EditorView): Promise<Diagnostic[]> => {
 				const docText = view.state.doc.toString();
 
 				// Skip validation for empty documents
@@ -122,7 +126,13 @@ export function createBlueprintLinter(
 					];
 				}
 
-				const validationResult = validateBlueprint(parsedJson);
+				const validationResult =
+					await validateBlueprintDeclaration(parsedJson);
+				// A v2 validator may load asynchronously. Ignore its result if the
+				// author changed the document while it was loading.
+				if (view.state.doc.toString() !== docText) {
+					return [];
+				}
 
 				if (validationResult.valid) {
 					dispatchValidationState(view, false, validationResult);
@@ -143,7 +153,8 @@ export function createBlueprintLinter(
 					(error) => {
 						// Parse the instance path (e.g., "/steps/0" -> ["steps", 0])
 						const pathSegments = parseInstancePath(
-							error.instancePath
+							error.instancePath,
+							tree
 						);
 
 						let from: number;
@@ -240,21 +251,48 @@ function dispatchValidationState(
 }
 
 /**
- * Parse an AJV instance path into path segments.
- * "/steps/0/step" -> ["steps", 0, "step"]
+ * Parses an AJV instance path into path segments for jsonc-parser.
+ *
+ * AJV reports an error location as a JSON Pointer, where each `/` separates
+ * one complete object key or array index. For example, `/steps/10/step` has
+ * the three segments `steps`, `10`, and `step`; the digits are not split.
  */
-function parseInstancePath(instancePath: string): (string | number)[] {
-	if (!instancePath || instancePath === '') {
+function parseInstancePath(
+	instancePath: string,
+	tree: JsonNode
+): (string | number)[] {
+	if (!instancePath) {
 		return [];
 	}
 
-	return instancePath
-		.split('/')
-		.filter((segment) => segment !== '')
-		.map((segment) => {
-			const asNumber = parseInt(segment, 10);
-			return isNaN(asNumber) ? segment : asNumber;
-		});
+	const path: (string | number)[] = [];
+	let currentNode: JsonNode | undefined = tree;
+	// Remove only the leading JSON Pointer separator. Splitting the remainder
+	// preserves empty object keys, such as the final segment in `/siteOptions/`.
+	for (const encodedSegment of instancePath.slice(1).split('/')) {
+		// JSON Pointer escapes `~` as `~0` and `/` as `~1` within a segment.
+		// Decode `~1` first: `~01` means the literal text `~1`; decoding `~0`
+		// first would turn it into `~1` and then incorrectly into `/`.
+		const segment = encodedSegment
+			.replaceAll('~1', '/')
+			.replaceAll('~0', '~');
+		// A segment such as `10` may be either an object key or an array index.
+		// jsonc-parser expects a number only when its parent is actually an array.
+		const arrayIndex = Number(segment);
+		const isArrayIndex: boolean =
+			currentNode?.type === 'array' &&
+			Number.isSafeInteger(arrayIndex) &&
+			arrayIndex >= 0 &&
+			String(arrayIndex) === segment;
+		const pathSegment: string | number = isArrayIndex
+			? arrayIndex
+			: segment;
+		path.push(pathSegment);
+		currentNode = currentNode
+			? findNodeAtLocation(currentNode, [pathSegment])
+			: undefined;
+	}
+	return path;
 }
 
 /**

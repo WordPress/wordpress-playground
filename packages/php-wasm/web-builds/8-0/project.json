@@ -57,5 +57,5 @@
 			"dependsOn": ["build"]
 		}
 	},
-	"tags": ["scope:php-binaries"]
+	"tags": ["scope:php-binaries", "scope:browser-only"]
 }

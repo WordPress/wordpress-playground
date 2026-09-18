@@ -4,6 +4,9 @@ slug: /developers/local-development/php-wasm-node
 description: WordPress Playground trae PHP con WebAssembly a Node.js para ejecución del lado del servidor, procesamiento de datos y pruebas sin instalación nativa.
 ---
 
+<!-- title: php-wasm/node -->
+<!-- description: WordPress Playground brings WebAssembly-powered PHP to Node.js for server-side execution, data processing, and testing without a native install. -->
+
 <!-- # Using WordPress Playground in Node.js -->
 
 # Usando WordPress Playground en Node.js
@@ -12,9 +15,33 @@ description: WordPress Playground trae PHP con WebAssembly a Node.js para ejecuc
 
 Como un proyecto WebAssembly, también puedes usar WordPress Playground en Node.js.
 
-<!-- If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js. -->
+<!--
+If you need direct control over the underlying WebAssembly PHP runtime, take a
+look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node). It
+provides the Node.js loader and runtime integrations used by WordPress
+Playground tools. The compiled binaries are published in version-specific
+packages such as `@php-wasm/node-8-4`.
+-->
 
-Si necesitas control de bajo nivel sobre la compilación WebAssembly de PHP subyacente, echa un vistazo al [paquete @php-wasm/node](https://npmjs.org/@php-wasm/node) que incluye el runtime WebAssembly de PHP. Este paquete está en el núcleo de todas las herramientas de WordPress Playground para Node.js.
+Si necesitas control directo sobre el entorno de ejecución PHP WebAssembly
+subyacente, consulta el
+[paquete @php-wasm/node](https://npmjs.org/@php-wasm/node). Proporciona el
+cargador de Node.js y las integraciones del entorno de ejecución que utilizan
+las herramientas de WordPress Playground. Los binarios compilados se publican
+en paquetes específicos para cada versión, como `@php-wasm/node-8-4`.
+
+<!--
+See [PHP.wasm packages](/developers/architecture/php-wasm-packages) to learn
+how `@php-wasm/universal`, the Node.js and web adapters, and the version-specific
+packages fit together. That page also explains the lower-level, single-version
+setup with a smaller dependency footprint.
+-->
+
+Consulta [Paquetes PHP.wasm](/developers/architecture/php-wasm-packages) para
+entender cómo se relacionan `@php-wasm/universal`, los adaptadores de Node.js y
+web, y los paquetes específicos para cada versión. Esa página también explica la
+configuración de bajo nivel para una sola versión, con una huella de dependencias
+más reducida.
 
 <!-- Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases. -->
 
@@ -24,9 +51,20 @@ Consulta la [lista completa](/api/node) de Clases, Funciones, Interfaces y Alias
 
 ## WebAssembly PHP para Node.js
 
-<!-- This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy. -->
+<!--
+Together, `@php-wasm/node` and a version-specific package provide the compiled
+PHP runtime and JavaScript API optimized for Node.js. PHP starts with an
+in-memory filesystem; use the Node.js filesystem helpers to mount host paths.
+The runtime can access the network if you plug in a custom WebSocket-to-TCP
+proxy.
+-->
 
-Este paquete incluye binarios WebAssembly de PHP y la API JavaScript optimizada para Node.js. Utiliza el sistema de archivos del host directamente y puede acceder a la red si conectas un proxy WS personalizado.
+En conjunto, `@php-wasm/node` y un paquete específico para una versión
+proporcionan el entorno de ejecución PHP compilado y la API de JavaScript
+optimizados para Node.js. PHP se inicia con un sistema de archivos en memoria;
+utiliza las utilidades del sistema de archivos de Node.js para montar rutas del
+host. El entorno de ejecución puede acceder a la red si conectas un proxy
+personalizado de WebSocket a TCP.
 
 <!-- ### Basic usage -->
 
@@ -43,6 +81,132 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
+<!-- ### Load one PHP version directly -->
+
+### Cargar directamente una versión de PHP
+
+<!--
+If installation size matters and you only need the shared, low-level PHP API,
+you can omit `@php-wasm/node` and install one Node.js build instead:
+-->
+
+Si el tamaño de la instalación es importante y solo necesitas la API compartida
+de bajo nivel de PHP, puedes omitir `@php-wasm/node` e instalar una sola
+compilación para Node.js:
+
+<!--
+```bash
+npm install @php-wasm/universal @php-wasm/node-8-4
+```
+-->
+
+```bash
+npm install @php-wasm/universal @php-wasm/node-8-4
+```
+
+<!--
+This approach bypasses Node.js-specific setup such as networking, file locking,
+and extension loading. See
+[Load one PHP version directly](/developers/architecture/php-wasm-packages#load-one-php-version-directly)
+for the complete example and tradeoffs.
+-->
+
+Este enfoque omite la configuración específica de Node.js, como la red, el
+bloqueo de archivos y la carga de extensiones. Consulta
+[Cargar directamente una versión de PHP](/developers/architecture/php-wasm-packages#cargar-directamente-una-versión-de-php)
+para ver el ejemplo completo y sus ventajas e inconvenientes.
+
+<!-- ### Loading PHP extensions -->
+
+### Carga de extensiones de PHP
+
+<!--
+Use the `extensions` loader option to enable optional extensions before PHP
+starts:
+-->
+
+Utiliza la opción `extensions` del cargador para activar extensiones opcionales
+antes de que se inicie PHP:
+
+<!--
+```javascript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: ['intl', 'redis', 'memcached', { name: 'xdebug', options: { ideKey: 'PLAYGROUND' } }],
+	})
+);
+```
+-->
+
+```javascript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: ['intl', 'redis', 'memcached', { name: 'xdebug', options: { ideKey: 'PLAYGROUND' } }],
+	})
+);
+```
+
+<!-- The same array can load external JSPI `.so` artifacts from a manifest: -->
+
+El mismo array puede cargar artefactos `.so` externos para JSPI desde un
+manifiesto:
+
+<!--
+```javascript
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: './dist/wp_mysql_parser/manifest.json',
+				},
+			},
+		],
+	})
+);
+```
+-->
+
+```javascript
+const php = new PHP(
+	await loadNodeRuntime('8.4', {
+		extensions: [
+			{
+				source: {
+					format: 'manifest',
+					manifestUrl: './dist/wp_mysql_parser/manifest.json',
+				},
+			},
+		],
+	})
+);
+```
+
+<!--
+External extensions require JSPI. Asyncify support is limited to the bundled
+extensions shipped with the PHP.wasm packages.
+-->
+
+Las extensiones externas requieren JSPI. La compatibilidad con Asyncify se
+limita a las extensiones incluidas en los paquetes PHP.wasm.
+
+<!--
+See [Loading PHP extensions](/developers/apis/javascript-api/php-extensions)
+for manifest format, browser usage, sidecar files, and compatibility notes.
+-->
+
+Consulta
+[Carga de extensiones de PHP](/developers/apis/javascript-api/php-extensions)
+para obtener información sobre el formato del manifiesto, el uso en el
+navegador, los archivos auxiliares y las notas de compatibilidad.
+
 <!-- ## Use cases -->
 
 ## Casos de uso
@@ -55,10 +219,10 @@ console.log(await output.stdoutText);
 
 Ejecuta PHP dentro de Node.js sin instalación nativa de PHP. Permite al desarrollador producir las siguientes soluciones:
 
--   Tareas de CI/CD y herramientas de desarrollo.
--   Soporte a educación y flujos de trabajo de WordPress: potencia tutoriales interactivos, sandboxes y retos de código.
--   Generar contenido y prototipar comportamiento de servidor.
--   Renderizar HTML usando plantillas PHP y levantar rápidamente endpoints de API simulados para simular peticiones.
+- Tareas de CI/CD y herramientas de desarrollo.
+- Soporte a educación y flujos de trabajo de WordPress: potencia tutoriales interactivos, sandboxes y retos de código.
+- Generar contenido y prototipar comportamiento de servidor.
+- Renderizar HTML usando plantillas PHP y levantar rápidamente endpoints de API simulados para simular peticiones.
 
 <!-- ## Practical demos -->
 
@@ -655,7 +819,7 @@ try {
 <!-- -   **Memory management**: Large files may impact performance. Consider streaming for big datasets. -->
 <!-- -   **Caching**: Cache compiled PHP scripts and frequently accessed data. -->
 
--   **Reutiliza instancias PHP**: Crear una nueva instancia PHP es costoso. Reutiliza la misma instancia cuando sea posible.
--   **Operaciones por lotes**: Agrupa múltiples operaciones de archivos juntas en lugar de ejecutar scripts separados.
--   **Gestión de memoria**: Los archivos grandes pueden impactar el rendimiento. Considera streaming para grandes conjuntos de datos.
--   **Caché**: Almacena en caché scripts PHP compilados y datos accedidos frecuentemente.
+- **Reutiliza instancias PHP**: Crear una nueva instancia PHP es costoso. Reutiliza la misma instancia cuando sea posible.
+- **Operaciones por lotes**: Agrupa múltiples operaciones de archivos juntas en lugar de ejecutar scripts separados.
+- **Gestión de memoria**: Los archivos grandes pueden impactar el rendimiento. Considera streaming para grandes conjuntos de datos.
+- **Caché**: Almacena en caché scripts PHP compilados y datos accedidos frecuentemente.

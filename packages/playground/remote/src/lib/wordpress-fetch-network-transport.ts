@@ -1,6 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import type { UniversalPHP } from '@php-wasm/universal';
-import { fetchWithCorsProxy } from '@php-wasm/web';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { defineWpConfigConsts } from '@wp-playground/blueprints';
 
 export interface RequestData {
@@ -8,6 +8,7 @@ export interface RequestData {
 	method?: string;
 	headers?: Record<string, string>;
 	data?: string;
+	blocking?: boolean;
 }
 
 export interface RequestMessage {
@@ -184,7 +185,65 @@ export class WordPressFetchNetworkTransport {
 				require_once '/wordpress/wp-load.php';
 				require_once '/wordpress/wp-admin/includes/misc.php';
 				require_once '/wordpress/wp-admin/includes/dashboard.php';
+
+				function _wppg_is_loopback_request( $url ) {
+					$parsed_url_req  = wp_parse_url( $url );
+					$parsed_site_url = wp_parse_url( site_url() );
+					if ( ! is_array( $parsed_url_req ) || ! is_array( $parsed_site_url ) ) {
+						return false;
+					}
+
+					if (
+						! isset(
+							$parsed_site_url['host'],
+							$parsed_url_req['host'],
+							$parsed_site_url['path'],
+							$parsed_url_req['path']
+						)
+					) {
+						return false;
+					}
+
+					$site_port =
+						$parsed_site_url['port'] ??
+						( ( $parsed_site_url['scheme'] ?? 'http' ) === 'https' ? 443 : 80 );
+					$req_port =
+						$parsed_url_req['port'] ??
+						( ( $parsed_url_req['scheme'] ?? 'http' ) === 'https' ? 443 : 80 );
+
+					return
+						$parsed_site_url['host'] === $parsed_url_req['host'] &&
+						$site_port === $req_port &&
+						strpos( $parsed_url_req['path'], $parsed_site_url['path'] ) === 0;
+				}
+
 				add_filter('pre_http_request', function($pre, $r, $url) {
+					/**
+					 * Prevent self-loopback requests to avoid
+					 * PHP workers being occupied by internal
+					 * requests rather than user-initiated ones.
+					 *
+					 * The most common cause is WordPress cron
+					 * spawning loopback requests, though rare
+					 * cases can include self-invoked REST API
+					 * calls or dynamic asset rendering.
+					 *
+					 * Plugins may schedule cron jobs aggressively
+					 * i.e. in the past or for immediate execution,
+					 * causing such loopback requests at this
+					 * stage in the lifecycle.
+					 *
+					 * To ensure user interactions are prioritized,
+					 * we block loopback requests that could
+					 * otherwise consume available PHP workers.
+					 */
+					if ( _wppg_is_loopback_request( $url ) ) {
+						return new WP_Error(
+							'http_request_block',
+							'Loopback requests are not to be pre-fetched'
+						);
+					}
+
 					post_message_to_js(json_encode([
 						'type' => 'parallelize_request',
 						'url' => $url,
@@ -336,34 +395,48 @@ export class WordPressFetchNetworkTransport {
 		return fetchPromises;
 	}
 }
-
 export async function handleRequest(data: RequestData, fetchFn = fetch) {
-	let response;
-	try {
-		const fetchMethod = data.method || 'GET';
-		const fetchHeaders = data.headers || {};
+	const fetchMethod = data.method || 'GET';
+	const fetchHeaders = data.headers || {};
 
-		const hasContentTypeHeader = Object.keys(fetchHeaders).some(
-			(name) => name.toLowerCase() === 'content-type'
-		);
+	const hasContentTypeHeader = Object.keys(fetchHeaders).some(
+		(name) => name.toLowerCase() === 'content-type'
+	);
 
-		if (fetchMethod == 'POST' && !hasContentTypeHeader) {
-			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-		}
+	if (fetchMethod == 'POST' && !hasContentTypeHeader) {
+		fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+	}
 
-		response = await fetchFn(data.url, {
-			method: fetchMethod,
-			headers: fetchHeaders,
-			body: fetchMethod === 'GET' ? undefined : data.data,
-			credentials: 'omit',
+	const fetchPromise = fetchFn(data.url, {
+		method: fetchMethod,
+		headers: fetchHeaders,
+		body: fetchMethod === 'GET' ? undefined : data.data,
+		credentials: 'omit',
+	});
+
+	/**
+	 * Maps to WordPress's `$args['blocking']` from WP_Http.
+	 * When false, the fetch fires in the background and PHP
+	 * gets an immediate empty 200 (fire-and-forget). Defaults
+	 * to true (wait for the full response).
+	 */
+	if (data.blocking === false) {
+		fetchPromise.catch((e: unknown) => {
+			logger.warn('Non-blocking request failed:', e);
 		});
+		return new TextEncoder().encode('HTTP/1.1 200 OK\r\n\r\n');
+	}
+
+	let response: Response;
+	try {
+		response = await fetchPromise;
 	} catch {
 		return new TextEncoder().encode(
 			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
 		);
 	}
 	const responseHeaders: string[] = [];
-	response.headers.forEach((value, key) => {
+	response.headers.forEach((value: string, key: string) => {
 		responseHeaders.push(key + ': ' + value);
 	});
 

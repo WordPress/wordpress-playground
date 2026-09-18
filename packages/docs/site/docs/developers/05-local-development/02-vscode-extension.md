@@ -11,11 +11,13 @@ Key Features:
 - **Integrated Development**: Develop WordPress sites directly within VS Code.
 - **Ease of Use**: Simplifies the development workflow with integrated tools.
 
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
 
-:::
+</div>
 
 ## Installation and Usage:
 
@@ -25,7 +27,4 @@ The VS Code extension is maintained in a different GitHub repository, [Playgroun
 
 The extension ships with a portable WebAssembly version of PHP and sets up WordPress to use SQLite. Once installed, all you have to do is click the **Start WordPress Server** button in VS Code:
 
-import Image from '@theme/IdealImage';
-import vsCodeScreenshot from '@site/static/img/start-wordpress-server.webp';
-
-<div style={{maxWidth:350}}><Image img={vsCodeScreenshot} /></div>
+![Start WordPress Server button in the VS Code extension](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/start-wordpress-server.webp)

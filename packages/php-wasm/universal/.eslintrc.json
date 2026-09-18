@@ -1,6 +1,6 @@
 {
 	"extends": ["../../../.eslintrc.json"],
-	"ignorePatterns": ["!**/*"],
+	"ignorePatterns": ["!**/*", "php-extension-manifest-schema-validator.js"],
 	"overrides": [
 		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],

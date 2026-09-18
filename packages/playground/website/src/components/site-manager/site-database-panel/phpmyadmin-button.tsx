@@ -1,57 +1,29 @@
 import { useEffect, useState } from 'react';
+import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
 import {
 	type PlaygroundClient,
-	type StepDefinition,
 	type UniversalPHP,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/client';
+import {
+	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_CONFIG_PATH,
+	PHPMYADMIN_ENTRY_PATH,
+	PHPMYADMIN_URL_PATH,
+} from '@wp-playground/tools';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
-const phpMyAdminUrl =
-	'https://files.phpmyadmin.net/phpMyAdmin/5.2.3/phpMyAdmin-5.2.3-english.zip';
-
 async function installPhpMyAdmin(playground: PlaygroundClient) {
-	const documentRoot = await playground.documentRoot;
-	const phpMyAdminPath = `${documentRoot}/phpmyadmin`;
-
-	const steps: StepDefinition[] = [
-		{
-			step: 'unzip',
-			zipFile: {
-				resource: 'url',
-				url: phpMyAdminUrl,
-			},
-			extractToPath: documentRoot,
-		},
-		{
-			step: 'mv',
-			fromPath: `${documentRoot}/phpMyAdmin-5.2.3-english`,
-			toPath: phpMyAdminPath,
-		},
-		{
-			step: 'writeFile',
-			path: `${phpMyAdminPath}/libraries/classes/Dbal/DbiMysqli.php`,
-			data: (await import('./phpmyadmin-extensions/DbiMysqli.php?raw'))
-				.default as string,
-		},
-		{
-			step: 'writeFile',
-			path: `${phpMyAdminPath}/config.inc.php`,
-			data: (await import('./phpmyadmin-extensions/config.inc.php?raw'))
-				.default as string,
-		},
-	];
-
+	const steps = await getPhpMyAdminInstallSteps();
 	const blueprint = await compileBlueprintV1(
 		{ steps },
 		{ corsProxy: corsProxyUrl }
 	);
-
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
 }
 
@@ -60,25 +32,37 @@ export function PhpMyAdminButton({
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
-	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
+	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('loading');
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		if (!playground) {
+			setState('loading');
+			setError(null);
+			return;
+		}
+		setState('loading');
+		let cancelled = false;
+
 		async function detectPhpMyAdmin() {
-			if (!playground) {
-				return;
-			}
-
-			const documentRoot = await playground.documentRoot;
-			const phpMyAdminPath = `${documentRoot}/phpmyadmin`;
-
-			if (await playground.isDir(phpMyAdminPath)) {
-				setState('ready');
-			} else {
+			try {
+				if (!playground) return;
+				const isInstalled = await playground.isFile(
+					PHPMYADMIN_CONFIG_PATH
+				);
+				if (cancelled) return;
+				setState(isInstalled ? 'ready' : 'idle');
+			} catch (error) {
+				if (cancelled) return;
+				logger.error('Failed to detect phpMyAdmin', error);
 				setState('idle');
 			}
 		}
-		detectPhpMyAdmin();
+
+		void detectPhpMyAdmin();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	const handleOpenPhpMyAdmin = async () => {
@@ -107,7 +91,7 @@ export function PhpMyAdminButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/phpmyadmin/index.php?route=/database/structure&db=wordpress`,
+				`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`,
 				'_blank',
 				'noopener,noreferrer'
 			);
@@ -119,7 +103,7 @@ export function PhpMyAdminButton({
 		<>
 			<Flex direction="column" gap={0} expanded={false}>
 				<Button
-					variant="primary"
+					variant="secondary"
 					disabled={!playground || isLoading}
 					isBusy={isLoading}
 					onClick={handleOpenPhpMyAdmin}

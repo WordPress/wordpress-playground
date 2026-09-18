@@ -18,7 +18,9 @@ JSON é apenas um invólucro ao redor das funções. Se você usar as etapas JSO
 
 Você pode usar Blueprints tanto com as versões web quanto com as versões node.js do WordPress Playground.
 
-:::info Versão 2 do Blueprints
+<div class="callout callout-info">
+
+**Versão 2 do Blueprints**
 
 <!-- The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup. -->
 
@@ -27,7 +29,8 @@ O time está explorando maneiras de fazer a transição do Blueprints de uma bib
 <!-- The proposed new specification is discussed on a separate GitHub repository, and you’re more than welcome to join (there or on the #playground Slack channel) and help shape the next generation of Playground. -->
 
 A [nova especificação](https://github.com/WordPress/blueprints-library/issues/6) proposta é discutida em um [repositório GitHub](https://github.com/WordPress/blueprints-library/) separado, e você é bem-vindo para participar (lá ou no canal Slack [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K)) e ajudar a moldar a próxima geração do Playground.
-:::
+
+</div>
 
 ## Diferenças entre APIs JSON e de Função
 
@@ -43,9 +46,10 @@ Existem duas principais diferenças entre as APIs JSON e de Função:
 
 2. A API de função requer importação da biblioteca de cliente da API, enquanto Blueprints pode ser apenas colado no fragmento de URL.
 
-:::note
+<div class="callout callout-info">
 
 <!-- Check the Use the same structure for Blueprint JSON definitions and step handlers issue at wordpress-playground repo for more detailed info about this topic -->
 
 Verifique o issue [Use a mesma estrutura para definições JSON de Blueprint e manipuladores de etapas](https://github.com/WordPress/wordpress-playground/pull/215) no repositório [wordpress-playground](https://github.com/WordPress/wordpress-playground) para obter informações mais detalhadas sobre este tópico
-:::
+
+</div>

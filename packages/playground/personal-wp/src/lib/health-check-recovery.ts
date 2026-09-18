@@ -1,11 +1,17 @@
-import type { Blueprint } from '@wp-playground/blueprints';
-import { encodeStringAsBase64 } from './base64';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import { getAppBaseUrl } from './state/url/app-base-url';
+
+export const HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM =
+	'playground-recovery-mode';
+export const HEALTH_CHECK_RECOVERY_MODE_QUERY_VALUE = 'health-check';
+const HEALTH_CHECK_DISABLE_PLUGIN_HASH_PARAM =
+	'health-check-disable-plugin-hash';
 
 //
 // The Health Check MU-plugin requires a database option 'health-check-disable-plugin-hash'
 // that matches: cookieValue + md5(REMOTE_ADDR). We add an earlier MU-plugin (alphabetically)
 // that uses pre_option filter to return the expected hash, bypassing the database check.
-export const healthCheckRecoveryBlueprint: Blueprint = {
+export const healthCheckRecoveryBlueprint: BlueprintV1Declaration = {
 	steps: [
 		{
 			step: 'installPlugin',
@@ -67,14 +73,36 @@ if (isset($_GET['health-check-disable-troubleshooting'])) {
 		'/wp-admin/plugins.php?health-check-disable-plugin-hash=playground-recovery',
 };
 
-export function getBlueprintUrl(blueprint: Blueprint): string {
-	const url = new URL(window.location.href);
-	url.hash = '';
-	const jsonStr = JSON.stringify(blueprint);
-	const encoded = encodeStringAsBase64(jsonStr);
+export function isHealthCheckRecoveryBlueprint(
+	blueprint?: BlueprintV1Declaration | { landingPage?: string } | null
+) {
+	if (!blueprint || typeof blueprint !== 'object') {
+		return false;
+	}
+	const landingPage = 'landingPage' in blueprint ? blueprint.landingPage : '';
+	return (
+		typeof landingPage === 'string' &&
+		landingPage.includes(HEALTH_CHECK_DISABLE_PLUGIN_HASH_PARAM)
+	);
+}
+
+export function isHealthCheckRecoveryUrl(url: URL): boolean {
+	return (
+		url.searchParams.get(HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM) ===
+		HEALTH_CHECK_RECOVERY_MODE_QUERY_VALUE
+	);
+}
+
+export function getHealthCheckRecoveryUrl(): string {
+	const url = getAppBaseUrl();
+	const currentUrl = new URL(window.location.href);
+	const siteSlug = currentUrl.searchParams.get('site-slug');
+	if (siteSlug) {
+		url.searchParams.set('site-slug', siteSlug);
+	}
 	url.searchParams.set(
-		'blueprint-url',
-		`data:application/json;base64,${encoded}`
+		HEALTH_CHECK_RECOVERY_MODE_QUERY_PARAM,
+		HEALTH_CHECK_RECOVERY_MODE_QUERY_VALUE
 	);
 	return url.toString();
 }

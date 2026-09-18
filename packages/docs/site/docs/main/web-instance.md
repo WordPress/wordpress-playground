@@ -1,78 +1,156 @@
 ---
 title: Web Instance
 slug: /web-instance
-description: A detailed guide to the web interface at playground.wordpress.net, covering the toolbar, settings, and instance manager.
+description: A detailed guide to the web interface at playground.wordpress.net, covering the Dock, persistence, settings, and site tools.
 ---
 
 # WordPress Playground web instance
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) is a versatile web tool that allows developers to run WordPress in a browser without needing a server. This environment is particularly useful for testing plugins, themes, and other WordPress features quickly and efficiently.
+[https://playground.wordpress.net/](https://playground.wordpress.net/) runs
+WordPress in your browser without a server. The page opens a Playground, shows
+the WordPress site, and keeps the site tools in the **Dock**.
 
-Some key features:
+![The Playground web instance with the Dock visible at the bottom of the page](/img/dock/dock-overview.webp)
 
--   **Browser-based**: No local server setup required.
--   **Instant Setup**: Run WordPress with a single click.
--   **Testing Environment**: Ideal for testing plugins and themes.
-
-The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
-
-From the Playground website, some toolbars are also available to customize your Playground instance and provide quick access to some resources and utilities.
-
-![Playground Toolbar Snapshot](@site/static/img/about/toolbar-playground.webp)
+The Dock has an address field, a save status, layout controls, and destinations for creating, storing, inspecting, and exporting Playgrounds.
 
 ## Customize Playground
 
-On the toolbar, you'll find:
+The Dock includes these destinations:
 
--   **Playground Settings**: A panel for configuring your current instance, like PHP and WordPress versions.
--   **Playground Manager**: This panel lets you manage WordPress Playground instances, allowing you to save, import, and export them.
+- **New**: Start from the Blueprint gallery, a public Blueprint URL, a new
+  Blueprint, a pull request preview, a GitHub repository, or an imported `.zip`
+  file.
+- **Playgrounds**: Switch between recent and saved Playgrounds.
+- **Blueprint**: View, edit, export, and run the current Blueprint.
+- **Site Settings**: Configure WordPress version, PHP version, language,
+  networking, and multisite.
+- **Database**: Inspect or download the SQLite database and open database tools.
+- **Files**: Browse and edit files in the WordPress filesystem.
+- **Logs**: Inspect PHP errors, warnings, and notices.
+- **Export**: Download a `.zip`, copy the original setup link, or export selected
+  files to a GitHub pull request.
 
-### Playground Settings
+## Navigate inside WordPress
 
-![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
+Use the Dock address field to open a path inside the current WordPress site.
+For example, enter `/wp-admin/` to open the dashboard or
+`/wp-admin/plugins.php` to open the Plugins screen. **Refresh page** reloads
+the current WordPress path.
 
-The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
+You can also use the [Query Params API](/developers/apis/query-api/) to open Playground with a specific setup, such as a WordPress version, PHP version, plugin, theme, or Blueprint.
 
--   `language`: Sets the WordPress instance language.
--   `multisite`: Enables WordPress multisite support.
--   `networking`: Grants network access, allowing fetches from the WordPress plugin directory and internal WordPress APIs.
--   `php`: Specifies the PHP version for the instance.
--   `wp`: Defines the WordPress version.
+## Understand the save status
 
-## Playground Manager
+The status next to the address field tells you how the current Playground is stored:
 
-![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
+- **Autosaved** means the Playground is stored in this browser and can be recovered from **Your Playgrounds**. Playground keeps up to five recent autosaves.
+- **Saved** means the Playground was stored permanently in browser storage or saved to a local directory.
+- **Unsaved** means the Playground has not been saved. Temporary Playgrounds, including `?storage=temp`, are lost when the tab is closed or refreshed.
 
-This panel enables users to manage Playground instances. It displays a list of saved Playgrounds and provides access to the current Playground's settings, along with a **Save Button** to store your configurations locally in your browser for later reloading.
+Click **Autosaved** or **Unsaved** to open **Store permanently**.
 
-![Save Playground Button](@site/static/img/about/playground-manager-save-instance.webp)
+![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
 
-Once you click on save, an instance will be stored with a generated name to be revisited anytime. The Playground Manager also has options to export(Additional actions menu) and import(Import actions menu) WordPress Playground instances:
+Store permanently can keep an autosaved Playground in browser storage so autosave pruning no longer removes it. In browsers that support the File System Access API, it can also save the Playground to a local directory.
 
-### Additional actions menu
+Browser storage still belongs to the browser. The browser may remove stored data when storage pressure or privacy settings require it. Export a ZIP when you need a portable backup.
 
-![Additional actions Menu](@site/static/img/about/playground-manager-additional-actions.webp)
+## Start a Playground
 
--   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
--   **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` won't include content and database changes.
--   **Report error**: If you have any issues with WordPress Playground, you can report them using the form available from this option. You can help resolve issues with Playground by sharing the error details with the development team behind Playground.
--   **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool, you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+Open **New Playground** from the Dock by clicking **New**. The pane contains
+**Blueprint gallery**, **From a URL**, **Write a Blueprint**, **Preview a PR**,
+**From GitHub**, and **Import zip**.
 
-<span id="edit-the-blueprint"></span>
+![The New Playground pane with the Blueprint gallery selected](/img/dock/dock-new-playground.webp)
 
-[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
+The Blueprint gallery starts with **Vanilla WordPress**, which creates a clean
+WordPress install. **From a URL** opens a public Blueprint URL. **Write a
+Blueprint** opens an editor for a new Blueprint. **Import zip** restores a ZIP
+exported from Playground.
 
-### Import actions menu
+![The New Playground pane with Import zip selected](/img/dock/dock-new-playground-import-zip.webp)
 
-![Import actions Menu](@site/static/img/about/playground-manager-import-actions.webp)
+## Return to recent and saved Playgrounds
 
--   **Import from .zip**: Allows you to recreate a Playground instance using any `.zip` file generated with the "Download as .zip" option.
--   **Preview a Gutenberg PR**: Allows testers to run branches from the Gutenberg repository to test pull requests instantly.
--   **Import from GitHub**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
+Open **Your Playgrounds** from the Dock by clicking **Playgrounds**. It lists the current Playground, recent autosaves, and Playgrounds you saved permanently.
 
-:::caution
+![The Your Playgrounds pane with the current Playground](/img/dock/your-playgrounds.webp)
+
+Autosaved Playgrounds are recovery points. Playground retains up to five recent
+autosaves. Use **Store permanently** to keep one as a saved Playground.
+
+## Change site settings
+
+Open **Site Settings** to change runtime and WordPress setup options.
+
+![The Site Settings pane](/img/dock/dock-site-settings.webp)
+
+PHP version and networking can be applied to an existing stored Playground. WordPress version, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
+
+Running an edited Blueprint keeps stored and autosaved Playgrounds. It discards a temporary Playground because the new run starts from a fresh setup.
+
+## Inspect the current Blueprint
+
+Open **Blueprint** to view and edit the Blueprint for the current Playground.
+
+![The Blueprint editor pane](/img/dock/dock-current-blueprint.webp)
+
+The editor can run the edited Blueprint in a new Playground. For a stored or autosaved Playground, the original Playground remains available in **Your Playgrounds**.
+
+## Inspect files, database, and logs
+
+Open **Files** to browse and edit the current Playground files.
+
+![The Files pane with a WordPress file selected](/img/dock/files.webp)
+
+Open **Database** to use database tools or download the SQLite database.
+
+![The Database pane](/img/dock/database.webp)
+
+Open **Logs** to inspect PHP errors, warnings, and notices.
+
+![The PHP error log pane](/img/dock/logs.webp)
+
+## Export and share {#playground-options-menu}
+
+Open **Export** to download or share the current Playground.
+
+![The Export pane](/img/dock/dock-export-playground.webp)
+
+**Download as .zip** exports the current files, database, plugins, themes, uploads, and edits. The ZIP can be restored later with **New → Import zip**.
+
+**Copy original setup link** copies a link that recreates only the original
+setup. It does not include edits made after the Playground started.
+
+**Export to GitHub** can create a pull request with selected files from the current Playground.
+
+## Change the Dock layout
+
+The Dock can be shown as a floating panel or full-width bar. Use **Full width** to switch layouts.
+
+| Floating                                                   | Full width                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| ![The default floating Dock](/img/dock/dock-overview.webp) | ![The full-width Dock layout](/img/dock/dock-full-width.webp) |
+
+Use **Hide tools** to collapse the Dock to its address field and save status.
+Use **Show tools** to reopen the tool row.
+
+![The Playground with Dock tools hidden](/img/dock/dock-hidden-tools.webp)
+
+You can drag the floating Dock on desktop. Drag it past the left or right edge
+to fold it into a corner launcher, then click the launcher to restore the Dock.
+
+![The Dock folded into the corner launcher](/img/dock/dock-corner-launcher.webp)
+
+On narrow screens, the Dock uses a full-width mobile layout.
+
+![The Dock on a mobile viewport](/img/dock/dock-mobile.webp)
+
+<div class="callout callout-warning">
 
 The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
 
 If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
-:::
+
+</div>

@@ -192,6 +192,39 @@ testSymlinks.forEach(({ name, sourcePath, symlinkPath }) => {
 				}
 			});
 
+			it('Should access sibling files via __DIR__ inside a symlinked file', async () => {
+				const sourcePath = path.join(
+					'..',
+					'nested-symlinked-folder',
+					'nested-document.txt'
+				);
+				const symlinkPath = path.join(
+					__dirname,
+					'test-data',
+					'symlinked-folder',
+					'nested-symlinked-document.txt'
+				);
+				try {
+					if (!fs.existsSync(symlinkPath)) {
+						fs.symlinkSync(sourcePath, symlinkPath);
+					}
+
+					// Use PHP to require the symlinked file and check
+					// that __DIR__ resolves to a directory where sibling
+					// files are accessible — not an empty MEMFS dir.
+					const result = await php.run({
+						code: `<?php
+							$dir = dirname(readlink('/folder-with-symlinks/symlinked-folder/nested-symlinked-document.txt'));
+							echo json_encode(scandir($dir));
+						`,
+					});
+					const files = JSON.parse(result.text);
+					expect(files).toContain('nested-document.txt');
+				} finally {
+					fs.unlinkSync(symlinkPath);
+				}
+			});
+
 			it('Should read link that crosses the FS root boundary', async () => {
 				const sourcePath = path.join(
 					'..',

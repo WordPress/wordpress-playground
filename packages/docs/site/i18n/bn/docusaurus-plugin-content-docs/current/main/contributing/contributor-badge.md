@@ -38,11 +38,11 @@ Any contribution to the WordPress Playground project is highly valued. The Playg
 -   **Blueprints Gallery:** Creating new blueprints or improving existing ones.
 -->
 
--   **প্লেগ্রাউন্ড কোড:** কোড পরিবর্তন করা এবং মূল প্রকল্পটি পর্যালোচনা করা।
--   **প্লেগ্রাউন্ড ইউআই:** ওয়েব এক্সপেরিয়েন্সের ইউজার ইন্টারফেসকে আরও সুন্দর ও সহজ করে তোলা।
--   **ডকুমেন্টেশন:** লেখা, আপডেট করা এবং পর্যালোচনা করা।
--   **ট্রান্সলেশন:** প্রজেক্টের যেকোনো অংশ ট্রান্সলেট করা।
--   **ব্লুপ্রিন্ট গ্যালারি:** নতুন ব্লুপ্রিন্ট তৈরি করা অথবা বিদ্যমান ব্লুপ্রিন্টগুলিকে উন্নত করা।
+- **প্লেগ্রাউন্ড কোড:** কোড পরিবর্তন করা এবং মূল প্রকল্পটি পর্যালোচনা করা।
+- **প্লেগ্রাউন্ড ইউআই:** ওয়েব এক্সপেরিয়েন্সের ইউজার ইন্টারফেসকে আরও সুন্দর ও সহজ করে তোলা।
+- **ডকুমেন্টেশন:** লেখা, আপডেট করা এবং পর্যালোচনা করা।
+- **ট্রান্সলেশন:** প্রজেক্টের যেকোনো অংশ ট্রান্সলেট করা।
+- **ব্লুপ্রিন্ট গ্যালারি:** নতুন ব্লুপ্রিন্ট তৈরি করা অথবা বিদ্যমান ব্লুপ্রিন্টগুলিকে উন্নত করা।
 
 <!--
 ## Playground Contributor Badge
@@ -56,7 +56,7 @@ To get a Playground Contributor Badge, you must have made at least one eligible 
 
 একটি প্লেগ্রাউন্ড কন্ট্রিবিউটর ব্যাজ পেতে, আপনাকে উপরের তালিকা থেকে কমপক্ষে একটি যোগ্য কন্ট্রিবিউশন রাখতে হবে। টীমটি তাদের বিবেচনার ভিত্তিতে অন্যান্য কন্ট্রিবিউশনের জন্য অথবা উপরোক্ত বিষয়গুলির সংমিশ্রণের জন্য ব্যাজ প্রদান করতে পারে।
 
-![Playground Contributor Badge](@site/static/img/contributing/playground-contributor-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/playground-contributor-badge.webp)
 
 <!--
 ## Playground Team Badge
@@ -70,7 +70,7 @@ If you are currently a contributor and have been actively involved in the Playgr
 
 আপনি যদি বর্তমানে একজন কনট্রিবিউটর হন এবং গত **বারো মাস** ধরে প্লেগ্রাউন্ড প্রকল্পে সক্রিয়ভাবে জড়িত থাকেন, তাহলে আপনি **প্লেগ্রাউন্ড টিম ব্যাজ** পাওয়ার যোগ্য।
 
-![Playground Contributor Badge](@site/static/img/contributing/playground-team-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/playground-team-badge.webp)
 
 <!--
 ## Requesting a Profile Badge
@@ -89,8 +89,8 @@ If you meet the criteria, you can request a badge. Please include links to resou
 -   [Team Badge](https://profiles.wordpress.org/associations/playground-team/)
 -->
 
--   [কন্ট্রিবিউটর ব্যাজ](https://profiles.wordpress.org/associations/playground-contributor/)
--   [টীম ব্যাজ](https://profiles.wordpress.org/associations/playground-team/)
+- [কন্ট্রিবিউটর ব্যাজ](https://profiles.wordpress.org/associations/playground-contributor/)
+- [টীম ব্যাজ](https://profiles.wordpress.org/associations/playground-team/)
 
 <!--
 ### Request form
@@ -98,7 +98,7 @@ If you meet the criteria, you can request a badge. Please include links to resou
 
 ### রিকুয়েস্ট ফর্ম
 
-![Playground Contributor Badge](@site/static/img/contributing/request-contributor-badge.webp)
+![Playground Contributor Badge](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/request-contributor-badge.webp)
 
 <!--
 To access the request, the user should be logged in with their WordPress.org account and open the Request Membership tab, after submitting the required information. A Playground Team Representative will confirm your contribution and assign the badge. The team will perform a weekly review of contributions and award badges at that time. Updates on new badges awarded will be posted during the Playground Team meeting.

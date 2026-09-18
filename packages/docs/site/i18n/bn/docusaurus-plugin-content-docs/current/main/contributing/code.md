@@ -17,18 +17,22 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 সমস্ত ওয়ার্ডপ্রেস প্রজেক্টের মতো, প্লেগ্রাউন্ড কোড ম্যানেজ এবং ইস্যু ট্র্যাক করতে গিটহাব ব্যবহার করে। মেইন রিপোজিটরি হলো [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) এবং প্লেগ্রাউন্ড টুলস রিপোজিটরি হলো [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/)।
 
 <!--
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or [local development](/developers/local-development/) tools—start there.
 
-:::
+</div>
 -->
 
-:::info প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন
+<div class="callout callout-info">
+
+**প্লেগ্রাউন্ড টুলসে কন্ট্রিবিউট করুন**
 
 এই গাইডে মেইন রিপোজিটরির লিঙ্ক রয়েছে, তবে সমস্ত স্টেপস এবং অপশন উভয়ের জন্য প্রযোজ্য। আপনি যদি প্লাগইন বা [লোকাল ডেভেলপমেন্ট](/developers/local-development/) টুলসে ইন্টারেস্টেড হন—সেখান থেকে শুরু করুন।
 
-:::
+</div>
 
 <!--
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
@@ -90,18 +94,22 @@ Playground will open in a new browser tab and refresh automatically with each ch
 প্লেগ্রাউন্ড একটি নতুন ব্রাউজার ট্যাবে ওপেন হবে এবং প্রতিটি চেঞ্জের সাথে অটোমেটিক্যালি রিফ্রেশ হবে।
 
 <!--
-:::tip Troubleshooting: File watcher limit on Linux
+<div class="callout callout-tip">
+
+**Troubleshooting: File watcher limit on Linux**
 
 On Linux, you might see an error like `ENOSPC: System limit for number of file watchers reached` when running `npm run dev`. This happens because the Playground repository has more files than the default system limit allows to watch.
 
 To fix this, first check your current limit:
 -->
 
-:::tip ট্রাবলশুটিং: Linux-এ ফাইল ওয়াচার লিমিট
+<div class="callout callout-tip">
+
+**ট্রাবলশুটিং: Linux-এ ফাইল ওয়াচার লিমিট**
 
 Linux-এ, `npm run dev` রান করার সময় আপনি `ENOSPC: System limit for number of file watchers reached` এর মতো একটি এরর দেখতে পারেন। এটি হয় কারণ প্লেগ্রাউন্ড রিপোজিটরিতে ডিফল্ট সিস্টেম লিমিটের চেয়ে বেশি ফাইল রয়েছে যা ওয়াচ করার অনুমতি দেয়।
 
-:::
+</div>
 
 এটি ফিক্স করতে, প্রথমে আপনার বর্তমান লিমিট চেক করুন:
 
@@ -133,18 +141,22 @@ When your'e ready, commit the changes and submit a Pull Request.
 যখন আপনি রেডি, চেঞ্জগুলো কমিট করুন এবং একটি পুল রিকোয়েস্ট সাবমিট করুন।
 
 <!--
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
-:::info ফরম্যাটিং
+<div class="callout callout-info">
+
+**ফরম্যাটিং**
 
 আমরা কোড ফরম্যাটিং এবং লিন্টিং অটোমেটিক্যালি হ্যান্ডেল করি। রিল্যাক্স করুন, টাইপ করুন এবং মেশিনগুলোকে কাজ করতে দিন।
 
-:::
+</div>
 
 <!--
 ### Running a local Multisite

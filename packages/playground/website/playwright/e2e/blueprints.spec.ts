@@ -1,6 +1,6 @@
 import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
-import { encodeStringAsBase64 } from '../../src/lib/base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -20,6 +20,39 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('Blueprint v2 declarations should route by version through the website flow', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': {
+				landingPage: '/v2-website-smoke.php',
+			},
+		},
+		siteOptions: {
+			blogname: 'V2 Website Smoke',
+		},
+		additionalStepsAfterExecution: [
+			{
+				step: 'writeFiles',
+				files: {
+					'site:v2-website-smoke.php': {
+						filename: 'v2-website-smoke.php',
+						content:
+							'<?php require __DIR__ . "/wp-load.php"; echo get_option("blogname");',
+					},
+				},
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('V2 Website Smoke');
 });
 
 test('spawning less should work', async ({ website, wordpress }) => {
@@ -56,6 +89,54 @@ test('spawning less should work', async ({ website, wordpress }) => {
 	await expect(wordpress.locator('body')).toContainText('Hello, world!');
 });
 
+test('proc_open(php) should work multiple times in a row', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/proc-open-test.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/proc-open-test.php',
+				data: `<?php
+				$results = [];
+				for ($i = 1; $i <= 3; $i++) {
+					$proc = proc_open(
+						'php -r "echo ' . $i . ';"',
+						[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+						$pipes
+					);
+					if (!is_resource($proc)) {
+						$results[] = "PROC_OPEN_FAILED";
+						continue;
+					}
+					$stdout = stream_get_contents($pipes[1]);
+					$stderr = stream_get_contents($pipes[2]);
+					fclose($pipes[1]);
+					fclose($pipes[2]);
+					$exitCode = proc_close($proc);
+					$results[] = "out=" . var_export($stdout, true)
+						. " err=" . var_export($stderr, true)
+						. " exit=" . $exitCode;
+				}
+				echo implode("\\n", $results);
+			`,
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('out=', {
+		timeout: 120000,
+	});
+	const bodyText = await wordpress.locator('body').innerText();
+	expect(bodyText).toContain("out='1'");
+	expect(bodyText).toContain("out='2'");
+	expect(bodyText).toContain("out='3'");
+});
+
 test('?blueprint-url=... should work with simple blueprints', async ({
 	page,
 	website,
@@ -66,12 +147,13 @@ test('?blueprint-url=... should work with simple blueprints', async ({
 		browserName === 'webkit',
 		'This test is flaky in WebKit. It seems like a GitHub CI issue rather than an actual flakiness since it is reliable locally.'
 	);
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint-simple.json`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-simple.json',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -82,11 +164,11 @@ test('?blueprint-url=... should accept data URLs', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
+	await website.goto('./?storage=temp');
 	const blueprintUrl = encodeURIComponent(
 		`data:application/json;base64,eyJsYW5kaW5nUGFnZSI6Ii9weWdtYWxpb24udHh0Iiwic3RlcHMiOlt7InN0ZXAiOiJ3cml0ZUZpbGUiLCJwYXRoIjoiL3dvcmRwcmVzcy9weWdtYWxpb24udHh0IiwiZGF0YSI6IlBSRUZBQ0UgVE8gUFlHTUFMSU9OIn1dfQ==`
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -97,12 +179,13 @@ test('?blueprint-url=... should work with ZIP bundles', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint.zip`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint.zip',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -113,12 +196,13 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 	website,
 	wordpress,
 }) => {
-	await website.goto('/');
-	const websiteUrl = page.url();
-	const blueprintUrl = encodeURIComponent(
-		`${websiteUrl}test-fixtures/blueprint/blueprint-with-bundled-resources.json`
+	await website.goto('./?storage=temp');
+	const websiteUrl = new URL(
+		'test-fixtures/blueprint/blueprint-with-bundled-resources.json',
+		page.url()
 	);
-	await website.goto(`/?blueprint-url=${blueprintUrl}`);
+	const blueprintUrl = encodeURIComponent(websiteUrl.href);
+	await website.goto(`./?storage=temp&blueprint-url=${blueprintUrl}`);
 	await expect(wordpress.locator('body')).toContainText(
 		'PREFACE TO PYGMALION'
 	);
@@ -259,7 +343,7 @@ test('wp-cli step should create a post', async ({ website, wordpress }) => {
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(
-		wordpress.locator('body').locator('[aria-label="“Test post” (Edit)"]')
+		wordpress.locator('body').locator('a').filter({ hasText: 'Test post' })
 	).toBeVisible();
 });
 
@@ -396,6 +480,188 @@ test('HTTPS requests via curl_exec() should work', async ({
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	// The length must be 13061 bytes, otherwise something is wrong.
 	await expect(wordpress.locator('body')).toContainText('int(13061)');
+});
+
+test('CURLFile uploads via curl_exec() should work', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'firefox' || browserName === 'webkit',
+		`The curl_exec() tests often fail in CI on Firefox and WebKit. The root cause is unknown, ` +
+			'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
+			'Perhaps it is something highly specific to the CI runtime.'
+	);
+	const uploadUrl = 'https://curlfile-upload.test/post';
+	await website.page.route(uploadUrl, async (route) => {
+		const request = route.request();
+		if (request.method() === 'OPTIONS') {
+			await route.fulfill({
+				status: 204,
+				headers: {
+					'Access-Control-Allow-Origin': '*',
+					'Access-Control-Allow-Methods': 'POST, OPTIONS',
+					'Access-Control-Allow-Headers': '*',
+				},
+			});
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: {
+				'Access-Control-Allow-Origin': '*',
+			},
+			body: JSON.stringify({
+				method: request.method(),
+				isMultipartUpload: (
+					request.headers()['content-type'] ?? ''
+				).startsWith('multipart/form-data; boundary='),
+			}),
+		});
+	});
+
+	const blueprint: Blueprint = {
+		landingPage: '/curlfile-test.php',
+		features: { networking: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/curlfile-test.php',
+				/**
+				 * Test CURLFile upload: creates a temp file, uploads it via
+				 * curl to a Playwright-routed endpoint, and verifies curl
+				 * emits a multipart upload request.
+				 *
+				 * Playwright routes streaming uploads, but does not expose
+				 * their bodies via request.postData(). This test still keeps
+				 * the network observable in-process and independent from
+				 * third-party availability.
+				 *
+				 * Keep this endpoint controlled by the test. Using public echo
+				 * services such as httpbin.org made this test depend on
+				 * third-party availability and rate limits, which showed up in
+				 * CI as intermittent 503s.
+				 *
+				 * Keep this payload small. The CORS proxy-specific test below
+				 * covers larger uploads that trigger Expect: 100-continue.
+				 */
+				data: `<?php
+					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
+					file_put_contents($tmpFile, 'PLAYGROUND_TEST_CONTENT');
+					$ch = curl_init();
+					curl_setopt($ch, CURLOPT_URL, '${uploadUrl}');
+					curl_setopt($ch, CURLOPT_POST, true);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, [
+						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
+					]);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					$result = curl_exec($ch);
+					$error = curl_error($ch);
+					$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					curl_close($ch);
+					unlink($tmpFile);
+					if ($error) {
+						echo "CURL_ERROR:" . $error;
+					} else {
+						echo "HTTP_CODE:" . $httpCode;
+						$decoded = json_decode($result, true);
+						if (isset($decoded['isMultipartUpload'])) {
+							echo " POST_RECEIVED:" . ($decoded['method'] === 'POST' ? 'YES' : 'NO');
+							echo " MULTIPART_UPLOAD:" . ($decoded['isMultipartUpload'] ? 'YES' : 'NO');
+						} else {
+							echo " MULTIPART_UPLOAD:NO";
+							echo " BODY:" . substr($result, 0, 500);
+						}
+					}
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('HTTP_CODE:200');
+	await expect(wordpress.locator('body')).toContainText('POST_RECEIVED:YES');
+	await expect(wordpress.locator('body')).toContainText(
+		'MULTIPART_UPLOAD:YES'
+	);
+});
+
+/**
+ * Regression test: CURLFile uploads to non-CORS sites previously caused
+ * the entire page to hang indefinitely due to three bugs:
+ *
+ * 1. php://input is not available for multipart/form-data in the CORS
+ *    proxy PHP, so the forwarded request had an empty body (502 error).
+ * 2. PHP curl sends "Expect: 100-continue" for bodies > 1024 bytes,
+ *    then waits for a 100 Continue response before sending the body.
+ *    Our code waited for the body before fetching, causing a deadlock.
+ * 3. When the full body arrived with the headers (small POST bodies),
+ *    the body stream's pull() blocked forever waiting for more data.
+ *
+ * This test verifies both a CURLFile upload and a simple POST to a
+ * non-CORS site (which forces the CORS proxy path) complete without
+ * hanging.
+ */
+test('CURLFile uploads via CORS proxy should not hang', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'firefox' || browserName === 'webkit',
+		`The curl_exec() tests often fail in CI on Firefox and WebKit. The root cause is unknown, ` +
+			'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
+			'Perhaps it is something highly specific to the CI runtime.'
+	);
+	const blueprint: Blueprint = {
+		landingPage: '/curlfile-cors-test.php',
+		features: { networking: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/curlfile-cors-test.php',
+				data: `<?php
+					echo '<h1>CURLFile CORS Proxy Test</h1>';
+
+					// 1. CURLFile upload (body > 1024 bytes, triggers Expect: 100-continue)
+					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
+					file_put_contents($tmpFile, str_repeat('Playground test data ', 100));
+					$ch = curl_init();
+					curl_setopt($ch, CURLOPT_URL, "https://w.org");
+					curl_setopt($ch, CURLOPT_POST, true);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, [
+						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
+					]);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					$result = curl_exec($ch);
+					$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					$error = curl_error($ch);
+					curl_close($ch);
+					unlink($tmpFile);
+					echo "UPLOAD_DONE:" . ($error ? "ERROR" : $httpCode);
+
+					// 2. Simple POST (small body, no Expect: 100-continue)
+					$ch2 = curl_init();
+					curl_setopt($ch2, CURLOPT_URL, "https://w.org");
+					curl_setopt($ch2, CURLOPT_POST, true);
+					curl_setopt($ch2, CURLOPT_POSTFIELDS, 'hello=world');
+					curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+					$result2 = curl_exec($ch2);
+					$httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+					$error2 = curl_error($ch2);
+					curl_close($ch2);
+					echo " POST_DONE:" . ($error2 ? "ERROR" : $httpCode2);
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	// Both requests must complete. The exact HTTP codes don't matter –
+	// the critical thing is that neither request hangs indefinitely.
+	await expect(wordpress.locator('body')).toContainText('UPLOAD_DONE:');
+	await expect(wordpress.locator('body')).toContainText('POST_DONE:');
 });
 
 test('HTTPS requests via curl_exec() should fail when networking is disabled', async ({
@@ -769,6 +1035,48 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 	await expect(wordpress.locator('body')).toContainText(
 		'Welcome to WordPress. This is your first post.'
 	);
+});
+
+test('Blueprint with `preferredVersions.wp: false` boots Playground without WordPress', async ({
+	website,
+}) => {
+	const blueprint: Blueprint = {
+		preferredVersions: { php: 'latest', wp: false },
+	};
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	// `website.goto` waits for the WP iframe body to render, which never
+	// happens when WordPress isn't installed. Skip that wait and use the
+	// raw page navigation instead.
+	await website.page.goto(`/#${encodedBlueprint}`);
+
+	// `window.playground` is exposed once the worker boot resolves.
+	await website.page.waitForFunction(
+		() => Boolean((window as any).playground),
+		null,
+		{ timeout: 240_000 }
+	);
+
+	const probe = await website.page.evaluate(async () => {
+		const playground = (window as any).playground;
+		const r = await playground.run({
+			// `/wordpress` itself is created by PHPRequestHandler as the
+			// document root regardless of WP, so that's not a useful signal.
+			// What we really want is: no WP files, no WP runtime, no SQLite
+			// drop-in installed.
+			code: `<?php echo json_encode([
+				'wp_files' => file_exists('/wordpress/wp-includes/version.php'),
+				'wp_loaded' => function_exists('wp_get_current_user'),
+				'sqlite_drop_in' => file_exists('/internal/shared/preload/0-sqlite.php'),
+			]);`,
+		});
+		return r.text;
+	});
+
+	expect(JSON.parse(probe)).toEqual({
+		wp_files: false,
+		wp_loaded: false,
+		sqlite_drop_in: false,
+	});
 });
 
 /**
