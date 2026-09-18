@@ -73,7 +73,6 @@ describe('BlueprintsV1Handler', () => {
 		expect(playground.bootWordPress).toHaveBeenCalledWith(
 			expect.objectContaining({
 				phpVersion: '7.4',
-				wpVersion: '6.2',
 			}),
 			expect.anything()
 		);

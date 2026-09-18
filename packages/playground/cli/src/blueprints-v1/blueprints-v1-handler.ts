@@ -22,13 +22,11 @@ import {
 	fetchSqliteIntegration,
 	readAsFile,
 } from './download';
-import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
+import type { PlaygroundCliWorker } from '../worker-thread';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
-	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
-	type WorkerType,
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
@@ -55,10 +53,6 @@ export class BlueprintsV1Handler {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.cliOutput = options.cliOutput;
-	}
-
-	getWorkerType(): WorkerType {
-		return 'v1';
 	}
 
 	async bootWordPress(
@@ -135,12 +129,9 @@ export class BlueprintsV1Handler {
 		this.cliOutput.updateProgress('Booting WordPress');
 
 		// TODO: Fix this type issue that requires the cast to unknown
-		await (
-			playground as unknown as PlaygroundCliBlueprintV1Worker
-		).bootWordPress(
+		await (playground as unknown as PlaygroundCliWorker).bootWordPress(
 			{
 				phpVersion: runtimeConfiguration.phpVersion,
-				wpVersion: runtimeConfiguration.wpVersion,
 				siteUrl: this.siteUrl,
 				wordpressInstallMode:
 					this.args.wordpressInstallMode || 'download-and-install',
@@ -182,9 +173,7 @@ export class BlueprintsV1Handler {
 		fileLockManagerPort: NodeMessagePort;
 		nativeInternalDirPath: string;
 	}) {
-		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
-			worker.phpPort
-		);
+		const playground = consumeAPI<PlaygroundCliWorker>(worker.phpPort);
 
 		await playground.isConnected();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
