@@ -9,6 +9,7 @@ import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import {
 	Button,
 	MenuItem,
+	Modal,
 	NavigableMenu,
 	Popover,
 	__experimentalTreeGrid as TreeGrid,
@@ -71,6 +72,19 @@ interface FileSystemDirectoryEntryLike extends FileSystemEntryBaseLike {
 type FileSystemEntryLike =
 	| FileSystemFileEntryLike
 	| FileSystemDirectoryEntryLike;
+
+/**
+ * How imported files and directories should be named when the destination
+ * already contains an entry with the same name.
+ */
+type ImportConflictStrategy = 'rename' | 'replace';
+
+type ImportConflictResolution = ImportConflictStrategy | 'cancel';
+
+type ImportConflictPrompt = {
+	names: string[];
+	resolve: (resolution: ImportConflictResolution) => void;
+};
 
 export type FileNode = {
 	name: string;
@@ -468,6 +482,8 @@ export const FilePickerTree = forwardRef<
 		x: number;
 		y: number;
 	} | null>(null);
+	const [importConflict, setImportConflict] =
+		useState<ImportConflictPrompt | null>(null);
 	const [renamingAbsolutePath, setRenamingAbsolutePath] = useState<
 		string | null
 	>(null);
@@ -965,32 +981,40 @@ export const FilePickerTree = forwardRef<
 		});
 	};
 
-	const importFileBlob = async (file: File, destinationDir: string) => {
+	const importFileBlob = async (
+		file: File,
+		destinationDir: string,
+		onConflict: ImportConflictStrategy = 'rename'
+	) => {
 		if (!filesystem) return;
-		const safeName = file.name || 'untitled';
-		const targetName = await findAvailableName(destinationDir, safeName);
-		const targetPath = joinPaths(destinationDir, targetName);
+		const targetPath = await resolveImportTargetPath(
+			destinationDir,
+			file.name || 'untitled',
+			onConflict
+		);
 		const buffer = new Uint8Array(await file.arrayBuffer());
 		await filesystem.writeFile(targetPath, buffer);
 	};
 
 	const importFileEntry = async (
 		entry: FileSystemFileEntryLike,
-		destinationDir: string
+		destinationDir: string,
+		onConflict: ImportConflictStrategy = 'rename'
 	) => {
 		const file = await fileFromEntry(entry);
-		await importFileBlob(file, destinationDir);
+		await importFileBlob(file, destinationDir, onConflict);
 	};
 
 	const importDirectoryEntry = async (
 		entry: FileSystemDirectoryEntryLike,
-		destinationDir: string
+		destinationDir: string,
+		onConflict: ImportConflictStrategy = 'rename'
 	) => {
-		const folderName = await findAvailableName(
+		const folderPath = await resolveImportTargetPath(
 			destinationDir,
-			entry.name || 'New Folder'
+			entry.name || 'New Folder',
+			onConflict
 		);
-		const folderPath = joinPaths(destinationDir, folderName);
 		await ensureDirectory(folderPath);
 		const reader = entry.createReader();
 		const readEntries = () =>
@@ -1047,23 +1071,41 @@ export const FilePickerTree = forwardRef<
 		destinationDir: string
 	) => {
 		if (!filesystem) return;
+		const topLevelNames =
+			entries.length > 0
+				? entries.map((entry) => entry.name)
+				: files.map((file) => file.name || 'untitled');
+		const conflicts = await findImportConflicts(
+			topLevelNames,
+			destinationDir
+		);
+		let onConflict: ImportConflictStrategy = 'rename';
+		if (conflicts.length > 0) {
+			const resolution = await promptImportConflict(conflicts);
+			if (resolution === 'cancel') {
+				return;
+			}
+			onConflict = resolution;
+		}
 		if (entries.length > 0) {
 			for (const entry of entries) {
 				if (entry.isFile) {
 					await importFileEntry(
 						entry as FileSystemFileEntryLike,
-						destinationDir
+						destinationDir,
+						onConflict
 					);
 				} else if (entry.isDirectory) {
 					await importDirectoryEntry(
 						entry as FileSystemDirectoryEntryLike,
-						destinationDir
+						destinationDir,
+						onConflict
 					);
 				}
 			}
 		} else {
 			for (const file of files) {
-				await importFileBlob(file, destinationDir);
+				await importFileBlob(file, destinationDir, onConflict);
 			}
 		}
 		await refreshChildren(destinationDir);
@@ -1071,6 +1113,71 @@ export const FilePickerTree = forwardRef<
 			...prev,
 			[destinationDir]: true,
 		}));
+		if (onConflict === 'replace') {
+			await clearSelectionIfMissing();
+		}
+	};
+
+	/** Returns the dropped names that already exist in the destination. */
+	const findImportConflicts = async (
+		names: readonly string[],
+		destinationDir: string
+	) => {
+		const conflicts: string[] = [];
+		for (const name of new Set(names)) {
+			if (name && (await pathExists(joinPaths(destinationDir, name)))) {
+				conflicts.push(name);
+			}
+		}
+		return conflicts;
+	};
+
+	/**
+	 * Opens the conflict dialog and resolves once the user picks an option.
+	 * The drop payload was already captured, so the import can safely wait.
+	 */
+	const promptImportConflict = (names: string[]) =>
+		new Promise<ImportConflictResolution>((resolve) => {
+			setImportConflict({ names, resolve });
+		});
+
+	const resolveImportConflict = (resolution: ImportConflictResolution) => {
+		importConflict?.resolve(resolution);
+		setImportConflict(null);
+	};
+
+	/**
+	 * Picks the path an imported entry should be written to. Replacing
+	 * removes the existing entry first so directories are not merged.
+	 */
+	const resolveImportTargetPath = async (
+		destinationDir: string,
+		name: string,
+		onConflict: ImportConflictStrategy
+	) => {
+		if (onConflict === 'replace') {
+			const targetPath = joinPaths(destinationDir, name);
+			await removePath(targetPath);
+			return targetPath;
+		}
+		const availableName = await findAvailableName(destinationDir, name);
+		return joinPaths(destinationDir, availableName);
+	};
+
+	const removePath = async (path: string) => {
+		if (!filesystem) return;
+		if (await filesystem.isDir(path).catch(() => false)) {
+			await filesystem.rmdir(path, { recursive: true } as any);
+		} else if (await filesystem.fileExists(path).catch(() => false)) {
+			await filesystem.unlink(path);
+		}
+	};
+
+	/** Drops a selection that pointed at a file removed by a replace. */
+	const clearSelectionIfMissing = async () => {
+		if (selectedPath && !(await pathExists(selectedPath))) {
+			onSelect(null);
+		}
 	};
 
 	const handleDeletePath = async (
@@ -1434,9 +1541,72 @@ export const FilePickerTree = forwardRef<
 					</NavigableMenu>
 				</Popover>
 			)}
+			{importConflict && (
+				<ImportConflictDialog
+					names={importConflict.names}
+					onResolve={resolveImportConflict}
+				/>
+			)}
 		</div>
 	);
 });
+
+const ImportConflictDialog: React.FC<{
+	names: string[];
+	onResolve: (resolution: ImportConflictResolution) => void;
+}> = ({ names, onResolve }) => {
+	const isSingle = names.length === 1;
+	const title = isSingle
+		? `"${names[0]}" already exists`
+		: `${names.length} items already exist`;
+	return (
+		<Modal
+			title={title}
+			size="small"
+			onRequestClose={() => onResolve('cancel')}
+		>
+			<div className={css['importConflictDialog']}>
+				<p>
+					{isSingle
+						? 'An item with the same name already exists in ' +
+							'this folder. Replacing it will permanently ' +
+							'delete the existing item.'
+						: 'Items with these names already exist in this ' +
+							'folder. Replacing them will permanently delete ' +
+							'the existing items:'}
+				</p>
+				{!isSingle && (
+					<ul className={css['importConflictList']}>
+						{names.map((name) => (
+							<li key={name}>{name}</li>
+						))}
+					</ul>
+				)}
+				<div className={css['importConflictActions']}>
+					<Button
+						variant="tertiary"
+						onClick={() => onResolve('cancel')}
+					>
+						Cancel
+					</Button>
+					<Button
+						variant="secondary"
+						onClick={() => onResolve('rename')}
+					>
+						Keep both
+					</Button>
+					<Button
+						variant="primary"
+						isDestructive
+						onClick={() => onResolve('replace')}
+					>
+						Replace
+					</Button>
+				</div>
+			</div>
+		</Modal>
+	);
+};
 
 const NodeRow: React.FC<{
 	node: FileNode;
