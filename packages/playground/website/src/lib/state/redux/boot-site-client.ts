@@ -12,6 +12,7 @@ import {
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
+	type BlueprintV1Declaration,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -21,6 +22,11 @@ import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
+import {
+	loadBlueprintLibraryCatalog,
+	loadBlueprintLibrarySettings,
+	mergeBlueprintLibraryItems,
+} from '../../blueprint-library';
 import {
 	setActiveModal,
 	setActiveSiteError,
@@ -185,6 +191,32 @@ export function bootSiteClient(
 			};
 		} else {
 			blueprint = site.metadata.originalBlueprint as Blueprint;
+		}
+
+		if (isInlineBlueprintV1(blueprint)) {
+			const blueprintLibrarySettings = loadBlueprintLibrarySettings();
+			if (blueprintLibrarySettings.alwaysLoad.length > 0) {
+				try {
+					const catalog = await loadBlueprintLibraryCatalog();
+					const alwaysLoadItems = catalog.items.filter((item) =>
+						blueprintLibrarySettings.alwaysLoad.includes(item.id)
+					);
+					const prepared = mergeBlueprintLibraryItems(
+						blueprint,
+						alwaysLoadItems,
+						blueprintLibrarySettings
+					);
+					if (prepared.missingInputs.length > 0) {
+						logger.warn(
+							'Skipped Extra Tools items with missing inputs',
+							prepared.missingInputs
+						);
+					}
+					blueprint = prepared.blueprint;
+				} catch (error) {
+					logger.warn('Failed to apply Extra Tools defaults', error);
+				}
+			}
 		}
 
 		// PHP-only mode: a Blueprint with `preferredVersions.wp: false`
@@ -559,6 +591,15 @@ export function bootSiteClient(
 			}
 		}
 	};
+}
+
+function isInlineBlueprintV1(
+	blueprint: Blueprint
+): blueprint is BlueprintV1Declaration {
+	return (
+		!isBlueprintBundle(blueprint) &&
+		(!('version' in blueprint) || blueprint.version !== 2)
+	);
 }
 
 /**

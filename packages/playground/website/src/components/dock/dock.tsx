@@ -11,6 +11,7 @@ import type {
 	AnimationEvent as ReactAnimationEvent,
 	CSSProperties,
 	PointerEvent as ReactPointerEvent,
+	ReactNode,
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { Icon, Tooltip } from '@wordpress/components';
@@ -59,6 +60,12 @@ import {
 import { DOCK_TOOLS, getDockTool } from './tool-registry';
 import { useDeveloperTools } from './use-developer-tools';
 import css from './style.module.css';
+import {
+	BLUEPRINT_LIBRARY_SETTINGS_CHANGED_EVENT,
+	loadBlueprintLibraryCatalog,
+	loadBlueprintLibrarySettings,
+} from '../../lib/blueprint-library';
+import { logger } from '@php-wasm/logger';
 
 export type DockProps = {
 	paneCloseBlocked: boolean;
@@ -102,6 +109,9 @@ export function Dock({
 		(section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
+	const extraToolsVisible = dockPaneIsOpen && section === 'blueprint-library';
+	const extraToolsHeaderSubtitle =
+		useExtraToolsHeaderSubtitle(extraToolsVisible);
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
@@ -1066,7 +1076,9 @@ export function Dock({
 					description={
 						section === 'settings' && activeSite
 							? undefined
-							: paneCopy.description
+							: section === 'blueprint-library'
+								? undefined
+								: paneCopy.description
 					}
 					headerSubtitle={
 						section === 'settings' && activeSite ? (
@@ -1105,6 +1117,8 @@ export function Dock({
 									</>
 								)}
 							</div>
+						) : section === 'blueprint-library' ? (
+							extraToolsHeaderSubtitle
 						) : undefined
 					}
 					headerAction={
@@ -1337,6 +1351,73 @@ export function Dock({
 				</div>
 			</nav>
 		</>
+	);
+}
+
+function useExtraToolsHeaderSubtitle(isVisible: boolean): ReactNode {
+	const [includedTools, setIncludedTools] = useState<string[]>([]);
+
+	useEffect(() => {
+		if (!isVisible) {
+			return;
+		}
+		let cancelled = false;
+		const loadIncludedTools = () => {
+			const settings = loadBlueprintLibrarySettings();
+			if (settings.alwaysLoad.length === 0) {
+				setIncludedTools([]);
+				return;
+			}
+			void loadBlueprintLibraryCatalog().then(
+				(catalog) => {
+					if (cancelled) {
+						return;
+					}
+					setIncludedTools(
+						catalog.items
+							.filter((item) =>
+								settings.alwaysLoad.includes(item.id)
+							)
+							.map((item) => item.title)
+					);
+				},
+				(error) => {
+					if (!cancelled) {
+						logger.warn(
+							'Failed to load Extra Tools catalog',
+							error
+						);
+						setIncludedTools([]);
+					}
+				}
+			);
+		};
+		loadIncludedTools();
+		window.addEventListener(
+			BLUEPRINT_LIBRARY_SETTINGS_CHANGED_EVENT,
+			loadIncludedTools
+		);
+		return () => {
+			cancelled = true;
+			window.removeEventListener(
+				BLUEPRINT_LIBRARY_SETTINGS_CHANGED_EVENT,
+				loadIncludedTools
+			);
+		};
+	}, [isVisible]);
+
+	return (
+		<div className={css.extraToolsHeader}>
+			<p>Run optional setup tools on this Playground.</p>
+			{includedTools.length > 0 ? (
+				<p>
+					Always included in new Playgrounds:{' '}
+					{includedTools.join(', ')}
+				</p>
+			) : (
+				<p>No extra tools will be included in new Playgrounds.</p>
+			)}
+		</div>
 	);
 }
 
