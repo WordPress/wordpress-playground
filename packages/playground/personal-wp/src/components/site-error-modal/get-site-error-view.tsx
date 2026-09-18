@@ -540,13 +540,6 @@ function genericSiteBootFailedView({
 			>
 				Start troubleshooting mode
 			</Button>,
-			<Button
-				variant="secondary"
-				key="reload-tab"
-				onClick={helpers.reloadWithoutBlueprint}
-			>
-				Reload Fresh Playground
-			</Button>,
 		],
 	};
 }
