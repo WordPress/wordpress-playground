@@ -551,6 +551,28 @@ for (const { wp, php } of MATRIX) {
 			}
 		}
 
+		if (frontStatus.status === 'OK' || frontStatus.status === 'PARTIAL') {
+			const wpEnv = await page.evaluate(async () => {
+				await window.playgroundSites.isReady();
+				const playground = window.playgroundSites.getClient();
+				const response = await playground.run({
+					code: `<?php
+$wp_env = require '/internal/shared/wp-env.php';
+echo $wp_env['db']['type'] === 'sqlite'
+	&& is_file($wp_env['db']['path'])
+	&& is_file($wp_env['db']['driver_path']) ? 'ok' : 'invalid';
+`,
+				});
+				return response.text;
+			});
+			if (wpEnv !== 'ok') {
+				throw new Error(
+					'WordPress database metadata is missing or invalid: ' +
+						wpEnv
+				);
+			}
+		}
+
 		// --- Phase 2: View single post (click "Hello world!") ---
 		if (
 			wp1 &&
