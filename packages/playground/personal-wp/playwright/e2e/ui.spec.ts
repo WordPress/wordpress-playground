@@ -88,6 +88,9 @@ test('should save a PHP version change from Advanced settings', async ({
 	await website.goto('./');
 	await website.ensureSiteToolsIsOpen();
 	await website.page.getByRole('tab', { name: 'Advanced' }).click();
+	await website.page
+		.getByRole('checkbox', { name: 'Show developer tools' })
+		.check();
 
 	const phpVersion = website.page.getByRole('combobox', {
 		name: 'PHP version',

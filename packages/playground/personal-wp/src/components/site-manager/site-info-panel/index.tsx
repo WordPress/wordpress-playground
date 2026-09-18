@@ -1147,45 +1147,6 @@ function AdvancedTab({
 	return (
 		<div className={css.advancedTab}>
 			<div className={css.padded}>
-				<SelectControl
-					__nextHasNoMarginBottom
-					label="PHP version"
-					value={selectedPHPVersion}
-					options={phpVersionOptions}
-					onChange={(value) => {
-						const version = SupportedPHPVersions.find(
-							(supportedVersion) => supportedVersion === value
-						);
-						if (version) {
-							setSelectedPHPVersion(version);
-						}
-					}}
-					disabled={isDependentMode || isApplyingPHPVersion}
-					help={
-						isDependentMode
-							? 'Change the PHP version in the tab running WordPress.'
-							: 'Applying a new version restarts WordPress. Your site data stays saved.'
-					}
-				/>
-				<Button
-					variant="secondary"
-					onClick={applyPHPVersion}
-					disabled={
-						isDependentMode ||
-						isApplyingPHPVersion ||
-						selectedPHPVersion === currentPHPVersion
-					}
-					isBusy={isApplyingPHPVersion}
-				>
-					Apply PHP version
-				</Button>
-				{phpVersionError && (
-					<Notice status="error" isDismissible={false}>
-						{phpVersionError}
-					</Notice>
-				)}
-			</div>
-			<div className={css.padded}>
 				<ToggleControl
 					__nextHasNoMarginBottom
 					label="Show developer tools"
@@ -1194,6 +1155,47 @@ function AdvancedTab({
 					onChange={onShowDevToolsChange}
 				/>
 			</div>
+			{showDevTools && (
+				<div className={css.padded}>
+					<SelectControl
+						__nextHasNoMarginBottom
+						label="PHP version"
+						value={selectedPHPVersion}
+						options={phpVersionOptions}
+						onChange={(value) => {
+							const version = SupportedPHPVersions.find(
+								(supportedVersion) => supportedVersion === value
+							);
+							if (version) {
+								setSelectedPHPVersion(version);
+							}
+						}}
+						disabled={isDependentMode || isApplyingPHPVersion}
+						help={
+							isDependentMode
+								? 'Change the PHP version in the tab running WordPress.'
+								: 'Applying a new version restarts WordPress. Your site data stays saved.'
+						}
+					/>
+					<Button
+						variant="secondary"
+						onClick={applyPHPVersion}
+						disabled={
+							isDependentMode ||
+							isApplyingPHPVersion ||
+							selectedPHPVersion === currentPHPVersion
+						}
+						isBusy={isApplyingPHPVersion}
+					>
+						Apply PHP version
+					</Button>
+					{phpVersionError && (
+						<Notice status="error" isDismissible={false}>
+							{phpVersionError}
+						</Notice>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
