@@ -536,6 +536,93 @@ describe('Blueprint step importWordPressFiles', () => {
 		).toBe(true);
 	});
 
+	it('should restore a wrapped snapshot without replacing mounted directory roots', async () => {
+		await sourcePHP.run({
+			code: `<?php
+			require ${phpVar(await sourcePHP.documentRoot)} . '/wp-load.php';
+			update_option('blogname', 'Snapshot round trip');
+			`,
+		});
+		const exportPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+		const wrappedPath = joinPaths('/tmp', `${randomFilename()}.zip`);
+		await targetPHP.writeFile(exportPath, await zipWpContent(sourcePHP));
+		await targetPHP.run({
+			code: `<?php
+			$source = new ZipArchive();
+			$source->open(${phpVar(exportPath)});
+			$wrapped = new ZipArchive();
+			$wrapped->open(${phpVar(wrappedPath)}, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+			for ($index = 0; $index < $source->numFiles; $index++) {
+				$name = $source->getNameIndex($index);
+				$wrapped->addFromString('wordpress/' . $name, $source->getFromIndex($index));
+			}
+			$wpAdmin = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator('/wordpress/wp-admin', FilesystemIterator::SKIP_DOTS)
+			);
+			foreach ($wpAdmin as $file) {
+				$relativePath = substr($file->getPathname(), strlen('/wordpress/wp-admin/'));
+				$wrapped->addFile($file->getPathname(), 'wordpress/wp-admin/' . $relativePath);
+			}
+			$wrapped->addFromString('wordpress/wp-admin/admin-post.php', '<?php // Restored core file');
+			$source->close();
+			$wrapped->close();
+			`,
+		});
+
+		const documentRoot = await targetPHP.documentRoot;
+		const preservedRoots = new Set([
+			joinPaths(documentRoot, 'wp-content'),
+			joinPaths(documentRoot, 'wp-content/database'),
+		]);
+		const mv = targetPHP.mv.bind(targetPHP);
+		const mvSpy = vi
+			.spyOn(targetPHP, 'mv')
+			.mockImplementation((fromPath, toPath) => {
+				if (preservedRoots.has(toPath)) {
+					throw new Error(
+						`Cannot replace mounted directory root: ${toPath}`
+					);
+				}
+				return mv(fromPath, toPath);
+			});
+		const preservedFile = joinPaths(
+			documentRoot,
+			'wp-admin/admin-post.php'
+		);
+		const unlink = targetPHP.unlink.bind(targetPHP);
+		const unlinkSpy = vi
+			.spyOn(targetPHP, 'unlink')
+			.mockImplementation((path) => {
+				if (path === preservedFile) {
+					throw new Error(`Cannot unlink mounted file: ${path}`);
+				}
+				return unlink(path);
+			});
+
+		try {
+			await importWordPressFiles(targetPHP, {
+				wordPressFilesZip: new File(
+					[await targetPHP.readFileAsBuffer(wrappedPath)],
+					'wordpress-snapshot.zip'
+				),
+			});
+		} finally {
+			mvSpy.mockRestore();
+			unlinkSpy.mockRestore();
+		}
+
+		const result = await targetPHP.run({
+			code: `<?php
+			require ${phpVar(documentRoot)} . '/wp-load.php';
+			echo get_option('blogname');
+			`,
+		});
+		expect(result.text).toBe('Snapshot round trip');
+		expect(await targetPHP.readFileAsText(preservedFile)).toBe(
+			'<?php // Restored core file'
+		);
+	});
+
 	it('should import WordPress files from a single wrapping directory', async () => {
 		const zipPath = joinPaths('/tmp', `${randomFilename()}.zip`);
 		const pluginPath =
