@@ -1150,7 +1150,7 @@ function AdvancedTab({
 				<ToggleControl
 					__nextHasNoMarginBottom
 					label="Show developer tools"
-					help="Browse the site's files, open its database, read PHP logs, and run PHP or WP-CLI. You don't need these to use your WordPress."
+					help="Access site files and the database, view PHP logs, run PHP or WP-CLI, and change the PHP version."
 					checked={showDevTools}
 					onChange={onShowDevToolsChange}
 				/>
