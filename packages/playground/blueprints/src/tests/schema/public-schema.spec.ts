@@ -5,8 +5,8 @@ import { validateBlueprintDeclaration } from '../../lib/validate-blueprint-decla
 import { validateBlueprint } from '../../lib/v1/compile';
 
 const publicBlueprintValidator = new Ajv({
-	discriminator: true,
-	allowUnionTypes: true,
+	strict: true,
+	allErrors: true,
 }).compile(publicSchema);
 
 describe('public Blueprint schema', () => {
@@ -32,6 +32,16 @@ describe('public Blueprint schema', () => {
 
 	it.each([
 		['v1', { landingPage: '/wp-admin/' }],
+		[
+			'v1 Performance Lab (Weston’s strict-mode reproduction)',
+			{
+				$schema:
+					'https://playground.wordpress.net/blueprint-schema.json',
+				landingPage: '/wp-admin/admin.php?page=perflab-modules',
+				plugins: ['performance-lab'],
+				login: true,
+			},
+		],
 		['v2', { version: 2, plugins: ['akismet'] }],
 		[
 			'v2 with an uppercase HTTP scheme',
@@ -60,6 +70,37 @@ describe('public Blueprint schema', () => {
 		],
 	])('rejects %s', (_description, blueprint) => {
 		expect(publicBlueprintValidator(blueprint)).toBe(false);
+	});
+
+	it.each([
+		['string', 'value', true],
+		['boolean', false, true],
+		['number', 42, true],
+		['null', null, false],
+		['array', [], false],
+		['object', {}, false],
+	])('preserves constant validation for %s values', (_type, value, valid) => {
+		for (const blueprint of [
+			{ constants: { EXAMPLE: value } },
+			{ version: 2, constants: { EXAMPLE: value } },
+		]) {
+			expect(publicBlueprintValidator(blueprint)).toBe(valid);
+		}
+	});
+
+	it.each([
+		['all', true],
+		['insert', true],
+		[false, true],
+		[true, false],
+		['unknown', false],
+	])('preserves enum constraints for template_lock=%s', (value, valid) => {
+		expect(
+			publicBlueprintValidator({
+				version: 2,
+				postTypes: { book: { template_lock: value } },
+			})
+		).toBe(valid);
 	});
 
 	it.each([

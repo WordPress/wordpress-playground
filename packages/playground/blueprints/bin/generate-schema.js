@@ -66,6 +66,7 @@ const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
 
 const v1Ajv = new Ajv({
 	discriminator: true,
+	allowUnionTypes: true,
 	code: {
 		source: true,
 		esm: true,
@@ -77,13 +78,44 @@ const v2Schema = await generateBlueprintV2SchemaValidator(
 	exponentialBackoff,
 	prettierConfig
 );
-const publicSchema = createPublicSchema(v1Schema, v2Schema);
+const publicSchema = makePortableSchema(createPublicSchema(v1Schema, v2Schema));
+// Fail generation if consumers would need AJV-specific options to compile it.
+new Ajv({ strict: true }).compile(publicSchema);
 const rawSchemaString = JSON.stringify(publicSchema, null, 2);
 const formattedSchemaString = await prettier.format(rawSchemaString, {
 	...prettierConfig,
 	parser: 'json',
 });
 fs.writeFileSync(output_path, formattedSchemaString);
+
+/** Keeps AJV extensions in runtime validators, out of the published schema. */
+function makePortableSchema(schema) {
+	if (schema === null || typeof schema !== 'object') {
+		return schema;
+	}
+	if (Array.isArray(schema)) {
+		return schema.map(makePortableSchema);
+	}
+
+	const result = {};
+	for (const [key, value] of Object.entries(schema)) {
+		if (
+			key !== 'discriminator' &&
+			!(key === 'type' && Array.isArray(value))
+		) {
+			result[key] = makePortableSchema(value);
+		}
+	}
+	if (Array.isArray(schema.type)) {
+		const union = { anyOf: schema.type.map((type) => ({ type })) };
+		if (result.anyOf) {
+			result.allOf = [...(result.allOf ?? []), union];
+		} else {
+			result.anyOf = union.anyOf;
+		}
+	}
+	return result;
+}
 
 /** Combines the independently generated schemas without shadowing definitions. */
 function createPublicSchema(v1Schema, v2Schema) {

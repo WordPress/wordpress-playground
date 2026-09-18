@@ -242,7 +242,17 @@
 		"PHPConstants": {
 			"type": "object",
 			"additionalProperties": {
-				"type": ["string", "boolean", "number"]
+				"anyOf": [
+					{
+						"type": "string"
+					},
+					{
+						"type": "boolean"
+					},
+					{
+						"type": "number"
+					}
+				]
 			}
 		},
 		"FileReference": {
@@ -514,7 +524,14 @@
 						"$ref": "#/definitions/FileTree"
 					},
 					{
-						"type": ["object", "string"]
+						"anyOf": [
+							{
+								"type": "object"
+							},
+							{
+								"type": "string"
+							}
+						]
 					}
 				]
 			},
@@ -522,9 +539,6 @@
 		},
 		"StepDefinition": {
 			"type": "object",
-			"discriminator": {
-				"propertyName": "step"
-			},
 			"required": ["step"],
 			"oneOf": [
 				{
@@ -2032,12 +2046,22 @@
 				"siteOptions": {
 					"type": "object",
 					"additionalProperties": {
-						"type": [
-							"string",
-							"boolean",
-							"number",
-							"array",
-							"object"
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "boolean"
+							},
+							{
+								"type": "number"
+							},
+							{
+								"type": "array"
+							},
+							{
+								"type": "object"
+							}
 						]
 					},
 					"properties": {
@@ -2071,7 +2095,17 @@
 				"constants": {
 					"type": "object",
 					"additionalProperties": {
-						"type": ["boolean", "string", "number"]
+						"anyOf": [
+							{
+								"type": "boolean"
+							},
+							{
+								"type": "string"
+							},
+							{
+								"type": "number"
+							}
+						]
 					},
 					"properties": {
 						"WP_DEBUG": {
@@ -2295,13 +2329,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 													}
 												}
 											]
@@ -2525,8 +2559,15 @@
 										"description": "Whether to generate and allow a UI for managing this post type in the admin. Default is value of $public."
 									},
 									"show_in_menu": {
-										"type": ["boolean", "string"],
-										"description": "Where to show the post type in the admin menu. To work, $show_ui must be true. If true, the post type is shown in its own top level menu. If false, no menu is shown. If a string of an existing top level menu ('tools.php' or 'edit.php?post_type=page', for example), the post type will be placed as a sub-menu of that. Default is value of $show_ui."
+										"description": "Where to show the post type in the admin menu. To work, $show_ui must be true. If true, the post type is shown in its own top level menu. If false, no menu is shown. If a string of an existing top level menu ('tools.php' or 'edit.php?post_type=page', for example), the post type will be placed as a sub-menu of that. Default is value of $show_ui.",
+										"anyOf": [
+											{
+												"type": "boolean"
+											},
+											{
+												"type": "string"
+											}
+										]
 									},
 									"show_in_admin_bar": {
 										"type": "boolean",
@@ -2557,8 +2598,15 @@
 										"description": "The URL to the icon to be used for this menu. Pass a base64-encoded SVG using a data URI, which will be colored to match the color scheme — this should begin with 'data:image/svg+xml;base64,'. Pass the name of a Dashicons helper class to use a font icon, e.g. 'dashicons-chart-pie'. Pass 'none' to leave div.wp-menu-image empty so an icon can be added via CSS. Defaults to use the posts icon."
 									},
 									"menu_position": {
-										"type": ["string", "number"],
-										"description": "The position in the menu order the post type should appear. To work, $show_in_menu must be true. Default null (at the bottom)."
+										"description": "The position in the menu order the post type should appear. To work, $show_in_menu must be true. Default null (at the bottom).",
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "number"
+											}
+										]
 									},
 									"rename_capabilities": {
 										"type": "boolean",
@@ -2649,8 +2697,15 @@
 										"description": "Core feature(s) the post type supports. Serves as an alias for calling add_post_type_support() directly.\n\nCore features include 'title', 'editor', 'comments', 'revisions', 'trackbacks', 'author', 'excerpt', 'page-attributes', 'thumbnail', 'custom-fields', and 'post-formats'.\n\nAdditionally, the 'revisions' feature dictates whether the post type will store revisions, the 'autosave' feature dictates whether the post type will be autosaved, and the 'comments' feature dictates whether the comments count will show on the edit screen.\n\nFor backward compatibility reasons, adding 'editor' support implies 'autosave' support too.\n\nA feature can also be specified as an array of arguments to provide additional information about supporting that feature.\n\nExample: array( 'my_feature', array( 'field' => 'value' ) ).\n\nIf false, no features will be added. Default is an array containing 'title' and 'editor'."
 									},
 									"has_archive": {
-										"type": ["boolean", "string"],
-										"description": "Whether there should be post type archives, or if a string, the archive slug to use. Will generate the proper rewrite rules if $rewrite is enabled. Default false."
+										"description": "Whether there should be post type archives, or if a string, the archive slug to use. Will generate the proper rewrite rules if $rewrite is enabled. Default false.",
+										"anyOf": [
+											{
+												"type": "boolean"
+											},
+											{
+												"type": "string"
+											}
+										]
 									},
 									"rewrite": {
 										"anyOf": [
@@ -2682,8 +2737,15 @@
 										"description": "Triggers the handling of rewrites for this post type. To prevent rewrite, set to false. Defaults to true, using $post_type as slug. To specify rewrite rules, an array can be passed with any of these keys:\n- slug (string): Customize the permastruct slug. Defaults to $post_type key.\n- with_front (bool): Whether the permastruct should be prepended with WP_Rewrite::$front. Default true.\n- feeds (bool): Whether the feed permastruct should be built for this post type. Default is value of $has_archive.\n- pages (bool): Whether the permastruct should provide for pagination. Default true.\n- ep_mask (int): Endpoint mask to assign. If not specified and permalink_epmask is set, inherits from $permalink_epmask.   If not specified and permalink_epmask is not set, defaults to EP_PERMALINK."
 									},
 									"query_var": {
-										"type": ["boolean", "string"],
-										"description": "Sets the query_var key for this post type. Defaults to $post_type key. If false, a post type cannot be loaded at ?{query_var}={post_slug}. If specified as a string, the query ?{query_var_string}={post_slug} will be valid."
+										"description": "Sets the query_var key for this post type. Defaults to $post_type key. If false, a post type cannot be loaded at ?{query_var}={post_slug}. If specified as a string, the query ?{query_var_string}={post_slug} will be valid.",
+										"anyOf": [
+											{
+												"type": "boolean"
+											},
+											{
+												"type": "string"
+											}
+										]
 									},
 									"can_export": {
 										"type": "boolean",
@@ -2718,13 +2780,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																}
 															}
 														]
@@ -2736,9 +2798,16 @@
 										"description": "Array of blocks to use as the default initial state for an editor session. Each item should be an array containing block name and optional attributes."
 									},
 									"template_lock": {
-										"type": ["string", "boolean"],
 										"enum": ["all", "insert", false],
-										"description": "Whether the block template should be locked if $template is set. If set to 'all', the user is unable to insert new blocks, move existing blocks and delete blocks. If set to 'insert', the user is able to move existing blocks but is unable to insert new blocks and delete blocks. Default false."
+										"description": "Whether the block template should be locked if $template is set. If set to 'all', the user is unable to insert new blocks, move existing blocks and delete blocks. If set to 'insert', the user is able to move existing blocks but is unable to insert new blocks and delete blocks. Default false.",
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "boolean"
+											}
+										]
 									}
 								},
 								"additionalProperties": false
@@ -2809,11 +2878,15 @@
 																		"description": "CSS font-style value."
 																	},
 																	"fontWeight": {
-																		"type": [
-																			"string",
-																			"number"
-																		],
-																		"description": "List of available font weights, separated by a space."
+																		"description": "List of available font weights, separated by a space.",
+																		"anyOf": [
+																			{
+																				"type": "string"
+																			},
+																			{
+																				"type": "number"
+																			}
+																		]
 																	},
 																	"fontDisplay": {
 																		"type": "string",
@@ -2956,9 +3029,6 @@
 					"type": "array",
 					"items": {
 						"type": "object",
-						"discriminator": {
-							"propertyName": "type"
-						},
 						"required": ["type"],
 						"oneOf": [
 							{
@@ -3130,13 +3200,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																	}
 																}
 															]
@@ -3276,13 +3346,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																				}
 																			}
 																		]
@@ -3525,9 +3595,6 @@
 					"type": "array",
 					"items": {
 						"type": "object",
-						"discriminator": {
-							"propertyName": "step"
-						},
 						"required": ["step"],
 						"oneOf": [
 							{
@@ -3596,10 +3663,16 @@
 									"constants": {
 										"type": "object",
 										"additionalProperties": {
-											"type": [
-												"boolean",
-												"string",
-												"number"
+											"anyOf": [
+												{
+													"type": "boolean"
+												},
+												{
+													"type": "string"
+												},
+												{
+													"type": "number"
+												}
 											]
 										},
 										"properties": {
@@ -3819,13 +3892,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																						}
 																					}
 																				]
@@ -3967,13 +4040,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 																									}
 																								}
 																							]
@@ -4271,13 +4344,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 													}
 												}
 											]
@@ -4520,13 +4593,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 													}
 												}
 											]
@@ -4823,7 +4896,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862": {
+		"alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4837,13 +4910,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-149327-149421-1337903113-101473-149435-1337903113-101439-149435-1337903113-0-166748"
 					}
 				}
 			]
