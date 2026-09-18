@@ -53,6 +53,7 @@ import {
 } from '../../../lib/remote-access-service';
 import { normalizeVerificationCode } from '@wp-playground/remote-access';
 import { logPersonalWpEvent } from '../../../lib/personalwp/usage-stats';
+import { SupportedPHPVersions } from '@php-wasm/universal';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -952,6 +953,11 @@ export function SiteInfoPanel({
 									hidden={tab.name !== 'advanced'}
 								>
 									<AdvancedTab
+										site={site}
+										playground={playground}
+										isDependentMode={
+											clientInfo?.isDependentMode ?? false
+										}
 										showDevTools={showDevTools}
 										onShowDevToolsChange={
 											handleShowDevToolsChange
@@ -1063,23 +1069,133 @@ export function SiteInfoPanel({
 }
 
 function AdvancedTab({
+	site,
+	playground,
+	isDependentMode,
 	showDevTools,
 	onShowDevToolsChange,
 }: {
+	site: SiteInfo;
+	playground: PlaygroundClient | undefined;
+	isDependentMode: boolean;
 	showDevTools: boolean;
 	onShowDevToolsChange: (next: boolean) => void;
 }) {
+	const dispatch = useAppDispatch();
+	const currentPHPVersion = site.metadata.runtimeConfiguration.phpVersion;
+	const [selectedPHPVersion, setSelectedPHPVersion] =
+		useState(currentPHPVersion);
+	const [isApplyingPHPVersion, setIsApplyingPHPVersion] = useState(false);
+	const [phpVersionError, setPHPVersionError] = useState<string | null>(null);
+
+	useEffect(() => {
+		setSelectedPHPVersion(currentPHPVersion);
+	}, [currentPHPVersion]);
+
+	const phpVersionOptions = [
+		...(SupportedPHPVersions.some(
+			(version) => version === currentPHPVersion
+		)
+			? []
+			: [
+					{
+						label: `PHP ${currentPHPVersion} (current)`,
+						value: currentPHPVersion,
+					},
+				]),
+		...SupportedPHPVersions.map((version) => ({
+			label: `PHP ${version}`,
+			value: version,
+		})),
+	];
+
+	async function applyPHPVersion() {
+		const version = SupportedPHPVersions.find(
+			(supportedVersion) => supportedVersion === selectedPHPVersion
+		);
+		if (!version || version === currentPHPVersion || isDependentMode) {
+			return;
+		}
+
+		setIsApplyingPHPVersion(true);
+		setPHPVersionError(null);
+		try {
+			if (playground) {
+				await flushWordPressMount(playground);
+			}
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					metadata: {
+						runtimeConfiguration: {
+							...site.metadata.runtimeConfiguration,
+							phpVersion: version,
+						},
+					},
+				})
+			);
+			window.location.reload();
+		} catch (error) {
+			logger.error('Failed to change PHP version:', error);
+			setPHPVersionError(
+				'Could not change the PHP version. Please try again.'
+			);
+			setIsApplyingPHPVersion(false);
+		}
+	}
+
 	return (
 		<div className={css.advancedTab}>
 			<div className={css.padded}>
 				<ToggleControl
 					__nextHasNoMarginBottom
 					label="Show developer tools"
-					help="Browse the site's files, open its database, read PHP logs, and run PHP or WP-CLI. You don't need these to use your WordPress."
+					help="Access site files and the database, view PHP logs, run PHP or WP-CLI, and change the PHP version."
 					checked={showDevTools}
 					onChange={onShowDevToolsChange}
 				/>
 			</div>
+			{showDevTools && (
+				<div className={css.padded}>
+					<SelectControl
+						__nextHasNoMarginBottom
+						label="PHP version"
+						value={selectedPHPVersion}
+						options={phpVersionOptions}
+						onChange={(value) => {
+							const version = SupportedPHPVersions.find(
+								(supportedVersion) => supportedVersion === value
+							);
+							if (version) {
+								setSelectedPHPVersion(version);
+							}
+						}}
+						disabled={isDependentMode || isApplyingPHPVersion}
+						help={
+							isDependentMode
+								? 'Change the PHP version in the tab running WordPress.'
+								: 'Applying a new version restarts WordPress. Your site data stays saved.'
+						}
+					/>
+					<Button
+						variant="secondary"
+						onClick={applyPHPVersion}
+						disabled={
+							isDependentMode ||
+							isApplyingPHPVersion ||
+							selectedPHPVersion === currentPHPVersion
+						}
+						isBusy={isApplyingPHPVersion}
+					>
+						Apply PHP version
+					</Button>
+					{phpVersionError && (
+						<Notice status="error" isDismissible={false}>
+							{phpVersionError}
+						</Notice>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }

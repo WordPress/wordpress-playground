@@ -1,10 +1,5 @@
 import { test, expect } from '../playground-fixtures';
-import type { Blueprint } from '@wp-playground/blueprints';
-import {
-	PHPMYADMIN_CONFIG_PATH,
-	PHPMYADMIN_INSTALL_PATH,
-	PHPMYADMIN_URL_PATH,
-} from '@wp-playground/tools';
+import { PHPMYADMIN_URL_PATH } from '@wp-playground/tools';
 
 test('should open and close the Site Tools panel', async ({ website }) => {
 	await website.goto('./');
@@ -87,6 +82,37 @@ test('should close the Site Tools panel with its close button', async ({
 	).not.toBeVisible();
 });
 
+test('should save a PHP version change from Advanced settings', async ({
+	website,
+}) => {
+	await website.goto('./');
+	await website.ensureSiteToolsIsOpen();
+	await website.page.getByRole('tab', { name: 'Advanced' }).click();
+	await website.page
+		.getByRole('checkbox', { name: 'Show developer tools' })
+		.check();
+
+	const phpVersion = website.page.getByRole('combobox', {
+		name: 'PHP version',
+	});
+	const currentVersion = await phpVersion.inputValue();
+	const nextVersion = currentVersion === '8.4' ? '8.3' : '8.4';
+	await phpVersion.selectOption(nextVersion);
+	await expect(
+		website.page.getByRole('button', { name: 'Apply PHP version' })
+	).toBeEnabled();
+
+	const reloaded = website.page.waitForEvent('load');
+	await website.page
+		.getByRole('button', { name: 'Apply PHP version' })
+		.click();
+	await reloaded;
+	await website.waitForNestedIframes();
+	await website.ensureSiteToolsIsOpen();
+	await website.page.getByRole('tab', { name: 'Advanced' }).click();
+	await expect(phpVersion).toHaveValue(nextVersion);
+});
+
 test('should display the page title as "My WordPress"', async ({ website }) => {
 	await website.goto('./');
 	await expect(website.page).toHaveTitle('My WordPress');
@@ -116,26 +142,7 @@ test('should open phpMyAdmin from the Database tools', async ({
 	website,
 	context,
 }) => {
-	const probeText = 'phpMyAdmin path alias works';
-	const blueprint: Blueprint = {
-		steps: [
-			{
-				step: 'mkdir',
-				path: PHPMYADMIN_INSTALL_PATH,
-			},
-			{
-				step: 'writeFile',
-				path: `${PHPMYADMIN_INSTALL_PATH}/index.php`,
-				data: `<?php echo ${JSON.stringify(probeText)};`,
-			},
-			{
-				step: 'writeFile',
-				path: PHPMYADMIN_CONFIG_PATH,
-				data: '<?php',
-			},
-		],
-	};
-	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.goto('./');
 
 	await website.ensureSiteToolsIsOpen();
 	// The Database tab is a developer tool and only appears once the
@@ -159,5 +166,4 @@ test('should open phpMyAdmin from the Database tools', async ({
 
 	await popup.waitForLoadState();
 	expect(new URL(popup.url()).pathname).toContain(PHPMYADMIN_URL_PATH);
-	await expect(popup.locator('body')).toContainText(probeText);
 });

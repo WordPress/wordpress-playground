@@ -99,10 +99,14 @@ export function bootSiteClient(
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
 
-		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
+		// Check for the Health Check recovery Blueprint selected by the launch URL.
 		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
 		const hasUrlBlueprint =
 			!!urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
+		if (hasUrlBlueprint) {
+			// Recovery is one-shot even if boot fails before a client connects.
+			dispatch(setBlueprintResolvedFromUrl(null));
+		}
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -236,7 +240,7 @@ export function bootSiteClient(
 				landingPage: getBrowserPathAsLandingPage(),
 			};
 
-			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
+			// Add the recovery steps to the existing site's boot Blueprint.
 			if (hasUrlBlueprint) {
 				const resolved = urlBlueprint.blueprint;
 				const current = blueprint as BlueprintV1Declaration;
@@ -431,10 +435,9 @@ export function bootSiteClient(
 			);
 		}
 
-		// Clear URL blueprint after successful boot
+		// Clean up the recovery launch URL after successful boot.
 		if (hasUrlBlueprint) {
 			reportBootProgress(96, 'Cleaning up launch URL');
-			dispatch(setBlueprintResolvedFromUrl(null));
 			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
 				if (isAppBasePath(cleanUrl.pathname)) {
