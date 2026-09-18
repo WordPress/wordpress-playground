@@ -1048,7 +1048,7 @@ test('should stat the database size without reading the database into JavaScript
 		const originalRead = playground.readFileAsBuffer.bind(playground);
 		(window as any).__databaseReadCount = 0;
 		playground.readFileAsBuffer = async (path: string) => {
-			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
+			if (path.endsWith('/.ht.sqlite')) {
 				(window as any).__databaseReadCount++;
 				throw new Error(
 					'Database contents must not be read to calculate size.'
@@ -1075,9 +1075,19 @@ test.describe('Database panel', () => {
 	});
 
 	test('should display database info', async ({ website }) => {
+		const databasePath = await website.page.evaluate(async () => {
+			const playground = (window as any).playgroundSites.getClient();
+			const response = await playground.run({
+				code: `<?php
+$wp_env = require '/internal/shared/wp-env.php';
+echo $wp_env['db']['path'];
+`,
+			});
+			return response.text;
+		});
 		await expect(website.page.getByText('Path:')).toBeVisible();
 		await expect(
-			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
+			website.page.getByText(databasePath, { exact: true })
 		).toBeVisible();
 		await expect(website.page.getByText('Size:')).toBeVisible();
 	});

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
+import { getSqliteDatabasePath } from '@wp-playground/tools';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
@@ -7,39 +8,45 @@ import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
 import { formatBytes } from '../../../lib/utils/format-bytes';
 
-const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
-
 export function SiteDatabasePanel({
 	playground,
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
+	const [databasePath, setDatabasePath] = useState<string | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
 
 	useEffect(() => {
+		setDatabasePath(null);
+		setDatabaseSize(null);
 		if (!playground) {
-			setDatabaseSize(null);
 			return;
 		}
+
+		let cancelled = false;
 
 		async function fetchDatabaseSize() {
 			if (!playground) return;
 
 			try {
-				const fileExists = await playground.fileExists(DATABASE_PATH);
+				const path = await getSqliteDatabasePath(playground);
+				if (cancelled) return;
+				setDatabasePath(path);
+				const fileExists = await playground.fileExists(path);
 				if (fileExists) {
-					const buffer =
-						await playground.readFileAsBuffer(DATABASE_PATH);
+					const buffer = await playground.readFileAsBuffer(path);
+					if (cancelled) return;
 					setDatabaseSize(buffer.byteLength);
-				} else {
-					setDatabaseSize(null);
 				}
 			} catch {
-				setDatabaseSize(null);
+				if (!cancelled) setDatabaseSize(null);
 			}
 		}
 
 		void fetchDatabaseSize();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
 	return (
@@ -83,7 +90,7 @@ export function SiteDatabasePanel({
 					</span>
 					<span className={css.label}>SQLite database path:</span>
 					<span className={css.value}>
-						<code>{DATABASE_PATH}</code>
+						<code>{databasePath ?? 'Unavailable'}</code>
 					</span>
 					{databaseSize !== null && (
 						<>
@@ -97,7 +104,10 @@ export function SiteDatabasePanel({
 			</VStack>
 
 			<div className={css.buttonGroup}>
-				<DownloadButton playground={playground} />
+				<DownloadButton
+					playground={playground}
+					databasePath={databasePath}
+				/>
 				<AdminerButton playground={playground} />
 				<PhpMyAdminButton playground={playground} />
 			</div>
