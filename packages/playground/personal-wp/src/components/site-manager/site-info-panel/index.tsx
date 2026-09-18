@@ -33,6 +33,8 @@ import { SiteDatabasePanel } from '../site-database-panel';
 import { useBackup } from '../../../lib/hooks/use-backup';
 import { WordPressIcon } from '@wp-playground/components';
 import { getHealthCheckRecoveryUrl } from '../../../lib/health-check-recovery';
+import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
+import { PlaygroundRoute } from '../../../lib/state/url/router';
 import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
 import {
@@ -1134,7 +1136,10 @@ function AdvancedTab({
 					},
 				})
 			);
-			window.location.reload();
+			window.location.href = PlaygroundRoute.site(
+				site,
+				getAppBaseUrl().toString()
+			);
 		} catch (error) {
 			logger.error('Failed to change PHP version:', error);
 			setPHPVersionError(
