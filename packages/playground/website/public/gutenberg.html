@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <head>
 	<title>Gutenberg PR Previewer</title>
@@ -64,8 +64,8 @@
 	<div id="links">
 		Powered by
 		<a href="https://developer.wordpress.org/playground">
-			WordPress Playground
-		</a>. To build a previewer like this for your repository, check the
+			WordPress Playground </a
+		>. To build a previewer like this for your repository, check the
 		<a
 			target="_blank"
 			href="https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/gutenberg.html"
@@ -156,7 +156,29 @@
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
-				errorDiv.innerText = `The PR ${prNumber} does not exist or GitHub CI did not finish building it yet.`;
+				let error = 'invalid_pr_number';
+				try {
+					const json = await response.json();
+					if (json.error) {
+						error = json.error;
+					}
+				} catch (e) {}
+
+				if (error === 'invalid_pr_number') {
+					errorDiv.innerText = `The PR ${prNumber} does not exist.`;
+				} else if (error === 'artifact_invalid') {
+					errorDiv.innerText = `The PR ${prNumber} requires a rebase before it can be previewed.`;
+				} else if (error === 'artifact_expired') {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed because the CI build artifact has expired. To load that pull request, the author or a maintainer should push a new commit, rebase, or rerun the CI job to trigger a fresh CI build.`;
+				} else if (
+					error === 'no_ci_runs' ||
+					error === 'artifact_not_found' ||
+					error === 'artifact_not_available'
+				) {
+					errorDiv.innerText = `GitHub CI did not finish building the PR ${prNumber} yet. This can take 15 minutes or more. Try again later.`;
+				} else {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or file an issue in the WordPress Playground repository.`;
+				}
 				submitting = false;
 				submitButton.classList.remove('loading');
 				submitButton.disabled = false;
