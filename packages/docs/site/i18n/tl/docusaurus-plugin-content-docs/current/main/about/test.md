@@ -15,7 +15,7 @@ Halimbawa, ang sumusunod na link ay maglo-load ng [“pendant” theme](https://
 
 [https://playground.wordpress.net/?theme=pendant&plugin=gutenberg](https://playground.wordpress.net/?theme=pendant&plugin=gutenberg)
 
-Ngunit maaari ka ring magsubok ng [mas komplikadong mga konfigurasyon gamit ang blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md), halimbawa pagsubok ng code ng plugin mula sa isang gist (tingnan ang [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) at [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json)).
+Ngunit maaari ka ring magsubok ng [mas komplikadong mga konfigurasyon gamit ang blueprints](https://wordpress.github.io/blueprints/), halimbawa pagsubok ng code ng plugin mula sa isang gist (tingnan ang [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) at [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json)).
 
 ## Live preview ng pull requests
 

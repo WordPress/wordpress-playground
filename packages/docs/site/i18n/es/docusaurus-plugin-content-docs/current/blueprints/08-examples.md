@@ -16,9 +16,9 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-Consulta la [Galería de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar ejemplos de código del mundo real usando WordPress Playground para lanzar un sitio WordPress con una variedad de configuraciones.
+Consulta la [Galería de Blueprints](https://wordpress.github.io/blueprints/) para explorar ejemplos de código del mundo real usando WordPress Playground para lanzar un sitio WordPress con una variedad de configuraciones.
 
-<!-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
+<!-- Check the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
 </div>
 

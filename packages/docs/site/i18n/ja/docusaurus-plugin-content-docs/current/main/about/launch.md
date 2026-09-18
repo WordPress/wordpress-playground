@@ -34,10 +34,10 @@ Leverage [blueprints'](/blueprints) potential to create interactive demos of you
 Read more about this at [How to use WordPress Playground for interactive demos](https://developer.wordpress.org/news/2024/04/25/how-to-use-wordpress-playground-for-interactive-demos/)
 -->
 
-[ブループリント ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) で、作成できるインタラクティブなデモの種類についてインスピレーションを得てください。
+[ブループリント ギャラリー](https://wordpress.github.io/blueprints/) で、作成できるインタラクティブなデモの種類についてインスピレーションを得てください。
 
 <!--
-Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/)
 -->
 
 [ブループリント ビルダー](https://playground.wordpress.net/builder/builder.html) ツールを使用すると、ブループリントをオンラインで編集し、Playground インスタンスで直接実行できます。
