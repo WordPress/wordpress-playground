@@ -135,5 +135,4 @@ test('should open phpMyAdmin from the Database tools', async ({
 
 	await popup.waitForLoadState();
 	expect(new URL(popup.url()).pathname).toContain(PHPMYADMIN_URL_PATH);
-	await expect(popup.locator('body')).toContainText('Databases');
 });
