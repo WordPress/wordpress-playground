@@ -1,10 +1,20 @@
 ---
-title: How to run Blueprints
+title: How to run Blueprints (v1 legacy)
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description: Learn the various methods for loading and running Blueprints, including using a URL fragment or the blueprint-url parameter.
+description: Legacy Blueprint v1 documentation. Learn the various methods for loading and running Blueprints, including using a URL fragment or the blueprint-url parameter.
 ---
 
 # How to load and run Blueprints
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 ## Playground Dock
 
