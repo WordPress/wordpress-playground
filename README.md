@@ -116,6 +116,61 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
+## Running tests locally
+
+Make sure you have the Node.js version from `.nvmrc` active, then install the repository dependencies:
+
+```bash
+nvm use
+npm ci
+```
+
+### Unit tests
+
+Run all unit tests with:
+
+```bash
+npm test
+```
+
+To run tests for one package, use its Nx project name:
+
+```bash
+npx nx test <package-name>
+```
+
+You can also run a single test file with `--testFile=<test-file-name>`.
+
+### End-to-end tests
+
+The website end-to-end tests use Playwright and require the local website to be available at `https://playground.test`.
+
+Install the Playwright browsers once:
+
+```bash
+npx playwright install --with-deps
+```
+
+In one terminal, start the website:
+
+```bash
+npm run dev
+```
+
+In another terminal, install [Laravel Valet](https://laravel.com/docs/11.x/valet) if needed and proxy the website through HTTPS:
+
+```bash
+valet proxy playground.test http://127.0.0.1:5400 --secure
+```
+
+Then run the Playwright end-to-end tests:
+
+```bash
+npx nx run playground-website:e2e:playwright
+```
+
+For the full set of Playwright options and specialized test suites, see the [website Playwright README](packages/playground/website/playwright/README.md).
+
 And here are a few more interesting CLI commands you can run in this repo:
 
 ```bash
