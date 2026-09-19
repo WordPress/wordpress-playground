@@ -37,6 +37,7 @@ import {
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
+import { workerBootApiTransferPolicy, type WorkerConfig } from '../worker-boot';
 
 /**
  * Boots Playground CLI workers using the native TypeScript Blueprint v2
@@ -184,14 +185,18 @@ export class BlueprintsV2Handler {
 	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
+		workerConfig,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
+		workerConfig: WorkerConfig;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV2Worker>(
-			worker.phpPort
+			worker.phpPort,
+			undefined,
+			workerBootApiTransferPolicy
 		);
 
 		await playground.isConnected();
@@ -206,27 +211,29 @@ export class BlueprintsV2Handler {
 		);
 		assertCliSupportedPHPVersion(runtimeConfiguration.phpVersion);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootRequestHandler({
-			phpVersion: runtimeConfiguration.phpVersion,
-			siteUrl: this.siteUrl,
-			networking: runtimeConfiguration.networking,
-			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
-			mountsAfterWpInstall: this.args.mount || [],
-			processId: worker.processId,
-			followSymlinks: this.args.followSymlinks === true,
-			trace: this.args.experimentalTrace === true,
-			extensions: cliExtensionArgsToExtensionsArray(
-				filterExtensionArgsForPHPVersion(
-					{
-						...this.args,
-						intl: runtimeConfiguration.intl,
-					},
-					runtimeConfiguration.phpVersion
-				)
-			),
-			nativeInternalDirPath,
-			pathAliases: this.args.pathAliases,
-		});
+		await playground.bootRequestHandler(
+			{
+				phpVersion: runtimeConfiguration.phpVersion,
+				siteUrl: this.siteUrl,
+				networking: runtimeConfiguration.networking,
+				mountsBeforeWpInstall: this.args['mount-before-install'] || [],
+				mountsAfterWpInstall: this.args.mount || [],
+				followSymlinks: this.args.followSymlinks === true,
+				trace: this.args.experimentalTrace === true,
+				extensions: cliExtensionArgsToExtensionsArray(
+					filterExtensionArgsForPHPVersion(
+						{
+							...this.args,
+							intl: runtimeConfiguration.intl,
+						},
+						runtimeConfiguration.phpVersion
+					)
+				),
+				nativeInternalDirPath,
+				pathAliases: this.args.pathAliases,
+			},
+			workerConfig
+		);
 		await playground.isReady();
 		return playground;
 	}

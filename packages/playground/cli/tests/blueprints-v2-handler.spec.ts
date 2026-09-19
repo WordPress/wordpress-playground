@@ -354,16 +354,25 @@ describe('BlueprintsV2Handler', () => {
 				cliOutput,
 			}
 		);
+		const childWorkerServicePort = {} as any;
 
 		await handler.bootRequestHandler({
 			worker: { phpPort: {}, processId: 7 } as any,
 			fileLockManagerPort: {} as any,
+			workerConfig: {
+				processId: 7,
+				childWorkerServicePort,
+			},
 			nativeInternalDirPath: '/tmp/playground',
 		});
 
 		expect(playground.bootRequestHandler).toHaveBeenCalledWith(
 			expect.objectContaining({
 				extensions: [],
+			}),
+			expect.objectContaining({
+				processId: 7,
+				childWorkerServicePort,
 			})
 		);
 	});
