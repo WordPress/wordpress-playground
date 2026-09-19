@@ -135,7 +135,12 @@ export {
 
 export { isExitCode } from './is-exit-code';
 export { proxyFileSystem, isPathToSharedFS } from './proxy-file-system';
-export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory';
+export {
+	sandboxedSpawnHandlerFactory,
+	type PHPFileSystem,
+	type SandboxedShellExecutor,
+	type SandboxedShellExecutorContext,
+} from './sandboxed-spawn-handler-factory';
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
