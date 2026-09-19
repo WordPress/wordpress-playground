@@ -127,6 +127,15 @@ const sidebars = {
 				'blueprints/bundles',
 				'blueprints/examples',
 				'blueprints/troubleshoot-and-debug-blueprints',
+				{
+					type: 'category',
+					label: 'Blueprints v2 (experimental)',
+					link: {
+						type: 'doc',
+						id: 'blueprints/v2/index',
+					},
+					items: ['blueprints/v2/migrating-from-v1-to-v2'],
+				},
 			],
 		},
 	],
