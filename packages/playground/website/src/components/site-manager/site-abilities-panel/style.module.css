@@ -1,0 +1,44 @@
+.panel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+.toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.list li {
+	padding: 16px 0;
+	border-bottom: 1px solid var(--interactive-border, #c3c4c7);
+}
+.list code {
+	display: block;
+	margin-top: 8px;
+}
+.panel code {
+	overflow-wrap: anywhere;
+}
+.panel pre {
+	overflow: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	max-height: 360px;
+}
+.panel p {
+	margin: 0;
+}
+.list p {
+	margin: 8px 0 16px;
+}
+
+.panel > :global(.components-button) {
+	align-self: flex-start;
+}
