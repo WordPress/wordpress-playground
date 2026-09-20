@@ -120,6 +120,7 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_get_current_url',
 		'playground_get_site_info',
 		'playground_get_website_url',
+		'playground_list_emails',
 		'playground_list_files',
 		'playground_list_sites',
 		'playground_mkdir',
