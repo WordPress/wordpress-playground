@@ -2,13 +2,7 @@
 	position: absolute;
 	top: 0;
 	left: 0;
-	background:
-		radial-gradient(
-			circle at 50% calc(50% - 140px),
-			rgb(56 88 233 / 0.13),
-			transparent 34%
-		),
-		linear-gradient(180deg, #f7f9fc 0%, #fff 100%);
+	background: #fff;
 	z-index: 5;
 	display: flex;
 	flex-direction: column;
@@ -33,7 +27,7 @@
 	width: calc(100% - 48px);
 	max-width: 420px;
 	height: 9px;
-	margin: 1.45rem auto 0;
+	margin: 19px auto 0;
 	overflow: hidden;
 	border-radius: 999px;
 	background: #d8dce2;
@@ -114,61 +108,36 @@
 	}
 }
 
-/* A quiet prefix above the name, so the big text below reads as the Playground
-   being started, not a page title. */
-.label {
-	color: #757575;
+.caption {
+	font-weight: 300;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: clamp(0.9rem, 1.45vw, 1rem);
-	font-weight: 500;
-	letter-spacing: 0.01em;
-	line-height: 1.3;
-	margin: 0 0 0.45rem;
-	text-align: center;
-}
-
-/* The stable Playground name — larger and bolder than the caption, sitting just
-   above it. It wraps in full and never changes as boot stages advance. */
-.title {
-	font-weight: 600;
-	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: clamp(1.55rem, 3.4vw, 2.35rem);
+	font-size: 20px;
 	line-height: 1.12;
-	margin: 0 0 0.45rem;
+	margin: 0;
 	width: calc(100% - 48px);
 	max-width: 720px;
 	overflow-wrap: anywhere;
 	text-align: center;
 }
 
-.caption {
-	font-weight: 400;
-	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: clamp(0.95rem, 1.75vw, 1.12rem);
-	/* With the name carrying identity above, the changing stage caption reads as
-	   secondary status. */
-	color: #757575;
-	line-height: 1.3;
-	margin: 0;
-	text-align: center;
-}
-
-.label,
-.title,
 .caption,
 .wrapper {
 	z-index: 1;
 }
 
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+}
+
 @media (prefers-color-scheme: dark) {
 	.overlay {
-		background:
-			radial-gradient(
-				circle at 50% calc(50% - 140px),
-				rgb(56 88 233 / 0.2),
-				transparent 34%
-			),
-			linear-gradient(180deg, #191a1d 0%, #1e1e1e 100%);
+		background: #1e1e1e;
 		color: #fff;
 	}
 

@@ -1,6 +1,6 @@
 ---
 title: Primeros Pasos con Xdebug
-slug: /developers/xdebug/getting-started
+slug: /developers/xdebug/xdebug-getting-started
 description: Antes de comenzar a depurar, necesitas ejecutar WordPress Playground con Xdebug habilitado. Esta guía cubre lo básico.
 ---
 

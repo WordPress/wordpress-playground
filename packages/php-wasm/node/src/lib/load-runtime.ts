@@ -206,6 +206,19 @@ export async function loadNodeRuntime(
 				}
 			: {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
+			// Node.js omits "." and ".." from readdirSync(), unlike MEMFS and native PHP.
+			const nodeFs = phpRuntime.FS.filesystems.NODEFS;
+			const originalNodeFsReaddir = nodeFs.node_ops.readdir;
+			nodeFs.node_ops.readdir = (node: any) => {
+				const entries = originalNodeFsReaddir.call(
+					nodeFs.node_ops,
+					node
+				);
+				return entries.includes('.')
+					? entries
+					: ['.', '..', ...entries];
+			};
+
 			/**
 			 * When users mount a directory using the `mount` function,
 			 * the directory becomes accessible in the Emscripten's filesystem.

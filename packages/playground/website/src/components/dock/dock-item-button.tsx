@@ -12,6 +12,7 @@ export type DockItemButtonProps = {
 	hasSeparator?: boolean;
 	hasNotification?: boolean;
 	notificationAriaSuffix?: string;
+	disabled?: boolean;
 	dataCy?: string;
 	onClick?: MouseEventHandler<HTMLButtonElement>;
 };
@@ -33,6 +34,7 @@ export const DockItemButton = forwardRef<
 		hasSeparator = false,
 		hasNotification = false,
 		notificationAriaSuffix = 'notification available',
+		disabled = false,
 		dataCy,
 		onClick,
 	},
@@ -57,6 +59,7 @@ export const DockItemButton = forwardRef<
 				})}
 				aria-label={buttonAriaLabel}
 				aria-pressed={isActive}
+				disabled={disabled}
 				onClick={onClick}
 				data-cy={dataCy}
 			>

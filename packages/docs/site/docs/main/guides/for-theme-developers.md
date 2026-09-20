@@ -125,22 +125,22 @@ With the [`resetData`](/blueprints/steps#resetData) step, you can remove the def
 
 ### `writeFile`
 
-With the [`writeFile`](/blueprints/steps#resetData) step, you can write data to a file at a specified path. You may want to use this step to write custom PHP code in a PHP file inside the `mu-plugins` folder of the Playground WordPress instance, so the code is executed automatically when the WordPress instance is loaded.
-One of the things you can do through this step is to enable pretty permalinks for your Playground instance:
+With the [`writeFile`](/blueprints/steps#WriteFileStep) step, you can write data to a file at a specified path. You may want to use this step to write custom PHP code in a PHP file inside the `mu-plugins` folder of the Playground WordPress instance, so the code is executed automatically when the WordPress instance is loaded.
+For example, you can add a demo-specific body class that your theme can use for Playground-only styling:
 
 ```json
 "steps": [
 	...,
 	{
 		"step": "writeFile",
-		"path": "/wordpress/wp-content/mu-plugins/rewrite.php",
-		"data": "<?php /* Use pretty permalinks */ add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
+		"path": "/wordpress/wp-content/mu-plugins/demo-body-class.php",
+		"data": "<?php add_filter( 'body_class', function ( $classes ) { $classes[] = 'playground-demo'; return $classes; } );"
 	},
 	...
 ]
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L19)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L16)
 
 ### `updateUserMeta`
 

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { joinPaths } from '@php-wasm/util';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
-import { DownloadButton } from './download-button';
+import { Notice } from '@wordpress/components';
+import { PlaygroundBootNotice } from '../../pane-loading';
 import { AdminerButton } from './adminer-button';
+import { DownloadButton } from './download-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
 
@@ -14,37 +15,72 @@ export function SiteDatabasePanel({
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
-	const [databasePath, setDatabasePath] = useState<string | null>(null);
+	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
+	const [sizeStatus, setSizeStatus] = useState<
+		'loading' | 'ready' | 'unavailable'
+	>('loading');
 
+	// Resolve the real document root instead of assuming /wordpress, which is
+	// wrong for Playgrounds mounted at a different root.
 	useEffect(() => {
 		if (!playground) {
-			setDatabasePath(null);
+			setDocumentRoot(null);
 			setDatabaseSize(null);
 			return;
 		}
-		setDatabasePath(null);
+		setDocumentRoot(null);
 		setDatabaseSize(null);
 		let cancelled = false;
+		void playground.documentRoot.then((root) => {
+			if (!cancelled) {
+				setDocumentRoot(root);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [playground]);
+
+	const databasePath = documentRoot
+		? joinPaths(documentRoot, RELATIVE_DATABASE_PATH)
+		: null;
+
+	useEffect(() => {
+		if (!playground) {
+			// No client to inspect — don't sit on "Calculating…" forever.
+			setSizeStatus('unavailable');
+			return;
+		}
+		if (!databasePath) {
+			// Client present but the document root is still resolving.
+			setSizeStatus('loading');
+			return;
+		}
+		let cancelled = false;
+		setSizeStatus('loading');
 
 		async function fetchDatabaseSize() {
-			if (!playground) return;
-
+			if (!playground || !databasePath) return;
 			try {
-				const path = joinPaths(
-					await playground.documentRoot,
-					RELATIVE_DATABASE_PATH
-				);
-				if (!cancelled) {
-					setDatabasePath(path);
-				}
-				const size = await readDatabaseSize(playground, path);
-				if (!cancelled) {
+				const fileExists = await playground.fileExists(databasePath);
+				if (cancelled) return;
+				if (fileExists) {
+					const size = await readDatabaseSize(
+						playground,
+						databasePath
+					);
+					if (cancelled) return;
 					setDatabaseSize(size);
+					setSizeStatus('ready');
+				} else {
+					setDatabaseSize(null);
+					setSizeStatus('unavailable');
 				}
 			} catch {
 				if (!cancelled) {
 					setDatabaseSize(null);
+					setSizeStatus('unavailable');
 				}
 			}
 		}
@@ -53,81 +89,70 @@ export function SiteDatabasePanel({
 		return () => {
 			cancelled = true;
 		};
-	}, [playground]);
-
-	const formatBytes = (bytes: number): string => {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-	};
+	}, [playground, databasePath]);
 
 	return (
-		<VStack spacing={4}>
+		<div className={css.databasePanel}>
+			<dl className={css.databaseInfo}>
+				<dt className={css.label}>Driver:</dt>
+				<dd className={css.value}>MySQL emulation backed by SQLite</dd>
+				<dt className={css.label}>Path:</dt>
+				<dd className={css.value}>
+					<code>{databasePath ?? `…/${RELATIVE_DATABASE_PATH}`}</code>
+				</dd>
+				<dt className={css.label}>Size:</dt>
+				<dd className={css.value}>
+					{sizeStatus === 'loading'
+						? 'Calculating…'
+						: sizeStatus === 'ready' && databaseSize !== null
+							? formatBytes(databaseSize)
+							: 'Unavailable'}
+				</dd>
+			</dl>
+
 			<Notice
 				className={css.siteNotice}
 				status="info"
 				isDismissible={false}
 			>
-				<h3 style={{ fontWeight: 'bold' }}>
-					Database management is an early access feature
-				</h3>{' '}
-				<br />
-				<p style={{ fontSize: '1.1rem' }}>
-					WordPress Playground{' '}
+				<p className={css.noticeEyebrow}>Early access</p>
+				<p className={css.noticeBody}>
+					Playground{' '}
 					<a
 						target="_blank"
 						rel="noreferrer"
 						href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
 					>
-						emulates MySQL using SQLite
+						emulates MySQL with SQLite
 					</a>
-					. The database tools are a work in progress and are
-					improving every week. Help shape them – report issues on the{' '}
+					. These tools are a work in progress —{' '}
 					<a
 						target="_blank"
 						rel="noreferrer"
 						href="https://github.com/WordPress/wordpress-playground/issues"
 					>
-						GitHub issue tracker
+						report issues
 					</a>
 					.
-				</p>{' '}
+				</p>
 			</Notice>
 
-			<VStack spacing={3} style={{ alignItems: 'flex-start' }}>
-				<div className={css.databaseInfo}>
-					<span className={css.label}>Database driver:</span>
-					<span className={css.value}>
-						MySQL emulation backed by SQLite
-					</span>
-					<span className={css.label}>SQLite database path:</span>
-					<span className={css.value}>
-						<code>
-							{databasePath ?? `…/${RELATIVE_DATABASE_PATH}`}
-						</code>
-					</span>
-					{databaseSize !== null && (
-						<>
-							<span className={css.label}>Size:</span>
-							<span className={css.value}>
-								{formatBytes(databaseSize)}
-							</span>
-						</>
-					)}
+			{playground ? (
+				<div className={css.buttonGroup}>
+					<AdminerButton playground={playground} />
+					<PhpMyAdminButton playground={playground} />
+					<DownloadButton
+						playground={playground}
+						databasePath={databasePath}
+					/>
 				</div>
-			</VStack>
-
-			<div className={css.buttonGroup}>
-				<DownloadButton
-					playground={playground}
-					databasePath={databasePath}
+			) : (
+				<PlaygroundBootNotice
+					show
+					message="The Playground is still loading — database tools will be ready in a moment."
 				/>
-				<AdminerButton playground={playground} />
-				<PhpMyAdminButton playground={playground} />
-			</div>
-		</VStack>
+			)}
+		</div>
 	);
 }
 
@@ -154,4 +179,12 @@ echo $stat['size'];
 		throw new Error('Database stat returned an invalid size.');
 	}
 	return size;
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes === 0) return '0 B';
+	const k = 1024;
+	const sizes = ['B', 'KB', 'MB', 'GB'];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }

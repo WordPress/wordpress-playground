@@ -16,6 +16,43 @@ vi.mock('stream/promises', async (importOriginal) => {
 });
 
 describe('startServer', () => {
+	it('closes the randomly assigned port when onBind throws', async () => {
+		const expectedError = new Error('onBind failed');
+		let boundServer: http.Server | undefined;
+		let assignedPort: number | undefined;
+
+		try {
+			await expect(
+				startServer({
+					port: 0,
+					handleRequest: async () => {
+						throw new Error('Unexpected request');
+					},
+					async onBind(server, port) {
+						boundServer = server;
+						assignedPort = port;
+						throw expectedError;
+					},
+				})
+			).rejects.toBe(expectedError);
+
+			if (assignedPort === undefined) {
+				throw new Error('onBind did not receive an assigned port');
+			}
+			expect(assignedPort).toBeGreaterThan(0);
+			expect(boundServer?.listening).toBe(false);
+			expect(boundServer?.address()).toBe(null);
+		} finally {
+			const serverToClose = boundServer;
+			if (serverToClose?.listening) {
+				await new Promise<void>((resolve) => {
+					serverToClose.close(() => resolve());
+					serverToClose.closeAllConnections();
+				});
+			}
+		}
+	});
+
 	it('does not log an error when piping to a destroyed stream (ERR_STREAM_UNABLE_TO_PIPE)', async () => {
 		const pipelineMock = vi.mocked(pipeline);
 		pipelineMock.mockClear();

@@ -1,6 +1,6 @@
 ---
 title: Getting Started with Xdebug
-slug: /developers/xdebug/getting-started
+slug: /developers/xdebug/xdebug-getting-started
 description: Before you can start debugging, you need to run WordPress Playground with Xdebug enabled. This guide covers the basics.
 ---
 

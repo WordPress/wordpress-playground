@@ -102,6 +102,31 @@ describe('compileBlueprintForExecution', () => {
 		expect(compiled.compiled.plan).toEqual([]);
 	});
 
+	it('runs PHP-only steps without requiring WordPress', async () => {
+		const playground = {
+			run: vi.fn().mockResolvedValue({ text: 'PHP-only Blueprint' }),
+		};
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			wordpressVersion: 'none',
+			additionalStepsAfterExecution: [
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'php-target.php',
+						content: '<?php echo "PHP-only Blueprint";',
+					},
+				},
+			],
+		});
+
+		await compiled.run(playground as any);
+
+		expect(playground.run).toHaveBeenCalledWith({
+			code: '<?php echo "PHP-only Blueprint";',
+		});
+	});
+
 	it('reports a validated Blueprint v2 declaration exactly once', async () => {
 		const declaration = { version: 2 } as const;
 		const onBlueprintValidated = vi.fn();
@@ -145,6 +170,113 @@ describe('compileBlueprintForExecution', () => {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
 		expect(compiled.compiled.runtime.wpVersion).toBe('latest');
+	});
+
+	it('prepends content baseline cleanup to new-site plans', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			contentBaseline: 'empty',
+			siteOptions: { blogname: 'Empty content baseline' },
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan).toMatchObject([
+			{
+				type: 'applyContentBaseline',
+				contentBaseline: 'empty',
+				sourcePath: '/contentBaseline',
+			},
+			{
+				type: 'setSiteOptions',
+			},
+		]);
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'resetData',
+			'setSiteOptions',
+		]);
+		expect(compiled.compiled.steps[0]).toMatchObject({
+			step: 'resetData',
+			contentTypes: ['posts', 'pages', 'comments'],
+		});
+	});
+
+	it('skips creation baselines for existing sites', async () => {
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			},
+			{ siteMode: 'apply-to-existing-site' }
+		);
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan.map((item) => item.type)).toEqual([
+			'defineUsers',
+		]);
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'runPHPWithOptions',
+		]);
+	});
+
+	it('treats keep-all creation baselines as no-ops', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			contentBaseline: 'keep-all',
+			usersBaseline: 'keep-all',
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan).toEqual([]);
+		expect(compiled.compiled.steps).toEqual([]);
+	});
+
+	it('removes initial users before creating declared users', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			contentBaseline: 'empty',
+			usersBaseline: 'empty',
+			users: [
+				{
+					username: 'new-admin',
+					email: 'new-admin@example.com',
+					role: 'administrator',
+					meta: {},
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(compiled.compiled.plan.map((item) => item.type)).toEqual([
+			'applyContentBaseline',
+			'applyUsersBaseline',
+			'defineUsers',
+		]);
+		expect(compiled.compiled.steps.map((step) => step.step)).toEqual([
+			'resetData',
+			'runPHP',
+			'runPHPWithOptions',
+		]);
 	});
 
 	it('compiles Blueprint v2 declarations from raw JSON', async () => {
@@ -928,10 +1060,17 @@ describe('compileBlueprintForExecution', () => {
 	it('lowers Blueprint v2 WXR content to importWxr steps', async () => {
 		const compiled = await compileBlueprintForExecution({
 			version: 2,
+			plugins: [
+				{
+					source: 'woocommerce',
+					targetDirectoryName: 'woocommerce',
+				},
+			],
 			content: [
 				{
 					type: 'wxr',
 					source: [
+						'site:wp-content/plugins/woocommerce/sample-data/sample_products.xml',
 						'./content.wxr',
 						{
 							filename: 'inline.wxr',
@@ -955,6 +1094,33 @@ describe('compileBlueprintForExecution', () => {
 			throw new Error('Expected a compiled Blueprint v2 result.');
 		}
 		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'woocommerce',
+				},
+				options: {
+					activate: true,
+					targetFolderName: 'woocommerce',
+				},
+			},
+			{
+				step: 'importWxr',
+				file: {
+					resource: 'vfs',
+					path: '/wordpress/wp-content/plugins/woocommerce/sample-data/sample_products.xml',
+				},
+				fetchAttachments: false,
+				rewriteUrls: true,
+				urlMapping: {
+					'https://old.example': 'https://new.example',
+				},
+				importComments: true,
+				authorsMode: 'default-author',
+				importUsers: false,
+				defaultAuthorUsername: 'editor',
+			},
 			{
 				step: 'importWxr',
 				file: {
@@ -987,6 +1153,59 @@ describe('compileBlueprintForExecution', () => {
 				authorsMode: 'default-author',
 				importUsers: false,
 				defaultAuthorUsername: 'editor',
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers Blueprint v2 multisite initialization before later WP-CLI steps', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{ step: 'enableMultisite' },
+				{
+					step: 'wp-cli',
+					command: "wp site create --slug=food --title='The Foodie'",
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'enableMultisite',
+			},
+			{
+				step: 'wp-cli',
+				command: "wp site create --slug=food --title='The Foodie'",
+				wpCliPath: undefined,
+			},
+		]);
+		expect(compiled.compiled.unsupportedPlan).toEqual([]);
+	});
+
+	it('lowers an ordered Blueprint v2 content reset to resetData', async () => {
+		const compiled = await compileBlueprintForExecution({
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'resetData',
+					contentTypes: ['pages', 'comments'],
+				},
+			],
+		});
+
+		expect(compiled.version).toBe(2);
+		if (compiled.version !== 2) {
+			throw new Error('Expected a compiled Blueprint v2 result.');
+		}
+		expect(withoutProgressFromSteps(compiled.compiled.steps)).toEqual([
+			{
+				step: 'resetData',
+				contentTypes: ['pages', 'comments'],
 			},
 		]);
 		expect(compiled.compiled.unsupportedPlan).toEqual([]);

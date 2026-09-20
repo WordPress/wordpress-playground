@@ -1,6 +1,6 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { decodeBase64ToString } from '../../base64';
+import { decodeBase64ToString } from '@php-wasm/util';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);

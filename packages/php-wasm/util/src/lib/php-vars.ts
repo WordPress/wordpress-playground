@@ -1,5 +1,7 @@
+import { encodeStringAsBase64 } from './base64';
+
 export function phpVar(value: unknown): string {
-	return `json_decode(base64_decode('${stringToBase64(
+	return `json_decode(base64_decode('${encodeStringAsBase64(
 		JSON.stringify(value)
 	)}'), true)`;
 }
@@ -12,13 +14,4 @@ export function phpVars<T extends Record<string, unknown>>(
 		result[key] = phpVar(vars[key]);
 	}
 	return result as Record<keyof T, string>;
-}
-
-function stringToBase64(str: string) {
-	return bytesToBase64(new TextEncoder().encode(str));
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-	const binString = String.fromCodePoint(...bytes);
-	return btoa(binString);
 }

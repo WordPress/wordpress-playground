@@ -1,8 +1,14 @@
 .modal {
 	max-width: 600px;
 
+	/* WordPress' Modal ships a tall header gap; tighten it so the title sits
+	   close to its body copy. */
+	:global(.components-modal__header) {
+		margin-bottom: 8px;
+	}
+
 	p {
-		margin-block: 13px;
+		margin-block: 12px;
 
 		&:first-child {
 			margin-block-start: 0;
@@ -34,5 +40,7 @@
 }
 
 .modal-buttons {
-	margin-top: 1.5rem;
+	/* One action-row separation across modals — matches the 16px gap the
+	   gap-based forms (e.g. Save) already use. */
+	margin-top: 1rem;
 }

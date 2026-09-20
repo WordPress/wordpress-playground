@@ -1,30 +1,31 @@
 import { useEffect, useRef } from 'react';
-import { usePlaygroundClient } from '../use-playground-client';
-import { useActiveSite } from '../state/redux/store';
-import { useBackup } from './use-backup';
+import { useActiveSite, useAppDispatch } from '../state/redux/store';
+import { setAutoBackupDue } from '../state/redux/slice-ui';
 import { shouldAutoBackup } from './use-auto-backup-utils';
 
+/**
+ * Flags the active site as due for a backup once its interval has elapsed.
+ * The download itself only happens when the user clicks the prompt that the
+ * viewport shows on the Site Tools latch, so no file leaves the device
+ * without being asked.
+ */
 export function useAutoBackup() {
-	const playground = usePlaygroundClient();
 	const activeSite = useActiveSite();
-	const { performBackup } = useBackup();
-	const hasTriggeredRef = useRef(false);
-	const siteSlugRef = useRef<string | null>(null);
+	const dispatch = useAppDispatch();
+	const promptedSiteSlugRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (!playground || !activeSite) {
+		if (!activeSite) {
 			return;
 		}
 
-		// Reset trigger flag when switching to a different site
-		if (siteSlugRef.current !== activeSite.slug) {
-			siteSlugRef.current = activeSite.slug;
-			hasTriggeredRef.current = false;
-		}
-
-		if (hasTriggeredRef.current) {
+		// Prompt at most once per site visit. Switching sites hides the
+		// prompt for the previous site and re-evaluates the new one.
+		if (promptedSiteSlugRef.current === activeSite.slug) {
 			return;
 		}
+		promptedSiteSlugRef.current = activeSite.slug;
+		dispatch(setAutoBackupDue(false));
 
 		if (activeSite.metadata.storage === 'none') {
 			return;
@@ -36,22 +37,11 @@ export function useAutoBackup() {
 			whenCreated,
 		} = activeSite.metadata;
 		// When no backup has happened yet, measure the interval against the
-		// site's creation time so a brand-new site doesn't auto-backup at boot.
+		// site's creation time so a brand-new site doesn't prompt at boot.
 		const referenceTimestamp = backupHistory[0]?.timestamp ?? whenCreated;
 
-		if (!shouldAutoBackup(autoBackupInterval, referenceTimestamp)) {
-			return;
+		if (shouldAutoBackup(autoBackupInterval, referenceTimestamp)) {
+			dispatch(setAutoBackupDue(true));
 		}
-
-		hasTriggeredRef.current = true;
-
-		// Delay the backup slightly to let the UI settle after WordPress boots
-		const timeoutId = setTimeout(() => {
-			performBackup();
-		}, 3000);
-
-		return () => {
-			clearTimeout(timeoutId);
-		};
-	}, [playground, activeSite, performBackup]);
+	}, [activeSite, dispatch]);
 }

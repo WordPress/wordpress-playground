@@ -68,14 +68,11 @@ export function getSetupUrlFromUrl(url: URL) {
  * Returns the setup URL stored with a site.
  *
  * Stored Playgrounds may be opened from a route like `?site-slug=demo`, which
- * does not fully describe the setup that created them. Recreating an autosaved
- * Playground must start from the saved setup params instead of the current
- * browser URL so Blueprint, plugin, theme, and other setup params are retained.
+ * does not fully describe the setup that created them. Features that share or
+ * copy that setup must start from the saved params so Blueprint, plugin, theme,
+ * and other setup values are retained.
  */
-export function getSetupUrlFromSite(
-	site: SiteInfo,
-	baseUrl: string | URL
-) {
+export function getSetupUrlFromSite(site: SiteInfo, baseUrl: string | URL) {
 	if (!site.originalUrlParams) {
 		return getSetupUrlFromUrl(new URL(baseUrl));
 	}

@@ -22,6 +22,37 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
+## Saved-site export API
+
+`startPlaygroundAPI()` exposes an API for working with Playgrounds without booting WordPress, PHP, workers, or a service worker. Currently, it only supports exporting saved OPFS sites.
+
+To export a saved OPFS site:
+
+- The API endpoint must share the origin and browser storage partition used to save the site.
+- In WebKit, saving and exporting must use the same top-level origin, including its scheme, host, and port. A site saved while Playground is the top-level page is not visible to an API iframe embedded under a different top-level origin.
+
+The `/api.html` entry point is part of the full Playground website deployment. It is not included in the `@wp-playground/remote` npm package.
+
+```js
+import { startPlaygroundAPI } from 'https://playground.wordpress.net/client/index.js';
+
+const iframe = document.createElement('iframe');
+iframe.hidden = true;
+iframe.sandbox.add('allow-scripts');
+iframe.sandbox.add('allow-same-origin');
+document.body.appendChild(iframe);
+
+const api = await startPlaygroundAPI({
+	iframe,
+	apiUrl: 'https://playground.wordpress.net/api.html',
+});
+const zip = await api.exportSavedSiteAsZip('my-site', {
+	excludePatterns: ['/*', '!/wp-content/', '!/wp-content/**'],
+});
+```
+
+The optional `excludePatterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `excludePatterns` is omitted, the ZIP contains the complete saved site.
+
 ## npm package
 
 The npm package exists for projects that want to install `@wp-playground/client` through a package manager, bundle it with their application, or use its TypeScript declarations locally.

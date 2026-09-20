@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS playground_remote_access_sessions (
 	`session_id` CHAR(36) NOT NULL,
 	`access_code` CHAR(7) NOT NULL,
+	`host_token` CHAR(64) NOT NULL DEFAULT '',
 	`created_at_ms` BIGINT UNSIGNED NOT NULL,
 	`last_activity_ms` BIGINT UNSIGNED NOT NULL,
 	`last_host_seen_at_ms` BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -30,3 +31,27 @@ CREATE TABLE IF NOT EXISTS playground_remote_access_guests (
 	PRIMARY KEY (`session_id`, `guest_id`),
 	INDEX (`last_seen_at_ms`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * Adds host_token to sessions tables created before it existed. Written as a
+ * prepared statement because ADD COLUMN IF NOT EXISTS is MariaDB-only, and
+ * this file is replayed on every deploy.
+ *
+ * Sessions that predate the column keep an empty token, which the relay
+ * rejects. They expire within five minutes of the deploy.
+ */
+SET @add_host_token := (
+	SELECT IF(
+		COUNT(*) = 0,
+		'ALTER TABLE playground_remote_access_sessions
+			ADD COLUMN `host_token` CHAR(64) NOT NULL DEFAULT \'\' AFTER `access_code`',
+		'DO 0'
+	)
+	FROM information_schema.COLUMNS
+	WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'playground_remote_access_sessions'
+		AND COLUMN_NAME = 'host_token'
+);
+PREPARE add_host_token FROM @add_host_token;
+EXECUTE add_host_token;
+DEALLOCATE PREPARE add_host_token;

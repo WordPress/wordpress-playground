@@ -65,7 +65,7 @@ test('should show download error modal when a resource download fails', async ({
 	await expect(reloadButton).toBeVisible();
 });
 
-test('should say when the Blueprint file could not be downloaded', async ({
+test('should recover when the Blueprint file could not be downloaded', async ({
 	page,
 }) => {
 	const blueprintUrl = 'https://example.com/missing-blueprint.json';
@@ -80,10 +80,49 @@ test('should say when the Blueprint file could not be downloaded', async ({
 		} as typeof fetch;
 	}, blueprintUrl);
 
-	await page.goto(`./?blueprint-url=${encodeURIComponent(blueprintUrl)}`);
+	const retainedParams = {
+		mode: 'seamless',
+		url: '/wp-admin/',
+		'page-title': 'Recovery test',
+		mcp: 'yes',
+		'can-save': 'no',
+	};
+	const setupParams = new URLSearchParams({
+		...retainedParams,
+		storage: 'temp',
+		wp: '6.6',
+		'blueprint-url': blueprintUrl,
+	});
+	await page.goto(`./?${setupParams}`);
 
 	await expect(
 		page.getByText('Blueprint could not be downloaded')
 	).toBeVisible();
 	await expect(page.getByRole('link', { name: blueprintUrl })).toBeVisible();
+	const originalPathname = new URL(page.url()).pathname;
+
+	const documentMarker = crypto.randomUUID();
+	await page.evaluate((marker) => {
+		Reflect.set(window, 'playgroundRecoveryDocumentMarker', marker);
+	}, documentMarker);
+	await page
+		.getByRole('button', { name: 'Start without a Blueprint' })
+		.click();
+
+	await expect(page).toHaveURL(
+		(url) => !url.searchParams.has('blueprint-url')
+	);
+	const recoveredUrl = new URL(page.url());
+	for (const [name, value] of Object.entries(retainedParams)) {
+		expect(recoveredUrl.searchParams.get(name)).toBe(value);
+	}
+	expect(recoveredUrl.pathname).toBe(originalPathname);
+	expect(recoveredUrl.searchParams.has('random')).toBe(true);
+	expect(recoveredUrl.searchParams.has('storage')).toBe(false);
+	expect(recoveredUrl.searchParams.has('wp')).toBe(false);
+	expect(
+		await page.evaluate(() =>
+			Reflect.get(window, 'playgroundRecoveryDocumentMarker')
+		)
+	).toBe(documentMarker);
 });

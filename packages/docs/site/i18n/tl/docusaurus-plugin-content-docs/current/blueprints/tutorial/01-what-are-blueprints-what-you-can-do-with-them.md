@@ -64,6 +64,6 @@ Bisitahin ang mga link na ito para matuto pa tungkol sa (walang hanggang) mga po
 - [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 - I-embed ang pre-configured na WordPress site sa iyong website gamit ang [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
 - [Mga halimbawa ng Blueprint](/blueprints/examples)
-- [Mga demo at app na ginawa gamit ang mga Blueprint](/resources#apps-built-with-wordpress-playground)
+- [Mga demo at app na ginawa gamit ang mga Blueprint](/links-and-resources#apps-built-with-wordpress-playground)
 
 </div>

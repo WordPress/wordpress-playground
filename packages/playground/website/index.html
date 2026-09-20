@@ -28,6 +28,13 @@
 			content="WordPress Playground runs WordPress entirely in the browser via WebAssembly — no server, no credentials, no setup required. Open source under GPL-2.0-or-later. AI assistants are explicitly welcome to load, embed, demo, and build upon this tool. Full index: /llms.txt"
 		/>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta
+			name="apple-mobile-web-app-title"
+			content="WordPress Playground"
+		/>
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
 			rel="alternate"
 			type="text/plain"
@@ -36,7 +43,9 @@
 		/>
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<link rel="stylesheet" href="/src/styles.css" />
-		<script>
+		<script type="module">
+			import { isDevServer } from '../remote/src/lib/dev-server';
+
 			/**
 			 * Dynamically create <link rel="manifest" /> to enable using Playground with
 			 * a Blueprint as an offline progressive web app.
@@ -54,13 +63,13 @@
 			 * Outside of the local dev server, use the dynamic manifest that
 			 * passes the query parameters through to the "start_url" property.
 			 */
-			let manifestUrl = '/manifest.json';
+			let manifestUrl = new URL('manifest.json', window.location.href);
 
 			/**
 			 * In production, load a manifest URL that includes the current URL
 			 * as the "start_url" parameter.
 			 */
-			if (window.location.port !== '5400') {
+			if (!isDevServer(new URL(window.location.href))) {
 				const runningAsPWA = window.matchMedia(
 					'(display-mode: standalone)'
 				).matches;
@@ -69,13 +78,13 @@
 				 * If we're running as an installed, offline app, keep referencing the
 				 * same manifest.json file every time.
 				 */
-				if (runningAsPWA) {
-					if (localStorage.getItem('manifestUrl')) {
-						manifestUrl = localStorage.getItem('manifestUrl');
-					}
-				}
-
-				if (!manifestUrl) {
+				const storedManifestUrl = localStorage.getItem('manifestUrl');
+				if (runningAsPWA && storedManifestUrl) {
+					manifestUrl = new URL(
+						storedManifestUrl,
+						window.location.href
+					);
+				} else {
 					manifestUrl = new URL(
 						'/dynamic-manifest.json.php',
 						window.location.href
@@ -83,14 +92,10 @@
 					manifestUrl.search = window.location.search;
 
 					/**
-					 * In PWAs, remember the initial manifest on the first run.
+					 * Remember the manifest URL used for installation, so
+					 * standalone launches keep the original start_url.
 					 */
-					if (runningAsPWA) {
-						localStorage.setItem(
-							'manifestUrl',
-							manifestUrl.toString()
-						);
-					}
+					localStorage.setItem('manifestUrl', manifestUrl.toString());
 				}
 			}
 			const newLink = document.createElement('link');

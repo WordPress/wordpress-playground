@@ -11,7 +11,13 @@ import {
 import type { BlueprintDeclaration, RuntimeConfiguration } from '../types';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 
-const V2_WORDPRESS_VERSION_LABELS = ['latest', 'beta', 'trunk', 'nightly'];
+const V2_WORDPRESS_VERSION_LABELS = [
+	'latest',
+	'beta',
+	'trunk',
+	'nightly',
+	'none',
+];
 const CUSTOM_WORDPRESS_VERSION = 'custom';
 const V2_WORDPRESS_VERSION_PATTERN =
 	/^\d+\.\d+(?:\.\d+)?(?:-(?:beta|rc)\d+)?$/i;
@@ -64,7 +70,7 @@ export async function resolveBlueprintV2RuntimeConfiguration(
 	return {
 		phpVersion: resolveV2PHPVersion(declaration),
 		wpVersion,
-		intl: false,
+		intl: playgroundOptions?.loadPhpExtensions?.includes('intl') ?? false,
 		networking: playgroundOptions?.networkAccess ?? false,
 		constants: declaration.constants ?? {},
 		extraLibraries: [],
@@ -348,7 +354,7 @@ function resolveV2WordPressVersionString(wordpressVersion: string): string {
 	throw new Error(
 		`Unsupported Blueprint v2 WordPress version "${wordpressVersion}". ` +
 			'Use latest, beta, trunk, nightly, or a version like ' +
-			'6.8, 6.8.1, 6.8-beta1, or 6.8-rc1.'
+			'6.8, 6.8.1, 6.8-beta1, 6.8-rc1; or use none to boot PHP without WordPress.'
 	);
 }
 

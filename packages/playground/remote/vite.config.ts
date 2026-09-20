@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { join } from 'path';
+import { fileURLToPath } from 'node:url';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
@@ -17,7 +18,8 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 
 const plugins = [
 	viteTsConfigPaths({

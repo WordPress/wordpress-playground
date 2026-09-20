@@ -3,7 +3,7 @@ import { TextControl } from '@wordpress/components';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import {
 	setActiveModal,
-	setSiteManagerOpen,
+	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
@@ -26,7 +26,7 @@ export function BlueprintUrlModal() {
 		if (!trimmed) {
 			return;
 		}
-		dispatch(setSiteManagerOpen(false));
+		dispatch(setDockPaneOpen(false));
 		closeModal();
 		redirectTo(
 			PlaygroundRoute.newSite({

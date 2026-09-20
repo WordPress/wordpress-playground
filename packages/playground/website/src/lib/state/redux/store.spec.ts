@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
-import { selectActiveStoredSite } from './store';
+import {
+	isYouHaveAutosaveNudgeEnabled,
+	selectActiveStoredSite,
+	setYouHaveAutosaveNudgeEnabled,
+} from './store';
 import type { PlaygroundReduxState } from './store';
 import { selectSortedStoredSites } from './slice-sites';
 import type { SiteInfo } from './slice-sites';
@@ -53,6 +57,38 @@ describe('saved Playground state selectors', () => {
 
 		expect(storedSites).toEqual([newerStoredSite, olderStoredSite]);
 		expect(selectSortedStoredSites(state)).toBe(storedSites);
+	});
+});
+
+describe('You Have Autosave nudge preference', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('persists both enabled states across readers', () => {
+		const values = new Map<string, string>();
+		vi.stubGlobal('localStorage', {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => values.set(key, value),
+		});
+
+		expect(isYouHaveAutosaveNudgeEnabled()).toBe(true);
+		setYouHaveAutosaveNudgeEnabled(false);
+		expect(isYouHaveAutosaveNudgeEnabled()).toBe(false);
+		setYouHaveAutosaveNudgeEnabled(true);
+		expect(isYouHaveAutosaveNudgeEnabled()).toBe(true);
+	});
+
+	it('degrades to a session dismissal when storage is unavailable', () => {
+		vi.stubGlobal('localStorage', {
+			getItem: () => {
+				throw new Error('unavailable');
+			},
+			setItem: () => {
+				throw new Error('unavailable');
+			},
+		});
+
+		expect(isYouHaveAutosaveNudgeEnabled()).toBe(true);
+		expect(() => setYouHaveAutosaveNudgeEnabled(false)).not.toThrow();
 	});
 });
 

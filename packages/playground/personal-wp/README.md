@@ -93,6 +93,50 @@ Response:
 Blueprint URLs must be `https:`, `data:`, or local `http:` URLs. Dependent tabs
 cannot install blueprints and will return an error result.
 
+#### Backup Site
+
+Use `backup-site` to ask Personal Playground to zip the current site and hand the
+file to the browser's downloader — the same backup the Site Tools panel produces.
+Dependent tabs forward the request to the active tab, which is where the download
+then appears.
+
+```js
+window.parent.postMessage(
+	{
+		type: 'relay',
+		relayType: 'backup-site',
+		requestId,
+	},
+	'*'
+);
+```
+
+Response:
+
+```ts
+{
+	type: 'relay';
+	relayType: 'backup-site-result';
+	requestId?: string;
+	status: 'started' | 'success' | 'error';
+	error?: string;
+}
+```
+
+`started` is sent as soon as the request is accepted, before the site is zipped.
+Waiting for it lets a page tell a slow backup apart from an older Personal
+Playground that ignores the message, so it can fall back to pointing at Site
+Tools. `success` or `error` follows once the zip is done.
+
+A request that arrives before the site has finished coming up waits for it, up
+to 15 seconds, rather than being refused — the page doing the asking was served
+by that site, so it is generally the shell's state that is behind.
+
+No confirmation dialog is shown: the file only reaches the user's own disk, the
+requesting page never gets to read it, and a browser download is visible anyway.
+Only one backup runs at a time; a request that arrives while one is in flight
+comes back as an error.
+
 ### Offline Support
 
 Works as a Progressive Web App (PWA) for offline use. Install it on your device for a native app-like experience.

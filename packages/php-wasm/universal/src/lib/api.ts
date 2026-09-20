@@ -1,8 +1,13 @@
+import {
+	phpEventStdinTransfer,
+	type PHPEventWithStdinTransfer,
+} from '@php-wasm/util';
 import type { PHPResponseData } from './php-response';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
+	createEndpoint,
 	nodeEndpoint as nodeWorkerEndpoint,
 	releaseProxy,
 	type NodeEndpoint as NodeWorker,
@@ -73,11 +78,17 @@ export function consumeAPI<APIType>(
 				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
 			);
 		}
+	} else if (remote instanceof Worker) {
+		endpoint = remote;
 	} else {
-		endpoint =
-			remote instanceof Worker
-				? remote
-				: Comlink.windowEndpoint(remote as Window, context);
+		const windowEndpoint = Comlink.windowEndpoint(
+			remote as Window,
+			context
+		);
+		const bootstrapApi = Comlink.wrap<WithAPIState>(windowEndpoint);
+		endpoint = deferredEndpoint(
+			connectWindowApiThroughMessagePort(bootstrapApi)
+		);
 	}
 
 	/**
@@ -115,13 +126,133 @@ export function consumeAPI<APIType>(
 	}) as unknown as RemoteAPI<APIType>;
 }
 
+/**
+ * Moves a Window-backed API onto a point-to-point MessagePort.
+ *
+ * Unlike Worker messages, Window messages are visible to the application's main
+ * world and to browser-extension isolated worlds. In Chromium, a browser extension
+ * listener that evaluates `event.data` first can take ownership of a transferred
+ * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 is one
+ * such extension.
+ *
+ * The Window message used here transfers only Comlink's endpoint port. Later API
+ * calls and streams use that port, where unrelated Window listeners cannot
+ * observe them. The handshake is retried because `consumeAPI()` may run before
+ * the remote Window installs its Comlink listener.
+ */
+async function connectWindowApiThroughMessagePort(
+	bootstrapApi: Remote<WithAPIState> & ProxyMethods
+): Promise<MessagePort> {
+	while (true) {
+		try {
+			await runWithTimeout(bootstrapApi.isConnected(), 200);
+			return await bootstrapApi[createEndpoint]();
+		} catch {
+			// The remote Window has not exposed its API yet, or it changed
+			// before the endpoint request completed.
+		}
+	}
+}
+
+/**
+ * Adapts the asynchronous MessagePort handshake to `consumeAPI()`'s synchronous
+ * return type.
+ *
+ * Comlink starts registering listeners and posting requests immediately. Buffer
+ * those operations until the port arrives, then attach and start the listeners
+ * before replaying requests so no response can arrive without a listener.
+ */
+function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
+	let port: MessagePort | undefined;
+	let shouldStart = false;
+	const listeners: Array<{
+		type: string;
+		listener: EventListenerOrEventListenerObject;
+		options?: object;
+	}> = [];
+	const messages: Array<{
+		message: unknown;
+		transfer?: Transferable[];
+	}> = [];
+
+	void portPromise.then((connectedPort) => {
+		port = connectedPort;
+		for (const { type, listener, options } of listeners) {
+			port.addEventListener(type, listener, options);
+		}
+		if (shouldStart) {
+			port.start();
+		}
+		for (const { message, transfer } of messages) {
+			if (transfer) {
+				port.postMessage(message, transfer);
+			} else {
+				port.postMessage(message);
+			}
+		}
+		messages.length = 0;
+	});
+
+	return {
+		postMessage(message, transfer) {
+			if (port) {
+				if (transfer) {
+					port.postMessage(message, transfer);
+				} else {
+					port.postMessage(message);
+				}
+			} else {
+				messages.push({ message, transfer });
+			}
+		},
+		addEventListener(type, listener, options) {
+			if (port) {
+				port.addEventListener(type, listener, options);
+			} else {
+				listeners.push({ type, listener, options });
+			}
+		},
+		removeEventListener(type, listener, options) {
+			if (port) {
+				port.removeEventListener(type, listener, options);
+				return;
+			}
+			const index = listeners.findIndex(
+				(entry) =>
+					entry.type === type &&
+					entry.listener === listener &&
+					entry.options === options
+			);
+			if (index !== -1) {
+				listeners.splice(index, 1);
+			}
+		},
+		start() {
+			if (port) {
+				port.start();
+			} else {
+				shouldStart = true;
+			}
+		},
+	};
+}
+
 async function runWithTimeout<T>(
 	promise: Promise<T>,
 	timeout: number
 ): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
-		setTimeout(reject, timeout);
-		promise.then(resolve);
+		const timeoutId = setTimeout(reject, timeout);
+		promise.then(
+			(value) => {
+				clearTimeout(timeoutId);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timeoutId);
+				reject(error);
+			}
+		);
 	});
 }
 
@@ -248,6 +379,81 @@ function setupTransferHandlers() {
 			return port;
 		},
 	});
+	type SerializedReadableStream = {
+		stream?: ReadableStream<Uint8Array>;
+		port?: MessagePort;
+	};
+	/**
+	 * Keeps the stream live while it crosses the Comlink boundary. Runtimes without
+	 * transferable stream support use the existing MessagePort bridge.
+	 */
+	const readableStreamTransferHandler: Comlink.TransferHandler<
+		ReadableStream<Uint8Array>,
+		SerializedReadableStream
+	> = {
+		canHandle: (obj: unknown): obj is ReadableStream<Uint8Array> =>
+			typeof ReadableStream !== 'undefined' &&
+			obj instanceof ReadableStream,
+		serialize(
+			stream: ReadableStream<Uint8Array>
+		): [SerializedReadableStream, Transferable[]] {
+			if (supportsTransferableStreams()) {
+				return [{ stream }, [stream as unknown as Transferable]];
+			}
+
+			const port = streamToPort(stream);
+			return [{ port }, [port]];
+		},
+		deserialize(
+			data: SerializedReadableStream
+		): ReadableStream<Uint8Array> {
+			return data.stream || portToStream(data.port!);
+		},
+	};
+	Comlink.transferHandlers.set(
+		'READABLE_STREAM',
+		readableStreamTransferHandler
+	);
+	type SerializedEventWithReadableStdin = {
+		type: string;
+		stdin: SerializedReadableStream;
+	};
+	/**
+	 * Transfers a worker event explicitly branded with `phpEventStdinTransfer`.
+	 * Comlink applies a transfer handler to the top-level value only, so it will not
+	 * discover the nested `stdin` stream on its own.
+	 */
+	const eventWithReadableStdinTransferHandler: Comlink.TransferHandler<
+		PHPEventWithStdinTransfer,
+		SerializedEventWithReadableStdin
+	> = {
+		canHandle: (obj: unknown): obj is PHPEventWithStdinTransfer =>
+			typeof obj === 'object' &&
+			obj !== null &&
+			phpEventStdinTransfer in obj &&
+			obj[phpEventStdinTransfer] === true &&
+			'type' in obj &&
+			typeof obj.type === 'string' &&
+			'stdin' in obj &&
+			readableStreamTransferHandler.canHandle(obj.stdin),
+		serialize(event): [SerializedEventWithReadableStdin, Transferable[]] {
+			const [stdin, transferables] =
+				readableStreamTransferHandler.serialize(event.stdin);
+			return [{ ...event, stdin }, transferables];
+		},
+		deserialize(event): PHPEventWithStdinTransfer {
+			// Symbol properties are not structured-cloned. Restore the brand locally.
+			return {
+				...event,
+				stdin: readableStreamTransferHandler.deserialize(event.stdin),
+				[phpEventStdinTransfer]: true,
+			};
+		},
+	};
+	Comlink.transferHandlers.set(
+		'EVENT_WITH_READABLE_STDIN',
+		eventWithReadableStdinTransferHandler
+	);
 	Comlink.transferHandlers.set('PHPResponse', {
 		canHandle: (obj: unknown): obj is PHPResponseData =>
 			typeof obj === 'object' &&
@@ -355,11 +561,8 @@ function setupTransferHandlers() {
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:
 
 /**
- * Safari does not support transferable streams, so we need to fallback to
- * MessagePorts.
- * Feature-detects whether this runtime supports transferring ReadableStreams
- * directly through postMessage (aka "transferable streams"). When false,
- * we must fall back to port-bridged streaming.
+ * Safari does not support transferable streams. Use the MessagePort bridge when
+ * this point-to-point capability probe fails.
  */
 let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
@@ -395,11 +598,21 @@ function supportsTransferableStreams(): boolean {
  *   { t: 'chunk', b: ArrayBuffer } – next binary chunk
  *   { t: 'close' }                 – end of stream
  *   { t: 'error', m: string }      – terminal error
+ *   { t: 'cancel' }                – consumer cancelled the stream
  */
 export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 	const { port1, port2 } = new MessageChannel();
+	const reader = stream.getReader();
+	const onMessage = (event: MessageEvent) => {
+		if (event.data?.t === 'cancel') {
+			reader.cancel().catch(() => {
+				// The consumer has already cancelled and cannot observe source errors.
+			});
+		}
+	};
+	port1.addEventListener('message', onMessage);
+	port1.start();
 	(async () => {
-		const reader = stream.getReader();
 		try {
 			while (true) {
 				const { done, value } = await reader.read();
@@ -417,12 +630,12 @@ export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 					break;
 				}
 				if (value) {
-					// Ensure we transfer an owned buffer
-					const owned =
-						value.byteOffset === 0 &&
-						value.byteLength === value.buffer.byteLength
-							? value
-							: value.slice();
+					/**
+					 * ReadableStream.tee() gives each branch the same chunk object. Transfer
+					 * an owned copy so detaching this buffer does not invalidate another
+					 * listener's branch.
+					 */
+					const owned = value.slice();
 					const buf = owned.buffer;
 					try {
 						port1.postMessage({ t: 'chunk', b: buf }, [
@@ -443,6 +656,7 @@ export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 				// Ignore error
 			}
 		} finally {
+			port1.removeEventListener('message', onMessage);
 			try {
 				port1.close();
 			} catch {
@@ -524,6 +738,11 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			}
 		},
 		cancel() {
+			try {
+				port.postMessage({ t: 'cancel' });
+			} catch {
+				// The producer has already closed its port.
+			}
 			try {
 				port.close();
 			} catch {

@@ -80,7 +80,7 @@ export function DeleteSiteModal() {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Delete"
+					submitText="Delete Playground"
 					areBusy={isSubmitting}
 					onCancel={closeModal}
 				/>
