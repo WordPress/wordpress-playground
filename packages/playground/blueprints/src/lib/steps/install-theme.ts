@@ -157,10 +157,8 @@ export const installTheme: StepHandler<
 			);
 			assetPath = themeDirectoryPath;
 			let shouldWriteThemeFiles = true;
-			/**
-			 * Directory themes are written directly instead of going through
-			 * `installAsset()`, so apply the same `ifAlreadyInstalled` rule here.
-			 */
+			// Honor the requested collision policy before replacing an existing
+			// theme directory and potentially discarding local changes.
 			if (await playground.fileExists(themeDirectoryPath)) {
 				if (!(await playground.isDir(themeDirectoryPath))) {
 					throw new Error(

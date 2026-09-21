@@ -206,11 +206,8 @@ export const installPlugin: StepHandler<
 			);
 			assetPath = pluginDirectoryPath;
 			let shouldWritePluginFiles = true;
-			/**
-			 * Directory plugins are written directly instead of going
-			 * through `installAsset()`, so apply the same
-			 * `ifAlreadyInstalled` rule here.
-			 */
+			// Honor the requested collision policy before replacing an existing
+			// plugin directory and potentially discarding local changes.
 			if (await playground.fileExists(pluginDirectoryPath)) {
 				if (!(await playground.isDir(pluginDirectoryPath))) {
 					throw new Error(
