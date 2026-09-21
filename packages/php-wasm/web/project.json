@@ -135,6 +135,7 @@
 			"options": {
 				"reportsDirectory": "../../coverage/packages/php-wasm/web",
 				"testFiles": [
+					"get-php-loader-module.spec.ts",
 					"prf.spec.ts",
 					"certificates.spec.ts",
 					"tcp-over-fetch-websocket.spec.ts",

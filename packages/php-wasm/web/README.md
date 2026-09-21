@@ -8,9 +8,8 @@ Here's how to use it:
 import { PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { loadWebRuntime } from '@php-wasm/web';
 
-// loadWebRuntime() calls import('php.wasm').
-// Your bundler must resolve import('php.wasm') as a static file URL.
-// If you use Webpack, you can use the file-loader to do so.
+// loadWebRuntime() resolves the php.wasm URL with
+// new URL('php.wasm', import.meta.url) – no bundler configuration needed.
 const php = new PHP(await loadWebRuntime('8.5'));
 
 let response;
@@ -102,7 +101,7 @@ In Vite, you can use the following options to support importing all the required
 
 ```js
 export default defineConfig({
-	assetsInclude: [/\.dat$/, /\.wasm$/, /\.so$/, /\.la$/],
+	assetsInclude: [/\.dat$/, /\.so$/, /\.la$/],
 	optimizeDeps: {
 		exclude: ['@php-wasm/web'],
 	},
