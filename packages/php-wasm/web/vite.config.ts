@@ -28,7 +28,7 @@ export default defineConfig({
 			pathsToAliases: false,
 		}),
 		viteIgnoreImports({
-			extensions: ['wasm', 'so', 'dat'],
+			extensions: ['so', 'dat'],
 		}),
 		/*
 		 * This transforms rewrite dynamic import paths so they work from the dist output.
