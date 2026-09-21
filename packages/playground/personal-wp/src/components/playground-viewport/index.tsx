@@ -1230,6 +1230,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						setBlueprintInstallStatus(caption);
 					}
 				}) as EventListener);
+				// Collect git:directory provenance for plugin and theme install
+				// steps so it can be persisted and surfaced in the Files browser.
 				const gitDirectorySources: Record<
 					string,
 					GitDirectoryReference
