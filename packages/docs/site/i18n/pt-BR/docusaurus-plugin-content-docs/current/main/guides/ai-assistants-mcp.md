@@ -17,10 +17,10 @@ The WordPress Playground MCP server lets an AI assistant connect to a real Playg
 O servidor MCP do WordPress Playground permite que um assistente de IA se conecte a um site real do Playground em execução no seu navegador. Depois que a conexão é estabelecida, você pode pedir ao assistente para navegar pelo WordPress, inspecionar páginas, reproduzir problemas e explicar o que encontra.
 
 <!--
-Use this guide if you want to work with Playground through natural language instead of terminal commands. For the technical announcement, architecture, and setup commands, see [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
+Use this guide to configure the MCP server and work with Playground through natural language. For background on the architecture, see [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
 -->
 
-Use este guia se você quiser trabalhar com o Playground usando linguagem natural em vez de comandos de terminal. Para o anúncio técnico, a arquitetura e os comandos de configuração, consulte [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
+Use este guia para configurar o servidor MCP e trabalhar com o Playground usando linguagem natural. Para saber mais sobre a arquitetura, consulte [Connect AI coding agents to WordPress Playground with MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/).
 
 <!--
 MCP is most useful when the site itself matters: a saved Playground, a persistent browser-backed site, a My WordPress-style site, or a demo where you want the assistant to act like a remote control for the browser. If you are working from a terminal-based coding agent and you mainly need local automation, the Playground CLI is usually simpler and less ambiguous.
@@ -35,10 +35,10 @@ O MCP é mais útil quando o próprio site importa: um Playground salvo, um site
 ## O que o MCP adiciona ao Playground
 
 <!--
-MCP, or Model Context Protocol, gives your AI assistant tools for the Playground site that is open in your browser. Instead of only describing a task, the assistant can act on the site:
+MCP, or Model Context Protocol, gives your AI assistant control over the Playground site that is open in your browser. Instead of only describing a task, the assistant can act on the site:
 -->
 
-O MCP, ou Model Context Protocol, fornece ao seu assistente de IA ferramentas para o site do Playground aberto no seu navegador. Em vez de apenas descrever uma tarefa, o assistente pode agir sobre o site:
+O MCP, ou Model Context Protocol, dá ao seu assistente de IA controle sobre o site do Playground aberto no seu navegador. Em vez de apenas descrever uma tarefa, o assistente pode agir sobre o site:
 
 <!--
 - Open the exact Playground URL needed to connect to the MCP server
@@ -65,10 +65,10 @@ O MCP, ou Model Context Protocol, fornece ao seu assistente de IA ferramentas pa
 - Solicitar páginas e inspecionar a resposta
 
 <!--
-This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, and redirects.
+This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, REST API requests, and redirects.
 -->
 
-Isso é especialmente útil quando a tarefa depende do estado do navegador: telas administrativas com sessão iniciada, páginas de configurações e redirecionamentos.
+Isso é especialmente útil quando a tarefa depende do estado do navegador: telas administrativas com sessão iniciada, páginas de configurações, solicitações à API REST e redirecionamentos.
 
 <!--
 ## Good use cases for MCP
@@ -85,6 +85,7 @@ Use o MCP quando você quiser que um assistente trabalhe com um site WordPress v
 <!--
 - Guide you through a settings screen: "Show me how to configure this WooCommerce option."
 - Create a browser-based demo: "Build a simple recipe page and show me the result."
+- Build a block theme: "Create a block theme with a custom header and front-page template, activate it, and show me the result."
 - Work with a persistent site: "Use my saved Playground site" or "Use the My WordPress site connected to my subscription."
 - Reproduce a bug: "Follow these steps and summarize the error."
 - Test a redirect or URL: "Open this page and tell me where the browser ends up."
@@ -93,16 +94,17 @@ Use o MCP quando você quiser que um assistente trabalhe com um site WordPress v
 
 - Orientar você por uma tela de configurações: "Mostre-me como configurar esta opção do WooCommerce."
 - Criar uma demonstração baseada no navegador: "Crie uma página de receita simples e mostre-me o resultado."
+- Criar um tema de blocos: "Crie um tema de blocos com um cabeçalho personalizado e um modelo de página inicial, ative-o e mostre o resultado."
 - Trabalhar com um site persistente: "Use o meu site do Playground salvo" ou "Use o site My WordPress conectado à minha assinatura."
 - Reproduzir um bug: "Siga estes passos e resuma o erro."
 - Testar um redirecionamento ou uma URL: "Abra esta página e diga-me onde o navegador termina."
 - Inspecionar um site em execução: "Encontre a tela administrativa correspondente a este recurso do plugin."
 
 <!--
-MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows.
+MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows or [write tests using runCli](https://wordpress.github.io/wordpress-playground/guides/e2e-testing-with-playwright#first-test-file).
 -->
 
-O MCP é menos útil quando o trabalho é principalmente automação local, como executar repetidamente o mesmo Blueprint, montar um plugin a partir do seu sistema de arquivos ou testar uma matriz de versões. Use a Playground CLI para esses fluxos de trabalho.
+O MCP é menos útil quando o trabalho é principalmente automação local, como executar repetidamente o mesmo Blueprint, montar um plugin a partir do seu sistema de arquivos ou testar uma matriz de versões. Use a Playground CLI para esses fluxos de trabalho ou [escreva testes com runCli](https://wordpress.github.io/wordpress-playground/guides/e2e-testing-with-playwright#first-test-file).
 
 <!--
 ## Before you start
@@ -117,20 +119,18 @@ You need:
 Você precisa de:
 
 <!--
-- An AI assistant or coding agent with the WordPress Playground MCP server configured
-- A browser tab open at [playground.wordpress.net](https://playground.wordpress.net/)
-- A Playground site you can safely test with
+- Node.js and npm installed on the same computer as your browser, with `npx` available to your AI assistant
+- An AI assistant or coding agent that supports local stdio MCP servers, configured using the [setup instructions below](#set-up-the-mcp-server)
 -->
 
-- Um assistente de IA ou agente de código com o servidor MCP do WordPress Playground configurado
-- Uma aba do navegador aberta em [playground.wordpress.net](https://playground.wordpress.net/)
-- Um site do Playground com o qual você possa testar com segurança
+- Node.js e npm instalados no mesmo computador que o seu navegador, com `npx` disponível para o seu assistente de IA
+- Um assistente de IA ou agente de código compatível com servidores MCP locais via stdio, configurado conforme as [instruções abaixo](#set-up-the-mcp-server)
 
 <!--
-If your assistant is not configured yet, use the setup instructions in the [MCP announcement post](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/). The setup is for the AI assistant environment. Once it is configured, everyday use can happen from the assistant conversation and browser without manually running Playground CLI commands.
+You do not need to open Playground or create a site beforehand. During connection, your assistant provides the Playground URL to open in your browser. The default URL starts a temporary site you can use for testing.
 -->
 
-Se o seu assistente ainda não estiver configurado, use as instruções de configuração no [post de anúncio do MCP](https://make.wordpress.org/playground/2026/03/17/connect-ai-coding-agents-to-wordpress-playground-with-mcp/). A configuração é para o ambiente do assistente de IA. Uma vez configurado, o uso diário pode acontecer a partir da conversa com o assistente e do navegador, sem executar manualmente comandos da Playground CLI.
+Você não precisa abrir o Playground nem criar um site antes de começar. Durante a conexão, seu assistente fornece a URL do Playground para abrir no navegador. A URL padrão inicia um site temporário que você pode usar para testes.
 
 <!--
 <div class="callout callout-tip">
@@ -169,10 +169,114 @@ Você pode ter vários sites do Playground e várias abas de navegador conectada
 </div>
 
 <!--
-## Connect an AI assistant to Playground
+## Set up the MCP server
 -->
 
-## Conecte um assistente de IA ao Playground
+## Configure o servidor MCP {#set-up-the-mcp-server}
+
+<!--
+Choose the configuration for your AI assistant. The assistant starts `@wp-playground/mcp` as a local process and communicates with it over stdio.
+-->
+
+Escolha a configuração para o seu assistente de IA. O assistente inicia `@wp-playground/mcp` como um processo local e se comunica com ele via stdio.
+
+<!--
+### Claude Code
+-->
+
+### Claude Code
+
+<!--
+Run this command in your terminal:
+-->
+
+Execute este comando no terminal:
+
+<!--
+```bash
+claude mcp add --transport stdio --scope user wordpress-playground -- npx -y @wp-playground/mcp
+```
+-->
+
+```bash
+claude mcp add --transport stdio --scope user wordpress-playground -- npx -y @wp-playground/mcp
+```
+
+<!--
+Use `--scope user` to make the server available across your projects, or `--scope local` for the current project only.
+-->
+
+Use `--scope user` para disponibilizar o servidor em todos os seus projetos ou `--scope local` apenas no projeto atual.
+
+<!--
+### Codex
+-->
+
+### Codex
+
+<!--
+Run this command in your terminal:
+-->
+
+Execute este comando no terminal:
+
+<!--
+```bash
+codex mcp add wordpress-playground -- npx -y @wp-playground/mcp
+```
+-->
+
+```bash
+codex mcp add wordpress-playground -- npx -y @wp-playground/mcp
+```
+
+<!--
+### JSON configuration
+-->
+
+### Configuração JSON
+
+<!--
+For Claude Code, add the following to `.mcp.json` in your project. For Claude Desktop, add it to `claude_desktop_config.json`. If the file already has an `mcpServers` object, add the `wordpress-playground` entry to it.
+-->
+
+Para o Claude Code, adicione o conteúdo abaixo ao arquivo `.mcp.json` do seu projeto. Para o Claude Desktop, adicione-o ao arquivo `claude_desktop_config.json`. Se o arquivo já tiver um objeto `mcpServers`, adicione a entrada `wordpress-playground` a ele.
+
+<!--
+```json
+{
+    "mcpServers": {
+        "wordpress-playground": {
+            "command": "npx",
+            "args": ["-y", "@wp-playground/mcp"]
+        }
+    }
+}
+```
+-->
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp"]
+		}
+	}
+}
+```
+
+<!--
+After saving the configuration, restart your assistant if needed to load the server, then follow the connection steps below. You do not need to start the MCP server separately.
+-->
+
+Depois de salvar a configuração, reinicie o assistente, se necessário, para carregar o servidor e siga as etapas de conexão abaixo. Você não precisa iniciar o servidor MCP separadamente.
+
+<!--
+## Connect an AI assistant to the Playground MCP
+-->
+
+## Conecte um assistente de IA ao MCP do Playground
 
 <!--
 1. Open your AI assistant.
@@ -231,10 +335,10 @@ Se o assistente disser que nenhuma aba do navegador está conectada, abra a URL 
 ## MCP vs CLI
 
 <!--
-WordPress Playground has two complementary products: the Playground website and the Playground CLI. The website is the browser experience at [playground.wordpress.net](https://playground.wordpress.net/). The CLI is the local automation environment for terminal, scripting, and CI workflows.
+WordPress Playground has two complementary products: the Playground website and the Playground CLI. The website is the browser experience at [playground.wordpress.net](https://playground.wordpress.net/). The CLI is the local environment for development, scripting, and CI workflows.
 -->
 
-O WordPress Playground tem dois produtos complementares: o site do Playground e a Playground CLI. O site é a experiência no navegador em [playground.wordpress.net](https://playground.wordpress.net/). A CLI é o ambiente de automação local para fluxos de trabalho de terminal, scripts e CI.
+O WordPress Playground tem dois produtos complementares: o site do Playground e a Playground CLI. O site é a experiência no navegador em [playground.wordpress.net](https://playground.wordpress.net/). A CLI é o ambiente local para fluxos de trabalho de desenvolvimento, scripts e CI.
 
 <!--
 The choice depends on what you want the AI assistant to control.
