@@ -105,12 +105,7 @@ export interface InstallPluginOptions {
  */
 export interface InstallPluginResult {
 	assetPath: string;
-	/**
-	 * True when `assetPath` already held an unrelated, pre-existing
-	 * installation and `ifAlreadyInstalled: 'skip'` left it untouched — so
-	 * `assetPath` was not actually populated by this step's `pluginData`.
-	 */
-	skippedExisting?: boolean;
+	installationStatus: 'installed' | 'skipped-already-existed';
 }
 
 export const installPlugin: StepHandler<
@@ -130,7 +125,8 @@ export const installPlugin: StepHandler<
 
 	let assetPath = '';
 	let assetNiceName = '';
-	let skippedExisting = false;
+	let installationStatus: InstallPluginResult['installationStatus'] =
+		'installed';
 	let installationCompleted = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 
@@ -177,6 +173,7 @@ export const installPlugin: StepHandler<
 				});
 				assetPath = assetResult.assetFolderPath;
 				assetNiceName = assetResult.assetFolderName;
+				installationStatus = assetResult.installationStatus;
 			} else if (pluginData.name.endsWith('.php')) {
 				const destinationFilePath = joinPaths(
 					pluginsDirectoryPath,
@@ -216,7 +213,7 @@ export const installPlugin: StepHandler<
 				}
 				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
 					shouldWritePluginFiles = false;
-					skippedExisting = true;
+					installationStatus = 'skipped-already-existed';
 				} else if (ifAlreadyInstalled === 'error') {
 					throw new Error(
 						`Cannot install plugin ${assetNiceName} to ${pluginDirectoryPath} because it already exists and ` +
@@ -268,7 +265,7 @@ export const installPlugin: StepHandler<
 			}
 		}
 
-		return { assetPath, skippedExisting };
+		return { assetPath, installationStatus };
 	} catch (error) {
 		if (options.onError === 'skip-plugin') {
 			const skippedPluginName = progressName() || 'unknown plugin';
@@ -278,7 +275,7 @@ export const installPlugin: StepHandler<
 				}`
 			);
 			return installationCompleted
-				? { assetPath, skippedExisting }
+				? { assetPath, installationStatus }
 				: undefined;
 		}
 		throw error;

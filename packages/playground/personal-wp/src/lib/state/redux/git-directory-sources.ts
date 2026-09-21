@@ -14,11 +14,16 @@ export function extractGitDirectorySource(
 	if (!resource || resource.resource !== 'git:directory') {
 		return null;
 	}
-	const { assetPath, skippedExisting } =
+	const { assetPath, installationStatus } =
 		(result as
-			| { assetPath?: string; skippedExisting?: boolean }
+			| {
+					assetPath?: string;
+					installationStatus?:
+						| 'installed'
+						| 'skipped-already-existed';
+			  }
 			| undefined) ?? {};
-	if (!assetPath || skippedExisting) {
+	if (!assetPath || installationStatus === 'skipped-already-existed') {
 		return null;
 	}
 	return { assetPath, source: resource as GitDirectoryReference };

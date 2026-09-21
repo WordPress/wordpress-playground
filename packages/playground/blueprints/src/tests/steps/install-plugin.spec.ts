@@ -180,7 +180,7 @@ describe('Blueprint step installPlugin', () => {
 
 			expect(result).toEqual({
 				assetPath: installedPluginPath,
-				skippedExisting: false,
+				installationStatus: 'installed',
 			});
 			expect(php.fileExists(`${installedPluginPath}/index.php`)).toBe(
 				true
@@ -440,7 +440,7 @@ echo json_encode(is_plugin_active('single-file-plugin.php'));
 			).rejects.toThrowError();
 		});
 
-		it('should apply ifAlreadyInstalled to directory plugin resources', async () => {
+		it('honors collision policies when pluginData resolves to a directory', async () => {
 			const overwriteResult = await installPlugin(php, {
 				pluginData: {
 					name: pluginName,
@@ -453,7 +453,7 @@ echo json_encode(is_plugin_active('single-file-plugin.php'));
 					activate: false,
 				},
 			});
-			expect(overwriteResult?.skippedExisting).toBeFalsy();
+			expect(overwriteResult?.installationStatus).toBe('installed');
 
 			const skipResult = await installPlugin(php, {
 				pluginData: {
@@ -467,7 +467,9 @@ echo json_encode(is_plugin_active('single-file-plugin.php'));
 					activate: false,
 				},
 			});
-			expect(skipResult?.skippedExisting).toBe(true);
+			expect(skipResult?.installationStatus).toBe(
+				'skipped-already-existed'
+			);
 			expect(
 				php.readFileAsText(`${installedPluginPath}/index.php`)
 			).toContain('Plugin Name: Existing Directory Plugin');

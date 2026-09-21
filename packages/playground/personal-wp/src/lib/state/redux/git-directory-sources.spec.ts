@@ -27,7 +27,7 @@ describe('extractGitDirectorySource', () => {
 		expect(
 			extractGitDirectorySource(step, {
 				assetPath: '/wordpress/wp-content/plugins/plugin',
-				skippedExisting: true,
+				installationStatus: 'skipped-already-existed',
 			})
 		).toBeNull();
 	});

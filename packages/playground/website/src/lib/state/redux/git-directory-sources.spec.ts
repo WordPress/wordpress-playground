@@ -83,7 +83,7 @@ describe('extractGitDirectorySource', () => {
 		expect(
 			extractGitDirectorySource(gitInstallPluginStep, {
 				assetPath: '/wordpress/wp-content/plugins/hello-dolly',
-				skippedExisting: true,
+				installationStatus: 'skipped-already-existed',
 			})
 		).toBeNull();
 	});

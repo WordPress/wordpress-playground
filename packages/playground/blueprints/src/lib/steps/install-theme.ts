@@ -85,12 +85,7 @@ export interface InstallThemeOptions {
  */
 export interface InstallThemeResult {
 	assetPath: string;
-	/**
-	 * True when `assetPath` already held an unrelated, pre-existing
-	 * installation and `ifAlreadyInstalled: 'skip'` left it untouched — so
-	 * `assetPath` was not actually populated by this step's `themeData`.
-	 */
-	skippedExisting?: boolean;
+	installationStatus: 'installed' | 'skipped-already-existed';
 }
 
 export const installTheme: StepHandler<
@@ -111,7 +106,8 @@ export const installTheme: StepHandler<
 	const onError = options.onError ?? 'throw';
 	let assetPath = '';
 	let assetNiceName = '';
-	let skippedExisting = false;
+	let installationStatus: InstallThemeResult['installationStatus'] =
+		'installed';
 	let installationCompleted = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 	try {
@@ -134,6 +130,7 @@ export const installTheme: StepHandler<
 			});
 			assetFolderName = assetResult.assetFolderName;
 			assetPath = assetResult.assetFolderPath;
+			installationStatus = assetResult.installationStatus;
 		} else {
 			assetNiceName = themeData.name;
 			assetFolderName = targetFolderName || assetNiceName;
@@ -167,7 +164,7 @@ export const installTheme: StepHandler<
 				}
 				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
 					shouldWriteThemeFiles = false;
-					skippedExisting = true;
+					installationStatus = 'skipped-already-existed';
 				} else if (ifAlreadyInstalled === 'error') {
 					throw new Error(
 						`Cannot install theme ${assetFolderName} to ${themeDirectoryPath} because it already exists and ` +
@@ -213,7 +210,7 @@ export const installTheme: StepHandler<
 			);
 		}
 
-		return { assetPath, skippedExisting };
+		return { assetPath, installationStatus };
 	} catch (error) {
 		if (onError === 'skip-theme') {
 			const skippedThemeName = progressName() || 'unknown theme';
@@ -223,7 +220,7 @@ export const installTheme: StepHandler<
 				}`
 			);
 			return installationCompleted
-				? { assetPath, skippedExisting }
+				? { assetPath, installationStatus }
 				: undefined;
 		}
 		throw error;

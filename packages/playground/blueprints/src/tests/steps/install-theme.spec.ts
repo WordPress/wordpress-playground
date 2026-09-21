@@ -205,7 +205,7 @@ describe('Blueprint step installTheme', () => {
 
 			expect(result).toEqual({
 				assetPath: '/wordpress/wp-content/themes/test-theme',
-				skippedExisting: false,
+				installationStatus: 'installed',
 			});
 			expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
 		} finally {
@@ -316,7 +316,7 @@ describe('Blueprint step installTheme', () => {
 			).rejects.toThrow();
 		});
 
-		it('should apply ifAlreadyInstalled to directory theme resources', async () => {
+		it('honors collision policies when themeData resolves to a directory', async () => {
 			const overwriteResult = await installTheme(php, {
 				themeData: {
 					name: 'test-theme',
@@ -329,7 +329,7 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
-			expect(overwriteResult?.skippedExisting).toBeFalsy();
+			expect(overwriteResult?.installationStatus).toBe('installed');
 
 			const skipResult = await installTheme(php, {
 				themeData: {
@@ -343,7 +343,9 @@ describe('Blueprint step installTheme', () => {
 					activate: false,
 				},
 			});
-			expect(skipResult?.skippedExisting).toBe(true);
+			expect(skipResult?.installationStatus).toBe(
+				'skipped-already-existed'
+			);
 			expect(php.readFileAsText(expectedThemeIndexPhpPath)).toContain(
 				'Theme Name: Existing Directory Theme'
 			);
