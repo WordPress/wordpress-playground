@@ -63,6 +63,8 @@ export type FileExplorerSidebarProps = {
 export type FileExplorerSidebarHandle = {
 	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
 	refreshPath: (path: string) => Promise<void>;
+	/** Expands, selects, and scrolls an externally created path into view. */
+	revealPath: (path: string) => Promise<void>;
 };
 
 /**
@@ -101,6 +103,9 @@ export const FileExplorerSidebar = forwardRef<
 		() => ({
 			refreshPath: async (path: string) => {
 				await treeRef.current?.refresh(path);
+			},
+			revealPath: async (path: string) => {
+				await treeRef.current?.revealPath(path);
 			},
 		}),
 		[]

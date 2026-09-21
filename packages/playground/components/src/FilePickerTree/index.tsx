@@ -122,6 +122,7 @@ export type FilePickerTreeHandle = {
 	getSelectedPath: () => string | null;
 	expandToPath: (path: string) => Promise<void>;
 	refresh: (path: string) => Promise<FileNode[] | undefined>;
+	revealPath: (path: string) => Promise<void>;
 	remapPath: (from: string, to: string) => void;
 	// Filesystem helpers
 	createFile: (absSelectedPath?: string) => Promise<void>;
@@ -547,6 +548,13 @@ export const FilePickerTree = forwardRef<
 			getSelectedPath: () => selectedPath,
 			expandToPath: async (path: string) => await expandToPath(path),
 			refresh: async (path: string) => await refreshChildren(path),
+			revealPath: async (path: string) => {
+				await refreshChildren(dirname(path));
+				await expandToPath(dirname(path));
+				selectPath(path, false);
+				setFocusedPath(path);
+				setTimeout(() => focusDomNode(path), 0);
+			},
 			remapPath: remapPathState,
 			createFile: async (absSelectedPath?: string) => {
 				if (readOnly) return;

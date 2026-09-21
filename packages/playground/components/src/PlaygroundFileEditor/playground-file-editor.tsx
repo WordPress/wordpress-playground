@@ -60,6 +60,8 @@ type PendingSave = {
 export type PlaygroundFileEditorHandle = {
 	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
 	refreshPath: (path: string) => Promise<void>;
+	/** Expands, selects, and scrolls an externally created path into view. */
+	revealPath: (path: string) => Promise<void>;
 };
 
 /**
@@ -91,6 +93,9 @@ export const PlaygroundFileEditor = forwardRef<
 		() => ({
 			refreshPath: async (path: string) => {
 				await sidebarRef.current?.refreshPath(path);
+			},
+			revealPath: async (path: string) => {
+				await sidebarRef.current?.revealPath(path);
 			},
 		}),
 		[]

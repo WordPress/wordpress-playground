@@ -144,10 +144,7 @@ export function SiteFileBrowser({
 				)
 			);
 
-			// The folder was written directly through the live PlaygroundClient,
-			// bypassing the tree's own filesystem calls, so its cached listing
-			// of `parentPath` is now stale — refresh it to reveal the new folder.
-			await fileEditorRef.current?.refreshPath(parentPath);
+			await fileEditorRef.current?.revealPath(mountedSource.assetPath);
 
 			setMountRequest(null);
 		} catch (error) {

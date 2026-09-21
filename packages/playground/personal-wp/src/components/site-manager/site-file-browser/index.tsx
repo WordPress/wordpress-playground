@@ -129,7 +129,7 @@ export function SiteFileBrowser({
 					},
 				})
 			);
-			await fileEditorRef.current?.refreshPath(parentPath);
+			await fileEditorRef.current?.revealPath(mountedSource.assetPath);
 			setMountRequest(null);
 		} catch (error) {
 			logger.error('Failed to mount git directory', error);
