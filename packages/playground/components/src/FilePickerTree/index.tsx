@@ -550,7 +550,7 @@ export const FilePickerTree = forwardRef<
 			refresh: async (path: string) => await refreshChildren(path),
 			revealPath: async (path: string) => {
 				await refreshChildren(dirname(path));
-				await expandToPath(dirname(path));
+				await expandToPath(path);
 				selectPath(path, false);
 				setFocusedPath(path);
 				setTimeout(() => focusDomNode(path), 0);
