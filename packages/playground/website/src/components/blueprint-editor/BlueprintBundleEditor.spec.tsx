@@ -42,7 +42,7 @@ vi.mock('@wp-playground/blueprints', () => ({
 	resolveRuntimeConfiguration: mocks.resolveRuntimeConfiguration,
 }));
 
-vi.mock('../../lib/state/redux/git-directory-blueprint', () => ({
+vi.mock('./git-directory-blueprint', () => ({
 	buildUpdatedBlueprintDeclaration: mocks.buildUpdatedBlueprintDeclaration,
 }));
 

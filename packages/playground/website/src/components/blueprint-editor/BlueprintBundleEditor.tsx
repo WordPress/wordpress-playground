@@ -43,7 +43,7 @@ import {
 	type CodeEditorHandle,
 	type FileExplorerSidebarHandle,
 } from '@wp-playground/components';
-import { buildUpdatedBlueprintDeclaration } from '../../lib/state/redux/git-directory-blueprint';
+import { buildUpdatedBlueprintDeclaration } from './git-directory-blueprint';
 import {
 	formatEditor,
 	getStringNodeAtPosition,

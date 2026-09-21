@@ -5,7 +5,7 @@ import {
 	type GitDirectoryReference,
 } from '@wp-playground/blueprints';
 import { basename, dirname } from '@php-wasm/util';
-import { deriveFolderNameFromGitUrl } from './git-directory-sources';
+import { deriveFolderNameFromGitUrl } from '../../lib/state/redux/git-directory-sources';
 
 /**
  * Builds a full Blueprint declaration reflecting the site's original

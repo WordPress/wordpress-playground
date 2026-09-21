@@ -12,7 +12,7 @@ import {
 import {
 	buildGitDirectoryStep,
 	buildUpdatedBlueprintDeclaration,
-} from './git-directory-blueprint';
+} from '../../../components/blueprint-editor/git-directory-blueprint';
 
 const gitInstallPluginStep: StepDefinition = {
 	step: 'installPlugin',
