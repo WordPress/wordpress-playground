@@ -355,6 +355,10 @@ export function registerMcpServerTools(
 							sendCommand(id, 'fileExists', args) as ReturnType<
 								ToolClient['fileExists']
 							>,
+						listEmails: () =>
+							sendCommand(id, 'listEmails', []) as ReturnType<
+								ToolClient['listEmails']
+							>,
 					};
 					const result = await executor(client, input);
 					return {

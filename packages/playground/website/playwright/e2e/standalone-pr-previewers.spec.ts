@@ -131,7 +131,7 @@ test('gutenberg.html: ?pr= URL param is extracted before reaching plugin-proxy',
 			)
 	);
 	await expect(page.locator('#error')).toContainText(
-		'does not exist or GitHub CI did not finish'
+		'GitHub CI did not finish building the PR 78937 yet'
 	);
 	expect(capturedUrl).toContain('repo=gutenberg');
 	expect(capturedUrl).toContain('pr=78937');

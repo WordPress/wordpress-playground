@@ -5,6 +5,7 @@ import type { SiteError } from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { BlueprintStepError, PresentationHelpers } from './types';
 import { BlueprintStepErrorDetails } from './blueprint-step-error-details';
+import { getHealthCheckRecoveryUrl } from '../../lib/health-check-recovery';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -520,22 +521,24 @@ function genericSiteBootFailedView({
 	}
 
 	return {
-		title: 'Playground crashed',
+		title: 'WordPress could not start',
 		isDeveloperError: false,
 		detailSummaryOverride: undefined,
 		body: (
 			<p className={css.errorLead}>
-				Something unexpected interrupted the boot process. Reload the
-				tab or spin up a new site.
+				Troubleshooting mode opens this site with plugins disabled. Turn
+				them on one at a time to find the problem.
 			</p>
 		),
 		actions: [
 			<Button
 				variant="primary"
-				key="reload-tab"
-				onClick={helpers.reloadWithoutBlueprint}
+				key="troubleshooting-mode"
+				onClick={() => {
+					window.location.href = getHealthCheckRecoveryUrl();
+				}}
 			>
-				Reload Fresh Playground
+				Start troubleshooting mode
 			</Button>,
 		],
 	};
