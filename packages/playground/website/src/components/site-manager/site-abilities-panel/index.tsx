@@ -6,6 +6,7 @@ import {
 	SearchControl,
 	TextareaControl,
 	ToggleControl,
+	VisuallyHidden,
 } from '@wordpress/components';
 import { abilitiesController } from '../../../lib/abilities';
 import { InlineProgress, PaneLoading } from '../../pane-loading';
@@ -215,6 +216,7 @@ export function SiteAbilitiesPanel({
 										<li key={item.name}>
 											<Button
 												variant="link"
+												className={css.abilityName}
 												onClick={() => {
 													setSelected(item.name);
 													setInput('');
@@ -223,9 +225,20 @@ export function SiteAbilitiesPanel({
 												{item.label || item.name}
 											</Button>
 											<code>{item.name}</code>
-											<p>{item.description}</p>
+											<p className={css.description}>
+												{item.description}
+											</p>
 											<ToggleControl
-												label={`Expose ${item.label || item.name} through WebMCP`}
+												className={css.exposure}
+												__nextHasNoMarginBottom
+												label={
+													<>
+														<span aria-hidden="true">
+															WebMCP
+														</span>
+														<VisuallyHidden>{`Expose ${item.label || item.name} through WebMCP`}</VisuallyHidden>
+													</>
+												}
 												checked={state.enabled.includes(
 													item.name
 												)}

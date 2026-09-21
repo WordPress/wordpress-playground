@@ -36,10 +36,13 @@ Use one vertical column inside the host pane. The toolbar places the current
 WordPress user opposite Refresh. Search precedes the ability list; selecting an
 ability replaces the list with its detail and runner.
 
-Use the section spacing for the panel rhythm and list-row vertical padding;
-the small spacing separates identifiers and descriptions. The toolbar uses its
-own spacing token. Long identifiers wrap, and formatted output wraps and scrolls
-within a maximum height of 360px. The pane introduces no custom breakpoint.
+Use section spacing for the panel rhythm and 12px vertical padding for list rows.
+Within each row, use a two-column grid with a flexible identity column and an
+intrinsic-width WebMCP toggle column, separated by 12px. Stack the label and
+identifier with 4px gaps. Descriptions span both columns and show up to two lines;
+the detail view retains the full description. Long names and identifiers wrap.
+Formatted output wraps and scrolls within a maximum height of 360px. The pane
+introduces no custom breakpoint.
 
 ## Elevation & Depth
 

@@ -16,12 +16,15 @@
 	padding: 0;
 }
 .list li {
-	padding: 16px 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 4px 12px;
+	padding: 12px 0;
 	border-bottom: 1px solid var(--interactive-border, #c3c4c7);
 }
 .list code {
 	display: block;
-	margin-top: 8px;
+	grid-column: 1;
 }
 .panel code {
 	overflow-wrap: anywhere;
@@ -35,8 +38,30 @@
 .panel p {
 	margin: 0;
 }
-.list p {
-	margin: 8px 0 16px;
+.abilityName {
+	grid-column: 1;
+	justify-self: start;
+	text-align: left;
+	height: auto;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.exposure {
+	grid-column: 2;
+	grid-row: 1 / 3;
+	align-self: start;
+}
+.description {
+	grid-column: 1 / -1;
+	font-size: 12px;
+	line-height: 1.5;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+}
+.list :global(.components-notice) {
+	grid-column: 1 / -1;
 }
 
 .panel > :global(.components-button) {
