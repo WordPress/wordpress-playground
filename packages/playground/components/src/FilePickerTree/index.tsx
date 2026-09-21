@@ -27,6 +27,7 @@ import React, {
 	useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { logger } from '@php-wasm/logger';
 import { file, folder } from '../icons';
 import css from './style.module.css';
 
@@ -1290,7 +1291,14 @@ export const FilePickerTree = forwardRef<
 			if (candidateIsDir) {
 				remapPathState(path, candidateNormalized);
 				if (!isPending) {
-					await onPathRenamed?.(path, candidateNormalized);
+					try {
+						await onPathRenamed?.(path, candidateNormalized);
+					} catch (error) {
+						logger.error(
+							'Failed to update metadata after renaming a path',
+							error
+						);
+					}
 				}
 			}
 			if (selectedPath === path) {
