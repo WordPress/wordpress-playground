@@ -4,13 +4,15 @@ import {
 	type StepDefinition,
 } from '@wp-playground/blueprints';
 import {
-	buildGitDirectoryStep,
-	buildUpdatedBlueprintDeclaration,
 	deriveFolderNameFromGitUrl,
 	extractGitDirectorySource,
 	normalizeGitUrl,
 	parseGitHubTreeUrl,
 } from './git-directory-sources';
+import {
+	buildGitDirectoryStep,
+	buildUpdatedBlueprintDeclaration,
+} from './git-directory-blueprint';
 
 const gitInstallPluginStep: StepDefinition = {
 	step: 'installPlugin',
