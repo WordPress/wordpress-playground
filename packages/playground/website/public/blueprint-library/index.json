@@ -94,6 +94,39 @@
 			}
 		},
 		{
+			"id": "webmcp-abilities",
+			"title": "WebMCP Abilities",
+			"description": "Expose WordPress abilities to AI agents through the browser's WebMCP API.",
+			"author": "Code Atlantic",
+			"categories": ["AI", "Development"],
+			"blueprint": {
+				"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+				"meta": {
+					"title": "WebMCP Abilities",
+					"description": "Expose WordPress abilities to AI agents through the browser's WebMCP API.",
+					"author": "Code Atlantic",
+					"categories": ["AI", "Development"]
+				},
+				"landingPage": "/wp-admin/options-general.php?page=webmcp-abilities",
+				"steps": [
+					{
+						"step": "installPlugin",
+						"pluginData": {
+							"resource": "git:directory",
+							"url": "https://github.com/akirk/webmcp-abilities",
+							"ref": "main",
+							"refType": "branch"
+						},
+						"options": {
+							"activate": true,
+							"targetFolderName": "webmcp-abilities",
+							"humanReadableName": "WebMCP Abilities"
+						}
+					}
+				]
+			}
+		},
+		{
 			"id": "wordpress-ai-anthropic-connection",
 			"title": "WordPress AI: Anthropic",
 			"description": "Install the WordPress AI provider for Anthropic and configure the Claude API key through WordPress Connections.",
