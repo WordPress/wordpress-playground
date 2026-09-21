@@ -26,21 +26,24 @@ describe('getSiteErrorView', () => {
 		expect(renderToStaticMarkup(view.body)).toContain(url);
 	});
 
-	it('explains interrupted initial saves without storage jargon', () => {
+	it('explains interrupted initial saves and recovery options', () => {
 		const view = getSiteErrorView({
 			error: 'initial-opfs-sync-interrupted',
 			site: createSite(),
 			helpers,
 		});
 
-		expect(view.title).toBe('Start a new Playground to continue');
-		expect(renderToStaticMarkup(view.body)).toContain(
-			'This saved Playground is incomplete and can’t be reopened'
+		const body = renderToStaticMarkup(view.body);
+
+		expect(view.title).toBe('This Playground isn’t ready to reopen');
+		expect(body).toContain(
+			'Its initial copy to browser storage has not finished'
 		);
-		expect(renderToStaticMarkup(view.body)).toContain(
-			'the previous save stopped before all WordPress files were copied'
+		expect(body).toContain(
+			'Another tab may still be saving this Playground'
 		);
-		expect(renderToStaticMarkup(view.actions[0])).toContain(
+		expect(renderToStaticMarkup(view.actions[0])).toContain('Reload');
+		expect(renderToStaticMarkup(view.actions[1])).toContain(
 			'Start a new Playground'
 		);
 	});
