@@ -185,11 +185,16 @@ describe('Blueprint step installTheme', () => {
 		}
 	});
 
-	it('should return the installed path when activation is skipped after failing', async () => {
+	it('returns the installed result when an activation failure is skipped', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
 			.mockImplementation(() => {});
 		try {
+			php.mkdir('/wordpress/wp-content/mu-plugins');
+			php.writeFile(
+				'/wordpress/wp-content/mu-plugins/0-exit.php',
+				'<?php exit(0);'
+			);
 			const result = await installTheme(php, {
 				themeData: {
 					name: 'test-theme',
@@ -208,6 +213,9 @@ describe('Blueprint step installTheme', () => {
 				installationStatus: 'installed',
 			});
 			expect(php.fileExists(expectedThemeIndexPhpPath)).toBe(true);
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining('after failure')
+			);
 		} finally {
 			loggerWarnSpy.mockRestore();
 		}

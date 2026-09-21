@@ -160,7 +160,7 @@ describe('Blueprint step installPlugin', () => {
 		}
 	});
 
-	it('should return the installed path when activation is skipped after failing', async () => {
+	it('returns the installed result when an activation failure is skipped', async () => {
 		const loggerWarnSpy = vi
 			.spyOn(logger, 'warn')
 			.mockImplementation(() => {});
@@ -169,7 +169,13 @@ describe('Blueprint step installPlugin', () => {
 				pluginData: {
 					name: pluginName,
 					files: {
-						'index.php': `<?php\n/**\n * Plugin Name: Test Plugin\n */`,
+						'index.php': `<?php
+/**
+ * Plugin Name: Test Plugin
+ */
+register_activation_hook(__FILE__, function () {
+	throw new Exception('Activation failed');
+});`,
 					},
 				},
 				options: {
@@ -184,6 +190,9 @@ describe('Blueprint step installPlugin', () => {
 			});
 			expect(php.fileExists(`${installedPluginPath}/index.php`)).toBe(
 				true
+			);
+			expect(loggerWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining('after failure')
 			);
 		} finally {
 			loggerWarnSpy.mockRestore();
