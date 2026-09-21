@@ -42,7 +42,7 @@ describe('web-builds loader modules', () => {
 			const contents = fs.readFileSync(loaderPath, 'utf8');
 			expect(contents).not.toMatch(/^import .* from ['"].*\.wasm['"]/m);
 			expect(contents).toMatch(
-				/const dependencyFilename = new URL\(\s*'\.\/[\w.-]+\/php_\d+_\d+\.wasm',\s*import\.meta\.url\s*\)/
+				/const dependencyFilename = new URL\(\s*'\.\/[\w.-]+\/php_\d+_\d+\.wasm',\s*import\.meta\.url\s*\)\s*\.href/
 			);
 		}
 	);
