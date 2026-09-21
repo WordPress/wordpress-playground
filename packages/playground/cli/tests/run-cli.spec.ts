@@ -86,6 +86,21 @@ describe.each(blueprintVersions)(
 			expect(text).toContain('8.0');
 		});
 
+		test('runs shell commands through the worker PHP filesystem', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			const response = await cliServer.playground.run({
+				code: '<?php $process = proc_open("mkdir -p /tmp/worker-shell && echo worker-shell > /tmp/worker-shell/output", [], $pipes); $status = proc_close($process); echo $status . ":" . file_get_contents("/tmp/worker-shell/output");',
+			});
+			expect(response.text).toBe('0:worker-shell\n');
+		});
+
 		test('should have Intl extension enabled by default', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
