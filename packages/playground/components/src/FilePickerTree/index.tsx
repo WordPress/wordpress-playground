@@ -1924,6 +1924,18 @@ const FileName: React.FC<{
 		top: number;
 		left: number;
 	} | null>(null);
+	useEffect(() => {
+		if (!tooltipAnchor) {
+			return;
+		}
+		const dismissTooltip = () => setTooltipAnchor(null);
+		window.addEventListener('scroll', dismissTooltip, true);
+		window.addEventListener('resize', dismissTooltip);
+		return () => {
+			window.removeEventListener('scroll', dismissTooltip, true);
+			window.removeEventListener('resize', dismissTooltip);
+		};
+	}, [tooltipAnchor]);
 	return (
 		<>
 			<span
