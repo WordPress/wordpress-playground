@@ -12,11 +12,15 @@ import {
 	createGitAuthHeaders,
 	isGitHubUrl,
 } from '../../../github/git-auth-helpers';
-import { useAppDispatch } from '../../../lib/state/redux/store';
 import {
+	type PlaygroundDispatch,
+	type PlaygroundReduxState,
+	useAppDispatch,
+} from '../../../lib/state/redux/store';
+import {
+	selectSiteBySlug,
 	updateSiteMetadata,
 	type SiteInfo,
-	type SiteMetadataChanges,
 } from '../../../lib/state/redux/slice-sites';
 import {
 	deriveFolderNameFromGitUrl,
@@ -132,13 +136,13 @@ export function SiteFileBrowser({
 				);
 			}
 
-			const changes: SiteMetadataChanges = {
-				gitDirectorySources: {
-					...site.metadata.gitDirectorySources,
-					[mountedSource.assetPath]: mountedSource.source,
-				},
-			};
-			await dispatch(updateSiteMetadata({ slug: site.slug, changes }));
+			await dispatch(
+				addGitDirectorySource(
+					site.slug,
+					mountedSource.assetPath,
+					mountedSource.source
+				)
+			);
 
 			// The folder was written directly through the live PlaygroundClient,
 			// bypassing the tree's own filesystem calls, so its cached listing
@@ -159,22 +163,7 @@ export function SiteFileBrowser({
 	};
 
 	const handlePathRenamed = async (oldPath: string, newPath: string) => {
-		const source = site.metadata.gitDirectorySources?.[oldPath];
-		if (!source) {
-			return;
-		}
-		const newGitDirectorySources = {
-			...site.metadata.gitDirectorySources,
-		};
-		delete newGitDirectorySources[oldPath];
-		newGitDirectorySources[newPath] = source;
-
-		await dispatch(
-			updateSiteMetadata({
-				slug: site.slug,
-				changes: { gitDirectorySources: newGitDirectorySources },
-			})
-		);
+		await dispatch(moveGitDirectorySource(site.slug, oldPath, newPath));
 	};
 
 	return (
@@ -206,6 +195,85 @@ export function SiteFileBrowser({
 			) : null}
 		</>
 	);
+}
+
+function addGitDirectorySource(
+	slug: string,
+	path: string,
+	source: ExtractedGitDirectorySource['source']
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		await enqueueGitDirectorySourceUpdate(slug, async () => {
+			const site = selectSiteBySlug(getState(), slug);
+			if (!site) {
+				throw new Error(`Site not found: ${slug}`);
+			}
+			await dispatch(
+				updateSiteMetadata({
+					slug,
+					changes: {
+						gitDirectorySources: {
+							...site.metadata.gitDirectorySources,
+							[path]: source,
+						},
+					},
+				})
+			);
+		});
+	};
+}
+
+function moveGitDirectorySource(
+	slug: string,
+	oldPath: string,
+	newPath: string
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		await enqueueGitDirectorySourceUpdate(slug, async () => {
+			const site = selectSiteBySlug(getState(), slug);
+			const source = site?.metadata.gitDirectorySources?.[oldPath];
+			if (!source) {
+				return;
+			}
+			const gitDirectorySources = {
+				...site.metadata.gitDirectorySources,
+			};
+			delete gitDirectorySources[oldPath];
+			gitDirectorySources[newPath] = source;
+			await dispatch(
+				updateSiteMetadata({
+					slug,
+					changes: { gitDirectorySources },
+				})
+			);
+		});
+	};
+}
+
+const gitDirectorySourceUpdateQueues = new Map<string, Promise<void>>();
+
+async function enqueueGitDirectorySourceUpdate(
+	slug: string,
+	update: () => Promise<void>
+): Promise<void> {
+	const previousUpdate = gitDirectorySourceUpdateQueues.get(slug);
+	const currentUpdate = (previousUpdate ?? Promise.resolve())
+		.catch(() => undefined)
+		.then(update);
+	gitDirectorySourceUpdateQueues.set(slug, currentUpdate);
+	try {
+		await currentUpdate;
+	} finally {
+		if (gitDirectorySourceUpdateQueues.get(slug) === currentUpdate) {
+			gitDirectorySourceUpdateQueues.delete(slug);
+		}
+	}
 }
 
 /**
