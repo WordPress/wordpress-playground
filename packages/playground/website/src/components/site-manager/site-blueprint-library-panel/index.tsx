@@ -75,10 +75,6 @@ export function SiteBlueprintLibraryPanel({
 		};
 	}, []);
 
-	useEffect(() => {
-		saveBlueprintLibrarySettings(settings);
-	}, [settings]);
-
 	const itemsByCategory = useMemo(() => {
 		const normalizedQuery = query.trim().toLowerCase();
 		const groups = new Map<string, BlueprintLibraryItem[]>();
@@ -112,9 +108,13 @@ export function SiteBlueprintLibraryPanel({
 			settings: BlueprintLibrarySettings
 		) => BlueprintLibrarySettings
 	) {
-		setSettings((currentSettings) =>
-			normalizeBlueprintLibrarySettings(updater(currentSettings))
-		);
+		setSettings((currentSettings) => {
+			const nextSettings = normalizeBlueprintLibrarySettings(
+				updater(currentSettings)
+			);
+			saveBlueprintLibrarySettings(nextSettings);
+			return nextSettings;
+		});
 	}
 
 	function toggleAlwaysLoad(itemId: string, checked: boolean) {

@@ -14,6 +14,7 @@ import {
 	type Blueprint,
 	type BlueprintV1Declaration,
 	BlueprintFilesystemRequiredError,
+	getBlueprintDeclaration,
 	InvalidBlueprintError,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
@@ -21,6 +22,7 @@ import { logger } from '@php-wasm/logger';
 import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import { InMemoryFilesystem, OverlayFilesystem } from '@wp-playground/storage';
 import { getRemoteUrl } from '../../config';
 import {
 	loadBlueprintLibraryCatalog,
@@ -193,7 +195,7 @@ export function bootSiteClient(
 			blueprint = site.metadata.originalBlueprint as Blueprint;
 		}
 
-		if (isInlineBlueprintV1(blueprint)) {
+		if (!shouldBootFromStoredFiles) {
 			const blueprintLibrarySettings = loadBlueprintLibrarySettings();
 			if (blueprintLibrarySettings.alwaysLoad.length > 0) {
 				try {
@@ -201,8 +203,25 @@ export function bootSiteClient(
 					const alwaysLoadItems = catalog.items.filter((item) =>
 						blueprintLibrarySettings.alwaysLoad.includes(item.id)
 					);
+					const blueprintBundle = isBlueprintBundle(blueprint)
+						? blueprint
+						: undefined;
+					const bundleDeclaration = blueprintBundle
+						? await getBlueprintDeclaration(blueprintBundle)
+						: undefined;
+					const mergeTarget = isInlineBlueprintV1(blueprint)
+						? blueprint
+						: bundleDeclaration &&
+							  isBlueprintV1Declaration(bundleDeclaration)
+							? bundleDeclaration
+							: undefined;
+					if (!mergeTarget) {
+						throw new Error(
+							'Extra Tools currently require a Blueprint v1 declaration.'
+						);
+					}
 					const prepared = mergeBlueprintLibraryItems(
-						blueprint,
+						mergeTarget,
 						alwaysLoadItems,
 						blueprintLibrarySettings
 					);
@@ -212,7 +231,18 @@ export function bootSiteClient(
 							prepared.missingInputs
 						);
 					}
-					blueprint = prepared.blueprint;
+					if (blueprintBundle) {
+						blueprint = new OverlayFilesystem([
+							new InMemoryFilesystem({
+								'blueprint.json': JSON.stringify(
+									prepared.blueprint
+								),
+							}),
+							blueprintBundle,
+						]);
+					} else {
+						blueprint = prepared.blueprint;
+					}
 				} catch (error) {
 					logger.warn('Failed to apply Extra Tools defaults', error);
 				}
@@ -596,10 +626,13 @@ export function bootSiteClient(
 function isInlineBlueprintV1(
 	blueprint: Blueprint
 ): blueprint is BlueprintV1Declaration {
-	return (
-		!isBlueprintBundle(blueprint) &&
-		(!('version' in blueprint) || blueprint.version !== 2)
-	);
+	return !isBlueprintBundle(blueprint) && isBlueprintV1Declaration(blueprint);
+}
+
+function isBlueprintV1Declaration(
+	blueprint: BlueprintV1Declaration | { version?: number }
+): blueprint is BlueprintV1Declaration {
+	return !('version' in blueprint) || blueprint.version !== 2;
 }
 
 /**
