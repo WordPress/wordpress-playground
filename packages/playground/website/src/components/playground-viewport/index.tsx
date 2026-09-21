@@ -280,6 +280,41 @@ export const JustViewport = function JustViewport({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [siteSlug, iframeRef, runtimeBootFingerprint]);
 
+	useEffect(() => {
+		function handleMessage(event: MessageEvent) {
+			const data = event.data;
+			if (
+				typeof data !== 'object' ||
+				data === null ||
+				data.type !== 'relay' ||
+				data.relayType !== 'install-blueprint' ||
+				typeof data.blueprintUrl !== 'string' ||
+				!isMessageFromIframeTree(event, iframeRef.current) ||
+				event.origin !== window.location.origin ||
+				!event.source
+			) {
+				return;
+			}
+
+			(event.source as Window).postMessage(
+				{
+					type: 'relay',
+					relayType: 'install-blueprint-result',
+					blueprintUrl: data.blueprintUrl,
+					requestId:
+						typeof data.requestId === 'string'
+							? data.requestId
+							: undefined,
+					status: 'unsupported',
+				},
+				event.origin
+			);
+		}
+
+		window.addEventListener('message', handleMessage);
+		return () => window.removeEventListener('message', handleMessage);
+	}, []);
+
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);
 	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
@@ -304,3 +339,33 @@ export const JustViewport = function JustViewport({
 		</>
 	);
 };
+
+function isMessageFromIframeTree(
+	event: MessageEvent,
+	iframe: HTMLIFrameElement | null
+): boolean {
+	if (!iframe?.contentWindow || !event.source) {
+		return false;
+	}
+	if (event.source === iframe.contentWindow) {
+		return true;
+	}
+	return isDescendantWindow(iframe.contentWindow, event.source);
+}
+
+function isDescendantWindow(
+	root: Window,
+	candidate: MessageEventSource
+): boolean {
+	try {
+		for (let i = 0; i < root.frames.length; i++) {
+			const child = root.frames[i];
+			if (child === candidate || isDescendantWindow(child, candidate)) {
+				return true;
+			}
+		}
+	} catch {
+		// Cross-origin frames are not inspectable and therefore not accepted.
+	}
+	return false;
+}

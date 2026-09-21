@@ -1572,6 +1572,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		postInstallBlueprintResult(event, {
 			blueprintUrl,
 			requestId,
+			status: 'started',
+		});
+
+		postInstallBlueprintResult(event, {
+			blueprintUrl,
+			requestId,
 			...(installLocally
 				? await applyBlueprint(blueprintUrl, {
 						usageStatsRequestSource,
@@ -2265,7 +2271,7 @@ type InstallBlueprintResultMessage = {
 	relayType: 'install-blueprint-result';
 	blueprintUrl: string;
 	requestId?: string;
-	status: InstallBlueprintResult['status'] | 'cancelled';
+	status: InstallBlueprintResult['status'] | 'started' | 'cancelled';
 	error?: string;
 };
 
