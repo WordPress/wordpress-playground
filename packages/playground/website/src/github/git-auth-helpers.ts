@@ -1,21 +1,10 @@
 import { oAuthState } from './state';
 import { encodeStringAsBase64 } from '@php-wasm/util';
 
-const GITHUB_HOSTNAMES = new Set([
-	'github.com',
-	'www.github.com',
-	'api.github.com',
-]);
-
-/**
- * Whether a URL points at GitHub — covers both a repo URL a user might type
- * or paste (`github.com`, `www.github.com`) and the API host the actual git
- * network requests hit (`api.github.com`), since this is shared by code
- * that needs to recognize either.
- */
+/** Whether the URL uses a recognized GitHub hostname. */
 export function isGitHubUrl(url: string): boolean {
 	try {
-		return GITHUB_HOSTNAMES.has(new URL(url).hostname);
+		return /^(?:www\.|api\.)?github\.com$/.test(new URL(url).hostname);
 	} catch {
 		return false;
 	}
