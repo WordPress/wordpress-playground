@@ -166,7 +166,10 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
 - [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
 - [WordPress Playground + AI: Building Autonomous Testing Pipelines](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) by Fellyph Cintra
+- [Revolucionando WordPress: Innovaciones de IA que transforman tu trabajo diario (in Spanish)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) by Evan Tobiessen
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
+- [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
+- [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
 -->
 
 ## Video
@@ -219,4 +222,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [WordPress Playground Blueprints: Mula Zero hanggang Pro (sa Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) ni Fellyph Cintra
 - [Pagsisimula sa WordPress Blueprints (sa Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) ni Monzur Alam
 - [WordPress Playground + AI: Pagbuo ng mga Autonomous Testing Pipeline](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) ni Fellyph Cintra
+- [Binabago ang WordPress: mga inobasyon sa AI na nagpapabago sa araw-araw mong trabaho (sa Spanish)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) ni Evan Tobiessen
 - [Ano ang bago sa WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) ni Fellyph Cintra
+- [Tuklasin kung paano binabago ng WordPress Playground ang WordPress ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) ni Berislav Grgicak
+- [Bagong interface ng WordPress Playground](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) ni Fellyph Cintra
