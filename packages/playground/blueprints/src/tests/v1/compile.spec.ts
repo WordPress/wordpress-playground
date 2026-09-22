@@ -143,6 +143,25 @@ describe('Blueprints', () => {
 			{
 				steps: [],
 			},
+			// The writeFiles step accepts an inline directory, as its
+			// documented example shows, so `resource` is not required.
+			{
+				steps: [
+					{
+						step: 'writeFiles',
+						writeToPath: '/wordpress/wp-content/plugins/my-plugin',
+						filesTree: {
+							name: 'my-plugin',
+							files: {
+								'index.php': '<?php echo "Hello";',
+								includes: {
+									'helper.php': '<?php',
+								},
+							},
+						},
+					},
+				],
+			},
 		];
 		it.each(validBlueprints)(
 			'valid Blueprint should pass validation',
