@@ -1,6 +1,7 @@
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import type { SiteInfo } from '../redux/slice-sites';
 import {
+	FILE_BROWSER_INVALID_LINE_NOTICE,
 	parseFileBrowserQuery,
 	resolveFileBrowserPath,
 	shouldUseFileBrowserQuery,
@@ -169,6 +170,24 @@ describe('parseFileBrowserQuery', () => {
 			error: null,
 		});
 	});
+
+	it.each([':0', ':-1', ':+0', ':9007199254740992'])(
+		'rejects an invalid line suffix %s',
+		(suffix) => {
+			expect(
+				parseFileBrowserQuery(
+					new URLSearchParams({
+						filebrowser: `wp-config.php${suffix}`,
+					})
+				)
+			).toEqual({
+				isRequested: true,
+				path: null,
+				line: null,
+				error: FILE_BROWSER_INVALID_LINE_NOTICE,
+			});
+		}
+	);
 
 	it('normalizes safe relative path inputs', () => {
 		expect(

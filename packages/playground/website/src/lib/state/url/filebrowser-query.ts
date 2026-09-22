@@ -14,6 +14,8 @@ export type FileBrowserQuery = {
 
 export const FILE_BROWSER_INVALID_PATH_NOTICE =
 	'The requested file path is invalid. Use a file path relative to the WordPress document root.';
+export const FILE_BROWSER_INVALID_LINE_NOTICE =
+	'The requested line number is invalid. Use a 1-based line number.';
 
 export function parseFileBrowserQuery(
 	searchParams: URLSearchParams
@@ -38,6 +40,14 @@ export function parseFileBrowserQuery(
 	}
 
 	const { path, line } = splitLineSuffix(rawValue);
+	if (line !== null && (!Number.isSafeInteger(line) || line < 1)) {
+		return {
+			isRequested: true,
+			path: null,
+			line: null,
+			error: FILE_BROWSER_INVALID_LINE_NOTICE,
+		};
+	}
 	const normalizedPath = normalizeRelativeFileBrowserPath(path);
 	if (!normalizedPath) {
 		return {
@@ -80,7 +90,7 @@ export function resolveFileBrowserPath(
 }
 
 function splitLineSuffix(rawValue: string) {
-	const lineMatch = rawValue.match(/^(.*):([1-9]\d*)$/);
+	const lineMatch = rawValue.match(/^(.*):([+-]?\d+)$/);
 	if (!lineMatch) {
 		return {
 			path: rawValue,
