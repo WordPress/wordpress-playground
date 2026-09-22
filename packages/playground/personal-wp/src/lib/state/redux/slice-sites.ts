@@ -10,6 +10,7 @@ import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
 	type BlueprintV1Declaration,
+	type GitDirectoryReference,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
@@ -538,6 +539,8 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
+	/** Plugin and theme folders installed from a git:directory resource. */
+	gitDirectorySources?: Record<string, GitDirectoryReference>;
 
 	/**
 	 * History of backups for this site.

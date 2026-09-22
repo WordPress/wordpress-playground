@@ -14,6 +14,7 @@ import {
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
 	BlueprintFetchError,
+	type GitDirectoryReference,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -936,6 +937,12 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
+	/**
+	 * Plugin/theme folders installed from a `git:directory` Blueprint
+	 * resource, keyed by their absolute install path (as it appears in the
+	 * Files browser, e.g. `/wordpress/wp-content/plugins/hello-dolly`).
+	 */
+	gitDirectorySources?: Record<string, GitDirectoryReference>;
 }
 
 /**

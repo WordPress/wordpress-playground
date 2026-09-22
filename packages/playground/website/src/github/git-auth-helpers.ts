@@ -1,11 +1,10 @@
 import { oAuthState } from './state';
 import { encodeStringAsBase64 } from '@php-wasm/util';
 
-function isGitHubUrl(url: string): boolean {
+/** Whether the URL uses a recognized GitHub hostname. */
+export function isGitHubUrl(url: string): boolean {
 	try {
-		const urlObj = new URL(url);
-		const hostname = urlObj.hostname;
-		return hostname === 'github.com' || hostname === 'api.github.com';
+		return /^(?:www\.|api\.)?github\.com$/.test(new URL(url).hostname);
 	} catch {
 		return false;
 	}
