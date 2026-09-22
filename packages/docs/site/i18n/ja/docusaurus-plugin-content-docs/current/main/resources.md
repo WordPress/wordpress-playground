@@ -166,7 +166,10 @@ Playground に関連するいくつかのツールへのアクセスを容易に
 - [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
 - [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
 - [WordPress Playground + AI: Building Autonomous Testing Pipelines](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) by Fellyph Cintra
+- [Revolucionando WordPress: Innovaciones de IA que transforman tu trabajo diario (in Spanish)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) by Evan Tobiessen
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
+- [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
+- [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
 -->
 
 ## ビデオ
@@ -219,4 +222,7 @@ Playground に関連するいくつかのツールへのアクセスを容易に
 - [WordPress Playground Blueprints: ゼロからプロへ (スペイン語)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) Fellyph Cintra
 - [WordPress Blueprints 入門 (ベンガル語)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) Monzur Alam
 - [WordPress Playground + AI: 自律テストパイプラインの構築](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) Fellyph Cintra
+- [WordPress に革命を起こす、日々の仕事を変える AI の革新 (スペイン語)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) Evan Tobiessen
 - [WordPress Playground の新機能](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) Fellyph Cintra
+- [WordPress Playground が WordPress エコシステムを変える方法](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) Berislav Grgicak
+- [新しい WordPress Playground のユーザーインターフェース](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) Fellyph Cintra
