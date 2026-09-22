@@ -153,3 +153,33 @@ export function DockFloatingIcon() {
 		</svg>
 	);
 }
+
+/** Terminal window with a title bar and command prompt. */
+export function DockTerminalIcon() {
+	return (
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.6"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<rect
+				x="2.75"
+				y="4.75"
+				width="18.5"
+				height="14.5"
+				rx="1.5"
+				fill="none"
+			/>
+			<path
+				d="M2.75 8.5h18.5M6.5 11.5l2.5 2.5-2.5 2.5M12 16.5h4"
+				fill="none"
+			/>
+		</svg>
+	);
+}

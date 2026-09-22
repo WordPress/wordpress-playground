@@ -41,6 +41,7 @@ export type {
 	CoreThemeResource,
 	FetchResource,
 	FileReference,
+	GitDirectoryReference,
 	LiteralReference,
 	LiteralResource,
 	Resource,
@@ -61,16 +62,16 @@ export * from './lib/steps/handlers';
 export type {
 	BlueprintV2,
 	BlueprintV2Declaration,
-	RawBlueprintV2Data,
-	ParsedBlueprintV1orV2String as ParsedBlueprintV2String,
 } from './lib/v2/blueprint-v2-declaration';
-export { getV2Runner } from './lib/v2/get-v2-runner';
-export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
-export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
-export { compileBlueprintV2 } from './lib/v2/compile';
+export {
+	compileBlueprintV2,
+	createBlueprintV2ExecutionPlan,
+	resolveBlueprintV2WordPressSource,
+} from './lib/v2/compile';
 export type {
 	CompiledBlueprintV2,
 	CompileBlueprintV2Options,
+	ResolveBlueprintV2WordPressSourceOptions,
 } from './lib/v2/compile';
 
 export {
@@ -78,7 +79,7 @@ export {
 	BlueprintFetchError,
 } from './lib/resolve-remote-blueprint';
 export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
-export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
+export { getLegacyPlaygroundRuntimeWpContentPaths } from './lib/utils/legacy-playground-runtime-wp-content-paths';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 export type { ResolveRuntimeConfigurationOptions } from './lib/resolve-runtime-configuration';
 export { assertBlueprintV2WordPressVersionCompatibility } from './lib/v2/resolve-runtime-configuration';

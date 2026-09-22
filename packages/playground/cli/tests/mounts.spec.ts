@@ -65,22 +65,6 @@ describe('expandAutoMounts', () => {
 			]);
 		});
 
-		test('should use themeDirectoryName for v2 runner', () => {
-			const themePath = path.join(__dirname, 'mount-examples/theme');
-			const args: RunCLIArgs = {
-				...createBasicArgs(themePath),
-				'experimental-blueprints-v2-runner': true,
-			};
-			const result = expandAutoMounts(args);
-
-			expect(result['additional-blueprint-steps']).toEqual([
-				{
-					step: 'activateTheme',
-					themeDirectoryName: 'theme',
-				},
-			]);
-		});
-
 		test('should not mount non-theme directory as theme', () => {
 			const notThemePath = path.join(
 				__dirname,

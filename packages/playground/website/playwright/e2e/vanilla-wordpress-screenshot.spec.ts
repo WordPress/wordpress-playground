@@ -25,7 +25,7 @@ const VANILLA_SCREENSHOT_PATH = join(
 	'..',
 	'src',
 	'components',
-	'saved-playgrounds-overlay',
+	'saved-playgrounds-panel',
 	'vanilla-wordpress.jpeg'
 );
 

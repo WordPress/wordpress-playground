@@ -9,6 +9,11 @@ export type URLComponents = {
 	pathname?: string;
 };
 
+const confirmBlueprintReloadMessage =
+	'Reload this page to start a new Playground with the Blueprint from the URL?';
+const confirmNoBlueprintReloadMessage =
+	'Reload this page to start a new Playground without a Blueprint from the URL?';
+
 export function useCurrentUrl() {
 	const [url, setUrl] = useState(window.location.href);
 	useEffect(() => {
@@ -93,6 +98,36 @@ const events = [
 	eventHashchange,
 ];
 
+export function confirmReloadAfterBlueprintChange(
+	event: Pick<HashChangeEvent, 'oldURL' | 'newURL'> &
+		Partial<Pick<Event, 'stopImmediatePropagation'>>,
+	win: Pick<Window, 'confirm' | 'history' | 'location'> = window
+) {
+	const oldUrl = new URL(event.oldURL);
+	const newUrl = new URL(event.newURL);
+	if (!isOnlyHashChange(oldUrl, newUrl)) {
+		return;
+	}
+	event.stopImmediatePropagation?.();
+	const confirmationMessage = newUrl.hash
+		? confirmBlueprintReloadMessage
+		: confirmNoBlueprintReloadMessage;
+	if (win.confirm(confirmationMessage)) {
+		win.location.reload();
+	} else {
+		win.history.replaceState(null, '', oldUrl.toString());
+	}
+}
+
+function isOnlyHashChange(oldUrl: URL, newUrl: URL) {
+	return (
+		oldUrl.origin === newUrl.origin &&
+		oldUrl.pathname === newUrl.pathname &&
+		oldUrl.search === newUrl.search &&
+		oldUrl.hash !== newUrl.hash
+	);
+}
+
 const subscribeToLocationUpdates = (callback: () => void) => {
 	for (const event of events) {
 		window.addEventListener(event, callback);
@@ -104,6 +139,9 @@ const subscribeToLocationUpdates = (callback: () => void) => {
 	};
 };
 
+const hashChangeConfirmPatchKey = Symbol.for(
+	'playground_confirm_blueprint_hashchange'
+);
 const patchKey = Symbol.for('wouter_v3');
 
 // While History API does have `popstate` event, the only
@@ -111,6 +149,21 @@ const patchKey = Symbol.for('wouter_v3');
 // is to monkey-patch these methods.
 //
 // See https://stackoverflow.com/a/4585031
+if (
+	typeof window !== 'undefined' &&
+	typeof window.addEventListener !== 'undefined' &&
+	typeof window[hashChangeConfirmPatchKey as any] === 'undefined'
+) {
+	window.addEventListener(
+		eventHashchange,
+		confirmReloadAfterBlueprintChange,
+		{
+			capture: true,
+		}
+	);
+	Object.defineProperty(window, hashChangeConfirmPatchKey, { value: true });
+}
+
 if (
 	typeof window !== 'undefined' &&
 	typeof window.history !== 'undefined' &&

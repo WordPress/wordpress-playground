@@ -8,20 +8,24 @@ The `PlaygroundClient` object implements the `UniversalPHP` interface. All the m
 
 Broadly speaking, you can use the client to perform three types of operations:
 
--   Running PHP code
--   Customizing `PHP.ini`
--   Managing files and directories
+- Running PHP code
+- Customizing `PHP.ini`
+- Managing files and directories
 
 ## Running PHP code
 
 The two methods you can use to run PHP code are:
 
--   [`run()`](#the-run-method) - runs PHP code and returns the output
--   [`request()`](#the-request-method) - makes an HTTP request to the website
+- [`run()`](#the-run-method) - runs PHP code and returns the output
+- [`request()`](#the-request-method) - makes an HTTP request to the website
 
 In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode.
 
 ### The `run()` method
+
+<!-- The handbook imports static/handbook/playground-api-client.md, generated
+from this page and TypeDoc by bin/generate-handbook-api-client.js. Keep the
+TSDocstring components here so the generated API descriptions stay in sync. -->
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
@@ -73,7 +77,7 @@ For a complete list of these methods, refer to the `PlaygroundClient` interface.
 
 You can pass messages from PHP to JavaScript using the `post_message_to_js()` function. It accepts one argument:
 
--   `$data` (string) – Data to pass to JavaScript.
+- `$data` (string) – Data to pass to JavaScript.
 
 For example, here's how you would send a message with a JSON-encoded post ID and title:
 

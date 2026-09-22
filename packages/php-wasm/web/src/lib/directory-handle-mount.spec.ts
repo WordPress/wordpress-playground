@@ -152,6 +152,38 @@ describe('journalFSEventsToOpfs', () => {
 		await firstFlush;
 	});
 
+	it('waits for an in-flight flush when discarding an incomplete mount', async () => {
+		const writeStarted = deferred<void>();
+		const releaseWrite = deferred<void>();
+		const { FS, files, php, removeEventListener } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', async () => {
+			writeStarted.resolve();
+			await releaseWrite.promise;
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+		void mount.flush();
+		await writeStarted.promise;
+
+		let discardSettled = false;
+		const discard = mount.discard().then(() => {
+			discardSettled = true;
+		});
+		await Promise.resolve();
+
+		expect(removeEventListener).toHaveBeenCalled();
+		expect(discardSettled).toBe(false);
+
+		releaseWrite.resolve();
+		await discard;
+		expect(discardSettled).toBe(true);
+	});
+
 	it('processes new writes on a subsequent flush after the previous flush succeeded', async () => {
 		// Regression guard for the `flushPromise` single-flight reset on the
 		// success path. If `flushPromise` were not cleared in the `.finally()`
@@ -248,13 +280,52 @@ describe('journalFSEventsToOpfs', () => {
 		expect(FS.write).toBe(originalWrite);
 	});
 
-	it('removes listeners even when unmount flush fails', async () => {
+	it('flushes writes queued as the in-flight flush settles before unmounting', async () => {
+		const writeStarted = deferred<void>();
+		const releaseWrite = deferred<void>();
+		let writeCount = 0;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', async () => {
+			writeCount++;
+			if (writeCount === 1) {
+				writeStarted.resolve();
+				await releaseWrite.promise;
+			}
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/wordpress/first.txt', encode('first'));
+		FS.write({ path: '/wordpress/first.txt' });
+		const inFlightFlush = mount.flush();
+		await writeStarted.promise;
+		const enqueueAtFlushBoundary = inFlightFlush.then(() => {
+			files.set('/wordpress/second.txt', encode('second'));
+			FS.write({ path: '/wordpress/second.txt' });
+		});
+		const unmount = mount.unmount();
+
+		releaseWrite.resolve();
+		await Promise.all([enqueueAtFlushBoundary, unmount]);
+
+		expect(decode(opfsRoot.files.get('first.txt')!.bytes)).toBe('first');
+		expect(decode(opfsRoot.files.get('second.txt')!.bytes)).toBe('second');
+	});
+
+	it('keeps listeners until a failed unmount flush can be retried', async () => {
 		const flushError = new Error('flush failed');
+		let shouldFail = true;
 		const { FS, addEventListener, files, php, removeEventListener } =
 			createFakePhp();
 		const originalWrite = FS.write;
 		const opfsRoot = new MemoryDirectoryHandle('root', () => {
-			throw flushError;
+			if (shouldFail) {
+				shouldFail = false;
+				throw flushError;
+			}
 		});
 		const mount = journalFSEventsToOpfs(
 			php,
@@ -271,7 +342,14 @@ describe('journalFSEventsToOpfs', () => {
 		files.set('/wordpress/file.txt', encode('saved'));
 		FS.write({ path: '/wordpress/file.txt' });
 
-		await expect(mount.unmount()).rejects.toBe(flushError);
+		await expect(mount.unmount()).rejects.toMatchObject({
+			name: 'MountStillActiveError',
+			cause: flushError,
+		});
+		expect(removeEventListener).not.toHaveBeenCalled();
+		expect(FS.write).not.toBe(originalWrite);
+
+		await mount.unmount();
 		expect(removeEventListener).toHaveBeenCalledWith(
 			'filesystem.write',
 			filesystemWriteListener
@@ -327,11 +405,37 @@ describe('journalFSEventsToOpfs', () => {
 		FS.write({ path: '/wordpress/file.txt' });
 		await expect(mount.flush()).rejects.toThrow('temporary flush failure');
 
-		files.set('/wordpress/file.txt', encode('second'));
-		FS.write({ path: '/wordpress/file.txt' });
 		await mount.flush();
 
-		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('second');
+		expect(decode(opfsRoot.files.get('file.txt')!.bytes)).toBe('first');
+	});
+
+	it('retries only the failed suffix of a partially completed batch', async () => {
+		let writeCount = 0;
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			writeCount++;
+			if (writeCount === 2) {
+				throw new Error('second write failed');
+			}
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+
+		files.set('/wordpress/first.txt', encode('first'));
+		files.set('/wordpress/second.txt', encode('second'));
+		FS.write({ path: '/wordpress/first.txt' });
+		FS.write({ path: '/wordpress/second.txt' });
+
+		await expect(mount.flush()).rejects.toThrow('second write failed');
+		await mount.flush();
+
+		expect(writeCount).toBe(3);
+		expect(decode(opfsRoot.files.get('first.txt')!.bytes)).toBe('first');
+		expect(decode(opfsRoot.files.get('second.txt')!.bytes)).toBe('second');
 	});
 
 	it('fails explicit flushes that never settle instead of hanging', async () => {
@@ -418,6 +522,57 @@ describe('createDirectoryHandleMountHandler', () => {
 		// copy, which is exactly why the whole operation must reject.
 		expect(decode(opfsRoot.files.get('ok.txt')!.bytes)).toBe('ok');
 		expect(opfsRoot.files.has('autoload.php')).toBe(false);
+	});
+
+	it('discards the journal and preserves the copy error when initial sync fails', async () => {
+		const copyError = new Error('initial copy failed');
+		const flushError = new Error('rollback flush failed');
+		const { FS, dispatchEvent, files, php, removeEventListener } =
+			createFakePhp();
+		const originalWrite = FS.write;
+		FS.readdir.mockReturnValue(['.', '..', 'bad.txt']);
+		files.set('/wordpress/bad.txt', encode('bad'));
+		let writeCount = 0;
+		const opfsRoot = new MemoryDirectoryHandle('root', () => {
+			writeCount++;
+			if (writeCount === 1) {
+				files.set('/wordpress/live.txt', encode('live'));
+				FS.write({ path: '/wordpress/live.txt' });
+				dispatchEvent('filesystem.write');
+				throw copyError;
+			}
+			throw flushError;
+		});
+		const loggerError = vi
+			.spyOn(logger, 'error')
+			.mockImplementation(() => {});
+		const mountHandler = createDirectoryHandleMountHandler(
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			{
+				initialSync: { direction: 'memfs-to-opfs' },
+			}
+		);
+
+		try {
+			await expect(
+				mountHandler(php, FS as any, '/wordpress')
+			).rejects.toMatchObject({ cause: copyError });
+			expect(loggerError).toHaveBeenCalledWith(
+				'OPFS flush failed while discarding a mount',
+				flushError
+			);
+			expect(removeEventListener).toHaveBeenCalledWith(
+				'request.end',
+				expect.any(Function)
+			);
+			expect(removeEventListener).toHaveBeenCalledWith(
+				'filesystem.write',
+				expect.any(Function)
+			);
+			expect(FS.write).toBe(originalWrite);
+		} finally {
+			loggerError.mockRestore();
+		}
 	});
 
 	it('flushes changes made while the initial MEMFS to OPFS sync is still running', async () => {

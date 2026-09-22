@@ -4,6 +4,8 @@ import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import {
 	compileBlueprintForExecution,
+	isBlueprintBundle,
+	resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import type { PlaygroundClient, StartPlaygroundWebOptions } from '.';
@@ -60,23 +62,17 @@ export class BlueprintsV2Handler {
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
-		const resolvedWordPressInstallMode = resolveWordPressInstallMode({
+		const requestedWordPressInstallMode = resolveWordPressInstallMode({
 			shouldInstallWordPress,
 			wordpressInstallMode,
 		});
-		// The `if-needed` mode may initialize the database, but WordPress core
-		// still comes from the mounted files rather than a fallback download.
-		const usesExistingWordPressFiles =
-			resolvedWordPressInstallMode === 'install-from-existing-files' ||
-			resolvedWordPressInstallMode ===
-				'install-from-existing-files-if-needed';
 		const compiled = await compileBlueprintForExecution(blueprint, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
 			onBlueprintValidated,
 			corsProxy,
 			gitAdditionalHeadersCallback,
-			siteMode: usesExistingWordPressFiles
+			siteMode: isExistingSiteInstallMode(requestedWordPressInstallMode)
 				? 'apply-to-existing-site'
 				: 'create-new-site',
 		});
@@ -84,6 +80,29 @@ export class BlueprintsV2Handler {
 			compiled.version === 2
 				? compiled.compiled.runtime
 				: await resolveRuntimeConfiguration(compiled.declaration);
+		const resolvedWordPressInstallMode =
+			compiled.version === 2 &&
+			compiled.declaration.wordpressVersion === 'none'
+				? 'do-not-attempt-installing'
+				: requestedWordPressInstallMode;
+		const usesExistingWordPressFiles = isExistingSiteInstallMode(
+			resolvedWordPressInstallMode
+		);
+		const wordPressZip =
+			compiled.version === 2 &&
+			resolvedWordPressInstallMode === 'download-and-install'
+				? await resolveBlueprintV2WordPressSource(
+						compiled.declaration,
+						{
+							progress: downloadProgress,
+							corsProxy,
+							gitAdditionalHeadersCallback,
+							streamBundledFile: isBlueprintBundle(blueprint)
+								? (path) => blueprint.read(path)
+								: undefined,
+						}
+					)
+				: undefined;
 		const extensions: PHPWebExtension[] = runtimeConfiguration.intl
 			? ['intl']
 			: [];
@@ -108,6 +127,7 @@ export class BlueprintsV2Handler {
 					: undefined,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
+			wordPressZip,
 			extensions,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
@@ -138,5 +158,20 @@ function resolveWordPressInstallMode({
 		(shouldInstallWordPress === false
 			? 'install-from-existing-files-if-needed'
 			: 'download-and-install')
+	);
+}
+
+/**
+ * Indicates whether boot will reuse WordPress files supplied by the caller.
+ *
+ * The `if-needed` mode may initialize the database, but WordPress core still
+ * comes from the mounted files rather than a fallback download.
+ */
+function isExistingSiteInstallMode(
+	wordpressInstallMode: WordPressInstallMode
+): boolean {
+	return (
+		wordpressInstallMode === 'install-from-existing-files' ||
+		wordpressInstallMode === 'install-from-existing-files-if-needed'
 	);
 }

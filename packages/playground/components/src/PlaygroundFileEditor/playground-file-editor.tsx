@@ -1,13 +1,28 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
+	useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import classNames from 'classnames';
-import { Button, Notice } from '@wordpress/components';
+import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
-import { FileExplorerSidebar } from './file-explorer-sidebar';
+import type { PathBadge } from '../FilePickerTree';
+import {
+	FileExplorerSidebar,
+	type FileExplorerSidebarHandle,
+} from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
+import { basename, dirname } from '@php-wasm/util';
 
 const SAVE_DEBOUNCE_MS = 1500;
+const MANUAL_SAVING_FEEDBACK_DELAY_MS = 700;
+const MANUAL_SAVED_FEEDBACK_DURATION_MS = 1000;
 
 const SaveState = {
 	IDLE: 'idle',
@@ -27,14 +42,28 @@ export type PlaygroundFileEditorProps = {
 	initialLine?: number | null;
 	initialNotice?: string | JSX.Element | null;
 	placeholderText?: string;
-	onSaveFile?: (path: string, content: string) => Promise<void>;
-	/**
-	 * Called before the filesystem changes, allowing the parent to flush
-	 * any pending saves to the old filesystem.
-	 */
-	onBeforeFilesystemChange?: (
-		oldFilesystem: AsyncWritableFilesystem
-	) => Promise<void>;
+	dockPresentation?: boolean;
+	/** Mobile Dock title row where the current path should be rendered. */
+	mobileHeaderTarget?: Element | null;
+	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
+	/** See `FilePickerTreeProps.onMountFromGit`. */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/** See `FilePickerTreeProps.onPathRenamed`. */
+	onPathRenamed?: (oldPath: string, newPath: string) => void | Promise<void>;
+};
+
+type PendingSave = {
+	filesystem: AsyncWritableFilesystem;
+	path: string;
+	content: string;
+};
+
+export type PlaygroundFileEditorHandle = {
+	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
+	refreshPath: (path: string) => Promise<void>;
+	/** Expands, selects, and scrolls an externally created path into view. */
+	revealPath: (path: string) => Promise<void>;
 };
 
 /**
@@ -42,17 +71,39 @@ export type PlaygroundFileEditorProps = {
  * a code editor on the right. Supports auto-save with debouncing,
  * cursor position preservation, and binary file handling.
  */
-export function PlaygroundFileEditor({
-	filesystem,
-	isVisible = true,
-	documentRoot,
-	initialPath = null,
-	initialLine = null,
-	initialNotice = null,
-	placeholderText = 'Select a file to view or edit its contents.',
-	onSaveFile,
-	onBeforeFilesystemChange,
-}: PlaygroundFileEditorProps) {
+export const PlaygroundFileEditor = forwardRef<
+	PlaygroundFileEditorHandle,
+	PlaygroundFileEditorProps
+>(function PlaygroundFileEditor(
+	{
+		filesystem,
+		isVisible = true,
+		documentRoot,
+		initialPath = null,
+		initialLine = null,
+		initialNotice = null,
+		placeholderText = 'Select a file to view or edit its contents.',
+		dockPresentation = false,
+		mobileHeaderTarget = null,
+		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
+	},
+	ref
+) {
+	const sidebarRef = useRef<FileExplorerSidebarHandle | null>(null);
+	useImperativeHandle(
+		ref,
+		() => ({
+			refreshPath: async (path: string) => {
+				await sidebarRef.current?.refreshPath(path);
+			},
+			revealPath: async (path: string) => {
+				await sidebarRef.current?.revealPath(path);
+			},
+		}),
+		[]
+	);
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
 	);
@@ -61,11 +112,15 @@ export function PlaygroundFileEditor({
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [manualSaveFeedback, setManualSaveFeedback] = useState<
+		'idle' | 'waiting' | 'saving' | 'saved'
+	>('idle');
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
+
 	const [editorNotice, setEditorNotice] = useState<
 		string | JSX.Element | null
 	>(null);
@@ -75,24 +130,123 @@ export function PlaygroundFileEditor({
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	const saveTimeoutRef = useRef<number | null>(null);
 	const skipNextSaveRef = useRef<boolean>(false);
-	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
-	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
-	const previousFilesystemRef = useRef<AsyncWritableFilesystem | null>(null);
+	const activeFilesystemRef = useRef<AsyncWritableFilesystem | null>(
+		filesystem
+	);
+	const pendingSaveRef = useRef<PendingSave | null>(null);
+	const manualSaveRef = useRef<PendingSave | null>(null);
+	const lastWriteByFilesystemRef = useRef(
+		new WeakMap<AsyncWritableFilesystem, Promise<void>>()
+	);
+	const isMountedRef = useRef<boolean>(true);
 	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
 	const hasAutoOpenedRef = useRef<boolean>(false);
 
-	useEffect(() => {
-		codeRef.current = code;
-	}, [code]);
+	activeFilesystemRef.current = filesystem;
 
 	useEffect(() => {
 		currentPathRef.current = currentPath;
 	}, [currentPath]);
 
+	/**
+	 * Keeps writes ordered within their owning filesystem without making an
+	 * unrelated filesystem wait.
+	 */
+	const saveFile = useCallback(async (pendingSave: PendingSave) => {
+		const { filesystem, path, content } = pendingSave;
+		const isManualSave = manualSaveRef.current === pendingSave;
+		const writes = lastWriteByFilesystemRef.current;
+		const previousWrite = writes.get(filesystem);
+		// A failed write reports its own error, but must not poison later writes.
+		const writePromise = (previousWrite ?? Promise.resolve())
+			.catch(() => undefined)
+			.then(() => filesystem.writeFile(path, content));
+		writes.set(filesystem, writePromise);
+
+		let writeFailed = false;
+		try {
+			await writePromise;
+		} catch (error) {
+			writeFailed = true;
+			logger.error('Failed to save file', error);
+		}
+
+		// The user may have switched filesystems, selected another file, or
+		// typed again while the write was running. Only the last write that still
+		// owns the visible buffer may update its save status.
+		const ownsVisibleBuffer =
+			isMountedRef.current &&
+			writes.get(filesystem) === writePromise &&
+			activeFilesystemRef.current === filesystem &&
+			currentPathRef.current === path &&
+			pendingSaveRef.current === null;
+
+		if (writes.get(filesystem) === writePromise) {
+			writes.delete(filesystem);
+		}
+		if (manualSaveRef.current === pendingSave) {
+			manualSaveRef.current = null;
+		}
+		if (ownsVisibleBuffer) {
+			setSaveState(writeFailed ? SaveState.ERROR : SaveState.SAVED);
+			setSaveError(
+				writeFailed ? 'Could not save changes. Try again.' : null
+			);
+			if (isManualSave) {
+				setManualSaveFeedback(writeFailed ? 'idle' : 'saved');
+			}
+		}
+	}, []);
+
+	/** Flushes the latest buffered edit to the filesystem that produced it. */
+	const flushPendingSave = useCallback(() => {
+		const pendingSave = pendingSaveRef.current;
+		if (!pendingSave) {
+			return;
+		}
+		if (saveTimeoutRef.current !== null) {
+			window.clearTimeout(saveTimeoutRef.current);
+			saveTimeoutRef.current = null;
+		}
+		pendingSaveRef.current = null;
+		void saveFile(pendingSave);
+	}, [saveFile]);
+
 	useEffect(() => {
-		filesystemRef.current = filesystem;
-	}, [filesystem]);
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
+
+	// The cleanup captures the old filesystem. The pending save captures it too,
+	// so switching to a filesystem with the same path cannot redirect the write.
+	useEffect(() => {
+		return () => {
+			if (pendingSaveRef.current?.filesystem === filesystem) {
+				flushPendingSave();
+			}
+		};
+	}, [documentRoot, filesystem, flushPendingSave]);
+
+	// Editor state belongs to one filesystem root. Never carry a path or buffer
+	// into another filesystem just because that filesystem has the same path.
+	useEffect(() => {
+		skipNextSaveRef.current = true;
+		setSelectedDirPath(documentRoot);
+		setCode('');
+		setCurrentPath(null);
+		setReadOnly(true);
+		setSaveState(SaveState.IDLE);
+		setSaveError(null);
+		setShowExplorerOnMobile(false);
+		setMessageContent(null);
+		setEditorNotice(null);
+		setPendingInitialCursorPosition(null);
+		cursorPositionsRef.current.clear();
+		hasAutoOpenedRef.current = false;
+	}, [documentRoot, filesystem]);
 
 	const showInitialPathNotice = useCallback(
 		(notice: string | JSX.Element) => {
@@ -110,35 +264,6 @@ export function PlaygroundFileEditor({
 		[]
 	);
 
-	// Call onBeforeFilesystemChange when filesystem changes
-	useEffect(() => {
-		const oldFilesystem = previousFilesystemRef.current;
-		if (oldFilesystem && oldFilesystem !== filesystem) {
-			// Filesystem is changing - notify parent to flush saves
-			if (onBeforeFilesystemChange) {
-				void onBeforeFilesystemChange(oldFilesystem);
-			}
-		}
-		previousFilesystemRef.current = filesystem;
-	}, [filesystem, onBeforeFilesystemChange]);
-
-	// Reset state when filesystem changes
-	useEffect(() => {
-		if (!filesystem) {
-			skipNextSaveRef.current = true;
-			setCode('');
-			setCurrentPath(null);
-			setReadOnly(true);
-			setSaveState(SaveState.IDLE);
-			setSaveError(null);
-			setShowExplorerOnMobile(false);
-			setMessageContent(null);
-			setEditorNotice(null);
-			setPendingInitialCursorPosition(null);
-			hasAutoOpenedRef.current = false;
-		}
-	}, [filesystem]);
-
 	// Auto-open initialPath when filesystem becomes available
 	useEffect(() => {
 		if (!filesystem || hasAutoOpenedRef.current) {
@@ -153,9 +278,11 @@ export function PlaygroundFileEditor({
 			return;
 		}
 
+		let cancelled = false;
 		const tryAutoOpen = async () => {
 			try {
 				const exists = await filesystem.fileExists(initialPath);
+				if (cancelled) return;
 				if (!exists) {
 					showInitialPathNotice(
 						`Could not open ${initialPath}. The file does not exist.`
@@ -164,6 +291,7 @@ export function PlaygroundFileEditor({
 				}
 
 				const content = await filesystem.readFileAsText(initialPath);
+				if (cancelled) return;
 				const lineOffset = initialLine
 					? getLineStartOffset(content, initialLine)
 					: null;
@@ -186,22 +314,27 @@ export function PlaygroundFileEditor({
 
 				// Focus the editor after opening
 				setTimeout(() => {
-					if (lineOffset === null) {
+					if (!cancelled && lineOffset === null) {
 						editorRef.current?.focus();
 					}
 				}, 100);
 			} catch (error) {
+				if (cancelled) return;
 				logger.debug('Could not auto-open initial path:', error);
 				showInitialPathNotice(
 					`Could not open ${initialPath}. The file could not be read.`
 				);
 			} finally {
-				hasAutoOpenedRef.current = true;
+				if (!cancelled) hasAutoOpenedRef.current = true;
 			}
 		};
 
 		void tryAutoOpen();
+		return () => {
+			cancelled = true;
+		};
 	}, [
+		documentRoot,
 		filesystem,
 		initialPath,
 		initialLine,
@@ -209,39 +342,14 @@ export function PlaygroundFileEditor({
 		showInitialPathNotice,
 	]);
 
-	// Reset when documentRoot changes
-	useEffect(() => {
-		setSelectedDirPath(documentRoot);
-		setCurrentPath(null);
-		setCode('');
-		setReadOnly(true);
-		setSaveState(SaveState.IDLE);
-		setSaveError(null);
-		skipNextSaveRef.current = true;
-		setMessageContent(null);
-		setEditorNotice(null);
-		setPendingInitialCursorPosition(null);
-		hasAutoOpenedRef.current = false;
-	}, [documentRoot]);
-
-	// Flush pending save on unmount
-	useEffect(() => {
-		return () => {
-			if (saveTimeoutRef.current !== null) {
-				window.clearTimeout(saveTimeoutRef.current);
-				saveTimeoutRef.current = null;
-			}
-		};
-	}, []);
-
 	// Auto-save effect
 	useEffect(() => {
-		const activeFilesystem = filesystemRef.current;
-		if (!activeFilesystem || !currentPath) {
+		if (!filesystem || !currentPath) {
 			if (saveTimeoutRef.current !== null) {
 				window.clearTimeout(saveTimeoutRef.current);
 				saveTimeoutRef.current = null;
 			}
+			pendingSaveRef.current = null;
 			if (!currentPath) {
 				setSaveState(SaveState.IDLE);
 			}
@@ -249,6 +357,7 @@ export function PlaygroundFileEditor({
 		}
 		if (skipNextSaveRef.current) {
 			skipNextSaveRef.current = false;
+			pendingSaveRef.current = null;
 			return;
 		}
 		if (saveTimeoutRef.current !== null) {
@@ -256,24 +365,20 @@ export function PlaygroundFileEditor({
 			saveTimeoutRef.current = null;
 		}
 		setSaveState(SaveState.PENDING);
-		const timeout = window.setTimeout(async () => {
-			saveTimeoutRef.current = null;
-			setSaveState(SaveState.SAVING);
-			try {
-				const pathToSave = currentPathRef.current as string;
-				const contentToSave = codeRef.current;
-				if (onSaveFile) {
-					await onSaveFile(pathToSave, contentToSave);
-				} else {
-					await activeFilesystem.writeFile(pathToSave, contentToSave);
-				}
-				setSaveState(SaveState.SAVED);
-				setSaveError(null);
-			} catch (error) {
-				logger.error('Failed to save file', error);
-				setSaveState(SaveState.ERROR);
-				setSaveError('Could not save changes. Try again.');
+		const pendingSave = {
+			filesystem,
+			path: currentPath,
+			content: code,
+		};
+		pendingSaveRef.current = pendingSave;
+		const timeout = window.setTimeout(() => {
+			if (pendingSaveRef.current !== pendingSave) {
+				return;
 			}
+			saveTimeoutRef.current = null;
+			pendingSaveRef.current = null;
+			setSaveState(SaveState.SAVING);
+			void saveFile(pendingSave);
 		}, SAVE_DEBOUNCE_MS);
 		saveTimeoutRef.current = timeout;
 
@@ -283,7 +388,7 @@ export function PlaygroundFileEditor({
 				saveTimeoutRef.current = null;
 			}
 		};
-	}, [code, currentPath, onSaveFile]);
+	}, [code, currentPath, filesystem, saveFile]);
 
 	// Clear "Saved" state after 2 seconds
 	useEffect(() => {
@@ -297,6 +402,44 @@ export function PlaygroundFileEditor({
 		}, 2000);
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
+
+	// A new edit or file selection cancels feedback from an older manual save.
+	useEffect(() => {
+		if (
+			manualSaveFeedback === 'idle' ||
+			saveState === SaveState.SAVING ||
+			saveState === SaveState.SAVED
+		) {
+			return;
+		}
+		setManualSaveFeedback('idle');
+	}, [manualSaveFeedback, saveState]);
+
+	useEffect(() => {
+		if (manualSaveFeedback !== 'saved') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() => setManualSaveFeedback('idle'),
+			MANUAL_SAVED_FEEDBACK_DURATION_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
+
+	// Fast manual writes go straight to "Saved" instead of flashing "Saving…".
+	useEffect(() => {
+		if (manualSaveFeedback !== 'waiting') {
+			return;
+		}
+		const timeout = window.setTimeout(
+			() =>
+				setManualSaveFeedback((feedback) =>
+					feedback === 'waiting' ? 'saving' : feedback
+				),
+			MANUAL_SAVING_FEEDBACK_DELAY_MS
+		);
+		return () => window.clearTimeout(timeout);
+	}, [manualSaveFeedback]);
 
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
@@ -437,51 +580,100 @@ export function PlaygroundFileEditor({
 		[]
 	);
 
-	const handleManualSave = useCallback(async () => {
-		if (saveTimeoutRef.current === null) {
+	const handleManualSave = useCallback(() => {
+		if (!pendingSaveRef.current) {
 			return;
 		}
-		if (!filesystemRef.current || !currentPathRef.current) {
-			window.clearTimeout(saveTimeoutRef.current);
-			saveTimeoutRef.current = null;
-			return;
-		}
-		window.clearTimeout(saveTimeoutRef.current);
-		saveTimeoutRef.current = null;
+		manualSaveRef.current = pendingSaveRef.current;
+		setManualSaveFeedback('waiting');
 		setSaveState(SaveState.SAVING);
-		try {
-			const pathToSave = currentPathRef.current;
-			const contentToSave = codeRef.current;
-			if (onSaveFile) {
-				await onSaveFile(pathToSave, contentToSave);
-			} else {
-				await filesystemRef.current.writeFile(
-					pathToSave,
-					contentToSave
-				);
-			}
-			setSaveState(SaveState.SAVED);
-			setSaveError(null);
-		} catch (error) {
-			logger.error('Failed to save file', error);
-			setSaveState(SaveState.ERROR);
-			setSaveError('Could not save changes. Try again.');
+		flushPendingSave();
+	}, [flushPendingSave]);
+
+	const handleDockManualSave = useCallback(() => {
+		if (
+			!pendingSaveRef.current &&
+			saveState === SaveState.ERROR &&
+			filesystem &&
+			currentPath
+		) {
+			pendingSaveRef.current = {
+				filesystem,
+				path: currentPath,
+				content: code,
+			};
 		}
-	}, [onSaveFile]);
+		if (!pendingSaveRef.current) {
+			return;
+		}
+		setSaveError(null);
+		handleManualSave();
+	}, [code, currentPath, filesystem, handleManualSave, saveState]);
 
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
+	const dockSaveTooltip = getDockSaveTooltip(saveState);
+	let dockSaveButtonLabel = 'Save';
+	if (saveState === SaveState.ERROR) {
+		dockSaveButtonLabel = 'Retry';
+	} else if (
+		saveState === SaveState.SAVED &&
+		manualSaveFeedback === 'saved'
+	) {
+		dockSaveButtonLabel = 'Saved';
+	} else if (
+		saveState === SaveState.SAVING &&
+		manualSaveFeedback === 'saving'
+	) {
+		dockSaveButtonLabel = 'Saving…';
+	}
+	const dockHasUnsavedChanges =
+		saveState === SaveState.PENDING ||
+		saveState === SaveState.SAVING ||
+		saveState === SaveState.ERROR;
 
 	if (!filesystem) {
 		return (
-			<div className={styles['container']}>
+			<div
+				className={classNames(styles['container'], {
+					[styles['dockPresentation']]: dockPresentation,
+				})}
+			>
 				<div className={styles['placeholder']}>{placeholderText}</div>
 			</div>
 		);
 	}
+	const currentDirectory = currentPath ? dirname(currentPath) : null;
+	const currentFilename = currentPath ? basename(currentPath) : null;
+	const editorPath = (
+		<div
+			className={classNames(styles['editorPath'], {
+				[styles['editorPathPlaceholder']]: !currentPath?.length,
+				[styles['editorPathPortaled']]: mobileHeaderTarget,
+			})}
+			title={currentPath ?? undefined}
+		>
+			{currentDirectory && currentFilename ? (
+				<>
+					<span className={styles['editorPathDirectory']}>
+						{currentDirectory === '/' ? '' : currentDirectory}
+					</span>
+					<span className={styles['editorPathFilename']}>
+						/{currentFilename}
+					</span>
+				</>
+			) : (
+				`Browse files under ${documentRoot}`
+			)}
+		</div>
+	);
 
 	return (
-		<div className={styles['container']}>
+		<div
+			className={classNames(styles['container'], {
+				[styles['dockPresentation']]: dockPresentation,
+			})}
+		>
 			<div
 				className={classNames(styles['content'], {
 					[styles['sidebarOpen']]: showExplorerOnMobile,
@@ -493,6 +685,7 @@ export function PlaygroundFileEditor({
 				/>
 				<aside className={styles['sidebarWrapper']}>
 					<FileExplorerSidebar
+						ref={sidebarRef}
 						filesystem={filesystem}
 						currentPath={currentPath}
 						selectedDirPath={selectedDirPath}
@@ -501,10 +694,20 @@ export function PlaygroundFileEditor({
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
 						documentRoot={documentRoot}
+						dockPresentation={dockPresentation}
+						useWordPressTooltips={dockPresentation}
+						pathBadges={pathBadges}
+						onMountFromGit={onMountFromGit}
+						onPathRenamed={onPathRenamed}
 					/>
 				</aside>
 				<section className={styles['editorWrapper']}>
-					<div className={styles['editorHeader']}>
+					<div
+						className={classNames(styles['editorHeader'], {
+							[styles['editorHeaderPathPortaled']]:
+								mobileHeaderTarget,
+						})}
+					>
 						<Button
 							className={styles['mobileToggle']}
 							variant="secondary"
@@ -516,24 +719,45 @@ export function PlaygroundFileEditor({
 								? 'Hide files'
 								: 'Browse files'}
 						</Button>
-						<div
-							className={classNames(styles['editorPath'], {
-								[styles['editorPathPlaceholder']]:
-									!currentPath?.length,
-							})}
-						>
-							{currentPath?.length
-								? currentPath
-								: `Browse files under ${documentRoot}`}
-						</div>
-						<div
-							className={classNames(
-								styles['saveStatus'],
-								saveStatusClassName
-							)}
-						>
-							{saveStatusLabel}
-						</div>
+						{mobileHeaderTarget
+							? createPortal(editorPath, mobileHeaderTarget)
+							: editorPath}
+						{dockPresentation && !readOnly && currentPath ? (
+							<div className={styles['editorHeaderActions']}>
+								{dockHasUnsavedChanges ? (
+									<span
+										className={styles['dockDirtyIndicator']}
+										aria-hidden="true"
+									/>
+								) : null}
+								<Tooltip text={dockSaveTooltip} placement="top">
+									<Button
+										variant="secondary"
+										className={styles['dockSaveButton']}
+										isDestructive={
+											saveState === SaveState.ERROR
+										}
+										onClick={handleDockManualSave}
+									>
+										{dockSaveButtonLabel}
+									</Button>
+								</Tooltip>
+							</div>
+						) : !dockPresentation ? (
+							<div
+								className={classNames(
+									styles['saveStatus'],
+									saveStatusClassName
+								)}
+							>
+								{saveStatusLabel}
+							</div>
+						) : null}
+						{dockPresentation && !readOnly && currentPath ? (
+							<VisuallyHidden role="status" aria-live="polite">
+								{dockSaveTooltip}
+							</VisuallyHidden>
+						) : null}
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>
@@ -578,7 +802,7 @@ export function PlaygroundFileEditor({
 			</div>
 		</div>
 	);
-}
+});
 
 function getSaveStatusLabel(saveState: SaveState, saveError: string | null) {
 	switch (saveState) {
@@ -607,6 +831,19 @@ function getSaveStatusClassName(
 			return styleSheet['saveStatusError'];
 		default:
 			return undefined;
+	}
+}
+
+function getDockSaveTooltip(saveState: SaveState) {
+	switch (saveState) {
+		case SaveState.PENDING:
+			return 'Unsaved changes. Click to save now.';
+		case SaveState.SAVING:
+			return 'Saving changes…';
+		case SaveState.ERROR:
+			return 'Saving failed. Click to retry.';
+		default:
+			return 'All changes saved.';
 	}
 }
 

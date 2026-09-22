@@ -1,5 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import { Icon } from '@wordpress/components';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+	type StepDefinition,
+} from '@wp-playground/client';
+import {
+	updateSiteMetadata,
+	type SiteInfo,
+} from '../../../lib/state/redux/slice-sites';
+import { useAppDispatch } from '../../../lib/state/redux/store';
+import {
+	deriveFolderNameFromGitUrl,
+	extractGitDirectorySource,
+	normalizeGitUrl,
+} from '../../../lib/state/redux/git-directory-sources';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
 import {
 	type AsyncWritableFilesystem,
@@ -7,9 +22,18 @@ import {
 	EventedFilesystem,
 } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { PlaygroundFileEditor } from '@wp-playground/components';
+import {
+	PlaygroundFileEditor,
+	MountGitDirectoryModal,
+	type MountGitDirectorySubmission,
+	type PathBadge,
+	type PlaygroundFileEditorHandle,
+} from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 import { getDirectoryPathForSlug } from '../../../lib/state/opfs/opfs-site-storage';
+import { GitIcon } from './git-icon';
+// @ts-ignore
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 export function SiteFileBrowser({
 	site,
@@ -20,6 +44,7 @@ export function SiteFileBrowser({
 	isVisible?: boolean;
 	documentRoot: string;
 }) {
+	const dispatch = useAppDispatch();
 	// In dependent mode the client only exposes navigation methods, so we
 	// can't use it for filesystem access. Treat it as absent and fall back
 	// to direct OPFS access below.
@@ -27,56 +52,172 @@ export function SiteFileBrowser({
 	const client =
 		clientInfo && !clientInfo.isDependentMode ? clientInfo.client : null;
 	const filesystem = useFilesystem(client, site);
-	const clientRef = useRef<PlaygroundClient | null>(client);
-	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
+	const pathBadges = useGitDirectoryPathBadges(site);
+	const fileEditorRef = useRef<PlaygroundFileEditorHandle | null>(null);
+	const [mountRequest, setMountRequest] = useState<{
+		kind: 'plugin' | 'theme';
+		parentPath: string;
+	} | null>(null);
+	const [isMounting, setIsMounting] = useState(false);
+	const [mountError, setMountError] = useState<string | null>(null);
 
-	// Keep refs in sync
-	clientRef.current = client;
-	filesystemRef.current = filesystem;
+	const handleMountSubmit = async (
+		submission: MountGitDirectorySubmission
+	) => {
+		if (!client || !mountRequest) {
+			return;
+		}
+		const { kind, parentPath } = mountRequest;
+		setIsMounting(true);
+		setMountError(null);
+		try {
+			const url = normalizeGitUrl(submission.url);
+			const resource = {
+				resource: 'git:directory' as const,
+				url,
+				ref: submission.ref,
+				path: submission.path,
+			};
+			const targetFolderName = deriveFolderNameFromGitUrl(url);
+			const step: StepDefinition =
+				kind === 'plugin'
+					? {
+							step: 'installPlugin',
+							pluginData: resource,
+							ifAlreadyInstalled: 'error',
+							options: { activate: false, targetFolderName },
+						}
+					: {
+							step: 'installTheme',
+							themeData: resource,
+							ifAlreadyInstalled: 'error',
+							options: { activate: false, targetFolderName },
+						};
 
-	// Handle filesystem changes - flush pending saves to the old filesystem
-	const handleBeforeFilesystemChange = useCallback(
-		async (_oldFilesystem: AsyncWritableFilesystem) => {
-			// The old filesystem was a wrapper around a client
-			// We need to save any pending changes before switching
-			// This is handled by the fact that we're just writing to the filesystem
-			// which proxies to the client
-			logger.debug(
-				'Filesystem changing, any pending saves will be flushed'
+			let extracted: ReturnType<typeof extractGitDirectorySource> = null;
+			const compiled = await compileBlueprintV1(
+				{ steps: [step] },
+				{
+					corsProxy: corsProxyUrl,
+					onStepCompleted: (result, completedStep) => {
+						extracted = extractGitDirectorySource(
+							completedStep,
+							result
+						);
+					},
+				}
 			);
-		},
-		[]
-	);
+			await runBlueprintV1Steps(compiled, client as any);
 
-	// Custom save handler that writes to either the client or OPFS directly
-	const handleSaveFile = useCallback(
-		async (path: string, content: string) => {
-			// Prefer the client if available (keeps memfs and OPFS in sync)
-			if (clientRef.current) {
-				await clientRef.current.writeFile(path, content);
-				return;
+			const mountedSource = extracted as ReturnType<
+				typeof extractGitDirectorySource
+			>;
+			if (!mountedSource) {
+				await fileEditorRef.current?.refreshPath(parentPath);
+				throw new Error(
+					'The repository was fetched, but Playground could not determine where it was installed.'
+				);
 			}
-			// Fall back to direct OPFS filesystem
-			if (filesystemRef.current) {
-				await filesystemRef.current.writeFile(path, content);
-				return;
-			}
-			throw new Error('No filesystem available');
-		},
-		[]
-	);
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					metadata: {
+						gitDirectorySources: {
+							...site.metadata.gitDirectorySources,
+							[mountedSource.assetPath]: mountedSource.source,
+						},
+					},
+				})
+			);
+			await fileEditorRef.current?.revealPath(mountedSource.assetPath);
+			setMountRequest(null);
+		} catch (error) {
+			logger.error('Failed to mount git directory', error);
+			setMountError(
+				error instanceof Error
+					? error.message
+					: 'Could not mount the repository.'
+			);
+		} finally {
+			setIsMounting(false);
+		}
+	};
+
+	const handlePathRenamed = async (oldPath: string, newPath: string) => {
+		const source = site.metadata.gitDirectorySources?.[oldPath];
+		if (!source) {
+			return;
+		}
+		const gitDirectorySources = { ...site.metadata.gitDirectorySources };
+		delete gitDirectorySources[oldPath];
+		gitDirectorySources[newPath] = source;
+		await dispatch(
+			updateSiteMetadata({
+				slug: site.slug,
+				metadata: { gitDirectorySources },
+			})
+		);
+	};
 
 	return (
-		<PlaygroundFileEditor
-			filesystem={filesystem}
-			documentRoot={documentRoot}
-			isVisible={isVisible}
-			initialPath={`${documentRoot}/wp-config.php`}
-			placeholderText="Start this Playground to browse and edit its files."
-			onSaveFile={handleSaveFile}
-			onBeforeFilesystemChange={handleBeforeFilesystemChange}
-		/>
+		<>
+			<PlaygroundFileEditor
+				ref={fileEditorRef}
+				filesystem={filesystem}
+				documentRoot={documentRoot}
+				isVisible={isVisible}
+				// Nothing is auto-opened: the browser used to greet people with
+				// wp-config.php, which put database credentials on screen as the
+				// first thing anyone saw here.
+				initialPath={null}
+				placeholderText="Start this Playground to browse and edit its files."
+				pathBadges={pathBadges}
+				onMountFromGit={
+					client
+						? (kind, parentPath) => {
+								setMountError(null);
+								setMountRequest({ kind, parentPath });
+							}
+						: undefined
+				}
+				onPathRenamed={handlePathRenamed}
+			/>
+			{mountRequest ? (
+				<MountGitDirectoryModal
+					kind={mountRequest.kind}
+					isBusy={isMounting}
+					error={mountError}
+					onSubmit={handleMountSubmit}
+					onCancel={() => setMountRequest(null)}
+				/>
+			) : null}
+		</>
 	);
+}
+
+function useGitDirectoryPathBadges(
+	site: SiteInfo
+): Record<string, PathBadge> | undefined {
+	return useMemo(() => {
+		const sources = site.metadata.gitDirectorySources;
+		if (!sources || Object.keys(sources).length === 0) {
+			return undefined;
+		}
+		const badges: Record<string, PathBadge> = {};
+		for (const [path, source] of Object.entries(sources)) {
+			const refLabel = source.refType
+				? `${source.refType} ${source.ref}`
+				: source.ref;
+			const repoLabel = source.url
+				.replace(/^https?:\/\//, '')
+				.replace(/\.git$/, '');
+			badges[path] = {
+				icon: <Icon width={14} icon={GitIcon} />,
+				tooltip: `Mounted from ${repoLabel} (${refLabel})`,
+			};
+		}
+		return badges;
+	}, [site.metadata.gitDirectorySources]);
 }
 
 /**

@@ -2,7 +2,10 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
+import { formatBytes, joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
+import PostalMime from 'postal-mime';
+import type { Email } from 'postal-mime';
 import type {
 	DirectoryHandleMount,
 	PHPWebExtension,
@@ -14,7 +17,6 @@ import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
 } from '@php-wasm/web';
-import { createMemoizedFetch } from '@wp-playground/common';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import {
 	LatestMinifiedWordPressVersion,
@@ -25,6 +27,7 @@ import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
 } from './worker-utils';
+import { hasCachedResponse, putCachedResponse } from './offline-mode-cache';
 /* @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
@@ -38,6 +41,7 @@ import type {
 } from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
+	MountStillActiveError,
 	PHPResponse,
 	PHPWorker,
 	isPathToSharedFS,
@@ -71,6 +75,8 @@ export interface MountDescriptor {
 
 export type WorkerBootOptions = {
 	wpVersion?: string;
+	/** A caller-provided WordPress archive used instead of downloading one. */
+	wordPressZip?: File;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
 	sapiName?: string;
@@ -81,8 +87,6 @@ export type WorkerBootOptions = {
 	/** @deprecated Use `wordpressInstallMode` instead. */
 	shouldInstallWordPress?: boolean;
 	corsProxyUrl?: string;
-	/** @deprecated Blueprint handlers are selected before boot. This option has no effect. */
-	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration used for worker-side execution or preflight checks. */
 	blueprint?: BlueprintDeclaration;
 	/**
@@ -98,6 +102,16 @@ export type WorkerBootOptions = {
 };
 
 /** @inheritDoc PHPClient */
+/**
+ * Dispatched by the worker as the runtime boot advances to a new step.
+ * Listen with `addEventListener('boot.progress', ...)`.
+ */
+export interface BootProgressEvent {
+	type: 'boot.progress';
+	/** Human-readable description of the step that just started. */
+	caption: string;
+}
+
 export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	booted = false;
 
@@ -116,26 +130,35 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	loadedWordPressVersion: string | undefined;
 
-	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
-		[];
-
 	unmounts: Record<string, () => any> = createNullPrototypeRecord();
 	private opfsMounts: Record<string, DirectoryHandleMount> =
 		createNullPrototypeRecord();
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	private emails: Email[] = [];
+	private emailParsingQueue: Promise<void> = Promise.resolve();
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
-	protected memoizedFetch: ReturnType<typeof createMemoizedFetch>;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
 
 		this.downloadMonitor = monitor;
-		const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
-			this.downloadMonitor.monitorFetch(fetch(input, init));
-		this.memoizedFetch = createMemoizedFetch(monitoredFetch);
+
+		/**
+		 * Listen to the 'sendmail.spawned' event and parse each captured email into the inbox.
+		 */
+		this.addEventListener('sendmail.spawned', (event) => {
+			const { stdin } = event as PHPSendmailSpawnedEvent;
+			this.emailParsingQueue = this.emailParsingQueue.then(async () => {
+				try {
+					this.emails.push(await PostalMime.parse(stdin));
+				} catch (error) {
+					logger.error('Failed to parse captured email', error);
+				}
+			});
+		});
 	}
 
 	protected computeSiteUrl(scope: string) {
@@ -153,6 +176,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking,
 		phpVersion,
 		pathAliases,
+		onProgress,
 	}: {
 		siteUrl: string;
 		sapiName: string;
@@ -162,6 +186,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
+		onProgress?: (caption: string) => void;
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -173,9 +198,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		if (withNetworking) {
 			// @TODO: Is it fine this is only set in this code branch? That
 			//        makes sense and all, but the previous worker always created the transport.
+			onProgress?.('Preparing network transport');
 			this.networkTransport = new WordPressFetchNetworkTransport({
 				corsProxyUrl,
 			});
+			onProgress?.('Generating networking certificate');
 			const CAroot = await generateCertificate({
 				subject: {
 					commonName: 'WordPressPlaygroundCA',
@@ -192,6 +219,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				corsProxyUrl,
 			};
 		} else {
+			onProgress?.('Disabling network transport');
 			phpIniEntries['allow_url_fopen'] = '0';
 			phpIniEntries['disable_functions'] = (
 				phpIniEntries['disable_functions'] ?? ''
@@ -204,18 +232,23 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 		const parsedSiteUrl = new URL(siteUrl);
 		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
+		onProgress?.('Creating PHP request handler');
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
 			phpVersion,
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
+				let wasmTotalSize = 0;
+				onProgress?.('Loading PHP runtime module');
 				return await loadWebRuntime(phpVersion, {
 					extensions,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
+						wasmTotalSize = phpLoaderModule.dependenciesTotalSize;
+						onProgress?.('Preparing PHP runtime download');
 						this.downloadMonitor.expectAssets({
-							[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
+							[wasmUrl]: wasmTotalSize,
 						});
 					},
 					emscriptenOptions: {
@@ -223,13 +256,33 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 							imports: any,
 							receiveInstance: any
 						) => {
-							const response = await this.memoizedFetch(wasmUrl, {
-								credentials: 'same-origin',
-							});
+							onProgress?.(
+								(await hasCachedResponse(wasmUrl))
+									? 'Loading cached PHP runtime'
+									: 'Downloading PHP runtime'
+							);
+							const response =
+								await this.downloadMonitor.monitorFetch(
+									fetchWithInMemoryResume(
+										wasmUrl,
+										{
+											credentials: 'same-origin',
+										},
+										{
+											expectedTotal: wasmTotalSize,
+											onResume: (offset) =>
+												onProgress?.(
+													`Resuming PHP runtime download at ${formatBytes(offset)}`
+												),
+										}
+									)
+								);
+							onProgress?.('Streaming and compiling PHP runtime');
 							const wasm = await WebAssembly.instantiateStreaming(
 								response as Response,
 								imports
 							);
+							onProgress?.('Attaching PHP runtime');
 							receiveInstance(wasm.instance, wasm.module);
 							return {} as any;
 						},
@@ -237,12 +290,31 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				/**
+				 * The remote runtime has no mail server. Capture sendmail stdin as an
+				 * event through a null transport; consumers must relay the message if
+				 * they want it delivered.
+				 */
+				php.setCommandSpawnHandler(
+					'sendmail',
+					sendmailSpawnHandler(php)
+				);
+				this.registerWorkerListeners(php);
+
+				onProgress?.(
+					isPrimary
+						? 'Creating primary PHP instance'
+						: 'Creating secondary PHP instance'
+				);
 				if (!isPrimary) {
 					const pathsToShareBetweenPhpInstances = [
 						'/tmp',
 						requestHandler.documentRoot,
 						'/internal/shared',
 						'/internal/symlinks',
+						// Runtime-installed tools are shared state. Share their filesystem
+						// boundary instead of mounting individual tool directories.
+						'/tools',
 					];
 					const pathsToProxy = pathsToShareBetweenPhpInstances.filter(
 						(path) => !isPathToSharedFS(php, path)
@@ -262,6 +334,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					);
 				}
 				if (withNetworking) {
+					onProgress?.('Setting up PHP network transport');
 					await this.networkTransport!.setupMessageHandler(php);
 				}
 			},
@@ -317,6 +390,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			},
 		});
 
+		onProgress?.('Connecting primary PHP runtime');
 		const primaryPhp = await requestHandler.getPrimaryPhp();
 		primaryPhp.requestHandler ??= requestHandler;
 		await this.setPrimaryPHP(primaryPhp);
@@ -436,6 +510,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		};
 	}
 
+	/**
+	 * Returns the email inbox: every email this Playground has sent so far.
+	 *
+	 * Playground has no mail server. Each message WordPress hands to
+	 * sendmail – via wp_mail(), mail(), proc_open(), etc. – is captured
+	 * instead of being delivered, parsed, and appended to the inbox in
+	 * send order. A message still being written by PHP when this method
+	 * is called is awaited and included in the result.
+	 */
+	async email(): Promise<Email[]> {
+		await this.emailParsingQueue;
+		return this.emails;
+	}
+
 	async hasOpfsMount(mountpoint: string) {
 		return hasOwnProperty(this.opfsMounts, mountpoint);
 	}
@@ -456,31 +544,38 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		await opfsMount.flush();
 	}
 
+	/**
+	 * Flushes and detaches an OPFS mount.
+	 *
+	 * On success, clears its tracking. If the final flush fails, keeps the mount
+	 * registered for retry and rejects with the original persistence error.
+	 * Other unmount failures clear tracking because the mount did not guarantee
+	 * that it remained live.
+	 */
 	async unmountOpfs(mountpoint: string) {
-		const opfsMount = this.opfsMounts[mountpoint];
 		const unmount = this.unmounts[mountpoint];
-		if (opfsMount === undefined || unmount === undefined) {
+		if (
+			this.opfsMounts[mountpoint] === undefined ||
+			unmount === undefined
+		) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		let flushError: unknown;
-		try {
-			await opfsMount.flush();
-		} catch (error) {
-			flushError = error;
-		}
+		let mountIsStillActive = false;
 		try {
 			await unmount();
 		} catch (error) {
-			if (flushError === undefined) {
-				throw error;
+			if (error instanceof MountStillActiveError) {
+				// PHP retained its callback and journal. Keep endpoint tracking
+				// aligned, but do not expose this internal lifecycle signal.
+				mountIsStillActive = true;
+				throw error.cause;
 			}
-			logger.error(error);
+			throw error;
 		} finally {
-			delete this.unmounts[mountpoint];
-			delete this.opfsMounts[mountpoint];
-		}
-		if (flushError !== undefined) {
-			throw flushError;
+			if (!mountIsStillActive) {
+				delete this.unmounts[mountpoint];
+				delete this.opfsMounts[mountpoint];
+			}
 		}
 	}
 
@@ -494,16 +589,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
-	}
-
-	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another
-	// way of listening for events.
-	async onBlueprintMessage(listener: (message: any) => void | Promise<void>) {
-		this.blueprintMessageListeners.push(listener);
-		return async () => {
-			this.blueprintMessageListeners =
-				this.blueprintMessageListeners.filter((l) => l !== listener);
-		};
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -634,6 +719,159 @@ function playground_dequeue_admin_view_transitions_for_chrome_crash() {
 add_action( 'admin_enqueue_scripts', 'playground_dequeue_admin_view_transitions_for_chrome_crash', PHP_INT_MAX );
 `,
 	};
+}
+
+async function fetchWithInMemoryResume(
+	url: string,
+	init: RequestInit,
+	options: {
+		expectedTotal: number;
+		onResume?: (offset: number) => void;
+		stallTimeoutMs?: number;
+		maxRetries?: number;
+	}
+): Promise<Response> {
+	const stallTimeoutMs = options.stallTimeoutMs ?? 15000;
+	// Consecutive failed attempts before giving up. Resets when bytes arrive.
+	const maxRetries = options.maxRetries ?? 10;
+	const firstFetch = await fetchRuntimeChunk(url, init, 0);
+	const responseHeaders = new Headers(firstFetch.response.headers);
+	responseHeaders.set('content-length', `${options.expectedTotal}`);
+
+	const responseInit = {
+		status: firstFetch.response.status,
+		statusText: firstFetch.response.statusText,
+		headers: responseHeaders,
+	};
+	const body = new ReadableStream<Uint8Array>({
+		async start(controller) {
+			let loaded = 0;
+			let retries = 0;
+			let chunkFetch = firstFetch;
+
+			while (loaded < options.expectedTotal) {
+				const reader = chunkFetch.response.body?.getReader();
+				if (!reader) {
+					controller.error(
+						new Error('PHP runtime response has no body')
+					);
+					return;
+				}
+				try {
+					while (true) {
+						const { done, value } = await readWithTimeout(
+							reader,
+							stallTimeoutMs,
+							chunkFetch.abort
+						);
+						if (done) {
+							break;
+						}
+						if (value) {
+							loaded += value.byteLength;
+							// Count consecutive failures only; a stall that
+							// recovers should not eat into the retry budget.
+							retries = 0;
+							controller.enqueue(value);
+						}
+					}
+				} catch (error) {
+					if (loaded >= options.expectedTotal) {
+						break;
+					}
+					if (++retries > maxRetries) {
+						controller.error(error);
+						return;
+					}
+					options.onResume?.(loaded);
+					chunkFetch = await fetchRuntimeChunk(url, init, loaded);
+					continue;
+				}
+
+				if (loaded >= options.expectedTotal) {
+					break;
+				}
+				if (++retries > maxRetries) {
+					controller.error(
+						new Error(
+							`PHP runtime download ended early at ${loaded} bytes`
+						)
+					);
+					return;
+				}
+				options.onResume?.(loaded);
+				chunkFetch = await fetchRuntimeChunk(url, init, loaded);
+			}
+
+			controller.close();
+		},
+	});
+	const [runtimeBody, cacheBody] = body.tee();
+	const response = new Response(runtimeBody, responseInit);
+	// Key the cache entry by the same request the runtime fetch used so
+	// later lookups (cacheFirstFetch, hasCachedResponse) match it.
+	putCachedResponse(
+		new Request(url, init),
+		new Response(cacheBody, responseInit)
+	).catch((error) =>
+		logger.warn('Failed to cache PHP runtime response', error)
+	);
+	Object.defineProperty(response, 'url', {
+		value: url,
+	});
+	return response;
+}
+
+async function fetchRuntimeChunk(
+	url: string,
+	init: RequestInit,
+	offset: number
+): Promise<{ response: Response; abort: () => void }> {
+	const abortController = new AbortController();
+	const headers = new Headers(init.headers);
+	if (offset > 0) {
+		headers.set('range', `bytes=${offset}-`);
+	}
+	const response = await fetch(url, {
+		...init,
+		headers,
+		signal: abortController.signal,
+	});
+	if (offset > 0 && response.status !== 206) {
+		throw new Error(
+			`Cannot resume PHP runtime download because the server returned HTTP ${response.status}`
+		);
+	}
+	if (offset === 0 && !response.ok) {
+		throw new Error(
+			`Failed to download PHP runtime: HTTP ${response.status}`
+		);
+	}
+	return {
+		response,
+		abort: () => abortController.abort(),
+	};
+}
+
+function readWithTimeout(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	timeoutMs: number,
+	abort: () => void
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+	let timeout: ReturnType<typeof setTimeout> | undefined;
+	return Promise.race([
+		reader.read(),
+		new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+			timeout = setTimeout(() => {
+				abort();
+				reject(new Error('PHP runtime download stalled'));
+			}, timeoutMs);
+		}),
+	]).finally(() => {
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+	});
 }
 
 function createNullPrototypeRecord<T>() {

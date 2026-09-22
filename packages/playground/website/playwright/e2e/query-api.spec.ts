@@ -3,7 +3,7 @@ import { test, expect } from '../playground-fixtures';
 import type { BrowserContext, Page } from '@playwright/test';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { resolve } from 'node:path';
-import { encodeStringAsBase64 } from '../../src/lib/base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -239,15 +239,13 @@ test('should enable networking when requested', async ({
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
-test('should open the File Browser tab when requested', async ({ website }) => {
+test('should open the Files pane when requested', async ({ website }) => {
 	await website.goto('./?filebrowser');
 
 	await expect(
-		website.page.locator('section[class*="site-info-panel"]')
+		website.page.getByRole('dialog', { name: 'Files pane', exact: true })
 	).toBeVisible();
-	await expect(
-		website.page.getByRole('tab', { name: /File browser/i })
-	).toHaveAttribute('aria-selected', 'true');
+	await expect(website.page.locator('.cm-editor')).toHaveCount(0);
 });
 
 test('should open a file from the filebrowser query parameter', async ({
@@ -261,15 +259,13 @@ test('should open a file from the filebrowser query parameter', async ({
 	);
 
 	await expect(
-		website.page.locator('[class*="file-browser"] .cm-editor')
+		website.page.locator('[aria-label="Files pane"] .cm-editor')
 	).toBeVisible();
 	await expect(
-		website.page.locator('[class*="file-browser"] .cm-content')
+		website.page.locator('[aria-label="Files pane"] .cm-content')
 	).toContainText('filebrowser query api');
 	await expect(
-		website.page
-			.locator('[class*="editorPath"]')
-			.filter({ hasText: fileBrowserTestAbsolutePath })
+		website.page.locator(`[title="${fileBrowserTestAbsolutePath}"]`)
 	).toBeVisible();
 	await expect(
 		website.page
@@ -278,17 +274,65 @@ test('should open a file from the filebrowser query parameter', async ({
 	).toHaveClass(/_selected_/);
 });
 
-test('should activate the requested filebrowser line', async ({ website }) => {
+for (const viewport of [
+	{ width: 1280, height: 800 },
+	{ width: 390, height: 844 },
+]) {
+	test(`should activate the requested filebrowser line at ${viewport.width}px`, async ({
+		website,
+	}) => {
+		await website.page.setViewportSize(viewport);
+		await website.goto(
+			getFileBrowserQueryUrl(
+				`${fileBrowserTestPath}:4`,
+				getFileBrowserBlueprintHash()
+			)
+		);
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Files pane',
+				exact: true,
+			})
+		).toBeVisible();
+		await expect
+			.poll(async () => getCodeMirrorSelectionLineText(website.page))
+			.toContain('filebrowser active line');
+	});
+}
+
+test('should show a notice for an invalid filebrowser path', async ({
+	website,
+}) => {
+	await website.goto(getFileBrowserQueryUrl('../wp-config.php'));
+	await expect(
+		website.page
+			.getByRole('dialog', { name: 'Files pane', exact: true })
+			.getByText('The requested file path is invalid.', {
+				exact: false,
+			})
+	).toBeVisible();
+	await expect(website.page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('should show a notice for an out-of-range filebrowser line', async ({
+	website,
+}) => {
 	await website.goto(
 		getFileBrowserQueryUrl(
-			`${fileBrowserTestPath}:4`,
+			`${fileBrowserTestPath}:999`,
 			getFileBrowserBlueprintHash()
 		)
 	);
-
-	await expect
-		.poll(async () => getCodeMirrorSelectionLineText(website.page))
-		.toContain('filebrowser active line');
+	await expect(
+		website.page
+			.getByRole('dialog', { name: 'Files pane', exact: true })
+			.getByText('Line 999 is outside this file.', {
+				exact: false,
+			})
+	).toBeVisible();
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-content')
+	).toContainText('filebrowser query api');
 });
 
 test('should show a notice for a missing filebrowser target', async ({
@@ -302,8 +346,8 @@ test('should show a notice for a missing filebrowser target', async ({
 	);
 
 	await expect(
-		website.page.getByRole('tab', { name: /File browser/i })
-	).toHaveAttribute('aria-selected', 'true');
+		website.page.getByRole('dialog', { name: 'Files pane', exact: true })
+	).toBeVisible();
 	await expect(
 		website.page
 			.locator('.components-notice__content')
@@ -314,7 +358,7 @@ test('should show a notice for a missing filebrowser target', async ({
 
 async function getCodeMirrorSelectionLineText(page: Page) {
 	return page
-		.locator('[class*="file-browser"] .cm-content')
+		.locator('[aria-label="Files pane"] .cm-content')
 		.evaluate((content) => {
 			const selection = content.ownerDocument.getSelection();
 			if (

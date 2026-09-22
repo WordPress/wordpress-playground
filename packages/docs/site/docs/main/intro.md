@@ -42,7 +42,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 
 - **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
 
-- **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+- **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 
 ## First steps
 
@@ -65,7 +65,7 @@ Read [**Introduction to Playground: running WordPress in the browser**](https://
 If you're a developer or tech user, you may want to check directly the APIs available:
 
 - Read about [Playground APIs](/developers/apis/) and basic concepts
-- Review [links and resources](/resources)
+- Review [links and resources](/links-and-resources)
 - Choose the right API for your app:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file

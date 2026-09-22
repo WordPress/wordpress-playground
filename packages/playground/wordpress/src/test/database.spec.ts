@@ -161,6 +161,46 @@ echo $GLOBALS['@pdo']->query('PRAGMA journal_mode')->fetchColumn();
 		}
 	);
 
+	it(
+		'should write the mysqli stub before the custom db.php guard',
+		{ timeout: 30_000 },
+		async () => {
+			const dbStubContent = readFileSync(
+				join(__dirname, 'fixtures/mysql-db-stub.php'),
+				'utf-8'
+			);
+
+			await using handler = await bootWordPressAndRequestHandler({
+				createPhpRuntime: async () =>
+					await loadNodeRuntime(RecommendedPHPVersion),
+				siteUrl: 'http://playground-domain/',
+				wordPressZip: await getWordPressModule(),
+				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+				wordpressInstallMode: 'do-not-attempt-installing',
+				hooks: {
+					beforeDatabaseSetup: async (php) => {
+						await php.mkdir('/wordpress/wp-content');
+						await php.writeFile(
+							'/wordpress/wp-content/db.php',
+							dbStubContent
+						);
+					},
+				},
+			});
+
+			const php = await handler.getPrimaryPhp();
+			const preload = await php.readFileAsText(
+				'/internal/shared/preload/0-sqlite.php'
+			);
+			const guardPosition = preload.search(/if\s*\(\s*file_exists\s*\(/);
+			const stubPosition = preload.indexOf('function mysqli_connect()');
+
+			expect(guardPosition).toBeGreaterThanOrEqual(0);
+			expect(stubPosition).toBeGreaterThanOrEqual(0);
+			expect(stubPosition).toBeLessThan(guardPosition);
+		}
+	);
+
 	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {
 		await expect(async () => {
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars

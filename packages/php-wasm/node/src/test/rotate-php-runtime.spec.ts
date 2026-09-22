@@ -617,6 +617,51 @@ describe.each([true, false])(
 			expect(spawnHandlerCallCount).toBe(2);
 		}, 30_000);
 
+		it('Should preserve command spawn handlers through PHP runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+			const php = new PHP(await recreateRuntimeSpy());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 2,
+			});
+
+			let commandHandlerCallCount = 0;
+			php.setCommandSpawnHandler(
+				'sendmail',
+				createSpawnHandler(
+					async (command: string[], processApi: any) => {
+						commandHandlerCallCount++;
+						expect(command).toEqual(['sendmail', '-t']);
+						processApi.stdout('sent mail\n');
+						await new Promise((resolve) => setTimeout(resolve, 1));
+						processApi.exit(0);
+					}
+				)
+			);
+			await php.setSpawnHandler(() => {
+				throw new Error('generic handler');
+			});
+
+			try {
+				const result1 = await php.run({
+					code: `<?php echo exec("sendmail -t");`,
+				});
+				expect(result1.text).toBe('sent mail');
+				expect(commandHandlerCallCount).toBe(1);
+
+				await php.run({ code: `` });
+
+				const result2 = await php.run({
+					code: `<?php echo exec("sendmail -t");`,
+				});
+				expect(result2.text).toBe('sent mail');
+				expect(commandHandlerCallCount).toBe(2);
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+			} finally {
+				php.exit();
+			}
+		}, 30_000);
+
 		it('Should preserve PROXYFS mounts through PHP runtime recreation', async () => {
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 

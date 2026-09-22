@@ -439,10 +439,15 @@ Some Blueprint steps, such as [`writeFile`](/blueprints/steps),
 alter the internal filesystem. Others, such as
 [`runSql`](/blueprints/steps), alter the database.
 
-To inspect the final state, install plugins such as
-[`SQL Buddy`](https://wordpress.org/plugins/sql-buddy/) and
-[`WPide`](https://wordpress.org/plugins/wpide/). You can see them in action at
-https://playground.wordpress.net/?plugin=sql-buddy&plugin=wpide.
+To inspect the final state, use **Files**, **Database**, and **Logs** from the Dock.
+
+Use **Files** to confirm the Blueprint created, moved, or edited the expected files.
+
+![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+
+Use **Database** to inspect tables and records changed by SQL or WordPress steps.
+
+![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
 
 You can also inspect a Playground instance from the browser console through
 `window.playground`:
@@ -475,13 +480,11 @@ You can write your own messages with `error_log()` in a
 [`runPHP` step](/blueprints/steps), then check the Playground
 **Logs** panel or the browser console.
 
-![Log errors snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/log-errors.webp)
+![The PHP error log pane showing PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 
-When you download your Playground instance as a ZIP through the
-["Download as zip"](/web-instance) option, the archive
-also includes `debug.log`.
+When you download your Playground as a ZIP through **Export → Download as .zip**, the archive also includes `debug.log`.
 
 </div>
 

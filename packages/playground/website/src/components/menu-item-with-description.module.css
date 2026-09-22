@@ -1,0 +1,23 @@
+.withDescription:global(.components-button) {
+	height: auto;
+	justify-content: flex-start;
+	min-height: 52px;
+	padding-bottom: 8px;
+	padding-top: 8px;
+	text-align: left;
+}
+
+.withDescription :global(.components-menu-item__item) {
+	align-items: flex-start;
+	min-width: 0;
+	white-space: normal;
+}
+
+.withDescription :global(.components-menu-item__info-wrapper),
+.withDescription :global(.components-menu-item__info) {
+	line-height: 1.4;
+}
+
+.withDescription :global(.components-menu-item__info) {
+	max-width: 240px;
+}

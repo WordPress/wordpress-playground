@@ -36,6 +36,7 @@
 	z-index: 10;
 	overflow: hidden;
 	background: #fff;
+	color: #1e1e1e;
 }
 
 .loading-screen-html {
@@ -62,13 +63,31 @@
 }
 
 .loading-progress-caption {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: start;
 	margin-bottom: 8px;
-	overflow: hidden;
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1.3;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+}
+
+/* Two lines are reserved so a longer caption wraps instead of being cut
+   off, and the card does not jump in height between captions. */
+.loading-progress-caption-text {
+	display: -webkit-box;
+	min-width: 0;
+	min-height: calc(2 * 1.3em);
+	overflow: hidden;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.loading-progress-percent {
+	font-variant-numeric: tabular-nums;
+	color: #50575e;
 }
 
 .loading-progress-track {
@@ -98,13 +117,15 @@
 	cursor: pointer;
 }
 
-.loading-ready-button:hover {
+.loading-ready-button:hover,
+.loading-ready-button:focus-visible {
 	background: #2145e6;
 }
 
 @media (prefers-color-scheme: dark) {
 	.loading-screen {
 		background: #111;
+		color: #f0f0f1;
 	}
 
 	.loading-progress {
@@ -112,6 +133,10 @@
 		background: rgba(30, 30, 30, 0.88);
 		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
 		color: #f0f0f1;
+	}
+
+	.loading-progress-percent {
+		color: #a7aaad;
 	}
 
 	.loading-progress-track {
@@ -158,6 +183,85 @@
 
 .sidebar-latch-button svg {
 	stroke: #fff;
+}
+
+/* Backup reminder — speech bubble pointing at the latch */
+.auto-backup-prompt {
+	position: absolute;
+	bottom: calc(100% + 12px);
+	left: 8px;
+	display: flex;
+	align-items: flex-start;
+	width: max-content;
+	max-width: min(280px, calc(100vw - 24px));
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	background: #fff;
+	color: #1e1e1e;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-size: 13px;
+	line-height: 1.4;
+	animation: auto-backup-prompt-in 0.2s ease;
+}
+
+.auto-backup-prompt::after {
+	content: '';
+	position: absolute;
+	top: 100%;
+	left: 16px;
+	border: 8px solid transparent;
+	border-top-color: #fff;
+	border-bottom: 0;
+	filter: drop-shadow(0 1px 0 #dcdcde);
+}
+
+.auto-backup-prompt-text {
+	flex: 1;
+	margin: 0;
+	padding: 10px 4px 10px 12px;
+}
+
+.auto-backup-prompt-link {
+	padding: 0;
+	border: none;
+	background: none;
+	color: #3858e9;
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.auto-backup-prompt-link:hover {
+	color: #1e1e1e;
+}
+
+.auto-backup-prompt-dismiss {
+	flex: none;
+	padding: 6px 10px;
+	border: none;
+	border-radius: 0 8px 8px 0;
+	background: none;
+	color: #757575;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.auto-backup-prompt-dismiss:hover {
+	color: #1e1e1e;
+}
+
+@keyframes auto-backup-prompt-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 /* Blueprint install banner */

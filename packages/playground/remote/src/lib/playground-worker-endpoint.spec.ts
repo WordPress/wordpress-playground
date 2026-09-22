@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { __private__dont__use } from '@php-wasm/universal';
+import {
+	__private__dont__use,
+	MountStillActiveError,
+} from '@php-wasm/universal';
 import type { MountHandler } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
-import { logger } from '@php-wasm/logger';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 	afterEach(() => {
@@ -85,15 +87,9 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	});
 
-	it('flushes before unmounting an OPFS mount', async () => {
+	it('unmounts an OPFS mount and clears its tracking', async () => {
 		const opfsMount = createOpfsMount();
-		const order: string[] = [];
-		opfsMount.flush.mockImplementation(async () => {
-			order.push('flush');
-		});
-		const unmount = vi.fn(async () => {
-			order.push('unmount');
-		});
+		const unmount = vi.fn(async () => {});
 		const endpoint = await createEndpoint(
 			{ '/wordpress': opfsMount },
 			{ '/wordpress': unmount }
@@ -101,18 +97,15 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 
 		await endpoint.unmountOpfs('/wordpress');
 
-		expect(order).toEqual(['flush', 'unmount']);
+		expect(unmount).toHaveBeenCalledTimes(1);
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 
-	it('rethrows and clears tracking when flush succeeds but unmount fails', async () => {
-		// Covers the `unmountOpfs` failure matrix quadrant where the flush
-		// before unmount resolves cleanly but the underlying PHP unmount
-		// callback throws. In this case the unmount error is the *only*
-		// signal callers get, so it must be re-thrown unchanged, and the
-		// mount registries must still be cleaned up in the `finally` block
-		// to avoid a stuck mountpoint that blocks future `mountOpfs` calls.
+	it('rethrows ordinary unmount errors and clears tracking', async () => {
+		// An ordinary unmount error does not guarantee that the mount remains
+		// active. Rethrow it unchanged, but clear both registries so a stale
+		// callback cannot block a later mountOpfs() call.
 		const unmountError = new Error('unmount failed');
 		const opfsMount = createOpfsMount();
 		const unmount = vi.fn(async () => {
@@ -127,17 +120,18 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 			unmountError
 		);
 
-		expect(opfsMount.flush).toHaveBeenCalledTimes(1);
 		expect(unmount).toHaveBeenCalledTimes(1);
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
 	});
 
-	it('removes mount tracking when the flush before unmount fails', async () => {
-		const flushError = new Error('flush failed');
+	it('retains endpoint tracking when the inner flush leaves the mount active', async () => {
+		const flushError = new Error('inner flush failed');
 		const opfsMount = createOpfsMount();
-		opfsMount.flush.mockRejectedValueOnce(flushError);
-		const unmount = vi.fn(async () => {});
+		const unmount = vi
+			.fn()
+			.mockRejectedValueOnce(new MountStillActiveError(flushError))
+			.mockResolvedValueOnce(undefined);
 		const endpoint = await createEndpoint(
 			{ '/wordpress': opfsMount },
 			{ '/wordpress': unmount }
@@ -146,52 +140,13 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		await expect(endpoint.unmountOpfs('/wordpress')).rejects.toBe(
 			flushError
 		);
+		expect(endpoint.opfsMounts['/wordpress']).toBe(opfsMount);
+		expect(endpoint.unmounts['/wordpress']).toBe(unmount);
 
-		expect(unmount).toHaveBeenCalledTimes(1);
+		await endpoint.unmountOpfs('/wordpress');
+		expect(unmount).toHaveBeenCalledTimes(2);
 		expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
 		expect(endpoint.unmounts['/wordpress']).toBeUndefined();
-	});
-
-	it('prefers the flush error and logs the unmount error when both fail', async () => {
-		// Covers the most adversarial `unmountOpfs` quadrant: both the
-		// pre-unmount flush and the underlying unmount callback reject.
-		//
-		// The production code intentionally surfaces the *flush* error to
-		// the caller because it is the root cause (the unmount error is
-		// often a downstream symptom of an already-broken flush), and
-		// routes the unmount error through `logger.error` so it is not
-		// silently discarded. Registry cleanup must still happen.
-		//
-		// Without this test, a regression that flipped the priority
-		// (throwing the unmount error instead of the flush error) or
-		// dropped the unmount error without logging would go unnoticed.
-		const flushError = new Error('flush failed');
-		const unmountError = new Error('unmount failed');
-		const opfsMount = createOpfsMount();
-		opfsMount.flush.mockRejectedValueOnce(flushError);
-		const unmount = vi.fn(async () => {
-			throw unmountError;
-		});
-		const loggerError = vi
-			.spyOn(logger, 'error')
-			.mockImplementation(() => {});
-		try {
-			const endpoint = await createEndpoint(
-				{ '/wordpress': opfsMount },
-				{ '/wordpress': unmount }
-			);
-
-			await expect(endpoint.unmountOpfs('/wordpress')).rejects.toBe(
-				flushError
-			);
-
-			expect(unmount).toHaveBeenCalledTimes(1);
-			expect(loggerError).toHaveBeenCalledWith(unmountError);
-			expect(endpoint.opfsMounts['/wordpress']).toBeUndefined();
-			expect(endpoint.unmounts['/wordpress']).toBeUndefined();
-		} finally {
-			loggerError.mockRestore();
-		}
 	});
 
 	it('throws before mounting when an OPFS mount already exists', async () => {

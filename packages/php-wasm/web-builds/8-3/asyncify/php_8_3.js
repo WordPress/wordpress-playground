@@ -1,7 +1,7 @@
-import dependencyFilename from './8_3_32/php_8_3.wasm';
+import dependencyFilename from './8_3_33/php_8_3.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 18309089;
-const phpVersionString = '8.3.32';
+export const dependenciesTotalSize = 18309855;
+const phpVersionString = '8.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
@@ -7219,6 +7219,8 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				const interval = setInterval(pump, 20);
 				pump();
+			} else {
+				cp.stdin.end();
 			}
 			return ProcInfo.pid;
 		});
@@ -8418,6 +8420,7 @@ export function init(RuntimeName, PHPLoader) {
 		_dlclose,
 		_strcmp,
 		_getenv,
+		_explicit_bzero,
 		_atoi,
 		_strrchr,
 		_realloc,
@@ -8428,6 +8431,7 @@ export function init(RuntimeName, PHPLoader) {
 		_tolower,
 		_strtok_r,
 		_unlink,
+		_strncasecmp,
 		_fileno,
 		_fread,
 		_fclose,
@@ -8460,6 +8464,7 @@ export function init(RuntimeName, PHPLoader) {
 		_atan,
 		_log,
 		_fmod,
+		_sscanf,
 		_wasm_php_exec,
 		_php_pollfd_for,
 		_htons,
@@ -8912,6 +8917,8 @@ export function init(RuntimeName, PHPLoader) {
 		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
 		_strcmp = Module['_strcmp'] = wasmExports['strcmp'];
 		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
 		_strrchr = Module['_strrchr'] = wasmExports['strrchr'];
 		_realloc = Module['_realloc'] = wasmExports['realloc'];
@@ -8922,6 +8929,7 @@ export function init(RuntimeName, PHPLoader) {
 		_tolower = Module['_tolower'] = wasmExports['tolower'];
 		_strtok_r = Module['_strtok_r'] = wasmExports['strtok_r'];
 		_unlink = Module['_unlink'] = wasmExports['unlink'];
+		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
 		_fileno = Module['_fileno'] = wasmExports['fileno'];
 		_fread = Module['_fread'] = wasmExports['fread'];
 		_fclose = Module['_fclose'] = wasmExports['fclose'];
@@ -8954,6 +8962,7 @@ export function init(RuntimeName, PHPLoader) {
 		_atan = Module['_atan'] = wasmExports['atan'];
 		_log = Module['_log'] = wasmExports['log'];
 		_fmod = Module['_fmod'] = wasmExports['fmod'];
+		_sscanf = Module['_sscanf'] = wasmExports['sscanf'];
 		_wasm_php_exec = Module['_wasm_php_exec'] =
 			wasmExports['wasm_php_exec'];
 		_php_pollfd_for = Module['_php_pollfd_for'] =

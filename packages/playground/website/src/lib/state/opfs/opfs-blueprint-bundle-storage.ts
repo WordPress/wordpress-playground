@@ -54,17 +54,28 @@ export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
 }
 
 /**
- * Copy files from a source filesystem to a site's blueprint bundle storage.
+ * Copies a Blueprint bundle into a site's OPFS directory.
+ *
+ * The returned backend points to the copied bundle. Callers creating a site can
+ * store it in the site's metadata without reopening the destination directory.
+ *
+ * A failed copy may leave partial files in the destination. Callers that need
+ * atomic creation are responsible for removing that destination during rollback.
+ *
+ * @param siteSlug The site that will own the copied bundle.
+ * @param source The bundle filesystem to copy.
+ * @returns The OPFS backend containing the copied bundle.
  */
 export async function persistBlueprintBundle(
 	siteSlug: string,
 	source: TraversableFilesystemBackend
-): Promise<void> {
+): Promise<OpfsFilesystemBackend> {
 	const destination = await OpfsFilesystemBackend.fromPath(
 		getBundlePath(siteSlug),
 		true
 	);
 	await copyFilesystem(source, destination);
+	return destination;
 }
 
 /**

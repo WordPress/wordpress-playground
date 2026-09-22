@@ -103,8 +103,14 @@ export interface InstallPluginOptions {
  * @param pluginData The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
+export interface InstallPluginResult {
+	assetPath: string;
+	installationStatus: 'installed' | 'skipped-already-existed';
+}
+
 export const installPlugin: StepHandler<
-	InstallPluginStep<File, Directory>
+	InstallPluginStep<File, Directory>,
+	Promise<InstallPluginResult | undefined>
 > = async (
 	playground,
 	{ pluginData, pluginZipFile, ifAlreadyInstalled, options = {} },
@@ -117,8 +123,11 @@ export const installPlugin: StepHandler<
 		);
 	}
 
-	let assetFolderPath = '';
+	let assetPath = '';
 	let assetNiceName = '';
+	let installationStatus: InstallPluginResult['installationStatus'] =
+		'installed';
+	let installationCompleted = false;
 	const progressName = () => options.humanReadableName || assetNiceName;
 
 	const looksLikeZipFile = async (file: File): Promise<boolean> => {
@@ -162,8 +171,9 @@ export const installPlugin: StepHandler<
 					targetPath: `${await playground.documentRoot}/wp-content/plugins`,
 					targetFolderName: targetFolderName,
 				});
-				assetFolderPath = assetResult.assetFolderPath;
+				assetPath = assetResult.assetFolderPath;
 				assetNiceName = assetResult.assetFolderName;
+				installationStatus = assetResult.installationStatus;
 			} else if (pluginData.name.endsWith('.php')) {
 				const destinationFilePath = joinPaths(
 					pluginsDirectoryPath,
@@ -173,7 +183,7 @@ export const installPlugin: StepHandler<
 					path: destinationFilePath,
 					data: pluginData,
 				});
-				assetFolderPath = pluginsDirectoryPath;
+				assetPath = destinationFilePath;
 				assetNiceName = pluginData.name;
 			} else {
 				throw new Error(
@@ -191,16 +201,38 @@ export const installPlugin: StepHandler<
 				pluginsDirectoryPath,
 				targetFolderName || pluginData.name
 			);
-			await writeFiles(
-				playground,
-				pluginDirectoryPath,
-				pluginData.files,
-				{
-					rmRoot: true,
+			assetPath = pluginDirectoryPath;
+			let shouldWritePluginFiles = true;
+			// Honor the requested collision policy before replacing an existing
+			// plugin directory and potentially discarding local changes.
+			if (await playground.fileExists(pluginDirectoryPath)) {
+				if (!(await playground.isDir(pluginDirectoryPath))) {
+					throw new Error(
+						`Cannot install plugin ${assetNiceName} to ${pluginDirectoryPath} because a file with the same name already exists. Note it's a file, not a directory! Is this by mistake?`
+					);
 				}
-			);
-			assetFolderPath = pluginDirectoryPath;
+				if ((ifAlreadyInstalled ?? 'overwrite') === 'skip') {
+					shouldWritePluginFiles = false;
+					installationStatus = 'skipped-already-existed';
+				} else if (ifAlreadyInstalled === 'error') {
+					throw new Error(
+						`Cannot install plugin ${assetNiceName} to ${pluginDirectoryPath} because it already exists and ` +
+							`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+					);
+				}
+			}
+			if (shouldWritePluginFiles) {
+				await writeFiles(
+					playground,
+					pluginDirectoryPath,
+					pluginData.files,
+					{
+						rmRoot: true,
+					}
+				);
+			}
 		}
+		installationCompleted = Boolean(assetPath);
 
 		// Activate
 		const activate = 'activate' in options ? options.activate : true;
@@ -210,7 +242,7 @@ export const installPlugin: StepHandler<
 			if (options.activationOptions !== undefined) {
 				activationOptionName = await setPluginActivationOptions(
 					playground,
-					assetFolderPath,
+					assetPath,
 					options.activationOptions
 				);
 			}
@@ -218,7 +250,7 @@ export const installPlugin: StepHandler<
 				await activatePlugin(
 					playground,
 					{
-						pluginPath: assetFolderPath,
+						pluginPath: assetPath,
 						pluginName: progressName(),
 					},
 					progress
@@ -232,6 +264,8 @@ export const installPlugin: StepHandler<
 				}
 			}
 		}
+
+		return { assetPath, installationStatus };
 	} catch (error) {
 		if (options.onError === 'skip-plugin') {
 			const skippedPluginName = progressName() || 'unknown plugin';
@@ -240,7 +274,9 @@ export const installPlugin: StepHandler<
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
-			return;
+			return installationCompleted
+				? { assetPath, installationStatus }
+				: undefined;
 		}
 		throw error;
 	}

@@ -66,9 +66,19 @@ export {
 	LEGACY_PHP_INI_CONTENT,
 	LEGACY_PHP_INI_PATH,
 } from './legacy-php-ini';
-export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
+export {
+	MountStillActiveError,
+	PHP,
+	__private__dont__use,
+	PHPExecutionFailureError,
+} from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
+export { phpEventStdinTransfer } from '@php-wasm/util';
+export type {
+	PHPEventWithStdinTransfer,
+	PHPSendmailSpawnedEvent,
+} from '@php-wasm/util';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,

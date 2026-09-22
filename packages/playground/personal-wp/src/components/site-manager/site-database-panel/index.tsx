@@ -5,6 +5,7 @@ import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
+import { formatBytes } from '../../../lib/utils/format-bytes';
 
 const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
 
@@ -40,14 +41,6 @@ export function SiteDatabasePanel({
 
 		void fetchDatabaseSize();
 	}, [playground]);
-
-	const formatBytes = (bytes: number): string => {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-	};
 
 	return (
 		<VStack spacing={4}>

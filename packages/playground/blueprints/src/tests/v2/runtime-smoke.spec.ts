@@ -8,7 +8,15 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { InMemoryFilesystem } from '@wp-playground/storage';
 import { readFile } from 'fs/promises';
-import { describe, beforeAll, beforeEach, afterEach, expect, it } from 'vitest';
+import {
+	describe,
+	beforeAll,
+	beforeEach,
+	afterEach,
+	expect,
+	it,
+	vi,
+} from 'vitest';
 import { compileBlueprintForExecution } from '../../lib/compile';
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 
@@ -40,6 +48,125 @@ describe('Blueprint v2 runtime smoke tests', () => {
 	afterEach(async () => {
 		php.exit();
 		await handler[Symbol.asyncDispose]();
+	});
+
+	it('removes all initial content before importing Blueprint content', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'empty',
+			content: [
+				{
+					type: 'posts',
+					source: {
+						post_title: 'First Blueprint post',
+						post_name: 'first-blueprint-post',
+						post_status: 'publish',
+					},
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				$post = get_page_by_path('first-blueprint-post', OBJECT, 'post');
+				echo json_encode([
+					'postId' => $post ? $post->ID : null,
+					'helloWorldExists' => (bool) get_page_by_path('hello-world', OBJECT, 'post'),
+					'samplePageExists' => (bool) get_page_by_path('sample-page', OBJECT, 'page'),
+					'commentCount' => (int) get_comments(['count' => true]),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			postId: 1,
+			helloWorldExists: false,
+			samplePageExists: false,
+			commentCount: 0,
+		});
+	});
+
+	it('clears the published-post cache after removing initial posts', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'empty',
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'publishedPostCount' => (int) $wpdb->get_var(
+						"SELECT COUNT(*) FROM {$wpdb->posts} " .
+						"WHERE post_type = 'post' AND post_status = 'publish'"
+					),
+					'calendarCache' => get_option(
+						'wp_calendar_block_has_published_posts',
+						null
+					),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			publishedPostCount: 0,
+			calendarCache: null,
+		});
+	});
+
+	it('preserves only the selected initial content types', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'posts',
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'helloWorldExists' => (bool) get_page_by_path('hello-world', OBJECT, 'post'),
+					'samplePageExists' => (bool) get_page_by_path('sample-page', OBJECT, 'page'),
+					'commentCount' => (int) get_comments(['count' => true]),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			helloWorldExists: true,
+			samplePageExists: false,
+			commentCount: 0,
+		});
+	});
+
+	it('replaces the installation user with a declared administrator', async () => {
+		await applyBlueprint({
+			version: 2,
+			contentBaseline: 'empty',
+			usersBaseline: 'empty',
+			users: [
+				{
+					username: 'replacement-admin',
+					email: 'replacement-admin@example.com',
+					role: 'administrator',
+					meta: {},
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				$replacement = get_user_by('login', 'replacement-admin');
+				echo json_encode([
+					'userIds' => array_map('intval', get_users(['fields' => 'ID'])),
+					'replacementId' => $replacement ? $replacement->ID : null,
+					'defaultAdminExists' => (bool) get_user_by('login', 'admin'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			userIds: [1],
+			replacementId: 1,
+			defaultAdminExists: false,
+		});
 	});
 
 	it('creates roles and users', async () => {
@@ -153,6 +280,100 @@ describe('Blueprint v2 runtime smoke tests', () => {
 			environment: 'local',
 			blogname: 'V2 Runtime Site',
 			timezone: 'Europe/Warsaw',
+		});
+	});
+
+	it('applies Playground login options', async () => {
+		await applyBlueprint({
+			version: 2,
+			applicationOptions: {
+				'wordpress-playground': {
+					login: {
+						username: 'v2_runtime_login',
+						password: 'not-used',
+					},
+				},
+			},
+			users: [
+				{
+					username: 'v2_runtime_login',
+					email: 'v2-runtime-login@example.com',
+					role: 'administrator',
+					meta: {},
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'autoLoginUser' => defined('PLAYGROUND_AUTO_LOGIN_AS_USER')
+						? PLAYGROUND_AUTO_LOGIN_AS_USER
+						: null,
+					'userExists' => (bool) get_user_by('login', 'v2_runtime_login'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			autoLoginUser: 'v2_runtime_login',
+			userExists: true,
+		});
+	});
+
+	it('installs and selects the requested site language', async () => {
+		const emptyZip = new Uint8Array([
+			0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0,
+		]);
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (input) => {
+				const url =
+					input instanceof Request ? input.url : String(input);
+				if (url.includes('/translations/core/1.0/')) {
+					return new Response(
+						JSON.stringify({
+							translations: [
+								{
+									language: 'es_ES',
+									package: 'https://example.com/es_ES.zip',
+								},
+							],
+						}),
+						{
+							status: 200,
+							headers: { 'Content-Type': 'application/json' },
+						}
+					);
+				}
+				return new Response(emptyZip, {
+					status: 200,
+					headers: { 'Content-Type': 'application/zip' },
+				});
+			});
+
+		try {
+			await applyBlueprint({
+				version: 2,
+				siteLanguage: 'es_ES',
+			});
+		} finally {
+			fetchSpy.mockRestore();
+		}
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'constant' => defined('WPLANG') ? WPLANG : null,
+					'option' => get_option('WPLANG'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			constant: 'es_ES',
+			option: 'es_ES',
 		});
 	});
 
@@ -505,6 +726,243 @@ add_action('init', function () {
 			supportsEditor: true,
 			supportsCustomFields: true,
 		});
+	});
+
+	it('loads inline mu-plugins', async () => {
+		await applyBlueprint({
+			version: 2,
+			muPlugins: [
+				{
+					filename: 'v2-runtime-mu-plugin.php',
+					content: `<?php
+						add_action('init', function () {
+							update_option('v2_runtime_mu_plugin_loaded', 'yes');
+						});
+					`,
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'loaded' => get_option('v2_runtime_mu_plugin_loaded'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			loaded: 'yes',
+		});
+	});
+
+	it('installs inline font files and full font collections', async () => {
+		await applyBlueprint({
+			version: 2,
+			fonts: {
+				'v2-runtime-font': {
+					filename: 'v2-runtime-font.woff2',
+					content: 'fontdata',
+				},
+				'v2-runtime-collection': {
+					font_families: [
+						{
+							font_family_settings: {
+								name: 'V2 Collection Font',
+								slug: 'v2-collection-font',
+								fontFamily: 'V2 Collection Font',
+								fontFace: [
+									{
+										fontFamily: 'V2 Collection Font',
+										fontStyle: 'normal',
+										fontWeight: '400',
+										src: {
+											filename:
+												'v2-collection-font.woff2',
+											content: 'collection-fontdata',
+										},
+									},
+								],
+							},
+							categories: ['sans-serif'],
+						},
+					],
+				},
+			},
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				$simple_family = get_page_by_path('v2-runtime-font', OBJECT, 'wp_font_family');
+				$simple_faces = $simple_family ? get_posts([
+					'post_type' => 'wp_font_face',
+					'post_parent' => $simple_family->ID,
+					'post_status' => 'publish',
+					'numberposts' => -1,
+				]) : [];
+				$simple_face = $simple_faces ? $simple_faces[0] : null;
+
+				$collection_family = get_page_by_path('v2-collection-font', OBJECT, 'wp_font_family');
+				$collection_faces = $collection_family ? get_posts([
+					'post_type' => 'wp_font_face',
+					'post_parent' => $collection_family->ID,
+					'post_status' => 'publish',
+					'numberposts' => -1,
+				]) : [];
+				$collection_face = $collection_faces ? $collection_faces[0] : null;
+
+				echo json_encode([
+					'simpleFamilyExists' => (bool) $simple_family,
+					'simpleFamilyTitle' => $simple_family ? $simple_family->post_title : null,
+					'simpleFaceFile' => $simple_face ? get_post_meta($simple_face->ID, '_wp_font_face_file', true) : null,
+					'collectionFamilyExists' => (bool) $collection_family,
+					'collectionFamilyTitle' => $collection_family ? $collection_family->post_title : null,
+					'collectionFaceFile' => $collection_face ? get_post_meta($collection_face->ID, '_wp_font_face_file', true) : null,
+				]);
+			`,
+		});
+
+		expect(result).toMatchObject({
+			simpleFamilyExists: true,
+			simpleFamilyTitle: 'V2 Runtime Font',
+			collectionFamilyExists: true,
+			collectionFamilyTitle: 'V2 Collection Font',
+		});
+		expect(result.simpleFaceFile).toMatch(/v2-runtime-font.*\.woff2$/);
+		expect(result.collectionFaceFile).toMatch(
+			/v2-collection-font.*\.woff2$/
+		);
+	});
+
+	it('imports bundled SQL dumps', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				content: [
+					{
+						type: 'mysql-dump',
+						source: './sql/site-options.sql',
+					},
+				],
+			}),
+			sql: {
+				'site-options.sql': `
+					CREATE TABLE blueprint_v2_runtime_sql (value TEXT);
+					INSERT INTO blueprint_v2_runtime_sql (value)
+					VALUES ('imported from bundled SQL');
+				`,
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				global $wpdb;
+				echo json_encode([
+					'value' => $wpdb->get_var('SELECT value FROM blueprint_v2_runtime_sql'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			value: 'imported from bundled SQL',
+		});
+	});
+
+	it('runs bundled PHP files from additional v2 steps', async () => {
+		const bundle = new InMemoryFilesystem({
+			'blueprint.json': JSON.stringify({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'runPHP',
+						code: './scripts/set-option.php',
+						env: {
+							V2_RUNTIME_VALUE: 'set by bundled PHP',
+						},
+					},
+				],
+			}),
+			scripts: {
+				'set-option.php': `<?php
+					require '/wordpress/wp-load.php';
+					update_option(
+						'v2_runtime_file_backed_runphp',
+						getenv('V2_RUNTIME_VALUE')
+					);
+				`,
+			},
+		});
+
+		await applyBlueprint(bundle);
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'value' => get_option('v2_runtime_file_backed_runphp'),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({
+			value: 'set by bundled PHP',
+		});
+	});
+
+	it('imports a target-site WXR file created by an earlier plugin install', async () => {
+		const wxr = await readFile(
+			new URL(
+				'../fixtures/import-wxr-base-url-rewriting.xml',
+				import.meta.url
+			),
+			'utf8'
+		);
+
+		await applyBlueprint({
+			version: 2,
+			plugins: [
+				{
+					source: {
+						directoryName: 'fixture-plugin',
+						files: {
+							'fixture-plugin.php': `<?php
+/**
+ * Plugin Name: Target-site WXR fixture
+ */
+`,
+							'sample-data': {
+								files: {
+									'content.xml': wxr,
+								},
+							},
+						},
+					},
+					targetDirectoryName: 'fixture-plugin',
+				},
+			],
+			content: [
+				{
+					type: 'wxr',
+					source: 'site:wp-content/plugins/fixture-plugin/sample-data/content.xml',
+					authorsMode: 'default-author',
+				},
+			],
+		});
+
+		const result = await runWordPressJson({
+			code: `
+				echo json_encode([
+					'imported' => (bool) get_page_by_title(
+						'"The Road Not Taken" by Robert Frost',
+						OBJECT,
+						'post'
+					),
+				]);
+			`,
+		});
+
+		expect(result).toEqual({ imported: true });
 	});
 
 	it(
