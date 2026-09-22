@@ -31,9 +31,10 @@ export interface ImportThemeStarterContentStep {
  *
  * For example, this complete Blueprint writes and activates a plugin that registers a
  * Home page as starter content for the active theme, then imports it and sets it as the
- * site's front page. The plugin runs on `after_setup_theme` at priority 100 so it registers
- * its content after the theme's setup callbacks. This replaces any starter content the
- * theme registered. All plugin code is included inline; no external PHP file is needed.
+ * site's front page. The plugin runs on `after_setup_theme` at priority 100, after callbacks
+ * with lower priorities, and replaces previously registered starter content. Callbacks
+ * registered later at priority 100, or at a higher priority, can replace this content again
+ * before it is imported. All plugin code is included inline; no external PHP file is needed.
  *
  * ```json
  * {
