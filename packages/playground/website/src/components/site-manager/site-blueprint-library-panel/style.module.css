@@ -1,0 +1,100 @@
+.libraryPanel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 0 24px 24px;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.toolbar {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.toolbarActions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.search {
+	flex: 1 1 240px;
+	min-width: 180px;
+}
+
+.category-tab-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 12px;
+	min-height: 0;
+	overflow: auto;
+}
+
+.item {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid var(--divider);
+	border-radius: 6px;
+	background: #fff;
+}
+
+.itemHeader {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.itemTitle {
+	margin: 0;
+	color: var(--ink);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 20px;
+}
+
+.itemDescription {
+	margin: 4px 0 0;
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 18px;
+}
+
+.itemActions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.secretFields {
+	display: grid;
+	gap: 8px;
+}
+
+.secretFields :global(.components-base-control__field) {
+	margin-bottom: 0;
+}
+
+.runStatus {
+	color: var(--ink-muted);
+	font-size: 12px;
+	line-height: 16px;
+}
+
+.empty {
+	padding: 24px;
+	color: var(--ink-muted);
+	text-align: center;
+	border: 1px dashed var(--divider);
+	border-radius: 6px;
+}

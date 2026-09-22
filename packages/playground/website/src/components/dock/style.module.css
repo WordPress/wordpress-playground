@@ -44,6 +44,16 @@
 	-webkit-user-select: text;
 }
 
+.extra-tools-header {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.extra-tools-header p {
+	margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.dock {
 		transition: none;
