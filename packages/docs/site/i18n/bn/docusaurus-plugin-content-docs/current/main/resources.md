@@ -166,7 +166,10 @@ There's a set of redirections in place to make it easier the access to some of t
 - [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
 - [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
 - [WordPress Playground + AI: Building Autonomous Testing Pipelines](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) by Fellyph Cintra
+- [Revolucionando WordPress: Innovaciones de IA que transforman tu trabajo diario (in Spanish)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) by Evan Tobiessen
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
+- [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
+- [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
 -->
 
 ## ভিডিও
@@ -219,4 +222,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লুপ্রিন্ট: শূন্য থেকে দক্ষতা (স্প্যানিশ ভাষায়)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) - ফেলিপ সিন্ট্রা
 - [ওয়ার্ডপ্রেস ব্লুপ্রিন্ট দিয়ে শুরু করা (বাংলা ভাষায়)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) - মনজুর আলম
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড + AI: স্বয়ংক্রিয় টেস্টিং পাইপলাইন তৈরি](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেসে বিপ্লব: দৈনন্দিন কাজ বদলে দিচ্ছে এমন AI উদ্ভাবন (স্প্যানিশ ভাষায়)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) - এভান টোবিসেন
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে নতুন কী?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) - ফেলিপ সিন্ট্রা
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কীভাবে ওয়ার্ডপ্রেস ইকোসিস্টেম বদলে দিচ্ছে](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) - বেরিস্লাভ গ্রগিক্যাক
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের নতুন ইউজার ইন্টারফেস](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) - ফেলিপ সিন্ট্রা
