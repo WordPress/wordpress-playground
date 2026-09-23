@@ -5,18 +5,21 @@ import {
 	type Pooled,
 	type PHPRequest,
 	type PathAlias,
-	type RemoteAPI,
 	type AllPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	StreamedPHPResponse,
 	HttpCookieStore,
-	exposeAPI,
-	exposeSyncAPI,
 	printDebugDetails,
 	describeError,
 } from '@php-wasm/universal';
+import {
+	exposeAPI,
+	exposeSyncAPI,
+	releaseApiProxy,
+	type RemoteAPI,
+} from '@php-wasm/universal/playground-rpc';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
@@ -1151,27 +1154,75 @@ export async function runCLI(
 			// - multiple, conflicting dispose attempts
 			// - logging that a worker exited while the CLI itself is exiting
 			let disposing = false;
+			let disposePromise: Promise<void> | undefined;
 			const disposeCLI = async function disposeCLI() {
-				if (disposing) {
-					return;
+				if (disposePromise) {
+					return disposePromise;
 				}
 
 				disposing = true;
-				await Promise.all(
-					spawnedWorkers.map(async (spawnedWorker) => {
-						await workerToPlaygroundMap
-							.get(spawnedWorker)
-							?.dispose();
-						await spawnedWorker.worker.terminate();
-					})
-				);
-				if (server) {
-					await new Promise((resolve) => {
-						server.close(resolve);
-						server.closeAllConnections();
-					});
-				}
-				await nativeDir.cleanup();
+				disposePromise = (async () => {
+					const cleanupErrors: unknown[] = [];
+					const workerResults = await Promise.allSettled(
+						spawnedWorkers.map(async (spawnedWorker) => {
+							const workerErrors: unknown[] = [];
+							const playground =
+								workerToPlaygroundMap.get(spawnedWorker);
+							try {
+								await playground?.dispose();
+							} catch (error) {
+								workerErrors.push(error);
+							}
+							try {
+								await playground?.[releaseApiProxy]();
+							} catch (error) {
+								workerErrors.push(error);
+							}
+							try {
+								await spawnedWorker.worker.terminate();
+							} catch (error) {
+								workerErrors.push(error);
+							}
+							if (workerErrors.length > 0) {
+								throw new AggregateError(
+									workerErrors,
+									'Failed to clean up a Playground CLI worker.'
+								);
+							}
+						})
+					);
+					for (const result of workerResults) {
+						if (result.status === 'rejected') {
+							cleanupErrors.push(result.reason);
+						}
+					}
+
+					if (server) {
+						try {
+							await new Promise<void>((resolve, reject) => {
+								server!.close((error) =>
+									error ? reject(error) : resolve()
+								);
+								server!.closeAllConnections();
+							});
+						} catch (error) {
+							cleanupErrors.push(error);
+						}
+					}
+					try {
+						await nativeDir.cleanup();
+					} catch (error) {
+						cleanupErrors.push(error);
+					}
+
+					if (cleanupErrors.length > 0) {
+						throw new AggregateError(
+							cleanupErrors,
+							'Failed to fully clean up Playground CLI resources.'
+						);
+					}
+				})();
+				return disposePromise;
 			};
 
 			// Everything below (symlink setup, Xdebug config, blueprint
@@ -2120,7 +2171,7 @@ export function spawnWorkerThread(
 /**
  * Expose the file lock manager API on a MessagePort and return it.
  *
- * @see comlink-sync.ts
+ * @see The synchronous Playground RPC API in @php-wasm/universal
  * @see phpwasm-emscripten-library-file-locking-for-node.js
  */
 async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
@@ -2131,7 +2182,7 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	 * between synchronous and asynchronous APIs.
 	 *
 	 * @todo: Fill in the file containing the injected file locking system calls.
-	 * @see comlink-sync.ts
+	 * @see The synchronous Playground RPC API in @php-wasm/universal
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	await exposeSyncAPI(fileLockManager, port1);

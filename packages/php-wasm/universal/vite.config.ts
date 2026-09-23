@@ -33,10 +33,11 @@ export default defineConfig({
 	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
 		lib: {
-			// Could also be a dictionary or array of multiple entry points.
-			entry: 'src/index.ts',
+			entry: {
+				index: 'src/index.ts',
+				'playground-rpc': 'src/playground-rpc.ts',
+			},
 			name: 'php-wasm-universal',
-			fileName: 'index',
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,
