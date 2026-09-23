@@ -67,32 +67,20 @@ const plugins = [
 		renderChunk(code, _chunk, outputOptions) {
 			const format = (outputOptions as any).format as string | undefined;
 			const isCjs = format === 'cjs';
-			const v1 = isCjs
-				? './worker-thread-v1.cjs'
-				: './worker-thread-v1.js';
-			const v2 = isCjs
-				? './worker-thread-v2.cjs'
-				: './worker-thread-v2.js';
+			const workerUrl = isCjs
+				? './worker-thread.cjs'
+				: './worker-thread.js';
 			let transformed = code;
 			// Replace macro tokens if used
 			transformed = transformed
-				.split(/(?<!["'])__WORKER_V1_URL__(?!["'])/g)
-				.join(JSON.stringify(v1));
-			transformed = transformed
-				.split(/(?<!["'])__WORKER_V2_URL__(?!["'])/g)
-				.join(JSON.stringify(v2));
+				.split(/(?<!["'])__WORKER_URL__(?!["'])/g)
+				.join(JSON.stringify(workerUrl));
 			// Replace usages of imported worker URL strings inside new URL(...)
-			const patternV1 =
-				/new\s+URL\(\s*importedWorkerV1UrlString\s*,\s*import\.meta\.url\s*\)/g;
-			const patternV2 =
-				/new\s+URL\(\s*importedWorkerV2UrlString\s*,\s*import\.meta\.url\s*\)/g;
+			const pattern =
+				/new\s+URL\(\s*importedWorkerUrlString\s*,\s*import\.meta\.url\s*\)/g;
 			transformed = transformed.replace(
-				patternV1,
-				`new URL(${JSON.stringify(v1)}, import.meta.url)`
-			);
-			transformed = transformed.replace(
-				patternV2,
-				`new URL(${JSON.stringify(v2)}, import.meta.url)`
+				pattern,
+				`new URL(${JSON.stringify(workerUrl)}, import.meta.url)`
 			);
 			if (transformed !== code) {
 				return { code: transformed, map: null };
@@ -158,10 +146,7 @@ export default defineConfig({
 			output: {
 				entryFileNames: (chunkInfo: any) => {
 					// Keep stable filenames for worker threads without hash
-					if (
-						chunkInfo.name === 'worker-thread-v1' ||
-						chunkInfo.name === 'worker-thread-v2'
-					) {
+					if (chunkInfo.name === 'worker-thread') {
 						return '[name].js';
 					}
 					return '[name]-[hash].js';
@@ -184,8 +169,7 @@ export default defineConfig({
 			entry: {
 				index: 'src/index.ts',
 				cli: 'src/cli.ts',
-				'worker-thread-v1': 'src/blueprints-v1/worker-thread-v1.ts',
-				'worker-thread-v2': 'src/blueprints-v2/worker-thread-v2.ts',
+				'worker-thread': 'src/worker-thread.ts',
 			},
 			name: 'playground-cli',
 			formats: ['es', 'cjs'],
