@@ -239,14 +239,14 @@ You can also use the `wp-cli` step in combination with the `writeFile` step to c
 
 <div class="callout callout-tip">
 
-コンテンツとアイキャッチ画像の関係を示す完全な例を確認するには、[Blueprints ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) の ["wp-cli を使用して画像付きの投稿を追加する"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) の例を確認してください。
+コンテンツとアイキャッチ画像の関係を示す完全な例を確認するには、[Blueprints ギャラリー](https://wordpress.github.io/blueprints/) の ["wp-cli を使用して画像付きの投稿を追加する"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) の例を確認してください。
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to see the full example showing the connection between the content and the featured image.
+Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to see the full example showing the connection between the content and the featured image.
 
 </div>
 -->
