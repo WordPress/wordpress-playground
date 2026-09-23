@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { getSqliteDatabasePath } from '@wp-playground/tools';
+import {
+	getSqliteDatabasePath,
+	getSqliteDatabaseSize,
+} from '@wp-playground/tools';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
@@ -38,9 +41,9 @@ export function SiteDatabasePanel({
 				setDatabasePath(path);
 				const fileExists = await playground.fileExists(path);
 				if (fileExists) {
-					const buffer = await playground.readFileAsBuffer(path);
+					const size = await getSqliteDatabaseSize(playground, path);
 					if (cancelled) return;
-					setDatabaseSize(buffer.byteLength);
+					setDatabaseSize(size);
 				}
 			} catch {
 				if (!cancelled) setDatabaseSize(null);

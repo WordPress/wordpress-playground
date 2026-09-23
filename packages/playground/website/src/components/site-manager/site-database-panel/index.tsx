@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getSqliteDatabasePath } from '@wp-playground/tools';
+import {
+	getSqliteDatabasePath,
+	getSqliteDatabaseSize,
+} from '@wp-playground/tools';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { Notice } from '@wordpress/components';
 import { PlaygroundBootNotice } from '../../pane-loading';
@@ -38,7 +41,7 @@ export function SiteDatabasePanel({
 				if (cancelled) return;
 				setDatabasePath(path);
 				if (await playground.fileExists(path)) {
-					const size = await readDatabaseSize(playground, path);
+					const size = await getSqliteDatabaseSize(playground, path);
 					if (cancelled) return;
 					setDatabaseSize(size);
 					setSizeStatus('ready');
@@ -126,31 +129,6 @@ export function SiteDatabasePanel({
 			)}
 		</div>
 	);
-}
-
-/** Stats the database inside PHP without copying its contents into JavaScript. */
-async function readDatabaseSize(
-	playground: PlaygroundClient,
-	databasePath: string
-): Promise<number> {
-	const response = await playground.run({
-		code: `<?php
-$stat = stat(getenv('DATABASE_PATH'));
-if ($stat === false) {
-	throw new RuntimeException('Could not stat the database.');
-}
-echo $stat['size'];
-`,
-		env: {
-			DATABASE_PATH: databasePath,
-		},
-	});
-	const sizeText = response.text.trim();
-	const size = Number(sizeText);
-	if (sizeText === '' || !Number.isSafeInteger(size) || size < 0) {
-		throw new Error('Database stat returned an invalid size.');
-	}
-	return size;
 }
 
 function formatBytes(bytes: number): string {
