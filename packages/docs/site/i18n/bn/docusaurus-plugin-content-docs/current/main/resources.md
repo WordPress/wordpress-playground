@@ -118,7 +118,7 @@ There's a set of redirections in place to make it easier the access to some of t
 <!--
 ## Videos
 
-### Tutorials and product demos {#tutorials-and-product-demos}
+### Tutorials and product demos
 
 - [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
 - [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
@@ -137,7 +137,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
 - [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
 
-### WordCamp talks {#wordcamp-talks}
+### WordCamp talks
 
 - [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
@@ -166,7 +166,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 - [Playground at WordCamp Gliwice (in Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) by Adam Zielinski
 
-### Developer Hours and meetups {#developer-hours-and-meetups}
+### Developer Hours and meetups
 
 - [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
 - [Developer Hours: Everything you need to know about WordPress Playground (Dec 17, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) by Nick Diego & Ryan Welcher
@@ -176,7 +176,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [APAC/EMEA Region (May 24,2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
 - [Americas Region (May 23,2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
 
-### Other presentations {#other-presentations}
+### Other presentations
 
 - [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
 - [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
@@ -184,7 +184,7 @@ There's a set of redirections in place to make it easier the access to some of t
 
 ## ভিডিও
 
-### টিউটোরিয়াল ও প্রোডাক্ট ডেমো {#tutorials-and-product-demos}
+### টিউটোরিয়াল ও প্রোডাক্ট ডেমো
 
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের নতুন ইউজার ইন্টারফেস](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) - ফেলিপ সিন্ট্রা
 - [ওয়ার্ডপ্রেস ব্লুপ্রিন্ট দিয়ে শুরু করা (বাংলা ভাষায়)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) - মনজুর আলম
@@ -203,7 +203,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [শুধু একটি ব্রাউজার দিয়ে ওয়ার্ডপ্রেস ব্যবহার করুন! ওয়ার্ডপ্রেস প্লেগ্রাউন্ড টিউটোরিয়াল: প্লেগ্রাউন্ডের মৌলিক ব্যবহার (জাপানি ভাষায়)](https://www.youtube.com/watch?v=6s_B0WvJauU) - শিমোমুরা তোমোকি
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: কীভাবে ব্লুপ্রিন্ট ব্যবহার করবেন](https://www.youtube.com/watch?v=Vcao6uXguWg) - শিমোমুরা তোমোকি
 
-### ওয়ার্ডক্যাম্পের আলোচনা {#wordcamp-talks}
+### ওয়ার্ডক্যাম্পের আলোচনা
 
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কীভাবে ওয়ার্ডপ্রেস ইকোসিস্টেম বদলে দিচ্ছে](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) - বেরিস্লাভ গ্রগিক্যাক
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে নতুন কী?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) - ফেলিপ সিন্ট্রা
@@ -232,7 +232,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [WCEU 2023-এ প্লেগ্রাউন্ড](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 - [ওয়ার্ডক্যাম্প গ্লিওয়াইস-এ প্লেগ্রাউন্ড (পোলিশ ভাষায়)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) - অ্যাডাম জেলিনস্কি
 
-### ডেভেলপার আওয়ার্স ও মিটআপ {#developer-hours-and-meetups}
+### ডেভেলপার আওয়ার্স ও মিটআপ
 
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লুপ্রিন্ট: শূন্য থেকে দক্ষতা (স্প্যানিশ ভাষায়)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) - ফেলিপ সিন্ট্রা
 - [ডেভেলপার আওয়ার: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড সম্পর্কে আপনার যা জানা দরকার (১৭ ডিসেম্বর, ২০২৪)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) - নিক দিয়েগো এবং রায়ান ওয়েলচার
@@ -242,7 +242,7 @@ There's a set of redirections in place to make it easier the access to some of t
 - [APAC/EMEA অঞ্চল (২৪ মে, ২০২৩)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
 - [আমেরিকা অঞ্চল (২৩ মে, ২০২৩)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
 
-### অন্যান্য উপস্থাপনা {#other-presentations}
+### অন্যান্য উপস্থাপনা
 
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড: সম্পূর্ণ এবং কার্যকর ওয়ার্ডপ্রেস ইনস্টলেশন (স্প্যানিশ ভাষায়)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) - ফার্নান্দো গার্সিয়া রেবোলেডো
 - [State of the Word-এ প্লেগ্রাউন্ড](https://youtu.be/VeigCZuxnfY?t=2912)

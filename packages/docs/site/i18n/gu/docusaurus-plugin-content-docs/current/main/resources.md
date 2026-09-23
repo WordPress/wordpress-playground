@@ -118,7 +118,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 <!--
 ## Videos
 
-### Tutorials and product demos {#tutorials-and-product-demos}
+### Tutorials and product demos
 
 - [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
 - [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
@@ -137,7 +137,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
 - [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
 
-### WordCamp talks {#wordcamp-talks}
+### WordCamp talks
 
 - [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
@@ -166,7 +166,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 - [Playground at WordCamp Gliwice (in Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) by Adam Zielinski
 
-### Developer Hours and meetups {#developer-hours-and-meetups}
+### Developer Hours and meetups
 
 - [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
 - [Developer Hours: Everything you need to know about WordPress Playground (Dec 17, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) by Nick Diego & Ryan Welcher
@@ -176,7 +176,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [APAC/EMEA Region (May 24,2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
 - [Americas Region (May 23,2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
 
-### Other presentations {#other-presentations}
+### Other presentations
 
 - [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
 - [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
@@ -184,7 +184,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 
 ## વિડિયોઝ
 
-### ટ્યુટોરિયલ્સ અને પ્રોડક્ટ ડેમો {#tutorials-and-product-demos}
+### ટ્યુટોરિયલ્સ અને પ્રોડક્ટ ડેમો
 
 - [નવું WordPress Playground યુઝર ઇન્ટરફેસ (અંગ્રેજીમાં)](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) Fellyph Cintra દ્વારા
 - [WordPress Blueprints સાથે શરૂઆત (બંગાળીમાં)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) Monzur Alam દ્વારા
@@ -203,7 +203,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [ફક્ત બ્રાઉઝર સાથે WordPress નો ઉપયોગ કરો! WordPress Playground ટ્યુટોરિયલ: Playground નો મૂળભૂત ઉપયોગ (જાપાનીઝમાં)](https://www.youtube.com/watch?v=6s_B0WvJauU) Shimomura Tomoki દ્વારા
 - [WordPress Playground: Blueprints નો ઉપયોગ કેવી રીતે કરવો (જાપાનીઝમાં)](https://www.youtube.com/watch?v=Vcao6uXguWg) Shimomura Tomoki દ્વારા
 
-### WordCamp વ્યાખ્યાનો {#wordcamp-talks}
+### WordCamp વ્યાખ્યાનો
 
 - [WordPress Playground કેવી રીતે WordPress ઇકોસિસ્ટમને બદલી રહ્યું છે (અંગ્રેજીમાં)](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) Berislav Grgicak દ્વારા
 - [WordPress Playground માં નવું શું છે? (અંગ્રેજીમાં)](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) Fellyph Cintra દ્વારા
@@ -232,7 +232,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [WCEU 2023 પર Playground (અંગ્રેજીમાં)](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 - [WordCamp Gliwice પર Playground (પોલિશમાં)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) Adam Zielinski દ્વારા
 
-### ડેવલપર અવર્સ અને મીટઅપ્સ {#developer-hours-and-meetups}
+### ડેવલપર અવર્સ અને મીટઅપ્સ
 
 - [WordPress Playground Blueprints: શૂન્યથી નિષ્ણાત સુધી (સ્પેનિશમાં)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) Fellyph Cintra દ્વારા
 - [Developer Hours: WordPress Playground વિશે તમારે જાણવાની જરૂર છે તે બધું (17 ડિસેમ્બર, 2024) (અંગ્રેજીમાં)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) Nick Diego & Ryan Welcher દ્વારા
@@ -242,7 +242,7 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [APAC/EMEA પ્રદેશ (24 મે, 2023) (અંગ્રેજીમાં)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
 - [અમેરિકા પ્રદેશ (23 મે, 2023) (અંગ્રેજીમાં)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
 
-### અન્ય પ્રસ્તુતિઓ {#other-presentations}
+### અન્ય પ્રસ્તુતિઓ
 
 - [WordPress Playground: સંપૂર્ણ અને કાર્યાત્મક WordPress ઇન્સ્ટોલેશન (સ્પેનિશમાં)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) Fernando García Rebolledo દ્વારા
 - [State of the Word પર Playground (અંગ્રેજીમાં)](https://youtu.be/VeigCZuxnfY?t=2912)

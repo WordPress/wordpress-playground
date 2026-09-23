@@ -118,7 +118,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 <!--
 ## Videos
 
-### Tutorials and product demos {#tutorials-and-product-demos}
+### Tutorials and product demos
 
 - [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
 - [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
@@ -137,7 +137,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
 - [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
 
-### WordCamp talks {#wordcamp-talks}
+### WordCamp talks
 
 - [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
@@ -166,7 +166,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 - [Playground at WordCamp Gliwice (in Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) by Adam Zielinski
 
-### Developer Hours and meetups {#developer-hours-and-meetups}
+### Developer Hours and meetups
 
 - [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
 - [Developer Hours: Everything you need to know about WordPress Playground (Dec 17, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) by Nick Diego & Ryan Welcher
@@ -176,7 +176,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [APAC/EMEA Region (May 24,2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
 - [Americas Region (May 23,2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
 
-### Other presentations {#other-presentations}
+### Other presentations
 
 - [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
 - [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
@@ -184,7 +184,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 
 ## Video
 
-### Mga tutorial at demo ng produkto {#tutorials-and-product-demos}
+### Mga tutorial at demo ng produkto
 
 - [Bagong interface ng WordPress Playground](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) ni Fellyph Cintra
 - [Pagsisimula sa WordPress Blueprints (sa Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) ni Monzur Alam
@@ -203,7 +203,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Gumamit ng WordPress sa pamamagitan lamang ng browser! Tutorial sa WordPress Playground: Pangunahing paggamit ng Playground (sa Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) ni Shimomura Tomoki
 - [WordPress Playground: Paano gumamit ng Blueprints (sa Japanese)](https://www.youtube.com/watch?v=Vcao6uXguWg) ni Shimomura Tomoki
 
-### Mga talumpati sa WordCamp {#wordcamp-talks}
+### Mga talumpati sa WordCamp
 
 - [Tuklasin kung paano binabago ng WordPress Playground ang WordPress ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) ni Berislav Grgicak
 - [Ano ang bago sa WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) ni Fellyph Cintra
@@ -232,7 +232,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Playground sa WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 - [Playground sa WordCamp Gliwice (sa Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) ni Adam Zielinski
 
-### Developer Hours at mga meetup {#developer-hours-and-meetups}
+### Developer Hours at mga meetup
 
 - [WordPress Playground Blueprints: Mula Zero hanggang Pro (sa Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) ni Fellyph Cintra
 - [Developer Hours: Lahat ng kailangan mong malaman tungkol sa WordPress Playground (Disyembre 17, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) nina Nick Diego at Ryan Welcher
@@ -242,7 +242,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Rehiyon ng APAC/EMEA (Mayo 24, 2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
 - [Rehiyon ng Americas (Mayo 23, 2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
 
-### Iba pang presentasyon {#other-presentations}
+### Iba pang presentasyon
 
 - [WordPress Playground: kumpleto at gumaganang installation ng WordPress (sa Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) ni Fernando García Rebolledo
 - [Playground sa State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
