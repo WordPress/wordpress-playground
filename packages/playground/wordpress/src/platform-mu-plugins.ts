@@ -26,7 +26,7 @@ export async function writeCommonPlatformMuPlugins(
 				return;
 			}
 			if (defined('DB_ENGINE') && DB_ENGINE === 'sqlite') {
-				if (!defined('FQDB')) {
+				if (!defined('DB_PATH') && !defined('FQDB')) {
 					return;
 				}
 				if (!defined('WP_MYSQL_ON_SQLITE_LOADER_PATH') && !defined('SQLITE_MAIN_FILE')) {
@@ -34,7 +34,7 @@ export async function writeCommonPlatformMuPlugins(
 				}
 				$db_info = array(
 					'type' => 'sqlite',
-					'path' => FQDB,
+					'path' => defined('DB_PATH') ? DB_PATH : FQDB,
 					'driver_path' => defined('WP_MYSQL_ON_SQLITE_LOADER_PATH')
 						? WP_MYSQL_ON_SQLITE_LOADER_PATH
 						: dirname(SQLITE_MAIN_FILE) . '/wp-pdo-mysql-on-sqlite.php',
