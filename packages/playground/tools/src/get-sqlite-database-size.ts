@@ -5,7 +5,7 @@ export async function getSqliteDatabaseSize(
 	php: UniversalPHP,
 	databasePath: string
 ): Promise<number> {
-	const response = await php.run({
+	const response = await php.runStream({
 		code: `<?php
 $stat = stat(getenv('DATABASE_PATH'));
 if ($stat === false) {
@@ -17,7 +17,15 @@ echo $stat['size'];
 			DATABASE_PATH: databasePath,
 		},
 	});
-	const sizeText = response.text.trim();
+	const [output, errors, exitCode] = await Promise.all([
+		response.stdoutText,
+		response.stderrText,
+		response.exitCode,
+	]);
+	if (exitCode !== 0) {
+		throw new Error(errors || 'Could not stat the database.');
+	}
+	const sizeText = output.trim();
 	const size = Number(sizeText);
 	if (sizeText === '' || !Number.isSafeInteger(size) || size < 0) {
 		throw new Error('Database stat returned an invalid size.');
