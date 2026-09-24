@@ -96,13 +96,16 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 
 test('does not post an OAuth token to a scoped opener', async ({ page }) => {
 	await page.goto('./');
-	await page.evaluate(() => {
+	await page.evaluate((messageType) => {
 		window.history.pushState({}, '', '/scope:malicious/');
 		window.__githubOAuthMessages = [];
 		window.addEventListener('message', (event) => {
-			window.__githubOAuthMessages!.push(event.data);
+			// Site catalogue traffic is unrelated to OAuth token delivery.
+			if (event.data?.type === messageType) {
+				window.__githubOAuthMessages!.push(event.data);
+			}
 		});
-	});
+	}, OAUTH_MESSAGE_TYPE);
 
 	await page.context().route('**/oauth-test-callback', async (route) => {
 		await route.fulfill({
