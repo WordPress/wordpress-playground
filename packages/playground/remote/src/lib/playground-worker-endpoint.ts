@@ -3,6 +3,9 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { formatBytes, joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
+import PostalMime from 'postal-mime';
+import type { Email } from 'postal-mime';
 import type {
 	DirectoryHandleMount,
 	PHPWebExtension,
@@ -134,6 +137,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
 	private staticAssetsBackfill: Promise<void> | undefined;
+	private emails: Email[] = [];
+	private emailParsingQueue: Promise<void> = Promise.resolve();
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 
@@ -141,6 +146,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		super(undefined, monitor);
 
 		this.downloadMonitor = monitor;
+
+		/**
+		 * Listen to the 'sendmail.spawned' event and parse each captured email into the inbox.
+		 */
+		this.addEventListener('sendmail.spawned', (event) => {
+			const { stdin } = event as PHPSendmailSpawnedEvent;
+			this.emailParsingQueue = this.emailParsingQueue.then(async () => {
+				try {
+					this.emails.push(await PostalMime.parse(stdin));
+				} catch (error) {
+					logger.error('Failed to parse captured email', error);
+				}
+			});
+		});
 	}
 
 	protected computeSiteUrl(scope: string) {
@@ -490,6 +509,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			all: MinifiedWordPressVersions,
 			latest: LatestMinifiedWordPressVersion,
 		};
+	}
+
+	/**
+	 * Returns the email inbox: every email this Playground has sent so far.
+	 *
+	 * Playground has no mail server. Each message WordPress hands to
+	 * sendmail – via wp_mail(), mail(), proc_open(), etc. – is captured
+	 * instead of being delivered, parsed, and appended to the inbox in
+	 * send order. A message still being written by PHP when this method
+	 * is called is awaited and included in the result.
+	 */
+	async email(): Promise<Email[]> {
+		await this.emailParsingQueue;
+		return this.emails;
 	}
 
 	async hasOpfsMount(mountpoint: string) {

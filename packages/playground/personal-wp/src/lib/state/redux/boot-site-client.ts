@@ -13,6 +13,8 @@ import {
 import {
 	type Blueprint,
 	type BlueprintV1Declaration,
+	type GitDirectoryReference,
+	type OnStepCompleted,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -44,6 +46,7 @@ import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
+import { extractGitDirectorySource } from './git-directory-sources';
 import {
 	normalizeReferrer,
 	getUsageStatsDate,
@@ -99,10 +102,14 @@ export function bootSiteClient(
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
 
-		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
+		// Check for the Health Check recovery Blueprint selected by the launch URL.
 		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
 		const hasUrlBlueprint =
 			!!urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
+		if (hasUrlBlueprint) {
+			// Recovery is one-shot even if boot fails before a client connects.
+			dispatch(setBlueprintResolvedFromUrl(null));
+		}
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -236,7 +243,7 @@ export function bootSiteClient(
 				landingPage: getBrowserPathAsLandingPage(),
 			};
 
-			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
+			// Add the recovery steps to the existing site's boot Blueprint.
 			if (hasUrlBlueprint) {
 				const resolved = urlBlueprint.blueprint;
 				const current = blueprint as BlueprintV1Declaration;
@@ -284,6 +291,13 @@ export function bootSiteClient(
 		);
 
 		let playground: PlaygroundClient | undefined = undefined;
+		const gitDirectorySources: Record<string, GitDirectoryReference> = {};
+		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
+			const extracted = extractGitDirectorySource(step, result);
+			if (extracted) {
+				gitDirectorySources[extracted.assetPath] = extracted.source;
+			}
+		};
 		const progressTracker = new ProgressTracker();
 		progressTracker.addEventListener(
 			'progress',
@@ -315,6 +329,7 @@ export function bootSiteClient(
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
+				onBlueprintStepCompleted,
 				mounts: mountDescriptor
 					? [
 							{
@@ -383,6 +398,23 @@ export function bootSiteClient(
 			destroyTabCoordinator();
 			return;
 		}
+		if (Object.keys(gitDirectorySources).length > 0) {
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						metadata: {
+							gitDirectorySources: {
+								...site.metadata.gitDirectorySources,
+								...gitDirectorySources,
+							},
+						},
+					})
+				);
+			} catch (error) {
+				logger.error('Failed to save git directory sources', error);
+			}
+		}
 
 		reportBootProgress(92, 'Setting up browser message relay');
 		setupPostMessageRelay(iframe, document.location.origin);
@@ -431,10 +463,9 @@ export function bootSiteClient(
 			);
 		}
 
-		// Clear URL blueprint after successful boot
+		// Clean up the recovery launch URL after successful boot.
 		if (hasUrlBlueprint) {
 			reportBootProgress(96, 'Cleaning up launch URL');
-			dispatch(setBlueprintResolvedFromUrl(null));
 			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
 				if (isAppBasePath(cleanUrl.pathname)) {

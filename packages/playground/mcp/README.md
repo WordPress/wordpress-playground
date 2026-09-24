@@ -179,6 +179,8 @@ The MCP bridge runs locally and is only accessible from your machine — connect
 
 **Filesystem**: `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`, `playground_file_exists`
 
+**Email**: `playground_list_emails`
+
 ## Development
 
 When working on the MCP server or the Playground codebase, run from source instead:

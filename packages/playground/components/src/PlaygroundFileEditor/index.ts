@@ -5,10 +5,12 @@ export {
 } from './code-editor';
 export {
 	FileExplorerSidebar,
+	type FileExplorerSidebarHandle,
 	type FileExplorerSidebarProps,
 } from './file-explorer-sidebar';
 export {
 	PlaygroundFileEditor,
+	type PlaygroundFileEditorHandle,
 	type PlaygroundFileEditorProps,
 } from './playground-file-editor';
 export {

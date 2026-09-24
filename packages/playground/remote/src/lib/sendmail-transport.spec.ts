@@ -77,4 +77,44 @@ describe('remote sendmail transport', () => {
 
 		expect(received).toEqual([event]);
 	});
+
+	it('parses captured sendmail messages into the email() inbox', async () => {
+		const { PlaygroundWorkerEndpoint } =
+			await import('./playground-worker-endpoint');
+		class TestEndpoint extends PlaygroundWorkerEndpoint {
+			async boot() {}
+
+			dispatchEventForTest(event: { type: string }) {
+				this.dispatchEvent(event);
+			}
+		}
+		const endpoint = new TestEndpoint({} as EmscriptenDownloadMonitor);
+
+		const rawEmail = [
+			'From: WordPress <wordpress@playground.test>',
+			'To: admin@playground.test',
+			'Subject: Password Reset',
+			'',
+			'Click the link to reset your password.',
+			'',
+		].join('\r\n');
+		const stdin = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode(rawEmail));
+				controller.close();
+			},
+		});
+		endpoint.dispatchEventForTest({
+			type: 'sendmail.spawned',
+			stdin,
+		} as { type: string });
+
+		const emails = await endpoint.email();
+		expect(emails).toHaveLength(1);
+		expect(emails[0].subject).toBe('Password Reset');
+		expect(emails[0].from?.address).toBe('wordpress@playground.test');
+		expect(emails[0].text?.trim()).toBe(
+			'Click the link to reset your password.'
+		);
+	});
 });
