@@ -41,6 +41,10 @@
  *
  * See https://github.com/WordPress/wordpress-playground/pull/1822 for more details.
  *
+ * The local subdomain prototype is an exception: its shared asset URLs include
+ * the release, so HTTP caching cannot mix builds. CacheStorage misses for these
+ * immutable URLs can reuse HTTP responses downloaded by sibling site origins.
+ *
  * ### CacheStorage in the service worker
  *
  * Playground primarily relies on the **Cache first** strategy. This means assets are:
@@ -115,6 +119,7 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
+import { isOriginIsolationPrototype } from './src/lib/dev-server';
 
 import {
 	cacheFirstFetch,
@@ -200,7 +205,10 @@ self.addEventListener('activate', function (event) {
 	async function doActivate() {
 		await self.clients.claim();
 
-		if (shouldCacheUrl(new URL(location.href))) {
+		if (isOriginIsolationPrototype(new URL(location.href))) {
+			// Populate lazily; do not download unused PHP/WordPress versions.
+			await purgeEverythingFromPreviousRelease();
+		} else if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
 			cacheOfflineModeAssetsForCurrentRelease();
 		}

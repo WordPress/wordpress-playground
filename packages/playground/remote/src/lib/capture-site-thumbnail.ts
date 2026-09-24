@@ -1,3 +1,4 @@
+import { sameOriginWorkerUrl } from './worker-url';
 import { domToCanvas } from 'modern-screenshot';
 import type { SiteThumbnail } from './playground-client';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
@@ -88,7 +89,7 @@ async function waitForFonts() {
 }
 
 function getResourceWorkerUrl() {
-	const url = new URL(resourceWorkerUrl, window.location.href);
+	const url = sameOriginWorkerUrl(resourceWorkerUrl);
 	// The service worker uses this marker to serve the bundled worker instead
 	// of treating its URL as a file inside the scoped WordPress site.
 	url.searchParams.set('playground-site-thumbnail-worker', '1');

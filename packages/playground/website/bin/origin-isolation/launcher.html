@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<link rel="icon" href="data:," />
+	<title>Playground origin isolation prototype</title>
+	<style>
+		body {
+			font: 17px system-ui;
+			max-width: 760px;
+			margin: 60px auto;
+			padding: 0 24px;
+			line-height: 1.6;
+		}
+		a {
+			color: #3858e9;
+		}
+		li {
+			margin: 12px 0;
+		}
+		code {
+			font-size: 0.85em;
+		}
+	</style>
+	<h1>One Playground per subdomain</h1>
+	<p>
+		Each link runs the whole app on its own origin, with its own OPFS
+		storage. The app bundles, PHP, and WordPress downloads come from a
+		shared static origin.
+	</p>
+	<p>
+		<a href="?new=1">New saved Playground</a> ·
+		<a href="?new=1&storage=temp">New temporary Playground</a>
+	</p>
+	<ul id="sites"></ul>
+	<p>
+		Use Back or return to <code>playground.localhost:9400</code> to switch
+		sites. Names here are launch numbers, not the names inside the app.
+	</p>
+	<p>
+		<strong>Prototype limits:</strong> no offline mode, migration, sign-in,
+		or cross-site imports. Each app's site list shows only its own site.
+		ZIP/GitHub imports and recreating a site with new settings are blocked
+		after the first site has been created.
+	</p>
+	<script>
+		const key = 'origin-isolation-sites';
+		const sites = JSON.parse(localStorage.getItem(key) || '[]');
+		const url = new URL(location.href);
+		if (url.search || url.hash) {
+			url.hostname = `site-${crypto.randomUUID()}.playground.localhost`;
+			url.searchParams.delete('new');
+			url.searchParams.delete('site-slug');
+			url.searchParams.delete('random');
+			sites.push({
+				name: `Playground ${sites.length + 1}`,
+				href: url.href,
+			});
+			localStorage.setItem(key, JSON.stringify(sites));
+			location.replace(url);
+		} else {
+			for (const site of sites) {
+				const target = new URL(site.href);
+				if (
+					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(
+						target.hostname
+					) ||
+					target.port !== location.port
+				)
+					continue;
+				const link = document.createElement('a');
+				link.href = target.href;
+				link.textContent = `${site.name} — ${target.hostname}`;
+				const item = document.createElement('li');
+				item.append(link);
+				document.getElementById('sites').append(item);
+			}
+		}
+	</script>
+</html>
