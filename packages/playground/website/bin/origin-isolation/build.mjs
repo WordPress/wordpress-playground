@@ -30,6 +30,14 @@ for (const name of ['client', 'remote', 'website']) {
 		// editor initialization into this document, which must never boot a site.
 		await build({
 			configFile: false,
+			resolve: {
+				alias: {
+					'@php-wasm/util': new URL(
+						'../../../../php-wasm/util/src/index.ts',
+						import.meta.url
+					).pathname,
+				},
+			},
 			build: {
 				outDir: 'dist/packages/playground/website',
 				emptyOutDir: false,

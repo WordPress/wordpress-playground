@@ -37,8 +37,8 @@ in `dist/origin-isolation.json`. Rebuild and restart the server after source
 changes. This is a production-style build, without HMR.
 
 Create two Playgrounds from the launcher. Switch using the Playgrounds pane or
-the launcher. New Playground, ZIP import, and settings that create a new site
-allocate a fresh subdomain. Saving a
+the launcher. New Playground, ZIP import, edited Blueprint runs, and settings that create a
+new site allocate a fresh subdomain. Saving a
 temporary site, renaming, and opening tools stay in the same document. Switching
 sites requires a top-level navigation because the next site has another origin.
 
@@ -63,7 +63,9 @@ sites requires a top-level navigation because the next site has another origin.
   operation rather than creating another site in the same storage bucket.
 - A small, separately built `/origin-isolation.html` accepts two operations:
   the launcher lists display metadata and lets a site update only its own entry;
-  an unused site origin accepts a one-time setup, including ZIP bytes. It does
+  an unused site origin accepts a one-time setup, including ZIP bytes or a
+  snapshot of an edited Blueprint bundle. Binary files and empty directories
+  survive the transfer; filesystem backends and handles never cross origins. It does
   not expose file reads, exports, directory handles, or deletion of other sites.
 - The Playgrounds pane shows other origins as links, not local site records.
   Rename/delete publish metadata; file operations remain on the current origin.
@@ -123,8 +125,8 @@ This runner uses one worker and no retries so failures remain visible. Version
 settings tests now check the running PHP/WordPress version, not just a dropdown.
 The ZIP-return tests accept a cross-origin link as well as the normal local
 button. The runner also includes `playwright/origin-isolation/` checks for message
-boundaries, fresh-origin creation, rename/delete, offline reload, static-host
-routing, and disabled login. Normal CI does not include those prototype tests.
+boundaries, fresh-origin creation, edited multi-file Blueprint runs, rename/delete,
+offline reload, static-host routing, and disabled login. Normal CI does not include those prototype tests.
 
 JSON results, screenshots, and failure traces are written under
 `dist/origin-isolation-e2e/`. The existing suite still includes contracts that the
@@ -179,6 +181,12 @@ This is a local architecture experiment, not a deployment-ready security change.
 - Creation ends the old document. API promises and callbacks from that document
   do not transfer. An incoming setup is consumed once; reload during import may
   require importing the original ZIP again. The source site stays intact.
+- A failed Blueprint run does not automatically return to its source origin.
+  The source remains available through its catalogue link.
+- URL-loaded ZIP Blueprint bundles can lose their resource files when saved-site
+  metadata is refreshed. That existing persistence path still needs work. The
+  origin-transfer tests cover files added through the editor, including binary
+  data, and saved reloads after running that edited bundle.
 - No old-origin data migration or account/OAuth integration. GitHub sign-in is
   blocked until authenticated import/export can run on a trusted origin. User
   code can access its own app document and that origin's storage.

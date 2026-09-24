@@ -1,3 +1,4 @@
+import { resolvePathUnder } from '@php-wasm/util';
 import { claimOriginSetup, isSiteOrigin } from './origin-isolation';
 import type { OriginSetup, OriginSite } from './origin-isolation';
 
@@ -35,7 +36,19 @@ window.addEventListener('message', async (event) => {
 				(setup.persistence !== undefined &&
 					!['autosave', 'explicit'].includes(setup.persistence)) ||
 				!['temporary', 'opfs'].includes(setup.storage) ||
-				(setup.zip !== undefined && !(setup.zip instanceof File))
+				(setup.zip !== undefined && !(setup.zip instanceof File)) ||
+				(setup.blueprint !== undefined &&
+					(setup.zip !== undefined ||
+						!Array.isArray(setup.blueprint) ||
+						!setup.blueprint.every(
+							(entry) =>
+								entry &&
+								typeof entry.path === 'string' &&
+								resolvePathUnder(entry.path, '/') ===
+									entry.path &&
+								(entry.bytes === null ||
+									entry.bytes instanceof Uint8Array)
+						)))
 			) {
 				throw new Error('Invalid Playground setup.');
 			}
@@ -55,6 +68,10 @@ window.addEventListener('message', async (event) => {
 				storage: setup.storage,
 				persistence: setup.persistence,
 				zip: setup.zip,
+				blueprint: setup.blueprint?.map(({ path, bytes }) => ({
+					path,
+					bytes,
+				})),
 			});
 		} else {
 			throw new Error('Unsupported Playground origin operation.');

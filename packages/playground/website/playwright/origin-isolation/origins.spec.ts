@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { WebsitePage } from '../website-page';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // These exercise the real cross-origin boundary, not a mocked postMessage call.
@@ -322,6 +323,125 @@ test('site origins do not offer GitHub sign-in or request a token', async ({
 	expect(requested).toEqual([]);
 });
 
+for (const storage of ['opfs', 'temporary'] as const) {
+	test(`running an edited ${storage} Blueprint moves its whole bundle to a fresh origin`, async ({
+		page,
+	}) => {
+		const blueprint = {
+			preferredVersions: { php: '8.3', wp: '6.9' },
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/bundle-marker.bin',
+					data: { resource: 'bundled', path: 'marker.bin' },
+				},
+			],
+		};
+		await page.goto(
+			`./?wp=6.9&php=8.3${storage === 'temporary' ? '&storage=temp' : ''}`
+		);
+		await ready(page);
+		const originalOrigin = new URL(page.url()).origin;
+		await page.evaluate(async () => {
+			const root = await navigator.storage.getDirectory();
+			const writer = await (
+				await root.getFileHandle('source-only.txt', { create: true })
+			).createWritable();
+			await writer.write('source remains private');
+			await writer.close();
+		});
+		await new WebsitePage(page).openDockPane(
+			'Current Blueprint',
+			'Blueprint pane'
+		);
+		// Add a binary file to the editable bundle, not the WordPress filesystem.
+		const pane = page.getByRole('dialog', { name: 'Blueprint pane' });
+		await pane.locator('input[type="file"]').setInputFiles({
+			name: 'marker.bin',
+			mimeType: 'application/octet-stream',
+			buffer: Buffer.from([0, 128, 255]),
+		});
+		await expect(
+			pane.getByText('marker.bin', { exact: true })
+		).toBeVisible();
+		await page.locator('[class*="blueprint-editor"] .cm-content').fill(
+			JSON.stringify({
+				...blueprint,
+				steps: [
+					...blueprint.steps,
+					{
+						step: 'writeFile',
+						path: '/wordpress/edited.txt',
+						data: 'edited bundle ran',
+					},
+				],
+			})
+		);
+		await page
+			.getByRole('button', {
+				name:
+					storage === 'opfs'
+						? 'Run in a new Playground'
+						: 'Discard current Playground & run Blueprint',
+			})
+			.click();
+		await page.waitForURL((url) => url.origin !== originalOrigin);
+		await ready(page);
+		const destinationOrigin = new URL(page.url()).origin;
+		expect(
+			await page.evaluate(() => (window as any).playgroundSites.list())
+		).toEqual([expect.objectContaining({ storage, isActive: true })]);
+		expect(
+			await page.evaluate(async () => {
+				try {
+					await (
+						await navigator.storage.getDirectory()
+					).getFileHandle('source-only.txt');
+					return 'source file is exposed';
+				} catch (error) {
+					return (error as DOMException).name;
+				}
+			})
+		).toBe('NotFoundError');
+		if (storage === 'temporary') {
+			await page.evaluate(() =>
+				(window as any).playgroundSites.saveInBrowser()
+			);
+			await ready(page);
+			expect(new URL(page.url()).origin).toBe(destinationOrigin);
+		}
+		// Both a saved run and a subsequently saved temporary run retain the bundle.
+		await page.reload();
+		await ready(page);
+		expect(new URL(page.url()).origin).toBe(destinationOrigin);
+		expect(
+			await page.evaluate(async () => {
+				const client = (window as any).playgroundSites.getClient();
+				return {
+					marker: Array.from(
+						await client.readFileAsBuffer(
+							'/wordpress/bundle-marker.bin'
+						)
+					),
+					edit: await client.readFileAsText('/wordpress/edited.txt'),
+				};
+			})
+		).toEqual({ marker: [0, 128, 255], edit: 'edited bundle ran' });
+		await page.goto(`${originalOrigin}/manifest.json`);
+		expect(
+			await page.evaluate(async () =>
+				(
+					await (
+						await (
+							await navigator.storage.getDirectory()
+						).getFileHandle('source-only.txt')
+					).getFile()
+				).text()
+			)
+		).toBe('source remains private');
+	});
+}
+
 async function ready(page: Page) {
 	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
 	await page.evaluate(() => (window as any).playgroundSites.isReady());
@@ -345,7 +465,7 @@ async function ready(page: Page) {
 						).getFile();
 						return (
 							JSON.parse(await metadata.text())
-								.initialOpfsSyncPending === false
+								.initialOpfsSyncPending !== true
 						);
 					} catch {
 						return false;

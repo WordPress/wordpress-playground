@@ -1,3 +1,5 @@
+import { joinPaths } from '@php-wasm/util';
+import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 import type { SitePersistence } from './state/redux/slice-sites';
 
 export interface OriginSite {
@@ -13,6 +15,8 @@ export interface OriginSetup {
 	storage: 'temporary' | 'opfs';
 	persistence?: SitePersistence;
 	zip?: File;
+	/** File bytes and directories, never a filesystem backend or handle. */
+	blueprint?: Array<{ path: string; bytes: Uint8Array | null }>;
 }
 
 export function isSiteOrigin(
@@ -188,4 +192,29 @@ export async function claimOriginSetup(
 	} finally {
 		db.close();
 	}
+}
+
+/** Snapshot an editable bundle before its document leaves the source origin. */
+export async function snapshotOriginBlueprint(
+	source: TraversableFilesystemBackend
+) {
+	const entries: NonNullable<OriginSetup['blueprint']> = [];
+	async function visit(directory: string) {
+		for (const name of await source.listFiles(directory)) {
+			const path = joinPaths(directory, name);
+			if (await source.isDir(path)) {
+				entries.push({ path, bytes: null });
+				await visit(path);
+			} else {
+				entries.push({
+					path,
+					bytes: new Uint8Array(
+						await (await source.read(path)).arrayBuffer()
+					),
+				});
+			}
+		}
+	}
+	await visit('/');
+	return entries;
 }

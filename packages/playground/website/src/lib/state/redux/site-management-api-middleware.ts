@@ -1,5 +1,3 @@
-// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
-import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
 import {
 	isSiteOrigin,
 	navigateToFreshOrigin,
@@ -27,6 +25,7 @@ import {
 } from './slice-clients';
 import {
 	selectAllSites,
+	needsFreshOrigin,
 	selectSiteBySlug,
 	setOPFSSitesLoadingState,
 	updateSite,
@@ -871,7 +870,7 @@ export function createSitesAPI(
 			wordPressFilesZip: File,
 			options: ZipImportOptions | ZipImportProgressCallback = {}
 		): Promise<string> {
-			if (needsFreshOrigin()) {
+			if (needsFreshOrigin(getState())) {
 				dispatch(
 					setSiteImportProgress({
 						caption: 'Preparing import',
@@ -980,7 +979,7 @@ export function createSitesAPI(
 		settings?: SiteSettings,
 		initialize?: (playground: PlaygroundClient) => Promise<void>
 	): Promise<string> {
-		if (needsFreshOrigin()) {
+		if (needsFreshOrigin(getState())) {
 			const url = getSetupUrlForNewSite(settings, {
 				baseUrl: new URL(window.location.href),
 			});
@@ -1024,7 +1023,7 @@ export function createSitesAPI(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
 		}
-		if (needsFreshOrigin()) {
+		if (needsFreshOrigin(getState())) {
 			if (options.updateUrl === false)
 				throw new Error(
 					'Creating another Playground requires navigating to its new origin.'
@@ -1086,25 +1085,6 @@ export function createSitesAPI(
 			})
 		);
 		return newSiteInfo.slug;
-	}
-
-	function needsFreshOrigin() {
-		const state = getState();
-		const sites = selectAllSites(state);
-		const active = selectActiveSite(state);
-		// A failed Blueprint fetch created only an error placeholder. No PHP
-		// client ran, so replacing this temporary placeholder can keep the SPA.
-		const retryingBeforeBoot =
-			sites.length === 1 &&
-			active?.metadata.storage === 'none' &&
-			selectActiveSiteError(state) === 'blueprint-fetch-failed' &&
-			!selectClientBySiteSlug(state, active.slug);
-		// Deleting the record does not make a used origin safe for another site.
-		return (
-			isOriginIsolationPrototype(new URL(window.location.href)) &&
-			(sites.length > 0 || !!state.ui.activeSite?.slug) &&
-			!retryingBeforeBoot
-		);
 	}
 
 	async function activateNewSite(

@@ -1,3 +1,4 @@
+import { InMemoryFilesystemBackend } from '@wp-playground/storage';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
 import { isOriginIsolationPrototype } from '../../../../remote/src/lib/dev-server';
 import { navigateToFreshOrigin } from '../../lib/origin-isolation';
@@ -13,6 +14,8 @@ import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
+	createStoredSite,
+	setTemporarySiteSpec,
 	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	isRestorableAutosavedSite,
@@ -181,7 +184,29 @@ export function EnsurePlaygroundSiteIsSelected({
 						throw new Error(
 							'Cannot replace an existing Playground with an incoming setup.'
 						);
-					if (setup.zip) {
+					if (setup.blueprint) {
+						const bundle = new InMemoryFilesystemBackend();
+						for (const entry of setup.blueprint) {
+							if (entry.bytes === null)
+								await bundle.mkdir(entry.path, true);
+							else
+								await bundle.writeFile(entry.path, entry.bytes);
+						}
+						const site = await dispatch(
+							setup.storage === 'temporary'
+								? setTemporarySiteSpec(
+										setup.name ?? 'WordPress Playground',
+										bundle
+									)
+								: createStoredSite(
+										setup.name ?? 'WordPress Playground',
+										bundle,
+										undefined,
+										{ persistence: setup.persistence }
+									)
+						);
+						await sitesAPI.setActiveSite(site.slug);
+					} else if (setup.zip) {
 						await sitesAPI.createNewSiteFromZip(setup.zip, {
 							onPlaygroundLoaded: (storage) =>
 								dispatch(
