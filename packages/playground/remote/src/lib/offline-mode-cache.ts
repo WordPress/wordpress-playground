@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+// Other packages also type-check this source without the remote tsconfig.
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer, isOriginIsolationPrototype } from './dev-server';
 // @ts-ignore
