@@ -310,8 +310,9 @@ test.describe('Patching Gutenberg editor frame', () => {
 			website,
 			wordpress,
 		}) => {
+			// The default post has content blocks in every tested editor version.
 			await website.goto(
-				`./?storage=temp${query}&url=/wp-admin/post-new.php`
+				`./?storage=temp${query}&url=${encodeURIComponent('/wp-admin/post.php?post=1&action=edit')}`
 			);
 			// Check that the editor canvas loaded its stylesheets. If the
 			// canvas frame wasn't correctly patched, its CSS requests 404
@@ -319,13 +320,16 @@ test.describe('Patching Gutenberg editor frame', () => {
 			// `overflow-wrap` rule comes from block-editor's content.css
 			// and the browser default is `normal`.
 			//
-			// The block list always contains at least the post title block,
-			// unlike the default block appender that Gutenberg 23.8 replaced
-			// with a real (ghost) paragraph block.
+			// Target a content block inside the layout. The post title is
+			// outside it and does not match the content.css rule.
+			// Using an existing post also avoids depending on the default block
+			// appender, which Gutenberg 23.8 replaced with a (ghost) paragraph.
 			await expect(
 				wordpress
 					.frameLocator('iframe[name="editor-canvas"]')
-					.locator('.block-editor-block-list__block')
+					.locator(
+						'.block-editor-block-list__layout .block-editor-block-list__block'
+					)
 					.first()
 			).toHaveCSS('overflow-wrap', 'break-word');
 		});
