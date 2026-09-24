@@ -1,3 +1,5 @@
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../remote/src/lib/dev-server';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Icon, Popover } from '@wordpress/components';
@@ -66,7 +68,11 @@ export function EnsurePlaygroundSiteIsSelected({
 	const sitesAPI = useSitesAPI();
 	const url = useCurrentUrl();
 	const initialUrlHref = useRef(window.location.href);
-	const requestedSiteSlug = url.searchParams.get('site-slug');
+	// A prototype origin has exactly one site. Reopening its bare URL restores it,
+	// and changing site-slug cannot create a second site in the same OPFS root.
+	const requestedSiteSlug = isOriginIsolationPrototype(url)
+		? (sortedSites[0]?.slug ?? null)
+		: url.searchParams.get('site-slug');
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);

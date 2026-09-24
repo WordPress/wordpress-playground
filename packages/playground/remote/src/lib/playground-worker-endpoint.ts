@@ -133,6 +133,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	private staticAssetsBackfill: Promise<void> | undefined;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
 
@@ -547,9 +548,15 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	async backfillStaticFilesRemovedFromMinifiedBuild() {
-		await backfillStaticFilesRemovedFromMinifiedBuild(
-			this.__internal_getPHP()!
-		);
+		// Frame load events and API calls can overlap. Share the download and unzip
+		// until they finish, then allow another call to check the filesystem or retry.
+		this.staticAssetsBackfill ??=
+			backfillStaticFilesRemovedFromMinifiedBuild(
+				this.__internal_getPHP()!
+			).finally(() => {
+				this.staticAssetsBackfill = undefined;
+			});
+		await this.staticAssetsBackfill;
 	}
 
 	async hasCachedStaticFilesRemovedFromMinifiedBuild() {

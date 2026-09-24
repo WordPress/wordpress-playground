@@ -1,3 +1,5 @@
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
 import { useMemo } from 'react';
 import { useStore } from 'react-redux';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
@@ -946,6 +948,7 @@ export function createSitesAPI(
 		settings?: SiteSettings,
 		initialize?: (playground: PlaygroundClient) => Promise<void>
 	): Promise<string> {
+		assertPrototypeOriginIsEmpty();
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
 			: randomSiteName();
@@ -974,6 +977,7 @@ export function createSitesAPI(
 		initialize?: (playground: PlaygroundClient) => Promise<void>,
 		initialOpfsSyncProgress?: ProgressTracker
 	): Promise<string> {
+		assertPrototypeOriginIsEmpty();
 		if (!opfsSiteStorage) {
 			throw new Error(
 				'Cannot create a saved Playground because browser storage is not available.'
@@ -1024,6 +1028,17 @@ export function createSitesAPI(
 			})
 		);
 		return newSiteInfo.slug;
+	}
+
+	function assertPrototypeOriginIsEmpty() {
+		if (
+			isOriginIsolationPrototype(new URL(window.location.href)) &&
+			selectAllSites(getState()).length > 0
+		) {
+			throw new Error(
+				'One Playground per origin. Use New Playground to create a fresh origin.'
+			);
+		}
 	}
 
 	async function activateNewSite(

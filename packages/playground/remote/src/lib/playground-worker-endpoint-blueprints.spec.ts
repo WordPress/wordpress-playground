@@ -4,6 +4,7 @@ import type { PHP } from '@php-wasm/universal';
 describe('PlaygroundWorkerEndpointBlueprints', () => {
 	beforeEach(() => {
 		vi.resetModules();
+		vi.stubGlobal('location', new URL('http://playground.test/'));
 		vi.stubGlobal('self', {
 			postMessage: vi.fn(),
 		});

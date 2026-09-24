@@ -10,6 +10,7 @@ describe('opfsSiteStorage', () => {
 
 	beforeEach(async () => {
 		vi.resetModules();
+		vi.stubGlobal('location', new URL('http://playground.test/'));
 		loadPersistedBlueprintBundle = vi.fn();
 		loadPersistedBlueprintBundleFromPath = vi.fn();
 		const activeWorkerWrites = new Set<string>();

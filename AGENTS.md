@@ -49,6 +49,7 @@ npx nx dev playground-cli server         # Run CLI from source
 npm run build                            # Build all packages
 npm run build:website                    # Build the main website
 npm run build:docs                       # Build documentation
+npx nx run playground-website:build:origin-isolation # Build the local subdomain prototype
 npx nx build <package-name>              # Build specific package
 
 # Testing
@@ -75,6 +76,10 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 # WordPress Builds
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
+
+The local subdomain prototype has separate `preview:origin-isolation`,
+`test:origin-isolation`, and `e2e:origin-isolation` website targets. See
+`packages/playground/website/bin/origin-isolation/README.md` for its scope and setup.
 
 ### Package Naming Convention
 

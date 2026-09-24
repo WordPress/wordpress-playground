@@ -1,10 +1,15 @@
 import { isURLScoped } from '@php-wasm/scopes';
-import { isDevServer } from './dev-server';
+import { isDevServer, isOriginIsolationPrototype } from './dev-server';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
 const CACHE_NAME_PREFIX = 'playground-cache';
-const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
+// Local rebuilds keep the Git version but change the immutable asset base.
+const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${
+	import.meta.env.BASE_URL === '/'
+		? buildVersion
+		: `${buildVersion}-${import.meta.env.BASE_URL}`
+}`;
 
 // We save a top-level Promise because this module is imported by
 // a Service Worker module which does not allow top-level await.
@@ -27,14 +32,20 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const requestWithoutRangeHeader = stripRangeHeader(request);
 
 	/**
-	 * Ensure the response is not coming from HTTP cache.
+	 * For unversioned deployment URLs, ensure the response is not coming from HTTP cache.
 	 *
 	 * We never want to put a stale asset in CacheStorage as
 	 * that would break Playground.
 	 *
 	 * See service-worker.ts for more details.
+	 *
+	 * The local subdomain build puts immutable assets under one release URL.
+	 * That URL cannot contain an older build, so allow the HTTP cache to supply
+	 * bytes already downloaded by another site before making a per-origin copy.
 	 */
-	const response = await fetchFresh(requestWithoutRangeHeader);
+	const response = isImmutableSharedAssetUrl(new URL(request.url))
+		? await fetch(requestWithoutRangeHeader, { cache: 'default' })
+		: await fetchFresh(requestWithoutRangeHeader);
 	if (response.ok) {
 		/**
 		 * Confirm the current service worker is still active
@@ -176,6 +187,11 @@ export async function putCachedResponse(
 }
 
 export function shouldCacheUrl(url: URL) {
+	// Only public, release-qualified assets get lazy CacheStorage copies here.
+	// Site documents and the offline prefetch manifest need a separate offline flow.
+	if (isOriginIsolationPrototype(new URL(self.location.href))) {
+		return isImmutableSharedAssetUrl(url);
+	}
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
 	}
@@ -209,6 +225,16 @@ export function shouldCacheUrl(url: URL) {
 	 * Allow only requests to the same hostname to be cached.
 	 */
 	return self.location.hostname === url.hostname;
+}
+
+function isImmutableSharedAssetUrl(url: URL) {
+	const base = new URL(import.meta.env.BASE_URL, self.location.href);
+	return (
+		isOriginIsolationPrototype(new URL(self.location.href)) &&
+		base.hostname === 'static.playground.localhost' &&
+		url.origin === base.origin &&
+		url.pathname.startsWith(base.pathname)
+	);
 }
 
 /**
