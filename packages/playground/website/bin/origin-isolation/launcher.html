@@ -33,32 +33,33 @@
 	</p>
 	<ul id="sites"></ul>
 	<p>
-		Use Back or return to <code>playground.localhost:9400</code> to switch
-		sites. Names here are launch numbers, not the names inside the app.
+		Saved names are shared with the site list in each Playground. Files
+		remain on their site's origin.
 	</p>
 	<p>
-		<strong>Prototype limits:</strong> no offline mode, migration, sign-in,
-		or cross-site imports. Each app's site list shows only its own site.
-		ZIP/GitHub imports and recreating a site with new settings are blocked
-		after the first site has been created.
+		<strong>Prototype:</strong> do not sign in or store account tokens here.
 	</p>
 	<script>
 		const key = 'origin-isolation-sites';
-		const sites = JSON.parse(localStorage.getItem(key) || '[]');
+		const previous = JSON.parse(localStorage.getItem(key) || '[]');
+		const current = Object.keys(localStorage)
+			.filter((key) => key.startsWith('origin-isolation-site:'))
+			.map((key) => JSON.parse(localStorage.getItem(key)));
+		const sites = new Map(
+			previous.map((site) => [new URL(site.href).origin, site])
+		);
+		for (const site of current)
+			sites.set(site.origin, { name: site.name, href: site.origin });
 		const url = new URL(location.href);
 		if (url.search || url.hash) {
 			url.hostname = `site-${crypto.randomUUID()}.playground.localhost`;
 			url.searchParams.delete('new');
 			url.searchParams.delete('site-slug');
 			url.searchParams.delete('random');
-			sites.push({
-				name: `Playground ${sites.length + 1}`,
-				href: url.href,
-			});
-			localStorage.setItem(key, JSON.stringify(sites));
+
 			location.replace(url);
 		} else {
-			for (const site of sites) {
+			for (const site of sites.values()) {
 				const target = new URL(site.href);
 				if (
 					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(

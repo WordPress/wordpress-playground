@@ -5,13 +5,21 @@ import { playwrightConfig } from './playwright.config';
 // Keep this separate from CI's normal build and the other local server on 5400.
 export default defineConfig({
 	...playwrightConfig,
+	testDir: '.',
+	testMatch: ['e2e/**/*.spec.ts', 'origin-isolation/**/*.spec.ts'],
 	fullyParallel: false,
 	workers: 1,
 	retries: 0,
 	outputDir: '../../../../dist/origin-isolation-e2e/artifacts',
 	reporter: [
 		['list'],
-		['json', { outputFile: '../../../../dist/origin-isolation-e2e/results.json' }],
+		[
+			'json',
+			{
+				outputFile:
+					'../../../../dist/origin-isolation-e2e/results.json',
+			},
+		],
 	],
 	use: {
 		...playwrightConfig.use,

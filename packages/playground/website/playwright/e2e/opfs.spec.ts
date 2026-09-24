@@ -1720,6 +1720,12 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 
 		await website.page
 			.getByRole('button', { name: `Open ${savedSiteName}`, exact: true })
+			.or(
+				website.page.getByRole('link', {
+					name: `Open ${savedSiteName}`,
+					exact: true,
+				})
+			)
 			.click();
 		await website.ensureSiteManagerIsOpen();
 
@@ -1825,6 +1831,12 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 
 		await website.page
 			.getByRole('button', { name: `Open ${savedSiteName}`, exact: true })
+			.or(
+				website.page.getByRole('link', {
+					name: `Open ${savedSiteName}`,
+					exact: true,
+				})
+			)
 			.click();
 		await website.ensureSiteManagerIsOpen();
 

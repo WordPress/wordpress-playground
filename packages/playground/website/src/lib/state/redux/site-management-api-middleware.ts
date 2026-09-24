@@ -1,5 +1,10 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
 import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
+import {
+	isSiteOrigin,
+	navigateToFreshOrigin,
+	updateOriginCatalogue,
+} from '../../origin-isolation';
 import { useMemo } from 'react';
 import { useStore } from 'react-redux';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
@@ -811,7 +816,9 @@ export function createSitesAPI(
 		 *   Blueprint title becomes the site name if available; otherwise a
 		 *   random name is generated.
 		 * @param settings Optional site settings.
-		 * @returns The new site's slug.
+		 * In the origin-isolation prototype, a second site starts on another origin.
+		 * That navigation ends this document; callers must reconnect to its API.
+		 * @returns The new site's slug when creation stays in this document.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
@@ -832,7 +839,9 @@ export function createSitesAPI(
 		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @param options Optional persistence, routing, and pruning behavior.
-		 * @returns The new site's slug.
+		 * In the origin-isolation prototype, a second site starts on another origin.
+		 * That navigation ends this document; callers must reconnect to its API.
+		 * @returns The new site's slug when creation stays in this document.
 		 */
 		async createNewSavedSite(
 			requestedSiteSlug?: string,
@@ -854,12 +863,35 @@ export function createSitesAPI(
 		 * @param wordPressFilesZip Playground ZIP export.
 		 * @param options Import lifecycle callbacks. Passing a bare progress
 		 *   callback remains supported.
-		 * @returns The new site's slug.
+		 * In the origin-isolation prototype, a second site starts on another origin.
+		 * That navigation ends this document; callers must reconnect to its API.
+		 * @returns The new site's slug when creation stays in this document.
 		 */
 		async createNewSiteFromZip(
 			wordPressFilesZip: File,
 			options: ZipImportOptions | ZipImportProgressCallback = {}
 		): Promise<string> {
+			if (needsFreshOrigin()) {
+				dispatch(
+					setSiteImportProgress({
+						caption: 'Preparing import',
+						progress: 0,
+					})
+				);
+				try {
+					return await navigateToFreshOrigin({
+						url: getSetupUrlForNewSite(undefined, {
+							baseUrl: new URL(window.location.href),
+							onlySetupParams: true,
+						}).href,
+						storage: opfsSiteStorage ? 'opfs' : 'temporary',
+						persistence: 'autosave',
+						zip: wordPressFilesZip,
+					});
+				} finally {
+					dispatch(setSiteImportProgress(undefined));
+				}
+			}
 			const callbacks: ZipImportOptions =
 				typeof options === 'function'
 					? { onProgress: options }
@@ -948,7 +980,17 @@ export function createSitesAPI(
 		settings?: SiteSettings,
 		initialize?: (playground: PlaygroundClient) => Promise<void>
 	): Promise<string> {
-		assertPrototypeOriginIsEmpty();
+		if (needsFreshOrigin()) {
+			const url = getSetupUrlForNewSite(settings, {
+				baseUrl: new URL(window.location.href),
+			});
+			url.searchParams.set('storage', 'temp');
+			return await navigateToFreshOrigin({
+				url: url.href,
+				name: requestedSiteSlug,
+				storage: 'temporary',
+			});
+		}
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
 			: randomSiteName();
@@ -977,12 +1019,28 @@ export function createSitesAPI(
 		initialize?: (playground: PlaygroundClient) => Promise<void>,
 		initialOpfsSyncProgress?: ProgressTracker
 	): Promise<string> {
-		assertPrototypeOriginIsEmpty();
 		if (!opfsSiteStorage) {
 			throw new Error(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
 		}
+		if (needsFreshOrigin()) {
+			if (options.updateUrl === false)
+				throw new Error(
+					'Creating another Playground requires navigating to its new origin.'
+				);
+			const url = getSetupUrlForNewSite(settings, {
+				baseUrl: new URL(window.location.href),
+				onlySetupParams: true,
+			});
+			return await navigateToFreshOrigin({
+				url: url.href,
+				name: requestedSiteSlug,
+				storage: 'opfs',
+				persistence: options.persistence ?? 'explicit',
+			});
+		}
+
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
 			: randomSiteName();
@@ -1030,15 +1088,23 @@ export function createSitesAPI(
 		return newSiteInfo.slug;
 	}
 
-	function assertPrototypeOriginIsEmpty() {
-		if (
+	function needsFreshOrigin() {
+		const state = getState();
+		const sites = selectAllSites(state);
+		const active = selectActiveSite(state);
+		// A failed Blueprint fetch created only an error placeholder. No PHP
+		// client ran, so replacing this temporary placeholder can keep the SPA.
+		const retryingBeforeBoot =
+			sites.length === 1 &&
+			active?.metadata.storage === 'none' &&
+			selectActiveSiteError(state) === 'blueprint-fetch-failed' &&
+			!selectClientBySiteSlug(state, active.slug);
+		// Deleting the record does not make a used origin safe for another site.
+		return (
 			isOriginIsolationPrototype(new URL(window.location.href)) &&
-			selectAllSites(getState()).length > 0
-		) {
-			throw new Error(
-				'One Playground per origin. Use New Playground to create a fresh origin.'
-			);
-		}
+			(sites.length > 0 || !!state.ui.activeSite?.slug) &&
+			!retryingBeforeBoot
+		);
 	}
 
 	async function activateNewSite(
@@ -1207,6 +1273,39 @@ startListening({
 			listenerApi.getState,
 			listenerApi.dispatch
 		);
+	},
+});
+
+// Each app publishes only its own site's display metadata. Foreign sites never
+// enter this Redux store, whose file operations must stay on the current origin.
+startListening({
+	predicate: (_action, state, previous) => state.sites !== previous.sites,
+	effect: async (_action, listenerApi) => {
+		if (
+			typeof window === 'undefined' ||
+			!isSiteOrigin(window.location.origin)
+		)
+			return;
+		const state = listenerApi.getState();
+		if (state.sites.opfsSitesLoadingState !== 'loaded') return;
+		const site = selectAllSites(state).find(
+			(site) => site.metadata.storage !== 'none'
+		);
+		try {
+			await updateOriginCatalogue(
+				site
+					? {
+							name: site.metadata.name,
+							storage: site.metadata.storage as
+								| 'opfs'
+								| 'local-fs',
+							persistence: getSitePublicPersistence(site),
+						}
+					: null
+			);
+		} catch (error) {
+			logger.error('Could not update the Playground list', error);
+		}
 	},
 });
 

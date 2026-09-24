@@ -1,3 +1,4 @@
+import { OriginSiteList } from './origin-site-list';
 import css from './style.module.css';
 import classNames from 'classnames';
 import { createPortal } from 'react-dom';
@@ -1390,6 +1391,7 @@ export function SavedPlaygroundsPanel({
 						{renderSiteGroup('Saved', visibleSavedSites)}
 					</>
 				)}
+				<OriginSiteList />
 				{savedSites.length > MAX_VISIBLE_STORED_SITES && (
 					<button
 						type="button"
