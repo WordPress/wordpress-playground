@@ -1,3 +1,6 @@
+import { isSiteOrigin } from '../lib/origin-isolation';
+import { originIsolationAuthMessage } from './state';
+
 export const GITHUB_OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
 export const GITHUB_OAUTH_STATE_PREFIX = 'playground-popup-';
 const GITHUB_OAUTH_POPUP_TIMEOUT_MS = 5 * 60 * 1000;
@@ -14,6 +17,9 @@ export interface GitHubOAuthMessage {
  * same-origin callback page.
  */
 export function startGitHubOAuthFlow(): Promise<string> {
+	if (isSiteOrigin(window.location.origin)) {
+		return Promise.reject(new Error(originIsolationAuthMessage));
+	}
 	const state = createGitHubOAuthState();
 	const oauthUrl = buildGitHubOAuthUrl(state);
 	const popup = window.open(

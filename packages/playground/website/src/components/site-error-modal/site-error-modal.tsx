@@ -1,3 +1,4 @@
+import { isSiteOrigin } from '../../lib/origin-isolation';
 import { useState } from 'react';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
@@ -86,6 +87,16 @@ export function SiteErrorModal({
 		reloadWithoutBlueprint() {
 			const currentUrl = new URL(window.location.href);
 			const newSiteUrl = new URL(PlaygroundRoute.newSite());
+			if (
+				isSiteOrigin(currentUrl.origin) &&
+				error === 'blueprint-fetch-failed' &&
+				site.metadata.storage === 'none'
+			) {
+				// The Blueprint never reached PHP. Retry in this shell instead of
+				// allocating a new origin for an error-only temporary placeholder.
+				newSiteUrl.host = currentUrl.host;
+			}
+
 			const paramsToKeep = [
 				'mode',
 				'url',

@@ -6,7 +6,7 @@ bridge is added.
 
 ```text
 playground.localhost:9400
-  launcher and a localStorage list of links; no Playground runtime
+  launcher and display-only catalogue; no Playground runtime
 
 site-<random UUID>.playground.localhost:9400
   SPA → remote.html → WordPress
@@ -36,8 +36,9 @@ writes the usual website/remote build directories and a local release descriptor
 in `dist/origin-isolation.json`. Rebuild and restart the server after source
 changes. This is a production-style build, without HMR.
 
-Create two Playgrounds from the launcher. Return to the launcher to switch.
-The app's New Playground action also allocates a fresh subdomain. Saving a
+Create two Playgrounds from the launcher. Switch using the Playgrounds pane or
+the launcher. New Playground, ZIP import, and settings that create a new site
+allocate a fresh subdomain. Saving a
 temporary site, renaming, and opening tools stay in the same document. Switching
 sites requires a top-level navigation because the next site has another origin.
 
@@ -55,10 +56,24 @@ sites requires a top-level navigation because the next site has another origin.
   bytes, because their offsets refer to the decoded WASM, not its compressed form.
 - Overlapping frame-load and API backfill calls share one pending ZIP download
   and unzip. A later call can retry or check the filesystem again.
-- Reopening a site origin selects its existing site. Creating a second site on
-  that origin is blocked. Its New action goes through the launcher instead.
+- Reopening a site origin selects its existing saved site. A used origin without
+  a saved site moves to a fresh origin, including temporary-site reloads and
+  deletion. New-site API calls
+  stage setup on a fresh origin, then navigate. `updateUrl: false` rejects this
+  operation rather than creating another site in the same storage bucket.
+- A small, separately built `/origin-isolation.html` accepts two operations:
+  the launcher lists display metadata and lets a site update only its own entry;
+  an unused site origin accepts a one-time setup, including ZIP bytes. It does
+  not expose file reads, exports, directory handles, or deletion of other sites.
+- The Playgrounds pane shows other origins as links, not local site records.
+  Rename/delete publish metadata; file operations remain on the current origin.
 - The launcher serves no `remote.html` or `api.html`. Site documents reject
-  cross-origin framing. There is no cross-site file or catalogue message API.
+  cross-origin framing. Only the narrow metadata/setup page permits it.
+- Saved sites can reload offline after their shell and runtime have been cached.
+  The generated shell manifest follows static imports, not every PHP version or
+  optional editor. A new origin still needs a network connection.
+- Public client exports and thumbnails use site-scoped entry points. GitHub
+  sign-in and token acceptance are disabled on site origins.
 
 ## Verify
 
@@ -85,7 +100,8 @@ requests. It checks:
 - Compressed PHP WASM is reused across two sites in a separate private context.
 - Overlapping backfill calls do not download the ZIP twice in private browsing.
 - Compression preserves runtime resume bytes and public CORS/cache headers.
-- Unused PHP/WordPress versions and the offline manifest are not requested.
+- Unused PHP/WordPress versions are not requested.
+- Repeat transfers and first-use assets are counted separately for each site.
 
 Results are written to `dist/origin-isolation-results.json`.
 
@@ -103,11 +119,19 @@ This separate configuration starts only the prototype server. Its base URL is
 instead would show the site list, not the app that these tests expect.
 Normal CI still uses its normal single-origin build.
 
-The tests are unchanged. This runner uses one worker and no retries so failures
-remain visible. JSON results, screenshots, and failure traces are written under
-`dist/origin-isolation-e2e/`. The full suite is not expected to pass yet: site
-management, imports, thumbnail capture, account integration, and offline behavior
-still need work. Passing the custom isolation check does not cover those flows.
+This runner uses one worker and no retries so failures remain visible. Version
+settings tests now check the running PHP/WordPress version, not just a dropdown.
+The ZIP-return tests accept a cross-origin link as well as the normal local
+button. The runner also includes `playwright/origin-isolation/` checks for message
+boundaries, fresh-origin creation, rename/delete, offline reload, static-host
+routing, and disabled login. Normal CI does not include those prototype tests.
+
+JSON results, screenshots, and failure traces are written under
+`dist/origin-isolation-e2e/`. The existing suite still includes contracts that the
+prototype deliberately does not offer: several sites in one OPFS bucket,
+no-navigation creation of a second site, global-start-page autosave prompts, and
+site-origin OAuth. These need separate-origin product behavior and tests, not a
+weaker isolation guard. Passing the custom cache check does not cover them.
 
 ## Why the HTTP cache can be shared
 
@@ -146,13 +170,20 @@ work around a private-mode cache limit.
 
 This is a local architecture experiment, not a deployment-ready security change.
 
-- The launcher's list contains generated links and launch numbers. It is not yet
-  the app's global site catalogue; rename/delete are not synchronized into it.
-- ZIP/GitHub imports and recreating a site with changed settings are blocked once
-  a site exists. They need a fresh-origin handoff before they can be enabled.
-- No offline support, old-origin data migration, or account/OAuth integration.
-  Do not sign in or store account tokens in this prototype. User code can access
-  its own app document and that origin's storage.
+- The catalogue shares site names, origins, and save state with every site. These
+  fields are not private. It never shares site files or account credentials.
+  Open a site to rename or delete it; another origin cannot perform those actions.
+- Global autosave retention is not implemented. A site's untrusted metadata must
+  not grant permission to delete another site's files. Autosaves on other origins
+  remain until removed there; there is no cross-origin pruning endpoint.
+- Creation ends the old document. API promises and callbacks from that document
+  do not transfer. An incoming setup is consumed once; reload during import may
+  require importing the original ZIP again. The source site stays intact.
+- No old-origin data migration or account/OAuth integration. GitHub sign-in is
+  blocked until authenticated import/export can run on a trusted origin. User
+  code can access its own app document and that origin's storage.
+- Older prototype launcher links remain as fallbacks. They do not gain full
+  metadata synchronization until those sites are opened.
 - HTTP cache reuse is best-effort. Private browsing, eviction, and other browsers
   can cause downloads again. The private-mode check reports repeated transfers
   separately; it does not promise that the large WordPress ZIP will stay cached.
@@ -163,6 +194,26 @@ This is a local architecture experiment, not a deployment-ready security change.
 - Production needs wildcard DNS/TLS, host routing, immutable asset deployment,
   a trusted catalogue, narrow cross-origin messages where needed, and an audit
   of cookies, credentials, exported APIs, and all new-site entry points.
+
+## Local run: 2026-09-24
+
+Chromium 149.0.7827.55, PHP 8.3, WordPress 6.9, fresh profiles:
+
+- The custom isolation/cache check passes with normal cache partitioning enabled.
+- Site A fetched 30,593,430 bytes of shared response bodies. Site B fetched zero
+  repeated bytes, including no repeat download of the WordPress ZIP or PHP WASM.
+- In a separate private context, site B fetched the 18,812,006-byte WordPress ZIP
+  again. PHP WASM was reused. That run also fetched 10,097 bytes of thumbnail
+  scripts; late first-use requests are tracked separately from repeat transfers.
+- Saved-file reopening, save/rename/tool SPA continuity, temporary-to-saved
+  conversion, fresh-origin creation, and runtime resume offsets pass.
+- All 511 remote/website unit tests and both packages' lint/type checks pass.
+- All eight origin-boundary browser tests pass, including rename/delete
+  publication, used-origin retirement, and a saved file surviving offline reload.
+
+These measurements exclude each site's small HTML documents and worker wrappers.
+A zero repeat-byte count means the browser reused prior downloads, not that the
+second site did not use those assets. Cache eviction can change the result.
 
 ## Local run: 2026-09-23
 

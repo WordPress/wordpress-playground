@@ -1,5 +1,6 @@
 import { Icon, Spinner } from '@wordpress/components';
-import { oAuthState } from '../state';
+import { oAuthState, originIsolationAuthMessage } from '../state';
+import { isSiteOrigin } from '../../lib/origin-isolation';
 import { GitHubIcon } from '../github';
 import css from './style.module.css';
 import { useState } from 'react';
@@ -45,6 +46,9 @@ export default function GitHubOAuthGuard({
 	mayLoseProgress,
 	intro,
 }: GitHubOAuthGuardProps) {
+	if (isSiteOrigin(window.location.origin)) {
+		return <p role="alert">{originIsolationAuthMessage}</p>;
+	}
 	if (oAuthState.value.isAuthorizing) {
 		return (
 			<div className={css.authorizing}>
