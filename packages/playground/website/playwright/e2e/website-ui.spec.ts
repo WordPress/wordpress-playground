@@ -3031,9 +3031,13 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		);
 
 		await website.goto(getUniqueSavedPlaygroundSetupUrl('restore'));
-		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
-			null
+		const initialUrl = new URL(website.page.url());
+		const resumesThisOrigin = initialUrl.hostname.endsWith(
+			'.playground.localhost'
 		);
+		if (!resumesThisOrigin) {
+			expect(initialUrl.searchParams.get('site-slug')).toBe(null);
+		}
 
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -3046,22 +3050,35 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		);
 
 		await website.page.reload();
-		await expect(
-			website.page.getByLabel('Recent autosaved Playground')
-		).toBeVisible();
-		await expect(
-			website.page
-				.getByLabel('Recent autosaved Playground')
-				.getByText('Recent autosave', { exact: true })
-		).toBeVisible();
-		await website.waitForNestedIframes();
-		await expect(
-			website.page.getByRole('button', { name: 'Unsaved' })
-		).toBeVisible();
-		await website.page
-			.getByRole('button', { name: 'Restore autosave' })
-			.click();
-		await website.waitForNestedIframes();
+		if (resumesThisOrigin) {
+			// A site URL restores that site's files directly; it is not the
+			// single-origin launcher's choice between a new site and an autosave.
+			await website.waitForNestedIframes();
+			expect(new URL(website.page.url()).origin).toBe(initialUrl.origin);
+			await expect(
+				website.page.getByLabel('Recent autosaved Playground')
+			).toHaveCount(0);
+			await expect(
+				website.page.getByRole('button', { name: 'Autosaved' })
+			).toBeVisible();
+		} else {
+			await expect(
+				website.page.getByLabel('Recent autosaved Playground')
+			).toBeVisible();
+			await expect(
+				website.page
+					.getByLabel('Recent autosaved Playground')
+					.getByText('Recent autosave', { exact: true })
+			).toBeVisible();
+			await website.waitForNestedIframes();
+			await expect(
+				website.page.getByRole('button', { name: 'Unsaved' })
+			).toBeVisible();
+			await website.page
+				.getByRole('button', { name: 'Restore autosave' })
+				.click();
+			await website.waitForNestedIframes();
+		}
 		await expect
 			.poll(() =>
 				new URL(website.page.url()).searchParams.get('site-slug')

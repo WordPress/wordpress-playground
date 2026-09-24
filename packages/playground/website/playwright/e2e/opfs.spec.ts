@@ -574,14 +574,15 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 
 		await simulateOpfsCleanupBlockedByAnotherTab(context);
 		const slug = `pending-cleanup-${Date.now()}`;
-		await website.page.goto(getTemporaryPlaygroundUrl());
+		// Seed storage without booting a competing Playground in that bucket.
+		await website.page.goto('./manifest.json');
 		await website.page.waitForFunction(
 			() => !!navigator.storage?.getDirectory
 		);
 		await writePendingOpfsResetSite(website.page, slug);
 
 		const lockPage = await context.newPage();
-		await lockPage.goto(getTemporaryPlaygroundUrl());
+		await lockPage.goto('./manifest.json');
 		await lockPage.evaluate(() => {
 			(window as any).simulateOpfsCleanupLockForThisTab();
 		});
@@ -634,7 +635,8 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		);
 
 		const interruptedSiteSlug = `interrupted-initial-sync-${Date.now()}`;
-		await website.page.goto(getTemporaryPlaygroundUrl());
+		// Seed storage without booting a competing Playground in that bucket.
+		await website.page.goto('./manifest.json');
 		await website.page.waitForFunction(
 			() => !!navigator.storage?.getDirectory
 		);
@@ -650,9 +652,23 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 			website.page.getByText('Start a new Playground to continue')
 		).toBeVisible();
 
+		const previousUrl = new URL(website.page.url());
 		await website.page
 			.getByRole('button', { name: 'Start a new Playground' })
 			.click();
+		if (previousUrl.hostname.endsWith('.playground.localhost')) {
+			await website.page.waitForURL(
+				(url) =>
+					url.origin !== previousUrl.origin &&
+					url.hostname.startsWith('site-')
+			);
+			await website.page.waitForFunction(() =>
+				Boolean((window as any).playgroundSites)
+			);
+			await website.page.evaluate(() =>
+				(window as any).playgroundSites.isReady()
+			);
+		}
 
 		await expect
 			.poll(
@@ -1884,6 +1900,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		const savedSite = await getActivePlaygroundSite(website.page);
 		expect(savedSite?.slug).toBeTruthy();
 		const savedSiteSlug = savedSite.slug;
+		const savedSiteUrl = website.page.url();
 
 		await website.openDockPane('New Playground');
 		await website.page
@@ -1914,30 +1931,43 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		);
 		expect(importedSite?.slug).toBeTruthy();
 		const importedSiteSlug = importedSite.slug;
+		const importedSiteUrl = new URL(
+			`./?site-slug=${encodeURIComponent(importedSiteSlug)}`,
+			website.page.url()
+		).href;
+		const separateOrigins =
+			new URL(importedSiteUrl).origin !== new URL(savedSiteUrl).origin;
 		await waitForInitialOpfsSync(website.page, importedSiteSlug);
 		// Discard the import runtime before requesting the marker. The fresh runtime
 		// must load the imported file from persisted OPFS state.
-		await website.goto(
-			`./?site-slug=${encodeURIComponent(importedSiteSlug)}`
-		);
+		await website.goto(importedSiteUrl);
 		await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 		await expect(wordpress.locator('body')).toContainText(importedMarker);
 
-		await setActivePlaygroundSite(website.page, savedSiteSlug);
+		if (separateOrigins) {
+			await website.goto(savedSiteUrl);
+		} else {
+			await setActivePlaygroundSite(website.page, savedSiteSlug);
+		}
 		await website.waitForNestedIframes();
 		await expect(getPlaygroundTitle(website.page)).toContainText(
 			savedSiteName,
 			{ timeout: 30000 }
 		);
 
-		await setActivePlaygroundSite(website.page, importedSiteSlug);
+		await openPlaygroundPath(website.page, '/saved-site-marker.php');
+		await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
+
+		if (separateOrigins) {
+			await website.goto(importedSiteUrl);
+		} else {
+			await setActivePlaygroundSite(website.page, importedSiteSlug);
+		}
 		await website.waitForNestedIframes();
 		await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 		await expect(wordpress.locator('body')).toContainText(importedMarker);
 
-		await website.goto(
-			`./?site-slug=${encodeURIComponent(importedSiteSlug)}`
-		);
+		await website.goto(importedSiteUrl);
 		await openPlaygroundPath(website.page, `/${importedMarkerPath}`);
 		await expect(wordpress.locator('body')).toContainText(importedMarker);
 	});
@@ -2003,14 +2033,15 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 							const activeSite = sitesAPI
 								.list()
 								.find((site: any) => site.isActive);
-							const playground = sitesAPI.getClient();
 							if (
 								!activeSite ||
-								activeSite.slug === originalSlug ||
-								!playground
+								activeSite.slug === originalSlug
 							) {
 								return { marker: false, defaultTheme: false };
 							}
+							const playground = sitesAPI.getClient();
+							if (!playground)
+								return { marker: false, defaultTheme: false };
 							const documentRoot = await playground.documentRoot;
 							return {
 								marker: await playground.fileExists(
@@ -2273,7 +2304,10 @@ PHP;
 		// Reboot the imported site so the final assertion reads the customization
 		// from persisted OPFS state rather than the import runtime.
 		await website.goto(
-			`./?site-slug=${encodeURIComponent(importedSiteSlug)}`
+			new URL(
+				`./?site-slug=${encodeURIComponent(importedSiteSlug)}`,
+				website.page.url()
+			).href
 		);
 		await waitForActivePlaygroundSiteSlug(
 			website.page,
