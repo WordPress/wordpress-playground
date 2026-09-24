@@ -158,6 +158,7 @@
 		},
 		"e2e:playwright:ci": {
 			"executor": "nx:run-commands",
+			"dependsOn": ["e2e:playwright:prepare-app-deploy-and-offline-mode"],
 			"options": {
 				"commands": [
 					"PLAYWRIGHT_TEST_GROUP=regular npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts",
@@ -177,8 +178,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
-					"unzip ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
+					"unzip -o ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
+					"unzip -o ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
 				]
 			}
 		},

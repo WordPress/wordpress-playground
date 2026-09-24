@@ -756,7 +756,11 @@ jobs:
             github.ref == 'refs/heads/trunk' &&
             github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit-asyncify, test-e2e, test-e2e-components, build]
+        needs:
+            - test-unit-asyncify
+            - test-e2e-playwright
+            - test-e2e-components
+            - build
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
