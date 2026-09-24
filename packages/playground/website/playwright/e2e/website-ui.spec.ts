@@ -789,6 +789,10 @@ test('should keep query arguments when updating settings', async ({
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
+	// The old WordPress iframe remains visible while the new origin is prepared.
+	await website.page.waitForURL(
+		(url) => url.searchParams.get('networking') === 'yes'
+	);
 	await website.waitForNestedIframes();
 
 	const updatedParams = new URL(website.page.url()).searchParams;
