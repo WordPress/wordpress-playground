@@ -1986,6 +1986,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		const sourceSite = await getActivePlaygroundSite(website.page);
 		expect(sourceSite?.slug).toBeTruthy();
 		const sourceSiteSlug = sourceSite.slug;
+		const sourceOrigin = new URL(website.page.url()).origin;
 
 		await website.openDockPane('New Playground');
 		await website.page
@@ -2020,6 +2021,10 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 				mimeType: 'application/zip',
 				buffer: zipBuffer,
 			});
+
+		if (new URL(sourceOrigin).hostname.endsWith('.playground.localhost')) {
+			await website.page.waitForURL((url) => url.origin !== sourceOrigin);
+		}
 
 		await expect
 			.poll(

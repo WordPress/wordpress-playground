@@ -4,6 +4,10 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import type * as SliceSitesModule from './slice-sites';
 import type { SiteInfo } from './slice-sites';
 import { createSitesAPI } from './site-management-api-middleware';
+import * as sites from './slice-sites';
+import * as blueprints from '@wp-playground/blueprints';
+import type { PlaygroundClient } from '@wp-playground/remote';
+import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 
 const mocks = vi.hoisted(() => ({
 	persistTemporarySite: vi.fn(),
@@ -37,6 +41,49 @@ describe('createSitesAPI', () => {
 	});
 	afterEach(() => {
 		vi.restoreAllMocks();
+	});
+
+	it('waits for the boot-time asset unzip before importing replacement files', async () => {
+		const site = createTemporarySite();
+		const state = createState(site);
+		vi.spyOn(sites, 'setTemporarySiteSpec').mockReturnValue(
+			async () => site
+		);
+		const dispatch = vi.fn((action: unknown) =>
+			typeof action === 'function'
+				? action(dispatch, () => state)
+				: action
+		) as unknown as PlaygroundDispatch;
+		let finishBackfill!: () => void;
+		const backfill = new Promise<void>((resolve) => {
+			finishBackfill = resolve;
+		});
+		const client = {
+			backfillStaticFilesRemovedFromMinifiedBuild: vi.fn(() => backfill),
+			goTo: vi.fn().mockResolvedValue(undefined),
+		} as unknown as PlaygroundClient;
+		const importFiles = vi
+			.spyOn(blueprints, 'importWordPressFiles')
+			.mockResolvedValue(undefined);
+		const api = createSitesAPI(() => state, dispatch);
+		vi.spyOn(api, 'setActiveSite').mockImplementation(async (slug) => {
+			await runSiteFirstBootInitializer(slug, client);
+		});
+		const zip = new File(['test'], 'site.zip');
+		const importing = api.createNewSiteFromZip(zip);
+		await vi.waitFor(() =>
+			expect(
+				client.backfillStaticFilesRemovedFromMinifiedBuild
+			).toHaveBeenCalledOnce()
+		);
+		expect(importFiles).not.toHaveBeenCalled();
+		finishBackfill();
+		await expect(importing).resolves.toBe(site.slug);
+		expect(importFiles).toHaveBeenCalledWith(
+			client,
+			{ wordPressFilesZip: zip },
+			expect.anything()
+		);
 	});
 
 	it('shares an autosave between API instances for the same store', async () => {
