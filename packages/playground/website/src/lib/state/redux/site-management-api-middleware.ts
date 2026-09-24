@@ -936,6 +936,10 @@ export function createSitesAPI(
 					}
 				);
 				const initialize = async (playground: PlaygroundClient) => {
+					// Finish the boot-time asset unzip before replacing wp-content.
+					// Otherwise it can recreate a directory between the import's
+					// removal and move, or restore files omitted by the archive.
+					await playground.backfillStaticFilesRemovedFromMinifiedBuild();
 					await importWordPressFiles(
 						playground,
 						{ wordPressFilesZip },
