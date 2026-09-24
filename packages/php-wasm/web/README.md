@@ -8,8 +8,9 @@ Here's how to use it:
 import { PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { loadWebRuntime } from '@php-wasm/web';
 
-// loadWebRuntime() resolves the php.wasm URL with
-// new URL('php.wasm', import.meta.url) – no bundler configuration needed.
+// The PHP loader resolves its own .wasm file with
+// new URL('./8_5_10/php_8_5.wasm', import.meta.url).
+// See "Usage with bundlers" below for the options each bundler still needs.
 const php = new PHP(await loadWebRuntime('8.5'));
 
 let response;
@@ -97,6 +98,8 @@ on bundlers.
 To resolve that error, you'll need to configure your bundler to resolve the import above to the URL
 of the `icu.dat` in your app, e.g. `https://playground.wordpress.net/assets/icu.dat`.
 
+### Vite
+
 In Vite, you can use the following options to support importing all the required assets types:
 
 ```js
@@ -108,8 +111,34 @@ export default defineConfig({
 });
 ```
 
+`optimizeDeps.exclude` is required. Without it, the Vite dev server pre-bundles the PHP loader into
+`node_modules/.vite`, `new URL('./8_5_10/php_8_5.wasm', import.meta.url)` resolves against that
+directory, and the request for the `.wasm` file returns 404.
+
+### webpack 5
+
+webpack 5 resolves `new URL('./8_5_10/php_8_5.wasm', import.meta.url)` on its own and emits the
+`.wasm` file as an asset. An earlier version of this README asked you to add a `file-loader` rule for
+`.wasm`. Delete that rule: `file-loader` also matches the `new URL()` asset and returns the string
+`[object%20Module]`, so PHP never starts. Keep the rule only if other code still imports `.wasm`
+files, and exclude URL dependencies from it:
+
+```js
+{
+	test: /\.wasm$/,
+	loader: 'file-loader',
+	dependency: { not: ['url'] },
+}
+```
+
+### esbuild
+
+esbuild leaves `new URL(..., import.meta.url)` as written. Builds no longer need
+`--loader:.wasm=file`, but you must serve the PHP version directories, such as `8_5_10/`, next to the
+bundle.
+
 Other bundlers will typically have analogous options or plugins. If you create a working configuration for
-WebPack, esbuild, or another bundler, feel free to propose a new configuration example for this README at
+another bundler, feel free to propose a new configuration example for this README at
 https://github.com/WordPress/wordpress-playground/edit/trunk/packages/php-wasm/web/README.md
 
 ## Attribution

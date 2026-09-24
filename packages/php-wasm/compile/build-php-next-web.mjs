@@ -47,6 +47,16 @@ for (const mode of modes) {
 	}
 }
 
+for (const mode of modes) {
+	const loaderPath = path.join(outputDir, mode, loaderFilename);
+	const contents = fs.readFileSync(loaderPath, 'utf8');
+	if (!/const dependencyFilename = new URL\(/.test(contents)) {
+		throw new Error(
+			`${loaderPath} does not resolve the .wasm file with new URL(..., import.meta.url)`
+		);
+	}
+}
+
 writeNextIndex();
 writeManifest();
 writeReadme();

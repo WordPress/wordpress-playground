@@ -69,7 +69,7 @@ export default defineConfig(({ mode }) => {
 				root: '../../../',
 			}),
 			viteIgnoreImports({
-				extensions: ['wasm', 'dat'],
+				extensions: ['dat'],
 			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
