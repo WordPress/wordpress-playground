@@ -89,6 +89,26 @@ requests. It checks:
 
 Results are written to `dist/origin-isolation-results.json`.
 
+### Existing E2E tests
+
+The custom check above is not the regular suite. To run existing Playwright
+assertions against the prototype after building it, stop any preview on 9400 and run:
+
+```sh
+npx nx run playground-website:e2e:origin-isolation --args="--project=chromium"
+```
+
+This separate configuration starts only the prototype server. Its base URL is
+`http://site-e2e.playground.localhost:9400/`; navigating to the launcher root
+instead would show the site list, not the app that these tests expect.
+Normal CI still uses its normal single-origin build.
+
+The tests are unchanged. This runner uses one worker and no retries so failures
+remain visible. JSON results, screenshots, and failure traces are written under
+`dist/origin-isolation-e2e/`. The full suite is not expected to pass yet: site
+management, imports, thumbnail capture, account integration, and offline behavior
+still need work. Passing the custom isolation check does not cover those flows.
+
 ## Why the HTTP cache can be shared
 
 Both sites request exactly the same URL, for example:
