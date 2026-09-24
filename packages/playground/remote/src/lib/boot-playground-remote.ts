@@ -684,6 +684,12 @@ async function captureSiteThumbnailFromWordPress({
 				siteThumbnailModuleUrl,
 				document.location.href
 			);
+			if (isOriginIsolationPrototype(new URL(document.location.href))) {
+				// The renderer runs inside WordPress. Keep its validated entry point
+				// on that origin; the small wrapper imports the shared release asset.
+				moduleUrl.host = document.location.host;
+				moduleUrl.protocol = document.location.protocol;
+			}
 			// The marker lets the service worker distinguish this app asset
 			// from a path inside the scoped WordPress site.
 			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');

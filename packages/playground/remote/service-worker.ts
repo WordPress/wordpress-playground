@@ -206,8 +206,9 @@ self.addEventListener('activate', function (event) {
 		await self.clients.claim();
 
 		if (isOriginIsolationPrototype(new URL(location.href))) {
-			// Populate lazily; do not download unused PHP/WordPress versions.
+			// Seed the shell only; runtime versions and optional tools remain lazy.
 			await purgeEverythingFromPreviousRelease();
+			await cacheOfflineModeAssetsForCurrentRelease();
 		} else if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
 			cacheOfflineModeAssetsForCurrentRelease();
@@ -257,7 +258,9 @@ self.addEventListener('fetch', (event) => {
 	const isSiteThumbnailModule =
 		url.searchParams.has('playground-site-thumbnail-module') &&
 		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
-			/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname));
+			/^\/(?:[a-z0-9]+\/)?capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+				url.pathname
+			));
 	const isSiteThumbnailWorker =
 		event.request.destination === 'worker' &&
 		url.searchParams.has('playground-site-thumbnail-worker');
@@ -407,6 +410,7 @@ self.addEventListener('fetch', (event) => {
 	 */
 	if (
 		url.pathname === '/remote.html' ||
+		url.pathname === '/index.html' ||
 		url.pathname === '/api.html' ||
 		url.pathname === '/'
 	) {

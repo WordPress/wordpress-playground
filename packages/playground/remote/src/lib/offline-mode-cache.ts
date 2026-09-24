@@ -124,6 +124,29 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
  * site without making any network requests.
  */
 export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
+	if (isOriginIsolationPrototype(new URL(self.location.href))) {
+		const manifest = await fetchFresh(
+			'/assets-required-for-offline-mode.json'
+		);
+		const urls: string[] = await manifest.json();
+		// Seed only the shell modules fetched before this worker claimed the page.
+		// Immutable modules can reuse the shared HTTP cache; mutable HTML cannot.
+		const cache = await promisedOfflineModeCache;
+		// This runs while the worker is activating, before cacheFirstFetch's
+		// active-worker guard permits writes. Await the complete shell snapshot.
+		await cache.addAll(
+			urls.map((url) => {
+				const target = new URL(url, self.location.href);
+				return new Request(target, {
+					cache: isImmutableSharedAssetUrl(target)
+						? 'default'
+						: 'no-store',
+				});
+			})
+		);
+		return;
+	}
+
 	// Get the cache manifest and add all the files to the cache
 	const manifestResponse = await fetchFresh(
 		'/assets-required-for-offline-mode.json'
@@ -189,10 +212,24 @@ export async function putCachedResponse(
 }
 
 export function shouldCacheUrl(url: URL) {
-	// Only public, release-qualified assets get lazy CacheStorage copies here.
-	// Site documents and the offline prefetch manifest need a separate offline flow.
 	if (isOriginIsolationPrototype(new URL(self.location.href))) {
-		return isImmutableSharedAssetUrl(url);
+		// Cache this site's shell and entry wrappers, never another site's HTML
+		// or a scoped PHP response. Runtime assets remain demand-loaded.
+		const base = new URL(import.meta.env.BASE_URL, self.location.href);
+		return (
+			isImmutableSharedAssetUrl(url) ||
+			(url.origin === self.location.origin &&
+				!isURLScoped(url) &&
+				([
+					'/',
+					'/index.html',
+					'/remote.html',
+					'/api.html',
+					'/manifest.json',
+				].includes(url.pathname) ||
+					(url.pathname.startsWith(base.pathname) &&
+						url.pathname.endsWith('.js'))))
+		);
 	}
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;

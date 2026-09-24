@@ -66,10 +66,31 @@ describe('shared asset HTTP caching', () => {
 		'http://static.playground.localhost:9401/release-a/app.js',
 		'http://site-bbbb.playground.localhost:9400/release-a/app.js',
 		'http://site-aaaa.playground.localhost:9400/scope:123/index.php',
-		'http://site-aaaa.playground.localhost:9400/remote.html',
 	])('does not treat %s as an immutable shared asset', async (href) => {
 		const { shouldCacheUrl } = await import('./offline-mode-cache');
 		expect(shouldCacheUrl(new URL(href))).toBe(false);
+	});
+
+	it('caches only its own shell and release-specific entry wrappers', async () => {
+		const { shouldCacheUrl } = await import('./offline-mode-cache');
+		const origin = 'http://site-aaaa.playground.localhost:9400';
+		expect(shouldCacheUrl(new URL('/remote.html', origin))).toBe(true);
+		expect(
+			shouldCacheUrl(new URL('/release-a/assets/worker-abc.js', origin))
+		).toBe(true);
+		expect(
+			shouldCacheUrl(new URL('/release-old/assets/worker-abc.js', origin))
+		).toBe(false);
+		expect(shouldCacheUrl(new URL('/scope:123/index.php', origin))).toBe(
+			false
+		);
+		expect(
+			shouldCacheUrl(
+				new URL(
+					'http://site-bbbb.playground.localhost:9400/remote.html'
+				)
+			)
+		).toBe(false);
 	});
 
 	it('keeps the deployed unversioned URLs out of the HTTP cache', async () => {

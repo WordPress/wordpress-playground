@@ -16,11 +16,30 @@ const manifest = JSON.parse(await readFile(new URL('manifest.json', website)));
 for (const image of [...manifest.icons, ...manifest.screenshots]) {
 	image.src = new URL(image.src, base).href;
 }
+const bridge = (
+	await readFile(new URL('bridge.html', import.meta.url), 'utf8')
+).replace('__ORIGIN_BRIDGE_URL__', new URL('origin-isolation.js', base).href);
+const shellAssets = JSON.parse(
+	await readFile(new URL('dist/origin-isolation-shell.json', root))
+);
 const app = express();
 
 app.use((req, res, next) => {
 	res.set('X-Content-Type-Options', 'nosniff');
 	res.set('Cache-Control', 'no-store');
+	if (
+		req.path === '/origin-isolation.html' &&
+		(req.hostname === 'playground.localhost' ||
+			/^site-[a-f0-9-]+\.playground\.localhost$/.test(req.hostname))
+	) {
+		// Only this narrow metadata/setup endpoint can be embedded across sites.
+		// It exposes no file-reading API and accepts setup only on an empty origin.
+		res.set(
+			'Content-Security-Policy',
+			'frame-ancestors http://*.playground.localhost:9400'
+		);
+		return res.type('html').send(bridge);
+	}
 	if (req.hostname === 'playground.localhost') {
 		// No remote.html, api.html, or user content is served on the catalogue origin.
 		res.set('Content-Security-Policy', "frame-ancestors 'none'");
@@ -32,6 +51,11 @@ app.use((req, res, next) => {
 			console.log(
 				JSON.stringify({
 					asset: req.originalUrl,
+					site:
+						req.get('Origin') ||
+						(req.get('Referer')
+							? new URL(req.get('Referer')).origin
+							: undefined),
 					status: res.statusCode,
 					bytes: Number(res.get('Content-Length') || 0),
 					encoding: res.get('Content-Encoding') || 'identity',
@@ -55,6 +79,30 @@ app.use((req, res, next) => {
 	res.set('Cross-Origin-Opener-Policy', 'same-origin');
 	if (req.path === '/' || req.path === '/index.html') {
 		return res.sendFile(fileURLToPath(new URL('index.html', website)));
+	}
+	if (req.path === '/assets-required-for-offline-mode.json') {
+		return res.json(shellAssets);
+	}
+	if (req.path === '/api.html') {
+		return res.sendFile(fileURLToPath(new URL('api.html', website)));
+	}
+	if (req.path.startsWith('/test-fixtures/')) {
+		// Public Blueprint fixtures must still work after setup moves to another
+		// site origin. The archive/resources themselves use the shared cache.
+		res.set('Access-Control-Allow-Origin', '*');
+		return res.redirect(302, new URL(`.${req.path}`, base).href);
+	}
+	if (req.path.startsWith('/client/')) {
+		return res.redirect(302, new URL(`.${req.path}`, base).href);
+	}
+	if (
+		new RegExp(`^/${release}/capture-site-thumbnail-[\\w-]+\\.js$`).test(
+			req.path
+		)
+	) {
+		return res
+			.type('js')
+			.send(`import ${JSON.stringify(new URL(req.path, base).href)};`);
 	}
 	if (req.path === '/remote.html') {
 		return res.sendFile(fileURLToPath(new URL('remote.html', remote)));
@@ -94,6 +142,17 @@ app.use((req, res, next) => {
 // Only public build files are served here. Worker entry scripts can be imported,
 // but HTML documents must run on site origins.
 const publicFiles = express.Router();
+publicFiles.use(
+	'/client',
+	express.static(
+		fileURLToPath(new URL('dist/packages/playground/client/', root)),
+		{
+			immutable: true,
+			maxAge: '1y',
+			index: false,
+		}
+	)
+);
 for (const directory of [website, remote]) {
 	publicFiles.use(
 		express.static(fileURLToPath(directory), {
@@ -106,10 +165,13 @@ for (const directory of [website, remote]) {
 app.use(
 	`/${release}`,
 	(req, res, next) => {
+		// Express decodes paths, and the local filesystem may ignore case. Apply
+		// the document restriction to that spelling too, not just the raw URL.
+		const pathname = decodeURIComponent(req.path).toLowerCase();
 		if (
-			req.path.endsWith('.html') ||
-			req.path.endsWith('.br') ||
-			req.path === '/'
+			pathname.endsWith('.html') ||
+			pathname.endsWith('.br') ||
+			pathname === '/'
 		)
 			return res.sendStatus(404);
 		next();
