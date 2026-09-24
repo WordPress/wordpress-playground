@@ -48,11 +48,30 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `can-save`         |                       | Controls whether the Playground shell offers automatic browser saving. Use `can-save=no` to start a temporary Playground and hide the Dock save status/persistence prompt.                                                                                                                                                                                                                                                                                                  |
 | `mcp-port`         | `7999`                | Sets the WebSocket port used by the MCP bridge to communicate with the MCP server. For example, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                                            |
 | `overlay`          |                       | Opens a Playground tool on page load. Supports `new` for the Dock's **New** pane. For example, `?overlay=new`. `blueprints` is kept as a compatibility alias that opens the same **New** pane, so `?overlay=blueprints` still works. The parameter is removed from the URL when the pane is closed.                                                                                                                                                                         |
+| `filebrowser`      |                       | Opens the Dock’s **Files** pane. Accepts an optional file path relative to the WordPress document root, and an optional `:<line>` suffix to place the editor cursor on a 1-based line. Ignored inside embedded iframes and when `mode=seamless`.                                                                                                                                                                                                                            |
 
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
+```
+
+To open the Dock’s **Files** pane, use:
+
+```text
+https://playground.wordpress.net/?filebrowser
+```
+
+To open the Dock’s **Files** pane with a specific file, use a path relative to the WordPress document root:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php
+```
+
+To place the cursor on a specific 1-based line number, append `:<line>` to the path:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php:20
 ```
 
 ## Loading PHP.wasm extensions

@@ -19,7 +19,7 @@ import {
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { basename, dirname } from '@php-wasm/util';
+import { basename, dirname, isParentOf } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
 	seemsLikeBinary,
@@ -127,14 +127,37 @@ export const FileExplorerSidebar = forwardRef<
 		if (!currentPath || !treeRef.current) {
 			return;
 		}
-		setSelectedDirPath(dirname(currentPath));
-		treeRef.current.focusPath(currentPath, {
-			select: true,
-			domFocus: false,
-			notify: false,
-		});
-		void treeRef.current.expandToPath(currentPath);
-	}, [currentPath, setSelectedDirPath]);
+		let cancelled = false;
+		const tree = treeRef.current;
+		const syncCurrentPathSelection = async () => {
+			// Blueprint steps may have created folders after the tree first loaded.
+			const parents: string[] = [];
+			for (
+				let parent = dirname(currentPath);
+				parent === documentRoot || isParentOf(documentRoot, parent);
+				parent = dirname(parent)
+			) {
+				parents.unshift(parent);
+				if (parent === documentRoot) break;
+			}
+			for (const parent of parents) {
+				await tree.refresh(parent);
+				if (cancelled) return;
+			}
+			await tree.expandToPath(currentPath);
+			if (cancelled) return;
+			setSelectedDirPath(dirname(currentPath));
+			tree.focusPath(currentPath, {
+				select: true,
+				domFocus: false,
+				notify: false,
+			});
+		};
+		void syncCurrentPathSelection();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentPath, documentRoot, setSelectedDirPath]);
 
 	/**
 	 * Opens a selected file as editable text, binary preview, or too-large notice.

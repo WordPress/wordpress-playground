@@ -4,6 +4,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
+import { shouldUseFileBrowserQuery } from '../url/filebrowser-query';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -186,6 +187,10 @@ const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
 
 const shouldOpenDockPaneByDefault = false;
+const useFileBrowserQuery = shouldUseFileBrowserQuery(
+	query,
+	isEmbeddedInAnIframe
+);
 
 const initialState: UIState = {
 	/**
@@ -215,7 +220,8 @@ const initialState: UIState = {
 	dockPaneIsOpen:
 		// The Dock pane should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
-		(query.get('overlay') !== null ||
+		(useFileBrowserQuery ||
+			query.get('overlay') !== null ||
 			(shouldOpenDockPaneByDefault &&
 				// We do not expect to render the Playground app UI in an iframe.
 				!isEmbeddedInAnIframe &&
@@ -223,8 +229,10 @@ const initialState: UIState = {
 				// as that would mean seeing something that's not Playground filling
 				// your entire screen – quite a confusing experience.
 				window.innerWidth >= BREAKPOINTS.tablet)),
-	dockPaneSection:
-		query.get('overlay') === 'blueprints' || query.get('overlay') === 'new'
+	dockPaneSection: useFileBrowserQuery
+		? 'files'
+		: query.get('overlay') === 'blueprints' ||
+			  query.get('overlay') === 'new'
 			? 'new'
 			: query.get('overlay') !== null
 				? 'playgrounds'

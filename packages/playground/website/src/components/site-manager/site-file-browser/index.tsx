@@ -38,6 +38,14 @@ import {
 	type PathBadge,
 	type PlaygroundFileEditorHandle,
 } from '@wp-playground/components';
+import { joinPaths } from '@php-wasm/util';
+import {
+	FILE_BROWSER_INVALID_PATH_NOTICE,
+	parseFileBrowserQuery,
+	resolveFileBrowserPath,
+	shouldUseFileBrowserQuery,
+} from '../../../lib/state/url/filebrowser-query';
+import type { FileBrowserQuery } from '../../../lib/state/url/filebrowser-query';
 import { GitIcon } from './git-icon';
 import { GitHubIcon } from '../../../github/github';
 
@@ -52,6 +60,13 @@ export function SiteFileBrowser({
 	documentRoot: string;
 	mobileHeaderTarget?: Element | null;
 }) {
+	const query = new URL(window.location.href).searchParams;
+	const initialTarget = resolveInitialTarget(
+		documentRoot,
+		shouldUseFileBrowserQuery(query, window.self !== window.top)
+			? parseFileBrowserQuery(query)
+			: null
+	);
 	const dispatch = useAppDispatch();
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
@@ -170,7 +185,9 @@ export function SiteFileBrowser({
 				filesystem={filesystem}
 				documentRoot={documentRoot}
 				isVisible={isVisible}
-				initialPath={`${documentRoot}/wp-config.php`}
+				initialPath={initialTarget.path}
+				initialLine={initialTarget.line}
+				initialNotice={initialTarget.notice}
 				placeholderText="Start this Playground to browse and edit its files."
 				dockPresentation
 				mobileHeaderTarget={mobileHeaderTarget}
@@ -192,6 +209,56 @@ export function SiteFileBrowser({
 			) : null}
 		</>
 	);
+}
+
+/**
+ * Resolves the file browser startup target from the `filebrowser` URL query.
+ *
+ * Invalid query values are returned as notices so the editor can show feedback
+ * without falling back to the default `wp-config.php` file.
+ */
+function resolveInitialTarget(
+	documentRoot: string,
+	fileBrowserQuery: FileBrowserQuery | null
+) {
+	if (!fileBrowserQuery?.isRequested) {
+		return {
+			path: joinPaths(documentRoot, 'wp-config.php'),
+			line: null,
+			notice: null,
+		};
+	}
+	if (fileBrowserQuery.error) {
+		return {
+			path: null,
+			line: null,
+			notice: fileBrowserQuery.error,
+		};
+	}
+	if (!fileBrowserQuery.path) {
+		return {
+			path: null,
+			line: null,
+			notice: null,
+		};
+	}
+
+	const resolvedPath = resolveFileBrowserPath(
+		documentRoot,
+		fileBrowserQuery.path
+	);
+	if (!resolvedPath) {
+		return {
+			path: null,
+			line: null,
+			notice: FILE_BROWSER_INVALID_PATH_NOTICE,
+		};
+	}
+	return {
+		path: resolvedPath,
+		line: fileBrowserQuery.line,
+		notice: null,
+	};
 }
 
 function addGitDirectorySource(
