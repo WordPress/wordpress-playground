@@ -11,7 +11,7 @@ export default defineConfig({
 	outputDir: '../../../../dist/origin-isolation-e2e/artifacts',
 	reporter: [
 		['list'],
-		['json', { outputFile: 'dist/origin-isolation-e2e/results.json' }],
+		['json', { outputFile: '../../../../dist/origin-isolation-e2e/results.json' }],
 	],
 	use: {
 		...playwrightConfig.use,
