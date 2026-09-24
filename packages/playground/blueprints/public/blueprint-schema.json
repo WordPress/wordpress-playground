@@ -1465,8 +1465,29 @@
 							"description": "The path of the file to write to"
 						},
 						"filesTree": {
-							"$ref": "#/definitions/DirectoryReference",
-							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
+							"anyOf": [
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"resource": {
+											"type": "string",
+											"const": "literal:directory"
+										},
+										"files": {
+											"$ref": "#/definitions/FileTree"
+										},
+										"name": {
+											"type": "string"
+										}
+									},
+									"required": ["files", "name"]
+								}
+							],
+							"description": "The 'filesTree' defines the directory structure. Inline directories can provide 'name' and 'files' without a 'resource' property. Explicit 'literal:directory' and 'git:directory' resources are also supported. The 'name' represents the root directory, while 'files' maps file paths to contents or nested subdirectories."
 						}
 					},
 					"required": ["filesTree", "step", "writeToPath"]
@@ -2295,13 +2316,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 													}
 												}
 											]
@@ -2718,13 +2739,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																}
 															}
 														]
@@ -3130,13 +3151,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																	}
 																}
 															]
@@ -3276,13 +3297,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																				}
 																			}
 																		]
@@ -3819,13 +3840,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																						}
 																					}
 																				]
@@ -3967,13 +3988,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 																									}
 																								}
 																							]
@@ -4271,13 +4292,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 													}
 												}
 											]
@@ -4520,13 +4541,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 													}
 												}
 											]
@@ -4823,7 +4844,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862": {
+		"alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4837,13 +4858,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-149738-149832-1337903113-101884-149846-1337903113-101850-149846-1337903113-0-167159"
 					}
 				}
 			]
