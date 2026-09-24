@@ -4,6 +4,48 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.55] (2026-09-21) 
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- Align Node\.js engine requirements with WordPress Core 24\.x\. ([#4322](https://github.com/WordPress/wordpress-playground/pull/4322))
+
+### Documentation
+
+- Authenticate remote access host signaling\. ([#4327](https://github.com/WordPress/wordpress-playground/pull/4327))
+- Redirect English documentation pages to developer\.wordpress\.org\. ([#4331](https://github.com/WordPress/wordpress-playground/pull/4331))
+- \[i18n\] Translate GitHub UI contribution guide into Gujarati\. ([#4324](https://github.com/WordPress/wordpress-playground/pull/4324))
+
+### PHP WebAssembly
+
+- Generate Markdown references for the Playground handbook\. ([#4337](https://github.com/WordPress/wordpress-playground/pull/4337))
+
+### Website
+
+- Escape and sandbox the Blueprint Builder error iframe\. ([#4329](https://github.com/WordPress/wordpress-playground/pull/4329))
+- Explain Gutenberg PR preview failures by proxy error code\. ([#4342](https://github.com/WordPress/wordpress-playground/pull/4342))
+- Expose mails to MCP and WebMCP\. ([#4334](https://github.com/WordPress/wordpress-playground/pull/4334))
+- fix\(website\)\: Retarget Gutenberg PR artifact to gutenberg\.zip\. ([#4330](https://github.com/WordPress/wordpress-playground/pull/4330))
+
+### Bug Fixes
+
+- fix\(meta\)\: changelog\: Prevent Markdown\/&lt;HTML\/&gt; injection via PR titles\. ([#4333](https://github.com/WordPress/wordpress-playground/pull/4333))
+
+### Various
+
+- Add troubleshooting mode to Personal WordPress crash dialog\. ([#4343](https://github.com/WordPress/wordpress-playground/pull/4343))
+- Remove URL site setup and add PHP setting to my\.wordpress\.net\. ([#4340](https://github.com/WordPress/wordpress-playground/pull/4340))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ahirpravin @akirk @brandonpayton @mho22 @mirka @zaerl
+
+
 ## [v3.1.54] (2026-09-14) 
 
 ### Tools
