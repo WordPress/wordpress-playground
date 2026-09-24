@@ -308,7 +308,7 @@ function playground_enable_site_thumbnail_capture() {
 					const isRendererModule =
 						moduleUrl.pathname ===
 							'/src/lib/capture-site-thumbnail.ts' ||
-						/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+						/^\/(?:[a-z0-9]+\/)?capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
 							moduleUrl.pathname
 						);
 					if (
