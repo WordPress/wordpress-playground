@@ -164,6 +164,7 @@ const sidebars = {
 					items: [
 						'developers/xdebug/introduction',
 						'developers/xdebug/getting-started',
+						'developers/xdebug/trace-and-profile',
 					],
 				},
 				{
