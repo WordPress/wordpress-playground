@@ -17,6 +17,7 @@ import {
 	stripRemoteAccessSessionId,
 } from '@wp-playground/remote-access';
 import saveAs from 'file-saver';
+import { isMessageFromIframeTree } from '@wp-playground/components';
 
 import serviceWorkerPath from '@wp-playground/remote/service-worker?worker&url';
 import remoteAccessFrameUrl from './remote-access-frame.html?url';
@@ -723,36 +724,6 @@ function unwrapRemoteAccessFrameMessage(
 		return null;
 	}
 	return event.data as RemoteAccessFrameMessage;
-}
-
-function isMessageFromIframeTree(
-	event: MessageEvent,
-	iframe: HTMLIFrameElement | null
-): boolean {
-	if (!iframe?.contentWindow || !event.source) {
-		return false;
-	}
-	if (event.source === iframe.contentWindow) {
-		return true;
-	}
-	return isDescendantWindow(iframe.contentWindow, event.source);
-}
-
-function isDescendantWindow(
-	root: Window,
-	candidate: MessageEventSource
-): boolean {
-	try {
-		for (let i = 0; i < root.frames.length; i++) {
-			const child = root.frames[i];
-			if (child === candidate || isDescendantWindow(child, candidate)) {
-				return true;
-			}
-		}
-	} catch {
-		return false;
-	}
-	return false;
 }
 
 export function getRemoteAccessSessionId(): string | null {

@@ -51,7 +51,10 @@ import {
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { playgroundLogo } from '@wp-playground/components';
+import {
+	isMessageFromIframeTree,
+	playgroundLogo,
+} from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
 import { estimateBackupSize, useBackup } from '../../lib/hooks/use-backup';
@@ -1612,6 +1615,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		postInstallBlueprintResult(event, {
 			blueprintUrl,
 			requestId,
+			status: 'started',
+		});
+
+		postInstallBlueprintResult(event, {
+			blueprintUrl,
+			requestId,
 			...(installLocally
 				? await applyBlueprint(blueprintUrl, {
 						usageStatsRequestSource,
@@ -2305,7 +2314,7 @@ type InstallBlueprintResultMessage = {
 	relayType: 'install-blueprint-result';
 	blueprintUrl: string;
 	requestId?: string;
-	status: InstallBlueprintResult['status'] | 'cancelled';
+	status: InstallBlueprintResult['status'] | 'started' | 'cancelled';
 	error?: string;
 };
 
@@ -2479,36 +2488,6 @@ function postBackupSiteResult(
 		} satisfies BackupSiteResultMessage,
 		event.origin
 	);
-}
-
-function isMessageFromIframeTree(
-	event: MessageEvent,
-	iframe: HTMLIFrameElement | null
-): boolean {
-	if (!iframe?.contentWindow || !event.source) {
-		return false;
-	}
-	if (event.source === iframe.contentWindow) {
-		return true;
-	}
-	return isDescendantWindow(iframe.contentWindow, event.source);
-}
-
-function isDescendantWindow(
-	root: Window,
-	candidate: MessageEventSource
-): boolean {
-	try {
-		for (let i = 0; i < root.frames.length; i++) {
-			const child = root.frames[i];
-			if (child === candidate || isDescendantWindow(child, candidate)) {
-				return true;
-			}
-		}
-	} catch {
-		// Cross-origin frames are not inspectable and therefore not accepted.
-	}
-	return false;
 }
 
 function getBlueprintRunnerClient<T extends object>(
