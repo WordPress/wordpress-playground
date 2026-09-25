@@ -1,3 +1,10 @@
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
+import {
+	navigateToFreshOrigin,
+	snapshotOriginBlueprint,
+} from '../../origin-isolation';
+import { selectClientBySiteSlug } from './slice-clients';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import {
 	createSlice,
@@ -5,7 +12,11 @@ import {
 	createSelector,
 } from '@reduxjs/toolkit';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectActiveSite, setActiveSite } from './store';
+import {
+	selectActiveSite,
+	selectActiveSiteError,
+	setActiveSite,
+} from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import type { OriginalUrlParams } from '../original-url-params';
 import {
@@ -450,7 +461,7 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
  */
 export function setTemporarySiteSpec(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL,
+	source: URL | TraversableFilesystemBackend,
 	preferredSlug?: string,
 	options: { replaceExisting?: boolean } = {}
 ) {
@@ -458,9 +469,26 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const newSiteUrlParams = getOriginalUrlParams(
-			playgroundUrlWithQueryApiArgs
-		);
+		const sourceUrl = source instanceof URL ? source : undefined;
+		if (needsFreshOrigin(getState())) {
+			const url = sourceUrl ?? new URL('/', window.location.href);
+			url.searchParams.set('storage', 'temp');
+			return await navigateToFreshOrigin({
+				url: url.href,
+				name: siteName,
+				storage: 'temporary',
+				blueprint:
+					source instanceof URL
+						? undefined
+						: await snapshotOriginBlueprint(source),
+			});
+		}
+		const newSiteUrlParams = sourceUrl
+			? getOriginalUrlParams(sourceUrl)
+			: undefined;
+		const sourceSetupUrlFingerprint = sourceUrl
+			? getAutosaveFingerprintFromURL(sourceUrl)
+			: undefined;
 
 		const showTemporarySiteError = (params: {
 			error: SiteError;
@@ -475,9 +503,7 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
-					sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-						playgroundUrlWithQueryApiArgs
-					),
+					sourceSetupUrlFingerprint,
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -522,7 +548,7 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite && !options.replaceExisting) {
+		if (sourceUrl && currentTemporarySite && !options.replaceExisting) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
@@ -562,10 +588,10 @@ export function setTemporarySiteSpec(
 
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
-			resolvedBlueprint = await resolveBlueprintFromURL(
-				playgroundUrlWithQueryApiArgs,
-				DEFAULT_BLUEPRINT
-			);
+			resolvedBlueprint =
+				source instanceof URL
+					? await resolveBlueprintFromURL(source, DEFAULT_BLUEPRINT)
+					: { blueprint: source, source: { type: 'none' } };
 		} catch (e) {
 			logger.error(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
@@ -587,10 +613,12 @@ export function setTemporarySiteSpec(
 		}
 
 		try {
-			resolvedBlueprint = await prepareResolvedBlueprint(
-				resolvedBlueprint,
-				playgroundUrlWithQueryApiArgs
-			);
+			if (sourceUrl) {
+				resolvedBlueprint = await prepareResolvedBlueprint(
+					resolvedBlueprint,
+					sourceUrl
+				);
+			}
 			let displayName = siteName;
 			let slugBaseName = siteName;
 			if (!preferredSlug) {
@@ -613,9 +641,7 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
-					sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-						playgroundUrlWithQueryApiArgs
-					),
+					sourceSetupUrlFingerprint,
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -672,6 +698,24 @@ export function createStoredSite(
 			throw new Error(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
+		}
+
+		// Some callers, including the Blueprint editor, create records directly.
+		// Keep the origin boundary here as well as in the public creation API.
+		if (needsFreshOrigin(getState())) {
+			return await navigateToFreshOrigin({
+				url:
+					source instanceof URL
+						? source.href
+						: new URL('/', window.location.href).href,
+				name: siteName,
+				storage: 'opfs',
+				persistence: options.persistence ?? 'explicit',
+				blueprint:
+					source instanceof URL
+						? undefined
+						: await snapshotOriginBlueprint(source),
+			});
 		}
 
 		/**
@@ -1012,3 +1056,22 @@ export const selectSitesLoaded = createSelector(
 );
 
 export default sitesSlice.reducer;
+
+export function needsFreshOrigin(state: PlaygroundReduxState) {
+	if (typeof window === 'undefined') return false;
+	const sites = selectAllSites(state);
+	const active = selectActiveSite(state);
+	// A failed Blueprint fetch created only an error placeholder. No PHP
+	// client ran, so replacing this temporary placeholder can keep the SPA.
+	const retryingBeforeBoot =
+		sites.length === 1 &&
+		active?.metadata.storage === 'none' &&
+		selectActiveSiteError(state) === 'blueprint-fetch-failed' &&
+		!selectClientBySiteSlug(state, active.slug);
+	// Deleting the record does not make a used origin safe for another site.
+	return (
+		isOriginIsolationPrototype(new URL(window.location.href)) &&
+		(sites.length > 0 || !!state.ui.activeSite?.slug) &&
+		!retryingBeforeBoot
+	);
+}

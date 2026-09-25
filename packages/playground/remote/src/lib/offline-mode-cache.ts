@@ -1,10 +1,17 @@
+/// <reference types="vite/client" />
+// Other packages also type-check this source without the remote tsconfig.
 import { isURLScoped } from '@php-wasm/scopes';
-import { isDevServer } from './dev-server';
+import { isDevServer, isOriginIsolationPrototype } from './dev-server';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
 const CACHE_NAME_PREFIX = 'playground-cache';
-const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
+// Local rebuilds keep the Git version but change the immutable asset base.
+const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${
+	import.meta.env.BASE_URL === '/'
+		? buildVersion
+		: `${buildVersion}-${import.meta.env.BASE_URL}`
+}`;
 
 // We save a top-level Promise because this module is imported by
 // a Service Worker module which does not allow top-level await.
@@ -27,14 +34,20 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const requestWithoutRangeHeader = stripRangeHeader(request);
 
 	/**
-	 * Ensure the response is not coming from HTTP cache.
+	 * For unversioned deployment URLs, ensure the response is not coming from HTTP cache.
 	 *
 	 * We never want to put a stale asset in CacheStorage as
 	 * that would break Playground.
 	 *
 	 * See service-worker.ts for more details.
+	 *
+	 * The local subdomain build puts immutable assets under one release URL.
+	 * That URL cannot contain an older build, so allow the HTTP cache to supply
+	 * bytes already downloaded by another site before making a per-origin copy.
 	 */
-	const response = await fetchFresh(requestWithoutRangeHeader);
+	const response = isImmutableSharedAssetUrl(new URL(request.url))
+		? await fetch(requestWithoutRangeHeader, { cache: 'default' })
+		: await fetchFresh(requestWithoutRangeHeader);
 	if (response.ok) {
 		/**
 		 * Confirm the current service worker is still active
@@ -111,6 +124,29 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
  * site without making any network requests.
  */
 export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
+	if (isOriginIsolationPrototype(new URL(self.location.href))) {
+		const manifest = await fetchFresh(
+			'/assets-required-for-offline-mode.json'
+		);
+		const urls: string[] = await manifest.json();
+		// Seed only the shell modules fetched before this worker claimed the page.
+		// Immutable modules can reuse the shared HTTP cache; mutable HTML cannot.
+		const cache = await promisedOfflineModeCache;
+		// This runs while the worker is activating, before cacheFirstFetch's
+		// active-worker guard permits writes. Await the complete shell snapshot.
+		await cache.addAll(
+			urls.map((url) => {
+				const target = new URL(url, self.location.href);
+				return new Request(target, {
+					cache: isImmutableSharedAssetUrl(target)
+						? 'default'
+						: 'no-store',
+				});
+			})
+		);
+		return;
+	}
+
 	// Get the cache manifest and add all the files to the cache
 	const manifestResponse = await fetchFresh(
 		'/assets-required-for-offline-mode.json'
@@ -176,6 +212,25 @@ export async function putCachedResponse(
 }
 
 export function shouldCacheUrl(url: URL) {
+	if (isOriginIsolationPrototype(new URL(self.location.href))) {
+		// Cache this site's shell and entry wrappers, never another site's HTML
+		// or a scoped PHP response. Runtime assets remain demand-loaded.
+		const base = new URL(import.meta.env.BASE_URL, self.location.href);
+		return (
+			isImmutableSharedAssetUrl(url) ||
+			(url.origin === self.location.origin &&
+				!isURLScoped(url) &&
+				([
+					'/',
+					'/index.html',
+					'/remote.html',
+					'/api.html',
+					'/manifest.json',
+				].includes(url.pathname) ||
+					(url.pathname.startsWith(base.pathname) &&
+						url.pathname.endsWith('.js'))))
+		);
+	}
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
 	}
@@ -209,6 +264,16 @@ export function shouldCacheUrl(url: URL) {
 	 * Allow only requests to the same hostname to be cached.
 	 */
 	return self.location.hostname === url.hostname;
+}
+
+function isImmutableSharedAssetUrl(url: URL) {
+	const base = new URL(import.meta.env.BASE_URL, self.location.href);
+	return (
+		isOriginIsolationPrototype(new URL(self.location.href)) &&
+		base.hostname === 'static.playground.localhost' &&
+		url.origin === base.origin &&
+		url.pathname.startsWith(base.pathname)
+	);
 }
 
 /**

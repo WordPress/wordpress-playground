@@ -6,9 +6,63 @@ import {
 import type { MountHandler } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 
-describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
+describe('PlaygroundWorkerEndpoint', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+	});
+
+	it('shares a pending static backfill within one endpoint, not across sites', async () => {
+		const first = await createEndpoint({});
+		const second = await createEndpoint({});
+		first.__internal_getPHP = second.__internal_getPHP = () =>
+			createFakePhp();
+		const utils = await import('./worker-utils');
+		let finish!: () => void;
+		const pending = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+		const backfill = vi
+			.spyOn(utils, 'backfillStaticFilesRemovedFromMinifiedBuild')
+			.mockReturnValue(pending);
+
+		let completed = false;
+		const calls = [
+			first.backfillStaticFilesRemovedFromMinifiedBuild(),
+			first.backfillStaticFilesRemovedFromMinifiedBuild().then(() => {
+				completed = true;
+			}),
+			second.backfillStaticFilesRemovedFromMinifiedBuild(),
+		];
+		await Promise.resolve();
+		expect(completed).toBe(false);
+		expect(backfill).toHaveBeenCalledTimes(2);
+		finish();
+		await Promise.all(calls);
+		expect(completed).toBe(true);
+
+		// A later call must check the filesystem again, not retain a completed run.
+		await first.backfillStaticFilesRemovedFromMinifiedBuild();
+		expect(backfill).toHaveBeenCalledTimes(3);
+	});
+
+	it('allows retrying a failed static backfill', async () => {
+		const endpoint = await createEndpoint({});
+		endpoint.__internal_getPHP = () => createFakePhp();
+		const utils = await import('./worker-utils');
+		const backfill = vi
+			.spyOn(utils, 'backfillStaticFilesRemovedFromMinifiedBuild')
+			.mockRejectedValueOnce(new Error('Download interrupted'))
+			.mockResolvedValue(undefined);
+
+		const first = endpoint.backfillStaticFilesRemovedFromMinifiedBuild();
+		const second = endpoint.backfillStaticFilesRemovedFromMinifiedBuild();
+		await expect(first).rejects.toThrow('Download interrupted');
+		await expect(second).rejects.toThrow('Download interrupted');
+		await expect(
+			endpoint.backfillStaticFilesRemovedFromMinifiedBuild()
+		).resolves.toBeUndefined();
+		expect(backfill).toHaveBeenCalledTimes(2);
 	});
 
 	it('registers OPFS mounts created through mountOpfs', async () => {
@@ -237,6 +291,7 @@ async function createEndpoint(
 	opfsMounts: Record<string, ReturnType<typeof createOpfsMount>>,
 	unmounts: Record<string, () => Promise<void>> = {}
 ) {
+	vi.stubGlobal('location', new URL('http://playground.test/'));
 	vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
 	const { PlaygroundWorkerEndpoint } =
 		await import('./playground-worker-endpoint');
@@ -244,6 +299,7 @@ async function createEndpoint(
 	endpoint.opfsMounts = createNullPrototypeRecord(opfsMounts);
 	endpoint.unmounts = createNullPrototypeRecord(unmounts);
 	return endpoint as {
+		backfillStaticFilesRemovedFromMinifiedBuild(): Promise<void>;
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
 		hasOpfsMount(mountpoint: string): Promise<boolean>;
 		mountOpfs(options: {

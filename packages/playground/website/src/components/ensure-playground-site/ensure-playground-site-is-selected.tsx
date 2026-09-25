@@ -1,3 +1,8 @@
+import { InMemoryFilesystemBackend } from '@wp-playground/storage';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../remote/src/lib/dev-server';
+import { navigateToFreshOrigin } from '../../lib/origin-isolation';
+import type { OriginSetup } from '../../lib/origin-isolation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Icon, Popover } from '@wordpress/components';
@@ -9,6 +14,8 @@ import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
+	createStoredSite,
+	setTemporarySiteSpec,
 	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	isRestorableAutosavedSite,
@@ -54,8 +61,12 @@ import {
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
+	setup,
+	originWasUsed,
 }: {
 	children: React.ReactNode;
+	setup?: OriginSetup;
+	originWasUsed?: boolean;
 }) {
 	const siteListingStatus = useAppSelector(
 		(state) => state.sites.opfsSitesLoadingState
@@ -64,9 +75,15 @@ export function EnsurePlaygroundSiteIsSelected({
 	const sortedSites = useAppSelector(selectSortedSites);
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
+	const setupStarted = useRef(false);
 	const url = useCurrentUrl();
 	const initialUrlHref = useRef(window.location.href);
-	const requestedSiteSlug = url.searchParams.get('site-slug');
+	// A prototype origin has exactly one site. Reopening its bare URL restores it,
+	// and changing site-slug cannot create a second site in the same OPFS root.
+	const requestedSiteSlug = isOriginIsolationPrototype(url)
+		? (sortedSites.find((site) => site.metadata.storage !== 'none')?.slug ??
+			null)
+		: url.searchParams.get('site-slug');
 	const requestedSiteObject = useAppSelector((state) =>
 		selectSiteBySlug(state, requestedSiteSlug!)
 	);
@@ -156,6 +173,87 @@ export function EnsurePlaygroundSiteIsSelected({
 			// re-run this entire effect, potentially leading to multiple
 			// sites being created since we couldn't look for duplicates yet.
 			if (!['loaded', 'error'].includes(siteListingStatus)) {
+				return;
+			}
+
+			if (setup) {
+				if (setupStarted.current) return;
+				setupStarted.current = true;
+				try {
+					if (sortedSites.length)
+						throw new Error(
+							'Cannot replace an existing Playground with an incoming setup.'
+						);
+					if (setup.blueprint) {
+						const bundle = new InMemoryFilesystemBackend();
+						for (const entry of setup.blueprint) {
+							if (entry.bytes === null)
+								await bundle.mkdir(entry.path, true);
+							else
+								await bundle.writeFile(entry.path, entry.bytes);
+						}
+						const site = await dispatch(
+							setup.storage === 'temporary'
+								? setTemporarySiteSpec(
+										setup.name ?? 'WordPress Playground',
+										bundle
+									)
+								: createStoredSite(
+										setup.name ?? 'WordPress Playground',
+										bundle,
+										undefined,
+										{ persistence: setup.persistence }
+									)
+						);
+						await sitesAPI.setActiveSite(site.slug);
+					} else if (setup.zip) {
+						await sitesAPI.createNewSiteFromZip(setup.zip, {
+							onPlaygroundLoaded: (storage) =>
+								dispatch(
+									setDockOperationNotice({
+										status: 'success',
+										title: 'Playground imported',
+										message:
+											storage === 'temporary'
+												? 'Your Playground is ready. It’s available until you close this page.'
+												: 'Your Playground is ready. Autosave will finish in the background.',
+									})
+								),
+						});
+					} else if (setup.storage === 'temporary') {
+						await sitesAPI.createNewTemporarySite(setup.name);
+					} else {
+						await sitesAPI.createNewSavedSite(
+							setup.name,
+							undefined,
+							{ persistence: setup.persistence }
+						);
+					}
+				} catch (error) {
+					logger.error(
+						'Could not finish incoming Playground setup',
+						error
+					);
+					dispatch(
+						setDockOperationNotice({
+							status: 'error',
+							title: 'Couldn’t create Playground',
+							message: String(error),
+						})
+					);
+				}
+				return;
+			}
+
+			// A used origin without a saved site cannot restore anything. Its old
+			// code may have left a service worker or other storage behind. Never
+			// put a new Playground there, including after a temporary-site reload.
+			if (originWasUsed && !sortedSites.length) {
+				await navigateToFreshOrigin({
+					url: url.href,
+					storage: shouldUseTemporarySite ? 'temporary' : 'opfs',
+					persistence: 'autosave',
+				});
 				return;
 			}
 
@@ -266,7 +364,9 @@ export function EnsurePlaygroundSiteIsSelected({
 				try {
 					await sitesAPI.createNewSavedSite(undefined, undefined, {
 						persistence: 'autosave',
-						updateUrl: false,
+						updateUrl: isOriginIsolationPrototype(url)
+							? undefined
+							: false,
 					});
 				} catch (error) {
 					logger.error(

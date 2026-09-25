@@ -6,6 +6,8 @@
  */
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { sameOriginWorkerUrl } from '../../../../../remote/src/lib/worker-url';
 import type {
 	SiteInfo,
 	SiteMetadata,
@@ -784,7 +786,9 @@ async function writeOpfsFileInWorker(
 	path: string,
 	content: string
 ): Promise<void> {
-	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
+	const worker = new Worker(sameOriginWorkerUrl(metadataWorkerUrl), {
+		type: 'module',
+	});
 
 	const channel = new MessageChannel();
 	const promiseToWrite = new Promise<void>((resolve, reject) => {

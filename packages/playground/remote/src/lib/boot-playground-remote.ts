@@ -1,3 +1,5 @@
+import { sameOriginWorkerUrl } from './worker-url';
+import { isOriginIsolationPrototype } from './dev-server';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -33,22 +35,20 @@ import { responseTo } from '@php-wasm/web-service-worker';
 // @ts-ignore
 import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?worker&url';
 
-// Avoid literal "import.meta.url" on purpose as vite would attempt
-// to resolve it during build time. This should specifically be
-// resolved by the browser at runtime to reflect the current origin.
-const origin = new URL('/', (import.meta || {}).url).origin;
+// Resolve the runtime origin from the document, not the shared JavaScript asset URL.
+const origin = window.location.origin;
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
 	const query = new URL(document.location.href).searchParams;
-	const workerUrl = new URL(workerEntryPointUrl, origin);
+	const workerUrl = sameOriginWorkerUrl(workerEntryPointUrl);
 	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
 		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
 	}
 	return workerUrl + '';
 }
 
-export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
+export const serviceWorkerUrl = sameOriginWorkerUrl(serviceWorkerPath);
 
 // Prevent Vite from hot-reloading this file – it would
 // cause bootPlaygroundRemote() to register another web worker
@@ -91,8 +91,12 @@ export async function bootPlaygroundRemote() {
 
 	const registration = await sw.register(serviceWorkerUrl + '', {
 		type: 'module',
-		// Always bypass HTTP cache when fetching the new Service Worker script:
-		updateViaCache: 'none',
+		// Production always bypasses HTTP cache. The prototype's imported scripts
+		// have a release-specific URL and can share the HTTP cache across sites.
+		updateViaCache: isOriginIsolationPrototype(new URL(origin))
+			? 'imports'
+			: 'none',
+		...(isOriginIsolationPrototype(new URL(origin)) ? { scope: '/' } : {}),
 	});
 
 	// Check if there's a new service worker available and, if so, enqueue
@@ -680,6 +684,12 @@ async function captureSiteThumbnailFromWordPress({
 				siteThumbnailModuleUrl,
 				document.location.href
 			);
+			if (isOriginIsolationPrototype(new URL(document.location.href))) {
+				// The renderer runs inside WordPress. Keep its validated entry point
+				// on that origin; the small wrapper imports the shared release asset.
+				moduleUrl.host = document.location.host;
+				moduleUrl.protocol = document.location.protocol;
+			}
 			// The marker lets the service worker distinguish this app asset
 			// from a path inside the scoped WordPress site.
 			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');

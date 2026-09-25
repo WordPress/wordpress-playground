@@ -607,10 +607,20 @@ SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();
+		const previousSite = await getRunningSiteKey(website.page);
 		await website.page.getByLabel('PHP version').selectOption(version);
 		await website.page
 			.getByText('Discard current work & create a fresh Playground')
 			.click();
+		await expect
+			.poll(() =>
+				readRunningVersion(
+					website.page,
+					previousSite,
+					'<?php echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;'
+				)
+			)
+			.toBe(version);
 		await website.ensureSiteManagerIsClosed();
 		await website.ensureSiteManagerIsOpen();
 
@@ -629,12 +639,26 @@ Object.keys(MinifiedWordPressVersions)
 		}) => {
 			await website.goto('./?storage=temp');
 			await website.ensureSiteManagerIsOpen();
+			const previousSite = await getRunningSiteKey(website.page);
 			await website.page
 				.getByLabel('WordPress version')
 				.selectOption(version);
 			await website.page
 				.getByText('Discard current work & create a fresh Playground')
 				.click();
+			await expect
+				.poll(() =>
+					readRunningVersion(
+						website.page,
+						previousSite,
+						"<?php require '/wordpress/wp-includes/version.php'; echo $wp_version;"
+					)
+				)
+				.toMatch(
+					version === 'trunk'
+						? /-(alpha|beta|RC)/
+						: new RegExp(`^${version.replace('.', '\\.')}([.-]|$)`)
+				);
 			await website.ensureSiteManagerIsClosed();
 			await website.ensureSiteManagerIsOpen();
 
@@ -643,6 +667,40 @@ Object.keys(MinifiedWordPressVersions)
 			).toHaveValue(version);
 		});
 	});
+
+/** Read the runtime, not the form draft, after a new Playground has replaced the old one. */
+async function readRunningVersion(
+	page: Page,
+	previousSite: string,
+	code: string
+) {
+	try {
+		return await page.evaluate(
+			async ({ previousSite, code }) => {
+				const api = (window as any).playgroundSites;
+				const site = api?.list().find((site: any) => site.isActive);
+				if (
+					!site ||
+					`${window.location.origin}/${site.slug}` === previousSite
+				)
+					return 'old Playground';
+				await api.isReady();
+				return (await api.getClient().run({ code })).text;
+			},
+			{ previousSite, code }
+		);
+	} catch {
+		// Cross-origin creation replaces the document while the assertion polls.
+		return 'Playground is starting';
+	}
+}
+
+async function getRunningSiteKey(page: Page) {
+	return await page.evaluate(
+		() =>
+			`${window.location.origin}/${(window as any).playgroundSites.list().find((site: any) => site.isActive).slug}`
+	);
+}
 
 test('should display networking as active by default', async ({ website }) => {
 	await website.goto('./?storage=temp');
@@ -731,6 +789,10 @@ test('should keep query arguments when updating settings', async ({
 	await website.page
 		.getByText('Discard current work & create a fresh Playground')
 		.click();
+	// The old WordPress iframe remains visible while the new origin is prepared.
+	await website.page.waitForURL(
+		(url) => url.searchParams.get('networking') === 'yes'
+	);
 	await website.waitForNestedIframes();
 
 	const updatedParams = new URL(website.page.url()).searchParams;
@@ -2984,9 +3046,13 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		);
 
 		await website.goto(getUniqueSavedPlaygroundSetupUrl('restore'));
-		expect(new URL(website.page.url()).searchParams.get('site-slug')).toBe(
-			null
+		const initialUrl = new URL(website.page.url());
+		const resumesThisOrigin = initialUrl.hostname.endsWith(
+			'.playground.localhost'
 		);
+		if (!resumesThisOrigin) {
+			expect(initialUrl.searchParams.get('site-slug')).toBe(null);
+		}
 
 		await expect(
 			website.page.getByRole('button', { name: 'Autosaved' })
@@ -2999,22 +3065,35 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		);
 
 		await website.page.reload();
-		await expect(
-			website.page.getByLabel('Recent autosaved Playground')
-		).toBeVisible();
-		await expect(
-			website.page
-				.getByLabel('Recent autosaved Playground')
-				.getByText('Recent autosave', { exact: true })
-		).toBeVisible();
-		await website.waitForNestedIframes();
-		await expect(
-			website.page.getByRole('button', { name: 'Unsaved' })
-		).toBeVisible();
-		await website.page
-			.getByRole('button', { name: 'Restore autosave' })
-			.click();
-		await website.waitForNestedIframes();
+		if (resumesThisOrigin) {
+			// A site URL restores that site's files directly; it is not the
+			// single-origin launcher's choice between a new site and an autosave.
+			await website.waitForNestedIframes();
+			expect(new URL(website.page.url()).origin).toBe(initialUrl.origin);
+			await expect(
+				website.page.getByLabel('Recent autosaved Playground')
+			).toHaveCount(0);
+			await expect(
+				website.page.getByRole('button', { name: 'Autosaved' })
+			).toBeVisible();
+		} else {
+			await expect(
+				website.page.getByLabel('Recent autosaved Playground')
+			).toBeVisible();
+			await expect(
+				website.page
+					.getByLabel('Recent autosaved Playground')
+					.getByText('Recent autosave', { exact: true })
+			).toBeVisible();
+			await website.waitForNestedIframes();
+			await expect(
+				website.page.getByRole('button', { name: 'Unsaved' })
+			).toBeVisible();
+			await website.page
+				.getByRole('button', { name: 'Restore autosave' })
+				.click();
+			await website.waitForNestedIframes();
+		}
 		await expect
 			.poll(() =>
 				new URL(website.page.url()).searchParams.get('site-slug')
