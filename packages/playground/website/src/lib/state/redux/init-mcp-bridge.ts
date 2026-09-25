@@ -1,3 +1,4 @@
+import { abilitiesController } from '../../abilities';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
 import { setOPFSSitesLoadingState } from './slice-sites';
@@ -74,6 +75,12 @@ startListening({
 				// No site is selected yet.
 				client = undefined;
 			}
+			const state = listenerApi.getState();
+			abilitiesController.setSite(
+				state.ui.activeSite?.slug,
+				client,
+				Object.keys(state.sites.entities)
+			);
 			if (client === proxiedClient) {
 				return;
 			}

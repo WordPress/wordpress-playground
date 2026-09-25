@@ -570,7 +570,12 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 }
 
 export function stringifyError(error: unknown): string {
-	if (error instanceof Error) {
+	if (
+		error !== null &&
+		typeof error === 'object' &&
+		'message' in error &&
+		typeof error.message === 'string'
+	) {
 		return error.message;
 	}
 	if (typeof error === 'string') {

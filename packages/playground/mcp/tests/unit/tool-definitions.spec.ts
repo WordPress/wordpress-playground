@@ -6,6 +6,7 @@ import {
 	paramsToJsonSchema,
 	playgroundUrl,
 	toolDefinitions,
+	stringifyError,
 } from '../../src/tools/tool-definitions';
 
 describe('playgroundUrl', () => {
@@ -63,5 +64,24 @@ describe('paramsToJsonSchema', () => {
 				},
 			},
 		});
+	});
+});
+
+describe('stringifyError', () => {
+	it('preserves messages from browser errors serialized as plain objects', () => {
+		expect(
+			stringifyError({
+				code: 'invalid_tool_name',
+				message: 'Invalid tool name',
+			})
+		).toBe('Invalid tool name');
+		expect(stringifyError(new Error('Invalid schema'))).toBe(
+			'Invalid schema'
+		);
+	});
+	it('retains structured error details when there is no message', () => {
+		expect(stringifyError({ code: 'invalid_tool_name' })).toBe(
+			'{"code":"invalid_tool_name"}'
+		);
 	});
 });
