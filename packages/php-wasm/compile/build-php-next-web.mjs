@@ -48,7 +48,13 @@ for (const mode of modes) {
 }
 
 for (const mode of modes) {
-	patchBrowserLoader(path.join(outputDir, mode, loaderFilename));
+	const loaderPath = path.join(outputDir, mode, loaderFilename);
+	const contents = fs.readFileSync(loaderPath, 'utf8');
+	if (!/const dependencyFilename = new URL\(/.test(contents)) {
+		throw new Error(
+			`${loaderPath} does not resolve the .wasm file with new URL(..., import.meta.url)`
+		);
+	}
 }
 
 writeNextIndex();
@@ -68,19 +74,6 @@ async function buildMode(mode, modeArgs) {
 		],
 		{ cwd: projectRoot, stdio: 'inherit' }
 	);
-}
-
-function patchBrowserLoader(loaderPath) {
-	const contents = fs.readFileSync(loaderPath, 'utf8');
-	const patched = contents.replace(
-		/^import dependencyFilename from ['"](.+)['"];\s*/m,
-		(_, wasmPath) =>
-			`const dependencyFilename = new URL('${wasmPath}', import.meta.url).href;\n`
-	);
-	if (patched === contents) {
-		throw new Error(`Could not patch WASM import in ${loaderPath}`);
-	}
-	fs.writeFileSync(loaderPath, patched);
 }
 
 function writeNextIndex() {

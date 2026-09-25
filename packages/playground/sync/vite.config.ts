@@ -25,7 +25,7 @@ export default {
 			root: '../../../',
 		}),
 		viteIgnoreImports({
-			extensions: ['wasm', 'dat'],
+			extensions: ['dat'],
 		}),
 
 		...viteGlobalExtensions,

@@ -1,4 +1,5 @@
-import dependencyFilename from './7_4_33/php_7_4.wasm';
+const dependencyFilename = new URL('./7_4_33/php_7_4.wasm', import.meta.url)
+	.href;
 export { dependencyFilename };
 export const dependenciesTotalSize = 13904923;
 const phpVersionString = '7.4.33';
