@@ -39,7 +39,7 @@ class Wp_Http_Fetch_Base
 	public function request($url, $headers = array(), $data = array(), $options = array())
 	{
 		if (!empty($data)) {
-			$data_format = $options['data_format'];
+			$data_format = isset($options['data_format']) ? $options['data_format'] : 'body';
 			if ($data_format === 'query') {
 				$url = self::format_get($url, $data);
 				$data = '';
@@ -55,13 +55,17 @@ class Wp_Http_Fetch_Base
 					'headers' => $headers,
 					'data' => $data,
 					'url' => $url,
-					'method' => $options['type'],
+					'method' => isset($options['type']) ? $options['type'] : 'GET',
 					'blocking' => isset($options['blocking']) ? $options['blocking'] : true,
 				]
 			)
 		);
 
 		$this->headers = post_message_to_js($request);
+
+		if (!is_string($this->headers)) {
+			return false;
+		}
 
 		// Store a file if the request specifies it.
 		// Are we sure that `$this->headers` includes the body of the response?
