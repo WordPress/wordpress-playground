@@ -62,6 +62,130 @@ For GitHub source code, do not point `url` at a repository page or a generated
 ZIP from a branch when you can use `git:directory`. Use `url` for built ZIP
 artifacts and `git:directory` for source directories.
 
+#### Hosting URL resources on Amazon S3
+
+Amazon S3 can host Blueprint files, Blueprint bundles, plugin ZIP files, and
+theme ZIP files when the objects are public and CORS is configured for
+Playground requests. Use the object URL in the `url` resource. Replace
+`BUCKET_NAME` with the bucket name and `REGION` with the
+[AWS Region code](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)
+for the bucket:
+
+```json
+{
+	"resource": "url",
+	"url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/plugins/example-plugin.zip"
+}
+```
+
+Prefer bucket names without dots when using HTTPS S3 object URLs. Bucket names
+with dots can cause certificate errors in virtual-hosted S3 URLs. If you already
+have a bucket name with dots, review the
+[Amazon S3 virtual hosting documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+and use a URL format that works for your bucket, such as a path-style URL if it
+is supported for your setup:
+
+```text
+https://s3.REGION.amazonaws.com/BUCKET_NAME/plugins/example-plugin.zip
+```
+
+For a public S3 bucket, allow read access to the objects that Playground needs
+to download. Scope the policy to the prefixes you use for Playground assets,
+and replace `BUCKET_NAME` with the bucket name:
+
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "AllowPublicReadForPlaygroundAssets",
+			"Effect": "Allow",
+			"Principal": "*",
+			"Action": "s3:GetObject",
+			"Resource": ["arn:aws:s3:::BUCKET_NAME/blueprints/*", "arn:aws:s3:::BUCKET_NAME/plugins/*", "arn:aws:s3:::BUCKET_NAME/themes/*"]
+		}
+	]
+}
+```
+
+[Amazon S3 Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)
+settings must allow public bucket policies for this policy to work. Only allow
+public access for objects that are intended to be downloadable by anyone with
+the URL.
+
+Configure CORS so the Playground website can fetch those objects. The following
+S3 CORS configuration allows `GET` and `HEAD` requests from
+`https://playground.wordpress.net`:
+
+```json
+[
+	{
+		"AllowedHeaders": ["*"],
+		"AllowedMethods": ["GET", "HEAD"],
+		"AllowedOrigins": ["https://playground.wordpress.net"],
+		"ExposeHeaders": [],
+		"MaxAgeSeconds": 3000
+	}
+]
+```
+
+Use `AllowedOrigins: ["*"]` only when the objects are intended to be fetched
+from any website. See the Amazon S3 documentation for
+[bucket policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteAccessPermissionsReqd.html)
+and [CORS configuration](https://docs.aws.amazon.com/AmazonS3/latest/userguide/enabling-cors-examples.html).
+
+Here is a Blueprint that installs a plugin ZIP hosted on S3:
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/plugins.php",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"steps": [
+		{
+			"step": "login",
+			"username": "admin",
+			"password": "password"
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/plugins/example-plugin.zip"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}
+```
+
+Use the same `url` resource shape with `installTheme` and `themeData`:
+
+```json
+{
+	"step": "installTheme",
+	"themeData": {
+		"resource": "url",
+		"url": "https://BUCKET_NAME.s3.REGION.amazonaws.com/themes/example-theme.zip"
+	},
+	"options": {
+		"activate": true
+	}
+}
+```
+
+For loading a Blueprint JSON file or Blueprint bundle from S3, pass the object
+URL to `?blueprint-url=`:
+
+```text
+https://playground.wordpress.net/?blueprint-url=https://BUCKET_NAME.s3.REGION.amazonaws.com/blueprints/example-blueprint.json
+```
+
 ### GitDirectoryReference
 
 The `GitDirectoryReference` resource is used to reference a directory inside a Git repository. This is useful when a plugin or theme lives in a subfolder of a repo, or when you want to install from a specific branch, tag, or commit.
