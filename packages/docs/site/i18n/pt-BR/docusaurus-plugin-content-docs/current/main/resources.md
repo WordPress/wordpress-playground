@@ -17,11 +17,11 @@ description: A curated list of helpful links to apps, tools, articles, and video
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
 
 <ul id="list-resources-redirections">
-<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Playground instance</li>
-<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Playground Docs</li>
-<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Playground Blueprints Builder</li>
-<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Playground PR viewer for WordPress</li>
-<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Playground PR viewer for Gutenberg</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/"><strong>playground.wordpress.net/</strong></a> → Playground instance</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/docs">playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/builder">playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/wordpress">playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/gutenberg">playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
 </ul>
 
 </div>
@@ -34,11 +34,11 @@ There's a set of redirections in place to make it easier the access to some of t
 Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algumas das ferramentas relacionadas ao Playground:
 
 <ul id="list-resources-redirections">
-<li>[**https://playground.wordpress.net/**](https://playground.wordpress.net/) → Instância do Playground</li>
-<li>[https://playground.wordpress.net**/docs**](https://playground.wordpress.net/docs) → Documentação do Playground</li>
-<li>[https://playground.wordpress.net**/builder**](https://playground.wordpress.net/builder) → Construtor de Blueprints do Playground</li>
-<li>[https://playground.wordpress.net**/wordpress**](https://playground.wordpress.net/wordpress) → Visualizador de PR do Playground para WordPress</li>
-<li>[https://playground.wordpress.net**/gutenberg**](https://playground.wordpress.net/gutenberg) → Visualizador de PR do Playground para Gutenberg</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/"><strong>playground.wordpress.net/</strong></a> → Instância do Playground</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/docs">playground.wordpress.net<strong>/docs</strong></a> → Documentação do Playground</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/builder">playground.wordpress.net<strong>/builder</strong></a> → Construtor de Blueprints do Playground</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/wordpress">playground.wordpress.net<strong>/wordpress</strong></a> → Visualizador de PR do Playground para WordPress</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/gutenberg">playground.wordpress.net<strong>/gutenberg</strong></a> → Visualizador de PR do Playground para Gutenberg</li>
 </ul>
 
 </div>
@@ -118,105 +118,131 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 <!--
 ## Videos
 
-- Developer Hours Videos:
-    - [Americas Region (May 23,2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
-    - [APAC/EMEA Region (May 24,2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
-    - [Creating WordPress Playground Blueprints for Testing and Demos (May 28, 2024)](https://wordpress.tv/2024/05/28/developer-hours-creating-wordpress-playground-blueprints-for-testing-and-demos/) by Birgit Pauli-Haack & Nick Diego
-    - [Developer Hours: Everything you need to know about WordPress Playground (Dec 17, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) by Nick Diego & Ryan Welcher
-- [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
-- [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
-- [Watch "WordPress Playground: the ultimate learning, testing, & teaching tool for WordPress"](https://www.youtube.com/watch?v=dN_LaenY8bI) by Anne McCarthy
-- [How to start using WordPress Playground](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) by Adam Zielinski
-- [WordPress Playground, present and future applications](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) by Antonio Sejas
-- [WordPress Playground: The Famous « 5 Second » Install](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) by Dave Kellam
-- [Testing WP Playground with wp-now](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) by Jonathan Bossenger
-- [Translate Live: in-context translation using WordPress Playground](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) by Alex Kirk
-- [Testing WP Playground in VS Code](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) by Jonathan Bossenger
-- [Submitting an enhancement to the WordPress Playground Block](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) by Jonathan Bossenger
-- [WordPress Playground for developers](https://wordpress.tv/2024/12/16/wordpress-playground-for-developers/) by Berislav Grgicak and Jonathan Bossenger
-- [WordPress Playground Block code editor theme support](https://wordpress.tv/2024/10/05/wordpress-playground-block-code-editor-theme-support/) by Jonathan Bossenger
-- [WordPress Playground – use WordPress without a server at WCEU 2024](https://wordpress.tv/2024/07/03/wordpress-playground-use-wordpress-without-a-server/) by Adam Zielinski
-- [Code, Test, Repeat: Accelerating Development with WordPress Playground at WordCamp Larissa 2024](https://wordpress.tv/2024/12/13/code-test-repeat-accelerating-development-with-wordpress-playground/) by Uros Tasic
-- [Liberating data with WordPress Playground in a Browser Extension at WordCamp Netherlands 2024](https://wordpress.tv/2024/12/24/liberating-data-with-wordpress-playground-in-a-browser-extension/) by Alex Kirk
-- [Beyond the Playground: WordPress as a Tool and Product Builder at WCUS 2024](https://wordpress.tv/2024/10/10/beyond-the-playground-wordpress-as-a-tool-and-product-builder/) by Dennis Snell
-- [Create a demo with Playground at WC Asia 2025](https://wordpress.tv/2025/04/30/create-a-demo-with-playground/) by Birgit Pauli-Haack
-- [Dissecting WordPress Playground at WordCamp Nepal 2025](https://wordpress.tv/2025/04/30/dissecting-wordpress-playground/) by Sakar Upadhyaya Khatiwada
-- [Building Automated Test with WordPress Playground at WCEU 2025](https://wordpress.tv/2025/06/07/building-automated-tests-with-wordpress-playground/)by Berislav Grgicak
-- [From Zero to Demo: Mastering WordPress Playground Blueprints at WCEU 2025](https://wordpress.tv/2025/06/07/from-zero-to-demo-mastering-wordpress-playground-blueprints/) by Birgit Pauli-Haack
-- [Playground at WordCamp Gliwice (in Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) by Adam Zielinski
-- [Adam Zielinski: WordPress bez serwera – poznaj WordPress Playground i nowy paradygmat aplikacji (in Polish)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) by Adam Zielinski
-- [WordPress bez instalacji, komputera, i internetu: Poznaj WordPress Playground (in Polish)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) by Adam Zielinski
-- [WordPress Playground at WordCamp Wrocław 2024 (in Polish)](https://wordpress.tv/2024/12/02/wordpress-playground-przelom-w-wordpressie-2/) by Adam Zielinski
-- [WordPress Playground at WordCamp Gdynia 2025 (in Polish)](https://wordpress.tv/2025/04/21/wordpress-playground/) by Magdalena Paciorek
-- [Discovering Playground, the demo tool(in Spanish)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) by Alex Cuadra
-- [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
-- [Playground: A throwaway WordPress within your browser at WordCamp Madrid 2025(in Spanish)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) by Álvaro Gómez Velasco
-- [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
-- [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
-- [Streamlined Block Theme Development: Using WordPress Playground and GitHub for No-Code Version Control of Site Editor Changes](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) by Birgit Pauli-Haack
-- [Playground, la mejor herramienta jamás inventada para enseñar WordPress (in Spanish)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) by Nilo Vélez
-- [Testing Faster Than a Red Bull Pit Stop: WordPress Playground and WooCommerce Blueprints](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) by Daniel Dudzic
-- [Is WordPress playground only for developers?](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) by Fellyph Cintra
-- [How to test the next WordPress release with WordPress Playground](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) by Fellyph cintra
-- [Running WordPress directly from the JavaScript code with runCLI](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) by Fellyph Cintra
-- [WordPress Playground: The Path to Test Automation](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) by Fellyph Cintra
+### Tutorials and product demos
+
+- [New WordPress Playground UI](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) by Fellyph Cintra
+- [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
 - [Previewing GitHub branches with WordPress Playground](https://wordpress.tv/2025/12/09/previewing-github-branches-with-wordpress-playground/) by Fellyph Cintra
 - [Introduction to WordPress Playground landing page](https://wordpress.tv/2025/12/09/introduction-to-wordpress-playground-landing-page/) by Fellyph Cintra
 - [Using WordPress Playground to work with AI agents](https://wordpress.tv/2025/12/09/using-wordpress-playground-to-work-with-ai-agents/) by Fellyph Cintra
-- [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
-- [Getting Started with WordPress Blueprints (in Bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) by Monzur Alam
-- [WordPress Playground + AI: Building Autonomous Testing Pipelines](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) by Fellyph Cintra
+- [How to test the next WordPress release with WordPress Playground](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) by Fellyph Cintra
+- [Is WordPress playground only for developers?](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) by Fellyph Cintra
+- [Running WordPress directly from the JavaScript code with runCLI](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) by Fellyph Cintra
+- [WordPress Playground Block code editor theme support](https://wordpress.tv/2024/10/05/wordpress-playground-block-code-editor-theme-support/) by Jonathan Bossenger
+- [Submitting an enhancement to the WordPress Playground Block](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) by Jonathan Bossenger
+- [Testing WP Playground in VS Code](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) by Jonathan Bossenger
+- [Testing WP Playground with wp-now](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) by Jonathan Bossenger
+- [How to start using WordPress Playground](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) by Adam Zielinski
+- [Watch "WordPress Playground: the ultimate learning, testing, & teaching tool for WordPress"](https://www.youtube.com/watch?v=dN_LaenY8bI) by Anne McCarthy
+- [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
+- [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
+
+### WordCamp talks
+
+- [Discover How WordPress Playground is Transforming the WordPress Ecosystem](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) by Berislav Grgicak
 - [What’s new in WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) by Fellyph Cintra
+- [Revolucionando WordPress: Innovaciones de IA que transforman tu trabajo diario (in Spanish)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) by Evan Tobiessen
+- [WordPress Playground + AI: Building Autonomous Testing Pipelines](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) by Fellyph Cintra
+- [WordPress Playground: The Path to Test Automation](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) by Fellyph Cintra
+- [Playground, la mejor herramienta jamás inventada para enseñar WordPress (in Spanish)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) by Nilo Vélez
+- [Streamlined Block Theme Development: Using WordPress Playground and GitHub for No-Code Version Control of Site Editor Changes](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) by Birgit Pauli-Haack
+- [Testing Faster Than a Red Bull Pit Stop: WordPress Playground and WooCommerce Blueprints](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) by Daniel Dudzic
+- [Building Automated Test with WordPress Playground at WCEU 2025](https://wordpress.tv/2025/06/07/building-automated-tests-with-wordpress-playground/) by Berislav Grgicak
+- [From Zero to Demo: Mastering WordPress Playground Blueprints at WCEU 2025](https://wordpress.tv/2025/06/07/from-zero-to-demo-mastering-wordpress-playground-blueprints/) by Birgit Pauli-Haack
+- [Create a demo with Playground at WC Asia 2025](https://wordpress.tv/2025/04/30/create-a-demo-with-playground/) by Birgit Pauli-Haack
+- [Dissecting WordPress Playground at WordCamp Nepal 2025](https://wordpress.tv/2025/04/30/dissecting-wordpress-playground/) by Sakar Upadhyaya Khatiwada
+- [WordPress Playground at WordCamp Gdynia 2025 (in Polish)](https://wordpress.tv/2025/04/21/wordpress-playground/) by Magdalena Paciorek
+- [Playground: A throwaway WordPress within your browser at WordCamp Madrid 2025 (in Spanish)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) by Álvaro Gómez Velasco
+- [Liberating data with WordPress Playground in a Browser Extension at WordCamp Netherlands 2024](https://wordpress.tv/2024/12/24/liberating-data-with-wordpress-playground-in-a-browser-extension/) by Alex Kirk
+- [Code, Test, Repeat: Accelerating Development with WordPress Playground at WordCamp Larissa 2024](https://wordpress.tv/2024/12/13/code-test-repeat-accelerating-development-with-wordpress-playground/) by Uros Tasic
+- [WordPress Playground at WordCamp Wrocław 2024 (in Polish)](https://wordpress.tv/2024/12/02/wordpress-playground-przelom-w-wordpressie-2/) by Adam Zielinski
+- [Beyond the Playground: WordPress as a Tool and Product Builder at WCUS 2024](https://wordpress.tv/2024/10/10/beyond-the-playground-wordpress-as-a-tool-and-product-builder/) by Dennis Snell
+- [WordPress Playground – use WordPress without a server at WCEU 2024](https://wordpress.tv/2024/07/03/wordpress-playground-use-wordpress-without-a-server/) by Adam Zielinski
+- [Translate Live: in-context translation using WordPress Playground](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) by Alex Kirk
+- [WordPress Playground: The Famous « 5 Second » Install](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) by Dave Kellam
+- [WordPress Playground, present and future applications](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) by Antonio Sejas
+- [WordPress bez instalacji, komputera, i internetu: Poznaj WordPress Playground (in Polish)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) by Adam Zielinski
+- [Adam Zielinski: WordPress bez serwera – poznaj WordPress Playground i nowy paradygmat aplikacji (in Polish)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) by Adam Zielinski
+- [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
+- [Playground at WordCamp Gliwice (in Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) by Adam Zielinski
+
+### Developer Hours and meetups
+
+- [WordPress Playground Blueprints: De Cero a Pro (in Spanish)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) by Fellyph Cintra
+- [Developer Hours: Everything you need to know about WordPress Playground (Dec 17, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) by Nick Diego & Ryan Welcher
+- [WordPress Playground for developers](https://wordpress.tv/2024/12/16/wordpress-playground-for-developers/) by Berislav Grgicak and Jonathan Bossenger
+- [Discovering Playground, the demo tool (in Spanish)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) by Alex Cuadra
+- [Creating WordPress Playground Blueprints for Testing and Demos (May 28, 2024)](https://wordpress.tv/2024/05/28/developer-hours-creating-wordpress-playground-blueprints-for-testing-and-demos/) by Birgit Pauli-Haack & Nick Diego
+- [Developer Hours: WordPress Playground — APAC/EMEA Region (May 24, 2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
+- [Developer Hours: WordPress Playground — Americas Region (May 23, 2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
+
+### Other presentations
+
+- [WordPress Playground: Complete and functional WordPress installation (in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
+- [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
 -->
 
 ## Vídeos
 
-- Vídeos do Developer Hours:
-    - [Região Américas (23 de maio, 2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
-    - [Região APAC/EMEA (24 de maio, 2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
-    - [Criando Blueprints do WordPress Playground para Testes e Demos (28 de maio, 2024)](https://wordpress.tv/2024/05/28/developer-hours-creating-wordpress-playground-blueprints-for-testing-and-demos/) por Birgit Pauli-Haack & Nick Diego
-    - [Developer Hours: Tudo o que você precisa saber sobre WordPress Playground (17 de dezembro, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) por Nick Diego & Ryan Welcher
-- [Playground no State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
-- [Playground no WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
-- [Assista "WordPress Playground: a ferramenta definitiva de aprendizado, teste e ensino para WordPress"](https://www.youtube.com/watch?v=dN_LaenY8bI) por Anne McCarthy
-- [Como começar a usar o WordPress Playground](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) por Adam Zielinski
-- [WordPress Playground: aplicações atuais e futuras](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) por Antonio Sejas
-- [WordPress Playground: a famosa instalação em «5 segundos»](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) por Dave Kellam
-- [Testando o WordPress Playground com o wp-now](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) por Jonathan Bossenger
-- [Translate Live: tradução contextual com o WordPress Playground](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) por Alex Kirk
-- [Testando o WordPress Playground no VS Code](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) por Jonathan Bossenger
-- [Enviando uma melhoria para o bloco do WordPress Playground](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) por Jonathan Bossenger
-- [WordPress Playground para desenvolvedores](https://wordpress.tv/2024/12/16/wordpress-playground-for-developers/) por Berislav Grgicak e Jonathan Bossenger
-- [Suporte a temas do editor de código de blocos do WordPress Playground](https://wordpress.tv/2024/10/05/wordpress-playground-block-code-editor-theme-support/) por Jonathan Bossenger
-- [WordPress Playground – use WordPress sem servidor no WCEU 2024](https://wordpress.tv/2024/07/03/wordpress-playground-use-wordpress-without-a-server/) por Adam Zielinski
-- [Código, Teste, Repita: Acelerando o Desenvolvimento com WordPress Playground no WordCamp Larissa 2024](https://wordpress.tv/2024/12/13/code-test-repeat-accelerating-development-with-wordpress-playground/) por Uros Tasic
-- [Liberando dados com WordPress Playground em uma Extensão de Navegador no WordCamp Netherlands 2024](https://wordpress.tv/2024/12/24/liberating-data-with-wordpress-playground-in-a-browser-extension/) por Alex Kirk
-- [Além do Playground: WordPress como Construtor de Ferramentas e Produtos no WCUS 2024](https://wordpress.tv/2024/10/10/beyond-the-playground-wordpress-as-a-tool-and-product-builder/) por Dennis Snell
-- [Crie uma demo com Playground no WC Asia 2025](https://wordpress.tv/2025/04/30/create-a-demo-with-playground/) por Birgit Pauli-Haack
-- [Dissecando WordPress Playground no WordCamp Nepal 2025](https://wordpress.tv/2025/04/30/dissecting-wordpress-playground/) por Sakar Upadhyaya Khatiwada
-- [Construindo Testes Automatizados com WordPress Playground no WCEU 2025](https://wordpress.tv/2025/06/07/building-automated-tests-with-wordpress-playground/) por Berislav Grgicak
-- [Do Zero à Demo: Dominando Blueprints do WordPress Playground no WCEU 2025](https://wordpress.tv/2025/06/07/from-zero-to-demo-mastering-wordpress-playground-blueprints/) por Birgit Pauli-Haack
-- [Playground no WordCamp Gliwice (em polonês)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) por Adam Zielinski
-- [Adam Zielinski: WordPress sem servidor – conheça o WordPress Playground e um novo paradigma de aplicativos (em polonês)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) por Adam Zielinski
-- [WordPress sem instalação, computador ou internet: conheça o WordPress Playground (em polonês)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) por Adam Zielinski
-- [WordPress Playground no WordCamp Wrocław 2024 (em polonês)](https://wordpress.tv/2024/12/02/wordpress-playground-przelom-w-wordpressie-2/) por Adam Zielinski
-- [WordPress Playground no WordCamp Gdynia 2025 (em polonês)](https://wordpress.tv/2025/04/21/wordpress-playground/) por Magdalena Paciorek
-- [Descobrindo Playground, a ferramenta de demo (em espanhol)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) por Alex Cuadra
-- [WordPress Playground: Instalação completa e funcional do WordPress (em espanhol)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) por Fernando García Rebolledo
-- [Playground: Um WordPress descartável dentro do seu navegador no WordCamp Madrid 2025 (em espanhol)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) por Álvaro Gómez Velasco
-- [Use WordPress apenas com um navegador! Tutorial do WordPress Playground: Uso básico do Playground (em japonês)](https://www.youtube.com/watch?v=6s_B0WvJauU) por Shimomura Tomoki
-- [WordPress Playground: Como usar Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) por Shimomura Tomoki
-- [Desenvolvimento Simplificado de Temas de Blocos: Usando WordPress Playground e GitHub para Controle de Versão Sem Código de Alterações do Editor de Sites](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) por Birgit Pauli-Haack
-- [Playground, a melhor ferramenta já inventada para ensinar WordPress (em espanhol)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) por Nilo Vélez
-- [Testando Mais Rápido que um Pit Stop da Red Bull: WordPress Playground e Blueprints do WooCommerce](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) por Daniel Dudzic
-- [O WordPress Playground é apenas para desenvolvedores?](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) por Fellyph Cintra
-- [Como testar a próxima versão do WordPress com WordPress Playground](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) por Fellyph Cintra
-- [Executando WordPress diretamente do código JavaScript com runCLI](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) por Fellyph Cintra
-- [WordPress Playground: O Caminho para Automação de Testes](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) por Fellyph Cintra
+### Tutoriais e demonstrações do produto {#tutorials-and-product-demos}
+
+- [Nova interface do WordPress Playground](https://wordpress.tv/2026/08/06/new-wordpress-playground-ui/) por Fellyph Cintra
+- [Primeiros passos com WordPress Blueprints (em bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) por Monzur Alam
 - [Pré-visualização de branches do GitHub com o WordPress Playground](https://wordpress.tv/2025/12/09/previewing-github-branches-with-wordpress-playground/) por Fellyph Cintra
 - [Introdução à página de apresentação do WordPress Playground](https://wordpress.tv/2025/12/09/introduction-to-wordpress-playground-landing-page/) por Fellyph Cintra
 - [Usando o WordPress Playground com agentes de IA](https://wordpress.tv/2025/12/09/using-wordpress-playground-to-work-with-ai-agents/) por Fellyph Cintra
-- [WordPress Playground Blueprints: do zero ao avançado (em espanhol)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) por Fellyph Cintra
-- [Primeiros passos com WordPress Blueprints (em bengali)](https://wordpress.tv/2026/02/09/getting-started-with-wordpress-blueprints/) por Monzur Alam
-- [WordPress Playground + IA: criando pipelines autônomos de testes](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) por Fellyph Cintra
+- [Como testar a próxima versão do WordPress com WordPress Playground](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) por Fellyph Cintra
+- [O WordPress Playground é apenas para desenvolvedores?](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) por Fellyph Cintra
+- [Executando WordPress diretamente do código JavaScript com runCLI](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) por Fellyph Cintra
+- [Suporte a temas do editor de código de blocos do WordPress Playground](https://wordpress.tv/2024/10/05/wordpress-playground-block-code-editor-theme-support/) por Jonathan Bossenger
+- [Enviando uma melhoria para o bloco do WordPress Playground](https://wordpress.tv/2024/09/06/submitting-an-enhancement-to-the-wordpress-playground-block/) por Jonathan Bossenger
+- [Testando o WordPress Playground no VS Code](https://wordpress.tv/2024/04/25/testing-wp-playground-in-vs-code/) por Jonathan Bossenger
+- [Testando o WordPress Playground com o wp-now](https://wordpress.tv/2024/04/04/testing-wp-playground-with-wp-now/) por Jonathan Bossenger
+- [Como começar a usar o WordPress Playground](https://wordpress.tv/2023/06/26/how-to-start-using-wordpress-playground/) por Adam Zielinski
+- [Assista "WordPress Playground: a ferramenta definitiva de aprendizado, teste e ensino para WordPress"](https://www.youtube.com/watch?v=dN_LaenY8bI) por Anne McCarthy
+- [Use WordPress apenas com um navegador! Tutorial do WordPress Playground: Uso básico do Playground (em japonês)](https://www.youtube.com/watch?v=6s_B0WvJauU) por Shimomura Tomoki
+- [WordPress Playground: Como usar Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) por Shimomura Tomoki
+
+### Palestras em WordCamps {#wordcamp-talks}
+
+- [Descubra como o WordPress Playground está transformando o ecossistema WordPress](https://wordpress.tv/2026/07/24/discover-how-wordpress-playground-is-transforming-the-wordpress-ecosystem/) por Berislav Grgicak
 - [O que há de novo no WordPress Playground?](https://wordpress.tv/2026/06/05/whats-new-in-wordpress-playground/) por Fellyph Cintra
+- [Revolucionando o WordPress: inovações de IA que transformam seu trabalho diário (em espanhol)](https://wordpress.tv/2026/05/25/revolucionando-wordpress-innovaciones-de-ia-que-transforman-tu-trabajo-diario/) por Evan Tobiessen
+- [WordPress Playground + IA: criando pipelines autônomos de testes](https://wordpress.tv/2026/04/21/wordpress-playground-ai-building-autonomous-testing-pipelines/) por Fellyph Cintra
+- [WordPress Playground: O Caminho para Automação de Testes](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) por Fellyph Cintra
+- [Playground, a melhor ferramenta já inventada para ensinar WordPress (em espanhol)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) por Nilo Vélez
+- [Desenvolvimento Simplificado de Temas de Blocos: Usando WordPress Playground e GitHub para Controle de Versão Sem Código de Alterações do Editor de Sites](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) por Birgit Pauli-Haack
+- [Testando Mais Rápido que um Pit Stop da Red Bull: WordPress Playground e Blueprints do WooCommerce](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) por Daniel Dudzic
+- [Construindo Testes Automatizados com WordPress Playground no WCEU 2025](https://wordpress.tv/2025/06/07/building-automated-tests-with-wordpress-playground/) por Berislav Grgicak
+- [Do Zero à Demo: Dominando Blueprints do WordPress Playground no WCEU 2025](https://wordpress.tv/2025/06/07/from-zero-to-demo-mastering-wordpress-playground-blueprints/) por Birgit Pauli-Haack
+- [Crie uma demo com Playground no WC Asia 2025](https://wordpress.tv/2025/04/30/create-a-demo-with-playground/) por Birgit Pauli-Haack
+- [Dissecando WordPress Playground no WordCamp Nepal 2025](https://wordpress.tv/2025/04/30/dissecting-wordpress-playground/) por Sakar Upadhyaya Khatiwada
+- [WordPress Playground no WordCamp Gdynia 2025 (em polonês)](https://wordpress.tv/2025/04/21/wordpress-playground/) por Magdalena Paciorek
+- [Playground: Um WordPress descartável dentro do seu navegador no WordCamp Madrid 2025 (em espanhol)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) por Álvaro Gómez Velasco
+- [Liberando dados com WordPress Playground em uma Extensão de Navegador no WordCamp Netherlands 2024](https://wordpress.tv/2024/12/24/liberating-data-with-wordpress-playground-in-a-browser-extension/) por Alex Kirk
+- [Código, Teste, Repita: Acelerando o Desenvolvimento com WordPress Playground no WordCamp Larissa 2024](https://wordpress.tv/2024/12/13/code-test-repeat-accelerating-development-with-wordpress-playground/) por Uros Tasic
+- [WordPress Playground no WordCamp Wrocław 2024 (em polonês)](https://wordpress.tv/2024/12/02/wordpress-playground-przelom-w-wordpressie-2/) por Adam Zielinski
+- [Além do Playground: WordPress como Construtor de Ferramentas e Produtos no WCUS 2024](https://wordpress.tv/2024/10/10/beyond-the-playground-wordpress-as-a-tool-and-product-builder/) por Dennis Snell
+- [WordPress Playground – use WordPress sem servidor no WCEU 2024](https://wordpress.tv/2024/07/03/wordpress-playground-use-wordpress-without-a-server/) por Adam Zielinski
+- [Translate Live: tradução contextual com o WordPress Playground](https://wordpress.tv/2024/04/10/translate-live-in-context-translation-using-wordpress-playground/) por Alex Kirk
+- [WordPress Playground: a famosa instalação em «5 segundos»](https://wordpress.tv/2023/11/21/wordpress-playground-the-famous-5-second-install/) por Dave Kellam
+- [WordPress Playground: aplicações atuais e futuras](https://wordpress.tv/2023/10/15/wordpress-playground-present-and-future-applications/) por Antonio Sejas
+- [WordPress sem instalação, computador ou internet: conheça o WordPress Playground (em polonês)](https://wordpress.tv/2023/10/12/wordpress-bez-instalacji-komputera-i-internetu-poznaj-wordpress-playground/) por Adam Zielinski
+- [Adam Zielinski: WordPress sem servidor – conheça o WordPress Playground e um novo paradigma de aplicativos (em polonês)](https://wordpress.tv/2023/05/30/adam-zielinski-wordpress-bez-serwera-poznaj-wordpress-playground-i-nowy-paradygmat-aplikacji/) por Adam Zielinski
+- [Playground no WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
+- [Playground no WordCamp Gliwice (em polonês)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) por Adam Zielinski
+
+### Developer Hours e meetups {#developer-hours-and-meetups}
+
+- [WordPress Playground Blueprints: do zero ao avançado (em espanhol)](https://wordpress.tv/2026/01/28/wordpress-playground-blueprints-de-cero-a-pro/) por Fellyph Cintra
+- [Developer Hours: Tudo o que você precisa saber sobre WordPress Playground (17 de dezembro, 2024)](https://wordpress.tv/2024/12/17/developer-hours-everything-you-need-to-know-about-wordpress-playground/) por Nick Diego & Ryan Welcher
+- [WordPress Playground para desenvolvedores](https://wordpress.tv/2024/12/16/wordpress-playground-for-developers/) por Berislav Grgicak e Jonathan Bossenger
+- [Descobrindo Playground, a ferramenta de demo (em espanhol)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) por Alex Cuadra
+- [Criando Blueprints do WordPress Playground para Testes e Demos (28 de maio, 2024)](https://wordpress.tv/2024/05/28/developer-hours-creating-wordpress-playground-blueprints-for-testing-and-demos/) por Birgit Pauli-Haack & Nick Diego
+- [Developer Hours: WordPress Playground — Região APAC/EMEA (24 de maio, 2023)](https://wordpress.tv/2023/05/24/developer-hours-wordpress-playground-apac-emea/)
+- [Developer Hours: WordPress Playground — Região Américas (23 de maio, 2023)](https://wordpress.tv/2023/05/23/developer-hours-wordpress-playground-americas/)
+
+### Outras apresentações {#other-presentations}
+
+- [WordPress Playground: Instalação completa e funcional do WordPress (em espanhol)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) por Fernando García Rebolledo
+- [Playground no State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
