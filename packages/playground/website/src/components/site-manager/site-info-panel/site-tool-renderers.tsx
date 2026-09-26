@@ -3,7 +3,11 @@ import { Notice } from '@wordpress/components';
 import type { PlaygroundClient } from '@wp-playground/client';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setDockPaneOpen } from '../../../lib/state/redux/slice-ui';
-import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
+import {
+	selectActiveSiteError,
+	useAppDispatch,
+	useAppSelector,
+} from '../../../lib/state/redux/store';
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
@@ -140,7 +144,13 @@ export function BlueprintTool({
 }
 
 export function DatabaseTool({ playground }: SiteToolPanelProps): JSX.Element {
-	return <SiteDatabasePanel playground={playground} />;
+	const bootError = useAppSelector(selectActiveSiteError);
+	return (
+		<SiteDatabasePanel
+			playground={playground}
+			isBooting={!playground && !bootError}
+		/>
+	);
 }
 
 export function TerminalTool({ playground }: SiteToolPanelProps): JSX.Element {
