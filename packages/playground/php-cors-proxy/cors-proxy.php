@@ -22,12 +22,15 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type');
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, Range, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type, x-cors-proxy-range');
     // Identify this response as coming from the legitimate CORS proxy.
     // Network firewalls may intercept requests and return error responses
     // without this header, allowing clients to detect interference.
     header('X-Playground-Cors-Proxy: true');
-    header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy');
+    // These are not CORS-safelisted response headers, so browsers hide them
+    // from range request callers by default. ETag lets callers detect a
+    // target that changed between two range reads.
+    header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy, Content-Range, Accept-Ranges, ETag');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("Allow: GET, POST, OPTIONS");
@@ -156,6 +159,22 @@ foreach ($allHeaders as $name => $value) {
     }
 }
 
+// WORKAROUND: The WP Cloud front end of the production deployment strips
+// the Range header before the request reaches PHP, so clients may send
+// the same value as X-Cors-Proxy-Range instead. Remove this, the
+// matching Access-Control-Allow-Headers entry, and the README note once
+// Range reaches this script on WP Cloud.
+$tunneledRange = null;
+foreach ($allHeaders as $name => $value) {
+    if (strcasecmp($name, 'X-Cors-Proxy-Range') === 0) {
+        // Reject values containing CR/LF to prevent header injection.
+        if (!preg_match('/[\r\n]/', $value)) {
+            $tunneledRange = $value;
+        }
+        break;
+    }
+}
+
 $strictly_disallowed_headers = [
     // Cookies represent a relationship between the proxy server
     // and the client, so it is inappropriate to forward them.
@@ -166,6 +185,9 @@ $strictly_disallowed_headers = [
     // Internal header for Content-Type wrapping. Must not be
     // forwarded to the target server.
     'X-Cors-Proxy-Content-Type',
+    // Internal header for the Range workaround. Must not be
+    // forwarded to the target server.
+    'X-Cors-Proxy-Range',
 ];
 $headers_requiring_opt_in = [
     // Allow Authorization header to be forwarded only if the client
@@ -191,6 +213,30 @@ if ($originalContentType !== null) {
         fn($h) => stripos($h, 'Content-Type:') !== 0
     ));
     $curlHeaders[] = 'Content-Type: ' . $originalContentType;
+}
+
+if ($tunneledRange !== null) {
+    $curlHeaders = array_values(array_filter(
+        $curlHeaders,
+        fn($h) => stripos($h, 'Range:') !== 0
+    ));
+    $curlHeaders[] = 'Range: ' . $tunneledRange;
+}
+
+// A range addresses bytes of the encoded representation, so ask the
+// target for an unencoded one. Browsers already send identity with
+// Range requests, but a server in front of this script may rewrite
+// Accept-Encoding before the request gets here.
+$has_range = !empty(array_filter(
+    $curlHeaders,
+    fn($h) => stripos($h, 'Range:') === 0
+));
+if ($has_range) {
+    $curlHeaders = array_values(array_filter(
+        $curlHeaders,
+        fn($h) => stripos($h, 'Accept-Encoding:') !== 0
+    ));
+    $curlHeaders[] = 'Accept-Encoding: identity';
 }
 
 curl_setopt(
