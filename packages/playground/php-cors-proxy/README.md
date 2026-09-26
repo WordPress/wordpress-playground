@@ -53,6 +53,11 @@ responses along with `Content-Range`, `Accept-Ranges`, and `ETag`. When a
 request has a range, the proxy asks the target for
 `Accept-Encoding: identity` so byte offsets refer to the unencoded body.
 
+Every proxied response has `Cache-Control: no-cache`, which the WP Cloud
+edge cache honors by not storing the response. Keep it that way: every
+range of a file shares one proxy URL, so a cached slice could be served for
+another range.
+
 **Workaround:** The WP Cloud front end of the production deployment strips
 the `Range` header before the request reaches PHP. Until that changes,
 clients can send the same value as `X-Cors-Proxy-Range: bytes=0-15`. The

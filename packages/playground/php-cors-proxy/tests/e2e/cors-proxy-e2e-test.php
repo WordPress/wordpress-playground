@@ -171,6 +171,14 @@ assert_contains(
     strtolower($response['headers_raw']),
     'Range response should relay Content-Range'
 );
+// The WP Cloud edge cache stores responses unless they opt out. Every
+// range of a file shares one proxy URL, so a cached slice could be served
+// for another range.
+assert_contains(
+    'cache-control: no-cache',
+    strtolower($response['headers_raw']),
+    'Range response should opt out of edge caching'
+);
 $exposed_headers = get_header_list($response['headers_raw'], 'access-control-expose-headers');
 assert_true(
     in_array('content-range', $exposed_headers),
@@ -201,6 +209,11 @@ assert_contains(
     'content-range: bytes */26',
     strtolower($response['headers_raw']),
     'Unsatisfiable range should relay Content-Range with the total size'
+);
+assert_contains(
+    'cache-control: no-cache',
+    strtolower($response['headers_raw']),
+    'Unsatisfiable range response should opt out of edge caching'
 );
 
 // ──────────────────────────────────────────────

@@ -100,7 +100,10 @@ $relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch,
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         http_response_code($http_code);
 
-        // For now, let's clearly avoid the possibility of stale, cached responses.
+        // Avoid stale, cached responses. This also keeps the WP Cloud edge
+        // cache from storing responses. Every range of a file shares one
+        // proxy URL, so a cached slice could be served for another range.
+        // The target's own Cache-Control is never relayed.
         header('Cache-Control: no-cache');
 
         $http_code_sent = true;
