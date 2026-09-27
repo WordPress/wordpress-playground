@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 18589333;
+export const dependenciesTotalSize = 18589307;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -10284,10 +10284,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -10311,7 +10308,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -11723,26 +11719,26 @@ export function init(RuntimeName, PHPLoader) {
 		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
 
-	var _date_ce_date = (Module['_date_ce_date'] = 10978704);
+	var _date_ce_date = (Module['_date_ce_date'] = 10978608);
 
-	var _date_ce_immutable = (Module['_date_ce_immutable'] = 10978708);
+	var _date_ce_immutable = (Module['_date_ce_immutable'] = 10978612);
 
-	var _date_ce_interface = (Module['_date_ce_interface'] = 10978712);
+	var _date_ce_interface = (Module['_date_ce_interface'] = 10978616);
 
-	var _date_ce_timezone = (Module['_date_ce_timezone'] = 10978716);
+	var _date_ce_timezone = (Module['_date_ce_timezone'] = 10978620);
 
-	var _date_ce_interval = (Module['_date_ce_interval'] = 10978720);
+	var _date_ce_interval = (Module['_date_ce_interval'] = 10978624);
 
-	var _date_ce_period = (Module['_date_ce_period'] = 10978724);
+	var _date_ce_period = (Module['_date_ce_period'] = 10978628);
 
 	var _php_date_global_timezone_db_enabled = (Module[
 		'_php_date_global_timezone_db_enabled'
-	] = 10978752);
+	] = 10978656);
 
 	var _php_date_global_timezone_db = (Module['_php_date_global_timezone_db'] =
-		10978748);
+		10978652);
 
-	var _date_globals = (Module['_date_globals'] = 10978728);
+	var _date_globals = (Module['_date_globals'] = 10978632);
 
 	var _date_module_entry = (Module['_date_module_entry'] = 10254340);
 
@@ -11760,7 +11756,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _libxml_module_entry = (Module['_libxml_module_entry'] = 10443664);
 
-	var _openssl_globals = (Module['_openssl_globals'] = 10993064);
+	var _openssl_globals = (Module['_openssl_globals'] = 10992968);
 
 	var _openssl_module_entry = (Module['_openssl_module_entry'] = 10445116);
 
@@ -11834,27 +11830,27 @@ export function init(RuntimeName, PHPLoader) {
 
 	var __pcre2_ucd_stage2_8 = (Module['__pcre2_ucd_stage2_8'] = 1696752);
 
-	var _pcre_globals = (Module['_pcre_globals'] = 10979736);
+	var _pcre_globals = (Module['_pcre_globals'] = 10979640);
 
 	var _pcre_module_entry = (Module['_pcre_module_entry'] = 10410620);
 
-	var _sqlite3_globals = (Module['_sqlite3_globals'] = 10997184);
+	var _sqlite3_globals = (Module['_sqlite3_globals'] = 10997088);
 
 	var _php_sqlite3_stmt_entry = (Module['_php_sqlite3_stmt_entry'] =
-		10997192);
+		10997096);
 
 	var _php_sqlite3_result_entry = (Module['_php_sqlite3_result_entry'] =
-		10997196);
+		10997100);
 
-	var _php_sqlite3_sc_entry = (Module['_php_sqlite3_sc_entry'] = 10997200);
+	var _php_sqlite3_sc_entry = (Module['_php_sqlite3_sc_entry'] = 10997104);
 
 	var _sqlite3_module_entry = (Module['_sqlite3_module_entry'] = 10449200);
 
-	var _le_deflate = (Module['_le_deflate'] = 10997552);
+	var _le_deflate = (Module['_le_deflate'] = 10997456);
 
-	var _le_inflate = (Module['_le_inflate'] = 10997556);
+	var _le_inflate = (Module['_le_inflate'] = 10997460);
 
-	var _zlib_globals = (Module['_zlib_globals'] = 10997560);
+	var _zlib_globals = (Module['_zlib_globals'] = 10997464);
 
 	var _php_zlib_module_entry = (Module['_php_zlib_module_entry'] = 10451024);
 
@@ -11866,7 +11862,7 @@ export function init(RuntimeName, PHPLoader) {
 	var _php_zlib_filter_factory = (Module['_php_zlib_filter_factory'] =
 		10450344);
 
-	var _bcmath_globals = (Module['_bcmath_globals'] = 10997600);
+	var _bcmath_globals = (Module['_bcmath_globals'] = 10997504);
 
 	var _bcmath_module_entry = (Module['_bcmath_module_entry'] = 10452604);
 
@@ -11897,15 +11893,15 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _ctype_module_entry = (Module['_ctype_module_entry'] = 10455392);
 
-	var _le_curl = (Module['_le_curl'] = 10997628);
+	var _le_curl = (Module['_le_curl'] = 10997532);
 
-	var _le_curl_multi_handle = (Module['_le_curl_multi_handle'] = 10997632);
+	var _le_curl_multi_handle = (Module['_le_curl_multi_handle'] = 10997536);
 
-	var _le_curl_share_handle = (Module['_le_curl_share_handle'] = 10997636);
+	var _le_curl_share_handle = (Module['_le_curl_share_handle'] = 10997540);
 
 	var _curl_module_entry = (Module['_curl_module_entry'] = 10456724);
 
-	var _curl_CURLFile_class = (Module['_curl_CURLFile_class'] = 10997624);
+	var _curl_CURLFile_class = (Module['_curl_CURLFile_class'] = 10997528);
 
 	var _dns_polyfill_functions = (Module['_dns_polyfill_functions'] =
 		10458272);
@@ -11913,120 +11909,120 @@ export function init(RuntimeName, PHPLoader) {
 	var _dns_polyfill_module_entry = (Module['_dns_polyfill_module_entry'] =
 		10458392);
 
-	var _dom_node_class_entry = (Module['_dom_node_class_entry'] = 10997640);
+	var _dom_node_class_entry = (Module['_dom_node_class_entry'] = 10997544);
 
-	var _dom_object_handlers = (Module['_dom_object_handlers'] = 10997644);
+	var _dom_object_handlers = (Module['_dom_object_handlers'] = 10997548);
 
 	var _dom_nnodemap_object_handlers = (Module[
 		'_dom_nnodemap_object_handlers'
-	] = 10997760);
+	] = 10997664);
 
 	var _dom_domexception_class_entry = (Module[
 		'_dom_domexception_class_entry'
-	] = 10997936);
+	] = 10997840);
 
 	var _dom_domstringlist_class_entry = (Module[
 		'_dom_domstringlist_class_entry'
-	] = 10997940);
+	] = 10997844);
 
 	var _dom_namelist_class_entry = (Module['_dom_namelist_class_entry'] =
-		10998e3);
+		10997904);
 
 	var _dom_domimplementationlist_class_entry = (Module[
 		'_dom_domimplementationlist_class_entry'
-	] = 10998064);
+	] = 10997968);
 
 	var _dom_domimplementationsource_class_entry = (Module[
 		'_dom_domimplementationsource_class_entry'
-	] = 10998128);
+	] = 10998032);
 
 	var _dom_domimplementation_class_entry = (Module[
 		'_dom_domimplementation_class_entry'
-	] = 10998132);
+	] = 10998036);
 
 	var _dom_namespace_node_class_entry = (Module[
 		'_dom_namespace_node_class_entry'
-	] = 10998192);
+	] = 10998096);
 
 	var _dom_documentfragment_class_entry = (Module[
 		'_dom_documentfragment_class_entry'
-	] = 10998256);
+	] = 10998160);
 
 	var _dom_document_class_entry = (Module['_dom_document_class_entry'] =
-		10998260);
+		10998164);
 
 	var _dom_nodelist_class_entry = (Module['_dom_nodelist_class_entry'] =
-		10998320);
+		10998224);
 
 	var _dom_namednodemap_class_entry = (Module[
 		'_dom_namednodemap_class_entry'
-	] = 10998384);
+	] = 10998288);
 
 	var _dom_characterdata_class_entry = (Module[
 		'_dom_characterdata_class_entry'
-	] = 10998448);
+	] = 10998352);
 
-	var _dom_attr_class_entry = (Module['_dom_attr_class_entry'] = 10998512);
+	var _dom_attr_class_entry = (Module['_dom_attr_class_entry'] = 10998416);
 
 	var _dom_element_class_entry = (Module['_dom_element_class_entry'] =
-		10998576);
+		10998480);
 
-	var _dom_text_class_entry = (Module['_dom_text_class_entry'] = 10998640);
+	var _dom_text_class_entry = (Module['_dom_text_class_entry'] = 10998544);
 
 	var _dom_comment_class_entry = (Module['_dom_comment_class_entry'] =
-		10998704);
+		10998608);
 
 	var _dom_typeinfo_class_entry = (Module['_dom_typeinfo_class_entry'] =
-		10998708);
+		10998612);
 
 	var _dom_userdatahandler_class_entry = (Module[
 		'_dom_userdatahandler_class_entry'
-	] = 10998768);
+	] = 10998672);
 
 	var _dom_domerror_class_entry = (Module['_dom_domerror_class_entry'] =
-		10998772);
+		10998676);
 
 	var _dom_domerrorhandler_class_entry = (Module[
 		'_dom_domerrorhandler_class_entry'
-	] = 10998832);
+	] = 10998736);
 
 	var _dom_domlocator_class_entry = (Module['_dom_domlocator_class_entry'] =
-		10998836);
+		10998740);
 
 	var _dom_domconfiguration_class_entry = (Module[
 		'_dom_domconfiguration_class_entry'
-	] = 10998896);
+	] = 10998800);
 
 	var _dom_cdatasection_class_entry = (Module[
 		'_dom_cdatasection_class_entry'
-	] = 10998900);
+	] = 10998804);
 
 	var _dom_documenttype_class_entry = (Module[
 		'_dom_documenttype_class_entry'
-	] = 10998904);
+	] = 10998808);
 
 	var _dom_notation_class_entry = (Module['_dom_notation_class_entry'] =
-		10998968);
+		10998872);
 
 	var _dom_entity_class_entry = (Module['_dom_entity_class_entry'] =
-		10999032);
+		10998936);
 
 	var _dom_entityreference_class_entry = (Module[
 		'_dom_entityreference_class_entry'
-	] = 10999096);
+	] = 10999e3);
 
 	var _dom_processinginstruction_class_entry = (Module[
 		'_dom_processinginstruction_class_entry'
-	] = 10999100);
+	] = 10999004);
 
 	var _dom_string_extend_class_entry = (Module[
 		'_dom_string_extend_class_entry'
-	] = 10999160);
+	] = 10999064);
 
 	var _dom_xpath_object_handlers = (Module['_dom_xpath_object_handlers'] =
-		10999164);
+		10999068);
 
-	var _dom_xpath_class_entry = (Module['_dom_xpath_class_entry'] = 10999280);
+	var _dom_xpath_class_entry = (Module['_dom_xpath_class_entry'] = 10999184);
 
 	var _dom_module_entry = (Module['_dom_module_entry'] = 10466088);
 
@@ -12150,25 +12146,25 @@ export function init(RuntimeName, PHPLoader) {
 		'_php_dom_userdatahandler_class_functions'
 	] = 10465024);
 
-	var _exif_globals = (Module['_exif_globals'] = 10999344);
+	var _exif_globals = (Module['_exif_globals'] = 10999248);
 
 	var _exif_module_entry = (Module['_exif_module_entry'] = 10466456);
 
-	var _finfo_class_entry = (Module['_finfo_class_entry'] = 10999904);
+	var _finfo_class_entry = (Module['_finfo_class_entry'] = 10999808);
 
 	var _fileinfo_module_entry = (Module['_fileinfo_module_entry'] = 10474748);
 
 	var _php_magic_database = (Module['_php_magic_database'] = 1787792);
 
-	var _file_formats = (Module['_file_formats'] = 10999376);
+	var _file_formats = (Module['_file_formats'] = 10999280);
 
-	var _file_names = (Module['_file_names'] = 10999584);
+	var _file_names = (Module['_file_names'] = 10999488);
 
 	var _file_nformats = (Module['_file_nformats'] = 1787780);
 
 	var _file_nnames = (Module['_file_nnames'] = 1787784);
 
-	var _filter_globals = (Module['_filter_globals'] = 10999912);
+	var _filter_globals = (Module['_filter_globals'] = 10999816);
 
 	var _filter_module_entry = (Module['_filter_module_entry'] = 10475424);
 
@@ -12200,9 +12196,9 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _php_gd_gdSinT = (Module['_php_gd_gdSinT'] = 7410704);
 
-	var _php_hash_hashtable = (Module['_php_hash_hashtable'] = 11000016);
+	var _php_hash_hashtable = (Module['_php_hash_hashtable'] = 10999920);
 
-	var _php_hashcontext_ce = (Module['_php_hashcontext_ce'] = 11000072);
+	var _php_hashcontext_ce = (Module['_php_hashcontext_ce'] = 10999976);
 
 	var _hash_module_entry = (Module['_hash_module_entry'] = 10486848);
 
@@ -12339,39 +12335,39 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _php_hash_sha3_512_ops = (Module['_php_hash_sha3_512_ops'] = 10485228);
 
-	var _iconv_globals = (Module['_iconv_globals'] = 11000192);
+	var _iconv_globals = (Module['_iconv_globals'] = 11000096);
 
 	var _iconv_module_entry = (Module['_iconv_module_entry'] = 10487884);
 
-	var _php_imagick_sc_entry = (Module['_php_imagick_sc_entry'] = 11000224);
+	var _php_imagick_sc_entry = (Module['_php_imagick_sc_entry'] = 11000128);
 
 	var _php_imagickdraw_sc_entry = (Module['_php_imagickdraw_sc_entry'] =
-		11000228);
+		11000132);
 
 	var _php_imagickpixel_sc_entry = (Module['_php_imagickpixel_sc_entry'] =
-		11000232);
+		11000136);
 
-	var _imagick_globals = (Module['_imagick_globals'] = 11000240);
+	var _imagick_globals = (Module['_imagick_globals'] = 11000144);
 
 	var _php_imagick_exception_class_entry = (Module[
 		'_php_imagick_exception_class_entry'
-	] = 11000844);
+	] = 11000748);
 
 	var _php_imagickdraw_exception_class_entry = (Module[
 		'_php_imagickdraw_exception_class_entry'
-	] = 11000848);
+	] = 11000752);
 
 	var _php_imagickpixeliterator_exception_class_entry = (Module[
 		'_php_imagickpixeliterator_exception_class_entry'
-	] = 11000852);
+	] = 11000756);
 
 	var _php_imagickpixel_exception_class_entry = (Module[
 		'_php_imagickpixel_exception_class_entry'
-	] = 11000856);
+	] = 11000760);
 
 	var _php_imagickkernel_exception_class_entry = (Module[
 		'_php_imagickkernel_exception_class_entry'
-	] = 11000860);
+	] = 11000764);
 
 	var _php_imagick_class_methods = (Module['_php_imagick_class_methods'] =
 		10500360);
@@ -12386,7 +12382,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _php_imagickpixeliterator_sc_entry = (Module[
 		'_php_imagickpixeliterator_sc_entry'
-	] = 11000864);
+	] = 11000768);
 
 	var _php_imagickpixel_class_methods = (Module[
 		'_php_imagickpixel_class_methods'
@@ -12397,20 +12393,20 @@ export function init(RuntimeName, PHPLoader) {
 	] = 10500528);
 
 	var _php_imagickkernel_sc_entry = (Module['_php_imagickkernel_sc_entry'] =
-		11000868);
+		11000772);
 
 	var _imagick_module_entry = (Module['_imagick_module_entry'] = 10500532);
 
 	var _php_json_serializable_ce = (Module['_php_json_serializable_ce'] =
-		11000916);
+		11000820);
 
-	var _php_json_exception_ce = (Module['_php_json_exception_ce'] = 11000912);
+	var _php_json_exception_ce = (Module['_php_json_exception_ce'] = 11000816);
 
-	var _json_globals = (Module['_json_globals'] = 11000900);
+	var _json_globals = (Module['_json_globals'] = 11000804);
 
 	var _json_module_entry = (Module['_json_module_entry'] = 10515412);
 
-	var _mbstring_globals = (Module['_mbstring_globals'] = 11000928);
+	var _mbstring_globals = (Module['_mbstring_globals'] = 11000832);
 
 	var _mbstring_module_entry = (Module['_mbstring_module_entry'] = 10529912);
 
@@ -13310,25 +13306,25 @@ export function init(RuntimeName, PHPLoader) {
 		10528248);
 
 	var _mysqli_link_class_entry = (Module['_mysqli_link_class_entry'] =
-		11005576);
+		11005480);
 
 	var _mysqli_driver_class_entry = (Module['_mysqli_driver_class_entry'] =
-		11005696);
+		11005600);
 
 	var _mysqli_stmt_class_entry = (Module['_mysqli_stmt_class_entry'] =
-		11005816);
+		11005720);
 
 	var _mysqli_result_class_entry = (Module['_mysqli_result_class_entry'] =
-		11005936);
+		11005840);
 
 	var _mysqli_warning_class_entry = (Module['_mysqli_warning_class_entry'] =
-		11006056);
+		11005960);
 
 	var _mysqli_exception_class_entry = (Module[
 		'_mysqli_exception_class_entry'
-	] = 11006292);
+	] = 11006196);
 
-	var _mysqli_globals = (Module['_mysqli_globals'] = 11006576);
+	var _mysqli_globals = (Module['_mysqli_globals'] = 11006480);
 
 	var _mysqli_module_entry = (Module['_mysqli_module_entry'] = 10553300);
 
@@ -13372,61 +13368,61 @@ export function init(RuntimeName, PHPLoader) {
 		'_php_mysqli_result_iterator_funcs'
 	] = 10553264);
 
-	var _accel_globals = (Module['_accel_globals'] = 11010944);
+	var _accel_globals = (Module['_accel_globals'] = 11010848);
 
-	var _accel_shared_globals = (Module['_accel_shared_globals'] = 11010924);
+	var _accel_shared_globals = (Module['_accel_shared_globals'] = 11010828);
 
-	var _file_cache_only = (Module['_file_cache_only'] = 11010936);
+	var _file_cache_only = (Module['_file_cache_only'] = 11010840);
 
-	var _accel_startup_ok = (Module['_accel_startup_ok'] = 11010928);
+	var _accel_startup_ok = (Module['_accel_startup_ok'] = 11010832);
 
-	var _accel_system_id = (Module['_accel_system_id'] = 11044160);
+	var _accel_system_id = (Module['_accel_system_id'] = 11044064);
 
 	var _zps_api_failure_reason = (Module['_zps_api_failure_reason'] =
-		11010932);
+		11010836);
 
 	var _extension_version_info = (Module['_extension_version_info'] =
 		10576392);
 
 	var _zend_extension_entry = (Module['_zend_extension_entry'] = 10576412);
 
-	var _accel_blacklist = (Module['_accel_blacklist'] = 11010896);
+	var _accel_blacklist = (Module['_accel_blacklist'] = 11010800);
 
-	var _lock_file = (Module['_lock_file'] = 11010832);
+	var _lock_file = (Module['_lock_file'] = 11010736);
 
-	var _smm_shared_globals = (Module['_smm_shared_globals'] = 11010836);
+	var _smm_shared_globals = (Module['_smm_shared_globals'] = 11010740);
 
 	var _opcache_module_entry = (Module['_opcache_module_entry'] = 10576516);
 
 	var _zend_func_info_rid = (Module['_zend_func_info_rid'] = 10553872);
 
-	var _pdo_dbh_ce = (Module['_pdo_dbh_ce'] = 11046112);
+	var _pdo_dbh_ce = (Module['_pdo_dbh_ce'] = 11046016);
 
-	var _pdo_exception_ce = (Module['_pdo_exception_ce'] = 11046116);
+	var _pdo_exception_ce = (Module['_pdo_exception_ce'] = 11046020);
 
-	var _pdo_driver_hash = (Module['_pdo_driver_hash'] = 11046120);
+	var _pdo_driver_hash = (Module['_pdo_driver_hash'] = 11046024);
 
 	var _pdo_functions = (Module['_pdo_functions'] = 10594864);
 
 	var _pdo_module_entry = (Module['_pdo_module_entry'] = 10594904);
 
-	var _pdo_dbstmt_ce = (Module['_pdo_dbstmt_ce'] = 11046176);
+	var _pdo_dbstmt_ce = (Module['_pdo_dbstmt_ce'] = 11046080);
 
-	var _pdo_row_ce = (Module['_pdo_row_ce'] = 11046180);
+	var _pdo_row_ce = (Module['_pdo_row_ce'] = 11046084);
 
 	var _pdo_dbh_functions = (Module['_pdo_dbh_functions'] = 10594240);
 
 	var _pdo_dbstmt_object_handlers = (Module['_pdo_dbstmt_object_handlers'] =
-		11045760);
+		11045664);
 
 	var _pdo_row_object_handlers = (Module['_pdo_row_object_handlers'] =
-		11045876);
+		11045780);
 
 	var _pdo_dbstmt_functions = (Module['_pdo_dbstmt_functions'] = 10593232);
 
 	var _pdo_row_functions = (Module['_pdo_row_functions'] = 8302480);
 
-	var _pdo_mysql_globals = (Module['_pdo_mysql_globals'] = 11046184);
+	var _pdo_mysql_globals = (Module['_pdo_mysql_globals'] = 11046088);
 
 	var _pdo_mysql_module_entry = (Module['_pdo_mysql_module_entry'] =
 		10595172);
@@ -13451,17 +13447,17 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _phar_dir_ops = (Module['_phar_dir_ops'] = 10599864);
 
-	var _phar_globals = (Module['_phar_globals'] = 11046296);
+	var _phar_globals = (Module['_phar_globals'] = 11046200);
 
-	var _cached_phars = (Module['_cached_phars'] = 11046760);
+	var _cached_phars = (Module['_cached_phars'] = 11046664);
 
-	var _cached_alias = (Module['_cached_alias'] = 11046704);
+	var _cached_alias = (Module['_cached_alias'] = 11046608);
 
 	var _phar_orig_compile_file = (Module['_phar_orig_compile_file'] =
-		11046816);
+		11046720);
 
 	var _phar_save_resolve_path = (Module['_phar_save_resolve_path'] =
-		11046820);
+		11046724);
 
 	var _phar_module_entry = (Module['_phar_module_entry'] = 10599992);
 
@@ -13473,98 +13469,98 @@ export function init(RuntimeName, PHPLoader) {
 		'_post_message_to_js_module_entry'
 	] = 10600408);
 
-	var _reflection_class_ptr = (Module['_reflection_class_ptr'] = 11046824);
+	var _reflection_class_ptr = (Module['_reflection_class_ptr'] = 11046728);
 
 	var _reflection_exception_ptr = (Module['_reflection_exception_ptr'] =
-		11046828);
+		11046732);
 
-	var _reflector_ptr = (Module['_reflector_ptr'] = 11046832);
+	var _reflector_ptr = (Module['_reflector_ptr'] = 11046736);
 
 	var _reflection_function_ptr = (Module['_reflection_function_ptr'] =
-		11046836);
+		11046740);
 
 	var _reflection_parameter_ptr = (Module['_reflection_parameter_ptr'] =
-		11046840);
+		11046744);
 
 	var _reflection_extension_ptr = (Module['_reflection_extension_ptr'] =
-		11046860);
+		11046764);
 
-	var _reflection_method_ptr = (Module['_reflection_method_ptr'] = 11046844);
+	var _reflection_method_ptr = (Module['_reflection_method_ptr'] = 11046748);
 
 	var _reflection_named_type_ptr = (Module['_reflection_named_type_ptr'] =
-		11047024);
+		11046928);
 
 	var _reflection_property_ptr = (Module['_reflection_property_ptr'] =
-		11046852);
+		11046756);
 
 	var _reflection_class_constant_ptr = (Module[
 		'_reflection_class_constant_ptr'
-	] = 11046856);
+	] = 11046760);
 
-	var _reflection_object_ptr = (Module['_reflection_object_ptr'] = 11046848);
+	var _reflection_object_ptr = (Module['_reflection_object_ptr'] = 11046752);
 
 	var _reflection_zend_extension_ptr = (Module[
 		'_reflection_zend_extension_ptr'
-	] = 11046864);
+	] = 11046768);
 
 	var _reflection_reference_ptr = (Module['_reflection_reference_ptr'] =
-		11046868);
+		11046772);
 
-	var _reflection_globals = (Module['_reflection_globals'] = 11046872);
+	var _reflection_globals = (Module['_reflection_globals'] = 11046776);
 
-	var _reflection_ptr = (Module['_reflection_ptr'] = 11047008);
+	var _reflection_ptr = (Module['_reflection_ptr'] = 11046912);
 
 	var _reflection_function_abstract_ptr = (Module[
 		'_reflection_function_abstract_ptr'
-	] = 11047012);
+	] = 11046916);
 
 	var _reflection_generator_ptr = (Module['_reflection_generator_ptr'] =
-		11047016);
+		11046920);
 
-	var _reflection_type_ptr = (Module['_reflection_type_ptr'] = 11047020);
+	var _reflection_type_ptr = (Module['_reflection_type_ptr'] = 11046924);
 
 	var _reflection_module_entry = (Module['_reflection_module_entry'] =
 		10604996);
 
-	var _ps_globals = (Module['_ps_globals'] = 11047032);
+	var _ps_globals = (Module['_ps_globals'] = 11046936);
 
 	var _php_session_iface_entry = (Module['_php_session_iface_entry'] =
-		11047388);
+		11047292);
 
 	var _php_session_id_iface_entry = (Module['_php_session_id_iface_entry'] =
-		11047392);
+		11047296);
 
 	var _php_session_update_timestamp_iface_entry = (Module[
 		'_php_session_update_timestamp_iface_entry'
-	] = 11047400);
+	] = 11047304);
 
 	var _php_session_class_entry = (Module['_php_session_class_entry'] =
-		11047384);
+		11047288);
 
 	var _session_module_entry = (Module['_session_module_entry'] = 10607456);
 
 	var _php_session_update_timestamp_class_entry = (Module[
 		'_php_session_update_timestamp_class_entry'
-	] = 11047396);
+	] = 11047300);
 
 	var _ps_mod_files = (Module['_ps_mod_files'] = 10606936);
 
 	var _ps_mod_user = (Module['_ps_mod_user'] = 10606896);
 
-	var _sxe_class_entry = (Module['_sxe_class_entry'] = 11047420);
+	var _sxe_class_entry = (Module['_sxe_class_entry'] = 11047324);
 
 	var _simplexml_module_entry = (Module['_simplexml_module_entry'] =
 		10610880);
 
-	var _ce_SimpleXMLIterator = (Module['_ce_SimpleXMLIterator'] = 11047412);
+	var _ce_SimpleXMLIterator = (Module['_ce_SimpleXMLIterator'] = 11047316);
 
-	var _ce_SimpleXMLElement = (Module['_ce_SimpleXMLElement'] = 11047416);
+	var _ce_SimpleXMLElement = (Module['_ce_SimpleXMLElement'] = 11047320);
 
-	var _soap_globals = (Module['_soap_globals'] = 11047552);
+	var _soap_globals = (Module['_soap_globals'] = 11047456);
 
-	var _soap_var_class_entry = (Module['_soap_var_class_entry'] = 11047868);
+	var _soap_var_class_entry = (Module['_soap_var_class_entry'] = 11047772);
 
-	var _le_url = (Module['_le_url'] = 11047540);
+	var _le_url = (Module['_le_url'] = 11047444);
 
 	var _soap_module_entry = (Module['_soap_module_entry'] = 10614060);
 
@@ -13572,201 +13568,201 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _numDefaultEncodings = (Module['_numDefaultEncodings'] = 10613992);
 
-	var _spl_globals = (Module['_spl_globals'] = 11045668);
+	var _spl_globals = (Module['_spl_globals'] = 11045572);
 
 	var _spl_module_entry = (Module['_spl_module_entry'] = 10589408);
 
 	var _spl_ce_RecursiveIteratorIterator = (Module[
 		'_spl_ce_RecursiveIteratorIterator'
-	] = 11044468);
+	] = 11044372);
 
 	var _spl_ce_RecursiveCachingIterator = (Module[
 		'_spl_ce_RecursiveCachingIterator'
-	] = 11044516);
+	] = 11044420);
 
 	var _spl_ce_RecursiveIterator = (Module['_spl_ce_RecursiveIterator'] =
-		11044488);
+		11044392);
 
 	var _spl_ce_RecursiveTreeIterator = (Module[
 		'_spl_ce_RecursiveTreeIterator'
-	] = 11044472);
+	] = 11044376);
 
-	var _spl_ce_FilterIterator = (Module['_spl_ce_FilterIterator'] = 11044476);
+	var _spl_ce_FilterIterator = (Module['_spl_ce_FilterIterator'] = 11044380);
 
 	var _spl_ce_CallbackFilterIterator = (Module[
 		'_spl_ce_CallbackFilterIterator'
-	] = 11044480);
+	] = 11044384);
 
 	var _spl_ce_RecursiveCallbackFilterIterator = (Module[
 		'_spl_ce_RecursiveCallbackFilterIterator'
-	] = 11044484);
+	] = 11044388);
 
 	var _spl_ce_RecursiveFilterIterator = (Module[
 		'_spl_ce_RecursiveFilterIterator'
-	] = 11044492);
+	] = 11044396);
 
-	var _spl_ce_ParentIterator = (Module['_spl_ce_ParentIterator'] = 11044496);
+	var _spl_ce_ParentIterator = (Module['_spl_ce_ParentIterator'] = 11044400);
 
-	var _spl_ce_RegexIterator = (Module['_spl_ce_RegexIterator'] = 11044500);
+	var _spl_ce_RegexIterator = (Module['_spl_ce_RegexIterator'] = 11044404);
 
 	var _spl_ce_RecursiveRegexIterator = (Module[
 		'_spl_ce_RecursiveRegexIterator'
-	] = 11044504);
+	] = 11044408);
 
-	var _spl_ce_LimitIterator = (Module['_spl_ce_LimitIterator'] = 11044508);
+	var _spl_ce_LimitIterator = (Module['_spl_ce_LimitIterator'] = 11044412);
 
 	var _spl_ce_SeekableIterator = (Module['_spl_ce_SeekableIterator'] =
-		11044772);
+		11044676);
 
 	var _spl_ce_CachingIterator = (Module['_spl_ce_CachingIterator'] =
-		11044512);
+		11044416);
 
 	var _spl_ce_IteratorIterator = (Module['_spl_ce_IteratorIterator'] =
-		11044520);
+		11044424);
 
 	var _spl_ce_NoRewindIterator = (Module['_spl_ce_NoRewindIterator'] =
-		11044524);
+		11044428);
 
 	var _spl_ce_InfiniteIterator = (Module['_spl_ce_InfiniteIterator'] =
-		11044528);
+		11044432);
 
-	var _spl_ce_AppendIterator = (Module['_spl_ce_AppendIterator'] = 11044532);
+	var _spl_ce_AppendIterator = (Module['_spl_ce_AppendIterator'] = 11044436);
 
-	var _spl_ce_OuterIterator = (Module['_spl_ce_OuterIterator'] = 11044768);
+	var _spl_ce_OuterIterator = (Module['_spl_ce_OuterIterator'] = 11044672);
 
-	var _spl_ce_EmptyIterator = (Module['_spl_ce_EmptyIterator'] = 11044776);
+	var _spl_ce_EmptyIterator = (Module['_spl_ce_EmptyIterator'] = 11044680);
 
-	var _spl_ce_ArrayIterator = (Module['_spl_ce_ArrayIterator'] = 11044224);
+	var _spl_ce_ArrayIterator = (Module['_spl_ce_ArrayIterator'] = 11044128);
 
 	var _spl_handler_ArrayObject = (Module['_spl_handler_ArrayObject'] =
-		11044232);
+		11044136);
 
 	var _spl_handler_ArrayIterator = (Module['_spl_handler_ArrayIterator'] =
-		11044348);
+		11044252);
 
-	var _spl_ce_ArrayObject = (Module['_spl_ce_ArrayObject'] = 11044228);
+	var _spl_ce_ArrayObject = (Module['_spl_ce_ArrayObject'] = 11044132);
 
 	var _spl_ce_RecursiveArrayIterator = (Module[
 		'_spl_ce_RecursiveArrayIterator'
-	] = 11044464);
+	] = 11044368);
 
 	var _spl_ce_RecursiveDirectoryIterator = (Module[
 		'_spl_ce_RecursiveDirectoryIterator'
-	] = 11044780);
+	] = 11044684);
 
-	var _spl_ce_SplFileObject = (Module['_spl_ce_SplFileObject'] = 11044784);
+	var _spl_ce_SplFileObject = (Module['_spl_ce_SplFileObject'] = 11044688);
 
-	var _spl_ce_SplFileInfo = (Module['_spl_ce_SplFileInfo'] = 11044788);
+	var _spl_ce_SplFileInfo = (Module['_spl_ce_SplFileInfo'] = 11044692);
 
 	var _spl_ce_DirectoryIterator = (Module['_spl_ce_DirectoryIterator'] =
-		11044908);
+		11044812);
 
 	var _spl_ce_FilesystemIterator = (Module['_spl_ce_FilesystemIterator'] =
-		11044912);
+		11044816);
 
-	var _spl_ce_GlobIterator = (Module['_spl_ce_GlobIterator'] = 11045032);
+	var _spl_ce_GlobIterator = (Module['_spl_ce_GlobIterator'] = 11044936);
 
 	var _spl_ce_SplTempFileObject = (Module['_spl_ce_SplTempFileObject'] =
-		11045036);
+		11044940);
 
-	var _spl_ce_LogicException = (Module['_spl_ce_LogicException'] = 11005460);
+	var _spl_ce_LogicException = (Module['_spl_ce_LogicException'] = 11005364);
 
 	var _spl_ce_BadFunctionCallException = (Module[
 		'_spl_ce_BadFunctionCallException'
-	] = 11005464);
+	] = 11005368);
 
 	var _spl_ce_BadMethodCallException = (Module[
 		'_spl_ce_BadMethodCallException'
-	] = 11005468);
+	] = 11005372);
 
 	var _spl_ce_DomainException = (Module['_spl_ce_DomainException'] =
-		11005472);
+		11005376);
 
 	var _spl_ce_InvalidArgumentException = (Module[
 		'_spl_ce_InvalidArgumentException'
-	] = 11005476);
+	] = 11005380);
 
 	var _spl_ce_LengthException = (Module['_spl_ce_LengthException'] =
-		11005480);
+		11005384);
 
 	var _spl_ce_OutOfRangeException = (Module['_spl_ce_OutOfRangeException'] =
-		11005484);
+		11005388);
 
 	var _spl_ce_RuntimeException = (Module['_spl_ce_RuntimeException'] =
-		11005488);
+		11005392);
 
 	var _spl_ce_OutOfBoundsException = (Module['_spl_ce_OutOfBoundsException'] =
-		11005492);
+		11005396);
 
 	var _spl_ce_OverflowException = (Module['_spl_ce_OverflowException'] =
-		11005496);
+		11005400);
 
-	var _spl_ce_RangeException = (Module['_spl_ce_RangeException'] = 11005500);
+	var _spl_ce_RangeException = (Module['_spl_ce_RangeException'] = 11005404);
 
 	var _spl_ce_UnderflowException = (Module['_spl_ce_UnderflowException'] =
-		11005504);
+		11005408);
 
 	var _spl_ce_UnexpectedValueException = (Module[
 		'_spl_ce_UnexpectedValueException'
-	] = 11005508);
+	] = 11005412);
 
 	var _spl_ce_SplObjectStorage = (Module['_spl_ce_SplObjectStorage'] =
-		11045040);
+		11044944);
 
-	var _spl_ce_SplObserver = (Module['_spl_ce_SplObserver'] = 11045044);
+	var _spl_ce_SplObserver = (Module['_spl_ce_SplObserver'] = 11044948);
 
-	var _spl_ce_SplSubject = (Module['_spl_ce_SplSubject'] = 11045048);
+	var _spl_ce_SplSubject = (Module['_spl_ce_SplSubject'] = 11044952);
 
 	var _spl_handler_SplObjectStorage = (Module[
 		'_spl_handler_SplObjectStorage'
-	] = 11045052);
+	] = 11044956);
 
 	var _spl_ce_MultipleIterator = (Module['_spl_ce_MultipleIterator'] =
-		11045168);
+		11045072);
 
 	var _spl_ce_SplDoublyLinkedList = (Module['_spl_ce_SplDoublyLinkedList'] =
-		11045172);
+		11045076);
 
 	var _spl_handler_SplDoublyLinkedList = (Module[
 		'_spl_handler_SplDoublyLinkedList'
-	] = 11045176);
+	] = 11045080);
 
-	var _spl_ce_SplQueue = (Module['_spl_ce_SplQueue'] = 11045292);
+	var _spl_ce_SplQueue = (Module['_spl_ce_SplQueue'] = 11045196);
 
-	var _spl_ce_SplStack = (Module['_spl_ce_SplStack'] = 11045296);
+	var _spl_ce_SplStack = (Module['_spl_ce_SplStack'] = 11045200);
 
-	var _spl_ce_SplHeap = (Module['_spl_ce_SplHeap'] = 11045420);
+	var _spl_ce_SplHeap = (Module['_spl_ce_SplHeap'] = 11045324);
 
 	var _spl_ce_SplPriorityQueue = (Module['_spl_ce_SplPriorityQueue'] =
-		11045424);
+		11045328);
 
-	var _spl_handler_SplHeap = (Module['_spl_handler_SplHeap'] = 11045428);
+	var _spl_handler_SplHeap = (Module['_spl_handler_SplHeap'] = 11045332);
 
-	var _spl_ce_SplMinHeap = (Module['_spl_ce_SplMinHeap'] = 11045544);
+	var _spl_ce_SplMinHeap = (Module['_spl_ce_SplMinHeap'] = 11045448);
 
-	var _spl_ce_SplMaxHeap = (Module['_spl_ce_SplMaxHeap'] = 11045548);
+	var _spl_ce_SplMaxHeap = (Module['_spl_ce_SplMaxHeap'] = 11045452);
 
 	var _spl_handler_SplPriorityQueue = (Module[
 		'_spl_handler_SplPriorityQueue'
-	] = 11045552);
+	] = 11045456);
 
-	var _spl_ce_SplFixedArray = (Module['_spl_ce_SplFixedArray'] = 11045300);
+	var _spl_ce_SplFixedArray = (Module['_spl_ce_SplFixedArray'] = 11045204);
 
 	var _spl_handler_SplFixedArray = (Module['_spl_handler_SplFixedArray'] =
-		11045304);
+		11045208);
 
-	var _array_globals = (Module['_array_globals'] = 10988576);
+	var _array_globals = (Module['_array_globals'] = 10988480);
 
-	var _basic_globals = (Module['_basic_globals'] = 10988672);
+	var _basic_globals = (Module['_basic_globals'] = 10988576);
 
 	var _basic_functions_module = (Module['_basic_functions_module'] =
 		10423552);
 
-	var _browscap_globals = (Module['_browscap_globals'] = 10979924);
+	var _browscap_globals = (Module['_browscap_globals'] = 10979828);
 
-	var _dir_globals = (Module['_dir_globals'] = 10988564);
+	var _dir_globals = (Module['_dir_globals'] = 10988468);
 
-	var _file_globals = (Module['_file_globals'] = 11049152);
+	var _file_globals = (Module['_file_globals'] = 11049056);
 
 	var _php_sig_gif = (Module['_php_sig_gif'] = 1780240);
 
@@ -13801,9 +13797,9 @@ export function init(RuntimeName, PHPLoader) {
 	var _php_tiff_bytes_per_format = (Module['_php_tiff_bytes_per_format'] =
 		1780320);
 
-	var _machine_little_endian = (Module['_machine_little_endian'] = 10979728);
+	var _machine_little_endian = (Module['_machine_little_endian'] = 10979632);
 
-	var _assert_globals = (Module['_assert_globals'] = 10988584);
+	var _assert_globals = (Module['_assert_globals'] = 10988488);
 
 	var _php_stream_ftp_wrapper = (Module['_php_stream_ftp_wrapper'] =
 		10412784);
@@ -13821,7 +13817,7 @@ export function init(RuntimeName, PHPLoader) {
 	var _php_password_algo_bcrypt = (Module['_php_password_algo_bcrypt'] =
 		10411688);
 
-	var _random_globals = (Module['_random_globals'] = 10988492);
+	var _random_globals = (Module['_random_globals'] = 10988396);
 
 	var _tokenizer_module_entry = (Module['_tokenizer_module_entry'] =
 		10616796);
@@ -13835,11 +13831,11 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _xml_encodings = (Module['_xml_encodings'] = 10618192);
 
-	var _xml_globals = (Module['_xml_globals'] = 11048072);
+	var _xml_globals = (Module['_xml_globals'] = 11047976);
 
 	var _xml_module_entry = (Module['_xml_module_entry'] = 10618092);
 
-	var _xmlreader_class_entry = (Module['_xmlreader_class_entry'] = 11048268);
+	var _xmlreader_class_entry = (Module['_xmlreader_class_entry'] = 11048172);
 
 	var _xmlreader_module_entry = (Module['_xmlreader_module_entry'] =
 		10619220);
@@ -13862,7 +13858,7 @@ export function init(RuntimeName, PHPLoader) {
 		'_mysqlnd_mysqlnd_connection_state_methods'
 	] = 10544708);
 
-	var _mysqlnd_global_stats = (Module['_mysqlnd_global_stats'] = 11005320);
+	var _mysqlnd_global_stats = (Module['_mysqlnd_global_stats'] = 11005224);
 
 	var _mysqlnd_server_gone = (Module['_mysqlnd_server_gone'] = 10544680);
 
@@ -13944,7 +13940,7 @@ export function init(RuntimeName, PHPLoader) {
 		'_mysqlnd_mysqlnd_command_methods'
 	] = 10543576);
 
-	var _mysqlnd_globals = (Module['_mysqlnd_globals'] = 11005328);
+	var _mysqlnd_globals = (Module['_mysqlnd_globals'] = 11005232);
 
 	var _mysqlnd_module_entry = (Module['_mysqlnd_module_entry'] = 10545e3);
 
@@ -13959,9 +13955,9 @@ export function init(RuntimeName, PHPLoader) {
 		10543796);
 
 	var _mysqlnd_ps_fetch_functions = (Module['_mysqlnd_ps_fetch_functions'] =
-		11001088);
+		11000992);
 
-	var _core_globals = (Module['_core_globals'] = 11048584);
+	var _core_globals = (Module['_core_globals'] = 11048488);
 
 	var _php_register_internal_extensions_func = (Module[
 		'_php_register_internal_extensions_func'
@@ -13969,25 +13965,25 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _php_internal_encoding_changed = (Module[
 		'_php_internal_encoding_changed'
-	] = 11049072);
+	] = 11048976);
 
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 10978560);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 10978464);
 
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 10978564);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 10978468);
 
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 10978568);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 10978472);
 
-	var _sapi_module = (Module['_sapi_module'] = 10992344);
+	var _sapi_module = (Module['_sapi_module'] = 10992248);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 10992488);
+	var _sapi_globals = (Module['_sapi_globals'] = 10992392);
 
-	var _php_rfc1867_callback = (Module['_php_rfc1867_callback'] = 10992332);
+	var _php_rfc1867_callback = (Module['_php_rfc1867_callback'] = 10992236);
 
 	var _php_import_environment_variables = (Module[
 		'_php_import_environment_variables'
 	] = 10227696);
 
-	var _output_globals = (Module['_output_globals'] = 10979220);
+	var _output_globals = (Module['_output_globals'] = 10979124);
 
 	var _php_output_default_handler_name = (Module[
 		'_php_output_default_handler_name'
@@ -14046,83 +14042,83 @@ export function init(RuntimeName, PHPLoader) {
 		10232816);
 
 	var _language_scanner_globals = (Module['_language_scanner_globals'] =
-		10968988);
+		10968892);
 
-	var _ini_scanner_globals = (Module['_ini_scanner_globals'] = 10976672);
+	var _ini_scanner_globals = (Module['_ini_scanner_globals'] = 10976576);
 
 	var _zend_mm_use_huge_pages = (Module['_zend_mm_use_huge_pages'] =
-		10972520);
+		10972424);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 10976824);
+	var _compiler_globals = (Module['_compiler_globals'] = 10976728);
 
-	var _executor_globals = (Module['_executor_globals'] = 10977240);
+	var _executor_globals = (Module['_executor_globals'] = 10977144);
 
-	var _zend_compile_file = (Module['_zend_compile_file'] = 10978376);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 10978280);
 
-	var _zend_compile_string = (Module['_zend_compile_string'] = 10978380);
+	var _zend_compile_string = (Module['_zend_compile_string'] = 10978284);
 
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 10971352);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 10971256);
 
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 10971356);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 10971260);
 
 	var _empty_fcall_info = (Module['_empty_fcall_info'] = 945696);
 
 	var _empty_fcall_info_cache = (Module['_empty_fcall_info_cache'] = 945744);
 
 	var _zend_printf_to_smart_string = (Module['_zend_printf_to_smart_string'] =
-		10976752);
+		10976656);
 
 	var _zend_printf_to_smart_str = (Module['_zend_printf_to_smart_str'] =
-		10976756);
+		10976660);
 
-	var _zend_write = (Module['_zend_write'] = 10976760);
+	var _zend_write = (Module['_zend_write'] = 10976664);
 
-	var _zend_printf = (Module['_zend_printf'] = 10976764);
+	var _zend_printf = (Module['_zend_printf'] = 10976668);
 
-	var _zend_error_cb = (Module['_zend_error_cb'] = 10976768);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 10976672);
 
-	var _zend_fopen = (Module['_zend_fopen'] = 10976772);
+	var _zend_fopen = (Module['_zend_fopen'] = 10976676);
 
 	var _zend_stream_open_function = (Module['_zend_stream_open_function'] =
-		10976776);
+		10976680);
 
-	var _zend_ticks_function = (Module['_zend_ticks_function'] = 10976788);
+	var _zend_ticks_function = (Module['_zend_ticks_function'] = 10976692);
 
-	var _zend_on_timeout = (Module['_zend_on_timeout'] = 10976792);
+	var _zend_on_timeout = (Module['_zend_on_timeout'] = 10976696);
 
-	var _zend_getenv = (Module['_zend_getenv'] = 10976796);
+	var _zend_getenv = (Module['_zend_getenv'] = 10976700);
 
 	var _zend_interrupt_function = (Module['_zend_interrupt_function'] =
-		10976804);
+		10976708);
 
-	var _zend_resolve_path = (Module['_zend_resolve_path'] = 10976800);
+	var _zend_resolve_path = (Module['_zend_resolve_path'] = 10976704);
 
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 10976740);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 10976644);
 
-	var _zend_uv = (Module['_zend_uv'] = 10976820);
+	var _zend_uv = (Module['_zend_uv'] = 10976724);
 
 	var _zend_standard_class_def = (Module['_zend_standard_class_def'] =
-		10976736);
+		10976640);
 
-	var _zend_post_shutdown_cb = (Module['_zend_post_shutdown_cb'] = 10976744);
+	var _zend_post_shutdown_cb = (Module['_zend_post_shutdown_cb'] = 10976648);
 
-	var _zend_preload_autoload = (Module['_zend_preload_autoload'] = 10976748);
+	var _zend_preload_autoload = (Module['_zend_preload_autoload'] = 10976652);
 
-	var _zend_dtrace_enabled = (Module['_zend_dtrace_enabled'] = 10976821);
+	var _zend_dtrace_enabled = (Module['_zend_dtrace_enabled'] = 10976725);
 
-	var _module_registry = (Module['_module_registry'] = 10971360);
+	var _module_registry = (Module['_module_registry'] = 10971264);
 
-	var _zend_extensions = (Module['_zend_extensions'] = 10966888);
+	var _zend_extensions = (Module['_zend_extensions'] = 10966792);
 
-	var _zend_extension_flags = (Module['_zend_extension_flags'] = 10966880);
+	var _zend_extension_flags = (Module['_zend_extension_flags'] = 10966784);
 
 	var _zend_op_array_extension_handles = (Module[
 		'_zend_op_array_extension_handles'
-	] = 10966884);
+	] = 10966788);
 
 	var _zend_empty_array = (Module['_zend_empty_array'] = 10227184);
 
-	var _le_index_ptr = (Module['_le_index_ptr'] = 10978440);
+	var _le_index_ptr = (Module['_le_index_ptr'] = 10978344);
 
 	var _zend_builtin_module = (Module['_zend_builtin_module'] = 10209224);
 
@@ -14146,76 +14142,76 @@ export function init(RuntimeName, PHPLoader) {
 		'_zend_multibyte_encoding_utf8'
 	] = 10212328);
 
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 10968808);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 10968712);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 10968812);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 10968716);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 10968816);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 10968720);
 
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 10968820);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 10968724);
 
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 10968824);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 10968728);
 
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 10968828);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 10968732);
 
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 10968548);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 10968452);
 
-	var _zend_ce_error = (Module['_zend_ce_error'] = 10968676);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 10968580);
 
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 10968528);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 10968432);
 
-	var _zend_ce_parse_error = (Module['_zend_ce_parse_error'] = 10968532);
+	var _zend_ce_parse_error = (Module['_zend_ce_parse_error'] = 10968436);
 
-	var _zend_ce_compile_error = (Module['_zend_ce_compile_error'] = 10968536);
+	var _zend_ce_compile_error = (Module['_zend_ce_compile_error'] = 10968440);
 
 	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		10968540);
+		10968444);
 
 	var _zend_ce_error_exception = (Module['_zend_ce_error_exception'] =
-		10968544);
+		10968448);
 
-	var _zend_ce_type_error = (Module['_zend_ce_type_error'] = 10968552);
+	var _zend_ce_type_error = (Module['_zend_ce_type_error'] = 10968456);
 
 	var _zend_ce_argument_count_error = (Module[
 		'_zend_ce_argument_count_error'
-	] = 10968556);
+	] = 10968460);
 
 	var _zend_ce_arithmetic_error = (Module['_zend_ce_arithmetic_error'] =
-		10968680);
+		10968584);
 
 	var _zend_ce_division_by_zero_error = (Module[
 		'_zend_ce_division_by_zero_error'
-	] = 10968684);
+	] = 10968588);
 
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 10972516);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 10972420);
 
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 10968688);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 10968592);
 
-	var _zend_ce_weakref = (Module['_zend_ce_weakref'] = 10968832);
+	var _zend_ce_weakref = (Module['_zend_ce_weakref'] = 10968736);
 
-	var _zend_empty_string = (Module['_zend_empty_string'] = 10966920);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 10966824);
 
-	var _zend_known_strings = (Module['_zend_known_strings'] = 10966924);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 10966828);
 
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		10966988);
+		10966892);
 
 	var _zend_new_interned_string = (Module['_zend_new_interned_string'] =
-		10966984);
+		10966888);
 
-	var _zend_one_char_string = (Module['_zend_one_char_string'] = 10966992);
+	var _zend_one_char_string = (Module['_zend_one_char_string'] = 10966896);
 
-	var _zend_signal_globals = (Module['_zend_signal_globals'] = 10969116);
+	var _zend_signal_globals = (Module['_zend_signal_globals'] = 10969020);
 
-	var _zend_ce_generator = (Module['_zend_ce_generator'] = 10968400);
+	var _zend_ce_generator = (Module['_zend_ce_generator'] = 10968304);
 
 	var _zend_ce_ClosedGeneratorException = (Module[
 		'_zend_ce_ClosedGeneratorException'
-	] = 10968404);
+	] = 10968308);
 
-	var _cwd_globals = (Module['_cwd_globals'] = 10972544);
+	var _cwd_globals = (Module['_cwd_globals'] = 10972448);
 
-	var _zend_ast_process = (Module['_zend_ast_process'] = 10969112);
+	var _zend_ast_process = (Module['_zend_ast_process'] = 10969016);
 
 	var _std_object_handlers = (Module['_std_object_handlers'] = 10211208);
 
@@ -14245,14 +14241,14 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _z_errmsg = (Module['_z_errmsg'] = 10633248);
 
-	var _timezone = (Module['_timezone'] = 11084048);
+	var _timezone = (Module['_timezone'] = 11083952);
 
-	var _tzname = (Module['_tzname'] = 11084056);
+	var _tzname = (Module['_tzname'] = 11083960);
 
-	var ___heap_base = 12148544;
+	var ___heap_base = 12148448;
 
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		11099960);
+		11099864);
 
 	var __ZSt7nothrow = (Module['__ZSt7nothrow'] = 10206656);
 
