@@ -162,11 +162,11 @@ foreach ($allHeaders as $name => $value) {
     }
 }
 
-// WORKAROUND: The WP Cloud front end of the production deployment strips
-// the Range header before the request reaches PHP, so clients may send
-// the same value as X-Cors-Proxy-Range instead. Remove this, the
-// matching Access-Control-Allow-Headers entry, and the README note once
-// Range reaches this script on WP Cloud.
+// WORKAROUND: As of 2026-09-26, the WP Cloud front end of the production
+// deployment strips the Range header before the request reaches PHP, so
+// clients may send the same value as X-Cors-Proxy-Range instead. Remove
+// this, the matching Access-Control-Allow-Headers entry, and the README
+// note once Range reaches this script on WP Cloud.
 $tunneledRange = null;
 foreach ($allHeaders as $name => $value) {
     if (strcasecmp($name, 'X-Cors-Proxy-Range') === 0) {
