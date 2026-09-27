@@ -353,6 +353,23 @@ assert_true(
     'Client should see an incomplete response (got curl error ' .
         "{$response['curl_errno']})"
 );
+assert_true(
+    $response['body'] === str_repeat('a', 10),
+    "Body should hold only the target's bytes (got '{$response['body']}')"
+);
+
+// The target can also fail after its headers but before any body byte.
+// The proxy hasn't sent anything yet, so it can still report the failure.
+$response = proxy_request(
+    $proxy_port,
+    "http://127.0.0.1:$upstream_port/truncated-before-body",
+    ['Range: bytes=0-99']
+);
+assert_true(
+    $response['http_code'] === 502,
+    "Failure before the body should get status 502 (got {$response['http_code']})"
+);
+assert_only_proxy_headers($response, '502');
 
 // ──────────────────────────────────────────────
 // Test 14: Server-control response headers are not relayed
@@ -422,19 +439,6 @@ assert_true(
     'HEAD should relay Content-Length: 4294967296 (got ' .
         implode(', ', get_header_list($response['headers_raw'], 'content-length')) . ')'
 );
-
-// The target can also fail after its headers but before any body byte.
-// The proxy hasn't sent anything yet, so it can still report the failure.
-$response = proxy_request(
-    $proxy_port,
-    "http://127.0.0.1:$upstream_port/truncated-before-body",
-    ['Range: bytes=0-99']
-);
-assert_true(
-    $response['http_code'] === 502,
-    "Failure before the body should get status 502 (got {$response['http_code']})"
-);
-assert_only_proxy_headers($response, '502');
 
 // ──────────────────────────────────────────────
 // Clean up
@@ -571,29 +575,32 @@ function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method 
     if ($method === 'HEAD') {
         curl_setopt($ch, CURLOPT_NOBODY, true);
     }
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HEADER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $extra_headers);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    // Collect headers and body through callbacks rather than
+    // CURLOPT_RETURNTRANSFER, which discards everything when the transfer
+    // fails. Tests of truncated responses need the bytes that did arrive.
+    $headers_raw = '';
+    $body = '';
+    curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $header) use (&$headers_raw) {
+        $headers_raw .= $header;
+        return strlen($header);
+    });
+    curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$body) {
+        $body .= $data;
+        return strlen($data);
+    });
 
-    $raw = curl_exec($ch);
-    if ($raw === false) {
-        return [
-            'headers_raw' => '',
-            'body' => '',
-            'http_code' => 0,
-            'curl_errno' => curl_errno($ch),
-        ];
+    curl_exec($ch);
+    if (curl_errno($ch) !== 0) {
+        echo "  curl error: " . curl_error($ch) . "\n";
     }
 
-    $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
     return [
-        'headers_raw' => substr($raw, 0, $header_size),
-        'body' => substr($raw, $header_size),
-        'http_code' => $http_code,
-        'curl_errno' => 0,
+        'headers_raw' => $headers_raw,
+        'body' => $body,
+        'http_code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
+        'curl_errno' => curl_errno($ch),
     ];
 }
 
