@@ -66,6 +66,14 @@ switch ($path) {
         echo str_repeat('a', 10);
         break;
 
+    case '/truncated-before-body':
+        // Sends its headers, then drops the connection before any body.
+        http_response_code(206);
+        header('Content-Range: bytes 0-99/1000');
+        header('Content-Length: 100');
+        flush();
+        break;
+
     case '/headers':
         header('Content-Type: application/json');
         echo json_encode(array_change_key_case(getallheaders(), CASE_LOWER));

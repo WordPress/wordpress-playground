@@ -351,6 +351,22 @@ assert_true(
     "Body should hold only the target's bytes (got '{$response['body']}')"
 );
 
+// The target can also fail after its headers but before any body byte.
+// The proxy hasn't sent anything yet, so it can still report the failure.
+$response = proxy_request(
+    $proxy_port,
+    "http://127.0.0.1:$upstream_port/truncated-before-body",
+    ['Range: bytes=0-99']
+);
+assert_true(
+    $response['http_code'] === 502,
+    "Failure before the body should get status 502 (got {$response['http_code']})"
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'content-range') === [],
+    "502 response should not have the target's Content-Range header"
+);
+
 // ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────

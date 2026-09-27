@@ -128,6 +128,25 @@ function send_response_chunk($data) {
 }
 
 /**
+ * Removes relayed target headers that describe the target's body.
+ *
+ * Used when the proxy replaces the target's response with its own error
+ * before any output has been sent.
+ */
+function remove_relayed_body_headers() {
+    foreach ([
+        'Content-Type',
+        'Content-Encoding',
+        'Content-Range',
+        'Accept-Ranges',
+        'ETag',
+        'Last-Modified',
+    ] as $body_header) {
+        header_remove($body_header);
+    }
+}
+
+/**
  * We need to manually chunk the response when running the PHP
  * dev server AND the transfer-encoding header is set to chunked.
  *
@@ -301,17 +320,7 @@ curl_setopt(
         if($name === 'content-length') {
             $content_length = intval($value);
             if ($content_length >= MAX_RESPONSE_SIZE) {
-                // Drop relayed headers that describe the rejected body.
-                foreach ([
-                    'Content-Type',
-                    'Content-Encoding',
-                    'Content-Range',
-                    'Accept-Ranges',
-                    'ETag',
-                    'Last-Modified',
-                ] as $body_header) {
-                    header_remove($body_header);
-                }
+                remove_relayed_body_headers();
                 http_response_code(413);
                 send_response_chunk("Response Too Large");
                 exit;
@@ -417,12 +426,15 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
 // Execute cURL session
 $target_failed_mid_response = false;
 if (!curl_exec($ch)) {
-    if ($http_code_sent) {
-        // The target's status and headers were already relayed. An error
-        // message appended now would look like part of the target's body,
-        // so end the response instead.
+    if (headers_sent()) {
+        // Part of the target's response was already sent. An error message
+        // appended now would look like part of the target's body, so end
+        // the response instead.
         $target_failed_mid_response = true;
     } else {
+        // Nothing was sent yet, though the target's headers may be queued.
+        // Replace them with an error response.
+        remove_relayed_body_headers();
         http_response_code(502);
         send_response_chunk("Bad Gateway – curl_exec error: " . curl_error($ch));
     }
