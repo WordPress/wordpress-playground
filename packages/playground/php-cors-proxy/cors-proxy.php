@@ -21,7 +21,7 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     $allow_origin = (is_local_dev_server() && empty($origin)) ? '*' : $origin;
     header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, HEAD, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, Range, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type, x-cors-proxy-range');
     // Identify this response as coming from the legitimate CORS proxy.
     // Network firewalls may intercept requests and return error responses
@@ -33,18 +33,18 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy, Content-Range, Accept-Ranges, ETag');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Allow: GET, POST, OPTIONS");
+    header("Allow: GET, HEAD, POST, OPTIONS");
     exit;
 }
 
-// Handle only GET and POST requests
-if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+// Handle only GET, HEAD, and POST requests
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'HEAD', 'POST'], true)) {
     http_response_code(405);
     echo "Method Not Allowed";
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
     http_response_code(413);
     echo "Request Entity Too Large";
     exit;
@@ -93,6 +93,8 @@ $ch = curl_init($targetUrl);
 
 $is_chunked_response = false;
 $http_code_sent = false;
+// The target's Content-Length, held until all of its headers arrive.
+$pending_content_length = null;
 
 $relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch, &$http_code_sent) {
     if (!$http_code_sent) {
@@ -284,7 +286,8 @@ curl_setopt(
     ) use (
         $targetUrl,
         $relay_http_code_and_initial_headers_if_not_already_sent,
-        &$is_chunked_response
+        &$is_chunked_response,
+        &$pending_content_length
     ) {
         @$relay_http_code_and_initial_headers_if_not_already_sent();
 
@@ -292,6 +295,19 @@ curl_setopt(
         $colonPos = strpos($header, ':');
 
         if ($colonPos === false) {
+            if (stripos($header, 'HTTP/') === 0) {
+                // A new header block, e.g. after a 100 Continue response.
+                $pending_content_length = null;
+            } elseif (
+                trim($header) === '' &&
+                $pending_content_length !== null &&
+                !$is_chunked_response
+            ) {
+                // Relay Content-Length only once all headers have arrived.
+                // HTTP says to ignore it when Transfer-Encoding: chunked is
+                // present, and that header may come later.
+                header('Content-Length: ' . $pending_content_length);
+            }
             return $len;
         }
 
@@ -300,7 +316,17 @@ curl_setopt(
 
         if($name === 'content-length') {
             $content_length = intval($value);
-            if ($content_length >= MAX_RESPONSE_SIZE) {
+            // The response size cap is enforced only here, against the
+            // target's declared Content-Length. Responses without one, such
+            // as chunked responses, are never checked and stream through at
+            // any size. Making the cap a hard limit would require counting
+            // relayed bytes and cutting the response off at the limit.
+            //
+            // The cap limits relayed bodies, and HEAD responses have none.
+            if (
+                $_SERVER['REQUEST_METHOD'] !== 'HEAD' &&
+                $content_length >= MAX_RESPONSE_SIZE
+            ) {
                 // Drop relayed headers that describe the rejected body.
                 foreach ([
                     'Content-Type',
@@ -315,6 +341,9 @@ curl_setopt(
                 http_response_code(413);
                 send_response_chunk("Response Too Large");
                 exit;
+            }
+            if (ctype_digit($value)) {
+                $pending_content_length = $value;
             }
             return $len;
         }
@@ -373,6 +402,10 @@ curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) use (&$is_chunked
 // Handle request method and data
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $requestMethod);
+if ($requestMethod === 'HEAD') {
+    // Otherwise curl waits for the body that Content-Length announces.
+    curl_setopt($ch, CURLOPT_NOBODY, true);
+}
 
 if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 'OPTIONS') {
     // php://input is not available for multipart/form-data requests

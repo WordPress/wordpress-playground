@@ -53,10 +53,11 @@ responses along with `Content-Range`, `Accept-Ranges`, and `ETag`. When a
 request has a range, the proxy asks the target for
 `Accept-Encoding: identity` so byte offsets refer to the unencoded body.
 
-If the target fails partway through a response, the proxy ends the response
-early without adding anything to the body. The proxy does not relay
-`Content-Length`, so compare the body length with `Content-Range` to detect
-a short `206`.
+The proxy relays the target's `Content-Length` unless the target sends a
+chunked response. `HEAD` requests relay it too, so clients can learn a file's
+size before requesting ranges. If the target fails partway through a
+response, the proxy ends the response early without adding anything to the
+body, and the client sees fewer bytes than `Content-Length` announced.
 
 Every response relayed from a target has `Cache-Control: no-cache`, which
 the WP Cloud edge cache honors by not storing the response. Keep it that
@@ -93,6 +94,6 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 - Don't pass auth headers in either direction.
     - Opt-in for request headers possible using `X-Cors-Proxy-Allowed-Request-Headers`.
 - Refuse to request private IPs.
-- Refuse to process non-GET non-POST non-OPTIONS requests.
+- Refuse to process requests other than GET, HEAD, POST, and OPTIONS.
 - Refuse to process POST request body larger than, say, 100KB.
 - Refuse to process responses larger than, say, 100MB.

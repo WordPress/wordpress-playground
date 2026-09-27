@@ -50,6 +50,16 @@ $proxy_dir = dirname(__DIR__, 2);
 $proxy_router = __DIR__ . '/proxy-test-router.php';
 $proxy_proc = start_php_server($proxy_port, $proxy_router, $proxy_dir);
 
+// ──────────────────────────────────────────────
+// Start a raw server that sends chunked responses
+// ──────────────────────────────────────────────
+$chunked_port = find_free_port();
+$chunked_proc = start_server_process(
+    escapeshellarg(PHP_BINARY) . ' ' .
+        escapeshellarg(__DIR__ . '/chunked-upstream-server.php') . " $chunked_port",
+    $chunked_port
+);
+
 $upstream_url = "http://127.0.0.1:$upstream_port/plain-text";
 $range_url = "http://127.0.0.1:$upstream_port/range";
 $headers_url = "http://127.0.0.1:$upstream_port/headers";
@@ -343,12 +353,58 @@ assert_true(
 // Test 13: A target failure mid-body does not append an error to the body
 // ──────────────────────────────────────────────
 echo "\nTest 13: A target failure mid-body does not append an error to the body\n";
+// The relayed Content-Length lets the client detect the short body.
 $response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/truncated-range", [
     'Range: bytes=0-99',
 ]);
 assert_true(
-    $response['body'] === str_repeat('a', 10),
-    "Body should hold only the target's bytes (got '{$response['body']}')"
+    $response['curl_errno'] === CURLE_PARTIAL_FILE,
+    'Client should see an incomplete response (got curl error ' .
+        "{$response['curl_errno']})"
+);
+
+// ──────────────────────────────────────────────
+// Test 14: Content-Length is relayed from fixed-length responses
+// ──────────────────────────────────────────────
+echo "\nTest 14: Content-Length is relayed from fixed-length responses\n";
+$response = proxy_request($proxy_port, $range_url, [
+    'Range: bytes=-3',
+]);
+assert_true(
+    get_header_list($response['headers_raw'], 'content-length') === ['3'],
+    'Response should relay Content-Length: 3 (got ' .
+        implode(', ', get_header_list($response['headers_raw'], 'content-length')) . ')'
+);
+
+// ──────────────────────────────────────────────
+// Test 15: Content-Length is not relayed from chunked responses
+// ──────────────────────────────────────────────
+echo "\nTest 15: Content-Length is not relayed from chunked responses\n";
+// The target sends Content-Length before Transfer-Encoding: chunked.
+$response = proxy_request($proxy_port, "http://127.0.0.1:$chunked_port/");
+assert_true(
+    get_header_list($response['headers_raw'], 'content-length') === [],
+    'Chunked response should not relay Content-Length'
+);
+assert_true(
+    $response['body'] === 'hello world',
+    "Chunked response body should be 'hello world' (got '{$response['body']}')"
+);
+
+// ──────────────────────────────────────────────
+// Test 16: HEAD relays the target's Content-Length
+// ──────────────────────────────────────────────
+echo "\nTest 16: HEAD relays the target's Content-Length\n";
+// The size cap applies to bodies, so HEAD works for files larger than it.
+$response = proxy_request($proxy_port, "$range_url?size=4294967296", [], 'HEAD');
+assert_true(
+    $response['http_code'] === 200,
+    "HEAD should have status 200 (got {$response['http_code']})"
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'content-length') === ['4294967296'],
+    'HEAD should relay Content-Length: 4294967296 (got ' .
+        implode(', ', get_header_list($response['headers_raw'], 'content-length')) . ')'
 );
 
 // ──────────────────────────────────────────────
@@ -358,6 +414,8 @@ proc_terminate($upstream_proc);
 proc_close($upstream_proc);
 proc_terminate($proxy_proc);
 proc_close($proxy_proc);
+proc_terminate($chunked_proc);
+proc_close($chunked_proc);
 
 // ──────────────────────────────────────────────
 // Summary
@@ -387,14 +445,17 @@ function find_free_port() {
 }
 
 function start_php_server($port, $router = null, $docroot = null) {
-    $cmd = "exec " . escapeshellarg(PHP_BINARY) . " -S 127.0.0.1:$port";
+    $cmd = escapeshellarg(PHP_BINARY) . " -S 127.0.0.1:$port";
     if ($docroot) {
         $cmd .= " -t " . escapeshellarg($docroot);
     }
     if ($router) {
         $cmd .= " " . escapeshellarg($router);
     }
+    return start_server_process($cmd, $port);
+}
 
+function start_server_process($cmd, $port) {
     // Inherit the parent environment so the child process keeps PATH and
     // other settings the PHP binary may need.
     $env = array_merge(getenv(), [
@@ -405,7 +466,7 @@ function start_php_server($port, $router = null, $docroot = null) {
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
-    $proc = proc_open($cmd, $descriptors, $pipes, null, $env);
+    $proc = proc_open("exec $cmd", $descriptors, $pipes, null, $env);
     if (!is_resource($proc)) {
         echo "Failed to start PHP server on port $port\n";
         exit(1);
@@ -450,8 +511,11 @@ function get_header_list($headers_raw, $name) {
     return $values;
 }
 
-function proxy_request($proxy_port, $upstream_url, $extra_headers = []) {
+function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method = 'GET') {
     $ch = curl_init("http://127.0.0.1:$proxy_port/cors-proxy.php?$upstream_url");
+    if ($method === 'HEAD') {
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+    }
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HEADER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $extra_headers);
@@ -459,8 +523,12 @@ function proxy_request($proxy_port, $upstream_url, $extra_headers = []) {
 
     $raw = curl_exec($ch);
     if ($raw === false) {
-        echo "  curl error: " . curl_error($ch) . "\n";
-        return ['headers_raw' => '', 'body' => '', 'http_code' => 0];
+        return [
+            'headers_raw' => '',
+            'body' => '',
+            'http_code' => 0,
+            'curl_errno' => curl_errno($ch),
+        ];
     }
 
     $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
@@ -470,6 +538,7 @@ function proxy_request($proxy_port, $upstream_url, $extra_headers = []) {
         'headers_raw' => substr($raw, 0, $header_size),
         'body' => substr($raw, $header_size),
         'http_code' => $http_code,
+        'curl_errno' => 0,
     ];
 }
 
