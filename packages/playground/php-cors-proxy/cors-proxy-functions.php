@@ -372,6 +372,37 @@ function kv_headers_to_curl_format($headers) {
     return $curl_headers;
 }
 
+/**
+ * Answers whether a response header instructs the web server or CDN in
+ * front of PHP rather than the client.
+ *
+ * For example, nginx performs an internal redirect when PHP sends
+ * X-Accel-Redirect. The proxy must not relay these from a target, or the
+ * target could control the proxy's own server.
+ */
+function is_server_control_response_header($name) {
+    $name = strtolower($name);
+    $prefixes = [
+        // nginx: X-Accel-Redirect, X-Accel-Expires, X-Accel-Buffering, etc.
+        'x-accel-',
+        // LiteSpeed: X-LiteSpeed-Location, X-LiteSpeed-Cache-Control, etc.
+        'x-litespeed-',
+    ];
+    foreach ($prefixes as $prefix) {
+        if (str_starts_with($name, $prefix)) {
+            return true;
+        }
+    }
+    return in_array($name, [
+        // Apache mod_xsendfile and lighttpd.
+        'x-sendfile',
+        'x-lighttpd-send-file',
+        // Cache directives aimed at CDNs rather than browsers.
+        'surrogate-control',
+        'cdn-cache-control',
+    ], true);
+}
+
 function rewrite_relative_redirect(
     $request_url,
     $redirect_location,

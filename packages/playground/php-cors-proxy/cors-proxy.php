@@ -246,6 +246,10 @@ curl_setopt(
             return $len;
         }
 
+        if (is_server_control_response_header($name)) {
+            return $len;
+        }
+
         if ($name === 'transfer-encoding' && stripos($value, 'chunked') !== false) {
             $is_chunked_response = true;
             header($header, false);
