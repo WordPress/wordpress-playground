@@ -128,6 +128,7 @@ class ProxyFunctionsTests extends TestCase
             ],
         ];
     }
+
     /**
      * @dataProvider providerServerControlResponseHeaders
      */
@@ -138,16 +139,22 @@ class ProxyFunctionsTests extends TestCase
 
     static public function providerServerControlResponseHeaders() {
         return [
-            'nginx internal redirect' => ['X-Accel-Redirect', true],
-            'nginx cache lifetime, lowercase' => ['x-accel-expires', true],
-            'Apache and lighttpd file serving' => ['X-Sendfile', true],
-            'lighttpd file serving' => ['X-Lighttpd-Send-File', true],
-            'LiteSpeed redirect' => ['X-LiteSpeed-Location', true],
-            'Surrogate cache control' => ['Surrogate-Control', true],
-            'CDN cache control' => ['CDN-Cache-Control', true],
+            'X-Accel- prefix' => ['X-Accel-Redirect', true],
+            'X-LiteSpeed- prefix' => ['X-LiteSpeed-Location', true],
+            'Prefix matching ignores case' => ['x-accel-expires', true],
+            'Exact name' => ['X-Sendfile2', true],
+            'CDN-targeted cache control, RFC 9213 naming' => [
+                'Cloudflare-CDN-Cache-Control',
+                true,
+            ],
+            'CGI status instruction' => ['Status', true],
             'Similar name without the prefix hyphen' => ['X-Accelerated-By', false],
+            'Similar name with a suffix after an exact name' => ['X-Sendfile-Foo', false],
+            'Similar name that only contains the CDN suffix' => [
+                'CDN-Cache-Control-Extension',
+                false,
+            ],
             'Ordinary header' => ['Content-Type', false],
-            'Range response header' => ['ETag', false],
         ];
     }
 

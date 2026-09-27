@@ -393,13 +393,30 @@ function is_server_control_response_header($name) {
             return true;
         }
     }
+    // CDN-targeted cache control. RFC 9213 defines CDN-Cache-Control and
+    // names CDN-specific variants the same way, e.g.
+    // Cloudflare-CDN-Cache-Control. A CDN obeys these over Cache-Control, so
+    // relaying one would override the proxy's Cache-Control: no-cache.
+    if (
+        $name === 'cdn-cache-control' ||
+        str_ends_with($name, '-cdn-cache-control')
+    ) {
+        return true;
+    }
     return in_array($name, [
-        // Apache mod_xsendfile and lighttpd.
+        // Apache mod_xsendfile. X-Sendfile-Temporary also deletes the file
+        // after sending it when the server allows that.
         'x-sendfile',
+        'x-sendfile-temporary',
+        // lighttpd.
+        'x-sendfile2',
         'x-lighttpd-send-file',
-        // Cache directives aimed at CDNs rather than browsers.
+        // Other cache directives aimed at CDNs rather than browsers.
         'surrogate-control',
-        'cdn-cache-control',
+        'edge-control',
+        // CGI and FastCGI servers take the response status from this header,
+        // overriding the status PHP would send.
+        'status',
     ], true);
 }
 
