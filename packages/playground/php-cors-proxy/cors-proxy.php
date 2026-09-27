@@ -264,14 +264,6 @@ if ($tunneledRange !== null) {
     $curlHeaders[] = 'Range: ' . $tunneledRange;
 }
 
-// A range addresses bytes of the encoded representation, so ask the
-// target for an unencoded one. This is always what the proxy's clients
-// need: browsers decode Content-Encoding automatically and can't decode a
-// slice from the middle of a compressed stream. The Fetch spec therefore
-// has browsers send Accept-Encoding: identity with Range requests, and
-// scripts can't override it. We set it again here because a server in
-// front of this script may rewrite Accept-Encoding before the request
-// gets here. As of 2026-09-26, WP Cloud rewrites it to "gzip, br".
 $has_range = !empty(array_filter(
     $curlHeaders,
     fn($h) => stripos($h, 'Range:') === 0
@@ -281,6 +273,15 @@ if ($has_range) {
         $curlHeaders,
         fn($h) => stripos($h, 'Accept-Encoding:') !== 0
     ));
+    // A range addresses bytes of the encoded representation, so ask the
+    // target for an unencoded one. This is always what the proxy's clients
+    // need: browsers decode Content-Encoding automatically and can't decode
+    // a slice from the middle of a compressed stream. The Fetch spec
+    // therefore has browsers send Accept-Encoding: identity with Range
+    // requests, and scripts can't override it. We set it again here because
+    // a server in front of this script may rewrite Accept-Encoding before
+    // the request gets here. As of 2026-09-26, WP Cloud rewrites it to
+    // "gzip, br".
     $curlHeaders[] = 'Accept-Encoding: identity';
 }
 
