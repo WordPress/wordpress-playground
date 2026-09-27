@@ -125,7 +125,7 @@ $relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch,
  * auto_prepend_file, survive too.
  */
 function replace_response_with_error($status_code, $message) {
-    global $is_chunked_response, $proxy_headers;
+    global $is_chunked_response, $pending_content_length, $proxy_headers;
     header_remove();
     foreach ($proxy_headers as $header) {
         header($header, false);
@@ -133,6 +133,8 @@ function replace_response_with_error($status_code, $message) {
     // The target's Transfer-Encoding header is gone, so don't chunk the
     // error message.
     $is_chunked_response = false;
+    // The target's Content-Length no longer describes the response.
+    $pending_content_length = null;
     http_response_code($status_code);
     send_response_chunk($message);
 }
