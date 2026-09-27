@@ -89,8 +89,11 @@ switch ($path) {
         break;
 
     case '/headers':
+        $request_headers = array_change_key_case(getallheaders(), CASE_LOWER);
+        // Also reported as a header, since HEAD responses have no body.
+        header('X-Received-Accept-Encoding: ' . ($request_headers['accept-encoding'] ?? ''));
         header('Content-Type: application/json');
-        echo json_encode(array_change_key_case(getallheaders(), CASE_LOWER));
+        echo json_encode($request_headers);
         break;
 
     default:

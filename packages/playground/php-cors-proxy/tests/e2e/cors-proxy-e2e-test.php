@@ -439,6 +439,15 @@ assert_true(
     'HEAD should relay Content-Length: 4294967296 (got ' .
         implode(', ', get_header_list($response['headers_raw'], 'content-length')) . ')'
 );
+// Clients use the HEAD size to compute range offsets, and ranges always
+// address the unencoded body, so HEAD must describe the unencoded body too.
+$response = proxy_request($proxy_port, $headers_url, ['Accept-Encoding: gzip, br'], 'HEAD');
+assert_true(
+    get_header_list($response['headers_raw'], 'x-received-accept-encoding') === ['identity'],
+    'HEAD should ask the target for Accept-Encoding: identity (got ' .
+        implode(', ', get_header_list($response['headers_raw'], 'x-received-accept-encoding')) .
+        ')'
+);
 
 // ──────────────────────────────────────────────
 // Clean up

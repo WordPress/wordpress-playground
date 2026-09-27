@@ -272,7 +272,7 @@ $has_range = !empty(array_filter(
     $curlHeaders,
     fn($h) => stripos($h, 'Range:') === 0
 ));
-if ($has_range) {
+if ($has_range || $_SERVER['REQUEST_METHOD'] === 'HEAD') {
     $curlHeaders = array_values(array_filter(
         $curlHeaders,
         fn($h) => stripos($h, 'Accept-Encoding:') !== 0
@@ -286,6 +286,10 @@ if ($has_range) {
     // a server in front of this script may rewrite Accept-Encoding before
     // the request gets here. As of 2026-09-26, WP Cloud rewrites it to
     // "gzip, br".
+    //
+    // HEAD asks for the unencoded body too. Clients use its Content-Length
+    // to compute range offsets, so it must describe the same bytes the
+    // ranges address.
     $curlHeaders[] = 'Accept-Encoding: identity';
 }
 
