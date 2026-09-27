@@ -128,6 +128,29 @@ class ProxyFunctionsTests extends TestCase
             ],
         ];
     }
+    /**
+     * @dataProvider providerServerControlResponseHeaders
+     */
+    public function testIsServerControlResponseHeader($name, $expected)
+    {
+        $this->assertSame($expected, is_server_control_response_header($name));
+    }
+
+    static public function providerServerControlResponseHeaders() {
+        return [
+            'nginx internal redirect' => ['X-Accel-Redirect', true],
+            'nginx cache lifetime, lowercase' => ['x-accel-expires', true],
+            'Apache and lighttpd file serving' => ['X-Sendfile', true],
+            'lighttpd file serving' => ['X-Lighttpd-Send-File', true],
+            'LiteSpeed redirect' => ['X-LiteSpeed-Location', true],
+            'Surrogate cache control' => ['Surrogate-Control', true],
+            'CDN cache control' => ['CDN-Cache-Control', true],
+            'Similar name without the prefix hyphen' => ['X-Accelerated-By', false],
+            'Ordinary header' => ['Content-Type', false],
+            'Range response header' => ['ETag', false],
+        ];
+    }
+
     public function testGetCurrentScriptUri()
     {
         $this->assertEquals('http://localhost/cors-proxy/', get_current_script_uri('http://example.com', 'http://localhost/cors-proxy/http://example.com'));
