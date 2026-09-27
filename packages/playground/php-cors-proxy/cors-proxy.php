@@ -22,12 +22,15 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type');
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, Range, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type, x-cors-proxy-range');
     // Identify this response as coming from the legitimate CORS proxy.
     // Network firewalls may intercept requests and return error responses
     // without this header, allowing clients to detect interference.
     header('X-Playground-Cors-Proxy: true');
-    header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy');
+    // These are not CORS-safelisted response headers, so browsers hide them
+    // from range request callers by default. ETag lets callers detect a
+    // target that changed between two range reads.
+    header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy, Content-Range, Accept-Ranges, ETag');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("Allow: GET, POST, OPTIONS");
@@ -97,7 +100,10 @@ $relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch,
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         http_response_code($http_code);
 
-        // For now, let's clearly avoid the possibility of stale, cached responses.
+        // Avoid stale, cached responses. This also keeps the WP Cloud edge
+        // cache from storing responses. Every range of a file shares one
+        // proxy URL, so a cached slice could be served for another range.
+        // The target's own Cache-Control is never relayed.
         header('Cache-Control: no-cache');
 
         $http_code_sent = true;
@@ -156,6 +162,35 @@ foreach ($allHeaders as $name => $value) {
     }
 }
 
+// WORKAROUND: As of 2026-09-26, the WP Cloud front end of the production
+// deployment strips the Range header before the request reaches PHP, so
+// clients may send the same value as X-Cors-Proxy-Range instead. Remove
+// this, the matching Access-Control-Allow-Headers entry, and the README
+// note once Range reaches this script on WP Cloud.
+$tunneledRange = null;
+foreach ($allHeaders as $name => $value) {
+    if (strcasecmp($name, 'X-Cors-Proxy-Range') === 0) {
+        // Ignore empty values, which curl would treat as removing Range.
+        // Reject values containing CR/LF to prevent header injection.
+        $value = trim($value);
+        if ($value !== '' && !preg_match('/[\r\n]/', $value)) {
+            $tunneledRange = $value;
+        }
+        break;
+    }
+}
+// Range takes priority. When both headers arrive, they must match:
+// forwarding either one would silently ignore the other.
+$clientRange = trim(array_change_key_case($allHeaders, CASE_LOWER)['range'] ?? '');
+if ($tunneledRange !== null && $clientRange !== '') {
+    if ($clientRange !== $tunneledRange) {
+        http_response_code(400);
+        echo "Bad Request\n\nRange and X-Cors-Proxy-Range disagree";
+        exit;
+    }
+    $tunneledRange = null;
+}
+
 $strictly_disallowed_headers = [
     // Cookies represent a relationship between the proxy server
     // and the client, so it is inappropriate to forward them.
@@ -166,6 +201,9 @@ $strictly_disallowed_headers = [
     // Internal header for Content-Type wrapping. Must not be
     // forwarded to the target server.
     'X-Cors-Proxy-Content-Type',
+    // Internal header for the Range workaround. Must not be
+    // forwarded to the target server.
+    'X-Cors-Proxy-Range',
 ];
 $headers_requiring_opt_in = [
     // Allow Authorization header to be forwarded only if the client
@@ -191,6 +229,30 @@ if ($originalContentType !== null) {
         fn($h) => stripos($h, 'Content-Type:') !== 0
     ));
     $curlHeaders[] = 'Content-Type: ' . $originalContentType;
+}
+
+if ($tunneledRange !== null) {
+    $curlHeaders = array_values(array_filter(
+        $curlHeaders,
+        fn($h) => stripos($h, 'Range:') !== 0
+    ));
+    $curlHeaders[] = 'Range: ' . $tunneledRange;
+}
+
+// A range addresses bytes of the encoded representation, so ask the
+// target for an unencoded one. Browsers already send identity with
+// Range requests, but a server in front of this script may rewrite
+// Accept-Encoding before the request gets here.
+$has_range = !empty(array_filter(
+    $curlHeaders,
+    fn($h) => stripos($h, 'Range:') === 0
+));
+if ($has_range) {
+    $curlHeaders = array_values(array_filter(
+        $curlHeaders,
+        fn($h) => stripos($h, 'Accept-Encoding:') !== 0
+    ));
+    $curlHeaders[] = 'Accept-Encoding: identity';
 }
 
 curl_setopt(
@@ -239,6 +301,17 @@ curl_setopt(
         if($name === 'content-length') {
             $content_length = intval($value);
             if ($content_length >= MAX_RESPONSE_SIZE) {
+                // Drop relayed headers that describe the rejected body.
+                foreach ([
+                    'Content-Type',
+                    'Content-Encoding',
+                    'Content-Range',
+                    'Accept-Ranges',
+                    'ETag',
+                    'Last-Modified',
+                ] as $body_header) {
+                    header_remove($body_header);
+                }
                 http_response_code(413);
                 send_response_chunk("Response Too Large");
                 exit;
@@ -342,9 +415,17 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
 }
 
 // Execute cURL session
+$target_failed_mid_response = false;
 if (!curl_exec($ch)) {
-    http_response_code(502);
-    send_response_chunk("Bad Gateway – curl_exec error: " . curl_error($ch));
+    if ($http_code_sent) {
+        // The target's status and headers were already relayed. An error
+        // message appended now would look like part of the target's body,
+        // so end the response instead.
+        $target_failed_mid_response = true;
+    } else {
+        http_response_code(502);
+        send_response_chunk("Bad Gateway – curl_exec error: " . curl_error($ch));
+    }
 } else {
     @$relay_http_code_and_initial_headers_if_not_already_sent();
 }
@@ -358,6 +439,8 @@ if (version_compare(PHP_VERSION, '8.5', '<')) {
 // Only send chunked transfer encoding footer if we're using chunked encoding.
 // We need to manually send the footer when running in the PHP built-in server
 // because, unlike apache or nginx, it won't handle that for us.
-if (should_send_as_chunked_response()) {
+// Leave it off after a target failure so the client sees an incomplete
+// response.
+if (should_send_as_chunked_response() && !$target_failed_mid_response) {
     echo "0\r\n\r\n";
 }
