@@ -76,6 +76,15 @@ switch ($path) {
         flush();
         break;
 
+    case '/server-control-headers':
+        // Headers that instruct the web server or CDN in front of PHP.
+        header('Content-Type: application/octet-stream');
+        header('X-Accel-Redirect: /internal/secret');
+        header('X-Sendfile: /etc/passwd');
+        header('Surrogate-Control: max-age=3600');
+        echo 'body';
+        break;
+
     case '/headers':
         header('Content-Type: application/json');
         echo json_encode(array_change_key_case(getallheaders(), CASE_LOWER));
