@@ -356,6 +356,27 @@ assert_true(
 assert_only_proxy_headers($response, '502');
 
 // ──────────────────────────────────────────────
+// Test 14: Server-control response headers are not relayed
+// ──────────────────────────────────────────────
+echo "\nTest 14: Server-control response headers are not relayed\n";
+// The web server or CDN in front of the proxy would act on these, e.g.
+// nginx performs an internal redirect for X-Accel-Redirect.
+$response = proxy_request(
+    $proxy_port,
+    "http://127.0.0.1:$upstream_port/server-control-headers"
+);
+foreach (['x-accel-redirect', 'x-sendfile', 'surrogate-control'] as $name) {
+    assert_true(
+        get_header_list($response['headers_raw'], $name) === [],
+        "Response should not relay the target's $name header"
+    );
+}
+assert_true(
+    get_header_list($response['headers_raw'], 'content-type') === ['application/octet-stream'],
+    "Response should still relay the target's Content-Type"
+);
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);
