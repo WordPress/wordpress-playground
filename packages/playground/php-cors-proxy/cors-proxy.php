@@ -323,6 +323,11 @@ curl_setopt(
 
         if($name === 'content-length') {
             $content_length = intval($value);
+            // The response size cap is enforced only here, against the
+            // target's declared Content-Length. Responses without one, such
+            // as chunked responses, are never checked and stream through at
+            // any size. Making the cap a hard limit would require counting
+            // relayed bytes and cutting the response off at the limit.
             if ($content_length >= MAX_RESPONSE_SIZE) {
                 clear_unsent_response();
                 http_response_code(413);
