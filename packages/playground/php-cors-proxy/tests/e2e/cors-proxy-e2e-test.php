@@ -284,9 +284,9 @@ assert_true(
 );
 
 // ──────────────────────────────────────────────
-// Test 11: An empty X-Cors-Proxy-Range does not drop a real Range
+// Test 11: Range and X-Cors-Proxy-Range together
 // ──────────────────────────────────────────────
-echo "\nTest 11: An empty X-Cors-Proxy-Range does not drop a real Range\n";
+echo "\nTest 11: Range and X-Cors-Proxy-Range together\n";
 // curl sends a header with an empty value when it ends with a semicolon.
 $response = proxy_request($proxy_port, $range_url, [
     'Range: bytes=-3',
@@ -294,8 +294,27 @@ $response = proxy_request($proxy_port, $range_url, [
 ]);
 assert_true(
     $response['http_code'] === 206 && $response['body'] === 'xyz',
-    "Range should still apply " .
+    "An empty X-Cors-Proxy-Range should not drop Range " .
         "(got {$response['http_code']} '{$response['body']}')"
+);
+// Clients may send both so they keep working once the workaround is removed.
+$response = proxy_request($proxy_port, $headers_url, [
+    'Range: bytes=0-15',
+    'X-Cors-Proxy-Range: bytes=0-15',
+]);
+$upstream_headers = json_decode($response['body'], true) ?? [];
+assert_true(
+    ($upstream_headers['range'] ?? null) === 'bytes=0-15',
+    'Matching headers should forward one Range (got ' .
+        var_export($upstream_headers['range'] ?? null, true) . ')'
+);
+$response = proxy_request($proxy_port, $range_url, [
+    'Range: bytes=0-15',
+    'X-Cors-Proxy-Range: bytes=-3',
+]);
+assert_true(
+    $response['http_code'] === 400,
+    "Disagreeing headers should get status 400 (got {$response['http_code']})"
 );
 
 // ──────────────────────────────────────────────

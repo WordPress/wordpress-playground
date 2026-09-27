@@ -67,8 +67,15 @@ served for another range.
 the `Range` header before the request reaches PHP. Until that changes,
 clients can send the same value as `X-Cors-Proxy-Range: bytes=0-15`. The
 proxy forwards it to the target as `Range` and never forwards
-`X-Cors-Proxy-Range` itself. Once `Range` reaches PHP on WP Cloud, remove
-the workaround from `cors-proxy.php` along with this note.
+`X-Cors-Proxy-Range` itself.
+
+Clients may send both headers with the same value, so they keep working once
+the workaround is removed. `Range` takes priority: when both arrive with the
+same value, the proxy forwards `Range` unchanged. When they disagree, the
+proxy responds with `400 Bad Request` rather than guess which one is right.
+
+Once `Range` reaches PHP on WP Cloud, remove the workaround from
+`cors-proxy.php` along with this note.
 
 ### Usage
 

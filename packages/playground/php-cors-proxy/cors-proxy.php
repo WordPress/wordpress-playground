@@ -179,6 +179,17 @@ foreach ($allHeaders as $name => $value) {
         break;
     }
 }
+// Range takes priority. When both headers arrive, they must match:
+// forwarding either one would silently ignore the other.
+$clientRange = trim(array_change_key_case($allHeaders, CASE_LOWER)['range'] ?? '');
+if ($tunneledRange !== null && $clientRange !== '') {
+    if ($clientRange !== $tunneledRange) {
+        http_response_code(400);
+        echo "Bad Request\n\nRange and X-Cors-Proxy-Range disagree";
+        exit;
+    }
+    $tunneledRange = null;
+}
 
 $strictly_disallowed_headers = [
     // Cookies represent a relationship between the proxy server
