@@ -327,17 +327,38 @@ curl_setopt(
         $colonPos = strpos($header, ':');
 
         if ($colonPos === false) {
+            // Lines without a colon are status lines or the blank line that
+            // ends a header block. The curl documentation for
+            // CURLOPT_HEADERFUNCTION says both reach this callback:
+            //
+            //   "For an HTTP transfer, the status line and the blank line
+            //   preceding the response body are both included as headers
+            //   and passed to this function."
+            //
+            // It also says the callback sees the headers of every response,
+            // not only the final one, e.g. an interim 100 Continue:
+            //
+            //   "It is important to note that the callback is invoked for
+            //   the headers of all responses received after initiating a
+            //   request and not the final response."
+            //
+            // See https://curl.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
+            //
+            // So a status line starts a new header block, and a blank line
+            // means all headers of the current block have arrived. Chunked
+            // responses may also deliver trailers here after the body, but
+            // Content-Length is never relayed for chunked responses.
             if (stripos($header, 'HTTP/') === 0) {
-                // A new header block, e.g. after a 100 Continue response.
                 $pending_content_length = null;
             } elseif (
                 trim($header) === '' &&
                 $pending_content_length !== null &&
                 !$is_chunked_response
             ) {
-                // Relay Content-Length only once all headers have arrived.
-                // HTTP says to ignore it when Transfer-Encoding: chunked is
-                // present, and that header may come later.
+                // All headers have arrived, so it's now known whether the
+                // response is chunked. HTTP says to ignore Content-Length
+                // when Transfer-Encoding: chunked is present, and that
+                // header may have come after Content-Length.
                 header('Content-Length: ' . $pending_content_length);
             }
             return $len;

@@ -395,6 +395,10 @@ echo "\nTest 16: Content-Length is not relayed from chunked responses\n";
 // The target sends Content-Length before Transfer-Encoding: chunked.
 $response = proxy_request($proxy_port, "http://127.0.0.1:$chunked_port/");
 assert_true(
+    get_header_list($response['headers_raw'], 'transfer-encoding') === ['chunked'],
+    'Chunked response should relay Transfer-Encoding: chunked'
+);
+assert_true(
     get_header_list($response['headers_raw'], 'content-length') === [],
     'Chunked response should not relay Content-Length'
 );
