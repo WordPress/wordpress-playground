@@ -51,13 +51,13 @@ $proxy_router = __DIR__ . '/proxy-test-router.php';
 $proxy_proc = start_php_server($proxy_port, $proxy_router, $proxy_dir);
 
 // ──────────────────────────────────────────────
-// Start a raw server that sends chunked responses
+// Start a raw server for responses the PHP built-in server can't send
 // ──────────────────────────────────────────────
-$chunked_port = find_free_port();
-$chunked_proc = start_server_process(
+$raw_port = find_free_port();
+$raw_proc = start_server_process(
     escapeshellarg(PHP_BINARY) . ' ' .
-        escapeshellarg(__DIR__ . '/chunked-upstream-server.php') . " $chunked_port",
-    $chunked_port
+        escapeshellarg(__DIR__ . '/raw-upstream-server.php') . " $raw_port",
+    $raw_port
 );
 
 $upstream_url = "http://127.0.0.1:$upstream_port/plain-text";
@@ -410,7 +410,7 @@ assert_true(
 // ──────────────────────────────────────────────
 echo "\nTest 16: Content-Length is not relayed from chunked responses\n";
 // The target sends Content-Length before Transfer-Encoding: chunked.
-$response = proxy_request($proxy_port, "http://127.0.0.1:$chunked_port/");
+$response = proxy_request($proxy_port, "http://127.0.0.1:$raw_port/chunked");
 assert_true(
     get_header_list($response['headers_raw'], 'transfer-encoding') === ['chunked'],
     'Chunked response should relay Transfer-Encoding: chunked'
@@ -450,14 +450,34 @@ assert_true(
 );
 
 // ──────────────────────────────────────────────
+// Test 18: Interim 1xx responses are not relayed
+// ──────────────────────────────────────────────
+echo "\nTest 18: Interim 1xx responses are not relayed\n";
+// The target sends 103 Early Hints with a Link header before its final
+// 200 response. Only the final response belongs in the proxy's response.
+$response = proxy_request($proxy_port, "http://127.0.0.1:$raw_port/early-hints");
+assert_true(
+    $response['http_code'] === 200,
+    "Response should have the final status 200 (got {$response['http_code']})"
+);
+assert_true(
+    $response['body'] === 'hello',
+    "Response body should be 'hello' (got '{$response['body']}')"
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'link') === [],
+    "Response should not relay the interim response's Link header"
+);
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);
 proc_close($upstream_proc);
 proc_terminate($proxy_proc);
 proc_close($proxy_proc);
-proc_terminate($chunked_proc);
-proc_close($chunked_proc);
+proc_terminate($raw_proc);
+proc_close($raw_proc);
 
 // ──────────────────────────────────────────────
 // Summary

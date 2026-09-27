@@ -93,6 +93,8 @@ $ch = curl_init($targetUrl);
 
 $is_chunked_response = false;
 $http_code_sent = false;
+// Whether the header callback is inside an interim 1xx response's headers.
+$in_interim_response = false;
 // The target's Content-Length, held until all of its headers arrive.
 $pending_content_length = null;
 
@@ -321,40 +323,55 @@ curl_setopt(
         $header
     ) use (
         $targetUrl,
-        $relay_http_code_and_initial_headers_if_not_already_sent,
+        &$http_code_sent,
+        &$in_interim_response,
         &$is_chunked_response,
         &$pending_content_length
     ) {
-        @$relay_http_code_and_initial_headers_if_not_already_sent();
-
         $len = strlen($header);
-        $colonPos = strpos($header, ':');
 
+        // Besides header lines, this callback receives each response's
+        // status line and the blank line that ends its headers. The curl
+        // documentation for CURLOPT_HEADERFUNCTION says:
+        //
+        //   "For an HTTP transfer, the status line and the blank line
+        //   preceding the response body are both included as headers and
+        //   passed to this function."
+        //
+        // It also receives the headers of every response, not only the
+        // final one:
+        //
+        //   "It is important to note that the callback is invoked for the
+        //   headers of all responses received after initiating a request
+        //   and not the final response."
+        //
+        // See https://curl.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
+        //
+        // So a status line starts a new header block, and a blank line
+        // means all headers of the current block have arrived.
+        if (stripos($header, 'HTTP/') === 0) {
+            $status_code = preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)
+                ? (int) $matches[1]
+                : curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            // Interim 1xx responses, such as 100 Continue or 103 Early
+            // Hints, precede the final response. Relaying their status or
+            // headers would make them part of the final response, so skip
+            // their header blocks entirely.
+            $in_interim_response = $status_code < 200;
+            if (!$in_interim_response) {
+                http_response_code($status_code);
+                $http_code_sent = true;
+            }
+            $pending_content_length = null;
+            return $len;
+        }
+        if ($in_interim_response) {
+            return $len;
+        }
+
+        $colonPos = strpos($header, ':');
         if ($colonPos === false) {
-            // Lines without a colon are status lines or the blank line that
-            // ends a header block. The curl documentation for
-            // CURLOPT_HEADERFUNCTION says both reach this callback:
-            //
-            //   "For an HTTP transfer, the status line and the blank line
-            //   preceding the response body are both included as headers
-            //   and passed to this function."
-            //
-            // It also says the callback sees the headers of every response,
-            // not only the final one, e.g. an interim 100 Continue:
-            //
-            //   "It is important to note that the callback is invoked for
-            //   the headers of all responses received after initiating a
-            //   request and not the final response."
-            //
-            // See https://curl.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
-            //
-            // So a status line starts a new header block, and a blank line
-            // means all headers of the current block have arrived. Chunked
-            // responses may also deliver trailers here after the body, but
-            // Content-Length is never relayed for chunked responses.
-            if (stripos($header, 'HTTP/') === 0) {
-                $pending_content_length = null;
-            } elseif (
+            if (
                 trim($header) === '' &&
                 $pending_content_length !== null &&
                 !$is_chunked_response
@@ -362,7 +379,9 @@ curl_setopt(
                 // All headers have arrived, so it's now known whether the
                 // response is chunked. HTTP says to ignore Content-Length
                 // when Transfer-Encoding: chunked is present, and that
-                // header may have come after Content-Length.
+                // header may have come after Content-Length. Chunked
+                // responses may also deliver trailers to this callback after
+                // the body, but Content-Length is never relayed for them.
                 header('Content-Length: ' . $pending_content_length);
             }
             return $len;
