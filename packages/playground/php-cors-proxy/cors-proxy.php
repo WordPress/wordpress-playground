@@ -170,8 +170,10 @@ foreach ($allHeaders as $name => $value) {
 $tunneledRange = null;
 foreach ($allHeaders as $name => $value) {
     if (strcasecmp($name, 'X-Cors-Proxy-Range') === 0) {
+        // Ignore empty values, which curl would treat as removing Range.
         // Reject values containing CR/LF to prevent header injection.
-        if (!preg_match('/[\r\n]/', $value)) {
+        $value = trim($value);
+        if ($value !== '' && !preg_match('/[\r\n]/', $value)) {
             $tunneledRange = $value;
         }
         break;
@@ -288,6 +290,17 @@ curl_setopt(
         if($name === 'content-length') {
             $content_length = intval($value);
             if ($content_length >= MAX_RESPONSE_SIZE) {
+                // Drop relayed headers that describe the rejected body.
+                foreach ([
+                    'Content-Type',
+                    'Content-Encoding',
+                    'Content-Range',
+                    'Accept-Ranges',
+                    'ETag',
+                    'Last-Modified',
+                ] as $body_header) {
+                    header_remove($body_header);
+                }
                 http_response_code(413);
                 send_response_chunk("Response Too Large");
                 exit;
@@ -391,9 +404,17 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
 }
 
 // Execute cURL session
+$target_failed_mid_response = false;
 if (!curl_exec($ch)) {
-    http_response_code(502);
-    send_response_chunk("Bad Gateway – curl_exec error: " . curl_error($ch));
+    if ($http_code_sent) {
+        // The target's status and headers were already relayed. An error
+        // message appended now would look like part of the target's body,
+        // so end the response instead.
+        $target_failed_mid_response = true;
+    } else {
+        http_response_code(502);
+        send_response_chunk("Bad Gateway – curl_exec error: " . curl_error($ch));
+    }
 } else {
     @$relay_http_code_and_initial_headers_if_not_already_sent();
 }
@@ -407,6 +428,8 @@ if (version_compare(PHP_VERSION, '8.5', '<')) {
 // Only send chunked transfer encoding footer if we're using chunked encoding.
 // We need to manually send the footer when running in the PHP built-in server
 // because, unlike apache or nginx, it won't handle that for us.
-if (should_send_as_chunked_response()) {
+// Leave it off after a target failure so the client sees an incomplete
+// response.
+if (should_send_as_chunked_response() && !$target_failed_mid_response) {
     echo "0\r\n\r\n";
 }

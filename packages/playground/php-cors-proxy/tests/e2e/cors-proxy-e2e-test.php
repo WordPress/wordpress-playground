@@ -284,6 +284,55 @@ assert_true(
 );
 
 // ──────────────────────────────────────────────
+// Test 11: An empty X-Cors-Proxy-Range does not drop a real Range
+// ──────────────────────────────────────────────
+echo "\nTest 11: An empty X-Cors-Proxy-Range does not drop a real Range\n";
+// curl sends a header with an empty value when it ends with a semicolon.
+$response = proxy_request($proxy_port, $range_url, [
+    'Range: bytes=-3',
+    'X-Cors-Proxy-Range;',
+]);
+assert_true(
+    $response['http_code'] === 206 && $response['body'] === 'xyz',
+    "Range should still apply " .
+        "(got {$response['http_code']} '{$response['body']}')"
+);
+
+// ──────────────────────────────────────────────
+// Test 12: The size cap rejects an oversized slice without its range headers
+// ──────────────────────────────────────────────
+echo "\nTest 12: The size cap rejects an oversized slice without its range headers\n";
+$response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/oversized-range", [
+    'Range: bytes=0-104857599',
+]);
+assert_true(
+    $response['http_code'] === 413,
+    "Oversized slice should have status 413 (got {$response['http_code']})"
+);
+foreach (['content-range', 'etag', 'accept-ranges'] as $header) {
+    assert_true(
+        get_header_list($response['headers_raw'], $header) === [],
+        "413 response should not have the rejected body's $header header"
+    );
+}
+assert_true(
+    !in_array('application/zip', get_header_list($response['headers_raw'], 'content-type')),
+    "413 response should not have the rejected body's content type"
+);
+
+// ──────────────────────────────────────────────
+// Test 13: A target failure mid-body does not append an error to the body
+// ──────────────────────────────────────────────
+echo "\nTest 13: A target failure mid-body does not append an error to the body\n";
+$response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/truncated-range", [
+    'Range: bytes=0-99',
+]);
+assert_true(
+    $response['body'] === str_repeat('a', 10),
+    "Body should hold only the target's bytes (got '{$response['body']}')"
+);
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);

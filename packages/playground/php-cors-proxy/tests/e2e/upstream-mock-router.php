@@ -41,9 +41,29 @@ switch ($path) {
             http_response_code(206);
             header("Content-Range: bytes $start-$end/$size");
         }
+        header('Content-Length: ' . ($end - $start + 1));
         for ($i = $start; $i <= $end; $i++) {
             echo chr(ord('a') + $i % 26);
         }
+        break;
+
+    case '/oversized-range':
+        // Declares a slice larger than the proxy's response size cap.
+        http_response_code(206);
+        header('Content-Type: application/zip');
+        header('Accept-Ranges: bytes');
+        header('ETag: "oversized"');
+        header('Content-Range: bytes 0-104857599/4294967296');
+        header('Content-Length: 104857600');
+        echo 'x';
+        break;
+
+    case '/truncated-range':
+        // Promises 100 bytes, then drops the connection after 10.
+        http_response_code(206);
+        header('Content-Range: bytes 0-99/1000');
+        header('Content-Length: 100');
+        echo str_repeat('a', 10);
         break;
 
     case '/headers':
