@@ -328,16 +328,7 @@ assert_true(
     $response['http_code'] === 413,
     "Oversized slice should have status 413 (got {$response['http_code']})"
 );
-foreach (['content-range', 'etag', 'accept-ranges'] as $header) {
-    assert_true(
-        get_header_list($response['headers_raw'], $header) === [],
-        "413 response should not have the rejected body's $header header"
-    );
-}
-assert_true(
-    !in_array('application/zip', get_header_list($response['headers_raw'], 'content-type')),
-    "413 response should not have the rejected body's content type"
-);
+assert_only_proxy_headers($response, '413');
 
 // ──────────────────────────────────────────────
 // Test 13: A target failure mid-body does not append an error to the body
@@ -362,10 +353,7 @@ assert_true(
     $response['http_code'] === 502,
     "Failure before the body should get status 502 (got {$response['http_code']})"
 );
-assert_true(
-    get_header_list($response['headers_raw'], 'content-range') === [],
-    "502 response should not have the target's Content-Range header"
-);
+assert_only_proxy_headers($response, '502');
 
 // ──────────────────────────────────────────────
 // Clean up
@@ -444,6 +432,32 @@ function start_php_server($port, $router = null, $docroot = null) {
     proc_terminate($proc);
     proc_close($proc);
     exit(1);
+}
+
+/**
+ * Asserts that a proxy-generated error response carries none of the target's
+ * headers, and keeps the headers set before the target was contacted.
+ */
+function assert_only_proxy_headers($response, $label) {
+    $headers = $response['headers_raw'];
+    foreach (['x-target-header', 'content-range'] as $name) {
+        assert_true(
+            get_header_list($headers, $name) === [],
+            "$label response should not have the target's $name header"
+        );
+    }
+    assert_true(
+        get_header_list($headers, 'x-playground-cors-proxy') === ['true'],
+        "$label response should keep X-Playground-Cors-Proxy"
+    );
+    assert_true(
+        get_header_list($headers, 'x-deployment-header') === ['kept'],
+        "$label response should keep headers set by the deployment"
+    );
+    assert_true(
+        get_header_list($headers, 'cache-control') === ['no-cache'],
+        "$label response should have Cache-Control: no-cache"
+    );
 }
 
 /**

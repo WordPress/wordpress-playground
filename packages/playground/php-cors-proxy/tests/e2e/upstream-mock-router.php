@@ -54,6 +54,7 @@ switch ($path) {
         header('Accept-Ranges: bytes');
         header('ETag: "oversized"');
         header('Content-Range: bytes 0-104857599/4294967296');
+        header('X-Target-Header: oversized');
         header('Content-Length: 104857600');
         echo 'x';
         break;
@@ -70,6 +71,7 @@ switch ($path) {
         // Sends its headers, then drops the connection before any body.
         http_response_code(206);
         header('Content-Range: bytes 0-99/1000');
+        header('X-Target-Header: before-body');
         header('Content-Length: 100');
         flush();
         break;

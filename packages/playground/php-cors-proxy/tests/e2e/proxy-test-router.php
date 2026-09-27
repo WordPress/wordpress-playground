@@ -14,4 +14,7 @@ function is_private_ip($ip) {
     return false;
 }
 
+// Simulate a header set by a deployment's config or auto_prepend_file.
+header('X-Deployment-Header: kept');
+
 require __DIR__ . '/../../cors-proxy.php';
