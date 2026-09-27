@@ -42,6 +42,9 @@ switch ($path) {
             header("Content-Range: bytes $start-$end/$size");
         }
         header('Content-Length: ' . ($end - $start + 1));
+        if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+            break;
+        }
         for ($i = $start; $i <= $end; $i++) {
             echo chr(ord('a') + $i % 26);
         }
