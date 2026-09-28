@@ -21,7 +21,7 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     $allow_origin = (is_local_dev_server() && empty($origin)) ? '*' : $origin;
     header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, HEAD, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, Range, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type, x-cors-proxy-range');
     // Identify this response as coming from the legitimate CORS proxy.
     // Network firewalls may intercept requests and return error responses
@@ -33,18 +33,18 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy, Content-Range, Accept-Ranges, ETag');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Allow: GET, POST, OPTIONS");
+    header("Allow: GET, HEAD, POST, OPTIONS");
     exit;
 }
 
-// Handle only GET and POST requests
-if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+// Handle only GET, HEAD, and POST requests
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'HEAD', 'POST'], true)) {
     http_response_code(405);
     echo "Method Not Allowed";
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
     http_response_code(413);
     echo "Request Entity Too Large";
     exit;
@@ -92,17 +92,12 @@ define(
 $ch = curl_init($targetUrl);
 
 $is_chunked_response = false;
-$http_code_sent = false;
-
-$relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch, &$http_code_sent) {
-    if (!$http_code_sent) {
-        // Set the response code from the target server
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        http_response_code($http_code);
-
-        $http_code_sent = true;
-    }
-};
+// Whether the target's response has any Transfer-Encoding header.
+$has_transfer_encoding = false;
+// Whether the header callback is inside an interim 1xx response's headers.
+$in_interim_response = false;
+// The target's Content-Length, held until all of its headers arrive.
+$pending_content_length = null;
 
 /**
  * Replaces the target's response with an error response from the proxy.
@@ -123,14 +118,18 @@ $relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch,
  * auto_prepend_file, survive too.
  */
 function replace_response_with_error($status_code, $message) {
-    global $is_chunked_response, $proxy_headers;
+    global $has_transfer_encoding, $is_chunked_response, $pending_content_length,
+        $proxy_headers;
     header_remove();
     foreach ($proxy_headers as $header) {
         header($header, false);
     }
     // The target's Transfer-Encoding header is gone, so don't chunk the
     // error message.
+    $has_transfer_encoding = false;
     $is_chunked_response = false;
+    // The target's Content-Length no longer describes the response.
+    $pending_content_length = null;
     http_response_code($status_code);
     send_response_chunk($message);
 }
@@ -268,7 +267,7 @@ $has_range = !empty(array_filter(
     $curlHeaders,
     fn($h) => stripos($h, 'Range:') === 0
 ));
-if ($has_range) {
+if ($has_range || $_SERVER['REQUEST_METHOD'] === 'HEAD') {
     $curlHeaders = array_values(array_filter(
         $curlHeaders,
         fn($h) => stripos($h, 'Accept-Encoding:') !== 0
@@ -282,6 +281,10 @@ if ($has_range) {
     // a server in front of this script may rewrite Accept-Encoding before
     // the request gets here. As of 2026-09-26, WP Cloud rewrites it to
     // "gzip, br".
+    //
+    // HEAD asks for the unencoded body too. Clients use its Content-Length
+    // to compute range offsets, so it must describe the same bytes the
+    // ranges address.
     $curlHeaders[] = 'Accept-Encoding: identity';
 }
 
@@ -313,15 +316,79 @@ curl_setopt(
         $header
     ) use (
         $targetUrl,
-        $relay_http_code_and_initial_headers_if_not_already_sent,
-        &$is_chunked_response
+        &$has_transfer_encoding,
+        &$in_interim_response,
+        &$is_chunked_response,
+        &$pending_content_length
     ) {
-        @$relay_http_code_and_initial_headers_if_not_already_sent();
-
         $len = strlen($header);
-        $colonPos = strpos($header, ':');
 
+        // Besides header lines, this callback receives each response's
+        // status line and the blank line that ends its headers. The curl
+        // documentation for CURLOPT_HEADERFUNCTION says:
+        //
+        //   "For an HTTP transfer, the status line and the blank line
+        //   preceding the response body are both included as headers and
+        //   passed to this function."
+        //
+        // It also receives the headers of every response, not only the
+        // final one:
+        //
+        //   "It is important to note that the callback is invoked for the
+        //   headers of all responses received after initiating a request
+        //   and not the final response."
+        //
+        // See https://curl.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
+        //
+        // So a status line starts a new header block, and a blank line
+        // means all headers of the current block have arrived.
+        if (stripos($header, 'HTTP/') === 0) {
+            $status_code = preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)
+                ? (int) $matches[1]
+                : curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            if ($status_code === 101) {
+                // The target switched to another protocol. A single HTTP
+                // response from this script can't carry it, and curl would
+                // deliver the other protocol's bytes as the response body.
+                replace_response_with_error(
+                    502,
+                    "Bad Gateway – the target switched protocols"
+                );
+                exit;
+            }
+            // Other interim 1xx responses, such as 100 Continue or 103 Early
+            // Hints, precede the final response. Relaying their status or
+            // headers would make them part of the final response, so skip
+            // their header blocks entirely.
+            $in_interim_response = $status_code < 200;
+            if (!$in_interim_response) {
+                http_response_code($status_code);
+            }
+            $pending_content_length = null;
+            return $len;
+        }
+        if ($in_interim_response) {
+            // Skip this header. It belongs to an interim response, which PHP
+            // can't relay: a script sends only one response. Relaying it
+            // would add it to the final response by mistake.
+            return $len;
+        }
+
+        $colonPos = strpos($header, ':');
         if ($colonPos === false) {
+            if (
+                trim($header) === '' &&
+                $pending_content_length !== null &&
+                !$has_transfer_encoding
+            ) {
+                // All headers have arrived, so it's now known whether the
+                // response has a Transfer-Encoding. RFC 9112 section 6.3
+                // says Transfer-Encoding overrides Content-Length, and that
+                // header may have come after Content-Length. Chunked
+                // responses may also deliver trailers to this callback after
+                // the body, but Content-Length is never relayed for them.
+                header('Content-Length: ' . $pending_content_length);
+            }
             return $len;
         }
 
@@ -335,9 +402,17 @@ curl_setopt(
             // as chunked responses, are never checked and stream through at
             // any size. Making the cap a hard limit would require counting
             // relayed bytes and cutting the response off at the limit.
-            if ($content_length >= MAX_RESPONSE_SIZE) {
+            //
+            // The cap limits relayed bodies, and HEAD responses have none.
+            if (
+                $_SERVER['REQUEST_METHOD'] !== 'HEAD' &&
+                $content_length >= MAX_RESPONSE_SIZE
+            ) {
                 replace_response_with_error(413, "Response Too Large");
                 exit;
+            }
+            if (ctype_digit($value)) {
+                $pending_content_length = $value;
             }
             return $len;
         }
@@ -346,6 +421,9 @@ curl_setopt(
             return $len;
         }
 
+        if ($name === 'transfer-encoding') {
+            $has_transfer_encoding = true;
+        }
         if ($name === 'transfer-encoding' && stripos($value, 'chunked') !== false) {
             $is_chunked_response = true;
             header($header, false);
@@ -400,6 +478,10 @@ curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) use (&$is_chunked
 // Handle request method and data
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $requestMethod);
+if ($requestMethod === 'HEAD') {
+    // Otherwise curl waits for the body that Content-Length announces.
+    curl_setopt($ch, CURLOPT_NOBODY, true);
+}
 
 if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 'OPTIONS') {
     // php://input is not available for multipart/form-data requests
@@ -468,8 +550,6 @@ if (!curl_exec($ch)) {
             "Bad Gateway – curl_exec error: " . curl_error($ch)
         );
     }
-} else {
-    @$relay_http_code_and_initial_headers_if_not_already_sent();
 }
 // Close cURL session
 if (version_compare(PHP_VERSION, '8.5', '<')) {

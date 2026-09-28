@@ -50,6 +50,16 @@ $proxy_dir = dirname(__DIR__, 2);
 $proxy_router = __DIR__ . '/proxy-test-router.php';
 $proxy_proc = start_php_server($proxy_port, $proxy_router, $proxy_dir);
 
+// ──────────────────────────────────────────────
+// Start a raw server for responses the PHP built-in server can't send
+// ──────────────────────────────────────────────
+$raw_port = find_free_port();
+$raw_proc = start_server_process(
+    escapeshellarg(PHP_BINARY) . ' ' .
+        escapeshellarg(__DIR__ . '/raw-upstream-server.php') . " $raw_port",
+    $raw_port
+);
+
 $upstream_url = "http://127.0.0.1:$upstream_port/plain-text";
 $range_url = "http://127.0.0.1:$upstream_port/range";
 $headers_url = "http://127.0.0.1:$upstream_port/headers";
@@ -334,9 +344,15 @@ assert_only_proxy_headers($response, '413');
 // Test 13: A target failure mid-body does not append an error to the body
 // ──────────────────────────────────────────────
 echo "\nTest 13: A target failure mid-body does not append an error to the body\n";
+// The relayed Content-Length lets the client detect the short body.
 $response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/truncated-range", [
     'Range: bytes=0-99',
 ]);
+assert_true(
+    $response['curl_errno'] === CURLE_PARTIAL_FILE,
+    'Client should see an incomplete response (got curl error ' .
+        "{$response['curl_errno']})"
+);
 assert_true(
     $response['body'] === str_repeat('a', 10),
     "Body should hold only the target's bytes (got '{$response['body']}')"
@@ -377,12 +393,109 @@ assert_true(
 );
 
 // ──────────────────────────────────────────────
+// Test 15: Content-Length is relayed from fixed-length responses
+// ──────────────────────────────────────────────
+echo "\nTest 15: Content-Length is relayed from fixed-length responses\n";
+$response = proxy_request($proxy_port, $range_url, [
+    'Range: bytes=-3',
+]);
+assert_true(
+    get_header_list($response['headers_raw'], 'content-length') === ['3'],
+    'Response should relay Content-Length: 3 (got ' .
+        implode(', ', get_header_list($response['headers_raw'], 'content-length')) . ')'
+);
+
+// ──────────────────────────────────────────────
+// Test 16: Content-Length is not relayed from chunked responses
+// ──────────────────────────────────────────────
+echo "\nTest 16: Content-Length is not relayed from chunked responses\n";
+// The target sends Content-Length before Transfer-Encoding: chunked.
+$response = proxy_request($proxy_port, "http://127.0.0.1:$raw_port/chunked");
+assert_true(
+    get_header_list($response['headers_raw'], 'transfer-encoding') === ['chunked'],
+    'Chunked response should relay Transfer-Encoding: chunked'
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'content-length') === [],
+    'Chunked response should not relay Content-Length'
+);
+assert_true(
+    $response['body'] === 'hello world',
+    "Chunked response body should be 'hello world' (got '{$response['body']}')"
+);
+
+// ──────────────────────────────────────────────
+// Test 17: HEAD relays the target's Content-Length
+// ──────────────────────────────────────────────
+echo "\nTest 17: HEAD relays the target's Content-Length\n";
+// The size cap applies to bodies, so HEAD works for files larger than it.
+$response = proxy_request($proxy_port, "$range_url?size=4294967296", [], 'HEAD');
+assert_true(
+    $response['http_code'] === 200,
+    "HEAD should have status 200 (got {$response['http_code']})"
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'content-length') === ['4294967296'],
+    'HEAD should relay Content-Length: 4294967296 (got ' .
+        implode(', ', get_header_list($response['headers_raw'], 'content-length')) . ')'
+);
+// Clients use the HEAD size to compute range offsets, and ranges always
+// address the unencoded body, so HEAD must describe the unencoded body too.
+$response = proxy_request($proxy_port, $headers_url, ['Accept-Encoding: gzip, br'], 'HEAD');
+assert_true(
+    get_header_list($response['headers_raw'], 'x-received-accept-encoding') === ['identity'],
+    'HEAD should ask the target for Accept-Encoding: identity (got ' .
+        implode(', ', get_header_list($response['headers_raw'], 'x-received-accept-encoding')) .
+        ')'
+);
+
+// ──────────────────────────────────────────────
+// Test 18: Interim 1xx responses are not relayed
+// ──────────────────────────────────────────────
+echo "\nTest 18: Interim 1xx responses are not relayed\n";
+// The target sends 103 Early Hints with a Link header before its final
+// 200 response. Only the final response belongs in the proxy's response.
+$response = proxy_request($proxy_port, "http://127.0.0.1:$raw_port/early-hints");
+assert_true(
+    $response['http_code'] === 200,
+    "Response should have the final status 200 (got {$response['http_code']})"
+);
+assert_true(
+    $response['body'] === 'hello',
+    "Response body should be 'hello' (got '{$response['body']}')"
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'link') === [],
+    "Response should not relay the interim response's Link header"
+);
+
+// ──────────────────────────────────────────────
+// Test 19: A target that switches protocols gets a 502
+// ──────────────────────────────────────────────
+echo "\nTest 19: A target that switches protocols gets a 502\n";
+// The proxy can't relay another protocol, and must not present its bytes
+// as an HTTP response body.
+$response = proxy_request($proxy_port, "http://127.0.0.1:$raw_port/switching-protocols");
+assert_true(
+    $response['http_code'] === 502,
+    "Switching protocols should get status 502 (got {$response['http_code']})"
+);
+assert_not_contains(
+    'rawdata',
+    $response['body'],
+    "502 response should not carry the other protocol's bytes"
+);
+assert_only_proxy_headers($response, '502');
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);
 proc_close($upstream_proc);
 proc_terminate($proxy_proc);
 proc_close($proxy_proc);
+proc_terminate($raw_proc);
+proc_close($raw_proc);
 
 // ──────────────────────────────────────────────
 // Summary
@@ -412,14 +525,17 @@ function find_free_port() {
 }
 
 function start_php_server($port, $router = null, $docroot = null) {
-    $cmd = "exec " . escapeshellarg(PHP_BINARY) . " -S 127.0.0.1:$port";
+    $cmd = escapeshellarg(PHP_BINARY) . " -S 127.0.0.1:$port";
     if ($docroot) {
         $cmd .= " -t " . escapeshellarg($docroot);
     }
     if ($router) {
         $cmd .= " " . escapeshellarg($router);
     }
+    return start_server_process($cmd, $port);
+}
 
+function start_server_process($cmd, $port) {
     // Inherit the parent environment so the child process keeps PATH and
     // other settings the PHP binary may need.
     $env = array_merge(getenv(), [
@@ -430,7 +546,7 @@ function start_php_server($port, $router = null, $docroot = null) {
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
-    $proc = proc_open($cmd, $descriptors, $pipes, null, $env);
+    $proc = proc_open("exec $cmd", $descriptors, $pipes, null, $env);
     if (!is_resource($proc)) {
         echo "Failed to start PHP server on port $port\n";
         exit(1);
@@ -501,26 +617,39 @@ function get_header_list($headers_raw, $name) {
     return $values;
 }
 
-function proxy_request($proxy_port, $upstream_url, $extra_headers = []) {
+function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method = 'GET') {
     $ch = curl_init("http://127.0.0.1:$proxy_port/cors-proxy.php?$upstream_url");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HEADER, true);
+    if ($method === 'HEAD') {
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+    }
     curl_setopt($ch, CURLOPT_HTTPHEADER, $extra_headers);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    // Collect headers and body through callbacks rather than
+    // CURLOPT_RETURNTRANSFER, which discards everything when the transfer
+    // fails. Tests of truncated responses need the bytes that did arrive.
+    $headers_raw = '';
+    $body = '';
+    curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $header) use (&$headers_raw) {
+        $headers_raw .= $header;
+        return strlen($header);
+    });
+    curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$body) {
+        $body .= $data;
+        return strlen($data);
+    });
 
-    $raw = curl_exec($ch);
-    if ($raw === false) {
+    curl_exec($ch);
+    // Print errors only when no response arrived, e.g. a refused connection.
+    // Tests of truncated responses expect an error after the headers.
+    if (curl_errno($ch) !== 0 && curl_getinfo($ch, CURLINFO_HTTP_CODE) === 0) {
         echo "  curl error: " . curl_error($ch) . "\n";
-        return ['headers_raw' => '', 'body' => '', 'http_code' => 0];
     }
 
-    $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
     return [
-        'headers_raw' => substr($raw, 0, $header_size),
-        'body' => substr($raw, $header_size),
-        'http_code' => $http_code,
+        'headers_raw' => $headers_raw,
+        'body' => $body,
+        'http_code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
+        'curl_errno' => curl_errno($ch),
     ];
 }
 
