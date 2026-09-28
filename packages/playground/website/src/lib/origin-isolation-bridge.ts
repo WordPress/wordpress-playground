@@ -120,7 +120,19 @@ function updateCatalogue(
 		.filter((key) => key.startsWith(prefix))
 		.flatMap((key) => {
 			try {
-				return [JSON.parse(localStorage.getItem(key)!)];
+				const site = JSON.parse(localStorage.getItem(key)!);
+				if (
+					!site ||
+					typeof site.name !== 'string' ||
+					site.name.length > 200 ||
+					site.origin !== key.slice(prefix.length) ||
+					!isSiteOrigin(site.origin) ||
+					!['opfs', 'local-fs'].includes(site.storage) ||
+					(site.persistence !== undefined &&
+						!['autosave', 'explicit'].includes(site.persistence))
+				)
+					return [];
+				return [site];
 			} catch {
 				// A damaged display entry must not block setup on fresh origins.
 				return [];

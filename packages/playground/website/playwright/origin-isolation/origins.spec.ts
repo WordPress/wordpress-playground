@@ -526,34 +526,47 @@ test('opaque WordPress image backfill loads from the shared asset origin', async
 	expect(loaded).toBe(true);
 });
 
-test('a malformed catalogue entry does not block the launcher or bridge', async ({
-	page,
-}) => {
-	await page.goto('http://playground.localhost:9400/');
-	await page.evaluate(() => {
-		localStorage.setItem('origin-isolation-sites', '{');
-		localStorage.setItem(
-			'origin-isolation-site:http://site-aaaa.playground.localhost:9400',
-			'{'
-		);
-	});
-	await page.reload();
-	await page
-		.getByRole('link', { name: 'New saved Playground', exact: true })
-		.click();
-	await ready(page);
-	expect(new URL(page.url()).hostname).toMatch(/^site-/);
-	const catalogue = await bridgeRequest(
+for (const corruption of ['syntax', 'shape']) {
+	test(`invalid catalogue ${corruption} does not block the launcher or bridge`, async ({
 		page,
-		'http://playground.localhost:9400/origin-isolation.html',
-		'catalogue',
-		undefined
-	);
-	expect(catalogue.error).toBeUndefined();
-	expect(catalogue.value).toEqual([
-		expect.objectContaining({ origin: new URL(page.url()).origin }),
-	]);
-});
+	}) => {
+		await page.goto('http://playground.localhost:9400/');
+		await page.evaluate((corruption) => {
+			localStorage.setItem(
+				'origin-isolation-sites',
+				corruption === 'syntax' ? '{' : '{}'
+			);
+			localStorage.setItem(
+				'origin-isolation-site:http://site-aaaa.playground.localhost:9400',
+				corruption === 'syntax' ? '{' : 'null'
+			);
+			localStorage.setItem(
+				'origin-isolation-site:http://site-bbbb.playground.localhost:9400',
+				JSON.stringify({
+					name: 'Invalid URL',
+					origin: 'not a URL',
+					storage: 'opfs',
+				})
+			);
+		}, corruption);
+		await page.reload();
+		await page
+			.getByRole('link', { name: 'New saved Playground', exact: true })
+			.click();
+		await ready(page);
+		expect(new URL(page.url()).hostname).toMatch(/^site-/);
+		const catalogue = await bridgeRequest(
+			page,
+			'http://playground.localhost:9400/origin-isolation.html',
+			'catalogue',
+			undefined
+		);
+		expect(catalogue.error).toBeUndefined();
+		expect(catalogue.value).toEqual([
+			expect.objectContaining({ origin: new URL(page.url()).origin }),
+		]);
+	});
+}
 
 test('site origins do not offer GitHub sign-in or request a token', async ({
 	page,

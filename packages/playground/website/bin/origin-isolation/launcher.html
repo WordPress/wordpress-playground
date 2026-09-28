@@ -43,7 +43,8 @@
 		const key = 'origin-isolation-sites';
 		let previous = [];
 		try {
-			previous = JSON.parse(localStorage.getItem(key) || '[]');
+			const stored = JSON.parse(localStorage.getItem(key) || '[]');
+			if (Array.isArray(stored)) previous = stored;
 		} catch {
 			/* Keep the launcher usable if old display metadata is damaged. */
 		}
@@ -51,16 +52,32 @@
 			.filter((key) => key.startsWith('origin-isolation-site:'))
 			.flatMap((key) => {
 				try {
-					return [JSON.parse(localStorage.getItem(key))];
+					const site = JSON.parse(localStorage.getItem(key));
+					return site ? [{ name: site.name, href: site.origin }] : [];
 				} catch {
 					return [];
 				}
 			});
-		const sites = new Map(
-			previous.map((site) => [new URL(site.href).origin, site])
-		);
-		for (const site of current)
-			sites.set(site.origin, { name: site.name, href: site.origin });
+		const sites = new Map();
+		for (const site of [...previous, ...current]) {
+			try {
+				const target = new URL(site?.href);
+				if (
+					typeof site?.name !== 'string' ||
+					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(
+						target.hostname
+					) ||
+					target.protocol !== location.protocol ||
+					target.port !== location.port ||
+					target.username ||
+					target.password
+				)
+					continue;
+				sites.set(target.origin, { name: site.name, target });
+			} catch {
+				// Skip a damaged display record without hiding the remaining sites.
+			}
+		}
 		const url = new URL(location.href);
 		if (url.search || url.hash) {
 			url.hostname = `site-${crypto.randomUUID()}.playground.localhost`;
@@ -70,18 +87,10 @@
 
 			location.replace(url);
 		} else {
-			for (const site of sites.values()) {
-				const target = new URL(site.href);
-				if (
-					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(
-						target.hostname
-					) ||
-					target.port !== location.port
-				)
-					continue;
+			for (const { name, target } of sites.values()) {
 				const link = document.createElement('a');
 				link.href = target.href;
-				link.textContent = `${site.name} — ${target.hostname}`;
+				link.textContent = `${name} — ${target.hostname}`;
 				const item = document.createElement('li');
 				item.append(link);
 				document.getElementById('sites').append(item);
