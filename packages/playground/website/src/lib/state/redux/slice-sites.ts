@@ -4,7 +4,11 @@ import {
 	navigateToFreshOrigin,
 	snapshotOriginBlueprint,
 } from '../../origin-isolation';
-import { selectClientBySiteSlug } from './slice-clients';
+import {
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+} from './slice-clients';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import {
 	createSlice,
@@ -334,7 +338,8 @@ export function addSite(siteInfo: SiteInfo) {
  *
  * Temporary sites are rejected because they only exist in redux state. If
  * deleting the OPFS data fails, the redux record remains available for retry
- * and the storage error is rethrown.
+ * and the storage error is rethrown. The active OPFS journal is drained and
+ * detached before deletion; failed deletion restores it so edits stay saved.
  *
  * @param options.replacementSiteSlug Site to select after deleting the active
  * site. Falls back to the most recently created remaining site.
@@ -360,7 +365,42 @@ export function removeSite(
 				'Cannot remove a saved Playground because browser storage is not available.'
 			);
 		}
-		await opfsSiteStorage.delete(siteInfo.slug);
+		const clientInfo = selectClientInfoBySiteSlug(getState(), slug);
+		const mount =
+			siteInfo.metadata.storage === 'opfs'
+				? clientInfo?.opfsMountDescriptor
+				: undefined;
+		if (mount && clientInfo) {
+			// removeEntry cannot delete files while the PHP journal holds writes open.
+			await clientInfo.client.unmountOpfs(mount.mountpoint);
+		}
+		try {
+			await opfsSiteStorage.delete(siteInfo.slug);
+		} catch (error) {
+			if (mount && clientInfo) {
+				try {
+					await clientInfo.client.mountOpfs({
+						...mount,
+						initialSyncDirection: 'memfs-to-opfs',
+					});
+				} catch (restoreError) {
+					logger.error(
+						'Could not restore storage after deletion failed.',
+						restoreError
+					);
+					dispatch(
+						updateClientInfo({
+							siteSlug: slug,
+							changes: {
+								opfsMountDescriptor: undefined,
+								opfsSync: { status: 'error' },
+							},
+						})
+					);
+				}
+			}
+			throw error;
+		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
