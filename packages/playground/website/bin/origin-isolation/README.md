@@ -88,6 +88,8 @@ origin with narrow, user-approved operations, not a token getter for site code.
   not expose file reads, exports, directory handles, or deletion of other sites.
 - The Playgrounds pane shows other origins as links, not local site records.
   Rename/delete publish metadata; file operations remain on the current origin.
+  Deletion waits for existing writes and refuses an in-progress initial save; it
+  does not cancel an import or allow its background copy to recreate deleted files.
 - The launcher serves no `remote.html` or `api.html`. App documents and
   service-worker WordPress responses reject cross-origin framing and sever
   cross-origin opener references. Same-origin WordPress/editor frames still work.

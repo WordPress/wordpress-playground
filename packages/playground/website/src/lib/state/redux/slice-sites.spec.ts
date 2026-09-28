@@ -357,6 +357,24 @@ describe('stored sites', () => {
 		expect(state.sites.entities[site.slug]).toEqual(site);
 	});
 
+	it('refuses deletion while the initializer or first storage copy is running', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const site = createSiteInfo();
+		const state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		clientInfo = { opfsSync: { status: 'syncing' } } as ClientInfo;
+		const dispatch = vi.fn();
+		await expect(
+			removeSite(site.slug)(dispatch as any, () => state as any)
+		).rejects.toThrow('while its files are being saved');
+		expect(deleteSite).not.toHaveBeenCalled();
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
 	it.each([
 		'success',
 		'not mounted',

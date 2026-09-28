@@ -118,5 +118,12 @@ function updateCatalogue(
 	// Separate keys keep concurrent tabs from replacing each other's entries.
 	return Object.keys(localStorage)
 		.filter((key) => key.startsWith(prefix))
-		.map((key) => JSON.parse(localStorage.getItem(key)!));
+		.flatMap((key) => {
+			try {
+				return [JSON.parse(localStorage.getItem(key)!)];
+			} catch {
+				// A damaged display entry must not block setup on fresh origins.
+				return [];
+			}
+		});
 }

@@ -435,7 +435,12 @@ self.addEventListener('fetch', (event) => {
  */
 function applyScopedResponseHeaders(response: Response): Response {
 	response = applyCrossOriginIsolationHeaders(response);
-	if (!isOriginIsolationPrototype(new URL(self.location.href)))
+	// Cross-origin image/script backfill may be opaque. Its status is 0 and
+	// cannot be passed to Response(); it is not a frameable app document.
+	if (
+		response.status === 0 ||
+		!isOriginIsolationPrototype(new URL(self.location.href))
+	)
 		return response;
 	const headers = new Headers(response.headers);
 	headers.append('Content-Security-Policy', "frame-ancestors 'self'");

@@ -46,7 +46,10 @@ export async function updateOriginCatalogue(
 ) {
 	const url = new URL('/origin-isolation.html', window.location.href);
 	url.hostname = 'playground.localhost';
-	catalogueFrame ??= loadBridge(url);
+	catalogueFrame ??= loadBridge(url).catch((error) => {
+		catalogueFrame = undefined;
+		throw error;
+	});
 	const result = await requestBridge<OriginSite[]>(
 		await catalogueFrame,
 		'catalogue',

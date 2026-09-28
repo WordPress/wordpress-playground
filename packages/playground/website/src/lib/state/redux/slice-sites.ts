@@ -340,6 +340,7 @@ export function addSite(siteInfo: SiteInfo) {
  * deleting the OPFS data fails, the redux record remains available for retry
  * and the storage error is rethrown. The active OPFS journal is drained and
  * detached before deletion; failed deletion restores it so edits stay saved.
+ * Deletion during initial setup or an in-flight save is rejected for retry.
  *
  * @param options.replacementSiteSlug Site to select after deleting the active
  * site. Falls back to the most recently created remaining site.
@@ -366,6 +367,13 @@ export function removeSite(
 			);
 		}
 		const clientInfo = selectClientInfoBySiteSlug(getState(), slug);
+		// Initializers and the first file copy can still create the OPFS tree.
+		// Refuse deletion until they settle instead of racing or canceling a save.
+		if (clientInfo?.opfsSync?.status === 'syncing') {
+			throw new Error(
+				'Cannot delete a Playground while its files are being saved. Try again once saving finishes.'
+			);
+		}
 		let mount =
 			siteInfo.metadata.storage === 'opfs'
 				? clientInfo?.opfsMountDescriptor
