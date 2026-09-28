@@ -470,6 +470,24 @@ assert_true(
 );
 
 // ──────────────────────────────────────────────
+// Test 19: A target that switches protocols gets a 502
+// ──────────────────────────────────────────────
+echo "\nTest 19: A target that switches protocols gets a 502\n";
+// The proxy can't relay another protocol, and must not present its bytes
+// as an HTTP response body.
+$response = proxy_request($proxy_port, "http://127.0.0.1:$raw_port/switching-protocols");
+assert_true(
+    $response['http_code'] === 502,
+    "Switching protocols should get status 502 (got {$response['http_code']})"
+);
+assert_not_contains(
+    'rawdata',
+    $response['body'],
+    "502 response should not carry the other protocol's bytes"
+);
+assert_only_proxy_headers($response, '502');
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);

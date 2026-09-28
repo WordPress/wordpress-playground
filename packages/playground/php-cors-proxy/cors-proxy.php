@@ -92,21 +92,12 @@ define(
 $ch = curl_init($targetUrl);
 
 $is_chunked_response = false;
-$http_code_sent = false;
+// Whether the target's response has any Transfer-Encoding header.
+$has_transfer_encoding = false;
 // Whether the header callback is inside an interim 1xx response's headers.
 $in_interim_response = false;
 // The target's Content-Length, held until all of its headers arrive.
 $pending_content_length = null;
-
-$relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch, &$http_code_sent) {
-    if (!$http_code_sent) {
-        // Set the response code from the target server
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        http_response_code($http_code);
-
-        $http_code_sent = true;
-    }
-};
 
 /**
  * Replaces the target's response with an error response from the proxy.
@@ -127,13 +118,15 @@ $relay_http_code_and_initial_headers_if_not_already_sent = function () use ($ch,
  * auto_prepend_file, survive too.
  */
 function replace_response_with_error($status_code, $message) {
-    global $is_chunked_response, $pending_content_length, $proxy_headers;
+    global $has_transfer_encoding, $is_chunked_response, $pending_content_length,
+        $proxy_headers;
     header_remove();
     foreach ($proxy_headers as $header) {
         header($header, false);
     }
     // The target's Transfer-Encoding header is gone, so don't chunk the
     // error message.
+    $has_transfer_encoding = false;
     $is_chunked_response = false;
     // The target's Content-Length no longer describes the response.
     $pending_content_length = null;
@@ -323,7 +316,7 @@ curl_setopt(
         $header
     ) use (
         $targetUrl,
-        &$http_code_sent,
+        &$has_transfer_encoding,
         &$in_interim_response,
         &$is_chunked_response,
         &$pending_content_length
@@ -353,14 +346,23 @@ curl_setopt(
             $status_code = preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)
                 ? (int) $matches[1]
                 : curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            // Interim 1xx responses, such as 100 Continue or 103 Early
+            if ($status_code === 101) {
+                // The target switched to another protocol. A single HTTP
+                // response from this script can't carry it, and curl would
+                // deliver the other protocol's bytes as the response body.
+                replace_response_with_error(
+                    502,
+                    "Bad Gateway – the target switched protocols"
+                );
+                exit;
+            }
+            // Other interim 1xx responses, such as 100 Continue or 103 Early
             // Hints, precede the final response. Relaying their status or
             // headers would make them part of the final response, so skip
             // their header blocks entirely.
             $in_interim_response = $status_code < 200;
             if (!$in_interim_response) {
                 http_response_code($status_code);
-                $http_code_sent = true;
             }
             $pending_content_length = null;
             return $len;
@@ -374,11 +376,11 @@ curl_setopt(
             if (
                 trim($header) === '' &&
                 $pending_content_length !== null &&
-                !$is_chunked_response
+                !$has_transfer_encoding
             ) {
                 // All headers have arrived, so it's now known whether the
-                // response is chunked. HTTP says to ignore Content-Length
-                // when Transfer-Encoding: chunked is present, and that
+                // response has a Transfer-Encoding. RFC 9112 section 6.3
+                // says Transfer-Encoding overrides Content-Length, and that
                 // header may have come after Content-Length. Chunked
                 // responses may also deliver trailers to this callback after
                 // the body, but Content-Length is never relayed for them.
@@ -416,6 +418,9 @@ curl_setopt(
             return $len;
         }
 
+        if ($name === 'transfer-encoding') {
+            $has_transfer_encoding = true;
+        }
         if ($name === 'transfer-encoding' && stripos($value, 'chunked') !== false) {
             $is_chunked_response = true;
             header($header, false);
@@ -542,8 +547,6 @@ if (!curl_exec($ch)) {
             "Bad Gateway – curl_exec error: " . curl_error($ch)
         );
     }
-} else {
-    @$relay_http_code_and_initial_headers_if_not_already_sent();
 }
 // Close cURL session
 if (version_compare(PHP_VERSION, '8.5', '<')) {

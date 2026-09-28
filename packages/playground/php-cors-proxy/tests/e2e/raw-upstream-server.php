@@ -10,6 +10,8 @@
  *   the proxy does not relay it.
  * - /early-hints: an interim 103 Early Hints response with a Link header,
  *   followed by the final 200 response.
+ * - /switching-protocols: an unsolicited 101 Switching Protocols response
+ *   followed by bytes of another protocol.
  *
  * Run: php raw-upstream-server.php <port>
  */
@@ -33,6 +35,13 @@ $responses = [
         "Connection: close\r\n" .
         "\r\n" .
         "hello",
+    '/switching-protocols' =>
+        "HTTP/1.1 101 Switching Protocols\r\n" .
+        "Upgrade: example\r\n" .
+        "Connection: Upgrade\r\n" .
+        "X-Target-Header: switching-protocols\r\n" .
+        "\r\n" .
+        "rawdata",
 ];
 
 $server = stream_socket_server('tcp://127.0.0.1:' . (int) $argv[1], $errno, $errstr);
