@@ -1,53 +1,62 @@
 import { useState, useEffect } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
+import {
+	getSqliteDatabasePath,
+	getSqliteDatabaseSize,
+} from '@wp-playground/tools';
 import { Notice, __experimentalVStack as VStack } from '@wordpress/components';
 import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
-
-const DATABASE_PATH = '/wordpress/wp-content/database/.ht.sqlite';
+import { formatBytes } from '../../../lib/utils/format-bytes';
 
 export function SiteDatabasePanel({
 	playground,
+	isBooting,
 }: {
 	playground: PlaygroundClient | undefined;
+	isBooting: boolean;
 }) {
+	const [databasePath, setDatabasePath] = useState<string | null>(null);
 	const [databaseSize, setDatabaseSize] = useState<number | null>(null);
+	const [isLoading, setIsLoading] = useState(isBooting || !!playground);
 
 	useEffect(() => {
+		setDatabasePath(null);
+		setDatabaseSize(null);
+		setIsLoading(isBooting || !!playground);
 		if (!playground) {
-			setDatabaseSize(null);
 			return;
 		}
+
+		let cancelled = false;
 
 		async function fetchDatabaseSize() {
 			if (!playground) return;
 
 			try {
-				const fileExists = await playground.fileExists(DATABASE_PATH);
+				const path = await getSqliteDatabasePath(playground);
+				if (cancelled) return;
+				setDatabasePath(path);
+				const fileExists = await playground.fileExists(path);
 				if (fileExists) {
-					const buffer =
-						await playground.readFileAsBuffer(DATABASE_PATH);
-					setDatabaseSize(buffer.byteLength);
-				} else {
-					setDatabaseSize(null);
+					const size = await getSqliteDatabaseSize(playground, path);
+					if (cancelled) return;
+					setDatabaseSize(size);
 				}
 			} catch {
-				setDatabaseSize(null);
+				if (!cancelled) setDatabaseSize(null);
+			} finally {
+				if (!cancelled) setIsLoading(false);
 			}
 		}
 
 		void fetchDatabaseSize();
-	}, [playground]);
-
-	const formatBytes = (bytes: number): string => {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-	};
+		return () => {
+			cancelled = true;
+		};
+	}, [playground, isBooting]);
 
 	return (
 		<VStack spacing={4}>
@@ -90,7 +99,10 @@ export function SiteDatabasePanel({
 					</span>
 					<span className={css.label}>SQLite database path:</span>
 					<span className={css.value}>
-						<code>{DATABASE_PATH}</code>
+						<code>
+							{databasePath ??
+								(isLoading ? 'Loading…' : 'Unavailable')}
+						</code>
 					</span>
 					{databaseSize !== null && (
 						<>
@@ -104,7 +116,10 @@ export function SiteDatabasePanel({
 			</VStack>
 
 			<div className={css.buttonGroup}>
-				<DownloadButton playground={playground} />
+				<DownloadButton
+					playground={playground}
+					databasePath={databasePath}
+				/>
 				<AdminerButton playground={playground} />
 				<PhpMyAdminButton playground={playground} />
 			</div>

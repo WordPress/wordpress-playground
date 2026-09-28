@@ -64,6 +64,11 @@ export interface SiteSettings {
 type PublicSiteStorageType = Exclude<SiteStorageType, 'none'> | 'temporary';
 type SaveSiteResult = { slug: string; storage: SiteStorageType };
 type ZipImportProgress = ProgressDetails;
+type ZipImportProgressCallback = (progress: ZipImportProgress) => void;
+type ZipImportOptions = {
+	onProgress?: ZipImportProgressCallback;
+	onPlaygroundLoaded?: (storage: 'opfs' | 'temporary') => void;
+};
 
 const ZIP_INSTALL_PROGRESS_PERCENT = 85;
 const ZIP_STORAGE_PROGRESS_PERCENT = 100 - ZIP_INSTALL_PROGRESS_PERCENT;
@@ -845,12 +850,19 @@ export function createSitesAPI(
 		 * MEMFS before the initial OPFS copy, avoiding an empty-site persistence pass.
 		 *
 		 * @param wordPressFilesZip Playground ZIP export.
+		 * @param options Import lifecycle callbacks. Passing a bare progress
+		 *   callback remains supported.
 		 * @returns The new site's slug.
 		 */
 		async createNewSiteFromZip(
 			wordPressFilesZip: File,
-			onProgress?: (progress: ZipImportProgress) => void
+			options: ZipImportOptions | ZipImportProgressCallback = {}
 		): Promise<string> {
+			const callbacks: ZipImportOptions =
+				typeof options === 'function'
+					? { onProgress: options }
+					: options;
+			const { onProgress, onPlaygroundLoaded } = callbacks;
 			dispatch(
 				setSiteImportProgress({
 					caption: 'Starting import',
@@ -903,6 +915,9 @@ export function createSitesAPI(
 					// The imported page is ready. Reveal it while createSavedSite waits
 					// for the initial OPFS autosave to finish.
 					dispatch(setSiteImportProgress(undefined));
+					onPlaygroundLoaded?.(
+						opfsSiteStorage ? 'opfs' : 'temporary'
+					);
 				};
 				if (!opfsSiteStorage) {
 					return await createTemporarySite(

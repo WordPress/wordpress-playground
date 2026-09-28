@@ -1,0 +1,46 @@
+{
+	"screenshot": "sample-shot.webp",
+	"output": "test-cards.webp",
+	"css_width": 1440,
+	"supersample": 2,
+	"chrome_bar": { "url": "playground.wordpress.net" },
+	"dim": { "region": [385, 762, 660, 126], "radius": 16 },
+	"outlines": [
+		{ "type": "circle", "center": [425, 816], "r": 24 },
+		{
+			"type": "rect",
+			"box": [409, 839, 622, 53],
+			"padding": 6,
+			"radius": 12
+		},
+		{
+			"type": "rect",
+			"box": [861, 799, 88, 34],
+			"padding": 6,
+			"radius": 12
+		}
+	],
+	"cards": [
+		{
+			"number": 1,
+			"title": "Refresh page",
+			"subtitle": "Reloads WordPress only",
+			"target": 0
+		},
+		{
+			"number": 2,
+			"title": "Tool panes",
+			"subtitle": "Blueprints, settings, export",
+			"target": 1
+		},
+		{
+			"number": 3,
+			"title": "Autosaved",
+			"subtitle": "Click to manage this Playground",
+			"target": 2
+		}
+	],
+	"cards_top": 560,
+	"cards_inset": 48,
+	"cards_gap": 40
+}

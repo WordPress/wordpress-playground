@@ -129,6 +129,8 @@ class PluginDownloader
 			throw new ApiException('artifact_not_found');
 		}
 
+		$found_stale_artifact = false;
+
 		foreach ($artifactsUrls as $artifactsUrl) {
 			$zip_download_api_endpoint = $zip_url = null;
 
@@ -156,6 +158,9 @@ class PluginDownloader
 				}
 			}
 			if (!$zip_download_api_endpoint) {
+				if ($artifacts->artifacts) {
+					$found_stale_artifact = true;
+				}
 				continue;
 			}
 
@@ -197,6 +202,9 @@ class PluginDownloader
 			}
 
 			throw new ApiException('artifact_redirect_not_present');
+		}
+		if ($found_stale_artifact) {
+			throw new ApiException('artifact_invalid');
 		}
 		if (!$artifacts) {
 			throw new ApiException('artifact_not_available');

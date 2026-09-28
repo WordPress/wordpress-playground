@@ -95,6 +95,19 @@ The relay only emits CORS access for same-origin `Origin` hosts. Unexpected
 server failures are logged with `error_log()` and returned to clients as a
 generic relay error.
 
+`POST /relay.php?action=session` returns a `hostToken` alongside the session id.
+It is the only response that carries it, and it never appears in the share URL.
+Host-side calls must send it as `X-Playground-Host-Token`:
+
+- `POST ?action=signal` with `"from": "host"`
+- `GET ?action=signal&to=host`
+- `POST ?action=close`
+
+Requests without the header get a `401`, and requests with the wrong token get a
+`403`. Guest connection attempts stay anonymous: holding the share URL is enough
+to request access, but only the host tab has the token needed to answer as the
+host or close the session.
+
 ## Host Flow
 
 Use `RemoteAccessHostController` when the host page has access to the running
@@ -129,7 +142,9 @@ the same client to produce backup zips.
 
 The six-digit access code only finds a relay session. The host still must
 approve the two-digit verification code shown by the remote viewer before
-WordPress requests are accepted.
+WordPress requests are accepted. The host token keeps the two roles separate:
+devices with the share URL can request access, but only the browser tab that
+created the session can answer as the host or close the session.
 
 ## Connect Route
 

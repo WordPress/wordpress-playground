@@ -62,6 +62,27 @@ describe('Mounting', () => {
 		}
 	});
 
+	it('Should include dot entries when PHP scans an empty mounted directory', async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+		const unmount = await php.mount(
+			directoryMountPoint,
+			createNodeFsMountHandler(tempDir)
+		);
+
+		try {
+			const result = await php.run({
+				code: `<?php
+					echo json_encode(scandir('${directoryMountPoint}'));
+				`,
+			});
+
+			expect(JSON.parse(result.text)).toEqual(['.', '..']);
+		} finally {
+			unmount();
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	[
 		{
 			filePath: testFilePath,

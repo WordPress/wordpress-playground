@@ -4,7 +4,6 @@
 	transition: opacity 0.5s ease;
 	width: 100%;
 	align-items: center;
-	gap: 8px;
 }
 
 .refresh-button {
@@ -13,6 +12,7 @@
 	justify-content: center;
 	width: 32px;
 	height: 32px;
+	margin-inline: 4px;
 	padding: 5px;
 	background: transparent;
 	border: none;
@@ -34,6 +34,14 @@
 .refresh-button:disabled:hover {
 	color: var(--action-icon-disabled-on-dark);
 	cursor: default;
+}
+
+@media (max-width: 1024px) {
+	/* The full-width mobile Dock has two inline insets. Center the refresh target
+	   between the outer Dock edge and URL field instead of the inner inset. */
+	.refresh-button {
+		margin-inline: -4px 12px;
+	}
 }
 
 .input-container {

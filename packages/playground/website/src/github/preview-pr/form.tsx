@@ -88,7 +88,7 @@ export const targetParams = {
 	gutenberg: {
 		repo: 'gutenberg',
 		workflow: 'Build%20Gutenberg%20Plugin%20Zip',
-		artifact: 'gutenberg-plugin',
+		artifact: 'gutenberg.zip',
 		pull: 'github.com/wordpress/gutenberg/pull',
 	},
 };
@@ -238,9 +238,7 @@ export default function PreviewPRForm({
 			? '/plugin-proxy.php'
 			: 'https://playground.wordpress.net/plugin-proxy.php';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For Gutenberg PRs: artifact name is always gutenberg-plugin
-		// For Gutenberg branches: artifact name is always gutenberg-plugin
-		//   (we use prefix matching with trailing dash for branches)
+		// For Gutenberg PRs and branches: artifact name is gutenberg.zip
 		let artifactSuffix = '';
 		if (repo === 'wordpress') {
 			// WordPress only supports PRs, not branches
@@ -255,7 +253,7 @@ export default function PreviewPRForm({
 	 * Pull requests must have a usable preview build. Missing or incomplete
 	 * artifacts are translated into an error or a scheduled retry, depending on
 	 * their state. Gutenberg branches skip this verification because the proxy
-	 * selects their most recent artifact by prefix.
+	 * selects the most recent run's matching artifact for the branch.
 	 *
 	 * Repository detection may provide `knownVerification`. Reusing it avoids a
 	 * duplicate request while preserving the same error and retry behavior as a
@@ -280,7 +278,7 @@ export default function PreviewPRForm({
 		setLoadingMessage('Checking GitHub for a preview build…');
 		setSubmitting(true);
 
-		// For branches, skip verification since we'll use the most recent artifact with prefix matching
+		// For branches, skip verification since we'll use the most recent matching artifact
 		// For PRs, verify that the specific PR build exists
 		if (!isBranch) {
 			let verification: PrVerification;

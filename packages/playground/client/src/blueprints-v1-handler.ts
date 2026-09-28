@@ -13,6 +13,8 @@ import {
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
+import { formatBytes } from '@php-wasm/util';
+import type { BootProgressEvent } from '@wp-playground/remote';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -39,7 +41,11 @@ export class BlueprintsV1Handler {
 			onClientConnected,
 			pathAliases,
 			disableProgressBar,
+			detailedProgressCaptions,
 		} = this.options;
+		const setProgressCaption = detailedProgressCaptions
+			? (caption: string) => progressTracker.setCaption(caption)
+			: () => {};
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
 
@@ -52,7 +58,9 @@ export class BlueprintsV1Handler {
 			iframe.contentWindow!,
 			iframe.ownerDocument!.defaultView!
 		) as PlaygroundClient;
+		setProgressCaption('Waiting for remote Playground runtime');
 		await playground.isConnected();
+		setProgressCaption('Resolving Playground runtime versions');
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);
 		}
@@ -63,7 +71,86 @@ export class BlueprintsV1Handler {
 			? ['intl']
 			: [];
 		extensions.push(...(this.options.extensions || []));
-		await playground.onDownloadProgress(downloadProgress.loadingListener);
+		let runtimeDownload: RuntimeDownloadProgress | undefined;
+		let runtimeDownloadHeartbeat:
+			| ReturnType<typeof setInterval>
+			| undefined;
+		const stopRuntimeDownloadHeartbeat = () => {
+			if (runtimeDownloadHeartbeat) {
+				clearInterval(runtimeDownloadHeartbeat);
+				runtimeDownloadHeartbeat = undefined;
+			}
+		};
+		const ensureRuntimeDownloadHeartbeat = () => {
+			if (runtimeDownloadHeartbeat || !detailedProgressCaptions) {
+				return;
+			}
+			runtimeDownloadHeartbeat = setInterval(() => {
+				if (
+					!runtimeDownload ||
+					runtimeDownload.loaded >= runtimeDownload.total
+				) {
+					return;
+				}
+				const stalledForMs = Date.now() - runtimeDownload.updatedAt;
+				if (stalledForMs < 5000) {
+					return;
+				}
+				setProgressCaption(
+					formatRuntimeDownloadCaption(
+						runtimeDownload.label,
+						runtimeDownload.loaded,
+						runtimeDownload.total,
+						stalledForMs
+					)
+				);
+			}, 1000);
+		};
+		await playground.onDownloadProgress((event: any) => {
+			downloadProgress.loadingListener(event);
+			const {
+				loaded,
+				total,
+				fileName,
+				fileLoaded = loaded,
+				fileTotal = total,
+			} = event.detail || {};
+			if (
+				typeof loaded !== 'number' ||
+				typeof total !== 'number' ||
+				total <= 0
+			) {
+				setProgressCaption(getDownloadLabel(fileName));
+				return;
+			}
+			runtimeDownload = {
+				label: getDownloadLabel(fileName),
+				loaded: fileLoaded,
+				total: fileTotal,
+				updatedAt: Date.now(),
+			};
+			if (loaded >= total) {
+				stopRuntimeDownloadHeartbeat();
+				setProgressCaption(
+					getCompletedDownloadCaption(runtimeDownload.label, total)
+				);
+				return;
+			}
+			ensureRuntimeDownloadHeartbeat();
+			setProgressCaption(
+				formatRuntimeDownloadCaption(
+					runtimeDownload.label,
+					runtimeDownload.loaded,
+					runtimeDownload.total,
+					0
+				)
+			);
+		});
+		if (detailedProgressCaptions) {
+			await playground.addEventListener('boot.progress', (event) => {
+				setProgressCaption((event as BootProgressEvent).caption);
+			});
+		}
 		// Blueprint's `preferredVersions.wp: false` is the declarative way to
 		// opt out of WordPress. Bundles carry their declaration inside a JSON
 		// file we haven't read here, so we only honor the flag for inline
@@ -91,25 +178,33 @@ export class BlueprintsV1Handler {
 					'`preferredVersions.wp: false`. Pick one.'
 			);
 		}
-		await playground.boot({
-			mounts,
-			sapiName,
-			scope: scope ?? Math.random().toFixed(16),
-			wordpressInstallMode: resolvedWordPressInstallMode,
-			phpVersion: runtimeConfiguration.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
-			extensions,
-			withNetworking: runtimeConfiguration.networking,
-			corsProxyUrl: corsProxy,
-			sqliteDriverVersion,
-			pathAliases,
-		});
-		await playground.isReady();
-		downloadProgress.finish();
+		try {
+			setProgressCaption('Booting PHP and WordPress');
+			await playground.boot({
+				mounts,
+				sapiName,
+				scope: scope ?? Math.random().toFixed(16),
+				wordpressInstallMode: resolvedWordPressInstallMode,
+				phpVersion: runtimeConfiguration.phpVersion,
+				wpVersion: runtimeConfiguration.wpVersion,
+				extensions,
+				withNetworking: runtimeConfiguration.networking,
+				corsProxyUrl: corsProxy,
+				sqliteDriverVersion,
+				pathAliases,
+			});
+			setProgressCaption('Waiting for WordPress to be ready');
+			await playground.isReady();
+			downloadProgress.finish();
+		} finally {
+			stopRuntimeDownloadHeartbeat();
+		}
 
+		setProgressCaption('Connecting Playground client');
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
+		setProgressCaption('Preparing blueprint steps');
 		const reflection = await BlueprintReflection.create(blueprint);
 		if (reflection.getVersion() === 1) {
 			const compiled = await compileBlueprintV1(blueprint, {
@@ -119,6 +214,7 @@ export class BlueprintsV1Handler {
 				corsProxy,
 				gitAdditionalHeadersCallback,
 			});
+			setProgressCaption('Running blueprint steps');
 			await runBlueprintV1Steps(compiled, playground);
 		}
 
@@ -216,3 +312,50 @@ async function isWpAdminLandingPage(blueprint: BlueprintV1): Promise<boolean> {
 type WordPressInstallMode = NonNullable<
 	StartPlaygroundOptions['wordpressInstallMode']
 >;
+
+interface RuntimeDownloadProgress {
+	label: string;
+	loaded: number;
+	total: number;
+	updatedAt: number;
+}
+
+/**
+ * Keep these short: the Personal WP progress card is ~400px wide and the
+ * percentage is rendered next to the caption, so it is not repeated here.
+ */
+function formatRuntimeDownloadCaption(
+	label: string,
+	loaded: number,
+	total: number,
+	stalledForMs: number
+): string {
+	const stalledSuffix =
+		stalledForMs >= 5000
+			? ` – stalled ${Math.floor(stalledForMs / 1000)}s, retrying`
+			: '';
+	return `${label} (${formatBytes(loaded)} of ${formatBytes(total)})${stalledSuffix}`;
+}
+
+function getDownloadLabel(fileName?: string): string {
+	if (!fileName) {
+		return 'Downloading files';
+	}
+	if (fileName.endsWith('.wasm') || fileName.startsWith('php_')) {
+		return 'Downloading PHP runtime';
+	}
+	if (fileName.includes('wordpress')) {
+		return 'Downloading WordPress';
+	}
+	if (fileName.includes('sqlite')) {
+		return 'Downloading SQLite integration';
+	}
+	return `Downloading ${fileName}`;
+}
+
+function getCompletedDownloadCaption(label: string, total: number): string {
+	if (label === 'Downloading PHP runtime') {
+		return `Compiling PHP runtime (${formatBytes(total)})`;
+	}
+	return `Preparing downloaded files (${formatBytes(total)})`;
+}

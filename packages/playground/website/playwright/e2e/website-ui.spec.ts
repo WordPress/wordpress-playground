@@ -1,6 +1,7 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { Page } from '@playwright/test';
+import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -242,6 +243,35 @@ test('should navigate from the address bar suggestions', async ({
 	await website.page.getByRole('option', { name: /Dashboard/ }).click();
 
 	await expect(address).toHaveValue('/wp-admin/');
+});
+
+test('should retain developer drafts and remember toolbar visibility', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const toggle = dock.getByRole('button', {
+		name: 'Dev Tools',
+		exact: true,
+	});
+	await toggle.click();
+	await website.openDockPane('Terminal');
+	const pane = website.page.getByRole('dialog', { name: 'Terminal pane' });
+	const command = pane.getByRole('textbox', { name: 'PHP code' });
+	await command.fill('echo "draft retained";');
+	await toggle.click();
+	await expect(pane).not.toBeVisible();
+	await expect(toggle).toBeFocused();
+	await toggle.click();
+	await website.openDockPane('Terminal');
+	await expect(command).toHaveText('echo "draft retained";');
+	await website.page.reload();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await toggle.click();
+	await website.page.reload();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('should route tools through one Dock pane', async ({ website }) => {
@@ -904,11 +934,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 		.getByRole('menuitem', { name: 'Copy Blueprint URL' })
 		.click();
 
-	// Verify success message appears in the notice component
+	// Verify the copy confirmation surfaces in the Dock success toast
 	await expect(
 		website.page
-			.locator('.components-notice')
-			.getByText('Link copied to clipboard!')
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Link copied to clipboard' })
 	).toBeVisible();
 
 	// Verify clipboard contains the correct URL format
@@ -1018,7 +1048,7 @@ test('should stat the database size without reading the database into JavaScript
 		const originalRead = playground.readFileAsBuffer.bind(playground);
 		(window as any).__databaseReadCount = 0;
 		playground.readFileAsBuffer = async (path: string) => {
-			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
+			if (path.endsWith('/.ht.sqlite')) {
 				(window as any).__databaseReadCount++;
 				throw new Error(
 					'Database contents must not be read to calculate size.'
@@ -1045,9 +1075,20 @@ test.describe('Database panel', () => {
 	});
 
 	test('should display database info', async ({ website }) => {
+		const databasePath = await website.page.evaluate(async () => {
+			await (window as any).playgroundSites.isReady();
+			const playground = (window as any).playgroundSites.getClient();
+			const response = await playground.run({
+				code: `<?php
+$wp_env = require '/internal/shared/wp-env.php';
+echo $wp_env['db']['path'];
+`,
+			});
+			return response.text;
+		});
 		await expect(website.page.getByText('Path:')).toBeVisible();
 		await expect(
-			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
+			website.page.getByText(databasePath, { exact: true })
 		).toBeVisible();
 		await expect(website.page.getByText('Size:')).toBeVisible();
 	});
@@ -1265,8 +1306,10 @@ test.describe('Database panel', () => {
 });
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
-test.describe('Default Playground storage', () => {
-	test.describe.configure({ mode: 'serial' });
+// The `@storage` tag routes this group to the one-worker CI storage lane.
+test.describe('Default Playground storage', { tag: '@storage' }, () => {
+	// Default mode prevents storage overlap while retrying only the failed test.
+	test.describe.configure({ mode: 'default' });
 
 	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
@@ -3432,6 +3475,24 @@ echo get_option('blogname');
 				activeSite?.persistence === 'autosave'
 			);
 		});
+		const initialAutosave = await getActivePlaygroundSite(website.page);
+		const initialAutosaveDirectory = getDirectoryNameForSlug(
+			initialAutosave.slug
+		);
+		await expect
+			.poll(() =>
+				website.page.evaluate(async (siteDirectoryName) => {
+					const root = await navigator.storage.getDirectory();
+					const sites = await root.getDirectoryHandle('sites');
+					const site =
+						await sites.getDirectoryHandle(siteDirectoryName);
+					const metadata =
+						await site.getFileHandle('wp-runtime.json');
+					return JSON.parse(await (await metadata.getFile()).text())
+						.initialOpfsSyncPending;
+				}, initialAutosaveDirectory)
+			)
+			.toBe(false);
 
 		await website.goto(setupUrl);
 		await expect(

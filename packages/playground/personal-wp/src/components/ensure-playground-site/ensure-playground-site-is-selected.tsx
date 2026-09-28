@@ -25,8 +25,7 @@ import { getAppBaseUrl, isAppBasePath } from '../../lib/state/url/app-base-url';
  *
  * It has two routing modes:
  * * When `site-slug` is provided, it load an existing site
- * * When `site-slug` is missing, it creates a new site using the Query API and Blueprint API
- *   data sourced from the current URL.
+ * * When `site-slug` is missing, it selects or creates the default personal site.
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -116,9 +115,8 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 
 		ensureSiteIsSelected();
-		// Only re-run when search params or hash change (blueprint
-		// instructions), not when pathname changes (WordPress
-		// navigation reflected via pushState).
+		// Only re-run when search params or hash change, not when pathname
+		// changes (WordPress navigation reflected via pushState).
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [url.search, url.hash, requestedSiteSlug, siteListingStatus]);
 
@@ -157,18 +155,15 @@ async function createNewTemporarySite(
 		? deriveSiteNameFromSlug(requestedSiteSlug)
 		: randomSiteName();
 
-	// Only treat URL params as blueprint instructions when on the
-	// root path. Other paths (e.g. /wp-admin/plugins.php) are
-	// WordPress URLs reflected in the browser bar via pushState
-	// and their params belong to WordPress, not to the blueprint
-	// system.
+	// Recovery mode is only a Personal WP launch action at the app base path.
+	// Params on reflected WordPress paths belong to WordPress.
 	const currentUrl = new URL(window.location.href);
-	const blueprintUrl = isAppBasePath(currentUrl.pathname)
+	const launchUrl = isAppBasePath(currentUrl.pathname)
 		? currentUrl
 		: getAppBaseUrl();
 
 	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec(siteName, blueprintUrl)
+		setTemporarySiteSpec(siteName, launchUrl)
 	);
 	await dispatch(setActiveSite(newSiteInfo.slug));
 }

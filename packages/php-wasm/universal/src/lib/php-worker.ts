@@ -65,6 +65,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	private chroot: string | null = null;
 
 	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
+	#phpInstancesWithWorkerListeners = new WeakSet<PHP>();
 
 	onMessageListeners: MessageListener[] = [];
 	/** @inheritDoc */
@@ -445,6 +446,10 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	}
 
 	protected registerWorkerListeners(php: PHP) {
+		if (this.#phpInstancesWithWorkerListeners.has(php)) {
+			return;
+		}
+		this.#phpInstancesWithWorkerListeners.add(php);
 		php.addEventListener('*', async (event) => {
 			this.dispatchEvent(event);
 		});

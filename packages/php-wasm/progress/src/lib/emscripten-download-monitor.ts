@@ -86,6 +86,9 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 				detail: {
 					loaded: sumValues(this.#progress),
 					total: sumValues(this.#assetsSizes),
+					fileName,
+					fileLoaded: loaded,
+					fileTotal: fileSize,
 				},
 			})
 		);
@@ -107,6 +110,18 @@ export interface DownloadProgress {
 	 * The length number of bytes to load.
 	 */
 	total: number;
+	/**
+	 * The file that emitted this progress update.
+	 */
+	fileName?: string;
+	/**
+	 * The number of bytes loaded for the current file.
+	 */
+	fileLoaded?: number;
+	/**
+	 * The length number of bytes to load for the current file.
+	 */
+	fileTotal?: number;
 }
 
 /**

@@ -214,7 +214,7 @@ Como uma diretriz, um idioma deve ser tornado publicamente disponível no seleto
 -   [About Playground](https://wordpress.github.io/wordpress-playground/about)
 -   [Guides](https://wordpress.github.io/wordpress-playground/guides)
 -   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
--   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+-   [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 -->
 
 - [Guia de Início Rápido](https://wordpress.github.io/wordpress-playground/quick-start-guide)
@@ -222,7 +222,7 @@ Como uma diretriz, um idioma deve ser tornado publicamente disponível no seleto
 - [Sobre o Playground](https://wordpress.github.io/wordpress-playground/about)
 - [Guias](https://wordpress.github.io/wordpress-playground/guides)
 - [Contribuindo](https://wordpress.github.io/wordpress-playground/contributing)
-- [Links e Recursos](https://wordpress.github.io/wordpress-playground/resources)
+- [Links e Recursos](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 <!--
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.

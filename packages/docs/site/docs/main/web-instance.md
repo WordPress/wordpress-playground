@@ -1,73 +1,151 @@
 ---
 title: Web Instance
 slug: /web-instance
-description: A detailed guide to the web interface at playground.wordpress.net, covering the Dock, settings, and Playground tools.
+description: A detailed guide to the web interface at playground.wordpress.net, covering the Dock, persistence, settings, and site tools.
 ---
 
 # WordPress Playground web instance
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
+[https://playground.wordpress.net/](https://playground.wordpress.net/) runs
+WordPress in your browser without a server. The page opens a Playground, shows
+the WordPress site, and keeps the site tools in the **Dock**.
 
-Some key features:
+![The Playground web instance with the Dock visible at the bottom of the page](/img/dock/dock-overview.webp)
 
-- **Browser-based**: No local server setup required.
-- **Instant Setup**: Run WordPress with a single click.
-- **Testing Environment**: Ideal for testing plugins and themes.
-
-The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
-
-The Playground website includes a Dock that opens tools for launching, configuring, inspecting, and exporting your Playground.
-
-![Playground Dock](/img/dock/dock-overview.webp)
+The Dock has an address field, a save status, layout controls, and destinations for creating, storing, inspecting, and exporting Playgrounds.
 
 ## Customize Playground
 
 The Dock includes these destinations:
 
-- **New**: Start from the Blueprint Gallery, a Blueprint URL, a GitHub repository, a pull request, or an imported `.zip` file.
+- **New**: Start from the Blueprint gallery, a public Blueprint URL, a new
+  Blueprint, a pull request preview, a GitHub repository, or an imported `.zip`
+  file.
 - **Playgrounds**: Switch between recent and saved Playgrounds.
 - **Blueprint**: View, edit, export, and run the current Blueprint.
-- **Site Settings**: Configure WordPress version, PHP version, language, networking, and multisite.
-- **Database**: Inspect the SQLite database and open database tools.
+- **Site Settings**: Configure WordPress version, PHP version, language,
+  networking, and multisite.
+- **Database**: Inspect or download the SQLite database and open database tools.
 - **Files**: Browse and edit files in the WordPress filesystem.
-- **Logs**: Read PHP, WordPress, and Playground runtime messages.
-- **Export**: Download a `.zip`, copy the original setup link, or export the current state to GitHub.
+- **Logs**: Inspect PHP errors, warnings, and notices.
+- **Export**: Download a `.zip`, copy the original setup link, or export selected
+  files to a GitHub pull request.
 
-### Site Settings
+## Navigate inside WordPress
 
-![Site Settings in the Dock](/img/dock/dock-site-settings.webp)
+Use the Dock address field to open a path inside the current WordPress site.
+For example, enter `/wp-admin/` to open the dashboard or
+`/wp-admin/plugins.php` to open the Plugins screen. **Refresh page** reloads
+the current WordPress path.
 
-The **Site Settings** pane includes these [Query API options](/developers/apis/query-api#available-options):
+You can also use the [Query Params API](/developers/apis/query-api/) to open Playground with a specific setup, such as a WordPress version, PHP version, plugin, theme, or Blueprint.
 
-- `wp`: Defines the WordPress version.
-- `php`: Specifies the PHP version for the instance.
-- `language`: Sets the WordPress instance language.
-- `multisite`: Enables WordPress multisite support.
-- `networking`: Enables network access to the WordPress Plugin Directory and WordPress APIs.
+## Understand the save status
 
-## Export a Playground {#playground-options-menu}
+The status next to the address field tells you how the current Playground is stored:
 
-Open **Export** from the Dock to download or share the current Playground state:
+- **Autosaved** means the Playground is stored in this browser and can be recovered from **Your Playgrounds**. Playground keeps up to five recent autosaves.
+- **Saved** means the Playground was stored permanently in browser storage or saved to a local directory.
+- **Unsaved** means the Playground has not been saved. Temporary Playgrounds, including `?storage=temp`, are lost when the tab is closed or refreshed.
 
-- **Download as .zip**: Saves files, database, and current edits to a `.zip` file that you can re-import later.
-- **Copy original setup link**: Copies a URL that rebuilds the Playground from its original Blueprint. It does not include later edits.
-- **Export to GitHub**: Pushes the current state, including edits, to a GitHub repository.
+Click **Autosaved** or **Unsaved** to open **Store permanently**.
 
-![Export options in the Dock](/img/dock/dock-export-playground.webp)
+![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
 
-### Blueprint pane
+Store permanently can keep an autosaved Playground in browser storage so autosave pruning no longer removes it. In browsers that support the File System Access API, it can also save the Playground to a local directory.
 
-![Blueprint pane in the Dock](/img/dock/dock-current-blueprint.webp)
+Browser storage still belongs to the browser. The browser may remove stored data when storage pressure or privacy settings require it. Export a ZIP when you need a portable backup.
 
-The **Blueprint** pane lets you edit, export, and run the Blueprint for the current Playground.
+## Start a Playground
 
-### New Playground
+Open **New Playground** from the Dock by clicking **New**. The pane contains
+**Blueprint gallery**, **From a URL**, **Write a Blueprint**, **Preview a PR**,
+**From GitHub**, and **Import zip**.
 
-![New Playground options in the Dock](/img/dock/dock-new-playground.webp)
+![The New Playground pane with the Blueprint gallery selected](/img/dock/dock-new-playground.webp)
 
-The **New** pane shows all the ways to launch WordPress Playground: choose a Blueprint from the gallery, import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
+The Blueprint gallery starts with **Vanilla WordPress**, which creates a clean
+WordPress install. **From a URL** opens a public Blueprint URL. **Write a
+Blueprint** opens an editor for a new Blueprint. **Import zip** restores a ZIP
+exported from Playground.
 
-The Blueprint Gallery lists more than 40 blueprints.
+![The New Playground pane with Import zip selected](/img/dock/dock-new-playground-import-zip.webp)
+
+## Return to recent and saved Playgrounds
+
+Open **Your Playgrounds** from the Dock by clicking **Playgrounds**. It lists the current Playground, recent autosaves, and Playgrounds you saved permanently.
+
+![The Your Playgrounds pane with the current Playground](/img/dock/your-playgrounds.webp)
+
+Autosaved Playgrounds are recovery points. Playground retains up to five recent
+autosaves. Use **Store permanently** to keep one as a saved Playground.
+
+## Change site settings
+
+Open **Site Settings** to change runtime and WordPress setup options.
+
+![The Site Settings pane](/img/dock/dock-site-settings.webp)
+
+PHP version and networking can be applied to an existing stored Playground. WordPress version, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
+
+Running an edited Blueprint keeps stored and autosaved Playgrounds. It discards a temporary Playground because the new run starts from a fresh setup.
+
+## Inspect the current Blueprint
+
+Open **Blueprint** to view and edit the Blueprint for the current Playground.
+
+![The Blueprint editor pane](/img/dock/dock-current-blueprint.webp)
+
+The editor can run the edited Blueprint in a new Playground. For a stored or autosaved Playground, the original Playground remains available in **Your Playgrounds**.
+
+## Inspect files, database, and logs
+
+Open **Files** to browse and edit the current Playground files.
+
+![The Files pane with a WordPress file selected](/img/dock/files.webp)
+
+Open **Database** to use database tools or download the SQLite database.
+
+![The Database pane](/img/dock/database.webp)
+
+Open **Logs** to inspect PHP errors, warnings, and notices.
+
+![The PHP error log pane](/img/dock/logs.webp)
+
+## Export and share {#playground-options-menu}
+
+Open **Export** to download or share the current Playground.
+
+![The Export pane](/img/dock/dock-export-playground.webp)
+
+**Download as .zip** exports the current files, database, plugins, themes, uploads, and edits. The ZIP can be restored later with **New → Import zip**.
+
+**Copy original setup link** copies a link that recreates only the original
+setup. It does not include edits made after the Playground started.
+
+**Export to GitHub** can create a pull request with selected files from the current Playground.
+
+## Change the Dock layout
+
+The Dock can be shown as a floating panel or full-width bar. Use **Full width** to switch layouts.
+
+| Floating                                                   | Full width                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| ![The default floating Dock](/img/dock/dock-overview.webp) | ![The full-width Dock layout](/img/dock/dock-full-width.webp) |
+
+Use **Hide tools** to collapse the Dock to its address field and save status.
+Use **Show tools** to reopen the tool row.
+
+![The Playground with Dock tools hidden](/img/dock/dock-hidden-tools.webp)
+
+You can drag the floating Dock on desktop. Drag it past the left or right edge
+to fold it into a corner launcher, then click the launcher to restore the Dock.
+
+![The Dock folded into the corner launcher](/img/dock/dock-corner-launcher.webp)
+
+On narrow screens, the Dock uses a full-width mobile layout.
+
+![The Dock on a mobile viewport](/img/dock/dock-mobile.webp)
 
 <div class="callout callout-warning">
 

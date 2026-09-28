@@ -117,6 +117,22 @@ export class WebsitePage {
 		const dock = this.page.getByRole('navigation', {
 			name: 'Playground tools',
 		});
+		const developerTools = dock.getByRole('group', {
+			name: 'Developer tools',
+			includeHidden: true,
+		});
+		if (
+			await developerTools
+				.getByRole('button', { name: toolName, includeHidden: true })
+				.count()
+		) {
+			const toggle = dock.getByRole('button', {
+				name: 'Dev Tools',
+				exact: true,
+			});
+			if ((await toggle.getAttribute('aria-expanded')) !== 'true')
+				await toggle.click();
+		}
 		const tool = dock.getByRole('button', { name: toolName });
 		if ((await tool.getAttribute('aria-pressed')) !== 'true') {
 			await tool.click();

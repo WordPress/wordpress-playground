@@ -26,5 +26,10 @@ export { runWpInstallationWizard } from './run-wp-installation-wizard';
 export { setSiteOptions, updateUserMeta } from './site-data';
 export { defineWpConfigConsts } from './define-wp-config-consts';
 export { zipWpContent } from './zip-wp-content';
-export { wpCLI } from './wp-cli';
+export {
+	wpCLI,
+	assertWpCli,
+	defaultWpCliPath,
+	defaultWpCliResource,
+} from './wp-cli';
 export { setSiteLanguage } from './set-site-language';

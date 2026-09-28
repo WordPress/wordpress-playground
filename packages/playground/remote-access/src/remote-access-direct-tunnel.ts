@@ -4,6 +4,7 @@ import { zipWpContent } from '@wp-playground/blueprints';
 import {
 	addIceCandidateIfCurrent,
 	bufferRemoteCandidate,
+	buildHostTokenHeaders,
 	createAttemptSignal,
 	flushRemoteCandidates,
 	formatBackupFilename,
@@ -47,6 +48,7 @@ interface CreateSessionResponse {
 	sessionId: string;
 	shareUrl: string;
 	accessCode: string;
+	hostToken: string;
 }
 
 interface TunnelRequest {
@@ -446,6 +448,7 @@ export class DirectTunnelHost {
 	private sessionId: string | null = null;
 	private shareUrl: string | null = null;
 	private accessCode: string | null = null;
+	private hostToken: string | null = null;
 	private isActive = false;
 	private signalCursor = 0;
 	private status: TunnelHostStatus = 'disconnected';
@@ -516,6 +519,7 @@ export class DirectTunnelHost {
 		this.sessionId = data.sessionId;
 		this.shareUrl = data.shareUrl;
 		this.accessCode = data.accessCode;
+		this.hostToken = data.hostToken;
 		this.isActive = true;
 
 		this.updateMetrics({ handshakeState: 'Waiting for remote device' });
@@ -526,6 +530,7 @@ export class DirectTunnelHost {
 
 	async stopSharing(): Promise<void> {
 		const sessionIdToClose = this.sessionId;
+		const hostTokenToClose = this.hostToken;
 		this.isActive = false;
 		this.stopHeartbeat();
 		this.stopDataChannelOpenTimeout();
@@ -542,6 +547,7 @@ export class DirectTunnelHost {
 		this.sessionId = null;
 		this.shareUrl = null;
 		this.accessCode = null;
+		this.hostToken = null;
 		this.setStatus('disconnected');
 		this.updateMetrics({
 			pending: 0,
@@ -555,7 +561,11 @@ export class DirectTunnelHost {
 					buildRemoteAccessRelayEndpointUrl(this.relayUrl, 'close', {
 						sessionId: sessionIdToClose,
 					}),
-					{ method: 'POST', keepalive: true }
+					{
+						method: 'POST',
+						headers: buildHostTokenHeaders(hostTokenToClose),
+						keepalive: true,
+					}
 				);
 			} catch (e) {
 				logger.warn('[DirectTunnelHost] Close request failed:', e);
@@ -1256,7 +1266,8 @@ export class DirectTunnelHost {
 						sessionId: this.sessionId,
 						to: 'host',
 						since: this.signalCursor,
-					})
+					}),
+					{ headers: buildHostTokenHeaders(this.hostToken) }
 				);
 				if (!response.ok) {
 					throw new Error(
@@ -1396,7 +1407,10 @@ export class DirectTunnelHost {
 			}),
 			{
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					...buildHostTokenHeaders(this.hostToken),
+				},
 				body: JSON.stringify({
 					from: 'host',
 					to,

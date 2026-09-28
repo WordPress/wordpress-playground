@@ -585,7 +585,7 @@ export class PHP implements Disposable {
 	 * // result.text === "Hello world!"
 	 * ```
 	 *
-	 * In this mode, information like __DIR__ or __FILE__ isn't very
+	 * In this mode, information like `__DIR__` or `__FILE__` isn't very
 	 * useful because the code is not associated with any file.
 	 *
 	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
@@ -597,9 +597,9 @@ export class PHP implements Disposable {
 	 * found at a that path:
 	 *
 	 * ```ts
-	 * php.writeFile(
+	 * await php.writeFile(
 	 * 	"/www/index.php",
-	 * 	`<?php echo "Hello world!";"`
+	 * 	`<?php echo "Hello world!";`
 	 * );
 	 * const result = await php.run({
 	 * 	scriptPath: "/www/index.php"
@@ -607,8 +607,8 @@ export class PHP implements Disposable {
 	 * // result.text === "Hello world!"
 	 * ```
 	 *
-	 * In this mode, you can rely on path-related information like __DIR__
-	 * or __FILE__.
+	 * In this mode, you can rely on path-related information like `__DIR__`
+	 * or `__FILE__`.
 	 *
 	 * Under the hood, the PHP file is executed with the `php_execute_script`
 	 * C function.
@@ -682,7 +682,7 @@ export class PHP implements Disposable {
 	 * }
 	 * ```
 	 *
-	 * In this mode, information like __DIR__ or __FILE__ isn't very
+	 * In this mode, information like `__DIR__` or `__FILE__` isn't very
 	 * useful because the code is not associated with any file.
 	 *
 	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
@@ -707,8 +707,8 @@ export class PHP implements Disposable {
 	 * }
 	 * ```
 	 *
-	 * In this mode, you can rely on path-related information like __DIR__
-	 * or __FILE__.
+	 * In this mode, you can rely on path-related information like `__DIR__`
+	 * or `__FILE__`.
 	 *
 	 * Under the hood, the PHP file is executed with the `php_execute_script`
 	 * C function.

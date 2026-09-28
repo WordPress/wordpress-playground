@@ -1,6 +1,6 @@
 ---
 title: લિંક્સ અને સંસાધનો
-slug: /resources
+slug: /links-and-resources
 description: WordPress Playground વિશે વધુ શીખવા માટે એપ્લિકેશન્સ, ટૂલ્સ, લેખો અને વિડિયોઝની ઉપયોગી લિંક્સની ક્યુરેટેડ સૂચિ.
 ---
 

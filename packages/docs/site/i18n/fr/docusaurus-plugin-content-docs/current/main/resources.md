@@ -1,6 +1,6 @@
 ---
 title: Liens et ressources
-slug: /resources
+slug: /links-and-resources
 description: Une liste organisée de liens utiles vers des applications, des outils, des articles et des vidéos pour en savoir plus sur WordPress Playground.
 ---
 

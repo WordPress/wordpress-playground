@@ -15,6 +15,8 @@ import type { OriginalUrlParams } from '../original-url-params';
 import { logger } from '@php-wasm/logger';
 import { joinPaths } from '@php-wasm/util';
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
+import type { Ignore } from 'ignore';
+import ignore from 'ignore';
 import {
 	type ExtraLibrary,
 	type PHPConstants,
@@ -39,6 +41,10 @@ export {
 
 // TODO: Decide on metadata filename
 const SITE_METADATA_FILENAME = 'wp-runtime.json';
+const ABANDONED_AUTOSAVE_AGE_MS = 24 * 60 * 60 * 1000;
+const INITIAL_SYNC_LOCK_PREFIX = 'wordpress-playground:initial-opfs-sync:';
+// 0o40755 = 0o40000 | 0o755; ZIP stores it in externalFileAttributes' upper 16 bits.
+const ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES = 0o40755 << 16;
 
 // Use a symbol to mark legacy site metadata to avoid serializing it to JSON.
 // @TODO: Remove this backcompat code after 2024-12-01.
@@ -66,6 +72,14 @@ type StoredSiteChanges = {
 	metadata?: SiteMetadataChanges;
 	originalUrlParams?: OriginalUrlParams;
 };
+
+export interface ExportSavedSiteAsZipOptions {
+	/**
+	 * Gitignore-style exclusion patterns applied relative to the saved site root.
+	 * Patterns starting with `!` re-include paths.
+	 */
+	excludePatterns?: readonly string[];
+}
 
 let opfsSitesRoot: FileSystemDirectoryHandle | undefined = undefined;
 try {
@@ -97,6 +111,24 @@ class OpfsSiteStorage {
 		const existingSiteDirName = await this.findExistingSiteDirName(slug);
 		if (existingSiteDirName) {
 			throw new Error(`Site with slug '${slug}' already exists.`);
+		}
+		// A new site's files may remain in MEMFS long after metadata is written.
+		// Keep cleanup away for this document's lifetime, including background
+		// sync and retries. Other documents cannot boot a pending stored site.
+		// The browser releases this lock when the document goes away.
+		if (navigator.locks) {
+			await new Promise<void>((resolve, reject) => {
+				void navigator.locks
+					.request(
+						`${INITIAL_SYNC_LOCK_PREFIX}${slug}`,
+						{ mode: 'shared' },
+						() => {
+							resolve();
+							return new Promise<void>(() => {});
+						}
+					)
+					.catch(reject);
+			});
 		}
 		await this.root.getDirectoryHandle(newSiteDirName, {
 			create: true,
@@ -157,11 +189,30 @@ class OpfsSiteStorage {
 		});
 	}
 
+	/** Loads sites after removing old, inactive, metadata-only autosaves. */
 	async list(): Promise<SiteInfo[]> {
 		const sites: SiteInfo[] = [];
+		// Finish iteration before cleanup mutates the directory.
+		const entries = [];
 		for await (const entry of this.root.values()) {
+			entries.push(entry);
+		}
+		for (const entry of entries) {
 			if (entry.kind === 'directory') {
 				try {
+					if (
+						await this.removeAbandonedAutosave(entry).catch(
+							(error) => {
+								logger.warn(
+									`Unable to clean up autosave ${entry.name}:`,
+									error
+								);
+								return false;
+							}
+						)
+					) {
+						continue;
+					}
 					const site = await this.readSite(entry.name);
 					if (site) {
 						sites.push(site);
@@ -217,12 +268,15 @@ class OpfsSiteStorage {
 	 * half-written or mismatched files is just corrupt output with a nicer file
 	 * extension.
 	 */
-	async exportSavedSiteAsZip(slug: string): Promise<Blob | undefined> {
+	async exportSavedSiteAsZip(
+		slug: string,
+		options: ExportSavedSiteAsZipOptions = {}
+	): Promise<Blob | undefined> {
 		const siteDirectory = await this.getSavedSiteDirectory(slug);
 		if (!siteDirectory) {
 			return undefined;
 		}
-		return await zipDirectory(siteDirectory);
+		return await zipDirectory(siteDirectory, options.excludePatterns);
 	}
 
 	/**
@@ -384,6 +438,54 @@ class OpfsSiteStorage {
 
 		return undefined;
 	}
+	/**
+	 * Never infer abandonment from the pending flag alone: a live tab may still
+	 * be installing WordPress in memory. Recheck under both the initial-sync
+	 * lock and the metadata lock so a concurrent save cannot become explicit
+	 * between the check and deletion. Without Web Locks, leave the site alone.
+	 */
+	private async removeAbandonedAutosave(
+		directory: FileSystemDirectoryHandle
+	) {
+		if (!navigator.locks) {
+			return false;
+		}
+		const site = await this.readStoredSiteMetadata(directory);
+		if (!isAbandonedAutosave(site)) {
+			return false;
+		}
+		return await navigator.locks.request(
+			`${INITIAL_SYNC_LOCK_PREFIX}${site.slug}`,
+			{ ifAvailable: true },
+			async (lock) => {
+				if (!lock) {
+					return false;
+				}
+				return await withSiteMetadataLock(site.slug, async () => {
+					if (
+						!isAbandonedAutosave(
+							await this.readStoredSiteMetadata(directory)
+						)
+					) {
+						return false;
+					}
+					for await (const entry of directory.values()) {
+						// Preserve partial copies and Blueprint bundles, even empty ones.
+						if (
+							entry.kind !== 'file' ||
+							entry.name !== SITE_METADATA_FILENAME
+						) {
+							return false;
+						}
+					}
+					await this.root.removeEntry(directory.name, {
+						recursive: true,
+					});
+					return true;
+				});
+			}
+		);
+	}
 }
 
 export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
@@ -391,6 +493,20 @@ export const opfsSiteStorage: OpfsSiteStorage | undefined = opfsSitesRoot
 	: undefined;
 
 export const isOpfsAvailable = !!opfsSiteStorage;
+
+function isAbandonedAutosave(site: SiteInfo) {
+	const lastUsed = site.metadata.whenLastUsed ?? site.metadata.whenCreated;
+	return (
+		site.metadata.storage === 'opfs' &&
+		site.metadata.persistence === 'autosave' &&
+		site.metadata.initialOpfsSyncPending === true &&
+		site.metadata.opfsSiteRemovalPending !== true &&
+		typeof lastUsed === 'number' &&
+		Number.isFinite(lastUsed) &&
+		lastUsed > 0 &&
+		lastUsed <= Date.now() - ABANDONED_AUTOSAVE_AGE_MS
+	);
+}
 
 /**
  * Runs a site metadata transaction under an origin-wide exclusive lock.
@@ -547,10 +663,14 @@ function isMissingOpfsEntry(error: unknown) {
  * callers can use the Blob directly, and converting it copies the whole archive
  * for no useful reason.
  */
-async function zipDirectory(directory: FileSystemDirectoryHandle) {
+async function zipDirectory(
+	directory: FileSystemDirectoryHandle,
+	excludePatterns: readonly string[] = []
+) {
 	const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
+	const pathMatcher = ignore().add(excludePatterns);
 	try {
-		await addDirectoryEntries(zipWriter, directory, '');
+		await addDirectoryEntries(zipWriter, directory, '', pathMatcher);
 		return await zipWriter.close();
 	} catch (error) {
 		await zipWriter.close().catch(() => undefined);
@@ -568,7 +688,8 @@ async function zipDirectory(directory: FileSystemDirectoryHandle) {
 async function addDirectoryEntries(
 	zipWriter: ZipWriter<Blob>,
 	directory: FileSystemDirectoryHandle,
-	relativeDirPath: string
+	relativeDirPath: string,
+	pathMatcher: Ignore
 ) {
 	for await (const [name, entry] of directory.entries()) {
 		const relativePath = relativeDirPath
@@ -576,11 +697,25 @@ async function addDirectoryEntries(
 			: name;
 
 		if (entry.kind === 'directory') {
-			await zipWriter.add(`${relativePath}/`, undefined, {
+			const archivePath = `${relativePath}/`;
+			// Descendants cannot be re-included while their parent remains ignored.
+			if (pathMatcher.ignores(archivePath)) {
+				continue;
+			}
+			await zipWriter.add(archivePath, undefined, {
 				directory: true,
+				externalFileAttributes: ZIP_DIRECTORY_EXTERNAL_FILE_ATTRIBUTES,
 			});
-			await addDirectoryEntries(zipWriter, entry, relativePath);
+			await addDirectoryEntries(
+				zipWriter,
+				entry,
+				relativePath,
+				pathMatcher
+			);
 		} else {
+			if (pathMatcher.ignores(relativePath)) {
+				continue;
+			}
 			await zipWriter.add(
 				relativePath,
 				new BlobReader(await entry.getFile())

@@ -83,6 +83,22 @@ export function isTemporarySite(site: SiteInfo) {
 }
 
 /**
+ * Indicates whether a site was loaded before its first OPFS copy completed.
+ *
+ * New stored Playgrounds keep this flag while their live client copies its
+ * initialized files. If another document loads the record before that flag is
+ * cleared, the files are not yet bootable. The creating document may still be
+ * syncing or may have stopped.
+ */
+export function hasUnfinishedInitialOpfsSyncFromStorage(site: SiteInfo) {
+	return (
+		site.loadedFromStorage === true &&
+		isOpfsBackedSite(site) &&
+		site.metadata.initialOpfsSyncPending === true
+	);
+}
+
+/**
  * Indicates whether a site has durable storage. Autosaved sites are stored but
  * not explicitly saved, so callers that need user-pinned sites use
  * isExplicitlySavedSite instead.
