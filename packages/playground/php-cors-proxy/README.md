@@ -59,12 +59,13 @@ size before requesting ranges. `HEAD` requests also ask the target for
 `Accept-Encoding: identity`, so the size matches the bytes ranges address.
 
 If the target fails partway through a response, the proxy ends the response
-early without adding anything to the body. When the target sent a
-`Content-Length`, the client sees fewer bytes than announced and can tell the
-response is incomplete. When it didn't, as with chunked responses, a server in
-front of PHP such as nginx or Apache may still end the response normally, so
-the client can't tell it's incomplete. For a `206`, compare the body length
-with `Content-Range` instead.
+early without adding anything to the body. When the client receives the
+target's `Content-Length`, it sees fewer bytes than announced and can tell the
+response is incomplete. When it doesn't, a server in front of PHP such as nginx
+or Apache may still end the response normally, so the client can't tell it's
+incomplete. That happens when the target sends a chunked response, and when a
+server in front of PHP compresses the response and drops `Content-Length`. For
+a `206`, compare the body length with `Content-Range` instead.
 
 Every response relayed from a target has `Cache-Control: no-cache`, which
 the WP Cloud edge cache honors by not storing the response. Keep it that
