@@ -366,13 +366,19 @@ export function removeSite(
 			);
 		}
 		const clientInfo = selectClientInfoBySiteSlug(getState(), slug);
-		const mount =
+		let mount =
 			siteInfo.metadata.storage === 'opfs'
 				? clientInfo?.opfsMountDescriptor
 				: undefined;
 		if (mount && clientInfo) {
-			// removeEntry cannot delete files while the PHP journal holds writes open.
-			await clientInfo.client.unmountOpfs(mount.mountpoint);
+			// Boot records the planned mount before an import initializer runs.
+			// If that initializer fails, there is no active journal to detach.
+			if (await clientInfo.client.hasOpfsMount(mount.mountpoint)) {
+				// removeEntry cannot delete files while the PHP journal holds writes open.
+				await clientInfo.client.unmountOpfs(mount.mountpoint);
+			} else {
+				mount = undefined;
+			}
 		}
 		try {
 			await opfsSiteStorage.delete(siteInfo.slug);
