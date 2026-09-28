@@ -359,6 +359,7 @@ describe('stored sites', () => {
 
 	it.each([
 		'success',
+		'not mounted',
 		'unmount failure',
 		'delete failure',
 		'restore failure',
@@ -384,12 +385,17 @@ describe('stored sites', () => {
 					throw new Error('restore failure');
 			});
 			clientInfo = {
-				client: { unmountOpfs, mountOpfs },
+				client: {
+					unmountOpfs,
+					mountOpfs,
+					hasOpfsMount: vi.fn(async () => outcome !== 'not mounted'),
+				},
 				opfsMountDescriptor: mount,
 			} as unknown as ClientInfo;
 			deleteSite.mockImplementation(async () => {
 				operations.push('delete');
-				if (outcome !== 'success') throw new Error('delete failure');
+				if (outcome !== 'success' && outcome !== 'not mounted')
+					throw new Error('delete failure');
 			});
 			const state = {
 				sites: sitesSlice.reducer(
@@ -402,9 +408,13 @@ describe('stored sites', () => {
 				dispatch as any,
 				() => state as any
 			);
-			if (outcome === 'success') {
+			if (outcome === 'success' || outcome === 'not mounted') {
 				await deletion;
-				expect(operations).toEqual(['unmount', 'delete']);
+				expect(operations).toEqual(
+					outcome === 'not mounted'
+						? ['delete']
+						: ['unmount', 'delete']
+				);
 				expect(dispatch).toHaveBeenCalledWith(
 					sitesSlice.actions.removeSite(site.slug)
 				);
