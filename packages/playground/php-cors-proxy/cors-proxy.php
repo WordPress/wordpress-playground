@@ -368,6 +368,9 @@ curl_setopt(
             return $len;
         }
         if ($in_interim_response) {
+            // Skip this header. It belongs to an interim response, which PHP
+            // can't relay: a script sends only one response. Relaying it
+            // would add it to the final response by mistake.
             return $len;
         }
 
