@@ -289,10 +289,10 @@ PHP.wasm também pode carregar extensões dinâmicas `.so` antes de iniciar o PH
 ## API C exposta ao JavaScript
 
 <!--
-The C API exposed to JavaScript lives in the [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) file. The most important functions are:
+The C API exposed to JavaScript lives in the [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/php_wasm.c) file. The most important functions are:
 -->
 
-A API C exposta ao JavaScript está no arquivo [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c). As funções mais importantes são:
+A API C exposta ao JavaScript está no arquivo [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/php_wasm.c). As funções mais importantes são:
 
 <!--
 - `void phpwasm_init()` – It creates a new PHP context and must be called before running any PHP code.
@@ -305,10 +305,10 @@ A API C exposta ao JavaScript está no arquivo [`php_wasm.c`](https://github.com
 - `void phpwasm_refresh()` – Destrói o contexto PHP atual e inicia um novo. Chame-a após executar um script PHP e antes de executar outro.
 
 <!--
-Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) to learn more.
+Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/php_wasm.c) to learn more.
 -->
 
-Consulte a documentação no código de [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) para saber mais.
+Consulte a documentação no código de [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/compile/php/php_wasm.c) para saber mais.
 
 <!--
 ## Build configuration
@@ -346,16 +346,12 @@ Esta lista destaca as configurações de depuração e compilação básicas. Pa
 - `WITH_DEBUG` – `yes` or `no`. Build with DWARF debug information and disable final optimization. See [Debug builds](#debug-builds).
 - `WITH_SOURCEMAPS` – `yes` or `no`. Generate WebAssembly source maps and disable final optimization. See [Debug builds](#debug-builds).
 - `PHP_VERSION` – The PHP version to build. Use a major/minor version such as `8.4` to select its latest release from [the supported PHP versions](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/supported-php-versions.mjs), or an exact release such as `8.4.25`. The build clones the corresponding `php-<version>` tag from php-src.
-- `EMSCRIPTEN_ENVIRONMENT` – `web` or `node`, default: `web`. The platform to build for. When building for `web`, two JavaScript loaders will be created: `php-web.js` and `php-webworker.js`. When building for Node.js, only one loader called `php-node.js` will be created.
-- `WITH_LIBXML` – `yes` or `no`, default: `no`. Whether to build with `libxml2` and the `dom`, `xml`, and `simplexml` PHP extensions (`DOMDocument`, `SimpleXML`, ..).
+- `WITH_LIBXML` – `yes` or `no`, default: `yes`. Whether to build with `libxml2` and the `dom`, `xml`, and `simplexml` PHP extensions (`DOMDocument`, `SimpleXML`, ..).
 - `WITH_LIBZIP` – `yes` or `no`, default: `yes`. Whether to build with `zlib`, `libzip`, and the `zip` PHP extension (`ZipArchive`).
-- `WITH_NODEFS` – `yes` or `no`, default: `no`. Whether to include [the Emscripten's NODEFS JavaScript library](https://emscripten.org/docs/api_reference/Filesystem-API.html#filesystem-api-nodefs). It's useful for loading files and mounting directories from the local filesystem when running php.wasm from Node.js.
 -->
 
 - `WITH_DEBUG` – `yes` ou `no`. Compila com informações de depuração DWARF e desativa a otimização final. Consulte [Compilações para depuração](#debug-builds).
 - `WITH_SOURCEMAPS` – `yes` ou `no`. Gera mapas de código-fonte WebAssembly e desativa a otimização final. Consulte [Compilações para depuração](#debug-builds).
 - `PHP_VERSION` – A versão do PHP a compilar. Use uma versão principal/secundária como `8.4` para selecionar sua versão mais recente na [lista de versões do PHP compatíveis](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/supported-php-versions.mjs), ou uma versão exata como `8.4.25`. A compilação clona a tag `php-<version>` correspondente do php-src.
-- `EMSCRIPTEN_ENVIRONMENT` – `web` ou `node`, padrão: `web`. A plataforma para a qual compilar. Ao compilar para `web`, dois carregadores JavaScript são criados: `php-web.js` e `php-webworker.js`. Ao compilar para Node.js, apenas um carregador chamado `php-node.js` é criado.
-- `WITH_LIBXML` – `yes` ou `no`, padrão: `no`. Define se a compilação inclui `libxml2` e as extensões PHP `dom`, `xml` e `simplexml` (`DOMDocument`, `SimpleXML`, ...).
+- `WITH_LIBXML` – `yes` ou `no`, padrão: `yes`. Define se a compilação inclui `libxml2` e as extensões PHP `dom`, `xml` e `simplexml` (`DOMDocument`, `SimpleXML`, ...).
 - `WITH_LIBZIP` – `yes` ou `no`, padrão: `yes`. Define se a compilação inclui `zlib`, `libzip` e a extensão PHP `zip` (`ZipArchive`).
-- `WITH_NODEFS` – `yes` ou `no`, padrão: `no`. Define se a compilação inclui [a biblioteca JavaScript NODEFS do Emscripten](https://emscripten.org/docs/api_reference/Filesystem-API.html#filesystem-api-nodefs). Ela permite carregar arquivos e montar diretórios do sistema de arquivos local ao executar php.wasm no Node.js.
