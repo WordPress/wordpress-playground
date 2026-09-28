@@ -504,6 +504,57 @@ test('another site cannot frame app APIs or service-worker WordPress documents',
 	expect(await popup.evaluate(() => window.opener === null)).toBe(true);
 });
 
+test('opaque WordPress image backfill loads from the shared asset origin', async ({
+	page,
+}) => {
+	await page.goto('./?wp=6.9&php=8.3');
+	await ready(page);
+	const loaded = await page.evaluate(async () => {
+		const client = (window as any).playgroundSites.getClient();
+		const path = '/wp-includes/images/blank.gif';
+		await client.backfillStaticFilesRemovedFromMinifiedBuild();
+		if (await client.fileExists('/wordpress' + path))
+			await client.unlink('/wordpress' + path);
+		const absoluteUrl = await client.absoluteUrl;
+		const image = new Image();
+		return await new Promise<boolean>((resolve) => {
+			image.onload = () => resolve(image.naturalWidth > 0);
+			image.onerror = () => resolve(false);
+			image.src = `${absoluteUrl}${path}`;
+		});
+	});
+	expect(loaded).toBe(true);
+});
+
+test('a malformed catalogue entry does not block the launcher or bridge', async ({
+	page,
+}) => {
+	await page.goto('http://playground.localhost:9400/');
+	await page.evaluate(() => {
+		localStorage.setItem('origin-isolation-sites', '{');
+		localStorage.setItem(
+			'origin-isolation-site:http://site-aaaa.playground.localhost:9400',
+			'{'
+		);
+	});
+	await page.reload();
+	await page
+		.getByRole('link', { name: 'New saved Playground', exact: true })
+		.click();
+	await ready(page);
+	expect(new URL(page.url()).hostname).toMatch(/^site-/);
+	const catalogue = await bridgeRequest(
+		page,
+		'http://playground.localhost:9400/origin-isolation.html',
+		'catalogue',
+		undefined
+	);
+	expect(catalogue.error).toBeUndefined();
+	expect(catalogue.value).toEqual([
+		expect.objectContaining({ origin: new URL(page.url()).origin }),
+	]);
+});
+
 test('site origins do not offer GitHub sign-in or request a token', async ({
 	page,
 }) => {

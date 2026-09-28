@@ -41,10 +41,21 @@
 	</p>
 	<script>
 		const key = 'origin-isolation-sites';
-		const previous = JSON.parse(localStorage.getItem(key) || '[]');
+		let previous = [];
+		try {
+			previous = JSON.parse(localStorage.getItem(key) || '[]');
+		} catch {
+			/* Keep the launcher usable if old display metadata is damaged. */
+		}
 		const current = Object.keys(localStorage)
 			.filter((key) => key.startsWith('origin-isolation-site:'))
-			.map((key) => JSON.parse(localStorage.getItem(key)));
+			.flatMap((key) => {
+				try {
+					return [JSON.parse(localStorage.getItem(key))];
+				} catch {
+					return [];
+				}
+			});
 		const sites = new Map(
 			previous.map((site) => [new URL(site.href).origin, site])
 		);

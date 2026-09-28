@@ -129,6 +129,45 @@ describe('bootSiteClient', () => {
 		expect(dispatch).not.toHaveBeenCalled();
 	});
 
+	it.each(['aborted', 'deleted'])(
+		'does not start OPFS after an initializer finishes for a %s site',
+		async (outcome) => {
+			const playground = createPlaygroundClient();
+			vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+				async (options: any) => {
+					options.onClientConnected(playground);
+					return playground;
+				}
+			);
+			const site = createSite('late-initializer', {
+				metadata: { initialOpfsSyncPending: true },
+			});
+			const state = createState(site);
+			const dispatch = createDispatch(state);
+			const controller = new AbortController();
+			let release!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			const initialize = vi.fn(() => pending);
+			const registration = registerSiteFirstBootInitializer(
+				site.slug,
+				initialize
+			);
+			const boot = bootSiteClient(
+				site.slug,
+				document.createElement('iframe'),
+				{ signal: controller.signal }
+			)(dispatch, () => ({ ...state }));
+			await vi.waitFor(() => expect(initialize).toHaveBeenCalled());
+			if (outcome === 'aborted') controller.abort();
+			else dispatch(sitesSlice.actions.removeSite(site.slug));
+			release();
+			await Promise.all([boot, registration.finished]);
+			expect(playground.mountOpfs).not.toHaveBeenCalled();
+		}
+	);
+
 	it('finishes pending OPFS resets before booting the site', async () => {
 		const site = createSite('autosaved', {
 			loadedFromStorage: true,
