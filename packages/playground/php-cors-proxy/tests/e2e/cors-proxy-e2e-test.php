@@ -639,7 +639,9 @@ function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method 
     });
 
     curl_exec($ch);
-    if (curl_errno($ch) !== 0) {
+    // Print errors only when no response arrived, e.g. a refused connection.
+    // Tests of truncated responses expect an error after the headers.
+    if (curl_errno($ch) !== 0 && curl_getinfo($ch, CURLINFO_HTTP_CODE) === 0) {
         echo "  curl error: " . curl_error($ch) . "\n";
     }
 
