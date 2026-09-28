@@ -51,6 +51,11 @@ try {
 			'--disable-background-networking',
 			'--no-default-browser-check',
 			'--use-mock-keychain',
+			// GitHub's Linux runner restricts Chromium's sandbox. This switch does
+			// not change HTTP caching, storage partitioning, or web origin checks.
+			...(process.env.CI && process.platform === 'linux'
+				? ['--no-sandbox']
+				: []),
 			`--user-data-dir=${profile}`,
 		],
 	});
@@ -429,6 +434,7 @@ try {
 	await rm(profile, { recursive: true, force: true });
 }
 
+/** Wait for boot, static backfill, first persistence, and settled network measurements. */
 async function openSite(page, href) {
 	console.log('Opening', href);
 	await page.goto(href, { waitUntil: 'domcontentloaded' });
@@ -461,5 +467,7 @@ async function openSite(page, href) {
 			{ timeout: 120000 }
 		)
 		.toBe(true);
+	// Wait for server response logs before taking each cache measurement.
+	await page.waitForLoadState('networkidle');
 	console.log('Ready', page.url());
 }

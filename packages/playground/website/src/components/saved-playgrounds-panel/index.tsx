@@ -1362,6 +1362,7 @@ export function SavedPlaygroundsPanel({
 		);
 	}
 
+	/** Keep local site actions separate from links to sites stored on other origins. */
 	function renderYourPlaygroundsSection() {
 		const visibleSavedSites = showAllStoredSites
 			? savedSites

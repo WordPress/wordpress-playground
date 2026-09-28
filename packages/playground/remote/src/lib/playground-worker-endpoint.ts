@@ -580,6 +580,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 	}
 
+	/** Serialize overlapping asset restoration calls within this runtime; later calls may retry. */
 	async backfillStaticFilesRemovedFromMinifiedBuild() {
 		// Frame load events and API calls can overlap. Share the download and unzip
 		// until they finish, then allow another call to check the filesystem or retry.

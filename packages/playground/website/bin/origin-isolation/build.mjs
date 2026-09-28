@@ -62,6 +62,7 @@ for (const name of ['client', 'remote', 'website']) {
 			)
 		);
 		const visited = new Set();
+		/** Follow static imports once; optional tools and runtime versions stay demand-loaded. */
 		function includeShellModule(key) {
 			if (visited.has(key)) return;
 			visited.add(key);

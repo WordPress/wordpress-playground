@@ -54,7 +54,10 @@ import {
 /**
  * Ensures the redux store always has an activeSite value.
  *
- * It has two routing modes:
+ * The prototype first consumes its one-time setup or restores the single saved
+ * site on this origin. A used origin without a saved site is retired.
+ *
+ * The normal website has two routing modes:
  * * When `site-slug` is provided, it loads that site or creates it if missing.
  * * When `site-slug` is missing, it starts from the current setup URL and
  *   creates an autosaved site unless the shell requires a temporary one.
@@ -161,7 +164,11 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
-		/** Select or create the site requested by setup and lifecycle URL values. */
+		/**
+		 * Select or create the site requested by setup and lifecycle URL values.
+		 * In the prototype, restore this origin's site or consume its one-time setup
+		 * after storage has loaded.
+		 */
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {

@@ -88,6 +88,7 @@ async function waitForFonts() {
 	]);
 }
 
+/** Mark the site-local worker entry so scoped WordPress routing leaves it untouched. */
 function getResourceWorkerUrl() {
 	const url = sameOriginWorkerUrl(resourceWorkerUrl);
 	// The service worker uses this marker to serve the bundled worker instead

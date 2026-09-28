@@ -4,6 +4,7 @@ import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '@php-wasm/util';
 
+/** Keep same-origin routes in the SPA; changing origins requires a real navigation. */
 export function redirectTo(url: string) {
 	if (new URL(url, window.location.href).origin !== window.location.origin) {
 		window.location.assign(url);

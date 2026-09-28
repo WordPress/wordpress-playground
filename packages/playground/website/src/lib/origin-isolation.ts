@@ -19,6 +19,7 @@ export interface OriginSetup {
 	blueprint?: Array<{ path: string; bytes: Uint8Array | null }>;
 }
 
+/** Accept only canonical site origins under this launcher’s scheme and port. */
 export function isSiteOrigin(
 	origin: string,
 	base = window.location.origin
@@ -37,19 +38,15 @@ export function isSiteOrigin(
 	}
 }
 
-export function catalogueUrl(): URL {
-	const url = new URL('/origin-isolation.html', window.location.href);
-	url.hostname = 'playground.localhost';
-	return url;
-}
-
 let catalogueFrame: Promise<HTMLIFrameElement> | undefined;
 
 /** Only names, origins, and save state cross this boundary; never site files or credentials. */
 export async function updateOriginCatalogue(
 	site?: Omit<OriginSite, 'origin'> | null
 ) {
-	catalogueFrame ??= loadBridge(catalogueUrl());
+	const url = new URL('/origin-isolation.html', window.location.href);
+	url.hostname = 'playground.localhost';
+	catalogueFrame ??= loadBridge(url);
 	const result = await requestBridge<OriginSite[]>(
 		await catalogueFrame,
 		'catalogue',
@@ -86,6 +83,7 @@ export async function navigateToFreshOrigin(
 	return new Promise<never>(() => {});
 }
 
+/** Load the narrow cross-origin endpoint without mounting another app or runtime. */
 async function loadBridge(url: URL): Promise<HTMLIFrameElement> {
 	const frame = document.createElement('iframe');
 	frame.hidden = true;
@@ -104,6 +102,7 @@ async function loadBridge(url: URL): Promise<HTMLIFrameElement> {
 	return frame;
 }
 
+/** Bind each reply to the expected frame, exact origin, and one request ID. */
 async function requestBridge<T>(
 	frame: HTMLIFrameElement,
 	action: string,
@@ -119,6 +118,7 @@ async function requestBridge<T>(
 				),
 			30000
 		);
+		/** Reject messages from other frames, origins, or outstanding requests. */
 		const receive = (event: MessageEvent) => {
 			if (
 				event.source !== frame.contentWindow ||
@@ -131,6 +131,7 @@ async function requestBridge<T>(
 				event.data.value
 			);
 		};
+		/** Release the listener on success, remote error, or timeout. */
 		function finish(error?: Error, result?: T) {
 			clearTimeout(timeout);
 			window.removeEventListener('message', receive);
@@ -199,6 +200,7 @@ export async function snapshotOriginBlueprint(
 	source: TraversableFilesystemBackend
 ) {
 	const entries: NonNullable<OriginSetup['blueprint']> = [];
+	/** Record directories before their children and preserve file bytes unchanged. */
 	async function visit(directory: string) {
 		for (const name of await source.listFiles(directory)) {
 			const path = joinPaths(directory, name);

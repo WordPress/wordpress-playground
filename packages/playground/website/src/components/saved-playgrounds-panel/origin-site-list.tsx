@@ -16,6 +16,7 @@ export function OriginSiteList() {
 	useEffect(() => {
 		if (!isSiteOrigin(window.location.origin)) return;
 		let disposed = false;
+		/** Reload display metadata without importing foreign sites into this app’s file APIs. */
 		const refresh = () => {
 			void updateOriginCatalogue()
 				.then((result) => {

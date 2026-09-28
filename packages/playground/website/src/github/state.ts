@@ -22,6 +22,7 @@ export const oAuthState = signal<GitHubOAuthState>({
 	token: shouldStoreToken ? localStorage.getItem(TOKEN_KEY) || '' : '',
 });
 
+/** Update auth state, rejecting tokens on origins that also execute untrusted site code. */
 export function setOAuthToken(token?: string) {
 	if (
 		token &&

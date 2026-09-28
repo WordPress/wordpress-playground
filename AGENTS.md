@@ -80,6 +80,8 @@ npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 The local subdomain prototype has separate `preview:origin-isolation`,
 `test:origin-isolation`, and `e2e:origin-isolation` website targets. See
 `packages/playground/website/bin/origin-isolation/README.md` for its scope and setup.
+CI runs its Chromium boundary tests, ZIP persistence case, and shared-cache probe
+separately from the normal single-origin browser lanes.
 
 ### Package Naming Convention
 
