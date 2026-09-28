@@ -30,12 +30,12 @@ export interface WriteFilesStep<DirectoryResource> {
 	/** The path of the file to write to */
 	writeToPath: string;
 	/**
-	 * The 'filesTree' defines the directory structure, supporting 'literal:directory' or
-	 * 'git:directory' types. The 'name' represents the root directory, while 'files' is an object
-	 * where keys are file paths, and values contain either file content as a string or nested objects
-	 * for subdirectories.
+	 * The 'filesTree' defines the directory structure. It may be given inline, or as a
+	 * 'literal:directory' or 'git:directory' resource. The 'name' represents the root directory,
+	 * while 'files' is an object where keys are file paths, and values contain either file content
+	 * as a string or nested objects for subdirectories.
 	 */
-	filesTree: DirectoryResource;
+	filesTree: DirectoryResource | Directory;
 }
 
 /**

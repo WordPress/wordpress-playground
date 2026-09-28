@@ -1189,9 +1189,12 @@ const schema11 = {
 							description: 'The path of the file to write to',
 						},
 						filesTree: {
-							$ref: '#/definitions/DirectoryReference',
+							anyOf: [
+								{ $ref: '#/definitions/DirectoryReference' },
+								{ $ref: '#/definitions/Directory' },
+							],
 							description:
-								"The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
+								"The 'filesTree' defines the directory structure. It may be given inline, or as a 'literal:directory' or 'git:directory' resource. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
 						},
 					},
 					required: ['filesTree', 'step', 'writeToPath'],
@@ -1508,6 +1511,15 @@ const schema11 = {
 				adminUsername: { type: 'string' },
 				adminPassword: { type: 'string' },
 			},
+			additionalProperties: false,
+		},
+		Directory: {
+			type: 'object',
+			properties: {
+				files: { $ref: '#/definitions/FileTree' },
+				name: { type: 'string' },
+			},
+			required: ['files', 'name'],
 			additionalProperties: false,
 		},
 	},
@@ -5279,9 +5291,12 @@ const schema33 = {
 					description: 'The path of the file to write to',
 				},
 				filesTree: {
-					$ref: '#/definitions/DirectoryReference',
+					anyOf: [
+						{ $ref: '#/definitions/DirectoryReference' },
+						{ $ref: '#/definitions/Directory' },
+					],
 					description:
-						"The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
+						"The 'filesTree' defines the directory structure. It may be given inline, or as a 'literal:directory' or 'git:directory' resource. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
 				},
 			},
 			required: ['filesTree', 'step', 'writeToPath'],
@@ -8795,6 +8810,115 @@ function validate39(
 		}
 	}
 	validate39.errors = vErrors;
+	return errors === 0;
+}
+const schema43 = {
+	type: 'object',
+	properties: {
+		files: { $ref: '#/definitions/FileTree' },
+		name: { type: 'string' },
+	},
+	required: ['files', 'name'],
+	additionalProperties: false,
+};
+function validate45(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	if (errors === 0) {
+		if (data && typeof data == 'object' && !Array.isArray(data)) {
+			let missing0;
+			if (
+				(data.files === undefined && (missing0 = 'files')) ||
+				(data.name === undefined && (missing0 = 'name'))
+			) {
+				validate45.errors = [
+					{
+						instancePath,
+						schemaPath: '#/required',
+						keyword: 'required',
+						params: { missingProperty: missing0 },
+						message:
+							"must have required property '" + missing0 + "'",
+					},
+				];
+				return false;
+			} else {
+				const _errs1 = errors;
+				for (const key0 in data) {
+					if (!(key0 === 'files' || key0 === 'name')) {
+						validate45.errors = [
+							{
+								instancePath,
+								schemaPath: '#/additionalProperties',
+								keyword: 'additionalProperties',
+								params: { additionalProperty: key0 },
+								message: 'must NOT have additional properties',
+							},
+						];
+						return false;
+						break;
+					}
+				}
+				if (_errs1 === errors) {
+					if (data.files !== undefined) {
+						const _errs2 = errors;
+						if (
+							!validate22(data.files, {
+								instancePath: instancePath + '/files',
+								parentData: data,
+								parentDataProperty: 'files',
+								rootData,
+							})
+						) {
+							vErrors =
+								vErrors === null
+									? validate22.errors
+									: vErrors.concat(validate22.errors);
+							errors = vErrors.length;
+						}
+						var valid0 = _errs2 === errors;
+					} else {
+						var valid0 = true;
+					}
+					if (valid0) {
+						if (data.name !== undefined) {
+							const _errs3 = errors;
+							if (typeof data.name !== 'string') {
+								validate45.errors = [
+									{
+										instancePath: instancePath + '/name',
+										schemaPath: '#/properties/name/type',
+										keyword: 'type',
+										params: { type: 'string' },
+										message: 'must be string',
+									},
+								];
+								return false;
+							}
+							var valid0 = _errs3 === errors;
+						} else {
+							var valid0 = true;
+						}
+					}
+				}
+			}
+		} else {
+			validate45.errors = [
+				{
+					instancePath,
+					schemaPath: '#/type',
+					keyword: 'type',
+					params: { type: 'object' },
+					message: 'must be object',
+				},
+			];
+			return false;
+		}
+	}
+	validate45.errors = vErrors;
 	return errors === 0;
 }
 function validate28(
@@ -20251,10 +20375,15 @@ function validate28(
 														data.filesTree !==
 														undefined
 													) {
+														let data189 =
+															data.filesTree;
 														const _errs504 = errors;
+														const _errs505 = errors;
+														let valid103 = false;
+														const _errs506 = errors;
 														if (
 															!validate18(
-																data.filesTree,
+																data189,
 																{
 																	instancePath:
 																		instancePath +
@@ -20275,6 +20404,87 @@ function validate28(
 																		);
 															errors =
 																vErrors.length;
+														}
+														var _valid4 =
+															_errs506 === errors;
+														valid103 =
+															valid103 || _valid4;
+														if (!valid103) {
+															const _errs507 =
+																errors;
+															if (
+																!validate45(
+																	data189,
+																	{
+																		instancePath:
+																			instancePath +
+																			'/filesTree',
+																		parentData:
+																			data,
+																		parentDataProperty:
+																			'filesTree',
+																		rootData,
+																	}
+																)
+															) {
+																vErrors =
+																	vErrors ===
+																	null
+																		? validate45.errors
+																		: vErrors.concat(
+																				validate45.errors
+																			);
+																errors =
+																	vErrors.length;
+															}
+															var _valid4 =
+																_errs507 ===
+																errors;
+															valid103 =
+																valid103 ||
+																_valid4;
+														}
+														if (!valid103) {
+															const err22 = {
+																instancePath:
+																	instancePath +
+																	'/filesTree',
+																schemaPath:
+																	'#/oneOf/26/properties/filesTree/anyOf',
+																keyword:
+																	'anyOf',
+																params: {},
+																message:
+																	'must match a schema in anyOf',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err22,
+																];
+															} else {
+																vErrors.push(
+																	err22
+																);
+															}
+															errors++;
+															validate28.errors =
+																vErrors;
+															return false;
+														} else {
+															errors = _errs505;
+															if (
+																vErrors !== null
+															) {
+																if (_errs505) {
+																	vErrors.length =
+																		_errs505;
+																} else {
+																	vErrors =
+																		null;
+																}
+															}
 														}
 														var valid101 =
 															_errs504 === errors;
@@ -20300,8 +20510,8 @@ function validate28(
 							}
 						}
 					} else if (tag0 === 'wp-cli') {
-						const _errs505 = errors;
-						if (errors === _errs505) {
+						const _errs508 = errors;
+						if (errors === _errs508) {
 							if (
 								data &&
 								typeof data == 'object' &&
@@ -20330,7 +20540,7 @@ function validate28(
 									];
 									return false;
 								} else {
-									const _errs507 = errors;
+									const _errs510 = errors;
 									for (const key66 in data) {
 										if (
 											!(
@@ -20359,18 +20569,18 @@ function validate28(
 											break;
 										}
 									}
-									if (_errs507 === errors) {
+									if (_errs510 === errors) {
 										if (data.progress !== undefined) {
 											let data190 = data.progress;
-											const _errs508 = errors;
-											if (errors === _errs508) {
+											const _errs511 = errors;
+											if (errors === _errs511) {
 												if (
 													data190 &&
 													typeof data190 ==
 														'object' &&
 													!Array.isArray(data190)
 												) {
-													const _errs510 = errors;
+													const _errs513 = errors;
 													for (const key67 in data190) {
 														if (
 															!(
@@ -20402,14 +20612,14 @@ function validate28(
 															break;
 														}
 													}
-													if (_errs510 === errors) {
+													if (_errs513 === errors) {
 														if (
 															data190.weight !==
 															undefined
 														) {
 															let data191 =
 																data190.weight;
-															const _errs511 =
+															const _errs514 =
 																errors;
 															if (
 																!(
@@ -20439,18 +20649,18 @@ function validate28(
 																	];
 																return false;
 															}
-															var valid105 =
-																_errs511 ===
+															var valid106 =
+																_errs514 ===
 																errors;
 														} else {
-															var valid105 = true;
+															var valid106 = true;
 														}
-														if (valid105) {
+														if (valid106) {
 															if (
 																data190.caption !==
 																undefined
 															) {
-																const _errs513 =
+																const _errs516 =
 																	errors;
 																if (
 																	typeof data190.caption !==
@@ -20475,11 +20685,11 @@ function validate28(
 																		];
 																	return false;
 																}
-																var valid105 =
-																	_errs513 ===
+																var valid106 =
+																	_errs516 ===
 																	errors;
 															} else {
-																var valid105 = true;
+																var valid106 = true;
 															}
 														}
 													}
@@ -20502,14 +20712,14 @@ function validate28(
 													return false;
 												}
 											}
-											var valid104 = _errs508 === errors;
+											var valid105 = _errs511 === errors;
 										} else {
-											var valid104 = true;
+											var valid105 = true;
 										}
-										if (valid104) {
+										if (valid105) {
 											if (data.step !== undefined) {
 												let data193 = data.step;
-												const _errs515 = errors;
+												const _errs518 = errors;
 												if (
 													typeof data193 !== 'string'
 												) {
@@ -20549,25 +20759,25 @@ function validate28(
 													];
 													return false;
 												}
-												var valid104 =
-													_errs515 === errors;
+												var valid105 =
+													_errs518 === errors;
 											} else {
-												var valid104 = true;
+												var valid105 = true;
 											}
-											if (valid104) {
+											if (valid105) {
 												if (
 													data.command !== undefined
 												) {
 													let data194 = data.command;
-													const _errs517 = errors;
-													const _errs518 = errors;
-													let valid106 = false;
-													const _errs519 = errors;
+													const _errs520 = errors;
+													const _errs521 = errors;
+													let valid107 = false;
+													const _errs522 = errors;
 													if (
 														typeof data194 !==
 														'string'
 													) {
-														const err22 = {
+														const err23 = {
 															instancePath:
 																instancePath +
 																'/command',
@@ -20581,27 +20791,27 @@ function validate28(
 																'must be string',
 														};
 														if (vErrors === null) {
-															vErrors = [err22];
+															vErrors = [err23];
 														} else {
-															vErrors.push(err22);
+															vErrors.push(err23);
 														}
 														errors++;
 													}
-													var _valid4 =
-														_errs519 === errors;
-													valid106 =
-														valid106 || _valid4;
-													if (!valid106) {
-														const _errs521 = errors;
+													var _valid5 =
+														_errs522 === errors;
+													valid107 =
+														valid107 || _valid5;
+													if (!valid107) {
+														const _errs524 = errors;
 														if (
-															errors === _errs521
+															errors === _errs524
 														) {
 															if (
 																Array.isArray(
 																	data194
 																)
 															) {
-																var valid107 = true;
+																var valid108 = true;
 																const len1 =
 																	data194.length;
 																for (
@@ -20609,7 +20819,7 @@ function validate28(
 																	i1 < len1;
 																	i1++
 																) {
-																	const _errs523 =
+																	const _errs526 =
 																		errors;
 																	if (
 																		typeof data194[
@@ -20617,7 +20827,7 @@ function validate28(
 																		] !==
 																		'string'
 																	) {
-																		const err23 =
+																		const err24 =
 																			{
 																				instancePath:
 																					instancePath +
@@ -20639,26 +20849,26 @@ function validate28(
 																		) {
 																			vErrors =
 																				[
-																					err23,
+																					err24,
 																				];
 																		} else {
 																			vErrors.push(
-																				err23
+																				err24
 																			);
 																		}
 																		errors++;
 																	}
-																	var valid107 =
-																		_errs523 ===
+																	var valid108 =
+																		_errs526 ===
 																		errors;
 																	if (
-																		!valid107
+																		!valid108
 																	) {
 																		break;
 																	}
 																}
 															} else {
-																const err24 = {
+																const err25 = {
 																	instancePath:
 																		instancePath +
 																		'/command',
@@ -20677,23 +20887,23 @@ function validate28(
 																	null
 																) {
 																	vErrors = [
-																		err24,
+																		err25,
 																	];
 																} else {
 																	vErrors.push(
-																		err24
+																		err25
 																	);
 																}
 																errors++;
 															}
 														}
-														var _valid4 =
-															_errs521 === errors;
-														valid106 =
-															valid106 || _valid4;
+														var _valid5 =
+															_errs524 === errors;
+														valid107 =
+															valid107 || _valid5;
 													}
-													if (!valid106) {
-														const err25 = {
+													if (!valid107) {
+														const err26 = {
 															instancePath:
 																instancePath +
 																'/command',
@@ -20705,36 +20915,36 @@ function validate28(
 																'must match a schema in anyOf',
 														};
 														if (vErrors === null) {
-															vErrors = [err25];
+															vErrors = [err26];
 														} else {
-															vErrors.push(err25);
+															vErrors.push(err26);
 														}
 														errors++;
 														validate28.errors =
 															vErrors;
 														return false;
 													} else {
-														errors = _errs518;
+														errors = _errs521;
 														if (vErrors !== null) {
-															if (_errs518) {
+															if (_errs521) {
 																vErrors.length =
-																	_errs518;
+																	_errs521;
 															} else {
 																vErrors = null;
 															}
 														}
 													}
-													var valid104 =
-														_errs517 === errors;
+													var valid105 =
+														_errs520 === errors;
 												} else {
-													var valid104 = true;
+													var valid105 = true;
 												}
-												if (valid104) {
+												if (valid105) {
 													if (
 														data.wpCliPath !==
 														undefined
 													) {
-														const _errs525 = errors;
+														const _errs528 = errors;
 														if (
 															typeof data.wpCliPath !==
 															'string'
@@ -20758,10 +20968,10 @@ function validate28(
 																];
 															return false;
 														}
-														var valid104 =
-															_errs525 === errors;
+														var valid105 =
+															_errs528 === errors;
 													} else {
-														var valid104 = true;
+														var valid105 = true;
 													}
 												}
 											}
@@ -20782,8 +20992,8 @@ function validate28(
 							}
 						}
 					} else if (tag0 === 'setSiteLanguage') {
-						const _errs527 = errors;
-						if (errors === _errs527) {
+						const _errs530 = errors;
+						if (errors === _errs530) {
 							if (
 								data &&
 								typeof data == 'object' &&
@@ -20812,7 +21022,7 @@ function validate28(
 									];
 									return false;
 								} else {
-									const _errs529 = errors;
+									const _errs532 = errors;
 									for (const key68 in data) {
 										if (
 											!(
@@ -20840,18 +21050,18 @@ function validate28(
 											break;
 										}
 									}
-									if (_errs529 === errors) {
+									if (_errs532 === errors) {
 										if (data.progress !== undefined) {
 											let data197 = data.progress;
-											const _errs530 = errors;
-											if (errors === _errs530) {
+											const _errs533 = errors;
+											if (errors === _errs533) {
 												if (
 													data197 &&
 													typeof data197 ==
 														'object' &&
 													!Array.isArray(data197)
 												) {
-													const _errs532 = errors;
+													const _errs535 = errors;
 													for (const key69 in data197) {
 														if (
 															!(
@@ -20883,14 +21093,14 @@ function validate28(
 															break;
 														}
 													}
-													if (_errs532 === errors) {
+													if (_errs535 === errors) {
 														if (
 															data197.weight !==
 															undefined
 														) {
 															let data198 =
 																data197.weight;
-															const _errs533 =
+															const _errs536 =
 																errors;
 															if (
 																!(
@@ -20920,18 +21130,18 @@ function validate28(
 																	];
 																return false;
 															}
-															var valid110 =
-																_errs533 ===
+															var valid111 =
+																_errs536 ===
 																errors;
 														} else {
-															var valid110 = true;
+															var valid111 = true;
 														}
-														if (valid110) {
+														if (valid111) {
 															if (
 																data197.caption !==
 																undefined
 															) {
-																const _errs535 =
+																const _errs538 =
 																	errors;
 																if (
 																	typeof data197.caption !==
@@ -20956,11 +21166,11 @@ function validate28(
 																		];
 																	return false;
 																}
-																var valid110 =
-																	_errs535 ===
+																var valid111 =
+																	_errs538 ===
 																	errors;
 															} else {
-																var valid110 = true;
+																var valid111 = true;
 															}
 														}
 													}
@@ -20983,14 +21193,14 @@ function validate28(
 													return false;
 												}
 											}
-											var valid109 = _errs530 === errors;
+											var valid110 = _errs533 === errors;
 										} else {
-											var valid109 = true;
+											var valid110 = true;
 										}
-										if (valid109) {
+										if (valid110) {
 											if (data.step !== undefined) {
 												let data200 = data.step;
-												const _errs537 = errors;
+												const _errs540 = errors;
 												if (
 													typeof data200 !== 'string'
 												) {
@@ -21033,16 +21243,16 @@ function validate28(
 													];
 													return false;
 												}
-												var valid109 =
-													_errs537 === errors;
+												var valid110 =
+													_errs540 === errors;
 											} else {
-												var valid109 = true;
+												var valid110 = true;
 											}
-											if (valid109) {
+											if (valid110) {
 												if (
 													data.language !== undefined
 												) {
-													const _errs539 = errors;
+													const _errs542 = errors;
 													if (
 														typeof data.language !==
 														'string'
@@ -21064,10 +21274,10 @@ function validate28(
 														];
 														return false;
 													}
-													var valid109 =
-														_errs539 === errors;
+													var valid110 =
+														_errs542 === errors;
 												} else {
-													var valid109 = true;
+													var valid110 = true;
 												}
 											}
 										}
