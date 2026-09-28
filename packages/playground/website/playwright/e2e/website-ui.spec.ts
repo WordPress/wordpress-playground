@@ -695,6 +695,7 @@ async function readRunningVersion(
 	}
 }
 
+/** Distinguish sites even when different origins assign them the same local slug. */
 async function getRunningSiteKey(page: Page) {
 	return await page.evaluate(
 		() =>

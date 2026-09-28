@@ -31,6 +31,9 @@ export default defineConfig({
 		...project,
 		use: {
 			...project.use,
+			// Use the full browser, as the cache probe does. The headless-shell
+			// build does not implement the editor's Document-Isolation-Policy.
+			...(project.name === 'chromium' ? { channel: 'chromium' } : {}),
 			...(project.name === 'chromium' &&
 			process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 				? {

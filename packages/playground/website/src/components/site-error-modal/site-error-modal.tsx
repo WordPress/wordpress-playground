@@ -34,6 +34,7 @@ import {
 import { useKapaAI } from './use-kapa-ai';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
+/** Offer recovery actions without replacing a saved source site after a failed run. */
 export function SiteErrorModal({
 	error,
 	siteSlug,
@@ -84,6 +85,7 @@ export function SiteErrorModal({
 			url.searchParams.delete('core-pr');
 			window.location.href = url.toString();
 		},
+		/** Start fresh, keeping the current shell only when no Blueprint reached PHP. */
 		reloadWithoutBlueprint() {
 			const currentUrl = new URL(window.location.href);
 			const newSiteUrl = new URL(PlaygroundRoute.newSite());

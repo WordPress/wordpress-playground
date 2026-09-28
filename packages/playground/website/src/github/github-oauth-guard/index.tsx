@@ -41,6 +41,7 @@ interface GitHubOAuthGuardProps {
 	mayLoseProgress?: boolean;
 	intro?: React.ReactNode;
 }
+/** Require sign-in for protected tools, but never offer credentials to a prototype site. */
 export default function GitHubOAuthGuard({
 	children,
 	mayLoseProgress,

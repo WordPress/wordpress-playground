@@ -457,7 +457,9 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
 
 /**
  * Creates or reuses a temporary Playground in the redux state. Replacements
- * receive a different slug so React boots them in a fresh iframe.
+ * receive a different slug so React boots them in a fresh iframe. In the
+ * prototype, a used origin instead stages the URL or complete bundle on a new
+ * subdomain and navigates; callers in the old document do not resume.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
@@ -490,6 +492,7 @@ export function setTemporarySiteSpec(
 			? getAutosaveFingerprintFromURL(sourceUrl)
 			: undefined;
 
+		/** Keep the failed setup visible without pretending that a PHP runtime was created. */
 		const showTemporarySiteError = (params: {
 			error: SiteError;
 			details: unknown;
@@ -673,7 +676,8 @@ export function setTemporarySiteSpec(
  * Editable bundles are copied into the new Playground's storage before its
  * metadata is written. The metadata points to that persisted copy rather than
  * the caller's backend, so editing the new Playground cannot mutate the source
- * bundle.
+ * bundle. The prototype transfers bytes to a fresh origin before navigating;
+ * no filesystem handle or source-site recovery callback crosses that boundary.
  */
 export function createStoredSite(
 	siteName: string,
@@ -1057,6 +1061,7 @@ export const selectSitesLoaded = createSelector(
 
 export default sitesSlice.reducer;
 
+/** Keep used storage origins out of new-site creation, except for a pre-PHP fetch retry. */
 export function needsFreshOrigin(state: PlaygroundReduxState) {
 	if (typeof window === 'undefined') return false;
 	const sites = selectAllSites(state);

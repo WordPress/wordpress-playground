@@ -6,6 +6,7 @@ const devServerOrigins = new Set([
 	'https://playground.test',
 ]);
 
+/** Recognize local builds that expose development APIs instead of production entry points. */
 export function isDevServer(url: URL) {
 	return (
 		devServerOrigins.has(url.origin) ||

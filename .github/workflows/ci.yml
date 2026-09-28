@@ -310,6 +310,41 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
+    # The normal website lanes use one origin. Keep the local prototype's
+    # browser boundaries and real HTTP-cache reuse under their own check.
+    test-origin-isolation:
+        name: 'Local subdomain isolation and shared cache'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Chromium
+              run: npx playwright install chromium --with-deps
+            - name: Build the local subdomain prototype
+              run: npx nx run playground-website:build:origin-isolation
+            - name: Check cross-origin boundaries and site lifecycle
+              run: npx nx run playground-website:e2e:origin-isolation --args="origins.spec.ts --project=chromium"
+            - name: Check ZIP import persistence across origins
+              run: npx nx run playground-website:e2e:origin-isolation --args="opfs.spec.ts --project=chromium --grep='should persist an imported ZIP saved site after switching away and back'"
+            - name: Check shared downloads with normal browser cache settings
+              run: npx nx run playground-website:test:origin-isolation
+            - uses: actions/upload-artifact@v4
+              if: ${{ failure() }}
+              with:
+                  name: origin-isolation-results
+                  path: |
+                      dist/origin-isolation-e2e/
+                      dist/origin-isolation-results.json
+                      dist/origin-isolation-failure.png
+                  if-no-files-found: ignore
+                  retention-days: 7
+
     # E2E Playwright tests - builds inline per runner for faster parallel execution
     # Previously used a prepare job + artifact sharing, but inline builds allow
     # all shards to start immediately in parallel, reducing total wall time.

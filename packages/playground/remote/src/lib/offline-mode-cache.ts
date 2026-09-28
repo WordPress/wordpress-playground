@@ -17,6 +17,7 @@ const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${
 // a Service Worker module which does not allow top-level await.
 const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
 
+/** Fill this origin’s cache, allowing HTTP reuse only for immutable prototype assets. */
 export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const offlineModeCache = await promisedOfflineModeCache;
 	const cachedResponse = await offlineModeCache.match(request, {
@@ -211,6 +212,7 @@ export async function putCachedResponse(
 	await offlineModeCache.put(request, response);
 }
 
+/** Limit offline caching to public assets and the current origin’s app entry points. */
 export function shouldCacheUrl(url: URL) {
 	if (isOriginIsolationPrototype(new URL(self.location.href))) {
 		// Cache this site's shell and entry wrappers, never another site's HTML
@@ -266,6 +268,7 @@ export function shouldCacheUrl(url: URL) {
 	return self.location.hostname === url.hostname;
 }
 
+/** Accept only the prototype’s exact shared asset origin and release path. */
 function isImmutableSharedAssetUrl(url: URL) {
 	const base = new URL(import.meta.env.BASE_URL, self.location.href);
 	return (

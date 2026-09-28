@@ -39,6 +39,7 @@ import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?work
 const origin = window.location.origin;
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
+/** Keep the PHP worker entry on the runtime origin and preserve its boot flags. */
 function getWorkerUrl(): string {
 	const query = new URL(document.location.href).searchParams;
 	const workerUrl = sameOriginWorkerUrl(workerEntryPointUrl);
@@ -63,6 +64,7 @@ if (import.meta.hot) {
 }
 
 const query = new URL(document.location.href).searchParams;
+/** Start the site-local workers and expose their API to the containing app document. */
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 
@@ -677,6 +679,7 @@ async function captureSiteThumbnailFromWordPress({
 			finish(() => resolve(thumbnail));
 		};
 
+		/** Request the renderer only after the disposable WordPress document has loaded. */
 		const onLoad = () => {
 			clearTimeout(timeout);
 			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);

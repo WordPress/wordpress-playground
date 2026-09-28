@@ -310,6 +310,7 @@ export interface BlueprintBundleEditorHandle {
 	runBlueprint: () => Promise<void>;
 }
 
+/** Edit a complete bundle and run it without mutating a saved source Playground. */
 export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
@@ -554,6 +555,7 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [newUrl]);
 
+	/** Flush pending edits before creating a new runtime; prototype runs leave this origin. */
 	const handleRunBlueprint = useCallback(async () => {
 		if (
 			!site ||

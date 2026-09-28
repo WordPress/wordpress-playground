@@ -85,6 +85,7 @@ window.addEventListener('message', async (event) => {
 	}
 });
 
+/** Key writes by the browser-supplied sender origin; return only shared display metadata. */
 function updateCatalogue(
 	origin: string,
 	site: Omit<OriginSite, 'origin'> | null | undefined

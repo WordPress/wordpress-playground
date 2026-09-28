@@ -145,6 +145,7 @@ function siteErrorMessage(
 	return details?.message ?? error;
 }
 
+/** Bind UI and developer actions to this store; prototype creation navigates between origins. */
 export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
@@ -935,6 +936,7 @@ export function createSitesAPI(
 						});
 					}
 				);
+				/** Replace WordPress files only after boot-time asset restoration has finished. */
 				const initialize = async (playground: PlaygroundClient) => {
 					// Finish the boot-time asset unzip before replacing wp-content.
 					// Otherwise it can recreate a directory between the import's
@@ -978,6 +980,7 @@ export function createSitesAPI(
 		},
 	};
 
+	/** Allocate a temporary runtime, leaving a used prototype origin before resolving its setup. */
 	async function createTemporarySite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
@@ -1011,6 +1014,7 @@ export function createSitesAPI(
 		return newSiteInfo.slug;
 	}
 
+	/** Create and activate saved storage; a second prototype site must navigate away. */
 	async function createSavedSite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,

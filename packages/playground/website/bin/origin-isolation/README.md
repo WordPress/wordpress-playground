@@ -42,6 +42,25 @@ new site allocate a fresh subdomain. Saving a
 temporary site, renaming, and opening tools stay in the same document. Switching
 sites requires a top-level navigation because the next site has another origin.
 
+## Why index.html moves too
+
+Alice saves a shop, then opens a link that runs an unknown plugin. The plugin
+must get its own browser storage, not access to the shop's OPFS directory.
+The whole app runs with that plugin on a fresh origin. Saving retains that origin;
+creating another Playground does not.
+
+Keeping index.html on a trusted origin and moving only remote.html would require
+a file service between them. Native directory handles cannot cross origins, and
+a cross-origin child cannot simply open the parent's local-folder picker. Moving
+the app and runtime together keeps native file access within one origin and
+avoids that new file service. The cost is a top-level navigation when changing
+sites. Save, rename, and tools still use the existing SPA document.
+
+User code can read its own app, files, and browser storage. This design separates
+sites; it cannot protect a site from a plugin the user runs inside that site.
+Do not put account tokens in that app. Production authentication needs a trusted
+origin with narrow, user-approved operations, not a token getter for site code.
+
 ## What changed
 
 - Runtime URLs come from the executing document/worker, not the JS asset URL.
@@ -69,8 +88,10 @@ sites requires a top-level navigation because the next site has another origin.
   not expose file reads, exports, directory handles, or deletion of other sites.
 - The Playgrounds pane shows other origins as links, not local site records.
   Rename/delete publish metadata; file operations remain on the current origin.
-- The launcher serves no `remote.html` or `api.html`. Site documents reject
-  cross-origin framing. Only the narrow metadata/setup page permits it.
+- The launcher serves no `remote.html` or `api.html`. App documents and
+  service-worker WordPress responses reject cross-origin framing and sever
+  cross-origin opener references. Same-origin WordPress/editor frames still work.
+  The narrow metadata/setup page remains embeddable across origins.
 - Saved sites can reload offline after their shell and runtime have been cached.
   The generated shell manifest follows static imports, not every PHP version or
   optional editor. A new origin still needs a network connection.
@@ -119,14 +140,14 @@ npx nx run playground-website:e2e:origin-isolation --args="--project=chromium"
 This separate configuration starts only the prototype server. Its base URL is
 `http://site-e2e.playground.localhost:9400/`; navigating to the launcher root
 instead would show the site list, not the app that these tests expect.
-Normal CI still uses its normal single-origin build.
+The regular browser lanes still use the normal single-origin build.
 
 This runner uses one worker and no retries so failures remain visible. Version
 settings tests now check the running PHP/WordPress version, not just a dropdown.
 The ZIP-return tests accept a cross-origin link as well as the normal local
 button. The runner also includes `playwright/origin-isolation/` checks for message
 boundaries, fresh-origin creation, edited multi-file Blueprint runs, rename/delete,
-offline reload, static-host routing, and disabled login. Normal CI does not include those prototype tests.
+offline reload, static-host routing, and disabled login.
 
 JSON results, screenshots, and failure traces are written under
 `dist/origin-isolation-e2e/`. The existing suite still includes contracts that the
@@ -134,6 +155,56 @@ prototype deliberately does not offer: several sites in one OPFS bucket,
 no-navigation creation of a second site, global-start-page autosave prompts, and
 site-origin OAuth. These need separate-origin product behavior and tests, not a
 weaker isolation guard. Passing the custom cache check does not cover them.
+
+### CI coverage
+
+The **Local subdomain isolation and shared cache** job builds this prototype and
+runs three checks in Chromium:
+
+1. `origins.spec.ts`: catalogue messages, invalid setup payloads, setup replay,
+   site creation and retirement, edited bundle transfer, saved/offline reload,
+   frame/opener restrictions, static-host routing, and disabled sign-in.
+2. The existing ZIP import persistence test from `opfs.spec.ts`, including
+   switching back to the source and reopening the imported site.
+3. `test:origin-isolation`: OPFS isolation from WordPress, SPA continuity, and
+   shared network bytes in a persistent profile and a private context.
+
+The job uses the full Chromium version pinned by the repository's Playwright
+dependency, including Document-Isolation-Policy support for editor frames.
+The cache probe does not disable browser cache partitioning. The Linux runner uses
+`--no-sandbox` for the cache probe because it restricts Chromium's process sandbox;
+web origin checks and cache partitioning remain enabled. Local runs keep the
+sandbox. Reports and traces are uploaded only when the job fails.
+
+This is not a claim that the full existing suite passes under subdomains, or that
+Firefox/WebKit support is complete. The regular three-browser lanes continue to
+check the normal build.
+
+## Message and browser boundaries
+
+- The bridge accepts requests only from its immediate parent, on an exact site
+  origin with the same scheme and port. Replies bind to the frame, origin, and
+  request ID. A same-origin sibling frame is not the parent.
+- Catalogue writes use the browser-supplied sender origin as their key. A payload
+  cannot select another entry. Names are rendered as text, never HTML. The list
+  intentionally exposes names and save state, but no file APIs or credentials.
+- Setup accepts canonical destination URLs and canonical bundle paths. It copies
+  only known fields, bytes, and directory entries. It rejects existing OPFS files;
+  an IndexedDB transaction permits only one claim, including concurrent requests.
+  Consuming the payload keeps the claim, so an empty temporary origin stays used.
+- App and PHP responses use `frame-ancestors 'self'` and `COOP: same-origin`.
+  The PHP response adds a separate CSP policy, preserving any WordPress policy.
+  The bridge is the exception and never boots PHP or exposes app APIs.
+- Shared assets use wildcard CORS without credentials. They are public build
+  outputs, never user files. No HTML app runs on the asset host, including encoded
+  or case-varied paths. Production must retain this distinction; CORS must not
+  be broadened to site files or APIs.
+
+The launcher and catalogue use no account-authentication cookies. Production
+still needs a cookie review: sibling origins share a site, so SameSite alone is not a boundary
+between them. Do not use parent-domain credential cookies or relax
+`document.domain`. Existing production origins, old service workers, third-party
+embeds, and account operations need a separate rollout review.
 
 ## Why the HTTP cache can be shared
 
@@ -160,13 +231,11 @@ URLs retain their existing `no-store` behavior, including the Safari deployment
 workaround. Production deployment of this design must retain old release assets
 while clients still use them.
 
-HTTP caching is still best-effort. Chromium's memory-cache implementation caps a
-single entry at one eighth of the cache budget; the default budget reaches 50 MiB
-on machines with enough memory. Brotli brings the tested PHP WASM below that
-6.25 MiB entry limit. The already-compressed WordPress static ZIP remains larger.
-See [Chromium's memory cache implementation](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/memory/mem_backend_impl.cc).
-We do not add a shared storage broker or split the ZIP into custom chunks just to
-work around a private-mode cache limit.
+HTTP caching is best-effort. Brotli reduces transfer size and lets the tested PHP
+WASM reuse the smaller private cache. The already-compressed WordPress ZIP may
+still download again in private browsing. The probe reports those repeated bytes
+separately. We do not add a shared storage broker or split the ZIP into custom
+chunks just to guarantee private-mode reuse.
 
 ## Limits
 
@@ -203,52 +272,13 @@ This is a local architecture experiment, not a deployment-ready security change.
   a trusted catalogue, narrow cross-origin messages where needed, and an audit
   of cookies, credentials, exported APIs, and all new-site entry points.
 
-## Local run: 2026-09-24
+## Reading the cache report
 
-Chromium 149.0.7827.55, PHP 8.3, WordPress 6.9, fresh profiles:
+`dist/origin-isolation-results.json` records shared response-body bytes for the
+first and second site, separating repeated URLs from assets first requested by
+the second site. It also records the private-context run and range-resume check.
 
-- The custom isolation/cache check passes with normal cache partitioning enabled.
-- Site A fetched 30,593,430 bytes of shared response bodies. Site B fetched zero
-  repeated bytes, including no repeat download of the WordPress ZIP or PHP WASM.
-- In a separate private context, site B fetched the 18,812,006-byte WordPress ZIP
-  again. PHP WASM was reused. That run also fetched 10,097 bytes of thumbnail
-  scripts; late first-use requests are tracked separately from repeat transfers.
-- Saved-file reopening, save/rename/tool SPA continuity, temporary-to-saved
-  conversion, fresh-origin creation, and runtime resume offsets pass.
-- All 511 remote/website unit tests and both packages' lint/type checks pass.
-- All eight origin-boundary browser tests pass, including rename/delete
-  publication, used-origin retirement, and a saved file surviving offline reload.
-
-These measurements exclude each site's small HTML documents and worker wrappers.
-A zero repeat-byte count means the browser reused prior downloads, not that the
-second site did not use those assets. Cache eviction can change the result.
-
-## Local run: 2026-09-23
-
-Chromium 151.0.7922.34, PHP 8.3, WordPress 6.9, fresh profiles:
-
-| Context            | First site shared response bodies | Second site shared response bodies |
-| ------------------ | --------------------------------: | ---------------------------------: |
-| Persistent profile |                  30,603,695 bytes |                            0 bytes |
-| Private context    |                  30,593,045 bytes |                   18,812,025 bytes |
-
-The private context downloaded only the WordPress static ZIP again, once.
-PHP WASM and the app bundles were reused. The ZIP is still above the private
-HTTP cache's per-entry limit; eliminating this remaining transfer needs a
-different archive layout or a shared download service. Neither is part of this
-prototype. A 304 service-worker revalidation had no response body. These numbers
-exclude each site's small HTML documents and worker wrappers.
-
-All browser checks passed, including OPFS isolation from inside WordPress,
-saved-file persistence, save/rename/tool SPA continuity, temporary-to-saved
-conversion, fresh-origin creation, and compressed-runtime resume offsets.
-The build, lint/type checks for remote and website, 52 remote tests, 33 OPFS
-tests, 24 routing tests, and 4 site-management API tests passed.
-
-## Earlier local run: 2026-09-22
-
-Chromium 151.0.7922.34 passed the browser check before compression was added.
-Site B transferred **0 bytes of shared asset response bodies** after site A;
-only the shared service-worker module was revalidated with a 304 response.
-Per-origin HTML and small worker wrappers are still fetched. OPFS isolation,
-persistence, temporary-to-saved conversion, and the New Playground action passed.
+A zero repeat-byte count means that the second site used already-downloaded
+assets. It does not mean that it used no shared assets. The measurement excludes
+small per-origin HTML documents and worker wrappers, and does not measure disk
+deduplication. Browser eviction can change later results.

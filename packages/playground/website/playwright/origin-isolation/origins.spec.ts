@@ -112,6 +112,118 @@ test('setup cannot replace existing files or a previously claimed empty origin',
 	]);
 });
 
+test('invalid setup URLs and bundle paths cannot claim an unused origin', async ({
+	page,
+}) => {
+	await page.goto('http://site-aaaa.playground.localhost:9400/manifest.json');
+	const url = 'http://site-cccc.playground.localhost:9400/';
+	const setup = { url, storage: 'temporary' };
+	for (const invalid of [
+		{ ...setup, url: 'http://site-bbbb.playground.localhost:9400/' },
+		{ ...setup, url: url + 'remote.html' },
+		{ ...setup, blueprint: [{ path: '/../private.txt', bytes: null }] },
+		{ ...setup, blueprint: [{ path: 'relative.txt', bytes: null }] },
+		{ ...setup, blueprint: [{ path: '/file', bytes: { kind: 'file' } }] },
+	]) {
+		expect(
+			(
+				await bridgeRequest(
+					page,
+					url + 'origin-isolation.html',
+					'setup',
+					invalid
+				)
+			).error
+		).toBeTruthy();
+	}
+	expect(
+		(
+			await bridgeRequest(
+				page,
+				url + 'origin-isolation.html',
+				'setup',
+				setup
+			)
+		).error
+	).toBeUndefined();
+});
+
+test('a same-origin sibling frame cannot send catalogue operations through another parent', async ({
+	page,
+}) => {
+	await page.goto('http://site-aaaa.playground.localhost:9400/manifest.json');
+	const bridge = 'http://playground.localhost:9400/origin-isolation.html';
+	await bridgeRequest(page, bridge, 'catalogue', {
+		name: 'Alpha',
+		storage: 'opfs',
+	});
+	const result = await page.evaluate(async (url) => {
+		const frame = document.createElement('iframe');
+		frame.src = url;
+		await new Promise<void>((resolve) => {
+			frame.onload = () => resolve();
+			document.body.append(frame);
+		});
+		const sibling = document.createElement('iframe');
+		document.body.append(sibling);
+		// Execute in the sibling so the browser supplies that window as source.
+		(sibling.contentWindow as any).bridge = frame.contentWindow;
+		sibling.contentWindow!.eval(
+			`bridge.postMessage({ type: 'playground-origin', id: 'forged', action: 'catalogue', value: null }, ${JSON.stringify(new URL(url).origin)})`
+		);
+		const id = crypto.randomUUID();
+		const result = await new Promise((resolve) => {
+			/** Use a permitted read as the completion barrier for the forged operation. */
+			const receive = (event: MessageEvent) => {
+				if (
+					event.source !== frame.contentWindow ||
+					event.data?.id !== id
+				)
+					return;
+				window.removeEventListener('message', receive);
+				resolve(event.data);
+			};
+			window.addEventListener('message', receive);
+			// A permitted read follows the forged deletion in the same event queue.
+			frame.contentWindow!.postMessage(
+				{ type: 'playground-origin', id, action: 'catalogue' },
+				new URL(url).origin
+			);
+		});
+		frame.remove();
+		sibling.remove();
+		return result;
+	}, bridge);
+	expect(result).toMatchObject({ value: [{ name: 'Alpha' }] });
+});
+
+test('the asset origin cannot publish catalogue entries', async ({
+	page,
+	context,
+}) => {
+	await page.goto('http://site-aaaa.playground.localhost:9400/manifest.json');
+	const assets: string[] = await page.evaluate(async () =>
+		(await fetch('/assets-required-for-offline-mode.json')).json()
+	);
+	const base = new URL(
+		assets.find((url) => url.startsWith('http://static.'))!
+	);
+	const bridge = 'http://playground.localhost:9400/origin-isolation.html';
+	const other = await context.newPage();
+	// A real public response gives this page the asset origin. It may embed the
+	// bridge, but the bridge must ignore it even though it is a sibling origin.
+	await other.goto(
+		new URL(`/${base.pathname.split('/')[1]}/manifest.json`, base).href
+	);
+	await expect(
+		bridgeRequest(other, bridge, 'catalogue', {
+			name: 'Forged entry',
+			storage: 'opfs',
+		})
+	).rejects.toThrow('Bridge timed out');
+	expect((await bridgeRequest(page, bridge, 'catalogue')).value).toEqual([]);
+});
+
 test('site creation APIs navigate to distinct origins and preserve the source files', async ({
 	page,
 }) => {
@@ -305,6 +417,93 @@ test('shared assets cannot serve an app document under another spelling', async 
 	}
 });
 
+// The server protects app documents; the service worker must also protect the
+// WordPress documents it creates without a server response. Same-origin editor
+// frames still need to work.
+test('another site cannot frame app APIs or service-worker WordPress documents', async ({
+	page,
+	context,
+	browserName,
+}) => {
+	await page.goto('./?wp=6.9&php=8.3');
+	await ready(page);
+	const origin = new URL(page.url()).origin;
+	const wordpressUrl = await page.evaluate(async () => {
+		const client = (window as any).playgroundSites.getClient();
+		await client.writeFile(
+			'/wordpress/frame-probe.php',
+			`<?php
+				header("Content-Security-Policy: default-src 'none'; frame-ancestors *");
+				header("Cross-Origin-Opener-Policy: unsafe-none");
+				header("Document-Isolation-Policy: isolate-and-credentialless");
+				echo '<p>Private site document</p>';
+			`
+		);
+		return `${await client.absoluteUrl}/frame-probe.php`;
+	});
+	const sameOriginFrame = await page.evaluateHandle(async (url) => {
+		const frame = document.createElement('iframe');
+		frame.src = url;
+		await new Promise<void>((resolve) => {
+			frame.onload = () => resolve();
+			document.body.append(frame);
+		});
+		return frame;
+	}, wordpressUrl);
+	const content = page.frame({ url: wordpressUrl })!;
+	await expect(content.locator('body')).toHaveText('Private site document');
+	if (browserName === 'chromium') {
+		// The editor's document isolation must survive the added site boundary.
+		expect(await content.evaluate(() => window.crossOriginIsolated)).toBe(
+			true
+		);
+	}
+	await sameOriginFrame.evaluate((frame) => frame.remove());
+
+	const other = await context.newPage();
+	await other.goto(
+		'http://site-bbbb.playground.localhost:9400/manifest.json'
+	);
+	for (const url of [
+		origin + '/',
+		origin + '/remote.html',
+		origin + '/api.html',
+		wordpressUrl,
+	]) {
+		const responsePromise = other.waitForResponse(url);
+		await other.evaluate(async (url) => {
+			const frame = document.createElement('iframe');
+			frame.src = url;
+			await new Promise<void>((resolve) => {
+				frame.onload = () => resolve();
+				document.body.append(frame);
+			});
+		}, url);
+		const response = await responsePromise;
+		expect(response.headers()['content-security-policy']).toContain(
+			"frame-ancestors 'self'"
+		);
+		if (url === wordpressUrl) {
+			expect(response.headers()['content-security-policy']).toContain(
+				"default-src 'none'"
+			);
+		}
+		expect(other.frames().map((frame) => frame.url())).not.toContain(url);
+		// A top-level popup must not leave the hostile opener a reference to
+		// this site's same-origin frame tree and its message-based APIs.
+		expect(response.headers()['cross-origin-opener-policy']).toBe(
+			'same-origin'
+		);
+	}
+	const popupPromise = other.waitForEvent('popup');
+	await other.evaluate((url) => {
+		window.open(url);
+	}, wordpressUrl);
+	const popup = await popupPromise;
+	await popup.waitForLoadState();
+	expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+});
+
 test('site origins do not offer GitHub sign-in or request a token', async ({
 	page,
 }) => {
@@ -442,6 +641,7 @@ for (const storage of ['opfs', 'temporary'] as const) {
 	});
 }
 
+/** Wait for both the client API and the first durable OPFS copy before testing reloads. */
 async function ready(page: Page) {
 	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
 	await page.evaluate(() => (window as any).playgroundSites.isReady());
@@ -476,6 +676,7 @@ async function ready(page: Page) {
 	}
 }
 
+/** Call the real embedded bridge and accept replies only from that frame and origin. */
 async function bridgeRequest(
 	page: Page,
 	url: string,
@@ -494,9 +695,11 @@ async function bridgeRequest(
 			return await new Promise<{ error?: string; value?: unknown }>(
 				(resolve, reject) => {
 					const timeout = setTimeout(() => {
+						window.removeEventListener('message', receive);
 						frame.remove();
 						reject(new Error('Bridge timed out'));
 					}, 10000);
+					/** Ignore unrelated app traffic while waiting for this bridge request. */
 					const receive = (event: MessageEvent) => {
 						if (
 							event.source !== frame.contentWindow ||

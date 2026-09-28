@@ -202,6 +202,7 @@ self.addEventListener('install', (event) => {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
+	/** Claim clients and seed the current shell before the prototype can reload offline. */
 	async function doActivate() {
 		await self.clients.claim();
 
@@ -291,13 +292,13 @@ self.addEventListener('fetch', (event) => {
 					event,
 					remoteAccessRelayMapping
 				).then((response) =>
-					applyCrossOriginIsolationHeaders(response, scope)
+					applyScopedResponseHeaders(response, scope)
 				)
 			);
 		}
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) =>
-				applyCrossOriginIsolationHeaders(response, scope)
+				applyScopedResponseHeaders(response, scope)
 			)
 		);
 	}
@@ -430,6 +431,28 @@ self.addEventListener('fetch', (event) => {
 	// Use cache first strategy to serve regular static assets.
 	return event.respondWith(cacheFirstFetch(event.request));
 });
+
+/**
+ * Keep the prototype's frame and opener boundary on responses created by PHP,
+ * not just the app documents served by the local HTTP server. Append a separate
+ * CSP policy so a WordPress-provided policy cannot relax the frame restriction.
+ */
+function applyScopedResponseHeaders(
+	response: Response,
+	scope: string
+): Response {
+	response = applyCrossOriginIsolationHeaders(response, scope);
+	if (!isOriginIsolationPrototype(new URL(self.location.href)))
+		return response;
+	const headers = new Headers(response.headers);
+	headers.append('Content-Security-Policy', "frame-ancestors 'self'");
+	headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
+}
 
 /**
  * A request to a PHP Worker Thread or to a regular static asset,

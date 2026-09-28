@@ -287,6 +287,7 @@ describe('PlaygroundWorkerEndpoint', () => {
 	});
 });
 
+/** Create an endpoint without booting PHP, using a browser-like origin for its URLs. */
 async function createEndpoint(
 	opfsMounts: Record<string, ReturnType<typeof createOpfsMount>>,
 	unmounts: Record<string, () => Promise<void>> = {}
