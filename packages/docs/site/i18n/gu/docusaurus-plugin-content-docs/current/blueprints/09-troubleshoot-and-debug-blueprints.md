@@ -850,7 +850,7 @@ To inspect the final state, use **Files**, **Database**, and **Logs** from the D
 Use **Files** to confirm the Blueprint created, moved, or edited the expected files.
 -->
 
-![The Files pane showing a selected WordPress file and its contents](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+![પસંદ કરેલી વર્ડપ્રેસ ફાઇલ અને તેની સામગ્રી દર્શાવતી Files પેન](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
 
 SQL અથવા વર્ડપ્રેસ સ્ટેપ્સ દ્વારા બદલાયેલ કોષ્ટકો (tables) અને રેકોર્ડ્સનું નિરીક્ષણ કરવા માટે **Database** નો ઉપયોગ કરો.
 
@@ -858,7 +858,7 @@ SQL અથવા વર્ડપ્રેસ સ્ટેપ્સ દ્વા�
 Use **Database** to inspect tables and records changed by SQL or WordPress steps.
 -->
 
-![The Database pane showing database inspection tools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
+![ડેટાબેઝ નિરીક્ષણ સાધનો દર્શાવતી Database પેન](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
 
 તમે `window.playground` દ્વારા બ્રાઉઝર કન્સોલમાંથી પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સનું નિરીક્ષણ પણ કરી શકો છો:
 
@@ -925,7 +925,7 @@ You can write your own messages with `error_log()` in a
 **Logs** panel or the browser console.
 -->
 
-![The PHP error log pane showing PHP log output](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
+![PHP લોગ આઉટપુટ દર્શાવતી PHP એરર લોગ પેન](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
 
 <div class="callout callout-info">
 
