@@ -3,7 +3,7 @@ import { createListenerMiddleware } from '@reduxjs/toolkit';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
 import { setOPFSSitesLoadingState } from './slice-sites';
 import { createSitesAPI } from './site-management-api-middleware';
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type { AbilityInput, PlaygroundClient } from '@wp-playground/remote';
 import type {
 	McpBridgeHandle,
 	WebMCPSiteToolProxy,
@@ -39,6 +39,9 @@ startListening({
 			getClient: sitesAPI.getClient,
 			rename: sitesAPI.rename,
 			saveInBrowser: sitesAPI.saveInBrowser,
+			listExposedAbilities: abilitiesController.exposedAbilities,
+			executeAbility: (name: string, input?: AbilityInput) =>
+				abilitiesController.execute(name, input),
 			onConnect: () => {
 				logTrackingEvent('mcpConnect');
 			},
@@ -125,6 +128,13 @@ startListening({
 			effect: () => {
 				handle.notifySitesChanged();
 			},
+		});
+
+		// Toggling an ability, refreshing abilities, or navigating changes
+		// the abilities this tab exposes to the MCP server. The bridge
+		// only resends when the registration actually changed.
+		abilitiesController.subscribe(() => {
+			handle.notifySitesChanged();
 		});
 	},
 });
