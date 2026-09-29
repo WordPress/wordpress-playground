@@ -665,7 +665,7 @@ const schema11 = {
 						themeSlug: {
 							type: 'string',
 							description:
-								'The name of the theme to import content from.',
+								'The slug of an installed theme to import content from. Defaults to the active theme.',
 						},
 					},
 					required: ['step'],
@@ -4790,7 +4790,7 @@ const schema33 = {
 				themeSlug: {
 					type: 'string',
 					description:
-						'The name of the theme to import content from.',
+						'The slug of an installed theme to import content from. Defaults to the active theme.',
 				},
 			},
 			required: ['step'],
