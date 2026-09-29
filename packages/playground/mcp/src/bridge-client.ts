@@ -1,4 +1,10 @@
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type {
+	AbilityInput,
+	AbilityResult,
+	PlaygroundClient,
+} from '@wp-playground/remote';
+import { EXECUTE_ABILITY_COMMAND, toExposedAbility } from './exposed-abilities';
+import type { ExposedAbility } from './exposed-abilities';
 import { createToolClient } from './tools/tool-executors';
 import type { ToolClient } from './tools/tool-executors';
 
@@ -18,6 +24,17 @@ export interface PlaygroundBridgeConfig {
 	getClient(): PlaygroundClient | undefined;
 	rename(newName: string): Promise<void>;
 	saveInBrowser(): Promise<{ slug: string; storage: string }>;
+	/**
+	 * Abilities the user exposed for this tab's active site. They are
+	 * reported to the MCP server, which offers them as `wp_ability_*`
+	 * tools. Omitting it means no abilities are exposed.
+	 */
+	listExposedAbilities?(): ExposedAbility[];
+	/**
+	 * Runs an ability on this tab's active site. The bridge only calls
+	 * it for abilities `listExposedAbilities()` currently reports.
+	 */
+	executeAbility?(name: string, input?: AbilityInput): Promise<AbilityResult>;
 	onConnect?: () => void;
 }
 
@@ -39,7 +56,7 @@ export function startMcpBridge(
 	let stopped = false;
 
 	function sendSitesRegistration(socket: WebSocket) {
-		const sites = config.list();
+		const sites = buildSiteRegistrations(config);
 		const serialized = JSON.stringify(sites);
 		if (serialized === previousSitesSerialized) {
 			return;
@@ -148,6 +165,20 @@ export function startMcpBridge(
 	};
 }
 
+/**
+ * Lists this tab's sites. Only the active site carries `abilities`,
+ * because the Abilities panel only exposes abilities of the site the
+ * tab currently shows.
+ */
+function buildSiteRegistrations(config: PlaygroundBridgeConfig) {
+	const abilities = (config.listExposedAbilities?.() ?? []).map(
+		toExposedAbility
+	);
+	return config
+		.list()
+		.map((site) => (site.isActive ? { ...site, abilities } : site));
+}
+
 async function handleCommand(
 	config: PlaygroundBridgeConfig,
 	method: string,
@@ -179,6 +210,11 @@ async function handleCommand(
 		return await config.saveInBrowser();
 	}
 
+	if (method === EXECUTE_ABILITY_COMMAND) {
+		const [name, input] = args as [string, AbilityInput | undefined];
+		return await executeExposedAbility(config, siteSlug, name, input);
+	}
+
 	const playgroundClient = config.getClient();
 	if (!playgroundClient) {
 		throw new Error(`No active client for site: ${siteSlug}`);
@@ -190,4 +226,32 @@ async function handleCommand(
 		throw new Error(`Unknown method: ${method}`);
 	}
 	return await (fn as (...a: unknown[]) => Promise<unknown>)(...args);
+}
+
+/**
+ * Defence in depth: the MCP server may only run abilities the user
+ * currently exposes for the site this tab shows. WordPress still checks
+ * the ability's permission_callback when it executes.
+ */
+async function executeExposedAbility(
+	config: PlaygroundBridgeConfig,
+	siteSlug: string,
+	name: string,
+	input: AbilityInput | undefined
+): Promise<AbilityResult> {
+	const site = config.list().find((entry) => entry.slug === siteSlug);
+	if (!site?.isActive) {
+		throw new Error(`Site ${siteSlug} is not active in this tab.`);
+	}
+	const exposed = config.listExposedAbilities?.() ?? [];
+	if (
+		!config.executeAbility ||
+		!exposed.some((ability) => ability.name === name)
+	) {
+		throw new Error(
+			`Ability "${name}" is not exposed. Enable it in the ` +
+				'Abilities panel of the Playground website first.'
+		);
+	}
+	return await config.executeAbility(name, input);
 }
