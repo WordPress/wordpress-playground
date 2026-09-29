@@ -1,5 +1,11 @@
 import { stringifyError } from '@wp-playground/mcp/client';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+	useEffect,
+	useId,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from 'react';
 import {
 	Button,
 	Notice,
@@ -8,7 +14,12 @@ import {
 	ToggleControl,
 	VisuallyHidden,
 } from '@wordpress/components';
-import { abilitiesController } from '../../../lib/abilities';
+import { chevronDown, chevronRight } from '@wordpress/icons';
+import type { AbilityDescriptor } from '@wp-playground/remote';
+import {
+	abilitiesController,
+	groupAbilitiesByNamespace,
+} from '../../../lib/abilities';
 import { InlineProgress, PaneLoading } from '../../pane-loading';
 import type { SiteToolPanelProps } from '../site-info-panel/site-tool-renderers';
 import css from './style.module.css';
@@ -22,6 +33,13 @@ export function SiteAbilitiesPanel({
 		abilitiesController.getSnapshot
 	);
 	const [query, setQuery] = useState('');
+	// Groups the user expanded without a search, and groups the user collapsed
+	// during the current search (search expands every matching group).
+	const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+	const [searchCollapsed, setSearchCollapsed] = useState<Set<string>>(
+		() => new Set()
+	);
+	const groupIdPrefix = useId();
 	const [selected, setSelected] = useState<string>();
 	const [input, setInput] = useState('');
 	const [output, setOutput] = useState<string>();
@@ -44,7 +62,31 @@ export function SiteAbilitiesPanel({
 	const ability = state.data?.abilities.find(
 		(item) => item.name === selected
 	);
+	const needle = query.trim().toLowerCase();
+	const matches = (item: AbilityDescriptor) =>
+		`${item.name} ${item.label} ${item.description}`
+			.toLowerCase()
+			.includes(needle);
+	const groups = groupAbilitiesByNamespace(state.data?.abilities ?? [])
+		.map((group) => ({ ...group, shown: group.abilities.filter(matches) }))
+		.filter((group) => group.shown.length > 0);
+	function isExpanded(namespace: string) {
+		return needle
+			? !searchCollapsed.has(namespace)
+			: expanded.has(namespace);
+	}
+	function toggleExpanded(namespace: string) {
+		const update = (current: Set<string>) => {
+			const next = new Set(current);
+			if (next.has(namespace)) next.delete(namespace);
+			else next.add(namespace);
+			return next;
+		};
+		if (needle) setSearchCollapsed(update);
+		else setExpanded(update);
+	}
 	const supported = abilitiesController.isSupported();
+	const webMCPSupported = abilitiesController.isWebMCPSupported();
 	async function run() {
 		if (!ability) return;
 		const id = ++runId.current;
@@ -99,10 +141,11 @@ export function SiteAbilitiesPanel({
 			)}
 			{state.data?.available && (
 				<>
-					{!supported && (
+					{!webMCPSupported && (
 						<Notice status="info" isDismissible={false}>
-							This browser does not support WebMCP. You can still
-							inspect and run abilities here.
+							{supported
+								? 'This browser does not support WebMCP. Selected abilities are exposed to the connected MCP server only.'
+								: 'This browser does not support WebMCP. You can still inspect and run abilities here.'}
 						</Notice>
 					)}
 					<p>
@@ -190,7 +233,10 @@ export function SiteAbilitiesPanel({
 							<SearchControl
 								label="Search abilities"
 								value={query}
-								onChange={setQuery}
+								onChange={(value) => {
+									setQuery(value);
+									setSearchCollapsed(new Set());
+								}}
 							/>
 							{state.data.abilities.length === 0 && (
 								<p>
@@ -200,80 +246,160 @@ export function SiteAbilitiesPanel({
 								</p>
 							)}
 							{state.data.abilities.length > 0 &&
-								!state.data.abilities.some((item) =>
-									`${item.name} ${item.label} ${item.description}`
-										.toLowerCase()
-										.includes(query.toLowerCase())
-								) && <p>No abilities match your search.</p>}
-							<ul className={css.list}>
-								{state.data.abilities
-									.filter((item) =>
-										`${item.name} ${item.label} ${item.description}`
-											.toLowerCase()
-											.includes(query.toLowerCase())
-									)
-									.map((item) => (
-										<li key={item.name}>
-											<Button
-												variant="link"
-												className={css.abilityName}
-												onClick={() => {
-													setSelected(item.name);
-													setInput('');
-												}}
-											>
-												{item.label || item.name}
-											</Button>
-											<code>{item.name}</code>
-											<p className={css.description}>
-												{item.description}
-											</p>
-											<ToggleControl
-												className={css.exposure}
-												__nextHasNoMarginBottom
-												label={
-													<>
-														<span aria-hidden="true">
-															WebMCP
-														</span>
-														<VisuallyHidden>{`Expose ${item.label || item.name} through WebMCP`}</VisuallyHidden>
-													</>
-												}
-												checked={state.enabled.includes(
-													item.name
-												)}
-												disabled={
-													!supported || state.loading
-												}
-												onChange={(value) =>
-													abilitiesController.toggle(
-														item.name,
-														value
-													)
-												}
-											/>
-											{state.registrationErrors[
-												item.name
-											] && (
-												<Notice
-													status="error"
-													isDismissible={false}
-												>
-													{
-														state
-															.registrationErrors[
-															item.name
-														]
+								groups.length === 0 && (
+									<p>No abilities match your search.</p>
+								)}
+							<ul className={css.groups}>
+								{groups.map((group) => {
+									const names = group.abilities.map(
+										(item) => item.name
+									);
+									const exposed = names.filter((name) =>
+										state.enabled.includes(name)
+									).length;
+									const open = isExpanded(group.namespace);
+									const listId = `${groupIdPrefix}-${group.namespace}`;
+									return (
+										<li key={group.namespace}>
+											<div className={css.groupHeader}>
+												<Button
+													variant="tertiary"
+													className={css.groupName}
+													icon={
+														open
+															? chevronDown
+															: chevronRight
 													}
-												</Notice>
-											)}
+													aria-expanded={open}
+													aria-controls={listId}
+													onClick={() =>
+														toggleExpanded(
+															group.namespace
+														)
+													}
+												>
+													{group.label}
+												</Button>
+												<ToggleControl
+													className={css.exposure}
+													__nextHasNoMarginBottom
+													label={
+														<>
+															<span aria-hidden="true">
+																WebMCP
+															</span>
+															<VisuallyHidden>{`Expose all ${group.label} abilities through WebMCP`}</VisuallyHidden>
+														</>
+													}
+													help={
+														group.shown.length <
+														names.length
+															? `${exposed} of ${names.length} exposed. The switch affects all ${names.length}.`
+															: `${exposed} of ${names.length} exposed`
+													}
+													checked={
+														exposed === names.length
+													}
+													disabled={
+														!supported ||
+														state.loading
+													}
+													onChange={(value) =>
+														abilitiesController.setEnabled(
+															names,
+															value
+														)
+													}
+												/>
+											</div>
+											<ul
+												id={listId}
+												className={css.list}
+												hidden={!open}
+											>
+												{group.shown.map((item) => (
+													<AbilityRow
+														key={item.name}
+														ability={item}
+														enabled={state.enabled.includes(
+															item.name
+														)}
+														disabled={
+															!supported ||
+															state.loading
+														}
+														error={
+															state
+																.registrationErrors[
+																item.name
+															]
+														}
+														onSelect={() => {
+															setSelected(
+																item.name
+															);
+															setInput('');
+														}}
+													/>
+												))}
+											</ul>
 										</li>
-									))}
+									);
+								})}
 							</ul>
 						</>
 					)}
 				</>
 			)}
 		</div>
+	);
+}
+
+function AbilityRow({
+	ability,
+	enabled,
+	disabled,
+	error,
+	onSelect,
+}: {
+	ability: AbilityDescriptor;
+	enabled: boolean;
+	disabled: boolean;
+	error?: string;
+	onSelect: () => void;
+}) {
+	const label = ability.label || ability.name;
+	return (
+		<li>
+			<Button
+				variant="link"
+				className={css.abilityName}
+				onClick={onSelect}
+			>
+				{label}
+			</Button>
+			<code>{ability.name}</code>
+			<p className={css.description}>{ability.description}</p>
+			<ToggleControl
+				className={css.exposure}
+				__nextHasNoMarginBottom
+				label={
+					<>
+						<span aria-hidden="true">WebMCP</span>
+						<VisuallyHidden>{`Expose ${label} through WebMCP`}</VisuallyHidden>
+					</>
+				}
+				checked={enabled}
+				disabled={disabled}
+				onChange={(value) =>
+					abilitiesController.toggle(ability.name, value)
+				}
+			/>
+			{error && (
+				<Notice status="error" isDismissible={false}>
+					{error}
+				</Notice>
+			)}
+		</li>
 	);
 }
