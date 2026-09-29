@@ -46,6 +46,9 @@ test('core abilities register and unregister through native WebMCP', async ({
 	await page.getByRole('button', { name: 'Dev Tools', exact: true }).click();
 	await page.getByRole('button', { name: 'Abilities', exact: true }).click();
 	const pane = page.getByRole('dialog', { name: 'Abilities pane' });
+	await pane
+		.getByRole('button', { name: 'WordPress core', exact: true })
+		.click();
 	const abilities = await page.evaluate(
 		async () => (await (window as any).playground.listAbilities()).abilities
 	);
