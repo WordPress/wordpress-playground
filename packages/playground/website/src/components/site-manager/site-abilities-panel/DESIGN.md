@@ -34,15 +34,34 @@ heading introduces its result. Schemas and results preserve JSON formatting.
 
 Use one vertical column inside the host pane. The toolbar places the current
 WordPress user opposite Refresh. Search precedes the ability list; selecting an
-ability replaces the list with its detail and runner.
+ability replaces the list with its detail and runner. Back to abilities restores
+the list with its search and group expansion unchanged.
 
-Use section spacing for the panel rhythm and 12px vertical padding for list rows.
-Within each row, use a two-column grid with a flexible identity column and an
-intrinsic-width WebMCP toggle column, separated by 12px. Stack the label and
-identifier with 4px gaps. Descriptions span both columns and show up to two lines;
-the detail view retains the full description. Long names and identifiers wrap.
-Formatted output wraps and scrolls within a maximum height of 360px. The pane
-introduces no custom breakpoint.
+Group abilities by namespace, the part of the name before `/`. WordPress does not
+record the registering plugin, but the namespace is conventionally its slug. Show
+`core` as "WordPress core" first, then other namespaces alphabetically; abilities
+keep their registration order within a group. Groups start collapsed.
+
+Each group header uses the same two-column grid as ability rows: a tertiary
+disclosure button with a chevron and the group name, opposite a group WebMCP
+toggle whose help text reports how many of the group's abilities are exposed.
+The group switch and its count align to the column's end so the switch lines up
+with the row switches beneath it.
+The expanded group's rows are indented 24px beneath the header.
+
+While search has text, groups without matches are hidden and matching groups
+expand automatically; the disclosure can still collapse them for that search.
+Clearing search restores the expansion chosen without search. The group toggle
+and its count always cover the whole group, not only matching rows; when rows are
+filtered, its help text says so.
+
+Use section spacing for the panel rhythm and 12px vertical padding for headers
+and rows. Within each row, use a two-column grid with a flexible identity column
+and an intrinsic-width WebMCP toggle column, separated by 12px. Stack the label
+and identifier with 4px gaps. Descriptions span both columns and show up to two
+lines; the detail view retains the full description. Long names and identifiers
+wrap. Formatted output wraps and scrolls within a maximum height of 360px. The
+pane introduces no custom breakpoint.
 
 ## Elevation & Depth
 
@@ -54,9 +73,14 @@ Reuse `@wordpress/components`: secondary Refresh, link ability labels, tertiary
 Back to abilities, primary Run, SearchControl, TextareaControl, ToggleControl,
 and Notice. Action buttons retain their intrinsic width.
 
-Keep per-ability WebMCP switches beside the abilities they affect. Exposure is
-session-only and starts disabled. An unsupported-browser notice leaves inspection
-and execution available. Keep schema details collapsible and the JSON input
+Keep WebMCP switches beside the abilities they affect. A group switch is on
+only when every ability in the group is exposed; turning it on or off applies to
+the whole group in one update. A partially exposed group shows an unchecked
+switch, and its count, exposed to assistive technology as the switch's
+description, conveys the partial state. Do not add a custom tri-state control.
+Per-ability switches remain inside the expanded group. Exposure is session-only
+and starts disabled. An unsupported-browser notice leaves inspection and
+execution available. Keep schema details collapsible and the JSON input
 explicitly labeled; its help text explains empty input and possible site changes.
 
 Use PaneLoading for initial loading and InlineProgress for refresh and execution.
