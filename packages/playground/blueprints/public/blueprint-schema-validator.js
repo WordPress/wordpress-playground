@@ -1189,9 +1189,26 @@ const schema11 = {
 							description: 'The path of the file to write to',
 						},
 						filesTree: {
-							$ref: '#/definitions/DirectoryReference',
+							anyOf: [
+								{ $ref: '#/definitions/DirectoryReference' },
+								{
+									type: 'object',
+									additionalProperties: false,
+									properties: {
+										resource: {
+											type: 'string',
+											const: 'literal:directory',
+										},
+										files: {
+											$ref: '#/definitions/FileTree',
+										},
+										name: { type: 'string' },
+									},
+									required: ['files', 'name'],
+								},
+							],
 							description:
-								"The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
+								"The 'filesTree' defines the directory structure. Inline directories can provide 'name' and 'files' without a 'resource' property. Explicit 'literal:directory' and 'git:directory' resources are also supported. The 'name' represents the root directory, while 'files' maps file paths to contents or nested subdirectories.",
 						},
 					},
 					required: ['filesTree', 'step', 'writeToPath'],
@@ -5279,9 +5296,24 @@ const schema33 = {
 					description: 'The path of the file to write to',
 				},
 				filesTree: {
-					$ref: '#/definitions/DirectoryReference',
+					anyOf: [
+						{ $ref: '#/definitions/DirectoryReference' },
+						{
+							type: 'object',
+							additionalProperties: false,
+							properties: {
+								resource: {
+									type: 'string',
+									const: 'literal:directory',
+								},
+								files: { $ref: '#/definitions/FileTree' },
+								name: { type: 'string' },
+							},
+							required: ['files', 'name'],
+						},
+					],
 					description:
-						"The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories.",
+						"The 'filesTree' defines the directory structure. Inline directories can provide 'name' and 'files' without a 'resource' property. Explicit 'literal:directory' and 'git:directory' resources are also supported. The 'name' represents the root directory, while 'files' maps file paths to contents or nested subdirectories.",
 				},
 			},
 			required: ['filesTree', 'step', 'writeToPath'],
@@ -20251,10 +20283,15 @@ function validate28(
 														data.filesTree !==
 														undefined
 													) {
+														let data189 =
+															data.filesTree;
 														const _errs504 = errors;
+														const _errs505 = errors;
+														let valid103 = false;
+														const _errs506 = errors;
 														if (
 															!validate18(
-																data.filesTree,
+																data189,
 																{
 																	instancePath:
 																		instancePath +
@@ -20275,6 +20312,376 @@ function validate28(
 																		);
 															errors =
 																vErrors.length;
+														}
+														var _valid4 =
+															_errs506 === errors;
+														valid103 =
+															valid103 || _valid4;
+														if (!valid103) {
+															const _errs507 =
+																errors;
+															if (
+																errors ===
+																_errs507
+															) {
+																if (
+																	data189 &&
+																	typeof data189 ==
+																		'object' &&
+																	!Array.isArray(
+																		data189
+																	)
+																) {
+																	let missing31;
+																	if (
+																		(data189.files ===
+																			undefined &&
+																			(missing31 =
+																				'files')) ||
+																		(data189.name ===
+																			undefined &&
+																			(missing31 =
+																				'name'))
+																	) {
+																		const err22 =
+																			{
+																				instancePath:
+																					instancePath +
+																					'/filesTree',
+																				schemaPath:
+																					'#/oneOf/26/properties/filesTree/anyOf/1/required',
+																				keyword:
+																					'required',
+																				params: {
+																					missingProperty:
+																						missing31,
+																				},
+																				message:
+																					"must have required property '" +
+																					missing31 +
+																					"'",
+																			};
+																		if (
+																			vErrors ===
+																			null
+																		) {
+																			vErrors =
+																				[
+																					err22,
+																				];
+																		} else {
+																			vErrors.push(
+																				err22
+																			);
+																		}
+																		errors++;
+																	} else {
+																		const _errs509 =
+																			errors;
+																		for (const key66 in data189) {
+																			if (
+																				!(
+																					key66 ===
+																						'resource' ||
+																					key66 ===
+																						'files' ||
+																					key66 ===
+																						'name'
+																				)
+																			) {
+																				const err23 =
+																					{
+																						instancePath:
+																							instancePath +
+																							'/filesTree',
+																						schemaPath:
+																							'#/oneOf/26/properties/filesTree/anyOf/1/additionalProperties',
+																						keyword:
+																							'additionalProperties',
+																						params: {
+																							additionalProperty:
+																								key66,
+																						},
+																						message:
+																							'must NOT have additional properties',
+																					};
+																				if (
+																					vErrors ===
+																					null
+																				) {
+																					vErrors =
+																						[
+																							err23,
+																						];
+																				} else {
+																					vErrors.push(
+																						err23
+																					);
+																				}
+																				errors++;
+																				break;
+																			}
+																		}
+																		if (
+																			_errs509 ===
+																			errors
+																		) {
+																			if (
+																				data189.resource !==
+																				undefined
+																			) {
+																				let data190 =
+																					data189.resource;
+																				const _errs510 =
+																					errors;
+																				if (
+																					typeof data190 !==
+																					'string'
+																				) {
+																					const err24 =
+																						{
+																							instancePath:
+																								instancePath +
+																								'/filesTree/resource',
+																							schemaPath:
+																								'#/oneOf/26/properties/filesTree/anyOf/1/properties/resource/type',
+																							keyword:
+																								'type',
+																							params: {
+																								type: 'string',
+																							},
+																							message:
+																								'must be string',
+																						};
+																					if (
+																						vErrors ===
+																						null
+																					) {
+																						vErrors =
+																							[
+																								err24,
+																							];
+																					} else {
+																						vErrors.push(
+																							err24
+																						);
+																					}
+																					errors++;
+																				}
+																				if (
+																					'literal:directory' !==
+																					data190
+																				) {
+																					const err25 =
+																						{
+																							instancePath:
+																								instancePath +
+																								'/filesTree/resource',
+																							schemaPath:
+																								'#/oneOf/26/properties/filesTree/anyOf/1/properties/resource/const',
+																							keyword:
+																								'const',
+																							params: {
+																								allowedValue:
+																									'literal:directory',
+																							},
+																							message:
+																								'must be equal to constant',
+																						};
+																					if (
+																						vErrors ===
+																						null
+																					) {
+																						vErrors =
+																							[
+																								err25,
+																							];
+																					} else {
+																						vErrors.push(
+																							err25
+																						);
+																					}
+																					errors++;
+																				}
+																				var valid104 =
+																					_errs510 ===
+																					errors;
+																			} else {
+																				var valid104 = true;
+																			}
+																			if (
+																				valid104
+																			) {
+																				if (
+																					data189.files !==
+																					undefined
+																				) {
+																					const _errs512 =
+																						errors;
+																					if (
+																						!validate22(
+																							data189.files,
+																							{
+																								instancePath:
+																									instancePath +
+																									'/filesTree/files',
+																								parentData:
+																									data189,
+																								parentDataProperty:
+																									'files',
+																								rootData,
+																							}
+																						)
+																					) {
+																						vErrors =
+																							vErrors ===
+																							null
+																								? validate22.errors
+																								: vErrors.concat(
+																										validate22.errors
+																									);
+																						errors =
+																							vErrors.length;
+																					}
+																					var valid104 =
+																						_errs512 ===
+																						errors;
+																				} else {
+																					var valid104 = true;
+																				}
+																				if (
+																					valid104
+																				) {
+																					if (
+																						data189.name !==
+																						undefined
+																					) {
+																						const _errs513 =
+																							errors;
+																						if (
+																							typeof data189.name !==
+																							'string'
+																						) {
+																							const err26 =
+																								{
+																									instancePath:
+																										instancePath +
+																										'/filesTree/name',
+																									schemaPath:
+																										'#/oneOf/26/properties/filesTree/anyOf/1/properties/name/type',
+																									keyword:
+																										'type',
+																									params: {
+																										type: 'string',
+																									},
+																									message:
+																										'must be string',
+																								};
+																							if (
+																								vErrors ===
+																								null
+																							) {
+																								vErrors =
+																									[
+																										err26,
+																									];
+																							} else {
+																								vErrors.push(
+																									err26
+																								);
+																							}
+																							errors++;
+																						}
+																						var valid104 =
+																							_errs513 ===
+																							errors;
+																					} else {
+																						var valid104 = true;
+																					}
+																				}
+																			}
+																		}
+																	}
+																} else {
+																	const err27 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/filesTree',
+																			schemaPath:
+																				'#/oneOf/26/properties/filesTree/anyOf/1/type',
+																			keyword:
+																				'type',
+																			params: {
+																				type: 'object',
+																			},
+																			message:
+																				'must be object',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err27,
+																			];
+																	} else {
+																		vErrors.push(
+																			err27
+																		);
+																	}
+																	errors++;
+																}
+															}
+															var _valid4 =
+																_errs507 ===
+																errors;
+															valid103 =
+																valid103 ||
+																_valid4;
+														}
+														if (!valid103) {
+															const err28 = {
+																instancePath:
+																	instancePath +
+																	'/filesTree',
+																schemaPath:
+																	'#/oneOf/26/properties/filesTree/anyOf',
+																keyword:
+																	'anyOf',
+																params: {},
+																message:
+																	'must match a schema in anyOf',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err28,
+																];
+															} else {
+																vErrors.push(
+																	err28
+																);
+															}
+															errors++;
+															validate28.errors =
+																vErrors;
+															return false;
+														} else {
+															errors = _errs505;
+															if (
+																vErrors !== null
+															) {
+																if (_errs505) {
+																	vErrors.length =
+																		_errs505;
+																} else {
+																	vErrors =
+																		null;
+																}
+															}
 														}
 														var valid101 =
 															_errs504 === errors;
@@ -20300,19 +20707,19 @@ function validate28(
 							}
 						}
 					} else if (tag0 === 'wp-cli') {
-						const _errs505 = errors;
-						if (errors === _errs505) {
+						const _errs515 = errors;
+						if (errors === _errs515) {
 							if (
 								data &&
 								typeof data == 'object' &&
 								!Array.isArray(data)
 							) {
-								let missing31;
+								let missing32;
 								if (
 									(data.command === undefined &&
-										(missing31 = 'command')) ||
+										(missing32 = 'command')) ||
 									(data.step === undefined &&
-										(missing31 = 'step'))
+										(missing32 = 'step'))
 								) {
 									validate28.errors = [
 										{
@@ -20320,24 +20727,24 @@ function validate28(
 											schemaPath: '#/oneOf/27/required',
 											keyword: 'required',
 											params: {
-												missingProperty: missing31,
+												missingProperty: missing32,
 											},
 											message:
 												"must have required property '" +
-												missing31 +
+												missing32 +
 												"'",
 										},
 									];
 									return false;
 								} else {
-									const _errs507 = errors;
-									for (const key66 in data) {
+									const _errs517 = errors;
+									for (const key67 in data) {
 										if (
 											!(
-												key66 === 'progress' ||
-												key66 === 'step' ||
-												key66 === 'command' ||
-												key66 === 'wpCliPath'
+												key67 === 'progress' ||
+												key67 === 'step' ||
+												key67 === 'command' ||
+												key67 === 'wpCliPath'
 											)
 										) {
 											validate28.errors = [
@@ -20349,7 +20756,7 @@ function validate28(
 														'additionalProperties',
 													params: {
 														additionalProperty:
-															key66,
+															key67,
 													},
 													message:
 														'must NOT have additional properties',
@@ -20359,24 +20766,24 @@ function validate28(
 											break;
 										}
 									}
-									if (_errs507 === errors) {
+									if (_errs517 === errors) {
 										if (data.progress !== undefined) {
-											let data190 = data.progress;
-											const _errs508 = errors;
-											if (errors === _errs508) {
+											let data193 = data.progress;
+											const _errs518 = errors;
+											if (errors === _errs518) {
 												if (
-													data190 &&
-													typeof data190 ==
+													data193 &&
+													typeof data193 ==
 														'object' &&
-													!Array.isArray(data190)
+													!Array.isArray(data193)
 												) {
-													const _errs510 = errors;
-													for (const key67 in data190) {
+													const _errs520 = errors;
+													for (const key68 in data193) {
 														if (
 															!(
-																key67 ===
+																key68 ===
 																	'weight' ||
-																key67 ===
+																key68 ===
 																	'caption'
 															)
 														) {
@@ -20392,7 +20799,7 @@ function validate28(
 																			'additionalProperties',
 																		params: {
 																			additionalProperty:
-																				key67,
+																				key68,
 																		},
 																		message:
 																			'must NOT have additional properties',
@@ -20402,21 +20809,21 @@ function validate28(
 															break;
 														}
 													}
-													if (_errs510 === errors) {
+													if (_errs520 === errors) {
 														if (
-															data190.weight !==
+															data193.weight !==
 															undefined
 														) {
-															let data191 =
-																data190.weight;
-															const _errs511 =
+															let data194 =
+																data193.weight;
+															const _errs521 =
 																errors;
 															if (
 																!(
-																	typeof data191 ==
+																	typeof data194 ==
 																		'number' &&
 																	isFinite(
-																		data191
+																		data194
 																	)
 																)
 															) {
@@ -20439,21 +20846,21 @@ function validate28(
 																	];
 																return false;
 															}
-															var valid105 =
-																_errs511 ===
+															var valid107 =
+																_errs521 ===
 																errors;
 														} else {
-															var valid105 = true;
+															var valid107 = true;
 														}
-														if (valid105) {
+														if (valid107) {
 															if (
-																data190.caption !==
+																data193.caption !==
 																undefined
 															) {
-																const _errs513 =
+																const _errs523 =
 																	errors;
 																if (
-																	typeof data190.caption !==
+																	typeof data193.caption !==
 																	'string'
 																) {
 																	validate28.errors =
@@ -20475,11 +20882,11 @@ function validate28(
 																		];
 																	return false;
 																}
-																var valid105 =
-																	_errs513 ===
+																var valid107 =
+																	_errs523 ===
 																	errors;
 															} else {
-																var valid105 = true;
+																var valid107 = true;
 															}
 														}
 													}
@@ -20502,16 +20909,16 @@ function validate28(
 													return false;
 												}
 											}
-											var valid104 = _errs508 === errors;
+											var valid106 = _errs518 === errors;
 										} else {
-											var valid104 = true;
+											var valid106 = true;
 										}
-										if (valid104) {
+										if (valid106) {
 											if (data.step !== undefined) {
-												let data193 = data.step;
-												const _errs515 = errors;
+												let data196 = data.step;
+												const _errs525 = errors;
 												if (
-													typeof data193 !== 'string'
+													typeof data196 !== 'string'
 												) {
 													validate28.errors = [
 														{
@@ -20530,7 +20937,7 @@ function validate28(
 													];
 													return false;
 												}
-												if ('wp-cli' !== data193) {
+												if ('wp-cli' !== data196) {
 													validate28.errors = [
 														{
 															instancePath:
@@ -20549,25 +20956,25 @@ function validate28(
 													];
 													return false;
 												}
-												var valid104 =
-													_errs515 === errors;
+												var valid106 =
+													_errs525 === errors;
 											} else {
-												var valid104 = true;
+												var valid106 = true;
 											}
-											if (valid104) {
+											if (valid106) {
 												if (
 													data.command !== undefined
 												) {
-													let data194 = data.command;
-													const _errs517 = errors;
-													const _errs518 = errors;
-													let valid106 = false;
-													const _errs519 = errors;
+													let data197 = data.command;
+													const _errs527 = errors;
+													const _errs528 = errors;
+													let valid108 = false;
+													const _errs529 = errors;
 													if (
-														typeof data194 !==
+														typeof data197 !==
 														'string'
 													) {
-														const err22 = {
+														const err29 = {
 															instancePath:
 																instancePath +
 																'/command',
@@ -20581,43 +20988,43 @@ function validate28(
 																'must be string',
 														};
 														if (vErrors === null) {
-															vErrors = [err22];
+															vErrors = [err29];
 														} else {
-															vErrors.push(err22);
+															vErrors.push(err29);
 														}
 														errors++;
 													}
-													var _valid4 =
-														_errs519 === errors;
-													valid106 =
-														valid106 || _valid4;
-													if (!valid106) {
-														const _errs521 = errors;
+													var _valid5 =
+														_errs529 === errors;
+													valid108 =
+														valid108 || _valid5;
+													if (!valid108) {
+														const _errs531 = errors;
 														if (
-															errors === _errs521
+															errors === _errs531
 														) {
 															if (
 																Array.isArray(
-																	data194
+																	data197
 																)
 															) {
-																var valid107 = true;
+																var valid109 = true;
 																const len1 =
-																	data194.length;
+																	data197.length;
 																for (
 																	let i1 = 0;
 																	i1 < len1;
 																	i1++
 																) {
-																	const _errs523 =
+																	const _errs533 =
 																		errors;
 																	if (
-																		typeof data194[
+																		typeof data197[
 																			i1
 																		] !==
 																		'string'
 																	) {
-																		const err23 =
+																		const err30 =
 																			{
 																				instancePath:
 																					instancePath +
@@ -20639,26 +21046,26 @@ function validate28(
 																		) {
 																			vErrors =
 																				[
-																					err23,
+																					err30,
 																				];
 																		} else {
 																			vErrors.push(
-																				err23
+																				err30
 																			);
 																		}
 																		errors++;
 																	}
-																	var valid107 =
-																		_errs523 ===
+																	var valid109 =
+																		_errs533 ===
 																		errors;
 																	if (
-																		!valid107
+																		!valid109
 																	) {
 																		break;
 																	}
 																}
 															} else {
-																const err24 = {
+																const err31 = {
 																	instancePath:
 																		instancePath +
 																		'/command',
@@ -20677,23 +21084,23 @@ function validate28(
 																	null
 																) {
 																	vErrors = [
-																		err24,
+																		err31,
 																	];
 																} else {
 																	vErrors.push(
-																		err24
+																		err31
 																	);
 																}
 																errors++;
 															}
 														}
-														var _valid4 =
-															_errs521 === errors;
-														valid106 =
-															valid106 || _valid4;
+														var _valid5 =
+															_errs531 === errors;
+														valid108 =
+															valid108 || _valid5;
 													}
-													if (!valid106) {
-														const err25 = {
+													if (!valid108) {
+														const err32 = {
 															instancePath:
 																instancePath +
 																'/command',
@@ -20705,36 +21112,36 @@ function validate28(
 																'must match a schema in anyOf',
 														};
 														if (vErrors === null) {
-															vErrors = [err25];
+															vErrors = [err32];
 														} else {
-															vErrors.push(err25);
+															vErrors.push(err32);
 														}
 														errors++;
 														validate28.errors =
 															vErrors;
 														return false;
 													} else {
-														errors = _errs518;
+														errors = _errs528;
 														if (vErrors !== null) {
-															if (_errs518) {
+															if (_errs528) {
 																vErrors.length =
-																	_errs518;
+																	_errs528;
 															} else {
 																vErrors = null;
 															}
 														}
 													}
-													var valid104 =
-														_errs517 === errors;
+													var valid106 =
+														_errs527 === errors;
 												} else {
-													var valid104 = true;
+													var valid106 = true;
 												}
-												if (valid104) {
+												if (valid106) {
 													if (
 														data.wpCliPath !==
 														undefined
 													) {
-														const _errs525 = errors;
+														const _errs535 = errors;
 														if (
 															typeof data.wpCliPath !==
 															'string'
@@ -20758,10 +21165,10 @@ function validate28(
 																];
 															return false;
 														}
-														var valid104 =
-															_errs525 === errors;
+														var valid106 =
+															_errs535 === errors;
 													} else {
-														var valid104 = true;
+														var valid106 = true;
 													}
 												}
 											}
@@ -20782,19 +21189,19 @@ function validate28(
 							}
 						}
 					} else if (tag0 === 'setSiteLanguage') {
-						const _errs527 = errors;
-						if (errors === _errs527) {
+						const _errs537 = errors;
+						if (errors === _errs537) {
 							if (
 								data &&
 								typeof data == 'object' &&
 								!Array.isArray(data)
 							) {
-								let missing32;
+								let missing33;
 								if (
 									(data.language === undefined &&
-										(missing32 = 'language')) ||
+										(missing33 = 'language')) ||
 									(data.step === undefined &&
-										(missing32 = 'step'))
+										(missing33 = 'step'))
 								) {
 									validate28.errors = [
 										{
@@ -20802,23 +21209,23 @@ function validate28(
 											schemaPath: '#/oneOf/28/required',
 											keyword: 'required',
 											params: {
-												missingProperty: missing32,
+												missingProperty: missing33,
 											},
 											message:
 												"must have required property '" +
-												missing32 +
+												missing33 +
 												"'",
 										},
 									];
 									return false;
 								} else {
-									const _errs529 = errors;
-									for (const key68 in data) {
+									const _errs539 = errors;
+									for (const key69 in data) {
 										if (
 											!(
-												key68 === 'progress' ||
-												key68 === 'step' ||
-												key68 === 'language'
+												key69 === 'progress' ||
+												key69 === 'step' ||
+												key69 === 'language'
 											)
 										) {
 											validate28.errors = [
@@ -20830,7 +21237,7 @@ function validate28(
 														'additionalProperties',
 													params: {
 														additionalProperty:
-															key68,
+															key69,
 													},
 													message:
 														'must NOT have additional properties',
@@ -20840,24 +21247,24 @@ function validate28(
 											break;
 										}
 									}
-									if (_errs529 === errors) {
+									if (_errs539 === errors) {
 										if (data.progress !== undefined) {
-											let data197 = data.progress;
-											const _errs530 = errors;
-											if (errors === _errs530) {
+											let data200 = data.progress;
+											const _errs540 = errors;
+											if (errors === _errs540) {
 												if (
-													data197 &&
-													typeof data197 ==
+													data200 &&
+													typeof data200 ==
 														'object' &&
-													!Array.isArray(data197)
+													!Array.isArray(data200)
 												) {
-													const _errs532 = errors;
-													for (const key69 in data197) {
+													const _errs542 = errors;
+													for (const key70 in data200) {
 														if (
 															!(
-																key69 ===
+																key70 ===
 																	'weight' ||
-																key69 ===
+																key70 ===
 																	'caption'
 															)
 														) {
@@ -20873,7 +21280,7 @@ function validate28(
 																			'additionalProperties',
 																		params: {
 																			additionalProperty:
-																				key69,
+																				key70,
 																		},
 																		message:
 																			'must NOT have additional properties',
@@ -20883,21 +21290,21 @@ function validate28(
 															break;
 														}
 													}
-													if (_errs532 === errors) {
+													if (_errs542 === errors) {
 														if (
-															data197.weight !==
+															data200.weight !==
 															undefined
 														) {
-															let data198 =
-																data197.weight;
-															const _errs533 =
+															let data201 =
+																data200.weight;
+															const _errs543 =
 																errors;
 															if (
 																!(
-																	typeof data198 ==
+																	typeof data201 ==
 																		'number' &&
 																	isFinite(
-																		data198
+																		data201
 																	)
 																)
 															) {
@@ -20920,21 +21327,21 @@ function validate28(
 																	];
 																return false;
 															}
-															var valid110 =
-																_errs533 ===
+															var valid112 =
+																_errs543 ===
 																errors;
 														} else {
-															var valid110 = true;
+															var valid112 = true;
 														}
-														if (valid110) {
+														if (valid112) {
 															if (
-																data197.caption !==
+																data200.caption !==
 																undefined
 															) {
-																const _errs535 =
+																const _errs545 =
 																	errors;
 																if (
-																	typeof data197.caption !==
+																	typeof data200.caption !==
 																	'string'
 																) {
 																	validate28.errors =
@@ -20956,11 +21363,11 @@ function validate28(
 																		];
 																	return false;
 																}
-																var valid110 =
-																	_errs535 ===
+																var valid112 =
+																	_errs545 ===
 																	errors;
 															} else {
-																var valid110 = true;
+																var valid112 = true;
 															}
 														}
 													}
@@ -20983,16 +21390,16 @@ function validate28(
 													return false;
 												}
 											}
-											var valid109 = _errs530 === errors;
+											var valid111 = _errs540 === errors;
 										} else {
-											var valid109 = true;
+											var valid111 = true;
 										}
-										if (valid109) {
+										if (valid111) {
 											if (data.step !== undefined) {
-												let data200 = data.step;
-												const _errs537 = errors;
+												let data203 = data.step;
+												const _errs547 = errors;
 												if (
-													typeof data200 !== 'string'
+													typeof data203 !== 'string'
 												) {
 													validate28.errors = [
 														{
@@ -21013,7 +21420,7 @@ function validate28(
 												}
 												if (
 													'setSiteLanguage' !==
-													data200
+													data203
 												) {
 													validate28.errors = [
 														{
@@ -21033,16 +21440,16 @@ function validate28(
 													];
 													return false;
 												}
-												var valid109 =
-													_errs537 === errors;
+												var valid111 =
+													_errs547 === errors;
 											} else {
-												var valid109 = true;
+												var valid111 = true;
 											}
-											if (valid109) {
+											if (valid111) {
 												if (
 													data.language !== undefined
 												) {
-													const _errs539 = errors;
+													const _errs549 = errors;
 													if (
 														typeof data.language !==
 														'string'
@@ -21064,10 +21471,10 @@ function validate28(
 														];
 														return false;
 													}
-													var valid109 =
-														_errs539 === errors;
+													var valid111 =
+														_errs549 === errors;
 												} else {
-													var valid109 = true;
+													var valid111 = true;
 												}
 											}
 										}
