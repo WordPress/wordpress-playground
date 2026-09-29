@@ -1,9 +1,15 @@
 import type {
 	AbilitiesList,
+	AbilityDescriptor,
 	AbilityInput,
 	PlaygroundClient,
 } from '@wp-playground/remote';
-import { getModelContext, stringifyError } from '@wp-playground/mcp/client';
+import {
+	abilityToolName,
+	getModelContext,
+	stringifyError,
+} from '@wp-playground/mcp/client';
+import { isMcpServerEnabled } from './state/url/router';
 
 type Snapshot = {
 	data?: AbilitiesList;
@@ -31,9 +37,20 @@ export class AbilitiesController {
 	};
 
 	private modelContext: typeof getModelContext;
+	private mcpBridgeEnabled: () => boolean;
 
-	constructor(modelContext = getModelContext) {
+	/**
+	 * @param modelContext Returns the WebMCP registry, if the browser has one.
+	 * @param mcpBridgeEnabled Whether the page is connected to the Playground
+	 *                         MCP server bridge, which also receives exposed
+	 *                         abilities.
+	 */
+	constructor(
+		modelContext = getModelContext,
+		mcpBridgeEnabled: () => boolean = () => false
+	) {
 		this.modelContext = modelContext;
+		this.mcpBridgeEnabled = mcpBridgeEnabled;
 	}
 
 	getSnapshot = () => this.snapshot;
@@ -43,7 +60,20 @@ export class AbilitiesController {
 			this.listeners.delete(listener);
 		};
 	};
-	isSupported = () => Boolean(this.modelContext());
+	/** Whether abilities can be exposed through WebMCP or the MCP server. */
+	isSupported = () => this.isWebMCPSupported() || this.mcpBridgeEnabled();
+	isWebMCPSupported = () => Boolean(this.modelContext());
+
+	/**
+	 * Descriptors of the enabled abilities of the current site data.
+	 * Empty while abilities are loading or after a navigation.
+	 */
+	exposedAbilities = (): AbilityDescriptor[] => {
+		if (this.snapshot.loading) return [];
+		return (this.snapshot.data?.abilities ?? []).filter((ability) =>
+			this.snapshot.enabled.includes(ability.name)
+		);
+	};
 
 	setSite(
 		slug: string | undefined,
@@ -126,16 +156,26 @@ export class AbilitiesController {
 	};
 
 	toggle(name: string, enabled: boolean) {
-		if (
-			!this.slug ||
-			!this.snapshot.data?.abilities.some(
-				(ability) => ability.name === name
-			)
-		)
-			return;
+		this.setEnabled([name], enabled);
+	}
+
+	/**
+	 * Enables or disables several abilities with one update and one
+	 * registration pass, so a plugin-wide switch notifies listeners once.
+	 * Names missing from the current site data are ignored.
+	 */
+	setEnabled(names: string[], enabled: boolean) {
+		const abilities = this.snapshot.data?.abilities;
+		if (!this.slug || !abilities) return;
+		const known = names.filter((name) =>
+			abilities.some((ability) => ability.name === name)
+		);
+		if (known.length === 0) return;
 		const selected = this.selections.get(this.slug)!;
-		if (enabled) selected.add(name);
-		else selected.delete(name);
+		for (const name of known) {
+			if (enabled) selected.add(name);
+			else selected.delete(name);
+		}
 		this.registration?.abort();
 		this.update({ enabled: [...selected], registrationErrors: {} });
 		void this.register();
@@ -167,8 +207,7 @@ export class AbilitiesController {
 			try {
 				await modelContext.registerTool(
 					{
-						// WordPress restricts names to namespace/slug; dots cannot collide.
-						name: `wp_ability_${ability.name.replace('/', '.')}`,
+						name: abilityToolName(ability.name),
 						description:
 							ability.description ||
 							ability.label ||
@@ -216,4 +255,47 @@ export class AbilitiesController {
 	}
 }
 
-export const abilitiesController = new AbilitiesController();
+export type AbilityGroup = {
+	namespace: string;
+	/** Display name; WordPress does not record the registering plugin. */
+	label: string;
+	abilities: AbilityDescriptor[];
+};
+
+/**
+ * Groups abilities by the namespace before `/`, which is conventionally the
+ * registering plugin's slug. WordPress core comes first, then alphabetical
+ * order; abilities keep their original order within a group.
+ */
+export function groupAbilitiesByNamespace(
+	abilities: AbilityDescriptor[]
+): AbilityGroup[] {
+	const groups = new Map<string, AbilityGroup>();
+	for (const ability of abilities) {
+		const slash = ability.name.indexOf('/');
+		const namespace = slash > 0 ? ability.name.slice(0, slash) : '';
+		let group = groups.get(namespace);
+		if (!group) {
+			group = {
+				namespace,
+				label:
+					namespace === 'core'
+						? 'WordPress core'
+						: namespace || 'Other',
+				abilities: [],
+			};
+			groups.set(namespace, group);
+		}
+		group.abilities.push(ability);
+	}
+	return [...groups.values()].sort((a, b) => {
+		if (a.namespace === 'core' || b.namespace === 'core')
+			return a.namespace === 'core' ? -1 : 1;
+		return a.namespace.localeCompare(b.namespace);
+	});
+}
+
+export const abilitiesController = new AbilitiesController(
+	getModelContext,
+	isMcpServerEnabled
+);
