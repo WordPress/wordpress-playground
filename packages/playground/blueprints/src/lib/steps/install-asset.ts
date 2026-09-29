@@ -40,6 +40,7 @@ export async function installAsset(
 ): Promise<{
 	assetFolderPath: string;
 	assetFolderName: string;
+	installationStatus: 'installed' | 'skipped-already-existed';
 }> {
 	// Extract to temporary folder so we can find asset folder name
 	const zipFileName = zipFile.name;
@@ -110,6 +111,7 @@ export async function installAsset(
 				return {
 					assetFolderPath,
 					assetFolderName,
+					installationStatus: 'skipped-already-existed',
 				};
 			} else {
 				throw new Error(
@@ -123,6 +125,7 @@ export async function installAsset(
 		return {
 			assetFolderPath,
 			assetFolderName,
+			installationStatus: 'installed',
 		};
 	} finally {
 		await playground.rmdir(tmpDir, {

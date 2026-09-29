@@ -114,8 +114,14 @@ jobs:
               # release can leave npm with unsatisfiable dependencies.
               # from-package publishes only the versions absent from the
               # registry, retrying exactly the packages that failed above.
+              # A failed publish leaves unrestored package.json edits and
+              # regenerated build files, and from-package refuses to run on
+              # a dirty tree. Restoring to HEAD keeps the bumped versions on
+              # trunk; on non-trunk runs the bump is uncommitted, so the
+              # restore reverts it and from-package publishes nothing.
               if: failure() && steps.publish.conclusion == 'failure'
-              run: >
-                  lerna publish from-package
-                  --yes --no-private --loglevel=verbose
-                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+              run: |
+                  git checkout -- .
+                  lerna publish from-package \
+                      --yes --no-private --loglevel=verbose \
+                      --dist-tag=${{ inputs.dist_tag || 'latest' }}

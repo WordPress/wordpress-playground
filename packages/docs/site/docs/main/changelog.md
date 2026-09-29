@@ -12,6 +12,45 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.56] (2026-09-28) 
+
+### Documentation
+
+- Add CONTRIBUTING\.md linking to the Playground handbook\. ([#4288](https://github.com/WordPress/wordpress-playground/pull/4288))
+- Tagalog\/main\/guides\. ([#4352](https://github.com/WordPress/wordpress-playground/pull/4352))
+- \[CORS Proxy\] Don\'t relay server\-control response headers\. ([#4364](https://github.com/WordPress/wordpress-playground/pull/4364))
+- \[CORS Proxy\] Support HEAD and relay Content\-Length for non\-chunked responses\. ([#4365](https://github.com/WordPress/wordpress-playground/pull/4365))
+- \[CORS Proxy\] Support range requests from browsers\. ([#4362](https://github.com/WordPress/wordpress-playground/pull/4362))
+- \[docs\] Adding MCP playground guide\. ([#3826](https://github.com/WordPress/wordpress-playground/pull/3826))
+- \[i18n\] Translate releases into Gujarati\. ([#4360](https://github.com/WordPress/wordpress-playground/pull/4360))
+- \[i18n\] Update Tagalog Contributor Day guide to match English documentation\. ([#4353](https://github.com/WordPress/wordpress-playground/pull/4353))
+
+### Experiments
+
+
+#### Website
+
+- Support randomized SQLite database storage\. ([#4344](https://github.com/WordPress/wordpress-playground/pull/4344))
+
+### Website
+
+- Migrate remaining Cypress tests to Playwright\. ([#4358](https://github.com/WordPress/wordpress-playground/pull/4358))
+
+#### Blueprints
+
+- Remember and mount plugins\/themes from git in the Files browser\. ([#4300](https://github.com/WordPress/wordpress-playground/pull/4300))
+
+### Various
+
+- \[CI\] Restore the working tree before republishing missing packages\. ([#4349](https://github.com/WordPress/wordpress-playground/pull/4349))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @brandonpayton @fellyph @JanJakes @karan241296 @mho22 @rollybueno @swcidd
+
+
 ## [v3.1.55] (2026-09-21) 
 
 ### Tools

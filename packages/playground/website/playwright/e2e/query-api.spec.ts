@@ -23,6 +23,13 @@ test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	);
 });
 
+test('should load PHP 7.4 when requested', async ({ website, wordpress }) => {
+	await website.goto('./?storage=temp&php=7.4&url=/phpinfo.php');
+	await expect(wordpress.locator('h1.p').first()).toContainText(
+		'PHP Version 7.4'
+	);
+});
+
 test.describe('option `php-extension`', () => {
 	test.skip(
 		({ browserName }) => browserName !== 'chromium',
@@ -202,6 +209,33 @@ test('should enable networking when requested', async ({
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
+/**
+ * @see https://github.com/WordPress/wordpress-playground/pull/819
+ * @TODO: Turn this into a unit test once WordPress modules are available
+ *        for import.
+ */
+test('should return true from wp_http_supports(array( "ssl" ))', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/test.php',
+		features: { networking: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/test.php',
+				data: `<?php
+					require '/wordpress/wp-load.php';
+					echo wp_http_supports(array( "ssl" )) ? "true" : "false";
+				`,
+			},
+		],
+	};
+	await website.goto(`./?storage=temp#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toHaveText('true');
+});
+
 test('should install the specified plugin', async ({ website, wordpress }) => {
 	await website.goto(
 		'./?storage=temp&plugin=gutenberg&url=/wp-admin/plugins.php'
@@ -209,6 +243,97 @@ test('should install the specified plugin', async ({ website, wordpress }) => {
 	await expect(wordpress.locator('#deactivate-gutenberg')).toContainText(
 		'Deactivate'
 	);
+});
+
+test('should install the specified theme', async ({ website, wordpress }) => {
+	await website.goto(
+		'./?storage=temp&theme=twentytwentyone&url=/wp-admin/themes.php'
+	);
+	await expect(
+		wordpress.locator('[data-slug="twentytwentyone"].active')
+	).toBeVisible();
+});
+
+test('should show the simulated browser by default', async ({ website }) => {
+	await website.goto('./?storage=temp');
+	await expect(
+		website.page.locator('[data-cy="simulated-browser"]')
+	).toBeVisible();
+});
+
+test('should hide the simulated browser in seamless mode', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp&mode=seamless');
+	await expect(
+		website.page.locator('[data-cy="simulated-browser"]')
+	).toHaveCount(0);
+});
+
+test('should enable a multisite when requested', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp&multisite=yes&url=/wp-admin/');
+	await expect(wordpress.locator('#wp-admin-bar-my-sites')).toContainText(
+		'My Sites'
+	);
+});
+
+test('should defer loading Playground until Run is clicked', async ({
+	website,
+	wordpress,
+}) => {
+	// Specify initial WP URL because the Playground has changed
+	// its default WP URL in the past.
+	// Use page.goto because website.goto waits for WordPress to boot.
+	await website.page.goto('./?storage=temp&lazy&url=%2F');
+	const runButton = website.page.getByRole('link', {
+		name: 'Run Playground',
+	});
+	await expect(runButton).toBeVisible();
+	await expect(website.page.locator('.playground-viewport')).toHaveCount(0);
+
+	await runButton.click();
+	await expect(wordpress.locator('body')).toHaveClass(/\bhome\b/);
+});
+
+test.describe('Patching Gutenberg editor frame', () => {
+	// TODO: Cover Gutenberg brought over by importing
+	// test-fixtures/site-with-unpatched-gutenberg.zip. That case was disabled
+	// in the previous suite and still needs an active regression test.
+	for (const { name, query } of [
+		{ name: 'WordPress', query: '' },
+		{ name: 'the Gutenberg plugin', query: '&plugin=gutenberg' },
+	]) {
+		test(`should patch the editor frame in ${name}`, async ({
+			website,
+			wordpress,
+		}) => {
+			// The default post has content blocks in every tested editor version.
+			await website.goto(
+				`./?storage=temp${query}&url=${encodeURIComponent('/wp-admin/post.php?post=1&action=edit')}`
+			);
+			// Check that the editor canvas loaded its stylesheets. If the
+			// canvas frame wasn't correctly patched, its CSS requests 404
+			// and blocks render with browser-default styles. The
+			// `overflow-wrap` rule comes from block-editor's content.css
+			// and the browser default is `normal`.
+			//
+			// Target a content block inside the layout. The post title is
+			// outside it and does not match the content.css rule.
+			// Using an existing post also avoids depending on the default block
+			// appender, which Gutenberg 23.8 replaced with a (ghost) paragraph.
+			await expect(
+				wordpress
+					.frameLocator('iframe[name="editor-canvas"]')
+					.locator(
+						'.block-editor-block-list__layout .block-editor-block-list__block'
+					)
+					.first()
+			).toHaveCSS('overflow-wrap', 'break-word');
+		});
+	}
 });
 
 test('should login the user in by default if no login query parameter is provided', async ({
