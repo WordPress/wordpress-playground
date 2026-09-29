@@ -148,6 +148,28 @@ describe('ability exposure lifecycle', () => {
 	});
 });
 
+// Contract: a plugin-wide switch changes exactly the named, known abilities in
+// one update. Looping over toggle() would re-register and notify the MCP bridge
+// once per ability and could leave unknown names selected.
+it('batch-enables known abilities with one update and one registration pass', async () => {
+	const { controller, data, model, tools } = setup();
+	data.abilities.push({ ...data.abilities[0], name: 'test/other' });
+	await controller.refresh();
+	const listener = vi.fn();
+	controller.subscribe(listener);
+	controller.setEnabled(['test/echo', 'test/other', 'missing/ability'], true);
+	expect(listener).toHaveBeenCalledOnce();
+	expect(controller.getSnapshot().enabled).toEqual([
+		'test/echo',
+		'test/other',
+	]);
+	await vi.waitFor(() => expect(tools.size).toBe(2));
+	expect(model.registerTool).toHaveBeenCalledTimes(2);
+	controller.setEnabled(['test/echo', 'test/other'], false);
+	expect(tools.size).toBe(0);
+	expect(controller.exposedAbilities()).toEqual([]);
+});
+
 // WordPress identifiers must remain intact when the browser calls the renamed tool.
 it.each(['core/get-user-info', 'core/get-environment-info'])(
 	'registers %s with a valid WebMCP name and calls the original ability',
@@ -168,3 +190,39 @@ it.each(['core/get-user-info', 'core/get-environment-info'])(
 		});
 	}
 );
+
+// Contract: the MCP server bridge receives exactly the abilities the user
+// switched on for the loaded site, and the switches work without WebMCP.
+describe('MCP server exposure', () => {
+	it('can expose abilities through the MCP bridge alone', () => {
+		const controller = new AbilitiesController(
+			() => undefined,
+			() => true
+		);
+		expect(controller.isWebMCPSupported()).toBe(false);
+		expect(controller.isSupported()).toBe(true);
+	});
+	it('reports toggled abilities and nothing while abilities reload', async () => {
+		const { controller, client, data } = setup();
+		await controller.refresh();
+		expect(controller.exposedAbilities()).toEqual([]);
+		controller.toggle('test/echo', true);
+		expect(controller.exposedAbilities()).toEqual(data.abilities);
+
+		let resolve!: (value: AbilitiesList) => void;
+		vi.mocked(client.listAbilities).mockImplementationOnce(
+			() =>
+				new Promise((done) => {
+					resolve = done;
+				})
+		);
+		const pending = controller.refresh();
+		expect(controller.exposedAbilities()).toEqual([]);
+		resolve(data);
+		await pending;
+		expect(controller.exposedAbilities()).toEqual(data.abilities);
+
+		controller.toggle('test/echo', false);
+		expect(controller.exposedAbilities()).toEqual([]);
+	});
+});
