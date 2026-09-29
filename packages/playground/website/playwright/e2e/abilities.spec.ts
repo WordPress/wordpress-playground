@@ -69,6 +69,12 @@ test('native abilities execute with permissions and reconcile WebMCP exposure', 
 	await website.goto(`./?storage=temp#${blueprint()}`);
 	await website.openDockPane('Abilities');
 	const pane = page.getByRole('dialog', { name: 'Abilities pane' });
+	const fixtureGroup = pane.getByRole('button', {
+		name: 'fixture',
+		exact: true,
+	});
+	await expect(fixtureGroup).toHaveAttribute('aria-expanded', 'false');
+	await fixtureGroup.click();
 	await expect(
 		pane.getByRole('button', { name: 'Echo object', exact: true })
 	).toBeVisible();
@@ -117,6 +123,27 @@ test('native abilities execute with permissions and reconcile WebMCP exposure', 
 			(document as any).modelContext.tools.map((tool: any) => tool.name)
 		);
 	expect(await toolNames()).not.toContain('wp_ability_fixture.object');
+	const fixtureTools = [
+		'object',
+		'scalar',
+		'no-input',
+		'denied',
+		'error',
+	].map((name) => `wp_ability_fixture.${name}`);
+	const groupSwitch = pane.getByRole('checkbox', {
+		name: 'Expose all fixture abilities through WebMCP',
+		exact: true,
+	});
+	await groupSwitch.check();
+	await expect.poll(toolNames).toEqual(expect.arrayContaining(fixtureTools));
+	await groupSwitch.uncheck();
+	await expect
+		.poll(async () =>
+			(await toolNames()).filter((name: string) =>
+				fixtureTools.includes(name)
+			)
+		)
+		.toEqual([]);
 	await pane
 		.getByRole('checkbox', {
 			name: 'Expose Echo object through WebMCP',
@@ -219,6 +246,7 @@ test('manual runner remains available without WebMCP', async ({ website }) => {
 			exact: false,
 		})
 	).toBeVisible();
+	await pane.getByRole('button', { name: 'fixture', exact: true }).click();
 	await pane
 		.getByRole('button', { name: 'Echo scalar', exact: true })
 		.click();
