@@ -23,7 +23,7 @@ Makakatulong ang WordPress Playground upang mabilis kang makalikha at makapag-ar
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
-Maaari mong i-integrate nang seamless ang Playground sa iyong development workflow upang mabilis na ilunsad ang lokal na WordPress environment para sa pag-test ng iyong code. Magagawa mo ito nang direkta [mula sa terminal](/developers/local-development/wp-now) o sa [paborito mong IDE](/developers/local-development/vscode-extension).
+Maaari mong i-integrate nang seamless ang Playground sa iyong development workflow upang mabilis na ilunsad ang lokal na WordPress environment para sa pag-test ng iyong code. Magagawa mo ito nang direkta [mula sa terminal](/developers/local-development/wp-playground-cli) o sa [paborito mong IDE](/developers/local-development/vscode-extension).
 
 <!--
 ## Save changes done on a Block Theme and create GitHub Pull Requests

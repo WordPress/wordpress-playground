@@ -26,7 +26,7 @@ This page will guide you through each of these. Oh, and if you're a visual learn
 
 Questa pagina ti guiderà attraverso ognuna di esse. Se preferisci imparare in modo visivo, ecco un video. Alcuni dettagli dell'interfaccia mostrati nel video sono precedenti al Dock: segui i passaggi scritti qui sotto per l'interfaccia attuale.
 
-<iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
+<iframe width="752" height="423.2" title="Primi passi con WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
 
 <!--
 ## Start a new WordPress site
