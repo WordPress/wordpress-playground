@@ -13,17 +13,8 @@ import type {
 	PointerEvent as ReactPointerEvent,
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
-import { Icon } from '@wordpress/components';
-import {
-	close,
-	external,
-	grid,
-	list,
-	page,
-	pencil,
-	plus,
-	wordpress,
-} from '@wordpress/icons';
+import { Icon, Tooltip } from '@wordpress/components';
+import { close, code, pencil, plus } from '@wordpress/icons';
 import type { DockPaneSection } from '../../lib/state/redux/slice-ui';
 import {
 	setDockOperationNotice,
@@ -37,6 +28,7 @@ import {
 } from '../../lib/dock-full-width';
 import {
 	getActiveClientInfo,
+	selectActiveSiteError,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -51,6 +43,7 @@ import {
 	useRecentAutosaveNudgeVisible,
 	useSetRecentAutosaveNudgeAnchor,
 } from '../ensure-playground-site/recent-autosave-nudge-context';
+import { listenForPointerDownAcrossIframes } from '../ensure-playground-site/listen-for-pointer-down-across-iframes';
 import { TruncatedText } from '../truncated-text';
 import { DockCornerLauncher } from './dock-corner-launcher';
 import { DockItemButton } from './dock-item-button';
@@ -63,16 +56,9 @@ import {
 	getDockOperationToastStyle,
 	getDockPaneStyle,
 } from './dock-positioning';
-import { DockBlueprintIcon, DockDatabaseIcon } from './icons';
+import { DOCK_TOOLS, getDockTool } from './tool-registry';
+import { useDeveloperTools } from './use-developer-tools';
 import css from './style.module.css';
-
-type DockItem = {
-	section: DockPaneSection;
-	label: string;
-	ariaLabel: string;
-	icon: JSX.Element;
-	isPrimary?: boolean;
-};
 
 export type DockProps = {
 	paneCloseBlocked: boolean;
@@ -82,103 +68,6 @@ export type DockProps = {
 const DRAG_THRESHOLD = 4;
 const CORNER_OVERDRAG = 36;
 const MOBILE_QUERY = '(max-width: 1024px)';
-
-const DOCK_ITEMS: DockItem[] = [
-	{
-		section: 'new',
-		label: 'New',
-		ariaLabel: 'New Playground',
-		icon: <Icon icon={plus} size={24} />,
-		isPrimary: true,
-	},
-	{
-		section: 'playgrounds',
-		label: 'Playgrounds',
-		ariaLabel: 'Your Playgrounds',
-		icon: <Icon icon={grid} size={22} />,
-	},
-	{
-		section: 'blueprint',
-		label: 'Blueprint',
-		ariaLabel: 'Current Blueprint',
-		icon: <DockBlueprintIcon />,
-	},
-	{
-		section: 'settings',
-		label: 'Site Settings',
-		ariaLabel: 'Site Settings',
-		icon: <Icon icon={wordpress} size={24} />,
-	},
-	{
-		section: 'database',
-		label: 'Database',
-		ariaLabel: 'Database',
-		icon: <DockDatabaseIcon />,
-	},
-	{
-		section: 'files',
-		label: 'Files',
-		ariaLabel: 'Files',
-		icon: <Icon icon={page} size={24} />,
-	},
-	{
-		section: 'logs',
-		label: 'Logs',
-		ariaLabel: 'Logs',
-		icon: <Icon icon={list} size={24} />,
-	},
-	{
-		section: 'share',
-		label: 'Export',
-		ariaLabel: 'Export',
-		icon: <Icon icon={external} size={24} />,
-	},
-];
-
-const PANE_COPY: Record<
-	DockPaneSection,
-	{ title: string; description: string }
-> = {
-	new: {
-		title: 'New Playground',
-		description: 'Spin up a fresh Playground or start from a Blueprint.',
-	},
-	playgrounds: {
-		title: 'Your Playgrounds',
-		description: 'Switch between your recent and saved Playgrounds.',
-	},
-	blueprint: {
-		title: 'Blueprint',
-		description:
-			'Review and edit the Blueprint that describes this Playground.',
-	},
-	settings: {
-		title: 'Site Settings',
-		description:
-			'Change this Playground’s WordPress, PHP, language, and network settings.',
-	},
-	database: {
-		title: 'Database',
-		description:
-			'Inspect and edit the SQLite database behind this Playground.',
-	},
-	files: {
-		title: 'Files',
-		description: 'Browse and edit the active Playground filesystem.',
-	},
-	logs: {
-		title: 'Logs',
-		description: 'PHP, WordPress, and Playground runtime messages.',
-	},
-	share: {
-		title: 'Export',
-		description: '',
-	},
-	save: {
-		title: 'Store permanently',
-		description: '',
-	},
-};
 
 /**
  * Hosts every website tool in one bottom Dock while leaving each tool's domain
@@ -191,6 +80,7 @@ export function Dock({
 	const dispatch = useAppDispatch();
 	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
+	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const section = useAppSelector((state) => state.ui.dockPaneSection);
 	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
 	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
@@ -202,12 +92,14 @@ export function Dock({
 	);
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
-	const paneCopy = PANE_COPY[section];
+	const paneCopy = getDockTool(section);
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
-	const isEditorSection = section === 'blueprint' || section === 'files';
+	const isEditorSection = paneCopy.layout === 'editor';
+	const isWideSection = paneCopy.layout === 'wide';
 	const isFixedHeightSection =
-		section === 'new' || (section === 'share' && shareExportOpen);
+		Boolean(paneCopy.fixedHeight) ||
+		(section === 'share' && shareExportOpen);
 	const showSharedHeader = !isEditorSection;
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
@@ -232,6 +124,18 @@ export function Dock({
 	const focusBeforePaneRef = useRef<HTMLElement | null>(null);
 	const hasOpenedPaneRef = useRef(false);
 	const collapseButtonRef = useRef<HTMLButtonElement>(null);
+	const developerToggleRef = useRef<HTMLButtonElement>(null);
+	const developerToolsRef = useRef<HTMLDivElement>(null);
+	// Keep the natural width until measured, including without ResizeObserver.
+	const [developerToolsWidth, setDeveloperToolsWidth] = useState<number>();
+	const developerTools = useDeveloperTools({
+		developerPaneOpen: dockPaneIsOpen && paneCopy.group === 'developer',
+		paneCloseBlocked,
+		onCloseDeveloperPane: () => {
+			focusBeforePaneRef.current = developerToggleRef.current;
+			dispatch(setDockPaneOpen(false));
+		},
+	});
 	const dragCleanupRef = useRef<(() => void) | null>(null);
 	const dragArmedRef = useRef(false);
 	const draggedRef = useRef(false);
@@ -292,6 +196,9 @@ export function Dock({
 		const observer = new ResizeObserver(() => {
 			const dock = dockRef.current;
 			const tools = toolsRef.current;
+			if (developerToolsRef.current) {
+				setDeveloperToolsWidth(developerToolsRef.current.offsetWidth);
+			}
 			if (dock) {
 				setDockSize({
 					width: dock.offsetWidth,
@@ -310,6 +217,9 @@ export function Dock({
 		}
 		if (toolsRef.current) {
 			observer.observe(toolsRef.current);
+		}
+		if (developerToolsRef.current) {
+			observer.observe(developerToolsRef.current);
 		}
 		return () => observer.disconnect();
 	}, []);
@@ -362,6 +272,16 @@ export function Dock({
 		observer.observe(toast);
 		return () => observer.disconnect();
 	}, [operationNotice]);
+
+	useEffect(() => {
+		if (operationNotice?.status !== 'success') {
+			return;
+		}
+		const timeout = window.setTimeout(() => {
+			dispatch(setDockOperationNotice(undefined));
+		}, 4000);
+		return () => window.clearTimeout(timeout);
+	}, [dispatch, operationNotice]);
 
 	useEffect(() => {
 		if (dockCenter === null || !dockSize.width) {
@@ -423,7 +343,25 @@ export function Dock({
 		} else if (isCollapsed) {
 			setRecentAutosaveNudgeAnchor(dockStatusRef.current);
 		} else {
-			setRecentAutosaveNudgeAnchor(playgroundsButtonRef.current);
+			const button = playgroundsButtonRef.current;
+			const dock = dockRef.current;
+			if (button && dock) {
+				setRecentAutosaveNudgeAnchor({
+					ownerDocument: button.ownerDocument,
+					getBoundingClientRect: () => {
+						const buttonRect = button.getBoundingClientRect();
+						const dockRect = dock.getBoundingClientRect();
+						// Point toward Playgrounds without covering the address
+						// and save controls in the row above it.
+						return new DOMRect(
+							buttonRect.x,
+							dockRect.y,
+							buttonRect.width,
+							0
+						);
+					},
+				});
+			}
 		}
 		return () => setRecentAutosaveNudgeAnchor(null);
 	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
@@ -493,12 +431,7 @@ export function Dock({
 	useEffect(() => {
 		/** Lets the active modal or popover consume Escape before the Dock does. */
 		const closeOnEscape = (event: KeyboardEvent) => {
-			if (
-				event.key !== 'Escape' ||
-				activeModal ||
-				!dockPaneIsOpen ||
-				paneCloseBlocked
-			) {
+			if (event.key !== 'Escape' || activeModal) {
 				return;
 			}
 			if (
@@ -508,12 +441,39 @@ export function Dock({
 			) {
 				return;
 			}
+			if (operationNotice) {
+				dispatch(setDockOperationNotice(undefined));
+				return;
+			}
+			if (!dockPaneIsOpen || paneCloseBlocked) {
+				return;
+			}
 			dispatch(setDockPaneOpen(false));
 		};
 		document.addEventListener('keydown', closeOnEscape, true);
 		return () =>
 			document.removeEventListener('keydown', closeOnEscape, true);
-	}, [activeModal, dispatch, paneCloseBlocked, dockPaneIsOpen]);
+	}, [
+		activeModal,
+		dispatch,
+		dockPaneIsOpen,
+		operationNotice,
+		paneCloseBlocked,
+	]);
+
+	useEffect(() => {
+		if (!operationNotice) {
+			return;
+		}
+		// Dismiss the toast on the next outside interaction. Pointer events inside
+		// the Playground iframe do not bubble to this document, so listen across frames.
+		return listenForPointerDownAcrossIframes((event) => {
+			if (operationToastRef.current?.contains(event.target as Node)) {
+				return;
+			}
+			dispatch(setDockOperationNotice(undefined));
+		});
+	}, [dispatch, operationNotice]);
 
 	useEffect(() => {
 		if (dockPaneIsOpen) {
@@ -572,12 +532,12 @@ export function Dock({
 	// already fixed to an edge and keep their native control interactions.
 	const canDrag = !isMobile && !isFullWidth;
 
-	/** Reports whether a target is a real Dock control. */
-	const isInteractiveTarget = (target: EventTarget | null) =>
+	/** Reports whether a target belongs to a Dock control, including a portal. */
+	const isDockControlTarget = (target: EventTarget | null) =>
 		target instanceof Element &&
 		Boolean(
 			target.closest(
-				'button, a, input, textarea, select, [role="menu"], [role="menuitem"]'
+				'button, a, input, textarea, select, [role="menu"], [role="menuitem"], [role="listbox"]'
 			)
 		);
 
@@ -607,20 +567,12 @@ export function Dock({
 	// Controls keep native press, selection, and motor-tolerance behavior. The
 	// surrounding Dock chrome remains a large drag handle without turning a small
 	// pointer wobble on a button into an accidental Dock move.
-	const isNativePressTarget = (target: EventTarget | null) =>
-		target instanceof Element &&
-		Boolean(
-			target.closest(
-				'button, input, textarea, select, a, [role="menu"], [role="menuitem"]'
-			)
-		);
-
 	/** Arms a whole-surface horizontal drag and swallows clicks after real drags. */
 	const handleDockPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
 		if (
 			!canDrag ||
 			event.button !== 0 ||
-			isNativePressTarget(event.target)
+			isDockControlTarget(event.target)
 		) {
 			return;
 		}
@@ -632,6 +584,7 @@ export function Dock({
 		const rect = dock.getBoundingClientRect();
 		const startX = event.clientX;
 		const startCenter = rect.left + rect.width / 2;
+		const initialDockCenter = dockCenter;
 		const halfWidth = dock.offsetWidth / 2;
 		const pointerId = event.pointerId;
 		const capturePointer = () => {
@@ -679,7 +632,12 @@ export function Dock({
 		};
 
 		/** Finishes a drag without also activating the pressed Dock control. */
-		const finishDockDrag = () => {
+		const finishDockDrag = () => completeDockDrag(false);
+
+		/** Restores the Dock when pointer ownership ends without a pointerup. */
+		const cancelDockDrag = () => completeDockDrag(true);
+
+		const completeDockDrag = (cancelled: boolean) => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
 			// Let the next click target the restored corner launcher instead of
@@ -722,6 +680,14 @@ export function Dock({
 				setDockSheen(0);
 			}
 
+			if (cancelled) {
+				dragSideRef.current = null;
+				setCornerSide(null);
+				setDockCenter(initialDockCenter);
+				setDockSheen(0);
+				return;
+			}
+
 			if (dragSideRef.current !== null && dockPaneIsOpen) {
 				// An open pane owns the expanded Dock. Refuse a fold that would hide
 				// both the tool in use and its launcher.
@@ -741,11 +707,15 @@ export function Dock({
 		dragCleanupRef.current = () => {
 			window.removeEventListener('pointermove', moveDock, true);
 			window.removeEventListener('pointerup', finishDockDrag, true);
-			window.removeEventListener('pointercancel', finishDockDrag, true);
+			window.removeEventListener('pointercancel', cancelDockDrag, true);
+			window.removeEventListener('blur', cancelDockDrag);
+			dock.removeEventListener('lostpointercapture', cancelDockDrag);
 		};
 		window.addEventListener('pointermove', moveDock, true);
 		window.addEventListener('pointerup', finishDockDrag, true);
-		window.addEventListener('pointercancel', finishDockDrag, true);
+		window.addEventListener('pointercancel', cancelDockDrag, true);
+		window.addEventListener('blur', cancelDockDrag);
+		dock.addEventListener('lostpointercapture', cancelDockDrag);
 	};
 
 	/** Reveals the grab sheen, softened while the pointer is over a control. */
@@ -754,7 +724,7 @@ export function Dock({
 			return;
 		}
 		setDockSheen(
-			isInteractiveTarget(event.target) ? 0.12 : 1,
+			isDockControlTarget(event.target) ? 0.12 : 1,
 			event.clientX
 		);
 	};
@@ -988,6 +958,7 @@ export function Dock({
 		dockCenter,
 		viewportSize,
 		isEditorSection,
+		isWideSection,
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
 	});
@@ -1002,12 +973,48 @@ export function Dock({
 		toastHeight: operationToastHeight,
 		paneOpen: dockPaneIsOpen,
 		isEditorSection,
+		isWideSection,
 	});
+
+	function renderTool(item: (typeof DOCK_TOOLS)[number]) {
+		return (
+			<DockItemButton
+				key={item.section}
+				ref={
+					item.section === 'playgrounds'
+						? playgroundsButtonRef
+						: undefined
+				}
+				label={item.label}
+				ariaLabel={item.ariaLabel}
+				icon={item.icon}
+				isPrimary={item.isPrimary}
+				isActive={dockPaneIsOpen && section === item.section}
+				disabled={paneCloseBlocked}
+				hasNotification={
+					item.section === 'playgrounds' && recentAutosaveNudgeVisible
+				}
+				notificationAriaSuffix="recent autosave available"
+				onClick={(event) => {
+					// Safari needs explicit focus so closing a pane returns to its launcher.
+					event.currentTarget.focus();
+					openSection(item.section);
+				}}
+			/>
+		);
+	}
 
 	return (
 		<>
 			{operationNotice && (
-				<span className={css.visuallyHidden} role="alert">
+				<span
+					className={css.visuallyHidden}
+					role={
+						operationNotice.status === 'success'
+							? 'status'
+							: 'alert'
+					}
+				>
 					{operationNotice.title}
 					{operationNotice.message && `. ${operationNotice.message}`}
 				</span>
@@ -1116,17 +1123,14 @@ export function Dock({
 					headerOverride={paneHeaderOverride}
 					className={classNames({
 						[css.hostPaneHidden]:
-							!dockPaneIsOpen && paneExitComplete,
-						[css.paneSave]: section === 'save',
+							Boolean(activeSiteError) ||
+							(!dockPaneIsOpen && paneExitComplete),
+						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
 					isFixedHeight={isFixedHeightSection}
-					isCompact={
-						section === 'settings' ||
-						section === 'share' ||
-						section === 'save'
-					}
+					isCompact={paneCopy.layout === 'compact'}
 					showHeader={showSharedHeader}
 					closeDisabled={paneCloseBlocked}
 					closeTitle={
@@ -1153,9 +1157,16 @@ export function Dock({
 			{operationNotice && (
 				<div
 					ref={operationToastRef}
-					className={css.dockOperationToast}
+					className={classNames(css.dockOperationToast, {
+						[css.dockOperationToastSuccess]:
+							operationNotice.status === 'success',
+					})}
 					role="group"
-					aria-label="Operation failed"
+					aria-label={
+						operationNotice.status === 'success'
+							? 'Operation succeeded'
+							: 'Operation failed'
+					}
 					style={operationToastStyle}
 				>
 					<div className={css.dockOperationToastContent}>
@@ -1170,7 +1181,11 @@ export function Dock({
 					</div>
 					<button
 						type="button"
-						aria-label="Dismiss operation error"
+						aria-label={
+							operationNotice.status === 'success'
+								? 'Dismiss operation notification'
+								: 'Dismiss operation error'
+						}
 						onClick={() =>
 							dispatch(setDockOperationNotice(undefined))
 						}
@@ -1212,6 +1227,7 @@ export function Dock({
 						<div className={css.dockAddress}>
 							<AddressBar
 								url={clientInfo?.url}
+								isMobile={isMobile}
 								disabled={!clientInfo}
 								onUpdate={
 									clientInfo
@@ -1254,36 +1270,69 @@ export function Dock({
 						/>
 					</div>
 					<div className={css.dockTools} ref={toolsRef}>
-						{DOCK_ITEMS.map((item, index) => (
-							<DockItemButton
-								key={item.section}
-								ref={
-									item.section === 'playgrounds'
-										? playgroundsButtonRef
-										: undefined
-								}
-								label={item.label}
-								ariaLabel={item.ariaLabel}
-								icon={item.icon}
-								isPrimary={item.isPrimary}
-								isActive={
-									dockPaneIsOpen && section === item.section
-								}
-								disabled={paneCloseBlocked}
-								hasNotification={
-									item.section === 'playgrounds' &&
-									recentAutosaveNudgeVisible
-								}
-								notificationAriaSuffix="recent autosave available"
-								hasSeparator={index === 2}
-								onClick={(event) => {
-									// Safari does not focus buttons on click. Do it here so
-									// closing a pane returns focus to its Dock control.
-									event.currentTarget.focus();
-									openSection(item.section);
+						<div
+							className={css.dockToolRow}
+							aria-label="Playground actions"
+							role="group"
+						>
+							{DOCK_TOOLS.filter(
+								(item) => item.group === 'main'
+							).map(renderTool)}
+							<Tooltip text="Developer tools">
+								<button
+									type="button"
+									ref={developerToggleRef}
+									className={classNames(
+										css.dockItem,
+										css.developerToggle,
+										css.withSeparator,
+										{
+											[css.dockItemActive]:
+												developerTools.isVisible,
+										}
+									)}
+									aria-label="Dev Tools"
+									aria-expanded={developerTools.isVisible}
+									aria-controls="playground-developer-tools"
+									disabled={paneCloseBlocked}
+									onClick={(event) => {
+										event.currentTarget.focus();
+										developerTools.toggle();
+									}}
+								>
+									<span
+										className={css.dockIcon}
+										aria-hidden="true"
+									>
+										<Icon icon={code} />
+									</span>
+									<span className={css.dockLabel}>
+										Dev Tools
+									</span>
+								</button>
+							</Tooltip>
+							<div
+								id="playground-developer-tools"
+								className={css.developerTools}
+								style={{
+									width: developerTools.isVisible
+										? developerToolsWidth
+										: 0,
 								}}
-							/>
-						))}
+								role="group"
+								aria-label="Developer tools"
+								hidden={!developerTools.isVisible}
+							>
+								<div
+									className={css.developerToolsContent}
+									ref={developerToolsRef}
+								>
+									{DOCK_TOOLS.filter(
+										(item) => item.group === 'developer'
+									).map(renderTool)}
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</nav>

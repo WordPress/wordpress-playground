@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { toolExecutors } from '../../src/tools/tool-executors';
+import type { PlaygroundClient } from '@wp-playground/remote';
+import {
+	createToolClient,
+	toolExecutors,
+} from '../../src/tools/tool-executors';
 import type { ToolClient } from '../../src/tools/tool-executors';
 
 describe('toolExecutors', () => {
@@ -10,7 +14,7 @@ describe('toolExecutors', () => {
 			headers?: Record<string, string>;
 			body?: string;
 		}> = [];
-		const client = createToolClient({
+		const client = createStubToolClient({
 			request: async (options) => {
 				requests.push(options);
 				return {
@@ -45,7 +49,66 @@ describe('toolExecutors', () => {
 	});
 });
 
-function createToolClient(overrides: Partial<ToolClient>): ToolClient {
+describe('createToolClient listEmails', () => {
+	// The MCP bridge relays tool results as JSON over a WebSocket, so
+	// captured emails must be condensed browser-side: attachment bytes
+	// dropped, addresses flattened to strings.
+	it('summarizes captured emails into JSON-serializable data', async () => {
+		const playgroundClient = {
+			email: async () => [
+				{
+					headers: [],
+					headerLines: [],
+					from: {
+						name: 'WordPress',
+						address: 'wordpress@playground.test',
+					},
+					to: [{ name: '', address: 'admin@playground.test' }],
+					subject: 'Password Reset',
+					date: '2026-09-16T00:00:00.000Z',
+					text: 'Click the link.',
+					attachments: [
+						{
+							filename: 'logo.png',
+							mimeType: 'image/png',
+							disposition: 'attachment',
+							content: new ArrayBuffer(1024),
+						},
+					],
+				},
+			],
+		} as unknown as PlaygroundClient;
+
+		const result = await toolExecutors['playground_list_emails'](
+			createToolClient(playgroundClient),
+			{}
+		);
+
+		expect(result).toEqual({
+			emails: [
+				{
+					from: 'WordPress <wordpress@playground.test>',
+					to: ['admin@playground.test'],
+					cc: undefined,
+					subject: 'Password Reset',
+					date: '2026-09-16T00:00:00.000Z',
+					text: 'Click the link.',
+					html: undefined,
+					attachments: [
+						{
+							filename: 'logo.png',
+							mimeType: 'image/png',
+							size: 1024,
+						},
+					],
+				},
+			],
+		});
+		expect(() => JSON.stringify(result)).not.toThrow();
+	});
+});
+
+function createStubToolClient(overrides: Partial<ToolClient>): ToolClient {
 	return {
 		run: async () => ({ text: '', errors: '', exitCode: 0 }),
 		request: async () => ({ text: '', httpStatusCode: 200, headers: {} }),
@@ -58,6 +121,7 @@ function createToolClient(overrides: Partial<ToolClient>): ToolClient {
 		unlink: async () => undefined,
 		rmdir: async () => undefined,
 		fileExists: async () => false,
+		listEmails: async () => [],
 		...overrides,
 	};
 }

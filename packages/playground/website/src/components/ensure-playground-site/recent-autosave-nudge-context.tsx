@@ -6,10 +6,12 @@ import {
 	type ReactNode,
 } from 'react';
 
+type NudgeAnchor = Pick<HTMLElement, 'getBoundingClientRect' | 'ownerDocument'>;
+
 type RecentAutosaveNudgeContextValue = {
 	visible: boolean;
-	anchor: HTMLElement | null;
-	setAnchor: (anchor: HTMLElement | null) => void;
+	anchor: NudgeAnchor | null;
+	setAnchor: (anchor: NudgeAnchor | null) => void;
 };
 
 const RecentAutosaveNudgeContext =
@@ -27,7 +29,7 @@ export function RecentAutosaveNudgeProvider({
 	children: ReactNode;
 	visible: boolean;
 }) {
-	const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+	const [anchor, setAnchor] = useState<NudgeAnchor | null>(null);
 	const value = useMemo(
 		() => ({ visible, anchor, setAnchor }),
 		[visible, anchor]
@@ -43,14 +45,14 @@ export function useRecentAutosaveNudgeVisible(): boolean {
 	return useContext(RecentAutosaveNudgeContext).visible;
 }
 
-/** The on-screen Playgrounds Dock button the nudge should point at, if any. */
-export function useRecentAutosaveNudgeAnchor(): HTMLElement | null {
+/** The Dock anchor the nudge should point at, if any. */
+export function useRecentAutosaveNudgeAnchor(): NudgeAnchor | null {
 	return useContext(RecentAutosaveNudgeContext).anchor;
 }
 
-/** Lets the Dock report the Playgrounds button as the nudge anchor. */
+/** Lets the Dock report an anchor that keeps the nudge clear of its controls. */
 export function useSetRecentAutosaveNudgeAnchor(): (
-	anchor: HTMLElement | null
+	anchor: NudgeAnchor | null
 ) => void {
 	return useContext(RecentAutosaveNudgeContext).setAnchor;
 }

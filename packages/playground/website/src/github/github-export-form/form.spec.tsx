@@ -15,7 +15,7 @@ const storageMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@wp-playground/client', () => ({
-	wpContentFilesExcludedFromExport: [],
+	getLegacyPlaygroundRuntimeWpContentPaths: vi.fn(async () => []),
 	zipWpContent: vi.fn(),
 }));
 

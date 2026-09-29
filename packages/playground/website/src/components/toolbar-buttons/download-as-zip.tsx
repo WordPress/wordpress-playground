@@ -27,10 +27,8 @@ export function DownloadAsZipMenuItem({ onClose, disabled }: Props) {
 	);
 }
 
-/** Downloads a self-contained archive of the supplied Playground. */
+/** Downloads a complete archive of the supplied Playground. */
 export async function downloadPlaygroundAsZip(playground: PlaygroundClient) {
-	const bytes = await zipWpContent(playground, {
-		selfContained: true,
-	});
+	const bytes = await zipWpContent(playground);
 	saveAs(new File([bytes], 'wordpress-playground.zip'));
 }

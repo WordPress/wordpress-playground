@@ -9,14 +9,14 @@ import {
 import { logger } from '@php-wasm/logger';
 import {
 	Button,
-	Dropdown,
+	DropdownMenu,
 	Icon,
 	MenuGroup,
 	MenuItem,
 	Notice,
 	Tooltip as WpTooltip,
 } from '@wordpress/components';
-import { chevronDown, download, help, link } from '@wordpress/icons';
+import { chevronDown, download, help, link, warning } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -32,7 +32,6 @@ import {
 	forwardRef,
 	useCallback,
 	useEffect,
-	useId,
 	useImperativeHandle,
 	useMemo,
 	useRef,
@@ -42,7 +41,9 @@ import {
 	CodeEditor,
 	FileExplorerSidebar,
 	type CodeEditorHandle,
+	type FileExplorerSidebarHandle,
 } from '@wp-playground/components';
+import { buildUpdatedBlueprintDeclaration } from './git-directory-blueprint';
 import {
 	formatEditor,
 	getStringNodeAtPosition,
@@ -60,8 +61,10 @@ import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
 	createStoredSite,
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	isStoredSite,
 	pruneAutosavedSites,
+	removeSite,
 	type SiteInfo,
 	updateSite,
 } from '../../lib/state/redux/slice-sites';
@@ -70,12 +73,25 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
+import {
+	setDockOperationNotice,
+	setDockPaneOpen,
+} from '../../lib/state/redux/slice-ui';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
+/**
+ * A read-only companion file this editor generates automatically, showing
+ * the Blueprint plus any plugins/themes mounted live via the Files
+ * browser's "Mount via git…" action — kept fresh so the user can open it
+ * and compare against `blueprint.json`, without this editor ever having to
+ * mutate the site's stored Blueprint in place (which would be unsafe or
+ * impossible for some Blueprint shapes — see `buildUpdatedBlueprintDeclaration`).
+ */
+const GIT_MOUNTS_PREVIEW_PATH = '/blueprint-updated.json';
 
 /**
  * Format a validation error into a human-readable message for the error panel
@@ -310,7 +326,6 @@ export const BlueprintBundleEditor = forwardRef<
 	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [messageContent, setMessageContent] = useState<
@@ -328,6 +343,8 @@ export const BlueprintBundleEditor = forwardRef<
 	const hasValidationErrors =
 		validationResult !== null && !validationResult.valid;
 	const storedSiteSlug = site && isStoredSite(site) ? site.slug : undefined;
+	const siteIsUnfinishedBlueprintRun =
+		!!site && isUnfinishedBlueprintRun(site);
 	// initialOpfsSyncPending can remain set after a failed boot. Queue only while
 	// the live client reports a copy; cancel on an explicit sync error.
 	const opfsSyncStatus = useAppSelector((state) => {
@@ -336,7 +353,6 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		return state.clients.entities[storedSiteSlug]?.opfsSync?.status;
 	});
-	const copyBlueprintUrlHintId = useId();
 	const [stringEditorState, setStringEditorState] =
 		useState<StringEditorState>({
 			isOpen: false,
@@ -370,6 +386,13 @@ export const BlueprintBundleEditor = forwardRef<
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
+	const sidebarRef = useRef<FileExplorerSidebarHandle | null>(null);
+	// Guards the git-mounts preview write below against writing a stale
+	// declaration if two runs of that effect overlap (e.g. a mount and a
+	// rename happening close together).
+	const previewWriteSeqRef = useRef(0);
+	const previewWriteBarrierRef = useRef<Promise<void>>(Promise.resolve());
+	const latestBlueprintDeclarationRef = useRef<unknown>(undefined);
 	/**
 	 * `flush()` starts the latest delayed save. This ordered promise also includes
 	 * earlier in-flight writes, so Run can wait before reading the Blueprint bundle.
@@ -398,7 +421,11 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleCodeChange = useCallback(
 		(newCode: string) => {
-			if (readOnly || isBlueprintRunPending) {
+			if (
+				readOnly ||
+				isBlueprintRunPending ||
+				currentPath === GIT_MOUNTS_PREVIEW_PATH
+			) {
 				return;
 			}
 			setCode(newCode);
@@ -412,11 +439,18 @@ export const BlueprintBundleEditor = forwardRef<
 	// Load initial blueprint.json and focus tree
 	useEffect(() => {
 		let cancelled = false;
+		latestBlueprintDeclarationRef.current = undefined;
 		(async () => {
 			try {
 				const blueprintJsonContent =
 					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 				if (cancelled) return;
+				try {
+					latestBlueprintDeclarationRef.current =
+						JSON.parse(blueprintJsonContent);
+				} catch {
+					latestBlueprintDeclarationRef.current = undefined;
+				}
 				setCurrentPath(BLUEPRINT_JSON_PATH);
 				setDisplayPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
@@ -431,6 +465,84 @@ export const BlueprintBundleEditor = forwardRef<
 			cancelled = true;
 		};
 	}, [filesystem]);
+
+	// Keep a `/blueprint-updated.json` preview in sync whenever a
+	// plugin/theme is mounted live (or renamed) via the Files browser's
+	// "Mount via git…" action, so it's there to compare against
+	// `blueprint.json` even if this editor was already open when that
+	// happened.
+	const currentBlueprintCode =
+		currentPath === BLUEPRINT_JSON_PATH ? code : undefined;
+	useEffect(() => {
+		const gitDirectorySources = site?.metadata.gitDirectorySources;
+		if (!site || !gitDirectorySources) {
+			return;
+		}
+		// Claim this run's turn immediately (synchronously): if a newer run
+		// starts before this one's write happens, its check below will see
+		// a mismatch and skip writing a now-stale declaration.
+		const seq = ++previewWriteSeqRef.current;
+		let cancelled = false;
+		(async () => {
+			try {
+				if (currentBlueprintCode !== undefined) {
+					try {
+						latestBlueprintDeclarationRef.current =
+							JSON.parse(currentBlueprintCode);
+					} catch {
+						return;
+					}
+				}
+				const { declaration, hasChanges } =
+					await buildUpdatedBlueprintDeclaration(
+						latestBlueprintDeclarationRef.current ??
+							site.metadata.originalBlueprint,
+						gitDirectorySources
+					);
+				if (
+					!hasChanges ||
+					cancelled ||
+					previewWriteSeqRef.current !== seq
+				) {
+					return;
+				}
+				const previewContent = JSON.stringify(declaration, null, 2);
+				previewWriteBarrierRef.current = previewWriteBarrierRef.current
+					.catch(() => undefined)
+					.then(async () => {
+						if (cancelled || previewWriteSeqRef.current !== seq) {
+							return;
+						}
+						await filesystem.writeFile(
+							GIT_MOUNTS_PREVIEW_PATH,
+							previewContent
+						);
+						if (previewWriteSeqRef.current !== seq) {
+							return;
+						}
+						if (currentPath === GIT_MOUNTS_PREVIEW_PATH) {
+							setCode(previewContent);
+						}
+						await sidebarRef.current?.refreshPath('/');
+					});
+				await previewWriteBarrierRef.current;
+			} catch (error) {
+				logger.error(
+					'Failed to write the Blueprint preview with git mounts',
+					error
+				);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		filesystem,
+		currentBlueprintCode,
+		currentPath,
+		site?.metadata.originalBlueprint,
+		site?.metadata.gitDirectorySources,
+	]);
 
 	// Sync the URL hash from the hook to the browser's location
 	useEffect(() => {
@@ -462,31 +574,57 @@ export const BlueprintBundleEditor = forwardRef<
 			}
 			setSaveError(null);
 			if (runInNewPlayground) {
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running in a new Playground',
+						message: 'Opening the new Playground now.',
+					})
+				);
+			} else {
+				dispatch(
+					setDockOperationNotice({
+						status: 'success',
+						title: 'Blueprint is running',
+						message: 'Recreating this Playground now.',
+					})
+				);
+			}
+			if (runInNewPlayground) {
+				const siteSlugToReturnToIfBlueprintFails =
+					site.metadata.siteSlugToReturnToIfBlueprintFails ??
+					site.slug;
 				const newSite = await dispatch(
 					createStoredSite(
 						site.metadata.name,
 						filesystem.backend,
 						undefined,
-						{ persistence: 'autosave' }
+						{
+							persistence: 'autosave',
+							siteSlugToReturnToIfBlueprintFails,
+						}
 					)
 				);
-				try {
-					await dispatch(
-						pruneAutosavedSites({
-							excludeSlugs: [site.slug, newSite.slug],
-						})
-					);
-				} catch (error) {
-					// The new Playground is already committed. Retention cleanup is
-					// housekeeping and must not turn a successful run into a retry
-					// that creates a duplicate Playground.
-					logger.error(
-						'Failed to prune autosaved Playgrounds',
-						error
-					);
-				}
 				dispatch(setDockPaneOpen(false));
 				dispatch(setActiveSite(newSite.slug));
+				if (siteIsUnfinishedBlueprintRun) {
+					try {
+						await dispatch(removeSite(site.slug));
+					} catch (error) {
+						logger.error('Failed to discard Blueprint run', error);
+						// Pruning while the failed run still counts toward the limit
+						// could discard an unrelated Playground.
+						return;
+					}
+				}
+				await dispatch(
+					pruneAutosavedSites({
+						excludeSlugs: [
+							siteSlugToReturnToIfBlueprintFails,
+							newSite.slug,
+						],
+					})
+				);
 				return;
 			}
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
@@ -494,14 +632,9 @@ export const BlueprintBundleEditor = forwardRef<
 			);
 			const changes = {
 				metadata: {
-					...site.metadata,
 					originalBlueprintSource: { type: 'none' as const },
 					originalBlueprint: filesystem,
 					runtimeConfiguration,
-					initialOpfsSyncPending:
-						site.metadata.initialOpfsSyncPending,
-					playgroundDefinedConstants:
-						site.metadata.playgroundDefinedConstants,
 					whenCreated: Date.now(),
 				},
 				originalUrlParams: undefined,
@@ -528,6 +661,7 @@ export const BlueprintBundleEditor = forwardRef<
 		dispatch,
 		filesystem,
 		hasValidationErrors,
+		siteIsUnfinishedBlueprintRun,
 		opfsSyncStatus,
 		readOnly,
 		saveFile,
@@ -742,11 +876,17 @@ export const BlueprintBundleEditor = forwardRef<
 			anchor.click();
 			document.body.removeChild(anchor);
 			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Blueprint downloaded',
+				})
+			);
 		} catch (error) {
 			logger.error('Failed to download bundle', error);
 			setSaveError('Could not download bundle. Try again.');
 		}
-	}, [filesystem]);
+	}, [filesystem, dispatch]);
 
 	const handleShareBlueprint = async () => {
 		if (false === newUrl) {
@@ -758,8 +898,12 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			await navigator.clipboard.writeText(newUrl);
 
-			setSuccessMessage('Link copied to clipboard!');
-			setTimeout(() => setSuccessMessage(null), 2000);
+			dispatch(
+				setDockOperationNotice({
+					status: 'success',
+					title: 'Link copied to clipboard',
+				})
+			);
 		} catch (error) {
 			logger.error('Failed to share blueprint', error);
 			setSaveError('Could not copy link. Try again.');
@@ -790,62 +934,54 @@ export const BlueprintBundleEditor = forwardRef<
 		</Button>
 	);
 	const dockExportDropdown = (
-		<Dropdown
+		<DropdownMenu
 			className={styles.editorExport}
+			icon={null}
+			label="Export"
+			toggleProps={{
+				variant: 'secondary',
+				className: classNames(
+					styles.editorToolbarButton,
+					styles.editorExportToggle
+				),
+				showTooltip: false,
+				children: (
+					<>
+						Export
+						<Icon icon={chevronDown} size={16} />
+					</>
+				),
+			}}
 			popoverProps={{
 				placement: 'bottom-end',
 			}}
-			renderToggle={({ isOpen, onToggle }) => (
-				<Button
-					variant="secondary"
-					className={classNames(
-						styles.editorToolbarButton,
-						styles.editorExportToggle
-					)}
-					onClick={onToggle}
-					aria-expanded={isOpen}
-					aria-haspopup="menu"
-				>
-					Export
-					<Icon icon={chevronDown} size={16} />
-				</Button>
-			)}
-			renderContent={({ onClose }) => (
-				<MenuGroup>
-					<MenuItem
+		>
+			{({ onClose }) => (
+				<MenuGroup className={styles.editorExportMenu}>
+					<MenuItemWithDescription
 						icon={link}
-						className={
+						info={
 							!isBundleShareable
-								? styles.exportMenuItemWithHint
+								? 'Multi-file Blueprints can’t be shared as a URL — download a zip instead.'
 								: undefined
 						}
-						aria-label="Copy Blueprint URL"
-						aria-describedby={
-							!isBundleShareable
-								? copyBlueprintUrlHintId
+						aria-disabled={!isBundleShareable}
+						onClick={
+							isBundleShareable
+								? () => {
+										handleShareBlueprint();
+										onClose();
+									}
 								: undefined
 						}
-						disabled={!isBundleShareable}
-						onClick={() => {
-							handleShareBlueprint();
-							onClose();
-						}}
 					>
-						<span className={styles.exportMenuItemBody}>
-							<span>Copy Blueprint URL</span>
-							{!isBundleShareable && (
-								<span
-									id={copyBlueprintUrlHintId}
-									className={styles.exportMenuItemHint}
-								>
-									Multi-file Blueprints can’t be shared as a
-									URL — download a zip instead.
-								</span>
-							)}
-						</span>
-					</MenuItem>
+						Copy Blueprint URL
+					</MenuItemWithDescription>
+					{/* Start on the available action. ArrowUp still reaches the
+					    unavailable item's explanation. */}
 					<MenuItem
 						icon={download}
+						autoFocus={!isBundleShareable}
 						onClick={() => {
 							handleDownloadBundle();
 							onClose();
@@ -855,7 +991,7 @@ export const BlueprintBundleEditor = forwardRef<
 					</MenuItem>
 				</MenuGroup>
 			)}
-		/>
+		</DropdownMenu>
 	);
 	const dockDocsLink = (
 		<WpTooltip
@@ -921,6 +1057,7 @@ export const BlueprintBundleEditor = forwardRef<
 						)}
 					>
 						<FileExplorerSidebar
+							ref={sidebarRef}
 							filesystem={filesystem}
 							currentPath={currentPath}
 							selectedDirPath={selectedDirPath}
@@ -933,6 +1070,7 @@ export const BlueprintBundleEditor = forwardRef<
 							{...(dockPresentation
 								? {
 										title: 'Blueprint',
+										mobileSubsectionTitle: 'Files',
 										showBinaryPreviewHeader: false,
 										dockPresentation: true,
 										useWordPressTooltips: true,
@@ -1043,13 +1181,6 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{successMessage ? (
-							<div style={{ padding: '8px 16px' }}>
-								<Notice status="success" isDismissible={false}>
-									{successMessage}
-								</Notice>
-							</div>
-						) : null}
 						{!dockPresentation &&
 						!readOnly &&
 						!isBundleShareable ? (
@@ -1062,21 +1193,27 @@ export const BlueprintBundleEditor = forwardRef<
 								</Notice>
 							</div>
 						) : null}
-						{isStored ? (
+						{isStored &&
+						site &&
+						(opfsSyncStatus === 'syncing' ||
+							!siteIsUnfinishedBlueprintRun) ? (
 							<p className={styles.runHint}>
-								{isWaitingToRun ? (
-									'Run will wait for this Playground to finish saving.'
-								) : (
-									<>
-										Running this Blueprint creates a fresh
-										autosaved Playground. “
-										{site?.metadata.name}” stays in{' '}
-										{isAutosaved
-											? 'Recent autosaves'
-											: 'Saved Playgrounds'}
-										.
-									</>
-								)}
+								<Icon icon={warning} size={18} />
+								<span>
+									{isWaitingToRun ? (
+										'Run will wait for this Playground to finish saving.'
+									) : (
+										<>
+											Running this Blueprint creates a
+											fresh autosaved Playground. “
+											{site?.metadata.name}” stays in{' '}
+											{isAutosaved
+												? 'Recent autosaves'
+												: 'Saved Playgrounds'}
+											.
+										</>
+									)}
+								</span>
 							</p>
 						) : null}
 						{currentPath || code || messageContent ? (
@@ -1093,7 +1230,10 @@ export const BlueprintBundleEditor = forwardRef<
 										currentPath={currentPath}
 										className={styles.editor}
 										readOnly={
-											readOnly || isBlueprintRunPending
+											readOnly ||
+											isBlueprintRunPending ||
+											currentPath ===
+												GIT_MOUNTS_PREVIEW_PATH
 										}
 										additionalExtensions={
 											currentPath === BLUEPRINT_JSON_PATH

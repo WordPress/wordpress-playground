@@ -173,9 +173,9 @@ Visite estes links para aprender mais sobre as (incontáveis) possibilidades dos
 - [Exemplos de Blueprints](/blueprints/examples)
 
 <!--
--   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
+-   [Demos and apps built with Blueprints](/links-and-resources#apps-built-with-wordpress-playground)
 -->
 
-- [Demonstrações e aplicativos construídos com Blueprints](/resources#apps-built-with-wordpress-playground)
+- [Demonstrações e aplicativos construídos com Blueprints](/links-and-resources#apps-built-with-wordpress-playground)
 
 </div>

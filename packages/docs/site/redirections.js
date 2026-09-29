@@ -39,6 +39,10 @@ const redirections = [
 	{ to: '/developers/architecture', from: '/architecture/index' },
 	{ to: '/blueprints', from: '/blueprints-api/index' },
 	{ to: '/contributing', from: '/contributing/index' },
+	{
+		to: '/developers/xdebug/xdebug-getting-started',
+		from: '/developers/xdebug/getting-started',
+	},
 	{ to: '/developers/apis/javascript-api', from: '/javascript-api/index' },
 	{
 		to: '/developers/architecture/wasm-asyncify',
@@ -127,7 +131,7 @@ const redirections = [
 		from: '/javascript-api/playground-api-client',
 	},
 	{ to: '/developers/limitations', from: '/limitations' },
-	{ to: '/resources', from: '/links-and-resources' },
+	{ to: '/links-and-resources', from: '/resources' },
 	{
 		to: '/developers/local-development/php-wasm-node',
 		from: '/local-development/php-wasm-node',

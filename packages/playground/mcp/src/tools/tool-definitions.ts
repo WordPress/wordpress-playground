@@ -443,6 +443,30 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			},
 		],
 	},
+	playground_list_emails: {
+		title: 'List Captured Emails',
+		errorPrefix: 'Error listing emails',
+		description: `List every email the WordPress site has sent
+			so far. Playground has no mail server. Each
+			message WordPress attempts to send (password
+			resets, comment notifications, wp_mail() calls…)
+			is captured instead of being delivered. Use this
+			tool to read those messages, e.g. to verify that
+			a plugin sent an email or to retrieve a
+			confirmation link.
+
+			Returns the full inbox in send order. Each entry
+			contains the from/to/CC addresses, subject, date,
+			text and HTML bodies, and attachment metadata
+			(file name, MIME type, size). Attachment contents
+			are not included.`,
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			openWorldHint: true,
+		},
+		params: [],
+	},
 };
 
 // -- Site management tool definitions --

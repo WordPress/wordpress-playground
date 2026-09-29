@@ -2,6 +2,8 @@
 title: Módulo JavaScript PHP.js
 ---
 
+<!-- title: PHP.js JavaScript module -->
+
 <!-- ### PHP.js JavaScript module -->
 
 ### Módulo JavaScript PHP.js
@@ -37,24 +39,33 @@ const php = new PHP(await loadNodeRuntime('8.0'));
 const php = new PHP(await loadWebRuntime('8.0'));
 ```
 
-<!-- Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/universal` package and implement the `UniversalPHP` interface that standardizes the API across all PHP environments. -->
+<!-- Both platform loaders return a runtime ID accepted by the `PHP` class from
+`@php-wasm/universal`, which provides the shared API across environments. See
+[PHP.wasm packages](/developers/architecture/php-wasm-packages) for how the
+shared API, platform adapters, and version-specific binaries fit together. -->
 
-Ambas essas classes estendem a classe `BasePHP` exposta pelo pacote `@php-wasm/universal` e implementam a interface `UniversalPHP` que padroniza a API em todos os ambientes PHP.
+Ambos os carregadores de plataforma retornam um ID de runtime aceito pela classe
+`PHP` de `@php-wasm/universal`, que fornece a API compartilhada entre os
+ambientes. Consulte [Pacotes PHP.wasm](/developers/architecture/php-wasm-packages)
+para entender como a API compartilhada, os adaptadores de plataforma e os
+binários específicos por versão se relacionam.
 
 <!-- ### Loading the PHP runtime -->
 
 ### Carregando o runtime PHP
 
-<!-- The load() method handles the entire PHP initialization pipeline. In particular, it: -->
+<!-- The `loadPHPRuntime()` function handles the PHP initialization pipeline. In
+particular, it: -->
 
-O método load() manipula todo o pipeline de inicialização do PHP. Em particular, ele:
+A função `loadPHPRuntime()` gerencia o pipeline de inicialização do PHP. Em
+particular, ela:
 
 <!-- -   Instantiates the Emscripten PHP module
 -   Wires it together with the data dependencies and loads them
--   Ensures is all happens in a correct order
+-   Ensures it all happens in the correct order
 -   Waits until the entire loading sequence is finished -->
 
--   Instancia o módulo PHP Emscripten
--   Conecta-o junto com as dependências de dados e as carrega
--   Garante que tudo aconteça na ordem correta
--   Espera até que toda a sequência de carregamento seja finalizada
+- Instancia o módulo PHP Emscripten
+- Conecta-o junto com as dependências de dados e as carrega
+- Garante que tudo aconteça na ordem correta
+- Espera até que toda a sequência de carregamento seja finalizada

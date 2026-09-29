@@ -45,7 +45,7 @@
 
 .empty-panel {
 	align-items: center;
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	display: flex;
 	flex: 1;
 	font-size: 14px;

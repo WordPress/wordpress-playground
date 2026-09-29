@@ -35,6 +35,24 @@ export function isAttemptCurrent(
 	return currentAttemptId === attemptId;
 }
 
+export const HOST_TOKEN_HEADER = 'X-Playground-Host-Token';
+
+/**
+ * Builds the header that proves the host role to the relay.
+ *
+ * The relay only accepts host-side signaling from the device that created the
+ * session, which is what binds the host's approval to the guest it approved.
+ *
+ * @param hostToken Token issued when the session was created.
+ * @returns The header to merge into a host-side relay request, empty when
+ *          there is no session to authenticate.
+ */
+export function buildHostTokenHeaders(
+	hostToken: string | null
+): Record<string, string> {
+	return hostToken ? { [HOST_TOKEN_HEADER]: hostToken } : {};
+}
+
 export function normalizeVerificationCode(value: string): string {
 	return value.replace(/\D+/g, '').slice(0, 2);
 }

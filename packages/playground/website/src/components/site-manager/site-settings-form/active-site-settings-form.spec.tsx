@@ -99,8 +99,8 @@ describe('ActiveSiteSettingsForm', () => {
 			slug: 'saved-site',
 			metadata: { storage: 'opfs', persistence: 'explicit' },
 		};
-		const onSuccess = vi.fn();
-		act(() => root.render(<ActiveSiteSettingsForm onSubmit={onSuccess} />));
+		const onSubmit = vi.fn();
+		act(() => root.render(<ActiveSiteSettingsForm onSubmit={onSubmit} />));
 		expect(mocks.renderedForm).toBe('stored');
 
 		let finish!: () => void;
@@ -112,12 +112,13 @@ describe('ActiveSiteSettingsForm', () => {
 			firstRun = mocks.submission!.run(firstAction, formData);
 		});
 		expect(mocks.submission?.isPending).toBe(true);
+		expect(onSubmit).toHaveBeenCalledOnce();
 
 		mocks.activeSite = {
 			slug: 'fresh-site',
 			metadata: { storage: 'opfs', persistence: 'autosave' },
 		};
-		act(() => root.render(<ActiveSiteSettingsForm onSubmit={onSuccess} />));
+		act(() => root.render(<ActiveSiteSettingsForm onSubmit={onSubmit} />));
 		expect(mocks.renderedForm).toBe('autosaved');
 		expect(mocks.submission?.isPending).toBe(true);
 
@@ -130,6 +131,6 @@ describe('ActiveSiteSettingsForm', () => {
 			await firstRun;
 		});
 		expect(mocks.submission?.isPending).toBe(false);
-		expect(onSuccess).toHaveBeenCalledOnce();
+		expect(onSubmit).toHaveBeenCalledOnce();
 	});
 });

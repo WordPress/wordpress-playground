@@ -24,6 +24,7 @@ import {
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
+import { PaneLoading } from '../pane-loading';
 import styles from './blueprint-bundle-editor.module.css';
 import {
 	type BlueprintBundleEditorHandle,
@@ -331,7 +332,7 @@ export const SiteBlueprintBundleEditor = forwardRef<
 
 	return (
 		<div className={classNames(styles.container, className)}>
-			{filesystem && (
+			{filesystem ? (
 				<BlueprintBundleEditor
 					ref={innerEditorRef}
 					filesystem={filesystem}
@@ -340,6 +341,8 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					dockPresentation={dockPresentation}
 					mobileHeaderTarget={mobileHeaderTarget}
 				/>
+			) : (
+				<PaneLoading message="Loading the Blueprint editor…" />
 			)}
 		</div>
 	);

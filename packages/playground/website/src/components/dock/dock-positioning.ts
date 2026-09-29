@@ -19,6 +19,7 @@ export function getDockPaneStyle({
 	dockCenter,
 	viewportSize,
 	isEditorSection,
+	isWideSection,
 	isFixedHeightSection,
 	isPlaygroundsSection,
 }: {
@@ -29,6 +30,7 @@ export function getDockPaneStyle({
 	dockCenter: number | null;
 	viewportSize: Size;
 	isEditorSection: boolean;
+	isWideSection: boolean;
 	isFixedHeightSection: boolean;
 	isPlaygroundsSection: boolean;
 }): CSSProperties | undefined {
@@ -52,6 +54,7 @@ export function getDockPaneStyle({
 		dockCenter,
 		viewportWidth: viewportSize.width,
 		isEditorSection,
+		isWideSection,
 	});
 	const availableHeight = Math.max(
 		DOCK_PANE_MIN_HEIGHT,
@@ -69,7 +72,11 @@ export function getDockPaneStyle({
 	};
 }
 
-/** Keeps a global operation failure with the visible Dock surface. */
+/**
+ * Places a global operation toast above an open pane when there's room above it
+ * (desktop only). Otherwise — no pane, a full-height pane, or mobile — it sits
+ * just above the Dock.
+ */
 export function getDockOperationToastStyle({
 	isMobile,
 	dockSize,
@@ -81,6 +88,7 @@ export function getDockOperationToastStyle({
 	toastHeight,
 	paneOpen,
 	isEditorSection,
+	isWideSection,
 }: {
 	isMobile: boolean;
 	dockSize: Size;
@@ -92,6 +100,7 @@ export function getDockOperationToastStyle({
 	toastHeight: number;
 	paneOpen: boolean;
 	isEditorSection: boolean;
+	isWideSection: boolean;
 }): CSSProperties | undefined {
 	if (!dockSize.height) {
 		return undefined;
@@ -103,12 +112,21 @@ export function getDockOperationToastStyle({
 		toolsHeight,
 		isCollapsed,
 	});
-	const desiredBottom =
-		visibleDockHeight +
-		DOCK_PANE_GAP +
-		(!isMobile && paneOpen ? paneHeight + DOCK_PANE_GAP : 0);
-	// Editor panes and mobile panes can consume all available space. Keep the
-	// toast reachable at the viewport edge instead of placing it off-screen.
+	const aboveDock = visibleDockHeight + DOCK_PANE_GAP;
+	const roomAbovePane = !isMobile && paneOpen;
+	const abovePane = roomAbovePane
+		? aboveDock + paneHeight + DOCK_PANE_GAP
+		: aboveDock;
+	const fitsAbovePane =
+		roomAbovePane &&
+		abovePane + toastHeight + DOCK_PANE_GAP <= viewportSize.height;
+	// Prefer sitting above the pane. When there's no room — a full-height
+	// editor pane, or mobile — the toast overlays the pane's lower edge, so
+	// lift it a gap off the pane's bottom edge instead of aligning with it.
+	const desiredBottom = fitsAbovePane
+		? abovePane
+		: aboveDock + (paneOpen ? DOCK_PANE_GAP : 0);
+	// Final guard so the toast never sits off-screen.
 	const maxBottom = Math.max(
 		DOCK_PANE_GAP,
 		viewportSize.height - DOCK_PANE_GAP - toastHeight
@@ -124,6 +142,7 @@ export function getDockOperationToastStyle({
 				dockCenter,
 				viewportWidth: viewportSize.width,
 				isEditorSection,
+				isWideSection,
 			});
 	const minCenter = halfToastWidth + DOCK_PANE_GAP;
 	const maxCenter = viewportSize.width - halfToastWidth - DOCK_PANE_GAP;
@@ -143,14 +162,17 @@ export function getDockPaneCenter({
 	dockCenter,
 	viewportWidth,
 	isEditorSection,
+	isWideSection,
 }: {
 	dockCenter: number | null;
 	viewportWidth: number;
 	isEditorSection: boolean;
+	isWideSection: boolean;
 }) {
 	const desiredCenter = dockCenter ?? viewportWidth / 2;
+	// Half of the .pane / .pane-wide / .pane-editor widths in style.module.css.
 	const halfPaneWidth = Math.min(
-		isEditorSection ? 560 : 300,
+		isEditorSection ? 560 : isWideSection ? 430 : 300,
 		(viewportWidth - 2 * DOCK_DRAG_EDGE) / 2
 	);
 	return Math.min(

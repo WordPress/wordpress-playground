@@ -128,6 +128,36 @@ class ProxyFunctionsTests extends TestCase
             ],
         ];
     }
+
+    /**
+     * @dataProvider providerServerControlResponseHeaders
+     */
+    public function testIsServerControlResponseHeader($name, $expected)
+    {
+        $this->assertSame($expected, is_server_control_response_header($name));
+    }
+
+    static public function providerServerControlResponseHeaders() {
+        return [
+            'X-Accel- prefix' => ['X-Accel-Redirect', true],
+            'X-LiteSpeed- prefix' => ['X-LiteSpeed-Location', true],
+            'Prefix matching ignores case' => ['x-accel-expires', true],
+            'Exact name' => ['X-Sendfile2', true],
+            'CDN-targeted cache control, RFC 9213 naming' => [
+                'Cloudflare-CDN-Cache-Control',
+                true,
+            ],
+            'CGI status instruction' => ['Status', true],
+            'Similar name without the prefix hyphen' => ['X-Accelerated-By', false],
+            'Similar name with a suffix after an exact name' => ['X-Sendfile-Foo', false],
+            'Similar name that only contains the CDN suffix' => [
+                'CDN-Cache-Control-Extension',
+                false,
+            ],
+            'Ordinary header' => ['Content-Type', false],
+        ];
+    }
+
     public function testGetCurrentScriptUri()
     {
         $this->assertEquals('http://localhost/cors-proxy/', get_current_script_uri('http://example.com', 'http://localhost/cors-proxy/http://example.com'));
@@ -213,6 +243,168 @@ class ProxyFunctionsTests extends TestCase
                 false,
             ],
         ];
+    }
+
+    /**
+     * @dataProvider providerCorsProxyOriginMatchesRule
+     */
+    public function testCorsProxyOriginMatchesRule(
+        $supported_origin_rule,
+        $origin,
+        $expected
+    )
+    {
+        $this->assertSame(
+            $expected,
+            is_cors_proxy_origin_supported(
+                $origin,
+                [$supported_origin_rule]
+            )
+        );
+    }
+
+    static public function providerCorsProxyOriginMatchesRule() {
+        return [
+            'exact origin' => [
+                [
+                    'type' => 'match-exact',
+                    'origin' => 'https://pg.ashfame.com',
+                ],
+                'https://pg.ashfame.com',
+                true,
+            ],
+            'single-label subdomain' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://pr123.pg.ashfame.com',
+                true,
+            ],
+            'subdomain host matching is case-insensitive' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://PR123.PG.ASHFAME.COM',
+                true,
+            ],
+            'invalid request origin is rejected' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://*.pg.ashfame.com',
+                false,
+            ],
+            'subdomain rule does not match the apex origin' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://pg.ashfame.com',
+                false,
+            ],
+            'subdomain rule does not cross a dot boundary' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://nested.pr123.pg.ashfame.com',
+                false,
+            ],
+            'subdomain rule does not accept a deceptive suffix' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://pr123.pg.ashfame.com.evil.test',
+                false,
+            ],
+            'subdomain rule preserves an exact port' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => 443,
+                ],
+                'https://pr123.pg.ashfame.com:444',
+                false,
+            ],
+            'subdomain rule matches its configured port' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => 8443,
+                ],
+                'https://pr123.pg.ashfame.com:8443',
+                true,
+            ],
+            'subdomain rule distinguishes an omitted port' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'https://pr123.pg.ashfame.com:443',
+                false,
+            ],
+            'subdomain rule preserves the scheme' => [
+                [
+                    'type' => 'match-subdomain',
+                    'scheme' => 'https',
+                    'host' => 'pg.ashfame.com',
+                    'port' => null,
+                ],
+                'http://pr123.pg.ashfame.com',
+                false,
+            ],
+        ];
+    }
+
+    public function testInvalidCorsProxyOriginRulesAreSkipped()
+    {
+        $supported_origin_rules = [
+            'https://pg.ashfame.com',
+            [],
+            [
+                'type' => 'unknown',
+            ],
+            [
+                'type' => 'match-exact',
+                'origin' => [],
+            ],
+            [
+                'type' => 'match-subdomain',
+                'scheme' => 'https',
+                'host' => 'pg.ashfame.com',
+            ],
+            [
+                'type' => 'match-exact',
+                'origin' => 'https://pg.ashfame.com',
+            ],
+        ];
+
+        $this->assertTrue(
+            is_cors_proxy_origin_supported(
+                'https://pg.ashfame.com',
+                $supported_origin_rules
+            )
+        );
     }
 
     public function testFilterHeaderStringsWithAdditionalAllowedHeaders()

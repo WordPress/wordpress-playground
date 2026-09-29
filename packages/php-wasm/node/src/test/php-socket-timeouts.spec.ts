@@ -94,7 +94,11 @@ describe('socket timeout support', () => {
 			expect(loader, loaderFile).toContain('sock.connecting = false');
 			expect(loader, loaderFile).toContain('sock.error = errno');
 			expect(loader, loaderFile).not.toContain('?.send || 3e4');
-			expect(loader, loaderFile).not.toContain('isIgnorable');
+			// Match the old socket-connect helper declaration specifically.
+			// A bare 'isIgnorable' substring would collide with exported PHP
+			// ABI symbols such as _zim_PhpToken_isIgnorable (PhpToken::isIgnorable())
+			// that the full-ABI export bakes into JSPI loaders.
+			expect(loader, loaderFile).not.toContain('const isIgnorable');
 		}
 	});
 });

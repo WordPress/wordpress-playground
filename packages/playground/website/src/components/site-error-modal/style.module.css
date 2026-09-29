@@ -1,50 +1,25 @@
-/* The error modal is a "Quiet Paper" surface — the same warm system the Dock
-   panes use. It renders in a portal outside the pane tree, so it re-declares
-   the pane tokens (see dock/style.module.css) rather than inheriting them. */
+/* The error modal is portaled outside the pane tree, so its layout tokens remain
+   local while its semantic colors come from the global Playground roles. */
 .error-modal {
-	--paper-1: #f7f5f2; /* sheet surface */
-	--paper-2: #faf8f5; /* raised: footer */
-	--paper-3: #ece8e1; /* recessed well: details, code */
-	--paper-4: #e7e2da; /* control hover */
-	--line-subtle: rgba(33, 32, 29, 0.08);
-	--line-control: rgba(33, 32, 29, 0.14);
-	--line-hover: rgba(33, 32, 29, 0.22);
-	--ink: #21201d;
-	--ink-soft: #2f2d28;
-	--ink-muted: #5f5b54;
-	--ink-faint: #8a857b;
-	--accent: #3858e9;
-	--accent-hover: #2f4ad1;
-	--accent-link: #2645c9;
-	--alert: #cc1818;
 	--radius-pane: 14px;
 	--radius-card: 8px;
 	--radius-control: 6px;
 	--font-mono:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-
-	/* Retune the WordPress components inside (primary buttons, focus rings,
-	   text fields) to the surface accent instead of wp-admin teal. */
-	--wp-components-color-accent: var(--accent);
-	--wp-components-color-accent-darker-10: var(--accent-hover);
-	--wp-components-color-accent-darker-20: #26399e;
-	--wp-admin-theme-color: var(--accent);
-	--wp-admin-theme-color-darker-10: var(--accent-hover);
-	--wp-admin-theme-color-darker-20: #26399e;
 }
 
 /* Doubled selector so sizing and surface outrank the stock frame styles
    regardless of stylesheet load order. */
 .error-modal:global(.components-modal__frame) {
-	background: var(--paper-1);
+	background: var(--surface);
 	border-radius: var(--radius-pane);
-	/* The pane elevation: soft warm casts plus a faint lit top edge. Overflow
+	/* The pane elevation: soft neutral casts plus a faint lit top edge. Overflow
 	   is clipped so the full-bleed footer keeps the rounded bottom corners. */
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.55),
-		0 1px 2px rgba(40, 33, 23, 0.05),
-		0 8px 18px rgba(40, 33, 23, 0.09),
-		0 26px 56px rgba(40, 33, 23, 0.18);
+		0 1px 2px rgba(26, 25, 25, 0.05),
+		0 8px 18px rgba(26, 25, 25, 0.09),
+		0 26px 56px rgba(26, 25, 25, 0.18);
 	color: var(--ink);
 	/* Header, scrolling body, and pinned footer split the frame's height. */
 	display: flex;
@@ -63,16 +38,16 @@
 .error-modal:global(.components-modal__frame):focus-visible {
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.55),
-		0 1px 2px rgba(40, 33, 23, 0.05),
-		0 8px 18px rgba(40, 33, 23, 0.09),
-		0 26px 56px rgba(40, 33, 23, 0.18);
+		0 1px 2px rgba(26, 25, 25, 0.05),
+		0 8px 18px rgba(26, 25, 25, 0.09),
+		0 26px 56px rgba(26, 25, 25, 0.18);
 	outline: none;
 }
 
-/* Warm the scrim to the same ink family so the backdrop and sheet read as one
-   material world, not a gray system overlay under warm paper. */
+/* Use the dark chrome color for the scrim so the backdrop and sheet read as one
+   material system rather than an unrelated gray overlay. */
 .error-modal-overlay:global(.components-modal__screen-overlay) {
-	background: rgba(28, 25, 21, 0.55);
+	background: rgba(26, 25, 25, 0.55);
 }
 
 .error-modal :global(.components-modal__content) {
@@ -136,7 +111,7 @@
 }
 
 .error-modal :global(.components-modal__header .components-button:hover) {
-	background: var(--paper-4);
+	background: var(--surface-control-hover);
 	color: var(--ink);
 }
 
@@ -225,7 +200,7 @@
 }
 
 .error-modal-body code {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-radius: 4px;
 	color: var(--ink-soft);
 	font-family: var(--font-mono);
@@ -233,13 +208,13 @@
 	padding: 2px 5px;
 }
 
-/* Technical output sits in a recessed parchment well — carved into the sheet,
+/* Technical output sits in a recessed neutral well — carved into the sheet,
    not boxed onto it (no border, faint inset only). */
 .error-details {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border: 0;
 	border-radius: var(--radius-card);
-	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.05);
+	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.05);
 	flex-shrink: 0;
 }
 
@@ -344,9 +319,9 @@
 }
 
 .step-error-code {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-radius: var(--radius-card);
-	box-shadow: inset 0 1px 1px rgba(40, 33, 23, 0.05);
+	box-shadow: inset 0 1px 1px rgba(26, 25, 25, 0.05);
 	color: var(--ink-soft);
 	font-family: var(--font-mono);
 	font-size: 12.5px;
@@ -367,7 +342,7 @@
 	font-weight: 500;
 }
 
-/* Report-a-crash form fields, retuned from admin chrome to the paper surface. */
+/* Report-a-crash form fields, retuned from admin chrome to the pane surface. */
 .error-modal-body :global(.components-base-control__label) {
 	color: var(--ink-muted);
 	font-size: 13px;
@@ -376,7 +351,7 @@
 
 .error-modal-body :global(.components-textarea-control__input) {
 	background: #ffffff;
-	border-color: var(--line-control);
+	border-color: var(--interactive-border);
 	border-radius: var(--radius-card);
 	box-shadow: none;
 	color: var(--ink);
@@ -394,8 +369,8 @@
    footer instead of a floating shadow bar. */
 .error-modal-footer {
 	align-items: center;
-	background: var(--paper-2);
-	border-top: 1px solid var(--line-subtle);
+	background: var(--surface-raised);
+	border-top: 1px solid var(--border-subtle);
 	display: flex;
 	flex-shrink: 0;
 	flex-wrap: wrap;
@@ -417,9 +392,9 @@
 }
 
 /* Exactly one filled accent primary per sheet; every other action is a quiet
-   ink control on paper (same hierarchy as the Dock panes). */
+   text control on the pane surface (same hierarchy as the Dock panes). */
 .error-modal :global(.components-button.is-secondary:not(.is-destructive)) {
-	box-shadow: inset 0 0 0 1px var(--line-control);
+	box-shadow: inset 0 0 0 1px var(--interactive-border);
 	color: var(--ink);
 }
 
@@ -429,8 +404,8 @@
 				:disabled
 			)
 	) {
-	background: var(--paper-4);
-	box-shadow: inset 0 0 0 1px var(--line-hover);
+	background: var(--surface-control-hover);
+	box-shadow: inset 0 0 0 1px var(--interactive-border-hover);
 	color: var(--ink);
 }
 

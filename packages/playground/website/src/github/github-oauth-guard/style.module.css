@@ -13,7 +13,7 @@
 
 .authenticate.authenticate p,
 .authorizing.authorizing p {
-	color: var(--ink-muted, #5f5b54);
+	color: var(--ink-muted);
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
@@ -22,17 +22,17 @@
 
 /* Fine print reads one step quieter than body copy. */
 .authenticate.authenticate p.note {
-	color: var(--ink-faint, #8a857b);
+	color: var(--ink-faint);
 	font-size: 12px;
 }
 
 .authenticate.authenticate p.error {
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 }
 
 .confirm {
 	align-items: flex-start;
-	color: var(--ink-soft, #2f2d28);
+	color: var(--ink-soft);
 	cursor: pointer;
 	display: flex;
 	font-size: 13px;
@@ -41,7 +41,7 @@
 }
 
 .confirm input {
-	accent-color: var(--accent, #3858e9);
+	accent-color: var(--accent);
 	flex-shrink: 0;
 	margin: 2px 0 0;
 }
@@ -56,7 +56,7 @@
    type and radius as the dock's primary buttons. */
 .github-button {
 	align-items: center;
-	background: var(--accent, #3858e9);
+	background: var(--accent);
 	border: none;
 	border-radius: var(--radius-control, 6px);
 	color: #fff;
@@ -78,7 +78,7 @@
 }
 
 .github-button:hover {
-	background: var(--accent-hover, #2f4ad1);
+	background: var(--accent-hover);
 	color: #fff;
 }
 

@@ -61,7 +61,7 @@ Maaari mong pagsamahin ang Playground sa iba't ibang API upang lumikha ng kahang
 
 Maaari mong [gamitin ang WordPress Playground sa Node.js](/developers/local-development/php-wasm-node) upang gumawa ng mga bagong tool. Ang [@php-wasm/node package](https://npmjs.org/@php-wasm/node), na nagdadala ng PHP WebAssembly runtime, ay ang package na ginagamit para sa [https://playground.wordpress.net/](https://playground.wordpress.net/), halimbawa.
 
-Isa pang kawili-wiling app na ginawa sa ibabaw ng Playground ay ang **Translate Live** (tingnan ang [halimbawa](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) na, sa kombinasyon ng Open AI, ay nagbibigay ng WordPress translations tool “in place” kung saan makikita at maayos ang mga pagsasalin sa kanilang totoong konteksto (tingnan ang halimbawa). Basahin pa tungkol sa tool na ito sa [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
+Isa pang kawili-wiling app na ginawa sa ibabaw ng Playground ay ang **Translate Live** (tingnan ang [halimbawa](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) na, sa kombinasyon ng OpenAI, ay nagbibigay ng WordPress translations tool “in place” kung saan makikita at maayos ang mga pagsasalin sa kanilang totoong konteksto (tingnan ang halimbawa). Basahin pa tungkol sa tool na ito sa [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
 
 ## Gumana Offline at Bilang Native App
 

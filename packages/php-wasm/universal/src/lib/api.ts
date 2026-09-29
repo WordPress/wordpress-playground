@@ -7,6 +7,7 @@ import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
+	createEndpoint,
 	nodeEndpoint as nodeWorkerEndpoint,
 	releaseProxy,
 	type NodeEndpoint as NodeWorker,
@@ -77,11 +78,17 @@ export function consumeAPI<APIType>(
 				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
 			);
 		}
+	} else if (remote instanceof Worker) {
+		endpoint = remote;
 	} else {
-		endpoint =
-			remote instanceof Worker
-				? remote
-				: Comlink.windowEndpoint(remote as Window, context);
+		const windowEndpoint = Comlink.windowEndpoint(
+			remote as Window,
+			context
+		);
+		const bootstrapApi = Comlink.wrap<WithAPIState>(windowEndpoint);
+		endpoint = deferredEndpoint(
+			connectWindowApiThroughMessagePort(bootstrapApi)
+		);
 	}
 
 	/**
@@ -119,13 +126,133 @@ export function consumeAPI<APIType>(
 	}) as unknown as RemoteAPI<APIType>;
 }
 
+/**
+ * Moves a Window-backed API onto a point-to-point MessagePort.
+ *
+ * Unlike Worker messages, Window messages are visible to the application's main
+ * world and to browser-extension isolated worlds. In Chromium, a browser extension
+ * listener that evaluates `event.data` first can take ownership of a transferred
+ * ReadableStream before Comlink receives it. Evernote Web Clipper 7.41.1 is one
+ * such extension.
+ *
+ * The Window message used here transfers only Comlink's endpoint port. Later API
+ * calls and streams use that port, where unrelated Window listeners cannot
+ * observe them. The handshake is retried because `consumeAPI()` may run before
+ * the remote Window installs its Comlink listener.
+ */
+async function connectWindowApiThroughMessagePort(
+	bootstrapApi: Remote<WithAPIState> & ProxyMethods
+): Promise<MessagePort> {
+	while (true) {
+		try {
+			await runWithTimeout(bootstrapApi.isConnected(), 200);
+			return await bootstrapApi[createEndpoint]();
+		} catch {
+			// The remote Window has not exposed its API yet, or it changed
+			// before the endpoint request completed.
+		}
+	}
+}
+
+/**
+ * Adapts the asynchronous MessagePort handshake to `consumeAPI()`'s synchronous
+ * return type.
+ *
+ * Comlink starts registering listeners and posting requests immediately. Buffer
+ * those operations until the port arrives, then attach and start the listeners
+ * before replaying requests so no response can arrive without a listener.
+ */
+function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
+	let port: MessagePort | undefined;
+	let shouldStart = false;
+	const listeners: Array<{
+		type: string;
+		listener: EventListenerOrEventListenerObject;
+		options?: object;
+	}> = [];
+	const messages: Array<{
+		message: unknown;
+		transfer?: Transferable[];
+	}> = [];
+
+	void portPromise.then((connectedPort) => {
+		port = connectedPort;
+		for (const { type, listener, options } of listeners) {
+			port.addEventListener(type, listener, options);
+		}
+		if (shouldStart) {
+			port.start();
+		}
+		for (const { message, transfer } of messages) {
+			if (transfer) {
+				port.postMessage(message, transfer);
+			} else {
+				port.postMessage(message);
+			}
+		}
+		messages.length = 0;
+	});
+
+	return {
+		postMessage(message, transfer) {
+			if (port) {
+				if (transfer) {
+					port.postMessage(message, transfer);
+				} else {
+					port.postMessage(message);
+				}
+			} else {
+				messages.push({ message, transfer });
+			}
+		},
+		addEventListener(type, listener, options) {
+			if (port) {
+				port.addEventListener(type, listener, options);
+			} else {
+				listeners.push({ type, listener, options });
+			}
+		},
+		removeEventListener(type, listener, options) {
+			if (port) {
+				port.removeEventListener(type, listener, options);
+				return;
+			}
+			const index = listeners.findIndex(
+				(entry) =>
+					entry.type === type &&
+					entry.listener === listener &&
+					entry.options === options
+			);
+			if (index !== -1) {
+				listeners.splice(index, 1);
+			}
+		},
+		start() {
+			if (port) {
+				port.start();
+			} else {
+				shouldStart = true;
+			}
+		},
+	};
+}
+
 async function runWithTimeout<T>(
 	promise: Promise<T>,
 	timeout: number
 ): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
-		setTimeout(reject, timeout);
-		promise.then(resolve);
+		const timeoutId = setTimeout(reject, timeout);
+		promise.then(
+			(value) => {
+				clearTimeout(timeoutId);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timeoutId);
+				reject(error);
+			}
+		);
 	});
 }
 
@@ -434,11 +561,8 @@ function setupTransferHandlers() {
 // Utilities for transferring ReadableStreams and Promises via MessagePorts:
 
 /**
- * Safari does not support transferable streams, so we need to fallback to
- * MessagePorts.
- * Feature-detects whether this runtime supports transferring ReadableStreams
- * directly through postMessage (aka "transferable streams"). When false,
- * we must fall back to port-bridged streaming.
+ * Safari does not support transferable streams. Use the MessagePort bridge when
+ * this point-to-point capability probe fails.
  */
 let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {

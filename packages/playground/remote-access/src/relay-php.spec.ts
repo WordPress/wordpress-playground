@@ -33,6 +33,56 @@ describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 		server?.kill();
 	});
 
+	/*
+	 * The host role is what makes the verification-code approval meaningful:
+	 * only the host may offer to a guest and read the guest's replies. These
+	 * cases cover the rejection that happens before any session lookup, so
+	 * they need no database.
+	 */
+	it('rejects host signal posts without a host token', async () => {
+		const response = await fetch(
+			`${relayUrl}?action=signal&sessionId=session-1`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					from: 'host',
+					to: 'guest',
+					type: 'offer',
+					data: {},
+				}),
+			}
+		);
+
+		expect(response.status).toBe(401);
+		await expect(response.json()).resolves.toEqual({
+			error: 'Missing host token',
+		});
+	});
+
+	it('rejects host signal polls without a host token', async () => {
+		const response = await fetch(
+			`${relayUrl}?action=signal&sessionId=session-1&to=host&since=0`
+		);
+
+		expect(response.status).toBe(401);
+		await expect(response.json()).resolves.toEqual({
+			error: 'Missing host token',
+		});
+	});
+
+	it('rejects session close without a host token', async () => {
+		const response = await fetch(
+			`${relayUrl}?action=close&sessionId=session-1`,
+			{ method: 'POST' }
+		);
+
+		expect(response.status).toBe(401);
+		await expect(response.json()).resolves.toEqual({
+			error: 'Missing host token',
+		});
+	});
+
 	it('rejects oversized guest ids before reading session state', async () => {
 		const oversizedGuestId = 'x'.repeat(37);
 

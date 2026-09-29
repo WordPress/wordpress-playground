@@ -379,7 +379,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				<p
 					style={{
 						margin: 0,
-						color: asPane ? 'var(--ink, #21201d)' : '#1e1e1e',
+						color: asPane ? 'var(--ink)' : '#1e1e1e',
 					}}
 				>
 					{isAutosaved
@@ -472,7 +472,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 								width: '100%',
 								height: asPane ? 12 : 24,
 								...(asPane && {
-									accentColor: 'var(--accent, #3858e9)',
+									accentColor: 'var(--accent)',
 								}),
 							}}
 						></progress>

@@ -54,7 +54,8 @@ npx nx build <package-name>              # Build specific package
 # Testing
 npm test                                 # Run all tests
 npx nx test <package-name>               # Test specific package
-npx nx e2e playground-website            # Run end-to-end tests
+npx nx e2e playground-website            # Run website Playwright E2E tests
+npx nx run playground-website:e2e:playwright:ci # Run website Playwright E2E tests
 
 # Running a single test file
 npx nx test <package-name> --testFile=<test-file-name>
@@ -171,6 +172,15 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   adjacent screens and reuse the existing shared component, variant, sizing, and design tokens. Add
   bespoke CSS only when shared primitives cannot express the required behavior, and verify the result
   side by side with neighboring UI.
+- **Progress states:** Use `PaneLoading` when an entire Dock pane is unavailable and `InlineProgress`
+  when an operation leaves the surrounding pane visible. Keep progress inside an action button only
+  when the button is the sole progress surface; do not show a second spinner or invent another loading
+  container for the same operation.
+- **Dock tools:** Register destinations in `packages/playground/website/src/components/dock/tool-registry.tsx`.
+  Each entry owns its group, navigation labels/icon, pane copy/layout, and optional site-tool panel.
+  Developer tools use `group: 'developer'` and the shared `SiteToolPanelProps` interface; adapters for
+  existing tools live in `site-info-panel/site-tool-renderers.tsx`. The host mounts panels on first use
+  and retains them until the site changes. Do not add parallel navigation or routing lists.
 - **Path manipulation**: Never use ad-hoc string operations for file paths. Use
   the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
   `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)
@@ -192,7 +202,7 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
 - **Coverage**: Reports to `coverage/packages/<package-name>`
-- **E2E tests**: Playwright and Cypress for website testing
+- **E2E tests**: Playwright for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
 
 #### Test-value gate
@@ -329,6 +339,9 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- The docs build generates handbook Markdown in `packages/docs/site/static/handbook/`
+  from TypeDoc. Regenerate and commit these files when their source docs or API
+  comments change; the WordPress.org importer reads them through `manifest.json`.
 - When adding screenshots to Markdown docs, use the raw GitHub URL for the
   committed asset, for example
   `https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/...`.

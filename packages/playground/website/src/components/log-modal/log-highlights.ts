@@ -1,30 +1,36 @@
 /**
- * Splits a log line into plain-text segments, marking `Error:`/`Fatal:` tokens
- * for emphasis. Returning data instead of HTML ensures React escapes log text.
+ * Splits text into plain and highlighted segments around every
+ * case-insensitive occurrence of the search term. Returning data instead of
+ * HTML ensures React escapes log text.
  */
-export function splitLogHighlights(
-	log: string
+export function splitSearchHighlights(
+	text: string,
+	term: string
 ): Array<{ text: string; highlight: boolean }> {
+	if (!term) {
+		return [{ text, highlight: false }];
+	}
 	const segments: Array<{ text: string; highlight: boolean }> = [];
-	// Only match standalone severity markers, not names such as `ParseError:`.
-	const pattern = /Error:|Fatal:/g;
+	const haystack = text.toLowerCase();
+	const needle = term.toLowerCase();
 	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-	while ((match = pattern.exec(log)) !== null) {
-		if (match.index > 0 && /\w/.test(log[match.index - 1])) {
-			continue;
-		}
-		if (match.index > lastIndex) {
+	let index = haystack.indexOf(needle);
+	while (index !== -1) {
+		if (index > lastIndex) {
 			segments.push({
-				text: log.slice(lastIndex, match.index),
+				text: text.slice(lastIndex, index),
 				highlight: false,
 			});
 		}
-		segments.push({ text: match[0], highlight: true });
-		lastIndex = pattern.lastIndex;
+		segments.push({
+			text: text.slice(index, index + term.length),
+			highlight: true,
+		});
+		lastIndex = index + term.length;
+		index = haystack.indexOf(needle, lastIndex);
 	}
-	if (lastIndex < log.length) {
-		segments.push({ text: log.slice(lastIndex), highlight: false });
+	if (lastIndex < text.length) {
+		segments.push({ text: text.slice(lastIndex), highlight: false });
 	}
 	return segments;
 }

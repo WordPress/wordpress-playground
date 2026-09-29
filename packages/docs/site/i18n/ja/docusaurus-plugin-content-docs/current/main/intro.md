@@ -77,7 +77,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
   [構築](/about/build)、[テスト](/about/test)、[公開](/about/launch)に WordPress Playground をどのように活用できるかを発見してください。
 - **[ガイド](/guides)**: 新しいスキルを習得し、ステップバイステップの手順を見つけ、貴重な洞察を得るための包括的なガイドをご覧ください。深く掘り下げて学び、成長しましょう !
 - **[貢献](/contributing)**: WordPress Playground はオープンソースプロジェクトであり、コードからデザイン、ドキュメントからトリアージまで、すべての貢献者を歓迎します。貢献方法についてはこちらをご覧ください。
-- **[リンクとリソース](/resources)**: WordPress Playground に関連する役立つリンクとリソースの素敵なまとめ。
+- **[リンクとリソース](/links-and-resources)**: WordPress Playground に関連する役立つリンクとリソースの素敵なまとめ。
 
 <!--
 -   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version).
@@ -92,7 +92,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 
 -   **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
 
--   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+-   **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
  -->
 
 ## 最初のステップ
@@ -148,7 +148,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
  -->
 
 - [Playground API](/developers/apis/) と基本的な概念について読む
-- [リンクとリソース](/resources) を確認する
+- [リンクとリソース](/links-and-resources) を確認する
 - アプリに適した API を選択する
     - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
     - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
@@ -157,7 +157,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
--   Review [links and resources](/resources)
+-   Review [links and resources](/links-and-resources)
 -   Choose the right API for your app:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file

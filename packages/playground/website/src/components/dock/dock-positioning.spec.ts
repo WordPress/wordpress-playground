@@ -18,6 +18,7 @@ describe('Dock positioning', () => {
 				dockCenter: null,
 				viewportSize: { width: 1200, height: 800 },
 				isEditorSection: false,
+				isWideSection: false,
 				isFixedHeightSection: false,
 				isPlaygroundsSection: false,
 			})
@@ -34,6 +35,7 @@ describe('Dock positioning', () => {
 				toastHeight: 62,
 				paneOpen: false,
 				isEditorSection: false,
+				isWideSection: false,
 			})
 		).toBeUndefined();
 	});
@@ -48,6 +50,7 @@ describe('Dock positioning', () => {
 				dockCenter: null,
 				viewportSize: { width: 1200, height: 100 },
 				isEditorSection: false,
+				isWideSection: false,
 				isFixedHeightSection: false,
 				isPlaygroundsSection: false,
 			})
@@ -64,6 +67,7 @@ describe('Dock positioning', () => {
 				dockCenter: null,
 				viewportSize: { width: 390, height: 844 },
 				isEditorSection: false,
+				isWideSection: false,
 				isFixedHeightSection: false,
 				isPlaygroundsSection: false,
 			})
@@ -80,6 +84,7 @@ describe('Dock positioning', () => {
 				dockCenter: 100,
 				viewportSize: { width: 1200, height: 800 },
 				isEditorSection: false,
+				isWideSection: false,
 				isFixedHeightSection: true,
 				isPlaygroundsSection: true,
 			})
@@ -102,6 +107,7 @@ describe('Dock positioning', () => {
 				dockCenter: null,
 				viewportSize: { width: 1200, height: 800 },
 				isEditorSection: false,
+				isWideSection: false,
 				isFixedHeightSection: false,
 				isPlaygroundsSection: false,
 			})
@@ -124,8 +130,45 @@ describe('Dock positioning', () => {
 				toastHeight: 62,
 				paneOpen: true,
 				isEditorSection: false,
+				isWideSection: false,
 			})
 		).toEqual({ bottom: '504px', left: '308px' });
+	});
+
+	it('lifts the toast above the Dock when a tall pane leaves no room above it', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
+				dockCenter: null,
+				viewportSize: { width: 1200, height: 800 },
+				paneHeight: 680,
+				toastHeight: 62,
+				paneOpen: true,
+				isEditorSection: true,
+				isWideSection: false,
+			})
+		).toEqual({ bottom: '104px', left: '600px' });
+	});
+
+	it('lifts the toast off the pane on mobile', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: true,
+				dockSize: { width: 390, height: 72 },
+				toolsHeight: 0,
+				isCollapsed: false,
+				dockCenter: null,
+				viewportSize: { width: 390, height: 844 },
+				paneHeight: 700,
+				toastHeight: 62,
+				paneOpen: true,
+				isEditorSection: false,
+				isWideSection: false,
+			})
+		).toEqual({ bottom: '96px', left: '195px' });
 	});
 
 	it('keeps operation notices above the visible collapsed Dock row', () => {
@@ -141,6 +184,7 @@ describe('Dock positioning', () => {
 				toastHeight: 62,
 				paneOpen: false,
 				isEditorSection: false,
+				isWideSection: false,
 			})
 		).toEqual({
 			bottom: `${80 + DOCK_PANE_GAP}px`,
@@ -161,6 +205,7 @@ describe('Dock positioning', () => {
 				toastHeight: 62,
 				paneOpen: false,
 				isEditorSection: false,
+				isWideSection: false,
 			})
 		).toEqual({ bottom: '92px', left: '5px' });
 	});
@@ -171,6 +216,7 @@ describe('Dock positioning', () => {
 				dockCenter: 0,
 				viewportWidth: 1200,
 				isEditorSection: false,
+				isWideSection: false,
 			})
 		).toBe(308);
 		expect(
@@ -178,7 +224,27 @@ describe('Dock positioning', () => {
 				dockCenter: 1200,
 				viewportWidth: 1200,
 				isEditorSection: false,
+				isWideSection: false,
 			})
 		).toBe(892);
+	});
+
+	it('clamps wide pane centers by their own half width', () => {
+		expect(
+			getDockPaneCenter({
+				dockCenter: 0,
+				viewportWidth: 1200,
+				isEditorSection: false,
+				isWideSection: true,
+			})
+		).toBe(438);
+		expect(
+			getDockPaneCenter({
+				dockCenter: 1200,
+				viewportWidth: 1200,
+				isEditorSection: false,
+				isWideSection: true,
+			})
+		).toBe(762);
 	});
 });

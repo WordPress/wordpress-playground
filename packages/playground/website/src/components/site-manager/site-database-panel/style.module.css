@@ -32,7 +32,7 @@
 }
 
 .value code {
-	background: var(--paper-3);
+	background: var(--surface-recessed);
 	border-radius: var(--radius-control);
 	color: var(--ink);
 	font-family:
@@ -42,12 +42,12 @@
 }
 
 .error {
-	color: var(--color-alert-red, #cc1818);
+	color: var(--destructive);
 	font-size: 13px;
 	margin-top: var(--space-2);
 }
 
-/* The shared Dock notice supplies the warm well; this surface only sets the
+/* The shared Dock notice supplies the neutral grey well; this surface only sets the
    compact hierarchy inside it. */
 .site-notice {
 	width: 100%;

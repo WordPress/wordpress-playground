@@ -167,6 +167,14 @@ export async function hasCachedResponse(
 	return !!cachedResponse;
 }
 
+export async function putCachedResponse(
+	request: RequestInfo,
+	response: Response
+): Promise<void> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	await offlineModeCache.put(request, response);
+}
+
 export function shouldCacheUrl(url: URL) {
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;

@@ -29,6 +29,16 @@ Pour fournir une bonne démo de votre thème ou de votre extension via Playgroun
 
 <!-- To provide a good demo of your theme or plugin via Playground, you may want to load it with default content that highlights the features of your product. Check this guide to learn how to do so. -->
 
+<!--
+## [Importing content into WordPress with Blueprints](/guides/import-content-with-blueprints)
+
+Compare XML exports, generated PHP content, and ZIP snapshots, including their trade-offs and test results for importing the same dataset into fresh WordPress instances.
+-->
+
+## [Importation de contenu dans WordPress avec des Blueprints](/guides/import-content-with-blueprints)
+
+Comparez les exportations XML, le contenu généré avec PHP et les instantanés ZIP, notamment leurs avantages et inconvénients, ainsi que les résultats des tests d’importation du même jeu de données dans de nouvelles instances WordPress.
+
 ##[WordPress Playground pour le développement de thèmes](/guides/for-theme-developers)
 
 <!-- ## [WordPress Playground for Theme Developers](/guides/for-theme-developers) -->

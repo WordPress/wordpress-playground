@@ -13,6 +13,20 @@
 	margin-top: 5px;
 }
 
+.inline-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.inline-field-group {
+	margin-bottom: 0;
+}
+
+.inline-actions {
+	display: flex;
+}
+
 .notice {
 	margin: 20px 0 !important;
 }

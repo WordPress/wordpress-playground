@@ -1,6 +1,6 @@
 import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 13904797;
+export const dependenciesTotalSize = 13904923;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7208,11 +7208,6 @@ export function init(RuntimeName, PHPLoader) {
 				const interval = setInterval(pump, 20);
 				pump();
 			} else {
-				/**
-				 * Descriptor 0 was not provided, so the child process must observe EOF.
-				 * Closing stdin explicitly lets spawn handlers distinguish that case from
-				 * a valid pipe whose first bytes have not arrived yet.
-				 */
 				cp.stdin.end();
 			}
 			return ProcInfo.pid;
@@ -8408,6 +8403,7 @@ export function init(RuntimeName, PHPLoader) {
 		_memchr,
 		_strrchr,
 		_snprintf,
+		_strncasecmp,
 		_pow,
 		_tolower,
 		_calloc,
@@ -8451,6 +8447,7 @@ export function init(RuntimeName, PHPLoader) {
 		_acos,
 		_setlocale,
 		_localtime_r,
+		_sscanf,
 		_tan,
 		_asin,
 		_atan,
@@ -8465,6 +8462,7 @@ export function init(RuntimeName, PHPLoader) {
 		_strcat,
 		_tzset,
 		_wasm_sleep,
+		_explicit_bzero,
 		_expf,
 		_qsort,
 		_rewind,
@@ -8876,6 +8874,7 @@ export function init(RuntimeName, PHPLoader) {
 		_memchr = Module['_memchr'] = wasmExports['memchr'];
 		_strrchr = Module['_strrchr'] = wasmExports['strrchr'];
 		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
+		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
 		_pow = Module['_pow'] = wasmExports['pow'];
 		_tolower = Module['_tolower'] = wasmExports['tolower'];
 		_calloc = wasmExports['calloc'];
@@ -8920,6 +8919,7 @@ export function init(RuntimeName, PHPLoader) {
 		_acos = Module['_acos'] = wasmExports['acos'];
 		_setlocale = Module['_setlocale'] = wasmExports['setlocale'];
 		_localtime_r = Module['_localtime_r'] = wasmExports['localtime_r'];
+		_sscanf = Module['_sscanf'] = wasmExports['sscanf'];
 		_tan = Module['_tan'] = wasmExports['tan'];
 		_asin = Module['_asin'] = wasmExports['asin'];
 		_atan = Module['_atan'] = wasmExports['atan'];
@@ -8936,6 +8936,8 @@ export function init(RuntimeName, PHPLoader) {
 		_strcat = Module['_strcat'] = wasmExports['strcat'];
 		_tzset = Module['_tzset'] = wasmExports['tzset'];
 		_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		_expf = Module['_expf'] = wasmExports['expf'];
 		_qsort = Module['_qsort'] = wasmExports['qsort'];
 		_rewind = Module['_rewind'] = wasmExports['rewind'];

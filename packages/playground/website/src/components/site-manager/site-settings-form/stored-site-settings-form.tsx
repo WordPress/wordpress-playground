@@ -52,7 +52,6 @@ export function StoredSiteSettingsForm({
 			footer={(context) => (
 				<SiteSettingsActionFooter
 					{...context}
-					siteName={siteInfo.metadata.name}
 					sitePersistence="explicit"
 					onApply={(data) => submission.run(updateSite, data)}
 					onCreateFresh={(data) =>
