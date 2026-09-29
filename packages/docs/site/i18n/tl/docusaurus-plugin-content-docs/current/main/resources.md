@@ -18,7 +18,6 @@ There's a set of redirections in place to make it easier the access to some of t
 
 <ul id="list-resources-redirections">
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/"><strong>playground.wordpress.net/</strong></a> → Playground instance</li>
-<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/docs">playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/builder">playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/wordpress">playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/gutenberg">playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
@@ -35,7 +34,6 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 
 <ul id="list-resources-redirections">
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/"><strong>playground.wordpress.net/</strong></a> → Instansiya ng Playground</li>
-<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/docs">playground.wordpress.net<strong>/docs</strong></a> → Dokumentasyon ng Playground</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/builder">playground.wordpress.net<strong>/builder</strong></a> → Blueprint Builder ng Playground</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/wordpress">playground.wordpress.net<strong>/wordpress</strong></a> → Pang-preview ng pull request sa Playground para sa WordPress</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/gutenberg">playground.wordpress.net<strong>/gutenberg</strong></a> → Pang-preview ng pull request sa Playground para sa Gutenberg</li>
@@ -48,7 +46,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 
 - [Demo](https://playground.wordpress.net/)
 - [GitHub Repository](https://github.com/WordPress/wordpress-playground)
-- [Documentation](https://wordpress.github.io/wordpress-playground/)
+- [Documentation](https://developer.wordpress.org/playground/)
 - [Playground tools Repository](https://github.com/WordPress/playground-tools)
 - [Awesome WordPress Playground](https://github.com/akirk/awesome-wordpress-playground) – a community-curated list of resources, tools, and examples
 -->
@@ -57,7 +55,7 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 
 - [Demo](https://playground.wordpress.net/)
 - [Repositori sa GitHub](https://github.com/WordPress/wordpress-playground)
-- [Dokumentasyon](https://wordpress.github.io/wordpress-playground/)
+- [Dokumentasyon](https://developer.wordpress.org/playground/)
 - [Repositori ng mga tool ng Playground](https://github.com/WordPress/playground-tools)
 - [Awesome WordPress Playground](https://github.com/akirk/awesome-wordpress-playground) – listahan ng mga resource, tool, at halimbawang pinili ng komunidad
 

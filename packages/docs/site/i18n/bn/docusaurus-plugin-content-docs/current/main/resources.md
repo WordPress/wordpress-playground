@@ -18,7 +18,6 @@ There's a set of redirections in place to make it easier the access to some of t
 
 <ul id="list-resources-redirections">
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/"><strong>playground.wordpress.net/</strong></a> → Playground instance</li>
-<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/docs">playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/builder">playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/wordpress">playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/gutenberg">playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
@@ -35,7 +34,6 @@ There's a set of redirections in place to make it easier the access to some of t
 
 <ul id="list-resources-redirections">
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/"><strong>playground.wordpress.net/</strong></a> → প্লেগ্রাউন্ড ইনস্ট্যান্স</li>
-<li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/docs">playground.wordpress.net<strong>/docs</strong></a> → প্লেগ্রাউন্ড ডকস</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/builder">playground.wordpress.net<strong>/builder</strong></a> → প্লেগ্রাউন্ড ব্লুপ্রিন্ট বিল্ডার</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/wordpress">playground.wordpress.net<strong>/wordpress</strong></a> → ওয়ার্ডপ্রেসের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
 <li><a target="_blank" rel="noopener noreferrer" href="https://playground.wordpress.net/gutenberg">playground.wordpress.net<strong>/gutenberg</strong></a> → গুটেনবার্গের জন্য প্লেগ্রাউন্ড PR ভিউয়ার</li>
@@ -48,7 +46,7 @@ There's a set of redirections in place to make it easier the access to some of t
 
 - [Demo](https://playground.wordpress.net/)
 - [GitHub Repository](https://github.com/WordPress/wordpress-playground)
-- [Documentation](https://wordpress.github.io/wordpress-playground/)
+- [Documentation](https://developer.wordpress.org/playground/)
 - [Playground tools Repository](https://github.com/WordPress/playground-tools)
 - [Awesome WordPress Playground](https://github.com/akirk/awesome-wordpress-playground) – a community-curated list of resources, tools, and examples
 -->
@@ -57,7 +55,7 @@ There's a set of redirections in place to make it easier the access to some of t
 
 - [ডেমো](https://playground.wordpress.net/)
 - [গিটহাব রিপোজিটরি](https://github.com/WordPress/wordpress-playground)
-- [ডকুমেন্টেশন](https://wordpress.github.io/wordpress-playground/)
+- [ডকুমেন্টেশন](https://developer.wordpress.org/playground/)
 - [প্লেগ্রাউন্ড টুলস রিপোজিটরি](https://github.com/WordPress/playground-tools)
 - [Awesome WordPress Playground](https://github.com/akirk/awesome-wordpress-playground) – কমিউনিটির বাছাই করা রিসোর্স, টুল এবং উদাহরণের তালিকা
 
