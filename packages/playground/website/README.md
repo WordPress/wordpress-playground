@@ -12,8 +12,11 @@ want to add a new, bulky page without increasing the required download size, add
 To run the end to end tests locally, use the following command:
 
 ```bash
-npx nx run playground-website:e2e:dev:cypress
+npx nx e2e playground-website
 ```
+
+See [the Playwright guide](./playwright/README.md) for browser installation,
+UI mode, and CI commands.
 
 ### GitHub integration development
 

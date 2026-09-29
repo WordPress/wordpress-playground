@@ -1,6 +1,6 @@
 # E2E tests
 
-**Note:** We are currently migrating the e2e tests to [Playwright](https://playwright.dev/) from Cypress.
+The website E2E tests use [Playwright](https://playwright.dev/).
 
 ## Install Playwright
 
@@ -12,7 +12,7 @@ npx playwright install --with-deps
 
 ## Run tests
 
-Runs the end-to-end tests.
+Runs the end-to-end tests. `npx nx e2e playground-website` is an alias for this command.
 
 ```bash
 npx nx run playground-website:e2e:playwright
@@ -21,25 +21,25 @@ npx nx run playground-website:e2e:playwright
 Starts the interactive UI mode.
 
 ```bash
-npx nx run playground-website:e2e:playwright --ui
+npx nx run playground-website:e2e:playwright -- --ui
 ```
 
 Runs the tests only on Desktop Chrome.
 
 ```bash
-npx nx run playground-website:e2e:playwright --project=chromium
+npx nx run playground-website:e2e:playwright -- --project=chromium
 ```
 
 Runs the tests in a specific file.
 
 ```bash
-npx nx run playground-website:e2e:playwright example
+npx nx run playground-website:e2e:playwright -- example
 ```
 
 Runs the tests in debug mode.
 
 ```bash
-npx nx run playground-website:e2e:playwright --debug
+npx nx run playground-website:e2e:playwright -- --debug
 ```
 
 Open the [Playwright Inspector](https://playwright.dev/docs/debug#picking-locators).
@@ -58,6 +58,20 @@ You can use [this guide to set up a local Multisite.](https://wordpress.github.i
 ```bash
  PLAYWRIGHT_TEST_BASE_URL='https://playground.test/website-server/' npx nx run playground-website:e2e:playwright
 ```
+
+## CI
+
+The existing Playwright CI jobs run all website E2E tests. ZIP imports create
+saved sites, so those tests use the `@storage` tag and run in the single-worker
+storage lane. ZIP exports and query API tests run in the regular shards.
+
+After building the app, run both groups against the preview server:
+
+```bash
+npx nx run playground-website:e2e:playwright:ci
+```
+
+The CI preview server binds to port 80 for WordPress multisite support.
 
 ## Deployment tests
 
