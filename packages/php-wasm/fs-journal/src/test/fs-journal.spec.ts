@@ -182,6 +182,33 @@ describe('Journal MemFS', () => {
 });
 
 describe('normalizeFilesystemOperations()', () => {
+	it('normalizes a large download without scanning unrelated paths for every write', () => {
+		// Downloads write each file in chunks. Comparing all pairs of these
+		// records blocks the PHP worker, including error and log delivery.
+		// Count path reads rather than timing the test on different machines.
+		let pathReads = 0;
+		const journal: FilesystemOperation[] = [];
+		const expected: FilesystemOperation[] = [];
+		for (let i = 0; i < 33057; i++) {
+			const path = `/wordpress/wp-content/uploads/file-${i}`;
+			for (let chunk = 0; chunk < 6; chunk++) {
+				journal.push({
+					operation: chunk === 0 ? 'CREATE' : 'WRITE',
+					nodeType: 'file',
+					get path() {
+						if (++pathReads > 3000000) {
+							throw new Error(
+								'Bulk download normalization scanned too many paths'
+							);
+						}
+						return path;
+					},
+				});
+			}
+			expected.push({ operation: 'WRITE', nodeType: 'file', path });
+		}
+		expect(normalizeFilesystemOperations(journal)).toEqual(expected);
+	});
 	it('Normalizes CREATE and WRITE + multiple WRITE file ops to a single WRITE', () => {
 		const expected = [
 			{ operation: 'WRITE', path: '/test', nodeType: 'file' },

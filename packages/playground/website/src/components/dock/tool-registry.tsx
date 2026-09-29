@@ -18,6 +18,7 @@ import {
 	TerminalTool,
 	LogsTool,
 	MailTool,
+	TransferTool,
 } from '../site-manager/site-info-panel/site-tool-renderers';
 import type { SiteToolPanelProps } from '../site-manager/site-info-panel/site-tool-renderers';
 import css from '../site-manager/site-info-panel/style.module.css';
@@ -47,7 +48,7 @@ const definitions = [
 		isPrimary: true,
 		group: 'main',
 		title: 'New Playground',
-		description: 'Spin up a fresh Playground or start from a Blueprint.',
+		description: 'Start from a Blueprint or clone a live site.',
 		layout: 'default',
 		fixedHeight: true,
 	},
@@ -158,6 +159,19 @@ const definitions = [
 		fixedHeight: true,
 		Panel: MailTool,
 		panelClassName: `${css.tabContents} ${css.mailTab}`,
+	},
+	{
+		section: 'transfer',
+		label: 'Pull site',
+		ariaLabel: 'Pull site',
+		icon: <Icon icon={external} size={24} />,
+		group: 'hidden',
+		title: 'Pull WordPress site',
+		description:
+			'Bring a live site into Playground with Reprint. Your live site stays unchanged.',
+		layout: 'default',
+		Panel: TransferTool,
+		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'save',

@@ -27,6 +27,13 @@ export async function fetchWithCorsProxy(
 		: new URL(requestObject.url);
 
 	if (isLocalhost(requestUrlObj)) {
+		// Local PHP development servers speak HTTP/1.1. Chrome requires HTTP/2
+		// for a streaming upload, even when the entire body is already available.
+		if (requestUrlObj.protocol === 'http:' && requestObject.body) {
+			requestObject = await cloneRequest(requestObject, {
+				body: await requestObject.arrayBuffer(),
+			});
+		}
 		return await fetch(requestObject);
 	}
 

@@ -19,10 +19,11 @@ import css from './style.module.css';
 export type DockPaneHeaderOverride = {
 	title: string;
 	description?: string;
-	backLabel: string;
+	/** Without an onBack handler the header shows the title alone. */
+	backLabel?: string;
 	backButtonRef?: RefObject<HTMLButtonElement>;
 	focusBackButton?: boolean;
-	onBack: MouseEventHandler<HTMLButtonElement>;
+	onBack?: MouseEventHandler<HTMLButtonElement>;
 };
 
 export type DockPaneProps = {
@@ -130,7 +131,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				)}
 				{showHeader && (
 					<div className={css.paneHeader}>
-						{headerOverride && (
+						{headerOverride?.onBack && (
 							<button
 								ref={headerOverride.backButtonRef}
 								type="button"

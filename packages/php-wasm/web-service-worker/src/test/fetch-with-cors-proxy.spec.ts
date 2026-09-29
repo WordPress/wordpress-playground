@@ -247,7 +247,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
 	});
 
-	it('passes request through to fetch for localhost http:// URLs', async () => {
+	it('buffers streamed uploads to localhost HTTP/1.1 servers', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -269,9 +269,12 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// Direct fetch — no buffering, same Request passed through.
-		expect(sentRequest).toBe(request);
-		expect(request.bodyUsed).toBe(false);
+		// Buffer before direct fetch: Chrome cannot stream to an HTTP/1.1 server.
+		expect(sentRequest).not.toBe(request);
+		expect(sentRequest.url).toBe(request.url);
+		expect(sentRequest.method).toBe('POST');
+		expect(await sentRequest.text()).toBe('streamed data');
+		expect(request.bodyUsed).toBe(true);
 	});
 
 	it('passes request through to fetch for https:// URLs without proxy', async () => {

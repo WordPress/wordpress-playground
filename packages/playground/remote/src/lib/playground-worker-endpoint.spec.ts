@@ -44,6 +44,29 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	});
 
+	it('flushes the replacement journal after PHP runtime rotation', async () => {
+		const endpoint = await createEndpoint({});
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+		await endpoint.mountOpfs({
+			device: { type: 'local-fs', handle: createEmptyDirectoryHandle() },
+			mountpoint: '/wordpress',
+		});
+		const oldMount = endpoint.opfsMounts['/wordpress'];
+		const oldFlush = vi.spyOn(oldMount, 'flush');
+		// PHP reuses the mount handler when it creates a fresh runtime. Checking
+		// a normal second flush would miss the stale endpoint reference.
+		const handler = php.mount.mock.calls[0][1];
+		await oldMount.unmount();
+		await php.mount('/wordpress', handler);
+		const replacement = endpoint.opfsMounts['/wordpress'];
+		expect(replacement).not.toBe(oldMount);
+		const newFlush = vi.spyOn(replacement, 'flush');
+		await endpoint.flushOpfs('/wordpress');
+		expect(newFlush).toHaveBeenCalledTimes(1);
+		expect(oldFlush).not.toHaveBeenCalled();
+	});
+
 	it('reports whether an OPFS mount is active', async () => {
 		const endpoint = await createEndpoint({
 			'/wordpress': createOpfsMount(),

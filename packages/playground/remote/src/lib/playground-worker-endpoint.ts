@@ -639,8 +639,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					onProgress,
 					direction: options.initialSyncDirection,
 				},
-				onMount(mount) {
+				onMount: (mount) => {
 					opfsMount = mount;
+					// Runtime rotation invokes this handler again. Explicit flushes
+					// must drain the replacement journal, not the detached one.
+					this.opfsMounts[options.mountpoint] = mount;
 				},
 			})
 		);

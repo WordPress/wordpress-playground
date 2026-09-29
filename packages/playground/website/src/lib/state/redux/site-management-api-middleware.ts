@@ -813,9 +813,15 @@ export function createSitesAPI(
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
-			settings?: SiteSettings
+			settings?: SiteSettings,
+			options: { updateUrl?: boolean } = {}
 		): Promise<string> {
-			return await createTemporarySite(requestedSiteSlug, settings);
+			return await createTemporarySite(
+				requestedSiteSlug,
+				settings,
+				undefined,
+				options
+			);
 		},
 
 		/**
@@ -944,7 +950,8 @@ export function createSitesAPI(
 	async function createTemporarySite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
-		initialize?: (playground: PlaygroundClient) => Promise<void>
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		options: { updateUrl?: boolean } = {}
 	): Promise<string> {
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
@@ -959,7 +966,9 @@ export function createSitesAPI(
 				replaceExisting: Boolean(initialize),
 			})
 		);
-		await activateNewSite(newSiteInfo.slug, initialize);
+		await activateNewSite(newSiteInfo.slug, initialize, {
+			updateUrl: options.updateUrl,
+		});
 		return newSiteInfo.slug;
 	}
 

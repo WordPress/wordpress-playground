@@ -168,6 +168,14 @@ export interface UIState {
 	siteImportProgress?: ProgressDetails;
 	dockPaneIsOpen: boolean;
 	dockPaneSection: DockPaneSection;
+	pullRequestedForSite?: string;
+	/** The transfer pane collects a live site to copy into a new Playground. */
+	cloneRequested?: boolean;
+	/**
+	 * Connection details for a Playground created by the clone flow. The
+	 * transfer panel mounted for that slug starts the pull with them.
+	 */
+	pendingClone?: { slug: string; url: string; secret: string };
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
 	 * pane does not discard the user's work.
@@ -236,6 +244,8 @@ const uiSlice = createSlice({
 	initialState,
 	reducers: {
 		setActiveSite: (state, action: PayloadAction<string | undefined>) => {
+			state.pullRequestedForSite = undefined;
+			state.cloneRequested = undefined;
 			state.activeSite = action.payload
 				? {
 						slug: action.payload,
@@ -292,6 +302,9 @@ const uiSlice = createSlice({
 		},
 		setDockPaneOpen: (state, action: PayloadAction<boolean>) => {
 			state.dockPaneIsOpen = action.payload;
+			if (!action.payload) {
+				state.cloneRequested = undefined;
+			}
 		},
 		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
 			state.shareExportOpen = action.payload;
@@ -301,6 +314,21 @@ const uiSlice = createSlice({
 			action: PayloadAction<ProgressDetails | undefined>
 		) => {
 			state.siteImportProgress = action.payload;
+		},
+		setSitePullRequest: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.pullRequestedForSite = action.payload;
+		},
+		setCloneRequested: (state, action: PayloadAction<boolean>) => {
+			state.cloneRequested = action.payload || undefined;
+		},
+		setPendingClone: (
+			state,
+			action: PayloadAction<UIState['pendingClone']>
+		) => {
+			state.pendingClone = action.payload;
 		},
 		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
 			state.dockPaneSection = action.payload;
@@ -387,6 +415,9 @@ export const {
 	setSiteImportProgress,
 	setDockPaneOpen,
 	setDockPaneSection,
+	setSitePullRequest,
+	setCloneRequested,
+	setPendingClone,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 	setDockOperationNotice,

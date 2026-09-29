@@ -205,9 +205,9 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		const state = _private.get(this)!;
 		const primaryPhp = state.php;
 		if (
-			!state.requestHandler &&
-			!primaryPhp?.requestHandler &&
-			primaryPhp
+			primaryPhp &&
+			(request.usePrimaryPhp ||
+				(!state.requestHandler && !primaryPhp.requestHandler))
 		) {
 			return await primaryPhp.run(request);
 		}
@@ -235,9 +235,9 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		const state = _private.get(this)!;
 		const primaryPhp = state.php;
 		if (
-			!state.requestHandler &&
-			!primaryPhp?.requestHandler &&
-			primaryPhp
+			primaryPhp &&
+			(request.usePrimaryPhp ||
+				(!state.requestHandler && !primaryPhp.requestHandler))
 		) {
 			return await primaryPhp.runStream(request);
 		}
