@@ -115,7 +115,9 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 
 ```
 Access-Control-Allow-Origin: *
-``` -->
+```
+
+When the Playground URL includes the `mcp-port` parameter, Playground rejects Blueprints passed as a URL fragment or through the `blueprint-url` parameter. This prevents prompt injection while the MCP server is active. Remove `mcp-port` from the URL to load a Blueprint this way. -->
 
 ### Carregar Blueprint de uma URL
 
@@ -128,3 +130,5 @@ Observe que o Blueprint deve ser publicamente acessível e servido com [o cabeç
 ```
 Access-Control-Allow-Origin: *
 ```
+
+Quando a URL do Playground inclui o parâmetro `mcp-port`, o Playground rejeita Blueprints passados como fragmento de URL ou pelo parâmetro `blueprint-url`. Isso evita injeção de prompt enquanto o servidor MCP está ativo. Remova `mcp-port` da URL para carregar um Blueprint dessa forma.

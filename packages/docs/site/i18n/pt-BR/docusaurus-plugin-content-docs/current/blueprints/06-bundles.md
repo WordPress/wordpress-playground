@@ -85,7 +85,11 @@ https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint
 ```
 https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip
 ```
+
+When the Playground URL includes the `mcp-port` parameter, Playground rejects the `blueprint-url` parameter. Remove `mcp-port` from the URL to load a bundle this way.
 -->
+
+Quando a URL do Playground inclui o parâmetro `mcp-port`, o Playground rejeita o parâmetro `blueprint-url`. Remova `mcp-port` da URL para carregar um pacote dessa forma.
 
 O ZIP deve conter um `blueprint.json` na raiz, além dos recursos adicionais referenciados pelo Blueprint.
 
