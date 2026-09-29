@@ -10,10 +10,29 @@
 	justify-content: space-between;
 	gap: 12px;
 }
+.groups,
 .list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
+}
+.groupHeader {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 4px 12px;
+	align-items: start;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--interactive-border, #c3c4c7);
+}
+.groupName {
+	justify-self: start;
+	height: auto;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	font-weight: 600;
+}
+.list {
+	padding-inline-start: 24px;
 }
 .list li {
 	display: grid;
@@ -50,6 +69,24 @@
 	grid-column: 2;
 	grid-row: 1 / 3;
 	align-self: start;
+}
+.groupHeader .exposure {
+	grid-row: 1;
+	max-width: 200px;
+}
+/* The count is wider than the "WebMCP" label, so right-align the header switch
+   to keep it in line with the row switches below it. */
+.groupHeader .exposure :global(.components-flex) {
+	justify-content: flex-end;
+}
+.groupHeader .exposure :global(.components-toggle-control__label) {
+	flex: 0 0 auto;
+}
+.groupHeader .exposure :global(.components-base-control__help) {
+	text-align: end;
+}
+.groupHeader .exposure :global(.components-toggle-control__help) {
+	margin-left: 0;
 }
 .description {
 	grid-column: 1 / -1;
