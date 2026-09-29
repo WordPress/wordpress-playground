@@ -283,7 +283,7 @@ before it is imported. All plugin code is included inline; no external PHP file 
 		},
 		{
 			"step": "activatePlugin",
-			"pluginPath": "/wordpress/wp-content/plugins/theme-starter-content.php"
+			"pluginPath": "theme-starter-content.php"
 		},
 		{
 			"step": "importThemeStarterContent"

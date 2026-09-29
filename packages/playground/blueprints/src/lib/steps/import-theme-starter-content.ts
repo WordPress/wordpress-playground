@@ -46,7 +46,7 @@ export interface ImportThemeStarterContentStep {
  *     },
  *     {
  *       "step": "activatePlugin",
- *       "pluginPath": "/wordpress/wp-content/plugins/theme-starter-content.php"
+ *       "pluginPath": "theme-starter-content.php"
  *     },
  *     {
  *       "step": "importThemeStarterContent"
