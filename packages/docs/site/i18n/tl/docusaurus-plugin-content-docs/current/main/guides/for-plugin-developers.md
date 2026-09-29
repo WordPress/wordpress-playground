@@ -299,7 +299,7 @@ Kapag nagbibigay ng link sa isang WordPress Playground instance na may ilang mga
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
--   Check the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+-   Check the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 -   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
 -   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
@@ -310,7 +310,7 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Narito ang ilang kapaki-pakinabang na tool at mapagkukunan na ibinigay ng proyekto ng Playground upang gumana sa mga blueprint:
 
-- Tingnan ang [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) upang galugarin ang mga halimbawa ng code sa totoong mundo ng paggamit ng WordPress Playground upang maglunsad ng site ng WordPress na may iba't ibang mga setup.
+- Tingnan ang [Blueprints Gallery](https://wordpress.github.io/blueprints/) upang galugarin ang mga halimbawa ng code sa totoong mundo ng paggamit ng WordPress Playground upang maglunsad ng site ng WordPress na may iba't ibang mga setup.
 - Ang [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool ay nagbibigay ng visual na interface upang i-drag o i-click ang mga hakbang upang lumikha ng isang blueprint para sa WordPress Playground. Maaari ka ring lumikha ng iyong sariling mga hakbang!
 - Ang [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool ay nagbibigay-daan sa iyong i-edit ang iyong blueprint online at patakbuhin ito nang direkta sa isang instance ng Playground.
 

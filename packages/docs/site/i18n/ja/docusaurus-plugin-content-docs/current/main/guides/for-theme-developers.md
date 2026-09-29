@@ -180,7 +180,7 @@ Playground プロジェクトでは、ブループリントを操作するため
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
--   Check the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+-   Check the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 -   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
 -   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
@@ -352,14 +352,14 @@ You can also use the [`login`](/blueprints/steps#login) step to launch your Play
 
 <div class="callout callout-tip">
 
-[Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) の ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) および ["GitHub リポジトリからのテーマの読み込み、アクティブ化、および構成"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) の例は、Playground インスタンスでブロック テーマを読み込み、アクティブ化、インポートし、構成するための優れたリファレンスです。
+[Blueprints Gallery](https://wordpress.github.io/blueprints/) の ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) および ["GitHub リポジトリからのテーマの読み込み、アクティブ化、および構成"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) の例は、Playground インスタンスでブロック テーマを読み込み、アクティブ化、インポートし、構成するための優れたリファレンスです。
 
 </div>
 
 <!--
 <div class="callout callout-tip">
 
-The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
+The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://wordpress.github.io/blueprints/) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
 
 </div>
 -->

@@ -215,7 +215,7 @@ You can also use the [`login`](/blueprints/steps#login) step to launch your Play
 
 <div class="callout callout-tip">
 
-The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
+The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://wordpress.github.io/blueprints/) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance.
 
 </div>
 

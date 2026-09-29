@@ -37,7 +37,7 @@ Read more about this at [How to use WordPress Playground for interactive demos](
 [ブループリント ギャラリー](https://wordpress.github.io/blueprints/) で、作成できるインタラクティブなデモの種類についてインスピレーションを得てください。
 
 <!--
-Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/)
+Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://wordpress.github.io/blueprints/)
 -->
 
 [ブループリント ビルダー](https://playground.wordpress.net/builder/builder.html) ツールを使用すると、ブループリントをオンラインで編集し、Playground インスタンスで直接実行できます。

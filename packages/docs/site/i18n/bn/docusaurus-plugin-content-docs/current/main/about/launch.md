@@ -35,7 +35,7 @@ Read more about this at [How to use WordPress Playground for interactive demos](
 এ সম্পর্কে আরও পড়ুন [ইন্টারঅ্যাকটিভ ডেমোর জন্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কীভাবে ব্যবহার করবেন](https://developer.wordpress.org/news/2024/04/25/how-to-use-wordpress-playground-for-interactive-demos/)-এ
 
 <!--
-Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/)
+Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://wordpress.github.io/blueprints/)
 -->
 
 [ব্লুপ্রিন্ট গ্যালারি](https://wordpress.github.io/blueprints/) থেকে আপনি কী ধরণের ইন্টারঅ্যাকটিভ ডেমো তৈরি করতে পারেন সে সম্পর্কে অনুপ্রেরণা নিন।

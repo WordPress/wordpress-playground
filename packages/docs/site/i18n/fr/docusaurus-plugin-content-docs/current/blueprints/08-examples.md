@@ -15,7 +15,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 Consultez la [Galerie de Blueprints](https://wordpress.github.io/blueprints/) pour découvrir des exemples de code réels utilisant WordPress Playground pour lancer un site WordPress avec une variété de configurations.
 
-<!-- Check the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
+<!-- Check the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
 </div>
 

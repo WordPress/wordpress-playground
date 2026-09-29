@@ -246,7 +246,7 @@ You can also use the `wp-cli` step in combination with the `writeFile` step to c
 <!--
 <div class="callout callout-tip">
 
-Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://developer.wordpress.org/playground/blueprints/examples/) to see the full example showing the connection between the content and the featured image.
+Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) example from the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to see the full example showing the connection between the content and the featured image.
 
 </div>
 -->
