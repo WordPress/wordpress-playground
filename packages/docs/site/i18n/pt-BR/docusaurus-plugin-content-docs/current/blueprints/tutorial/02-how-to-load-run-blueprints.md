@@ -29,9 +29,9 @@ See [Using Blueprints](/blueprints/using-blueprints) for the full list of UI pat
 
 A maneira mais fácil de executar um Blueprint pelo site é usar o Dock:
 
-- Abra **Nova → Blueprint gallery** para escolher um exemplo.
-- Abra **Novo → Blueprint URL** para executar uma URL pública de Blueprint JSON ou de pacote ZIP.
-- Abra **Novo → Write a Blueprint** para escrever um Blueprint no navegador.
+- Abra **New → Blueprint gallery** para escolher um exemplo.
+- Abra **New → Blueprint URL** para executar uma URL pública de Blueprint JSON ou de pacote ZIP.
+- Abra **New → Write a Blueprint** para escrever um Blueprint no navegador.
 - Abra **Blueprint** para inspecionar ou editar o Blueprint do Playground atual.
 
 Consulte [Como usar Blueprints](/blueprints/using-blueprints) para ver a lista completa de caminhos da interface.

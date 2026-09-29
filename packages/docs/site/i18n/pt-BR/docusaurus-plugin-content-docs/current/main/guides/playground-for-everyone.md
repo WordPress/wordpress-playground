@@ -34,7 +34,7 @@ Assista a esta visão geral rápida:
 A car simulator gives you a steering wheel, pedals, and virtual streets. Practice driving, hit cones, make mistakes — nothing bad happens. No real car gets damaged. Want to try again? Just restart.
 -->
 
-Um simulador de carro oferece um volante, pedais e ruas virtuais. Pratique dirigir, bata em cones, cometa erros, nada de ruim acontece. Nenhum carro real é danificado. Quer tentar novamente? Basta reiniciar.
+Um simulador de carro oferece um volante, pedais e ruas virtuais. Pratique dirigir, bata em cones, cometa erros — nada de ruim acontece. Nenhum carro real é danificado. Quer tentar novamente? Basta reiniciar.
 
 <!--
 WordPress Playground works the same way. It gives you a complete WordPress site to experiment with, but nothing you do affects any real website. Make changes, break things, learn from mistakes — then start fresh whenever you want.

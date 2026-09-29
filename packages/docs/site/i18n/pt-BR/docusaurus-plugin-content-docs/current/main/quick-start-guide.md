@@ -132,7 +132,7 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
 -->
 
-Para manter o seu site WordPress Playground por mais de uma sessão do navegador, você pode exporta-lo como um arquivo `.zip`.
+Para manter o seu site WordPress Playground por mais de uma sessão do navegador, você pode exportá-lo como um arquivo `.zip`.
 
 <!--
 1. Open **Export** from the Dock.
@@ -143,10 +143,10 @@ Para manter o seu site WordPress Playground por mais de uma sessão do navegador
 2. Selecione **Download as .zip**.
 
 <!--
-![Export Playground from the Dock](/img/dock/dock-export-playground.webp)
+![Export Playground from the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 -->
 
-![Exporte o Playground pelo Dock](/img/dock/dock-export-playground.webp)
+![Exporte o Playground pelo Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -183,10 +183,10 @@ Você pode restaurar o site salvo no painel **New** do Dock:
 3. Escolha o arquivo `.zip` que você exportou antes.
 
 <!--
-![Import a Playground zip from the Dock](/img/dock/dock-new-playground-import-zip.webp)
+![Import a Playground zip from the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 -->
 
-![Importe um arquivo zip do Playground pelo Dock](/img/dock/dock-new-playground-import-zip.webp)
+![Importe um arquivo zip do Playground pelo Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -201,10 +201,10 @@ The quickest way to change the version of WordPress or PHP is by opening **Site 
 A maneira mais rápida de mudar a versão do WordPress ou do PHP é abrir **Site Settings** no Dock do [site oficial de demonstração](https://playground.wordpress.net/):
 
 <!--
-![WordPress and PHP settings in the Dock](/img/dock/dock-site-settings.webp)
+![WordPress and PHP settings in the Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 -->
 
-![Configurações do WordPress e do PHP no Dock](/img/dock/dock-site-settings.webp)
+![Configurações do WordPress e do PHP no Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <!--
 <div class="callout callout-info">
