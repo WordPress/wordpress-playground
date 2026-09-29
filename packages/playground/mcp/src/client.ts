@@ -5,3 +5,5 @@ export { startWebMCPSiteToolProxy } from './webmcp-site-tools';
 export type { WebMCPSiteToolProxy } from './webmcp-site-tools';
 
 export { stringifyError } from './tools/tool-definitions';
+export { abilityToolName } from './exposed-abilities';
+export type { ExposedAbility } from './exposed-abilities';
