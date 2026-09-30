@@ -377,8 +377,12 @@ function playground_abilities_request() {
 					'label' => $ability->get_label(),
 					'description' => $ability->get_description(),
 					'category' => $ability->get_category(),
-					'input_schema' => $ability->get_input_schema() ?: null,
-					'output_schema' => $ability->get_output_schema() ?: null,
+					'input_schema' => playground_ability_schema_to_json(
+						$ability->get_input_schema()
+					),
+					'output_schema' => playground_ability_schema_to_json(
+						$ability->get_output_schema()
+					),
 					'meta' => (object) $ability->get_meta(),
 				);
 			}
@@ -424,7 +428,60 @@ function playground_abilities_request() {
 		}
 		wp_send_json(array('success' => false, 'errors' => $errors));
 	}
+	$output_schema = $ability->get_output_schema();
+	if (
+		$result === array() &&
+		is_array($output_schema) &&
+		($output_schema['type'] ?? null) === 'object'
+	) {
+		$result = new stdClass();
+	}
 	wp_send_json(array('success' => true, 'data' => $result));
+}
+
+/**
+ * Prepares an ability schema for JSON. PHP encodes empty arrays as `[]`, so
+ * object-valued keywords such as `properties => array()` would become invalid
+ * JSON Schema that strict MCP clients reject. Empty object defaults of object
+ * schemas get the same treatment.
+ */
+function playground_ability_schema_to_json($schema) {
+	if (!is_array($schema) || $schema === array()) {
+		return null;
+	}
+	return playground_ability_schema_objects($schema);
+}
+
+function playground_ability_schema_objects($schema) {
+	$object_keywords = array(
+		'properties',
+		'patternProperties',
+		'definitions',
+		'$defs',
+		'dependencies',
+		'dependentSchemas',
+	);
+	foreach ($schema as $key => $value) {
+		if (!is_array($value)) {
+			continue;
+		}
+		if (in_array($key, $object_keywords, true)) {
+			$children = array();
+			foreach ($value as $name => $child) {
+				$children[$name] = is_array($child)
+					? playground_ability_schema_objects($child)
+					: $child;
+			}
+			$schema[$key] = (object) $children;
+		} elseif ($key === 'default' || $key === 'const') {
+			if ($value === array() && ($schema['type'] ?? null) === 'object') {
+				$schema[$key] = new stdClass();
+			}
+		} elseif ($key !== 'enum' && $key !== 'examples' && $key !== 'required') {
+			$schema[$key] = playground_ability_schema_objects($value);
+		}
+	}
+	return $schema;
 }
 add_action('wp_ajax_playground_list_abilities', 'playground_abilities_request');
 add_action('wp_ajax_playground_execute_ability', 'playground_abilities_request');

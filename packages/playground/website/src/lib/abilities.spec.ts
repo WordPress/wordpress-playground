@@ -125,6 +125,21 @@ describe('ability exposure lifecycle', () => {
 		);
 		expect(controller.getSnapshot().enabled).toEqual([]);
 	});
+	it('keeps in-flight executions valid across a manual refresh', async () => {
+		const { controller, client } = setup();
+		await controller.refresh();
+		let finish!: (value: { success: true; data: unknown }) => void;
+		vi.mocked(client.executeAbility).mockImplementationOnce(
+			() =>
+				new Promise<{ success: true; data: unknown }>((done) => {
+					finish = done;
+				})
+		);
+		const pending = controller.execute('test/echo', 'hi');
+		await controller.refresh();
+		finish({ success: true, data: 'hi' });
+		await expect(pending).resolves.toEqual({ success: true, data: 'hi' });
+	});
 	it('reports registration failures and permits manual execution without WebMCP', async () => {
 		const { controller, model, client } = setup();
 		await controller.refresh();

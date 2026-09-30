@@ -129,11 +129,11 @@ export class AbilitiesController {
 			this.selections.set(this.slug, new Set());
 		const id = ++this.requestId;
 		this.registration?.abort();
+		// The document is unchanged, so executions already in flight stay valid.
 		this.update({
 			loading: true,
 			error: undefined,
 			registrationErrors: {},
-			generation: this.snapshot.generation + 1,
 		});
 		try {
 			const data = await client.listAbilities();

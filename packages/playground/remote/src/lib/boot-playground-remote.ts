@@ -320,7 +320,10 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(href);
 					if (path !== lastPath) {
 						lastPath = path;
-						fn(path);
+						// A path change without a load event or head message is a
+						// same-document history update, e.g. pushState in the
+						// Site Editor. Reload listeners only care about new documents.
+						if (!options?.includeReloads) fn(path);
 					}
 				} catch {
 					// Ignore errors due to CORS or CSP restrictions
