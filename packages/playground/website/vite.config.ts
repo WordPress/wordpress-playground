@@ -249,7 +249,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			viteIgnoreImports({
-				extensions: ['wasm', 'so', 'dat'],
+				extensions: ['so', 'dat'],
 			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
@@ -499,7 +499,12 @@ export default defineConfig(({ command, mode }) => {
 						return 'assets/[name]-[hash][extname]';
 					},
 				},
-				external: [],
+				/*
+				 * PHP runs in the remote iframe, never in this page. Bundling
+				 * the version packages here would only duplicate the 16 loaders
+				 * and the 16 .wasm files they resolve with new URL().
+				 */
+				external: [/^@php-wasm\/web-\d+-\d+$/],
 			},
 		},
 

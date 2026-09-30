@@ -1,4 +1,5 @@
-import dependencyFilename from './5_2_17/php_5_2.wasm';
+const dependencyFilename = new URL('./5_2_17/php_5_2.wasm', import.meta.url)
+	.href;
 export { dependencyFilename };
 export const dependenciesTotalSize = 9781068;
 const phpVersionString = '5.2.17';
@@ -4716,7 +4717,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map,
+		socketTimeouts: new Map(),
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
