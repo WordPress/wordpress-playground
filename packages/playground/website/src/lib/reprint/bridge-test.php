@@ -218,6 +218,8 @@ try {
     check(file_get_contents($site . '/wp-content/themes/iotix/style.css') === 'Theme Name: Iotix!', 'Reprint writes theme bytes directly into the running site directory.');
     remove_tree($site . '/wp-content/themes/iotix');
 
+    $mapped = pull_path_mappings(['paths' => ['abspath' => '/srv/site', 'content_dir' => '/srv/site/wp-content', 'mu_plugins_dir' => false]]);
+    check(in_array(['/srv/site/wp-content/mu-plugins', ':fs-root:/wp-content/mu-plugins'], $mapped, true), 'A directory Reprint reports as missing maps to its default location instead of an empty path.');
     $direct_root = $root . '/direct';
     mkdir($direct_root . '/pull-state', 0700, true);
     file_put_contents($direct_root . '/source.json', json_encode(['tablePrefix' => 'custom_', 'routeHandlers' => "if (!defined('PLAYGROUND_TEST_ROUTE')) define('PLAYGROUND_TEST_ROUTE', 1);"]));

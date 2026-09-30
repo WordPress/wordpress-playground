@@ -397,12 +397,17 @@ function pull_path_mappings(array $metadata): array {
     if ($core === '' || $content === '') {
         throw new RuntimeException('Reprint did not report the WordPress and content directories. Check its preflight report before retrying.');
     }
+    // Reprint reports a directory that does not exist yet (a site without
+    // mu-plugins, say) as false, not null.
+    $directory = fn($reported, string $fallback) => is_string($reported) && $reported !== ''
+        ? rtrim($reported, '/')
+        : $fallback;
     $directories = [
         [$core, ':fs-root:'],
         [$content, ':fs-root:/wp-content'],
-        [rtrim($paths['plugins_dir'] ?? $content . '/plugins', '/'), ':fs-root:/wp-content/plugins'],
-        [rtrim($paths['mu_plugins_dir'] ?? $content . '/mu-plugins', '/'), ':fs-root:/wp-content/mu-plugins'],
-        [rtrim($paths['uploads']['basedir'] ?? $content . '/uploads', '/'), ':fs-root:/wp-content/uploads'],
+        [$directory($paths['plugins_dir'] ?? null, $content . '/plugins'), ':fs-root:/wp-content/plugins'],
+        [$directory($paths['mu_plugins_dir'] ?? null, $content . '/mu-plugins'), ':fs-root:/wp-content/mu-plugins'],
+        [$directory($paths['uploads']['basedir'] ?? null, $content . '/uploads'), ':fs-root:/wp-content/uploads'],
     ];
     $mappings = [];
     foreach ($directories as [$source, $target]) {

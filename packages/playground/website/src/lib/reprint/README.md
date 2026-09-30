@@ -179,3 +179,19 @@ For an end-to-end check, use a disposable WordPress site with Reprint Server:
    production post content, core, configuration, and database must remain.
 5. Repeat after reloading Playground. Then push from a fresh Playground which
    has never pulled; remote-only files must not be removed.
+
+## End-to-end test
+
+`playwright/e2e/reprint-import.spec.ts` clones a real site through the UI and
+checks the copy: generated thumbnails and a non-ASCII upload path, URLs
+rewritten in posts, meta, options and a custom table, and the administrator
+session. `playwright/reprint-site/serve.sh` provisions that site: WordPress on
+SQLite with the pinned Reprint Server release, seeded by `seed.php`. CI runs it
+in the `reprint-import` Playwright group. Locally:
+
+```
+bash packages/playground/website/playwright/reprint-site/serve.sh &
+REPRINT_E2E_SITE_URL=http://127.0.0.1:8181/ npx playwright test \
+  --config=packages/playground/website/playwright/playwright.config.ts \
+  reprint-import --project=chromium
+```
