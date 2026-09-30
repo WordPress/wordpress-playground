@@ -60,6 +60,7 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
+            - run: npx nx run docs-site:test-plugins
             - run: bash tools/check-node-engine-alignment.sh
 
     # Unit tests for the PR auto-labeling logic (packages/meta/src/pr-labels).
