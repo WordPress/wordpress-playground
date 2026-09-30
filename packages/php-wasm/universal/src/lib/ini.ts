@@ -1,4 +1,3 @@
-import { dirname } from '@php-wasm/util';
 import { PHP_INI_PATH } from './php';
 import type { UniversalPHP } from './universal-php';
 import { stringify, parse } from 'ini';
@@ -32,8 +31,8 @@ export async function getPhpIniEntries(
  *
  * PHP reads `php.ini` first, then every `.ini` file in `PHP_INI_SCAN_DIR`,
  * and the last value read wins. Pass `path` to write to one of those files,
- * such as the `.ini` file an extension ships. Entries already in the file are
- * kept. The file and its directory are created when they do not exist yet.
+ * such as the `.ini` file an extension ships. Entries already in the file
+ * are kept.
  *
  * @param php The PHP instance.
  * @param entries The entries to write to the ini file.
@@ -44,17 +43,13 @@ export async function setPhpIniEntries(
 	entries: Record<string, unknown>,
 	path = PHP_INI_PATH
 ) {
-	const exists = await php.fileExists(path);
-	const ini = parse(exists ? await php.readFileAsText(path) : '');
+	const ini = parse(await php.readFileAsText(path));
 	for (const [key, value] of Object.entries(entries)) {
 		if (value === undefined || value === null) {
 			delete ini[key];
 		} else {
 			ini[key] = value;
 		}
-	}
-	if (!exists) {
-		await php.mkdirTree(dirname(path));
 	}
 	await php.writeFile(path, stringify(ini));
 }

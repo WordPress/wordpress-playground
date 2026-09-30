@@ -38,10 +38,6 @@ export type WorkerBootWordPressOptions = {
 	 * PHP constants to define via php.defineConstant().
 	 */
 	constants?: Record<string, string | number | boolean>;
-	/**
-	 * php.ini entries set via the --php-ini flag.
-	 */
-	phpIniEntries?: Record<string, string>;
 };
 
 interface WorkerBootRequestHandlerOptions {
@@ -128,7 +124,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
 			constants,
-			phpIniEntries,
 		} = options;
 
 		try {
@@ -152,10 +147,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					'/internal/shared/ca-bundle.crt':
 						rootCertificates.join('\n'),
 				},
-				phpIniEntries: {
-					...getNetworkingPhpIniEntries(networking),
-					...phpIniEntries,
-				},
+				phpIniEntries: getNetworkingPhpIniEntries(networking),
 				dataSqlPath,
 				constants,
 			});

@@ -174,7 +174,6 @@ export class BlueprintsV2Handler {
 					this.args,
 					runtimeConfiguration.phpVersion
 				),
-				phpIniEntries: this.args['php-ini'],
 			},
 			workerPostInstallMountsPort
 		);
