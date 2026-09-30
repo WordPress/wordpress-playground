@@ -213,3 +213,5 @@ A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is a WordPress.org project started and led by [Adam Zielinski](https://github.com/adamziel).
 
 [Playground tools](https://github.com/WordPress/playground-tools) like the interactive code block are maintained by their authors in the [playground-tools monorepo](https://github.com/WordPress/playground-tools).
+
+<!-- gha-poc-dep -->
