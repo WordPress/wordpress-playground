@@ -87,6 +87,8 @@ export function SiteAbilitiesPanel({
 	}
 	const supported = abilitiesController.isSupported();
 	const webMCPSupported = abilitiesController.isWebMCPSupported();
+	// Only name WebMCP where this browser can actually register its tools.
+	const channels = webMCPSupported ? 'WebMCP and MCP' : 'MCP';
 	async function run() {
 		if (!ability) return;
 		const id = ++runId.current;
@@ -141,17 +143,30 @@ export function SiteAbilitiesPanel({
 			)}
 			{state.data?.available && (
 				<>
-					{!webMCPSupported && (
+					{!supported && (
 						<Notice status="info" isDismissible={false}>
-							{supported
-								? 'This browser does not support WebMCP. Selected abilities are exposed to the connected MCP server only.'
-								: 'This browser does not support WebMCP. You can still inspect and run abilities here.'}
+							Connect the Playground MCP server to expose
+							abilities to agents. You can still inspect and run
+							abilities here.
 						</Notice>
 					)}
-					<p>
-						Expose selected abilities to browser agents for this
-						session. These switches control Playground’s native
-						registrations.
+					<p className={css.intro}>
+						Switch on an ability to expose it to agents for this
+						session. Each switch registers the ability as{' '}
+						{webMCPSupported &&
+							'a WebMCP tool in this browser and as '}
+						a <code>wp_ability_*</code> tool on the{' '}
+						<a
+							href="https://wordpress.github.io/wordpress-playground/guides/ai-assistants-mcp"
+							target="_blank"
+							rel="noreferrer"
+						>
+							Playground MCP server
+						</a>
+						, when one is connected. To connect the MCP server, add{' '}
+						<code>npx -y @wp-playground/mcp</code> to your AI
+						client’s MCP configuration and open the Playground URL
+						it gives you.
 					</p>
 					{ability ? (
 						<>
@@ -168,7 +183,7 @@ export function SiteAbilitiesPanel({
 							<p>{ability.description}</p>
 							<p>Category: {ability.category}</p>
 							<ToggleControl
-								label="Expose through WebMCP"
+								label={`Expose to agents (${channels})`}
 								checked={state.enabled.includes(ability.name)}
 								disabled={!supported || state.loading}
 								onChange={(value) =>
@@ -286,9 +301,9 @@ export function SiteAbilitiesPanel({
 													label={
 														<>
 															<span aria-hidden="true">
-																WebMCP
+																Agents
 															</span>
-															<VisuallyHidden>{`Expose all ${group.label} abilities through WebMCP`}</VisuallyHidden>
+															<VisuallyHidden>{`Expose all ${group.label} abilities to agents through ${channels}`}</VisuallyHidden>
 														</>
 													}
 													help={
@@ -321,6 +336,7 @@ export function SiteAbilitiesPanel({
 													<AbilityRow
 														key={item.name}
 														ability={item}
+														channels={channels}
 														enabled={state.enabled.includes(
 															item.name
 														)}
@@ -357,12 +373,15 @@ export function SiteAbilitiesPanel({
 
 function AbilityRow({
 	ability,
+	channels,
 	enabled,
 	disabled,
 	error,
 	onSelect,
 }: {
 	ability: AbilityDescriptor;
+	/** How exposed abilities reach agents, e.g. "WebMCP and MCP". */
+	channels: string;
 	enabled: boolean;
 	disabled: boolean;
 	error?: string;
@@ -385,8 +404,8 @@ function AbilityRow({
 				__nextHasNoMarginBottom
 				label={
 					<>
-						<span aria-hidden="true">WebMCP</span>
-						<VisuallyHidden>{`Expose ${label} through WebMCP`}</VisuallyHidden>
+						<span aria-hidden="true">Agents</span>
+						<VisuallyHidden>{`Expose ${label} to agents through ${channels}`}</VisuallyHidden>
 					</>
 				}
 				checked={enabled}

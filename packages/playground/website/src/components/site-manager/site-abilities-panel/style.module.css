@@ -57,6 +57,20 @@
 .panel p {
 	margin: 0;
 }
+/* Commands and tool names in running text read as inline code, matching the
+   database panel's inline values. */
+.intro code {
+	background: var(--surface-recessed);
+	border-radius: 4px;
+	color: var(--ink-soft);
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+	font-size: 0.86em;
+	padding: 2px 5px;
+}
+.intro a {
+	color: var(--accent-link);
+}
 .abilityName {
 	grid-column: 1;
 	justify-self: start;

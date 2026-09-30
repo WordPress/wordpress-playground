@@ -31,7 +31,7 @@ type DockToolDefinition = {
 	icon?: ReactNode;
 	isPrimary?: boolean;
 	title: string;
-	description: string;
+	description: ReactNode;
 	layout: 'default' | 'compact' | 'editor' | 'wide';
 	fixedHeight?: boolean;
 	Panel?: ComponentType<SiteToolPanelProps>;
@@ -118,8 +118,18 @@ const definitions = [
 		icon: <Icon icon={list} size={24} />,
 		group: 'developer',
 		title: 'Abilities',
-		description:
-			'Inspect, test, and expose WordPress abilities to browser agents.',
+		description: (
+			<>
+				Inspect, test, and expose WordPress abilities to browser agents.{' '}
+				<a
+					href="https://developer.wordpress.org/apis/abilities-api/"
+					target="_blank"
+					rel="noreferrer"
+				>
+					Learn more about the Abilities API
+				</a>
+			</>
+		),
 		layout: 'wide',
 		Panel: AbilitiesTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
