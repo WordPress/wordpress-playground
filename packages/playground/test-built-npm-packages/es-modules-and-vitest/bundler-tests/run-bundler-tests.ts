@@ -8,7 +8,7 @@
  * 3. Verifies it doesn't error out
  */
 import { spawn } from 'child_process';
-import { readdir, writeFile, mkdir } from 'fs/promises';
+import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { chromium } from 'playwright';
@@ -131,6 +131,24 @@ async function findOutputFile(
 	}
 
 	return { success: true, file: outputFile };
+}
+
+async function assertNoInlinedBinary(
+	distDir: string
+): Promise<{ success: boolean; error?: string }> {
+	const files = await readdir(distDir);
+
+	for (const file of files.filter((name) => /\.[cm]?js$/.test(name))) {
+		const contents = await readFile(join(distDir, file), 'utf8');
+		if (contents.includes('data:application/wasm;base64')) {
+			return {
+				success: false,
+				error: `${file} inlines a PHP binary as a base64 data URI and is ${contents.length} bytes`,
+			};
+		}
+	}
+
+	return { success: true };
 }
 
 async function loadWebBundleInBrowser(
@@ -315,6 +333,11 @@ async function runTest(
 			]);
 			if (!outputFile.success) {
 				return { name, success: false, error: outputFile.error };
+			}
+
+			const inlined = await assertNoInlinedBinary(distDir);
+			if (!inlined.success) {
+				return { name, success: false, error: inlined.error };
 			}
 
 			const browserResult = await loadWebBundleInBrowser(

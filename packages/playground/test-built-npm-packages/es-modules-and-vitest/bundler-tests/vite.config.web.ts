@@ -22,7 +22,14 @@ export default defineConfig({
 		},
 		rollupOptions: {
 			// Externalize binary assets - they're loaded at runtime, not bundled
-			external: [/\.wasm$/, /\.so$/, /\.dat$/],
+			// In lib mode Vite always inlines a new URL() asset as base64, so
+			// the /\.wasm$/ entry alone cannot keep the PHP binaries out.
+			external: [
+				/\.wasm$/,
+				/\.so$/,
+				/\.dat$/,
+				/^@php-wasm\/web-\d+-\d+$/,
+			],
 		},
 		target: 'esnext',
 		minify: false,
