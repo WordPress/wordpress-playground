@@ -250,14 +250,9 @@ try {
     file_put_contents($remote_state . '/local_index.jsonl', json_encode(['path' => base64_encode('wp-content/plugins/keep.php'), 'type' => 'file', 'size' => 4, 'ctime' => filectime($site . '/wp-content/plugins/keep.php')]) . "\n");
     file_put_contents($direct_root . '/pull-state/db.sql', 'old SQL');
     $finished = pull_site($request, $direct_root, $operation, $lock);
-    check($finished['status'] === 'complete' && !file_exists($direct_root . '/push-files'), 'A completed pull keeps its push baseline without a duplicate file snapshot.');
-    check(file_get_contents($remote_state . '/pull/remote-index.jsonl') === 'remote file index', 'A completed pull retains its remote index for incremental pulls.');
-    check(is_file($direct_root . '/pull-baseline.jsonl') && !is_file($direct_root . '/pull-state/db.sql'), 'Completion keeps local file hashes but drops the imported SQL dump.');
-    refresh_push_snapshot($site, $direct_root);
-    restore_file_baseline($direct_root . '/local_index.jsonl', $direct_root . '/push-files', $direct_root . '/baseline.jsonl');
-    $plan = build_plan($direct_root);
-    check(planned_paths($plan->get_local_paths_to_push_path()) === [], 'Rebuilding the snapshot after a pull does not upload unchanged files.');
-    $plan->close();
+    check($finished['status'] === 'complete' && !file_exists($direct_root . '/push-files') && !is_file($direct_root . '/pull-baseline.jsonl'), 'A completed pull hashes nothing and keeps no file snapshot.');
+    check(file_get_contents($remote_state . '/pull/remote-index.jsonl') === 'remote file index', 'A completed pull retains its remote index.');
+    check(!is_file($direct_root . '/pull-state/db.sql'), 'Completion drops the imported SQL dump.');
     $lock->close();
 
     mkdir($site . '/wp-content/.reprint-linked-files/iotix', 0700, true);

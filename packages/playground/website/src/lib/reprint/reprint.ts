@@ -164,7 +164,6 @@ export async function transferSite(
 		'db-apply': [70, 94, 'Importing SQL…'],
 		configure: [94, 96, 'Configuring the imported site…'],
 		login: [96, 98, 'Logging in as an administrator…'],
-		finish: [98, 99, 'Saving the imported site…'],
 	};
 	let phase = 'preflight';
 	let overallPercent = 0;
@@ -243,7 +242,7 @@ export async function transferSite(
 					throw new Error('Invalid Reprint import result.');
 				report({ phase: 'login', message: phases.login[2] });
 				warning = await logInAfterPull(playground, documentRoot);
-				report({ phase: 'finish', message: phases.finish[2] });
+				// Completion only discards the SQL dump; no separate phase.
 				command = 'finish-pull';
 			}
 		}

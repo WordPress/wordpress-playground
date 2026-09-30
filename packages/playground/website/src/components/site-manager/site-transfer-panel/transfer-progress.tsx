@@ -1,8 +1,13 @@
 import { formatBytes } from '@php-wasm/util';
 import type { TransferProgress } from '../../../lib/reprint/reprint';
-import { InlineProgress } from '../../pane-loading';
 import css from './style.module.css';
 
+/**
+ * One fixed-height block for every phase of a transfer: the percentage, the
+ * phase name, a bar, and a details line. Phases without some of that data
+ * leave the slot empty rather than dropping it, so the pane does not resize
+ * as the pull moves along.
+ */
 export function TransferProgressView({
 	progress,
 }: {
@@ -10,41 +15,40 @@ export function TransferProgressView({
 }) {
 	const total = progress.bytesTotal || progress.filesTotal;
 	const done = progress.bytesTotal ? progress.bytesDone : progress.filesDone;
-	if (progress.overallPercent === undefined && (!total || done === undefined))
-		return <InlineProgress message={progress.message} />;
-	const percent = Math.min(
-		100,
-		Math.max(0, progress.overallPercent ?? (done! / total!) * 100)
-	);
+	const raw =
+		progress.overallPercent ??
+		(total && done !== undefined ? (done / total) * 100 : undefined);
+	const percent =
+		raw === undefined ? undefined : Math.min(100, Math.max(0, raw));
+	const bytes =
+		progress.bytesDone !== undefined
+			? formatBytes(progress.bytesDone) +
+				(progress.bytesTotal
+					? ` / ${formatBytes(progress.bytesTotal)}`
+					: '')
+			: undefined;
+	const files =
+		progress.filesDone !== undefined && progress.filesTotal !== undefined
+			? `${progress.filesDone.toLocaleString()} / ${progress.filesTotal.toLocaleString()} files`
+			: undefined;
+	const detail = [progress.detail, bytes].filter(Boolean).join(' · ');
 	return (
-		<div className={css.transferProgress}>
+		<div className={css.transferProgress} role="status" aria-live="polite">
 			<div className={css.progressHeading}>
-				<strong>{progress.message}</strong>
-				<span>{Math.floor(percent)}%</span>
+				<span className={css.progressPercent}>
+					{percent === undefined ? '' : `${Math.floor(percent)}%`}
+				</span>
+				<span className={css.progressMessage}>{progress.message}</span>
 			</div>
-			<progress aria-label={progress.message} max={100} value={percent} />
-			{(progress.detail ||
-				progress.bytesDone !== undefined ||
-				(progress.filesDone !== undefined &&
-					progress.filesTotal !== undefined)) && (
-				<div className={css.progressDetails}>
-					{progress.detail && <span>{progress.detail}</span>}
-					{progress.bytesDone !== undefined && (
-						<span>
-							{formatBytes(progress.bytesDone)}
-							{!!progress.bytesTotal &&
-								` / ${formatBytes(progress.bytesTotal)}`}
-						</span>
-					)}
-					{progress.filesDone !== undefined &&
-						progress.filesTotal !== undefined && (
-							<span>
-								{progress.filesDone.toLocaleString()} /{' '}
-								{progress.filesTotal.toLocaleString()} files
-							</span>
-						)}
-				</div>
-			)}
+			<progress
+				aria-label={progress.message}
+				max={100}
+				{...(percent === undefined ? {} : { value: percent })}
+			/>
+			<div className={css.progressDetails}>
+				<span>{detail}</span>
+				<span>{files}</span>
+			</div>
 		</div>
 	);
 }

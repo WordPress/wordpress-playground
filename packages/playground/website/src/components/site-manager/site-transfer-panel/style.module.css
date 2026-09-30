@@ -91,11 +91,28 @@
 	gap: var(--space-3);
 }
 
-/* Stop is an escape hatch, not the next step: quiet, and at the trailing edge
-   where dismissive actions sit. */
-.actions-end {
+/* Stop is an escape hatch, not the next step: a faded button at the trailing
+   edge, sharing a row with the reminder so the two quiet things sit together. */
+.transfer-footer {
+	align-items: center;
 	display: flex;
-	justify-content: flex-end;
+	gap: var(--space-4);
+	justify-content: space-between;
+}
+
+.transfer-footer .hint {
+	margin: 0;
+}
+
+.stop-button {
+	flex: none;
+	opacity: 0.6;
+	transition: opacity 120ms ease;
+}
+
+.stop-button:hover,
+.stop-button:focus-visible {
+	opacity: 1;
 }
 
 /* Keep the chosen site visible when moving between connection steps. */
@@ -112,22 +129,63 @@
 }
 
 .transfer-progress {
-	background: var(--surface-recessed);
-	border-radius: var(--radius-card);
-	padding: var(--space-4);
-}
-
-.progress-heading,
-.progress-details {
-	display: flex;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-	font-variant-numeric: tabular-nums;
+	/* Same height in every phase; see TransferProgressView. */
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-2) 0;
 }
 
 .progress-heading {
+	align-items: baseline;
 	color: var(--ink);
+	display: flex;
+	gap: var(--space-3);
+	min-height: 40px;
+}
+
+.progress-percent {
+	color: var(--ink);
+	font-size: 34px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1;
+	min-width: 3.2ch;
+}
+
+.progress-percent:empty {
+	display: none;
+}
+
+.progress-message {
+	font-size: 15px;
+	font-weight: 500;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.progress-details {
+	color: var(--ink-muted);
+	display: flex;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	gap: var(--space-3);
+	justify-content: space-between;
+	/* Reserve the line even when a phase has nothing to report. */
+	min-height: 1.4em;
+}
+
+.progress-details span:first-child {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.progress-details span:last-child {
+	flex: none;
 }
 
 .overflow-menu :global(.components-button) {
@@ -136,46 +194,67 @@
 	padding: 0;
 }
 
-.overflow-menu :global(.components-button:hover) {
-	color: var(--ink);
-}
-.progress-details {
-	color: var(--ink-muted);
-	font-size: 12px;
-}
-
 .transfer-progress progress {
 	appearance: none;
-	display: block;
-	width: 100%;
-	height: 8px;
-	border: 0;
-	border-radius: var(--radius-control);
-	overflow: hidden;
-	margin: var(--space-3) 0;
 	background: var(--border-subtle);
-	accent-color: var(--accent);
-}
-
-/* Phases without byte or file counts end at the bar. */
-.transfer-progress progress:last-child {
-	margin-bottom: 0;
+	border: 0;
+	border-radius: 999px;
+	display: block;
+	height: 6px;
+	overflow: hidden;
+	width: 100%;
 }
 
 .transfer-progress progress::-webkit-progress-bar {
 	background: var(--border-subtle);
 }
+
 .transfer-progress progress::-webkit-progress-value {
 	background: var(--accent);
-	border-radius: var(--radius-control);
-}
-.transfer-progress progress::-moz-progress-bar {
-	background: var(--accent);
-	border-radius: var(--radius-control);
+	border-radius: 999px;
+	transition: width 240ms ease-out;
 }
 
-.progress-heading strong {
-	font-weight: 600;
+.transfer-progress progress::-moz-progress-bar {
+	background: var(--accent);
+	border-radius: 999px;
+}
+
+/* No percentage yet: a sweeping band instead of a different component. */
+.transfer-progress progress:not([value]) {
+	background:
+		linear-gradient(90deg, transparent, var(--accent) 50%, transparent) 0
+			0 / 40% 100% no-repeat,
+		var(--border-subtle);
+	animation: progress-sweep 1.2s ease-in-out infinite;
+}
+
+.transfer-progress progress:not([value])::-webkit-progress-bar {
+	background: transparent;
+}
+
+.transfer-progress progress:not([value])::-moz-progress-bar {
+	background: transparent;
+}
+
+@keyframes progress-sweep {
+	from {
+		background-position:
+			-40% 0,
+			0 0;
+	}
+	to {
+		background-position:
+			140% 0,
+			0 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.transfer-progress progress:not([value]) {
+		animation: none;
+		background: var(--border-subtle);
+	}
 }
 
 .step-content {
@@ -198,17 +277,14 @@
 
 /* The completed site step stays visible as one green line above the key
    form, so the second step reads as progress rather than as the same form. */
-.site-confirmed {
-	align-items: center;
-	color: var(--ink-soft);
-	display: flex;
+.field-error {
+	color: #b32d2e;
 	font-size: 13px;
-	gap: var(--space-1);
+	margin: 0;
 }
 
-.site-confirmed svg {
-	fill: #1e7c3f;
-	flex: none;
+.input-invalid :global(.components-input-control__backdrop) {
+	border-color: #b32d2e;
 }
 
 /* Completion is the one centered step: every form step is left-aligned, so

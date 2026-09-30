@@ -1349,7 +1349,9 @@ export function Dock({
 							<AddressBar
 								url={clientInfo?.url}
 								isMobile={isMobile}
-								disabled={!clientInfo}
+								// A running transfer owns the site: no navigation
+								// and no quick-navigation popover meanwhile.
+								disabled={!clientInfo || paneCloseBlocked}
 								onUpdate={
 									clientInfo
 										? (newUrl) =>

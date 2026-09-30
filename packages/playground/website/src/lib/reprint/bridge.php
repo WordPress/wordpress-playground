@@ -293,28 +293,11 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         if ($request['command'] !== 'finish-pull') {
             return ['status' => 'install'];
         }
-        // The baseline describes the installed copy, not changes made by preparing
-        // its SQLite runtime. Later pushes compare against this per-remote copy.
-        $metadata = json_decode(file_get_contents(wp_join_unix_paths($root, 'source.json')), true, 512, JSON_THROW_ON_ERROR);
-        // Pulling does not require the source to expose writable push paths.
-        if (remote_push_paths($metadata) !== null) {
-            refresh_push_snapshot($request['documentRoot'], $root);
-            $plan = build_plan($root);
-            copy($plan->get_fresh_local_index_path(), wp_join_unix_paths($root, 'local_index.jsonl'));
-            $plan->close();
-            save_file_baseline(wp_join_unix_paths($root, 'local_index.jsonl'), wp_join_unix_paths($root, 'push-files'), wp_join_unix_paths($root, 'baseline.jsonl'));
-            // The next push builds its snapshot from the site and compares the
-            // saved hashes. Completed pulls need no second copy of those bytes.
-            remove_tree(wp_join_unix_paths($root, 'push-files'));
-        }
+        // No push or incremental-pull baseline: both would hash every file in
+        // the site (twice, with a full copy in between) for features the UI
+        // does not offer. The push code below stays for when it does.
         remove_tree(wp_join_unix_paths($root, 'plan'));
-        $remote_state = ImportClient::remote_state_directory_path($request['url'], $state);
-        $index = wp_join_unix_paths($remote_state, 'local_index.jsonl');
-        if (is_file($index)) {
-            save_file_baseline($index, $files, wp_join_unix_paths($root, 'pull-baseline.jsonl'));
-        }
-        // Keep Reprint's remote index for incremental pulls, including after a
-        // browser reload restores this checkpoint. Imported SQL is disposable.
+        // The imported SQL dump is disposable once applied.
         remove_tree(wp_join_unix_paths($state, 'db.sql'));
         return ['status' => 'complete'];
     }

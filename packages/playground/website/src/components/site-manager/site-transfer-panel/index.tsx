@@ -1,3 +1,4 @@
+import classNames from 'classnames';
 import {
 	useCallback,
 	useEffect,
@@ -66,19 +67,23 @@ export function SiteTransferPanel({
 	);
 	// Clone mode collects a live site before any Playground exists for it. The
 	// current site only hosts the form; the pull runs in a new Playground.
-	const cloning = !!useAppSelector((state) => state.ui.cloneRequested);
+	const cloneRequested = !!useAppSelector((state) => state.ui.cloneRequested);
 	const pendingClone = useAppSelector((state) => state.ui.pendingClone);
 	const existingSlugs = useAppSelector(selectAllSites).map(
 		(existing) => existing.slug
 	);
 	const handoff = pendingClone?.slug === site.slug ? pendingClone : null;
+	// The store drops the clone request when the new site activates, but this
+	// panel, mounted for that site with a handoff, is still cloning.
+	const [isClone, setIsClone] = useState(!!handoff);
+	const cloning = cloneRequested || isClone;
 	const [url, setUrl] = useState(() =>
-		cloning
+		cloneRequested
 			? ''
 			: (handoff?.url ?? rememberedConnection(site.slug)?.url ?? '')
 	);
 	const [secret, setSecret] = useState(() =>
-		cloning
+		cloneRequested
 			? ''
 			: (handoff?.secret ?? rememberedConnection(site.slug)?.secret ?? '')
 	);
@@ -99,6 +104,13 @@ export function SiteTransferPanel({
 	const running = useRef(false);
 	const [progress, setProgress] = useState<TransferProgress>({ message: '' });
 	const [error, setError] = useState('');
+	// The live site rejected the key. Shown at the field, not as a notice.
+	const [keyRejected, setKeyRejected] = useState(false);
+	const keyInput = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		// Select the rejected key so pasting a new one replaces it in one step.
+		if (keyRejected) keyInput.current?.select();
+	}, [keyRejected]);
 	const visibleError = error || (busy ? progress.error : undefined);
 	const [completed, setCompleted] = useState(false);
 	const [warning, setWarning] = useState('');
@@ -128,7 +140,7 @@ export function SiteTransferPanel({
 			urlEdited.current = false;
 			return;
 		}
-		if (cloning || !playground || running.current) return;
+		if (cloneRequested || !playground || running.current) return;
 		let cancelled = false;
 		void readReprintConnection(playground)
 			.then((connection) => {
@@ -153,7 +165,7 @@ export function SiteTransferPanel({
 		return () => {
 			cancelled = true;
 		};
-	}, [isVisible, playground, site.slug, cloning]);
+	}, [isVisible, playground, site.slug, cloneRequested]);
 
 	useEffect(() => () => checkController.current?.abort(), []);
 
@@ -320,12 +332,13 @@ export function SiteTransferPanel({
 			}
 			const message =
 				error instanceof Error ? error.message : String(error);
-			// Resuming with the same wrong token would fail the same way.
-			setStep(
-				message.startsWith('Wrong connection token')
-					? 'key'
-					: 'transfer'
-			);
+			if (message.startsWith('Wrong connection token')) {
+				// Resuming with the same key would fail the same way.
+				setStep('key');
+				setKeyRejected(true);
+				return;
+			}
+			setStep('transfer');
 			setError(message);
 		} finally {
 			running.current = false;
@@ -345,15 +358,41 @@ export function SiteTransferPanel({
 	// A pull rewrites the site underneath the Playground, and switching sites
 	// would end its PHP runtime. Pin the pane until it completes or is stopped.
 	useEffect(() => {
-		onCloseBlockedChange?.(busy || (step === 'transfer' && !completed));
+		onCloseBlockedChange?.(busy || autoStart);
 		return () => onCloseBlockedChange?.(false);
-	}, [busy, step, completed, onCloseBlockedChange]);
+	}, [busy, autoStart, onCloseBlockedChange]);
+
+	// The panel that created the clone can be kept for the new site instead of
+	// remounting; a handoff arriving after mount must still start the pull.
+	useEffect(() => {
+		if (handoff) {
+			setIsClone(true);
+			setStep('transfer');
+			setAutoStart(true);
+		}
+	}, [handoff]);
 
 	useEffect(() => {
 		if (!isVisible || !autoStart || !ready || !keyReady) return;
 		setAutoStart(false);
+		dispatch(setPendingClone(undefined));
 		void start();
-	}, [isVisible, autoStart, ready, keyReady, start]);
+	}, [isVisible, autoStart, ready, keyReady, start, dispatch]);
+
+	// An idle transfer step has nothing to show and would keep the dock
+	// locked. Only a running, finished, or failed pull belongs there.
+	useEffect(() => {
+		if (
+			step === 'transfer' &&
+			!busy &&
+			!completed &&
+			!error &&
+			!autoStart &&
+			!handoff
+		) {
+			setStep('key');
+		}
+	}, [step, busy, completed, error, autoStart, handoff]);
 
 	useEffect(() => {
 		if (!isVisible || requestedSite !== site.slug) return;
@@ -461,7 +500,7 @@ export function SiteTransferPanel({
 	const transferLogMenu = useMemo(
 		() =>
 			playground &&
-			!cloning && (
+			!cloneRequested && (
 				<DropdownMenu
 					icon={moreVertical}
 					label="More options"
@@ -481,14 +520,17 @@ export function SiteTransferPanel({
 					)}
 				</DropdownMenu>
 			),
-		[playground, cloning, readingDiagnostics, copyTransferLog]
+		[playground, cloneRequested, readingDiagnostics, copyTransferLog]
 	);
 
 	useLayoutEffect(() => {
 		if (!isVisible) return;
 		onBackChange?.(
 			busy
-				? { title: `Pulling ${hostname}`, action: transferLogMenu }
+				? {
+						title: `${cloning ? 'Cloning' : 'Pulling'} ${hostname}`,
+						action: transferLogMenu,
+					}
 				: completed
 					? // The result screen names the site itself and needs no header.
 						{ title: 'Site cloned', hideHeader: true }
@@ -558,7 +600,7 @@ export function SiteTransferPanel({
 						}}
 					>
 						<VStack spacing={4}>
-							{cloning && (
+							{cloneRequested && (
 								<p className={css.intro}>
 									Copy a live site into a new Playground with
 									Reprint. Your live site stays unchanged.
@@ -671,7 +713,7 @@ export function SiteTransferPanel({
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
-							if (cloning) {
+							if (cloneRequested) {
 								void cloneIntoNewSite();
 								return;
 							}
@@ -692,32 +734,50 @@ export function SiteTransferPanel({
 						}}
 					>
 						<VStack spacing={3}>
-							<p className={css.siteConfirmed}>
-								<Icon icon={check} size={20} />
-								{setup === 'manual'
-									? 'Site address saved. The Reprint check was skipped.'
-									: 'Reprint Server found on this site.'}
-							</p>
 							<div className={css.siteForm}>
 								<TextControl
 									__nextHasNoMarginBottom
-									className={css.heroInput}
+									ref={keyInput}
+									className={classNames(css.heroInput, {
+										[css.inputInvalid]: keyRejected,
+									})}
 									autoFocus={isVisible}
 									label={`Reprint key on ${hostname}`}
 									type="password"
 									autoComplete="off"
+									aria-invalid={keyRejected || undefined}
+									aria-describedby={
+										keyRejected
+											? 'reprint-key-error'
+											: undefined
+									}
 									value={secret}
-									onChange={setSecret}
+									onChange={(value) => {
+										setKeyRejected(false);
+										setSecret(value);
+									}}
 									disabled={busy}
 								/>
 								<Button
 									type="submit"
 									variant="primary"
-									disabled={!keyReady || (!cloning && !ready)}
+									disabled={
+										!keyReady || (!cloneRequested && !ready)
+									}
 								>
 									{cloning ? 'Clone site' : 'Pull site'}
 								</Button>
 							</div>
+							{keyRejected && (
+								<p
+									id="reprint-key-error"
+									className={css.fieldError}
+									role="alert"
+								>
+									This key doesn’t match the one on {hostname}
+									.
+								</p>
+							)}
 							<p className={css.hint}>
 								{setup === 'needs-key'
 									? 'Reprint Server has no key yet. Create one in '
@@ -732,19 +792,14 @@ export function SiteTransferPanel({
 								in your live site’s wp-admin, then paste it
 								here.
 							</p>
-							{!cloning && (
+							{!cloneRequested && (
 								<PlaygroundBootNotice show={!playground} />
 							)}
-							{!cloning && !ready && playground && (
+							{!cloneRequested && !ready && playground && (
 								<Notice status="info" isDismissible={false}>
 									Enable networking and use PHP 8.1 or newer.
 								</Notice>
 							)}
-							<p className={css.hint}>
-								{cloning
-									? 'The copy can include private data from your site. Keep this tab open until it finishes.'
-									: 'Local edits may be replaced. Keep this tab open until the pull finishes.'}
-							</p>
 						</VStack>
 					</form>
 				)}
@@ -777,9 +832,15 @@ export function SiteTransferPanel({
 					</Notice>
 				)}
 				{busy && !confirmStop && (
-					<div className={css.actionsEnd}>
+					<div className={css.transferFooter}>
+						<p className={css.hint}>
+							{cloning
+								? 'Keep this tab open until the clone finishes.'
+								: 'Local edits may be replaced. Keep this tab open until the pull finishes.'}
+						</p>
 						<Button
-							variant="tertiary"
+							variant="secondary"
+							className={css.stopButton}
 							disabled={stopping}
 							onClick={() => setConfirmStop(true)}
 						>
