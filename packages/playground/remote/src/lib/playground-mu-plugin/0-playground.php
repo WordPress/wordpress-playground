@@ -729,9 +729,16 @@ function playground_enable_webmcp_bridge() {
 					fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, {
 						method: 'POST', credentials: 'same-origin', body: form
 					}).then(function (response) {
-						return response.json().then(function (result) {
+						return response.text().then(function (text) {
+							var result;
+							try {
+								result = JSON.parse(text);
+							} catch (e) {
+								throw new Error('WordPress returned an invalid response (HTTP ' +
+									response.status + '). The operation may have completed.');
+							}
 							if (!response.ok) {
-								throw new Error(result.data && result.data.message ||
+								throw new Error(result && result.data && result.data.message ||
 									'WordPress could not complete the request. Reload WordPress and try again.');
 							}
 							return result;
