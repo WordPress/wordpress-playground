@@ -1,7 +1,9 @@
 # Reprint transfer preview
 
-Open **Dev Tools → Push / Pull** in a browser-stored Playground with networking
-enabled and PHP 8.1 or newer. Enter the live site URL and choose **Check site**.
+Open **New Playground → Clone a live site**. The clone runs in a new temporary
+Playground with networking enabled and PHP 8.3. Pulling into an existing
+Playground needs networking and PHP 8.1 or newer. Push is implemented in the
+bridge but not offered in the UI yet. Enter the live site URL and choose **Check site**.
 If Reprint is not detected, the panel provides the v0.10.10 zip and a direct link
 to that site's plugin upload screen. Install and activate it, then check again.
 For an existing setup, open the linked **Tools → Reprint Server** page and copy
@@ -184,8 +186,9 @@ For an end-to-end check, use a disposable WordPress site with Reprint Server:
 
 `playwright/e2e/reprint-import.spec.ts` clones a real site through the UI and
 checks the copy: generated thumbnails and a non-ASCII upload path, URLs
-rewritten in posts, meta, options and a custom table, and the administrator
-session. `playwright/reprint-site/serve.sh` provisions that site: WordPress on
+rewritten in post content, a preserved shortcode URL, custom table rows, a
+user, and the administrator session. URLs inside serialized values are not
+asserted: Reprint v0.10.10 does not rewrite them for a target URL with a path. `playwright/reprint-site/serve.sh` provisions that site: WordPress on
 SQLite with the pinned Reprint Server release, seeded by `seed.php`. CI runs it
 in the `reprint-import` Playwright group. Locally:
 

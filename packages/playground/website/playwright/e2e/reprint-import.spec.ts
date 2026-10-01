@@ -71,6 +71,26 @@ test(
 							'thumbnailUrl' => wp_get_attachment_image_url(${manifest.attachment}, 'thumbnail'),
 						]);`,
 				});
+				// Diagnostics for CI: what the copy holds and what Reprint left behind.
+				const diagnostics = await client.run({
+					code: `<?php
+						require '/wordpress/wp-load.php';
+						global $wpdb;
+						$state = [];
+						foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator('/tmp/playground-reprint-state', FilesystemIterator::SKIP_DOTS)) as $file) {
+							$state[] = substr($file->getPathname(), 29) . ' ' . $file->getSize();
+						}
+						echo json_encode([
+							'posts' => $wpdb->get_results('SELECT ID, post_name, post_type, LENGTH(post_content) AS len FROM ' . $wpdb->posts . ' ORDER BY ID', ARRAY_A),
+							'tables' => $wpdb->get_col('SHOW TABLES'),
+							'db' => array_map(fn($f) => $f . ' ' . filesize($f), glob('/wordpress/wp-content/database/*')),
+							'state' => $state,
+						]);`,
+				});
+				// eslint-disable-next-line no-console
+				console.log(
+					'[reprint-import] ' + diagnostics.text.slice(0, 6000)
+				);
 				const admin = await client.request({ url: '/wp-admin/' });
 				return {
 					db: JSON.parse(php.text),

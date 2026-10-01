@@ -277,6 +277,29 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.bodyUsed).toBe(true);
 	});
 
+	it('stops buffering a localhost upload whose body never closes when aborted', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const controller = new AbortController();
+		const request = new Request('http://127.0.0.1:8181/?reprint-api', {
+			method: 'POST',
+			body: new ReadableStream({
+				start(stream) {
+					stream.enqueue(new TextEncoder().encode('partial'));
+					// Never closes: a stalled producer.
+				},
+			}),
+			signal: controller.signal,
+			// @ts-expect-error duplex is required for streamed bodies.
+			duplex: 'half',
+		});
+		const pending = fetchWithCorsProxy(request, undefined, undefined);
+		setTimeout(() => controller.abort(), 10);
+		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('passes request through to fetch for https:// URLs without proxy', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
