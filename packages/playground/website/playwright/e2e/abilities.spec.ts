@@ -1,4 +1,5 @@
 import { test, expect } from '../playground-fixtures';
+import Ajv from 'ajv';
 
 const fixture = `<?php
 add_action('wp_abilities_api_categories_init', function () {
@@ -44,7 +45,7 @@ function mockWebMCP() {
 	});
 }
 
-function blueprint(wp = '6.9') {
+function blueprint(wp = '6.9', abilities = fixture) {
 	return Buffer.from(
 		JSON.stringify({
 			preferredVersions: { php: '8.3', wp },
@@ -53,13 +54,78 @@ function blueprint(wp = '6.9') {
 				{
 					step: 'writeFile',
 					path: '/wordpress/wp-content/mu-plugins/abilities-fixture.php',
-					data: fixture,
+					data: abilities,
 				},
 				{ step: 'login' },
 			],
 		})
 	).toString('base64');
 }
+
+// Discovery must emit valid JSON Schema without converting literal arrays or
+// schema lists into objects. PHP's empty arrays make these independent cases.
+test('ability discovery preserves empty schemas and array keywords', async ({
+	website,
+}) => {
+	const schemaFixture = `<?php
+add_action('wp_abilities_api_categories_init', function () {
+ wp_register_ability_category('fixture', array('label' => 'Fixture', 'description' => 'Schema test'));
+});
+add_action('wp_abilities_api_init', function () {
+ wp_register_ability('fixture/schema', array(
+  'label' => 'Schema', 'description' => 'Preserves JSON Schema shapes', 'category' => 'fixture',
+  'permission_callback' => '__return_true', 'execute_callback' => '__return_null',
+  'input_schema' => array(
+   'type' => 'object',
+   'properties' => array(
+    'payload' => array(),
+    'list' => array('type' => 'array', 'items' => array(), 'enum' => array(array()), 'examples' => array(array()), 'default' => array()),
+    'tuple' => array('type' => 'array', 'items' => array(array(), array('type' => 'string')))
+   ),
+   'additionalProperties' => array(),
+   'definitions' => array('anything' => array()),
+   'dependencies' => array('payload' => array(), 'list' => array('payload'), 'tuple' => array('properties' => array('payload' => array()))),
+   'allOf' => array(array()), 'anyOf' => array(array()), 'oneOf' => array(array()),
+   'required' => array(),
+   'default' => array(), 'x-extension' => array()
+  )
+ ));
+});`;
+	await website.goto(`./?storage=temp#${blueprint('6.9', schemaFixture)}`);
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playground)
+	);
+	const schema = await website.page.evaluate(async () => {
+		const list = await (window as any).playground.listAbilities();
+		return list.abilities.find(
+			(ability: any) => ability.name === 'fixture/schema'
+		).input_schema;
+	});
+	const validator = new Ajv({ strict: false });
+	expect(
+		validator.validateSchema(schema),
+		JSON.stringify(validator.errors)
+	).toBe(true);
+	expect(schema.properties.payload).toEqual({});
+	expect(schema.properties.list.items).toEqual({});
+	expect(schema.properties.tuple.items).toEqual([{}, { type: 'string' }]);
+	expect(schema.additionalProperties).toEqual({});
+	expect(schema.definitions.anything).toEqual({});
+	expect(schema.dependencies).toEqual({
+		payload: [],
+		list: ['payload'],
+		tuple: { properties: { payload: {} } },
+	});
+	for (const keyword of ['allOf', 'anyOf', 'oneOf']) {
+		expect(schema[keyword]).toEqual([{}]);
+	}
+	expect(schema.required).toEqual([]);
+	expect(schema.properties.list.enum).toEqual([[]]);
+	expect(schema.properties.list.examples).toEqual([[]]);
+	expect(schema.properties.list.default).toEqual([]);
+	expect(schema.default).toEqual({});
+	expect(schema['x-extension']).toEqual([]);
+});
 
 test('native abilities execute with permissions and reconcile WebMCP exposure', async ({
 	website,

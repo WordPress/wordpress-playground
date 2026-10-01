@@ -441,9 +441,9 @@ function playground_abilities_request() {
 
 /**
  * Prepares an ability schema for JSON. PHP encodes empty arrays as `[]`, so
- * object-valued keywords such as `properties => array()` would become invalid
- * JSON Schema that strict MCP clients reject. Empty object defaults of object
- * schemas get the same treatment.
+ * schema nodes and maps such as `properties => array()` must become objects.
+ * Schema lists and literal values keep their array shape. Empty object defaults
+ * of object schemas get the same treatment.
  */
 function playground_ability_schema_to_json($schema) {
 	if (!is_array($schema) || $schema === array()) {
@@ -453,6 +453,10 @@ function playground_ability_schema_to_json($schema) {
 }
 
 function playground_ability_schema_objects($schema) {
+	if (!is_array($schema)) {
+		// Nested schemas may also be JSON Schema booleans.
+		return $schema;
+	}
 	$object_keywords = array(
 		'properties',
 		'patternProperties',
@@ -461,6 +465,12 @@ function playground_ability_schema_objects($schema) {
 		'dependencies',
 		'dependentSchemas',
 	);
+	$schema_keywords = array(
+		'additionalProperties', 'additionalItems', 'items', 'contains',
+		'propertyNames', 'not', 'if', 'then', 'else',
+		'unevaluatedProperties', 'unevaluatedItems', 'contentSchema',
+	);
+	$list_keywords = array('allOf', 'anyOf', 'oneOf', 'prefixItems');
 	foreach ($schema as $key => $value) {
 		if (!is_array($value)) {
 			continue;
@@ -468,20 +478,32 @@ function playground_ability_schema_objects($schema) {
 		if (in_array($key, $object_keywords, true)) {
 			$children = array();
 			foreach ($value as $name => $child) {
-				$children[$name] = is_array($child)
-					? playground_ability_schema_objects($child)
-					: $child;
+				// Legacy dependencies can contain property-name lists or schemas.
+				if (
+					$key === 'dependencies' &&
+					is_array($child) &&
+					($child === array() || isset($child[0]))
+				) {
+					$children[$name] = $child;
+				} else {
+					$children[$name] = playground_ability_schema_objects($child);
+				}
 			}
 			$schema[$key] = (object) $children;
 		} elseif ($key === 'default' || $key === 'const') {
 			if ($value === array() && ($schema['type'] ?? null) === 'object') {
 				$schema[$key] = new stdClass();
 			}
-		} elseif ($key !== 'enum' && $key !== 'examples' && $key !== 'required') {
+		} elseif (
+			in_array($key, $list_keywords, true) ||
+			($key === 'items' && isset($value[0]))
+		) {
+			$schema[$key] = array_map('playground_ability_schema_objects', $value);
+		} elseif (in_array($key, $schema_keywords, true)) {
 			$schema[$key] = playground_ability_schema_objects($value);
 		}
 	}
-	return $schema;
+	return (object) $schema;
 }
 add_action('wp_ajax_playground_list_abilities', 'playground_abilities_request');
 add_action('wp_ajax_playground_execute_ability', 'playground_abilities_request');
