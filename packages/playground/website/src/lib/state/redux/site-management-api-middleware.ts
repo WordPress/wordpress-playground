@@ -56,6 +56,7 @@ import { PlaygroundRoute, redirectTo } from '../url/router';
 export interface SiteSettings {
 	phpVersion?: AllPHPVersion;
 	wpVersion?: string;
+	gutenbergBranch?: string;
 	networking?: boolean;
 	language?: string;
 	multisite?: boolean;
@@ -1159,6 +1160,16 @@ function getSetupUrlForNewSite(
 		}
 		if (settings.wpVersion !== undefined) {
 			url.searchParams.set('wp', settings.wpVersion);
+		}
+		if (settings.gutenbergBranch !== undefined) {
+			url.searchParams.delete('gutenberg-branch');
+			if (settings.gutenbergBranch) {
+				url.searchParams.delete('gutenberg-pr');
+				url.searchParams.set(
+					'gutenberg-branch',
+					settings.gutenbergBranch
+				);
+			}
 		}
 		if (settings.networking !== undefined) {
 			url.searchParams.set(
