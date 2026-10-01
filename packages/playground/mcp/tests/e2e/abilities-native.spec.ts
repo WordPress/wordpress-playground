@@ -63,7 +63,7 @@ test('core abilities register and unregister through native WebMCP', async ({
 		expect(ability).toBeDefined();
 		await pane
 			.getByRole('checkbox', {
-				name: `Expose ${ability.label} through WebMCP`,
+				name: `Expose ${ability.label} to agents through WebMCP and MCP`,
 				exact: true,
 			})
 			.check();
@@ -76,7 +76,7 @@ test('core abilities register and unregister through native WebMCP', async ({
 		const ability = abilities.find((item: any) => item.name === name);
 		await pane
 			.getByRole('checkbox', {
-				name: `Expose ${ability.label} through WebMCP`,
+				name: `Expose ${ability.label} to agents through WebMCP and MCP`,
 				exact: true,
 			})
 			.uncheck();

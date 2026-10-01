@@ -131,7 +131,7 @@ test('native abilities execute with permissions and reconcile WebMCP exposure', 
 		'error',
 	].map((name) => `wp_ability_fixture.${name}`);
 	const groupSwitch = pane.getByRole('checkbox', {
-		name: 'Expose all fixture abilities through WebMCP',
+		name: 'Expose all fixture abilities to agents through WebMCP and MCP',
 		exact: true,
 	});
 	await groupSwitch.check();
@@ -146,7 +146,7 @@ test('native abilities execute with permissions and reconcile WebMCP exposure', 
 		.toEqual([]);
 	await pane
 		.getByRole('checkbox', {
-			name: 'Expose Echo object through WebMCP',
+			name: 'Expose Echo object to agents through WebMCP and MCP',
 			exact: true,
 		})
 		.check();
@@ -196,12 +196,15 @@ test('native abilities execute with permissions and reconcile WebMCP exposure', 
 	await website.openDockPane('Abilities');
 	await expect(
 		pane.getByRole('checkbox', {
-			name: 'Expose through WebMCP',
+			name: 'Expose to agents (WebMCP and MCP)',
 			exact: true,
 		})
 	).toBeChecked();
 	await pane
-		.getByRole('checkbox', { name: 'Expose through WebMCP', exact: true })
+		.getByRole('checkbox', {
+			name: 'Expose to agents (WebMCP and MCP)',
+			exact: true,
+		})
 		.uncheck();
 	await expect.poll(toolNames).not.toContain('wp_ability_fixture.object');
 	await page.evaluate(async () => {
@@ -238,13 +241,24 @@ test('native abilities execute with permissions and reconcile WebMCP exposure', 
 });
 
 test('manual runner remains available without WebMCP', async ({ website }) => {
+	await website.page.addInitScript(() => {
+		for (const target of [document, navigator]) {
+			Object.defineProperty(target, 'modelContext', {
+				configurable: true,
+				value: undefined,
+			});
+		}
+	});
 	await website.goto(`./?storage=temp#${blueprint()}`);
 	await website.openDockPane('Abilities');
 	const pane = website.page.getByRole('dialog', { name: 'Abilities pane' });
 	await expect(
-		pane.getByText('This browser does not support WebMCP.', {
-			exact: false,
-		})
+		pane.getByText(
+			'Connect the Playground MCP server to expose abilities to agents.',
+			{
+				exact: false,
+			}
+		)
 	).toBeVisible();
 	await pane.getByRole('button', { name: 'fixture', exact: true }).click();
 	await pane
