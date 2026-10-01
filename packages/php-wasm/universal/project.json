@@ -15,7 +15,16 @@
 		},
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README"]
+			"dependsOn": ["build:README", "build:LICENSE"]
+		},
+		"build:LICENSE": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp LICENSE dist/packages/php-wasm/universal/LICENSE"
+				]
+			},
+			"dependsOn": ["build:package-json"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
@@ -69,10 +78,21 @@
 		},
 		"test:vite": {
 			"executor": "@nx/vitest:test",
+			"dependsOn": ["build:rpc-test-fixture"],
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/universal"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/universal"
+			}
+		},
+		"build:rpc-test-fixture": {
+			"executor": "@nx/vite:build",
+			"outputs": [
+				"{workspaceRoot}/dist/test-fixtures/php-wasm-universal"
+			],
+			"options": {
+				"configFile": "packages/php-wasm/universal/vite.rpc-test.config.ts",
+				"outputPath": "dist/test-fixtures/php-wasm-universal"
 			}
 		},
 		"lint": {
