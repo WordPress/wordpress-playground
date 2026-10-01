@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PHP } from '@php-wasm/universal';
+import { LatestMinifiedWordPressVersion } from '@wp-playground/wordpress-builds';
 
 describe('PlaygroundWorkerEndpointBlueprints', () => {
 	beforeEach(() => {
@@ -351,6 +352,60 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		// SQLite still downloads in parallel; WordPress core does not.
 		expect(fetch).toHaveBeenCalledTimes(1);
 	}, 10000);
+
+	it.each([
+		{ wpVersion: 'latest', expected: LatestMinifiedWordPressVersion },
+		{ wpVersion: 'nightly', expected: 'trunk' },
+		{ wpVersion: '6.8', expected: '6.8' },
+	])(
+		'resolves the requested WordPress version $wpVersion to a build version',
+		async ({ wpVersion, expected }) => {
+			let endpoint:
+				| {
+						boot(options: Record<string, unknown>): Promise<void>;
+						requestedWordPressVersion?: string;
+				  }
+				| undefined;
+			vi.doMock('@wp-playground/wordpress', () => ({
+				bootWordPress: vi.fn(),
+			}));
+			vi.doMock('@php-wasm/web', () => ({
+				certificateToPEM: vi.fn(),
+				createDirectoryHandleMountHandler: vi.fn(),
+				exposeAPI: vi.fn((api) => {
+					endpoint = api;
+					return [vi.fn(), vi.fn()];
+				}),
+				loadWebRuntime: vi.fn(),
+			}));
+			await import('./playground-worker-endpoint-blueprints');
+			if (!endpoint) {
+				throw new Error('Expected exposeAPI to receive an endpoint');
+			}
+			vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+				'http://playground.test'
+			);
+			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+				{
+					getPrimaryPhp: vi.fn(async () => ({}) as PHP),
+				}
+			);
+			vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
+				undefined
+			);
+
+			await endpoint.boot({
+				scope: 'test',
+				phpVersion: '8.3',
+				wpVersion,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				withNetworking: false,
+			});
+
+			expect(endpoint.requestedWordPressVersion).toBe(expected);
+		},
+		10000
+	);
 
 	it('throws a diagnostic error if the worker entrypoint is evaluated twice in the same worker global', async () => {
 		vi.doMock('@php-wasm/web', () => ({
