@@ -4,9 +4,9 @@ import css from './style.module.css';
 
 /**
  * One fixed-height block for every phase of a transfer: the percentage, the
- * phase name, a bar, and a details line. Phases without some of that data
- * leave the slot empty rather than dropping it, so the pane does not resize
- * as the pull moves along.
+ * phase name, a bar, and separate rows for counters and context. Phases without
+ * some of that data leave the slot empty rather than dropping it, so the pane
+ * does not resize as the pull moves along.
  */
 export function TransferProgressView({
 	progress,
@@ -31,7 +31,12 @@ export function TransferProgressView({
 		progress.filesDone !== undefined && progress.filesTotal !== undefined
 			? `${progress.filesDone.toLocaleString()} / ${progress.filesTotal.toLocaleString()} files`
 			: undefined;
-	const detail = [progress.detail, bytes].filter(Boolean).join(' · ');
+	// Reprint can repeat the phase announcement as commentary between byte updates.
+	const detail =
+		progress.detail?.replace(/[.…]+$/, '') ===
+		progress.message.replace(/[.…]+$/, '')
+			? undefined
+			: progress.detail;
 	return (
 		<div className={css.transferProgress} role="status" aria-live="polite">
 			<div className={css.progressHeading}>
@@ -46,8 +51,11 @@ export function TransferProgressView({
 				{...(percent === undefined ? {} : { value: percent })}
 			/>
 			<div className={css.progressDetails}>
-				<span>{detail}</span>
+				<span>{bytes}</span>
 				<span>{files}</span>
+				<span className={css.progressContext} title={detail}>
+					{detail}
+				</span>
 			</div>
 		</div>
 	);

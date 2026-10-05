@@ -428,6 +428,49 @@ describe('Reprint transfers', () => {
 		);
 	});
 
+	it('replaces commentary from a previous chunk with the current byte counters', async () => {
+		const { playground, runStream } = createClient([]);
+		runStream.mockResolvedValueOnce(
+			response(
+				JSON.stringify({
+					playgroundReprint: {
+						status: 'continue',
+						stage: 'files-pull',
+					},
+				}) + '\n'
+			)
+		);
+		runStream.mockResolvedValueOnce(
+			response(
+				[
+					{ message: 'Downloading site files…' },
+					{
+						playgroundProgress: {
+							phase: 'files-pull',
+							message: 'Downloading site files',
+							bytesDone: 1024,
+							bytesTotal: 4096,
+						},
+					},
+					{ playgroundReprint: { status: 'complete' } },
+				]
+					.map((record) => JSON.stringify(record))
+					.join('\n') + '\n'
+			)
+		);
+		const updates: TransferProgress[] = [];
+		await transferSite(
+			playground,
+			'pull',
+			'https://example.com',
+			'token',
+			(update) => updates.push(update)
+		);
+		const byteUpdate = updates.find((update) => update.bytesDone === 1024)!;
+		expect(byteUpdate).toBeDefined();
+		expect(byteUpdate.detail).toBeUndefined();
+	});
+
 	it('describes the table being downloaded and the statements applied', async () => {
 		const { playground, runStream } = createClient([
 			{ status: 'complete' },

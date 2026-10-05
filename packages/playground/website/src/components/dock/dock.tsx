@@ -973,6 +973,17 @@ export function Dock({
 			setPaneHeight(0);
 			return;
 		}
+		if (isMobile) {
+			// Mobile panes fill the screen above the Dock. Their flexed children
+			// reflect that imposed height; feeding it into the content-height
+			// animation creates a resize loop instead of measuring content.
+			pane.style.height = '';
+			pane.style.transition = '';
+			pane.style.overflow = '';
+			settledPaneHeightRef.current = pane.offsetHeight;
+			setPaneHeight(pane.offsetHeight);
+			return;
+		}
 		// The tallest the pane may grow (its CSS max-height), probed once.
 		pane.style.transition = 'none';
 		pane.style.height = '99999px';
@@ -1079,7 +1090,7 @@ export function Dock({
 			observer.disconnect();
 			cleanupAnimation();
 		};
-	}, [section, dockPaneIsOpen, fixedPaneHeight]);
+	}, [section, dockPaneIsOpen, fixedPaneHeight, isMobile]);
 	const operationToastStyle = getDockOperationToastStyle({
 		isMobile,
 		dockSize,

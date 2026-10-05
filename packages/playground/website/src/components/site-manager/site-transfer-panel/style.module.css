@@ -168,24 +168,25 @@
 
 .progress-details {
 	color: var(--ink-muted);
-	display: flex;
+	column-gap: var(--space-3);
+	display: grid;
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
-	gap: var(--space-3);
-	justify-content: space-between;
-	/* Reserve the line even when a phase has nothing to report. */
-	min-height: 1.4em;
+	grid-template-columns: minmax(0, 1fr) auto;
+	/* Reserve both rows even when a phase has no counters or table details. */
+	grid-template-rows: repeat(2, 1.5em);
+	line-height: 1.5;
 }
 
-.progress-details span:first-child {
+.progress-details span {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.progress-details span:last-child {
-	flex: none;
+.progress-context {
+	grid-column: 1 / -1;
 }
 
 .overflow-menu :global(.components-button) {

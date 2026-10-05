@@ -403,7 +403,9 @@ async function runBridge(
 						const detail = describeProgress(update);
 						onProgress({
 							...readProgress(update, redact(update.message)),
-							...(detail ? { detail } : {}),
+							// Clear commentary left by an earlier chunk when this
+							// update has counters but no finer-grained context.
+							detail,
 						});
 						hasByteProgress = true;
 					} else if (
