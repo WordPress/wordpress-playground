@@ -32,6 +32,7 @@ type GAEvent =
 	| 'dockExpanded'
 	| 'dockMoved'
 	| 'dockItemClick'
+	| 'dockDevToolsToggle'
 	| 'siteSettingsChanged'
 	| 'blueprintRun'
 	| 'blueprintDownload'

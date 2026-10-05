@@ -1323,6 +1323,11 @@ export function Dock({
 									disabled={paneCloseBlocked}
 									onClick={(event) => {
 										event.currentTarget.focus();
+										logTrackingEvent('dockDevToolsToggle', {
+											state: developerTools.isVisible
+												? 'collapsed'
+												: 'expanded',
+										});
 										developerTools.toggle();
 									}}
 								>
