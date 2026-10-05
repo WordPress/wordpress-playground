@@ -16,6 +16,12 @@ vi.mock('@php-wasm/web-service-worker', () => ({
 }));
 vi.mock('virtual:cors-proxy-url', () => ({ corsProxyUrl: '' }));
 
+vi.mock('@wp-playground/tools', () => ({
+	getSqliteDatabasePath: vi.fn(
+		async () => '/wordpress/wp-content/database/.ht.private/.ht.sqlite'
+	),
+}));
+
 // Detection must use Reprint's reply, not a generic host error. These fixtures
 // come from v0.10.8's unauthenticated preflight, before any site data is read.
 describe('Reprint setup', () => {
@@ -255,6 +261,23 @@ describe('Reprint transfers', () => {
 			vi.fn()
 		);
 		expect(fetchWithCorsProxy).not.toHaveBeenCalled();
+	});
+
+	it('installs a pull into the database selected by the SQLite driver', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'complete' },
+		]);
+		await transferSite(
+			playground,
+			'pull',
+			'https://example.com',
+			'token',
+			vi.fn()
+		);
+		expect(
+			JSON.parse(runStream.mock.calls[0][0].env.PLAYGROUND_REPRINT)
+				.databasePath
+		).toBe('/wordpress/wp-content/database/.ht.private/.ht.sqlite');
 	});
 
 	it('allows plain HTTP only for local development', () => {

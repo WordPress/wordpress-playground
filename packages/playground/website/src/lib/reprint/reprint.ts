@@ -1,4 +1,5 @@
 import { joinPaths } from '@php-wasm/util';
+import { getSqliteDatabasePath } from '@wp-playground/tools';
 import { logger } from '@php-wasm/logger';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import type { PlaygroundClient } from '@wp-playground/client';
@@ -201,6 +202,12 @@ export async function transferSite(
 	report(lastProgress);
 	const documentRoot = await playground.documentRoot;
 	const siteUrl = await playground.absoluteUrl;
+	// The SQLite driver can choose a private subdirectory. Resolve its active
+	// path before pulling instead of installing SQL into an unused default file.
+	const databasePath =
+		direction === 'pull'
+			? await getSqliteDatabasePath(playground)
+			: undefined;
 	await installReprint(playground, report);
 	await playground.writeFile(BRIDGE_PATH, bridge);
 	const connectionPath = joinPaths(
@@ -219,7 +226,7 @@ export async function transferSite(
 		while (true) {
 			const result = await runBridge(
 				playground,
-				{ command, url, secret, documentRoot, siteUrl },
+				{ command, url, secret, documentRoot, siteUrl, databasePath },
 				report
 			);
 			if (result.stage && stage !== result.stage) {
@@ -363,6 +370,7 @@ async function runBridge(
 		secret: string;
 		documentRoot: string;
 		siteUrl: string;
+		databasePath?: string;
 	},
 	onProgress: (progress: TransferProgressUpdate) => void
 ): Promise<TransferResult> {

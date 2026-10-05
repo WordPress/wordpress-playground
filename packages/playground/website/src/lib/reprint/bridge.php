@@ -348,7 +348,7 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         $metadata = json_decode(file_get_contents(wp_join_unix_paths($root, 'source.json')), true, 512, JSON_THROW_ON_ERROR);
         // Only the database needs a separate destination while importing. A
         // failed SQL import must not expose half-written tables to WordPress.
-        $database = wp_join_unix_paths($files, 'wp-content/database/.ht.sqlite');
+        $database = $request['databasePath'];
         if (!is_dir(dirname($database))) mkdir(dirname($database), 0700, true);
         if (is_file($state . '/import.sqlite')) {
             foreach (['', '-wal', '-shm', '-journal'] as $suffix) remove_tree($database . $suffix);
