@@ -33,6 +33,8 @@ type GAEvent =
 	| 'dockMoved'
 	| 'dockItemClick'
 	| 'dockDevToolsToggle'
+	| 'newPlaygroundTabClick'
+	| 'createPlayground'
 	| 'siteSettingsChanged'
 	| 'blueprintRun'
 	| 'blueprintDownload'
