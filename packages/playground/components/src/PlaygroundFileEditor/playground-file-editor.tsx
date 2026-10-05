@@ -43,6 +43,8 @@ export type PlaygroundFileEditorProps = {
 	dockPresentation?: boolean;
 	/** Mobile Dock title row where the current path should be rendered. */
 	mobileHeaderTarget?: Element | null;
+	/** Called when an explicit save starts, excluding autosaves and cleanup writes. */
+	onManualSave?: () => void;
 	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
 	pathBadges?: Record<string, PathBadge>;
 	/** See `FilePickerTreeProps.onMountFromGit`. */
@@ -84,6 +86,7 @@ export const PlaygroundFileEditor = forwardRef<
 		pathBadges,
 		onMountFromGit,
 		onPathRenamed,
+		onManualSave,
 	},
 	ref
 ) {
@@ -511,11 +514,12 @@ export const PlaygroundFileEditor = forwardRef<
 		if (!pendingSaveRef.current) {
 			return;
 		}
+		onManualSave?.();
 		manualSaveRef.current = pendingSaveRef.current;
 		setManualSaveFeedback('waiting');
 		setSaveState(SaveState.SAVING);
 		flushPendingSave();
-	}, [flushPendingSave]);
+	}, [flushPendingSave, onManualSave]);
 
 	const handleDockManualSave = useCallback(() => {
 		if (

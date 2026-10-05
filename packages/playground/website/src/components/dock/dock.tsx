@@ -34,6 +34,7 @@ import {
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
+import { logTrackingEvent } from '../../lib/tracking';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
@@ -188,6 +189,18 @@ export function Dock({
 	// Retain the full pane body until its exit motion finishes. Hiding it when
 	// close starts would collapse the surface to its header before it can leave.
 	const paneContentVisible = dockPaneIsOpen || !paneExitComplete;
+
+	useEffect(() => {
+		const initiallyMobile = window.matchMedia(MOBILE_QUERY).matches;
+		const initiallyFullWidth = readDockFullWidth();
+		logTrackingEvent('dockInitialLayout', {
+			layout: initiallyMobile
+				? 'mobile'
+				: initiallyFullWidth
+					? 'full-width'
+					: 'floating',
+		});
+	}, []);
 
 	useEffect(() => {
 		if (typeof ResizeObserver === 'undefined') {
@@ -827,6 +840,7 @@ export function Dock({
 		if (dockPaneIsOpen) {
 			dispatch(setDockPaneOpen(false));
 		}
+		logTrackingEvent(isCollapsed ? 'dockExpanded' : 'dockCollapsed');
 		setIsCollapsed((collapsed) => !collapsed);
 	};
 
@@ -850,6 +864,9 @@ export function Dock({
 		}
 		setIsFullWidth(next);
 		writeDockFullWidth(next);
+		logTrackingEvent('dockLayoutChanged', {
+			layout: next ? 'full-width' : 'floating',
+		});
 	};
 
 	// Grow a clicked launcher out of its exact corner position. The nav is
@@ -936,6 +953,14 @@ export function Dock({
 
 	const cornered = cornerSide !== null && !isDragging && !isFolding;
 
+	useEffect(() => {
+		if (cornered) {
+			logTrackingEvent('dockMoved', {
+				position: `${cornerSide}-corner`,
+			});
+		}
+	}, [cornered, cornerSide]);
+
 	/** Commits a finished fold after the nav's own animation ends. */
 	const handleDockAnimationEnd = (
 		event: ReactAnimationEvent<HTMLElement>
@@ -998,6 +1023,7 @@ export function Dock({
 				onClick={(event) => {
 					// Safari needs explicit focus so closing a pane returns to its launcher.
 					event.currentTarget.focus();
+					logTrackingEvent('dockItemClick', { item: item.section });
 					openSection(item.section);
 				}}
 			/>
@@ -1297,6 +1323,11 @@ export function Dock({
 									disabled={paneCloseBlocked}
 									onClick={(event) => {
 										event.currentTarget.focus();
+										logTrackingEvent('dockDevToolsToggle', {
+											state: developerTools.isVisible
+												? 'collapsed'
+												: 'expanded',
+										});
 										developerTools.toggle();
 									}}
 								>

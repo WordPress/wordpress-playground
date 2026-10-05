@@ -81,6 +81,7 @@ import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
+import { logTrackingEvent } from '../../lib/tracking';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
 /**
@@ -566,6 +567,11 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 		runInProgressRef.current = true;
 		const runInNewPlayground = isStoredSite(site);
+		logTrackingEvent('blueprintRun', {
+			target: runInNewPlayground
+				? 'new-playground'
+				: 'current-playground',
+		});
 		try {
 			setIsRunningBlueprint(true);
 			saveFile.flush();
@@ -843,6 +849,7 @@ export const BlueprintBundleEditor = forwardRef<
 	);
 
 	const handleDownloadBundle = useCallback(async () => {
+		logTrackingEvent('blueprintDownload');
 		try {
 			const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
 			const addEntries = async (dirPath: string, prefix: string) => {
@@ -889,6 +896,7 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [filesystem, dispatch]);
 
 	const handleShareBlueprint = async () => {
+		logTrackingEvent('blueprintCopyUrl');
 		if (false === newUrl) {
 			alert(
 				'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'

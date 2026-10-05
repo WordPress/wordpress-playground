@@ -18,6 +18,7 @@ import {
 	isOlderWordPressVersion,
 } from './older-wordpress-versions';
 import { getWordPressVersionOptions } from './wordpress-version-options';
+import { logTrackingEvent } from '../../../lib/tracking';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -201,6 +202,10 @@ export function UnconnectedSiteSettingsForm({
 								})}
 								options={wpVersionOptions}
 								onChange={(value, extra) => {
+									logTrackingEvent('siteSettingsChanged', {
+										setting: 'wpVersion',
+										value,
+									});
 									onChange(extra?.event);
 								}}
 								{...rest}
@@ -249,6 +254,10 @@ export function UnconnectedSiteSettingsForm({
 							})}
 							options={phpVersionOptions}
 							onChange={(value, extra) => {
+								logTrackingEvent('siteSettingsChanged', {
+									setting: 'phpVersion',
+									value,
+								});
 								onChange(extra?.event);
 							}}
 							{...rest}
@@ -517,6 +526,10 @@ export function UnconnectedSiteSettingsForm({
 								},
 							].sort((a, b) => a.label.localeCompare(b.label))}
 							onChange={(value, extra) => {
+								logTrackingEvent('siteSettingsChanged', {
+									setting: 'language',
+									value: value || 'en_US',
+								});
 								onChange(extra?.event);
 							}}
 							{...rest}
@@ -531,6 +544,10 @@ export function UnconnectedSiteSettingsForm({
 						<CheckboxControl
 							label="Allow network access"
 							onChange={(isChecked) => {
+								logTrackingEvent('siteSettingsChanged', {
+									setting: 'networkAccess',
+									value: String(isChecked),
+								});
 								setValue('withNetworking', isChecked);
 							}}
 							{...rest}
@@ -548,6 +565,10 @@ export function UnconnectedSiteSettingsForm({
 						<CheckboxControl
 							label="Create a multisite network"
 							onChange={(isChecked) => {
+								logTrackingEvent('siteSettingsChanged', {
+									setting: 'multisite',
+									value: String(isChecked),
+								});
 								setValue('multisite', isChecked);
 							}}
 							{...rest}
