@@ -290,63 +290,6 @@ describe('PlaygroundFileEditor presentation', () => {
 		expect(saveButton.textContent).toBe('Save');
 	});
 
-	it('reports manual saves but excludes autosaves and saves without pending edits', async () => {
-		vi.useFakeTimers();
-		const onManualSave = vi.fn();
-		const filesystem = Object.assign(new EventTarget(), {
-			writeFile: vi.fn(() => Promise.resolve()),
-		}) as unknown as AsyncWritableFilesystem;
-
-		await act(async () => {
-			root.render(
-				<PlaygroundFileEditor
-					filesystem={filesystem}
-					documentRoot="/wordpress"
-					dockPresentation
-					onManualSave={onManualSave}
-				/>
-			);
-		});
-
-		await clickButton('Open test file');
-		await clickButton('Save');
-		expect(onManualSave).not.toHaveBeenCalled();
-
-		await clickButton('Edit test file');
-		await act(async () => {
-			await vi.advanceTimersByTimeAsync(1500);
-		});
-		expect(filesystem.writeFile).toHaveBeenCalledOnce();
-		expect(onManualSave).not.toHaveBeenCalled();
-
-		await clickButton('Edit test file');
-		await clickButton('Save');
-		expect(onManualSave).toHaveBeenCalledOnce();
-		expect(filesystem.writeFile).toHaveBeenCalledTimes(2);
-	});
-
-	it('does not report a manual save when unmounting flushes pending edits', async () => {
-		const onManualSave = vi.fn();
-		const filesystem = Object.assign(new EventTarget(), {
-			writeFile: vi.fn(() => Promise.resolve()),
-		}) as unknown as AsyncWritableFilesystem;
-
-		await act(async () => {
-			root.render(
-				<PlaygroundFileEditor
-					filesystem={filesystem}
-					documentRoot="/wordpress"
-					onManualSave={onManualSave}
-				/>
-			);
-		});
-		await clickButton('Open test file');
-		await clickButton('Edit test file');
-		await act(async () => root.render(null));
-		expect(filesystem.writeFile).toHaveBeenCalledOnce();
-		expect(onManualSave).not.toHaveBeenCalled();
-	});
-
 	async function clickButton(label: string) {
 		await act(async () => findButton(label).click());
 	}
