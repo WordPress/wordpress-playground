@@ -1,0 +1,10 @@
+{
+	"name": "@php-wasm-binaries/node-7-4",
+	"version": "0.0.0",
+	"description": "PHP 7.4 WebAssembly binary files for node (JSPI and Asyncify variants)",
+	"private": true,
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://npm.pkg.github.com"
+	}
+}

@@ -1,0 +1,24 @@
+{
+	"name": "php-wasm-node-binaries-8-0",
+	"$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node tools/scripts/build-wasm-binary-package.mjs --platform=node --version=8-0",
+				"parallel": false
+			}
+		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cd dist/packages/php-wasm/node-binaries/8-0 && npm publish",
+				"parallel": false
+			},
+			"dependsOn": ["build"]
+		}
+	},
+	"tags": ["scope:php-binaries", "type:wasm-binary"],
+	"implicitDependencies": ["php-wasm-node-8-0"]
+}
