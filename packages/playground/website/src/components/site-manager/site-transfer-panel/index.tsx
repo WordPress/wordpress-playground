@@ -311,18 +311,20 @@ export function SiteTransferPanel({
 			setSetup('configured');
 			// The site is usable now. Persisting it to this browser happens in
 			// the background; the address bar's save indicator reports it.
-			void sitesAPI.autosaveTemporarySite(site.slug).catch((error) => {
-				dispatch(
-					setDockOperationNotice({
-						status: 'error',
-						title: 'Couldn’t save the cloned site',
-						message:
-							error instanceof Error
-								? error.message
-								: String(error),
-					})
-				);
-			});
+			void sitesAPI
+				.autosaveTemporarySite(site.slug, { updateUrl: true })
+				.catch((error) => {
+					dispatch(
+						setDockOperationNotice({
+							status: 'error',
+							title: 'Couldn’t save the cloned site',
+							message:
+								error instanceof Error
+									? error.message
+									: String(error),
+						})
+					);
+				});
 		} catch (error) {
 			setSetup('manual');
 			if ((error as { name?: string } | null)?.name === 'AbortError') {

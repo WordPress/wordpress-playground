@@ -17,8 +17,8 @@ SECRET="${REPRINT_E2E_SECRET:-playground-e2e-secret}"
 WP_VERSION=7.1.2
 SQLITE_PLUGIN_VERSION=3.0.2
 # Same release as the client pinned in src/lib/reprint/reprint.ts.
-REPRINT_VERSION=v0.10.10
-REPRINT_SERVER_SHA256=456d60fb754c83c2203ca700d25aa0f5089b443dcb83d97cc855e6f688dc142a
+REPRINT_VERSION=v0.10.13
+REPRINT_SERVER_SHA256=5d8eb1080e7d680b7f1234f5672145f7f590fed514e192fb5c5175c9eed2f407
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 URL="http://127.0.0.1:${PORT}"
@@ -33,16 +33,16 @@ fetch() {
 mkdir -p "$CACHE"
 fetch "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" "${CACHE}/wordpress-${WP_VERSION}.tar.gz"
 fetch "https://downloads.wordpress.org/plugin/sqlite-database-integration.${SQLITE_PLUGIN_VERSION}.zip" "${CACHE}/sqlite-database-integration.zip"
-fetch "https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint-exporter-wp.zip" "${CACHE}/reprint-server.zip"
+fetch "https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint-exporter-wp.zip" "${CACHE}/reprint-server-${REPRINT_VERSION}.zip"
 fetch "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar" "${CACHE}/wp-cli.phar"
-echo "${REPRINT_SERVER_SHA256}  ${CACHE}/reprint-server.zip" | shasum -a 256 -c - >/dev/null
+echo "${REPRINT_SERVER_SHA256}  ${CACHE}/reprint-server-${REPRINT_VERSION}.zip" | shasum -a 256 -c - >/dev/null
 
 rm -rf "$DIR"
 mkdir -p "$DIR"
 tar xzf "${CACHE}/wordpress-${WP_VERSION}.tar.gz" --strip-components=1 -C "$DIR"
 unzip -q "${CACHE}/sqlite-database-integration.zip" -d "${DIR}/wp-content/plugins"
 mkdir -p "${DIR}/wp-content/plugins/reprint-server"
-unzip -q "${CACHE}/reprint-server.zip" -d "${DIR}/wp-content/plugins/reprint-server"
+unzip -q "${CACHE}/reprint-server-${REPRINT_VERSION}.zip" -d "${DIR}/wp-content/plugins/reprint-server"
 printf '<?php return %s;\n' "'${SECRET}'" > "${DIR}/wp-content/plugins/reprint-server/secret.php"
 
 # The SQLite drop-in, filled in the way WordPress Playground fills it.

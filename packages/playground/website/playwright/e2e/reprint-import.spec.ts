@@ -29,6 +29,15 @@ test(
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
+		// Start from a saved site so a stale address would reopen the wrong one.
+		const original = await page.evaluate(() =>
+			(window as any).playgroundSites.saveInBrowser()
+		);
+		await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+		await website.goto('./?site-slug=' + encodeURIComponent(original.slug));
+		await page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites?.getClient())
+		);
 		await page
 			.getByRole('button', { name: 'New Playground', exact: true })
 			.click();
@@ -122,22 +131,32 @@ test(
 		expect(copy.db.home).not.toContain(sourceOrigin);
 		expect(copy.db.firstContent).not.toContain(sourceOrigin);
 		expect(copy.db.firstContent).toContain(`href="${copy.db.home}/?p=1"`);
-		// Reprint v0.10.10 leaves shortcode attributes alone; the copy must
-		// keep the escaped URL intact while rewriting the image block next to it.
+		// Shortcode URLs retain their slash escaping while using the copy,
+		// just like the unescaped image URL in the adjacent block.
 		expect(copy.db.heroContent).toContain(
-			`[vc_video link="${sourceOrigin.replace(/\//g, '\\/')}\\/wp-content\\/uploads\\/video.mp4"]`
+			`[vc_video link="${copy.db.home.replace(/\//g, '\\/')}\\/wp-content\\/uploads\\/video.mp4"]`
 		);
 		expect(copy.db.heroContent).toContain(`<img src="${copy.db.home}/`);
-		// Serialized values survive the trip intact. Reprint v0.10.10 rewrites
-		// their URLs only for a target without a path, and every Playground
-		// site URL carries /scope:…, so those URLs are not asserted here.
-		expect(copy.db.heroMeta.sizes.thumb).toContain('/hero-150x150.jpg');
-		expect(copy.db.settings.label).toBe('Zażółć gęślą jaźń');
-		expect(copy.db.notes.map((row: any) => row.note)).toEqual([
-			'first',
-			'second',
-			'third',
-		]);
+		// Scoped URLs must work inside serialized values without damaging
+		// their lengths, nested arrays, or non-ASCII strings.
+		expect(copy.db.heroMeta).toEqual({
+			cover: `${copy.db.home}/${manifest.original}`,
+			sizes: { thumb: `${copy.db.home}/${manifest.thumbnail}` },
+		});
+		expect(copy.db.settings).toEqual({
+			hero: `${copy.db.home}/${manifest.original}`,
+			links: [
+				`${copy.db.home}/?p=${manifest.heroPost}`,
+				`${copy.db.home}/feed/`,
+			],
+			label: 'Zażółć gęślą jaźń',
+		});
+		expect(copy.db.notes).toEqual(
+			['first', 'second', 'third'].map((note, index) => ({
+				note,
+				url: `${copy.db.home}/?p=${index + 1}`,
+			}))
+		);
 		expect(copy.db.published).toBe(manifest.postCount);
 		expect(copy.db.editorName).toBe('Zażółć Gęślą');
 		expect(copy.db.thumbnailUrl).toContain(copy.db.home);
@@ -148,5 +167,44 @@ test(
 
 		await openSite.click();
 		await expect(pane).toHaveCount(0);
+		await expect(page.getByText('Autosaved', { exact: true })).toBeVisible({
+			timeout: 60_000,
+		});
+		const clone = await page.evaluate(() =>
+			(window as any).playgroundSites
+				.list()
+				.find((site: any) => site.isActive)
+		);
+		expect(clone.slug).not.toBe(original.slug);
+		await expect
+			.poll(() => new URL(page.url()).searchParams.get('site-slug'))
+			.toBe(clone.slug);
+		await page.reload();
+		await page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites?.getClient())
+		);
+		expect(
+			await page.evaluate(
+				() =>
+					(window as any).playgroundSites
+						.list()
+						.find((site: any) => site.isActive).slug
+			)
+		).toBe(clone.slug);
+		const reopened = await page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			const response = await client.request({ url: '/wp-admin/' });
+			const settings = await client.run({
+				code: `<?php require '/wordpress/wp-load.php'; echo json_encode(get_option('playground_e2e_settings'));`,
+			});
+			return {
+				status: response.httpStatusCode,
+				text: response.text,
+				settings: JSON.parse(settings.text),
+			};
+		});
+		expect(reopened.status).toBe(200);
+		expect(reopened.text).toContain('Dashboard');
+		expect(reopened.settings).toEqual(copy.db.settings);
 	}
 );

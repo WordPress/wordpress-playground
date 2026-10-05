@@ -1,6 +1,6 @@
 <?php
 /**
- * Browser adapter for Reprint v0.10.10. The token is supplied in the process
+ * Browser adapter for Reprint v0.10.13. The token is supplied in the process
  * environment, not a connection setting or a generated script. The downloaded
  * database and files still contain the source site's private data.
  */
@@ -31,7 +31,7 @@ class PlaygroundReprintClient extends ImportClient {
         $this->sql_path = wp_join_unix_paths($state, 'db.sql');
     }
 
-    protected function fetch_streaming(string $url, ?string $cursor, \Reprint\Importer\StreamingContext $context, ?array $post_data = null, ?string $endpoint = null): void {
+    protected function fetch_streaming(string $url, \Reprint\Importer\StreamingContext $context, ?array $post_data = null, ?string $endpoint = null): void {
         if ($endpoint === 'sql_chunk') {
             $on_chunk = $context->on_chunk;
             $context->on_chunk = function (array $chunk) use ($on_chunk): void {
@@ -44,7 +44,7 @@ class PlaygroundReprintClient extends ImportClient {
             };
             try {
                 $this->emit_sql_progress(true);
-                parent::fetch_streaming($url, $cursor, $context, $post_data, $endpoint);
+                parent::fetch_streaming($url, $context, $post_data, $endpoint);
             } finally {
                 $context->on_chunk = $on_chunk;
                 $this->emit_sql_progress(true);
@@ -52,7 +52,7 @@ class PlaygroundReprintClient extends ImportClient {
             return;
         }
         if ($endpoint !== 'file_fetch' || !is_file($this->pull_directory . '/fetch-list.jsonl')) {
-            parent::fetch_streaming($url, $cursor, $context, $post_data, $endpoint);
+            parent::fetch_streaming($url, $context, $post_data, $endpoint);
             return;
         }
         $this->load_download_progress();
@@ -67,7 +67,7 @@ class PlaygroundReprintClient extends ImportClient {
         };
         try {
             $this->emit_download_progress(true);
-            parent::fetch_streaming($url, $cursor, $context, $post_data, $endpoint);
+            parent::fetch_streaming($url, $context, $post_data, $endpoint);
         } finally {
             $context->on_chunk = $on_chunk;
             $this->emit_download_progress(true);

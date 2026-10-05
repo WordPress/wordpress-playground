@@ -177,6 +177,51 @@ describe('createSitesAPI', () => {
 		expect(pushState).toHaveBeenCalledTimes(1);
 	});
 
+	it.each(['persistence', 'pruning'])(
+		'does not change the URL after switching sites during %s',
+		async (phase) => {
+			const site = createTemporarySite();
+			const otherSite = createTemporarySite('other-site');
+			const state = createState(site, otherSite);
+			let finish!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				finish = resolve;
+			});
+			const persist = vi.fn(async () => {
+				if (phase === 'persistence') await pending;
+				site.metadata.storage = 'opfs';
+			});
+			mocks.persistTemporarySite.mockReturnValue(persist);
+			const prune = vi.fn();
+			mocks.pruneAutosavedSites.mockReturnValue(prune);
+			const dispatch = createDispatch(persist, (action) =>
+				action === prune && phase === 'pruning'
+					? pending
+					: Promise.resolve()
+			);
+			const api = createSitesAPI(() => state, dispatch);
+			const pushState = vi
+				.spyOn(window.history, 'pushState')
+				.mockImplementation(() => undefined);
+			const autosave = api.autosaveTemporarySite(site.slug, {
+				updateUrl: phase === 'persistence',
+			});
+			let lateRequest: Promise<unknown> | undefined;
+			if (phase === 'pruning') {
+				await vi.waitFor(() =>
+					expect(mocks.pruneAutosavedSites).toHaveBeenCalled()
+				);
+				lateRequest = api.autosaveTemporarySite(site.slug, {
+					updateUrl: true,
+				});
+			}
+			state.ui.activeSite = { slug: otherSite.slug };
+			finish();
+			await Promise.all([autosave, lateRequest]);
+			expect(pushState).not.toHaveBeenCalled();
+		}
+	);
+
 	it('coordinates pruning exclusions across site slugs', async () => {
 		const firstSite = createTemporarySite('first-site');
 		const secondSite = createTemporarySite('second-site');

@@ -7,11 +7,11 @@ import loginScript from './login.php?raw';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
-export const REPRINT_VERSION = 'v0.10.10';
+export const REPRINT_VERSION = 'v0.10.13';
 const PHAR_PATH = '/tmp/playground-reprint.phar';
 const BRIDGE_PATH = '/tmp/playground-reprint-bridge.php';
 const PHAR_SHA256 =
-	'8a28aa71483668a549b22932d021f3d98d7690f0e858406ddf99e91303a8e4c8';
+	'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda';
 export type TransferDirection = 'pull' | 'push';
 export type ReprintAvailability =
 	| 'configured'

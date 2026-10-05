@@ -162,7 +162,7 @@ describe('Reprint transfers', () => {
 		vi.clearAllMocks();
 		vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
 			Uint8Array.from(
-				'8a28aa71483668a549b22932d021f3d98d7690f0e858406ddf99e91303a8e4c8'.match(
+				'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda'.match(
 					/../g
 				)!,
 				(byte) => parseInt(byte, 16)
