@@ -80,6 +80,8 @@ import {
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
+import { createChildWorkerService } from './child-worker-service';
+import { childWorkerServiceTransferPolicy } from './worker-boot';
 import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_ENTRY_PATH,
@@ -920,6 +922,12 @@ export interface RunCLIServer extends AsyncDisposable {
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
+		/**
+		 * Child workers currently held open for PHP processes spawned via
+		 * proc_open()/system(). Reaping is asynchronous, so poll this rather
+		 * than reading it once.
+		 */
+		liveChildWorkerCount: () => number;
 	};
 }
 
@@ -954,6 +962,7 @@ export async function runCLI(
 		: undefined;
 
 	const spawnedWorkers: SpawnedWorker[] = [];
+	const childWorkerServicePorts: NodeMessagePort[] = [];
 	const workerToPlaygroundMap: Map<
 		// TODO: Can this just be the worker, not a data structure with a port?
 		SpawnedWorker,
@@ -1147,31 +1156,76 @@ export async function runCLI(
 				await createPlaygroundCliTempDir(tempDirNameDelimiter);
 			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
-			// Remember whether we are already disposing so we can avoid:
-			// - multiple, conflicting dispose attempts
-			// - logging that a worker exited while the CLI itself is exiting
-			let disposing = false;
-			const disposeCLI = async function disposeCLI() {
-				if (disposing) {
-					return;
-				}
+			let childWorkerService:
+				| ReturnType<typeof createChildWorkerService>
+				| undefined;
 
-				disposing = true;
-				await Promise.all(
-					spawnedWorkers.map(async (spawnedWorker) => {
-						await workerToPlaygroundMap
-							.get(spawnedWorker)
-							?.dispose();
-						await spawnedWorker.worker.terminate();
-					})
-				);
-				if (server) {
-					await new Promise((resolve) => {
-						server.close(resolve);
-						server.closeAllConnections();
-					});
+			// Every caller observes the same teardown. In particular, a second
+			// dispose call must not return while the first is still terminating
+			// workers that can access the native temp directory.
+			let disposePromise: Promise<void> | undefined;
+			const disposeCLI = function disposeCLI(): Promise<void> {
+				if (!disposePromise) {
+					disposePromise = (async function disposeCLIOnce() {
+						// Children can be keeping their spawning workers inside a
+						// synchronous system() call. Terminate them first so every
+						// top-level worker can finish disposing.
+						let childDisposalFailure: unknown;
+						let childDisposalFailed = false;
+						try {
+							await childWorkerService?.dispose();
+						} catch (error) {
+							childDisposalFailed = true;
+							childDisposalFailure = error;
+							logger.error(
+								`Failed to terminate every child worker: ${describeError(
+									error
+								)}`
+							);
+						}
+						childWorkerServicePorts
+							.splice(0)
+							.forEach(closeMessagePortQuietly);
+						await Promise.all(
+							spawnedWorkers.map(
+								async function disposeSpawnedWorker(
+									spawnedWorker
+								) {
+									try {
+										await workerToPlaygroundMap
+											.get(spawnedWorker)
+											?.dispose();
+									} catch {
+										// Continue teardown if the remote worker already
+										// closed or rejected its best-effort disposal.
+									}
+									try {
+										await spawnedWorker.worker.terminate();
+									} catch {
+										// The worker may already have terminated itself.
+									}
+								}
+							)
+						);
+						if (server) {
+							await new Promise(function closeServer(resolve) {
+								server.close(resolve);
+								server.closeAllConnections();
+							});
+						}
+						if (childDisposalFailed) {
+							// A child that could not be terminated may still access NODEFS.
+							// Keep its backing directory intact and report incomplete cleanup.
+							throw new Error(
+								'CLI cleanup could not terminate every child worker; ' +
+									'the native temporary directory was retained.',
+								{ cause: childDisposalFailure }
+							);
+						}
+						await nativeDir.cleanup();
+					})();
 				}
-				await nativeDir.cleanup();
+				return disposePromise;
 			};
 
 			// Everything below (symlink setup, Xdebug config, blueprint
@@ -1502,18 +1556,74 @@ export async function runCLI(
 					});
 				}
 
-				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
+				let postInstallMountQueue = Promise.resolve();
+				function enqueuePostInstallMount(mount: () => Promise<void>) {
+					const mountCompletion = postInstallMountQueue.then(mount);
+					// Return mountCompletion so a failed mount rejects WordPress boot:
+					// serving a pool whose workers see different files is unsafe. Only
+					// the private queue tail converts either outcome to undefined so
+					// one failed item cannot prevent a later cleanup mount from running.
+					postInstallMountQueue = mountCompletion.then(
+						function continueQueueAfterSuccess() {
+							return undefined;
+						},
+						function continueQueueAfterFailure(error) {
+							logger.error(
+								`Failed to apply post-install mounts: ${describeError(
+									error
+								)}`
+							);
+							return undefined;
+						}
+					);
+					return mountCompletion;
+				}
+
+				// Owns creation of every child worker a request-handling worker
+				// spawns via proc_open()/system(). The main thread already holds the
+				// shared FileLockManager, so it can hand each child a direct broker
+				// port instead of routing lock calls back through the (blocked)
+				// spawning worker. Disposed from disposeCLI().
+				const activeChildWorkerService = createChildWorkerService(
+					function spawnChildWorker(options) {
+						return spawnWorkerThread(workerType, options);
+					},
+					fileLockManager,
+					enqueuePostInstallMount
+				);
+				childWorkerService = activeChildWorkerService;
+
+				const promisesToBoot = [];
 				for (
 					let workerIndex = 0;
 					workerIndex < targetWorkerCount;
 					workerIndex++
 				) {
+					let disposeOwnedChildWorkers:
+						| (() => Promise<void>)
+						| undefined;
 					const promiseToBoot = spawnWorkerThread(workerType, {
-						onExit: (exitCode: number) => {
+						onExit: function reportUnexpectedWorkerExit(
+							exitCode: number
+						) {
+							const descendantsDisposed =
+								disposeOwnedChildWorkers?.();
+							if (descendantsDisposed) {
+								descendantsDisposed.catch(
+									function reportDescendantDisposalFailure(
+										error
+									): void {
+										logger.error(
+											`Failed to dispose child workers owned by ` +
+												`worker ${workerIndex}: ${describeError(error)}`
+										);
+									}
+								);
+							}
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
-							if (disposing) {
+							if (disposePromise) {
 								return;
 							}
 
@@ -1526,33 +1636,48 @@ export async function runCLI(
 							);
 							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
-					}).then(
-						async (
-							spawnResult: SpawnedWorker
-						): Promise<
-							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
-						> => {
-							// Remember the worker process before booting the Playground
-							// so we can clean it up if there is an error during boot.
-							spawnedWorkers.push(spawnResult);
+					}).then(async function bootWorker(
+						spawnResult: SpawnedWorker
+					): Promise<
+						[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
+					> {
+						// Remember the worker process before booting the Playground
+						// so we can clean it up if there is an error during boot.
+						spawnedWorkers.push(spawnResult);
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-							const playgroundApi =
-								await handler.bootRequestHandler({
-									worker: spawnResult,
-									fileLockManagerPort,
-									nativeInternalDirPath,
-								});
+						const fileLockManagerPort =
+							await exposeFileLockManager(fileLockManager);
+						const childWorkerServiceEndpoint =
+							activeChildWorkerService.createEndpoint();
+						disposeOwnedChildWorkers =
+							childWorkerServiceEndpoint.dispose;
+						const childWorkerServiceChannel =
+							new NodeMessageChannel();
+						exposeAPI(
+							childWorkerServiceEndpoint.api,
+							undefined,
+							childWorkerServiceChannel.port1,
+							childWorkerServiceTransferPolicy
+						);
+						childWorkerServiceChannel.port1.unref();
+						childWorkerServicePorts.push(
+							childWorkerServiceChannel.port1
+						);
+						const playgroundApi = await handler.bootRequestHandler({
+							worker: spawnResult,
+							fileLockManagerPort,
+							workerConfig: {
+								processId: spawnResult.processId,
+								childWorkerServicePort:
+									childWorkerServiceChannel.port2,
+							},
+							nativeInternalDirPath,
+						});
 
-							workerToPlaygroundMap.set(
-								spawnResult,
-								playgroundApi
-							);
+						workerToPlaygroundMap.set(spawnResult, playgroundApi);
 
-							return [spawnResult, playgroundApi];
-						}
-					);
+						return [spawnResult, playgroundApi];
+					});
 
 					promisesToBoot.push(promiseToBoot);
 
@@ -1572,8 +1697,9 @@ export async function runCLI(
 				await Promise.all(promisesToBoot);
 				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
-						(spawnedWorker) =>
-							workerToPlaygroundMap.get(spawnedWorker)!
+						function getPlaygroundForWorker(spawnedWorker) {
+							return workerToPlaygroundMap.get(spawnedWorker)!;
+						}
 					)
 				);
 
@@ -1590,15 +1716,25 @@ export async function runCLI(
 						messageChannelForPostInstallMounts.port2;
 					await exposeAPI(
 						{
-							applyPostInstallMountsToAllWorkers: async () => {
+							async applyPostInstallMountsToAllWorkers() {
 								// Apply post-install mounts to workers
 								// one at a time. Each worker's mount handler
 								// creates placeholder files on the shared
 								// host filesystem via NODEFS before mounting.
 								// Concurrent creation races cause ENOTDIR.
+								// Children have a direct callback to the main thread,
+								// so this also reaches a child whose spawning worker
+								// is busy.
+								await childWorkerService!.applyPostInstallMounts(
+									args['mount'] || []
+								);
 								for (const playground of workerToPlaygroundMap.values()) {
-									await playground!.mountAfterWordPressInstall(
-										args['mount'] || []
+									await enqueuePostInstallMount(
+										function mountTopLevelWorker() {
+											return playground!.mountAfterWordPressInstall(
+												args['mount'] || []
+											);
+										}
 									);
 								}
 							},
@@ -1722,6 +1858,8 @@ export async function runCLI(
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
+						liveChildWorkerCount:
+							childWorkerService.liveChildWorkerCount,
 					},
 				};
 			} catch (error) {
@@ -2051,9 +2189,15 @@ export type SpawnedWorker = {
  * @param workerType
  * @returns
  */
-export function spawnWorkerThread(
+function spawnWorkerThread(
 	workerType: 'v1' | 'v2',
-	{ onExit }: { onExit?: (code: number) => void } = {}
+	{
+		onWorkerCreated,
+		onExit,
+	}: {
+		onWorkerCreated?: (worker: Worker) => void;
+		onExit?: (code: number, processId: number) => void;
+	} = {}
 ) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
@@ -2074,15 +2218,21 @@ export function spawnWorkerThread(
 	} else {
 		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
 	}
+	onWorkerCreated?.(worker);
 
-	return new Promise<SpawnedWorker>((resolve, reject) => {
+	return new Promise<SpawnedWorker>(function initializeWorker(
+		resolve,
+		reject
+	) {
 		const processId = processIdAllocator.claim();
+		let initialized = false;
 
-		worker.once('message', function (message: any) {
+		worker.once('message', function handleWorkerMessage(message: any) {
 			// Let the worker confirm it has initialized.
 			// We could use the 'online' event to detect start of JS execution,
 			// but that would miss initialization errors.
 			if (message.command === 'worker-script-initialized') {
+				initialized = true;
 				resolve({
 					processId,
 					worker,
@@ -2090,7 +2240,7 @@ export function spawnWorkerThread(
 				});
 			}
 		});
-		worker.once('error', function (e: Error) {
+		worker.once('error', function handleWorkerError(e: Error) {
 			processIdAllocator.release(processId);
 
 			console.error(e);
@@ -2102,17 +2252,16 @@ export function spawnWorkerThread(
 			);
 			reject(error);
 		});
-		let spawned = false;
-		worker.once('spawn', () => {
-			spawned = true;
-		});
-		worker.once('exit', (code) => {
+		worker.once('exit', function handleWorkerExit(code) {
 			processIdAllocator.release(processId);
 
-			if (!spawned) {
-				reject(new Error(`Worker exited before spawning: ${code}`));
+			if (!initialized) {
+				reject(new Error(`Worker exited before initializing: ${code}`));
 			}
-			onExit?.(code);
+			// The processId is passed explicitly because 'exit' can fire before
+			// this function's promise resolves, so callers cannot rely on
+			// having received the SpawnedWorker yet.
+			onExit?.(code, processId);
 		});
 	});
 }
@@ -2136,6 +2285,14 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	 */
 	await exposeSyncAPI(fileLockManager, port1);
 	return port2;
+}
+
+function closeMessagePortQuietly(port: NodeMessagePort): void {
+	try {
+		port.close();
+	} catch {
+		// The corresponding worker may already have closed the channel.
+	}
 }
 
 /**

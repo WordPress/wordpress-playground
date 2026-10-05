@@ -95,9 +95,11 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		const { php, reap } = await getPHPInstance();
-
+		let reap: (() => void) | undefined;
 		try {
+			const instance = await getPHPInstance();
+			const { php } = instance;
+			reap = instance.reap;
 			if (options.cwd) {
 				await php.chdir(options.cwd as string);
 			}
@@ -117,21 +119,26 @@ export function sandboxedSpawnHandlerFactory(
 						},
 					});
 
-					result.stdout.pipeTo(
+					const stdout = result.stdout.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stdout(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					result.stderr.pipeTo(
+					const stderr = result.stderr.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stderr(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					processApi.exit(await result.exitCode);
+					const [exitCode] = await Promise.all([
+						result.exitCode,
+						stdout,
+						stderr,
+					]);
+					processApi.exit(exitCode);
 					break;
 				}
 				case 'ls': {
@@ -142,7 +149,11 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await new Promise(function waitForOutputConsumption(
+						resolve
+					) {
+						setTimeout(resolve, 10);
+					});
 					processApi.exit(0);
 					break;
 				}
@@ -151,23 +162,28 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await new Promise(function waitForOutputConsumption(
+						resolve
+					) {
+						setTimeout(resolve, 10);
+					});
 					processApi.exit(0);
 					break;
 				}
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
 			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
 		} finally {
-			reap();
+			reap?.();
 		}
 	});
 }
