@@ -263,6 +263,9 @@ export async function bootWordPress(
 	}
 
 	if (options.dataSqlPath) {
+		php.defineConstant('DB_PATH', options.dataSqlPath);
+
+		// Older SQLite integrations only understand these legacy constants.
 		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
 		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
 	}

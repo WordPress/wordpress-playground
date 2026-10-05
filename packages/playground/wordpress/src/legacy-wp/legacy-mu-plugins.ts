@@ -6,10 +6,8 @@
  * true, and this file owns every PHP string that differs from the
  * modern path.
  *
- * The three common mu-plugins (0-playground.php, sitemap-redirect,
- * inline-tinymce-content-css) are shared with the modern path via
- * {@link writeCommonPlatformMuPlugins} to avoid duplicating ~200
- * lines of identical PHP.
+ * The database metadata preload and common mu-plugins are shared with
+ * the modern path via {@link writeCommonPlatformMuPlugins}.
  */
 import type { UniversalPHP } from '@php-wasm/universal';
 import { writeCommonPlatformMuPlugins } from '../platform-mu-plugins';

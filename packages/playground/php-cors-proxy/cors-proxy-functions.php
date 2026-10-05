@@ -372,6 +372,54 @@ function kv_headers_to_curl_format($headers) {
     return $curl_headers;
 }
 
+/**
+ * Answers whether a response header instructs the web server or CDN in
+ * front of PHP rather than the client.
+ *
+ * For example, nginx performs an internal redirect when PHP sends
+ * X-Accel-Redirect. The proxy must not relay these from a target, or the
+ * target could control the proxy's own server.
+ */
+function is_server_control_response_header($name) {
+    $name = strtolower($name);
+    $prefixes = [
+        // nginx: X-Accel-Redirect, X-Accel-Expires, X-Accel-Buffering, etc.
+        'x-accel-',
+        // LiteSpeed: X-LiteSpeed-Location, X-LiteSpeed-Cache-Control, etc.
+        'x-litespeed-',
+    ];
+    foreach ($prefixes as $prefix) {
+        if (str_starts_with($name, $prefix)) {
+            return true;
+        }
+    }
+    // CDN-targeted cache control. RFC 9213 defines CDN-Cache-Control and
+    // names CDN-specific variants the same way, e.g.
+    // Cloudflare-CDN-Cache-Control. A CDN obeys these over Cache-Control, so
+    // relaying one would override the proxy's Cache-Control: no-cache.
+    if (
+        $name === 'cdn-cache-control' ||
+        str_ends_with($name, '-cdn-cache-control')
+    ) {
+        return true;
+    }
+    return in_array($name, [
+        // Apache mod_xsendfile. X-Sendfile-Temporary also deletes the file
+        // after sending it when the server allows that.
+        'x-sendfile',
+        'x-sendfile-temporary',
+        // lighttpd.
+        'x-sendfile2',
+        'x-lighttpd-send-file',
+        // Other cache directives aimed at CDNs rather than browsers.
+        'surrogate-control',
+        'edge-control',
+        // CGI and FastCGI servers take the response status from this header,
+        // overriding the status PHP would send.
+        'status',
+    ], true);
+}
+
 function rewrite_relative_redirect(
     $request_url,
     $redirect_location,

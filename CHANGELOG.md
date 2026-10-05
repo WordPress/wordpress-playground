@@ -4,6 +4,123 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.57] (2026-10-05) 
+
+### Blueprints
+
+- Allow writeFiles to omit resource for inline file trees\. ([#4359](https://github.com/WordPress/wordpress-playground/pull/4359))
+- Docs\: Add a complete importThemeStarterContent example\. ([#4355](https://github.com/WordPress/wordpress-playground/pull/4355))
+
+### Documentation
+
+- Document ESM and CommonJS build check\. ([#4361](https://github.com/WordPress/wordpress-playground/pull/4361))
+- \[docs\] Generate handbook manifest during documentation builds\. ([#4332](https://github.com/WordPress/wordpress-playground/pull/4332))
+- \[docs\] Updating WASM compiling doc\. ([#4316](https://github.com/WordPress/wordpress-playground/pull/4316))
+- \[docs\] Updating resource documentation with new talks\. ([#4356](https://github.com/WordPress/wordpress-playground/pull/4356))
+- \[i18n\] Translate \'translations\' file into Gujarati\. ([#4367](https://github.com/WordPress/wordpress-playground/pull/4367))
+- \[i18n\] Translate phpunit\-testing guide into Gujarati\. ([#4368](https://github.com/WordPress/wordpress-playground/pull/4368))
+- \[i18n\] Translate troubleshoot file into Gujarati\. ([#4369](https://github.com/WordPress/wordpress-playground/pull/4369))
+- \[i18n\] Update Tagalog code contributions guide to match English documentation\. ([#4354](https://github.com/WordPress/wordpress-playground/pull/4354))
+- docs\(i18n\)\: Translate 06\-bundles documentation to Gujarati\. ([#4371](https://github.com/WordPress/wordpress-playground/pull/4371))
+
+### PHP WebAssembly
+
+- Replace bare \.wasm imports with new URL\(\) in web loaders\. ([#4347](https://github.com/WordPress/wordpress-playground/pull/4347))
+
+### Website
+
+- Acknowledge Blueprint install relay requests\. ([#4350](https://github.com/WordPress/wordpress-playground/pull/4350))
+- Define \`DB\_PATH\` for explicit SQLite database paths\. ([#4374](https://github.com/WordPress/wordpress-playground/pull/4374))
+- Preserve core icon SVGs in minified WordPress builds\. ([#4345](https://github.com/WordPress/wordpress-playground/pull/4345))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @fellyph @JanJakes @Kotiyajenish @mho22 @rahultank-spaceo @rakeshnagar10 @rollybueno @sonali195
+
+
+## [v3.1.56] (2026-09-28) 
+
+### Documentation
+
+- Add CONTRIBUTING\.md linking to the Playground handbook\. ([#4288](https://github.com/WordPress/wordpress-playground/pull/4288))
+- Tagalog\/main\/guides\. ([#4352](https://github.com/WordPress/wordpress-playground/pull/4352))
+- \[CORS Proxy\] Don\'t relay server\-control response headers\. ([#4364](https://github.com/WordPress/wordpress-playground/pull/4364))
+- \[CORS Proxy\] Support HEAD and relay Content\-Length for non\-chunked responses\. ([#4365](https://github.com/WordPress/wordpress-playground/pull/4365))
+- \[CORS Proxy\] Support range requests from browsers\. ([#4362](https://github.com/WordPress/wordpress-playground/pull/4362))
+- \[docs\] Adding MCP playground guide\. ([#3826](https://github.com/WordPress/wordpress-playground/pull/3826))
+- \[i18n\] Translate releases into Gujarati\. ([#4360](https://github.com/WordPress/wordpress-playground/pull/4360))
+- \[i18n\] Update Tagalog Contributor Day guide to match English documentation\. ([#4353](https://github.com/WordPress/wordpress-playground/pull/4353))
+
+### Experiments
+
+
+#### Website
+
+- Support randomized SQLite database storage\. ([#4344](https://github.com/WordPress/wordpress-playground/pull/4344))
+
+### Website
+
+- Migrate remaining Cypress tests to Playwright\. ([#4358](https://github.com/WordPress/wordpress-playground/pull/4358))
+
+#### Blueprints
+
+- Remember and mount plugins\/themes from git in the Files browser\. ([#4300](https://github.com/WordPress/wordpress-playground/pull/4300))
+
+### Various
+
+- \[CI\] Restore the working tree before republishing missing packages\. ([#4349](https://github.com/WordPress/wordpress-playground/pull/4349))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @brandonpayton @fellyph @JanJakes @karan241296 @mho22 @rollybueno @swcidd
+
+
+## [v3.1.55] (2026-09-21) 
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- Align Node\.js engine requirements with WordPress Core 24\.x\. ([#4322](https://github.com/WordPress/wordpress-playground/pull/4322))
+
+### Documentation
+
+- Authenticate remote access host signaling\. ([#4327](https://github.com/WordPress/wordpress-playground/pull/4327))
+- Redirect English documentation pages to developer\.wordpress\.org\. ([#4331](https://github.com/WordPress/wordpress-playground/pull/4331))
+- \[i18n\] Translate GitHub UI contribution guide into Gujarati\. ([#4324](https://github.com/WordPress/wordpress-playground/pull/4324))
+
+### PHP WebAssembly
+
+- Generate Markdown references for the Playground handbook\. ([#4337](https://github.com/WordPress/wordpress-playground/pull/4337))
+
+### Website
+
+- Escape and sandbox the Blueprint Builder error iframe\. ([#4329](https://github.com/WordPress/wordpress-playground/pull/4329))
+- Explain Gutenberg PR preview failures by proxy error code\. ([#4342](https://github.com/WordPress/wordpress-playground/pull/4342))
+- Expose mails to MCP and WebMCP\. ([#4334](https://github.com/WordPress/wordpress-playground/pull/4334))
+- fix\(website\)\: Retarget Gutenberg PR artifact to gutenberg\.zip\. ([#4330](https://github.com/WordPress/wordpress-playground/pull/4330))
+
+### Bug Fixes
+
+- fix\(meta\)\: changelog\: Prevent Markdown\/&lt;HTML\/&gt; injection via PR titles\. ([#4333](https://github.com/WordPress/wordpress-playground/pull/4333))
+
+### Various
+
+- Add troubleshooting mode to Personal WordPress crash dialog\. ([#4343](https://github.com/WordPress/wordpress-playground/pull/4343))
+- Remove URL site setup and add PHP setting to my\.wordpress\.net\. ([#4340](https://github.com/WordPress/wordpress-playground/pull/4340))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@ahirpravin @akirk @brandonpayton @mho22 @mirka @zaerl
+
+
 ## [v3.1.54] (2026-09-14) 
 
 ### Tools

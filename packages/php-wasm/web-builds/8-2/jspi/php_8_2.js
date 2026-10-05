@@ -1,4 +1,5 @@
-import dependencyFilename from './8_2_33/php_8_2.wasm';
+const dependencyFilename = new URL('./8_2_33/php_8_2.wasm', import.meta.url)
+	.href;
 export { dependencyFilename };
 export const dependenciesTotalSize = 17737453;
 const phpVersionString = '8.2.33';

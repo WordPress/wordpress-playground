@@ -46,6 +46,46 @@ deployments must retain every origin they still need.
 The previous `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS` string list is no longer
 supported.
 
+### Range requests
+
+The proxy forwards `Range` to the target and relays `206` and `416`
+responses along with `Content-Range`, `Accept-Ranges`, and `ETag`. When a
+request has a range, the proxy asks the target for
+`Accept-Encoding: identity` so byte offsets refer to the unencoded body.
+
+The proxy relays the target's `Content-Length` unless the target sends a
+chunked response. `HEAD` requests relay it too, so clients can learn a file's
+size before requesting ranges. `HEAD` requests also ask the target for
+`Accept-Encoding: identity`, so the size matches the bytes ranges address.
+
+If the target fails partway through a response, the proxy ends the response
+early without adding anything to the body. When the client receives the
+target's `Content-Length`, it sees fewer bytes than announced and can tell the
+response is incomplete. When it doesn't, a server in front of PHP such as nginx
+or Apache may still end the response normally, so the client can't tell it's
+incomplete. That happens when the target sends a chunked response, and when a
+server in front of PHP compresses the response and drops `Content-Length`. For
+a `206`, compare the body length with `Content-Range` instead.
+
+Every response relayed from a target has `Cache-Control: no-cache`, which
+the WP Cloud edge cache honors by not storing the response. Keep it that
+way: every range of a file shares one proxy URL, so a cached slice could be
+served for another range.
+
+**Workaround:** As of 2026-09-26, the WP Cloud front end of the production
+deployment strips the `Range` header before the request reaches PHP. Until
+that changes, clients can send the same value as
+`X-Cors-Proxy-Range: bytes=0-15`. The proxy forwards it to the target as
+`Range` and never forwards `X-Cors-Proxy-Range` itself.
+
+Clients may send both headers with the same value, so they keep working once
+the workaround is removed. `Range` takes priority: when both arrive with the
+same value, the proxy forwards `Range` unchanged. When they disagree, the
+proxy responds with `400 Bad Request` rather than guess which one is right.
+
+Once `Range` reaches PHP on WP Cloud, remove the workaround from
+`cors-proxy.php` along with this note.
+
 ### Usage
 
 Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the response from https://w.org/?test=1 plus the CORS headers.
@@ -53,7 +93,7 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 ### Development and testing
 
 - Run `dev.sh` to start a local server, then go to http://127.0.0.1:5263/proxy.php/https://w.org/ and confirm it worked.
-- Run `test.sh` to run PHPUnit tests, confirm they all pass.
+- Run `test.sh` to run the PHPUnit tests and the end-to-end tests in `tests/e2e`, confirm they all pass.
 - Run `test-watch.sh` to run PHPUnit tests in watch mode.
 
 ### Design decisions
@@ -62,6 +102,6 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 - Don't pass auth headers in either direction.
     - Opt-in for request headers possible using `X-Cors-Proxy-Allowed-Request-Headers`.
 - Refuse to request private IPs.
-- Refuse to process non-GET non-POST non-OPTIONS requests.
+- Refuse to process requests other than GET, HEAD, POST, and OPTIONS.
 - Refuse to process POST request body larger than, say, 100KB.
 - Refuse to process responses larger than, say, 100MB.

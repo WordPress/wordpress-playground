@@ -10,6 +10,7 @@ import {
 import type { KeyboardEvent, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
+	type GitDirectoryReference,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
@@ -31,7 +32,9 @@ import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import {
 	markSiteMigrationApplied,
 	selectSiteBySlug,
+	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
+import { extractGitDirectorySource } from '../../lib/state/redux/git-directory-sources';
 import {
 	getMainTabUnavailableMessage,
 	markMainTabReady,
@@ -48,7 +51,10 @@ import {
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { playgroundLogo } from '@wp-playground/components';
+import {
+	isMessageFromIframeTree,
+	playgroundLogo,
+} from '@wp-playground/components';
 import { isAppBasePath } from '../../lib/state/url/app-base-url';
 import Button from '../button';
 import { estimateBackupSize, useBackup } from '../../lib/hooks/use-backup';
@@ -1227,10 +1233,26 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						setBlueprintInstallStatus(caption);
 					}
 				}) as EventListener);
+				// Collect git:directory provenance for plugin and theme install
+				// steps so it can be persisted and surfaced in the Files browser.
+				const gitDirectorySources: Record<
+					string,
+					GitDirectoryReference
+				> = {};
 
 				const compiled = await compileBlueprintV1(blueprint, {
 					corsProxy: corsProxyUrl,
 					progress,
+					onStepCompleted: (result, step) => {
+						const extracted = extractGitDirectorySource(
+							step,
+							result
+						);
+						if (extracted) {
+							gitDirectorySources[extracted.assetPath] =
+								extracted.source;
+						}
+					},
 				});
 				await runBlueprintV1Steps(
 					compiled,
@@ -1240,6 +1262,26 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 						allowNavigation
 					)
 				);
+				if (site && Object.keys(gitDirectorySources).length > 0) {
+					try {
+						await dispatch(
+							updateSiteMetadata({
+								slug: site.slug,
+								metadata: {
+									gitDirectorySources: {
+										...site.metadata.gitDirectorySources,
+										...gitDirectorySources,
+									},
+								},
+							})
+						);
+					} catch (error) {
+						logger.error(
+							'Failed to save git directory sources',
+							error
+						);
+					}
+				}
 				if (allowNavigation && declaration.landingPage) {
 					setBlueprintInstallStatus('Opening app\u2026');
 					await playground.goTo(declaration.landingPage);
@@ -1278,6 +1320,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		},
 		[
 			clearInstallBannerResetTimeout,
+			dispatch,
 			playground,
 			scheduleInstallBannerReset,
 			setBlueprintInstallStatus,
@@ -1568,6 +1611,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			});
 			return;
 		}
+
+		postInstallBlueprintResult(event, {
+			blueprintUrl,
+			requestId,
+			status: 'started',
+		});
 
 		postInstallBlueprintResult(event, {
 			blueprintUrl,
@@ -2265,7 +2314,7 @@ type InstallBlueprintResultMessage = {
 	relayType: 'install-blueprint-result';
 	blueprintUrl: string;
 	requestId?: string;
-	status: InstallBlueprintResult['status'] | 'cancelled';
+	status: InstallBlueprintResult['status'] | 'started' | 'cancelled';
 	error?: string;
 };
 
@@ -2439,36 +2488,6 @@ function postBackupSiteResult(
 		} satisfies BackupSiteResultMessage,
 		event.origin
 	);
-}
-
-function isMessageFromIframeTree(
-	event: MessageEvent,
-	iframe: HTMLIFrameElement | null
-): boolean {
-	if (!iframe?.contentWindow || !event.source) {
-		return false;
-	}
-	if (event.source === iframe.contentWindow) {
-		return true;
-	}
-	return isDescendantWindow(iframe.contentWindow, event.source);
-}
-
-function isDescendantWindow(
-	root: Window,
-	candidate: MessageEventSource
-): boolean {
-	try {
-		for (let i = 0; i < root.frames.length; i++) {
-			const child = root.frames[i];
-			if (child === candidate || isDescendantWindow(child, candidate)) {
-				return true;
-			}
-		}
-	} catch {
-		// Cross-origin frames are not inspectable and therefore not accepted.
-	}
-	return false;
 }
 
 function getBlueprintRunnerClient<T extends object>(

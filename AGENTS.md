@@ -54,7 +54,7 @@ npx nx build <package-name>              # Build specific package
 # Testing
 npm test                                 # Run all tests
 npx nx test <package-name>               # Test specific package
-npx nx e2e playground-website            # Run website Cypress E2E tests
+npx nx e2e playground-website            # Run website Playwright E2E tests
 npx nx run playground-website:e2e:playwright:ci # Run website Playwright E2E tests
 
 # Running a single test file
@@ -202,7 +202,7 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
 - **Coverage**: Reports to `coverage/packages/<package-name>`
-- **E2E tests**: Playwright and Cypress for website testing
+- **E2E tests**: Playwright for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
 
 #### Test-value gate
@@ -339,6 +339,11 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- Docusaurus generates `manifest.json` and `translation-availability.json` in the
+  build output for the default locale. The handbook manifest derives pages, titles,
+  hierarchy, and order from loaded docs and sidebars. Legacy handbook URL and
+  generated Markdown exceptions live in `plugins/generate-handbook-manifest.js`.
+  Run `npx nx run docs-site:test-plugins` when changing these build plugins.
 - The docs build generates handbook Markdown in `packages/docs/site/static/handbook/`
   from TypeDoc. Regenerate and commit these files when their source docs or API
   comments change; the WordPress.org importer reads them through `manifest.json`.
