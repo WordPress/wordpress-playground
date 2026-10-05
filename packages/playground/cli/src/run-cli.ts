@@ -42,6 +42,7 @@ import {
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
 } from './defines';
+import { parsePhpIniArguments } from './php-ini';
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
@@ -212,6 +213,17 @@ export async function parseOptionsAndRunCLI(
 				nargs: 2,
 				array: true,
 				coerce: parseDefineNumberArguments,
+			},
+			'php-ini': {
+				describe:
+					'Set php.ini entries (can be used multiple times). ' +
+					'Format: NAME value. ' +
+					"An entry named after an extension is written to that extension's ini file, so it wins over the value the extension ships. " +
+					'Examples: --php-ini memory_limit 256M --php-ini xdebug.mode develop,trace,profile',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parsePhpIniArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
@@ -522,6 +534,7 @@ export async function parseOptionsAndRunCLI(
 			define: sharedOptions['define'],
 			'define-bool': sharedOptions['define-bool'],
 			'define-number': sharedOptions['define-number'],
+			'php-ini': sharedOptions['php-ini'],
 			// Tools
 			phpmyadmin: sharedOptions['phpmyadmin'],
 		};
@@ -877,6 +890,11 @@ export interface RunCLIArgs {
 	 * Set via php.defineConstant(), process-specific only.
 	 */
 	'define-number'?: Record<string, number>;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 * Written to the ini file PHP reads each entry from.
+	 */
+	'php-ini'?: Record<string, string>;
 	defaultedDebugConstants?: string[];
 
 	// --------- Blueprint V1 args -----------

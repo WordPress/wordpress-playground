@@ -194,6 +194,7 @@ export class BlueprintsV1Handler {
 		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
+			phpIniEntries: this.args['php-ini'],
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
 			processId: worker.processId,
