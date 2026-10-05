@@ -1672,7 +1672,15 @@ export class PHP implements Disposable {
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return () => mountObject.unmount();
+		return async () => {
+			// Runtime rotation reapplies the handler with a new teardown callback.
+			// Follow that replacement, but never detach an unrelated mount that
+			// later reused this path with a different handler.
+			const currentMount = this.#mounts[virtualFSPath];
+			if (currentMount?.mountHandler === mountHandler) {
+				await currentMount.unmount();
+			}
+		};
 	}
 
 	/**
