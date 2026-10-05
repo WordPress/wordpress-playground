@@ -3,6 +3,7 @@ import { logger } from '@php-wasm/logger';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
 import css from './style.module.css';
+import { logTrackingEvent } from '../../../lib/tracking';
 import {
 	type PlaygroundClient,
 	type StepDefinition,
@@ -99,6 +100,7 @@ export function AdminerButton({
 		if (state === 'loading') {
 			return;
 		}
+		logTrackingEvent('databaseOpenAdminer');
 
 		if (state === 'idle') {
 			setState('loading');

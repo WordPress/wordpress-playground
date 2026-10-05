@@ -25,7 +25,31 @@ type GAEvent =
 	| 'installPlugin'
 	| 'installTheme'
 	| 'error'
-	| 'mcpConnect';
+	| 'mcpConnect'
+	| 'dockInitialLayout'
+	| 'dockLayoutChanged'
+	| 'dockCollapsed'
+	| 'dockExpanded'
+	| 'dockMoved'
+	| 'dockItemClick'
+	| 'siteSettingsChanged'
+	| 'blueprintRun'
+	| 'blueprintDownload'
+	| 'blueprintCopyUrl'
+	| 'databaseOpenAdminer'
+	| 'databaseOpenPhpMyAdmin'
+	| 'databaseDownload'
+	| 'fileOpen'
+	| 'fileSave'
+	| 'logsSearch'
+	| 'emailSelect'
+	| 'exportDownload'
+	| 'exportLink'
+	| 'exportGitHub'
+	| 'addressBarSuggestion'
+	| 'addressBarRefresh'
+	| 'terminalRunPHP'
+	| 'terminalRunWpCli';
 
 /**
  * Log a tracking event to Google Analytics

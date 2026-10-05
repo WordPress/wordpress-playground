@@ -22,6 +22,8 @@ import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { splitSearchHighlights } from './log-highlights';
 import { parseLogs } from './log-parsing';
 import type { LogEntry, LogTier } from './log-parsing';
+import { logTrackingEvent } from '../../lib/tracking';
+import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 
 export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const activeModal = useSelector(
@@ -56,6 +58,15 @@ export function SiteLogs({ className }: { className?: string }) {
 	const [tierFilter, setTierFilter] = useState<LogTier | 'all'>('all');
 	const [copiedAll, copyAll] = useCopyToClipboard();
 	const contentRef = useRef<HTMLDivElement>(null);
+	const trackSearch = useDebouncedCallback((value: string) => {
+		if (value.trim()) {
+			logTrackingEvent('logsSearch');
+		}
+	}, 500);
+
+	useEffect(() => {
+		trackSearch(searchTerm);
+	}, [searchTerm, trackSearch]);
 
 	// A deep scroll offset makes no sense against a different result set —
 	// jump back to the newest entries whenever the filter or search changes.

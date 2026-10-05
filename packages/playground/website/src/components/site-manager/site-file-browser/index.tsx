@@ -38,6 +38,7 @@ import {
 	type PathBadge,
 	type PlaygroundFileEditorHandle,
 } from '@wp-playground/components';
+import { logTrackingEvent } from '../../../lib/tracking';
 import { GitIcon } from './git-icon';
 import { GitHubIcon } from '../../../github/github';
 
@@ -180,6 +181,7 @@ export function SiteFileBrowser({
 					setMountRequest({ kind, parentPath });
 				}}
 				onPathRenamed={handlePathRenamed}
+				onManualSave={() => logTrackingEvent('fileSave')}
 			/>
 			{mountRequest ? (
 				<MountGitDirectoryModal
@@ -336,6 +338,7 @@ class ClientFilesystemWrapper
 		return this.client.fileExists(path);
 	}
 	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
+		logTrackingEvent('fileOpen');
 		const buffer = await this.client.readFileAsBuffer(path);
 		return {
 			arrayBuffer: async () => buffer.buffer as ArrayBuffer,
