@@ -7,8 +7,8 @@ bridge but not offered in the UI yet. Enter the live site URL and choose **Check
 If Reprint is not detected, the panel provides the v0.10.13 zip and a direct link
 to that site's plugin upload screen. Install and activate it, then check again.
 For an existing setup, open the linked **Tools → Reprint Server** page and copy
-its connection token. A fresh install needs a key: generate one in Playground,
-copy it to that settings page, save it, and confirm that it was saved.
+its connection token. If no key exists yet, create one on that settings page.
+Paste the key into Playground.
 Transfer controls appear after entering a key, or reuse the key remembered in
 this browser tab. Each step focuses its input; a compact step trail keeps the
 completed choices visible without retaining the old forms. Transfer buttons
@@ -53,7 +53,7 @@ bundled `wp-content` while the active content lives elsewhere, the bundled
 copy is kept under `.reprint-source-files/<remote-path>`, not mapped over the
 active content. The same rule covers detached plugins and uploads, including
 content nested inside a bundled directory. Older interrupted file plans are
-rebuilt automatically so Retry does not repeat the old mapping collision.
+rebuilt automatically so resuming does not repeat the old mapping collision.
 There is no up-front rejection based on directory layout or multisite status.
 This does not establish that every multisite network will run unchanged locally;
 the generated Playground configuration is still a single-site configuration.
@@ -95,10 +95,11 @@ does not reuse that key.
 The downloaded site itself can contain passwords, personal data, and plugin
 secrets. Do not share it as a public Playground without cleaning it first.
 
-Keep the tab open. After an error, use Retry to resume the same direction
-with the retained key. Go back to the key step if the key itself needs changing. After reopening, an unfinished stage can run again
-from the start. Do not edit files during a transfer. Reprint push
-uses a fixed snapshot, so edits made after staging need another push. Reprint
+Keep the tab open. After an error, use **Try resuming** to retry with the retained
+key, or **Resume local setup** if downloading finished but local setup failed.
+Go back to the key step if the key itself needs changing. After reopening, an
+unfinished stage can run again from the start. Do not edit files during a transfer.
+Reprint push uses a fixed snapshot, so edits made after staging need another push. Reprint
 may restart its upload plan after reopening a saved Playground. A completed
 pull logs in as the first existing administrator and opens the dashboard. It
 does not change passwords or create an account. A temporary, randomly named
@@ -116,18 +117,18 @@ no cancel/reset UI yet. A tab crash during browser-storage writes may require
 starting over in a new Playground. Very large sites need enough browser memory
 and storage for the site, SQL, SQLite database, and push snapshot.
 
-The pull bar covers the whole operation: files, SQL download, SQL import,
-local configuration, administrator login, and saving. Phase
-weights estimate the work, not elapsed time, and the UI labels the overall
-percentage as an estimate. Within each phase it uses measured progress: selected
+The pull bar covers files, SQL download, SQL import, local configuration, and
+administrator login. A new clone is saved to browser storage afterwards in the
+background; the address bar's save indicator reports that work. Phase weights
+estimate the work, not elapsed time, and the UI labels the overall percentage
+as an estimate. Within each phase it uses measured progress: selected
 file bytes and applied SQL offsets. SQL download shows written bytes without a
 denominator: remote table sizes do not measure SQL dump size. SQL import has
 an exact dump size and shows a separate measured bar alongside overall
 progress. The PHP worker yields briefly between SQL progress updates so they
 reach the page before import finishes. Unknown totals hold the bar at
 the phase boundary rather than advancing on a timer. Within a running transfer,
-resumed batches never move the bar backward. Only a successful
-final storage flush reaches 100%.
+resumed batches never move the bar backward. Only a completed pull reaches 100%.
 
 The generated local WordPress config enables error logging without displaying
 errors in HTML. After login, a homepage request checks for HTTP errors or an
