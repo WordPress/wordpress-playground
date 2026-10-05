@@ -26,13 +26,11 @@ import {
 	cachedDownload,
 	fetchSqliteIntegration,
 } from '../blueprints-v1/download';
-import type { PlaygroundCliBlueprintV2Worker } from './worker-thread-v2';
+import type { PlaygroundCliWorker } from '../worker-thread';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
-	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
-	type WorkerType,
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
@@ -58,10 +56,6 @@ export class BlueprintsV2Handler {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.cliOutput = options.cliOutput;
-	}
-
-	getWorkerType(): WorkerType {
-		return 'v2';
 	}
 
 	async bootWordPress(
@@ -158,9 +152,7 @@ export class BlueprintsV2Handler {
 
 		this.cliOutput.updateProgress('Booting WordPress');
 
-		await (
-			playground as unknown as PlaygroundCliBlueprintV2Worker
-		).bootWordPress(
+		await (playground as unknown as PlaygroundCliWorker).bootWordPress(
 			{
 				phpVersion: runtimeConfiguration.phpVersion,
 				siteUrl: this.siteUrl,
@@ -190,9 +182,7 @@ export class BlueprintsV2Handler {
 		fileLockManagerPort: NodeMessagePort;
 		nativeInternalDirPath: string;
 	}) {
-		const playground = consumeAPI<PlaygroundCliBlueprintV2Worker>(
-			worker.phpPort
-		);
+		const playground = consumeAPI<PlaygroundCliWorker>(worker.phpPort);
 
 		await playground.isConnected();
 		const wordpressInstallMode = await this.getWordPressInstallMode();
