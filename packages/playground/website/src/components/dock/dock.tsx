@@ -39,6 +39,7 @@ import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
+import type { ToolHeaderState } from '../site-manager/site-info-panel/site-tool-renderers';
 import {
 	useRecentAutosaveNudgeVisible,
 	useSetRecentAutosaveNudgeAnchor,
@@ -90,17 +91,29 @@ export function Dock({
 			setNewPlaygroundHeaderOverride(header),
 		[]
 	);
+	const [toolBack, setToolBack] = useState<ToolHeaderState>();
+	const {
+		action: toolAction,
+		hideHeader: toolHidesHeader,
+		...toolHeader
+	} = toolBack ?? {};
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
+	const cloneRequested = useAppSelector((state) => state.ui.cloneRequested);
 	const paneCopy = getDockTool(section);
-	const paneTitle = paneCopy.title;
+	const cloningSite = section === 'transfer' && cloneRequested;
+	const paneTitle = cloningSite ? 'Clone a WordPress site' : paneCopy.title;
+	const paneDescription = cloningSite
+		? 'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.'
+		: paneCopy.description;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = paneCopy.layout === 'editor';
 	const isWideSection = paneCopy.layout === 'wide';
 	const isFixedHeightSection =
 		Boolean(paneCopy.fixedHeight) ||
 		(section === 'share' && shareExportOpen);
-	const showSharedHeader = !isEditorSection;
+	const showSharedHeader =
+		!isEditorSection && !(section === 'transfer' && toolHidesHeader);
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
@@ -163,7 +176,9 @@ export function Dock({
 			? newPlaygroundHeaderOverride
 			: section === 'share' && shareExportOpen
 				? githubExportHeaderOverride
-				: undefined;
+				: section === 'transfer' && toolBack
+					? { title: paneTitle, ...toolHeader }
+					: undefined;
 
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
 	const [paneHeight, setPaneHeight] = useState(0);
@@ -235,24 +250,6 @@ export function Dock({
 		window.addEventListener('resize', updateViewportSize);
 		return () => window.removeEventListener('resize', updateViewportSize);
 	}, []);
-
-	useLayoutEffect(() => {
-		const pane = paneRef.current;
-		if (!dockPaneIsOpen || !pane) {
-			setPaneHeight(0);
-			return;
-		}
-
-		/** Keeps the toast above content-driven panes as their height changes. */
-		const updatePaneHeight = () => setPaneHeight(pane.offsetHeight);
-		updatePaneHeight();
-		if (typeof ResizeObserver === 'undefined') {
-			return;
-		}
-		const observer = new ResizeObserver(updatePaneHeight);
-		observer.observe(pane);
-		return () => observer.disconnect();
-	}, [section, dockPaneIsOpen]);
 
 	useLayoutEffect(() => {
 		const toast = operationToastRef.current;
@@ -962,6 +959,138 @@ export function Dock({
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
 	});
+	// The last settled pane height. Content-driven panes jump when a section
+	// or step swaps their content; this lets the next layout animate from it.
+	const settledPaneHeightRef = useRef(0);
+	const fixedPaneHeight =
+		typeof paneStyle?.height === 'number'
+			? `${paneStyle.height}px`
+			: String(paneStyle?.height ?? '');
+	useLayoutEffect(() => {
+		const pane = paneRef.current;
+		if (!dockPaneIsOpen || !pane) {
+			settledPaneHeightRef.current = 0;
+			setPaneHeight(0);
+			return;
+		}
+		if (isMobile) {
+			// Mobile panes fill the screen above the Dock. Their flexed children
+			// reflect that imposed height; feeding it into the content-height
+			// animation creates a resize loop instead of measuring content.
+			pane.style.height = '';
+			pane.style.transition = '';
+			pane.style.overflow = '';
+			settledPaneHeightRef.current = pane.offsetHeight;
+			setPaneHeight(pane.offsetHeight);
+			return;
+		}
+		// The tallest the pane may grow (its CSS max-height), probed once.
+		pane.style.transition = 'none';
+		pane.style.height = '99999px';
+		const maxHeight = pane.offsetHeight;
+		pane.style.height = fixedPaneHeight;
+		pane.style.transition = '';
+		/**
+		 * The height the content wants, read from the children so the pane's
+		 * own animated height never enters the measurement.
+		 */
+		const naturalHeight = () => {
+			if (fixedPaneHeight) return pane.offsetHeight;
+			let sum = 0;
+			for (const child of Array.from(pane.children)) {
+				sum += child.getBoundingClientRect().height;
+			}
+			return Math.min(sum, maxHeight);
+		};
+		let target = 0;
+		let animating = false;
+		let cleanupAnimation = () => {};
+		/** Keeps the toast above content-driven panes as their height changes. */
+		const settle = (height: number) => {
+			animating = false;
+			target = height;
+			settledPaneHeightRef.current = height;
+			setPaneHeight(height);
+		};
+		/** Slides the pane edge from one height to the next. */
+		const animateHeight = (from: number, to: number) => {
+			cleanupAnimation();
+			if (
+				Math.abs(from - to) < 1 ||
+				window.matchMedia('(prefers-reduced-motion: reduce)').matches
+			) {
+				pane.style.transition = '';
+				pane.style.overflow = '';
+				pane.style.height = fixedPaneHeight;
+				settle(to);
+				return;
+			}
+			target = to;
+			animating = true;
+			pane.style.transition = 'none';
+			pane.style.height = `${from}px`;
+			pane.style.overflow = 'hidden';
+			void pane.offsetHeight;
+			pane.style.transition =
+				'height 240ms cubic-bezier(0.22, 1, 0.36, 1)';
+			pane.style.height = `${to}px`;
+			const finish = (event?: TransitionEvent) => {
+				// Child transitions (button hovers, focus rings) bubble here too.
+				if (
+					event &&
+					(event.target !== pane || event.propertyName !== 'height')
+				) {
+					return;
+				}
+				cleanupAnimation();
+				pane.style.transition = '';
+				pane.style.overflow = '';
+				pane.style.height = fixedPaneHeight;
+				settle(to);
+			};
+			const timer = window.setTimeout(finish, 300);
+			pane.addEventListener('transitionend', finish);
+			cleanupAnimation = () => {
+				window.clearTimeout(timer);
+				pane.removeEventListener('transitionend', finish);
+				cleanupAnimation = () => {};
+			};
+		};
+		animateHeight(
+			settledPaneHeightRef.current || naturalHeight(),
+			naturalHeight()
+		);
+		if (typeof ResizeObserver === 'undefined') {
+			return cleanupAnimation;
+		}
+		// Content changes, including ones that land mid-animation, move the
+		// target; the edge continues from wherever it is.
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			const natural = naturalHeight();
+			if (Math.abs(natural - target) < 1) return;
+			// Resizing the pane inside the observer callback would trigger the
+			// browser's loop guard; start the animation on the next frame.
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() =>
+				// Once settled the pane already sits at the new height, so the
+				// old edge comes from the last settled value, not the live box.
+				animateHeight(
+					animating
+						? pane.getBoundingClientRect().height
+						: settledPaneHeightRef.current,
+					natural
+				)
+			);
+		});
+		observer.observe(pane);
+		for (const child of Array.from(pane.children)) observer.observe(child);
+		return () => {
+			cancelAnimationFrame(frame);
+			observer.disconnect();
+			cleanupAnimation();
+		};
+	}, [section, dockPaneIsOpen, fixedPaneHeight, isMobile]);
 	const operationToastStyle = getDockOperationToastStyle({
 		isMobile,
 		dockSize,
@@ -1066,7 +1195,7 @@ export function Dock({
 					description={
 						section === 'settings' && activeSite
 							? undefined
-							: paneCopy.description
+							: paneDescription
 					}
 					headerSubtitle={
 						section === 'settings' && activeSite ? (
@@ -1118,6 +1247,8 @@ export function Dock({
 								<Icon icon={plus} size={20} />
 								New Playground
 							</button>
+						) : section === 'transfer' ? (
+							toolAction
 						) : undefined
 					}
 					headerOverride={paneHeaderOverride}
@@ -1148,6 +1279,7 @@ export function Dock({
 						isVisible={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
+						onToolBackChange={setToolBack}
 						onNewPlaygroundHeaderChange={
 							handleNewPlaygroundHeaderChange
 						}
@@ -1228,7 +1360,9 @@ export function Dock({
 							<AddressBar
 								url={clientInfo?.url}
 								isMobile={isMobile}
-								disabled={!clientInfo}
+								// A running transfer owns the site: no navigation
+								// and no quick-navigation popover meanwhile.
+								disabled={!clientInfo || paneCloseBlocked}
 								onUpdate={
 									clientInfo
 										? (newUrl) =>

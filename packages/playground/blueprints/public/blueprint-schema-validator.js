@@ -1516,6 +1516,11 @@ const schema11 = {
 					description:
 						'The code snippet to eval instead of a php file.',
 				},
+				usePrimaryPhp: {
+					type: 'boolean',
+					description:
+						'Run on the primary PHP instance instead of any pooled instance.\n\nPooled instances see shared paths through a proxy filesystem whose node cache is not invalidated when the primary deletes a file. A job that spans several runs and rewrites its own state files must stay on the primary so every run sees the same filesystem. The run waits for the primary to become free.',
+				},
 			},
 			additionalProperties: false,
 		},
@@ -7786,6 +7791,11 @@ const schema39 = {
 			type: 'string',
 			description: 'The code snippet to eval instead of a php file.',
 		},
+		usePrimaryPhp: {
+			type: 'boolean',
+			description:
+				'Run on the primary PHP instance instead of any pooled instance.\n\nPooled instances see shared paths through a proxy filesystem whose node cache is not invalidated when the primary deletes a file. A job that spans several runs and rewrites its own state files must stay on the primary so every run sees the same filesystem. The run waits for the primary to become free.',
+		},
 	},
 	additionalProperties: false,
 };
@@ -8803,6 +8813,41 @@ function validate39(
 														_errs49 === errors;
 												} else {
 													var valid0 = true;
+												}
+												if (valid0) {
+													if (
+														data.usePrimaryPhp !==
+														undefined
+													) {
+														const _errs51 = errors;
+														if (
+															typeof data.usePrimaryPhp !==
+															'boolean'
+														) {
+															validate39.errors =
+																[
+																	{
+																		instancePath:
+																			instancePath +
+																			'/usePrimaryPhp',
+																		schemaPath:
+																			'#/properties/usePrimaryPhp/type',
+																		keyword:
+																			'type',
+																		params: {
+																			type: 'boolean',
+																		},
+																		message:
+																			'must be boolean',
+																	},
+																];
+															return false;
+														}
+														var valid0 =
+															_errs51 === errors;
+													} else {
+														var valid0 = true;
+													}
 												}
 											}
 										}

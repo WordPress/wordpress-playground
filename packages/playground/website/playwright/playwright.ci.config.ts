@@ -10,6 +10,9 @@ import playwrightConfig from './playwright.config';
  * does not need to know which files contain storage tests.
  */
 const storageTests = /@storage/;
+// Pulls a real WordPress site served next to the runner; see
+// playwright/reprint-site/serve.sh. Its own lane provisions that site.
+const reprintImportTests = /@reprint-import/;
 const testGroupOptions = getTestGroupOptions(process.env.PLAYWRIGHT_TEST_GROUP);
 
 function getTestGroupOptions(testGroup: string | undefined) {
@@ -18,12 +21,14 @@ function getTestGroupOptions(testGroup: string | undefined) {
 			// Storage tests share browser-scoped OPFS, so one worker prevents
 			// them from changing the same storage concurrently.
 			return { grep: storageTests, workers: 1 };
+		case 'reprint-import':
+			return { grep: reprintImportTests, workers: 1, retries: 1 };
 		case 'regular':
-			return { grepInvert: storageTests };
+			return { grepInvert: /@storage|@reprint-import/ };
 		default:
 			throw new Error(
 				`Unsupported PLAYWRIGHT_TEST_GROUP: ${JSON.stringify(testGroup)}. ` +
-					'Expected "regular" or "storage".'
+					'Expected "regular", "storage" or "reprint-import".'
 			);
 	}
 }

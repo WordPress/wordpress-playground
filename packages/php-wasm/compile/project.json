@@ -2,6 +2,16 @@
 	"name": "php-wasm-compile",
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"targets": {
+		"test": {
+			"executor": "nx:run-commands",
+			"inputs": [
+				"default",
+				"{workspaceRoot}/packages/php-wasm/web-builds/*/*/php_*.js"
+			],
+			"options": {
+				"command": "node --test packages/php-wasm/compile/php/emscripten-sleep.test.cjs"
+			}
+		},
 		"compile": {
 			"executor": "nx:run-commands",
 			"options": {

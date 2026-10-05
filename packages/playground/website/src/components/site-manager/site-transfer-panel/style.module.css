@@ -1,0 +1,352 @@
+.panel {
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.panel p {
+	margin: 0;
+}
+
+/* Field and action share one row. The button bottom-aligns so a visible label
+   above the field does not stretch it. */
+.site-form {
+	align-items: end;
+	display: grid;
+	gap: var(--space-2);
+	grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.intro {
+	color: var(--ink-soft);
+	margin-bottom: var(--space-2);
+}
+
+/* Each step asks for one thing, so that field is sized like an address bar
+   rather than a settings input. */
+.hero-input :global(.components-text-control__input) {
+	border-radius: var(--radius-control);
+	box-sizing: border-box;
+	font-size: 16px;
+	height: 48px;
+	padding-inline: var(--space-4);
+}
+
+.hint {
+	color: var(--ink-muted);
+	font-size: 13px;
+}
+
+.hint a {
+	color: var(--ink-muted);
+	text-decoration: underline;
+}
+
+.hint a:hover {
+	color: var(--ink);
+}
+
+.panel :global(.components-button) {
+	align-self: flex-start;
+	border-radius: var(--radius-control);
+	height: auto;
+	justify-content: center;
+	min-height: 36px;
+	white-space: normal;
+}
+
+/* Same fixed height as the field beside it, so both boxes share one edge in
+   every browser. */
+.site-form :global(.components-button) {
+	align-self: end;
+	box-sizing: border-box;
+	height: 48px;
+	padding-inline: var(--space-4);
+}
+
+.error-title {
+	color: var(--ink);
+	display: block;
+	font-weight: 600;
+	margin-bottom: var(--space-1);
+}
+
+.error-title ~ p + p {
+	margin-top: var(--space-2);
+}
+
+.steps {
+	list-style: decimal;
+	margin: 0;
+	padding-inline-start: 1.5em;
+}
+
+.steps li::marker {
+	color: var(--ink-muted);
+}
+
+.actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+}
+
+/* Stop is an escape hatch, not the next step: a faded button at the trailing
+   edge, sharing a row with the reminder so the two quiet things sit together. */
+.transfer-footer {
+	align-items: center;
+	display: flex;
+	gap: var(--space-4);
+	justify-content: space-between;
+}
+
+.transfer-footer .hint {
+	margin: 0;
+}
+
+.stop-button {
+	flex: none;
+	opacity: 0.6;
+	transition: opacity 120ms ease;
+}
+
+.stop-button:hover,
+.stop-button:focus-visible {
+	opacity: 1;
+}
+
+/* Keep the chosen site visible when moving between connection steps. */
+.site-address {
+	color: var(--ink);
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+	.site-form {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.transfer-progress {
+	/* Same height in every phase; see TransferProgressView. */
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-2) 0;
+}
+
+.progress-heading {
+	align-items: baseline;
+	color: var(--ink);
+	display: flex;
+	gap: var(--space-3);
+	min-height: 40px;
+}
+
+.progress-percent {
+	color: var(--ink);
+	font-size: 34px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1;
+	min-width: 3.2ch;
+}
+
+.progress-percent:empty {
+	display: none;
+}
+
+.progress-message {
+	font-size: 15px;
+	font-weight: 500;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.progress-details {
+	color: var(--ink-muted);
+	column-gap: var(--space-3);
+	display: grid;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	grid-template-columns: minmax(0, 1fr) auto;
+	/* Reserve both rows even when a phase has no counters or table details. */
+	grid-template-rows: repeat(2, 1.5em);
+	line-height: 1.5;
+}
+
+.progress-details span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.progress-context {
+	grid-column: 1 / -1;
+}
+
+.overflow-menu :global(.components-button) {
+	color: var(--ink-muted);
+	min-height: 0;
+	padding: 0;
+}
+
+.transfer-progress progress {
+	appearance: none;
+	background: var(--border-subtle);
+	border: 0;
+	border-radius: 999px;
+	display: block;
+	height: 6px;
+	overflow: hidden;
+	width: 100%;
+}
+
+.transfer-progress progress::-webkit-progress-bar {
+	background: var(--border-subtle);
+}
+
+.transfer-progress progress::-webkit-progress-value {
+	background: var(--accent);
+	border-radius: 999px;
+	transition: width 240ms ease-out;
+}
+
+.transfer-progress progress::-moz-progress-bar {
+	background: var(--accent);
+	border-radius: 999px;
+}
+
+/* No percentage yet: a sweeping band instead of a different component. */
+.transfer-progress progress:not([value]) {
+	background:
+		linear-gradient(90deg, transparent, var(--accent) 50%, transparent) 0
+			0 / 40% 100% no-repeat,
+		var(--border-subtle);
+	animation: progress-sweep 1.2s ease-in-out infinite;
+}
+
+.transfer-progress progress:not([value])::-webkit-progress-bar {
+	background: transparent;
+}
+
+.transfer-progress progress:not([value])::-moz-progress-bar {
+	background: transparent;
+}
+
+@keyframes progress-sweep {
+	from {
+		background-position:
+			-40% 0,
+			0 0;
+	}
+	to {
+		background-position:
+			140% 0,
+			0 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.transfer-progress progress:not([value]) {
+		animation: none;
+		background: var(--border-subtle);
+	}
+}
+
+.step-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+	animation: step-enter 240ms ease-out;
+}
+/* Steps advance left to right, so the new one slides in from the right. */
+@keyframes step-enter {
+	from {
+		opacity: 0;
+		transform: translateX(24px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+/* The completed site step stays visible as one green line above the key
+   form, so the second step reads as progress rather than as the same form. */
+.field-error {
+	color: #b32d2e;
+	font-size: 13px;
+	margin: 0;
+}
+
+.input-invalid :global(.components-input-control__backdrop) {
+	border-color: #b32d2e;
+}
+
+/* Completion is the one centered step: every form step is left-aligned, so
+   the change of composition alone says "done". */
+.done {
+	align-items: center;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding-top: var(--space-6);
+	text-align: center;
+}
+
+.done-icon {
+	align-items: center;
+	background: #e3f3e8;
+	border-radius: 50%;
+	color: #1e7c3f;
+	display: inline-flex;
+	flex: none;
+	height: 56px;
+	justify-content: center;
+	width: 56px;
+}
+
+.done-icon svg {
+	fill: currentColor;
+}
+
+.done-title {
+	color: var(--ink);
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.done-summary {
+	color: var(--ink-muted);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+.done-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	justify-content: center;
+}
+
+.done-note {
+	color: var(--ink-muted);
+	font-size: 13px;
+	line-height: 1.6;
+	text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.step-content {
+		animation: none;
+	}
+}

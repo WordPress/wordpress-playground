@@ -2470,6 +2470,13 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 				)
 			)
 			.toBe(true);
+		// The pane animates its height when a subpanel opens, which moves the
+		// header until the inline height is cleared. Measure once it settles.
+		await expect
+			.poll(() =>
+				githubExportPane.evaluate((element) => element.style.height)
+			)
+			.toBe('');
 		const headingTop = await heading.evaluate(
 			(element) => element.getBoundingClientRect().top
 		);
