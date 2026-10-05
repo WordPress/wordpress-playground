@@ -354,6 +354,162 @@ function playground_enable_site_thumbnail_capture() {
 add_action('wp_head', 'playground_enable_site_thumbnail_capture');
 add_action('admin_head', 'playground_enable_site_thumbnail_capture');
 
+/** Handles native ability discovery and execution with the requesting WordPress user. */
+function playground_abilities_request() {
+	if (!is_user_logged_in()) {
+		wp_send_json_error(array(
+			'message' => 'Sign in to WordPress and refresh the abilities pane.'
+		), 401);
+	}
+	if (!check_ajax_referer('playground-abilities', 'nonce', false)) {
+		wp_send_json_error(array(
+			'message' => 'Your session expired. Reload WordPress and refresh the abilities pane.'
+		), 403);
+	}
+	$available = function_exists('wp_get_abilities') && function_exists('wp_get_ability');
+	if ($_POST['action'] === 'playground_list_abilities') {
+		$user = wp_get_current_user();
+		$abilities = array();
+		if ($available) {
+			foreach (wp_get_abilities() as $ability) {
+				$abilities[] = array(
+					'name' => $ability->get_name(),
+					'label' => $ability->get_label(),
+					'description' => $ability->get_description(),
+					'category' => $ability->get_category(),
+					'input_schema' => playground_ability_schema_to_json(
+						$ability->get_input_schema()
+					),
+					'output_schema' => playground_ability_schema_to_json(
+						$ability->get_output_schema()
+					),
+					'meta' => (object) $ability->get_meta(),
+				);
+			}
+		}
+		wp_send_json(array(
+			'available' => $available,
+			'user' => array('id' => $user->ID, 'name' => $user->display_name),
+			'abilities' => $abilities,
+		));
+	}
+	if (!isset($_POST['name']) || !is_string($_POST['name'])) {
+		wp_send_json_error(array('message' => 'An ability name is required.'), 400);
+	}
+	$name = wp_unslash($_POST['name']);
+	$ability = $available ? wp_get_ability($name) : null;
+	if (!$ability) {
+		wp_send_json(array('success' => false, 'errors' => array(array(
+			'code' => 'ability_not_found',
+			'message' => 'This ability is unavailable. Refresh the abilities list.',
+		))));
+	}
+	$input = null;
+	if (isset($_POST['input'])) {
+		if (!is_string($_POST['input'])) {
+			wp_send_json_error(array('message' => 'Invalid JSON input.'), 400);
+		}
+		$input = json_decode(wp_unslash($_POST['input']), true);
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			wp_send_json_error(array('message' => 'Invalid JSON input.'), 400);
+		}
+	}
+	$result = $ability->execute($input);
+	if (is_wp_error($result)) {
+		$errors = array();
+		foreach ($result->get_error_codes() as $code) {
+			foreach ($result->get_error_messages($code) as $message) {
+				$errors[] = array(
+					'code' => $code,
+					'message' => $message,
+					'data' => $result->get_error_data($code),
+				);
+			}
+		}
+		wp_send_json(array('success' => false, 'errors' => $errors));
+	}
+	$output_schema = $ability->get_output_schema();
+	if (
+		$result === array() &&
+		is_array($output_schema) &&
+		($output_schema['type'] ?? null) === 'object'
+	) {
+		$result = new stdClass();
+	}
+	wp_send_json(array('success' => true, 'data' => $result));
+}
+
+/**
+ * Prepares an ability schema for JSON. PHP encodes empty arrays as `[]`, so
+ * schema nodes and maps such as `properties => array()` must become objects.
+ * Schema lists and literal values keep their array shape. Empty object defaults
+ * of object schemas get the same treatment.
+ */
+function playground_ability_schema_to_json($schema) {
+	if (!is_array($schema) || $schema === array()) {
+		return null;
+	}
+	return playground_ability_schema_objects($schema);
+}
+
+function playground_ability_schema_objects($schema) {
+	if (!is_array($schema)) {
+		// Nested schemas may also be JSON Schema booleans.
+		return $schema;
+	}
+	$object_keywords = array(
+		'properties',
+		'patternProperties',
+		'definitions',
+		'$defs',
+		'dependencies',
+		'dependentSchemas',
+	);
+	$schema_keywords = array(
+		'additionalProperties', 'additionalItems', 'items', 'contains',
+		'propertyNames', 'not', 'if', 'then', 'else',
+		'unevaluatedProperties', 'unevaluatedItems', 'contentSchema',
+	);
+	$list_keywords = array('allOf', 'anyOf', 'oneOf', 'prefixItems');
+	foreach ($schema as $key => $value) {
+		if (!is_array($value)) {
+			continue;
+		}
+		if (in_array($key, $object_keywords, true)) {
+			$children = array();
+			foreach ($value as $name => $child) {
+				// Legacy dependencies can contain property-name lists or schemas.
+				if (
+					$key === 'dependencies' &&
+					is_array($child) &&
+					($child === array() || isset($child[0]))
+				) {
+					$children[$name] = $child;
+				} else {
+					$children[$name] = playground_ability_schema_objects($child);
+				}
+			}
+			$schema[$key] = (object) $children;
+		} elseif ($key === 'default' || $key === 'const') {
+			if ($value === array() && ($schema['type'] ?? null) === 'object') {
+				$schema[$key] = new stdClass();
+			}
+		} elseif (
+			in_array($key, $list_keywords, true) ||
+			($key === 'items' && isset($value[0]))
+		) {
+			$schema[$key] = array_map('playground_ability_schema_objects', $value);
+		} elseif (in_array($key, $schema_keywords, true)) {
+			$schema[$key] = playground_ability_schema_objects($value);
+		}
+	}
+	return (object) $schema;
+}
+add_action('wp_ajax_playground_list_abilities', 'playground_abilities_request');
+add_action('wp_ajax_playground_execute_ability', 'playground_abilities_request');
+add_action('wp_ajax_nopriv_playground_list_abilities', 'playground_abilities_request');
+add_action('wp_ajax_nopriv_playground_execute_ability', 'playground_abilities_request');
+
 /**
  * Exposes a WebMCP `modelContext` inside the WordPress document and proxies it
  * to the Playground frame.
@@ -394,6 +550,7 @@ function playground_enable_webmcp_bridge() {
 			// The remote frame is same-origin with this document.
 			var parentOrigin = window.location.origin;
 			var tools = new Map();
+			var documentId = crypto.randomUUID();
 			var announceScheduled = false;
 
 			/**
@@ -422,7 +579,7 @@ function playground_enable_webmcp_bridge() {
 						});
 					});
 					window.parent.postMessage(
-						{ type: TOOLS_CHANGED, tools: described },
+						{ type: TOOLS_CHANGED, tools: described, documentId: documentId },
 						parentOrigin
 					);
 				});
@@ -550,6 +707,47 @@ function playground_enable_webmcp_bridge() {
 					event.origin !== parentOrigin ||
 					!event.data
 				) {
+					return;
+				}
+				if (event.data.documentId && event.data.documentId !== documentId) {
+					respond(event.data.callId, null, 'WordPress navigated. Refresh and try again.');
+					return;
+				}
+				if (
+					event.data.type === 'playground-abilities-list' ||
+					event.data.type === 'playground-abilities-execute'
+				) {
+					var request = event.data;
+					var form = new URLSearchParams();
+					form.set('action', request.type === 'playground-abilities-list'
+						? 'playground_list_abilities' : 'playground_execute_ability');
+					form.set('nonce', <?php echo wp_json_encode(wp_create_nonce('playground-abilities')); ?>);
+					form.set('name', request.name || '');
+					if (request.arguments !== undefined) {
+						form.set('input', JSON.stringify(request.arguments));
+					}
+					fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, {
+						method: 'POST', credentials: 'same-origin', body: form
+					}).then(function (response) {
+						return response.text().then(function (text) {
+							var result;
+							try {
+								result = JSON.parse(text);
+							} catch (e) {
+								throw new Error('WordPress returned an invalid response (HTTP ' +
+									response.status + '). The operation may have completed.');
+							}
+							if (!response.ok) {
+								throw new Error(result && result.data && result.data.message ||
+									'WordPress could not complete the request. Reload WordPress and try again.');
+							}
+							return result;
+						});
+					}).then(function (result) {
+						respond(request.callId, result, null);
+					}, function (error) {
+						respond(request.callId, null, error.message);
+					});
 					return;
 				}
 				if (event.data.type === LIST_TOOLS) {

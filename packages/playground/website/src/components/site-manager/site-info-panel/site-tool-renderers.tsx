@@ -16,6 +16,20 @@ import { SiteMailPanel } from '../site-mail-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import css from './style.module.css';
 
+const SiteAbilitiesPanel = lazy(() =>
+	import('../site-abilities-panel').then((m) => ({
+		default: m.SiteAbilitiesPanel,
+	}))
+);
+
+export function AbilitiesTool(props: SiteToolPanelProps) {
+	return (
+		<Suspense fallback={<PaneLoading message="Loading abilities…" />}>
+			<SiteAbilitiesPanel {...props} />
+		</Suspense>
+	);
+}
+
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
