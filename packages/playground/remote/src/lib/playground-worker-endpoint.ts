@@ -643,7 +643,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					opfsMount = mount;
 					// Runtime rotation invokes this handler again. Explicit flushes
 					// must drain the replacement journal, not the detached one.
-					this.opfsMounts[options.mountpoint] = mount;
+					// Register the first mount only after initial sync succeeds below;
+					// a failed copy discards its journal and must allow another save.
+					if (hasOwnProperty(this.opfsMounts, options.mountpoint)) {
+						this.opfsMounts[options.mountpoint] = mount;
+					}
 				},
 			})
 		);
