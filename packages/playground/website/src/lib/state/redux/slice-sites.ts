@@ -1,3 +1,14 @@
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
+import {
+	navigateToFreshOrigin,
+	snapshotOriginBlueprint,
+} from '../../origin-isolation';
+import {
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+} from './slice-clients';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import {
 	createSlice,
@@ -5,7 +16,11 @@ import {
 	createSelector,
 } from '@reduxjs/toolkit';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectActiveSite, setActiveSite } from './store';
+import {
+	selectActiveSite,
+	selectActiveSiteError,
+	setActiveSite,
+} from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import type { OriginalUrlParams } from '../original-url-params';
 import {
@@ -323,7 +338,9 @@ export function addSite(siteInfo: SiteInfo) {
  *
  * Temporary sites are rejected because they only exist in redux state. If
  * deleting the OPFS data fails, the redux record remains available for retry
- * and the storage error is rethrown.
+ * and the storage error is rethrown. The active OPFS journal is drained and
+ * detached before deletion; failed deletion restores it so edits stay saved.
+ * Deletion during initial setup or an in-flight save is rejected for retry.
  *
  * @param options.replacementSiteSlug Site to select after deleting the active
  * site. Falls back to the most recently created remaining site.
@@ -349,7 +366,55 @@ export function removeSite(
 				'Cannot remove a saved Playground because browser storage is not available.'
 			);
 		}
-		await opfsSiteStorage.delete(siteInfo.slug);
+		const clientInfo = selectClientInfoBySiteSlug(getState(), slug);
+		// Initializers and the first file copy can still create the OPFS tree.
+		// Refuse deletion until they settle instead of racing or canceling a save.
+		if (clientInfo?.opfsSync?.status === 'syncing') {
+			throw new Error(
+				'Cannot delete a Playground while its files are being saved. Try again once saving finishes.'
+			);
+		}
+		let mount =
+			siteInfo.metadata.storage === 'opfs'
+				? clientInfo?.opfsMountDescriptor
+				: undefined;
+		if (mount && clientInfo) {
+			// Boot records the planned mount before an import initializer runs.
+			// If that initializer fails, there is no active journal to detach.
+			if (await clientInfo.client.hasOpfsMount(mount.mountpoint)) {
+				// removeEntry cannot delete files while the PHP journal holds writes open.
+				await clientInfo.client.unmountOpfs(mount.mountpoint);
+			} else {
+				mount = undefined;
+			}
+		}
+		try {
+			await opfsSiteStorage.delete(siteInfo.slug);
+		} catch (error) {
+			if (mount && clientInfo) {
+				try {
+					await clientInfo.client.mountOpfs({
+						...mount,
+						initialSyncDirection: 'memfs-to-opfs',
+					});
+				} catch (restoreError) {
+					logger.error(
+						'Could not restore storage after deletion failed.',
+						restoreError
+					);
+					dispatch(
+						updateClientInfo({
+							siteSlug: slug,
+							changes: {
+								opfsMountDescriptor: undefined,
+								opfsSync: { status: 'error' },
+							},
+						})
+					);
+				}
+			}
+			throw error;
+		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
@@ -446,11 +511,13 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
 
 /**
  * Creates or reuses a temporary Playground in the redux state. Replacements
- * receive a different slug so React boots them in a fresh iframe.
+ * receive a different slug so React boots them in a fresh iframe. In the
+ * prototype, a used origin instead stages the URL or complete bundle on a new
+ * subdomain and navigates; callers in the old document do not resume.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
-	playgroundUrlWithQueryApiArgs: URL,
+	source: URL | TraversableFilesystemBackend,
 	preferredSlug?: string,
 	options: { replaceExisting?: boolean } = {}
 ) {
@@ -458,10 +525,28 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const newSiteUrlParams = getOriginalUrlParams(
-			playgroundUrlWithQueryApiArgs
-		);
+		const sourceUrl = source instanceof URL ? source : undefined;
+		if (needsFreshOrigin(getState())) {
+			const url = sourceUrl ?? new URL('/', window.location.href);
+			url.searchParams.set('storage', 'temp');
+			return await navigateToFreshOrigin({
+				url: url.href,
+				name: siteName,
+				storage: 'temporary',
+				blueprint:
+					source instanceof URL
+						? undefined
+						: await snapshotOriginBlueprint(source),
+			});
+		}
+		const newSiteUrlParams = sourceUrl
+			? getOriginalUrlParams(sourceUrl)
+			: undefined;
+		const sourceSetupUrlFingerprint = sourceUrl
+			? getAutosaveFingerprintFromURL(sourceUrl)
+			: undefined;
 
+		/** Keep the failed setup visible without pretending that a PHP runtime was created. */
 		const showTemporarySiteError = (params: {
 			error: SiteError;
 			details: unknown;
@@ -475,9 +560,7 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
-					sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-						playgroundUrlWithQueryApiArgs
-					),
+					sourceSetupUrlFingerprint,
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -522,7 +605,7 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite && !options.replaceExisting) {
+		if (sourceUrl && currentTemporarySite && !options.replaceExisting) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
@@ -562,10 +645,10 @@ export function setTemporarySiteSpec(
 
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
-			resolvedBlueprint = await resolveBlueprintFromURL(
-				playgroundUrlWithQueryApiArgs,
-				DEFAULT_BLUEPRINT
-			);
+			resolvedBlueprint =
+				source instanceof URL
+					? await resolveBlueprintFromURL(source, DEFAULT_BLUEPRINT)
+					: { blueprint: source, source: { type: 'none' } };
 		} catch (e) {
 			logger.error(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
@@ -587,10 +670,12 @@ export function setTemporarySiteSpec(
 		}
 
 		try {
-			resolvedBlueprint = await prepareResolvedBlueprint(
-				resolvedBlueprint,
-				playgroundUrlWithQueryApiArgs
-			);
+			if (sourceUrl) {
+				resolvedBlueprint = await prepareResolvedBlueprint(
+					resolvedBlueprint,
+					sourceUrl
+				);
+			}
 			let displayName = siteName;
 			let slugBaseName = siteName;
 			if (!preferredSlug) {
@@ -613,9 +698,7 @@ export function setTemporarySiteSpec(
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
-					sourceSetupUrlFingerprint: getAutosaveFingerprintFromURL(
-						playgroundUrlWithQueryApiArgs
-					),
+					sourceSetupUrlFingerprint,
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -647,7 +730,8 @@ export function setTemporarySiteSpec(
  * Editable bundles are copied into the new Playground's storage before its
  * metadata is written. The metadata points to that persisted copy rather than
  * the caller's backend, so editing the new Playground cannot mutate the source
- * bundle.
+ * bundle. The prototype transfers bytes to a fresh origin before navigating;
+ * no filesystem handle or source-site recovery callback crosses that boundary.
  */
 export function createStoredSite(
 	siteName: string,
@@ -672,6 +756,24 @@ export function createStoredSite(
 			throw new Error(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
+		}
+
+		// Some callers, including the Blueprint editor, create records directly.
+		// Keep the origin boundary here as well as in the public creation API.
+		if (needsFreshOrigin(getState())) {
+			return await navigateToFreshOrigin({
+				url:
+					source instanceof URL
+						? source.href
+						: new URL('/', window.location.href).href,
+				name: siteName,
+				storage: 'opfs',
+				persistence: options.persistence ?? 'explicit',
+				blueprint:
+					source instanceof URL
+						? undefined
+						: await snapshotOriginBlueprint(source),
+			});
 		}
 
 		/**
@@ -1012,3 +1114,23 @@ export const selectSitesLoaded = createSelector(
 );
 
 export default sitesSlice.reducer;
+
+/** Keep used storage origins out of new-site creation, except for a pre-PHP fetch retry. */
+export function needsFreshOrigin(state: PlaygroundReduxState) {
+	if (typeof window === 'undefined') return false;
+	const sites = selectAllSites(state);
+	const active = selectActiveSite(state);
+	// A failed Blueprint fetch created only an error placeholder. No PHP
+	// client ran, so replacing this temporary placeholder can keep the SPA.
+	const retryingBeforeBoot =
+		sites.length === 1 &&
+		active?.metadata.storage === 'none' &&
+		selectActiveSiteError(state) === 'blueprint-fetch-failed' &&
+		!selectClientBySiteSlug(state, active.slug);
+	// Deleting the record does not make a used origin safe for another site.
+	return (
+		isOriginIsolationPrototype(new URL(window.location.href)) &&
+		(sites.length > 0 || !!state.ui.activeSite?.slug) &&
+		!retryingBeforeBoot
+	);
+}

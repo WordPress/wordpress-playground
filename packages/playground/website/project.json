@@ -6,6 +6,30 @@
 	"tags": ["scope:web-client"],
 	"implicitDependencies": ["playground-remote", "playground-website-extras"],
 	"targets": {
+		"build:origin-isolation": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/origin-isolation/build.mjs"
+			}
+		},
+		"test:origin-isolation": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/origin-isolation/verify.mjs"
+			}
+		},
+		"e2e:origin-isolation": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.origin-isolation.config.ts"
+			}
+		},
+		"preview:origin-isolation": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/origin-isolation/serve.mjs"
+			}
+		},
 		"build": {
 			"executor": "nx:noop",
 			"dependsOn": ["build:wasm-wordpress-net"]

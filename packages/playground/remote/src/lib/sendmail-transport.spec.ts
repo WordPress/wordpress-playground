@@ -16,7 +16,7 @@ describe('remote sendmail transport', () => {
 
 	it('captures and forwards sendmail events from a created PHP instance', async () => {
 		vi.stubGlobal('caches', { open: vi.fn(async () => ({})) });
-		vi.stubGlobal('location', { href: 'http://playground.test/' });
+		vi.stubGlobal('location', new URL('http://playground.test/'));
 		const setCommandSpawnHandler = vi.fn();
 		const phpListeners: Array<(event: { type: string }) => void> = [];
 		const php = {

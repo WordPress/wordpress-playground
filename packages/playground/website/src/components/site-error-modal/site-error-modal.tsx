@@ -1,3 +1,4 @@
+import { isSiteOrigin } from '../../lib/origin-isolation';
 import { useState } from 'react';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
@@ -33,6 +34,7 @@ import {
 import { useKapaAI } from './use-kapa-ai';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
+/** Offer recovery actions without replacing a saved source site after a failed run. */
 export function SiteErrorModal({
 	error,
 	siteSlug,
@@ -83,9 +85,20 @@ export function SiteErrorModal({
 			url.searchParams.delete('core-pr');
 			window.location.href = url.toString();
 		},
+		/** Start fresh, keeping the current shell only when no Blueprint reached PHP. */
 		reloadWithoutBlueprint() {
 			const currentUrl = new URL(window.location.href);
 			const newSiteUrl = new URL(PlaygroundRoute.newSite());
+			if (
+				isSiteOrigin(currentUrl.origin) &&
+				error === 'blueprint-fetch-failed' &&
+				site.metadata.storage === 'none'
+			) {
+				// The Blueprint never reached PHP. Retry in this shell instead of
+				// allocating a new origin for an error-only temporary placeholder.
+				newSiteUrl.host = currentUrl.host;
+			}
+
 			const paramsToKeep = [
 				'mode',
 				'url',

@@ -42,11 +42,27 @@ test('reopening a browser-stored Playground keeps auto-login enabled', async ({
 		})
 		.toBe(false);
 
-	await website.page.evaluate(async (firstSiteSlug) => {
-		const api = (window as any).playgroundSites;
-		await api.createNewTemporarySite('reopen-relogin-second');
-		await api.setActiveSite(firstSiteSlug, { updateUrl: false });
-	}, firstSite.slug);
+	const firstSiteUrl = new URL(website.page.url());
+	if (firstSiteUrl.hostname.endsWith('.playground.localhost')) {
+		// Creation navigates. Reconnect on the destination before returning to
+		// the saved origin; the old API promise cannot span those documents.
+		await website.page.evaluate(() => {
+			void (window as any).playgroundSites.createNewTemporarySite(
+				'reopen-relogin-second'
+			);
+		});
+		await website.page.waitForURL(
+			(url) => url.origin !== firstSiteUrl.origin
+		);
+		await website.waitForNestedIframes();
+		await website.goto(firstSiteUrl.href);
+	} else {
+		await website.page.evaluate(async (firstSiteSlug) => {
+			const api = (window as any).playgroundSites;
+			await api.createNewTemporarySite('reopen-relogin-second');
+			await api.setActiveSite(firstSiteSlug, { updateUrl: false });
+		}, firstSite.slug);
+	}
 
 	const result = await website.page.evaluate(async () => {
 		const api = (window as any).playgroundSites;
