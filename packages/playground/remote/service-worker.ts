@@ -283,8 +283,8 @@ self.addEventListener('fetch', (event) => {
 			);
 		}
 		return event.respondWith(
-			handleScopedRequest(event, scope).then(
-				applyCrossOriginIsolationHeaders
+			handleScopedRequest(event, scope).then((response) =>
+				applyCrossOriginIsolationHeaders(response, scope)
 			)
 		);
 	}
@@ -663,6 +663,7 @@ function emptyHtml(crossOriginIsolated: boolean) {
 
 type WPModuleDetails = {
 	staticAssetsDirectory?: string;
+	documentIsolationPolicySupported?: boolean;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
@@ -729,7 +730,7 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  */
 /**
  * Whether the browser supports Document-Isolation-Policy.
- * This is set via the 'message' event listener below.
+ * Reported at boot, or recovered from the live page after a worker restart.
  */
 let browserSupportsDocumentIsolationPolicy: boolean | undefined;
 
@@ -755,18 +756,16 @@ self.addEventListener('message', (event) => {
  *    Playground.
  *
  * @param response The response to potentially modify
+ * @param scope The local site's scope, if a Playground page can answer capability queries
  * @returns A new Response with rewritten headers, or the original response if no changes are needed
  */
-function applyCrossOriginIsolationHeaders(response: Response): Response {
+async function applyCrossOriginIsolationHeaders(
+	response: Response,
+	scope?: string
+): Promise<Response> {
 	// Preserve the policy sent directly by Gutenberg.
 	// https://github.com/WordPress/gutenberg/pull/75991.
 	if (response.headers.has('document-isolation-policy')) {
-		return response;
-	}
-
-	// If we don't know whether the browser supports Document-Isolation-Policy,
-	// or if it doesn't support it, return the original response unchanged.
-	if (!browserSupportsDocumentIsolationPolicy) {
 		return response;
 	}
 
@@ -782,6 +781,21 @@ function applyCrossOriginIsolationHeaders(response: Response): Response {
 	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
 	const coep = response.headers.get('cross-origin-embedder-policy');
 	if (!coep || (coep !== 'require-corp' && coep !== 'credentialless')) {
+		return response;
+	}
+
+	if (browserSupportsDocumentIsolationPolicy === undefined && scope) {
+		// The worker may have restarted since the page reported its feature-detection result.
+		// Relay viewers have no local Playground page, so only query locally hosted sites.
+		try {
+			browserSupportsDocumentIsolationPolicy = (
+				await getScopedWpDetails(scope)
+			).documentIsolationPolicySupported;
+		} catch {
+			// If the page has closed, keep the original headers and allow a later request to retry.
+		}
+	}
+	if (!browserSupportsDocumentIsolationPolicy) {
 		return response;
 	}
 

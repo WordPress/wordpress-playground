@@ -122,6 +122,7 @@ export async function bootPlaygroundRemote() {
 				type: 'document-isolation-policy-support-check',
 				supported: isolationSupported,
 			});
+			return isolationSupported;
 		});
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
@@ -508,9 +509,16 @@ export async function bootPlaygroundRemote() {
 						);
 					} else {
 						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-						const result = await (phpWorkerApi[method] as Function)(
+						let result = await (phpWorkerApi[method] as Function)(
 							...args
 						);
+						if (method === 'getWordPressModuleDetails') {
+							result = {
+								...result,
+								documentIsolationPolicySupported:
+									await documentIsolationSupportDetected,
+							};
+						}
 						event.source!.postMessage(
 							responseTo(event.data.requestId, result)
 						);

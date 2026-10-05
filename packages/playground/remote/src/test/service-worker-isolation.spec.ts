@@ -5,8 +5,11 @@ import { createElement, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { setURLScope } from '@php-wasm/scopes';
+import { responseTo } from '@php-wasm/web-service-worker';
+import type * as WebServiceWorker from '@php-wasm/web-service-worker';
 
-vi.mock('@php-wasm/web-service-worker', () => ({
+vi.mock('@php-wasm/web-service-worker', async (importOriginal) => ({
+	...(await importOriginal<typeof WebServiceWorker>()),
 	convertFetchEventToPHPRequest: vi.fn(async (event: FetchEvent) => {
 		const url = new URL(event.request.url);
 		if (url.pathname.endsWith('.php')) {
@@ -14,10 +17,18 @@ vi.mock('@php-wasm/web-service-worker', () => ({
 				'Content-Type': 'text/html; charset=UTF-8',
 			});
 			if (url.pathname.endsWith('/site-editor.php')) {
-				headers.set(
-					'Document-Isolation-Policy',
-					'isolate-and-credentialless'
-				);
+				const policy =
+					url.searchParams.get('policy') ??
+					'isolate-and-credentialless';
+				if (policy === 'coep') {
+					headers.set(
+						'Cross-Origin-Embedder-Policy',
+						url.searchParams.get('coep') ?? 'credentialless'
+					);
+					headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+				} else {
+					headers.set('Document-Isolation-Policy', policy);
+				}
 			}
 			return new Response(
 				'<!doctype html><html lang="en"><head></head><body></body></html>',
@@ -32,6 +43,34 @@ vi.mock('@php-wasm/web-service-worker', () => ({
 	}),
 }));
 vi.mock('@php-wasm/universal', () => ({}));
+vi.mock('@php-wasm/web', () => {
+	const worker = {
+		boot: async () => {},
+		isConnected: async () => {},
+		isReady: async () => {},
+		getWordPressModuleDetails: async () => ({
+			staticAssetsDirectory: 'wp-test',
+		}),
+		hasCachedStaticFilesRemovedFromMinifiedBuild: async () => false,
+		absoluteUrl: 'https://playground.wordpress.net/',
+	};
+	return {
+		spawnPHPWorkerThread: async () => worker,
+		consumeAPI: () => worker,
+		exposeAPI: (api: object) => [() => {}, () => {}, { ...worker, ...api }],
+		setupPostMessageRelay: () => {},
+	};
+});
+vi.mock('../lib/webmcp-frame-bridge', () => ({
+	createWebMCPFrameBridge: () => ({}),
+}));
+vi.mock('../../service-worker.ts?worker&url', () => ({ default: '/sw.js' }));
+vi.mock('../lib/capture-site-thumbnail.ts?worker&url', () => ({
+	default: '/thumbnail.js',
+}));
+vi.mock('../lib/playground-worker-endpoint-blueprints.ts?worker&url', () => ({
+	default: '/worker.js',
+}));
 vi.mock('@wp-playground/wordpress', () => ({}));
 vi.mock('@php-wasm/logger', () => ({ reportServiceWorkerMetrics() {} }));
 vi.mock('../lib/offline-mode-cache', () => ({
@@ -52,7 +91,10 @@ const editorUrl = setURLScope(
 
 describe('Editor iframe isolation', () => {
 	afterEach(() => {
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
+		Reflect.deleteProperty(window, 'IS_WASM_WORDPRESS');
+		document.body.replaceChildren();
 	});
 
 	it.each([
@@ -88,6 +130,119 @@ describe('Editor iframe isolation', () => {
 		expect(afterRestart.headers.get('Document-Isolation-Policy')).toBe(
 			'isolate-and-credentialless'
 		);
+	});
+
+	it.each([
+		{ supported: true, coep: 'credentialless' },
+		{ supported: true, coep: 'require-corp' },
+		{ supported: false, coep: 'credentialless' },
+		{ supported: false, coep: 'require-corp' },
+	])(
+		'recovers browser support after a worker restart: %j',
+		async ({ supported, coep }) => {
+			const worker = await createServiceWorker();
+			const page = await bootRemotePage(supported);
+			const path = `/wp-admin/site-editor.php?policy=coep&coep=${coep}`;
+			const expectedPolicy = supported ? `isolate-and-${coep}` : null;
+			const beforeRestart = await worker(path);
+			expect(beforeRestart.headers.get('Document-Isolation-Policy')).toBe(
+				expectedPolicy
+			);
+			expect(page.postMessage).not.toHaveBeenCalled();
+
+			// Keep the live page and its detection result, but discard the worker's globals.
+			const restartedWorker = await createServiceWorker([page]);
+			const afterRestart = await restartedWorker(path);
+			expect(afterRestart.headers.get('Document-Isolation-Policy')).toBe(
+				expectedPolicy
+			);
+			expect(
+				afterRestart.headers.get('Cross-Origin-Embedder-Policy')
+			).toBe(supported ? null : coep);
+			expect(afterRestart.headers.get('Cross-Origin-Opener-Policy')).toBe(
+				supported ? null : 'same-origin'
+			);
+			expect(page.postMessage).toHaveBeenCalledWith({
+				method: 'getWordPressModuleDetails',
+				scope,
+				requestId: expect.any(Number),
+			});
+
+			// Both true and false results are cached for subsequent responses.
+			const repeated = await restartedWorker(path);
+			expect(repeated.headers.get('Document-Isolation-Policy')).toBe(
+				expectedPolicy
+			);
+			expect(page.postMessage).toHaveBeenCalledTimes(1);
+		}
+	);
+
+	it('does not query browser support for responses that need no conversion', async () => {
+		const page = { postMessage: vi.fn() };
+		const worker = await createServiceWorker([page]);
+		await worker('/wp-admin/site-editor.php');
+		await worker('/wp-admin/non-isolated-editor.php');
+		await worker('/wp-admin/site-editor.php?policy=coep&coep=unsafe-none');
+		expect(page.postMessage).not.toHaveBeenCalled();
+	});
+
+	it('keeps the original headers when an older page omits the capability', async () => {
+		const page = {
+			postMessage: vi.fn((message: unknown) => {
+				const { requestId } = message as { requestId: number };
+				setTimeout(
+					() =>
+						self.dispatchEvent(
+							new MessageEvent('message', {
+								data: responseTo(requestId, {
+									staticAssetsDirectory: 'wp-test',
+								}),
+							})
+						),
+					0
+				);
+			}),
+		};
+		const worker = await createServiceWorker([page]);
+		for (let i = 0; i < 2; i++) {
+			const response = await worker(
+				'/wp-admin/site-editor.php?policy=coep'
+			);
+			expect(
+				response.headers.get('Document-Isolation-Policy')
+			).toBeNull();
+			expect(response.headers.get('Cross-Origin-Embedder-Policy')).toBe(
+				'credentialless'
+			);
+			expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe(
+				'same-origin'
+			);
+		}
+		expect(page.postMessage).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps the original headers on a timeout and retries the next request', async () => {
+		await createServiceWorker();
+		const page = await bootRemotePage(true);
+		page.postMessage.mockImplementationOnce(() => {});
+		const worker = await createServiceWorker([page]);
+		vi.useFakeTimers();
+		const pending = worker('/wp-admin/site-editor.php?policy=coep');
+		await vi.runAllTimersAsync();
+		const response = await pending;
+		expect(response.headers.get('Document-Isolation-Policy')).toBeNull();
+		expect(response.headers.get('Cross-Origin-Embedder-Policy')).toBe(
+			'credentialless'
+		);
+		expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe(
+			'same-origin'
+		);
+		vi.useRealTimers();
+		const retry = await worker('/wp-admin/site-editor.php?policy=coep');
+		expect(retry.headers.get('Document-Isolation-Policy')).toBe(
+			'isolate-and-credentialless'
+		);
+		expect(page.postMessage).toHaveBeenCalledTimes(2);
 	});
 
 	it('does not isolate a non-isolated document in a previously isolated site', async () => {
@@ -162,12 +317,17 @@ describe('Editor iframe isolation', () => {
 	});
 });
 
-async function createServiceWorker() {
+async function createServiceWorker(
+	clients: { postMessage(message: unknown): void }[] = []
+) {
 	vi.resetModules();
 	const events = new EventTarget();
 	vi.stubGlobal('self', {
 		location: new URL('/sw.js', origin),
 		addEventListener: events.addEventListener.bind(events),
+		removeEventListener: events.removeEventListener.bind(events),
+		dispatchEvent: events.dispatchEvent.bind(events),
+		clients: { matchAll: async () => clients },
 	});
 	await import('../../service-worker');
 	return async function request(
@@ -193,6 +353,63 @@ async function createServiceWorker() {
 			return request(result.headers.get('location')!, 'manual');
 		}
 		return result;
+	};
+}
+
+async function bootRemotePage(supported: boolean) {
+	const events = new EventTarget();
+	const controller = {
+		postMessage(data: unknown) {
+			self.dispatchEvent(new MessageEvent('message', { data }));
+		},
+	};
+	vi.stubGlobal('navigator', {
+		serviceWorker: {
+			register: async () => ({ update: async () => {} }),
+			controller,
+			addEventListener: events.addEventListener.bind(events),
+			startMessages() {},
+		},
+	});
+	document.body.innerHTML = '<iframe id="wp"></iframe>';
+	// The boot module runs at an HTTP URL in production, but Vitest loads it from disk.
+	const NativeURL = URL;
+	vi.stubGlobal(
+		'URL',
+		class extends NativeURL {
+			override get origin() {
+				return this.protocol === 'file:' ? origin : super.origin;
+			}
+		}
+	);
+	const { bootPlaygroundRemote } =
+		await import('../lib/boot-playground-remote');
+	vi.stubGlobal('URL', NativeURL);
+	const playground = await bootPlaygroundRemote();
+	const detectionFrame = document.querySelector<HTMLIFrameElement>(
+		'iframe[src="/feature-detect/document-isolation-policy.html"]'
+	)!;
+	window.dispatchEvent(
+		new MessageEvent('message', {
+			data: { supported },
+			source: detectionFrame.contentWindow,
+		})
+	);
+	await playground.boot({ scope, withNetworking: false });
+	return {
+		postMessage: vi.fn((data: unknown) => {
+			// postMessage delivers in a later task, after awaitReply installs its listener.
+			setTimeout(
+				() =>
+					events.dispatchEvent(
+						Object.assign(new Event('message'), {
+							data,
+							source: controller,
+						})
+					),
+				0
+			);
+		}),
 	};
 }
 
