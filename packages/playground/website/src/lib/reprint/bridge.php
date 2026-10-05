@@ -14,6 +14,8 @@ use WordPress\Reprint\Server\Utils;
 
 /** Forward payload progress while Reprint is writing a file, not just its headers. */
 class PlaygroundReprintClient extends ImportClient {
+    private const MAX_SITE_BYTES = 2 * 1024 * 1024 * 1024;
+    private ?int $site_file_bytes = null;
     private string $browser_progress_path;
     private string $pull_directory;
     private string $sql_path;
@@ -33,6 +35,10 @@ class PlaygroundReprintClient extends ImportClient {
         if ($endpoint === 'sql_chunk') {
             $on_chunk = $context->on_chunk;
             $context->on_chunk = function (array $chunk) use ($on_chunk): void {
+                if (($chunk['headers']['x-chunk-type'] ?? '') === 'sql') {
+                    clearstatcache(true, $this->sql_path);
+                    $this->assert_site_size(filesize($this->sql_path) + strlen($chunk['body'] ?? ''));
+                }
                 $on_chunk($chunk);
                 $this->emit_sql_progress();
             };
@@ -70,6 +76,13 @@ class PlaygroundReprintClient extends ImportClient {
     }
 
     public function output_progress(array $data, bool $force = false): void {
+        if (($data['command'] ?? '') === 'files-pull' && ($data['event'] ?? '') === 'stage'
+            && in_array($data['stage'] ?? '', ['diff', 'mirror', 'fetch'], true)) {
+            // The mapped index is complete and filtered here. Check before the
+            // diff can delete local files or fetch their replacements, including
+            // when Reprint resumes directly at a later stage.
+            $this->assert_site_size();
+        }
         if (($data['command'] ?? '') === 'db-pull' && is_array($data['progress'] ?? null)) {
             // Reprint reports which table it is on and, per table, an estimated
             // row count. The SQL dump has no byte total, so this is the "of"
@@ -158,17 +171,45 @@ class PlaygroundReprintClient extends ImportClient {
     }
 
     private function emit_sql_progress(bool $force = false): void {
-        if (!$force && microtime(true) - $this->last_byte_update < 0.25) return;
-        $this->last_byte_update = microtime(true);
         // Measure the written SQL, including resumed batches. Remote table sizes
         // do not measure SQL dump bytes, so they cannot supply a denominator.
         clearstatcache(true, $this->sql_path);
         $done = is_file($this->sql_path) ? filesize($this->sql_path) : 0;
+        // Check every chunk, not only the throttled UI updates. This also counts
+        // SQL retained on retry and the checkpoint markers added by Reprint.
+        $this->assert_site_size($done);
+        if (!$force && microtime(true) - $this->last_byte_update < 0.25) return;
+        $this->last_byte_update = microtime(true);
         echo json_encode(['playgroundProgress' => [
             'phase' => 'db-pull',
             'message' => 'Downloading SQL',
             'bytesDone' => $done,
         ] + $this->sql_tables], JSON_THROW_ON_ERROR) . "\n";
+    }
+
+    private function assert_site_size(int $sql_bytes = 0): void {
+        $file_bytes = $this->site_file_bytes;
+        if ($file_bytes === null) {
+            // Use the full selected index, not the incremental fetch list. The
+            // mapped index includes followed targets and omits excluded paths.
+            $index = fopen(wp_join_unix_paths($this->pull_directory, 'remote-index.local-map.jsonl'), 'rb');
+            if ($index === false) throw new RuntimeException('Could not read the site size from the Reprint file index.');
+            $file_bytes = 0;
+            try {
+                while (($line = fgets($index)) !== false) {
+                    $entry = MappedRemoteIndexBuilder::decode_index_line($line);
+                    if ($entry['type'] !== 'file') continue;
+                    $file_bytes += max(0, $entry['size']);
+                    if ($file_bytes > self::MAX_SITE_BYTES) break;
+                }
+            } finally {
+                fclose($index);
+            }
+        }
+        if ($file_bytes + $sql_bytes > self::MAX_SITE_BYTES) {
+            throw new RuntimeException('This site exceeds Playground’s 2 GiB import limit (site files plus SQL). Use the Reprint CLI to pull this site locally.');
+        }
+        $this->site_file_bytes = $file_bytes;
     }
 }
 

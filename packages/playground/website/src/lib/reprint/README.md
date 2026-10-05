@@ -68,6 +68,17 @@ snapshots read links only within transferred content; directory loops report
 an error instead of recursing forever.
 The destination must already run WordPress and Reprint Server.
 
+## Site size limit
+
+Clones accept up to 2 GiB (2,147,483,648 bytes) of selected files plus the SQL
+dump. After indexing, the bridge counts the full mapped file index before any
+mirror deletions or file downloads. Unchanged files and followed link targets
+count; excluded paths do not. Retrying a later file stage checks the same index.
+Reprint does not report a SQL dump size in advance, so SQL is checked as it is
+written, including bytes retained on retry. Oversized sites should use the
+Reprint CLI locally instead. This is an import-data limit, not a memory budget:
+SQLite, runtime files, and materialized links need additional space.
+
 ## Saved state and retries
 
 A clone downloads into a temporary Playground and nothing is written to

@@ -175,6 +175,7 @@ try {
     $update = json_decode(end($updates), true)['playgroundProgress'];
     check($update['bytesDone'] === 24 && $update['filesDone'] === 2, 'Completing the last file fills the byte total exactly.');
 
+    file_put_contents($pull . '/remote-index.local-map.jsonl', '');
     $client->get_state()->db_index->bytes = 40;
     file_put_contents($download_state . '/db.sql', str_repeat('s', 12));
     $emit_sql = new ReflectionMethod($client, 'emit_sql_progress');
@@ -303,6 +304,7 @@ try {
 
     check_link_setup_lifecycle($root);
     check_incremental_pull_plan($root);
+    check_site_size_limit($root);
 
     echo "All Reprint bridge checks passed.\n";
 } finally {
@@ -560,4 +562,88 @@ function check_incremental_pull_plan(string $root): void {
     check($fetches === array_map(fn($name) => '/source/wp-content/uploads/' . $name . '.txt', ['added', 'local-edit', 'missing', 'remote-edit']), 'After reload, only remote changes and changed or missing local files are fetched: ' . json_encode($fetches));
     check(!file_exists($files . '/wp-content/uploads/deleted.txt'), 'A remote deletion removes its local file within the current mirror scope.');
     check(file_get_contents($files . '/wp-content/uploads/keep.txt') === 'aaaa', 'Unchanged bytes remain without another download.');
+}
+
+
+/** The limit must stop the real planner before it removes or downloads files. */
+function check_site_size_limit(string $root): void {
+    $site = $root . '/size-site';
+    $state = $root . '/size-state';
+    mkdir($site);
+    $url = 'https://example.com/?reprint-api';
+    $limit = 2 * 1024 * 1024 * 1024;
+    $client = new PlaygroundReprintClient($url, $state, $site);
+    $client->get_state()->set_preflight_record(['http_code' => 200, 'data' => [
+        'runtime' => ['document_root' => '/source'],
+        'database' => ['wp' => ['paths_urls' => ['abspath' => '/source', 'content_dir' => '/source/wp-content']]],
+    ]]);
+    $client->prepare_files_pull_options([
+        'include' => [':abspath:'],
+        'exclude' => ['/source/excluded'],
+        'remap' => [[':abspath:', ':fs-root:']],
+    ], false);
+    (new ReflectionProperty(ImportClient::class, 'files_pull_mode'))->setValue($client, 'mirror');
+    $pull = $client->pull_state_directory;
+    $entries = [
+        ['path' => '/source/a', 'type' => 'file', 'size' => $limit - 1],
+        ['path' => '/source/b', 'type' => 'file', 'size' => 2],
+        ['path' => '/source/excluded/backup.zip', 'type' => 'file', 'size' => $limit * 2],
+        ['path' => '/source/folder', 'type' => 'dir', 'size' => $limit],
+    ];
+    $write_index = function () use (&$entries, $pull): void {
+        file_put_contents($pull . '/remote-index.next.jsonl', implode("\n", array_map(
+            fn($entry) => json_encode(array_merge($entry, ['path' => base64_encode($entry['path']), 'ctime' => 1])),
+            $entries
+        )) . "\n");
+    };
+    $write_index();
+    // Identical old and new indexes model a repeat pull with no changed files.
+    copy($pull . '/remote-index.next.jsonl', $pull . '/remote-index.jsonl');
+    file_put_contents($site . '/keep-local.txt', 'Do not remove before checking size.');
+    $active = $client->get_state()->active_resumable_command;
+    $active->command_name = 'files-pull';
+    $active->completion_state = 'partial';
+    $active->current_stage = 'local-index';
+    $client->get_state()->files_pull_path_selection_fingerprint =
+        (new ReflectionMethod(ImportClient::class, 'files_pull_path_selection_fingerprint'))->invoke($client);
+    $rejected = false;
+    ob_start();
+    try { $client->run_files_pull(); }
+    catch (RuntimeException $error) { $rejected = str_contains($error->getMessage(), '2 GiB import limit'); }
+    finally { ob_end_clean(); }
+    check($rejected, 'A full index over the limit is rejected even when no remote files changed.');
+    check(!is_file($pull . '/fetch-list.jsonl'), 'The size check runs before the download plan.');
+    check(file_get_contents($site . '/keep-local.txt') === 'Do not remove before checking size.', 'An oversized pull does not delete local files.');
+    check(!is_file($site . '/a') && !is_file($site . '/b'), 'An oversized pull does not download site files.');
+
+    // Checkpoint resumes must not skip validation merely because indexing ended.
+    foreach (['diff', 'mirror', 'fetch'] as $stage) {
+        $retry = new PlaygroundReprintClient($url, $state, $site);
+        $rejected = false;
+        try { $retry->output_progress(['command' => 'files-pull', 'event' => 'stage', 'stage' => $stage]); }
+        catch (RuntimeException $error) { $rejected = str_contains($error->getMessage(), '2 GiB import limit'); }
+        check($rejected, 'A resumed ' . $stage . ' stage still checks the full index.');
+    }
+
+    $entries[1]['size'] = 1;
+    $write_index();
+    MappedRemoteIndexBuilder::build([
+        'remote_index_file' => $pull . '/remote-index.next.jsonl',
+        'mapped_remote_index_file' => $pull . '/remote-index.local-map.jsonl',
+        'filesystem_root' => realpath($site),
+        'path_mapper' => (new ReflectionMethod(ImportClient::class, 'path_mapper'))->invoke($client),
+        'excluded_remote_absolute_path_prefixes' => ['/source/excluded'],
+    ]);
+    $accepted = new PlaygroundReprintClient($url, $state, $site);
+    ob_start();
+    try { $accepted->output_progress(['command' => 'files-pull', 'event' => 'stage', 'stage' => 'diff']); }
+    finally { ob_end_clean(); }
+    // Exactly 2 GiB is accepted despite the excluded backup and directory sizes.
+    file_put_contents($state . '/db.sql', 's');
+    foreach ([$accepted, new PlaygroundReprintClient($url, $state, $site)] as $sql_client) {
+        $rejected = false;
+        try { (new ReflectionMethod($sql_client, 'emit_sql_progress'))->invoke($sql_client); }
+        catch (RuntimeException $error) { $rejected = str_contains($error->getMessage(), '2 GiB import limit'); }
+        check($rejected, 'SQL bytes count against the same limit, including on a new PHP run.');
+    }
 }
