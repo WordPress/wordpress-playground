@@ -86,6 +86,34 @@ describe.each(blueprintVersions)(
 			expect(text).toContain('8.0');
 		});
 
+		test('applies PHP environment bindings to programmatic requests', async () => {
+			await using cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				php: '8.0',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+				phpEnv: { PLAYGROUND_CLI_TEST_ENV: 'request-bound' },
+			});
+			expect(
+				(await cliServer.playground.run({
+					code: "<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');",
+				})).text
+			).toBe('request-bound');
+			expect(
+				(await cliServer.playground.run({
+					code: "<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');",
+					env: { PLAYGROUND_CLI_TEST_ENV: 'per-request' },
+				})).text
+			).toBe('per-request');
+			expect(
+				(await cliServer.playground.run({
+					code: "<?php echo getenv('PLAYGROUND_CLI_TEST_ENV');",
+				})).text
+			).toBe('request-bound');
+		});
+
 		test('should have Intl extension enabled by default', async () => {
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
