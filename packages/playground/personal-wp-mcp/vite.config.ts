@@ -1,6 +1,4 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vite';
-
 import dts from 'vite-plugin-dts';
 import { join } from 'path';
 
@@ -8,12 +6,15 @@ import { join } from 'path';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
 	root: __dirname,
-	cacheDir: '../../../node_modules/.vite/playground-mcp',
+	cacheDir: '../../../node_modules/.vite/playground-personal-wp-mcp',
+	resolve: {
+		alias: {
+			'@wp-playground/mcp/api': join(__dirname, '../mcp/src/api.ts'),
+		},
+	},
 
 	plugins: [
 		dts({
@@ -25,26 +26,27 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-
-		...viteGlobalExtensions,
 	],
 
 	build: {
 		lib: {
 			entry: {
 				index: 'src/index.ts',
-				api: 'src/api.ts',
-				client: 'src/client.ts',
+				cli: 'src/cli.ts',
 			},
-			name: 'playground-mcp',
+			name: 'playground-personal-wp-mcp',
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,
 		rollupOptions: {
-			external: getExternalModules(),
+			external: [
+				...getExternalModules(),
+				/^@modelcontextprotocol\/sdk\//,
+				/^zod\//,
+			],
 			output: {
 				banner: (chunk) =>
-					chunk.fileName === 'index.js' ? '#!/usr/bin/env node' : '',
+					chunk.fileName === 'cli.js' ? '#!/usr/bin/env node' : '',
 			},
 		},
 	},

@@ -1,5 +1,25 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createRequire } from 'module';
+import { playgroundMcpProfile } from './playground-mcp-profile';
+import type {
+	McpServerDefinition,
+	McpServerPromptDefinition,
+} from './mcp-server-profile';
+
+export type {
+	McpServerDefinition,
+	McpServerPromptDefinition,
+} from './mcp-server-profile';
+
+export interface McpServerExtension {
+	prompts?: McpServerPromptDefinition[];
+	registerTools?: (server: McpServer) => void;
+}
+
+export interface CreateMcpServerOptions {
+	definition?: McpServerDefinition;
+	extensions?: McpServerExtension[];
+}
 
 const require = createRequire(import.meta.url);
 let packageVersion: string;
@@ -10,23 +30,50 @@ try {
 	packageVersion = require('../package.json').version;
 }
 
-export function createServer(): McpServer {
-	return new McpServer({
-		name: 'wordpress-playground',
+export function createServer(options: CreateMcpServerOptions = {}): McpServer {
+	const serverDefinition = options.definition ?? playgroundMcpProfile;
+	const extensions = options.extensions ?? [];
+	const server = new McpServer({
+		name: serverDefinition.name,
 		version: packageVersion,
-		description: `Use this server when you need a live WordPress environment without any local setup. \
-			WordPress Playground runs entirely in the user's browser tab via WebAssembly — no PHP, MySQL, \
-			or server required. You are automatically authenticated as an admin user.\n\n\
-			PREREQUISITE: Call playground_list_sites first. If no browser is connected, \
-			call playground_get_website_url to get the exact URL and ask the user to open it. \n\n\
-			Typical workflow: playground_list_sites → playground_save_in_browser \
-			→ filesystem/PHP operations → playground_navigate to verify results.\n\n\
-			Capabilities: execute arbitrary PHP with full WordPress access, read/write files in the virtual filesystem \
-			(WordPress root: /wordpress/), make HTTP requests to the site, navigate the browser, \
-			and manage multiple Playground sites simultaneously.\n\n\
-			Important: sites are temporary by default and not persisted between sessions. \
-			Call playground_save_in_browser early in any multi-step workflow where losing progress would be costly.\n\n\
-			Error handling: tool failures are returned as thrown exceptions with descriptive messages, \
-			not as silent failures.`,
+		description: serverDefinition.description,
 	});
+	registerPrompts(server, [
+		...serverDefinition.prompts,
+		...extensions.flatMap((extension) => extension.prompts ?? []),
+	]);
+	for (const extension of extensions) {
+		extension.registerTools?.(server);
+	}
+	return server;
+}
+
+function registerPrompts(
+	server: McpServer,
+	prompts: McpServerPromptDefinition[]
+) {
+	for (const prompt of prompts) {
+		server.registerPrompt(
+			prompt.name,
+			{
+				title: prompt.title,
+				description: prompt.description,
+			},
+			async () => promptMessages(prompt.text)
+		);
+	}
+}
+
+function promptMessages(text: string) {
+	return {
+		messages: [
+			{
+				role: 'user' as const,
+				content: {
+					type: 'text' as const,
+					text,
+				},
+			},
+		],
+	};
 }
