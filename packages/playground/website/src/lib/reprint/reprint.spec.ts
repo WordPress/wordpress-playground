@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import type { TransferProgressUpdate } from './reprint';
+import type { TransferProgressUpdate, TransferProgress } from './reprint';
 import type { PlaygroundClient } from '@wp-playground/client';
 import {
 	detectReprint,
@@ -9,6 +9,7 @@ import {
 	runBridge,
 	pullSite,
 } from './reprint';
+import { logger } from '@php-wasm/logger';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import release from './release.json';
 
@@ -16,6 +17,12 @@ vi.mock('@php-wasm/web-service-worker', () => ({
 	fetchWithCorsProxy: vi.fn(),
 }));
 vi.mock('virtual:cors-proxy-url', () => ({ corsProxyUrl: '' }));
+
+vi.mock('@wp-playground/tools', () => ({
+	getSqliteDatabasePath: vi.fn(
+		async () => '/wordpress/wp-content/database/.ht.private/.ht.sqlite'
+	),
+}));
 
 // Detection must use Reprint's reply, not a generic host error. These fixtures
 // come from v0.10.8's unauthenticated preflight, before any site data is read.
@@ -529,7 +536,296 @@ describe('Direct file pull', () => {
 	});
 });
 
-/** Supply streamed PHP replies without booting WordPress. */
+describe('SQL import and administrator login', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+		vi.clearAllMocks();
+		vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
+			Uint8Array.from(
+				'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda'.match(
+					/../g
+				)!,
+				(byte) => parseInt(byte, 16)
+			).buffer
+		);
+	});
+
+	it('installs a pull into the database selected by the SQLite driver', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'complete' },
+		]);
+		await pullSite(playground, 'https://example.com', 'token', vi.fn());
+		expect(
+			JSON.parse(runStream.mock.calls[0][0].env.PLAYGROUND_REPRINT)
+				.databasePath
+		).toBe('/wordpress/wp-content/database/.ht.private/.ht.sqlite');
+	});
+
+	it('runs the stages in order without flushing to browser storage between them', async () => {
+		const events: string[] = [];
+		const { playground, runStream, writeFile } = createClient(
+			[
+				{ status: 'continue', stage: 'db-pull' },
+				{
+					status: 'install',
+				},
+				{ status: 'complete' },
+			],
+			events
+		);
+		await pullSite(
+			playground,
+			'https://example.com',
+			'private-token',
+			vi.fn()
+		);
+		expect(
+			runStream.mock.calls.map(
+				([options]) =>
+					JSON.parse(options.env.PLAYGROUND_REPRINT).command
+			)
+		).toEqual(['pull', 'pull', 'finish-pull']);
+		// Nothing is flushed to browser storage during a pull; the site is
+		// temporary until it completes and autosaves afterwards.
+		expect(events).toEqual(['pull', 'pull', 'finish-pull']);
+		expect(JSON.stringify(writeFile.mock.calls)).not.toContain(
+			'private-token'
+		);
+	});
+
+	it('retains retry state when a direct write fails', async () => {
+		const { playground, runStream } = createClient([{ status: 'install' }]);
+		vi.mocked(playground.runStream).mockRejectedValueOnce(
+			new Error('No storage space')
+		);
+		await expect(
+			pullSite(playground, 'https://example.com', 'token', vi.fn())
+		).rejects.toThrow('No storage space');
+		expect(runStream).toHaveBeenCalledTimes(1);
+	});
+
+	it('replaces commentary from a previous chunk with the current byte counters', async () => {
+		const { playground, runStream } = createClient([]);
+		runStream.mockResolvedValueOnce(
+			response(
+				JSON.stringify({
+					playgroundReprint: {
+						status: 'continue',
+						stage: 'files-pull',
+					},
+				}) + '\n'
+			)
+		);
+		runStream.mockResolvedValueOnce(
+			response(
+				[
+					{ message: 'Downloading site files…' },
+					{
+						playgroundProgress: {
+							phase: 'files-pull',
+							message: 'Downloading site files',
+							bytesDone: 1024,
+							bytesTotal: 4096,
+						},
+					},
+					{ playgroundReprint: { status: 'complete' } },
+				]
+					.map((record) => JSON.stringify(record))
+					.join('\n') + '\n'
+			)
+		);
+		const updates: TransferProgress[] = [];
+		await pullSite(playground, 'https://example.com', 'token', (update) =>
+			updates.push(update)
+		);
+		const byteUpdate = updates.find((update) => update.bytesDone === 1024)!;
+		expect(byteUpdate).toBeDefined();
+		expect(byteUpdate.detail).toBeUndefined();
+	});
+
+	it('keeps one monotonic bar through files, SQL, installation, login, and completion', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'complete' },
+		]);
+		runStream.mockResolvedValueOnce(
+			response(
+				[
+					{
+						playgroundProgress: {
+							phase: 'files-pull',
+							message: 'Files',
+							bytesDone: 100,
+							bytesTotal: 100,
+						},
+					},
+					{
+						playgroundProgress: {
+							phase: 'db-pull',
+							message: 'Downloading SQL',
+							bytesDone: 50,
+						},
+					},
+					{
+						playgroundProgress: {
+							phase: 'db-pull',
+							message: 'Downloading SQL',
+							bytesDone: 40,
+						},
+					},
+					{ phase: 'db-apply', bytes_read: 25, bytes_total: 100 },
+					{ message: 'Saving transfer checkpoint…' },
+					{
+						playgroundReprint: {
+							status: 'install',
+						},
+					},
+				]
+					.map((record) => JSON.stringify(record))
+					.join('\n') + '\n'
+			)
+		);
+		const updates: TransferProgress[] = [];
+		await pullSite(playground, 'https://example.com', 'token', (update) =>
+			updates.push(update)
+		);
+		const values = updates.map((update) => update.overallPercent!);
+		expect(values[0]).toBe(0);
+		expect(values.at(-1)).toBe(100);
+		expect(values.slice(0, -1).every((value) => value < 100)).toBe(true);
+		expect(
+			values.every((value, i) => i === 0 || value >= values[i - 1])
+		).toBe(true);
+		expect(updates).toContainEqual(
+			expect.objectContaining({
+				phase: 'db-pull',
+				overallPercent: 55,
+			})
+		);
+		expect(updates).toContainEqual(
+			expect.objectContaining({
+				phase: 'db-apply',
+				overallPercent: 76,
+			})
+		);
+		expect(updates).toContainEqual(
+			expect.objectContaining({ phase: 'login', overallPercent: 96 })
+		);
+		expect(playground.request).toHaveBeenNthCalledWith(1, {
+			url: expect.stringMatching(
+				/^\/\.playground-reprint-login-.+\.php$/
+			),
+			method: 'POST',
+		});
+		expect(playground.request).toHaveBeenNthCalledWith(2, {
+			url: expect.any(String),
+			method: 'GET',
+		});
+		expect(playground.unlink).toHaveBeenCalledWith(
+			expect.stringMatching(
+				/^\/wordpress\/\.playground-reprint-login-.+\.php$/
+			)
+		);
+		expect(playground.defineConstant).toHaveBeenCalledWith(
+			'PLAYGROUND_AUTO_LOGIN_AS_USER',
+			'imported-admin'
+		);
+		expect(playground.goTo).toHaveBeenCalledWith('/wp-admin/');
+	});
+
+	it('shows a missing-theme warning even when the homepage returns nonempty HTML', async () => {
+		const { playground } = createClient([
+			{ status: 'install' },
+			{ status: 'complete' },
+		]);
+		vi.mocked(playground.request).mockResolvedValueOnce({
+			httpStatusCode: 200,
+			text: JSON.stringify({
+				loggedIn: true,
+				username: 'imported-admin',
+				warning: 'The theme directory "iotix" does not exist.',
+			}),
+			errors: '',
+		} as never);
+		const error = vi.spyOn(logger, 'error').mockImplementation(() => {});
+		const result = await pullSite(
+			playground,
+			'https://example.com',
+			'token',
+			vi.fn()
+		);
+		expect(result.warning).toContain('iotix');
+		expect(error).toHaveBeenCalledWith(result.warning);
+	});
+	it.each([1, 2])(
+		'removes the temporary login script and preserves retry state when login request %s fails',
+		async (failure) => {
+			const { playground, runStream } = createClient([
+				{ status: 'install' },
+			]);
+			const request = vi.mocked(playground.request);
+			if (failure === 2)
+				request.mockResolvedValueOnce({
+					httpStatusCode: 200,
+					text: '{"loggedIn":true,"username":"imported-admin"}',
+					errors: '',
+				} as never);
+			request.mockResolvedValueOnce({
+				httpStatusCode: 200,
+				text: '{"loggedIn":false}',
+				errors: '',
+			} as never);
+			const progress = vi.fn();
+			await expect(
+				pullSite(playground, 'https://example.com', 'token', progress)
+			).rejects.toThrow('administrator login failed');
+			expect(playground.defineConstant).not.toHaveBeenCalled();
+			expect(playground.unlink).toHaveBeenCalled();
+			expect(runStream).toHaveBeenCalledTimes(1);
+			expect(
+				progress.mock.calls.some(
+					([update]) => update.overallPercent === 100
+				)
+			).toBe(false);
+		}
+	);
+
+	it.each([200, 500])(
+		'reports a blank homepage with HTTP %s without undoing a successful import and login',
+		async (status) => {
+			const { playground } = createClient([
+				{ status: 'install' },
+				{ status: 'complete' },
+			]);
+			vi.mocked(playground.request).mockImplementation(
+				async ({ url }) =>
+					({
+						httpStatusCode: url === '/' ? status : 200,
+						text:
+							url === '/'
+								? ''
+								: '{"loggedIn":true,"username":"imported-admin"}',
+						errors: '',
+					}) as never
+			);
+			const error = vi
+				.spyOn(logger, 'error')
+				.mockImplementation(() => {});
+			const result = await pullSite(
+				playground,
+				'https://example.com',
+				'token',
+				vi.fn()
+			);
+			expect(result.warning).toContain(
+				`homepage returned ${status} with an empty response`
+			);
+			expect(error).toHaveBeenCalledWith(result.warning);
+			expect(playground.goTo).toHaveBeenCalledWith('/wp-admin/');
+		}
+	);
+});
+
+/** Supply streamed replies and verify the local administrator session. */
 function createClient(results: unknown[], events: string[] = []) {
 	const runStream = vi.fn(
 		async (options: { env: { PLAYGROUND_REPRINT: string } }) => {
@@ -547,6 +843,23 @@ function createClient(results: unknown[], events: string[] = []) {
 		mkdir: vi.fn(),
 		writeFile,
 		readFileAsBuffer: vi.fn().mockResolvedValue(new Uint8Array()),
+		request: vi.fn(async ({ url }: { url: string }) => ({
+			httpStatusCode: 200,
+			text:
+				url === '/'
+					? '<html>A working homepage</html>'
+					: JSON.stringify({
+							loggedIn: true,
+							username: 'imported-admin',
+						}),
+			errors: '',
+		})),
+		defineConstant: vi.fn(),
+		unlink: vi.fn(),
+		goTo: vi.fn(),
+		flushOpfs: vi.fn(async () => {
+			events.push('flush');
+		}),
 		runStream,
 	} as unknown as PlaygroundClient;
 	return { playground, runStream, writeFile };
