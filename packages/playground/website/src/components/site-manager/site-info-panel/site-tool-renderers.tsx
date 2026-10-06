@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Notice } from '@wordpress/components';
 import type { PlaygroundClient } from '@wp-playground/client';
+import type { DockPaneHeaderOverride } from '../../dock/dock-pane';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { setDockPaneOpen } from '../../../lib/state/redux/slice-ui';
 import {
@@ -32,11 +34,30 @@ const SiteTerminalPanel = lazy(() =>
 	}))
 );
 
+const SiteTransferPanel = lazy(() =>
+	import('../site-transfer-panel').then((m) => ({
+		default: m.SiteTransferPanel,
+	}))
+);
+
+export type ToolHeaderState = Partial<
+	Pick<DockPaneHeaderOverride, 'title' | 'backLabel' | 'onBack'>
+> & {
+	/** Rendered at the header's trailing edge, e.g. an overflow menu. */
+	action?: ReactNode;
+	/** Hides the pane header; the title still names the pane for assistive tech. */
+	hideHeader?: boolean;
+};
+
 export type SiteToolPanelProps = {
 	site: SiteInfo;
 	playground: PlaygroundClient | undefined;
 	isVisible: boolean;
 	mobileHeaderTarget: HTMLElement | null;
+	/** Replaces the pane header while the tool is in a nested or busy state. */
+	onBackChange?: (back: ToolHeaderState | undefined) => void;
+	/** Pins the pane: closing it and switching Dock tools stay disabled. */
+	onCloseBlockedChange?: (blocked: boolean) => void;
 };
 
 export function SettingsTool(): JSX.Element {
@@ -171,4 +192,17 @@ export function LogsTool(): JSX.Element {
 
 export function MailTool(): JSX.Element {
 	return <SiteMailPanel />;
+}
+
+export function TransferTool(props: SiteToolPanelProps): JSX.Element {
+	// A clone starts from an empty form even when this site's panel was used.
+	const cloneRequested = useAppSelector((state) => state.ui.cloneRequested);
+	return (
+		<Suspense fallback={<PaneLoading message="Loading site transfer…" />}>
+			<SiteTransferPanel
+				key={cloneRequested ? 'clone' : 'site'}
+				{...props}
+			/>
+		</Suspense>
+	);
 }

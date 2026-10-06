@@ -83,6 +83,95 @@ class MemoryDirectoryHandle {
 	}
 }
 
+describe('loading saved OPFS files', () => {
+	it('bounds queued reads as well as active reads for large directories', async () => {
+		const { FS, php } = createFakePhp();
+		FS.lookupPath.mockImplementation(() => {
+			throw new Error('Not mounted yet');
+		});
+		const releaseReads = deferred<void>();
+		const createDataFile = vi.fn();
+		let enumerated = 0;
+		const root = {
+			async *values() {
+				for (let i = 0; i < 200; i++) {
+					enumerated++;
+					yield {
+						kind: 'file',
+						name: `file-${i}`,
+						async getFile() {
+							await releaseReads.promise;
+							return new Blob(['saved']);
+						},
+					};
+				}
+			},
+		} as unknown as FileSystemDirectoryHandle;
+		const mount = createDirectoryHandleMountHandler(root);
+		const copy = mount(php, { ...FS, createDataFile } as any, '/wordpress');
+		try {
+			await vi.waitFor(() =>
+				expect(enumerated).toBeGreaterThanOrEqual(40)
+			);
+			// One entry may be waiting for a slot. The rest must stay in the
+			// directory iterator instead of accumulating pending promises.
+			expect(enumerated).toBeLessThanOrEqual(41);
+		} finally {
+			releaseReads.resolve();
+			await copy;
+		}
+		expect(createDataFile).toHaveBeenCalledTimes(200);
+	});
+	it('reports a read failure after draining outstanding reads', async () => {
+		const { FS, php } = createFakePhp();
+		FS.lookupPath.mockImplementation(() => {
+			throw new Error('Not mounted yet');
+		});
+		const releaseRead = deferred<void>();
+		const failedRead = new Error('Cannot read saved file');
+		const createDataFile = vi.fn();
+		const onMount = vi.fn();
+		const root = {
+			async *values() {
+				yield {
+					kind: 'file',
+					name: 'slow',
+					getFile: async () => {
+						await releaseRead.promise;
+						return new Blob(['saved']);
+					},
+				};
+				yield {
+					kind: 'file',
+					name: 'broken',
+					getFile: async () => {
+						throw failedRead;
+					},
+				};
+			},
+		} as unknown as FileSystemDirectoryHandle;
+		let settled = false;
+		const copy = createDirectoryHandleMountHandler(root, {
+			initialSync: {},
+			onMount,
+		})(php, { ...FS, createDataFile } as any, '/wordpress');
+		void Promise.resolve(copy).then(
+			() => {
+				settled = true;
+			},
+			() => {
+				settled = true;
+			}
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(settled).toBe(false);
+		releaseRead.resolve();
+		await expect(copy).rejects.toBe(failedRead);
+		expect(createDataFile).toHaveBeenCalledTimes(1);
+		expect(onMount).not.toHaveBeenCalled();
+	});
+});
+
 describe('journalFSEventsToOpfs', () => {
 	it('flushes pending journaled file changes to OPFS', async () => {
 		const { FS, files, php } = createFakePhp();
@@ -384,6 +473,38 @@ describe('journalFSEventsToOpfs', () => {
 		await logged.promise;
 		expect(loggerError).toHaveBeenCalledWith(flushError);
 		loggerError.mockRestore();
+	});
+
+	it('preserves a quota failure when the errored stream also rejects cleanup', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const file = await opfsRoot.getFileHandle('file.txt', { create: true });
+		const failure = new DOMException(
+			'Browser storage is full',
+			'QuotaExceededError'
+		);
+		const abort = vi
+			.fn()
+			.mockRejectedValue(new TypeError('Stream is errored'));
+		vi.spyOn(file, 'createWritable').mockResolvedValue({
+			truncate: vi.fn().mockResolvedValue(undefined),
+			write: vi.fn().mockRejectedValue(failure),
+			close: vi
+				.fn()
+				.mockRejectedValue(
+					new TypeError('Cannot close an errored stream')
+				),
+			abort,
+		} as unknown as FileSystemWritableFileStream);
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+		await expect(mount.flush()).rejects.toBe(failure);
+		expect(abort).toHaveBeenCalledOnce();
 	});
 
 	it('can retry after a failed explicit flush', async () => {
