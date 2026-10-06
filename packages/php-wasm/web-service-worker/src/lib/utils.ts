@@ -240,6 +240,7 @@ export async function cloneRequest(
 	}
 
 	return new Request(overrides['url'] || request.url, {
+		signal: request.signal,
 		body,
 		method: request.method,
 		headers: request.headers,
