@@ -570,16 +570,36 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 			return props.src;
 		}
 	}, [props.src, props.srcDoc]);
+	const iframeRef = window.wp.compose.useMergeRefs([
+		ref,
+		source === props.src ? null : __playground_skipCredentialless,
+	]);
 	return (
 		window.wp.element.createElement('iframe', {
 			...props,
-			ref: ref,
+			ref: iframeRef,
 			src: source,
 			// Make sure there's no srcDoc, as it would interfere with the src.
 			srcDoc: undefined
 		})
 	)
-});`;
+});
+
+// Gutenberg 22.4–22.7 add the credentialless attribute to iframes in a cross-origin
+// isolated editor. They skip the editor's own iframes by their blob: URL, which
+// empty.html replaces. A credentialless iframe isn't controlled by the service
+// worker, so it would stay blank. Reporting the attribute as present makes
+// Gutenberg skip the iframe, while the browser still loads it without one.
+function __playground_skipCredentialless(iframe) {
+	if (iframe) {
+		iframe.hasAttribute = function (name) {
+			return (
+				name === 'credentialless' ||
+				Element.prototype.hasAttribute.call(this, name)
+			);
+		};
+	}
+}`;
 
 /**
  * Inline script served as /wp-includes/empty.html.
