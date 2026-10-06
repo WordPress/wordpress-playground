@@ -241,6 +241,16 @@ describe('Reprint command replies', () => {
 		).toBe('https://example.com/blog/?reprint-api');
 	});
 
+	it.each([
+		'http://example.com',
+		'https://user:pass@example.com',
+		'https://example.com/#secret',
+		'https://example.com/?SECRET_KEY=token',
+		'https://example.com/?other=1',
+	])('rejects unsafe or ambiguous source URLs: %s', (url) => {
+		expect(() => normalizeReprintUrl(url)).toThrow();
+	});
+
 	it('streams byte progress before the PHP request finishes and ignores text-only file updates', async () => {
 		const { playground } = createClient([]);
 		let output!: ReadableStreamDefaultController<Uint8Array>;
