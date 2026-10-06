@@ -291,6 +291,39 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: sudo npx playwright install
             - run: sudo CI=true npx nx e2e php-wasm-web
+    test-reprint-bridge:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: sqlite3, pdo_sqlite, curl, zip
+                  tools: none
+            - name: Download and verify the pinned Reprint client
+              run: |
+                  # Read the same release and digest used by the browser adapter.
+                  node --input-type=module <<'JS'
+                  import { readFileSync, writeFileSync } from 'node:fs';
+                  const source = readFileSync('packages/playground/website/src/lib/reprint/reprint.ts', 'utf8');
+                  const version = source.match(/REPRINT_VERSION = '([^']+)'/)[1];
+                  const sha256 = source.match(/PHAR_SHA256 =\s*'([^']+)'/)[1];
+                  const response = await fetch(`https://github.com/WordPress/reprint/releases/download/${version}/reprint.phar`);
+                  if (!response.ok) throw new Error(`Reprint download returned ${response.status}`);
+                  writeFileSync('/tmp/playground-reprint.phar', new Uint8Array(await response.arrayBuffer()));
+                  writeFileSync('/tmp/playground-reprint.sha256', `${sha256}  /tmp/playground-reprint.phar\n`);
+                  JS
+                  sha256sum -c /tmp/playground-reprint.sha256
+            - name: Run the native PHP bridge checks
+              run: php packages/playground/website/src/lib/reprint/bridge-test.php
+
     # E2E Playwright tests - builds inline per runner for faster parallel execution
     # Previously used a prepare job + artifact sharing, but inline builds allow
     # all shards to start immediately in parallel, reducing total wall time.

@@ -1,3 +1,6 @@
+import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
+import bridge from './bridge.php?raw';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import type { PlaygroundClient } from '@wp-playground/client';
 import release from './release.json';
@@ -180,6 +183,108 @@ export function normalizeReprintUrl(input: string): string {
 	}
 	url.search = '?reprint-api';
 	return url.href;
+}
+
+/** Pull into a temporary Playground; failed stages retain their retry checkpoint. */
+export async function pullSite(
+	playground: PlaygroundClient,
+	url: string,
+	secret: string,
+	onProgress: (progress: TransferProgress) => void,
+	/** Stops after the current PHP run. The checkpoint allows a later resume. */
+	signal?: AbortSignal
+): Promise<{ warning?: string }> {
+	url = normalizeReprintUrl(url);
+	if (!secret.trim()) throw new Error('Enter the Reprint connection token.');
+	// Phase weights estimate work, not elapsed time. Checkpoints keep the bar;
+	// only completion reaches 100%.
+	const phases: Record<string, [number, number, string]> = {
+		preflight: [0, 2, 'Connecting to the live site…'],
+		'files-pull': [2, 95, 'Downloading site files…'],
+		'files-prepare': [95, 98, 'Setting up downloaded files…'],
+	};
+	let phase = 'preflight';
+	let overallPercent = 0;
+	let lastProgress: TransferProgress = { message: 'Starting Reprint…' };
+	/** Keep stage transitions and resumed byte counts on one monotonic bar. */
+	const report = (update: TransferProgressUpdate) => {
+		if (update.phase && phases[update.phase] && update.phase !== phase) {
+			phase = update.phase;
+			logger.info(
+				`[Reprint] ${(update.message ?? '').replaceAll(secret, '[redacted]')}`
+			);
+			lastProgress = { message: update.message ?? lastProgress.message };
+		}
+		lastProgress = { ...lastProgress, ...update };
+		const [start, end] = phases[phase];
+		const total = lastProgress.bytesTotal || lastProgress.filesTotal;
+		const done = lastProgress.bytesTotal
+			? lastProgress.bytesDone
+			: lastProgress.filesDone;
+		const fraction =
+			lastProgress.percent !== undefined
+				? lastProgress.percent / 100
+				: total && done !== undefined
+					? done / total
+					: 0;
+		overallPercent = Math.max(
+			overallPercent,
+			start + (end - start) * Math.min(1, Math.max(0, fraction))
+		);
+		onProgress({ ...lastProgress, overallPercent });
+	};
+	report(lastProgress);
+	const documentRoot = await playground.documentRoot;
+	const siteUrl = await playground.absoluteUrl;
+	await installReprint(playground, report);
+	await playground.writeFile(BRIDGE_PATH, bridge);
+	const connectionPath = joinPaths(
+		documentRoot,
+		'.playground-reprint',
+		'connection.json'
+	);
+	await playground.mkdir(joinPaths(documentRoot, '.playground-reprint'));
+	await playground.writeFile(connectionPath, JSON.stringify({ url }));
+	let stage: string | undefined;
+	let transferError: Error | undefined;
+	logger.info(`[Reprint ${REPRINT_VERSION}] Starting pull.`);
+	try {
+		while (true) {
+			const result = await runBridge(
+				playground,
+				{ command: 'pull', url, secret, documentRoot, siteUrl },
+				report
+			);
+			if (result.stage && stage !== result.stage) {
+				stage = result.stage;
+				report({
+					phase: stage,
+					message: phases[stage][2],
+				});
+			}
+			if (result.status === 'complete') break;
+			if (signal?.aborted) {
+				throw new DOMException('Pull stopped.', 'AbortError');
+			}
+		}
+	} catch (error) {
+		transferError =
+			error instanceof DOMException && error.name === 'AbortError'
+				? error
+				: new Error(
+						(error instanceof Error
+							? error.message
+							: String(error)
+						).replaceAll(secret, '[redacted]')
+					);
+		logger.error(`[Reprint] Pull failed: ${transferError.message}`);
+	}
+	if (transferError) throw transferError;
+	onProgress({
+		message: 'Transfer complete',
+		overallPercent: 100,
+	});
+	return {};
 }
 
 /**

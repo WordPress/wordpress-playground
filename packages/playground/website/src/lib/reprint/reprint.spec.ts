@@ -7,6 +7,7 @@ import {
 	normalizeReprintUrl,
 	installReprint,
 	runBridge,
+	pullSite,
 } from './reprint';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import release from './release.json';
@@ -401,6 +402,75 @@ describe('Reprint command replies', () => {
 				vi.fn()
 			)
 		).rejects.toThrow('failed with [redacted]');
+	});
+});
+
+// The bridge loop and saved connection are independent from setup controls.
+describe('Direct file pull', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+		vi.clearAllMocks();
+		vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
+			Uint8Array.from(
+				'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda'.match(
+					/../g
+				)!,
+				(byte) => parseInt(byte, 16)
+			).buffer
+		);
+	});
+	it('advances stages on the primary PHP instance and saves the URL without its token', async () => {
+		const { playground, runStream, writeFile } = createClient([
+			{ status: 'continue', stage: 'files-pull' },
+			{ status: 'continue', stage: 'files-prepare' },
+			{ status: 'complete' },
+		]);
+		const updates: TransferProgressUpdate[] = [];
+		await pullSite(
+			playground,
+			'https://example.com',
+			'private-token',
+			(update) => updates.push(update)
+		);
+		expect(runStream).toHaveBeenCalledTimes(3);
+		for (const [options] of runStream.mock.calls)
+			expect(options).toMatchObject({ usePrimaryPhp: true });
+		expect(writeFile).toHaveBeenCalledWith(
+			'/wordpress/.playground-reprint/connection.json',
+			JSON.stringify({ url: 'https://example.com/?reprint-api' })
+		);
+		expect(JSON.stringify(writeFile.mock.calls)).not.toContain(
+			'private-token'
+		);
+		expect(updates.at(-1)?.overallPercent).toBe(100);
+	});
+	it('stops after the current stage and retries with the same connection', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'continue', stage: 'files-pull' },
+			{ status: 'complete' },
+		]);
+		const controller = new AbortController();
+		controller.abort();
+		await expect(
+			pullSite(
+				playground,
+				'https://example.com',
+				'token',
+				vi.fn(),
+				controller.signal
+			)
+		).rejects.toThrow('Pull stopped.');
+		expect(runStream).toHaveBeenCalledTimes(1);
+		await pullSite(
+			playground,
+			'https://example.com/?reprint-api',
+			'token',
+			vi.fn()
+		);
+		const requests = runStream.mock.calls.map(([options]) =>
+			JSON.parse(options.env.PLAYGROUND_REPRINT)
+		);
+		expect(requests[0]).toEqual(requests[1]);
 	});
 });
 
