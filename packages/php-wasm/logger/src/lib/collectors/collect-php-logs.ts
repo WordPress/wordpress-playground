@@ -1,7 +1,6 @@
 import type { UniversalPHP, PHPRequestErrorEvent } from '../types';
 import { type Logger, LogPrefix, LogSeverity } from '../logger';
 
-let lastPHPLogLength = 0;
 export const errorLogPath = '/wordpress/wp-content/debug.log';
 
 /**
@@ -26,16 +25,21 @@ export const collectPhpLogs = (
 	loggerInstance: Logger,
 	playground: UniversalPHP
 ) => {
+	let lastPHPLog = '';
 	playground.addEventListener('request.end', async () => {
 		const log = await getRequestPhpErrorLog(playground);
-		if (log.length > lastPHPLogLength) {
-			const currentLog = log.substring(lastPHPLogLength);
+		// Imports can replace debug.log with a shorter or unrelated file. Track
+		// each Playground separately and only skip a prefix we actually read.
+		const currentLog = log.startsWith(lastPHPLog)
+			? log.substring(lastPHPLog.length)
+			: log;
+		lastPHPLog = log;
+		if (currentLog) {
 			loggerInstance.logMessage({
 				message: currentLog,
 				severity: LogSeverity.Log,
 				raw: true,
 			});
-			lastPHPLogLength = log.length;
 		}
 	});
 	playground.addEventListener('request.error', (event) => {
