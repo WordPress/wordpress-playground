@@ -43,6 +43,8 @@ export type PlaygroundFileEditorProps = {
 	dockPresentation?: boolean;
 	/** Mobile Dock title row where the current path should be rendered. */
 	mobileHeaderTarget?: Element | null;
+	/** Called when opening the initial file or a file selected in the tree. */
+	onFileOpen?: () => void;
 	/** Called when an explicit save starts, excluding autosaves and cleanup writes. */
 	onManualSave?: () => void;
 	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
@@ -86,6 +88,7 @@ export const PlaygroundFileEditor = forwardRef<
 		pathBadges,
 		onMountFromGit,
 		onPathRenamed,
+		onFileOpen,
 		onManualSave,
 	},
 	ref
@@ -255,6 +258,7 @@ export const PlaygroundFileEditor = forwardRef<
 					if (cancelled) {
 						return;
 					}
+					onFileOpen?.();
 					skipNextSaveRef.current = true;
 					setCurrentPath(initialPath);
 					setCode(content);
@@ -280,7 +284,7 @@ export const PlaygroundFileEditor = forwardRef<
 		return () => {
 			cancelled = true;
 		};
-	}, [filesystem, initialPath]);
+	}, [filesystem, initialPath, onFileOpen]);
 
 	// Auto-save effect
 	useEffect(() => {
@@ -622,6 +626,7 @@ export const PlaygroundFileEditor = forwardRef<
 						selectedDirPath={selectedDirPath}
 						setSelectedDirPath={setSelectedDirPath}
 						onFileOpened={handleFileOpened}
+						onFileOpen={onFileOpen}
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
 						documentRoot={documentRoot}

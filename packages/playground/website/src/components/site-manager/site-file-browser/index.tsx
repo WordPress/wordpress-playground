@@ -181,6 +181,7 @@ export function SiteFileBrowser({
 					setMountRequest({ kind, parentPath });
 				}}
 				onPathRenamed={handlePathRenamed}
+				onFileOpen={() => logTrackingEvent('fileOpen')}
 				onManualSave={() => logTrackingEvent('fileSave')}
 			/>
 			{mountRequest ? (
@@ -338,7 +339,6 @@ class ClientFilesystemWrapper
 		return this.client.fileExists(path);
 	}
 	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
-		logTrackingEvent('fileOpen');
 		const buffer = await this.client.readFileAsBuffer(path);
 		return {
 			arrayBuffer: async () => buffer.buffer as ArrayBuffer,
