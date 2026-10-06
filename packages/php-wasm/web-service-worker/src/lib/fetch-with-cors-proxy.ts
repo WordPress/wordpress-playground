@@ -13,6 +13,10 @@ const CORS_ENABLED_HOST_REQUEST_HEADERS = new Map([
 	['generativelanguage.googleapis.com', {}],
 ]);
 
+/**
+ * Fetch directly where CORS permits it, otherwise retry through the configured
+ * proxy. Local HTTP uploads are buffered for HTTP/1.1 servers.
+ */
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
 	init?: RequestInit,
@@ -32,6 +36,7 @@ export async function fetchWithCorsProxy(
 		if (requestUrlObj.protocol === 'http:' && requestObject.body) {
 			requestObject = await cloneRequest(requestObject, {
 				body: await readBodyUntilAborted(requestObject),
+				keepalive: requestObject.keepalive,
 			});
 		}
 		return await fetch(requestObject);
@@ -171,6 +176,7 @@ export async function fetchWithCorsProxy(
  */
 async function readBodyUntilAborted(request: Request): Promise<ArrayBuffer> {
 	const { signal } = request;
+	/** Preserve the caller's abort reason, including custom errors. */
 	const abortError = () =>
 		signal.reason ??
 		new DOMException('The request was aborted.', 'AbortError');
@@ -178,6 +184,7 @@ async function readBodyUntilAborted(request: Request): Promise<ArrayBuffer> {
 		throw abortError();
 	}
 	const reader = request.body!.getReader();
+	/** Release a stalled reader so the abort reaches the pending fetch. */
 	const cancel = () => {
 		reader.cancel(signal.reason).catch(() => {});
 	};
@@ -190,7 +197,8 @@ async function readBodyUntilAborted(request: Request): Promise<ArrayBuffer> {
 			if (done) {
 				break;
 			}
-			chunks.push(value);
+			// A producer may reuse its buffer on the next read.
+			chunks.push(value.slice());
 			length += value.byteLength;
 		}
 	} finally {

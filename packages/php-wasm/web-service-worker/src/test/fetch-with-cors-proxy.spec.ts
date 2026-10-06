@@ -277,6 +277,58 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.bodyUsed).toBe(true);
 	});
 
+	it('preserves keepalive when buffering a localhost upload', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body: 'complete this upload after unload',
+			keepalive: true,
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(sentRequest.keepalive).toBe(true);
+		expect(await sentRequest.text()).toBe(
+			'complete this upload after unload'
+		);
+	});
+
+	it('retains earlier bytes when a localhost stream reuses its buffer', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const chunk = new Uint8Array(1);
+		let nextByte = 65;
+		const body = new ReadableStream(
+			{
+				/** Reuse the producer's buffer only when the reader asks for the next chunk. */
+				pull(controller) {
+					if (nextByte === 67) {
+						controller.close();
+						return;
+					}
+					chunk[0] = nextByte++;
+					controller.enqueue(chunk);
+				},
+			},
+			{ highWaterMark: 0 }
+		);
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies.
+			duplex: 'half',
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(await sentRequest.text()).toBe('AB');
+	});
+
 	it('stops buffering a localhost upload whose body never closes when aborted', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
