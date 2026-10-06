@@ -716,6 +716,7 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 				version: apiVersion.version,
 				source: 'api',
 			};
+		}
 	}
 
 	if (versionQuery === 'beta') {
