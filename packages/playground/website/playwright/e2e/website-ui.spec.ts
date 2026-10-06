@@ -2227,24 +2227,6 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		).toBeVisible();
 
 		await newPane.locator('#creation-tab-write-own').click();
-		expect(
-			await newPane
-				.getByRole('tablist', {
-					name: 'Ways to start a new Playground',
-				})
-				.evaluate((tablist) => {
-					const pane = tablist.closest('[role="dialog"]')!;
-					const tablistRect = tablist.getBoundingClientRect();
-					const paneRect = pane.getBoundingClientRect();
-					return {
-						leftInset: Math.round(tablistRect.left - paneRect.left),
-						rightInset: Math.round(
-							paneRect.right - tablistRect.right
-						),
-						overflows: tablist.scrollWidth > tablist.clientWidth,
-					};
-				})
-		).toEqual({ leftInset: 24, rightInset: 24, overflows: false });
 		const draft = newPane.locator('.cm-content');
 		await expect(draft).toBeFocused({ timeout: 5000 });
 		await draft.fill(

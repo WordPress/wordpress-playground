@@ -144,6 +144,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
+		/** Select or create the site requested by setup and lifecycle URL values. */
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
@@ -199,14 +200,20 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			// If only the 'modal' parameter changes in searchParams, don't reload the page
-			const notRefreshingParam = 'modal';
-			const oldParams = new URLSearchParams(prevUrl?.search);
-			const newParams = new URLSearchParams(url?.search);
-			oldParams.delete(notRefreshingParam);
-			newParams.delete(notRefreshingParam);
+			// Dock navigation removes `overlay` from the URL. That must not create
+			// another Playground or discard the clone form. Compare the existing
+			// setup fingerprint, plus routing and lifecycle values that deliberately
+			// select a different site even when its setup is unchanged.
 			const avoidUnnecessaryTempSiteReload =
-				activeSite && oldParams.toString() === newParams.toString();
+				activeSite &&
+				prevUrl &&
+				getAutosaveFingerprintFromURL(prevUrl) ===
+					currentSetupUrlFingerprint &&
+				prevUrl.searchParams.get('site-slug') === requestedSiteSlug &&
+				prevUrl.searchParams.get('storage') ===
+					url.searchParams.get('storage') &&
+				prevUrl.searchParams.get('random') ===
+					url.searchParams.get('random');
 			if (avoidUnnecessaryTempSiteReload) {
 				return;
 			}

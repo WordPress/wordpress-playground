@@ -26,7 +26,6 @@ export type ReprintAvailability =
 
 export type TransferProgress = {
 	message: string;
-	error?: string;
 	phase?: string;
 	percent?: number;
 	overallPercent?: number;

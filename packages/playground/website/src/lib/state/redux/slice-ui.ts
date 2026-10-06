@@ -168,6 +168,13 @@ export interface UIState {
 	siteImportProgress?: ProgressDetails;
 	dockPaneIsOpen: boolean;
 	dockPaneSection: DockPaneSection;
+	/** The transfer pane collects a live site to copy into a new Playground. */
+	cloneRequested?: boolean;
+	/**
+	 * Connection details for a Playground created by the clone flow. The
+	 * transfer panel mounted for that slug starts the pull with them.
+	 */
+	pendingClone?: { slug: string; url: string; secret: string };
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
 	 * pane does not discard the user's work.
@@ -235,7 +242,9 @@ const uiSlice = createSlice({
 	name: 'ui',
 	initialState,
 	reducers: {
+		/** Select a site and leave any pre-creation clone form behind. */
 		setActiveSite: (state, action: PayloadAction<string | undefined>) => {
+			state.cloneRequested = undefined;
 			state.activeSite = action.payload
 				? {
 						slug: action.payload,
@@ -290,8 +299,12 @@ const uiSlice = createSlice({
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
+		/** Toggle the pane; closing discards the pre-creation clone form. */
 		setDockPaneOpen: (state, action: PayloadAction<boolean>) => {
 			state.dockPaneIsOpen = action.payload;
+			if (!action.payload) {
+				state.cloneRequested = undefined;
+			}
 		},
 		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
 			state.shareExportOpen = action.payload;
@@ -301,6 +314,17 @@ const uiSlice = createSlice({
 			action: PayloadAction<ProgressDetails | undefined>
 		) => {
 			state.siteImportProgress = action.payload;
+		},
+		/** Open an empty clone form without changing the active site. */
+		setCloneRequested: (state, action: PayloadAction<boolean>) => {
+			state.cloneRequested = action.payload || undefined;
+		},
+		/** Pass the connection to the new site until its panel starts the pull. */
+		setPendingClone: (
+			state,
+			action: PayloadAction<UIState['pendingClone']>
+		) => {
+			state.pendingClone = action.payload;
 		},
 		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
 			state.dockPaneSection = action.payload;
@@ -387,6 +411,8 @@ export const {
 	setSiteImportProgress,
 	setDockPaneOpen,
 	setDockPaneSection,
+	setCloneRequested,
+	setPendingClone,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
 	setDockOperationNotice,
