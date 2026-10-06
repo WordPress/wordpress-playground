@@ -225,3 +225,47 @@ describe('isSiteSavingDisabled', () => {
 		).toBe(true);
 	});
 });
+
+describe('origin isolation prototype routes', () => {
+	const current = 'http://site-aaaa.playground.localhost:9400/?site-slug=old';
+
+	it.each(['newSite', 'newTemporarySite'] as const)(
+		'%s sends a fresh setup to the launcher instead of the saved origin',
+		(method) => {
+			const url = new URL(
+				PlaygroundRoute[method](
+					{
+						query: {
+							php: '8.3',
+							plugin: ['hello-dolly', 'gutenberg'],
+						},
+						hash: '#blueprint',
+					},
+					current
+				)
+			);
+			expect(url.origin).toBe('http://playground.localhost:9400');
+			expect(url.searchParams.get('site-slug')).toBeNull();
+			expect(url.searchParams.get('php')).toBe('8.3');
+			expect(url.searchParams.getAll('plugin')).toEqual([
+				'hello-dolly',
+				'gutenberg',
+			]);
+			expect(url.hash).toBe('#blueprint');
+		}
+	);
+
+	it('keeps saving and renaming on the same origin', () => {
+		const url = new URL(
+			PlaygroundRoute.site(
+				{
+					slug: 'renamed-site',
+					metadata: { storage: 'opfs' },
+				} as SiteInfo,
+				current
+			)
+		);
+		expect(url.origin).toBe(new URL(current).origin);
+		expect(url.searchParams.get('site-slug')).toBe('renamed-site');
+	});
+});

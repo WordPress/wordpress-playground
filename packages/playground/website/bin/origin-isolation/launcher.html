@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<link rel="icon" href="data:," />
+	<title>Playground origin isolation prototype</title>
+	<style>
+		body {
+			font: 17px system-ui;
+			max-width: 760px;
+			margin: 60px auto;
+			padding: 0 24px;
+			line-height: 1.6;
+		}
+		a {
+			color: #3858e9;
+		}
+		li {
+			margin: 12px 0;
+		}
+		code {
+			font-size: 0.85em;
+		}
+	</style>
+	<h1>One Playground per subdomain</h1>
+	<p>
+		Each link runs the whole app on its own origin, with its own OPFS
+		storage. The app bundles, PHP, and WordPress downloads come from a
+		shared static origin.
+	</p>
+	<p>
+		<a href="?new=1">New saved Playground</a> ·
+		<a href="?new=1&storage=temp">New temporary Playground</a>
+	</p>
+	<ul id="sites"></ul>
+	<p>
+		Saved names are shared with the site list in each Playground. Files
+		remain on their site's origin.
+	</p>
+	<p>
+		<strong>Prototype:</strong> do not sign in or store account tokens here.
+	</p>
+	<script>
+		const key = 'origin-isolation-sites';
+		let previous = [];
+		try {
+			const stored = JSON.parse(localStorage.getItem(key) || '[]');
+			if (Array.isArray(stored)) previous = stored;
+		} catch {
+			/* Keep the launcher usable if old display metadata is damaged. */
+		}
+		const current = Object.keys(localStorage)
+			.filter((key) => key.startsWith('origin-isolation-site:'))
+			.flatMap((key) => {
+				try {
+					const site = JSON.parse(localStorage.getItem(key));
+					return site ? [{ name: site.name, href: site.origin }] : [];
+				} catch {
+					return [];
+				}
+			});
+		const sites = new Map();
+		for (const site of [...previous, ...current]) {
+			try {
+				const target = new URL(site?.href);
+				if (
+					typeof site?.name !== 'string' ||
+					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(
+						target.hostname
+					) ||
+					target.protocol !== location.protocol ||
+					target.port !== location.port ||
+					target.username ||
+					target.password
+				)
+					continue;
+				sites.set(target.origin, { name: site.name, target });
+			} catch {
+				// Skip a damaged display record without hiding the remaining sites.
+			}
+		}
+		const url = new URL(location.href);
+		if (url.search || url.hash) {
+			url.hostname = `site-${crypto.randomUUID()}.playground.localhost`;
+			url.searchParams.delete('new');
+			url.searchParams.delete('site-slug');
+			url.searchParams.delete('random');
+
+			location.replace(url);
+		} else {
+			for (const { name, target } of sites.values()) {
+				const link = document.createElement('a');
+				link.href = target.href;
+				link.textContent = `${name} — ${target.hostname}`;
+				const item = document.createElement('li');
+				item.append(link);
+				document.getElementById('sites').append(item);
+			}
+		}
+	</script>
+</html>

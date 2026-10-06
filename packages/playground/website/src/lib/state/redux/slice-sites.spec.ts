@@ -1,8 +1,11 @@
 import type { OriginalUrlParams } from '../original-url-params';
 import type { SiteInfo } from './slice-sites';
+import type { ClientInfo } from './slice-clients';
+import type * as ClientsModule from './slice-clients';
 import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 
 describe('stored sites', () => {
+	let clientInfo: ClientInfo | undefined;
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
 	let listMetadata: ReturnType<typeof vi.fn>;
@@ -14,6 +17,11 @@ describe('stored sites', () => {
 
 	beforeEach(() => {
 		vi.resetModules();
+		clientInfo = undefined;
+		vi.doMock('./slice-clients', async (importOriginal) => ({
+			...(await importOriginal<typeof ClientsModule>()),
+			selectClientInfoBySiteSlug: () => clientInfo,
+		}));
 		createSite = vi.fn();
 		deleteSite = vi.fn();
 		listMetadata = vi.fn().mockResolvedValue([]);
@@ -108,6 +116,7 @@ describe('stored sites', () => {
 		vi.doUnmock('../playground-identity');
 		vi.doUnmock('../url/resolve-blueprint-from-url');
 		vi.doUnmock('./slice-ui');
+		vi.doUnmock('./slice-clients');
 		vi.doUnmock('./store');
 	});
 
@@ -347,6 +356,122 @@ describe('stored sites', () => {
 
 		expect(state.sites.entities[site.slug]).toEqual(site);
 	});
+
+	it('refuses deletion while the initializer or first storage copy is running', async () => {
+		const { removeSite, sitesSlice } = await import('./slice-sites');
+		const site = createSiteInfo();
+		const state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(site)
+			),
+		};
+		clientInfo = { opfsSync: { status: 'syncing' } } as ClientInfo;
+		const dispatch = vi.fn();
+		await expect(
+			removeSite(site.slug)(dispatch as any, () => state as any)
+		).rejects.toThrow('while its files are being saved');
+		expect(deleteSite).not.toHaveBeenCalled();
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		'success',
+		'not mounted',
+		'unmount failure',
+		'delete failure',
+		'restore failure',
+	])(
+		'drains OPFS before deleting and restores it on failure: %s',
+		async (outcome) => {
+			const { removeSite, sitesSlice } = await import('./slice-sites');
+			const { updateClientInfo } = await import('./slice-clients');
+			const site = createSiteInfo();
+			const mount = {
+				device: { type: 'opfs', path: '/site' },
+				mountpoint: '/wordpress',
+			} as const;
+			const operations: string[] = [];
+			const unmountOpfs = vi.fn(async () => {
+				operations.push('unmount');
+				if (outcome === 'unmount failure')
+					throw new Error('unmount failure');
+			});
+			const mountOpfs = vi.fn(async () => {
+				operations.push('restore');
+				if (outcome === 'restore failure')
+					throw new Error('restore failure');
+			});
+			clientInfo = {
+				client: {
+					unmountOpfs,
+					mountOpfs,
+					hasOpfsMount: vi.fn(async () => outcome !== 'not mounted'),
+				},
+				opfsMountDescriptor: mount,
+			} as unknown as ClientInfo;
+			deleteSite.mockImplementation(async () => {
+				operations.push('delete');
+				if (outcome !== 'success' && outcome !== 'not mounted')
+					throw new Error('delete failure');
+			});
+			const state = {
+				sites: sitesSlice.reducer(
+					undefined,
+					sitesSlice.actions.addSite(site)
+				),
+			};
+			const dispatch = vi.fn();
+			const deletion = removeSite(site.slug)(
+				dispatch as any,
+				() => state as any
+			);
+			if (outcome === 'success' || outcome === 'not mounted') {
+				await deletion;
+				expect(operations).toEqual(
+					outcome === 'not mounted'
+						? ['delete']
+						: ['unmount', 'delete']
+				);
+				expect(dispatch).toHaveBeenCalledWith(
+					sitesSlice.actions.removeSite(site.slug)
+				);
+			} else {
+				await expect(deletion).rejects.toThrow(
+					outcome === 'unmount failure'
+						? 'unmount failure'
+						: 'delete failure'
+				);
+				expect(dispatch).not.toHaveBeenCalledWith(
+					sitesSlice.actions.removeSite(site.slug)
+				);
+				if (outcome === 'unmount failure') {
+					expect(operations).toEqual(['unmount']);
+				} else {
+					expect(operations).toEqual([
+						'unmount',
+						'delete',
+						'restore',
+					]);
+					expect(mountOpfs).toHaveBeenCalledWith({
+						...mount,
+						initialSyncDirection: 'memfs-to-opfs',
+					});
+				}
+			}
+			if (outcome === 'restore failure') {
+				expect(dispatch).toHaveBeenCalledWith(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsMountDescriptor: undefined,
+							opfsSync: { status: 'error' },
+						},
+					})
+				);
+			}
+		}
+	);
 
 	it('keeps a stored site in Redux when browser storage is unavailable', async () => {
 		vi.doMock('../opfs/opfs-site-storage', () => ({

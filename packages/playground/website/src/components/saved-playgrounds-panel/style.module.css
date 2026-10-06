@@ -1642,3 +1642,9 @@
 .playgrounds-pane.new-pane .writeOwnExpand svg {
 	fill: currentcolor;
 }
+
+/* Cross-origin rows navigate, but use the same presentation as local rows. */
+a.siteRowContent {
+	color: inherit;
+	text-decoration: none;
+}

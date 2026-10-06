@@ -485,6 +485,11 @@ export function bootSiteClient(
 			}
 			return;
 		}
+		// An initializer may finish after its viewport was removed. Do not start
+		// a new OPFS copy for a site that was deleted or whose boot was aborted.
+		if (signal.aborted || !selectSiteBySlug(getState(), site.slug)) {
+			return;
+		}
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
 		// the stored files are mounted and boot can only refresh recency metadata.
