@@ -13,6 +13,11 @@ test(
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
+		// The client is usable before its first background save has mounted OPFS.
+		// Finish that save before writing and flushing the original site's marker.
+		await expect(
+			page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible();
 		const originalSlug = await page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
 			const { slug } = await api.saveInBrowser();

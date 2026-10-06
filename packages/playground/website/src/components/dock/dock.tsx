@@ -990,12 +990,16 @@ export function Dock({
 		const maxHeight = pane.offsetHeight;
 		pane.style.height = fixedPaneHeight;
 		pane.style.transition = '';
+		// Measure a fixed target before animating. Reading the pane's current
+		// height during the transition would feed each intermediate frame back
+		// into ResizeObserver as a new target and restart the animation.
+		const fixedHeight = fixedPaneHeight ? pane.offsetHeight : undefined;
 		/**
 		 * The height the content wants, read from the children so the pane's
 		 * own animated height never enters the measurement.
 		 */
 		const naturalHeight = () => {
-			if (fixedPaneHeight) return pane.offsetHeight;
+			if (fixedHeight !== undefined) return fixedHeight;
 			let sum = 0;
 			for (const child of Array.from(pane.children)) {
 				sum += child.getBoundingClientRect().height;

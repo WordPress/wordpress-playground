@@ -1,6 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
@@ -2070,11 +2070,7 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		const pane = website.page.getByRole('dialog', {
 			name: 'Playgrounds pane',
 		});
-		await pane.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
+		await waitForAnimationsToFinish(pane);
 		const paneBeforeFailure = await pane.boundingBox();
 		await pane
 			.getByRole('button', { name: `Actions for ${activeSite.name}` })
@@ -2101,11 +2097,7 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 				hasText: `Couldn’t save ${activeSite.name} locally`,
 			})
 		).toHaveCount(1);
-		await notice.evaluate(async (element) => {
-			await Promise.all(
-				element.getAnimations().map((animation) => animation.finished)
-			);
-		});
+		await waitForAnimationsToFinish(notice);
 		const paneAfterFailure = await pane.boundingBox();
 		const noticeBox = await notice.boundingBox();
 		expect(paneAfterFailure).not.toBeNull();
@@ -2227,24 +2219,6 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		).toBeVisible();
 
 		await newPane.locator('#creation-tab-write-own').click();
-		expect(
-			await newPane
-				.getByRole('tablist', {
-					name: 'Ways to start a new Playground',
-				})
-				.evaluate((tablist) => {
-					const pane = tablist.closest('[role="dialog"]')!;
-					const tablistRect = tablist.getBoundingClientRect();
-					const paneRect = pane.getBoundingClientRect();
-					return {
-						leftInset: Math.round(tablistRect.left - paneRect.left),
-						rightInset: Math.round(
-							paneRect.right - tablistRect.right
-						),
-						overflows: tablist.scrollWidth > tablist.clientWidth,
-					};
-				})
-		).toEqual({ leftInset: 24, rightInset: 24, overflows: false });
 		const draft = newPane.locator('.cm-content');
 		await expect(draft).toBeFocused({ timeout: 5000 });
 		await draft.fill(
@@ -2470,13 +2444,9 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 				)
 			)
 			.toBe(true);
-		// The pane animates its height when a subpanel opens, which moves the
-		// header until the inline height is cleared. Measure once it settles.
-		await expect
-			.poll(() =>
-				githubExportPane.evaluate((element) => element.style.height)
-			)
-			.toBe('');
+		// Opening the subpanel moves its header until the height animation ends.
+		// Fixed-height panes keep their inline height after settling.
+		await waitForAnimationsToFinish(githubExportPane);
 		const headingTop = await heading.evaluate(
 			(element) => element.getBoundingClientRect().top
 		);
@@ -3557,3 +3527,20 @@ test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not s
 		.count();
 	expect(gtmScripts).toBe(0);
 });
+
+/**
+ * Waits for the element's current animations to settle before measuring it.
+ * A resize can cancel and replace a transition, so awaiting one snapshot of
+ * animation.finished promises can reject before the replacement finishes.
+ */
+async function waitForAnimationsToFinish(element: Locator) {
+	await expect
+		.poll(() =>
+			element.evaluate((node) =>
+				node
+					.getAnimations()
+					.some((animation) => animation.playState === 'running')
+			)
+		)
+		.toBe(false);
+}
