@@ -99,13 +99,8 @@ export function Dock({
 	} = toolBack ?? {};
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
-	const cloneRequested = useAppSelector((state) => state.ui.cloneRequested);
 	const paneCopy = getDockTool(section);
-	const cloningSite = section === 'transfer' && cloneRequested;
-	const paneTitle = cloningSite ? 'Clone a WordPress site' : paneCopy.title;
-	const paneDescription = cloningSite
-		? 'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.'
-		: paneCopy.description;
+	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
 	const isEditorSection = paneCopy.layout === 'editor';
 	const isWideSection = paneCopy.layout === 'wide';
@@ -1081,7 +1076,7 @@ export function Dock({
 					description={
 						section === 'settings' && activeSite
 							? undefined
-							: paneDescription
+							: paneCopy.description
 					}
 					headerSubtitle={
 						section === 'settings' && activeSite ? (

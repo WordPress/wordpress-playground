@@ -162,13 +162,13 @@ const definitions = [
 	},
 	{
 		section: 'transfer',
-		label: 'Pull site',
-		ariaLabel: 'Pull site',
+		label: 'Clone site',
+		ariaLabel: 'Clone site',
 		icon: <Icon icon={external} size={24} />,
 		group: 'hidden',
-		title: 'Pull WordPress site',
+		title: 'Clone a WordPress site',
 		description:
-			'Bring a live site into Playground with Reprint. Your live site stays unchanged.',
+			'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.',
 		layout: 'default',
 		Panel: TransferTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,

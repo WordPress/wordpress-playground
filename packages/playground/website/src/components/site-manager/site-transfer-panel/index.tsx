@@ -1,4 +1,3 @@
-import classNames from 'classnames';
 import {
 	useCallback,
 	useEffect,
@@ -715,9 +714,7 @@ export function SiteTransferPanel({
 								<TextControl
 									__nextHasNoMarginBottom
 									ref={keyInput}
-									className={classNames(css.heroInput, {
-										[css.inputInvalid]: keyRejected,
-									})}
+									className={css.heroInput}
 									autoFocus={isVisible}
 									label={`Reprint key on ${hostname}`}
 									type="password"

@@ -200,20 +200,18 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			// Dock navigation removes `overlay` from the URL. That must not create
-			// another Playground or discard the clone form. Compare the existing
-			// setup fingerprint, plus routing and lifecycle values that deliberately
-			// select a different site even when its setup is unchanged.
+			// Dock navigation removes `overlay` from the URL. Like `modal`, it
+			// must not create another Playground or discard the clone form.
+			// Keep ignoring the hash here: the Blueprint editor writes its draft
+			// there, but only Run Blueprint should replace the running site.
+			const oldParams = new URLSearchParams(prevUrl?.search);
+			const newParams = new URLSearchParams(url.search);
+			for (const parameter of ['modal', 'overlay']) {
+				oldParams.delete(parameter);
+				newParams.delete(parameter);
+			}
 			const avoidUnnecessaryTempSiteReload =
-				activeSite &&
-				prevUrl &&
-				getAutosaveFingerprintFromURL(prevUrl) ===
-					currentSetupUrlFingerprint &&
-				prevUrl.searchParams.get('site-slug') === requestedSiteSlug &&
-				prevUrl.searchParams.get('storage') ===
-					url.searchParams.get('storage') &&
-				prevUrl.searchParams.get('random') ===
-					url.searchParams.get('random');
+				activeSite && oldParams.toString() === newParams.toString();
 			if (avoidUnnecessaryTempSiteReload) {
 				return;
 			}

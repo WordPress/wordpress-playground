@@ -276,16 +276,19 @@
 	}
 }
 
-/* The completed site step stays visible as one green line above the key
-   form, so the second step reads as progress rather than as the same form. */
+/* A rejected key is marked at the field so a replacement can be pasted
+   without losing the chosen site or creating another Playground. */
 .field-error {
 	color: #b32d2e;
 	font-size: 13px;
 	margin: 0;
 }
 
-.input-invalid :global(.components-input-control__backdrop) {
+.panel
+	.hero-input
+	:global(input.components-text-control__input[aria-invalid='true']) {
 	border-color: #b32d2e;
+	box-shadow: 0 0 0 1px #b32d2e;
 }
 
 /* Completion is the one centered step: every form step is left-aligned, so

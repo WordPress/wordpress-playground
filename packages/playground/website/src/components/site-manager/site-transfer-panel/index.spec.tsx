@@ -589,10 +589,12 @@ function TransferPanelInDock(props: SiteToolPanelProps) {
 	const { action, ...header } = back ?? {};
 	return (
 		<DockPane
-			title="Pull WordPress site"
+			title="Clone a WordPress site"
 			headerAction={action}
 			headerOverride={
-				back ? { title: 'Pull WordPress site', ...header } : undefined
+				back
+					? { title: 'Clone a WordPress site', ...header }
+					: undefined
 			}
 		>
 			<SiteTransferPanel {...props} onBackChange={setBack} />
