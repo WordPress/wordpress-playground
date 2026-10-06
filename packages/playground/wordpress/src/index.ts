@@ -716,7 +716,26 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 				version: apiVersion.version,
 				source: 'api',
 			};
+	}
+
+	if (versionQuery === 'beta') {
+		// When no beta or RC is currently offered (the window between a final
+		// release and the next beta cycle), fall back to the latest stable release.
+		const latestStable = latestVersions.find(
+			(apiVersion: any) =>
+				!apiVersion.version.includes('beta') &&
+				!apiVersion.version.includes('RC')
+		);
+		if (latestStable) {
+			return {
+				releaseUrl: latestStable.download,
+				version: latestStable.version,
+				source: 'api',
+			};
 		}
+		throw new Error(
+			'No WordPress beta or RC release is currently available.'
+		);
 	}
 
 	/**
