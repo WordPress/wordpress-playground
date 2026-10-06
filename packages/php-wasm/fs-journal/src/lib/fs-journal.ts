@@ -387,24 +387,29 @@ export function normalizeFilesystemOperations(
 		}
 		for (let i = journal.length - 1; i >= 0; i--) {
 			const entry = journal[i];
-			let candidates: number[];
+			let candidates: Iterable<number>;
 			if (
 				entry.operation === 'RENAME' &&
 				entry.nodeType === 'directory'
 			) {
 				// Moving a directory may rewrite any earlier descendant path.
-				candidates = Array.from({ length: i }, (_, j) => j);
+				candidates = (function* () {
+					for (let j = i - 1; j >= 0; j--) {
+						yield j;
+					}
+				})();
 			} else {
-				candidates = entriesByPath.get(entry.path) ?? [];
+				let matchingEntries = entriesByPath.get(entry.path) ?? [];
 				if (entry.operation === 'RENAME') {
 					// Keep detecting unsupported rename chains through a parent.
-					candidates = [
-						...new Set([...candidates, ...directoryRenames]),
+					matchingEntries = [
+						...new Set([...matchingEntries, ...directoryRenames]),
 					];
 				}
+				candidates = [...matchingEntries].sort((a, b) => b - a);
 			}
 			// Substitutions depend on visiting earlier records newest-first.
-			for (const j of [...candidates].sort((a, b) => b - a)) {
+			for (const j of candidates) {
 				if (j >= i) continue;
 				const formerType = checkRelationship(journal[i], journal[j]);
 				if (formerType === 'none') {
