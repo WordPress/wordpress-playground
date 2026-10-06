@@ -279,14 +279,12 @@ self.addEventListener('fetch', (event) => {
 				handleRemoteAccessRelayRequest(
 					event,
 					remoteAccessRelayMapping
-				).then((response) =>
-					applyCrossOriginIsolationHeaders(response, scope)
-				)
+				).then(applyCrossOriginIsolationHeaders)
 			);
 		}
 		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				applyCrossOriginIsolationHeaders(response, scope)
+			handleScopedRequest(event, scope).then(
+				applyCrossOriginIsolationHeaders
 			)
 		);
 	}
@@ -427,7 +425,9 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
 	const unscopedUrl = removeURLScope(fullUrl);
 	if (fullUrl.pathname.endsWith('/wp-includes/empty.html')) {
-		return emptyHtml(scope);
+		return emptyHtml(
+			fullUrl.searchParams.get('cross-origin-isolated') === '1'
+		);
 	}
 
 	const workerResponse = await convertFetchEventToPHPRequest(event);
@@ -521,32 +521,23 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 reportServiceWorkerMetrics(self);
 
 /**
- * Pair the site editor's nested iframe to the Service Worker.
+ * Keeps the block editor's iframes controlled by the service worker.
  *
- * Without the patch below, the site editor initiates network requests that
- * aren't routed through the service worker. That's a known browser issue:
+ * The block editor renders its canvas and previews in iframes with srcDoc
+ * (WordPress <= 6.2) or blob: URL (WordPress 6.3+) documents. Browsers don't
+ * always route requests from such documents through the parent's service
+ * worker, so their CSS, JS, fonts, and images would fail to load:
  *
- * * https://bugs.chromium.org/p/chromium/issues/detail?id=880768
- * * https://bugzilla.mozilla.org/show_bug.cgi?id=1293277
- * * https://github.com/w3c/ServiceWorker/issues/765
+ * * Chromium doesn't for blob: documents, or for srcdoc before Chrome 135.
+ * * Firefox doesn't for srcdoc, blob:, or about:blank documents inside a
+ *   sandboxed iframe, like Playground's WordPress iframe:
+ *   https://bugzilla.mozilla.org/show_bug.cgi?id=1279406
  *
- * The problem with iframes using srcDoc and src="about:blank" as they
- * fail to inherit the root site's service worker.
+ * The wrapper below loads /wp-includes/empty.html instead, which renders the
+ * blob's content itself. Unlike those documents, a document loaded from a real
+ * URL is controlled by the service worker in every browser.
  *
- * Gutenberg loads the site editor using <iframe srcDoc="<!doctype html">
- * to force the standards mode and not the quirks mode:
- *
- * https://github.com/WordPress/gutenberg/pull/38855
- *
- * This commit patches the site editor to achieve the same result via
- * <iframe src="/doctype.html"> and a doctype.html file containing just
- * `<!doctype html>`. This allows the iframe to inherit the service worker
- * and correctly load all the css, js, fonts, images, and other assets.
- *
- * Ideally this issue would be fixed directly in Gutenberg and the patch
- * below would be removed.
- *
- * See https://github.com/WordPress/wordpress-playground/issues/42 for more details
+ * See https://github.com/WordPress/wordpress-playground/issues/42 for more details.
  *
  * ## Why does this code live in the service worker?
  *
@@ -564,19 +555,25 @@ reportServiceWorkerMetrics(self);
 const controlledIframe = `
 window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
 	const source = window.wp.element.useMemo(function () {
+		// The editor can only access the preview's DOM when both use the same
+		// isolation. The URL tells empty.html whether the editor is isolated, so
+		// the service worker doesn't need to remember it across restarts.
+		const emptyHtmlUrl =
+			'/wp-includes/empty.html' +
+			(window.crossOriginIsolated ? '?cross-origin-isolated=1' : '');
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
-			return '/wp-includes/empty.html';
+			return emptyHtmlUrl;
 		} else if (props.src && props.src.startsWith('blob:')) {
-			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
+			// WordPress 6.3+ uses a blob URL with doctype and a list of static assets.
 			// Pass the blob URL – never the document content – to empty.html, which
 			// fetches and renders it itself. Only same-origin blob: URLs are honored.
-			return '/wp-includes/empty.html#' + encodeURIComponent(props.src);
+			return emptyHtmlUrl + '#' + encodeURIComponent(props.src);
 		} else {
-			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
+			// Other URLs need no correction.
 			return props.src;
 		}
-	}, [props.src]);
+	}, [props.src, props.srcDoc]);
 	return (
 		window.wp.element.createElement('iframe', {
 			...props,
@@ -624,25 +621,24 @@ const emptyHtmlScript = `
 /**
  * The empty HTML file loaded by the patched editor iframe.
  *
- * @param scope The scope of the request, used to determine whether cross-origin isolation is needed
+ * @param crossOriginIsolated Whether the editor document is cross-origin isolated
  */
-function emptyHtml(scope: string) {
+function emptyHtml(crossOriginIsolated: boolean) {
 	const headers: Record<string, string> = {
 		'content-type': 'text/html',
 	};
 
 	/**
-	 * Only add Document-Isolation-Policy when the parent page also has cross-origin
-	 * isolation headers (COEP/COOP that were rewritten to Document-Isolation-Policy).
+	 * Only add Document-Isolation-Policy when the editor document is isolated.
 	 *
-	 * Without this header in empty.html, Gutenberg fails to populate the editor iframe
-	 * with the editor markup when the editor page is loaded with COOP/COEP headers set.
+	 * The editor and its preview must use the same isolation, or Gutenberg can't
+	 * access the preview's document and the preview stays blank.
 	 *
 	 * However, adding this header unconditionally breaks REST API authentication because
 	 * `isolate-and-credentialless` causes cross-origin requests to be sent without
 	 * credentials (cookies), resulting in "Session expired" errors.
 	 */
-	if (scopesWithCrossOriginIsolation.has(scope)) {
+	if (crossOriginIsolated) {
 		headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
 	}
 
@@ -727,13 +723,6 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  */
 let browserSupportsDocumentIsolationPolicy: boolean | undefined;
 
-/**
- * Scopes that have cross-origin isolation enabled (COEP headers were rewritten to
- * Document-Isolation-Policy). This is used to determine whether empty.html should
- * also have Document-Isolation-Policy header.
- */
-const scopesWithCrossOriginIsolation = new Set<string>();
-
 self.addEventListener('message', (event) => {
 	if (event.data?.type === 'document-isolation-policy-support-check') {
 		browserSupportsDocumentIsolationPolicy = event.data.supported === true;
@@ -746,11 +735,8 @@ self.addEventListener('message', (event) => {
  * Handles two cases:
  *
  * 1. Response already carries `Document-Isolation-Policy`. This is what
- *    Gutenberg ≥ 22.6 / Gutenberg PR #75991 sends directly on editor screens in
- *    Chromium 137+. The response is left as-is, but the scope is tracked so
- *    that `empty.html` (the block editor's inner iframe) also receives DIP —
- *    parent and child frames need the same DIP for the editor to function
- *    (see https://github.com/WordPress/wordpress-playground/pull/3320).
+ *    WordPress 7.1+ and Gutenberg 22.6+ send directly on editor screens in
+ *    Chromium 137+. The response is left as-is.
  *
  * 2. Response carries COEP/COOP (older Gutenberg, WordPress core's
  *    `wp_set_up_cross_origin_isolation`, or custom plugins). When the browser
@@ -760,18 +746,12 @@ self.addEventListener('message', (event) => {
  *    Playground.
  *
  * @param response The response to potentially modify
- * @param scope The scope of the request, used to track which scopes have cross-origin isolation
  * @returns A new Response with rewritten headers, or the original response if no changes are needed
  */
-function applyCrossOriginIsolationHeaders(
-	response: Response,
-	scope: string
-): Response {
-	// If the response already opts into DIP, track the scope so empty.html gets DIP too.
-	// This is the modern path once Gutenberg sends DIP directly — see
+function applyCrossOriginIsolationHeaders(response: Response): Response {
+	// Keep the policy that WordPress or Gutenberg sends directly. See
 	// https://github.com/WordPress/gutenberg/pull/75991.
 	if (response.headers.has('document-isolation-policy')) {
-		scopesWithCrossOriginIsolation.add(scope);
 		return response;
 	}
 
@@ -824,10 +804,6 @@ function applyCrossOriginIsolationHeaders(
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
 	newHeaders.set('document-isolation-policy', documentIsolationPolicy);
-
-	// Track that this scope has cross-origin isolation enabled so that
-	// empty.html (the editor iframe) can also get the Document-Isolation-Policy header.
-	scopesWithCrossOriginIsolation.add(scope);
 
 	return new Response(response.body, {
 		status: response.status,
