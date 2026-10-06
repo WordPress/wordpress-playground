@@ -364,9 +364,18 @@ async function overwriteOpfsFile(
 	try {
 		await writer.truncate(0);
 		await writer.write(buffer);
-	} finally {
-		await writer.close();
+	} catch (error) {
+		// A failed write can leave the stream errored. Closing it would hide
+		// the useful cause (for example, exceeded storage quota) behind a TypeError.
+		try {
+			if ('abort' in writer) await writer.abort();
+			else await writer.close();
+		} catch {
+			// Preserve the write failure even if cleanup also fails.
+		}
+		throw error;
 	}
+	await writer.close();
 }
 
 /**

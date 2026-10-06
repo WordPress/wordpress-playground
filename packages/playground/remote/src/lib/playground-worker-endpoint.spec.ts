@@ -4,6 +4,7 @@ import {
 	MountStillActiveError,
 } from '@php-wasm/universal';
 import type { MountHandler } from '@php-wasm/universal';
+import type { SyncProgressCallback } from '@php-wasm/web';
 import { Semaphore } from '@php-wasm/util';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
@@ -32,6 +33,43 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		);
 	}, 15_000);
 
+	it.each(['copy', 'progress'])(
+		'allows another save after initial %s fails',
+		async (failureStage) => {
+			const endpoint = await createEndpoint({});
+			const php = createFakePhp();
+			endpoint.__internal_getPHP = () => php;
+			const failure = new Error('Initial save failed');
+			const onProgress = vi.fn();
+			if (failureStage === 'copy') {
+				php[__private__dont__use].FS.readdir.mockImplementationOnce(
+					() => {
+						throw failure;
+					}
+				);
+			} else {
+				onProgress.mockRejectedValueOnce(failure);
+			}
+			const options = {
+				device: {
+					type: 'local-fs' as const,
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+				initialSyncDirection: 'memfs-to-opfs' as const,
+			};
+
+			await expect(endpoint.mountOpfs(options, onProgress)).rejects.toBe(
+				failure
+			);
+			expect(await endpoint.hasOpfsMount('/wordpress')).toBe(false);
+			await endpoint.mountOpfs(options, onProgress);
+			expect(await endpoint.hasOpfsMount('/wordpress')).toBe(true);
+			await endpoint.unmountOpfs('/wordpress');
+			expect(await endpoint.hasOpfsMount('/wordpress')).toBe(false);
+		}
+	);
+
 	it('flushes the active OPFS mount', async () => {
 		const endpoint = await createEndpoint({
 			'/wordpress': createOpfsMount(),
@@ -42,6 +80,107 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		expect(endpoint.opfsMounts['/wordpress'].flush).toHaveBeenCalledTimes(
 			1
 		);
+	});
+
+	it('flushes the replacement journal after PHP runtime rotation', async () => {
+		const endpoint = await createEndpoint({});
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+		await endpoint.mountOpfs({
+			device: { type: 'local-fs', handle: createEmptyDirectoryHandle() },
+			mountpoint: '/wordpress',
+		});
+		const oldMount = endpoint.opfsMounts['/wordpress'];
+		const oldFlush = vi.spyOn(oldMount, 'flush');
+		// PHP reuses the mount handler when it creates a fresh runtime. Checking
+		// a normal second flush would miss the stale endpoint reference.
+		const handler = php.mount.mock.calls[0][1];
+		await oldMount.unmount();
+		await php.mount('/wordpress', handler);
+		const replacement = endpoint.opfsMounts['/wordpress'];
+		expect(replacement).not.toBe(oldMount);
+		const newFlush = vi.spyOn(replacement, 'flush');
+		await endpoint.flushOpfs('/wordpress');
+		expect(newFlush).toHaveBeenCalledTimes(1);
+		expect(oldFlush).not.toHaveBeenCalled();
+	});
+
+	it.each(['copy', 'progress'])(
+		'allows another save after replacement %s fails during runtime rotation',
+		async (failureStage) => {
+			const endpoint = await createEndpoint({});
+			const php = createFakePhp();
+			endpoint.__internal_getPHP = () => php;
+			const onProgress = vi.fn();
+			const options = {
+				device: {
+					type: 'local-fs' as const,
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+				initialSyncDirection: 'memfs-to-opfs' as const,
+			};
+			await endpoint.mountOpfs(options, onProgress);
+			const handler = php.mount.mock.calls[0][1];
+			// Rotation detaches the old journal before trying to set up its replacement.
+			await endpoint.opfsMounts['/wordpress'].unmount();
+			const failure = new Error('Replacement save failed');
+			if (failureStage === 'copy') {
+				php[__private__dont__use].FS.readdir.mockImplementationOnce(
+					() => {
+						throw failure;
+					}
+				);
+			} else {
+				onProgress.mockRejectedValueOnce(failure);
+			}
+
+			await expect(php.mount('/wordpress', handler)).rejects.toBe(
+				failure
+			);
+			expect(await endpoint.hasOpfsMount('/wordpress')).toBe(false);
+			expect(endpoint.unmounts['/wordpress']).toBeUndefined();
+			await expect(endpoint.flushOpfs('/wordpress')).rejects.toThrow(
+				'No OPFS mount found'
+			);
+			await endpoint.mountOpfs(options, onProgress);
+			await endpoint.flushOpfs('/wordpress');
+			await endpoint.unmountOpfs('/wordpress');
+		}
+	);
+
+	it('does not expose a replacement journal until its initial copy completes', async () => {
+		const endpoint = await createEndpoint({});
+		const php = createFakePhp();
+		endpoint.__internal_getPHP = () => php;
+		const onProgress = vi.fn();
+		await endpoint.mountOpfs(
+			{
+				device: {
+					type: 'local-fs',
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint: '/wordpress',
+				initialSyncDirection: 'memfs-to-opfs',
+			},
+			onProgress
+		);
+		const oldMount = endpoint.opfsMounts['/wordpress'];
+		const handler = php.mount.mock.calls[0][1];
+		await oldMount.unmount();
+		onProgress.mockClear();
+		onProgress.mockImplementationOnce(async () => {
+			expect(await endpoint.hasOpfsMount('/wordpress')).toBe(false);
+			await expect(endpoint.flushOpfs('/wordpress')).rejects.toThrow(
+				'No OPFS mount found'
+			);
+		});
+
+		await php.mount('/wordpress', handler);
+
+		expect(onProgress).toHaveBeenCalled();
+		expect(endpoint.opfsMounts['/wordpress']).not.toBe(oldMount);
+		await endpoint.flushOpfs('/wordpress');
 	});
 
 	it('reports whether an OPFS mount is active', async () => {
@@ -246,13 +385,17 @@ async function createEndpoint(
 	return endpoint as {
 		__internal_getPHP?: () => ReturnType<typeof createFakePhp>;
 		hasOpfsMount(mountpoint: string): Promise<boolean>;
-		mountOpfs(options: {
-			device: {
-				type: 'local-fs';
-				handle: FileSystemDirectoryHandle;
-			};
-			mountpoint: string;
-		}): Promise<void>;
+		mountOpfs(
+			options: {
+				device: {
+					type: 'local-fs';
+					handle: FileSystemDirectoryHandle;
+				};
+				mountpoint: string;
+				initialSyncDirection?: 'opfs-to-memfs' | 'memfs-to-opfs';
+			},
+			onProgress?: SyncProgressCallback
+		): Promise<void>;
 		flushOpfs(mountpoint: string): Promise<void>;
 		unmountOpfs(mountpoint: string): Promise<void>;
 		opfsMounts: typeof opfsMounts;
@@ -273,6 +416,7 @@ function createOpfsMount() {
 
 function createFakePhp(options: { skipMountHandler?: boolean } = {}) {
 	const FS = {
+		readdir: vi.fn(() => ['.', '..']),
 		write: vi.fn(),
 		truncate: vi.fn(),
 		unlink: vi.fn(),
