@@ -206,9 +206,10 @@ export function shouldCacheUrl(url: URL) {
 	}
 
 	/**
-	 * Allow only requests to the same hostname to be cached.
+	 * Cache only this origin. Another port can serve a live WordPress site,
+	 * whose API responses must not be replayed as Playground assets.
 	 */
-	return self.location.hostname === url.hostname;
+	return self.location.origin === url.origin;
 }
 
 /**
