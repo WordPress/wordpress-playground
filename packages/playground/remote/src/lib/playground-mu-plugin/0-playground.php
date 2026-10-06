@@ -266,11 +266,11 @@ add_action('admin_head', 'playground_report_url_to_parent');
  * This must run inside the WordPress document rather than reading the iframe
  * DOM from the remote frame. For example, a plugin may send
  * `Cross-Origin-Embedder-Policy: require-corp` and
- * `Cross-Origin-Opener-Policy: same-origin` on the front page. In browsers
- * that support Document-Isolation-Policy, Playground's service worker rewrites
- * those headers to `Document-Isolation-Policy: isolate-and-require-corp`.
- * Because the remote frame does not have the matching policy, the browser
- * blocks its synchronous access to `iframe.contentDocument`, even though both
+ * `Cross-Origin-Opener-Policy: same-origin` on the front page. Playground's
+ * service worker rewrites those headers to
+ * `Document-Isolation-Policy: isolate-and-require-corp`. The remote frame does
+ * not have a matching policy, so browsers that support it block the remote
+ * frame's synchronous access to `iframe.contentDocument`, even though both
  * frames are same-origin. The listener below therefore captures in the
  * WordPress document and returns the thumbnail with `postMessage()`.
  */
