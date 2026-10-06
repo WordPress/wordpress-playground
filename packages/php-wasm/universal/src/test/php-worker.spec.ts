@@ -86,7 +86,17 @@ describe('PlaygroundWorkerEndpoint', () => {
 			const endpoint = new TestEndpoint(
 				requestHandler as unknown as PHPRequestHandler
 			);
-			const primaryRun = vi.fn().mockResolvedValue(response);
+			const event = { type: 'worker.ready' };
+			const message = 'primary message';
+			const onEvent = vi.fn();
+			const onMessage = vi.fn();
+			endpoint.addEventListener(event.type, onEvent);
+			await endpoint.onMessage(onMessage);
+			const primaryRun = vi.fn(async () => {
+				await primaryPhp.emitEvent(event);
+				await primaryPhp.emitMessage(message);
+				return response;
+			});
 			const primaryPhp = {
 				...createMockPHP(),
 				requestHandler,
@@ -96,6 +106,13 @@ describe('PlaygroundWorkerEndpoint', () => {
 			const request = { code: "<?php echo 'hi!';", usePrimaryPhp: true };
 
 			await expect(endpoint[method](request)).resolves.toBe(response);
+			await expect(endpoint[method](request)).resolves.toBe(response);
+			expect(onEvent).toHaveBeenCalledTimes(2);
+			expect(onEvent).toHaveBeenCalledWith(event);
+			expect(onMessage).toHaveBeenCalledTimes(2);
+			expect(onMessage).toHaveBeenCalledWith(message);
+			expect(primaryPhp.addEventListener).toHaveBeenCalledOnce();
+			expect(primaryPhp.onMessage).toHaveBeenCalledOnce();
 			expect(primaryRun).toHaveBeenCalledWith(request);
 			expect(acquirePHPInstance).not.toHaveBeenCalled();
 		}
