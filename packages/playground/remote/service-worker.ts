@@ -585,11 +585,16 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 	)
 });
 
-// Gutenberg 22.4–22.7 add the credentialless attribute to iframes in a cross-origin
-// isolated editor. They skip the editor's own iframes by their blob: URL, which
-// empty.html replaces. A credentialless iframe isn't controlled by the service
-// worker, so it would stay blank. Reporting the attribute as present makes
-// Gutenberg skip the iframe, while the browser still loads it without one.
+// Gutenberg 22.4–22.7 adds the "credentialless" attribute to every iframe in a
+// cross-origin isolated editor, except the editor's own iframes, like the canvas.
+// It recognizes those because their src starts with "blob:". Playground changes
+// that src to /wp-includes/empty.html, so Gutenberg adds the attribute to them too.
+// Chromium doesn't let the service worker control a credentialless iframe, so
+// the canvas would stay blank.
+//
+// To prevent that, the iframe claims it already has the attribute. Gutenberg
+// then leaves it alone. The attribute isn't really there, so the browser still
+// loads the iframe through the service worker.
 function __playground_skipCredentialless(iframe) {
 	if (iframe) {
 		iframe.hasAttribute = function (name) {
