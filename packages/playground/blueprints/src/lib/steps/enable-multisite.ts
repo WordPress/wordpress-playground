@@ -62,17 +62,31 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 		command: `wp core multisite-convert --base="${sitePath}"`,
 	});
 
-	// Set $_SERVER['HTTP_HOST'] in wp-config.php for multisite support.
+	// Set $_SERVER['HTTP_HOST'] and $_SERVER['REQUEST_URI'] in wp-config.php for multisite support.
+	// When WordPress runs in a non-request context (e.g. runPHP, activatePlugin, or other
+	// blueprint steps that load wp-load.php directly), multisite bootstrap needs both
+	// HTTP_HOST and REQUEST_URI to locate the current site in get_site_by_path().
 	// https://make.wordpress.org/cli/handbook/guides/common-issues/#php-notice-undefined-index-on-_server-superglobal
 	const docRoot = await playground.documentRoot;
 	const wpConfigPath = `${docRoot}/wp-config.php`;
 	const wpConfig = await playground.readFileAsText(wpConfigPath);
 	let newWpConfig = wpConfig;
+	const serverDefaults: string[] = [];
 	if (!wpConfig.includes("$_SERVER['HTTP_HOST']")) {
-		newWpConfig = wpConfig.replace(
-			/^<\?php\s*/i,
-			`<?php\n$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};\n`
+		serverDefaults.push(`$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};`);
+	}
+	if (!wpConfig.includes("$_SERVER['REQUEST_URI']")) {
+		serverDefaults.push(
+			`if (empty($_SERVER['REQUEST_URI'])) {\n\t$_SERVER['REQUEST_URI'] = ${phpVar(
+				sitePath
+			)};\n}`
 		);
 	}
-	await playground.writeFile(wpConfigPath, newWpConfig);
+	if (serverDefaults.length > 0) {
+		newWpConfig = wpConfig.replace(
+			/^<\?php\s*/i,
+			`<?php\n${serverDefaults.join('\n')}\n`
+		);
+		await playground.writeFile(wpConfigPath, newWpConfig);
+	}
 };
