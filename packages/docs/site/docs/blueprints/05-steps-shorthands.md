@@ -1,9 +1,20 @@
 ---
+title: Shorthands (v1 legacy)
 slug: /blueprints/steps/shorthands
-description: A guide to the shorthand syntax for common Blueprint steps like login, plugins, and siteOptions for more concise code.
+description: Legacy Blueprint v1 documentation. A guide to the shorthand syntax for common Blueprint steps like login, plugins, and siteOptions for more concise code.
 ---
 
 # Shorthands
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 You can specify some `steps` using a `shorthand` syntax. The following `steps` are currently supported:
 

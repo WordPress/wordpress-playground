@@ -1,11 +1,21 @@
 ---
 sidebar_position: 1
-title: Blueprint data Format
+title: Blueprint data Format (v1 legacy)
 slug: /blueprints/data-format
-description: An overview of the Blueprint data format. Learn about key properties like landingPage, preferredVersions, and steps.
+description: Legacy Blueprint v1 documentation. An overview of the Blueprint data format. Learn about key properties like landingPage, preferredVersions, and steps.
 ---
 
 # Blueprint data format
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 A Blueprint JSON file can have many different properties that will be used to define your Playground instance. The most important properties are detailed below.
 

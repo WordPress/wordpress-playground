@@ -1,10 +1,20 @@
 ---
-title: Getting started
+title: Getting started (v1 legacy)
 slug: /blueprints/getting-started
-description: A quick-start guide to Blueprints. Understand what problems they solve and the different ways you can start using them.
+description: Legacy Blueprint v1 documentation. A quick-start guide to Blueprints. Understand what problems they solve and the different ways you can start using them.
 ---
 
 # Getting started with Blueprints
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 Blueprints are JSON files for setting up your very own WordPress Playground instance. For example:
 
@@ -28,9 +38,9 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 
 There are three ways to use Blueprints:
 
--   [Paste a Blueprint into the URL "fragment" on WordPress Playground website](/blueprints/using-blueprints#url-fragment).
--   [Use them with the JavaScript API](/blueprints/using-blueprints#javascript-api).
--   [Reference a blueprint JSON file via QueryParam blueprint-url](/developers/apis/query-api/)
+- [Paste a Blueprint into the URL "fragment" on WordPress Playground website](/blueprints/using-blueprints#url-fragment).
+- [Use them with the JavaScript API](/blueprints/using-blueprints#javascript-api).
+- [Reference a blueprint JSON file via QueryParam blueprint-url](/developers/apis/query-api/)
 
 ## What problems are solved by Blueprints?
 

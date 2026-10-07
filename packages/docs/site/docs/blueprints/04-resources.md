@@ -1,9 +1,20 @@
 ---
+title: Resource References (v1 legacy)
 slug: /blueprints/steps/resources
-description: A technical reference for "Resource References." Learn how to use external files for themes, plugins, and content.
+description: Legacy Blueprint v1 documentation. A technical reference for "Resource References." Learn how to use external files for themes, plugins, and content.
 ---
 
 # Resources References
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 "Resource References" allow you use external files in Blueprints
 
