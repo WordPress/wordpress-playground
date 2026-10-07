@@ -137,3 +137,34 @@ test('Site editor preview renders after the service worker restarts', async ({
 		canvasFrame.locator('html:not([data-e2e-previous]) .wp-site-blocks')
 	).toBeVisible();
 });
+
+test('Post editor canvas renders when Gutenberg marks iframes credentialless', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		'Gutenberg only marks iframes credentialless in a cross-origin isolated editor, which needs Document-Isolation-Policy'
+	);
+
+	// Gutenberg 22.4–22.7 add the credentialless attribute to iframes in an
+	// isolated editor. 22.6 and 22.7 isolate the editor by default.
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/post-new.php',
+		plugins: ['gutenberg.22.7.0.zip'],
+		login: true,
+	};
+	await website.goto(`./?storage=temp#${JSON.stringify(blueprint)}`);
+
+	const canvasFrame = wordpress.frameLocator('iframe[name="editor-canvas"]');
+	await expect(
+		canvasFrame.locator('.block-editor-block-list__layout')
+	).toBeVisible({ timeout: 120000 });
+	// The canvas only breaks when the editor is isolated, so make sure it is.
+	expect(
+		await wordpress
+			.locator('html')
+			.evaluate(() => window.crossOriginIsolated)
+	).toBe(true);
+});
