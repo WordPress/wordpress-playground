@@ -1,8 +1,15 @@
 <?php
 /**
- * Browser adapter for Reprint v0.10.13. The token is supplied in the process
- * environment, not a connection setting or a generated script. The downloaded
- * database and files still contain the source site's private data.
+ * Calls Reprint's PHP API from Playground and adds browser-specific setup.
+ *
+ * ImportClient::run() is the command dispatcher used by Reprint's CLI. We call
+ * it directly because the CLI entry point requires PHP_SAPI === 'cli', whereas
+ * Playground runs PHP in WebAssembly. Reprint handles indexing, downloading,
+ * mirror deletions, progress, and download checkpoints. This bridge supplies
+ * Playground's paths, exclusions, size limit, and linked-file copying.
+ *
+ * The token is supplied in the process environment, not a connection setting
+ * or a generated script. Downloaded site data can still contain private data.
  */
 ini_set('max_execution_time', '0');
 if (!defined('STDOUT')) define('STDOUT', fopen('php://output', 'wb'));
@@ -12,12 +19,26 @@ require 'phar:///tmp/playground-reprint.phar/packages/reprint-client/src/import.
 use function WordPress\Filesystem\wp_join_unix_paths;
 use WordPress\Reprint\Server\Utils;
 
-/** Enforce Playground's size limit before Reprint changes site files. */
+/**
+ * Adds the browser's 2 GiB limit to Reprint's normal files-pull command.
+ *
+ * Reprint v0.10.13 has no option to cap the selected file bytes. This subclass
+ * checks the completed index before destructive work; all transfer work and
+ * progress reporting still use ImportClient. Remove this guard when Reprint
+ * exposes the size limit as a command option.
+ */
 class PlaygroundReprintClient extends ImportClient {
     private const MAX_SITE_BYTES = 2 * 1024 * 1024 * 1024;
     private ?int $site_file_bytes = null;
 
-    /** Check indexed size before mirroring and forward file progress. */
+    /**
+     * Uses Reprint's stage reports to stop an oversized pull before changes.
+     *
+     * The selected index is ready when Reprint announces diff, mirror, or fetch.
+     * Checking all three also covers resumed commands that skip earlier stages.
+     * Reprint has no separate before-mirror callback, so this override checks
+     * the size here and leaves the actual progress output to the parent method.
+     */
     public function output_progress(array $data, bool $force = false): void {
         if (($data['command'] ?? '') === 'files-pull' && ($data['event'] ?? '') === 'stage'
             && in_array($data['stage'] ?? '', ['diff', 'mirror', 'fetch'], true)) {
@@ -29,7 +50,13 @@ class PlaygroundReprintClient extends ImportClient {
         parent::output_progress($data, $force);
     }
 
-    /** Reject selected file bytes above the browser import limit. */
+    /**
+     * Counts the whole selected site, not just this pull's changed files.
+     *
+     * A repeat pull of a 3 GiB site may download only 1 KiB; it must still exceed
+     * the browser limit. Read Reprint's mapped, filtered index one line at a time
+     * and cache the accepted total for later stage reports in this PHP call.
+     */
     private function assert_site_size(): void {
         $file_bytes = $this->site_file_bytes;
         if ($file_bytes === null) {
@@ -60,7 +87,16 @@ if (getenv('PLAYGROUND_REPRINT') !== false) {
     run_transfer();
 }
 
-/** Resume one locked pull stage and persist it before returning to JavaScript. */
+/**
+ * Bridges a JavaScript request to one locked Playground pull step.
+ *
+ * Reprint's CLI reads argv and reports command results. Playground passes JSON
+ * through the PHP environment and needs a JSON result telling it which step to
+ * run next. Use ReprintProcessLock and the client API for the transfer, then
+ * save the bridge's next step. Reprint keeps its own download checkpoints.
+ * Convert PHP warnings to failures so JavaScript can report them rather than
+ * waiting for a result that never arrives.
+ */
 function run_transfer(): void {
     set_error_handler(function (int $severity, string $message, string $file, int $line): bool {
         if (!(error_reporting() & $severity)) return false;
@@ -106,7 +142,17 @@ function run_transfer(): void {
     }
 }
 
-/** Save validated preflight metadata and mappings before any mirror writes. */
+/**
+ * Learns the live site's folder layout before choosing Playground destinations.
+ *
+ * Run Reprint's public preflight command and prepare_files_pull_options() API;
+ * do not repeat their server checks or selector validation. Reprint also offers
+ * pull-files, which runs preflight and files-pull together. We split those calls
+ * because the remap rules depend on the paths returned by preflight, and must
+ * be checked before mirroring. Save those rules for the following PHP calls.
+ * On a fresh pull, reset command cursors but keep the previous remote index
+ * so Reprint can download only changes.
+ */
 function connect_site(array $request, string $root, array &$operation, ReprintProcessLock $lock): array {
     $state = wp_join_unix_paths($root, 'pull-state');
     $files = $request['documentRoot'];
@@ -136,7 +182,17 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     return ['status' => 'continue', 'stage' => $operation['stage']];
 }
 
-/** Write site files directly and materialize selected linked content. */
+/**
+ * Runs Reprint's files-pull command, then makes linked content saveable.
+ *
+ * ImportClient::run() already indexes, downloads, removes remote-absent local
+ * paths inside today's pull selection, and resumes unfinished downloads. This
+ * function supplies Playground's options and adds a files-prepare step because
+ * Reprint's follow_symlinks option downloads link targets but still leaves
+ * symbolic links. Browser storage cannot save those links; copy their targets
+ * into ordinary files instead. If only that setup fails, retry setup without
+ * repeating a completed download.
+ */
 function pull_site(array $request, string $root, array &$operation, ReprintProcessLock $lock): array {
     $files = $request['documentRoot'];
     $state = wp_join_unix_paths($root, 'pull-state');
@@ -182,7 +238,16 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
     return ['status' => 'continue', 'stage' => $operation['stage']];
 }
 
-/** Map active WordPress folders without colliding with bundled copies. */
+/**
+ * Chooses remap rules that fit a live site's folders into Playground's layout.
+ *
+ * Reprint's remap option performs the mapping; it cannot choose which local
+ * layout this application needs. For example, map an active /srv/content to
+ * /wordpress/wp-content. Put a separate bundled core/wp-content elsewhere so
+ * both copies cannot write wp-content/index.php. Reprint's flat-docroot command
+ * builds a standard layout with symbolic links, which browser storage cannot
+ * save, so choose final download paths before files-pull instead.
+ */
 function pull_path_mappings(array $metadata): array {
     $paths = $metadata['paths'];
     $core = rtrim($paths['abspath'] ?? '', '/');
@@ -225,7 +290,14 @@ function pull_path_mappings(array $metadata): array {
     return $result;
 }
 
-/** Keep local runtime configuration outside incoming writes and deletions. */
+/**
+ * Lists the Playground files that the current pull must leave untouched.
+ *
+ * Reprint's exclude option enforces these rules for both writes and mirror
+ * deletions. Playground must choose the rules: the live site's wp-config.php
+ * cannot replace its SQLite setup, and host cache drop-ins cannot run here.
+ * Share the same list with linked-file copying so setup cannot bypass it.
+ */
 function pull_exclusions(): array {
     // Production credentials, host-specific paths, and server configuration
     // must not become the Playground runtime configuration. Preserve the local
@@ -244,7 +316,16 @@ function pull_exclusions(): array {
     ];
 }
 
-/** Save selected links before OPFS drops their in-memory symlink nodes. */
+/**
+ * Records selected links and their mapped targets for the later setup call.
+ *
+ * A fetched theme link can use a relative path through a remote host alias,
+ * while Reprint's index names its canonical target. Read that index and use
+ * Reprint's RemoteToLocalPathMapper and Utils::resolve_symlink_target_path()
+ * to find the downloaded target; do not invent another path mapper. Save the
+ * pairs in links.json so setup can also restore links lost through browser
+ * storage, which saves files and directories but not symbolic links.
+ */
 function save_pulled_links(string $files, string $root, array $metadata, PlaygroundReprintClient $client): void {
     $mappings = [];
     foreach ($metadata['pullMappings'] ?? pull_path_mappings($metadata) as [$source, $target]) {
@@ -283,7 +364,15 @@ function save_pulled_links(string $files, string $root, array $metadata, Playgro
     file_put_contents(wp_join_unix_paths($root, 'links.json'), json_encode($links, JSON_THROW_ON_ERROR));
 }
 
-/** Restore only selected links, including after reopening a setup checkpoint. */
+/**
+ * Points saved links at their downloaded targets before copying their bytes.
+ *
+ * Reprint has already finished files-pull. Its fetched relative links may need
+ * the mapped canonical targets saved in links.json, and browser storage cannot
+ * retain symlink nodes. Rebuild only the saved links instead of rerunning the
+ * download. On a setup retry, leave paths already replaced by ordinary files
+ * alone. Report a missing target rather than silently losing a theme or plugin.
+ */
 function restore_pulled_links(string $root): void {
     $links = json_decode(file_get_contents(wp_join_unix_paths($root, 'links.json')), true, 512, JSON_THROW_ON_ERROR);
     foreach ($links as $link) {
@@ -301,7 +390,16 @@ function restore_pulled_links(string $root): void {
     }
 }
 
-/** Replace selected links with ordinary files that OPFS can persist. */
+/**
+ * Replaces downloaded links with files that browser storage can save.
+ *
+ * For example, wp-content/themes/iotix must contain the downloaded theme bytes,
+ * not a link to another directory. Reprint v0.10.13 can follow and download link
+ * targets, but has no command to install those bytes in place of each link;
+ * flat-docroot creates more links. Keep this step until Reprint offers that
+ * mode. Copy each target to a temporary path before replacing its link, leaving
+ * ordinary downloaded files and protected runtime paths alone.
+ */
 function materialize_site_links(string $path, string $document_root, string $temporary): void {
     $local_exclusions = str_replace(
         [':abspath:', ':wp-content:', ':wp-mu-plugins:'],
@@ -326,7 +424,14 @@ function materialize_site_links(string $path, string $document_root, string $tem
     }
 }
 
-/** Read WordPress paths and the table prefix from the preflight report. */
+/**
+ * Extracts the preflight fields kept in the bridge's source.json record.
+ *
+ * Reprint already detected WordPress and returned this report. This helper
+ * only adapts that report to the fields used by the bridge: folder paths for
+ * file mapping, plus the table prefix for the SQL step in the follow-up PR.
+ * It makes no further request to the live site.
+ */
 function source_metadata(array $data): array {
     $prefix = $data['database']['wp']['table_prefix'] ?? null;
     if (!is_string($prefix) || !preg_match('/^[a-zA-Z0-9_]+$/', $prefix)) {
@@ -341,7 +446,16 @@ function source_metadata(array $data): array {
     ];
 }
 
-/** Copy a linked tree without escaping downloaded content or following cycles. */
+/**
+ * Copies a link target as ordinary files for materialize_site_links().
+ *
+ * PHP's copy() copies one file, and Reprint's link-following download still
+ * creates links. This local walk copies directories too, follows only targets
+ * inside the downloaded roots, and rejects directory loops. Without those
+ * checks, a linked theme could copy unrelated local files or recurse forever.
+ * Track the current branch rather than all visited paths so two aliases of
+ * the same theme can both be copied.
+ */
 function sync_tree(string $source, string $target, array $allowed_roots, array $ancestors = []): void {
     if (is_link($source)) {
         $resolved = realpath($source);
@@ -382,13 +496,27 @@ function sync_tree(string $source, string $target, array $allowed_roots, array $
     }
 }
 
-/** Record the next stage before the PHP process returns. */
+/**
+ * Saves which Playground step the next PHP call must run.
+ *
+ * Reprint saves its download position, but does not know the bridge's later
+ * files-prepare step. Keep that step in operation.json, separate from Reprint's
+ * checkpoint. Write then rename so the next call cannot read half-written JSON.
+ */
 function save_operation(string $path, array $operation): void {
     file_put_contents($path . '.tmp', json_encode($operation, JSON_THROW_ON_ERROR));
     rename($path . '.tmp', $path);
 }
 
-/** Remove a local tree without descending through links. */
+/**
+ * Clears a setup path without deleting a symbolic link's target.
+ *
+ * The path may be a file, directory, broken link, or absent after a retry.
+ * Reprint's public remove_directory_and_its_contents() accepts directories,
+ * follows a link passed as the root, and suppresses removal errors. Setup needs
+ * to unlink the root link itself and let errors reach run_transfer() instead
+ * of continuing after failed cleanup.
+ */
 function remove_tree(string $path): void {
     if (is_dir($path) && !is_link($path)) {
         foreach (array_diff(scandir($path), ['.', '..']) as $name) remove_tree(wp_join_unix_paths($path, $name));
@@ -398,7 +526,13 @@ function remove_tree(string $path): void {
     }
 }
 
-/** Allow plain HTTP only for a loopback development server. */
+/**
+ * Chooses Reprint's allow_http option for local development URLs.
+ *
+ * ImportClient still validates the transport. This helper only opts loopback
+ * hosts into its HTTP exception; otherwise tokens require HTTPS. Reuse it for
+ * both preflight and files-pull so they accept the same development servers.
+ */
 function is_local_reprint_url(string $url): bool {
     return in_array(parse_url($url, PHP_URL_HOST), ['127.0.0.1', 'localhost', '[::1]'], true);
 }
