@@ -62,6 +62,7 @@ Thumbs.db
 
 # Playground artifacts
 packages/playground/website/public/php-next/
+packages/playground/website/public/assets/optional/reprint/
 php.js.bak
 **/test-results/
 **/playwright-report/

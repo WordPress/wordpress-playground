@@ -319,6 +319,14 @@ Located in `packages/nx-extensions/src/executors/`:
 - `assert-built-esm-and-cjs`: Verifies dual-format build
 - `package-for-self-hosting`: Creates distributable archives
 
+### Reprint Client Asset
+
+The website's `sync-reprint` target verifies and downloads the selected Reprint client
+before builds and standalone dev startup. The generated asset lives in the ignored
+`packages/playground/website/public/assets/optional/reprint/` directory and is loaded
+on demand. Use `npm exec -- nx run playground-website:update-reprint` to update the
+version and checksum together in `src/lib/reprint/release.json`; see the website README.
+
 ## Key Files & Directories
 
 - `nx.json`: NX workspace configuration

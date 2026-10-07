@@ -3,6 +3,18 @@
 	"ignorePatterns": ["!**/*"],
 	"overrides": [
 		{
+			"files": ["bin/*.mts"],
+			"extends": [
+				"plugin:@nx/typescript",
+				"plugin:comment-length/recommended"
+			],
+			"rules": {
+				"no-console": "off",
+				"@typescript-eslint/consistent-type-imports": "error",
+				"@typescript-eslint/no-unused-vars": "error"
+			}
+		},
+		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
 			"rules": {
 				"@nx/enforce-module-boundaries": [
