@@ -632,18 +632,33 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		const handle = await directoryHandleFromMountDevice(options.device);
 		let opfsMount: DirectoryHandleMount | undefined;
-		const unmount = await php.mount(
-			options.mountpoint,
-			createDirectoryHandleMountHandler(handle, {
-				initialSync: {
-					onProgress,
-					direction: options.initialSyncDirection,
-				},
-				onMount(mount) {
-					opfsMount = mount;
-				},
-			})
-		);
+		const mountHandler = createDirectoryHandleMountHandler(handle, {
+			initialSync: {
+				onProgress,
+				direction: options.initialSyncDirection,
+			},
+			onMount: (mount) => {
+				opfsMount = mount;
+			},
+		});
+		const unmount = await php.mount(options.mountpoint, async (...args) => {
+			// Runtime rotation invokes this handler again after detaching the old
+			// journal. Explicit flushes must use the replacement, but only after
+			// initial sync succeeds: a failed copy discards its journal and must
+			// allow another save, whether this is the first mount or a replacement.
+			delete this.opfsMounts[options.mountpoint];
+			opfsMount = undefined;
+			try {
+				const unmount = await mountHandler(...args);
+				if (opfsMount !== undefined) {
+					this.opfsMounts[options.mountpoint] = opfsMount;
+				}
+				return unmount;
+			} catch (error) {
+				delete this.unmounts[options.mountpoint];
+				throw error;
+			}
+		});
 		if (opfsMount === undefined) {
 			try {
 				await unmount();
@@ -655,7 +670,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			);
 		}
 		this.unmounts[options.mountpoint] = unmount;
-		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
 }
 

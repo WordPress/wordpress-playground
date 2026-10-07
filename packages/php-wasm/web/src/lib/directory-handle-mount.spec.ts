@@ -475,6 +475,38 @@ describe('journalFSEventsToOpfs', () => {
 		loggerError.mockRestore();
 	});
 
+	it('preserves a quota failure when the errored stream also rejects cleanup', async () => {
+		const { FS, files, php } = createFakePhp();
+		const opfsRoot = new MemoryDirectoryHandle('root');
+		const file = await opfsRoot.getFileHandle('file.txt', { create: true });
+		const failure = new DOMException(
+			'Browser storage is full',
+			'QuotaExceededError'
+		);
+		const abort = vi
+			.fn()
+			.mockRejectedValue(new TypeError('Stream is errored'));
+		vi.spyOn(file, 'createWritable').mockResolvedValue({
+			truncate: vi.fn().mockResolvedValue(undefined),
+			write: vi.fn().mockRejectedValue(failure),
+			close: vi
+				.fn()
+				.mockRejectedValue(
+					new TypeError('Cannot close an errored stream')
+				),
+			abort,
+		} as unknown as FileSystemWritableFileStream);
+		const mount = journalFSEventsToOpfs(
+			php,
+			opfsRoot as unknown as FileSystemDirectoryHandle,
+			'/wordpress'
+		);
+		files.set('/wordpress/file.txt', encode('saved'));
+		FS.write({ path: '/wordpress/file.txt' });
+		await expect(mount.flush()).rejects.toBe(failure);
+		expect(abort).toHaveBeenCalledOnce();
+	});
+
 	it('can retry after a failed explicit flush', async () => {
 		let failNextWrite = true;
 		const { FS, files, php } = createFakePhp();
