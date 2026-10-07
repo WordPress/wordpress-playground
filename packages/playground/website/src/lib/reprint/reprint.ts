@@ -3,9 +3,13 @@ import type { PlaygroundClient } from '@wp-playground/client';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
+/** Client release to download; this is not an exact server-version check. */
 export const REPRINT_VERSION = 'v0.10.13';
+// These files live inside each Playground's PHP filesystem, not on the host.
 const PHAR_PATH = '/tmp/playground-reprint.phar';
 const BRIDGE_PATH = '/tmp/playground-reprint-bridge.php';
+// Update this digest with REPRINT_VERSION. It identifies the expected archive
+// bytes for both fresh downloads and files cached by an earlier transfer.
 const PHAR_SHA256 =
 	'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda';
 export type ReprintAvailability =
@@ -38,7 +42,18 @@ type TransferResult = {
 	stage?: string;
 };
 
-/** Probe without a key. A generic 403 or a login page does not identify Reprint. */
+/**
+ * Checks whether the site's preflight endpoint replies like Reprint Server.
+ *
+ * No token or browser cookies are sent. `configured` means Reprint asked for
+ * authentication; this check has not authenticated the browser. `needs-key`
+ * means the server reported a missing connection token. Other HTTP replies,
+ * including login pages and generic 403s, return `not-detected`.
+ *
+ * Cancellation, failed requests, and a 15-second deadline return `unreachable`.
+ * The deadline also covers response bodies that stall or ignore cancellation.
+ * Invalid site URLs throw before the request starts; see normalizeReprintUrl().
+ */
 export async function detectReprint(
 	url: string,
 	signal: AbortSignal
@@ -53,6 +68,7 @@ export async function detectReprint(
 	// Aborting the network request alone does not bound a stalled response body
 	// or transport that ignores cancellation. End the check independently too.
 	const cancelled = new Promise<ReprintAvailability>((resolve) => {
+		/** Handle both caller cancellation and the deadline, even if fetch stays pending. */
 		abort = () => {
 			resolve('unreachable');
 			controller.abort();
@@ -73,7 +89,15 @@ export async function detectReprint(
 	}
 }
 
-/** Recognize the unauthenticated replies sent by Reprint Server. */
+/**
+ * Sends one unauthenticated preflight request and classifies its JSON reply.
+ *
+ * Both the HTTP status and Reprint's specific error must match. An arbitrary
+ * host error is not enough to identify the plugin. JSON is read regardless of
+ * Content-Type because older servers send it as application/octet-stream.
+ * Unreadable JSON returns `not-detected`; failed fetches reach the caller.
+ * detectReprint() supplies cancellation and the response-body deadline.
+ */
 async function probeReprint(
 	endpoint: string,
 	signal: AbortSignal
@@ -101,7 +125,14 @@ async function probeReprint(
 	return 'not-detected';
 }
 
-/** Link to installation and token settings in this WordPress admin. */
+/**
+ * Builds the site, plugin-upload, and Reprint settings URLs from an install URL.
+ *
+ * Accepts the site URL or its ?reprint-api endpoint, removes the API query, and
+ * adds a trailing slash before resolving the admin paths. This keeps a site
+ * installed at /blog/ from being sent to the domain's root wp-admin directory.
+ * URL validation is shared with requests through normalizeReprintUrl().
+ */
 export function getReprintAdminUrls(input: string) {
 	const site = new URL(normalizeReprintUrl(input));
 	site.search = '';
@@ -113,7 +144,19 @@ export function getReprintAdminUrls(input: string) {
 	};
 }
 
-/** A site URL and its Reprint API URL must select the same saved remote state. */
+/**
+ * Returns the API URL used to identify the remote site across transfer stages.
+ *
+ * For example, https://example.com/?reprint-api=1 becomes
+ * https://example.com/?reprint-api. Trims surrounding whitespace and replaces
+ * the query flag, while retaining the site's path and trailing-slash spelling.
+ *
+ * Requires HTTPS, except for HTTP on localhost, 127.0.0.1, or [::1]. Rejects
+ * embedded credentials, fragments, and query parameters other than reprint-api
+ * rather than silently discarding them from the remote site's identity.
+ *
+ * @throws If the input is not a URL or includes unsupported URL parts.
+ */
 export function normalizeReprintUrl(input: string): string {
 	const url = new URL(input.trim());
 	const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
@@ -139,7 +182,18 @@ export function normalizeReprintUrl(input: string): string {
 	return url.href;
 }
 
-/** Install the pinned client only after verifying its bytes. */
+/**
+ * Makes the selected client PHAR available in Playground's temporary filesystem.
+ *
+ * A cached file is reused only when its SHA-256 matches PHAR_SHA256. Otherwise,
+ * downloads REPRINT_VERSION, using the configured CORS proxy when needed, and
+ * checks its bytes before writing PHAR_PATH. A failed download or checksum check
+ * leaves the previous file untouched. Installs the client, not the bridge script.
+ *
+ * onProgress reports a download only when the cached client cannot be reused.
+ * Resolves after the verified bytes have been written; download, verification,
+ * and filesystem errors reject the promise.
+ */
 export async function installReprint(
 	playground: PlaygroundClient,
 	onProgress: (progress: TransferProgress) => void
@@ -168,7 +222,12 @@ export async function installReprint(
 	await playground.writeFile(PHAR_PATH, bytes);
 }
 
-/** Verify cached and downloaded clients against the same release digest. */
+/**
+ * Checks whether archive bytes match the client release selected by this build.
+ *
+ * Uses the same SHA-256 check for cached files and new downloads. A filename or
+ * an embedded version string cannot make different bytes pass this check.
+ */
 async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
 	const digest = await crypto.subtle.digest('SHA-256', bytes);
 	const hash = Array.from(new Uint8Array(digest), (byte) =>
@@ -177,7 +236,23 @@ async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
 	return hash === PHAR_SHA256;
 }
 
-/** Run an installed bridge and read its JSON lines while PHP is still running. */
+/**
+ * Runs one bridge stage and returns its final playgroundReprint result.
+ *
+ * The caller must first install the client PHAR and the script at BRIDGE_PATH.
+ * Passes the request, including its token, through PLAYGROUND_REPRINT in PHP's
+ * environment instead of embedding it in a generated script. Uses the primary
+ * PHP instance so successive stages see the same temporary files.
+ *
+ * Reads stdout as JSON lines and reports progress before PHP exits. Structured
+ * bridge and database progress take priority over per-file commentary. Drains
+ * stdout, stderr, and the exit status together, including output after a result.
+ *
+ * A nonzero exit or missing result throws using the last JSON error, stderr,
+ * or an exit-code message, in that order. Literal token occurrences are redacted
+ * from PHP error and message text before reporting it. Site content is not
+ * sanitized by this function.
+ */
 export async function runBridge(
 	playground: PlaygroundClient,
 	request: {
@@ -202,10 +277,20 @@ export async function runBridge(
 	let result: TransferResult | undefined;
 	let lastError = '';
 	let hasByteProgress = false;
-	/** Keep the connection token out of returned progress and errors. */
+	/**
+	 * Removes literal token occurrences from messages reported by this PHP call.
+	 * The same replacement is applied to JSON errors, stderr, and progress text.
+	 */
 	const redact = (message: string) =>
 		message.replaceAll(request.secret, '[redacted]');
-	/** Decode chunked JSON lines, including a final line without a newline. */
+	/**
+	 * Reads UTF-8 stdout without assuming that a chunk contains a complete line.
+	 *
+	 * Retains partial lines between reads and accepts the last line without a
+	 * newline. Plain text and unreadable records are ignored. Captures the last
+	 * result and JSON error for runBridge(), and sends recognized progress to
+	 * onProgress while the PHP process is still running.
+	 */
 	const readStdout = async () => {
 		const reader = response.stdout
 			.pipeThrough(new TextDecoderStream())
@@ -316,9 +401,19 @@ export async function runBridge(
 	return result;
 }
 
-/** The table or statement counters Reprint reports, as one line. */
+/**
+ * Formats database progress as table/row context or an applied-statement count.
+ *
+ * Table progress takes precedence when both a table name and row count exist.
+ * Row totals are labelled as estimates from the source's table statistics;
+ * they must not be presented as exact download sizes. Returns undefined when
+ * neither form of context has valid counters, so the caller can clear old text.
+ */
 function describeProgress(record: Record<string, unknown>): string | undefined {
-	/** Ignore malformed counters rather than feeding them to the progress UI. */
+	/**
+	 * Accepts finite, nonnegative numbers, including zero. Numeric strings and
+	 * invalid values return undefined rather than entering a progress label.
+	 */
 	const count = (value: unknown) =>
 		typeof value === 'number' && Number.isFinite(value) && value >= 0
 			? value
@@ -345,7 +440,14 @@ function describeProgress(record: Record<string, unknown>): string | undefined {
 	return undefined;
 }
 
-/** Keep invalid counters out of the progress bar and private paths out of the UI. */
+/**
+ * Copies the phase and known numeric counters into a progress update.
+ *
+ * The caller supplies the message, already redacted where needed. Counters
+ * must be finite and nonnegative; absent or invalid values remain absent.
+ * Does not infer totals or clamp percentages. Other record fields, including
+ * raw file paths, are left out instead of being forwarded to the UI.
+ */
 function readProgress(
 	record: Record<string, unknown>,
 	message: string
