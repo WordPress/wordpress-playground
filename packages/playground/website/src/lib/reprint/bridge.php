@@ -17,20 +17,18 @@ class PlaygroundReprintClient extends ImportClient {
     private const MAX_SITE_BYTES = 2 * 1024 * 1024 * 1024;
     private ?int $site_file_bytes = null;
     private string $browser_progress_path;
-    private string $pull_directory;
     private ?array $download = null;
     private float $last_byte_update = 0;
 
     /** Keep progress beside the Reprint checkpoint for this source URL. */
     public function __construct(string $url, string $state, string $files) {
         parent::__construct($url, $state, $files, ['allow_http' => is_local_reprint_url($url)]);
-        $this->pull_directory = wp_join_unix_paths($state, 'remotes', md5(rtrim($url, '?&')), 'pull');
         $this->browser_progress_path = wp_join_unix_paths($state, 'browser-progress.json');
     }
 
     /** Measure bytes at the writer callback, including resumed parts. */
     protected function fetch_streaming(string $url, \Reprint\Importer\StreamingContext $context, ?array $post_data = null, ?string $endpoint = null): void {
-        if ($endpoint !== 'file_fetch' || !is_file($this->pull_directory . '/fetch-list.jsonl')) {
+        if ($endpoint !== 'file_fetch' || !is_file($this->pull_state_directory . '/fetch-list.jsonl')) {
             parent::fetch_streaming($url, $context, $post_data, $endpoint);
             return;
         }
@@ -74,14 +72,14 @@ class PlaygroundReprintClient extends ImportClient {
             return;
         }
         $sizes = [];
-        $index = new RemoteIndexReader($this->pull_directory . '/remote-index.next.jsonl', $this->get_state()->remote_path_format());
+        $index = new RemoteIndexReader($this->pull_state_directory . '/remote-index.next.jsonl', $this->get_state()->remote_path_format());
         $index->open();
         while (($entry = $index->next_entry()) !== null) {
             $sizes[base64_encode($entry['path'])] = (int) $entry['size'];
         }
         $index->close();
         $this->download = ['sizes' => [], 'received' => [], 'complete' => []];
-        $list = fopen($this->pull_directory . '/fetch-list.jsonl', 'rb');
+        $list = fopen($this->pull_state_directory . '/fetch-list.jsonl', 'rb');
         while (($line = fgets($list)) !== false) {
             $path = json_decode($line, true, 512, JSON_THROW_ON_ERROR)['path'];
             $size = $sizes[$path] ?? 0;
@@ -127,7 +125,7 @@ class PlaygroundReprintClient extends ImportClient {
         if ($file_bytes === null) {
             // Use the full selected index, not the incremental fetch list. The
             // mapped index includes followed targets and omits excluded paths.
-            $index = fopen(wp_join_unix_paths($this->pull_directory, 'remote-index.local-map.jsonl'), 'rb');
+            $index = fopen(wp_join_unix_paths($this->pull_state_directory, 'remote-index.local-map.jsonl'), 'rb');
             if ($index === false) throw new RuntimeException('Could not read the site size from the Reprint file index.');
             $file_bytes = 0;
             try {

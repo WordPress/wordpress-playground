@@ -441,6 +441,39 @@ describe('Direct file pull', () => {
 		);
 		expect(updates.at(-1)?.overallPercent).toBe(100);
 	});
+	it('continues an unknown stage without losing the last streamed caption', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'complete' },
+		]);
+		runStream.mockImplementationOnce(async () =>
+			response(
+				JSON.stringify({
+					playgroundProgress: {
+						phase: 'files-pull',
+						message: 'Current transfer caption',
+					},
+				}) +
+					'\n' +
+					JSON.stringify({
+						playgroundReprint: {
+							status: 'continue',
+							stage: 'future-stage',
+						},
+					}) +
+					'\n'
+			)
+		);
+		const onProgress = vi.fn();
+		await pullSite(playground, 'https://example.com', 'token', onProgress);
+		expect(runStream).toHaveBeenCalledTimes(2);
+		expect(onProgress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phase: 'future-stage',
+				message: 'Current transfer caption',
+			})
+		);
+		expect(onProgress.mock.lastCall?.[0].overallPercent).toBe(100);
+	});
 	it('stops after the current stage and retries with the same connection', async () => {
 		const { playground, runStream } = createClient([
 			{ status: 'continue', stage: 'files-pull' },

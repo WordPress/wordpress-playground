@@ -34,6 +34,61 @@ describe('Reprint transfer diagnostics', () => {
 			root + '/pull-state/db.sql'
 		);
 	});
+	it.each(['root', 'directories', 'record', 'contents'])(
+		'stops queueing worker reads after timing out at %s',
+		async (pause) => {
+			vi.useFakeTimers();
+			try {
+				let unblock!: (value: unknown) => void;
+				const blocked = new Promise((resolve) => {
+					unblock = resolve;
+				});
+				const root = '/tmp/playground-reprint-state';
+				const fileExists = vi.fn(async (path: string) =>
+					(pause === 'root' && path === root) ||
+					(pause === 'record' &&
+						path === root + '/site/operation.json')
+						? blocked
+						: true
+				);
+				const listFiles = vi.fn(async () =>
+					pause === 'directories' ? blocked : ['site']
+				);
+				const readFileAsText = vi.fn(async () =>
+					pause === 'contents' ? blocked : '{}'
+				);
+				const report = getTransferDiagnostics(
+					{
+						fileExists,
+						listFiles,
+						readFileAsText,
+					} as unknown as PlaygroundClient,
+					'token'
+				);
+				await vi.advanceTimersByTimeAsync(10000);
+				expect(await report).toContain('did not answer');
+				const calls = [fileExists, listFiles, readFileAsText].map(
+					(method) => method.mock.calls.length
+				);
+				unblock(
+					pause === 'directories'
+						? ['site']
+						: pause === 'contents'
+							? '{}'
+							: true
+				);
+				await vi.advanceTimersByTimeAsync(0);
+				expect(
+					[fileExists, listFiles, readFileAsText].map(
+						(method) => method.mock.calls.length
+					)
+				).toEqual(calls);
+				expect(vi.getTimerCount()).toBe(0);
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	);
 	it('returns the records already read when the worker stops answering', async () => {
 		vi.useFakeTimers();
 		try {

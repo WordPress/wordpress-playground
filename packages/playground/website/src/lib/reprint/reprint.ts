@@ -259,7 +259,7 @@ export async function pullSite(
 				stage = result.stage;
 				report({
 					phase: stage,
-					message: phases[stage][2],
+					message: phases[stage]?.[2] ?? lastProgress.message,
 				});
 			}
 			if (result.status === 'complete') break;

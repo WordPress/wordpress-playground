@@ -9,19 +9,24 @@ export async function getTransferDiagnostics(
 	const root = '/tmp/playground-reprint-state';
 	const sections: string[] = [];
 	let pendingPath = root;
+	let cancelled = false;
 	/** Read each available record without making a stalled worker block the UI. */
 	const read = async () => {
 		if (await playground.fileExists(root)) {
+			if (cancelled) return '';
 			for (const directory of await playground.listFiles(root)) {
 				for (const relative of [
 					'operation.json',
 					'pull-state/progress.json',
 					'pull-state/audit.log',
 				]) {
+					if (cancelled) return '';
 					const path = joinPaths(root, directory, relative);
 					pendingPath = path;
 					if (!(await playground.fileExists(path))) continue;
+					if (cancelled) return '';
 					const contents = await playground.readFileAsText(path);
+					if (cancelled) return '';
 					// Redact before taking the tail, so its boundary cannot expose
 					// part of a key that appeared in an upstream error message.
 					const redacted = secret
@@ -41,6 +46,8 @@ export async function getTransferDiagnostics(
 			read(),
 			new Promise<string>((resolve) => {
 				timeout = setTimeout(() => {
+					// Do not queue more reads if the blocked worker answers later.
+					cancelled = true;
 					// File reads use the same worker as PHP and OPFS saving. They
 					// cannot answer while that worker is blocked by synchronous work.
 					resolve(
