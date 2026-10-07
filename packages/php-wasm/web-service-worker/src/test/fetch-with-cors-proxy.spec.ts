@@ -247,7 +247,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
 	});
 
-	it('passes request through to fetch for localhost http:// URLs', async () => {
+	it('buffers streamed uploads to localhost HTTP/1.1 servers', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -269,9 +269,87 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// Direct fetch — no buffering, same Request passed through.
-		expect(sentRequest).toBe(request);
-		expect(request.bodyUsed).toBe(false);
+		// Buffer before direct fetch: Chrome cannot stream to an HTTP/1.1 server.
+		expect(sentRequest).not.toBe(request);
+		expect(sentRequest.url).toBe(request.url);
+		expect(sentRequest.method).toBe('POST');
+		expect(await sentRequest.text()).toBe('streamed data');
+		expect(request.bodyUsed).toBe(true);
+	});
+
+	it('preserves keepalive when buffering a localhost upload', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body: 'complete this upload after unload',
+			keepalive: true,
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(sentRequest.keepalive).toBe(true);
+		expect(await sentRequest.text()).toBe(
+			'complete this upload after unload'
+		);
+	});
+
+	it('retains earlier bytes when a localhost stream reuses its buffer', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const chunk = new Uint8Array(1);
+		let nextByte = 65;
+		const body = new ReadableStream(
+			{
+				/** Reuse the producer's buffer only when the reader asks for the next chunk. */
+				pull(controller) {
+					if (nextByte === 67) {
+						controller.close();
+						return;
+					}
+					chunk[0] = nextByte++;
+					controller.enqueue(chunk);
+				},
+			},
+			{ highWaterMark: 0 }
+		);
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies.
+			duplex: 'half',
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(await sentRequest.text()).toBe('AB');
+	});
+
+	it('stops buffering a localhost upload whose body never closes when aborted', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const controller = new AbortController();
+		const request = new Request('http://127.0.0.1:8181/?reprint-api', {
+			method: 'POST',
+			body: new ReadableStream({
+				start(stream) {
+					stream.enqueue(new TextEncoder().encode('partial'));
+					// Never closes: a stalled producer.
+				},
+			}),
+			signal: controller.signal,
+			// @ts-expect-error duplex is required for streamed bodies.
+			duplex: 'half',
+		});
+		const pending = fetchWithCorsProxy(request, undefined, undefined);
+		setTimeout(() => controller.abort(), 10);
+		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it('passes request through to fetch for https:// URLs without proxy', async () => {

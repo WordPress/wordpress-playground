@@ -13,6 +13,10 @@ const CORS_ENABLED_HOST_REQUEST_HEADERS = new Map([
 	['generativelanguage.googleapis.com', {}],
 ]);
 
+/**
+ * Fetch directly where CORS permits it, otherwise retry through the configured
+ * proxy. Local HTTP uploads are buffered for HTTP/1.1 servers.
+ */
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
 	init?: RequestInit,
@@ -27,6 +31,14 @@ export async function fetchWithCorsProxy(
 		: new URL(requestObject.url);
 
 	if (isLocalhost(requestUrlObj)) {
+		// Local PHP development servers speak HTTP/1.1. Chrome requires HTTP/2
+		// for a streaming upload, even when the entire body is already available.
+		if (requestUrlObj.protocol === 'http:' && requestObject.body) {
+			requestObject = await cloneRequest(requestObject, {
+				body: await readBodyUntilAborted(requestObject),
+				keepalive: requestObject.keepalive,
+			});
+		}
 		return await fetch(requestObject);
 	}
 
@@ -155,6 +167,53 @@ export async function fetchWithCorsProxy(
 
 		return response;
 	}
+}
+
+/**
+ * Buffers a request body. Request.arrayBuffer() ignores the request's abort
+ * signal, so a body stream that never closes would keep the fetch pending
+ * forever; this reader stops as soon as the signal aborts.
+ */
+async function readBodyUntilAborted(request: Request): Promise<ArrayBuffer> {
+	const { signal } = request;
+	/** Preserve the caller's abort reason, including custom errors. */
+	const abortError = () =>
+		signal.reason ??
+		new DOMException('The request was aborted.', 'AbortError');
+	if (signal.aborted) {
+		throw abortError();
+	}
+	const reader = request.body!.getReader();
+	/** Release a stalled reader so the abort reaches the pending fetch. */
+	const cancel = () => {
+		reader.cancel(signal.reason).catch(() => {});
+	};
+	signal.addEventListener('abort', cancel, { once: true });
+	const chunks: Uint8Array[] = [];
+	let length = 0;
+	try {
+		for (;;) {
+			const { value, done } = await reader.read();
+			if (done) {
+				break;
+			}
+			// A producer may reuse its buffer on the next read.
+			chunks.push(value.slice());
+			length += value.byteLength;
+		}
+	} finally {
+		signal.removeEventListener('abort', cancel);
+	}
+	if (signal.aborted) {
+		throw abortError();
+	}
+	const body = new Uint8Array(length);
+	let offset = 0;
+	for (const chunk of chunks) {
+		body.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return body.buffer;
 }
 
 function isLocalhost(url: URL) {
