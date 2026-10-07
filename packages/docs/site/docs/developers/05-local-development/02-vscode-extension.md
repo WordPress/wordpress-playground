@@ -15,7 +15,7 @@ Key Features:
 
 **Documentation**
 
-The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
+The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation on the [VS Code extension page in the Playground Handbook](https://developer.wordpress.org/playground/developers/local-development/vscode-extension/).
 
 </div>
 
