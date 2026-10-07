@@ -346,8 +346,9 @@ async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
  * environment instead of embedding it in a generated script. Uses the primary
  * PHP instance so successive stages see the same temporary files.
  *
- * Reads stdout as JSON lines and reports progress before PHP exits. Structured
- * bridge and database progress take priority over per-file commentary. Drains
+ * Reads stdout as JSON lines and reports progress before PHP exits. Uses
+ * Reprint's file and byte counters, including the unfinished file and resumed
+ * writes. Structured progress takes priority over per-file commentary. Drains
  * stdout, stderr, and the exit status together, including output after a result.
  *
  * A nonzero exit or missing result throws using the last JSON error, stderr,
@@ -378,7 +379,7 @@ export async function runBridge(
 	});
 	let result: TransferResult | undefined;
 	let lastError = '';
-	let hasByteProgress = false;
+	let hasStructuredProgress = false;
 	/**
 	 * Removes literal token occurrences from messages reported by this PHP call.
 	 * The same replacement is applied to JSON errors, stderr, and progress text.
@@ -420,7 +421,28 @@ export async function runBridge(
 							// update has counters but no finer-grained context.
 							detail,
 						});
-						hasByteProgress = true;
+						hasStructuredProgress = true;
+					} else if (
+						record.command === 'files-pull' &&
+						record.progress?.items?.unit === 'files'
+					) {
+						// Reprint counts bytes accepted by its writer, including
+						// the open file and the saved position on a retry.
+						onProgress({
+							...readProgress(
+								{
+									phase: 'files-pull',
+									bytesDone: record.progress.bytes?.done,
+									bytesTotal: record.progress.bytes?.total,
+									filesDone: record.progress.items.done,
+									filesTotal: record.progress.items.total,
+								},
+								'Downloading site files'
+							),
+							// Clear the index-stage commentary when download starts.
+							detail: undefined,
+						});
+						hasStructuredProgress = true;
 					} else if (
 						record.phase === 'database-records' &&
 						typeof record.records_processed === 'number'
@@ -435,7 +457,7 @@ export async function runBridge(
 							message: 'Rewriting URLs in the database',
 							detail: `${table}${record.records_processed.toLocaleString()} records checked`,
 						});
-						hasByteProgress = true;
+						hasStructuredProgress = true;
 					} else if (
 						record.phase === 'db-apply' &&
 						record.bytes_read !== undefined
@@ -450,9 +472,9 @@ export async function runBridge(
 								'Importing SQL'
 							)
 						);
-						hasByteProgress = true;
+						hasStructuredProgress = true;
 					} else if (
-						!hasByteProgress &&
+						!hasStructuredProgress &&
 						record.files_done !== undefined
 					) {
 						onProgress(
@@ -471,7 +493,7 @@ export async function runBridge(
 						onProgress({ message: redact(record.message) });
 					} else if (
 						typeof record.message === 'string' &&
-						!hasByteProgress
+						!hasStructuredProgress
 					) {
 						// Reprint's running commentary ("Following symlink
 						// target: …") belongs under the bar; the heading keeps

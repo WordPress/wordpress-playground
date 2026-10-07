@@ -248,7 +248,7 @@ describe('Reprint command replies', () => {
 		expect(() => normalizeReprintUrl(url)).toThrow();
 	});
 
-	it('streams byte progress before the PHP request finishes and ignores text-only file updates', async () => {
+	it('reads native Reprint byte counts before PHP finishes and ignores text-only file updates', async () => {
 		const { playground } = createClient([]);
 		let output!: ReadableStreamDefaultController<Uint8Array>;
 		let finish!: (code: number) => void;
@@ -278,14 +278,21 @@ describe('Reprint command replies', () => {
 		await vi.waitFor(() => expect(output).toBeDefined());
 		const line =
 			JSON.stringify({
-				playgroundProgress: {
-					phase: 'files-pull',
-					message: 'Downloading site files',
-					bytesDone: 1024,
-					bytesTotal: 4096,
-					filesDone: 0,
-					filesTotal: 1,
-					path: 'private-token',
+				type: 'file_progress',
+				command: 'files-pull',
+				phase: 'fetch',
+				message: 'Downloading files',
+				files_done: 0,
+				files_total: 1,
+				path: 'private-token',
+				progress: {
+					items: { unit: 'files', done: 0, total: 1 },
+					bytes: { done: 1024, total: 4096 },
+					current_file: {
+						path_b64: btoa('/source/large.txt'),
+						bytes_done: 1024,
+						bytes_total: 4096,
+					},
 				},
 			}) + '\n';
 		output.enqueue(new TextEncoder().encode(line.slice(0, 30)));
@@ -299,6 +306,24 @@ describe('Reprint command replies', () => {
 					filesDone: 0,
 					filesTotal: 1,
 				})
+			)
+		);
+		output.enqueue(
+			new TextEncoder().encode(
+				JSON.stringify({
+					heartbeat: true,
+					command: 'files-pull',
+					phase: 'fetch',
+					progress: {
+						items: { unit: 'files', done: 0, total: 1 },
+						bytes: { done: 2048, total: 4096 },
+					},
+				}) + '\n'
+			)
+		);
+		await vi.waitFor(() =>
+			expect(progress).toHaveBeenLastCalledWith(
+				expect.objectContaining({ bytesDone: 2048, bytesTotal: 4096 })
 			)
 		);
 		output.enqueue(

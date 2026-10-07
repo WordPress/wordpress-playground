@@ -12,45 +12,10 @@ require 'phar:///tmp/playground-reprint.phar/packages/reprint-client/src/import.
 use function WordPress\Filesystem\wp_join_unix_paths;
 use WordPress\Reprint\Server\Utils;
 
-/** Forward payload progress while Reprint is writing a file, not just its headers. */
+/** Enforce Playground's size limit before Reprint changes site files. */
 class PlaygroundReprintClient extends ImportClient {
     private const MAX_SITE_BYTES = 2 * 1024 * 1024 * 1024;
     private ?int $site_file_bytes = null;
-    private string $browser_progress_path;
-    private ?array $download = null;
-    private float $last_byte_update = 0;
-
-    /** Keep progress beside the Reprint checkpoint for this source URL. */
-    public function __construct(string $url, string $state, string $files) {
-        parent::__construct($url, $state, $files, ['allow_http' => is_local_reprint_url($url)]);
-        $this->browser_progress_path = wp_join_unix_paths($state, 'browser-progress.json');
-    }
-
-    /** Measure bytes at the writer callback, including resumed parts. */
-    protected function fetch_streaming(string $url, \Reprint\Importer\StreamingContext $context, ?array $post_data = null, ?string $endpoint = null): void {
-        if ($endpoint !== 'file_fetch' || !is_file($this->pull_state_directory . '/fetch-list.jsonl')) {
-            parent::fetch_streaming($url, $context, $post_data, $endpoint);
-            return;
-        }
-        $this->load_download_progress();
-        $on_chunk = $context->on_chunk;
-        $context->on_chunk = function (array $chunk) use ($on_chunk, $context): void {
-            $before = ($chunk['headers']['x-first-chunk'] ?? '0') === '1' ? 0 : $context->file_bytes_written;
-            $on_chunk($chunk);
-            // Reprint restores this counter to its saved cursor on a retry.
-            // The final callback closes the file and clears the counter.
-            $written = $context->file_handle ? $context->file_bytes_written : $before + strlen($chunk['body'] ?? '');
-            $this->record_download_chunk($chunk, $written);
-        };
-        try {
-            $this->emit_download_progress(true);
-            parent::fetch_streaming($url, $context, $post_data, $endpoint);
-        } finally {
-            $context->on_chunk = $on_chunk;
-            $this->emit_download_progress(true);
-            file_put_contents($this->browser_progress_path, json_encode($this->download, JSON_THROW_ON_ERROR));
-        }
-    }
 
     /** Check indexed size before mirroring and forward file progress. */
     public function output_progress(array $data, bool $force = false): void {
@@ -62,61 +27,6 @@ class PlaygroundReprintClient extends ImportClient {
             $this->assert_site_size();
         }
         parent::output_progress($data, $force);
-    }
-
-    /** Rebuild byte totals from selected files and the saved fetch cursor. */
-    private function load_download_progress(): void {
-        if ($this->download !== null) return;
-        if (is_file($this->browser_progress_path)) {
-            $this->download = json_decode(file_get_contents($this->browser_progress_path), true, 512, JSON_THROW_ON_ERROR);
-            return;
-        }
-        $sizes = [];
-        $index = new RemoteIndexReader($this->pull_state_directory . '/remote-index.next.jsonl', $this->get_state()->remote_path_format());
-        $index->open();
-        while (($entry = $index->next_entry()) !== null) {
-            $sizes[base64_encode($entry['path'])] = (int) $entry['size'];
-        }
-        $index->close();
-        $this->download = ['sizes' => [], 'received' => [], 'complete' => []];
-        $list = fopen($this->pull_state_directory . '/fetch-list.jsonl', 'rb');
-        while (($line = fgets($list)) !== false) {
-            $path = json_decode($line, true, 512, JSON_THROW_ON_ERROR)['path'];
-            $size = $sizes[$path] ?? 0;
-            $complete = ftell($list) <= $this->get_state()->fetch->offset;
-            $this->download['sizes'][$path] = $size;
-            $this->download['received'][$path] = $complete ? $size : 0;
-            $this->download['complete'][$path] = $complete;
-        }
-        fclose($list);
-    }
-
-    /** Count the current writer position rather than repeated network bytes. */
-    private function record_download_chunk(array $chunk, int $bytes_written): void {
-        $headers = $chunk['headers'];
-        if (($headers['x-chunk-type'] ?? '') !== 'file') return;
-        $path = $headers['x-file-path'];
-        if (!array_key_exists($path, $this->download['sizes'])) return;
-        $this->download['sizes'][$path] = (int) $headers['x-file-size'];
-        // Use the writer's current position, not network bytes: resumed parts
-        // can repeat data beyond the last saved cursor.
-        $this->download['received'][$path] = $bytes_written;
-        $this->download['complete'][$path] = ($headers['x-last-chunk'] ?? '0') === '1';
-        $this->emit_download_progress();
-    }
-
-    /** Emit byte and file totals at most four times per second. */
-    private function emit_download_progress(bool $force = false): void {
-        if (!$force && microtime(true) - $this->last_byte_update < 0.25) return;
-        $this->last_byte_update = microtime(true);
-        echo json_encode(['playgroundProgress' => [
-            'phase' => 'files-pull',
-            'message' => 'Downloading site files',
-            'bytesDone' => array_sum($this->download['received']),
-            'bytesTotal' => array_sum($this->download['sizes']),
-            'filesDone' => count(array_filter($this->download['complete'])),
-            'filesTotal' => count($this->download['sizes']),
-        ]], JSON_THROW_ON_ERROR) . "\n";
     }
 
     /** Reject selected file bytes above the browser import limit. */
@@ -213,9 +123,7 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     // run(preflight) above loads the saved mapping fingerprints; the client
     // constructor alone starts with blank state and must not reset it.
     $client->clear_files_pull_progress();
-    foreach (['progress.json', 'browser-progress.json'] as $file) {
-        remove_tree(wp_join_unix_paths($state, $file));
-    }
+    remove_tree(wp_join_unix_paths($state, 'progress.json'));
     $metadata['pullMappings'] = pull_path_mappings($metadata);
     // Resolve and validate every selector before file mirroring starts.
     $client->prepare_files_pull_options([
@@ -234,7 +142,7 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
     $state = wp_join_unix_paths($root, 'pull-state');
     $stage = $operation['stage'];
     $metadata = json_decode(file_get_contents(wp_join_unix_paths($root, 'source.json')), true, 512, JSON_THROW_ON_ERROR);
-    $client = new PlaygroundReprintClient($request['url'], $state, $files);
+    $client = new PlaygroundReprintClient($request['url'], $state, $files, ['allow_http' => is_local_reprint_url($request['url'])]);
     // Older transfers can have completed Reprint's download before the adapter
     // failed. Keep those bytes and proceed to local setup without another pull.
     $progress_path = wp_join_unix_paths($state, 'progress.json');

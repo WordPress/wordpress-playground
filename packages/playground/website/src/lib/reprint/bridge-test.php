@@ -3,6 +3,8 @@
 // These checks use Reprint's real mapper, writer, and checkpoint lifecycle.
 require __DIR__ . '/bridge.php';
 
+use function WordPress\Filesystem\wp_join_unix_paths;
+
 $root = sys_get_temp_dir() . '/playground-reprint-test-' . bin2hex(random_bytes(8));
 $site = $root . '/site';
 $state = $root . '/state';
@@ -62,46 +64,7 @@ try {
         $setup_client->prepare_files_pull_options(['include' => [':abspath:', ':wp-content:'], 'exclude' => pull_exclusions(), 'remap' => $rules]);
     }
 
-    // Totals come from selected files, not every file in the remote index.
-    $download_state = $root . '/download-state';
-    $client = new PlaygroundReprintClient('https://example.com', $download_state, $root . '/download-files');
-    $pull = $download_state . '/remotes/' . md5('https://example.com') . '/pull';
-    if (!is_dir($pull)) mkdir($pull, 0700, true);
-    $first_path = base64_encode('/source/first.txt');
-    $large_path = base64_encode('/source/large.txt');
-    $first_line = json_encode(['path' => $first_path]) . "\n";
-    file_put_contents($pull . '/fetch-list.jsonl', $first_line . json_encode(['path' => $large_path]) . "\n");
-    file_put_contents($pull . '/remote-index.next.jsonl', implode("\n", [
-        json_encode(['path' => $first_path, 'size' => 8]),
-        json_encode(['path' => $large_path, 'size' => 16]),
-        json_encode(['path' => base64_encode('/source/excluded.txt'), 'size' => 1000]),
-    ]) . "\n");
-    $client->get_state()->fetch->offset = strlen($first_line);
-    (new ReflectionMethod($client, 'load_download_progress'))->invoke($client);
-    $record = new ReflectionMethod($client, 'record_download_chunk');
-    $emit = new ReflectionMethod($client, 'emit_download_progress');
-    $headers = ['x-chunk-type' => 'file', 'x-file-path' => $large_path, 'x-file-size' => '16', 'x-first-chunk' => '1', 'x-last-chunk' => '0'];
-    ob_start();
-    $record->invoke($client, ['headers' => $headers, 'body' => 'aaaa'], 4);
-    $emit->invoke($client, true);
-    $updates = array_filter(explode("\n", trim(ob_get_clean())));
-    $update = json_decode(end($updates), true)['playgroundProgress'];
-    check($update['bytesDone'] === 12 && $update['bytesTotal'] === 24, 'Byte progress includes partial files and excludes unselected files.');
-    check($update['filesDone'] === 1 && $update['filesTotal'] === 2, 'An unfinished large file is not counted as complete.');
-    ob_start();
-    $record->invoke($client, ['headers' => $headers, 'body' => 'bb'], 2);
-    $emit->invoke($client, true);
-    $updates = array_filter(explode("\n", trim(ob_get_clean())));
-    $update = json_decode(end($updates), true)['playgroundProgress'];
-    check($update['bytesDone'] === 10, 'Restarting a file replaces its old partial byte count.');
-    $headers['x-first-chunk'] = '0';
-    $headers['x-last-chunk'] = '1';
-    ob_start();
-    $record->invoke($client, ['headers' => $headers, 'body' => str_repeat('c', 14)], 16);
-    $emit->invoke($client, true);
-    $updates = array_filter(explode("\n", trim(ob_get_clean())));
-    $update = json_decode(end($updates), true)['playgroundProgress'];
-    check($update['bytesDone'] === 24 && $update['filesDone'] === 2, 'Completing the last file fills the byte total exactly.');
+    check_native_download_progress($root);
 
     // Exercise the pinned client's actual path mapping and writer, not a mock.
     $writer = new PlaygroundReprintClient('https://example.com', $root . '/writer-state', $site);
@@ -131,7 +94,7 @@ try {
     $mapped = pull_path_mappings(['paths' => ['abspath' => '/srv/site', 'content_dir' => '/srv/site/wp-content', 'mu_plugins_dir' => false]]);
     check(in_array(['/srv/site/wp-content/mu-plugins', ':fs-root:/wp-content/mu-plugins'], $mapped, true), 'A directory Reprint reports as missing maps to its default location instead of an empty path.');
     foreach (['http://127.0.0.1:9417', 'http://localhost:9417', 'http://[::1]:9417'] as $url) {
-        new PlaygroundReprintClient($url, $root . '/http-' . md5($url), $site);
+        new PlaygroundReprintClient($url, $root . '/http-' . md5($url), $site, ['allow_http' => is_local_reprint_url($url)]);
     }
     $rejected = false;
     try { new PlaygroundReprintClient('http://example.com', $root . '/remote-http', $site); }
@@ -171,6 +134,52 @@ try {
 /** Stop the standalone check at the first broken invariant. */
 function check(bool $condition, string $message): void {
     if (!$condition) throw new RuntimeException($message);
+}
+
+/** Check the pinned client's native counters against its real file writer. */
+function check_native_download_progress(string $root): void {
+    $site = wp_join_unix_paths($root, 'download-files');
+    $state = wp_join_unix_paths($root, 'download-state');
+    $client = new ImportClient('https://example.com', $state, $site);
+    $client->prepare_files_pull_options([
+        'include' => ['/source'],
+        'remap' => [['/source', ':fs-root:']],
+    ], false);
+    $first_path = base64_encode('/source/first.txt');
+    $large_path = base64_encode('/source/large.txt');
+    $first_line = json_encode(['path' => $first_path, 'size' => 8]) . "\n";
+    $list = wp_join_unix_paths($client->pull_state_directory, 'fetch-list.jsonl');
+    file_put_contents($list, $first_line . json_encode(['path' => $large_path, 'size' => 16]) . "\n");
+    // A completed file remains counted when the next PHP call opens the list.
+    $client->get_state()->fetch->offset = strlen($first_line);
+    $client->get_state()->fetch->file_bytes_before_batch = 8;
+    $reporter = (new ReflectionProperty(ImportClient::class, 'progress_reporter'))->getValue($client);
+    $reporter->load_file_list($list, $client->get_state()->fetch);
+    $context = new \Reprint\Importer\StreamingContext();
+    $writer = new ReflectionMethod(ImportClient::class, 'handle_file_chunk');
+    $record = new ReflectionMethod(ImportClient::class, 'files_pull_progress_record');
+    $headers = ['x-file-path' => $large_path, 'x-file-size' => '16', 'x-file-ctime' => '1', 'x-first-chunk' => '1', 'x-last-chunk' => '0'];
+    try {
+        $writer->invoke($client, ['headers' => $headers, 'body' => 'aaaa'], $context);
+        $update = $record->invoke($client, $context);
+        check($update['command'] === 'files-pull' && $update['phase'] === 'fetch', 'Native file progress identifies the download command and phase.');
+        check($update['progress']['bytes'] === ['done' => 12, 'total' => 24], 'Native byte progress counts completed files and the unfinished file.');
+        check($update['progress']['items'] === ['unit' => 'files', 'done' => 1, 'total' => 2], 'An unfinished large file is not counted as complete.');
+        check($update['progress']['current_file']['bytes_done'] === 4, 'Native progress includes the current writer position.');
+        // Replaying the first part truncates the old partial file. Count the
+        // replacement position, rather than adding repeated network bytes.
+        $writer->invoke($client, ['headers' => $headers, 'body' => 'bb'], $context);
+        $update = $record->invoke($client, $context);
+        check($update['progress']['bytes']['done'] === 10, 'Replayed file bytes replace the old partial count.');
+        $headers['x-first-chunk'] = '0';
+        $headers['x-last-chunk'] = '1';
+        $writer->invoke($client, ['headers' => $headers, 'body' => str_repeat('c', 14)], $context);
+        $update = $record->invoke($client, $context);
+        check($update['progress']['bytes'] === ['done' => 24, 'total' => 24], 'Completing the file fills the native byte total exactly.');
+        check($update['progress']['items']['done'] === 2 && $update['progress']['current_file'] === null, 'Native completion clears the current file and counts it once.');
+    } finally {
+        if (is_resource($context->file_handle)) fclose($context->file_handle);
+    }
 }
 
 /** Exercise the real PHAR and bridge process, including setup returning to its caller. */
@@ -218,11 +227,10 @@ readfile(__DIR__ . "/response.json");
             $request = ['command' => $kind, 'documentRoot' => $site, 'url' => $url, 'secret' => 'test-key', 'siteUrl' => 'https://playground.test'];
             $previous_index = null;
             if ($kind === 'pull') {
-                $client = new PlaygroundReprintClient($url, $transfer . '/pull-state', $site);
+                $client = new PlaygroundReprintClient($url, $transfer . '/pull-state', $site, ['allow_http' => is_local_reprint_url($url)]);
                 $previous_index = $client->pull_state_directory . '/remote-index.jsonl';
                 file_put_contents($previous_index, json_encode(['path' => base64_encode('/remote/keep.php'), 'type' => 'file', 'size' => 4, 'ctime' => 1]) . "\n");
                 file_put_contents($transfer . '/pull-state/progress.json', '{"command":"files-pull","status":"complete"}');
-                file_put_contents($transfer . '/pull-state/browser-progress.json', '{"bytesDone":999}');
                 $client->get_state()->resolved_path_mappings_fingerprint = 'saved-mapping-fingerprint';
                 $client->get_state()->active_resumable_command->command_name = 'db-apply';
                 $client->get_state()->active_resumable_command->completion_state = 'complete';
@@ -246,9 +254,6 @@ readfile(__DIR__ . "/response.json");
                     check(is_file($previous_index) && filesize($previous_index) > 0, 'Starting or retrying preflight preserves the prior remote index.');
                     $progress = is_file($transfer . '/pull-state/progress.json') ? json_decode(file_get_contents($transfer . '/pull-state/progress.json'), true) : [];
                     check(($progress['command'] ?? null) !== 'files-pull', 'Preflight must not leave the previous file transfer marked complete.');
-                    if ($accepted) foreach (['browser-progress.json'] as $file) {
-                        check(!is_file($transfer . '/pull-state/' . $file), 'A fresh pull clears stale completion, byte counts: ' . $file);
-                    }
                 }
 
                 if (!$accepted) {
