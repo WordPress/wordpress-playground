@@ -499,6 +499,10 @@
 	margin: var(--space-2) 0 0;
 }
 
+.pane-description a {
+	color: var(--accent-link);
+}
+
 /* The active Playground's name sits right under the "This Playground" title as
    the header's subtitle line, with a quiet pencil to rename — so the pane names
    the specific Playground without a separate row. */

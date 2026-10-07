@@ -28,7 +28,7 @@ export type DockPaneHeaderOverride = {
 export type DockPaneProps = {
 	title: string;
 	children: ReactNode;
-	description?: string;
+	description?: ReactNode;
 	headerSubtitle?: ReactNode;
 	className?: string;
 	style?: CSSProperties;

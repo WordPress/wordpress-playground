@@ -14,6 +14,7 @@ import {
 import type { ToolParam } from './tool-definitions';
 import { toolExecutors } from './tool-executors';
 import type { ToolClient } from './tool-executors';
+import { registerAbilityTools } from './ability-tools';
 function errorResult(prefix: string, error: unknown) {
 	return {
 		content: [
@@ -375,4 +376,8 @@ export function registerMcpServerTools(
 			}
 		);
 	}
+
+	// -- WordPress abilities the user exposed in the Abilities panel --
+	// Registered and removed dynamically as browser tabs report changes.
+	registerAbilityTools(server, bridge);
 }

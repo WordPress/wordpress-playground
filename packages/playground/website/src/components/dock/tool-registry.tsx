@@ -11,6 +11,7 @@ import {
 } from '@wordpress/icons';
 import { DockBlueprintIcon, DockDatabaseIcon, DockTerminalIcon } from './icons';
 import {
+	AbilitiesTool,
 	SettingsTool,
 	FilesTool,
 	BlueprintTool,
@@ -30,7 +31,7 @@ type DockToolDefinition = {
 	icon?: ReactNode;
 	isPrimary?: boolean;
 	title: string;
-	description: string;
+	description: ReactNode;
 	layout: 'default' | 'compact' | 'editor' | 'wide';
 	fixedHeight?: boolean;
 	Panel?: ComponentType<SiteToolPanelProps>;
@@ -108,6 +109,29 @@ const definitions = [
 			'Inspect and edit the SQLite database behind this Playground.',
 		layout: 'default',
 		Panel: DatabaseTool,
+		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
+	},
+	{
+		section: 'abilities',
+		label: 'Abilities',
+		ariaLabel: 'Abilities',
+		icon: <Icon icon={list} size={24} />,
+		group: 'developer',
+		title: 'Abilities',
+		description: (
+			<>
+				Inspect, test, and expose WordPress abilities to browser agents.{' '}
+				<a
+					href="https://developer.wordpress.org/apis/abilities-api/"
+					target="_blank"
+					rel="noreferrer"
+				>
+					Learn more about the Abilities API
+				</a>
+			</>
+		),
+		layout: 'wide',
+		Panel: AbilitiesTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{

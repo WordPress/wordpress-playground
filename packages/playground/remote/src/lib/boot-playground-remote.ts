@@ -172,7 +172,7 @@ export async function bootPlaygroundRemote() {
 		 *
 		 * @param fn The function to be called when a navigation event occurs.
 		 */
-		async onNavigation(fn) {
+		async onNavigation(fn, options) {
 			/**
 			 * Note: We do not manually clear the event listener and the interval set in this function.
 			 *
@@ -183,6 +183,19 @@ export async function bootPlaygroundRemote() {
 			 */
 
 			let lastPath: string | undefined;
+			if (options?.includeReloads) {
+				// Establish the existing document before polling. The first poll is not
+				// a navigation and must not invalidate an operation already in progress.
+				let currentUrl = wpFrame.src;
+				try {
+					currentUrl =
+						wpFrame.contentWindow?.location.href || currentUrl;
+				} catch {
+					// Document isolation can prevent reading the inner frame's location.
+				}
+				lastPath = await playground.internalUrlToPath(currentUrl);
+			}
+			let navigationReportedBeforeLoad = false;
 
 			/**
 			 * Listen for URL change messages from the WordPress iframe.
@@ -205,8 +218,9 @@ export async function bootPlaygroundRemote() {
 					if (data?.type !== 'playground-url-change') {
 						return;
 					}
+					navigationReportedBeforeLoad = true;
 					const path = await playground.internalUrlToPath(data.url);
-					if (path !== lastPath) {
+					if (options?.includeReloads || path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
@@ -217,6 +231,13 @@ export async function bootPlaygroundRemote() {
 
 			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
+				// The head script already reported this document. Its later load event
+				// must not invalidate operations started while the document was loading.
+				if (options?.includeReloads && navigationReportedBeforeLoad) {
+					navigationReportedBeforeLoad = false;
+					return;
+				}
+				navigationReportedBeforeLoad = false;
 				try {
 					/**
 					 * When navigating to a page with %0A sequences (encoded newlines)
@@ -248,11 +269,12 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(
 						contentWindow.location.href
 					);
-					if (path !== lastPath) {
+					if (options?.includeReloads || path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
 				} catch {
+					if (options?.includeReloads) fn(lastPath ?? '/');
 					// @TODO: The above call can fail if the remote iframe
 					// is embedded in StackBlitz, or presumably, any other
 					// environment with restrictive CSP. Any error thrown
@@ -281,7 +303,10 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(href);
 					if (path !== lastPath) {
 						lastPath = path;
-						fn(path);
+						// A path change without a load event or head message is a
+						// same-document history update, e.g. pushState in the
+						// Site Editor. Reload listeners only care about new documents.
+						if (!options?.includeReloads) fn(path);
 					}
 				} catch {
 					// Ignore errors due to CORS or CSP restrictions
@@ -363,6 +388,12 @@ export async function bootPlaygroundRemote() {
 		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
+		},
+		async listAbilities() {
+			return await webMCPBridge.listAbilities();
+		},
+		async executeAbility(name, input) {
+			return await webMCPBridge.executeAbility(name, input);
 		},
 		async onWebMCPToolsChanged(fn) {
 			webMCPBridge.subscribe(fn);
