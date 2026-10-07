@@ -367,8 +367,50 @@ export function normalizeFilesystemOperations(
 	let journal = input;
 	while (true) {
 		const substitutions: Record<number, any> = {};
+		// Most download records only affect one file. Looking up that path
+		// avoids comparing every chunk write with every other file in the site.
+		// Rebuild after each substitution pass because renames change paths.
+		const entriesByPath = new Map<string, number[]>();
+		const directoryRenames: number[] = [];
+		for (let i = 0; i < journal.length; i++) {
+			const entry = journal[i];
+			const path =
+				entry.operation === 'RENAME' ? entry.toPath : entry.path;
+			if (!entriesByPath.has(path)) entriesByPath.set(path, []);
+			entriesByPath.get(path)!.push(i);
+			if (
+				entry.operation === 'RENAME' &&
+				entry.nodeType === 'directory'
+			) {
+				directoryRenames.push(i);
+			}
+		}
 		for (let i = journal.length - 1; i >= 0; i--) {
-			for (let j = i - 1; j >= 0; j--) {
+			const entry = journal[i];
+			let candidates: Iterable<number>;
+			if (
+				entry.operation === 'RENAME' &&
+				entry.nodeType === 'directory'
+			) {
+				// Moving a directory may rewrite any earlier descendant path.
+				candidates = (function* () {
+					for (let j = i - 1; j >= 0; j--) {
+						yield j;
+					}
+				})();
+			} else {
+				let matchingEntries = entriesByPath.get(entry.path) ?? [];
+				if (entry.operation === 'RENAME') {
+					// Keep detecting unsupported rename chains through a parent.
+					matchingEntries = [
+						...new Set([...matchingEntries, ...directoryRenames]),
+					];
+				}
+				candidates = [...matchingEntries].sort((a, b) => b - a);
+			}
+			// Substitutions depend on visiting earlier records newest-first.
+			for (const j of candidates) {
+				if (j >= i) continue;
 				const formerType = checkRelationship(journal[i], journal[j]);
 				if (formerType === 'none') {
 					continue;
