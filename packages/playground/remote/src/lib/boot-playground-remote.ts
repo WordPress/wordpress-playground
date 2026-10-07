@@ -438,13 +438,13 @@ export async function bootPlaygroundRemote() {
 
 		async boot(options) {
 			let sharedWorkerClientUrl: URL | undefined;
-			if (sharedWorkerId) {
+			if (sharedWorker) {
 				sharedWorkerClientUrl = new URL(document.location.href);
 				sharedWorkerClientUrl.search = '';
 				sharedWorkerClientUrl.hash = '';
 				sharedWorkerClientUrl.searchParams.set(
 					'php-worker-id',
-					sharedWorkerId
+					sharedWorkerId!
 				);
 				sharedWorkerClientUrl.searchParams.set(
 					'php-worker-scope',

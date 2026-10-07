@@ -3,9 +3,10 @@ import sharedWorkerEntryPointUrl from './playground-worker-endpoint-blueprints.t
 
 export async function bootPlaygroundSharedWorkerClient() {
 	const query = new URL(document.location.href).searchParams;
-	const worker = await spawnSharedPlaygroundWorker(
+	// Only browsers that accept extendedLifetime create these bridge frames.
+	const worker = (await spawnSharedPlaygroundWorker(
 		query.get('php-worker-id')!
-	);
+	))!;
 	const scope = query.get('php-worker-scope');
 	const connectServiceWorker = async () => {
 		const serviceWorker =
@@ -50,13 +51,22 @@ export async function spawnSharedPlaygroundWorker(workerId: string) {
 	) {
 		url.searchParams.set('with-admin-transitions', '1');
 	}
-	// Ask supporting browsers to retain PHP while the last tab is navigating.
-	// Browsers that ignore extendedLifetime may stop PHP before the new page connects.
+	// Without extendedLifetime, reloading the last tab can destroy PHP between documents.
+	// Dictionary conversion only reads options the browser recognizes. Detect that read
+	// instead of relying on SharedWorker availability or the browser's name.
+	let supportsExtendedLifetime = false;
 	const options: WorkerOptions & { extendedLifetime: boolean } = {
 		type: 'module',
-		extendedLifetime: true,
+		get extendedLifetime() {
+			supportsExtendedLifetime = true;
+			return true;
+		},
 	};
 	const worker = new SharedWorker(url, options);
+	if (!supportsExtendedLifetime) {
+		worker.port.close();
+		return undefined;
+	}
 	await new Promise<void>((resolve, reject) => {
 		worker.onerror = (event) => reject(new Error(event.message));
 		worker.port.addEventListener('message', function onStartup(event) {
