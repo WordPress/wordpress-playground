@@ -72,10 +72,10 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	const wpConfig = await playground.readFileAsText(wpConfigPath);
 	let newWpConfig = wpConfig;
 	const serverDefaults: string[] = [];
-	if (!wpConfig.includes("$_SERVER['HTTP_HOST']")) {
+	if (!/\$_SERVER\[['"]HTTP_HOST['"]\]\s*=/.test(wpConfig)) {
 		serverDefaults.push(`$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};`);
 	}
-	if (!wpConfig.includes("$_SERVER['REQUEST_URI']")) {
+	if (!/\$_SERVER\[['"]REQUEST_URI['"]\]\s*=/.test(wpConfig)) {
 		serverDefaults.push(
 			`if (empty($_SERVER['REQUEST_URI'])) {\n\t$_SERVER['REQUEST_URI'] = ${phpVar(
 				sitePath
