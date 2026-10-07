@@ -2,16 +2,14 @@ import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
 
 /**
- * Tests for Document-Isolation-Policy header rewriting.
+ * Tests for Document-Isolation-Policy (DIP) in the block editor.
  *
- * When Gutenberg's client-side media processing experiment is enabled, it sets
- * Cross-Origin-Embedder-Policy (COEP) and Cross-Origin-Opener-Policy (COOP)
- * headers. These headers enable SharedArrayBuffer but break external embeds
- * and cause issues in Playground's iframe-based architecture.
- *
- * Playground rewrites these headers to Document-Isolation-Policy in browsers
- * that support it, which provides the same SharedArrayBuffer access without
- * the cross-origin restrictions.
+ * Gutenberg 22.6+ sends DIP on editor screens in Chromium 137+. Older
+ * Gutenberg versions with the client-side media processing experiment, and
+ * some plugins, send Cross-Origin-Embedder-Policy (COEP) and
+ * Cross-Origin-Opener-Policy (COOP) instead. These can't isolate WordPress in
+ * Playground's nested iframes and only block content, so Playground rewrites
+ * them to DIP.
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  * @see https://developer.chrome.com/blog/document-isolation-policy
@@ -161,4 +159,83 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 			timeout: 15000,
 		});
 	}
+});
+
+// Sends the headers that older Gutenberg versions send on editor screens with
+// the client-side media processing experiment enabled.
+const coepCoopBlueprint: Blueprint = {
+	landingPage: '/wp-admin/post-new.php',
+	login: true,
+	steps: [
+		{
+			step: 'writeFile',
+			path: '/wordpress/wp-content/mu-plugins/cross-origin-isolation.php',
+			data: `<?php
+				add_action( 'load-post-new.php', function () {
+					header( 'Cross-Origin-Embedder-Policy: require-corp' );
+					header( 'Cross-Origin-Opener-Policy: same-origin' );
+				} );
+			`,
+		},
+	],
+};
+
+test('COEP/COOP headers are converted to Document-Isolation-Policy in every browser', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto(`./?storage=temp#${JSON.stringify(coepCoopBlueprint)}`);
+	await expect(wordpress.locator('.editor-header')).toBeVisible({
+		timeout: 120000,
+	});
+
+	const headers = await wordpress.locator('html').evaluate(async () => {
+		const response = await fetch(window.location.href);
+		return {
+			coep: response.headers.get('cross-origin-embedder-policy'),
+			coop: response.headers.get('cross-origin-opener-policy'),
+			dip: response.headers.get('document-isolation-policy'),
+		};
+	});
+	expect(headers).toEqual({
+		coep: null,
+		coop: null,
+		dip: 'isolate-and-require-corp',
+	});
+});
+
+test('Post editor stays cross-origin isolated after the service worker restarts', async ({
+	website,
+	wordpress,
+	page,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		'Document-Isolation-Policy and stopping service workers through CDP are Chromium-only'
+	);
+
+	await website.goto(`./?storage=temp#${JSON.stringify(coepCoopBlueprint)}`);
+	await expect(wordpress.locator('.editor-header')).toBeVisible({
+		timeout: 120000,
+	});
+
+	// Browsers stop idle service workers, which drops their in-memory state.
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('ServiceWorker.enable');
+	await cdp.send('ServiceWorker.stopAllWorkers');
+
+	// Mark the current document so the assertions below only match the
+	// reloaded one.
+	await wordpress.locator('html').evaluate((html) => {
+		html.setAttribute('data-e2e-previous', '');
+		window.location.reload();
+	});
+	const reloadedHtml = wordpress.locator('html:not([data-e2e-previous])');
+	await expect(reloadedHtml.locator('.editor-header')).toBeVisible({
+		timeout: 120000,
+	});
+	expect(await reloadedHtml.evaluate(() => window.crossOriginIsolated)).toBe(
+		true
+	);
 });
