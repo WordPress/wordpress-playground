@@ -701,6 +701,12 @@ describe.each([true, false])(
 				'added after rotation'
 			);
 
+			sourceOfTruth.unlink('/shared/new.txt');
+			replica.writeFile('/shared/new.txt', 'recreated after rotation');
+			expect(sourceOfTruth.readFileAsText('/shared/new.txt')).toBe(
+				'recreated after rotation'
+			);
+
 			replica.exit();
 		}, 30_000);
 

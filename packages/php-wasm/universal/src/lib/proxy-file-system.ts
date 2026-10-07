@@ -1,4 +1,7 @@
 import type { PHP } from './php';
+import type { Emscripten } from './emscripten-types';
+
+const fileSystemsWithValidatedProxyNodes = new WeakSet<object>();
 
 /**
  * Reads the major PHP version from an instance's Emscripten runtime and
@@ -200,6 +203,39 @@ export async function proxyFileSystem(
 				ensureProxyFSHasMmapSupport(php);
 			}
 			const replicaSymbol = Object.getOwnPropertySymbols(php)[0];
+			// @ts-ignore
+			const { FS, PROXYFS } = php[replicaSymbol];
+			if (!fileSystemsWithValidatedProxyNodes.has(FS)) {
+				const originalLookupNode = FS.lookupNode;
+				FS.lookupNode = function (
+					parent: Emscripten.FS.FSNode,
+					name: string
+				) {
+					const node = originalLookupNode.call(FS, parent, name);
+					// Other instances can remove or replace a proxied path without
+					// updating this cache. Keep mount points, since their nodes hold
+					// the nested mount rather than just the backing path's state.
+					if (node.mount?.type !== PROXYFS || node.mounted) {
+						return node;
+					}
+					let mode: number;
+					try {
+						mode = PROXYFS.node_ops.getattr(node).mode;
+					} catch (error) {
+						FS.destroyNode(node);
+						throw error;
+					}
+					// S_IFMT excludes permissions. Keep directory nodes when only
+					// permissions change so their child mount points stay reachable.
+					if ((node.mode & 0o170000) !== (mode & 0o170000)) {
+						FS.destroyNode(node);
+						return FS.lookup(parent, name);
+					}
+					node.mode = mode;
+					return node;
+				};
+				fileSystemsWithValidatedProxyNodes.add(FS);
+			}
 			// @ts-ignore
 			php[replicaSymbol].FS.mount(
 				// @ts-ignore
