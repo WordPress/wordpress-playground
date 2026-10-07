@@ -14,6 +14,26 @@ Broadly speaking, you can use the client to perform three types of operations:
 - Customizing `PHP.ini`
 - Managing files and directories
 
+## Getting a client
+
+In the browser, `startPlaygroundWeb()` loads Playground into an `<iframe>` and returns the client. It needs no build step:
+
+```html
+<iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
+<script type="module">
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
+
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp'),
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+	});
+	// Wait until Playground is fully loaded.
+	await client.isReady();
+</script>
+```
+
+The examples on this page call methods on that `client`. See the [JavaScript API](/developers/apis/javascript-api) page for more ways to start Playground, including the `@wp-playground/client` package from npm.
+
 ## Running PHP code
 
 The two methods you can use to run PHP code are:
