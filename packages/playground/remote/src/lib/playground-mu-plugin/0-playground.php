@@ -690,3 +690,26 @@ if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
 	echo 'WP Cron is temporarily disabled in the Playground.';
 	exit;
 }
+
+/**
+ * Keep the running PHP worker connected to each WordPress document. The bridge
+ * is a separate document so isolated editor pages use the same worker as remote.html.
+ */
+function playground_connect_shared_worker() {
+	if (!defined('PLAYGROUND_SHARED_WORKER_CLIENT_URL') || !PLAYGROUND_SHARED_WORKER_CLIENT_URL) {
+		return;
+	}
+	?>
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			var bridge = document.createElement('iframe');
+			bridge.hidden = true;
+			bridge.src = <?php echo json_encode(PLAYGROUND_SHARED_WORKER_CLIENT_URL); ?>;
+			document.body.appendChild(bridge);
+		});
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_connect_shared_worker');
+add_action('admin_head', 'playground_connect_shared_worker');
+add_action('login_head', 'playground_connect_shared_worker');

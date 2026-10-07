@@ -108,10 +108,10 @@ import {
 } from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
-	awaitReply,
 	convertFetchEventToPHPRequest,
 	cloneRequest,
-	broadcastMessageExpectReply,
+	requestPHPWorker,
+	registerPHPWorkerPort,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
@@ -142,6 +142,10 @@ if (!(self as any).document) {
 }
 
 self.addEventListener('message', (event) => {
+	if (event.data?.type === 'php-worker-connect') {
+		registerPHPWorkerPort(event.data.scope, event.data.port);
+		return;
+	}
 	handleRemoteAccessRelayMessage(event);
 });
 
@@ -221,6 +225,15 @@ self.addEventListener('fetch', (event) => {
 
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
+		return;
+	}
+	// A bridge is an app document, even when a scoped WordPress page embeds it.
+	if (
+		url.pathname ===
+			new URL('./remote.html', self.location.href).pathname &&
+		url.searchParams.has('php-worker-id')
+	) {
+		event.respondWith(networkFirstFetch(event.request));
 		return;
 	}
 
@@ -679,13 +692,12 @@ type WPModuleDetails = {
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
 async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 	if (!scopeToWpModule[scope]) {
-		const requestId = await broadcastMessageExpectReply(
+		scopeToWpModule[scope] = await requestPHPWorker(
 			{
 				method: 'getWordPressModuleDetails',
 			},
 			scope
 		);
-		scopeToWpModule[scope] = await awaitReply(self, requestId);
 	}
 	return scopeToWpModule[scope];
 }
