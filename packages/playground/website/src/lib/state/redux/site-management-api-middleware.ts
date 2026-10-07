@@ -330,8 +330,8 @@ export function createSitesAPI(
 		 * Autosave keeps the current browser URL unchanged unless the caller
 		 * asks to route to the new stored site. Concurrent requests for one site
 		 * share the filesystem copy and metadata update. Routing runs when any caller
-		 * requests it. Pruning is serialized across the store and protects the slugs
-		 * requested by every concurrent autosave.
+		 * requests it and the site is still active. Pruning is serialized across the
+		 * store and protects the slugs requested by every concurrent autosave.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -430,12 +430,21 @@ export function createSitesAPI(
 					}
 
 					let urlWasUpdated = false;
-					if (requests.urlUpdateRequested) {
+					if (
+						requests.urlUpdateRequested &&
+						selectActiveSite(getState())?.slug ===
+							siteToAutosave.slug
+					) {
 						redirectTo(PlaygroundRoute.site(updatedSite));
 						urlWasUpdated = true;
 					}
 					await runStoreWidePruning();
-					if (requests.urlUpdateRequested && !urlWasUpdated) {
+					if (
+						requests.urlUpdateRequested &&
+						!urlWasUpdated &&
+						selectActiveSite(getState())?.slug ===
+							siteToAutosave.slug
+					) {
 						// The URL request arrived while pruning was pending.
 						redirectTo(PlaygroundRoute.site(updatedSite));
 					}
