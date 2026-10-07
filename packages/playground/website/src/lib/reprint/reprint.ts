@@ -1,17 +1,17 @@
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import type { PlaygroundClient } from '@wp-playground/client';
+import release from './release.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
-/** Client release to download; this is not an exact server-version check. */
-export const REPRINT_VERSION = 'v0.10.13';
+/** Bundled client release; this is not an exact server-version check. */
+export const REPRINT_VERSION = release.version;
 // These files live inside each Playground's PHP filesystem, not on the host.
 const PHAR_PATH = '/tmp/playground-reprint.phar';
 const BRIDGE_PATH = '/tmp/playground-reprint-bridge.php';
-// Update this digest with REPRINT_VERSION. It identifies the expected archive
-// bytes for both fresh downloads and files cached by an earlier transfer.
-const PHAR_SHA256 =
-	'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda';
+// The update command writes the version and checksum together. Check both
+// bundled downloads and files cached by an earlier transfer against this digest.
+const PHAR_SHA256 = release.sha256;
 export type ReprintAvailability =
 	| 'configured'
 	| 'needs-key'
@@ -186,9 +186,9 @@ export function normalizeReprintUrl(input: string): string {
  * Makes the selected client PHAR available in Playground's temporary filesystem.
  *
  * A cached file is reused only when its SHA-256 matches PHAR_SHA256. Otherwise,
- * downloads REPRINT_VERSION, using the configured CORS proxy when needed, and
- * checks its bytes before writing PHAR_PATH. A failed download or checksum check
- * leaves the previous file untouched. Installs the client, not the bridge script.
+ * downloads this build's bundled client from the website and checks its bytes
+ * before writing PHAR_PATH. A failed download or checksum check leaves the
+ * previous file untouched. Installs the client, not the bridge script.
  *
  * onProgress reports a download only when the cached client cannot be reused.
  * Resolves after the verified bytes have been written; download, verification,
@@ -205,11 +205,8 @@ export async function installReprint(
 	// it only after the newly downloaded client passes the current checksum.
 	if (!bytes || !(await hasPinnedReprintChecksum(bytes))) {
 		onProgress({ message: 'Downloading Reprint…' });
-		const response = await fetchWithCorsProxy(
-			`https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint.phar`,
-			undefined,
-			corsProxyUrl,
-			await playground.absoluteUrl
+		const response = await fetch(
+			`${import.meta.env.BASE_URL}assets/optional/reprint/reprint-${PHAR_SHA256}.phar`
 		);
 		if (!response.ok) throw new Error('Could not download Reprint.');
 		bytes = new Uint8Array(await response.arrayBuffer());

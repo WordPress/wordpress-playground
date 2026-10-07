@@ -48,7 +48,8 @@
 			},
 			"dependsOn": [
 				"^build",
-				"playground-blueprints:build:blueprint-schema"
+				"playground-blueprints:build:blueprint-schema",
+				"sync-reprint"
 			]
 		},
 		"dev": {
@@ -80,7 +81,8 @@
 					"buildTarget": "playground-website:build:standalone:production",
 					"hmr": false
 				}
-			}
+			},
+			"dependsOn": ["sync-reprint"]
 		},
 		"sync-php-next-assets": {
 			"executor": "nx:run-commands",
@@ -122,7 +124,8 @@
 			"options": {
 				"useFlatConfig": false,
 				"lintFilePatterns": [
-					"packages/playground/website/**/*.{ts,tsx,js,jsx}"
+					"packages/playground/website/**/*.{ts,tsx,js,jsx}",
+					"packages/playground/website/bin/*.mts"
 				],
 				"maxWarnings": 0
 			}
@@ -212,6 +215,18 @@
 				"parallel": false
 			},
 			"dependsOn": ["build"]
+		},
+		"sync-reprint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/reprint-assets.mts"
+			}
+		},
+		"update-reprint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/reprint-assets.mts update"
+			}
 		}
 	}
 }

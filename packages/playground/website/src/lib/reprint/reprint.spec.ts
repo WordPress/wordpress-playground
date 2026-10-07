@@ -1,15 +1,15 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { TransferProgressUpdate } from './reprint';
 import type { PlaygroundClient } from '@wp-playground/client';
 import {
 	detectReprint,
-	REPRINT_VERSION,
 	getReprintAdminUrls,
 	normalizeReprintUrl,
 	installReprint,
 	runBridge,
 } from './reprint';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
+import release from './release.json';
 
 vi.mock('@php-wasm/web-service-worker', () => ({
 	fetchWithCorsProxy: vi.fn(),
@@ -153,22 +153,22 @@ describe('Reprint setup', () => {
 	});
 });
 
-describe('Pinned Reprint client', () => {
+describe('Bundled Reprint client', () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
 		vi.clearAllMocks();
+		vi.stubGlobal('fetch', vi.fn());
 		vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
-			Uint8Array.from(
-				'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda'.match(
-					/../g
-				)!,
-				(byte) => parseInt(byte, 16)
+			Uint8Array.from(release.sha256.match(/../g)!, (byte) =>
+				parseInt(byte, 16)
 			).buffer
 		);
 	});
+	afterEach(() => vi.unstubAllGlobals());
 	it('reuses a verified cached client', async () => {
 		const { playground, writeFile } = createClient([]);
 		await installReprint(playground, vi.fn());
+		expect(fetch).not.toHaveBeenCalled();
 		expect(fetchWithCorsProxy).not.toHaveBeenCalled();
 		expect(writeFile).toHaveBeenCalledWith(
 			'/tmp/playground-reprint.phar',
@@ -180,17 +180,13 @@ describe('Pinned Reprint client', () => {
 			new Uint8Array(32).buffer
 		);
 		const bytes = new Uint8Array([1, 2, 3]);
-		vi.mocked(fetchWithCorsProxy).mockResolvedValueOnce(
-			new Response(bytes)
-		);
+		vi.mocked(fetch).mockResolvedValueOnce(new Response(bytes));
 		const { playground, writeFile } = createClient([]);
 		await installReprint(playground, vi.fn());
-		expect(fetchWithCorsProxy).toHaveBeenCalledWith(
-			`https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint.phar`,
-			undefined,
-			'',
-			'https://playground.test/scope:site'
+		expect(fetch).toHaveBeenCalledWith(
+			`${import.meta.env.BASE_URL}assets/optional/reprint/reprint-${release.sha256}.phar`
 		);
+		expect(fetchWithCorsProxy).not.toHaveBeenCalled();
 		expect(writeFile).toHaveBeenCalledWith(
 			'/tmp/playground-reprint.phar',
 			bytes
@@ -205,7 +201,7 @@ describe('Pinned Reprint client', () => {
 			vi.mocked(crypto.subtle.digest).mockResolvedValue(
 				new Uint8Array(32).buffer
 			);
-			vi.mocked(fetchWithCorsProxy).mockResolvedValueOnce(
+			vi.mocked(fetch).mockResolvedValueOnce(
 				new Response('modified client', {
 					status: failure === 'failed download' ? 503 : 200,
 				})

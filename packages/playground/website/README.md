@@ -7,6 +7,29 @@ want to add a new, bulky page without increasing the required download size, add
 
 ## Development
 
+### Updating Reprint
+
+Reprint is downloaded and verified before the website build or dev server starts.
+The browser loads that bundled client from Playground only when a transfer needs it.
+It is excluded from the files downloaded eagerly for offline mode.
+
+To select the latest stable release:
+
+```bash
+npm exec -- nx run playground-website:update-reprint
+```
+
+To select a particular release instead, run:
+
+```bash
+npm exec -- nx run playground-website:update-reprint --args=v0.10.13
+```
+
+The command reads the release asset's SHA-256 from GitHub, verifies the downloaded
+PHAR, and writes the version and checksum together to `src/lib/reprint/release.json`.
+Commit that file and run the website checks before deploying. Builds use the selected
+release, never whatever happens to be latest. Generated PHAR files are not committed.
+
 ### Tests
 
 To run the end to end tests locally, use the following command:
