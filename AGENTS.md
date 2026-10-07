@@ -105,6 +105,15 @@ The core architecture uses an iframe-based isolation model:
 - `@php-wasm/node`: Node.js-based PHP runtime
 - `@php-wasm/universal`: Abstract interface shared by web and node implementations
 
+Where SharedWorker is available, the remote PHP endpoint runs in one shared
+worker per Playground. Hidden `remote.html?php-worker-id=...&php-worker-scope=...`
+frames connect WordPress documents to that worker, including isolated editor
+pages. Service-worker requests use a direct MessagePort, or one matching bridge
+after the service worker restarts. Do not broadcast requests to every bridge:
+that would execute the same PHP write more than once. The last tab's navigation
+also needs SharedWorker's `extendedLifetime` option; see the remote README for
+the current browser limit.
+
 ### Blueprint System
 
 Blueprints are declarative JSON configurations that define WordPress site states. Located in `@wp-playground/blueprints`.

@@ -1,8 +1,14 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
 import { test, expect } from '../playground-fixtures';
-import type { BrowserContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import {
+	createServer,
+	type IncomingMessage,
+	type ServerResponse,
+} from 'node:http';
 import { encodeStringAsBase64 } from '@php-wasm/util';
 
 // We can't import the WordPress versions directly from the remote package
@@ -31,6 +37,22 @@ test('should load PHP 7.4 when requested', async ({ website, wordpress }) => {
 });
 
 test.describe('option `php-extension`', () => {
+	let server: ReturnType<typeof createServer>;
+	test.beforeAll(async () => {
+		// Playwright's window request routes do not intercept SharedWorker fetches.
+		server = createServer(serveExtensionFixture);
+		await new Promise<void>((resolve) =>
+			server.listen(0, '127.0.0.1', resolve)
+		);
+		const address = server.address() as { port: number };
+		const baseUrl = `http://127.0.0.1:${address.port}`;
+		intlManifestUrl = `${baseUrl}/intl/manifest.json`;
+		invalidManifestUrl = `${baseUrl}/invalid/manifest.json`;
+		noArtifactManifestUrl = `${baseUrl}/no-artifact/manifest.json`;
+	});
+	test.afterAll(async () => {
+		await new Promise<void>((resolve) => server.close(() => resolve()));
+	});
 	test.skip(
 		({ browserName }) => browserName !== 'chromium',
 		'External PHP extensions require JSPI support.'
@@ -39,8 +61,6 @@ test.describe('option `php-extension`', () => {
 	test('should load an extension from a manifest URL', async ({
 		website,
 	}) => {
-		await routeIntlExtension(website.page.context());
-
 		await gotoPHPOnlyPlayground(website.page, {
 			'php-extension': intlManifestUrl,
 		});
@@ -119,12 +139,6 @@ test.describe('option `php-extension`', () => {
 	});
 
 	test('should reject malformed extension manifests', async ({ website }) => {
-		await website.page
-			.context()
-			.route(invalidManifestUrl, async (route) => {
-				await route.fulfill({ json: { name: 'xdebug' } });
-			});
-
 		await gotoPHPOnlyPlayground(website.page, {
 			'php-extension': invalidManifestUrl,
 		});
@@ -135,23 +149,6 @@ test.describe('option `php-extension`', () => {
 	test('should reject manifests without an artifact for the active PHP version', async ({
 		website,
 	}) => {
-		await website.page
-			.context()
-			.route(noArtifactManifestUrl, async (route) => {
-				await route.fulfill({
-					json: {
-						name: 'xdebug',
-						loadWithIniDirective: 'zend_extension',
-						artifacts: [
-							{
-								phpVersion: '8.4',
-								sourcePath: 'xdebug.so',
-							},
-						],
-					},
-				});
-			});
-
 		await gotoPHPOnlyPlayground(website.page, {
 			'php-extension': noArtifactManifestUrl,
 		});
@@ -464,14 +461,13 @@ test('should retain encoded control characters in the URL', async ({
 	).toContain(path);
 });
 
-const intlManifestUrl = 'https://extensions.test/intl/manifest.json';
+let intlManifestUrl: string;
 const sqliteParserManifestUrl =
 	'https://wordpress.github.io/sqlite-database-integration/' +
 	'wp_mysql_parser-wasm-extension/' +
 	'b31fc53ea599d1a2211b75f4a3486b39e63ce01f/manifest.json';
-const invalidManifestUrl = 'https://extensions.test/invalid/manifest.json';
-const noArtifactManifestUrl =
-	'https://extensions.test/no-artifact/manifest.json';
+let invalidManifestUrl: string;
+let noArtifactManifestUrl: string;
 const intlSoPath = resolve(
 	process.cwd(),
 	'packages/php-wasm/web-builds/8-3/jspi/extensions/intl/intl.so'
@@ -481,50 +477,57 @@ const icuDataPath = resolve(
 	'packages/php-wasm/web/src/lib/extensions/intl/shared/icu.dat'
 );
 
-async function routeIntlExtension(context: BrowserContext) {
-	await context.route(intlManifestUrl, async (route) => {
-		await route.fulfill({
-			json: {
-				name: 'intl',
-				env: {
-					ICU_DATA: '/internal/shared',
-				},
-				artifacts: [
-					{
-						phpVersion: '8.3',
-						sourcePath: 'intl.so',
-						extraFiles: {
-							vfsRoot: '/internal/shared',
-							nodes: [
-								{
-									vfsPath: 'icudt74l.dat',
-									sourcePath: 'icu.dat',
-								},
-							],
-						},
-					},
-				],
+function serveExtensionFixture(
+	request: IncomingMessage,
+	response: ServerResponse
+) {
+	response.setHeader('Access-Control-Allow-Origin', '*');
+	const manifests = {
+		'/intl/manifest.json': {
+			name: 'intl',
+			env: {
+				ICU_DATA: '/internal/shared',
 			},
-		});
-	});
-	await context.route(
-		'https://extensions.test/intl/intl.so',
-		async (route) => {
-			await route.fulfill({
-				path: intlSoPath,
-				contentType: 'application/octet-stream',
-			});
-		}
-	);
-	await context.route(
-		'https://extensions.test/intl/icu.dat',
-		async (route) => {
-			await route.fulfill({
-				path: icuDataPath,
-				contentType: 'application/octet-stream',
-			});
-		}
-	);
+			artifacts: [
+				{
+					phpVersion: '8.3',
+					sourcePath: 'intl.so',
+					extraFiles: {
+						vfsRoot: '/internal/shared',
+						nodes: [
+							{
+								vfsPath: 'icudt74l.dat',
+								sourcePath: 'icu.dat',
+							},
+						],
+					},
+				},
+			],
+		},
+		'/invalid/manifest.json': { name: 'xdebug' },
+		'/no-artifact/manifest.json': {
+			name: 'xdebug',
+			loadWithIniDirective: 'zend_extension',
+			artifacts: [{ phpVersion: '8.4', sourcePath: 'xdebug.so' }],
+		},
+	};
+	const manifest = manifests[request.url! as keyof typeof manifests];
+	if (manifest) {
+		response.setHeader('Content-Type', 'application/json');
+		response.end(JSON.stringify(manifest));
+	} else if (
+		request.url === '/intl/intl.so' ||
+		request.url === '/intl/icu.dat'
+	) {
+		response.setHeader('Content-Type', 'application/octet-stream');
+		response.end(
+			readFileSync(
+				request.url === '/intl/intl.so' ? intlSoPath : icuDataPath
+			)
+		);
+	} else {
+		response.writeHead(404).end();
+	}
 }
 
 async function gotoPHPOnlyPlayground(
