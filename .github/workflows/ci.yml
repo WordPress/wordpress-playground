@@ -309,18 +309,15 @@ jobs:
                   tools: none
             - name: Download and verify the pinned Reprint client
               run: |
-                  # Read the same release and digest used by the browser adapter.
+                  # Use the website's release lock and checksum verification.
                   node --input-type=module <<'JS'
-                  import { readFileSync, writeFileSync } from 'node:fs';
-                  const source = readFileSync('packages/playground/website/src/lib/reprint/reprint.ts', 'utf8');
-                  const version = source.match(/REPRINT_VERSION = '([^']+)'/)[1];
-                  const sha256 = source.match(/PHAR_SHA256 =\s*'([^']+)'/)[1];
-                  const response = await fetch(`https://github.com/WordPress/reprint/releases/download/${version}/reprint.phar`);
-                  if (!response.ok) throw new Error(`Reprint download returned ${response.status}`);
-                  writeFileSync('/tmp/playground-reprint.phar', new Uint8Array(await response.arrayBuffer()));
-                  writeFileSync('/tmp/playground-reprint.sha256', `${sha256}  /tmp/playground-reprint.phar\n`);
+                  import { copyFileSync, readFileSync } from 'node:fs';
+                  import { bundleReprint } from './packages/playground/website/bin/reprint-assets.mts';
+                  const release = JSON.parse(readFileSync('packages/playground/website/src/lib/reprint/release.json', 'utf8'));
+                  const directory = new URL('file:///tmp/playground-reprint-assets/');
+                  await bundleReprint(release, directory);
+                  copyFileSync(new URL(`reprint-${release.sha256}.phar`, directory), '/tmp/playground-reprint.phar');
                   JS
-                  sha256sum -c /tmp/playground-reprint.sha256
             - name: Run the native PHP bridge checks
               run: php packages/playground/website/src/lib/reprint/bridge-test.php
 

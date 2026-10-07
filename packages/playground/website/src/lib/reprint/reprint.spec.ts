@@ -411,11 +411,8 @@ describe('Direct file pull', () => {
 		vi.restoreAllMocks();
 		vi.clearAllMocks();
 		vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
-			Uint8Array.from(
-				'72bc95ac0623232054d1fb454f497fe8bc9e7db5c0f38e4b097a91639c735fda'.match(
-					/../g
-				)!,
-				(byte) => parseInt(byte, 16)
+			Uint8Array.from(release.sha256.match(/../g)!, (byte) =>
+				parseInt(byte, 16)
 			).buffer
 		);
 	});
