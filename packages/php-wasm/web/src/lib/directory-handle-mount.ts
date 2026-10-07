@@ -144,6 +144,11 @@ export function createDirectoryHandleMountHandler(
 	};
 }
 
+/**
+ * Restores saved files while bounding both active reads and queued promises.
+ * Outstanding reads settle before a failed restore returns, so retrying the
+ * mount cannot overlap writes from the previous attempt.
+ */
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
@@ -161,51 +166,74 @@ async function copyOpfsToMemfs(
 	});
 
 	const ops: Array<Promise<void>> = [];
+	let copyError: unknown;
 	const stack: Array<[FileSystemDirectoryHandle, string]> = [
 		[opfsRoot, memfsRoot],
 	];
-	while (stack.length > 0) {
-		const [opfsParent, memfsParentPath] = stack.pop()!;
+	try {
+		while (stack.length > 0) {
+			const [opfsParent, memfsParentPath] = stack.pop()!;
 
-		for await (const opfsHandle of opfsParent.values()) {
-			const op = semaphore.run(async () => {
-				const memfsEntryPath = joinPaths(
-					memfsParentPath,
-					opfsHandle.name
-				);
-				if (opfsHandle.kind === 'directory') {
-					try {
-						FS.mkdir(memfsEntryPath);
-					} catch (e) {
-						if ((e as any)?.errno !== 20) {
-							logger.error(e);
-							// We ignore the error if the directory already exists,
-							// and throw otherwise.
-							throw e;
-						}
-					}
-					stack.push([opfsHandle, memfsEntryPath]);
-				} else if (opfsHandle.kind === 'file') {
-					const file = await opfsHandle.getFile();
-					const byteArray = new Uint8Array(await file.arrayBuffer());
-					FS.createDataFile(
-						memfsParentPath,
-						opfsHandle.name,
-						byteArray,
-						true,
-						true,
-						true
-					);
+			for await (const opfsHandle of opfsParent.values()) {
+				// Acquire before creating the promise. Queuing the entire site then
+				// repeatedly awaiting Promise.any(ops) attaches callbacks to every
+				// queued read and can exhaust the JS heap on large saved sites.
+				const release = await semaphore.acquire();
+				if (copyError !== undefined) {
+					release();
+					throw copyError;
 				}
-				ops.splice(ops.indexOf(op), 1);
-			});
-			ops.push(op);
+				const op = (async () => {
+					const memfsEntryPath = joinPaths(
+						memfsParentPath,
+						opfsHandle.name
+					);
+					if (opfsHandle.kind === 'directory') {
+						try {
+							FS.mkdir(memfsEntryPath);
+						} catch (e) {
+							if ((e as any)?.errno !== 20) {
+								logger.error(e);
+								// We ignore the error if the directory already exists,
+								// and throw otherwise.
+								throw e;
+							}
+						}
+						stack.push([opfsHandle, memfsEntryPath]);
+					} else if (opfsHandle.kind === 'file') {
+						const file = await opfsHandle.getFile();
+						const byteArray = new Uint8Array(
+							await file.arrayBuffer()
+						);
+						FS.createDataFile(
+							memfsParentPath,
+							opfsHandle.name,
+							byteArray,
+							true,
+							true,
+							true
+						);
+					}
+				})()
+					.catch((error) => {
+						copyError ??= error;
+					})
+					.finally(() => {
+						ops.splice(ops.indexOf(op), 1);
+						release();
+					});
+				ops.push(op);
+			}
+			// Let the ongoing operations catch-up to the stack.
+			while (stack.length === 0 && ops.length > 0) {
+				await Promise.any(ops);
+			}
 		}
-		// Let the ongoing operations catch-up to the stack.
-		while (stack.length === 0 && ops.length > 0) {
-			await Promise.any(ops);
-		}
+	} finally {
+		// Finish outstanding reads before a failed mount can be retried.
+		await Promise.all(ops);
 	}
+	if (copyError !== undefined) throw copyError;
 }
 
 export async function copyMemfsToOpfs(
