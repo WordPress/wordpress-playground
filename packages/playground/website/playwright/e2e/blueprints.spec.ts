@@ -1,12 +1,64 @@
 import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
-import { encodeStringAsBase64 } from '@php-wasm/util';
+import { encodeStringAsBase64, joinPaths } from '@php-wasm/util';
+import { createServer } from 'node:http';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
 // JSON file directly. @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
+
+let uploadServer: ReturnType<typeof createServer>;
+let uploadUrl: string;
+
+test.beforeAll(async () => {
+	// SharedWorker fetches bypass Playwright's window request routes.
+	uploadServer = createServer((request, response) => {
+		response.setHeader('Access-Control-Allow-Origin', '*');
+		response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+		response.setHeader('Access-Control-Allow-Headers', '*');
+		if (request.method === 'OPTIONS') {
+			response.writeHead(204).end();
+			return;
+		}
+		request.resume();
+		request.on('end', () => {
+			response.setHeader('Content-Type', 'application/json');
+			response.end(
+				JSON.stringify({
+					method: request.method,
+					isMultipartUpload: (
+						request.headers['content-type'] ?? ''
+					).startsWith('multipart/form-data; boundary='),
+				})
+			);
+		});
+	});
+	await new Promise<void>((resolve) =>
+		uploadServer.listen(0, '127.0.0.1', resolve)
+	);
+	const address = uploadServer.address() as { port: number };
+	uploadUrl = `http://127.0.0.1:${address.port}/post`;
+});
+
+test.afterAll(async () => {
+	await new Promise<void>((resolve) => uploadServer.close(() => resolve()));
+});
+
+test.beforeEach(async ({ page }) => {
+	// Blueprint resources download in the client window. Keep WP-CLI tests
+	// independent from the live site's access rules and availability.
+	await page.route('https://playground.wordpress.net/wp-cli.phar', (route) =>
+		route.fulfill({
+			path: joinPaths(
+				__dirname,
+				'../../../blueprints/src/tests/fixtures/wp-cli.phar'
+			),
+			headers: { 'Access-Control-Allow-Origin': '*' },
+		})
+	);
+});
 
 test('Base64-encoded Blueprints should work', async ({
 	website,
@@ -493,36 +545,6 @@ test('CURLFile uploads via curl_exec() should work', async ({
 			'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
 			'Perhaps it is something highly specific to the CI runtime.'
 	);
-	const uploadUrl = 'https://curlfile-upload.test/post';
-	await website.page.route(uploadUrl, async (route) => {
-		const request = route.request();
-		if (request.method() === 'OPTIONS') {
-			await route.fulfill({
-				status: 204,
-				headers: {
-					'Access-Control-Allow-Origin': '*',
-					'Access-Control-Allow-Methods': 'POST, OPTIONS',
-					'Access-Control-Allow-Headers': '*',
-				},
-			});
-			return;
-		}
-
-		await route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			headers: {
-				'Access-Control-Allow-Origin': '*',
-			},
-			body: JSON.stringify({
-				method: request.method(),
-				isMultipartUpload: (
-					request.headers()['content-type'] ?? ''
-				).startsWith('multipart/form-data; boundary='),
-			}),
-		});
-	});
-
 	const blueprint: Blueprint = {
 		landingPage: '/curlfile-test.php',
 		features: { networking: true },
@@ -532,13 +554,13 @@ test('CURLFile uploads via curl_exec() should work', async ({
 				path: '/wordpress/curlfile-test.php',
 				/**
 				 * Test CURLFile upload: creates a temp file, uploads it via
-				 * curl to a Playwright-routed endpoint, and verifies curl
+				 * curl to a local HTTP endpoint, and verifies curl
 				 * emits a multipart upload request.
 				 *
-				 * Playwright routes streaming uploads, but does not expose
-				 * their bodies via request.postData(). This test still keeps
-				 * the network observable in-process and independent from
-				 * third-party availability.
+				 * Playwright's window routes do not intercept SharedWorker
+				 * fetches. The local server reads the request headers, drains
+				 * the streaming body, and keeps the network observable
+				 * in-process and independent from third-party availability.
 				 *
 				 * Keep this endpoint controlled by the test. Using public echo
 				 * services such as httpbin.org made this test depend on

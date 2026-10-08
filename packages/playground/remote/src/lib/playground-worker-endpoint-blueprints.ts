@@ -1,5 +1,6 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
+import { replyToServiceWorker } from './reply-to-service-worker';
 import {
 	PlaygroundWorkerEndpoint,
 	type BootProgressEvent,
@@ -23,8 +24,10 @@ import {
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
-// post message to parent
-self.postMessage('worker-script-started');
+// Dedicated workers report startup here; shared workers report it through each connection below.
+if ('postMessage' in self) {
+	self.postMessage('worker-script-started');
+}
 
 const downloadMonitor = new EmscriptenDownloadMonitor();
 
@@ -76,6 +79,7 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 		blueprint,
 		corsProxyUrl,
 		pathAliases,
+		sharedWorkerClientUrl,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -254,8 +258,10 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				phpVersion,
-				constants:
-					resolvedWordPressInstallMode === 'download-and-install'
+				constants: {
+					PLAYGROUND_SHARED_WORKER_CLIENT_URL:
+						sharedWorkerClientUrl ?? '',
+					...(resolvedWordPressInstallMode === 'download-and-install'
 						? {
 								// Disable WP_DEBUG for legacy PHP (< 7) because
 								// old WordPress (< 3.1) doesn't have WP_DEBUG_DISPLAY
@@ -273,7 +279,8 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 								LOGGED_IN_SALT: randomString(40),
 								NONCE_SALT: randomString(40),
 							}
-						: {},
+						: {}),
+				},
 				wordpressInstallMode: resolvedWordPressInstallMode,
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
@@ -348,7 +355,7 @@ const alreadyExposedComlinkEndpoint =
 	workerGlobal.__playgroundWorkerEndpointBlueprints;
 if (alreadyExposedComlinkEndpoint) {
 	/*
-	 * This worker entrypoint owns exactly one Comlink endpoint. Seeing this
+	 * This worker entrypoint creates exactly one PHP endpoint. Seeing this
 	 * guard means the same module was evaluated twice in the same worker
 	 * global, most likely because a generated chunk imported the worker
 	 * entrypoint to reuse one of its exports. Keep shared imports in
@@ -360,9 +367,45 @@ if (alreadyExposedComlinkEndpoint) {
 	);
 }
 workerGlobal.__playgroundWorkerEndpointBlueprints = true;
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpointBlueprints(downloadMonitor)
-);
+const endpoint = new PlaygroundWorkerEndpointBlueprints(downloadMonitor);
+let setApiReady: () => void;
+let setAPIError: (error: Error) => void;
+if ('onconnect' in self) {
+	const ready = new Promise<void>((resolve, reject) => {
+		setApiReady = resolve;
+		setAPIError = reject;
+	});
+	const sharedWorkerGlobal = self as unknown as SharedWorkerGlobalScope;
+	sharedWorkerGlobal.addEventListener('connect', (event) => {
+		const port = event.ports[0];
+		const [setReady, setError] = exposeAPI(endpoint, undefined, port);
+		void ready.then(setReady, setError);
+		port.addEventListener('message', (event) => {
+			if (event.data?.type === 'playground-service-worker-connect') {
+				const serviceWorkerPort = event.data.port as MessagePort;
+				serviceWorkerPort.addEventListener('message', (request) => {
+					void replyToServiceWorker(
+						endpoint,
+						request.data,
+						request.data.port
+					);
+				});
+				serviceWorkerPort.start();
+			}
+			if (event.data?.type === 'playground-service-worker-request') {
+				void replyToServiceWorker(
+					endpoint,
+					event.data,
+					event.data.port
+				);
+			}
+		});
+		port.start();
+		port.postMessage('worker-script-started');
+	});
+} else {
+	[setApiReady, setAPIError] = exposeAPI(endpoint);
+}
 
 /**
  * Normalizes WordPress version strings for wordpress.org downloads.

@@ -16,6 +16,7 @@ import type {
 export type { MountDescriptor, WorkerBootOptions };
 import type { SiteThumbnail, WebClientMixin } from './playground-client';
 import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
+import { spawnSharedPlaygroundWorker } from './shared-worker-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
@@ -109,8 +110,13 @@ export async function bootPlaygroundRemote() {
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
+	const sharedWorkerId =
+		typeof SharedWorker !== 'undefined' ? crypto.randomUUID() : undefined;
+	const sharedWorker = sharedWorkerId
+		? await spawnSharedPlaygroundWorker(sharedWorkerId)
+		: undefined;
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
+		sharedWorker?.port ?? (await spawnPHPWorkerThread(workerUrl))
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
@@ -431,12 +437,50 @@ export async function bootPlaygroundRemote() {
 		},
 
 		async boot(options) {
+			let sharedWorkerClientUrl: URL | undefined;
+			if (sharedWorker) {
+				sharedWorkerClientUrl = new URL(document.location.href);
+				sharedWorkerClientUrl.search = '';
+				sharedWorkerClientUrl.hash = '';
+				sharedWorkerClientUrl.searchParams.set(
+					'php-worker-id',
+					sharedWorkerId!
+				);
+				sharedWorkerClientUrl.searchParams.set(
+					'php-worker-scope',
+					options.scope!
+				);
+				if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
+					sharedWorkerClientUrl.searchParams.set(
+						WITH_ADMIN_TRANSITIONS_PARAM,
+						'1'
+					);
+				}
+				options = {
+					...options,
+					sharedWorkerClientUrl: sharedWorkerClientUrl.href,
+				};
+			}
 			await phpWorkerApi.boot(options);
+			if (sharedWorkerClientUrl) {
+				const bridge = document.createElement('iframe');
+				bridge.hidden = true;
+				bridge.src = sharedWorkerClientUrl.href;
+				await new Promise<void>((resolve) => {
+					bridge.addEventListener('load', () => resolve(), {
+						once: true,
+					});
+					document.body.append(bridge);
+				});
+			}
 
 			// Proxy the service worker messages to the web worker:
 			navigator.serviceWorker.addEventListener(
 				'message',
 				async function onMessage(event) {
+					if (sharedWorker) {
+						return;
+					}
 					/**
 					 * Ignore events meant for other PHP instances to
 					 * avoid handling the same event twice.
