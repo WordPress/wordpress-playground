@@ -183,15 +183,15 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
 }
 
 /**
- * Runs Reprint's files-pull command, then makes linked content saveable.
+ * Runs Reprint's files-pull command, then prepares links for OPFS persistence.
  *
  * ImportClient::run() already indexes, downloads, removes remote-absent local
  * paths inside today's pull selection, and resumes unfinished downloads. This
  * function supplies Playground's options and adds a files-prepare step because
- * Reprint's follow_symlinks option downloads link targets but still leaves
- * symbolic links. Browser storage cannot save those links; copy their targets
- * into ordinary files instead. If only that setup fails, retry setup without
- * repeating a completed download.
+ * Reprint's follow_symlinks option downloads link targets but keeps the links.
+ * Playground's OPFS save/restore layer does not preserve symbolic links yet.
+ * Copy their targets into ordinary files as a Playground workaround. If only
+ * that setup fails, retry setup without repeating a completed download.
  */
 function pull_site(array $request, string $root, array &$operation, ReprintProcessLock $lock): array {
     $files = $request['documentRoot'];
@@ -245,8 +245,9 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
  * layout this application needs. For example, map an active /srv/content to
  * /wordpress/wp-content. Put a separate bundled core/wp-content elsewhere so
  * both copies cannot write wp-content/index.php. Reprint's flat-docroot command
- * builds a standard layout with symbolic links, which browser storage cannot
- * save, so choose final download paths before files-pull instead.
+ * builds a standard layout with symbolic links. Playground's OPFS save/restore
+ * layer does not preserve those links yet, so choose final download paths before
+ * files-pull instead.
  */
 function pull_path_mappings(array $metadata): array {
     $paths = $metadata['paths'];
@@ -323,8 +324,8 @@ function pull_exclusions(): array {
  * while Reprint's index names its canonical target. Read that index and use
  * Reprint's RemoteToLocalPathMapper and Utils::resolve_symlink_target_path()
  * to find the downloaded target; do not invent another path mapper. Save the
- * pairs in links.json so setup can also restore links lost through browser
- * storage, which saves files and directories but not symbolic links.
+ * pairs in links.json so setup can also restore link nodes that Playground's
+ * OPFS save/restore layer does not preserve yet.
  */
 function save_pulled_links(string $files, string $root, array $metadata, PlaygroundReprintClient $client): void {
     $mappings = [];
@@ -368,10 +369,11 @@ function save_pulled_links(string $files, string $root, array $metadata, Playgro
  * Points saved links at their downloaded targets before copying their bytes.
  *
  * Reprint has already finished files-pull. Its fetched relative links may need
- * the mapped canonical targets saved in links.json, and browser storage cannot
- * retain symlink nodes. Rebuild only the saved links instead of rerunning the
- * download. On a setup retry, leave paths already replaced by ordinary files
- * alone. Report a missing target rather than silently losing a theme or plugin.
+ * the mapped canonical targets saved in links.json. Playground's OPFS
+ * save/restore layer also does not preserve link nodes yet. Rebuild only the
+ * saved links instead of rerunning the download. On a setup retry, leave paths
+ * already replaced by ordinary files alone. Report a missing target rather
+ * than silently losing a theme or plugin.
  */
 function restore_pulled_links(string $root): void {
     $links = json_decode(file_get_contents(wp_join_unix_paths($root, 'links.json')), true, 512, JSON_THROW_ON_ERROR);
@@ -391,14 +393,15 @@ function restore_pulled_links(string $root): void {
 }
 
 /**
- * Replaces downloaded links with files that browser storage can save.
+ * Replaces downloaded links with ordinary files for Playground's OPFS storage.
  *
- * For example, wp-content/themes/iotix must contain the downloaded theme bytes,
- * not a link to another directory. Reprint v0.10.13 can follow and download link
- * targets, but has no command to install those bytes in place of each link;
- * flat-docroot creates more links. Keep this step until Reprint offers that
- * mode. Copy each target to a temporary path before replacing its link, leaving
- * ordinary downloaded files and protected runtime paths alone.
+ * A link such as wp-content/themes/iotix can point to valid downloaded theme
+ * bytes. Reprint can download these targets and keep the links, and Playground's
+ * running PHP filesystem supports them. The gap is Playground's OPFS save/restore
+ * layer: it does not preserve symbolic links. Keep this copy workaround until
+ * Playground can save and restore them. Copy each target to a temporary path
+ * before replacing its link, leaving ordinary downloaded files and protected
+ * runtime paths alone.
  */
 function materialize_site_links(string $path, string $document_root, string $temporary): void {
     $local_exclusions = str_replace(
@@ -411,8 +414,8 @@ function materialize_site_links(string $path, string $document_root, string $tem
     $local_exclusions[] = wp_join_unix_paths($document_root, 'wp-content/.reprint-linked-files');
     if (in_array($path, $local_exclusions, true)) return;
     if (is_link($path)) {
-        // OPFS stores files and directories, not symlinks. Copy only linked
-        // content; ordinary downloaded files already sit at their final path.
+        // Playground's OPFS save/restore does not preserve symlinks yet. Copy
+        // only linked content; ordinary downloads already sit at their final path.
         remove_tree($temporary);
         sync_tree($path, $temporary, [realpath($document_root)]);
         unlink($path);
@@ -449,10 +452,11 @@ function source_metadata(array $data): array {
 /**
  * Copies a link target as ordinary files for materialize_site_links().
  *
- * PHP's copy() copies one file, and Reprint's link-following download still
- * creates links. This local walk copies directories too, follows only targets
- * inside the downloaded roots, and rejects directory loops. Without those
- * checks, a linked theme could copy unrelated local files or recurse forever.
+ * Playground's OPFS persistence currently needs ordinary files in place of
+ * links. PHP's copy() copies one file, so this workaround walks directories too.
+ * It follows only targets inside the downloaded roots and rejects directory
+ * loops. Without those checks, a linked theme could copy unrelated local files
+ * or recurse forever.
  * Track the current branch rather than all visited paths so two aliases of
  * the same theme can both be copied.
  */
@@ -467,7 +471,7 @@ function sync_tree(string $source, string $target, array $allowed_roots, array $
         if (!$allowed) throw new RuntimeException('Symbolic link target is outside the transferred directories: ' . $source . ' -> ' . $resolved);
         $source = $resolved;
     }
-    // The local copy must contain bytes, not links into another server's filesystem.
+    // Copy bytes because Playground's OPFS save/restore does not preserve links yet.
     // Track the current branch only, so two aliases of one theme are allowed.
     $resolved = realpath($source);
     if ($resolved !== false && in_array($resolved, $ancestors, true)) {
