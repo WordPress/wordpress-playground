@@ -1,3 +1,6 @@
+import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
+import bridge from './bridge.php?raw';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import type { PlaygroundClient } from '@wp-playground/client';
 import release from './release.json';
@@ -182,6 +185,108 @@ export function normalizeReprintUrl(input: string): string {
 	return url.href;
 }
 
+/** Pull into a temporary Playground; failed stages retain their retry checkpoint. */
+export async function pullSite(
+	playground: PlaygroundClient,
+	url: string,
+	secret: string,
+	onProgress: (progress: TransferProgress) => void,
+	/** Stops after the current PHP run. The checkpoint allows a later resume. */
+	signal?: AbortSignal
+): Promise<{ warning?: string }> {
+	url = normalizeReprintUrl(url);
+	if (!secret.trim()) throw new Error('Enter the Reprint connection token.');
+	// Phase weights estimate work, not elapsed time. Checkpoints keep the bar;
+	// only completion reaches 100%.
+	const phases: Record<string, [number, number, string]> = {
+		preflight: [0, 2, 'Connecting to the live site…'],
+		'files-pull': [2, 95, 'Downloading site files…'],
+		'files-prepare': [95, 98, 'Setting up downloaded files…'],
+	};
+	let phase = 'preflight';
+	let overallPercent = 0;
+	let lastProgress: TransferProgress = { message: 'Starting Reprint…' };
+	/** Keep stage transitions and resumed byte counts on one monotonic bar. */
+	const report = (update: TransferProgressUpdate) => {
+		if (update.phase && phases[update.phase] && update.phase !== phase) {
+			phase = update.phase;
+			logger.info(
+				`[Reprint] ${(update.message ?? '').replaceAll(secret, '[redacted]')}`
+			);
+			lastProgress = { message: update.message ?? lastProgress.message };
+		}
+		lastProgress = { ...lastProgress, ...update };
+		const [start, end] = phases[phase];
+		const total = lastProgress.bytesTotal || lastProgress.filesTotal;
+		const done = lastProgress.bytesTotal
+			? lastProgress.bytesDone
+			: lastProgress.filesDone;
+		const fraction =
+			lastProgress.percent !== undefined
+				? lastProgress.percent / 100
+				: total && done !== undefined
+					? done / total
+					: 0;
+		overallPercent = Math.max(
+			overallPercent,
+			start + (end - start) * Math.min(1, Math.max(0, fraction))
+		);
+		onProgress({ ...lastProgress, overallPercent });
+	};
+	report(lastProgress);
+	const documentRoot = await playground.documentRoot;
+	const siteUrl = await playground.absoluteUrl;
+	await installReprint(playground, report);
+	await playground.writeFile(BRIDGE_PATH, bridge);
+	const connectionPath = joinPaths(
+		documentRoot,
+		'.playground-reprint',
+		'connection.json'
+	);
+	await playground.mkdir(joinPaths(documentRoot, '.playground-reprint'));
+	await playground.writeFile(connectionPath, JSON.stringify({ url }));
+	let stage: string | undefined;
+	let transferError: Error | undefined;
+	logger.info(`[Reprint ${REPRINT_VERSION}] Starting pull.`);
+	try {
+		while (true) {
+			const result = await runBridge(
+				playground,
+				{ command: 'pull', url, secret, documentRoot, siteUrl },
+				report
+			);
+			if (result.stage && stage !== result.stage) {
+				stage = result.stage;
+				report({
+					phase: stage,
+					message: phases[stage]?.[2] ?? lastProgress.message,
+				});
+			}
+			if (result.status === 'complete') break;
+			if (signal?.aborted) {
+				throw new DOMException('Pull stopped.', 'AbortError');
+			}
+		}
+	} catch (error) {
+		transferError =
+			error instanceof DOMException && error.name === 'AbortError'
+				? error
+				: new Error(
+						(error instanceof Error
+							? error.message
+							: String(error)
+						).replaceAll(secret, '[redacted]')
+					);
+		logger.error(`[Reprint] Pull failed: ${transferError.message}`);
+	}
+	if (transferError) throw transferError;
+	onProgress({
+		message: 'Transfer complete',
+		overallPercent: 100,
+	});
+	return {};
+}
+
 /**
  * Makes the selected client PHAR available in Playground's temporary filesystem.
  *
@@ -241,8 +346,9 @@ async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
  * environment instead of embedding it in a generated script. Uses the primary
  * PHP instance so successive stages see the same temporary files.
  *
- * Reads stdout as JSON lines and reports progress before PHP exits. Structured
- * bridge and database progress take priority over per-file commentary. Drains
+ * Reads stdout as JSON lines and reports progress before PHP exits. Uses
+ * Reprint's file and byte counters, including the unfinished file and resumed
+ * writes. Structured progress takes priority over per-file commentary. Drains
  * stdout, stderr, and the exit status together, including output after a result.
  *
  * A nonzero exit or missing result throws using the last JSON error, stderr,
@@ -273,7 +379,7 @@ export async function runBridge(
 	});
 	let result: TransferResult | undefined;
 	let lastError = '';
-	let hasByteProgress = false;
+	let hasStructuredProgress = false;
 	/**
 	 * Removes literal token occurrences from messages reported by this PHP call.
 	 * The same replacement is applied to JSON errors, stderr, and progress text.
@@ -315,7 +421,28 @@ export async function runBridge(
 							// update has counters but no finer-grained context.
 							detail,
 						});
-						hasByteProgress = true;
+						hasStructuredProgress = true;
+					} else if (
+						record.command === 'files-pull' &&
+						record.progress?.items?.unit === 'files'
+					) {
+						// Reprint counts bytes accepted by its writer, including
+						// the open file and the saved position on a retry.
+						onProgress({
+							...readProgress(
+								{
+									phase: 'files-pull',
+									bytesDone: record.progress.bytes?.done,
+									bytesTotal: record.progress.bytes?.total,
+									filesDone: record.progress.items.done,
+									filesTotal: record.progress.items.total,
+								},
+								'Downloading site files'
+							),
+							// Clear the index-stage commentary when download starts.
+							detail: undefined,
+						});
+						hasStructuredProgress = true;
 					} else if (
 						record.phase === 'database-records' &&
 						typeof record.records_processed === 'number'
@@ -330,7 +457,7 @@ export async function runBridge(
 							message: 'Rewriting URLs in the database',
 							detail: `${table}${record.records_processed.toLocaleString()} records checked`,
 						});
-						hasByteProgress = true;
+						hasStructuredProgress = true;
 					} else if (
 						record.phase === 'db-apply' &&
 						record.bytes_read !== undefined
@@ -345,9 +472,9 @@ export async function runBridge(
 								'Importing SQL'
 							)
 						);
-						hasByteProgress = true;
+						hasStructuredProgress = true;
 					} else if (
-						!hasByteProgress &&
+						!hasStructuredProgress &&
 						record.files_done !== undefined
 					) {
 						onProgress(
@@ -366,7 +493,7 @@ export async function runBridge(
 						onProgress({ message: redact(record.message) });
 					} else if (
 						typeof record.message === 'string' &&
-						!hasByteProgress
+						!hasStructuredProgress
 					) {
 						// Reprint's running commentary ("Following symlink
 						// target: …") belongs under the bar; the heading keeps

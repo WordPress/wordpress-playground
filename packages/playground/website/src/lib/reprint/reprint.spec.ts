@@ -7,6 +7,7 @@ import {
 	normalizeReprintUrl,
 	installReprint,
 	runBridge,
+	pullSite,
 } from './reprint';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import release from './release.json';
@@ -247,7 +248,7 @@ describe('Reprint command replies', () => {
 		expect(() => normalizeReprintUrl(url)).toThrow();
 	});
 
-	it('streams byte progress before the PHP request finishes and ignores text-only file updates', async () => {
+	it('reads native Reprint byte counts before PHP finishes and ignores text-only file updates', async () => {
 		const { playground } = createClient([]);
 		let output!: ReadableStreamDefaultController<Uint8Array>;
 		let finish!: (code: number) => void;
@@ -277,14 +278,21 @@ describe('Reprint command replies', () => {
 		await vi.waitFor(() => expect(output).toBeDefined());
 		const line =
 			JSON.stringify({
-				playgroundProgress: {
-					phase: 'files-pull',
-					message: 'Downloading site files',
-					bytesDone: 1024,
-					bytesTotal: 4096,
-					filesDone: 0,
-					filesTotal: 1,
-					path: 'private-token',
+				type: 'file_progress',
+				command: 'files-pull',
+				phase: 'fetch',
+				message: 'Downloading files',
+				files_done: 0,
+				files_total: 1,
+				path: 'private-token',
+				progress: {
+					items: { unit: 'files', done: 0, total: 1 },
+					bytes: { done: 1024, total: 4096 },
+					current_file: {
+						path_b64: btoa('/source/large.txt'),
+						bytes_done: 1024,
+						bytes_total: 4096,
+					},
 				},
 			}) + '\n';
 		output.enqueue(new TextEncoder().encode(line.slice(0, 30)));
@@ -298,6 +306,24 @@ describe('Reprint command replies', () => {
 					filesDone: 0,
 					filesTotal: 1,
 				})
+			)
+		);
+		output.enqueue(
+			new TextEncoder().encode(
+				JSON.stringify({
+					heartbeat: true,
+					command: 'files-pull',
+					phase: 'fetch',
+					progress: {
+						items: { unit: 'files', done: 0, total: 1 },
+						bytes: { done: 2048, total: 4096 },
+					},
+				}) + '\n'
+			)
+		);
+		await vi.waitFor(() =>
+			expect(progress).toHaveBeenLastCalledWith(
+				expect.objectContaining({ bytesDone: 2048, bytesTotal: 4096 })
 			)
 		);
 		output.enqueue(
@@ -401,6 +427,105 @@ describe('Reprint command replies', () => {
 				vi.fn()
 			)
 		).rejects.toThrow('failed with [redacted]');
+	});
+});
+
+// The bridge loop and saved connection are independent from setup controls.
+describe('Direct file pull', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+		vi.clearAllMocks();
+		vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
+			Uint8Array.from(release.sha256.match(/../g)!, (byte) =>
+				parseInt(byte, 16)
+			).buffer
+		);
+	});
+	it('advances stages on the primary PHP instance and saves the URL without its token', async () => {
+		const { playground, runStream, writeFile } = createClient([
+			{ status: 'continue', stage: 'files-pull' },
+			{ status: 'continue', stage: 'files-prepare' },
+			{ status: 'complete' },
+		]);
+		const updates: TransferProgressUpdate[] = [];
+		await pullSite(
+			playground,
+			'https://example.com',
+			'private-token',
+			(update) => updates.push(update)
+		);
+		expect(runStream).toHaveBeenCalledTimes(3);
+		for (const [options] of runStream.mock.calls)
+			expect(options).toMatchObject({ usePrimaryPhp: true });
+		expect(writeFile).toHaveBeenCalledWith(
+			'/wordpress/.playground-reprint/connection.json',
+			JSON.stringify({ url: 'https://example.com/?reprint-api' })
+		);
+		expect(JSON.stringify(writeFile.mock.calls)).not.toContain(
+			'private-token'
+		);
+		expect(updates.at(-1)?.overallPercent).toBe(100);
+	});
+	it('continues an unknown stage without losing the last streamed caption', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'complete' },
+		]);
+		runStream.mockImplementationOnce(async () =>
+			response(
+				JSON.stringify({
+					playgroundProgress: {
+						phase: 'files-pull',
+						message: 'Current transfer caption',
+					},
+				}) +
+					'\n' +
+					JSON.stringify({
+						playgroundReprint: {
+							status: 'continue',
+							stage: 'future-stage',
+						},
+					}) +
+					'\n'
+			)
+		);
+		const onProgress = vi.fn();
+		await pullSite(playground, 'https://example.com', 'token', onProgress);
+		expect(runStream).toHaveBeenCalledTimes(2);
+		expect(onProgress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phase: 'future-stage',
+				message: 'Current transfer caption',
+			})
+		);
+		expect(onProgress.mock.lastCall?.[0].overallPercent).toBe(100);
+	});
+	it('stops after the current stage and retries with the same connection', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'continue', stage: 'files-pull' },
+			{ status: 'complete' },
+		]);
+		const controller = new AbortController();
+		controller.abort();
+		await expect(
+			pullSite(
+				playground,
+				'https://example.com',
+				'token',
+				vi.fn(),
+				controller.signal
+			)
+		).rejects.toThrow('Pull stopped.');
+		expect(runStream).toHaveBeenCalledTimes(1);
+		await pullSite(
+			playground,
+			'https://example.com/?reprint-api',
+			'token',
+			vi.fn()
+		);
+		const requests = runStream.mock.calls.map(([options]) =>
+			JSON.parse(options.env.PLAYGROUND_REPRINT)
+		);
+		expect(requests[0]).toEqual(requests[1]);
 	});
 });
 
