@@ -19,7 +19,11 @@ Broadly speaking, you can use the client to perform three types of operations:
 In the browser, `startPlaygroundWeb()` loads Playground into an `<iframe>` and returns the client. It needs no build step:
 
 ```html
-<iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
+<iframe
+	id="wp"
+	title="WordPress Playground"
+	style="width: 100%; height: 300px; border: 1px solid #000;"
+></iframe>
 <script type="module">
 	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
