@@ -57,11 +57,49 @@ describe('paramsToJsonSchema', () => {
 		);
 
 		expect(schema).toMatchObject({
+			type: 'object',
+			additionalProperties: false,
 			properties: {
 				body: {
 					oneOf: [{ type: 'string' }, { type: 'object' }],
 				},
 			},
 		});
+	});
+});
+
+describe('WebMCP annotations', () => {
+	it('marks tools returning external or site-authored content with untrustedContentHint', () => {
+		expect(
+			toolDefinitions['playground_request'].annotations
+				.untrustedContentHint
+		).toBe(true);
+		expect(
+			toolDefinitions['playground_read_file'].annotations
+				.untrustedContentHint
+		).toBe(true);
+		expect(
+			toolDefinitions['playground_list_emails'].annotations
+				.untrustedContentHint
+		).toBe(true);
+	});
+
+	it('marks destructive or arbitrary code execution tools with consequentialHint', () => {
+		expect(
+			toolDefinitions['playground_execute_php'].annotations
+				.consequentialHint
+		).toBe(true);
+		expect(
+			toolDefinitions['playground_write_file'].annotations
+				.consequentialHint
+		).toBe(true);
+		expect(
+			toolDefinitions['playground_delete_file'].annotations
+				.consequentialHint
+		).toBe(true);
+		expect(
+			toolDefinitions['playground_delete_directory'].annotations
+				.consequentialHint
+		).toBe(true);
 	});
 });
