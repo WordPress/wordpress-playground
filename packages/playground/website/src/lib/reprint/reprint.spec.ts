@@ -12,6 +12,17 @@ import {
 import { logger } from '@php-wasm/logger';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import release from './release.json';
+import { joinPaths, phpVar } from '@php-wasm/util';
+import { removePathPrefix } from '@php-wasm/universal';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	getWordPressModuleDetails,
+	getSqliteDriverModuleDetails,
+} from '@wp-playground/wordpress-builds';
+import { login } from '@wp-playground/blueprints';
+import { readFile } from 'node:fs/promises';
 
 vi.mock('@php-wasm/web-service-worker', () => ({
 	fetchWithCorsProxy: vi.fn(),
@@ -729,20 +740,143 @@ describe('SQL import and administrator login', () => {
 		expect(playground.goTo).toHaveBeenCalledWith('/wp-admin/');
 	});
 
+	it('does not finish the pull when the session belongs to a different administrator', async () => {
+		const { playground, runStream } = createClient([{ status: 'install' }]);
+		vi.mocked(playground.request)
+			.mockResolvedValueOnce({ httpStatusCode: 302, errors: '' } as never)
+			.mockResolvedValueOnce({
+				httpStatusCode: 200,
+				text: '{"loggedIn":true,"username":"other-admin"}',
+				errors: '',
+			} as never);
+		await expect(
+			pullSite(playground, 'https://example.com', 'token', vi.fn())
+		).rejects.toThrow('administrator login failed');
+		expect(playground.unlink).toHaveBeenCalled();
+		expect(runStream).toHaveBeenCalledTimes(1);
+	});
+
+	it('uses Blueprint auto-login again after each pull, even with a valid old session', async () => {
+		// Website tests prefix Vite's local asset URLs with /website-server/.
+		const localAssetPrefix = joinPaths(import.meta.env.BASE_URL, '@fs');
+		const handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: () => loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground.test/',
+			wordPressZip: new File(
+				[
+					new Uint8Array(
+						await readFile(
+							removePathPrefix(
+								getWordPressModuleDetails('6.8').url,
+								localAssetPrefix
+							)
+						)
+					),
+				],
+				'wordpress.tar.zst'
+			),
+			sqliteIntegrationPluginZip: new File(
+				[
+					new Uint8Array(
+						await readFile(
+							removePathPrefix(
+								getSqliteDriverModuleDetails().url,
+								localAssetPrefix
+							)
+						)
+					),
+				],
+				'sqlite.zip'
+			),
+		});
+		try {
+			const php = await handler.getPrimaryPhp();
+			const documentRoot = handler.documentRoot;
+			// This independent endpoint checks the real request-handler cookie store.
+			php.writeFile(
+				joinPaths(documentRoot, 'current-user.php'),
+				`<?php
+				require __DIR__ . '/wp-load.php';
+				echo json_encode(['username' => wp_get_current_user()->user_login,
+					'isAdmin' => current_user_can('manage_options')]);
+			`
+			);
+			await login(php, { username: 'admin' });
+			const first = await handler.request({ url: '/current-user.php' });
+			expect(first.httpStatusCode).toBe(302);
+			expect(
+				first.headers['set-cookie'].some((cookie) =>
+					cookie.startsWith(
+						'playground_auto_login_already_happened=1'
+					)
+				)
+			).toBe(true);
+			expect(
+				(await handler.request({ url: '/current-user.php' })).json
+			).toEqual({ username: 'admin', isAdmin: true });
+
+			const { playground } = createClient([
+				{ status: 'install' },
+				{ status: 'complete' },
+				{ status: 'install' },
+				{ status: 'complete' },
+			]);
+			Object.assign(playground, {
+				documentRoot: Promise.resolve(documentRoot),
+				run: php.run.bind(php),
+				request: handler.request.bind(handler),
+				writeFile: php.writeFile.bind(php),
+				mkdir: php.mkdir.bind(php),
+				unlink: php.unlink.bind(php),
+				defineConstant: php.defineConstant.bind(php),
+			});
+			let previousAdmin = 'admin';
+			for (const username of ['alice', 'bob']) {
+				// Keep the old account's cookie valid, but make it a subscriber.
+				// The next pull must select and log in the new administrator instead.
+				await php.run({
+					code: `<?php
+					require ${phpVar(joinPaths(documentRoot, 'wp-load.php'))};
+					get_user_by('login', ${phpVar(previousAdmin)})->set_role('subscriber');
+					wp_insert_user(['user_login' => ${phpVar(username)},
+						'user_pass' => wp_generate_password(), 'role' => 'administrator']);
+				`,
+				});
+				expect(
+					(await handler.request({ url: '/current-user.php' })).json
+				).toEqual({ username: previousAdmin, isAdmin: false });
+				await pullSite(
+					playground,
+					'https://example.com',
+					'token',
+					vi.fn()
+				);
+				expect(
+					(await handler.request({ url: '/current-user.php' })).json
+				).toEqual({ username, isAdmin: true });
+				previousAdmin = username;
+			}
+		} finally {
+			await handler[Symbol.asyncDispose]();
+		}
+	}, 60000);
+
 	it('shows a missing-theme warning even when the homepage returns nonempty HTML', async () => {
 		const { playground } = createClient([
 			{ status: 'install' },
 			{ status: 'complete' },
 		]);
-		vi.mocked(playground.request).mockResolvedValueOnce({
-			httpStatusCode: 200,
-			text: JSON.stringify({
-				loggedIn: true,
-				username: 'imported-admin',
-				warning: 'The theme directory "iotix" does not exist.',
-			}),
-			errors: '',
-		} as never);
+		vi.mocked(playground.request)
+			.mockResolvedValueOnce({ httpStatusCode: 302, errors: '' } as never)
+			.mockResolvedValueOnce({
+				httpStatusCode: 200,
+				text: JSON.stringify({
+					loggedIn: true,
+					username: 'imported-admin',
+					warning: 'The theme directory "iotix" does not exist.',
+				}),
+				errors: '',
+			} as never);
 		const error = vi.spyOn(logger, 'error').mockImplementation(() => {});
 		const result = await pullSite(
 			playground,
@@ -762,12 +896,12 @@ describe('SQL import and administrator login', () => {
 			const request = vi.mocked(playground.request);
 			if (failure === 2)
 				request.mockResolvedValueOnce({
-					httpStatusCode: 200,
-					text: '{"loggedIn":true,"username":"imported-admin"}',
+					httpStatusCode: 302,
+					text: '',
 					errors: '',
 				} as never);
 			request.mockResolvedValueOnce({
-				httpStatusCode: 200,
+				httpStatusCode: failure === 1 ? 500 : 200,
 				text: '{"loggedIn":false}',
 				errors: '',
 			} as never);
@@ -775,7 +909,10 @@ describe('SQL import and administrator login', () => {
 			await expect(
 				pullSite(playground, 'https://example.com', 'token', progress)
 			).rejects.toThrow('administrator login failed');
-			expect(playground.defineConstant).not.toHaveBeenCalled();
+			expect(playground.defineConstant).toHaveBeenCalledWith(
+				'PLAYGROUND_AUTO_LOGIN_AS_USER',
+				'imported-admin'
+			);
 			expect(playground.unlink).toHaveBeenCalled();
 			expect(runStream).toHaveBeenCalledTimes(1);
 			expect(
@@ -822,7 +959,7 @@ describe('SQL import and administrator login', () => {
 	);
 });
 
-/** Supply streamed replies and verify the local administrator session. */
+/** Simulate bridge stages and WordPress replies for the pull loop. */
 function createClient(results: unknown[], events: string[] = []) {
 	const runStream = vi.fn(
 		async (options: { env: { PLAYGROUND_REPRINT: string } }) => {
@@ -840,17 +977,23 @@ function createClient(results: unknown[], events: string[] = []) {
 		mkdir: vi.fn(),
 		writeFile,
 		readFileAsBuffer: vi.fn().mockResolvedValue(new Uint8Array()),
-		request: vi.fn(async ({ url }: { url: string }) => ({
-			httpStatusCode: 200,
-			text:
-				url === '/'
-					? '<html>A working homepage</html>'
-					: JSON.stringify({
-							loggedIn: true,
-							username: 'imported-admin',
-						}),
+		run: vi.fn(async () => ({
+			text: '{"username":"imported-admin"}',
 			errors: '',
 		})),
+		request: vi.fn(
+			async ({ url, method }: { url: string; method?: string }) => ({
+				httpStatusCode: method === 'POST' ? 302 : 200,
+				text:
+					url === '/'
+						? '<html>A working homepage</html>'
+						: JSON.stringify({
+								loggedIn: true,
+								username: 'imported-admin',
+							}),
+				errors: '',
+			})
+		),
 		defineConstant: vi.fn(),
 		unlink: vi.fn(),
 		goTo: vi.fn(),

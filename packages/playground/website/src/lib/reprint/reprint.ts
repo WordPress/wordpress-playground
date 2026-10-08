@@ -1,6 +1,7 @@
 import { getSqliteDatabasePath } from '@wp-playground/tools';
-import loginScript from './login.php?raw';
-import { joinPaths } from '@php-wasm/util';
+import { login } from '@wp-playground/blueprints';
+import loginCheckScript from './check-login.php?raw';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import bridge from './bridge.php?raw';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
@@ -304,44 +305,72 @@ export async function pullSite(
 	return { warning };
 }
 
-/** Verify the cookie round trip and remove the temporary local login endpoint. */
+/**
+ * Prepares the imported database, then uses Blueprint login for its administrator.
+ * The temporary endpoint ignores old cookies once and checks the new session on
+ * a separate request. It is removed on success or failure.
+ */
 async function logInAfterPull(
 	playground: PlaygroundClient,
 	documentRoot: string
 ) {
+	const setup = await playground.run({
+		code: `<?php
+			require ${phpVar(joinPaths(documentRoot, 'wp-load.php'))};
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+			wp_upgrade();
+			// Theme roots and cached theme errors describe the source filesystem.
+			// Rebuild them from the downloaded files without changing the active theme.
+			delete_option('stylesheet_root');
+			delete_option('template_root');
+			delete_site_transient('theme_roots');
+			wp_clean_themes_cache();
+			$admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
+			if (!$admins) {
+				throw new RuntimeException('The imported site has no administrator account.');
+			}
+			echo json_encode(['username' => $admins[0]->user_login]);
+		`,
+	});
+	if (setup.errors) logger.error(setup.errors);
+	const { username } = JSON.parse(setup.text);
+	// The imported administrator may not be named admin. The Blueprint step
+	// also keeps auto-login pointed at this username when the site reopens.
+	await login(playground, { username });
 	const path = `/.playground-reprint-login-${crypto.randomUUID()}.php`;
-	await playground.writeFile(joinPaths(documentRoot, path), loginScript);
+	await playground.writeFile(joinPaths(documentRoot, path), loginCheckScript);
 	let warning: string | undefined;
 	try {
-		for (const method of ['POST', 'GET'] as const) {
-			const response = await playground.request({ url: path, method });
-			if (response.errors) logger.error(response.errors);
-			let result;
-			try {
-				result = JSON.parse(response.text);
-			} catch {
-				/* Report invalid WordPress output below. */
-			}
-			if (typeof result?.warning === 'string') warning = result.warning;
-			if (
-				response.httpStatusCode !== 200 ||
-				result?.loggedIn !== true ||
-				!result?.username
-			) {
-				throw new Error(
-					result?.error ||
-						'The site was imported, but administrator login failed. Check Logs.'
-				);
-			}
-			if (method === 'GET') {
-				// The imported administrator may not be named admin. Keep the
-				// normal Playground auto-login working when this site reopens.
-				await playground.defineConstant(
-					'PLAYGROUND_AUTO_LOGIN_AS_USER',
-					result.username
-				);
-			}
+		const loginResponse = await playground.request({
+			url: path,
+			method: 'POST',
+		});
+		if (loginResponse.errors) logger.error(loginResponse.errors);
+		if (loginResponse.httpStatusCode >= 400) {
+			throw new Error(
+				'The site was imported, but administrator login failed. Check Logs.'
+			);
 		}
+		// A separate GET checks the cookie round trip, not just the user that
+		// the auto-login plugin set in memory during the POST.
+		const response = await playground.request({ url: path, method: 'GET' });
+		if (response.errors) logger.error(response.errors);
+		let result;
+		try {
+			result = JSON.parse(response.text);
+		} catch {
+			/* Report invalid WordPress output below. */
+		}
+		if (
+			response.httpStatusCode !== 200 ||
+			result?.loggedIn !== true ||
+			result?.username !== username
+		) {
+			throw new Error(
+				'The site was imported, but administrator login failed. Check Logs.'
+			);
+		}
+		if (typeof result.warning === 'string') warning = result.warning;
 	} finally {
 		await playground.unlink(joinPaths(documentRoot, path));
 	}
