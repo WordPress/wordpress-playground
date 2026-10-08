@@ -157,17 +157,26 @@ test('build hooks publish the manifest and matching redirects without hook order
 		manifest.guide.markdown_source,
 		'https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/docs/main/guide.md'
 	);
+	const llmsFile = path.join(outDir, 'llms.txt');
+	const llmsTxt = fs.readFileSync(llmsFile, 'utf8');
+	assert.match(llmsTxt, /^# WordPress Playground Documentation/m);
+	assert.match(
+		llmsTxt,
+		/- \[main\/guide\]\(https:\/\/raw\.githubusercontent\.com\/WordPress\/wordpress-playground\/refs\/heads\/trunk\/packages\/docs\/site\/docs\/main\/guide\.md\)/
+	);
 	assert.match(
 		fs.readFileSync(path.join(outDir, 'guide', 'index.html'), 'utf8'),
 		/https:\/\/developer.wordpress.org\/playground\/handbook\/guide\//
 	);
 	const original = fs.readFileSync(manifestFile, 'utf8');
+	const originalLlms = fs.readFileSync(llmsFile, 'utf8');
 	const localized = generateManifest({
 		i18n: { currentLocale: 'fr', defaultLocale: 'en' },
 	});
 	localized.allContentLoaded({ allContent: {} });
 	await localized.postBuild({ outDir });
 	assert.equal(fs.readFileSync(manifestFile, 'utf8'), original);
+	assert.equal(fs.readFileSync(llmsFile, 'utf8'), originalLlms);
 });
 
 function doc(id, slug) {
