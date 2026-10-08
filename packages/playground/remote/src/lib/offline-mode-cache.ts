@@ -1,5 +1,11 @@
 import { isURLScoped } from '@php-wasm/scopes';
+import { logger } from '@php-wasm/logger';
 import { isDevServer } from './dev-server';
+import {
+	getCachedWasm,
+	putCachedWasm,
+	purgePreviousWasmReleases,
+} from './wasm-cache';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -10,7 +16,18 @@ const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 // a Service Worker module which does not allow top-level await.
 const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
 
-export async function cacheFirstFetch(request: Request): Promise<Response> {
+/** Serves cached assets and keeps background writes alive during service-worker fetches. */
+export async function cacheFirstFetch(
+	request: Request,
+	event: ExtendableEvent
+): Promise<Response> {
+	const isWasm = request.method === 'GET' && isCacheableWasmUrl(request.url);
+	if (isWasm) {
+		const cachedWasm = await getCachedWasm(request.url);
+		if (cachedWasm) {
+			return cachedWasm;
+		}
+	}
 	const offlineModeCache = await promisedOfflineModeCache;
 	const cachedResponse = await offlineModeCache.match(request, {
 		ignoreSearch: true,
@@ -49,7 +66,14 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 			// Intentionally do not await writing to the cache so the response
 			// promise can be returned immediately and observed for progress events.
 			// NOTE: This is a race condition for simultaneous requests for the same asset.
-			offlineModeCache.put(requestWithoutRangeHeader, response.clone());
+			const cacheWrite = putCachedResponse(
+				requestWithoutRangeHeader,
+				response.clone()
+			).catch((error) => {
+				// Both stores share the browser quota. Caching must not fail a live download.
+				logger.warn('Could not cache Playground asset', error);
+			});
+			event.waitUntil(cacheWrite);
 		}
 	}
 
@@ -151,28 +175,54 @@ export async function purgeEverythingFromPreviousRelease() {
 	const oldKeys = keys.filter(
 		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
 	);
-	return Promise.all(oldKeys.map((key) => caches.delete(key)));
+	return Promise.all([
+		...oldKeys.map((key) => caches.delete(key)),
+		purgePreviousWasmReleases(),
+	]);
 }
 
 /**
  * Answers whether a given URL has a response in the offline mode cache.
- * Ignores the search part of the URL by default.
+ * CacheStorage ignores the search part by default; OPFS matches the full asset URL.
  */
 export async function hasCachedResponse(
 	url: string,
 	queryOptions: CacheQueryOptions = { ignoreSearch: true }
 ): Promise<boolean> {
+	if (isCacheableWasmUrl(url) && (await getCachedWasm(url))) {
+		return true;
+	}
 	const offlineModeCache = await promisedOfflineModeCache;
 	const cachedResponse = await offlineModeCache.match(url, queryOptions);
 	return !!cachedResponse;
 }
 
+/** Stores complete Wasm downloads in OPFS, falling back to the regular offline cache. */
 export async function putCachedResponse(
 	request: RequestInfo,
 	response: Response
 ): Promise<void> {
+	const normalizedRequest = new Request(request);
+	if (
+		normalizedRequest.method === 'GET' &&
+		isCacheableWasmUrl(normalizedRequest.url) &&
+		response.status === 200 &&
+		response.body &&
+		!response.headers.has('Content-Range') &&
+		(await putCachedWasm(normalizedRequest.url, response))
+	) {
+		// The OPFS writer consumed its clone. Release the unused fallback branch.
+		void response.body.cancel();
+		return;
+	}
 	const offlineModeCache = await promisedOfflineModeCache;
 	await offlineModeCache.put(request, response);
+}
+
+/** Restricts OPFS storage to unscoped Wasm assets served by this Playground origin. */
+function isCacheableWasmUrl(url: string): boolean {
+	const parsed = new URL(url, self.location.href);
+	return parsed.pathname.endsWith('.wasm') && shouldCacheUrl(parsed);
 }
 
 export function shouldCacheUrl(url: URL) {

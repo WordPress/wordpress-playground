@@ -26,6 +26,7 @@
  *
  * * HTTP cache in the browser
  * * CacheStorage in the service worker
+ * * OPFS for downloaded WebAssembly files
  * * Edge Cache on playground.wordpress.net
  *
  * ### HTTP cache in the browser
@@ -48,6 +49,11 @@
  * 1. Loaded from the network without using any HTTP caching.
  * 2. Stored in the CacheStorage.
  * 3. Served from the CacheStorage on subsequent requests.
+ *
+ * WebAssembly downloads use the same strategy but store their bytes in OPFS,
+ * under `playground-wasm-cache/<buildVersion>/`. CacheStorage remains the fallback
+ * when OPFS is unavailable. Both caches discard previous releases on activation.
+ * OPFS stores the original Wasm bytes, not browser-compiled WebAssembly.Module objects.
  *
  * While this strategy enables fast load times and an offline experience, it also
  * creates a substantial challenge.
@@ -252,7 +258,7 @@ self.addEventListener('fetch', (event) => {
 	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
 		return event.respondWith(
 			shouldCacheUrl(url)
-				? cacheFirstFetch(event.request)
+				? cacheFirstFetch(event.request, event)
 				: fetch(event.request)
 		);
 	}
@@ -410,7 +416,7 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	// Use cache first strategy to serve regular static assets.
-	return event.respondWith(cacheFirstFetch(event.request));
+	return event.respondWith(cacheFirstFetch(event.request, event));
 });
 
 /**
