@@ -29,6 +29,34 @@
 		<meta name="apple-mobile-web-app-title" content="My WordPress" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "My WordPress",
+				"url": "https://my.wordpress.net/",
+				"description": "A free, private WordPress in your browser. A personal app platform for notes, feeds, contacts, memories, and ideas powered by WordPress Playground.",
+				"applicationCategory": "DeveloperApplication",
+				"operatingSystem": "Web Browser, WebAssembly",
+				"license": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+				"isAccessibleForFree": true,
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				},
+				"author": {
+					"@type": "Organization",
+					"name": "WordPress.org",
+					"url": "https://wordpress.org/"
+				},
+				"sameAs": [
+					"https://playground.wordpress.net/",
+					"https://github.com/WordPress/wordpress-playground",
+					"https://wordpress.github.io/wordpress-playground/"
+				]
+			}
+		</script>
 		<link rel="stylesheet" href="/src/styles.css" />
 		<style>
 			html,
@@ -325,6 +353,19 @@
 		</script>
 
 		<main id="root" aria-label="WordPress Playground">
+			<noscript>
+				<article>
+					<h1>My WordPress</h1>
+					<p>
+						A free, private, persistent WordPress running entirely
+						in your browser via WebAssembly and Origin Private File
+						System (OPFS), powered by
+						<a href="https://playground.wordpress.net/"
+							>WordPress Playground</a
+						>.
+					</p>
+				</article>
+			</noscript>
 			<div id="initial-loading-screen" role="status" aria-live="polite">
 				<div class="initial-loading-content">
 					<p class="initial-loading-title">Loading My WordPress</p>

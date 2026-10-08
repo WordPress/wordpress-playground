@@ -7,9 +7,15 @@
 	"scope": "/",
 	"start_url": "/",
 	"short_name": "WordPress Playground",
-	"description": "WordPress Playground",
+	"description": "Run a full WordPress and PHP environment directly in your browser via WebAssembly with zero setup.",
 	"name": "WordPress Playground",
-	"categories": ["development", "education", "utilities"],
+	"categories": [
+		"development",
+		"developer tools",
+		"education",
+		"productivity",
+		"utilities"
+	],
 	"screenshots": [
 		{
 			"src": "ogimage.png",
