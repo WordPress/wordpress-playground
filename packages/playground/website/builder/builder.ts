@@ -575,7 +575,7 @@ const runBlueprint = async (editor) => {
 		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
-			// Relative runtime URLs resolve against production, not this server.
+			// Use this server's runtime even in a production-mode build.
 			remoteUrl: getRemoteUrl().href,
 			blueprint: blueprintCopy,
 			corsProxy: corsProxyUrl,
