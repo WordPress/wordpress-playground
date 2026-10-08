@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
-import { __private__dont__use, type PHP } from '@php-wasm/universal';
-import { Semaphore } from '@php-wasm/util';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { __private__dont__use, PHP } from '@php-wasm/universal';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { loadNodeRuntime } from '@php-wasm/node';
+import { Semaphore, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import {
 	copyMemfsToOpfs,
@@ -39,6 +41,10 @@ class MemoryFileHandle {
 			seek: async () => {},
 		};
 	}
+
+	async getFile() {
+		return new Blob([this.bytes]);
+	}
 }
 
 class MemoryDirectoryHandle {
@@ -54,10 +60,15 @@ class MemoryDirectoryHandle {
 	}
 
 	async getFileHandle(name: string, options?: { create?: boolean }) {
+		if (this.directories.has(name))
+			throw new DOMException('Is a directory', 'TypeMismatchError');
 		let handle = this.files.get(name);
 		if (handle === undefined) {
 			if (!options?.create) {
-				throw new Error(`File not found: ${name}`);
+				throw new DOMException(
+					`File not found: ${name}`,
+					'NotFoundError'
+				);
 			}
 			handle = new MemoryFileHandle(name, this.onFileWrite);
 			this.files.set(name, handle);
@@ -66,6 +77,8 @@ class MemoryDirectoryHandle {
 	}
 
 	async getDirectoryHandle(name: string, options?: { create?: boolean }) {
+		if (this.files.has(name))
+			throw new DOMException('Is a file', 'TypeMismatchError');
 		let handle = this.directories.get(name);
 		if (handle === undefined) {
 			if (!options?.create) {
@@ -81,7 +94,280 @@ class MemoryDirectoryHandle {
 		this.files.delete(name);
 		this.directories.delete(name);
 	}
+
+	async *values() {
+		yield* this.files.values();
+		yield* this.directories.values();
+	}
 }
+
+describe('saved symlinks', () => {
+	let php: PHP;
+	beforeEach(async () => {
+		php = new PHP(await loadNodeRuntime('8.4'));
+	});
+	afterEach(() => php.exit());
+
+	it('round-trips raw targets without copying linked files or directories', async () => {
+		php.mkdir('/site/real');
+		php.writeFile('/site/real/file.txt', 'saved');
+		php.writeFile(
+			'/site/real/.playground-symlinks.json',
+			'ordinary nested file'
+		);
+		php.mkdir('/shared');
+		php.writeFile('/shared/file.txt', 'outside');
+		const links = {
+			'/file-link': './real/file.txt',
+			'/directory-link': 'real',
+			'/absolute': '/shared/file.txt',
+			'/broken': '../missing',
+			'/cycle': '.',
+			'/first': 'second',
+			'/second': 'first',
+		};
+		for (const [path, target] of Object.entries(links))
+			php.symlink(target, joinPaths('/site', path));
+		const root = new MemoryDirectoryHandle('root');
+		root.directories.set(
+			'directory-link',
+			new MemoryDirectoryHandle('directory-link')
+		);
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		expect([...root.files.keys()]).toEqual(['.playground-symlinks.json']);
+		expect([...root.directories.keys()]).toEqual(['real']);
+		const unmount = await php.mount(
+			'/restored',
+			createDirectoryHandleMountHandler(handle)
+		);
+		try {
+			for (const [path, target] of Object.entries(links)) {
+				const restored = joinPaths('/restored', path);
+				expect(php.isSymlink(restored)).toBe(true);
+				expect(php.readlink(restored)).toBe(target);
+			}
+			expect(php.readFileAsText('/restored/file-link')).toBe('saved');
+			expect(php.readFileAsText('/restored/absolute')).toBe('outside');
+			expect(
+				php.readFileAsText('/restored/real/.playground-symlinks.json')
+			).toBe('ordinary nested file');
+			expect(php.listFiles('/restored')).not.toContain(
+				'.playground-symlinks.json'
+			);
+		} finally {
+			await unmount();
+		}
+	});
+
+	it('persists link edits, writes through links, and renamed directories', async () => {
+		php.mkdir('/site/dir');
+		php.writeFile('/site/dir/file.txt', 'old');
+		php.symlink('./file.txt', '/site/dir/link');
+		php.symlink('dir/file.txt', '/site/replaced');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		expect(() =>
+			php[__private__dont__use].FS.mkdir('/site/replaced')
+		).toThrow();
+		php.writeFile('/site/dir/link', 'new');
+		php.mv('/site/dir', '/site/moved');
+		php.symlink('../missing', '/site/broken');
+		await mount.flush();
+		php.mv('/site/broken', '/site/temporary');
+		php.mv('/site/temporary', '/site/renamed');
+		php.mv('/site/moved', '/site/temporary-dir');
+		php.mv('/site/temporary-dir', '/site/final');
+		php.unlink('/site/replaced');
+		php.writeFile('/site/replaced', 'regular file');
+		await mount.unmount();
+		const unmount = await php.mount(
+			'/site',
+			createDirectoryHandleMountHandler(handle)
+		);
+		try {
+			expect(php.listFiles('/site').sort()).toEqual([
+				'final',
+				'renamed',
+				'replaced',
+			]);
+			expect(php.readlink('/site/final/link')).toBe('./file.txt');
+			expect(php.readFileAsText('/site/final/link')).toBe('new');
+			expect(php.readlink('/site/renamed')).toBe('../missing');
+			expect(php.isSymlink('/site/replaced')).toBe(false);
+			expect(php.readFileAsText('/site/replaced')).toBe('regular file');
+		} finally {
+			await unmount();
+		}
+	});
+
+	it('removes links in deleted subtrees and moved-out paths', async () => {
+		php.mkdir('/site/dir');
+		php.symlink('../missing', '/site/dir/link');
+		php.symlink('.', '/site/dir-sibling');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		php.rmdir('/site/dir');
+		await mount.flush();
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/dir-sibling': '.' });
+		php.mv('/site/dir-sibling', '/outside');
+		await mount.unmount();
+		expect(root.files.has('.playground-symlinks.json')).toBe(false);
+	});
+
+	it('retries a failed index write without losing the renamed link', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/link');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		vi.spyOn(
+			root.files.get('.playground-symlinks.json')!,
+			'createWritable'
+		).mockRejectedValueOnce(new Error('Quota exceeded'));
+		php.mv('/site/link', '/site/renamed');
+		await expect(mount.flush()).rejects.toThrow('Quota exceeded');
+		await mount.unmount();
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/renamed': 'missing' });
+	});
+
+	it('retries a failed index update after deleting a link', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/deleted');
+		php.symlink('missing', '/site/kept');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		vi.spyOn(
+			root.files.get('.playground-symlinks.json')!,
+			'createWritable'
+		).mockRejectedValueOnce(new Error('Quota exceeded'));
+		php.unlink('/site/deleted');
+		await expect(mount.flush()).rejects.toThrow('Quota exceeded');
+		await mount.unmount();
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/kept': 'missing' });
+	});
+
+	it('can retry the first save when writing its new index fails', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/link');
+		let failWrite = true;
+		const root = new MemoryDirectoryHandle('root', () => {
+			if (failWrite) {
+				failWrite = false;
+				throw new Error('Quota exceeded');
+			}
+		});
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await expect(
+			copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site')
+		).rejects.toThrow('Quota exceeded');
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/link': 'missing' });
+	});
+
+	it('replays links created during the initial copy after saving its index', async () => {
+		php.mkdir('/site');
+		php.writeFile('/site/file', 'saved');
+		const writeStarted = deferred<void>();
+		const releaseWrite = deferred<void>();
+		let firstWrite = true;
+		const root = new MemoryDirectoryHandle('root', async () => {
+			if (firstWrite) {
+				firstWrite = false;
+				writeStarted.resolve();
+				await releaseWrite.promise;
+			}
+		});
+		let mount!: { flush(): Promise<void> };
+		const copy = php.mount(
+			'/site',
+			createDirectoryHandleMountHandler(
+				root as unknown as FileSystemDirectoryHandle,
+				{
+					initialSync: { direction: 'memfs-to-opfs' },
+					onMount: (value) => {
+						mount = value;
+					},
+				}
+			)
+		);
+		await writeStarted.promise;
+		php.symlink('./file', '/site/link');
+		const flush = mount.flush();
+		releaseWrite.resolve();
+		const unmount = await copy;
+		await flush;
+		await unmount();
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/link': './file' });
+	});
+
+	it.each([
+		'not JSON',
+		JSON.stringify({ version: 2, links: {} }),
+		JSON.stringify({ version: 1, links: { '/../escape': 'target' } }),
+		JSON.stringify({
+			version: 1,
+			links: { '/link': '/shared', '/link/child': 'target' },
+		}),
+	])('rejects an invalid saved index: %s', async (contents) => {
+		const root = new MemoryDirectoryHandle('root');
+		const file = new MemoryFileHandle('.playground-symlinks.json');
+		file.bytes = encode(contents);
+		root.files.set(file.name, file);
+		await expect(
+			php.mount(
+				'/site',
+				createDirectoryHandleMountHandler(
+					root as unknown as FileSystemDirectoryHandle
+				)
+			)
+		).rejects.toThrow();
+		expect(php.fileExists('/escape')).toBe(false);
+	});
+
+	it('rejects a real file at the reserved path instead of overwriting it', async () => {
+		php.mkdir('/site');
+		php.writeFile('/site/.playground-symlinks.json', 'keep');
+		const root = new MemoryDirectoryHandle('root');
+		await expect(
+			copyMemfsToOpfs(
+				php[__private__dont__use].FS,
+				root as unknown as FileSystemDirectoryHandle,
+				'/site'
+			)
+		).rejects.toThrow('reserved');
+		expect(php.readFileAsText('/site/.playground-symlinks.json')).toBe(
+			'keep'
+		);
+	});
+});
 
 describe('loading saved OPFS files', () => {
 	it('bounds queued reads as well as active reads for large directories', async () => {
@@ -892,6 +1178,7 @@ function createFakePhp() {
 		write: vi.fn(),
 		truncate: vi.fn(),
 		unlink: vi.fn(),
+		symlink: vi.fn(),
 		mknod: vi.fn(),
 		mkdir: vi.fn(),
 		rmdir: vi.fn(),
@@ -903,6 +1190,7 @@ function createFakePhp() {
 		getPath: vi.fn((node: { path: string }) => node.path),
 		isFile: vi.fn(() => true),
 		isDir: vi.fn(() => false),
+		isLink: vi.fn(() => false),
 		readFile: vi.fn((path: string) => {
 			const file = files.get(path);
 			if (file === undefined) {

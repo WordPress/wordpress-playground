@@ -8,6 +8,7 @@ export default defineConfig({
 		'php-networking.spec.ts',
 		'readable-stream-transfer.spec.ts',
 		'sendmail-stream.spec.ts',
+		'opfs-symlinks.spec.ts',
 	],
 	fullyParallel: false,
 	forbidOnly: !!process.env['CI'],
