@@ -1080,12 +1080,12 @@ test('Blueprint with `preferredVersions.wp: false` boots Playground without Word
 });
 
 /**
- * WordPress 6.7 added a redirect from /sitemap.xml to /wp-sitemap.xml
+ * WordPress 6.7 added rewrite rules for /sitemap.xml to serve sitemaps directly
  * (see https://core.trac.wordpress.org/ticket/61931). This test ensures
- * that the redirect works correctly in Playground by verifying that
+ * that /sitemap.xml works correctly in Playground by verifying that
  * /sitemap.xml returns sitemap content instead of a 404 error.
  */
-test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({
+test('/sitemap.xml should render sitemap content', async ({
 	wordpress,
 	website,
 }) => {
