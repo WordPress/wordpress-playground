@@ -10,6 +10,7 @@ const siteSettingActions: Record<keyof SiteFormData, SiteSettingAction> = {
 	phpVersion: { action: 'apply' },
 	withNetworking: { action: 'apply' },
 	wpVersion: { action: 'fresh', label: 'WordPress version' },
+	gutenbergBranch: { action: 'fresh', label: 'Gutenberg branch' },
 	language: { action: 'fresh', label: 'language' },
 	multisite: { action: 'fresh', label: 'multisite' },
 };

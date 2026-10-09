@@ -9,6 +9,7 @@ import { useSiteSettingsSubmission } from './use-site-settings-submission';
 const formData: SiteFormData = {
 	phpVersion: '8.3',
 	wpVersion: 'latest',
+	gutenbergBranch: '',
 	language: '',
 	withNetworking: true,
 	multisite: false,
