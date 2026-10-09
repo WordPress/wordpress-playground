@@ -55,9 +55,11 @@ test(
 			.fill('http://127.0.0.1:1/');
 		await pane.getByRole('button', { name: 'Check site' }).click();
 		await pane
-			.getByRole('button', { name: 'Reprint is installed — enter a key' })
+			.getByRole('button', { name: 'Reprint is installed — connect' })
 			.click();
-		await pane.locator('input[type=password]').fill('test-key');
+		await expect(
+			pane.getByRole('textbox', { name: 'Public key', exact: true })
+		).toHaveValue(/^[A-Za-z0-9+/]+=*$/);
 		expect(await activeSlug()).toBe(originalSlug);
 		await pane.getByRole('button', { name: 'Clone site' }).click();
 

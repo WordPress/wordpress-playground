@@ -6,6 +6,11 @@ import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { detectReprint, pullSite } from '../../../lib/reprint/reprint';
+import {
+	generateReprintKeyPair,
+	type ReprintKeyPair,
+} from '../../../lib/reprint/keys';
+import type * as ReprintKeys from '../../../lib/reprint/keys';
 import type * as Reprint from '../../../lib/reprint/reprint';
 import { SiteTransferPanel } from './index';
 import { DockPane } from '../../dock/dock-pane';
@@ -18,7 +23,7 @@ const { ui, dispatch } = vi.hoisted(() => ({
 	ui: {
 		cloneRequested: false,
 		pendingClone: undefined as
-			| { slug: string; url: string; secret: string }
+			| { slug: string; url: string; keyPair: ReprintKeyPair }
 			| undefined,
 	},
 	dispatch: vi.fn(),
@@ -50,6 +55,14 @@ vi.mock('../../../lib/reprint/reprint', async (original) => ({
 	detectReprint: vi.fn(),
 	pullSite: vi.fn(),
 }));
+vi.mock('../../../lib/reprint/keys', async (original) => ({
+	...(await original<typeof ReprintKeys>()),
+	generateReprintKeyPair: vi.fn(),
+}));
+
+const privateKey =
+	'-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----';
+const keyPair = { privateKey, publicKey: 'public-key' };
 vi.mock('virtual:cors-proxy-url', () => ({ corsProxyUrl: '' }));
 vi.mock('@wordpress/components', () => ({
 	/** Keep native clicks and disabled state while omitting WordPress styling props. */
@@ -138,6 +151,7 @@ describe('Reprint connection changes', () => {
 	let playground: PlaygroundClient;
 	beforeEach(() => {
 		vi.resetAllMocks();
+		vi.mocked(generateReprintKeyPair).mockResolvedValue(keyPair);
 		ui.pendingClone = undefined;
 		ui.cloneRequested = false;
 		dispatch.mockImplementation((action) => {
@@ -180,26 +194,55 @@ describe('Reprint connection changes', () => {
 		edit('url', 'https://second.example');
 		await act(async () => finish('configured'));
 		expect(signal.aborted).toBe(true);
-		expect(container.querySelector('input[type=password]')).toBeNull();
+		expect(container.querySelector('textarea')).toBeNull();
 		expect(container.querySelector('a[href*="wp-admin"]')).toBeNull();
 	});
-	it('clears the old key before connecting to another address', async () => {
+	it('generates a different pair before connecting to another address', async () => {
+		vi.mocked(generateReprintKeyPair).mockResolvedValueOnce({
+			privateKey: 'first-private',
+			publicKey: 'first-public',
+		});
 		vi.mocked(detectReprint).mockResolvedValue('configured');
 		await render();
 		edit('url', 'https://first.example');
 		await submit();
-		edit('password', 'first-site-private-key');
 		await click('Back to site address');
 		edit('url', 'https://second.example');
 		await submit();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('public-key');
 		expect(
 			container.querySelector<HTMLAnchorElement>('a[href*="tools.php"]')!
 				.href
 		).toBe('https://second.example/wp-admin/tools.php?page=reprint-server');
+	});
+
+	it('ignores a generated key if its site address changed while generation was pending', async () => {
+		let finish!: (pair: ReprintKeyPair) => void;
+		vi.mocked(generateReprintKeyPair).mockReturnValueOnce(
+			new Promise((resolve) => {
+				finish = resolve;
+			})
+		);
+		vi.mocked(detectReprint).mockResolvedValue('configured');
+		await render();
+		edit('url', 'https://first.example');
+		await submit();
+		await click('Back to site address');
+		edit('url', 'https://second.example');
+		await submit();
+		await act(async () =>
+			finish({ privateKey: 'old-private', publicKey: 'old-public' })
+		);
+		expect(
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe(keyPair.publicKey);
+		await submit();
+		expect(vi.mocked(pullSite).mock.calls[0].slice(1, 3)).toEqual([
+			'https://second.example/',
+			keyPair.privateKey,
+		]);
 	});
 
 	it('does not replace a typed address when the saved address loads later', async () => {
@@ -231,19 +274,17 @@ describe('Reprint connection changes', () => {
 		await render();
 		edit('url', 'https://example.com');
 		await submit();
-		edit('password', 'private-key');
 		await click('Back to site address');
 		await submit();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('private-key');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('public-key');
 		expect(pullSite).not.toHaveBeenCalled();
 		await submit();
 		expect(pullSite).toHaveBeenCalledWith(
 			playground,
 			'https://example.com/',
-			'private-key',
+			privateKey,
 			expect.any(Function),
 			expect.any(AbortSignal)
 		);
@@ -259,10 +300,11 @@ describe('Reprint connection changes', () => {
 		edit('url', 'https://example.com');
 		await submit();
 		expect(document.activeElement).toBe(
-			container.querySelector('input[type=password]')
+			container.querySelector('textarea')
 		);
-		expect(container.textContent).toContain('Reprint key on example.com');
-		edit('password', 'private-key');
+		expect(container.textContent).toContain(
+			'Reprint settings on example.com'
+		);
 		await submit();
 		expect(container.textContent).toContain('example.com cloned');
 		expect(container.querySelector('input')).toBeNull();
@@ -273,7 +315,6 @@ describe('Reprint connection changes', () => {
 		await render();
 		edit('url', 'https://example.com');
 		await submit();
-		edit('password', 'private-key');
 		await submit();
 		act(() => root.unmount());
 		root = createRoot(container);
@@ -283,16 +324,14 @@ describe('Reprint connection changes', () => {
 		).toBe('https://example.com/');
 		await submit();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('private-key');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('public-key');
 		await click('Back to site address');
 		edit('url', 'https://another.example');
 		await submit();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('public-key');
 	});
 
 	it('ignores a recheck reply after going back to change the site', async () => {
@@ -315,21 +354,18 @@ describe('Reprint connection changes', () => {
 		expect(
 			container.querySelector<HTMLInputElement>('input[type=url]')!.value
 		).toBe('https://second.example');
-		expect(container.querySelector('input[type=password]')).toBeNull();
+		expect(container.querySelector('textarea')).toBeNull();
 	});
 
-	it('asks for a key created in Reprint settings when the server has none', async () => {
+	it('generates a pair and submits its private half when the server has no enrolled keys', async () => {
 		vi.mocked(detectReprint).mockResolvedValue('needs-key');
 		await render();
 		edit('url', 'https://example.com');
 		await submit();
-		expect(container.textContent).toContain(
-			'Reprint Server has no key yet'
-		);
-		edit('password', 'key-from-wp-admin');
+		expect(container.textContent).toContain('Add this public key');
 		await submit();
 		expect(container.querySelector('input')).toBeNull();
-		expect(vi.mocked(pullSite).mock.calls[0][2]).toBe('key-from-wp-admin');
+		expect(vi.mocked(pullSite).mock.calls[0][2]).toBe(privateKey);
 	});
 
 	it('copies the audit log while the transfer promise is still pending', async () => {
@@ -346,7 +382,7 @@ describe('Reprint connection changes', () => {
 		const files: Record<string, string> = {
 			[root + '/site/operation.json']: '{"stage":"files-pull"}',
 			[root + '/site/pull-state/audit.log']:
-				'Last transfer record private-key',
+				`Last transfer record ${privateKey}`,
 		};
 		const playground = {
 			documentRoot: Promise.resolve('/wordpress'),
@@ -359,7 +395,6 @@ describe('Reprint connection changes', () => {
 		await render(playground);
 		edit('url', 'https://example.com');
 		await submit();
-		edit('password', 'private-key');
 		await submit();
 		await click('Copy transfer log');
 		expect(writeText).toHaveBeenCalledWith(
@@ -389,16 +424,14 @@ describe('Reprint connection changes', () => {
 		} as unknown as PlaygroundClient);
 		edit('url', 'https://example.com');
 		await submit();
-		edit('password', 'private-key');
 		await submit();
 		await click('Stop');
 		await click('Stop pulling');
 		// The rejection settles the transfer on a later microtask.
 		await act(async () => {});
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('private-key');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('public-key');
 		expect(container.textContent).not.toContain('Pull stopped');
 	});
 
@@ -417,7 +450,6 @@ describe('Reprint connection changes', () => {
 			} as unknown as PlaygroundClient);
 			edit('url', 'https://example.com');
 			await submit();
-			edit('password', 'private-key');
 			await submit();
 			expect(pullSite).toHaveBeenCalledTimes(1);
 			if (result === 'pull') {
@@ -458,7 +490,7 @@ describe('Reprint connection changes', () => {
 		ui.pendingClone = {
 			slug: 'test',
 			url: 'https://example.com/',
-			secret: 'saved-key',
+			keyPair: { privateKey: 'saved-key', publicKey: 'saved-public-key' },
 		};
 		// No client yet: the new Playground is still booting.
 		await render(null as unknown as PlaygroundClient, true);
@@ -466,33 +498,36 @@ describe('Reprint connection changes', () => {
 		await render(playground, true);
 		expect(pullSite).not.toHaveBeenCalled();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('saved-key');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('saved-public-key');
 		await submit();
 		expect(pullSite).toHaveBeenCalledTimes(1);
 	});
 
-	it('requires key submission if the remembered key belongs to another address', async () => {
+	it('requires enrollment confirmation if the remembered key belongs to another address', async () => {
 		vi.mocked(playground.fileExists).mockResolvedValue(true);
 		vi.mocked(playground.readFileAsText).mockResolvedValue(
 			JSON.stringify({ url: 'https://actual.example/?reprint-api' })
 		);
 		sessionStorage.setItem(
 			'playground-reprint:test',
-			JSON.stringify({ url: 'https://old.example/', secret: 'wrong-key' })
+			JSON.stringify({
+				url: 'https://old.example/',
+				keyPair: {
+					privateKey: 'wrong-key',
+					publicKey: 'wrong-public-key',
+				},
+			})
 		);
 		await render();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('');
-		edit('password', 'correct-key');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('public-key');
 		expect(pullSite).not.toHaveBeenCalled();
 		await submit();
 		expect(vi.mocked(pullSite).mock.calls[0].slice(1, 3)).toEqual([
 			'https://actual.example/',
-			'correct-key',
+			privateKey,
 		]);
 	});
 
@@ -503,13 +538,18 @@ describe('Reprint connection changes', () => {
 		);
 		sessionStorage.setItem(
 			'playground-reprint:test',
-			JSON.stringify({ url: 'https://example.com/', secret: 'saved-key' })
+			JSON.stringify({
+				url: 'https://example.com/',
+				keyPair: {
+					privateKey: 'saved-key',
+					publicKey: 'saved-public-key',
+				},
+			})
 		);
 		await render();
 		expect(
-			container.querySelector<HTMLInputElement>('input[type=password]')!
-				.value
-		).toBe('saved-key');
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe('saved-public-key');
 		expect(pullSite).not.toHaveBeenCalled();
 	});
 

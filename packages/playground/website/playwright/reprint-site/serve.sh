@@ -12,7 +12,6 @@ set -euo pipefail
 PORT="${REPRINT_E2E_PORT:-8181}"
 DIR="${REPRINT_E2E_DIR:-/tmp/playground-reprint-e2e-site}"
 CACHE="${REPRINT_E2E_CACHE:-/tmp/playground-reprint-e2e-cache}"
-SECRET="${REPRINT_E2E_SECRET:-playground-e2e-secret}"
 
 WP_VERSION=7.1.2
 SQLITE_PLUGIN_VERSION=3.0.2
@@ -23,9 +22,9 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # The server zip has its own digest, which must be updated with the client pin.
 REPRINT_VERSION="$(node -e "
 const fs = require('node:fs');
-const source = fs.readFileSync(process.argv[1], 'utf8');
-process.stdout.write(source.match(/export const REPRINT_VERSION = '([^']+)'/)[1]);
-" "$HERE/../../src/lib/reprint/reprint.ts")"
+const release = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+process.stdout.write(release.version);
+" "$HERE/../../src/lib/reprint/release.json")"
 URL="http://127.0.0.1:${PORT}"
 WP="php ${CACHE}/wp-cli.phar --path=${DIR}"
 
@@ -49,7 +48,6 @@ tar xzf "${CACHE}/wordpress-${WP_VERSION}.tar.gz" --strip-components=1 -C "$DIR"
 unzip -q "${CACHE}/sqlite-database-integration.zip" -d "${DIR}/wp-content/plugins"
 mkdir -p "${DIR}/wp-content/plugins/reprint-server"
 unzip -q "${CACHE}/reprint-server-${REPRINT_VERSION}.zip" -d "${DIR}/wp-content/plugins/reprint-server"
-printf '<?php return %s;\n' "'${SECRET}'" > "${DIR}/wp-content/plugins/reprint-server/secret.php"
 
 # The SQLite drop-in, filled in the way WordPress Playground fills it.
 sed \
@@ -58,6 +56,9 @@ sed \
 	"${DIR}/wp-content/plugins/sqlite-database-integration/db.copy" > "${DIR}/wp-content/db.php"
 
 $WP config create --dbname=wordpress --dbuser=wordpress --dbpass=wordpress --skip-check --quiet
+# Keep the pinned fixture stable while admin enrollment and the pull run.
+$WP config set AUTOMATIC_UPDATER_DISABLED true --raw --quiet
+$WP config set DISABLE_WP_CRON true --raw --quiet
 $WP core install --url="$URL" --title="Reprint E2E source" \
 	--admin_user=admin --admin_password=password --admin_email=admin@example.com \
 	--skip-email --quiet

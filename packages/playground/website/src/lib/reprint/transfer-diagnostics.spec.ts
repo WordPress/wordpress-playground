@@ -10,7 +10,8 @@ describe('Reprint transfer diagnostics', () => {
 			[root + '/operation.json']: '{"kind":"pull","stage":"files-pull"}',
 			[root + '/pull-state/progress.json']: '{"status":"partial"}',
 			[root + '/pull-state/audit.log']:
-				'old line\n'.repeat(2000) + 'Failed path with private-key\n',
+				'old line\n'.repeat(2000) +
+				'Failed path with -----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n',
 			[root + '/pull-state/db.sql']: 'private database',
 		};
 		const playground = {
@@ -22,7 +23,7 @@ describe('Reprint transfer diagnostics', () => {
 			readFileAsText: vi.fn(async (path: string) => files[path]),
 			run: vi.fn(() => new Promise(() => {})),
 		} as unknown as PlaygroundClient;
-		const report = await getTransferDiagnostics(playground, 'private-key');
+		const report = await getTransferDiagnostics(playground);
 		expect(report).toContain('"stage":"files-pull"');
 		expect(report).toContain('"status":"partial"');
 		expect(report).toContain('Failed path with [redacted]');
@@ -57,14 +58,11 @@ describe('Reprint transfer diagnostics', () => {
 				const readFileAsText = vi.fn(async () =>
 					pause === 'contents' ? blocked : '{}'
 				);
-				const report = getTransferDiagnostics(
-					{
-						fileExists,
-						listFiles,
-						readFileAsText,
-					} as unknown as PlaygroundClient,
-					'token'
-				);
+				const report = getTransferDiagnostics({
+					fileExists,
+					listFiles,
+					readFileAsText,
+				} as unknown as PlaygroundClient);
 				await vi.advanceTimersByTimeAsync(10000);
 				expect(await report).toContain('did not answer');
 				const calls = [fileExists, listFiles, readFileAsText].map(
@@ -100,7 +98,7 @@ describe('Reprint transfer diagnostics', () => {
 					.mockResolvedValueOnce('{"stage":"files-pull"}')
 					.mockImplementation(() => new Promise(() => {})),
 			} as unknown as PlaygroundClient;
-			const report = getTransferDiagnostics(playground, 'private-key');
+			const report = getTransferDiagnostics(playground);
 			await vi.advanceTimersByTimeAsync(10000);
 			expect(await report).toContain('"stage":"files-pull"');
 			expect(await report).toContain('did not answer');

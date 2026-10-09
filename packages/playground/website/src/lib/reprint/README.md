@@ -2,8 +2,10 @@
 
 Start Playground with `?reprint`, then open **New Playground → Clone a live site**.
 Enter the live URL. The panel links to the site's plugin upload page and the
-pinned Reprint Server zip when setup is needed. When Reprint answers, open its settings page, copy the connection
-token, and submit it. The source site stays unchanged.
+pinned Reprint Server zip when setup is needed. When Reprint answers, Playground
+generates a key pair. Copy the public key into
+**Tools → Reprint Server** on the live site, click **Enroll key**, then return
+and click **Clone site**. The source site stays unchanged.
 
 ## Import
 
@@ -49,10 +51,16 @@ Unknown totals hold the bar at the phase boundary. Only completion reaches 100%.
 ## Keys and retries
 
 The PHAR is pinned to v0.10.13 and verified against its SHA-256 digest before
-execution. The saved connection contains the URL only. The key is passed to PHP
-through its process environment, not written into generated scripts or exports.
-The panel remembers it in tab-scoped session storage beside its live-site URL.
-Changing the live URL does not reuse the old key.
+execution. This release already supports public-key authentication, including
+servers that now require it. The browser generates RSA-3072 keys using Web Crypto;
+Reprint's PHP client signs the requests using its `private_key_path` option.
+The private key reaches PHP through its process environment, then stays in
+`/tmp/playground-reprint-state/.../key.pem` with mode 0600. It is never written
+inside WordPress or exported with the clone, and is removed before imported
+plugins run during login. The saved connection contains the URL only. The panel remembers the pair in tab-scoped session storage beside its
+live-site URL. Changing the live URL creates a new pair. Shared connection-token
+entry is no longer part of this flow. Hosts without public-key verification
+must use Reprint's CLI token flow instead.
 
 Keep the tab open. Failed stages retain their in-memory Reprint checkpoints.
 **Try resuming** reuses the key and downloaded bytes; local link setup can resume
@@ -62,8 +70,8 @@ is saved to browser storage. Files change in place, so an interrupted pull is
 not an atomic replacement and must be resumed or restarted.
 
 The header menu provides a transfer log. Reads have a ten-second deadline and
-return any records received before a stalled worker. Tokens are redacted before
-log tails are copied. Downloaded site data can still contain passwords, personal
+return any records received before a stalled worker. Private PEM blocks, including
+JSON-escaped blocks, are redacted before log tails are copied. Downloaded site data can still contain passwords, personal
 data, and plugin secrets. Clean it before sharing a public Playground.
 
 ## Checks
@@ -75,7 +83,8 @@ mapper, writer, size checks, and stage checkpoints.
 
 `playwright/reprint-site/serve.sh` provisions a disposable WordPress site on
 SQLite with Reprint Server. The dedicated `reprint-import` CI lane clones it
-through the UI, checks files and rewritten database values, verifies admin
+through the UI after enrolling its public key in the actual plugin settings,
+checks files and rewritten database values, verifies admin
 login, and reloads the saved clone. The source uses generated thumbnails,
 non-ASCII paths, escaped shortcode URLs, serialized values, and a custom table.
 Reprint's own tests cover MySQL sources; this fixture covers Playground.

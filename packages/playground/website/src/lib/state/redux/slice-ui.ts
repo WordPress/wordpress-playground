@@ -1,6 +1,7 @@
 import type { DockToolSection as DockPaneSection } from '../../../components/dock/tool-registry';
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import type { ReprintKeyPair } from '../../reprint/keys';
 import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
@@ -174,7 +175,7 @@ export interface UIState {
 	 * Connection details for a Playground created by the clone flow. The
 	 * transfer panel mounted for that slug starts the pull with them.
 	 */
-	pendingClone?: { slug: string; url: string; secret: string };
+	pendingClone?: { slug: string; url: string; keyPair: ReprintKeyPair };
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
 	 * pane does not discard the user's work.

@@ -287,7 +287,7 @@ readfile(__DIR__ . "/response.json");
             mkdir($site);
             $transfer = '/tmp/playground-reprint-state/' . md5($site . "\n" . $url);
             $transfer_roots[] = $transfer;
-            $request = ['command' => $kind, 'documentRoot' => $site, 'url' => $url, 'secret' => 'test-key', 'siteUrl' => 'https://playground.test'];
+            $request = ['command' => $kind, 'documentRoot' => $site, 'url' => $url, 'privateKey' => WordPress\Reprint\Server\PublicKeyClient::generate_keypair()[0], 'siteUrl' => 'https://playground.test'];
             $previous_index = null;
             if ($kind === 'pull') {
                 $client = new PlaygroundReprintClient($url, $transfer . '/pull-state', $site, ['allow_http' => is_local_reprint_url($url)]);
@@ -314,6 +314,9 @@ readfile(__DIR__ . "/response.json");
                 fclose($pipes[2]);
                 $exit = proc_close($process);
                 $operation = json_decode(file_get_contents($transfer . '/operation.json'), true);
+                check(file_get_contents($transfer . '/key.pem') === $request['privateKey'], 'Reprint reads the supplied private key from transfer state outside the site.');
+                check((fileperms($transfer . '/key.pem') & 0777) === 0600, 'The temporary key is readable only by its PHP process user.');
+                check(!is_file($site . '/key.pem'), 'The private key is not part of the downloaded WordPress tree.');
                 if ($kind === 'pull') {
                     check(is_file($previous_index) && filesize($previous_index) > 0, 'Starting or retrying preflight preserves the prior remote index.');
                     $progress = is_file($transfer . '/pull-state/progress.json') ? json_decode(file_get_contents($transfer . '/pull-state/progress.json'), true) : [];

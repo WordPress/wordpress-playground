@@ -36,10 +36,29 @@ vi.mock('@wp-playground/tools', () => ({
 }));
 
 // Detection must use Reprint's reply, not a generic host error. These fixtures
-// come from v0.10.8's unauthenticated preflight, before any site data is read.
+// cover legacy and key-only servers, before any site data is read.
 describe('Reprint setup', () => {
 	beforeEach(() => vi.clearAllMocks());
 	it.each([
+		[
+			403,
+			{
+				code: 403,
+				reason: 'requires_key_auth',
+				error: 'This host requires key authentication',
+			},
+			'configured',
+		],
+		[
+			503,
+			{
+				code: 503,
+				reason: 'no_keys_enrolled',
+				error: 'No keys are enrolled',
+			},
+			'needs-key',
+		],
+		[200, { code: 403, reason: 'requires_key_auth' }, 'not-detected'],
 		[
 			403,
 			{ code: 403, error: 'Missing X-Auth-Signature header' },
@@ -50,6 +69,15 @@ describe('Reprint setup', () => {
 			{
 				code: 503,
 				error: 'Export not configured. Please configure the connection token in WordPress admin under Tools > Reprint Server.',
+			},
+			'needs-key',
+		],
+		[
+			503,
+			{
+				code: 503,
+				reason: 'not_configured',
+				error: 'Export not configured: no connection token is stored. Set up the connection in WordPress admin under Tools > Reprint Server.',
 			},
 			'needs-key',
 		],
@@ -287,7 +315,7 @@ describe('Reprint command replies', () => {
 			{
 				command: 'pull',
 				url: 'https://example.com/?reprint-api',
-				secret: 'private-token',
+				privateKey: 'private-token',
 				documentRoot: '/wordpress',
 				siteUrl: 'https://playground.test/scope:site',
 			},
@@ -410,7 +438,7 @@ describe('Reprint command replies', () => {
 			{
 				command: 'pull',
 				url: 'https://example.com/?reprint-api',
-				secret: 'token',
+				privateKey: 'token',
 				documentRoot: '/wordpress',
 				siteUrl: 'https://playground.test/scope:site',
 			},
@@ -427,10 +455,14 @@ describe('Reprint command replies', () => {
 		);
 	});
 
-	it('redacts the connection token from an error', async () => {
+	it('redacts a private PEM key from an error', async () => {
 		const { playground } = createClient([]);
 		vi.mocked(playground.runStream).mockResolvedValueOnce(
-			response('', 'failed with private-token', 1) as never
+			response(
+				'',
+				'failed with -----BEGIN PRIVATE KEY-----\nprivate-token\n-----END PRIVATE KEY-----',
+				1
+			) as never
 		);
 		await expect(
 			runBridge(
@@ -438,7 +470,7 @@ describe('Reprint command replies', () => {
 				{
 					command: 'pull',
 					url: 'https://example.com/?reprint-api',
-					secret: 'private-token',
+					privateKey: 'private-token',
 					documentRoot: '/wordpress',
 					siteUrl: 'https://playground.test/scope:site',
 				},

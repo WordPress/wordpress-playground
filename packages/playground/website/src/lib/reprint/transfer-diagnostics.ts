@@ -1,10 +1,10 @@
+import { redactReprintPrivateKeys } from './keys';
 import { joinPaths } from '@php-wasm/util';
 import type { PlaygroundClient } from '@wp-playground/client';
 
 /** Read saved transfer records, or return partial records if the worker stops answering. */
 export async function getTransferDiagnostics(
-	playground: PlaygroundClient,
-	secret: string
+	playground: PlaygroundClient
 ): Promise<string> {
 	const root = '/tmp/playground-reprint-state';
 	const sections: string[] = [];
@@ -29,9 +29,7 @@ export async function getTransferDiagnostics(
 					if (cancelled) return '';
 					// Redact before taking the tail, so its boundary cannot expose
 					// part of a key that appeared in an upstream error message.
-					const redacted = secret
-						? contents.replaceAll(secret, '[redacted]')
-						: contents;
+					const redacted = redactReprintPrivateKeys(contents);
 					sections.push(`${path}\n${redacted.slice(-12000)}`);
 				}
 			}

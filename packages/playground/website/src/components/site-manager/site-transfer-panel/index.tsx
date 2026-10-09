@@ -17,6 +17,10 @@ import {
 } from '@wordpress/components';
 import { Icon, check, moreVertical } from '@wordpress/icons';
 import { formatBytes } from '@php-wasm/util';
+import {
+	generateReprintKeyPair,
+	type ReprintKeyPair,
+} from '../../../lib/reprint/keys';
 import { readReprintConnection } from '../../../lib/reprint/connection';
 import {
 	setDockOperationNotice,
@@ -78,10 +82,12 @@ export function SiteTransferPanel({
 			? ''
 			: (handoff?.url ?? rememberedConnection(site.slug)?.url ?? '')
 	);
-	const [secret, setSecret] = useState(() =>
+	const [keyPair, setKeyPair] = useState<ReprintKeyPair | null>(() =>
 		cloneRequested
-			? ''
-			: (handoff?.secret ?? rememberedConnection(site.slug)?.secret ?? '')
+			? null
+			: (handoff?.keyPair ??
+				rememberedConnection(site.slug)?.keyPair ??
+				null)
 	);
 	const [step, setStep] = useState<'site' | 'install' | 'key' | 'transfer'>(
 		handoff ? 'transfer' : 'site'
@@ -99,13 +105,6 @@ export function SiteTransferPanel({
 	const running = useRef(false);
 	const [progress, setProgress] = useState<TransferProgress>({ message: '' });
 	const [error, setError] = useState('');
-	// The live site rejected the key. Shown at the field, not as a notice.
-	const [keyRejected, setKeyRejected] = useState(false);
-	const keyInput = useRef<HTMLInputElement>(null);
-	useEffect(() => {
-		// Select the rejected key so pasting a new one replaces it in one step.
-		if (keyRejected) keyInput.current?.select();
-	}, [keyRejected]);
 	const [completed, setCompleted] = useState(false);
 	const [warning, setWarning] = useState('');
 	const [diagnostics, setDiagnostics] = useState('');
@@ -123,7 +122,8 @@ export function SiteTransferPanel({
 	const hostname = links ? new URL(links.site).hostname : '';
 	const acceptsKey =
 		setup === 'configured' || setup === 'needs-key' || setup === 'manual';
-	const keyReady = acceptsKey && !!secret.trim();
+	const keyReady = acceptsKey && !!keyPair;
+	const generatingKey = step === 'key' && !keyPair && !error;
 	const ready =
 		playground &&
 		site.metadata.runtimeConfiguration.networking &&
@@ -142,7 +142,7 @@ export function SiteTransferPanel({
 				const address = getReprintAdminUrls(connection).site;
 				const saved = rememberedConnection(site.slug);
 				setUrl(address);
-				setSecret(saved?.url === address ? saved.secret : '');
+				setKeyPair(saved?.url === address ? saved.keyPair : null);
 				setSetup('manual');
 				setCompleted(false);
 				setError('');
@@ -156,6 +156,35 @@ export function SiteTransferPanel({
 		};
 	}, [isVisible, playground, site.slug, cloneRequested]);
 
+	// Generate once per live-site address. A late key generation must not attach
+	// the old address's pair to a different site or a closed setup step.
+	useEffect(() => {
+		if (step !== 'key' || keyPair) return;
+		let cancelled = false;
+		void generateReprintKeyPair().then(
+			(pair) => {
+				if (cancelled) return;
+				setKeyPair(pair);
+				// Enrollment may happen before the user returns to press Clone.
+				// Closing and reopening the panel must keep that same pair.
+				rememberConnection(
+					site.slug,
+					getReprintAdminUrls(url).site,
+					pair
+				);
+			},
+			(error) => {
+				if (cancelled) return;
+				setError(
+					`Could not generate a connection key: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+		);
+		return () => {
+			cancelled = true;
+		};
+	}, [step, url, keyPair, site.slug]);
+
 	useEffect(() => () => checkController.current?.abort(), []);
 
 	// The handoff is read once, when this panel mounts for the new Playground.
@@ -166,12 +195,12 @@ export function SiteTransferPanel({
 
 	useEffect(() => {
 		if (!isVisible) return;
-		const input = content.current?.querySelector<HTMLInputElement>(
-			'input:not([disabled]):not([type=checkbox])'
-		);
+		const input = content.current?.querySelector<
+			HTMLInputElement | HTMLTextAreaElement
+		>('input:not([disabled]):not([type=checkbox]), textarea[readonly]');
 		if (input) input.focus();
 		else heading.current?.focus();
-	}, [step, isVisible, busy, completed]);
+	}, [step, isVisible, busy, completed, keyPair]);
 
 	useEffect(() => {
 		if (!busy) return;
@@ -191,8 +220,7 @@ export function SiteTransferPanel({
 		setUrl(value);
 		setSetup(null);
 		setStep('site');
-		setSecret('');
-		setKeyRejected(false);
+		setKeyPair(null);
 		setError('');
 		setCompleted(false);
 	};
@@ -212,9 +240,9 @@ export function SiteTransferPanel({
 				setSetup(result);
 				const saved = rememberedConnection(site.slug);
 				const savedKey =
-					!secret && saved?.url === address ? saved.secret : '';
+					!keyPair && saved?.url === address ? saved.keyPair : null;
 				if (savedKey) {
-					setSecret(savedKey);
+					setKeyPair(savedKey);
 				}
 				setStep(
 					result === 'configured' || result === 'needs-key'
@@ -275,7 +303,7 @@ export function SiteTransferPanel({
 			const result = await pullSite(
 				playground,
 				url,
-				secret,
+				keyPair!.privateKey,
 				(update) => {
 					// File batches report both counters; keep the last totals
 					// for the completion summary.
@@ -325,12 +353,8 @@ export function SiteTransferPanel({
 			}
 			const message =
 				error instanceof Error ? error.message : String(error);
-			if (message.startsWith('Wrong connection token')) {
-				// Resuming with the same key would fail the same way.
-				setStep('key');
-				setKeyRejected(true);
-				return;
-			}
+			// An unenrolled key can be added on the live site before retrying.
+			// Keep this pair; replacing it would require another enrollment.
 			setStep('transfer');
 			setError(message);
 		} finally {
@@ -344,7 +368,7 @@ export function SiteTransferPanel({
 		keyReady,
 		site.slug,
 		url,
-		secret,
+		keyPair,
 		sitesAPI,
 	]);
 
@@ -406,15 +430,8 @@ export function SiteTransferPanel({
 			deriveSlugFromSiteName(randomSiteName()),
 			{ unavailableSlugs: existingSlugs }
 		);
-		try {
-			sessionStorage.setItem(
-				`playground-reprint:${slug}`,
-				JSON.stringify({ url: address, secret })
-			);
-		} catch {
-			// Transfers still work when browser storage is unavailable.
-		}
-		dispatch(setPendingClone({ slug, url: address, secret }));
+		rememberConnection(slug, address, keyPair!);
+		dispatch(setPendingClone({ slug, url: address, keyPair: keyPair! }));
 		try {
 			// The clone stays temporary while it downloads: nothing is written to
 			// browser storage until the site is complete and usable.
@@ -426,8 +443,13 @@ export function SiteTransferPanel({
 				{ updateUrl: false }
 			);
 			if (created !== slug) {
+				rememberConnection(created, address, keyPair!);
 				dispatch(
-					setPendingClone({ slug: created, url: address, secret })
+					setPendingClone({
+						slug: created,
+						url: address,
+						keyPair: keyPair!,
+					})
 				);
 			}
 		} catch (error) {
@@ -447,7 +469,7 @@ export function SiteTransferPanel({
 		setReadingDiagnostics(true);
 		setDiagnostics('');
 		try {
-			const report = await getTransferDiagnostics(playground, secret);
+			const report = await getTransferDiagnostics(playground);
 			try {
 				await navigator.clipboard.writeText(report);
 				dispatch(
@@ -467,7 +489,7 @@ export function SiteTransferPanel({
 		} finally {
 			setReadingDiagnostics(false);
 		}
-	}, [playground, readingDiagnostics, secret, dispatch]);
+	}, [playground, readingDiagnostics, dispatch]);
 
 	// The transfer log is a support tool, so it hides behind an overflow menu
 	// rather than sitting beside the primary actions. Memoized: the header
@@ -637,7 +659,7 @@ export function SiteTransferPanel({
 							</p>
 							<p>
 								Already installed? Make sure it’s active. If
-								your host blocks the check, you can enter a key
+								your host blocks the check, you can set up a key
 								below.
 							</p>
 						</Notice>
@@ -680,7 +702,7 @@ export function SiteTransferPanel({
 									setStep('key');
 								}}
 							>
-								Reprint is installed — enter a key
+								Reprint is installed — connect
 							</Button>
 						</div>
 					</VStack>
@@ -694,78 +716,83 @@ export function SiteTransferPanel({
 								return;
 							}
 							if (keyReady && ready) {
-								try {
-									sessionStorage.setItem(
-										`playground-reprint:${site.slug}`,
-										JSON.stringify({
-											url: getReprintAdminUrls(url).site,
-											secret,
-										})
-									);
-								} catch {
-									// Transfers still work when browser storage is unavailable.
-								}
+								rememberConnection(
+									site.slug,
+									getReprintAdminUrls(url).site,
+									keyPair!
+								);
 								void start();
 							}
 						}}
 					>
 						<VStack spacing={3}>
-							<div className={css.siteForm}>
-								<TextControl
-									__nextHasNoMarginBottom
-									ref={keyInput}
-									className={css.heroInput}
-									autoFocus={isVisible}
-									label={`Reprint key on ${hostname}`}
-									type="password"
-									autoComplete="off"
-									aria-invalid={keyRejected || undefined}
-									aria-describedby={
-										keyRejected
-											? 'reprint-key-error'
-											: undefined
-									}
-									value={secret}
-									onChange={(value) => {
-										setKeyRejected(false);
-										setSecret(value);
-									}}
-									disabled={busy}
-								/>
-								<Button
-									type="submit"
-									variant="primary"
-									disabled={
-										!keyReady || (!cloneRequested && !ready)
-									}
-								>
-									{cloning ? 'Clone site' : 'Pull site'}
-								</Button>
-							</div>
-							{keyRejected && (
-								<p
-									id="reprint-key-error"
-									className={css.fieldError}
-									role="alert"
-								>
-									This key doesn’t match the one on {hostname}
-									.
-								</p>
+							{generatingKey && (
+								<InlineProgress message="Generating a connection key…" />
 							)}
-							<p className={css.hint}>
-								{setup === 'needs-key'
-									? 'Reprint Server has no key yet. Create one in '
-									: 'Copy the key from '}
-								<a
-									href={links.settings}
-									target="_blank"
-									rel="noreferrer"
-								>
-									Reprint settings
-								</a>{' '}
-								in your live site’s wp-admin, then paste it
-								here.
-							</p>
+							{keyPair && (
+								<>
+									<p>
+										Add this public key in{' '}
+										<a
+											href={links.settings}
+											target="_blank"
+											rel="noreferrer"
+										>
+											Reprint settings on {hostname}
+										</a>
+										, then come back and clone the site.
+									</p>
+									<TextareaControl
+										__nextHasNoMarginBottom
+										label="Public key"
+										onChange={() => {}}
+										readOnly
+										autoFocus={isVisible}
+										onFocus={(event) =>
+											event.target.select()
+										}
+										value={keyPair.publicKey}
+										rows={3}
+									/>
+									<Button
+										variant="secondary"
+										onClick={async () => {
+											try {
+												await navigator.clipboard.writeText(
+													keyPair.publicKey
+												);
+												dispatch(
+													setDockOperationNotice({
+														status: 'success',
+														title: 'Public key copied',
+													})
+												);
+											} catch {
+												setError(
+													'Select the public key above and copy it manually.'
+												);
+											}
+										}}
+									>
+										Copy public key
+									</Button>
+									<p className={css.hint}>
+										Only the public key goes to your live
+										site. The private key stays in this tab
+										and is reused when you retry.
+									</p>
+									<Button
+										type="submit"
+										variant="primary"
+										disabled={
+											!keyReady ||
+											(!cloneRequested && !ready)
+										}
+									>
+										{cloning ? 'Clone site' : 'Pull site'}
+									</Button>
+								</>
+							)}
 							{!cloneRequested && (
 								<PlaygroundBootNotice show={!playground} />
 							)}
@@ -895,22 +922,39 @@ function formatDuration(seconds: number): string {
 /** Read a tab-scoped key only alongside its normalized live-site address. */
 function rememberedConnection(
 	slug: string
-): { url: string; secret: string } | null {
+): { url: string; keyPair: ReprintKeyPair } | null {
 	try {
 		const saved = JSON.parse(
 			sessionStorage.getItem(`playground-reprint:${slug}`) ?? 'null'
 		);
 		if (
 			typeof saved?.url === 'string' &&
-			typeof saved?.secret === 'string'
+			typeof saved?.keyPair?.privateKey === 'string' &&
+			typeof saved?.keyPair?.publicKey === 'string'
 		) {
 			return {
 				url: getReprintAdminUrls(saved.url).site,
-				secret: saved.secret,
+				keyPair: saved.keyPair,
 			};
 		}
 	} catch {
 		// An invalid saved connection must not block entering a new one.
 	}
 	return null;
+}
+
+/** Keep enrollment and retries tied to the same tab and normalized live URL. */
+function rememberConnection(
+	slug: string,
+	url: string,
+	keyPair: ReprintKeyPair
+): void {
+	try {
+		sessionStorage.setItem(
+			`playground-reprint:${slug}`,
+			JSON.stringify({ url, keyPair })
+		);
+	} catch {
+		// Transfers still work when browser storage is unavailable.
+	}
 }

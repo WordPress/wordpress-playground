@@ -52,11 +52,43 @@ test(
 			.fill(siteUrl!);
 		await pane.getByRole('button', { name: 'Check site' }).click();
 		// The key step opens only when Reprint Server answered the probe.
-		const key = pane.locator('input[type=password]');
-		await expect(key).toBeVisible();
-		await key.fill(
-			process.env.REPRINT_E2E_SECRET || 'playground-e2e-secret'
+		const key = pane.getByRole('textbox', {
+			name: 'Public key',
+			exact: true,
+		});
+		await expect(key).toHaveValue(/^[A-Za-z0-9+/]+=*$/);
+		const publicKey = await key.inputValue();
+		// Enroll through the actual plugin settings, just as a user would. No
+		// shared token or unauthenticated test endpoint stands in for signatures.
+		const sourceAdmin = await page.context().newPage();
+		await sourceAdmin.goto(
+			new URL('wp-admin/tools.php?page=reprint-server', siteUrl).href
 		);
+		await sourceAdmin
+			.getByRole('textbox', { name: 'Username or Email Address' })
+			.fill('admin');
+		await sourceAdmin.locator('#user_pass').fill('password');
+		await sourceAdmin
+			.getByRole('button', { name: 'Log In', exact: true })
+			.click();
+		try {
+			await sourceAdmin
+				.getByRole('textbox', { name: 'Public key', exact: true })
+				.fill(publicKey, { timeout: 15_000 });
+		} catch (error) {
+			await test.info().attach('Source Reprint settings', {
+				body: await sourceAdmin.content(),
+				contentType: 'text/html',
+			});
+			throw error;
+		}
+		await sourceAdmin
+			.getByRole('button', { name: 'Enroll key', exact: true })
+			.click();
+		await expect(
+			sourceAdmin.getByText('Public key enrolled.')
+		).toBeVisible();
+		await sourceAdmin.close();
 		await pane.getByRole('button', { name: 'Clone site' }).click();
 
 		const openSite = page.getByRole('button', { name: 'Open site' });
@@ -81,6 +113,8 @@ test(
 						global $wpdb;
 						echo json_encode([
 							'home' => get_option('home'),
+							'privateKeyFiles' => glob('/tmp/playground-reprint-state/*/key.pem'),
+							'connection' => json_decode(file_get_contents('/wordpress/.playground-reprint/connection.json'), true),
 							'heroContent' => get_post(${manifest.heroPost})->post_content,
 							'firstContent' => get_post(${manifest.firstPost})->post_content,
 							'heroMeta' => get_post_meta(${manifest.heroPost}, 'playground_e2e_gallery', true),
@@ -139,6 +173,10 @@ test(
 		expect(copy.unicodeText).toBe('unicode path\n');
 
 		// Every stored URL now points at the copy, not the live site.
+		expect(copy.db.privateKeyFiles).toEqual([]);
+		expect(copy.db.connection).toEqual({
+			url: new URL('?reprint-api', siteUrl).href,
+		});
 		expect(copy.db.home).not.toContain(sourceOrigin);
 		expect(copy.db.firstContent).not.toContain(sourceOrigin);
 		expect(copy.db.firstContent).toContain(`href="${copy.db.home}/?p=1"`);
