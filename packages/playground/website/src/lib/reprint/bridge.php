@@ -195,6 +195,7 @@ if (getenv('PLAYGROUND_REPRINT') !== false) {
  * waiting for a result that never arrives.
  */
 function run_transfer(): void {
+    $exit_code = 0;
     set_error_handler(function (int $severity, string $message, string $file, int $line): bool {
         if (!(error_reporting() & $severity)) return false;
         throw new ErrorException($message, 0, $severity, $file, $line);
@@ -211,9 +212,6 @@ function run_transfer(): void {
         // Reprint's public API accepts a key-file path. Keep that file in /tmp,
         // never in the mirrored WordPress tree or the saved site's exports.
         $request['privateKeyPath'] = wp_join_unix_paths($root, 'key.pem');
-        file_put_contents($request['privateKeyPath'], $request['privateKey']);
-        chmod($request['privateKeyPath'], 0600);
-        unset($request['privateKey']);
         $operation_path = wp_join_unix_paths($root, 'operation.json');
         $operation = is_file($operation_path) ? json_decode(file_get_contents($operation_path), true, 512, JSON_THROW_ON_ERROR) : null;
         if (!in_array($request['command'], ['pull', 'finish-pull'], true)) {
@@ -231,11 +229,6 @@ function run_transfer(): void {
         } else {
             $result = pull_site($request, $root, $operation, $lock);
         }
-        // WordPress starts running imported plugins during login. Remove the key
-        // before that, not just at final completion. A retry supplies it again.
-        if (in_array($result['status'], ['install', 'complete'], true)) {
-            unlink($request['privateKeyPath']);
-        }
         if ($result['status'] === 'complete') {
             unlink($operation_path);
         } else {
@@ -244,13 +237,19 @@ function run_transfer(): void {
         echo json_encode(['playgroundReprint' => $result], JSON_THROW_ON_ERROR) . "\n";
     } catch (Throwable $error) {
         fwrite(STDERR, $error->getMessage() . "\n");
-        exit(1);
+        $exit_code = 1;
     } finally {
+        // PHP's exit() skips finally. Report failures above, but exit only
+        // after removing the key and releasing the transfer lock here.
+        if (isset($request['privateKeyPath']) && is_file($request['privateKeyPath'])) {
+            unlink($request['privateKeyPath']);
+        }
         restore_error_handler();
         if (isset($lock)) {
             $lock->close();
         }
     }
+    if ($exit_code !== 0) exit($exit_code);
 }
 
 /**
@@ -270,6 +269,7 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     $client = new ImportClient($request['url'], $state, $files, ['allow_http' => is_local_reprint_url($request['url'])]);
     // Reprint now returns from preflight instead of exiting PHP. Save its
     // metadata here, before advancing the operation or emitting the next stage.
+    write_private_key($request);
     $client->run(['command' => 'preflight', 'private_key_path' => $request['privateKeyPath'], 'progress' => 'jsonl'], $lock);
     $error = $client->get_preflight_error();
     if ($error !== null) throw new RuntimeException($error['message']);
@@ -385,6 +385,7 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         $operation['stage'] = 'db-pull';
         return ['status' => 'continue', 'stage' => $operation['stage']];
     }
+    write_private_key($request);
     $client->run([
         'command' => $stage,
         'private_key_path' => $request['privateKeyPath'],
@@ -410,6 +411,18 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         $operation['stage'] = $stages[array_search($stage, $stages, true) + 1];
     }
     return ['status' => 'continue', 'stage' => $operation['stage']];
+}
+
+/**
+ * Supplies Reprint's key-file API only when a stage calls ImportClient::run().
+ *
+ * The request's path is under the private /tmp transfer directory. Local
+ * setup and finish-pull never write it; run_transfer() removes it in finally
+ * after both successful and failed commands, before imported plugins can run.
+ */
+function write_private_key(array $request): void {
+    file_put_contents($request['privateKeyPath'], $request['privateKey']);
+    chmod($request['privateKeyPath'], 0600);
 }
 
 /**

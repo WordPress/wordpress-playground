@@ -31,6 +31,7 @@ try {
             ],
         ]],
     ];
+    check_private_key_lifecycle($root);
     check_preflight_lifecycle($root, $data);
     $metadata = source_metadata($data);
     check($metadata['tablePrefix'] === 'site_7_', 'Custom layouts and multisite do not block preflight.');
@@ -314,8 +315,7 @@ readfile(__DIR__ . "/response.json");
                 fclose($pipes[2]);
                 $exit = proc_close($process);
                 $operation = json_decode(file_get_contents($transfer . '/operation.json'), true);
-                check(file_get_contents($transfer . '/key.pem') === $request['privateKey'], 'Reprint reads the supplied private key from transfer state outside the site.');
-                check((fileperms($transfer . '/key.pem') & 0777) === 0600, 'The temporary key is readable only by its PHP process user.');
+                check(!is_file($transfer . '/key.pem'), 'Both successful and failed preflight remove the temporary private key.');
                 check(!is_file($site . '/key.pem'), 'The private key is not part of the downloaded WordPress tree.');
                 if ($kind === 'pull') {
                     check(is_file($previous_index) && filesize($previous_index) > 0, 'Starting or retrying preflight preserves the prior remote index.');
@@ -505,5 +505,36 @@ function check_site_size_limit(string $root): void {
         try { (new ReflectionMethod($sql_client, 'emit_sql_progress'))->invoke($sql_client); }
         catch (RuntimeException $error) { $rejected = str_contains($error->getMessage(), '2 GiB import limit'); }
         check($rejected, 'SQL bytes count against the same limit, including on a new PHP run.');
+    }
+}
+
+/** Verify key permissions and prove local finish calls never write a key file. */
+function check_private_key_lifecycle(string $root): void {
+    $key = WordPress\Reprint\Server\PublicKeyClient::generate_keypair()[0];
+    $path = $root . '/key.pem';
+    write_private_key(['privateKeyPath' => $path, 'privateKey' => $key]);
+    check(file_get_contents($path) === $key && (fileperms($path) & 0777) === 0600, 'The temporary file supplies Reprint the private PEM with mode 0600.');
+    unlink($path);
+    $request = ['documentRoot' => $root . '/finished-site', 'url' => 'https://finished.example/', 'privateKey' => $key];
+    $transfer = '/tmp/playground-reprint-state/' . md5($request['documentRoot'] . "\n" . $request['url']);
+    mkdir($transfer, 0700, true);
+    // A directory at the key-file path makes any accidental write fail. Merely
+    // checking for no file after the process returns would miss a brief write.
+    mkdir($transfer . '/key.pem');
+    try {
+        foreach (['pull' => 'install', 'finish-pull' => 'complete'] as $command => $status) {
+            file_put_contents($transfer . '/operation.json', '{"stage":"install"}');
+            $process = proc_open([PHP_BINARY, __DIR__ . '/bridge.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, array_merge(getenv(), ['PLAYGROUND_REPRINT' => json_encode($request + ['command' => $command])]));
+            fclose($pipes[0]);
+            $output = stream_get_contents($pipes[1]);
+            $errors = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exit = proc_close($process);
+            $result = json_decode(trim($output), true);
+            check($exit === 0 && ($result['playgroundReprint']['status'] ?? null) === $status, 'An installed-site ' . $command . ' never writes the private key: ' . $errors);
+        }
+    } finally {
+        remove_tree($transfer);
     }
 }

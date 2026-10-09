@@ -54,10 +54,11 @@ The PHAR is pinned to v0.10.13 and verified against its SHA-256 digest before
 execution. This release already supports public-key authentication, including
 servers that now require it. The browser generates RSA-3072 keys using Web Crypto;
 Reprint's PHP client signs the requests using its `private_key_path` option.
-The private key reaches PHP through its process environment, then stays in
+The private key reaches PHP through its process environment, then is written only for Reprint commands to
 `/tmp/playground-reprint-state/.../key.pem` with mode 0600. It is never written
-inside WordPress or exported with the clone, and is removed before imported
-plugins run during login. The saved connection contains the URL only. The panel remembers the pair in tab-scoped session storage beside its
+inside WordPress or exported with the clone. Each command removes it on success
+or failure, before imported plugins run during login. Local setup and final
+cleanup never write it. The saved connection contains the URL only. The panel remembers the pair in tab-scoped session storage beside its
 live-site URL. Changing the live URL creates a new pair. Shared connection-token
 entry is no longer part of this flow. Hosts without public-key verification
 must use Reprint's CLI token flow instead.
