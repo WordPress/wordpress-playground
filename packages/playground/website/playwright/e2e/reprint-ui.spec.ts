@@ -8,7 +8,7 @@ test(
 			browserName !== 'chromium',
 			'This flow requires browser storage.'
 		);
-		await website.goto('./?name=pull-entry-original');
+		await website.goto('./?reprint&name=pull-entry-original');
 		const page = website.page;
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
@@ -111,7 +111,7 @@ test(
 test('opening the clone form from a setup URL keeps its temporary Playground', async ({
 	website,
 }) => {
-	await website.goto('./?storage=temp&overlay=new');
+	await website.goto('./?reprint&storage=temp&overlay=new');
 	const page = website.page;
 	await page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())

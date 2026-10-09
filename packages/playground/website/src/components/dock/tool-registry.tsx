@@ -48,7 +48,7 @@ const definitions = [
 		isPrimary: true,
 		group: 'main',
 		title: 'New Playground',
-		description: 'Start from a Blueprint or clone a live site.',
+		description: 'Spin up a fresh Playground or start from a Blueprint.',
 		layout: 'default',
 		fixedHeight: true,
 	},

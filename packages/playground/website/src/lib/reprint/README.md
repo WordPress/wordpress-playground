@@ -1,8 +1,8 @@
 # Clone a live WordPress site
 
-Open **New Playground → Clone a live site**. Enter the live URL. The panel links
-to the site's plugin upload page and the pinned Reprint Server zip when setup
-is needed. When Reprint answers, open its settings page, copy the connection
+Start Playground with `?reprint`, then open **New Playground → Clone a live site**.
+Enter the live URL. The panel links to the site's plugin upload page and the
+pinned Reprint Server zip when setup is needed. When Reprint answers, open its settings page, copy the connection
 token, and submit it. The source site stays unchanged.
 
 ## Import
