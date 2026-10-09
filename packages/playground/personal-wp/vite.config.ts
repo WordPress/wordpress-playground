@@ -25,6 +25,7 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+import { oAuthMiddleware } from './vite.oauth';
 
 const personalWPDevServerPort = 5401;
 
@@ -142,6 +143,7 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server) {
+					server.middlewares.use(oAuthMiddleware);
 					server.printUrls = () => {
 						const url = `http://${websiteDevServerHost}:${personalWPDevServerPort}/website-server/`;
 						// eslint-disable-next-line no-console
