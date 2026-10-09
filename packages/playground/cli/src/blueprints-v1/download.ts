@@ -52,6 +52,11 @@ async function downloadTo(
 	monitor: EmscriptenDownloadMonitor
 ) {
 	const response = await monitor.monitorFetch(fetch(remoteUrl));
+	if (!response.ok) {
+		throw new Error(
+			`Failed to download ${remoteUrl}: ${response.status} ${response.statusText}`.trim()
+		);
+	}
 	const reader = response.body!.getReader();
 	const tmpPath = `${localPath}.partial`;
 	const writer = fs.createWriteStream(tmpPath);

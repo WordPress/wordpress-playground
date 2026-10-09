@@ -105,6 +105,23 @@ describe('resolveWordPressRelease', () => {
 		expect(result.source).toBe('api');
 	});
 
+	it('falls back to latest stable release when beta is requested but no beta/RC offer exists', async () => {
+		mockApiResponse.offers = productionReleaseOffers;
+		const result = await resolveWordPressRelease('beta');
+		expect(result.version).toBe('6.8.3');
+		expect(result.releaseUrl).toBe(
+			'https://wordpress.org/wordpress-6.8.3.zip'
+		);
+		expect(result.source).toBe('api');
+	});
+
+	it('throws an error if beta is requested and no releases exist at all', async () => {
+		mockApiResponse.offers = [];
+		await expect(resolveWordPressRelease('beta')).rejects.toThrow(
+			'No WordPress beta or RC release is currently available.'
+		);
+	});
+
 	it('resolves exact version match for minor release with .0 suffix', async () => {
 		const result = await resolveWordPressRelease('6.8.0');
 		expect(result.version).toBe('6.8');
