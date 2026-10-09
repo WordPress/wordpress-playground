@@ -56,12 +56,17 @@ async function replaceEditorContents(page: Page, content: string) {
 }
 
 /** Drops one nested host directory on the file explorer background. */
-async function dropHarnessDirectory(page: Page, content: string) {
+async function dropHarnessDirectory(
+	page: Page,
+	content: string,
+	fileName = 'note.txt'
+) {
+	const payload = { fileContent: content, fileName };
 	await page
 		.locator('[class*="fileExplorerContainer"]')
 		.first()
-		.evaluate((container, fileContent) => {
-			const file = new File([fileContent], 'note.txt', {
+		.evaluate((container, { fileContent, fileName }) => {
+			const file = new File([fileContent], fileName, {
 				type: 'text/plain',
 			});
 			const fileEntry = {
@@ -114,7 +119,12 @@ async function dropHarnessDirectory(page: Page, content: string) {
 			});
 			container.dispatchEvent(dropEvent);
 			dropDataIsReadable = false;
-		}, content);
+		}, payload);
+}
+
+/** Reads a harness file, resolving to null when it does not exist. */
+function readHarnessFileOrNull(page: Page, path: string) {
+	return readHarnessFile(page, path).catch(() => null);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -140,17 +150,97 @@ test('imports a local directory dropped on the explorer background', async ({
 	await dropHarnessDirectory(page, content);
 
 	await expect
-		.poll(async () => {
-			try {
-				return await readHarnessFile(page, importedPath);
-			} catch {
-				return null;
-			}
-		})
+		.poll(() => readHarnessFileOrNull(page, importedPath))
 		.toBe(content);
 	await expect(
 		page.locator('button[data-path="/wordpress/workspace/dropped-folder"]')
 	).toBeVisible();
+});
+
+test.describe('dropping a directory that already exists', () => {
+	const existingContent = 'Existing directory contents';
+	const existingPath = '/wordpress/workspace/dropped-folder/nested/note.txt';
+	const conflictDialog = (page: Page) =>
+		page.getByRole('dialog', { name: '"dropped-folder" already exists' });
+
+	test.beforeEach(async ({ page }) => {
+		await dropHarnessDirectory(page, existingContent);
+		await expect
+			.poll(() => readHarnessFileOrNull(page, existingPath))
+			.toBe(existingContent);
+	});
+
+	test('replaces the existing directory', async ({ page }) => {
+		const replacedContent = 'Replaced directory contents';
+		await dropHarnessDirectory(page, replacedContent, 'other.txt');
+		await expect(conflictDialog(page)).toBeVisible();
+		await conflictDialog(page)
+			.getByRole('button', { name: 'Replace' })
+			.click();
+
+		await expect
+			.poll(() =>
+				readHarnessFileOrNull(
+					page,
+					'/wordpress/workspace/dropped-folder/nested/other.txt'
+				)
+			)
+			.toBe(replacedContent);
+		// A replace is not a merge: the old file must be gone.
+		await expect(readHarnessFileOrNull(page, existingPath)).resolves.toBe(
+			null
+		);
+		await expect(
+			page.locator(
+				'button[data-path="/wordpress/workspace/dropped-folder (1)"]'
+			)
+		).toHaveCount(0);
+	});
+
+	test('keeps both directories', async ({ page }) => {
+		const secondContent = 'Second copy contents';
+		await dropHarnessDirectory(page, secondContent);
+		await expect(conflictDialog(page)).toBeVisible();
+		await conflictDialog(page)
+			.getByRole('button', { name: 'Keep both' })
+			.click();
+
+		await expect
+			.poll(() =>
+				readHarnessFileOrNull(
+					page,
+					'/wordpress/workspace/dropped-folder (1)/nested/note.txt'
+				)
+			)
+			.toBe(secondContent);
+		await expect(readHarnessFileOrNull(page, existingPath)).resolves.toBe(
+			existingContent
+		);
+	});
+
+	test('cancels the import', async ({ page }) => {
+		await dropHarnessDirectory(page, 'Never written', 'other.txt');
+		await expect(conflictDialog(page)).toBeVisible();
+		await conflictDialog(page)
+			.getByRole('button', { name: 'Cancel' })
+			.click();
+		await expect(conflictDialog(page)).toHaveCount(0);
+
+		await expect(readHarnessFileOrNull(page, existingPath)).resolves.toBe(
+			existingContent
+		);
+		await expect(
+			readHarnessFileOrNull(
+				page,
+				'/wordpress/workspace/dropped-folder/nested/other.txt'
+			)
+		).resolves.toBe(null);
+		await expect(
+			page.locator(
+				'button[data-path="/wordpress/workspace/dropped-folder (1)"]'
+			)
+		).toHaveCount(0);
+	});
 });
 
 test('autosaves editor changes into the harness filesystem', async ({
