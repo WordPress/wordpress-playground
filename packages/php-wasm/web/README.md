@@ -198,6 +198,10 @@ The link itself has no file or directory entry in OPFS. On restore, real files
 and directories are copied first, then links are created in the PHP filesystem.
 The index is not exposed as a PHP file.
 
+Journaled link changes save the index once per batch. A failed index write stays
+pending for the next flush, without replaying file operations that already
+completed.
+
 The same format applies to local folders mounted through a directory handle.
 Their saved links are records in this JSON file, not native host symlinks.
 A real PHP file at the reserved root path is rejected. Invalid saved indexes

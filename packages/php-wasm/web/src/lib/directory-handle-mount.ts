@@ -683,6 +683,11 @@ export function journalFSEventsToOpfs(
 		// Initial copying and replay both write the symlink index. Capture
 		// changes during setup, but replay them only after that copy finishes.
 		await options.initialSync;
+		// A failed index write can leave an empty journal. Retry that write even
+		// when there are no new filesystem operations to replay.
+		if (journal.length === 0) {
+			await rewriter.flushSymlinks();
+		}
 		const maxFlushPasses =
 			options.maxFlushPasses ?? DEFAULT_MAX_OPFS_FLUSH_PASSES;
 		for (let pass = 0; journal.length > 0; pass++) {
@@ -706,6 +711,8 @@ export function journalFSEventsToOpfs(
 	 * If replay fails, restores the failed operation and its unattempted suffix
 	 * ahead of events captured during replay. Completed operations are not
 	 * retried because moves and deletes are not generally safe to apply twice.
+	 * Saves the symlink index once after replay; a failed index write stays
+	 * pending without putting completed filesystem operations back in the journal.
 	 */
 	async function flushJournalOnce() {
 		if (journal.length === 0) {
@@ -728,6 +735,7 @@ export function journalFSEventsToOpfs(
 				await rewriter.processEntry(entry);
 				processedEntryCount++;
 			}
+			await rewriter.flushSymlinks();
 		} catch (error) {
 			// Put the failed operation and unattempted remainder back ahead of
 			// events captured while this batch was replaying.
@@ -940,19 +948,23 @@ class OpfsRewriter {
 					);
 				}
 			}
-			if (this.symlinksDirty) {
-				await writeSavedSymlinks(this.opfs, this.symlinks);
-				this.symlinksDirty = false;
-			}
 		} catch (e) {
-			// Keep a changed index dirty until it is saved. On retry, deletion
-			// may already be reflected in the map, but its write still needs to run.
 			// Useful for debugging – the original error gets lost in the
 			// Comlink proxy.
 			logger.log({ entry, name });
 			logger.error(e);
 			throw e;
 		}
+	}
+
+	public async flushSymlinks() {
+		if (!this.symlinksDirty) {
+			return;
+		}
+		// Keep a changed index dirty until it is saved. On retry, deletion
+		// may already be reflected in the map, but its write still needs to run.
+		await writeSavedSymlinks(this.opfs, this.symlinks!);
+		this.symlinksDirty = false;
 	}
 }
 

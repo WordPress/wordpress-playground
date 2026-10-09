@@ -223,6 +223,41 @@ describe('saved symlinks', () => {
 		expect(root.files.has('.playground-symlinks.json')).toBe(false);
 	});
 
+	it('writes the index once for a batch of link creates, renames, and deletes', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/kept');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const writeIndex = vi.spyOn(
+			root.files.get('.playground-symlinks.json')!,
+			'createWritable'
+		);
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		for (let i = 0; i < 100; i++) {
+			php.symlink(`../target-${i}`, `/site/link-${i}`);
+		}
+		php.mv('/site/kept', '/site/renamed');
+		php.unlink('/site/link-0');
+		await mount.flush();
+		expect(writeIndex).toHaveBeenCalledTimes(1);
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({
+			...Object.fromEntries(
+				Array.from({ length: 99 }, (_, i) => [
+					`/link-${i + 1}`,
+					`../target-${i + 1}`,
+				])
+			),
+			'/renamed': 'missing',
+		});
+		await mount.unmount();
+		expect(writeIndex).toHaveBeenCalledTimes(1);
+	});
+
 	it('retries a failed index write without losing the renamed link', async () => {
 		php.mkdir('/site');
 		php.symlink('missing', '/site/link');
@@ -230,13 +265,16 @@ describe('saved symlinks', () => {
 		const handle = root as unknown as FileSystemDirectoryHandle;
 		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
 		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		const removeEntry = vi.spyOn(root, 'removeEntry');
 		vi.spyOn(
 			root.files.get('.playground-symlinks.json')!,
 			'createWritable'
 		).mockRejectedValueOnce(new Error('Quota exceeded'));
 		php.mv('/site/link', '/site/renamed');
 		await expect(mount.flush()).rejects.toThrow('Quota exceeded');
+		removeEntry.mockClear();
 		await mount.unmount();
+		expect(removeEntry).not.toHaveBeenCalled();
 		expect(
 			JSON.parse(
 				decode(root.files.get('.playground-symlinks.json')!.bytes)
@@ -264,6 +302,119 @@ describe('saved symlinks', () => {
 				decode(root.files.get('.playground-symlinks.json')!.bytes)
 			).links
 		).toEqual({ '/kept': 'missing' });
+	});
+
+	it('combines a failed index write with link changes queued before retry', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/old');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const writeIndex = vi
+			.spyOn(
+				root.files.get('.playground-symlinks.json')!,
+				'createWritable'
+			)
+			.mockRejectedValueOnce(new Error('Quota exceeded'));
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		php.symlink('../missing', '/site/new');
+		await expect(mount.flush()).rejects.toThrow('Quota exceeded');
+		php.unlink('/site/new');
+		php.symlink('.', '/site/latest');
+		await mount.unmount();
+		expect(writeIndex).toHaveBeenCalledTimes(2);
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/old': 'missing', '/latest': '.' });
+	});
+
+	it('keeps completed link changes when a later file write fails', async () => {
+		php.mkdir('/site');
+		php.writeFile('/site/file', 'old');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		vi.spyOn(
+			root.files.get('file')!,
+			'createWritable'
+		).mockRejectedValueOnce(new Error('File write failed'));
+		const removeEntry = vi.spyOn(root, 'removeEntry');
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		php.symlink('../missing', '/site/link');
+		php.writeFile('/site/file', 'new');
+		await expect(mount.flush()).rejects.toThrow('File write failed');
+		removeEntry.mockClear();
+		await mount.unmount();
+		expect(removeEntry).not.toHaveBeenCalled();
+		expect(decode(root.files.get('file')!.bytes)).toBe('new');
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/link': '../missing' });
+	});
+
+	it('keeps the mount attached until removing the last saved link succeeds', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/link');
+		const FS = php[__private__dont__use].FS;
+		const originalSymlink = FS.symlink;
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(FS, handle, '/site');
+		const removeEntry = root.removeEntry.bind(root);
+		const failure = new Error('Cannot remove index');
+		let failRemoval = true;
+		vi.spyOn(root, 'removeEntry').mockImplementation(async (name) => {
+			if (name === '.playground-symlinks.json' && failRemoval) {
+				failRemoval = false;
+				throw failure;
+			}
+			await removeEntry(name);
+		});
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		php.unlink('/site/link');
+		await expect(mount.unmount()).rejects.toMatchObject({
+			name: 'MountStillActiveError',
+			cause: failure,
+		});
+		expect(FS.symlink).not.toBe(originalSymlink);
+		await mount.unmount();
+		expect(FS.symlink).toBe(originalSymlink);
+		expect(root.files.has('.playground-symlinks.json')).toBe(false);
+	});
+
+	it('flushes link changes captured while the index is being written', async () => {
+		php.mkdir('/site');
+		const writeStarted = deferred<void>();
+		const releaseWrite = deferred<void>();
+		let writes = 0;
+		const root = new MemoryDirectoryHandle('root', async () => {
+			if (++writes === 1) {
+				writeStarted.resolve();
+				await releaseWrite.promise;
+			}
+		});
+		const mount = journalFSEventsToOpfs(
+			php,
+			root as unknown as FileSystemDirectoryHandle,
+			'/site'
+		);
+		php.symlink('../missing', '/site/first');
+		const flush = mount.flush();
+		await writeStarted.promise;
+		php.symlink('.', '/site/second');
+		releaseWrite.resolve();
+		await flush;
+		expect(writes).toBe(2);
+		expect(
+			JSON.parse(
+				decode(root.files.get('.playground-symlinks.json')!.bytes)
+			).links
+		).toEqual({ '/first': '../missing', '/second': '.' });
+		await mount.unmount();
 	});
 
 	it('can retry the first save when writing its new index fails', async () => {
