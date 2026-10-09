@@ -20,9 +20,9 @@ import {
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import { mountResources } from '../mounts';
+import { mountResources } from './mounts';
 import { logger } from '@php-wasm/logger';
-import { spawnWorkerThread } from '../run-cli';
+import { spawnWorkerThread } from './run-cli';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -81,7 +81,7 @@ function getNetworkingPhpIniEntries(networking: boolean) {
 	};
 }
 
-export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
+export class PlaygroundCliWorker extends PHPWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
@@ -269,7 +269,7 @@ function createPhpRuntimeFactory(
 
 /**
  * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
- * It boots from this worker-thread-v2.ts file, but is a separate process.
+ * It boots from this worker-thread.ts file, but is a separate process.
  *
  * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
  *
@@ -291,11 +291,9 @@ async function createPHPWorker(
 	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
 	fileLockManager: FileLockManager
 ) {
-	const spawnedWorker = await spawnWorkerThread('v2');
+	const spawnedWorker = await spawnWorkerThread();
 
-	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
-		spawnedWorker.phpPort
-	);
+	const handler = consumeAPI<PlaygroundCliWorker>(spawnedWorker.phpPort);
 	const fileLockManagerChannel = new MessageChannel();
 	await exposeSyncAPI(fileLockManager, fileLockManagerChannel.port1);
 	await handler.useFileLockManager(fileLockManagerChannel.port2);
@@ -328,7 +326,7 @@ process.on('unhandledRejection', (e: any) => {
 const phpChannel = new MessageChannel();
 
 const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundCliBlueprintV2Worker(new EmscriptenDownloadMonitor()),
+	new PlaygroundCliWorker(new EmscriptenDownloadMonitor()),
 	undefined,
 	phpChannel.port1
 );

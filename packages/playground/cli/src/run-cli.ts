@@ -43,8 +43,7 @@ import {
 	parseDefineNumberArguments,
 } from './defines';
 import { isPortInUse, startServer } from './start-server';
-import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
-import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
+import type { PlaygroundCliWorker } from './worker-thread';
 import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
@@ -90,8 +89,7 @@ import { jspi } from 'wasm-feature-detect';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
-declare const __WORKER_V1_URL__: string;
-declare const __WORKER_V2_URL__: string;
+declare const __WORKER_URL__: string;
 
 export const LogVerbosity = {
 	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
@@ -100,8 +98,6 @@ export const LogVerbosity = {
 } as const;
 
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
-
-export type WorkerType = 'v1' | 'v2';
 
 const PlaygroundCLIPHPVersions = AllPHPVersions.filter(
 	(version) => !isPHPNextVersion(version)
@@ -904,9 +900,7 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
-export type PlaygroundCliWorker =
-	| PlaygroundCliBlueprintV1Worker
-	| PlaygroundCliBlueprintV2Worker;
+export type { PlaygroundCliWorker };
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
@@ -1503,13 +1497,12 @@ export async function runCLI(
 				}
 
 				const promisesToBoot = [];
-				const workerType = handler.getWorkerType();
 				for (
 					let workerIndex = 0;
 					workerIndex < targetWorkerCount;
 					workerIndex++
 				) {
-					const promiseToBoot = spawnWorkerThread(workerType, {
+					const promiseToBoot = spawnWorkerThread({
 						onExit: (exitCode: number) => {
 							// We are already disposing, so worker exit is expected
 							// and does not need to be logged.
@@ -2041,39 +2034,27 @@ export type SpawnedWorker = {
 };
 
 /**
- * A statically analyzable function that spawns a worker thread of a given type.
+ * A statically analyzable function that spawns a worker thread.
  *
  * **Important:** This function builds to code that has the worker URL hardcoded
- * inline, e.g. `new Worker(new URL('./worker-thread-v1.js', import.meta.url))`.
+ * inline, e.g. `new Worker(new URL('./worker-thread.js', import.meta.url))`.
  * This allows the downstream consumers to statically analyze the code, recognize
  * it uses workers, create new entrypoints, and rewrite the new Worker() calls.
  *
- * @param workerType
  * @returns
  */
-export function spawnWorkerThread(
-	workerType: 'v1' | 'v2',
-	{ onExit }: { onExit?: (code: number) => void } = {}
-) {
+export function spawnWorkerThread({
+	onExit,
+}: { onExit?: (code: number) => void } = {}) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
-	 * __WORKER_V1_URL__ and __WORKER_V2_URL__ are undefined. Let's set them to
-	 * the correct paths.
+	 * __WORKER_URL__ is undefined. Let's set it to the correct path.
 	 */
-	if (typeof __WORKER_V1_URL__ === 'undefined') {
+	if (typeof __WORKER_URL__ === 'undefined') {
 		// @ts-expect-error
-		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
+		globalThis['__WORKER_URL__'] = './worker-thread.ts';
 	}
-	if (typeof __WORKER_V2_URL__ === 'undefined') {
-		// @ts-expect-error
-		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
-	}
-	let worker: Worker;
-	if (workerType === 'v1') {
-		worker = new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
-	} else {
-		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
-	}
+	const worker = new Worker(new URL(__WORKER_URL__, import.meta.url));
 
 	return new Promise<SpawnedWorker>((resolve, reject) => {
 		const processId = processIdAllocator.claim();
