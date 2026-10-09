@@ -66,6 +66,28 @@ try {
 
     check_native_download_progress($root);
 
+    $sql_state = $root . '/sql-progress-state';
+    $client = new PlaygroundReprintClient('https://example.com', $sql_state, $root . '/sql-progress-files');
+    $pull = $client->pull_state_directory;
+    file_put_contents($pull . '/remote-index.local-map.jsonl', '');
+    $client->get_state()->db_index->bytes = 40;
+    file_put_contents($sql_state . '/db.sql', str_repeat('s', 12));
+    $emit_sql = new ReflectionMethod($client, 'emit_sql_progress');
+    ob_start();
+    $emit_sql->invoke($client, true);
+    $update = json_decode(trim(ob_get_clean()), true)['playgroundProgress'];
+    check($update['phase'] === 'db-pull' && $update['bytesDone'] === 12 && !isset($update['bytesTotal']), 'SQL download counts written bytes without using table sizes as dump sizes.');
+    file_put_contents($sql_state . '/db.sql', 'sql');
+    ob_start();
+    $emit_sql->invoke($client, true);
+    $update = json_decode(trim(ob_get_clean()), true)['playgroundProgress'];
+    check($update['bytesDone'] === 3, 'Resumed SQL progress follows the writer after truncation, not a stale cumulative counter.');
+
+    ob_start();
+    $client->output_progress(['phase' => 'db-apply', 'bytes_read' => 12, 'bytes_total' => 48], true);
+    $update = json_decode(trim(ob_get_clean()), true)['playgroundProgress'];
+    check($update['phase'] === 'db-apply' && $update['bytesDone'] === 12 && $update['bytesTotal'] === 48, 'SQL import forwards exact committed offsets independently of Reprint throttling.');
+
     // Exercise the pinned client's actual path mapping and writer, not a mock.
     $writer = new PlaygroundReprintClient('https://example.com', $root . '/writer-state', $site);
     $writer->get_state()->set_preflight_record(['http_code' => 200, 'data' => $data]);
@@ -93,6 +115,47 @@ try {
 
     $mapped = pull_path_mappings(['paths' => ['abspath' => '/srv/site', 'content_dir' => '/srv/site/wp-content', 'mu_plugins_dir' => false]]);
     check(in_array(['/srv/site/wp-content/mu-plugins', ':fs-root:/wp-content/mu-plugins'], $mapped, true), 'A directory Reprint reports as missing maps to its default location instead of an empty path.');
+    $direct_root = $root . '/direct';
+    mkdir($direct_root . '/pull-state', 0700, true);
+    file_put_contents($direct_root . '/source.json', json_encode(['tablePrefix' => 'custom_', 'routeHandlers' => "if (!defined('PLAYGROUND_TEST_ROUTE')) define('PLAYGROUND_TEST_ROUTE', 1);"]));
+    file_put_contents($direct_root . '/pull-state/import.sqlite', 'new database');
+    file_put_contents($site . '/index.php', '<?php echo "Hello";');
+    file_put_contents($site . '/wp-content/db.php', 'local SQLite integration');
+    $database = $site . '/wp-content/database/.ht.private/.ht.sqlite';
+    mkdir(dirname($database));
+    file_put_contents($database, 'old database');
+    file_put_contents($database . '-wal', 'old write-ahead log');
+    $operation = ['stage' => 'configure'];
+    $lock = new ReprintProcessLock($direct_root);
+    $request = ['documentRoot' => $site, 'siteUrl' => 'https://playground.test/', 'databasePath' => $database];
+    $installed = pull_site($request, $direct_root, $operation, $lock);
+    $config = file_get_contents($site . '/wp-config.php');
+    check(str_contains($config, "define('WP_DEBUG_LOG', true)") && str_contains($config, "define('WP_DEBUG', true)") && str_contains($config, "define('WP_DEBUG_DISPLAY', false)"), 'The imported local configuration logs errors without printing them into pages or login headers.');
+    check(str_contains($config, "$" . "table_prefix = 'custom_'") && str_contains($config, "define('WP_HOME', 'https://playground.test/')"), 'Direct installation retains the source prefix and uses the local URL.');
+    $runtime = file_get_contents($site . '/.playground-reprint/runtime.php');
+    check(str_contains($runtime, 'PLAYGROUND_TEST_ROUTE') && str_contains($runtime, "define('WP_CONTENT_DIR'") && str_contains($config, "require_once __DIR__ . '/.playground-reprint/runtime.php'"), 'Host request rules are written next to the connection and loaded from wp-config.php.');
+    $wpcloud = ['runtime' => ['document_root' => '/srv/htdocs', 'env_names' => ['PRIVACY_MODEL']], 'wp_detect' => ['roots' => [['path' => '/srv/htdocs/__wp__']]]];
+    check(str_contains(host_route_handlers($wpcloud), 'wp-content/uploads') && host_route_handlers([]) === '', 'WP Cloud sources get the thumbnail rule; unknown hosts get none.');
+    check($installed === ['status' => 'install'] && !file_exists($direct_root . '/site.zip') && !file_exists($direct_root . '/pull-files'), 'Direct installation never creates a staged site or site archive.');
+    check(file_get_contents($database) === 'new database' && !file_exists($database . '-wal'), 'The imported database replaces the configured database and its stale WAL.');
+    check(file_get_contents($site . '/wp-content/database/.ht.sqlite') === 'private database', 'Import does not overwrite another database at the old default path.');
+    check(file_get_contents($site . '/wp-content/db.php') === 'local SQLite integration', 'Local SQLite integration remains in place.');
+    $operation['stage'] = 'configure';
+    pull_site($request, $direct_root, $operation, $lock);
+    check(file_get_contents($database) === 'new database', 'Retry after installing the database does not remove it.');
+    $request['command'] = 'finish-pull';
+    $request['url'] = 'https://example.com/?reprint-api';
+    $remote_state = ImportClient::remote_state_directory_path($request['url'], $direct_root . '/pull-state');
+    mkdir($remote_state . '/pull', 0700, true);
+    file_put_contents($remote_state . '/pull/remote-index.jsonl', 'remote file index');
+    file_put_contents($remote_state . '/local_index.jsonl', json_encode(['path' => base64_encode('wp-content/plugins/keep.php'), 'type' => 'file', 'size' => 4, 'ctime' => filectime($site . '/wp-content/plugins/keep.php')]) . "\n");
+    file_put_contents($direct_root . '/pull-state/db.sql', 'old SQL');
+    $finished = pull_site($request, $direct_root, $operation, $lock);
+    check($finished['status'] === 'complete' && !file_exists($direct_root . '/push-files') && !is_file($direct_root . '/pull-baseline.jsonl'), 'A completed pull hashes nothing and keeps no file snapshot.');
+    check(file_get_contents($remote_state . '/pull/remote-index.jsonl') === 'remote file index', 'A completed pull retains its remote index.');
+    check(!is_file($direct_root . '/pull-state/db.sql'), 'Completion drops the imported SQL dump.');
+    $lock->close();
+
     foreach (['http://127.0.0.1:9417', 'http://localhost:9417', 'http://[::1]:9417'] as $url) {
         new PlaygroundReprintClient($url, $root . '/http-' . md5($url), $site, ['allow_http' => is_local_reprint_url($url)]);
     }
@@ -231,6 +294,7 @@ readfile(__DIR__ . "/response.json");
                 $previous_index = $client->pull_state_directory . '/remote-index.jsonl';
                 file_put_contents($previous_index, json_encode(['path' => base64_encode('/remote/keep.php'), 'type' => 'file', 'size' => 4, 'ctime' => 1]) . "\n");
                 file_put_contents($transfer . '/pull-state/progress.json', '{"command":"files-pull","status":"complete"}');
+                file_put_contents($transfer . '/pull-state/db.sql', 'old SQL');
                 $client->get_state()->resolved_path_mappings_fingerprint = 'saved-mapping-fingerprint';
                 $client->get_state()->active_resumable_command->command_name = 'db-apply';
                 $client->get_state()->active_resumable_command->completion_state = 'complete';
@@ -254,6 +318,9 @@ readfile(__DIR__ . "/response.json");
                     check(is_file($previous_index) && filesize($previous_index) > 0, 'Starting or retrying preflight preserves the prior remote index.');
                     $progress = is_file($transfer . '/pull-state/progress.json') ? json_decode(file_get_contents($transfer . '/pull-state/progress.json'), true) : [];
                     check(($progress['command'] ?? null) !== 'files-pull', 'Preflight must not leave the previous file transfer marked complete.');
+                    if ($accepted) {
+                        check(!is_file($transfer . '/pull-state/db.sql'), 'A fresh pull clears stale SQL.');
+                    }
                 }
 
                 if (!$accepted) {
@@ -344,7 +411,7 @@ function check_link_setup_lifecycle(string $root): void {
         mkdir($target);
         file_put_contents($target . '/style.css', 'Theme Name: Iotix!');
         $result = pull_site($request, $transfer, $operation, $lock);
-        check($result['status'] === 'complete', 'Retrying local setup completes without rerunning the file pull.');
+        check($result['stage'] === 'db-pull', 'Retrying local setup reaches SQL download without rerunning the file pull.');
         check(!is_link($theme) && file_get_contents($theme . '/style.css') === 'Theme Name: Iotix!', 'The theme becomes ordinary files that survive browser storage.');
         $operation['stage'] = 'files-prepare';
         file_put_contents($theme . '/style.css', 'Local theme edit');
@@ -429,4 +496,11 @@ function check_site_size_limit(string $root): void {
     try { $accepted->output_progress(['command' => 'files-pull', 'event' => 'stage', 'stage' => 'diff']); }
     finally { ob_end_clean(); }
     // Exactly 2 GiB is accepted despite the excluded backup and directory sizes.
+    file_put_contents($state . '/db.sql', 's');
+    foreach ([$accepted, new PlaygroundReprintClient($url, $state, $site)] as $sql_client) {
+        $rejected = false;
+        try { (new ReflectionMethod($sql_client, 'emit_sql_progress'))->invoke($sql_client); }
+        catch (RuntimeException $error) { $rejected = str_contains($error->getMessage(), '2 GiB import limit'); }
+        check($rejected, 'SQL bytes count against the same limit, including on a new PHP run.');
+    }
 }

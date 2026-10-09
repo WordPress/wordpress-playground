@@ -20,16 +20,20 @@ use function WordPress\Filesystem\wp_join_unix_paths;
 use WordPress\Reprint\Server\Utils;
 
 /**
- * Adds the browser's 2 GiB limit to Reprint's normal files-pull command.
+ * Adds the browser's combined 2 GiB limit to Reprint's file and SQL commands.
  *
  * Reprint v0.10.13 has no option to cap the selected file bytes. This subclass
- * checks the completed index before destructive work; all transfer work and
- * progress reporting still use ImportClient. Remove this guard when Reprint
- * exposes the size limit as a command option.
+ * checks the completed file index before destructive work and checks SQL bytes
+ * before each chunk is written. File downloads and their progress still use
+ * ImportClient unchanged; SQL progress includes written bytes and table counts.
+ * Remove these guards when Reprint exposes the limits as command options.
  */
 class PlaygroundReprintClient extends ImportClient {
     private const MAX_SITE_BYTES = 2 * 1024 * 1024 * 1024;
     private ?int $site_file_bytes = null;
+    private float $last_byte_update = 0;
+    /** Table counters from Reprint's last SQL download record, shown beside byte counts. */
+    private array $sql_tables = [];
 
     /**
      * Uses Reprint's stage reports to stop an oversized pull before changes.
@@ -37,7 +41,9 @@ class PlaygroundReprintClient extends ImportClient {
      * The selected index is ready when Reprint announces diff, mirror, or fetch.
      * Checking all three also covers resumed commands that skip earlier stages.
      * Reprint has no separate before-mirror callback, so this override checks
-     * the size here and leaves the actual progress output to the parent method.
+     * the size here and leaves file progress output to the parent method. SQL
+     * records are adapted to the browser's byte/table and import-offset fields;
+     * SQL import yields briefly so the page receives updates while it runs.
      */
     public function output_progress(array $data, bool $force = false): void {
         if (($data['command'] ?? '') === 'files-pull' && ($data['event'] ?? '') === 'stage'
@@ -47,7 +53,96 @@ class PlaygroundReprintClient extends ImportClient {
             // when Reprint resumes directly at a later stage.
             $this->assert_site_size();
         }
+        if (($data['command'] ?? '') === 'db-pull' && is_array($data['progress'] ?? null)) {
+            // Reprint reports which table it is on and, per table, an estimated
+            // row count. The SQL dump has no byte total, so this is the "of"
+            // the download can offer.
+            $progress = $data['progress'];
+            $table = $progress['current_table'] ?? null;
+            $this->sql_tables = array_filter([
+                'tablesDone' => $progress['items']['done'] ?? null,
+                'tablesTotal' => $progress['items']['total'] ?? null,
+                'tableName' => $table['name'] ?? null,
+                'rowsDone' => $table['rows_done'] ?? null,
+                'rowsTotal' => $table['rows_total'] ?? null,
+            ], fn($value) => $value !== null);
+            $this->emit_sql_progress(true);
+            return;
+        }
+        if (($data['phase'] ?? '') === 'db-apply' && isset($data['bytes_read'])) {
+            if ($force || microtime(true) - $this->last_byte_update >= 0.1) {
+                $this->last_byte_update = microtime(true);
+                echo json_encode(['playgroundProgress' => [
+                    'phase' => 'db-apply',
+                    'message' => 'Importing SQL',
+                    'bytesDone' => $data['bytes_read'],
+                    'bytesTotal' => $data['bytes_total'],
+                    'statementsDone' => $data['statements_executed'] ?? null,
+                ]], JSON_THROW_ON_ERROR) . "\n";
+                // SQL runs on the PHP worker without network waits. Yield so its
+                // output reaches the page before the entire import finishes.
+                usleep(1);
+            }
+            return;
+        }
         parent::output_progress($data, $force);
+    }
+
+    /**
+     * Checks incoming SQL against the combined file-and-SQL size limit.
+     *
+     * Reprint writes the SQL dump and tracks its resume position. It has no
+     * option to cap that dump before each chunk is written, so wrap its SQL
+     * callback to check the bytes first. File downloads still use Reprint's
+     * unchanged writer and native progress. Restore the callback on failure.
+     */
+    protected function fetch_streaming(string $url, \Reprint\Importer\StreamingContext $context, ?array $post_data = null, ?string $endpoint = null): void {
+        if ($endpoint !== 'sql_chunk') {
+            parent::fetch_streaming($url, $context, $post_data, $endpoint);
+            return;
+        }
+        $sql_path = wp_join_unix_paths($this->state_dir, 'db.sql');
+        $on_chunk = $context->on_chunk;
+        $context->on_chunk = function (array $chunk) use ($on_chunk, $sql_path): void {
+            if (($chunk['headers']['x-chunk-type'] ?? '') === 'sql') {
+                clearstatcache(true, $sql_path);
+                $this->assert_site_size(filesize($sql_path) + strlen($chunk['body'] ?? ''));
+            }
+            $on_chunk($chunk);
+            $this->emit_sql_progress();
+        };
+        try {
+            $this->emit_sql_progress(true);
+            parent::fetch_streaming($url, $context, $post_data, $endpoint);
+        } finally {
+            $context->on_chunk = $on_chunk;
+            $this->emit_sql_progress(true);
+        }
+    }
+
+    /**
+     * Reports written SQL bytes beside Reprint's table and row counters.
+     *
+     * Reprint's table-size estimate is not the SQL dump size. Read the actual
+     * dump length, including resumed batches, without inventing a byte total.
+     * Check the size limit on every chunk even when UI updates are throttled.
+     */
+    private function emit_sql_progress(bool $force = false): void {
+        // Measure the written SQL, including resumed batches. Remote table sizes
+        // do not measure SQL dump bytes, so they cannot supply a denominator.
+        $sql_path = wp_join_unix_paths($this->state_dir, 'db.sql');
+        clearstatcache(true, $sql_path);
+        $done = is_file($sql_path) ? filesize($sql_path) : 0;
+        // Check every chunk, not only the throttled UI updates. This also counts
+        // SQL retained on retry and the checkpoint markers added by Reprint.
+        $this->assert_site_size($done);
+        if (!$force && microtime(true) - $this->last_byte_update < 0.25) return;
+        $this->last_byte_update = microtime(true);
+        echo json_encode(['playgroundProgress' => [
+            'phase' => 'db-pull',
+            'message' => 'Downloading SQL',
+            'bytesDone' => $done,
+        ] + $this->sql_tables], JSON_THROW_ON_ERROR) . "\n";
     }
 
     /**
@@ -56,8 +151,9 @@ class PlaygroundReprintClient extends ImportClient {
      * A repeat pull of a 3 GiB site may download only 1 KiB; it must still exceed
      * the browser limit. Read Reprint's mapped, filtered index one line at a time
      * and cache the accepted total for later stage reports in this PHP call.
+     * Add written SQL bytes to the same budget, including SQL retained on retry.
      */
-    private function assert_site_size(): void {
+    private function assert_site_size(int $sql_bytes = 0): void {
         $file_bytes = $this->site_file_bytes;
         if ($file_bytes === null) {
             // Use the full selected index, not the incremental fetch list. The
@@ -76,8 +172,8 @@ class PlaygroundReprintClient extends ImportClient {
                 fclose($index);
             }
         }
-        if ($file_bytes > self::MAX_SITE_BYTES) {
-            throw new RuntimeException('This site exceeds Playground’s 2 GiB import limit (site files). Use the Reprint CLI to pull this site locally.');
+        if ($file_bytes + $sql_bytes > self::MAX_SITE_BYTES) {
+            throw new RuntimeException('This site exceeds Playground’s 2 GiB import limit (site files plus SQL). Use the Reprint CLI to pull this site locally.');
         }
         $this->site_file_bytes = $file_bytes;
     }
@@ -113,10 +209,13 @@ function run_transfer(): void {
         $lock = new ReprintProcessLock($root);
         $operation_path = wp_join_unix_paths($root, 'operation.json');
         $operation = is_file($operation_path) ? json_decode(file_get_contents($operation_path), true, 512, JSON_THROW_ON_ERROR) : null;
-        if ($request['command'] !== 'pull') {
+        if (!in_array($request['command'], ['pull', 'finish-pull'], true)) {
             throw new RuntimeException('Unknown pull command.');
         }
         if (!$operation) {
+            if ($request['command'] === 'finish-pull') {
+                throw new RuntimeException('There is no pull to finish.');
+            }
             $operation = ['stage' => 'preflight'];
             save_operation($operation_path, $operation);
         }
@@ -164,12 +263,15 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     if ($error !== null) throw new RuntimeException($error['message']);
     $preflight = $client->get_state()->preflight_record()['data'];
     $metadata = source_metadata($preflight);
+    $metadata['routeHandlers'] = host_route_handlers($preflight);
     // A fresh pull compares against the last remote index. Reset
     // command cursors, not that index or the downloaded site files.
     // run(preflight) above loads the saved mapping fingerprints; the client
     // constructor alone starts with blank state and must not reset it.
     $client->clear_files_pull_progress();
-    remove_tree(wp_join_unix_paths($state, 'progress.json'));
+    foreach (['progress.json', 'db.sql', 'db-session-setup.sql', 'db-tables.jsonl', 'import.sqlite', 'import.sqlite-wal', 'import.sqlite-shm', 'import.sqlite-journal'] as $file) {
+        remove_tree(wp_join_unix_paths($state, $file));
+    }
     $metadata['pullMappings'] = pull_path_mappings($metadata);
     // Resolve and validate every selector before file mirroring starts.
     $client->prepare_files_pull_options([
@@ -183,7 +285,7 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
 }
 
 /**
- * Runs Reprint's files-pull command, then prepares links for OPFS persistence.
+ * Runs Reprint's file and SQL commands, then configures the local site.
  *
  * ImportClient::run() already indexes, downloads, removes remote-absent local
  * paths inside today's pull selection, and resumes unfinished downloads. This
@@ -192,11 +294,67 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
  * Playground's OPFS save/restore layer does not preserve symbolic links yet.
  * Copy their targets into ordinary files as a Playground workaround. If only
  * that setup fails, retry setup without repeating a completed download.
+ *
+ * Run Reprint's db-pull and db-apply commands into a separate SQLite file so
+ * WordPress cannot see half-imported tables. Once they finish, install that
+ * database and write the local configuration. Return install so JavaScript
+ * can verify administrator login before it sends finish-pull.
  */
 function pull_site(array $request, string $root, array &$operation, ReprintProcessLock $lock): array {
     $files = $request['documentRoot'];
     $state = wp_join_unix_paths($root, 'pull-state');
+    if ($operation['stage'] === 'install') {
+        if ($request['command'] !== 'finish-pull') {
+            return ['status' => 'install'];
+        }
+        // The imported SQL dump is disposable once applied.
+        remove_tree(wp_join_unix_paths($state, 'db.sql'));
+        return ['status' => 'complete'];
+    }
+    $stages = ['files-pull', 'files-prepare', 'db-pull', 'db-apply', 'configure'];
     $stage = $operation['stage'];
+    if ($stage === 'configure') {
+        $metadata = json_decode(file_get_contents(wp_join_unix_paths($root, 'source.json')), true, 512, JSON_THROW_ON_ERROR);
+        // Only the database needs a separate destination while importing. A
+        // failed SQL import must not expose half-written tables to WordPress.
+        $database = $request['databasePath'];
+        if (!is_dir(dirname($database))) mkdir(dirname($database), 0700, true);
+        if (is_file($state . '/import.sqlite')) {
+            foreach (['', '-wal', '-shm', '-journal'] as $suffix) remove_tree($database . $suffix);
+            if (!rename($state . '/import.sqlite', $database)) {
+                throw new RuntimeException('Could not install the imported database.');
+            }
+        }
+        // Hosts such as WP Cloud answer some URLs in their web server rather
+        // than from files: thumbnails are resized from the original on request.
+        // Reprint expresses those rules as PHP; running it from wp-config.php
+        // covers them here, since Playground routes missing files to index.php.
+        $runtime = wp_join_unix_paths($files, '.playground-reprint', 'runtime.php');
+        $handlers = $metadata['routeHandlers'] ?? '';
+        if ($handlers !== '') {
+            if (!is_dir(dirname($runtime))) mkdir(dirname($runtime), 0700, true);
+            file_put_contents($runtime, "<?php\n// Generated by Playground from Reprint's host rules. Do not edit.\n"
+                . "if (!defined('WP_CONTENT_DIR')) define('WP_CONTENT_DIR', dirname(__DIR__) . '/wp-content');\n"
+                . $handlers);
+        } else {
+            remove_tree($runtime);
+        }
+        $config = "<?php\n";
+        // The local copy must log failures even when the production config
+        // disabled debugging. Do not print notices into pages or login headers.
+        foreach (['DB_NAME' => 'wordpress', 'DB_USER' => 'root', 'DB_PASSWORD' => '', 'DB_HOST' => 'localhost', 'WP_DEBUG' => true, 'WP_DEBUG_LOG' => true, 'WP_DEBUG_DISPLAY' => false, 'WP_HOME' => $request['siteUrl'], 'WP_SITEURL' => $request['siteUrl']] as $name => $value) {
+            $config .= 'if (!defined(' . var_export($name, true) . ')) define(' . var_export($name, true) . ', ' . var_export($value, true) . ");\n";
+        }
+        $config .= '$table_prefix = ';
+        $config .= var_export($metadata['tablePrefix'], true) . ";\n";
+        if ($handlers !== '') {
+            $config .= "if (is_file(__DIR__ . '/.playground-reprint/runtime.php')) require_once __DIR__ . '/.playground-reprint/runtime.php';\n";
+        }
+        $config .= "if (!defined('ABSPATH')) define('ABSPATH', __DIR__ . '/');\nrequire_once ABSPATH . 'wp-settings.php';\n";
+        file_put_contents(wp_join_unix_paths($files, 'wp-config.php'), $config);
+        $operation['stage'] = 'install';
+        return ['status' => 'install'];
+    }
     $metadata = json_decode(file_get_contents(wp_join_unix_paths($root, 'source.json')), true, 512, JSON_THROW_ON_ERROR);
     $client = new PlaygroundReprintClient($request['url'], $state, $files, ['allow_http' => is_local_reprint_url($request['url'])]);
     // Older transfers can have completed Reprint's download before the adapter
@@ -212,7 +370,8 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         echo json_encode(['playgroundProgress' => ['phase' => $stage, 'message' => 'Setting up downloaded files…']]) . "\n";
         restore_pulled_links($root);
         materialize_site_links($files, $files, wp_join_unix_paths($root, 'linked-copy'));
-        return ['status' => 'complete'];
+        $operation['stage'] = 'db-pull';
+        return ['status' => 'continue', 'stage' => $operation['stage']];
     }
     $client->run([
         'command' => $stage,
@@ -227,13 +386,16 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         'include_host_plugins' => false,
         'follow_symlinks' => true,
         'local_followed_symlinks_root' => ':fs-root:/wp-content/.reprint-linked-files',
+        'target_engine' => 'sqlite',
+        'target_sqlite_path' => wp_join_unix_paths($state, 'import.sqlite'),
+        'new_site_url' => $request['siteUrl'],
     ], $lock);
     if ($client->exit_code !== 0 && $client->exit_code !== 2) {
         throw new RuntimeException('Reprint stopped. Check the transfer error and retry with the same site and token.');
     }
     if ($client->exit_code === 0) {
         if ($stage === 'files-pull') save_pulled_links($files, $root, $metadata, $client);
-        $operation['stage'] = 'files-prepare';
+        $operation['stage'] = $stages[array_search($stage, $stages, true) + 1];
     }
     return ['status' => 'continue', 'stage' => $operation['stage']];
 }
@@ -428,11 +590,29 @@ function materialize_site_links(string $path, string $document_root, string $tem
 }
 
 /**
+ * Gets Reprint's PHP handlers for routes served by the live site's web server.
+ *
+ * Playground has no copy of that web server. Use runtime_manifest_for() and
+ * generate_route_handler_code() rather than duplicating Reprint's host rules,
+ * then load the handlers from local wp-config.php. Host detection is advisory:
+ * keep the imported site even if no handlers can be generated.
+ */
+function host_route_handlers(array $preflight): string {
+    try {
+        return generate_route_handler_code(runtime_manifest_for($preflight));
+    } catch (Throwable $error) {
+        // Host detection is advisory. A pull must not fail on it.
+        fwrite(STDERR, 'Skipping host request rules: ' . $error->getMessage() . "\n");
+        return '';
+    }
+}
+
+/**
  * Extracts the preflight fields kept in the bridge's source.json record.
  *
  * Reprint already detected WordPress and returned this report. This helper
  * only adapts that report to the fields used by the bridge: folder paths for
- * file mapping, plus the table prefix for the SQL step in the follow-up PR.
+ * file mapping, plus the table prefix for SQL import.
  * It makes no further request to the live site.
  */
 function source_metadata(array $data): array {

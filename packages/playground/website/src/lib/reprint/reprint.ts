@@ -1,4 +1,7 @@
-import { joinPaths } from '@php-wasm/util';
+import { getSqliteDatabasePath } from '@wp-playground/tools';
+import { login } from '@wp-playground/blueprints';
+import loginCheckScript from './check-login.php?raw';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import bridge from './bridge.php?raw';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
@@ -185,7 +188,7 @@ export function normalizeReprintUrl(input: string): string {
 	return url.href;
 }
 
-/** Pull into a temporary Playground; failed stages retain their retry checkpoint. */
+/** Import files and SQL into a temporary Playground, then verify administrator login. */
 export async function pullSite(
 	playground: PlaygroundClient,
 	url: string,
@@ -196,17 +199,21 @@ export async function pullSite(
 ): Promise<{ warning?: string }> {
 	url = normalizeReprintUrl(url);
 	if (!secret.trim()) throw new Error('Enter the Reprint connection token.');
-	// Phase weights estimate work, not elapsed time. Checkpoints keep the bar;
-	// only completion reaches 100%.
+	// Phase weights estimate work, not elapsed time. SQL and file bytes have
+	// different costs. Checkpoints keep the bar; only completion reaches 100%.
 	const phases: Record<string, [number, number, string]> = {
 		preflight: [0, 2, 'Connecting to the live site…'],
-		'files-pull': [2, 95, 'Downloading site files…'],
-		'files-prepare': [95, 98, 'Setting up downloaded files…'],
+		'files-pull': [2, 52, 'Downloading site files…'],
+		'files-prepare': [52, 55, 'Setting up downloaded files…'],
+		'db-pull': [55, 70, 'Downloading SQL…'],
+		'db-apply': [70, 94, 'Importing SQL…'],
+		configure: [94, 96, 'Configuring the imported site…'],
+		login: [96, 98, 'Logging in as an administrator…'],
 	};
 	let phase = 'preflight';
 	let overallPercent = 0;
 	let lastProgress: TransferProgress = { message: 'Starting Reprint…' };
-	/** Keep stage transitions and resumed byte counts on one monotonic bar. */
+	/** Keep all measured stages on one monotonic overall bar. */
 	const report = (update: TransferProgressUpdate) => {
 		if (update.phase && phases[update.phase] && update.phase !== phase) {
 			phase = update.phase;
@@ -236,6 +243,9 @@ export async function pullSite(
 	report(lastProgress);
 	const documentRoot = await playground.documentRoot;
 	const siteUrl = await playground.absoluteUrl;
+	// The SQLite driver can choose a private subdirectory. Resolve its active
+	// path before pulling instead of installing SQL into an unused default file.
+	const databasePath = await getSqliteDatabasePath(playground);
 	await installReprint(playground, report);
 	await playground.writeFile(BRIDGE_PATH, bridge);
 	const connectionPath = joinPaths(
@@ -245,14 +255,16 @@ export async function pullSite(
 	);
 	await playground.mkdir(joinPaths(documentRoot, '.playground-reprint'));
 	await playground.writeFile(connectionPath, JSON.stringify({ url }));
+	let command: 'pull' | 'finish-pull' = 'pull';
 	let stage: string | undefined;
+	let warning: string | undefined;
 	let transferError: Error | undefined;
 	logger.info(`[Reprint ${REPRINT_VERSION}] Starting pull.`);
 	try {
 		while (true) {
 			const result = await runBridge(
 				playground,
-				{ command: 'pull', url, secret, documentRoot, siteUrl },
+				{ command, url, secret, documentRoot, siteUrl, databasePath },
 				report
 			);
 			if (result.stage && stage !== result.stage) {
@@ -265,6 +277,91 @@ export async function pullSite(
 			if (result.status === 'complete') break;
 			if (signal?.aborted) {
 				throw new DOMException('Pull stopped.', 'AbortError');
+			}
+			if (result.status === 'install') {
+				report({ phase: 'login', message: phases.login[2] });
+				// Files and SQL are installed. Prepare WordPress, then use Blueprint
+				// login. The temporary endpoint ignores old cookies once and checks
+				// the new session on a separate request. Remove it on success or failure.
+				const setup = await playground.run({
+					code: `<?php
+						require ${phpVar(joinPaths(documentRoot, 'wp-load.php'))};
+						require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+						wp_upgrade();
+						// Theme roots and cached theme errors describe the source filesystem.
+						// Rebuild them from the downloaded files without changing the active theme.
+						delete_option('stylesheet_root');
+						delete_option('template_root');
+						delete_site_transient('theme_roots');
+						wp_clean_themes_cache();
+						$admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
+						if (!$admins) {
+							throw new RuntimeException('The imported site has no administrator account.');
+						}
+						echo json_encode(['username' => $admins[0]->user_login]);
+					`,
+				});
+				if (setup.errors) logger.error(setup.errors);
+				const { username } = JSON.parse(setup.text);
+				// The imported administrator may not be named admin. The Blueprint step
+				// also keeps auto-login pointed at this username when the site reopens.
+				await login(playground, { username });
+				const path = `/.playground-reprint-login-${crypto.randomUUID()}.php`;
+				await playground.writeFile(
+					joinPaths(documentRoot, path),
+					loginCheckScript
+				);
+				try {
+					const loginResponse = await playground.request({
+						url: path,
+						method: 'POST',
+					});
+					if (loginResponse.errors)
+						logger.error(loginResponse.errors);
+					if (loginResponse.httpStatusCode >= 400) {
+						throw new Error(
+							'The site was imported, but administrator login failed. Check Logs.'
+						);
+					}
+					// A separate GET checks the cookie round trip, not just the user that
+					// the auto-login plugin set in memory during the POST.
+					const response = await playground.request({
+						url: path,
+						method: 'GET',
+					});
+					if (response.errors) logger.error(response.errors);
+					let session;
+					try {
+						session = JSON.parse(response.text);
+					} catch {
+						/* Report invalid WordPress output below. */
+					}
+					if (
+						response.httpStatusCode !== 200 ||
+						session?.loggedIn !== true ||
+						session?.username !== username
+					) {
+						throw new Error(
+							'The site was imported, but administrator login failed. Check Logs.'
+						);
+					}
+					if (typeof session.warning === 'string')
+						warning = session.warning;
+				} finally {
+					await playground.unlink(joinPaths(documentRoot, path));
+				}
+				const home = await playground.request({ url: '/' });
+				if (home.errors) logger.error(home.errors);
+				if (
+					home.httpStatusCode >= 400 ||
+					(home.httpStatusCode === 200 && !home.text.trim())
+				) {
+					warning ??= `The site was imported, but its homepage returned ${home.httpStatusCode}${!home.text.trim() ? ' with an empty response' : ''}. You are logged in as an administrator. Check Logs and the active theme.`;
+				}
+				if (warning) logger.error(warning);
+				await playground.goTo('/wp-admin/');
+				// Completion only discards the SQL dump; no separate phase.
+				command = 'finish-pull';
 			}
 		}
 	} catch (error) {
@@ -284,7 +381,7 @@ export async function pullSite(
 		message: 'Transfer complete',
 		overallPercent: 100,
 	});
-	return {};
+	return { warning };
 }
 
 /**
