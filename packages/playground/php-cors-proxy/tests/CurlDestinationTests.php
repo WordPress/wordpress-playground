@@ -17,9 +17,15 @@ class CurlDestinationTests extends TestCase
         $ipv4 = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         $this->assertIsResource($ipv4, $error);
         $port = parse_url('tcp://' . stream_socket_get_name($ipv4, false), PHP_URL_PORT);
-        $ipv6 = stream_socket_server("tcp://[::1]:$port", $errno, $error);
-        $this->assertIsResource($ipv6, $error);
-        $listeners = [$ipv4, $ipv6];
+        $listeners = [$ipv4];
+        $canary_available = true;
+        if ($family === CURL_IPRESOLVE_V6) {
+            $ipv6 = @stream_socket_server("tcp://[::1]:$port", $errno, $error);
+            $canary_available = $ipv6 !== false;
+            if ($canary_available) {
+                $listeners[] = $ipv6;
+            }
+        }
         foreach ($listeners as $listener) {
             stream_set_blocking($listener, false);
         }
@@ -40,14 +46,21 @@ class CurlDestinationTests extends TestCase
 
         try {
             // Prime cURL's DNS cache with the address that validation did
-            // not approve. The control confirms the private canary is reachable.
+            // not approve. With IPv6 loopback, the control returns its canary;
+            // without it, the control fails and the approved IPv4 must still work.
             $control = $this->transfer($ch, $listeners, $port, $approved_ip);
-            $this->assertSame(CURLE_OK, $control['error']);
-            $this->assertSame('PRIVATE_CANARY', json_decode($control['body'], true)['canary']);
+            if ($canary_available) {
+                $this->assertSame(CURLE_OK, $control['error']);
+                $this->assertSame('PRIVATE_CANARY', json_decode($control['body'], true)['canary']);
+            } else {
+                $this->assertNotSame(CURLE_OK, $control['error']);
+                $this->assertSame('', $control['body']);
+                $this->assertSame([], $control['destinations']);
+            }
 
             curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
             if ($use_proxy) {
-                putenv("http_proxy=http://[::1]:$port");
+                putenv("http_proxy=http://127.0.0.1:$port");
                 // Use a fresh handle so its default options read the proxy
                 // environment rather than retaining the control's settings.
                 $ch = curl_init("http://localhost:$port/");
@@ -95,7 +108,7 @@ class CurlDestinationTests extends TestCase
                 '[::1]', CURL_IPRESOLVE_V6, '127.0.0.1', false,
             ],
             'environment HTTP proxy' => [
-                '[::1]', CURL_IPRESOLVE_V6, '127.0.0.1', true,
+                '127.0.0.1', CURL_IPRESOLVE_V4, '127.0.0.2', true,
             ],
         ];
     }
