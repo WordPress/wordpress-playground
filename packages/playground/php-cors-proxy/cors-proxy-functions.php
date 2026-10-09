@@ -425,8 +425,13 @@ function rewrite_relative_redirect(
     $redirect_location,
     $proxy_absolute_url
 ) {
-    $target_hostname = parse_url($request_url, PHP_URL_HOST);
+    $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
     if (!parse_url($redirect_location, PHP_URL_HOST)) {
+        $target_authority = parse_url($request_url, PHP_URL_HOST);
+        $target_port = parse_url($request_url, PHP_URL_PORT);
+        if ($target_port !== null) {
+            $target_authority .= ':' . $target_port;
+        }
         $redirect_path = parse_url($redirect_location, PHP_URL_PATH);
         if ($redirect_path && $redirect_path[0] !== '/') {
             $request_path = parse_url($request_url, PHP_URL_PATH);
@@ -434,12 +439,9 @@ function rewrite_relative_redirect(
             $redirect_location = $request_path_parent . '/' . $redirect_path;
         }
 
-        $redirect_location = $target_hostname . $redirect_location;
-    }
-
-    if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
-        $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
-        $redirect_location = "$target_scheme://$redirect_location";
+        $redirect_location = "$target_scheme://$target_authority$redirect_location";
+    } else if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
+        $redirect_location = "$target_scheme:$redirect_location";
     }
 
     $last_char = $proxy_absolute_url[strlen($proxy_absolute_url) - 1];
