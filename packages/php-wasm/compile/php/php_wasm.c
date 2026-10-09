@@ -852,30 +852,189 @@ ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
 /**
+ * Descriptor budget served without touching the heap. Callers such as
+ * mysqlnd watch very few descriptors, so this covers the common case.
+ */
+#define WASM_SELECT_STACK_FDS 32
+
+/**
  * select(2).
  */
 EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
 {
-	emscripten_sleep(0); // always yield to JS event loop
-	int timeoutms = php_tvtoto(timeouttv);
-	int n = 0;
-	for (int i = 0; i < max_fd; i++)
+	if (max_fd < 0 || max_fd > FD_SETSIZE)
 	{
-		if (FD_ISSET(i, read_fds))
+		errno = EINVAL;
+		return -1;
+	}
+	if (timeouttv && (timeouttv->tv_sec < 0 || timeouttv->tv_usec < 0 || timeouttv->tv_usec >= 1000000))
+	{
+		errno = EINVAL;
+		return -1;
+	}
+
+	fd_set original_read_fds;
+	fd_set original_write_fds;
+	fd_set original_except_fds;
+	if (read_fds)
+	{
+		original_read_fds = *read_fds;
+	}
+	if (write_fds)
+	{
+		original_write_fds = *write_fds;
+	}
+	if (except_fds)
+	{
+		original_except_fds = *except_fds;
+	}
+
+	/**
+	 * select() runs on hot paths such as mysqlnd's poll loop, which typically
+	 * watches one or two descriptors. Serve those from the stack and only fall
+	 * back to the heap for genuinely large descriptor sets.
+	 */
+	php_pollfd stack_poll_fds[WASM_SELECT_STACK_FDS];
+	php_pollfd *poll_fds = NULL;
+	int poll_fds_on_heap = 0;
+	if (max_fd > 0)
+	{
+		if (max_fd <= WASM_SELECT_STACK_FDS)
 		{
-			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
+			poll_fds = stack_poll_fds;
 		}
-		if (FD_ISSET(i, write_fds))
+		else
 		{
-			n += wasm_poll_socket(i, POLLOUT, timeoutms);
-		}
-		if (FD_ISSET(i, except_fds))
-		{
-			n += wasm_poll_socket(i, POLLERR, timeoutms);
-			FD_CLR(i, except_fds);
+			poll_fds = calloc(max_fd, sizeof(php_pollfd));
+			if (!poll_fds)
+			{
+				errno = ENOMEM;
+				return -1;
+			}
+			poll_fds_on_heap = 1;
 		}
 	}
-	return n;
+
+	int poll_fd_count = 0;
+	for (int fd = 0; fd < max_fd; fd++)
+	{
+		short events = 0;
+		if (read_fds && FD_ISSET(fd, &original_read_fds))
+		{
+			events |= POLLIN;
+		}
+		if (write_fds && FD_ISSET(fd, &original_write_fds))
+		{
+			events |= POLLOUT;
+		}
+		if (except_fds && FD_ISSET(fd, &original_except_fds))
+		{
+			events |= POLLPRI;
+		}
+		if (events)
+		{
+			poll_fds[poll_fd_count].fd = fd;
+			poll_fds[poll_fd_count].events = events;
+			poll_fds[poll_fd_count].revents = 0;
+			poll_fd_count++;
+		}
+	}
+
+	const int has_deadline = timeouttv != NULL;
+	const int timeout_is_zero = has_deadline && timeouttv->tv_sec == 0 && timeouttv->tv_usec == 0;
+	const double deadline = has_deadline
+		? emscripten_get_now() + ((double)timeouttv->tv_sec * 1000.0) + ((double)timeouttv->tv_usec / 1000.0)
+		: 0;
+	while (1)
+	{
+		if (read_fds)
+		{
+			FD_ZERO(read_fds);
+		}
+		if (write_fds)
+		{
+			FD_ZERO(write_fds);
+		}
+		if (except_fds)
+		{
+			FD_ZERO(except_fds);
+		}
+
+		for (int i = 0; i < poll_fd_count; i++)
+		{
+			poll_fds[i].revents = 0;
+		}
+		const int poll_result = php_poll2(poll_fds, poll_fd_count, 0);
+		if (poll_result < 0)
+		{
+			const int poll_errno = errno;
+			if (poll_fds_on_heap) free(poll_fds);
+			errno = poll_errno;
+			return -1;
+		}
+
+		/**
+		 * POSIX defines the return value as "the total number of bits set in
+		 * the bit masks", so a descriptor that is ready in more than one set
+		 * contributes once per set. Counting unique descriptors instead would
+		 * under-report readiness to callers such as mysqlnd.
+		 */
+		int ready_count = 0;
+		for (int i = 0; i < poll_fd_count; i++)
+		{
+			const int fd = poll_fds[i].fd;
+			const short revents = poll_fds[i].revents;
+			if (revents & POLLNVAL)
+			{
+				if (poll_fds_on_heap) free(poll_fds);
+				errno = EBADF;
+				return -1;
+			}
+
+			if (read_fds && FD_ISSET(fd, &original_read_fds) && (revents & (POLLIN | POLLERR | POLLHUP)))
+			{
+				FD_SET(fd, read_fds);
+				ready_count++;
+			}
+			if (write_fds && FD_ISSET(fd, &original_write_fds) && (revents & (POLLOUT | POLLERR)))
+			{
+				FD_SET(fd, write_fds);
+				ready_count++;
+			}
+			if (except_fds && FD_ISSET(fd, &original_except_fds) && (revents & POLLPRI))
+			{
+				FD_SET(fd, except_fds);
+				ready_count++;
+			}
+		}
+		if (ready_count > 0)
+		{
+			if (poll_fds_on_heap) free(poll_fds);
+			return ready_count;
+		}
+
+		if (timeout_is_zero)
+		{
+			if (poll_fds_on_heap) free(poll_fds);
+			return 0;
+		}
+
+		int sleepms = 10;
+		if (has_deadline)
+		{
+			const double remaining = deadline - emscripten_get_now();
+			if (remaining <= 0)
+			{
+				if (poll_fds_on_heap) free(poll_fds);
+				return 0;
+			}
+			if (remaining < sleepms)
+			{
+				sleepms = remaining < 1 ? 1 : (int)remaining;
+			}
+		}
+		emscripten_sleep(sleepms);
+	}
 }
 
 #if !defined(TSRMLS_DC)
