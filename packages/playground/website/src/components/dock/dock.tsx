@@ -237,24 +237,6 @@ export function Dock({
 	}, []);
 
 	useLayoutEffect(() => {
-		const pane = paneRef.current;
-		if (!dockPaneIsOpen || !pane) {
-			setPaneHeight(0);
-			return;
-		}
-
-		/** Keeps the toast above content-driven panes as their height changes. */
-		const updatePaneHeight = () => setPaneHeight(pane.offsetHeight);
-		updatePaneHeight();
-		if (typeof ResizeObserver === 'undefined') {
-			return;
-		}
-		const observer = new ResizeObserver(updatePaneHeight);
-		observer.observe(pane);
-		return () => observer.disconnect();
-	}, [section, dockPaneIsOpen]);
-
-	useLayoutEffect(() => {
 		const toast = operationToastRef.current;
 		if (!operationNotice || !toast) {
 			setOperationToastHeight(DOCK_OPERATION_TOAST_MIN_HEIGHT);
@@ -962,6 +944,142 @@ export function Dock({
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
 	});
+	// The last settled pane height. Content-driven panes jump when a section
+	// or step swaps their content; this lets the next layout animate from it.
+	const settledPaneHeightRef = useRef(0);
+	const fixedPaneHeight =
+		typeof paneStyle?.height === 'number'
+			? `${paneStyle.height}px`
+			: String(paneStyle?.height ?? '');
+	useLayoutEffect(() => {
+		const pane = paneRef.current;
+		if (!dockPaneIsOpen || !pane) {
+			settledPaneHeightRef.current = 0;
+			setPaneHeight(0);
+			return;
+		}
+		if (isMobile) {
+			// Mobile panes fill the screen above the Dock. Their flexed children
+			// reflect that imposed height; feeding it into the content-height
+			// animation creates a resize loop instead of measuring content.
+			pane.style.height = '';
+			pane.style.transition = '';
+			pane.style.overflow = '';
+			settledPaneHeightRef.current = pane.offsetHeight;
+			setPaneHeight(pane.offsetHeight);
+			return;
+		}
+		// The tallest the pane may grow (its CSS max-height), probed once.
+		pane.style.transition = 'none';
+		pane.style.height = '99999px';
+		const maxHeight = pane.offsetHeight;
+		pane.style.height = fixedPaneHeight;
+		pane.style.transition = '';
+		// Measure a fixed target before animating. Reading the pane's current
+		// height during the transition would feed each intermediate frame back
+		// into ResizeObserver as a new target and restart the animation.
+		const fixedHeight = fixedPaneHeight ? pane.offsetHeight : undefined;
+		/**
+		 * The height the content wants, read from the children so the pane's
+		 * own animated height never enters the measurement.
+		 */
+		const naturalHeight = () => {
+			if (fixedHeight !== undefined) return fixedHeight;
+			let sum = 0;
+			for (const child of Array.from(pane.children)) {
+				sum += child.getBoundingClientRect().height;
+			}
+			return Math.min(sum, maxHeight);
+		};
+		let target = 0;
+		let animating = false;
+		let cleanupAnimation = () => {};
+		/** Keeps the toast above content-driven panes as their height changes. */
+		const settle = (height: number) => {
+			animating = false;
+			target = height;
+			settledPaneHeightRef.current = height;
+			setPaneHeight(height);
+		};
+		/** Slides the pane edge from one height to the next. */
+		const animateHeight = (from: number, to: number) => {
+			cleanupAnimation();
+			if (
+				Math.abs(from - to) < 1 ||
+				window.matchMedia('(prefers-reduced-motion: reduce)').matches
+			) {
+				pane.style.transition = '';
+				pane.style.overflow = '';
+				pane.style.height = fixedPaneHeight;
+				settle(to);
+				return;
+			}
+			target = to;
+			animating = true;
+			pane.style.transition = 'none';
+			pane.style.height = `${from}px`;
+			pane.style.overflow = 'hidden';
+			void pane.offsetHeight;
+			pane.style.transition =
+				'height 240ms cubic-bezier(0.22, 1, 0.36, 1)';
+			pane.style.height = `${to}px`;
+			const finish = (event?: TransitionEvent) => {
+				// Child transitions (button hovers, focus rings) bubble here too.
+				if (
+					event &&
+					(event.target !== pane || event.propertyName !== 'height')
+				) {
+					return;
+				}
+				cleanupAnimation();
+				pane.style.transition = '';
+				pane.style.overflow = '';
+				pane.style.height = fixedPaneHeight;
+				settle(to);
+			};
+			const timer = window.setTimeout(finish, 300);
+			pane.addEventListener('transitionend', finish);
+			cleanupAnimation = () => {
+				window.clearTimeout(timer);
+				pane.removeEventListener('transitionend', finish);
+				cleanupAnimation = () => {};
+			};
+		};
+		animateHeight(
+			settledPaneHeightRef.current || naturalHeight(),
+			naturalHeight()
+		);
+		if (typeof ResizeObserver === 'undefined') {
+			return cleanupAnimation;
+		}
+		// Content changes, including ones that land mid-animation, move the
+		// target; the edge continues from wherever it is.
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			const natural = naturalHeight();
+			if (Math.abs(natural - target) < 1) return;
+			// Resizing the pane inside the observer callback would trigger the
+			// browser's loop guard; start the animation on the next frame.
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() =>
+				// Once settled the pane already sits at the new height, so the
+				// old edge comes from the last settled value, not the live box.
+				animateHeight(
+					animating
+						? pane.getBoundingClientRect().height
+						: settledPaneHeightRef.current,
+					natural
+				)
+			);
+		});
+		observer.observe(pane);
+		for (const child of Array.from(pane.children)) observer.observe(child);
+		return () => {
+			cancelAnimationFrame(frame);
+			observer.disconnect();
+			cleanupAnimation();
+		};
+	}, [section, dockPaneIsOpen, fixedPaneHeight, isMobile]);
 	const operationToastStyle = getDockOperationToastStyle({
 		isMobile,
 		dockSize,
