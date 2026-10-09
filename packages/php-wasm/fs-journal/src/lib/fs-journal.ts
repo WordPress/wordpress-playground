@@ -122,6 +122,16 @@ export type FilesystemOperation =
 	| DeleteOperation
 	| RenameOperation;
 
+/**
+ * Reports successful filesystem changes at or below `fsRoot`.
+ *
+ * Holds records from nested FS calls until the outer call succeeds. A move
+ * into this root records the source tree before it moves, using destination
+ * paths. Links carry their raw targets rather than their targets' contents.
+ *
+ * Hooks follow PHP runtime restarts. The returned function stops listening
+ * for runtime changes and restores the current runtime's original FS methods.
+ */
 export function journalFSEvents(
 	php: PHP,
 	fsRoot: string,
@@ -262,6 +272,11 @@ const createFSHooks = (
 			nodeType: FS.isLink(lookup.node.mode) ? 'symlink' : 'file',
 		});
 	},
+	/**
+	 * Records a newly created link after the original FS.symlink call succeeds.
+	 * Resolves the link's own path without following its final component, and
+	 * keeps the raw target even if it is broken or points to another link.
+	 */
 	symlink(target: string, path: string) {
 		recordEntry({
 			operation: 'CREATE',
@@ -366,6 +381,15 @@ export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 	}
 }
 
+/**
+ * Describes an existing source tree as creations at the destination path.
+ *
+ * Called before a move into the journal root, while `fromPath` still exists.
+ * Traverses directories but records links without following their targets.
+ * File WRITE records contain only paths, not a snapshot of the bytes; callers
+ * read the destination contents later. These records may be published only
+ * after the move succeeds.
+ */
 export function* recordExistingPath(
 	php: PHP,
 	fromPath: string,

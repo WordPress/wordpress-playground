@@ -165,6 +165,10 @@ export function createDirectoryHandleMountHandler(
  * Restores saved files while bounding both active reads and queued promises.
  * Outstanding reads settle before a failed restore returns, so retrying the
  * mount cannot overlap writes from the previous attempt.
+ *
+ * The mount-root `.playground-symlinks.json` is read as a link index, not copied
+ * into MEMFS. Links are created after the real files and directories, with
+ * their saved targets unchanged even when those targets do not exist.
  */
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
@@ -266,6 +270,16 @@ async function copyOpfsToMemfs(
 	}
 }
 
+/**
+ * Copies a MEMFS tree into OPFS and saves its links without following them.
+ *
+ * Validates the previous link index before copying, then replaces it with the
+ * links found in this tree. The reserved index name cannot be a MEMFS entry
+ * at the mount root. An index with saved links is removed if this tree has none.
+ *
+ * Unrelated OPFS entries remain. File writes and the index write are separate;
+ * a failed copy is not rolled back.
+ */
 export async function copyMemfsToOpfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
@@ -293,6 +307,17 @@ export async function copyMemfsToOpfs(
 	}
 }
 
+/**
+ * Copies real files and directories while collecting links in the supplied map.
+ *
+ * `relativeRoot` places this subtree inside the mount-root link index: `/` for
+ * an initial save, or the destination path when replaying a directory rename.
+ * Link targets are kept as written. Any old OPFS entry at a link path is removed
+ * instead of copying the target. The caller saves the collected map later.
+ *
+ * File writes are bounded and all outstanding writes settle before returning
+ * or reporting a write failure. Successful writes are not rolled back.
+ */
 async function copyMemfsTreeToOpfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
@@ -305,6 +330,10 @@ async function copyMemfsTreeToOpfs(
 	// files yet. This is quite fast.
 	const filesToCreate: Array<[FileSystemDirectoryHandle, string, string]> =
 		[];
+	/**
+	 * Prepares directories and queues regular files for the bounded write pass.
+	 * Records links without descending into them, including broken or cyclic links.
+	 */
 	async function mirrorMemfsDirectoryinOpfs(
 		memfsParent: string,
 		opfsDir: FileSystemDirectoryHandle,
@@ -457,6 +486,14 @@ async function overwriteOpfsFile(
 	await writeOpfsFile(opfsParent, name, buffer);
 }
 
+/**
+ * Replaces a file's bytes, including truncating any previous contents.
+ *
+ * Uses a writable stream when available, or a synchronous access handle in
+ * browsers that lack it. The latter requires a worker. Both paths close the
+ * writer after success. A truncate or write failure triggers best-effort abort
+ * or close without hiding the original error or restoring the previous bytes.
+ */
 async function writeOpfsFile(
 	opfsParent: FileSystemDirectoryHandle,
 	name: string,
@@ -486,6 +523,12 @@ async function writeOpfsFile(
 	await writer.close();
 }
 
+/**
+ * Reads and validates the mount-root link index without creating it.
+ *
+ * A missing index means no saved links. All other read errors and invalid index
+ * contents reject, so callers can stop before replacing an unreadable index.
+ */
 async function readSavedSymlinks(opfsRoot: FileSystemDirectoryHandle) {
 	let handle;
 	try {
@@ -499,6 +542,16 @@ async function readSavedSymlinks(opfsRoot: FileSystemDirectoryHandle) {
 	return parseSavedSymlinks(await (await handle.getFile()).text());
 }
 
+/**
+ * Parses a version-1 index into mount-root paths and unchanged link targets.
+ *
+ * Paths must be normalized, start with `/`, contain no NUL bytes, and name
+ * neither the mount root nor its reserved index file. A link cannot contain
+ * another saved link below it, because restoring the child would traverse the
+ * parent link's target.
+ * Targets must be nonempty strings without NUL bytes; their paths are not
+ * resolved or checked for existence, so broken and cyclic links remain valid.
+ */
 function parseSavedSymlinks(json: string): Map<string, string> {
 	const data = JSON.parse(json);
 	if (
@@ -541,6 +594,22 @@ function parseSavedSymlinks(json: string): Map<string, string> {
 	return symlinks;
 }
 
+/**
+ * Saves the complete link map in the mount-root `.playground-symlinks.json`.
+ *
+ * OPFS has no symlink entries. This index lets a restore rebuild them in MEMFS
+ * without saving a copy of each link's target.
+ *
+ * The format is `{ "version": 1, "links": { "/alias": "../target" } }`. Keys start
+ * at the mount root and targets are stored as written. Callers supply a valid,
+ * complete map; this function neither validates it nor merges the old index.
+ * An empty map removes the index instead of storing an empty links object.
+ *
+ * If the index did not exist before a failed write, attempts to remove the new
+ * file so a later save is not blocked by an empty or partial index. Cleanup is
+ * best-effort and the original error is rethrown. An existing index is not
+ * removed on failure, but its previous contents are not guaranteed to survive.
+ */
 async function writeSavedSymlinks(
 	opfsRoot: FileSystemDirectoryHandle,
 	symlinks: Map<string, string>
@@ -581,6 +650,11 @@ async function writeSavedSymlinks(
 	}
 }
 
+/**
+ * Removes one physical entry, including its whole subtree if it is a directory.
+ * A missing entry is already removed, which makes retries safe. Other errors
+ * reject so callers do not mark a failed removal as saved.
+ */
 async function removeOpfsEntry(
 	parent: FileSystemDirectoryHandle,
 	name: string
@@ -760,6 +834,13 @@ export function journalFSEventsToOpfs(
 
 type JournalEntry = FilesystemOperation;
 
+/**
+ * Replays mount-scoped journal operations into OPFS and buffers link changes.
+ *
+ * Loads the saved link map once and updates it as entries are processed. The
+ * caller must flush that map after each batch. Physical entries and the link
+ * index are written separately, so a batch is not an atomic filesystem save.
+ */
 class OpfsRewriter {
 	private memfsRoot: string;
 	private php: PHP;
@@ -957,6 +1038,13 @@ class OpfsRewriter {
 		}
 	}
 
+	/**
+	 * Saves the buffered link map once per batch, doing no I/O when it is clean.
+	 *
+	 * Clears the dirty flag only after the index is written or removed. A failure
+	 * leaves the map dirty so an empty-journal flush can retry just the index,
+	 * without repeating completed moves or deletes.
+	 */
 	public async flushSymlinks() {
 		if (!this.symlinksDirty) {
 			return;
@@ -968,6 +1056,11 @@ class OpfsRewriter {
 	}
 }
 
+/**
+ * Removes cached links at `path` and below it without touching OPFS or targets.
+ * For example, `/plugins` includes `/plugins/demo` but not `/plugins-old/demo`.
+ * Returns whether the map changed, so the caller can mark the index dirty.
+ */
 function removeSavedSymlinks(symlinks: Map<string, string>, path: string) {
 	let changed = false;
 	for (const linkPath of symlinks.keys()) {
