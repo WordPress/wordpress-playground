@@ -178,6 +178,65 @@ class ProxyFunctionsTests extends TestCase
         );
     }
 
+    /**
+     * @dataProvider providerTargetPorts
+     */
+    public function testResolvesTheEffectiveTargetPort($url, $port)
+    {
+        $lookups = 0;
+        $resolved = url_validate_and_resolve($url, function ($host) use (&$lookups) {
+            $this->assertSame('example.com', $host);
+            $lookups++;
+            return ['8.8.8.8'];
+        });
+        $this->assertSame($port, $resolved['port']);
+        $this->assertSame('8.8.8.8', $resolved['ip']);
+        $this->assertSame(1, $lookups);
+    }
+
+    static public function providerTargetPorts()
+    {
+        return [
+            ['http://example.com/', 80],
+            ['https://example.com/', 443],
+            ['http://example.com:8080/', 8080],
+            ['https://example.com:8443/', 8443],
+            ['http://example.com:443/', 443],
+            ['https://example.com:80/', 80],
+        ];
+    }
+
+    public function testRejectsPortZeroBeforeResolving()
+    {
+        $this->expectException(CorsProxyException::class);
+        $this->expectExceptionMessage('Invalid port');
+        url_validate_and_resolve('http://example.com:0/', function () {
+            $this->fail('Invalid ports must not reach DNS resolution');
+        });
+    }
+
+    /**
+     * @dataProvider providerUnsafeResolutionResults
+     */
+    public function testRejectsUnsafeResolutionResults($ips)
+    {
+        $this->expectException(CorsProxyException::class);
+        url_validate_and_resolve('http://example.com:8080/', fn() => $ips);
+    }
+
+    static public function providerUnsafeResolutionResults()
+    {
+        return [
+            'lookup failure' => [false],
+            'empty answer' => [[]],
+            'public and loopback' => [['8.8.8.8', '127.0.0.1']],
+            'public and private' => [['8.8.8.8', '10.0.0.1']],
+            'public and metadata' => [['8.8.8.8', '169.254.169.254']],
+            'invalid address' => [['not-an-ip']],
+            'unsupported address family' => [['2001:4860:4860::8888']],
+        ];
+    }
+
     public function testFilterHeadersStrings()
     {
         $original_headers = [

@@ -81,9 +81,6 @@ try {
     exit;
 }
 
-$host = $resolved['host'];
-$resolvedIp = $resolved['ip'];
-
 define(
     'CURRENT_SCRIPT_URI',
     get_current_script_uri($targetUrl, $_SERVER['REQUEST_URI'])
@@ -162,11 +159,13 @@ function should_send_as_chunked_response() {
     return $is_chunked_response && php_sapi_name() === 'cli-server';
 }
 
-// Pin the hostname resolution to an IP we've resolved earlier
-curl_setopt($ch, CURLOPT_RESOLVE, [
-    "$host:80:$resolvedIp",
-    "$host:443:$resolvedIp"
-]);
+try {
+    set_curl_destination($ch, $resolved);
+} catch (CorsProxyException $e) {
+    http_response_code(500);
+    echo "Internal Server Error\n\n" . $e->getMessage();
+    exit;
+}
 
 $allHeaders = getallheaders();
 
@@ -291,18 +290,8 @@ if ($has_range || $_SERVER['REQUEST_METHOD'] === 'HEAD') {
 curl_setopt(
     $ch,
     CURLOPT_HTTPHEADER,
-    array_merge(
-        $curlHeaders,
-        [
-            "Host: $host",
-            // @TODO: Consider relaying client IP with the following reasoning:
-            // Let's not take full credit for the proxied request.
-            // This is a CORS proxy, not an IP anonymizer.
-            // NOTE: We cannot do this reliably based on X-Forwarded-For unless
-            // we trust the reverse proxy, so it cannot be done unconditionally
-            // in this script because we do not control where others deploy it.
-        ],
-    )
+    // cURL generates Host from the target URL, including its custom port.
+    $curlHeaders
 );
 
 // Set options to stream data
@@ -511,10 +500,7 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
             fn($h) => stripos($h, 'Content-Type:') !== 0
                    && stripos($h, 'Content-Length:') !== 0
         ));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge(
-            $filteredHeaders,
-            ["Host: $host"],
-        ));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $filteredHeaders);
     } else {
         $input = fopen('php://input', 'r');
         curl_setopt($ch, CURLOPT_UPLOAD, true);

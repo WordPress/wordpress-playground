@@ -488,6 +488,47 @@ assert_not_contains(
 assert_only_proxy_headers($response, '502');
 
 // ──────────────────────────────────────────────
+// Test 20: Custom-port targets retain their HTTP identity
+// ──────────────────────────────────────────────
+echo "\nTest 20: Custom-port targets retain their HTTP identity\n";
+$response = proxy_request($proxy_port, "http://localhost:$upstream_port/headers");
+$upstream_headers = json_decode($response['body'], true) ?? [];
+assert_true(
+    $response['http_code'] === 200,
+    'The handler should connect to a hostname on a custom port'
+);
+assert_true(
+    ($upstream_headers['host'] ?? null) === "localhost:$upstream_port",
+    'The target Host header should retain the URL hostname and port'
+);
+
+// ──────────────────────────────────────────────
+// Test 21: The real handler refuses private destinations
+// ──────────────────────────────────────────────
+echo "\nTest 21: The real handler refuses private destinations\n";
+// Unlike the response-handling fixture above, this server uses the actual
+// IP validator. It must not relay our private upstream's canary response.
+$secure_proxy_port = find_free_port();
+$secure_proxy_proc = start_php_server($secure_proxy_port, null, $proxy_dir);
+try {
+    foreach (["http://localhost:$upstream_port/plain-text", $upstream_url] as $target) {
+        $response = proxy_request($secure_proxy_port, $target);
+        assert_true(
+            $response['http_code'] === 400,
+            'Private destinations should be rejected before a connection'
+        );
+        assert_not_contains(
+            'Hello from plain-text endpoint',
+            $response['body'],
+            'The private upstream response must never be relayed'
+        );
+    }
+} finally {
+    proc_terminate($secure_proxy_proc);
+    proc_close($secure_proxy_proc);
+}
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);
