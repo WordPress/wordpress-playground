@@ -31,7 +31,7 @@ class Wp_Http_Dummy_Base
 	{
 		$responses = array();
 		foreach ($requests as $id => $request) {
-			$responses[] = false;
+			$responses[$id] = false;
 		}
 		return $responses;
 	}
