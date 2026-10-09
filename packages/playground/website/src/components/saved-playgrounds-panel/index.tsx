@@ -3,7 +3,6 @@ import classNames from 'classnames';
 import { createPortal } from 'react-dom';
 import {
 	Spinner,
-	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	TextControl,
@@ -69,6 +68,7 @@ import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
+import { DropdownMenu } from '../dropdown-menu';
 import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
