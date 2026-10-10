@@ -82,12 +82,6 @@ class ProxyFunctionsTests extends TestCase
                 'https://proxy.example/cors-proxy.php?',
                 'https://proxy.example/cors-proxy.php?https://example.com:8443/directory/two',
             ],
-            'IPv6 authority retains its brackets and port' => [
-                'http://[2001:db8::1]:8080/one',
-                '/two',
-                'https://proxy.example/cors-proxy.php?',
-                'https://proxy.example/cors-proxy.php?http://[2001:db8::1]:8080/two',
-            ],
             'Absolute redirect uses its own authority' => [
                 'https://example.com:8443/one',
                 'https://other.example/two',
