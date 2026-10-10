@@ -11,6 +11,7 @@ import {
 } from '@wordpress/components';
 import {
 	moreVertical,
+	download,
 	upload,
 	link,
 	pencil,
@@ -59,6 +60,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 	setDockPaneSection,
+	setCloneRequested,
 	setSiteSlugToDelete,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
@@ -72,6 +74,11 @@ import { TruncatedText } from '../truncated-text';
 import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
+
+// Keep the startup opt-in when site navigation replaces the query string.
+const isReprintEnabled = new URLSearchParams(window.location.search).has(
+	'reprint'
+);
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -1437,41 +1444,82 @@ export function SavedPlaygroundsPanel({
 			>
 				<div
 					hidden={isGitHubImportOpen}
-					className={css.creationTabs}
-					role="tablist"
-					aria-label="Ways to start a new Playground"
+					className={css.creationMethods}
 				>
-					{creationMethods.map((method) => (
-						<button
-							key={method.id}
-							id={`creation-tab-${method.id}`}
-							type="button"
-							role="tab"
-							aria-selected={activeCreationTab === method.id}
-							aria-controls="creation-panel"
-							tabIndex={method.id === rovingTabId ? 0 : -1}
-							className={classNames(css.creationButton, {
-								[css.creationButtonActive]:
-									activeCreationTab === method.id,
-							})}
-							onPointerDown={handleCreationTabPointerDown}
-							onClick={() => handleCreationTabClick(method.id)}
-							onKeyDown={handleCreationTabKeyDown}
-							disabled={method.disabled || isImportingZip}
-							title={
-								method.disabled
-									? 'Needs an internet connection — unavailable offline'
-									: undefined
-							}
-						>
-							<span className={css.creationIcon}>
-								{method.icon}
-							</span>
-							<span className={css.creationTitle}>
-								{method.label}
-							</span>
-						</button>
-					))}
+					<div
+						className={css.creationTabs}
+						role="tablist"
+						aria-label="Ways to start a new Playground"
+					>
+						{creationMethods.map((method) => (
+							<button
+								key={method.id}
+								id={`creation-tab-${method.id}`}
+								type="button"
+								role="tab"
+								aria-selected={activeCreationTab === method.id}
+								aria-controls="creation-panel"
+								tabIndex={method.id === rovingTabId ? 0 : -1}
+								className={classNames(css.creationButton, {
+									[css.creationButtonActive]:
+										activeCreationTab === method.id,
+								})}
+								onPointerDown={handleCreationTabPointerDown}
+								onClick={() =>
+									handleCreationTabClick(method.id)
+								}
+								onKeyDown={handleCreationTabKeyDown}
+								disabled={method.disabled || isImportingZip}
+								title={
+									method.disabled
+										? 'Needs an internet connection — unavailable offline'
+										: undefined
+								}
+							>
+								<span className={css.creationIcon}>
+									{method.icon}
+								</span>
+								<span className={css.creationTitle}>
+									{method.label}
+								</span>
+							</button>
+						))}
+					</div>
+					{isReprintEnabled && (
+						<>
+							<div
+								className={css.creationDivider}
+								aria-hidden="true"
+							>
+								or
+							</div>
+							<button
+								type="button"
+								className={classNames(
+									css.creationButton,
+									css.creationLauncher
+								)}
+								disabled={offline || isImportingZip}
+								title={
+									offline
+										? 'Needs an internet connection — unavailable offline'
+										: undefined
+								}
+								onClick={() => {
+									dispatch(setCloneRequested(true));
+									dispatch(setDockPaneSection('transfer'));
+									dispatch(setDockPaneOpen(true));
+								}}
+							>
+								<span className={css.creationIcon}>
+									<Icon icon={download} size={20} />
+								</span>
+								<span className={css.creationTitle}>
+									Clone a live site
+								</span>
+							</button>
+						</>
+					)}
 				</div>
 				<div
 					id="creation-panel"

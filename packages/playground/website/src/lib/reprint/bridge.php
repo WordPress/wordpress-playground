@@ -8,8 +8,9 @@
  * mirror deletions, progress, and download checkpoints. This bridge supplies
  * Playground's paths, exclusions, size limit, and linked-file copying.
  *
- * The token is supplied in the process environment, not a connection setting
- * or a generated script. Downloaded site data can still contain private data.
+ * The private key is supplied in the process environment, not a connection
+ * setting or a generated script. Its temporary file stays outside the site directory
+ * and exports. Downloaded site data can still contain private data.
  */
 ini_set('max_execution_time', '0');
 if (!defined('STDOUT')) define('STDOUT', fopen('php://output', 'wb'));
@@ -194,6 +195,7 @@ if (getenv('PLAYGROUND_REPRINT') !== false) {
  * waiting for a result that never arrives.
  */
 function run_transfer(): void {
+    $exit_code = 0;
     set_error_handler(function (int $severity, string $message, string $file, int $line): bool {
         if (!(error_reporting() & $severity)) return false;
         throw new ErrorException($message, 0, $severity, $file, $line);
@@ -207,6 +209,9 @@ function run_transfer(): void {
         $root = wp_join_unix_paths('/tmp/playground-reprint-state', md5($request['documentRoot'] . "\n" . $request['url']));
         if (!is_dir($root)) mkdir($root, 0700, true);
         $lock = new ReprintProcessLock($root);
+        // Reprint's public API accepts a key-file path. Keep that file in /tmp,
+        // never in the mirrored WordPress tree or the saved site's exports.
+        $request['privateKeyPath'] = wp_join_unix_paths($root, 'key.pem');
         $operation_path = wp_join_unix_paths($root, 'operation.json');
         $operation = is_file($operation_path) ? json_decode(file_get_contents($operation_path), true, 512, JSON_THROW_ON_ERROR) : null;
         if (!in_array($request['command'], ['pull', 'finish-pull'], true)) {
@@ -232,13 +237,19 @@ function run_transfer(): void {
         echo json_encode(['playgroundReprint' => $result], JSON_THROW_ON_ERROR) . "\n";
     } catch (Throwable $error) {
         fwrite(STDERR, $error->getMessage() . "\n");
-        exit(1);
+        $exit_code = 1;
     } finally {
+        // PHP's exit() skips finally. Report failures above, but exit only
+        // after removing the key and releasing the transfer lock here.
+        if (isset($request['privateKeyPath']) && is_file($request['privateKeyPath'])) {
+            unlink($request['privateKeyPath']);
+        }
         restore_error_handler();
         if (isset($lock)) {
             $lock->close();
         }
     }
+    if ($exit_code !== 0) exit($exit_code);
 }
 
 /**
@@ -258,7 +269,8 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     $client = new ImportClient($request['url'], $state, $files, ['allow_http' => is_local_reprint_url($request['url'])]);
     // Reprint now returns from preflight instead of exiting PHP. Save its
     // metadata here, before advancing the operation or emitting the next stage.
-    $client->run(['command' => 'preflight', 'secret' => $request['secret'], 'progress' => 'jsonl'], $lock);
+    write_private_key($request);
+    $client->run(['command' => 'preflight', 'private_key_path' => $request['privateKeyPath'], 'progress' => 'jsonl'], $lock);
     $error = $client->get_preflight_error();
     if ($error !== null) throw new RuntimeException($error['message']);
     $preflight = $client->get_state()->preflight_record()['data'];
@@ -373,9 +385,10 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         $operation['stage'] = 'db-pull';
         return ['status' => 'continue', 'stage' => $operation['stage']];
     }
+    write_private_key($request);
     $client->run([
         'command' => $stage,
-        'secret' => $request['secret'],
+        'private_key_path' => $request['privateKeyPath'],
         'progress' => 'jsonl',
         // Reprint also selects detached plugins, MU plugins, and uploads when
         // wp-content is selected. Map them into the Playground's local layout.
@@ -391,13 +404,25 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         'new_site_url' => $request['siteUrl'],
     ], $lock);
     if ($client->exit_code !== 0 && $client->exit_code !== 2) {
-        throw new RuntimeException('Reprint stopped. Check the transfer error and retry with the same site and token.');
+        throw new RuntimeException('Reprint stopped. Check the transfer error and retry with the same site and key.');
     }
     if ($client->exit_code === 0) {
         if ($stage === 'files-pull') save_pulled_links($files, $root, $metadata, $client);
         $operation['stage'] = $stages[array_search($stage, $stages, true) + 1];
     }
     return ['status' => 'continue', 'stage' => $operation['stage']];
+}
+
+/**
+ * Supplies Reprint's key-file API only when a stage calls ImportClient::run().
+ *
+ * The request's path is under the private /tmp transfer directory. Local
+ * setup and finish-pull never write it; run_transfer() removes it in finally
+ * after both successful and failed commands, before imported plugins can run.
+ */
+function write_private_key(array $request): void {
+    file_put_contents($request['privateKeyPath'], $request['privateKey']);
+    chmod($request['privateKeyPath'], 0600);
 }
 
 /**
@@ -714,7 +739,7 @@ function remove_tree(string $path): void {
  * Chooses Reprint's allow_http option for local development URLs.
  *
  * ImportClient still validates the transport. This helper only opts loopback
- * hosts into its HTTP exception; otherwise tokens require HTTPS. Reuse it for
+ * hosts into its HTTP exception; otherwise authenticated requests require HTTPS. Reuse it for
  * both preflight and files-pull so they accept the same development servers.
  */
 function is_local_reprint_url(string $url): bool {
