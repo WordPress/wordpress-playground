@@ -321,6 +321,52 @@ jobs:
             - name: Run the native PHP bridge checks
               run: php packages/playground/website/src/lib/reprint/bridge-test.php
 
+    test-e2e-reprint-import:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install PHP for the source site
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: sqlite3, pdo_sqlite, gd, mbstring, curl, zip, xml
+                  tools: none
+            - name: Install Playwright Browser
+              run: sudo npx playwright install chromium --with-deps
+            - name: Build app for E2E tests
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Serve a WordPress site with Reprint Server
+              run: |
+                  bash packages/playground/website/playwright/reprint-site/serve.sh > /tmp/reprint-site.log 2>&1 &
+                  for _ in $(seq 1 120); do
+                      if curl -sf http://127.0.0.1:8181/playground-e2e-manifest.json > /dev/null; then
+                          exit 0
+                      fi
+                      sleep 2
+                  done
+                  echo "The source site did not come up:"
+                  cat /tmp/reprint-site.log
+                  exit 1
+            - name: Run Playwright reprint-import tests
+              run: sudo CI=true PLAYWRIGHT_TEST_GROUP=reprint-import REPRINT_E2E_SITE_URL=http://127.0.0.1:8181/ npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=chromium
+            - name: Source site log
+              if: ${{ failure() }}
+              run: cat /tmp/reprint-site.log
+            - uses: actions/upload-artifact@v4
+              if: ${{ failure() }}
+              with:
+                  name: playwright-report-reprint-import
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+                  retention-days: 7
+
     # E2E Playwright tests - builds inline per runner for faster parallel execution
     # Previously used a prepare job + artifact sharing, but inline builds allow
     # all shards to start immediately in parallel, reducing total wall time.

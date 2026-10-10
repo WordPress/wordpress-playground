@@ -818,13 +818,20 @@ export function createSitesAPI(
 		 *   Blueprint title becomes the site name if available; otherwise a
 		 *   random name is generated.
 		 * @param settings Optional site settings.
+		 * @param options Set updateUrl to false when a clone must boot without routing.
 		 * @returns The new site's slug.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
-			settings?: SiteSettings
+			settings?: SiteSettings,
+			options: { updateUrl?: boolean } = {}
 		): Promise<string> {
-			return await createTemporarySite(requestedSiteSlug, settings);
+			return await createTemporarySite(
+				requestedSiteSlug,
+				settings,
+				undefined,
+				options
+			);
 		},
 
 		/**
@@ -950,10 +957,12 @@ export function createSitesAPI(
 		},
 	};
 
+	/** Boot a temporary site, optionally keeping the current browser URL during setup. */
 	async function createTemporarySite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
-		initialize?: (playground: PlaygroundClient) => Promise<void>
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		options: { updateUrl?: boolean } = {}
 	): Promise<string> {
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
@@ -968,7 +977,9 @@ export function createSitesAPI(
 				replaceExisting: Boolean(initialize),
 			})
 		);
-		await activateNewSite(newSiteInfo.slug, initialize);
+		await activateNewSite(newSiteInfo.slug, initialize, {
+			updateUrl: options.updateUrl,
+		});
 		return newSiteInfo.slug;
 	}
 

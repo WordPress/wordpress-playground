@@ -7,6 +7,7 @@ import bridge from './bridge.php?raw';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import type { PlaygroundClient } from '@wp-playground/client';
 import release from './release.json';
+import { redactReprintPrivateKeys } from './keys';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -26,7 +27,6 @@ export type ReprintAvailability =
 
 export type TransferProgress = {
 	message: string;
-	error?: string;
 	phase?: string;
 	percent?: number;
 	overallPercent?: number;
@@ -51,10 +51,10 @@ type TransferResult = {
 /**
  * Checks whether the site's preflight endpoint replies like Reprint Server.
  *
- * No token or browser cookies are sent. `configured` means Reprint asked for
- * authentication; this check has not authenticated the browser. `needs-key`
- * means the server reported a missing connection token. Other HTTP replies,
- * including login pages and generic 403s, return `not-detected`.
+ * No key, token, or browser cookies are sent. `configured` means Reprint asked
+ * for authentication; this check has not authenticated the browser. `needs-key`
+ * means the server reported missing enrolled keys or a legacy connection token.
+ * Other HTTP replies, including login pages and generic 403s, return `not-detected`.
  *
  * Cancellation, failed requests, and a 15-second deadline return `unreachable`.
  * The deadline also covers response bodies that stall or ignore cancellation.
@@ -115,17 +115,21 @@ async function probeReprint(
 	);
 	// v0.10.8 sends JSON as application/octet-stream, including auth errors.
 	const body = await response.json().catch(() => null);
+	if (response.status !== body?.code) return 'not-detected';
 	if (
 		response.status === 403 &&
-		body?.code === 403 &&
-		body.error === 'Missing X-Auth-Signature header'
+		(body.reason === 'requires_key_auth' ||
+			body.error === 'Missing X-Auth-Signature header')
 	)
 		return 'configured';
 	if (
 		response.status === 503 &&
-		body?.code === 503 &&
-		body.error ===
-			'Export not configured. Please configure the connection token in WordPress admin under Tools > Reprint Server.'
+		(body.reason === 'no_keys_enrolled' ||
+			(body.reason === 'not_configured' &&
+				typeof body.error === 'string' &&
+				body.error.startsWith('Export not configured:')) ||
+			body.error ===
+				'Export not configured. Please configure the connection token in WordPress admin under Tools > Reprint Server.')
 	)
 		return 'needs-key';
 	return 'not-detected';
@@ -192,13 +196,14 @@ export function normalizeReprintUrl(input: string): string {
 export async function pullSite(
 	playground: PlaygroundClient,
 	url: string,
-	secret: string,
+	privateKey: string,
 	onProgress: (progress: TransferProgress) => void,
 	/** Stops after the current PHP run. The checkpoint allows a later resume. */
 	signal?: AbortSignal
 ): Promise<{ warning?: string }> {
 	url = normalizeReprintUrl(url);
-	if (!secret.trim()) throw new Error('Enter the Reprint connection token.');
+	if (!privateKey.trim())
+		throw new Error('Generate a Reprint key before pulling.');
 	// Phase weights estimate work, not elapsed time. SQL and file bytes have
 	// different costs. Checkpoints keep the bar; only completion reaches 100%.
 	const phases: Record<string, [number, number, string]> = {
@@ -218,7 +223,7 @@ export async function pullSite(
 		if (update.phase && phases[update.phase] && update.phase !== phase) {
 			phase = update.phase;
 			logger.info(
-				`[Reprint] ${(update.message ?? '').replaceAll(secret, '[redacted]')}`
+				`[Reprint] ${redactReprintPrivateKeys(update.message ?? '')}`
 			);
 			lastProgress = { message: update.message ?? lastProgress.message };
 		}
@@ -264,7 +269,14 @@ export async function pullSite(
 		while (true) {
 			const result = await runBridge(
 				playground,
-				{ command, url, secret, documentRoot, siteUrl, databasePath },
+				{
+					command,
+					url,
+					privateKey,
+					documentRoot,
+					siteUrl,
+					databasePath,
+				},
 				report
 			);
 			if (result.stage && stage !== result.stage) {
@@ -369,10 +381,11 @@ export async function pullSite(
 			error instanceof DOMException && error.name === 'AbortError'
 				? error
 				: new Error(
-						(error instanceof Error
-							? error.message
-							: String(error)
-						).replaceAll(secret, '[redacted]')
+						redactReprintPrivateKeys(
+							error instanceof Error
+								? error.message
+								: String(error)
+						)
 					);
 		logger.error(`[Reprint] Pull failed: ${transferError.message}`);
 	}
@@ -439,8 +452,8 @@ async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
  * Runs one bridge stage and returns its final playgroundReprint result.
  *
  * The caller must first install the client PHAR and the script at BRIDGE_PATH.
- * Passes the request, including its token, through PLAYGROUND_REPRINT in PHP's
- * environment instead of embedding it in a generated script. Uses the primary
+ * Passes the request, including its private key, through PLAYGROUND_REPRINT
+ * in PHP's environment instead of embedding it in a generated script. Uses the primary
  * PHP instance so successive stages see the same temporary files.
  *
  * Reads stdout as JSON lines and reports progress before PHP exits. Uses
@@ -449,7 +462,7 @@ async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
  * stdout, stderr, and the exit status together, including output after a result.
  *
  * A nonzero exit or missing result throws using the last JSON error, stderr,
- * or an exit-code message, in that order. Literal token occurrences are redacted
+ * or an exit-code message, in that order. Private PEM blocks are redacted
  * from PHP error and message text before reporting it. Site content is not
  * sanitized by this function.
  */
@@ -458,7 +471,7 @@ export async function runBridge(
 	request: {
 		command: 'pull' | 'finish-pull';
 		url: string;
-		secret: string;
+		privateKey: string;
 		documentRoot: string;
 		siteUrl: string;
 		databasePath?: string;
@@ -477,12 +490,6 @@ export async function runBridge(
 	let result: TransferResult | undefined;
 	let lastError = '';
 	let hasStructuredProgress = false;
-	/**
-	 * Removes literal token occurrences from messages reported by this PHP call.
-	 * The same replacement is applied to JSON errors, stderr, and progress text.
-	 */
-	const redact = (message: string) =>
-		message.replaceAll(request.secret, '[redacted]');
 	/**
 	 * Reads UTF-8 stdout without assuming that a chunk contains a complete line.
 	 *
@@ -508,12 +515,15 @@ export async function runBridge(
 					if (record.playgroundReprint)
 						result = record.playgroundReprint;
 					if (typeof record.error === 'string')
-						lastError = redact(record.error);
+						lastError = redactReprintPrivateKeys(record.error);
 					if (record.playgroundProgress) {
 						const update = record.playgroundProgress;
 						const detail = describeProgress(update);
 						onProgress({
-							...readProgress(update, redact(update.message)),
+							...readProgress(
+								update,
+								redactReprintPrivateKeys(update.message)
+							),
 							// Clear commentary left by an earlier chunk when this
 							// update has counters but no finer-grained context.
 							detail,
@@ -587,7 +597,9 @@ export async function runBridge(
 						typeof record.message === 'string' &&
 						record.status === 'error'
 					) {
-						onProgress({ message: redact(record.message) });
+						onProgress({
+							message: redactReprintPrivateKeys(record.message),
+						});
 					} else if (
 						typeof record.message === 'string' &&
 						!hasStructuredProgress
@@ -596,7 +608,9 @@ export async function runBridge(
 						// target: …") belongs under the bar; the heading keeps
 						// the phase name. Per-file lines during a byte-counted
 						// download are noise and stay out.
-						onProgress({ detail: redact(record.message) });
+						onProgress({
+							detail: redactReprintPrivateKeys(record.message),
+						});
 					}
 				} catch {
 					// Reprint may also print plain-text progress. It is not a result.
@@ -612,7 +626,7 @@ export async function runBridge(
 	]);
 	if (exitCode !== 0 || !result) {
 		throw new Error(
-			redact(
+			redactReprintPrivateKeys(
 				lastError ||
 					stderr ||
 					`Reprint stopped with exit code ${exitCode}.`
