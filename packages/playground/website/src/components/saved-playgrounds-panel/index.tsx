@@ -40,6 +40,7 @@ import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { logger } from '@php-wasm/logger';
+import { logTrackingEvent } from '../../lib/tracking';
 import {
 	useActiveSite,
 	useAppSelector,
@@ -356,6 +357,7 @@ export function SavedPlaygroundsPanel({
 				return;
 			}
 
+			logTrackingEvent('createPlayground', { type: 'zip' });
 			zipImportPendingRef.current = true;
 			setIsImportingZip(true);
 			setZipImportError(undefined);
@@ -819,6 +821,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
+		logTrackingEvent('createPlayground', { type: 'gallery' });
 		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
@@ -838,6 +841,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
+		logTrackingEvent('createPlayground', { type: 'gallery' });
 		dispatch(setDockPaneOpen(false));
 		// "New Playground" means start fresh. The URL change makes the
 		// selected-site guard handle this as an in-app new-site navigation.
@@ -851,6 +855,7 @@ export function SavedPlaygroundsPanel({
 	 * GitHub import modal's new-site flow).
 	 */
 	const createSiteForGitHubImport = async () => {
+		logTrackingEvent('createPlayground', { type: 'github' });
 		try {
 			await sitesAPI.createNewSavedSite();
 		} catch (error) {
@@ -875,6 +880,7 @@ export function SavedPlaygroundsPanel({
 		if (!trimmed) {
 			return;
 		}
+		logTrackingEvent('createPlayground', { type: 'blueprint-url' });
 		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({ query: { 'blueprint-url': trimmed } })
@@ -893,6 +899,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip || !isWriteOwnValid) {
 			return;
 		}
+		logTrackingEvent('createPlayground', { type: 'write-own' });
 		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
@@ -1021,6 +1028,9 @@ export function SavedPlaygroundsPanel({
 		}
 		event.preventDefault();
 		const nextId = enabled[nextIndex].id;
+		if (nextId !== activeCreationTab) {
+			logTrackingEvent('newPlaygroundTabClick', { type: nextId });
+		}
 		creationFocusTargetRef.current = undefined;
 		setAutofocusWriteOwn(false);
 		setIsGitHubImportDetailsOpen(false);
@@ -1035,6 +1045,7 @@ export function SavedPlaygroundsPanel({
 	};
 
 	const handleCreationTabClick = (tabId: CreationTabId) => {
+		logTrackingEvent('newPlaygroundTabClick', { type: tabId });
 		// `click` also fires for keyboard activation. Pair it with pointer type so
 		// only a real mouse click receives the typing convenience.
 		const pointerType = creationTabPointerTypeRef.current;

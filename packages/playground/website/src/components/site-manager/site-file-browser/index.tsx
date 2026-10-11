@@ -38,6 +38,7 @@ import {
 	type PathBadge,
 	type PlaygroundFileEditorHandle,
 } from '@wp-playground/components';
+import { logTrackingEvent } from '../../../lib/tracking';
 import { GitIcon } from './git-icon';
 import { GitHubIcon } from '../../../github/github';
 
@@ -180,6 +181,8 @@ export function SiteFileBrowser({
 					setMountRequest({ kind, parentPath });
 				}}
 				onPathRenamed={handlePathRenamed}
+				onFileOpen={() => logTrackingEvent('fileOpen')}
+				onManualSave={() => logTrackingEvent('fileSave')}
 			/>
 			{mountRequest ? (
 				<MountGitDirectoryModal
