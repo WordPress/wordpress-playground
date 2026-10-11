@@ -449,6 +449,9 @@ function createEmptyDirectoryHandle() {
 	return {
 		kind: 'directory',
 		name: 'root',
+		async getFileHandle() {
+			throw new DOMException('File not found', 'NotFoundError');
+		},
 		async *values() {},
 	} as unknown as FileSystemDirectoryHandle;
 }
