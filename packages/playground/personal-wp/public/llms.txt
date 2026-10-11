@@ -1,0 +1,19 @@
+# My WordPress (WordPress Playground)
+
+> My WordPress (`https://my.wordpress.net/`) is a free, private, persistent WordPress instance running entirely in the browser via WebAssembly and Origin Private File System (OPFS), powered by WordPress Playground.
+
+## Browser Agent Integration (WebMCP / `document.modelContext`)
+
+When an AI browser agent (Chrome 156+ WebMCP, ChatGPT desktop built-in browser Site Tools, or a WebMCP extension) opens `https://my.wordpress.net/`, it automatically registers structured tools on `document.modelContext`:
+
+- **PHP & HTTP Execution:** `playground_execute_php`, `playground_request`
+- **Navigation & Inspection:** `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`, `playground_list_emails`
+- **Filesystem Management:** `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`, `playground_file_exists`
+- **Site Management:** `playground_list_sites`, `playground_save_in_browser`, `playground_rename_site`, `playground_get_website_url`
+- **WordPress Plugin WebMCP Proxy:** Any WebMCP tools registered inside the WordPress iframe by plugins are automatically proxied onto the top-level `document.modelContext`.
+
+## Related Resources
+
+- [WordPress Playground Index (llms.txt)](https://playground.wordpress.net/llms.txt): Full Query API, Blueprints, and developer tool reference
+- [Documentation Index (llms.txt)](https://wordpress.github.io/wordpress-playground/llms.txt): Complete Markdown index of WordPress Playground documentation
+- [Source Code](https://github.com/WordPress/wordpress-playground): GitHub repository (GPL-2.0-or-later)

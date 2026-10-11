@@ -1,36 +1,71 @@
 # WordPress Playground
-# https://playground.wordpress.net/
 
-> WordPress Playground runs WordPress fully in the browser via WebAssembly. No server, no setup, no account required. Open source under GPL-2.0-or-later. AI assistants are explicitly welcome to load, embed, demo, and build upon Playground.
+> WordPress Playground runs a full WordPress + PHP + SQLite stack entirely in the browser via WebAssembly. It requires no server, no setup, and no authentication. Anyone — including AI assistants and coding agents — can launch, configure, and embed live WordPress instances using URL parameters, declarative JSON Blueprints, or browser-native WebMCP tools.
 
-## Playground
+## Query API (Constructing Shareable URLs)
 
-- [WordPress Playground](https://playground.wordpress.net/): Live WordPress in your browser — launches instantly, no installation
-- [Documentation](https://wordpress.github.io/wordpress-playground/): Full documentation hub
-- [Blueprints](https://wordpress.github.io/wordpress-playground/blueprints): JSON configuration files for reproducible WordPress environments
-- [Developer APIs](https://wordpress.github.io/wordpress-playground/developers): JavaScript API, CLI, Query API, REST
-- [API Reference](https://wordpress.github.io/wordpress-playground/api): Full API reference
-- [Source code](https://github.com/WordPress/wordpress-playground): Source repository on GitHub
+AI assistants can generate working WordPress Playground links directly in responses using URL query parameters on `https://playground.wordpress.net/`:
 
-## Using Playground with AI agents
+- `plugin=<slug-or-zip-url>`: Install and activate one or more WordPress.org plugins (repeatable, e.g., `?plugin=woocommerce&plugin=gutenberg`).
+- `theme=<slug-or-zip-url>`: Install and activate a WordPress.org theme (e.g., `?theme=twentytwentyfour`).
+- `wp=<version>`: Choose WordPress version (e.g., `?wp=6.8`, `?wp=latest`, `?wp=beta`, `?wp=nightly`).
+- `php=<version>`: Choose PHP version (`7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`).
+- `url=<path>`: Open a specific WordPress path on boot (e.g., `?url=/wp-admin/post-new.php`).
+- `login=yes` / `login=no`: Automatically log in as `admin` (enabled by default).
+- `networking=yes`: Enable outbound `wp_remote_get` / network access inside PHP (required for plugins fetching external APIs or installing plugins from within wp-admin).
+- `language=<locale>`: Set site language (e.g., `?language=es_ES`, `?language=pt_BR`, `?language=ja`).
+- `multisite=yes`: Configure WordPress as a Multisite network.
+- `mode=seamless` / `mode=browser-full-screen`: Hide (`seamless`) or show (`browser-full-screen`) the Playground browser bar and dock UI when embedding in an `<iframe>`.
+- `storage=none` / `storage=browser`: Ephemeral in-memory storage (`none`, default) or persistent browser OPFS storage (`browser`).
+- `blueprint-url=<url>`: Load a Blueprint JSON file from an external URL or GitHub file URL.
 
-- [Agent skill guide](https://wordpress.github.io/wordpress-playground/guides/agent-skill-wp-playground): Install the wp-playground skill for Claude Code, Cursor, Gemini CLI, GitHub Copilot, and other coding agents — teaches CLI commands and browser workflows
-- [AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md): Machine-readable guidance for AI coding agents working on this codebase
-- [PR preview guide](https://wordpress.github.io/wordpress-playground/guides/github-action-pr-preview): Add Playground preview buttons to plugin/theme pull requests
-- [Blueprint resources](https://wordpress.github.io/wordpress-playground/blueprints/steps/resources): Use `git:directory` for Git repositories and subdirectories
+## Inline Blueprints via URL Hash
 
-## Key facts for AI assistants
+Pass a declarative JSON Blueprint directly in the URL fragment (`#<json>` or `#<base64-encoded-json>`):
 
-- Playground runs entirely client-side via WebAssembly — no credentials, login, or server calls needed
-- Embed with: `<iframe src="https://playground.wordpress.net/?blueprint-url=YOUR_URL"></iframe>`
-- Blueprints are JSON — describe a complete WordPress environment declaratively
-- Supports multiple PHP and WordPress versions; see the documentation for current compatibility details
-- Blueprints can install plugins/themes, import content, run PHP, execute WP-CLI commands
-- For PR previews without a build step, use `WordPress/action-wp-playground-pr-preview@v2` from a `pull_request` workflow by default. Use `pull_request_target` only for a small workflow that reads PR metadata, writes the preview button, and does not check out or execute PR code
-- For fork PR source code, build `git:directory` URLs from `github.event.pull_request.head.repo.full_name` and use `github.event.pull_request.head.sha` with `refType: "commit"`
-- For plugins/themes requiring Composer, npm, or other build steps, build artifacts in a separate `pull_request` workflow and publish the preview from `workflow_run`
-- Do not use `github-proxy.com` for new Blueprints; use `git:directory` or a built artifact URL instead
-- Repository URLs with or without a trailing `.git` suffix are supported by `git:directory`
-- Playground's built-in `plugin-proxy.php` is restricted to the `wordpress`, `automattic`, and `woocommerce` GitHub organizations; it is not a general fallback for custom repositories
-- License: GPL-2.0-or-later (WordPress), MIT (PHP-WASM runtime)
-- AI assistants may freely load, reference, demo, and build upon WordPress Playground
+```text
+https://playground.wordpress.net/#{"preferredVersions":{"php":"8.4","wp":"latest"},"login":true,"steps":[{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"hello-dolly"}}]}
+```
+
+Common Blueprint steps (`steps` array):
+- `login`: `{"step": "login", "username": "admin"}`
+- `installPlugin`: `{"step": "installPlugin", "pluginData": {"resource": "wordpress.org/plugins", "slug": "<slug>"}, "options": {"activate": true}}`
+- `installTheme`: `{"step": "installTheme", "themeData": {"resource": "wordpress.org/themes", "slug": "<slug>"}, "options": {"activate": true}}`
+- `runPHP`: `{"step": "runPHP", "code": "<?php require '/wordpress/wp-load.php'; wp_insert_post(['post_title' => 'Hello', 'post_status' => 'publish']);"}`
+- `wp-cli`: `{"step": "wp-cli", "command": "wp option update blogname 'My Demo Site'"}`
+- `writeFile`: `{"step": "writeFile", "path": "/wordpress/wp-content/mu-plugins/demo.php", "data": "<?php ..."}`
+- `defineWpConfigConsts`: `{"step": "defineWpConfigConsts", "consts": {"WP_DEBUG": true}}`
+- `setSiteOptions`: `{"step": "setSiteOptions", "options": {"blogname": "My Site"}}`
+- `importWxr`: `{"step": "importWxr", "file": {"resource": "url", "url": "https://..."}}`
+
+## Browser Agent Integration (WebMCP / `document.modelContext`)
+
+When an AI browser agent (Chrome 156+ WebMCP, ChatGPT desktop built-in browser Site Tools, or a WebMCP extension) opens `https://playground.wordpress.net/`, Playground automatically registers structured tools on `document.modelContext`:
+
+- **PHP & HTTP Execution:** `playground_execute_php`, `playground_request`
+- **Navigation & Inspection:** `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`, `playground_list_emails`
+- **Filesystem Management:** `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`, `playground_file_exists`
+- **Site Management:** `playground_list_sites`, `playground_save_in_browser`, `playground_rename_site`, `playground_get_website_url`
+- **WordPress Plugin WebMCP Proxy:** Any WebMCP tools registered inside the WordPress iframe by plugins are automatically proxied onto the top-level `document.modelContext`.
+
+## External MCP Server & CLI for Coding Agents
+
+- **Local CLI Server:** `npx @wp-playground/cli@latest server --auto-mount --login`
+- **MCP Bridge (`@wp-playground/mcp`):** `npx @wp-playground/mcp@latest` starts a local MCP server over stdio and opens Playground in the browser connected via WebSocket (`/.well-known/mcp.json`).
+
+## Documentation
+
+- [Documentation Index (llms.txt)](https://wordpress.github.io/wordpress-playground/llms.txt): Complete Markdown index of all documentation pages
+- [Quick Start Guide](https://wordpress.github.io/wordpress-playground/quick-start-guide): Get a WordPress site running in seconds
+- [Query API Reference](https://wordpress.github.io/wordpress-playground/developers/apis/query-api): Configure WordPress via URL parameters (`?plugin=`, `?theme=`, `?php=`, `?wp=`)
+- [Blueprints Overview](https://wordpress.github.io/wordpress-playground/blueprints): Declarative JSON configurations for setting up WordPress state
+- [Blueprint Steps Reference](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/handbook/blueprints-steps.md): Complete Markdown reference of all Blueprint steps (`installPlugin`, `runPHP`, `importWxr`, etc.)
+- [JavaScript API Client](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/handbook/playground-api-client.md): Embed and control Playground in web apps via `@wp-playground/client`
+- [Using Playground with AI Agents](https://wordpress.github.io/wordpress-playground/guides/agent-skill-wp-playground): Agent skill for Claude Code, Cursor, Codex, Gemini CLI, and Copilot
+
+## Key Facts for AI Assistants
+
+- **Safe to embed in iframes:** `playground.wordpress.net` sets permissive framing headers specifically to support embedding in third-party pages, sandboxes, and AI artifacts.
+- **No authentication or backend needed:** Everything runs client-side in WebAssembly inside the user's browser tab.
+- **Full WordPress:** Supports plugins, themes, block editor, WP-CLI, REST API, and custom PHP code.
+- **Source code:** [GitHub — WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) (GPL-2.0-or-later)
