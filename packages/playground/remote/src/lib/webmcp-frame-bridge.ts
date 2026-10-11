@@ -31,7 +31,13 @@ export interface WebMCPToolDescriptor {
 	name: string;
 	description: string;
 	inputSchema?: Record<string, unknown>;
-	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	annotations?: {
+		readOnlyHint?: boolean;
+		destructiveHint?: boolean;
+		consequentialHint?: boolean;
+		untrustedContentHint?: boolean;
+		debugging?: boolean;
+	};
 }
 
 export interface WebMCPFrameBridge {

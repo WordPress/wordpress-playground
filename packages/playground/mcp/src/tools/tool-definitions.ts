@@ -11,6 +11,9 @@ export interface ToolAnnotations {
 	destructiveHint?: boolean;
 	idempotentHint?: boolean;
 	openWorldHint?: boolean;
+	consequentialHint?: boolean;
+	untrustedContentHint?: boolean;
+	debugging?: boolean;
 }
 
 export type ToolParamType =
@@ -76,6 +79,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
+			debugging: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -161,6 +166,9 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: false,
+			consequentialHint: false,
+			untrustedContentHint: true,
+			debugging: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -266,6 +274,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: true,
 			destructiveHint: false,
+			untrustedContentHint: true,
 			openWorldHint: true,
 		},
 		params: [
@@ -297,6 +306,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -377,6 +387,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -403,6 +414,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -463,6 +475,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: true,
 			destructiveHint: false,
+			untrustedContentHint: true,
+			debugging: true,
 			openWorldHint: true,
 		},
 		params: [],
@@ -623,6 +637,7 @@ export function paramsToJsonSchema(
 	const schema: Record<string, unknown> = {
 		type: 'object',
 		properties,
+		additionalProperties: false,
 	};
 	if (required.length > 0) {
 		schema['required'] = required;

@@ -27,13 +27,20 @@ export interface ModelContextTool {
 	inputSchema?: Record<string, unknown>;
 	execute: (
 		input: Record<string, unknown>,
-		client: ModelContextClient
+		client?: ModelContextClient
 	) => Promise<unknown>;
-	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	annotations?: {
+		readOnlyHint?: boolean;
+		destructiveHint?: boolean;
+		consequentialHint?: boolean;
+		untrustedContentHint?: boolean;
+		debugging?: boolean;
+	};
 }
 
 interface ModelContextClient {
-	requestUserInteraction(callback: () => Promise<unknown>): Promise<unknown>;
+	signal?: AbortSignal;
+	requestUserInteraction?(callback: () => Promise<unknown>): Promise<unknown>;
 }
 
 interface ModelContext {
@@ -93,8 +100,9 @@ export async function registerWebMCPTools(
 			description: def.description,
 			inputSchema: paramsToJsonSchema(def.params),
 			annotations: def.annotations,
-			execute: async (input) => {
+			execute: async (input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					const executor = toolExecutors[name];
 					if (!executor) {
 						return {
@@ -168,9 +176,11 @@ function createSiteManagementTools(
 		{
 			name: 'playground_list_sites',
 			description: listDef.description,
+			inputSchema: paramsToJsonSchema(listDef.params),
 			annotations: listDef.annotations,
-			execute: async () => {
+			execute: async (_input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					return {
 						connectedTabs: 1,
 						sites: config.list().map((s) => ({
@@ -190,9 +200,11 @@ function createSiteManagementTools(
 		{
 			name: 'playground_save_in_browser',
 			description: saveDef.description,
+			inputSchema: paramsToJsonSchema(saveDef.params),
 			annotations: saveDef.annotations,
-			execute: async () => {
+			execute: async (_input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					const site = getActiveSite(config);
 					const storage = formatStorageLabel(site.storage);
 					if (storage !== 'temporary') {
@@ -224,8 +236,9 @@ function createSiteManagementTools(
 			description: renameDef.description,
 			inputSchema: paramsToJsonSchema(renameDef.params),
 			annotations: renameDef.annotations,
-			execute: async (input) => {
+			execute: async (input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					const newName = input['newName'] as string;
 					const sites = config.list();
 					const activeSite = sites.find((s) => s.isActive);
@@ -245,9 +258,11 @@ function createSiteManagementTools(
 		{
 			name: 'playground_get_website_url',
 			description: websiteUrlDef.description,
+			inputSchema: paramsToJsonSchema(websiteUrlDef.params),
 			annotations: websiteUrlDef.annotations,
-			execute: async () => {
+			execute: async (_input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					return {
 						url: window.location.href,
 					};

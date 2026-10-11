@@ -134,8 +134,9 @@ function proxyTool(
 		description: tool.description,
 		inputSchema: tool.inputSchema,
 		annotations: tool.annotations,
-		execute: async (input) => {
+		execute: async (input, clientArg) => {
 			try {
+				clientArg?.signal?.throwIfAborted();
 				return await client.callWebMCPTool(tool.name, input ?? {});
 			} catch (error) {
 				return {
