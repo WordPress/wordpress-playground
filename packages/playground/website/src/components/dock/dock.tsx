@@ -35,6 +35,7 @@ import {
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { buildPlaygroundAnnotationMetadata } from '../../lib/oai-annotations';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
@@ -114,6 +115,20 @@ export function Dock({
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
 			: activeSite?.metadata.name;
+	const dockAnnotationMetadata = useMemo(
+		() =>
+			buildPlaygroundAnnotationMetadata({
+				siteSlug: activeSite?.slug,
+				siteName: playgroundTitle,
+				storage: activeSite?.metadata.storage,
+				wpVersion: activeSite?.metadata.runtimeConfiguration.wpVersion,
+				phpVersion:
+					activeSite?.metadata.runtimeConfiguration.phpVersion,
+				currentUrl: clientInfo?.url,
+				activeDockPane: dockPaneIsOpen ? section : null,
+			}),
+		[activeSite, playgroundTitle, clientInfo?.url, dockPaneIsOpen, section]
+	);
 	const savingDisabled = isSiteSavingDisabled();
 	const inlineRename = useInlineRename();
 	const canManageActiveSite = activeSite?.metadata.storage !== 'none';
@@ -1073,6 +1088,7 @@ export function Dock({
 				<DockPane
 					ref={paneRef}
 					title={paneTitle}
+					annotatableSection={section}
 					description={
 						section === 'settings' && activeSite
 							? undefined
@@ -1233,6 +1249,9 @@ export function Dock({
 				onPointerMove={updateDockSheen}
 				onPointerLeave={hideDockSheen}
 				aria-label="Playground tools"
+				oai-annotation-container=""
+				oai-annotatable="playground-dock"
+				oai-annotation-metadata={dockAnnotationMetadata}
 			>
 				<div className={css.dockSheen} aria-hidden="true" />
 				<div className={css.dockBody}>
