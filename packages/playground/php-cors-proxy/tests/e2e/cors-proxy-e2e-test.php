@@ -537,19 +537,31 @@ assert_true(
 );
 
 // ──────────────────────────────────────────────
-// Test 21: The real handler refuses private destinations
+// Test 21: The real handler refuses private and reserved destinations
 // ──────────────────────────────────────────────
-echo "\nTest 21: The real handler refuses private destinations\n";
+echo "\nTest 21: The real handler refuses private and reserved destinations\n";
 // Unlike the response-handling fixture above, this server uses the actual
 // IP validator. It must not relay our private upstream's canary response.
 $secure_proxy_port = find_free_port();
 $secure_proxy_proc = start_php_server($secure_proxy_port, null, $proxy_dir);
 try {
-    foreach (["http://localhost:$upstream_port/plain-text", $upstream_url] as $target) {
+    $blocked_targets = [
+        "http://localhost:$upstream_port/plain-text",
+        "http://127.0.0.1:$upstream_port/plain-text",
+        "http://10.0.0.1:$upstream_port/plain-text",
+        "http://172.16.0.1:$upstream_port/plain-text",
+        "http://192.168.1.1:$upstream_port/plain-text",
+        "http://169.254.169.254:$upstream_port/plain-text",
+        "http://100.64.0.1:$upstream_port/plain-text",
+        "http://192.0.2.1:$upstream_port/plain-text",
+        "http://224.0.0.1:$upstream_port/plain-text",
+        "http://240.0.0.1:$upstream_port/plain-text",
+    ];
+    foreach ($blocked_targets as $target) {
         $response = proxy_request($secure_proxy_port, $target);
         assert_true(
             $response['http_code'] === 400,
-            'Private destinations should be rejected before a connection'
+            "Private or reserved destination $target should be rejected before a connection"
         );
         assert_not_contains(
             'Hello from plain-text endpoint',
