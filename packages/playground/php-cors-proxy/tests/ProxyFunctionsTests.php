@@ -202,6 +202,104 @@ class ProxyFunctionsTests extends TestCase
         );
     }
 
+    /**
+     * @dataProvider providerTargetPorts
+     */
+    public function testResolvesTheEffectiveTargetPort($url, $port)
+    {
+        $lookups = 0;
+        $resolved = url_validate_and_resolve($url, function ($host) use (&$lookups) {
+            $this->assertSame('example.com', $host);
+            $lookups++;
+            return ['8.8.8.8'];
+        });
+        $this->assertSame($port, $resolved['port']);
+        $this->assertSame('8.8.8.8', $resolved['ip']);
+        $this->assertSame(1, $lookups);
+    }
+
+    static public function providerTargetPorts()
+    {
+        return [
+            ['http://example.com/', 80],
+            ['https://example.com/', 443],
+            ['http://example.com:8080/', 8080],
+            ['https://example.com:8443/', 8443],
+            ['http://example.com:443/', 443],
+            ['https://example.com:80/', 80],
+        ];
+    }
+
+    public function testRejectsPortZeroBeforeResolving()
+    {
+        $this->expectException(CorsProxyException::class);
+        $this->expectExceptionMessage('Invalid port');
+        url_validate_and_resolve('http://example.com:0/', function () {
+            $this->fail('Invalid ports must not reach DNS resolution');
+        });
+    }
+
+    /**
+     * @dataProvider providerUnsafeResolutionResults
+     */
+    public function testRejectsUnsafeResolutionResults($ips)
+    {
+        $this->expectException(CorsProxyException::class);
+        url_validate_and_resolve('http://example.com:8080/', fn() => $ips);
+    }
+
+    static public function providerUnsafeResolutionResults()
+    {
+        return [
+            'lookup failure' => [false],
+            'empty answer' => [[]],
+            'public and loopback' => [['8.8.8.8', '127.0.0.1']],
+            'public and private' => [['8.8.8.8', '10.0.0.1']],
+            'public and metadata' => [['8.8.8.8', '169.254.169.254']],
+            'invalid address' => [['not-an-ip']],
+            'unsupported address family' => [['2001:4860:4860::8888']],
+        ];
+    }
+
+    /**
+     * @dataProvider providerBlockedIpv4Destinations
+     */
+    public function testRejectsPrivateAndReservedDestinations($ips)
+    {
+        $this->expectException(CorsProxyException::class);
+        $this->expectExceptionMessage('Private IPs are forbidden');
+        url_validate_and_resolve('http://example.com:8080/', fn() => $ips);
+    }
+
+    static public function providerBlockedIpv4Destinations()
+    {
+        $blocked_ranges = [
+            'private 10/8' => ['10.0.0.0', '10.255.255.255'],
+            'private 172.16/12' => ['172.16.0.0', '172.31.255.255'],
+            'private 192.168/16' => ['192.168.0.0', '192.168.255.255'],
+            'loopback 127/8' => ['127.0.0.0', '127.0.0.1', '127.255.255.255'],
+            'shared address space' => ['100.64.0.0', '100.127.255.255'],
+            'current network' => ['0.0.0.0', '0.255.255.255'],
+            'protocol assignments' => ['192.0.0.0', '192.0.0.255'],
+            'link-local and metadata' => ['169.254.0.0', '169.254.169.254', '169.254.255.255'],
+            'benchmarking' => ['198.18.0.0', '198.19.255.255'],
+            'documentation TEST-NET-1' => ['192.0.2.0', '192.0.2.255'],
+            'documentation TEST-NET-2' => ['198.51.100.0', '198.51.100.255'],
+            'documentation TEST-NET-3' => ['203.0.113.0', '203.0.113.255'],
+            'deprecated relay' => ['192.88.99.0', '192.88.99.255'],
+            'multicast' => ['224.0.0.0', '239.255.255.255'],
+            'reserved and broadcast' => ['240.0.0.0', '255.255.255.255'],
+        ];
+        $cases = [];
+        foreach ($blocked_ranges as $name => $ips) {
+            foreach ($ips as $ip) {
+                $cases["$name: $ip alone"] = [[$ip]];
+                $cases["$name: public answer followed by $ip"] = [['8.8.8.8', $ip]];
+            }
+        }
+        return $cases;
+    }
+
     public function testFilterHeadersStrings()
     {
         $original_headers = [
