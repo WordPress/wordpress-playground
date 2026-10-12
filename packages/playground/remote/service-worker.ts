@@ -287,9 +287,7 @@ self.addEventListener('fetch', (event) => {
 				handleRemoteAccessRelayRequest(
 					event,
 					remoteAccessRelayMapping
-				).then((response) =>
-					applyScopedResponseHeaders(response)
-				)
+				).then((response) => applyScopedResponseHeaders(response))
 			);
 		}
 		return event.respondWith(
@@ -443,7 +441,10 @@ function applyScopedResponseHeaders(response: Response): Response {
 	)
 		return response;
 	const headers = new Headers(response.headers);
-	headers.append('Content-Security-Policy', "frame-ancestors 'self'");
+	headers.append(
+		'Content-Security-Policy',
+		"frame-ancestors 'self' http://playground.localhost:9400"
+	);
 	headers.set('Cross-Origin-Opener-Policy', 'same-origin');
 	return new Response(response.body, {
 		status: response.status,

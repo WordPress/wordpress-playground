@@ -1,3 +1,4 @@
+import { isInOriginShell } from '../../origin-isolation';
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
@@ -149,6 +150,22 @@ export function bootSiteClient(
 					})
 				);
 				return;
+			}
+			// A cross-origin iframe cannot show a native permission prompt. Stop before
+			// mounting and offer the same-origin popup from the error view instead.
+			if (isInOriginShell()) {
+				const permission = await localDirectoryHandle.queryPermission({
+					mode: 'readwrite',
+				});
+				if (signal.aborted) return;
+				if (permission !== 'granted') {
+					dispatch(
+						setActiveSiteError({
+							error: 'directory-handle-permission-denied',
+						})
+					);
+					return;
+				}
 			}
 			mountDescriptor = {
 				device: {

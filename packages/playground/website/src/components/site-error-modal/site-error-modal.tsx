@@ -1,4 +1,5 @@
-import { isSiteOrigin } from '../../lib/origin-isolation';
+import { reconnectLocalDirectory } from '../../lib/local-directory';
+import { isSiteOrigin, isInOriginShell } from '../../lib/origin-isolation';
 import { useState } from 'react';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
@@ -179,6 +180,21 @@ export function SiteErrorModal({
 			logger.error('Failed to discard Blueprint run', error);
 		}
 	}
+	if (error === 'directory-handle-permission-denied' && isInOriginShell()) {
+		baseView.title = 'Reconnect your local directory';
+		baseView.hideReportButton = true;
+		baseView.hideTroubleshootWithAiButton = true;
+		baseView.body = (
+			<p>
+				Browser access to this directory has expired. A separate window
+				will guide you through allowing access again. Your saved files
+				will not be replaced.
+			</p>
+		);
+		baseView.actions = [
+			<ReconnectDirectory key="reconnect" siteSlug={siteSlug} />,
+		];
+	}
 	const view = isBlueprintRunFailure
 		? {
 				...baseView,
@@ -355,6 +371,47 @@ export function SiteErrorModal({
 				) : null}
 			</div>
 		</Modal>
+	);
+}
+
+/** Reopen only the saved site's iframe after its native permission is restored. */
+function ReconnectDirectory({ siteSlug }: { siteSlug: string }) {
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState('');
+	return (
+		<div>
+			{error && <p role="alert">{error}</p>}
+			<Button
+				variant="primary"
+				disabled={busy}
+				isBusy={busy}
+				onClick={async () => {
+					setBusy(true);
+					setError('');
+					try {
+						await reconnectLocalDirectory(siteSlug);
+						window.location.reload();
+					} catch (error) {
+						if (
+							!(
+								error instanceof DOMException &&
+								error.name === 'AbortError'
+							)
+						) {
+							setError(
+								error instanceof Error
+									? error.message
+									: String(error)
+							);
+						}
+					} finally {
+						setBusy(false);
+					}
+				}}
+			>
+				Reconnect directory
+			</Button>
+		</div>
 	);
 }
 

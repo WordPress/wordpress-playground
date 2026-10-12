@@ -216,3 +216,24 @@ describe('getRuntimeBootFingerprint', () => {
 		);
 	});
 });
+
+describe('isolated-site sharing', () => {
+	it('shares setup on the root without the internal origin or saved-site selector', () => {
+		const url = new URL(
+			'http://site-aaaa.playground.localhost:9400/?site-slug=demo&site=aaaa&php=8.3&plugin=a#blueprint'
+		);
+		expect(getSetupUrlFromUrl(url).href).toBe(
+			'http://playground.localhost:9400/?php=8.3&plugin=a#blueprint'
+		);
+		const site = {
+			originalUrlParams: {
+				searchParams: { php: '8.3', plugin: ['a', 'b'] },
+				hash: '#blueprint',
+			},
+			metadata: {},
+		} as unknown as SiteInfo;
+		expect(getSetupUrlFromSite(site, url).href).toBe(
+			'http://playground.localhost:9400/?php=8.3&plugin=a&plugin=b#blueprint'
+		);
+	});
+});

@@ -1,5 +1,6 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
 import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
+import { isInOriginShell, navigateOrigin } from '../../origin-isolation';
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '@php-wasm/util';
@@ -7,7 +8,7 @@ import { decodeBase64ToString } from '@php-wasm/util';
 /** Keep same-origin routes in the SPA; changing origins requires a real navigation. */
 export function redirectTo(url: string) {
 	if (new URL(url, window.location.href).origin !== window.location.origin) {
-		window.location.assign(url);
+		navigateOrigin(url);
 	} else {
 		window.history.pushState({}, '', url);
 	}
@@ -224,7 +225,7 @@ export function isSiteSavingDisabled(
 
 function isEmbeddedInAnIframe(win: Window): boolean {
 	try {
-		return win.self !== win.top;
+		return win.self !== win.top && !isInOriginShell(win);
 	} catch {
 		return true;
 	}

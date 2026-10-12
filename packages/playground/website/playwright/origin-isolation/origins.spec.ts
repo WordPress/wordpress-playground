@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Page, Frame } from '@playwright/test';
 import { WebsitePage } from '../website-page';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
@@ -238,19 +238,21 @@ test('site creation APIs navigate to distinct origins and preserve the source fi
 		);
 		await client.flushOpfs('/wordpress');
 	});
-	const refusal = await page.evaluate(async () => {
-		try {
-			await (window as any).playgroundSites.createNewSavedSite(
-				'no-navigation',
-				undefined,
-				{ updateUrl: false }
-			);
-		} catch (error) {
-			return String(error);
-		}
-	});
-	expect(refusal).toContain('requires navigating');
-	expect(new URL(page.url()).origin).toBe(firstOrigin);
+	for (const method of ['createNewSavedSite', 'createNewTemporarySite']) {
+		const refusal = await page.evaluate(async (method) => {
+			try {
+				await (window as any).playgroundSites[method](
+					'no-navigation',
+					undefined,
+					{ updateUrl: false }
+				);
+			} catch (error) {
+				return String(error);
+			}
+		}, method);
+		expect(refusal).toContain('requires navigating');
+		expect(new URL(page.url()).origin).toBe(firstOrigin);
+	}
 	for (const storage of ['opfs', 'temporary']) {
 		const before = new URL(page.url()).origin;
 		await page.evaluate((storage) => {
@@ -527,10 +529,12 @@ test('opaque WordPress image backfill loads from the shared asset origin', async
 });
 
 for (const corruption of ['syntax', 'shape']) {
-	test(`invalid catalogue ${corruption} does not block the launcher or bridge`, async ({
+	test(`invalid catalogue ${corruption} does not block the root shell or bridge`, async ({
 		page,
 	}) => {
-		await page.goto('http://playground.localhost:9400/');
+		await page.goto(
+			'http://playground.localhost:9400/local-directory.html'
+		);
 		await page.evaluate((corruption) => {
 			localStorage.setItem(
 				'origin-isolation-sites',
@@ -549,21 +553,21 @@ for (const corruption of ['syntax', 'shape']) {
 				})
 			);
 		}, corruption);
-		await page.reload();
-		await page
-			.getByRole('link', { name: 'New saved Playground', exact: true })
-			.click();
-		await ready(page);
-		expect(new URL(page.url()).hostname).toMatch(/^site-/);
+		await page.goto('http://playground.localhost:9400/?wp=6.9&php=8.3');
+		const app = await (await page
+			.locator('iframe[title="Playground"]')
+			.elementHandle())!.contentFrame();
+		await ready(app!);
+		expect(new URL(page.url()).hostname).toBe('playground.localhost');
 		const catalogue = await bridgeRequest(
-			page,
+			app!,
 			'http://playground.localhost:9400/origin-isolation.html',
 			'catalogue',
 			undefined
 		);
 		expect(catalogue.error).toBeUndefined();
 		expect(catalogue.value).toEqual([
-			expect.objectContaining({ origin: new URL(page.url()).origin }),
+			expect.objectContaining({ origin: new URL(app!.url()).origin }),
 		]);
 	});
 }
@@ -706,7 +710,7 @@ for (const storage of ['opfs', 'temporary'] as const) {
 }
 
 /** Wait for both the client API and the first durable OPFS copy before testing reloads. */
-async function ready(page: Page) {
+async function ready(page: Page | Frame) {
 	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
 	await page.evaluate(() => (window as any).playgroundSites.isReady());
 	const site = await page.evaluate(() =>
@@ -742,7 +746,7 @@ async function ready(page: Page) {
 
 /** Call the real embedded bridge and accept replies only from that frame and origin. */
 async function bridgeRequest(
-	page: Page,
+	page: Page | Frame,
 	url: string,
 	action: string,
 	value?: unknown

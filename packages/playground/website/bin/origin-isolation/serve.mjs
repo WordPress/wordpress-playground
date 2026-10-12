@@ -28,6 +28,40 @@ app.use((req, res, next) => {
 	res.set('X-Content-Type-Options', 'nosniff');
 	res.set('Cache-Control', 'no-store');
 	if (
+		req.path === '/local-directory.html' &&
+		(req.hostname === 'playground.localhost' ||
+			/^site-[a-f0-9-]+\.playground\.localhost$/.test(req.hostname))
+	) {
+		res.set('Cross-Origin-Opener-Policy', 'same-origin');
+		res.set(
+			'Content-Security-Policy',
+			req.hostname === 'playground.localhost'
+				? "frame-ancestors 'none'"
+				: "frame-ancestors 'self' http://playground.localhost:9400"
+		);
+		return res.sendFile(
+			fileURLToPath(new URL('local-directory.html', website))
+		);
+	}
+	if (
+		req.path === '/folder-popup-probe.html' &&
+		(req.hostname === 'playground.localhost' ||
+			/^site-[a-f0-9-]+\.playground\.localhost$/.test(req.hostname))
+	) {
+		// This isolated experiment does not relax framing rules for the app or PHP.
+		res.set('Cross-Origin-Opener-Policy', 'same-origin');
+		res.set(
+			'Content-Security-Policy',
+			req.hostname === 'playground.localhost' ||
+				req.query.popup !== undefined
+				? "frame-ancestors 'none'"
+				: "frame-ancestors 'self' http://playground.localhost:9400"
+		);
+		return res.sendFile(
+			fileURLToPath(new URL('folder-popup-probe.html', import.meta.url))
+		);
+	}
+	if (
 		req.path === '/origin-isolation.html' &&
 		(req.hostname === 'playground.localhost' ||
 			/^site-[a-f0-9-]+\.playground\.localhost$/.test(req.hostname))
@@ -36,7 +70,7 @@ app.use((req, res, next) => {
 		// It exposes no file-reading API and accepts setup only on an empty origin.
 		res.set(
 			'Content-Security-Policy',
-			'frame-ancestors http://*.playground.localhost:9400'
+			'frame-ancestors http://playground.localhost:9400 http://*.playground.localhost:9400'
 		);
 		return res.type('html').send(bridge);
 	}
@@ -74,8 +108,11 @@ app.use((req, res, next) => {
 	if (!/^site-[a-f0-9-]+\.playground\.localhost$/.test(req.hostname)) {
 		return res.sendStatus(404);
 	}
-	// Untrusted site pages cannot embed another app instance or its remote API.
-	res.set('Content-Security-Policy', "frame-ancestors 'self'");
+	// The root shell can embed apps; another site cannot appear anywhere in their ancestor chain.
+	res.set(
+		'Content-Security-Policy',
+		"frame-ancestors 'self' http://playground.localhost:9400"
+	);
 	res.set('Cross-Origin-Opener-Policy', 'same-origin');
 	if (req.path === '/' || req.path === '/index.html') {
 		return res.sendFile(fileURLToPath(new URL('index.html', website)));

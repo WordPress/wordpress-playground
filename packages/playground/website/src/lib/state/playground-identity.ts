@@ -1,3 +1,4 @@
+import { isSiteOrigin } from '../origin-isolation';
 import type { RuntimeConfiguration } from '@wp-playground/blueprints';
 import type { SiteInfo } from './redux/slice-sites';
 import type { QueryAPIParams } from './url/router';
@@ -61,6 +62,10 @@ export function getSetupUrlFromUrl(url: URL) {
 			setupUrl.searchParams.append(key, value);
 		}
 	}
+	// Shared setup links open the root shell, never another person's saved origin.
+	if (isSiteOrigin(setupUrl.origin, setupUrl.origin)) {
+		setupUrl.hostname = 'playground.localhost';
+	}
 	return setupUrl;
 }
 
@@ -91,6 +96,10 @@ export function getSetupUrlFromSite(site: SiteInfo, baseUrl: string | URL) {
 		}
 	}
 	setupUrl.hash = site.originalUrlParams.hash ?? '';
+	// Shared setup links open the root shell, never another person's saved origin.
+	if (isSiteOrigin(setupUrl.origin, setupUrl.origin)) {
+		setupUrl.hostname = 'playground.localhost';
+	}
 	return setupUrl;
 }
 

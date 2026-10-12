@@ -6,10 +6,10 @@ bridge is added.
 
 ```text
 playground.localhost:9400
-  launcher and display-only catalogue; no Playground runtime
+  address bar, iframe shell, and display-only catalogue; no Playground runtime
 
 site-<random UUID>.playground.localhost:9400
-  SPA → remote.html → WordPress
+  iframe: SPA with dock → remote.html → WordPress
                    → PHP worker → this origin's OPFS
 
 static.playground.localhost:9400/<release>/
@@ -36,11 +36,132 @@ writes the usual website/remote build directories and a local release descriptor
 in `dist/origin-isolation.json`. Rebuild and restart the server after source
 changes. This is a production-style build, without HMR.
 
-Create two Playgrounds from the launcher. Switch using the Playgrounds pane or
-the launcher. New Playground, ZIP import, edited Blueprint runs, and settings that create a
-new site allocate a fresh subdomain. Saving a
-temporary site, renaming, and opening tools stay in the same document. Switching
-sites requires a top-level navigation because the next site has another origin.
+The root opens the full Playground UI in a per-site iframe. Use **New** and
+**Playgrounds** in the dock. New Playground, ZIP import, edited Blueprint runs,
+and settings that create a new site replace only that iframe. The root document
+and address stay on `playground.localhost:9400`. Save, rename, and tools keep the
+current app and runtime mounted. Switching sites reloads the iframe's app, not
+the browser tab.
+
+Saved-site links use `?site=<UUID>` on the root. The selector opens a site only
+if it appears in this browser's catalogue. It cannot select another person's
+saved files. Setup-sharing actions omit that selector and use a root URL with
+the Blueprint/settings. A saved-site selector cannot also inject a Blueprint or
+runtime settings into that site's files.
+
+## Guided local-directory setup
+
+1. Open **Store permanently**, select **Save in a local directory**, and choose
+   **Choose…**. The main pane explains why a separate window is needed.
+2. In the popup, choose a directory and approve read/write access. The handle is
+   stored in that site's IndexedDB. Playground has not started copying the site yet.
+3. In the same popup, choose **Allow ongoing access**, then Chrome's **Allow on
+   every visit**. One-time access is not enough for a framed app after its popup
+   closes.
+4. The popup checks access after leaving the site's top-level origin. If access
+   ended, it offers retry or cancel instead of returning an unusable handle.
+5. When setup succeeds, the popup closes and the Save pane shows the directory.
+   Press **Save** to copy the current Playground there. The app and its runtime
+   were not reloaded during permission setup.
+
+The popup briefly visits a root helper between permission steps. This discards
+its picker document and permits a stored-handle permission request. After the
+second approval it returns to the root helper, which embeds a site-origin check.
+The check sends a completion notice through a same-origin BroadcastChannel. Only
+then does the running app load the native handle from its own IndexedDB. The
+root receives no handle, filename, file bytes, or file-operation API.
+
+The helper uses `noopener` and has no connection to the app's API. Root/helper
+messages carry only the site origin, request ID, step, and permission result.
+Choose a separate physical directory for each Playground. Giving two sites the
+same directory (or a parent/child pair) explicitly lets both edit overlapping
+files; an origin boundary cannot undo those user grants.
+
+Approving access lets code in that Playground use the directory right away.
+The Save button starts copying the WordPress files. Cancelling does not save
+the site or switch its storage, but does not revoke a browser grant already
+given. A blocked popup produces an instruction to allow popups. If a saved site's grant expires, its error view
+offers **Reconnect directory** through the same guide before mounting its files.
+A second top-level window on the same site origin can keep a one-time grant
+alive during verification. Close old direct-site tabs when testing expiry;
+Chrome may revoke access later regardless of this initial check.
+
+The CI guide tests use disposable OPFS handles to exercise completion, rejected
+one-time access, retry, and cancellation without OS dialogs. They do not verify
+Chrome's native permission prompt. The one-window native flow must also be
+checked in headed Chrome with a real disposable directory; the experiment below
+records the separate two-window native check.
+
+## Native-folder popup experiment
+
+Open <http://playground.localhost:9400/folder-popup-probe.html> in Chrome.
+This is a separate browser-API experiment, independent of the guided Save flow.
+
+The root page embeds two random site origins. In site A, **Open folder popup**
+opens a top-level window on that same site origin, with no opener reference.
+**Choose folder** calls the real native picker with read/write access and stores
+the resulting handle in that origin's IndexedDB. A same-origin BroadcastChannel
+sends only a completion notice. The root page receives neither the handle nor
+file operations.
+
+To check it manually:
+
+1. Create an empty disposable directory outside Documents/iCloud.
+2. Use **Try picker inside iframe** in site A. Expect `SecurityError`.
+3. Open site A's popup and choose the disposable directory. Approve access.
+4. Keep the popup open and use **Check folder read/write** in site A. Expect
+   `permission: "granted"` and `readBack`. This also retains the handle in memory.
+   The probe writes only `folder-popup-probe.txt` inside the selected directory.
+5. Close the popup. Both **Check retained handle** and **Check folder read/write**
+   should now report `permission: "prompt"` and `NotAllowedError` for a one-time grant.
+6. Use **Reload this frame** in site A, then open its popup again. In the popup,
+   use **Renew stored permission** and select **Allow on every visit** in Chrome's
+   permission prompt. Do not select the folder again.
+7. Close the popup and check read/write in site A. Expect `granted` and `readBack`.
+8. Site B and **Check root access** must both report `handle: null`.
+9. Reload the root page and repeat the checks. The tab retains the same two site
+   origins, so this checks restoration from IndexedDB rather than another picker.
+
+Reloading the iframe before renewal matters. Chromium reuses a live grant for the
+same path, including the user action that originally created it. Its
+[restore-prompt eligibility check](https://github.com/chromium/chromium/blob/153.0.8010.54/chrome/browser/file_system_access/chrome_file_system_access_permission_context.cc#L3153-L3208)
+requires a grant loaded from storage, unless the permission expired in the
+background. Retaining the original picker handle can therefore yield another
+one-time prompt. Reloading only the iframe was sufficient in this experiment;
+the root document stayed mounted throughout permission renewal.
+
+Do not substitute an OPFS handle for this test or disable browser origin/storage
+checks: that would not test native folder permission. The full-app integration
+and third-party embedding are not implemented by this experiment.
+
+### Observed result: Chrome 153.0.8010.54 on macOS
+
+The test used the real picker and permission prompts in a separate Chrome
+profile, without permission overrides or browser security exceptions.
+
+| Check                                                                       | Result                           |
+| --------------------------------------------------------------------------- | -------------------------------- |
+| Picker inside the cross-origin iframe                                       | `SecurityError`                  |
+| Read/write while the popup remained open                                    | Passed                           |
+| Retained handle after closing a one-time popup                              | `prompt`, `NotAllowedError`      |
+| Handle restored from IndexedDB after that close                             | `prompt`, `NotAllowedError`      |
+| Persistent renewal after reloading only the iframe                          | Granted; root document unchanged |
+| Retained and restored handles after closing the persistent-permission popup | Read/write passed                |
+| Root-page reload after persistent approval                                  | Read/write passed                |
+| Browser restart after persistent approval                                   | Read/write passed                |
+| Root and site B after approval and browser restart                          | No handle in their IndexedDB     |
+
+The browser-restart check restored the same generated site origins, rather than
+creating new sites. Chrome's saved extended-permission setting also confirmed the
+persistent grant. Reads verified the content written through the native handle;
+no handle or file operation passed through the root page.
+
+This confirms a same-site popup flow with persistent access in the tested Chrome
+version. One-time approval still requires a top-level site window to remain open.
+The guided flow above delays loading the picker handle into the app so the app
+need not reload. Its one-window native permission sequence still needs a headed
+manual check; the two-window probe does not establish that result. Other browsers
+and cross-site embedding remain unverified.
 
 ## Why index.html moves too
 
@@ -53,8 +174,9 @@ Keeping index.html on a trusted origin and moving only remote.html would require
 a file service between them. Native directory handles cannot cross origins, and
 a cross-origin child cannot simply open the parent's local-folder picker. Moving
 the app and runtime together keeps native file access within one origin and
-avoids that new file service. The cost is a top-level navigation when changing
-sites. Save, rename, and tools still use the existing SPA document.
+avoids that new file service. Embedding this app keeps the address on the root.
+Changing sites replaces the iframe document. Save, rename, and tools still use
+the existing SPA document. Native picking requires the guided popup above.
 
 User code can read its own app, files, and browser storage. This design separates
 sites; it cannot protect a site from a plugin the user runs inside that site.
@@ -81,7 +203,7 @@ origin with narrow, user-approved operations, not a token getter for site code.
   stage setup on a fresh origin, then navigate. `updateUrl: false` rejects this
   operation rather than creating another site in the same storage bucket.
 - A small, separately built `/origin-isolation.html` accepts two operations:
-  the launcher lists display metadata and lets a site update only its own entry;
+  the root lists display metadata and lets a site update only its own entry;
   an unused site origin accepts a one-time setup, including ZIP bytes or a
   snapshot of an edited Blueprint bundle. Binary files and empty directories
   survive the transfer; filesystem backends and handles never cross origins. It does
@@ -90,11 +212,12 @@ origin with narrow, user-approved operations, not a token getter for site code.
   Rename/delete publish metadata; file operations remain on the current origin.
   Deletion waits for existing writes and refuses an in-progress initial save; it
   does not cancel an import or allow its background copy to recreate deleted files.
-- The launcher serves no `remote.html` or `api.html`. App documents and
-  service-worker WordPress responses reject cross-origin framing and sever
-  cross-origin opener references. Same-origin WordPress/editor frames still work.
-  The narrow metadata/setup page remains embeddable across origins.
-- Saved sites can reload offline after their shell and runtime have been cached.
+- The root serves no `remote.html` or `api.html`. App documents and service-worker
+  WordPress responses permit framing by the root and their own origin only, and
+  sever cross-origin opener references. A sibling site anywhere in the ancestor
+  chain blocks framing. Same-origin WordPress/editor frames still work.
+  The narrow metadata/setup page remains embeddable across site origins.
+- Direct site URLs can reload offline after their app and runtime have been cached.
   The generated shell manifest follows static imports, not every PHP version or
   optional editor. A new origin still needs a network connection.
 - Public client exports and thumbnails use site-scoped entry points. GitHub
@@ -140,8 +263,8 @@ npx nx run playground-website:e2e:origin-isolation --args="--project=chromium"
 ```
 
 This separate configuration starts only the prototype server. Its base URL is
-`http://site-e2e.playground.localhost:9400/`; navigating to the launcher root
-instead would show the site list, not the app that these tests expect.
+`http://site-e2e.playground.localhost:9400/`. Existing tests target that app
+directly. `root-shell.spec.ts` targets the root and looks inside its iframe.
 The regular browser lanes still use the normal single-origin build.
 
 This runner uses one worker and no retries so failures remain visible. Version
@@ -163,9 +286,10 @@ weaker isolation guard. Passing the custom cache check does not cover them.
 The **Local subdomain isolation and shared cache** job builds this prototype and
 runs three checks in Chromium:
 
-1. `origins.spec.ts`: catalogue messages, invalid setup payloads, setup replay,
+1. `origins.spec.ts` and `root-shell.spec.ts`: catalogue messages, invalid setup payloads, setup replay,
    site creation and retirement, edited bundle transfer, saved/offline reload,
-   frame/opener restrictions, static-host routing, and disabled sign-in.
+   frame/opener restrictions, static-host routing, disabled sign-in, root-shell
+   navigation, and the directory guide protocol.
 2. The existing ZIP import persistence test from `opfs.spec.ts`, including
    switching back to the source and reopening the imported site.
 3. `test:origin-isolation`: OPFS isolation from WordPress, SPA continuity, and
@@ -194,9 +318,18 @@ check the normal build.
   only known fields, bytes, and directory entries. It rejects existing OPFS files;
   an IndexedDB transaction permits only one claim, including concurrent requests.
   Consuming the payload keeps the claim, so an empty temporary origin stays used.
-- App and PHP responses use `frame-ancestors 'self'` and `COOP: same-origin`.
-  The PHP response adds a separate CSP policy, preserving any WordPress policy.
-  The bridge is the exception and never boots PHP or exposes app APIs.
+- App and PHP responses use `frame-ancestors 'self' http://playground.localhost:9400`
+  and `COOP: same-origin`. The PHP response adds a separate CSP policy, preserving
+  any WordPress policy. Root documents reject framing. A site cannot nest another
+  site's app through the root. The bridge never boots PHP or exposes app APIs.
+- The root accepts navigation/URL messages only from the selected app window and
+  its exact origin. Nested WordPress frames cannot send these messages directly.
+  Targets must be root or canonical site URLs with the same scheme/port. The
+  iframe sandbox does not grant permission to navigate the top-level tab.
+- Directory handles stay in site-origin IndexedDB and same-origin workers. The
+  permission helper never accepts file commands. It validates source window,
+  origin, and request ID for the root/check messages. Other sites cannot frame
+  the helper, join the channel, or read that IndexedDB.
 - Shared assets use wildcard CORS without credentials. They are public build
   outputs, never user files. No HTML app runs on the asset host, including encoded
   or case-varied paths. Production must retain this distinction; CORS must not
@@ -249,7 +382,7 @@ This is a local architecture experiment, not a deployment-ready security change.
 - Global autosave retention is not implemented. A site's untrusted metadata must
   not grant permission to delete another site's files. Autosaves on other origins
   remain until removed there; there is no cross-origin pruning endpoint.
-- Creation ends the old document. API promises and callbacks from that document
+- Creation ends the old iframe document, while the root stays mounted. API promises and callbacks from that document
   do not transfer. An incoming setup is consumed once; reload during import may
   require importing the original ZIP again. The source site stays intact.
 - A failed Blueprint run does not automatically return to its source origin.
@@ -261,15 +394,17 @@ This is a local architecture experiment, not a deployment-ready security change.
 - No old-origin data migration or account/OAuth integration. GitHub sign-in is
   blocked until authenticated import/export can run on a trusted origin. User
   code can access its own app document and that origin's storage.
-- Older prototype launcher links remain as fallbacks. They do not gain full
-  metadata synchronization until those sites are opened.
+- Older direct site URLs still work. Their catalogue entries refresh when those
+  sites are opened.
 - HTTP cache reuse is best-effort. Private browsing, eviction, and other browsers
   can cause downloads again. The private-mode check reports repeated transfers
   separately; it does not promise that the large WordPress ZIP will stay cached.
 - CacheStorage remains per-origin, including copies written by the PHP loader.
   The experiment measures network reuse, not disk deduplication.
 - Browser quotas and storage eviction policies still apply. Fresh subdomains
-  cannot start offline. Safari/Firefox and embedding need separate testing.
+  cannot start offline. The new root shell has no offline service worker yet;
+  direct saved-site URLs retain the existing offline path. Safari/Firefox and
+  third-party embedding need separate testing.
 - Production needs wildcard DNS/TLS, host routing, immutable asset deployment,
   a trusted catalogue, narrow cross-origin messages where needed, and an audit
   of cookies, credentials, exported APIs, and all new-site entry points.

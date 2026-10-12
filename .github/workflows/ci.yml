@@ -386,7 +386,7 @@ jobs:
             - name: Build the local subdomain prototype
               run: npx nx run playground-website:build:origin-isolation
             - name: Check cross-origin boundaries and site lifecycle
-              run: npx nx run playground-website:e2e:origin-isolation --args="origins.spec.ts --project=chromium"
+              run: npx nx run playground-website:e2e:origin-isolation --args="origins.spec.ts root-shell.spec.ts --project=chromium"
             - name: Check ZIP import persistence across origins
               run: npx nx run playground-website:e2e:origin-isolation --args="opfs.spec.ts --project=chromium --grep='should persist an imported ZIP saved site after switching away and back'"
             - name: Check shared downloads with normal browser cache settings

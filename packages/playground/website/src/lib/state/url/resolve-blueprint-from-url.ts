@@ -1,3 +1,4 @@
+import { isInOriginShell } from '../../origin-isolation';
 import type {
 	BlueprintV1Declaration,
 	BlueprintBundle,
@@ -71,7 +72,7 @@ export async function resolveBlueprintFromURL(
 	 * use the default blueprint.
 	 */
 	if (
-		window.self === window.top &&
+		(window.self === window.top || isInOriginShell()) &&
 		!query.size &&
 		!fragment.length &&
 		defaultBlueprint

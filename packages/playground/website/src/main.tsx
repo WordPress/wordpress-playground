@@ -1,4 +1,8 @@
-import { claimOriginSetup, isSiteOrigin } from './lib/origin-isolation';
+import {
+	claimOriginSetup,
+	isSiteOrigin,
+	connectOriginShell,
+} from './lib/origin-isolation';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -9,6 +13,7 @@ import { Layout } from './components/layout';
 import { EnsurePlaygroundSite } from './components/ensure-playground-site';
 
 collectWindowErrors(logger);
+connectOriginShell();
 
 const originClaim = isSiteOrigin(window.location.origin)
 	? await claimOriginSetup()

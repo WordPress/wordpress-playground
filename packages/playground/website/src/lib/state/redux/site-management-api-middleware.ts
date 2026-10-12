@@ -1,4 +1,6 @@
+import { chooseLocalDirectory } from '../../local-directory';
 import {
+	isInOriginShell,
 	isSiteOrigin,
 	navigateToFreshOrigin,
 	updateOriginCatalogue,
@@ -603,6 +605,9 @@ export function createSitesAPI(
 					return { slug: site.slug, storage: site.metadata.storage };
 				}
 			}
+			if (!localFsHandle && isInOriginShell()) {
+				localFsHandle = await chooseLocalDirectory();
+			}
 			await dispatch(
 				persistTemporarySite(site.slug, 'local-fs', {
 					siteName: name,
@@ -1007,6 +1012,10 @@ export function createSitesAPI(
 		options: { updateUrl?: boolean } = {}
 	): Promise<string> {
 		if (needsFreshOrigin(getState())) {
+			if (options.updateUrl === false)
+				throw new Error(
+					'Creating another Playground requires navigating to its new origin.'
+				);
 			const url = getSetupUrlForNewSite(settings, {
 				baseUrl: new URL(window.location.href),
 			});

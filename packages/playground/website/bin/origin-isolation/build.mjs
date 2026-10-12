@@ -19,6 +19,12 @@ for (const name of ['client', 'remote', 'website']) {
 			...(name === 'website'
 				? {
 						rollupOptions: {
+							input: {
+								'local-directory': new URL(
+									'../../local-directory.html',
+									import.meta.url
+								).pathname,
+							},
 							output: { manualChunks: () => undefined },
 						},
 					}

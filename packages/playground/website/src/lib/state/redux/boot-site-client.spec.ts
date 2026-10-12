@@ -1,3 +1,4 @@
+import { isInOriginShell } from '../../origin-isolation';
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +15,10 @@ import { logBlueprintEvents } from '../../tracking';
 import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
 import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
 import clientsReducer from './slice-clients';
+
+vi.mock('../../origin-isolation', () => ({
+	isInOriginShell: vi.fn(() => false),
+}));
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -71,6 +76,7 @@ vi.mock('@php-wasm/logger', () => ({
 
 describe('bootSiteClient', () => {
 	beforeEach(() => {
+		vi.mocked(isInOriginShell).mockReturnValue(false);
 		vi.mocked(loadDirectoryHandle).mockReset();
 		vi.mocked(loadDirectoryHandle).mockResolvedValue({} as any);
 		vi.mocked(startPlaygroundWeb).mockReset();
@@ -488,6 +494,49 @@ describe('bootSiteClient', () => {
 				],
 			})
 		);
+	});
+
+	it('offers permission recovery before mounting an unapproved local directory in the root shell', async () => {
+		vi.mocked(isInOriginShell).mockReturnValue(true);
+		const requestPermission = vi.fn();
+		vi.mocked(loadDirectoryHandle).mockResolvedValue({
+			queryPermission: async () => 'prompt',
+			requestPermission,
+		} as any);
+		const site = createSite('local-save', {
+			metadata: { storage: 'local-fs' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(requestPermission).not.toHaveBeenCalled();
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: { error: 'directory-handle-permission-denied' },
+			})
+		);
+	});
+
+	it('does not boot a local directory when navigation aborts its permission check', async () => {
+		vi.mocked(isInOriginShell).mockReturnValue(true);
+		const controller = new AbortController();
+		vi.mocked(loadDirectoryHandle).mockResolvedValue({
+			queryPermission: async () => {
+				controller.abort();
+				return 'granted';
+			},
+		} as any);
+		const state = createState(
+			createSite('local-save', { metadata: { storage: 'local-fs' } })
+		);
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: controller.signal,
+		})(createDispatch(state), () => state);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
 	});
 
 	it('boots local directories as existing saved sites', async () => {

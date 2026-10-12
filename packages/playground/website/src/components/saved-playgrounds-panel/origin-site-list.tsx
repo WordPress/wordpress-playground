@@ -3,6 +3,9 @@ import { WordPressIcon } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 import {
 	isSiteOrigin,
+	isInOriginShell,
+	navigateOrigin,
+	publicOriginUrl,
 	updateOriginCatalogue,
 } from '../../lib/origin-isolation';
 import type { OriginSite } from '../../lib/origin-isolation';
@@ -54,7 +57,20 @@ export function OriginSiteList() {
 					<div key={site.origin} className={css.siteRow}>
 						<a
 							className={css.siteRowContent}
-							href={site.origin}
+							href={publicOriginUrl(site.origin)}
+							onClick={(event) => {
+								if (
+									isInOriginShell() &&
+									!event.metaKey &&
+									!event.ctrlKey &&
+									!event.shiftKey &&
+									!event.altKey &&
+									event.button === 0
+								) {
+									event.preventDefault();
+									navigateOrigin(site.origin);
+								}
+							}}
 							aria-label={`Open ${site.name}`}
 						>
 							<div

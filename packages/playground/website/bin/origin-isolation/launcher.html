@@ -1,99 +1,163 @@
 <!doctype html>
 <html lang="en">
 	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<link rel="icon" href="data:," />
-	<title>Playground origin isolation prototype</title>
+	<title>WordPress Playground</title>
 	<style>
+		html,
 		body {
-			font: 17px system-ui;
-			max-width: 760px;
-			margin: 60px auto;
-			padding: 0 24px;
-			line-height: 1.6;
+			margin: 0;
+			width: 100%;
+			height: 100%;
 		}
-		a {
-			color: #3858e9;
-		}
-		li {
-			margin: 12px 0;
-		}
-		code {
-			font-size: 0.85em;
+		iframe {
+			display: block;
+			width: 100%;
+			height: 100%;
+			border: 0;
 		}
 	</style>
-	<h1>One Playground per subdomain</h1>
-	<p>
-		Each link runs the whole app on its own origin, with its own OPFS
-		storage. The app bundles, PHP, and WordPress downloads come from a
-		shared static origin.
-	</p>
-	<p>
-		<a href="?new=1">New saved Playground</a> ·
-		<a href="?new=1&storage=temp">New temporary Playground</a>
-	</p>
-	<ul id="sites"></ul>
-	<p>
-		Saved names are shared with the site list in each Playground. Files
-		remain on their site's origin.
-	</p>
-	<p>
-		<strong>Prototype:</strong> do not sign in or store account tokens here.
-	</p>
+	<iframe
+		title="Playground"
+		sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox"
+		allow="clipboard-read; clipboard-write; fullscreen"
+	></iframe>
 	<script>
-		const key = 'origin-isolation-sites';
-		let previous = [];
-		try {
-			const stored = JSON.parse(localStorage.getItem(key) || '[]');
-			if (Array.isArray(stored)) previous = stored;
-		} catch {
-			/* Keep the launcher usable if old display metadata is damaged. */
-		}
-		const current = Object.keys(localStorage)
-			.filter((key) => key.startsWith('origin-isolation-site:'))
-			.flatMap((key) => {
-				try {
-					const site = JSON.parse(localStorage.getItem(key));
-					return site ? [{ name: site.name, href: site.origin }] : [];
-				} catch {
-					return [];
+		const frame = document.querySelector('iframe');
+		let current;
+
+		window.addEventListener('message', (event) => {
+			// Nested WordPress frames and other tabs cannot steer this shell. A message
+			// belongs to the one app document currently selected by the root page.
+			if (
+				event.source !== frame.contentWindow ||
+				event.origin !== current?.origin ||
+				event.data?.type !== 'playground-shell'
+			)
+				return;
+			const target = appUrl(event.data.url);
+			if (!target) return;
+			if (event.data.action === 'navigate') {
+				openSite(target, true);
+			} else if (
+				event.data.action === 'url' &&
+				target.origin === event.origin
+			) {
+				current = target;
+				remember(false);
+			}
+		});
+		window.addEventListener('popstate', restoreLocation);
+		window.addEventListener('hashchange', () => {
+			if (history.state?.href !== location.href) restoreLocation();
+		});
+		restoreLocation();
+
+		/** Restore the chosen site from history without rerunning a shared setup. */
+		function restoreLocation() {
+			const previous = history.state;
+			if (previous?.href === location.href) {
+				const target = appUrl(previous.siteUrl);
+				if (target && target.origin !== location.origin) {
+					openSite(target, false);
+					return;
 				}
-			});
-		const sites = new Map();
-		for (const site of [...previous, ...current]) {
+			}
+			openSite(new URL(location.href), false);
+		}
+
+		/** Replace only the app frame and strip incoming setup from known saved sites. */
+		function openSite(target, push) {
+			if (target.origin === location.origin) {
+				const saved = target.searchParams.get('site');
+				const candidate =
+					saved &&
+					appUrl(
+						`${location.protocol}//site-${saved}.playground.localhost:${location.port}/`
+					);
+				if (candidate && isSaved(candidate.origin)) {
+					// A URL selecting a saved site cannot also inject a new Blueprint or
+					// runtime settings into that site's files or local directory.
+					target = candidate;
+				} else {
+					target.hostname = `site-${crypto.randomUUID()}.playground.localhost`;
+					target.searchParams.delete('site');
+					target.searchParams.delete('site-slug');
+					target.searchParams.delete('new');
+					target.searchParams.delete('random');
+				}
+			} else if (
+				target.origin !== current?.origin &&
+				isSaved(target.origin)
+			) {
+				target = new URL('/', target);
+			}
+			current = target;
+			remember(push);
+			// The root records site switches. Replacing the child document avoids a
+			// second browser-history entry for the same switch.
+			frame.contentWindow.location.replace(target.href);
+		}
+
+		/** Keep site origins in history state while exposing only the root URL. */
+		function remember(push) {
+			const publicUrl = new URL(current);
+			publicUrl.host = location.host;
+			publicUrl.searchParams.delete('site');
+			if (
+				current.searchParams.has('site-slug') ||
+				isSaved(current.origin)
+			) {
+				publicUrl.searchParams.set(
+					'site',
+					current.hostname.slice(5, -'.playground.localhost'.length)
+				);
+			}
+			publicUrl.searchParams.delete('site-slug');
+			const state = { href: publicUrl.href, siteUrl: current.href };
+			history[push ? 'pushState' : 'replaceState'](state, '', publicUrl);
+		}
+
+		/** Use valid display metadata to distinguish saved links from fresh setups. */
+		function isSaved(origin) {
 			try {
-				const target = new URL(site?.href);
-				if (
-					typeof site?.name !== 'string' ||
-					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(
-						target.hostname
-					) ||
-					target.protocol !== location.protocol ||
-					target.port !== location.port ||
-					target.username ||
-					target.password
-				)
-					continue;
-				sites.set(target.origin, { name: site.name, target });
+				const site = JSON.parse(
+					localStorage.getItem('origin-isolation-site:' + origin)
+				);
+				return (
+					site?.origin === origin &&
+					typeof site.name === 'string' &&
+					['opfs', 'local-fs'].includes(site.storage)
+				);
 			} catch {
-				// Skip a damaged display record without hiding the remaining sites.
+				// Damaged display metadata must not block opening a fresh Playground.
+				return false;
 			}
 		}
-		const url = new URL(location.href);
-		if (url.search || url.hash) {
-			url.hostname = `site-${crypto.randomUUID()}.playground.localhost`;
-			url.searchParams.delete('new');
-			url.searchParams.delete('site-slug');
-			url.searchParams.delete('random');
 
-			location.replace(url);
-		} else {
-			for (const { name, target } of sites.values()) {
-				const link = document.createElement('a');
-				link.href = target.href;
-				link.textContent = `${name} — ${target.hostname}`;
-				const item = document.createElement('li');
-				item.append(link);
-				document.getElementById('sites').append(item);
+		/** Limit navigation to app entry points on this local scheme and port. */
+		function appUrl(value) {
+			try {
+				const url = new URL(value);
+				if (
+					url.protocol !== location.protocol ||
+					url.port !== location.port ||
+					url.username ||
+					url.password ||
+					url.pathname !== '/'
+				)
+					return;
+				if (
+					url.origin !== location.origin &&
+					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(
+						url.hostname
+					)
+				)
+					return;
+				return url;
+			} catch {
+				return;
 			}
 		}
 	</script>

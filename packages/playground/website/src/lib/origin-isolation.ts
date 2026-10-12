@@ -38,6 +38,71 @@ export function isSiteOrigin(
 	}
 }
 
+/** Find the shell on the same scheme and port as this local site. */
+export function rootOrigin() {
+	const url = new URL(window.location.origin);
+	url.hostname = 'playground.localhost';
+	return url.origin;
+}
+
+/** Distinguish the root wrapper from a direct visit or another embedding page. */
+export function isInOriginShell(win: Window = window) {
+	if (!isSiteOrigin(win.location.origin) || win.parent === win) return false;
+	try {
+		return new URL(win.document.referrer).origin === rootOrigin();
+	} catch {
+		return false;
+	}
+}
+
+/** Keep the root document mounted when moving between isolated app origins. */
+export function navigateOrigin(href: string) {
+	if (isInOriginShell()) {
+		window.parent.postMessage(
+			{
+				type: 'playground-shell',
+				action: 'navigate',
+				url: new URL(href, window.location.href).href,
+			},
+			rootOrigin()
+		);
+	} else {
+		window.location.assign(href);
+	}
+}
+
+/** Link to a saved site through the root without sharing its setup or files. */
+export function publicOriginUrl(origin: string) {
+	const url = new URL('/', rootOrigin());
+	url.searchParams.set(
+		'site',
+		new URL(origin).hostname.slice(5, -'.playground.localhost'.length)
+	);
+	return url.href;
+}
+
+/** Publish address changes only; the root never receives the site's API or handles. */
+export function connectOriginShell() {
+	if (!isInOriginShell()) return;
+	// The root records site switches. Selecting the saved site in a newly loaded
+	// app must not add a second, iframe-only entry that traps the Back button.
+	// The existing replaceState wrapper still notifies the app's URL subscribers.
+	window.history.pushState = window.history.replaceState.bind(window.history);
+	/** Mirror the app’s route while keeping its private origin out of the address bar. */
+	const publish = () =>
+		window.parent.postMessage(
+			{
+				type: 'playground-shell',
+				action: 'url',
+				url: window.location.href,
+			},
+			rootOrigin()
+		);
+	for (const event of ['pushState', 'replaceState', 'popstate', 'hashchange'])
+		window.addEventListener(event, publish);
+	publish();
+}
+
 let catalogueFrame: Promise<HTMLIFrameElement> | undefined;
 
 /** Only names, origins, and save state cross this boundary; never site files or credentials. */
@@ -80,7 +145,7 @@ export async function navigateToFreshOrigin(
 	} finally {
 		frame.remove();
 	}
-	window.location.assign(destination.href);
+	navigateOrigin(destination.href);
 	// The destination has its own API and readiness promise. Callers in this
 	// document must not continue mutating the old site after navigation starts.
 	return new Promise<never>(() => {});

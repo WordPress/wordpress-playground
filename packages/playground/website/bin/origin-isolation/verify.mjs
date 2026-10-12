@@ -33,6 +33,7 @@ const ready = new Promise((resolve, reject) => {
 const profile = await mkdtemp(join(tmpdir(), 'playground-origin-isolation-'));
 let browser;
 let page;
+let app;
 try {
 	await ready;
 	// Playwright's default switches disable some partitioning features. Use only
@@ -71,13 +72,13 @@ try {
 		if (message.type() === 'error') console.error(message.text());
 	});
 	const start = 'http://playground.localhost:9400/?new=1&wp=6.9&php=8.3';
-	await openSite(page, start);
-	const alpha = new URL(page.url()).origin;
+	app = await openSite(page, start);
+	const alpha = new URL(app.url()).origin;
 	assert.equal(
-		await page.evaluate(() => window.playgroundSites.list()[0].storage),
+		await app.evaluate(() => window.playgroundSites.list()[0].storage),
 		'opfs'
 	);
-	await page.evaluate(async () => {
+	await app.evaluate(async () => {
 		window.shellToken = 'still mounted';
 		const client = window.playgroundSites.getClient();
 		await client.writeFile('/wordpress/isolation.txt', 'alpha PHP file');
@@ -85,12 +86,12 @@ try {
 		await window.playgroundSites.saveInBrowser('Alpha');
 		await window.playgroundSites.rename('Alpha renamed');
 	});
-	await page.getByRole('button', { name: 'Dev Tools', exact: true }).click();
-	assert.equal(await page.evaluate(() => window.shellToken), 'still mounted');
-	assert.equal(new URL(page.url()).origin, alpha);
+	await app.getByRole('button', { name: 'Dev Tools', exact: true }).click();
+	assert.equal(await app.evaluate(() => window.shellToken), 'still mounted');
+	assert.equal(new URL(app.url()).origin, alpha);
 	const alphaFrame = page
 		.frames()
-		.find((frame) => new URL(frame.url()).pathname.startsWith('/scope:'));
+		.find((frame) => frame.url().includes('/scope:'));
 	assert.ok(alphaFrame, 'WordPress iframe is running');
 	await alphaFrame.evaluate(async () => {
 		const root = await navigator.storage.getDirectory();
@@ -109,16 +110,16 @@ try {
 		0
 	);
 
-	await openSite(page, start);
-	const beta = new URL(page.url()).origin;
+	app = await openSite(page, start);
+	const beta = new URL(app.url()).origin;
 	assert.notEqual(beta, alpha);
 	assert.equal(
-		await page.evaluate(() => window.playgroundSites.list()[0].storage),
+		await app.evaluate(() => window.playgroundSites.list()[0].storage),
 		'opfs'
 	);
 	const betaFrame = page
 		.frames()
-		.find((frame) => new URL(frame.url()).pathname.startsWith('/scope:'));
+		.find((frame) => frame.url().includes('/scope:'));
 	const isolation = await betaFrame.evaluate(async () => {
 		const root = await navigator.storage.getDirectory();
 		let read, remove;
@@ -146,7 +147,7 @@ try {
 	assert.equal(isolation.read, 'NotFoundError');
 	assert.equal(isolation.remove, 'NotFoundError');
 	assert.equal(
-		await page.evaluate(() =>
+		await app.evaluate(() =>
 			window.playgroundSites
 				.getClient()
 				.fileExists('/wordpress/isolation.txt')
@@ -211,10 +212,13 @@ try {
 		false
 	);
 
-	// Reopen a bare site URL, as the launcher does, rather than relying on site-slug.
-	await openSite(page, alpha);
+	// Reopen the root's saved-site link, without exposing the internal origin.
+	app = await openSite(
+		page,
+		`http://playground.localhost:9400/?site=${new URL(alpha).hostname.split('.')[0].slice(5)}`
+	);
 	assert.equal(
-		await page.evaluate(() =>
+		await app.evaluate(() =>
 			window.playgroundSites
 				.getClient()
 				.readFileAsText('/wordpress/isolation.txt')
@@ -222,7 +226,7 @@ try {
 		'alpha PHP file'
 	);
 	assert.equal(
-		await page.evaluate(async () => {
+		await app.evaluate(async () => {
 			const root = await navigator.storage.getDirectory();
 			return (
 				await (await root.getFileHandle('alpha-only.txt')).getFile()
@@ -231,48 +235,56 @@ try {
 		'alpha private data'
 	);
 	assert.equal(
-		await page.evaluate(() => window.playgroundSites.list()[0].name),
+		await app.evaluate(() => window.playgroundSites.list()[0].name),
 		'Alpha renamed'
 	);
 
-	await openSite(page, `${start}&storage=temp`);
-	const temporaryOrigin = new URL(page.url()).origin;
+	app = await openSite(page, `${start}&storage=temp`);
+	const temporaryOrigin = new URL(app.url()).origin;
 	assert.notEqual(temporaryOrigin, alpha);
 	assert.notEqual(temporaryOrigin, beta);
 	assert.equal(
-		await page.evaluate(() => window.playgroundSites.list()[0].storage),
+		await app.evaluate(() => window.playgroundSites.list()[0].storage),
 		'temporary'
 	);
-	await page.evaluate(async () => {
+	await app.evaluate(async () => {
 		window.shellToken = 'temporary shell';
 		await window.playgroundSites.saveInBrowser('Saved temporary site');
 	});
-	assert.equal(new URL(page.url()).origin, temporaryOrigin);
+	assert.equal(new URL(app.url()).origin, temporaryOrigin);
 	assert.equal(
-		await page.evaluate(() => window.shellToken),
+		await app.evaluate(() => window.shellToken),
 		'temporary shell'
 	);
 	assert.equal(
-		await page.evaluate(() => window.playgroundSites.list()[0].storage),
+		await app.evaluate(() => window.playgroundSites.list()[0].storage),
 		'opfs'
 	);
-	await page
+	await page.evaluate(() => (window.rootToken = 'root stays mounted'));
+	await app
 		.getByRole('button', { name: 'New Playground', exact: true })
 		.click();
-	await page
+	await app
 		.getByRole('button', {
 			name: 'Vanilla WordPress - New Playground',
 			exact: true,
 		})
 		.click();
-	await page.waitForURL(
-		(url) =>
-			url.origin !== temporaryOrigin && url.hostname.startsWith('site-'),
-		{ waitUntil: 'domcontentloaded' }
+	await app.waitForURL((url) => url.origin !== temporaryOrigin);
+	app = await (
+		await page.locator('iframe[title="Playground"]').elementHandle()
+	).contentFrame();
+	await app.waitForFunction(() => Boolean(window.playgroundSites));
+	await app.evaluate(() => window.playgroundSites.isReady());
+	assert.notEqual(new URL(app.url()).origin, temporaryOrigin);
+	assert.equal(
+		new URL(page.url()).origin,
+		'http://playground.localhost:9400'
 	);
-	assert.notEqual(new URL(page.url()).origin, temporaryOrigin);
-	await page.waitForFunction(() => Boolean(window.playgroundSites));
-	await page.evaluate(() => window.playgroundSites.isReady());
+	assert.equal(
+		await page.evaluate(() => window.rootToken),
+		'root stays mounted'
+	);
 	await page.screenshot({ path: 'dist/origin-isolation.png' });
 
 	// No global exporter or remote API exists on the launcher origin.
@@ -294,14 +306,14 @@ try {
 	const privateContext = await browser.newContext();
 	const privatePage = await privateContext.newPage();
 	const privateStart = downloads.length;
-	await openSite(privatePage, start);
-	const privateAlpha = new URL(privatePage.url()).origin;
+	let privateApp = await openSite(privatePage, start);
+	const privateAlpha = new URL(privateApp.url()).origin;
 	const privateFirstDownloads = downloads
 		.slice(privateStart)
 		.filter((entry) => entry.site === privateAlpha);
 	const privateSecondStart = downloads.length;
-	await openSite(privatePage, start);
-	const privateBeta = new URL(privatePage.url()).origin;
+	privateApp = await openSite(privatePage, start);
+	const privateBeta = new URL(privateApp.url()).origin;
 	assert.notEqual(privateAlpha, privateBeta);
 	const privateSecondDownloads = downloads
 		.slice(privateSecondStart)
@@ -370,6 +382,7 @@ try {
 		saveRenameAndPanelsKeptShell: true,
 		temporarySaveKeptOriginAndShell: true,
 		newPlaygroundUsedFreshOrigin: true,
+		rootDocumentStayedMounted: true,
 		firstSiteSharedBytes: firstBytes,
 		secondSiteSharedBytes: secondDownloads.reduce(
 			(sum, entry) => sum + entry.bytes,
@@ -439,9 +452,12 @@ async function openSite(page, href) {
 	console.log('Opening', href);
 	await page.goto(href, { waitUntil: 'domcontentloaded' });
 	console.log('Document loaded', page.url());
-	await page.waitForFunction(() => Boolean(window.playgroundSites));
+	const app = await (
+		await page.locator('iframe[title="Playground"]').elementHandle()
+	).contentFrame();
+	await app.waitForFunction(() => Boolean(window.playgroundSites));
 	console.log('App loaded');
-	await page.evaluate(async () => {
+	await app.evaluate(async () => {
 		await window.playgroundSites.isReady();
 		await window.playgroundSites
 			.getClient()
@@ -450,7 +466,7 @@ async function openSite(page, href) {
 	await expect
 		.poll(
 			() =>
-				page.evaluate(async () => {
+				app.evaluate(async () => {
 					const site = window.playgroundSites.list()[0];
 					if (site.storage === 'temporary') return true;
 					const root = await navigator.storage.getDirectory();
@@ -470,4 +486,5 @@ async function openSite(page, href) {
 	// Wait for server response logs before taking each cache measurement.
 	await page.waitForLoadState('networkidle');
 	console.log('Ready', page.url());
+	return app;
 }

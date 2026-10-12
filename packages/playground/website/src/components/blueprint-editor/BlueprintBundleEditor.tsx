@@ -1,3 +1,4 @@
+import { getSetupUrlFromUrl } from '../../lib/state/playground-identity';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
 import { isOriginIsolationPrototype } from '../../../../remote/src/lib/dev-server';
 import { autocompletion } from '@codemirror/autocomplete';
@@ -908,7 +909,11 @@ export const BlueprintBundleEditor = forwardRef<
 			return;
 		}
 		try {
-			await navigator.clipboard.writeText(newUrl);
+			await navigator.clipboard.writeText(
+				isOriginIsolationPrototype(new URL(newUrl))
+					? getSetupUrlFromUrl(new URL(newUrl)).href
+					: newUrl
+			);
 
 			dispatch(
 				setDockOperationNotice({
