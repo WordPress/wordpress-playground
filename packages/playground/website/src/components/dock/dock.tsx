@@ -1023,7 +1023,13 @@ export function Dock({
 				onClick={(event) => {
 					// Safari needs explicit focus so closing a pane returns to its launcher.
 					event.currentTarget.focus();
-					logTrackingEvent('dockItemClick', { item: item.section });
+					logTrackingEvent('dockItemClick', {
+						item: item.section,
+						action:
+							dockPaneIsOpen && section === item.section
+								? 'close'
+								: 'open',
+					});
 					openSection(item.section);
 				}}
 			/>
