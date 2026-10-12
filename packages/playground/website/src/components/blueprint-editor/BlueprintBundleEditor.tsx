@@ -896,13 +896,13 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [filesystem, dispatch]);
 
 	const handleShareBlueprint = async () => {
-		logTrackingEvent('blueprintCopyUrl');
 		if (false === newUrl) {
 			alert(
 				'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
 			);
 			return;
 		}
+		logTrackingEvent('blueprintCopyUrl');
 		try {
 			await navigator.clipboard.writeText(newUrl);
 
