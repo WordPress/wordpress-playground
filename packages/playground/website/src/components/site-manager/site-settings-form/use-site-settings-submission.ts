@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { SiteFormData } from './unconnected-site-settings-form';
+import { logTrackingEvent } from '../../../lib/tracking';
 
 /**
  * Serializes settings submissions and keeps failures on the form that caused
@@ -34,6 +35,13 @@ export function useSiteSettingsSubmission(onSubmit?: () => void) {
 					);
 					return;
 				}
+				logTrackingEvent('siteSettingsChanged', {
+					phpVersion: data.phpVersion,
+					wpVersion: data.wpVersion,
+					language: data.language || 'en_US',
+					networkAccess: String(data.withNetworking),
+					multisite: String(data.multisite),
+				});
 			} finally {
 				pendingRef.current = false;
 				setIsPending(false);
