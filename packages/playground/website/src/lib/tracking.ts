@@ -35,6 +35,7 @@ type GAEvent =
 	| 'dockDevToolsToggle'
 	| 'newPlaygroundTabClick'
 	| 'createPlayground'
+	| 'storePermanently'
 	| 'siteSettingsChanged'
 	| 'blueprintRun'
 	| 'blueprintDownload'
