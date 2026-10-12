@@ -66,4 +66,4 @@ Analytics is only enabled when the `VITE_GOOGLE_ANALYTICS_ID` environment variab
 
 ### Custom tracking events
 
-We also track custom events whenever a user loads Playground and what blueprint steps are they using. We only record names of steps.
+Custom events record Playground loads, Blueprint usage, and interactions with the Dock and site tools. Blueprint events include step names and public WordPress.org plugin and theme slugs. Tool events include action categories, settings choices, and public gallery Blueprint paths, without local file paths, search text, code, email contents, or shared URLs.
