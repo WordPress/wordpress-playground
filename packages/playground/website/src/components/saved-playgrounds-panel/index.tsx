@@ -837,7 +837,7 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
-		logTrackingEvent('createPlayground', { type: 'gallery' });
+		logTrackingEvent('createPlayground', { type: 'vanilla' });
 		dispatch(setDockPaneOpen(false));
 		// "New Playground" means start fresh. The URL change makes the
 		// selected-site guard handle this as an in-app new-site navigation.
