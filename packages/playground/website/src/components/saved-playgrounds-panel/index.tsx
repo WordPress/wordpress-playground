@@ -814,7 +814,10 @@ export function SavedPlaygroundsPanel({
 		if (isImportingZip) {
 			return;
 		}
-		logTrackingEvent('createPlayground', { type: 'gallery' });
+		logTrackingEvent('createPlayground', {
+			type: 'gallery',
+			blueprint: blueprintPath,
+		});
 		dispatch(setDockPaneOpen(false));
 		redirectTo(
 			PlaygroundRoute.newSite({
