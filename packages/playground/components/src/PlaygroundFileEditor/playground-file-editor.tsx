@@ -43,7 +43,7 @@ export type PlaygroundFileEditorProps = {
 	dockPresentation?: boolean;
 	/** Mobile Dock title row where the current path should be rendered. */
 	mobileHeaderTarget?: Element | null;
-	/** Called when opening the initial file or a file selected in the tree. */
+	/** Called when the user opens a file selected in the tree. */
 	onFileOpen?: () => void;
 	/** Called when an explicit save starts, excluding autosaves and cleanup writes. */
 	onManualSave?: () => void;
@@ -258,7 +258,6 @@ export const PlaygroundFileEditor = forwardRef<
 					if (cancelled) {
 						return;
 					}
-					onFileOpen?.();
 					skipNextSaveRef.current = true;
 					setCurrentPath(initialPath);
 					setCode(content);
@@ -284,7 +283,7 @@ export const PlaygroundFileEditor = forwardRef<
 		return () => {
 			cancelled = true;
 		};
-	}, [filesystem, initialPath, onFileOpen]);
+	}, [filesystem, initialPath]);
 
 	// Auto-save effect
 	useEffect(() => {
