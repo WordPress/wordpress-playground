@@ -4,6 +4,48 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.58] (2026-10-12) 
+
+### Documentation
+
+- \[i18n\] Translate php\-frameworks guide into Gujarati\. ([#4380](https://github.com/WordPress/wordpress-playground/pull/4380))
+
+### PHP WebAssembly
+
+- \[PHP\-WASM\] Allow worker requests to use the primary PHP instance\. ([#4387](https://github.com/WordPress/wordpress-playground/pull/4387))
+- \[PHP\-WASM\] Avoid timer delays between PHP socket reads\. ([#4384](https://github.com/WordPress/wordpress-playground/pull/4384))
+- \[PHP\-WASM\] Buffer localhost HTTP uploads and preserve cancellation\. ([#4390](https://github.com/WordPress/wordpress-playground/pull/4390))
+- \[PHP\-WASM\] Index filesystem journal entries by path\. ([#4385](https://github.com/WordPress/wordpress-playground/pull/4385))
+- \[PHP\] Bound pending reads when restoring OPFS sites\. ([#4386](https://github.com/WordPress/wordpress-playground/pull/4386))
+- \[PHP\] Retain current OPFS mounts across PHP runtime rotation\. ([#4389](https://github.com/WordPress/wordpress-playground/pull/4389))
+- \[Website\] Add the Reprint connection and PHP stream adapter\. ([#4397](https://github.com/WordPress/wordpress-playground/pull/4397))
+
+### Website
+
+- Clone live WordPress sites with Reprint \(behind the \?reprint flag\)\. ([#4402](https://github.com/WordPress/wordpress-playground/pull/4402))
+- Fix blank editor canvas with Gutenberg 22\.4–22\.7 in Chromium\. ([#4401](https://github.com/WordPress/wordpress-playground/pull/4401))
+- Fix editor preview isolation without service worker state\. ([#4388](https://github.com/WordPress/wordpress-playground/pull/4388))
+- Import Reprint SQL and verify the administrator session\. ([#4400](https://github.com/WordPress/wordpress-playground/pull/4400))
+- Keep late autosaves from changing the active site URL\. ([#4394](https://github.com/WordPress/wordpress-playground/pull/4394))
+- Pull Reprint files directly into the Playground directory\. ([#4399](https://github.com/WordPress/wordpress-playground/pull/4399))
+- Test PHP snippets against the local Playground build\. ([#4398](https://github.com/WordPress/wordpress-playground/pull/4398))
+- \[Web\] Cache offline assets only from the Playground origin\. ([#4391](https://github.com/WordPress/wordpress-playground/pull/4391))
+
+### Reliability
+
+- \[PHP\-WASM\] Track PHP log replacement separately for each Playground\. ([#4392](https://github.com/WordPress/wordpress-playground/pull/4392))
+
+### Various
+
+- CORS proxy\: Preserve custom ports in redirects\. ([#4417](https://github.com/WordPress/wordpress-playground/pull/4417))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @JanJakes @rahultank-spaceo
+
+
 ## [v3.1.57] (2026-10-05) 
 
 ### Blueprints

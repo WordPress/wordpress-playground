@@ -911,12 +911,14 @@ test('should login a non-admin user if a login step with a non-admin username is
 }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/wp-admin/profile.php',
-		extraLibraries: ['wp-cli'],
 		steps: [
 			{
-				step: 'wp-cli',
-				command:
-					"wp user create user user@example.com  --user_pass='password'",
+				// This test needs a user account, not a remote WP-CLI download.
+				step: 'runPHP',
+				code: `<?php
+					require '/wordpress/wp-load.php';
+					wp_create_user('user', 'password', 'user@example.com');
+				`,
 			},
 			{
 				step: 'login',

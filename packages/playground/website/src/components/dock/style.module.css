@@ -288,10 +288,22 @@
    track transparent and away from the corner curve. Physical margins, not
    margin-block: logical properties resolve unreliably inside scrollbar
    pseudo-elements, and this track is always vertical. */
+.pane::-webkit-scrollbar {
+	background: transparent;
+	width: 10px;
+}
+
 .pane::-webkit-scrollbar-track {
 	background: transparent;
 	margin-bottom: var(--radius-pane);
 	margin-top: var(--radius-pane);
+}
+
+.pane::-webkit-scrollbar-thumb {
+	background: var(--interactive-border);
+	background-clip: padding-box;
+	border: 2px solid transparent;
+	border-radius: var(--radius-control);
 }
 
 .pane-editor {
@@ -408,8 +420,12 @@
 	display: none;
 }
 
+/* A header with a back button carries only the title, so the button centers
+   on that line. The negative side margins keep the 24px glyph, not the 36px
+   target, aligned with the pane gutter and close to the title. */
 .pane-back {
 	align-items: center;
+	align-self: center;
 	background: transparent;
 	border: 0;
 	border-radius: var(--radius-control);
@@ -417,11 +433,12 @@
 	cursor: pointer;
 	display: inline-flex;
 	flex: none;
-	height: 28px;
+	height: 36px;
 	justify-content: center;
 	margin-left: -6px;
+	margin-right: -6px;
 	padding: 0;
-	width: 28px;
+	width: 36px;
 }
 
 .pane-back:hover {
@@ -436,6 +453,8 @@
 
 .pane-back svg {
 	fill: currentColor;
+	height: 24px;
+	width: 24px;
 }
 
 /* Right-aligned header action (e.g. "New Playground" on Your Playgrounds): a
@@ -479,6 +498,14 @@
 .pane-header:has(.settings-identity),
 .pane-header:has(.pane-description) {
 	padding-bottom: var(--space-3);
+}
+
+/* A header with a back button is title-only. The button's box already adds
+   air on the left, and the body's first line follows directly, so both the
+   left gutter and the bottom break tighten. */
+.pane-header:has(.pane-back) {
+	padding-bottom: var(--space-3);
+	padding-left: var(--space-4);
 }
 
 .pane-header h2 {
@@ -954,10 +981,6 @@
 			grid-column: 3;
 			grid-row: 1;
 		}
-	}
-
-	.pane-back {
-		margin-top: -2px;
 	}
 
 	/* The dock's bottom bar already carries a "New" tool, so the in-pane
@@ -1454,7 +1477,7 @@
 .dock-item:disabled,
 .dock-pill-btn:disabled,
 .pane-header-action:disabled {
-	cursor: default;
+	cursor: not-allowed;
 	opacity: 0.45;
 }
 
@@ -1462,6 +1485,15 @@
 .pane-header-action:disabled:hover {
 	background: transparent;
 	color: inherit;
+}
+
+/* A locked dock keeps the expanded Dev Tools toggle marked as current, but
+   quietly: the dimmed full highlight read as a stray hover, and hovering it
+   made the fill vanish. Rest and hover now look the same. */
+.dock-item-active:disabled,
+.dock-item-active:disabled:hover {
+	background: rgba(246, 246, 246, 0.1);
+	color: rgba(246, 246, 246, 0.68);
 }
 
 .dock-pill-btn:disabled:hover {

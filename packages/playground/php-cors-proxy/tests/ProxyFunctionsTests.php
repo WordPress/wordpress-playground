@@ -70,6 +70,30 @@ class ProxyFunctionsTests extends TestCase
                 'https://cors.playground.wordpress.net/proxy.php',
                 'https://cors.playground.wordpress.net/proxy.php?https://w.net/hosting/?utm_source=wporg'
             ],
+            'Root-relative redirect retains the HTTP port and query' => [
+                'http://example.com:8080/one',
+                '/two?download=1',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?http://example.com:8080/two?download=1',
+            ],
+            'Path-relative redirect retains the HTTPS port' => [
+                'https://example.com:8443/directory/one',
+                'two',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?https://example.com:8443/directory/two',
+            ],
+            'Absolute redirect uses its own authority' => [
+                'https://example.com:8443/one',
+                'https://other.example/two',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?https://other.example/two',
+            ],
+            'Scheme-relative redirect uses its own port' => [
+                'http://example.com:8080/one',
+                '//other.example:9090/two',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?http://other.example:9090/two',
+            ],
         ];
     }
     

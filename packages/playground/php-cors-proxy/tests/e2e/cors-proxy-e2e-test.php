@@ -140,6 +140,40 @@ assert_contains(
 );
 
 // ──────────────────────────────────────────────
+// Test 4a: A relative redirect keeps the target's custom port
+// ──────────────────────────────────────────────
+echo "\nTest 4a: A relative redirect keeps the target's custom port\n";
+$redirect_target = "http://127.0.0.1:$upstream_port/relative-redirect";
+$response = proxy_request($proxy_port, $redirect_target);
+assert_true(
+    $response['http_code'] === 302,
+    'The proxy should relay the redirect for the client to follow'
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'location') === [
+        "/cors-proxy.php?http://127.0.0.1:$upstream_port/plain-text",
+    ],
+    'The rewritten Location should retain the target port'
+);
+
+$ch = curl_init("http://127.0.0.1:$proxy_port/cors-proxy.php?$redirect_target");
+curl_setopt_array($ch, [
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 2,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 5,
+]);
+$body = curl_exec($ch);
+assert_true(
+    curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200,
+    'Following the rewritten Location should reach the target'
+);
+assert_true(
+    $body === 'Hello from plain-text endpoint',
+    'The redirected request should return the body from the same custom port'
+);
+
+// ──────────────────────────────────────────────
 // Test 5: Preflight allows the Range request header
 // ──────────────────────────────────────────────
 echo "\nTest 5: Preflight allows the Range request header\n";

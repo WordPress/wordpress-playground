@@ -14,6 +14,10 @@ switch ($path) {
         echo 'Hello from plain-text endpoint';
         break;
 
+    case '/relative-redirect':
+        header('Location: /plain-text', true, 302);
+        break;
+
     case '/range':
         // Serves single byte ranges of a virtual file whose size is given
         // by ?size=. Byte i is the letter at i % 26, so size=26 is a-z.
