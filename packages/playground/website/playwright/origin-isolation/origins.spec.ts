@@ -709,6 +709,44 @@ for (const storage of ['opfs', 'temporary'] as const) {
 	});
 }
 
+test('a failed incoming setup can start a fresh Playground without reloading its document', async ({
+	page,
+}) => {
+	await page.goto('http://site-aaaa.playground.localhost:9400/manifest.json');
+	const target = 'http://site-bbbb.playground.localhost:9400';
+	const url = new URL('/', target);
+	url.searchParams.set('blueprint-url', target + '/missing-blueprint.json');
+	url.searchParams.set('storage', 'temp');
+	expect(
+		(
+			await bridgeRequest(
+				page,
+				target + '/origin-isolation.html',
+				'setup',
+				{
+					url: url.href,
+					storage: 'temporary',
+				}
+			)
+		).error
+	).toBeUndefined();
+	await page.goto(url.href);
+	const restart = page.getByRole('button', {
+		name: 'Start without a Blueprint',
+	});
+	await expect(restart).toBeVisible();
+	await page.evaluate(
+		() => ((window as any).setupDocument = 'same document')
+	);
+	await restart.click();
+	await expect(restart).toBeHidden({ timeout: 5000 });
+	await ready(page);
+	expect(new URL(page.url()).origin).toBe(target);
+	expect(await page.evaluate(() => (window as any).setupDocument)).toBe(
+		'same document'
+	);
+});
+
 /** Wait for both the client API and the first durable OPFS copy before testing reloads. */
 async function ready(page: Page | Frame) {
 	await page.waitForFunction(() => Boolean((window as any).playgroundSites));

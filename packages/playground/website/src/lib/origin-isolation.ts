@@ -49,7 +49,12 @@ export function rootOrigin() {
 export function isInOriginShell(win: Window = window) {
 	if (!isSiteOrigin(win.location.origin) || win.parent === win) return false;
 	try {
-		return new URL(win.document.referrer).origin === rootOrigin();
+		// Same-frame navigation changes referrer to the site's own origin.
+		// Chromium exposes the actual parent independently of that navigation.
+		const parentOrigin =
+			win.location.ancestorOrigins?.[0] ||
+			new URL(win.document.referrer).origin;
+		return parentOrigin === rootOrigin();
 	} catch {
 		return false;
 	}

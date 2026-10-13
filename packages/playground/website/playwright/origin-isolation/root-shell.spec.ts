@@ -70,6 +70,37 @@ test('the root keeps its document and the dock when switching isolated sites', a
 	);
 });
 
+test('same-frame navigation keeps saving and root URL updates available', async ({
+	page,
+}) => {
+	await page.goto(root + '/?wp=6.9&php=8.3');
+	let app = await readyApp(page);
+	await app.evaluate(() =>
+		(window as any).playgroundSites.saveInBrowser('Reloaded')
+	);
+	const origin = new URL(app.url()).origin;
+	await Promise.all([
+		page.waitForEvent('framenavigated', (frame) => frame === app),
+		app.evaluate(() => window.location.assign(window.location.href)),
+	]);
+	app = await readyApp(page);
+	expect(await app.evaluate(() => new URL(document.referrer).origin)).toBe(
+		origin
+	);
+	await app.evaluate(() => {
+		const url = new URL(window.location.href);
+		url.searchParams.set('overlay', 'new');
+		window.history.pushState({}, '', url);
+	});
+	await expect
+		.poll(() => new URL(page.url()).searchParams.get('overlay'))
+		.toBe('new');
+	await app.evaluate(() =>
+		(window as any).playgroundSites.saveInBrowser('Still available')
+	);
+	expect(new URL(app.url()).origin).toBe(origin);
+});
+
 test('a nested WordPress document cannot steer the root shell or read its storage', async ({
 	page,
 }) => {

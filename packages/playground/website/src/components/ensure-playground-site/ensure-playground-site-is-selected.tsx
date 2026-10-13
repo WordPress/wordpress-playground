@@ -78,7 +78,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	const sortedSites = useAppSelector(selectSortedSites);
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
-	const setupStarted = useRef(false);
+	const setupStatus = useRef<'pending' | 'running' | 'finished'>('pending');
 	const url = useCurrentUrl();
 	const initialUrlHref = useRef(window.location.href);
 	// A prototype origin has exactly one site. Reopening its bare URL restores it,
@@ -184,9 +184,11 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			if (setup) {
-				if (setupStarted.current) return;
-				setupStarted.current = true;
+			if (setup && setupStatus.current !== 'finished') {
+				// Setup changes the URL while booting. Ignore those updates, but let
+				// later user navigation recover after setup succeeds or fails.
+				if (setupStatus.current === 'running') return;
+				setupStatus.current = 'running';
 				try {
 					if (sortedSites.length)
 						throw new Error(
@@ -249,6 +251,8 @@ export function EnsurePlaygroundSiteIsSelected({
 							message: String(error),
 						})
 					);
+				} finally {
+					setupStatus.current = 'finished';
 				}
 				return;
 			}
