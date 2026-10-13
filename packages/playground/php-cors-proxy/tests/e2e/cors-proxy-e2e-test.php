@@ -575,9 +575,9 @@ try {
 }
 
 // ──────────────────────────────────────────────
-// Test 22: The handler connects to the validated IPv4 on a custom port
+// Test 22a: The handler connects to the validated IPv4 on a custom port
 // ──────────────────────────────────────────────
-echo "\nTest 22: The handler connects to the validated IPv4 on a custom port\n";
+echo "\nTest 22a: The handler connects to the validated IPv4 on a custom port\n";
 $destination_proxy_port = find_free_port();
 $destination_proxy_proc = start_server_process(
     escapeshellarg(PHP_BINARY) . ' -d disable_functions=gethostbynamel' .
@@ -605,9 +605,9 @@ try {
     );
 
     // ──────────────────────────────────────────────
-    // Test 23: Independent resolution must not reach an unapproved address
+    // Test 22b: Independent resolution must not reach an unapproved address
     // ──────────────────────────────────────────────
-    echo "\nTest 23: Independent resolution must not reach an unapproved address\n";
+    echo "\nTest 22b: Independent resolution must not reach an unapproved address\n";
     // PHP's fixture lookup approves 255.255.255.255, which cannot accept a TCP
     // connection. A second lookup by cURL would resolve localhost to 127.0.0.1
     // and reach the private canary. The reserved address is an unreachable
