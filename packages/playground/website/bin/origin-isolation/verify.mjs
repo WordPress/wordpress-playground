@@ -15,6 +15,8 @@ const server = spawn(
 	}
 );
 const downloads = [];
+let activeDownloads = 0;
+let lastDownloadActivity = 0;
 let pending = '';
 const ready = new Promise((resolve, reject) => {
 	server.once('exit', (code) =>
@@ -26,7 +28,13 @@ const ready = new Promise((resolve, reject) => {
 		pending = lines.pop();
 		for (const line of lines) {
 			if (line.startsWith('Origin isolation prototype:')) resolve();
-			if (line.startsWith('{')) downloads.push(JSON.parse(line));
+			if (line.startsWith('{')) {
+				const entry = JSON.parse(line);
+				lastDownloadActivity = Date.now();
+				if ('downloading' in entry)
+					activeDownloads += entry.downloading;
+				else downloads.push(entry);
+			}
 		}
 	});
 });
@@ -102,7 +110,7 @@ try {
 		await writer.write('alpha private data');
 		await writer.close();
 	});
-	await page.waitForLoadState('networkidle');
+	await waitForSharedDownloads();
 	const firstDownloads = downloads.filter((entry) => entry.site === alpha);
 	const firstDownloadEnd = downloads.length;
 	const firstBytes = firstDownloads.reduce(
@@ -484,7 +492,22 @@ async function openSite(page, href) {
 		)
 		.toBe(true);
 	// Wait for server response logs before taking each cache measurement.
-	await page.waitForLoadState('networkidle');
+	await waitForSharedDownloads();
 	console.log('Ready', page.url());
 	return app;
+}
+
+/** Wait for the measured server's responses, not unrelated iframe lifecycle bookkeeping. */
+async function waitForSharedDownloads() {
+	// With normal browser flags, Playwright can leave the replaced iframe tree
+	// non-idle even when it has no open requests. Count real static responses
+	// instead; boot, backfill, and durable storage have already completed.
+	await expect
+		.poll(
+			() =>
+				activeDownloads === 0 &&
+				Date.now() - lastDownloadActivity >= 500,
+			{ timeout: 30000 }
+		)
+		.toBe(true);
 }

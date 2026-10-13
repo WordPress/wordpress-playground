@@ -81,6 +81,11 @@ app.use((req, res, next) => {
 		return res.type('html').send(launcher);
 	}
 	if (req.hostname === 'static.playground.localhost') {
+		// The cache probe waits on real asset responses, including worker requests.
+		console.log(JSON.stringify({ downloading: 1 }));
+		res.once('close', () =>
+			console.log(JSON.stringify({ downloading: -1 }))
+		);
 		res.on('finish', () => {
 			console.log(
 				JSON.stringify({
