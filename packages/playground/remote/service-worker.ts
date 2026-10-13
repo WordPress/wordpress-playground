@@ -132,6 +132,13 @@ import {
 	handleRemoteAccessRelayRequest,
 } from '@wp-playground/remote-access';
 
+import { RELOAD_REQUIRED } from './src/lib/shared-runtime';
+import {
+	registerSharedRuntime,
+	hasSharedRuntime,
+	sendSharedRuntimeRequest,
+} from './src/lib/shared-runtime-service-worker';
+
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
@@ -143,6 +150,7 @@ if (!(self as any).document) {
 
 self.addEventListener('message', (event) => {
 	handleRemoteAccessRelayMessage(event);
+	registerSharedRuntime(event);
 });
 
 /**
@@ -202,7 +210,13 @@ self.addEventListener('activate', function (event) {
 
 		if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
-			cacheOfflineModeAssetsForCurrentRelease();
+			cacheOfflineModeAssetsForCurrentRelease(
+				new URL(self.location.href).searchParams.get(
+					'experimental-shared-worker'
+				) === '1'
+					? ['/personal-wp-version.json']
+					: []
+			);
 		}
 	}
 	event.waitUntil(doActivate());
@@ -227,7 +241,16 @@ self.addEventListener('fetch', (event) => {
 	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
 	// imports them during development. Sending them through WordPress turns the
 	// module graph into scoped 404 responses.
+	const sharedMode =
+		new URL(self.location.href).searchParams.get(
+			'experimental-shared-worker'
+		) === '1';
+	if (sharedMode && url.pathname.endsWith('/personal-wp-shared-worker.js')) {
+		// Refresh the stable entrypoint online while preserving offline startup.
+		return event.respondWith(networkFirstFetch(event.request));
+	}
 	const isReservedUrl =
+		(sharedMode && url.pathname.endsWith('/personal-wp-version.json')) ||
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js') ||
 		url.pathname.startsWith('/relay/') ||
@@ -426,7 +449,25 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		);
 	}
 
-	const workerResponse = await convertFetchEventToPHPRequest(event);
+	const workerResponse = await convertFetchEventToPHPRequest(
+		event,
+		(await hasSharedRuntime(scope))
+			? (message, scope) =>
+					sendSharedRuntimeRequest(message, scope, event)
+			: undefined
+	);
+	if (
+		workerResponse.headers.has('x-playground-reload-required') &&
+		event.clientId
+	) {
+		const client = await self.clients.get(event.clientId);
+		client?.postMessage({
+			type: RELOAD_REQUIRED,
+			ready:
+				workerResponse.headers.get('x-playground-runtime-closed') ===
+				'1',
+		});
+	}
 
 	if (
 		workerResponse.status === 404 &&
@@ -678,6 +719,12 @@ type WPModuleDetails = {
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
 async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
+	if (await hasSharedRuntime(scope)) {
+		return sendSharedRuntimeRequest(
+			{ method: 'getWordPressModuleDetails', args: [] },
+			scope
+		);
+	}
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
 			{

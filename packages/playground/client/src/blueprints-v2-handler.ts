@@ -140,7 +140,23 @@ export class BlueprintsV2Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		await compiled.run(playground);
+		if (
+			this.options.workerMode === 'shared' &&
+			!(await playground.shouldRunStartupBlueprint())
+		) {
+			executionProgress.finish();
+			await playground.goTo('/');
+			return playground;
+		}
+		try {
+			await compiled.run(playground);
+		} catch (error) {
+			if (this.options.workerMode === 'shared')
+				await playground.finishSharedRuntimeInitialization();
+			throw error;
+		}
+		if (this.options.workerMode === 'shared')
+			await playground.finishSharedRuntimeInitialization();
 
 		return playground;
 	}

@@ -5,7 +5,13 @@ import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 import { portToStream } from '@php-wasm/universal';
 
-export async function convertFetchEventToPHPRequest(event: FetchEvent) {
+export async function convertFetchEventToPHPRequest(
+	event: FetchEvent,
+	sendRequest?: (
+		message: { method: string; args: any[] },
+		scope: string
+	) => Promise<any>
+) {
 	let url = new URL(event.request.url);
 
 	if (!isURLScoped(url)) {
@@ -53,8 +59,12 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				`The URL ${url.toString()} is not scoped. This should not happen.`
 			);
 		}
-		const requestId = await broadcastMessageExpectReply(message, scope);
-		phpResponse = await awaitReply(self, requestId);
+		if (sendRequest) {
+			phpResponse = await sendRequest(message, scope);
+		} else {
+			const requestId = await broadcastMessageExpectReply(message, scope);
+			phpResponse = await awaitReply(self, requestId);
+		}
 
 		// X-frame-options gets in the way when PHP is
 		// being displayed in an iframe.

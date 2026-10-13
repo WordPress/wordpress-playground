@@ -23,7 +23,7 @@ Personal Playground is a streamlined, end-user focused version of WordPress Play
 - App catalog with pre-configured blueprints to install
 - Backup reminder system with history
 - Health Check integration for crash recovery
-- Multi-tab coordination (one worker per site, dependent tabs, takeover protocol)
+- Experimental shared PHP runtime across tabs, with full client access in every tab
 - Cross-tab sync for backup status
 
 ## Features
@@ -50,7 +50,20 @@ Health Check integration detects and recovers from site crashes automatically, e
 
 ### Multi-Tab Support
 
-Browser-managed tab coordination ensures only one worker runs per site. Dependent tabs can view and navigate the site while operations that need the active WordPress runtime are forwarded to the active tab.
+Personal WP explicitly opts into an experimental SharedWorker runtime. Every tab connects to
+one PHP runtime per site, and closing the first tab does not interrupt the others. The
+ServiceWorker sends HTTP requests directly to the runtime through a MessagePort; requests
+are not broadcast to tabs. The main Playground website keeps its dedicated-worker approach.
+
+Each newly opened document checks `personal-wp-version.json` once with caching disabled.
+There is no periodic deployment polling. If the deployed version differs from the running
+worker, the shared runtime stops accepting operations, drains active PHP work, and flushes
+OPFS before shutting down. Existing tabs display a reload prompt on their next runtime
+operation or HTTP request. The reload button waits until saving and shutdown finish. A failed
+version check permits offline startup.
+
+A runtime ownership Web Lock prevents concurrent writers and detects tabs from the older
+implementation. Those legacy tabs must be closed before the shared runtime can boot.
 
 ### WordPress Page Relay Messages
 
@@ -62,8 +75,7 @@ active Playground iframe tree.
 
 Use `install-blueprint` to ask Personal Playground to install a blueprint into the
 current site. Personal Playground confirms the action with the user before applying
-the blueprint. Dependent tabs forward the install to the active tab and keep the
-final blueprint navigation in the requesting tab.
+the blueprint. Installation and navigation use the shared runtime from the requesting tab.
 
 ```js
 window.parent.postMessage(
@@ -90,15 +102,13 @@ Response:
 }
 ```
 
-Blueprint URLs must be `https:`, `data:`, or local `http:` URLs. Dependent tabs
-cannot install blueprints and will return an error result.
+Blueprint URLs must be `https:`, `data:`, or local `http:` URLs.
 
 #### Backup Site
 
 Use `backup-site` to ask Personal Playground to zip the current site and hand the
 file to the browser's downloader — the same backup the Site Tools panel produces.
-Dependent tabs forward the request to the active tab, which is where the download
-then appears.
+The download appears in the requesting tab.
 
 ```js
 window.parent.postMessage(
@@ -159,6 +169,58 @@ npx nx typecheck playground-personal-wp
 # Linting
 npx nx lint playground-personal-wp
 ```
+
+### Verify the SharedWorker in Chrome DevTools
+
+Open two Personal WP tabs on the same origin in the same browser profile, and wait
+for both sites to finish loading. Different origins, including the two deployment
+hostnames, have separate workers and storage.
+
+1. Open `chrome://inspect/#workers`. There should be one Personal WP SharedWorker
+   named `personal-wp:default` for the default site. Click **Inspect** to open its
+   debugger. Close the first application tab and verify the second still works.
+   Close the worker inspector when checking whether the last tab releases the worker.
+2. In each application's DevTools Console, select the top-level page context.
+   Write a marker from the first tab:
+
+    ```js
+    await window.playground.writeFile('/shared-worker-devtools-test', 'from tab A');
+    ```
+
+    Read it from the second tab, including after closing the first:
+
+    ```js
+    await window.playground.readFileAsText('/shared-worker-devtools-test');
+    ```
+
+    The result should be `from tab A`. This file is outside the persisted WordPress
+    directory, so it verifies shared runtime memory rather than shared OPFS storage.
+    Remove it afterward with `await window.playground.unlink('/shared-worker-devtools-test')`.
+
+3. In **Application → Service Workers**, inspect the registered ServiceWorker URL.
+   It should include `experimental-shared-worker=1`. This worker remains the HTTP
+   gateway; PHP executes in the SharedWorker. In the SharedWorker debugger, set a
+   breakpoint in `SharedRuntime.handleServiceWorkerRequest` to inspect direct HTTP
+   routing. `SharedRuntime.beginBoot` and `SharedRuntime.retire` are useful for
+   inspecting startup and shutdown.
+4. In **Network**, filter for `personal-wp-version.json` and reload the page.
+   Expect one version check for that document and no periodic checks while idle.
+
+To verify a deployment update, keep an old tab open, deploy a new build, and open
+a new tab. The new tab detects the version mismatch and retires the old runtime.
+An old tab should show the reload prompt on its next API call or WordPress HTTP
+request. Reload becomes available after active work drains and OPFS is saved.
+After reloading, verify that site data persists and the new runtime accepts requests.
+The version is derived from the build's Git commit; restarting the dev server
+without changing that version does not simulate a deployment update.
+
+For a shutdown-only check, run `await window.playground.shutdownSharedRuntime()`
+in the application console, then try another API call in the other tab. It should
+require a reload. This verifies retirement, but does not exercise the server version check.
+Avoid the inspector's **Terminate** action for this check because it bypasses graceful saving.
+
+See Chromium's [worker debugging documentation](https://blog.chromium.org/2012/04/debugging-web-workers-with-chrome.html)
+for the separate SharedWorker inspector.
 
 ## Build Output
 

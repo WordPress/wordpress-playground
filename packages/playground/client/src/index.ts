@@ -59,6 +59,12 @@ const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
+	/** Experimental shared PHP runtime. Defaults to a dedicated worker. */
+	workerMode?: 'dedicated' | 'shared';
+	/** Deployment version to negotiate with the shared runtime. */
+	sharedWorkerVersion?: string;
+	/** Build version of the connecting application. */
+	sharedWorkerClientVersion?: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	/**
@@ -192,6 +198,11 @@ export async function startPlaygroundWeb(
 		disableProgressBar,
 	} = options;
 	let { remoteUrl } = options;
+	if (options.workerMode === 'shared' && !options.scope) {
+		throw new Error(
+			'A shared Playground runtime requires an explicit site scope.'
+		);
+	}
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
@@ -202,6 +213,17 @@ export async function startPlaygroundWeb(
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
 	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
+		'experimental-shared-worker':
+			options.workerMode === 'shared' ? '1' : undefined,
+		scope: options.workerMode === 'shared' ? options.scope : undefined,
+		'shared-worker-version':
+			options.workerMode === 'shared'
+				? options.sharedWorkerVersion
+				: undefined,
+		'shared-worker-client-version':
+			options.workerMode === 'shared'
+				? options.sharedWorkerClientVersion
+				: undefined,
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
 		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)

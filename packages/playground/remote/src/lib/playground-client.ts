@@ -121,6 +121,11 @@ export interface WebClientMixin extends ProgressReceiver {
 	unmountOpfs(mountpoint: string): Promise<void>;
 
 	boot(options: WorkerBootOptions): Promise<void>;
+	/** Whether this connection owns initial Blueprint execution. */
+	shutdownSharedRuntime(): Promise<void>;
+	shouldRunStartupBlueprint(): Promise<boolean>;
+	/** Completes shared initialization; dedicated runtimes ignore this call. */
+	finishSharedRuntimeInitialization(): Promise<void>;
 }
 
 export type SiteThumbnail = {

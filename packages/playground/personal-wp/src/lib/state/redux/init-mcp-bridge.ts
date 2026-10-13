@@ -17,10 +17,6 @@ import {
 	selectClientInfoBySiteSlug,
 } from './slice-clients';
 import { setOPFSSitesLoadingState, updateSiteMetadata } from './slice-sites';
-import {
-	requestRemoteMcpConnect,
-	setMcpConnectRequestCallback,
-} from './tab-coordinator';
 
 export const mcpBridgeMiddleware = createListenerMiddleware();
 
@@ -37,7 +33,6 @@ startListening({
 		listenerApi.unsubscribe();
 		let handle: McpBridgeHandle | null = null;
 		let connectedPort: number | null = null;
-		let requestedRemotePort: number | null = null;
 
 		const mcpConfig = {
 			list: () => {
@@ -45,7 +40,7 @@ startListening({
 					listenerApi.getState(),
 					PERSONAL_WP_MCP_SITE_SLUG
 				);
-				if (!clientInfo || clientInfo.isDependentMode) {
+				if (!clientInfo) {
 					return [];
 				}
 				const site =
@@ -73,7 +68,7 @@ startListening({
 					state,
 					PERSONAL_WP_MCP_SITE_SLUG
 				);
-				if (!clientInfo || clientInfo.isDependentMode) {
+				if (!clientInfo) {
 					return undefined;
 				}
 				return selectClientBySiteSlug(state, PERSONAL_WP_MCP_SITE_SLUG);
@@ -166,23 +161,7 @@ startListening({
 			connectedPort = port;
 		};
 
-		const registerMcpConnectRequestCallback = () => {
-			setMcpConnectRequestCallback((port) => {
-				const clientInfo = selectClientInfoBySiteSlug(
-					listenerApi.getState(),
-					PERSONAL_WP_MCP_SITE_SLUG
-				);
-				if (!clientInfo || clientInfo.isDependentMode) {
-					return;
-				}
-				startLocalBridge(port);
-			});
-		};
-
-		registerMcpConnectRequestCallback();
-
 		const syncMcpBridge = () => {
-			registerMcpConnectRequestCallback();
 			const port = getRequestedMcpPort();
 			if (!port) {
 				return;
@@ -193,19 +172,6 @@ startListening({
 				PERSONAL_WP_MCP_SITE_SLUG
 			);
 			if (!clientInfo) {
-				return;
-			}
-			if (clientInfo.isDependentMode) {
-				handle?.stop();
-				handle = null;
-				connectedPort = null;
-				if (
-					clientInfo.mainTabStatus === 'connected' &&
-					requestedRemotePort !== port
-				) {
-					requestedRemotePort = port;
-					requestRemoteMcpConnect(PERSONAL_WP_MCP_SITE_SLUG, port);
-				}
 				return;
 			}
 
