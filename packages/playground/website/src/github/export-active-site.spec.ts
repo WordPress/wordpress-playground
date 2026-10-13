@@ -30,6 +30,7 @@ describe('exportActiveSiteToGithub', () => {
 		'ghexport-playground-root': '/wordpress/wp-content/plugins/demo',
 		'ghexport-repo-root': 'plugins/demo',
 		'ghexport-pr-action': 'create',
+		'ghexport-base-branch': 'main',
 		'ghexport-allow-include-zip': 'no',
 		'ghexport-commit-message': 'Fixes #42',
 	});
@@ -57,6 +58,7 @@ describe('exportActiveSiteToGithub', () => {
 			toPathInRepo: 'plugins/demo',
 			relativeExportPaths: ['.'],
 			prAction: 'create',
+			baseBranch: 'main',
 			prNumber: '',
 			commitMessage: 'Fixes #42',
 			includeZip: false,
@@ -69,6 +71,7 @@ describe('exportActiveSiteToGithub', () => {
 			{
 				repoUrl: 'https://github.com/other/repo/pull/123',
 				commitMessage: 'Reviewed fix',
+				baseBranch: 'release',
 				toPathInRepo: 'demo',
 				includeZip: true,
 			},
@@ -84,6 +87,7 @@ describe('exportActiveSiteToGithub', () => {
 				prAction: 'update',
 				prNumber: '123',
 				commitMessage: 'Reviewed fix',
+				baseBranch: 'release',
 				includeZip: false,
 			})
 		);

@@ -15,12 +15,14 @@ describe('playground_export_to_github', () => {
 				repoUrl: 'https://github.com/owner/repo',
 				contentType: 'plugin',
 				plugin: 'demo',
+				baseBranch: 'main',
 				toPathInRepo: 'plugins/demo',
 			})
 		).toEqual(result);
 		expect(exportToGithub).toHaveBeenCalledWith(
 			expect.objectContaining({
 				plugin: 'demo',
+				baseBranch: 'main',
 				toPathInRepo: 'plugins/demo',
 			})
 		);

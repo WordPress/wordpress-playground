@@ -7,6 +7,9 @@ export function readInitialGitHubExportValues(query: URLSearchParams) {
 	if (query.get('ghexport-repo-url')) {
 		values.repoUrl = query.get('ghexport-repo-url')!;
 	}
+	if (query.get('ghexport-base-branch')) {
+		values.baseBranch = query.get('ghexport-base-branch')!;
+	}
 	if (query.get('ghexport-content-type')) {
 		values.contentType = asContentType(query.get('ghexport-content-type'));
 	}

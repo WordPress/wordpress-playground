@@ -103,6 +103,14 @@ and commit message (for example, `Fixes #42`). Explicit arguments override those
 defaults. The tool respects `ghexport-allow-include-zip=no`, and branch URLs also
 select the PR base branch in the UI export flow.
 
+Use `ghexport-base-branch` in the launch URL, or the tool's `baseBranch` argument,
+to target a different branch for a new PR. For example, with `repoUrl` pointing to
+`https://github.com/akirk/cook-app/tree/dist/main` and `baseBranch: "main"`, the
+export compares files against `dist/main`, then applies only the changeset to a
+new branch from `main` and opens the PR against `main`. Unchanged build output is
+excluded. Omitting this option preserves the existing branch selection; updates
+to existing PRs still compare against and commit to the PR head.
+
 ### Tools registered by the WordPress site
 
 A plugin running inside Playground can register its own WebMCP tools, and both the Playground website and Personal Playground re-advertise them as tools of the page:

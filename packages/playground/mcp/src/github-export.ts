@@ -46,6 +46,14 @@ export const githubExportSchema = z.object({
 	contentType: z
 		.enum(['plugin', 'theme', 'wp-content', 'custom-paths'])
 		.optional(),
+	baseBranch: z
+		.string()
+		.min(1)
+		.optional()
+		.describe(
+			'Base branch for new PRs. Files are still compared against the repoUrl branch. ' +
+				'Uses ghexport-base-branch from the launch URL when omitted. Ignored for PR updates.'
+		),
 	plugin: z
 		.string()
 		.min(1)

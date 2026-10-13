@@ -71,6 +71,8 @@ class NoChangesToExportError extends Error {
 
 export interface ExportFormValues {
 	repoUrl: string;
+	/** Target branch for new PRs; the comparison source still comes from repoUrl. */
+	baseBranch?: string;
 	prAction?: PullRequestAction;
 	prNumber: string;
 	contentType?: ContentType;
@@ -720,11 +722,13 @@ export async function exportToGithub(
 		owner,
 		repo,
 	});
-	const baseBranch = repoDetails.ref ?? ghRepo.default_branch;
+	const comparisonBranch = repoDetails.ref ?? ghRepo.default_branch;
+	// Compare with the installed branch, then apply that changeset to the PR base branch.
+	const baseBranch = formValues.baseBranch ?? comparisonBranch;
 
 	let comparisonOwner = owner;
 	let comparisonRepo = repo;
-	let comparisonRef = baseBranch;
+	let comparisonRef = comparisonBranch;
 	if (formValues.prAction === 'update') {
 		const { data: pullRequest } = await octokit.rest.pulls.get({
 			owner,

@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { exportToGithub, pushToGithub } from './form';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getAuthenticatedGitHubClient } from '../client';
+import type * as Storage from '@wp-playground/storage';
+import { joinPaths } from '@php-wasm/util';
 
 const storageMocks = vi.hoisted(() => ({
 	changeset: vi.fn(),
@@ -55,6 +57,186 @@ describe('exportToGithub', () => {
 	});
 
 	it.each([
+		['main', 'main', 'main-sha'],
+		[undefined, 'dist/main', 'dist-sha'],
+	] as const)(
+		'applies only contributor changes to the selected base branch: %s',
+		async (baseBranch, expectedBase, parentSha) => {
+			const storage = await vi.importActual<typeof Storage>(
+				'@wp-playground/storage'
+			);
+			storageMocks.changeset.mockImplementation(storage.changeset);
+			storageMocks.filesListToObject.mockImplementation(
+				storage.filesListToObject
+			);
+			storageMocks.createTree.mockImplementation(storage.createTree);
+			storageMocks.createCommit.mockImplementation(storage.createCommit);
+
+			const distFiles = new Map([
+				['demo.php', 'Built original'],
+				['obsolete.php', 'Remove this file'],
+				['vendor/composer/installed.php', 'Dist-only dependency'],
+				['generated.php', 'Generated build output'],
+			]);
+			const mainFiles = new Map([
+				['demo.php', 'Source original'],
+				['obsolete.php', 'Remove this file'],
+				['generated.php', 'Source version'],
+				['main-only.php', 'Keep this source file'],
+			]);
+			const branchTrees = new Map([
+				['main-sha', mainFiles],
+				['dist-sha', distFiles],
+			]);
+			storageMocks.getFilesFromDirectory.mockResolvedValue(
+				Array.from(distFiles, ([path, content]) => ({
+					path,
+					content: new TextEncoder().encode(content),
+				}))
+			);
+			const editedFiles = new Map(distFiles);
+			editedFiles.set('demo.php', 'Contributor edit');
+			editedFiles.set('new.php', 'Contributor addition');
+			editedFiles.delete('obsolete.php');
+			storageMocks.iterateFiles.mockImplementation(async function* () {
+				for (const [path, content] of editedFiles) {
+					yield {
+						path: joinPaths(
+							'/wordpress/wp-content/plugins/demo',
+							path
+						),
+						read: async () => new TextEncoder().encode(content),
+					};
+				}
+			});
+
+			let exportedTree = new Map<string, string>();
+			const request = vi.fn(
+				async (route: string, params: Record<string, unknown>) => {
+					if (route === 'HEAD /repos/{owner}/{repo}/contents/:path') {
+						if (
+							!branchTrees
+								.get(params.ref as string)
+								?.has(params.path as string)
+						) {
+							throw Object.assign(new Error('Not found'), {
+								status: 404,
+							});
+						}
+						return { data: {} };
+					}
+					if (route === 'POST /repos/{owner}/{repo}/git/trees') {
+						exportedTree = new Map(
+							branchTrees.get(params.base_tree as string)
+						);
+						for (const node of params.tree as Storage.GitHubTreeNode[]) {
+							if ('content' in node) {
+								exportedTree.set(node.path, node.content);
+							} else if (node.sha === null) {
+								exportedTree.delete(node.path);
+							}
+						}
+						return { data: { sha: 'tree-sha' } };
+					}
+					if (route === 'POST /repos/{owner}/{repo}/git/commits') {
+						return { data: { sha: 'commit-sha' } };
+					}
+					throw new Error(`Unexpected GitHub request: ${route}`);
+				}
+			);
+			const octokit = createOctokit();
+			Object.assign(octokit, { request });
+			Object.assign(octokit.rest.repos, {
+				get: vi.fn(async () => ({ data: { default_branch: 'main' } })),
+			});
+			octokit.rest.repos.getBranch.mockImplementation(
+				async ({ branch }: { branch: string }) => {
+					if (!['dist/main', 'main'].includes(branch)) {
+						throw Object.assign(new Error('Not found'), {
+							status: 404,
+						});
+					}
+					return {
+						data: {
+							commit: {
+								sha:
+									branch === 'main' ? 'main-sha' : 'dist-sha',
+							},
+						},
+					};
+				}
+			);
+			vi.mocked(getAuthenticatedGitHubClient).mockReturnValue(
+				octokit as any
+			);
+			await exportToGithub(
+				{
+					documentRoot: Promise.resolve('/wordpress'),
+				} as PlaygroundClient,
+				{
+					repoUrl: 'https://github.com/akirk/cook-app/tree/dist/main',
+					baseBranch,
+					prAction: 'create',
+					prNumber: '',
+					contentType: 'plugin',
+					plugin: 'demo',
+					toPathInRepo: '/',
+					fromPlaygroundRoot: '/wordpress',
+					relativeExportPaths: ['/'],
+					commitMessage: 'Contributor changes',
+					includeZip: false,
+				}
+			);
+
+			expect(storageMocks.getFilesFromDirectory).toHaveBeenCalledWith(
+				octokit,
+				'akirk',
+				'cook-app',
+				'dist/main',
+				'.'
+			);
+			expect(storageMocks.createTree.mock.calls[0][4]).toEqual({
+				create: new Map([
+					[
+						'new.php',
+						new TextEncoder().encode('Contributor addition'),
+					],
+				]),
+				update: new Map([
+					['demo.php', new TextEncoder().encode('Contributor edit')],
+				]),
+				delete: new Set(['obsolete.php']),
+			});
+			expect(request).toHaveBeenCalledWith(
+				'POST /repos/{owner}/{repo}/git/trees',
+				expect.objectContaining({ base_tree: parentSha })
+			);
+			expect(request).toHaveBeenCalledWith(
+				'POST /repos/{owner}/{repo}/git/commits',
+				expect.objectContaining({ parents: [parentSha] })
+			);
+			expect(exportedTree.get('demo.php')).toBe('Contributor edit');
+			expect(exportedTree.get('new.php')).toBe('Contributor addition');
+			expect(exportedTree.has('obsolete.php')).toBe(false);
+			expect(exportedTree.get('generated.php')).toBe(
+				branchTrees.get(parentSha)?.get('generated.php')
+			);
+			expect(exportedTree.get('vendor/composer/installed.php')).toBe(
+				branchTrees.get(parentSha)?.get('vendor/composer/installed.php')
+			);
+			expect(exportedTree.get('main-only.php')).toBe(
+				branchTrees.get(parentSha)?.get('main-only.php')
+			);
+			expect(octokit.rest.git.createRef).toHaveBeenCalledWith(
+				expect.objectContaining({ sha: 'commit-sha' })
+			);
+			expect(octokit.rest.pulls.create).toHaveBeenCalledWith(
+				expect.objectContaining({ base: expectedBase })
+			);
+		}
+	);
+
+	it.each([
 		[
 			'create',
 			'https://github.com/WordPress/wordpress-playground',
@@ -104,6 +286,8 @@ describe('exportToGithub', () => {
 			await exportToGithub(playground, {
 				repoUrl,
 				prAction,
+				baseBranch:
+					prAction === 'update' ? 'ignored-target' : undefined,
 				prNumber: '12',
 				contentType: 'plugin',
 				plugin: 'demo',
@@ -127,6 +311,15 @@ describe('exportToGithub', () => {
 			if (prAction === 'create') {
 				expect(octokit.rest.pulls.create).toHaveBeenCalledWith(
 					expect.objectContaining({ base: baseBranch })
+				);
+			} else {
+				expect(storageMocks.createCommit).toHaveBeenCalledWith(
+					octokit,
+					'contributor',
+					'fork',
+					'Update demo',
+					'head-sha',
+					'tree-sha'
 				);
 			}
 		}
