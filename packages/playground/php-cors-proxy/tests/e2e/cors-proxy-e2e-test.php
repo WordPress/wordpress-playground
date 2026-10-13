@@ -608,15 +608,42 @@ try {
     // Test 22b: An unavailable pinned address must not fall back to localhost
     // ──────────────────────────────────────────────
     echo "\nTest 22b: An unavailable pinned address must not fall back to localhost\n";
-    // The URL below names localhost, but destination-test-router.php replaces
-    // PHP's lookup result with 255.255.255.255 and permits it through the test
-    // address filter. That address cannot accept a TCP connection. The expected
-    // result is therefore a 502, with no connection to our 127.0.0.1 listener.
+    // Dependencies and the behavior this test requires from each:
     //
-    // cURL maps localhost directly to loopback without making a DNS query.
-    // The old handler pinned only ports 80 and 443, so on $raw_port it used
-    // that built-in mapping, reached the listener, and returned PRIVATE_CANARY.
-    // This checks connection fallback; it does not exercise DNS query handling.
+    // - The proxy process started above disables PHP's native gethostbynamel.
+    //   destination-test-router.php replaces it: gethostbynamel('localhost')
+    //   returns ['255.255.255.255'], and is_private_ip('255.255.255.255') returns
+    //   false. This deliberately lets the reserved fixture address reach the
+    //   connection code. Test 21 separately checks the real address filter.
+    // - The OS cannot establish a TCP connection to 255.255.255.255. Pinning
+    //   that address must therefore produce a connection error, not a response.
+    // - cURL maps localhost to loopback internally, without a DNS query. The
+    //   direct probes below force IPv4 and disable outbound proxies, so they
+    //   must connect to 127.0.0.1:$raw_port without using the PHP resolver stub.
+    // - raw-upstream-server.php is already listening on 127.0.0.1:$raw_port.
+    //   find_free_port() must give it a custom port, different from 80 and 443.
+    //   The server increments accepted_connections once per accepted TCP
+    //   connection, before reading HTTP. /destination-canary returns that total
+    //   (including the current connection) and the marker PRIVATE_CANARY.
+    //   It sends Connection: close and closes the socket after every response,
+    //   so each direct probe adds exactly one connection, even on the same handle.
+    // - proxy_request() sends one GET to 127.0.0.1:$destination_proxy_port with
+    //   $canary_url as the target. The helper itself never contacts $raw_port.
+    //   Only the proxy's outgoing cURL connection could add a listener connection.
+    // - These requests run sequentially; no other test uses $raw_port between
+    //   the two probes. Earlier requests and server-readiness checks are already
+    //   included in the first probe's total, N; we do not assume N starts at zero.
+    //
+    // Expected proxy behavior: cors-proxy.php passes the fixture lookup result
+    // to set_curl_destination(), which pins localhost:$raw_port to 255.255.255.255.
+    // The failed connection yields HTTP 502 with no PRIVATE_CANARY in its body.
+    // It must add no accepted connections to the 127.0.0.1 listener. The final
+    // direct probe alone makes the total N + 1. If the proxy falls back to cURL's
+    // localhost mapping, it also reaches the listener, making at least N + 2.
+    // The old port-80/443 pinning causes exactly that fallback on this custom port.
+    //
+    // Scope: this checks accepted connections and fallback, not DNS query counts.
+    // Test 22a separately requires a reachable pinned address to succeed.
     $canary_url = "http://localhost:$raw_port/destination-canary";
     $control = curl_init($canary_url);
     curl_setopt_array($control, [

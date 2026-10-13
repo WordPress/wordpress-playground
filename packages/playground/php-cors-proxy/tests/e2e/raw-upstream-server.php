@@ -54,6 +54,8 @@ if (!$server) {
 
 $accepted_connections = 0;
 while ($conn = @stream_socket_accept($server, -1)) {
+    // Test 22b relies on counting every accepted connection before reading HTTP,
+    // including readiness probes and connections whose response gets discarded.
     $accepted_connections++;
     // The request line picks the response. The headers don't matter.
     $request_line = fgets($conn);
@@ -61,6 +63,8 @@ while ($conn = @stream_socket_accept($server, -1)) {
     }
     $path = explode(' ', (string) $request_line)[1] ?? '';
     if ($path === '/destination-canary') {
+        // Include this request in the total. Test 22b expects its final direct
+        // probe to add one connection; close the socket to prevent probe reuse.
         $body = json_encode([
             'canary' => 'PRIVATE_CANARY',
             'accepted_connections' => $accepted_connections,
