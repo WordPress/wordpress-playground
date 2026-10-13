@@ -12,6 +12,8 @@
  *   followed by the final 200 response.
  * - /switching-protocols: an unsolicited 101 Switching Protocols response
  *   followed by bytes of another protocol.
+ * - /destination-canary: a private canary with a TCP connection counter,
+ *   including connections that never send an HTTP request.
  *
  * Run: php raw-upstream-server.php <port>
  */
@@ -50,12 +52,24 @@ if (!$server) {
     exit(1);
 }
 
+$connections = 0;
 while ($conn = @stream_socket_accept($server, -1)) {
+    $connections++;
     // The request line picks the response. The headers don't matter.
     $request_line = fgets($conn);
     while (($line = fgets($conn)) !== false && rtrim($line) !== '') {
     }
     $path = explode(' ', (string) $request_line)[1] ?? '';
+    if ($path === '/destination-canary') {
+        $body = json_encode([
+            'canary' => 'PRIVATE_CANARY',
+            'connections' => $connections,
+        ]);
+        fwrite($conn, "HTTP/1.1 200 OK\r\nConnection: close\r\n" .
+            'Content-Length: ' . strlen($body) . "\r\n\r\n$body");
+        fclose($conn);
+        continue;
+    }
     fwrite(
         $conn,
         $responses[$path] ?? "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"

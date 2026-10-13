@@ -603,6 +603,56 @@ try {
         ($canary['host'] ?? null) === "approved-target.invalid:$upstream_port",
         'The pinned connection must retain the target hostname and custom port'
     );
+
+    // ──────────────────────────────────────────────
+    // Test 23: Independent resolution must not reach an unapproved address
+    // ──────────────────────────────────────────────
+    echo "\nTest 23: Independent resolution must not reach an unapproved address\n";
+    // PHP's fixture lookup approves 255.255.255.255, which cannot accept a TCP
+    // connection. A second lookup by cURL would resolve localhost to 127.0.0.1
+    // and reach the private canary. The reserved address is an unreachable
+    // stand-in, explicitly permitted only by this fixture; production address
+    // rejection is tested separately without overrides.
+    $canary_url = "http://localhost:$raw_port/destination-canary";
+    $control = curl_init($canary_url);
+    curl_setopt_array($control, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 5,
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_PROXY => '',
+    ]);
+    // Prove that cURL's independent lookup really can reach the canary.
+    $before = json_decode(curl_exec($control), true) ?? [];
+    assert_true(
+        ($before['canary'] ?? null) === 'PRIVATE_CANARY',
+        'Independent resolution must reach the private canary in the control'
+    );
+
+    $response = proxy_request($destination_proxy_port, $canary_url);
+    assert_true(
+        $response['http_code'] === 502,
+        'An unavailable validated address must fail without a second lookup'
+    );
+    assert_not_contains(
+        'PRIVATE_CANARY',
+        $response['body'],
+        'The handler must never return the independently resolved private canary'
+    );
+
+    // This fresh control connection is also a barrier: the listener processes
+    // earlier queued connections before returning its updated counter. Exactly
+    // one extra connection (this control) means the proxy made none, even if
+    // it connected and then hid the canary response behind an error.
+    $after = json_decode(curl_exec($control), true) ?? [];
+    assert_true(
+        ($after['canary'] ?? null) === 'PRIVATE_CANARY',
+        'The canary must remain reachable after the proxied request'
+    );
+    assert_true(
+        isset($before['connections'], $after['connections']) &&
+            $after['connections'] === $before['connections'] + 1,
+        'The proxied request must make zero connections to the unapproved listener'
+    );
 } finally {
     proc_terminate($destination_proxy_proc);
     proc_close($destination_proxy_proc);
