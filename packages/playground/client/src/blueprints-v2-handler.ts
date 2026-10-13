@@ -145,7 +145,13 @@ export class BlueprintsV2Handler {
 			!(await playground.shouldRunStartupBlueprint())
 		) {
 			executionProgress.finish();
-			await playground.goTo('/');
+			const landingPage =
+				compiled.version === 2
+					? compiled.declaration.applicationOptions?.[
+							'wordpress-playground'
+						]?.landingPage
+					: compiled.declaration.landingPage;
+			await playground.goTo(landingPage || '/');
 			return playground;
 		}
 		try {

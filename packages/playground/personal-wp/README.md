@@ -62,6 +62,10 @@ OPFS before shutting down. Existing tabs display a reload prompt on their next r
 operation or HTTP request. The reload button waits until saving and shutdown finish. A failed
 version check permits offline startup.
 
+If saving fails during retirement, the runtime keeps ownership and blocks new
+operations. Opening another tab retries retirement, allowing saving and shutdown
+to finish after the storage problem is resolved.
+
 A runtime ownership Web Lock prevents concurrent writers and detects tabs from the older
 implementation. Those legacy tabs must be closed before the shared runtime can boot.
 

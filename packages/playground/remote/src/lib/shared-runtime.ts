@@ -18,6 +18,7 @@ export class SharedRuntime {
 	private rejectInitialization!: (error: Error) => void;
 	private active = new Set<Promise<unknown>>();
 	private retiring?: Promise<void>;
+	private retired = false;
 	private closed = false;
 	private runtimeId = crypto.randomUUID();
 	private releaseLock?: () => void;
@@ -57,7 +58,7 @@ export class SharedRuntime {
 		this.readiness.add({ ready, failed });
 		port.addEventListener('message', (event) => {
 			if (event.data?.type === 'shared-runtime-connect') {
-				if (event.data.buildVersion !== this.version || this.retiring) {
+				if (event.data.buildVersion !== this.version || this.retired) {
 					port.postMessage({
 						type: RELOAD_REQUIRED,
 						ready: this.closed,
@@ -174,22 +175,29 @@ export class SharedRuntime {
 	async retire() {
 		if (this.retiring) return this.retiring;
 		// Set the gate before notifying ports or awaiting any operation.
-		this.retiring = Promise.resolve().then(async () => {
-			this.rejectInitialization(new Error(RELOAD_REQUIRED));
-			for (const port of [...this.ports, ...this.servicePorts]) {
-				port.postMessage({ type: 'shared-runtime-retired' });
-			}
-			await Promise.allSettled([...this.active]);
-			for (const mountpoint of Object.keys(this.endpoint.unmounts)) {
-				await this.endpoint.unmountOpfs(mountpoint);
-			}
-			await this.endpoint[Symbol.asyncDispose]();
-			this.releaseLock?.();
-			this.closed = true;
-			for (const port of [...this.ports, ...this.servicePorts])
-				port.postMessage({ type: RUNTIME_CLOSED });
-			this.close();
-		});
+		this.retired = true;
+		this.retiring = Promise.resolve()
+			.then(async () => {
+				this.rejectInitialization(new Error(RELOAD_REQUIRED));
+				for (const port of [...this.ports, ...this.servicePorts]) {
+					port.postMessage({ type: 'shared-runtime-retired' });
+				}
+				await Promise.allSettled([...this.active]);
+				for (const mountpoint of Object.keys(this.endpoint.unmounts)) {
+					await this.endpoint.unmountOpfs(mountpoint);
+				}
+				await this.endpoint[Symbol.asyncDispose]();
+				this.releaseLock?.();
+				this.closed = true;
+				for (const port of [...this.ports, ...this.servicePorts])
+					port.postMessage({ type: RUNTIME_CLOSED });
+				this.close();
+			})
+			.catch((error) => {
+				// Permit another save attempt without accepting work on partially detached mounts.
+				this.retiring = undefined;
+				throw error;
+			});
 		return this.retiring;
 	}
 
@@ -197,7 +205,7 @@ export class SharedRuntime {
 		options: WorkerBootOptions,
 		port?: MessagePort
 	): Promise<boolean> {
-		if (this.retiring) throw new Error(RELOAD_REQUIRED);
+		if (this.retired) throw new Error(RELOAD_REQUIRED);
 		if (this.bootPromise) {
 			await this.bootPromise;
 			await this.initialized;
@@ -222,7 +230,7 @@ export class SharedRuntime {
 	}
 
 	private run<T>(operation: () => T | Promise<T>): Promise<T> {
-		if (this.retiring) return Promise.reject(new Error(RELOAD_REQUIRED));
+		if (this.retired) return Promise.reject(new Error(RELOAD_REQUIRED));
 		const promise = Promise.resolve().then(operation);
 		const completion = promise.then(async (result) => {
 			if (result && typeof result === 'object' && 'exitCode' in result) {

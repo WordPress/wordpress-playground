@@ -46,8 +46,10 @@ function PersonalWP() {
 				)
 			)
 				return;
-			if (event.data?.type === 'playground-runtime-closed')
+			if (event.data?.type === 'playground-runtime-closed') {
 				setReadyToReload(true);
+				setRetirementFailed(false);
+			}
 			if (event.data?.type === 'shared-runtime-retirement-error') {
 				setRetirementFailed(true);
 				logger.error(event.data.error);

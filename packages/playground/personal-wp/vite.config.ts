@@ -40,7 +40,12 @@ const proxy: CommonServerOptions['proxy'] = {
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	const isProductionBuild = mode === 'production';
-	const deploymentVersion = execSync('git rev-parse HEAD').toString().trim();
+	let deploymentVersion: string;
+	try {
+		deploymentVersion = execSync('git rev-parse HEAD').toString().trim();
+	} catch {
+		deploymentVersion = (Date.now() / 1000).toFixed(0);
+	}
 
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env

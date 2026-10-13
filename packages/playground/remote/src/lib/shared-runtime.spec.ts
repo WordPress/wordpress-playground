@@ -239,4 +239,25 @@ describe('SharedRuntime', () => {
 		expect(close).not.toHaveBeenCalled();
 		expect(endpoint[Symbol.asyncDispose]).not.toHaveBeenCalled();
 	});
+
+	it('retries a failed save without accepting operations before shutdown completes', async () => {
+		const api = runtime.api() as PlaygroundWorkerEndpoint & {
+			beginSharedBoot(options: WorkerBootOptions): Promise<boolean>;
+		};
+		await api.beginSharedBoot({ scope: 'default', withNetworking: true });
+		vi.mocked(endpoint.unmountOpfs).mockRejectedValueOnce(
+			new Error('disk full')
+		);
+		await expect(runtime.retire()).rejects.toThrow('disk full');
+		await expect(api.run({ code: '<?php echo 1;' })).rejects.toThrow(
+			RELOAD_REQUIRED
+		);
+		await expect(
+			api.beginSharedBoot({ scope: 'default', withNetworking: true })
+		).rejects.toThrow(RELOAD_REQUIRED);
+		await runtime.retire();
+		expect(endpoint.unmountOpfs).toHaveBeenCalledTimes(2);
+		expect(endpoint[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
+		expect(close).toHaveBeenCalledTimes(1);
+	});
 });
