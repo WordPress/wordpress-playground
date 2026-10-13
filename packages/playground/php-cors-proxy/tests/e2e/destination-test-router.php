@@ -1,12 +1,13 @@
 <?php
 /**
  * The test starts PHP with -d disable_functions=gethostbynamel, allowing this
- * replacement for the proxy's validation lookup. It does not change cURL's
- * resolver: cURL still resolves localhost to 127.0.0.1 through the OS.
+ * replacement for the proxy's validation lookup. cURL handles localhost
+ * internally as loopback, without a DNS lookup; that behavior is unchanged.
  *
  * 22a: A hostname cURL cannot resolve is assigned to our reachable listener.
  * 22b: localhost is assigned an address that cannot accept TCP connections.
- *      If the proxy uses cURL's own answer, it reaches the wrong listener.
+ *      If the proxy falls back to cURL's built-in mapping, it reaches the wrong
+ *      listener. This checks connection fallback, not DNS query counts.
  */
 function gethostbynamel($host) {
     $answers = [

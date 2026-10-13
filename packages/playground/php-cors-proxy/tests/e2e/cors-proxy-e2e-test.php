@@ -613,10 +613,10 @@ try {
     // address filter. That address cannot accept a TCP connection. The expected
     // result is therefore a 502, with no connection to our 127.0.0.1 listener.
     //
-    // cURL's own resolver is unchanged: it resolves localhost to 127.0.0.1.
+    // cURL maps localhost directly to loopback without making a DNS query.
     // The old handler pinned only ports 80 and 443, so on $raw_port it used
-    // that answer, reached the listener, and returned PRIVATE_CANARY. This
-    // test simulates conflicting lookup results; it does not count DNS queries.
+    // that built-in mapping, reached the listener, and returned PRIVATE_CANARY.
+    // This checks connection fallback; it does not exercise DNS query handling.
     $canary_url = "http://localhost:$raw_port/destination-canary";
     $control = curl_init($canary_url);
     curl_setopt_array($control, [
@@ -625,12 +625,12 @@ try {
         CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
         CURLOPT_PROXY => '',
     ]);
-    // A direct request establishes that normal cURL resolution reaches the
+    // A direct request establishes that cURL's localhost mapping reaches the
     // listener and records its current number of accepted TCP connections, N.
     $before = json_decode(curl_exec($control), true) ?? [];
     assert_true(
         ($before['canary'] ?? null) === 'PRIVATE_CANARY',
-        'Independent resolution must reach the private canary in the control'
+        'The direct localhost request must reach the private canary in the control'
     );
 
     $response = proxy_request($destination_proxy_port, $canary_url);
@@ -641,7 +641,7 @@ try {
     assert_not_contains(
         'PRIVATE_CANARY',
         $response['body'],
-        'The handler must never return the independently resolved private canary'
+        'The handler must never return the unapproved loopback listener response'
     );
 
     // Read the counter through one more direct request. It must now be N + 1:
