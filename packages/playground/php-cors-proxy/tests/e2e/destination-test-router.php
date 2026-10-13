@@ -1,26 +1,39 @@
 <?php
 /**
  * The test starts PHP with -d disable_functions=gethostbynamel, allowing this
- * replacement for the proxy's validation lookup. cURL handles localhost
- * internally as loopback, without a DNS lookup; that behavior is unchanged.
+ * replacement for the proxy's validation lookup. The ordinary .invalid hostname
+ * has no localhost shortcut. The native observer separately counts cURL's
+ * resolver starts, so tests 22a/22b can check both routing and extra resolution.
  *
- * 22a: A hostname cURL cannot resolve is assigned to our reachable listener.
- * 22b: localhost is assigned an address that cannot accept TCP connections.
- *      If the proxy falls back to cURL's built-in mapping, it reaches the wrong
- *      listener. This checks connection fallback, not DNS query counts.
+ * /resolver-control bypasses validation and makes an unpinned cURL request.
+ * It must trigger the observer, which aborts before any external DNS traffic.
  */
 function gethostbynamel($host) {
-    $answers = [
-        'approved-target.invalid' => ['127.0.0.1'],
-        'localhost' => ['255.255.255.255'],
-    ];
-    return $answers[$host] ?? false;
+    if (file_put_contents(
+        getenv('PLAYGROUND_CORS_PROXY_TEST_RESOLVER_LOG'),
+        "php-lookup\n",
+        FILE_APPEND
+    ) === false) {
+        throw new RuntimeException('Could not record the validation lookup');
+    }
+    return $host === 'approved-target.invalid' ? ['127.0.0.1'] : false;
 }
 
-// These addresses would be rejected in production. Permit the fixture answers
-// so 22a/22b reach the connection code. Test 21 uses the real address filter.
+// Permit only the approved loopback stand-in. Test 21 uses the real address filter.
 function is_private_ip($ip) {
-    return in_array($ip, ['127.0.0.1', '255.255.255.255'], true) ? false : IpUtils::isPrivateIp($ip);
+    return $ip === '127.0.0.1' ? false : IpUtils::isPrivateIp($ip);
+}
+
+if (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) === '/resolver-control') {
+    $ch = curl_init('http://resolver-control.invalid/');
+    curl_setopt_array($ch, [
+        CURLOPT_PROXY => '',
+        CURLOPT_TIMEOUT => 5,
+    ]);
+    $result = curl_exec($ch);
+    header('Content-Type: application/json');
+    echo json_encode(['lookup_failed' => $result === false && curl_errno($ch) !== 0]);
+    exit;
 }
 
 require __DIR__ . '/../../cors-proxy.php';

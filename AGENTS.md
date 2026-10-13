@@ -204,6 +204,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **Coverage**: Reports to `coverage/packages/<package-name>`
 - **E2E tests**: Playwright for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
+- **Native CORS proxy tests**: `npm exec -- nx test playground-php-cors-proxy` requires
+  PHP with curl/sockets, PHPUnit, macOS or Linux, a C compiler, `pkg-config`, and
+  libcurl development headers. Its end-to-end suite compiles a temporary native
+  resolver observer for the fixture proxy process; see the package README.
 
 #### Test-value gate
 

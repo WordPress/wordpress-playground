@@ -158,6 +158,11 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 24
+            - name: Install native CORS proxy test dependencies
+              if: matrix.target == 'test'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends build-essential pkg-config libcurl4-openssl-dev
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db

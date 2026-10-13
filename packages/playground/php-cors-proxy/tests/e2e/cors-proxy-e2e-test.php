@@ -578,12 +578,25 @@ try {
 // Test 22a: The handler connects to the validated IPv4 on a custom port
 // ──────────────────────────────────────────────
 echo "\nTest 22a: The handler connects to the validated IPv4 on a custom port\n";
+$resolver_observer = compile_resolver_observer();
+$resolver_log = tempnam(sys_get_temp_dir(), 'cors-resolver-log-');
+if ($resolver_log === false) {
+    unlink($resolver_observer);
+    throw new RuntimeException('Could not create the resolver observation log');
+}
+$observer_environment = [
+    PHP_OS_FAMILY === 'Darwin' ? 'DYLD_INSERT_LIBRARIES' : 'LD_PRELOAD' => $resolver_observer,
+    'PLAYGROUND_CORS_PROXY_TEST_RESOLVER_LOG' => $resolver_log,
+];
 $destination_proxy_port = find_free_port();
 $destination_proxy_proc = start_server_process(
-    escapeshellarg(PHP_BINARY) . ' -d disable_functions=gethostbynamel' .
-        " -S 127.0.0.1:$destination_proxy_port -t " . escapeshellarg($proxy_dir) .
-        ' ' . escapeshellarg(__DIR__ . '/destination-test-router.php'),
-    $destination_proxy_port
+    [
+        PHP_BINARY, '-d', 'disable_functions=gethostbynamel',
+        '-S', "127.0.0.1:$destination_proxy_port", '-t', $proxy_dir,
+        __DIR__ . '/destination-test-router.php',
+    ],
+    $destination_proxy_port,
+    $observer_environment
 );
 try {
     $response = proxy_request(
@@ -605,93 +618,79 @@ try {
     );
 
     // ──────────────────────────────────────────────
-    // Test 22b: An unavailable pinned address must not fall back to localhost
+    // Test 22b: cURL must not resolve the validated hostname again
     // ──────────────────────────────────────────────
-    echo "\nTest 22b: An unavailable pinned address must not fall back to localhost\n";
-    // Dependencies and the behavior this test requires from each:
+    echo "\nTest 22b: cURL must not resolve the validated hostname again\n";
+    // Observe the same request whose actual destination and Host were checked
+    // in 22a. Its ordinary .invalid hostname has no localhost shortcut.
     //
-    // - The proxy process started above disables PHP's native gethostbynamel.
-    //   destination-test-router.php replaces it: gethostbynamel('localhost')
-    //   returns ['255.255.255.255'], and is_private_ip('255.255.255.255') returns
-    //   false. This deliberately lets the reserved fixture address reach the
-    //   connection code. Test 21 separately checks the real address filter.
-    // - The OS cannot establish a TCP connection to 255.255.255.255. Pinning
-    //   that address must therefore produce a connection error, not a response.
-    // - cURL maps localhost to loopback internally, without a DNS query. The
-    //   direct probes below force IPv4 and disable outbound proxies, so they
-    //   must connect to 127.0.0.1:$raw_port without using the PHP resolver stub.
-    // - raw-upstream-server.php is already listening on 127.0.0.1:$raw_port.
-    //   find_free_port() must give it a custom port, different from 80 and 443.
-    //   The server increments accepted_connections once per accepted TCP
-    //   connection, before reading HTTP. /destination-canary returns that total
-    //   (including the current connection) and the marker PRIVATE_CANARY.
-    //   It sends Connection: close and closes the socket after every response,
-    //   so each direct probe adds exactly one connection, even on the same handle.
-    // - proxy_request() sends one GET to 127.0.0.1:$destination_proxy_port with
-    //   $canary_url as the target. The helper itself never contacts $raw_port.
-    //   Only the proxy's outgoing cURL connection could add a listener connection.
-    // - These requests run sequentially; no other test uses $raw_port between
-    //   the two probes. Earlier requests and server-readiness checks are already
-    //   included in the first probe's total, N; we do not assume N starts at zero.
+    // Dependencies:
+    // - destination-test-router.php replaces PHP's validation lookup, returns
+    //   ['127.0.0.1'] for this hostname, and logs one php-lookup event per call.
+    //   Its address-filter override permits only that loopback fixture address.
+    //   Test 21 checks production private/reserved filtering without overrides.
+    // - curl-resolver-observer.c is loaded only into this proxy process. Each
+    //   native curl_easy_init gets a CURLOPT_RESOLVER_START_FUNCTION callback;
+    //   curl-init records that the observer was installed. The callback records
+    //   curl-resolver-start before cURL starts any new resolution, then aborts
+    //   it to keep this test independent of external DNS and OS caches.
+    // - Both fixtures append events synchronously to the same log. Reading it
+    //   after the handler's response therefore includes its completed lookups.
     //
-    // Expected proxy behavior: cors-proxy.php passes the fixture lookup result
-    // to set_curl_destination(), which pins localhost:$raw_port to 255.255.255.255.
-    // The failed connection yields HTTP 502 with no PRIVATE_CANARY in its body.
-    // It must add no accepted connections to the 127.0.0.1 listener. The final
-    // direct probe alone makes the total N + 1. If the proxy falls back to cURL's
-    // localhost mapping, it also reaches the listener, making at least N + 2.
-    // The old port-80/443 pinning causes exactly that fallback on this custom port.
-    //
-    // Scope: this checks accepted connections and fallback, not DNS query counts.
-    // Test 22a separately requires a reachable pinned address to succeed.
-    $canary_url = "http://localhost:$raw_port/destination-canary";
-    $control = curl_init($canary_url);
+    // Expected: exactly one PHP validation lookup, an installed observer, and
+    // zero cURL resolver starts. 22a must also succeed at the approved listener,
+    // so preventing all connections cannot satisfy these tests. Old port-80/443
+    // pinning misses this custom port, starts cURL resolution, and fails both.
+    $request_events = file($resolver_log, FILE_IGNORE_NEW_LINES) ?: [];
+    $event_counts = array_count_values($request_events);
+    assert_true(
+        ($event_counts['php-lookup'] ?? 0) === 1,
+        'The handler must perform exactly one PHP validation lookup: ' . json_encode($request_events)
+    );
+    assert_true(
+        ($event_counts['curl-init'] ?? 0) > 0,
+        'The native resolver observer must be installed on the handler connection'
+    );
+    assert_true(
+        ($event_counts['curl-resolver-start'] ?? 0) === 0,
+        'The handler must start no additional cURL resolution: ' . json_encode($request_events)
+    );
+
+    if (($event_counts['curl-init'] ?? 0) === 0) {
+        throw new RuntimeException('Observer not loaded; refusing an unobserved control lookup');
+    }
+
+    // Calibrate the observer using /resolver-control in destination-test-router.php.
+    // That route creates a fresh, unpinned cURL handle for resolver-control.invalid.
+    // It bypasses PHP validation, must trigger the native callback, and must fail
+    // because the callback aborts resolution. This detects missing instrumentation
+    // instead of allowing a silently empty log to "prove" that no lookup happened.
+    if (file_put_contents($resolver_log, '') === false) {
+        throw new RuntimeException('Could not reset the resolver observation log');
+    }
+    $control = curl_init("http://127.0.0.1:$destination_proxy_port/resolver-control");
     curl_setopt_array($control, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 5,
-        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
         CURLOPT_PROXY => '',
     ]);
-    // A direct request establishes that cURL's localhost mapping reaches the
-    // listener and records its current number of accepted TCP connections, N.
-    $before = json_decode(curl_exec($control), true) ?? [];
+    $control_result = json_decode(curl_exec($control), true) ?? [];
+    $control_events = file($resolver_log, FILE_IGNORE_NEW_LINES) ?: [];
+    $control_counts = array_count_values($control_events);
     assert_true(
-        ($before['canary'] ?? null) === 'PRIVATE_CANARY',
-        'The direct localhost request must reach the private canary in the control'
-    );
-
-    $response = proxy_request($destination_proxy_port, $canary_url);
-    assert_true(
-        $response['http_code'] === 502,
-        'The proxy must fail when the pinned address cannot accept a TCP connection'
-    );
-    assert_not_contains(
-        'PRIVATE_CANARY',
-        $response['body'],
-        'The handler must never return the unapproved loopback listener response'
-    );
-
-    // Read the counter through one more direct request. It must now be N + 1:
-    // only this request was added. If the proxy also reached this listener,
-    // the count would be at least N + 2, even if it discarded the response.
-    // The server closes each response, so this request needs a new connection.
-    // It also makes the server accept earlier queued connections before we
-    // check the count, avoiding a race with the proxied request.
-    $after = json_decode(curl_exec($control), true) ?? [];
-    assert_true(
-        ($after['canary'] ?? null) === 'PRIVATE_CANARY',
-        'The canary must remain reachable after the proxied request'
+        ($control_counts['curl-resolver-start'] ?? 0) > 0,
+        'An unpinned ordinary hostname must trigger the resolver observer: ' .
+            json_encode($control_events)
     );
     assert_true(
-        isset($before['accepted_connections'], $after['accepted_connections']) &&
-            $after['accepted_connections'] === $before['accepted_connections'] + 1,
-        'Only the final direct request may add a listener connection: ' .
-            'before=' . ($before['accepted_connections'] ?? 'missing') .
-            ', after=' . ($after['accepted_connections'] ?? 'missing')
+        ($control_result['lookup_failed'] ?? false) === true,
+        'The control lookup must be aborted by the observer'
     );
 } finally {
     proc_terminate($destination_proxy_proc);
     proc_close($destination_proxy_proc);
+    unlink($resolver_log);
+    unlink($resolver_observer);
 }
 
 // ──────────────────────────────────────────────
@@ -742,18 +741,20 @@ function start_php_server($port, $router = null, $docroot = null) {
     return start_server_process($cmd, $port);
 }
 
-function start_server_process($cmd, $port) {
+function start_server_process($cmd, $port, $extra_env = []) {
     // Inherit the parent environment so the child process keeps PATH and
     // other settings the PHP binary may need.
     $env = array_merge(getenv(), [
         'PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT' => '1',
-    ]);
+    ], $extra_env);
     $descriptors = [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
-    $proc = proc_open("exec $cmd", $descriptors, $pipes, null, $env);
+    // Launch array commands directly: macOS system shells strip DYLD_* variables,
+    // which would remove the test observer before PHP starts.
+    $proc = proc_open(is_array($cmd) ? $cmd : "exec $cmd", $descriptors, $pipes, null, $env);
     if (!is_resource($proc)) {
         echo "Failed to start PHP server on port $port\n";
         exit(1);
@@ -776,6 +777,44 @@ function start_server_process($cmd, $port) {
     proc_terminate($proc);
     proc_close($proc);
     exit(1);
+}
+
+/**
+ * Build the observer against libcurl's public headers, without linking another
+ * libcurl into PHP. The loader must observe PHP's actual native curl handles.
+ */
+function compile_resolver_observer() {
+    if (!in_array(PHP_OS_FAMILY, ['Darwin', 'Linux'], true)) {
+        throw new RuntimeException('The resolver observation test requires macOS or Linux');
+    }
+    exec('pkg-config --variable=includedir libcurl 2>&1', $include_output, $status);
+    if ($status !== 0 || empty($include_output)) {
+        throw new RuntimeException(
+            'Resolver observation requires pkg-config and libcurl development headers: ' .
+                implode("\n", $include_output)
+        );
+    }
+    $library = tempnam(sys_get_temp_dir(), 'cors-resolver-observer-');
+    if ($library === false) {
+        throw new RuntimeException('Could not create the resolver observer library');
+    }
+    $command = array_merge(
+        [getenv('CC') ?: 'cc', '-Wall', '-Wextra', '-Werror'],
+        PHP_OS_FAMILY === 'Darwin'
+            ? ['-dynamiclib', '-undefined', 'dynamic_lookup'] : ['-shared', '-fPIC'],
+        [
+            '-I' . trim(implode("\n", $include_output)),
+            __DIR__ . '/curl-resolver-observer.c',
+            '-o', $library,
+        ],
+        PHP_OS_FAMILY === 'Linux' ? ['-ldl'] : []
+    );
+    exec(implode(' ', array_map('escapeshellarg', $command)) . ' 2>&1', $output, $status);
+    if ($status !== 0) {
+        unlink($library);
+        throw new RuntimeException('Could not compile the resolver observer: ' . implode("\n", $output));
+    }
+    return $library;
 }
 
 /**

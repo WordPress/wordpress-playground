@@ -117,6 +117,15 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 - Run `test.sh` to run the PHPUnit tests and the end-to-end tests in `tests/e2e`, confirm they all pass.
 - Run `test-watch.sh` to run PHPUnit tests in watch mode.
 
+The end-to-end resolver observation test requires macOS or Linux, a C compiler
+(`cc`, or the executable specified by `CC`), `pkg-config`, and libcurl development
+headers. PHP's runtime libcurl must support the resolver-start callback (7.59.0
+or newer). The test compiles a temporary native observer and loads it only into
+its fixture proxy process. It counts cURL resolver starts and aborts unexpected
+lookups before external DNS traffic. An unpinned ordinary-hostname control
+checks that the observer works. The temporary library and log are removed when
+the fixture process exits. No host DNS configuration is changed.
+
 ### Design decisions
 
 - Stream data both ways, don't buffer.
