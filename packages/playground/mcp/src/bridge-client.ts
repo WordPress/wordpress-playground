@@ -1,6 +1,7 @@
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { createToolClient } from './tools/tool-executors';
 import type { ToolClient } from './tools/tool-executors';
+import type { GitHubExportOptions } from './github-export';
 
 /**
  * Configuration accepted by `startMcpBridge`. Only includes the
@@ -18,6 +19,9 @@ export interface PlaygroundBridgeConfig {
 	getClient(): PlaygroundClient | undefined;
 	rename(newName: string): Promise<void>;
 	saveInBrowser(): Promise<{ slug: string; storage: string }>;
+	exportToGithub?: (
+		options: GitHubExportOptions
+	) => Promise<{ url: string; forked: boolean }>;
 	onConnect?: () => void;
 }
 

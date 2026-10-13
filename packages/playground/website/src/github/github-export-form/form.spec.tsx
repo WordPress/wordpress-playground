@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import { pushToGithub } from './form';
+import { exportToGithub, pushToGithub } from './form';
+import type { PlaygroundClient } from '@wp-playground/client';
+import { getAuthenticatedGitHubClient } from '../client';
 
 const storageMocks = vi.hoisted(() => ({
 	changeset: vi.fn(),
@@ -33,6 +35,72 @@ vi.mock('../github-oauth-guard', () => ({
 vi.mock('../state', () => ({
 	setOAuthToken: vi.fn(),
 }));
+
+describe('exportToGithub', () => {
+	beforeEach(() => {
+		for (const mock of Object.values(storageMocks)) {
+			mock.mockReset();
+		}
+		storageMocks.filesListToObject.mockReturnValue({});
+		storageMocks.changeset.mockResolvedValue(createChangeset());
+		storageMocks.createTree.mockResolvedValue('tree-sha');
+		storageMocks.createCommit.mockResolvedValue('commit-sha');
+		storageMocks.mayPush.mockResolvedValue(true);
+		storageMocks.iterateFiles.mockImplementation(async function* () {
+			yield {
+				path: '/wordpress/wp-content/plugins/demo/demo.php',
+				read: async () => new Uint8Array([1]),
+			};
+		});
+	});
+
+	it.each(['create', 'update'] as const)(
+		'diffs a plugin against the correct repository before a PR %s',
+		async (prAction) => {
+			const octokit = createOctokit({
+				pullRequest: createPullRequest({
+					headOwner: 'contributor',
+					headRepo: 'fork',
+					headSha: 'head-sha',
+				}),
+			});
+			const getRepo = vi
+				.fn()
+				.mockResolvedValue({ data: { default_branch: 'trunk' } });
+			Object.assign(octokit.rest.repos, { get: getRepo });
+			vi.mocked(getAuthenticatedGitHubClient).mockReturnValue(
+				octokit as any
+			);
+			const playground = {
+				documentRoot: Promise.resolve('/wordpress'),
+			} as PlaygroundClient;
+
+			await exportToGithub(playground, {
+				repoUrl: 'https://github.com/WordPress/wordpress-playground',
+				prAction,
+				prNumber: '12',
+				contentType: 'plugin',
+				plugin: 'demo',
+				toPathInRepo: '/plugins/demo',
+				fromPlaygroundRoot: '/wordpress',
+				relativeExportPaths: ['/'],
+				commitMessage: 'Update demo',
+				includeZip: false,
+			});
+
+			expect(storageMocks.getFilesFromDirectory).toHaveBeenCalledWith(
+				octokit,
+				prAction === 'create' ? 'WordPress' : 'contributor',
+				prAction === 'create' ? 'wordpress-playground' : 'fork',
+				prAction === 'create' ? 'trunk' : 'head-sha',
+				'plugins/demo'
+			);
+			expect(storageMocks.changeset).toHaveBeenCalledWith(new Map(), [
+				expect.objectContaining({ path: 'plugins/demo/demo.php' }),
+			]);
+		}
+	);
+});
 
 describe('pushToGithub', () => {
 	beforeEach(() => {

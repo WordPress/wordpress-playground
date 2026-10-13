@@ -86,6 +86,16 @@ The [Playground Website](https://playground.wordpress.net/) also supports [WebMC
 
 > **Note:** WebMCP is still a draft proposal and not widely supported.
 
+The website also exposes `playground_export_to_github` through WebMCP. Sign in using
+**Export to GitHub** first, then provide `repoUrl` (a repository URL to create a PR,
+or a pull request URL to update one), `contentType` (`plugin`, `theme`, `wp-content`,
+or `custom-paths`), and the corresponding `plugin`, `theme`, or custom path options.
+`toPathInRepo` selects the destination directory (defaulting to the plugin or theme
+name, otherwise the repository root), whose contents are synchronized
+with the export, including deletions. The tool returns `{ url, forked }` and supports
+`commitMessage` and `includeZip`. This tool is available on the website through WebMCP,
+not through the CLI MCP server.
+
 ### Tools registered by the WordPress site
 
 A plugin running inside Playground can register its own WebMCP tools, and both the Playground website and Personal Playground re-advertise them as tools of the page:

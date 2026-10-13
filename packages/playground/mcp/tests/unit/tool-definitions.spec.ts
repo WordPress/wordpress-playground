@@ -43,7 +43,11 @@ describe('README tool list', () => {
 			'utf8'
 		);
 		const documented = [
-			...new Set(readme.match(/playground_[a-z_]+/g) ?? []),
+			...new Set(
+				readme
+					.split('## Available tools')[1]
+					.match(/playground_[a-z_]+/g) ?? []
+			),
 		].sort();
 
 		expect(documented).toEqual(registered);

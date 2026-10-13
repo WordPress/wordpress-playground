@@ -116,6 +116,7 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_delete_directory',
 		'playground_delete_file',
 		'playground_execute_php',
+		'playground_export_to_github',
 		'playground_file_exists',
 		'playground_get_current_url',
 		'playground_get_site_info',
@@ -131,6 +132,18 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_save_in_browser',
 		'playground_write_file',
 	]);
+});
+
+test('WebMCP GitHub export requires authentication', async ({ webmcpPage }) => {
+	const result = await webmcpPage.evaluate(async () => {
+		return await (
+			window as any
+		).__webmcpExecutors.playground_export_to_github({
+			repoUrl: 'https://github.com/WordPress/wordpress-playground',
+			contentType: 'wp-content',
+		});
+	});
+	expect(result.error).toContain('GitHub authentication is required.');
 });
 
 test('WebMCP playground_execute_php runs PHP code', async ({ webmcpPage }) => {

@@ -6,6 +6,7 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import type {
 	McpBridgeHandle,
 	WebMCPSiteToolProxy,
+	GitHubExportOptions,
 } from '@wp-playground/mcp/client';
 import {
 	registerWebMCPTools,
@@ -38,6 +39,15 @@ startListening({
 			getClient: sitesAPI.getClient,
 			rename: sitesAPI.rename,
 			saveInBrowser: sitesAPI.saveInBrowser,
+			exportToGithub: async (options: GitHubExportOptions) => {
+				const client = sitesAPI.getClient();
+				if (!client) {
+					throw new Error('No client for active site');
+				}
+				const { exportActiveSiteToGithub } =
+					await import('../../../github/export-active-site');
+				return await exportActiveSiteToGithub(client, options);
+			},
 			onConnect: () => {
 				logTrackingEvent('mcpConnect');
 			},
