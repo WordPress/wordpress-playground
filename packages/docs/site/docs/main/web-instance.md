@@ -86,7 +86,7 @@ Open **Site Settings** to change runtime and WordPress setup options.
 
 ![The Site Settings pane](/img/dock/dock-site-settings.webp)
 
-PHP version and networking can be applied to an existing stored Playground. WordPress version, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
+PHP version and networking can be applied to an existing stored Playground. WordPress version, Gutenberg branch, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
 
 Running an edited Blueprint keeps stored and autosaved Playgrounds. It discards a temporary Playground because the new run starts from a fresh setup.
 
