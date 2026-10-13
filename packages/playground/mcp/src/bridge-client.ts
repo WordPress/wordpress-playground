@@ -2,6 +2,7 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import { createToolClient } from './tools/tool-executors';
 import type { ToolClient } from './tools/tool-executors';
 import type { GitHubExportOptions } from './github-export';
+import { githubExportSchema } from './github-export';
 
 /**
  * Configuration accepted by `startMcpBridge`. Only includes the
@@ -181,6 +182,23 @@ async function handleCommand(
 
 	if (method === '__save_site') {
 		return await config.saveInBrowser();
+	}
+	if (method === 'exportToGithub') {
+		if (
+			!config
+				.list()
+				.some((site) => site.slug === siteSlug && site.isActive)
+		) {
+			throw new Error(`Site is no longer active: ${siteSlug}`);
+		}
+		if (!config.exportToGithub) {
+			throw new Error(
+				'GitHub export is not supported by this Playground host.'
+			);
+		}
+		return await config.exportToGithub(
+			githubExportSchema.parse(args[0] ?? {})
+		);
 	}
 
 	const playgroundClient = config.getClient();

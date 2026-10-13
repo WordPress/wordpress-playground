@@ -1,7 +1,7 @@
-// The MCP SDK expects Zod v3 schemas. We install zod@4 which
-// re-exports a v3-compatible API via the "zod/v3" subpath.
-// Once @modelcontextprotocol implements support for JSON schemas, we can remove the zod dependency.
+// Existing tools use Zod v3; GitHub export shares its Zod v4 schema with WebMCP.
+// The MCP SDK supports both versions.
 import { z } from 'zod/v3';
+import { z as z4 } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PlaygroundBridge } from '../bridge-server';
 import {
@@ -14,6 +14,10 @@ import {
 import type { ToolParam } from './tool-definitions';
 import { toolExecutors } from './tool-executors';
 import type { ToolClient } from './tool-executors';
+import {
+	githubExportSchema,
+	githubExportToolDefinition,
+} from '../github-export';
 function errorResult(prefix: string, error: unknown) {
 	return {
 		content: [
@@ -285,6 +289,32 @@ export function registerMcpServerTools(
 				};
 			} catch (error) {
 				return errorResult(saveSite.errorPrefix, error);
+			}
+		}
+	);
+
+	server.registerTool(
+		githubExportToolDefinition.name,
+		{
+			title: githubExportToolDefinition.title,
+			description: githubExportToolDefinition.description,
+			annotations: githubExportToolDefinition.annotations,
+			inputSchema: githubExportSchema.extend({
+				siteId: z4.string().describe(siteIdSchema.description!),
+			}),
+		},
+		async ({ siteId, ...options }) => {
+			try {
+				const result = await sendCommand(siteId, 'exportToGithub', [
+					options,
+				]);
+				return {
+					content: [
+						{ type: 'text' as const, text: JSON.stringify(result) },
+					],
+				};
+			} catch (error) {
+				return errorResult('GitHub export failed', error);
 			}
 		}
 	);

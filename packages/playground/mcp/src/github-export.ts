@@ -7,20 +7,10 @@ export function createGitHubExportTool(
 	exportToGithub: NonNullable<PlaygroundBridgeConfig['exportToGithub']>
 ) {
 	return {
-		name: 'playground_export_to_github',
-		description:
-			'Export files from the active Playground site to GitHub by creating or updating a pull request. ' +
-			'Uses the export settings supplied in the Playground launch URL for omitted arguments. ' +
-			'Requires the user to sign in to GitHub in Playground first. ' +
-			'The destination directory is synchronized with the exported files, including deletions. ' +
-			'Returns the pull request URL and whether a fork was used.',
+		name: githubExportToolDefinition.name,
+		description: githubExportToolDefinition.description,
+		annotations: githubExportToolDefinition.annotations,
 		inputSchema: z.toJSONSchema(githubExportSchema, { io: 'input' }),
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: true,
-			idempotentHint: false,
-			openWorldHint: true,
-		},
 		execute: async (input) => {
 			try {
 				const options = githubExportSchema.parse(input);
@@ -33,6 +23,23 @@ export function createGitHubExportTool(
 		},
 	} satisfies ModelContextTool;
 }
+
+export const githubExportToolDefinition = {
+	name: 'playground_export_to_github',
+	description:
+		'Export files from the active Playground site to GitHub by creating or updating a pull request. ' +
+		'Uses the export settings supplied in the Playground launch URL for omitted arguments. ' +
+		'Requires the user to sign in to GitHub in Playground first. ' +
+		'The destination directory is synchronized with the exported files, including deletions. ' +
+		'Returns the pull request URL and whether a fork was used.',
+	annotations: {
+		readOnlyHint: false,
+		destructiveHint: true,
+		idempotentHint: false,
+		openWorldHint: true,
+	},
+	title: 'Export to GitHub',
+};
 
 export const githubExportSchema = z.object({
 	repoUrl: z

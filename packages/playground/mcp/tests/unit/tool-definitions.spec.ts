@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { githubExportToolDefinition } from '../../src/github-export';
 import {
 	getSiteToolDefinitions,
 	paramsToJsonSchema,
@@ -36,6 +37,7 @@ describe('README tool list', () => {
 		const registered = [
 			...Object.keys(toolDefinitions),
 			...Object.keys(getSiteToolDefinitions()),
+			githubExportToolDefinition.name,
 		].sort();
 
 		const readme = readFileSync(
