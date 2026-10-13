@@ -10,7 +10,8 @@ export function createGitHubExportTool(
 		name: 'playground_export_to_github',
 		description:
 			'Export files from the active Playground site to GitHub by creating or updating a pull request. ' +
-			'Requires the user to sign in through Export to GitHub first. ' +
+			'Uses the export settings supplied in the Playground launch URL for omitted arguments. ' +
+			'Requires the user to sign in to GitHub in Playground first. ' +
 			'The destination directory is synchronized with the exported files, including deletions. ' +
 			'Returns the pull request URL and whether a fork was used.',
 		inputSchema: z.toJSONSchema(githubExportSchema, { io: 'input' }),
@@ -23,12 +24,6 @@ export function createGitHubExportTool(
 		execute: async (input) => {
 			try {
 				const options = githubExportSchema.parse(input);
-				if (options.contentType === 'plugin' && !options.plugin) {
-					throw new Error('Specify the plugin to export.');
-				}
-				if (options.contentType === 'theme' && !options.theme) {
-					throw new Error('Specify the theme to export.');
-				}
 				return await exportToGithub(options);
 			} catch (error) {
 				return {
@@ -43,10 +38,14 @@ export const githubExportSchema = z.object({
 	repoUrl: z
 		.string()
 		.url()
+		.optional()
 		.describe(
-			'GitHub repository URL to create a PR, or pull request URL to update it.'
+			'GitHub repository or branch URL to create a PR, or pull request URL to update it. ' +
+				'Uses the launch URL setting when omitted.'
 		),
-	contentType: z.enum(['plugin', 'theme', 'wp-content', 'custom-paths']),
+	contentType: z
+		.enum(['plugin', 'theme', 'wp-content', 'custom-paths'])
+		.optional(),
 	plugin: z
 		.string()
 		.min(1)
@@ -61,27 +60,24 @@ export const githubExportSchema = z.object({
 		.string()
 		.optional()
 		.describe(
-			'Destination directory. Defaults to the plugin or theme name, otherwise the repository root. ' +
+			'Destination directory. Uses the launch setting, otherwise the plugin or theme name, ' +
+				'otherwise the repository root. ' +
 				'Its contents are replaced by the export.'
 		),
 	fromPlaygroundRoot: z
 		.string()
-		.default('/wordpress')
+		.optional()
 		.describe('Source root for custom-paths exports.'),
 	relativeExportPaths: z
 		.array(z.string())
-		.default(['/'])
+		.optional()
 		.describe(
 			'Paths relative to the source root for custom-paths exports.'
 		),
-	commitMessage: z
-		.string()
-		.trim()
-		.min(1)
-		.default('Changes from WordPress Playground'),
+	commitMessage: z.string().trim().min(1).optional(),
 	includeZip: z
 		.boolean()
-		.default(false)
+		.optional()
 		.describe('Also include a ZIP for Playground previews.'),
 });
 

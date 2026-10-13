@@ -22,15 +22,13 @@ describe('playground_export_to_github', () => {
 			expect.objectContaining({
 				plugin: 'demo',
 				toPathInRepo: 'plugins/demo',
-				includeZip: false,
-				commitMessage: 'Changes from WordPress Playground',
 			})
 		);
 	});
 
 	it.each([
-		{ contentType: 'plugin' },
-		{ contentType: 'theme' },
+		{ contentType: 'plugin', plugin: '' },
+		{ contentType: 'theme', theme: 42 },
 		{ contentType: 'unknown' },
 		{ contentType: 'wp-content', includeZip: 'yes' },
 	])(
@@ -64,5 +62,11 @@ describe('playground_export_to_github', () => {
 		).toEqual({
 			error: 'GitHub export failed: GitHub authentication is required.',
 		});
+	});
+
+	it('leaves omitted arguments to the host launch defaults', async () => {
+		const exportToGithub = vi.fn();
+		await createGitHubExportTool(exportToGithub).execute({});
+		expect(exportToGithub).toHaveBeenCalledWith({});
 	});
 });

@@ -54,9 +54,25 @@ describe('exportToGithub', () => {
 		});
 	});
 
-	it.each(['create', 'update'] as const)(
-		'diffs a plugin against the correct repository before a PR %s',
-		async (prAction) => {
+	it.each([
+		[
+			'create',
+			'https://github.com/WordPress/wordpress-playground',
+			'trunk',
+		],
+		[
+			'update',
+			'https://github.com/WordPress/wordpress-playground',
+			'trunk',
+		],
+		[
+			'create',
+			'https://github.com/WordPress/wordpress-playground/tree/feature/fix/plugins/demo',
+			'feature/fix',
+		],
+	] as const)(
+		'diffs a plugin against the correct repository for %s at %s',
+		async (prAction, repoUrl, baseBranch) => {
 			const octokit = createOctokit({
 				pullRequest: createPullRequest({
 					headOwner: 'contributor',
@@ -68,6 +84,16 @@ describe('exportToGithub', () => {
 				.fn()
 				.mockResolvedValue({ data: { default_branch: 'trunk' } });
 			Object.assign(octokit.rest.repos, { get: getRepo });
+			octokit.rest.repos.getBranch.mockImplementation(
+				async ({ branch }: { branch: string }) => {
+					if (branch !== baseBranch) {
+						throw Object.assign(new Error('Not found'), {
+							status: 404,
+						});
+					}
+					return { data: { commit: { sha: 'base-sha' } } };
+				}
+			);
 			vi.mocked(getAuthenticatedGitHubClient).mockReturnValue(
 				octokit as any
 			);
@@ -76,7 +102,7 @@ describe('exportToGithub', () => {
 			} as PlaygroundClient;
 
 			await exportToGithub(playground, {
-				repoUrl: 'https://github.com/WordPress/wordpress-playground',
+				repoUrl,
 				prAction,
 				prNumber: '12',
 				contentType: 'plugin',
@@ -92,12 +118,17 @@ describe('exportToGithub', () => {
 				octokit,
 				prAction === 'create' ? 'WordPress' : 'contributor',
 				prAction === 'create' ? 'wordpress-playground' : 'fork',
-				prAction === 'create' ? 'trunk' : 'head-sha',
+				prAction === 'create' ? baseBranch : 'head-sha',
 				'plugins/demo'
 			);
 			expect(storageMocks.changeset).toHaveBeenCalledWith(new Map(), [
 				expect.objectContaining({ path: 'plugins/demo/demo.php' }),
 			]);
+			if (prAction === 'create') {
+				expect(octokit.rest.pulls.create).toHaveBeenCalledWith(
+					expect.objectContaining({ base: baseBranch })
+				);
+			}
 		}
 	);
 });
@@ -320,7 +351,7 @@ function createOctokit({
 	return {
 		rest: {
 			repos: {
-				getBranch: vi.fn(async () => ({
+				getBranch: vi.fn(async (_args: { branch: string }) => ({
 					data: {
 						commit: {
 							sha: branchSha,

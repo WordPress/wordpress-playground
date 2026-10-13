@@ -705,26 +705,30 @@ export async function exportToGithub(
 	filesBeforeChanges?: any[],
 	allowZipExport = true
 ): Promise<PushResult> {
-	const repoDetails = staticAnalyzeGitHubURL(formValues.repoUrl);
-	if (!repoDetails.owner || !repoDetails.repo) {
+	let repoDetails = staticAnalyzeGitHubURL(formValues.repoUrl);
+	const { owner, repo } = repoDetails;
+	if (!owner || !repo) {
 		throw new Error('Specify a supported GitHub repository URL.');
 	}
 	const toPathInRepo = formValues.toPathInRepo.replace(/^\//g, '') || '.';
 	const octokit = getClient();
+	if (repoDetails.type === 'branch') {
+		repoDetails = await resolveGitHubBranchPath(octokit, repoDetails);
+	}
 
 	const { data: ghRepo } = await octokit.rest.repos.get({
-		owner: repoDetails.owner,
-		repo: repoDetails.repo,
+		owner,
+		repo,
 	});
-	const defaultBranch = ghRepo.default_branch;
+	const baseBranch = repoDetails.ref ?? ghRepo.default_branch;
 
-	let comparisonOwner = repoDetails.owner;
-	let comparisonRepo = repoDetails.repo;
-	let comparisonRef = defaultBranch;
+	let comparisonOwner = owner;
+	let comparisonRepo = repo;
+	let comparisonRef = baseBranch;
 	if (formValues.prAction === 'update') {
 		const { data: pullRequest } = await octokit.rest.pulls.get({
-			owner: repoDetails.owner,
-			repo: repoDetails.repo,
+			owner,
+			repo,
 			pull_number: parseInt(formValues.prNumber),
 		});
 		if (!pullRequest.head.repo) {
@@ -838,15 +842,15 @@ export async function exportToGithub(
 	);
 
 	return await pushToGithub(octokit, {
-		owner: repoDetails.owner,
-		repo: repoDetails.repo,
+		owner,
+		repo,
 		commitMessage,
 		changeset: changes,
 		zipPathForPreview,
 
 		shouldCreateNewPR: formValues.prAction === 'create',
 		create: {
-			againstBranch: defaultBranch,
+			againstBranch: baseBranch,
 			branchName: newBranchName,
 			title: prTitle,
 		},

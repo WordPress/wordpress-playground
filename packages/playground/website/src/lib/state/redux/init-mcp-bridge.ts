@@ -46,7 +46,11 @@ startListening({
 				}
 				const { exportActiveSiteToGithub } =
 					await import('../../../github/export-active-site');
-				return await exportActiveSiteToGithub(client, options);
+				return await exportActiveSiteToGithub(
+					client,
+					options,
+					new URL(window.location.href).searchParams
+				);
 			},
 			onConnect: () => {
 				logTrackingEvent('mcpConnect');

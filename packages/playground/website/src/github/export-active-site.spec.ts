@@ -3,15 +3,36 @@ import type { PlaygroundClient } from '@wp-playground/client';
 import type { GitHubExportOptions } from '@wp-playground/mcp/client';
 import { exportActiveSiteToGithub } from './export-active-site';
 import { exportToGithub } from './github-export-form/form';
+import type * as GitHubExportForm from './github-export-form/form';
 import { resetAuthenticatedGitHubClient } from './client';
 import { setOAuthToken } from './state';
 
-vi.mock('./github-export-form/form', () => ({ exportToGithub: vi.fn() }));
+vi.mock('@wp-playground/client', () => ({
+	getLegacyPlaygroundRuntimeWpContentPaths: vi.fn(),
+	zipWpContent: vi.fn(),
+}));
+
+vi.mock('./github-export-form/form', async (importOriginal) => ({
+	...(await importOriginal<typeof GitHubExportForm>()),
+	exportToGithub: vi.fn(),
+}));
 vi.mock('./client', () => ({ resetAuthenticatedGitHubClient: vi.fn() }));
 vi.mock('./state', () => ({ setOAuthToken: vi.fn() }));
 
 describe('exportActiveSiteToGithub', () => {
 	const playground = {} as PlaygroundClient;
+	const actionQuery = new URLSearchParams({
+		'ghexport-repo-url':
+			'https://github.com/owner/repo/tree/feature/fix/plugins/demo',
+		'ghexport-content-type': 'custom-paths',
+		'ghexport-path': '.',
+		'ghexport-plugin': 'demo',
+		'ghexport-playground-root': '/wordpress/wp-content/plugins/demo',
+		'ghexport-repo-root': 'plugins/demo',
+		'ghexport-pr-action': 'create',
+		'ghexport-allow-include-zip': 'no',
+		'ghexport-commit-message': 'Fixes #42',
+	});
 	const options: GitHubExportOptions = {
 		repoUrl: 'https://github.com/owner/repo',
 		contentType: 'plugin',
@@ -24,6 +45,87 @@ describe('exportActiveSiteToGithub', () => {
 	};
 
 	beforeEach(() => vi.resetAllMocks());
+
+	it('inherits action launch settings when called without arguments', async () => {
+		await exportActiveSiteToGithub(playground, {}, actionQuery);
+		expect(exportToGithub).toHaveBeenCalledWith(playground, {
+			repoUrl:
+				'https://github.com/owner/repo/tree/feature/fix/plugins/demo',
+			contentType: 'custom-paths',
+			plugin: 'demo',
+			fromPlaygroundRoot: '/wordpress/wp-content/plugins/demo',
+			toPathInRepo: 'plugins/demo',
+			relativeExportPaths: ['.'],
+			prAction: 'create',
+			prNumber: '',
+			commitMessage: 'Fixes #42',
+			includeZip: false,
+		});
+	});
+
+	it('applies explicit overrides while retaining omitted launch settings', async () => {
+		await exportActiveSiteToGithub(
+			playground,
+			{
+				repoUrl: 'https://github.com/other/repo/pull/123',
+				commitMessage: 'Reviewed fix',
+				toPathInRepo: 'demo',
+				includeZip: true,
+			},
+			actionQuery
+		);
+		expect(exportToGithub).toHaveBeenCalledWith(
+			playground,
+			expect.objectContaining({
+				repoUrl: 'https://github.com/other/repo/pull/123',
+				contentType: 'custom-paths',
+				fromPlaygroundRoot: '/wordpress/wp-content/plugins/demo',
+				toPathInRepo: 'demo',
+				prAction: 'update',
+				prNumber: '123',
+				commitMessage: 'Reviewed fix',
+				includeZip: false,
+			})
+		);
+	});
+
+	it('honors an update action and PR number supplied in the launch URL', async () => {
+		const query = new URLSearchParams(actionQuery);
+		query.set('ghexport-pr-action', 'update');
+		query.set('ghexport-pr-number', '99');
+		await exportActiveSiteToGithub(playground, {}, query);
+		expect(exportToGithub).toHaveBeenCalledWith(
+			playground,
+			expect.objectContaining({
+				prAction: 'update',
+				prNumber: '99',
+			})
+		);
+	});
+
+	it.each([
+		[{}, 'Specify a GitHub repository'],
+		[
+			{ repoUrl: 'https://github.com/owner/repo' },
+			'Specify what you want to export',
+		],
+		[
+			{ repoUrl: 'https://github.com/owner/repo', contentType: 'plugin' },
+			'Specify the plugin',
+		],
+		[
+			{ repoUrl: 'https://github.com/owner/repo', contentType: 'theme' },
+			'Specify the theme',
+		],
+	] as const)(
+		'rejects missing effective settings: %j',
+		async (input, message) => {
+			await expect(
+				exportActiveSiteToGithub(playground, input)
+			).rejects.toThrow(message);
+			expect(exportToGithub).not.toHaveBeenCalled();
+		}
+	);
 
 	it.each([
 		['https://github.com/owner/repo', 'create', ''],
@@ -57,7 +159,9 @@ describe('exportActiveSiteToGithub', () => {
 	])('rejects unsupported targets before exporting: %s', async (repoUrl) => {
 		await expect(
 			exportActiveSiteToGithub(playground, { ...options, repoUrl })
-		).rejects.toThrow('Specify a GitHub repository or pull request URL.');
+		).rejects.toThrow(
+			'Specify a GitHub repository, branch, or pull request URL.'
+		);
 		expect(exportToGithub).not.toHaveBeenCalled();
 	});
 
