@@ -18,7 +18,7 @@ class CurlDestinationTests extends TestCase
         $this->assertIsResource($ipv4, $error);
         $port = parse_url('tcp://' . stream_socket_get_name($ipv4, false), PHP_URL_PORT);
         $listeners = [$ipv4];
-        $canary_available = true;
+        $canary_available = $cached_ip === '127.0.0.1';
         if ($family === CURL_IPRESOLVE_V6) {
             $ipv6 = @stream_socket_server("tcp://[::1]:$port", $errno, $error);
             $canary_available = $ipv6 !== false;
@@ -45,9 +45,9 @@ class CurlDestinationTests extends TestCase
         ]);
 
         try {
-            // Prime cURL's DNS cache with the address that validation did
-            // not approve. With IPv6 loopback, the control returns its canary;
-            // without it, the control fails and the approved IPv4 must still work.
+            // Prime cURL's DNS cache with an unapproved address. A reachable
+            // cached address returns its canary; an unreachable cached address
+            // fails. The approved destination must still determine the result.
             $control = $this->transfer($ch, $listeners, $port, $approved_ip);
             if ($canary_available) {
                 $this->assertSame(CURLE_OK, $control['error']);
@@ -101,7 +101,10 @@ class CurlDestinationTests extends TestCase
     static public function providerUnvalidatedDestinations()
     {
         return [
-            'changed IPv4 address on a custom port' => [
+            'reachable approved IPv4 replaces an unreachable cached address' => [
+                '127.0.0.2', CURL_IPRESOLVE_V4, '127.0.0.1', false,
+            ],
+            'unreachable approved IPv4 must not fall back to cached loopback' => [
                 '127.0.0.1', CURL_IPRESOLVE_V4, '127.0.0.2', false,
             ],
             'unchecked private AAAA on a custom port' => [

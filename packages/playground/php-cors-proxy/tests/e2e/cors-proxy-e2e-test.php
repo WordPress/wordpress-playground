@@ -575,6 +575,40 @@ try {
 }
 
 // ──────────────────────────────────────────────
+// Test 22: The handler connects to the validated IPv4 on a custom port
+// ──────────────────────────────────────────────
+echo "\nTest 22: The handler connects to the validated IPv4 on a custom port\n";
+$destination_proxy_port = find_free_port();
+$destination_proxy_proc = start_server_process(
+    escapeshellarg(PHP_BINARY) . ' -d disable_functions=gethostbynamel' .
+        " -S 127.0.0.1:$destination_proxy_port -t " . escapeshellarg($proxy_dir) .
+        ' ' . escapeshellarg(__DIR__ . '/destination-test-router.php'),
+    $destination_proxy_port
+);
+try {
+    $response = proxy_request(
+        $destination_proxy_port,
+        "http://approved-target.invalid:$upstream_port/destination-canary"
+    );
+    $canary = json_decode($response['body'], true) ?? [];
+    assert_true(
+        $response['http_code'] === 200,
+        "The handler must connect to the validated address (got {$response['http_code']})"
+    );
+    assert_true(
+        ($canary['canary'] ?? null) === 'APPROVED_CANARY',
+        'The handler must return the approved listener response, not a connection failure'
+    );
+    assert_true(
+        ($canary['host'] ?? null) === "approved-target.invalid:$upstream_port",
+        'The pinned connection must retain the target hostname and custom port'
+    );
+} finally {
+    proc_terminate($destination_proxy_proc);
+    proc_close($destination_proxy_proc);
+}
+
+// ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);

@@ -14,6 +14,14 @@ switch ($path) {
         echo 'Hello from plain-text endpoint';
         break;
 
+    case '/destination-canary':
+        header('Content-Type: application/json');
+        echo json_encode([
+            'canary' => 'APPROVED_CANARY',
+            'host' => $_SERVER['HTTP_HOST'],
+        ]);
+        break;
+
     case '/relative-redirect':
         header('Location: /plain-text', true, 302);
         break;
