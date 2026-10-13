@@ -52,9 +52,9 @@ if (!$server) {
     exit(1);
 }
 
-$connections = 0;
+$accepted_connections = 0;
 while ($conn = @stream_socket_accept($server, -1)) {
-    $connections++;
+    $accepted_connections++;
     // The request line picks the response. The headers don't matter.
     $request_line = fgets($conn);
     while (($line = fgets($conn)) !== false && rtrim($line) !== '') {
@@ -63,7 +63,7 @@ while ($conn = @stream_socket_accept($server, -1)) {
     if ($path === '/destination-canary') {
         $body = json_encode([
             'canary' => 'PRIVATE_CANARY',
-            'connections' => $connections,
+            'accepted_connections' => $accepted_connections,
         ]);
         fwrite($conn, "HTTP/1.1 200 OK\r\nConnection: close\r\n" .
             'Content-Length: ' . strlen($body) . "\r\n\r\n$body");

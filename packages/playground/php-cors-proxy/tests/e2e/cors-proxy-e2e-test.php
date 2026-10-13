@@ -605,14 +605,18 @@ try {
     );
 
     // ──────────────────────────────────────────────
-    // Test 22b: Independent resolution must not reach an unapproved address
+    // Test 22b: An unavailable pinned address must not fall back to localhost
     // ──────────────────────────────────────────────
-    echo "\nTest 22b: Independent resolution must not reach an unapproved address\n";
-    // PHP's fixture lookup approves 255.255.255.255, which cannot accept a TCP
-    // connection. A second lookup by cURL would resolve localhost to 127.0.0.1
-    // and reach the private canary. The reserved address is an unreachable
-    // stand-in, explicitly permitted only by this fixture; production address
-    // rejection is tested separately without overrides.
+    echo "\nTest 22b: An unavailable pinned address must not fall back to localhost\n";
+    // The URL below names localhost, but destination-test-router.php replaces
+    // PHP's lookup result with 255.255.255.255 and permits it through the test
+    // address filter. That address cannot accept a TCP connection. The expected
+    // result is therefore a 502, with no connection to our 127.0.0.1 listener.
+    //
+    // cURL's own resolver is unchanged: it resolves localhost to 127.0.0.1.
+    // The old handler pinned only ports 80 and 443, so on $raw_port it used
+    // that answer, reached the listener, and returned PRIVATE_CANARY. This
+    // test simulates conflicting lookup results; it does not count DNS queries.
     $canary_url = "http://localhost:$raw_port/destination-canary";
     $control = curl_init($canary_url);
     curl_setopt_array($control, [
@@ -621,7 +625,8 @@ try {
         CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
         CURLOPT_PROXY => '',
     ]);
-    // Prove that cURL's independent lookup really can reach the canary.
+    // A direct request establishes that normal cURL resolution reaches the
+    // listener and records its current number of accepted TCP connections, N.
     $before = json_decode(curl_exec($control), true) ?? [];
     assert_true(
         ($before['canary'] ?? null) === 'PRIVATE_CANARY',
@@ -631,7 +636,7 @@ try {
     $response = proxy_request($destination_proxy_port, $canary_url);
     assert_true(
         $response['http_code'] === 502,
-        'An unavailable validated address must fail without a second lookup'
+        'The proxy must fail when the pinned address cannot accept a TCP connection'
     );
     assert_not_contains(
         'PRIVATE_CANARY',
@@ -639,19 +644,23 @@ try {
         'The handler must never return the independently resolved private canary'
     );
 
-    // This fresh control connection is also a barrier: the listener processes
-    // earlier queued connections before returning its updated counter. Exactly
-    // one extra connection (this control) means the proxy made none, even if
-    // it connected and then hid the canary response behind an error.
+    // Read the counter through one more direct request. It must now be N + 1:
+    // only this request was added. If the proxy also reached this listener,
+    // the count would be at least N + 2, even if it discarded the response.
+    // The server closes each response, so this request needs a new connection.
+    // It also makes the server accept earlier queued connections before we
+    // check the count, avoiding a race with the proxied request.
     $after = json_decode(curl_exec($control), true) ?? [];
     assert_true(
         ($after['canary'] ?? null) === 'PRIVATE_CANARY',
         'The canary must remain reachable after the proxied request'
     );
     assert_true(
-        isset($before['connections'], $after['connections']) &&
-            $after['connections'] === $before['connections'] + 1,
-        'The proxied request must make zero connections to the unapproved listener'
+        isset($before['accepted_connections'], $after['accepted_connections']) &&
+            $after['accepted_connections'] === $before['accepted_connections'] + 1,
+        'Only the final direct request may add a listener connection: ' .
+            'before=' . ($before['accepted_connections'] ?? 'missing') .
+            ', after=' . ($after['accepted_connections'] ?? 'missing')
     );
 } finally {
     proc_terminate($destination_proxy_proc);
