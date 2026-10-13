@@ -17,7 +17,9 @@
 //
 // Inputs (all provided by the workflow):
 //   PR_NUMBER          pull request number
-//   BASE_SHA           base commit SHA to diff the PR head against
+//   BASE_REF           base BRANCH name (e.g. "trunk"). We diff against the
+//                      branch's current tip, which the webhook's base.sha can
+//                      lag behind.
 //   PR_TITLE           PR title (for the conventional-commit [Type] label)
 //   GITHUB_REPOSITORY  "owner/repo"
 //   GITHUB_TOKEN       token with pull-requests:write
@@ -25,27 +27,25 @@
 // (The label modules' only dependency is installed from
 // ../src/pr-labels/package.json before this runs; it resolves via a normal
 // import.)
-import { execFileSync } from 'node:child_process';
 import { matchPathLabels } from '../src/pr-labels/match-path-labels.mjs';
 import { rankPackageLabels } from '../src/pr-labels/rank-package-labels.mjs';
 import { matchTypeLabel } from '../src/pr-labels/match-type-label.mjs';
 import { changedFileStats } from '../src/pr-labels/git-numstat.mjs';
+import { resolveDiffRevisions } from '../src/pr-labels/resolve-revisions.mjs';
 
 const prNumber = requireEnv('PR_NUMBER');
-const baseSha = requireEnv('BASE_SHA');
+const baseRef = requireEnv('BASE_REF');
 const prTitle = requireEnv('PR_TITLE');
 
-execFileSync(
-	'git',
-	['fetch', '--no-tags', 'origin', `refs/pull/${prNumber}/head`],
-	{ stdio: 'inherit' }
-);
-const head = execFileSync('git', ['rev-parse', 'FETCH_HEAD']).toString().trim();
+// Resolve the commits to diff: the current tip of the base branch (fetched
+// fresh, not the webhook's stale base.sha) and the PR head. See
+// resolve-revisions.mjs for why the base is re-resolved by branch name.
+const { base, head } = resolveDiffRevisions(baseRef, prNumber);
 
 // One `git diff --numstat` feeds both the changed-file list (for path globs) and
 // the per-file line counts (for package ranking). git-numstat.mjs owns the diff
 // invocation and its flags (-z, --no-renames) and parses the result.
-const fileStats = changedFileStats(baseSha, head);
+const fileStats = changedFileStats(base, head);
 const changedFiles = fileStats.map((f) => f.path);
 
 const labels = [
