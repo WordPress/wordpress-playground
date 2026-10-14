@@ -327,7 +327,7 @@ If a saved Playground cannot reload:
 New Playgrounds are autosaved when browser storage and saving are available. Open **Your Playgrounds** in the Dock to recover recent autosaves or saved Playgrounds. Playground keeps up to five recent autosaves.
 -->
 
-જ્યારે બ્રાઉઝર સ્ટોરેજ અને સેવિંગ ઉપલબ્ધ હોય ત્યારે નવા પ્લેગ્રાઉન્ડ્સ આપમેળે સેવ (autosaved) થાય છે. તાજેતરના ઓટોસેવ અથવા સેવ કરેલા પ્લેગ્રાઉન્ડ્સ પુનઃપ્રાપ્ત કરવા માટે ડૉક (Dock) માં **Your Playgrounds** ખોલો. પ્લેગ્રાઉન્ડ પાંચ જેટલા તાજેતરના ઓટોસેવ જાળવી રાખે છે.
+જ્યારે બ્રાઉઝર સ્ટોરેજ અને સેવિંગ ઉપલબ્ધ હોય ત્યારે નવા પ્લેગ્રાઉન્ડ્સ આપમેળે સેવ (autosaved) થાય છે. તાજેતરના ઓટોસેવ અથવા સેવ કરેલા પ્લેગ્રાઉન્ડ્સ પુનઃપ્રાપ્ત કરવા માટે ડૉક (Dock) માં **Your Playgrounds** ખોલો. પ્લેગ્રાઉન્ડ વધુમાં વધુ પાંચા તાજેતરના ઓટોસેવ જાળવી રાખે છે.
 
 <!--
 Click the **Autosaved** or **Unsaved** status in the Dock to open the storage
