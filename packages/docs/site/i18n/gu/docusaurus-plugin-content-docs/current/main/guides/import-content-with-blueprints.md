@@ -60,7 +60,7 @@ and settings must be restored together, use a ZIP snapshot.
 ## Import a WordPress XML export with `importWxr`
 -->
 
-## `importWxr` સાથે વર્ડપ્રેસ XML એક્સપોર્ટ ઇમ્પોર્ટ કરવું
+## `importWxr` સાથે વર્ડપ્રેસ XML એક્સપોર્ટ ઇમ્પોર્ટ કરવું {#import-a-wordpress-xml-export-with-importwxr}
 
 <!--
 WordPress calls its XML export format WordPress eXtended RSS, or WXR. Create one
@@ -175,7 +175,7 @@ another domain.
 ## Generate content with `runPHP`
 -->
 
-## `runPHP` સાથે સામગ્રી જનરેટ કરવી
+## `runPHP` સાથે સામગ્રી જનરેટ કરવી {#generate-content-with-runphp}
 
 <!--
 The [`runPHP` step](/blueprints/steps) can call WordPress APIs directly.
@@ -266,7 +266,7 @@ the database directly.
 ## Restore a Playground ZIP with `importWordPressFiles`
 -->
 
-## `importWordPressFiles` સાથે પ્લેગ્રાઉન્ડ ZIP રિસ્ટોર કરવું
+## `importWordPressFiles` સાથે પ્લેગ્રાઉન્ડ ZIP રિસ્ટોર કરવું {#restore-a-playground-zip-with-importwordpressfiles}
 
 <!--
 The [`importWordPressFiles` step](/blueprints/steps) is a
