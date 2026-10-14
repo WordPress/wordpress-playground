@@ -34,6 +34,21 @@ __attribute__((used)) static const struct {
     (const void *)observed_easy_init, (const void *)curl_easy_init
 };
 #else
+void *dlopen(const char *filename, int flags)
+{
+    /* PHP's RTLD_DEEPBIND would prefer libcurl over our preloaded init hook.
+     * Disable it only in this fixture process so the observer can attach.
+     * https://github.com/php/php-src/blob/PHP-8.3/Zend/zend_portability.h
+     */
+    void *(*original)(const char *, int) =
+        (void *(*)(const char *, int))dlsym(RTLD_NEXT, "dlopen");
+    if (!original) {
+        fputs("Could not find the native library loader\n", stderr);
+        exit(1);
+    }
+    return original(filename, flags & ~RTLD_DEEPBIND);
+}
+
 CURL *curl_easy_init(void)
 {
     CURL *(*original)(void) = (CURL *(*)(void))dlsym(RTLD_NEXT, "curl_easy_init");

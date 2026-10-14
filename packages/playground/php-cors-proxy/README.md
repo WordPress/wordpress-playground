@@ -122,9 +122,12 @@ The end-to-end resolver observation test requires macOS or Linux, a C compiler
 headers. PHP's runtime libcurl must support the resolver-start callback (7.59.0
 or newer). The test compiles a temporary native observer and loads it only into
 its fixture proxy process. It counts cURL resolver starts and aborts unexpected
-lookups before external DNS traffic. An unpinned ordinary-hostname control
-checks that the observer works. The temporary library and log are removed when
-the fixture process exits. No host DNS configuration is changed.
+lookups before external DNS traffic. On Linux, the observer removes
+`RTLD_DEEPBIND` from the fixture's library loads so PHP's extension loader cannot
+bypass the preloaded cURL hook. On macOS, it uses dyld interposition. An unpinned
+ordinary-hostname control checks that the observer works. The temporary library
+and log are removed when the fixture process exits. No host DNS configuration
+is changed.
 
 ### Design decisions
 

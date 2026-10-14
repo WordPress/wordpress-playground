@@ -629,8 +629,12 @@ try {
     //   ['127.0.0.1'] for this hostname, and logs one php-lookup event per call.
     //   Its address-filter override permits only that loopback fixture address.
     //   Test 21 checks production private/reserved filtering without overrides.
-    // - curl-resolver-observer.c is loaded only into this proxy process. Each
-    //   native curl_easy_init gets a CURLOPT_RESOLVER_START_FUNCTION callback;
+    // - curl-resolver-observer.c is loaded only into this proxy process.
+    //   Linux dlopen drops RTLD_DEEPBIND so PHP's extension loader cannot bypass
+    //   the preloaded init hook. This changes fixture library symbol binding;
+    //   the native cURL connection and resolver options remain unchanged.
+    //   On macOS the observer uses dyld interposition instead.
+    //   Each native curl_easy_init gets a CURLOPT_RESOLVER_START_FUNCTION callback;
     //   curl-init records that the observer was installed. The callback records
     //   curl-resolver-start before cURL starts any new resolution, then aborts
     //   it to keep this test independent of external DNS and OS caches.
