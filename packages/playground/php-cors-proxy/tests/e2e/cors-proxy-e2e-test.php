@@ -565,7 +565,7 @@ try {
 echo "\nTest 21: The handler uses the validated address on a custom port\n";
 // The fixture replaces PHP's hostname lookup with a fixed 127.0.0.1 answer
 // and permits that loopback address. All connection code is the real handler.
-// cURL cannot resolve validated-target.invalid through normal DNS: a successful
+// proxy-target.test is a test hostname with no real DNS entry. A successful
 // response requires the handler to pin the fixture address for this custom port.
 $destination_proxy_port = find_free_port();
 $destination_proxy_proc = start_server_process(
@@ -577,7 +577,7 @@ $destination_proxy_proc = start_server_process(
 try {
     $response = proxy_request(
         $destination_proxy_port,
-        "http://validated-target.invalid:$upstream_port/headers"
+        "http://proxy-target.test:$upstream_port/headers"
     );
     $received_headers = json_decode($response['body'], true) ?? [];
     assert_true(
@@ -586,7 +586,7 @@ try {
             "(got {$response['http_code']})"
     );
     assert_true(
-        ($received_headers['host'] ?? null) === "validated-target.invalid:$upstream_port",
+        ($received_headers['host'] ?? null) === "proxy-target.test:$upstream_port",
         'The upstream should receive the URL hostname and custom port in its Host header'
     );
 } finally {

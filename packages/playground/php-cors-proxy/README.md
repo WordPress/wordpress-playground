@@ -121,7 +121,7 @@ Run the suite through Nx with `npm exec -- nx test playground-php-cors-proxy`.
 It requires PHP 8 or newer with curl and sockets, plus PHPUnit.
 
 The custom-port test gives PHP's validation lookup a fixed loopback answer for
-`validated-target.invalid`, then uses the real handler to connect to the local
+`proxy-target.test`, then uses the real handler to connect to the local
 upstream. The upstream must return 200 and receive the original hostname and
 port in its `Host` header. This verifies custom-port pinning; it does not count
 DNS queries or simulate an attacker changing DNS answers.

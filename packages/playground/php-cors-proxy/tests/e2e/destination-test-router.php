@@ -5,7 +5,7 @@
  * function here. cURL still uses its native resolver and connection code.
  */
 function gethostbynamel($host) {
-    return $host === 'validated-target.invalid' ? ['127.0.0.1'] : false;
+    return $host === 'proxy-target.test' ? ['127.0.0.1'] : false;
 }
 
 // Allow the local upstream for this fixture; test 20 uses the real address filter.
