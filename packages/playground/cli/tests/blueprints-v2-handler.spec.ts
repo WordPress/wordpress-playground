@@ -8,16 +8,14 @@ import type {
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import { assertBlueprintV2WordPressVersionCompatibility } from '@wp-playground/blueprints';
-import { consumeAPI } from '@php-wasm/universal';
+import { consumeAPI } from '@php-wasm/universal/playground-rpc';
 import {
 	cachedDownload,
 	fetchSqliteIntegration,
 } from '../src/blueprints-v1/download';
 
-vi.mock('@php-wasm/universal', async (importOriginal) => {
-	const actual = (await importOriginal()) as Record<string, unknown>;
+vi.mock('@php-wasm/universal/playground-rpc', () => {
 	return {
-		...actual,
 		consumeAPI: vi.fn(),
 	};
 });
