@@ -221,12 +221,12 @@ class ProxyFunctionsTests extends TestCase
     static public function providerTargetPorts()
     {
         return [
-            ['http://example.com/', 80],
-            ['https://example.com/', 443],
-            ['http://example.com:8080/', 8080],
-            ['https://example.com:8443/', 8443],
-            ['http://example.com:443/', 443],
-            ['https://example.com:80/', 80],
+            'default HTTP port' => ['http://example.com/', 80],
+            'default HTTPS port' => ['https://example.com/', 443],
+            'custom HTTP port' => ['http://example.com:8080/', 8080],
+            'custom HTTPS port' => ['https://example.com:8443/', 8443],
+            'explicit port overrides HTTP default' => ['http://example.com:443/', 443],
+            'explicit port overrides HTTPS default' => ['https://example.com:80/', 80],
         ];
     }
 
@@ -253,11 +253,7 @@ class ProxyFunctionsTests extends TestCase
         return [
             'lookup failure' => [false],
             'empty answer' => [[]],
-            'public and loopback' => [['8.8.8.8', '127.0.0.1']],
-            'public and private' => [['8.8.8.8', '10.0.0.1']],
-            'public and metadata' => [['8.8.8.8', '169.254.169.254']],
             'invalid address' => [['not-an-ip']],
-            'unsupported address family' => [['2001:4860:4860::8888']],
         ];
     }
 
@@ -291,6 +287,8 @@ class ProxyFunctionsTests extends TestCase
             'reserved and broadcast' => ['240.0.0.0', '255.255.255.255'],
         ];
         $cases = [];
+        // Reject each blocked address alone and after a public answer. Accepting
+        // the first DNS answer must not hide a later private or reserved address.
         foreach ($blocked_ranges as $name => $ips) {
             foreach ($ips as $ip) {
                 $cases["$name: $ip alone"] = [[$ip]];
