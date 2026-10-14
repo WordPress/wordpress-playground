@@ -33,6 +33,7 @@ export default defineConfig({
 		lib: {
 			entry: {
 				index: 'src/index.ts',
+				api: 'src/api.ts',
 				client: 'src/client.ts',
 			},
 			name: 'playground-mcp',
