@@ -181,6 +181,8 @@ The MCP bridge runs locally and is only accessible from your machine — connect
 
 **Email**: `playground_list_emails`
 
+**WordPress abilities**: `wp_ability_<namespace>.<slug>` tools appear when the user exposes abilities with the switches in the Playground website's Abilities panel, and disappear when they are switched off or the site changes. They take a `siteId` and the ability's `input`, and WordPress still enforces each ability's permission callback.
+
 ## Development
 
 When working on the MCP server or the Playground codebase, run from source instead:
