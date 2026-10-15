@@ -4,6 +4,7 @@ import { createRequire } from 'module';
 import { dirname, join } from 'path';
 import { pathToFileURL } from 'url';
 import { type PluginOption, defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -199,6 +200,7 @@ export default defineConfig({
 		},
 		environment: 'node',
 		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		exclude: [...configDefaults.exclude, 'tests/posix-kernel/**'],
 		reporters: ['default'],
 		// Increase timeout to:
 		// - Ensure CLI tests can download WordPress
