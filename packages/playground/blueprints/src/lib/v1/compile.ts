@@ -720,9 +720,26 @@ function compileStep<S extends StepDefinition>(
 				stepProgress.setCaption(step.progress.caption);
 			}
 			stepProgress.fillSlowly();
+			const resolvedArgs = await resolveArguments(args);
+			if (
+				(step.step === 'installPlugin' &&
+					step.pluginData.resource === 'wordpress.org/plugins') ||
+				(step.step === 'installTheme' &&
+					step.themeData.resource === 'wordpress.org/themes')
+			) {
+				const resource = args[
+					step.step === 'installPlugin' ? 'pluginData' : 'themeData'
+				] as Resource<File>;
+				resolvedArgs.options = {
+					...resolvedArgs.options,
+					humanReadableName:
+						resolvedArgs.options?.humanReadableName ||
+						resource.name,
+				};
+			}
 			return await keyedStepHandlers[step.step](
 				playground,
-				await resolveArguments(args),
+				resolvedArgs,
 				{
 					tracker: stepProgress,
 					initialCaption: step.progress?.caption,
