@@ -1,10 +1,20 @@
 ---
-title: Blueprint Bundles
+title: Blueprint Bundles (v1 legacy)
 slug: /blueprints/bundles
-description: Learn about Blueprint bundles, self-contained packages that include a blueprint.json file and all its required resources.
+description: Legacy Blueprint v1 documentation. Learn about Blueprint bundles, self-contained packages that include a blueprint.json file and all its required resources.
 ---
 
 # Blueprint Bundles
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 Blueprint bundles are self-contained packages that include a Blueprint declaration (`blueprint.json`) along with all the additional resources required to compile and run it. This makes it easier to distribute and share complete WordPress Playground setups.
 
