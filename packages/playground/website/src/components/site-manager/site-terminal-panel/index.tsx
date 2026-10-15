@@ -31,6 +31,7 @@ import type { TerminalHistoryEntry } from './terminal-history';
 import { getWpCliCommandError, stripWpPrefix } from './wp-cli-command';
 import { formatWpCliOutput } from './wp-cli-output';
 import { CodeEditor } from '@wp-playground/components';
+import { logTrackingEvent } from '../../../lib/tracking';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -185,6 +186,9 @@ export function SiteTerminalPanel({
 		if (!playground || !canRun) {
 			return;
 		}
+		logTrackingEvent(
+			mode === 'php' ? 'terminalRunPHP' : 'terminalRunWpCli'
+		);
 		setPendingHistoryIndex(null);
 
 		/**

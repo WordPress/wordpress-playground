@@ -31,6 +31,7 @@ import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { logger } from '@php-wasm/logger';
 import { Spinner } from '../spinner';
+import { logTrackingEvent } from '../../lib/tracking';
 
 type SaveStatus =
 	| 'saved'
@@ -122,6 +123,7 @@ export function SaveStatusIndicator({
 		if (disabled) {
 			return;
 		}
+		logTrackingEvent('storePermanently');
 		// The status always acts on the active Playground, not an inactive site
 		// that may have opened the standalone save modal earlier.
 		dispatch(setSiteSlugToSave(undefined));

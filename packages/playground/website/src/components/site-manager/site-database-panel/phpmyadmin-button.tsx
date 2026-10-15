@@ -3,6 +3,7 @@ import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
+import { logTrackingEvent } from '../../../lib/tracking';
 import {
 	type PlaygroundClient,
 	type UniversalPHP,
@@ -73,6 +74,7 @@ export function PhpMyAdminButton({
 		if (state === 'loading') {
 			return;
 		}
+		logTrackingEvent('databaseOpenPhpMyAdmin');
 
 		if (state === 'idle') {
 			setState('loading');

@@ -5,6 +5,7 @@ import { chevronRight, Icon, wordpress } from '@wordpress/icons';
 import css from './style.module.css';
 import gutenbergLogoUrl from './gutenberg-logo.svg';
 import { logger } from '@php-wasm/logger';
+import { logTrackingEvent } from '../../lib/tracking';
 import ModalButtons from '../../components/modal/modal-buttons';
 import { InlineProgress } from '../../components/pane-loading';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
@@ -420,6 +421,7 @@ export default function PreviewPRForm({
 		}
 
 		urlWithPreview.hash = encodeURI(JSON.stringify(blueprint));
+		logTrackingEvent('createPlayground', { type: 'pull-request' });
 		window.location.href = urlWithPreview.toString();
 	}
 

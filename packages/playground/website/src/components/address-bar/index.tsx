@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { Icon, Popover } from '@wordpress/components';
 import { home, wordpress, layout, pin } from '@wordpress/icons';
 import classNames from 'classnames';
+import { logTrackingEvent } from '../../lib/tracking';
 import css from './style.module.css';
 
 /**
@@ -164,11 +165,13 @@ export default function AddressBar({
 	function handleRefresh(e: React.MouseEvent<HTMLButtonElement>) {
 		e.preventDefault();
 		if (url) {
+			logTrackingEvent('addressBarRefresh');
 			onUpdate?.(url);
 		}
 	}
 
-	function handleNavigation(path: string) {
+	function handleSuggestedNavigation(path: string) {
+		logTrackingEvent('addressBarSuggestion');
 		onUpdate?.(path);
 		closeSuggestions();
 		inputRef.current?.blur();
@@ -196,7 +199,7 @@ export default function AddressBar({
 		} else if (e.key === 'Enter') {
 			if (isOpen && activeIndex >= 0) {
 				e.preventDefault();
-				handleNavigation(quickNavItems[activeIndex].path);
+				handleSuggestedNavigation(quickNavItems[activeIndex].path);
 			}
 		} else if (e.key === 'Escape') {
 			closeSuggestions();
@@ -308,7 +311,9 @@ export default function AddressBar({
 									onMouseDown={(event) => {
 										event.preventDefault();
 									}}
-									onClick={() => handleNavigation(item.path)}
+									onClick={() =>
+										handleSuggestedNavigation(item.path)
+									}
 									onMouseEnter={() => setActiveIndex(index)}
 								>
 									<span className={css.suggestionIcon}>

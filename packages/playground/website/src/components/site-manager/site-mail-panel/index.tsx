@@ -16,6 +16,7 @@ import {
 import { formatAddress, getMailSubject } from './mail-display';
 import { MailPreview } from './mail-preview';
 import css from './style.module.css';
+import { logTrackingEvent } from '../../../lib/tracking';
 
 export function SiteMailPanel() {
 	const emails = useAppSelector(getActiveClientInfo)?.emails ?? [];
@@ -61,7 +62,10 @@ export function SiteMailPanel() {
 						return (
 							<Item
 								key={message.messageId || `${subject}-${index}`}
-								onClick={() => setSelectedEmail(message)}
+								onClick={() => {
+									logTrackingEvent('emailSelect');
+									setSelectedEmail(message);
+								}}
 								aria-pressed={isSelected}
 								className={css.mailPanelListItem}
 							>
