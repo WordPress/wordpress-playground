@@ -25,4 +25,4 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-# AI-readable site index: https://my.wordpress.net/llms.txt
+# AI-readable site index: https://playground.wordpress.net/llms.txt
