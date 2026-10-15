@@ -30,6 +30,15 @@ for variable in NIX_CFLAGS_COMPILE NIX_CFLAGS_COMPILE_FOR_BUILD; do
 	deduplicate_flags "$variable"
 done
 
+export PATH="$KANDELO_DEV_SHELL_TOOL_PATH"
+
+host="$(rustc -vV | sed -n 's/^host: //p')"
+cargo build -p xtask --target "$host"
+
+directory="$(mktemp -d)"
+trap 'rm -rf "$directory"' EXIT
+cp "target/$host/debug/xtask" "$directory/xtask"
+
 for target in kernel host nginx php platform-rootfs; do
-	bash scripts/setup.sh "$target"
+	"$directory/xtask" bootstrap "$target"
 done
