@@ -108,6 +108,10 @@ The following additional query parameters may be used to pre-configure the GitHu
 - `gh-ensure-auth`: If set to `yes`, Playground will display a modal to ensure the
   user is authenticated with GitHub before proceeding.
 - `ghexport-repo-url`: The URL of the GitHub repository to export to.
+- `ghexport-base-branch`: Optional base branch for new pull requests. Files are compared against the
+  branch in `ghexport-repo-url`, but the export branch starts from this base branch and the PR targets
+  it. When omitted, the URL branch (or the repository's default branch) is used for both purposes.
+  Existing PR updates still compare against and commit to the PR head.
 - `ghexport-pr-action`: The action to take when exporting (create or update).
 - `ghexport-playground-root`: The root directory in the Playground to export from.
 - `ghexport-repo-root`: The root directory in the repository to export to.
@@ -119,3 +123,15 @@ The following additional query parameters may be used to pre-configure the GitHu
 - `ghexport-commit-message`: The commit message to use when exporting.
 - `ghexport-allow-include-zip`: Whether to offer an option to include a zip file in the GitHub
   export (yes, no). Optional. Defaults to `yes`.
+
+For a repository that builds `main` into `dist/main`, configure:
+
+```text
+ghexport-repo-url=https://github.com/akirk/cook-app/tree/dist/main
+ghexport-base-branch=main
+```
+
+Playground compares the edited files against `dist/main`, then applies only the computed additions,
+modifications, and deletions to a new branch from `main` and opens the PR against `main`. Unchanged
+Composer dependencies and generated files from `dist/main` are excluded from the changeset, even
+when they are absent from or differ on `main`.

@@ -71,6 +71,8 @@ class NoChangesToExportError extends Error {
 
 export interface ExportFormValues {
 	repoUrl: string;
+	/** Target branch for new PRs; the comparison source still comes from repoUrl. */
+	baseBranch?: string;
 	prAction?: PullRequestAction;
 	prNumber: string;
 	contentType?: ContentType;
@@ -104,21 +106,7 @@ export default function GitHubExportForm({
 		includeZip: false,
 		...initialValues,
 	});
-	const [repoDetails, setRepoDetails] = useState<{
-		owner: string;
-		repo: string;
-	}>(() => {
-		if (formValues.repoUrl) {
-			const { owner, repo, type } = staticAnalyzeGitHubURL(
-				formValues.repoUrl
-			);
-			if (type !== 'unknown' && owner && repo) {
-				return { owner: owner!, repo: repo! };
-			}
-		}
 
-		return { owner: '', repo: '' };
-	});
 	function setFormValues(values: ExportFormValues) {
 		if (values.theme && !themes.includes(values.theme)) {
 			values.theme = '';
@@ -219,7 +207,7 @@ export default function GitHubExportForm({
 		}
 		if (URLNeedsAnalyzing) {
 			const analyzed = staticAnalyzeGitHubURL(formValues.repoUrl);
-			let { type, owner, repo, path, pr } = analyzed;
+			let { type, path, pr } = analyzed;
 			if (!['pr', 'branch', 'repo'].includes(type)) {
 				setError('repoUrl', 'This URL is not supported');
 				return;
@@ -230,7 +218,7 @@ export default function GitHubExportForm({
 						getClient(),
 						analyzed
 					);
-					({ type, owner, repo, path, pr } = resolved);
+					({ type, path, pr } = resolved);
 				} catch (error: any) {
 					if (error?.status === 401) {
 						setOAuthToken(undefined);
@@ -244,10 +232,7 @@ export default function GitHubExportForm({
 					return;
 				}
 			}
-			setRepoDetails({
-				owner: owner || '',
-				repo: repo || '',
-			});
+
 			const updatedValues: Partial<ExportFormValues> = {};
 			if (pr) {
 				updatedValues['prNumber'] = pr + '';
@@ -282,160 +267,14 @@ export default function GitHubExportForm({
 			return;
 		}
 
-		let toPathInRepo = formValues.toPathInRepo.replace(/^\//g, '');
-		if (!toPathInRepo) {
-			toPathInRepo = '.';
-		}
-
 		setIsExporting(true);
 		try {
-			const octokit = getClient();
-
-			const { data: ghRepo } = await octokit.rest.repos.get({
-				owner: repoDetails.owner,
-				repo: repoDetails.repo,
-			});
-			const defaultBranch = ghRepo.default_branch;
-
-			let comparisonOwner = repoDetails.owner;
-			let comparisonRepo = repoDetails.repo;
-			let comparisonRef = defaultBranch;
-			if (formValues.prAction === 'update') {
-				const { data: pullRequest } = await octokit.rest.pulls.get({
-					owner: repoDetails.owner,
-					repo: repoDetails.repo,
-					pull_number: parseInt(formValues.prNumber),
-				});
-				if (!pullRequest.head.repo) {
-					throw new Error(
-						'Cannot update this pull request because its source repository is unavailable.'
-					);
-				}
-				// Updating a PR must diff against its head, not the target branch.
-				// Otherwise files added only in the PR are invisible to deletions.
-				comparisonOwner = pullRequest.head.repo.owner.login;
-				comparisonRepo = pullRequest.head.repo.name;
-				comparisonRef = pullRequest.head.sha;
-			}
-
-			let ghRawFiles: any[] = [];
-			try {
-				ghRawFiles =
-					filesBeforeChanges && formValues.prAction === 'create'
-						? filesBeforeChanges
-						: await getFilesFromDirectory(
-								octokit,
-								comparisonOwner,
-								comparisonRepo,
-								comparisonRef,
-								toPathInRepo
-							);
-			} catch {
-				// ignore
-			}
-			const ghComparableFiles = filesListToObject(ghRawFiles);
-
-			let fromPlaygroundRoot = '';
-			let relativeExportPaths = [];
-			let prTitle: string;
-			const docroot = await playground.documentRoot;
-			if (formValues.contentType === 'wp-content') {
-				fromPlaygroundRoot = docroot;
-				relativeExportPaths = ['/wp-content'];
-				prTitle = 'Update wp-content';
-			} else if (formValues.contentType === 'theme') {
-				fromPlaygroundRoot = `${docroot}/wp-content/themes/${formValues.theme}`;
-				relativeExportPaths = [`./`];
-				prTitle = `Update theme ${formValues.theme}`;
-			} else if (formValues.contentType === 'plugin') {
-				fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
-				relativeExportPaths = [`./`];
-				prTitle = `Update plugin ${formValues.plugin}`;
-			} else if (formValues.contentType === 'custom-paths') {
-				fromPlaygroundRoot = formValues.fromPlaygroundRoot;
-				relativeExportPaths = formValues.relativeExportPaths
-					.map((path) => path.replace(/^\//g, ''))
-					.filter(Boolean);
-				prTitle = `Update wp-content`;
-			} else {
-				throw new Error(
-					`Unknown content type ${formValues.contentType}`
-				);
-			}
-
-			if (relativeExportPaths.length === 0) {
-				relativeExportPaths = ['/'];
-			}
-
-			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
-			const newBranchName = `playground-changes-${isoDateSlug}`;
-			const commitMessage = formValues.commitMessage;
-			let zipPathForPreview: string | undefined;
-
-			if (allowZipExport && formValues.includeZip) {
-				const zipFilename = `playground.zip`;
-				const zipPath = joinPaths(fromPlaygroundRoot, zipFilename);
-				relativeExportPaths.push(zipFilename);
-				if (await playground.fileExists(zipPath)) {
-					await playground.unlink(zipPath);
-				}
-				const zipContents = await zipWpContent(playground);
-				await playground.writeFile(zipPath, zipContents);
-				zipPathForPreview = [
-					toPathInRepo === '.' ? '' : toPathInRepo,
-					zipFilename,
-				]
-					.filter(Boolean)
-					.join('/');
-			}
-
-			const allPlaygroundFiles: FileEntry[] = [];
-			const excludedWpContentPaths =
-				await getLegacyPlaygroundRuntimeWpContentPaths(
-					playground,
-					joinPaths(docroot, 'wp-content')
-				);
-			for (const path of relativeExportPaths) {
-				const iterator = iterateFiles(
-					playground,
-					joinPaths(fromPlaygroundRoot, path),
-					{
-						exceptPaths: excludedWpContentPaths,
-					}
-				);
-				for await (const file of iterator) {
-					allPlaygroundFiles.push({
-						path: joinPaths(
-							toPathInRepo,
-							file.path.substring(fromPlaygroundRoot.length)
-						),
-						read: file.read,
-					});
-				}
-			}
-			const changes = await changeset(
-				new Map(Object.entries(ghComparableFiles)),
-				allPlaygroundFiles
+			const pushResult = await exportToGithub(
+				playground,
+				formValues,
+				filesBeforeChanges,
+				allowZipExport
 			);
-
-			const pushResult = await pushToGithub(getClient(), {
-				owner: repoDetails.owner,
-				repo: repoDetails.repo,
-				commitMessage,
-				changeset: changes,
-				zipPathForPreview,
-
-				shouldCreateNewPR: formValues.prAction === 'create',
-				create: {
-					againstBranch: defaultBranch,
-					branchName: newBranchName,
-					title: prTitle,
-				},
-				update: {
-					prNumber: parseInt(formValues.prNumber),
-				},
-			});
-
 			setPushResult(pushResult);
 			onExported?.(pushResult.url, formValues);
 			return;
@@ -859,6 +698,170 @@ export default function GitHubExportForm({
 			</form>
 		</GitHubOAuthGuard>
 	);
+}
+
+/** Exports the selected Playground files using the same flow as the GitHub form. */
+export async function exportToGithub(
+	playground: PlaygroundClient,
+	formValues: ExportFormValues,
+	filesBeforeChanges?: any[],
+	allowZipExport = true
+): Promise<PushResult> {
+	let repoDetails = staticAnalyzeGitHubURL(formValues.repoUrl);
+	const { owner, repo } = repoDetails;
+	if (!owner || !repo) {
+		throw new Error('Specify a supported GitHub repository URL.');
+	}
+	const toPathInRepo = formValues.toPathInRepo.replace(/^\//g, '') || '.';
+	const octokit = getClient();
+	if (repoDetails.type === 'branch') {
+		repoDetails = await resolveGitHubBranchPath(octokit, repoDetails);
+	}
+
+	const { data: ghRepo } = await octokit.rest.repos.get({
+		owner,
+		repo,
+	});
+	const comparisonBranch = repoDetails.ref ?? ghRepo.default_branch;
+	// Compare with the installed branch, then apply that changeset to the PR base branch.
+	const baseBranch = formValues.baseBranch ?? comparisonBranch;
+
+	let comparisonOwner = owner;
+	let comparisonRepo = repo;
+	let comparisonRef = comparisonBranch;
+	if (formValues.prAction === 'update') {
+		const { data: pullRequest } = await octokit.rest.pulls.get({
+			owner,
+			repo,
+			pull_number: parseInt(formValues.prNumber),
+		});
+		if (!pullRequest.head.repo) {
+			throw new Error(
+				'Cannot update this pull request because its source repository is unavailable.'
+			);
+		}
+		// Updating a PR must diff against its head, not the target branch.
+		// Otherwise files added only in the PR are invisible to deletions.
+		comparisonOwner = pullRequest.head.repo.owner.login;
+		comparisonRepo = pullRequest.head.repo.name;
+		comparisonRef = pullRequest.head.sha;
+	}
+
+	let ghRawFiles: any[] = [];
+	try {
+		ghRawFiles =
+			filesBeforeChanges && formValues.prAction === 'create'
+				? filesBeforeChanges
+				: await getFilesFromDirectory(
+						octokit,
+						comparisonOwner,
+						comparisonRepo,
+						comparisonRef,
+						toPathInRepo
+					);
+	} catch {
+		// ignore
+	}
+	const ghComparableFiles = filesListToObject(ghRawFiles);
+
+	let fromPlaygroundRoot = '';
+	let relativeExportPaths = [];
+	let prTitle: string;
+	const docroot = await playground.documentRoot;
+	if (formValues.contentType === 'wp-content') {
+		fromPlaygroundRoot = docroot;
+		relativeExportPaths = ['/wp-content'];
+		prTitle = 'Update wp-content';
+	} else if (formValues.contentType === 'theme') {
+		fromPlaygroundRoot = `${docroot}/wp-content/themes/${formValues.theme}`;
+		relativeExportPaths = [`./`];
+		prTitle = `Update theme ${formValues.theme}`;
+	} else if (formValues.contentType === 'plugin') {
+		fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
+		relativeExportPaths = [`./`];
+		prTitle = `Update plugin ${formValues.plugin}`;
+	} else if (formValues.contentType === 'custom-paths') {
+		fromPlaygroundRoot = formValues.fromPlaygroundRoot;
+		relativeExportPaths = formValues.relativeExportPaths
+			.map((path) => path.replace(/^\//g, ''))
+			.filter(Boolean);
+		prTitle = `Update wp-content`;
+	} else {
+		throw new Error(`Unknown content type ${formValues.contentType}`);
+	}
+
+	if (relativeExportPaths.length === 0) {
+		relativeExportPaths = ['/'];
+	}
+
+	const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
+	const newBranchName = `playground-changes-${isoDateSlug}`;
+	const commitMessage = formValues.commitMessage;
+	let zipPathForPreview: string | undefined;
+
+	if (allowZipExport && formValues.includeZip) {
+		const zipFilename = `playground.zip`;
+		const zipPath = joinPaths(fromPlaygroundRoot, zipFilename);
+		relativeExportPaths.push(zipFilename);
+		if (await playground.fileExists(zipPath)) {
+			await playground.unlink(zipPath);
+		}
+		const zipContents = await zipWpContent(playground);
+		await playground.writeFile(zipPath, zipContents);
+		zipPathForPreview = [
+			toPathInRepo === '.' ? '' : toPathInRepo,
+			zipFilename,
+		]
+			.filter(Boolean)
+			.join('/');
+	}
+
+	const allPlaygroundFiles: FileEntry[] = [];
+	const excludedWpContentPaths =
+		await getLegacyPlaygroundRuntimeWpContentPaths(
+			playground,
+			joinPaths(docroot, 'wp-content')
+		);
+	for (const path of relativeExportPaths) {
+		const iterator = iterateFiles(
+			playground,
+			joinPaths(fromPlaygroundRoot, path),
+			{
+				exceptPaths: excludedWpContentPaths,
+			}
+		);
+		for await (const file of iterator) {
+			allPlaygroundFiles.push({
+				path: joinPaths(
+					toPathInRepo,
+					file.path.substring(fromPlaygroundRoot.length)
+				),
+				read: file.read,
+			});
+		}
+	}
+	const changes = await changeset(
+		new Map(Object.entries(ghComparableFiles)),
+		allPlaygroundFiles
+	);
+
+	return await pushToGithub(octokit, {
+		owner,
+		repo,
+		commitMessage,
+		changeset: changes,
+		zipPathForPreview,
+
+		shouldCreateNewPR: formValues.prAction === 'create',
+		create: {
+			againstBranch: baseBranch,
+			branchName: newBranchName,
+			title: prTitle,
+		},
+		update: {
+			prNumber: parseInt(formValues.prNumber),
+		},
+	});
 }
 
 type CreatePROptions = {
