@@ -15,6 +15,10 @@ import type {
 } from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
 import type { SiteThumbnail, WebClientMixin } from './playground-client';
+// @ts-ignore -- Provided by Vite.
+import { buildVersion as remoteBuildVersion } from 'virtual:remote-config';
+import { RELOAD_REQUIRED } from './shared-runtime';
+import { connectSharedRuntime } from './connect-shared-runtime';
 import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
@@ -89,7 +93,11 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
-	const registration = await sw.register(serviceWorkerUrl + '', {
+	const sharedMode = query.get('experimental-shared-worker') === '1';
+	const registrationUrl = new URL(serviceWorkerUrl);
+	if (sharedMode)
+		registrationUrl.searchParams.set('experimental-shared-worker', '1');
+	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:
 		updateViaCache: 'none',
@@ -109,11 +117,29 @@ export async function bootPlaygroundRemote() {
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
-	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
-	);
+	const sharedRuntime = sharedMode
+		? await connectSharedRuntime(
+				query.get('scope')!,
+				query.get('shared-worker-version') ?? remoteBuildVersion,
+				query.get('shared-worker-client-version') ?? remoteBuildVersion
+			)
+		: undefined;
+	const phpWorkerApi =
+		sharedRuntime?.api ??
+		consumeAPI<PlaygroundWorkerEndpoint>(
+			await spawnPHPWorkerThread(workerUrl)
+		);
+	if (sharedRuntime && registration.active)
+		sharedRuntime.register(registration.active);
+	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	if (sharedRuntime) {
+		const reloadDocuments = new WeakSet<Document>();
+		wpFrame.addEventListener('load', () =>
+			relaySharedRuntimeReloads(wpFrame, reloadDocuments)
+		);
+	}
 	const webMCPBridge = createWebMCPFrameBridge(wpFrame);
 	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
@@ -271,6 +297,7 @@ export async function bootPlaygroundRemote() {
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
 			setInterval(async () => {
+				if (sharedRuntime?.isRetired()) return;
 				try {
 					let href = '';
 					if (wpFrame.contentWindow) {
@@ -430,72 +457,92 @@ export async function bootPlaygroundRemote() {
 			return await phpWorkerApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
 
+		async shutdownSharedRuntime() {
+			if (sharedRuntime) await sharedRuntime.api.shutdownSharedRuntime();
+		},
+		async shouldRunStartupBlueprint() {
+			return runStartupBlueprint;
+		},
+		async finishSharedRuntimeInitialization() {
+			if (sharedRuntime)
+				await sharedRuntime.api.finishSharedRuntimeInitialization();
+		},
 		async boot(options) {
-			await phpWorkerApi.boot(options);
+			if (sharedRuntime) {
+				runStartupBlueprint =
+					await sharedRuntime.api.beginSharedBoot(options);
+			} else {
+				await phpWorkerApi.boot(options);
+			}
 
-			// Proxy the service worker messages to the web worker:
-			navigator.serviceWorker.addEventListener(
-				'message',
-				async function onMessage(event) {
-					/**
-					 * Ignore events meant for other PHP instances to
-					 * avoid handling the same event twice.
-					 *
-					 * This is important because the service worker posts the
-					 * same message to all application instances across all browser tabs.
-					 */
-					if (options.scope && event.data.scope !== options.scope) {
-						return;
-					}
-
-					const args = event.data.args || [];
-					const method = event.data
-						.method as keyof PlaygroundWorkerEndpoint;
-
-					if (method === 'request') {
-						const streamedResponse = await (
-							phpWorkerApi.requestStreamed as any
-						)(...args);
-						const httpStatusCode =
-							await streamedResponse.httpStatusCode;
-						const headers = await streamedResponse.headers;
-
+			// Dedicated runtimes retain the existing window relay.
+			if (!sharedRuntime)
+				navigator.serviceWorker.addEventListener(
+					'message',
+					async function onMessage(event) {
 						/**
-						 * ReadableStreams are transferable, but cannot be
-						 * transferred to the service worker.
+						 * Ignore events meant for other PHP instances to
+						 * avoid handling the same event twice.
 						 *
-						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
-						 * message when the transfer list contains a ReadableStream.
-						 * The call succeeds and the stream detaches from the sender,
-						 * but the message never arrives at the service worker.
-						 *
-						 * To work around this, we bridge the body stream via a MessagePort.
-						 *
-						 * See:
-						 * * https://github.com/whatwg/streams/issues/1063
-						 * * https://github.com/whatwg/streams/issues/276
-						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 * This is important because the service worker posts the
+						 * same message to all application instances across all browser tabs.
 						 */
-						const bodyPort = streamToPort(streamedResponse.stdout);
-						(event.source! as ServiceWorker).postMessage(
-							responseTo(event.data.requestId, {
-								httpStatusCode,
-								headers,
-								bodyPort,
-							}),
-							[bodyPort]
-						);
-					} else {
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-						const result = await (phpWorkerApi[method] as Function)(
-							...args
-						);
-						event.source!.postMessage(
-							responseTo(event.data.requestId, result)
-						);
+						if (
+							options.scope &&
+							event.data.scope !== options.scope
+						) {
+							return;
+						}
+
+						const args = event.data.args || [];
+						const method = event.data
+							.method as keyof PlaygroundWorkerEndpoint;
+
+						if (method === 'request') {
+							const streamedResponse = await (
+								phpWorkerApi.requestStreamed as any
+							)(...args);
+							const httpStatusCode =
+								await streamedResponse.httpStatusCode;
+							const headers = await streamedResponse.headers;
+
+							/**
+							 * ReadableStreams are transferable, but cannot be
+							 * transferred to the service worker.
+							 *
+							 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+							 * message when the transfer list contains a ReadableStream.
+							 * The call succeeds and the stream detaches from the sender,
+							 * but the message never arrives at the service worker.
+							 *
+							 * To work around this, we bridge the body stream via a MessagePort.
+							 *
+							 * See:
+							 * * https://github.com/whatwg/streams/issues/1063
+							 * * https://github.com/whatwg/streams/issues/276
+							 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+							 */
+							const bodyPort = streamToPort(
+								streamedResponse.stdout
+							);
+							(event.source! as ServiceWorker).postMessage(
+								responseTo(event.data.requestId, {
+									httpStatusCode,
+									headers,
+									bodyPort,
+								}),
+								[bodyPort]
+							);
+						} else {
+							const result = await (
+								phpWorkerApi[method] as (...args: any[]) => any
+							)(...args);
+							event.source!.postMessage(
+								responseTo(event.data.requestId, result)
+							);
+						}
 					}
-				}
-			);
+				);
 			sw.startMessages();
 
 			try {
@@ -525,6 +572,7 @@ export async function bootPlaygroundRemote() {
 			 *
 			 * Below we're downloading a zipped bundle of the missing assets.
 			 */
+			if (!runStartupBlueprint) return;
 			if (
 				await phpRemoteApi.hasCachedStaticFilesRemovedFromMinifiedBuild()
 			) {
@@ -575,6 +623,48 @@ export async function bootPlaygroundRemote() {
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
+}
+
+/** Includes the editor's nested frames, whose fetches have their own ServiceWorker client IDs. */
+function relaySharedRuntimeReloads(
+	frame: HTMLIFrameElement,
+	watched: WeakSet<Document>
+) {
+	try {
+		const frameWindow = frame.contentWindow!;
+		const document = frameWindow.document;
+		if (watched.has(document)) return;
+		watched.add(document);
+		const onReload = (event: MessageEvent) => {
+			if (event.origin && event.origin !== window.location.origin) return;
+			if (event.data?.type === RELOAD_REQUIRED) {
+				window.parent.postMessage(event.data, window.location.origin);
+			}
+		};
+		frameWindow.addEventListener('message', onReload);
+		frameWindow.navigator.serviceWorker.addEventListener(
+			'message',
+			onReload
+		);
+		frameWindow.navigator.serviceWorker.startMessages();
+		document.addEventListener(
+			'load',
+			(event) => {
+				if ((event.target as Element)?.tagName === 'IFRAME') {
+					relaySharedRuntimeReloads(
+						event.target as HTMLIFrameElement,
+						watched
+					);
+				}
+			},
+			true
+		);
+		document
+			.querySelectorAll('iframe')
+			.forEach((nested) => relaySharedRuntimeReloads(nested, watched));
+	} catch {
+		// Opaque or cross-origin error documents cannot be inspected.
+	}
 }
 
 const SITE_THUMBNAIL_REQUEST = 'playground-capture-site-thumbnail';
