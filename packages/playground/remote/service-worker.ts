@@ -41,6 +41,10 @@
  *
  * See https://github.com/WordPress/wordpress-playground/pull/1822 for more details.
  *
+ * The local subdomain prototype is an exception: its shared asset URLs include
+ * the release, so HTTP caching cannot mix builds. CacheStorage misses for these
+ * immutable URLs can reuse HTTP responses downloaded by sibling site origins.
+ *
  * ### CacheStorage in the service worker
  *
  * Playground primarily relies on the **Cache first** strategy. This means assets are:
@@ -115,6 +119,7 @@ import {
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
+import { isOriginIsolationPrototype } from './src/lib/dev-server';
 
 import {
 	cacheFirstFetch,
@@ -197,10 +202,15 @@ self.addEventListener('install', (event) => {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
+	/** Claim clients and seed the current shell before the prototype can reload offline. */
 	async function doActivate() {
 		await self.clients.claim();
 
-		if (shouldCacheUrl(new URL(location.href))) {
+		if (isOriginIsolationPrototype(new URL(location.href))) {
+			// Seed the shell only; runtime versions and optional tools remain lazy.
+			await purgeEverythingFromPreviousRelease();
+			await cacheOfflineModeAssetsForCurrentRelease();
+		} else if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
 			cacheOfflineModeAssetsForCurrentRelease();
 		}
@@ -245,7 +255,9 @@ self.addEventListener('fetch', (event) => {
 	const isSiteThumbnailModule =
 		url.searchParams.has('playground-site-thumbnail-module') &&
 		(url.pathname === '/src/lib/capture-site-thumbnail.ts' ||
-			/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(url.pathname));
+			/^\/(?:[a-z0-9]+\/)?capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+				url.pathname
+			));
 	const isSiteThumbnailWorker =
 		event.request.destination === 'worker' &&
 		url.searchParams.has('playground-site-thumbnail-worker');
@@ -275,12 +287,12 @@ self.addEventListener('fetch', (event) => {
 				handleRemoteAccessRelayRequest(
 					event,
 					remoteAccessRelayMapping
-				).then(applyCrossOriginIsolationHeaders)
+				).then((response) => applyScopedResponseHeaders(response))
 			);
 		}
 		return event.respondWith(
-			handleScopedRequest(event, scope).then(
-				applyCrossOriginIsolationHeaders
+			handleScopedRequest(event, scope).then((response) =>
+				applyScopedResponseHeaders(response)
 			)
 		);
 	}
@@ -393,6 +405,7 @@ self.addEventListener('fetch', (event) => {
 	 */
 	if (
 		url.pathname === '/remote.html' ||
+		url.pathname === '/index.html' ||
 		url.pathname === '/api.html' ||
 		url.pathname === '/'
 	) {
@@ -412,6 +425,33 @@ self.addEventListener('fetch', (event) => {
 	// Use cache first strategy to serve regular static assets.
 	return event.respondWith(cacheFirstFetch(event.request));
 });
+
+/**
+ * Keep the prototype's frame and opener boundary on responses created by PHP,
+ * not just the app documents served by the local HTTP server. Append a separate
+ * CSP policy so a WordPress-provided policy cannot relax the frame restriction.
+ */
+function applyScopedResponseHeaders(response: Response): Response {
+	response = applyCrossOriginIsolationHeaders(response);
+	// Cross-origin image/script backfill may be opaque. Its status is 0 and
+	// cannot be passed to Response(); it is not a frameable app document.
+	if (
+		response.status === 0 ||
+		!isOriginIsolationPrototype(new URL(self.location.href))
+	)
+		return response;
+	const headers = new Headers(response.headers);
+	headers.append(
+		'Content-Security-Policy',
+		"frame-ancestors 'self' http://playground.localhost:9400"
+	);
+	headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
+}
 
 /**
  * A request to a PHP Worker Thread or to a regular static asset,

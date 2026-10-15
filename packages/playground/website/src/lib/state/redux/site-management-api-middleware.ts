@@ -1,3 +1,10 @@
+import { chooseLocalDirectory } from '../../local-directory';
+import {
+	isInOriginShell,
+	isSiteOrigin,
+	navigateToFreshOrigin,
+	updateOriginCatalogue,
+} from '../../origin-isolation';
 import { useMemo } from 'react';
 import { useStore } from 'react-redux';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
@@ -20,6 +27,7 @@ import {
 } from './slice-clients';
 import {
 	selectAllSites,
+	needsFreshOrigin,
 	selectSiteBySlug,
 	setOPFSSitesLoadingState,
 	updateSite,
@@ -139,6 +147,7 @@ function siteErrorMessage(
 	return details?.message ?? error;
 }
 
+/** Bind UI and developer actions to this store; prototype creation navigates between origins. */
 export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
@@ -596,6 +605,9 @@ export function createSitesAPI(
 					return { slug: site.slug, storage: site.metadata.storage };
 				}
 			}
+			if (!localFsHandle && isInOriginShell()) {
+				localFsHandle = await chooseLocalDirectory();
+			}
 			await dispatch(
 				persistTemporarySite(site.slug, 'local-fs', {
 					siteName: name,
@@ -819,7 +831,9 @@ export function createSitesAPI(
 		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @param options Set updateUrl to false when a clone must boot without routing.
-		 * @returns The new site's slug.
+		 * In the origin-isolation prototype, a second site starts on another origin.
+		 * That navigation ends this document; callers must reconnect to its API.
+		 * @returns The new site's slug when creation stays in this document.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
@@ -846,7 +860,9 @@ export function createSitesAPI(
 		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @param options Optional persistence, routing, and pruning behavior.
-		 * @returns The new site's slug.
+		 * In the origin-isolation prototype, a second site starts on another origin.
+		 * That navigation ends this document; callers must reconnect to its API.
+		 * @returns The new site's slug when creation stays in this document.
 		 */
 		async createNewSavedSite(
 			requestedSiteSlug?: string,
@@ -868,12 +884,35 @@ export function createSitesAPI(
 		 * @param wordPressFilesZip Playground ZIP export.
 		 * @param options Import lifecycle callbacks. Passing a bare progress
 		 *   callback remains supported.
-		 * @returns The new site's slug.
+		 * In the origin-isolation prototype, a second site starts on another origin.
+		 * That navigation ends this document; callers must reconnect to its API.
+		 * @returns The new site's slug when creation stays in this document.
 		 */
 		async createNewSiteFromZip(
 			wordPressFilesZip: File,
 			options: ZipImportOptions | ZipImportProgressCallback = {}
 		): Promise<string> {
+			if (needsFreshOrigin(getState())) {
+				dispatch(
+					setSiteImportProgress({
+						caption: 'Preparing import',
+						progress: 0,
+					})
+				);
+				try {
+					return await navigateToFreshOrigin({
+						url: getSetupUrlForNewSite(undefined, {
+							baseUrl: new URL(window.location.href),
+							onlySetupParams: true,
+						}).href,
+						storage: opfsSiteStorage ? 'opfs' : 'temporary',
+						persistence: 'autosave',
+						zip: wordPressFilesZip,
+					});
+				} finally {
+					dispatch(setSiteImportProgress(undefined));
+				}
+			}
 			const callbacks: ZipImportOptions =
 				typeof options === 'function'
 					? { onProgress: options }
@@ -918,7 +957,12 @@ export function createSitesAPI(
 						});
 					}
 				);
+				/** Replace WordPress files only after boot-time asset restoration has finished. */
 				const initialize = async (playground: PlaygroundClient) => {
+					// Finish the boot-time asset unzip before replacing wp-content.
+					// Otherwise it can recreate a directory between the import's
+					// removal and move, or restore files omitted by the archive.
+					await playground.backfillStaticFilesRemovedFromMinifiedBuild();
 					await importWordPressFiles(
 						playground,
 						{ wordPressFilesZip },
@@ -957,13 +1001,31 @@ export function createSitesAPI(
 		},
 	};
 
-	/** Boot a temporary site, optionally keeping the current browser URL during setup. */
+	/**
+	 * Boot a temporary site, optionally keeping the current browser URL during setup.
+	 * The prototype leaves a used origin before resolving the new site's setup.
+	 */
 	async function createTemporarySite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
 		initialize?: (playground: PlaygroundClient) => Promise<void>,
 		options: { updateUrl?: boolean } = {}
 	): Promise<string> {
+		if (needsFreshOrigin(getState())) {
+			if (options.updateUrl === false)
+				throw new Error(
+					'Creating another Playground requires navigating to its new origin.'
+				);
+			const url = getSetupUrlForNewSite(settings, {
+				baseUrl: new URL(window.location.href),
+			});
+			url.searchParams.set('storage', 'temp');
+			return await navigateToFreshOrigin({
+				url: url.href,
+				name: requestedSiteSlug,
+				storage: 'temporary',
+			});
+		}
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
 			: randomSiteName();
@@ -983,6 +1045,7 @@ export function createSitesAPI(
 		return newSiteInfo.slug;
 	}
 
+	/** Create and activate saved storage; a second prototype site must navigate away. */
 	async function createSavedSite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
@@ -999,6 +1062,23 @@ export function createSitesAPI(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
 		}
+		if (needsFreshOrigin(getState())) {
+			if (options.updateUrl === false)
+				throw new Error(
+					'Creating another Playground requires navigating to its new origin.'
+				);
+			const url = getSetupUrlForNewSite(settings, {
+				baseUrl: new URL(window.location.href),
+				onlySetupParams: true,
+			});
+			return await navigateToFreshOrigin({
+				url: url.href,
+				name: requestedSiteSlug,
+				storage: 'opfs',
+				persistence: options.persistence ?? 'explicit',
+			});
+		}
+
 		const siteName = requestedSiteSlug
 			? deriveSiteNameFromSlug(requestedSiteSlug)
 			: randomSiteName();
@@ -1212,6 +1292,39 @@ startListening({
 			listenerApi.getState,
 			listenerApi.dispatch
 		);
+	},
+});
+
+// Each app publishes only its own site's display metadata. Foreign sites never
+// enter this Redux store, whose file operations must stay on the current origin.
+startListening({
+	predicate: (_action, state, previous) => state.sites !== previous.sites,
+	effect: async (_action, listenerApi) => {
+		if (
+			typeof window === 'undefined' ||
+			!isSiteOrigin(window.location.origin)
+		)
+			return;
+		const state = listenerApi.getState();
+		if (state.sites.opfsSitesLoadingState !== 'loaded') return;
+		const site = selectAllSites(state).find(
+			(site) => site.metadata.storage !== 'none'
+		);
+		try {
+			await updateOriginCatalogue(
+				site
+					? {
+							name: site.metadata.name,
+							storage: site.metadata.storage as
+								| 'opfs'
+								| 'local-fs',
+							persistence: getSitePublicPersistence(site),
+						}
+					: null
+			);
+		} catch (error) {
+			logger.error('Could not update the Playground list', error);
+		}
 	},
 });
 

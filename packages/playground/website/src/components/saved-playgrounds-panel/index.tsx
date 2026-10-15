@@ -1,3 +1,4 @@
+import { OriginSiteList } from './origin-site-list';
 import css from './style.module.css';
 import classNames from 'classnames';
 import { createPortal } from 'react-dom';
@@ -1361,6 +1362,7 @@ export function SavedPlaygroundsPanel({
 		);
 	}
 
+	/** Keep local site actions separate from links to sites stored on other origins. */
 	function renderYourPlaygroundsSection() {
 		const visibleSavedSites = showAllStoredSites
 			? savedSites
@@ -1397,6 +1399,7 @@ export function SavedPlaygroundsPanel({
 						{renderSiteGroup('Saved', visibleSavedSites)}
 					</>
 				)}
+				<OriginSiteList />
 				{savedSites.length > MAX_VISIBLE_STORED_SITES && (
 					<button
 						type="button"

@@ -5,11 +5,13 @@ import type { opfsSiteStorage as exportedOpfsSiteStorage } from './opfs-site-sto
 describe('opfsSiteStorage', () => {
 	let opfsRoot: MemoryDirectoryHandle;
 	let storage: NonNullable<typeof exportedOpfsSiteStorage>;
+	let getBlueprintDeclaration: ReturnType<typeof vi.fn>;
 	let loadPersistedBlueprintBundle: ReturnType<typeof vi.fn>;
 	let loadPersistedBlueprintBundleFromPath: ReturnType<typeof vi.fn>;
 
 	beforeEach(async () => {
 		vi.resetModules();
+		vi.stubGlobal('location', new URL('http://playground.test/'));
 		loadPersistedBlueprintBundle = vi.fn();
 		loadPersistedBlueprintBundleFromPath = vi.fn();
 		const activeWorkerWrites = new Set<string>();
@@ -70,8 +72,9 @@ describe('opfsSiteStorage', () => {
 			loadPersistedBlueprintBundle,
 			loadPersistedBlueprintBundleFromPath,
 		}));
+		getBlueprintDeclaration = vi.fn(async (blueprint) => blueprint);
 		vi.doMock('@wp-playground/blueprints', () => ({
-			getBlueprintDeclaration: vi.fn(async (blueprint) => blueprint),
+			getBlueprintDeclaration,
 		}));
 
 		const module = await import('./opfs-site-storage');
@@ -353,6 +356,58 @@ describe('opfsSiteStorage', () => {
 		]);
 		const site = await storage.read('stored-site');
 		expect(['First name', 'Second name']).toContain(site?.metadata.name);
+	});
+
+	it('waits for an in-flight metadata write before removing the directory', async () => {
+		await storage.create('stored-site', createSiteMetadata());
+		// A minimal queued Web Locks implementation, shared by update and delete.
+		const queues = new Map<string, Promise<unknown>>();
+		const request = vi.fn(
+			(name: string, transaction: () => Promise<unknown>) => {
+				const result = (queues.get(name) ?? Promise.resolve()).then(
+					transaction
+				);
+				queues.set(
+					name,
+					result.catch(() => {})
+				);
+				return result;
+			}
+		);
+		Object.defineProperty(navigator, 'locks', {
+			configurable: true,
+			value: { request },
+		});
+		let markWriting!: () => void;
+		let releaseWrite!: () => void;
+		const writing = new Promise<void>((resolve) => {
+			markWriting = resolve;
+		});
+		const released = new Promise<void>((resolve) => {
+			releaseWrite = resolve;
+		});
+		vi.mocked(getBlueprintDeclaration).mockImplementationOnce(
+			async (blueprint) => {
+				markWriting();
+				await released;
+				return blueprint as any;
+			}
+		);
+		const update = storage.update('stored-site', {
+			metadata: { name: 'Updated' },
+		});
+		await writing;
+		const deletion = storage.delete('stored-site');
+		await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+		const sitesRoot = await getSitesRoot(opfsRoot);
+		await expect(
+			sitesRoot.getDirectoryHandle('site-stored-site')
+		).resolves.toBeDefined();
+		releaseWrite();
+		await Promise.all([update, deletion]);
+		await expect(
+			sitesRoot.getDirectoryHandle('site-stored-site')
+		).rejects.toMatchObject({ name: 'NotFoundError' });
 	});
 
 	it('deletes the legacy site directory when the encoded directory is incomplete', async () => {

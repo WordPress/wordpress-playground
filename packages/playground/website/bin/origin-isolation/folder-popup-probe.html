@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<link rel="icon" href="data:," />
+	<title>Playground folder popup experiment</title>
+	<style>
+		body {
+			font: 16px system-ui;
+			margin: 24px;
+		}
+		button {
+			margin: 4px;
+			padding: 8px;
+		}
+		iframe {
+			width: 100%;
+			height: 360px;
+			margin: 12px 0;
+		}
+		pre {
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+		}
+	</style>
+	<h1>Folder popup experiment</h1>
+	<p id="origin"></p>
+	<p id="instructions"></p>
+	<div id="controls"></div>
+	<pre id="result" role="status"></pre>
+	<div id="frames"></div>
+	<script type="module">
+		const url = new URL(location.href);
+		const root = location.hostname === 'playground.localhost';
+		const popup = !root && url.searchParams.has('popup');
+		const result = document.querySelector('#result');
+		const controls = document.querySelector('#controls');
+		let retainedHandle;
+		const instructions = document.querySelector('#instructions');
+		document.querySelector('#origin').textContent = location.origin;
+
+		if (root) {
+			instructions.textContent =
+				'Choose a disposable test folder in site A’s popup. Test access while it is open, then after closing it. Reopen the popup to renew permission. The probe writes only folder-popup-probe.txt inside the selected folder.';
+			for (const label of ['A', 'B']) {
+				const key = 'folder-popup-probe-site-' + label;
+				let host = sessionStorage.getItem(key);
+				if (
+					!host ||
+					!/^site-[a-f0-9-]+\.playground\.localhost$/.test(host)
+				) {
+					host =
+						'site-' + crypto.randomUUID() + '.playground.localhost';
+					sessionStorage.setItem(key, host);
+				}
+				const frameUrl = new URL(location.href);
+				frameUrl.hostname = host;
+				frameUrl.search = '';
+				const frame = document.createElement('iframe');
+				frame.title = 'Site ' + label;
+				// Keep a real origin for storage, but do not allow top-level navigation.
+				// The popup needs its own unsandboxed top-level picker context.
+				frame.sandbox =
+					'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox';
+				frame.src = frameUrl.href;
+				document.querySelector('#frames').append(frame);
+			}
+			addButton('Check root access', checkDirectory);
+		} else if (popup) {
+			instructions.textContent =
+				'Choose a disposable test folder. On a later visit, use Renew stored permission and select Allow on every visit to test persistent access. The handle stays on this site’s origin.';
+			addButton('Choose folder', async () => {
+				const handle = await showDirectoryPicker({ mode: 'readwrite' });
+				await directoryRecord(handle);
+				// Only a notification crosses this same-origin channel. The handle is
+				// read from IndexedDB, never sent through the root page or an opener.
+				const channel = new BroadcastChannel('folder-popup-probe');
+				channel.postMessage('directory-selected');
+				channel.close();
+				result.textContent = JSON.stringify(
+					{
+						saved: handle.name,
+						permission: await handle.queryPermission({
+							mode: 'readwrite',
+						}),
+						hasOpener: window.opener !== null,
+					},
+					null,
+					2
+				);
+			});
+			addButton('Renew stored permission', async () => {
+				const handle = await directoryRecord();
+				if (!handle) {
+					result.textContent = JSON.stringify({ handle: null });
+					return;
+				}
+				result.textContent = JSON.stringify({
+					renewed: handle.name,
+					permission: await handle.requestPermission({
+						mode: 'readwrite',
+					}),
+				});
+			});
+			addButton('Close popup', () => window.close());
+		} else {
+			instructions.textContent =
+				'Test folder access with the popup open, then closed. Before reopening the popup to renew permission, reload this frame to release the original picker grant.';
+			addButton('Open folder popup', () => {
+				const target = new URL(location.href);
+				target.search = '?popup=1';
+				window.open(
+					target,
+					'_blank',
+					'popup,width=650,height=450,noopener'
+				);
+			});
+			addButton('Reload this frame', () => location.reload());
+			addButton('Try picker inside iframe', async () => {
+				await showDirectoryPicker({ mode: 'readwrite' });
+			});
+			addButton('Check folder read/write', checkDirectory);
+			addButton('Check retained handle', () =>
+				checkDirectory(retainedHandle)
+			);
+			const channel = new BroadcastChannel('folder-popup-probe');
+			channel.onmessage = (event) => {
+				if (event.data === 'directory-selected') {
+					result.textContent =
+						'Popup saved a handle. Check folder read/write before closing it.';
+				}
+			};
+		}
+
+		/** Bind one manual probe action and show native browser errors unchanged. */
+		function addButton(label, action) {
+			const button = document.createElement('button');
+			button.textContent = label;
+			button.onclick = async () => {
+				button.disabled = true;
+				result.textContent = 'Checking…';
+				try {
+					await action();
+				} catch (error) {
+					result.textContent = JSON.stringify(
+						{ error: error.name, message: error.message },
+						null,
+						2
+					);
+				} finally {
+					button.disabled = false;
+				}
+			};
+			controls.append(button);
+		}
+
+		/** Test a stored native handle, including the browser's current permission. */
+		async function checkDirectory(handle) {
+			// Keep this exact object alive to distinguish grant expiry from restoration.
+			if (arguments.length === 0) {
+				handle = await directoryRecord();
+				retainedHandle = handle;
+			}
+			if (!handle) {
+				result.textContent = JSON.stringify({ handle: null });
+				return;
+			}
+			const permission = await handle.queryPermission({
+				mode: 'readwrite',
+			});
+			const report = { directory: handle.name, permission };
+			try {
+				const file = await handle.getFileHandle(
+					'folder-popup-probe.txt',
+					{ create: true }
+				);
+				const writer = await file.createWritable();
+				await writer.write('Written by ' + location.origin);
+				await writer.close();
+				report.readBack = await (await file.getFile()).text();
+			} catch (error) {
+				report.error = error.name;
+				report.message = error.message;
+			}
+			result.textContent = JSON.stringify(report, null, 2);
+		}
+
+		/** Store and retrieve the real directory handle within the executing origin. */
+		async function directoryRecord(handle) {
+			const db = await new Promise((resolve, reject) => {
+				const request = indexedDB.open('folder-popup-probe', 1);
+				request.onupgradeneeded = () =>
+					request.result.createObjectStore('handles');
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			try {
+				return await new Promise((resolve, reject) => {
+					const transaction = db.transaction(
+						'handles',
+						handle ? 'readwrite' : 'readonly'
+					);
+					const store = transaction.objectStore('handles');
+					const request = handle
+						? store.put(handle, 'directory')
+						: store.get('directory');
+					transaction.oncomplete = () => resolve(request.result);
+					transaction.onabort = () => reject(transaction.error);
+				});
+			} finally {
+				db.close();
+			}
+		}
+	</script>
+</html>

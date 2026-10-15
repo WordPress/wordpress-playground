@@ -6,6 +6,8 @@
  */
 
 import metadataWorkerUrl from './opfs-site-storage-worker-for-safari?worker&url';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { sameOriginWorkerUrl } from '../../../../../remote/src/lib/worker-url';
 import type {
 	SiteInfo,
 	SiteMetadata,
@@ -376,12 +378,15 @@ class OpfsSiteStorage {
 		return storedFormatToMetadata(await file.text());
 	}
 
+	/** Deletes site files after pending metadata and thumbnail writes release their handles. */
 	async delete(slug: string): Promise<void> {
-		const siteDirName = await this.findExistingSiteDirName(slug);
-		if (!siteDirName) {
-			throw new Error(`Site with slug '${slug}' does not exist.`);
-		}
-		await this.root.removeEntry(siteDirName, { recursive: true });
+		await withSiteMetadataLock(slug, async () => {
+			const siteDirName = await this.findExistingSiteDirName(slug);
+			if (!siteDirName) {
+				throw new Error(`Site with slug '${slug}' does not exist.`);
+			}
+			await this.root.removeEntry(siteDirName, { recursive: true });
+		});
 	}
 
 	/**
@@ -784,7 +789,9 @@ async function writeOpfsFileInWorker(
 	path: string,
 	content: string
 ): Promise<void> {
-	const worker = new Worker(metadataWorkerUrl, { type: 'module' });
+	const worker = new Worker(sameOriginWorkerUrl(metadataWorkerUrl), {
+		type: 'module',
+	});
 
 	const channel = new MessageChannel();
 	const promiseToWrite = new Promise<void>((resolve, reject) => {

@@ -6,9 +6,16 @@ const devServerOrigins = new Set([
 	'https://playground.test',
 ]);
 
+/** Recognize local builds that expose development APIs instead of production entry points. */
 export function isDevServer(url: URL) {
 	return (
 		devServerOrigins.has(url.origin) ||
+		isOriginIsolationPrototype(url) ||
 		url.pathname.startsWith('/website-server/')
 	);
+}
+
+/** Local-only full-app subdomain experiment; never enabled on deployed hosts. */
+export function isOriginIsolationPrototype(url: URL) {
+	return url.hostname.endsWith('.playground.localhost');
 }

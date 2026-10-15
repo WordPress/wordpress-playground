@@ -1,0 +1,32 @@
+.guide {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 488px;
+	margin: 0 auto;
+	padding: 32px 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.guide h1 {
+	font-size: 24px;
+	line-height: 1.25;
+}
+
+.guide ol {
+	list-style: decimal;
+	padding-inline-start: 24px;
+}
+
+.guide li + li {
+	margin-top: 8px;
+}
+
+.actions {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
