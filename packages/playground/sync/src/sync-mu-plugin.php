@@ -88,25 +88,28 @@ function playground_sync_override_autoincrement_algorithm($local_id_offset = nul
     $stmt->execute([':seq' => get_option('playground_id_offset')]);
 
     // Create any missing AFTER INSERT triggers:
+    $pdo->beginTransaction();
     foreach (playground_sync_get_autoincrement_columns() as $table => $column) {
-        $pdo->query(<<<SQL
-            CREATE TRIGGER IF NOT EXISTS 
-            force_seq_autoincrement_on_{$table}_{$column}
-            AFTER INSERT ON $table
+        $table_escaped = '"' . str_replace('"', '""', $table) . '"';
+        $column_escaped = '"' . str_replace('"', '""', $column) . '"';
+        $table_raw_escaped = str_replace("'", "''", $table);
+        $trigger_name = "force_seq_autoincrement_on_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $table . '_' . $column);
+
+        $pdo->query("
+            CREATE TRIGGER IF NOT EXISTS {$trigger_name}
+            AFTER INSERT ON {$table_escaped}
             FOR EACH ROW
             WHEN
-                -- Don't run this trigger when we're replaying queries from another peer
                 (SELECT value FROM playground_variables WHERE name = 'is_replaying') = 'no'
             BEGIN
-                -- Update the inserted row with the next available ID
-                UPDATE {$table} SET {$column} = (
-                    SELECT seq FROM playground_sequence WHERE table_name = '{$table}'
+                UPDATE {$table_escaped} SET {$column_escaped} = (
+                    SELECT seq FROM playground_sequence WHERE table_name = '{$table_raw_escaped}'
                 ) + 1 WHERE rowid = NEW.rowid;
-                -- Record the ID that was just assigned
-                UPDATE playground_sequence SET seq = seq + 1 WHERE table_name = '{$table}';
+                UPDATE playground_sequence SET seq = seq + 1 WHERE table_name = '{$table_raw_escaped}';
             END;
-        SQL);
+        ");
     }
+    $pdo->commit();
 }
 
 /**
@@ -335,7 +338,7 @@ function playground_sync_replay_sql_journal($queries)
             // prevent synchronizing transient data. 
 
             // SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed
-            if ($e->getCode() === "23000") {
+            if ((string) $e->getCode() === "23000") {
                 continue;
             }
             throw $e;

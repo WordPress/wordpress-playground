@@ -77,8 +77,11 @@ function _pg52_dummy_transports() {
 // Modern 0-playground.php intentionally does NOT define this: on PHP
 // 7+ the Fetch transport works, so WP Cron can run for real. Keep
 // this block legacy-only.
-define('DISABLE_WP_CRON', true);
-if (substr($_SERVER['PHP_SELF'], -12) === '/wp-cron.php') {
+if (!defined('DISABLE_WP_CRON')) {
+	define('DISABLE_WP_CRON', true);
+}
+$php_self = isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : '';
+if ($php_self !== '' && substr($php_self, -12) === '/wp-cron.php') {
 	header('HTTP/1.1 503 Service Unavailable');
 	header('Content-Type: text/plain');
 	echo 'WP Cron is temporarily disabled in the Playground.';
