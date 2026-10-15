@@ -117,10 +117,13 @@
 
 				const button = document.createElement('button');
 				button.innerText = 'Try again';
+				const recoveryError = document.createElement('p');
+				recoveryError.setAttribute('role', 'alert');
 				button.onclick = () => {
-					window.location.reload();
+					window.retryPlaygroundStartup(button, recoveryError);
 				};
 				fragment.append(button);
+				fragment.append(recoveryError);
 
 				const reportIssues = document.createElement('p');
 				reportIssues.innerHTML = `

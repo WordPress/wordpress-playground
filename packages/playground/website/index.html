@@ -135,7 +135,12 @@
 					blocker that might interfere, and try again.
 				</p>
 				<button
-					onclick="location.reload()"
+					onclick="
+						window.retryPlaygroundStartup(
+							this,
+							document.getElementById('startup-recovery-error')
+						)
+					"
 					style="
 						margin-top: 15px;
 						margin-bottom: 15px;
@@ -146,6 +151,7 @@
 				>
 					Try again
 				</button>
+				<p id="startup-recovery-error" role="alert"></p>
 				<p>
 					If the problem persists, please
 					<a
