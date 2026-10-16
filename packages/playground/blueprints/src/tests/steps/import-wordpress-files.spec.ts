@@ -452,6 +452,107 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
+	it('should rewrite a non-scoped source site URL with a subdirectory', async () => {
+		const oldBase = 'http://build-host.example/wp';
+		const newBase = (await targetPHP.absoluteUrl).replace(/\/+$/, '');
+
+		await sourcePHP.run({
+			code: `<?php
+			require ${phpVar(await sourcePHP.documentRoot)} . '/wp-load.php';
+			global $wpdb;
+			$wpdb->update($wpdb->options, ['option_value' => ${phpVar(oldBase)}], ['option_name' => 'siteurl']);
+			$post_id = wp_insert_post([
+				'post_title' => 'Foreign host post',
+				'post_status' => 'publish',
+			]);
+			// Written directly: wp_insert_post() would unslash the escaped URL.
+			$wpdb->update($wpdb->posts, [
+				'post_content' => '<img src="${oldBase}/wp-content/uploads/a.png">'
+					. ' {"url":"http:\\/\\/build-host.example\\/wp\\/b.png"}'
+					. ' <a href="${oldBase}-other/keep">sibling</a>',
+			], ['ID' => $post_id]);
+			update_post_meta($post_id, '_custom_url', ${phpVar(oldBase + '/c.png')});
+			update_option('custom_serialized', [
+				'logo' => ${phpVar(oldBase + '/logo.png')},
+				'nested' => ['url' => ${phpVar(oldBase + '/n/')}],
+				'double' => serialize(['url' => ${phpVar(oldBase + '/d.png')}]),
+			]);
+			// Raw rows: a serialized scalar, and an object of a class that
+			// is not loaded at import time.
+			$wpdb->insert($wpdb->postmeta, [
+				'post_id' => $post_id,
+				'meta_key' => '_serialized_scalar',
+				'meta_value' => serialize(${phpVar(oldBase + '/s.png')}),
+			]);
+			$wpdb->insert($wpdb->options, [
+				'option_name' => 'foreign_object',
+				'option_value' => 'O:14:"Foreign_Plugin":1:{s:3:"url";s:'
+					. strlen(${phpVar(oldBase + '/f.png')}) . ':"' . ${phpVar(oldBase + '/f.png')} . '";}',
+				'autoload' => 'no',
+			]);
+			`,
+		});
+
+		// Drop the manifest so the old URL is inferred from the database.
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/foreign.zip', zipBuffer);
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open('/tmp/foreign.zip');
+			$zip->deleteName('playground-export.json');
+			$zip->close();
+			`,
+		});
+		const zipFile = new File(
+			[await targetPHP.readFileAsBuffer('/tmp/foreign.zip')],
+			'foreign.zip'
+		);
+		await importWordPressFiles(targetPHP, { wordPressFilesZip: zipFile });
+
+		const result = await targetPHP.run({
+			code: `<?php
+			require ${phpVar(await targetPHP.documentRoot)} . '/wp-load.php';
+			$post = get_posts(['post_status' => 'publish', 'numberposts' => 1])[0];
+			echo json_encode([
+				'content' => $post->post_content,
+				'meta' => get_post_meta($post->ID, '_custom_url', true),
+				'option' => get_option('custom_serialized'),
+				'scalar' => $wpdb->get_var("SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = '_serialized_scalar'"),
+				'foreign' => $wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name = 'foreign_object'"),
+			]);
+			`,
+		});
+		const data = JSON.parse(result.text);
+		expect(data.content).toContain(
+			`<img src="${newBase}/wp-content/uploads/a.png">`
+		);
+		expect(data.content).toContain(
+			`${newBase.replace(/\//g, '\\/')}\\/b.png`
+		);
+		// A sibling path that only shares the old URL as a prefix is kept.
+		expect(data.content).toContain(
+			'<a href="http://build-host.example/wp-other/keep">'
+		);
+		expect(
+			data.content.split('http://build-host.example/wp-other').join('')
+		).not.toContain('build-host.example');
+		expect(data.meta).toBe(`${newBase}/c.png`);
+		expect(data.option.logo).toBe(`${newBase}/logo.png`);
+		expect(data.option.nested).toEqual({ url: `${newBase}/n/` });
+		const doubleUrl = `${newBase}/d.png`;
+		expect(data.option.double).toBe(
+			`a:1:{s:3:"url";s:${doubleUrl.length}:"${doubleUrl}";}`
+		);
+		const scalarUrl = `${newBase}/s.png`;
+		expect(data.scalar).toBe(`s:${scalarUrl.length}:"${scalarUrl}";`);
+		// An object of an unloaded class is left exactly as stored.
+		const foreignUrl = `${oldBase}/f.png`;
+		expect(data.foreign).toBe(
+			`O:14:"Foreign_Plugin":1:{s:3:"url";s:${foreignUrl.length}:"${foreignUrl}";}`
+		);
+	});
+
 	it('should preserve live files and clean staging when preparation fails', async () => {
 		const zipFile = await createMinimalWordPressFilesZip(targetPHP);
 		const documentRoot = await targetPHP.documentRoot;
