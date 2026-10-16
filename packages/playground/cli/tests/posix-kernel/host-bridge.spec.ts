@@ -37,12 +37,6 @@ describe('loadHostBridge (env validation)', () => {
 		rmSync(scratch, { recursive: true, force: true });
 	});
 
-	it('throws a clear error when KANDELO_DIR is unset', async () => {
-		delete process.env['KANDELO_DIR'];
-		const fresh = await freshLoadHostBridge();
-		await expect(fresh()).rejects.toThrow(/KANDELO_DIR is not set/);
-	});
-
 	it('throws when KANDELO_DIR points at a dir without host/', async () => {
 		process.env['KANDELO_DIR'] = scratch;
 		const fresh = await freshLoadHostBridge();
@@ -54,7 +48,7 @@ describe('loadHostBridge (env validation)', () => {
 		process.env['KANDELO_DIR'] = scratch;
 		const fresh = await freshLoadHostBridge();
 		await expect(fresh()).rejects.toThrow(
-			/kandelo binaries not found at .*build-kandelo\.sh/
+			/kandelo binaries not found at .*bundle-kandelo/
 		);
 	});
 
@@ -83,10 +77,10 @@ describe('loadHostBridge (env validation)', () => {
 	});
 
 	it('retries the load after a failed one', async () => {
-		delete process.env['KANDELO_DIR'];
-		const fresh = await freshLoadHostBridge();
-		await expect(fresh()).rejects.toThrow(/KANDELO_DIR is not set/);
 		process.env['KANDELO_DIR'] = scratch;
+		const fresh = await freshLoadHostBridge();
 		await expect(fresh()).rejects.toThrow(/kandelo checkout not found at/);
+		mkdirSync(join(scratch, 'host'));
+		await expect(fresh()).rejects.toThrow(/kandelo binaries not found at/);
 	});
 });

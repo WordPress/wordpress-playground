@@ -382,8 +382,8 @@ export async function parseOptionsAndRunCLI(
 			'experimental-posix-kernel': {
 				describe:
 					'Run WordPress under nginx + PHP-FPM hosted by kandelo ' +
-					'instead of PHP.wasm. Set KANDELO_DIR to the kandelo ' +
-					'checkout.',
+					'instead of PHP.wasm. Set KANDELO_DIR to use another ' +
+					'kandelo checkout.',
 				type: 'boolean',
 				default: false,
 				hidden: true,

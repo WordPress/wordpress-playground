@@ -240,37 +240,8 @@ jobs:
                   node-version: 24
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
-    build-kandelo:
-        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
-        runs-on: ubuntu-latest
-        timeout-minutes: 180
-        permissions:
-            contents: read # Required to clone the repo.
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
-            - name: Fetch the full kandelo history for its Nix flake
-              run: git -C kandelo fetch --unshallow
-            - uses: ./kandelo/.github/actions/setup-nix
-            - id: kandelo
-              run: echo "sha=$(git rev-parse HEAD:kandelo)" >> "$GITHUB_OUTPUT"
-            - uses: actions/cache@v4
-              with:
-                  path: ~/.cache/kandelo/source-only
-                  key: kandelo-source-only-${{ steps.kandelo.outputs.sha }}
-                  restore-keys: kandelo-source-only-
-            - name: Build kandelo
-              run: packages/playground/cli/src/posix-kernel/scripts/build-kandelo.sh
-            - name: Pack kandelo build
-              run: tar -C kandelo -czf kandelo-build.tar.gz host/dist local-binaries/source-only-v1
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: kandelo-build
-                  path: kandelo-build.tar.gz
-                  retention-days: 7
     test-playground-cli-posix-kernel:
-        needs: [set-nx-shas, build-kandelo]
+        needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         strategy:
             matrix:
@@ -291,11 +262,6 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 24
-            - uses: actions/download-artifact@v4
-              with:
-                  name: kandelo-build
-            - name: Unpack kandelo build
-              run: tar -C kandelo -xzf kandelo-build.tar.gz
             - name: Run posix-kernel test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli-posix-kernel --output-style=stream
     test-file-locking:

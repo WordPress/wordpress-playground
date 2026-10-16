@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { createRequire } from 'module';
 import { pathToFileURL } from 'node:url';
-import { joinPaths } from '@php-wasm/util';
+import { dirname, joinPaths } from '@php-wasm/util';
 
 export function readWasm(path: string): ArrayBuffer {
 	const buf = readFileSync(path);
@@ -117,17 +118,19 @@ async function doLoadHostBridge(): Promise<HostBridge> {
 }
 
 function resolveKernelDir(): string {
-	const fromEnv = process.env['KANDELO_DIR'];
-	if (!fromEnv || fromEnv.trim() === '') {
-		throw new Error(
-			`KANDELO_DIR is not set. --experimental-posix-kernel needs ` +
-				`a kandelo checkout (host/dist/index.js + binaries).`
-		);
+	const kernelDir =
+		process.env['KANDELO_DIR']?.trim() || resolvePosixKernelBuildsDir();
+	if (!existsSync(joinPaths(kernelDir, 'host'))) {
+		throw new Error(`kandelo checkout not found at ${kernelDir}.`);
 	}
-	if (!existsSync(joinPaths(fromEnv, 'host'))) {
-		throw new Error(`kandelo checkout not found at ${fromEnv}.`);
-	}
-	return fromEnv;
+	return kernelDir;
+}
+
+function resolvePosixKernelBuildsDir(): string {
+	const require = createRequire(import.meta.url);
+	return dirname(
+		require.resolve('@wp-playground/posix-kernel-builds/package.json')
+	);
 }
 
 function selectSourceOnlyBinaries(kernelDir: string): void {
@@ -135,7 +138,7 @@ function selectSourceOnlyBinaries(kernelDir: string): void {
 	if (!existsSync(projection)) {
 		throw new Error(
 			`kandelo binaries not found at ${projection}: run ` +
-				`'packages/playground/cli/src/posix-kernel/scripts/build-kandelo.sh'.`
+				`'npx nx bundle-kandelo playground-posix-kernel-builds'.`
 		);
 	}
 	process.env['WASM_POSIX_RESOLUTION_POLICY'] = 'source-only-v1';
@@ -164,7 +167,7 @@ async function loadKernelHostModule(
 	if (!existsSync(distEntry)) {
 		throw new Error(
 			`kandelo host build not found at ${distEntry}: run ` +
-				`'packages/playground/cli/src/posix-kernel/scripts/build-kandelo.sh'.`
+				`'npx nx bundle-kandelo playground-posix-kernel-builds'.`
 		);
 	}
 	const url = pathToFileURL(distEntry).href;

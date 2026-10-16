@@ -1,5 +1,3 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defineConfig, mergeConfig } from 'vite';
 import { configDefaults } from 'vitest/config';
 
@@ -10,14 +8,6 @@ export default defineConfig(() => {
 		config,
 		defineConfig({
 			test: {
-				env: {
-					KANDELO_DIR:
-						process.env['KANDELO_DIR'] ??
-						resolve(
-							dirname(fileURLToPath(import.meta.url)),
-							'../../../kandelo'
-						),
-				},
 				poolOptions: {
 					forks: {
 						maxForks: 2,
