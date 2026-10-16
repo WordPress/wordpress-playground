@@ -281,10 +281,8 @@ export async function readCentralDirectoryEntry(
 		centralDirectory.firstByteAt! +
 		FILE_HEADER_SIZE +
 		pathLength +
-		fileCommentLength +
 		extraLength! +
-		centralDirectory.compressedSize! -
-		1;
+		centralDirectory.compressedSize!;
 
 	centralDirectory['path'] = await collectBytes(stream, pathLength);
 	centralDirectory['isDirectory'] = endsWithSlash(centralDirectory.path!);
