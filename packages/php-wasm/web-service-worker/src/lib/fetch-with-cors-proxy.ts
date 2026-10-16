@@ -81,92 +81,128 @@ export async function fetchWithCorsProxy(
 	// a ReadableStream body to fetch() throws).
 	const clonedRequest = requestObject.clone();
 
+	// If the developer has explicitly allowed the request to pass the
+	// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
+	// then let's include those credentials in the retried fetch() request.
+	// Header values are case-insensitive, so normalize before matching (a
+	// caller that writes `Authorization` must match too).
+	const headers = new Headers(requestObject.headers);
+	const corsProxyAllowedHeaders = (
+		headers.get('x-cors-proxy-allowed-request-headers') || ''
+	)
+		.split(',')
+		.map((header) => header.trim().toLowerCase())
+		.filter(Boolean);
+	const requestIntendsToPassCredentials =
+		corsProxyAllowedHeaders.includes('authorization') ||
+		corsProxyAllowedHeaders.includes('cookie');
+
+	let directResponse: Response | undefined;
 	try {
-		return await fetch(requestObject);
+		directResponse = await fetch(requestObject);
 	} catch {
-		// If the developer has explicitly allowed the request to pass the
-		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
-		// then let's include those credentials in the fetch() request.
-		const headers = new Headers(requestObject.headers);
-		const corsProxyAllowedHeaders =
-			headers.get('x-cors-proxy-allowed-request-headers')?.split(',') ||
-			[];
-		const requestIntendsToPassCredentials =
-			corsProxyAllowedHeaders.includes('authorization') ||
-			corsProxyAllowedHeaders.includes('cookie');
-
-		// Wrap multipart/form-data Content-Type to prevent the CORS
-		// proxy's PHP from auto-parsing the body. PHP consumes
-		// multipart/form-data bodies into $_POST/$_FILES, emptying
-		// php://input and making it impossible for the proxy to
-		// forward the raw body to the target server.
-		const contentType = headers.get('content-type');
-		if (
-			contentType &&
-			contentType.toLowerCase().includes('multipart/form-data')
-		) {
-			headers.set('x-cors-proxy-content-type', contentType);
-			headers.set('content-type', 'application/octet-stream');
-		}
-
-		// Extract the body from the pre-fetch clone for the retry.
-		// Chrome: pass the clone's ReadableStream directly (with duplex: 'half').
-		// Safari/Firefox: use clonedRequest.arrayBuffer() which works cross-browser.
-		// We cannot use `new Response(request.body).arrayBuffer()` because Firefox
-		// does not expose request.body at all.
-		let body: ArrayBuffer | ReadableStream<Uint8Array> | null = null;
-		const method = requestObject.method.toUpperCase();
-		if (method !== 'GET' && method !== 'HEAD') {
-			if (await supportsReadableStreamBody()) {
-				body = clonedRequest.body;
-			} else {
-				body = await clonedRequest.arrayBuffer();
-			}
-		}
-
-		/**
-		 * When using streaming bodies, buffer into an ArrayBuffer if the
-		 * CORS proxy uses `http:`. Streaming request bodies cause Chrome
-		 * to silently upgrade HTTP/1.1 to HTTP/2, but an HTTP/1.1-only
-		 * server replies with HTTP/1.1, triggering ERR_ALPN_NEGOTIATION_FAILED.
-		 *
-		 * Inferring the HTTP version from the URL protocol is unreliable
-		 * and will fail if the CORS proxy is hosted on a `https://` URL
-		 * that speaks HTTP < 2. This is a recognized limitation of the CORS
-		 * proxy feature. If you host it on an `https://` URL, make sure
-		 * to use HTTP/2.
-		 *
-		 * @see https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
-		 */
-		if (
-			body instanceof ReadableStream &&
-			new URL(corsProxyUrl, import.meta.url).protocol === 'http:'
-		) {
-			body = await new Response(body).arrayBuffer();
-		}
-
-		const newRequest = await cloneRequest(requestObject, {
-			url: `${corsProxyUrl}${requestObject.url}`,
-			headers,
-			body,
-			...(requestIntendsToPassCredentials && { credentials: 'include' }),
-		});
-
-		const response = await fetch(newRequest);
-
-		// Check for firewall interference: if we got a response but it's
-		// missing the CORS proxy identification header, the response likely
-		// came from a network firewall rather than the actual CORS proxy.
-		if (!response.headers.has(CORS_PROXY_HEADER)) {
-			throw new FirewallInterferenceError(
-				requestObject.url,
-				response.status,
-				response.statusText
-			);
-		}
-
-		return response;
+		// CORS preflight failure or network error. Fall through to the
+		// proxy retry below.
+		directResponse = undefined;
 	}
+
+	if (directResponse) {
+		/**
+		 * A host with permissive CORS passes preflight for a request carrying
+		 * an Authorization header, but the browser still strips that header
+		 * because the request is not `credentials: 'include'`. The direct
+		 * fetch then resolves with 401/403 instead of throwing, so the retry
+		 * path below would never run. Treat a credential rejection — or any
+		 * request that intends to pass credentials — as a signal to retry
+		 * through the proxy.
+		 *
+		 * The predicate is deliberately narrow: it only fires when the
+		 * developer opted in via X-Cors-Proxy-Allowed-Request-Headers.
+		 * Otherwise we return the direct response as-is, preserving the
+		 * previous behavior.
+		 */
+		const directResponseLooksUnauthorized =
+			directResponse.status === 401 || directResponse.status === 403;
+		const shouldRetryResolvedResponse =
+			corsProxyAllowedHeaders.length > 0 &&
+			(requestIntendsToPassCredentials ||
+				directResponseLooksUnauthorized);
+		if (!shouldRetryResolvedResponse) {
+			return directResponse;
+		}
+	}
+
+	// Wrap multipart/form-data Content-Type to prevent the CORS
+	// proxy's PHP from auto-parsing the body. PHP consumes
+	// multipart/form-data bodies into $_POST/$_FILES, emptying
+	// php://input and making it impossible for the proxy to
+	// forward the raw body to the target server.
+	const contentType = headers.get('content-type');
+	if (
+		contentType &&
+		contentType.toLowerCase().includes('multipart/form-data')
+	) {
+		headers.set('x-cors-proxy-content-type', contentType);
+		headers.set('content-type', 'application/octet-stream');
+	}
+
+	// Extract the body from the pre-fetch clone for the retry.
+	// Chrome: pass the clone's ReadableStream directly (with duplex: 'half').
+	// Safari/Firefox: use clonedRequest.arrayBuffer() which works cross-browser.
+	// We cannot use `new Response(request.body).arrayBuffer()` because Firefox
+	// does not expose request.body at all.
+	let body: ArrayBuffer | ReadableStream<Uint8Array> | null = null;
+	const method = requestObject.method.toUpperCase();
+	if (method !== 'GET' && method !== 'HEAD') {
+		if (await supportsReadableStreamBody()) {
+			body = clonedRequest.body;
+		} else {
+			body = await clonedRequest.arrayBuffer();
+		}
+	}
+
+	/**
+	 * When using streaming bodies, buffer into an ArrayBuffer if the
+	 * CORS proxy uses `http:`. Streaming request bodies cause Chrome
+	 * to silently upgrade HTTP/1.1 to HTTP/2, but an HTTP/1.1-only
+	 * server replies with HTTP/1.1, triggering ERR_ALPN_NEGOTIATION_FAILED.
+	 *
+	 * Inferring the HTTP version from the URL protocol is unreliable
+	 * and will fail if the CORS proxy is hosted on a `https://` URL
+	 * that speaks HTTP < 2. This is a recognized limitation of the CORS
+	 * proxy feature. If you host it on an `https://` URL, make sure
+	 * to use HTTP/2.
+	 *
+	 * @see https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
+	 */
+	if (
+		body instanceof ReadableStream &&
+		new URL(corsProxyUrl, import.meta.url).protocol === 'http:'
+	) {
+		body = await new Response(body).arrayBuffer();
+	}
+
+	const newRequest = await cloneRequest(requestObject, {
+		url: `${corsProxyUrl}${requestObject.url}`,
+		headers,
+		body,
+		...(requestIntendsToPassCredentials && { credentials: 'include' }),
+	});
+
+	const response = await fetch(newRequest);
+
+	// Check for firewall interference: if we got a response but it's
+	// missing the CORS proxy identification header, the response likely
+	// came from a network firewall rather than the actual CORS proxy.
+	if (!response.headers.has(CORS_PROXY_HEADER)) {
+		throw new FirewallInterferenceError(
+			requestObject.url,
+			response.status,
+			response.statusText
+		);
+	}
+
+	return response;
 }
 
 /**
