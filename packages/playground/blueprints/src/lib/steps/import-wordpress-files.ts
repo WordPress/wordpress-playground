@@ -299,9 +299,14 @@ export const importWordPressFiles: StepHandler<
  * Replaces every stored occurrence of the old site URL with the new one.
  *
  * Trailing slashes are normalized so `<old>/x` becomes `<new>/x`. Both the
- * plain and the JSON slash-escaped (`\/`) forms are replaced. Posts and
- * comments use SQL REPLACE; options and meta tables are unserialized,
- * recursively updated and re-serialized so serialized lengths stay valid.
+ * plain and the JSON slash-escaped (`\/`) forms are replaced. A match must
+ * end at a URL boundary, so `http://example.com` leaves
+ * `http://example.com.au` and `http://example.com:8080` alone.
+ *
+ * Serialized values (including nested serialized strings) are unserialized,
+ * rewritten and re-serialized so lengths stay valid. A serialized value that
+ * holds an object other than `stdClass` is left exactly as stored: rewriting
+ * it would require loading plugin classes and their serialization hooks.
  * `siteurl` and `home` are skipped, as defineSiteUrl owns them.
  */
 async function replaceSiteUrl(
@@ -328,16 +333,53 @@ async function replaceSiteUrl(
 			[str_replace('/', '\\/', $old), str_replace('/', '\\/', $new)],
 		];
 
+		// A match must not continue the host, port or final path segment.
 		$replace_in_string = function ($value) use ($pairs) {
 			foreach ($pairs as $pair) {
-				$value = str_replace($pair[0], $pair[1], $value);
+				$replacement = $pair[1];
+				$value = preg_replace_callback(
+					'/' . preg_quote($pair[0], '/') . '(?![A-Za-z0-9_.:-])/',
+					function () use ($replacement) {
+						return $replacement;
+					},
+					$value
+				);
 			}
 			return $value;
 		};
 
-		$replace_deep = function ($value) use (&$replace_deep, $replace_in_string) {
+		$holds_only_plain_data = function ($value) use (&$holds_only_plain_data) {
+			if (is_object($value)) {
+				if (!($value instanceof stdClass)) {
+					return false;
+				}
+				$value = get_object_vars($value);
+			}
+			if (is_array($value)) {
+				foreach ($value as $item) {
+					if (!$holds_only_plain_data($item)) {
+						return false;
+					}
+				}
+			}
+			return true;
+		};
+
+		// Returns the rewritten value, or the original when it cannot be
+		// rewritten safely.
+		$replace_deep = function ($value) use (&$replace_deep, $replace_in_string, $holds_only_plain_data) {
 			if (is_string($value)) {
-				return $replace_in_string($value);
+				if (!is_serialized($value)) {
+					return $replace_in_string($value);
+				}
+				$data = @unserialize($value, ['allowed_classes' => ['stdClass']]);
+				if (
+					($data === false && $value !== serialize(false))
+					|| !$holds_only_plain_data($data)
+				) {
+					return $value;
+				}
+				return serialize($replace_deep($data));
 			}
 			if (is_array($value)) {
 				foreach ($value as $k => $v) {
@@ -351,46 +393,28 @@ async function replaceSiteUrl(
 			return $value;
 		};
 
-		// Plain SQL REPLACE for posts and comments.
-		$sql_columns = [
-			$wpdb->posts => ['post_content', 'post_excerpt', 'guid'],
-			$wpdb->comments => ['comment_content', 'comment_author_url'],
-		];
-		foreach ($sql_columns as $table => $columns) {
-			foreach ($columns as $column) {
-				foreach ($pairs as $pair) {
-					$wpdb->query($wpdb->prepare(
-						"UPDATE {$table} SET {$column} = REPLACE({$column}, %s, %s) WHERE {$column} LIKE %s",
-						$pair[0], $pair[1], '%' . $wpdb->esc_like($pair[0]) . '%'
-					));
-				}
-			}
-		}
-
-		// Serialization-safe updates for options and meta tables.
-		$serialized_tables = [
+		$columns = [
+			[$wpdb->posts, 'ID', 'post_content', ''],
+			[$wpdb->posts, 'ID', 'post_excerpt', ''],
+			[$wpdb->posts, 'ID', 'guid', ''],
+			[$wpdb->comments, 'comment_ID', 'comment_content', ''],
+			[$wpdb->comments, 'comment_ID', 'comment_author_url', ''],
 			[$wpdb->options, 'option_id', 'option_value', "AND option_name NOT IN ('siteurl', 'home')"],
 			[$wpdb->postmeta, 'meta_id', 'meta_value', ''],
 			[$wpdb->usermeta, 'umeta_id', 'meta_value', ''],
 			[$wpdb->termmeta, 'meta_id', 'meta_value', ''],
 		];
-		foreach ($serialized_tables as [$table, $id_column, $value_column, $extra]) {
-			$like_plain = '%' . $wpdb->esc_like($pairs[0][0]) . '%';
-			$like_escaped = '%' . $wpdb->esc_like($pairs[1][0]) . '%';
+		foreach ($columns as [$table, $id_column, $column, $extra]) {
 			$rows = $wpdb->get_results($wpdb->prepare(
-				"SELECT {$id_column} AS id, {$value_column} AS value FROM {$table}
-				WHERE ({$value_column} LIKE %s OR {$value_column} LIKE %s) {$extra}",
-				$like_plain, $like_escaped
+				"SELECT {$id_column} AS id, {$column} AS value FROM {$table}
+				WHERE ({$column} LIKE %s OR {$column} LIKE %s) {$extra}",
+				'%' . $wpdb->esc_like($pairs[0][0]) . '%',
+				'%' . $wpdb->esc_like($pairs[1][0]) . '%'
 			));
 			foreach ($rows as $row) {
-				$value = maybe_unserialize($row->value);
-				// Leave data we cannot unserialize alone rather than corrupt it.
-				if (is_string($value) && is_serialized($value)) {
-					continue;
-				}
-				$updated = maybe_serialize($replace_deep($value));
+				$updated = $replace_deep($row->value);
 				if ($updated !== $row->value) {
-					$wpdb->update($table, [$value_column => $updated], [$id_column => $row->id]);
+					$wpdb->update($table, [$column => $updated], [$id_column => $row->id]);
 				}
 			}
 		}

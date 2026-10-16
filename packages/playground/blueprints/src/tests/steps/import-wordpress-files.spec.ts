@@ -468,12 +468,27 @@ describe('Blueprint step importWordPressFiles', () => {
 			// Written directly: wp_insert_post() would unslash the escaped URL.
 			$wpdb->update($wpdb->posts, [
 				'post_content' => '<img src="${oldBase}/wp-content/uploads/a.png">'
-					. ' {"url":"http:\\/\\/build-host.example\\/wp\\/b.png"}',
+					. ' {"url":"http:\\/\\/build-host.example\\/wp\\/b.png"}'
+					. ' <a href="${oldBase}-other/keep">sibling</a>',
 			], ['ID' => $post_id]);
 			update_post_meta($post_id, '_custom_url', ${phpVar(oldBase + '/c.png')});
 			update_option('custom_serialized', [
 				'logo' => ${phpVar(oldBase + '/logo.png')},
 				'nested' => ['url' => ${phpVar(oldBase + '/n/')}],
+				'double' => serialize(['url' => ${phpVar(oldBase + '/d.png')}]),
+			]);
+			// Raw rows: a serialized scalar, and an object of a class that
+			// is not loaded at import time.
+			$wpdb->insert($wpdb->postmeta, [
+				'post_id' => $post_id,
+				'meta_key' => '_serialized_scalar',
+				'meta_value' => serialize(${phpVar(oldBase + '/s.png')}),
+			]);
+			$wpdb->insert($wpdb->options, [
+				'option_name' => 'foreign_object',
+				'option_value' => 'O:14:"Foreign_Plugin":1:{s:3:"url";s:'
+					. strlen(${phpVar(oldBase + '/f.png')}) . ':"' . ${phpVar(oldBase + '/f.png')} . '";}',
+				'autoload' => 'no',
 			]);
 			`,
 		});
@@ -503,6 +518,8 @@ describe('Blueprint step importWordPressFiles', () => {
 				'content' => $post->post_content,
 				'meta' => get_post_meta($post->ID, '_custom_url', true),
 				'option' => get_option('custom_serialized'),
+				'scalar' => $wpdb->get_var("SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = '_serialized_scalar'"),
+				'foreign' => $wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name = 'foreign_object'"),
 			]);
 			`,
 		});
@@ -513,12 +530,27 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(data.content).toContain(
 			`${newBase.replace(/\//g, '\\/')}\\/b.png`
 		);
-		expect(data.content).not.toContain('build-host.example');
+		// A sibling path that only shares the old URL as a prefix is kept.
+		expect(data.content).toContain(
+			'<a href="http://build-host.example/wp-other/keep">'
+		);
+		expect(
+			data.content.split('http://build-host.example/wp-other').join('')
+		).not.toContain('build-host.example');
 		expect(data.meta).toBe(`${newBase}/c.png`);
-		expect(data.option).toEqual({
-			logo: `${newBase}/logo.png`,
-			nested: { url: `${newBase}/n/` },
-		});
+		expect(data.option.logo).toBe(`${newBase}/logo.png`);
+		expect(data.option.nested).toEqual({ url: `${newBase}/n/` });
+		const doubleUrl = `${newBase}/d.png`;
+		expect(data.option.double).toBe(
+			`a:1:{s:3:"url";s:${doubleUrl.length}:"${doubleUrl}";}`
+		);
+		const scalarUrl = `${newBase}/s.png`;
+		expect(data.scalar).toBe(`s:${scalarUrl.length}:"${scalarUrl}";`);
+		// An object of an unloaded class is left exactly as stored.
+		const foreignUrl = `${oldBase}/f.png`;
+		expect(data.foreign).toBe(
+			`O:14:"Foreign_Plugin":1:{s:3:"url";s:${foreignUrl.length}:"${foreignUrl}";}`
+		);
 	});
 
 	it('should preserve live files and clean staging when preparation fails', async () => {
