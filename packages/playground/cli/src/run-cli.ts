@@ -400,6 +400,11 @@ export async function parseOptionsAndRunCLI(
 					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
 			},
+			host: {
+				describe:
+					'Hostname or IP address to bind to. Defaults to 127.0.0.1 (loopback only). Use 0.0.0.0 to accept connections from other devices.',
+				type: 'string',
+			},
 			workers: {
 				describe:
 					'Number of request-handling worker threads. Accepts a ' +
@@ -463,6 +468,11 @@ export async function parseOptionsAndRunCLI(
 			port: {
 				describe: 'Port to listen on. Defaults to 9400 when available.',
 				type: 'number',
+			},
+			host: {
+				describe:
+					'Hostname or IP address to bind to. Defaults to 127.0.0.1 (loopback only). Use 0.0.0.0 to accept connections from other devices.',
+				type: 'string',
 			},
 			blueprint: {
 				describe:
@@ -836,6 +846,7 @@ export interface RunCLIArgs {
 	outfile?: string;
 	php?: AllPHPVersion;
 	port?: number;
+	host?: string;
 	'site-url'?: string;
 	quiet?: boolean;
 	verbosity?: LogVerbosity;
@@ -1077,11 +1088,12 @@ export async function runCLI(
 	const server = await startServer({
 		port: args.port
 			? args.port
-			: !(await isPortInUse(selectedPort))
+			: !(await isPortInUse(selectedPort, args.host))
 				? selectedPort
 				: 0,
+		host: args.host,
 		onBind: async (server: Server, port: number) => {
-			const host = '127.0.0.1';
+			const host = args.host ?? '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 

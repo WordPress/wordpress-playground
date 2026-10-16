@@ -14,6 +14,13 @@ const exec = promisify(execCb);
 
 export interface ServerOptions {
 	port: number;
+	/**
+	 * Network interface to bind to. Defaults to `127.0.0.1` (loopback only)
+	 * so a development site is not exposed to the local network by accident.
+	 * Pass `0.0.0.0` (or a specific interface) to make the site reachable
+	 * from other devices.
+	 */
+	host?: string;
 	onBind: (
 		server: Server,
 		port: number
@@ -24,11 +31,11 @@ export interface ServerOptions {
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
 }
 
-export function isPortInUse(port: number): Promise<boolean> {
+export function isPortInUse(port: number, host?: string): Promise<boolean> {
 	return new Promise((resolve) => {
 		if (port === 0) return resolve(false);
 
-		const server = express().listen(port);
+		const server = express().listen(port, host);
 
 		server.once('listening', () => server.close(() => resolve(false)));
 		server.once('error', (error: NodeJS.ErrnoException) =>
@@ -46,7 +53,9 @@ export async function startServer(
 		Server<typeof IncomingMessage, typeof ServerResponse>
 	>((resolve, reject) => {
 		const server = app
-			.listen(options.port, () => {
+			// Bind to loopback by default so a throwaway dev site (well-known
+			// admin credentials) is not reachable from the local network.
+			.listen(options.port, options.host ?? '127.0.0.1', () => {
 				const address = server.address();
 				if (address === null || typeof address === 'string') {
 					reject(new Error('Server address is not available'));
