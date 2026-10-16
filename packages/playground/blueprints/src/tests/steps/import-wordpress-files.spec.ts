@@ -452,6 +452,75 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
+	it('should rewrite a non-scoped source site URL with a subdirectory', async () => {
+		const oldBase = 'http://build-host.example/wp';
+		const newBase = (await targetPHP.absoluteUrl).replace(/\/+$/, '');
+
+		await sourcePHP.run({
+			code: `<?php
+			require ${phpVar(await sourcePHP.documentRoot)} . '/wp-load.php';
+			global $wpdb;
+			$wpdb->update($wpdb->options, ['option_value' => ${phpVar(oldBase)}], ['option_name' => 'siteurl']);
+			$post_id = wp_insert_post([
+				'post_title' => 'Foreign host post',
+				'post_status' => 'publish',
+			]);
+			// Written directly: wp_insert_post() would unslash the escaped URL.
+			$wpdb->update($wpdb->posts, [
+				'post_content' => '<img src="${oldBase}/wp-content/uploads/a.png">'
+					. ' {"url":"http:\\/\\/build-host.example\\/wp\\/b.png"}',
+			], ['ID' => $post_id]);
+			update_post_meta($post_id, '_custom_url', ${phpVar(oldBase + '/c.png')});
+			update_option('custom_serialized', [
+				'logo' => ${phpVar(oldBase + '/logo.png')},
+				'nested' => ['url' => ${phpVar(oldBase + '/n/')}],
+			]);
+			`,
+		});
+
+		// Drop the manifest so the old URL is inferred from the database.
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/foreign.zip', zipBuffer);
+		await targetPHP.run({
+			code: `<?php
+			$zip = new ZipArchive();
+			$zip->open('/tmp/foreign.zip');
+			$zip->deleteName('playground-export.json');
+			$zip->close();
+			`,
+		});
+		const zipFile = new File(
+			[await targetPHP.readFileAsBuffer('/tmp/foreign.zip')],
+			'foreign.zip'
+		);
+		await importWordPressFiles(targetPHP, { wordPressFilesZip: zipFile });
+
+		const result = await targetPHP.run({
+			code: `<?php
+			require ${phpVar(await targetPHP.documentRoot)} . '/wp-load.php';
+			$post = get_posts(['post_status' => 'publish', 'numberposts' => 1])[0];
+			echo json_encode([
+				'content' => $post->post_content,
+				'meta' => get_post_meta($post->ID, '_custom_url', true),
+				'option' => get_option('custom_serialized'),
+			]);
+			`,
+		});
+		const data = JSON.parse(result.text);
+		expect(data.content).toContain(
+			`<img src="${newBase}/wp-content/uploads/a.png">`
+		);
+		expect(data.content).toContain(
+			`${newBase.replace(/\//g, '\\/')}\\/b.png`
+		);
+		expect(data.content).not.toContain('build-host.example');
+		expect(data.meta).toBe(`${newBase}/c.png`);
+		expect(data.option).toEqual({
+			logo: `${newBase}/logo.png`,
+			nested: { url: `${newBase}/n/` },
+		});
+	});
+
 	it('should preserve live files and clean staging when preparation fails', async () => {
 		const zipFile = await createMinimalWordPressFilesZip(targetPHP);
 		const documentRoot = await targetPHP.documentRoot;
