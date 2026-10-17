@@ -123,12 +123,26 @@ export async function fetchWithCorsProxy(
 		 */
 		const directResponseLooksUnauthorized =
 			directResponse.status === 401 || directResponse.status === 403;
+		// Only a credential rejection is a reason to retry a request that
+		// already resolved. Retrying every opted-in request on success would
+		// replay a POST (or any other method) through the proxy and duplicate
+		// the write.
 		const shouldRetryResolvedResponse =
 			corsProxyAllowedHeaders.length > 0 &&
-			(requestIntendsToPassCredentials ||
-				directResponseLooksUnauthorized);
+			directResponseLooksUnauthorized;
 		if (!shouldRetryResolvedResponse) {
 			return directResponse;
+		}
+
+		// Release the discarded direct response before issuing the proxy
+		// request. Ignore cancellation errors: the body may already be
+		// consumed or the stream may be closed.
+		if (directResponse.body) {
+			try {
+				await directResponse.body.cancel();
+			} catch {
+				// Ignore: the stream is already closed or cancelled.
+			}
 		}
 	}
 
