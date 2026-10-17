@@ -1,0 +1,25 @@
+.github-button {
+	padding: 10px 20px;
+	background-color: #000;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	font-size: 16px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	text-decoration: none;
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	justify-content: center;
+}
+
+.github-button:hover {
+	background-color: #24292e;
+}
+
+.github-button.disabled {
+	cursor: default;
+	opacity: 0.5;
+}
