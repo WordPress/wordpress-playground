@@ -1093,8 +1093,18 @@ export async function runCLI(
 				: 0,
 		host: args.host,
 		onBind: async (server: Server, port: number) => {
-			const host = args.host ?? '127.0.0.1';
-			const serverUrl = `http://${host}:${port}`;
+			// Keep the requested host for binding, but build the displayed
+			// URL from a reachable address. A wildcard bind address such as
+			// 0.0.0.0 or :: cannot be used to reach this machine, and an
+			// IPv6 literal needs brackets in a URL authority.
+			const bindHost = args.host ?? '127.0.0.1';
+			const urlHost =
+				!bindHost || bindHost === '0.0.0.0' || bindHost === '::'
+					? '127.0.0.1'
+					: bindHost.includes(':') && !bindHost.startsWith('[')
+						? `[${bindHost}]`
+						: bindHost;
+			const serverUrl = `http://${urlHost}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
 			if (args['experimental-multi-worker'] !== undefined) {
