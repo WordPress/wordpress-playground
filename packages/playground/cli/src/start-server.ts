@@ -31,7 +31,7 @@ export interface ServerOptions {
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
 }
 
-export function isPortInUse(port: number, host?: string): Promise<boolean> {
+export function isPortInUse(port: number, host: string = '127.0.0.1'): Promise<boolean> {
 	return new Promise((resolve) => {
 		if (port === 0) return resolve(false);
 
