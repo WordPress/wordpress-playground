@@ -442,19 +442,27 @@ function compileBlueprintJson(
 				}
 			} finally {
 				try {
-					/**
-					 * Use an intermediate redirection step to ensure the login cookies
-					 * are set before we redirecting to the landing page.
-					 *
-					 * @see playground_auto_login_redirect_target in the @wp-playground/wordpress package.
-					 */
-					const targetUrl = await (
-						playground as any
-					).pathToInternalUrl(blueprint.landingPage || '/');
-					await (playground as any).goTo(
-						'/index.php?playground-redirection-handler&next=' +
-							encodeURIComponent(targetUrl)
-					);
+					const landingPage = blueprint.landingPage || '/';
+					if (blueprint.preferredVersions?.wp === false) {
+						// PHP-only mode has no WordPress, therefore no
+						// `/index.php`. Skip the login-cookie redirect handler
+						// (which lives inside WP) and navigate directly.
+						await (playground as any).goTo(landingPage);
+					} else {
+						/**
+						 * Use an intermediate redirection step to ensure the login cookies
+						 * are set before we redirecting to the landing page.
+						 *
+						 * @see playground_auto_login_redirect_target in the @wp-playground/wordpress package.
+						 */
+						const targetUrl = await (
+							playground as any
+						).pathToInternalUrl(landingPage);
+						await (playground as any).goTo(
+							'/index.php?playground-redirection-handler&next=' +
+								encodeURIComponent(targetUrl)
+						);
+					}
 				} catch {
 					/**
 					 * Redirecting to the landing page is a browser-only feature for now.
