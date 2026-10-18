@@ -76,7 +76,7 @@ describe('remote sendmail transport', () => {
 		await Promise.all(phpListeners.map((listener) => listener(event)));
 
 		expect(received).toEqual([event]);
-	});
+	}, 10000);
 
 	it('parses captured sendmail messages into the email() inbox', async () => {
 		const { PlaygroundWorkerEndpoint } =

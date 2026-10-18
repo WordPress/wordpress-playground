@@ -23,9 +23,10 @@ done
 
 rsync -a --delete --delete-excluded \
 	--include=/.kandelo/ --include=/.kandelo/source-only-program-projection-v1.json \
-	--include=/kernel.wasm \
+	--include=/kernel.wasm --include=/kandelo_image_module32.wasm \
 	--include=/programs/ --include=/programs/wasm32/ \
 	--include=/programs/wasm32/nginx.wasm --include=/programs/wasm32/rootfs.vfs.zst \
+	--include=/programs/wasm32/bash.wasm --include=/programs/wasm32/coreutils.wasm \
 	--include=/programs/wasm32/php/ --include='/programs/wasm32/php/*' \
 	--exclude='*' \
 	local-binaries/source-only-v1/ "$package/local-binaries/source-only-v1/"

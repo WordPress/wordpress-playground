@@ -1,6 +1,6 @@
 # playground-posix-kernel-builds
 
-The kandelo host and binaries used by the `--experimental-posix-kernel` CLI flag. They are built from the `kandelo` submodule and committed to the repository.
+The kandelo host and binaries used by the `--experimental-posix-kernel` CLI flag and the experimental posix-kernel website. They are built from the `kandelo` submodule and committed to the repository.
 
 ## Building
 

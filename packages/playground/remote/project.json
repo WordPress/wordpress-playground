@@ -49,6 +49,14 @@
 				}
 			}
 		},
+		"dev-experimental-posix-kernel": {
+			"executor": "nx:run-commands",
+			"continuous": true,
+			"options": {
+				"command": "vite --config vite.posix-kernel.config.ts",
+				"cwd": "packages/playground/remote"
+			}
+		},
 		"preview": {
 			"executor": "@nx/vite:preview-server",
 			"defaultConfiguration": "production",
@@ -91,6 +99,12 @@
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/remote"
+			}
+		},
+		"test-remote-posix-kernel": {
+			"executor": "@nx/vitest:test",
+			"options": {
+				"configFile": "packages/playground/remote/vite.posix-kernel.config.ts"
 			}
 		},
 		"typecheck": {

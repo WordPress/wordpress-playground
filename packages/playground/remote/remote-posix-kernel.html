@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WordPress Playground — Experimental POSIX Kernel</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body,
+			#wp {
+				height: 100%;
+				width: 100%;
+				margin: 0;
+				padding: 0;
+				border: 0;
+			}
+
+			html,
+			body {
+				overflow: hidden;
+			}
+
+			body.has-error {
+				padding: 15px;
+				background: #f1f1f1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				font-size: 20px;
+				font-family: Arial, Helvetica, sans-serif;
+				line-height: 1.4;
+			}
+			body.has-error .error-message {
+				padding: 20px;
+				max-width: 800px;
+			}
+			body.has-error button {
+				margin-top: 15px;
+				margin-bottom: 15px;
+				font-size: 20px;
+				padding: 5px 10px;
+				cursor: pointer;
+			}
+
+			@media (prefers-color-scheme: dark) {
+				body.is-loading,
+				body.has-error {
+					background: #1e1e1e;
+					color: #fff;
+				}
+			}
+		</style>
+	</head>
+	<body class="is-loading">
+		<iframe
+			id="wp"
+			title="The WordPress site"
+			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals"
+		></iframe>
+		<script type="module">
+			if (window.top != window.self) {
+				document.body.classList.add('is-embedded');
+			}
+			import { bootPlaygroundRemote } from './src/lib/posix-kernel/index';
+			try {
+				window.playground = await bootPlaygroundRemote();
+			} catch (e) {
+				console.error(e);
+				document.body.className = 'has-error';
+				document.body.innerHTML = '';
+
+				const div = document.createElement('div');
+				div.className = 'error-message';
+				div.innerHTML =
+					'Ooops! WordPress Playground (POSIX kernel mode) had a hiccup! <br/><br/> ' +
+					(e?.userFriendlyMessage ||
+						'See the developer tools for error details.');
+				document.body.append(div);
+
+				const button = document.createElement('button');
+				button.innerText = 'Try again';
+				button.onclick = () => {
+					window.location.reload();
+				};
+				document.body.append(button);
+			} finally {
+				document.body.classList.remove('is-loading');
+			}
+		</script>
+	</body>
+</html>

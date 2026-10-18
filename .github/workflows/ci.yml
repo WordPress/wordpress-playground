@@ -264,6 +264,25 @@ jobs:
                   node-version: 24
             - name: Run posix-kernel test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli-posix-kernel --output-style=stream
+    test-remote-posix-kernel:
+        needs: set-nx-shas
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Run remote posix-kernel unit tests
+              run: node node_modules/nx/bin/nx affected --target=test-remote-posix-kernel --output-style=stream
     test-file-locking:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -491,6 +510,52 @@ jobs:
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
                   retention-days: 7
+
+    test-e2e-playwright-posix-kernel:
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        strategy:
+            fail-fast: false
+            matrix:
+                # Kernel boots starve each other on a 2-core runner, so each
+                # shard runs 1 worker and parallelism comes from more shards.
+                include:
+                    - browser: 'chromium'
+                      shard: '1/6'
+                      shard_name: '1-of-6'
+                    - browser: 'chromium'
+                      shard: '2/6'
+                      shard_name: '2-of-6'
+                    - browser: 'chromium'
+                      shard: '3/6'
+                      shard_name: '3-of-6'
+                    - browser: 'chromium'
+                      shard: '4/6'
+                      shard_name: '4-of-6'
+                    - browser: 'chromium'
+                      shard: '5/6'
+                      shard_name: '5-of-6'
+                    - browser: 'chromium'
+                      shard: '6/6'
+                      shard_name: '6-of-6'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Install Playwright Browser
+              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+            - name: Run Playwright tests (posix-kernel) - ${{ matrix.browser }} (shard ${{ matrix.shard }})
+              run: sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.posix-kernel.config.ts --project=${{ matrix.browser }} --shard=${{ matrix.shard }}
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report-posix-kernel-${{ matrix.browser }}-shard-${{ matrix.shard_name }}
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
 
     test-e2e-personal-wp:
         runs-on: ubuntu-latest
