@@ -119,6 +119,29 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
 	});
+
+	it('accepts the kernel-mode remote entry used by ?experimental=kandelo', async () => {
+		// Narrowing the accepted pathnames back to only `/remote.html`
+		// would make kernel-mode sessions throw "Invalid remote URL"
+		// before booting.
+		const playground = { connected: true };
+		mocks.BlueprintsV2Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV2,
+		}));
+		mocks.bootPlaygroundV2.mockResolvedValue(playground);
+		const iframe = createIframe();
+
+		await expect(
+			startPlaygroundWeb({
+				iframe,
+				remoteUrl: 'http://localhost/remote-posix-kernel.html',
+				progressTracker: createProgressTracker(),
+				blueprint: { version: 2 },
+			})
+		).resolves.toBe(playground);
+
+		expect(iframe.src).toContain('remote-posix-kernel.html');
+	});
 });
 
 describe('startPlaygroundAPI', () => {

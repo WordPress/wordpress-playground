@@ -225,3 +225,23 @@ describe('isSiteSavingDisabled', () => {
 		).toBe(true);
 	});
 });
+
+describe('PlaygroundRoute.site experimental runtime param', () => {
+	const storedSite = {
+		slug: 'my-site',
+		metadata: { storage: 'opfs' },
+	} as unknown as SiteInfo;
+
+	it('preserves the `experimental` param when rewriting a stored-site URL', () => {
+		// Dropping it would silently switch `?experimental=kandelo`
+		// sessions back to the classic runtime when selecting a saved site.
+		const url = new URL(
+			PlaygroundRoute.site(
+				storedSite,
+				'http://localhost:5400/?experimental=kandelo&wp=6.8'
+			)
+		);
+		expect(url.searchParams.get('site-slug')).toBe('my-site');
+		expect(url.searchParams.get('experimental')).toBe('kandelo');
+	});
+});

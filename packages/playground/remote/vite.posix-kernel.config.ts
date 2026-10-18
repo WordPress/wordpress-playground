@@ -3,12 +3,19 @@
  * Vite config for the `--experimental-posix-kernel` browser mode.
  *
  * Sibling of `vite.config.ts`, which keeps serving the classic
- * Playground for `npm run dev`. Serves two targets (see
+ * Playground for `npm run dev`. Serves three targets (see
  * `packages/playground/remote/project.json`): the
- * `dev-experimental-posix-kernel` dev server and the
+ * `dev-experimental-posix-kernel` dev server, the
+ * `build-experimental-posix-kernel` production build, and the
  * `test-remote-posix-kernel` vitest run for the posix-kernel unit
  * specs, which `vite.config.ts` excludes from its generic test target.
- * Build / preview targets remain owned by `vite.config.ts`.
+ * The preview target remains owned by `vite.config.ts`.
+ *
+ * The build writes to `dist/packages/playground/remote-posix-kernel`, so
+ * the classic and kernel asset graphs never overwrite each other. It needs
+ * the `kandelo/` submodule, so it is not part of the website build graph:
+ * `deploy-website.yml` runs the target, and `build:wasm-wordpress-net`
+ * copies its output only when present.
  *
  * Key differences from `vite.config.ts`:
  *   1. A `resolveKernelBinariesPlugin` resolves `@kernel-wasm` and
@@ -140,6 +147,20 @@ function aliasClientIndexPlugin(): Plugin {
 	};
 }
 
+/**
+ * Same output rule as `vite.config.ts`: extension modules (`.so`) and
+ * their data files (`.dat`) land in `assets/extensions/`.
+ */
+function extensionAwareAssetFileNames(chunkInfo: { names?: string[] }) {
+	if (
+		chunkInfo.names?.[0]?.endsWith('.so') ||
+		chunkInfo.names?.[0]?.endsWith('.dat')
+	) {
+		return 'assets/extensions/[name]-[hash][extname]';
+	}
+	return 'assets/[name]-[hash][extname]';
+}
+
 const plugins = [
 	viteTsConfigPaths({
 		root: '../../../',
@@ -268,6 +289,65 @@ export default defineConfig(() => {
 		worker: {
 			format: 'es',
 			plugins: () => plugins,
+			/**
+			 * Mirrors `vite.config.ts`. The stable `sw.js` name matters
+			 * doubly here: the posix-kernel boot registers the same
+			 * `service-worker.ts` as the classic remote, and the website
+			 * artifact ships the classic-built copy — both builds must
+			 * resolve the registration URL to the same `/sw.js`.
+			 */
+			rollupOptions: {
+				output: {
+					assetFileNames: extensionAwareAssetFileNames,
+					chunkFileNames: (chunkInfo: any) => {
+						if (
+							chunkInfo.facadeModuleId?.endsWith('.so') ||
+							chunkInfo.facadeModuleId?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash].js';
+						}
+						return 'assets/[name]-[hash].js';
+					},
+					// See the `manualChunks` comment in `vite.config.ts` —
+					// keeps `wasm-feature-detect` out of worker entry chunks.
+					manualChunks(id) {
+						if (/[\\/]wasm-feature-detect[\\/]/.test(id)) {
+							return 'wasm-feature-detect';
+						}
+						return undefined;
+					},
+					entryFileNames: (chunkInfo: any) => {
+						if (chunkInfo.name === 'service-worker') {
+							return 'sw.js';
+						}
+						return '[name]-[hash].js';
+					},
+				},
+			},
+		},
+
+		build: {
+			target: 'esnext',
+			// See vite.config.ts — assets must be real files, not inlined.
+			assetsInlineLimit: 0,
+			sourcemap: true,
+			outDir: '../../../dist/packages/playground/remote-posix-kernel',
+			emptyOutDir: true,
+			// The classic build already ships the `wordpress-builds`
+			// public assets into the website artifact; do not copy the
+			// same files a second time.
+			copyPublicDir: false,
+			rollupOptions: {
+				input: {
+					'remote-posix-kernel': resolve(
+						__dirname,
+						'remote-posix-kernel.html'
+					),
+				},
+				output: {
+					assetFileNames: extensionAwareAssetFileNames,
+				},
+			},
 		},
 
 		test: {
