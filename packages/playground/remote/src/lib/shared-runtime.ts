@@ -1,4 +1,5 @@
 import { streamToPort } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 import { responseTo } from '@php-wasm/web-service-worker';
 import type {
 	PlaygroundWorkerEndpoint,
@@ -58,6 +59,13 @@ export class SharedRuntime {
 		this.readiness.add({ ready, failed });
 		port.addEventListener('message', (event) => {
 			if (event.data?.type === 'shared-runtime-connect') {
+				logger.info('[Shared runtime] Worker received handshake', {
+					runtimeId: this.runtimeId,
+					workerBuild: this.version,
+					requestedBuild: event.data.buildVersion,
+					clientBuild: event.data.clientBuildVersion,
+					retired: this.retired,
+				});
 				if (event.data.buildVersion !== this.version || this.retired) {
 					port.postMessage({
 						type: RELOAD_REQUIRED,
@@ -176,6 +184,13 @@ export class SharedRuntime {
 		if (this.retiring) return this.retiring;
 		// Set the gate before notifying ports or awaiting any operation.
 		this.retired = true;
+		logger.info('[Shared runtime] Retirement started; rejecting new work', {
+			runtimeId: this.runtimeId,
+			build: this.version,
+			tabPorts: this.ports.size,
+			serviceWorkerPorts: this.servicePorts.size,
+			activeOperations: this.active.size,
+		});
 		this.retiring = Promise.resolve()
 			.then(async () => {
 				this.rejectInitialization(new Error(RELOAD_REQUIRED));
@@ -189,6 +204,13 @@ export class SharedRuntime {
 				await this.endpoint[Symbol.asyncDispose]();
 				this.releaseLock?.();
 				this.closed = true;
+				logger.info(
+					'[Shared runtime] Files saved; broadcasting shutdown confirmation',
+					{
+						runtimeId: this.runtimeId,
+						build: this.version,
+					}
+				);
 				for (const port of [...this.ports, ...this.servicePorts])
 					port.postMessage({ type: RUNTIME_CLOSED });
 				this.close();

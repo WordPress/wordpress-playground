@@ -69,6 +69,14 @@ if (import.meta.hot) {
 const query = new URL(document.location.href).searchParams;
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
+	const sharedMode = query.get('experimental-shared-worker') === '1';
+	const reportStartupProgress = (caption: string) => {
+		if (sharedMode)
+			window.parent.postMessage(
+				{ type: 'playground-runtime-startup-progress', caption },
+				location.origin
+			);
+	};
 
 	const hasProgressBar = query.has('progressbar');
 	let bar: ProgressBar | undefined;
@@ -93,7 +101,9 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
-	const sharedMode = query.get('experimental-shared-worker') === '1';
+	reportStartupProgress(
+		`Registering service worker (remote build ${remoteBuildVersion.slice(0, 12)})`
+	);
 	const registrationUrl = new URL(serviceWorkerUrl);
 	if (sharedMode)
 		registrationUrl.searchParams.set('experimental-shared-worker', '1');
@@ -106,6 +116,7 @@ export async function bootPlaygroundRemote() {
 	// Check if there's a new service worker available and, if so, enqueue
 	// the update:
 	try {
+		reportStartupProgress('Checking for service worker update');
 		await registration.update();
 	} catch (e) {
 		// registration.update() throws if it can't reach the server.
@@ -121,7 +132,8 @@ export async function bootPlaygroundRemote() {
 		? await connectSharedRuntime(
 				query.get('scope')!,
 				query.get('shared-worker-version') ?? remoteBuildVersion,
-				query.get('shared-worker-client-version') ?? remoteBuildVersion
+				query.get('shared-worker-client-version') ?? remoteBuildVersion,
+				reportStartupProgress
 			)
 		: undefined;
 	const phpWorkerApi =
@@ -604,7 +616,11 @@ export async function bootPlaygroundRemote() {
 		},
 	};
 
+	reportStartupProgress(
+		'Shared worker handshake complete; waiting for runtime API connection'
+	);
 	await phpWorkerApi.isConnected();
+	reportStartupProgress('Runtime API connected; exposing Playground client');
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback

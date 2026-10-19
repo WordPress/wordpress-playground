@@ -4,6 +4,15 @@ import { responseTo } from '@php-wasm/web-service-worker';
 describe('direct shared runtime routing', () => {
 	beforeEach(() => {
 		vi.resetModules();
+		const responses = new Map<string, Response>();
+		vi.stubGlobal('caches', {
+			open: async () => ({
+				match: async (key: string) => responses.get(key)?.clone(),
+				put: async (key: string, response: Response) => {
+					responses.set(key, response.clone());
+				},
+			}),
+		});
 		vi.stubGlobal('self', {
 			location: {
 				href: 'https://example.test/sw.js?experimental-shared-worker=1',
@@ -212,6 +221,82 @@ describe('direct shared runtime routing', () => {
 			first.port2.close();
 			second.port1.close();
 			second.port2.close();
+		}
+	});
+	// Contract: documents keep their runtime identity when the ServiceWorker is replaced.
+	// Independent regression path: worker activation clears all module-level maps.
+	it('rejects an old document before forwarding PHP after a ServiceWorker restart', async () => {
+		const first = new MessageChannel();
+		const second = new MessageChannel();
+		const requestsToReplacement = vi.fn();
+		try {
+			first.port2.on('message', (data) =>
+				first.port2.postMessage(
+					responseTo(data.requestId, { httpStatusCode: 200 })
+				)
+			);
+			second.port2.on('message', (data) => {
+				requestsToReplacement();
+				second.port2.postMessage(
+					responseTo(data.requestId, { httpStatusCode: 200 })
+				);
+			});
+			const original = await import('./shared-runtime-service-worker');
+			original.registerSharedRuntime({
+				data: {
+					type: 'register-shared-runtime',
+					scope: 'site',
+					runtimeId: 'old',
+				},
+				ports: [first.port1],
+			} as unknown as ExtendableMessageEvent);
+			await original.sendSharedRuntimeRequest(
+				{ method: 'request', args: [] },
+				'site',
+				{
+					clientId: 'old-host',
+					resultingClientId: 'old-document',
+				}
+			);
+
+			vi.resetModules();
+			const replacement = await import('./shared-runtime-service-worker');
+			replacement.registerSharedRuntime({
+				data: {
+					type: 'register-shared-runtime',
+					scope: 'site',
+					runtimeId: 'new',
+				},
+				ports: [second.port1],
+			} as unknown as ExtendableMessageEvent);
+			const oldRequest = await replacement.sendSharedRuntimeRequest(
+				{ method: 'request', args: [] },
+				'site',
+				{
+					clientId: 'old-document',
+					resultingClientId: 'would-be-next-document',
+				}
+			);
+			expect(oldRequest.httpStatusCode).toBe(503);
+			expect(oldRequest.headers['x-playground-reload-required']).toEqual([
+				'1',
+			]);
+			expect(requestsToReplacement).not.toHaveBeenCalled();
+			const newRequest = await replacement.sendSharedRuntimeRequest(
+				{ method: 'request', args: [] },
+				'site',
+				{
+					clientId: 'new-host',
+					resultingClientId: 'new-document',
+				}
+			);
+			expect(newRequest.httpStatusCode).toBe(200);
+			expect(requestsToReplacement).toHaveBeenCalledOnce();
+		} finally {
+			for (const channel of [first, second]) {
+				channel.port1.close();
+				channel.port2.close();
+			}
 		}
 	});
 });

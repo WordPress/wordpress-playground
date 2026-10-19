@@ -54,6 +54,7 @@ import {
 import { normalizeVerificationCode } from '@wp-playground/remote-access';
 import { logPersonalWpEvent } from '../../../lib/personalwp/usage-stats';
 import { SupportedPHPVersions } from '@php-wasm/universal';
+import { buildVersion } from '../../../lib/config';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -710,6 +711,10 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 			<BackupSection />
 			<RemoteAccessSection />
 			<RecoverySection />
+			<p className={css.aboutNote}>
+				Build{' '}
+				<code title={buildVersion}>{buildVersion.slice(0, 12)}</code>
+			</p>
 		</div>
 	);
 }

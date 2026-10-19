@@ -271,6 +271,19 @@ export function bootSiteClient(
 			reportBootProgress(100, 'WordPress runtime is ready');
 			onReady?.();
 		});
+		const onRuntimeStartupProgress = (event: MessageEvent) => {
+			if (
+				event.origin !== window.location.origin ||
+				event.source !== iframe.contentWindow ||
+				event.data?.type !== 'playground-runtime-startup-progress' ||
+				typeof event.data.caption !== 'string'
+			)
+				return;
+			progressTracker.setCaption(event.data.caption);
+		};
+		window.addEventListener('message', onRuntimeStartupProgress, {
+			signal,
+		});
 		try {
 			reportBootProgress(20, 'Starting Playground runtime');
 			await startPlaygroundWeb({
@@ -356,6 +369,7 @@ export function bootSiteClient(
 			}
 		}
 
+		window.removeEventListener('message', onRuntimeStartupProgress);
 		if (signal.aborted || !playground) {
 			return;
 		}

@@ -417,7 +417,10 @@ self.addEventListener('fetch', (event) => {
 	if (
 		url.pathname === '/remote.html' ||
 		url.pathname === '/api.html' ||
-		url.pathname === '/'
+		url.pathname === '/' ||
+		// Personal WP serves its app shell at reflected routes such as /my-apps/.
+		// Cached HTML at those routes can otherwise boot an old build in a new tab.
+		(sharedMode && event.request.mode === 'navigate')
 	) {
 		event.respondWith(networkFirstFetch(event.request));
 		return;

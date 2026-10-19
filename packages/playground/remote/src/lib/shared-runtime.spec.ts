@@ -125,14 +125,14 @@ describe('SharedRuntime', () => {
 		}
 	});
 
-	it('rejects new operations while draining PHP, then flushes before disposal', async () => {
+	it('shares concurrent retirement while draining PHP, then flushes before disposal', async () => {
 		let complete!: () => void;
 		const exitCode = new Promise<void>((resolve) => {
 			complete = resolve;
 		});
 		vi.mocked(endpoint.run).mockResolvedValue({ exitCode } as any);
 		await runtime.api().run({ code: '<?php' });
-		const retirement = runtime.retire();
+		const retirement = Promise.all([runtime.retire(), runtime.retire()]);
 		await expect(runtime.api().run({ code: '<?php' })).rejects.toThrow(
 			RELOAD_REQUIRED
 		);

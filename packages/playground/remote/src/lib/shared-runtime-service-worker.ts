@@ -1,5 +1,6 @@
 /// <reference lib="WebWorker" />
 import { awaitReply, getNextRequestId } from '@php-wasm/web-service-worker';
+import { logger } from '@php-wasm/logger';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -17,6 +18,8 @@ const connections = new Map<string, Connection>();
 const clientRuntimes = new Map<string, Map<string, string>>();
 const pending = new Map<string, Promise<boolean>>();
 const registrationWaiters = new Map<string, () => void>();
+// Separate from release asset caches: live documents outlast ServiceWorker deployments.
+const CLIENT_RUNTIME_CACHE = 'personal-wp-client-runtimes';
 
 export function registerSharedRuntime(event: ExtendableMessageEvent) {
 	if (event.data?.type !== 'register-shared-runtime') return;
@@ -36,15 +39,31 @@ export function registerSharedRuntime(event: ExtendableMessageEvent) {
 		pendingRequests: 0,
 	};
 	connections.set(scope, connection);
+	traceSharedRuntime('[Shared runtime] Service worker registered runtime', {
+		scope,
+		runtimeId: connection.runtimeId,
+		build: connection.buildVersion,
+		retired: connection.retired,
+		previousRuntimeId: previous?.runtimeId,
+	});
 	registrationWaiters.get(scope)?.();
 	if (port) {
 		port.addEventListener('message', ({ data }) => {
+			if (
+				data?.type === 'shared-runtime-retired' ||
+				data?.type === RUNTIME_CLOSED
+			) {
+				traceSharedRuntime(
+					'[Shared runtime] Service worker received worker message',
+					{
+						type: data.type,
+						scope,
+						runtimeId: connection.runtimeId,
+					}
+				);
+			}
 			if (data?.type === 'shared-runtime-retired') {
 				connection.retired = true;
-				void rememberRetiredClients(
-					scope,
-					connection.runtimeId ?? connection.buildVersion
-				);
 			} else if (data?.type === RUNTIME_CLOSED) connection.closed = true;
 		});
 		port.start();
@@ -110,7 +129,17 @@ export async function sendSharedRuntimeRequest(
 	requestClient?: Pick<FetchEvent, 'clientId' | 'resultingClientId'>
 ) {
 	const connection = connections.get(scope);
-	if (connection?.retired) return reloadResponse(!!connection?.closed);
+	if (connection?.retired) {
+		traceSharedRuntime(
+			'[Shared runtime] Service worker rejected request: runtime retired',
+			{
+				scope,
+				runtimeId: connection.runtimeId,
+				clientId: requestClient?.clientId,
+			}
+		);
+		return reloadResponse(!!connection.closed);
+	}
 	if (!connection?.port) {
 		// Discovery can time out while a document is busy. Do not latch its reload UI.
 		return {
@@ -126,14 +155,32 @@ export async function sendSharedRuntimeRequest(
 	}
 	const generation = connection.runtimeId ?? connection.buildVersion;
 	if (requestClient && generation) {
-		const versions = clientRuntimes.get(scope) ?? new Map<string, string>();
-		clientRuntimes.set(scope, versions);
-		const previous = versions.get(requestClient.clientId);
+		const previous = await readClientRuntime(scope, requestClient.clientId);
+		traceSharedRuntime('[Shared runtime] Service worker routing request', {
+			scope,
+			method: message.method,
+			clientId: requestClient.clientId,
+			resultingClientId: requestClient.resultingClientId,
+			documentRuntimeId: previous,
+			targetRuntimeId: generation,
+			decision:
+				previous && previous !== generation
+					? 'reject stale document'
+					: 'forward to runtime',
+		});
 		if (previous && previous !== generation) return reloadResponse(true);
 		if (requestClient.clientId)
-			versions.set(requestClient.clientId, generation);
+			await rememberClientRuntime(
+				scope,
+				requestClient.clientId,
+				generation
+			);
 		if (requestClient.resultingClientId)
-			versions.set(requestClient.resultingClientId, generation);
+			await rememberClientRuntime(
+				scope,
+				requestClient.resultingClientId,
+				generation
+			);
 	}
 	if (message.method === 'getWordPressModuleDetails') {
 		connection.moduleDetails ??= sendConnectionRequest(
@@ -170,16 +217,33 @@ async function sendConnectionRequest(
 	}
 }
 
-async function rememberRetiredClients(scope: string, version?: string) {
-	if (!version) return;
+async function readClientRuntime(scope: string, clientId: string) {
+	if (!clientId) return undefined;
+	const remembered = clientRuntimes.get(scope)?.get(clientId);
+	if (remembered) return remembered;
+	const cache = await caches.open(CLIENT_RUNTIME_CACHE);
+	const response = await cache.match(clientRuntimeKey(scope, clientId));
+	return response ? response.text() : undefined;
+}
+
+async function rememberClientRuntime(
+	scope: string,
+	clientId: string,
+	runtimeId: string
+) {
 	const versions = clientRuntimes.get(scope) ?? new Map<string, string>();
 	clientRuntimes.set(scope, versions);
-	for (const client of await self.clients.matchAll({
-		includeUncontrolled: true,
-		type: 'window',
-	})) {
-		if (!versions.has(client.id)) versions.set(client.id, version);
-	}
+	if (versions.get(clientId) === runtimeId) return;
+	const cache = await caches.open(CLIENT_RUNTIME_CACHE);
+	await cache.put(clientRuntimeKey(scope, clientId), new Response(runtimeId));
+	versions.set(clientId, runtimeId);
+}
+
+function clientRuntimeKey(scope: string, clientId: string) {
+	const url = new URL('/personal-wp-client-runtime', self.location.href);
+	url.searchParams.set('scope', scope);
+	url.searchParams.set('client', clientId);
+	return url.href;
 }
 
 function reloadResponse(ready = false) {
@@ -195,4 +259,24 @@ function reloadResponse(ready = false) {
 			.encode(`<!doctype html><p>A new version is available. Reload this tab to continue.</p>
 <script>parent.postMessage({type:'${RELOAD_REQUIRED}',ready:${ready}}, location.origin)</script>`),
 	};
+}
+
+/** Mirror routing diagnostics into page consoles so worker inspection is unnecessary. */
+function traceSharedRuntime(message: string, details: Record<string, unknown>) {
+	logger.info(message, details);
+	void Promise.resolve()
+		.then(async () => {
+			const clients = await self.clients.matchAll({
+				type: 'window',
+				includeUncontrolled: true,
+			});
+			for (const client of clients)
+				client.postMessage({
+					type: 'playground-shared-runtime-diagnostic',
+					message,
+					details,
+					serviceWorkerUrl: self.location.href,
+				});
+		})
+		.catch(() => {});
 }
