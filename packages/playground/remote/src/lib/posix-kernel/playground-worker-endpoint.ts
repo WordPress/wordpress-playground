@@ -922,11 +922,13 @@ export class KernelPlaygroundWorkerEndpoint {
 			logger.debug(
 				'[posix-kernel] driving WordPress installer if needed'
 			);
-			await ensureWordPressInstalled(
+			const installed = await ensureWordPressInstalled(
 				this.kernel.sendRequest,
 				this.absoluteUrl
 			);
-			await defaultToPrettyPermalinks(api);
+			if (installed) {
+				await defaultToPrettyPermalinks(api);
+			}
 		} else {
 			logger.debug(
 				'[posix-kernel] skipping WordPress install drive ' +
@@ -1122,6 +1124,9 @@ async function fetchArrayBuffer(
  *   2. POST the install form to `/wp-admin/install.php?step=2`.
  *   3. Confirm the success marker appears in the response body.
  *
+ * Returns `true` only when it installed WordPress, so callers can skip
+ * install-time defaults on a site that already has its own settings.
+ *
  * Implementing this here (rather than after `kernelWorkerApi.boot()`
  * returns on the iframe side) keeps WordPress install latency inside
  * the `boot()` promise the iframe is already awaiting.
@@ -1129,7 +1134,7 @@ async function fetchArrayBuffer(
 async function ensureWordPressInstalled(
 	send: (req: HttpRequest) => Promise<HttpResponse>,
 	absoluteUrl: string
-): Promise<void> {
+): Promise<boolean> {
 	// Same header `requestStreamed` injects on every browser-side
 	// request. Passing it on the install POST means WordPress records
 	// the scoped site URL in `wp_options.home` / `wp_options.siteurl`
@@ -1153,7 +1158,7 @@ async function ensureWordPressInstalled(
 	const installRequired =
 		probe.status === 302 && location.includes('install.php');
 	if (!installRequired) {
-		return;
+		return false;
 	}
 
 	const formBody = new URLSearchParams({
@@ -1193,6 +1198,7 @@ async function ensureWordPressInstalled(
 			`WordPress installer did not report success: ${html.slice(0, 1000)}`
 		);
 	}
+	return true;
 }
 
 /**
