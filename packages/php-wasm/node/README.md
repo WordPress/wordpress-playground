@@ -76,3 +76,22 @@ options still work, but new code should use `extensions`.
 ## Attribution
 
 `@php-wasm/node` started as a fork of the original PHP to WebAssembly build published by Oraoto in https://github.com/oraoto/pib and modified by Sean Morris in https://github.com/seanmorris/php-wasm.
+
+## File locking without native binaries
+
+`fs-ext-extra-prebuilt` is optional and accepts patch updates so fresh installs
+can pick up newly published binaries. If its native addon cannot load, PHP uses
+JavaScript locks. CLI workers share one lock manager, including blocking lock
+requests. A blocking request waits in the requesting worker; the shared manager
+continues serving lock and unlock requests from other workers.
+
+These locks only coordinate runtimes using the same manager. They do not lock
+against separate CLI runs, native PHP, SQLite tools, or other host programs.
+Use private site files in this mode. Keep the native addon available when other
+programs may access the same writable files. Playground logs a warning when it
+falls back.
+
+As with native synchronous locks, do not wait for a conflicting lock held by
+another runtime on the same JS thread: that thread cannot release the lock while
+it is blocked. Put concurrently running PHP instances in separate workers and
+pass them the same shared lock manager.

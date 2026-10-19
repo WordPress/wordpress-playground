@@ -234,6 +234,12 @@ adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
 Use screenshots and manual interaction for visual-only changes. Tests are not
 required for every PR. Never add tests simply to make a PR appear complete.
 
+CI tests the Node file-lock fallback on Node 24 and the current Node release.
+It builds the published Node package, checks that the native addon is optional,
+and runs PHP/SQLite, CLI multi-worker, and worker-wait tests with that addon moved
+out of resolution.
+The addon is restored before the shared dependency cache is saved.
+
 ### Package Structure
 
 All published packages follow this pattern:
