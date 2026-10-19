@@ -79,6 +79,9 @@ import REPORT_URL_TO_PARENT_MU_PLUGIN from './wp-templates/report-url-to-parent.
  */
 const VFS_MAX_BYTES = 1024 * 1024 * 1024;
 
+const SHIPPED_DATABASE_PATH =
+	/^wp-content\/database\/\.ht\.[^/]+\/\.ht\.sqlite$/;
+
 export interface BuildVfsImageOptions {
 	/**
 	 * WordPress core zip + SQLite drop-in zip. Both omitted for PHP-only
@@ -211,12 +214,21 @@ export async function buildVfsImage(
 		);
 
 		onStatus('Extracting WordPress core into VFS');
+		let shippedDatabase: Uint8Array | undefined;
 		await extractArchiveIntoVfs(fs, '/var/www/html', options.wpZipBytes, {
 			stripLeadingDir: options.wpZipStripLeadingDir,
 			// Drop the archive's own `wp-config.php` (the bundled
 			// `wp-X.Y.zip` ships a sample with `DB_HOST=localhost` that
 			// would clobber the kernel-tailored config written above).
 			exclude: (rel) => rel.endsWith('.db') || rel === 'wp-config.php',
+			// `wordpress-builds` ships an installed database next to its
+			// `db-path.php`. Classic mode boots from it; seeding it here
+			// skips the installer the same way.
+			onEntry: (rel, bytes) => {
+				if (SHIPPED_DATABASE_PATH.test(rel)) {
+					shippedDatabase = bytes;
+				}
+			},
 		});
 
 		if (options.wpStaticZipBytes) {
@@ -273,11 +285,12 @@ export async function buildVfsImage(
 		// pages but silently fails writes — `wp_set_auth_cookie` can't persist
 		// its token, so auto-login bounces to `wp-login.php?...reauth=1`. The
 		// DB dir is already 0o777 for the same reason; the file must match.
-		if (options.preinstalledDatabase) {
+		const database = options.preinstalledDatabase ?? shippedDatabase;
+		if (database) {
 			writeVfsBinary(
 				fs,
 				'/var/www/html/wp-content/database/wordpress.db',
-				options.preinstalledDatabase,
+				database,
 				0o666
 			);
 		}
