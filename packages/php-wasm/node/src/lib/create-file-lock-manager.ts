@@ -12,7 +12,7 @@ import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 // Runtimes in the same JS thread must share locks even without a caller-supplied
 // manager. CLI workers instead receive a proxy to their parent's shared manager.
 const localLocks = new FileLockManagerInMemory();
-let warnedAboutNativeLocks = false;
+let loggedNativeLockFallback = false;
 
 export function createFileLockManager(
 	sharedLocks?: FileLockManager
@@ -43,9 +43,9 @@ export function createFileLockManager(
 		) {
 			throw error;
 		}
-		if (!warnedAboutNativeLocks) {
-			warnedAboutNativeLocks = true;
-			logger.warn(
+		if (!loggedNativeLockFallback) {
+			loggedNativeLockFallback = true;
+			logger.debug(
 				'Native file locking is unavailable. Using JavaScript locks for participating ' +
 					'Playground runtimes only. Do not share their database or writable files ' +
 					'with other programs or separate CLI runs.',

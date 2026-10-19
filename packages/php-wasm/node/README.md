@@ -97,8 +97,8 @@ mode. File-handle identities are retained for cleanup after close or unlink.
 These locks only coordinate runtimes using the same manager. They do not lock
 against separate CLI runs, native PHP, SQLite tools, or other host programs.
 Use private site files in this mode. Keep the native addon available when other
-programs may access the same writable files. Playground logs a warning when it
-falls back.
+programs may access the same writable files. The fallback is silent by default.
+Native-loading details are logged at debug level.
 
 As with native synchronous locks, do not wait for a conflicting lock held by
 another runtime on the same JS thread: that thread cannot release the lock while

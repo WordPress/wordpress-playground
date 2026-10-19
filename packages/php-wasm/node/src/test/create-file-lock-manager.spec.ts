@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 import {
 	FileLockManagerComposite,
 	FileLockManagerInMemory,
@@ -20,7 +21,9 @@ import { createFileLockManager } from '../lib/create-file-lock-manager';
 import { loadFsExt } from '../lib/load-fs-ext';
 
 vi.mock('../lib/load-fs-ext', () => ({ loadFsExt: vi.fn() }));
-vi.mock('@php-wasm/logger', () => ({ logger: { warn: vi.fn() } }));
+vi.mock('@php-wasm/logger', () => ({
+	logger: { debug: vi.fn(), warn: vi.fn() },
+}));
 
 describe('file lock backend selection', () => {
 	let dir: string;
@@ -78,6 +81,7 @@ describe('file lock backend selection', () => {
 			const shared = new FileLockManagerInMemory();
 			const first = createFileLockManager(shared);
 			const second = createFileLockManager(shared);
+			expect(logger.warn).not.toHaveBeenCalled();
 			const op = {
 				pid: 1,
 				fd: firstFd,
