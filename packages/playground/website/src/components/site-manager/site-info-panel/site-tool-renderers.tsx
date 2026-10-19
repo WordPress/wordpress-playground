@@ -13,6 +13,7 @@ import {
 import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { PaneLoading } from '../../pane-loading';
+import { usePosixKernelAvailability } from '../../posix-kernel/use-posix-kernel-availability';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { SiteMailPanel } from '../site-mail-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
@@ -30,6 +31,12 @@ const SiteBlueprintBundleEditor = lazy(() =>
 
 const SiteTerminalPanel = lazy(() =>
 	import('../site-terminal-panel').then((m) => ({
+		default: m.SiteTerminalPanel,
+	}))
+);
+
+const KernelTerminalPanel = lazy(() =>
+	import('../../posix-kernel/site-terminal-panel').then((m) => ({
 		default: m.SiteTerminalPanel,
 	}))
 );
@@ -173,10 +180,21 @@ export function DatabaseTool({ playground }: SiteToolPanelProps): JSX.Element {
 	);
 }
 
-export function TerminalTool({ playground }: SiteToolPanelProps): JSX.Element {
+export function TerminalTool({
+	playground,
+	isVisible,
+}: SiteToolPanelProps): JSX.Element {
+	const posixKernelAvailable = usePosixKernelAvailability(playground);
 	return (
 		<Suspense fallback={<PaneLoading message="Loading Terminal…" />}>
-			<SiteTerminalPanel playground={playground} />
+			{posixKernelAvailable ? (
+				<KernelTerminalPanel
+					playground={playground}
+					isVisible={isVisible}
+				/>
+			) : (
+				<SiteTerminalPanel playground={playground} />
+			)}
 		</Suspense>
 	);
 }

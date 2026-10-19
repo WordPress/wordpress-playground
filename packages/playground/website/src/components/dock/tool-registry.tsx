@@ -32,6 +32,8 @@ type DockToolDefinition = {
 	isPrimary?: boolean;
 	title: string;
 	description: string;
+	/** Replaces `description` when the Playground runs on the kandelo kernel. */
+	posixKernelDescription?: string;
 	layout: 'default' | 'compact' | 'editor' | 'wide';
 	fixedHeight?: boolean;
 	Panel?: ComponentType<SiteToolPanelProps>;
@@ -119,6 +121,7 @@ const definitions = [
 		group: 'developer',
 		title: 'Terminal',
 		description: 'Run PHP snippets or WP-CLI commands in this Playground.',
+		posixKernelDescription: 'Run shell commands inside this Playground.',
 		layout: 'wide',
 		Panel: TerminalTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
