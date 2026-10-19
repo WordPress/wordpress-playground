@@ -3,6 +3,8 @@ import { isDevServer } from './dev-server';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
+const BLUEPRINTS_INDEX_URL =
+	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json';
 const CACHE_NAME_PREFIX = 'playground-cache';
 const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
@@ -101,6 +103,38 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 	}
 
 	return response;
+}
+
+/** Fetch the directory index without serving upstream HTML or headers on the app origin. */
+export async function fetchBlueprintsIndex(): Promise<Response> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	let jsonResponse: Response;
+	try {
+		const response = await fetchFresh(BLUEPRINTS_INDEX_URL, {
+			credentials: 'omit',
+		});
+		if (!response.ok) {
+			throw new Error('Unable to fetch the Blueprints directory index.');
+		}
+		jsonResponse = Response.json(await response.json(), {
+			headers: { 'X-Content-Type-Options': 'nosniff' },
+		});
+	} catch {
+		const cachedResponse =
+			await offlineModeCache.match(BLUEPRINTS_INDEX_URL);
+		return (
+			cachedResponse ??
+			new Response('Blueprints directory index unavailable.', {
+				status: 502,
+			})
+		);
+	}
+
+	// Keep only valid JSON for offline use. A full cache must not hide a fresh index.
+	await offlineModeCache
+		.put(BLUEPRINTS_INDEX_URL, jsonResponse.clone())
+		.catch(() => {});
+	return jsonResponse;
 }
 
 /**

@@ -492,7 +492,7 @@ export function SavedPlaygroundsPanel({
 		isLoading: blueprintsLoading,
 		isError: blueprintsError,
 	} = useFetch<Record<string, BlueprintsIndexEntry>>(
-		'/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json'
+		'/blueprints-index.json'
 	);
 
 	const allBlueprints: BlueprintsIndexEntry[] = [
