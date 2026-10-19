@@ -84,6 +84,9 @@ can pick up newly published binaries. If its native addon cannot load, PHP uses
 JavaScript locks. CLI workers share one lock manager, including blocking lock
 requests. A blocking request waits in the requesting worker; the shared manager
 continues serving lock and unlock requests from other workers.
+If a shared-to-exclusive whole-file upgrade must wait, it drops that handle's
+shared lock first so two upgrading readers cannot keep each other blocked.
+A failed nonblocking upgrade keeps its shared lock.
 
 The fallback identifies files by their device and inode numbers, not their
 paths. Hard links share locks, and replacing a file at the same path does not

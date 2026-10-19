@@ -63,12 +63,24 @@ export function createFileLockManager(
 			if (op.type === 'unlock') {
 				return locks.lockWholeFile(fileId, op);
 			}
-			while (
-				!locks.lockWholeFile(fileId, { ...op, waitForLock: false })
-			) {
-				if (!op.waitForLock) {
-					return false;
-				}
+			const nonblockingOp = { ...op, waitForLock: false };
+			if (locks.lockWholeFile(fileId, nonblockingOp)) {
+				return true;
+			}
+			if (!op.waitForLock) {
+				return false;
+			}
+			if (op.type === 'exclusive') {
+				// A blocked upgrade must drop this handle's shared lock, or two
+				// readers upgrading together would keep each other blocked forever.
+				// Other handles' locks stay intact.
+				locks.lockWholeFile(fileId, {
+					pid: op.pid,
+					fd: op.fd,
+					type: 'unlock',
+				});
+			}
+			while (!locks.lockWholeFile(fileId, nonblockingOp)) {
 				// Sleep in the requesting worker, never in the shared lock manager.
 				// Its thread must stay free to process another worker's unlock request.
 				Atomics.wait(sleep, 0, 0, 10);

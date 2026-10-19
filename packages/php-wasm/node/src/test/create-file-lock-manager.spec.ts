@@ -9,7 +9,7 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { joinPaths, toPosixPath } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import {
 	FileLockManagerComposite,
 	FileLockManagerInMemory,
@@ -30,9 +30,7 @@ describe('file lock backend selection', () => {
 	let secondFd: number;
 	let openFds: Set<number>;
 	beforeEach(() => {
-		dir = mkdtempSync(
-			joinPaths(toPosixPath(tmpdir()), 'php-lock-backend-')
-		);
+		dir = mkdtempSync(joinPaths(tmpdir(), 'php-lock-backend-'));
 		path = joinPaths(dir, 'file');
 		alias = joinPaths(dir, 'alias');
 		writeFileSync(path, '');
@@ -232,6 +230,63 @@ describe('file lock backend selection', () => {
 		});
 		expect(result.exitCode).toBe(0);
 		expect(JSON.parse(result.text)).toEqual([true, false, false, true]);
+	});
+
+	it('keeps the shared lock when a nonblocking exclusive upgrade fails', () => {
+		vi.mocked(loadFsExt).mockImplementation(() => {
+			throw Object.assign(new Error('Native ABI mismatch'), {
+				code: 'ERR_DLOPEN_FAILED',
+			});
+		});
+		const shared = new FileLockManagerInMemory();
+		const first = createFileLockManager(shared);
+		const second = createFileLockManager(shared);
+		const op = {
+			pid: 1,
+			fd: firstFd,
+			type: 'shared' as const,
+			waitForLock: false,
+		};
+		expect(first.lockWholeFile(path, op)).toBe(true);
+		expect(
+			second.lockWholeFile(alias, { ...op, pid: 2, fd: secondFd })
+		).toBe(true);
+		expect(first.lockWholeFile(path, { ...op, type: 'exclusive' })).toBe(
+			false
+		);
+		second.releaseLocksForProcess(2);
+		expect(
+			second.lockWholeFile(alias, {
+				...op,
+				pid: 2,
+				fd: secondFd,
+				type: 'exclusive',
+			})
+		).toBe(false);
+		first.releaseLocksForProcess(1);
+	});
+
+	it('does not drop an exclusive lock when the same handle requests it again', () => {
+		vi.mocked(loadFsExt).mockImplementation(() => {
+			throw Object.assign(new Error('Native ABI mismatch'), {
+				code: 'ERR_DLOPEN_FAILED',
+			});
+		});
+		const shared = new FileLockManagerInMemory();
+		const locks = createFileLockManager(shared);
+		const op = {
+			pid: 1,
+			fd: firstFd,
+			type: 'exclusive' as const,
+			waitForLock: true,
+		};
+		expect(locks.lockWholeFile(path, op)).toBe(true);
+		const spy = vi.spyOn(shared, 'lockWholeFile');
+		expect(locks.lockWholeFile(path, op)).toBe(true);
+		expect(
+			spy.mock.calls.some(([, request]) => request.type === 'unlock')
+		).toBe(false);
+		locks.releaseLocksForProcess(1);
 	});
 
 	it('does not hide unrelated errors', () => {
