@@ -1,8 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+	closeSync,
+	linkSync,
+	mkdtempSync,
+	openSync,
+	renameSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { joinPaths, toPosixPath } from '@php-wasm/util';
+import {
 	FileLockManagerComposite,
 	FileLockManagerInMemory,
+	PHP,
 } from '@php-wasm/universal';
+import { createNodeFsMountHandler, loadNodeRuntime } from '../lib';
 import { createFileLockManager } from '../lib/create-file-lock-manager';
 import { loadFsExt } from '../lib/load-fs-ext';
 
@@ -10,10 +23,34 @@ vi.mock('../lib/load-fs-ext', () => ({ loadFsExt: vi.fn() }));
 vi.mock('@php-wasm/logger', () => ({ logger: { warn: vi.fn() } }));
 
 describe('file lock backend selection', () => {
+	let dir: string;
+	let path: string;
+	let alias: string;
+	let firstFd: number;
+	let secondFd: number;
+	let openFds: Set<number>;
+	beforeEach(() => {
+		dir = mkdtempSync(
+			joinPaths(toPosixPath(tmpdir()), 'php-lock-backend-')
+		);
+		path = joinPaths(dir, 'file');
+		alias = joinPaths(dir, 'alias');
+		writeFileSync(path, '');
+		linkSync(path, alias);
+		firstFd = openSync(path, 'r+');
+		secondFd = openSync(alias, 'r+');
+		openFds = new Set([firstFd, secondFd]);
+	});
 	beforeEach(() =>
 		vi.mocked(loadFsExt).mockReturnValue({} as ReturnType<typeof loadFsExt>)
 	);
-	afterEach(() => vi.resetAllMocks());
+	afterEach(() => {
+		for (const fd of openFds) {
+			closeSync(fd);
+		}
+		rmSync(dir, { recursive: true, force: true });
+		vi.resetAllMocks();
+	});
 
 	it('keeps the native and caller-supplied managers when the addon loads', () => {
 		const shared = new FileLockManagerInMemory();
@@ -45,48 +82,157 @@ describe('file lock backend selection', () => {
 			const second = createFileLockManager(shared);
 			const op = {
 				pid: 1,
-				fd: 1,
+				fd: firstFd,
 				type: 'exclusive' as const,
 				waitForLock: false,
 			};
-			expect(first.lockWholeFile('/file', op)).toBe(true);
+			expect(first.lockWholeFile(path, op)).toBe(true);
 			expect(
-				second.lockWholeFile('/file', { ...op, pid: 2, fd: 2 })
+				second.lockWholeFile(path, { ...op, pid: 2, fd: secondFd })
 			).toBe(false);
-			first.releaseLocksOnFdClose(1, 1, '/file');
+			first.releaseLocksOnFdClose(1, firstFd, path);
 			expect(
-				second.lockWholeFile('/file', { ...op, pid: 2, fd: 2 })
+				second.lockWholeFile(path, { ...op, pid: 2, fd: secondFd })
 			).toBe(true);
 			second.releaseLocksForProcess(2);
 
 			const range = {
 				pid: 1,
-				fd: 1,
+				fd: firstFd,
 				type: 'exclusive' as const,
 				start: 0n,
 				end: 0n,
 			};
-			expect(first.lockFileByteRange('/file', range, false)).toBe(true);
+			expect(first.lockFileByteRange(path, range, false)).toBe(true);
 			expect(
 				second.lockFileByteRange(
-					'/file',
-					{ ...range, pid: 2, start: 100n, end: 200n },
+					path,
+					{ ...range, pid: 2, fd: secondFd, start: 100n, end: 200n },
 					false
 				)
 			).toBe(false);
 			expect(
-				second.findFirstConflictingByteRangeLock('/file', {
+				second.findFirstConflictingByteRangeLock(path, {
 					...range,
 					pid: 2,
+					fd: secondFd,
 					end: 1n,
 				})
 			).toMatchObject({ pid: 1 });
 			first.releaseLocksForProcess(1);
 			expect(
-				second.lockFileByteRange('/file', { ...range, pid: 2 }, false)
+				second.lockFileByteRange(
+					path,
+					{ ...range, pid: 2, fd: secondFd },
+					false
+				)
 			).toBe(true);
 		}
 	);
+
+	it.each(['whole-file', 'byte-range'])(
+		'coordinates %s locks through hard links and releases them after close',
+		(kind) => {
+			vi.mocked(loadFsExt).mockImplementation(() => {
+				throw Object.assign(new Error('Native ABI mismatch'), {
+					code: 'ERR_DLOPEN_FAILED',
+				});
+			});
+			const shared = new FileLockManagerInMemory();
+			const first = createFileLockManager(shared);
+			const second = createFileLockManager(shared);
+			const op = {
+				pid: 1,
+				fd: firstFd,
+				type: 'exclusive' as const,
+				waitForLock: false,
+				start: 0n,
+				end: 1n,
+			};
+			const other = { ...op, pid: 2, fd: secondFd };
+			const lock = (
+				manager: typeof first,
+				name: string,
+				request: typeof op
+			) =>
+				kind === 'whole-file'
+					? manager.lockWholeFile(name, request)
+					: manager.lockFileByteRange(name, request, false);
+			expect(lock(first, path, op)).toBe(true);
+			expect(lock(second, alias, other)).toBe(false);
+			expect(
+				second.findFirstConflictingByteRangeLock(alias, other)
+			).toMatchObject({ type: 'exclusive' });
+			renameSync(path, joinPaths(dir, 'moved'));
+			closeSync(firstFd);
+			openFds.delete(firstFd);
+			first.releaseLocksOnFdClose(1, firstFd, path);
+			expect(lock(second, alias, other)).toBe(true);
+		}
+	);
+
+	it('does not apply the old file lock to a replacement at the same path', () => {
+		vi.mocked(loadFsExt).mockImplementation(() => {
+			throw Object.assign(new Error('Native ABI mismatch'), {
+				code: 'ERR_DLOPEN_FAILED',
+			});
+		});
+		const shared = new FileLockManagerInMemory();
+		const first = createFileLockManager(shared);
+		const second = createFileLockManager(shared);
+		const op = {
+			pid: 1,
+			fd: firstFd,
+			type: 'exclusive' as const,
+			waitForLock: false,
+		};
+		expect(first.lockWholeFile(path, op)).toBe(true);
+		renameSync(path, joinPaths(dir, 'moved'));
+		writeFileSync(path, '');
+		const replacementFd = openSync(path, 'r+');
+		openFds.add(replacementFd);
+		expect(
+			second.lockWholeFile(path, { ...op, pid: 2, fd: replacementFd })
+		).toBe(true);
+		expect(
+			second.lockWholeFile(alias, { ...op, pid: 2, fd: secondFd })
+		).toBe(false);
+		first.releaseLocksForProcess(1);
+		expect(
+			second.lockWholeFile(alias, { ...op, pid: 2, fd: secondFd })
+		).toBe(true);
+	});
+
+	it('preserves PHP flock protection across a rejected lock and a hard-link alias', async () => {
+		vi.mocked(loadFsExt).mockImplementation(() => {
+			throw Object.assign(new Error('Native ABI mismatch'), {
+				code: 'ERR_DLOPEN_FAILED',
+			});
+		});
+		using php = new PHP(
+			await loadNodeRuntime('8.3', {
+				fileLockManager: new FileLockManagerInMemory(),
+				emscriptenOptions: { processId: 1 },
+			})
+		);
+		php.mount('/test', createNodeFsMountHandler(dir));
+		const result = await php.run({
+			code: `<?php
+				$first = fopen('/test/file', 'r+');
+				$second = fopen('/test/file', 'r+');
+				$alias = fopen('/test/alias', 'r+');
+				$held = flock($first, LOCK_EX | LOCK_NB);
+				$shared = flock($second, LOCK_SH | LOCK_NB);
+				fclose($second);
+				$alias_while_locked = flock($alias, LOCK_EX | LOCK_NB);
+				flock($first, LOCK_UN);
+				$alias_after_unlock = flock($alias, LOCK_EX | LOCK_NB);
+				echo json_encode([$held, $shared, $alias_while_locked, $alias_after_unlock]);
+			`,
+		});
+		expect(result.exitCode).toBe(0);
+		expect(JSON.parse(result.text)).toEqual([true, false, false, true]);
+	});
 
 	it('does not hide unrelated errors', () => {
 		const error = new Error('Unexpected initialization error');

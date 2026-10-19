@@ -56,6 +56,9 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	/**
 	 * A file lock manager to coordinate file locks between
 	 * multiple php-wasm instances and other OS processes.
+	 * When native locking is unavailable, the Node adapter passes device/inode
+	 * keys instead of filesystem paths. The manager must treat those as opaque
+	 * lock keys so hard links to the same file share locks.
 	 */
 	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {

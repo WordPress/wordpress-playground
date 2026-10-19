@@ -4,6 +4,7 @@ import {
 	type FileLockManager,
 } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
+import { fstatSync } from 'node:fs';
 import { platform } from 'node:os';
 import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
 import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
@@ -55,12 +56,16 @@ export function createFileLockManager(
 
 	const locks = sharedLocks ?? localLocks;
 	const sleep = new Int32Array(new SharedArrayBuffer(4));
+	const fileIds = new Map<number, Map<number, string>>();
 	return {
-		lockWholeFile(path, op) {
+		lockWholeFile(_path, op) {
+			const fileId = getFileId(op.pid, op.fd);
 			if (op.type === 'unlock') {
-				return locks.lockWholeFile(path, op);
+				return locks.lockWholeFile(fileId, op);
 			}
-			while (!locks.lockWholeFile(path, { ...op, waitForLock: false })) {
+			while (
+				!locks.lockWholeFile(fileId, { ...op, waitForLock: false })
+			) {
 				if (!op.waitForLock) {
 					return false;
 				}
@@ -70,8 +75,9 @@ export function createFileLockManager(
 			}
 			return true;
 		},
-		lockFileByteRange(path, op, waitForLock) {
-			while (!locks.lockFileByteRange(path, op, false)) {
+		lockFileByteRange(_path, op, waitForLock) {
+			const fileId = getFileId(op.pid, op.fd);
+			while (!locks.lockFileByteRange(fileId, op, false)) {
 				if (!waitForLock) {
 					return false;
 				}
@@ -79,10 +85,38 @@ export function createFileLockManager(
 			}
 			return true;
 		},
-		findFirstConflictingByteRangeLock: (path, op) =>
-			locks.findFirstConflictingByteRangeLock(path, op),
-		releaseLocksOnFdClose: (pid, fd, path) =>
-			locks.releaseLocksOnFdClose(pid, fd, path),
-		releaseLocksForProcess: (pid) => locks.releaseLocksForProcess(pid),
+		findFirstConflictingByteRangeLock: (_path, op) =>
+			locks.findFirstConflictingByteRangeLock(
+				getFileId(op.pid, op.fd),
+				op
+			),
+		releaseLocksOnFdClose(pid, fd) {
+			const files = fileIds.get(pid);
+			const fileId = files?.get(fd);
+			if (files && fileId !== undefined) {
+				locks.releaseLocksOnFdClose(pid, fd, fileId);
+				files.delete(fd);
+				if (!files.size) {
+					fileIds.delete(pid);
+				}
+			}
+		},
+		releaseLocksForProcess(pid) {
+			locks.releaseLocksForProcess(pid);
+			fileIds.delete(pid);
+		},
 	};
+
+	function getFileId(pid: number, fd: number): string {
+		// Read the open file, not its path: hard links must share a key, while a
+		// replacement at the same path must not inherit the old file's locks.
+		const { dev, ino } = fstatSync(fd, { bigint: true });
+		const fileId = `inode:${dev}:${ino}`;
+		if (!fileIds.has(pid)) {
+			fileIds.set(pid, new Map());
+		}
+		// Close cleanup runs after the native fd closes, possibly after unlink.
+		fileIds.get(pid)!.set(fd, fileId);
+		return fileId;
+	}
 }

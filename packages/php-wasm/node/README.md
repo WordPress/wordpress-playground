@@ -85,6 +85,12 @@ JavaScript locks. CLI workers share one lock manager, including blocking lock
 requests. A blocking request waits in the requesting worker; the shared manager
 continues serving lock and unlock requests from other workers.
 
+The fallback identifies files by their device and inode numbers, not their
+paths. Hard links share locks, and replacing a file at the same path does not
+carry the old file's locks over to the replacement. A caller-supplied
+`fileLockManager` receives these opaque file keys in place of paths in fallback
+mode. File-handle identities are retained for cleanup after close or unlink.
+
 These locks only coordinate runtimes using the same manager. They do not lock
 against separate CLI runs, native PHP, SQLite tools, or other host programs.
 Use private site files in this mode. Keep the native addon available when other

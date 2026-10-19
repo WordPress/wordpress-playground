@@ -1,5 +1,14 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Worker, MessageChannel } from 'node:worker_threads';
+import {
+	closeSync,
+	mkdtempSync,
+	openSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { joinPaths, toPosixPath } from '@php-wasm/util';
 import {
 	FileLockManagerInMemory,
 	consumeAPI,
@@ -12,11 +21,25 @@ import type { TestWorkerAPI } from './file-lock-manager-test-utils';
 let worker: Worker | undefined;
 let api: RemoteAPI<TestWorkerAPI> | undefined;
 let channel: MessageChannel | undefined;
+let dir: string;
+let path: string;
+let firstFd: number;
+let secondFd: number;
+beforeEach(() => {
+	dir = mkdtempSync(joinPaths(toPosixPath(tmpdir()), 'php-lock-worker-'));
+	path = joinPaths(dir, 'file');
+	writeFileSync(path, '');
+	firstFd = openSync(path, 'r+');
+	secondFd = openSync(path, 'r+');
+});
 afterEach(async () => {
 	api?.[releaseApiProxy]();
 	await worker?.terminate();
 	channel?.port1.close();
 	channel?.port2.close();
+	closeSync(firstFd);
+	closeSync(secondFd);
+	rmSync(dir, { recursive: true, force: true });
 	vi.restoreAllMocks();
 });
 
@@ -47,13 +70,13 @@ it.each(['whole-file', 'byte-range'])(
 		const whole = {
 			type: 'exclusive' as const,
 			pid: 1,
-			fd: 1,
+			fd: firstFd,
 			waitForLock: false,
 		};
 		const range = {
 			type: 'exclusive' as const,
 			pid: 1,
-			fd: 1,
+			fd: firstFd,
 			start: 0n,
 			end: 1n,
 		};
@@ -62,23 +85,27 @@ it.each(['whole-file', 'byte-range'])(
 			kind === 'whole-file' ? 'lockWholeFile' : 'lockFileByteRange'
 		);
 		if (kind === 'whole-file') {
-			shared.lockWholeFile('/file', whole);
+			await api.lockWholeFile(path, whole);
 		} else {
-			shared.lockFileByteRange('/file', range);
+			await api.lockFileByteRange(
+				path,
+				{ ...range, start: 0, end: 1 },
+				false
+			);
 		}
 		spy.mockClear();
 		let completed = false;
 		const waiting = (
 			kind === 'whole-file'
-				? api.lockWholeFile('/file', {
+				? api.lockWholeFile(path, {
 						...whole,
 						pid: 2,
-						fd: 2,
+						fd: secondFd,
 						waitForLock: true,
 					})
 				: api.lockFileByteRange(
-						'/file',
-						{ ...range, start: 0, end: 1, pid: 2, fd: 2 },
+						path,
+						{ ...range, start: 0, end: 1, pid: 2, fd: secondFd },
 						true
 					)
 		).then((result) => {
