@@ -28,6 +28,19 @@ self.postMessage('worker-script-started');
 
 const downloadMonitor = new EmscriptenDownloadMonitor();
 
+/**
+ * Maps the WordPress version aliases accepted by `boot()` to the concrete
+ * builds they stand for.
+ *
+ * Resolving them up front keeps the alias out of `requestedWordPressVersion`,
+ * so the loaded-version check in `finalizeAfterBoot()` compares two build
+ * versions instead of an alias and a version.
+ */
+const wordPressVersionAliases = new Map<string, string>([
+	['latest', LatestMinifiedWordPressVersion],
+	['nightly', 'trunk'],
+]);
+
 class ArtifactExpiredError extends Error {
 	constructor(message = 'GitHub artifact expired') {
 		super(message);
@@ -117,7 +130,7 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 			});
 
 			this.requestedWordPressVersion =
-				wpVersion === 'nightly' ? 'trunk' : wpVersion;
+				wordPressVersionAliases.get(wpVersion) ?? wpVersion;
 			const isMinifiedVersion = MinifiedWordPressVersionsList.includes(
 				this.requestedWordPressVersion
 			);
@@ -173,9 +186,8 @@ class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint {
 				) {
 					// Non-minified release like "4.9", "6.8.0", or
 					// "7.0-RC1": download directly from wordpress.org.
-					// Sentinel values like "latest" fall through to the
-					// minified-bundle branch below and resolve to
-					// LatestMinifiedWordPressVersion.
+					// Aliases like "latest" were already resolved to a
+					// minified build above, so they never reach here.
 					const normalizedVersion = normalizeWordPressVersion(
 						this.requestedWordPressVersion!
 					);
