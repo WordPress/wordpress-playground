@@ -25,6 +25,16 @@ export function registerSharedRuntime(event: ExtendableMessageEvent) {
 	const scope = event.data.scope;
 	const port = event.ports[0];
 	const previous = connections.get(scope);
+	if (
+		event.data.retired &&
+		previous?.port &&
+		!previous.retired &&
+		previous.runtimeId !== event.data.runtimeId
+	) {
+		// A delayed retired tab must not replace a newer live connection.
+		registrationWaiters.get(scope)?.();
+		return;
+	}
 	if (previous) {
 		previous.superseded = true;
 		if (!previous.pendingRequests) previous.port?.close();
@@ -58,7 +68,7 @@ export async function hasSharedRuntime(scope: string): Promise<boolean> {
 		) !== '1'
 	)
 		return false;
-	if (connections.has(scope)) return true;
+	if (connections.has(scope) && !connections.get(scope)!.retired) return true;
 	if (pending.has(scope)) return pending.get(scope)!;
 	const promise = discoverSharedRuntime(scope);
 	pending.set(scope, promise);
@@ -74,29 +84,33 @@ async function discoverSharedRuntime(scope: string): Promise<boolean> {
 		includeUncontrolled: true,
 		type: 'window',
 	});
-	const remote = clients.find((client) => {
+	const remotes = clients.filter((client) => {
 		const url = new URL(client.url);
 		return (
 			url.searchParams.get('experimental-shared-worker') === '1' &&
 			url.searchParams.get('scope') === scope
 		);
 	});
-	if (!remote) return false;
-	const registered = new Promise<void>((resolve) => {
-		registrationWaiters.set(scope, resolve);
-	});
-	remote.postMessage({ type: 'connect-shared-runtime' });
-	let timeout: ReturnType<typeof setTimeout> | undefined;
-	try {
-		await Promise.race([
-			registered,
-			new Promise<void>((resolve) => {
-				timeout = setTimeout(resolve, 5000);
-			}),
-		]);
-	} finally {
-		clearTimeout(timeout);
-		registrationWaiters.delete(scope);
+	if (!remotes.length) return connections.has(scope);
+	for (const remote of remotes) {
+		const registered = new Promise<void>((resolve) => {
+			registrationWaiters.set(scope, resolve);
+		});
+		remote.postMessage({ type: 'connect-shared-runtime' });
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		try {
+			await Promise.race([
+				registered,
+				new Promise<void>((resolve) => {
+					timeout = setTimeout(resolve, 5000);
+				}),
+			]);
+		} finally {
+			clearTimeout(timeout);
+			registrationWaiters.delete(scope);
+		}
+		if (connections.get(scope)?.port && !connections.get(scope)!.retired)
+			return true;
 	}
 	// A shared document must never fall back to broadcasting PHP requests.
 	// Leave a timeout retryable, while still using the direct route for this request.
@@ -182,9 +196,14 @@ async function readClientRuntime(scope: string, clientId: string) {
 	if (!clientId) return undefined;
 	const remembered = clientRuntimes.get(scope)?.get(clientId);
 	if (remembered) return remembered;
-	const cache = await caches.open(CLIENT_RUNTIME_CACHE);
-	const response = await cache.match(clientRuntimeKey(scope, clientId));
-	return response ? response.text() : undefined;
+	try {
+		const cache = await caches.open(CLIENT_RUNTIME_CACHE);
+		const response = await cache.match(clientRuntimeKey(scope, clientId));
+		return response ? await response.text() : undefined;
+	} catch {
+		// Persistent tracking is optional; storage failures must not block PHP requests.
+		return undefined;
+	}
 }
 
 async function rememberClientRuntime(
@@ -195,9 +214,16 @@ async function rememberClientRuntime(
 	const versions = clientRuntimes.get(scope) ?? new Map<string, string>();
 	clientRuntimes.set(scope, versions);
 	if (versions.get(clientId) === runtimeId) return;
-	const cache = await caches.open(CLIENT_RUNTIME_CACHE);
-	await cache.put(clientRuntimeKey(scope, clientId), new Response(runtimeId));
 	versions.set(clientId, runtimeId);
+	try {
+		const cache = await caches.open(CLIENT_RUNTIME_CACHE);
+		await cache.put(
+			clientRuntimeKey(scope, clientId),
+			new Response(runtimeId)
+		);
+	} catch {
+		// Keep tracking in memory when persistence is unavailable.
+	}
 }
 
 function clientRuntimeKey(scope: string, clientId: string) {

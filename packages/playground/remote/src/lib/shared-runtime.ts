@@ -225,6 +225,8 @@ export class SharedRuntime {
 			(error) => {
 				for (const item of this.readiness) item.failed(error);
 				this.rejectInitialization(error);
+				// Close the failed runtime so another document can start a fresh worker.
+				void this.retire().catch(() => {});
 			}
 		);
 		await this.bootPromise;

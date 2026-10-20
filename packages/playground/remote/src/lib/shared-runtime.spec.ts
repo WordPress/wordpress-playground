@@ -260,4 +260,48 @@ describe('SharedRuntime', () => {
 		expect(endpoint[Symbol.asyncDispose]).toHaveBeenCalledTimes(1);
 		expect(close).toHaveBeenCalledTimes(1);
 	});
+	// A failed boot must release its worker even when the initializer tab stays open.
+	// Both lock acquisition and PHP startup can reject the shared boot promise.
+	it.each(['lock', 'boot'])(
+		'retires after %s failure without waiting for the initializer to disconnect',
+		async (failure) => {
+			if (failure === 'lock')
+				vi.mocked(navigator.locks.request).mockRejectedValueOnce(
+					new Error('startup failed')
+				);
+			else
+				vi.mocked(endpoint.boot).mockRejectedValueOnce(
+					new Error('startup failed')
+				);
+			const channel = new MessageChannel();
+			const failed = vi.fn();
+			const closed = new Promise<void>((resolve) =>
+				close.mockImplementation(resolve)
+			);
+			try {
+				const port = channel.port1 as unknown as globalThis.MessagePort;
+				runtime.connect(port, vi.fn(), failed);
+				const api = runtime.api(port) as PlaygroundWorkerEndpoint & {
+					beginSharedBoot(
+						options: WorkerBootOptions
+					): Promise<boolean>;
+				};
+				await expect(
+					api.beginSharedBoot({
+						scope: 'default',
+						withNetworking: true,
+					})
+				).rejects.toThrow('startup failed');
+				await closed;
+				expect(failed).toHaveBeenCalledOnce();
+				expect(endpoint[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+				await expect(api.run({ code: '<?php' })).rejects.toThrow(
+					RELOAD_REQUIRED
+				);
+			} finally {
+				channel.port1.close();
+				channel.port2.close();
+			}
+		}
+	);
 });

@@ -299,4 +299,149 @@ describe('direct shared runtime routing', () => {
 			}
 		}
 	});
+	// Contract: stale-tab announcements cannot hide the live owner, including rediscovery.
+	// Independent triggers: controllerchange and ServiceWorker eviction reorder registrations.
+	it('discovers a live tab after a retired tab and ignores later stale registrations', async () => {
+		const api = await import('./shared-runtime-service-worker');
+		const channel = new MessageChannel();
+		const retired = () =>
+			api.registerSharedRuntime({
+				data: {
+					type: 'register-shared-runtime',
+					scope: 'site',
+					runtimeId: 'old',
+					retired: true,
+					closed: true,
+				},
+				ports: [],
+			} as unknown as ExtendableMessageEvent);
+		const live = () =>
+			api.registerSharedRuntime({
+				data: {
+					type: 'register-shared-runtime',
+					scope: 'site',
+					runtimeId: 'live',
+				},
+				ports: [channel.port1],
+			} as unknown as ExtendableMessageEvent);
+		vi.stubGlobal('self', {
+			location: {
+				href: 'https://example.test/sw.js?experimental-shared-worker=1',
+			},
+			clients: {
+				matchAll: async () => [
+					{
+						url: 'https://example.test/remote.html?experimental-shared-worker=1&scope=site',
+						postMessage: retired,
+					},
+					{
+						url: 'https://example.test/remote.html?experimental-shared-worker=1&scope=site',
+						postMessage: live,
+					},
+				],
+			},
+		});
+		try {
+			channel.port2.on('message', (data) =>
+				channel.port2.postMessage(responseTo(data.requestId, 'served'))
+			);
+			expect(await api.hasSharedRuntime('site')).toBe(true);
+			expect(
+				await api.sendSharedRuntimeRequest(
+					{ method: 'request', args: [] },
+					'site'
+				)
+			).toBe('served');
+			retired();
+			expect(
+				await api.sendSharedRuntimeRequest(
+					{ method: 'request', args: [] },
+					'site'
+				)
+			).toBe('served');
+		} finally {
+			channel.port1.close();
+			channel.port2.close();
+		}
+	});
+
+	// Contract: optional persistence cannot block requests or erase in-memory ownership.
+	// Independent failures: CacheStorage opening, reading, and quota-limited writing.
+	it.each(['open', 'match', 'put'])(
+		'routes requests with failing cache.%s and retains stale-client protection',
+		async (failure) => {
+			const cache = {
+				match:
+					failure === 'match'
+						? vi
+								.fn()
+								.mockRejectedValue(
+									new Error('storage unavailable')
+								)
+						: vi.fn().mockResolvedValue(undefined),
+				put:
+					failure === 'put'
+						? vi.fn().mockRejectedValue(new Error('quota exceeded'))
+						: vi.fn().mockResolvedValue(undefined),
+			};
+			const open =
+				failure === 'open'
+					? vi
+							.fn()
+							.mockRejectedValue(new Error('storage unavailable'))
+					: vi.fn().mockResolvedValue(cache);
+			vi.stubGlobal('caches', { open });
+			const api = await import('./shared-runtime-service-worker');
+			const channel = new MessageChannel();
+			try {
+				channel.port2.on('message', (data) =>
+					channel.port2.postMessage(
+						responseTo(data.requestId, 'served')
+					)
+				);
+				api.registerSharedRuntime({
+					data: {
+						type: 'register-shared-runtime',
+						scope: 'site',
+						runtimeId: 'old',
+					},
+					ports: [channel.port1],
+				} as unknown as ExtendableMessageEvent);
+				const client = { clientId: 'document', resultingClientId: '' };
+				expect(
+					await api.sendSharedRuntimeRequest(
+						{ method: 'request', args: [] },
+						'site',
+						client
+					)
+				).toBe('served');
+				const attempts = open.mock.calls.length;
+				expect(
+					await api.sendSharedRuntimeRequest(
+						{ method: 'request', args: [] },
+						'site',
+						client
+					)
+				).toBe('served');
+				expect(open).toHaveBeenCalledTimes(attempts);
+				api.registerSharedRuntime({
+					data: {
+						type: 'register-shared-runtime',
+						scope: 'site',
+						runtimeId: 'new',
+					},
+					ports: [channel.port1],
+				} as unknown as ExtendableMessageEvent);
+				const stale = await api.sendSharedRuntimeRequest(
+					{ method: 'request', args: [] },
+					'site',
+					client
+				);
+				expect(stale.httpStatusCode).toBe(503);
+			} finally {
+				channel.port1.close();
+				channel.port2.close();
+			}
+		}
+	);
 });
