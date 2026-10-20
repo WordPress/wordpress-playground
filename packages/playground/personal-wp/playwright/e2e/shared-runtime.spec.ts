@@ -52,20 +52,50 @@ echo count(file($countFile));`
 	).toBe('3');
 });
 
-test('checks deployment on new-tab startup and retires the stale runtime before reloading', async ({
+test('asks a stale document to reload without retiring the active runtime', async ({
 	page,
 	context,
 }) => {
-	let deployedVersion: string | undefined;
-	let checks = 0;
+	let stale = false;
 	await context.route('**/personal-wp-version.json', async (route) => {
-		checks++;
-		if (deployedVersion) {
-			await route.fulfill({ json: { buildVersion: deployedVersion } });
-		} else await route.continue();
+		if (stale)
+			await route.fulfill({ json: { buildVersion: 'next-deployment' } });
+		else await route.continue();
 	});
 	await connect(page);
-	await page.evaluate(async () =>
+	await page.evaluate(() =>
+		(window as any).playground.writeFile('/memory-marker', 'still active')
+	);
+	stale = true;
+	const second = await context.newPage();
+	await second.goto('./', { waitUntil: 'domcontentloaded' });
+	await expect(
+		second.getByRole('dialog', { name: 'My WordPress has been updated' })
+	).toBeVisible();
+	expect(
+		await page.evaluate(() =>
+			(window as any).playground.readFileAsText('/memory-marker')
+		)
+	).toBe('still active');
+	await expect(
+		page.getByRole('dialog', { name: 'My WordPress has been updated' })
+	).toBeHidden();
+	stale = false;
+	await second.getByRole('button', { name: 'Reload this tab' }).click();
+	await second.waitForFunction(() => !!(window as any).playground);
+	expect(
+		await second.evaluate(() =>
+			(window as any).playground.readFileAsText('/memory-marker')
+		)
+	).toBe('still active');
+});
+
+test('boots a replacement runtime without reloading the new tab after retirement', async ({
+	page,
+	context,
+}) => {
+	await connect(page);
+	await page.evaluate(() =>
 		(window as any).playground.writeFile(
 			'/wordpress/shared-runtime-persisted.txt',
 			'saved before update'
@@ -73,38 +103,49 @@ test('checks deployment on new-tab startup and retires the stale runtime before 
 	);
 	const httpTab = await context.newPage();
 	await connect(httpTab);
-	deployedVersion = 'next-deployment';
-	const second = await context.newPage();
-	await second.goto('./', { waitUntil: 'domcontentloaded' });
-	await expect(
-		second.getByRole('dialog', { name: 'My WordPress has been updated' })
-	).toBeVisible();
-
-	// The old tab is asked to reload when it next uses the runtime.
-	await page.evaluate(() => {
-		// The reload screen removes the remote iframe, so observe the UI rather than
-		// awaiting a reply through the connection being destroyed.
-		void (window as any).playground
-			.readFileAsText('/wordpress/shared-runtime-persisted.txt')
-			.catch(() => {});
-	});
+	await httpTab.evaluate(async () =>
+		(await fetch('/scope:default/shared-runtime-persisted.txt')).text()
+	);
+	// Exercise the real shutdown protocol separately from deployment-version detection.
+	await page.evaluate(() =>
+		(window as any).playground.shutdownSharedRuntime()
+	);
 	await expect(
 		page.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeVisible();
-	const status = await httpTab.evaluate(
-		async () => (await fetch('/scope:default/wp-json/')).status
-	);
-	expect(status).toBe(503);
 	await expect(
 		httpTab.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeVisible();
-	expect(checks).toBe(3);
-
-	deployedVersion = undefined;
-	await second.getByRole('button', { name: 'Reload this tab' }).click();
-	await second.waitForFunction(() => !!(window as any).playground);
+	const second = await context.newPage();
+	let navigations = 0;
+	second.on('request', (request) => {
+		if (
+			request.isNavigationRequest() &&
+			request.frame() === second.mainFrame()
+		)
+			navigations++;
+	});
+	await connect(second);
+	await expect(
+		second.getByRole('dialog', { name: 'My WordPress has been updated' })
+	).toBeHidden();
+	expect(navigations).toBe(1);
 	expect(
-		await second.evaluate(async () =>
+		await second.evaluate(() =>
+			(window as any).playground.readFileAsText(
+				'/wordpress/shared-runtime-persisted.txt'
+			)
+		)
+	).toBe('saved before update');
+	expect(
+		await httpTab.evaluate(
+			async () => (await fetch('/scope:default/wp-json/')).status
+		)
+	).toBe(503);
+	await page.getByRole('button', { name: 'Reload this tab' }).click();
+	await page.waitForFunction(() => !!(window as any).playground);
+	expect(
+		await page.evaluate(() =>
 			(window as any).playground.readFileAsText(
 				'/wordpress/shared-runtime-persisted.txt'
 			)
