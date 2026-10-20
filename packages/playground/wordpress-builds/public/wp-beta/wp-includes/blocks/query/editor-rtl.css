@@ -94,20 +94,16 @@
  * @param {String} $size - The size of the squares in the checkerboard pattern. Default is 12px.
  */
 .block-library-query-pattern__selection-modal .block-editor-block-patterns-list {
-  -moz-column-count: 2;
-       column-count: 2;
-  -moz-column-gap: 24px;
-       column-gap: 24px;
+  column-count: 2;
+  column-gap: 24px;
 }
 @media (min-width: 1280px) {
   .block-library-query-pattern__selection-modal .block-editor-block-patterns-list {
-    -moz-column-count: 3;
-         column-count: 3;
+    column-count: 3;
   }
 }
 .block-library-query-pattern__selection-modal .block-editor-block-patterns-list .block-editor-block-patterns-list__list-item {
-  -moz-column-break-inside: avoid;
-       break-inside: avoid-column;
+  break-inside: avoid-column;
 }
 .block-library-query-pattern__selection-modal .block-library-query-pattern__selection-search {
   background: #fff;
@@ -117,12 +113,6 @@
   transform: translateY(-4px);
   margin-bottom: -4px;
   z-index: 2;
-}
-
-@media (min-width: 600px) {
-  .wp-block-query__enhanced-pagination-modal {
-    max-width: 480px;
-  }
 }
 
 .block-editor-block-settings-menu__popover.is-expanded {
@@ -141,7 +131,7 @@
   }
 }
 .block-editor-block-settings-menu__popover .block-editor-block-patterns-list {
-  grid-gap: 12px;
+  gap: 12px;
   min-width: 280px;
 }
 @media (min-width: 600px) {
@@ -155,4 +145,14 @@
 
 .wp-block-query > .block-editor-media-placeholder.is-small {
   min-height: 60px;
+}
+
+.block-library-query-inspector__taxonomy-control-path {
+  margin-inline-start: var(--wpds-dimension-gap-xs, 4px);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.block-library-query-inspector__taxonomy-control-limited-count {
+  padding-block: var(--wpds-dimension-padding-xs, 4px);
 }

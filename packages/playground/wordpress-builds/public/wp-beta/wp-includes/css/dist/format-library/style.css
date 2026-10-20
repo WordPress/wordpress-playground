@@ -51,25 +51,6 @@
   padding: 16px;
 }
 
-.block-editor-format-toolbar__link-container-content {
-  display: flex;
-  align-items: center;
-}
-
-.block-editor-format-toolbar__link-container-value {
-  margin: 7px;
-  flex-grow: 1;
-  flex-shrink: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 150px;
-  max-width: 500px;
-}
-.block-editor-format-toolbar__link-container-value.has-invalid-link {
-  color: #cc1818;
-}
-
 .format-library__inline-color-popover [role=tabpanel] {
   padding: 16px;
   width: 260px;
@@ -80,7 +61,13 @@
   padding: 1rem;
 }
 
-.block-editor-format-toolbar__math-input {
+.block-editor-format-toolbar__math-input input {
+  font-family: Menlo, Consolas, monaco, monospace;
   /*rtl:ignore*/
   direction: ltr;
+}
+
+.block-editor-format-toolbar__math-learn-more {
+  display: inline-block;
+  margin-top: var(--wpds-dimension-gap-sm, 8px);
 }

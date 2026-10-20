@@ -2,3 +2,7 @@
   padding: 1em 0;
   border: 1px dashed;
 }
+
+.wp-block-site-title.has-fit-text > * {
+  white-space: inherit !important;
+}

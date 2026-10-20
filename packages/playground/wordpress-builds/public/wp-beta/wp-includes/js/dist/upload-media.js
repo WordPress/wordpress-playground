@@ -53,13 +53,6 @@ var wp;
     }
   });
 
-  // package-external:@wordpress/url
-  var require_url = __commonJS({
-    "package-external:@wordpress/url"(exports, module) {
-      module.exports = window.wp.url;
-    }
-  });
-
   // package-external:@wordpress/blob
   var require_blob = __commonJS({
     "package-external:@wordpress/blob"(exports, module) {
@@ -108,6 +101,7 @@ var wp;
     getHeicUnsupportedMessage: () => getHeicUnsupportedMessage,
     isClientSideMediaSupported: () => isClientSideMediaSupported,
     isHeicCanvasSupported: () => isHeicCanvasSupported,
+    isHeicFile: () => isHeicFile,
     store: () => store
   });
 
@@ -260,7 +254,18 @@ var wp;
               status: ItemStatus.Processing,
               error: void 0,
               retryCount: (item.retryCount ?? 0) + 1,
-              abortController: new AbortController()
+              abortController: new AbortController(),
+              /*
+               * The failed operation is still recorded on
+               * the item: nothing finishes it when it
+               * fails, and while the item waits out the
+               * backoff that is what keeps it out of the
+               * concurrency pools. Clear it now that the
+               * item is about to run again, so processItem
+               * does not mistake it for an operation still
+               * in flight and skip the retry.
+               */
+              currentOperation: void 0
             } : item
           )
         };
@@ -512,7 +517,7 @@ var wp;
     scheduleRetry: () => scheduleRetry
   });
 
-  // node_modules/uuid/dist/stringify.js
+  // node_modules/.store/uuid@14.0.2-ALlTd6-Rf9bZs703d7TIjQ/node_modules/uuid/dist/stringify.js
   var byteToHex = [];
   for (let i = 0; i < 256; ++i) {
     byteToHex.push((i + 256).toString(16).slice(1));
@@ -521,13 +526,13 @@ var wp;
     return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
   }
 
-  // node_modules/uuid/dist/rng.js
+  // node_modules/.store/uuid@14.0.2-ALlTd6-Rf9bZs703d7TIjQ/node_modules/uuid/dist/rng.js
   var rnds8 = new Uint8Array(16);
   function rng() {
     return crypto.getRandomValues(rnds8);
   }
 
-  // node_modules/uuid/dist/v4.js
+  // node_modules/.store/uuid@14.0.2-ALlTd6-Rf9bZs703d7TIjQ/node_modules/uuid/dist/v4.js
   function v4(options, buf, offset) {
     if (!buf && !options && crypto.randomUUID) {
       return crypto.randomUUID();
@@ -557,7 +562,7 @@ var wp;
   var v4_default = v4;
 
   // packages/upload-media/build-module/store/actions.mjs
-  var import_i18n5 = __toESM(require_i18n(), 1);
+  var import_i18n4 = __toESM(require_i18n(), 1);
 
   // packages/upload-media/build-module/store/utils/retry.mjs
   function calculateRetryDelay(options) {
@@ -620,8 +625,6 @@ var wp;
   };
 
   // packages/upload-media/build-module/utils.mjs
-  var import_url = __toESM(require_url(), 1);
-  var import_i18n = __toESM(require_i18n(), 1);
   function convertBlobToFile(fileOrBlob) {
     if (fileOrBlob instanceof File) {
       return fileOrBlob;
@@ -665,6 +668,54 @@ var wp;
       }
     }
     return false;
+  }
+  var FILE_TYPE_BOX_BYTES = 64;
+  var HEIC_BRANDS = [
+    "heic",
+    "heix",
+    "heim",
+    "heis",
+    "hevc",
+    "hevx",
+    "hevm",
+    "hevs",
+    "mif1",
+    "msf1"
+  ];
+  var AVIF_BRANDS = ["avif", "avis"];
+  function isHeicBuffer(buffer) {
+    const view = new Uint8Array(buffer);
+    const readBrand = (offset) => String.fromCharCode(...view.subarray(offset, offset + 4));
+    if (view.length < 12 || readBrand(4) !== "ftyp") {
+      return false;
+    }
+    const boxEnd = Math.min(
+      view.length,
+      new DataView(buffer).getUint32(0)
+    );
+    const brands = [readBrand(8)];
+    for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
+      brands.push(readBrand(offset));
+    }
+    if (brands.some((brand) => AVIF_BRANDS.includes(brand))) {
+      return false;
+    }
+    return brands.some((brand) => HEIC_BRANDS.includes(brand));
+  }
+  async function isHeicFile(file) {
+    if (HEIC_MIME_TYPES.includes(file.type)) {
+      return true;
+    }
+    if (file.type && !file.type.startsWith("image/")) {
+      return false;
+    }
+    try {
+      return isHeicBuffer(
+        await file.slice(0, FILE_TYPE_BOX_BYTES).arrayBuffer()
+      );
+    } catch {
+      return false;
+    }
   }
 
   // packages/upload-media/build-module/store/utils/index.mjs
@@ -716,7 +767,8 @@ var wp;
       scaledSuffix,
       quality,
       stripMeta,
-      maxBitdepth
+      maxBitdepth,
+      preserveAnimation
     } = options;
     if (signal?.aborted) {
       throw new Error("Operation aborted");
@@ -726,7 +778,8 @@ var wp;
       smartCrop,
       quality,
       stripMeta,
-      maxBitdepth
+      maxBitdepth,
+      preserveAnimation
     });
     let fileName = file.name;
     const wasResized = originalWidth > width || originalHeight > height;
@@ -972,7 +1025,7 @@ var wp;
   };
 
   // packages/upload-media/build-module/validate-mime-type.mjs
-  var import_i18n2 = __toESM(require_i18n(), 1);
+  var import_i18n = __toESM(require_i18n(), 1);
   function validateMimeType(file, allowedTypes) {
     if (!allowedTypes) {
       return;
@@ -986,9 +1039,9 @@ var wp;
     if (file.type && !isAllowedType) {
       throw new UploadError({
         code: ErrorCode.MIME_TYPE_NOT_SUPPORTED,
-        message: (0, import_i18n2.sprintf)(
+        message: (0, import_i18n.sprintf)(
           // translators: %s: file name.
-          (0, import_i18n2.__)("%s: Sorry, this file type is not supported here."),
+          (0, import_i18n.__)("%s: Sorry, this file type is not supported here."),
           file.name
         ),
         file
@@ -997,7 +1050,7 @@ var wp;
   }
 
   // packages/upload-media/build-module/validate-mime-type-for-user.mjs
-  var import_i18n3 = __toESM(require_i18n(), 1);
+  var import_i18n2 = __toESM(require_i18n(), 1);
 
   // packages/upload-media/build-module/get-mime-types-array.mjs
   function getMimeTypesArray(wpMimeTypesObject) {
@@ -1030,9 +1083,9 @@ var wp;
     if (file.type && !isAllowedMimeTypeForUser) {
       throw new UploadError({
         code: ErrorCode.MIME_TYPE_NOT_ALLOWED_FOR_USER,
-        message: (0, import_i18n3.sprintf)(
+        message: (0, import_i18n2.sprintf)(
           // translators: %s: file name.
-          (0, import_i18n3.__)(
+          (0, import_i18n2.__)(
             "%s: Sorry, you are not allowed to upload this file type."
           ),
           file.name
@@ -1043,14 +1096,14 @@ var wp;
   }
 
   // packages/upload-media/build-module/validate-file-size.mjs
-  var import_i18n4 = __toESM(require_i18n(), 1);
+  var import_i18n3 = __toESM(require_i18n(), 1);
   function validateFileSize(file, maxUploadFileSize) {
     if (file.size <= 0) {
       throw new UploadError({
         code: ErrorCode.EMPTY_FILE,
-        message: (0, import_i18n4.sprintf)(
+        message: (0, import_i18n3.sprintf)(
           // translators: %s: file name.
-          (0, import_i18n4.__)("%s: This file is empty."),
+          (0, import_i18n3.__)("%s: This file is empty."),
           file.name
         ),
         file
@@ -1059,9 +1112,9 @@ var wp;
     if (maxUploadFileSize && file.size > maxUploadFileSize) {
       throw new UploadError({
         code: ErrorCode.SIZE_ABOVE_LIMIT,
-        message: (0, import_i18n4.sprintf)(
+        message: (0, import_i18n3.sprintf)(
           // translators: %s: file name.
-          (0, import_i18n4.__)(
+          (0, import_i18n3.__)(
             "%s: This file exceeds the maximum upload size for this site."
           ),
           file.name
@@ -1199,7 +1252,7 @@ var wp;
               parentId,
               new UploadError({
                 code: error instanceof UploadError && error.code || ErrorCode.GENERAL,
-                message: error?.message || (0, import_i18n5.__)("The image could not be uploaded."),
+                message: error?.message || (0, import_i18n4.__)("The image could not be uploaded."),
                 file: parentItem.file,
                 cause: error instanceof Error ? error : void 0
               })
@@ -1306,7 +1359,7 @@ var wp;
     uploadItem: () => uploadItem
   });
   var import_blob = __toESM(require_blob(), 1);
-  var import_i18n7 = __toESM(require_i18n(), 1);
+  var import_i18n6 = __toESM(require_i18n(), 1);
 
   // packages/upload-media/build-module/heic-parser.mjs
   var Reader = class {
@@ -1942,7 +1995,7 @@ var wp;
   }
 
   // packages/upload-media/build-module/heic-support.mjs
-  var import_i18n6 = __toESM(require_i18n(), 1);
+  var import_i18n5 = __toESM(require_i18n(), 1);
   function detectBrowserFamily() {
     if (typeof navigator === "undefined") {
       return null;
@@ -2013,20 +2066,20 @@ var wp;
     const family = detectBrowserFamily();
     if (platform === "macos") {
       if (family === "chromium") {
-        return (0, import_i18n6.__)(
+        return (0, import_i18n5.__)(
           "Safari usually can, or you can upload a JPEG instead."
         );
       }
       if (family !== "safari") {
-        return (0, import_i18n6.__)(
+        return (0, import_i18n5.__)(
           "Safari or Chrome usually can, or you can upload a JPEG instead."
         );
       }
     }
     if (platform === "windows" && family === "firefox") {
-      return (0, import_i18n6.__)("Chrome or Edge might, or you can upload a JPEG instead.");
+      return (0, import_i18n5.__)("Chrome or Edge might, or you can upload a JPEG instead.");
     }
-    return (0, import_i18n6.__)("You can upload a JPEG instead.");
+    return (0, import_i18n5.__)("You can upload a JPEG instead.");
   }
   function getHeicUnsupportedMessage() {
     const platform = detectPlatform();
@@ -2034,39 +2087,39 @@ var wp;
     const browserName = getBrowserName();
     let cause;
     if (platform === "linux") {
-      cause = (0, import_i18n6.__)(
+      cause = (0, import_i18n5.__)(
         "HEIC photos can't be decoded on Linux, so unfortunately we couldn't convert this one."
       );
     } else if (family === "firefox") {
-      cause = (0, import_i18n6.__)(
+      cause = (0, import_i18n5.__)(
         "Firefox can't read HEIC photos, so we couldn't convert this one."
       );
     } else if (browserName && platform === "windows") {
-      cause = (0, import_i18n6.sprintf)(
+      cause = (0, import_i18n5.sprintf)(
         /* translators: %s: browser name, e.g. "Chrome". */
-        (0, import_i18n6.__)(
+        (0, import_i18n5.__)(
           "%s couldn't decode HEIC on this PC, so we couldn't convert this one."
         ),
         browserName
       );
     } else if (browserName && platform === "macos") {
-      cause = (0, import_i18n6.sprintf)(
+      cause = (0, import_i18n5.sprintf)(
         /* translators: %s: browser name, e.g. "Safari". */
-        (0, import_i18n6.__)(
+        (0, import_i18n5.__)(
           "%s couldn't decode HEIC on this Mac, so we couldn't convert this one."
         ),
         browserName
       );
     } else if (browserName) {
-      cause = (0, import_i18n6.sprintf)(
+      cause = (0, import_i18n5.sprintf)(
         /* translators: %s: browser name, e.g. "Chrome". */
-        (0, import_i18n6.__)(
+        (0, import_i18n5.__)(
           "%s couldn't decode HEIC on this device, so we couldn't convert this one."
         ),
         browserName
       );
     } else {
-      cause = (0, import_i18n6.__)(
+      cause = (0, import_i18n5.__)(
         "This browser can't read HEIC photos, so we couldn't convert this one."
       );
     }
@@ -2074,6 +2127,7 @@ var wp;
   }
 
   // packages/upload-media/build-module/canvas-utils.mjs
+  var IMAGE_DECODER_TIMEOUT = 15e3;
   var HeicUnsupportedError = class extends Error {
   };
   async function canvasConvertToJpeg(file, quality = 0.82) {
@@ -2106,8 +2160,34 @@ var wp;
           type: file.type,
           data: file.stream()
         });
+        let videoFrame;
+        let timeoutId;
+        let timedOut = false;
         try {
-          const { image: videoFrame } = await decoder.decode();
+          const decoded = await Promise.race([
+            decoder.decode(),
+            new Promise((_resolve, reject) => {
+              timeoutId = setTimeout(() => {
+                timedOut = true;
+                decoder.close();
+                reject(
+                  new Error("ImageDecoder decode timed out")
+                );
+              }, IMAGE_DECODER_TIMEOUT);
+            })
+          ]);
+          videoFrame = decoded.image;
+        } catch (error) {
+          if (!timedOut) {
+            throw error;
+          }
+        } finally {
+          clearTimeout(timeoutId);
+          if (!timedOut) {
+            decoder.close();
+          }
+        }
+        if (videoFrame) {
           try {
             const canvas = new OffscreenCanvas(
               videoFrame.displayWidth,
@@ -2128,8 +2208,6 @@ var wp;
           } finally {
             videoFrame.close();
           }
-        } finally {
-          decoder.close();
         }
       }
     }
@@ -2555,6 +2633,9 @@ var wp;
       if (!item) {
         return;
       }
+      if (item.currentOperation) {
+        return;
+      }
       const {
         attachment,
         onChange,
@@ -2834,11 +2915,14 @@ var wp;
         }
       }
       let heicJpeg = null;
-      const isImage = file.type.startsWith("image/");
-      const isVipsSupported = CLIENT_SIDE_SUPPORTED_MIME_TYPES.includes(
-        file.type
-      );
-      const isHeic = HEIC_MIME_TYPES.includes(file.type);
+      const isHeic = await isHeicFile(file);
+      const isMisnamedHeic = isHeic && !HEIC_MIME_TYPES.includes(file.type);
+      const isImage = file.type.startsWith("image/") || isHeic;
+      const isVipsSupported = !isHeic && CLIENT_SIDE_SUPPORTED_MIME_TYPES.includes(file.type);
+      const heicFile = isMisnamedHeic ? new File([file], `${getFileBasename(file.name)}.heic`, {
+        type: HEIC_MIME_TYPES[0],
+        lastModified: file.lastModified
+      }) : file;
       let tooLargeForClient = false;
       if (isImage && isVipsSupported) {
         const dimensions = await getImageDimensions(file);
@@ -2846,7 +2930,7 @@ var wp;
           tooLargeForClient = true;
         }
       }
-      if (file.type === "image/jpeg" && !tooLargeForClient) {
+      if (file.type === "image/jpeg" && !isHeic && !tooLargeForClient) {
         operations.push(OperationType.DetectUltraHdr);
       }
       if (isImage && isVipsSupported && !tooLargeForClient) {
@@ -2858,7 +2942,7 @@ var wp;
       } else if (isImage && isHeic) {
         try {
           heicJpeg = await canvasConvertToJpeg(
-            file,
+            heicFile,
             settings.imageQuality ?? DEFAULT_OUTPUT_QUALITY
           );
         } catch (error) {
@@ -2867,7 +2951,7 @@ var wp;
             id,
             new UploadError({
               code: unsupported ? ErrorCode.HEIC_DECODE_ERROR : ErrorCode.IMAGE_TRANSCODING_ERROR,
-              message: unsupported ? getHeicUnsupportedMessage() : (0, import_i18n7.__)(
+              message: unsupported ? getHeicUnsupportedMessage() : (0, import_i18n6.__)(
                 "This HEIC image could not be converted. Try converting it to JPEG before uploading."
               ),
               file,
@@ -2895,7 +2979,7 @@ var wp;
         updates = {
           file: heicJpeg,
           sourceFile: heicJpeg,
-          originalHeicFile: item.file,
+          originalHeicFile: heicFile,
           additionalData: {
             ...item.additionalData,
             generate_sub_sizes: !vipsAvailable,
@@ -3044,7 +3128,11 @@ var wp;
       const startTime = performance.now();
       const addSuffix = Boolean(item.parentId);
       const scaledSuffix = Boolean(args.isThresholdResize);
-      const { imageStripMeta, imageMaxBitDepth } = select2.getSettings();
+      const {
+        imageStripMeta,
+        imageMaxBitDepth,
+        generateAnimatedImageSubsizes
+      } = select2.getSettings();
       try {
         const file = await vipsResizeImage(
           item.id,
@@ -3057,7 +3145,8 @@ var wp;
             scaledSuffix,
             quality: args.quality,
             stripMeta: imageStripMeta,
-            maxBitdepth: imageMaxBitDepth
+            maxBitdepth: imageMaxBitDepth,
+            preserveAnimation: false !== generateAnimatedImageSubsizes
           }
         );
         measure({
@@ -3086,7 +3175,7 @@ var wp;
           id,
           new UploadError({
             code: ErrorCode.IMAGE_TRANSCODING_ERROR,
-            message: (0, import_i18n7.__)(
+            message: (0, import_i18n6.__)(
               "The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading."
             ),
             file: item.file,
@@ -3142,7 +3231,7 @@ var wp;
           id,
           new UploadError({
             code: ErrorCode.IMAGE_ROTATION_ERROR,
-            message: (0, import_i18n7.__)(
+            message: (0, import_i18n6.__)(
               "The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading."
             ),
             file: item.file,
@@ -3534,7 +3623,7 @@ var wp;
             id,
             new UploadError({
               code: ErrorCode.MEDIA_FINALIZE_ERROR,
-              message: (0, import_i18n7.__)("Could not finalize the upload."),
+              message: (0, import_i18n6.__)("Could not finalize the upload."),
               file: item.file
             })
           );
@@ -3648,108 +3737,108 @@ var wp;
   var provider_default = MediaUploadProvider;
 
   // packages/upload-media/build-module/error-messages.mjs
-  var import_i18n8 = __toESM(require_i18n(), 1);
+  var import_i18n7 = __toESM(require_i18n(), 1);
   function getErrorMessage(code, fileName) {
     const messages = {
       [ErrorCode.EMPTY_FILE]: {
-        title: (0, import_i18n8.__)("Empty file"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Empty file"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('"%s" is empty.'),
+          (0, import_i18n7.__)('"%s" is empty.'),
           fileName
         ),
-        action: (0, import_i18n8.__)("Please choose a different file.")
+        action: (0, import_i18n7.__)("Please choose a different file.")
       },
       [ErrorCode.SIZE_ABOVE_LIMIT]: {
-        title: (0, import_i18n8.__)("File too large"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("File too large"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('"%s" exceeds the maximum upload size.'),
+          (0, import_i18n7.__)('"%s" exceeds the maximum upload size.'),
           fileName
         ),
-        action: (0, import_i18n8.__)("Please reduce the file size and try again.")
+        action: (0, import_i18n7.__)("Please reduce the file size and try again.")
       },
       [ErrorCode.MIME_TYPE_NOT_SUPPORTED]: {
-        title: (0, import_i18n8.__)("Unsupported file type"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Unsupported file type"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('"%s" is not a supported file type.'),
+          (0, import_i18n7.__)('"%s" is not a supported file type.'),
           fileName
         ),
-        action: (0, import_i18n8.__)("Please upload a different file format.")
+        action: (0, import_i18n7.__)("Please upload a different file format.")
       },
       [ErrorCode.MIME_TYPE_NOT_ALLOWED_FOR_USER]: {
-        title: (0, import_i18n8.__)("File type not allowed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("File type not allowed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('You are not allowed to upload "%s".'),
+          (0, import_i18n7.__)('You are not allowed to upload "%s".'),
           fileName
         ),
-        action: (0, import_i18n8.__)("Please contact your site administrator.")
+        action: (0, import_i18n7.__)("Please contact your site administrator.")
       },
       [ErrorCode.HEIC_DECODE_ERROR]: {
-        title: (0, import_i18n8.__)("HEIC decode failed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("HEIC decode failed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('Failed to decode HEIC file "%s".'),
+          (0, import_i18n7.__)('Failed to decode HEIC file "%s".'),
           fileName
         ),
         action: getHeicConversionAdvice()
       },
       [ErrorCode.IMAGE_TRANSCODING_ERROR]: {
-        title: (0, import_i18n8.__)("Image processing failed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Image processing failed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('Failed to process "%s".'),
+          (0, import_i18n7.__)('Failed to process "%s".'),
           fileName
         ),
-        action: (0, import_i18n8.__)("The image may be corrupted. Try a different file.")
+        action: (0, import_i18n7.__)("The image may be corrupted. Try a different file.")
       },
       [ErrorCode.IMAGE_ROTATION_ERROR]: {
-        title: (0, import_i18n8.__)("Image rotation failed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Image rotation failed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('Failed to rotate "%s".'),
+          (0, import_i18n7.__)('Failed to rotate "%s".'),
           fileName
         ),
-        action: (0, import_i18n8.__)("The image may be corrupted. Try a different file.")
+        action: (0, import_i18n7.__)("The image may be corrupted. Try a different file.")
       },
       [ErrorCode.MEDIA_TRANSCODING_ERROR]: {
-        title: (0, import_i18n8.__)("Media processing failed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Media processing failed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('Failed to convert "%s" to the target format.'),
+          (0, import_i18n7.__)('Failed to convert "%s" to the target format.'),
           fileName
         ),
-        action: (0, import_i18n8.__)("The file may be corrupted. Try a different file.")
+        action: (0, import_i18n7.__)("The file may be corrupted. Try a different file.")
       },
       [ErrorCode.MEDIA_FINALIZE_ERROR]: {
-        title: (0, import_i18n8.__)("Upload failed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Upload failed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('Could not finalize the upload of "%s".'),
+          (0, import_i18n7.__)('Could not finalize the upload of "%s".'),
           fileName
         ),
-        action: (0, import_i18n8.__)("Please try again.")
+        action: (0, import_i18n7.__)("Please try again.")
       },
       [ErrorCode.GENERAL]: {
-        title: (0, import_i18n8.__)("Upload failed"),
-        description: (0, import_i18n8.sprintf)(
+        title: (0, import_i18n7.__)("Upload failed"),
+        description: (0, import_i18n7.sprintf)(
           /* translators: %s: file name */
-          (0, import_i18n8.__)('Failed to upload "%s".'),
+          (0, import_i18n7.__)('Failed to upload "%s".'),
           fileName
         ),
-        action: (0, import_i18n8.__)("Please try again.")
+        action: (0, import_i18n7.__)("Please try again.")
       }
     };
     return messages[code] || {
-      title: (0, import_i18n8.__)("Upload failed"),
-      description: (0, import_i18n8.sprintf)(
+      title: (0, import_i18n7.__)("Upload failed"),
+      description: (0, import_i18n7.sprintf)(
         /* translators: %s: file name */
-        (0, import_i18n8.__)('Failed to upload "%s".'),
+        (0, import_i18n7.__)('Failed to upload "%s".'),
         fileName
       ),
-      action: (0, import_i18n8.__)("Please try again.")
+      action: (0, import_i18n7.__)("Please try again.")
     };
   }
   return __toCommonJS(index_exports);
