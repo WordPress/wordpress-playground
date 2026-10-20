@@ -4,6 +4,33 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.60] (2026-10-20) 
+
+### Documentation
+
+- \[i18n\] Translate AI assistants through MCP into Gujarati\. ([#4434](https://github.com/WordPress/wordpress-playground/pull/4434))
+- \[i18n\] Translate Blueprints content import guide into Gujarati\. ([#4433](https://github.com/WordPress/wordpress-playground/pull/4433))
+- \[i18n\] Translate troubleshooting guide into Gujarati\. ([#4432](https://github.com/WordPress/wordpress-playground/pull/4432))
+
+### PHP WebAssembly
+
+- \[PHP\] Use shared JavaScript locks when native bindings cannot load\. ([#4470](https://github.com/WordPress/wordpress-playground/pull/4470))
+
+### Website
+
+- Replace the generic proxy with a cached Blueprints index\. ([#4471](https://github.com/WordPress/wordpress-playground/pull/4471))
+
+### Various
+
+- \[PHP\] Use fs\-ext\-extra\-prebuilt 2\.2\.15 for Node 26 native locks\. ([#4472](https://github.com/WordPress/wordpress-playground/pull/4472))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ahirpravin
+
+
 ## [v3.1.59] (2026-10-19) 
 
 ### Documentation
