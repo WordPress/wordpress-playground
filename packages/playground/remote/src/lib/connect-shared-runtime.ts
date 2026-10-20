@@ -1,5 +1,4 @@
 import { consumeAPI } from '@php-wasm/web';
-import { logger } from '@php-wasm/logger';
 import type {
 	PlaygroundWorkerEndpoint,
 	WorkerBootOptions,
@@ -42,20 +41,6 @@ export async function connectSharedRuntime(
 		throw new Error(RELOAD_REQUIRED);
 	};
 	worker.port.addEventListener('message', ({ data }) => {
-		if (
-			[
-				RUNTIME_CLOSED,
-				'shared-runtime-retired',
-				'shared-runtime-retirement-error',
-			].includes(data?.type)
-		) {
-			logger.info('[Shared runtime] Tab received worker message', {
-				type: data.type,
-				scope,
-				version,
-				runtimeId,
-			});
-		}
 		if (data?.type === RUNTIME_CLOSED) {
 			closed = true;
 			window.parent.postMessage(
@@ -171,15 +156,6 @@ async function connectCurrentSharedWorker(
 	onProgress: (caption: string) => void
 ) {
 	if (clientVersion !== version) {
-		logger.warn(
-			'[Shared runtime] Reload required before worker connection: tab build differs from deployment',
-			{
-				scope,
-				tabBuild: clientVersion,
-				deploymentBuild: version,
-				remoteUrl: location.href,
-			}
-		);
 		window.parent.postMessage(
 			{ type: RELOAD_REQUIRED, ready: true },
 			location.origin
@@ -270,25 +246,18 @@ async function handshakeSharedWorker(
 		const target = worker;
 		const runtimeId = await new Promise<string | undefined>(
 			(resolve, reject) => {
-				let phase = `${label} handshake: no reply received`;
-				const started = Date.now();
-				const describeProgress = () =>
-					`${phase} (${Math.floor((Date.now() - started) / 1000)}s). ` +
-					`Worker build ${identity.version.slice(0, 12)}; deployment ${version.slice(0, 12)}.`;
-				const reportProgress = () => onProgress(describeProgress());
-				const heartbeat = setInterval(reportProgress, 1000);
+				onProgress(
+					mode === 'retire'
+						? 'Checking previous WordPress runtime'
+						: 'Connecting to WordPress runtime'
+				);
 				const timedOut = () =>
-					finish(
-						new Error(
-							`Shared runtime connection timed out. ${describeProgress()}`
-						)
-					);
+					finish(new Error(`${label} connection timed out.`));
 				let timeout = setTimeout(
 					timedOut,
 					mode === 'retire' ? 5000 : 30000
 				);
 				const finish = (error?: Error, id?: string) => {
-					clearInterval(heartbeat);
 					clearTimeout(timeout);
 					port.removeEventListener('message', onMessage);
 					target.removeEventListener('error', onError);
@@ -307,9 +276,6 @@ async function handshakeSharedWorker(
 								)
 							);
 						} else {
-							onProgress(
-								`Current worker connected (runtime ${data.runtimeId})`
-							);
 							finish(undefined, data.runtimeId);
 						}
 					} else if (data?.type === RELOAD_REQUIRED) {
@@ -318,22 +284,14 @@ async function handshakeSharedWorker(
 							window.parent.postMessage(data, location.origin);
 							finish(new Error(RELOAD_REQUIRED));
 						} else if (data.ready) {
-							onProgress(
-								'Previous worker shutdown confirmed (ready=true)'
-							);
 							finish();
 						} else {
-							phase =
-								'Previous worker replied; waiting for saving and shutdown confirmation';
+							onProgress('Saving WordPress before updating');
 							clearTimeout(timeout);
 							timeout = setTimeout(timedOut, 30000);
-							reportProgress();
 						}
 					} else if (data?.type === RUNTIME_CLOSED) {
 						replied = true;
-						onProgress(
-							'Previous worker shutdown confirmed (playground-runtime-closed)'
-						);
 						finish();
 					} else if (
 						data?.type === 'shared-runtime-retirement-error'
@@ -363,7 +321,6 @@ async function handshakeSharedWorker(
 						mode === 'retire' ? `retire:${version}` : version,
 					clientBuildVersion: version,
 				});
-				reportProgress();
 			}
 		);
 		if (runtimeId && mode === 'connect') return { worker, runtimeId };
@@ -380,9 +337,6 @@ async function handshakeSharedWorker(
 			)
 		)
 			throw error;
-		onProgress(
-			'Previous worker unavailable; no runtime owns the site files. Starting current build.'
-		);
 	}
 	return undefined;
 }

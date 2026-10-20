@@ -1,6 +1,5 @@
 /// <reference lib="WebWorker" />
 import { awaitReply, getNextRequestId } from '@php-wasm/web-service-worker';
-import { logger } from '@php-wasm/logger';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -39,29 +38,10 @@ export function registerSharedRuntime(event: ExtendableMessageEvent) {
 		pendingRequests: 0,
 	};
 	connections.set(scope, connection);
-	traceSharedRuntime('[Shared runtime] Service worker registered runtime', {
-		scope,
-		runtimeId: connection.runtimeId,
-		build: connection.buildVersion,
-		retired: connection.retired,
-		previousRuntimeId: previous?.runtimeId,
-	});
+
 	registrationWaiters.get(scope)?.();
 	if (port) {
 		port.addEventListener('message', ({ data }) => {
-			if (
-				data?.type === 'shared-runtime-retired' ||
-				data?.type === RUNTIME_CLOSED
-			) {
-				traceSharedRuntime(
-					'[Shared runtime] Service worker received worker message',
-					{
-						type: data.type,
-						scope,
-						runtimeId: connection.runtimeId,
-					}
-				);
-			}
 			if (data?.type === 'shared-runtime-retired') {
 				connection.retired = true;
 			} else if (data?.type === RUNTIME_CLOSED) connection.closed = true;
@@ -130,14 +110,6 @@ export async function sendSharedRuntimeRequest(
 ) {
 	const connection = connections.get(scope);
 	if (connection?.retired) {
-		traceSharedRuntime(
-			'[Shared runtime] Service worker rejected request: runtime retired',
-			{
-				scope,
-				runtimeId: connection.runtimeId,
-				clientId: requestClient?.clientId,
-			}
-		);
 		return reloadResponse(!!connection.closed);
 	}
 	if (!connection?.port) {
@@ -156,18 +128,7 @@ export async function sendSharedRuntimeRequest(
 	const generation = connection.runtimeId ?? connection.buildVersion;
 	if (requestClient && generation) {
 		const previous = await readClientRuntime(scope, requestClient.clientId);
-		traceSharedRuntime('[Shared runtime] Service worker routing request', {
-			scope,
-			method: message.method,
-			clientId: requestClient.clientId,
-			resultingClientId: requestClient.resultingClientId,
-			documentRuntimeId: previous,
-			targetRuntimeId: generation,
-			decision:
-				previous && previous !== generation
-					? 'reject stale document'
-					: 'forward to runtime',
-		});
+
 		if (previous && previous !== generation) return reloadResponse(true);
 		if (requestClient.clientId)
 			await rememberClientRuntime(
@@ -259,24 +220,4 @@ function reloadResponse(ready = false) {
 			.encode(`<!doctype html><p>A new version is available. Reload this tab to continue.</p>
 <script>parent.postMessage({type:'${RELOAD_REQUIRED}',ready:${ready}}, location.origin)</script>`),
 	};
-}
-
-/** Mirror routing diagnostics into page consoles so worker inspection is unnecessary. */
-function traceSharedRuntime(message: string, details: Record<string, unknown>) {
-	logger.info(message, details);
-	void Promise.resolve()
-		.then(async () => {
-			const clients = await self.clients.matchAll({
-				type: 'window',
-				includeUncontrolled: true,
-			});
-			for (const client of clients)
-				client.postMessage({
-					type: 'playground-shared-runtime-diagnostic',
-					message,
-					details,
-					serviceWorkerUrl: self.location.href,
-				});
-		})
-		.catch(() => {});
 }

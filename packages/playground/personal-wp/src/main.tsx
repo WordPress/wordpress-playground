@@ -55,40 +55,12 @@ function PersonalWP() {
 				logger.error(event.data.error);
 			}
 			if (event.data?.type === 'playground-reload-required') {
-				logger.warn(
-					'[Shared runtime] Reload prompt received from remote iframe',
-					{
-						message: event.data,
-						controller:
-							navigator.serviceWorker?.controller?.scriptURL,
-						remoteUrls: Array.from(
-							document.querySelectorAll('iframe')
-						).map((iframe) => iframe.src),
-					}
-				);
 				setReloadRequired(true);
 				if (event.data.ready) setReadyToReload(true);
 			}
 		};
 		const onServiceWorkerMessage = (event: MessageEvent) => {
-			if (event.data?.type === 'playground-shared-runtime-diagnostic') {
-				logger.info(event.data.message, {
-					...event.data.details,
-					serviceWorkerUrl: event.data.serviceWorkerUrl,
-				});
-				return;
-			}
 			if (event.data?.type === 'playground-reload-required') {
-				logger.warn(
-					'[Shared runtime] Reload prompt received from service worker',
-					{
-						message: event.data,
-						source: (event.source as ServiceWorker | null)
-							?.scriptURL,
-						controller:
-							navigator.serviceWorker?.controller?.scriptURL,
-					}
-				);
 				setReloadRequired(true);
 				if (event.data.ready) setReadyToReload(true);
 			}
@@ -117,17 +89,17 @@ function PersonalWP() {
 			{/* Keep the remote document alive until the worker finishes flushing. */}
 			{reloadRequired && (
 				<Modal
-					title="A new version is available"
+					title="My WordPress has been updated"
 					small
 					isDismissible={false}
 					onRequestClose={() => {}}
 				>
 					<p>
 						{retirementFailed
-							? "WordPress couldn't finish saving. Keep this tab open."
+							? "My WordPress couldn't prepare this tab for reloading. Keep this tab open."
 							: readyToReload
-								? 'Reload this tab to continue using WordPress.'
-								: 'Saving WordPress changes before restarting.'}
+								? 'Reload this tab to continue using My WordPress.'
+								: 'Preparing this tab for reloading.'}
 					</p>
 					<Button
 						variant="primary"

@@ -77,7 +77,7 @@ test('checks deployment on new-tab startup and retires the stale runtime before 
 	const second = await context.newPage();
 	await second.goto('./', { waitUntil: 'domcontentloaded' });
 	await expect(
-		second.getByRole('dialog', { name: 'A new version is available' })
+		second.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeVisible();
 
 	// The old tab is asked to reload when it next uses the runtime.
@@ -89,14 +89,14 @@ test('checks deployment on new-tab startup and retires the stale runtime before 
 			.catch(() => {});
 	});
 	await expect(
-		page.getByRole('dialog', { name: 'A new version is available' })
+		page.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeVisible();
 	const status = await httpTab.evaluate(
 		async () => (await fetch('/scope:default/wp-json/')).status
 	);
 	expect(status).toBe(503);
 	await expect(
-		httpTab.getByRole('dialog', { name: 'A new version is available' })
+		httpTab.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeVisible();
 	expect(checks).toBe(3);
 

@@ -101,9 +101,7 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
-	reportStartupProgress(
-		`Registering service worker (remote build ${remoteBuildVersion.slice(0, 12)})`
-	);
+	reportStartupProgress('Starting WordPress runtime');
 	const registrationUrl = new URL(serviceWorkerUrl);
 	if (sharedMode)
 		registrationUrl.searchParams.set('experimental-shared-worker', '1');
@@ -116,7 +114,6 @@ export async function bootPlaygroundRemote() {
 	// Check if there's a new service worker available and, if so, enqueue
 	// the update:
 	try {
-		reportStartupProgress('Checking for service worker update');
 		await registration.update();
 	} catch (e) {
 		// registration.update() throws if it can't reach the server.
@@ -616,11 +613,8 @@ export async function bootPlaygroundRemote() {
 		},
 	};
 
-	reportStartupProgress(
-		'Shared worker handshake complete; waiting for runtime API connection'
-	);
+	reportStartupProgress('Connecting to WordPress runtime');
 	await phpWorkerApi.isConnected();
-	reportStartupProgress('Runtime API connected; exposing Playground client');
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
