@@ -63,6 +63,44 @@ jobs:
             - run: npx nx run docs-site:test-plugins
             - run: bash tools/check-node-engine-alignment.sh
 
+    test-node-file-lock-fallback:
+        name: 'File locks without native binaries (Node ${{ matrix.node }})'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                node: ['24', 'node']
+        env:
+            PHP: '8.3'
+            NX_SKIP_NX_CACHE: 'true'
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/prepare-playground
+            - name: Build and check the published optional dependency
+              run: |
+                  npx nx run php-wasm-node:build
+                  node --input-type=commonjs <<'JS'
+                  const assert = require('node:assert/strict');
+                  const pkg = require('./dist/packages/php-wasm/node/package.json');
+                  assert(pkg.optionalDependencies?.['fs-ext-extra-prebuilt']);
+                  assert.equal(pkg.dependencies?.['fs-ext-extra-prebuilt'], undefined);
+                  JS
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node }}
+            - name: Exercise PHP locks with the native package absent
+              shell: bash
+              run: |
+                  # Restore the package before prepare-playground saves its shared cache.
+                  mv node_modules/fs-ext-extra-prebuilt "$RUNNER_TEMP/fs-ext-extra-prebuilt"
+                  trap 'mv "$RUNNER_TEMP/fs-ext-extra-prebuilt" node_modules/fs-ext-extra-prebuilt' EXIT
+                  npx nx run php-wasm-node:test-file-locking-asyncify --testFiles=create-file-lock-manager.spec.ts,file-lock-manager-fallback.spec.ts,php-file-locking.spec.ts
+                  npx nx run playground-cli:test-playground-cli --testFiles=file-locking.spec.ts
+
     # Unit tests for the PR auto-labeling logic (packages/meta/src/pr-labels).
     # These run with node:test, not nx: packages/meta is not an nx project, so
     # `nx affected --target=test` never covers them. The suite is self-contained
