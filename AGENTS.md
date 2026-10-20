@@ -240,6 +240,12 @@ and runs PHP/SQLite, CLI multi-worker, and worker-wait tests with that addon mov
 out of resolution.
 The addon is restored before the shared dependency cache is saved.
 
+Dependabot's daily version check opens PRs for `fs-ext-extra-prebuilt` patch
+releases. It raises the minimum package version and updates the lockfile; the
+existing Dependabot lockfile workflow preserves workspace links. An explicit
+`trunk` target keeps this version-update allow-list out of security-update
+settings. Other dependencies remain eligible for security updates.
+
 ### Package Structure
 
 All published packages follow this pattern:
