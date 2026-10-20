@@ -83,6 +83,7 @@ test('asks a stale document to reload without retiring the active runtime', asyn
 	stale = false;
 	await second.getByRole('button', { name: 'Reload this tab' }).click();
 	await second.waitForFunction(() => !!(window as any).playground);
+	await second.evaluate(() => (window as any).playground.isReady());
 	expect(
 		await second.evaluate(() =>
 			(window as any).playground.readFileAsText('/memory-marker')
@@ -144,6 +145,7 @@ test('boots a replacement runtime without reloading the new tab after retirement
 	).toBe(503);
 	await page.getByRole('button', { name: 'Reload this tab' }).click();
 	await page.waitForFunction(() => !!(window as any).playground);
+	await page.evaluate(() => (window as any).playground.isReady());
 	expect(
 		await page.evaluate(() =>
 			(window as any).playground.readFileAsText(
