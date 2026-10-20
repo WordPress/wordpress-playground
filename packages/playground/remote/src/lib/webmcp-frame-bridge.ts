@@ -1,3 +1,4 @@
+import type { AbilitiesList, AbilityInput, AbilityResult } from './abilities';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -35,6 +36,8 @@ export interface WebMCPToolDescriptor {
 }
 
 export interface WebMCPFrameBridge {
+	listAbilities(): Promise<AbilitiesList>;
+	executeAbility(name: string, input?: AbilityInput): Promise<AbilityResult>;
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
 	callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
@@ -52,6 +55,7 @@ export function createWebMCPFrameBridge(
 	wpFrame: HTMLIFrameElement
 ): WebMCPFrameBridge {
 	let tools: WebMCPToolDescriptor[] = [];
+	let documentId: string | undefined;
 	let serializedTools = '[]';
 	let probeTimeout: ReturnType<typeof setTimeout> | null = null;
 	const listeners = new Set<(tools: WebMCPToolDescriptor[]) => void>();
@@ -73,6 +77,13 @@ export function createWebMCPFrameBridge(
 			return;
 		}
 		if (event.data.type === TOOLS_CHANGED) {
+			if (
+				typeof event.data.documentId === 'string' &&
+				documentId !== event.data.documentId
+			) {
+				rejectPendingCalls();
+				documentId = event.data.documentId;
+			}
 			cancelProbe();
 			setTools(toDescriptors(event.data.tools));
 			return;
@@ -100,9 +111,23 @@ export function createWebMCPFrameBridge(
 		cancelProbe();
 		probeTimeout = setTimeout(() => {
 			probeTimeout = null;
+			documentId = undefined;
+			rejectPendingCalls();
 			setTools([]);
 		}, ANNOUNCE_PROBE_TIMEOUT_MS);
 	});
+
+	function rejectPendingCalls() {
+		for (const pending of pendingCalls.values()) {
+			clearTimeout(pending.timeout);
+			pending.reject(
+				new Error(
+					'WordPress navigated. Refresh and try again. The operation may have completed.'
+				)
+			);
+		}
+		pendingCalls.clear();
+	}
 
 	function setTools(next: WebMCPToolDescriptor[]) {
 		const serialized = JSON.stringify(next);
@@ -159,6 +184,34 @@ export function createWebMCPFrameBridge(
 		);
 	}
 
+	async function request(
+		type: string,
+		name: string,
+		args: unknown
+	): Promise<unknown> {
+		const contentWindow = wpFrame.contentWindow;
+		if (!contentWindow) {
+			throw new Error('The WordPress frame is not loaded.');
+		}
+		const callId = crypto.randomUUID();
+		return await new Promise<unknown>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				pendingCalls.delete(callId);
+				reject(
+					new Error(
+						`The WordPress request "${name || 'list abilities'}" did not respond within ` +
+							`${CALL_TIMEOUT_MS / 1000} seconds. The operation may have completed.`
+					)
+				);
+			}, CALL_TIMEOUT_MS);
+			pendingCalls.set(callId, { resolve, reject, timeout });
+			contentWindow.postMessage(
+				{ type, callId, name, arguments: args, documentId },
+				window.location.origin
+			);
+		});
+	}
+
 	return {
 		subscribe(listener) {
 			listeners.add(listener);
@@ -167,29 +220,19 @@ export function createWebMCPFrameBridge(
 			notify(listener, tools);
 			requestToolList();
 		},
-		async callTool(name, args) {
-			const contentWindow = wpFrame.contentWindow;
-			if (!contentWindow) {
-				throw new Error('The WordPress frame is not loaded.');
-			}
-			const callId = crypto.randomUUID();
-			return await new Promise<unknown>((resolve, reject) => {
-				const timeout = setTimeout(() => {
-					pendingCalls.delete(callId);
-					reject(
-						new Error(
-							`The WebMCP tool "${name}" did not respond within ` +
-								`${CALL_TIMEOUT_MS / 1000} seconds.`
-						)
-					);
-				}, CALL_TIMEOUT_MS);
-				pendingCalls.set(callId, { resolve, reject, timeout });
-				contentWindow.postMessage(
-					{ type: CALL_TOOL, callId, name, arguments: args ?? {} },
-					window.location.origin
-				);
-			});
-		},
+		listAbilities: () =>
+			request(
+				'playground-abilities-list',
+				'',
+				undefined
+			) as Promise<AbilitiesList>,
+		executeAbility: (name, input) =>
+			request(
+				'playground-abilities-execute',
+				name,
+				input
+			) as Promise<AbilityResult>,
+		callTool: (name, args) => request(CALL_TOOL, name, args ?? {}),
 	};
 }
 

@@ -1,6 +1,7 @@
 /**
  * Imports required for the Playground Client.
  */
+import type { AbilitiesList, AbilityInput, AbilityResult } from './abilities';
 import type { ProgressReceiver } from '@php-wasm/progress';
 import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
 import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
@@ -12,10 +13,23 @@ import type {
 	WorkerBootOptions,
 } from './playground-worker-endpoint';
 
+export type {
+	AbilitiesList,
+	AbilityDescriptor,
+	AbilityError,
+	AbilityInput,
+	AbilityResult,
+} from './abilities';
+
 export type { BootProgressEvent } from './playground-worker-endpoint';
 export type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
 
 export interface WebClientMixin extends ProgressReceiver {
+	/** Lists PHP abilities using the current WordPress login, including non-REST abilities. */
+	listAbilities(): Promise<AbilitiesList>;
+	/** Executes a PHP ability with WordPress validation and permissions, without automatic retries. */
+	executeAbility(name: string, input?: AbilityInput): Promise<AbilityResult>;
+
 	/**
 	 * Sets the progress bar options.
 	 * @param options The progress bar options.
@@ -28,10 +42,13 @@ export interface WebClientMixin extends ProgressReceiver {
 	setLoaded(): Promise<void>;
 
 	/**
-	 * Sets the navigation event listener.
+	 * Sets the navigation event listener. Set includeReloads to also observe document reloads.
 	 * @param fn The function to be called when a navigation event occurs.
 	 */
-	onNavigation(fn: (url: string) => void): Promise<void>;
+	onNavigation(
+		fn: (url: string) => void,
+		options?: { includeReloads?: boolean }
+	): Promise<void>;
 
 	/**
 	 * Navigates to the requested path.

@@ -198,3 +198,43 @@ client.cli(['-r', 'echo "Hello, world!";']);
 ```
 
 Once `cli()` method finishes running, the PHP instance is no longer usable and should be discarded. This is because PHP internally cleans up all the resources and calls `exit()`.
+
+## Inspecting and running WordPress abilities
+
+In the Playground website, open **Dev Tools → Abilities** to search registered
+PHP abilities, inspect their schemas, and run them with JSON input. This includes
+abilities that are not exposed through the WordPress REST API. Sign in to
+WordPress first; calls use the current signed-in user and retain WordPress's
+validation and permission checks. The API must be available in the running
+WordPress installation (WordPress 6.9 or later includes it).
+
+The browser client exposes the same operations:
+
+```ts
+const { available, user, abilities } = await client.listAbilities();
+const result = await client.executeAbility('my-plugin/lookup', { id: 123 });
+// Success: { success: true, data: ... }
+// Failure: { success: false, errors: [{ code, message, data }] }
+```
+
+`executeAbility()` accepts any JSON value. Omit its second argument for an ability
+that takes no input. Transport and authentication failures reject the promise.
+Execution is never retried automatically because an operation may already have
+changed the site before a connection or navigation failure.
+
+The **Expose through WebMCP** switches register selected abilities with a supported
+browser's `document.modelContext`. They start off and are remembered per site until
+the Playground page reloads. Closing the pane keeps selected tools available;
+switching sites exposes only the active site's selections. These switches affect
+Playground's native registrations, independently of tools registered by plugins.
+Manual execution works even when the browser does not support WebMCP.
+
+Each exposed tool is named `wp_ability_<namespace>.<slug>`: the WordPress namespace
+separator becomes a dot to meet WebMCP's tool-name restrictions. The tool accepts
+an object whose `input` property contains the ability's input. For example, an agent calls
+`wp_ability_my-plugin.lookup` with `{ "input": { "id": 123 } }`.
+
+Use **Refresh** after changing plugin code. The pane also refreshes after WordPress
+navigation and reloads. Client integrations that need reload notifications can use
+`client.onNavigation(callback, { includeReloads: true })`; the default continues
+to report URL changes only.
