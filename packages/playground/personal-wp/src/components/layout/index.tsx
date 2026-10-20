@@ -8,6 +8,7 @@ import { LogModal } from '../log-modal';
 import { StartErrorModal } from '../start-error-modal';
 import { PlaygroundViewport } from '../playground-viewport';
 import { MissingSiteModal } from '../missing-site-modal';
+import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
 import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
@@ -62,6 +63,8 @@ function Modals() {
 		return <StartErrorModal />;
 	} else if (currentModal === modalSlugs.MISSING_SITE_PROMPT) {
 		return <MissingSiteModal />;
+	} else if (currentModal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH) {
+		return <GitHubPrivateRepoAuthModal />;
 	}
 
 	return;
