@@ -1,3 +1,6 @@
+import { getSetupUrlFromUrl } from '../../lib/state/playground-identity';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../remote/src/lib/dev-server';
 import { autocompletion } from '@codemirror/autocomplete';
 import { StateField, type Extension } from '@codemirror/state';
 import {
@@ -60,6 +63,7 @@ import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
 	createStoredSite,
+	setTemporarySiteSpec,
 	isAutosavedSite,
 	isUnfinishedBlueprintRun,
 	isStoredSite,
@@ -307,6 +311,7 @@ export interface BlueprintBundleEditorHandle {
 	runBlueprint: () => Promise<void>;
 }
 
+/** Edit a complete bundle and run it without mutating a saved source Playground. */
 export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
@@ -551,6 +556,7 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [newUrl]);
 
+	/** Flush pending edits before creating a new runtime; prototype runs leave this origin. */
 	const handleRunBlueprint = useCallback(async () => {
 		if (
 			!site ||
@@ -624,6 +630,13 @@ export const BlueprintBundleEditor = forwardRef<
 							newSite.slug,
 						],
 					})
+				);
+				return;
+			}
+			if (isOriginIsolationPrototype(new URL(window.location.href))) {
+				// Replacing a temporary Blueprint must retire its storage origin too.
+				await dispatch(
+					setTemporarySiteSpec(site.metadata.name, filesystem.backend)
 				);
 				return;
 			}
@@ -896,7 +909,11 @@ export const BlueprintBundleEditor = forwardRef<
 			return;
 		}
 		try {
-			await navigator.clipboard.writeText(newUrl);
+			await navigator.clipboard.writeText(
+				isOriginIsolationPrototype(new URL(newUrl))
+					? getSetupUrlFromUrl(new URL(newUrl)).href
+					: newUrl
+			);
 
 			dispatch(
 				setDockOperationNotice({

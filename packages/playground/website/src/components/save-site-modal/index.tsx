@@ -1,3 +1,5 @@
+import { chooseLocalDirectory } from '../../lib/local-directory';
+import { isInOriginShell } from '../../lib/origin-isolation';
 import {
 	useCallback,
 	useEffect,
@@ -95,6 +97,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		useState<FileSystemDirectoryHandle | null>(null);
 	const [directoryPermission, setDirectoryPermission] =
 		useState<PermissionState | null>(null);
+	const [isChoosingDirectory, setIsChoosingDirectory] = useState(false);
 	const [directoryError, setDirectoryError] = useState<string | null>(null);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -245,12 +248,8 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 			return;
 		}
 		try {
-			const handle: FileSystemDirectoryHandle = await (
-				window as any
-			).showDirectoryPicker({
-				id: 'playground-directory',
-				mode: 'readwrite',
-			});
+			setIsChoosingDirectory(true);
+			const handle = await chooseLocalDirectory();
 			const permission = await requestWriteAccess(handle);
 			setDirectoryHandle(handle);
 			setDirectoryPermission(permission);
@@ -266,7 +265,13 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				return;
 			}
 			logger.error(error);
-			setDirectoryError('Unable to access the selected directory.');
+			setDirectoryError(
+				error instanceof Error
+					? error.message
+					: 'Unable to access the selected directory.'
+			);
+		} finally {
+			setIsChoosingDirectory(false);
 		}
 	};
 
@@ -431,6 +436,15 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				)}
 				{selectedStorage === 'local-fs' && (
 					<BaseControl label="Local directory">
+						{isInOriginShell() && (
+							<p style={helpTextStyle}>
+								A separate window will guide you through
+								choosing a directory and allowing access on
+								every visit. Your Playground stays open here.
+								Playground starts copying the site when you
+								press Save.
+							</p>
+						)}
 						<div
 							style={{
 								display: 'flex',
@@ -450,7 +464,8 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 								type="button"
 								variant="secondary"
 								onClick={handlePickDirectory}
-								disabled={isSaving}
+								disabled={isSaving || isChoosingDirectory}
+								isBusy={isChoosingDirectory}
 							>
 								Choose...
 							</Button>

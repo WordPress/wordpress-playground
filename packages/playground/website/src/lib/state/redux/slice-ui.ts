@@ -1,3 +1,4 @@
+import { isInOriginShell } from '../../origin-isolation';
 import type { DockToolSection as DockPaneSection } from '../../../components/dock/tool-registry';
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -191,7 +192,7 @@ export interface UIState {
 }
 
 const query = new URL(document.location.href).searchParams;
-const isEmbeddedInAnIframe = window.self !== window.top;
+const isEmbeddedInAnIframe = window.self !== window.top && !isInOriginShell();
 
 const shouldOpenDockPaneByDefault = false;
 

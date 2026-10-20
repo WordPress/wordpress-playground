@@ -1,9 +1,17 @@
+// eslint-disable-next-line @nx/enforce-module-boundaries -- Local prototype, not a public API.
+import { isOriginIsolationPrototype } from '../../../../../remote/src/lib/dev-server';
+import { isInOriginShell, navigateOrigin } from '../../origin-isolation';
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '@php-wasm/util';
 
+/** Keep same-origin routes in the SPA; changing origins requires a real navigation. */
 export function redirectTo(url: string) {
-	window.history.pushState({}, '', url);
+	if (new URL(url, window.location.href).origin !== window.location.origin) {
+		navigateOrigin(url);
+	} else {
+		window.history.pushState({}, '', url);
+	}
 }
 
 export interface QueryAPIParams {
@@ -145,7 +153,7 @@ export class PlaygroundRoute {
 		const query =
 			(config.query as Record<string, string | undefined>) || {};
 		return updateUrl(
-			baseUrl,
+			newSiteBaseUrl(baseUrl),
 			{
 				searchParams: {
 					...query,
@@ -176,7 +184,7 @@ export class PlaygroundRoute {
 		const query =
 			(config.query as Record<string, string | undefined>) || {};
 		return updateUrl(
-			baseUrl,
+			newSiteBaseUrl(baseUrl),
 			{
 				searchParams: {
 					...query,
@@ -189,6 +197,16 @@ export class PlaygroundRoute {
 			'replace'
 		);
 	}
+}
+
+/** Route fresh setups through the launcher so they cannot reuse a saved site's origin. */
+function newSiteBaseUrl(href: string): string {
+	const url = new URL(href);
+	if (isOriginIsolationPrototype(url)) {
+		url.hostname = 'playground.localhost';
+		url.pathname = '/';
+	}
+	return url.href;
 }
 
 /**
@@ -207,7 +225,7 @@ export function isSiteSavingDisabled(
 
 function isEmbeddedInAnIframe(win: Window): boolean {
 	try {
-		return win.self !== win.top;
+		return win.self !== win.top && !isInOriginShell(win);
 	} catch {
 		return true;
 	}

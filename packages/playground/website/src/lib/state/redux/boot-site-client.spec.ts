@@ -1,3 +1,4 @@
+import { isInOriginShell } from '../../origin-isolation';
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +15,10 @@ import { logBlueprintEvents } from '../../tracking';
 import { shouldShowGitHubAuthModal } from '../../../github/git-auth-helpers';
 import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
 import clientsReducer from './slice-clients';
+
+vi.mock('../../origin-isolation', () => ({
+	isInOriginShell: vi.fn(() => false),
+}));
 
 vi.mock('@wp-playground/client', () => ({
 	startPlaygroundWeb: vi.fn(),
@@ -71,6 +76,7 @@ vi.mock('@php-wasm/logger', () => ({
 
 describe('bootSiteClient', () => {
 	beforeEach(() => {
+		vi.mocked(isInOriginShell).mockReturnValue(false);
 		vi.mocked(loadDirectoryHandle).mockReset();
 		vi.mocked(loadDirectoryHandle).mockResolvedValue({} as any);
 		vi.mocked(startPlaygroundWeb).mockReset();
@@ -128,6 +134,45 @@ describe('bootSiteClient', () => {
 
 		expect(dispatch).not.toHaveBeenCalled();
 	});
+
+	it.each(['aborted', 'deleted'])(
+		'does not start OPFS after an initializer finishes for a %s site',
+		async (outcome) => {
+			const playground = createPlaygroundClient();
+			vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+				async (options: any) => {
+					options.onClientConnected(playground);
+					return playground;
+				}
+			);
+			const site = createSite('late-initializer', {
+				metadata: { initialOpfsSyncPending: true },
+			});
+			const state = createState(site);
+			const dispatch = createDispatch(state);
+			const controller = new AbortController();
+			let release!: () => void;
+			const pending = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			const initialize = vi.fn(() => pending);
+			const registration = registerSiteFirstBootInitializer(
+				site.slug,
+				initialize
+			);
+			const boot = bootSiteClient(
+				site.slug,
+				document.createElement('iframe'),
+				{ signal: controller.signal }
+			)(dispatch, () => ({ ...state }));
+			await vi.waitFor(() => expect(initialize).toHaveBeenCalled());
+			if (outcome === 'aborted') controller.abort();
+			else dispatch(sitesSlice.actions.removeSite(site.slug));
+			release();
+			await Promise.all([boot, registration.finished]);
+			expect(playground.mountOpfs).not.toHaveBeenCalled();
+		}
+	);
 
 	it('finishes pending OPFS resets before booting the site', async () => {
 		const site = createSite('autosaved', {
@@ -449,6 +494,49 @@ describe('bootSiteClient', () => {
 				],
 			})
 		);
+	});
+
+	it('offers permission recovery before mounting an unapproved local directory in the root shell', async () => {
+		vi.mocked(isInOriginShell).mockReturnValue(true);
+		const requestPermission = vi.fn();
+		vi.mocked(loadDirectoryHandle).mockResolvedValue({
+			queryPermission: async () => 'prompt',
+			requestPermission,
+		} as any);
+		const site = createSite('local-save', {
+			metadata: { storage: 'local-fs' },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(requestPermission).not.toHaveBeenCalled();
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'ui/setActiveSiteError',
+				payload: { error: 'directory-handle-permission-denied' },
+			})
+		);
+	});
+
+	it('does not boot a local directory when navigation aborts its permission check', async () => {
+		vi.mocked(isInOriginShell).mockReturnValue(true);
+		const controller = new AbortController();
+		vi.mocked(loadDirectoryHandle).mockResolvedValue({
+			queryPermission: async () => {
+				controller.abort();
+				return 'granted';
+			},
+		} as any);
+		const state = createState(
+			createSite('local-save', { metadata: { storage: 'local-fs' } })
+		);
+		await bootSiteClient('local-save', document.createElement('iframe'), {
+			signal: controller.signal,
+		})(createDispatch(state), () => state);
+		expect(startPlaygroundWeb).not.toHaveBeenCalled();
 	});
 
 	it('boots local directories as existing saved sites', async () => {

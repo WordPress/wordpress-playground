@@ -1,3 +1,5 @@
+import { reconnectLocalDirectory } from '../../lib/local-directory';
+import { isSiteOrigin, isInOriginShell } from '../../lib/origin-isolation';
 import { useState } from 'react';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
@@ -33,6 +35,7 @@ import {
 import { useKapaAI } from './use-kapa-ai';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 
+/** Offer recovery actions without replacing a saved source site after a failed run. */
 export function SiteErrorModal({
 	error,
 	siteSlug,
@@ -83,9 +86,20 @@ export function SiteErrorModal({
 			url.searchParams.delete('core-pr');
 			window.location.href = url.toString();
 		},
+		/** Start fresh, keeping the current shell only when no Blueprint reached PHP. */
 		reloadWithoutBlueprint() {
 			const currentUrl = new URL(window.location.href);
 			const newSiteUrl = new URL(PlaygroundRoute.newSite());
+			if (
+				isSiteOrigin(currentUrl.origin) &&
+				error === 'blueprint-fetch-failed' &&
+				site.metadata.storage === 'none'
+			) {
+				// The Blueprint never reached PHP. Retry in this shell instead of
+				// allocating a new origin for an error-only temporary placeholder.
+				newSiteUrl.host = currentUrl.host;
+			}
+
 			const paramsToKeep = [
 				'mode',
 				'url',
@@ -165,6 +179,21 @@ export function SiteErrorModal({
 		} catch (error) {
 			logger.error('Failed to discard Blueprint run', error);
 		}
+	}
+	if (error === 'directory-handle-permission-denied' && isInOriginShell()) {
+		baseView.title = 'Reconnect your local directory';
+		baseView.hideReportButton = true;
+		baseView.hideTroubleshootWithAiButton = true;
+		baseView.body = (
+			<p>
+				Browser access to this directory has expired. A separate window
+				will guide you through allowing access again. Your saved files
+				will not be replaced.
+			</p>
+		);
+		baseView.actions = [
+			<ReconnectDirectory key="reconnect" siteSlug={siteSlug} />,
+		];
 	}
 	const view = isBlueprintRunFailure
 		? {
@@ -342,6 +371,47 @@ export function SiteErrorModal({
 				) : null}
 			</div>
 		</Modal>
+	);
+}
+
+/** Reopen only the saved site's iframe after its native permission is restored. */
+function ReconnectDirectory({ siteSlug }: { siteSlug: string }) {
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState('');
+	return (
+		<div>
+			{error && <p role="alert">{error}</p>}
+			<Button
+				variant="primary"
+				disabled={busy}
+				isBusy={busy}
+				onClick={async () => {
+					setBusy(true);
+					setError('');
+					try {
+						await reconnectLocalDirectory(siteSlug);
+						window.location.reload();
+					} catch (error) {
+						if (
+							!(
+								error instanceof DOMException &&
+								error.name === 'AbortError'
+							)
+						) {
+							setError(
+								error instanceof Error
+									? error.message
+									: String(error)
+							);
+						}
+					} finally {
+						setBusy(false);
+					}
+				}}
+			>
+				Reconnect directory
+			</Button>
+		</div>
 	);
 }
 
