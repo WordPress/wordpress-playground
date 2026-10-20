@@ -106,7 +106,6 @@
 		"express": "4.22.2",
 		"fast-xml-parser": "^5.8.0",
 		"file-saver": "^2.0.5",
-		"fs-ext-extra-prebuilt": "2.2.7",
 		"fs-extra": "11.1.1",
 		"ignore": "7.0.6",
 		"ini": "4.1.2",
@@ -242,5 +241,8 @@
 	"engines": {
 		"node": ">=24.18.0",
 		"npm": ">=11.16.0"
+	},
+	"optionalDependencies": {
+		"fs-ext-extra-prebuilt": "~2.2.15"
 	}
 }

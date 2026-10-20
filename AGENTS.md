@@ -234,6 +234,18 @@ adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
 Use screenshots and manual interaction for visual-only changes. Tests are not
 required for every PR. Never add tests simply to make a PR appear complete.
 
+CI tests the Node file-lock fallback on Node 24 and the current Node release.
+It builds the published Node package, checks that the native addon is optional,
+and runs PHP/SQLite, CLI multi-worker, and worker-wait tests with that addon moved
+out of resolution.
+The addon is restored before the shared dependency cache is saved.
+
+Dependabot's daily version check opens PRs for `fs-ext-extra-prebuilt` patch
+releases. It raises the minimum package version and updates the lockfile; the
+existing Dependabot lockfile workflow preserves workspace links. An explicit
+`trunk` target keeps this version-update allow-list out of security-update
+settings. Other dependencies remain eligible for security updates.
+
 ### Package Structure
 
 All published packages follow this pattern:
