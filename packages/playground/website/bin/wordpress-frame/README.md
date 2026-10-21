@@ -35,6 +35,10 @@ opt-in through the existing loopback Vite ports: app on 5400, WordPress on
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
 
+For WP Cloud staging, set `VITE_WORDPRESS_SITE_URL` at build time and install the
+host-specific PHP router. The flag alone does not install server headers or
+routing. See the [staging deployment instructions](../../../website-deployment/wordpress-frame/README.md).
+
 ## Boundaries
 
 - With `?reprint`, the app, `remote.html`, PHP worker, and all directory handles remain same-origin.
