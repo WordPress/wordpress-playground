@@ -922,7 +922,10 @@ export function windowEndpoint(
 	context: EventSource = globalThis,
 	targetOrigin = '*'
 ): Endpoint {
-	// Reuse one wrapper for both capture modes, including after removing only one mode.
+	// The capture flag controls event order: capturing listeners run before bubbling listeners.
+	// Window messages do not bubble, but the browser still treats the same callback registered
+	// with capture: true and capture: false as two separate listeners. Removing one must leave
+	// the other removable, so keep the wrapper cached for later removeEventListener calls.
 	const listeners = new WeakMap<
 		EventListenerOrEventListenerObject,
 		EventListener
