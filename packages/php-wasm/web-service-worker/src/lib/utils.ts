@@ -5,6 +5,14 @@ import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 import { portToStream } from '@php-wasm/universal';
 
+/**
+ * Converts a scoped fetch into a PHP request and returns its HTTP response.
+ *
+ * @param event - Fetch event whose request is scoped directly or through its referrer.
+ * @param sendRequest - Optional transport receiving the RPC message and site scope.
+ * Returns a PHP response with headers and either bytes or a streamed body port.
+ * When omitted, the request is broadcast to scoped window clients and awaits their reply.
+ */
 export async function convertFetchEventToPHPRequest(
 	event: FetchEvent,
 	sendRequest?: (
