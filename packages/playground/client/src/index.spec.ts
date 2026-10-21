@@ -119,6 +119,29 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
 	});
+	it('does not disclose a top-level caller’s previous page as an embedder', async () => {
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		const iframe = createIframe();
+		const view = { origin: 'https://sdk.example' };
+		Object.assign(view, { parent: view });
+		Object.assign(iframe.ownerDocument, {
+			URL: 'https://sdk.example/',
+			referrer: 'https://previous.example/article',
+			defaultView: view,
+		});
+
+		await startPlaygroundWeb({
+			iframe,
+			remoteUrl: 'http://localhost/remote.html',
+			progressTracker: createProgressTracker(),
+		});
+
+		expect(
+			new URL(iframe.src).searchParams.getAll('embedder-origin')
+		).toEqual(['https://sdk.example']);
+	});
 	it('carries external ancestors through a referrer-free inner frame', async () => {
 		mocks.BlueprintsV1Handler.mockImplementation(() => ({
 			bootPlayground: mocks.bootPlaygroundV1,
@@ -175,7 +198,11 @@ describe('startPlaygroundAPI', () => {
 function createIframe() {
 	return {
 		src: '',
-		ownerDocument: { URL: 'http://localhost/', referrer: '' },
+		ownerDocument: {
+			URL: 'http://localhost/',
+			referrer: '',
+			defaultView: { parent: {} },
+		},
 		addEventListener: vi.fn((_event, callback: () => void) => {
 			callback();
 		}),

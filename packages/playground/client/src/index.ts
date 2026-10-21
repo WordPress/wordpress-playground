@@ -300,14 +300,17 @@ export async function startPlaygroundAPI(
 function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
 	const target = new URL(url);
 	const document = iframe.ownerDocument;
+	const view = document.defaultView;
 	const parent = new URL(document.URL);
 	const origins = new Set([
 		...target.searchParams.getAll('embedder-origin'),
 		...parent.searchParams.getAll('embedder-origin'),
 		// about:blank/srcdoc documents can inherit an origin despite their opaque URL.
-		document.defaultView?.origin ?? parent.origin,
+		view?.origin ?? parent.origin,
 	]);
-	if (document.referrer) {
+	// An embedded caller's referrer can name a frame above it. At the top level,
+	// it names the previous page, which must not be copied into this iframe URL.
+	if (document.referrer && view && view.parent !== view) {
 		origins.add(new URL(document.referrer).origin);
 	}
 	target.searchParams.delete('embedder-origin');
