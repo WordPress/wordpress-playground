@@ -19,10 +19,10 @@ describe('DbgpSession', () => {
 	});
 
 	it('listens on specified port', () => {
-		new DbgpSession(1234);
+		new DbgpSession('127.0.0.1', 1234);
 
 		expect(net.createServer).toHaveBeenCalled();
-		expect(server.listen).toHaveBeenCalledWith(1234);
+		expect(server.listen).toHaveBeenCalledWith(1234, '127.0.0.1');
 	});
 
 	it('emits connected on first connection', () => {
