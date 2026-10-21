@@ -120,6 +120,7 @@ process.once('exit', () => {
 	cleanupChild(proxyProcess);
 });
 
+/** Start the proxy before either the normal preview or the split-origin preview. */
 async function main() {
 	proxyProcess = spawnNxTarget('playground-php-cors-proxy:start');
 	registerProcessHooks(proxyProcess, 'playground-php-cors-proxy');
@@ -129,7 +130,11 @@ async function main() {
 		cleanupAndExit(1);
 	});
 
-	previewProcess = spawnNxTarget('playground-website:preview:ci');
+	previewProcess = spawnNxTarget(
+		process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1'
+			? 'playground-website:preview:wordpress-frame'
+			: 'playground-website:preview:ci'
+	);
 	previewProcess.once('error', (error) => {
 		console.error(
 			'playground-website preview server failed to start:',

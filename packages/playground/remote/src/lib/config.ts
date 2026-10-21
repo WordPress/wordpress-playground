@@ -14,6 +14,8 @@ export const playgroundOrigin = playgroundUrl.origin;
  */
 export const wordPressSiteUrl = import.meta.env['VITE_WORDPRESS_SITE_URL']
 	? new URL(import.meta.env['VITE_WORDPRESS_SITE_URL']).origin
-	: playgroundOrigin;
+	: playgroundUrl.hostname === 'playground.localhost'
+		? playgroundOrigin.replace('://playground.', '://wp.playground.')
+		: playgroundOrigin;
 // Hardcoded in wp.js:
 export const DOCROOT = '/wordpress';

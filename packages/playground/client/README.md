@@ -22,6 +22,13 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
+## Embedding with separate WordPress origins
+
+The WordPress-origin prototype keeps the app and SDK endpoints on the app origin.
+Existing iframe URLs and SDK calls work without a referrer or new URL parameters,
+including nested external embeds. See the
+[prototype boundaries and limits](../website/bin/wordpress-frame/README.md#limits).
+
 ## SharedWorker runtime
 
 `startPlaygroundWeb()` uses a dedicated worker by default. Applications can opt into
