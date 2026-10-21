@@ -195,6 +195,7 @@ export default defineConfig(({ mode }) => {
 			rollupOptions: {
 				input: {
 					wordpress: path('/remote.html'),
+					'wordpress-popup': path('/wordpress-popup.html'),
 				},
 				output: {
 					assetFileNames: (chunkInfo) => {
