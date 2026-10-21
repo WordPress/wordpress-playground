@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -20,6 +21,7 @@ import { buildVersion as remoteBuildVersion } from 'virtual:remote-config';
 import { RELOAD_REQUIRED } from './shared-runtime';
 import { connectSharedRuntime } from './connect-shared-runtime';
 import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
+import { requestWordPressUrl } from './request-wordpress-url';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
@@ -67,6 +69,7 @@ if (import.meta.hot) {
 }
 
 const query = new URL(document.location.href).searchParams;
+/** Boot the trusted PHP host and connect its rendered WordPress HTTP transport. */
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
@@ -142,6 +145,44 @@ export async function bootPlaygroundRemote() {
 	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	// Pointer events stop at the WordPress document boundary. Accept messages from
+	// this #wp window at the WordPress origin, then dispatch a press in remote.html,
+	// where the app's outside-click listeners can observe it. Checking the origin
+	// alone would also accept messages from other Playgrounds on that origin.
+	window.addEventListener('message', (event: MessageEvent) => {
+		if (
+			event.source !== wpFrame.contentWindow ||
+			event.origin !== wordPressSiteUrl
+		) {
+			return;
+		}
+		let data;
+		try {
+			data =
+				typeof event.data === 'string'
+					? JSON.parse(event.data)
+					: event.data;
+		} catch {
+			// Ignore non-JSON messages from other WordPress scripts.
+			return;
+		}
+		if (data?.type === 'playground-pointer-relay-ready') {
+			// Confirm that #wp has a receiver before it marks its pointer relay active.
+			// A nested editor frame sends to its WordPress parent, not here. Without
+			// this reply, it stays unmarked so readable frames keep native click handling.
+			wpFrame.contentWindow?.postMessage(
+				{ type: 'playground-enable-pointer-relay' },
+				wordPressSiteUrl
+			);
+		} else if (data?.type === 'playground-pointerdown') {
+			// Bubble from the iframe element into remote.html's document. The app skips
+			// the original press in marked WordPress documents to avoid handling it twice.
+			// This synthetic event dismisses UI; it does not carry user activation.
+			wpFrame.dispatchEvent(
+				new PointerEvent('pointerdown', { bubbles: true })
+			);
+		}
+	});
 	if (sharedRuntime) {
 		const reloadDocuments = new WeakSet<Document>();
 		wpFrame.addEventListener('load', () =>
@@ -202,9 +243,13 @@ export async function bootPlaygroundRemote() {
 		},
 
 		/**
-		 * Listens to Playground navigation.
+		 * Reports changes to the WordPress path, including History API navigation.
 		 *
-		 * @param fn The function to be called when a navigation event occurs.
+		 * WordPress reports its URL during page startup. Also request it on subscription,
+		 * after loads, and every 500ms: pushState() changes the URL without a load event.
+		 * Both reports and requests share lastPath so an unchanged path is not sent twice.
+		 *
+		 * @param fn Receives the path within WordPress, without the internal scope prefix.
 		 */
 		async onNavigation(fn) {
 			/**
@@ -219,16 +264,18 @@ export async function bootPlaygroundRemote() {
 			let lastPath: string | undefined;
 
 			/**
-			 * Listen for URL change messages from the WordPress iframe.
-			 *
-			 * When Document-Isolation-Policy is enabled, we can't access the
-			 * iframe's location.href due to cross-origin restrictions. Instead,
-			 * a WordPress MU plugin posts a message with the current URL.
+			 * Receive the startup URL posted by the WordPress MU plugin in wp_head/admin_head.
+			 * Use the same messages for both origins, even when DOM reads would be allowed.
+			 * This also works when Document-Isolation-Policy blocks DOM access. Accept only
+			 * our #wp window at the expected origin, not another frame's URL report.
 			 *
 			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
 			 */
 			window.addEventListener('message', async (event) => {
-				if (event.source !== wpFrame.contentWindow) {
+				if (
+					event.source !== wpFrame.contentWindow ||
+					event.origin !== wordPressSiteUrl
+				) {
 					return;
 				}
 				try {
@@ -236,7 +283,10 @@ export async function bootPlaygroundRemote() {
 						typeof event.data === 'string'
 							? JSON.parse(event.data)
 							: event.data;
-					if (data?.type !== 'playground-url-change') {
+					if (
+						data?.type !== 'playground-url-change' ||
+						typeof data.url !== 'string'
+					) {
 						return;
 					}
 					const path = await playground.internalUrlToPath(data.url);
@@ -249,54 +299,41 @@ export async function bootPlaygroundRemote() {
 				}
 			});
 
+			// WordPress may have sent its startup URL before this listener was attached.
+			// Ask the current document rather than waiting for another navigation.
+			void reportCurrentPath();
+
 			// Listen for iframe load events (for navigation)
-			wpFrame.addEventListener('load', async (e: any) => {
-				try {
-					/**
-					 * When navigating to a page with %0A sequences (encoded newlines)
-					 * in the query string, the `location.href` property of the
-					 * iframe's content window doesn't seem to reflect them. Everything
-					 * else is in place, but not the %0A sequences.
-					 *
-					 * Weirdly, these sequences are available after the next event
-					 * loop tick – hence the `setTimeout(0)`.
-					 *
-					 * The exact cause is unclear at the moment of writing of this
-					 * comment. The WHATWG HTML Standard [1] has a few hints:
-					 *
-					 * * Current and active session history entries may get out of
-					 *   sync for iframes.
-					 * * Documents inside iframes have "is delaying load events" set
-					 *   to true.
-					 *
-					 * But there doesn't seem to be any concrete explanation and no
-					 * recommended remediation. If anyone has a clue, please share it
-					 * in a GitHub issue or start a new PR.
-					 *
-					 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
-					 */
-					// Get the content window while e.currentTarget is available.
-					// It will be undefined on the next event loop tick.
-					const contentWindow = e.currentTarget!.contentWindow;
-					await new Promise((resolve) => setTimeout(resolve, 0));
-					const path = await playground.internalUrlToPath(
-						contentWindow.location.href
-					);
-					if (path !== lastPath) {
-						lastPath = path;
-						fn(path);
-					}
-				} catch {
-					// @TODO: The above call can fail if the remote iframe
-					// is embedded in StackBlitz, or presumably, any other
-					// environment with restrictive CSP. Any error thrown
-					// due to CORS-related stuff crashes the entire remote
-					// so let's ignore it for now and find a correct fix in time.
-				}
+			wpFrame.addEventListener('load', async () => {
+				/**
+				 * When navigating to a page with %0A sequences (encoded newlines)
+				 * in the query string, the `location.href` property of the
+				 * iframe's content window doesn't seem to reflect them. Everything
+				 * else is in place, but not the %0A sequences.
+				 *
+				 * Weirdly, these sequences are available after the next event
+				 * loop tick – hence the `setTimeout(0)`.
+				 *
+				 * The exact cause is unclear at the moment of writing of this
+				 * comment. The WHATWG HTML Standard [1] has a few hints:
+				 *
+				 * * Current and active session history entries may get out of
+				 *   sync for iframes.
+				 * * Documents inside iframes have "is delaying load events" set
+				 *   to true.
+				 *
+				 * But there doesn't seem to be any concrete explanation and no
+				 * recommended remediation. If anyone has a clue, please share it
+				 * in a GitHub issue or start a new PR.
+				 *
+				 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+				 */
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				await reportCurrentPath();
 			});
 
-			// Also propagate navigation changes twice a second for any
-			// updates we don't receive via the iframe load event.
+			// Ask twice a second to catch pushState()/replaceState() and any navigation
+			// missed by the load handler. Poll here for both origins, not separately in WordPress.
 			//
 			// For more details on the challenges related to the load event,
 			// see:
@@ -304,25 +341,23 @@ export async function bootPlaygroundRemote() {
 			// * https://github.com/WordPress/wordpress-playground/pull/1945
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
-			setInterval(async () => {
+			setInterval(reportCurrentPath, 500);
+
+			/** Use the same URL read as explicit API calls, and skip unchanged paths. */
+			async function reportCurrentPath() {
 				if (sharedRuntime?.isRetired()) return;
 				try {
-					let href = '';
-					if (wpFrame.contentWindow) {
-						href = wpFrame.contentWindow.location.href;
-					} else {
-						href = wpFrame.src;
-					}
-					const path = await playground.internalUrlToPath(href);
+					const path = await phpRemoteApi.getCurrentURL();
 					if (path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
 				} catch {
-					// Ignore errors due to CORS or CSP restrictions
+					// Navigation may retire the runtime while a URL request is in flight.
 				}
-			}, 500);
+			}
 		},
+		/** Navigate the WordPress frame and wait for its load event. */
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
@@ -373,20 +408,24 @@ export async function bootPlaygroundRemote() {
 			wpFrame.src = newUrl;
 			await navigationComplete;
 		},
+		/**
+		 * Return the current WordPress path without waiting for the next navigation poll.
+		 * Ask the live document first: a cached report can predate a pushState() call.
+		 * If it does not reply, try a direct location read, then fall back to iframe.src.
+		 * That last fallback is only the requested URL; it may miss later navigation.
+		 */
 		async getCurrentURL() {
-			let url = '';
-			try {
-				url = wpFrame.contentWindow!.location.href;
-			} catch {
-				// The above call can fail if we're embedded in an
-				// environment with a restrictive CSP policy.
-			}
+			let url = await requestWordPressUrl(wpFrame, wordPressSiteUrl);
 			if (!url) {
-				// If we can't get the URL from the iframe (e.g. it's not loaded
-				// yet), let's refer to the src attribute of the iframe itself.
-				// This is less reliable because the src attribute may not be
-				// updated when the iframe navigates to a new URL.
+				// Plain HTML has no reporter; a loading or busy page can also miss the deadline.
+				// A live location read may still work. Across origins, only src may be available.
 				url = wpFrame.src;
+				try {
+					url = wpFrame.contentWindow?.location.href || url;
+				} catch {
+					// StackBlitz and other restrictive CSPs can block even same-origin reads.
+					// Do not let a failed DOM read crash the remote frame.
+				}
 			}
 			return await playground.internalUrlToPath(url);
 		},

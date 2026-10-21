@@ -207,11 +207,111 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
+	wordpress,
 }) => {
 	await website.goto('./?storage=temp&url=/wp-admin/');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
+	);
+	await wordpress.locator('body').evaluate(() => {
+		window.history.pushState({}, '', 'edit.php');
+	});
+	await expect(
+		website.page.locator('input[value="/wp-admin/edit.php"]')
+	).toHaveValue('/wp-admin/edit.php');
+});
+
+test('should read a History API change immediately without waiting for navigation polling', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp&url=/wp-admin/');
+	await wordpress.locator('body').evaluate(() => {
+		window.history.replaceState({}, '', 'edit.php?live-url=1');
+	});
+
+	const url = await website.page.evaluate(() =>
+		(window as any).playground.getCurrentURL()
+	);
+
+	expect(url).toBe('/wp-admin/edit.php?live-url=1');
+});
+
+test('should relay each WordPress pointer press once', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsClosed();
+	const remote = await website.page
+		.locator('#playground-viewport:visible,.playground-viewport:visible')
+		.evaluateHandle((frame: HTMLIFrameElement) => frame.contentWindow);
+	await remote.evaluate((remoteWindow: any) => {
+		remoteWindow.playgroundPointerPresses = 0;
+		remoteWindow.document.addEventListener(
+			'pointerdown',
+			() => {
+				remoteWindow.playgroundPointerPresses++;
+			},
+			true
+		);
+	});
+
+	await wordpress.locator('body').click({ position: { x: 20, y: 20 } });
+
+	await expect
+		.poll(() =>
+			remote.evaluate(
+				(remoteWindow: any) => remoteWindow.playgroundPointerPresses
+			)
+		)
+		.toBe(1);
+});
+
+test('should keep the pointer fallback for a nested WordPress document without an app relay', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await wordpress.locator('body').evaluate(() => {
+		const frame = document.createElement('iframe');
+		frame.title = 'Nested WordPress';
+		frame.src = window.location.href;
+		document.body.append(frame);
+	});
+	const nested = wordpress.frameLocator('iframe[title="Nested WordPress"]');
+	await expect(nested.locator('body')).not.toBeEmpty();
+
+	// This hook runs in both documents, but only the outer one talks to remote.html.
+	await expect(wordpress.locator('html')).toHaveAttribute(
+		'data-playground-pointer-relay',
+		''
+	);
+	await expect(nested.locator('html')).not.toHaveAttribute(
+		'data-playground-pointer-relay'
+	);
+});
+
+test('should read a plain HTML page without the WordPress reporter', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	const url = await website.page.evaluate(async () => {
+		const client = (window as any).playground;
+		await client.writeFile(
+			'/wordpress/plain.html',
+			'<!doctype html><title>Plain page</title><p>Plain page</p>'
+		);
+		await client.goTo('/plain.html?next=1');
+		return client.getCurrentURL();
+	});
+
+	expect(url).toBe('/plain.html?next=1');
+	await expect(wordpress.getByText('Plain page')).toBeVisible();
+	await expect(website.page.getByRole('combobox')).toHaveValue(
+		'/plain.html?next=1'
 	);
 });
 
@@ -811,14 +911,9 @@ test('should edit a file on mobile and see changes in the viewport', async ({
 	await website.ensureSiteManagerIsClosed();
 
 	// Reload just the WordPress iframe to see the changes
-	const playgroundViewport = website.page.frameLocator(
-		'#playground-viewport:visible,.playground-viewport:visible'
-	);
-	await playgroundViewport
-		.locator('#wp')
-		.evaluate((iframe: HTMLIFrameElement) => {
-			iframe.contentWindow?.location.reload();
-		});
+	await wordpress.locator('body').evaluate(() => {
+		window.location.reload();
+	});
 
 	// Verify the page shows "Edited file"
 	await expect(wordpress.locator('body')).toContainText('Edited file', {
