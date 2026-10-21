@@ -147,7 +147,10 @@ export class SpacefastClient {
 						redirect: 'error',
 					}
 				);
-				await checkResponse(response);
+				await checkResponse(
+					response,
+					`Spacefast could not upload ${target.path}`
+				);
 			}
 			if (!receipt.links?.refresh) break;
 			upload = (
@@ -156,7 +159,14 @@ export class SpacefastClient {
 		}
 		onProgress('Finalizing the Spacefast version…');
 		if (receipt.links?.finalize) {
-			await this.request(receipt.links.finalize, { method: 'POST' });
+			await this.request(
+				receipt.links.finalize,
+				{
+					method: 'POST',
+					body: JSON.stringify({}),
+				},
+				'finalize the website'
+			);
 		}
 		if (!receipt.version?.id)
 			throw new Error('Spacefast did not return a version ID.');
@@ -184,7 +194,11 @@ export class SpacefastClient {
 		);
 	}
 
-	private async request(path: string, init: RequestInit = {}) {
+	private async request(
+		path: string,
+		init: RequestInit = {},
+		action = 'complete the request'
+	) {
 		const url = new URL(path, API);
 		if (url.origin !== API)
 			throw new Error(
@@ -211,7 +225,7 @@ export class SpacefastClient {
 			redirect: 'error',
 			cache: 'no-store',
 		});
-		await checkResponse(response);
+		await checkResponse(response, `Spacefast could not ${action}`);
 		return response.json();
 	}
 
@@ -233,14 +247,16 @@ export class SpacefastClient {
 	}
 }
 
-async function checkResponse(response: Response) {
+async function checkResponse(response: Response, context: string) {
 	if (response.ok) return;
 	const problem = await response.json().catch(() => null);
 	throw new Error(
 		[
-			`Spacefast request failed (${response.status}).`,
-			problem?.code,
-			problem?.type,
+			`${context} (${response.status}).`,
+			problem?.detail ||
+				problem?.title ||
+				problem?.code ||
+				response.statusText,
 			problem?.requestId ? `Request: ${problem.requestId}` : '',
 		]
 			.filter(Boolean)

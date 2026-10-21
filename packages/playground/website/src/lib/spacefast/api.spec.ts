@@ -101,6 +101,13 @@ describe('Spacefast publishing', () => {
 				vi.fn()
 			);
 			expect(published.versionId).toBe('ver_test');
+			const finalize = fetchMock.mock.calls.find(
+				([url]) =>
+					url ===
+					'https://proxy.test/?https://api.spacefast.com/finalize'
+			)!;
+			expect(finalize[1]?.method).toBe('POST');
+			expect(JSON.parse(finalize[1]?.body as string)).toEqual({});
 			const upload = fetchMock.mock.calls.find(
 				([url]) =>
 					url ===
@@ -155,6 +162,44 @@ describe('Spacefast publishing', () => {
 			)
 		).rejects.toThrow('another origin');
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('explains a failed finalization using the server detail and request ID', async () => {
+		const client = new SpacefastClient('');
+		fetchMock.mockResolvedValueOnce(
+			json({
+				data: {
+					version: { id: 'ver_test' },
+					links: { finalize: '/finalize' },
+				},
+			})
+		);
+		fetchMock.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					type: 'https://spacefast.com/docs/errors/validation_error',
+					code: 'validation_error',
+					detail: 'Request body must be valid JSON.',
+					requestId: 'request_test',
+				}),
+				{ status: 400 }
+			)
+		);
+		const error = await client
+			.publish(
+				'spc_test',
+				[],
+				{ replace: false, deletePaths: [] },
+				vi.fn()
+			)
+			.catch((error: Error) => error);
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain('finalize the website');
+		expect((error as Error).message).toContain(
+			'Request body must be valid JSON.'
+		);
+		expect((error as Error).message).toContain('request_test');
+		expect((error as Error).message).not.toContain('https://');
 	});
 
 	it('does not report a ready but unpromoted version as a live save', async () => {
