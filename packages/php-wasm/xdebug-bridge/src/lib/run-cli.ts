@@ -38,7 +38,7 @@ Usage: xdebug-bridge [options]
 			alias: 'h',
 			type: 'string',
 			description: 'Xdebug host to bind to',
-			default: 'localhost',
+			default: '127.0.0.1',
 		})
 		.option('php-root', {
 			type: 'string',
@@ -84,6 +84,7 @@ export async function main(): Promise<void> {
 		cdpPort: 9229,
 		cdpHost: '127.0.0.1',
 		dbgpPort: args.port,
+		dbgpHost: args.host,
 		phpRoot: args.phpRoot,
 	});
 
