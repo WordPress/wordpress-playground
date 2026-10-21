@@ -76,6 +76,11 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
+The remote runtime can render WordPress on a separate build-time origin via
+`VITE_WORDPRESS_SITE_URL`. PHP, directory handles, and shared asset downloads stay
+on the app origin. Matching server routing is required. This mode does not block
+WordPress from embedding fresh app/API documents.
+
 ### Package Naming Convention
 
 - `@php-wasm/<name>`: PHP runtime and utilities

@@ -1,3 +1,4 @@
+import { connectWordPressOrigin } from './connect-wordpress-origin';
 import { wordPressSiteUrl } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
@@ -514,6 +515,7 @@ export async function bootPlaygroundRemote() {
 			if (sharedRuntime)
 				await sharedRuntime.api.finishSharedRuntimeInitialization();
 		},
+		/** Boot PHP, then attach the HTTP transport for the selected WordPress origin. */
 		async boot(options) {
 			if (sharedRuntime) {
 				runStartupBlueprint =
@@ -522,8 +524,10 @@ export async function bootPlaygroundRemote() {
 				await phpWorkerApi.boot(options);
 			}
 
-			// Dedicated runtimes retain the existing window relay.
-			if (!sharedRuntime)
+			if (wordPressSiteUrl !== origin) {
+				await connectWordPressOrigin(phpWorkerApi, options.scope!);
+			} else if (!sharedRuntime) {
+				// Dedicated runtimes retain the existing window relay.
 				navigator.serviceWorker.addEventListener(
 					'message',
 					async function onMessage(event) {
@@ -590,6 +594,7 @@ export async function bootPlaygroundRemote() {
 						}
 					}
 				);
+			}
 			sw.startMessages();
 
 			try {

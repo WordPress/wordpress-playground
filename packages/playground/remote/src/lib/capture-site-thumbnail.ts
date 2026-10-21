@@ -1,4 +1,5 @@
 import { domToCanvas } from 'modern-screenshot';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 import type { SiteThumbnail } from './playground-client';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
 import resourceWorkerUrl from 'modern-screenshot/worker?url';
@@ -87,12 +88,15 @@ async function waitForFonts() {
 	]);
 }
 
+/** Keep the resource worker same-origin with WordPress while sharing its public code. */
 function getResourceWorkerUrl() {
 	const url = new URL(resourceWorkerUrl, window.location.href);
 	// The service worker uses this marker to serve the bundled worker instead
 	// of treating its URL as a file inside the scoped WordPress site.
 	url.searchParams.set('playground-site-thumbnail-worker', '1');
-	return url.href;
+	return wordPressSiteUrl !== playgroundOrigin
+		? new URL(url.pathname + url.search, window.location.origin).href
+		: url.href;
 }
 
 /**

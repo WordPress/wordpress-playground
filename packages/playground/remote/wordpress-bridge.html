@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WordPress request transport</title>
+	</head>
+	<body>
+		<script type="module">
+			import bridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
+			// Share the same bundle with the service worker's offline helper document.
+			const script = document.createElement('script');
+			script.type = 'module';
+			script.src = new URL(bridgeScriptUrl, import.meta.url).href;
+			document.head.append(script);
+		</script>
+	</body>
+</html>

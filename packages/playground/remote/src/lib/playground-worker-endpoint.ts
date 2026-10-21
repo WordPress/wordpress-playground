@@ -22,7 +22,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -167,6 +167,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
+	/** Create the PHP request handler and install runtime-local hooks and parent-origin metadata. */
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
@@ -290,6 +291,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				if (wordPressSiteUrl !== playgroundOrigin) {
+					php.defineConstant(
+						'PLAYGROUND_PARENT_ORIGIN',
+						playgroundOrigin
+					);
+				}
 				/**
 				 * The remote runtime has no mail server. Capture sendmail stdin as an
 				 * event through a null transport; consumers must relay the message if
@@ -400,6 +407,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return requestHandler;
 	}
 
+	/** Finish runtime setup and recover the public asset list for older stored builds. */
 	protected async finalizeAfterBoot(
 		requestHandler: any,
 		withNetworking: boolean,
@@ -445,7 +453,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		) {
 			const listUrl = new URL(
 				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
-				wordPressSiteUrl
+				playgroundOrigin
 			);
 			try {
 				const remoteAssetPaths = await fetch(listUrl).then((res) =>

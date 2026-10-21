@@ -1,5 +1,6 @@
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer } from './dev-server';
+import { playgroundOrigin } from './config';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -214,6 +215,12 @@ export async function putCachedResponse(
 }
 
 export function shouldCacheUrl(url: URL) {
+	// Every WordPress page can write this origin's CacheStorage. Only the app
+	// origin may cache shared platform assets; WordPress must never trust its own cache.
+	if (self.location.origin !== playgroundOrigin) {
+		return false;
+	}
+
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
 	}

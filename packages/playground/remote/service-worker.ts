@@ -30,7 +30,7 @@
  *
  * ### HTTP cache in the browser
  *
- * This service worker skips the browser HTTP cache for all network requests. This is because
+ * On the app origin, this service worker skips the browser HTTP cache for asset downloads because
  * the HTTP cache caused a particularly nasty problem in Playground deployments.
  *
  * Installing a new service worker purged the CacheStorage and requested a new set of assets
@@ -42,6 +42,12 @@
  * See https://github.com/WordPress/wordpress-playground/pull/1822 for more details.
  *
  * ### CacheStorage in the service worker
+ *
+ * In the split-origin setup, the WordPress origin never uses CacheStorage for
+ * platform assets: every WordPress page can replace those entries. Its helper
+ * HTML and thumbnail-worker loader are generated below from trusted worker code.
+ * Their scripts use shared app-origin URLs and the browser HTTP cache. The app
+ * keeps its own origin-protected CacheStorage for PHP and WordPress downloads.
  *
  * Playground primarily relies on the **Cache first** strategy. This means assets are:
  *
@@ -99,6 +105,10 @@
  */
 
 declare const self: ServiceWorkerGlobalScope;
+
+import { playgroundOrigin, wordPressSiteUrl } from './src/lib/config';
+// @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
+import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
 import {
 	getURLScope,
@@ -206,18 +216,23 @@ self.addEventListener('install', (event) => {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
+	/** Claim clients and prepare the shared cache without eager split-origin downloads. */
 	async function doActivate() {
 		await self.clients.claim();
 
 		if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
-			cacheOfflineModeAssetsForCurrentRelease(
-				new URL(self.location.href).searchParams.get(
-					'shared-worker'
-				) === '1'
-					? ['/personal-wp-version.json']
-					: []
-			);
+			// The split-origin preview shares this root cache on demand. Do not
+			// prefetch unused runtimes, editors, or WordPress versions.
+			if (wordPressSiteUrl === playgroundOrigin) {
+				cacheOfflineModeAssetsForCurrentRelease(
+					new URL(self.location.href).searchParams.get(
+						'shared-worker'
+					) === '1'
+						? ['/personal-wp-version.json']
+						: []
+				);
+			}
 		}
 	}
 	event.waitUntil(doActivate());
@@ -233,6 +248,41 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
+	if (
+		wordPressSiteUrl !== playgroundOrigin &&
+		self.location.origin === playgroundOrigin &&
+		isURLScoped(url)
+	) {
+		// Root-origin user HTML would regain the app's storage privileges.
+		// Only the WordPress-origin worker may synthesize scoped responses.
+		if (url.origin === playgroundOrigin) {
+			event.respondWith(new Response('Not found', { status: 404 }));
+		}
+		return;
+	}
+
+	if (
+		wordPressSiteUrl !== playgroundOrigin &&
+		self.location.origin === wordPressSiteUrl &&
+		url.origin === wordPressSiteUrl &&
+		url.pathname === '/wordpress-bridge.html'
+	) {
+		// WordPress can replace any CacheStorage entry on this origin. Generate
+		// the helper from trusted worker code, including when starting offline.
+		// Its script uses the shared app URL, never WordPress-writable cached bytes.
+		const scriptUrl = new URL(wordpressBridgeScriptUrl, playgroundOrigin);
+		return event.respondWith(
+			new Response(
+				`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
+				{
+					headers: {
+						'Content-Type': 'text/html',
+						'Cache-Control': 'no-store',
+					},
+				}
+			)
+		);
+	}
 
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
@@ -271,6 +321,24 @@ self.addEventListener('fetch', (event) => {
 	const isSiteThumbnailWorker =
 		event.request.destination === 'worker' &&
 		url.searchParams.has('playground-site-thumbnail-worker');
+	if (
+		isSiteThumbnailWorker &&
+		wordPressSiteUrl !== playgroundOrigin &&
+		self.location.origin === wordPressSiteUrl &&
+		url.origin === wordPressSiteUrl &&
+		url.pathname.startsWith('/assets/')
+	) {
+		// The same-origin worker loader must not come from a WordPress-writable cache either.
+		const scriptUrl = new URL(url.pathname + url.search, playgroundOrigin);
+		return event.respondWith(
+			new Response(`importScripts(${JSON.stringify(scriptUrl.href)});`, {
+				headers: {
+					'Content-Type': 'text/javascript',
+					'Cache-Control': 'no-store',
+				},
+			})
+		);
+	}
 	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
 		return event.respondWith(
 			shouldCacheUrl(url)
@@ -336,7 +404,10 @@ self.addEventListener('fetch', (event) => {
 
 	// The directory listing needs an offline fallback, but arbitrary upstream
 	// responses must never become executable documents on the Playground origin.
-	if (url.origin === self.location.origin) {
+	if (
+		self.location.origin === playgroundOrigin &&
+		url.origin === playgroundOrigin
+	) {
 		if (url.pathname === '/blueprints-index.json') {
 			return event.respondWith(fetchBlueprintsIndex());
 		}
@@ -491,8 +562,17 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		) {
 			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 		}
+		const assetUrl =
+			wordPressSiteUrl !== playgroundOrigin
+				? new URL(
+						resolvedUrl.pathname + resolvedUrl.search,
+						playgroundOrigin
+					)
+				: resolvedUrl;
 		const request = await cloneRequest(event.request, {
-			url: resolvedUrl,
+			url: assetUrl,
+			// Navigation clones default to same-origin, but these assets live on the app origin.
+			...(wordPressSiteUrl !== playgroundOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
 			credentials: 'omit',
@@ -507,7 +587,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		 * request to the remote server as it is and let WordPress manage its
 		 * own HTTP caching.
 		 */
-		return fetch(request).catch((e) => {
+		const response = await fetch(request).catch((e) => {
 			if (e?.name === 'TypeError') {
 				// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
 				// happen on playground.wordpress.net. Let's add a randomized
@@ -523,6 +603,16 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			// Otherwise let's just re-throw the error
 			throw e;
 		});
+		if (
+			wordPressSiteUrl !== playgroundOrigin &&
+			(event.request.mode === 'navigate' ||
+				event.request.mode === 'same-origin')
+		) {
+			// Navigation and same-origin requests cannot accept a CORS response.
+			// Rebuild the response without buffering its streamed body.
+			return new Response(response.body, response);
+		}
+		return response;
 	}
 
 	// Path the block-editor.js file to ensure the site editor's iframe
