@@ -275,9 +275,9 @@ function SpacefastDemo() {
 								onClick={() =>
 									void perform(async () => {
 										const url = handoff;
-										setHandoff('');
 										const connected =
 											await client.current.connect(url);
+										setHandoff('');
 										setConnection(connected);
 										if (connected.spaceId)
 											setSpaceId(connected.spaceId);

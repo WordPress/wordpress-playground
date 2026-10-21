@@ -1,4 +1,3 @@
-import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { extractSpacefastHandoffUrl } from './handoff';
 
 const API = 'https://api.spacefast.com';
@@ -138,7 +137,7 @@ export class SpacefastClient {
 						'authorization'
 					);
 				}
-				const response = await fetchWithCorsProxy(
+				const response = await this.fetch(
 					new URL(target.url, API).href,
 					{
 						method: target.method,
@@ -146,8 +145,7 @@ export class SpacefastClient {
 						body,
 						credentials: 'omit',
 						redirect: 'error',
-					},
-					this.proxy
+					}
 				);
 				await checkResponse(response);
 			}
@@ -194,7 +192,10 @@ export class SpacefastClient {
 			);
 		const headers = new Headers(init.headers);
 		headers.set('Content-Type', 'application/json');
-		if (init.method === 'POST')
+		if (
+			init.method === 'POST' &&
+			url.pathname !== '/v1/auth/agent-handoffs/redeem'
+		)
 			headers.set('Idempotency-Key', crypto.randomUUID());
 		if (this.token) {
 			headers.set('Authorization', `Bearer ${this.token}`);
@@ -203,19 +204,32 @@ export class SpacefastClient {
 				'authorization'
 			);
 		}
-		const response = await fetchWithCorsProxy(
-			url.href,
-			{
-				...init,
-				headers,
-				credentials: 'omit',
-				redirect: 'error',
-				cache: 'no-store',
-			},
-			this.proxy
-		);
+		const response = await this.fetch(url.href, {
+			...init,
+			headers,
+			credentials: 'omit',
+			redirect: 'error',
+			cache: 'no-store',
+		});
 		await checkResponse(response);
 		return response.json();
+	}
+
+	private async fetch(url: string, init: RequestInit): Promise<Response> {
+		// Spacefast's API is not CORS-enabled. Go straight through the configured proxy.
+		// Keep string/Blob bodies buffered instead of converting them to upload streams.
+		const requestUrl = this.proxy
+			? `${new URL(this.proxy, globalThis.location?.href).href}${url}`
+			: url;
+		try {
+			return await fetch(requestUrl, init);
+		} catch {
+			throw new Error(
+				this.proxy
+					? 'Could not reach Spacefast through the CORS proxy. Check that the proxy is reachable and allows this request.'
+					: 'Could not reach Spacefast. Configure a CORS proxy to connect from this browser.'
+			);
+		}
 	}
 }
 

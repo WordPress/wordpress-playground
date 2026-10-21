@@ -308,7 +308,6 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					);
 				}
 				const authorization = handoff;
-				setHandoff('');
 				const destination = await saveSiteToSpacefast({
 					site,
 					playground: clientInfo.client,
@@ -331,6 +330,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					redirectTo(PlaygroundRoute.site(site));
 				}
 				setSpacefastResult(destination.url);
+				setHandoff('');
 				setIsSubmitting(false);
 				setSpacefastProgress('');
 				return;

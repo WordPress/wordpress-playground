@@ -52,9 +52,7 @@ describe('Spacefast save sessions', () => {
 			'Upload interrupted'
 		);
 		expect(hasSpacefastConnection(site.metadata.id)).toBe(true);
-		await expect(
-			saveSiteToSpacefast({ ...options, handoff: '' })
-		).resolves.toEqual({
+		await expect(saveSiteToSpacefast(options)).resolves.toEqual({
 			spaceId: 'spc_created',
 			url: 'https://created.space.fast/',
 		});

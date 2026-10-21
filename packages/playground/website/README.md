@@ -159,7 +159,8 @@ uploads. Server-specific `.htaccess` and `.user.ini` files are omitted. Export
 generation, including Simply Static's crawler/background-job compatibility with
 browser Playground, remains to be validated separately.
 
-Requests use the existing `fetchWithCorsProxy` helper. Management authorization
+Spacefast API and upload requests go directly through the configured CORS proxy,
+with buffered bodies and no initial cross-origin attempt. Management authorization
 is explicitly opted in for the Spacefast API; upload targets receive only their
 issued headers. The proxy now accepts PUT and a configurable body limit; its
 default remains below 1 MiB per POST or PUT. The example above allows bodies

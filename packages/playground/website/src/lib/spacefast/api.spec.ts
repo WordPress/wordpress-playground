@@ -1,14 +1,13 @@
-import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { SpacefastClient } from './api';
 
-vi.mock('@php-wasm/web-service-worker', () => ({
-	fetchWithCorsProxy: vi.fn(),
-}));
-
-const fetchMock = vi.mocked(fetchWithCorsProxy);
+const fetchMock = vi.fn<typeof fetch>();
 
 describe('Spacefast publishing', () => {
-	beforeEach(() => fetchMock.mockReset());
+	beforeEach(() => {
+		fetchMock.mockReset();
+		vi.stubGlobal('fetch', fetchMock);
+	});
+	afterEach(() => vi.unstubAllGlobals());
 
 	it.each(['X-Upload-Token', 'Authorization'])(
 		'uses only issued upload credentials (%s) outside the management API',
@@ -26,6 +25,14 @@ describe('Spacefast publishing', () => {
 			await client.connect(
 				'https://api.spacefast.com/handoffs/testHandoff1234567890'
 			);
+			expect(fetchMock.mock.calls[0][0]).toBe(
+				'https://proxy.test/?https://api.spacefast.com/v1/auth/agent-handoffs/redeem'
+			);
+			expect(
+				new Headers(fetchMock.mock.calls[0][1]?.headers).has(
+					'Idempotency-Key'
+				)
+			).toBe(false);
 			fetchMock.mockResolvedValueOnce(
 				json({
 					data: {
@@ -77,7 +84,9 @@ describe('Spacefast publishing', () => {
 			);
 			expect(published.versionId).toBe('ver_test');
 			const upload = fetchMock.mock.calls.find(
-				([url]) => url === 'https://uploads.example.test/issued-target'
+				([url]) =>
+					url ===
+					'https://proxy.test/?https://uploads.example.test/issued-target'
 			)!;
 			expect(upload[1]).toMatchObject({
 				method: 'PUT',
@@ -98,7 +107,8 @@ describe('Spacefast publishing', () => {
 					'authorization'
 				);
 				expect(authorization).toBe(
-					new URL(String(url)).origin === 'https://api.spacefast.com'
+					new URL(new URL(String(url)).search.slice(1)).origin ===
+						'https://api.spacefast.com'
 						? 'Bearer test-management-key'
 						: uploadHeader === 'Authorization'
 							? 'upload-only-token'

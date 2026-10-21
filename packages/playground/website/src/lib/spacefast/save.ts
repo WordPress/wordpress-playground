@@ -54,7 +54,7 @@ export async function saveSiteToSpacefast({
 		})
 	);
 	let session = sessions.get(site.metadata.id);
-	if (handoff) {
+	if (handoff && !session) {
 		onProgress('Connecting to Spacefast…');
 		const client = new SpacefastClient(proxy);
 		const connection = await client.connect(handoff);
