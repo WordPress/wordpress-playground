@@ -236,7 +236,9 @@ add_action('admin_head', 'playground_add_target_blank_to_external_links');
  * When Document-Isolation-Policy is enabled, the parent frame can't access
  * the iframe's location.href due to cross-origin restrictions. This script
  * posts a message to the parent frame with the current URL so the address
- * bar can be updated.
+ * bar can be updated. A parent that subscribes after the first report can ask
+ * for the current URL. Cross-origin documents also report history changes,
+ * since the parent cannot poll their location.
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  */
@@ -244,19 +246,61 @@ function playground_report_url_to_parent() {
 	?>
 	<script>
 		if (window.parent !== window) {
-			window.parent.postMessage(
-				JSON.stringify({
-					type: 'playground-url-change',
-					url: window.location.href
-				}),
-				'*'
-			);
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
+			let lastReportedUrl;
+			reportPlaygroundUrl();
+			window.addEventListener('message', function (event) {
+				if (
+					event.source === window.parent &&
+					event.origin === parentOrigin &&
+					event.data?.type === 'playground-request-url'
+				) {
+					reportPlaygroundUrl();
+				}
+			});
+			if (parentOrigin !== window.location.origin) {
+				// The parent cannot poll this document after a history.pushState() call.
+				setInterval(function () {
+					if (window.location.href !== lastReportedUrl) reportPlaygroundUrl();
+				}, 500);
+			}
+
+			/** Publish the current URL, including replies to a late-subscribing parent. */
+			function reportPlaygroundUrl() {
+				lastReportedUrl = window.location.href;
+				window.parent.postMessage(
+					JSON.stringify({ type: 'playground-url-change', url: lastReportedUrl }),
+					parentOrigin
+				);
+			}
 		}
 	</script>
 	<?php
 }
 add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
+
+/**
+ * Reports outside clicks when WordPress cannot be read by the root-origin UI.
+ * The parent checks the sending frame before notifying its UI listeners.
+ */
+function playground_report_pointer_to_parent() {
+	if (!defined('PLAYGROUND_PARENT_ORIGIN')) {
+		return;
+	}
+	?>
+	<script>
+		document.addEventListener('pointerdown', function () {
+			window.parent.postMessage(
+				{ type: 'playground-pointerdown' },
+				<?php echo json_encode(PLAYGROUND_PARENT_ORIGIN); ?>
+			);
+		}, true);
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_report_pointer_to_parent');
+add_action('admin_head', 'playground_report_pointer_to_parent');
 
 /**
  * Captures this document when the trusted Playground parent requests a site
@@ -282,13 +326,14 @@ function playground_enable_site_thumbnail_capture() {
 				return;
 			}
 			window.__playgroundSiteThumbnailCaptureEnabled = true;
+			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
 
 			window.addEventListener('message', async function (event) {
 				// The origin protects the trust boundary. Checking source as well
 				// prevents another same-origin frame from requesting code execution.
 				if (
 					event.source !== window.parent ||
-					event.origin !== window.location.origin ||
+					event.origin !== parentOrigin ||
 					event.data?.type !== 'playground-capture-site-thumbnail'
 				) {
 					return;
@@ -303,7 +348,7 @@ function playground_enable_site_thumbnail_capture() {
 						throw new Error('Missing site thumbnail module URL.');
 					}
 					// Dynamic import executes inside the WordPress document. Accept only
-					// the same-origin renderer asset marked by the trusted parent.
+					// the renderer asset from the trusted parent's origin, with its marker.
 					const moduleUrl = new URL(request.moduleUrl);
 					const isRendererModule =
 						moduleUrl.pathname ===
@@ -391,8 +436,8 @@ function playground_enable_webmcp_bridge() {
 			var CALL_TOOL = 'playground-webmcp-call-tool';
 			var CALL_RESULT = 'playground-webmcp-call-result';
 
-			// The remote frame is same-origin with this document.
-			var parentOrigin = window.location.origin;
+			// The runtime supplies its origin when rendered WordPress is cross-origin.
+			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
 			var tools = new Map();
 			var announceScheduled = false;
 

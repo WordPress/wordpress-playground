@@ -207,12 +207,19 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
+	wordpress,
 }) => {
 	await website.goto('./?storage=temp&url=/wp-admin/');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
 	);
+	await wordpress.locator('body').evaluate(() => {
+		window.history.pushState({}, '', 'edit.php');
+	});
+	await expect(
+		website.page.locator('input[value="/wp-admin/edit.php"]')
+	).toHaveValue('/wp-admin/edit.php');
 });
 
 test('should correctly load /wp-admin without the trailing slash', async ({
@@ -811,14 +818,9 @@ test('should edit a file on mobile and see changes in the viewport', async ({
 	await website.ensureSiteManagerIsClosed();
 
 	// Reload just the WordPress iframe to see the changes
-	const playgroundViewport = website.page.frameLocator(
-		'#playground-viewport:visible,.playground-viewport:visible'
-	);
-	await playgroundViewport
-		.locator('#wp')
-		.evaluate((iframe: HTMLIFrameElement) => {
-			iframe.contentWindow?.location.reload();
-		});
+	await wordpress.locator('body').evaluate(() => {
+		window.location.reload();
+	});
 
 	// Verify the page shows "Edited file"
 	await expect(wordpress.locator('body')).toContainText('Edited file', {

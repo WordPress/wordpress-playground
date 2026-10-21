@@ -8,8 +8,9 @@
  * layer between the topmost window and the innermost iframe.
  *
  * @param nestedFrame The nested iframe element
- * @param expectedOrigin The origin that the nested iframe is expected to be on. If not
- *                       provided, any origin is allowed.
+ * @param expectedOrigin The nested iframe's origin, used to filter incoming messages
+ *                       and target outgoing ones. If omitted, incoming messages may
+ *                       use any origin, but outgoing messages stay same-origin.
  */
 export function setupPostMessageRelay(
 	nestedFrame: HTMLIFrameElement,
@@ -50,6 +51,10 @@ export function setupPostMessageRelay(
 			return;
 		}
 
-		nestedFrame?.contentWindow?.postMessage(event.data);
+		// The default target only reaches same-origin windows; WordPress may be cross-origin.
+		nestedFrame?.contentWindow?.postMessage(
+			event.data,
+			expectedOrigin ?? '/'
+		);
 	});
 }

@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -67,6 +68,7 @@ if (import.meta.hot) {
 }
 
 const query = new URL(document.location.href).searchParams;
+/** Boot the trusted PHP host and connect its rendered WordPress HTTP transport. */
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
@@ -142,6 +144,41 @@ export async function bootPlaygroundRemote() {
 	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	// WordPress reports its URL because the remote cannot read a cross-origin location.
+	let lastReportedWordPressUrl: string | undefined;
+	window.addEventListener('message', (event: MessageEvent) => {
+		if (
+			event.source !== wpFrame.contentWindow ||
+			event.origin !== wordPressSiteUrl
+		) {
+			return;
+		}
+		let data;
+		try {
+			data =
+				typeof event.data === 'string'
+					? JSON.parse(event.data)
+					: event.data;
+		} catch {
+			// Ignore non-JSON messages from other WordPress scripts.
+			return;
+		}
+		if (
+			data?.type === 'playground-url-change' &&
+			typeof data.url === 'string'
+		) {
+			lastReportedWordPressUrl = data.url;
+		} else if (
+			wordPressSiteUrl !== origin &&
+			data?.type === 'playground-pointerdown'
+		) {
+			// Root UI listeners can observe this frame, but not WordPress's document.
+			// This synthetic event dismisses UI; it does not carry user activation.
+			wpFrame.dispatchEvent(
+				new PointerEvent('pointerdown', { bubbles: true })
+			);
+		}
+	});
 	if (sharedRuntime) {
 		const reloadDocuments = new WeakSet<Document>();
 		wpFrame.addEventListener('load', () =>
@@ -228,7 +265,10 @@ export async function bootPlaygroundRemote() {
 			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
 			 */
 			window.addEventListener('message', async (event) => {
-				if (event.source !== wpFrame.contentWindow) {
+				if (
+					event.source !== wpFrame.contentWindow ||
+					event.origin !== wordPressSiteUrl
+				) {
 					return;
 				}
 				try {
@@ -248,6 +288,15 @@ export async function bootPlaygroundRemote() {
 					// Ignore JSON parse errors
 				}
 			});
+
+			if (wordPressSiteUrl !== origin) {
+				// WordPress may have reported its initial URL before this subscription.
+				// Its document answers the probe and reports subsequent history changes.
+				wpFrame.contentWindow?.postMessage(
+					{ type: 'playground-request-url' },
+					wordPressSiteUrl
+				);
+			}
 
 			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
@@ -323,6 +372,7 @@ export async function bootPlaygroundRemote() {
 				}
 			}, 500);
 		},
+		/** Navigate the WordPress frame without retaining the previous document's URL report. */
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
@@ -358,6 +408,8 @@ export async function bootPlaygroundRemote() {
 				});
 			});
 
+			lastReportedWordPressUrl = undefined;
+
 			// If the URL is the same, we need to force a reload
 			// because otherwise the iframe will not reload the page.
 			if (newUrl === oldUrl && wpFrame.contentWindow) {
@@ -373,6 +425,7 @@ export async function bootPlaygroundRemote() {
 			wpFrame.src = newUrl;
 			await navigationComplete;
 		},
+		/** Read the live location, or its latest WordPress report across an origin boundary. */
 		async getCurrentURL() {
 			let url = '';
 			try {
@@ -382,11 +435,10 @@ export async function bootPlaygroundRemote() {
 				// environment with a restrictive CSP policy.
 			}
 			if (!url) {
-				// If we can't get the URL from the iframe (e.g. it's not loaded
-				// yet), let's refer to the src attribute of the iframe itself.
-				// This is less reliable because the src attribute may not be
-				// updated when the iframe navigates to a new URL.
-				url = wpFrame.src;
+				// Prefer WordPress's report across the origin boundary. Before a report
+				// arrives, use src; it does not follow clicks or history changes inside
+				// WordPress, so it is only a fallback for an unreported document.
+				url = lastReportedWordPressUrl ?? wpFrame.src;
 			}
 			return await playground.internalUrlToPath(url);
 		},
