@@ -119,6 +119,42 @@ describe('startPlaygroundWeb', () => {
 		expect(mocks.BlueprintsV1Handler).not.toHaveBeenCalled();
 		expect(iframe.src).not.toContain('blueprints-runner');
 	});
+	it('carries external ancestors through a referrer-free inner frame', async () => {
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		const iframe = createIframe();
+		Object.assign(iframe.ownerDocument, {
+			URL: 'http://localhost/?embedder-origin=https%3A%2F%2Fouter.example',
+			referrer: 'https://inner.example/article',
+		});
+		await startPlaygroundWeb({
+			iframe,
+			remoteUrl: 'http://localhost/remote.html',
+			progressTracker: createProgressTracker(),
+		});
+		expect(
+			new URL(iframe.src).searchParams.getAll('embedder-origin')
+		).toEqual(['https://outer.example', 'https://inner.example']);
+	});
+	it('declares the actual origin of an about:blank SDK caller', async () => {
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		const iframe = createIframe();
+		Object.assign(iframe.ownerDocument, {
+			URL: 'about:blank',
+			defaultView: { origin: 'https://embedder.example' },
+		});
+		await startPlaygroundWeb({
+			iframe,
+			remoteUrl: 'http://localhost/remote.html',
+			progressTracker: createProgressTracker(),
+		});
+		expect(
+			new URL(iframe.src).searchParams.getAll('embedder-origin')
+		).toEqual(['https://embedder.example']);
+	});
 });
 
 describe('startPlaygroundAPI', () => {
@@ -135,9 +171,11 @@ describe('startPlaygroundAPI', () => {
 	});
 });
 
+/** Supply the SDK caller document without booting a browser runtime. */
 function createIframe() {
 	return {
 		src: '',
+		ownerDocument: { URL: 'http://localhost/', referrer: '' },
 		addEventListener: vi.fn((_event, callback: () => void) => {
 			callback();
 		}),

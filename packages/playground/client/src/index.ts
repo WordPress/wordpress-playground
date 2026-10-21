@@ -292,10 +292,33 @@ export async function startPlaygroundAPI(
 	return api;
 }
 
+/**
+ * Carry the embedding chain into trusted inner documents, even with no referrer.
+ * These are declarations, not permission grants: the server excludes WordPress
+ * and the browser checks the actual ancestor chain against its response policy.
+ */
 function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
+	const target = new URL(url);
+	const document = iframe.ownerDocument;
+	const parent = new URL(document.URL);
+	const origins = new Set([
+		...target.searchParams.getAll('embedder-origin'),
+		...parent.searchParams.getAll('embedder-origin'),
+		// about:blank/srcdoc documents can inherit an origin despite their opaque URL.
+		document.defaultView?.origin ?? parent.origin,
+	]);
+	if (document.referrer) {
+		origins.add(new URL(document.referrer).origin);
+	}
+	target.searchParams.delete('embedder-origin');
+	for (const origin of origins) {
+		if (origin !== target.origin && origin !== 'null') {
+			target.searchParams.append('embedder-origin', origin);
+		}
+	}
 	return new Promise((resolve) => {
 		iframe.addEventListener('load', () => resolve(), { once: true });
-		iframe.src = url;
+		iframe.src = target.href;
 	});
 }
 
