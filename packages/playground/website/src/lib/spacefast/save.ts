@@ -1,15 +1,10 @@
 import type { Blueprint, PlaygroundClient } from '@wp-playground/client';
 import { BlueprintReflection } from '@wp-playground/blueprints';
-import { joinPaths } from '@php-wasm/util';
 import type { SiteInfo } from '../state/redux/slice-sites';
 import { SpacefastClient } from './api';
 import type { SpacefastConnection } from './api';
-import {
-	collectSiteFiles,
-	loadPublicSite,
-	parseSetupBlueprint,
-	SOURCE_DIRECTORY,
-} from './site';
+import { collectSiteFiles, loadPublicSite, parseSetupBlueprint } from './site';
+import { generateStaticSite } from './simply-static';
 
 type Session = {
 	client: SpacefastClient;
@@ -92,40 +87,38 @@ export async function saveSiteToSpacefast({
 	// Retain an allocated destination even if its first upload fails.
 	session.spaceId = id;
 	const space = await session.client.getSpace(id);
-	let previousUploads: string[] = [];
-	if (space.channels?.live?.versionId && space.liveUrl) {
-		previousUploads = (await loadPublicSite(space.liveUrl, proxy)).manifest
-			.uploads;
+	if (!space.liveUrl) {
+		throw new Error('Spacefast has not assigned a public URL yet.');
 	}
-	const { files, manifest } = await collectSiteFiles(
+	if (space.channels?.live?.versionId) {
+		// Only replace destinations that already contain this Playground format.
+		await loadPublicSite(space.liveUrl, proxy);
+	}
+	const generated = await generateStaticSite(
 		playground,
 		blueprint,
+		space.liveUrl,
+		proxy,
+		onProgress
+	);
+	const { files } = await collectSiteFiles(
+		playground,
+		generated.blueprint,
 		id,
 		onProgress
 	);
-	if (!space.channels?.live?.versionId) {
-		files.push({
-			path: 'index.html',
-			data: new Blob(
-				[
-					'<!doctype html><title>Playground source</title><h1>Playground source saved</h1><p>This Space holds the public Blueprint, database, and uploads for a WordPress Playground.</p><a href="_playground/site.json">Public site data</a>',
-				],
-				{ type: 'text/html' }
-			),
-		});
-	}
+	files.push(...generated.files);
 	const published = await session.client.publish(
 		id,
 		files,
-		{
-			replace: false,
-			deletePaths: previousUploads
-				.filter((path) => !manifest.uploads.includes(path))
-				.map((path) => joinPaths(SOURCE_DIRECTORY, 'uploads', path)),
-		},
+		{ replace: true, deletePaths: [] },
 		onProgress
 	);
 	if (!published.space.liveUrl)
 		throw new Error('Spacefast has not assigned a public URL yet.');
-	return { spaceId: id, url: published.space.liveUrl };
+	return {
+		spaceId: id,
+		url: published.space.liveUrl,
+		blueprint: generated.blueprint,
+	};
 }

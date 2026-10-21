@@ -91,20 +91,20 @@ Analytics is only enabled when the `VITE_GOOGLE_ANALYTICS_ID` environment variab
 
 We also track custom events whenever a user loads Playground and what blueprint steps are they using. We only record names of steps.
 
-## Spacefast prototype
+## Spacefast
 
 Click **Autosaved** in the main Playground website, then choose **Save to
 Spacefast** under **Storage location**. Enter the Playground name, paste a fresh
-Spacefast handoff, and save the current site's Blueprint, database, and uploads.
+Spacefast handoff, and save. This installs and configures Simply Static, generates
+the static website, and publishes it together with the Blueprint, database, and uploads.
 After saving, the status becomes a clickable **Spacefast** control for saving
 further edits. The connection survives closing the save pane within this tab;
 only the public destination is persisted in site metadata. Remote saves are
 explicit, independent of local browser autosaving.
 
 The standalone demo at `/website-server/demos/spacefast.html` additionally exposes
-public-source loading and static-directory publishing for testing the rest of
-the prototype. Reopening public source and generating static exports are not yet
-integrated into the main website's controls.
+public-source loading and manual static-directory publishing. Reopening public
+source is not yet integrated into the main website's controls.
 
 Run it from the repository root with Node 24 and installed dependencies:
 
@@ -124,7 +124,8 @@ contain this prototype's site data. Credentials are kept in memory only. Closing
 the tab disconnects the local client but does not revoke the issued Spacefast
 key; manage that key in Spacefast's Connected apps.
 
-Each save publishes these files together as a Spacefast version:
+Each main-website save publishes a complete snapshot containing the static
+website at the root and these editable files:
 
 ```text
 _playground/site.json           Format version, Space ID, original site URL, upload paths
@@ -149,15 +150,24 @@ connect your own team handoff and clear the destination Space ID to create a new
 Space. Save explicitly before closing; there is no remote autosave or concurrent
 editor conflict detection.
 
-For static hosting, configure an exporter such as Simply Static to write to
-`/wordpress/static` and use the public Spacefast URL as its destination URL.
-Generate the export, then choose **Save and publish static files**. The demo
-publishes the directory's contents alongside `_playground/` as a complete
-snapshot, so removed static files disappear. Ordinary **Save site data** retains
-the existing static output while replacing source data and removing deleted
-uploads. Server-specific `.htaccess` and `.user.ini` files are omitted. Export
-generation, including Simply Static's crawler/background-job compatibility with
-browser Playground, remains to be validated separately.
+The main save flow runs a Blueprint on the current site that installs the free
+Simply Static plugin and configures a local export directory and the Spacefast
+public destination URL. These setup steps are also appended to the saved Blueprint
+and retained in local site metadata after a successful save. Repeated saves replace
+the generated setup steps rather than accumulating copies. No WP-CLI or Pro
+license is used for static generation.
+
+A small MU plugin lets Playground advance Simply Static's job one batch at a time
+without background loopback requests. Generation must succeed before publishing
+starts. Static output is regenerated in a dedicated directory outside uploads;
+the temporary crawl files also stay outside uploads. Generated static files and
+editable source are published as one snapshot, removing deleted pages and assets.
+Server-specific `.htaccess` and `.user.ini` files are omitted. The adapter is tested
+against Simply Static 3.8.18, which is the version installed by the setup Blueprint.
+
+The standalone demo retains its manual export-directory controls. Configure an
+exporter to write to `/wordpress/static`, generate the export, then choose **Save
+and publish static files** to publish that directory alongside the editable data.
 
 Spacefast API and upload requests go directly through the configured CORS proxy,
 with buffered bodies and no initial cross-origin attempt. Management authorization

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
 	createSpace: vi.fn(),
 	getSpace: vi.fn(),
 	publish: vi.fn(),
+	generate: vi.fn(),
 }));
 vi.mock('./api', () => ({
 	SpacefastClient: class {
@@ -16,6 +17,7 @@ vi.mock('./api', () => ({
 		publish = mocks.publish;
 	},
 }));
+vi.mock('./simply-static', () => ({ generateStaticSite: mocks.generate }));
 vi.mock('./site', () => ({
 	SOURCE_DIRECTORY: '_playground',
 	parseSetupBlueprint: async (text: string) => JSON.parse(text),
@@ -24,10 +26,18 @@ vi.mock('./site', () => ({
 }));
 
 describe('Spacefast save sessions', () => {
+	beforeEach(() => vi.clearAllMocks());
 	it('reuses an allocated Space and tab credential after an upload fails', async () => {
 		mocks.connect.mockResolvedValue({ kind: 'team', teamId: 'team_test' });
 		mocks.createSpace.mockResolvedValue({ id: 'spc_created' });
-		mocks.getSpace.mockResolvedValue({ id: 'spc_created', liveUrl: null });
+		mocks.getSpace.mockResolvedValue({
+			id: 'spc_created',
+			liveUrl: 'https://created.space.fast/',
+		});
+		mocks.generate.mockImplementation(async (_playground, blueprint) => ({
+			blueprint,
+			files: [{ path: 'index.html', data: new Blob(['<h1>Site</h1>']) }],
+		}));
 		mocks.publish
 			.mockRejectedValueOnce(new Error('Upload interrupted'))
 			.mockResolvedValueOnce({
@@ -55,6 +65,14 @@ describe('Spacefast save sessions', () => {
 		await expect(saveSiteToSpacefast(options)).resolves.toEqual({
 			spaceId: 'spc_created',
 			url: 'https://created.space.fast/',
+			blueprint: expect.any(Object),
+		});
+		expect(mocks.publish.mock.calls[0][1]).toEqual([
+			expect.objectContaining({ path: 'index.html' }),
+		]);
+		expect(mocks.publish.mock.calls[0][2]).toEqual({
+			replace: true,
+			deletePaths: [],
 		});
 		expect(mocks.connect).toHaveBeenCalledTimes(1);
 		expect(mocks.createSpace).toHaveBeenCalledTimes(1);
@@ -62,5 +80,36 @@ describe('Spacefast save sessions', () => {
 			'spc_created',
 			'spc_created',
 		]);
+	});
+	it('does not publish when static generation fails', async () => {
+		mocks.connect.mockResolvedValue({
+			kind: 'space',
+			spaceId: 'spc_export_failure',
+		});
+		mocks.getSpace.mockResolvedValue({
+			id: 'spc_export_failure',
+			liveUrl: 'https://example.space.fast/',
+		});
+		mocks.generate.mockRejectedValue(new Error('Static generation failed'));
+		await expect(
+			saveSiteToSpacefast({
+				site: {
+					metadata: {
+						id: 'failed-export-session',
+						originalBlueprint: {},
+						runtimeConfiguration: {
+							phpVersion: '8.3',
+							wpVersion: '6.8',
+						},
+					},
+				} as unknown as SiteInfo,
+				playground: {} as PlaygroundClient,
+				name: 'My site',
+				handoff: 'handoff',
+				proxy: '',
+				onProgress: vi.fn(),
+			})
+		).rejects.toThrow('Static generation failed');
+		expect(mocks.publish).not.toHaveBeenCalled();
 	});
 });

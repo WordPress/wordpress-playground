@@ -322,7 +322,11 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 						changes: {
 							name: trimmedName,
 							persistence: 'explicit',
-							spacefast: destination,
+							spacefast: {
+								spaceId: destination.spaceId,
+								url: destination.url,
+							},
+							originalBlueprint: destination.blueprint,
 						},
 					})
 				);
@@ -488,10 +492,11 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				{selectedStorage === 'spacefast' && (
 					<>
 						<p>
-							Your Blueprint, complete SQLite database, and
-							uploads will be publicly readable on Spacefast.
-							Plugins and themes are recreated from your
-							Blueprint.
+							Saving installs and configures Simply Static to
+							generate and publish your website. Your Blueprint,
+							complete SQLite database, and uploads will be
+							publicly readable on Spacefast. Plugins and themes
+							are recreated from your Blueprint.
 						</p>
 						{connected ? (
 							<p>Connected to Spacefast for this tab session.</p>
