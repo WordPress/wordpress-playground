@@ -74,6 +74,8 @@ export interface MountDescriptor {
 }
 
 export type WorkerBootOptions = {
+	/** Internal bridge URL that keeps a SharedWorker connected to WordPress tabs. */
+	sharedWorkerClientUrl?: string;
 	wpVersion?: string;
 	/** A caller-provided WordPress archive used instead of downloading one. */
 	wordPressZip?: File;

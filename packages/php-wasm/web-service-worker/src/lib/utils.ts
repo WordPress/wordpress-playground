@@ -53,8 +53,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				`The URL ${url.toString()} is not scoped. This should not happen.`
 			);
 		}
-		const requestId = await broadcastMessageExpectReply(message, scope);
-		phpResponse = await awaitReply(self, requestId);
+		phpResponse = await requestPHPWorker(message, scope);
 
 		// X-frame-options gets in the way when PHP is
 		// being displayed in an iframe.
@@ -156,6 +155,47 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});
+}
+
+const phpWorkerPorts = new Map<string, MessagePort>();
+
+export function registerPHPWorkerPort(scope: string, port: MessagePort) {
+	phpWorkerPorts.get(scope)?.close();
+	phpWorkerPorts.set(scope, port);
+}
+
+export async function requestPHPWorker(message: any, scope: string) {
+	let target: MessagePort | Client | undefined = phpWorkerPorts.get(scope);
+	if (!target) {
+		const clients = await self.clients.matchAll({
+			includeUncontrolled: true,
+		});
+		target = clients.find((client) => {
+			const url = new URL(client.url);
+			return (
+				url.searchParams.has('php-worker-id') &&
+				url.searchParams.get('php-worker-scope') === scope
+			);
+		});
+	}
+	if (target) {
+		const requestId = getNextRequestId();
+		const { port1, port2 } = new MessageChannel();
+		const reply = awaitReply(port1, requestId);
+		port1.start();
+		// One bridge receives the request even when several tabs share PHP.
+		// The transferred port carries the response without a window relay.
+		target.postMessage({ ...message, scope, requestId, port: port2 }, [
+			port2,
+		]);
+		try {
+			return await reply;
+		} finally {
+			port1.close();
+		}
+	}
+	const requestId = await broadcastMessageExpectReply(message, scope);
+	return await awaitReply(self, requestId);
 }
 
 /**

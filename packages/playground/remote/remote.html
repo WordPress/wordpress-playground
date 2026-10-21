@@ -86,8 +86,13 @@
 				document.body.classList.add('is-embedded');
 			}
 			import { bootPlaygroundRemote } from './src/index';
+			import { bootPlaygroundSharedWorkerClient } from './src/lib/shared-worker-client';
 			try {
-				window.playground = await bootPlaygroundRemote();
+				if (new URL(location.href).searchParams.has('php-worker-id')) {
+					await bootPlaygroundSharedWorkerClient();
+				} else {
+					window.playground = await bootPlaygroundRemote();
+				}
 			} catch (e) {
 				console.error(e);
 				document.body.className = 'has-error';

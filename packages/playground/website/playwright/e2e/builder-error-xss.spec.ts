@@ -19,6 +19,10 @@ test('Blueprint Builder must not execute markup from a schema error', async ({
 	const payload = `<img src=x onerror="parent.document.title='xss-executed'">`;
 	const blueprint = JSON.stringify({ version: 2, [payload]: 1 });
 
+	// The Builder must use the remote built with this website, not the live site.
+	await page.route('https://playground.wordpress.net/remote.html*', (route) =>
+		route.abort()
+	);
 	await page.goto(`./builder/builder.html#${blueprint}`);
 
 	const errorFrame = page.locator('#error-output');
