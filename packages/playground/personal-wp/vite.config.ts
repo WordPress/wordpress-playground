@@ -110,6 +110,23 @@ export default defineConfig(({ command, mode }) => {
 				},
 				'^[/]((?!website-server).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+					/** Reload reflected WordPress paths through the app, not the PHP host. */
+					bypass(request) {
+						const { pathname } = new URL(
+							request.url!,
+							'http://localhost'
+						);
+						// Include navigations re-fetched by the service worker as ordinary fetches.
+						if (
+							request.headers.accept?.includes('text/html') &&
+							!pathname.startsWith('/scope:') &&
+							!pathname.endsWith('.html')
+						) {
+							// WordPress changes the address bar to paths such as /my-apps/.
+							// Keep scoped WordPress URLs and explicit .html documents on the PHP host.
+							return '/website-server/';
+						}
+					},
 				},
 			},
 			fs: {
