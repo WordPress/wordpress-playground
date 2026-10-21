@@ -533,8 +533,8 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Temporary sites are removed before the new one is added, so they
-		// should not force the replacement site to take a numeric suffix.
+		// Temporary sites are removed before the new one is added. Reserve
+		// stored slugs so a random-suffix collision cannot reuse a saved path.
 		const storedSites = selectAllSites(getState()).filter(
 			(site) => site.metadata.storage !== 'none'
 		);

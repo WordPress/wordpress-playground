@@ -36,8 +36,6 @@ vi.mock('../../../lib/state/redux/store', () => ({
 		selector({ ui }),
 }));
 vi.mock('../../../lib/state/redux/slice-sites', () => ({
-	/** Let clone names start without collisions in this isolated store. */
-	selectAllSites: () => [],
 	updateSiteMetadata: vi.fn(),
 }));
 vi.mock('../../../lib/state/redux/site-management-api-middleware', () => ({
@@ -485,6 +483,23 @@ describe('Reprint connection changes', () => {
 			}
 		}
 	);
+
+	it('starts a clone when its connection arrives after the destination panel mounts', async () => {
+		await render();
+		ui.pendingClone = {
+			slug: 'test',
+			url: 'https://clone.example/',
+			keyPair: { privateKey: 'clone-key', publicKey: 'clone-public-key' },
+		};
+		await render();
+		expect(pullSite).toHaveBeenCalledWith(
+			playground,
+			'https://clone.example/',
+			'clone-key',
+			expect.any(Function),
+			expect.any(AbortSignal)
+		);
+	});
 
 	it('cancels the pending pull when going back before the new site finishes booting', async () => {
 		ui.pendingClone = {

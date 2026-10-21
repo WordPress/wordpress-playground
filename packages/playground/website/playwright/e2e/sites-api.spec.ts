@@ -245,13 +245,14 @@ test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blu
 		return { firstSlug, secondSlug, sites };
 	}, blueprint);
 
-	expect(result.firstSlug).toBe('shared-blueprint-name');
-	expect(result.secondSlug).toBe('shared-blueprint-name-2');
+	expect(result.firstSlug).toMatch(/^shared-blueprint-name-[0-9a-f-]{36}$/);
+	expect(result.secondSlug).toMatch(/^shared-blueprint-name-[0-9a-f-]{36}$/);
+	expect(result.secondSlug).not.toBe(result.firstSlug);
 	const firstSite = result.sites.find(
-		(site: any) => site.slug === 'shared-blueprint-name'
+		(site: any) => site.slug === result.firstSlug
 	);
 	const secondSite = result.sites.find(
-		(site: any) => site.slug === 'shared-blueprint-name-2'
+		(site: any) => site.slug === result.secondSlug
 	);
 	expect(firstSite).toEqual(
 		expect.objectContaining({
@@ -303,8 +304,8 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 
 	// The new API creates a saved site record, boots it, and marks it as an
 	// explicit save unless the caller opts into autosave persistence.
-	expect(result.slug).toBe('api-created-site');
-	expect(result.active.slug).toBe('api-created-site');
+	expect(result.slug).toMatch(/^api-created-site-[0-9a-f-]{36}$/);
+	expect(result.active.slug).toBe(result.slug);
 	expect(result.active.storage).toBe('opfs');
 	expect(result.active.persistence).toBe('explicit');
 	expect(result.hasClient).toBe(true);

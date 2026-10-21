@@ -1,7 +1,7 @@
 import { cleanForSlug } from '@wordpress/url';
 
 /**
- * Builds the default site slug used when a caller did not provide one.
+ * Builds the readable slug prefix used when a caller did not provide a hint.
  *
  * Explicit slug hints bypass this helper so their URL/storage escaping remains
  * the responsibility of the boundaries that consume them.
@@ -11,10 +11,13 @@ export function deriveSlugFromSiteName(name: string) {
 }
 
 /**
- * Returns a preferred site slug with a numeric suffix when needed.
+ * Adds a cryptographically random UUID to every new site slug.
+ *
+ * Names and explicit hints are readable prefixes, not predictable addresses.
+ * Existing stored slugs are left alone so old links and OPFS paths still work.
  *
  * Callers decide whether the preferred slug comes from user-facing text or an
- * explicit slug hint. This function only handles empty strings and collisions.
+ * explicit slug hint. Both paths receive the same 122 random bits.
  */
 export function getUniqueSiteSlug(
 	preferredSlug: string,
@@ -26,14 +29,9 @@ export function getUniqueSiteSlug(
 ) {
 	const unavailable = new Set(unavailableSlugs);
 	const baseSlug = preferredSlug || 'playground';
-	if (!unavailable.has(baseSlug)) {
-		return baseSlug;
-	}
-	let suffix = 2;
-	let candidate = `${baseSlug}-${suffix}`;
-	while (unavailable.has(candidate)) {
-		suffix++;
-		candidate = `${baseSlug}-${suffix}`;
-	}
+	let candidate: string;
+	do {
+		candidate = `${baseSlug}-${crypto.randomUUID()}`;
+	} while (unavailable.has(candidate));
 	return candidate;
 }

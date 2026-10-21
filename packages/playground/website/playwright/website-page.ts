@@ -56,11 +56,36 @@ export class WebsitePage {
 		);
 	}
 
+	/** Navigates as a user, including the saved-site startup choice when needed. */
 	async goto(url: string, options?: any) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
+		if (new URL(this.page.url()).searchParams.has('site-slug')) {
+			await this.page.waitForFunction(() => !!window.playgroundSites);
+			const needsOpening = await this.page.evaluate(() => {
+				const slug = new URL(window.location.href).searchParams.get(
+					'site-slug'
+				);
+				return window
+					.playgroundSites!.list()
+					.some(
+						(site) =>
+							site.slug === slug &&
+							site.storage !== 'temporary' &&
+							!site.isActive
+					);
+			});
+			if (needsOpening) await this.openSavedPlayground();
+		}
 		await this.waitForNestedIframes();
 		return response;
+	}
+
+	/** Models the user choice required when a URL reopens a saved Playground. */
+	async openSavedPlayground(page = this.page) {
+		await page
+			.getByRole('button', { name: 'Open Playground', exact: true })
+			.click();
 	}
 
 	async ensureSiteManagerIsOpen() {

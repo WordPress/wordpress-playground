@@ -501,7 +501,9 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 			errorPrefix: 'Error opening site in new tab',
 			description: `Open a WordPress Playground site in a new
 			browser tab. The site must appear in
-			playground_list_sites.
+			playground_list_sites. For a saved site, the user
+			must click Open Playground in the new tab before
+			this tool can report the site as active.
 
 			Check playground_get_current_url first — if the
 			site is already open in a tab, calling this tool

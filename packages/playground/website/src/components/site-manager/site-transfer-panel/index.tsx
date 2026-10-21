@@ -29,16 +29,8 @@ import {
 	setCloneRequested,
 	setPendingClone,
 } from '../../../lib/state/redux/slice-ui';
-import {
-	selectAllSites,
-	updateSiteMetadata,
-} from '../../../lib/state/redux/slice-sites';
+import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
-import { randomSiteName } from '../../../lib/state/redux/random-site-name';
-import {
-	deriveSlugFromSiteName,
-	getUniqueSiteSlug,
-} from '../../../lib/state/redux/site-slug';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import type { SiteToolPanelProps } from '../site-info-panel/site-tool-renderers';
@@ -69,12 +61,9 @@ export function SiteTransferPanel({
 	// current site only hosts the form; the pull runs in a new Playground.
 	const cloneRequested = !!useAppSelector((state) => state.ui.cloneRequested);
 	const pendingClone = useAppSelector((state) => state.ui.pendingClone);
-	const existingSlugs = useAppSelector(selectAllSites).map(
-		(existing) => existing.slug
-	);
 	const handoff = pendingClone?.slug === site.slug ? pendingClone : null;
-	// The store drops the clone request when the new site activates, but this
-	// panel, mounted for that site with a handoff, is still cloning.
+	// The store drops the clone request when the new site activates. Keep this
+	// panel in clone mode after it consumes that site's connection handoff.
 	const [isClone, setIsClone] = useState(!!handoff);
 	const cloning = cloneRequested || isClone;
 	const [url, setUrl] = useState(() =>
@@ -187,8 +176,8 @@ export function SiteTransferPanel({
 
 	useEffect(() => () => checkController.current?.abort(), []);
 
-	// The handoff is read once, when this panel mounts for the new Playground.
-	// Forget it so later visits to the pane start from the saved connection.
+	// Consume each handoff once, keeping its connection in local state. Later
+	// visits to the pane start from the saved connection, not another auto-pull.
 	useEffect(() => {
 		if (handoff) dispatch(setPendingClone(undefined));
 	}, [handoff, dispatch]);
@@ -379,10 +368,13 @@ export function SiteTransferPanel({
 		return () => onCloseBlockedChange?.(false);
 	}, [busy, autoStart, onCloseBlockedChange]);
 
-	// The panel that created the clone can be kept for the new site instead of
-	// remounting; a handoff arriving after mount must still start the pull.
+	// Site creation returns the allocated slug after the destination panel may
+	// have mounted. Accept its connection setup too, not just the start flag.
 	useEffect(() => {
 		if (handoff) {
+			setUrl(handoff.url);
+			setKeyPair(handoff.keyPair);
+			setSetup('manual');
 			setIsClone(true);
 			setStep('transfer');
 			setAutoStart(true);
@@ -412,8 +404,8 @@ export function SiteTransferPanel({
 	}, [step, busy, completed, error, autoStart, handoff]);
 
 	/**
-	 * Creates the Playground that receives the clone. Its transfer panel mounts
-	 * with the connection details and starts the pull once the site has booted.
+	 * Creates the Playground that receives the clone, then sends its connection
+	 * details to that site's transfer panel so it can start the pull.
 	 */
 	const cloneIntoNewSite = async () => {
 		if (!keyReady || running.current) return;
@@ -426,32 +418,24 @@ export function SiteTransferPanel({
 			overallPercent: 0,
 		});
 		const address = getReprintAdminUrls(url).site;
-		const slug = getUniqueSiteSlug(
-			deriveSlugFromSiteName(randomSiteName()),
-			{ unavailableSlugs: existingSlugs }
-		);
-		rememberConnection(slug, address, keyPair!);
-		dispatch(setPendingClone({ slug, url: address, keyPair: keyPair! }));
 		try {
 			// The clone stays temporary while it downloads: nothing is written to
 			// browser storage until the site is complete and usable.
 			// Keep the browser URL as it is: a temporary site's URL carries its
 			// setup parameters, and routing to it would start yet another site.
 			const created = await sitesAPI.createNewTemporarySite(
-				slug,
+				undefined,
 				{ networking: true, phpVersion: '8.3' },
 				{ updateUrl: false }
 			);
-			if (created !== slug) {
-				rememberConnection(created, address, keyPair!);
-				dispatch(
-					setPendingClone({
-						slug: created,
-						url: address,
-						keyPair: keyPair!,
-					})
-				);
-			}
+			rememberConnection(created, address, keyPair!);
+			dispatch(
+				setPendingClone({
+					slug: created,
+					url: address,
+					keyPair: keyPair!,
+				})
+			);
 		} catch (error) {
 			dispatch(setPendingClone(undefined));
 			setSetup('manual');

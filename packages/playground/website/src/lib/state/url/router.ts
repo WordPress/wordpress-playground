@@ -99,7 +99,15 @@ export class PlaygroundRoute {
 	 */
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
 		if (site.metadata.storage === 'none') {
-			return updateUrl(baseUrl, site.originalUrlParams || {});
+			const target = new URL(
+				updateUrl(baseUrl, site.originalUrlParams || {})
+			);
+			if (target.searchParams.has('site-slug')) {
+				// An explicit hint is only a prefix now. Route to the allocated slug
+				// instead of reopening the hint or a saved site at the previous URL.
+				target.searchParams.set('site-slug', site.slug);
+			}
+			return target.href;
 		} else {
 			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
 			const preserveParamsKeys = [

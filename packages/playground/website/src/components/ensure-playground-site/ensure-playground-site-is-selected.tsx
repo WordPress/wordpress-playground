@@ -5,7 +5,13 @@ import { close, wordpress } from '@wordpress/icons';
 import css from './restore-autosave-nudge.module.css';
 import calloutCss from '../dock-callout.module.css';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
-import { isSiteSavingDisabled } from '../../lib/state/url/router';
+import {
+	isSiteSavingDisabled,
+	PlaygroundRoute,
+	redirectTo,
+} from '../../lib/state/url/router';
+import { Modal } from '../modal';
+import ModalButtons from '../modal/modal-buttons';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
@@ -45,10 +51,11 @@ import {
 } from './recent-autosave-nudge-context';
 
 /**
- * Ensures the redux store always has an activeSite value.
+ * Selects a Playground without letting a URL reopen saved files on its own.
  *
  * It has two routing modes:
- * * When `site-slug` is provided, it loads that site or creates it if missing.
+ * * When `site-slug` names a saved site, it waits for the user to open it.
+ *   An unknown slug creates a new site instead.
  * * When `site-slug` is missing, it starts from the current setup URL and
  *   creates an autosaved site unless the shell requires a temporary one.
  */
@@ -83,6 +90,19 @@ export function EnsurePlaygroundSiteIsSelected({
 	const activeClientInfo = useAppSelector((state) =>
 		activeSite ? selectClientBySiteSlug(state, activeSite.slug) : undefined
 	);
+	// A URL can come from WordPress, including through window.open(). Only a
+	// choice inside this app may reopen saved files. Dock selections already
+	// set the active site before changing the URL, so they need no second click.
+	const savedSiteToStart =
+		requestedSiteObject &&
+		requestedSiteObject.metadata.storage !== 'none' &&
+		activeSite?.slug !== requestedSiteSlug &&
+		!requestedClientInfo
+			? requestedSiteObject
+			: undefined;
+	const [pendingSiteStartUrl, setPendingSiteStartUrl] = useState<string>();
+	const siteToOpenFromUrl =
+		pendingSiteStartUrl === url.href ? savedSiteToStart : undefined;
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
 	const [autosaveNudge, setAutosaveNudge] = useState<{
@@ -171,11 +191,12 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 
 					if (shouldUseTemporarySite) {
-						await sitesAPI.createNewTemporarySite(
-							requestedSiteSlug
-						);
+						const createdSlug =
+							await sitesAPI.createNewTemporarySite(
+								requestedSiteSlug
+							);
 						if (!isSavingDisabled) {
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+							setNeedMissingSitePromptForSlug(createdSlug);
 						}
 					} else {
 						try {
@@ -187,15 +208,22 @@ export function EnsurePlaygroundSiteIsSelected({
 								'Error creating saved site. Falling back to a temporary site.',
 								error
 							);
-							await sitesAPI.createNewTemporarySite(
-								requestedSiteSlug
-							);
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+							const createdSlug =
+								await sitesAPI.createNewTemporarySite(
+									requestedSiteSlug
+								);
+							setNeedMissingSitePromptForSlug(createdSlug);
 						}
 					}
 					return;
 				}
 
+				if (savedSiteToStart) {
+					// Record a URL request, not every state change. Creating another
+					// site through the app API may deliberately keep the old URL.
+					setPendingSiteStartUrl(url.href);
+					return;
+				}
 				await sitesAPI.setActiveSite(requestedSiteSlug);
 				return;
 			}
@@ -363,9 +391,47 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	};
 
+	/** Leave the requested saved files untouched when the user cancels startup. */
+	function cancelSavedSiteStart() {
+		setPendingSiteStartUrl(undefined);
+		redirectTo(
+			activeSite
+				? PlaygroundRoute.site(activeSite)
+				: PlaygroundRoute.newSite()
+		);
+	}
+
 	return (
 		<RecentAutosaveNudgeProvider visible={!!canShowAutosaveNudge}>
 			{children}
+			{siteToOpenFromUrl && (
+				<Modal
+					title="Open saved Playground?"
+					onRequestClose={cancelSavedSiteStart}
+				>
+					<p>
+						Open <strong>{siteToOpenFromUrl.metadata.name}</strong>{' '}
+						from this browser’s saved files? A link cannot start a
+						saved Playground on its own.
+					</p>
+					<ModalButtons
+						submitText="Open Playground"
+						onSubmit={() => {
+							setPendingSiteStartUrl(undefined);
+							void sitesAPI
+								.setActiveSite(siteToOpenFromUrl.slug)
+								.catch((error) => {
+									// Boot failures already have a site error screen.
+									logger.error(
+										'Error opening saved Playground.',
+										error
+									);
+								});
+						}}
+						onCancel={cancelSavedSiteStart}
+					/>
+				</Modal>
+			)}
 			{canShowAutosaveNudge && (
 				<YouHaveAutosaveNudge
 					site={autosaveNudge.site}

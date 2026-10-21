@@ -111,7 +111,7 @@ export class BlueprintsV2Handler {
 		await playground.boot({
 			mounts,
 			sapiName,
-			scope: scope ?? Math.random().toFixed(16),
+			scope: scope ?? crypto.randomUUID(),
 			wordpressInstallMode: resolvedWordPressInstallMode,
 			blueprint:
 				compiled.version === 2 &&
