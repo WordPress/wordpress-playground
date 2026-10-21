@@ -17,6 +17,7 @@ describe('windowEndpoint', () => {
 		}
 		expect(listener).toHaveBeenCalledTimes(1);
 		expect(listener.mock.calls[0][0].source).toBe(peer);
+		expect(listener.mock.contexts).toEqual([context]);
 		endpoint.removeEventListener('message', listener);
 		const event = new Event('message');
 		Object.defineProperty(event, 'source', { value: peer });
@@ -34,6 +35,7 @@ describe('windowEndpoint', () => {
 		Object.defineProperty(event, 'source', { value: peer });
 		context.dispatchEvent(event);
 		expect(listener.handleEvent).toHaveBeenCalledWith(event);
+		expect(listener.handleEvent.mock.contexts).toEqual([listener]);
 		endpoint.postMessage('request', []);
 		expect(peer.postMessage).toHaveBeenCalledWith(
 			'request',
