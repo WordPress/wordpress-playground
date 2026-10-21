@@ -26,9 +26,10 @@ export async function generateStaticSite(
 	blueprint: BlueprintV1Declaration,
 	url: string,
 	proxy: string,
-	onProgress: (message: string) => void
+	onProgress: (message: string) => void,
+	editUrl: string
 ) {
-	const steps = simplyStaticSteps(url);
+	const steps = simplyStaticSteps(url, editUrl);
 	onProgress('Installing and configuring Simply Static…');
 	const compiled = await compileBlueprintV1(
 		{ steps },
@@ -113,7 +114,7 @@ export async function generateStaticSite(
 	);
 }
 
-function simplyStaticSteps(url: string): StepDefinition[] {
+function simplyStaticSteps(url: string, editUrl: string): StepDefinition[] {
 	const destination = new URL(url);
 	return [
 		{
@@ -130,6 +131,8 @@ function simplyStaticSteps(url: string): StepDefinition[] {
 			$options = \\Simply_Static\\Options::instance();
 			foreach (${phpVar({
 				delivery_method: 'local',
+				wp_content_directory: 'wp-content',
+				wp_uploads_directory: 'uploads',
 				local_dir: EXPORT_DIRECTORY,
 				temp_files_dir: '/tmp/playground-spacefast-simply-static',
 				destination_url_type: 'absolute',
@@ -141,6 +144,7 @@ function simplyStaticSteps(url: string): StepDefinition[] {
 				crawlers: ['home', 'post_type', 'taxonomy'],
 			})} as $key => $value) { $options->set($key, $value); }
 			$options->save();
+			update_option('playground_spacefast_edit_url', ${phpVar(editUrl)}, false);
 			`,
 		},
 	];

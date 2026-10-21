@@ -22,6 +22,9 @@ describe('Spacefast publishing', () => {
 			'Test Playground'
 		);
 		expect(await client.getSpace(created.id)).toEqual(space);
+		expect(
+			JSON.parse(fetchMock.mock.calls[0][1]?.body as string)
+		).toMatchObject({ access: 'public' });
 		expect(fetchMock.mock.calls[1][0]).toBe(
 			'https://proxy.test/?https://api.spacefast.com/v1/spaces/spc_created'
 		);

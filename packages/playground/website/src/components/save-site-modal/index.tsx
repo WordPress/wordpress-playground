@@ -446,7 +446,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					}}
 				>
 					{site.metadata.spacefast
-						? 'Save your current changes to this Playground’s public Spacefast site.'
+						? 'Save your current changes to this Playground’s Spacefast site.'
 						: isAutosaved
 							? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser, in a local directory, or on Spacefast.'
 							: asPane

@@ -1,4 +1,6 @@
 import type { Blueprint, PlaygroundClient } from '@wp-playground/client';
+import { basename, dirname } from '@php-wasm/util';
+import { SOURCE_DIRECTORY } from './paths';
 import { BlueprintReflection } from '@wp-playground/blueprints';
 import type { SiteInfo } from '../state/redux/slice-sites';
 import { SpacefastClient } from './api';
@@ -62,6 +64,24 @@ export async function saveSiteToSpacefast({
 	}
 	if (!session)
 		throw new Error('Paste a Spacefast handoff URL to authorize saving.');
+	const source = site.metadata.originalBlueprintSource;
+	if (
+		!session.spaceId &&
+		!site.metadata.spacefast &&
+		source?.type === 'remote-url'
+	) {
+		const sourceUrl = new URL(source.url);
+		if (
+			basename(sourceUrl.pathname) === 'blueprint.json' &&
+			basename(dirname(sourceUrl.pathname)) === SOURCE_DIRECTORY
+		) {
+			const saved = await loadPublicSite(
+				new URL('../', sourceUrl).href,
+				proxy
+			);
+			session.spaceId = saved.manifest.spaceId;
+		}
+	}
 	let id =
 		session.spaceId ||
 		site.metadata.spacefast?.spaceId ||
@@ -88,26 +108,36 @@ export async function saveSiteToSpacefast({
 	session.spaceId = id;
 	const space = await session.client.getSpace(id);
 	if (!space.liveUrl) {
-		throw new Error('Spacefast has not assigned a public URL yet.');
+		throw new Error('Spacefast has not assigned a site URL yet.');
 	}
 	if (space.channels?.live?.versionId) {
 		// Only replace destinations that already contain this Playground format.
 		await loadPublicSite(space.liveUrl, proxy);
 	}
+	const editUrl = new URL(
+		'./',
+		globalThis.location?.href || 'https://playground.wordpress.net/'
+	);
+	editUrl.searchParams.set(
+		'blueprint-url',
+		new URL('_playground/blueprint.json', space.liveUrl).href
+	);
 	const generated = await generateStaticSite(
 		playground,
 		blueprint,
 		space.liveUrl,
 		proxy,
-		onProgress
+		onProgress,
+		editUrl.href
 	);
 	const { files } = await collectSiteFiles(
 		playground,
 		generated.blueprint,
 		id,
-		onProgress
+		onProgress,
+		generated.files,
+		space.liveUrl
 	);
-	files.push(...generated.files);
 	const published = await session.client.publish(
 		id,
 		files,
@@ -115,7 +145,7 @@ export async function saveSiteToSpacefast({
 		onProgress
 	);
 	if (!published.space.liveUrl)
-		throw new Error('Spacefast has not assigned a public URL yet.');
+		throw new Error('Spacefast has not assigned a site URL yet.');
 	return {
 		spaceId: id,
 		url: published.space.liveUrl,

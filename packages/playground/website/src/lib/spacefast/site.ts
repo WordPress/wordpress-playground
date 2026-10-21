@@ -13,13 +13,15 @@ import {
 } from '@php-wasm/util';
 import { getSqliteDatabasePath } from '@wp-playground/tools';
 import type { PublishedFile } from './api';
-import { publicFileUrl } from './paths';
+import { publicFileUrl, uploadFilePath, SOURCE_DIRECTORY } from './paths';
 
-export const SOURCE_DIRECTORY = '_playground';
+import { createStoredBlueprint, getSetupSteps } from './blueprint';
+
+export { SOURCE_DIRECTORY } from './paths';
 export const MANIFEST_PATH = joinPaths(SOURCE_DIRECTORY, 'site.json');
 
 export type SiteManifest = {
-	formatVersion: 1;
+	formatVersion: 1 | 2;
 	spaceId: string;
 	siteUrl: string;
 	uploads: string[];
@@ -38,6 +40,7 @@ export async function parseSetupBlueprint(
 		);
 	return {
 		...blueprint,
+		steps: getSetupSteps(blueprint),
 		extraLibraries: [
 			...new Set([...(blueprint.extraLibraries || []), 'wp-cli']),
 		],
@@ -65,6 +68,13 @@ export async function loadPublicSite(source: string, proxy: string) {
 			throw new Error(`Could not load ${path} (${response.status}).`);
 		return response;
 	};
+	return readSiteFiles(base.href, fetchFile);
+}
+
+async function readSiteFiles(
+	base: string,
+	fetchFile: (path: string) => Promise<Response>
+) {
 	const manifest = parseManifest(
 		await (await fetchFile(MANIFEST_PATH)).json()
 	);
@@ -73,7 +83,7 @@ export async function loadPublicSite(source: string, proxy: string) {
 			await fetchFile(joinPaths(SOURCE_DIRECTORY, 'blueprint.json'))
 		).text()
 	);
-	return { base: base.href, manifest, blueprint, fetchFile };
+	return { base, manifest, blueprint, fetchFile };
 }
 
 /** Makes a consistent SQLite snapshot, rather than copying a possibly WAL-backed file. */
@@ -81,7 +91,9 @@ export async function collectSiteFiles(
 	playground: PlaygroundClient,
 	blueprint: BlueprintV1Declaration,
 	spaceId: string,
-	onProgress: (message: string) => void
+	onProgress: (message: string) => void,
+	staticFiles: PublishedFile[] = [],
+	publishedUrl?: string
 ) {
 	onProgress('Taking a SQLite snapshot…');
 	const database = await getSqliteDatabasePath(playground);
@@ -93,6 +105,10 @@ export async function collectSiteFiles(
 		$db = new PDO('sqlite:' . ${phpVar(database)});
 		$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 		$db->exec('VACUUM INTO ' . $db->quote($path));
+		require '/wordpress/wp-load.php';
+		$users = get_users(array('role' => 'administrator', 'number' => 1));
+		if (!$users) { throw new RuntimeException('The site has no administrator.'); }
+		echo $users[0]->user_login;
 	`,
 	});
 	assertPhpSuccess(result);
@@ -111,7 +127,7 @@ export async function collectSiteFiles(
 		joinPaths(root, 'wp-content/uploads')
 	);
 	const manifest: SiteManifest = {
-		formatVersion: 1,
+		formatVersion: 2,
 		spaceId,
 		siteUrl: await playground.absoluteUrl,
 		uploads: uploads.map(({ path }) => path),
@@ -120,7 +136,16 @@ export async function collectSiteFiles(
 		{ path: MANIFEST_PATH, data: jsonBlob(manifest) },
 		{
 			path: joinPaths(SOURCE_DIRECTORY, 'blueprint.json'),
-			data: jsonBlob(blueprint),
+			data: jsonBlob(
+				publishedUrl
+					? createStoredBlueprint(
+							blueprint,
+							manifest,
+							publishedUrl,
+							result.text.trim()
+						)
+					: blueprint
+			),
 		},
 		{
 			path: joinPaths(SOURCE_DIRECTORY, 'database.sqlite'),
@@ -129,11 +154,20 @@ export async function collectSiteFiles(
 			}),
 		},
 		...uploads.map(({ path, data }) => ({
-			path: joinPaths(SOURCE_DIRECTORY, 'uploads', path),
+			path: uploadFilePath(manifest.formatVersion, path),
 			data,
 		})),
 	];
-	return { manifest, files };
+	// Static exports can include transformed versions of the same media files.
+	// Publish each path once, sharing the published copy with editable source.
+	return {
+		manifest,
+		files: [
+			...new Map(
+				[...files, ...staticFiles].map((file) => [file.path, file])
+			).values(),
+		],
+	};
 }
 
 /** Restores into a fresh runtime after its setup Blueprint has installed plugins and themes. */
@@ -181,7 +215,7 @@ export async function restoreSite(
 			new Uint8Array(
 				await (
 					await site.fetchFile(
-						joinPaths(SOURCE_DIRECTORY, 'uploads', path)
+						uploadFilePath(site.manifest.formatVersion, path)
 					)
 				).arrayBuffer()
 			)
@@ -271,7 +305,7 @@ export function parseManifest(value: unknown): SiteManifest {
 	const manifest = value as SiteManifest;
 	if (
 		!manifest ||
-		manifest.formatVersion !== 1 ||
+		(manifest.formatVersion !== 1 && manifest.formatVersion !== 2) ||
 		typeof manifest.spaceId !== 'string' ||
 		typeof manifest.siteUrl !== 'string' ||
 		!Array.isArray(manifest.uploads) ||

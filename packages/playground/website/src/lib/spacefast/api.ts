@@ -108,6 +108,7 @@ export class SpacefastClient {
 					source: {
 						kind: 'api',
 						client: 'playground',
+						message: 'Saved from WordPress Playground',
 					},
 				}),
 			})

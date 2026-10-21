@@ -93,89 +93,56 @@ We also track custom events whenever a user loads Playground and what blueprint 
 
 ## Spacefast
 
-Click **Autosaved** in the main Playground website, then choose **Save to
-Spacefast** under **Storage location**. Enter the Playground name, paste a fresh
-Spacefast handoff, and save. This installs and configures Simply Static, generates
-the static website, and publishes it together with the Blueprint, database, and uploads.
-After saving, the status becomes a clickable **Spacefast** control for saving
-further edits. The connection survives closing the save pane within this tab;
-only the public destination is persisted in site metadata. Remote saves are
-explicit, independent of local browser autosaving.
+Click **Autosaved → Storage location → Save to Spacefast**, enter a name, and
+paste a Spacefast handoff URL or prompt. Saving installs and configures the free
+Simply Static plugin, generates the static website, and publishes it together
+with the Blueprint, SQLite snapshot, and uploads. New Spaces are public. The
+complete database is readable alongside the static site. Write credentials stay
+in tab memory; only the destination and setup Blueprint are retained locally.
 
-The standalone demo at `/website-server/demos/spacefast.html` additionally exposes
-public-source loading and manual static-directory publishing. Reopening public
-source is not yet integrated into the main website's controls.
-
-Run it from the repository root with Node 24 and installed dependencies:
+Run the website with a larger proxy upload limit when testing media files:
 
 ```sh
 PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=16777216 npm run dev
 ```
 
-For the main save flow, open `http://127.0.0.1:5400/website-server/`, wait for the
-Playground to load, and click **Autosaved**. Saving to Spacefast requires the site
-to be open, including when Store permanently is opened from an inactive autosave.
-
-For the standalone demo, open `http://127.0.0.1:5400/website-server/demos/spacefast.html`. Start a new
-Playground from the setup Blueprint, connect by pasting a fresh Spacefast handoff
-URL, and save. A team handoff can create a public Space; a Space handoff writes
-only to its assigned Space. An existing destination must already be public and
-contain this prototype's site data. Credentials are kept in memory only. Closing
-the tab disconnects the local client but does not revoke the issued Spacefast
-key; manage that key in Spacefast's Connected apps.
-
-Each main-website save publishes a complete snapshot containing the static
-website at the root and these editable files:
+Each save creates one snapshot containing the static website and:
 
 ```text
-_playground/site.json           Format version, Space ID, original site URL, upload paths
-_playground/blueprint.json      Setup Blueprint (v1)
+_playground/site.json           Format version, Space ID, source URL, upload paths
+_playground/blueprint.json      Blueprint that recreates the installation and restores its data
 _playground/database.sqlite     SQLite snapshot produced with VACUUM INTO
-_playground/uploads/...         Files from wp-content/uploads
+wp-content/uploads/...          One shared copy for static hosting and editable source
 ```
 
-These files are intentionally public, including the complete database. No
-WordPress installation archive is created. Plugins, themes, and configuration
-must be reproducible from the setup Blueprint. The demo does not infer a
-Blueprint from plugins or themes subsequently installed in wp-admin, and it
-does not save edits to their files. It currently assumes a single WordPress
-site with its standard uploads directory and database table prefix.
+Manifest format 2 shares uploads with the static site instead of keeping a
+second copy under `_playground/uploads/`. Unreferenced media is retained too.
+Older format 1 source remains readable, and the next save replaces its separate
+upload directory with the shared layout. Deleted pages and files disappear from
+the current snapshot. Each version has the message **Saved from WordPress
+Playground**.
 
-To reopen, paste the public Spacefast URL and choose **Load public site**, or use
-the demo's editor link (`?source=<public-site-url>`), then choose **Load public
-site**. No handoff is needed for reading. Loading starts a new runtime, installs
-the Blueprint's dependencies, restores SQLite and uploads, and uses WP-CLI to
-replace the old Playground URL, including serialized values. To save a remix,
-connect your own team handoff and clear the destination Space ID to create a new
-Space. Save explicitly before closing; there is no remote autosave or concurrent
-editor conflict detection.
+Generated pages have an **Edit with Playground** link pointing to the normal
+website with `?blueprint-url=<Spacefast URL>/_playground/blueprint.json`. It uses
+the current Playground origin, including localhost during development. The
+hosted Blueprint installs the original dependencies, restores SQLite and uploads,
+updates URLs including serialized values, and logs in to wp-admin. No separate
+demo page is needed. The database migration uses WP-CLI; static generation uses
+Simply Static's PHP hooks without WP-CLI or a Pro license.
 
-The main save flow runs a Blueprint on the current site that installs the free
-Simply Static plugin and configures a local export directory and the Spacefast
-public destination URL. These setup steps are also appended to the saved Blueprint
-and retained in local site metadata after a successful save. Repeated saves replace
-the generated setup steps rather than accumulating copies. No WP-CLI or Pro
-license is used for static generation.
-
-A small MU plugin lets Playground advance Simply Static's job one batch at a time
-without background loopback requests. Generation must succeed before publishing
-starts. Static output is regenerated in a dedicated directory outside uploads;
-the temporary crawl files also stay outside uploads. Generated static files and
-editable source are published as one snapshot, removing deleted pages and assets.
-Server-specific `.htaccess` and `.user.ini` files are omitted. The adapter is tested
-against Simply Static 3.8.18, which is the version installed by the setup Blueprint.
-
-The standalone demo retains its manual export-directory controls. Configure an
-exporter to write to `/wordpress/static`, generate the export, then choose **Save
-and publish static files** to publish that directory alongside the editable data.
+A Blueprint-installed MU plugin advances Simply Static's job in batches and
+renders public pages between batches to avoid nested PHP loopback requests. It
+adds the edit link only to exported pages. Temporary crawl files remain outside
+uploads. The adapter is tested with Simply Static 3.8.18, the version installed
+when the plugin is absent. Plugin/theme files must be reproducible from the setup
+Blueprint; later edits to those files are not stored. The current layout assumes
+a single WordPress site with the standard uploads directory.
 
 Spacefast API and upload requests go directly through the configured CORS proxy,
 with buffered bodies and no initial cross-origin attempt. Management authorization
-is explicitly opted in for the Spacefast API; upload targets receive only their
-issued headers. The proxy now accepts PUT and a configurable body limit; its
-default remains below 1 MiB per POST or PUT. The example above allows bodies
-below 16 MiB locally. The proxy deployment and its front-end web server must
-support the upload method and desired body size before hosting the demo remotely.
-The demo checks that a version is ready and serving on the live channel before
-reporting a successful save. Live authentication and publication require a fresh
-handoff and have not been exercised with the reference-only handoff.
+is explicitly opted in for the API; upload targets receive only their issued
+credentials. The proxy supports PUT and configurable
+`PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE`, retaining its default limit when unset.
+Uploads must finish and the version must become live before saving succeeds.
+No reference handoff is redeemed by tests; browser checks mock Spacefast while
+running real WordPress and Simply Static.

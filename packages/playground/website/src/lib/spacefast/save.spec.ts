@@ -21,7 +21,13 @@ vi.mock('./simply-static', () => ({ generateStaticSite: mocks.generate }));
 vi.mock('./site', () => ({
 	SOURCE_DIRECTORY: '_playground',
 	parseSetupBlueprint: async (text: string) => JSON.parse(text),
-	collectSiteFiles: async () => ({ files: [], manifest: { uploads: [] } }),
+	collectSiteFiles: async (
+		_playground: unknown,
+		_blueprint: unknown,
+		_spaceId: string,
+		_onProgress: unknown,
+		files: unknown[]
+	) => ({ files, manifest: { uploads: [] } }),
 	loadPublicSite: vi.fn(),
 }));
 

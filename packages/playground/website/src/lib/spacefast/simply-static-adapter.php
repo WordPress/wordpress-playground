@@ -6,6 +6,11 @@
 if (isset($_SERVER['HTTP_X_PLAYGROUND_SPACEFAST_CRAWL'])) {
     add_filter('determine_current_user', '__return_zero', PHP_INT_MAX);
     add_filter('show_admin_bar', '__return_false');
+    add_action('wp_footer', function () {
+        $url = get_option('playground_spacefast_edit_url');
+        if (!$url) { return; }
+        echo '<a data-playground-edit href="' . esc_url($url) . '" style="position:fixed;right:16px;bottom:16px;z-index:10000;padding:10px 16px;background:#1e1e1e;color:#fff;border-radius:4px;font:14px system-ui;text-decoration:none">Edit with Playground</a>';
+    });
 }
 
 if (!defined('PLAYGROUND_SPACEFAST_EXPORT')) {
