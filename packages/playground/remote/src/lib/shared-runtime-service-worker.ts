@@ -18,7 +18,7 @@ const clientRuntimes = new Map<string, Map<string, string>>();
 const pending = new Map<string, Promise<boolean>>();
 const registrationWaiters = new Map<string, () => void>();
 // Separate from release asset caches: live documents outlast ServiceWorker deployments.
-const CLIENT_RUNTIME_CACHE = 'personal-wp-client-runtimes';
+const CLIENT_RUNTIME_CACHE = 'playground-client-runtimes';
 
 export function registerSharedRuntime(event: ExtendableMessageEvent) {
 	if (event.data?.type !== 'register-shared-runtime') return;
@@ -227,7 +227,7 @@ async function rememberClientRuntime(
 }
 
 function clientRuntimeKey(scope: string, clientId: string) {
-	const url = new URL('/personal-wp-client-runtime', self.location.href);
+	const url = new URL('/playground-client-runtime', self.location.href);
 	url.searchParams.set('scope', scope);
 	url.searchParams.set('client', clientId);
 	return url.href;

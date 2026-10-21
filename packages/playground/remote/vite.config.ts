@@ -172,8 +172,8 @@ export default defineConfig(({ mode }) => {
 					},
 					// Ensure the service worker always has the same name
 					entryFileNames: (chunkInfo: any) => {
-						if (chunkInfo.name === 'personal-wp-shared-worker') {
-							return 'personal-wp-shared-worker.js';
+						if (chunkInfo.name === 'shared-playground-worker') {
+							return 'shared-playground-worker.js';
 						}
 						if (chunkInfo.name === 'service-worker') {
 							return 'sw.js';

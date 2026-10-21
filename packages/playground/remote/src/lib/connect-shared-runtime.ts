@@ -5,7 +5,7 @@ import type {
 } from './playground-worker-endpoint';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';
 // @ts-ignore -- Resolved by Vite.
-import sharedWorkerUrl from './personal-wp-shared-worker.ts?worker&url';
+import sharedWorkerUrl from './shared-playground-worker.ts?worker&url';
 
 export type SharedRuntimeAPI = PlaygroundWorkerEndpoint & {
 	shutdownSharedRuntime(): Promise<void>;
@@ -162,12 +162,12 @@ async function connectCurrentSharedWorker(
 		);
 		throw new Error(RELOAD_REQUIRED);
 	}
-	const storageKey = `personal-wp:shared-worker:${scope}`;
+	const storageKey = `playground:shared-worker:${scope}`;
 	const url = new URL(sharedWorkerUrl, location.href);
 	url.searchParams.set('build', version);
 	const current = {
 		url: url.href,
-		name: `personal-wp:${scope}:${version}`,
+		name: `playground:${scope}:${version}`,
 		version,
 	};
 	const previous = readSharedWorkerIdentity(storageKey, scope);
@@ -176,10 +176,10 @@ async function connectCurrentSharedWorker(
 		previous.url !== current.url ||
 		previous.name !== current.name
 	) {
-		// Before identities were recorded, all builds used this stable URL and name.
+		// Without a recorded identity, probe the unversioned worker URL and name.
 		const retiring = previous ?? {
 			url: new URL(sharedWorkerUrl, location.href).href,
-			name: `personal-wp:${scope}`,
+			name: `playground:${scope}`,
 			version: 'legacy',
 		};
 		await handshakeSharedWorker(retiring, version, 'retire', onProgress);
@@ -212,7 +212,7 @@ function readSharedWorkerIdentity(
 			!value ||
 			typeof value.url !== 'string' ||
 			typeof value.version !== 'string' ||
-			value.name !== `personal-wp:${scope}:${value.version}`
+			value.name !== `playground:${scope}:${value.version}`
 		)
 			return;
 		const url = new URL(value.url);

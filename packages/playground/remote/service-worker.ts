@@ -245,7 +245,7 @@ self.addEventListener('fetch', (event) => {
 		new URL(self.location.href).searchParams.get(
 			'experimental-shared-worker'
 		) === '1';
-	if (sharedMode && url.pathname.endsWith('/personal-wp-shared-worker.js')) {
+	if (sharedMode && url.pathname.endsWith('/shared-playground-worker.js')) {
 		// Refresh the stable entrypoint online while preserving offline startup.
 		return event.respondWith(networkFirstFetch(event.request));
 	}

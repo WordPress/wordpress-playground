@@ -1,5 +1,5 @@
 vi.mock('@php-wasm/web', () => ({ consumeAPI: () => ({}) }));
-vi.mock('./personal-wp-shared-worker.ts?worker&url', () => ({
+vi.mock('./shared-playground-worker.ts?worker&url', () => ({
 	default: '/worker.js',
 }));
 
@@ -12,10 +12,10 @@ describe('shared runtime discovery across deployments', () => {
 	let workers: MockWorker[];
 	let postMessage: ReturnType<typeof vi.fn>;
 	let storage: Map<string, string>;
-	const key = 'personal-wp:shared-worker:default';
+	const key = 'playground:shared-worker:default';
 	const identity = (version: string) => ({
 		url: `https://example.test/worker.js?build=${version}`,
-		name: `personal-wp:default:${version}`,
+		name: `playground:default:${version}`,
 		version,
 	});
 
@@ -111,9 +111,9 @@ describe('shared runtime discovery across deployments', () => {
 		expect(workers).toHaveLength(1);
 	});
 
-	it('discovers and retires the legacy stable worker on the first migration', async () => {
+	it('probes the unversioned worker when no identity is recorded', async () => {
 		const connection = connectSharedRuntime('default', 'new', 'new');
-		expect(workers[0].name).toBe('personal-wp:default');
+		expect(workers[0].name).toBe('playground:default');
 		expect(workers[0].url).toBe('https://example.test/worker.js');
 		workers[0].send({ type: RELOAD_REQUIRED, ready: true });
 		await vi.advanceTimersByTimeAsync(0);

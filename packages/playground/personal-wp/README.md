@@ -58,16 +58,17 @@ are not broadcast to tabs. The main Playground website keeps its dedicated-worke
 Each newly opened document checks `personal-wp-version.json` once with caching disabled.
 There is no periodic deployment polling. If the deployed version differs from the running
 worker, the shared runtime stops accepting operations, drains active PHP work, and flushes
-OPFS before shutting down. Existing tabs display a reload prompt on their next runtime
-operation or HTTP request. The reload button waits until saving and shutdown finish. A failed
+OPFS before shutting down. Existing tabs display a reload prompt when retirement starts.
+The reload button waits until saving and shutdown finish. A failed
 version check permits offline startup.
 
-If saving fails during retirement, the runtime keeps ownership and blocks new
+If saving fails during retirement, the runtime stays alive and blocks new
 operations. Opening another tab retries retirement, allowing saving and shutdown
 to finish after the storage problem is resolved.
 
-A runtime ownership Web Lock prevents concurrent writers and detects tabs from the older
-implementation. Those legacy tabs must be closed before the shared runtime can boot.
+The previous worker's identity is recorded in localStorage so a new build can request its
+shutdown before starting a replacement. There is no ownership lock: if that identity is lost
+or the previous worker cannot be reached, a replacement may start while it is still running.
 
 ### WordPress Page Relay Messages
 
@@ -181,7 +182,7 @@ for both sites to finish loading. Different origins, including the two deploymen
 hostnames, have separate workers and storage.
 
 1. Open `chrome://inspect/#workers`. There should be one Personal WP SharedWorker
-   named `personal-wp:default` for the default site. Click **Inspect** to open its
+   named `playground:default:<build-version>` for the default site. Click **Inspect** to open its
    debugger. Close the first application tab and verify the second still works.
    Close the worker inspector when checking whether the last tab releases the worker.
 2. In each application's DevTools Console, select the top-level page context.
