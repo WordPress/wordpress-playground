@@ -1,4 +1,8 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
+import {
+	spawn,
+	execFileSync,
+	type ChildProcessWithoutNullStreams,
+} from 'child_process';
 import { existsSync } from 'fs';
 import { createServer } from 'net';
 import { delimiter, join } from 'path';
@@ -11,6 +15,17 @@ describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 	let stderr = '';
 
 	beforeAll(async () => {
+		// Only PHP 8+ lets the cleanup fixture replace a disabled built-in.
+		const phpVersion = Number(
+			execFileSync('php', ['-r', 'echo PHP_VERSION_ID;'], {
+				encoding: 'utf8',
+			})
+		);
+		if (phpVersion < 80000) {
+			throw new Error(
+				'Relay HTTP tests require host PHP 8.0 or later to force scheduled cleanup.'
+			);
+		}
 		const port = await getAvailablePort();
 		relayUrl = `http://127.0.0.1:${port}/relay.php`;
 		server = spawn(

@@ -227,3 +227,9 @@ Use the URL helpers to keep `/connect` and scoped iframe URLs consistent:
   after the session is established.
 
 These helpers accept absolute URLs and path-only URLs.
+
+## Relay HTTP tests
+
+The relay HTTP tests require host PHP 8.0 or later. They replace a disabled
+`random_int()` to force scheduled cleanup on every request. This does not change
+the PHP versions available inside Playground.
