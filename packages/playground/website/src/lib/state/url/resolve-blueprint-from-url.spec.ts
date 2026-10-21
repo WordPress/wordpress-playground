@@ -19,10 +19,19 @@ it.each(['query', 'default'])(
 	'retries a %s startup Blueprint through the proxy after a CORS failure',
 	async (source) => {
 		const blueprintUrl = 'https://site.test/_playground/blueprint.json';
+		const archiveUrl = 'https://site.test/_playground/spiel.zip';
 		const blueprint = { landingPage: '/wp-admin/', steps: [] };
 		const fetchMock = vi.fn(async (request: Request) => {
-			if (request.url === blueprintUrl) {
+			if (request.url === blueprintUrl || request.url === archiveUrl) {
 				throw new TypeError('Failed to fetch');
+			}
+			if (
+				request.url ===
+				`https://playground.test/cors-proxy.php?${archiveUrl}`
+			) {
+				return new Response(new Uint8Array([80, 75, 3, 4]), {
+					headers: { 'X-Playground-Cors-Proxy': 'true' },
+				});
 			}
 			expect(request.url).toBe(
 				`https://playground.test/cors-proxy.php?${blueprintUrl}`
@@ -51,6 +60,10 @@ it.each(['query', 'default'])(
 		expect(await getBlueprintDeclaration(resolved.blueprint)).toEqual(
 			blueprint
 		);
-		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const archive = await resolved.blueprint.read('./spiel.zip');
+		expect(new Uint8Array(await archive.arrayBuffer())).toEqual(
+			new Uint8Array([80, 75, 3, 4])
+		);
+		expect(fetchMock).toHaveBeenCalledTimes(4);
 	}
 );
