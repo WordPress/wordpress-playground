@@ -16,6 +16,7 @@ import { getRemoteUrl } from '../src/lib/config';
 import { InlineProgress } from '../src/components/pane-loading';
 import { SpacefastClient } from '../src/lib/spacefast/api';
 import type { SpacefastConnection } from '../src/lib/spacefast/api';
+import { extractSpacefastHandoffUrl } from '../src/lib/spacefast/handoff';
 import {
 	collectSiteFiles,
 	collectStaticFiles,
@@ -252,9 +253,18 @@ function SpacefastDemo() {
 						<>
 							<TextControl
 								label="Spacefast handoff URL"
-								type="password"
+								type="text"
 								value={handoff}
 								onChange={setHandoff}
+								onPaste={(event) => {
+									const url = extractSpacefastHandoffUrl(
+										event.clipboardData.getData('text')
+									);
+									if (url) {
+										event.preventDefault();
+										setHandoff(url);
+									}
+								}}
 								disabled={busy}
 								autoComplete="off"
 								help="Authorizes saving. Kept only for this tab session."

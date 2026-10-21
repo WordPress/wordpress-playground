@@ -38,6 +38,7 @@ import {
 } from '../../lib/spacefast/save';
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
+import { extractSpacefastHandoffUrl } from '../../lib/spacefast/handoff';
 
 type StorageOption =
 	| Extract<SiteStorageType, 'opfs' | 'local-fs'>
@@ -497,12 +498,21 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 						) : (
 							<TextControl
 								label="Spacefast handoff URL"
-								type="password"
+								type="text"
 								value={handoff}
 								onChange={setHandoff}
+								onPaste={(event) => {
+									const url = extractSpacefastHandoffUrl(
+										event.clipboardData.getData('text')
+									);
+									if (url) {
+										event.preventDefault();
+										setHandoff(url);
+									}
+								}}
 								disabled={isSaving}
 								autoComplete="off"
-								help="Paste a handoff from Spacefast to authorize saving."
+								help="Paste a Spacefast handoff URL or the full Spacefast prompt."
 							/>
 						)}
 						{(!targetIsActive || !clientInfo?.client) && (

@@ -24,7 +24,7 @@ describe('Spacefast publishing', () => {
 				})
 			);
 			await client.connect(
-				'https://api.spacefast.com/handoffs/testHandoff'
+				'https://api.spacefast.com/handoffs/testHandoff1234567890'
 			);
 			fetchMock.mockResolvedValueOnce(
 				json({

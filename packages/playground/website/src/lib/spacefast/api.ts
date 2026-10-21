@@ -1,4 +1,5 @@
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
+import { extractSpacefastHandoffUrl } from './handoff';
 
 const API = 'https://api.spacefast.com';
 
@@ -36,23 +37,16 @@ export class SpacefastClient {
 	}
 
 	async connect(handoff: string): Promise<SpacefastConnection> {
-		const url = new URL(handoff);
-		if (
-			url.origin !== API ||
-			!/^\/handoffs\/[A-Za-z0-9]+$/.test(url.pathname) ||
-			url.search ||
-			url.hash ||
-			url.username ||
-			url.password
-		) {
+		const url = extractSpacefastHandoffUrl(handoff);
+		if (!url) {
 			throw new Error(
-				'Paste a Spacefast handoff URL from api.spacefast.com.'
+				'Paste a Spacefast handoff URL or a prompt containing one.'
 			);
 		}
 		const { data } = await this.request('/v1/auth/agent-handoffs/redeem', {
 			method: 'POST',
 			body: JSON.stringify({
-				url: url.href,
+				url,
 				agentName: 'Playground prototype',
 			}),
 		});
