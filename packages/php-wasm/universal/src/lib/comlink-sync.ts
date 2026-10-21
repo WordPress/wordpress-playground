@@ -916,16 +916,39 @@ export function proxy<T extends object>(obj: T): T & ProxyMarked {
 	return Object.assign(obj, { [proxyMarker]: true }) as any;
 }
 
+/** Connect an RPC endpoint only to messages sent by its peer window. */
 export function windowEndpoint(
 	w: PostMessageWithOrigin,
 	context: EventSource = globalThis,
 	targetOrigin = '*'
 ): Endpoint {
+	// Reuse one wrapper for both capture modes, including after removing only one mode.
+	const listeners = new WeakMap<
+		EventListenerOrEventListenerObject,
+		EventListener
+	>();
 	return {
 		postMessage: (msg: any, transferables: Transferable[]) =>
 			w.postMessage(msg, targetOrigin, transferables),
-		addEventListener: context.addEventListener.bind(context),
-		removeEventListener: context.removeEventListener.bind(context),
+		addEventListener: (type, listener, options) => {
+			let filteredListener = listeners.get(listener);
+			if (!filteredListener) {
+				// Only the connected window may invoke this API, not its nested frames.
+				filteredListener = (event) => {
+					if ((event as MessageEvent).source !== w) return;
+					if (typeof listener === 'function') listener(event);
+					else listener.handleEvent(event);
+				};
+				listeners.set(listener, filteredListener);
+			}
+			context.addEventListener(type, filteredListener, options);
+		},
+		removeEventListener: (type, listener, options) => {
+			const filteredListener = listeners.get(listener);
+			if (filteredListener) {
+				context.removeEventListener(type, filteredListener, options);
+			}
+		},
 	};
 }
 
