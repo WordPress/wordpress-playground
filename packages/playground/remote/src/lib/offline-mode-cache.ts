@@ -214,6 +214,19 @@ export async function putCachedResponse(
 	await offlineModeCache.put(request, response);
 }
 
+/**
+ * Decide whether this worker may use Playground's CacheStorage for a URL.
+ *
+ * Check the worker's origin first. On the WordPress origin, even an app-origin
+ * URL must return false: the cache being read or written would still belong to
+ * WordPress, where user code can replace its contents. Those fetches can use the
+ * browser HTTP cache instead; this rule does not disable HTTP caching.
+ *
+ * On the app origin, the WordPress static-archive shortcut is checked first.
+ * For other URLs, exclude live scoped responses, PHP endpoints, and Vite
+ * development assets. The final origin check also rejects other ports, which
+ * may serve a live site's responses rather than reusable platform files.
+ */
 export function shouldCacheUrl(url: URL) {
 	// Every WordPress page can write this origin's CacheStorage. Only the app
 	// origin may cache shared platform assets; WordPress must never trust its own cache.

@@ -4,7 +4,38 @@ import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import { wordPressSiteUrl } from './config';
 
-/** Keep the cross-origin transport limited to HTTP requests for this PHP instance. */
+/**
+ * Connect WordPress HTTP requests on a separate origin to this app-origin PHP worker.
+ *
+ * For example, remote.html on playground.wordpress.net runs PHP, but the visible
+ * WordPress iframe loads wp.playground.wordpress.net/scope:site-a/. The WordPress
+ * service worker cannot message remote.html directly: it can only reach windows
+ * on its own origin. This function creates a hidden WordPress-origin iframe as
+ * a sibling of the visible WordPress iframe. Requests take this path:
+ *
+ * WordPress page -> WordPress service worker -> hidden iframe
+ *   -> remote.html (this listener) -> the supplied PHP worker.
+ *
+ * Only messages from that exact hidden iframe, at the configured WordPress origin,
+ * with the supplied scope reach PHP. The HTTP URL must also use that origin and
+ * scope. The connection exposes two operations: HTTP requests and the directory
+ * name for shared WordPress assets. It does not forward the full PHP API, file
+ * handles, mount options, or requests for a different scope. Response status and
+ * headers return as message data; body chunks travel through a MessagePort.
+ *
+ * Call after PHP has booted. Resolves when the helper reports its service worker
+ * is ready, not when a WordPress page has loaded. On success, the hidden iframe
+ * and listener remain for the lifetime of remote.html. If no ready message arrives
+ * within 30 seconds, both are removed and the promise rejects.
+ *
+ * The scope selects a PHP instance; it does not prove which WordPress page made
+ * the HTTP request. Pages sharing the WordPress origin can still request another
+ * running site's known scope. This connection also does not prevent WordPress
+ * from embedding a fresh app/API document and connecting to that separate API.
+ *
+ * @param client The already-booted PHP worker that will serve this site's requests.
+ * @param scope The site's URL routing scope, as supplied in its PHP boot options.
+ */
 export async function connectWordPressOrigin(
 	client: RemoteAPI<PlaygroundWorkerEndpoint>,
 	scope: string
@@ -21,7 +52,16 @@ export async function connectWordPressOrigin(
 			bridge.remove();
 			reject(new Error('WordPress request transport did not start.'));
 		}, 30000);
-		/** Accept only the bound helper and expose HTTP, not the filesystem API. */
+		/**
+		 * Handle this helper's startup message or one request for its PHP instance.
+		 *
+		 * Checking the source window as well as the origin excludes other iframes
+		 * on the shared WordPress origin. Check both the message scope and the URL
+		 * scope: a valid helper must not choose a different PHP instance by changing
+		 * either field. Copy only HTTP request fields into requestStreamed(), and
+		 * return only staticAssetsDirectory for the metadata operation. Keep the
+		 * requestId unchanged so the service worker can match concurrent replies.
+		 */
 		async function onMessage(event: MessageEvent) {
 			if (
 				event.source !== bridge.contentWindow ||

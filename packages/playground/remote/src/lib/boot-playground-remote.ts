@@ -70,7 +70,21 @@ if (import.meta.hot) {
 }
 
 const query = new URL(document.location.href).searchParams;
-/** Boot the trusted PHP host and connect its rendered WordPress HTTP transport. */
+/**
+ * Start remote.html's PHP host and expose its client API to the embedding window.
+ *
+ * This document and the PHP worker stay on the app origin. PHP keeps access to
+ * the site's OPFS files or user-picked directory handles there. With a separate
+ * origin configured, the rendered WordPress iframe uses wordPressSiteUrl; this
+ * document and PHP do not move.
+ *
+ * The returned API's boot() method starts PHP and connects HTTP requests to it.
+ * With separate origins it creates a hidden WordPress-origin request iframe;
+ * with one origin a dedicated runtime uses the existing service-worker listener.
+ * Same-origin shared runtimes receive requests directly through MessagePorts.
+ * The WordPress request connection is separate from the full client API exposed
+ * to the embedding window: rendered WordPress does not receive that API here.
+ */
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
@@ -515,7 +529,15 @@ export async function bootPlaygroundRemote() {
 			if (sharedRuntime)
 				await sharedRuntime.api.finishSharedRuntimeInitialization();
 		},
-		/** Boot PHP, then attach the HTTP transport for the selected WordPress origin. */
+		/**
+		 * Start or join PHP, then connect the service worker that serves WordPress.
+		 *
+		 * A WordPress-origin service worker cannot reach this app-origin document
+		 * directly. Wait for connectWordPressOrigin() to establish its hidden iframe
+		 * connection before reporting the API as ready. Same-origin dedicated
+		 * runtimes keep the window listener below; same-origin shared runtimes
+		 * already have a direct service-worker connection and need no window relay.
+		 */
 		async boot(options) {
 			if (sharedRuntime) {
 				runStartupBlueprint =

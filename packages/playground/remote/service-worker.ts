@@ -17,6 +17,20 @@
  * the previous webapp version. Therefore, we can't allow the previous version
  * to run when a new version becomes available.
  *
+ * ## Separate app and WordPress origins
+ *
+ * The same worker bundle can run on two origins. Its module URL identifies the
+ * app origin; self.location.origin identifies the registration serving requests.
+ * In a split-origin deployment, only the WordPress registration serves virtual
+ * /scope:... pages. The app registration rejects those app-origin URLs so user
+ * HTML cannot execute with the app's storage access.
+ *
+ * PHP stays in an app-origin worker. The WordPress service worker sends HTTP
+ * requests to a hidden iframe on its own origin, which forwards them to its
+ * app-origin parent and PHP. Replies return through that iframe. A scope picks
+ * the PHP instance; it is not authorization between pages sharing the WordPress
+ * origin. The app can also still be embedded as a fresh document from WordPress.
+ *
  * ## Caching strategy
  *
  * Playground uses caching heavily to achieve great loading speeds and provide
@@ -216,7 +230,15 @@ self.addEventListener('install', (event) => {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
-	/** Claim clients and prepare the shared cache without eager split-origin downloads. */
+	/**
+	 * Take control of open pages without reloading them, then prepare asset caching.
+	 *
+	 * Only the app registration purges old platform caches. The WordPress
+	 * registration must not use its origin's user-writable cache for platform
+	 * assets. In split-origin mode the app fills its cache on demand instead of
+	 * downloading the full offline manifest, including unused PHP and WordPress
+	 * versions. One-origin builds retain the existing offline prefetch.
+	 */
 	async function doActivate() {
 		await self.clients.claim();
 
@@ -488,8 +510,24 @@ self.addEventListener('fetch', (event) => {
 });
 
 /**
- * A request to a PHP Worker Thread or to a regular static asset,
- * but initiated by a scoped referer (e.g. fetch() from a block editor iframe).
+ * Serve a scoped WordPress URL through PHP, with shared static files as a fallback.
+ *
+ * For /scope:site-a/wp-admin/edit.php, ask the running PHP instance for site-a to
+ * handle the HTTP request. Dedicated runtimes receive it through window messages;
+ * in split-origin mode the hidden WordPress iframe carries those messages across
+ * to remote.html. If this service worker has a registered shared runtime, use its
+ * direct connection instead. The caller also redirects unscoped same-origin URLs
+ * from a scoped referrer (for example, a block-editor iframe) into this path.
+ *
+ * Only a 404 marked x-backfill-from: remote-host permits a public asset fetch.
+ * For a minified build's omitted CSS file, remove /scope:site-a/, apply WordPress
+ * rewrites, and fetch from that version's static directory on the shared app
+ * origin. Do not turn arbitrary PHP 404s into network requests. Use the browser
+ * HTTP cache for these public files, not WordPress-writable CacheStorage.
+ *
+ * A navigation or same-origin fetch cannot accept the CORS response returned by
+ * that cross-origin asset fetch. Wrap its body and headers in a new Response for
+ * the original request without reading the whole body into memory.
  */
 async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);

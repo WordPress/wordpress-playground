@@ -88,7 +88,16 @@ async function waitForFonts() {
 	]);
 }
 
-/** Keep the resource worker same-origin with WordPress while sharing its public code. */
+/**
+ * Return a thumbnail worker URL that the WordPress document is allowed to start.
+ *
+ * Worker construction requires a same-origin entry script. In split-origin mode,
+ * keep the bundled asset path but put it on the WordPress origin. The marker tells
+ * the server, or the service worker after it takes control, to return a small
+ * importScripts() loader for the real app-origin bundle. The worker therefore
+ * starts on WordPress's origin without copying the bundle there or trusting
+ * WordPress-writable CacheStorage. One-origin builds use the asset URL directly.
+ */
 function getResourceWorkerUrl() {
 	const url = new URL(resourceWorkerUrl, window.location.href);
 	// The service worker uses this marker to serve the bundled worker instead

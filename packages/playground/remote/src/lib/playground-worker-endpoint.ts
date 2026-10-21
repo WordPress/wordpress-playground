@@ -167,7 +167,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
-	/** Create the PHP request handler and install runtime-local hooks and parent-origin metadata. */
+	/**
+	 * Create the PHP runtime pool and route siteUrl requests into its WordPress files.
+	 *
+	 * siteUrl is WordPress's public scoped URL, even when PHP runs on the app origin.
+	 * For each PHP instance, define PLAYGROUND_PARENT_ORIGIN in split-origin mode.
+	 * The injected WordPress scripts use it to send navigation, pointer, thumbnail,
+	 * and tool messages back to remote.html instead of assuming their parent shares
+	 * WordPress's origin. The value comes from the app module URL, not user input.
+	 *
+	 * Known remote asset paths get a marked 404 when absent from the local files.
+	 * The service worker uses that marker to fetch the shared public asset instead
+	 * of treating every missing URL, including PHP routes, as a static download.
+	 * Existing runtime hooks set up networking, mail capture, and shared files.
+	 */
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
@@ -407,7 +420,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return requestHandler;
 	}
 
-	/** Finish runtime setup and recover the public asset list for older stored builds. */
+	/**
+	 * Finish WordPress startup and identify static files omitted from minified builds.
+	 *
+	 * Enable outbound networking only after installation, then read the installed
+	 * WordPress version. A saved site may contain a different version than requested;
+	 * using the requested version could select the wrong public asset directory.
+	 *
+	 * Older saved sites may lack wordpress-remote-asset-paths. Fetch that list from
+	 * the installed version's directory on the shared app origin and save it in the
+	 * site's files. The WordPress host serves virtual site pages, not these platform
+	 * downloads. Add the listed paths to the set used by createRequestHandler() to
+	 * distinguish omitted static files from normal WordPress 404s. If recovery fails,
+	 * log a warning and continue startup without the missing list.
+	 */
 	protected async finalizeAfterBoot(
 		requestHandler: any,
 		withNetworking: boolean,
