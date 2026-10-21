@@ -107,6 +107,9 @@ test('boots a replacement runtime without reloading the new tab after retirement
 	await httpTab.evaluate(async () =>
 		(await fetch('/scope:default/shared-runtime-persisted.txt')).text()
 	);
+	// Reload a reflected WordPress path, not just the development app's entry URL.
+	await page.evaluate(() => (window as any).playground.goTo('/my-apps/'));
+	await expect(page).toHaveURL(new URL('/my-apps/', page.url()).href);
 	// Exercise the real shutdown protocol separately from deployment-version detection.
 	await page.evaluate(() =>
 		(window as any).playground.shutdownSharedRuntime()
