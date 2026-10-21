@@ -234,6 +234,12 @@
 				"command": "node packages/playground/website/bin/wordpress-frame/build.mjs"
 			}
 		},
+		"test:wordpress-frame-router": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website-deployment/wordpress-frame/test-router.mjs"
+			}
+		},
 		"preview:wordpress-frame": {
 			"executor": "nx:run-commands",
 			"options": {
