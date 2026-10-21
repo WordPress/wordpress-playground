@@ -781,7 +781,8 @@ async function getScopedWpDetails(
  *
  * 1. Response already carries `Document-Isolation-Policy`. This is what
  *    WordPress 7.1+ and Gutenberg 22.6+ send directly on editor screens in
- *    Chromium 137+. The response is left as-is.
+ *    Chromium 137+. Keep that policy, but remove legacy COEP/COOP restrictions
+ *    that can still block the editor's nested canvas.
  *
  * 2. Response carries `COEP: require-corp` or `COEP: credentialless` (older
  *    Gutenberg with the media processing experiment, or custom plugins). The
@@ -795,14 +796,16 @@ async function getScopedWpDetails(
 function applyCrossOriginIsolationHeaders(response: Response): Response {
 	// Keep the policy that WordPress or Gutenberg sends directly. See
 	// https://github.com/WordPress/gutenberg/pull/75991.
-	if (response.headers.has('document-isolation-policy')) {
-		return response;
-	}
+	const existingPolicy = response.headers.get('document-isolation-policy');
 
-	// Only rewrite if the response has COEP headers that indicate cross-origin isolation intent.
+	// Only rewrite if DIP or COEP indicates cross-origin isolation intent.
 	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
 	const coep = response.headers.get('cross-origin-embedder-policy');
-	if (coep !== 'require-corp' && coep !== 'credentialless') {
+	if (
+		!existingPolicy &&
+		coep !== 'require-corp' &&
+		coep !== 'credentialless'
+	) {
 		return response;
 	}
 
@@ -826,11 +829,14 @@ function applyCrossOriginIsolationHeaders(response: Response): Response {
 	 * same cross-origin isolation as `COOP: same-origin` would.
 	 */
 	const documentIsolationPolicy =
-		coep === 'require-corp'
+		existingPolicy ??
+		(coep === 'require-corp'
 			? 'isolate-and-require-corp'
-			: 'isolate-and-credentialless';
+			: 'isolate-and-credentialless');
 
 	const newHeaders = new Headers(response.headers);
+	// New WordPress plus older Gutenberg can send both DIP and COEP. Keeping
+	// COEP would still reject empty.html even though both documents have DIP.
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
 	newHeaders.set('document-isolation-policy', documentIsolationPolicy);
