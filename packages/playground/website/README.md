@@ -114,6 +114,7 @@ _playground/site.json           Format version, Space ID, source URL, upload pat
 _playground/blueprint.json      Blueprint that recreates the installation and restores its data
 _playground/database.sqlite     SQLite snapshot produced with VACUUM INTO
 wp-content/uploads/...          One shared copy for static hosting and editable source
+_playground/resources/...       Files bundled with the original setup Blueprint
 ```
 
 Manifest format 2 shares uploads with the static site instead of keeping a
@@ -130,6 +131,10 @@ hosted Blueprint installs the original dependencies, restores SQLite and uploads
 updates URLs including serialized values, and logs in to wp-admin. No separate
 demo page is needed. The database migration uses WP-CLI; static generation uses
 Simply Static's PHP hooks without WP-CLI or a Pro license.
+
+Bundled setup files, such as plugin ZIPs and WXR imports, are copied to the Space
+and referenced by public URLs in the saved Blueprint. Later saves retain these
+files in each replacement snapshot.
 
 A Blueprint-installed MU plugin advances Simply Static's job in batches and
 renders public pages between batches to avoid nested PHP loopback requests. It

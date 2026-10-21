@@ -7,6 +7,7 @@ import { SpacefastClient } from './api';
 import type { SpacefastConnection } from './api';
 import { collectSiteFiles, loadPublicSite, parseSetupBlueprint } from './site';
 import { generateStaticSite } from './simply-static';
+import { collectBlueprintResources } from './resources';
 
 type Session = {
 	client: SpacefastClient;
@@ -36,11 +37,10 @@ export async function saveSiteToSpacefast({
 	proxy: string;
 	onProgress: (message: string) => void;
 }) {
-	const declaration = (
-		await BlueprintReflection.create(
-			site.metadata.originalBlueprint as Blueprint
-		)
-	).getDeclaration();
+	const reflection = await BlueprintReflection.create(
+		site.metadata.originalBlueprint as Blueprint
+	);
+	const declaration = reflection.getDeclaration();
 	const blueprint = await parseSetupBlueprint(
 		JSON.stringify({
 			...declaration,
@@ -122,9 +122,17 @@ export async function saveSiteToSpacefast({
 		'blueprint-url',
 		new URL('_playground/blueprint.json', space.liveUrl).href
 	);
+	onProgress('Preserving Blueprint resources…');
+	const resources = await collectBlueprintResources(
+		blueprint,
+		reflection.getBundle(),
+		space.liveUrl,
+		proxy,
+		source?.type === 'remote-url' ? source.url : undefined
+	);
 	const generated = await generateStaticSite(
 		playground,
-		blueprint,
+		resources.blueprint,
 		space.liveUrl,
 		proxy,
 		onProgress,
@@ -135,7 +143,7 @@ export async function saveSiteToSpacefast({
 		generated.blueprint,
 		id,
 		onProgress,
-		generated.files,
+		[...generated.files, ...resources.files],
 		space.liveUrl
 	);
 	const published = await session.client.publish(
