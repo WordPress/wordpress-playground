@@ -162,7 +162,13 @@ export async function bootPlaygroundRemote() {
 			// Ignore non-JSON messages from other WordPress scripts.
 			return;
 		}
-		if (data?.type === 'playground-pointerdown') {
+		if (data?.type === 'playground-pointer-relay-ready') {
+			// Nested WordPress documents do not reach this receiver and keep the DOM fallback.
+			wpFrame.contentWindow?.postMessage(
+				{ type: 'playground-enable-pointer-relay' },
+				wordPressSiteUrl
+			);
+		} else if (data?.type === 'playground-pointerdown') {
 			// Root UI listeners observe the relay here, not the original WordPress press.
 			// This synthetic event dismisses UI; it does not carry user activation.
 			wpFrame.dispatchEvent(

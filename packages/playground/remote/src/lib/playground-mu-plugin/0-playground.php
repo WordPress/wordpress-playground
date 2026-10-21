@@ -279,21 +279,29 @@ add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
  * Relay pointer presses to the app so its menus can close without reading WordPress.
- * Mark this document after installing the relay. Same-origin UI listeners then skip
- * the original press and receive only the relayed one, just like cross-origin UI.
+ * Start only after remote.html confirms it receives these messages. A nested editor
+ * frame may also run this hook. Its WordPress parent does not forward child-frame clicks.
+ * Mark an active relay so same-origin UI listeners skip the original press. Documents
+ * without a confirmed relay keep direct outside-click handling when readable.
  */
 function playground_report_pointer_to_parent() {
 	?>
 	<script>
 		if (window.parent !== window) {
 			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
-			document.addEventListener('pointerdown', function () {
-				window.parent.postMessage(
-					{ type: 'playground-pointerdown' },
-					parentOrigin
-				);
-			}, true);
-			document.documentElement.setAttribute('data-playground-pointer-relay', '');
+			window.addEventListener('message', function enablePointerRelay(event) {
+				if (
+					event.source !== window.parent ||
+					event.origin !== parentOrigin ||
+					event.data?.type !== 'playground-enable-pointer-relay'
+				) return;
+				window.removeEventListener('message', enablePointerRelay);
+				document.addEventListener('pointerdown', function () {
+					window.parent.postMessage({ type: 'playground-pointerdown' }, parentOrigin);
+				}, true);
+				document.documentElement.setAttribute('data-playground-pointer-relay', '');
+			});
+			window.parent.postMessage({ type: 'playground-pointer-relay-ready' }, parentOrigin);
 		}
 	</script>
 	<?php

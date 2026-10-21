@@ -269,6 +269,30 @@ test('should relay each WordPress pointer press once', async ({
 		.toBe(1);
 });
 
+test('should keep the pointer fallback for a nested WordPress document without an app relay', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await wordpress.locator('body').evaluate(() => {
+		const frame = document.createElement('iframe');
+		frame.title = 'Nested WordPress';
+		frame.src = window.location.href;
+		document.body.append(frame);
+	});
+	const nested = wordpress.frameLocator('iframe[title="Nested WordPress"]');
+	await expect(nested.locator('body')).not.toBeEmpty();
+
+	// This hook runs in both documents, but only the outer one talks to remote.html.
+	await expect(wordpress.locator('html')).toHaveAttribute(
+		'data-playground-pointer-relay',
+		''
+	);
+	await expect(nested.locator('html')).not.toHaveAttribute(
+		'data-playground-pointer-relay'
+	);
+});
+
 test('should read a plain HTML page without the WordPress reporter', async ({
 	website,
 	wordpress,
