@@ -200,9 +200,9 @@ export function UnconnectedSiteSettingsForm({
 									[css.invalidInput]: !!errors.wpVersion,
 								})}
 								options={wpVersionOptions}
-								onChange={(value, extra) => {
-									onChange(extra?.event);
-								}}
+								onChange={(value, extra) =>
+									onChange(extra?.event)
+								}
 								{...rest}
 							/>
 
@@ -248,9 +248,7 @@ export function UnconnectedSiteSettingsForm({
 								[css.invalidInput]: !!errors.phpVersion,
 							})}
 							options={phpVersionOptions}
-							onChange={(value, extra) => {
-								onChange(extra?.event);
-							}}
+							onChange={(value, extra) => onChange(extra?.event)}
 							{...rest}
 						/>
 					)}
@@ -516,9 +514,7 @@ export function UnconnectedSiteSettingsForm({
 									label: 'Chinese (Taiwan)',
 								},
 							].sort((a, b) => a.label.localeCompare(b.label))}
-							onChange={(value, extra) => {
-								onChange(extra?.event);
-							}}
+							onChange={(value, extra) => onChange(extra?.event)}
 							{...rest}
 						/>
 					)}

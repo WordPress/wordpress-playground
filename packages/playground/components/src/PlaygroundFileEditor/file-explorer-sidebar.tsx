@@ -35,6 +35,7 @@ export type FileExplorerSidebarProps = {
 	currentPath: string | null;
 	selectedDirPath: string | null;
 	setSelectedDirPath: Dispatch<SetStateAction<string | null>>;
+	onFileOpen?: () => void;
 	onFileOpened: (
 		path: string,
 		content: string,
@@ -79,6 +80,7 @@ export const FileExplorerSidebar = forwardRef<
 		currentPath,
 		selectedDirPath,
 		setSelectedDirPath,
+		onFileOpen,
 		onFileOpened,
 		onSelectionCleared,
 		onShowMessage,
@@ -140,6 +142,7 @@ export const FileExplorerSidebar = forwardRef<
 	 * Opens a selected file as editable text, binary preview, or too-large notice.
 	 */
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
+		onFileOpen?.();
 		try {
 			const file = await filesystem.read(path);
 			const previewRead = await readFileForInlinePreview(file);

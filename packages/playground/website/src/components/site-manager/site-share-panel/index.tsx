@@ -16,6 +16,7 @@ import { PlaygroundBootNotice } from '../../pane-loading';
 import { Spinner } from '../../spinner';
 import { downloadPlaygroundAsZip } from '../../toolbar-buttons/download-as-zip';
 import css from './style.module.css';
+import { logTrackingEvent } from '../../../lib/tracking';
 
 type CopyStatus = 'idle' | 'copied' | 'failed';
 
@@ -63,6 +64,7 @@ export function SiteSharePanel() {
 			return;
 		}
 
+		logTrackingEvent('exportDownload');
 		setIsDownloading(true);
 		setDownloadError('');
 		try {
@@ -79,6 +81,7 @@ export function SiteSharePanel() {
 
 	/** Copies the site's original setup URL, falling back to the current URL. */
 	async function copySetupUrl() {
+		logTrackingEvent('exportLink');
 		setCopyStatus('idle');
 		try {
 			const setupUrl = activeSite
@@ -228,7 +231,10 @@ export function SiteSharePanel() {
 							disabled={offline || !playground}
 							onMouseEnter={preloadExportForm}
 							onFocus={preloadExportForm}
-							onClick={() => dispatch(setShareExportOpen(true))}
+							onClick={() => {
+								logTrackingEvent('exportGitHub');
+								dispatch(setShareExportOpen(true));
+							}}
 						>
 							Export to GitHub
 						</Button>

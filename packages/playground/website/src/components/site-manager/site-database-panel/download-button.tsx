@@ -4,6 +4,7 @@ import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { download } from '@wordpress/icons';
 import type { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
+import { logTrackingEvent } from '../../../lib/tracking';
 
 export const OBJECT_URL_REVOKE_DELAY_MS = 60_000;
 
@@ -21,6 +22,7 @@ export function DownloadButton({
 		if (!playground || !databasePath) {
 			return;
 		}
+		logTrackingEvent('databaseDownload');
 		setIsDownloading(true);
 		setError(null);
 		try {

@@ -5,6 +5,9 @@ import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import { useSiteSettingsSubmission } from './use-site-settings-submission';
+import { logTrackingEvent } from '../../../lib/tracking';
+
+vi.mock('../../../lib/tracking', () => ({ logTrackingEvent: vi.fn() }));
 
 const formData: SiteFormData = {
 	phpVersion: '8.3',
@@ -28,6 +31,7 @@ describe('useSiteSettingsSubmission', () => {
 	});
 
 	beforeEach(() => {
+		vi.mocked(logTrackingEvent).mockClear();
 		container = document.createElement('div');
 		document.body.append(container);
 		root = createRoot(container);
@@ -56,6 +60,7 @@ describe('useSiteSettingsSubmission', () => {
 		expect(action).toHaveBeenCalledTimes(1);
 		expect(onSubmit).toHaveBeenCalledTimes(1);
 		expect(state.isPending).toBe(true);
+		expect(logTrackingEvent).not.toHaveBeenCalled();
 		await second;
 		await act(async () => {
 			finish();
@@ -63,6 +68,14 @@ describe('useSiteSettingsSubmission', () => {
 		});
 		expect(state.isPending).toBe(false);
 		expect(onSubmit).toHaveBeenCalledTimes(1);
+		expect(logTrackingEvent).toHaveBeenCalledTimes(1);
+		expect(logTrackingEvent).toHaveBeenCalledWith('siteSettingsChanged', {
+			phpVersion: '8.3',
+			wpVersion: 'latest',
+			language: 'en_US',
+			networkAccess: 'true',
+			multisite: 'false',
+		});
 	});
 
 	it('keeps a failure on the form and permits a retry', async () => {
@@ -75,12 +88,14 @@ describe('useSiteSettingsSubmission', () => {
 
 		await act(() => state.run(action, formData));
 		expect(state.error).toBe('Browser storage is full.');
+		expect(logTrackingEvent).not.toHaveBeenCalled();
 		expect(state.isPending).toBe(false);
 		expect(onSubmit).toHaveBeenCalledTimes(1);
 
 		await act(() => state.run(action, formData));
 		expect(state.error).toBeUndefined();
 		expect(onSubmit).toHaveBeenCalledTimes(2);
+		expect(logTrackingEvent).toHaveBeenCalledTimes(1);
 	});
 
 	it('does not report an onSubmit failure as a submission failure', async () => {
@@ -96,6 +111,7 @@ describe('useSiteSettingsSubmission', () => {
 			'Could not close the settings panel.'
 		);
 		expect(action).not.toHaveBeenCalled();
+		expect(logTrackingEvent).not.toHaveBeenCalled();
 		expect(state.error).toBeUndefined();
 		expect(state.isPending).toBe(false);
 	});
