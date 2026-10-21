@@ -77,7 +77,9 @@ test.describe('Saved Playground startup', { tag: '@storage' }, () => {
 			const button = document.createElement('button');
 			button.textContent = 'Open saved site from WordPress';
 			button.onclick = () => {
-				window.open(url);
+				// A scoped referrer makes same-origin builds redirect back to WordPress.
+				// Omit it so the popup reaches the app URL we are trying to attack.
+				window.open(url, '_blank', 'noreferrer');
 			};
 			body.prepend(button);
 		}, savedUrl.href);
@@ -85,6 +87,7 @@ test.describe('Saved Playground startup', { tag: '@storage' }, () => {
 			.getByRole('button', { name: 'Open saved site from WordPress' })
 			.click();
 		const popup = await popupPromise;
+		await expect(popup).toHaveURL(savedUrl.href);
 		await expect(
 			popup.getByRole('button', { name: 'Open Playground', exact: true })
 		).toBeVisible();
