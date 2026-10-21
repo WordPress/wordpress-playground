@@ -90,3 +90,72 @@ Analytics is only enabled when the `VITE_GOOGLE_ANALYTICS_ID` environment variab
 ### Custom tracking events
 
 We also track custom events whenever a user loads Playground and what blueprint steps are they using. We only record names of steps.
+
+## Spacefast prototype
+
+The standalone demo at `/website-server/demos/spacefast.html` explores using
+Spacefast as the public source of an editable Playground site and as its static
+host. This is an experimental demo, not an integration with the website's Save
+menu. The intended product flow is to start in Playground, choose **Save to
+Spacefast**, paste a handoff, and name the site; subsequent editing starts from
+an **Edit in Playground** link. The demo currently exposes the underlying setup
+and destination fields to make the integration testable.
+
+Run it from the repository root with Node 24 and installed dependencies:
+
+```sh
+PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=16777216 npm run dev
+```
+
+Open `http://127.0.0.1:5400/website-server/demos/spacefast.html`. Start a new
+Playground from the setup Blueprint, connect by pasting a fresh Spacefast handoff
+URL, and save. A team handoff can create a public Space; a Space handoff writes
+only to its assigned Space. An existing destination must already be public and
+contain this prototype's site data. Credentials are kept in memory only. Closing
+the tab disconnects the local client but does not revoke the issued Spacefast
+key; manage that key in Spacefast's Connected apps.
+
+Each save publishes these files together as a Spacefast version:
+
+```text
+_playground/site.json           Format version, Space ID, original site URL, upload paths
+_playground/blueprint.json      Setup Blueprint (v1)
+_playground/database.sqlite     SQLite snapshot produced with VACUUM INTO
+_playground/uploads/...         Files from wp-content/uploads
+```
+
+These files are intentionally public, including the complete database. No
+WordPress installation archive is created. Plugins, themes, and configuration
+must be reproducible from the setup Blueprint. The demo does not infer a
+Blueprint from plugins or themes subsequently installed in wp-admin, and it
+does not save edits to their files. It currently assumes a single WordPress
+site with its standard uploads directory and database table prefix.
+
+To reopen, paste the public Spacefast URL and choose **Load public site**, or use
+the demo's editor link (`?source=<public-site-url>`), then choose **Load public
+site**. No handoff is needed for reading. Loading starts a new runtime, installs
+the Blueprint's dependencies, restores SQLite and uploads, and uses WP-CLI to
+replace the old Playground URL, including serialized values. To save a remix,
+connect your own team handoff and clear the destination Space ID to create a new
+Space. Save explicitly before closing; there is no remote autosave or concurrent
+editor conflict detection.
+
+For static hosting, configure an exporter such as Simply Static to write to
+`/wordpress/static` and use the public Spacefast URL as its destination URL.
+Generate the export, then choose **Save and publish static files**. The demo
+publishes the directory's contents alongside `_playground/` as a complete
+snapshot, so removed static files disappear. Ordinary **Save site data** retains
+the existing static output while replacing source data and removing deleted
+uploads. Server-specific `.htaccess` and `.user.ini` files are omitted. Export
+generation, including Simply Static's crawler/background-job compatibility with
+browser Playground, remains to be validated separately.
+
+Requests use the existing `fetchWithCorsProxy` helper. Management authorization
+is explicitly opted in for the Spacefast API; upload targets receive only their
+issued headers. The proxy now accepts PUT and a configurable body limit; its
+default remains below 1 MiB per POST or PUT. The example above allows bodies
+below 16 MiB locally. The proxy deployment and its front-end web server must
+support the upload method and desired body size before hosting the demo remotely.
+The demo checks that a version is ready and serving on the live channel before
+reporting a successful save. Live authentication and publication require a fresh
+handoff and have not been exercised with the reference-only handoff.

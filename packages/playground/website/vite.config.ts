@@ -389,6 +389,9 @@ export default defineConfig(({ command, mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
+					'spacefast.html': fileURLToPath(
+						new URL('./demos/spacefast.html', import.meta.url)
+					),
 					api: fileURLToPath(new URL('./api.html', import.meta.url)),
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)

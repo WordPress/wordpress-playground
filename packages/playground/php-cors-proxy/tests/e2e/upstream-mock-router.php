@@ -9,6 +9,17 @@
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 switch ($path) {
+    case '/upload':
+        header('Content-Type: application/json');
+        $body = file_get_contents('php://input');
+        echo json_encode([
+            'method' => $_SERVER['REQUEST_METHOD'],
+            'size' => strlen($body),
+            'sha256' => hash('sha256', $body),
+            'authorization' => $_SERVER['HTTP_AUTHORIZATION'] ?? null,
+        ]);
+        break;
+
     case '/plain-text':
         header('Content-Type: text/plain');
         echo 'Hello from plain-text endpoint';
