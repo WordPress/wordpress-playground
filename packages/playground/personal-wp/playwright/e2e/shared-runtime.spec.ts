@@ -143,10 +143,13 @@ test('boots a replacement runtime without reloading the new tab after retirement
 			async () => (await fetch('/scope:default/wp-json/')).status
 		)
 	).toBe(503);
+	// Vite redirects / to /website-server/. Check the final document response,
+	// not that redirect, while still reporting an error response immediately.
 	const reloadedDocument = page.waitForResponse(
 		(response) =>
 			response.request().isNavigationRequest() &&
-			response.request().frame() === page.mainFrame()
+			response.request().frame() === page.mainFrame() &&
+			(response.status() < 300 || response.status() >= 400)
 	);
 	await page.getByRole('button', { name: 'Reload this tab' }).click();
 	expect((await reloadedDocument).ok()).toBe(true);
