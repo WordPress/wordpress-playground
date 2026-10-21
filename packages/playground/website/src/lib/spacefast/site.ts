@@ -30,7 +30,7 @@ export async function parseSetupBlueprint(
 ): Promise<BlueprintV1Declaration> {
 	const blueprint = JSON.parse(text);
 	if (blueprint.version === 2)
-		throw new Error('This prototype currently supports Blueprint v1.');
+		throw new Error('Saving to Spacefast currently supports Blueprint v1.');
 	const result = await validateBlueprintDeclaration(blueprint);
 	if (!result.valid)
 		throw new Error(

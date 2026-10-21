@@ -9,6 +9,24 @@ describe('Spacefast publishing', () => {
 	});
 	afterEach(() => vi.unstubAllGlobals());
 
+	it('reads the created space from the creation envelope before fetching it', async () => {
+		const client = new SpacefastClient('https://proxy.test/?');
+		const space = {
+			id: 'spc_created',
+			liveUrl: 'https://example.space.fast/',
+		};
+		fetchMock.mockResolvedValueOnce(json({ data: { space, access: {} } }));
+		fetchMock.mockResolvedValueOnce(json({ data: space }));
+		const created = await client.createSpace(
+			'team_test',
+			'Test Playground'
+		);
+		expect(await client.getSpace(created.id)).toEqual(space);
+		expect(fetchMock.mock.calls[1][0]).toBe(
+			'https://proxy.test/?https://api.spacefast.com/v1/spaces/spc_created'
+		);
+	});
+
 	it.each(['X-Upload-Token', 'Authorization'])(
 		'uses only issued upload credentials (%s) outside the management API',
 		async (uploadHeader) => {

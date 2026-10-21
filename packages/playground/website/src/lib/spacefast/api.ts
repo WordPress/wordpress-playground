@@ -46,7 +46,7 @@ export class SpacefastClient {
 			method: 'POST',
 			body: JSON.stringify({
 				url,
-				agentName: 'Playground prototype',
+				agentName: 'Playground',
 			}),
 		});
 		if (!data.apiKey?.secret) {
@@ -67,7 +67,7 @@ export class SpacefastClient {
 			method: 'POST',
 			body: JSON.stringify({ teamId, title, access: 'public' }),
 		});
-		return data;
+		return data.space;
 	}
 
 	async getSpace(id: string): Promise<SpacefastSpace> {
@@ -107,7 +107,7 @@ export class SpacefastClient {
 					deletePaths: options.deletePaths,
 					source: {
 						kind: 'api',
-						client: 'playground-spacefast-prototype',
+						client: 'playground',
 					},
 				}),
 			})

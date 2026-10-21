@@ -155,7 +155,7 @@ function SpacefastDemo() {
 				path: 'index.html',
 				data: new Blob(
 					[
-						'<!doctype html><title>Playground source</title><h1>Playground source saved</h1><p>Open this site in the Playground + Spacefast prototype to edit it.</p><a href="_playground/site.json">Public site data</a>',
+						'<!doctype html><title>Playground source</title><h1>Playground source saved</h1><p>Open this site in Playground to edit it.</p><a href="_playground/site.json">Public site data</a>',
 					],
 					{ type: 'text/html' }
 				),
@@ -366,9 +366,9 @@ function SpacefastDemo() {
 					</p>
 				)}
 				<p className={css.note}>
-					Prototype: save explicitly before closing. Changes to plugin
-					or theme files are not saved. The setup Blueprint used to
-					start this Playground is saved with its data.
+					Save explicitly before closing. Changes to plugin or theme
+					files are not saved. The setup Blueprint used to start this
+					Playground is saved with its data.
 				</p>
 			</aside>
 			<div className={css.viewport} ref={viewport} aria-busy={busy}>
