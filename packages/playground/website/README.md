@@ -93,13 +93,18 @@ We also track custom events whenever a user loads Playground and what blueprint 
 
 ## Spacefast prototype
 
-The standalone demo at `/website-server/demos/spacefast.html` explores using
-Spacefast as the public source of an editable Playground site and as its static
-host. This is an experimental demo, not an integration with the website's Save
-menu. The intended product flow is to start in Playground, choose **Save to
-Spacefast**, paste a handoff, and name the site; subsequent editing starts from
-an **Edit in Playground** link. The demo currently exposes the underlying setup
-and destination fields to make the integration testable.
+Click **Autosaved** in the main Playground website, then choose **Save to
+Spacefast** under **Storage location**. Enter the Playground name, paste a fresh
+Spacefast handoff, and save the current site's Blueprint, database, and uploads.
+After saving, the status becomes a clickable **Spacefast** control for saving
+further edits. The connection survives closing the save pane within this tab;
+only the public destination is persisted in site metadata. Remote saves are
+explicit, independent of local browser autosaving.
+
+The standalone demo at `/website-server/demos/spacefast.html` additionally exposes
+public-source loading and static-directory publishing for testing the rest of
+the prototype. Reopening public source and generating static exports are not yet
+integrated into the main website's controls.
 
 Run it from the repository root with Node 24 and installed dependencies:
 
@@ -107,7 +112,11 @@ Run it from the repository root with Node 24 and installed dependencies:
 PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=16777216 npm run dev
 ```
 
-Open `http://127.0.0.1:5400/website-server/demos/spacefast.html`. Start a new
+For the main save flow, open `http://127.0.0.1:5400/website-server/`, wait for the
+Playground to load, and click **Autosaved**. Saving to Spacefast requires the site
+to be open, including when Store permanently is opened from an inactive autosave.
+
+For the standalone demo, open `http://127.0.0.1:5400/website-server/demos/spacefast.html`. Start a new
 Playground from the setup Blueprint, connect by pasting a fresh Spacefast handoff
 URL, and save. A team handoff can create a public Space; a Space handoff writes
 only to its assigned Space. An existing destination must already be public and

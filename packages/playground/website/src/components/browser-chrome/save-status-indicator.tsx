@@ -72,7 +72,9 @@ export function SaveStatusIndicator({
 	const syncOperation = getSyncOperation({ site: activeSite, opfsSync });
 	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const canStorePermanently =
-		isOpfsAvailable || localFsAvailability === 'available';
+		isOpfsAvailable ||
+		localFsAvailability === 'available' ||
+		!!clientInfo?.client;
 	const isLocalFs = activeSite?.metadata.storage === 'local-fs';
 
 	useEffect(() => {
@@ -171,6 +173,31 @@ export function SaveStatusIndicator({
 				<Spinner size={16} />
 				<span className={css.label}>Loading…</span>
 			</div>
+		);
+	}
+
+	if (
+		activeSite?.metadata.spacefast &&
+		(status === 'saved' || status === 'autosaved' || status === 'unsaved')
+	) {
+		return withStatusAnnouncement(
+			<Tooltip
+				text="Click to save your changes to Spacefast."
+				placement="top"
+			>
+				<button
+					type="button"
+					className={classNames(
+						css.indicator,
+						css.saved,
+						css.actionable
+					)}
+					disabled={disabled}
+					onClick={openStorePermanently}
+				>
+					<span className={css.label}>Spacefast</span>
+				</button>
+			</Tooltip>
 		);
 	}
 
