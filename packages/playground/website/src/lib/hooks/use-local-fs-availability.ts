@@ -7,12 +7,15 @@ export type LocalFsAvailability =
 	| 'origin-mismatch';
 
 /**
- * Reports whether the trusted PHP iframe can receive user-picked directories.
+ * Checks whether the current Playground can save files to a local directory.
  *
- * Directory handles cannot be sent across origins. Check remote.html's origin,
- * not the rendered WordPress URL, which may use a separate origin.
- * A missing client reports no result while its PHP iframe is booting, so the
- * previous Playground cannot briefly enable local-directory saves for the next one.
+ * The app opens the directory picker and sends the chosen directory's handle to
+ * remote.html so PHP can read and write its files. The browser allows this only
+ * when the app and remote.html share an origin (scheme, host, and port).
+ * WordPress may use a different origin: its page never receives the handle.
+ *
+ * Return null until this Playground's client exists. When switching sites, keep
+ * local-directory saves disabled while the new client is still starting.
  */
 export function useLocalFsAvailability(
 	playground?: PlaygroundClient
