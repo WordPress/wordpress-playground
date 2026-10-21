@@ -118,13 +118,14 @@ Sites can still request each other's scoped HTTP URLs. Excluding platform code
 from WordPress-writable caches does not add per-site HTTP authorization. Running
 sites still share window access and browser storage. Their HTTP scopes can leak
 through links, messages and requests; random addresses do not protect an address
-once another site learns it. The startup restriction protects saved sites that
-are not running, not the files of every running site.
+once another site learns it. The startup restriction stops saved-site URLs from
+starting those runtimes; it does not authorize every app/API operation.
 
 WordPress cannot directly read an existing parent document or its OPFS, and
 cannot call its connected PHP API. However, WordPress can still embed a fresh
-app/API document and connect to that new document. Closing that route without
-breaking external embeds remains unresolved. Do not treat this prototype as
+app/API document and connect to that new document. For example, a fresh `api.html`
+exposes saved-site ZIP export. Closing that route without breaking external
+embeds remains unresolved. Do not treat this prototype as
 complete protection for saved files or native directory handles.
 
 PHP still runs in the root-origin WASM host with its assigned filesystem mounts. A compromise of that host is not contained to one site's
