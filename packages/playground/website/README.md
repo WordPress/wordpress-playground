@@ -100,10 +100,11 @@ with the Blueprint, SQLite snapshot, and uploads. New Spaces are public. The
 complete database is readable alongside the static site. Write credentials stay
 in tab memory; only the destination and setup Blueprint are retained locally.
 
-Run the website with a larger proxy upload limit when testing media files:
+The local development proxy allows uploads smaller than 100 MiB per file.
+Override that limit when needed:
 
 ```sh
-PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=16777216 npm run dev
+PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=209715200 npm run dev
 ```
 
 Each save creates one snapshot containing the static website and:
@@ -142,7 +143,8 @@ Spacefast API and upload requests go directly through the configured CORS proxy,
 with buffered bodies and no initial cross-origin attempt. Management authorization
 is explicitly opted in for the API; upload targets receive only their issued
 credentials. The proxy supports PUT and configurable
-`PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE`, retaining its default limit when unset.
+`PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE`. The local start target defaults to
+100 MiB; separately hosted proxies retain the 1 MiB default unless configured.
 Uploads must finish and the version must become live before saving succeeds.
 No reference handoff is redeemed by tests; browser checks mock Spacefast while
 running real WordPress and Simply Static.

@@ -257,6 +257,9 @@ async function checkResponse(response: Response, context: string) {
 			problem?.detail ||
 				problem?.title ||
 				problem?.code ||
+				(response.status === 413
+					? 'The request exceeds the upload size limit. Increase PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE on your CORS proxy and restart it, or check the Spacefast upload limit.'
+					: '') ||
 				response.statusText,
 			problem?.requestId ? `Request: ${problem.requestId}` : '',
 		]
