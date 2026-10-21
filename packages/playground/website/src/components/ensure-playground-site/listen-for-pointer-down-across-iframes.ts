@@ -1,8 +1,13 @@
 /**
- * Listens for pointer presses in the host document and every same-origin iframe.
+ * Listen for pointer presses in the host and any iframe documents the browser lets us read.
  *
- * Events do not bubble through iframes. WordPress relays its presses to remote.html;
- * observe other readable documents directly, including plain HTML and editor frames.
+ * A press inside WordPress cannot bubble into the app. WordPress sends a message to
+ * remote.html, which dispatches a new press on its #wp iframe element. Observe that
+ * press here and skip the original event in documents marked with an active relay.
+ *
+ * Keep native listeners for unmarked documents, such as plain HTML or editor frames
+ * without a confirmed relay. Still visit children of marked documents: the marker
+ * covers only that document's presses. Unreadable frames need their own working relay.
  */
 export function listenForPointerDownAcrossIframes(
 	listener: (event: PointerEvent) => void
@@ -23,7 +28,8 @@ export function listenForPointerDownAcrossIframes(
 	};
 
 	function onPointerDown(event: Event) {
-		// Check at dispatch time: the reporter may start after we attach this listener.
+		// WordPress adds the marker only after remote.html confirms it can receive presses.
+		// Check on each event: that reply may arrive after we attach this listener.
 		const targetDocument = event.currentTarget as Document;
 		if (
 			!targetDocument.documentElement.hasAttribute(

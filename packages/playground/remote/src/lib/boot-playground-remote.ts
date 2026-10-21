@@ -145,6 +145,10 @@ export async function bootPlaygroundRemote() {
 	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	// Pointer events stop at the WordPress document boundary. Accept messages from
+	// this #wp window at the WordPress origin, then dispatch a press in remote.html,
+	// where the app's outside-click listeners can observe it. Checking the origin
+	// alone would also accept messages from other Playgrounds on that origin.
 	window.addEventListener('message', (event: MessageEvent) => {
 		if (
 			event.source !== wpFrame.contentWindow ||
@@ -163,13 +167,16 @@ export async function bootPlaygroundRemote() {
 			return;
 		}
 		if (data?.type === 'playground-pointer-relay-ready') {
-			// Nested WordPress documents do not reach this receiver and keep the DOM fallback.
+			// Confirm that #wp has a receiver before it marks its pointer relay active.
+			// A nested editor frame sends to its WordPress parent, not here. Without
+			// this reply, it stays unmarked so readable frames keep native click handling.
 			wpFrame.contentWindow?.postMessage(
 				{ type: 'playground-enable-pointer-relay' },
 				wordPressSiteUrl
 			);
 		} else if (data?.type === 'playground-pointerdown') {
-			// Root UI listeners observe the relay here, not the original WordPress press.
+			// Bubble from the iframe element into remote.html's document. The app skips
+			// the original press in marked WordPress documents to avoid handling it twice.
 			// This synthetic event dismisses UI; it does not carry user activation.
 			wpFrame.dispatchEvent(
 				new PointerEvent('pointerdown', { bubbles: true })
@@ -236,9 +243,13 @@ export async function bootPlaygroundRemote() {
 		},
 
 		/**
-		 * Listens to Playground navigation.
+		 * Reports changes to the WordPress path, including History API navigation.
 		 *
-		 * @param fn The function to be called when a navigation event occurs.
+		 * WordPress reports its URL during page startup. Also request it on subscription,
+		 * after loads, and every 500ms: pushState() changes the URL without a load event.
+		 * Both reports and requests share lastPath so an unchanged path is not sent twice.
+		 *
+		 * @param fn Receives the path within WordPress, without the internal scope prefix.
 		 */
 		async onNavigation(fn) {
 			/**
@@ -253,10 +264,10 @@ export async function bootPlaygroundRemote() {
 			let lastPath: string | undefined;
 
 			/**
-			 * Listen for URL change messages from the WordPress iframe.
-			 *
-			 * Use the WordPress MU plugin for both same-origin and cross-origin pages.
-			 * This also works when Document-Isolation-Policy blocks DOM access.
+			 * Receive the startup URL posted by the WordPress MU plugin in wp_head/admin_head.
+			 * Use the same messages for both origins, even when DOM reads would be allowed.
+			 * This also works when Document-Isolation-Policy blocks DOM access. Accept only
+			 * our #wp window at the expected origin, not another frame's URL report.
 			 *
 			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
 			 */
@@ -288,7 +299,8 @@ export async function bootPlaygroundRemote() {
 				}
 			});
 
-			// The first report may predate this subscription.
+			// WordPress may have sent its startup URL before this listener was attached.
+			// Ask the current document rather than waiting for another navigation.
 			void reportCurrentPath();
 
 			// Listen for iframe load events (for navigation)
@@ -320,8 +332,8 @@ export async function bootPlaygroundRemote() {
 				await reportCurrentPath();
 			});
 
-			// Also propagate navigation changes twice a second for any
-			// updates we don't receive via the iframe load event.
+			// Ask twice a second to catch pushState()/replaceState() and any navigation
+			// missed by the load handler. Poll here for both origins, not separately in WordPress.
 			//
 			// For more details on the challenges related to the load event,
 			// see:
@@ -331,6 +343,7 @@ export async function bootPlaygroundRemote() {
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
 			setInterval(reportCurrentPath, 500);
 
+			/** Use the same URL read as explicit API calls, and skip unchanged paths. */
 			async function reportCurrentPath() {
 				if (sharedRuntime?.isRetired()) return;
 				try {
@@ -395,12 +408,17 @@ export async function bootPlaygroundRemote() {
 			wpFrame.src = newUrl;
 			await navigationComplete;
 		},
-		/** Ask the current document, without waiting for the next navigation poll. */
+		/**
+		 * Return the current WordPress path without waiting for the next navigation poll.
+		 * Ask the live document first: a cached report can predate a pushState() call.
+		 * If it does not reply, try a direct location read, then fall back to iframe.src.
+		 * That last fallback is only the requested URL; it may miss later navigation.
+		 */
 		async getCurrentURL() {
 			let url = await requestWordPressUrl(wpFrame, wordPressSiteUrl);
 			if (!url) {
-				// Plain HTML and other documents without the MU plugin cannot reply.
-				// Read their location when allowed; src is the last resort across origins.
+				// Plain HTML has no reporter; a loading or busy page can also miss the deadline.
+				// A live location read may still work. Across origins, only src may be available.
 				url = wpFrame.src;
 				try {
 					url = wpFrame.contentWindow?.location.href || url;

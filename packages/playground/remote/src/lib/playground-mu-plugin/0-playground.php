@@ -231,14 +231,18 @@ add_action('wp_head', 'playground_add_target_blank_to_external_links');
 add_action('admin_head', 'playground_add_target_blank_to_external_links');
 
 /**
- * Reports the current URL to the parent frame.
+ * Report the WordPress URL so the app can update its address bar without reading this frame.
  *
- * When Document-Isolation-Policy is enabled, the parent frame can't access
- * the iframe's location.href due to cross-origin restrictions. This script
- * posts a message to the parent frame with the current URL so the address
- * bar can be updated. A parent that subscribes after the first report can ask
- * for the current URL. The parent polls through this same message path for
- * History API changes, regardless of whether the document is same-origin.
+ * A different origin or Document-Isolation-Policy can block the parent's location read.
+ * Use messages for same-origin pages too, so both cases follow the same path:
+ *
+ * 1. Send the startup URL from wp_head/admin_head.
+ * 2. Reply to playground-request-url from the expected parent with the live location.
+ *    Use its reply port when supplied; otherwise send another playground-url-change.
+ *
+ * The parent requests the URL when it subscribes, in case it missed the startup report,
+ * and polls for History API changes. For example, pushState() can change the path to
+ * /wp-admin/edit.php without firing iframe load or changing iframe.src.
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  */
@@ -278,11 +282,17 @@ add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
- * Relay pointer presses to the app so its menus can close without reading WordPress.
- * Start only after remote.html confirms it receives these messages. A nested editor
- * frame may also run this hook. Its WordPress parent does not forward child-frame clicks.
- * Mark an active relay so same-origin UI listeners skip the original press. Documents
- * without a confirmed relay keep direct outside-click handling when readable.
+ * Relay pointer presses so a click in WordPress can close the app's open menus.
+ *
+ * Events do not bubble across iframe documents. Send playground-pointer-relay-ready to
+ * the parent and wait for playground-enable-pointer-relay from that window and origin.
+ * Only then send presses and set data-playground-pointer-relay on this document.
+ *
+ * remote.html turns each message into a pointer event on its #wp element. The app sees
+ * that event and skips the original press in marked documents, avoiding duplicate calls.
+ * A nested editor frame may also run this hook, but its WordPress parent does not reply
+ * or forward clicks. It stays unmarked, keeping native outside-click handling when the
+ * app can read it. The marker covers this document only, not any nested documents.
  */
 function playground_report_pointer_to_parent() {
 	?>
