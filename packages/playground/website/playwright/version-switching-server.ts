@@ -3,7 +3,9 @@ import type http from 'http';
 import express from 'express';
 import path from 'path';
 import process from 'process';
+import { wordPressFrameMiddleware } from '../bin/wordpress-frame/middleware.mjs';
 
+/** Serve replaceable releases, including the WordPress-only origin boundary in its CI lane. */
 export async function startVersionSwitchingServer({
 	port = 7999,
 	oldVersionDirectory,
@@ -34,6 +36,14 @@ export async function startVersionSwitchingServer({
 		next();
 	};
 
+	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+		app.use(
+			wordPressFrameMiddleware(
+				`http://playground.localhost:${port}`,
+				() => path.join(staticDirectory, 'wordpress-bridge.html')
+			)
+		);
+	}
 	app.use(noCacheMiddleware);
 	app.use((req, res, next) => {
 		if (req.method === 'GET' && req.path.startsWith('/switch-versions/')) {
@@ -42,8 +52,8 @@ export async function startVersionSwitchingServer({
 				version === 'old'
 					? oldVersionDirectory
 					: version === 'mid'
-					? midVersionDirectory
-					: newVersionDirectory
+						? midVersionDirectory
+						: newVersionDirectory
 			);
 			res.send('Version switched');
 			next();

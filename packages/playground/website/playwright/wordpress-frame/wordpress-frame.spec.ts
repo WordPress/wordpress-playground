@@ -402,6 +402,435 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
+	test('app relay messages reach WordPress and return across the origin boundary', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const wp = await ready(page);
+		await wp.evaluate((appOrigin) => {
+			window.addEventListener('message', (event) => {
+				if (
+					event.source === window.parent &&
+					event.origin === appOrigin &&
+					event.data?.type === 'relay' &&
+					event.data?.relayType === 'round-trip-probe'
+				) {
+					window.parent.postMessage(
+						{ type: 'relay', relayType: 'round-trip-result' },
+						appOrigin
+					);
+				}
+			});
+		}, root);
+		const relayed = await page
+			.locator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.evaluate(async (remote: HTMLIFrameElement) => {
+				return await new Promise<boolean>((resolve) => {
+					const timeout = setTimeout(() => finish(false), 3000);
+					window.addEventListener('message', onMessage);
+					remote.contentWindow!.postMessage(
+						{ type: 'relay', relayType: 'round-trip-probe' },
+						window.location.origin
+					);
+
+					/** Accept the reply through remote.html, not a message from an unrelated window. */
+					function onMessage(event: MessageEvent) {
+						if (
+							event.source === remote.contentWindow &&
+							event.origin === window.location.origin &&
+							event.data?.type === 'relay' &&
+							event.data?.relayType === 'round-trip-result'
+						)
+							finish(true);
+					}
+
+					/** Remove this probe's listener and timer on success or timeout. */
+					function finish(result: boolean) {
+						clearTimeout(timeout);
+						window.removeEventListener('message', onMessage);
+						resolve(result);
+					}
+				});
+			});
+		expect(relayed).toBe(true);
+	});
+
+	test('the current URL follows WordPress links and history changes', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await ready(page);
+		await page.evaluate(() =>
+			(window as any).playgroundSites.getClient().goTo('/wp-admin/')
+		);
+		const wp = await ready(page);
+		await wp.locator('#menu-pages > a').click();
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					(window as any).playgroundSites.getClient().getCurrentURL()
+				)
+			)
+			.toBe('/wp-admin/edit.php?post_type=page');
+		await wp.evaluate(() =>
+			window.history.pushState(
+				null,
+				'',
+				'?post_type=page&paged=2#history'
+			)
+		);
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					(window as any).playgroundSites.getClient().getCurrentURL()
+				)
+			)
+			.toBe('/wp-admin/edit.php?post_type=page&paged=2#history');
+		// A document without the MU plugin must not retain the previous page's report.
+		await page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			await client.writeFile(
+				'/wordpress/no-url-report.html',
+				'Static page'
+			);
+			await client.goTo('/no-url-report.html');
+		});
+		expect(
+			await page.evaluate(() =>
+				(window as any).playgroundSites.getClient().getCurrentURL()
+			)
+		).toBe('/no-url-report.html');
+	});
+
+	test('the HTTP bridge preserves short and large response bodies', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const wp = await ready(page);
+		for (const body of [
+			'short response',
+			'chunk '.repeat(32768) + 'end of response',
+		]) {
+			await page.evaluate(async (body) => {
+				await (window as any).playgroundSites
+					.getClient()
+					.writeFile('/wordpress/stream-probe.txt', body);
+			}, body);
+			expect(
+				await wp.evaluate(async () =>
+					(await fetch('./stream-probe.txt')).text()
+				)
+			).toBe(body);
+		}
+	});
+
+	test('WordPress can fetch and navigate to a static file from the shared asset origin', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const wp = await ready(page);
+		const path = '/wp-includes/js/jquery/jquery.min.js';
+		// Let the background ZIP finish so it cannot restore the file after removal.
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					(window as any).playgroundSites
+						.getClient()
+						.readFileAsText(
+							'/wordpress/wordpress-remote-asset-paths'
+						)
+				)
+			)
+			.toBe('');
+		await page.evaluate(
+			(path) =>
+				(window as any).playgroundSites
+					.getClient()
+					.unlink('/wordpress' + path),
+			path
+		);
+		// This must exercise the remote backfill, not a copy already in PHP's filesystem.
+		expect(
+			await page.evaluate(
+				(path) =>
+					(window as any).playgroundSites
+						.getClient()
+						.fileExists('/wordpress' + path),
+				path
+			)
+		).toBe(false);
+		const target = new URL(await wp.evaluate(() => window.location.href));
+		target.pathname += path.substring(1);
+		expect(
+			await wp.evaluate(async (url) => {
+				const response = await fetch(url, { mode: 'same-origin' });
+				return response.text();
+			}, target.href)
+		).toContain('jQuery');
+		const response = await wp.goto(target.href);
+		expect(response?.status()).toBe(200);
+		expect(await response!.text()).toContain('jQuery');
+		expect(await wp.evaluate(() => window.location.origin)).toBe(wpOrigin);
+	});
+
+	test('WordPress popups use the running site without app storage access', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await ready(page);
+		const path = await page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			await client.writeFile(
+				'/wordpress/popup-probe.php',
+				'<?php echo "popup PHP works";'
+			);
+			return (
+				new URL(await client.absoluteUrl).pathname + '/popup-probe.php'
+			);
+		});
+		const opened = page.waitForEvent('popup');
+		await page.evaluate(
+			(url) => window.open(url, '_blank', 'noopener,noreferrer'),
+			root + '/wordpress-popup.html#' + path
+		);
+		const popup = await opened;
+		const content = popup.frameLocator('#wp');
+		await expect(content.locator('body')).toHaveText('popup PHP works');
+		expect(
+			await content.locator('body').evaluate(() => {
+				try {
+					void window.parent.navigator.storage;
+					return 'accessible';
+				} catch (error) {
+					return (error as DOMException).name;
+				}
+			})
+		).toBe('SecurityError');
+		await popup.goto(root + '/wordpress-popup.html#' + root + '/api.html');
+		await expect(popup.locator('#wp')).not.toHaveAttribute(
+			'src',
+			/api\.html/
+		);
+		await popup.close();
+	});
+
+	test('site switching keeps the SPA and reuses the PHP and WordPress downloads', async ({
+		page,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			'Saved-site checks require OPFS, as in the regular storage suite.'
+		);
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await ready(page);
+		await page.evaluate(() => ((window as any).appDocument = 'kept'));
+		const alpha = await page.evaluate(async () => {
+			const api = (window as any).playgroundSites;
+			await api
+				.getClient()
+				.writeFile('/wordpress/alpha.txt', 'alpha files');
+			const site = await api.saveInBrowser('Alpha');
+			return site;
+		});
+		await ready(page);
+		await page.evaluate(async () => {
+			const api = (window as any).playgroundSites;
+			await api.getClient().flushOpfs('/wordpress');
+			await api.rename('Alpha renamed');
+			await api.getClient().backfillStaticFilesRemovedFromMinifiedBuild();
+		});
+		const firstAssets = await (
+			await page.request.get('/__wordpress-frame-assets')
+		).json();
+		await page.evaluate(() =>
+			(window as any).playgroundSites.createNewTemporarySite('Beta', {
+				phpVersion: '8.3',
+				wpVersion: '6.9',
+			})
+		);
+		await ready(page);
+		await page.evaluate(() =>
+			(window as any).playgroundSites
+				.getClient()
+				.backfillStaticFilesRemovedFromMinifiedBuild()
+		);
+		const laterAssets = (
+			await (await page.request.get('/__wordpress-frame-assets')).json()
+		).slice(firstAssets.length);
+		const largeAssetPaths = firstAssets
+			.filter((asset: { path: string }) =>
+				/\.(wasm|zip|zst)$/.test(asset.path)
+			)
+			.map((asset: { path: string }) => asset.path);
+		expect(
+			largeAssetPaths.some((path: string) => path.endsWith('.wasm'))
+		).toBe(true);
+		expect(
+			largeAssetPaths.some((path: string) =>
+				path.endsWith('/wordpress-static.zip')
+			)
+		).toBe(true);
+		expect(
+			laterAssets
+				.filter((asset: { path: string }) =>
+					largeAssetPaths.includes(asset.path)
+				)
+				.reduce(
+					(bytes: number, asset: { bytes: number }) =>
+						bytes + asset.bytes,
+					0
+				)
+		).toBe(0);
+		expect(
+			await page.evaluate(() =>
+				(window as any).playgroundSites
+					.getClient()
+					.fileExists('/wordpress/alpha.txt')
+			)
+		).toBe(false);
+		await page.evaluate(
+			(slug) => (window as any).playgroundSites.setActiveSite(slug),
+			alpha.slug
+		);
+		await ready(page);
+		expect(
+			await page.evaluate(() =>
+				(window as any).playgroundSites
+					.getClient()
+					.readFileAsText('/wordpress/alpha.txt')
+			)
+		).toBe('alpha files');
+		expect(await page.evaluate(() => (window as any).appDocument)).toBe(
+			'kept'
+		);
+		expect(new URL(page.url()).origin).toBe(root);
+	});
+
+	test('the block editor can save a post through the cross-origin HTTP transport', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await ready(page);
+		await page.evaluate(() =>
+			(window as any).playgroundSites
+				.getClient()
+				.goTo('/wp-admin/post-new.php')
+		);
+		const wp = page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.frameLocator('#wp');
+		await wp
+			.getByRole('dialog', { name: 'Welcome to the editor' })
+			.getByRole('button', { name: 'Close', exact: true })
+			.click();
+		await expect(
+			wp.getByRole('button', { name: 'Publish', exact: true })
+		).toBeVisible();
+		const editor = await ready(page);
+		const result = await editor.evaluate(async () => {
+			const wp = (window as any).wp;
+			await wp.data.dispatch('core/editor').editPost({
+				title: 'Cross-origin editor',
+				content: '<p>Saved through PHP</p>',
+			});
+			await wp.data.dispatch('core/editor').savePost();
+			return wp.data.select('core/editor').getCurrentPostId();
+		});
+		expect(result).toBeGreaterThan(0);
+		const title = await page.evaluate(async (id) => {
+			const response = await (window as any).playgroundSites
+				.getClient()
+				.run({
+					code: `<?php require '/wordpress/wp-load.php'; echo get_the_title(${id});`,
+				});
+			return response.text;
+		}, result);
+		expect(title).toBe('Cross-origin editor');
+	});
+
+	test('local-directory saving keeps the actual handle on the root origin', async ({
+		page,
+		browserName,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			'The directory-handle fixture requires Chromium OPFS.'
+		);
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await ready(page);
+		await page.evaluate(() => {
+			(window as any).pickerCalls = 0;
+			// OPFS stands in for the OS picker; this checks the same-origin handle path,
+			// not native permission prompts.
+			(window as any).showDirectoryPicker = async () => {
+				if (window !== window.top)
+					throw new Error('Picker is not in the top-level app');
+				(window as any).pickerCalls++;
+				return (
+					await navigator.storage.getDirectory()
+				).getDirectoryHandle('picked-folder', { create: true });
+			};
+		});
+		const saved = await page.evaluate(() =>
+			(window as any).playgroundSites.saveToLocalFileSystem('Folder')
+		);
+		expect(saved.storage).toBe('local-fs');
+		const wp = await ready(page);
+		await page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			await client.writeFile(
+				'/wordpress/folder-marker.txt',
+				'from the PHP mount'
+			);
+			await client.flushOpfs('/wordpress');
+		});
+		expect(
+			await page.evaluate(async () => {
+				const directory = await (
+					await navigator.storage.getDirectory()
+				).getDirectoryHandle('picked-folder');
+				return (
+					await (
+						await directory.getFileHandle('folder-marker.txt')
+					).getFile()
+				).text();
+			})
+		).toBe('from the PHP mount');
+		expect(await page.evaluate(() => (window as any).pickerCalls)).toBe(1);
+		expect(page.context().pages()).toHaveLength(1);
+		expect(
+			await wp.evaluate(async () => {
+				try {
+					await (
+						await navigator.storage.getDirectory()
+					).getDirectoryHandle('picked-folder');
+					return 'read';
+				} catch (error) {
+					return (error as DOMException).name;
+				}
+			})
+		).toBe('NotFoundError');
+	});
+
+	test('site thumbnails render inside WordPress across the origin boundary', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await ready(page);
+		const thumbnail = await page.evaluate(() =>
+			(window as any).playgroundSites.getClient().captureSiteThumbnail()
+		);
+		expect(['image/webp', 'image/jpeg']).toContain(thumbnail.mime);
+		expect(Buffer.from(thumbnail.data, 'base64').length).toBeGreaterThan(
+			100
+		);
+	});
+
 	test('WordPress caches cannot replace the thumbnail resource worker', async ({
 		page,
 	}) => {
@@ -464,6 +893,26 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			workerUrl!
 		);
 		expect(result).toBe('trusted resource worker');
+	});
+
+	test('OAuth popups keep their opener after visiting another origin', async ({
+		page,
+	}) => {
+		await page.goto('/?storage=temp');
+		await page.context().route('https://oauth-provider.test/**', (route) =>
+			route.fulfill({
+				contentType: 'text/html',
+				body: `<script>location.replace(${JSON.stringify(root + '/?oauth-callback-probe=1&storage=temp')})</script>`,
+			})
+		);
+		const opened = page.context().waitForEvent('page');
+		await page.evaluate(() => {
+			window.open('https://oauth-provider.test/authorize');
+		});
+		const popup = await opened;
+		await popup.waitForURL(root + '/?oauth-callback-probe=1&storage=temp');
+		expect(await popup.evaluate(() => window.opener !== null)).toBe(true);
+		await popup.close();
 	});
 
 	/**
