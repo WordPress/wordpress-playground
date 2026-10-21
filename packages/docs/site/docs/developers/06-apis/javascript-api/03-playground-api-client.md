@@ -12,7 +12,7 @@ Broadly speaking, you can use the client to perform three types of operations:
 - Customizing `PHP.ini`
 - Managing files and directories
 
-## Experimental SharedWorker runtime
+## SharedWorker runtime
 
 `startPlaygroundWeb()` uses a dedicated worker by default. Applications can opt into
 sharing one PHP runtime across tabs on the same origin and browser storage partition.

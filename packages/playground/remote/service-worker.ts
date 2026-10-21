@@ -212,7 +212,7 @@ self.addEventListener('activate', function (event) {
 			await purgeEverythingFromPreviousRelease();
 			cacheOfflineModeAssetsForCurrentRelease(
 				new URL(self.location.href).searchParams.get(
-					'experimental-shared-worker'
+					'shared-worker'
 				) === '1'
 					? ['/personal-wp-version.json']
 					: []
@@ -242,9 +242,7 @@ self.addEventListener('fetch', (event) => {
 	// imports them during development. Sending them through WordPress turns the
 	// module graph into scoped 404 responses.
 	const sharedMode =
-		new URL(self.location.href).searchParams.get(
-			'experimental-shared-worker'
-		) === '1';
+		new URL(self.location.href).searchParams.get('shared-worker') === '1';
 	if (sharedMode && url.pathname.endsWith('/shared-playground-worker.js')) {
 		// Refresh the stable entrypoint online while preserving offline startup.
 		return event.respondWith(networkFirstFetch(event.request));

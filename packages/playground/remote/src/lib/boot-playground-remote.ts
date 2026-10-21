@@ -69,7 +69,7 @@ if (import.meta.hot) {
 const query = new URL(document.location.href).searchParams;
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
-	const sharedMode = query.get('experimental-shared-worker') === '1';
+	const sharedMode = query.get('shared-worker') === '1';
 	const reportStartupProgress = (caption: string) => {
 		if (sharedMode)
 			window.parent.postMessage(
@@ -103,8 +103,7 @@ export async function bootPlaygroundRemote() {
 
 	reportStartupProgress('Starting WordPress runtime');
 	const registrationUrl = new URL(serviceWorkerUrl);
-	if (sharedMode)
-		registrationUrl.searchParams.set('experimental-shared-worker', '1');
+	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:

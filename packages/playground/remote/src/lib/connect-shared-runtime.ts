@@ -21,7 +21,7 @@ export async function connectSharedRuntime(
 ) {
 	if (!('SharedWorker' in globalThis)) {
 		throw new Error(
-			'This experimental WordPress runtime requires SharedWorker support.'
+			'This WordPress runtime requires SharedWorker support.'
 		);
 	}
 	const { worker, runtimeId } = await connectCurrentSharedWorker(

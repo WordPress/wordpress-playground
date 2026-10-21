@@ -105,7 +105,7 @@ The core architecture uses an iframe-based isolation model:
 - `@php-wasm/node`: Node.js-based PHP runtime
 - `@php-wasm/universal`: Abstract interface shared by web and node implementations
 
-Personal WP explicitly opts into experimental SharedWorkers via `startPlaygroundWeb`.
+Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
 Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
 The main website retains dedicated workers and the existing window relay by default.
 Deployment checks run once per Personal WP document; stale runtimes drain requests and flush

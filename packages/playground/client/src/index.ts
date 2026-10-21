@@ -60,7 +60,7 @@ export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	/**
-	 * Experimental runtime mode. Defaults to `dedicated`, with one worker per connection.
+	 * Runtime mode. Defaults to `dedicated`, with one worker per connection.
 	 * `shared` connects tabs on the same origin and storage partition to one runtime
 	 * for the given scope and build. Requires SharedWorker support and an explicit `scope`.
 	 * Only the initializing connection runs the startup Blueprint; later connections
@@ -229,8 +229,7 @@ export async function startPlaygroundWeb(
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
 	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
-		'experimental-shared-worker':
-			options.workerMode === 'shared' ? '1' : undefined,
+		'shared-worker': options.workerMode === 'shared' ? '1' : undefined,
 		scope: options.workerMode === 'shared' ? options.scope : undefined,
 		'shared-worker-version':
 			options.workerMode === 'shared'

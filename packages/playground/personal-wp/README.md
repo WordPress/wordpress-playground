@@ -23,7 +23,7 @@ Personal Playground is a streamlined, end-user focused version of WordPress Play
 - App catalog with pre-configured blueprints to install
 - Backup reminder system with history
 - Health Check integration for crash recovery
-- Experimental shared PHP runtime across tabs, with full client access in every tab
+- Shared PHP runtime across tabs, with full client access in every tab
 - Cross-tab sync for backup status
 
 ## Features
@@ -50,7 +50,7 @@ Health Check integration detects and recovers from site crashes automatically, e
 
 ### Multi-Tab Support
 
-Personal WP explicitly opts into an experimental SharedWorker runtime. Every tab connects to
+Personal WP explicitly opts into a SharedWorker runtime. Every tab connects to
 one PHP runtime per site, and closing the first tab does not interrupt the others. The
 ServiceWorker sends HTTP requests directly to the runtime through a MessagePort; requests
 are not broadcast to tabs. The main Playground website keeps its dedicated-worker approach.
@@ -203,7 +203,7 @@ hostnames, have separate workers and storage.
     Remove it afterward with `await window.playground.unlink('/shared-worker-devtools-test')`.
 
 3. In **Application → Service Workers**, inspect the registered ServiceWorker URL.
-   It should include `experimental-shared-worker=1`. This worker remains the HTTP
+   It should include `shared-worker=1`. This worker remains the HTTP
    gateway; PHP executes in the SharedWorker. In the SharedWorker debugger, set a
    breakpoint in `SharedRuntime.handleServiceWorkerRequest` to inspect direct HTTP
    routing. `SharedRuntime.beginBoot` and `SharedRuntime.retire` are useful for

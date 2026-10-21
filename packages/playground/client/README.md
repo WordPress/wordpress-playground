@@ -22,7 +22,7 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
-## Experimental SharedWorker runtime
+## SharedWorker runtime
 
 `startPlaygroundWeb()` uses a dedicated worker by default. Applications can opt into
 sharing one PHP runtime across tabs on the same origin and browser storage partition.

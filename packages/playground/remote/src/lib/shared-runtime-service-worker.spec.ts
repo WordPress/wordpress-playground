@@ -15,7 +15,7 @@ describe('direct shared runtime routing', () => {
 		});
 		vi.stubGlobal('self', {
 			location: {
-				href: 'https://example.test/sw.js?experimental-shared-worker=1',
+				href: 'https://example.test/sw.js?shared-worker=1',
 			},
 			clients: { matchAll: async () => [] },
 		});
@@ -27,12 +27,12 @@ describe('direct shared runtime routing', () => {
 		const postMessage = vi.fn();
 		vi.stubGlobal('self', {
 			location: {
-				href: 'https://example.test/sw.js?experimental-shared-worker=1',
+				href: 'https://example.test/sw.js?shared-worker=1',
 			},
 			clients: {
 				matchAll: async () => [
 					{
-						url: 'https://example.test/remote.html?experimental-shared-worker=1&scope=site',
+						url: 'https://example.test/remote.html?shared-worker=1&scope=site',
 						postMessage,
 					},
 				],
@@ -326,16 +326,16 @@ describe('direct shared runtime routing', () => {
 			} as unknown as ExtendableMessageEvent);
 		vi.stubGlobal('self', {
 			location: {
-				href: 'https://example.test/sw.js?experimental-shared-worker=1',
+				href: 'https://example.test/sw.js?shared-worker=1',
 			},
 			clients: {
 				matchAll: async () => [
 					{
-						url: 'https://example.test/remote.html?experimental-shared-worker=1&scope=site',
+						url: 'https://example.test/remote.html?shared-worker=1&scope=site',
 						postMessage: retired,
 					},
 					{
-						url: 'https://example.test/remote.html?experimental-shared-worker=1&scope=site',
+						url: 'https://example.test/remote.html?shared-worker=1&scope=site',
 						postMessage: live,
 					},
 				],

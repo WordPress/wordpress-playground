@@ -62,11 +62,7 @@ export function registerSharedRuntime(event: ExtendableMessageEvent) {
 
 /** Restores a direct route after ServiceWorker eviction, contacting one remote document. */
 export async function hasSharedRuntime(scope: string): Promise<boolean> {
-	if (
-		new URL(self.location.href).searchParams.get(
-			'experimental-shared-worker'
-		) !== '1'
-	)
+	if (new URL(self.location.href).searchParams.get('shared-worker') !== '1')
 		return false;
 	if (connections.has(scope) && !connections.get(scope)!.retired) return true;
 	if (pending.has(scope)) return pending.get(scope)!;
@@ -87,7 +83,7 @@ async function discoverSharedRuntime(scope: string): Promise<boolean> {
 	const remotes = clients.filter((client) => {
 		const url = new URL(client.url);
 		return (
-			url.searchParams.get('experimental-shared-worker') === '1' &&
+			url.searchParams.get('shared-worker') === '1' &&
 			url.searchParams.get('scope') === scope
 		);
 	});
