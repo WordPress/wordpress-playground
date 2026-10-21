@@ -1,6 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
-import type { Page } from '@playwright/test';
+import type { Frame, Page } from '@playwright/test';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
@@ -1224,8 +1224,8 @@ echo $wp_env['db']['path'];
 		await adminerButton.click();
 
 		// Verify Adminer opened in new tab
-		const newPage = await pagePromise;
-		await newPage.waitForLoadState();
+		const popup = await pagePromise;
+		const newPage = await getWordPressPopupDocument(popup);
 		expect(newPage.url()).toContain('/adminer/');
 		await expect(newPage.locator('body')).toContainText('Adminer');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
@@ -1271,7 +1271,10 @@ echo $wp_env['db']['path'];
 		).toContainText('Updated post content.');
 
 		// Go to SQL tab and execute "SHOW TABLES"
-		await newPage.getByRole('link', { name: 'SQL command' }).click();
+		await newPage
+			.locator('#menu')
+			.getByRole('link', { name: 'SQL command' })
+			.click();
 		await newPage.waitForLoadState();
 		const sqlTextarea = newPage.locator('textarea[name="query"]');
 		await sqlTextarea.fill('SHOW TABLES', { force: true });
@@ -1279,7 +1282,7 @@ echo $wp_env['db']['path'];
 		await newPage.waitForLoadState();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
-		await newPage.close();
+		await popup.close();
 	});
 
 	test('should load and open phpMyAdmin', async ({ website }) => {
@@ -1296,8 +1299,8 @@ echo $wp_env['db']['path'];
 		await phpMyAdminButton.click();
 
 		// Verify phpMyAdmin opened in new tab
-		const newPage = await pagePromise;
-		await newPage.waitForLoadState();
+		const popup = await pagePromise;
+		const newPage = await getWordPressPopupDocument(popup);
 		expect(newPage.url()).toContain('/phpmyadmin');
 		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
@@ -1361,12 +1364,12 @@ echo $wp_env['db']['path'];
 			.click();
 		await newPage.waitForLoadState();
 		await newPage.locator('.CodeMirror.cm-s-default').click();
-		await newPage.keyboard.type('SHOW TABLES');
+		await popup.keyboard.type('SHOW TABLES');
 		await newPage.getByRole('button', { name: 'Go' }).click();
 		await newPage.waitForLoadState();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
-		await newPage.close();
+		await popup.close();
 	});
 
 	/*
@@ -1379,8 +1382,8 @@ echo $wp_env['db']['path'];
 		await website.page
 			.getByRole('button', { name: 'Open Adminer' })
 			.click();
-		const adminerPage = await adminerPagePromise;
-		await adminerPage.waitForLoadState();
+		const adminerPopup = await adminerPagePromise;
+		const adminerPage = await getWordPressPopupDocument(adminerPopup);
 		await expect(adminerPage.locator('body')).toContainText('Adminer');
 		await expect(adminerPage.locator('body')).toContainText('wp_posts');
 
@@ -1388,17 +1391,29 @@ echo $wp_env['db']['path'];
 		await website.page
 			.getByRole('button', { name: 'Open phpMyAdmin' })
 			.click();
-		const phpMyAdminPage = await phpMyAdminPagePromise;
-		await phpMyAdminPage.waitForLoadState();
+		const phpMyAdminPopup = await phpMyAdminPagePromise;
+		const phpMyAdminPage = await getWordPressPopupDocument(phpMyAdminPopup);
 		await expect(phpMyAdminPage.locator('body')).toContainText(
 			'phpMyAdmin'
 		);
 		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
 
-		await adminerPage.close();
-		await phpMyAdminPage.close();
+		await adminerPopup.close();
+		await phpMyAdminPopup.close();
 	});
 });
+
+/** Follow the isolated WordPress iframe when the database tool needs an app-origin popup. */
+async function getWordPressPopupDocument(popup: Page): Promise<Page | Frame> {
+	await popup.waitForLoadState();
+	const frame = popup.frame({ name: 'wordpress-popup' });
+	if (!frame) {
+		return popup;
+	}
+	// WebKit can finish loading the wrapper before its iframe leaves about:blank.
+	await frame.waitForURL((url) => url.pathname.startsWith('/scope:'));
+	return frame;
+}
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
 // The `@storage` tag routes this group to the one-worker CI storage lane.
