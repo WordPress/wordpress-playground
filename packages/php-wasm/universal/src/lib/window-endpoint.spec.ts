@@ -31,6 +31,10 @@ describe('windowEndpoint', () => {
 		const endpoint = windowEndpoint(peer, context, 'https://app.example');
 		const listener = { handleEvent: vi.fn() };
 		endpoint.addEventListener('message', listener);
+		const unconnectedEvent = new Event('message');
+		Object.defineProperty(unconnectedEvent, 'source', { value: {} });
+		context.dispatchEvent(unconnectedEvent);
+		expect(listener.handleEvent).not.toHaveBeenCalled();
 		const event = new Event('message');
 		Object.defineProperty(event, 'source', { value: peer });
 		context.dispatchEvent(event);
