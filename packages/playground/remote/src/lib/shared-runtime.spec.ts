@@ -6,24 +6,14 @@ import type {
 	WorkerBootOptions,
 } from './playground-worker-endpoint';
 
-// Protect runtime ownership and persistence across independently arriving tab connections.
+// Protect shared initialization and persistence across independently arriving tab connections.
 describe('SharedRuntime', () => {
 	let endpoint: PlaygroundWorkerEndpoint;
 	let close: ReturnType<typeof vi.fn>;
-	let release: ReturnType<typeof vi.fn>;
 	let runtime: SharedRuntime;
 
 	beforeEach(() => {
 		close = vi.fn();
-		release = vi.fn();
-		vi.stubGlobal('navigator', {
-			locks: {
-				request: vi.fn(async (_name, _options, callback) => {
-					await callback({});
-					release();
-				}),
-			},
-		});
 		endpoint = {
 			boot: vi.fn(async () => {}),
 			run: vi.fn(async () => 'done'),
@@ -33,8 +23,6 @@ describe('SharedRuntime', () => {
 		} as unknown as PlaygroundWorkerEndpoint;
 		runtime = new SharedRuntime(endpoint, 'build-a', close);
 	});
-
-	afterEach(() => vi.unstubAllGlobals());
 
 	it('boots once and makes other connections wait for the initial Blueprint', async () => {
 		const api = runtime.api() as PlaygroundWorkerEndpoint & {
@@ -226,7 +214,7 @@ describe('SharedRuntime', () => {
 		vi.mocked(port.postMessage).mock.calls[0][0].response.bodyPort.close();
 	});
 
-	it('keeps ownership and the runtime alive if flushing fails', async () => {
+	it('keeps the runtime alive if flushing fails', async () => {
 		const api = runtime.api() as PlaygroundWorkerEndpoint & {
 			beginSharedBoot(options: WorkerBootOptions): Promise<boolean>;
 		};
@@ -235,7 +223,6 @@ describe('SharedRuntime', () => {
 			new Error('disk full')
 		);
 		await expect(runtime.retire()).rejects.toThrow('disk full');
-		expect(release).not.toHaveBeenCalled();
 		expect(close).not.toHaveBeenCalled();
 		expect(endpoint[Symbol.asyncDispose]).not.toHaveBeenCalled();
 	});
@@ -261,47 +248,36 @@ describe('SharedRuntime', () => {
 		expect(close).toHaveBeenCalledTimes(1);
 	});
 	// A failed boot must release its worker even when the initializer tab stays open.
-	// Both lock acquisition and PHP startup can reject the shared boot promise.
-	it.each(['lock', 'boot'])(
-		'retires after %s failure without waiting for the initializer to disconnect',
-		async (failure) => {
-			if (failure === 'lock')
-				vi.mocked(navigator.locks.request).mockRejectedValueOnce(
-					new Error('startup failed')
-				);
-			else
-				vi.mocked(endpoint.boot).mockRejectedValueOnce(
-					new Error('startup failed')
-				);
-			const channel = new MessageChannel();
-			const failed = vi.fn();
-			const closed = new Promise<void>((resolve) =>
-				close.mockImplementation(resolve)
+	it('retires after boot failure without waiting for the initializer to disconnect', async () => {
+		vi.mocked(endpoint.boot).mockRejectedValueOnce(
+			new Error('startup failed')
+		);
+		const channel = new MessageChannel();
+		const failed = vi.fn();
+		const closed = new Promise<void>((resolve) =>
+			close.mockImplementation(resolve)
+		);
+		try {
+			const port = channel.port1 as unknown as globalThis.MessagePort;
+			runtime.connect(port, vi.fn(), failed);
+			const api = runtime.api(port) as PlaygroundWorkerEndpoint & {
+				beginSharedBoot(options: WorkerBootOptions): Promise<boolean>;
+			};
+			await expect(
+				api.beginSharedBoot({
+					scope: 'default',
+					withNetworking: true,
+				})
+			).rejects.toThrow('startup failed');
+			await closed;
+			expect(failed).toHaveBeenCalledOnce();
+			expect(endpoint[Symbol.asyncDispose]).toHaveBeenCalledOnce();
+			await expect(api.run({ code: '<?php' })).rejects.toThrow(
+				RELOAD_REQUIRED
 			);
-			try {
-				const port = channel.port1 as unknown as globalThis.MessagePort;
-				runtime.connect(port, vi.fn(), failed);
-				const api = runtime.api(port) as PlaygroundWorkerEndpoint & {
-					beginSharedBoot(
-						options: WorkerBootOptions
-					): Promise<boolean>;
-				};
-				await expect(
-					api.beginSharedBoot({
-						scope: 'default',
-						withNetworking: true,
-					})
-				).rejects.toThrow('startup failed');
-				await closed;
-				expect(failed).toHaveBeenCalledOnce();
-				expect(endpoint[Symbol.asyncDispose]).toHaveBeenCalledOnce();
-				await expect(api.run({ code: '<?php' })).rejects.toThrow(
-					RELOAD_REQUIRED
-				);
-			} finally {
-				channel.port1.close();
-				channel.port2.close();
-			}
+		} finally {
+			channel.port1.close();
+			channel.port2.close();
 		}
-	);
+	});
 });

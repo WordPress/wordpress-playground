@@ -21,7 +21,6 @@ export class SharedRuntime {
 	private retired = false;
 	private closed = false;
 	private runtimeId = crypto.randomUUID();
-	private releaseLock?: () => void;
 	private ports = new Set<MessagePort>();
 	private servicePorts = new Set<MessagePort>();
 	private readiness = new Set<{
@@ -188,7 +187,6 @@ export class SharedRuntime {
 					await this.endpoint.unmountOpfs(mountpoint);
 				}
 				await this.endpoint[Symbol.asyncDispose]();
-				this.releaseLock?.();
 				this.closed = true;
 
 				for (const port of [...this.ports, ...this.servicePorts])
@@ -215,7 +213,6 @@ export class SharedRuntime {
 		}
 		this.initializer = port;
 		this.bootPromise = this.run(async () => {
-			await this.acquireLock();
 			await this.endpoint.boot(options);
 		});
 		void this.bootPromise.then(
@@ -246,30 +243,5 @@ export class SharedRuntime {
 			.finally(() => this.active.delete(completion))
 			.catch(() => {});
 		return promise;
-	}
-
-	private async acquireLock() {
-		await new Promise<void>((resolve, reject) => {
-			void navigator.locks
-				.request(
-					'personal-wp:main',
-					{ ifAvailable: true },
-					async (lock) => {
-						if (!lock) {
-							reject(
-								new Error(
-									'Close older WordPress tabs and reload to start the shared runtime.'
-								)
-							);
-							return;
-						}
-						await new Promise<void>((release) => {
-							this.releaseLock = release;
-							resolve();
-						});
-					}
-				)
-				.catch(reject);
-		});
 	}
 }

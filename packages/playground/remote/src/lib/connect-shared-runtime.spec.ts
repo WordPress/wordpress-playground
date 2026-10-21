@@ -12,7 +12,6 @@ describe('shared runtime discovery across deployments', () => {
 	let workers: MockWorker[];
 	let postMessage: ReturnType<typeof vi.fn>;
 	let storage: Map<string, string>;
-	let held: { name: string }[];
 	const key = 'personal-wp:shared-worker:default';
 	const identity = (version: string) => ({
 		url: `https://example.test/worker.js?build=${version}`,
@@ -43,7 +42,6 @@ describe('shared runtime discovery across deployments', () => {
 		vi.useFakeTimers();
 		workers = [];
 		storage = new Map();
-		held = [];
 		postMessage = vi.fn();
 		vi.stubGlobal('SharedWorker', MockWorker);
 		vi.stubGlobal(
@@ -60,7 +58,6 @@ describe('shared runtime discovery across deployments', () => {
 		});
 		vi.stubGlobal('navigator', {
 			serviceWorker: new EventTarget(),
-			locks: { query: async () => ({ held }) },
 		});
 	});
 	afterEach(() => {
@@ -147,7 +144,7 @@ describe('shared runtime discovery across deployments', () => {
 		expect(JSON.parse(storage.get(key)!)).toEqual(identity('new'));
 	});
 
-	it('ignores an unavailable old worker only when no runtime owns the files', async () => {
+	it('ignores an unavailable old worker and connects to the replacement', async () => {
 		storage.set(key, JSON.stringify(identity('old')));
 		const connection = connectSharedRuntime('default', 'new', 'new');
 		workers[0].dispatchEvent(new Event('error'));
@@ -156,17 +153,7 @@ describe('shared runtime discovery across deployments', () => {
 		await connection;
 	});
 
-	it('does not bypass an unreachable worker that still owns the files', async () => {
-		held = [{ name: 'personal-wp:main' }];
-		storage.set(key, JSON.stringify(identity('old')));
-		const connection = connectSharedRuntime('default', 'new', 'new');
-		const rejected = expect(connection).rejects.toThrow('Failed to load');
-		workers[0].dispatchEvent(new Event('error'));
-		await rejected;
-		expect(workers).toHaveLength(1);
-	});
-
-	it('does not bypass a confirmed save failure even without a file lock', async () => {
+	it('does not bypass a confirmed save failure', async () => {
 		const connection = connectSharedRuntime('default', 'new', 'new');
 		const rejected = expect(connection).rejects.toThrow('disk full');
 		workers[0].send({

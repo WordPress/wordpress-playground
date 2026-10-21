@@ -148,7 +148,7 @@ export async function connectSharedRuntime(
 
 type SharedWorkerIdentity = { url: string; name: string; version: string };
 
-/** localStorage discovers the previous runtime; the runtime's own lock protects site files. */
+/** localStorage records the previous runtime so a new build can retire it before booting. */
 async function connectCurrentSharedWorker(
 	scope: string,
 	version: string,
@@ -197,7 +197,7 @@ async function connectCurrentSharedWorker(
 	try {
 		localStorage.setItem(storageKey, JSON.stringify(current));
 	} catch {
-		// Storage can be disabled. The runtime lock still prevents concurrent file access.
+		// Without storage, a later build may not discover this runtime to retire it.
 	}
 	return connected;
 }
@@ -327,16 +327,9 @@ async function handshakeSharedWorker(
 		worker.port.close();
 	} catch (error) {
 		worker?.port.close();
-		// A stale hint may point to deleted assets or an exited worker. Never bypass a
-		// confirmed save operation, or a runtime still holding the file ownership lock.
-		if (
-			mode === 'connect' ||
-			replied ||
-			(await navigator.locks.query()).held?.some(
-				(lock) => lock.name === 'personal-wp:main'
-			)
-		)
-			throw error;
+		// A stale hint may point to deleted assets or an exited worker.
+		// Once a worker replies, require confirmation that its shutdown completed.
+		if (mode === 'connect' || replied) throw error;
 	}
 	return undefined;
 }
