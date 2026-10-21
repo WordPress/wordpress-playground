@@ -28,6 +28,7 @@ export async function collectBlueprintResources(
 			proxy
 		);
 	const setup = structuredClone(blueprint);
+	let sourceDocument: Promise<string | undefined> | undefined;
 	await visit(setup);
 	return { blueprint: setup, files };
 
@@ -45,6 +46,16 @@ export async function collectBlueprintResources(
 			const source = bundled
 				? normalizePath(reference.path as string)
 				: (reference.url as string);
+			if (bundled && sourceUrl) {
+				sourceDocument ||= getSourceDocument();
+				const documentUrl = await sourceDocument;
+				if (documentUrl) {
+					delete reference.path;
+					reference.resource = 'url';
+					reference.url = new URL(source, documentUrl).href;
+					return;
+				}
+			}
 			const key = `${bundled ? 'bundled' : 'url'}:${source}`;
 			let url = copied.get(key);
 			if (!url) {
@@ -90,5 +101,22 @@ export async function collectBlueprintResources(
 			return;
 		}
 		for (const child of Object.values(value)) await visit(child);
+	}
+
+	async function getSourceDocument(): Promise<string | undefined> {
+		const response = await fetchResource(sourceUrl!, {
+			credentials: 'omit',
+		});
+		if (!response.ok) {
+			throw new Error(
+				`Could not load the original Blueprint (${response.status}).`
+			);
+		}
+		// A remote ZIP still needs its bundled files copied. A JSON document's
+		// relative resources can keep using their original public locations.
+		const declaration = await response.json().catch(() => null);
+		return declaration && typeof declaration === 'object'
+			? sourceUrl
+			: undefined;
 	}
 }

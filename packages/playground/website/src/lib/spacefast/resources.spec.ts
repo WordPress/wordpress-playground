@@ -1,8 +1,46 @@
 import type { BlueprintV1Declaration } from '@wp-playground/client';
 import { InMemoryFilesystem } from '@wp-playground/storage';
 import { collectBlueprintResources } from './resources';
+import { parseSetupBlueprint } from './site';
 
 afterEach(() => vi.unstubAllGlobals());
+
+it('keeps remote plugin URLs while omitting content already restored from SQLite', async () => {
+	const original = {
+		steps: [
+			{
+				step: 'installPlugin',
+				pluginData: { resource: 'bundled', path: './readymade.zip' },
+			},
+			{
+				step: 'importWxr',
+				file: { resource: 'bundled', path: './content.xml' },
+			},
+			{ step: 'importThemeStarterContent' },
+		],
+	};
+	const fetchMock = vi.fn(async () => new Response(JSON.stringify(original)));
+	vi.stubGlobal('fetch', fetchMock);
+	const setup = await parseSetupBlueprint(JSON.stringify(original));
+	const saved = await collectBlueprintResources(
+		setup,
+		undefined,
+		'https://site.space.fast/',
+		'',
+		'https://example.com/blueprints/readymade/blueprint.json'
+	);
+	expect(saved.blueprint.steps).toEqual([
+		{
+			step: 'installPlugin',
+			pluginData: {
+				resource: 'url',
+				url: 'https://example.com/blueprints/readymade/readymade.zip',
+			},
+		},
+	]);
+	expect(saved.files).toEqual([]);
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+});
 
 it('preserves bundled setup files and retains them across a second snapshot save', async () => {
 	const setup: BlueprintV1Declaration = {

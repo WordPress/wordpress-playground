@@ -132,9 +132,10 @@ updates URLs including serialized values, and logs in to wp-admin. No separate
 demo page is needed. The database migration uses WP-CLI; static generation uses
 Simply Static's PHP hooks without WP-CLI or a Pro license.
 
-Bundled setup files, such as plugin ZIPs and WXR imports, are copied to the Space
-and referenced by public URLs in the saved Blueprint. Later saves retain these
-files in each replacement snapshot.
+Relative setup dependencies in remote JSON Blueprints become absolute URLs to
+their original location. Files from local or ZIP bundles are copied to the Space;
+later saves retain those files in each replacement snapshot. WXR and theme starter
+content imports are omitted because SQLite and uploads already restore that data.
 
 A Blueprint-installed MU plugin advances Simply Static's job in batches and
 renders public pages between batches to avoid nested PHP loopback requests. It

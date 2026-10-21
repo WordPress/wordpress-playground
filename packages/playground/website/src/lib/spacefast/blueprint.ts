@@ -92,7 +92,7 @@ export function createStoredBlueprint(
 		landingPage: '/wp-admin/',
 		login: false,
 		steps: [
-			...(setup.steps || []),
+			...getSetupSteps(setup),
 			...restore,
 			{ step: 'login', username },
 		],
@@ -110,5 +110,13 @@ export function getSetupSteps(blueprint: BlueprintV1Declaration) {
 			typeof step.code === 'string' &&
 			step.code.startsWith(RESTORE_MARKER)
 	);
-	return restoreIndex < 0 ? steps : steps.slice(0, restoreIndex);
+	const setup = restoreIndex < 0 ? steps : steps.slice(0, restoreIndex);
+	// The saved database and uploads already contain imported and starter content.
+	return setup.filter(
+		(step) =>
+			!step ||
+			typeof step !== 'object' ||
+			(step.step !== 'importWxr' &&
+				step.step !== 'importThemeStarterContent')
+	);
 }
