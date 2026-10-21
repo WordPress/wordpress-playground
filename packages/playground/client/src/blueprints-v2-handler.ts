@@ -140,7 +140,29 @@ export class BlueprintsV2Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		await compiled.run(playground);
+		if (
+			this.options.workerMode === 'shared' &&
+			!(await playground.shouldRunStartupBlueprint())
+		) {
+			executionProgress.finish();
+			const landingPage =
+				compiled.version === 2
+					? compiled.declaration.applicationOptions?.[
+							'wordpress-playground'
+						]?.landingPage
+					: compiled.declaration.landingPage;
+			await playground.goTo(landingPage || '/');
+			return playground;
+		}
+		try {
+			await compiled.run(playground);
+		} catch (error) {
+			if (this.options.workerMode === 'shared')
+				await playground.finishSharedRuntimeInitialization();
+			throw error;
+		}
+		if (this.options.workerMode === 'shared')
+			await playground.finishSharedRuntimeInitialization();
 
 		return playground;
 	}

@@ -6,7 +6,7 @@ describe('isDevServer', () => {
 		expect(isDevServer(new URL('http://localhost:5400/'))).toBe(true);
 	});
 
-	it('recognizes local Personal WP dev server origins', () => {
+	it('recognizes local application dev server origins', () => {
 		expect(isDevServer(new URL('http://127.0.0.1:5401/'))).toBe(true);
 		expect(isDevServer(new URL('http://localhost:5401/'))).toBe(true);
 	});

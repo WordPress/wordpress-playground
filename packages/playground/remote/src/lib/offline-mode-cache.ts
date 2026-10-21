@@ -144,13 +144,17 @@ export async function fetchBlueprintsIndex(): Promise<Response> {
  * file and contain JavaScript, CSS, and other assets required to load the
  * site without making any network requests.
  */
-export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
+export async function cacheOfflineModeAssetsForCurrentRelease(
+	excludedAssets: readonly string[] = []
+): Promise<any> {
 	// Get the cache manifest and add all the files to the cache
 	const manifestResponse = await fetchFresh(
 		'/assets-required-for-offline-mode.json'
 	);
 	const requiredOfflineAssetUrls = await manifestResponse.json();
-	const urlsToCache = ['/', ...requiredOfflineAssetUrls];
+	const urlsToCache = ['/', ...requiredOfflineAssetUrls].filter(
+		(url) => !excludedAssets.includes(url)
+	);
 	const websiteRequests = urlsToCache.map(
 		/**
 		 * Ensure the response is not coming from HTTP cache.
