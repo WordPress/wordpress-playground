@@ -143,7 +143,13 @@ test('boots a replacement runtime without reloading the new tab after retirement
 			async () => (await fetch('/scope:default/wp-json/')).status
 		)
 	).toBe(503);
+	const reloadedDocument = page.waitForResponse(
+		(response) =>
+			response.request().isNavigationRequest() &&
+			response.request().frame() === page.mainFrame()
+	);
 	await page.getByRole('button', { name: 'Reload this tab' }).click();
+	expect((await reloadedDocument).ok()).toBe(true);
 	await page.waitForFunction(() => !!(window as any).playground);
 	await page.evaluate(() => (window as any).playground.isReady());
 	expect(

@@ -110,6 +110,23 @@ export default defineConfig(({ command, mode }) => {
 				},
 				'^[/]((?!website-server).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+					/**
+					 * Reload WordPress directory URLs through the app shell, not the remote server.
+					 * The service worker forwards reloads with destination "empty", so check Accept.
+					 * Scoped WordPress documents and runtime files must still use the proxy.
+					 */
+					bypass(request) {
+						const pathname = new URL(
+							request.url!,
+							'http://localhost'
+						).pathname;
+						if (
+							request.headers.accept?.includes('text/html') &&
+							pathname.endsWith('/') &&
+							!pathname.startsWith('/scope:')
+						)
+							return '/website-server/index.html';
+					},
 				},
 			},
 			fs: {
