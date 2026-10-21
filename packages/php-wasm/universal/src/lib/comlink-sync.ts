@@ -936,7 +936,8 @@ export function windowEndpoint(
 				// Only the connected window may invoke this API, not its nested frames.
 				filteredListener = (event) => {
 					if ((event as MessageEvent).source !== w) return;
-					if (typeof listener === 'function') listener(event);
+					if (typeof listener === 'function')
+						listener.call(context, event);
 					else listener.handleEvent(event);
 				};
 				listeners.set(listener, filteredListener);
