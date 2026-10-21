@@ -423,7 +423,8 @@ jobs:
         name: 'Website E2E (${{ matrix.setup }}, ${{ matrix.browser }}, ${{ matrix.lane }})'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        # Storage tests run one at a time; allow build time plus the full storage suite.
+        timeout-minutes: ${{ matrix.lane == 'storage' && 45 || 30 }}
         permissions:
             contents: read # Required to clone the repo.
         strategy:
