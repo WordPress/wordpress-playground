@@ -1,8 +1,8 @@
 /**
  * Listens for pointer presses in the host document and every same-origin iframe.
  *
- * Events inside WordPress do not bubble through Playground's nested iframes, so
- * document-level outside-click behavior must subscribe at every document layer.
+ * Events do not bubble through iframes. WordPress relays its presses to remote.html;
+ * observe other readable documents directly, including plain HTML and editor frames.
  */
 export function listenForPointerDownAcrossIframes(
 	listener: (event: PointerEvent) => void
@@ -22,12 +22,24 @@ export function listenForPointerDownAcrossIframes(
 		Array.from(documents).forEach(stopListeningInDocument);
 	};
 
+	function onPointerDown(event: Event) {
+		// Check at dispatch time: the reporter may start after we attach this listener.
+		const targetDocument = event.currentTarget as Document;
+		if (
+			!targetDocument.documentElement.hasAttribute(
+				'data-playground-pointer-relay'
+			)
+		) {
+			listener(event as PointerEvent);
+		}
+	}
+
 	function listenInDocument(targetDocument: Document) {
 		if (documents.has(targetDocument)) {
 			return;
 		}
 		documents.add(targetDocument);
-		targetDocument.addEventListener('pointerdown', listener, true);
+		targetDocument.addEventListener('pointerdown', onPointerDown, true);
 
 		targetDocument.querySelectorAll('iframe').forEach(listenInFrame);
 		const observer = new MutationObserver((records) => {
@@ -51,7 +63,7 @@ export function listenForPointerDownAcrossIframes(
 		if (!documents.delete(targetDocument)) {
 			return;
 		}
-		targetDocument.removeEventListener('pointerdown', listener, true);
+		targetDocument.removeEventListener('pointerdown', onPointerDown, true);
 		observers.get(targetDocument)?.disconnect();
 		observers.delete(targetDocument);
 		targetDocument.querySelectorAll('iframe').forEach(stopListeningInFrame);

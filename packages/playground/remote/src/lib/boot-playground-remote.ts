@@ -21,6 +21,7 @@ import { buildVersion as remoteBuildVersion } from 'virtual:remote-config';
 import { RELOAD_REQUIRED } from './shared-runtime';
 import { connectSharedRuntime } from './connect-shared-runtime';
 import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
+import { requestWordPressUrl } from './request-wordpress-url';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
@@ -144,8 +145,6 @@ export async function bootPlaygroundRemote() {
 	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	// WordPress reports its URL because the remote cannot read a cross-origin location.
-	let lastReportedWordPressUrl: string | undefined;
 	window.addEventListener('message', (event: MessageEvent) => {
 		if (
 			event.source !== wpFrame.contentWindow ||
@@ -163,16 +162,8 @@ export async function bootPlaygroundRemote() {
 			// Ignore non-JSON messages from other WordPress scripts.
 			return;
 		}
-		if (
-			data?.type === 'playground-url-change' &&
-			typeof data.url === 'string'
-		) {
-			lastReportedWordPressUrl = data.url;
-		} else if (
-			wordPressSiteUrl !== origin &&
-			data?.type === 'playground-pointerdown'
-		) {
-			// Root UI listeners can observe this frame, but not WordPress's document.
+		if (data?.type === 'playground-pointerdown') {
+			// Root UI listeners observe the relay here, not the original WordPress press.
 			// This synthetic event dismisses UI; it does not carry user activation.
 			wpFrame.dispatchEvent(
 				new PointerEvent('pointerdown', { bubbles: true })
@@ -258,9 +249,8 @@ export async function bootPlaygroundRemote() {
 			/**
 			 * Listen for URL change messages from the WordPress iframe.
 			 *
-			 * When Document-Isolation-Policy is enabled, we can't access the
-			 * iframe's location.href due to cross-origin restrictions. Instead,
-			 * a WordPress MU plugin posts a message with the current URL.
+			 * Use the WordPress MU plugin for both same-origin and cross-origin pages.
+			 * This also works when Document-Isolation-Policy blocks DOM access.
 			 *
 			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
 			 */
@@ -276,7 +266,10 @@ export async function bootPlaygroundRemote() {
 						typeof event.data === 'string'
 							? JSON.parse(event.data)
 							: event.data;
-					if (data?.type !== 'playground-url-change') {
+					if (
+						data?.type !== 'playground-url-change' ||
+						typeof data.url !== 'string'
+					) {
 						return;
 					}
 					const path = await playground.internalUrlToPath(data.url);
@@ -289,59 +282,36 @@ export async function bootPlaygroundRemote() {
 				}
 			});
 
-			if (wordPressSiteUrl !== origin) {
-				// WordPress may have reported its initial URL before this subscription.
-				// Its document answers the probe and reports subsequent history changes.
-				wpFrame.contentWindow?.postMessage(
-					{ type: 'playground-request-url' },
-					wordPressSiteUrl
-				);
-			}
+			// The first report may predate this subscription.
+			void reportCurrentPath();
 
 			// Listen for iframe load events (for navigation)
-			wpFrame.addEventListener('load', async (e: any) => {
-				try {
-					/**
-					 * When navigating to a page with %0A sequences (encoded newlines)
-					 * in the query string, the `location.href` property of the
-					 * iframe's content window doesn't seem to reflect them. Everything
-					 * else is in place, but not the %0A sequences.
-					 *
-					 * Weirdly, these sequences are available after the next event
-					 * loop tick – hence the `setTimeout(0)`.
-					 *
-					 * The exact cause is unclear at the moment of writing of this
-					 * comment. The WHATWG HTML Standard [1] has a few hints:
-					 *
-					 * * Current and active session history entries may get out of
-					 *   sync for iframes.
-					 * * Documents inside iframes have "is delaying load events" set
-					 *   to true.
-					 *
-					 * But there doesn't seem to be any concrete explanation and no
-					 * recommended remediation. If anyone has a clue, please share it
-					 * in a GitHub issue or start a new PR.
-					 *
-					 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
-					 */
-					// Get the content window while e.currentTarget is available.
-					// It will be undefined on the next event loop tick.
-					const contentWindow = e.currentTarget!.contentWindow;
-					await new Promise((resolve) => setTimeout(resolve, 0));
-					const path = await playground.internalUrlToPath(
-						contentWindow.location.href
-					);
-					if (path !== lastPath) {
-						lastPath = path;
-						fn(path);
-					}
-				} catch {
-					// @TODO: The above call can fail if the remote iframe
-					// is embedded in StackBlitz, or presumably, any other
-					// environment with restrictive CSP. Any error thrown
-					// due to CORS-related stuff crashes the entire remote
-					// so let's ignore it for now and find a correct fix in time.
-				}
+			wpFrame.addEventListener('load', async () => {
+				/**
+				 * When navigating to a page with %0A sequences (encoded newlines)
+				 * in the query string, the `location.href` property of the
+				 * iframe's content window doesn't seem to reflect them. Everything
+				 * else is in place, but not the %0A sequences.
+				 *
+				 * Weirdly, these sequences are available after the next event
+				 * loop tick – hence the `setTimeout(0)`.
+				 *
+				 * The exact cause is unclear at the moment of writing of this
+				 * comment. The WHATWG HTML Standard [1] has a few hints:
+				 *
+				 * * Current and active session history entries may get out of
+				 *   sync for iframes.
+				 * * Documents inside iframes have "is delaying load events" set
+				 *   to true.
+				 *
+				 * But there doesn't seem to be any concrete explanation and no
+				 * recommended remediation. If anyone has a clue, please share it
+				 * in a GitHub issue or start a new PR.
+				 *
+				 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+				 */
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				await reportCurrentPath();
 			});
 
 			// Also propagate navigation changes twice a second for any
@@ -353,26 +323,22 @@ export async function bootPlaygroundRemote() {
 			// * https://github.com/WordPress/wordpress-playground/pull/1945
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
-			setInterval(async () => {
+			setInterval(reportCurrentPath, 500);
+
+			async function reportCurrentPath() {
 				if (sharedRuntime?.isRetired()) return;
 				try {
-					let href = '';
-					if (wpFrame.contentWindow) {
-						href = wpFrame.contentWindow.location.href;
-					} else {
-						href = wpFrame.src;
-					}
-					const path = await playground.internalUrlToPath(href);
+					const path = await phpRemoteApi.getCurrentURL();
 					if (path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
 				} catch {
-					// Ignore errors due to CORS or CSP restrictions
+					// Navigation may retire the runtime while a URL request is in flight.
 				}
-			}, 500);
+			}
 		},
-		/** Navigate the WordPress frame without retaining the previous document's URL report. */
+		/** Navigate the WordPress frame and wait for its load event. */
 		async goTo(requestedPath: string) {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
@@ -408,8 +374,6 @@ export async function bootPlaygroundRemote() {
 				});
 			});
 
-			lastReportedWordPressUrl = undefined;
-
 			// If the URL is the same, we need to force a reload
 			// because otherwise the iframe will not reload the page.
 			if (newUrl === oldUrl && wpFrame.contentWindow) {
@@ -425,20 +389,19 @@ export async function bootPlaygroundRemote() {
 			wpFrame.src = newUrl;
 			await navigationComplete;
 		},
-		/** Read the live location, or its latest WordPress report across an origin boundary. */
+		/** Ask the current document, without waiting for the next navigation poll. */
 		async getCurrentURL() {
-			let url = '';
-			try {
-				url = wpFrame.contentWindow!.location.href;
-			} catch {
-				// The above call can fail if we're embedded in an
-				// environment with a restrictive CSP policy.
-			}
+			let url = await requestWordPressUrl(wpFrame, wordPressSiteUrl);
 			if (!url) {
-				// Prefer WordPress's report across the origin boundary. Before a report
-				// arrives, use src; it does not follow clicks or history changes inside
-				// WordPress, so it is only a fallback for an unreported document.
-				url = lastReportedWordPressUrl ?? wpFrame.src;
+				// Plain HTML and other documents without the MU plugin cannot reply.
+				// Read their location when allowed; src is the last resort across origins.
+				url = wpFrame.src;
+				try {
+					url = wpFrame.contentWindow?.location.href || url;
+				} catch {
+					// StackBlitz and other restrictive CSPs can block even same-origin reads.
+					// Do not let a failed DOM read crash the remote frame.
+				}
 			}
 			return await playground.internalUrlToPath(url);
 		},

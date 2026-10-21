@@ -222,6 +222,75 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 	).toHaveValue('/wp-admin/edit.php');
 });
 
+test('should read a History API change immediately without waiting for navigation polling', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp&url=/wp-admin/');
+	await wordpress.locator('body').evaluate(() => {
+		window.history.replaceState({}, '', 'edit.php?live-url=1');
+	});
+
+	const url = await website.page.evaluate(() =>
+		(window as any).playground.getCurrentURL()
+	);
+
+	expect(url).toBe('/wp-admin/edit.php?live-url=1');
+});
+
+test('should relay each WordPress pointer press once', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsClosed();
+	const remote = await website.page
+		.locator('#playground-viewport:visible,.playground-viewport:visible')
+		.evaluateHandle((frame: HTMLIFrameElement) => frame.contentWindow);
+	await remote.evaluate((remoteWindow: any) => {
+		remoteWindow.playgroundPointerPresses = 0;
+		remoteWindow.document.addEventListener(
+			'pointerdown',
+			() => {
+				remoteWindow.playgroundPointerPresses++;
+			},
+			true
+		);
+	});
+
+	await wordpress.locator('body').click({ position: { x: 20, y: 20 } });
+
+	await expect
+		.poll(() =>
+			remote.evaluate(
+				(remoteWindow: any) => remoteWindow.playgroundPointerPresses
+			)
+		)
+		.toBe(1);
+});
+
+test('should read a plain HTML page without the WordPress reporter', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	const url = await website.page.evaluate(async () => {
+		const client = (window as any).playground;
+		await client.writeFile(
+			'/wordpress/plain.html',
+			'<!doctype html><title>Plain page</title><p>Plain page</p>'
+		);
+		await client.goTo('/plain.html?next=1');
+		return client.getCurrentURL();
+	});
+
+	expect(url).toBe('/plain.html?next=1');
+	await expect(wordpress.getByText('Plain page')).toBeVisible();
+	await expect(website.page.getByRole('combobox')).toHaveValue(
+		'/plain.html?next=1'
+	);
+});
+
 test('should correctly load /wp-admin without the trailing slash', async ({
 	website,
 	browserName,

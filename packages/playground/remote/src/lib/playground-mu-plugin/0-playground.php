@@ -237,8 +237,8 @@ add_action('admin_head', 'playground_add_target_blank_to_external_links');
  * the iframe's location.href due to cross-origin restrictions. This script
  * posts a message to the parent frame with the current URL so the address
  * bar can be updated. A parent that subscribes after the first report can ask
- * for the current URL. Cross-origin documents also report history changes,
- * since the parent cannot poll their location.
+ * for the current URL. The parent polls through this same message path for
+ * History API changes, regardless of whether the document is same-origin.
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  */
@@ -247,7 +247,6 @@ function playground_report_url_to_parent() {
 	<script>
 		if (window.parent !== window) {
 			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
-			let lastReportedUrl;
 			reportPlaygroundUrl();
 			window.addEventListener('message', function (event) {
 				if (
@@ -255,21 +254,19 @@ function playground_report_url_to_parent() {
 					event.origin === parentOrigin &&
 					event.data?.type === 'playground-request-url'
 				) {
-					reportPlaygroundUrl();
+					if (event.ports[0]) {
+						event.ports[0].postMessage(window.location.href);
+						event.ports[0].close();
+					} else {
+						reportPlaygroundUrl();
+					}
 				}
 			});
-			if (parentOrigin !== window.location.origin) {
-				// The parent cannot poll this document after a history.pushState() call.
-				setInterval(function () {
-					if (window.location.href !== lastReportedUrl) reportPlaygroundUrl();
-				}, 500);
-			}
 
 			/** Publish the current URL, including replies to a late-subscribing parent. */
 			function reportPlaygroundUrl() {
-				lastReportedUrl = window.location.href;
 				window.parent.postMessage(
-					JSON.stringify({ type: 'playground-url-change', url: lastReportedUrl }),
+					JSON.stringify({ type: 'playground-url-change', url: window.location.href }),
 					parentOrigin
 				);
 			}
@@ -281,21 +278,23 @@ add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
- * Reports outside clicks when WordPress cannot be read by the root-origin UI.
- * The parent checks the sending frame before notifying its UI listeners.
+ * Relay pointer presses to the app so its menus can close without reading WordPress.
+ * Mark this document after installing the relay. Same-origin UI listeners then skip
+ * the original press and receive only the relayed one, just like cross-origin UI.
  */
 function playground_report_pointer_to_parent() {
-	if (!defined('PLAYGROUND_PARENT_ORIGIN')) {
-		return;
-	}
 	?>
 	<script>
-		document.addEventListener('pointerdown', function () {
-			window.parent.postMessage(
-				{ type: 'playground-pointerdown' },
-				<?php echo json_encode(PLAYGROUND_PARENT_ORIGIN); ?>
-			);
-		}, true);
+		if (window.parent !== window) {
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
+			document.addEventListener('pointerdown', function () {
+				window.parent.postMessage(
+					{ type: 'playground-pointerdown' },
+					parentOrigin
+				);
+			}, true);
+			document.documentElement.setAttribute('data-playground-pointer-relay', '');
+		}
 	</script>
 	<?php
 }
