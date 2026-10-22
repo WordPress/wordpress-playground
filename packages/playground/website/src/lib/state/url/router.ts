@@ -93,9 +93,16 @@ export class PlaygroundRoute {
 	/**
 	 * Builds the navigation target for switching to an existing Playground.
 	 *
-	 * Temporary sites reuse their original setup URL. Stored sites use a
-	 * `site-slug` route while preserving selected query parameters from the
-	 * current URL.
+	 * Temporary sites reuse their original setup URL. If the resulting URL has
+	 * site-slug, replace that value with the actual allocated slug: a site created
+	 * from the hint "demo" is now `demo-<UUID>`. Keeping "demo" would make the next
+	 * routing pass create another site, or select saved files at that old address.
+	 * Do not add a slug to setup URLs that have none; those remain shareable recipes
+	 * for a fresh temporary Playground rather than links to this browser's instance.
+	 *
+	 * Stored sites use their existing site-slug route while preserving selected
+	 * query parameters from the current URL. This only builds a URL; activation
+	 * and any saved-site startup confirmation happen in the routing component.
 	 */
 	static site(site: SiteInfo, baseUrl: string = window.location.href) {
 		if (site.metadata.storage === 'none') {

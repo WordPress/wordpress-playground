@@ -47,7 +47,19 @@ import {
 	type TransferProgress,
 } from '../../../lib/reprint/reprint';
 
-/** Connect a live site and hand its clone to a new temporary Playground. */
+/**
+ * Collect a live site's connection and run its pull in the selected destination.
+ *
+ * In clone mode, the current Playground hosts only the connection form. Create
+ * a separate temporary site and pass its allocated slug, live URL, and key pair
+ * through pendingClone. That destination's panel consumes the handoff once and
+ * starts the pull after its PHP client is ready. It may mount before creation
+ * returns, so a handoff arriving later must update its connection state too.
+ *
+ * Keep clone mode in local state after consuming the handoff; clearing the Redux
+ * request must not turn an unfinished clone into a normal pull on the old site.
+ * The clone stays temporary during transfer and is autosaved only after success.
+ */
 export function SiteTransferPanel({
 	site,
 	playground,
@@ -404,8 +416,17 @@ export function SiteTransferPanel({
 	}, [step, busy, completed, error, autoStart, handoff]);
 
 	/**
-	 * Creates the Playground that receives the clone, then sends its connection
-	 * details to that site's transfer panel so it can start the pull.
+	 * Create a temporary clone destination, then give its panel the pull connection.
+	 *
+	 * Site creation allocates a UUID-suffixed slug. Wait for that returned slug
+	 * before storing the connection or dispatching its handoff; guessing a slug
+	 * from the display name would send the key and URL to the wrong panel. The
+	 * destination panel may already be mounted by then, so it must also accept a
+	 * handoff arriving after mount, not only its initial props.
+	 *
+	 * Leave the browser URL unchanged while creating the destination. Replaying a
+	 * temporary setup URL through routing would create yet another Playground.
+	 * Keep the download temporary until the imported site is complete and usable.
 	 */
 	const cloneIntoNewSite = async () => {
 		if (!keyReady || running.current) return;

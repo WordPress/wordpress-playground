@@ -53,11 +53,23 @@ import {
 /**
  * Selects a Playground without letting a URL reopen saved files on its own.
  *
+ * For example, WordPress in one site can open /?site-slug=saved-demo in a popup.
+ * Immediately selecting saved-demo would boot PHP against its saved files; the
+ * first site could then send HTTP requests to that running site's known scope.
+ * An inactive saved site with no existing client must therefore wait for the
+ * user to choose "Open Playground" inside the app before setActiveSite() runs.
+ * Dock selections already activate the site before changing the URL, so they do
+ * not ask a second time. A site with an existing client also needs no cold start.
+ *
  * It has two routing modes:
  * * When `site-slug` names a saved site, it waits for the user to open it.
  *   An unknown slug creates a new site instead.
  * * When `site-slug` is missing, it starts from the current setup URL and
  *   creates an autosaved site unless the shell requires a temporary one.
+ *
+ * This gates URL-triggered startup, not every way to read saved files. It does
+ * not authorize HTTP requests to an already-running site or stop a fresh app/API
+ * iframe from exposing saved-file operations such as exportSavedSiteAsZip().
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -164,7 +176,16 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
-		/** Select or create the site requested by setup and lifecycle URL values. */
+		/**
+		 * Turn the current setup URL into a site selection after the saved list settles.
+		 *
+		 * Record a cold saved-site URL for the confirmation modal instead of starting
+		 * its client. Unknown names create a new site with an allocated random slug.
+		 * Without a slug, keep the existing autosave/temporary routing rules. This
+		 * effect follows URL and listing changes, not every site/client update:
+		 * creation itself changes that state and must not start a second site or
+		 * turn an API-created site's unchanged URL into a new startup request.
+		 */
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
@@ -391,7 +412,12 @@ export function EnsurePlaygroundSiteIsSelected({
 		}
 	};
 
-	/** Leave the requested saved files untouched when the user cancels startup. */
+	/**
+	 * Cancel the URL's saved-site request without activating or mounting that site.
+	 * Clear the pending prompt and return the URL to the currently active site, or
+	 * a new-site route when none is active. Leaving the requested slug in the URL
+	 * would let later routing work offer the same canceled startup again.
+	 */
 	function cancelSavedSiteStart() {
 		setPendingSiteStartUrl(undefined);
 		redirectTo(

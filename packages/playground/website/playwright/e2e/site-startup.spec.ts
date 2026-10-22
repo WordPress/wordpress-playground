@@ -1,3 +1,12 @@
+/**
+ * Check that a WordPress-created popup cannot automatically boot a saved site.
+ *
+ * A saved PHP endpoint would change a marker file if it ran. Stop that runtime,
+ * open its app URL from another WordPress page, and require confirmation before
+ * any remote.html appears. Reopen deliberately and inspect the untouched marker.
+ * Use the raw popup for the negative checks: WebsitePage.goto() normally approves
+ * saved-site prompts for convenience. This tests URL startup, not every app API.
+ */
 import { test, expect } from '../playground-fixtures';
 
 // Saved-site startup uses app-origin OPFS, just like the other storage checks.

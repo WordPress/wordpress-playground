@@ -56,7 +56,15 @@ export class WebsitePage {
 		);
 	}
 
-	/** Navigates as a user, including the saved-site startup choice when needed. */
+	/**
+	 * Navigate, approve any inactive saved-site route, then wait for WordPress.
+	 *
+	 * Ordinary E2E flows want a running saved site after navigation, so inspect
+	 * the loaded site's list and click the real startup button when needed rather
+	 * than bypassing the UI through the app API. This deliberately approves startup:
+	 * tests that assert nothing boots before approval must use page.goto() or a
+	 * raw popup instead, then inspect the prompt before clicking it themselves.
+	 */
 	async goto(url: string, options?: any) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
@@ -81,7 +89,11 @@ export class WebsitePage {
 		return response;
 	}
 
-	/** Models the user choice required when a URL reopens a saved Playground. */
+	/**
+	 * Approve the saved-site prompt through its button, in this tab or a supplied one.
+	 * Keep the real UI step in reload and second-tab tests: calling setActiveSite()
+	 * directly would skip the URL-startup behavior those flows need to exercise.
+	 */
 	async openSavedPlayground(page = this.page) {
 		await page
 			.getByRole('button', { name: 'Open Playground', exact: true })
