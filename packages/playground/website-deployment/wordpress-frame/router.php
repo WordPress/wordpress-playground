@@ -1,9 +1,34 @@
 <?php
 /**
- * Serve a split-origin staging build through WP Cloud's custom-redirects.php hook.
- * Keep the build behind a server-level deny rule: direct Nginx file serving would
- * bypass the host boundary and CORS headers below. This does not
- * boot WordPress.
+ * Serve the app and WordPress hostnames from one WP Cloud site's release directory.
+ *
+ * Call from custom-redirects.php before normal WordPress handling. The app host
+ * serves the SPA, remote.html, shared bundles, and the existing allowed PHP
+ * endpoints. The WordPress host serves only wordpress-bridge.html, /sw.js, and
+ * marked thumbnail-worker loaders. Its /scope:site-a/ pages are generated in the
+ * browser by the WordPress service worker, not by this PHP server. All other
+ * WordPress-host paths, including /api.html, return 404.
+ *
+ * Reject app-host /scope:... paths as well: serving a site's HTML there would
+ * let its scripts run with the app's document and OPFS access. Reject unknown
+ * hosts and paths outside the release directory rather than serving a fallback.
+ *
+ * On the first visit, rewrite the helper HTML's built script/preload URLs to the
+ * app host so its bridge code identifies the correct parent origin. Later the
+ * browser service worker generates that helper itself. Keep the real scripts
+ * and downloads at shared app-host URLs; CORS/CORP headers allow WordPress to
+ * load them without deploying another bundle copy on the WordPress host.
+ *
+ * Keep the release behind a server-level deny rule. If Nginx serves its files
+ * directly, a request can bypass every host/path check and header here. The
+ * configured origins must come from server configuration, not request parameters.
+ * This handler does not boot WordPress or authorize requests between running
+ * Playgrounds. It also leaves existing app/API iframe embeds working, including
+ * embeds without a referrer; WordPress can still embed a fresh app/API document.
+ *
+ * @param string $directory Absolute path to the deployed build, outside public file serving.
+ * @param string $app_origin Configured app origin, also used for shared asset URLs.
+ * @param string $wordpress_origin Configured origin for rendered WordPress and its worker.
  */
 function playground_serve_wordpress_frame( $directory, $app_origin, $wordpress_origin ) {
 	$directory = realpath( $directory );
@@ -118,7 +143,21 @@ function playground_serve_wordpress_frame( $directory, $app_origin, $wordpress_o
 	exit;
 }
 
-/** Stream public files, honoring byte ranges used to resume PHP runtime downloads. */
+/**
+ * Stream a validated public build file, including resumable PHP runtime downloads.
+ *
+ * For example, Range: bytes=1024- returns the rest of a partially downloaded WASM
+ * file with status 206 and Content-Range. Read only that range from disk rather
+ * than loading the whole runtime into PHP memory. Clamp a requested end to the
+ * file's last byte. Malformed, suffix, multiple, or ranges with no valid bytes
+ * return 416 with the file size.
+ * HEAD returns the same status and length headers without sending file bytes.
+ *
+ * The caller must already have resolved and checked this path inside the release
+ * directory. This function does not validate paths or decide who may read a file.
+ *
+ * @param string $path Existing public file selected by playground_serve_wordpress_frame().
+ */
 function playground_wordpress_frame_file( $path ) {
 	$size = filesize( $path );
 	$start = 0;
