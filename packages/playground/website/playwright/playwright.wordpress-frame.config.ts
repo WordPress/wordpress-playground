@@ -36,6 +36,8 @@ export default defineConfig({
 		},
 	})),
 	webServer: {
+		// Playwright runs this from the config directory, even when Nx starts at the repo root.
+		// Keep these paths relative to playwright/, not process.cwd().
 		command: process.env.CI
 			? 'node ../bin/run-ci-preview-with-cors-proxy.cjs'
 			: 'node ../bin/wordpress-frame/serve.mjs',
