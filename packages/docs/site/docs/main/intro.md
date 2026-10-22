@@ -49,7 +49,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 Whether you're a developer, a non-technical user, or a contributor, these docs will guide you as you start your learning journey:
 
 - [Start using WordPress Playground](/quick-start-guide) in 5 minutes (and check out the [demo site](https://playground.wordpress.net/))
-- [Get started for developing](/developers/build-your-first-app) with WordPress Playground
+- [Get started for developing](/developers/build-an-app) with WordPress Playground
 - Use Playground as a zero-setup [local development environment](/developers/local-development/)
 - Read about the [limitations](/developers/limitations)
 - [WordCamp Contributor Day](/contributing/contributor-day)
