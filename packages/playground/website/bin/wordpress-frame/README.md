@@ -27,8 +27,12 @@ npx nx run playground-website:preview:wordpress-frame
 
 Open <http://playground.localhost:9500/?wp=6.9&php=8.3>. This is a built preview;
 source changes require rebuilding and restarting. It binds to `127.0.0.1` only.
-The `playground.localhost` hostname enables the experiment. Normal builds on other origins
-retain their existing behavior. This work is separate from PR #4357.
+The `playground.localhost` hostname enables this built-preview setup. Normal builds
+on other origins retain their existing behavior. `npm run dev` now uses the same
+origin split through the existing loopback Vite ports: app on 5400, WordPress on
+4400. Source changes do not need a build there; see the
+[website development guide](../../README.md#development).
+This work is separate from PR #4357.
 
 ## Boundaries
 

@@ -76,6 +76,15 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
+Normal loopback website development keeps the SPA, PHP, OPFS, and directory
+handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
+`localhost` uses the same two ports. Vite's app proxy preserves the app Host;
+the remote server restricts direct WordPress-port requests to the HTTP helper and
+worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
+their previous routing. Do not replace either server with an auto-selected port.
+A single Chromium CI smoke test covers the live Vite module graph; the full
+browser suite still runs once against the built cross-origin preview.
+
 The WordPress-only origin prototype has `build:wordpress-frame`,
 `preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
 port 9500, separately from normal development. CI runs all website E2E tests once
