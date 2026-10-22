@@ -111,16 +111,57 @@ npx playwright install chromium
 npx nx run playground-website:e2e:wordpress-frame --args='wordpress-frame.spec.ts --project=chromium'
 ```
 
-The browser checks cover direct parent OPFS and API access, unchanged external
-embeds with hidden referrers, cached HTML, and poisoned WordPress helper and
-thumbnail cache entries. The OPFS check creates a private file on the app origin, attempts
-reads and writes from WordPress, and checks that the private file is unchanged.
+The browser checks cover direct parent OPFS access, rejected child PHP API calls,
+restricted helper methods, saved-site switching without replacing the SPA,
+shared PHP/WordPress downloads, cache-poisoning attempts against the helper and
+thumbnail-worker loader, warm offline startup, editor saves, the same-origin
+directory-handle path, current-URL reporting, two-way app/WordPress messages,
+outside-click dismissal, and cross-origin OAuth popups. The folder test
+substitutes an OPFS handle for the OS picker. It does not
+verify native permission prompts. For that check, select a disposable directory
+outside Documents/iCloud from the normal Save panel, write a file, and reopen the
+saved site. The picker should open from the main app, without a guide popup.
+
+The API boundary check confirms that WordPress cannot use an existing parent
+API connection or read the parent or top-level document and storage APIs.
+The OPFS check writes a private file from `remote.html`,
+attempts reads and same-path writes/deletes from WordPress, and confirms that
+both root-origin documents still read the unchanged private file.
 
 ## CI
 
-CI runs the existing website suite on its normal origin. Each browser also runs a
-split-origin storage lane, including the new boundary checks. Regular split-origin
-shards and the workflow checks are added by the next PR in the stack.
+CI runs the entire existing website E2E suite once, against the WordPress-only
+origin setup. Chromium, Firefox and WebKit each use three regular shards and one
+single-worker storage lane: 12 browser jobs, not a second matrix for the old
+same-origin setup. The real source-site Reprint import runs once in its dedicated
+Chromium lane. No website test files are excluded. CI serves both prototype hosts on
+port 80, because WordPress multisite rejects custom ports. The local preview
+stays on 9500; multisite needs a default-port server instead.
 
-The preview uses port 9500. CI uses port 80 because WordPress multisite rejects
-custom ports.
+The suite uses the shared `@storage` and `@reprint-import` routing. The extra
+boundary checks run in the storage lane. Failure reports include traces and
+screenshots. Existing browser skips remain unchanged. New OPFS and directory-handle
+checks use Chromium, matching the regular storage suite; HTTP/API boundary checks,
+editor saves, thumbnails and popups still run in all three browsers.
+
+Deployment and offline tests use `playground.localhost:7999` and
+`wp.playground.localhost:7999` when they switch to the new release. The bundled
+old releases still exercise the upgrade from the old architecture. This matters:
+running those tests on plain localhost would leave the origin split disabled.
+
+Known areas to check in the full suite:
+
+- Offline reload needs both origins' bootstrap documents and service workers.
+  Eager offline prefetch is currently disabled in the prototype.
+- APIs that assume the WordPress document and remote.html share an origin,
+  including editor media, thumbnails, navigation and WebMCP.
+- Saved-site imports, reloads and native directory mounts. The automated folder
+  check uses an OPFS handle; actual OS picker prompts still need a manual check.
+- Remote access and account flows. External embeds have browser checks for the
+  default and hidden referrers, unchanged SDK loading, nested external frames,
+  and cached HTML. Blocking fresh app/API frames remains unresolved.
+
+To run the same full suite locally, build the normal CI fixtures first, then the
+prototype. Set `PLAYWRIGHT_TEST_GROUP` to `regular`, `storage`, or `reprint-import`
+and run this configuration. The import lane also needs its source-site server.
+For a single existing test, pass its filename to `e2e:wordpress-frame`.
