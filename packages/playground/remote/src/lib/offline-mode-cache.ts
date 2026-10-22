@@ -217,10 +217,20 @@ export async function putCachedResponse(
 /**
  * Decide whether this worker may use Playground's CacheStorage for a URL.
  *
- * Check the worker's origin first. On the WordPress origin, even an app-origin
- * URL must return false: the cache being read or written would still belong to
- * WordPress, where user code can replace its contents. Those fetches can use the
- * browser HTTP cache instead; this rule does not disable HTTP caching.
+ * Only the app-origin worker may use CacheStorage for shared platform downloads.
+ * WordPress code can open and change any cache on the WordPress origin, including
+ * Playground's cache. Giving the cache a special name does not protect it.
+ *
+ * For example, a plugin could store a fake response under the cache key
+ * https://playground.wordpress.net/wp-6.9/wordpress-static.zip. Without the origin
+ * guard, the archive shortcut below would allow the WordPress worker to reuse
+ * those attacker-written bytes as a WordPress download. The app hostname in the
+ * key does not protect the entry: the cache still belongs to the WordPress origin.
+ *
+ * Reject WordPress-origin CacheStorage before checking the requested URL. The app
+ * can still cache its own shared downloads, and WordPress-side fetches can use the
+ * browser HTTP cache. This rule does not disable HTTP caching or require a separate
+ * copy of every download for each Playground.
  *
  * On the app origin, the WordPress static-archive shortcut is checked first.
  * For other URLs, exclude live scoped responses, PHP endpoints, and Vite
@@ -228,8 +238,8 @@ export async function putCachedResponse(
  * may serve a live site's responses rather than reusable platform files.
  */
 export function shouldCacheUrl(url: URL) {
-	// Every WordPress page can write this origin's CacheStorage. Only the app
-	// origin may cache shared platform assets; WordPress must never trust its own cache.
+	// An app-host URL can still name an entry in a WordPress-writable cache.
+	// Reject that cache before the static-archive shortcut can accept the URL.
 	if (self.location.origin !== playgroundOrigin) {
 		return false;
 	}
