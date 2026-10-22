@@ -5,7 +5,25 @@ import path from 'path';
 import process from 'process';
 import { wordPressFrameMiddleware } from '../bin/wordpress-frame/middleware.mjs';
 
-/** Serve replaceable releases, including the WordPress-only origin boundary in its CI lane. */
+/**
+ * Serve old, intermediate, and new builds at one address to test deployment upgrades.
+ *
+ * Start with oldVersionDirectory. The returned controls, or /switch-versions/ URLs,
+ * change which directory serves subsequent requests without restarting the server
+ * or reloading an open page. Tests can therefore leave an old app running while
+ * its service worker and later asset requests encounter a newly deployed build.
+ * Serving only the newest build from the start would miss those upgrade failures.
+ *
+ * In the split-origin lane, install the same host routing as the normal preview
+ * before serving static files. Its helper-path callback reads staticDirectory on
+ * every request: after a release switch, both the app and wordpress-bridge.html
+ * must come from the selected build. Do not keep serving the old helper with new
+ * app modules or let this test server expose WordPress HTML on the app host.
+ *
+ * The cache control only changes HTTP response headers; it does not clear browser
+ * HTTP caches or service-worker CacheStorage. Tests manage those separately.
+ * Call kill() during test cleanup to close the listener and remove signal hooks.
+ */
 export async function startVersionSwitchingServer({
 	port = 7999,
 	oldVersionDirectory,
@@ -24,6 +42,10 @@ export async function startVersionSwitchingServer({
 	let staticDirectory = oldVersionDirectory;
 	let httpCacheEnabled = true;
 
+	/**
+	 * Let upgrade tests opt out of storing these responses in the HTTP cache.
+	 * This affects later responses only, not entries already stored by a browser.
+	 */
 	const noCacheMiddleware = (req, res, next) => {
 		if (!httpCacheEnabled) {
 			res.setHeader(

@@ -1,3 +1,12 @@
+/**
+ * Exercise the two-host setup through real WordPress pages, not isolated mocks.
+ *
+ * A working origin split must still boot WordPress, save posts, mount app-origin
+ * directory handles, and reuse shared downloads while the SPA stays loaded. These
+ * tests also try direct parent/API access and replace WordPress-side cache entries.
+ * A failed or empty WordPress document is not a successful security check; ready()
+ * requires the real site's scoped URL and body before those assertions run.
+ */
 import { test, expect } from '@playwright/test';
 import type { Frame, Page } from '@playwright/test';
 import { createServer } from 'node:http';
