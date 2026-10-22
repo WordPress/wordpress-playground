@@ -1,5 +1,6 @@
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer } from './dev-server';
+import { playgroundOrigin } from './config';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -213,7 +214,36 @@ export async function putCachedResponse(
 	await offlineModeCache.put(request, response);
 }
 
+/**
+ * Decide whether this worker may use Playground's CacheStorage for a URL.
+ *
+ * Only the app-origin worker may use CacheStorage for shared platform downloads.
+ * WordPress code can open and change any cache on the WordPress origin, including
+ * Playground's cache. Giving the cache a special name does not protect it.
+ *
+ * For example, a plugin could store a fake response under the cache key
+ * https://playground.wordpress.net/wp-6.9/wordpress-static.zip. Without the origin
+ * guard, the archive shortcut below would allow the WordPress worker to reuse
+ * those attacker-written bytes as a WordPress download. The app hostname in the
+ * key does not protect the entry: the cache still belongs to the WordPress origin.
+ *
+ * Reject WordPress-origin CacheStorage before checking the requested URL. The app
+ * can still cache its own shared downloads, and WordPress-side fetches can use the
+ * browser HTTP cache. This rule does not disable HTTP caching or require a separate
+ * copy of every download for each Playground.
+ *
+ * On the app origin, the WordPress static-archive shortcut is checked first.
+ * For other URLs, exclude live scoped responses, PHP endpoints, and Vite
+ * development assets. The final origin check also rejects other ports, which
+ * may serve a live site's responses rather than reusable platform files.
+ */
 export function shouldCacheUrl(url: URL) {
+	// An app-host URL can still name an entry in a WordPress-writable cache.
+	// Reject that cache before the static-archive shortcut can accept the URL.
+	if (self.location.origin !== playgroundOrigin) {
+		return false;
+	}
+
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
 	}

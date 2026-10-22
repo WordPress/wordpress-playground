@@ -1,4 +1,5 @@
 import { domToCanvas } from 'modern-screenshot';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 import type { SiteThumbnail } from './playground-client';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
 import resourceWorkerUrl from 'modern-screenshot/worker?url';
@@ -87,12 +88,24 @@ async function waitForFonts() {
 	]);
 }
 
+/**
+ * Return a thumbnail worker URL that the WordPress document is allowed to start.
+ *
+ * Worker construction requires a same-origin entry script. In split-origin mode,
+ * keep the bundled asset path but put it on the WordPress origin. The marker tells
+ * the server, or the service worker after it takes control, to return a small
+ * importScripts() loader for the real app-origin bundle. The worker therefore
+ * starts on WordPress's origin without copying the bundle there or trusting
+ * WordPress-writable CacheStorage. One-origin builds use the asset URL directly.
+ */
 function getResourceWorkerUrl() {
 	const url = new URL(resourceWorkerUrl, window.location.href);
 	// The service worker uses this marker to serve the bundled worker instead
 	// of treating its URL as a file inside the scoped WordPress site.
 	url.searchParams.set('playground-site-thumbnail-worker', '1');
-	return url.href;
+	return wordPressSiteUrl !== playgroundOrigin
+		? new URL(url.pathname + url.search, window.location.origin).href
+		: url.href;
 }
 
 /**
