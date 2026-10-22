@@ -130,15 +130,15 @@ both root-origin documents still read the unchanged private file.
 
 ## CI
 
-CI runs the entire existing website E2E suite in both setups: same-origin and
-WordPress-only origin. Each setup has Chromium, Firefox and WebKit lanes, with
-three regular shards and one single-worker storage lane per browser. The real
-Reprint import keeps its dedicated Chromium lane in both setups. No test files
-are excluded from the WordPress-only setup. CI serves both prototype hosts on
+CI runs the entire existing website E2E suite once, against the WordPress-only
+origin setup. Chromium, Firefox and WebKit each use three regular shards and one
+single-worker storage lane: 12 browser jobs, not a second matrix for the old
+same-origin setup. The real source-site Reprint import runs once in its dedicated
+Chromium lane. No website test files are excluded. CI serves both prototype hosts on
 port 80, because WordPress multisite rejects custom ports. The local preview
 stays on 9500; multisite needs a default-port server instead.
 
-Both setups use the same `@storage` and `@reprint-import` routing. The extra
+The suite uses the shared `@storage` and `@reprint-import` routing. The extra
 boundary checks run in the storage lane. Failure reports include traces and
 screenshots. Existing browser skips remain unchanged. New OPFS and directory-handle
 checks use Chromium, matching the regular storage suite; HTTP/API boundary checks,

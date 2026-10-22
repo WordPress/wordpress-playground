@@ -78,9 +78,9 @@ npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 
 The WordPress-only origin prototype has `build:wordpress-frame`,
 `preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
-port 9500, separately from normal development. CI runs all website E2E tests
-in both origin setups, with shared storage/import grouping. Deployment tests
-use the same boundary on port 7999. See
+port 9500, separately from normal development. CI runs all website E2E tests once
+against the separate WordPress origin, with shared storage/import grouping.
+Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
