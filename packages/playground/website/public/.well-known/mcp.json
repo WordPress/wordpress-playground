@@ -1,0 +1,40 @@
+{
+	"schemaVersion": "1.0",
+	"name": "WordPress Playground",
+	"description": "Zero-setup WordPress and PHP environment running in WebAssembly in the browser and Node.js.",
+	"homepage": "https://playground.wordpress.net/",
+	"documentation": "https://wordpress.github.io/wordpress-playground/",
+	"llmsTxt": "https://playground.wordpress.net/llms.txt",
+	"webmcp": {
+		"supported": true,
+		"api": "document.modelContext",
+		"proxiesIframeTools": true,
+		"tools": [
+			"playground_execute_php",
+			"playground_request",
+			"playground_navigate",
+			"playground_get_current_url",
+			"playground_get_site_info",
+			"playground_read_file",
+			"playground_write_file",
+			"playground_list_files",
+			"playground_mkdir",
+			"playground_delete_file",
+			"playground_delete_directory",
+			"playground_file_exists",
+			"playground_list_emails",
+			"playground_list_sites",
+			"playground_save_in_browser",
+			"playground_rename_site",
+			"playground_get_website_url"
+		]
+	},
+	"mcpServers": {
+		"wordpress-playground": {
+			"package": "@wp-playground/mcp",
+			"command": "npx",
+			"args": ["-y", "@wp-playground/mcp@latest"],
+			"transport": "stdio"
+		}
+	}
+}

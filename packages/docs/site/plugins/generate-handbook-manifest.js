@@ -66,6 +66,26 @@ module.exports = function generateHandbookManifest({ i18n }) {
 				path.join(outDir, 'manifest.json'),
 				`${JSON.stringify(manifest, null, 2)}\n`
 			);
+			const llmsLines = [
+				'# WordPress Playground Documentation',
+				'',
+				'> Official documentation for WordPress Playground — a zero-setup WordPress environment that runs PHP and WordPress in WebAssembly in the browser, Node.js, and CLI.',
+				'',
+				'## Documentation Pages (Markdown Sources)',
+				'',
+				...entries.map(({ entry }) => {
+					const url = new URL(
+						entry.markdown_source,
+						MARKDOWN_BASE_URL
+					).href;
+					return `- [${entry.title}](${url})`;
+				}),
+				'',
+			];
+			fs.writeFileSync(
+				path.join(outDir, 'llms.txt'),
+				llmsLines.join('\n')
+			);
 		},
 	};
 };
