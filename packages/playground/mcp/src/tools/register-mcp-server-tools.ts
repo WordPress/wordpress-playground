@@ -14,6 +14,11 @@ import {
 import type { ToolParam } from './tool-definitions';
 import { toolExecutors } from './tool-executors';
 import type { ToolClient } from './tool-executors';
+
+export type McpServerToolRegistrar = (
+	server: McpServer,
+	bridge: PlaygroundBridge
+) => void;
 function errorResult(prefix: string, error: unknown) {
 	return {
 		content: [
@@ -87,11 +92,16 @@ export function registerMcpServerTools(
 	server: McpServer,
 	bridge: PlaygroundBridge,
 	port: number,
-	baseUrl?: string
+	baseUrl?: string,
+	extraToolRegistrars: McpServerToolRegistrar[] = []
 ) {
 	const sendCommand = bridge.sendCommand.bind(bridge);
 	const siteToolDefinitions = getSiteToolDefinitions();
 	const url = playgroundUrl(port, baseUrl);
+
+	for (const registerTools of extraToolRegistrars) {
+		registerTools(server, bridge);
+	}
 
 	// -- Site management tools --
 	// These operate on the bridge itself, not on a PlaygroundClient.
