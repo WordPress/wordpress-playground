@@ -76,10 +76,13 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
-The remote runtime can render WordPress on a separate build-time origin via
-`VITE_WORDPRESS_SITE_URL`. PHP, directory handles, and shared asset downloads stay
-on the app origin. Matching server routing is required. This mode does not block
-WordPress from embedding fresh app/API documents.
+The WordPress-only origin prototype has `build:wordpress-frame`,
+`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets on port 9500.
+PHP and directory handles stay on the app origin. CI adds a split-origin storage
+lane in each browser; regular website shards still use the normal origin. See
+`packages/playground/website/bin/wordpress-frame/README.md` for the boundary.
+External embeds do not need a referrer or new URL parameters. This mode does not
+block WordPress from embedding fresh app/API documents.
 
 ### Package Naming Convention
 
