@@ -617,12 +617,24 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 				}
 			})
 		).toBe('SecurityError');
-		await popup.goto(root + '/wordpress-popup.html#' + root + '/api.html');
-		await expect(popup.locator('#wp')).not.toHaveAttribute(
-			'src',
-			/api\.html/
-		);
 		await popup.close();
+		// Changing only the first popup's hash would not rerun its URL check.
+		// Start a fresh document at about:blank so the error listener is ready
+		// before navigation executes the popup module with the rejected URL.
+		const rejectedOpen = page.waitForEvent('popup');
+		await page.evaluate(() =>
+			window.open('about:blank', '_blank', 'noopener,noreferrer')
+		);
+		const rejected = await rejectedOpen;
+		const rejection = rejected.waitForEvent('pageerror');
+		await rejected.goto(
+			root + '/wordpress-popup.html#' + root + '/api.html'
+		);
+		expect((await rejection).message).toContain(
+			'The popup URL must name a scoped WordPress page.'
+		);
+		await expect(rejected.locator('#wp')).not.toHaveAttribute('src');
+		await rejected.close();
 	});
 
 	test('site switching keeps the SPA and reuses the PHP and WordPress downloads', async ({
