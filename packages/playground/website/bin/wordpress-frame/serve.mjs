@@ -1,3 +1,12 @@
+/**
+ * Serve the built preview on two local hostnames through one HTTP listener.
+ *
+ * Install host routing before exposing any build directory, then mount app,
+ * remote, and shared download files on the app host. This is not a Vite dev
+ * server: the request helper needs Vite's compiled HTML and bundle URLs.
+ * The asset counter records public HTTP response sizes so browser tests can
+ * check that switching sites reuses downloads rather than fetching a second copy.
+ */
 import express from 'express';
 import { appOrigin as root } from './origins.mjs';
 import { wordPressFrameMiddleware } from './middleware.mjs';
@@ -5,7 +14,11 @@ import { fileURLToPath } from 'node:url';
 
 const app = express();
 const assetResponses = [];
-/** Resolve one built package independently of the caller's working directory. */
+/**
+ * Locate a built package relative to this script, not the process's directory.
+ * Nx may start the preview from a package directory rather than the repo root.
+ * Return a directory URL so callers can resolve files within the same build tree.
+ */
 const directory = (name) =>
 	new URL(
 		`../../../../../dist/packages/playground/${name}/`,

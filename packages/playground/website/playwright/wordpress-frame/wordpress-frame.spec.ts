@@ -466,7 +466,15 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(result).toBe('trusted resource worker');
 	});
 
-	/** An attacker can write every cache on the shared WordPress origin, including older releases. */
+	/**
+	 * Model a WordPress plugin replacing cached helper HTML with its own script.
+	 *
+	 * Prepend a visible execution marker to the real helper, keeping its normal
+	 * request connection working. A broken helper or boot timeout must not pass
+	 * as protection against the injected script. Replace matching entries in every
+	 * existing cache, including older releases, and create an attacker-named cache:
+	 * user code on the WordPress origin can write all of them, not just its own.
+	 */
 	async function poisonHelperCache(wp: Frame) {
 		await wp.evaluate(async () => {
 			const url = new URL(
@@ -501,7 +509,16 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		});
 	}
 
-	/** Connect an unchanged API iframe URL from an external page with no referrer. */
+	/**
+	 * Check that an embedded app API can complete its normal isReady() handshake.
+	 *
+	 * Create the iframe below the supplied page or frame with no referrer and no
+	 * extra origin parameter, as existing integrations may do. Retry the legacy
+	 * APPLY message while the document boots; only this iframe's reply for the
+	 * generated request ID counts as success. Remove the iframe and timers on
+	 * success or timeout. A timeout returns false; it does not explain why boot
+	 * failed, so these embed-compatibility checks require a successful handshake.
+	 */
 	async function probeFramedAPI(
 		parent: Page | Frame,
 		apiUrl: string,
@@ -532,7 +549,11 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 					window.addEventListener('message', onMessage);
 					document.body.append(iframe);
 
-					/** Accept only this iframe's successful ready response, not other runtime messages. */
+					/**
+					 * Match the reply to this iframe, app origin, and request ID.
+					 * Other Playground frames also send API messages during boot;
+					 * accepting one of those would hide a broken embedded API.
+					 */
 					function onMessage(event: MessageEvent) {
 						if (
 							event.source === iframe.contentWindow &&
@@ -557,7 +578,15 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		);
 	}
 
-	/** Wait for the app API and WordPress document, then return the visible frame from its element. */
+	/**
+	 * Return the visible WordPress frame only after the app and site have booted.
+	 *
+	 * Wait for the selected site's API, a nonempty document, and the configured
+	 * WordPress origin with a /scope:... path. A browser error page can also deny
+	 * parent access; treating that as a loaded site would make security checks pass
+	 * when the real HTTP connection was broken. Read the frame from the visible
+	 * viewport element so hidden request helpers are not mistaken for WordPress.
+	 */
 	async function ready(page: Page | Frame): Promise<Frame> {
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites)

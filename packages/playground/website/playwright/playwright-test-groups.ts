@@ -11,7 +11,18 @@ const storageTests = /@storage/;
 // playwright/reprint-site/serve.sh. Its own lane provisions that site.
 const reprintImportTests = /@reprint-import/;
 
-/** Keep real imports and storage tests out of the parallel UI lane. */
+/**
+ * Select one CI test group without running its storage or import tests elsewhere.
+ *
+ * The storage group uses one worker so tests cannot change the shared OPFS state
+ * concurrently. The import group also uses one worker and needs the real WordPress
+ * fixture provisioned by its CI job. The regular group excludes both tags and can
+ * be sharded across parallel workers. Both origin setups use this same mapping;
+ * otherwise a tagged test could run twice or lose its required server fixture.
+ *
+ * Reject a missing or unknown group rather than silently changing the CI workload.
+ * The local split-origin config calls this only when a group was explicitly set.
+ */
 export function getTestGroupOptions(testGroup: string | undefined) {
 	switch (testGroup) {
 		case 'storage':

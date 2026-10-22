@@ -1,3 +1,11 @@
+/**
+ * Build one shared set of app assets for the two-host preview and upgrade tests.
+ *
+ * Keep root-relative asset URLs: the app host serves the bundles, and host routing
+ * rewrites the WordPress helper's URLs to that host. Do not build another asset
+ * tree for each WordPress iframe. Copy the same output into the "new" release
+ * directory so deployment tests upgrade to this setup, not a single-origin build.
+ */
 import { build } from 'vite';
 import { cp, mkdir } from 'node:fs/promises';
 

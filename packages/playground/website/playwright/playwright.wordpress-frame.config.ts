@@ -1,3 +1,11 @@
+/**
+ * Run the website and origin-boundary tests against the built two-host preview.
+ * Reuse the normal browser projects and tagged CI groups instead of maintaining
+ * a smaller, separate suite that could miss regressions in existing integrations.
+ * Without an explicit group, local runs use one worker because this suite creates
+ * saved sites and measures shared downloads. The environment flag also sends the
+ * deployment tests through the two-host release-switching server.
+ */
 import { defineConfig } from '@playwright/test';
 import { appOrigin } from '../bin/wordpress-frame/origins.mjs';
 import { playwrightConfig } from './playwright.config';
