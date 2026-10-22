@@ -1,3 +1,11 @@
+/**
+ * Test the staging router's HTTP responses using a real local PHP server.
+ *
+ * Temporary build files and different Host headers exercise the app/WordPress
+ * split, traversal rejection, shared-asset headers, and ranged downloads without
+ * changing DNS or contacting staging. This checks PHP routing only: WP Cloud's
+ * hostname configuration, TLS, and Nginx deny rule still need deployment checks.
+ */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -120,7 +128,15 @@ try {
 	await rm(temporary, { recursive: true, force: true });
 }
 
-/** Exercise PHP's real HTTP response path with the requested public hostname. */
+/**
+ * Send a request to local PHP while selecting a configured public host via Host.
+ *
+ * The origin argument chooses which router branch runs, not where to connect;
+ * all traffic goes to the temporary loopback server, without HTTPS or public DNS.
+ * Use node:http's raw path so encoded traversal probes reach PHP unchanged rather
+ * than being normalized by a fetch URL parser. Buffer these small fixtures into
+ * a Response so assertions can inspect status, headers, and exact range bytes.
+ */
 function request(path, origin, headers = {}, method = 'GET') {
 	return new Promise((resolve, reject) => {
 		const outgoing = httpRequest(
