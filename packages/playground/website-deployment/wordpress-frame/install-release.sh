@@ -49,14 +49,25 @@ done
 RELEASE="$(mktemp -d "$WEB_ROOT/.playground-releases/release.XXXXXXXX")"
 chmod 755 "$RELEASE"
 mv "$BUILD" "$RELEASE/files"
-cp "$DEPLOYMENT/custom-redirects-lib.php" "$DEPLOYMENT/mime-types.json" "$RELEASE/"
+cp "$DEPLOYMENT/custom-redirects-lib.php" "$RELEASE/"
+# Retain the existing PHP MIME map so opcache can cache it. Both website layouts
+# use the same response-header code in custom-redirects-lib.php.
+"$SITE_PHP" -r '
+    $types = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+    if (($types["_default"] ?? null) !== "application/octet-stream" ||
+        ($types["html"] ?? null) !== "text/html" ||
+        ($types["jpeg"] ?? null) !== "image/jpeg") {
+        throw new RuntimeException("MIME map is missing required entries");
+    }
+    echo "<?php\n\$mime_types = " . var_export($types, true) . ";\n";
+' "$DEPLOYMENT/mime-types.json" > "$RELEASE/mime-types.php"
 for file in "$RELEASE/"*.php; do
     "$SITE_PHP" -l "$file"
 done
 
 # Select this exact build in the existing request handler. Once PHP loads this
 # entry, it keeps using this release even if another deployment replaces the
-# public entry. Personal WP still uses the no-argument legacy entry.
+# public entry. Personal WP still uses the existing no-argument entry.
 "$SITE_PHP" -r '
     $relative = "/.playground-releases/" . basename($argv[1]);
     echo "<?php\nif (\"cli\" === php_sapi_name()) { return; }\n";
