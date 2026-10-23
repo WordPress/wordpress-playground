@@ -32,7 +32,9 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 				)
 			).toBe(content);
 		}
-		const sandboxPath = new URL(sandbox.url()).pathname;
+		const sandboxPath = await sandbox.evaluate(
+			() => window.location.pathname
+		);
 		expect(
 			await page.evaluate(
 				async (url) => (await fetch(url)).status,
@@ -123,17 +125,20 @@ async function ready(page: Page, origin: string): Promise<Frame> {
 			'#playground-viewport:visible,.playground-viewport:visible'
 		)
 		.locator('#wp');
+	await expect(iframe.contentFrame().locator('body')).not.toBeEmpty();
 	const element = (await iframe.elementHandle())!;
 	const frame = (await element.contentFrame())!;
 	await element.dispose();
-	// The loading document has a body too. Firefox can still show its blob URL
-	// after PHP is ready; wait for the actual scoped document to commit.
+	// Read the live document's location, not Playwright's Frame.url(). Firefox
+	// can leave that metadata at about:blank after a service-worker navigation.
+	// The loading document also has a body, so require the real scoped URL too.
 	await expect
-		.poll(() => {
-			const url = new URL(frame.url());
-			return { origin: url.origin, pathname: url.pathname };
-		})
+		.poll(() =>
+			frame.evaluate(() => ({
+				origin: window.location.origin,
+				pathname: window.location.pathname,
+			}))
+		)
 		.toEqual({ origin, pathname: expect.stringMatching(/^\/scope:/) });
-	await expect(iframe.contentFrame().locator('body')).not.toBeEmpty();
 	return frame;
 }
