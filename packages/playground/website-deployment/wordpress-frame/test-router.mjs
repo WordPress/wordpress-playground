@@ -1,62 +1,227 @@
 /**
- * Test the staging router's HTTP responses using a real local PHP server.
+ * Install releases and test the deployed entry using a real local PHP server.
  *
  * Temporary build files and different Host headers exercise the app/WordPress
  * split, traversal rejection, shared-asset headers, and ranged downloads without
- * changing DNS or contacting staging. This checks PHP routing only: WP Cloud's
+ * changing DNS or contacting public hosts. This checks PHP routing only: WP Cloud's
  * hostname configuration, TLS, and Nginx deny rule still need deployment checks.
  */
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { cp, mkdtemp, mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import {
+	cp,
+	mkdtemp,
+	mkdir,
+	readFile,
+	readdir,
+	rename,
+	rm,
+	writeFile,
+} from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 const source = dirname(fileURLToPath(import.meta.url));
-const app = 'https://www.playground.example';
-const wordpress = 'https://wp.playground.example';
+const app = 'https://playground.wordpress.net';
+const wordpress = 'https://wasm.wordpress.net';
 const temporary = await mkdtemp(join(tmpdir(), 'playground-wpcloud-'));
-const files = join(temporary, 'files');
-await mkdir(join(files, 'assets'), { recursive: true });
-await cp(join(source, 'router.php'), join(temporary, 'router.php'));
-await cp(
-	join(source, '../custom-redirects-lib.php'),
-	join(temporary, 'custom-redirects-lib.php')
-);
-await cp(
-	join(source, '../../../php-wasm/universal/src/lib/mime-types.json'),
-	join(temporary, 'mime-types.json')
-);
-await writeFile(join(files, 'index.html'), '<title>Trusted app</title>');
-await writeFile(join(files, 'api.html'), '<title>Trusted API</title>');
-await writeFile(
-	join(files, 'assets/runtime.wasm'),
-	new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])
-);
-await writeFile(
-	join(files, 'wordpress-bridge.html'),
-	'<script src="/assets/bridge.js"></script>'
-);
-await writeFile(join(temporary, 'secret.txt'), 'must not be served');
-await writeFile(
-	join(temporary, 'entry.php'),
-	`<?php require __DIR__.'/router.php'; playground_serve_wordpress_frame(__DIR__.'/files', ${JSON.stringify(app)}, ${JSON.stringify(wordpress)});`
-);
-const reservation = createServer();
-reservation.listen(0, '127.0.0.1');
-await once(reservation, 'listening');
-const port = reservation.address().port;
-await new Promise((resolve) => reservation.close(resolve));
-const server = spawn('php', [
-	'-S',
-	`127.0.0.1:${port}`,
-	join(temporary, 'entry.php'),
-]);
+const webRoot = join(temporary, 'htdocs');
+const deployment = join(temporary, 'website-deployment');
+const backups = join(temporary, 'backups');
+const upload = join(temporary, 'uploaded-build');
+const fakeBin = join(temporary, 'bin');
+const run = promisify(execFile);
+let server;
+let port;
 try {
+	await cp(join(source, '..'), deployment, { recursive: true });
+	await cp(
+		join(source, '../../../php-wasm/universal/src/lib/mime-types.json'),
+		join(deployment, 'mime-types.json')
+	);
+	await mkdir(join(upload, 'assets'), { recursive: true });
+	await writeFile(join(upload, 'index.html'), '<title>Trusted app</title>');
+	await writeFile(join(upload, 'api.html'), '<title>Trusted API</title>');
+	await writeFile(
+		join(upload, 'remote.html'),
+		'<title>Trusted PHP host</title>'
+	);
+	await writeFile(join(upload, 'sw.js'), '// App service worker');
+	await writeFile(
+		join(upload, 'assets/runtime.wasm'),
+		new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])
+	);
+	await writeFile(
+		join(upload, 'wordpress-bridge.html'),
+		'<script src="/assets/bridge.js"></script>'
+	);
+	// Execute a real native endpoint through the deployed entry, not a PHP fixture.
+	await cp(
+		join(source, '../../website/public/dynamic-manifest.json.php'),
+		join(upload, 'dynamic-manifest.json.php')
+	);
+	await writeFile(
+		join(upload, 'unexpected.php'),
+		'<?php echo "must not execute";'
+	);
+	await mkdir(join(webRoot, 'assets'), { recursive: true });
+	const oldEntry = '<?php echo "previous deployment";';
+	await writeFile(join(webRoot, 'custom-redirects.php'), oldEntry);
+	await writeFile(join(webRoot, 'index.html'), 'old public app');
+	await writeFile(join(webRoot, 'assets/old.js'), 'old public script');
+	await writeFile(join(temporary, 'secret.txt'), 'must not be served');
+	await mkdir(fakeBin);
+	// PHP's test server cannot model WP Cloud's Nginx rule or public TLS. Stub only
+	// the deployment probes; all requests after activation use the real PHP entry.
+	await writeFile(
+		join(fakeBin, 'curl'),
+		`#!/usr/bin/env node
+const assert = require('node:assert/strict');
+const { statSync } = require('node:fs');
+const { join, basename } = require('node:path');
+const url = new URL(process.argv.at(-1));
+if (url.pathname === '/sw.js') {
+    process.stdout.write(process.env.ALIAS_STATUS || '200');
+} else {
+    const path = join(process.env.PROBE_ROOT, basename(decodeURIComponent(url.pathname)));
+    // Otherwise a 403 might just be mktemp's mode 600, not Nginx's deny rule.
+    assert.ok(statSync(path).mode & 0o004);
+    process.stdout.write(process.env.PRIVATE_STATUS || '403');
+}
+`,
+		{ mode: 0o755 }
+	);
+	await writeFile(
+		join(fakeBin, 'mv'),
+		`#!/bin/bash
+if [ "\${FAIL_PUBLIC_MOVE:-}" = 1 ] && [ "$1" = "$PUBLIC_ASSET" ]; then
+    echo 'Cannot move public asset' >&2
+    exit 1
+fi
+exec /bin/mv "$@"
+`,
+		{ mode: 0o755 }
+	);
+	const install = [
+		join(deployment, 'wordpress-frame/install-release.sh'),
+		upload,
+		webRoot,
+		backups,
+	];
+	const installEnv = {
+		...process.env,
+		PATH: fakeBin + ':' + process.env.PATH,
+		SITE_PHP: 'php',
+		PROBE_ROOT: join(webRoot, '.playground-releases'),
+	};
+	// An interrupted upload can omit a runtime entry even when index.html exists.
+	await rename(
+		join(upload, 'remote.html'),
+		join(upload, 'remote-unavailable.html')
+	);
+	await assert.rejects(run('bash', install, { env: installEnv }));
+	assert.equal(
+		await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
+		oldEntry
+	);
+	await rename(
+		join(upload, 'remote-unavailable.html'),
+		join(upload, 'remote.html')
+	);
+	// A public release URL, alias redirect, or failed public URL must leave the old
+	// entry and upload untouched. This catches moving files before the checks run.
+	for (const env of [
+		{ PRIVATE_STATUS: '200' },
+		{ ALIAS_STATUS: '301' },
+		{ ALIAS_STATUS: '503' },
+	]) {
+		await assert.rejects(
+			run('bash', install, { env: { ...installEnv, ...env } })
+		);
+		assert.equal(
+			await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
+			oldEntry
+		);
+		assert.equal(
+			await readFile(join(webRoot, 'index.html'), 'utf8'),
+			'old public app'
+		);
+		assert.equal(
+			await readFile(join(upload, 'index.html'), 'utf8'),
+			'<title>Trusted app</title>'
+		);
+		assert.deepEqual(
+			await readdir(join(webRoot, '.playground-releases')),
+			[]
+		);
+	}
+	// Leaving even one old public asset would bypass the new host checks.
+	await assert.rejects(
+		run('bash', install, {
+			env: {
+				...installEnv,
+				FAIL_PUBLIC_MOVE: '1',
+				PUBLIC_ASSET: join(webRoot, 'assets'),
+			},
+		})
+	);
+	assert.equal(
+		await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
+		oldEntry
+	);
+	assert.equal(
+		await readFile(join(webRoot, 'assets/old.js'), 'utf8'),
+		'old public script'
+	);
+	const [failedRelease] = await readdir(
+		join(webRoot, '.playground-releases')
+	);
+	await rename(
+		join(webRoot, '.playground-releases', failedRelease, 'files'),
+		upload
+	);
+	await rm(join(webRoot, '.playground-releases', failedRelease), {
+		recursive: true,
+	});
+	await rm(join(backups, failedRelease), { recursive: true });
+	await run('bash', install, { env: installEnv });
+	const [releaseName] = await readdir(join(webRoot, '.playground-releases'));
+	const files = join(webRoot, '.playground-releases', releaseName, 'files');
+	assert.equal(
+		await readFile(
+			join(backups, releaseName, 'custom-redirects.php'),
+			'utf8'
+		),
+		oldEntry
+	);
+	assert.equal(
+		await readFile(join(backups, releaseName, 'assets/old.js'), 'utf8'),
+		'old public script'
+	);
+	assert.deepEqual((await readdir(webRoot)).sort(), [
+		'.playground-releases',
+		'__wp__',
+		'custom-redirects.php',
+	]);
+	const cli = await run('php', [join(webRoot, 'custom-redirects.php')]);
+	assert.equal(cli.stdout, '');
+	const reservation = createServer();
+	reservation.listen(0, '127.0.0.1');
+	await once(reservation, 'listening');
+	port = reservation.address().port;
+	await new Promise((resolve) => reservation.close(resolve));
+	server = spawn('php', [
+		'-S',
+		`127.0.0.1:${port}`,
+		'-t',
+		webRoot,
+		join(webRoot, 'custom-redirects.php'),
+	]);
 	await once(server.stderr, 'data');
 	// Existing embeds can omit the referrer and use their unchanged app/API URLs.
 	for (const path of ['/', '/api.html']) {
@@ -88,7 +253,7 @@ try {
 	assert.equal(bridge.status, 200);
 	assert.match(
 		await bridge.text(),
-		/src="https:\/\/www.playground.example\/assets\/bridge.js"/
+		/src="https:\/\/playground.wordpress.net\/assets\/bridge.js"/
 	);
 	const workerSource = await (await request('/sw.js', wordpress)).text();
 	assert.equal(
@@ -117,14 +282,67 @@ try {
 			.status,
 		416
 	);
-	await rename(files, files + '-unavailable');
+	const manifest = await request(
+		'/dynamic-manifest.json.php?app_name=Deployment',
+		app
+	);
+	assert.equal(manifest.status, 200);
+	assert.equal((await manifest.json()).name, 'Deployment');
+	for (const host of [app, wordpress]) {
+		assert.equal((await request('/unexpected.php', host)).status, 404);
+		assert.equal((await request('/assets/old.js', host)).status, 404);
+		assert.equal(
+			(
+				await request(
+					'/.playground-releases/' +
+						releaseName +
+						'/files/index.html',
+					host
+				)
+			).status,
+			404
+		);
+	}
+	// A later deployment switches the public entry but retains both the previous
+	// entry and its complete private release for rollback and in-flight requests.
+	await cp(files, upload, { recursive: true });
+	await writeFile(join(upload, 'index.html'), '<title>Next release</title>');
+	const previousEntry = await readFile(
+		join(webRoot, 'custom-redirects.php'),
+		'utf8'
+	);
+	await run('bash', install, { env: installEnv });
+	assert.equal(
+		await (await request('/', app)).text(),
+		'<title>Next release</title>'
+	);
+	assert.equal(
+		await readFile(join(files, 'index.html'), 'utf8'),
+		'<title>Trusted app</title>'
+	);
+	const nextRelease = (
+		await readdir(join(webRoot, '.playground-releases'))
+	).find((name) => name !== releaseName);
+	assert.equal(
+		await readFile(
+			join(backups, nextRelease, 'custom-redirects.php'),
+			'utf8'
+		),
+		previousEntry
+	);
+	await rename(
+		join(webRoot, '.playground-releases', nextRelease, 'files'),
+		join(webRoot, '.playground-releases', nextRelease, 'unavailable')
+	);
 	assert.ok((await request('/etc/passwd', app)).status >= 400);
 	console.log(
-		'WP Cloud router: unchanged embed URLs, host/path boundaries, shared assets, ranges and HEAD/OPTIONS passed.'
+		'WP Cloud deployment: preflight failures, private install, real entry, host/path boundaries, native PHP, shared assets, ranges, HEAD/OPTIONS and release switching passed.'
 	);
 } finally {
-	server.kill();
-	await once(server, 'exit');
+	if (server) {
+		server.kill();
+		await once(server, 'exit');
+	}
 	await rm(temporary, { recursive: true, force: true });
 }
 

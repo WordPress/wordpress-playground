@@ -1,105 +1,107 @@
-# Split-origin staging on WP Cloud
+# Two-host deployment on WP Cloud
 
-This router is separate from the production deployment scripts. Do not run the
-normal `apply-update.sh` against an existing staging WordPress installation: its
-web-root sync deletes files absent from the build.
-
-The intended production hosts are:
+The normal website deployment serves:
 
 - App: `https://playground.wordpress.net`
-- WordPress: `https://wasm.wordpress.net`
+- Rendered WordPress: `https://wasm.wordpress.net`
 
-For staging, replace both origins below with two hostnames mapped to a separate
-WP Cloud site. This PR does not enable the router in the production deployment.
+All request handling lives in `../custom-redirects-lib.php`. There is no separate
+router to install. `apply-update.sh` installs the build and writes the small
+public `custom-redirects.php` entry that calls `playground_handle_request()` with
+the selected private build directory. Personal WP keeps its existing entry and
+separate deployment script.
 
-Both hostnames need domain mappings and valid TLS. WP Cloud must serve aliases
-without redirecting them to the primary domain (`canonicalize_aliases=false`).
-`wasm.wordpress.net` currently redirects to the app. Before activation, remove
-that redirect and test the helper and service-worker URLs in a browser with the
-old redirect cached. Changing the server does not clear a browser's cached 301.
+## Before the first deployment
 
-## Build and install
+Both names must map to the same WP Cloud site and have valid TLS. Set
+`canonicalize_aliases=false` so WP Cloud does not redirect the sandbox to the
+app. The deployment refuses to proceed if a normal service-worker URL redirects
+or returns an unexpected status.
 
-Build with Node 24, setting the WordPress origin at build time:
+`wasm.wordpress.net` currently redirects to the app. Changing the server does not
+clear a browser's cached 301. Before activation, test the helper and service-worker
+URLs in a browser with that old redirect cached. Purging the server's edge cache
+does not purge browsers' redirect caches.
+
+Nginx must deny direct HTTP access to `/srv/htdocs/.playground-releases/`,
+including encoded paths. The installer creates a harmless text probe there and
+requires HTTP 403 through both hosts before uploading the build into that
+location. It verifies TLS and never follows redirects. A failed check leaves
+the active entry and public build untouched. PHP cannot create this Nginx rule.
+
+Do not run this deployment script on an unrelated WordPress installation. The
+first deployment moves existing public files out of the web root.
+
+## What the deployment does
+
+The website deployment workflow builds the normal merged website with
+`VITE_WORDPRESS_SITE_URL=https://wasm.wordpress.net`. It rebuilds rather than
+reusing an Nx result made with a different origin. The existing upload steps
+send the build, deployment scripts, and MIME map to the server.
+
+`apply-update.sh` runs `install-release.sh`, which:
+
+1. Checks the required entry documents and service worker are present. Checks
+   both public hosts and Nginx's private-path deny rule.
+2. Installs the complete build under
+   `/srv/htdocs/.playground-releases/release.<random>/files/`. The same release
+   contains `custom-redirects-lib.php` and `mime-types.json`.
+3. Saves the previous public entry and any old public build files under
+   `~/website-backups/release.<random>/`. Keeps the platform's `__wp__` fallback.
+4. Replaces the public `custom-redirects.php` in one rename. Its paths select
+   that exact release, so an in-flight PHP request continues using the previous
+   release while later requests use the new one.
+5. Purges the WP Cloud edge cache.
+
+The first move from public files to a private build can briefly interrupt
+requests. Later deployments keep previous private releases in place. Neither
+old releases nor rollback backups are deleted automatically; remove obsolete
+ones only after checking which entry files still refer to them.
+
+Web PHP cannot read the SSH home directory. The release stays under `htdocs`
+behind Nginx's deny rule, while backups stay outside public serving. Public HTML
+or scripts left outside the private release would bypass the hostname checks.
+
+The app host serves trusted HTML, shared assets, and the existing allowed native
+PHP endpoints. Their credentials still come from WP Cloud persistent data via
+`playground_maybe_set_environment()`. Scoped WordPress paths return 404.
+The sandbox serves only the request-helper page and service-worker/thumbnail
+worker loaders. Its WordPress pages come from the browser's service worker.
+Other sandbox requests return 404.
+
+Assets use the same app-host URLs for all Playgrounds, with CORS and caching.
+Files are streamed, with byte ranges for resumable runtime downloads. HTML uses
+`private, no-store`. Existing external iframe and SDK embeds need no referrer or
+new URL parameters.
+
+## Verify and roll back
+
+The HTTP contract test runs the real installer in a temporary directory, then
+starts PHP with the installed public entry. It checks refused deployments,
+old-file removal, both hosts, a native PHP endpoint, shared assets, ranges,
+HEAD/OPTIONS, release switching, and retained rollback files. Only the public
+WP Cloud probes are stubbed; the test does not prove the live Nginx or TLS setup.
+Run it with Node 24 and PHP:
 
 ```sh
-VITE_WORDPRESS_SITE_URL=https://wasm.wordpress.net \
-  npx nx run playground-website:build:wordpress-frame
-npx nx run playground-website:test:wordpress-frame-router
+npm exec -- nx run playground-website:test:wordpress-frame-router
 ```
 
-Merge the current `dist/packages/playground/{remote,website,website-extras}`
-outputs into a **fresh** release directory. Include the client output under
-`client/`, and the Blueprint schema and WP-CLI PHAR as in the normal website
-assembly. Do not reuse an old merged directory; it may retain stale chunks.
+After deployment, check both HTTPS hosts without bypassing TLS verification.
+Confirm the dock stays on the app host and WordPress uses the sandbox host.
+Test a post save, saved-site switching, a database-tool popup, and a disposable
+local folder outside Documents/iCloud. An unchanged external iframe with
+`referrerpolicy="no-referrer"` must still load. Repeat the direct-parent OPFS
+canary check from the browser suite.
 
-Upload the release under `/srv/htdocs/.playground-releases/<commit>/files`.
-WP Cloud blocks HTTP access to hidden paths, while PHP can read them. The SSH
-home directory is not mounted in web PHP, so `~/playground-releases` cannot be
-used by the request handler. Beside `files/`, put this `router.php`,
-the existing `custom-redirects-lib.php`, and
-`packages/php-wasm/universal/src/lib/mime-types.json`.
+For a later deployment, copy the previous `custom-redirects.php` from the named
+backup into a temporary file under `htdocs`, then rename it over the active
+entry. Keep the private release it points to. To undo the first deployment, also
+restore the old public files from that backup. Purge the WP Cloud edge cache
+after rollback. No WordPress database change is needed. Restore the alias setting
+separately if required.
 
-Back up any existing `/srv/htdocs/custom-redirects.php`. Install a small entry
-file there which returns for CLI requests, requires the private release's
-`router.php`, and calls:
-
-```php
-playground_serve_wordpress_frame(
-    '/srv/htdocs/.playground-releases/<commit>/files',
-    'https://playground.wordpress.net',
-    'https://wasm.wordpress.net'
-);
-```
-
-Use the uploaded release’s absolute path in both the `require` and the call.
-Keep the previous release and entry file for rollback. Do not put configuration
-or account secrets in the public build.
-
-On a server with an older public build, first move its files to a private backup
-outside `/srv/htdocs`. Keep the platform’s managed `__wp__` fallback. An old
-public HTML file or script would otherwise bypass the new router and its host
-checks. This staging setup replaces the public site; back up its configuration
-and content too.
-
-## Why direct release URLs must be blocked
-
-Nginx serves existing public files before `custom-redirects.php` can inspect the
-host or attach headers. The hidden release directory must therefore remain
-blocked by Nginx. Before uploading HTML, create a harmless text file under that
-directory and confirm HTTP 403 through both hosts, including percent-encoded
-dots and slashes. Do not activate the router if any direct release URL works.
-
-Normal build URLs then pass through the PHP host checks. No alternate public
-path may bypass the host checks or expose files reserved for the app origin.
-
-The WordPress host serves only the helper, service-worker loader, and marked
-thumbnail-worker loader. Scoped WordPress pages come from its browser service
-worker. Other requests return 404. The app host serves the shared assets, trusted
-HTML, and the existing native PHP endpoints; it rejects scoped site URLs.
-
-The router streams assets and supports range requests. Public asset responses
-permit CORS and caching. HTML responses use `private, no-store`. Existing
-external iframe and SDK embeds need no referrer or new URL parameters. Confirm
-the actual public headers;
-platform redirects or cached headers can bypass the intended response path.
-
-## Check and roll back
-
-Test both hosts without bypassing TLS verification. Confirm that neither
-redirects, WordPress runs on the configured sandbox origin, and the dock stays
-on the configured app origin.
-Repeat the direct-parent OPFS canary and saved-site switch checks from the local
-browser suite. An unchanged external iframe with `referrerpolicy="no-referrer"`
-must still load.
-
-This router does not block WordPress from embedding a fresh app/API document.
-That route to saved storage remains unresolved; this staging build is not complete
-protection for saved files or native directory handles. Native folder prompts still need a manual
-check. OAuth and logging credentials are not installed by this staging upload.
-
-To roll back the first deployment, remove the newly installed
-`custom-redirects.php` and restore its backup if one existed. For later releases,
-restore the previous entry file. If the first deployment moved a public build
-aside, restore those files from the private backup too. No WordPress database
-change is needed. Restore the previous alias setting separately if required.
+This split does not stop WordPress from embedding a fresh app/API document.
+That route to saved storage remains unresolved; this is not complete protection
+for saved files or native directory handles. Running Playgrounds still share one
+WordPress origin, without per-site HTTP authorization.
