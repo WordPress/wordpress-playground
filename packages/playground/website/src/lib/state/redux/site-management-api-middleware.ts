@@ -41,9 +41,11 @@ import { randomSiteName } from './random-site-name';
 import { persistTemporarySite } from './persist-temporary-site';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
 import {
+	type UniversalPHP,
 	compileBlueprintV1,
 	importWordPressFiles,
 	runBlueprintV1Steps,
@@ -715,7 +717,7 @@ export function createSitesAPI(
 					settings.phpVersion &&
 				currentRuntimeConfiguration.networking === settings.networking;
 			if (settings.enableMultisite) {
-				// The conversion returns to the current page, which already reloads it.
+				// The settings form re-renders with multisite ticked, so no reload is needed.
 				await enableMultisiteOnSite(site);
 				if (isRuntimeUnchanged) {
 					return;
@@ -974,6 +976,8 @@ export function createSitesAPI(
 	 * Converts a running site to a multisite network and records it as a setup
 	 * param, so the settings form and copied setup URLs describe the converted site.
 	 *
+	 * A Blueprint step can create a network without that setup param, so an
+	 * existing network is only recorded: converting it again fails.
 	 * Compiling the step, rather than calling its handler, installs the WP-CLI
 	 * binary the conversion needs.
 	 */
@@ -984,11 +988,20 @@ export function createSitesAPI(
 				'Cannot enable multisite on a Playground that is not running.'
 			);
 		}
-		const blueprint = await compileBlueprintV1({
-			landingPage: await client.getCurrentURL(),
-			steps: [{ step: 'enableMultisite' }],
+		const wpLoadPath = joinPaths(await client.documentRoot, 'wp-load.php');
+		const multisiteCheck = await client.run({
+			code: `<?php
+				require ${phpVar(wpLoadPath)};
+				echo is_multisite() ? 'yes' : 'no';
+			`,
 		});
-		await runBlueprintV1Steps(blueprint, client);
+		if (multisiteCheck.text !== 'yes') {
+			const blueprint = await compileBlueprintV1({
+				landingPage: await client.getCurrentURL(),
+				steps: [{ step: 'enableMultisite' }],
+			});
+			await runBlueprintV1Steps(blueprint, client as UniversalPHP);
+		}
 		await dispatch(
 			updateSite({
 				slug: site.slug,
