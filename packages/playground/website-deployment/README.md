@@ -47,6 +47,19 @@ WP's endpoint deployment or database updates.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.
 
+## Static-file ranges
+
+PHP-served files support `Range: bytes=<start>-` and `bytes=<start>-<end>` on GET,
+so interrupted runtime downloads can resume with HTTP 206. Multiple ranges,
+suffix ranges, unrecognized syntax/units, and requests with `If-Range` get the
+normal full response. A supported range outside the file returns 416. HEAD
+ignores Range and returns the full content length without a body. No multipart
+response handling or validator matching is added.
+
+Run `npm exec -- nx run playground-website:test:static-file-ranges` with Node 24
+and PHP to check the real HTTP responses. This does not change hostname routing
+or the deployment file layout.
+
 ## Secrets
 
 Secrets are provided by a "Persistent Data" feature of WP Cloud and are set manually via a WP Cloud API. Once set, the secrets are synched to the site in an encrypted form which is accessed by `custom-redirects-lib.php` via the `Atomic_Persistent_Data`. Here is an [example of retrieving Slack-related secrets](https://github.com/WordPress/wordpress-playground/blob/776e8bbddecdde287ae7bb1d42d711dedf71f138/packages/playground/website-deployment/custom-redirects-lib.php#L186-L192).

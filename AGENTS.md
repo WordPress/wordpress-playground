@@ -106,6 +106,11 @@ activation. Personal WP keeps its no-argument public-file layout and separate sc
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 
+WP Cloud's PHP-served static files support single bounded and open-ended byte
+ranges for runtime download retries. Other range forms get the full response;
+HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
+PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
+
 ### Package Naming Convention
 
 - `@php-wasm/<name>`: PHP runtime and utilities

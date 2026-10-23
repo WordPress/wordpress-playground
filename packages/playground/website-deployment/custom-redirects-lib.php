@@ -285,34 +285,41 @@ function playground_handle_request( $build_directory = null ) {
 }
 
 /**
- * Stream a validated public build file, including resumable PHP runtime downloads.
+ * Send a validated static file, including a single byte range for download retries.
  *
- * For example, Range: bytes=1024- returns the rest of a partially downloaded WASM
- * file with status 206 and Content-Range. Read only that range from disk rather
- * than loading the whole runtime into PHP memory. Clamp a requested end to the
- * file's last byte. Malformed, suffix, multiple, or ranges with no valid bytes
- * return 416 with the file size.
- * HEAD returns the same status and length headers without sending file bytes.
+ * For example, GET with Range: bytes=1024- returns only the bytes still missing
+ * from a PHP runtime download, with status 206 and Content-Range. Bounded ranges
+ * work too; an end beyond the file is clamped to its last byte. A supported
+ * range with no valid bytes returns 416 and the current file size.
  *
- * The caller must already have resolved and checked this path inside the release
- * directory. This function does not validate paths or decide who may read a file.
+ * Multiple ranges, suffix ranges, unknown units, and unrecognized syntax are
+ * ignored: send the normal full response, not a multipart body or a false 416.
+ * Requests with If-Range also get a full response; this handler does not compare
+ * validators. Only GET uses ranges. HEAD sends the full length without a body.
  *
- * @param string $path Existing public file selected by playground_handle_request().
+ * The caller must already have resolved and checked the path and set MIME/cache
+ * headers. Full responses still use readfile(); partial responses seek directly
+ * to the requested offset and stream only the requested bytes.
+ *
+ * @param string $path Existing static file selected by playground_handle_request().
  */
 function playground_serve_static_file( $path ) {
 	$size = filesize( $path );
 	$start = 0;
 	$end = $size - 1;
+	$range = null;
 	header( 'Accept-Ranges: bytes' );
-	if ( isset( $_SERVER['HTTP_RANGE'] ) ) {
-		if ( ! preg_match( '/\Abytes=(\d+)-(\d*)\z/', $_SERVER['HTTP_RANGE'], $range ) ) {
-			header( "Content-Range: bytes */$size", true, 416 );
-			return;
-		}
+	if (
+		'GET' === $_SERVER['REQUEST_METHOD'] &&
+		! isset( $_SERVER['HTTP_IF_RANGE'] ) &&
+		isset( $_SERVER['HTTP_RANGE'] ) &&
+		preg_match( '/\Abytes=(\d+)-(\d*)\z/i', trim( $_SERVER['HTTP_RANGE'] ), $range )
+	) {
 		$start = (int) $range[1];
 		$end = '' === $range[2] ? $end : min( $end, (int) $range[2] );
 		if ( $start > $end ) {
 			header( "Content-Range: bytes */$size", true, 416 );
+			header( 'Content-Length: 0' );
 			return;
 		}
 		http_response_code( 206 );
@@ -320,12 +327,17 @@ function playground_serve_static_file( $path ) {
 	}
 	$length = $end - $start + 1;
 	header( "Content-Length: $length" );
-	if ( 'HEAD' !== $_SERVER['REQUEST_METHOD'] ) {
-		$stream = fopen( $path, 'rb' );
-		fseek( $stream, $start );
-		stream_copy_to_stream( $stream, fopen( 'php://output', 'wb' ), $length );
-		fclose( $stream );
+	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
 	}
+	if ( ! $range ) {
+		readfile( $path );
+		return;
+	}
+	$stream = fopen( $path, 'rb' );
+	fseek( $stream, $start );
+	stream_copy_to_stream( $stream, fopen( 'php://output', 'wb' ), $length );
+	fclose( $stream );
 }
 
 function playground_maybe_rewrite( $original_requested_path ) {
