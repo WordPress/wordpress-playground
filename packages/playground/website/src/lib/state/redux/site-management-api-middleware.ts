@@ -43,7 +43,11 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import type { AllPHPVersion } from '@php-wasm/universal';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import { getSetupUrlFromUrl } from '../playground-identity';
-import { importWordPressFiles } from '@wp-playground/client';
+import {
+	compileBlueprintV1,
+	importWordPressFiles,
+	runBlueprintV1Steps,
+} from '@wp-playground/client';
 import { registerSiteFirstBootInitializer } from './site-first-boot-initializer';
 import {
 	ProgressTracker,
@@ -682,15 +686,18 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Applies the runtime settings that can change without replacing WordPress.
+		 * Applies the settings that can change without replacing WordPress.
 		 * When the settings already match, reloads the current WordPress page.
 		 *
 		 * PHP and networking share one metadata write so changing both cannot boot an
 		 * intermediate runtime and then immediately tear it down for the second change.
+		 * `enableMultisite` converts the site before that reboot, while its current
+		 * runtime is still running.
 		 */
 		async updateRuntimeSettings(settings: {
 			phpVersion: AllPHPVersion;
 			networking: boolean;
+			enableMultisite?: boolean;
 		}): Promise<void> {
 			const site = selectActiveSite(getState());
 			if (!site) {
@@ -703,11 +710,17 @@ export function createSitesAPI(
 			}
 			const currentRuntimeConfiguration =
 				site.metadata.runtimeConfiguration;
-			if (
+			const isRuntimeUnchanged =
 				currentRuntimeConfiguration.phpVersion ===
 					settings.phpVersion &&
-				currentRuntimeConfiguration.networking === settings.networking
-			) {
+				currentRuntimeConfiguration.networking === settings.networking;
+			if (settings.enableMultisite) {
+				// The conversion returns to the current page, which already reloads it.
+				await enableMultisiteOnSite(site);
+				if (isRuntimeUnchanged) {
+					return;
+				}
+			} else if (isRuntimeUnchanged) {
 				const client = selectClientBySiteSlug(getState(), site.slug);
 				if (!client) {
 					throw new Error(
@@ -956,6 +969,41 @@ export function createSitesAPI(
 			}
 		},
 	};
+
+	/**
+	 * Converts a running site to a multisite network and records it as a setup
+	 * param, so the settings form and copied setup URLs describe the converted site.
+	 *
+	 * Compiling the step, rather than calling its handler, installs the WP-CLI
+	 * binary the conversion needs.
+	 */
+	async function enableMultisiteOnSite(site: SiteInfo): Promise<void> {
+		const client = selectClientBySiteSlug(getState(), site.slug);
+		if (!client) {
+			throw new Error(
+				'Cannot enable multisite on a Playground that is not running.'
+			);
+		}
+		const blueprint = await compileBlueprintV1({
+			landingPage: await client.getCurrentURL(),
+			steps: [{ step: 'enableMultisite' }],
+		});
+		await runBlueprintV1Steps(blueprint, client);
+		await dispatch(
+			updateSite({
+				slug: site.slug,
+				changes: {
+					originalUrlParams: {
+						...site.originalUrlParams,
+						searchParams: {
+							...site.originalUrlParams?.searchParams,
+							multisite: 'yes',
+						},
+					},
+				},
+			})
+		);
+	}
 
 	/** Boot a temporary site, optionally keeping the current browser URL during setup. */
 	async function createTemporarySite(

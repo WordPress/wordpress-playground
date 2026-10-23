@@ -2,7 +2,9 @@ import type { SiteFormData } from './unconnected-site-settings-form';
 
 type SiteSettingAction =
 	| { action: 'apply' }
-	| { action: 'fresh'; label: string };
+	| { action: 'fresh'; label: string }
+	// The setting can be turned on in place, but turning it off needs a fresh site.
+	| { action: 'apply-when-enabled'; label: string };
 
 // Classifying every field here makes a new setting a type error until its
 // lifecycle behavior is deliberate.
@@ -11,7 +13,7 @@ const siteSettingActions: Record<keyof SiteFormData, SiteSettingAction> = {
 	withNetworking: { action: 'apply' },
 	wpVersion: { action: 'fresh', label: 'WordPress version' },
 	language: { action: 'fresh', label: 'language' },
-	multisite: { action: 'fresh', label: 'multisite' },
+	multisite: { action: 'apply-when-enabled', label: 'multisite' },
 };
 
 export function getFreshPlaygroundReason(
@@ -21,14 +23,16 @@ export function getFreshPlaygroundReason(
 	const changedFields = Object.keys(siteSettingActions)
 		.map((field) => field as keyof SiteFormData)
 		.filter((field) => {
+			const { action } = siteSettingActions[field];
 			return (
-				siteSettingActions[field].action === 'fresh' &&
-				values[field] !== defaultValues[field]
+				values[field] !== defaultValues[field] &&
+				(action === 'fresh' ||
+					(action === 'apply-when-enabled' && !values[field]))
 			);
 		})
 		.map((field) => {
 			const setting = siteSettingActions[field];
-			return setting.action === 'fresh' ? setting.label : '';
+			return setting.action === 'apply' ? '' : setting.label;
 		});
 
 	if (changedFields.length === 0) {
