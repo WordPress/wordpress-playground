@@ -1432,6 +1432,28 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 
 		await website.page.addInitScript(() => {
 			(window as any).__saveStatusSamples = [];
+			let recordAutosaving!: () => void;
+			const autosavingRecorded = new Promise<void>((resolve) => {
+				recordAutosaving = resolve;
+			});
+			const postMessage = Worker.prototype.postMessage;
+			// Hold the metadata write that completes the first save until the
+			// observer records its pending label, even when the file copy is fast.
+			Worker.prototype.postMessage = function (...args) {
+				const [message] = args;
+				if (
+					message?.path &&
+					typeof message.content === 'string' &&
+					JSON.parse(message.content).initialOpfsSyncPending === false
+				) {
+					Worker.prototype.postMessage = postMessage;
+					void autosavingRecorded.then(() =>
+						postMessage.apply(this, args)
+					);
+					return;
+				}
+				postMessage.apply(this, args);
+			};
 			let installed = false;
 			const sampleStatus = () => {
 				const statusAnnouncement = [
@@ -1471,6 +1493,9 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 					statusAnnouncement: statusAnnouncement ?? null,
 					color: getComputedStyle(statusButton).color,
 				});
+				if ((statusButton.textContent || '').trim() === 'Autosaving') {
+					recordAutosaving();
+				}
 			};
 			const installObserver = () => {
 				if (installed) {
