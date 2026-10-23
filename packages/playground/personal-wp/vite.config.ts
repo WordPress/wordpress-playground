@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,6 +40,12 @@ const proxy: CommonServerOptions['proxy'] = {
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	const isProductionBuild = mode === 'production';
+	let deploymentVersion: string;
+	try {
+		deploymentVersion = execSync('git rev-parse HEAD').toString().trim();
+	} catch {
+		deploymentVersion = (Date.now() / 1000).toFixed(0);
+	}
 
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
@@ -103,6 +110,23 @@ export default defineConfig(({ command, mode }) => {
 				},
 				'^[/]((?!website-server).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+					/** Reload reflected WordPress paths through the app, not the PHP host. */
+					bypass(request) {
+						const { pathname } = new URL(
+							request.url!,
+							'http://localhost'
+						);
+						// Include navigations re-fetched by the service worker as ordinary fetches.
+						if (
+							request.headers.accept?.includes('text/html') &&
+							!pathname.startsWith('/scope:') &&
+							!pathname.endsWith('.html')
+						) {
+							// WordPress changes the address bar to paths such as /my-apps/.
+							// Keep scoped WordPress URLs and explicit .html documents on the PHP host.
+							return '/website-server/';
+						}
+					},
 				},
 			},
 			fs: {
@@ -110,6 +134,32 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			{
+				name: 'personal-wp-deployment-version',
+				generateBundle() {
+					this.emitFile({
+						type: 'asset',
+						fileName: 'personal-wp-version.json',
+						source: JSON.stringify({
+							buildVersion: deploymentVersion,
+						}),
+					});
+				},
+				configureServer(server) {
+					server.middlewares.use((request, response, next) => {
+						if (
+							request.url?.split('?')[0] !==
+							'/website-server/personal-wp-version.json'
+						)
+							return next();
+						response.setHeader('Content-Type', 'application/json');
+						response.setHeader('Cache-Control', 'no-store');
+						response.end(
+							JSON.stringify({ buildVersion: deploymentVersion })
+						);
+					});
+				},
+			},
 			react({
 				jsxRuntime: 'automatic',
 			}),

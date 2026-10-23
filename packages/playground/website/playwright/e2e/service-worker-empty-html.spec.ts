@@ -150,7 +150,9 @@ test('Post editor canvas renders when Gutenberg marks iframes credentialless', a
 
 	// Gutenberg 22.4–22.7 add the credentialless attribute to iframes in an
 	// isolated editor. 22.6 and 22.7 isolate the editor by default.
+	// WordPress 7.1 also sends DIP, so this covers the mixed old/new headers.
 	const blueprint: Blueprint = {
+		preferredVersions: { wp: '7.1' },
 		landingPage: '/wp-admin/post-new.php',
 		plugins: ['gutenberg.22.7.0.zip'],
 		login: true,

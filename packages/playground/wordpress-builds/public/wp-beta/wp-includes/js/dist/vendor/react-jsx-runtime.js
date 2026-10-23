@@ -1,4 +1,3 @@
-"use strict";
 var ReactJSXRuntime = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __commonJS = (cb, mod) => function __require() {
@@ -12,9 +11,9 @@ var ReactJSXRuntime = (() => {
     }
   });
 
-  // ../../node_modules/react/cjs/react-jsx-runtime.development.js
+  // ../../node_modules/.store/react@18.3.1-cCN48hRLMdFLNniBzDqPaA/node_modules/react/cjs/react-jsx-runtime.development.js
   var require_react_jsx_runtime_development = __commonJS({
-    "../../node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
+    "../../node_modules/.store/react@18.3.1-cCN48hRLMdFLNniBzDqPaA/node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
       "use strict";
       if (true) {
         (function() {
@@ -905,9 +904,10 @@ var ReactJSXRuntime = (() => {
     }
   });
 
-  // ../../node_modules/react/jsx-runtime.js
+  // ../../node_modules/.store/react@18.3.1-cCN48hRLMdFLNniBzDqPaA/node_modules/react/jsx-runtime.js
   var require_jsx_runtime = __commonJS({
-    "../../node_modules/react/jsx-runtime.js"(exports, module) {
+    "../../node_modules/.store/react@18.3.1-cCN48hRLMdFLNniBzDqPaA/node_modules/react/jsx-runtime.js"(exports, module) {
+      "use strict";
       if (false) {
         module.exports = null;
       } else {
@@ -915,7 +915,14 @@ var ReactJSXRuntime = (() => {
       }
     }
   });
-  return require_jsx_runtime();
+
+  // ../react-18/react-jsx-runtime.js
+  var require_react_jsx_runtime = __commonJS({
+    "../react-18/react-jsx-runtime.js"(exports, module) {
+      module.exports = require_jsx_runtime();
+    }
+  });
+  return require_react_jsx_runtime();
 })();
 /*! Bundled license information:
 

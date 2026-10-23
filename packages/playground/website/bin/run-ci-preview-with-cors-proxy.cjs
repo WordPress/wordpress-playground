@@ -120,6 +120,15 @@ process.once('exit', () => {
 	cleanupChild(proxyProcess);
 });
 
+/**
+ * Start the PHP CORS proxy, wait for its HTTP readiness check, then start preview.
+ *
+ * Browser tests may make proxied requests as soon as preview becomes reachable;
+ * spawning both processes together would let those requests race proxy startup.
+ * PLAYWRIGHT_WORDPRESS_FRAME selects the two-host preview without duplicating
+ * this process lifecycle. Stop both children if startup fails or preview exits,
+ * and propagate the preview exit code to Playwright's web-server runner.
+ */
 async function main() {
 	proxyProcess = spawnNxTarget('playground-php-cors-proxy:start');
 	registerProcessHooks(proxyProcess, 'playground-php-cors-proxy');
@@ -129,7 +138,11 @@ async function main() {
 		cleanupAndExit(1);
 	});
 
-	previewProcess = spawnNxTarget('playground-website:preview:ci');
+	previewProcess = spawnNxTarget(
+		process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1'
+			? 'playground-website:preview:wordpress-frame'
+			: 'playground-website:preview:ci'
+	);
 	previewProcess.once('error', (error) => {
 		console.error(
 			'playground-website preview server failed to start:',

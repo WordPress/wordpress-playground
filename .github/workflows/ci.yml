@@ -63,6 +63,44 @@ jobs:
             - run: npx nx run docs-site:test-plugins
             - run: bash tools/check-node-engine-alignment.sh
 
+    test-node-file-lock-fallback:
+        name: 'File locks without native binaries (Node ${{ matrix.node }})'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                node: ['24', 'node']
+        env:
+            PHP: '8.3'
+            NX_SKIP_NX_CACHE: 'true'
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/prepare-playground
+            - name: Build and check the published optional dependency
+              run: |
+                  npx nx run php-wasm-node:build
+                  node --input-type=commonjs <<'JS'
+                  const assert = require('node:assert/strict');
+                  const pkg = require('./dist/packages/php-wasm/node/package.json');
+                  assert(pkg.optionalDependencies?.['fs-ext-extra-prebuilt']);
+                  assert.equal(pkg.dependencies?.['fs-ext-extra-prebuilt'], undefined);
+                  JS
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node }}
+            - name: Exercise PHP locks with the native package absent
+              shell: bash
+              run: |
+                  # Restore the package before prepare-playground saves its shared cache.
+                  mv node_modules/fs-ext-extra-prebuilt "$RUNNER_TEMP/fs-ext-extra-prebuilt"
+                  trap 'mv "$RUNNER_TEMP/fs-ext-extra-prebuilt" node_modules/fs-ext-extra-prebuilt' EXIT
+                  npx nx run php-wasm-node:test-file-locking-asyncify --testFiles=create-file-lock-manager.spec.ts,file-lock-manager-fallback.spec.ts,php-file-locking.spec.ts
+                  npx nx run playground-cli:test-playground-cli --testFiles=file-locking.spec.ts
+
     # Unit tests for the PR auto-labeling logic (packages/meta/src/pr-labels).
     # These run with node:test, not nx: packages/meta is not an nx project, so
     # `nx affected --target=test` never covers them. The suite is self-contained
@@ -322,6 +360,7 @@ jobs:
               run: php packages/playground/website/src/lib/reprint/bridge-test.php
 
     test-e2e-reprint-import:
+        name: 'Reprint import (wordpress-frame)'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 40
@@ -338,10 +377,14 @@ jobs:
                   php-version: '8.3'
                   extensions: sqlite3, pdo_sqlite, gd, mbstring, curl, zip, xml
                   tools: none
+            - name: Resolve the local prototype hosts in every browser
+              run: echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
             - name: Install Playwright Browser
               run: sudo npx playwright install chromium --with-deps
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Build the WordPress-only origin setup
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx run playground-website:build:wordpress-frame
             - name: Serve a WordPress site with Reprint Server
               run: |
                   bash packages/playground/website/playwright/reprint-site/serve.sh > /tmp/reprint-site.log 2>&1 &
@@ -355,14 +398,14 @@ jobs:
                   cat /tmp/reprint-site.log
                   exit 1
             - name: Run Playwright reprint-import tests
-              run: sudo CI=true PLAYWRIGHT_TEST_GROUP=reprint-import REPRINT_E2E_SITE_URL=http://127.0.0.1:8181/ npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=chromium
+              run: sudo CI=true PLAYWRIGHT_TEST_GROUP=reprint-import REPRINT_E2E_SITE_URL=http://127.0.0.1:8181/ npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=chromium
             - name: Source site log
               if: ${{ failure() }}
               run: cat /tmp/reprint-site.log
             - uses: actions/upload-artifact@v4
               if: ${{ failure() }}
               with:
-                  name: playwright-report-reprint-import
+                  name: playwright-report-reprint-import-wordpress-frame
                   path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
                   retention-days: 7
@@ -371,9 +414,11 @@ jobs:
     # Previously used a prepare job + artifact sharing, but inline builds allow
     # all shards to start immediately in parallel, reducing total wall time.
     test-e2e-playwright:
+        name: 'Website E2E (wordpress-frame, ${{ matrix.browser }}, ${{ matrix.lane }})'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        # Storage tests run one at a time; allow build time plus the full storage suite.
+        timeout-minutes: ${{ matrix.lane == 'storage' && 45 || 30 }}
         permissions:
             contents: read # Required to clone the repo.
         strategy:
@@ -383,40 +428,8 @@ jobs:
                 # have their own unsharded lane because OPFS is browser-scoped.
                 # That lane uses one worker, so Playwright can retry only the
                 # failed test without allowing storage tests to overlap.
-                include:
-                    - browser: 'chromium'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'chromium'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'chromium'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
-                    - browser: 'firefox'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'firefox'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'firefox'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
-                    - browser: 'webkit'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'webkit'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'webkit'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
-                    - browser: 'chromium'
-                      test_group: 'storage'
-                    - browser: 'firefox'
-                      test_group: 'storage'
-                    - browser: 'webkit'
-                      test_group: 'storage'
+                browser: [chromium, firefox, webkit]
+                lane: ['1', '2', '3', storage]
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -435,35 +448,46 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+            - name: Resolve the local prototype hosts in every browser
+              run: echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.browser }} --with-deps
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
-            - name: Run Playwright${{ matrix.test_group && format(' {0}', matrix.test_group) || '' }} tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
+            - name: Build the WordPress-only origin setup
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx run playground-website:build:wordpress-frame
+            - name: Run every website E2E test in its assigned lane
               run: |
                   SHARD_ARG=""
-                  if [ -n "${{ matrix.shard }}" ]; then
-                    SHARD_ARG="--shard=${{ matrix.shard }}"
+                  TEST_GROUP=storage
+                  if [ "${{ matrix.lane }}" != "storage" ]; then
+                    TEST_GROUP=regular
+                    SHARD_ARG="--shard=${{ matrix.lane }}/3"
                   fi
                   if [ "${{ matrix.browser }}" = "firefox" ]; then
-                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true PLAYWRIGHT_TEST_GROUP=${{ matrix.test_group || 'regular' }} npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   else
-                    sudo CI=true PLAYWRIGHT_TEST_GROUP=${{ matrix.test_group || 'regular' }} npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    sudo CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   fi
+            - name: Check the live Vite cross-origin setup once
+              if: matrix.browser == 'chromium' && matrix.lane == 'storage'
+              run: sudo CI=true NX_DAEMON=false npx playwright test --config=packages/playground/website/playwright/playwright.dev-origin.config.ts
             # Only upload reports and snapshots for failed runs — they exist
             # to debug failures and update snapshots, and uploading them on
             # every run is the repository's largest source of artifact storage.
             - uses: actions/upload-artifact@v4
               if: ${{ failure() }}
               with:
-                  name: playwright-report-${{ matrix.browser }}${{ matrix.test_group && format('-{0}', matrix.test_group) || '' }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
-                  path: packages/playground/website/playwright-report/
+                  name: playwright-report-wordpress-frame-${{ matrix.browser }}-${{ matrix.lane }}
+                  path: |
+                      packages/playground/website/playwright-report/
+                      dist/wordpress-frame-dev-e2e/
                   if-no-files-found: ignore
                   retention-days: 7
             - uses: actions/upload-artifact@v4
               if: ${{ failure() }}
               with:
-                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.test_group && format('-{0}', matrix.test_group) || '' }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
+                  name: playwright-snapshots-wordpress-frame-${{ matrix.browser }}-${{ matrix.lane }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
                   retention-days: 7
