@@ -173,6 +173,44 @@ Other bundlers will typically have analogous options or plugins. If you create a
 another bundler, feel free to propose a new configuration example for this README at
 https://github.com/WordPress/wordpress-playground/edit/trunk/packages/php-wasm/web/README.md
 
+## Saving symlinks in directory-handle mounts
+
+A link such as `wp-content/plugins/demo -> ../../shared/demo` must keep its
+target string. Copying the linked directory loses that information, and following
+a link to `.` can loop forever.
+
+The [File System standard](https://fs.spec.whatwg.org/#concepts) has file and
+directory entries, but no symlink entries. Directory-handle mounts therefore
+store links in a reserved `.playground-symlinks.json` file at the mount root:
+
+```json
+{
+	"version": 1,
+	"links": {
+		"/wp-content/plugins/demo": "../../shared/demo"
+	}
+}
+```
+
+Keys start at the mount root, not the PHP filesystem root. Targets are stored
+unchanged, including relative paths, absolute paths, broken links, and cycles.
+The link itself has no file or directory entry in OPFS. On restore, real files
+and directories are copied first, then links are created in the PHP filesystem.
+The index is not exposed as a PHP file.
+
+Journaled link changes save the index once per batch. A failed index write stays
+pending for the next flush, without replaying file operations that already
+completed.
+
+The same format applies to local folders mounted through a directory handle.
+Their saved links are records in this JSON file, not native host symlinks.
+A real PHP file at the reserved root path is rejected. Invalid saved indexes
+also fail the mount instead of being ignored or overwritten.
+
+Older saves that copied link targets cannot recover the original link. Recreate
+the link in PHP and save again. Older versions of this mount code cannot read
+this format and will load the JSON file as an ordinary file instead.
+
 ## Attribution
 
 `@php-wasm/web` started as a fork of the original PHP to WebAssembly build published by Oraoto in https://github.com/oraoto/pib and modified by Sean Morris in https://github.com/seanmorris/php-wasm.
