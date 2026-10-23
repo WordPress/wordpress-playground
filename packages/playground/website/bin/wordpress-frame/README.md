@@ -34,9 +34,10 @@ origin split through the existing loopback Vite ports: app on 5400, WordPress on
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
 
-For WP Cloud staging, set `VITE_WORDPRESS_SITE_URL` at build time and install the
-host-specific PHP router. The flag alone does not install server headers or
-routing. See the [staging deployment instructions](../../../website-deployment/wordpress-frame/README.md).
+The normal WP Cloud deployment builds with
+`VITE_WORDPRESS_SITE_URL=https://wasm.wordpress.net`. Host checks live in the
+existing `custom-redirects-lib.php`; `apply-update.sh` installs the private build
+and its public entry. See the [deployment guide](../../../website-deployment/wordpress-frame/README.md).
 
 ## Boundaries
 
@@ -101,7 +102,8 @@ untrusted PHP extensions.
 The `wp` child domain is not a complete cookie boundary: parent-domain cookies
 can span both hosts. Offline startup needs a second online load to cache app
 entry documents fetched before the app service worker took control. Production
-deployment is not included. No saved-site migration or account-token flow is changed.
+deployment uses the WP Cloud handler described above. No saved-site migration or
+account-token flow is changed.
 
 Database-tool popups keep an app-origin top-level document and render WordPress
 inside it. WebKit partitions service workers by the top-level origin, so opening

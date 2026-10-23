@@ -96,9 +96,13 @@ Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
-WP Cloud staging sets `VITE_WORDPRESS_SITE_URL` at build time and uses the separate
-PHP router under `website-deployment/wordpress-frame`. Its HTTP contract tests run
-with `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
+The normal WP Cloud deployment builds for `wasm.wordpress.net`. Host checks live
+in `website-deployment/custom-redirects-lib.php`, reached through its existing
+`playground_handle_request()` entry point. The main installer selects a complete
+private release and checks both hosts and Nginx's hidden-path deny rule before
+activation. Personal WP keeps its no-argument legacy handler and separate script.
+The HTTP/install contract tests run with
+`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 
 ### Package Naming Convention
 
