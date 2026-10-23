@@ -13,7 +13,7 @@ Samantalahin ang potensyal ng [blueprints](/blueprints) upang lumikha ng interac
 
 Basahin ang higit pa tungkol dito sa [Paano gamitin ang WordPress Playground para sa interactive na demo](https://developer.wordpress.org/news/2024/04/25/how-to-use-wordpress-playground-for-interactive-demos/)
 
-Kumuha ng inspirasyon tungkol sa uri ng interactive na demo na maaari mong likhain sa [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+Kumuha ng inspirasyon tungkol sa uri ng interactive na demo na maaari mong likhain sa [Blueprints Gallery](https://wordpress.github.io/blueprints/)
 
 Pinapayagan ka ng tool na [Blueprints builder](https://playground.wordpress.net/builder/builder.html) na i-edit ang iyong blueprint online at patakbuhin ito nang direkta sa isang Playground instance.
 
