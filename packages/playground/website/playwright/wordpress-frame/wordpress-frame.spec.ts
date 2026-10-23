@@ -578,10 +578,24 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 				return response.text();
 			}, target.href)
 		).toContain('jQuery');
-		const response = await wp.goto(target.href);
-		expect(response?.status()).toBe(200);
-		expect(await response!.text()).toContain('jQuery');
-		expect(await wp.evaluate(() => window.location.origin)).toBe(wpOrigin);
+		// Firefox can render this plain-text document without completing Playwright's goto().
+		// Check the navigation response and its full body instead of waiting for that event.
+		const navigation = page.waitForResponse(
+			(response) =>
+				response.url() === target.href &&
+				response.frame() === wp &&
+				response.request().isNavigationRequest()
+		);
+		await wp
+			.parentFrame()!
+			.locator('#wp')
+			.evaluate((iframe, url) => {
+				(iframe as HTMLIFrameElement).src = url;
+			}, target.href);
+		const response = await navigation;
+		expect(response.status()).toBe(200);
+		expect(await response.text()).toContain('jQuery');
+		expect(new URL(response.url()).origin).toBe(wpOrigin);
 	});
 
 	test('WordPress popups use the running site without app storage access', async ({
