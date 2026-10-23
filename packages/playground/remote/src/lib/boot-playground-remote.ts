@@ -539,6 +539,13 @@ export async function bootPlaygroundRemote() {
 		 * already have a direct service-worker connection and need no window relay.
 		 */
 		async boot(options) {
+			// Send the mode in the boot message, not the worker script's query.
+			// Our cache ignores query strings: a cached worker response can carry
+			// the URL from a previous tab that booted in the other mode.
+			options = {
+				...options,
+				useWordPressSandbox: wordPressSiteUrl !== origin,
+			};
 			if (sharedRuntime) {
 				runStartupBlueprint =
 					await sharedRuntime.api.beginSharedBoot(options);

@@ -66,7 +66,10 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		page,
 	}) => {
 		const url = new URL('/', external);
-		url.searchParams.set('target', root + '/?wp=6.9&php=8.3&storage=temp');
+		url.searchParams.set(
+			'target',
+			root + '/?reprint&wp=6.9&php=8.3&storage=temp'
+		);
 		await page.goto(url.href);
 		const app = await (await page
 			.locator('#embed')
@@ -75,10 +78,10 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(await wp.evaluate(() => window.location.origin)).toBe(wpOrigin);
 	});
 
-	test('referrer-free plain embeds work without new URL parameters', async ({
+	test('referrer-free opted-in embeds work without embedder declarations', async ({
 		page,
 	}) => {
-		const target = new URL('/?wp=6.9&php=8.3&storage=temp', root);
+		const target = new URL('/?reprint&wp=6.9&php=8.3&storage=temp', root);
 		const url = new URL('/', external);
 		url.searchParams.set('target', target.href);
 		url.searchParams.set('no-referrer', '1');
@@ -93,7 +96,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		page,
 	}) => {
 		const middleOrigin = external.replace('127.0.0.1', 'localhost');
-		const target = new URL('/?wp=6.9&php=8.3&storage=temp', root);
+		const target = new URL('/?reprint&wp=6.9&php=8.3&storage=temp', root);
 		const middle = new URL('/', middleOrigin);
 		middle.searchParams.set('target', target.href);
 		middle.searchParams.set('no-referrer', '1');
@@ -117,7 +120,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			const url = new URL('/', external);
 			url.searchParams.set(
 				'target',
-				root + (sdk === 'web' ? '/remote.html' : '/api.html')
+				root + (sdk === 'web' ? '/remote.html?reprint' : '/api.html')
 			);
 			url.searchParams.set('no-referrer', '1');
 			url.searchParams.set('sdk', sdk);
@@ -149,11 +152,14 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
-	test('cached app HTML loads in a referrer-free embed without new URL parameters', async ({
+	test('cached app HTML keeps the sandbox opt-in in a referrer-free embed', async ({
 		page,
 	}) => {
 		const url = new URL('/', external);
-		url.searchParams.set('target', root + '/?wp=6.9&php=8.3&storage=temp');
+		url.searchParams.set(
+			'target',
+			root + '/?reprint&wp=6.9&php=8.3&storage=temp'
+		);
 		await page.goto(url.href);
 		const app = await (await page
 			.locator('#embed')
@@ -198,7 +204,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('WordPress cannot read existing parent documents, OPFS or API connections', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
 		const remote = wp.parentFrame()!;
 		expect(new URL(remote.url()).origin).toBe(root);
@@ -293,11 +299,11 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		page,
 		context,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await poisonHelperCache(await ready(page));
 
 		const other = await context.newPage();
-		await other.goto(root + '/?wp=6.9&php=8.3&storage=temp');
+		await other.goto(root + '/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(other);
 		const helper = wp
 			.parentFrame()!
@@ -320,7 +326,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			browserName !== 'chromium',
 			'Offline startup uses Chromium, as in deployment.spec.ts.'
 		);
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		// Cache documents first fetched before the app service worker took control.
 		await page.reload();
@@ -361,7 +367,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			browserName !== 'chromium',
 			'The OPFS fixture requires Chromium, as in the regular storage suite.'
 		);
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
 		const remote = wp.parentFrame()!;
 		const marker = {
@@ -414,7 +420,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('app relay messages reach WordPress and return across the origin boundary', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
 		await wp.evaluate((appOrigin) => {
 			window.addEventListener('message', (event) => {
@@ -469,7 +475,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('the current URL follows WordPress links and history changes', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		await page.evaluate(() =>
 			(window as any).playgroundSites.getClient().goTo('/wp-admin/')
@@ -516,7 +522,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('the HTTP bridge preserves short and large response bodies', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
 		for (const body of [
 			'short response',
@@ -538,7 +544,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('WordPress can fetch and navigate to a static file from the shared asset origin', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
 		const path = '/wp-includes/js/jquery/jquery.min.js';
 		// Let the background ZIP finish so it cannot restore the file after removal.
@@ -587,7 +593,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('WordPress popups use the running site without app storage access', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		const path = await page.evaluate(async () => {
 			const client = (window as any).playgroundSites.getClient();
@@ -645,7 +651,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			browserName !== 'chromium',
 			'Saved-site checks require OPFS, as in the regular storage suite.'
 		);
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		await page.evaluate(() => ((window as any).appDocument = 'kept'));
 		const alpha = await page.evaluate(async () => {
@@ -733,7 +739,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('the block editor can save a post through the cross-origin HTTP transport', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		await page.evaluate(() =>
 			(window as any).playgroundSites
@@ -782,7 +788,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			browserName !== 'chromium',
 			'The directory-handle fixture requires Chromium OPFS.'
 		);
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		await page.evaluate(() => {
 			(window as any).pickerCalls = 0;
@@ -841,7 +847,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('site thumbnails render inside WordPress across the origin boundary', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		await ready(page);
 		const thumbnail = await page.evaluate(() =>
 			(window as any).playgroundSites.getClient().captureSiteThumbnail()
@@ -855,7 +861,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('WordPress caches cannot replace the thumbnail resource worker', async ({
 		page,
 	}) => {
-		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
 		let workerUrl: string | undefined;
 		page.on('worker', (worker) => {

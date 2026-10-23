@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+import { appOrigin } from '../bin/wordpress-frame/origins.mjs';
 
 export class WebsitePage {
 	public readonly page: Page;
@@ -56,7 +57,15 @@ export class WebsitePage {
 		);
 	}
 
+	/** Run the existing website flows once with the sandbox opt-in in two-host CI. */
 	async goto(url: string, options?: any) {
+		if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+			const target = new URL(url, appOrigin + '/');
+			if (target.hostname === 'playground.localhost') {
+				target.searchParams.set('reprint', '');
+				url = target.href;
+			}
+		}
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
 		await this.waitForNestedIframes();

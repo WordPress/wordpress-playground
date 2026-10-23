@@ -120,7 +120,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { playgroundOrigin, wordPressSiteUrl } from './src/lib/config';
+import { playgroundOrigin, wordPressSandboxOrigin } from './src/lib/config';
 // @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
 import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
@@ -237,7 +237,7 @@ self.addEventListener('activate', function (event) {
 	 * registration must not use its origin's user-writable cache for platform
 	 * assets. In split-origin mode the app fills its cache on demand instead of
 	 * downloading the full offline manifest, including unused PHP and WordPress
-	 * versions. One-origin builds retain the existing offline prefetch.
+	 * versions. Builds without a sandbox retain the existing offline prefetch.
 	 */
 	async function doActivate() {
 		await self.clients.claim();
@@ -246,7 +246,7 @@ self.addEventListener('activate', function (event) {
 			await purgeEverythingFromPreviousRelease();
 			// The split-origin preview shares this root cache on demand. Do not
 			// prefetch unused runtimes, editors, or WordPress versions.
-			if (wordPressSiteUrl === playgroundOrigin) {
+			if (wordPressSandboxOrigin === playgroundOrigin) {
 				cacheOfflineModeAssetsForCurrentRelease(
 					new URL(self.location.href).searchParams.get(
 						'shared-worker'
@@ -270,23 +270,14 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
-	if (
-		wordPressSiteUrl !== playgroundOrigin &&
-		self.location.origin === playgroundOrigin &&
-		isURLScoped(url)
-	) {
-		// Root-origin user HTML would regain the app's storage privileges.
-		// Only the WordPress-origin worker may synthesize scoped responses.
-		if (url.origin === playgroundOrigin) {
-			event.respondWith(new Response('Not found', { status: 404 }));
-		}
-		return;
-	}
+	// One app worker serves tabs with and without ?reprint. Handle scoped pages
+	// only on this registration's origin; the PHP connection rejects app-origin
+	// requests for a sandbox site's scope instead of changing this shared worker.
+	if (isURLScoped(url) && url.origin !== self.location.origin) return;
 
 	if (
-		wordPressSiteUrl !== playgroundOrigin &&
-		self.location.origin === wordPressSiteUrl &&
-		url.origin === wordPressSiteUrl &&
+		self.location.origin !== playgroundOrigin &&
+		url.origin === self.location.origin &&
 		url.pathname === '/wordpress-bridge.html'
 	) {
 		// WordPress can replace any CacheStorage entry on this origin. Generate
@@ -345,9 +336,8 @@ self.addEventListener('fetch', (event) => {
 		url.searchParams.has('playground-site-thumbnail-worker');
 	if (
 		isSiteThumbnailWorker &&
-		wordPressSiteUrl !== playgroundOrigin &&
-		self.location.origin === wordPressSiteUrl &&
-		url.origin === wordPressSiteUrl &&
+		self.location.origin !== playgroundOrigin &&
+		url.origin === self.location.origin &&
 		url.pathname.startsWith('/assets/')
 	) {
 		// The same-origin worker loader must not come from a WordPress-writable cache either.
@@ -601,7 +591,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 		}
 		const assetUrl =
-			wordPressSiteUrl !== playgroundOrigin
+			self.location.origin !== playgroundOrigin
 				? new URL(
 						resolvedUrl.pathname + resolvedUrl.search,
 						playgroundOrigin
@@ -610,7 +600,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		const request = await cloneRequest(event.request, {
 			url: assetUrl,
 			// Navigation clones default to same-origin, but these assets live on the app origin.
-			...(wordPressSiteUrl !== playgroundOrigin && { mode: 'cors' }),
+			...(self.location.origin !== playgroundOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
 			credentials: 'omit',
@@ -642,7 +632,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			throw e;
 		});
 		if (
-			wordPressSiteUrl !== playgroundOrigin &&
+			self.location.origin !== playgroundOrigin &&
 			(event.request.mode === 'navigate' ||
 				event.request.mode === 'same-origin')
 		) {

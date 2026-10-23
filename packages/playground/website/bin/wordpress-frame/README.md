@@ -1,7 +1,7 @@
 # WordPress-only origin prototype
 
 The user stays on `http://playground.localhost:9500`, with the usual SPA and dock.
-Only rendered WordPress pages use `http://wp.playground.localhost:9500`.
+With `?reprint`, rendered WordPress pages use `http://wp.playground.localhost:9500`.
 Both names resolve to loopback in Chromium. This server uses port 9500 so it does
 not replace normal development on 5400 or the full-app prototype on 9400.
 
@@ -25,18 +25,19 @@ npx nx run playground-website:build:wordpress-frame
 npx nx run playground-website:preview:wordpress-frame
 ```
 
-Open <http://playground.localhost:9500/?wp=6.9&php=8.3>. This is a built preview;
+Open <http://playground.localhost:9500/?reprint&wp=6.9&php=8.3>.
+Without `?reprint`, WordPress stays on the app origin. This is a built preview;
 source changes require rebuilding and restarting. It binds to `127.0.0.1` only.
 The `playground.localhost` hostname enables this built-preview setup. Normal builds
 on other origins retain their existing behavior. `npm run dev` now uses the same
-origin split through the existing loopback Vite ports: app on 5400, WordPress on
+opt-in through the existing loopback Vite ports: app on 5400, WordPress on
 4400. Source changes do not need a build there; see the
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
 
 ## Boundaries
 
-- The app, `remote.html`, PHP worker, and all directory handles remain same-origin.
+- With `?reprint`, the app, `remote.html`, PHP worker, and all directory handles remain same-origin.
   The top-level app can use its normal native folder picker. The save controls
   check the PHP iframe's origin, not the rendered WordPress URL. No popup or
   cross-origin filesystem protocol is added.
@@ -57,8 +58,10 @@ This work is separate from PR #4357.
 - Public scripts, PHP WASM, and WordPress downloads use identical root-origin
   URLs. The WordPress service worker imports its public code from that origin.
   The root keeps its existing on-demand asset cache, shared by every PHP worker.
-  Eager offline prefetch is disabled. Root-origin scoped requests return 404,
-  including requests intercepted by its service worker.
+  Eager offline prefetch is disabled. Root-origin scoped requests return 404
+  for opted-in sites. The same app service worker also serves ordinary sites'
+  app-origin scoped pages; each opted-in runtime explicitly rejects its app-origin
+  HTTP route. Tabs do not install competing service-worker modes.
 
 ## External embeds
 
@@ -78,7 +81,14 @@ to identify its origin would break existing embeds that hide their referrer.
 
 ## Limits
 
-**All Playgrounds share the WordPress origin.** Its OPFS, IndexedDB, cookies, and
+This is a rollout flag, not a separate storage area. Ordinary, single-origin
+WordPress pages can still read app-origin OPFS and alter its CacheStorage,
+including data or assets used by opted-in sessions. Reopening a saved Reprint
+clone without `?reprint` runs its WordPress code on the app origin again. The
+startup choice survives SPA navigation but is not stored in site metadata.
+The restrictions below apply to WordPress rendered on the sandbox origin.
+
+**All opted-in Playgrounds share the WordPress origin.** Its OPFS, IndexedDB, cookies, and
 other browser storage are not separated per Playground. This is deliberately a
 first step, not the per-site isolation offered by the full-app prototype.
 Sites can still request each other's scoped HTTP URLs. Excluding platform code
