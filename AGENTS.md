@@ -228,6 +228,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 
 ### Testing
 
+CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
+installing browser dependencies. The public Ubuntu archive and security mirrors
+remain available.
+
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
 - **Coverage**: Reports to `coverage/packages/<package-name>`
