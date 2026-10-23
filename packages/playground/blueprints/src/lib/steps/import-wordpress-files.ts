@@ -284,9 +284,8 @@ export const importWordPressFiles: StepHandler<
             `,
 	});
 
-	// If the site URL changed (different scope), update all URLs in the database.
-	// This ensures that image and media URLs that reference the old scope
-	// are updated to use the new scope.
+	// If the site URL changed, rewrite every stored occurrence of the old
+	// site URL to the new one.
 	if (oldSiteUrl && oldSiteUrl !== newSiteUrl) {
 		progress?.tracker.setCaption('Updating site URLs');
 		progress?.tracker.set(90);
@@ -297,25 +296,18 @@ export const importWordPressFiles: StepHandler<
 };
 
 /**
- * Extracts the scope path segment from a Playground URL.
- * For example, "http://playground.wordpress.net/scope:abc123/" returns "/scope:abc123/".
- * Returns null if no scope is found.
- */
-function extractScopePath(url: string): string | null {
-	const match = url.match(/\/scope:[^/]+\/?/);
-	return match ? match[0].replace(/\/?$/, '/') : null;
-}
-
-/**
- * Replaces the scope path segment in URLs stored in the database.
- * Only replaces /scope:old-scope/ with /scope:new-scope/, leaving the rest
- * of URLs intact. This is a targeted replacement that handles scope changes
- * when importing a Playground export into a different scope.
+ * Replaces every stored occurrence of the old site URL with the new one.
  *
- * This approach is reasonably safe because:
- * - The scope string is fairly unique (/scope:xyz/ pattern)
- * - The database fits into memory anyway
- * - There's no expectation of HTML entities or other escaping within the scope string
+ * Trailing slashes are normalized so `<old>/x` becomes `<new>/x`. Both the
+ * plain and the JSON slash-escaped (`\/`) forms are replaced. A match must
+ * end at a URL boundary, so `http://example.com` leaves
+ * `http://example.com.au` and `http://example.com:8080` alone.
+ *
+ * Serialized values (including nested serialized strings) are unserialized,
+ * rewritten and re-serialized so lengths stay valid. A serialized value that
+ * holds an object other than `stdClass` is left exactly as stored: rewriting
+ * it would require loading plugin classes and their serialization hooks.
+ * `siteurl` and `home` are skipped, as defineSiteUrl owns them.
  */
 async function replaceSiteUrl(
 	playground: UniversalPHP,
@@ -323,16 +315,9 @@ async function replaceSiteUrl(
 	oldSiteUrl: string,
 	newSiteUrl: string
 ) {
-	const oldScopePath = extractScopePath(oldSiteUrl);
-	const newScopePath = extractScopePath(newSiteUrl);
-
-	// If we can't extract scope paths, there's nothing to replace
-	if (!oldScopePath || !newScopePath) {
-		return;
-	}
-
-	// If the scopes are the same, no replacement needed
-	if (oldScopePath === newScopePath) {
+	const oldUrl = oldSiteUrl.replace(/\/+$/, '');
+	const newUrl = newSiteUrl.replace(/\/+$/, '');
+	if (!oldUrl || oldUrl === newUrl) {
 		return;
 	}
 
@@ -341,61 +326,103 @@ async function replaceSiteUrl(
 		require_once getenv('DOCUMENT_ROOT') . '/wp-load.php';
 		global $wpdb;
 
-		$old_scope = getenv('OLD_SCOPE');
-		$new_scope = getenv('NEW_SCOPE');
+		$old = getenv('OLD_SITE_URL');
+		$new = getenv('NEW_SITE_URL');
+		$pairs = [
+			[$old, $new],
+			[str_replace('/', '\\/', $old), str_replace('/', '\\/', $new)],
+		];
 
-		// Update URLs in posts content, excerpts, and GUIDs
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->posts} SET post_content = REPLACE(post_content, %s, %s)",
-			$old_scope, $new_scope
-		));
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->posts} SET post_excerpt = REPLACE(post_excerpt, %s, %s)",
-			$old_scope, $new_scope
-		));
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->posts} SET guid = REPLACE(guid, %s, %s)",
-			$old_scope, $new_scope
-		));
+		// A match must not continue the host, port or final path segment.
+		$replace_in_string = function ($value) use ($pairs) {
+			foreach ($pairs as $pair) {
+				$replacement = $pair[1];
+				$value = preg_replace_callback(
+					'/' . preg_quote($pair[0], '/') . '(?![A-Za-z0-9_.:-])/',
+					function () use ($replacement) {
+						return $replacement;
+					},
+					$value
+				);
+			}
+			return $value;
+		};
 
-		// Update URLs in post meta
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->postmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
+		$holds_only_plain_data = function ($value) use (&$holds_only_plain_data) {
+			if (is_object($value)) {
+				if (!($value instanceof stdClass)) {
+					return false;
+				}
+				$value = get_object_vars($value);
+			}
+			if (is_array($value)) {
+				foreach ($value as $item) {
+					if (!$holds_only_plain_data($item)) {
+						return false;
+					}
+				}
+			}
+			return true;
+		};
 
-		// Update URLs in options (handles both regular and serialized data)
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->options} SET option_value = REPLACE(option_value, %s, %s) WHERE option_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
+		// Returns the rewritten value, or the original when it cannot be
+		// rewritten safely.
+		$replace_deep = function ($value) use (&$replace_deep, $replace_in_string, $holds_only_plain_data) {
+			if (is_string($value)) {
+				if (!is_serialized($value)) {
+					return $replace_in_string($value);
+				}
+				$data = @unserialize($value, ['allowed_classes' => ['stdClass']]);
+				if (
+					($data === false && $value !== serialize(false))
+					|| !$holds_only_plain_data($data)
+				) {
+					return $value;
+				}
+				return serialize($replace_deep($data));
+			}
+			if (is_array($value)) {
+				foreach ($value as $k => $v) {
+					$value[$k] = $replace_deep($v);
+				}
+			} elseif ($value instanceof stdClass) {
+				foreach (get_object_vars($value) as $k => $v) {
+					$value->$k = $replace_deep($v);
+				}
+			}
+			return $value;
+		};
 
-		// Update URLs in user meta
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->usermeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-
-		// Update URLs in term meta
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->termmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-
-		// Update URLs in comments
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->comments} SET comment_content = REPLACE(comment_content, %s, %s) WHERE comment_content LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->comments} SET comment_author_url = REPLACE(comment_author_url, %s, %s) WHERE comment_author_url LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
+		$columns = [
+			[$wpdb->posts, 'ID', 'post_content', ''],
+			[$wpdb->posts, 'ID', 'post_excerpt', ''],
+			[$wpdb->posts, 'ID', 'guid', ''],
+			[$wpdb->comments, 'comment_ID', 'comment_content', ''],
+			[$wpdb->comments, 'comment_ID', 'comment_author_url', ''],
+			[$wpdb->options, 'option_id', 'option_value', "AND option_name NOT IN ('siteurl', 'home')"],
+			[$wpdb->postmeta, 'meta_id', 'meta_value', ''],
+			[$wpdb->usermeta, 'umeta_id', 'meta_value', ''],
+			[$wpdb->termmeta, 'meta_id', 'meta_value', ''],
+		];
+		foreach ($columns as [$table, $id_column, $column, $extra]) {
+			$rows = $wpdb->get_results($wpdb->prepare(
+				"SELECT {$id_column} AS id, {$column} AS value FROM {$table}
+				WHERE ({$column} LIKE %s OR {$column} LIKE %s) {$extra}",
+				'%' . $wpdb->esc_like($pairs[0][0]) . '%',
+				'%' . $wpdb->esc_like($pairs[1][0]) . '%'
+			));
+			foreach ($rows as $row) {
+				$updated = $replace_deep($row->value);
+				if ($updated !== $row->value) {
+					$wpdb->update($table, [$column => $updated], [$id_column => $row->id]);
+				}
+			}
+		}
 		`,
 		env: {
 			DOCUMENT_ROOT: documentRoot,
-			OLD_SCOPE: oldScopePath,
-			NEW_SCOPE: newScopePath,
+			OLD_SITE_URL: oldUrl,
+			NEW_SITE_URL: newUrl,
 		},
 	});
 }
