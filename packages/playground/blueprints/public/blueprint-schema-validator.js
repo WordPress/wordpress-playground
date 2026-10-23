@@ -1260,7 +1260,7 @@ const schema11 = {
 						language: {
 							type: 'string',
 							description:
-								"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is available.",
+								"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.",
 						},
 					},
 					required: ['language', 'step'],
@@ -5368,7 +5368,7 @@ const schema33 = {
 				language: {
 					type: 'string',
 					description:
-						"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is available.",
+						"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.",
 				},
 			},
 			required: ['language', 'step'],

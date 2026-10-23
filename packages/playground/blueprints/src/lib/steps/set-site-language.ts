@@ -19,7 +19,7 @@ export interface SetSiteLanguageStep {
 	/**
 	 * The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available
 	 * translation using navigator.languages, in preference order, with regional
-	 * language fallbacks. Falls back to 'en_US' if no match or browser is available.
+	 * language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.
 	 */
 	language: string;
 }
