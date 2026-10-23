@@ -234,6 +234,10 @@ adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
 Use screenshots and manual interaction for visual-only changes. Tests are not
 required for every PR. Never add tests simply to make a PR appear complete.
 
+The PHP CORS proxy suite runs with `npm exec -- nx test playground-php-cors-proxy`.
+Set `CORS_PROXY_TEST_HTTPD` to an Apache executable to also run its transport checks
+through FastCGI. See the proxy README for PHP, Apache module, and fixture requirements.
+
 ### Package Structure
 
 All published packages follow this pattern:
