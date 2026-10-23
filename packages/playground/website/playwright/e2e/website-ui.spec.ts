@@ -1558,7 +1558,7 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
-		).toBe(false);
+		).toBe(true);
 		const progressbarSamples = saveStatusSamples.filter(
 			({ role }) => role === 'progressbar'
 		);
