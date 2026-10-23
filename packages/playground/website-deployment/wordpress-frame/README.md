@@ -4,21 +4,26 @@ This router is separate from the production deployment scripts. Do not run the
 normal `apply-update.sh` against an existing staging WordPress installation: its
 web-root sync deletes files absent from the build.
 
-The staging deployment uses:
+The intended production hosts are:
 
-- App: `https://pg-app.zielinscy.dev`
-- WordPress: `https://pg-sandbox.zielinscy.dev`
-- SSH: `adam6a33ea7c1e3d6@ssh.atomicsites.net`
+- App: `https://playground.wordpress.net`
+- WordPress: `https://wasm.wordpress.net`
+
+For staging, replace both origins below with two hostnames mapped to a separate
+WP Cloud site. This PR does not enable the router in the production deployment.
 
 Both hostnames need domain mappings and valid TLS. WP Cloud must serve aliases
 without redirecting them to the primary domain (`canonicalize_aliases=false`).
+`wasm.wordpress.net` currently redirects to the app. Before activation, remove
+that redirect and test the helper and service-worker URLs in a browser with the
+old redirect cached. Changing the server does not clear a browser's cached 301.
 
 ## Build and install
 
 Build with Node 24, setting the WordPress origin at build time:
 
 ```sh
-VITE_WORDPRESS_SITE_URL=https://pg-sandbox.zielinscy.dev \
+VITE_WORDPRESS_SITE_URL=https://wasm.wordpress.net \
   npx nx run playground-website:build:wordpress-frame
 npx nx run playground-website:test:wordpress-frame-router
 ```
@@ -42,8 +47,8 @@ file there which returns for CLI requests, requires the private release's
 ```php
 playground_serve_wordpress_frame(
     '/srv/htdocs/.playground-releases/<commit>/files',
-    'https://pg-app.zielinscy.dev',
-    'https://pg-sandbox.zielinscy.dev'
+    'https://playground.wordpress.net',
+    'https://wasm.wordpress.net'
 );
 ```
 
@@ -82,7 +87,8 @@ platform redirects or cached headers can bypass the intended response path.
 ## Check and roll back
 
 Test both hosts without bypassing TLS verification. Confirm that neither
-redirects, WordPress runs on `pg-sandbox`, and the dock stays on `pg-app`.
+redirects, WordPress runs on the configured sandbox origin, and the dock stays
+on the configured app origin.
 Repeat the direct-parent OPFS canary and saved-site switch checks from the local
 browser suite. An unchanged external iframe with `referrerpolicy="no-referrer"`
 must still load.
