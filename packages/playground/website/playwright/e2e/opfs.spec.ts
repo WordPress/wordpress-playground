@@ -589,6 +589,7 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		await website.page.goto(
 			`./?site-slug=${encodeURIComponent(slug)}&random=${Date.now()}`
 		);
+		await website.openSavedPlayground();
 		await expect
 			.poll(() =>
 				website.page.evaluate(
@@ -646,6 +647,7 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		await website.page.goto(
 			`./?site-slug=${encodeURIComponent(interruptedSiteSlug)}`
 		);
+		await website.openSavedPlayground();
 		await expect(
 			website.page.getByText('Start a new Playground to continue')
 		).toBeVisible();
@@ -1010,6 +1012,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 
 		// Reload and verify the name persists
 		await website.page.reload();
+		await website.openSavedPlayground();
 		await website.ensureSiteManagerIsOpen();
 		await expect(getPlaygroundTitle(website.page)).toContainText(newName);
 
@@ -1075,6 +1078,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		);
 
 		await website.page.reload();
+		await website.openSavedPlayground();
 		await website.page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
@@ -1114,6 +1118,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		await secondTab.waitForFunction(() =>
 			Boolean((window as any).playgroundSites)
 		);
+		await website.openSavedPlayground(secondTab);
 		await secondTab.evaluate(() =>
 			(window as any).playgroundSites.isReady()
 		);
@@ -1778,6 +1783,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		// Now reload the page directly with the site-slug parameter.
 		// This simulates starting fresh with just the saved site (no temporary site).
 		await website.page.goto(`./?site-slug=${siteSlug}`);
+		await website.openSavedPlayground();
 		await website.waitForNestedIframes();
 		await website.ensureSiteManagerIsOpen();
 

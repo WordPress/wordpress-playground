@@ -229,6 +229,7 @@ test(
 			.poll(() => new URL(page.url()).searchParams.get('site-slug'))
 			.toBe(clone.slug);
 		await page.reload();
+		await website.openSavedPlayground();
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);

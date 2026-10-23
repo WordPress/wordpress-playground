@@ -22,7 +22,7 @@ type McpWorkerFixtures = {
 const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 	mcpClient: [
 		// eslint-disable-next-line no-empty-pattern
-		async ({}, use) => {
+		async ({}, use, workerInfo) => {
 			const transport = new StdioClientTransport({
 				command: 'node',
 				args: [
@@ -32,6 +32,7 @@ const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 					'../../../../meta/src/node-es-module-loader/register.mts',
 					'../../src/index.ts',
 					`--port=${MCP_WS_PORT}`,
+					`--url=${workerInfo.project.use.baseURL!}`,
 				],
 				cwd: dirname(fileURLToPath(import.meta.url)),
 				env: {
@@ -54,10 +55,13 @@ const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 	// The MCP bridge auto-connects via WebSocket and registers sites
 	// from the Redux store. The bridge reconnects every 5s if dropped.
 	playgroundPage: [
-		async ({ browser, mcpClient }, use) => {
+		async ({ browser, mcpClient }, use, workerInfo) => {
 			const page = await browser.newPage();
 			await page.goto(
-				`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
+				new URL(
+					`?mcp-port=${MCP_WS_PORT}`,
+					workerInfo.project.use.baseURL!
+				).href
 			);
 
 			// Wait for WordPress to load inside the nested iframes
@@ -145,7 +149,8 @@ async function waitForActiveSite(
 	throw lastError ?? new Error('Timeout waiting for active site');
 }
 
-test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
+test.afterEach(async ({ mcpClient, playgroundPage, browser }, testInfo) => {
+	const baseUrl = new URL(testInfo.project.use.baseURL!);
 	let needsReset = false;
 
 	for (const context of browser.contexts()) {
@@ -157,13 +162,13 @@ test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
 		}
 	}
 
-	if (!playgroundPage.url().includes('website-server')) {
+	if (!playgroundPage.url().startsWith(baseUrl.origin + baseUrl.pathname)) {
 		needsReset = true;
 	}
 
 	if (needsReset) {
 		await playgroundPage.goto(
-			`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
+			new URL(`?mcp-port=${MCP_WS_PORT}`, baseUrl).href
 		);
 		await waitForActiveSite(mcpClient, 60_000, { probe: false });
 	}
@@ -210,7 +215,7 @@ test('playground_list_sites includes playground url with mcp params', async ({
 	expect(site.url).toMatch(new RegExp(`\\?mcp-port=${MCP_WS_PORT}$`));
 });
 
-test('playground_open_site_in_new_tab activates an inactive site in a new tab', async ({
+test('playground_open_site_in_new_tab waits for the saved-site choice before activation', async ({
 	mcpClient,
 	playgroundPage,
 	siteId,
@@ -225,7 +230,7 @@ test('playground_open_site_in_new_tab activates an inactive site in a new tab', 
 	// new temporary site (active) while loading the saved site
 	// from OPFS (inactive).
 	await playgroundPage.goto(
-		`http://127.0.0.1:5400/website-server/?mcp-port=${MCP_WS_PORT}`
+		new URL(`?mcp-port=${MCP_WS_PORT}`, playgroundPage.url()).href
 	);
 	await expect(
 		playgroundPage
@@ -252,12 +257,29 @@ test('playground_open_site_in_new_tab activates an inactive site in a new tab', 
 		)
 		.toBe(false);
 
-	// Open the inactive site — the browser calls window.open(),
-	// a new tab loads, and the site becomes active.
-	await mcpClient.callTool({
+	// Opening a URL cannot start saved PHP. Make the app's required choice
+	// while the tool waits for the new tab to report an active site.
+	const popupPromise = playgroundPage.waitForEvent('popup');
+	const openResultPromise = mcpClient.callTool({
 		name: 'playground_open_site_in_new_tab',
 		arguments: { siteId },
 	});
+	const popup = await popupPromise;
+	const openButton = popup.getByRole('button', {
+		name: 'Open Playground',
+		exact: true,
+	});
+	await expect(openButton).toBeVisible();
+	expect(
+		await popup.evaluate(() =>
+			(window as any).playgroundSites
+				.list()
+				.some((site: any) => site.isActive)
+		)
+	).toBe(false);
+	await openButton.click();
+	const result = await openResultPromise;
+	expect(result.isError).not.toBe(true);
 
 	// Verify list_sites now reports the site as active
 	await expect
@@ -599,7 +621,7 @@ test('playground_list_sites reports connected but no sites when browser has no p
 	mcpClient,
 	playgroundPage,
 	browser,
-}) => {
+}, testInfo) => {
 	// Disconnect the real Playground bridge
 	await playgroundPage.goto('about:blank');
 	await expect
@@ -622,7 +644,7 @@ test('playground_list_sites reports connected but no sites when browser has no p
 	const fakePage = await browser.newPage();
 	// Navigate to an allowed origin so the WebSocket connection
 	// passes the origin check in the bridge server.
-	await fakePage.goto(`http://127.0.0.1:5400`);
+	await fakePage.goto(new URL(testInfo.project.use.baseURL!).origin);
 	await fakePage.evaluate(async (port) => {
 		// Fetch the session token before connecting
 		const res = await fetch(`http://127.0.0.1:${port}/bridge-token`);

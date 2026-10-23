@@ -65,6 +65,35 @@ and its public entry. See the [deployment guide](../../../website-deployment/wor
   Eager offline prefetch is disabled. Root-origin scoped requests return 404,
   including requests intercepted by its service worker.
 
+## Saved-site startup
+
+Opening `/?site-slug=...` shows the saved site's name and an **Open Playground**
+button. It does not start PHP or mount that site's files until the user chooses
+that button in the trusted app. This also applies to reloads and links opened by
+WordPress in a popup. Selecting a site in the Dock already makes that choice, so
+there is no second prompt. Autosave restore keeps its existing explicit choice.
+New setup URLs still create fresh sites, and regular WordPress links, forms,
+iframes and database popups do not need approval.
+
+Every newly allocated site slug includes a cryptographically random UUID suffix,
+including slugs created from explicit hints. Callers must use the returned slug,
+not assume their hint became the exact address. Existing saved slugs and storage
+paths do not change. The WordPress HTTP scope remains the stored slug so saved
+WordPress links keep working across restarts. A UUID contains 122 random bits.
+Legacy readable slugs remain readable; they receive the same startup restriction,
+not a silent storage or URL migration.
+
+An HTTP request never starts PHP or opens saved files. The worker can only relay
+to a runtime that the app has already started. After that runtime's iframe is
+removed, its old HTTP address has no PHP instance behind it. Hidden temporary or
+syncing iframes still count as running, as do sites open in another tab. Requests
+to an inactive scope can time out; they cannot reopen that saved site. A database
+popup wrapper only displays a scoped URL. It cannot create a PHP runtime.
+
+This is a startup restriction, not per-site HTTP authorization. No browser client
+ID grants, navigation approval documents, native POST retries or stylesheet tokens
+are used. The normal navigation path stays unchanged in all browsers.
+
 ## External embeds
 
 Existing plain iframes and SDK calls work without a referrer or new URL parameters.
@@ -87,12 +116,17 @@ to identify its origin would break existing embeds that hide their referrer.
 other browser storage are not separated per Playground. This is deliberately a
 first step, not the per-site isolation offered by the full-app prototype.
 Sites can still request each other's scoped HTTP URLs. Excluding platform code
-from WordPress-writable caches does not add per-site HTTP authorization.
+from WordPress-writable caches does not add per-site HTTP authorization. Running
+sites still share window access and browser storage. Their HTTP scopes can leak
+through links, messages and requests; random addresses do not protect an address
+once another site learns it. The startup restriction stops saved-site URLs from
+starting those runtimes; it does not authorize every app/API operation.
 
 WordPress cannot directly read an existing parent document or its OPFS, and
 cannot call its connected PHP API. However, WordPress can still embed a fresh
-app/API document and connect to that new document. Closing that route without
-breaking external embeds remains unresolved. Do not treat this prototype as
+app/API document and connect to that new document. For example, a fresh `api.html`
+exposes saved-site ZIP export. Closing that route without breaking external
+embeds remains unresolved. Do not treat this prototype as
 complete protection for saved files or native directory handles.
 
 PHP still runs in the root-origin WASM host with its assigned filesystem mounts. A compromise of that host is not contained to one site's
@@ -123,7 +157,8 @@ npx nx run playground-website:e2e:wordpress-frame --args='wordpress-frame.spec.t
 
 The browser checks cover direct parent OPFS access, rejected child PHP API calls,
 restricted helper methods, saved-site switching without replacing the SPA,
-shared PHP/WordPress downloads, cache-poisoning attempts against the helper and
+shared PHP/WordPress downloads, saved-site startup confirmation, inactive-site
+HTTP and popup probes, cache-poisoning attempts against the helper and
 thumbnail-worker loader, warm offline startup, editor saves, the same-origin
 directory-handle path, current-URL reporting, two-way app/WordPress messages,
 outside-click dismissal, and cross-origin OAuth popups. The folder test

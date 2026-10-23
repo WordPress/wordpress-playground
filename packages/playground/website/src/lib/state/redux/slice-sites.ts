@@ -447,6 +447,12 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
 /**
  * Creates or reuses a temporary Playground in the redux state. Replacements
  * receive a different slug so React boots them in a fresh iframe.
+ *
+ * preferredSlug is a readable prefix, not the final address. New sites receive
+ * a random UUID suffix and reserve stored slugs plus the previous temporary slug.
+ * Use the returned site's slug for navigation and connection handoffs; recomputing
+ * it from the same prefix cannot recover the allocated address. Reusing an
+ * unchanged temporary site keeps that existing site's slug.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
@@ -533,8 +539,8 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Temporary sites are removed before the new one is added, so they
-		// should not force the replacement site to take a numeric suffix.
+		// Temporary sites are removed before the new one is added. Reserve
+		// stored slugs so a random-suffix collision cannot reuse a saved path.
 		const storedSites = selectAllSites(getState()).filter(
 			(site) => site.metadata.storage !== 'none'
 		);
@@ -643,6 +649,10 @@ export function setTemporarySiteSpec(
 /**
  * Creates a new OPFS-backed Playground from a setup URL or editable Blueprint
  * bundle.
+ *
+ * Allocate a new UUID-suffixed slug even when preferredSlug is supplied. Return
+ * that allocated slug on the new site object; callers must not use the hint
+ * as its OPFS directory or HTTP scope. This does not rename an existing saved site.
  *
  * Editable bundles are copied into the new Playground's storage before its
  * metadata is written. The metadata points to that persisted copy rather than
