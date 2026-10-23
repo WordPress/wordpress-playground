@@ -123,11 +123,17 @@ async function ready(page: Page, origin: string): Promise<Frame> {
 			'#playground-viewport:visible,.playground-viewport:visible'
 		)
 		.locator('#wp');
-	await expect(iframe.contentFrame().locator('body')).not.toBeEmpty();
 	const element = (await iframe.elementHandle())!;
 	const frame = (await element.contentFrame())!;
 	await element.dispose();
-	expect(new URL(frame.url()).origin).toBe(origin);
-	expect(new URL(frame.url()).pathname).toMatch(/^\/scope:/);
+	// The loading document has a body too. Firefox can still show its blob URL
+	// after PHP is ready; wait for the actual scoped document to commit.
+	await expect
+		.poll(() => {
+			const url = new URL(frame.url());
+			return { origin: url.origin, pathname: url.pathname };
+		})
+		.toEqual({ origin, pathname: expect.stringMatching(/^\/scope:/) });
+	await expect(iframe.contentFrame().locator('body')).not.toBeEmpty();
 	return frame;
 }
