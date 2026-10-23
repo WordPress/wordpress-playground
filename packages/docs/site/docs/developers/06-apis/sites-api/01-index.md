@@ -228,16 +228,17 @@ setNetworking(enabled: boolean): Promise<void>;
 
 ### `updateRuntimeSettings(settings)`
 
-Applies the runtime settings that can change on an existing stored Playground: PHP version and networking. If the settings already match, Playground reloads the current WordPress page.
+Applies the settings that can change on an existing stored Playground: PHP version and networking. Pass `enableMultisite: true` to also convert the current site into a multisite network before the runtime restarts. If nothing changes, Playground reloads the current WordPress page.
 
 ```typescript
 updateRuntimeSettings(settings: {
 	phpVersion: string;
 	networking: boolean;
+	enableMultisite?: boolean;
 }): Promise<void>;
 ```
 
-WordPress version, language, and multisite are installation settings. Create a fresh Playground when those need to change.
+WordPress version, language, and turning multisite off are installation settings. Create a fresh Playground when those need to change.
 
 ### `delete(slug)`
 
