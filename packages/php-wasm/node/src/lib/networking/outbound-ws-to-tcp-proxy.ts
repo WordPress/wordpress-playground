@@ -134,6 +134,10 @@ export function initOutboundWebsocketProxyServer(
 
 // Handle new WebSocket client
 async function onWsConnect(client: any, request: http.IncomingMessage) {
+	if (request.headers.origin) {
+		client.close(1008, 'Origin not allowed');
+		return;
+	}
 	const clientAddr = client?._socket?.remoteAddress || client.url;
 	const clientLog = function (...args: any[]) {
 		log(' ' + clientAddr + ': ', ...args);
@@ -194,7 +198,9 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 				}
 			} else {
 				clientLog('Unknown command type: ' + commandType);
-				process.exit();
+				client.close(3000);
+				target.end();
+				return;
 			}
 		}
 	}
