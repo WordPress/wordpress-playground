@@ -85,9 +85,6 @@ their previous routing. Do not replace either server with an auto-selected port.
 A single Chromium CI smoke test covers the live Vite module graph; the full
 browser suite still runs once against the built cross-origin preview.
 
-The shared `prepare-playground` action keeps the runner's Ubuntu HTTPS mirrors
-and skips Azure's HTTP mirror when installing browser dependencies.
-
 The WordPress-only origin prototype has `build:wordpress-frame`,
 `preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
 port 9500, separately from normal development. CI runs all website E2E tests once
@@ -234,6 +231,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   instead of defending the new abstraction.
 
 ### Testing
+
+CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
+installing browser dependencies. The public Ubuntu archive and security mirrors
+remain available.
 
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
