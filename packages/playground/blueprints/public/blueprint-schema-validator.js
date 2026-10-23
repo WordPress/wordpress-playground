@@ -1259,7 +1259,8 @@ const schema11 = {
 						step: { type: 'string', const: 'setSiteLanguage' },
 						language: {
 							type: 'string',
-							description: "The language to set, e.g. 'en_US'",
+							description:
+								"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is available.",
 						},
 					},
 					required: ['language', 'step'],
@@ -5366,7 +5367,8 @@ const schema33 = {
 				step: { type: 'string', const: 'setSiteLanguage' },
 				language: {
 					type: 'string',
-					description: "The language to set, e.g. 'en_US'",
+					description:
+						"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is available.",
 				},
 			},
 			required: ['language', 'step'],
