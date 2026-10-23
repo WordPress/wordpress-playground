@@ -1,31 +1,43 @@
 /**
- * Check the static-file sender through PHP's real HTTP stack.
+ * Check custom request handling through PHP's real HTTP stack.
  *
- * Fixed fixture paths stand in for files already validated by the request
- * handler. Check exact bytes and HTTP metadata, including full-response fallback
- * for range forms we do not implement. No build, DNS, or WP Cloud access is used.
+ * Scoped URLs must terminate before redirects, rewrites, or the app fallback;
+ * those independent routing paths could otherwise bypass the rejection.
+ * Fixed fixture paths also exercise static-file ranges after path validation.
+ * No build, DNS, or WP Cloud access is used; edge cache hits need a deployed check.
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const temporary = await mkdtemp(join(tmpdir(), 'playground-byte-ranges-'));
+const temporary = await mkdtemp(join(tmpdir(), 'playground-custom-redirects-'));
 const bytes = '0123456789';
 let server;
 let port;
 try {
+	await copyFile(
+		fileURLToPath(new URL('./custom-redirects-lib.php', import.meta.url)),
+		join(temporary, 'custom-redirects-lib.php')
+	);
+	// Make the My WordPress fallback resolve a file if a scoped URL reaches it.
+	await writeFile(join(temporary, 'index.html'), 'App fallback');
 	await writeFile(join(temporary, 'fixture.bin'), bytes);
 	await writeFile(join(temporary, 'empty.bin'), '');
 	await writeFile(
 		join(temporary, 'entry.php'),
 		`<?php
-require ${JSON.stringify(fileURLToPath(new URL('./custom-redirects-lib.php', import.meta.url)))};
+require __DIR__ . '/custom-redirects-lib.php';
+if (!in_array($_SERVER['REQUEST_URI'], array('/', '/empty'), true)) {
+	playground_handle_request();
+	http_response_code(500);
+	die('The request handler unexpectedly returned.');
+}
 header('Content-Type: application/octet-stream');
 playground_serve_static_file(__DIR__ . ($_SERVER['REQUEST_URI'] === '/empty' ? '/empty.bin' : '/fixture.bin'));
 `
@@ -41,6 +53,68 @@ playground_serve_static_file(__DIR__ . ($_SERVER['REQUEST_URI'] === '/empty' ? '
 		join(temporary, 'entry.php'),
 	]);
 	await once(server.stderr, 'data');
+
+	for (const host of ['playground.wordpress.net', 'my.wordpress.net']) {
+		for (const method of ['GET', 'HEAD', 'POST']) {
+			for (const path of [
+				'/scope:',
+				'/scope:site/',
+				'/scope:site/wp-admin/?next=/docs',
+				'/scope:site/docs',
+				'/scope:site/plugin-proxy',
+				'/scope:site/plugin-proxy.php',
+				'/scope:site/wordpress.html',
+			]) {
+				const context = `${host} ${method} ${path}`;
+				const response = await request(
+					{ Host: host, Referer: 'https://wordpress.org/' },
+					method,
+					path
+				);
+				assert.equal(response.status, 404, context);
+				assert.equal(response.headers.get('location'), null, context);
+				assert.equal(
+					response.headers.get('a8c-edge-cache'),
+					'cache',
+					context
+				);
+				const cacheControl =
+					response.headers.get('cache-control') ?? '';
+				assert.match(cacheControl, /public/, context);
+				assert.match(cacheControl, /max-age=[1-9]\d*/, context);
+				assert.doesNotMatch(
+					cacheControl,
+					/no-store|no-cache|private/,
+					context
+				);
+				assert.equal(await response.text(), '', context);
+			}
+		}
+	}
+	// Scope text in a query or a later path segment must not block normal redirects.
+	for (const path of [
+		'/docs',
+		'/docs?next=/scope:site/',
+		'/nested/scope:site/docs',
+	]) {
+		const response = await request({}, 'GET', path);
+		assert.equal(response.status, 301, path);
+		assert.equal(
+			response.headers.get('location'),
+			'https://wordpress.github.io/wordpress-playground/',
+			path
+		);
+	}
+	const referred = await request(
+		{ Referer: 'https://wordpress.org/' },
+		'GET',
+		'/wordpress.html'
+	);
+	assert.equal(referred.status, 302);
+	assert.equal(referred.headers.get('location'), '/index.html');
+	const direct = await request({}, 'GET', '/wordpress.html');
+	assert.equal(direct.headers.get('location'), null);
+	assert.notEqual(direct.status, 302);
 
 	const full = await request();
 	assert.equal(full.status, 200);
@@ -118,7 +192,7 @@ playground_serve_static_file(__DIR__ . ($_SERVER['REQUEST_URI'] === '/empty' ? '
 	assert.equal(emptyRange.headers.get('content-range'), 'bytes */0');
 	assert.equal(await emptyRange.text(), '');
 	console.log(
-		'Static files: single ranges, full-response fallback, HEAD, and empty files passed.'
+		'Custom redirects: scoped rejections, cache headers, ordinary redirects, and static-file ranges passed.'
 	);
 } finally {
 	if (server) {

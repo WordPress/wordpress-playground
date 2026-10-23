@@ -96,8 +96,10 @@ block WordPress from embedding fresh app/API documents.
 
 WP Cloud's PHP-served static files support single bounded and open-ended byte
 ranges for runtime download retries. Other range forms get the full response;
-HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
+HEAD ignores Range. Run `playground-website:test:custom-redirects` for the real
 PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
+They cover scoped URL rejection before other routing, cache headers, redirects,
+and static-file ranges. `test:static-file-ranges` remains an alias for the suite.
 
 ### Package Naming Convention
 

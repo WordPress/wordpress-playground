@@ -228,10 +228,16 @@
 				"command": "node packages/playground/website/bin/reprint-assets.mts update"
 			}
 		},
+		"test:custom-redirects": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website-deployment/test-custom-redirects.mjs"
+			}
+		},
 		"test:static-file-ranges": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/playground/website-deployment/test-static-file-ranges.mjs"
+				"command": "node packages/playground/website-deployment/test-custom-redirects.mjs"
 			}
 		},
 		"build:wordpress-frame": {

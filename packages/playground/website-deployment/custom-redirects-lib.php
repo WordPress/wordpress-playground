@@ -38,6 +38,15 @@ function playground_handle_request() {
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
 
+	// Scoped WordPress URLs must be served by the browser's service worker.
+	// Reject them before rewrites or the My WordPress index fallback can handle them.
+	if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
+		header( 'A8C-Edge-Cache: cache' );
+		header( 'Cache-Control: public, max-age=31536000, immutable' );
+		http_response_code( 404 );
+		die();
+	}
+
 	//
 	// REWRITES
 	//

@@ -19,6 +19,18 @@ In order to customize these aspects for static files on WP Cloud, we did the fol
 - Added a `custom-redirects.php` file to implement special request handling. - WP Cloud invokes `<web-root>/custom-redirects.php` (if it exists) at the beginning of every PHP run in order to provide custom request handling. We added this file to implement the rewrites, redirects, and custom headers that we used to get via htaccess.
 - Set aside files that need special handling. - If we need custom treatment of static files, those files cannot be found by Nginx. Otherwise, Nginx will serve them directly without invoking PHP. For this reason, all static files that need special treatment are set aside under `<web-root>/static-files-to-serve-via-php/`
 
+The custom request handler returns HTTP 404 for paths starting with `/scope:`
+before applying rewrites or the My WordPress index fallback. These WordPress URLs
+belong to the browser's service worker and must not be served by WP Cloud.
+These permanent rejections opt into WP Cloud's edge cache with
+`A8C-Edge-Cache: cache` and request a one-year cache lifetime with
+`Cache-Control: public, max-age=31536000, immutable`.
+
+WP Cloud's [edge cache documentation](https://wp.cloud/docs/performance/cache/edge-cache/)
+does not specify whether 404 responses are eligible. After deployment, repeat
+cookie-free GET requests to the same `/scope:` URL and check for `x-ac: ... HIT`.
+Cache misses still terminate in this handler before rewrites or file resolution.
+
 ## Deployment notes
 
 New website builds are pushed to the WP Cloud site via SSH.
@@ -40,9 +52,16 @@ normal full response. A supported range outside the file returns 416. HEAD
 ignores Range and returns the full content length without a body. No multipart
 response handling or validator matching is added.
 
-Run `npm exec -- nx run playground-website:test:static-file-ranges` with Node 24
-and PHP to check the real HTTP responses. This does not change hostname routing
-or the deployment file layout.
+## Automated tests
+
+Run `npm exec -- nx run playground-website:test:custom-redirects` with Node 24
+and PHP to check real HTTP responses. CI runs this suite with the lint checks.
+It exercises scoped URL rejection before redirects, rewrites, and the My WordPress
+fallback, verifies cache headers and ordinary redirects, and tests static-file
+ranges. `test:static-file-ranges` remains an alias for the suite.
+
+The PHP helper tests can also be run with `php packages/playground/website-deployment/tests.php`.
+Neither suite verifies WP Cloud edge cache hits; those require a deployed check.
 
 ## Secrets
 
