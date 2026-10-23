@@ -41,6 +41,48 @@
 			href="/llms.txt"
 			title="AI-readable site index"
 		/>
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "WordPress Playground",
+				"url": "https://playground.wordpress.net/",
+				"description": "WordPress running in your browser via WebAssembly for learning, testing, and developing with WordPress — zero setup, no server required.",
+				"applicationCategory": "DeveloperApplication",
+				"operatingSystem": "Web Browser, WebAssembly, Node.js",
+				"license": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+				"isAccessibleForFree": true,
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				},
+				"author": {
+					"@type": "Organization",
+					"name": "WordPress.org",
+					"url": "https://wordpress.org/"
+				},
+				"softwareHelp": {
+					"@type": "CreativeWork",
+					"name": "WordPress Playground Documentation",
+					"url": "https://wordpress.github.io/wordpress-playground/"
+				},
+				"featureList": [
+					"Instant WordPress and PHP in the browser via WebAssembly",
+					"Declarative JSON Blueprints for automated site setup",
+					"Query API for launching plugins, themes, and PHP/WP versions via URL",
+					"Browser-native WebMCP (document.modelContext) tools for AI agents",
+					"SQLite database integration without a MySQL server"
+				],
+				"sameAs": [
+					"https://github.com/WordPress/wordpress-playground",
+					"https://wordpress.github.io/wordpress-playground/",
+					"https://developer.wordpress.org/playground/",
+					"https://www.npmjs.com/package/@wp-playground/cli",
+					"https://www.npmjs.com/package/@wp-playground/client"
+				]
+			}
+		</script>
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<link rel="stylesheet" href="/src/styles.css" />
 		<script type="module">
@@ -269,6 +311,50 @@
 		</script>
 
 		<main id="root" aria-label="WordPress Playground">
+			<noscript>
+				<article>
+					<h1>WordPress Playground</h1>
+					<p>
+						WordPress Playground runs a full WordPress, PHP, and
+						SQLite stack directly in your browser using WebAssembly
+						— no server, database setup, or login required.
+					</p>
+					<h2>Capabilities &amp; APIs</h2>
+					<ul>
+						<li>
+							<strong>Query API:</strong> Configure WordPress, PHP
+							versions, plugins, and themes via URL parameters
+							(for example,
+							<code
+								>?plugin=gutenberg&amp;php=8.4&amp;wp=latest</code
+							>).
+						</li>
+						<li>
+							<strong>Blueprints API:</strong> Pass declarative
+							JSON configurations via <code>?blueprint-url=</code>
+							or the URL hash (<code>#{...}</code>).
+						</li>
+						<li>
+							<strong>AI &amp; WebMCP Support:</strong> Exposes
+							browser-native WebMCP tools on
+							<code>document.modelContext</code> and
+							machine-readable instructions at
+							<a href="/llms.txt">/llms.txt</a>.
+						</li>
+					</ul>
+					<p>
+						Read the
+						<a
+							href="https://wordpress.github.io/wordpress-playground/"
+							>WordPress Playground Documentation</a
+						>
+						or inspect the
+						<a href="/llms.txt"
+							>AI-readable site index (/llms.txt)</a
+						>.
+					</p>
+				</article>
+			</noscript>
 			<script>
 				const query = new URLSearchParams(window.location.search);
 				const shouldLazyLoadPlayground =
