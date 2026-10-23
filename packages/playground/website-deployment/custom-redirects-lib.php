@@ -161,6 +161,9 @@ function playground_handle_request() {
 	}
 
 	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'php' !== $extension ) {
+			playground_serve_static_file( $resolved_path );
+		}
 		die();
 	}
 
@@ -174,9 +177,65 @@ function playground_handle_request() {
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
-		readfile( $resolved_path );
+		playground_serve_static_file( $resolved_path );
 		die();
 	}
+}
+
+/**
+ * Send a validated static file, including a single byte range for download retries.
+ *
+ * For example, GET with Range: bytes=1024- returns only the bytes still missing
+ * from a PHP runtime download, with status 206 and Content-Range. Bounded ranges
+ * work too; an end beyond the file is clamped to its last byte. A supported
+ * range with no valid bytes returns 416 and the current file size.
+ *
+ * Multiple ranges, suffix ranges, unknown units, and unrecognized syntax are
+ * ignored: send the normal full response, not a multipart body or a false 416.
+ * Requests with If-Range also get a full response; this handler does not compare
+ * validators. Only GET uses ranges. HEAD sends the full length without a body.
+ *
+ * The caller must already have resolved and checked the path and set MIME/cache
+ * headers. Full responses still use readfile(); partial responses seek directly
+ * to the requested offset and stream only the requested bytes.
+ *
+ * @param string $path Existing static file selected by playground_handle_request().
+ */
+function playground_serve_static_file( $path ) {
+	$size = filesize( $path );
+	$start = 0;
+	$end = $size - 1;
+	$range = null;
+	header( 'Accept-Ranges: bytes' );
+	if (
+		'GET' === $_SERVER['REQUEST_METHOD'] &&
+		! isset( $_SERVER['HTTP_IF_RANGE'] ) &&
+		isset( $_SERVER['HTTP_RANGE'] ) &&
+		preg_match( '/\Abytes=(\d+)-(\d*)\z/i', trim( $_SERVER['HTTP_RANGE'] ), $range )
+	) {
+		$start = (int) $range[1];
+		$end = '' === $range[2] ? $end : min( $end, (int) $range[2] );
+		if ( $start > $end ) {
+			header( "Content-Range: bytes */$size", true, 416 );
+			header( 'Content-Length: 0' );
+			return;
+		}
+		http_response_code( 206 );
+		header( "Content-Range: bytes $start-$end/$size" );
+	}
+	$length = $end - $start + 1;
+	header( "Content-Length: $length" );
+	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
+	}
+	if ( ! $range ) {
+		readfile( $path );
+		return;
+	}
+	$stream = fopen( $path, 'rb' );
+	fseek( $stream, $start );
+	stream_copy_to_stream( $stream, fopen( 'php://output', 'wb' ), $length );
+	fclose( $stream );
 }
 
 function playground_maybe_rewrite( $original_requested_path ) {
