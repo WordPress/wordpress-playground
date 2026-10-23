@@ -85,6 +85,9 @@ their previous routing. Do not replace either server with an auto-selected port.
 A single Chromium CI smoke test covers the live Vite module graph; the full
 browser suite still runs once against the built cross-origin preview.
 
+The shared `prepare-playground` action keeps the runner's Ubuntu HTTPS mirrors
+and skips Azure's HTTP mirror when installing browser dependencies.
+
 The WordPress-only origin prototype has `build:wordpress-frame`,
 `preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
 port 9500, separately from normal development. CI runs all website E2E tests once
@@ -93,6 +96,15 @@ Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
+The normal WP Cloud deployment builds for `wasm.wordpress.net`. Host checks live
+in `website-deployment/custom-redirects-lib.php`, reached through its existing
+`playground_handle_request()` entry point. Only the sandbox host takes an early
+bootstrap-only path; app requests keep the existing redirects, headers, and PHP
+setup. The main installer selects a complete
+private release and checks both hosts and Nginx's hidden-path deny rule before
+activation. Personal WP keeps its no-argument public-file layout and separate script.
+The HTTP/install contract tests run with
+`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 
 WP Cloud's PHP-served static files support single bounded and open-ended byte
 ranges for runtime download retries. Other range forms get the full response;
