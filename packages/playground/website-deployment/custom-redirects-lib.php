@@ -19,19 +19,23 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 }
 
 /**
- * Handle requests from WP Cloud's custom-redirects.php entry point.
+ * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
  *
- * The main website's installer passes the private build directory selected by
- * that entry file. Check its app/WordPress hostname boundary before resolving
- * any files. A missing release must fail, never fall back to public files.
- * Personal WP passes no directory and keeps the existing public-file handler.
+ * Only wasm.wordpress.net takes a separate path: it may serve the WordPress
+ * helper and worker loaders, never app documents or native PHP endpoints.
+ * Other hosts continue through the existing request handling below.
  *
- * @param string|null $build_directory Private main-website build, or null for Personal WP.
+ * The main installer passes its private build directory. Personal WP passes no
+ * argument and keeps its existing public/static-files-to-serve-via-php layout.
+ * A missing private build must fail rather than fall back to public files.
+ *
+ * @param string|null $build_directory Private main-website build, or null for the public layout.
  */
 function playground_handle_request( $build_directory = null ) {
-	if ( null !== $build_directory ) {
-		playground_handle_wordpress_frame_request( $build_directory );
-		return;
+	$directory = realpath( $build_directory ?? __DIR__ );
+	if ( false === $directory || ! is_dir( $directory ) ) {
+		http_response_code( 503 );
+		exit;
 	}
 
 	$may_edge_cache = true;
@@ -52,6 +56,49 @@ function playground_handle_request( $build_directory = null ) {
 
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
+
+	// Do not let this host reach the normal app handler, including its redirects
+	// and PHP endpoints. The real scripts/downloads stay at shared app-host URLs;
+	// only these small bootstrap responses must come from the WordPress origin.
+	if ( preg_match( '/^wasm\.wordpress\.net(:\d+)?$/i', $_SERVER['HTTP_HOST'] ?? '' ) ) {
+		$app_origin = 'https://playground.wordpress.net';
+		header( 'Cache-Control: private, no-store' );
+		header( 'X-Content-Type-Options: nosniff' );
+		header_remove( 'X-Frame-Options' );
+		if ( '/wordpress-bridge.html' === $original_requested_path ) {
+			// The first helper load has no service worker yet. Point its built
+			// script and preload URLs at the app, as the browser-generated helper does.
+			header( 'Content-Type: text/html; charset=utf-8' );
+			echo preg_replace(
+				'~((?:src|href)=["\'])/(?!/)~',
+				'$1' . $app_origin . '/',
+				file_get_contents( $directory . '/wordpress-bridge.html' )
+			);
+			exit;
+		}
+		if ( '/sw.js' === $original_requested_path ) {
+			header( 'Content-Type: text/javascript; charset=utf-8' );
+			echo 'import ' . json_encode( $app_origin . '/sw.js' ) . ';';
+			exit;
+		}
+		if (
+			str_starts_with( $original_requested_path, '/assets/' ) &&
+			str_ends_with( $original_requested_path, '.js' ) &&
+			'1' === ( $_GET['playground-site-thumbnail-worker'] ?? '' )
+		) {
+			$worker_path = realpath( $directory . $original_requested_path );
+			if ( $worker_path && is_file( $worker_path ) &&
+				str_starts_with( $worker_path, $directory . '/assets/' )
+			) {
+				header( 'Content-Type: text/javascript; charset=utf-8' );
+				echo 'importScripts(' . json_encode( $app_origin . $_SERVER['REQUEST_URI'] ) . ');';
+				exit;
+			}
+		}
+		// Scoped WordPress pages come from its browser service worker, not PHP.
+		http_response_code( 404 );
+		exit;
+	}
 
 	//
 	// REWRITES
@@ -101,14 +148,27 @@ function playground_handle_request( $build_directory = null ) {
 	// PATH RESOLUTION
 	//
 	$served_path = $requested_path;
-	$resolved_path = realpath( __DIR__ . $served_path );
+	$resolved_path = realpath( $directory . $served_path );
 	if ( is_dir( $resolved_path ) ) {
+		if ( null !== $build_directory &&
+			str_starts_with( $resolved_path, $directory . '/' ) &&
+			! str_ends_with( $served_path, '/' )
+		) {
+			// Nginx normally adds the trailing slash for public directories. It
+			// cannot see private build directories, so preserve that redirect here.
+			$location = './' . rawurlencode( basename( $served_path ) ) . '/';
+			if ( isset( $url['query'] ) ) {
+				$location .= '?' . $url['query'];
+			}
+			header( 'Location: ' . $location, true, 301 );
+			die();
+		}
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
 	if ( false === $resolved_path && ! str_ends_with( $served_path, '.php' ) ) {
 		// Static files that need special treatment are served from a different directory.
-		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $served_path );
+		$resolved_path = realpath( $directory . '/static-files-to-serve-via-php' . $served_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
@@ -127,7 +187,7 @@ function playground_handle_request( $build_directory = null ) {
 		die();
 	}
 
-	if ( ! str_starts_with( $resolved_path, '/srv/htdocs/' ) ) {
+	if ( ! str_starts_with( $resolved_path, $directory . '/' ) ) {
 		$log( "This looks like attempted path traversal: '$original_requested_path'" );
 		http_response_code( 403 );
 		die();
@@ -160,6 +220,24 @@ function playground_handle_request( $build_directory = null ) {
 		header( "Content-Type: $content_type" );
 	}
 
+	// The private main build shares platform code with the WordPress origin. Add
+	// CORS independently so existing cache/agent-cluster exceptions still run.
+	// Personal WP keeps its existing public-file headers.
+	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
+		str_starts_with( $served_path, '/assets/' ) ||
+		str_ends_with( $served_path, '.js' ) || preg_match( '~^/wp-[^/]+/~', $served_path )
+	);
+	if ( $is_shared_asset ) {
+		header( 'Access-Control-Allow-Origin: *' );
+		header( 'Access-Control-Allow-Headers: *' );
+		header( 'Access-Control-Allow-Methods: GET, HEAD' );
+		header( 'Cross-Origin-Resource-Policy: cross-origin' );
+		if ( 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
+			http_response_code( 204 );
+			die();
+		}
+	}
+
 	$custom_response_headers = playground_get_custom_response_headers( $served_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
@@ -169,6 +247,9 @@ function playground_handle_request( $build_directory = null ) {
 		if ( $may_edge_cache ) {
 			$log( "Marking for cache: '$resolved_path'" );
 			header( 'A8C-Edge-Cache: cache' );
+			if ( $is_shared_asset && 'html' !== $extension ) {
+				header( 'Cache-Control: public, max-age=3600' );
+			}
 		} else {
 			$log( "Skipping edge cache: '$resolved_path'" );
 			header( 'Cache-Control: no-cache' );
@@ -189,199 +270,17 @@ function playground_handle_request( $build_directory = null ) {
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$original_requested_path'" );
 		playground_maybe_set_environment( $served_path );
+		if ( null !== $build_directory ) {
+			// Nginx cannot execute a private endpoint directly. Run the resolved
+			// file only after the same headers and persistent-data setup as before.
+			require $resolved_path;
+			die();
+		}
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
 		playground_serve_static_file( $resolved_path );
 		die();
-	}
-}
-
-/**
- * Serve the app and WordPress hostnames from one WP Cloud site's release directory.
- *
- * Called by playground_handle_request() when the deployment supplies a private
- * build directory. The normal custom-redirects.php entry selects the release.
- * The app host serves the SPA, remote.html, shared bundles, and the allowed PHP
- * endpoints. The WordPress host serves only wordpress-bridge.html, /sw.js, and
- * marked thumbnail-worker loaders. Its /scope:site-a/ pages are generated in the
- * browser by the WordPress service worker, not by this PHP server. All other
- * WordPress-host paths, including /api.html, return 404.
- *
- * Reject app-host /scope:... paths as well: serving a site's HTML there would
- * let its scripts run with the app's document and OPFS access. Reject unknown
- * hosts and paths outside the release directory rather than serving a fallback.
- *
- * On the first visit, rewrite the helper HTML's built script/preload URLs to the
- * app host so its bridge code identifies the correct parent origin. Later the
- * browser service worker generates that helper itself. Keep the real scripts
- * and downloads at shared app-host URLs; CORS/CORP headers allow WordPress to
- * load them without deploying another bundle copy on the WordPress host.
- *
- * Keep the release behind a server-level deny rule. If Nginx serves its files
- * directly, a request can bypass every host/path check and header here. The
- * two public origins are fixed here, never read from request parameters.
- * This handler does not boot WordPress or authorize requests between running
- * Playgrounds. It also leaves existing app/API iframe embeds working, including
- * embeds without a referrer; WordPress can still embed a fresh app/API document.
- *
- * @param string $directory Absolute path to the deployed build, outside public file serving.
- */
-function playground_handle_wordpress_frame_request( $directory ) {
-	$app_origin = 'https://playground.wordpress.net';
-	$wordpress_origin = 'https://wasm.wordpress.net';
-	$directory = realpath( $directory );
-	if ( false === $directory ) {
-		// Never let a missing release turn asset paths into absolute filesystem reads.
-		http_response_code( 503 );
-		exit;
-	}
-	$host = strtolower( $_SERVER['HTTP_HOST'] ?? '' );
-	$path = rawurldecode( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ) ?: '/' );
-	header( 'X-Content-Type-Options: nosniff' );
-	header( 'Cache-Control: private, no-store' );
-	header_remove( 'X-Frame-Options' );
-
-	if ( $host === parse_url( $wordpress_origin, PHP_URL_HOST ) ) {
-		// The helper is untrusted. It may sit below an external embedder, but
-		// its root parent accepts only scoped HTTP requests from this exact frame.
-		if ( '/wordpress-bridge.html' === $path ) {
-			header( 'Content-Type: text/html; charset=utf-8' );
-			echo preg_replace(
-				'~((?:src|href)=["\'])/(?!/)~',
-				'$1' . $app_origin . '/',
-				file_get_contents( $directory . '/wordpress-bridge.html' )
-			);
-			exit;
-		}
-		if ( '/sw.js' === $path ) {
-			header( 'Content-Type: text/javascript; charset=utf-8' );
-			echo 'import ' . json_encode( $app_origin . '/sw.js' ) . ';';
-			exit;
-		}
-		if (
-			str_starts_with( $path, '/assets/' ) &&
-			'1' === ( $_GET['playground-site-thumbnail-worker'] ?? '' )
-		) {
-			header( 'Content-Type: text/javascript; charset=utf-8' );
-			echo 'importScripts(' . json_encode( $app_origin . $_SERVER['REQUEST_URI'] ) . ');';
-			exit;
-		}
-		// Only the WordPress service worker may produce scoped site responses.
-		http_response_code( 404 );
-		exit;
-	}
-
-	if ( $host !== parse_url( $app_origin, PHP_URL_HOST ) ) {
-		http_response_code( 404 );
-		exit;
-	}
-
-	if ( str_starts_with( $path, '/scope:' ) || str_starts_with( $path, '/proxy/' ) ) {
-		http_response_code( 404 );
-		exit;
-	}
-
-	// Retain the normal deployment's MIME/cache/agent-cluster exceptions.
-	$custom_headers = playground_get_custom_response_headers( $path ) ?: array();
-	$is_asset = str_starts_with( $path, '/assets/' ) ||
-		str_ends_with( $path, '.js' ) || preg_match( '~^/wp-[^/]+/~', $path );
-	if ( $is_asset ) {
-		header( 'Access-Control-Allow-Origin: *' );
-		header( 'Access-Control-Allow-Headers: *' );
-		header( 'Access-Control-Allow-Methods: GET, HEAD' );
-		header( 'Cross-Origin-Resource-Policy: cross-origin' );
-		if ( 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
-			http_response_code( 204 );
-			exit;
-		}
-		if ( ! str_ends_with( $path, '.html' ) && empty( $custom_headers ) ) {
-			header( 'Cache-Control: public, max-age=3600' );
-			header( 'A8C-Edge-Cache: cache' );
-		}
-	}
-
-	foreach ( $custom_headers as $header ) {
-		header( $header );
-	}
-
-	// Reuse the deployed website's redirects and native PHP endpoint setup.
-	if ( '/builder' === $path ) {
-		header( 'Location: /builder/builder.html', true, 302 );
-		exit;
-	}
-	$path = playground_maybe_rewrite( $path ) ?: $path;
-	$redirect = playground_maybe_redirect( $path );
-	if ( $redirect && empty( $redirect['condition'] ) ) {
-		header( 'Location: ' . $redirect['location'], true, $redirect['status'] );
-		exit;
-	}
-	$resolved = realpath( $directory . $path );
-	if ( $resolved && is_dir( $resolved ) ) {
-		$resolved = realpath( $resolved . '/index.html' );
-	}
-	if ( ! $resolved || ! str_starts_with( $resolved, $directory . '/' ) || ! is_file( $resolved ) ) {
-		http_response_code( 404 );
-		exit;
-	}
-	if ( str_ends_with( $resolved, '.php' ) ) {
-		if ( ! in_array( $path, array( '/oauth.php', '/logger.php', '/plugin-proxy.php', '/dynamic-manifest.json.php' ), true ) ) {
-			http_response_code( 404 );
-			exit;
-		}
-		playground_maybe_set_environment( $path );
-		require $resolved;
-		exit;
-	}
-
-	$mime_types = json_decode( file_get_contents( __DIR__ . '/mime-types.json' ), true );
-	$extension = strtolower( pathinfo( $resolved, PATHINFO_EXTENSION ) );
-	header( 'Content-Type: ' . ( $mime_types[$extension] ?? $mime_types['_default'] ) );
-	playground_wordpress_frame_file( $resolved );
-	exit;
-}
-
-/**
- * Stream a validated public build file, including resumable PHP runtime downloads.
- *
- * For example, Range: bytes=1024- returns the rest of a partially downloaded WASM
- * file with status 206 and Content-Range. Read only that range from disk rather
- * than loading the whole runtime into PHP memory. Clamp a requested end to the
- * file's last byte. Malformed, suffix, multiple, or ranges with no valid bytes
- * return 416 with the file size.
- * HEAD returns the same status and length headers without sending file bytes.
- *
- * The caller must already have resolved and checked this path inside the release
- * directory. This function does not validate paths or decide who may read a file.
- *
- * @param string $path Existing public file selected by playground_handle_wordpress_frame_request().
- */
-function playground_wordpress_frame_file( $path ) {
-	$size = filesize( $path );
-	$start = 0;
-	$end = $size - 1;
-	header( 'Accept-Ranges: bytes' );
-	if ( isset( $_SERVER['HTTP_RANGE'] ) ) {
-		if ( ! preg_match( '/\Abytes=(\d+)-(\d*)\z/', $_SERVER['HTTP_RANGE'], $range ) ) {
-			header( "Content-Range: bytes */$size", true, 416 );
-			return;
-		}
-		$start = (int) $range[1];
-		$end = '' === $range[2] ? $end : min( $end, (int) $range[2] );
-		if ( $start > $end ) {
-			header( "Content-Range: bytes */$size", true, 416 );
-			return;
-		}
-		http_response_code( 206 );
-		header( "Content-Range: bytes $start-$end/$size" );
-	}
-	$length = $end - $start + 1;
-	header( "Content-Length: $length" );
-	if ( 'HEAD' !== $_SERVER['REQUEST_METHOD'] ) {
-		$stream = fopen( $path, 'rb' );
-		fseek( $stream, $start );
-		stream_copy_to_stream( $stream, fopen( 'php://output', 'wb' ), $length );
-		fclose( $stream );
 	}
 }
 

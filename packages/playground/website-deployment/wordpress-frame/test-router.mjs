@@ -66,9 +66,41 @@ try {
 		join(upload, 'dynamic-manifest.json.php')
 	);
 	await writeFile(
-		join(upload, 'unexpected.php'),
-		'<?php echo "must not execute";'
+		join(upload, 'wordpress.html'),
+		'<title>WordPress entry</title>'
 	);
+	await writeFile(
+		join(upload, 'iframe-worker.html'),
+		'<title>Worker iframe</title>'
+	);
+	await writeFile(join(upload, 'blueprint-schema.json'), '{}');
+	await writeFile(join(upload, 'example-store.zip'), 'archive bytes');
+	await writeFile(join(upload, 'assets/thumbnail.js'), '// Thumbnail worker');
+	await writeFile(
+		join(upload, 'status.php'),
+		'<?php echo "native endpoint";'
+	);
+	await writeFile(
+		join(upload, 'plugin-proxy.php'),
+		'<?php echo getenv("GITHUB_TOKEN");'
+	);
+	await cp(
+		join(source, '../../website/public/logger.php'),
+		join(upload, 'logger.php')
+	);
+	await mkdir(join(upload, 'builder'));
+	await writeFile(join(upload, 'builder/builder.html'), 'Builder');
+	await mkdir(join(upload, 'static-files-to-serve-via-php'));
+	await writeFile(
+		join(upload, 'static-files-to-serve-via-php/set-aside.txt'),
+		'set-aside file'
+	);
+	await mkdir(join(upload, 'tools'));
+	await writeFile(
+		join(upload, 'tools/index.php'),
+		'<?php echo "PHP directory index";'
+	);
+	await writeFile(join(upload, 'tools/index.html'), 'HTML directory index');
 	await mkdir(join(webRoot, 'assets'), { recursive: true });
 	const oldEntry = '<?php echo "previous deployment";';
 	await writeFile(join(webRoot, 'custom-redirects.php'), oldEntry);
@@ -215,12 +247,29 @@ exec /bin/mv "$@"
 	await once(reservation, 'listening');
 	port = reservation.address().port;
 	await new Promise((resolve) => reservation.close(resolve));
+	// WP Cloud provides these before loading custom-redirects.php. Use fixture
+	// values to exercise the existing persistent-data setup without real secrets.
+	const environmentCalls = join(temporary, 'environment-calls.txt');
+	const platformEntry = join(temporary, 'wpcloud.php');
+	await writeFile(
+		platformEntry,
+		`<?php
+/** Record the environment setup performed before a native endpoint runs. */
+function __atomic_env_define($name) {
+    file_put_contents(${JSON.stringify(environmentCalls)}, $name . "\\n", FILE_APPEND);
+}
+class Atomic_Persistent_Data {
+    public $GITHUB_TOKEN = 'fixture-token';
+}
+require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
+`
+	);
 	server = spawn('php', [
 		'-S',
 		`127.0.0.1:${port}`,
 		'-t',
 		webRoot,
-		join(webRoot, 'custom-redirects.php'),
+		platformEntry,
 	]);
 	await once(server.stderr, 'data');
 	// Existing embeds can omit the referrer and use their unchanged app/API URLs.
@@ -249,6 +298,87 @@ exec /bin/mv "$@"
 	]) {
 		assert.equal((await request(path, wordpress)).status, 404);
 	}
+	// The sandbox gate must not replace the shared app handler. These requests
+	// must keep using its rewrite, redirect, header, and PHP setup paths.
+	for (const [path, location, status] of [
+		['/docs', 'https://wordpress.github.io/wordpress-playground/', 301],
+		['/wordpress', 'wordpress.html', 301],
+		['/builder/', 'builder.html', 301],
+		['/builder/index.php', 'builder.html', 301],
+	]) {
+		const response = await request(path, app);
+		assert.equal(response.status, status, path);
+		assert.equal(response.headers.get('location'), location, path);
+	}
+	const conditionalRedirect = await request('/wordpress.html', app, {
+		Referer: 'https://wordpress.org/example/',
+	});
+	assert.equal(conditionalRedirect.status, 302);
+	assert.equal(conditionalRedirect.headers.get('location'), '/index.html');
+	for (const referrer of ['', 'https://external.example/']) {
+		const response = await request('/wordpress.html', app, {
+			Referer: referrer,
+		});
+		assert.equal(response.status, 200);
+		assert.equal(await response.text(), '<title>WordPress entry</title>');
+		assert.match(response.headers.get('cache-control'), /no-cache/);
+		assert.equal(response.headers.get('a8c-edge-cache'), null);
+	}
+	const builder = await request('/builder?example=1', app);
+	assert.equal(builder.status, 301);
+	assert.equal(
+		new URL(builder.headers.get('location'), app + '/builder').pathname,
+		'/builder/'
+	);
+	assert.equal(
+		new URL(builder.headers.get('location'), app + '/builder').search,
+		'?example=1'
+	);
+	assert.equal(
+		await (await request('/tools/', app)).text(),
+		'PHP directory index'
+	);
+	assert.equal(
+		await (await request('/status.php', app)).text(),
+		'native endpoint'
+	);
+	assert.equal(
+		await (await request('/set-aside.txt', app)).text(),
+		'set-aside file'
+	);
+	const proxy = await request('/plugin-proxy', app);
+	assert.equal(proxy.status, 200);
+	assert.equal(await proxy.text(), 'fixture-token');
+	assert.match(await readFile(environmentCalls, 'utf8'), /DB_PASSWORD/);
+	const callsBeforeHead = await readFile(environmentCalls, 'utf8');
+	assert.equal((await request('/logger.php', app, {}, 'HEAD')).status, 200);
+	assert.equal(await readFile(environmentCalls, 'utf8'), callsBeforeHead);
+	const workerFrame = await request('/iframe-worker.html', app);
+	assert.equal(workerFrame.headers.get('origin-agent-cluster'), '?1');
+	const schema = await request('/blueprint-schema.json', app);
+	assert.equal(schema.headers.get('access-control-allow-origin'), '*');
+	assert.match(schema.headers.get('cache-control'), /no-store/);
+	const archive = await request('/example-store.zip', app);
+	assert.equal(archive.headers.get('content-encoding'), 'identity');
+	assert.equal(archive.headers.get('access-control-allow-origin'), '*');
+	assert.ok(archive.headers.get('last-modified'));
+	assert.equal(
+		(await request('/assets/runtime.wasm', app)).headers.get(
+			'a8c-edge-cache'
+		),
+		'cache'
+	);
+	for (const path of [
+		'/docs',
+		'/wordpress.html',
+		'/tools/',
+		'/status.php',
+		'/plugin-proxy',
+		'/assets/thumbnail.js',
+		'/remote.html?playground-site-thumbnail-worker=1',
+	]) {
+		assert.equal((await request(path, wordpress)).status, 404, path);
+	}
 	const bridge = await request('/wordpress-bridge.html', wordpress);
 	assert.equal(bridge.status, 200);
 	assert.match(
@@ -259,6 +389,27 @@ exec /bin/mv "$@"
 	assert.equal(
 		JSON.parse(workerSource.slice('import '.length, -1)),
 		app + '/sw.js'
+	);
+	const thumbnail = await request(
+		'/assets/thumbnail.js?playground-site-thumbnail-worker=1',
+		wordpress
+	);
+	assert.equal(thumbnail.status, 200);
+	assert.match(await thumbnail.text(), /importScripts/);
+	for (const path of [
+		'/assets/runtime.wasm?playground-site-thumbnail-worker=1',
+		'/assets/missing.js?playground-site-thumbnail-worker=1',
+		'/assets/../status.php?playground-site-thumbnail-worker=1',
+	]) {
+		assert.equal((await request(path, wordpress)).status, 404, path);
+	}
+	assert.equal(
+		(
+			await request('/api.html', wordpress, {
+				Host: 'WASM.WordPress.NET:443',
+			})
+		).status,
+		404
 	);
 	const range = await request('/assets/runtime.wasm', app, {
 		Range: 'bytes=1-3',
@@ -289,7 +440,6 @@ exec /bin/mv "$@"
 	assert.equal(manifest.status, 200);
 	assert.equal((await manifest.json()).name, 'Deployment');
 	for (const host of [app, wordpress]) {
-		assert.equal((await request('/unexpected.php', host)).status, 404);
 		assert.equal((await request('/assets/old.js', host)).status, 404);
 		assert.equal(
 			(
@@ -349,7 +499,7 @@ exec /bin/mv "$@"
 /**
  * Send a request to local PHP while selecting a configured public host via Host.
  *
- * The origin argument chooses which router branch runs, not where to connect;
+ * The origin selects the sandbox gate or normal app handling, not where to connect;
  * all traffic goes to the temporary loopback server, without HTTPS or public DNS.
  * Use node:http's raw path so encoded traversal probes reach PHP unchanged rather
  * than being normalized by a fetch URL parser. Buffer these small fixtures into

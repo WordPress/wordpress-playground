@@ -99,9 +99,11 @@ External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
 The normal WP Cloud deployment builds for `wasm.wordpress.net`. Host checks live
 in `website-deployment/custom-redirects-lib.php`, reached through its existing
-`playground_handle_request()` entry point. The main installer selects a complete
+`playground_handle_request()` entry point. Only the sandbox host takes an early
+bootstrap-only path; app requests keep the existing redirects, headers, and PHP
+setup. The main installer selects a complete
 private release and checks both hosts and Nginx's hidden-path deny rule before
-activation. Personal WP keeps its no-argument legacy handler and separate script.
+activation. Personal WP keeps its no-argument public-file layout and separate script.
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 

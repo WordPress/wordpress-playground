@@ -9,7 +9,7 @@ SITE_API_BASE="$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE
 
 # Keep the complete build out of Nginx's public-file lookup. The installer checks
 # both hosts before replacing custom-redirects.php; Personal WP keeps its separate
-# deployment script and the legacy custom-redirects.php entry.
+# deployment script and the existing custom-redirects.php entry.
 export SITE_PHP
 bash ~/website-deployment/wordpress-frame/install-release.sh \
     ~/updated-playground-files /srv/htdocs ~/website-backups

@@ -3,7 +3,15 @@
 The normal website deployment serves:
 
 - App: `https://playground.wordpress.net`
-- Rendered WordPress: `https://wasm.wordpress.net`
+- Rendered WordPress with `?reprint`: `https://wasm.wordpress.net`
+- Rendered WordPress without the flag: `https://playground.wordpress.net`
+
+The flag is read at page startup and kept while switching sites in the SPA.
+Both modes use the same build and app-host asset URLs. One app service worker
+supports both modes at once; the server's host rules do not depend on the query.
+Ordinary app-origin WordPress can still access OPFS and CacheStorage used by
+opted-in sessions. This flag does not isolate their saved data. Reopening a
+saved clone without the flag returns its WordPress code to the app origin.
 
 All request handling lives in `../custom-redirects-lib.php`. There is no separate
 router to install. `apply-update.sh` installs the build and writes the small
@@ -45,7 +53,7 @@ send the build, deployment scripts, and MIME map to the server.
    both public hosts and Nginx's private-path deny rule.
 2. Installs the complete build under
    `/srv/htdocs/.playground-releases/release.<random>/files/`. The same release
-   contains `custom-redirects-lib.php` and `mime-types.json`.
+   contains `custom-redirects-lib.php` and the generated `mime-types.php` map.
 3. Saves the previous public entry and any old public build files under
    `~/website-backups/release.<random>/`. Keeps the platform's `__wp__` fallback.
 4. Replaces the public `custom-redirects.php` in one rename. Its paths select
@@ -62,23 +70,28 @@ Web PHP cannot read the SSH home directory. The release stays under `htdocs`
 behind Nginx's deny rule, while backups stay outside public serving. Public HTML
 or scripts left outside the private release would bypass the hostname checks.
 
-The app host serves trusted HTML, shared assets, and the existing allowed native
-PHP endpoints. Their credentials still come from WP Cloud persistent data via
-`playground_maybe_set_environment()`. Scoped WordPress paths return 404.
+The app host uses the existing `playground_handle_request()` logic for rewrites,
+conditional and unconditional redirects, directory indexes, MIME types, custom
+headers, cache exceptions, HEAD requests, and native PHP environment setup.
+There is no replacement app handler or new app-side PHP allowlist. Their credentials still come from WP Cloud persistent data via
+`playground_maybe_set_environment()`. The HTTP server returns 404 for scoped WordPress paths; the app service worker
+serves them for ordinary sessions and rejects opted-in sites on that origin.
 The sandbox serves only the request-helper page and service-worker/thumbnail
 worker loaders. Its WordPress pages come from the browser's service worker.
 Other sandbox requests return 404.
 
 Assets use the same app-host URLs for all Playgrounds, with CORS and caching.
-Files are streamed, with byte ranges for resumable runtime downloads. HTML uses
-`private, no-store`. Existing external iframe and SDK embeds need no referrer or
+Files are streamed, with byte ranges for resumable runtime downloads. Existing
+app cache exceptions remain in effect, including no-store for the app/API entry
+pages and identity encoding for static ZIP archives. Sandbox bootstrap responses
+use `private, no-store`. Existing external iframe and SDK embeds need no referrer or
 new URL parameters.
 
 ## Verify and roll back
 
 The HTTP contract test runs the real installer in a temporary directory, then
 starts PHP with the installed public entry. It checks refused deployments,
-old-file removal, both hosts, a native PHP endpoint, shared assets, ranges,
+old-file removal, both hosts, the existing app redirect/header/PHP rules, shared assets, ranges,
 HEAD/OPTIONS, release switching, and retained rollback files. Only the public
 WP Cloud probes are stubbed; the test does not prove the live Nginx or TLS setup.
 Run it with Node 24 and PHP:
@@ -88,7 +101,9 @@ npm exec -- nx run playground-website:test:wordpress-frame-router
 ```
 
 After deployment, check both HTTPS hosts without bypassing TLS verification.
-Confirm the dock stays on the app host and WordPress uses the sandbox host.
+With `?reprint`, confirm the dock stays on the app host and WordPress uses the
+sandbox host. Without the flag, both use the app host. Open both modes together
+and check their pages and database-tool popups still work.
 Test a post save, saved-site switching, a database-tool popup, and a disposable
 local folder outside Documents/iCloud. An unchanged external iframe with
 `referrerpolicy="no-referrer"` must still load. Repeat the direct-parent OPFS
