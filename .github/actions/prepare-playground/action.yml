@@ -49,6 +49,15 @@ runs:
                   /etc/apt/sources.list.d/azure-cli.sources \
                   /etc/apt/sources.list.d/microsoft-prod.list \
                   /etc/apt/sources.list.d/microsoft-prod.sources || true
+        - name: Use Ubuntu HTTPS package mirrors
+          shell: bash
+          run: |
+              # The runner prefers Azure's HTTP mirror, whose slow downloads can
+              # use the entire browser-job budget. Keep its existing Ubuntu HTTPS
+              # fallbacks instead; package signature checks remain unchanged.
+              if [ -f /etc/apt/apt-mirrors.txt ]; then
+                  sudo sed -i '\|^http://azure\.archive\.ubuntu\.com/ubuntu/|d' /etc/apt/apt-mirrors.txt
+              fi
         - name: Reset NX cache
           shell: bash
           run: npx nx reset
