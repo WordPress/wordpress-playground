@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { githubExportToolDefinition } from '../../src/github-export';
 import {
 	getSiteToolDefinitions,
 	paramsToJsonSchema,
@@ -36,6 +37,7 @@ describe('README tool list', () => {
 		const registered = [
 			...Object.keys(toolDefinitions),
 			...Object.keys(getSiteToolDefinitions()),
+			githubExportToolDefinition.name,
 		].sort();
 
 		const readme = readFileSync(
@@ -43,7 +45,11 @@ describe('README tool list', () => {
 			'utf8'
 		);
 		const documented = [
-			...new Set(readme.match(/playground_[a-z_]+/g) ?? []),
+			...new Set(
+				readme
+					.split('## Available tools')[1]
+					.match(/playground_[a-z_]+/g) ?? []
+			),
 		].sort();
 
 		expect(documented).toEqual(registered);

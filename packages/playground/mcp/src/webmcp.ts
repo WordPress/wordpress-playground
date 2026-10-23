@@ -14,8 +14,10 @@ import {
 	paramsToJsonSchema,
 	stringifyError,
 } from './tools/tool-definitions';
+import type { ToolAnnotations } from './tools/tool-definitions';
 import { toolExecutors, createToolClient } from './tools/tool-executors';
 import type { PlaygroundBridgeConfig } from './bridge-client';
+import { createGitHubExportTool } from './github-export';
 
 const siteToolDefinitions = getSiteToolDefinitions();
 
@@ -29,7 +31,7 @@ export interface ModelContextTool {
 		input: Record<string, unknown>,
 		client: ModelContextClient
 	) => Promise<unknown>;
-	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	annotations?: ToolAnnotations;
 }
 
 interface ModelContextClient {
@@ -114,6 +116,9 @@ export async function registerWebMCPTools(
 
 	// Site management tools
 	tools.push(...createSiteManagementTools(config));
+	if (config.exportToGithub) {
+		tools.push(createGitHubExportTool(config.exportToGithub));
+	}
 
 	const results = await Promise.allSettled(
 		tools.map(async (tool) => {
