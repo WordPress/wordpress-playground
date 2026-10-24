@@ -68,8 +68,10 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 	private ready: () => void;
 	private failed: (error: Error) => void;
 
+	/** Boot PHP using the app document's origin choice, including when script bytes are cached. */
 	override async boot({
 		scope,
+		useWordPressSandbox = false,
 		mounts = [],
 		wpVersion = LatestMinifiedWordPressVersion,
 		wordPressZip,
@@ -102,7 +104,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 				(shouldInstallWordPress === false
 					? 'install-from-existing-files-if-needed'
 					: 'download-and-install');
-			const siteUrl = this.computeSiteUrl(scope);
+			const siteUrl = this.computeSiteUrl(scope, useWordPressSandbox);
 			const reportBootProgress = (caption: string) => {
 				this.dispatchEvent<BootProgressEvent>({
 					type: 'boot.progress',

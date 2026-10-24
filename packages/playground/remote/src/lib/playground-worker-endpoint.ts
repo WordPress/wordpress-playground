@@ -22,7 +22,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSandboxOrigin } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -74,6 +74,8 @@ export interface MountDescriptor {
 }
 
 export type WorkerBootOptions = {
+	/** remote.html selects this from its startup flag, not the cached worker URL. */
+	useWordPressSandbox?: boolean;
 	wpVersion?: string;
 	/** A caller-provided WordPress archive used instead of downloading one. */
 	wordPressZip?: File;
@@ -161,8 +163,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 	}
 
-	protected computeSiteUrl(scope: string) {
-		return setURLScope(wordPressSiteUrl, scope).toString();
+	/** Use the boot message's choice so a cached script cannot select another tab's mode. */
+	protected computeSiteUrl(scope: string, useWordPressSandbox = false) {
+		return setURLScope(
+			useWordPressSandbox ? wordPressSandboxOrigin : playgroundOrigin,
+			scope
+		).toString();
 	}
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
@@ -304,7 +310,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
-				if (wordPressSiteUrl !== playgroundOrigin) {
+				if (new URL(siteUrl).origin !== playgroundOrigin) {
 					php.defineConstant(
 						'PLAYGROUND_PARENT_ORIGIN',
 						playgroundOrigin

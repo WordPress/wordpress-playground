@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { getWordPressDevelopmentOrigin } from './dev-server';
+import { selectWordPressOrigin } from './wordpress-origin';
 
 const playgroundUrl = new URL('/', (import.meta || {}).url);
 /**
@@ -12,18 +13,29 @@ const developmentWordPressOrigin = import.meta.env.DEV
 	? getWordPressDevelopmentOrigin(playgroundUrl)
 	: undefined;
 /**
- * Origin for rendered WordPress pages and their service worker, not the PHP host.
- * PHP, OPFS, and user-picked directory handles stay on the app origin together.
- * A split-origin deployment sets this at build time; an untrusted URL parameter
- * must not choose where the HTTP connection sends requests or loads its helper.
- * Normal loopback website development uses the remote server's existing port;
- * custom development hosts and standalone remote development keep one origin.
+ * Fixed sandbox origin available to ?reprint sessions. The flag selects this
+ * origin; its value must never supply a hostname. Normal sessions keep WordPress
+ * on the app origin. PHP, OPFS, and directory handles stay there in both modes.
+ * Loopback development offers the remote server's existing port; standalone and
+ * custom hosts without a configured sandbox keep one origin.
  */
-export const wordPressSiteUrl = import.meta.env['VITE_WORDPRESS_SITE_URL']
+export const wordPressSandboxOrigin = import.meta.env['VITE_WORDPRESS_SITE_URL']
 	? new URL(import.meta.env['VITE_WORDPRESS_SITE_URL']).origin
 	: (developmentWordPressOrigin ??
 		(playgroundUrl.hostname === 'playground.localhost'
 			? playgroundOrigin.replace('://playground.', '://wp.playground.')
 			: playgroundOrigin));
+
+/**
+ * Select once for this document. remote.html sends its choice in PHP boot options.
+ * Helper and thumbnail documents already on the sandbox origin keep
+ * that origin even though ordinary WordPress URLs do not contain the flag.
+ * Service workers route by their own origin, never by a tab's startup flag.
+ */
+export const wordPressSiteUrl = selectWordPressOrigin(
+	new URL(globalThis.location?.href ?? playgroundUrl),
+	playgroundOrigin,
+	wordPressSandboxOrigin
+);
 // Hardcoded in wp.js:
 export const DOCROOT = '/wordpress';
