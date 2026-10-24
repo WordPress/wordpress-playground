@@ -76,6 +76,29 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
+Normal loopback website development keeps the SPA, PHP, OPFS, and directory
+handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
+`localhost` uses the same two ports. Vite's app proxy preserves the app Host;
+the remote server restricts direct WordPress-port requests to the HTTP helper and
+worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
+their previous routing. Do not replace either server with an auto-selected port.
+A single Chromium CI smoke test covers the live Vite module graph; the full
+browser suite still runs once against the built cross-origin preview.
+
+The WordPress-only origin prototype has `build:wordpress-frame`,
+`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
+port 9500, separately from normal development. CI runs all website E2E tests once
+against the separate WordPress origin, with shared storage/import grouping.
+Deployment tests use the same boundary on port 7999. See
+`packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
+External embeds do not need a referrer or new URL parameters. This mode does not
+block WordPress from embedding fresh app/API documents.
+
+WP Cloud's PHP-served static files support single bounded and open-ended byte
+ranges for runtime download retries. Other range forms get the full response;
+HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
+PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
+
 ### Package Naming Convention
 
 - `@php-wasm/<name>`: PHP runtime and utilities
@@ -204,6 +227,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   instead of defending the new abstraction.
 
 ### Testing
+
+CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
+installing browser dependencies. The public Ubuntu archive and security mirrors
+remain available.
 
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)

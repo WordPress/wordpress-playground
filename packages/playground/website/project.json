@@ -227,6 +227,30 @@
 			"options": {
 				"command": "node packages/playground/website/bin/reprint-assets.mts update"
 			}
+		},
+		"test:static-file-ranges": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website-deployment/test-static-file-ranges.mjs"
+			}
+		},
+		"build:wordpress-frame": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/wordpress-frame/build.mjs"
+			}
+		},
+		"preview:wordpress-frame": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/wordpress-frame/serve.mjs"
+			}
+		},
+		"e2e:wordpress-frame": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts"
+			}
 		}
 	}
 }

@@ -24,6 +24,58 @@ describe('listenForPointerDownAcrossIframes', () => {
 		stopListening();
 	});
 
+	it.each([false, true])(
+		'receives only the relayed press when the reporter starts late: %s',
+		(startsLate) => {
+			const frame = document.createElement('iframe');
+			document.body.append(frame);
+			const childDocument = frame.contentDocument!;
+			if (!startsLate)
+				childDocument.documentElement.setAttribute(
+					'data-playground-pointer-relay',
+					''
+				);
+			const listener = vi.fn();
+			const stopListening = listenForPointerDownAcrossIframes(listener);
+			if (startsLate)
+				childDocument.documentElement.setAttribute(
+					'data-playground-pointer-relay',
+					''
+				);
+
+			childDocument.body.dispatchEvent(
+				new MouseEvent('pointerdown', { bubbles: true })
+			);
+			frame.dispatchEvent(
+				new MouseEvent('pointerdown', { bubbles: true })
+			);
+
+			expect(listener).toHaveBeenCalledOnce();
+			expect(listener.mock.calls[0][0].target).toBe(frame);
+			stopListening();
+		}
+	);
+
+	it('still observes an editor frame without a reporter inside a relaying document', () => {
+		const frame = document.createElement('iframe');
+		document.body.append(frame);
+		frame.contentDocument!.documentElement.setAttribute(
+			'data-playground-pointer-relay',
+			''
+		);
+		const editor = frame.contentDocument!.createElement('iframe');
+		frame.contentDocument!.body.append(editor);
+		const listener = vi.fn();
+		const stopListening = listenForPointerDownAcrossIframes(listener);
+
+		editor.contentDocument!.body.dispatchEvent(
+			new MouseEvent('pointerdown', { bubbles: true })
+		);
+
+		expect(listener).toHaveBeenCalledOnce();
+		stopListening();
+	});
+
 	it('tracks nested iframes added after the listener starts', async () => {
 		const listener = vi.fn();
 		const stopListening = listenForPointerDownAcrossIframes(listener);

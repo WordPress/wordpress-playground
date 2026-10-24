@@ -17,6 +17,20 @@
  * the previous webapp version. Therefore, we can't allow the previous version
  * to run when a new version becomes available.
  *
+ * ## Separate app and WordPress origins
+ *
+ * The same worker bundle can run on two origins. Its module URL identifies the
+ * app origin; self.location.origin identifies the registration serving requests.
+ * In a split-origin deployment, only the WordPress registration serves virtual
+ * /scope:... pages. The app registration rejects those app-origin URLs so user
+ * HTML cannot execute with the app's storage access.
+ *
+ * PHP stays in an app-origin worker. The WordPress service worker sends HTTP
+ * requests to a hidden iframe on its own origin, which forwards them to its
+ * app-origin parent and PHP. Replies return through that iframe. A scope picks
+ * the PHP instance; it is not authorization between pages sharing the WordPress
+ * origin. The app can also still be embedded as a fresh document from WordPress.
+ *
  * ## Caching strategy
  *
  * Playground uses caching heavily to achieve great loading speeds and provide
@@ -30,7 +44,7 @@
  *
  * ### HTTP cache in the browser
  *
- * This service worker skips the browser HTTP cache for all network requests. This is because
+ * On the app origin, this service worker skips the browser HTTP cache for asset downloads because
  * the HTTP cache caused a particularly nasty problem in Playground deployments.
  *
  * Installing a new service worker purged the CacheStorage and requested a new set of assets
@@ -42,6 +56,12 @@
  * See https://github.com/WordPress/wordpress-playground/pull/1822 for more details.
  *
  * ### CacheStorage in the service worker
+ *
+ * In the split-origin setup, the WordPress origin never uses CacheStorage for
+ * platform assets: every WordPress page can replace those entries. Its helper
+ * HTML and thumbnail-worker loader are generated below from trusted worker code.
+ * Their scripts use shared app-origin URLs and the browser HTTP cache. The app
+ * keeps its own origin-protected CacheStorage for PHP and WordPress downloads.
  *
  * Playground primarily relies on the **Cache first** strategy. This means assets are:
  *
@@ -99,6 +119,10 @@
  */
 
 declare const self: ServiceWorkerGlobalScope;
+
+import { playgroundOrigin, wordPressSiteUrl } from './src/lib/config';
+// @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
+import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
 import {
 	getURLScope,
@@ -206,18 +230,31 @@ self.addEventListener('install', (event) => {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
+	/**
+	 * Take control of open pages without reloading them, then prepare asset caching.
+	 *
+	 * Only the app registration purges old platform caches. The WordPress
+	 * registration must not use its origin's user-writable cache for platform
+	 * assets. In split-origin mode the app fills its cache on demand instead of
+	 * downloading the full offline manifest, including unused PHP and WordPress
+	 * versions. One-origin builds retain the existing offline prefetch.
+	 */
 	async function doActivate() {
 		await self.clients.claim();
 
 		if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
-			cacheOfflineModeAssetsForCurrentRelease(
-				new URL(self.location.href).searchParams.get(
-					'shared-worker'
-				) === '1'
-					? ['/personal-wp-version.json']
-					: []
-			);
+			// The split-origin preview shares this root cache on demand. Do not
+			// prefetch unused runtimes, editors, or WordPress versions.
+			if (wordPressSiteUrl === playgroundOrigin) {
+				cacheOfflineModeAssetsForCurrentRelease(
+					new URL(self.location.href).searchParams.get(
+						'shared-worker'
+					) === '1'
+						? ['/personal-wp-version.json']
+						: []
+				);
+			}
 		}
 	}
 	event.waitUntil(doActivate());
@@ -233,6 +270,41 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
+	if (
+		wordPressSiteUrl !== playgroundOrigin &&
+		self.location.origin === playgroundOrigin &&
+		isURLScoped(url)
+	) {
+		// Root-origin user HTML would regain the app's storage privileges.
+		// Only the WordPress-origin worker may synthesize scoped responses.
+		if (url.origin === playgroundOrigin) {
+			event.respondWith(new Response('Not found', { status: 404 }));
+		}
+		return;
+	}
+
+	if (
+		wordPressSiteUrl !== playgroundOrigin &&
+		self.location.origin === wordPressSiteUrl &&
+		url.origin === wordPressSiteUrl &&
+		url.pathname === '/wordpress-bridge.html'
+	) {
+		// WordPress can replace any CacheStorage entry on this origin. Generate
+		// the helper from trusted worker code, including when starting offline.
+		// Its script uses the shared app URL, never WordPress-writable cached bytes.
+		const scriptUrl = new URL(wordpressBridgeScriptUrl, playgroundOrigin);
+		return event.respondWith(
+			new Response(
+				`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
+				{
+					headers: {
+						'Content-Type': 'text/html',
+						'Cache-Control': 'no-store',
+					},
+				}
+			)
+		);
+	}
 
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
@@ -271,6 +343,24 @@ self.addEventListener('fetch', (event) => {
 	const isSiteThumbnailWorker =
 		event.request.destination === 'worker' &&
 		url.searchParams.has('playground-site-thumbnail-worker');
+	if (
+		isSiteThumbnailWorker &&
+		wordPressSiteUrl !== playgroundOrigin &&
+		self.location.origin === wordPressSiteUrl &&
+		url.origin === wordPressSiteUrl &&
+		url.pathname.startsWith('/assets/')
+	) {
+		// The same-origin worker loader must not come from a WordPress-writable cache either.
+		const scriptUrl = new URL(url.pathname + url.search, playgroundOrigin);
+		return event.respondWith(
+			new Response(`importScripts(${JSON.stringify(scriptUrl.href)});`, {
+				headers: {
+					'Content-Type': 'text/javascript',
+					'Cache-Control': 'no-store',
+				},
+			})
+		);
+	}
 	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
 		return event.respondWith(
 			shouldCacheUrl(url)
@@ -336,7 +426,10 @@ self.addEventListener('fetch', (event) => {
 
 	// The directory listing needs an offline fallback, but arbitrary upstream
 	// responses must never become executable documents on the Playground origin.
-	if (url.origin === self.location.origin) {
+	if (
+		self.location.origin === playgroundOrigin &&
+		url.origin === playgroundOrigin
+	) {
 		if (url.pathname === '/blueprints-index.json') {
 			return event.respondWith(fetchBlueprintsIndex());
 		}
@@ -417,8 +510,24 @@ self.addEventListener('fetch', (event) => {
 });
 
 /**
- * A request to a PHP Worker Thread or to a regular static asset,
- * but initiated by a scoped referer (e.g. fetch() from a block editor iframe).
+ * Serve a scoped WordPress URL through PHP, with shared static files as a fallback.
+ *
+ * For /scope:site-a/wp-admin/edit.php, ask the running PHP instance for site-a to
+ * handle the HTTP request. Dedicated runtimes receive it through window messages;
+ * in split-origin mode the hidden WordPress iframe carries those messages across
+ * to remote.html. If this service worker has a registered shared runtime, use its
+ * direct connection instead. The caller also redirects unscoped same-origin URLs
+ * from a scoped referrer (for example, a block-editor iframe) into this path.
+ *
+ * Only a 404 marked x-backfill-from: remote-host permits a public asset fetch.
+ * For a minified build's omitted CSS file, remove /scope:site-a/, apply WordPress
+ * rewrites, and fetch from that version's static directory on the shared app
+ * origin. Do not turn arbitrary PHP 404s into network requests. Use the browser
+ * HTTP cache for these public files, not WordPress-writable CacheStorage.
+ *
+ * A navigation or same-origin fetch cannot accept the CORS response returned by
+ * that cross-origin asset fetch. Wrap its body and headers in a new Response for
+ * the original request without reading the whole body into memory.
  */
 async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
@@ -491,8 +600,17 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		) {
 			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 		}
+		const assetUrl =
+			wordPressSiteUrl !== playgroundOrigin
+				? new URL(
+						resolvedUrl.pathname + resolvedUrl.search,
+						playgroundOrigin
+					)
+				: resolvedUrl;
 		const request = await cloneRequest(event.request, {
-			url: resolvedUrl,
+			url: assetUrl,
+			// Navigation clones default to same-origin, but these assets live on the app origin.
+			...(wordPressSiteUrl !== playgroundOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
 			credentials: 'omit',
@@ -507,7 +625,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		 * request to the remote server as it is and let WordPress manage its
 		 * own HTTP caching.
 		 */
-		return fetch(request).catch((e) => {
+		const response = await fetch(request).catch((e) => {
 			if (e?.name === 'TypeError') {
 				// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
 				// happen on playground.wordpress.net. Let's add a randomized
@@ -523,6 +641,16 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			// Otherwise let's just re-throw the error
 			throw e;
 		});
+		if (
+			wordPressSiteUrl !== playgroundOrigin &&
+			(event.request.mode === 'navigate' ||
+				event.request.mode === 'same-origin')
+		) {
+			// Navigation and same-origin requests cannot accept a CORS response.
+			// Rebuild the response without buffering its streamed body.
+			return new Response(response.body, response);
+		}
+		return response;
 	}
 
 	// Path the block-editor.js file to ensure the site editor's iframe
@@ -781,7 +909,8 @@ async function getScopedWpDetails(
  *
  * 1. Response already carries `Document-Isolation-Policy`. This is what
  *    WordPress 7.1+ and Gutenberg 22.6+ send directly on editor screens in
- *    Chromium 137+. The response is left as-is.
+ *    Chromium 137+. Keep that policy, but remove legacy COEP/COOP restrictions
+ *    that can still block the editor's nested canvas.
  *
  * 2. Response carries `COEP: require-corp` or `COEP: credentialless` (older
  *    Gutenberg with the media processing experiment, or custom plugins). The
@@ -795,14 +924,16 @@ async function getScopedWpDetails(
 function applyCrossOriginIsolationHeaders(response: Response): Response {
 	// Keep the policy that WordPress or Gutenberg sends directly. See
 	// https://github.com/WordPress/gutenberg/pull/75991.
-	if (response.headers.has('document-isolation-policy')) {
-		return response;
-	}
+	const existingPolicy = response.headers.get('document-isolation-policy');
 
-	// Only rewrite if the response has COEP headers that indicate cross-origin isolation intent.
+	// Only rewrite if DIP or COEP indicates cross-origin isolation intent.
 	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
 	const coep = response.headers.get('cross-origin-embedder-policy');
-	if (coep !== 'require-corp' && coep !== 'credentialless') {
+	if (
+		!existingPolicy &&
+		coep !== 'require-corp' &&
+		coep !== 'credentialless'
+	) {
 		return response;
 	}
 
@@ -826,11 +957,14 @@ function applyCrossOriginIsolationHeaders(response: Response): Response {
 	 * same cross-origin isolation as `COOP: same-origin` would.
 	 */
 	const documentIsolationPolicy =
-		coep === 'require-corp'
+		existingPolicy ??
+		(coep === 'require-corp'
 			? 'isolate-and-require-corp'
-			: 'isolate-and-credentialless';
+			: 'isolate-and-credentialless');
 
 	const newHeaders = new Headers(response.headers);
+	// New WordPress plus older Gutenberg can send both DIP and COEP. Keeping
+	// COEP would still reject empty.html even though both documents have DIP.
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
 	newHeaders.set('document-isolation-policy', documentIsolationPolicy);

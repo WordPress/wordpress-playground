@@ -1,5 +1,5 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
-import { test, expect } from '../playground-fixtures';
+import { test, expect, serveBuiltWpCli } from '../playground-fixtures';
 import type { BrowserContext, Page } from '@playwright/test';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { resolve } from 'node:path';
@@ -271,9 +271,11 @@ test('should hide the simulated browser in seamless mode', async ({
 });
 
 test('should enable a multisite when requested', async ({
+	context,
 	website,
 	wordpress,
 }) => {
+	await serveBuiltWpCli(context);
 	await website.goto('./?storage=temp&multisite=yes&url=/wp-admin/');
 	await expect(wordpress.locator('#wp-admin-bar-my-sites')).toContainText(
 		'My Sites'
