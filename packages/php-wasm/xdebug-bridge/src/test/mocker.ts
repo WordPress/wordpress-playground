@@ -11,7 +11,12 @@ vi.mock('ws', async () => {
 	}
 
 	class WebSocketServer extends EventEmitter {
+		options: any;
 		close = vi.fn();
+		constructor(options?: any) {
+			super();
+			this.options = options;
+		}
 	}
 
 	return {
