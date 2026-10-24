@@ -33,6 +33,8 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { serviceWorkerRecoveryPlugin } from '../../vite-extensions/vite-service-worker-recovery';
 
 const exec = promisify(execCb);
 
@@ -210,6 +212,7 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			serviceWorkerRecoveryPlugin(),
 			// In a devcontainer, Vite prints container IP instead of host IP.
 			// Override the printed URL to show host IP instead (127.0.0.1).
 			isDevcontainer

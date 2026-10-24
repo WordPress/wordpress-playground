@@ -23,11 +23,14 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { serviceWorkerRecoveryPlugin } from '../../vite-extensions/vite-service-worker-recovery';
 
 const path = (filename: string) =>
 	fileURLToPath(new URL(filename, import.meta.url));
 
 const plugins = [
+	serviceWorkerRecoveryPlugin(),
 	viteTsConfigPaths({
 		root: '../../../',
 	}),
