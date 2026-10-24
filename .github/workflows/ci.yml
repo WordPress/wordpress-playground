@@ -279,6 +279,30 @@ jobs:
                   node-version: 24
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+    test-playground-cli-posix-kernel:
+        needs: set-nx-shas
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        strategy:
+            matrix:
+                os: [ubuntu-latest, macos-latest]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 60
+        permissions:
+            contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
+        name: 'test-playground-cli-posix-kernel (${{ matrix.os }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Run posix-kernel test suite
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli-posix-kernel --output-style=stream
     test-file-locking:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
