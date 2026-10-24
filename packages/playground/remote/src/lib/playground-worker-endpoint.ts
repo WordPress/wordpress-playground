@@ -74,6 +74,8 @@ export interface MountDescriptor {
 }
 
 export type WorkerBootOptions = {
+	/** Locale to use only if WordPress needs a new database. */
+	installationLanguage?: string;
 	wpVersion?: string;
 	/** A caller-provided WordPress archive used instead of downloading one. */
 	wordPressZip?: File;
