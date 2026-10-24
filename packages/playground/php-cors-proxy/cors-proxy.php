@@ -15,6 +15,10 @@ if (file_exists($config_file)) {
 $server_host = $_SERVER['HTTP_HOST'] ?? '';
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
+// Both allowed and denied origins must vary, including preflight and error responses.
+header('Vary: Origin', false);
+header('Cross-Origin-Resource-Policy: cross-origin');
+
 if (should_respond_with_cors_headers($server_host, $origin)) {
     // On the dev server, the browser doesn't send an Origin header
     // (same-origin request via Vite proxy), so fall back to wildcard.
@@ -44,7 +48,7 @@ if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'HEAD', 'POST'], true)) {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SERVER['CONTENT_LENGTH'] ?? 0) >= MAX_REQUEST_SIZE) {
     http_response_code(413);
     echo "Request Entity Too Large";
     exit;
@@ -89,12 +93,11 @@ define(
 $ch = curl_init($targetUrl);
 
 $is_chunked_response = false;
-// Whether the target's response has any Transfer-Encoding header.
-$has_transfer_encoding = false;
-// Whether the header callback is inside an interim 1xx response's headers.
+// Only headers are buffered. Bodies continue to stream through the write callback.
+$pending_response_headers = [];
 $in_interim_response = false;
-// The target's Content-Length, held until all of its headers arrive.
-$pending_content_length = null;
+$response_headers_complete = false;
+$has_transfer_encoding = false;
 
 /**
  * Replaces the target's response with an error response from the proxy.
@@ -115,18 +118,13 @@ $pending_content_length = null;
  * auto_prepend_file, survive too.
  */
 function replace_response_with_error($status_code, $message) {
-    global $has_transfer_encoding, $is_chunked_response, $pending_content_length,
-        $proxy_headers;
+    global $is_chunked_response, $proxy_headers;
     header_remove();
     foreach ($proxy_headers as $header) {
         header($header, false);
     }
-    // The target's Transfer-Encoding header is gone, so don't chunk the
-    // error message.
-    $has_transfer_encoding = false;
+    // The error message has no proxy-owned chunked framing.
     $is_chunked_response = false;
-    // The target's Content-Length no longer describes the response.
-    $pending_content_length = null;
     http_response_code($status_code);
     send_response_chunk($message);
 }
@@ -137,7 +135,7 @@ function send_response_chunk($data) {
         // built-in server. It won't handle that for us.
         echo sprintf("%s\r\n%s\r\n", dechex(strlen($data)), $data);
     } else {
-        // When running behing an Apache or Nginx or another webserver,
+        // When running behind an Apache or Nginx or another webserver,
         // it will handle the chunking for us. Manually sending the chunk
         // header, \r\n separator, body, and \r\n trailer isn't just
         // unnecessary, but it would actually include those bytes in the
@@ -150,7 +148,7 @@ function send_response_chunk($data) {
 
 /**
  * We need to manually chunk the response when running the PHP
- * dev server AND the transfer-encoding header is set to chunked.
+ * dev server AND the proxy has generated its own chunked framing.
  *
  * Apache, Nginx, etc. will handle the chunking for us.
  */
@@ -168,6 +166,7 @@ try {
 }
 
 $allHeaders = getallheaders();
+$connection_headers = connection_header_names(kv_headers_to_curl_format($allHeaders));
 
 // If the browser wrapped Content-Type to prevent PHP from consuming
 // multipart/form-data bodies, extract the original value to restore
@@ -214,39 +213,16 @@ if ($tunneledRange !== null && $clientRange !== '') {
     $tunneledRange = null;
 }
 
-$strictly_disallowed_headers = [
-    // Cookies represent a relationship between the proxy server
-    // and the client, so it is inappropriate to forward them.
-    'Cookie',
-    // Drop the incoming Host header because it identifies the
-    // proxy server, not the target server.
-    'Host',
-    // Internal header for Content-Type wrapping. Must not be
-    // forwarded to the target server.
-    'X-Cors-Proxy-Content-Type',
-    // Internal header for the Range workaround. Must not be
-    // forwarded to the target server.
-    'X-Cors-Proxy-Range',
-];
-$headers_requiring_opt_in = [
-    // Allow Authorization header to be forwarded only if the client
-    // explicitly opts in to avoid undesirable situations such as:
-    // - a browser auto-sending basic auth with every proxy request
-    // - the proxy forwarding the basic auth values to all target servers
-    'Authorization'
-];
-$curlHeaders = kv_headers_to_curl_format(
-    filter_headers_by_name(
-        $allHeaders,
-        $strictly_disallowed_headers,
-        $headers_requiring_opt_in,
-    )
-);
+$curlHeaders = kv_headers_to_curl_format(filter_request_headers($allHeaders));
 
 // If Content-Type was wrapped, replace the placeholder
 // application/octet-stream with the original value so the target
 // server receives the correct Content-Type.
-if ($originalContentType !== null) {
+if (
+    $originalContentType !== null &&
+    !in_array('content-type', $connection_headers, true) &&
+    !in_array('x-cors-proxy-content-type', $connection_headers, true)
+) {
     $curlHeaders = array_values(array_filter(
         $curlHeaders,
         fn($h) => stripos($h, 'Content-Type:') !== 0
@@ -254,7 +230,11 @@ if ($originalContentType !== null) {
     $curlHeaders[] = 'Content-Type: ' . $originalContentType;
 }
 
-if ($tunneledRange !== null) {
+if (
+    $tunneledRange !== null &&
+    !in_array('range', $connection_headers, true) &&
+    !in_array('x-cors-proxy-range', $connection_headers, true)
+) {
     $curlHeaders = array_values(array_filter(
         $curlHeaders,
         fn($h) => stripos($h, 'Range:') !== 0
@@ -297,170 +277,118 @@ curl_setopt(
 // Set options to stream data
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-curl_setopt(
-    $ch,
-    CURLOPT_HEADERFUNCTION,
-    function(
-        $curl,
-        $header
-    ) use (
-        $targetUrl,
-        &$has_transfer_encoding,
-        &$in_interim_response,
-        &$is_chunked_response,
-        &$pending_content_length
-    ) {
-        $len = strlen($header);
-
-        // Besides header lines, this callback receives each response's
-        // status line and the blank line that ends its headers. The curl
-        // documentation for CURLOPT_HEADERFUNCTION says:
-        //
-        //   "For an HTTP transfer, the status line and the blank line
-        //   preceding the response body are both included as headers and
-        //   passed to this function."
-        //
-        // It also receives the headers of every response, not only the
-        // final one:
-        //
-        //   "It is important to note that the callback is invoked for the
-        //   headers of all responses received after initiating a request
-        //   and not the final response."
-        //
-        // See https://curl.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
-        //
-        // So a status line starts a new header block, and a blank line
-        // means all headers of the current block have arrived.
-        if (stripos($header, 'HTTP/') === 0) {
-            $status_code = preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)
-                ? (int) $matches[1]
-                : curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            if ($status_code === 101) {
-                // The target switched to another protocol. A single HTTP
-                // response from this script can't carry it, and curl would
-                // deliver the other protocol's bytes as the response body.
-                replace_response_with_error(
-                    502,
-                    "Bad Gateway – the target switched protocols"
-                );
-                exit;
-            }
-            // Other interim 1xx responses, such as 100 Continue or 103 Early
-            // Hints, precede the final response. Relaying their status or
-            // headers would make them part of the final response, so skip
-            // their header blocks entirely.
-            $in_interim_response = $status_code < 200;
-            if (!$in_interim_response) {
-                http_response_code($status_code);
-            }
-            $pending_content_length = null;
-            return $len;
+// Keep encoded representation bytes unchanged, so Content-Encoding and Content-Length
+// still describe the relayed body. cURL continues to decode transfer framing (chunked).
+curl_setopt($ch, CURLOPT_HTTP_CONTENT_DECODING, false);
+curl_setopt($ch, CURLOPT_HTTP_TRANSFER_DECODING, true);
+curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (
+    $targetUrl,
+    &$pending_response_headers,
+    &$in_interim_response,
+    &$response_headers_complete,
+    &$has_transfer_encoding,
+    &$is_chunked_response
+) {
+    global $proxy_headers;
+    $len = strlen($header);
+    // cURL delivers each status line, header block, and any trailers here.
+    if (stripos($header, 'HTTP/') === 0) {
+        $status_code = preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $matches)
+            ? (int) $matches[1]
+            : curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        if ($status_code === 101) {
+            replace_response_with_error(502, "Bad Gateway – the target switched protocols");
+            exit;
         }
-        if ($in_interim_response) {
-            // Skip this header. It belongs to an interim response, which PHP
-            // can't relay: a script sends only one response. Relaying it
-            // would add it to the final response by mistake.
-            return $len;
-        }
-
-        $colonPos = strpos($header, ':');
-        if ($colonPos === false) {
-            if (
-                trim($header) === '' &&
-                $pending_content_length !== null &&
-                !$has_transfer_encoding
-            ) {
-                // All headers have arrived, so it's now known whether the
-                // response has a Transfer-Encoding. RFC 9112 section 6.3
-                // says Transfer-Encoding overrides Content-Length, and that
-                // header may have come after Content-Length. Chunked
-                // responses may also deliver trailers to this callback after
-                // the body, but Content-Length is never relayed for them.
-                header('Content-Length: ' . $pending_content_length);
-            }
-            return $len;
-        }
-
-        $name = strtolower(substr($header, 0, $colonPos));
-        $value = trim(substr($header, $colonPos + 1));
-
-        if($name === 'content-length') {
-            $content_length = intval($value);
-            // The response size cap is enforced only here, against the
-            // target's declared Content-Length. Responses without one, such
-            // as chunked responses, are never checked and stream through at
-            // any size. Making the cap a hard limit would require counting
-            // relayed bytes and cutting the response off at the limit.
-            //
-            // The cap limits relayed bodies, and HEAD responses have none.
-            if (
-                $_SERVER['REQUEST_METHOD'] !== 'HEAD' &&
-                $content_length >= MAX_RESPONSE_SIZE
-            ) {
-                replace_response_with_error(413, "Response Too Large");
-                exit;
-            }
-            if (ctype_digit($value)) {
-                $pending_content_length = $value;
-            }
-            return $len;
-        }
-
-        if (is_server_control_response_header($name)) {
-            return $len;
-        }
-
-        if ($name === 'transfer-encoding') {
-            $has_transfer_encoding = true;
-        }
-        if ($name === 'transfer-encoding' && stripos($value, 'chunked') !== false) {
-            $is_chunked_response = true;
-            header($header, false);
-            return $len;
-        }
-
-        if (stripos($header, 'Location:') === 0) {
-            // Adjust the redirection URL to go back to the proxy script
-            $locationUrl = trim(substr($header, 9));
-            $newLocation = rewrite_relative_redirect(
-                $targetUrl,
-                $locationUrl,
-                CURRENT_SCRIPT_URI
-            );
-            header('Location: ' . $newLocation, true);
-        } else if (
-            // Safari fails with "Cannot connect to the server" if we let
-            // the HTTP/2 line be relayed. This proxy doesn't support HTTP/2,
-            // so let's not allow the HTTP line to explicitly pass through.
-            // PHP already provides the HTTP version in the response code anyway.
-            stripos($header, 'HTTP/') !== 0 &&
-            // The proxy server does not support relaying auth challenges.
-            // Specifically, we want to avoid browsers prompting for basic auth
-            // credentials which they will send to the proxy server for the
-            // remainder of the session.
-            stripos($header, 'Set-Cookie:') !== 0 &&
-            stripos($header, 'Authorization:') !== 0 &&
-            stripos($header, 'WWW-Authenticate:') !== 0 &&
-            stripos($header, 'Cache-Control:') !== 0 &&
-            // The browser won't accept multiple values for these headers.
-            stripos($header, 'Access-Control-Allow-Origin:') !== 0 &&
-            stripos($header, 'Access-Control-Allow-Credentials:') !== 0 &&
-            stripos($header, 'Access-Control-Allow-Methods:') !== 0 &&
-            stripos($header, 'Access-Control-Allow-Headers:') !== 0 &&
-            // HSTS headers have consequences for the entire domain. Let's not
-            // allow any remote site to decide on the CORS proxy HSTS policy.
-            // Besides, they won't work with the http-only local dev server.
-            stripos($header, 'Strict-Transport-Security:') !== 0 &&
-            stripos($header, 'Upgrade-Insecure-Requests:') !== 0
-        ) {
-            header($header, false);
+        $pending_response_headers = [];
+        $has_transfer_encoding = false;
+        $is_chunked_response = false;
+        $response_headers_complete = false;
+        $in_interim_response = $status_code < 200;
+        if (!$in_interim_response) {
+            http_response_code($status_code);
         }
         return $len;
     }
-);
+    if ($in_interim_response || $response_headers_complete) {
+        // Interim fields and trailers must not become final response headers.
+        return $len;
+    }
+    if (trim($header) === '') {
+        $response_headers_complete = true;
+        // We cannot relay encoded bytes after removing the metadata needed to
+        // decode them. Such Connection nominations are invalid for content fields.
+        if (in_array('content-encoding', connection_header_names($pending_response_headers), true)) {
+            foreach ($pending_response_headers as $line) {
+                [$name, $value] = explode(':', $line, 2);
+                if (
+                    strcasecmp(trim($name), 'Content-Encoding') === 0 &&
+                    !in_array(strtolower(trim($value)), ['', 'identity'], true)
+                ) {
+                    replace_response_with_error(502, "Bad Gateway – hop-by-hop content encoding");
+                    exit;
+                }
+            }
+        }
+        // A later Connection field may nominate an earlier field. Do not emit
+        // anything upstream-owned until the entire block has been filtered.
+        foreach (filter_response_headers($pending_response_headers, $proxy_headers) as $line) {
+            [$name, $value] = explode(':', $line, 2);
+            $name = strtolower(trim($name));
+            $value = trim($value);
+            if ($name === 'content-length') {
+                // Transfer-Encoding overrides Content-Length regardless of field order.
+                if ($has_transfer_encoding || !ctype_digit($value)) {
+                    continue;
+                }
+                header('Content-Length: ' . $value);
+            } elseif ($name === 'location') {
+                header('Location: ' . rewrite_relative_redirect(
+                    $targetUrl,
+                    $value,
+                    CURRENT_SCRIPT_URI
+                ), true);
+            } else {
+                header($line, false);
+            }
+        }
+        // cURL removes upstream chunk framing. Only the built-in server needs
+        // manually generated downstream framing; production servers handle it.
+        $is_chunked_response = $is_chunked_response &&
+            $_SERVER['REQUEST_METHOD'] !== 'HEAD' &&
+            !in_array(http_response_code(), [204, 304], true);
+        if (should_send_as_chunked_response()) {
+            header('Transfer-Encoding: chunked');
+        }
+        $pending_response_headers = [];
+        return $len;
+    }
 
-curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) use (&$is_chunked_response) {
-    send_response_chunk($data, $is_chunked_response);
+    $parts = explode(':', $header, 2);
+    if (count($parts) !== 2) {
+        return $len;
+    }
+    $name = strtolower(trim($parts[0]));
+    $value = trim($parts[1]);
+    if ($name === 'content-length') {
+        // Preserve the existing declared-size cap. Unknown-length responses are
+        // streamed without a hard byte cap, and HEAD has no body to limit.
+        if ($_SERVER['REQUEST_METHOD'] !== 'HEAD' && intval($value) >= MAX_RESPONSE_SIZE) {
+            replace_response_with_error(413, "Response Too Large");
+            exit;
+        }
+    }
+    if ($name === 'transfer-encoding') {
+        $has_transfer_encoding = true;
+        $codings = array_map('trim', explode(',', strtolower($value)));
+        $is_chunked_response = $is_chunked_response || in_array('chunked', $codings, true);
+    }
+    $pending_response_headers[] = trim($header);
+    return $len;
+});
+
+curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) {
+    send_response_chunk($data);
     return strlen($data);
 });
 
@@ -490,7 +418,7 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
         }
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
-        // Strip the incoming Content-Type and Content-Length headers.
+        // Content-Length was already filtered. Strip Content-Type too.
         // CURLOPT_POSTFIELDS with an array generates a new multipart
         // boundary, and we must let PHP curl set its own Content-Type
         // to match. The original Content-Type from the browser has a
@@ -498,14 +426,17 @@ if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 
         $filteredHeaders = array_values(array_filter(
             $curlHeaders,
             fn($h) => stripos($h, 'Content-Type:') !== 0
-                   && stripos($h, 'Content-Length:') !== 0
         ));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $filteredHeaders);
     } else {
         $input = fopen('php://input', 'r');
         curl_setopt($ch, CURLOPT_UPLOAD, true);
         curl_setopt($ch, CURLOPT_INFILE, $input);
-        curl_setopt($ch, CURLOPT_INFILESIZE, $_SERVER['CONTENT_LENGTH']);
+        // PHP's server-validated input size applies only to this unchanged raw stream.
+        // Leave unknown lengths unset so cURL generates chunked upload framing.
+        if (isset($_SERVER['CONTENT_LENGTH']) && ctype_digit((string) $_SERVER['CONTENT_LENGTH'])) {
+            curl_setopt($ch, CURLOPT_INFILESIZE, (int) $_SERVER['CONTENT_LENGTH']);
+        }
     }
 }
 
