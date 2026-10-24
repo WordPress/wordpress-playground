@@ -31,6 +31,7 @@ export async function resolveRuntimeConfiguration(
 
 		return {
 			wpVersion: compiledBlueprint.versions.wp,
+			installationLanguage: compiledBlueprint.installationLanguage,
 			phpVersion: compiledBlueprint.versions.php,
 			intl: compiledBlueprint.features.intl,
 			networking: compiledBlueprint.features.networking,
