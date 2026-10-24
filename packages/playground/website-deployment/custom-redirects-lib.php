@@ -18,7 +18,31 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 	);
 }
 
-function playground_handle_request() {
+/**
+ * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
+ *
+ * Only the configured sandbox host takes a separate path: it may serve the WordPress
+ * helper and worker loaders, never app documents or native PHP endpoints.
+ * Other hosts continue through the existing request handling below.
+ *
+ * The main installer passes its private build directory. Personal WP passes no
+ * argument and keeps its existing public/static-files-to-serve-via-php layout.
+ * A missing private build must fail rather than fall back to public files.
+ *
+ * The installer writes the build's app and WordPress origins into the release
+ * entry. Do not derive them from Host or query parameters: a sandbox request
+ * must not be able to select another host for trusted scripts.
+ *
+ * @param string|null $build_directory Private main-website build, or null for the public layout.
+ * @param array|null $origins Configured appOrigin and wordPressOrigin; null for the legacy layout.
+ */
+function playground_handle_request( $build_directory = null, $origins = null ) {
+	$directory = realpath( $build_directory ?? __DIR__ );
+	if ( false === $directory || ! is_dir( $directory ) ) {
+		http_response_code( 503 );
+		exit;
+	}
+
 	$may_edge_cache = true;
 
 	// TODO: If needed, switch to a printf style signature
@@ -37,6 +61,52 @@ function playground_handle_request() {
 
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
+
+	// Do not let this host reach the normal app handler, including its redirects
+	// and PHP endpoints. The real scripts/downloads stay at shared app-host URLs;
+	// only these small bootstrap responses must come from the WordPress origin.
+	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
+	if ( null !== $origins && is_string( $request_host ) &&
+		0 === strcasecmp( $request_host, parse_url( $origins['wordPressOrigin'], PHP_URL_HOST ) )
+	) {
+		$app_origin = $origins['appOrigin'];
+		header( 'Cache-Control: private, no-store' );
+		header( 'X-Content-Type-Options: nosniff' );
+		header_remove( 'X-Frame-Options' );
+		if ( '/wordpress-bridge.html' === $original_requested_path ) {
+			// The first helper load has no service worker yet. Point its built
+			// script and preload URLs at the app, as the browser-generated helper does.
+			header( 'Content-Type: text/html; charset=utf-8' );
+			echo preg_replace(
+				'~((?:src|href)=["\'])/(?!/)~',
+				'$1' . $app_origin . '/',
+				file_get_contents( $directory . '/wordpress-bridge.html' )
+			);
+			exit;
+		}
+		if ( '/sw.js' === $original_requested_path ) {
+			header( 'Content-Type: text/javascript; charset=utf-8' );
+			echo 'import ' . json_encode( $app_origin . '/sw.js' ) . ';';
+			exit;
+		}
+		if (
+			str_starts_with( $original_requested_path, '/assets/' ) &&
+			str_ends_with( $original_requested_path, '.js' ) &&
+			'1' === ( $_GET['playground-site-thumbnail-worker'] ?? '' )
+		) {
+			$worker_path = realpath( $directory . $original_requested_path );
+			if ( $worker_path && is_file( $worker_path ) &&
+				str_starts_with( $worker_path, $directory . '/assets/' )
+			) {
+				header( 'Content-Type: text/javascript; charset=utf-8' );
+				echo 'importScripts(' . json_encode( $app_origin . $_SERVER['REQUEST_URI'] ) . ');';
+				exit;
+			}
+		}
+		// Scoped WordPress pages come from its browser service worker, not PHP.
+		http_response_code( 404 );
+		exit;
+	}
 
 	//
 	// REWRITES
@@ -86,14 +156,27 @@ function playground_handle_request() {
 	// PATH RESOLUTION
 	//
 	$served_path = $requested_path;
-	$resolved_path = realpath( __DIR__ . $served_path );
+	$resolved_path = realpath( $directory . $served_path );
 	if ( is_dir( $resolved_path ) ) {
+		if ( null !== $build_directory &&
+			str_starts_with( $resolved_path, $directory . '/' ) &&
+			! str_ends_with( $served_path, '/' )
+		) {
+			// Nginx normally adds the trailing slash for public directories. It
+			// cannot see private build directories, so preserve that redirect here.
+			$location = './' . rawurlencode( basename( $served_path ) ) . '/';
+			if ( isset( $url['query'] ) ) {
+				$location .= '?' . $url['query'];
+			}
+			header( 'Location: ' . $location, true, 301 );
+			die();
+		}
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
 	if ( false === $resolved_path && ! str_ends_with( $served_path, '.php' ) ) {
 		// Static files that need special treatment are served from a different directory.
-		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $served_path );
+		$resolved_path = realpath( $directory . '/static-files-to-serve-via-php' . $served_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
@@ -112,7 +195,7 @@ function playground_handle_request() {
 		die();
 	}
 
-	if ( ! str_starts_with( $resolved_path, '/srv/htdocs/' ) ) {
+	if ( ! str_starts_with( $resolved_path, $directory . '/' ) ) {
 		$log( "This looks like attempted path traversal: '$original_requested_path'" );
 		http_response_code( 403 );
 		die();
@@ -145,6 +228,24 @@ function playground_handle_request() {
 		header( "Content-Type: $content_type" );
 	}
 
+	// The private main build shares platform code with the WordPress origin. Add
+	// CORS independently so existing cache/agent-cluster exceptions still run.
+	// Personal WP keeps its existing public-file headers.
+	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
+		str_starts_with( $served_path, '/assets/' ) ||
+		str_ends_with( $served_path, '.js' ) || preg_match( '~^/wp-[^/]+/~', $served_path )
+	);
+	if ( $is_shared_asset ) {
+		header( 'Access-Control-Allow-Origin: *' );
+		header( 'Access-Control-Allow-Headers: *' );
+		header( 'Access-Control-Allow-Methods: GET, HEAD' );
+		header( 'Cross-Origin-Resource-Policy: cross-origin' );
+		if ( 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
+			http_response_code( 204 );
+			die();
+		}
+	}
+
 	$custom_response_headers = playground_get_custom_response_headers( $served_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
@@ -154,6 +255,9 @@ function playground_handle_request() {
 		if ( $may_edge_cache ) {
 			$log( "Marking for cache: '$resolved_path'" );
 			header( 'A8C-Edge-Cache: cache' );
+			if ( $is_shared_asset && 'html' !== $extension ) {
+				header( 'Cache-Control: public, max-age=3600' );
+			}
 		} else {
 			$log( "Skipping edge cache: '$resolved_path'" );
 			header( 'Cache-Control: no-cache' );
@@ -174,6 +278,12 @@ function playground_handle_request() {
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$original_requested_path'" );
 		playground_maybe_set_environment( $served_path );
+		if ( null !== $build_directory ) {
+			// Nginx cannot execute a private endpoint directly. Run the resolved
+			// file only after the same headers and persistent-data setup as before.
+			require $resolved_path;
+			die();
+		}
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );

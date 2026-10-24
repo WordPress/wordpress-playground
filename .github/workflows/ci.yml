@@ -61,6 +61,7 @@ jobs:
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
             - run: npx nx run docs-site:test-plugins
+            - run: npx nx run playground-website:test:wordpress-frame-router
             - run: npx nx run playground-website:test:static-file-ranges
             - run: bash tools/check-node-engine-alignment.sh
 
