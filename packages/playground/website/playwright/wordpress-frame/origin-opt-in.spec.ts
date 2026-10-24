@@ -55,20 +55,16 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 			false
 		);
 
-		// Losing the query during SPA navigation must not move the next PHP iframe.
+		// Losing ?reprint during SPA navigation must not move the next PHP iframe.
+		// The URL router starts the replacement site. Do not also start one through
+		// the API: the two boots can replace each other before either promise settles.
 		await optedIn.evaluate(() => {
 			(window as any).sameDocument = true;
-			window.history.replaceState({}, '', window.location.pathname);
+			const url = new URL(window.location.href);
+			url.searchParams.delete('reprint');
+			window.history.replaceState({}, '', url.href);
 		});
-		await optedIn.evaluate(() =>
-			(window as any).playgroundSites.createNewTemporarySite(
-				'Next site',
-				{
-					phpVersion: '8.3',
-					wpVersion: '6.9',
-				}
-			)
-		);
+		await expect.poll(() => sandbox.isDetached()).toBe(true);
 		await ready(optedIn, wordPressOrigin);
 		expect(await optedIn.evaluate(() => (window as any).sameDocument)).toBe(
 			true
