@@ -16,8 +16,8 @@ saved clone without the flag returns its WordPress code to the app origin.
 All request handling lives in `../custom-redirects-lib.php`. There is no separate
 router to install. `apply-update.sh` installs the build and writes the small
 public `custom-redirects.php` entry that calls `playground_handle_request()` with
-the selected private build directory. Personal WP keeps its existing entry and
-separate deployment script.
+the selected private build directory and its configured origins. Personal WP
+keeps its existing entry and separate deployment script.
 
 ## Before the first deployment
 
@@ -42,10 +42,29 @@ first deployment moves existing public files out of the web root.
 
 ## What the deployment does
 
-The website deployment workflow builds the normal merged website with
-`VITE_WORDPRESS_SITE_URL=https://wasm.wordpress.net`. It rebuilds rather than
-reusing an Nx result made with a different origin. The existing upload steps
-send the build, deployment scripts, and MIME map to the server.
+The website deployment workflow configures both origins in its job environment:
+
+```yaml
+PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
+VITE_WORDPRESS_SITE_URL: https://wasm.wordpress.net
+```
+
+Vite reads `VITE_WORDPRESS_SITE_URL` for the browser build. The SSH step passes
+those same two values to `apply-update.sh`, which forwards them to the installer.
+The installer rejects invalid HTTPS origins or matching hostnames before moving
+files. It writes the values into that release's PHP entry, so the host gate and
+bootstrap script URLs do not depend on request input or server environment.
+The PHP library and installer contain no production-domain defaults.
+
+The workflow rebuilds rather than reusing an Nx result made with a different
+origin. The existing upload steps send the build, deployment scripts, and MIME
+map to the server. A manual deployment must pass the same origins used for its
+build:
+
+```sh
+~/website-deployment/apply-update.sh \
+  https://playground.wordpress.net https://wasm.wordpress.net
+```
 
 `apply-update.sh` runs `install-release.sh`, which:
 
@@ -91,8 +110,9 @@ new URL parameters.
 
 The HTTP contract test runs the real installer in a temporary directory, then
 starts PHP with the installed public entry. It checks refused deployments,
-old-file removal, both hosts, the existing app redirect/header/PHP rules, shared assets, ranges,
-HEAD/OPTIONS, release switching, and retained rollback files. Only the public
+old-file removal, configured non-production hosts, the app redirect/header/PHP
+rules, shared assets, ranges, HEAD/OPTIONS, release switching, and retained
+rollback files. Only the public
 WP Cloud probes are stubbed; the test does not prove the live Nginx or TLS setup.
 Run it with Node 24 and PHP:
 

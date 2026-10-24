@@ -21,7 +21,7 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 /**
  * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
  *
- * Only wasm.wordpress.net takes a separate path: it may serve the WordPress
+ * Only the configured sandbox host takes a separate path: it may serve the WordPress
  * helper and worker loaders, never app documents or native PHP endpoints.
  * Other hosts continue through the existing request handling below.
  *
@@ -29,9 +29,14 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  * argument and keeps its existing public/static-files-to-serve-via-php layout.
  * A missing private build must fail rather than fall back to public files.
  *
+ * The installer writes the build's app and WordPress origins into the release
+ * entry. Do not derive them from Host or query parameters: a sandbox request
+ * must not be able to select another host for trusted scripts.
+ *
  * @param string|null $build_directory Private main-website build, or null for the public layout.
+ * @param array|null $origins Configured appOrigin and wordPressOrigin; null for the legacy layout.
  */
-function playground_handle_request( $build_directory = null ) {
+function playground_handle_request( $build_directory = null, $origins = null ) {
 	$directory = realpath( $build_directory ?? __DIR__ );
 	if ( false === $directory || ! is_dir( $directory ) ) {
 		http_response_code( 503 );
@@ -60,8 +65,11 @@ function playground_handle_request( $build_directory = null ) {
 	// Do not let this host reach the normal app handler, including its redirects
 	// and PHP endpoints. The real scripts/downloads stay at shared app-host URLs;
 	// only these small bootstrap responses must come from the WordPress origin.
-	if ( preg_match( '/^wasm\.wordpress\.net(:\d+)?$/i', $_SERVER['HTTP_HOST'] ?? '' ) ) {
-		$app_origin = 'https://playground.wordpress.net';
+	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
+	if ( null !== $origins && is_string( $request_host ) &&
+		0 === strcasecmp( $request_host, parse_url( $origins['wordPressOrigin'], PHP_URL_HOST ) )
+	) {
+		$app_origin = $origins['appOrigin'];
 		header( 'Cache-Control: private, no-store' );
 		header( 'X-Content-Type-Options: nosniff' );
 		header_remove( 'X-Frame-Options' );

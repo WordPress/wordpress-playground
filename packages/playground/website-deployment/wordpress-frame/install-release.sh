@@ -1,15 +1,34 @@
 #!/bin/bash
 
 # Install an uploaded build only after WP Cloud denies direct release URLs.
-# Arguments are filesystem paths so the same installer can be tested in a
-# temporary directory. Public origins are fixed in custom-redirects-lib.php,
-# not HTTP input.
+# The first three arguments are filesystem paths so the installer can run in a
+# temporary directory. The workflow passes the same public origins used for
+# the browser build; HTTP input must never select those origins.
 set -euo pipefail
 BUILD="${1:?Expected build, web-root, and backup-directory paths}"
 WEB_ROOT="${2:?Expected web-root path}"
 BACKUPS="${3:?Expected backup-directory path}"
+APP_ORIGIN="${4:?Expected app origin}"
+WORDPRESS_ORIGIN="${5:?Expected WordPress origin}"
 DEPLOYMENT="$(cd "$(dirname "$0")/.." && pwd)"
 SITE_PHP="${SITE_PHP:-php}"
+
+# A bad origin could put app documents on the sandbox host or import platform
+# scripts from the wrong host. Reject it before touching the running release.
+"$SITE_PHP" -r '
+    foreach (array_slice($argv, 1) as $origin) {
+        $parts = parse_url($origin);
+        if (!filter_var($origin, FILTER_VALIDATE_URL) ||
+            ($parts["scheme"] ?? null) !== "https" ||
+            isset($parts["user"]) || isset($parts["pass"]) ||
+            isset($parts["path"]) || isset($parts["query"]) || isset($parts["fragment"])) {
+            throw new RuntimeException("Expected an HTTPS origin without a path: " . $origin);
+        }
+    }
+    if (strcasecmp(parse_url($argv[1], PHP_URL_HOST), parse_url($argv[2], PHP_URL_HOST)) === 0) {
+        throw new RuntimeException("The app and WordPress must use different hostnames");
+    }
+' "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
 
 # A partial upload must not replace the running site.
 for file in index.html api.html remote.html wordpress-bridge.html sw.js; do
@@ -25,7 +44,7 @@ printf 'This private deployment probe must not be served.\n' > "$PROBE"
 # Nginx rule that has to protect readable build files.
 chmod 644 "$PROBE"
 trap 'rm -f "$PROBE"' EXIT
-for origin in https://playground.wordpress.net https://wasm.wordpress.net; do
+for origin in "$APP_ORIGIN" "$WORDPRESS_ORIGIN"; do
     for prefix in /.playground-releases/ /%2eplayground-releases/ /%2eplayground-releases%2f; do
         status="$(curl --silent --show-error --path-as-is --max-time 15 \
             --output /dev/null --write-out '%{http_code}' \
@@ -73,8 +92,9 @@ done
     echo "<?php\nif (\"cli\" === php_sapi_name()) { return; }\n";
     echo "define(\"PLAYGROUND_DEBUG\", false);\n";
     echo "require_once __DIR__ . " . var_export($relative . "/custom-redirects-lib.php", true) . ";\n";
-    echo "playground_handle_request(__DIR__ . " . var_export($relative . "/files", true) . ");\n";
-' "$RELEASE" > "$RELEASE/public-entry.php"
+    $origins = ["appOrigin" => $argv[2], "wordPressOrigin" => $argv[3]];
+    echo "playground_handle_request(__DIR__ . " . var_export($relative . "/files", true) . ", " . var_export($origins, true) . ");\n";
+' "$RELEASE" "$APP_ORIGIN" "$WORDPRESS_ORIGIN" > "$RELEASE/public-entry.php"
 "$SITE_PHP" -l "$RELEASE/public-entry.php"
 
 BACKUP="$BACKUPS/$(basename "$RELEASE")"

@@ -32,8 +32,11 @@ The main Playground site uses `apply-update.sh`. The My WordPress site uses
 `my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
 updates do not affect the main Playground deployment path.
 
-The main deployment workflow builds for `wasm.wordpress.net` and uploads the
-normal merged website. `apply-update.sh` checks both hosts, installs a private
+The main deployment workflow sets `PLAYGROUND_APP_ORIGIN` to
+`https://playground.wordpress.net` and `VITE_WORDPRESS_SITE_URL` to
+`https://wasm.wordpress.net`. It uses those values for the browser build and
+passes them to `apply-update.sh`; the PHP library has no hardcoded host choice.
+`apply-update.sh` checks both hosts, installs a private
 release, moves old public files to a rollback backup, and replaces the public
 entry file. See the [two-host deployment guide](wordpress-frame/README.md) for
 required WP Cloud settings, the Nginx preflight checks, and rollback.

@@ -27,8 +27,9 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const source = dirname(fileURLToPath(import.meta.url));
-const app = 'https://playground.wordpress.net';
-const wordpress = 'https://wasm.wordpress.net';
+// Non-production names catch hardcoded host checks and bootstrap import URLs.
+const app = 'https://app.example';
+const wordpress = 'https://wordpress.example';
 const temporary = await mkdtemp(join(tmpdir(), 'playground-wpcloud-'));
 const webRoot = join(temporary, 'htdocs');
 const deployment = join(temporary, 'website-deployment');
@@ -117,6 +118,7 @@ const assert = require('node:assert/strict');
 const { statSync } = require('node:fs');
 const { join, basename } = require('node:path');
 const url = new URL(process.argv.at(-1));
+assert.ok(${JSON.stringify([app, wordpress])}.includes(url.origin));
 if (url.pathname === '/sw.js') {
     process.stdout.write(process.env.ALIAS_STATUS || '200');
 } else {
@@ -144,6 +146,8 @@ exec /bin/mv "$@"
 		upload,
 		webRoot,
 		backups,
+		app,
+		wordpress,
 	];
 	const installEnv = {
 		...process.env,
@@ -151,6 +155,22 @@ exec /bin/mv "$@"
 		SITE_PHP: 'php',
 		PROBE_ROOT: join(webRoot, '.playground-releases'),
 	};
+	// Invalid origin configuration must fail before moving files or replacing PHP.
+	for (const origins of [
+		['', wordpress],
+		[app, app],
+		[app, wordpress + '/api.html'],
+	]) {
+		await assert.rejects(
+			run('bash', [...install.slice(0, 4), ...origins], {
+				env: installEnv,
+			})
+		);
+		assert.equal(
+			await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
+			oldEntry
+		);
+	}
 	// An interrupted upload can omit a runtime entry even when index.html exists.
 	await rename(
 		join(upload, 'remote.html'),
@@ -381,9 +401,9 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	}
 	const bridge = await request('/wordpress-bridge.html', wordpress);
 	assert.equal(bridge.status, 200);
-	assert.match(
+	assert.equal(
 		await bridge.text(),
-		/src="https:\/\/playground.wordpress.net\/assets\/bridge.js"/
+		`<script src="${app}/assets/bridge.js"></script>`
 	);
 	const workerSource = await (await request('/sw.js', wordpress)).text();
 	assert.equal(
@@ -406,7 +426,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	assert.equal(
 		(
 			await request('/api.html', wordpress, {
-				Host: 'WASM.WordPress.NET:443',
+				Host: new URL(wordpress).hostname.toUpperCase() + ':443',
 			})
 		).status,
 		404

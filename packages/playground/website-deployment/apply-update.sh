@@ -12,7 +12,8 @@ SITE_API_BASE="$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE
 # deployment script and the existing custom-redirects.php entry.
 export SITE_PHP
 bash ~/website-deployment/wordpress-frame/install-release.sh \
-    ~/updated-playground-files /srv/htdocs ~/website-backups
+    ~/updated-playground-files /srv/htdocs ~/website-backups \
+    "${1:?Expected app origin}" "${2:?Expected WordPress origin}"
 
 echo Purging edge cache
 curl --fail --silent --show-error --max-time 60 -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" \
