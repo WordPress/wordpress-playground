@@ -26,6 +26,7 @@ import { spawnWorkerThread } from '../run-cli';
 import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootWordPressOptions = {
+	installationLanguage?: string;
 	siteUrl: string;
 	phpVersion?: string;
 	wpVersion?: string;
@@ -102,6 +103,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			siteUrl,
 			phpVersion,
 			wordpressInstallMode,
+			installationLanguage,
 			wordPressZip,
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
@@ -113,6 +115,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				siteUrl,
 				phpVersion,
 				wordpressInstallMode,
+				installationLanguage,
 				wordPressZip:
 					wordPressZip !== undefined
 						? new File([wordPressZip], 'wordpress.zip')

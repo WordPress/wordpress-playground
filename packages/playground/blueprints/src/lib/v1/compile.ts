@@ -83,6 +83,8 @@ export class BlueprintStepExecutionError extends Error {
 export type CompiledV1Step = (php: UniversalPHP) => Promise<void> | void;
 
 export interface CompiledBlueprintV1 {
+	/** Locale requested by an initial setSiteLanguage step, before installation. */
+	installationLanguage?: string;
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: AllPHPVersion;
@@ -200,6 +202,12 @@ function compileBlueprintJson(
 	};
 
 	blueprint.steps = [...(blueprint.steps || []), ...(additionalSteps || [])];
+
+	// Only the first executable step may influence installation. Later language
+	// changes must retain their position relative to imports and other steps.
+	const firstStep = blueprint.steps.find(isStepDefinition);
+	const installationLanguage =
+		firstStep?.step === 'setSiteLanguage' ? firstStep.language : undefined;
 
 	if (blueprint.preferredVersions?.wp === false) {
 		assertNoWordPressFeatures(blueprint);
@@ -390,6 +398,7 @@ function compileBlueprintJson(
 	);
 
 	return {
+		installationLanguage,
 		versions: {
 			php: compileVersion(
 				blueprint.preferredVersions?.php,
