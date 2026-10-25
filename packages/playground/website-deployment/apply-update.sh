@@ -104,6 +104,20 @@ fi
 # Move them outside htdocs. Preserve releases and the platform's PHP fallback.
 # Do not use find -exec here: an individual mv failure must stop activation.
 shopt -s dotglob nullglob
+# Until the entry rename succeeds, the old entry still needs its public files.
+# Restore missing files on failure. A failed cross-device move may leave an
+# incomplete backup, so never overwrite originals that are still in place.
+# After activation, restoring public files would bypass the sandbox rule. The
+# staged entry disappears in that rename, so no separate flag can drift.
+trap '
+    status=$?
+    if [ -f "$RELEASE/public-entry.php" ]; then
+        rsync -a --ignore-existing --exclude=/custom-redirects.php "$BACKUP/" "$WEB_ROOT/" ||
+            echo "Failed to restore public files from $BACKUP" >&2
+    fi
+    rm -f "$PROBE"
+    exit "$status"
+' EXIT
 for path in "$WEB_ROOT"/*; do
     case "$(basename "$path")" in
         .playground-releases|__wp__|custom-redirects.php) continue ;;

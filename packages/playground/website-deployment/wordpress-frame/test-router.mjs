@@ -158,8 +158,12 @@ try {
 	assert.ok(sandboxHtml.includes(`src="${app}/assets/`));
 	await symlink(join(upload, 'status.php'), join(sandbox, 'assets/leak.js'));
 	await mkdir(join(webRoot, 'assets'), { recursive: true });
-	const oldEntry = '<?php echo "previous deployment";';
+	const oldEntry = '<?php require __DIR__ . "/custom-redirects-lib.php";';
 	await writeFile(join(webRoot, 'custom-redirects.php'), oldEntry);
+	await writeFile(
+		join(webRoot, 'custom-redirects-lib.php'),
+		'<?php echo "previous deployment";'
+	);
 	await writeFile(join(webRoot, 'index.html'), 'old public app');
 	await writeFile(join(webRoot, 'assets/old.js'), 'old public script');
 	await writeFile(join(temporary, 'secret.txt'), 'must not be served');
@@ -175,6 +179,7 @@ const { join, basename } = require('node:path');
 const url = new URL(process.argv.at(-1));
 if (process.argv.includes('POST')) {
     assert.equal(url.href, 'https://api.example/edge-cache/fixture/purge');
+    if (process.env.FAIL_PURGE === '1') process.exit(22);
     process.stdout.write('purged');
     process.exit(0);
 }
@@ -193,8 +198,12 @@ if (url.pathname === '/sw.js') {
 	await writeFile(
 		join(fakeBin, 'mv'),
 		`#!/bin/bash
-if [ "\${FAIL_PUBLIC_MOVE:-}" = 1 ] && [ "$1" = "$PUBLIC_ASSET" ]; then
-    echo 'Cannot move public asset' >&2
+if [ "$1" = "\${FAIL_MOVE_SOURCE:-}" ] || [ "\${@: -1}" = "\${FAIL_MOVE_TARGET:-}" ]; then
+    if [ "\${PARTIAL_MOVE:-}" = 1 ]; then
+        mkdir -p "$2/assets"
+        printf 'incomplete copy' > "$2/assets/old.js"
+    fi
+    echo 'Cannot move deployment file' >&2
     exit 1
 fi
 exec /bin/mv "$@"
@@ -275,36 +284,59 @@ exec /bin/mv "$@"
 			[]
 		);
 	}
-	// Leaving even one old public asset would bypass the new host checks.
+	// A failed move must leave the previous app usable, not just its entry intact.
+	// index.html sorts after its PHP library, so that failure needs to restore files
+	// already moved into the backup. Also cover the first move, an incomplete backup
+	// that must not overwrite an intact original, and the final entry rename.
+	for (const failure of [
+		{ FAIL_MOVE_SOURCE: join(webRoot, 'assets') },
+		{ FAIL_MOVE_SOURCE: join(webRoot, 'assets'), PARTIAL_MOVE: '1' },
+		{ FAIL_MOVE_SOURCE: join(webRoot, 'index.html') },
+		{ FAIL_MOVE_TARGET: join(webRoot, 'custom-redirects.php') },
+	]) {
+		await assert.rejects(
+			run('bash', install, {
+				env: {
+					...installEnv,
+					...failure,
+				},
+			})
+		);
+		assert.equal(
+			await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
+			oldEntry
+		);
+		assert.equal(
+			(await run('php', [join(webRoot, 'custom-redirects.php')])).stdout,
+			'previous deployment'
+		);
+		assert.equal(
+			await readFile(join(webRoot, 'assets/old.js'), 'utf8'),
+			'old public script'
+		);
+		assert.equal(
+			await readFile(join(webRoot, 'index.html'), 'utf8'),
+			'old public app'
+		);
+		const [failedRelease] = await readdir(
+			join(webRoot, '.playground-releases')
+		);
+		await rename(
+			join(webRoot, '.playground-releases', failedRelease, 'files'),
+			upload
+		);
+		await rm(join(webRoot, '.playground-releases', failedRelease), {
+			recursive: true,
+		});
+		await rm(join(backups, failedRelease), { recursive: true });
+	}
+	// A purge failure happens after activation. Report it without restoring old
+	// public files, which would bypass the newly active sandbox host rule.
 	await assert.rejects(
 		run('bash', install, {
-			env: {
-				...installEnv,
-				FAIL_PUBLIC_MOVE: '1',
-				PUBLIC_ASSET: join(webRoot, 'assets'),
-			},
+			env: { ...installEnv, FAIL_PURGE: '1' },
 		})
 	);
-	assert.equal(
-		await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
-		oldEntry
-	);
-	assert.equal(
-		await readFile(join(webRoot, 'assets/old.js'), 'utf8'),
-		'old public script'
-	);
-	const [failedRelease] = await readdir(
-		join(webRoot, '.playground-releases')
-	);
-	await rename(
-		join(webRoot, '.playground-releases', failedRelease, 'files'),
-		upload
-	);
-	await rm(join(webRoot, '.playground-releases', failedRelease), {
-		recursive: true,
-	});
-	await rm(join(backups, failedRelease), { recursive: true });
-	await run('bash', install, { env: installEnv });
 	const [releaseName] = await readdir(join(webRoot, '.playground-releases'));
 	const files = join(webRoot, '.playground-releases', releaseName, 'files');
 	assert.equal(
@@ -598,7 +630,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	);
 	assert.ok((await request('/etc/passwd', app)).status >= 400);
 	console.log(
-		'WP Cloud deployment: preflight failures, private install, real entry, host/path boundaries, native PHP, shared assets, ranges, HEAD/OPTIONS and release switching passed.'
+		'WP Cloud deployment: preflight failures, migration rollback, post-activation purge failure, private install, real entry, host/path boundaries, native PHP, shared assets, ranges, HEAD/OPTIONS and release switching passed.'
 	);
 } finally {
 	if (server) {

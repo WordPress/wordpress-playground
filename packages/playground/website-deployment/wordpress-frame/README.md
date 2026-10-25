@@ -76,10 +76,14 @@ build:
    contains `custom-redirects-lib.php` and the generated `mime-types.php` map.
 3. Saves the previous public entry and any old public build files under
    `~/website-backups/release.<random>/`. Keeps the platform's `__wp__` fallback.
+   If a move or the entry rename fails, restores the old public files so the
+   unchanged entry can still run.
 4. Replaces the public `custom-redirects.php` in one rename. Its paths select
    that exact release, so an in-flight PHP request continues using the previous
    release while later requests use the new one.
-5. Purges the WP Cloud edge cache.
+5. Purges the WP Cloud edge cache. A purge failure reports an error but leaves
+   the new release active. Restoring public files at that point would bypass
+   the sandbox host rule.
 
 The first move from public files to a private build can briefly interrupt
 requests. Later deployments keep previous private releases in place. Neither
