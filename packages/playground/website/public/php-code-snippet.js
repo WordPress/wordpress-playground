@@ -788,10 +788,13 @@ class PhpSnippet extends HTMLElement {
 			) {
 				this._restoreEditorFocusAfterRun = true;
 				const restoreEditorFocus = () => this._restoreEditorFocus();
+				// Observe releases inside and outside the snippet before its event boundary.
 				document.addEventListener('pointerup', restoreEditorFocus, {
+					capture: true,
 					once: true,
 				});
 				document.addEventListener('pointercancel', restoreEditorFocus, {
+					capture: true,
 					once: true,
 				});
 			}
@@ -814,6 +817,64 @@ class PhpSnippet extends HTMLElement {
 				this._run();
 			}
 		});
+		// Composed UI events cross shadow roots and can trigger a surrounding
+		// WYSIWYG editor. Stop them after the snippet's own handlers run, without
+		// cancelling typing, selection, clipboard actions, or scrolling. Ancestor
+		// capture listeners run before this boundary and cannot be blocked here.
+		for (const type of [
+			'keydown',
+			'keypress',
+			'keyup',
+			'beforeinput',
+			'input',
+			'change',
+			'compositionstart',
+			'compositionupdate',
+			'compositionend',
+			'copy',
+			'cut',
+			'paste',
+			'focusin',
+			'focusout',
+			'click',
+			'dblclick',
+			'auxclick',
+			'contextmenu',
+			'mousedown',
+			'mouseup',
+			'mousemove',
+			'mouseover',
+			'mouseout',
+			'wheel',
+			'pointerdown',
+			'pointerup',
+			'pointermove',
+			'pointerover',
+			'pointerout',
+			'pointercancel',
+			'pointerrawupdate',
+			'gotpointercapture',
+			'lostpointercapture',
+			'touchstart',
+			'touchmove',
+			'touchend',
+			'touchcancel',
+			'dragstart',
+			'drag',
+			'dragend',
+			'dragenter',
+			'dragleave',
+			'dragover',
+			'drop',
+		]) {
+			this.shadowRoot.addEventListener(
+				type,
+				(event) => event.stopPropagation(),
+				{
+					passive: true,
+				}
+			);
+		}
 	}
 
 	connectedCallback() {
