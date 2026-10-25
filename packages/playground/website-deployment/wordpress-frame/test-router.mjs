@@ -7,6 +7,8 @@
  * hostname configuration, TLS, and Nginx deny rule still need deployment checks.
  */
 import assert from 'node:assert/strict';
+import { build } from 'vite';
+import { wordPressSandboxPlugin } from '../../remote/vite.wordpress-sandbox.ts';
 import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
@@ -15,8 +17,10 @@ import {
 	mkdir,
 	readFile,
 	readdir,
+	realpath,
 	rename,
 	rm,
+	symlink,
 	writeFile,
 } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -30,7 +34,9 @@ const source = dirname(fileURLToPath(import.meta.url));
 // Non-production names catch hardcoded host checks and bootstrap import URLs.
 const app = 'https://app.example';
 const wordpress = 'https://wordpress.example';
-const temporary = await mkdtemp(join(tmpdir(), 'playground-wpcloud-'));
+const temporary = await realpath(
+	await mkdtemp(join(tmpdir(), 'playground-wpcloud-'))
+);
 const webRoot = join(temporary, 'htdocs');
 const deployment = join(temporary, 'website-deployment');
 const backups = join(temporary, 'backups');
@@ -102,6 +108,55 @@ try {
 		'<?php echo "PHP directory index";'
 	);
 	await writeFile(join(upload, 'tools/index.html'), 'HTML directory index');
+	// Build the real sandbox files, including the dependency's hashed worker URL.
+	// This catches Vite output changes as well as mistakes in PHP's directory gate.
+	const fixtureSource = join(temporary, 'source');
+	await mkdir(fixtureSource);
+	await writeFile(
+		join(fixtureSource, 'wordpress-bridge.html'),
+		'<script type="module" src="/bridge.js"></script>'
+	);
+	await writeFile(
+		join(fixtureSource, 'bridge.js'),
+		`import worker from ${JSON.stringify(fileURLToPath(import.meta.resolve('modern-screenshot/worker')) + '?url')}; window.worker = worker;`
+	);
+	// A previous build must not leave an app document in the sandbox's file allowlist.
+	await mkdir(join(upload, 'wordpress-sandbox'));
+	await writeFile(
+		join(upload, 'wordpress-sandbox/api.html'),
+		'stale app document'
+	);
+	await build({
+		configFile: false,
+		root: fixtureSource,
+		logLevel: 'error',
+		plugins: [wordPressSandboxPlugin(app)],
+		build: {
+			outDir: upload,
+			emptyOutDir: false,
+			assetsInlineLimit: 0,
+			rollupOptions: {
+				input: join(fixtureSource, 'wordpress-bridge.html'),
+			},
+		},
+	});
+	const sandbox = join(upload, 'wordpress-sandbox');
+	assert.deepEqual((await readdir(sandbox)).sort(), [
+		'assets',
+		'sw.js',
+		'wordpress-bridge.html',
+	]);
+	const [thumbnailFile, ...extraFiles] = await readdir(
+		join(sandbox, 'assets')
+	);
+	assert.deepEqual(extraFiles, []);
+	const thumbnailPath = '/assets/' + thumbnailFile;
+	const sandboxHtml = await readFile(
+		join(sandbox, 'wordpress-bridge.html'),
+		'utf8'
+	);
+	assert.ok(sandboxHtml.includes(`src="${app}/assets/`));
+	await symlink(join(upload, 'status.php'), join(sandbox, 'assets/leak.js'));
 	await mkdir(join(webRoot, 'assets'), { recursive: true });
 	const oldEntry = '<?php echo "previous deployment";';
 	await writeFile(join(webRoot, 'custom-redirects.php'), oldEntry);
@@ -118,6 +173,11 @@ const assert = require('node:assert/strict');
 const { statSync } = require('node:fs');
 const { join, basename } = require('node:path');
 const url = new URL(process.argv.at(-1));
+if (process.argv.includes('POST')) {
+    assert.equal(url.href, 'https://api.example/edge-cache/fixture/purge');
+    process.stdout.write('purged');
+    process.exit(0);
+}
 assert.ok(${JSON.stringify([app, wordpress])}.includes(url.origin));
 if (url.pathname === '/sw.js') {
     process.stdout.write(process.env.ALIAS_STATUS || '200');
@@ -142,17 +202,20 @@ exec /bin/mv "$@"
 		{ mode: 0o755 }
 	);
 	const install = [
-		join(deployment, 'wordpress-frame/install-release.sh'),
+		join(deployment, 'apply-update.sh'),
+		app,
+		wordpress,
 		upload,
 		webRoot,
 		backups,
-		app,
-		wordpress,
 	];
 	const installEnv = {
 		...process.env,
 		PATH: fakeBin + ':' + process.env.PATH,
 		SITE_PHP: 'php',
+		SITE_API_BASE: 'https://api.example',
+		ATOMIC_SITE_API_KEY: 'fixture',
+		ATOMIC_SITE_ID: 'fixture',
 		PROBE_ROOT: join(webRoot, '.playground-releases'),
 	};
 	// Invalid origin configuration must fail before moving files or replacing PHP.
@@ -162,7 +225,7 @@ exec /bin/mv "$@"
 		[app, wordpress + '/api.html'],
 	]) {
 		await assert.rejects(
-			run('bash', [...install.slice(0, 4), ...origins], {
+			run('bash', [install[0], ...origins, ...install.slice(3)], {
 				env: installEnv,
 			})
 		);
@@ -171,20 +234,20 @@ exec /bin/mv "$@"
 			oldEntry
 		);
 	}
-	// An interrupted upload can omit a runtime entry even when index.html exists.
-	await rename(
-		join(upload, 'remote.html'),
-		join(upload, 'remote-unavailable.html')
-	);
-	await assert.rejects(run('bash', install, { env: installEnv }));
-	assert.equal(
-		await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
-		oldEntry
-	);
-	await rename(
-		join(upload, 'remote-unavailable.html'),
-		join(upload, 'remote.html')
-	);
+	// An interrupted upload may have app HTML but omit a runtime or sandbox entry.
+	for (const file of [
+		'remote.html',
+		'wordpress-sandbox/wordpress-bridge.html',
+		'wordpress-sandbox/sw.js',
+	]) {
+		await rename(join(upload, file), join(upload, file + '.unavailable'));
+		await assert.rejects(run('bash', install, { env: installEnv }));
+		assert.equal(
+			await readFile(join(webRoot, 'custom-redirects.php'), 'utf8'),
+			oldEntry
+		);
+		await rename(join(upload, file + '.unavailable'), join(upload, file));
+	}
 	// A public release URL, alias redirect, or failed public URL must leave the old
 	// entry and upload untouched. This catches moving files before the checks run.
 	for (const env of [
@@ -401,24 +464,44 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	}
 	const bridge = await request('/wordpress-bridge.html', wordpress);
 	assert.equal(bridge.status, 200);
-	assert.equal(
-		await bridge.text(),
-		`<script src="${app}/assets/bridge.js"></script>`
-	);
+	assert.equal(await bridge.text(), sandboxHtml);
 	const workerSource = await (await request('/sw.js', wordpress)).text();
 	assert.equal(
 		JSON.parse(workerSource.slice('import '.length, -1)),
 		app + '/sw.js'
 	);
 	const thumbnail = await request(
-		'/assets/thumbnail.js?playground-site-thumbnail-worker=1',
+		thumbnailPath + '?playground-site-thumbnail-worker=1',
 		wordpress
 	);
 	assert.equal(thumbnail.status, 200);
-	assert.match(await thumbnail.text(), /importScripts/);
+	const thumbnailSource = await thumbnail.text();
+	assert.equal(
+		JSON.parse(thumbnailSource.slice('importScripts('.length, -2)),
+		app + thumbnailPath + '?playground-site-thumbnail-worker=1'
+	);
+	assert.equal(
+		await (await request(thumbnailPath, wordpress)).text(),
+		thumbnailSource
+	);
+	assert.equal(
+		thumbnail.headers.get('content-type'),
+		'application/javascript'
+	);
+	assert.match(thumbnail.headers.get('cache-control'), /private, no-store/);
+	const sandboxHead = await request(thumbnailPath, wordpress, {}, 'HEAD');
+	assert.equal(
+		sandboxHead.headers.get('content-length'),
+		String(Buffer.byteLength(thumbnailSource))
+	);
+	assert.equal(await sandboxHead.text(), '');
 	for (const path of [
 		'/assets/runtime.wasm?playground-site-thumbnail-worker=1',
 		'/assets/missing.js?playground-site-thumbnail-worker=1',
+		'/assets/thumbnail.js?playground-site-thumbnail-worker=1',
+		'/assets/leak.js',
+		'/../api.html',
+		'/%2e%2e/api.html',
 		'/assets/../status.php?playground-site-thumbnail-worker=1',
 	]) {
 		assert.equal((await request(path, wordpress)).status, 404, path);
@@ -475,8 +558,13 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	}
 	// A later deployment switches the public entry but retains both the previous
 	// entry and its complete private release for rollback and in-flight requests.
+	await rm(join(files, 'wordpress-sandbox/assets/leak.js'));
 	await cp(files, upload, { recursive: true });
 	await writeFile(join(upload, 'index.html'), '<title>Next release</title>');
+	await writeFile(
+		join(upload, 'wordpress-sandbox/wordpress-bridge.html'),
+		sandboxHtml + '<!-- next release -->'
+	);
 	const previousEntry = await readFile(
 		join(webRoot, 'custom-redirects.php'),
 		'utf8'
@@ -485,6 +573,10 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	assert.equal(
 		await (await request('/', app)).text(),
 		'<title>Next release</title>'
+	);
+	assert.equal(
+		await (await request('/wordpress-bridge.html', wordpress)).text(),
+		sandboxHtml + '<!-- next release -->'
 	);
 	assert.equal(
 		await readFile(join(files, 'index.html'), 'utf8'),

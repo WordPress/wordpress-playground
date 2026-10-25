@@ -21,22 +21,22 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 /**
  * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
  *
- * Only the configured sandbox host takes a separate path: it may serve the WordPress
- * helper and worker loaders, never app documents or native PHP endpoints.
+ * The configured sandbox host serves only the wordpress-sandbox/ subdirectory:
+ * the built HTTP helper and worker loaders, never app documents or PHP endpoints.
  * Other hosts continue through the existing request handling below.
  *
- * The main installer passes its private build directory. Personal WP passes no
+ * The deployment script passes its private build directory. Personal WP passes no
  * argument and keeps its existing public/static-files-to-serve-via-php layout.
  * A missing private build must fail rather than fall back to public files.
  *
- * The installer writes the build's app and WordPress origins into the release
- * entry. Do not derive them from Host or query parameters: a sandbox request
- * must not be able to select another host for trusted scripts.
+ * Deployment writes the configured sandbox origin into the release entry. Request
+ * headers and query parameters must not change that configuration. The build
+ * has already pointed the sandbox's script URLs at the shared app origin.
  *
  * @param string|null $build_directory Private main-website build, or null for the public layout.
- * @param array|null $origins Configured appOrigin and wordPressOrigin; null for the legacy layout.
+ * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
  */
-function playground_handle_request( $build_directory = null, $origins = null ) {
+function playground_handle_request( $build_directory = null, $wordpress_origin = null ) {
 	$directory = realpath( $build_directory ?? __DIR__ );
 	if ( false === $directory || ! is_dir( $directory ) ) {
 		http_response_code( 503 );
@@ -64,47 +64,27 @@ function playground_handle_request( $build_directory = null, $origins = null ) {
 
 	// Do not let this host reach the normal app handler, including its redirects
 	// and PHP endpoints. The real scripts/downloads stay at shared app-host URLs;
-	// only these small bootstrap responses must come from the WordPress origin.
+	// only the small built sandbox directory belongs on the WordPress origin.
 	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
-	if ( null !== $origins && is_string( $request_host ) &&
-		0 === strcasecmp( $request_host, parse_url( $origins['wordPressOrigin'], PHP_URL_HOST ) )
+	if ( null !== $wordpress_origin && is_string( $request_host ) &&
+		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
 	) {
-		$app_origin = $origins['appOrigin'];
+		// This directory contains only built helper/loader files. Never fall back
+		// to app files, redirects, directory indexes, or native PHP on this host.
+		// Scoped WordPress pages come from the browser service worker, not this directory.
+		$sandbox = realpath( $directory . '/wordpress-sandbox' );
+		$file = $sandbox ? realpath( $sandbox . $original_requested_path ) : false;
+		if ( ! $file || ! is_file( $file ) || ! str_starts_with( $file, $sandbox . '/' ) ) {
+			http_response_code( 404 );
+			exit;
+		}
+		require_once __DIR__ . '/mime-types.php';
+		$extension = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
+		header( 'Content-Type: ' . ( $mime_types[ $extension ] ?? $mime_types['_default'] ) );
 		header( 'Cache-Control: private, no-store' );
 		header( 'X-Content-Type-Options: nosniff' );
 		header_remove( 'X-Frame-Options' );
-		if ( '/wordpress-bridge.html' === $original_requested_path ) {
-			// The first helper load has no service worker yet. Point its built
-			// script and preload URLs at the app, as the browser-generated helper does.
-			header( 'Content-Type: text/html; charset=utf-8' );
-			echo preg_replace(
-				'~((?:src|href)=["\'])/(?!/)~',
-				'$1' . $app_origin . '/',
-				file_get_contents( $directory . '/wordpress-bridge.html' )
-			);
-			exit;
-		}
-		if ( '/sw.js' === $original_requested_path ) {
-			header( 'Content-Type: text/javascript; charset=utf-8' );
-			echo 'import ' . json_encode( $app_origin . '/sw.js' ) . ';';
-			exit;
-		}
-		if (
-			str_starts_with( $original_requested_path, '/assets/' ) &&
-			str_ends_with( $original_requested_path, '.js' ) &&
-			'1' === ( $_GET['playground-site-thumbnail-worker'] ?? '' )
-		) {
-			$worker_path = realpath( $directory . $original_requested_path );
-			if ( $worker_path && is_file( $worker_path ) &&
-				str_starts_with( $worker_path, $directory . '/assets/' )
-			) {
-				header( 'Content-Type: text/javascript; charset=utf-8' );
-				echo 'importScripts(' . json_encode( $app_origin . $_SERVER['REQUEST_URI'] ) . ');';
-				exit;
-			}
-		}
-		// Scoped WordPress pages come from its browser service worker, not PHP.
-		http_response_code( 404 );
+		playground_serve_static_file( $file );
 		exit;
 	}
 

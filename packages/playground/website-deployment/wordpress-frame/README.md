@@ -16,7 +16,7 @@ saved clone without the flag returns its WordPress code to the app origin.
 All request handling lives in `../custom-redirects-lib.php`. There is no separate
 router to install. `apply-update.sh` installs the build and writes the small
 public `custom-redirects.php` entry that calls `playground_handle_request()` with
-the selected private build directory and its configured origins. Personal WP
+the selected private build directory and configured sandbox origin. Personal WP
 keeps its existing entry and separate deployment script.
 
 ## Before the first deployment
@@ -32,7 +32,7 @@ URLs in a browser with that old redirect cached. Purging the server's edge cache
 does not purge browsers' redirect caches.
 
 Nginx must deny direct HTTP access to `/srv/htdocs/.playground-releases/`,
-including encoded paths. The installer creates a harmless text probe there and
+including encoded paths. The deployment script creates a harmless text probe there and
 requires HTTP 403 through both hosts before uploading the build into that
 location. It verifies TLS and never follows redirects. A failed check leaves
 the active entry and public build untouched. PHP cannot create this Nginx rule.
@@ -50,11 +50,12 @@ VITE_WORDPRESS_SITE_URL: https://wasm.wordpress.net
 ```
 
 Vite reads `VITE_WORDPRESS_SITE_URL` for the browser build. The SSH step passes
-those same two values to `apply-update.sh`, which forwards them to the installer.
-The installer rejects invalid HTTPS origins or matching hostnames before moving
-files. It writes the values into that release's PHP entry, so the host gate and
-bootstrap script URLs do not depend on request input or server environment.
-The PHP library and installer contain no production-domain defaults.
+those same two values to `apply-update.sh`. This one script performs the complete
+deployment; there is no separate installer. It rejects invalid HTTPS origins or
+matching hostnames before moving files. It writes the sandbox origin into that
+release's PHP entry; the build has already written the app origin into the
+sandbox files. Neither depends on request input or server environment.
+The PHP library and deployment script contain no production-domain defaults.
 
 The workflow rebuilds rather than reusing an Nx result made with a different
 origin. The existing upload steps send the build, deployment scripts, and MIME
@@ -66,7 +67,7 @@ build:
   https://playground.wordpress.net https://wasm.wordpress.net
 ```
 
-`apply-update.sh` runs `install-release.sh`, which:
+`apply-update.sh`:
 
 1. Checks the required entry documents and service worker are present. Checks
    both public hosts and Nginx's private-path deny rule.
@@ -95,8 +96,24 @@ headers, cache exceptions, HEAD requests, and native PHP environment setup.
 There is no replacement app handler or new app-side PHP allowlist. Their credentials still come from WP Cloud persistent data via
 `playground_maybe_set_environment()`. The HTTP server returns 404 for scoped WordPress paths; the app service worker
 serves them for ordinary sessions and rejects opted-in sites on that origin.
-The sandbox serves only the request-helper page and service-worker/thumbnail
-worker loaders. Its WordPress pages come from the browser's service worker.
+The build creates a separate document root inside the private build:
+
+```text
+files/
+├── index.html, remote.html, api.html, assets/, ...
+└── wordpress-sandbox/
+    ├── wordpress-bridge.html
+    ├── sw.js
+    └── assets/<hashed-thumbnail-worker>.js
+```
+
+Only the contents of `wordpress-sandbox/` are served on the sandbox hostname.
+The helper already contains app-origin script and preload URLs. The small worker
+files import the shared app-origin bundles. Vite finds the thumbnail worker from
+its source-file mapping, so its changing hash does not need a PHP URL exception.
+PHP serves these files as-is and returns 404 for missing files or paths escaping
+that directory. No app redirects or native PHP execution run on this host. Its
+WordPress pages come from the browser's service worker.
 Other sandbox requests return 404.
 
 Assets use the same app-host URLs for all Playgrounds, with CORS and caching.
@@ -108,11 +125,11 @@ new URL parameters.
 
 ## Verify and roll back
 
-The HTTP contract test runs the real installer in a temporary directory, then
-starts PHP with the installed public entry. It checks refused deployments,
+The HTTP contract test builds the sandbox directory, runs `apply-update.sh` in a
+temporary directory, then starts PHP with the installed public entry. It checks refused deployments,
 old-file removal, configured non-production hosts, the app redirect/header/PHP
-rules, shared assets, ranges, HEAD/OPTIONS, release switching, and retained
-rollback files. Only the public
+rules, shared assets, ranges, HEAD/OPTIONS, symlink and traversal rejection,
+release switching, cache purging, and retained rollback files. Only the public
 WP Cloud probes are stubbed; the test does not prove the live Nginx or TLS setup.
 Run it with Node 24 and PHP:
 

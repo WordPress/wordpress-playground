@@ -25,8 +25,8 @@ const directory = (name) =>
 		import.meta.url
 	);
 app.use(
-	wordPressFrameMiddleware(root, () =>
-		fileURLToPath(new URL('wordpress-bridge.html', directory('remote')))
+	wordPressFrameMiddleware(() =>
+		fileURLToPath(new URL('wordpress-sandbox/', directory('remote')))
 	)
 );
 app.use((req, res, next) => {

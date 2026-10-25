@@ -15,7 +15,7 @@ import { wordPressFrameMiddleware } from '../bin/wordpress-frame/middleware.mjs'
  * Serving only the newest build from the start would miss those upgrade failures.
  *
  * In the split-origin lane, install the same host routing as the normal preview
- * before serving static files. Its helper-path callback reads staticDirectory on
+ * before serving static files. Its sandbox-root callback reads staticDirectory on
  * every request: after a release switch, both the app and wordpress-bridge.html
  * must come from the selected build. Do not keep serving the old helper with new
  * app modules or let this test server expose WordPress HTML on the app host.
@@ -60,9 +60,8 @@ export async function startVersionSwitchingServer({
 
 	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
 		app.use(
-			wordPressFrameMiddleware(
-				`http://playground.localhost:${port}`,
-				() => path.join(staticDirectory, 'wordpress-bridge.html')
+			wordPressFrameMiddleware(() =>
+				path.join(staticDirectory, 'wordpress-sandbox')
 			)
 		);
 	}

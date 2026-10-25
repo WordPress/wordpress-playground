@@ -100,11 +100,17 @@ block WordPress from embedding fresh app/API documents.
 The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
 `https://wasm.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
 `https://playground.wordpress.net` in one workflow environment. Pass those same
-values to `apply-update.sh`; the installer writes them into the release's PHP
-entry. Host checks live in `website-deployment/custom-redirects-lib.php`, reached
+values to the single `apply-update.sh` deployment script; it writes the sandbox
+origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
+create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
+worker loaders, all importing shared app-origin scripts. The PHP host gate
+serves that directory as-is, without constructing response bodies or falling
+back to app files. The built preview uses the same directory and generators.
+Do not add a second installer script. Host checks live in
+`website-deployment/custom-redirects-lib.php`, reached
 through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
 bootstrap-only path; app requests keep the existing redirects, headers, and PHP
-setup. The main installer selects a complete
+setup. The deployment script selects a complete
 private release and checks both hosts and Nginx's hidden-path deny rule before
 activation. Personal WP keeps its no-argument public-file layout and separate script.
 The HTTP/install contract tests run with
