@@ -155,6 +155,29 @@ Maintenant, allez dans votre code, ajoutez les points d'arrêt et bon débogage.
 
 ![Xdebug en action sur VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
+<!-- ### PhpStorm troubleshooting -->
+
+### Dépannage de PhpStorm
+
+<!-- If PhpStorm pauses on the first line of unmapped files or scripts outside your project, you can disable these optional settings under **Settings > PHP > Debug > Xdebug**: -->
+
+Si PhpStorm s’arrête à la première ligne de fichiers sans correspondance de chemin ou de scripts situés en dehors de votre projet, vous pouvez désactiver ces options dans **Settings > PHP > Debug > Xdebug** :
+
+- **Force break at first line when no path mapping specified**.
+- **Force break at first line when a script is outside the project**.
+
+<!-- If requests that do not hit a breakpoint produce unwanted notifications, disable **Notify if debug session was finished without being paused** under **Settings > PHP > Debug > Settings** (called **Advanced settings** in the current JetBrains documentation). When this setting is disabled and no breakpoint is hit, PhpStorm runs the script without pausing or establishing a debugging session. -->
+
+Si les requêtes qui n’atteignent aucun point d’arrêt génèrent des notifications indésirables, désactivez **Notify if debug session was finished without being paused** dans **Settings > PHP > Debug > Settings** (appelé **Advanced settings** dans la documentation actuelle de JetBrains). Lorsque cette option est désactivée et qu’aucun point d’arrêt n’est atteint, PhpStorm exécute le script sans s’arrêter ni ouvrir de session de débogage.
+
+<!-- These options suppress unwanted pauses or notifications. They do not fix path mappings or configure breakpoints: you still need correct path mappings and enabled breakpoints in the code you want to debug. -->
+
+Ces options évitent les pauses ou les notifications indésirables. Elles ne corrigent pas les correspondances de chemins et ne configurent pas les points d’arrêt : vous devez toujours disposer de correspondances de chemins correctes et de points d’arrêt activés dans le code que vous souhaitez déboguer.
+
+<!-- For more details, see [JetBrains' debug settings reference](https://www.jetbrains.com/help/phpstorm/debug.html) and the [PhpStorm examples](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm). -->
+
+Pour plus de détails, consultez la [référence des paramètres de débogage de JetBrains](https://www.jetbrains.com/help/phpstorm/debug.html) et les [exemples pour PhpStorm](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm).
+
 <!-- This feature is in experimental mode. Until it is completed, we will need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts. -->
 
 Cette fonctionnalité est en mode expérimental. Jusqu'à ce qu'elle soit terminée, nous aurons besoin de vos commentaires. Veuillez vous connecter avec nous dans le [canal Slack #playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) et partager vos réflexions.
