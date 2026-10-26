@@ -134,8 +134,8 @@ export async function connectWordPressOrigin(
 		window.addEventListener('message', onMessage);
 		document.body.append(bridge);
 	});
-	// Explicitly reject this site's app-origin HTTP route so /scope:site-a/ cannot render
-	// its WordPress HTML with app storage access. Only the sandbox helper above
+	// Explicitly reject this site's app-origin HTTP route so /scope:site-a/ cannot
+	// render its WordPress HTML with app storage access. Only the sandbox helper above
 	// may send this site's HTTP requests to PHP. Keep this listener with the
 	// connection for remote.html's lifetime; it must also work after a SW restart.
 	navigator.serviceWorker.addEventListener('message', (event) => {

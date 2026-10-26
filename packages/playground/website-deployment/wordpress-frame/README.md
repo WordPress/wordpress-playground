@@ -97,7 +97,7 @@ conditional and unconditional redirects, directory indexes, MIME types, custom
 headers, cache exceptions, HEAD requests, and native PHP environment setup.
 There is no replacement app handler or new app-side PHP allowlist. Their credentials still come from WP Cloud persistent data via
 `playground_maybe_set_environment()`. The HTTP server returns 404 for scoped WordPress paths; the app service worker
-serves them for ordinary sessions and rejects opted-in sites on that origin.
+rejects their app-origin aliases; WordPress responses are served only on the sandbox.
 The build creates a separate document root inside the private build:
 
 ```text
