@@ -34,7 +34,7 @@ updates do not affect the main Playground deployment path.
 
 The main deployment workflow sets `PLAYGROUND_APP_ORIGIN` to
 `https://playground.wordpress.net` and `VITE_WORDPRESS_SITE_URL` to
-`https://wasm.wordpress.net`. It uses those values for the browser build and
+`https://wpsandbox.wordpress.net`. It uses those values for the browser build and
 passes them to the single `apply-update.sh` script. The build produces a small
 `wordpress-sandbox/` document root; PHP serves its existing files on the sandbox
 host without generating their contents. The PHP library has no hardcoded host choice.

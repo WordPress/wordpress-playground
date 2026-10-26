@@ -98,7 +98,7 @@ Ordinary WordPress can still access app OPFS/cache used by opted-in sessions.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
 The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
-`https://wasm.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
+`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
 `https://playground.wordpress.net` in one workflow environment. Pass those same
 values to the single `apply-update.sh` deployment script; it writes the sandbox
 origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to

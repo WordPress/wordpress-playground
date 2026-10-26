@@ -35,7 +35,7 @@ opt-in through the existing loopback Vite ports: app on 5400, WordPress on 4400.
 This work is separate from PR #4357.
 
 The normal WP Cloud deployment builds with
-`VITE_WORDPRESS_SITE_URL=https://wasm.wordpress.net` and
+`VITE_WORDPRESS_SITE_URL=https://wpsandbox.wordpress.net` and
 `PLAYGROUND_APP_ORIGIN=https://playground.wordpress.net`. The latter produces a
 small `wordpress-sandbox/` document root whose loaders import shared app bundles.
 The built preview and upgrade-test server serve the same directory layout,

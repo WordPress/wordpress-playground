@@ -3,7 +3,7 @@
 The normal website deployment serves:
 
 - App: `https://playground.wordpress.net`
-- Rendered WordPress with `?reprint`: `https://wasm.wordpress.net`
+- Rendered WordPress with `?reprint`: `https://wpsandbox.wordpress.net`
 - Rendered WordPress without the flag: `https://playground.wordpress.net`
 
 The flag is read at page startup and kept while switching sites in the SPA.
@@ -26,11 +26,6 @@ Both names must map to the same WP Cloud site and have valid TLS. Set
 app. The deployment refuses to proceed if a normal service-worker URL redirects
 or returns an unexpected status.
 
-`wasm.wordpress.net` currently redirects to the app. Changing the server does not
-clear a browser's cached 301. Before activation, test the helper and service-worker
-URLs in a browser with that old redirect cached. Purging the server's edge cache
-does not purge browsers' redirect caches.
-
 Nginx must deny direct HTTP access to `/srv/htdocs/.playground-releases/`,
 including encoded paths. The deployment script creates a harmless text probe there and
 requires HTTP 403 through both hosts before uploading the build into that
@@ -46,7 +41,7 @@ The website deployment workflow configures both origins in its job environment:
 
 ```yaml
 PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
-VITE_WORDPRESS_SITE_URL: https://wasm.wordpress.net
+VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
 ```
 
 Vite reads `VITE_WORDPRESS_SITE_URL` for the browser build. The SSH step passes
@@ -64,7 +59,7 @@ build:
 
 ```sh
 ~/website-deployment/apply-update.sh \
-  https://playground.wordpress.net https://wasm.wordpress.net
+  https://playground.wordpress.net https://wpsandbox.wordpress.net
 ```
 
 `apply-update.sh`:

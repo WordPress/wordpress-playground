@@ -72,7 +72,7 @@ jobs:
         # One origin choice for the browser build and the installed PHP host rule.
         env:
             PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
-            VITE_WORDPRESS_SITE_URL: https://wasm.wordpress.net
+            VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
         steps:
             - uses: actions/checkout@v5
               with:
