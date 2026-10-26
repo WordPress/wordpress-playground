@@ -19,7 +19,7 @@ import type {
 	ToolHeaderState,
 } from '../site-info-panel/site-tool-renderers';
 
-const { ui, dispatch } = vi.hoisted(() => ({
+const { ui, dispatch, createNewTemporarySite } = vi.hoisted(() => ({
 	ui: {
 		cloneRequested: false,
 		pendingClone: undefined as
@@ -27,6 +27,7 @@ const { ui, dispatch } = vi.hoisted(() => ({
 			| undefined,
 	},
 	dispatch: vi.fn(),
+	createNewTemporarySite: vi.fn(),
 }));
 vi.mock('../../../lib/state/redux/store', () => ({
 	/** Record actions without starting a real site runtime. */
@@ -41,7 +42,7 @@ vi.mock('../../../lib/state/redux/slice-sites', () => ({
 vi.mock('../../../lib/state/redux/site-management-api-middleware', () => ({
 	/** Finish site creation and saving without browser storage. */
 	useSitesAPI: () => ({
-		createNewTemporarySite: vi.fn(async (slug: string) => slug),
+		createNewTemporarySite,
 		autosaveTemporarySite: vi.fn(async () => ({})),
 	}),
 }));
@@ -149,6 +150,9 @@ describe('Reprint connection changes', () => {
 	let playground: PlaygroundClient;
 	beforeEach(() => {
 		vi.resetAllMocks();
+		createNewTemporarySite.mockResolvedValue(
+			'clone-68ab71a1-d43e-45c2-b203-49cdbdf8e571'
+		);
 		vi.mocked(generateReprintKeyPair).mockResolvedValue(keyPair);
 		ui.pendingClone = undefined;
 		ui.cloneRequested = false;
@@ -483,6 +487,35 @@ describe('Reprint connection changes', () => {
 			}
 		}
 	);
+
+	it('hands the connection to the slug returned by clone destination creation', async () => {
+		ui.cloneRequested = true;
+		vi.mocked(detectReprint).mockResolvedValue('configured');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		await submit();
+		const slug = 'clone-68ab71a1-d43e-45c2-b203-49cdbdf8e571';
+		expect(createNewTemporarySite).toHaveBeenCalledWith(
+			undefined,
+			{ networking: true, phpVersion: '8.3' },
+			{ updateUrl: false }
+		);
+		expect(ui.pendingClone).toEqual({
+			slug,
+			url: 'https://example.com/',
+			keyPair,
+		});
+		expect(
+			JSON.parse(sessionStorage.getItem(`playground-reprint:${slug}`)!)
+		).toEqual({
+			url: 'https://example.com/',
+			keyPair,
+		});
+		expect(
+			sessionStorage.getItem('playground-reprint:undefined')
+		).toBeNull();
+	});
 
 	it('starts a clone when its connection arrives after the destination panel mounts', async () => {
 		await render();
