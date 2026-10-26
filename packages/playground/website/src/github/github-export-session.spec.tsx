@@ -31,7 +31,7 @@ describe('GitHubExportSessionProvider', () => {
 				'&ghexport-pr-number=7&ghexport-playground-root=%2Fwordpress' +
 				'&ghexport-repo-root=%2Fplugin&ghexport-path=%2Fone' +
 				'&ghexport-path=%2Ftwo&ghexport-commit-message=Export' +
-				'&ghexport-plugin=example&ghexport-allow-include-zip=no'
+				'&ghexport-plugin=example&ghexport-allow-include-zip=no&ghexport-base-branch=main'
 		);
 		container = document.createElement('div');
 		document.body.append(container);
@@ -50,6 +50,7 @@ describe('GitHubExportSessionProvider', () => {
 			allowZipExport: false,
 			values: {
 				repoUrl: 'https://github.com/owner/repo',
+				baseBranch: 'main',
 				contentType: 'plugin',
 				prAction: 'update',
 				prNumber: '7',
@@ -102,11 +103,13 @@ describe('GitHubExportSessionProvider', () => {
 				relativeExportPaths: ['/'],
 				commitMessage: 'Export wp-content',
 				includeZip: false,
+				baseBranch: 'main',
 			});
 		});
 
 		expect(getSession().filesBeforeChanges).toBeUndefined();
 		expect(getSession().values.commitMessage).toBe('Export wp-content');
+		expect(getSession().values.baseBranch).toBe('main');
 	});
 
 	function renderProvider() {

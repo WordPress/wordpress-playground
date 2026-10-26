@@ -1,8 +1,9 @@
 import { test as base, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-const test = base.extend<{ webmcpPage: Page }>({
-	webmcpPage: async ({ page }, use) => {
+const test = base.extend<{ webmcpPage: Page; launchQuery: string }>({
+	launchQuery: ['', { option: true }],
+	webmcpPage: async ({ page, launchQuery }, use) => {
 		// WebMCP (document.modelContext) is only available in
 		// Chrome 148+ Canary behind chrome://flags/#enable-webmcp-testing.
 		// Playwright uses a stock Chromium that doesn't
@@ -56,7 +57,7 @@ const test = base.extend<{ webmcpPage: Page }>({
 			});
 		});
 
-		await page.goto('/');
+		await page.goto(`./${launchQuery}`);
 		// Wait for WordPress to load inside nested iframes
 		await expect(
 			page
@@ -116,6 +117,7 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_delete_directory',
 		'playground_delete_file',
 		'playground_execute_php',
+		'playground_export_to_github',
 		'playground_file_exists',
 		'playground_get_current_url',
 		'playground_get_site_info',
@@ -131,6 +133,50 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_save_in_browser',
 		'playground_write_file',
 	]);
+});
+
+test('WebMCP GitHub export requires authentication', async ({ webmcpPage }) => {
+	const result = await webmcpPage.evaluate(async () => {
+		return await (
+			window as any
+		).__webmcpExecutors.playground_export_to_github({
+			repoUrl: 'https://github.com/WordPress/wordpress-playground',
+			contentType: 'wp-content',
+		});
+	});
+	expect(result.error).toContain('GitHub authentication is required.');
+});
+
+test.describe('WebMCP action launch defaults', () => {
+	test.use({
+		launchQuery:
+			'?' +
+			new URLSearchParams({
+				'ghexport-repo-url':
+					'https://github.com/owner/repo/tree/feature/fix/plugins/demo',
+				'ghexport-content-type': 'custom-paths',
+				'ghexport-path': '.',
+				'ghexport-plugin': 'demo',
+				'ghexport-playground-root':
+					'/wordpress/wp-content/plugins/demo',
+				'ghexport-repo-root': 'plugins/demo',
+				'ghexport-pr-action': 'create',
+				'ghexport-allow-include-zip': 'no',
+				'ghexport-commit-message': 'Fixes #42',
+			}).toString(),
+	});
+
+	test('WebMCP GitHub export uses launch defaults without arguments', async ({
+		webmcpPage,
+	}) => {
+		const result = await webmcpPage.evaluate(
+			async () =>
+				await (
+					window as any
+				).__webmcpExecutors.playground_export_to_github({})
+		);
+		expect(result.error).toContain('GitHub authentication is required.');
+	});
 });
 
 test('WebMCP playground_execute_php runs PHP code', async ({ webmcpPage }) => {

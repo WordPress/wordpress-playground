@@ -89,6 +89,39 @@ const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 	},
 });
 
+test('MCP GitHub export uses launch defaults and requires authentication', async ({
+	mcpClient,
+	siteId,
+	playgroundPage,
+}) => {
+	const originalUrl = playgroundPage.url();
+	try {
+		await playgroundPage.evaluate(() => {
+			const url = new URL(window.location.href);
+			url.searchParams.set(
+				'ghexport-repo-url',
+				'https://github.com/owner/repo/tree/dist/main'
+			);
+			url.searchParams.set('ghexport-base-branch', 'main');
+			url.searchParams.set('ghexport-content-type', 'wp-content');
+			window.history.replaceState(null, '', url);
+		});
+		const result = await mcpClient.callTool({
+			name: 'playground_export_to_github',
+			arguments: { siteId },
+		});
+		expect(result.isError).toBe(true);
+		expect(resultText(result)).toContain(
+			'GitHub authentication is required.'
+		);
+	} finally {
+		await playgroundPage.evaluate(
+			(url) => window.history.replaceState(null, '', url),
+			originalUrl
+		);
+	}
+});
+
 function resultText(result: Awaited<ReturnType<Client['callTool']>>): string {
 	return (result.content as Array<{ text: string }>)[0].text;
 }
