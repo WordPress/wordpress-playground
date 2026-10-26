@@ -149,7 +149,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
-	test('cached app HTML keeps the sandbox opt-in in a referrer-free embed', async ({
+	test('cached app HTML uses the sandbox in a referrer-free embed', async ({
 		page,
 	}) => {
 		const url = new URL('/', external);
