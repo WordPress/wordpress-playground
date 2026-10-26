@@ -1,5 +1,6 @@
 import { getURLScope } from '@php-wasm/scopes';
 import { streamToPort } from '@php-wasm/universal';
+import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import { wordPressSiteUrl } from './config';
@@ -27,6 +28,11 @@ import { wordPressSiteUrl } from './config';
  * is ready, not when a WordPress page has loaded. On success, the hidden iframe
  * and listener remain for the lifetime of remote.html. If no ready message arrives
  * within 30 seconds, both are removed and the promise rejects.
+ *
+ * After connection, reject app-service-worker HTTP requests for this scope with
+ * 404. That worker also serves ordinary, same-origin sites. Returning this site's
+ * HTML there would let its scripts run on the app origin with app storage access.
+ * The rejection listener lasts with remote.html and survives worker restarts.
  *
  * The scope selects a PHP instance; it does not prove which WordPress page made
  * the HTTP request. Pages sharing the WordPress origin can still request another
@@ -127,5 +133,21 @@ export async function connectWordPressOrigin(
 		}
 		window.addEventListener('message', onMessage);
 		document.body.append(bridge);
+	});
+	// The app worker serves ordinary, same-origin Playgrounds too. Explicitly
+	// reject this site's app-origin HTTP route so /scope:site-a/ cannot render
+	// its WordPress HTML with app storage access. Only the sandbox helper above
+	// may send this site's HTTP requests to PHP. Keep this listener with the
+	// connection for remote.html's lifetime; it must also work after a SW restart.
+	navigator.serviceWorker.addEventListener('message', (event) => {
+		if (event.data?.scope !== scope || event.data.method !== 'request')
+			return;
+		event.source!.postMessage(
+			responseTo(event.data.requestId, {
+				httpStatusCode: 404,
+				headers: {},
+				bytes: new Uint8Array(),
+			})
+		);
 	});
 }

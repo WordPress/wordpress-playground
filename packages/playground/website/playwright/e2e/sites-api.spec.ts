@@ -225,13 +225,12 @@ test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blu
 	);
 
 	const result = await website.page.evaluate(async (blueprintToSave) => {
-		window.history.replaceState(
-			null,
-			'',
-			`?storage=temp#${encodeURIComponent(
-				JSON.stringify(blueprintToSave)
-			)}`
-		);
+		// Keep startup parameters such as ?reprint. Changing the query here
+		// asks the URL router to boot a temporary site while the API below is
+		// creating saved records, which can replace the first stored record.
+		const setupUrl = new URL(window.location.href);
+		setupUrl.hash = encodeURIComponent(JSON.stringify(blueprintToSave));
+		window.history.replaceState(null, '', setupUrl.href);
 		const api = (window as any).playgroundSites;
 		const firstSlug = await api.createNewSavedSite(undefined, undefined, {
 			updateUrl: false,

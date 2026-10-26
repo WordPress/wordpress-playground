@@ -8,7 +8,11 @@ import { startVersionSwitchingServer as startServer } from '../version-switching
 test.describe.configure({ mode: 'serial' });
 
 const port = 7999;
-const url = new URL(`http://localhost:${port}`);
+const host =
+	process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1'
+		? 'playground.localhost'
+		: 'localhost';
+const url = new URL(`http://${host}:${port}`);
 // Disable login because an old WP build used in this test
 // blocks auto-login. This is because it has an admin user
 // with an expired email verification window. If we do not
@@ -19,6 +23,11 @@ url.searchParams.set('storage', 'temp');
 // Specify the theme so we can assert against expected default content.
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');
+// This test navigates directly rather than using WebsitePage.goto(). Keep its
+// new release in the same opted-in mode as the rest of the two-host suite.
+if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+	url.searchParams.set('reprint', '');
+}
 
 const maxDiffPixels = 10_000;
 
@@ -77,6 +86,13 @@ for (const cachingEnabled of [true, false]) {
 		await expect(wordpress.locator('body')).toContainText(
 			'My WordPress Website'
 		);
+		if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+			expect(
+				await wordpress
+					.locator('body')
+					.evaluate(() => window.location.origin)
+			).toBe(`http://wp.playground.localhost:${port}`);
+		}
 	});
 }
 
@@ -173,4 +189,11 @@ test('offline mode – the app should load even when the server goes offline', a
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);
+	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+		expect(
+			await wordpress
+				.locator('body')
+				.evaluate(() => window.location.origin)
+		).toBe(`http://wp.playground.localhost:${port}`);
+	}
 });

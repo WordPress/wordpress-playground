@@ -76,10 +76,50 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
-The remote runtime can render WordPress on a separate build-time origin via
-`VITE_WORDPRESS_SITE_URL`. PHP, directory handles, and shared asset downloads stay
-on the app origin. Matching server routing is required. This mode does not block
-WordPress from embedding fresh app/API documents.
+With `?reprint`, normal loopback website development keeps the SPA, PHP, OPFS, and directory
+handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
+`localhost` uses the same two ports. Vite's app proxy preserves the app Host;
+the remote server restricts direct WordPress-port requests to the HTTP helper and
+worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
+their previous routing. Do not replace either server with an auto-selected port.
+A single Chromium CI smoke test covers the live Vite module graph; the full
+browser suite still runs once against the built cross-origin preview.
+
+The WordPress-only origin prototype has `build:wordpress-frame`,
+`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
+port 9500, separately from normal development. CI runs all website E2E tests once
+against the separate WordPress origin, with shared storage/import grouping.
+Deployment tests use the same boundary on port 7999. See
+`packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
+WordPress moves to the sandbox only with the startup `?reprint` flag; normal
+sessions remain same-origin. Both modes share one app service worker and asset
+cache. The flag survives SPA navigation, not a full reload that omits it.
+Ordinary WordPress can still access app OPFS/cache used by opted-in sessions.
+External embeds do not need a referrer or new URL parameters. This mode does not
+block WordPress from embedding fresh app/API documents.
+The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
+`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
+`https://playground.wordpress.net` in one workflow environment. Pass those same
+values to the single `apply-update.sh` deployment script; it writes the sandbox
+origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
+create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
+worker loaders, all importing shared app-origin scripts. The PHP host gate
+serves that directory as-is, without constructing response bodies or falling
+back to app files. The built preview uses the same directory and generators.
+Do not add a second installer script. Host checks live in
+`website-deployment/custom-redirects-lib.php`, reached
+through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
+bootstrap-only path; app requests keep the existing redirects, headers, and PHP
+setup. The deployment script selects a complete
+private release and checks both hosts and Nginx's hidden-path deny rule before
+activation. Personal WP keeps its no-argument public-file layout and separate script.
+The HTTP/install contract tests run with
+`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
+
+WP Cloud's PHP-served static files support single bounded and open-ended byte
+ranges for runtime download retries. Other range forms get the full response;
+HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
+PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
 
 ### Package Naming Convention
 
@@ -209,6 +249,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
   instead of defending the new abstraction.
 
 ### Testing
+
+CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
+installing browser dependencies. The public Ubuntu archive and security mirrors
+remain available.
 
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)

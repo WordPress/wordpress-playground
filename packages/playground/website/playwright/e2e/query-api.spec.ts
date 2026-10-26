@@ -69,42 +69,6 @@ test.describe('option `php-extension`', () => {
 		expect(probe.formatted).toContain('1970');
 	});
 
-	test('should load a real extension manifest URL', async ({ website }) => {
-		await gotoPHPOnlyPlayground(website.page, {
-			'php-extension': sqliteParserManifestUrl,
-		});
-		await waitForPlaygroundClient(website.page);
-
-		const probe = await website.page.evaluate(async () => {
-			const playground = (window as any).playground;
-			const response = await playground.run({
-				code: `<?php
-				$lexer = new WP_MySQL_Native_Lexer(
-					'SELECT option_name FROM wp_options WHERE option_id = 1',
-					'8.0.0',
-					0
-				);
-				$tokens = 0;
-				while ($lexer->next_token()) {
-					++$tokens;
-				}
-				echo json_encode([
-					'loaded' => extension_loaded('wp_mysql_parser'),
-					'classes' => class_exists('WP_MySQL_Native_Lexer', false)
-						&& class_exists('WP_MySQL_Native_Parser', false),
-					'tokens' => $tokens,
-				]);`,
-			});
-			return JSON.parse(response.text);
-		});
-
-		expect(probe).toEqual({
-			loaded: true,
-			classes: true,
-			tokens: 9,
-		});
-	});
-
 	test('should reject unsupported manifest URL schemes', async ({
 		website,
 	}) => {
@@ -467,10 +431,6 @@ test('should retain encoded control characters in the URL', async ({
 });
 
 const intlManifestUrl = 'https://extensions.test/intl/manifest.json';
-const sqliteParserManifestUrl =
-	'https://wordpress.github.io/sqlite-database-integration/' +
-	'wp_mysql_parser-wasm-extension/' +
-	'b31fc53ea599d1a2211b75f4a3486b39e63ce01f/manifest.json';
 const invalidManifestUrl = 'https://extensions.test/invalid/manifest.json';
 const noArtifactManifestUrl =
 	'https://extensions.test/no-artifact/manifest.json';

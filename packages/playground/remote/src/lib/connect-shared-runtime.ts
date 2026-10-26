@@ -1,4 +1,5 @@
 import { consumeAPI } from '@php-wasm/web';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 import type {
 	PlaygroundWorkerEndpoint,
 	WorkerBootOptions,
@@ -13,6 +14,10 @@ export type SharedRuntimeAPI = PlaygroundWorkerEndpoint & {
 	finishSharedRuntimeInitialization(): Promise<void>;
 };
 
+/**
+ * Join this site's shared PHP worker, preserving remote.html's origin choice.
+ * Sandbox sessions use the HTTP helper, not a direct app-service-worker port.
+ */
 export async function connectSharedRuntime(
 	scope: string,
 	version: string,
@@ -100,7 +105,9 @@ export async function connectSharedRuntime(
 		},
 	});
 
+	/** Keep sandbox HTTP on the helper path, including after a worker restart. */
 	const register = (serviceWorker: ServiceWorker) => {
+		if (wordPressSiteUrl !== playgroundOrigin) return;
 		if (retired) {
 			serviceWorker.postMessage({
 				type: 'register-shared-runtime',
@@ -165,6 +172,11 @@ async function connectCurrentSharedWorker(
 	const storageKey = `playground:shared-worker:${scope}`;
 	const url = new URL(sharedWorkerUrl, location.href);
 	url.searchParams.set('build', version);
+	// A different mode must retire PHP booted for the previous origin, even
+	// when both modes reuse the same cached script bytes. The URL is its identity.
+	if (wordPressSiteUrl !== playgroundOrigin) {
+		url.searchParams.set('reprint', '');
+	}
 	const current = {
 		url: url.href,
 		name: `playground:${scope}:${version}`,

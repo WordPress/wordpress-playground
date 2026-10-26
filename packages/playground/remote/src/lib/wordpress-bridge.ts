@@ -14,8 +14,9 @@
  *
  * The document uses the WordPress origin, but this module loads from the app
  * origin. config.ts derives playgroundOrigin from that module URL. On the first
- * load the server rewrites the built HTML's script URLs; later the service worker
- * generates the helper HTML with the same app-origin bundle URL.
+ * load the sandbox build has already pointed the HTML's script URLs at the app
+ * (development servers rewrite them on demand). Later the service worker generates
+ * the helper HTML with the same app-origin bundle URL.
  */
 import { playgroundOrigin } from './config';
 import { portToStream, streamToPort } from '@php-wasm/universal';

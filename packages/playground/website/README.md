@@ -7,6 +7,36 @@ want to add a new, bulky page without increasing the required download size, add
 
 ## Development
 
+Run `npm run dev` and open <http://127.0.0.1:5400/website-server/?reprint>.
+The startup `?reprint` flag uses both existing Vite servers:
+
+```text
+127.0.0.1:5400  SPA, Dock, remote.html, PHP, OPFS, and picked directories
+127.0.0.1:4400  rendered WordPress, HTTP helper, and service worker
+```
+
+Different ports are different origins. WordPress cannot read the loaded app or
+PHP iframe's documents or OPFS. Both ports use app-origin source modules, so
+normal Vite updates still work without a production build or local DNS changes.
+The app's proxy preserves its Host header; direct requests to the WordPress port
+cannot load `api.html`, `remote.html`, or arbitrary source files.
+
+`http://localhost:5400/website-server/?reprint` works too and uses `localhost:4400` for
+WordPress. Keep both ports free: the servers stop rather than silently select
+ports that no longer match. Local devcontainers publish both ports. Custom HTTPS
+hosts and forwarded tunnel URLs keep their existing same-origin behavior; this
+change does not configure a second public tunnel. Standalone remote, Personal WP,
+and sync development also keep their existing behavior.
+
+Without `?reprint`, WordPress stays on the app origin as before. The choice stays
+fixed during SPA navigation; reloading without the flag restores one-origin mode.
+Ordinary WordPress pages can access app OPFS and CacheStorage used by opted-in
+sessions, so the flag does not isolate their saved files.
+
+The single WordPress origin is still shared by all opted-in sites. The split does not add
+per-site HTTP authorization or stop WordPress from embedding a fresh app/API
+iframe. See the [boundary limits](./bin/wordpress-frame/README.md#limits).
+
 ### Updating Reprint
 
 Reprint is downloaded and verified before the website build or dev server starts.
