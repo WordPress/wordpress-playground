@@ -14,6 +14,8 @@ import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -1547,6 +1549,59 @@ phpLoaderOptions.forEach((options) => {
 					expect(result.text).toEqual('delayed data');
 				}
 			);
+
+			it('blocking fread returns when the spawn handler never signals spawn', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => child) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
+					`,
+				});
+
+				expect(result.text).toEqual('""');
+			}, 10000);
+
+			it('blocking fread returns when the process errors without exiting', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => {
+					setTimeout(() => {
+						child.emit('spawn');
+						setTimeout(
+							() => child.emit('error', new Error('foo')),
+							100
+						);
+					});
+					return child;
+				}) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
+					`,
+				});
+
+				expect(result.text).toEqual('""');
+			}, 10000);
 		});
 
 		describe('Filesystem', { skip }, () => {
