@@ -627,14 +627,12 @@ const LibraryExample = {
 		envLength
 	) {
 		if (!command) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 
 		let argsArray = [];
@@ -697,12 +695,10 @@ const LibraryExample = {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					___errno_location(ERRNO_CODES.ENOSYS);
-					return -1;
+					return -ERRNO_CODES.ENOSYS;
 				}
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-				___errno_location(e.code);
-				return -1;
+				return -e.errno;
 			}
 
 			const ProcInfo = {
@@ -866,6 +862,9 @@ const LibraryExample = {
 				// needs to know about the pid and clean up the resources.
 				console.error(e);
 				closeChildPipes();
+				if (!ProcInfo.pid) {
+					return -(ERRNO_CODES[e.code] ?? ERRNO_CODES.ECHILD);
+				}
 				return ProcInfo.pid;
 			}
 

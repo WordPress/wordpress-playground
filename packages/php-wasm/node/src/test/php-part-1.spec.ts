@@ -1602,6 +1602,29 @@ phpLoaderOptions.forEach((options) => {
 
 				expect(result.text).toEqual('""');
 			}, 10000);
+
+			it('reports the spawn error when the process never starts', async () => {
+				php.setSpawnHandler(spawn as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = @proc_open(
+						"echo foo",
+						$descriptorspec,
+						$pipes,
+						"/nonexistent-foo"
+					);
+					echo json_encode(array($proc, error_get_last()['message']));
+					`,
+				});
+
+				expect(result.text).toEqual(
+					'[false,"proc_open(): proc_open() failed - No such file or directory"]'
+				);
+			});
 		});
 
 		describe('Filesystem', { skip }, () => {
