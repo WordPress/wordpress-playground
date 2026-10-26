@@ -1,5 +1,5 @@
 import { getURLScope } from '@php-wasm/scopes';
-import { wordPressSandboxOrigin } from './config';
+import { wordPressSiteUrl } from './config';
 
 /**
  * Opens a WordPress tool in a popup with the same frame layout as the main app:
@@ -14,8 +14,8 @@ import { wordPressSandboxOrigin } from './config';
  * wrapper cannot be used to load trusted app documents into the iframe.
  */
 function bootWordPressPopup() {
-	const target = new URL(location.hash.substring(1), wordPressSandboxOrigin);
-	if (target.origin !== wordPressSandboxOrigin || !getURLScope(target)) {
+	const target = new URL(location.hash.substring(1), wordPressSiteUrl);
+	if (target.origin !== wordPressSiteUrl || !getURLScope(target)) {
 		throw new Error('The popup URL must name a scoped WordPress page.');
 	}
 	const frame = document.querySelector('#wp') as HTMLIFrameElement;

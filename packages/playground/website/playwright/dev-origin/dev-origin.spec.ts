@@ -7,7 +7,7 @@ const wordPressOrigin =
 test('Vite keeps PHP on the app origin and renders WordPress on the remote port', async ({
 	page,
 }) => {
-	await page.goto('./?reprint&wp=6.9&php=8.3&storage=temp');
+	await page.goto('./?wp=6.9&php=8.3&storage=temp');
 	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
 	await page.evaluate(() => (window as any).playgroundSites.isReady());
 	const iframe = page

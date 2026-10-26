@@ -9,7 +9,7 @@ import { wordPressSiteUrl } from './config';
  * Connect WordPress HTTP requests on a separate origin to this app-origin PHP worker.
  *
  * For example, remote.html on playground.wordpress.net runs PHP, but the visible
- * WordPress iframe loads wp.playground.wordpress.net/scope:site-a/. The WordPress
+ * WordPress iframe loads wpsandbox.wordpress.net/scope:site-a/. The WordPress
  * service worker cannot message remote.html directly: it can only reach windows
  * on its own origin. This function creates a hidden WordPress-origin iframe as
  * a sibling of the visible WordPress iframe. Requests take this path:
@@ -30,8 +30,8 @@ import { wordPressSiteUrl } from './config';
  * within 30 seconds, both are removed and the promise rejects.
  *
  * After connection, reject app-service-worker HTTP requests for this scope with
- * 404. That worker also serves ordinary, same-origin sites. Returning this site's
- * HTML there would let its scripts run on the app origin with app storage access.
+ * 404. Returning this site's HTML there would let its scripts run on the app
+ * origin with app storage access, bypassing the sandbox origin entirely.
  * The rejection listener lasts with remote.html and survives worker restarts.
  *
  * The scope selects a PHP instance; it does not prove which WordPress page made
@@ -134,8 +134,7 @@ export async function connectWordPressOrigin(
 		window.addEventListener('message', onMessage);
 		document.body.append(bridge);
 	});
-	// The app worker serves ordinary, same-origin Playgrounds too. Explicitly
-	// reject this site's app-origin HTTP route so /scope:site-a/ cannot render
+	// Explicitly reject this site's app-origin HTTP route so /scope:site-a/ cannot render
 	// its WordPress HTML with app storage access. Only the sandbox helper above
 	// may send this site's HTTP requests to PHP. Keep this listener with the
 	// connection for remote.html's lifetime; it must also work after a SW restart.

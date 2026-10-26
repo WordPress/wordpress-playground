@@ -76,7 +76,7 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
-With `?reprint`, normal loopback website development keeps the SPA, PHP, OPFS, and directory
+Normal loopback website development keeps the SPA, PHP, OPFS, and directory
 handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
 `localhost` uses the same two ports. Vite's app proxy preserves the app Host;
 the remote server restricts direct WordPress-port requests to the HTTP helper and
@@ -91,10 +91,10 @@ port 9500, separately from normal development. CI runs all website E2E tests onc
 against the separate WordPress origin, with shared storage/import grouping.
 Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
-WordPress moves to the sandbox only with the startup `?reprint` flag; normal
-sessions remain same-origin. Both modes share one app service worker and asset
-cache. The flag survives SPA navigation, not a full reload that omits it.
-Ordinary WordPress can still access app OPFS/cache used by opted-in sessions.
+WordPress always uses the configured sandbox origin, with or without `?reprint`.
+The flag still controls Reprint UI, not origin selection. PHP, OPFS, and directory
+handles stay on the app origin. Tabs share one app service worker and asset cache.
+Standalone and self-hosted builds without a sandbox retain one origin.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
 The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to

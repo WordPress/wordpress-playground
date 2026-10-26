@@ -15,7 +15,7 @@ export type SharedRuntimeAPI = PlaygroundWorkerEndpoint & {
 };
 
 /**
- * Join this site's shared PHP worker, preserving remote.html's origin choice.
+ * Join this site's shared PHP worker using the build-configured WordPress origin.
  * Sandbox sessions use the HTTP helper, not a direct app-service-worker port.
  */
 export async function connectSharedRuntime(
@@ -171,12 +171,9 @@ async function connectCurrentSharedWorker(
 	}
 	const storageKey = `playground:shared-worker:${scope}`;
 	const url = new URL(sharedWorkerUrl, location.href);
+	// The build fixes WordPress's origin for every tab. Feature flags must not
+	// create a second PHP worker for the same scope and build.
 	url.searchParams.set('build', version);
-	// A different mode must retire PHP booted for the previous origin, even
-	// when both modes reuse the same cached script bytes. The URL is its identity.
-	if (wordPressSiteUrl !== playgroundOrigin) {
-		url.searchParams.set('reprint', '');
-	}
 	const current = {
 		url: url.href,
 		name: `playground:${scope}:${version}`,

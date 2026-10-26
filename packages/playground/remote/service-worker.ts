@@ -120,7 +120,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { playgroundOrigin, wordPressSandboxOrigin } from './src/lib/config';
+import { playgroundOrigin, wordPressSiteUrl } from './src/lib/config';
 // @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
 import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
@@ -246,7 +246,7 @@ self.addEventListener('activate', function (event) {
 			await purgeEverythingFromPreviousRelease();
 			// The split-origin preview shares this root cache on demand. Do not
 			// prefetch unused runtimes, editors, or WordPress versions.
-			if (wordPressSandboxOrigin === playgroundOrigin) {
+			if (wordPressSiteUrl === playgroundOrigin) {
 				cacheOfflineModeAssetsForCurrentRelease(
 					new URL(self.location.href).searchParams.get(
 						'shared-worker'
@@ -270,9 +270,9 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
-	// One app worker serves tabs with and without ?reprint. Handle scoped pages
-	// only on this registration's origin; the PHP connection rejects app-origin
-	// requests for a sandbox site's scope instead of changing this shared worker.
+	// Handle scoped pages only on this registration's origin. The app worker
+	// must not intercept sandbox URLs, and the PHP connection rejects their
+	// app-origin aliases so WordPress cannot run with app storage access.
 	if (isURLScoped(url) && url.origin !== self.location.origin) return;
 
 	if (

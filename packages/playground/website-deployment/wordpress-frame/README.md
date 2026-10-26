@@ -3,15 +3,14 @@
 The normal website deployment serves:
 
 - App: `https://playground.wordpress.net`
-- Rendered WordPress with `?reprint`: `https://wpsandbox.wordpress.net`
-- Rendered WordPress without the flag: `https://playground.wordpress.net`
+- Rendered WordPress: `https://wpsandbox.wordpress.net`
 
-The flag is read at page startup and kept while switching sites in the SPA.
-Both modes use the same build and app-host asset URLs. One app service worker
-supports both modes at once; the server's host rules do not depend on the query.
-Ordinary app-origin WordPress can still access OPFS and CacheStorage used by
-opted-in sessions. This flag does not isolate their saved data. Reopening a
-saved clone without the flag returns its WordPress code to the app origin.
+Every WordPress frame uses the sandbox, whether or not the URL contains
+`?reprint`. That flag still controls Reprint UI, not origin selection. The SPA,
+PHP, OPFS, and picked directory handles stay on the app origin. Existing saved
+sites use the same app-origin files when reopened; no storage migration is needed.
+Shared scripts, PHP WASM, and WordPress downloads keep their app-host asset URLs.
+The server's host rules do not depend on the query.
 
 All request handling lives in `../custom-redirects-lib.php`. There is no separate
 router to install. `apply-update.sh` installs the build and writes the small
@@ -142,9 +141,9 @@ npm exec -- nx run playground-website:test:wordpress-frame-router
 ```
 
 After deployment, check both HTTPS hosts without bypassing TLS verification.
-With `?reprint`, confirm the dock stays on the app host and WordPress uses the
-sandbox host. Without the flag, both use the app host. Open both modes together
-and check their pages and database-tool popups still work.
+With and without `?reprint`, confirm the dock stays on the app host and WordPress
+uses the sandbox host. Open both URLs together and check their pages and
+database-tool popups still work.
 Test a post save, saved-site switching, a database-tool popup, and a disposable
 local folder outside Documents/iCloud. An unchanged external iframe with
 `referrerpolicy="no-referrer"` must still load. Repeat the direct-parent OPFS
