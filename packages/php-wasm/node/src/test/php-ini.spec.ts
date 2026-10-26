@@ -129,16 +129,12 @@ custom_setting = true
 				{ 'xdebug.mode': 'develop,trace,profile' },
 				xdebugIniPath
 			);
+			expect(phpWithXdebug.readFileAsText(xdebugIniPath)).toContain(
+				'xdebug.mode=develop,trace,profile'
+			);
 			expect(
-				await getPhpIniEntries(
-					phpWithXdebug,
-					['xdebug.mode'],
-					xdebugIniPath
-				)
-			).toEqual({ 'xdebug.mode': 'develop,trace,profile' });
-			expect(
-				await getPhpIniEntries(phpWithXdebug, ['xdebug.mode'])
-			).toEqual({});
+				phpWithXdebug.readFileAsText('/internal/shared/php.ini')
+			).not.toContain('xdebug.mode');
 		});
 
 		it('keeps the entries already in the file', async () => {
@@ -147,6 +143,9 @@ custom_setting = true
 				undefined,
 				xdebugIniPath
 			);
+			expect(before).toMatchObject({
+				zend_extension: joinPaths(PHP_EXTENSIONS_DIR, 'xdebug.so'),
+			});
 			await setPhpIniEntries(
 				phpWithXdebug,
 				{ 'xdebug.mode': 'develop,trace,profile' },
