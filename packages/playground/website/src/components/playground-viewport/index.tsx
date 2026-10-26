@@ -15,6 +15,7 @@ import {
 } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import {
+	getSitesLoadingState,
 	selectAllSites,
 	selectSiteBySlug,
 	selectSitesLoaded,
@@ -24,6 +25,7 @@ import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
 import { isMessageFromIframeTree } from '@wp-playground/components';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -147,7 +149,15 @@ export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 	);
 
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
-	if (!sitesFinishedLoading) {
+	const siteListingStatus = useAppSelector(getSitesLoadingState);
+	const requestedSiteSlug = useCurrentUrl().searchParams.get('site-slug');
+	// A saved-site link waits after the list loads. A fresh setup URL still
+	// needs its initial loading screen while its Blueprint is being fetched.
+	const waitingForSiteSelection =
+		requestedSiteSlug &&
+		!activeSiteSlugIsSet &&
+		['loaded', 'error'].includes(siteListingStatus);
+	if (!sitesFinishedLoading && !waitingForSiteSelection) {
 		return <LoadingViewport caption="Loading Playgrounds" />;
 	}
 

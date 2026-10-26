@@ -1008,11 +1008,6 @@ export const selectTemporarySites = createSelector(
 	}
 );
 
-/**
- * Report a settled listing even when the website is waiting for a site selection.
- * A saved-site URL deliberately has no active runtime until the user picks one;
- * absence of that runtime must not keep the viewport on its loading indicator.
- */
 export const selectSitesLoaded = createSelector(
 	[
 		(state: { sites: ReturnType<typeof sitesSlice.reducer> }) =>
@@ -1023,7 +1018,7 @@ export const selectSitesLoaded = createSelector(
 	],
 	(opfsSitesLoadingState, firstTemporarySiteCreated, activeSite) =>
 		['loaded', 'error'].includes(opfsSitesLoadingState) &&
-		(!activeSite || isStoredSite(activeSite) || firstTemporarySiteCreated)
+		((activeSite && isStoredSite(activeSite)) || firstTemporarySiteCreated)
 );
 
 export default sitesSlice.reducer;

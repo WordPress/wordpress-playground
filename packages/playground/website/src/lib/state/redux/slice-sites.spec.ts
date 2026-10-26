@@ -111,16 +111,6 @@ describe('stored sites', () => {
 		vi.doUnmock('./store');
 	});
 
-	it.each(['loading', 'loaded', 'error'] as const)(
-		'settles an unselected site listing after loading finishes (%s)',
-		async (status) => {
-			const { selectSitesLoaded } = await import('./slice-sites');
-			expect(selectSitesLoaded.resultFunc(status, false, undefined)).toBe(
-				status !== 'loading'
-			);
-		}
-	);
-
 	it('only classifies bootable autosaves as restorable', async () => {
 		const { isRestorableAutosavedSite } = await import('./slice-sites');
 		const autosave = createSiteInfo({ slug: 'autosave' });
