@@ -72,6 +72,27 @@ describe('BlueprintsV2Handler', () => {
 		mocks.consumeAPI.mockReturnValue(mocks.playground);
 	});
 
+	it.each([undefined, 'embed-site'])(
+		'uses a random default HTTP scope while preserving the explicit scope %s',
+		async (scope) => {
+			const iframe = createIframe();
+			const handler = new BlueprintsV2Handler({
+				iframe,
+				remoteUrl: 'http://example.com/remote.html',
+				scope,
+			});
+			await handler.bootPlayground(iframe, createProgressTracker());
+			const allocatedScope = mocks.playground.boot.mock.calls[0][0].scope;
+			if (scope === undefined) {
+				expect(allocatedScope).toMatch(
+					/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+				);
+			} else {
+				expect(allocatedScope).toBe(scope);
+			}
+		}
+	);
+
 	it('attaches a shared tab at the declared landing page without rerunning startup', async () => {
 		mocks.playground.shouldRunStartupBlueprint.mockResolvedValue(false);
 		const iframe = createIframe();

@@ -2188,8 +2188,9 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		).toBeVisible({ timeout: 120000 });
 		const activeSite = await website.page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
-			const slug = `operation-error-active-${Date.now().toString(36)}`;
-			await api.createNewTemporarySite(slug);
+			const slug = await api.createNewTemporarySite(
+				`operation-error-active-${Date.now().toString(36)}`
+			);
 			return api.list().find((site: any) => site.slug === slug);
 		});
 		await website.page.evaluate(() => {
@@ -2690,17 +2691,23 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 			const api = (window as any).playgroundSites;
 			await api.isReady();
 			const suffix = Date.now().toString(36);
-			const targetSlug = `rename-target-${suffix}`;
-			const activeSlug = `rename-active-${suffix}`;
-			await api.createNewSavedSite(targetSlug, undefined, {
-				persistence: 'autosave',
-				updateUrl: false,
-			});
-			await api.createNewSavedSite(activeSlug, undefined, {
-				persistence: 'autosave',
-				updateUrl: false,
-				excludeFromPruning: [targetSlug],
-			});
+			const targetSlug = await api.createNewSavedSite(
+				`rename-target-${suffix}`,
+				undefined,
+				{
+					persistence: 'autosave',
+					updateUrl: false,
+				}
+			);
+			const activeSlug = await api.createNewSavedSite(
+				`rename-active-${suffix}`,
+				undefined,
+				{
+					persistence: 'autosave',
+					updateUrl: false,
+					excludeFromPruning: [targetSlug],
+				}
+			);
 			const sites = api.list();
 			const target = sites.find((site: any) => site.slug === targetSlug);
 			const active = sites.find((site: any) => site.slug === activeSlug);

@@ -171,11 +171,12 @@ export function EnsurePlaygroundSiteIsSelected({
 					);
 
 					if (shouldUseTemporarySite) {
-						await sitesAPI.createNewTemporarySite(
-							requestedSiteSlug
-						);
+						const createdSlug =
+							await sitesAPI.createNewTemporarySite(
+								requestedSiteSlug
+							);
 						if (!isSavingDisabled) {
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+							setNeedMissingSitePromptForSlug(createdSlug);
 						}
 					} else {
 						try {
@@ -187,10 +188,11 @@ export function EnsurePlaygroundSiteIsSelected({
 								'Error creating saved site. Falling back to a temporary site.',
 								error
 							);
-							await sitesAPI.createNewTemporarySite(
-								requestedSiteSlug
-							);
-							setNeedMissingSitePromptForSlug(requestedSiteSlug);
+							const createdSlug =
+								await sitesAPI.createNewTemporarySite(
+									requestedSiteSlug
+								);
+							setNeedMissingSitePromptForSlug(createdSlug);
 						}
 					}
 					return;
