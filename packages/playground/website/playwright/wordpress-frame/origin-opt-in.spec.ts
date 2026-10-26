@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Frame, Page } from '@playwright/test';
+import { WebsitePage } from '../website-page';
 import {
 	appOrigin,
 	wordPressOrigin,
@@ -102,6 +103,7 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 			await page.goto(
 				'/?' + flag + 'site-slug=' + encodeURIComponent(site.slug)
 			);
+			await new WebsitePage(page).openSavedPlayground();
 			const frame = await ready(page, flag ? wordPressOrigin : appOrigin);
 			expect(
 				await frame.evaluate(async () =>

@@ -589,6 +589,7 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		await website.page.goto(
 			`./?site-slug=${encodeURIComponent(slug)}&random=${Date.now()}`
 		);
+		await website.openSavedPlayground();
 		await expect
 			.poll(() =>
 				website.page.evaluate(
@@ -646,6 +647,7 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		await website.page.goto(
 			`./?site-slug=${encodeURIComponent(interruptedSiteSlug)}`
 		);
+		await website.openSavedPlayground();
 		await expect(
 			website.page.getByText('Start a new Playground to continue')
 		).toBeVisible();
@@ -1010,6 +1012,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 
 		// Reload and verify the name persists
 		await website.page.reload();
+		await website.openSavedPlayground();
 		await website.ensureSiteManagerIsOpen();
 		await expect(getPlaygroundTitle(website.page)).toContainText(newName);
 
@@ -1075,6 +1078,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		);
 
 		await website.page.reload();
+		await website.openSavedPlayground();
 		await website.page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
@@ -1114,6 +1118,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		await secondTab.waitForFunction(() =>
 			Boolean((window as any).playgroundSites)
 		);
+		await website.openSavedPlayground(secondTab);
 		await secondTab.evaluate(() =>
 			(window as any).playgroundSites.isReady()
 		);
@@ -1778,6 +1783,7 @@ echo file_exists(${JSON.stringify(primaryOnlyMarkerPath)})
 		// Now reload the page directly with the site-slug parameter.
 		// This simulates starting fresh with just the saved site (no temporary site).
 		await website.page.goto(`./?site-slug=${siteSlug}`);
+		await website.openSavedPlayground();
 		await website.waitForNestedIframes();
 		await website.ensureSiteManagerIsOpen();
 
@@ -2272,69 +2278,5 @@ PHP;
 			'background-color',
 			purpleBackgroundRgb
 		);
-	});
-
-	// Missing site modal tests in a separate describe block to avoid state pollution.
-	test.describe('Missing site modal', () => {
-		test('should show modal when loading non-existent site slug', async ({
-			website,
-			wordpress,
-			browserName,
-			context,
-		}) => {
-			test.skip(
-				browserName !== 'chromium',
-				`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-			);
-
-			// Clear all storage to ensure clean state
-			await context.clearCookies();
-
-			// Use a unique temporary slug so the missing-site prompt is expected.
-			// Missing saved-site URLs create a new autosaved site by default.
-			const uniqueSlug = `missing-modal-test-${Date.now()}`;
-			await website.goto(`./?storage=temp&site-slug=${uniqueSlug}`);
-
-			// The modal should appear early, even before WordPress fully loads
-			await expect(
-				website.page.getByRole('dialog', {
-					name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
-				})
-			).toBeVisible({ timeout: 30000 });
-		});
-
-		test('should dismiss modal when clicking dismiss button', async ({
-			website,
-			wordpress,
-			browserName,
-			context,
-		}) => {
-			test.skip(
-				browserName !== 'chromium',
-				`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-			);
-
-			// Clear storage
-			await context.clearCookies();
-
-			const uniqueSlug = `dismiss-modal-test-${Date.now()}`;
-			await website.goto(`./?storage=temp&site-slug=${uniqueSlug}`);
-
-			// Wait for modal
-			const dialog = website.page.getByRole('dialog', {
-				name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
-			});
-			await expect(dialog).toBeVisible({ timeout: 30000 });
-
-			// Click dismiss button
-			await dialog
-				.getByRole('button', {
-					name: 'Keep using an Unsaved Playground',
-				})
-				.click();
-
-			// Modal should close
-			await expect(dialog).not.toBeVisible();
-		});
 	});
 });

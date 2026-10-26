@@ -113,6 +113,11 @@ bootstrap-only path; app requests keep the existing redirects, headers, and PHP
 setup. The deployment script selects a complete
 private release and checks both hosts and Nginx's hidden-path deny rule before
 activation. Personal WP keeps its no-argument public-file layout and separate script.
+Website `site-slug` URLs select an already-running client or open Your Playgrounds;
+they never boot an inactive saved site or create a site for an unknown slug. A user
+selects a saved site from that list. Fresh setup/Blueprint URLs and direct remote/client
+embeds keep automatic startup. New site slugs and default client HTTP scopes use UUIDs;
+existing stored slugs and explicit embed scopes stay unchanged.
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 

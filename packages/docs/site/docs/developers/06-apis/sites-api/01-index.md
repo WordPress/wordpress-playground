@@ -100,6 +100,10 @@ Autosaved sites created through this method participate in the same last-five au
 
 Switches to a different site and boots it. Resolves when the site is ready or rejects if it fails to boot. Resolves immediately if the site is already active.
 
+Website links with `?site-slug=...` do not call this method to boot saved sites.
+They open Your Playgrounds and wait for a selection. Explicit calls to this API
+still work, as do direct `remote.html` and client-library embeds.
+
 ```typescript
 setActiveSite(
 	siteSlug: string,

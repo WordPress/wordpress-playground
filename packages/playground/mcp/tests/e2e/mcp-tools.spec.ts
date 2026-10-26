@@ -210,7 +210,7 @@ test('playground_list_sites includes playground url with mcp params', async ({
 	expect(site.url).toMatch(new RegExp(`\\?mcp-port=${MCP_WS_PORT}$`));
 });
 
-test('playground_open_site_in_new_tab activates an inactive site in a new tab', async ({
+test('playground_open_site_in_new_tab waits for the user to select the saved site', async ({
 	mcpClient,
 	playgroundPage,
 	siteId,
@@ -252,12 +252,35 @@ test('playground_open_site_in_new_tab activates an inactive site in a new tab', 
 		)
 		.toBe(false);
 
-	// Open the inactive site — the browser calls window.open(),
-	// a new tab loads, and the site becomes active.
-	await mcpClient.callTool({
+	// Opening a saved-site URL shows the list, but cannot start saved PHP.
+	// Select the site through the UI while the tool waits for the new tab.
+	const popupPromise = playgroundPage.waitForEvent('popup');
+	const openResultPromise = mcpClient.callTool({
 		name: 'playground_open_site_in_new_tab',
 		arguments: { siteId },
 	});
+	const popup = await popupPromise;
+	await expect(
+		popup.getByRole('dialog', { name: 'Your Playgrounds pane' })
+	).toBeVisible();
+	expect(
+		await popup.evaluate(() =>
+			(window as any).playgroundSites
+				.list()
+				.some((site: any) => site.isActive)
+		)
+	).toBe(false);
+	const slug = new URL(popup.url()).searchParams.get('site-slug')!;
+	const escapedSlug = await popup.evaluate(
+		(value) => CSS.escape(value),
+		slug
+	);
+	await popup
+		.locator(`[data-playground-row="${escapedSlug}"]`)
+		.getByRole('button', { name: /^Open / })
+		.click();
+	const result = await openResultPromise;
+	expect(result.isError).not.toBe(true);
 
 	// Verify list_sites now reports the site as active
 	await expect

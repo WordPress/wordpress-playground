@@ -57,7 +57,9 @@ export const PlaygroundViewport = ({
  * to another site, the iframe is hidden but not removed. This preserves
  * temporary state and lets an in-progress storage sync finish in the background.
  *
- * Persistent sites are otherwise unmounted and rendered as usual.
+ * Persistent sites are otherwise unmounted and rendered as usual. With no site
+ * selected, show the empty view rather than a PHP loading indicator: saved-site
+ * links wait there until the user chooses a site from the list.
  */
 export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 	const temporarySites = useAppSelector(selectTemporarySites);
@@ -160,16 +162,18 @@ export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 							className={css.siteErrorContent}
 							style={{ textAlign: 'center' }}
 						>
-							<h2>No site is selected</h2>
+							<h2>Choose a Playground</h2>
 							<p>
-								Select a site from the site manager to explore
-								Playground.
+								Select a saved site in Your Playgrounds, or
+								start a new Playground.
 							</p>
 						</div>
 					</div>
 				</div>
 			)}
-			{(!hasVisibleSite || siteImportProgress) && (
+			{/* No selected site is a settled state, not an endless PHP boot. */}
+			{((!hasVisibleSite && activeSiteSlugIsSet) ||
+				siteImportProgress) && (
 				<LoadingViewport
 					caption={
 						siteImportProgress?.caption ?? 'Preparing WordPress'
