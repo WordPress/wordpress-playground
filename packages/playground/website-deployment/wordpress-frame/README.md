@@ -26,11 +26,12 @@ Both names must map to the same WP Cloud site and have valid TLS. Set
 app. The deployment refuses to proceed if a normal service-worker URL redirects
 or returns an unexpected status.
 
-Nginx must deny direct HTTP access to `/srv/htdocs/.playground-releases/`,
-including encoded paths. The deployment script creates a harmless text probe there and
-requires HTTP 403 through both hosts before uploading the build into that
-location. It verifies TLS and never follows redirects. A failed check leaves
-the active entry and public build untouched. PHP cannot create this Nginx rule.
+Nginx must deny direct HTTP access to hidden files and
+`/srv/htdocs/.playground-releases/`, including encoded paths. The deployment
+script creates harmless, readable text probes in both locations and requires
+HTTP 403 through both hosts before moving the build. It verifies TLS and never
+follows redirects. A failed check leaves the active entry and public build
+untouched. PHP cannot create this Nginx rule.
 
 Do not run this deployment script on an unrelated WordPress installation. The
 first deployment moves existing public files out of the web root.
@@ -71,8 +72,11 @@ build:
    contains `custom-redirects-lib.php` and the generated `mime-types.php` map.
 3. Saves the previous public entry and any old public build files under
    `~/website-backups/release.<random>/`. Keeps the platform's `__wp__` fallback.
+   Hidden server files and directories stay in place. They are blocked by Nginx,
+   and some, such as editor swap files, cannot be removed by the SSH account.
    If a move or the entry rename fails, restores the old public files so the
-   unchanged entry can still run.
+   unchanged entry can still run. The restore leaves existing permissions and
+   directory timestamps alone; WP Cloud does not allow changing those on htdocs.
 4. Replaces the public `custom-redirects.php` in one rename. Its paths select
    that exact release, so an in-flight PHP request continues using the previous
    release while later requests use the new one.
@@ -126,7 +130,8 @@ new URL parameters.
 
 The HTTP contract test builds the sandbox directory, runs `apply-update.sh` in a
 temporary directory, then starts PHP with the installed public entry. It checks refused deployments,
-old-file removal, configured non-production hosts, the app redirect/header/PHP
+old-file removal, protected hidden files, permission-preserving rollback,
+configured non-production hosts, the app redirect/header/PHP
 rules, shared assets, ranges, HEAD/OPTIONS, symlink and traversal rejection,
 release switching, cache purging, and retained rollback files. Only the public
 WP Cloud probes are stubbed; the test does not prove the live Nginx or TLS setup.

@@ -40,18 +40,30 @@ done
 # mounted there, but MUST be denied by Nginx, including encoded path variants.
 mkdir -p -m 755 "$WEB_ROOT/.playground-releases"
 PROBE="$(mktemp "$WEB_ROOT/.playground-releases/probe.XXXXXXXX")"
-printf 'This private deployment probe must not be served.\n' > "$PROBE"
+HIDDEN_PROBE=''
+trap 'rm -f "$PROBE" "$HIDDEN_PROBE"' EXIT
+# Hidden server files, such as editor swap files, stay in htdocs. Check that
+# Nginx denies those too, not just the private release directory.
+HIDDEN_PROBE="$(mktemp "$WEB_ROOT/.playground-probe.XXXXXXXX")"
+HIDDEN_PROBE_NAME="$(basename "$HIDDEN_PROBE")"
 # mktemp creates mode 600. A permissions-based 403 must not stand in for the
 # Nginx rule that has to protect readable build files.
-chmod 644 "$PROBE"
-trap 'rm -f "$PROBE"' EXIT
+for probe in "$PROBE" "$HIDDEN_PROBE"; do
+    printf 'This private deployment probe must not be served.\n' > "$probe"
+    chmod 644 "$probe"
+done
 for origin in "$APP_ORIGIN" "$WORDPRESS_ORIGIN"; do
-    for prefix in /.playground-releases/ /%2eplayground-releases/ /%2eplayground-releases%2f; do
+    for path in \
+        "/.playground-releases/$(basename "$PROBE")" \
+        "/%2eplayground-releases/$(basename "$PROBE")" \
+        "/%2eplayground-releases%2f$(basename "$PROBE")" \
+        "/$HIDDEN_PROBE_NAME" \
+        "/%2e${HIDDEN_PROBE_NAME:1}"; do
         status="$(curl --silent --show-error --path-as-is --max-time 15 \
             --output /dev/null --write-out '%{http_code}' \
-            "$origin$prefix$(basename "$PROBE")")"
+            "$origin$path")"
         if [ "$status" != 403 ]; then
-            echo "Refusing deployment: $origin$prefix returned $status, expected 403." >&2
+            echo "Refusing deployment: $origin$path returned $status, expected 403." >&2
             exit 1
         fi
     done
@@ -101,26 +113,31 @@ if [ -f "$WEB_ROOT/custom-redirects.php" ]; then
     cp "$WEB_ROOT/custom-redirects.php" "$BACKUP/"
 fi
 # Old public HTML or assets would bypass the router on the WordPress host.
-# Move them outside htdocs. Preserve releases and the platform's PHP fallback.
+# Move them outside htdocs. Leave Nginx-blocked hidden server files in place:
+# WP Cloud can protect them from removal, and they are not public build files.
+# Preserve the platform's PHP fallback too.
 # Do not use find -exec here: an individual mv failure must stop activation.
-shopt -s dotglob nullglob
+shopt -u dotglob
+shopt -s nullglob
 # Until the entry rename succeeds, the old entry still needs its public files.
 # Restore missing files on failure. A failed cross-device move may leave an
 # incomplete backup, so never overwrite originals that are still in place.
 # After activation, restoring public files would bypass the sandbox rule. The
 # staged entry disappears in that rename, so no separate flag can drift.
+# WP Cloud permits file writes but not chmod or directory timestamp changes on
+# htdocs. Restore file contents without trying to apply the backup's attributes.
 trap '
     status=$?
     if [ -f "$RELEASE/public-entry.php" ]; then
-        rsync -a --ignore-existing --exclude=/custom-redirects.php "$BACKUP/" "$WEB_ROOT/" ||
+        rsync -a --no-perms --omit-dir-times --ignore-existing --exclude=/custom-redirects.php "$BACKUP/" "$WEB_ROOT/" ||
             echo "Failed to restore public files from $BACKUP" >&2
     fi
-    rm -f "$PROBE"
+    rm -f "$PROBE" "$HIDDEN_PROBE"
     exit "$status"
 ' EXIT
 for path in "$WEB_ROOT"/*; do
     case "$(basename "$path")" in
-        .playground-releases|__wp__|custom-redirects.php) continue ;;
+        __wp__|custom-redirects.php) continue ;;
     esac
     mv "$path" "$BACKUP/"
 done
