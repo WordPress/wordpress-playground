@@ -12,6 +12,7 @@ import { wordPressSandboxPlugin } from '../../remote/vite.wordpress-sandbox.ts';
 import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
+	chmod,
 	cp,
 	mkdtemp,
 	mkdir,
@@ -20,6 +21,7 @@ import {
 	realpath,
 	rename,
 	rm,
+	stat,
 	symlink,
 	writeFile,
 } from 'node:fs/promises';
@@ -158,6 +160,10 @@ try {
 	assert.ok(sandboxHtml.includes(`src="${app}/assets/`));
 	await symlink(join(upload, 'status.php'), join(sandbox, 'assets/leak.js'));
 	await mkdir(join(webRoot, 'assets'), { recursive: true });
+	// WP Cloud lets the SSH account add files, but not chmod the document root.
+	// Give it a different mode from the backup so archive-mode rsync exposes that
+	// unwanted change even when this local test account could perform it.
+	await chmod(webRoot, 0o775);
 	const oldEntry = '<?php require __DIR__ . "/custom-redirects-lib.php";';
 	await writeFile(join(webRoot, 'custom-redirects.php'), oldEntry);
 	await writeFile(
@@ -175,7 +181,7 @@ try {
 		`#!/usr/bin/env node
 const assert = require('node:assert/strict');
 const { statSync } = require('node:fs');
-const { join, basename } = require('node:path');
+const { join } = require('node:path');
 const url = new URL(process.argv.at(-1));
 if (process.argv.includes('POST')) {
     assert.equal(url.href, 'https://api.example/edge-cache/fixture/purge');
@@ -187,10 +193,13 @@ assert.ok(${JSON.stringify([app, wordpress])}.includes(url.origin));
 if (url.pathname === '/sw.js') {
     process.stdout.write(process.env.ALIAS_STATUS || '200');
 } else {
-    const path = join(process.env.PROBE_ROOT, basename(decodeURIComponent(url.pathname)));
+    const decodedPath = decodeURIComponent(url.pathname);
+    const path = join(process.env.PROBE_ROOT, decodedPath);
     // Otherwise a 403 might just be mktemp's mode 600, not Nginx's deny rule.
     assert.ok(statSync(path).mode & 0o004);
-    process.stdout.write(process.env.PRIVATE_STATUS || '403');
+    const result = decodedPath.startsWith('/.playground-releases/')
+        ? process.env.PRIVATE_STATUS : process.env.HIDDEN_STATUS;
+    process.stdout.write(result || '403');
 }
 `,
 		{ mode: 0o755 }
@@ -202,8 +211,13 @@ if [ "$1" = "\${FAIL_MOVE_SOURCE:-}" ] || [ "\${@: -1}" = "\${FAIL_MOVE_TARGET:-
     if [ "\${PARTIAL_MOVE:-}" = 1 ]; then
         mkdir -p "$2/assets"
         printf 'incomplete copy' > "$2/assets/old.js"
+        touch -t 200001010000 "$2/assets"
     fi
     echo 'Cannot move deployment file' >&2
+    exit 1
+fi
+if [ "$1" = "\${PROTECTED_SWAP:-}" ]; then
+    echo 'Cannot remove protected editor swap file' >&2
     exit 1
 fi
 exec /bin/mv "$@"
@@ -225,7 +239,8 @@ exec /bin/mv "$@"
 		SITE_API_BASE: 'https://api.example',
 		ATOMIC_SITE_API_KEY: 'fixture',
 		ATOMIC_SITE_ID: 'fixture',
-		PROBE_ROOT: join(webRoot, '.playground-releases'),
+		PROBE_ROOT: webRoot,
+		PROTECTED_SWAP: join(webRoot, '.plugin-proxy.php.swp'),
 	};
 	// Invalid origin configuration must fail before moving files or replacing PHP.
 	for (const origins of [
@@ -261,6 +276,7 @@ exec /bin/mv "$@"
 	// entry and upload untouched. This catches moving files before the checks run.
 	for (const env of [
 		{ PRIVATE_STATUS: '200' },
+		{ HIDDEN_STATUS: '200' },
 		{ ALIAS_STATUS: '301' },
 		{ ALIAS_STATUS: '503' },
 	]) {
@@ -283,6 +299,11 @@ exec /bin/mv "$@"
 			await readdir(join(webRoot, '.playground-releases')),
 			[]
 		);
+		assert.ok(
+			!(await readdir(webRoot)).some((name) =>
+				name.startsWith('.playground-probe.')
+			)
+		);
 	}
 	// A failed move must leave the previous app usable, not just its entry intact.
 	// index.html sorts after its PHP library, so that failure needs to restore files
@@ -294,6 +315,7 @@ exec /bin/mv "$@"
 		{ FAIL_MOVE_SOURCE: join(webRoot, 'index.html') },
 		{ FAIL_MOVE_TARGET: join(webRoot, 'custom-redirects.php') },
 	]) {
+		const assetsBefore = await stat(join(webRoot, 'assets'));
 		await assert.rejects(
 			run('bash', install, {
 				env: {
@@ -318,6 +340,18 @@ exec /bin/mv "$@"
 			await readFile(join(webRoot, 'index.html'), 'utf8'),
 			'old public app'
 		);
+		assert.equal(
+			(await stat(webRoot)).mode & 0o777,
+			0o775,
+			'Rollback must preserve the document-root permissions'
+		);
+		if (failure.PARTIAL_MOVE) {
+			assert.equal(
+				(await stat(join(webRoot, 'assets'))).mtimeMs,
+				assetsBefore.mtimeMs,
+				"Rollback must not apply a partial backup's directory timestamp"
+			);
+		}
 		const [failedRelease] = await readdir(
 			join(webRoot, '.playground-releases')
 		);
@@ -330,12 +364,18 @@ exec /bin/mv "$@"
 		});
 		await rm(join(backups, failedRelease), { recursive: true });
 	}
+	// These are server files, not an old public build. A protected Vim swap file
+	// must not block activation, and hidden server directories must stay in place.
+	await writeFile(installEnv.PROTECTED_SWAP, 'editor swap');
+	await mkdir(join(webRoot, '.server-config'));
+	await writeFile(join(webRoot, '.server-config/setting'), 'server setting');
 	// A purge failure happens after activation. Report it without restoring old
 	// public files, which would bypass the newly active sandbox host rule.
 	await assert.rejects(
 		run('bash', install, {
 			env: { ...installEnv, FAIL_PURGE: '1' },
-		})
+		}),
+		{ code: 22 }
 	);
 	const [releaseName] = await readdir(join(webRoot, '.playground-releases'));
 	const files = join(webRoot, '.playground-releases', releaseName, 'files');
@@ -352,9 +392,19 @@ exec /bin/mv "$@"
 	);
 	assert.deepEqual((await readdir(webRoot)).sort(), [
 		'.playground-releases',
+		'.plugin-proxy.php.swp',
+		'.server-config',
 		'__wp__',
 		'custom-redirects.php',
 	]);
+	assert.equal(
+		await readFile(installEnv.PROTECTED_SWAP, 'utf8'),
+		'editor swap'
+	);
+	assert.equal(
+		await readFile(join(webRoot, '.server-config/setting'), 'utf8'),
+		'server setting'
+	);
 	const cli = await run('php', [join(webRoot, 'custom-redirects.php')]);
 	assert.equal(cli.stdout, '');
 	const reservation = createServer();
