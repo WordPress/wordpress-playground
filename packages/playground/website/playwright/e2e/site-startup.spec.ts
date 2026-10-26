@@ -207,27 +207,32 @@ test.describe('Saved Playground startup', { tag: '@storage' }, () => {
 });
 
 for (const mode of ['', 'seamless']) {
-	test(`unknown saved-site URLs leave the list open without creating a site (${mode || 'normal'})`, async ({
-		page,
-	}) => {
-		await page.goto(`/?site-slug=guessable-name&storage=temp&mode=${mode}`);
-		await expect(
-			page.getByRole('dialog', { name: 'Your Playgrounds pane' })
-		).toBeVisible();
-		expect(
-			await page.evaluate(() => (window as any).playgroundSites.list())
-		).toEqual([]);
-		expect(
-			page
-				.frames()
-				.some(
-					(frame) => new URL(frame.url()).pathname === '/remote.html'
+	for (const slug of ['guessable-name', '']) {
+		test(`unknown saved-site URLs leave the list open without creating a site (${mode || 'normal'}, ${slug || 'empty'})`, async ({
+			page,
+		}) => {
+			await page.goto(`/?site-slug=${slug}&storage=temp&mode=${mode}`);
+			await expect(
+				page.getByRole('dialog', { name: 'Your Playgrounds pane' })
+			).toBeVisible();
+			expect(
+				await page.evaluate(() =>
+					(window as any).playgroundSites.list()
 				)
-		).toBe(false);
-		await expect(
-			page.getByRole('progressbar', {
-				name: 'WordPress loading progress',
-			})
-		).not.toBeVisible();
-	});
+			).toEqual([]);
+			expect(
+				page
+					.frames()
+					.some(
+						(frame) =>
+							new URL(frame.url()).pathname === '/remote.html'
+					)
+			).toBe(false);
+			await expect(
+				page.getByRole('progressbar', {
+					name: 'WordPress loading progress',
+				})
+			).not.toBeVisible();
+		});
+	}
 }

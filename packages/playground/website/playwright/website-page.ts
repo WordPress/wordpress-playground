@@ -74,7 +74,7 @@ export class WebsitePage {
 		}
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
-		if (new URL(this.page.url()).searchParams.get('site-slug')) {
+		if (new URL(this.page.url()).searchParams.has('site-slug')) {
 			await this.openSavedPlayground();
 		}
 		await this.waitForNestedIframes();

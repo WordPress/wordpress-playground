@@ -160,7 +160,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			if (requestedSiteSlug) {
+			if (requestedSiteSlug !== null) {
 				if (activeSite?.slug === requestedSiteSlug) return;
 				if (requestedClientInfo) {
 					// Retained temporary/syncing frames are already running. Selecting

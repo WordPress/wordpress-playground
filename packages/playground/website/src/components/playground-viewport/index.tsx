@@ -154,7 +154,7 @@ export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 	// A saved-site link waits after the list loads. A fresh setup URL still
 	// needs its initial loading screen while its Blueprint is being fetched.
 	const waitingForSiteSelection =
-		requestedSiteSlug &&
+		requestedSiteSlug !== null &&
 		!activeSiteSlugIsSet &&
 		['loaded', 'error'].includes(siteListingStatus);
 	if (!sitesFinishedLoading && !waitingForSiteSelection) {
