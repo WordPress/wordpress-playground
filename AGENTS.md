@@ -97,6 +97,24 @@ cache. The flag survives SPA navigation, not a full reload that omits it.
 Ordinary WordPress can still access app OPFS/cache used by opted-in sessions.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
+The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
+`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
+`https://playground.wordpress.net` in one workflow environment. Pass those same
+values to the single `apply-update.sh` deployment script; it writes the sandbox
+origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
+create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
+worker loaders, all importing shared app-origin scripts. The PHP host gate
+serves that directory as-is, without constructing response bodies or falling
+back to app files. The built preview uses the same directory and generators.
+Do not add a second installer script. Host checks live in
+`website-deployment/custom-redirects-lib.php`, reached
+through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
+bootstrap-only path; app requests keep the existing redirects, headers, and PHP
+setup. The deployment script selects a complete
+private release and checks both hosts and Nginx's hidden-path deny rule before
+activation. Personal WP keeps its no-argument public-file layout and separate script.
+The HTTP/install contract tests run with
+`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 
 WP Cloud's PHP-served static files support single bounded and open-ended byte
 ranges for runtime download retries. Other range forms get the full response;

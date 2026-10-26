@@ -92,10 +92,11 @@ async function waitForFonts() {
  * Return a thumbnail worker URL that the WordPress document is allowed to start.
  *
  * Worker construction requires a same-origin entry script. In split-origin mode,
- * keep the bundled asset path but put it on the WordPress origin. The marker tells
- * the server, or the service worker after it takes control, to return a small
- * importScripts() loader for the real app-origin bundle. The worker therefore
- * starts on WordPress's origin without copying the bundle there or trusting
+ * keep the bundled asset path but put it on the WordPress origin. The sandbox
+ * build writes a small importScripts() loader there; the live development server
+ * generates it on demand. After taking control, the service worker recognizes
+ * the marker and supplies its own loader, including offline. The worker starts
+ * on WordPress's origin without copying the bundle there or trusting
  * WordPress-writable CacheStorage. One-origin builds use the asset URL directly.
  */
 function getResourceWorkerUrl() {

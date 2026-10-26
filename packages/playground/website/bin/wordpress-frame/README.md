@@ -30,10 +30,18 @@ Without `?reprint`, WordPress stays on the app origin. This is a built preview;
 source changes require rebuilding and restarting. It binds to `127.0.0.1` only.
 The `playground.localhost` hostname enables this built-preview setup. Normal builds
 on other origins retain their existing behavior. `npm run dev` now uses the same
-opt-in through the existing loopback Vite ports: app on 5400, WordPress on
-4400. Source changes do not need a build there; see the
+opt-in through the existing loopback Vite ports: app on 5400, WordPress on 4400. Source changes do not need a build there; see the
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
+
+The normal WP Cloud deployment builds with
+`VITE_WORDPRESS_SITE_URL=https://wpsandbox.wordpress.net` and
+`PLAYGROUND_APP_ORIGIN=https://playground.wordpress.net`. The latter produces a
+small `wordpress-sandbox/` document root whose loaders import shared app bundles.
+The built preview and upgrade-test server serve the same directory layout,
+generated with their respective app addresses.
+Host checks live in `custom-redirects-lib.php`; the single `apply-update.sh`
+script installs the private build and its public entry. See the [deployment guide](../../../website-deployment/wordpress-frame/README.md).
 
 ## Boundaries
 
@@ -70,10 +78,7 @@ This includes nested external embeds and app HTML served from the offline cache.
 For example, an external page can keep this iframe unchanged:
 
 ```html
-<iframe
-  src="http://playground.localhost:9500/"
-  referrerpolicy="no-referrer"
-></iframe>
+<iframe src="http://playground.localhost:9500/" referrerpolicy="no-referrer"></iframe>
 ```
 
 No referrer-based framing allowlist is installed. Requiring every external frame
@@ -107,7 +112,8 @@ untrusted PHP extensions.
 The `wp` child domain is not a complete cookie boundary: parent-domain cookies
 can span both hosts. Offline startup needs a second online load to cache app
 entry documents fetched before the app service worker took control. Production
-deployment is not included. No saved-site migration or account-token flow is changed.
+deployment uses the WP Cloud handler described above. No saved-site migration or
+account-token flow is changed.
 
 Database-tool popups keep an app-origin top-level document and render WordPress
 inside it. WebKit partitions service workers by the top-level origin, so opening

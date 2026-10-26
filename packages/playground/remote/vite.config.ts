@@ -12,6 +12,7 @@ import {
 	websiteDevServerPort,
 } from '../build-config';
 import { wordPressFrameDevPlugin } from './vite.wordpress-frame';
+import { wordPressSandboxPlugin } from './vite.wordpress-sandbox';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
@@ -134,6 +135,9 @@ export default defineConfig(({ mode }) => {
 
 		plugins: [
 			...plugins,
+			process.env['PLAYGROUND_APP_ORIGIN']
+				? wordPressSandboxPlugin(process.env['PLAYGROUND_APP_ORIGIN'])
+				: null,
 			mode === 'wordpress-frame'
 				? wordPressFrameDevPlugin(
 						`http://${websiteDevServerHost}:${websiteDevServerPort}`,

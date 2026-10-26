@@ -1,7 +1,7 @@
 import { selectWordPressOrigin } from './wordpress-origin';
 
 const app = 'https://playground.wordpress.net';
-const sandbox = 'https://wasm.wordpress.net';
+const sandbox = 'https://wpsandbox.wordpress.net';
 
 describe('WordPress origin selection', () => {
 	it.each([
