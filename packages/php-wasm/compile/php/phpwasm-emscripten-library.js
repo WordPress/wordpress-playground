@@ -719,12 +719,17 @@ const LibraryExample = {
 				stderrParentFd = std[2]?.parent;
 			const detachPipeDataListeners = [];
 
-			cp.on('exit', function (code) {
+			/**
+			 * Closes the child ends of the pipes so a blocking fread() on the
+			 * parent end sees a broken pipe instead of polling forever. Runs on
+			 * 'exit', on 'error', and when the spawn wait fails, because a
+			 * failed spawn may never emit 'exit'.
+			 */
+			const closeChildPipes = function () {
 				for (const detach of detachPipeDataListeners) {
 					detach();
 				}
 				for (const fd of [
-					// The child process exited. Let's clean up its output streams:
 					stdoutChildFd,
 					stderrChildFd,
 					stdinChildFd,
@@ -738,7 +743,11 @@ const LibraryExample = {
 						FS.close(FS.streams[fd]);
 					}
 				}
+			};
 
+			cp.on('error', closeChildPipes);
+			cp.on('exit', function (code) {
+				closeChildPipes();
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 			});
@@ -856,6 +865,7 @@ const LibraryExample = {
 				// Process already started. Even if it exited early, PHP still
 				// needs to know about the pid and clean up the resources.
 				console.error(e);
+				closeChildPipes();
 				return ProcInfo.pid;
 			}
 
