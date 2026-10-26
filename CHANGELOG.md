@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.61] (2026-10-26) 
+
+### Experiments
+
+
+#### Website
+
+- \[Website\] Render local dev WordPress on the remote Vite port\. ([#4496](https://github.com/WordPress/wordpress-playground/pull/4496))
+
+### PHP WebAssembly
+
+- \[Personal WP\] Use a SharedWorker runtime\. ([#4423](https://github.com/WordPress/wordpress-playground/pull/4423))
+- \[Web\] Accept API calls only from the connected window\. ([#4476](https://github.com/WordPress/wordpress-playground/pull/4476))
+- \[Website\] Check local\-folder access against the PHP host\. ([#4477](https://github.com/WordPress/wordpress-playground/pull/4477))
+
+#### Website
+
+- \[Web\] Exchange WordPress frame messages across origins\. ([#4478](https://github.com/WordPress/wordpress-playground/pull/4478))
+- \[Website\] Serve WordPress frames from a separate internal origin\. ([#4482](https://github.com/WordPress/wordpress-playground/pull/4482))
+
+### Website
+
+- Enable the WordPress sandbox only with \?reprint\. ([#4510](https://github.com/WordPress/wordpress-playground/pull/4510))
+- Enable the WordPress sandbox only with \?reprint\. ([#4511](https://github.com/WordPress/wordpress-playground/pull/4511))
+- Keep database tools in the app browser partition\. ([#4479](https://github.com/WordPress/wordpress-playground/pull/4479))
+- Remove the Rust parser extension loading test\. ([#4514](https://github.com/WordPress/wordpress-playground/pull/4514))
+- Run local subdomains with storage and API boundary checks\. ([#4483](https://github.com/WordPress/wordpress-playground/pull/4483))
+- Run website end\-to\-end tests with cross\-origin WordPress frames\. ([#4484](https://github.com/WordPress/wordpress-playground/pull/4484))
+- Serve single byte ranges from WP Cloud PHP\. ([#4507](https://github.com/WordPress/wordpress-playground/pull/4507))
+- Show Autosaving during the first autosave\. ([#4504](https://github.com/WordPress/wordpress-playground/pull/4504))
+- \[CI\] Wait for static\-file responses and use public Ubuntu mirrors\. ([#4509](https://github.com/WordPress/wordpress-playground/pull/4509))
+- \[Web\] Keep editor canvas isolation when DIP and COEP overlap\. ([#4481](https://github.com/WordPress/wordpress-playground/pull/4481))
+
+### Various
+
+- \[Personal WP\] Serve app reloads at reflected WordPress paths\. ([#4490](https://github.com/WordPress/wordpress-playground/pull/4490))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk
+
+
 ## [v3.1.60] (2026-10-20) 
 
 ### Documentation
