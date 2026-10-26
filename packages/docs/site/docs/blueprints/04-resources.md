@@ -108,10 +108,17 @@ and replace `BUCKET_NAME` with the bucket name:
 }
 ```
 
-[Amazon S3 Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)
-settings must allow public bucket policies for this policy to work. Only allow
-public access for objects that are intended to be downloadable by anyone with
-the URL.
+Two [Amazon S3 Block Public Access](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html)
+settings must be off for this policy to work: `BlockPublicPolicy`, because S3
+rejects attempts to add a public bucket policy while it is on, and
+`RestrictPublicBuckets`, because while it is on only AWS service principals and
+authorized users in your account can read a bucket with a public policy. The ACL
+settings, `BlockPublicAcls` and `IgnorePublicAcls`, can stay on, because this
+setup uses a bucket policy, not ACLs. S3 applies the most restrictive
+combination of the bucket, account, and organization settings, so an
+account-level or organization-level setting can still block access when the
+bucket allows it. Only allow public access for objects that are intended to be
+downloadable by anyone with the URL.
 
 Configure CORS so the Playground website can fetch those objects. The following
 S3 CORS configuration allows `GET` and `HEAD` requests from
@@ -129,6 +136,10 @@ S3 CORS configuration allows `GET` and `HEAD` requests from
 ]
 ```
 
+`AllowedOrigins` only controls which websites can read the objects from a
+browser. It does not make the objects private: anyone with the URL can still
+download them with other clients, such as `curl`. If you run your own
+Playground instance, add the origin it is served from to `AllowedOrigins`.
 Use `AllowedOrigins: ["*"]` only when the objects are intended to be fetched
 from any website. See the Amazon S3 documentation for
 [bucket policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteAccessPermissionsReqd.html)
