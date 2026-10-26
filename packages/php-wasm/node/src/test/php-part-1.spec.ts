@@ -1510,40 +1510,43 @@ phpLoaderOptions.forEach((options) => {
 				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 
-			it('Handle process spawn timeout gracefully', async () => {
-				let spawnHandlerCalled = false;
-				const handler = createSpawnHandler(async () => {
-					spawnHandlerCalled = true;
-					// Don't call processApi.notifySpawn() or processApi.exit()
-					// to simulate a hanging process that never starts
-					await new Promise(() => {}); // Never resolves
-				});
+			it(
+				'blocking fread waits for slow pipe output',
+				{ timeout: 10_000 },
+				async () => {
+					const handler = createSpawnHandler(
+						async (command: string[], processApi: any) => {
+							processApi.notifySpawn();
+							await new Promise((resolve) =>
+								setTimeout(resolve, 6_000)
+							);
+							processApi.stdout(
+								new TextEncoder().encode('delayed data')
+							);
+							await new Promise((resolve) =>
+								setTimeout(resolve, 500)
+							);
+							processApi.exit(0);
+						}
+					);
 
-				php.setSpawnHandler(handler);
+					php.setSpawnHandler(handler);
 
-				const startTime = Date.now();
-				await php.run({
-					code: `<?php
-						$res = proc_open(
-							"hanging_command",
-							array(
-								array("pipe","r"),
-								array("pipe","w"),
-								array("pipe","w"),
-							),
-							$pipes
-						);
-						// This will block – it's a blocking pipe and will never
-						// output any data.
-						fread($pipes[1], 1024);
+					const result = await php.run({
+						code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("delayed_command", $descriptorspec, $pipes);
+					$data = fread($pipes[1], 1024);
+					echo $data;
+					proc_close($proc);
 					`,
-				});
-				const elapsed = Date.now() - startTime;
-				// Should timeout around 5 seconds (allowing some margin)
-				expect(elapsed).toBeGreaterThan(4500);
-				expect(elapsed).toBeLessThan(6000);
-				expect(spawnHandlerCalled).toBe(true);
-			}, 10000);
+					});
+
+					expect(result.text).toEqual('delayed data');
+				}
+			);
 		});
 
 		describe('Filesystem', { skip }, () => {
