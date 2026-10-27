@@ -28,6 +28,7 @@ import {
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './wp-config';
+import { prepareLocalizedInstallation } from './installation-language';
 import { assertDatabasePrerequisites } from './database-prerequisites';
 import {
 	applyLegacyPhpIniOverrides,
@@ -154,6 +155,10 @@ export type WordPressInstallMode =
 	| 'do-not-attempt-installing';
 
 export interface BootWordPressOptions {
+	/** Skip only the factory database in a known prebuilt WordPress bundle. */
+	skipWordPressBundleDatabase?: boolean;
+	/** Locale for a fresh installation. Existing site content is preserved. */
+	installationLanguage?: string;
 	/** PHP version string (e.g. '8.3', '5.2'). */
 	phpVersion?: string;
 	/**
@@ -253,6 +258,7 @@ export async function bootWordPress(
 		options.onProgress?.('Extracting WordPress files');
 		await unzipWordPress(php, await options.wordPressZip, {
 			expectedFileCount: options.wordPressBundleFileCount,
+			skipDatabase: options.skipWordPressBundleDatabase,
 		});
 	}
 
@@ -322,7 +328,7 @@ export async function bootWordPress(
 		// Install WordPress if it's not installed.
 		try {
 			options.onProgress?.('Running WordPress installer');
-			await installWordPress(php);
+			await installWordPress(php, options.installationLanguage);
 		} catch (error) {
 			// If installation failed, check if it's a database issue
 			// to provide a more specific error message (but skip if user provided custom DB path)
@@ -349,7 +355,7 @@ export async function bootWordPress(
 			// Install WordPress if it's not installed.
 			try {
 				options.onProgress?.('Running WordPress installer');
-				await installWordPress(php);
+				await installWordPress(php, options.installationLanguage);
 			} catch (error) {
 				// If installation failed, check if it's a database issue
 				// to provide a more specific error message (but skip if user provided custom DB path)
@@ -614,7 +620,11 @@ export async function isWordPressInstalled(php: PHP) {
  * Without them, the installer may take 60 seconds,
  * 300 seconds, or even more to complete.
  */
-async function installWordPress(php: PHP) {
+async function installWordPress(php: PHP, installationLanguage?: string) {
+	const localized =
+		installationLanguage && !(await isWordPressInstalled(php))
+			? await prepareLocalizedInstallation(php, installationLanguage)
+			: undefined;
 	const response = await withPHPIniValues(
 		php,
 		{
@@ -626,9 +636,9 @@ async function installWordPress(php: PHP) {
 				url: '/wp-admin/install.php?step=2',
 				method: 'POST',
 				body: {
-					language: 'en',
+					language: localized?.language ?? 'en',
 					prefix: 'wp_',
-					weblog_title: 'My WordPress Website',
+					weblog_title: localized?.title ?? 'My WordPress Website',
 					user_name: 'admin',
 					admin_password: 'password',
 					// The installation wizard demands typing the same password twice

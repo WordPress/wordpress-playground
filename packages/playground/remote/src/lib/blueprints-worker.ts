@@ -81,6 +81,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 		withNetworking = true,
 		shouldInstallWordPress,
 		wordpressInstallMode,
+		installationLanguage,
 		blueprint,
 		corsProxyUrl,
 		pathAliases,
@@ -138,6 +139,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 			// Only tar.zst descriptors opt into the streaming extractor's file-count
 			// parity check. Custom URLs and wordpress.org ZIPs skip it.
 			let expectedBundleFileCount: number | undefined;
+			let skipWordPressBundleDatabase = false;
 			if (
 				resolvedWordPressInstallMode === 'download-and-install' &&
 				!wordPressZip
@@ -214,6 +216,9 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 					this.downloadMonitor.expectAssets({
 						[downloadUrl]: wpDetails.size,
 					});
+					skipWordPressBundleDatabase =
+						!!installationLanguage &&
+						wpDetails.format === 'tar.zst';
 					expectedBundleFileCount =
 						wpDetails.format === 'tar.zst'
 							? wpDetails.fileCount
@@ -283,6 +288,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 							}
 						: {},
 				wordpressInstallMode: resolvedWordPressInstallMode,
+				installationLanguage,
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
@@ -297,6 +303,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 						?.then((r) => r.arrayBuffer())
 						.then((b) => new File([b], 'wp.bundle')),
 				wordPressBundleFileCount: expectedBundleFileCount,
+				skipWordPressBundleDatabase,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'sqlite.zip')),
