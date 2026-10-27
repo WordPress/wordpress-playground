@@ -54,9 +54,7 @@ test(
 			.getByRole('textbox', { name: 'Live site URL', exact: true })
 			.fill('http://127.0.0.1:1/');
 		await pane.getByRole('button', { name: 'Check site' }).click();
-		await pane
-			.getByRole('button', { name: 'Reprint is installed — connect' })
-			.click();
+		await pane.getByRole('button', { name: 'Connect manually' }).click();
 		await expect(
 			pane.getByRole('textbox', { name: 'Migration key', exact: true })
 		).toHaveValue(/^[A-Za-z0-9+/]+=*$/);

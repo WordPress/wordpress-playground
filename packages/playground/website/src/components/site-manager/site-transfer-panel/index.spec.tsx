@@ -345,7 +345,7 @@ describe('Reprint connection changes', () => {
 				finish = resolve;
 			})
 		);
-		await click('I’ve activated Reprint — check again');
+		await click('Check again');
 		const signal = vi.mocked(detectReprint).mock.calls[1][1];
 		await click('Back to site address');
 		edit('url', 'https://second.example');

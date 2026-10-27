@@ -117,8 +117,7 @@ export function SiteTransferPanel({
 	const [stopping, setStopping] = useState(false);
 	const [confirmStop, setConfirmStop] = useState(false);
 	const [readingDiagnostics, setReadingDiagnostics] = useState(false);
-	const links =
-		setup && setup !== 'checking' ? getReprintAdminUrls(url) : null;
+	const links = setup ? getReprintAdminUrls(url) : null;
 	const hostname = links ? new URL(links.site).hostname : '';
 	const acceptsKey =
 		setup === 'configured' || setup === 'needs-key' || setup === 'manual';
@@ -200,7 +199,7 @@ export function SiteTransferPanel({
 		>('input:not([disabled]):not([type=checkbox]), textarea[readonly]');
 		if (input) input.focus();
 		else heading.current?.focus();
-	}, [step, isVisible, busy, completed, keyPair]);
+	}, [step, isVisible, busy, completed, keyPair, setup]);
 
 	useEffect(() => {
 		if (!busy) return;
@@ -563,7 +562,6 @@ export function SiteTransferPanel({
 
 	return (
 		<VStack spacing={4} className={css.panel}>
-			{step === 'install' && <p className={css.siteAddress}>{url}</p>}
 			<div
 				ref={content}
 				key={`${step}-${busy}-${completed}`}
@@ -645,34 +643,44 @@ export function SiteTransferPanel({
 					</form>
 				)}
 				{!busy && !completed && step === 'install' && links && (
-					<VStack spacing={4} ref={heading} tabIndex={-1}>
-						<Notice status="error" isDismissible={false}>
-							<strong className={css.errorTitle}>
+					<VStack spacing={6}>
+						<VStack spacing={2}>
+							<h3
+								ref={heading}
+								tabIndex={-1}
+								className={css.setupTitle}
+							>
+								Install Reprint Server
+							</h3>
+							<p className={css.hint}>
 								{setup === 'unreachable'
-									? 'Couldn’t check this site'
-									: 'Reprint Server not detected'}
-							</strong>
-							<p>
+									? 'We couldn’t check Reprint on '
+									: 'Add the plugin to '}
+								<a
+									href={links.site}
+									target="_blank"
+									rel="noreferrer"
+									className={css.setupSite}
+								>
+									{hostname}
+								</a>
 								{setup === 'unreachable'
-									? 'Check the URL and try again, or follow the setup steps below.'
-									: 'Install and activate Reprint Server on your live site, then check again.'}
+									? '. Check the address, or follow the steps below.'
+									: ' so Playground can connect to your live site.'}
 							</p>
-							<p>
-								Already installed? Make sure it’s active. If
-								your host blocks the check, you can set up a key
-								below.
-							</p>
-						</Notice>
-						<VStack as="ol" spacing={3} className={css.steps}>
+						</VStack>
+						<VStack as="ol" spacing={6} className={css.steps}>
 							<li>
 								<a
 									href={`https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint-exporter-wp.zip`}
 									target="_blank"
 									rel="noreferrer"
 								>
-									Download Reprint Server (.zip)
+									Download Reprint Server
 								</a>
-								. Keep the file zipped.
+								<p className={css.hint}>
+									Keep the ZIP file zipped.
+								</p>
 							</li>
 							<li>
 								<a
@@ -680,31 +688,40 @@ export function SiteTransferPanel({
 									target="_blank"
 									rel="noreferrer"
 								>
-									Open your plugin installer
-								</a>{' '}
-								and sign in if asked. Choose the zip, click{' '}
-								<strong>Install Now</strong>, then{' '}
-								<strong>Activate Plugin</strong>.
+									Open the plugin installer
+								</a>
+								<p className={css.hint}>
+									Sign in if asked. Upload the ZIP, choose{' '}
+									<strong>Install Now</strong>, then{' '}
+									<strong>Activate Plugin</strong>.
+								</p>
 							</li>
-							<li>Come back here and check again.</li>
 						</VStack>
-						<div className={css.actions}>
+						<VStack spacing={4}>
 							<Button
 								variant="primary"
+								isBusy={setup === 'checking'}
+								disabled={setup === 'checking'}
 								onClick={() => void checkSite()}
 							>
-								I’ve activated Reprint — check again
+								{setup === 'checking'
+									? 'Checking…'
+									: 'Check again'}
 							</Button>
-							<Button
-								variant="tertiary"
-								onClick={() => {
-									setSetup('manual');
-									setStep('key');
-								}}
-							>
-								Reprint is installed — connect
-							</Button>
-						</div>
+							<div className={css.manualConnection}>
+								<span>Already active?</span>
+								<Button
+									variant="link"
+									disabled={setup === 'checking'}
+									onClick={() => {
+										setSetup('manual');
+										setStep('key');
+									}}
+								>
+									Connect manually
+								</Button>
+							</div>
+						</VStack>
 					</VStack>
 				)}
 				{!busy && !completed && step === 'key' && links && (

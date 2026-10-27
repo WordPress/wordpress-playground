@@ -63,15 +63,22 @@
 	padding-inline: var(--space-4);
 }
 
-.error-title {
+.setup-title {
 	color: var(--ink);
-	display: block;
+	font-size: 16px;
 	font-weight: 600;
-	margin-bottom: var(--space-1);
+	line-height: 1.5;
+	margin: 0;
 }
 
-.error-title ~ p + p {
-	margin-top: var(--space-2);
+/* Announce the new step without drawing a focus ring around non-interactive instructions. */
+.setup-title:focus {
+	outline: none;
+}
+
+/* Keep the chosen site in the setup copy; long addresses wrap inside narrow panes. */
+.setup-site {
+	overflow-wrap: anywhere;
 }
 
 .steps {
@@ -82,6 +89,31 @@
 
 .steps li::marker {
 	color: var(--ink-muted);
+}
+
+.steps a {
+	color: var(--ink);
+	font-weight: 500;
+	text-underline-offset: 3px;
+}
+
+.steps .hint {
+	margin-top: var(--space-1);
+}
+
+.manual-connection {
+	align-items: baseline;
+	color: var(--ink-muted);
+	display: flex;
+	flex-wrap: wrap;
+	font-size: 13px;
+	gap: var(--space-1);
+}
+
+.manual-connection :global(.components-button.is-link) {
+	align-self: baseline;
+	font-size: inherit;
+	min-height: 0;
 }
 
 .actions {
@@ -113,13 +145,6 @@
 .stop-button:hover,
 .stop-button:focus-visible {
 	opacity: 1;
-}
-
-/* Keep the chosen site visible when moving between connection steps. */
-.site-address {
-	color: var(--ink);
-	font-weight: 500;
-	overflow-wrap: anywhere;
 }
 
 @media (max-width: 480px) {
