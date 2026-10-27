@@ -3,6 +3,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { ProgressTrackerEvent } from '@php-wasm/progress';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { importWordPressFiles } from '../../lib/steps/import-wordpress-files';
+import { replaceSiteUrl } from '../../lib/utils/replace-site-url';
 import { zipWpContent } from '../../lib/steps/zip-wp-content';
 import {
 	getSqliteDriverModule,
@@ -20,7 +21,7 @@ describe('Blueprint step importWordPressFiles', () => {
 	let targetPHP: PHP;
 
 	const sourceScope = 'source-scope-123';
-	const targetScope = 'target-scope-456';
+	const targetScope = 'a-longer-target-scope-456';
 
 	beforeEach(async () => {
 		// Boot source playground with a specific scope
@@ -450,6 +451,98 @@ describe('Blueprint step importWordPressFiles', () => {
 
 		expect(result.text).toContain(`scope:${targetScope}`);
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
+	});
+
+	it('updates the host without changing the scope or damaging serialized settings', async () => {
+		const oldUrl = 'https://playground.wordpress.net/scope:saved-site';
+		const newUrl = 'https://wpsandbox.wordpress.net/scope:saved-site';
+		await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$url = ${phpVar(oldUrl)} . '/wp-content/uploads/photo.jpg';
+			update_option('migration_settings', array(
+				'base' => ${phpVar(oldUrl)},
+				'unrelated' => ${phpVar(oldUrl)} . '-other/photo.jpg',
+				'nested' => array('image' => $url, 'label' => 'Zażółć gęślą'),
+				'json' => json_encode(array('image' => $url)),
+			));
+			wp_insert_post(array('post_title' => 'Saved image', 'post_content' => '<img src="' . $url . '">'));
+			`,
+		});
+
+		await replaceSiteUrl(sourcePHP, '/wordpress', oldUrl, newUrl);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			echo json_encode(array(
+				'settings' => get_option('migration_settings'),
+				'content' => $wpdb->get_var("SELECT post_content FROM {$wpdb->posts} WHERE post_title = 'Saved image'"),
+			));
+			`,
+		});
+		const image = `${newUrl}/wp-content/uploads/photo.jpg`;
+		expect(result.json).toEqual({
+			settings: {
+				base: newUrl,
+				unrelated: `${oldUrl}-other/photo.jpg`,
+				nested: { image, label: 'Zażółć gęślą' },
+				json: JSON.stringify({ image }).replaceAll('/', '\\/'),
+			},
+			content: `<img src="${image}">`,
+		});
+	});
+
+	it('keeps nested serialized settings readable when importing into a longer scope', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const newUrl = await targetPHP.absoluteUrl;
+		await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			update_option('migration_settings', array('nested' => array('image' => ${phpVar(oldUrl)} . '/photo.jpg')));
+			`,
+		});
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: new File(
+				[await zipWpContent(sourcePHP)],
+				'settings.zip'
+			),
+		});
+
+		const result = await targetPHP.run({
+			code: `<?php require '/wordpress/wp-load.php'; echo json_encode(get_option('migration_settings'));`,
+		});
+		expect(result.json).toEqual({
+			nested: { image: `${newUrl}/photo.jpg` },
+		});
+	});
+
+	it('preserves serialized data from an unavailable plugin class', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const stored = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$value = str_replace('O:8:"stdClass"', 'O:17:"MissingPluginData"', serialize((object) array('url' => ${phpVar(oldUrl)} . '/photo.jpg')));
+			$wpdb->insert($wpdb->options, array('option_name' => 'inactive_plugin', 'option_value' => $value));
+			echo $value;
+			`,
+		});
+
+		await replaceSiteUrl(
+			sourcePHP,
+			'/wordpress',
+			oldUrl,
+			await targetPHP.absoluteUrl
+		);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			echo $wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name = 'inactive_plugin'");
+			`,
+		});
+		expect(result.text).toBe(stored.text);
 	});
 
 	it('should preserve live files and clean staging when preparation fails', async () => {

@@ -24,7 +24,7 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 	});
 
 	it('runs WordPress boot setup for mounted installed WordPress sites', async () => {
-		const php = {} as PHP;
+		const php = createFakePhp();
 		const bootWordPress = vi.fn(async (_requestHandler, options) => {
 			await options.hooks.beforeWordPressFiles(php);
 		});
@@ -273,7 +273,7 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 				'http://playground.test'
 			);
 			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
-				{}
+				{ getPrimaryPhp: async () => createFakePhp() }
 			);
 			vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
 				undefined
@@ -329,7 +329,9 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
 			'http://playground.test'
 		);
-		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({});
+		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({
+			getPrimaryPhp: async () => createFakePhp(),
+		});
 		vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
 			undefined
 		);
@@ -370,3 +372,11 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		);
 	});
 });
+
+function createFakePhp() {
+	return {
+		documentRoot: '/wordpress',
+		fileExists: vi.fn(() => false),
+		writeFile: vi.fn(),
+	} as unknown as PHP;
+}
