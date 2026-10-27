@@ -78,6 +78,10 @@ const query = new URL(document.location.href).searchParams;
  * origin configured, the rendered WordPress iframe uses wordPressSiteUrl; this
  * document and PHP do not move.
  *
+ * Finish activating the app service worker before starting PHP's module worker.
+ * WebKit can interrupt that worker's script download if a service-worker update
+ * takes over during the download, leaving the embed on its "Try again" screen.
+ *
  * The returned API's boot() method starts PHP and connects HTTP requests to it.
  * With separate origins it creates a hidden WordPress-origin request iframe;
  * with one origin a dedicated runtime uses the existing service-worker listener.
@@ -135,9 +139,31 @@ export async function bootPlaygroundRemote() {
 	} catch (e) {
 		// registration.update() throws if it can't reach the server.
 		// We're swallowing the error to keep the app working in offline mode
-		// or when playground.wordpress.net is down. We can be sure we have a
-		// functional service worker at this point because sw.register() succeeded.
+		// or when playground.wordpress.net is down. Reuse the registered worker;
+		// the activation check below still rejects a failed first installation.
 		logger.error('Failed to update service worker.', e);
+	}
+
+	// update() can return while release B is still installing and release A
+	// handles downloads. Starting PHP now lets B replace A during the module
+	// worker's script download, which WebKit fails with "Service Worker context
+	// closed". Wait for B, not just serviceWorker.ready, which A already satisfies.
+	const serviceWorker =
+		registration.installing ?? registration.waiting ?? registration.active;
+	if (!serviceWorker) {
+		throw new Error('The Playground service worker is unavailable.');
+	}
+	while (serviceWorker.state !== 'activated') {
+		if (serviceWorker.state === 'redundant') {
+			throw new Error(
+				'The Playground service worker could not activate.'
+			);
+		}
+		await new Promise<void>((resolve) =>
+			serviceWorker.addEventListener('statechange', () => resolve(), {
+				once: true,
+			})
+		);
 	}
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
