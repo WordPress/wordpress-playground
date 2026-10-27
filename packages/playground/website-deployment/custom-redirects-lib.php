@@ -37,6 +37,16 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
  */
 function playground_handle_request( $build_directory = null, $wordpress_origin = null ) {
+	// Endpoints and range handling can fail after setting cacheable headers.
+	// Check the final status before output. PHP has only one header callback;
+	// native endpoints must not replace this callback.
+	header_register_callback( function () {
+		if ( http_response_code() >= 400 ) {
+			header( 'A8C-Edge-Cache: no-cache' );
+			header( 'Cache-Control: no-store' );
+		}
+	} );
+
 	$directory = realpath( $build_directory ?? __DIR__ );
 	if ( false === $directory || ! is_dir( $directory ) ) {
 		http_response_code( 503 );

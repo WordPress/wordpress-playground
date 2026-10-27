@@ -125,6 +125,19 @@ try {
 		'<?php echo "native endpoint";'
 	);
 	await writeFile(
+		join(upload, 'error.php'),
+		`<?php
+header('A8C-Edge-Cache: cache');
+header('Cache-Control: public, max-age=3600');
+http_response_code((int) $_GET['status']);
+echo 'Endpoint response';
+`
+	);
+	await symlink(
+		join(temporary, 'secret.txt'),
+		join(upload, 'outside-build.txt')
+	);
+	await writeFile(
 		join(upload, 'plugin-proxy.php'),
 		'<?php echo getenv("GITHUB_TOKEN");'
 	);
@@ -689,6 +702,8 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		Range: 'bytes=1-3',
 	});
 	assert.equal(range.status, 206);
+	assert.equal(range.headers.get('a8c-edge-cache'), 'cache');
+	assert.equal(range.headers.get('cache-control'), 'public, max-age=3600');
 	assert.equal(range.headers.get('content-range'), 'bytes 1-3/8');
 	assert.equal(range.headers.get('access-control-allow-origin'), '*');
 	assert.equal(range.headers.get('content-type'), 'application/wasm');
@@ -702,10 +717,33 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const options = await request('/assets/runtime.wasm', app, {}, 'OPTIONS');
 	assert.equal(options.status, 204);
 	assert.equal(options.headers.get('access-control-allow-origin'), '*');
+	// Errors must not retain the cache headers selected for a successful file.
+	for (const [path, host, headers, status] of [
+		['/assets/missing.js', app, {}, 404],
+		['/remote.html', wordpress, {}, 404],
+		['/outside-build.txt', app, {}, 403],
+		['/assets/runtime.wasm', app, { Range: 'bytes=100-' }, 416],
+		[
+			'/wp-6.8/wp-includes/css/dashicons.min.css',
+			wordpress,
+			{ Range: 'bytes=100-' },
+			416,
+		],
+		['/error.php?status=400', app, {}, 400],
+		['/error.php?status=500', app, {}, 500],
+	]) {
+		const response = await request(path, host, headers);
+		assert.equal(response.status, status, path);
+		assert.equal(response.headers.get('a8c-edge-cache'), 'no-cache', path);
+		assert.equal(response.headers.get('cache-control'), 'no-store', path);
+	}
+	const successfulEndpoint = await request('/error.php?status=200', app);
+	assert.equal(successfulEndpoint.status, 200);
+	assert.equal(await successfulEndpoint.text(), 'Endpoint response');
+	assert.equal(successfulEndpoint.headers.get('a8c-edge-cache'), 'cache');
 	assert.equal(
-		(await request('/assets/runtime.wasm', app, { Range: 'bytes=100-' }))
-			.status,
-		416
+		successfulEndpoint.headers.get('cache-control'),
+		'public, max-age=3600'
 	);
 	const manifest = await request(
 		'/dynamic-manifest.json.php?app_name=Deployment',
@@ -767,7 +805,10 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		join(webRoot, '.playground-releases', nextRelease, 'files'),
 		join(webRoot, '.playground-releases', nextRelease, 'unavailable')
 	);
-	assert.ok((await request('/etc/passwd', app)).status >= 400);
+	const unavailable = await request('/etc/passwd', app);
+	assert.equal(unavailable.status, 503);
+	assert.equal(unavailable.headers.get('a8c-edge-cache'), 'no-cache');
+	assert.equal(unavailable.headers.get('cache-control'), 'no-store');
 	console.log(
 		'WP Cloud deployment: preflight failures, migration rollback, post-activation purge failure, private install, real entry, host/path boundaries, native PHP, shared assets, ranges, HEAD/OPTIONS and release switching passed.'
 	);
