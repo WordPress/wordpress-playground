@@ -5,6 +5,7 @@ import type { UniversalPHP } from '@php-wasm/universal';
  * Updates stored site URLs when a Playground moves to another host or scope.
  * Serialized settings must be decoded and encoded again because URL lengths
  * can change. Keep scope-only links working as they did during ZIP imports.
+ * Serialized objects and references are preserved unchanged.
  * Matching rows are read into memory, as during ZIP imports.
  */
 export async function replaceSiteUrl(
@@ -31,6 +32,13 @@ export async function replaceSiteUrl(
 	const newScopePath = extractScopePath(newSiteUrl);
 	if (oldScopePath && newScopePath && oldScopePath !== newScopePath) {
 		replacements[oldScopePath] = newScopePath;
+	}
+	// Home links may end at a quote, query, or fragment rather than a slash.
+	for (const [oldUrl, newUrl] of Object.entries(replacements)) {
+		for (const ending of ['"', "'", '?', '#']) {
+			replacements[oldUrl.slice(0, -1) + ending] =
+				newUrl.slice(0, -1) + ending;
+		}
 	}
 	// Block attributes and some plugin settings store JSON-escaped slashes.
 	for (const [oldUrl, newUrl] of Object.entries(replacements)) {
@@ -100,6 +108,11 @@ export async function replaceSiteUrl(
 
 		function playground_replace_site_url($value, $replacements) {
 			if (is_string($value) && (!function_exists('is_serialized') || is_serialized($value))) {
+				// Keep plugin objects (including unavailable classes) and references
+				// byte-for-byte. Restoring objects can run plugin code; references can cycle.
+				if (preg_match('/(?:^|[;{}])(?:[OCE]:[0-9]+:|[rR]:[0-9]+;)/', $value)) {
+					return $value;
+				}
 				$decoded = @unserialize($value);
 				if (false !== $decoded) {
 					// unserialize() can accept a valid prefix and ignore trailing text.
@@ -113,14 +126,6 @@ export async function replaceSiteUrl(
 			if (is_array($value)) {
 				foreach ($value as $key => $item) {
 					$value[$key] = playground_replace_site_url($item, $replacements);
-				}
-			} elseif (is_object($value)) {
-				// An inactive plugin's class may be unavailable. Preserve its data.
-				if ($value instanceof __PHP_Incomplete_Class) {
-					return $value;
-				}
-				foreach ($value as $key => $item) {
-					$value->$key = playground_replace_site_url($item, $replacements);
 				}
 			} elseif (is_string($value)) {
 				foreach ($replacements as $old => $new) {

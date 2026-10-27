@@ -70,6 +70,7 @@ describe('stored site URL migration', () => {
 	});
 });
 
+/** Creates a worker fixture that can reopen the same saved URL record. */
 async function createMigration(files = new Map<string, string>()) {
 	const { PlaygroundWorkerEndpointBlueprints } =
 		await import('./blueprints-worker');

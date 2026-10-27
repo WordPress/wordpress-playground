@@ -195,7 +195,8 @@ The schema is NOT auto-rebuilt in `npm run dev` mode.
 Browser WordPress boots record the site's public base URL in `/wordpress/.playground-site-url`.
 Stored sites without that record are migrated from their scoped app-origin URL before startup
 completes. Flush migrated data before saving the record; later boots must not rescan the database
-when the recorded URL still matches.
+when the recorded URL still matches. Log migration failures and keep the site accessible;
+a missing completion record allows a later boot to retry.
 
 ### WordPress Builds
 

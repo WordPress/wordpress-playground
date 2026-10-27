@@ -493,6 +493,120 @@ describe('Blueprint step importWordPressFiles', () => {
 		});
 	});
 
+	it('updates home links without a trailing slash in HTML and block JSON', async () => {
+		const oldUrl = 'https://playground.wordpress.net/scope:saved-site';
+		const newUrl = 'https://wpsandbox.wordpress.net/scope:saved-site';
+		const content = [
+			`<a href="${oldUrl}">Home</a>`,
+			`<a href='${oldUrl}'>Home</a>`,
+			`<!-- wp:navigation-link {"url":"${oldUrl}","label":"Home"} /-->`,
+			JSON.stringify({ url: oldUrl }).replaceAll('/', '\\/'),
+			`<a href="${oldUrl}?s=photo">Search</a>`,
+			`<a href="${oldUrl}#content">Skip</a>`,
+		].join('\n');
+		const inserted = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			echo wp_insert_post(wp_slash(array('post_title' => 'Home links', 'post_content' => ${phpVar(content)})));
+			`,
+		});
+
+		await replaceSiteUrl(sourcePHP, '/wordpress', oldUrl, newUrl);
+
+		const result = await sourcePHP.run({
+			code: `<?php require '/wordpress/wp-load.php'; echo get_post(${Number(inserted.text)})->post_content;`,
+		});
+		expect(result.text).toBe(
+			content
+				.replaceAll(oldUrl, newUrl)
+				.replaceAll(
+					oldUrl.replaceAll('/', '\\/'),
+					newUrl.replaceAll('/', '\\/')
+				)
+		);
+	});
+
+	it('preserves serialized settings containing references without following cycles', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const stored = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$array = array('url' => ${phpVar(oldUrl)} . '/photo.jpg');
+			$array['self'] = &$array;
+			$object = (object) array('url' => ${phpVar(oldUrl)} . '/photo.jpg');
+			$object->self = $object;
+			$values = array(serialize($array), serialize($object));
+			foreach ($values as $index => $value) {
+				$wpdb->insert($wpdb->options, array('option_name' => 'migration_reference_' . $index, 'option_value' => $value, 'autoload' => 'no'));
+			}
+			echo json_encode($values);
+			`,
+		});
+		// Bound memory if cycle handling regresses.
+		await sourcePHP.mkdir('/wordpress/wp-content/mu-plugins');
+		await sourcePHP.writeFile(
+			'/wordpress/wp-content/mu-plugins/migration-memory-limit.php',
+			"<?php ini_set('memory_limit', '40M');"
+		);
+
+		await replaceSiteUrl(
+			sourcePHP,
+			'/wordpress',
+			oldUrl,
+			await targetPHP.absoluteUrl
+		);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			echo json_encode($wpdb->get_col("SELECT option_value FROM {$wpdb->options} WHERE option_name LIKE 'migration_reference_%' ORDER BY option_id"));
+			`,
+		});
+		expect(result.json).toEqual(stored.json);
+	});
+
+	it('preserves nested read-only plugin objects without restoring them', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		await sourcePHP.mkdir('/wordpress/wp-content/mu-plugins');
+		await sourcePHP.writeFile(
+			'/wordpress/wp-content/mu-plugins/migration-setting.php',
+			`<?php
+			class MigrationSetting {
+				public function __construct(public readonly string $url) {}
+				public function __wakeup() {
+					file_put_contents('/tmp/migration-object-restored', 'yes');
+				}
+			}
+		`
+		);
+		const stored = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$value = serialize(array('setting' => new MigrationSetting(${phpVar(oldUrl)} . '/photo.jpg')));
+			$wpdb->insert($wpdb->options, array('option_name' => 'migration_plugin_object', 'option_value' => $value, 'autoload' => 'no'));
+			echo $value;
+			`,
+		});
+
+		await replaceSiteUrl(
+			sourcePHP,
+			'/wordpress',
+			oldUrl,
+			await targetPHP.absoluteUrl
+		);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			echo $wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name = 'migration_plugin_object'");
+			`,
+		});
+		expect(result.text).toBe(stored.text);
+		expect(
+			await sourcePHP.fileExists('/tmp/migration-object-restored')
+		).toBe(false);
+	});
+
 	it('preserves post content that starts with a serialized value followed by more text', async () => {
 		const oldUrl = await sourcePHP.absoluteUrl;
 		const newUrl = await targetPHP.absoluteUrl;

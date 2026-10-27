@@ -612,6 +612,9 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 		expect(seeded.oldUrl).not.toBe(seeded.currentUrl);
 
 		await website.goto(`./?site-slug=${encodeURIComponent(saved.slug)}`);
+		await website.page.evaluate(() =>
+			(window as any).playgroundSites.isReady()
+		);
 		await openPlaygroundPath(website.page, `/?p=${seeded.postId}`);
 		const image = wordpress.getByAltText('Migrated image');
 		await expect(image).toHaveAttribute(
@@ -647,6 +650,9 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 			await client.flushOpfs('/wordpress');
 		}, seeded.oldUrl);
 		await website.goto(`./?site-slug=${encodeURIComponent(saved.slug)}`);
+		await website.page.evaluate(() =>
+			(window as any).playgroundSites.isReady()
+		);
 		const laterLink = await website.page.evaluate(async () => {
 			const result = await (window as any).playgroundSites
 				.getClient()

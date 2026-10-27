@@ -5,6 +5,7 @@ import {
 	type WorkerBootOptions,
 } from './playground-worker-endpoint';
 import { joinPaths, randomString } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 import { setURLScope } from '@php-wasm/scopes';
 import {
 	getSqliteDriverModuleDetails,
@@ -333,10 +334,15 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 				onProgress: reportBootProgress,
 			});
 
-			await this.migrateSiteUrl(
-				await requestHandler.getPrimaryPhp(),
-				siteUrl
-			);
+			try {
+				await this.migrateSiteUrl(
+					await requestHandler.getPrimaryPhp(),
+					siteUrl
+				);
+			} catch (error) {
+				// Keep saved sites accessible if migration or persistence fails.
+				logger.error('Could not migrate saved site URLs.', error);
+			}
 
 			reportBootProgress('Finalizing WordPress runtime');
 			await this.finalizeAfterBoot(
@@ -352,6 +358,10 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 		}
 	}
 
+	/**
+	 * Migrates mounted site data once per public URL and saves it before recording
+	 * completion. New sites only need the record for their first save.
+	 */
 	protected async migrateSiteUrl(php: PHP, siteUrl: string) {
 		const documentRoot = php.documentRoot;
 		const recordPath = joinPaths(documentRoot, '.playground-site-url');
