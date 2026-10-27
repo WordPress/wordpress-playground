@@ -33,6 +33,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
+import { safariModulePreloadWorkaround } from './vite-safari-module-preload';
 
 const exec = promisify(execCb);
 
@@ -369,6 +370,7 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			analyticsInjectionPlugin(),
+			safariModulePreloadWorkaround(),
 			{
 				name: 'inject-commit-id',
 				transformIndexHtml(html) {
