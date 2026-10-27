@@ -1,6 +1,7 @@
 vi.mock('./config', () => ({
 	playgroundOrigin: 'https://playground.test',
 }));
+vi.mock('virtual:remote-config', () => ({ buildVersion: 'new-release' }));
 
 type TestWorker = EventTarget & { state: string };
 
@@ -40,6 +41,16 @@ describe('WordPress helper worker updates', () => {
 	});
 
 	afterEach(() => vi.unstubAllGlobals());
+
+	it('bypasses a previous release cached by the CDN at the unversioned worker URL', async () => {
+		await import('./wordpress-bridge');
+		expect(navigator.serviceWorker.register).toHaveBeenCalledWith(
+			new URL(
+				'https://wp.playground.test/sw.js?build-version=new-release'
+			),
+			{ type: 'module', updateViaCache: 'none' }
+		);
+	});
 
 	it('waits for the update check and replacement activation with an existing registration', async () => {
 		// Model register() returning release A's already-active registration.

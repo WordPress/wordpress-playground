@@ -24,16 +24,21 @@
  */
 import { playgroundOrigin } from './config';
 import { portToStream, streamToPort } from '@php-wasm/universal';
+import { buildVersion } from 'virtual:remote-config';
 
 const scope = new URL(location.href).searchParams.get('scope');
 // The host serves /sw.js as a same-origin loader for the app's public worker.
 // Keep this URL literal: the service worker also bundles this helper for offline HTML.
-const registration = await navigator.serviceWorker.register(
-	new URL('/sw.js', location.origin),
-	{ type: 'module', updateViaCache: 'none' }
-);
-// register() can reuse release A's /sw.js registration without checking release
-// B's deployed bytes. Finish that check before selecting the worker to wait for.
+const workerUrl = new URL('/sw.js', location.origin);
+// A CDN may retain the old single-origin worker at /sw.js even after deployment.
+// updateViaCache bypasses the browser's HTTP cache, not that CDN response.
+workerUrl.searchParams.set('build-version', buildVersion);
+const registration = await navigator.serviceWorker.register(workerUrl, {
+	type: 'module',
+	updateViaCache: 'none',
+});
+// register() can reuse this loader URL's existing registration without checking
+// its imported app worker. Finish that check before selecting the worker to wait for.
 try {
 	await registration.update();
 } catch (error) {
