@@ -21,8 +21,8 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 /**
  * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
  *
- * The configured sandbox host serves only the wordpress-sandbox/ subdirectory:
- * the built HTTP helper and worker loaders, never app documents or PHP endpoints.
+ * The configured sandbox host serves the wordpress-sandbox/ subdirectory and
+ * versioned WordPress static files, never app documents or PHP endpoints.
  * Other hosts continue through the existing request handling below.
  *
  * The deployment script passes its private build directory. Personal WP passes no
@@ -63,30 +63,42 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 	$log( "Requested path: '$original_requested_path'" );
 
 	// Do not let this host reach the normal app handler, including its redirects
-	// and PHP endpoints. The real scripts/downloads stay at shared app-host URLs;
-	// only the small built sandbox directory belongs on the WordPress origin.
+	// and PHP endpoints. Shared app bundles keep their app-host URLs. WordPress's
+	// static-file redirects also need the /wp-<version>/ files on this origin.
 	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
 	if ( null !== $wordpress_origin && is_string( $request_host ) &&
 		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
 	) {
-		// This directory contains only built helper/loader files. Never fall back
-		// to app files, redirects, directory indexes, or native PHP on this host.
+		// Serve built helper/loader files or one WordPress static-asset directory.
+		// Never fall back to app files, redirects, directory indexes, or native PHP.
 		// Scoped WordPress pages come from the browser service worker, not this directory.
-		$sandbox = realpath( $directory . '/wordpress-sandbox' );
+		$wordpress_asset_path = array();
+		$is_wordpress_asset = 1 === preg_match( '~^/(wp-(?:[0-9]+\.[0-9]+|beta|nightly))/~', $original_requested_path, $wordpress_asset_path );
+		$asset_directory = realpath( $directory . ( $is_wordpress_asset
+			? '/' . $wordpress_asset_path[1] : '/wordpress-sandbox' ) );
 		// A helper URL containing the app's buildVersion can bypass a browser worker
 		// installed by a different release. Every alias serves the deployed release's
 		// one helper document; the version never selects another file or release.
 		$sandbox_path = preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
 			? '/wordpress-bridge.html' : $original_requested_path;
-		$file = $sandbox ? realpath( $sandbox . $sandbox_path ) : false;
-		if ( ! $file || ! is_file( $file ) || ! str_starts_with( $file, $sandbox . '/' ) ) {
+		$file = $asset_directory ? realpath( ( $is_wordpress_asset ? $directory : $asset_directory ) . $sandbox_path ) : false;
+		if ( ! $file || ! is_file( $file ) ||
+			! str_starts_with( $asset_directory, $directory . '/' ) ||
+			! str_starts_with( $file, $asset_directory . '/' ) ||
+			'php' === strtolower( pathinfo( $file, PATHINFO_EXTENSION ) )
+		) {
 			http_response_code( 404 );
 			exit;
 		}
 		require_once __DIR__ . '/mime-types.php';
 		$extension = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
 		header( 'Content-Type: ' . ( $mime_types[ $extension ] ?? $mime_types['_default'] ) );
-		header( 'Cache-Control: private, no-store' );
+		if ( $is_wordpress_asset ) {
+			header( 'A8C-Edge-Cache: cache' );
+			header( 'Cache-Control: public, max-age=3600' );
+		} else {
+			header( 'Cache-Control: private, no-store' );
+		}
 		header( 'X-Content-Type-Options: nosniff' );
 		header_remove( 'X-Frame-Options' );
 		playground_serve_static_file( $file );

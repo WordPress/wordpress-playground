@@ -36,8 +36,9 @@ The main deployment workflow sets `PLAYGROUND_APP_ORIGIN` to
 `https://playground.wordpress.net` and `VITE_WORDPRESS_SITE_URL` to
 `https://wpsandbox.wordpress.net`. It uses those values for the browser build and
 passes them to the single `apply-update.sh` script. The build produces a small
-`wordpress-sandbox/` document root; PHP serves its existing files on the sandbox
-host without generating their contents. The PHP library has no hardcoded host choice.
+`wordpress-sandbox/` document root; PHP serves its existing files and versioned
+WordPress static files on the sandbox host without generating their contents.
+The PHP library has no hardcoded host choice.
 `apply-update.sh` checks both hosts, installs a private
 release, moves old public files to a rollback backup, and replaces the public
 entry file. See the [two-host deployment guide](wordpress-frame/README.md) for
