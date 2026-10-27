@@ -1,5 +1,5 @@
 /* eslint-disable @nx/enforce-module-boundaries */
-import { PHP } from '@php-wasm/universal';
+import { __private__dont__use, PHP } from '@php-wasm/universal';
 import type { FilesystemOperation } from '../lib/fs-journal';
 import {
 	journalFSEvents,
@@ -73,11 +73,79 @@ describe('Journal MemFS', () => {
 			unbind();
 		}
 	});
-	it('does not record failed link creation or moves', () => {
+	it('records creates and removals below directory links at their real paths', () => {
+		php.mkdir('/test/real');
+		php.symlink('real', '/test/alias');
+		const FS = php[__private__dont__use].FS;
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			FS.mkdir('/test/alias/created');
+			FS.mknod('/test/alias/file', 0o100644, 0);
+			FS.rmdir('/test/alias/created');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/real/created',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'file',
+					path: '/test/real/file',
+				},
+				{
+					operation: 'DELETE',
+					nodeType: 'directory',
+					path: '/test/real/created',
+				},
+			]);
+		} finally {
+			unbind();
+		}
+	});
+	it('scopes linked-parent operations by the resolved path', () => {
+		php.mkdir('/test');
+		php.mkdir('/outside');
+		php.symlink('/outside', '/test/link-out');
+		php.symlink('/test', '/outside/link-in');
+		const FS = php[__private__dont__use].FS;
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			FS.mkdir('/test/link-out/ignored');
+			FS.mknod('/test/link-out/ignored-file', 0o100644, 0);
+			FS.rmdir('/test/link-out/ignored');
+			FS.mkdir('/outside/link-in/created');
+			FS.mknod('/outside/link-in/file', 0o100644, 0);
+			FS.rmdir('/outside/link-in/created');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/created',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'file',
+					path: '/test/file',
+				},
+				{
+					operation: 'DELETE',
+					nodeType: 'directory',
+					path: '/test/created',
+				},
+			]);
+		} finally {
+			unbind();
+		}
+	});
+	it('does not record failed filesystem calls', () => {
 		php.mkdir('/test');
 		php.mkdir('/test/directory');
 		php.writeFile('/test/existing', 'keep');
 		php.symlink('missing', '/test-outside-link');
+		const FS = php[__private__dont__use].FS;
 		const events: FilesystemOperation[] = [];
 		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
 		try {
@@ -85,6 +153,15 @@ describe('Journal MemFS', () => {
 			expect(() =>
 				php.mv('/test-outside-link', '/test/directory')
 			).toThrow();
+			expect(() => FS.mkdir('/missing/directory')).toThrowError(
+				expect.objectContaining({ errno: 44 })
+			);
+			expect(() => FS.mknod('/missing/file', 0o100644, 0)).toThrowError(
+				expect.objectContaining({ errno: 44 })
+			);
+			expect(() => FS.rmdir('/missing/directory')).toThrowError(
+				expect.objectContaining({ errno: 44 })
+			);
 			expect(events).toEqual([]);
 		} finally {
 			unbind();

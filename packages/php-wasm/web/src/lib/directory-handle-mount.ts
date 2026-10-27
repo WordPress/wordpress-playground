@@ -169,6 +169,8 @@ export function createDirectoryHandleMountHandler(
  * The mount-root `.playground-symlinks.json` is read as a link index, not copied
  * into MEMFS. Links are created after the real files and directories, with
  * their saved targets unchanged even when those targets do not exist.
+ * A stale index entry is skipped with a warning if a real entry occupies its
+ * path or its parent is missing or no longer a directory. Other errors reject.
  */
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
@@ -266,7 +268,22 @@ async function copyOpfsToMemfs(
 	// Targets may be missing, outside the mount, or links themselves. Restore
 	// the links only after all real directories and files have been copied.
 	for (const [path, target] of symlinks) {
-		FS.symlink(target, joinPaths(memfsRoot, path));
+		const linkPath = joinPaths(memfsRoot, path);
+		try {
+			FS.symlink(target, linkPath);
+		} catch (error) {
+			// Files and the index are saved separately. After an interrupted
+			// flush, EEXIST, ENOENT, or ENOTDIR can mean the index is stale.
+			const errno = (error as Emscripten.FS.ErrnoError)?.errno;
+			if (errno !== 20 && errno !== 44 && errno !== 54) {
+				throw error;
+			}
+			logger.warn('Skipping saved symlink that conflicts with OPFS', {
+				linkPath,
+				target,
+				error,
+			});
+		}
 	}
 }
 
@@ -467,6 +484,13 @@ async function copyMemfsTreeToOpfs(
 	});
 }
 
+/**
+ * Writes the current MEMFS bytes at a saved file's path.
+ *
+ * Journal entries store paths, not file contents. A file may have moved or
+ * disappeared by the time replay reads it. Any MEMFS read failure leaves the
+ * OPFS file untouched; write failures still reject for the caller to retry.
+ */
 async function overwriteOpfsFile(
 	opfsParent: FileSystemDirectoryHandle,
 	name: string,
@@ -753,6 +777,10 @@ export function journalFSEventsToOpfs(
 		});
 	}
 
+	/**
+	 * Waits for initial sync, then drains queued changes within the batch limit.
+	 * Also retries a dirty symlink index when no filesystem operations remain.
+	 */
 	async function flushJournal() {
 		// Initial copying and replay both write the symlink index. Capture
 		// changes during setup, but replay them only after that copy finishes.

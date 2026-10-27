@@ -202,6 +202,11 @@ Journaled link changes save the index once per batch. A failed index write stays
 pending for the next flush, without replaying file operations that already
 completed.
 
+File changes and the index are saved separately. If a save is interrupted,
+restore keeps real files and directories and skips stale links whose paths are
+occupied or whose parents are missing or no longer directories. Each skipped
+link is logged as a warning; other errors still fail the mount.
+
 The same format applies to local folders mounted through a directory handle.
 Their saved links are records in this JSON file, not native host symlinks.
 A real PHP file at the reserved root path is rejected. Invalid saved indexes

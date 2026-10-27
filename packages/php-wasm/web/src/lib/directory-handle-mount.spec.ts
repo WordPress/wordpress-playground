@@ -160,6 +160,102 @@ describe('saved symlinks', () => {
 		}
 	});
 
+	it('preserves directory links when creating directories through them', async () => {
+		php.mkdir('/site/real');
+		php.symlink('real', '/site/link');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		await copyMemfsToOpfs(php[__private__dont__use].FS, handle, '/site');
+		const mount = journalFSEventsToOpfs(php, handle, '/site');
+		const response = await php.run({
+			code: `<?php
+				mkdir('/site/link/new');
+				file_put_contents('/site/link/new/file', 'saved');
+			`,
+		});
+		expect(response.errors).toBe('');
+		await mount.flush();
+		await mount.unmount();
+		expect(root.directories.has('link')).toBe(false);
+		const unmount = await php.mount(
+			'/site',
+			createDirectoryHandleMountHandler(handle)
+		);
+		try {
+			expect(php.readlink('/site/link')).toBe('real');
+			expect(php.isDir('/site/link/new')).toBe(true);
+			expect(php.readFileAsText('/site/real/new/file')).toBe('saved');
+		} finally {
+			await unmount();
+		}
+	});
+
+	it.each(['/file', '/dir', '/missing/link', '/file/link'])(
+		'restores real entries and remaining links when the index has stale path %s',
+		async (stalePath) => {
+			php.mkdir('/site/dir');
+			php.writeFile('/site/file', 'saved');
+			php.symlink('file', '/site/valid');
+			const root = new MemoryDirectoryHandle('root');
+			const handle = root as unknown as FileSystemDirectoryHandle;
+			await copyMemfsToOpfs(
+				php[__private__dont__use].FS,
+				handle,
+				'/site'
+			);
+			// An interrupted flush can update physical entries before the index.
+			root.files.get('.playground-symlinks.json')!.bytes = encode(
+				JSON.stringify({
+					version: 1,
+					links: { [stalePath]: 'old-target', '/valid': 'file' },
+				})
+			);
+			const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+			let unmount: (() => Promise<void>) | undefined;
+			try {
+				unmount = await php.mount(
+					'/site',
+					createDirectoryHandleMountHandler(handle)
+				);
+				expect(php.readFileAsText('/site/file')).toBe('saved');
+				expect(php.isDir('/site/dir')).toBe(true);
+				expect(php.readlink('/site/valid')).toBe('file');
+				expect(php.fileExists('/site/missing')).toBe(false);
+				expect(warn).toHaveBeenCalledTimes(1);
+				expect(warn).toHaveBeenCalledWith(
+					expect.any(String),
+					expect.objectContaining({
+						linkPath: joinPaths('/site', stalePath),
+						target: 'old-target',
+					})
+				);
+			} finally {
+				await unmount?.();
+				warn.mockRestore();
+			}
+		}
+	);
+
+	it('rejects unexpected failures while restoring saved links', async () => {
+		php.mkdir('/site');
+		php.symlink('missing', '/site/link');
+		const root = new MemoryDirectoryHandle('root');
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		const FS = php[__private__dont__use].FS;
+		await copyMemfsToOpfs(FS, handle, '/site');
+		const failure = new Error('Cannot restore saved link');
+		const symlink = vi.spyOn(FS, 'symlink').mockImplementationOnce(() => {
+			throw failure;
+		});
+		try {
+			await expect(
+				php.mount('/site', createDirectoryHandleMountHandler(handle))
+			).rejects.toBe(failure);
+		} finally {
+			symlink.mockRestore();
+		}
+	});
+
 	it('persists link edits, writes through links, and renamed directories', async () => {
 		php.mkdir('/site/dir');
 		php.writeFile('/site/dir/file.txt', 'old');

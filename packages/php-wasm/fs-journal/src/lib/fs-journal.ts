@@ -237,6 +237,13 @@ export function journalFSEvents(
 	};
 }
 
+/**
+ * Builds observers that describe FS calls without changing the filesystem.
+ *
+ * Most hooks run before the original call, while source entries still exist.
+ * The symlink hook runs afterward because it needs the new link's own path.
+ * `journalFSEvents` buffers these records and publishes them only on success.
+ */
 const createFSHooks = (
 	FS: EmscriptenFS,
 	recordEntry: (entry: FilesystemOperation) => void = () => {}
@@ -289,7 +296,7 @@ const createFSHooks = (
 		if (FS.isFile(mode)) {
 			recordEntry({
 				operation: 'CREATE',
-				path,
+				path: resolveEntryPath(FS, path),
 				nodeType: 'file',
 			});
 		}
@@ -297,14 +304,14 @@ const createFSHooks = (
 	mkdir(path: string) {
 		recordEntry({
 			operation: 'CREATE',
-			path,
+			path: resolveEntryPath(FS, path),
 			nodeType: 'directory',
 		});
 	},
 	rmdir(path: string) {
 		recordEntry({
 			operation: 'DELETE',
-			path,
+			path: resolveEntryPath(FS, path),
 			nodeType: 'directory',
 		});
 	},
@@ -339,6 +346,24 @@ const createFSHooks = (
 		}
 	},
 });
+
+/**
+ * Resolves parent links while keeping the final entry, which may not exist yet.
+ *
+ * For example, creating `/site/alias/new` below `alias -> real` must record
+ * `/site/real/new`. If lookup fails, leaves the path unchanged so the original
+ * FS call reports its own error. Failed calls do not publish journal entries.
+ */
+function resolveEntryPath(FS: EmscriptenFS, path: string) {
+	try {
+		return joinPaths(
+			FS.lookupPath(path, { parent: true }).path,
+			basename(path)
+		);
+	} catch {
+		return path;
+	}
+}
 
 /**
  * Replays a list of filesystem operations on a PHP instance.

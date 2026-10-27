@@ -37,6 +37,8 @@ test('saves and restores symlinks in real browser OPFS', async ({ page }) => {
 				code: `<?php
 				file_put_contents('/site/dir/link', 'new');
 				rename('/site/dir', '/site/moved');
+				symlink('moved', '/site/directory-link');
+				mkdir('/site/directory-link/new');
 				symlink('./moved/file.txt', '/site/new-link');
 				rename('/site/broken', '/site/renamed');
 			`,
@@ -62,6 +64,10 @@ test('saves and restores symlinks in real browser OPFS', async ({ page }) => {
 					outsideFileAfterRemount,
 					paths: restored.listFiles('/site').sort(),
 					directoryTarget: restored.readlink('/site/moved/link'),
+					directoryAliasTarget: restored.readlink(
+						'/site/directory-link'
+					),
+					nestedDirectory: restored.isDir('/site/directory-link/new'),
 					file: restored.readFileAsText('/site/moved/link'),
 					newTarget: restored.readlink('/site/new-link'),
 					brokenTarget: restored.readlink('/site/renamed'),
@@ -81,8 +87,17 @@ test('saves and restores symlinks in real browser OPFS', async ({ page }) => {
 	});
 	expect(result).toEqual({
 		outsideFileAfterRemount: 'keep outside file',
-		paths: ['cycle', 'moved', 'new-link', 'outside', 'renamed'],
+		paths: [
+			'cycle',
+			'directory-link',
+			'moved',
+			'new-link',
+			'outside',
+			'renamed',
+		],
 		directoryTarget: './file.txt',
+		directoryAliasTarget: 'moved',
+		nestedDirectory: true,
 		file: 'new',
 		newTarget: './moved/file.txt',
 		brokenTarget: '../missing',
