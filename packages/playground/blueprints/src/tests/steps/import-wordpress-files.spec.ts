@@ -493,6 +493,128 @@ describe('Blueprint step importWordPressFiles', () => {
 		});
 	});
 
+	it('migrates attachment URLs and srcset in a saved block template', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const newUrl = setURLScope(
+			'http://wpsandbox.wordpress.net',
+			sourceScope
+		).toString();
+		const seeded = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			require '/wordpress/wp-admin/includes/image.php';
+			wp_set_current_user(1);
+			$image = imagecreatetruecolor(1200, 800);
+			ob_start();
+			imagejpeg($image);
+			$upload = wp_upload_bits('migration.jpg', null, ob_get_clean());
+			$attachment = wp_insert_attachment(array('post_mime_type' => 'image/jpeg', 'post_title' => 'Migration image', 'post_status' => 'inherit'), $upload['file']);
+			wp_update_attachment_metadata($attachment, wp_generate_attachment_metadata($attachment, $upload['file']));
+			$content = '<!-- wp:image {"id":' . $attachment . ',"sizeSlug":"full"} --><figure class="wp-block-image size-full">' . wp_get_attachment_image($attachment, 'full', false, array('class' => 'wp-image-' . $attachment)) . '</figure><!-- /wp:image -->';
+			$template = wp_insert_post(wp_slash(array('post_type' => 'wp_template', 'post_name' => 'migration-image', 'post_status' => 'publish', 'post_content' => $content)));
+			wp_set_object_terms($template, get_stylesheet(), 'wp_theme');
+			echo json_encode(array(
+				'attachment' => $attachment,
+				'url' => wp_get_attachment_url($attachment),
+				'srcset' => wp_get_attachment_image_srcset($attachment, 'full'),
+				'content' => get_post($template)->post_content,
+			));
+			`,
+		});
+		expect(seeded.json.url).toContain(`${oldUrl}/wp-content/uploads/`);
+		expect(seeded.json.srcset.split(',').length).toBeGreaterThan(1);
+		expect(seeded.json.content).toContain(seeded.json.srcset);
+
+		// Boot sets these constants before migrating a stored site's database.
+		sourcePHP.defineConstant('WP_HOME', newUrl);
+		sourcePHP.defineConstant('WP_SITEURL', newUrl);
+		await replaceSiteUrl(sourcePHP, '/wordpress', oldUrl, newUrl);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$template = get_block_template(get_stylesheet() . '//migration-image', 'wp_template');
+			$image = new WP_HTML_Tag_Processor(do_blocks($template->content));
+			$image->next_tag('IMG');
+			echo json_encode(array(
+				'url' => wp_get_attachment_url(${phpVar(seeded.json.attachment)}),
+				'srcset' => wp_get_attachment_image_srcset(${phpVar(seeded.json.attachment)}, 'full'),
+				'content' => $template->content,
+				'src' => $image->get_attribute('src'),
+				'blockSrcset' => $image->get_attribute('srcset'),
+			));
+			`,
+		});
+		const imageUrl = seeded.json.url.replace(oldUrl, newUrl);
+		const srcset = seeded.json.srcset.replaceAll(oldUrl, newUrl);
+		expect(result.json).toEqual({
+			url: imageUrl,
+			srcset,
+			content: seeded.json.content.replaceAll(oldUrl, newUrl),
+			src: imageUrl,
+			blockSrcset: srcset,
+		});
+		for (const candidate of srcset.split(',')) {
+			const url = candidate.trim().split(' ')[0];
+			const response = await sourceHandler.request({ url });
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.headers['content-type']).toContain('image/jpeg');
+			expect(response.bytes.length).toBeGreaterThan(0);
+		}
+	});
+
+	it('imports site URLs across hosts when the scope stays the same', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const newUrl = setURLScope(
+			'http://wpsandbox.wordpress.net',
+			sourceScope
+		).toString();
+		expect(new URL(newUrl).pathname).toBe(new URL(oldUrl).pathname);
+		expect(new URL(newUrl).origin).not.toBe(new URL(oldUrl).origin);
+		const inserted = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$image = ${phpVar(oldUrl)} . '/wp-content/uploads/photo.jpg';
+			$post = wp_insert_post(array('post_title' => 'Imported image', 'post_content' => '<img src="' . $image . '">'));
+			update_post_meta($post, 'migration_gallery', array('cover' => $image));
+			update_option('migration_import_settings', array('nested' => array('image' => $image), 'label' => 'Zażółć gęślą'));
+			echo $post;
+			`,
+		});
+		const archive = new File(
+			[await zipWpContent(sourcePHP)],
+			'same-scope.zip'
+		);
+		targetPHP.exit();
+		await targetHandler[Symbol.asyncDispose]();
+		targetHandler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: () => loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: newUrl,
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+		});
+		targetPHP = await targetHandler.getPrimaryPhp();
+
+		await importWordPressFiles(targetPHP, { wordPressFilesZip: archive });
+
+		const result = await targetPHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			echo json_encode(array(
+				'content' => get_post(${Number(inserted.text)})->post_content,
+				'gallery' => get_post_meta(${Number(inserted.text)}, 'migration_gallery', true),
+				'settings' => get_option('migration_import_settings'),
+			));
+			`,
+		});
+		const image = `${newUrl}/wp-content/uploads/photo.jpg`;
+		expect(result.json).toEqual({
+			content: `<img src="${image}">`,
+			gallery: { cover: image },
+			settings: { nested: { image }, label: 'Zażółć gęślą' },
+		});
+	});
+
 	it('updates home links without a trailing slash in HTML and block JSON', async () => {
 		const oldUrl = 'https://playground.wordpress.net/scope:saved-site';
 		const newUrl = 'https://wpsandbox.wordpress.net/scope:saved-site';
