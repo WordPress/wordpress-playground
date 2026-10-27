@@ -362,7 +362,7 @@ describe('Reprint connection changes', () => {
 		await render();
 		edit('url', 'https://example.com');
 		await submit();
-		expect(container.textContent).toContain('Add this public key');
+		expect(container.textContent).toContain('Add this migration key');
 		await submit();
 		expect(container.querySelector('input')).toBeNull();
 		expect(vi.mocked(pullSite).mock.calls[0][2]).toBe(privateKey);
@@ -480,7 +480,7 @@ describe('Reprint connection changes', () => {
 					'signed in as an administrator'
 				);
 				expect(container.textContent).not.toContain(
-					'Back to connection key'
+					'Back to migration key'
 				);
 			}
 		}
@@ -494,7 +494,7 @@ describe('Reprint connection changes', () => {
 		};
 		// No client yet: the new Playground is still booting.
 		await render(null as unknown as PlaygroundClient, true);
-		await click('Back to connection key');
+		await click('Back to migration key');
 		await render(playground, true);
 		expect(pullSite).not.toHaveBeenCalled();
 		expect(

@@ -58,7 +58,7 @@ test(
 			.getByRole('button', { name: 'Reprint is installed — connect' })
 			.click();
 		await expect(
-			pane.getByRole('textbox', { name: 'Public key', exact: true })
+			pane.getByRole('textbox', { name: 'Migration key', exact: true })
 		).toHaveValue(/^[A-Za-z0-9+/]+=*$/);
 		expect(await activeSlug()).toBe(originalSlug);
 		await pane.getByRole('button', { name: 'Clone site' }).click();

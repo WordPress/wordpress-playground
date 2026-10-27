@@ -53,7 +53,7 @@ test(
 		await pane.getByRole('button', { name: 'Check site' }).click();
 		// The key step opens only when Reprint Server answered the probe.
 		const key = pane.getByRole('textbox', {
-			name: 'Public key',
+			name: 'Migration key',
 			exact: true,
 		});
 		await expect(key).toHaveValue(/^[A-Za-z0-9+/]+=*$/);

@@ -176,7 +176,7 @@ export function SiteTransferPanel({
 			(error) => {
 				if (cancelled) return;
 				setError(
-					`Could not generate a connection key: ${error instanceof Error ? error.message : String(error)}`
+					`Could not generate a migration key: ${error instanceof Error ? error.message : String(error)}`
 				);
 			}
 		);
@@ -542,7 +542,7 @@ export function SiteTransferPanel({
 									step === 'site'
 										? 'Back to New Playground'
 										: step === 'transfer'
-											? 'Back to connection key'
+											? 'Back to migration key'
 											: 'Back to site address',
 								onBack: goBack,
 							}
@@ -727,12 +727,12 @@ export function SiteTransferPanel({
 					>
 						<VStack spacing={3}>
 							{generatingKey && (
-								<InlineProgress message="Generating a connection key…" />
+								<InlineProgress message="Generating a migration key…" />
 							)}
 							{keyPair && (
 								<>
 									<p>
-										Add this public key in{' '}
+										Add this migration key in{' '}
 										<a
 											href={links.settings}
 											target="_blank"
@@ -744,7 +744,7 @@ export function SiteTransferPanel({
 									</p>
 									<TextareaControl
 										__nextHasNoMarginBottom
-										label="Public key"
+										label="Migration key"
 										onChange={() => {}}
 										readOnly
 										autoFocus={isVisible}
@@ -764,20 +764,20 @@ export function SiteTransferPanel({
 												dispatch(
 													setDockOperationNotice({
 														status: 'success',
-														title: 'Public key copied',
+														title: 'Migration key copied',
 													})
 												);
 											} catch {
 												setError(
-													'Select the public key above and copy it manually.'
+													'Select the migration key above and copy it manually.'
 												);
 											}
 										}}
 									>
-										Copy public key
+										Copy migration key
 									</Button>
 									<p className={css.hint}>
-										Only the public key goes to your live
+										Only the migration key goes to your live
 										site. The private key stays in this tab
 										and is reused when you retry.
 									</p>
