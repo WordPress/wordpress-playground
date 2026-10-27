@@ -81,7 +81,8 @@ export function DeleteSiteModal() {
 				) : null}
 				<ModalButtons
 					submitText="Delete Playground"
-					areBusy={isSubmitting}
+					submitBusy={isSubmitting}
+					submitDestructive
 					onCancel={closeModal}
 				/>
 			</form>
