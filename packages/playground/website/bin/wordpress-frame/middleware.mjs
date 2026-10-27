@@ -36,8 +36,9 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 		res.set('X-Content-Type-Options', 'nosniff');
 		res.set('Cache-Control', 'no-store');
 		if (req.hostname === 'wp.playground.localhost') {
-			// All build-keyed helper URLs serve the current built helper file.
-			// Older workers do not intercept a newer build's path.
+			// Versions in these URLs bypass workers installed by a different release.
+			// They do not select a release from disk: serve the preview's selected
+			// sandbox helper, which already names that release's scripts.
 			if (isWordPressBridgePath(req.path)) {
 				const search = new URL(req.url, 'http://localhost').search;
 				req.url = '/wordpress-bridge.html' + search;

@@ -286,8 +286,12 @@ self.addEventListener('fetch', (event) => {
 		url.origin === self.location.origin &&
 		isWordPressBridgePath(url.pathname)
 	) {
-		// Only generate HTML for our own build (or the legacy URL). A new app's
-		// helper must reach the network, not inherit this worker's old bundle URL.
+		// Release A's worker may still be active after release B is deployed.
+		// If it answers B's helper URL, its HTML will still name A's script,
+		// which the server may have removed. Generate HTML only for this worker's
+		// buildVersion and the unversioned /wordpress-bridge.html compatibility URL.
+		// Helper URLs naming any other build must reach the server, which serves
+		// the deployed release's helper HTML and script URLs.
 		if (
 			url.pathname !== '/wordpress-bridge.html' &&
 			url.pathname !== getWordPressBridgePath(buildVersion)

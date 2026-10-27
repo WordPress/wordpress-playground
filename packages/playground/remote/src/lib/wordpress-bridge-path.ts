@@ -1,17 +1,20 @@
 /**
  * Give each app build its own helper document URL.
  *
- * An older WordPress worker must not supply helper HTML pointing at JavaScript
- * removed by a newer deployment. A new path reaches the server instead, where
- * the current helper can register the current worker before PHP startup finishes.
+ * For example, a browser can still run release A's WordPress worker after
+ * release B is deployed. A's helper HTML names A's script, which B may no longer
+ * serve. Including B's buildVersion in the helper path lets that request reach
+ * the server, so the deployed helper can load its script and update the worker
+ * before PHP startup finishes.
  */
 export function getWordPressBridgePath(buildVersion: string): string {
 	return `/wordpress-bridge-${buildVersion}.html`;
 }
 
 /**
- * Recognize only the legacy helper and its build-keyed aliases, never app HTML.
- * Servers map these aliases to the existing built wordpress-bridge.html file.
+ * Recognize the unversioned /wordpress-bridge.html and its build-version aliases.
+ * Servers map every alias to the deployed release's wordpress-bridge.html file;
+ * the version cannot select a historical release, an app document, or PHP.
  * Git builds use a hexadecimal commit ID; builds outside Git use a timestamp.
  */
 export function isWordPressBridgePath(pathname: string): boolean {

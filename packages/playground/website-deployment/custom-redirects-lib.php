@@ -73,8 +73,9 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		// to app files, redirects, directory indexes, or native PHP on this host.
 		// Scoped WordPress pages come from the browser service worker, not this directory.
 		$sandbox = realpath( $directory . '/wordpress-sandbox' );
-		// A new build must bypass the previous worker's helper HTML and its obsolete
-		// script URL. These aliases still serve just the one built helper document.
+		// A helper URL containing the app's buildVersion can bypass a browser worker
+		// installed by a different release. Every alias serves the deployed release's
+		// one helper document; the version never selects another file or release.
 		$sandbox_path = preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
 			? '/wordpress-bridge.html' : $original_requested_path;
 		$file = $sandbox ? realpath( $sandbox . $sandbox_path ) : false;

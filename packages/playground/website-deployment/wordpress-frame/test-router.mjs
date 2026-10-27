@@ -547,8 +547,8 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const bridge = await request('/wordpress-bridge.html', wordpress);
 	assert.equal(bridge.status, 200);
 	assert.equal(await bridge.text(), sandboxHtml);
-	// Build-keyed aliases bypass an older browser worker, but still serve only
-	// the current helper file. They must not become a general app-file rewrite.
+	// Build-version aliases bypass a worker installed by a different release.
+	// Every alias serves the deployed helper, not a historical release or app file.
 	for (const version of ['a'.repeat(40), '1793090000']) {
 		const helper = await request(
 			`/wordpress-bridge-${version}.html`,

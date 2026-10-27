@@ -24,8 +24,10 @@ const expiredScript = appOrigin + '/assets/wordpress-bridge-expired.js';
 
 test.describe('WordPress helper upgrades', { tag: '@storage' }, () => {
 	test.beforeAll(async () => {
-		// Seed a real older worker in the browser, not CacheStorage. It synthesizes
-		// both legacy and previous-build HTML pointing at a script that is gone.
+		// Install a test worker representing release A before loading this test's
+		// app build (release B). For both /wordpress-bridge.html and A's versioned
+		// helper URL, it generates HTML naming a script B no longer serves.
+		// Seed the worker itself, not CacheStorage.
 		await writeFile(
 			resolve(sandbox, previousWorker),
 			`
@@ -86,8 +88,8 @@ self.addEventListener('fetch', event => {
 				)
 			)
 			.toBe('activated');
-		// Start a new controlled document, as a returning visitor would. The seed
-		// worker must respondWith() this navigation, even though it forwards to HTTP:
+		// Navigate the fixture again so the installed test worker controls it.
+		// It must respondWith() this navigation, even though it forwards to HTTP:
 		// Playwright's Firefox loses the controller on unhandled navigations.
 		// https://github.com/microsoft/playwright/issues/37012
 		await seed.goto(wordPressOrigin + '/' + seedDocument);
@@ -143,8 +145,9 @@ self.addEventListener('fetch', event => {
 			.toBe('current PHP connection');
 		expect(expiredRequests).toBe(0);
 
-		// This replacement must also leave a future build's helper to the server,
-		// rather than recreating the same stale-HTML failure at the next deploy.
+		// The active worker now belongs to the tested app build, release B.
+		// Release C represents another deployment after B. Its helper URL must
+		// reach the server, not receive HTML naming B's script, which C may remove.
 		const future = new URL(
 			getWordPressBridgePath('f'.repeat(40)),
 			wordPressOrigin

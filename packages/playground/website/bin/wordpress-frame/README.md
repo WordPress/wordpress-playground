@@ -50,9 +50,11 @@ script installs the private build and its public entry. See the [deployment guid
   check the PHP iframe's origin, not the rendered WordPress URL. No popup or
   cross-origin filesystem protocol is added.
 - The WordPress origin registers a service worker through a small helper page.
-  Each app build uses a different helper URL. Older workers let it reach the
-  server instead of returning HTML for a script removed by the new deployment.
-  The helper waits for the replacement worker to activate before reporting ready.
+  Each app build puts its buildVersion in the helper URL. A browser worker installed
+  during a previous visit lets URLs naming other builds reach the server, rather
+  than return HTML naming its own release's script, which may no longer be served.
+  The deployed helper registers the deployed WordPress worker and waits for it
+  to activate before reporting ready.
   Requests travel through that helper to the assigned PHP worker. Responses keep
   the existing streamed-body transport.
 - The WordPress service worker generates the helper HTML and thumbnail-worker
