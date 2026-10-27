@@ -49,6 +49,10 @@ Temporary Playgrounds do not report `persistence` because there is no stored lif
 
 ## Creating and switching sites
 
+New site slugs always include a random UUID suffix. For example, the hint
+`demo` becomes `demo-68ab71a1-d43e-45c2-b203-49cdbdf8e571`. Use the slug returned
+by creation for later API calls. Existing saved slugs are not renamed.
+
 ### `createNewTemporarySite(slug?, settings?)`
 
 Creates a new temporary site and switches to it. Resolves with the new site's slug once it has booted.

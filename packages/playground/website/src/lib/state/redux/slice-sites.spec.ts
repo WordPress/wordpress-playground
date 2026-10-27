@@ -595,7 +595,7 @@ describe('stored sites', () => {
 			}
 		)(dispatch as any, getState as any);
 
-		expect(newSite.slug).toBe('source-site-2');
+		expect(newSite.slug).toMatch(/^source-site-[0-9a-f-]{36}$/);
 		expect(newSite.metadata).toMatchObject({
 			name: 'Edited Blueprint',
 			storage: 'opfs',
@@ -607,11 +607,11 @@ describe('stored sites', () => {
 			runtimeConfiguration,
 		});
 		expect(persistBlueprintBundle).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			editedBundle
 		);
 		expect(createSite).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			newSite.metadata,
 			undefined
 		);
@@ -619,7 +619,7 @@ describe('stored sites', () => {
 		expect(writes).toEqual(['bundle', 'metadata']);
 		expect(state.sites.entities).toMatchObject({
 			'source-site': sourceSite,
-			'source-site-2': newSite,
+			[newSite.slug]: newSite,
 		});
 	});
 
@@ -662,7 +662,9 @@ describe('stored sites', () => {
 			)(createThunkDispatch() as any, createEmptyGetState() as any)
 		).rejects.toThrow('Could not copy bundle');
 
-		expect(deleteBlueprintBundle).toHaveBeenCalledWith('edited-blueprint');
+		expect(deleteBlueprintBundle).toHaveBeenCalledWith(
+			persistBlueprintBundle.mock.calls[0][0]
+		);
 		expect(createSite).not.toHaveBeenCalled();
 	});
 
@@ -686,7 +688,9 @@ describe('stored sites', () => {
 			)(createThunkDispatch() as any, createEmptyGetState() as any)
 		).rejects.toThrow('Could not write metadata');
 
-		expect(deleteBlueprintBundle).toHaveBeenCalledWith('edited-blueprint');
+		expect(deleteBlueprintBundle).toHaveBeenCalledWith(
+			persistBlueprintBundle.mock.calls[0][0]
+		);
 	});
 });
 
