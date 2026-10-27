@@ -26,12 +26,23 @@ import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availabilit
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
 import {
 	isAutosavedSite,
+	updateSiteMetadata,
 	type SiteStorageType,
 } from '../../lib/state/redux/slice-sites';
 import { logger } from '@php-wasm/logger';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
+import { InlineProgress } from '../pane-loading';
+import {
+	hasSpacefastConnection,
+	saveSiteToSpacefast,
+} from '../../lib/spacefast/save';
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
+import { extractSpacefastHandoffUrl } from '../../lib/spacefast/handoff';
 
-type StorageOption = Extract<SiteStorageType, 'opfs' | 'local-fs'>;
+type StorageOption =
+	| Extract<SiteStorageType, 'opfs' | 'local-fs'>
+	| 'spacefast';
 
 type SaveSiteModalProps =
 	| {
@@ -82,6 +93,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 	const [name, setName] = useState(initialName);
 	const [selectedStorage, setSelectedStorage] = useState<StorageOption>(
 		() => {
+			if (site?.metadata.spacefast) return 'spacefast';
 			if (isOpfsAvailable) {
 				return 'opfs';
 			}
@@ -98,6 +110,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 	const [directoryError, setDirectoryError] = useState<string | null>(null);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [handoff, setHandoff] = useState('');
+	const [spacefastProgress, setSpacefastProgress] = useState('');
+	const [spacefastResult, setSpacefastResult] = useState<string>();
+	const connected = !!site && hasSpacefastConnection(site.metadata.id);
 	const nameInputRef = useRef<HTMLInputElement>(null);
 	const nameSiteSlugRef = useRef<string>();
 
@@ -154,7 +170,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 
 	const isAutosaved = site && isAutosavedSite(site);
 	const canSaveSite =
-		site && (site.metadata.storage === 'none' || isAutosaved);
+		site &&
+		(site.metadata.storage === 'none' ||
+			isAutosaved ||
+			!!site.metadata.spacefast);
 	const closeSurface = useCallback(() => {
 		dispatch(setSiteSlugToSave(undefined));
 		if (onClose) {
@@ -201,6 +220,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		}
 		setSelectedStorage(storage);
 		setSubmitError(null);
+		setSpacefastResult(undefined);
 		if (storage !== 'local-fs') {
 			setDirectoryError(null);
 		}
@@ -279,8 +299,46 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		try {
 			setIsSubmitting(true);
 			setSubmitError(null);
+			setSpacefastResult(undefined);
 
-			if (selectedStorage === 'local-fs') {
+			if (selectedStorage === 'spacefast') {
+				if (!targetIsActive || !clientInfo?.client) {
+					throw new Error(
+						'Open this Playground and wait for it to load before saving to Spacefast.'
+					);
+				}
+				const authorization = handoff;
+				const destination = await saveSiteToSpacefast({
+					site,
+					playground: clientInfo.client,
+					name: trimmedName,
+					handoff: authorization,
+					proxy: corsProxyUrl,
+					onProgress: setSpacefastProgress,
+				});
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							name: trimmedName,
+							persistence: 'explicit',
+							spacefast: {
+								spaceId: destination.spaceId,
+								url: destination.url,
+							},
+							originalBlueprint: destination.blueprint,
+						},
+					})
+				);
+				if (site.metadata.storage !== 'none') {
+					redirectTo(PlaygroundRoute.site(site));
+				}
+				setSpacefastResult(destination.url);
+				setHandoff('');
+				setIsSubmitting(false);
+				setSpacefastProgress('');
+				return;
+			} else if (selectedStorage === 'local-fs') {
 				if (!targetIsActive) {
 					setDirectoryError(
 						'Open this Playground to save it to a local directory.'
@@ -323,12 +381,16 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					: 'Saving failed. Please try again.'
 			);
 			setIsSubmitting(false);
+			setSpacefastProgress('');
 		}
 	};
 
 	const trimmedName = name.trim();
 	const selectionIsAvailable =
 		(selectedStorage === 'opfs' && isOpfsAvailable) ||
+		(selectedStorage === 'spacefast' &&
+			targetIsActive &&
+			!!clientInfo?.client) ||
 		(selectedStorage === 'local-fs' && localIsAvailable);
 	const hasDirectoryAccess =
 		selectedStorage === 'local-fs'
@@ -338,6 +400,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		!trimmedName ||
 		!selectionIsAvailable ||
 		!hasDirectoryAccess ||
+		(selectedStorage === 'spacefast' && !connected && !handoff.trim()) ||
 		isSaving;
 	const savingProgressLabel =
 		savingProgress &&
@@ -382,11 +445,13 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 						color: asPane ? 'var(--ink)' : '#1e1e1e',
 					}}
 				>
-					{isAutosaved
-						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
-						: asPane
-							? 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.'
-							: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
+					{site.metadata.spacefast
+						? 'Save your current changes to this Playground’s Spacefast site.'
+						: isAutosaved
+							? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser, in a local directory, or on Spacefast.'
+							: asPane
+								? 'Keep this Playground in this browser, in a local directory, or on Spacefast to find it again later.'
+								: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
 				</p>
 				<TextControl
 					label="Playground name"
@@ -419,10 +484,71 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 								(!localIsAvailable ? ' (not available)' : ''),
 							value: 'local-fs',
 						},
+						{ label: 'Save to Spacefast', value: 'spacefast' },
 					]}
 					onChange={(value) => chooseStorage(value as StorageOption)}
 					disabled={isSaving}
 				/>
+				{selectedStorage === 'spacefast' && (
+					<>
+						<p>
+							Saving installs and configures Simply Static to
+							generate and publish your website. Your Blueprint,
+							complete SQLite database, and uploads will be
+							publicly readable on Spacefast. Plugins and themes
+							are recreated from your Blueprint.
+						</p>
+						{connected ? (
+							<p>Connected to Spacefast for this tab session.</p>
+						) : (
+							<TextControl
+								label="Spacefast handoff URL"
+								type="text"
+								value={handoff}
+								onChange={setHandoff}
+								onPaste={(event) => {
+									const url = extractSpacefastHandoffUrl(
+										event.clipboardData.getData('text')
+									);
+									if (url) {
+										event.preventDefault();
+										setHandoff(url);
+									}
+								}}
+								disabled={isSaving}
+								autoComplete="off"
+								help="Paste a Spacefast handoff URL or the full Spacefast prompt."
+							/>
+						)}
+						{(!targetIsActive || !clientInfo?.client) && (
+							<p>
+								Open this Playground and wait for it to load to
+								save to Spacefast.
+							</p>
+						)}
+						{spacefastResult && (
+							<Notice status="success" isDismissible={false}>
+								Saved to Spacefast.{' '}
+								<a
+									href={spacefastResult}
+									target="_blank"
+									rel="noreferrer"
+								>
+									Open on Spacefast
+								</a>
+							</Notice>
+						)}
+						{!spacefastResult && site.metadata.spacefast && (
+							<a
+								href={site.metadata.spacefast.url}
+								target="_blank"
+								rel="noreferrer"
+							>
+								Open on Spacefast
+							</a>
+						)}
+					</>
+				)}
 				{!isOpfsAvailable && selectedStorage === 'opfs' && (
 					<p style={helpTextStyle}>Not available in this browser</p>
 				)}
@@ -462,7 +588,12 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 						) : null}
 					</BaseControl>
 				)}
-				{isSaving && (
+				{isSaving && selectedStorage === 'spacefast' && (
+					<InlineProgress
+						message={spacefastProgress || 'Preparing to save…'}
+					/>
+				)}
+				{isSaving && selectedStorage !== 'spacefast' && (
 					<div>
 						<progress
 							id="save-progress"
@@ -487,7 +618,11 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Save"
+					submitText={
+						selectedStorage === 'spacefast'
+							? 'Save to Spacefast'
+							: 'Save'
+					}
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
 					cancelDisabled={asPane ? isSubmitting : undefined}

@@ -1,0 +1,162 @@
+import type { Blueprint, PlaygroundClient } from '@wp-playground/client';
+import { basename, dirname } from '@php-wasm/util';
+import { SOURCE_DIRECTORY } from './paths';
+import { BlueprintReflection } from '@wp-playground/blueprints';
+import type { SiteInfo } from '../state/redux/slice-sites';
+import { SpacefastClient } from './api';
+import type { SpacefastConnection } from './api';
+import { collectSiteFiles, loadPublicSite, parseSetupBlueprint } from './site';
+import { generateStaticSite } from './simply-static';
+import { collectBlueprintResources } from './resources';
+
+type Session = {
+	client: SpacefastClient;
+	connection: SpacefastConnection;
+	spaceId?: string;
+};
+
+// Connections survive closing the save pane, but never leave this document's memory.
+const sessions = new Map<string, Session>();
+
+export function hasSpacefastConnection(siteId: string) {
+	return sessions.has(siteId);
+}
+
+export async function saveSiteToSpacefast({
+	site,
+	playground,
+	name,
+	handoff,
+	proxy,
+	onProgress,
+}: {
+	site: SiteInfo;
+	playground: PlaygroundClient;
+	name: string;
+	handoff: string;
+	proxy: string;
+	onProgress: (message: string) => void;
+}) {
+	const reflection = await BlueprintReflection.create(
+		site.metadata.originalBlueprint as Blueprint
+	);
+	const declaration = reflection.getDeclaration();
+	const blueprint = await parseSetupBlueprint(
+		JSON.stringify({
+			...declaration,
+			preferredVersions: {
+				php: site.metadata.runtimeConfiguration.phpVersion,
+				wp: site.metadata.runtimeConfiguration.wpVersion,
+			},
+		})
+	);
+	let session = sessions.get(site.metadata.id);
+	if (handoff && !session) {
+		onProgress('Connecting to Spacefast…');
+		const client = new SpacefastClient(proxy);
+		const connection = await client.connect(handoff);
+		session = {
+			client,
+			connection,
+			spaceId: site.metadata.spacefast?.spaceId,
+		};
+		sessions.set(site.metadata.id, session);
+	}
+	if (!session)
+		throw new Error('Paste a Spacefast handoff URL to authorize saving.');
+	const source = site.metadata.originalBlueprintSource;
+	if (
+		!session.spaceId &&
+		!site.metadata.spacefast &&
+		source?.type === 'remote-url'
+	) {
+		const sourceUrl = new URL(source.url);
+		if (
+			basename(sourceUrl.pathname) === 'blueprint.json' &&
+			basename(dirname(sourceUrl.pathname)) === SOURCE_DIRECTORY
+		) {
+			const saved = await loadPublicSite(
+				new URL('../', sourceUrl).href,
+				proxy
+			);
+			session.spaceId = saved.manifest.spaceId;
+		}
+	}
+	let id =
+		session.spaceId ||
+		site.metadata.spacefast?.spaceId ||
+		session.connection.spaceId;
+	if (
+		session.connection.kind === 'space' &&
+		session.connection.spaceId !== id
+	) {
+		throw new Error(
+			'This handoff belongs to another Space. Use a handoff for this Playground’s destination.'
+		);
+	}
+	if (!id) {
+		if (!session.connection.teamId)
+			throw new Error('The handoff did not identify a team or Space.');
+		onProgress('Creating your public Space…');
+		const space = await session.client.createSpace(
+			session.connection.teamId,
+			name
+		);
+		id = space.id;
+	}
+	// Retain an allocated destination even if its first upload fails.
+	session.spaceId = id;
+	const space = await session.client.getSpace(id);
+	if (!space.liveUrl) {
+		throw new Error('Spacefast has not assigned a site URL yet.');
+	}
+	if (space.channels?.live?.versionId) {
+		// Only replace destinations that already contain this Playground format.
+		await loadPublicSite(space.liveUrl, proxy);
+	}
+	const editUrl = new URL(
+		'./',
+		globalThis.location?.href || 'https://playground.wordpress.net/'
+	);
+	editUrl.searchParams.set(
+		'blueprint-url',
+		new URL('_playground/blueprint.json', space.liveUrl).href
+	);
+	onProgress('Preserving Blueprint resources…');
+	const resources = await collectBlueprintResources(
+		blueprint,
+		reflection.getBundle(),
+		space.liveUrl,
+		proxy,
+		source?.type === 'remote-url' ? source.url : undefined
+	);
+	const generated = await generateStaticSite(
+		playground,
+		resources.blueprint,
+		space.liveUrl,
+		proxy,
+		onProgress,
+		editUrl.href
+	);
+	const { files } = await collectSiteFiles(
+		playground,
+		generated.blueprint,
+		id,
+		onProgress,
+		[...generated.files, ...resources.files],
+		space.liveUrl
+	);
+	const published = await session.client.publish(
+		id,
+		files,
+		{ replace: true, deletePaths: [] },
+		onProgress
+	);
+	if (!published.space.liveUrl)
+		throw new Error('Spacefast has not assigned a site URL yet.');
+	return {
+		spaceId: id,
+		url: published.space.liveUrl,
+		blueprint: generated.blueprint,
+	};
+}

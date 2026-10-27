@@ -118,3 +118,67 @@ Analytics is only enabled when the `VITE_GOOGLE_ANALYTICS_ID` environment variab
 ### Custom tracking events
 
 We also track custom events whenever a user loads Playground and what blueprint steps are they using. We only record names of steps.
+
+## Spacefast
+
+Click **Autosaved → Storage location → Save to Spacefast**, enter a name, and
+paste a Spacefast handoff URL or prompt. Saving installs and configures the free
+Simply Static plugin, generates the static website, and publishes it together
+with the Blueprint, SQLite snapshot, and uploads. New Spaces are public. The
+complete database is readable alongside the static site. Write credentials stay
+in tab memory; only the destination and setup Blueprint are retained locally.
+
+The local development proxy allows uploads smaller than 100 MiB per file.
+Override that limit when needed:
+
+```sh
+PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=209715200 npm run dev
+```
+
+Each save creates one snapshot containing the static website and:
+
+```text
+_playground/site.json           Format version, Space ID, source URL, upload paths
+_playground/blueprint.json      Blueprint that recreates the installation and restores its data
+_playground/database.sqlite     SQLite snapshot produced with VACUUM INTO
+wp-content/uploads/...          One shared copy for static hosting and editable source
+_playground/resources/...       Files bundled with the original setup Blueprint
+```
+
+Manifest format 2 shares uploads with the static site instead of keeping a
+second copy under `_playground/uploads/`. Unreferenced media is retained too.
+Older format 1 source remains readable, and the next save replaces its separate
+upload directory with the shared layout. Deleted pages and files disappear from
+the current snapshot. Each version has the message **Saved from WordPress
+Playground**.
+
+Generated pages have an **Edit with Playground** link pointing to the normal
+website with `?blueprint-url=<Spacefast URL>/_playground/blueprint.json`. It uses
+the current Playground origin, including localhost during development. The
+hosted Blueprint installs the original dependencies, restores SQLite and uploads,
+updates URLs including serialized values, and logs in to wp-admin. No separate
+demo page is needed. The database migration uses WP-CLI; static generation uses
+Simply Static's PHP hooks without WP-CLI or a Pro license.
+
+Relative setup dependencies in remote JSON Blueprints become absolute URLs to
+their original location. Files from local or ZIP bundles are copied to the Space;
+later saves retain those files in each replacement snapshot. WXR and theme starter
+content imports are omitted because SQLite and uploads already restore that data.
+
+A Blueprint-installed MU plugin advances Simply Static's job in batches and
+renders public pages between batches to avoid nested PHP loopback requests. It
+adds the edit link only to exported pages. Temporary crawl files remain outside
+uploads. The adapter is tested with Simply Static 3.8.18, the version installed
+when the plugin is absent. Plugin/theme files must be reproducible from the setup
+Blueprint; later edits to those files are not stored. The current layout assumes
+a single WordPress site with the standard uploads directory.
+
+Spacefast API and upload requests go directly through the configured CORS proxy,
+with buffered bodies and no initial cross-origin attempt. Management authorization
+is explicitly opted in for the API; upload targets receive only their issued
+credentials. The proxy supports PUT and configurable
+`PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE`. The local start target defaults to
+100 MiB; separately hosted proxies retain the 1 MiB default unless configured.
+Uploads must finish and the version must become live before saving succeeds.
+No reference handoff is redeemed by tests; browser checks mock Spacefast while
+running real WordPress and Simply Static.
