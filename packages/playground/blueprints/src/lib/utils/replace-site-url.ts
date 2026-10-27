@@ -6,6 +6,7 @@ import type { UniversalPHP } from '@php-wasm/universal';
  * Serialized settings must be decoded and encoded again because URL lengths
  * can change. Keep scope-only links working as they did during ZIP imports.
  * Serialized objects and references are preserved unchanged.
+ * Serialized-looking values that fail decoding or round-trip checks are also preserved.
  * Matching rows are read into memory, as during ZIP imports.
  */
 export async function replaceSiteUrl(
@@ -107,21 +108,21 @@ export async function replaceSiteUrl(
 		}
 
 		function playground_replace_site_url($value, $replacements) {
-			if (is_string($value) && (!function_exists('is_serialized') || is_serialized($value))) {
+			// Recognize even truncated serialization so it never reaches text replacement.
+			if (is_string($value) && preg_match('/^(?:N;|[abdisSOoCERr]:)/', ltrim($value))) {
 				// Keep plugin objects (including unavailable classes) and references
 				// byte-for-byte. Restoring objects can run plugin code; references can cycle.
-				if (preg_match('/(?:^|[;{}])(?:[OCE]:[0-9]+:|[rR]:[0-9]+;)/', $value)) {
+				if (preg_match('/(?:^|[;{}])(?:[OoCE]:[0-9]+:|[rR]:[0-9]+;)/', $value)) {
 					return $value;
 				}
 				$decoded = @unserialize($value);
-				if (false !== $decoded) {
-					// unserialize() can accept a valid prefix and ignore trailing text.
-					// Preserve ambiguous values rather than dropping that text.
-					if (serialize($decoded) !== $value) {
-						return $value;
-					}
-					return serialize(playground_replace_site_url($decoded, $replacements));
+				// Failed decoding must not fall back to rewriting serialized bytes.
+				// unserialize() can also accept a valid prefix and ignore trailing text.
+				// Preserve ambiguous values rather than dropping that text.
+				if (false === $decoded || serialize($decoded) !== $value) {
+					return $value;
 				}
+				return serialize(playground_replace_site_url($decoded, $replacements));
 			}
 			if (is_array($value)) {
 				foreach ($value as $key => $item) {

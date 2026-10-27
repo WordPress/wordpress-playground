@@ -526,6 +526,65 @@ describe('Blueprint step importWordPressFiles', () => {
 		);
 	});
 
+	it('leaves malformed and whitespace-padded serialized options unchanged', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const stored = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$url = ${phpVar(oldUrl)} . '/photo.jpg';
+			$serialized = serialize(array('image' => $url));
+			$values = array(
+				'migration_opaque_wrong_length' => 's:999:"' . $url . '";',
+				'migration_opaque_truncated' => substr($serialized, 0, -1),
+				'migration_opaque_padded' => " \\n" . $serialized . "\\n",
+			);
+			foreach ($values as $name => $value) {
+				$wpdb->insert($wpdb->options, array('option_name' => $name, 'option_value' => $value, 'autoload' => 'no'));
+			}
+			echo json_encode(array('values' => $values, 'padded' => get_option('migration_opaque_padded')));
+			`,
+		});
+		expect(stored.json.padded).toEqual({ image: `${oldUrl}/photo.jpg` });
+
+		await replaceSiteUrl(
+			sourcePHP,
+			'/wordpress',
+			oldUrl,
+			await targetPHP.absoluteUrl
+		);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$values = array();
+			foreach ($wpdb->get_results("SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE 'migration_opaque_%'") as $row) {
+				$values[$row->option_name] = $row->option_value;
+			}
+			echo json_encode(array('values' => $values, 'padded' => get_option('migration_opaque_padded')));
+			`,
+		});
+		expect(result.json).toEqual(stored.json);
+	});
+
+	it('updates readable fields without changing malformed serialization nested inside them', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const newUrl = await targetPHP.absoluteUrl;
+		const opaque = `s:999:"${oldUrl}/opaque.jpg";`;
+		await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			update_option('migration_nested_opaque', array('image' => ${phpVar(oldUrl)} . '/photo.jpg', 'opaque' => ${phpVar(opaque)}));
+			`,
+		});
+
+		await replaceSiteUrl(sourcePHP, '/wordpress', oldUrl, newUrl);
+
+		const result = await sourcePHP.run({
+			code: `<?php require '/wordpress/wp-load.php'; echo json_encode(get_option('migration_nested_opaque'));`,
+		});
+		expect(result.json).toEqual({ image: `${newUrl}/photo.jpg`, opaque });
+	});
+
 	it('preserves serialized settings containing references without following cycles', async () => {
 		const oldUrl = await sourcePHP.absoluteUrl;
 		const stored = await sourcePHP.run({
