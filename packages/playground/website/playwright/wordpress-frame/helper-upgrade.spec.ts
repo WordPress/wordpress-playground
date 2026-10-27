@@ -37,6 +37,8 @@ self.addEventListener('fetch', event => {
         event.respondWith(new Response(${JSON.stringify(`<!doctype html><script type="module" src="${expiredScript}"></script>`)}, {
             headers: { 'Content-Type': 'text/html' }
         }));
+    } else if (path === ${JSON.stringify('/' + seedDocument)}) {
+        event.respondWith(fetch(event.request));
     }
 });`
 		);
@@ -84,8 +86,10 @@ self.addEventListener('fetch', event => {
 				)
 			)
 			.toBe('activated');
-		// Start a new controlled document, as a returning visitor would. Worker
-		// activation and a first iframe's controller assignment are separate steps.
+		// Start a new controlled document, as a returning visitor would. The seed
+		// worker must respondWith() this navigation, even though it forwards to HTTP:
+		// Playwright's Firefox loses the controller on unhandled navigations.
+		// https://github.com/microsoft/playwright/issues/37012
 		await seed.goto(wordPressOrigin + '/' + seedDocument);
 		await seed.waitForFunction(() =>
 			Boolean(navigator.serviceWorker.controller)
