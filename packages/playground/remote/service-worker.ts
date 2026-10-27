@@ -121,6 +121,12 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import { playgroundOrigin, wordPressSiteUrl } from './src/lib/config';
+// @ts-ignore -- Provided by Vite.
+import { buildVersion } from 'virtual:remote-config';
+import {
+	getWordPressBridgePath,
+	isWordPressBridgePath,
+} from './src/lib/wordpress-bridge-path';
 // @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
 import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
@@ -278,8 +284,19 @@ self.addEventListener('fetch', (event) => {
 	if (
 		self.location.origin !== playgroundOrigin &&
 		url.origin === self.location.origin &&
-		url.pathname === '/wordpress-bridge.html'
+		isWordPressBridgePath(url.pathname)
 	) {
+		// Release A's worker may still be active after release B is deployed.
+		// If it answers B's helper URL, its HTML will still name A's script,
+		// which the server may have removed. Generate HTML only for this worker's
+		// buildVersion and the unversioned /wordpress-bridge.html compatibility URL.
+		// Helper URLs naming any other build must reach the server, which serves
+		// the deployed release's helper HTML and script URLs.
+		if (
+			url.pathname !== '/wordpress-bridge.html' &&
+			url.pathname !== getWordPressBridgePath(buildVersion)
+		)
+			return;
 		// WordPress can replace any CacheStorage entry on this origin. Generate
 		// the helper from trusted worker code, including when starting offline.
 		// Its script uses the shared app URL, never WordPress-writable cached bytes.

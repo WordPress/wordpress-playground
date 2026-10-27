@@ -110,6 +110,11 @@ files/
 ```
 
 Only the contents of `wordpress-sandbox/` are served on the sandbox hostname.
+`/wordpress-bridge-<build-version>.html` URLs all map to the deployed release's
+`wordpress-bridge.html`. The version cannot select a historical release, an app
+document, or PHP. For example, a browser may still run release A's WordPress worker
+after release B is deployed. B's helper URL must reach the server, rather than
+receive HTML naming A's script, which the deployment may have removed.
 The helper already contains app-origin script and preload URLs. The small worker
 files import the shared app-origin bundles. Vite finds the thumbnail worker from
 its source-file mapping, so its changing hash does not need a PHP URL exception.

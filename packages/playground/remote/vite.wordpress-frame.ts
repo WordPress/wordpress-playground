@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite';
 import { localDevelopmentHostnames } from './src/lib/dev-server';
+import { isWordPressBridgePath } from './src/lib/wordpress-bridge-path';
 
 /**
  * Use the remote Vite listener as WordPress's origin during website development.
@@ -54,7 +55,7 @@ export function wordPressFrameDevPlugin(
 				const target = new URL(app);
 				target.hostname = host.hostname;
 				if (host.port === wordpress.port) {
-					if (url.pathname === '/wordpress-bridge.html') {
+					if (isWordPressBridgePath(url.pathname)) {
 						target.pathname = '/src/lib/wordpress-bridge.ts';
 						res.setHeader('Content-Type', 'text/html');
 						res.end(

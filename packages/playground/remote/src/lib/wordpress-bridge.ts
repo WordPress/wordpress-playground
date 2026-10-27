@@ -1,11 +1,12 @@
 /**
  * Relay HTTP messages between the WordPress service worker and app-origin PHP.
  *
- * This script runs in the hidden WordPress-origin wordpress-bridge.html iframe,
- * not in remote.html or the visible WordPress page. The service worker can reach
- * this iframe because they share an origin; the iframe can then postMessage() to
- * its app-origin parent. Responses take the same path back, with requestId kept
- * intact so each response resolves the right pending service-worker request.
+ * This script runs in a hidden WordPress-origin helper iframe, not in remote.html
+ * or the visible WordPress page. The helper's URL includes the app's buildVersion.
+ * The service worker can reach this iframe because they share an origin. The
+ * iframe can then postMessage() to its app-origin parent. Responses take the same
+ * path back, with requestId kept intact so each response resolves the right
+ * pending service-worker request.
  *
  * Accept worker messages only from this registration's active worker and scope.
  * Accept responses only from the actual parent window at playgroundOrigin, with
@@ -15,8 +16,11 @@
  * The document uses the WordPress origin, but this module loads from the app
  * origin. config.ts derives playgroundOrigin from that module URL. On the first
  * load the sandbox build has already pointed the HTML's script URLs at the app
- * (development servers rewrite them on demand). Later the service worker generates
- * the helper HTML with the same app-origin bundle URL.
+ * (development servers rewrite them on demand). Once installed, the WordPress
+ * worker can generate HTML naming its own release's app-origin script, but only
+ * for its matching buildVersion or the unversioned /wordpress-bridge.html URL.
+ * Helper URLs naming a different buildVersion go to the server, so a worker
+ * installed before deployment cannot supply a script URL that deployment removed.
  */
 import { playgroundOrigin } from './config';
 import { portToStream, streamToPort } from '@php-wasm/universal';
@@ -28,7 +32,29 @@ const registration = await navigator.serviceWorker.register(
 	new URL('/sw.js', location.origin),
 	{ type: 'module', updateViaCache: 'none' }
 );
+// register() can reuse release A's /sw.js registration without checking release
+// B's deployed bytes. Finish that check before selecting the worker to wait for.
+try {
+	await registration.update();
+} catch (error) {
+	// Keep offline startup working with an installed worker, as the app's own
+	// worker bootstrap does. Without one, there is no HTTP connection to reuse.
+	if (!registration.active) throw error;
+}
 await navigator.serviceWorker.ready;
+// ready resolves as soon as any worker is active. While an update installs,
+// that can still be the worker installed during a previous visit.
+// Wait for the registration's installing/waiting worker to activate before
+// telling remote.html that WordPress HTTP requests can reach PHP.
+const worker =
+	registration.installing ?? registration.waiting ?? registration.active!;
+while (worker.state !== 'activated') {
+	if (worker.state === 'redundant')
+		throw new Error('The WordPress service worker could not activate.');
+	await new Promise<void>((resolve) =>
+		worker.addEventListener('statechange', () => resolve(), { once: true })
+	);
+}
 
 navigator.serviceWorker.addEventListener('message', (event) => {
 	if (event.source !== registration.active || event.data?.scope !== scope)
