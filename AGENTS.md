@@ -115,6 +115,10 @@ private release and checks both hosts and Nginx's hidden-path deny rule before
 activation. Personal WP keeps its no-argument public-file layout and separate script.
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
+WordPress request-helper URLs include the app build version. Servers map them to
+the existing sandbox helper file; workers generate helper HTML only for their own
+build (and the legacy URL), leaving newer builds to the network. The helper waits
+for its replacement worker to activate before completing PHP startup.
 
 WP Cloud's PHP-served static files support single bounded and open-ended byte
 ranges for runtime download retries. Other range forms get the full response;

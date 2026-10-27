@@ -61,14 +61,16 @@ describe('WordPress development HTTP routing', () => {
 	it.each(['127.0.0.1', 'localhost'])(
 		'loads helper and service-worker modules from the app port on %s',
 		async (host) => {
-			const helper = await get(
-				'/wordpress-bridge.html?scope=abc',
-				`${host}:4400`
-			);
-			expect(helper.status).toBe(200);
-			expect(helper.body).toContain(
-				`src="http://${host}:5400/src/lib/wordpress-bridge.ts"`
-			);
+			for (const path of [
+				'/wordpress-bridge.html',
+				`/wordpress-bridge-${'a'.repeat(40)}.html`,
+			]) {
+				const helper = await get(path + '?scope=abc', `${host}:4400`);
+				expect(helper.status).toBe(200);
+				expect(helper.body).toContain(
+					`src="http://${host}:5400/src/lib/wordpress-bridge.ts"`
+				);
+			}
 			const worker = await get('/sw.js', `${host}:4400`);
 			expect(worker.status).toBe(200);
 			expect(worker.body).toBe(

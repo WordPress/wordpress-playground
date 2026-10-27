@@ -110,6 +110,10 @@ files/
 ```
 
 Only the contents of `wordpress-sandbox/` are served on the sandbox hostname.
+Build-keyed `/wordpress-bridge-<build-version>.html` URLs map to that directory's
+existing `wordpress-bridge.html`. This is the only alias: it cannot select app
+documents or PHP. A previous browser worker lets the new build's helper URL
+reach the server, so its obsolete script URL cannot block worker updates.
 The helper already contains app-origin script and preload URLs. The small worker
 files import the shared app-origin bundles. Vite finds the thumbnail worker from
 its source-file mapping, so its changing hash does not need a PHP URL exception.

@@ -10,6 +10,8 @@
 import { test, expect } from '@playwright/test';
 import type { Frame, Page } from '@playwright/test';
 import { createServer } from 'node:http';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 import {
 	appOrigin as root,
 	wordPressOrigin as wpOrigin,
@@ -263,7 +265,9 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 
 		const helper = remote
 			.childFrames()
-			.find((frame) => frame.url().includes('/wordpress-bridge.html'))!;
+			.find((frame) =>
+				isWordPressBridgePath(new URL(frame.url()).pathname)
+			)!;
 		await helper.evaluate(async (appOrigin) => {
 			const scope = new URL(window.location.href).searchParams.get(
 				'scope'
@@ -302,7 +306,9 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) => frame.url().includes('/wordpress-bridge.html'))!;
+			.find((frame) =>
+				isWordPressBridgePath(new URL(frame.url()).pathname)
+			)!;
 		expect(
 			await helper.evaluate(() =>
 				Boolean((window as any).cachedHelperExecuted)
@@ -332,7 +338,9 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) => frame.url().includes('/wordpress-bridge.html'))!;
+			.find((frame) =>
+				isWordPressBridgePath(new URL(frame.url()).pathname)
+			)!;
 		expect(
 			await helper.evaluate(() =>
 				Boolean((window as any).cachedHelperExecuted)
@@ -960,11 +968,15 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	 * user code on the WordPress origin can write all of them, not just its own.
 	 */
 	async function poisonHelperCache(wp: Frame) {
-		await wp.evaluate(async () => {
-			const url = new URL(
-				'/wordpress-bridge.html',
-				window.location.origin
-			).href;
+		const helper = wp
+			.parentFrame()!
+			.childFrames()
+			.find((frame) =>
+				isWordPressBridgePath(new URL(frame.url()).pathname)
+			)!;
+		const helperPath = new URL(helper.url()).pathname;
+		await wp.evaluate(async (helperPath) => {
+			const url = new URL(helperPath, window.location.origin).href;
 			const response = await fetch(url, {
 				referrerPolicy: 'no-referrer',
 			});
@@ -978,8 +990,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			for (const name of names) {
 				const cache = await caches.open(name);
 				const keys = (await cache.keys()).filter(
-					(key) =>
-						new URL(key.url).pathname === '/wordpress-bridge.html'
+					(key) => new URL(key.url).pathname === helperPath
 				);
 				for (const key of [url, ...keys]) {
 					await cache.put(
@@ -990,7 +1001,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 					);
 				}
 			}
-		});
+		}, helperPath);
 	}
 
 	/**

@@ -1,7 +1,7 @@
 /**
  * Relay HTTP messages between the WordPress service worker and app-origin PHP.
  *
- * This script runs in the hidden WordPress-origin wordpress-bridge.html iframe,
+ * This script runs in the hidden, build-keyed WordPress-origin helper iframe,
  * not in remote.html or the visible WordPress page. The service worker can reach
  * this iframe because they share an origin; the iframe can then postMessage() to
  * its app-origin parent. Responses take the same path back, with requestId kept
@@ -16,7 +16,8 @@
  * origin. config.ts derives playgroundOrigin from that module URL. On the first
  * load the sandbox build has already pointed the HTML's script URLs at the app
  * (development servers rewrite them on demand). Later the service worker generates
- * the helper HTML with the same app-origin bundle URL.
+ * the helper HTML with the same app-origin bundle URL for its own build only.
+ * Other builds' helper URLs go to the server rather than inheriting stale HTML.
  */
 import { playgroundOrigin } from './config';
 import { portToStream, streamToPort } from '@php-wasm/universal';
@@ -29,6 +30,17 @@ const registration = await navigator.serviceWorker.register(
 	{ type: 'module', updateViaCache: 'none' }
 );
 await navigator.serviceWorker.ready;
+// ready can still describe the previous active worker while this build installs.
+// Do not announce a working HTTP connection until the replacement has activated.
+const worker =
+	registration.installing ?? registration.waiting ?? registration.active!;
+while (worker.state !== 'activated') {
+	if (worker.state === 'redundant')
+		throw new Error('The WordPress service worker could not activate.');
+	await new Promise<void>((resolve) =>
+		worker.addEventListener('statechange', () => resolve(), { once: true })
+	);
+}
 
 navigator.serviceWorker.addEventListener('message', (event) => {
 	if (event.source !== registration.active || event.data?.scope !== scope)

@@ -4,6 +4,9 @@ import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import { wordPressSiteUrl } from './config';
+import { getWordPressBridgePath } from './wordpress-bridge-path';
+// @ts-ignore -- Provided by Vite.
+import { buildVersion } from 'virtual:remote-config';
 
 /**
  * Connect WordPress HTTP requests on a separate origin to this app-origin PHP worker.
@@ -29,6 +32,11 @@ import { wordPressSiteUrl } from './config';
  * and listener remain for the lifetime of remote.html. If no ready message arrives
  * within 30 seconds, both are removed and the promise rejects.
  *
+ * The helper URL includes this app build's version. An older WordPress worker
+ * must let that new URL reach the server instead of generating HTML with a
+ * script removed by the deployment. The server maps it to the current built
+ * helper; that helper installs and activates the current WordPress worker.
+ *
  * After connection, reject app-service-worker HTTP requests for this scope with
  * 404. Returning this site's HTML there would let its scripts run on the app
  * origin with app storage access, bypassing the sandbox origin entirely.
@@ -49,7 +57,9 @@ export async function connectWordPressOrigin(
 	const bridge = document.createElement('iframe');
 	bridge.hidden = true;
 	bridge.title = 'WordPress request transport';
-	const url = new URL('/wordpress-bridge.html', wordPressSiteUrl);
+	// A previous worker intercepts its old helper path before the server sees it.
+	// Use this build's path so that worker cannot return a removed script URL.
+	const url = new URL(getWordPressBridgePath(buildVersion), wordPressSiteUrl);
 	url.searchParams.set('scope', scope);
 	bridge.src = url.href;
 	await new Promise<void>((resolve, reject) => {

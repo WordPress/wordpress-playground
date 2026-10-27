@@ -1,4 +1,5 @@
 import express from 'express';
+import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path.ts';
 
 /**
  * Route the local app and WordPress hosts before either server serves static files.
@@ -35,6 +36,12 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 		res.set('X-Content-Type-Options', 'nosniff');
 		res.set('Cache-Control', 'no-store');
 		if (req.hostname === 'wp.playground.localhost') {
+			// All build-keyed helper URLs serve the current built helper file.
+			// Older workers do not intercept a newer build's path.
+			if (isWordPressBridgePath(req.path)) {
+				const search = new URL(req.url, 'http://localhost').search;
+				req.url = '/wordpress-bridge.html' + search;
+			}
 			// Serve only files in the sandbox root, without app fallbacks or indexes.
 			return express.static(getSandboxDirectory(), {
 				index: false,

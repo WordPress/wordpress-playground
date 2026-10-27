@@ -547,6 +547,26 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const bridge = await request('/wordpress-bridge.html', wordpress);
 	assert.equal(bridge.status, 200);
 	assert.equal(await bridge.text(), sandboxHtml);
+	// Build-keyed aliases bypass an older browser worker, but still serve only
+	// the current helper file. They must not become a general app-file rewrite.
+	for (const version of ['a'.repeat(40), '1793090000']) {
+		const helper = await request(
+			`/wordpress-bridge-${version}.html`,
+			wordpress
+		);
+		assert.equal(helper.status, 200);
+		assert.equal(await helper.text(), sandboxHtml);
+		assert.match(helper.headers.get('cache-control'), /no-store/);
+	}
+	for (const path of [
+		'/wordpress-bridge-api.html',
+		'/wordpress-bridge-.html',
+		'/wordpress-bridge-deadbeef.php',
+		'/wordpress-bridge-deadbeef.html/../api.html',
+		'/wordpress-bridge-%2e%2e.html',
+	]) {
+		assert.equal((await request(path, wordpress)).status, 404, path);
+	}
 	const workerSource = await (await request('/sw.js', wordpress)).text();
 	assert.equal(
 		JSON.parse(workerSource.slice('import '.length, -1)),
