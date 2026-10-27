@@ -1,10 +1,20 @@
 ---
-title: What are Blueprints?
+title: What are Blueprints? (v1 legacy)
 slug: /blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them
-description: Learn what Blueprints are and how they configure WordPress Playground. Discover the benefits of using JSON for instant site setup.
+description: Legacy Blueprint v1 documentation. Learn what Blueprints are and how they configure WordPress Playground. Discover the benefits of using JSON for instant site setup.
 ---
 
 # What are Blueprints, and what can you do with them?
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 With WordPress Playground you can create a whole website, including plugins, themes, content (posts, pages, taxonomy, and comments), settings (site name, users, permalinks, and more), etc. They allow you to generate a WooCommerce store complete with products, a magazine populated with articles, a corporate blog with multiple users, and more.
 
