@@ -33,18 +33,21 @@ const workerUrl = new URL('/sw.js', location.origin);
 // A CDN may retain the old single-origin worker at /sw.js even after deployment.
 // updateViaCache bypasses the browser's HTTP cache, not that CDN response.
 workerUrl.searchParams.set('build-version', buildVersion);
-const registration = await navigator.serviceWorker.register(workerUrl, {
-	type: 'module',
-	updateViaCache: 'none',
-});
-// register() can reuse this loader URL's existing registration without checking
-// its imported app worker. Finish that check before selecting the worker to wait for.
+let registration: ServiceWorkerRegistration;
 try {
+	registration = await navigator.serviceWorker.register(workerUrl, {
+		type: 'module',
+		updateViaCache: 'none',
+	});
+	// register() can reuse this loader URL's existing registration without checking
+	// its imported app worker. Finish that check before selecting the worker to wait for.
 	await registration.update();
 } catch (error) {
 	// Keep offline startup working with an installed worker, as the app's own
 	// worker bootstrap does. Without one, there is no HTTP connection to reuse.
-	if (!registration.active) throw error;
+	const installed = await navigator.serviceWorker.getRegistration('/');
+	if (!installed?.active) throw error;
+	registration = installed;
 }
 await navigator.serviceWorker.ready;
 // ready resolves as soon as any worker is active. While an update installs,

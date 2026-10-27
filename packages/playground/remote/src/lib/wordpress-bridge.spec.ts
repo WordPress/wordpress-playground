@@ -30,6 +30,7 @@ describe('WordPress helper worker updates', () => {
 		vi.stubGlobal('navigator', {
 			serviceWorker: {
 				register: vi.fn().mockResolvedValue(registration),
+				getRegistration: vi.fn().mockResolvedValue(registration),
 				ready: Promise.resolve(registration),
 				addEventListener: vi.fn(),
 			},
@@ -94,6 +95,35 @@ describe('WordPress helper worker updates', () => {
 			'https://playground.test'
 		);
 	});
+
+	it('keeps an installed worker usable when the versioned worker cannot be fetched', async () => {
+		vi.mocked(navigator.serviceWorker.register).mockRejectedValue(
+			new TypeError('Offline')
+		);
+		await import('./wordpress-bridge');
+		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith('/');
+		expect(postMessage).toHaveBeenCalledWith(
+			{ type: 'wordpress-bridge-ready', scope: 'test' },
+			'https://playground.test'
+		);
+	});
+
+	it.each(['missing', 'inactive'])(
+		'does not report ready after a registration failure with a %s worker',
+		async (state) => {
+			const error = new TypeError('No installed worker');
+			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(error);
+			if (state === 'missing') {
+				vi.mocked(
+					navigator.serviceWorker.getRegistration
+				).mockResolvedValue(undefined);
+			} else {
+				registration.active = null;
+			}
+			await expect(import('./wordpress-bridge')).rejects.toBe(error);
+			expect(postMessage).not.toHaveBeenCalled();
+		}
+	);
 
 	it('does not report ready after an update failure without an active worker', async () => {
 		registration.active = null;
