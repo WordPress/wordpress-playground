@@ -85,6 +85,41 @@ try {
 	await writeFile(join(upload, 'blueprint-schema.json'), '{}');
 	await writeFile(join(upload, 'example-store.zip'), 'archive bytes');
 	await writeFile(join(upload, 'assets/thumbnail.js'), '// Thumbnail worker');
+	const wordpressAssets = {
+		'wp-6.8/wp-includes/css/dashicons.min.css': [
+			'.dashicons {}',
+			'text/css',
+		],
+		'wp-6.8/wp-includes/js/jquery.js': [
+			'// WordPress script',
+			'application/javascript',
+		],
+		'wp-6.8/wp-includes/fonts/dashicons.woff2': [
+			'font bytes',
+			'font/woff2',
+		],
+		'wp-beta/wp-includes/css/dashicons.min.css': ['.beta {}', 'text/css'],
+		'wp-nightly/wp-includes/css/dashicons.min.css': [
+			'.nightly {}',
+			'text/css',
+		],
+	};
+	for (const [path, [body]] of Object.entries(wordpressAssets)) {
+		await mkdir(dirname(join(upload, path)), { recursive: true });
+		await writeFile(join(upload, path), body);
+	}
+	await writeFile(
+		join(upload, 'wp-6.8/source.php'),
+		'<?php echo "private PHP";'
+	);
+	await symlink('../api.html', join(upload, 'wp-6.8/app.html'));
+	await symlink('source.php', join(upload, 'wp-6.8/source.css'));
+	await symlink(temporary, join(upload, 'wp-6.7'));
+	await mkdir(join(upload, 'wp-app'));
+	await writeFile(
+		join(upload, 'wp-app/api.html'),
+		'<title>App document</title>'
+	);
 	await writeFile(
 		join(upload, 'status.php'),
 		'<?php echo "native endpoint";'
@@ -462,6 +497,40 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		'/assets/runtime.wasm',
 	]) {
 		assert.equal((await request(path, wordpress)).status, 404);
+	}
+	// WordPress's static-file redirects retain this hostname. They must reach the
+	// versioned build files without exposing the app or native PHP on the sandbox.
+	for (const [path, [body, contentType]] of Object.entries(wordpressAssets)) {
+		const response = await request('/' + path + '?ver=6.8.11', wordpress);
+		assert.equal(response.status, 200, path);
+		assert.equal(await response.text(), body, path);
+		assert.equal(
+			response.headers.get('content-type').split(';')[0],
+			contentType,
+			path
+		);
+		assert.equal(response.headers.get('a8c-edge-cache'), 'cache', path);
+		assert.equal(
+			response.headers.get('cache-control'),
+			'public, max-age=3600',
+			path
+		);
+	}
+	for (const path of [
+		'/wp-6.8/source.php',
+		'/wp-6.8/source.css',
+		'/wp-6.8/app.html',
+		'/wp-6.8/../api.html',
+		'/wp-6.8/wp-includes/../../api.html',
+		'/wp-6.8/%2e%2e/api.html',
+		'/wp-6.8/../wp-beta/wp-includes/css/dashicons.min.css',
+		'/wp-6.7/secret.txt',
+		'/wp-app/api.html',
+		'/wp-6.8/missing.css',
+		'/wp-6.6/wp-includes/css/dashicons.min.css',
+		'/wp-6.8/',
+	]) {
+		assert.equal((await request(path, wordpress)).status, 404, path);
 	}
 	// The sandbox gate must not replace the shared app handler. These requests
 	// must keep using its rewrite, redirect, header, and PHP setup paths.

@@ -10,6 +10,8 @@ Every WordPress frame uses the sandbox, whether or not the URL contains
 PHP, OPFS, and picked directory handles stay on the app origin. Existing saved
 sites use the same app-origin files when reopened; no storage migration is needed.
 Shared scripts, PHP WASM, and WordPress downloads keep their app-host asset URLs.
+Versioned WordPress static files are also served on the sandbox host because
+WordPress's static-file redirects retain that hostname.
 The server's host rules do not depend on the query.
 
 All request handling lives in `../custom-redirects-lib.php`. There is no separate
@@ -109,7 +111,7 @@ files/
     └── assets/<hashed-thumbnail-worker>.js
 ```
 
-Only the contents of `wordpress-sandbox/` are served on the sandbox hostname.
+Helper and worker-loader requests on the sandbox hostname use `wordpress-sandbox/`.
 `/wordpress-bridge-<build-version>.html` URLs all map to the deployed release's
 `wordpress-bridge.html`. The version cannot select a historical release, an app
 document, or PHP. For example, a browser may still run release A's WordPress worker
@@ -121,7 +123,13 @@ its source-file mapping, so its changing hash does not need a PHP URL exception.
 PHP serves these files as-is and returns 404 for missing files or paths escaping
 that directory. No app redirects or native PHP execution run on this host. Its
 WordPress pages come from the browser's service worker.
-Other sandbox requests return 404.
+The sandbox also serves existing non-PHP files under `/wp-<version>/`, including
+`wp-beta` and `wp-nightly`. These are the same deployed WordPress static files
+available on the app host, with public browser and edge caching. The resolved file
+must stay inside its selected version directory, and that directory must stay
+inside the deployed build. PHP files, directory indexes, missing files, and paths
+escaping that directory return 404; they never reach the app handler. All other
+sandbox requests return 404.
 
 Assets use the same app-host URLs for all Playgrounds, with CORS and caching.
 Files are streamed, with byte ranges for resumable runtime downloads. Existing
