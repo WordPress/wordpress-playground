@@ -655,8 +655,10 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		unscopedUrl.pathname.endsWith('/block-editor/index.min.js')
 	) {
 		const script = await workerResponse.text();
+		// Match any quote style. Gutenberg's rolldown-minified builds emit
+		// jsx(`iframe`, …) instead of jsx("iframe", …).
 		const newScript = `${controlledIframe} ${script.replace(
-			/\(\s*"iframe",/,
+			/\(\s*(["'`])iframe\1,/,
 			'(__playground_ControlledIframe,'
 		)}`;
 		return new Response(newScript, {
