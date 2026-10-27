@@ -1,7 +1,11 @@
 import css from './style.module.css';
 
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
-import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
+import {
+	useActiveSite,
+	useAppDispatch,
+	useAppSelector,
+} from '../../lib/state/redux/store';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import {
@@ -24,6 +28,7 @@ import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
 import { Dock } from '../dock';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import classNames from 'classnames';
 
 /**
@@ -60,12 +65,23 @@ function getDisplayModeFromQuery(): DisplayMode {
 		: 'browser-full-screen';
 }
 
+/**
+ * Render the website shell, keeping saved-site selection reachable in seamless mode.
+ * Once the user selects a site, seamless mode hides the Dock as before.
+ */
 export function Layout() {
 	const dockPaneIsOpen = useAppSelector((state) => state.ui.dockPaneIsOpen);
 	const dispatch = useAppDispatch();
 	const [paneCloseBlocked, setPaneCloseBlocked] = useState(false);
 	const siteViewContentRef = useRef<HTMLDivElement>(null);
-	const showDock = displayMode !== 'seamless';
+	const activeSite = useActiveSite();
+	const url = useCurrentUrl();
+	// A saved-site URL needs the selection UI even in seamless website embeds.
+	// Hide it again after the user selects a site. Direct remote.html embeds do
+	// not mount this layout and keep their existing startup behavior.
+	const showDock =
+		displayMode !== 'seamless' ||
+		(!activeSite && url.searchParams.has('site-slug'));
 
 	// React 18 does not forward inert. Set it on the preview explicitly so an
 	// obscured WordPress iframe also leaves the keyboard and accessibility trees.

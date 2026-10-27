@@ -12,7 +12,6 @@ import {
 	getSiteRecencyTimestamp,
 	isAutosavedSite,
 	isRestorableAutosavedSite,
-	selectSiteBySlug,
 	selectSortedSites,
 	type SiteInfo,
 	wasSiteRecentlyInteractedWith,
@@ -27,8 +26,8 @@ import {
 import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
 import {
-	modalSlugs,
-	setActiveModal,
+	setDockPaneOpen,
+	setDockPaneSection,
 	setDockOperationNotice,
 } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
@@ -45,12 +44,18 @@ import {
 } from './recent-autosave-nudge-context';
 
 /**
- * Ensures the redux store always has an activeSite value.
+ * Starts fresh setup URLs, but leaves saved-site startup to the website UI.
  *
- * It has two routing modes:
- * * When `site-slug` is provided, it loads that site or creates it if missing.
- * * When `site-slug` is missing, it starts from the current setup URL and
- *   creates an autosaved site unless the shell requires a temporary one.
+ * A plugin can open /?site-slug=demo in another window. That URL must not boot
+ * demo's PHP runtime or mount its saved files. Open Your Playgrounds instead;
+ * selecting a site there activates it before updating the URL. Unknown slugs
+ * take the same path, so guessing names cannot create sites or test their presence.
+ * A URL may still select a client already running in this page, without booting it.
+ *
+ * Without site-slug, keep the existing fresh-site and autosave-restore behavior.
+ * This component belongs to the website entrypoint only: remote.html and direct
+ * client-library embeds keep their startup API. This is not HTTP authorization
+ * between running sites or a restriction on explicit saved-file API calls.
  */
 export function EnsurePlaygroundSiteIsSelected({
 	children,
@@ -67,9 +72,6 @@ export function EnsurePlaygroundSiteIsSelected({
 	const url = useCurrentUrl();
 	const initialUrlHref = useRef(window.location.href);
 	const requestedSiteSlug = url.searchParams.get('site-slug');
-	const requestedSiteObject = useAppSelector((state) =>
-		selectSiteBySlug(state, requestedSiteSlug!)
-	);
 	const isSavingDisabled = isSiteSavingDisabled(url);
 	const shouldUseTemporarySite =
 		url.searchParams.get('storage') === 'temp' ||
@@ -83,8 +85,6 @@ export function EnsurePlaygroundSiteIsSelected({
 	const activeClientInfo = useAppSelector((state) =>
 		activeSite ? selectClientBySiteSlug(state, activeSite.slug) : undefined
 	);
-	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
-		useState<false | string>(false);
 	const [autosaveNudge, setAutosaveNudge] = useState<{
 		site: SiteInfo;
 		setupUrlFingerprint: string;
@@ -144,7 +144,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
-		/** Select or create the site requested by setup and lifecycle URL values. */
+		/** Follow setup URLs, but select saved sites only when their client is already running. */
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
@@ -160,45 +160,16 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			// If the site slug is provided, try to load the site.
-			if (requestedSiteSlug) {
-				// If the site does not exist, create it. Saved browser
-				// storage is the default unless this shell should not offer
-				// saving.
-				if (!requestedSiteObject) {
-					logger.log(
-						'The requested site was not found. Creating a new site.'
-					);
-
-					if (shouldUseTemporarySite) {
-						const createdSlug =
-							await sitesAPI.createNewTemporarySite(
-								requestedSiteSlug
-							);
-						if (!isSavingDisabled) {
-							setNeedMissingSitePromptForSlug(createdSlug);
-						}
-					} else {
-						try {
-							await sitesAPI.createNewSavedSite(
-								requestedSiteSlug
-							);
-						} catch (error) {
-							logger.error(
-								'Error creating saved site. Falling back to a temporary site.',
-								error
-							);
-							const createdSlug =
-								await sitesAPI.createNewTemporarySite(
-									requestedSiteSlug
-								);
-							setNeedMissingSitePromptForSlug(createdSlug);
-						}
-					}
-					return;
+			if (requestedSiteSlug !== null) {
+				if (activeSite?.slug === requestedSiteSlug) return;
+				if (requestedClientInfo) {
+					// Retained temporary/syncing frames are already running. Selecting
+					// one is safe here; a URL must never create a new saved-site client.
+					await sitesAPI.setActiveSite(requestedSiteSlug);
+				} else {
+					dispatch(setDockPaneSection('playgrounds'));
+					dispatch(setDockPaneOpen(true));
 				}
-
-				await sitesAPI.setActiveSite(requestedSiteSlug);
 				return;
 			}
 
@@ -297,22 +268,6 @@ export function EnsurePlaygroundSiteIsSelected({
 		url.href,
 		requestedSiteSlug,
 		siteListingStatus,
-	]);
-
-	useEffect(() => {
-		if (
-			needMissingSitePromptForSlug &&
-			needMissingSitePromptForSlug === requestedSiteSlug &&
-			requestedClientInfo
-		) {
-			dispatch(setActiveModal(modalSlugs.MISSING_SITE_PROMPT));
-			setNeedMissingSitePromptForSlug(false);
-		}
-	}, [
-		needMissingSitePromptForSlug,
-		requestedSiteSlug,
-		requestedClientInfo,
-		dispatch,
 	]);
 
 	useEffect(() => {

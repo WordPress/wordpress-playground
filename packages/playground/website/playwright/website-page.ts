@@ -57,7 +57,13 @@ export class WebsitePage {
 		);
 	}
 
-	/** Run the existing website flows once with the sandbox opt-in in two-host CI. */
+	/**
+	 * Navigate and explicitly select saved sites through the real website UI.
+	 *
+	 * Most tests need a running client. Saved-site URL tests must use page.goto()
+	 * instead, then check that nothing boots before clicking a list entry. Keep
+	 * the sandbox opt-in in two-host CI; it does not change the startup rule.
+	 */
 	async goto(url: string, options?: any) {
 		if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
 			const target = new URL(url, appOrigin + '/');
@@ -68,8 +74,29 @@ export class WebsitePage {
 		}
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
+		if (new URL(this.page.url()).searchParams.has('site-slug')) {
+			await this.openSavedPlayground();
+		}
 		await this.waitForNestedIframes();
 		return response;
+	}
+
+	/**
+	 * Open the URL's saved site by clicking its row, also after reload or in a popup.
+	 * Calling setActiveSite() directly would bypass the behavior under test.
+	 */
+	async openSavedPlayground(page = this.page) {
+		const slug = new URL(page.url()).searchParams.get('site-slug');
+		if (!slug) throw new Error('Expected a saved-site URL');
+		const escapedSlug = await page.evaluate(
+			(value) => CSS.escape(value),
+			slug
+		);
+		await page
+			.getByRole('dialog', { name: 'Your Playgrounds pane' })
+			.locator(`[data-playground-row="${escapedSlug}"]`)
+			.getByRole('button', { name: /^Open / })
+			.click();
 	}
 
 	async ensureSiteManagerIsOpen() {

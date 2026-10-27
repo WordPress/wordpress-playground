@@ -15,6 +15,7 @@ import {
 } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import {
+	getSitesLoadingState,
 	selectAllSites,
 	selectSiteBySlug,
 	selectSitesLoaded,
@@ -24,6 +25,7 @@ import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
 import { isMessageFromIframeTree } from '@wp-playground/components';
+import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -57,7 +59,9 @@ export const PlaygroundViewport = ({
  * to another site, the iframe is hidden but not removed. This preserves
  * temporary state and lets an in-progress storage sync finish in the background.
  *
- * Persistent sites are otherwise unmounted and rendered as usual.
+ * Persistent sites are otherwise unmounted and rendered as usual. With no site
+ * selected, show the empty view rather than a PHP loading indicator: saved-site
+ * links wait there until the user chooses a site from the list.
  */
 export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 	const temporarySites = useAppSelector(selectTemporarySites);
@@ -145,7 +149,15 @@ export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 	);
 
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
-	if (!sitesFinishedLoading) {
+	const siteListingStatus = useAppSelector(getSitesLoadingState);
+	const requestedSiteSlug = useCurrentUrl().searchParams.get('site-slug');
+	// A saved-site link waits after the list loads. A fresh setup URL still
+	// needs its initial loading screen while its Blueprint is being fetched.
+	const waitingForSiteSelection =
+		requestedSiteSlug !== null &&
+		!activeSiteSlugIsSet &&
+		['loaded', 'error'].includes(siteListingStatus);
+	if (!sitesFinishedLoading && !waitingForSiteSelection) {
 		return <LoadingViewport caption="Loading Playgrounds" />;
 	}
 
@@ -160,16 +172,18 @@ export const KeepAliveTemporaryAndSyncingSitesViewport = () => {
 							className={css.siteErrorContent}
 							style={{ textAlign: 'center' }}
 						>
-							<h2>No site is selected</h2>
+							<h2>Choose a Playground</h2>
 							<p>
-								Select a site from the site manager to explore
-								Playground.
+								Select a saved site in Your Playgrounds, or
+								start a new Playground.
 							</p>
 						</div>
 					</div>
 				</div>
 			)}
-			{(!hasVisibleSite || siteImportProgress) && (
+			{/* No selected site is a settled state, not an endless PHP boot. */}
+			{((!hasVisibleSite && activeSiteSlugIsSet) ||
+				siteImportProgress) && (
 				<LoadingViewport
 					caption={
 						siteImportProgress?.caption ?? 'Preparing WordPress'
