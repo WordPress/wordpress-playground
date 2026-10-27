@@ -493,6 +493,64 @@ describe('Blueprint step importWordPressFiles', () => {
 		});
 	});
 
+	it('preserves post content that starts with a serialized value followed by more text', async () => {
+		const oldUrl = await sourcePHP.absoluteUrl;
+		const newUrl = await targetPHP.absoluteUrl;
+		const contents = [
+			`s:5:"hello";<p><img src="${oldUrl}/photo.jpg"></p>`,
+			`s:5:"hello"; ${oldUrl}/photo.jpg;`,
+			`a:0:{}<a href="${oldUrl}/about/">About</a>`,
+			`i:7; ${oldUrl}/photo.jpg;`,
+		];
+		const seeded = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$ids = array();
+			foreach (${phpVar(contents)} as $content) {
+				$ids[] = wp_insert_post(array('post_title' => 'Serialized example', 'post_content' => $content));
+			}
+			echo json_encode($ids);
+			`,
+		});
+
+		await replaceSiteUrl(sourcePHP, '/wordpress', oldUrl, newUrl);
+
+		const result = await sourcePHP.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$contents = array();
+			foreach (${phpVar(seeded.json)} as $id) {
+				$contents[] = get_post($id)->post_content;
+			}
+			echo json_encode($contents);
+			`,
+		});
+		expect(
+			result.json.map((content: string) =>
+				content.replaceAll(newUrl, oldUrl)
+			)
+		).toEqual(contents);
+	});
+
+	it('rejects invalid site URLs before running PHP', async () => {
+		const run = vi.spyOn(sourcePHP, 'run');
+		const siteUrl = await sourcePHP.absoluteUrl;
+		for (const invalidUrl of [
+			'/',
+			'//example.com/',
+			'not a URL',
+			'data:text/plain,/',
+		]) {
+			await expect(
+				replaceSiteUrl(sourcePHP, '/wordpress', invalidUrl, siteUrl)
+			).rejects.toThrow();
+			await expect(
+				replaceSiteUrl(sourcePHP, '/wordpress', siteUrl, invalidUrl)
+			).rejects.toThrow();
+		}
+		expect(run).not.toHaveBeenCalled();
+	});
+
 	it('keeps nested serialized settings readable when importing into a longer scope', async () => {
 		const oldUrl = await sourcePHP.absoluteUrl;
 		const newUrl = await targetPHP.absoluteUrl;

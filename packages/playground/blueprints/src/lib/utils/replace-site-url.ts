@@ -13,6 +13,12 @@ export async function replaceSiteUrl(
 	oldSiteUrl: string,
 	newSiteUrl: string
 ) {
+	for (const siteUrl of [oldSiteUrl, newSiteUrl]) {
+		const url = new URL(siteUrl);
+		if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+			throw new Error('Site URL must be an absolute HTTP or HTTPS URL.');
+		}
+	}
 	oldSiteUrl = oldSiteUrl.replace(/\/+$/, '') + '/';
 	newSiteUrl = newSiteUrl.replace(/\/+$/, '') + '/';
 	if (oldSiteUrl === newSiteUrl) {
@@ -93,9 +99,14 @@ export async function replaceSiteUrl(
 		}
 
 		function playground_replace_site_url($value, $replacements) {
-			if (is_string($value)) {
+			if (is_string($value) && (!function_exists('is_serialized') || is_serialized($value))) {
 				$decoded = @unserialize($value);
 				if (false !== $decoded) {
+					// unserialize() can accept a valid prefix and ignore trailing text.
+					// Preserve ambiguous values rather than dropping that text.
+					if (serialize($decoded) !== $value) {
+						return $value;
+					}
 					return serialize(playground_replace_site_url($decoded, $replacements));
 				}
 			}
