@@ -6,20 +6,22 @@ import {
 } from '../../bin/wordpress-frame/origins.mjs';
 
 // Both tabs share service workers and caches. Keep OPFS operations in the storage lane.
-test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
-	test('ordinary and opted-in tabs keep their HTTP routes under one app worker', async ({
+test.describe('WordPress sandbox by default', { tag: '@storage' }, () => {
+	test('tabs with and without Reprint use the sandbox and share one app worker', async ({
 		page,
 		context,
 	}) => {
 		await page.goto('/?wp=6.9&php=8.3&storage=temp');
-		const ordinary = await ready(page, appOrigin);
-		const optedIn = await context.newPage();
-		await optedIn.goto(appOrigin + '/?reprint&wp=6.9&php=8.3&storage=temp');
-		const sandbox = await ready(optedIn, wordPressOrigin);
+		const withoutReprint = await ready(page, wordPressOrigin);
+		const withReprint = await context.newPage();
+		await withReprint.goto(
+			appOrigin + '/?reprint&wp=6.9&php=8.3&storage=temp'
+		);
+		const sandbox = await ready(withReprint, wordPressOrigin);
 
 		for (const [tab, frame, content] of [
-			[page, ordinary, 'ordinary HTTP'],
-			[optedIn, sandbox, 'sandbox HTTP'],
+			[page, withoutReprint, 'without Reprint'],
+			[withReprint, sandbox, 'with Reprint'],
 		] as const) {
 			await tab.evaluate(async (text) => {
 				await (window as any).playgroundSites
@@ -43,7 +45,7 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 		).toBe(404);
 
 		const registrations = await Promise.all(
-			[page, optedIn].map((tab) =>
+			[page, withReprint].map((tab) =>
 				tab.evaluate(
 					async () =>
 						(await navigator.serviceWorker.ready).active!.scriptURL
@@ -55,28 +57,28 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 			false
 		);
 
-		// Losing ?reprint during SPA navigation must not move the next PHP iframe.
+		// Changing feature flags in the SPA must not change the WordPress origin.
 		// The URL router starts the replacement site. Do not also start one through
 		// the API: the two boots can replace each other before either promise settles.
-		await optedIn.evaluate(() => {
+		await withReprint.evaluate(() => {
 			(window as any).sameDocument = true;
 			const url = new URL(window.location.href);
 			url.searchParams.delete('reprint');
 			window.history.replaceState({}, '', url.href);
 		});
 		await expect.poll(() => sandbox.isDetached()).toBe(true);
-		await ready(optedIn, wordPressOrigin);
-		expect(await optedIn.evaluate(() => (window as any).sameDocument)).toBe(
-			true
-		);
+		await ready(withReprint, wordPressOrigin);
+		expect(
+			await withReprint.evaluate(() => (window as any).sameDocument)
+		).toBe(true);
 
-		// A new document without the flag deliberately goes back to one origin.
-		await optedIn.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
-		await ready(optedIn, appOrigin);
-		await optedIn.close();
+		// A full reload without the flag must keep WordPress off the app origin too.
+		await withReprint.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
+		await ready(withReprint, wordPressOrigin);
+		await withReprint.close();
 	});
 
-	test('saved sites follow the current document flag when reopened', async ({
+	test('saved sites keep the sandbox origin when reopened with or without Reprint', async ({
 		page,
 		browserName,
 	}) => {
@@ -84,7 +86,7 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 			browserName !== 'chromium',
 			'Saved-site checks need browser OPFS.'
 		);
-		await page.goto('/?reprint&wp=6.9&php=8.3&storage=temp');
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
 		await ready(page, wordPressOrigin);
 		const site = await page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
@@ -102,7 +104,7 @@ test.describe('WordPress sandbox opt-in', { tag: '@storage' }, () => {
 			await page.goto(
 				'/?' + flag + 'site-slug=' + encodeURIComponent(site.slug)
 			);
-			const frame = await ready(page, flag ? wordPressOrigin : appOrigin);
+			const frame = await ready(page, wordPressOrigin);
 			expect(
 				await frame.evaluate(async () =>
 					(await fetch('mode-persist.txt')).text()

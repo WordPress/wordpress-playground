@@ -1,7 +1,7 @@
 # WordPress-only origin prototype
 
 The user stays on `http://playground.localhost:9500`, with the usual SPA and dock.
-With `?reprint`, rendered WordPress pages use `http://wp.playground.localhost:9500`.
+Rendered WordPress pages always use `http://wp.playground.localhost:9500`.
 Both names resolve to loopback in Chromium. This server uses port 9500 so it does
 not replace normal development on 5400 or the full-app prototype on 9400.
 
@@ -25,12 +25,12 @@ npx nx run playground-website:build:wordpress-frame
 npx nx run playground-website:preview:wordpress-frame
 ```
 
-Open <http://playground.localhost:9500/?reprint&wp=6.9&php=8.3>.
-Without `?reprint`, WordPress stays on the app origin. This is a built preview;
+Open <http://playground.localhost:9500/?wp=6.9&php=8.3>.
+No feature flag is needed. This is a built preview;
 source changes require rebuilding and restarting. It binds to `127.0.0.1` only.
 The `playground.localhost` hostname enables this built-preview setup. Normal builds
 on other origins retain their existing behavior. `npm run dev` now uses the same
-opt-in through the existing loopback Vite ports: app on 5400, WordPress on 4400. Source changes do not need a build there; see the
+split through the existing loopback Vite ports: app on 5400, WordPress on 4400. Source changes do not need a build there; see the
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
 
@@ -45,7 +45,7 @@ script installs the private build and its public entry. See the [deployment guid
 
 ## Boundaries
 
-- With `?reprint`, the app, `remote.html`, PHP worker, and all directory handles remain same-origin.
+- The app, `remote.html`, PHP worker, and all directory handles remain same-origin.
   The top-level app can use its normal native folder picker. The save controls
   check the PHP iframe's origin, not the rendered WordPress URL. No popup or
   cross-origin filesystem protocol is added.
@@ -67,9 +67,9 @@ script installs the private build and its public entry. See the [deployment guid
   URLs. The WordPress service worker imports its public code from that origin.
   The root keeps its existing on-demand asset cache, shared by every PHP worker.
   Eager offline prefetch is disabled. Root-origin scoped requests return 404
-  for opted-in sites. The same app service worker also serves ordinary sites'
-  app-origin scoped pages; each opted-in runtime explicitly rejects its app-origin
-  HTTP route. Tabs do not install competing service-worker modes.
+  for sandbox sites. Each runtime explicitly rejects its app-origin HTTP route,
+  so WordPress cannot use that alias to run with app storage access. Tabs share
+  one app service worker and platform asset cache.
 
 ## External embeds
 
@@ -86,14 +86,12 @@ to identify its origin would break existing embeds that hide their referrer.
 
 ## Limits
 
-This is a rollout flag, not a separate storage area. Ordinary, single-origin
-WordPress pages can still read app-origin OPFS and alter its CacheStorage,
-including data or assets used by opted-in sessions. Reopening a saved Reprint
-clone without `?reprint` runs its WordPress code on the app origin again. The
-startup choice survives SPA navigation but is not stored in site metadata.
-The restrictions below apply to WordPress rendered on the sandbox origin.
+Every WordPress frame uses the configured sandbox origin, including saved sites
+reopened without `?reprint`. PHP, saved files, and native directory handles remain
+on the app origin; no saved-site migration is needed. Builds without a configured
+sandbox keep their single-origin behavior.
 
-**All opted-in Playgrounds share the WordPress origin.** Its OPFS, IndexedDB, cookies, and
+**All Playgrounds share the WordPress origin.** Its OPFS, IndexedDB, cookies, and
 other browser storage are not separated per Playground. This is deliberately a
 first step, not the per-site isolation offered by the full-app prototype.
 Sites can still request each other's scoped HTTP URLs. Excluding platform code
@@ -109,7 +107,7 @@ PHP still runs in the root-origin WASM host with its assigned filesystem mounts.
 browser storage. This is not a sandbox for arbitrary root-origin JavaScript or
 untrusted PHP extensions.
 
-The `wp` child domain is not a complete cookie boundary: parent-domain cookies
+The host split is not a complete cookie boundary: parent-domain cookies
 can span both hosts. Offline startup needs a second online load to cache app
 entry documents fetched before the app service worker took control. Production
 deployment uses the WP Cloud handler described above. No saved-site migration or

@@ -23,11 +23,6 @@ url.searchParams.set('storage', 'temp');
 // Specify the theme so we can assert against expected default content.
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');
-// This test navigates directly rather than using WebsitePage.goto(). Keep its
-// new release in the same opted-in mode as the rest of the two-host suite.
-if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
-	url.searchParams.set('reprint', '');
-}
 
 const maxDiffPixels = 10_000;
 
