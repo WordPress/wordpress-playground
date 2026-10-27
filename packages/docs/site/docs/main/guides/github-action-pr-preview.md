@@ -34,9 +34,9 @@ The action uses two URL strategies:
 
 **Use the action and reusable workflows in different places**
 
-The direct action, `WordPress/action-wp-playground-pr-preview@v3`, is a regular GitHub Action. Reference it as a step under `jobs.<job_id>.steps[].uses`.
+The direct action, `WordPress/action-wp-playground-pr-preview@v4`, is a regular GitHub Action. Reference it as a step under `jobs.<job_id>.steps[].uses`.
 
-The build-step setup uses reusable workflows, `preview-build.yml@v3` and `preview-publish.yml@v3`. Reference those at the job level under `jobs.<job_id>.uses`.
+The build-step setup uses reusable workflows, `preview-build.yml@v4` and `preview-publish.yml@v4`. Reference those at the job level under `jobs.<job_id>.uses`.
 
 </div>
 
@@ -59,7 +59,7 @@ jobs:
             contents: read
             pull-requests: write
         steps:
-            - uses: WordPress/action-wp-playground-pr-preview@v3
+            - uses: WordPress/action-wp-playground-pr-preview@v4
               with:
                   plugin-path: .
                   github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -116,7 +116,7 @@ on:
 
 jobs:
     build:
-        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v3
+        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v4
         with:
             artifacts: my-plugin=build/my-plugin.zip
             node-version: '20'
@@ -147,7 +147,7 @@ jobs:
         permissions:
             contents: write
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-publish.yml@v3
+        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-publish.yml@v4
         with:
             kind: plugin
 ```
@@ -171,7 +171,7 @@ Use Blueprints to configure the Playground environment. You can install companio
 For a no-build preview, provide a full Blueprint with the direct action:
 
 ```yaml
-- uses: WordPress/action-wp-playground-pr-preview@v3
+- uses: WordPress/action-wp-playground-pr-preview@v4
   with:
       blueprint: |
           {
@@ -205,7 +205,7 @@ For a no-build preview, provide a full Blueprint with the direct action:
 Or reference a hosted Blueprint:
 
 ```yaml
-- uses: WordPress/action-wp-playground-pr-preview@v3
+- uses: WordPress/action-wp-playground-pr-preview@v4
   with:
       blueprint-url: https://example.com/path/to/blueprint.json
       github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -228,7 +228,7 @@ Put `artifacts` and `build-command` under `jobs.build.with` in `.github/workflow
 ```yaml
 jobs:
     build:
-        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v3
+        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v4
         with:
             artifacts: my-plugin=build/my-plugin.zip
             php-version: '8.2'
@@ -252,7 +252,7 @@ jobs:
         permissions:
             contents: write
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-publish.yml@v3
+        uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-publish.yml@v4
         with:
             blueprint: |
                 {
@@ -321,7 +321,7 @@ If you ask an LLM or coding agent to add PR previews to a repository, tell it to
 Suggested prompt:
 
 ```text
-Add WordPress/action-wp-playground-pr-preview@v3 to this repository.
+Add WordPress/action-wp-playground-pr-preview@v4 to this repository.
 First inspect whether the WordPress plugin or theme can run directly from the repository checkout, or whether CI must build files first.
 If no build step is needed, add one pull_request workflow using plugin-path or theme-path.
 If a build step is needed, add the two-workflow preview-build.yml / preview-publish.yml setup.
@@ -334,14 +334,14 @@ When reviewing the result, check that:
 - `secrets.GITHUB_TOKEN` is referenced but not created manually.
 - Direct action usage appears under `jobs.<job_id>.steps[].uses`.
 - Reusable workflow usage appears under `jobs.<job_id>.uses`.
-- Build and publish workflows use the same version, for example `@v3`.
+- Build and publish workflows use the same version, for example `@v4`.
 - Every `artifacts` entry has the form `name=path/to/file.zip`, and the build command creates that exact ZIP path.
 - Plugin and theme ZIPs extract to slug-named folders, not directly to files at the ZIP root.
 - The workflow does not use `pull_request_target`.
 
 ## Troubleshooting
 
-**`Invalid workflow file` or `jobs.<id>.uses` error:** Check whether you are using the direct action or a reusable workflow. `WordPress/action-wp-playground-pr-preview@v3` belongs under `jobs.<job_id>.steps[].uses`. `WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v3` and `preview-publish.yml@v3` belong under `jobs.<job_id>.uses`.
+**`Invalid workflow file` or `jobs.<id>.uses` error:** Check whether you are using the direct action or a reusable workflow. `WordPress/action-wp-playground-pr-preview@v4` belongs under `jobs.<job_id>.steps[].uses`. `WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v4` and `preview-publish.yml@v4` belong under `jobs.<job_id>.uses`.
 
 **The publish workflow run is `startup_failure` with no logs:** The reusable publish workflow needs `contents: write` and `pull-requests: write`. Grant those permissions to the publish job, either with a top-level `permissions:` block that the job inherits or with `jobs.publish.permissions:`. The example above includes both so later workflow edits cannot accidentally narrow the publish job permissions.
 
@@ -349,7 +349,7 @@ When reviewing the result, check that:
 
 **`Resource not accessible by integration`:** The workflow calling the action cannot write to the pull request. For same-repository PRs, add `permissions: pull-requests: write`. For public fork PRs, use the two-workflow build-step setup.
 
-**Button appears but preview fails to load or 404s:** For built-artifact workflows, check that the build uploaded the expected ZIP and that the `ci-artifacts` release is a prerelease, not a draft. New v3 setups create a prerelease automatically, but older draft releases may need to be converted once.
+**Button appears but preview fails to load or 404s:** For built-artifact workflows, check that the build uploaded the expected ZIP and that the `ci-artifacts` release is a prerelease, not a draft. New v4 setups create a prerelease automatically, but older draft releases may need to be converted once.
 
 **Plugin needs Composer or npm build output and shows up empty:** The workflow is probably using `plugin-path:` directly. That path uses `git:directory`, so Playground receives the repository files without running a build step. Switch to the build-step setup.
 
@@ -369,7 +369,7 @@ More: [action-wp-playground-pr-preview documentation](https://wordpress.github.i
 
 ## Examples
 
-- [action-wp-playground-pr-preview examples](https://wordpress.github.io/action-wp-playground-pr-preview/#see-it-live) - Live repositories using the v3 workflows
+- [action-wp-playground-pr-preview examples](https://wordpress.github.io/action-wp-playground-pr-preview/#see-it-live) - Live repositories using the v4 workflows
 - [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Blueprint previews
 
 ## Next steps
