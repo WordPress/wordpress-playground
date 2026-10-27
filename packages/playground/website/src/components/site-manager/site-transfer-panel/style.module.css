@@ -117,6 +117,10 @@
 	min-height: 0;
 }
 
+.error {
+	overflow-wrap: anywhere;
+}
+
 .actions {
 	align-items: center;
 	display: flex;
@@ -219,6 +223,14 @@
 	color: var(--ink-muted);
 	min-height: 0;
 	padding: 0;
+}
+
+@media (max-width: 1024px) {
+	/* The mobile header reserves 44px for Close; keep the log menu beside it. */
+	.overflow-menu {
+		position: relative;
+		right: 44px;
+	}
 }
 
 .transfer-progress progress {

@@ -196,7 +196,7 @@ export function SiteTransferPanel({
 
 	useEffect(() => {
 		if (!isVisible) return;
-		if (completed) {
+		if (completed || error) {
 			heading.current?.focus();
 			return;
 		}
@@ -205,7 +205,7 @@ export function SiteTransferPanel({
 		>('input:not([disabled]):not([type=checkbox]), textarea[readonly]');
 		if (input) input.focus();
 		else heading.current?.focus();
-	}, [step, isVisible, busy, completed, keyPair, setup]);
+	}, [step, isVisible, busy, completed, keyPair, setup, error]);
 
 	useEffect(() => {
 		if (!busy) return;
@@ -574,22 +574,54 @@ export function SiteTransferPanel({
 				className={css.stepContent}
 			>
 				{error && (
-					<Notice status="error" isDismissible={false}>
-						<p>{error}</p>
-						{!busy && step === 'transfer' && keyReady && (
-							<div className={css.actions}>
-								<Button
-									variant="secondary"
-									autoFocus={isVisible}
-									onClick={() => void start()}
-								>
-									{progress.phase === 'files-prepare'
-										? 'Resume local setup'
-										: 'Try resuming'}
-								</Button>
-							</div>
+					<VStack spacing={4} className={css.error} role="alert">
+						<VStack spacing={2}>
+							<h3
+								ref={heading}
+								tabIndex={-1}
+								className={css.setupTitle}
+							>
+								{step === 'transfer'
+									? cloning
+										? 'Cloning paused'
+										: 'Transfer paused'
+									: 'Couldn’t complete this step'}
+							</h3>
+							<p className={css.hint}>{error}</p>
+						</VStack>
+						{!busy && step === 'transfer' && keyReady && links && (
+							<>
+								<p className={css.hint}>
+									Open{' '}
+									<a
+										href={links.settings}
+										target="_blank"
+										rel="noreferrer"
+									>
+										Reprint settings on {hostname}
+									</a>{' '}
+									to check the connection. If no key is
+									listed, add your migration key.
+								</p>
+								<div className={css.actions}>
+									<Button
+										variant="primary"
+										onClick={() => void start()}
+									>
+										{progress.phase === 'files-prepare'
+											? 'Resume local setup'
+											: 'Try resuming'}
+									</Button>
+									<Button
+										variant="secondary"
+										onClick={goBack}
+									>
+										Review migration key
+									</Button>
+								</div>
+							</>
 						)}
-					</Notice>
+					</VStack>
 				)}
 				{!busy && !completed && autoStart && !error && (
 					<InlineProgress message="Waiting for the new Playground to boot…" />

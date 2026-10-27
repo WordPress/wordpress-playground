@@ -486,6 +486,37 @@ describe('Reprint connection changes', () => {
 		}
 	);
 
+	it('keeps the same connection and key when reviewing a failed pull', async () => {
+		vi.mocked(detectReprint).mockResolvedValue('configured');
+		vi.mocked(pullSite).mockRejectedValueOnce(
+			new Error('No migration keys are enrolled.')
+		);
+		await render();
+		edit('url', 'https://example.com/blog/');
+		await submit();
+		await submit();
+		expect(
+			container.querySelector<HTMLAnchorElement>('a[href*="tools.php"]')
+				?.href
+		).toBe(
+			'https://example.com/blog/wp-admin/tools.php?page=reprint-server'
+		);
+		await click('Review migration key');
+		expect(
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe(keyPair.publicKey);
+		expect(document.activeElement).toBe(
+			container.querySelector('textarea')
+		);
+		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
+		expect(pullSite).toHaveBeenCalledTimes(1);
+		await submit();
+		expect(vi.mocked(pullSite).mock.calls[1].slice(1, 3)).toEqual([
+			'https://example.com/blog/',
+			privateKey,
+		]);
+	});
+
 	it('keeps the clone result when an earlier saved-connection read finishes', async () => {
 		ui.pendingClone = {
 			slug: 'test',
