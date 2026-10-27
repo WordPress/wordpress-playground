@@ -32,9 +32,18 @@ const registration = await navigator.serviceWorker.register(
 	new URL('/sw.js', location.origin),
 	{ type: 'module', updateViaCache: 'none' }
 );
+// register() can reuse release A's /sw.js registration without checking release
+// B's deployed bytes. Finish that check before selecting the worker to wait for.
+try {
+	await registration.update();
+} catch (error) {
+	// Keep offline startup working with an installed worker, as the app's own
+	// worker bootstrap does. Without one, there is no HTTP connection to reuse.
+	if (!registration.active) throw error;
+}
 await navigator.serviceWorker.ready;
-// ready resolves as soon as any worker is active. After register() starts an
-// update, that can still be the worker installed during a previous visit.
+// ready resolves as soon as any worker is active. While an update installs,
+// that can still be the worker installed during a previous visit.
 // Wait for the registration's installing/waiting worker to activate before
 // telling remote.html that WordPress HTTP requests can reach PHP.
 const worker =

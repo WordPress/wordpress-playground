@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
 	appOrigin,
@@ -16,20 +16,24 @@ const appDirectory = resolve(
 	__dirname,
 	'../../../../../dist/packages/playground/website'
 );
-const previousWorker = '__previous-wordpress-worker.js';
+const workerPath = resolve(sandbox, 'sw.js');
 const seedDocument = '__previous-wordpress-worker.html';
 const appSeedDocument = '__previous-wordpress-app.html';
 const previousHelper = getWordPressBridgePath('0'.repeat(40));
 const expiredScript = appOrigin + '/assets/wordpress-bridge-expired.js';
+let deployedWorker: Buffer;
 
 test.describe('WordPress helper upgrades', { tag: '@storage' }, () => {
 	test.beforeAll(async () => {
 		// Install a test worker representing release A before loading this test's
 		// app build (release B). For both /wordpress-bridge.html and A's versioned
 		// helper URL, it generates HTML naming a script B no longer serves.
+		// Use the real /sw.js URL and options: changing the URL would force an
+		// update and hide the existing-registration case that returning users hit.
 		// Seed the worker itself, not CacheStorage.
+		deployedWorker = await readFile(workerPath);
 		await writeFile(
-			resolve(sandbox, previousWorker),
+			workerPath,
 			`
 self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
@@ -55,7 +59,7 @@ self.addEventListener('fetch', event => {
 	});
 
 	test.afterAll(async () => {
-		await rm(resolve(sandbox, previousWorker), { force: true });
+		await writeFile(workerPath, deployedWorker);
 		await rm(resolve(sandbox, seedDocument), { force: true });
 		await rm(resolve(appDirectory, appSeedDocument), { force: true });
 	});
@@ -74,13 +78,14 @@ self.addEventListener('fetch', event => {
 		await expect
 			.poll(() => seed.title())
 			.toBe('Previous WordPress worker seed');
-		await seed.evaluate(async (file) => {
+		await seed.evaluate(async () => {
 			(window as any).previousRegistration =
-				await navigator.serviceWorker.register('/' + file, {
+				await navigator.serviceWorker.register('/sw.js', {
 					scope: '/',
 					type: 'module',
+					updateViaCache: 'none',
 				});
-		}, previousWorker);
+		});
 		await expect
 			.poll(() =>
 				seed.evaluate(
@@ -104,6 +109,8 @@ self.addEventListener('fetch', event => {
 				)
 			).toContain(expiredScript);
 		}
+		// Deploy B's bytes at the same /sw.js URL while A remains installed.
+		await writeFile(workerPath, deployedWorker);
 		let expiredRequests = 0;
 		page.on('request', (request) => {
 			if (request.url() === expiredScript) expiredRequests++;
