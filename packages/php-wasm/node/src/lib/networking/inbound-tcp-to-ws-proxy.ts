@@ -13,12 +13,15 @@ export function addTCPServerToWebSocketServerClass(
 		private tcpToWsProxyServer?: Server;
 
 		constructor(options: any, callback: any) {
+			const requestedHost = options.host;
 			const requestedPort = options.port;
+			options.host = '127.0.0.1';
 			options.port = 0;
 			super(options, undefined);
 			this.once('listening', () => {
 				this.tcpToWsProxyServer = listenTCPToWSProxy(
 					{
+						tcpListenHost: requestedHost,
 						tcpListenPort: requestedPort,
 						wsConnectPort: getServerPort(this),
 					},
@@ -45,6 +48,7 @@ export function addTCPServerToWebSocketServerClass(
 }
 
 export interface InboundTcpToWsProxyOptions {
+	tcpListenHost?: string;
 	tcpListenPort: number;
 	wsConnectHost?: string;
 	wsConnectPort: number;
@@ -57,7 +61,8 @@ export function listenTCPToWSProxy(
 		wsConnectHost: '127.0.0.1',
 		...options,
 	};
-	const { tcpListenPort, wsConnectHost, wsConnectPort } = options;
+	const { tcpListenHost, tcpListenPort, wsConnectHost, wsConnectPort } =
+		options;
 	const server = createServer();
 	server.on('connection', function handleConnection(tcpSource) {
 		const inBuffer: Buffer[] = [];
@@ -109,7 +114,7 @@ export function listenTCPToWSProxy(
 			wsTarget.close();
 		});
 	});
-	server.listen(tcpListenPort, function () {
+	server.listen(tcpListenPort, tcpListenHost, function () {
 		log('TCP server listening');
 		onListening?.();
 	});
