@@ -127,12 +127,15 @@ export function SiteTransferPanel({
 		site.metadata.runtimeConfiguration.networking &&
 		Number.parseFloat(site.metadata.runtimeConfiguration.phpVersion) >= 8.1;
 
+	// Restore only an idle address form. A late saved-connection read must not
+	// replace transfer progress or a completed clone.
 	useEffect(() => {
 		if (!isVisible) {
 			urlEdited.current = false;
 			return;
 		}
-		if (cloneRequested || !playground || running.current) return;
+		if (cloneRequested || !playground || running.current || step !== 'site')
+			return;
 		let cancelled = false;
 		void readReprintConnection(playground)
 			.then((connection) => {
@@ -152,7 +155,7 @@ export function SiteTransferPanel({
 		return () => {
 			cancelled = true;
 		};
-	}, [isVisible, playground, site.slug, cloneRequested]);
+	}, [isVisible, playground, site.slug, cloneRequested, step]);
 
 	// Generate once per live-site address. A late key generation must not attach
 	// the old address's pair to a different site or a closed setup step.
@@ -193,6 +196,10 @@ export function SiteTransferPanel({
 
 	useEffect(() => {
 		if (!isVisible) return;
+		if (completed) {
+			heading.current?.focus();
+			return;
+		}
 		const input = content.current?.querySelector<
 			HTMLInputElement | HTMLTextAreaElement
 		>('input:not([disabled]):not([type=checkbox]), textarea[readonly]');
@@ -875,7 +882,13 @@ export function SiteTransferPanel({
 						<span className={css.doneIcon}>
 							<Icon icon={check} size={32} />
 						</span>
-						<h3 className={css.doneTitle}>{hostname} cloned</h3>
+						<h3
+							ref={heading}
+							tabIndex={-1}
+							className={css.doneTitle}
+						>
+							{hostname} cloned
+						</h3>
 						{summary && (
 							<p className={css.doneSummary}>
 								{[
@@ -912,9 +925,6 @@ export function SiteTransferPanel({
 					<p className={css.doneNote}>
 						You’re signed in as an administrator. Your live site was
 						not changed.
-						<br />
-						This copy is being saved to your browser in the
-						background.
 					</p>
 				)}
 			</div>

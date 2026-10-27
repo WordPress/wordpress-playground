@@ -214,11 +214,14 @@ test(
 		expect(copy.admin.status).toBe(200);
 		expect(copy.admin.text).toContain('Dashboard');
 
-		await openSite.click();
-		await expect(pane).toHaveCount(0);
+		// Saving the completed clone must not send the pane back to key setup.
 		await expect(page.getByText('Autosaved', { exact: true })).toBeVisible({
 			timeout: 60_000,
 		});
+		await expect(openSite).toBeVisible();
+		await expect(key).toHaveCount(0);
+		await openSite.click();
+		await expect(pane).toHaveCount(0);
 		const clone = await page.evaluate(() =>
 			(window as any).playgroundSites
 				.list()

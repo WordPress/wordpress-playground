@@ -72,7 +72,8 @@
 }
 
 /* Announce the new step without drawing a focus ring around non-interactive instructions. */
-.setup-title:focus {
+.setup-title:focus,
+.done-title:focus {
 	outline: none;
 }
 

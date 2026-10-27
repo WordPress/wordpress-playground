@@ -486,6 +486,58 @@ describe('Reprint connection changes', () => {
 		}
 	);
 
+	it('keeps the clone result when an earlier saved-connection read finishes', async () => {
+		ui.pendingClone = {
+			slug: 'test',
+			url: 'https://example.com/',
+			keyPair,
+		};
+		let finishRead!: (value: string) => void;
+		const savedConnection = new Promise<string>((resolve) => {
+			finishRead = resolve;
+		});
+		vi.mocked(playground.fileExists).mockResolvedValue(true);
+		vi.mocked(playground.readFileAsText).mockReturnValue(savedConnection);
+		await render();
+		expect(container.textContent).toContain('example.com cloned');
+		expect(document.activeElement).toBe(container.querySelector('h3'));
+		await act(async () =>
+			finishRead(
+				JSON.stringify({ url: 'https://example.com/?reprint-api' })
+			)
+		);
+		expect(container.textContent).toContain('example.com cloned');
+		expect(container.querySelector('textarea')).toBeNull();
+		expect(pullSite).toHaveBeenCalledTimes(1);
+	});
+
+	it.each(['reopen', 'new client'] as const)(
+		'keeps the clone result after %s',
+		async (change) => {
+			ui.pendingClone = {
+				slug: 'test',
+				url: 'https://example.com/',
+				keyPair,
+			};
+			await render();
+			expect(container.textContent).toContain('example.com cloned');
+			vi.mocked(playground.fileExists).mockResolvedValue(true);
+			vi.mocked(playground.readFileAsText).mockResolvedValue(
+				JSON.stringify({ url: 'https://example.com/?reprint-api' })
+			);
+			if (change === 'reopen') {
+				await render(playground, false);
+				await render(playground, true);
+			} else {
+				await render({ ...playground } as PlaygroundClient);
+			}
+			expect(container.textContent).toContain('example.com cloned');
+			expect(container.querySelector('textarea')).toBeNull();
+			expect(document.activeElement).toBe(container.querySelector('h3'));
+			expect(pullSite).toHaveBeenCalledTimes(1);
+		}
+	);
+
 	it('cancels the pending pull when going back before the new site finishes booting', async () => {
 		ui.pendingClone = {
 			slug: 'test',
