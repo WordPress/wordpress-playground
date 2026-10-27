@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_2_35', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 23068756;
+export const dependenciesTotalSize = 23068759;
 const phpVersionString = '8.2.35';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -9377,13 +9377,11 @@ export function init(RuntimeName, PHPLoader) {
 		envLength
 	) {
 		if (!command) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		let argsArray = [];
 		if (argsLength) {
@@ -9443,13 +9441,11 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					___errno_location(ERRNO_CODES.ENOSYS);
-					return -1;
+					return -ERRNO_CODES.ENOSYS;
 				}
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError'))
 					throw e;
-				___errno_location(e.code);
-				return -1;
+				return -e.errno;
 			}
 			const ProcInfo = {
 				pid: cp.pid,
@@ -9463,20 +9459,24 @@ export function init(RuntimeName, PHPLoader) {
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
 			const detachPipeDataListeners = [];
-			cp.on('exit', function (code) {
+			/**
+			 * Closes the child ends of the pipes so a blocking fread() on the
+			 * parent end sees a broken pipe instead of polling forever. Runs on
+			 * 'exit', on 'error', and when the spawn wait fails, because a
+			 * failed spawn may never emit 'exit'.
+			 */ const closeChildPipes = function () {
 				for (const detach of detachPipeDataListeners) {
 					detach();
 				}
-				for (const fd of [
-					// The child process exited. Let's clean up its output streams:
-					stdoutChildFd,
-					stderrChildFd,
-					stdinChildFd,
-				]) {
+				for (const fd of [stdoutChildFd, stderrChildFd, stdinChildFd]) {
 					if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
 						FS.close(FS.streams[fd]);
 					}
 				}
+			};
+			cp.on('error', closeChildPipes);
+			cp.on('exit', function (code) {
+				closeChildPipes();
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 			});
@@ -9584,6 +9584,10 @@ export function init(RuntimeName, PHPLoader) {
 				// Process already started. Even if it exited early, PHP still
 				// needs to know about the pid and clean up the resources.
 				console.error(e);
+				closeChildPipes();
+				if (!ProcInfo.pid) {
+					return -(ERRNO_CODES[e.code] ?? ERRNO_CODES.ECHILD);
+				}
 				return ProcInfo.pid;
 			}
 			// Now we want to pass data from the STDIN source supplied by PHP
@@ -10665,10 +10669,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -10692,7 +10693,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -12002,65 +12002,65 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var _core_globals = (Module['_core_globals'] = 12903656);
+	var _core_globals = (Module['_core_globals'] = 12903560);
 
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 12763584);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 12763488);
 
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 12763588);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 12763492);
 
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 12763592);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 12763496);
 
-	var _sapi_module = (Module['_sapi_module'] = 12844920);
+	var _sapi_module = (Module['_sapi_module'] = 12844824);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 12845064);
+	var _sapi_globals = (Module['_sapi_globals'] = 12844968);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 12908232);
+	var _compiler_globals = (Module['_compiler_globals'] = 12908136);
 
-	var _executor_globals = (Module['_executor_globals'] = 12908616);
+	var _executor_globals = (Module['_executor_globals'] = 12908520);
 
-	var _zend_compile_file = (Module['_zend_compile_file'] = 12909840);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 12909744);
 
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 12908208);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 12908112);
 
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12908212);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12908116);
 
-	var _zend_write = (Module['_zend_write'] = 12907096);
+	var _zend_write = (Module['_zend_write'] = 12907e3);
 
-	var _zend_error_cb = (Module['_zend_error_cb'] = 12907100);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 12907004);
 
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 12907080);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 12906984);
 
-	var _module_registry = (Module['_module_registry'] = 12904864);
+	var _module_registry = (Module['_module_registry'] = 12904768);
 
-	var _zend_extensions = (Module['_zend_extensions'] = 12904504);
+	var _zend_extensions = (Module['_zend_extensions'] = 12904408);
 
 	var _zend_pass_function = (Module['_zend_pass_function'] = 12243868);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 12759e3);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 12758904);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 12759004);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 12758908);
 
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 12759016);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 12758920);
 
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12904956);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12904860);
 
-	var _zend_ce_error = (Module['_zend_ce_error'] = 12905072);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 12904976);
 
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12904940);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12904844);
 
 	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		12904952);
+		12904856);
 
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 12905956);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 12905860);
 
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 12865388);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 12865292);
 
-	var _zend_empty_string = (Module['_zend_empty_string'] = 12905960);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 12905864);
 
-	var _zend_known_strings = (Module['_zend_known_strings'] = 12905964);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 12905868);
 
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		12906028);
+		12905932);
 
 	var _std_object_handlers = (Module['_std_object_handlers'] = 12241260);
 
@@ -12068,22 +12068,22 @@ export function init(RuntimeName, PHPLoader) {
 
 	var ___table_base = (Module['___table_base'] = 1);
 
-	var ___THREW__ = (Module['___THREW__'] = 13258196);
+	var ___THREW__ = (Module['___THREW__'] = 13258100);
 
-	var ___threwValue = (Module['___threwValue'] = 13258200);
+	var ___threwValue = (Module['___threwValue'] = 13258104);
 
 	var _stderr = (Module['_stderr'] = 12751824);
 
 	var _stdout = (Module['_stdout'] = 12752128);
 
-	var _timezone = (Module['_timezone'] = 13245120);
+	var _timezone = (Module['_timezone'] = 13245024);
 
-	var _tzname = (Module['_tzname'] = 13245128);
+	var _tzname = (Module['_tzname'] = 13245032);
 
-	var ___heap_base = 14306864;
+	var ___heap_base = 14306768;
 
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		13258276);
+		13258180);
 
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'

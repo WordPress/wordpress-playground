@@ -374,14 +374,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
     // back to JS. In these cases we don't want to pay the Asyncify overhead,
     // save the stack, yield back to JS, restore the stack etc.
     return returnCallback(async (wakeUp) => {
-        var retries = 0;
         var interval = 50;
-        var timeout = 5000;
-        // We poll for data and give up after a timeout.
-        // We can't simply rely on PHP timeout here because we don't want
-        // to, say, block the entire PHPUnit test suite without any visible
-        // feedback.
-        var maxRetries = timeout / interval;
         while(true) {
             var returnCode;
             var stream;
@@ -408,8 +401,6 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
             }
 
             if (
-                // Too many retries? That's an error, too!
-                ++retries > maxRetries ||
                 // Stream closed? That's an error.
                 !stream || FS.isClosed(stream) ||
                 // Error different than EWOULDBLOCK – propagate it to the caller.
@@ -421,8 +412,8 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 return wakeUp(returnCode);
             }
 
-            // It's a blocking stream and we Blocking stream with no data available yet.
-            // Let's poll up to a timeout.
+            // Blocking stream with no data available yet. Poll until data arrives
+            // or one of the exit conditions above is met.
             await new Promise(resolve => setTimeout(resolve, interval));
         }
     })

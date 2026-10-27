@@ -1,7 +1,7 @@
 const dependencyFilename = new URL('./8_0_30/php_8_0.wasm', import.meta.url)
 	.href;
 export { dependencyFilename };
-export const dependenciesTotalSize = 14175536;
+export const dependenciesTotalSize = 14178122;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7176,13 +7176,11 @@ export function init(RuntimeName, PHPLoader) {
 		envLength
 	) {
 		if (!command) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		let argsArray = [];
 		if (argsLength) {
@@ -7237,13 +7235,11 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					___errno_location(ERRNO_CODES.ENOSYS);
-					return -1;
+					return -ERRNO_CODES.ENOSYS;
 				}
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError'))
 					throw e;
-				___errno_location(e.code);
-				return -1;
+				return -e.errno;
 			}
 			const ProcInfo = { pid: cp.pid, exited: false };
 			PHPWASM.processTable[ProcInfo.pid] = ProcInfo;
@@ -7254,7 +7250,7 @@ export function init(RuntimeName, PHPLoader) {
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
 			const detachPipeDataListeners = [];
-			cp.on('exit', function (code) {
+			const closeChildPipes = function () {
 				for (const detach of detachPipeDataListeners) {
 					detach();
 				}
@@ -7263,6 +7259,10 @@ export function init(RuntimeName, PHPLoader) {
 						FS.close(FS.streams[fd]);
 					}
 				}
+			};
+			cp.on('error', closeChildPipes);
+			cp.on('exit', function (code) {
+				closeChildPipes();
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 			});
@@ -7342,6 +7342,10 @@ export function init(RuntimeName, PHPLoader) {
 				});
 			} catch (e) {
 				console.error(e);
+				closeChildPipes();
+				if (!ProcInfo.pid) {
+					return -(ERRNO_CODES[e.code] ?? ERRNO_CODES.ECHILD);
+				}
 				return ProcInfo.pid;
 			}
 			if (stdinChildFd) {
@@ -8201,10 +8205,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -8228,7 +8229,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -8414,31 +8414,31 @@ export function init(RuntimeName, PHPLoader) {
 		_smart_str_erealloc,
 		_strtoll,
 		_strlen,
-		_memcmp,
+		_munmap,
 		_free,
+		_memcmp,
+		_fileno,
+		_fread,
+		_fclose,
+		_strcmp,
+		_malloc,
+		_atoi,
+		_memchr,
+		_strncasecmp,
+		_snprintf,
 		_dlopen,
 		_dlsym,
 		_dlclose,
-		_strcmp,
 		_getenv,
 		_explicit_bzero,
-		_malloc,
-		_atoi,
 		_strrchr,
 		_realloc,
 		___errno_location,
-		_memchr,
 		_strchr,
 		_strncmp,
 		_tolower,
 		_strtok_r,
 		_unlink,
-		_fileno,
-		_fread,
-		_fclose,
-		_strncasecmp,
-		_snprintf,
-		_strtoul,
 		_strstr,
 		_stat,
 		_fopen,
@@ -8455,7 +8455,6 @@ export function init(RuntimeName, PHPLoader) {
 		_fwrite,
 		_wasm_read,
 		_feof,
-		_munmap,
 		_fflush,
 		_mmap,
 		_closedir,
@@ -8482,6 +8481,7 @@ export function init(RuntimeName, PHPLoader) {
 		_htonl,
 		_strcpy,
 		_strcat,
+		_strtoul,
 		_setlocale,
 		_tzset,
 		_wasm_sleep,
@@ -8555,18 +8555,18 @@ export function init(RuntimeName, PHPLoader) {
 		___dynamic_cast,
 		__ZNSt20bad_array_new_lengthD1Ev,
 		__ZNSt12length_errorD1Ev,
+		dynCall_iiii,
+		dynCall_ii,
 		dynCall_vi,
 		dynCall_vii,
 		dynCall_viiiii,
 		dynCall_iii,
-		dynCall_iiii,
-		dynCall_iiiiii,
 		dynCall_iiiii,
-		dynCall_ii,
-		dynCall_viii,
 		dynCall_iiiiiii,
+		dynCall_iiiiii,
 		dynCall_i,
 		dynCall_iijii,
+		dynCall_viii,
 		dynCall_viiii,
 		dynCall_ji,
 		dynCall_viiiiiiii,
@@ -8916,36 +8916,36 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['smart_str_erealloc'];
 		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_strlen = Module['_strlen'] = wasmExports['strlen'];
-		_memcmp = Module['_memcmp'] = wasmExports['memcmp'];
+		_munmap = Module['_munmap'] = wasmExports['munmap'];
 		_free = Module['_free'] = wasmExports['free'];
-		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
-		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
-		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
+		_memcmp = Module['_memcmp'] = wasmExports['memcmp'];
+		_fileno = Module['_fileno'] = wasmExports['fileno'];
+		_fread = Module['_fread'] = wasmExports['fread'];
+		_fclose = Module['_fclose'] = wasmExports['fclose'];
 		_strcmp = Module['_strcmp'] = wasmExports['strcmp'];
-		_getenv = Module['_getenv'] = wasmExports['getenv'];
-		_explicit_bzero = Module['_explicit_bzero'] =
-			wasmExports['explicit_bzero'];
 		_malloc =
 			PHPLoader['malloc'] =
 			Module['_malloc'] =
 				wasmExports['malloc'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
+		_memchr = Module['_memchr'] = wasmExports['memchr'];
+		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
+		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
+		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
+		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
+		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
+		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		_strrchr = Module['_strrchr'] = wasmExports['strrchr'];
 		_realloc = Module['_realloc'] = wasmExports['realloc'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];
-		_memchr = Module['_memchr'] = wasmExports['memchr'];
 		_strchr = Module['_strchr'] = wasmExports['strchr'];
 		_strncmp = Module['_strncmp'] = wasmExports['strncmp'];
 		_tolower = Module['_tolower'] = wasmExports['tolower'];
 		_strtok_r = Module['_strtok_r'] = wasmExports['strtok_r'];
 		_unlink = Module['_unlink'] = wasmExports['unlink'];
-		_fileno = Module['_fileno'] = wasmExports['fileno'];
-		_fread = Module['_fread'] = wasmExports['fread'];
-		_fclose = Module['_fclose'] = wasmExports['fclose'];
-		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
-		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
-		_strtoul = Module['_strtoul'] = wasmExports['strtoul'];
 		_strstr = Module['_strstr'] = wasmExports['strstr'];
 		_stat = Module['_stat'] = wasmExports['stat'];
 		_fopen = Module['_fopen'] = wasmExports['fopen'];
@@ -8962,7 +8962,6 @@ export function init(RuntimeName, PHPLoader) {
 		_fwrite = Module['_fwrite'] = wasmExports['fwrite'];
 		_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'];
 		_feof = Module['_feof'] = wasmExports['feof'];
-		_munmap = Module['_munmap'] = wasmExports['munmap'];
 		_fflush = Module['_fflush'] = wasmExports['fflush'];
 		_mmap = Module['_mmap'] = wasmExports['mmap'];
 		_closedir = Module['_closedir'] = wasmExports['closedir'];
@@ -8991,6 +8990,7 @@ export function init(RuntimeName, PHPLoader) {
 		_htonl = wasmExports['htonl'];
 		_strcpy = Module['_strcpy'] = wasmExports['strcpy'];
 		_strcat = Module['_strcat'] = wasmExports['strcat'];
+		_strtoul = Module['_strtoul'] = wasmExports['strtoul'];
 		_setlocale = Module['_setlocale'] = wasmExports['setlocale'];
 		_tzset = Module['_tzset'] = wasmExports['tzset'];
 		_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'];
@@ -9109,18 +9109,18 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['_ZNSt20bad_array_new_lengthD1Ev'];
 		__ZNSt12length_errorD1Ev = Module['__ZNSt12length_errorD1Ev'] =
 			wasmExports['_ZNSt12length_errorD1Ev'];
+		dynCall_iiii = dynCalls['iiii'] = wasmExports['dynCall_iiii'];
+		dynCall_ii = dynCalls['ii'] = wasmExports['dynCall_ii'];
 		dynCall_vi = dynCalls['vi'] = wasmExports['dynCall_vi'];
 		dynCall_vii = dynCalls['vii'] = wasmExports['dynCall_vii'];
 		dynCall_viiiii = dynCalls['viiiii'] = wasmExports['dynCall_viiiii'];
 		dynCall_iii = dynCalls['iii'] = wasmExports['dynCall_iii'];
-		dynCall_iiii = dynCalls['iiii'] = wasmExports['dynCall_iiii'];
-		dynCall_iiiiii = dynCalls['iiiiii'] = wasmExports['dynCall_iiiiii'];
 		dynCall_iiiii = dynCalls['iiiii'] = wasmExports['dynCall_iiiii'];
-		dynCall_ii = dynCalls['ii'] = wasmExports['dynCall_ii'];
-		dynCall_viii = dynCalls['viii'] = wasmExports['dynCall_viii'];
 		dynCall_iiiiiii = dynCalls['iiiiiii'] = wasmExports['dynCall_iiiiiii'];
+		dynCall_iiiiii = dynCalls['iiiiii'] = wasmExports['dynCall_iiiiii'];
 		dynCall_i = dynCalls['i'] = wasmExports['dynCall_i'];
 		dynCall_iijii = dynCalls['iijii'] = wasmExports['dynCall_iijii'];
+		dynCall_viii = dynCalls['viii'] = wasmExports['dynCall_viii'];
 		dynCall_viiii = dynCalls['viiii'] = wasmExports['dynCall_viiii'];
 		dynCall_ji = dynCalls['ji'] = wasmExports['dynCall_ji'];
 		dynCall_viiiiiiii = dynCalls['viiiiiiii'] =
@@ -9194,37 +9194,37 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var _executor_globals = (Module['_executor_globals'] = 11428496);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11283216);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11283220);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11283232);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11425068);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 11425864);
+	var _executor_globals = (Module['_executor_globals'] = 11428456);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11284360);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11284364);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11284376);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 11426376);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 11282784);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		11425932);
-	var _std_object_handlers = (Module['_std_object_handlers'] = 10714772);
+		11282852);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11076036);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 11276304);
-	var _timezone = (Module['_timezone'] = 11458584);
-	var _tzname = (Module['_tzname'] = 11458592);
-	var ___heap_base = 12520320;
+	var _stdout = (Module['_stdout'] = 11276368);
+	var _timezone = (Module['_timezone'] = 11458536);
+	var _tzname = (Module['_tzname'] = 11458544);
+	var ___heap_base = 12520272;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		11471724);
+		11471676);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 11276552);
+	] = 11276616);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 11276512);
+	] = 11276576);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 11276604);
+	] = 11276668);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 11276676);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11276720);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11276740);
+	] = 11276740);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11276784);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11276804);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncify_data: ___asyncify_data,
