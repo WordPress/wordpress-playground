@@ -136,7 +136,7 @@ async function probeReprint(
 }
 
 /**
- * Builds the site, plugin-upload, and Reprint settings URLs from an install URL.
+ * Builds the site, plugin-directory, and Reprint settings URLs from an install URL.
  *
  * Accepts the site URL or its ?reprint-api endpoint, removes the API query, and
  * adds a trailing slash before resolving the admin paths. This keeps a site
@@ -149,7 +149,10 @@ export function getReprintAdminUrls(input: string) {
 	if (!site.pathname.endsWith('/')) site.pathname += '/';
 	return {
 		site: site.href,
-		install: new URL('wp-admin/plugin-install.php?tab=upload', site).href,
+		install: new URL(
+			'wp-admin/plugin-install.php?tab=plugin-information&plugin=reprint',
+			site
+		).href,
 		settings: new URL('wp-admin/tools.php?page=reprint-server', site).href,
 	};
 }

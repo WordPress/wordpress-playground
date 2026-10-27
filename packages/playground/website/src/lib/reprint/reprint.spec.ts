@@ -193,7 +193,7 @@ describe('Reprint setup', () => {
 		expect(getReprintAdminUrls(url)).toEqual({
 			site: 'https://example.com/blog/',
 			install:
-				'https://example.com/blog/wp-admin/plugin-install.php?tab=upload',
+				'https://example.com/blog/wp-admin/plugin-install.php?tab=plugin-information&plugin=reprint',
 			settings:
 				'https://example.com/blog/wp-admin/tools.php?page=reprint-server',
 		});

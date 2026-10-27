@@ -50,7 +50,6 @@ import {
 	detectReprint,
 	getReprintAdminUrls,
 	pullSite,
-	REPRINT_VERSION,
 	type ReprintAvailability,
 	type TransferProgress,
 } from '../../../lib/reprint/reprint';
@@ -672,28 +671,22 @@ export function SiteTransferPanel({
 						<VStack as="ol" spacing={6} className={css.steps}>
 							<li>
 								<a
-									href={`https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint-exporter-wp.zip`}
-									target="_blank"
-									rel="noreferrer"
-								>
-									Download Reprint Server
-								</a>
-								<p className={css.hint}>
-									Keep the ZIP file zipped.
-								</p>
-							</li>
-							<li>
-								<a
 									href={links.install}
 									target="_blank"
 									rel="noreferrer"
 								>
-									Open the plugin installer
+									Install Reprint
 								</a>
 								<p className={css.hint}>
-									Sign in if asked. Upload the ZIP, choose{' '}
-									<strong>Install Now</strong>, then{' '}
-									<strong>Activate Plugin</strong>.
+									Sign in if asked. Choose{' '}
+									<strong>Install Now</strong>.
+								</p>
+							</li>
+							<li>
+								<strong>Activate the plugin</strong>
+								<p className={css.hint}>
+									Choose <strong>Activate</strong>, then come
+									back here.
 								</p>
 							</li>
 						</VStack>
