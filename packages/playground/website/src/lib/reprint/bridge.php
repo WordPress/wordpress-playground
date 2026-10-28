@@ -174,6 +174,7 @@ class PlaygroundReprintClient extends ImportClient {
             }
         }
         if ($file_bytes + $sql_bytes > self::MAX_SITE_BYTES) {
+            $this->last_error_code = 'SITE_TOO_LARGE';
             throw new RuntimeException('This site exceeds Playground’s 2 GiB import limit (site files plus SQL). Use the Reprint CLI to pull this site locally.');
         }
         $this->site_file_bytes = $file_bytes;
@@ -236,6 +237,10 @@ function run_transfer(): void {
         }
         echo json_encode(['playgroundReprint' => $result], JSON_THROW_ON_ERROR) . "\n";
     } catch (Throwable $error) {
+        echo json_encode(['playgroundError' => [
+            'message' => $error->getMessage(),
+            'stage' => $operation['stage'] ?? 'preflight',
+        ]], JSON_THROW_ON_ERROR) . "\n";
         fwrite(STDERR, $error->getMessage() . "\n");
         $exit_code = 1;
     } finally {
@@ -272,7 +277,16 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     write_private_key($request);
     $client->run(['command' => 'preflight', 'private_key_path' => $request['privateKeyPath'], 'progress' => 'jsonl'], $lock);
     $error = $client->get_preflight_error();
-    if ($error !== null) throw new RuntimeException($error['message']);
+    if ($error !== null) {
+        $failure = new RuntimeException($error['message']);
+        // The saved preflight report omits cURL's error number. Keep it from
+        // the client so the UI can distinguish a timeout from a TLS failure.
+        echo json_encode([
+            'error' => $error['message'],
+            'error_code' => $error['code'],
+        ] + $client->get_error_details($failure), JSON_THROW_ON_ERROR) . "\n";
+        throw $failure;
+    }
     $preflight = $client->get_state()->preflight_record()['data'];
     $metadata = source_metadata($preflight);
     $metadata['routeHandlers'] = host_route_handlers($preflight);

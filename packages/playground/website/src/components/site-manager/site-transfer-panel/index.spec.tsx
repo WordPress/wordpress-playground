@@ -5,11 +5,16 @@ import type { PlaygroundClient } from '@wp-playground/client';
 import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { detectReprint, pullSite } from '../../../lib/reprint/reprint';
+import {
+	detectReprint,
+	pullSite,
+	loginImportedSite,
+} from '../../../lib/reprint/reprint';
 import {
 	generateReprintKeyPair,
 	type ReprintKeyPair,
 } from '../../../lib/reprint/keys';
+import { ReprintTransferError } from '../../../lib/reprint/transfer-error';
 import type * as ReprintKeys from '../../../lib/reprint/keys';
 import type * as Reprint from '../../../lib/reprint/reprint';
 import { SiteTransferPanel } from './index';
@@ -19,7 +24,7 @@ import type {
 	ToolHeaderState,
 } from '../site-info-panel/site-tool-renderers';
 
-const { ui, dispatch } = vi.hoisted(() => ({
+const { ui, dispatch, autosaveTemporarySite } = vi.hoisted(() => ({
 	ui: {
 		cloneRequested: false,
 		pendingClone: undefined as
@@ -27,6 +32,7 @@ const { ui, dispatch } = vi.hoisted(() => ({
 			| undefined,
 	},
 	dispatch: vi.fn(),
+	autosaveTemporarySite: vi.fn(),
 }));
 vi.mock('../../../lib/state/redux/store', () => ({
 	/** Record actions without starting a real site runtime. */
@@ -44,7 +50,7 @@ vi.mock('../../../lib/state/redux/site-management-api-middleware', () => ({
 	/** Finish site creation and saving without browser storage. */
 	useSitesAPI: () => ({
 		createNewTemporarySite: vi.fn(async (slug: string) => slug),
-		autosaveTemporarySite: vi.fn(async () => ({})),
+		autosaveTemporarySite,
 	}),
 }));
 vi.mock('../../../lib/state/redux/playground-defined-php-constants', () => ({
@@ -54,6 +60,7 @@ vi.mock('../../../lib/reprint/reprint', async (original) => ({
 	...(await original<typeof Reprint>()),
 	detectReprint: vi.fn(),
 	pullSite: vi.fn(),
+	loginImportedSite: vi.fn(),
 }));
 vi.mock('../../../lib/reprint/keys', async (original) => ({
 	...(await original<typeof ReprintKeys>()),
@@ -72,16 +79,27 @@ vi.mock('@wordpress/components', () => ({
 		isDestructive: _destructive,
 		isBusy: _busy,
 		type = 'button',
+		href,
+		target,
+		rel,
 		...props
 	}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+		href?: string;
+		target?: string;
+		rel?: string;
 		variant?: string;
 		isDestructive?: boolean;
 		isBusy?: boolean;
-	}) => (
-		<button type={type} {...props}>
-			{children}
-		</button>
-	),
+	}) =>
+		href ? (
+			<a href={href} target={target} rel={rel}>
+				{children}
+			</a>
+		) : (
+			<button type={type} {...props}>
+				{children}
+			</button>
+		),
 	// The menu renders open so its items can be clicked like any button.
 	/** Keep the support action clickable without positioning a real popover. */
 	DropdownMenu: ({
@@ -159,6 +177,7 @@ describe('Reprint connection changes', () => {
 				ui.pendingClone = action.payload;
 		});
 		vi.mocked(pullSite).mockResolvedValue({});
+		autosaveTemporarySite.mockResolvedValue({});
 		playground = {
 			documentRoot: Promise.resolve('/wordpress'),
 			fileExists: vi.fn().mockResolvedValue(false),
@@ -244,6 +263,44 @@ describe('Reprint connection changes', () => {
 			keyPair.privateKey,
 		]);
 	});
+
+	it.each(['Back', 'Back then client change'] as const)(
+		'keeps the saved address editable after %s, but restores it on a new visit',
+		async (navigation) => {
+			vi.mocked(playground.fileExists).mockResolvedValue(true);
+			vi.mocked(playground.readFileAsText).mockResolvedValue(
+				JSON.stringify({ url: 'https://saved.example/?reprint-api' })
+			);
+			await render();
+			expect(container.querySelector('textarea')).not.toBeNull();
+			await click('Back to site address');
+			if (navigation === 'Back then client change') {
+				playground = { ...playground } as PlaygroundClient;
+				await render(playground);
+			}
+			expect(
+				container.querySelector<HTMLInputElement>('input[type=url]')
+					?.value
+			).toBe('https://saved.example/');
+			expect(container.querySelector('textarea')).toBeNull();
+			expect(playground.readFileAsText).toHaveBeenCalledTimes(1);
+			expect(pullSite).not.toHaveBeenCalled();
+
+			vi.mocked(playground.readFileAsText).mockResolvedValue(
+				JSON.stringify({ url: 'https://updated.example/?reprint-api' })
+			);
+			await render(playground, false);
+			await render(playground, true);
+			expect(playground.readFileAsText).toHaveBeenCalledTimes(2);
+			expect(
+				container.querySelector<HTMLAnchorElement>(
+					'a[href*="tools.php"]'
+				)?.href
+			).toBe(
+				'https://updated.example/wp-admin/tools.php?page=reprint-server'
+			);
+		}
+	);
 
 	it('does not replace a typed address when the saved address loads later', async () => {
 		let finish!: (value: string) => void;
@@ -345,7 +402,7 @@ describe('Reprint connection changes', () => {
 				finish = resolve;
 			})
 		);
-		await click('I’ve activated Reprint — check again');
+		await click('Check again');
 		const signal = vi.mocked(detectReprint).mock.calls[1][1];
 		await click('Back to site address');
 		edit('url', 'https://second.example');
@@ -362,7 +419,9 @@ describe('Reprint connection changes', () => {
 		await render();
 		edit('url', 'https://example.com');
 		await submit();
-		expect(container.textContent).toContain('Add this public key');
+		expect(
+			container.querySelector<HTMLTextAreaElement>('textarea')?.value
+		).toBe(keyPair.publicKey);
 		await submit();
 		expect(container.querySelector('input')).toBeNull();
 		expect(vi.mocked(pullSite).mock.calls[0][2]).toBe(privateKey);
@@ -470,7 +529,7 @@ describe('Reprint connection changes', () => {
 				expect(container.textContent).not.toContain('Re-enter');
 				const originalKey = vi.mocked(pullSite).mock.calls[0][2];
 				vi.mocked(pullSite).mockResolvedValueOnce({});
-				await click('Try resuming');
+				await click('Try again');
 				expect(pullSite).toHaveBeenCalledTimes(2);
 				expect(vi.mocked(pullSite).mock.calls[1][2]).toBe(originalKey);
 			} else {
@@ -480,9 +539,165 @@ describe('Reprint connection changes', () => {
 					'signed in as an administrator'
 				);
 				expect(container.textContent).not.toContain(
-					'Back to connection key'
+					'Back to migration key'
 				);
 			}
+		}
+	);
+
+	it('keeps the same connection and key when reviewing a failed pull', async () => {
+		vi.mocked(detectReprint).mockResolvedValue('configured');
+		vi.mocked(pullSite).mockRejectedValueOnce(
+			new ReprintTransferError('No migration keys are enrolled.', {
+				code: 'EXPORT_NOT_CONFIGURED',
+				httpStatus: 503,
+			})
+		);
+		await render();
+		edit('url', 'https://example.com/blog/');
+		await submit();
+		await submit();
+		expect(
+			container.querySelector<HTMLAnchorElement>('a[href*="tools.php"]')
+				?.href
+		).toBe(
+			'https://example.com/blog/wp-admin/tools.php?page=reprint-server'
+		);
+		await click('View migration key');
+		expect(
+			container.querySelector<HTMLTextAreaElement>('textarea')!.value
+		).toBe(keyPair.publicKey);
+		expect(document.activeElement).toBe(
+			container.querySelector('textarea')
+		);
+		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
+		expect(pullSite).toHaveBeenCalledTimes(1);
+		await submit();
+		expect(vi.mocked(pullSite).mock.calls[1].slice(1, 3)).toEqual([
+			'https://example.com/blog/',
+			privateKey,
+		]);
+	});
+
+	it('continues with the same key after enrollment, without creating another clone', async () => {
+		ui.pendingClone = {
+			slug: 'test',
+			url: 'https://example.com/',
+			keyPair,
+		};
+		vi.mocked(pullSite).mockRejectedValueOnce(
+			new ReprintTransferError('No keys', { code: 'AUTH_UNKNOWN_KEY' })
+		);
+		await render();
+		expect(pullSite).toHaveBeenCalledTimes(1);
+		await click('I’ve added the key — continue');
+		expect(pullSite).toHaveBeenCalledTimes(2);
+		expect(vi.mocked(pullSite).mock.calls[1].slice(1, 3)).toEqual([
+			'https://example.com/',
+			privateKey,
+		]);
+		expect(generateReprintKeyPair).not.toHaveBeenCalled();
+	});
+
+	it('keeps the address editor open after a redirect despite the saved connection', async () => {
+		ui.pendingClone = {
+			slug: 'test',
+			url: 'https://example.com/',
+			keyPair,
+		};
+		vi.mocked(pullSite).mockRejectedValueOnce(
+			new ReprintTransferError('Redirected', { code: 'REDIRECT' })
+		);
+		vi.mocked(playground.fileExists).mockResolvedValue(true);
+		vi.mocked(playground.readFileAsText).mockResolvedValue(
+			JSON.stringify({ url: 'https://example.com/?reprint-api' })
+		);
+		await render();
+		await click('Edit site address');
+		expect(
+			container.querySelector<HTMLInputElement>('input[type=url]')?.value
+		).toBe('https://example.com/');
+		expect(container.querySelector('textarea')).toBeNull();
+		expect(pullSite).toHaveBeenCalledTimes(1);
+	});
+
+	it('saves a completed copy after sign-in fails and retries only sign-in', async () => {
+		ui.pendingClone = {
+			slug: 'test',
+			url: 'https://example.com/',
+			keyPair,
+		};
+		vi.mocked(pullSite).mockResolvedValueOnce({
+			loginError: new ReprintTransferError('Sign-in failed', {
+				code: 'LOGIN_FAILED',
+				stage: 'login',
+			}),
+		});
+		vi.mocked(loginImportedSite)
+			.mockRejectedValueOnce(new Error('Still blocked'))
+			.mockResolvedValueOnce(undefined);
+		await render();
+		expect(autosaveTemporarySite).toHaveBeenCalledWith('test', {
+			updateUrl: true,
+		});
+		await click('Try signing in again');
+		expect(pullSite).toHaveBeenCalledTimes(1);
+		expect(loginImportedSite).toHaveBeenCalledTimes(1);
+		await click('Try signing in again');
+		expect(pullSite).toHaveBeenCalledTimes(1);
+		expect(loginImportedSite).toHaveBeenCalledTimes(2);
+		expect(container.textContent).toContain('example.com cloned');
+	});
+
+	it('keeps the clone result when an earlier saved-connection read finishes', async () => {
+		ui.pendingClone = {
+			slug: 'test',
+			url: 'https://example.com/',
+			keyPair,
+		};
+		let finishRead!: (value: string) => void;
+		const savedConnection = new Promise<string>((resolve) => {
+			finishRead = resolve;
+		});
+		vi.mocked(playground.fileExists).mockResolvedValue(true);
+		vi.mocked(playground.readFileAsText).mockReturnValue(savedConnection);
+		await render();
+		expect(container.textContent).toContain('example.com cloned');
+		expect(document.activeElement).toBe(container.querySelector('h3'));
+		await act(async () =>
+			finishRead(
+				JSON.stringify({ url: 'https://example.com/?reprint-api' })
+			)
+		);
+		expect(container.textContent).toContain('example.com cloned');
+		expect(container.querySelector('textarea')).toBeNull();
+		expect(pullSite).toHaveBeenCalledTimes(1);
+	});
+
+	it.each(['reopen', 'new client'] as const)(
+		'keeps the clone result after %s',
+		async (change) => {
+			ui.pendingClone = {
+				slug: 'test',
+				url: 'https://example.com/',
+				keyPair,
+			};
+			await render();
+			expect(container.textContent).toContain('example.com cloned');
+			vi.mocked(playground.fileExists).mockResolvedValue(true);
+			vi.mocked(playground.readFileAsText).mockResolvedValue(
+				JSON.stringify({ url: 'https://example.com/?reprint-api' })
+			);
+			if (change === 'reopen') {
+				await render(playground, false);
+				await render(playground, true);
+			} else {
+				await render({ ...playground } as PlaygroundClient);
+			}
+			expect(container.textContent).toContain('example.com cloned');
+			expect(container.querySelector('textarea')).toBeNull();
+			expect(document.activeElement).toBe(container.querySelector('h3'));
+			expect(pullSite).toHaveBeenCalledTimes(1);
 		}
 	);
 
@@ -494,7 +709,7 @@ describe('Reprint connection changes', () => {
 		};
 		// No client yet: the new Playground is still booting.
 		await render(null as unknown as PlaygroundClient, true);
-		await click('Back to connection key');
+		await click('Back to migration key');
 		await render(playground, true);
 		expect(pullSite).not.toHaveBeenCalled();
 		expect(
