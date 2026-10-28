@@ -185,6 +185,7 @@ store links in a reserved `.playground-symlinks.json` file at the mount root:
 
 ```json
 {
+	"format": "wordpress-playground-symlinks",
 	"version": 1,
 	"links": {
 		"/wp-content/plugins/demo": "../../shared/demo"
@@ -213,6 +214,12 @@ The same format applies to local folders mounted through a directory handle.
 Their saved links are records in this JSON file, not native host symlinks.
 A real PHP file at the reserved root path is rejected. Invalid saved indexes
 also fail the mount instead of being ignored or overwritten.
+
+The format marker is required before a root file is treated as link metadata.
+An unmarked file, even one matching the JSON shape used by earlier drafts of
+this change, causes mounting and saving to fail without changing that file.
+There is no automatic migration: move an ordinary file to another name, or
+back up an old index and add the marker only after confirming it is link metadata.
 
 Older saves that copied link targets cannot recover the original link. Recreate
 the link in PHP and save again. Older versions of this mount code cannot read

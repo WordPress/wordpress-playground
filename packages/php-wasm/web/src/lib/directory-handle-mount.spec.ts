@@ -206,6 +206,7 @@ describe('saved symlinks', () => {
 			// An interrupted flush can update physical entries before the index.
 			root.files.get('.playground-symlinks.json')!.bytes = encode(
 				JSON.stringify({
+					format: 'wordpress-playground-symlinks',
 					version: 1,
 					links: { [stalePath]: 'old-target', '/valid': 'file' },
 				})
@@ -248,6 +249,7 @@ describe('saved symlinks', () => {
 		const index = new MemoryFileHandle('.playground-symlinks.json');
 		index.bytes = encode(
 			JSON.stringify({
+				format: 'wordpress-playground-symlinks',
 				version: 1,
 				links: { '/missing/link': 'target' },
 			})
@@ -281,6 +283,7 @@ describe('saved symlinks', () => {
 		const index = new MemoryFileHandle('.playground-symlinks.json');
 		index.bytes = encode(
 			JSON.stringify({
+				format: 'wordpress-playground-symlinks',
 				version: 1,
 				links: { '/missing/link': 'target', '/valid': 'missing' },
 			})
@@ -649,10 +652,66 @@ describe('saved symlinks', () => {
 	});
 
 	it.each([
+		{ '/missing/link': 'target' },
+		{ '/missing/link': 'target', '/valid': 'target' },
+	])(
+		'leaves an unmarked file unchanged during restore and save: %j',
+		async (links) => {
+			const root = new MemoryDirectoryHandle('root');
+			const file = new MemoryFileHandle('.playground-symlinks.json');
+			const originalBytes = encode(JSON.stringify({ version: 1, links }));
+			file.bytes = originalBytes;
+			root.files.set(file.name, file);
+			const handle = root as unknown as FileSystemDirectoryHandle;
+			const write = vi.spyOn(file, 'createWritable');
+			const remove = vi.spyOn(root, 'removeEntry');
+			let unmount: (() => Promise<void>) | undefined;
+			try {
+				await expect(
+					php
+						.mount(
+							'/site',
+							createDirectoryHandleMountHandler(handle)
+						)
+						.then((value) => {
+							unmount = value;
+							return value;
+						})
+				).rejects.toThrow('Unrecognized symlink index format');
+				expect(root.files.get(file.name)?.bytes).toEqual(originalBytes);
+				php.mkdir('/source');
+				php.symlink('target', '/source/link');
+				await expect(
+					copyMemfsToOpfs(
+						php[__private__dont__use].FS,
+						handle,
+						'/source'
+					)
+				).rejects.toThrow('Unrecognized symlink index format');
+				expect(root.files.get(file.name)?.bytes).toEqual(originalBytes);
+				expect(write).not.toHaveBeenCalled();
+				expect(remove).not.toHaveBeenCalled();
+			} finally {
+				await unmount?.();
+			}
+		}
+	);
+
+	it.each([
 		'not JSON',
-		JSON.stringify({ version: 2, links: {} }),
-		JSON.stringify({ version: 1, links: { '/../escape': 'target' } }),
+		JSON.stringify({ format: 'other-format', version: 1, links: {} }),
 		JSON.stringify({
+			format: 'wordpress-playground-symlinks',
+			version: 2,
+			links: {},
+		}),
+		JSON.stringify({
+			format: 'wordpress-playground-symlinks',
+			version: 1,
+			links: { '/../escape': 'target' },
+		}),
+		JSON.stringify({
+			format: 'wordpress-playground-symlinks',
 			version: 1,
 			links: { '/link': '/shared', '/link/child': 'target' },
 		}),
@@ -670,6 +729,7 @@ describe('saved symlinks', () => {
 			)
 		).rejects.toThrow();
 		expect(php.fileExists('/escape')).toBe(false);
+		expect(root.files.get(file.name)?.bytes).toEqual(encode(contents));
 	});
 
 	it('rejects a real file at the reserved path instead of overwriting it', async () => {

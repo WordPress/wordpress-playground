@@ -83,6 +83,7 @@ interface JournalFSEventsToOpfsOptions {
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
 const SYMLINKS_FILENAME = '.playground-symlinks.json';
+const SYMLINKS_FORMAT = 'wordpress-playground-symlinks';
 
 /**
  * Creates a PHP mount handler backed by an OPFS directory.
@@ -167,8 +168,10 @@ export function createDirectoryHandleMountHandler(
  * mount cannot overlap writes from the previous attempt.
  *
  * The mount-root `.playground-symlinks.json` is read as a link index, not copied
- * into MEMFS. Links are created after the real files and directories, with
- * their saved targets unchanged even when those targets do not exist.
+ * into MEMFS. Its format marker must identify it as link metadata; unmarked
+ * files reject the mount without being changed. Links are created after the
+ * real files and directories, with their saved targets unchanged even when
+ * those targets do not exist.
  * A stale index entry is skipped with a warning if a real entry occupies its
  * path or its parent is missing or no longer a directory. Skipped records are
  * removed from the saved index so later path changes cannot restore them.
@@ -559,6 +562,8 @@ async function writeOpfsFile(
  *
  * A missing index means no saved links. All other read errors and invalid index
  * contents reject, so callers can stop before replacing an unreadable index.
+ * Unmarked files are ambiguous and reject without automatic migration, even
+ * when their contents match the link-map shape used by earlier drafts.
  */
 async function readSavedSymlinks(opfsRoot: FileSystemDirectoryHandle) {
 	let handle;
@@ -574,7 +579,9 @@ async function readSavedSymlinks(opfsRoot: FileSystemDirectoryHandle) {
 }
 
 /**
- * Parses a version-1 index into mount-root paths and unchanged link targets.
+ * Parses an identified version-1 index into mount-root paths and raw targets.
+ * Requires the explicit format marker before interpreting any link records,
+ * so an unmarked user file cannot enter the cleanup or overwrite flow.
  *
  * Paths must be normalized, start with `/`, contain no NUL bytes, and name
  * neither the mount root nor its reserved index file. A link cannot contain
@@ -585,6 +592,12 @@ async function readSavedSymlinks(opfsRoot: FileSystemDirectoryHandle) {
  */
 function parseSavedSymlinks(json: string): Map<string, string> {
 	const data = JSON.parse(json);
+	if (data?.format !== SYMLINKS_FORMAT) {
+		throw new Error(
+			`Unrecognized symlink index format in ${SYMLINKS_FILENAME}. ` +
+				'The file will not be overwritten or removed.'
+		);
+	}
 	if (
 		data?.version !== 1 ||
 		!data.links ||
@@ -631,9 +644,10 @@ function parseSavedSymlinks(json: string): Map<string, string> {
  * OPFS has no symlink entries. This index lets a restore rebuild them in MEMFS
  * without saving a copy of each link's target.
  *
- * The format is `{ "version": 1, "links": { "/alias": "../target" } }`. Keys start
- * at the mount root and targets are stored as written. Callers supply a valid,
- * complete map; this function neither validates it nor merges the old index.
+ * The version-1 JSON has a `format: "wordpress-playground-symlinks"` marker and
+ * a `links` object such as `{ "/alias": "../target" }`. Keys start at the mount
+ * root and targets are stored as written. Callers supply a valid, complete map;
+ * this function neither validates it nor merges the old index.
  * An empty map removes the index instead of storing an empty links object.
  *
  * If the index did not exist before a failed write, attempts to remove the new
@@ -662,6 +676,7 @@ async function writeSavedSymlinks(
 			SYMLINKS_FILENAME,
 			new TextEncoder().encode(
 				JSON.stringify({
+					format: SYMLINKS_FORMAT,
 					version: 1,
 					links: Object.fromEntries(symlinks),
 				})
