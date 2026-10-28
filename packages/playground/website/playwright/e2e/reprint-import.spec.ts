@@ -3,8 +3,8 @@ import { test, expect } from '../playground-fixtures';
 /**
  * Clones a real WordPress site served by playwright/reprint-site/serve.sh
  * into a new Playground through the UI, then checks the copy: files
- * including generated thumbnails and non-ASCII paths, rewritten URLs in
- * posts, options and custom tables, and the administrator session.
+ * including a linked theme, generated thumbnails and non-ASCII paths, rewritten
+ * URLs in posts, options and custom tables, and the administrator session.
  *
  * Needs REPRINT_E2E_SITE_URL pointing at that site. CI runs it in the
  * `reprint-import` group; locally, start the site first.
@@ -107,8 +107,13 @@ test(
 					code: `<?php
 						require '/wordpress/wp-load.php';
 						global $wpdb;
+						$theme = get_stylesheet_directory();
+						file_put_contents($theme . '/playground-link-check.txt', "local theme edit\n");
 						echo json_encode([
 							'home' => get_option('home'),
+							'themeIsLink' => is_link($theme),
+							'themeTarget' => is_link($theme) ? readlink($theme) : null,
+							'themeFile' => file_get_contents('/wordpress/playground-linked-theme/playground-link-check.txt'),
 							'privateKeyFiles' => glob('/tmp/playground-reprint-state/*/key.pem'),
 							'connection' => json_decode(file_get_contents('/wordpress/.playground-reprint/connection.json'), true),
 							'heroContent' => get_post(${manifest.heroPost})->post_content,
@@ -167,6 +172,9 @@ test(
 		expect(copy.originalExists).toBe(true);
 		expect(copy.thumbnailExists).toBe(true);
 		expect(copy.unicodeText).toBe('unicode path\n');
+		expect(copy.db.themeIsLink).toBe(true);
+		expect(copy.db.themeTarget).toBe('/wordpress/playground-linked-theme');
+		expect(copy.db.themeFile).toBe('local theme edit\n');
 
 		// Every stored URL now points at the copy, not the live site.
 		expect(copy.db.privateKeyFiles).toEqual([]);
@@ -227,6 +235,9 @@ test(
 		await expect
 			.poll(() => new URL(page.url()).searchParams.get('site-slug'))
 			.toBe(clone.slug);
+		await page.evaluate(() =>
+			(window as any).playgroundSites.getClient().flushOpfs('/wordpress')
+		);
 		await page.reload();
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
@@ -243,16 +254,27 @@ test(
 			const client = (window as any).playgroundSites.getClient();
 			const response = await client.request({ url: '/wp-admin/' });
 			const settings = await client.run({
-				code: `<?php require '/wordpress/wp-load.php'; echo json_encode(get_option('playground_e2e_settings'));`,
+				code: `<?php
+					require '/wordpress/wp-load.php';
+					$theme = get_stylesheet_directory();
+					echo json_encode([
+						'settings' => get_option('playground_e2e_settings'),
+						'themeIsLink' => is_link($theme),
+						'themeTarget' => is_link($theme) ? readlink($theme) : null,
+						'themeFile' => file_get_contents($theme . '/playground-link-check.txt'),
+					]);`,
 			});
 			return {
 				status: response.httpStatusCode,
 				text: response.text,
-				settings: JSON.parse(settings.text),
+				...JSON.parse(settings.text),
 			};
 		});
 		expect(reopened.status).toBe(200);
 		expect(reopened.text).toContain('Dashboard');
 		expect(reopened.settings).toEqual(copy.db.settings);
+		expect(reopened.themeIsLink).toBe(true);
+		expect(reopened.themeTarget).toBe(copy.db.themeTarget);
+		expect(reopened.themeFile).toBe('local theme edit\n');
 	}
 );

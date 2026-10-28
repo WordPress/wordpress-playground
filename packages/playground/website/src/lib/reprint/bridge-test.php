@@ -166,7 +166,7 @@ try {
     check($rejected, 'The new transport opt-in remains limited to local development URLs.');
 
     // Host-plugin filtering can leave an intermediate link in the index without
-    // its package. The pinned client must skip it before OPFS preparation runs.
+    // its package. The pinned client must skip it before local link repair runs.
     $link_site = $root . '/excluded-link-site';
     mkdir($link_site);
     $link_state = $root . '/excluded-link-state';
@@ -185,7 +185,6 @@ try {
     $skipped_link = $link_site . '/wp-content/.reprint-linked-files/srv/wordpress/plugins/wpcomsh/latest';
     check(!is_link($skipped_link) && !file_exists($skipped_link), 'An intermediate link without a downloaded target is not recreated.');
     check(str_contains(file_get_contents($link_state . '/audit.log'), 'target was not downloaded'), 'The skipped intermediate link is explained in the audit log.');
-    materialize_site_links($link_site, $link_site, $root . '/excluded-link-copy');
 
     check_link_setup_lifecycle($root);
     check_site_size_limit($root);
@@ -426,7 +425,7 @@ function check_link_setup_lifecycle(string $root): void {
         check($result['stage'] === 'files-prepare', 'A completed download advances to local setup without contacting the server.');
         $links = json_decode(file_get_contents($transfer . '/links.json'), true);
         check($links === [['path' => $theme, 'target' => $target]], 'Only the selected theme link is saved, using its canonical indexed target.');
-        unlink($theme); // OPFS restores files and directories, not symlink nodes.
+        unlink($theme); // Simulate an interrupted link replacement.
         unlink($target . '/style.css');
         rmdir($target);
         $rejected = false;
@@ -437,11 +436,17 @@ function check_link_setup_lifecycle(string $root): void {
         file_put_contents($target . '/style.css', 'Theme Name: Iotix!');
         $result = pull_site($request, $transfer, $operation, $lock);
         check($result['stage'] === 'db-pull', 'Retrying local setup reaches SQL download without rerunning the file pull.');
-        check(!is_link($theme) && file_get_contents($theme . '/style.css') === 'Theme Name: Iotix!', 'The theme becomes ordinary files that survive browser storage.');
+        check(is_link($theme) && readlink($theme) === $target && file_get_contents($theme . '/style.css') === 'Theme Name: Iotix!', 'The theme remains a link to its downloaded canonical target.');
         $operation['stage'] = 'files-prepare';
         file_put_contents($theme . '/style.css', 'Local theme edit');
         pull_site($request, $transfer, $operation, $lock);
-        check(file_get_contents($theme . '/style.css') === 'Local theme edit', 'Resuming setup leaves an already materialized theme intact.');
+        check(is_link($theme) && file_get_contents($target . '/style.css') === 'Local theme edit', 'Resuming setup preserves edits made through the theme link.');
+        unlink($theme);
+        mkdir($theme);
+        file_put_contents($theme . '/style.css', 'Local replacement');
+        $operation['stage'] = 'files-prepare';
+        pull_site($request, $transfer, $operation, $lock);
+        check(!is_link($theme) && file_get_contents($theme . '/style.css') === 'Local replacement', 'Resuming setup leaves a local directory replacement intact.');
     } finally {
         $lock->close();
     }

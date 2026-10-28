@@ -17,8 +17,9 @@ There is no site archive, extraction, or second copy of ordinary files.
 
 Preflight maps active content, plugin, MU plugin, and upload directories into
 Playground's `wp-content` layout. Bundled copies use separate paths under
-`.reprint-source-files`. Canonical indexed link targets become ordinary local
-files because OPFS cannot store symlinks. Runtime configuration, SQLite,
+`.reprint-source-files`. Downloaded links are repaired to point at their canonical
+indexed targets and stay as links across browser saves and reloads. Linked files
+are not copied a second time. Runtime configuration, SQLite,
 Playground MU plugins, and connection metadata stay outside mirror writes and
 deletions. Paths inside today's mirror scope match today's remote index;
 remote-absent local paths there are removed.
