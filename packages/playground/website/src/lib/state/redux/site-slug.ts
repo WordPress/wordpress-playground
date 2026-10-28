@@ -1,13 +1,14 @@
 import { cleanForSlug } from '@wordpress/url';
 
 /**
- * Builds the default site slug used when a caller did not provide one.
+ * Builds a readable default site slug with a cryptographically random suffix.
+ * The full UUID makes saved-site paths hard to guess even when the name is known.
  *
  * Explicit slug hints bypass this helper so their URL/storage escaping remains
  * the responsibility of the boundaries that consume them.
  */
 export function deriveSlugFromSiteName(name: string) {
-	return cleanForSlug(name) || 'playground';
+	return `${cleanForSlug(name) || 'playground'}-${crypto.randomUUID()}`;
 }
 
 /**

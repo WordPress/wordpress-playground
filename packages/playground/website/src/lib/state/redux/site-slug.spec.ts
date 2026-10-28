@@ -1,17 +1,41 @@
 import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
 
 describe('site slug helpers', () => {
-	it('derives readable default slugs from site names', () => {
+	const uuid = '54e2f9f8-73c4-4ad2-960e-5b17a296c830';
+
+	beforeEach(() => {
+		vi.spyOn(crypto, 'randomUUID').mockReturnValue(uuid);
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('keeps readable names and the full random UUID in default slugs', () => {
 		expect(deriveSlugFromSiteName(' My WordPress Playground! ')).toBe(
-			'my-wordpress-playground'
+			`my-wordpress-playground-${uuid}`
 		);
 		expect(deriveSlugFromSiteName(' Mój WordPress Playground! ')).toBe(
-			'moj-wordpress-playground'
+			`moj-wordpress-playground-${uuid}`
 		);
 	});
 
-	it('uses a fallback slug when the site name has no usable characters', () => {
-		expect(deriveSlugFromSiteName('!!!')).toBe('playground');
+	it('draws a fresh UUID even when the site name is the same', () => {
+		const anotherUuid = '9d4152f0-3b8c-4e6a-a721-608fc923d57e';
+		vi.mocked(crypto.randomUUID)
+			.mockReturnValueOnce(uuid)
+			.mockReturnValueOnce(anotherUuid);
+
+		expect(deriveSlugFromSiteName('Happy Quiet River')).toBe(
+			`happy-quiet-river-${uuid}`
+		);
+		expect(deriveSlugFromSiteName('Happy Quiet River')).toBe(
+			`happy-quiet-river-${anotherUuid}`
+		);
+	});
+
+	it('keeps the random suffix when the site name has no usable characters', () => {
+		expect(deriveSlugFromSiteName('!!!')).toBe(`playground-${uuid}`);
 	});
 
 	it('appends a suffix to avoid slug collisions', () => {
@@ -38,6 +62,7 @@ describe('site slug helpers', () => {
 				unavailableSlugs: ['Mój Playground 🚀'],
 			})
 		).toBe('Mój Playground 🚀-2');
+		expect(crypto.randomUUID).not.toHaveBeenCalled();
 	});
 
 	it('uses a fallback when an explicit slug hint is empty', () => {

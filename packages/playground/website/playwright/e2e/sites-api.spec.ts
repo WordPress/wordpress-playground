@@ -42,7 +42,9 @@ test('playgroundSites.saveInBrowser() persists a temporary site', async ({
 	const result = await website.page.evaluate(() =>
 		(window as any).playgroundSites.saveInBrowser()
 	);
-	expect(result.slug).toBeTruthy();
+	expect(result.slug).toMatch(
+		/-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+	);
 	expect(result.storage).toBe('opfs');
 });
 
@@ -244,13 +246,16 @@ test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blu
 		return { firstSlug, secondSlug, sites };
 	}, blueprint);
 
-	expect(result.firstSlug).toBe('shared-blueprint-name');
-	expect(result.secondSlug).toBe('shared-blueprint-name-2');
+	const slugPattern =
+		/^shared-blueprint-name-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+	expect(result.firstSlug).toMatch(slugPattern);
+	expect(result.secondSlug).toMatch(slugPattern);
+	expect(result.secondSlug).not.toBe(result.firstSlug);
 	const firstSite = result.sites.find(
-		(site: any) => site.slug === 'shared-blueprint-name'
+		(site: any) => site.slug === result.firstSlug
 	);
 	const secondSite = result.sites.find(
-		(site: any) => site.slug === 'shared-blueprint-name-2'
+		(site: any) => site.slug === result.secondSlug
 	);
 	expect(firstSite).toEqual(
 		expect.objectContaining({
