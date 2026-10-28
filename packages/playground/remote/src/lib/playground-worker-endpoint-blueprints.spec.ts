@@ -23,6 +23,68 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it.each([
+		['do-not-attempt-installing', '/'],
+		['do-not-attempt-installing', '/sites'],
+		['install-from-existing-files-if-needed', '/'],
+		['install-from-existing-files-if-needed', '/sites'],
+	])(
+		'rejects OPFS root mounts during %s boot from %s',
+		async (wordpressInstallMode, path) => {
+			const php = createFakePhp();
+			const bootWordPress = vi.fn(async (_requestHandler, options) => {
+				await options.hooks.beforeWordPressFiles(php);
+			});
+			let endpoint:
+				| { boot(options: Record<string, unknown>): Promise<void> }
+				| undefined;
+			vi.doMock('@wp-playground/wordpress', () => ({ bootWordPress }));
+			vi.doMock('@php-wasm/web', () => ({
+				certificateToPEM: vi.fn(),
+				createDirectoryHandleMountHandler: vi.fn(),
+				exposeAPI: vi.fn((api) => {
+					endpoint = api;
+					return [vi.fn(), vi.fn()];
+				}),
+				loadWebRuntime: vi.fn(),
+			}));
+			await import('./playground-worker-endpoint-blueprints');
+			if (!endpoint) {
+				throw new Error('Expected exposeAPI to receive an endpoint');
+			}
+			vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+				'http://playground.test'
+			);
+			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+				{
+					getPrimaryPhp: vi.fn(async () => php),
+				}
+			);
+			const getDirectory = vi.fn();
+			vi.stubGlobal('navigator', { storage: { getDirectory } });
+
+			await expect(
+				endpoint.boot({
+					scope: 'test',
+					mounts: [
+						{
+							device: { type: 'opfs', path },
+							mountpoint: '/wordpress',
+							initialSyncDirection: 'opfs-to-memfs',
+						},
+					],
+					phpVersion: '8.3',
+					wordpressInstallMode,
+					withNetworking: false,
+				})
+			).rejects.toThrow(
+				'Cannot mount the OPFS root or the /sites directory.'
+			);
+			expect(getDirectory).not.toHaveBeenCalled();
+		},
+		10000
+	);
+
 	it.each([false, true])(
 		'runs mounted-site boot setup (migration failure: %s)',
 		async (migrationFails) => {

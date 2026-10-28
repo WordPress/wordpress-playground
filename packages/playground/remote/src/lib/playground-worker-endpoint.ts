@@ -2,7 +2,12 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { formatBytes, joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import {
+	ensureAbsolutePath,
+	formatBytes,
+	joinPaths,
+	sendmailSpawnHandler,
+} from '@php-wasm/util';
 import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import PostalMime from 'postal-mime';
 import type { Email } from 'postal-mime';
@@ -657,6 +662,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
+		// Block bulk access to saved sites through both startup mounts and mountOpfs().
+		// The site manager still needs direct directory access to list saved sites.
+		if (options.device.type === 'opfs') {
+			const path = ensureAbsolutePath(options.device.path);
+			if (path === '/' || path === '/sites') {
+				throw new Error(
+					'Cannot mount the OPFS root or the /sites directory.'
+				);
+			}
+		}
 		if (
 			hasOwnProperty(this.opfsMounts, options.mountpoint) ||
 			hasOwnProperty(this.unmounts, options.mountpoint)

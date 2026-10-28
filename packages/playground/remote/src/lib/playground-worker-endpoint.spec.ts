@@ -5,6 +5,7 @@ import {
 } from '@php-wasm/universal';
 import type { MountHandler } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import { Semaphore } from '@php-wasm/util';
 
 describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
@@ -12,26 +13,88 @@ describe('PlaygroundWorkerEndpoint OPFS flushing', () => {
 		vi.unstubAllGlobals();
 	});
 
-	it('registers OPFS mounts created through mountOpfs', async () => {
-		const endpoint = await createEndpoint({});
-		const php = createFakePhp();
-		endpoint.__internal_getPHP = () => php;
+	it.each(['', '/', '////', 'sites', '/sites', '/sites/', '//sites//'])(
+		'rejects the OPFS source root %j before accessing storage',
+		async (path) => {
+			const endpoint = await createEndpoint({});
+			const php = createFakePhp();
+			endpoint.__internal_getPHP = () => php;
+			const handle = createEmptyDirectoryHandle();
+			handle.getDirectoryHandle = vi.fn(async () => handle);
+			const getDirectory = vi.fn(async () => handle);
+			vi.stubGlobal('navigator', { storage: { getDirectory } });
 
-		await endpoint.mountOpfs({
-			device: {
-				type: 'local-fs',
-				handle: createEmptyDirectoryHandle(),
-			},
-			mountpoint: '/wordpress',
-		});
+			await expect(
+				endpoint.mountOpfs({
+					device: { type: 'opfs', path },
+					mountpoint: '/saved',
+					initialSyncDirection: 'opfs-to-memfs',
+				})
+			).rejects.toThrow(
+				'Cannot mount the OPFS root or the /sites directory.'
+			);
 
-		expect(await endpoint.hasOpfsMount('/wordpress')).toBe(true);
-		expect(endpoint.opfsMounts['/wordpress']).toBeDefined();
-		expect(php.mount).toHaveBeenCalledWith(
-			'/wordpress',
-			expect.any(Function)
-		);
-	}, 15_000);
+			expect(getDirectory).not.toHaveBeenCalled();
+			expect(php.mount).not.toHaveBeenCalled();
+			expect(await endpoint.hasOpfsMount('/saved')).toBe(false);
+		}
+	);
+
+	it.each(['opfs-to-memfs', 'memfs-to-opfs'] as const)(
+		'mounts site and custom OPFS subdirectories with %s sync',
+		async (initialSyncDirection) => {
+			for (const path of [
+				'/sites/site-test',
+				'sites//site-test/',
+				'port-libs/example.test/my-site',
+				'/sites-backup',
+				'/sites/%2e%2e',
+			]) {
+				const endpoint = await createEndpoint({});
+				const php = createFakePhp();
+				endpoint.__internal_getPHP = () => php;
+				const handle = createEmptyDirectoryHandle();
+				handle.getDirectoryHandle = vi.fn(async () => handle);
+				vi.stubGlobal('navigator', {
+					storage: { getDirectory: vi.fn(async () => handle) },
+				});
+
+				await endpoint.mountOpfs({
+					device: { type: 'opfs', path },
+					mountpoint: '/wordpress',
+					initialSyncDirection,
+				});
+
+				expect(await endpoint.hasOpfsMount('/wordpress')).toBe(true);
+				await endpoint.unmountOpfs('/wordpress');
+			}
+		}
+	);
+
+	it.each(['/wordpress', '/'])(
+		'registers local-folder mounts at %s',
+		async (mountpoint) => {
+			const endpoint = await createEndpoint({});
+			const php = createFakePhp();
+			endpoint.__internal_getPHP = () => php;
+
+			await endpoint.mountOpfs({
+				device: {
+					type: 'local-fs',
+					handle: createEmptyDirectoryHandle(),
+				},
+				mountpoint,
+			});
+
+			expect(await endpoint.hasOpfsMount(mountpoint)).toBe(true);
+			expect(endpoint.opfsMounts[mountpoint]).toBeDefined();
+			expect(php.mount).toHaveBeenCalledWith(
+				mountpoint,
+				expect.any(Function)
+			);
+		},
+		15_000
+	);
 
 	it.each(['copy', 'progress'])(
 		'allows another save after initial %s fails',
@@ -387,10 +450,7 @@ async function createEndpoint(
 		hasOpfsMount(mountpoint: string): Promise<boolean>;
 		mountOpfs(
 			options: {
-				device: {
-					type: 'local-fs';
-					handle: FileSystemDirectoryHandle;
-				};
+				device: MountDevice;
 				mountpoint: string;
 				initialSyncDirection?: 'opfs-to-memfs' | 'memfs-to-opfs';
 			},
