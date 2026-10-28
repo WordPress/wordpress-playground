@@ -818,7 +818,7 @@ const ETC_HOSTS = ['127.0.0.1\tlocalhost', '::1\tlocalhost', ''].join('\n');
 const NGINX_CONF = `user root;
 daemon off;
 master_process on;
-worker_processes 2;
+worker_processes 1;
 error_log /var/log/nginx.log info;
 pid /tmp/nginx.pid;
 
