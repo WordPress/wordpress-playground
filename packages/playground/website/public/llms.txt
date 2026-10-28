@@ -7,7 +7,7 @@
 AI assistants can generate working WordPress Playground links directly in responses using URL query parameters on `https://playground.wordpress.net/`:
 
 - `plugin=<slug-or-zip-url>`: Install and activate one or more WordPress.org plugins (repeatable, e.g., `?plugin=woocommerce&plugin=gutenberg`).
-- `theme=<slug-or-zip-url>`: Install and activate a WordPress.org theme (e.g., `?theme=twentytwentyfour`).
+- `theme=<slug>`: Install and activate a WordPress.org theme by slug (e.g., `?theme=twentytwentyfour`).
 - `wp=<version>`: Choose WordPress version (e.g., `?wp=6.8`, `?wp=latest`, `?wp=beta`, `?wp=nightly`).
 - `php=<version>`: Choose PHP version (`7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`).
 - `url=<path>`: Open a specific WordPress path on boot (e.g., `?url=/wp-admin/post-new.php`).
@@ -46,12 +46,12 @@ When a browser exposes `document.modelContext`, playground.wordpress.net registe
 - **Navigation & Inspection:** `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`, `playground_list_emails`
 - **Filesystem Management:** `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`, `playground_file_exists`
 - **Site Management:** `playground_list_sites`, `playground_save_in_browser`, `playground_rename_site`, `playground_get_website_url`
-- **WordPress Plugin WebMCP Proxy:** Any WebMCP tools registered inside the WordPress iframe by plugins are automatically proxied onto the top-level `document.modelContext`.
+- **WordPress Plugin WebMCP Proxy:** WebMCP tools registered inside the WordPress iframe by plugins are automatically proxied onto the top-level `document.modelContext` unless their names conflict with Playground’s built-in tools.
 
 ## External MCP Server & CLI for Coding Agents
 
 - **Local CLI Server:** `npx @wp-playground/cli@latest server --auto-mount --login`
-- **MCP Bridge (`@wp-playground/mcp`):** `npx @wp-playground/mcp@latest` starts a local MCP server over stdio and opens Playground in the browser connected via WebSocket (`/.well-known/mcp.json`).
+- **MCP Bridge (`@wp-playground/mcp`):** `npx @wp-playground/mcp@latest` starts a local MCP server over stdio and WebSocket. Open Playground separately with a matching `?mcp-port=<port>` URL to connect the browser; the `playground_get_website_url` tool provides the exact URL.
 
 ## Pull Request Previews and Git Resources
 

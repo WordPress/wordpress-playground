@@ -10,7 +10,7 @@ When a browser exposes `document.modelContext`, my.wordpress.net registers struc
 - **Navigation & Inspection:** `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`, `playground_list_emails`
 - **Filesystem Management:** `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`, `playground_file_exists`
 - **Site Management:** `playground_list_sites`, `playground_save_in_browser`, `playground_rename_site`, `playground_get_website_url`
-- **WordPress Plugin WebMCP Proxy:** Any WebMCP tools registered inside the WordPress iframe by plugins are automatically proxied onto the top-level `document.modelContext`.
+- **WordPress Plugin WebMCP Proxy:** WebMCP tools registered inside the WordPress iframe by plugins are automatically proxied onto the top-level `document.modelContext` unless their names conflict with Playground’s built-in tools.
 
 ## Related Resources
 
