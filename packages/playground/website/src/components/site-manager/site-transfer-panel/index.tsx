@@ -104,7 +104,7 @@ export function SiteTransferPanel({
 		ReprintAvailability | 'checking' | 'manual' | null
 	>(handoff ? 'manual' : null);
 	const checkController = useRef<AbortController>();
-	const urlEdited = useRef(false);
+	const skipConnectionRestore = useRef(false);
 	const [busy, setBusy] = useState(false);
 	const running = useRef(false);
 	const [progress, setProgress] = useState<TransferProgress>({ message: '' });
@@ -152,18 +152,26 @@ export function SiteTransferPanel({
 		Number.parseFloat(site.metadata.runtimeConfiguration.phpVersion) >= 8.1;
 
 	// Restore only an idle address form. A late saved-connection read must not
-	// replace transfer progress or a completed clone.
+	// replace transfer progress or a completed clone. Explicit address editing
+	// takes priority until the panel closes.
 	useEffect(() => {
 		if (!isVisible) {
-			urlEdited.current = false;
+			skipConnectionRestore.current = false;
 			return;
 		}
-		if (cloneRequested || !playground || running.current || step !== 'site')
+		if (
+			cloneRequested ||
+			!playground ||
+			running.current ||
+			step !== 'site' ||
+			skipConnectionRestore.current
+		)
 			return;
 		let cancelled = false;
 		void readReprintConnection(playground)
 			.then((connection) => {
-				if (cancelled || !connection || urlEdited.current) return;
+				if (cancelled || !connection || skipConnectionRestore.current)
+					return;
 				const address = getReprintAdminUrls(connection).site;
 				const saved = rememberedConnection(site.slug);
 				setUrl(address);
@@ -244,7 +252,7 @@ export function SiteTransferPanel({
 
 	/** Drop the previous probe and key when selecting another live site. */
 	const changeUrl = (value: string) => {
-		urlEdited.current = true;
+		skipConnectionRestore.current = true;
 		checkController.current?.abort();
 		setUrl(value);
 		setSetup(null);
@@ -303,6 +311,7 @@ export function SiteTransferPanel({
 		if (step === 'transfer') {
 			setStep('key');
 		} else {
+			skipConnectionRestore.current = true;
 			setSetup(null);
 			setStep('site');
 		}
@@ -640,7 +649,7 @@ export function SiteTransferPanel({
 	/** Follow the recovery step without replacing the current clone or key. */
 	const recoverTransfer = () => {
 		if (recovery?.action === 'address') {
-			urlEdited.current = true;
+			skipConnectionRestore.current = true;
 			setError('');
 			setSetup(null);
 			setStep('site');
@@ -890,7 +899,7 @@ export function SiteTransferPanel({
 							{keyPair && (
 								<>
 									<p>
-										Add this migration key in{' '}
+										In{' '}
 										<a
 											href={links.settings}
 											target="_blank"
@@ -898,7 +907,15 @@ export function SiteTransferPanel({
 										>
 											Reprint settings on {hostname}
 										</a>
-										, then come back and clone the site.
+										, paste this migration key into{' '}
+										<strong>Migration Token</strong> and
+										choose <strong>Authorize tool</strong>.
+										Then come back and clone the site.
+									</p>
+									<p className={css.hint}>
+										Older versions use the{' '}
+										<strong>Public key</strong> field and{' '}
+										<strong>Enroll key</strong> button.
 									</p>
 									<TextareaControl
 										__nextHasNoMarginBottom

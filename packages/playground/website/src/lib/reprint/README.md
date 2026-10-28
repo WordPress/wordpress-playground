@@ -4,9 +4,9 @@ Start Playground with `?reprint`, then open **New Playground → Clone a live si
 Enter the live URL. If setup is needed, the panel links directly to the `reprint`
 plugin's directory page in that site's wp-admin. Install and activate it, then
 return and check again. When Reprint answers, Playground generates a key pair.
-Copy the migration key into
-**Tools → Reprint Server** on the live site, click **Enroll key**, then return
-and click **Clone site**. The source site stays unchanged.
+Under **Tools → Reprint Server** on the live site, paste the migration key into
+**Migration Token** and choose **Authorize tool**. Older versions use **Public key**
+and **Enroll key**. Return and click **Clone site**. The source site stays unchanged.
 
 ## Import
 

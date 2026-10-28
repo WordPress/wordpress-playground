@@ -264,6 +264,44 @@ describe('Reprint connection changes', () => {
 		]);
 	});
 
+	it.each(['Back', 'Back then client change'] as const)(
+		'keeps the saved address editable after %s, but restores it on a new visit',
+		async (navigation) => {
+			vi.mocked(playground.fileExists).mockResolvedValue(true);
+			vi.mocked(playground.readFileAsText).mockResolvedValue(
+				JSON.stringify({ url: 'https://saved.example/?reprint-api' })
+			);
+			await render();
+			expect(container.querySelector('textarea')).not.toBeNull();
+			await click('Back to site address');
+			if (navigation === 'Back then client change') {
+				playground = { ...playground } as PlaygroundClient;
+				await render(playground);
+			}
+			expect(
+				container.querySelector<HTMLInputElement>('input[type=url]')
+					?.value
+			).toBe('https://saved.example/');
+			expect(container.querySelector('textarea')).toBeNull();
+			expect(playground.readFileAsText).toHaveBeenCalledTimes(1);
+			expect(pullSite).not.toHaveBeenCalled();
+
+			vi.mocked(playground.readFileAsText).mockResolvedValue(
+				JSON.stringify({ url: 'https://updated.example/?reprint-api' })
+			);
+			await render(playground, false);
+			await render(playground, true);
+			expect(playground.readFileAsText).toHaveBeenCalledTimes(2);
+			expect(
+				container.querySelector<HTMLAnchorElement>(
+					'a[href*="tools.php"]'
+				)?.href
+			).toBe(
+				'https://updated.example/wp-admin/tools.php?page=reprint-server'
+			);
+		}
+	);
+
 	it('does not replace a typed address when the saved address loads later', async () => {
 		let finish!: (value: string) => void;
 		await render({
@@ -381,7 +419,9 @@ describe('Reprint connection changes', () => {
 		await render();
 		edit('url', 'https://example.com');
 		await submit();
-		expect(container.textContent).toContain('Add this migration key');
+		expect(
+			container.querySelector<HTMLTextAreaElement>('textarea')?.value
+		).toBe(keyPair.publicKey);
 		await submit();
 		expect(container.querySelector('input')).toBeNull();
 		expect(vi.mocked(pullSite).mock.calls[0][2]).toBe(privateKey);
