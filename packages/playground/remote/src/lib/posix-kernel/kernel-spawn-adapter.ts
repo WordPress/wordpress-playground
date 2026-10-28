@@ -111,11 +111,11 @@ export class KernelSpawnAdapter {
 	}
 
 	/** `mkdir -p` — also satisfies `mkdirTree`. */
-	async mkdir(path: string): Promise<void> {
-		const result = await this.runCoreutils(['mkdir', '-p', path]);
+	async mkdir(...paths: string[]): Promise<void> {
+		const result = await this.runCoreutils(['mkdir', '-p', ...paths]);
 		if (result.exitCode !== 0) {
 			throw new Error(
-				`mkdir(${path}) failed (exit=${result.exitCode}): ` +
+				`mkdir(${paths.join(', ')}) failed (exit=${result.exitCode}): ` +
 					decodeText(result.stderr)
 			);
 		}

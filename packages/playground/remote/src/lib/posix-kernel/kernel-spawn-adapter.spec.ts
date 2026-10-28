@@ -127,6 +127,16 @@ describe('KernelSpawnAdapter', () => {
 		});
 	});
 
+	describe('mkdir', () => {
+		it('creates every path with one spawn', async () => {
+			const { adapter, spawned } = createAdapter(() => ({ exitCode: 0 }));
+
+			await adapter.mkdir('/foo', '/bar/baz');
+
+			expect(spawned).toEqual([['mkdir', '-p', '/foo', '/bar/baz']]);
+		});
+	});
+
 	describe('mv', () => {
 		it('renames onto the destination instead of into it', async () => {
 			const { adapter, spawned } = createAdapter(() => ({ exitCode: 0 }));

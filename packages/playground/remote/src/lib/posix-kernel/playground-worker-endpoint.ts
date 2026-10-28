@@ -48,6 +48,7 @@ import {
 } from '@php-wasm/universal';
 import { removeURLScope, setURLScope } from '@php-wasm/scopes';
 import { logger } from '@php-wasm/logger';
+import { basename, dirname, isParentOf, joinPaths } from '@php-wasm/util';
 import type { MessageListener } from '@php-wasm/universal';
 import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
@@ -58,13 +59,7 @@ import { buildVfsImage, serverDaemons } from './vfs-builder';
 import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
 import { CookieJar } from './cookie-jar';
-import {
-	buildVfsDumpScript,
-	buildVfsLoadScript,
-	decodeVfsStream,
-	encodeVfsStream,
-} from './vfs-stream';
-import type { HttpRequest, HttpResponse } from './host-bridge';
+import type { BrowserKernel, HttpRequest, HttpResponse } from './host-bridge';
 import type { MountDescriptor } from '../playground-worker-endpoint';
 import {
 	LatestMinifiedWordPressVersion,
@@ -86,6 +81,12 @@ import { wordPressSiteUrl } from '../config';
 self.postMessage('worker-script-started');
 
 const downloadMonitor = new EmscriptenDownloadMonitor();
+
+/** File type bits of `st_mode`, as `<sys/stat.h>` defines them. */
+const S_IFMT = 0o170000;
+const S_IFDIR = 0o040000;
+const S_IFREG = 0o100000;
+const S_IFLNK = 0o120000;
 
 /**
  * Methods on `KernelLimitedPHPApi` that the endpoint forwards to over
@@ -258,14 +259,15 @@ export class KernelPlaygroundWorkerEndpoint {
 	 * walk without going through the Comlink-exposed surface.
 	 */
 	private api: KernelLimitedPHPApi | undefined;
+	/** Spawns the `mkdir -p` that {@link mountOpfs} needs on restore. */
+	private adapter: KernelSpawnAdapter | undefined;
 	/**
-	 * Mountpoints that have already received a one-shot OPFS snapshot.
-	 * Kernel-mode `mountOpfs` is not a continuous mirror — it walks the
-	 * VFS once and writes the bytes out — so the only state we track is
-	 * "this mountpoint already exists." `unmountOpfs` drops the entry so
-	 * a later mount with the same name succeeds.
+	 * OPFS journals by mountpoint. Each one mirrors the kernel's change
+	 * notifications under the mountpoint into its OPFS directory.
+	 * `unmountOpfs` drops the entry so a later mount with the same name
+	 * succeeds.
 	 */
-	private readonly opfsMounts = new Set<string>();
+	private readonly opfsMounts = new Map<string, OpfsJournal>();
 	/**
 	 * The {@link buildVfsImage} inputs captured on the full-build boot path,
 	 * kept so {@link captureVfsImage} can rebuild the image with the
@@ -527,12 +529,12 @@ export class KernelPlaygroundWorkerEndpoint {
 	}
 
 	/**
-	 * One-shot sync between the kernel VFS subtree at `options.mountpoint`
-	 * and the OPFS directory `options.device`. `memfs-to-opfs` snapshots
-	 * VFS → OPFS (save); `opfs-to-memfs` overlays OPFS → VFS (restore).
-	 * No continuous journaling — the kernel owns the VFS and exposes
-	 * no MEMFS hooks; saves are re-invoked whenever the user clicks
-	 * "Save site locally".
+	 * Mirror the kernel VFS subtree at `options.mountpoint` into the OPFS
+	 * directory `options.device`, like the classic worker's
+	 * `createDirectoryHandleMountHandler`. `memfs-to-opfs` starts the
+	 * journal, then copies VFS → OPFS (save); `opfs-to-memfs` overlays
+	 * OPFS → VFS (restore), then starts the journal. The journal writes
+	 * each changed path to OPFS after the initial sync.
 	 */
 	async mountOpfs(
 		options: MountDescriptor,
@@ -551,53 +553,66 @@ export class KernelPlaygroundWorkerEndpoint {
 		}
 
 		const opfsRoot = await directoryHandleFromMountDevice(options.device);
+		const vfsRoot = this.api.toVfs(options.mountpoint);
+		const kernel = this.kernel!.kernel;
 		if (options.initialSyncDirection === 'memfs-to-opfs') {
-			await snapshotVfsToOpfs(
-				this.api,
-				options.mountpoint,
-				opfsRoot,
-				onProgress
-			);
-		} else if (options.initialSyncDirection === 'opfs-to-memfs') {
-			await loadOpfsIntoVfs(
-				this.api,
-				options.mountpoint,
-				opfsRoot,
-				onProgress
-			);
-		} else {
+			const journal = journalVfsChangesToOpfs(kernel, vfsRoot, opfsRoot);
+			try {
+				await copyVfsToOpfs(kernel, vfsRoot, opfsRoot, onProgress);
+			} catch (error) {
+				journal.discard();
+				throw error;
+			}
+			void journal.flush().catch((error) => {
+				logger.error('OPFS flush failed after initial sync', {
+					error,
+					vfsRoot,
+				});
+			});
+			this.opfsMounts.set(options.mountpoint, journal);
+			return;
+		}
+		if (options.initialSyncDirection !== 'opfs-to-memfs') {
 			throw new Error(
 				`KernelPlaygroundWorkerEndpoint.mountOpfs: unsupported ` +
 					`initialSyncDirection '${options.initialSyncDirection}'.`
 			);
 		}
-		this.opfsMounts.add(options.mountpoint);
+		await loadOpfsIntoVfs(
+			kernel,
+			this.adapter!,
+			vfsRoot,
+			opfsRoot,
+			onProgress
+		);
+		const journal = journalVfsChangesToOpfs(kernel, vfsRoot, opfsRoot);
+		await journal.flush();
+		this.opfsMounts.set(options.mountpoint, journal);
 	}
 
 	/**
-	 * Kernel-mode OPFS is a one-shot snapshot rather than a continuous
-	 * journal, so there is no buffered state to flush. The method exists
-	 * to match the classic-mode API surface the website / blueprint
-	 * runner consume — calling it without a prior `mountOpfs` is a
-	 * programming error and surfaces a clear message.
+	 * Write every change the journal has received to OPFS, without
+	 * stopping the journal.
 	 */
 	async flushOpfs(mountpoint: string): Promise<void> {
-		if (!this.opfsMounts.has(mountpoint)) {
+		const journal = this.opfsMounts.get(mountpoint);
+		if (!journal) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
-		/* No journal to flush — see docstring. */
+		await journal.flush();
 	}
 
 	/**
-	 * Drop the mountpoint from the tracked set. Symmetrical with
-	 * `mountOpfs` so the caller can re-mount at the same path; the
-	 * underlying OPFS directory is left alone (the persisted snapshot
-	 * survives unmount).
+	 * Write the remaining changes to OPFS, then stop the journal. The
+	 * OPFS directory is left alone, so the saved site survives unmount.
 	 */
 	async unmountOpfs(mountpoint: string): Promise<void> {
-		if (!this.opfsMounts.has(mountpoint)) {
+		const journal = this.opfsMounts.get(mountpoint);
+		if (!journal) {
 			throw new Error(`No OPFS mount found at "${mountpoint}".`);
 		}
+		await journal.flush();
+		journal.discard();
 		this.opfsMounts.delete(mountpoint);
 	}
 
@@ -906,6 +921,7 @@ export class KernelPlaygroundWorkerEndpoint {
 		});
 		this.bindApiMethods(api);
 		this.api = api;
+		this.adapter = adapter;
 
 		// Block until the kernel-resident nginx/php-fpm actually answer.
 		await this.kernel.waitForServerReady();
@@ -979,51 +995,266 @@ export class KernelPlaygroundWorkerEndpoint {
 	}
 }
 
+interface OpfsJournal {
+	flush(): Promise<void>;
+	discard(): void;
+}
+
 /**
- * Walk the kernel VFS subtree rooted at `vfsRoot` and write every file
- * found there into OPFS, mirroring the directory structure.
+ * Collect the kernel's change notifications under `vfsRoot` and write
+ * each changed path to OPFS. Changes coalesce by path, and the latest
+ * VFS state is read when the path is written, so a burst of writes to
+ * one file costs one OPFS write.
  *
- * Implementation: spawn `php` **once** with a `RecursiveDirectoryIterator`
- * script that streams a packed binary dump of every regular file to
- * stdout, then parse and replay the dump into OPFS. Per-file spawns
- * do not scale: stock WordPress has ~10k files, and ~30k
- * `kernel.spawn()` calls OOM the kernel worker. A single PHP spawn
- * keeps the wasm-process count at 1.
- *
- * The dump uses the wire format {@link encodeVfsStream} documents.
+ * The journal only collects until the first `flush()`, so an initial
+ * copy cannot overwrite a newer write with an older read. After that,
+ * each change flushes on its own.
  */
-async function snapshotVfsToOpfs(
-	api: KernelLimitedPHPApi,
+function journalVfsChangesToOpfs(
+	kernel: BrowserKernel,
+	vfsRoot: string,
+	opfsRoot: FileSystemDirectoryHandle
+): OpfsJournal {
+	const pendingPaths = new Set<string>();
+	let drained: Promise<void> | undefined;
+
+	const unsubscribe = kernel.subscribeVfsChanges(
+		vfsRoot,
+		({ path }: { path: string }) => {
+			pendingPaths.add(path);
+			if (!drained) {
+				return;
+			}
+			void flush().catch((error) => {
+				logger.error('OPFS journal flush failed', { error, vfsRoot });
+			});
+		}
+	);
+
+	function flush(): Promise<void> {
+		drained = (drained ?? Promise.resolve())
+			.catch(() => undefined)
+			.then(drainPendingPaths);
+		return drained;
+	}
+
+	async function drainPendingPaths(): Promise<void> {
+		while (pendingPaths.size > 0) {
+			const paths = [...pendingPaths];
+			pendingPaths.clear();
+			for (const [index, path] of paths.entries()) {
+				try {
+					await syncVfsPathToOpfs(kernel, vfsRoot, opfsRoot, path);
+				} catch (error) {
+					for (const unsynced of paths.slice(index)) {
+						pendingPaths.add(unsynced);
+					}
+					throw error;
+				}
+			}
+		}
+	}
+
+	return { flush, discard: unsubscribe };
+}
+
+/**
+ * Write the current VFS state of `path` to OPFS. A missing path is
+ * deleted from OPFS. A directory, or the watched root itself, which the
+ * kernel reports when its notification queue overflows, is copied
+ * again as a whole.
+ */
+async function syncVfsPathToOpfs(
+	kernel: BrowserKernel,
+	vfsRoot: string,
+	opfsRoot: FileSystemDirectoryHandle,
+	path: string
+): Promise<void> {
+	if (!isParentOf(vfsRoot, path)) {
+		return;
+	}
+	const opfsPath = pathPartsUnder(vfsRoot, path);
+	const stat = await kernel.statVfsPath(path);
+	if (!stat) {
+		await deleteOpfsEntry(opfsRoot, opfsPath);
+		return;
+	}
+	const type = stat.mode & S_IFMT;
+	if (type === S_IFDIR) {
+		await copyVfsToOpfs(
+			kernel,
+			path,
+			await opfsDirectory(opfsRoot, opfsPath)
+		);
+		return;
+	}
+	if (type !== S_IFREG) {
+		return;
+	}
+	const data = await kernel.readFileFromVfs(path);
+	if (!data) {
+		return;
+	}
+	await writeOpfsFile(
+		await opfsDirectory(opfsRoot, opfsPath.slice(0, -1)),
+		opfsPath[opfsPath.length - 1],
+		data
+	);
+}
+
+function pathPartsUnder(root: string, path: string): string[] {
+	const parts: string[] = [];
+	for (let current = path; current !== root; current = dirname(current)) {
+		parts.unshift(basename(current));
+	}
+	return parts;
+}
+
+async function deleteOpfsEntry(
+	opfsRoot: FileSystemDirectoryHandle,
+	opfsPath: string[]
+): Promise<void> {
+	if (opfsPath.length === 0) {
+		return;
+	}
+	let parent = opfsRoot;
+	try {
+		for (const name of opfsPath.slice(0, -1)) {
+			parent = await parent.getDirectoryHandle(name);
+		}
+		await parent.removeEntry(opfsPath[opfsPath.length - 1], {
+			recursive: true,
+		});
+	} catch (error) {
+		if ((error as DOMException).name !== 'NotFoundError') {
+			throw error;
+		}
+	}
+}
+
+async function opfsDirectory(
+	opfsRoot: FileSystemDirectoryHandle,
+	opfsPath: string[]
+): Promise<FileSystemDirectoryHandle> {
+	let dir = opfsRoot;
+	for (const name of opfsPath) {
+		dir = await dir.getDirectoryHandle(name, { create: true });
+	}
+	return dir;
+}
+
+/**
+ * Copy the kernel VFS subtree rooted at `vfsRoot` into `opfsRoot`, like
+ * `copyMemfsToOpfs` in `@php-wasm/web`: it creates the OPFS directories
+ * first, then writes the files with a bounded number of writes in
+ * flight and throttled progress.
+ *
+ * The walk reads through `BrowserKernel`'s VFS calls: it spawns no
+ * process, so the first boot does not download or run the PHP CLI. It
+ * keeps regular files and the files that symlinks point to, and does
+ * not enter symlinked directories.
+ */
+async function copyVfsToOpfs(
+	kernel: BrowserKernel,
 	vfsRoot: string,
 	opfsRoot: FileSystemDirectoryHandle,
 	onProgress?: SyncProgressCallback
 ): Promise<void> {
-	const dumpResult = await api.run({
-		code: buildVfsDumpScript(vfsRoot),
-	});
-
-	const entries = decodeVfsStream(dumpResult.bytes);
-	const total = entries.length;
-
-	onProgress?.({ files: 0, total });
+	const files: Array<[FileSystemDirectoryHandle, string, string]> = [];
+	await mirrorVfsDirectoryInOpfs(kernel, vfsRoot, opfsRoot, files);
+	const total = files.length;
 
 	let synced = 0;
-	for (const { relPath, data } of entries) {
-		const opfsPath = relPath.split('/').filter((p) => p.length > 0);
-		await writeOpfsFile(opfsRoot, opfsPath, data);
-		synced++;
-		onProgress?.({ files: synced, total });
+	let lastProgressAt = 0;
+	await onProgress?.({ files: synced, total });
+
+	// Same bound as `copyMemfsToOpfs`, which keeps Safari below its limit
+	// of open FileSyncAccessHandles.
+	const maxConcurrentWrites = 100;
+	const concurrentWrites = new Set<Promise<void>>();
+	const failedWrites: Array<{ vfsPath: string; error: unknown }> = [];
+	try {
+		for (const [opfsDir, vfsPath, name] of files) {
+			const data = await kernel.readFileFromVfs(vfsPath);
+			if (!data) {
+				continue;
+			}
+			const write: Promise<void> = writeOpfsFile(opfsDir, name, data)
+				.then(
+					() => {
+						synced++;
+						if (performance.now() - lastProgressAt < 100) {
+							return;
+						}
+						lastProgressAt = performance.now();
+						void onProgress?.({ files: synced, total });
+					},
+					(error) => {
+						failedWrites.push({ vfsPath, error });
+					}
+				)
+				.finally(() => {
+					concurrentWrites.delete(write);
+				});
+			concurrentWrites.add(write);
+			if (concurrentWrites.size >= maxConcurrentWrites) {
+				await Promise.race(concurrentWrites);
+			}
+		}
+	} finally {
+		await Promise.allSettled(concurrentWrites);
+	}
+
+	if (failedWrites.length > 0) {
+		const failedNames = failedWrites
+			.map(({ vfsPath }) => vfsPath)
+			.join(', ');
+		throw new Error(
+			`Failed to copy ${failedWrites.length} of ${total} ` +
+				`file(s) to OPFS (${failedNames}). The save is incomplete.`,
+			{ cause: failedWrites[0].error }
+		);
+	}
+	await onProgress?.({ files: synced, total });
+}
+
+async function mirrorVfsDirectoryInOpfs(
+	kernel: BrowserKernel,
+	vfsDir: string,
+	opfsDir: FileSystemDirectoryHandle,
+	files: Array<[FileSystemDirectoryHandle, string, string]>
+): Promise<void> {
+	const entries = (await kernel.readDirFromVfs(vfsDir)) ?? [];
+	for (const entry of entries) {
+		const vfsPath = joinPaths(vfsDir, entry.name);
+		const type = entry.mode & S_IFMT;
+		if (type === S_IFDIR) {
+			await mirrorVfsDirectoryInOpfs(
+				kernel,
+				vfsPath,
+				await opfsDir.getDirectoryHandle(entry.name, { create: true }),
+				files
+			);
+			continue;
+		}
+		const stat =
+			type === S_IFLNK ? await kernel.statVfsPath(vfsPath) : entry;
+		if (stat && (stat.mode & S_IFMT) === S_IFREG) {
+			files.push([opfsDir, vfsPath, entry.name]);
+		}
 	}
 }
 
 /**
- * Reverse of {@link snapshotVfsToOpfs}: pack every OPFS file into the
- * same wire stream the dump path emits and pipe it to a single `php`
- * spawn that writes the records into `vfsRoot`. Single-spawn for the
- * OOM reason {@link snapshotVfsToOpfs} documents.
+ * Reverse of {@link copyVfsToOpfs}: write every OPFS file into
+ * `vfsRoot`. One `mkdir -p` spawn creates the directories, then the
+ * files go through `BrowserKernel`'s VFS calls. An existing file keeps
+ * its mode, so the SQLite database stays writable by the `nobody`
+ * php-fpm workers.
  */
 async function loadOpfsIntoVfs(
-	api: KernelLimitedPHPApi,
+	kernel: BrowserKernel,
+	adapter: KernelSpawnAdapter,
 	vfsRoot: string,
 	opfsRoot: FileSystemDirectoryHandle,
 	onProgress?: SyncProgressCallback
@@ -1037,13 +1268,19 @@ async function loadOpfsIntoVfs(
 		return;
 	}
 
-	const wireStream = encodeVfsStream(entries);
-	await api.run({
-		code: buildVfsLoadScript(vfsRoot),
-		body: wireStream,
-	});
+	const files = entries.map(({ relPath, data }) => ({
+		path: joinPaths(vfsRoot, relPath),
+		data,
+	}));
+	await adapter.mkdir(...new Set(files.map(({ path }) => dirname(path))));
 
-	onProgress?.({ files: total, total });
+	let synced = 0;
+	for (const { path, data } of files) {
+		const existing = await kernel.statVfsPath(path);
+		await kernel.writeFileToVfs(path, data, existing?.mode ?? 0o644);
+		synced++;
+		onProgress?.({ files: synced, total });
+	}
 }
 
 async function collectOpfsFiles(
@@ -1064,17 +1301,11 @@ async function collectOpfsFiles(
 }
 
 async function writeOpfsFile(
-	opfsRoot: FileSystemDirectoryHandle,
-	path: string[],
+	dir: FileSystemDirectoryHandle,
+	name: string,
 	data: Uint8Array
 ): Promise<void> {
-	let dir = opfsRoot;
-	for (let i = 0; i < path.length - 1; i++) {
-		dir = await dir.getDirectoryHandle(path[i], { create: true });
-	}
-	const fileHandle = await dir.getFileHandle(path[path.length - 1], {
-		create: true,
-	});
+	const fileHandle = await dir.getFileHandle(name, { create: true });
 	// Same fork as `directory-handle-mount.ts` — Chrome/Firefox get
 	// `createWritable`, Safari (and other workers without it) fall back
 	// to the synchronous access handle. The `await`s are no-ops on the
