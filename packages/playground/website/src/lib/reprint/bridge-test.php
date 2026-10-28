@@ -187,6 +187,7 @@ try {
     check(str_contains(file_get_contents($link_state . '/audit.log'), 'target was not downloaded'), 'The skipped intermediate link is explained in the audit log.');
 
     check_link_setup_lifecycle($root);
+    check_protected_link_targets($root);
     check_site_size_limit($root);
 
     echo "All Reprint bridge checks passed.\n";
@@ -450,6 +451,43 @@ function check_link_setup_lifecycle(string $root): void {
     } finally {
         $lock->close();
     }
+}
+
+/** Imported aliases must not expose protected local files or their parent directories. */
+function check_protected_link_targets(string $root): void {
+    $site = $root . '/protected-links';
+    $transfer = $root . '/protected-link-state';
+    mkdir($site . '/wp-content/database', 0700, true);
+    file_put_contents($site . '/wp-config.php', 'local configuration');
+    file_put_contents($site . '/wp-content/database/.ht.sqlite', 'local database');
+    $metadata = ['paths' => ['abspath' => '/srv/site', 'content_dir' => '/srv/site/wp-content']];
+    $metadata['pullMappings'] = pull_path_mappings($metadata);
+    $client = new PlaygroundReprintClient('https://example.com', $transfer . '/pull-state', $site);
+    $client->get_state()->set_preflight_record(['http_code' => 200, 'data' => ['database' => ['wp' => ['paths_urls' => $metadata['paths']]]]]);
+    $client->prepare_files_pull_options([
+        'include' => [':abspath:', ':wp-content:'],
+        'exclude' => pull_exclusions(),
+        'remap' => $metadata['pullMappings'],
+    ], false);
+    $targets = ['wp-config.php', 'wp-content/database', 'wp-content/database/.ht.sqlite', 'wp-content'];
+    $index = [];
+    foreach ($targets as $number => $target) {
+        $remote = '/srv/site/imported-link-' . $number;
+        $index[] = json_encode(['path' => base64_encode($remote), 'target' => base64_encode('/srv/site/' . $target), 'type' => 'link', 'ctime' => 1, 'size' => 0]);
+        (new ReflectionMethod(ImportClient::class, 'handle_symlink_chunk'))->invoke($client, [
+            'headers' => ['x-symlink-path' => base64_encode($remote), 'x-symlink-target' => base64_encode($target), 'x-symlink-ctime' => '1'],
+        ]);
+        check(is_link($site . '/imported-link-' . $number), 'The pinned writer creates the alias before local repair.');
+    }
+    file_put_contents($client->pull_state_directory . '/remote-index.next.jsonl', implode("\n", $index) . "\n");
+    save_pulled_links($site, $transfer, $metadata, $client);
+    restore_pulled_links($transfer);
+    foreach ($targets as $number => $target) {
+        check(!is_link($site . '/imported-link-' . $number) && !file_exists($site . '/imported-link-' . $number), 'Local repair removes the alias to protected target: ' . $target);
+    }
+    check(json_decode(file_get_contents($transfer . '/links.json'), true) === [], 'A setup retry cannot recreate rejected aliases.');
+    check(file_get_contents($site . '/wp-config.php') === 'local configuration', 'Rejecting aliases leaves the local configuration unchanged.');
+    check(file_get_contents($site . '/wp-content/database/.ht.sqlite') === 'local database', 'Rejecting aliases leaves the local database unchanged.');
 }
 
 /** Reject oversized selected indexes before writes, including resumed stages. */

@@ -555,7 +555,16 @@ function save_pulled_links(string $files, string $root, array $metadata, Playgro
             // (e.g. /srv/wordpress), while the index names /wordpress/themes/….
             // Map the indexed target, not that host-specific relative spelling.
             $target = Utils::resolve_symlink_target_path($remote, base64_decode($entry['target'], true), $format);
-            $links[] = ['path' => $path, 'target' => $mapper->remote_path_to_local_path($target)];
+            $target = $mapper->remote_path_to_local_path($target);
+            foreach ($excluded as $excluded_path) {
+                // A directory alias must not expose protected descendants either.
+                if (Utils::path_is_same_as_or_descendant_of($target, [$excluded_path])
+                    || Utils::path_is_same_as_or_descendant_of($excluded_path, [$target])) {
+                    unlink($path);
+                    continue 2;
+                }
+            }
+            $links[] = ['path' => $path, 'target' => $target];
         }
     } finally {
         fclose($index);

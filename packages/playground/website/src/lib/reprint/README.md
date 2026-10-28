@@ -21,7 +21,8 @@ Playground's `wp-content` layout. Bundled copies use separate paths under
 indexed targets and stay as links across browser saves and reloads. Linked files
 are not copied a second time. Runtime configuration, SQLite,
 Playground MU plugins, and connection metadata stay outside mirror writes and
-deletions. Paths inside today's mirror scope match today's remote index;
+deletions. Link repair removes aliases to those protected paths or directories
+containing them. Paths inside today's mirror scope match today's remote index;
 remote-absent local paths there are removed.
 
 SQL is applied to a separate SQLite file, then installed at the path selected
