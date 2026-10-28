@@ -82,6 +82,7 @@ describe('Journal MemFS', () => {
 		try {
 			FS.mkdir('/test/alias/created');
 			FS.mknod('/test/alias/file', 0o100644, 0);
+			FS.symlink('../missing', '/test/alias/link');
 			FS.rmdir('/test/alias/created');
 			expect(events).toEqual([
 				{
@@ -93,6 +94,12 @@ describe('Journal MemFS', () => {
 					operation: 'CREATE',
 					nodeType: 'file',
 					path: '/test/real/file',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/real/link',
+					target: '../missing',
 				},
 				{
 					operation: 'DELETE',
@@ -115,9 +122,11 @@ describe('Journal MemFS', () => {
 		try {
 			FS.mkdir('/test/link-out/ignored');
 			FS.mknod('/test/link-out/ignored-file', 0o100644, 0);
+			FS.symlink('missing', '/test/link-out/ignored-link');
 			FS.rmdir('/test/link-out/ignored');
 			FS.mkdir('/outside/link-in/created');
 			FS.mknod('/outside/link-in/file', 0o100644, 0);
+			FS.symlink('missing', '/outside/link-in/link');
 			FS.rmdir('/outside/link-in/created');
 			expect(events).toEqual([
 				{
@@ -129,6 +138,12 @@ describe('Journal MemFS', () => {
 					operation: 'CREATE',
 					nodeType: 'file',
 					path: '/test/file',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/link',
+					target: 'missing',
 				},
 				{
 					operation: 'DELETE',
@@ -150,6 +165,9 @@ describe('Journal MemFS', () => {
 		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
 		try {
 			expect(() => php.symlink('missing', '/test/existing')).toThrow();
+			expect(() =>
+				php.symlink('missing', '/test/missing/link')
+			).toThrowError(expect.objectContaining({ errno: 44 }));
 			expect(() =>
 				php.mv('/test-outside-link', '/test/directory')
 			).toThrow();

@@ -181,20 +181,12 @@ export function journalFSEvents(
 						// Moves need the old path while it still exists. Keep their
 						// records pending until the call succeeds, including nested
 						// FS calls, so a failed move cannot erase a saved directory.
-						if (name !== 'symlink') {
-							// @ts-ignore
-							hook(...args);
-						}
+						// @ts-ignore
+						hook(...args);
 						const result = originalFunctions[name].apply(
 							this,
 							args
 						);
-						// Resolve the link's path only after its node exists. Its
-						// raw target is stored in the journal and can outlive it.
-						if (name === 'symlink') {
-							// @ts-ignore
-							hook(...args);
-						}
 						pendingEntries = outerEntries;
 						if (outerEntries) outerEntries.push(...entries);
 						else for (const entry of entries) onEntry(entry);
@@ -240,8 +232,8 @@ export function journalFSEvents(
 /**
  * Builds observers that describe FS calls without changing the filesystem.
  *
- * Most hooks run before the original call, while source entries still exist.
- * The symlink hook runs afterward because it needs the new link's own path.
+ * All hooks run before the original call, while source entries still exist.
+ * Create hooks resolve only the parent because the new node may not exist yet.
  * `journalFSEvents` buffers these records and publishes them only on success.
  */
 const createFSHooks = (
@@ -280,14 +272,15 @@ const createFSHooks = (
 		});
 	},
 	/**
-	 * Records a newly created link after the original FS.symlink call succeeds.
-	 * Resolves the link's own path without following its final component, and
-	 * keeps the raw target even if it is broken or points to another link.
+	 * Records link creation before the original FS.symlink call.
+	 * Resolves parent links without looking up the new node or its target.
+	 * Keeps the raw target, even if it is broken or points to another link,
+	 * so the journal can outlive the link itself.
 	 */
 	symlink(target: string, path: string) {
 		recordEntry({
 			operation: 'CREATE',
-			path: FS.lookupPath(path, { follow: false }).path,
+			path: resolveEntryPath(FS, path),
 			nodeType: 'symlink',
 			target,
 		});
