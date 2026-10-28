@@ -142,6 +142,30 @@ describe('PlaygroundRoute site creation routes', () => {
 		expect(url.hash).toBe('');
 	});
 
+	it('routes temporary sites to the allocated slug instead of the original hint', () => {
+		const url = new URL(
+			PlaygroundRoute.site(
+				{
+					slug: 'demo-68ab71a1-d43e-45c2-b203-49cdbdf8e571',
+					metadata: { storage: 'none' },
+					originalUrlParams: {
+						searchParams: {
+							'site-slug': 'demo',
+							php: '8.3',
+							storage: 'temp',
+						},
+					},
+				} as unknown as SiteInfo,
+				'https://playground.test/?site-slug=old-saved-site'
+			)
+		);
+		expect(url.searchParams.get('site-slug')).toBe(
+			'demo-68ab71a1-d43e-45c2-b203-49cdbdf8e571'
+		);
+		expect(url.searchParams.get('php')).toBe('8.3');
+		expect(url.searchParams.get('storage')).toBe('temp');
+	});
+
 	it('preserves Query API version settings when selecting a saved site', () => {
 		const url = PlaygroundRoute.site(
 			{

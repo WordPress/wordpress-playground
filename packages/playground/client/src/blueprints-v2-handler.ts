@@ -25,6 +25,15 @@ export class BlueprintsV2Handler {
 		this.options = options;
 	}
 
+	/**
+	 * Connect to the remote runtime, boot PHP, and run the startup Blueprint.
+	 *
+	 * Without an explicit scope option, allocate a UUID for this runtime's HTTP
+	 * URLs. WordPress pages sharing one origin can request a known running scope;
+	 * a default address must therefore be hard to guess, not just unlikely to
+	 * collide. Preserve an explicit caller scope for integrations that need a
+	 * stable address. Neither the UUID nor this option authorizes HTTP callers.
+	 */
 	async bootPlayground(
 		iframe: HTMLIFrameElement,
 		progressTracker: ProgressTracker
@@ -111,7 +120,7 @@ export class BlueprintsV2Handler {
 		await playground.boot({
 			mounts,
 			sapiName,
-			scope: scope ?? Math.random().toFixed(16),
+			scope: scope ?? crypto.randomUUID(),
 			wordpressInstallMode: resolvedWordPressInstallMode,
 			blueprint:
 				compiled.version === 2 &&
