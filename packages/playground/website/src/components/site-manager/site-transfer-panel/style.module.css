@@ -121,6 +121,22 @@
 	overflow-wrap: anywhere;
 }
 
+.error-details {
+	color: var(--ink-muted);
+	font-size: 12px;
+}
+
+.error-details summary {
+	cursor: pointer;
+}
+
+.error-details pre {
+	font-family: monospace;
+	margin: var(--space-3) 0 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
 .actions {
 	align-items: center;
 	display: flex;

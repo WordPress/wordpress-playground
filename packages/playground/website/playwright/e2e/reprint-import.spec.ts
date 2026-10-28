@@ -94,15 +94,11 @@ test(
 		const openSite = page.getByRole('button', { name: 'Open site' });
 		// Stop waiting when the UI reports a failed stage, so the failure snapshot
 		// shows the cause instead of spending twelve minutes on a missing button.
-		await expect(
-			openSite.or(
-				page.getByRole('button', {
-					name: /Try resuming|Resume local setup/,
-				})
-			)
-		).toBeVisible({ timeout: 12 * 60_000 });
+		await expect(openSite.or(pane.getByRole('alert'))).toBeVisible({
+			timeout: 12 * 60_000,
+		});
 		await expect(openSite).toBeVisible();
-		await expect(page.getByText('Try resuming')).toHaveCount(0);
+		await expect(pane.getByRole('alert')).toHaveCount(0);
 
 		const copy = await page.evaluate(
 			async ({ manifest, sourceOrigin }) => {

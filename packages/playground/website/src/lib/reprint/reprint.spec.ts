@@ -8,7 +8,9 @@ import {
 	installReprint,
 	runBridge,
 	pullSite,
+	loginImportedSite,
 } from './reprint';
+import { ReprintTransferError } from './transfer-error';
 import { logger } from '@php-wasm/logger';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import release from './release.json';
@@ -194,6 +196,10 @@ describe('Reprint setup', () => {
 			site: 'https://example.com/blog/',
 			install:
 				'https://example.com/blog/wp-admin/plugin-install.php?tab=plugin-information&plugin=reprint',
+			admin: 'https://example.com/blog/wp-admin/',
+			plugins: 'https://example.com/blog/wp-admin/plugins.php?s=reprint',
+			wordfence:
+				'https://example.com/blog/wp-admin/admin.php?page=Wordfence',
 			settings:
 				'https://example.com/blog/wp-admin/tools.php?page=reprint-server',
 		});
@@ -455,6 +461,53 @@ describe('Reprint command replies', () => {
 		);
 	});
 
+	it('keeps the native diagnosis when the bridge adds its failed stage', async () => {
+		const { playground } = createClient([]);
+		vi.mocked(playground.runStream).mockResolvedValueOnce(
+			response(
+				[
+					{
+						error: 'Connection lost',
+						error_code: 'CURL_ERROR',
+						curl_errno: 28,
+						http_code: 0,
+					},
+					{
+						playgroundError: {
+							message: 'Generic bridge failure',
+							stage: 'db-pull',
+						},
+					},
+				]
+					.map((record) => JSON.stringify(record))
+					.join('\n'),
+				'',
+				1
+			) as never
+		);
+		await expect(
+			runBridge(
+				playground,
+				{
+					command: 'pull',
+					url: 'https://example.com/?reprint-api',
+					privateKey: 'private-token',
+					documentRoot: '/wordpress',
+					siteUrl: 'https://playground.test/scope:site',
+				},
+				vi.fn()
+			)
+		).rejects.toMatchObject({
+			message: 'Connection lost',
+			details: {
+				code: 'CURL_ERROR',
+				curlError: 28,
+				httpStatus: 0,
+				stage: 'db-pull',
+			},
+		});
+	});
+
 	it('redacts a private PEM key from an error', async () => {
 		const { playground } = createClient([]);
 		vi.mocked(playground.runStream).mockResolvedValueOnce(
@@ -633,6 +686,38 @@ describe('SQL import and administrator login', () => {
 		);
 	});
 
+	it('preserves a redacted structured error through the pull workflow', async () => {
+		const { playground } = createClient([]);
+		vi.mocked(playground.runStream).mockResolvedValueOnce(
+			response(
+				JSON.stringify({
+					error: 'Rejected -----BEGIN PRIVATE KEY-----\nsecret\n-----END PRIVATE KEY-----',
+					error_code: 'AUTH_UNKNOWN_KEY',
+					http_code: 403,
+				}) +
+					'\n' +
+					JSON.stringify({
+						playgroundError: {
+							stage: 'preflight',
+							message: 'wrapper',
+						},
+					}),
+				'',
+				1
+			) as never
+		);
+		await expect(
+			pullSite(playground, 'https://example.com', 'token', vi.fn())
+		).rejects.toMatchObject({
+			message: 'Rejected [redacted]',
+			details: {
+				code: 'AUTH_UNKNOWN_KEY',
+				httpStatus: 403,
+				stage: 'preflight',
+			},
+		});
+	});
+
 	it('retains retry state when a direct write fails', async () => {
 		const { playground, runStream } = createClient([{ status: 'install' }]);
 		vi.mocked(playground.runStream).mockRejectedValueOnce(
@@ -772,8 +857,11 @@ describe('SQL import and administrator login', () => {
 		expect(playground.goTo).toHaveBeenCalledWith('/wp-admin/');
 	});
 
-	it('does not finish the pull when the session belongs to a different administrator', async () => {
-		const { playground, runStream } = createClient([{ status: 'install' }]);
+	it('keeps the copy but reports a session for the wrong administrator', async () => {
+		const { playground, runStream } = createClient([
+			{ status: 'install' },
+			{ status: 'complete' },
+		]);
 		vi.mocked(playground.request)
 			.mockResolvedValueOnce({ httpStatusCode: 302, errors: '' } as never)
 			.mockResolvedValueOnce({
@@ -781,11 +869,16 @@ describe('SQL import and administrator login', () => {
 				text: '{"loggedIn":true,"username":"other-admin"}',
 				errors: '',
 			} as never);
-		await expect(
-			pullSite(playground, 'https://example.com', 'token', vi.fn())
-		).rejects.toThrow('administrator login failed');
+		const result = await pullSite(
+			playground,
+			'https://example.com',
+			'token',
+			vi.fn()
+		);
+		expect(result.loginError).toBeInstanceOf(ReprintTransferError);
+		expect(result.loginError?.details.code).toBe('LOGIN_FAILED');
 		expect(playground.unlink).toHaveBeenCalled();
-		expect(runStream).toHaveBeenCalledTimes(1);
+		expect(runStream).toHaveBeenCalledTimes(2);
 	});
 
 	it('uses Blueprint auto-login again after each pull, even with a valid old session', async () => {
@@ -920,10 +1013,11 @@ describe('SQL import and administrator login', () => {
 		expect(error).toHaveBeenCalledWith(result.warning);
 	});
 	it.each([1, 2])(
-		'removes the temporary login script and preserves retry state when login request %s fails',
+		'finishes the copy and retries only sign-in when login request %s fails',
 		async (failure) => {
 			const { playground, runStream } = createClient([
 				{ status: 'install' },
+				{ status: 'complete' },
 			]);
 			const request = vi.mocked(playground.request);
 			if (failure === 2)
@@ -938,20 +1032,30 @@ describe('SQL import and administrator login', () => {
 				errors: '',
 			} as never);
 			const progress = vi.fn();
-			await expect(
-				pullSite(playground, 'https://example.com', 'token', progress)
-			).rejects.toThrow('administrator login failed');
+			const result = await pullSite(
+				playground,
+				'https://example.com',
+				'token',
+				progress
+			);
+			expect(result.loginError?.details.code).toBe('LOGIN_FAILED');
 			expect(playground.defineConstant).toHaveBeenCalledWith(
 				'PLAYGROUND_AUTO_LOGIN_AS_USER',
 				'imported-admin'
 			);
 			expect(playground.unlink).toHaveBeenCalled();
-			expect(runStream).toHaveBeenCalledTimes(1);
+			expect(runStream).toHaveBeenCalledTimes(2);
+			expect(
+				JSON.parse(runStream.mock.calls[1][0].env.PLAYGROUND_REPRINT)
+					.command
+			).toBe('finish-pull');
+			await loginImportedSite(playground);
+			expect(runStream).toHaveBeenCalledTimes(2);
 			expect(
 				progress.mock.calls.some(
 					([update]) => update.overallPercent === 100
 				)
-			).toBe(false);
+			).toBe(true);
 		}
 	);
 

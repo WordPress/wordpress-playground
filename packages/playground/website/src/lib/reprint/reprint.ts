@@ -7,6 +7,10 @@ import bridge from './bridge.php?raw';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import type { PlaygroundClient } from '@wp-playground/client';
 import release from './release.json';
+import {
+	ReprintTransferError,
+	type TransferErrorDetails,
+} from './transfer-error';
 import { redactReprintPrivateKeys } from './keys';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -154,6 +158,9 @@ export function getReprintAdminUrls(input: string) {
 			site
 		).href,
 		settings: new URL('wp-admin/tools.php?page=reprint-server', site).href,
+		admin: new URL('wp-admin/', site).href,
+		plugins: new URL('wp-admin/plugins.php?s=reprint', site).href,
+		wordfence: new URL('wp-admin/admin.php?page=Wordfence', site).href,
 	};
 }
 
@@ -195,7 +202,7 @@ export function normalizeReprintUrl(input: string): string {
 	return url.href;
 }
 
-/** Import files and SQL into a temporary Playground, then verify administrator login. */
+/** Import files and SQL; a sign-in failure returns the finished copy with a separate error. */
 export async function pullSite(
 	playground: PlaygroundClient,
 	url: string,
@@ -203,7 +210,7 @@ export async function pullSite(
 	onProgress: (progress: TransferProgress) => void,
 	/** Stops after the current PHP run. The checkpoint allows a later resume. */
 	signal?: AbortSignal
-): Promise<{ warning?: string }> {
+): Promise<{ warning?: string; loginError?: ReprintTransferError }> {
 	url = normalizeReprintUrl(url);
 	if (!privateKey.trim())
 		throw new Error('Generate a Reprint key before pulling.');
@@ -266,6 +273,7 @@ export async function pullSite(
 	let command: 'pull' | 'finish-pull' = 'pull';
 	let stage: string | undefined;
 	let warning: string | undefined;
+	let loginError: ReprintTransferError | undefined;
 	let transferError: Error | undefined;
 	logger.info(`[Reprint ${REPRINT_VERSION}] Starting pull.`);
 	try {
@@ -295,86 +303,19 @@ export async function pullSite(
 			}
 			if (result.status === 'install') {
 				report({ phase: 'login', message: phases.login[2] });
-				// Files and SQL are installed. Prepare WordPress, then use Blueprint
-				// login. The temporary endpoint ignores old cookies once and checks
-				// the new session on a separate request. Remove it on success or failure.
-				const setup = await playground.run({
-					code: `<?php
-						require ${phpVar(joinPaths(documentRoot, 'wp-load.php'))};
-						require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-						wp_upgrade();
-						// Theme roots and cached theme errors describe the source filesystem.
-						// Rebuild them from the downloaded files without changing the active theme.
-						delete_option('stylesheet_root');
-						delete_option('template_root');
-						delete_site_transient('theme_roots');
-						wp_clean_themes_cache();
-						$admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
-						if (!$admins) {
-							throw new RuntimeException('The imported site has no administrator account.');
-						}
-						echo json_encode(['username' => $admins[0]->user_login]);
-					`,
-				});
-				if (setup.errors) logger.error(setup.errors);
-				const { username } = JSON.parse(setup.text);
-				// The imported administrator may not be named admin. The Blueprint step
-				// also keeps auto-login pointed at this username when the site reopens.
-				await login(playground, { username });
-				const path = `/.playground-reprint-login-${crypto.randomUUID()}.php`;
-				await playground.writeFile(
-					joinPaths(documentRoot, path),
-					loginCheckScript
-				);
 				try {
-					const loginResponse = await playground.request({
-						url: path,
-						method: 'POST',
-					});
-					if (loginResponse.errors)
-						logger.error(loginResponse.errors);
-					if (loginResponse.httpStatusCode >= 400) {
-						throw new Error(
-							'The site was imported, but administrator login failed. Check Logs.'
-						);
-					}
-					// A separate GET checks the cookie round trip, not just the user that
-					// the auto-login plugin set in memory during the POST.
-					const response = await playground.request({
-						url: path,
-						method: 'GET',
-					});
-					if (response.errors) logger.error(response.errors);
-					let session;
-					try {
-						session = JSON.parse(response.text);
-					} catch {
-						/* Report invalid WordPress output below. */
-					}
-					if (
-						response.httpStatusCode !== 200 ||
-						session?.loggedIn !== true ||
-						session?.username !== username
-					) {
-						throw new Error(
-							'The site was imported, but administrator login failed. Check Logs.'
-						);
-					}
-					if (typeof session.warning === 'string')
-						warning = session.warning;
-				} finally {
-					await playground.unlink(joinPaths(documentRoot, path));
+					warning = await loginImportedSite(playground);
+				} catch (error) {
+					// The copy is installed. Finish cleanup and let the UI save it;
+					// a sign-in retry must never start another file or SQL pull.
+					loginError = new ReprintTransferError(
+						error instanceof Error ? error.message : String(error),
+						{ code: 'LOGIN_FAILED', stage: 'login' }
+					);
+					logger.error(
+						`[Reprint] Sign-in failed: ${loginError.message}`
+					);
 				}
-				const home = await playground.request({ url: '/' });
-				if (home.errors) logger.error(home.errors);
-				if (
-					home.httpStatusCode >= 400 ||
-					(home.httpStatusCode === 200 && !home.text.trim())
-				) {
-					warning ??= `The site was imported, but its homepage returned ${home.httpStatusCode}${!home.text.trim() ? ' with an empty response' : ''}. You are logged in as an administrator. Check Logs and the active theme.`;
-				}
-				if (warning) logger.error(warning);
-				await playground.goTo('/wp-admin/');
 				// Completion only discards the SQL dump; no separate phase.
 				command = 'finish-pull';
 			}
@@ -383,12 +324,15 @@ export async function pullSite(
 		transferError =
 			error instanceof DOMException && error.name === 'AbortError'
 				? error
-				: new Error(
+				: new ReprintTransferError(
 						redactReprintPrivateKeys(
 							error instanceof Error
 								? error.message
 								: String(error)
-						)
+						),
+						error instanceof ReprintTransferError
+							? error.details
+							: { stage: phase }
 					);
 		logger.error(`[Reprint] Pull failed: ${transferError.message}`);
 	}
@@ -397,7 +341,91 @@ export async function pullSite(
 		message: 'Transfer complete',
 		overallPercent: 100,
 	});
-	return { warning };
+	return { warning, loginError };
+}
+
+/** Sign in to an already imported site; never download or apply its data again. */
+export async function loginImportedSite(
+	playground: PlaygroundClient
+): Promise<string | undefined> {
+	const documentRoot = await playground.documentRoot;
+	let warning: string | undefined;
+	// Files and SQL are installed. Prepare WordPress, then use Blueprint
+	// login. The temporary endpoint ignores old cookies once and checks
+	// the new session on a separate request. Remove it on success or failure.
+	const setup = await playground.run({
+		code: `<?php
+			require ${phpVar(joinPaths(documentRoot, 'wp-load.php'))};
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+			wp_upgrade();
+			// Theme roots and cached theme errors describe the source filesystem.
+			// Rebuild them from the downloaded files without changing the active theme.
+			delete_option('stylesheet_root');
+			delete_option('template_root');
+			delete_site_transient('theme_roots');
+			wp_clean_themes_cache();
+			$admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
+			if (!$admins) {
+				throw new RuntimeException('The imported site has no administrator account.');
+			}
+			echo json_encode(['username' => $admins[0]->user_login]);
+		`,
+	});
+	if (setup.errors) logger.error(setup.errors);
+	const { username } = JSON.parse(setup.text);
+	// The imported administrator may not be named admin. The Blueprint step
+	// also keeps auto-login pointed at this username when the site reopens.
+	await login(playground, { username });
+	const path = `/.playground-reprint-login-${crypto.randomUUID()}.php`;
+	await playground.writeFile(joinPaths(documentRoot, path), loginCheckScript);
+	try {
+		const loginResponse = await playground.request({
+			url: path,
+			method: 'POST',
+		});
+		if (loginResponse.errors) logger.error(loginResponse.errors);
+		if (loginResponse.httpStatusCode >= 400) {
+			throw new Error(
+				'The site was imported, but administrator login failed. Check Logs.'
+			);
+		}
+		// A separate GET checks the cookie round trip, not just the user that
+		// the auto-login plugin set in memory during the POST.
+		const response = await playground.request({
+			url: path,
+			method: 'GET',
+		});
+		if (response.errors) logger.error(response.errors);
+		let session;
+		try {
+			session = JSON.parse(response.text);
+		} catch {
+			/* Report invalid WordPress output below. */
+		}
+		if (
+			response.httpStatusCode !== 200 ||
+			session?.loggedIn !== true ||
+			session?.username !== username
+		) {
+			throw new Error(
+				'The site was imported, but administrator login failed. Check Logs.'
+			);
+		}
+		if (typeof session.warning === 'string') warning = session.warning;
+	} finally {
+		await playground.unlink(joinPaths(documentRoot, path));
+	}
+	const home = await playground.request({ url: '/' });
+	if (home.errors) logger.error(home.errors);
+	if (
+		home.httpStatusCode >= 400 ||
+		(home.httpStatusCode === 200 && !home.text.trim())
+	) {
+		warning ??= `The site was imported, but its homepage returned ${home.httpStatusCode}${!home.text.trim() ? ' with an empty response' : ''}. You are logged in as an administrator. Check Logs and the active theme.`;
+	}
+	if (warning) logger.error(warning);
+	await playground.goTo('/wp-admin/');
+	return warning;
 }
 
 /**
@@ -465,7 +493,8 @@ async function hasPinnedReprintChecksum(bytes: Uint8Array): Promise<boolean> {
  * stdout, stderr, and the exit status together, including output after a result.
  *
  * A nonzero exit or missing result throws using the last JSON error, stderr,
- * or an exit-code message, in that order. Private PEM blocks are redacted
+ * or an exit-code message, in that order. Keeps the native error code, HTTP
+ * status, cURL error number, and failed bridge stage for recovery. Private PEM blocks are redacted
  * from PHP error and message text before reporting it. Site content is not
  * sanitized by this function.
  */
@@ -492,6 +521,7 @@ export async function runBridge(
 	});
 	let result: TransferResult | undefined;
 	let lastError = '';
+	const errorDetails: TransferErrorDetails = {};
 	let hasStructuredProgress = false;
 	/**
 	 * Reads UTF-8 stdout without assuming that a chunk contains a complete line.
@@ -517,8 +547,23 @@ export async function runBridge(
 					const record = JSON.parse(line);
 					if (record.playgroundReprint)
 						result = record.playgroundReprint;
-					if (typeof record.error === 'string')
+					if (typeof record.error === 'string') {
 						lastError = redactReprintPrivateKeys(record.error);
+						if (typeof record.error_code === 'string')
+							errorDetails.code = record.error_code;
+						if (typeof record.http_code === 'number')
+							errorDetails.httpStatus = record.http_code;
+						if (typeof record.curl_errno === 'number')
+							errorDetails.curlError = record.curl_errno;
+					}
+					if (record.playgroundError) {
+						// The bridge adds its stage without replacing the client's
+						// more specific diagnosis with a generic wrapper exception.
+						errorDetails.stage = record.playgroundError.stage;
+						lastError ||= redactReprintPrivateKeys(
+							record.playgroundError.message
+						);
+					}
 					if (record.playgroundProgress) {
 						const update = record.playgroundProgress;
 						const detail = describeProgress(update);
@@ -628,12 +673,13 @@ export async function runBridge(
 		readStdout(),
 	]);
 	if (exitCode !== 0 || !result) {
-		throw new Error(
+		throw new ReprintTransferError(
 			redactReprintPrivateKeys(
 				lastError ||
 					stderr ||
 					`Reprint stopped with exit code ${exitCode}.`
-			)
+			),
+			errorDetails
 		);
 	}
 	return result;

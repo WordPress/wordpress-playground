@@ -90,9 +90,7 @@ test(
 		expect(destination.site.storage).toBe('temporary');
 		expect(destination.hasOriginalFile).toBe(false);
 		// The new Playground picks up the connection and attempts the pull.
-		await expect(
-			page.getByRole('button', { name: 'Try resuming' })
-		).toBeVisible({ timeout: 60_000 });
+		await expect(pane.getByRole('alert')).toBeVisible({ timeout: 60_000 });
 
 		await website.goto(`./?site-slug=${encodeURIComponent(originalSlug)}`);
 		await page.waitForFunction(() =>
