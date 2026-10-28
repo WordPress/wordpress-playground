@@ -192,6 +192,12 @@ The schema is NOT auto-rebuilt in `npm run dev` mode.
 - `@wp-playground/sync`: Multi-client synchronization for collaborative editing
 - `@php-wasm/fs-journal`: Tracks filesystem changes for synchronization
 
+Browser WordPress boots record the site's public base URL in `/wordpress/.playground-site-url`.
+Stored sites without that record are migrated from their scoped app-origin URL before startup
+completes. Flush migrated data before saving the record; later boots must not rescan the database
+when the recorded URL still matches. Log migration failures and keep the site accessible;
+a missing completion record allows a later boot to retry.
+
 ### WordPress Builds
 
 `@wp-playground/wordpress-builds` compiles specific WordPress versions into the playground format. Each version is tested and bundled separately.

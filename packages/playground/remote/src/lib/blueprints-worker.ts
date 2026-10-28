@@ -4,7 +4,9 @@ import {
 	type BootProgressEvent,
 	type WorkerBootOptions,
 } from './playground-worker-endpoint';
-import { randomString } from '@php-wasm/util';
+import { joinPaths, randomString } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
+import { setURLScope } from '@php-wasm/scopes';
 import {
 	getSqliteDriverModuleDetails,
 	getWordPressModuleDetails,
@@ -17,8 +19,10 @@ import { bootWordPress } from '@wp-playground/wordpress';
 import type { PHP } from '@php-wasm/universal';
 import {
 	assertBlueprintV2WordPressVersionCompatibility,
+	replaceSiteUrl,
 	type BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
+import { playgroundOrigin } from './config';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -330,6 +334,16 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 				onProgress: reportBootProgress,
 			});
 
+			try {
+				await this.migrateSiteUrl(
+					await requestHandler.getPrimaryPhp(),
+					siteUrl
+				);
+			} catch (error) {
+				// Keep saved sites accessible if migration or persistence fails.
+				logger.error('Could not migrate saved site URLs.', error);
+			}
+
 			reportBootProgress('Finalizing WordPress runtime');
 			await this.finalizeAfterBoot(
 				requestHandler,
@@ -341,6 +355,37 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 		} catch (e) {
 			this.failed(e as Error);
 			throw e as Error;
+		}
+	}
+
+	/**
+	 * Migrates mounted site data once per public URL and saves it before recording
+	 * completion. New sites only need the record for their first save.
+	 */
+	protected async migrateSiteUrl(php: PHP, siteUrl: string) {
+		const documentRoot = php.documentRoot;
+		const recordPath = joinPaths(documentRoot, '.playground-site-url');
+		const recordedUrl = php.fileExists(recordPath)
+			? php.readFileAsText(recordPath)
+			: undefined;
+		if (recordedUrl === siteUrl) {
+			return;
+		}
+		const isStoredSite = await this.hasOpfsMount(documentRoot);
+		if (isStoredSite) {
+			// Sites saved before this record existed ran on the app origin.
+			// Their database siteurl may still name an earlier import source.
+			const oldSiteUrl =
+				recordedUrl ||
+				setURLScope(playgroundOrigin, this.scope!).toString();
+			await replaceSiteUrl(php, documentRoot, oldSiteUrl, siteUrl);
+			// Persist the migrated files before recording completion. A failed
+			// save must leave the site eligible for another migration attempt.
+			await this.flushOpfs(documentRoot);
+		}
+		php.writeFile(recordPath, siteUrl);
+		if (isStoredSite) {
+			await this.flushOpfs(documentRoot);
 		}
 	}
 }
