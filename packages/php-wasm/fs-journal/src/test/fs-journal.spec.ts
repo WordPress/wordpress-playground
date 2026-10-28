@@ -181,6 +181,14 @@ describe('Journal MemFS', () => {
 				expect.objectContaining({ errno: 44 })
 			);
 			expect(events).toEqual([]);
+			FS.mkdir('/test/after-failure');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/after-failure',
+				},
+			]);
 		} finally {
 			unbind();
 		}

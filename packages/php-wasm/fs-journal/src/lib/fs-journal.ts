@@ -140,11 +140,12 @@ export function journalFSEvents(
 	function bindToCurrentRuntime() {
 		fsRoot = normalizePath(fsRoot);
 		const FS = php[__private__dont__use].FS;
-		let pendingEntries: FilesystemOperation[] | undefined;
+		const pendingBatches: FilesystemOperation[][] = [];
 		const FSHooks = createFSHooks(FS, (entry: FilesystemOperation) => {
+			const batch = pendingBatches[pendingBatches.length - 1];
 			// Only journal entries inside the specified root directory.
 			if (isParentOf(fsRoot, entry.path)) {
-				pendingEntries!.push(entry);
+				batch.push(entry);
 			} else if (
 				entry.operation === 'RENAME' &&
 				isParentOf(fsRoot, entry.toPath)
@@ -154,7 +155,7 @@ export function journalFSEvents(
 					entry.path,
 					entry.toPath
 				)) {
-					pendingEntries!.push(op);
+					batch.push(op);
 				}
 			}
 		});
@@ -170,30 +171,34 @@ export function journalFSEvents(
 			originalFunctions[name] = FS[name];
 		}
 
+		/**
+		 * Wraps FS calls with a stack of batches for their pending records.
+		 * Cleanup always pops the batch. Publishing follows the try/finally, so a
+		 * thrown error discards that call's records and leaves the stack ready for
+		 * the next call. Successful nested calls append to their parent's batch.
+		 */
 		// eslint-disable-next-line no-inner-declarations
 		function bind() {
 			for (const [name, hook] of Object.entries(FSHooks)) {
 				FS[name] = function (...args: any[]) {
-					const outerEntries = pendingEntries;
-					const entries: FilesystemOperation[] = [];
-					pendingEntries = entries;
+					const batch: FilesystemOperation[] = [];
+					pendingBatches.push(batch);
+					let result;
 					try {
 						// Moves need the old path while it still exists. Keep their
 						// records pending until the call succeeds, including nested
 						// FS calls, so a failed move cannot erase a saved directory.
 						// @ts-ignore
 						hook(...args);
-						const result = originalFunctions[name].apply(
-							this,
-							args
-						);
-						pendingEntries = outerEntries;
-						if (outerEntries) outerEntries.push(...entries);
-						else for (const entry of entries) onEntry(entry);
-						return result;
+						result = originalFunctions[name].apply(this, args);
 					} finally {
-						pendingEntries = outerEntries;
+						pendingBatches.pop();
 					}
+					const parentBatch =
+						pendingBatches[pendingBatches.length - 1];
+					if (parentBatch) parentBatch.push(...batch);
+					else for (const entry of batch) onEntry(entry);
+					return result;
 				};
 			}
 		}
