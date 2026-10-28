@@ -819,12 +819,13 @@ export function createSitesAPI(
 		 *   random name is generated.
 		 * @param settings Optional site settings.
 		 * @param options Set updateUrl to false when a clone must boot without routing.
+		 *   Set name to keep its display name separate from an explicit slug.
 		 * @returns The new site's slug.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
 			settings?: SiteSettings,
-			options: { updateUrl?: boolean } = {}
+			options: { updateUrl?: boolean; name?: string } = {}
 		): Promise<string> {
 			return await createTemporarySite(
 				requestedSiteSlug,
@@ -962,11 +963,13 @@ export function createSitesAPI(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
 		initialize?: (playground: PlaygroundClient) => Promise<void>,
-		options: { updateUrl?: boolean } = {}
+		options: { updateUrl?: boolean; name?: string } = {}
 	): Promise<string> {
-		const siteName = requestedSiteSlug
-			? deriveSiteNameFromSlug(requestedSiteSlug)
-			: randomSiteName();
+		const siteName =
+			options.name ??
+			(requestedSiteSlug
+				? deriveSiteNameFromSlug(requestedSiteSlug)
+				: randomSiteName());
 		const url = getSetupUrlForNewSite(settings, {
 			baseUrl: new URL(window.location.href),
 		});

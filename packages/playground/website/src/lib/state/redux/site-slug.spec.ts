@@ -1,41 +1,40 @@
-import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
+import { generateSiteSlug, getUniqueSiteSlug } from './site-slug';
 
 describe('site slug helpers', () => {
-	const uuid = '54e2f9f8-73c4-4ad2-960e-5b17a296c830';
-
 	beforeEach(() => {
-		vi.spyOn(crypto, 'randomUUID').mockReturnValue(uuid);
+		vi.spyOn(crypto, 'getRandomValues').mockImplementation((array) => {
+			(array as Uint8Array).fill(0);
+			return array;
+		});
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
 
-	it('keeps readable names and the full random UUID in default slugs', () => {
-		expect(deriveSlugFromSiteName(' My WordPress Playground! ')).toBe(
-			`my-wordpress-playground-${uuid}`
-		);
-		expect(deriveSlugFromSiteName(' Mój WordPress Playground! ')).toBe(
-			`moj-wordpress-playground-${uuid}`
-		);
+	it('draws fresh cryptographic randomness for every slug', () => {
+		expect(generateSiteSlug()).toBe('aaaa-aaaa-aaaa');
+		vi.mocked(crypto.getRandomValues).mockImplementation((array) => {
+			(array as Uint8Array).fill(1);
+			return array;
+		});
+		expect(generateSiteSlug()).toBe('bbbb-bbbb-bbbb');
+		expect(crypto.getRandomValues).toHaveBeenCalledTimes(2);
 	});
 
-	it('draws a fresh UUID even when the site name is the same', () => {
-		const anotherUuid = '9d4152f0-3b8c-4e6a-a721-608fc923d57e';
-		vi.mocked(crypto.randomUUID)
-			.mockReturnValueOnce(uuid)
-			.mockReturnValueOnce(anotherUuid);
+	it('rejects bytes above 249 instead of biasing the 25-letter alphabet', () => {
+		const bytes = [
+			249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+		];
+		vi.mocked(crypto.getRandomValues).mockImplementation((array) => {
+			const buffer = array as Uint8Array;
+			buffer.set(bytes.splice(0, buffer.length));
+			return array;
+		});
 
-		expect(deriveSlugFromSiteName('Happy Quiet River')).toBe(
-			`happy-quiet-river-${uuid}`
-		);
-		expect(deriveSlugFromSiteName('Happy Quiet River')).toBe(
-			`happy-quiet-river-${anotherUuid}`
-		);
-	});
-
-	it('keeps the random suffix when the site name has no usable characters', () => {
-		expect(deriveSlugFromSiteName('!!!')).toBe(`playground-${uuid}`);
+		expect(generateSiteSlug()).toBe('zabc-defg-hijk');
+		expect(bytes).toEqual([]);
+		expect(crypto.getRandomValues).toHaveBeenCalledTimes(2);
 	});
 
 	it('appends a suffix to avoid slug collisions', () => {
@@ -62,7 +61,7 @@ describe('site slug helpers', () => {
 				unavailableSlugs: ['Mój Playground 🚀'],
 			})
 		).toBe('Mój Playground 🚀-2');
-		expect(crypto.randomUUID).not.toHaveBeenCalled();
+		expect(crypto.getRandomValues).not.toHaveBeenCalled();
 	});
 
 	it('uses a fallback when an explicit slug hint is empty', () => {

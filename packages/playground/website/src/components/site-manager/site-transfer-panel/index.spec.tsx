@@ -19,7 +19,7 @@ import type {
 	ToolHeaderState,
 } from '../site-info-panel/site-tool-renderers';
 
-const { ui, dispatch } = vi.hoisted(() => ({
+const { ui, dispatch, createNewTemporarySite } = vi.hoisted(() => ({
 	ui: {
 		cloneRequested: false,
 		pendingClone: undefined as
@@ -27,6 +27,7 @@ const { ui, dispatch } = vi.hoisted(() => ({
 			| undefined,
 	},
 	dispatch: vi.fn(),
+	createNewTemporarySite: vi.fn(async (slug: string) => slug),
 }));
 vi.mock('../../../lib/state/redux/store', () => ({
 	/** Record actions without starting a real site runtime. */
@@ -36,14 +37,14 @@ vi.mock('../../../lib/state/redux/store', () => ({
 		selector({ ui }),
 }));
 vi.mock('../../../lib/state/redux/slice-sites', () => ({
-	/** Let clone names start without collisions in this isolated store. */
+	/** Let clone slugs start without collisions in this isolated store. */
 	selectAllSites: () => [],
 	updateSiteMetadata: vi.fn(),
 }));
 vi.mock('../../../lib/state/redux/site-management-api-middleware', () => ({
 	/** Finish site creation and saving without browser storage. */
 	useSitesAPI: () => ({
-		createNewTemporarySite: vi.fn(async (slug: string) => slug),
+		createNewTemporarySite,
 		autosaveTemporarySite: vi.fn(async () => ({})),
 	}),
 }));
@@ -178,6 +179,26 @@ describe('Reprint connection changes', () => {
 		act(() => root.unmount());
 		container.remove();
 		vi.unstubAllGlobals();
+	});
+
+	it('creates a clone with a readable name separate from its random slug', async () => {
+		ui.cloneRequested = true;
+		vi.mocked(detectReprint).mockResolvedValue('configured');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		await submit();
+
+		expect(createNewTemporarySite).toHaveBeenCalledWith(
+			expect.stringMatching(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/),
+			{ networking: true, phpVersion: '8.3' },
+			{
+				updateUrl: false,
+				name: expect.stringMatching(
+					/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/
+				),
+			}
+		);
 	});
 
 	it('ignores a late detection result after the address changes', async () => {

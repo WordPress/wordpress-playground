@@ -1,21 +1,34 @@
-import { cleanForSlug } from '@wordpress/url';
-
 /**
- * Builds a readable default site slug with a cryptographically random suffix.
- * The full UUID makes saved-site paths hard to guess even when the name is known.
+ * Generates a site slug independently of its human-readable display name.
+ * Twelve random letters from a 25-letter alphabet provide about 55.7 bits of entropy.
+ * Omit "l" to avoid confusing it with "i".
  *
  * Explicit slug hints bypass this helper so their URL/storage escaping remains
  * the responsibility of the boundaries that consume them.
  */
-export function deriveSlugFromSiteName(name: string) {
-	return `${cleanForSlug(name) || 'playground'}-${crypto.randomUUID()}`;
+export function generateSiteSlug() {
+	const alphabet = 'abcdefghijkmnopqrstuvwxyz';
+	let letters = '';
+	while (letters.length < 12) {
+		const bytes = crypto.getRandomValues(
+			new Uint8Array(12 - letters.length)
+		);
+		for (const byte of bytes) {
+			// 250 is divisible by 25. Reject the remaining bytes so each letter
+			// has the same chance instead of favoring the first six letters.
+			if (byte < 250) {
+				letters += alphabet[byte % alphabet.length];
+			}
+		}
+	}
+	return `${letters.slice(0, 4)}-${letters.slice(4, 8)}-${letters.slice(8)}`;
 }
 
 /**
  * Returns a preferred site slug with a numeric suffix when needed.
  *
- * Callers decide whether the preferred slug comes from user-facing text or an
- * explicit slug hint. This function only handles empty strings and collisions.
+ * Callers supply either a generated slug or an explicit slug hint.
+ * This function only handles empty strings and collisions.
  */
 export function getUniqueSiteSlug(
 	preferredSlug: string,

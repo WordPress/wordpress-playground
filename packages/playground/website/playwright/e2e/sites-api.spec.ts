@@ -39,13 +39,17 @@ test('playgroundSites.saveInBrowser() persists a temporary site', async ({
 		Boolean((window as any).playgroundSites?.getClient())
 	);
 
-	const result = await website.page.evaluate(() =>
-		(window as any).playgroundSites.saveInBrowser()
-	);
-	expect(result.slug).toMatch(
-		/-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-	);
-	expect(result.storage).toBe('opfs');
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const beforeName = api.list().find((site: any) => site.isActive).name;
+		const saved = await api.saveInBrowser();
+		const afterName = api.list().find((site: any) => site.isActive).name;
+		return { saved, beforeName, afterName };
+	});
+	expect(result.saved.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
+	expect(result.saved.storage).toBe('opfs');
+	expect(result.beforeName).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/);
+	expect(result.afterName).toBe(result.beforeName);
 });
 
 test('playgroundSites.autosaveTemporarySite() persists without disrupting the tab', async ({
@@ -240,14 +244,11 @@ test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blu
 		const secondSlug = await api.createNewSavedSite(undefined, undefined, {
 			updateUrl: false,
 		});
-		const sites = api
-			.list()
-			.filter((s: any) => s.slug.startsWith('shared-blueprint-name'));
+		const sites = api.list();
 		return { firstSlug, secondSlug, sites };
 	}, blueprint);
 
-	const slugPattern =
-		/^shared-blueprint-name-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+	const slugPattern = /^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/;
 	expect(result.firstSlug).toMatch(slugPattern);
 	expect(result.secondSlug).toMatch(slugPattern);
 	expect(result.secondSlug).not.toBe(result.firstSlug);
@@ -312,6 +313,40 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 	expect(result.active.storage).toBe('opfs');
 	expect(result.active.persistence).toBe('explicit');
 	expect(result.hasClient).toBe(true);
+	expect(result.sameUrl).toBe(true);
+});
+
+test('playgroundSites.createNewTemporarySite() keeps a clone name separate from its slug', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const beforeUrl = window.location.href;
+		const slug = await api.createNewTemporarySite(
+			'abcd-efgh-ijkm',
+			{ networking: true, phpVersion: '8.3' },
+			{ updateUrl: false, name: 'Happy Quiet River' }
+		);
+		return {
+			slug,
+			active: api.list().find((site: any) => site.isActive),
+			sameUrl: window.location.href === beforeUrl,
+		};
+	});
+
+	expect(result.slug).toBe('abcd-efgh-ijkm');
+	expect(result.active).toEqual(
+		expect.objectContaining({
+			slug: 'abcd-efgh-ijkm',
+			name: 'Happy Quiet River',
+			storage: 'temporary',
+		})
+	);
 	expect(result.sameUrl).toBe(true);
 });
 

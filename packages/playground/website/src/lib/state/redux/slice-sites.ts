@@ -32,7 +32,7 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
-import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
+import { generateSiteSlug, getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
@@ -545,11 +545,12 @@ export function setTemporarySiteSpec(
 			unavailableSlugs.push(currentTemporarySite.slug);
 		}
 		const unavailableNames = storedSites.map((site) => site.metadata.name);
-		const getAvailableSiteSlug = (name: string) =>
-			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
+		const siteSlug = getUniqueSiteSlug(
+			preferredSlug || generateSiteSlug(),
+			{
 				unavailableSlugs,
-			});
-		let siteSlug = getAvailableSiteSlug(siteName);
+			}
+		);
 
 		const sites = getState().sites.entities;
 
@@ -592,19 +593,17 @@ export function setTemporarySiteSpec(
 				playgroundUrlWithQueryApiArgs
 			);
 			let displayName = siteName;
-			let slugBaseName = siteName;
 			if (!preferredSlug) {
-				slugBaseName = getDefaultSiteNameFromBlueprint(
+				const defaultName = getDefaultSiteNameFromBlueprint(
 					resolvedBlueprint.blueprint,
 					siteName
 				);
 				displayName = getSiteNameWithCreationTimeIfDuplicate(
-					slugBaseName,
+					defaultName,
 					unavailableNames,
 					new Date()
 				);
 			}
-			siteSlug = getAvailableSiteSlug(slugBaseName);
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
@@ -716,17 +715,19 @@ export function createStoredSite(
 		}
 		const sites = [...sitesBySlug.values()];
 		let displayName = siteName;
-		let slugBaseName = siteName;
 		if (!preferredSlug) {
-			slugBaseName = getDefaultSiteNameFromBlueprint(blueprint, siteName);
+			const defaultName = getDefaultSiteNameFromBlueprint(
+				blueprint,
+				siteName
+			);
 			displayName = getSiteNameWithCreationTimeIfDuplicate(
-				slugBaseName,
+				defaultName,
 				sites.map((site) => site.metadata.name),
 				new Date(now)
 			);
 		}
 		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(slugBaseName),
+			preferredSlug || generateSiteSlug(),
 			{ unavailableSlugs: sites.map((site) => site.slug) }
 		);
 		const blueprintBundle = isTraversableFilesystemBackend(blueprint)

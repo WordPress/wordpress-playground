@@ -36,7 +36,7 @@ import {
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
 import { randomSiteName } from '../../../lib/state/redux/random-site-name';
 import {
-	deriveSlugFromSiteName,
+	generateSiteSlug,
 	getUniqueSiteSlug,
 } from '../../../lib/state/redux/site-slug';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
@@ -426,10 +426,9 @@ export function SiteTransferPanel({
 			overallPercent: 0,
 		});
 		const address = getReprintAdminUrls(url).site;
-		const slug = getUniqueSiteSlug(
-			deriveSlugFromSiteName(randomSiteName()),
-			{ unavailableSlugs: existingSlugs }
-		);
+		const slug = getUniqueSiteSlug(generateSiteSlug(), {
+			unavailableSlugs: existingSlugs,
+		});
 		rememberConnection(slug, address, keyPair!);
 		dispatch(setPendingClone({ slug, url: address, keyPair: keyPair! }));
 		try {
@@ -440,7 +439,7 @@ export function SiteTransferPanel({
 			const created = await sitesAPI.createNewTemporarySite(
 				slug,
 				{ networking: true, phpVersion: '8.3' },
-				{ updateUrl: false }
+				{ updateUrl: false, name: randomSiteName() }
 			);
 			if (created !== slug) {
 				rememberConnection(created, address, keyPair!);
