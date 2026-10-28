@@ -885,11 +885,10 @@ export class KernelPlaygroundWorkerEndpoint {
 			});
 		}
 
-		// `kernel.wasm` then `coreutils.wasm` + `php.wasm` in parallel.
-		// Sequential first (we need to start the kernel before spawning
-		// anything); the two spawn binaries share the dev-server cache
-		// with `vfs-builder.ts`'s `?url` imports, and `php.wasm` is
-		// ~18 MiB — running them in parallel shaves a second off boot.
+		// `kernel.wasm` first: the kernel must run before anything spawns.
+		// `coreutils.wasm` follows because every filesystem call spawns it.
+		// `php.wasm` downloads on the first `runPhpCli()`: the default
+		// boot never runs the PHP CLI.
 		logger.debug('[posix-kernel] fetching kernel.wasm');
 		const kernelWasm = await fetchArrayBuffer(kernelWasmUrl, 'kernel.wasm');
 
@@ -901,16 +900,16 @@ export class KernelPlaygroundWorkerEndpoint {
 			corsProxyUrl,
 		});
 
-		logger.debug('[posix-kernel] fetching spawn binaries');
-		const [coreutilsBytes, phpWasmBytes] = await Promise.all([
-			fetchArrayBuffer(coreutilsUrl, 'coreutils.wasm'),
-			fetchArrayBuffer(phpWasmUrl, 'php.wasm'),
-		]);
+		logger.debug('[posix-kernel] fetching coreutils.wasm');
+		const coreutilsBytes = await fetchArrayBuffer(
+			coreutilsUrl,
+			'coreutils.wasm'
+		);
 
 		const adapter = new KernelSpawnAdapter({
 			kernel: this.kernel.kernel,
 			coreutilsBytes,
-			phpWasmBytes,
+			loadPhpWasm: () => fetchArrayBuffer(phpWasmUrl, 'php.wasm'),
 			setCapture: this.kernel.setCapture,
 		});
 		const api = new KernelLimitedPHPApi({

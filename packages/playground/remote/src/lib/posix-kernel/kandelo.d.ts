@@ -3,6 +3,11 @@ declare module '*?url' {
 	export default url;
 }
 
+declare module '*?lazy' {
+	const file: { url: string; size: number; sha256: string };
+	export default file;
+}
+
 declare module '*?raw' {
 	const text: string;
 	export default text;

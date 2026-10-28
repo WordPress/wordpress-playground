@@ -16,6 +16,7 @@ function createAdapter(program: Program) {
 	const spawned: string[][] = [];
 	const captures: Array<CaptureHandler | null> = [];
 	let capture: CaptureHandler | null = null;
+	let phpWasmLoads = 0;
 	const encoder = new TextEncoder();
 	const kernel = {
 		async spawn(_bytes: ArrayBuffer, argv: string[]) {
@@ -34,13 +35,16 @@ function createAdapter(program: Program) {
 	const adapter = new KernelSpawnAdapter({
 		kernel,
 		coreutilsBytes: new ArrayBuffer(0),
-		phpWasmBytes: new ArrayBuffer(0),
+		loadPhpWasm: async () => {
+			phpWasmLoads++;
+			return new ArrayBuffer(0);
+		},
 		setCapture: (handler) => {
 			captures.push(handler);
 			capture = handler;
 		},
 	});
-	return { adapter, spawned, captures };
+	return { adapter, spawned, captures, phpWasmLoads: () => phpWasmLoads };
 }
 
 function deferred<T>() {
@@ -124,6 +128,23 @@ describe('KernelSpawnAdapter', () => {
 
 			await expect(read).rejects.toThrow('missing');
 			expect(decode((await run).stdout)).toBe('bar');
+		});
+	});
+
+	describe('runPhpCli', () => {
+		it('downloads php.wasm once, on the first PHP run', async () => {
+			const { adapter, phpWasmLoads } = createAdapter(() => ({
+				exitCode: 0,
+			}));
+
+			await adapter.fileExists('/foo');
+			expect(phpWasmLoads()).toBe(0);
+
+			await Promise.all([
+				adapter.runPhpCli({ argv: ['foo'] }),
+				adapter.runPhpCli({ argv: ['bar'] }),
+			]);
+			expect(phpWasmLoads()).toBe(1);
 		});
 	});
 

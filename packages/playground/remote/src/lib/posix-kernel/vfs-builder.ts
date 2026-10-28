@@ -40,7 +40,11 @@ import {
 import imageModuleUrl from '@kernel-binary/kandelo_image_module32.wasm?url';
 import nginxUrl from '@kernel-binary/programs/wasm32/nginx.wasm?url';
 import phpFpmUrl from '@kernel-binary/programs/wasm32/php/php-fpm.wasm?url';
-import phpUrl from '@kernel-binary/programs/wasm32/php/php.wasm?url';
+// `?lazy` imports carry the URL, size and SHA-256 that
+// `registerLazyFile()` needs: the kernel downloads these binaries on
+// first exec, and the default boot never runs them.
+import phpLazy from '@kernel-binary/programs/wasm32/php/php.wasm?lazy';
+import bashLazy from '@kernel-binary/programs/wasm32/bash.wasm?lazy';
 // Side module loaded by php-fpm via `-d extension=zip.so`. Provides
 // ZipArchive (DEFLATE-only libzip 1.11.4).
 import zipSoUrl from '@kernel-binary/programs/wasm32/php/zip.so?url';
@@ -69,7 +73,6 @@ import intlSoUrl from '@kernel-binary/programs/wasm32/php/intl.so?url';
 // constructor fails ("Constructor failed" / numfmt_create returns null).
 // Staged only alongside `intl.so` on the intl opt-in path.
 import icuDatUrl from '@kernel-binary/programs/wasm32/php/icu.dat?url';
-import bashUrl from '@kernel-binary/programs/wasm32/bash.wasm?url';
 import coreutilsUrl from '@kernel-binary/programs/wasm32/coreutils.wasm?url';
 
 import AUTO_LOGIN_MU_PLUGIN from './wp-templates/auto-login.php?raw';
@@ -153,7 +156,7 @@ export async function buildVfsImage(
 	onStatus('Populating system directories and configs');
 	populateSystem(fs);
 	await populateServerBinaries(fs, options.withIntl === true);
-	await populateUserBinaries(fs);
+	populateUserBinaries(fs);
 	populatePreloadFiles(fs);
 	populateShellSymlinks(fs);
 	populateNginxConfig(fs);
@@ -354,7 +357,6 @@ async function populateServerBinaries(
 	withIntl: boolean
 ): Promise<void> {
 	const [
-		bashBytes,
 		nginxBytes,
 		phpFpmBytes,
 		coreutilsBytes,
@@ -363,7 +365,6 @@ async function populateServerBinaries(
 		pharSoBytes,
 		opcacheSoBytes,
 	] = await Promise.all([
-		fetchBinary(bashUrl),
 		fetchBinary(nginxUrl),
 		fetchBinary(phpFpmUrl),
 		fetchBinary(coreutilsUrl),
@@ -372,11 +373,6 @@ async function populateServerBinaries(
 		fetchBinary(pharSoUrl),
 		fetchBinary(opcacheSoUrl),
 	]);
-
-	writeVfsBinary(fs, '/bin/bash', bashBytes);
-	symlink(fs, '/bin/bash', '/bin/sh');
-	symlink(fs, '/bin/bash', '/usr/bin/bash');
-	symlink(fs, '/bin/bash', '/usr/bin/sh');
 
 	writeVfsBinary(fs, '/usr/sbin/nginx', nginxBytes);
 	writeVfsBinary(fs, '/usr/sbin/php-fpm', phpFpmBytes);
@@ -423,13 +419,17 @@ async function populateServerBinaries(
  * locations lets `/bin/sh -c '<cmd>'` resolve it without the caller
  * having to spell out an absolute path.
  *
- * `php` lands at `/usr/local/bin/php`. The php.wasm bytes are also
- * fetched a second time by `playground-worker-endpoint.ts` for the
- * host-side `KernelSpawnAdapter`; the browser's HTTP cache dedupes the
- * two `fetch()` calls so this redundancy is essentially free.
+ * `php` lands at `/usr/local/bin/php` and `bash` at `/bin/bash`, which
+ * also answers `/bin/sh`. Both are lazy files: the kernel downloads them
+ * on the first exec. `KernelSpawnAdapter` fetches php.wasm separately,
+ * on its first `runPhpCli()` call.
  */
-async function populateUserBinaries(fs: KandeloImageFs): Promise<void> {
-	writeVfsBinary(fs, '/usr/local/bin/php', await fetchBinary(phpUrl));
+function populateUserBinaries(fs: KandeloImageFs): void {
+	registerLazyBinary(fs, '/usr/local/bin/php', phpLazy);
+	registerLazyBinary(fs, '/bin/bash', bashLazy);
+	symlink(fs, '/bin/bash', '/bin/sh');
+	symlink(fs, '/bin/bash', '/usr/bin/bash');
+	symlink(fs, '/bin/bash', '/usr/bin/sh');
 }
 
 /**
@@ -645,6 +645,14 @@ async function fetchBinary(url: string): Promise<Uint8Array> {
 		);
 	}
 	return new Uint8Array(await response.arrayBuffer());
+}
+
+function registerLazyBinary(
+	fs: KandeloImageFs,
+	path: string,
+	file: { url: string; size: number; sha256: string }
+): void {
+	fs.registerLazyFile(path, file.url, file.size, 0o755, file.sha256);
 }
 
 // --- Inlined constants (mirror build-wp-vfs-image.ts) -----------------
