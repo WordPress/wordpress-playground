@@ -6,7 +6,7 @@
  * it directly because the CLI entry point requires PHP_SAPI === 'cli', whereas
  * Playground runs PHP in WebAssembly. Reprint handles indexing, downloading,
  * mirror deletions, progress, and download checkpoints. This bridge supplies
- * Playground's paths, exclusions, size limit, and linked-file copying.
+ * Playground's paths, exclusions, size limit, and local link targets.
  *
  * The private key is supplied in the process environment, not a connection
  * setting or a generated script. Its temporary file stays outside the site directory
@@ -174,6 +174,7 @@ class PlaygroundReprintClient extends ImportClient {
             }
         }
         if ($file_bytes + $sql_bytes > self::MAX_SITE_BYTES) {
+            $this->last_error_code = 'SITE_TOO_LARGE';
             throw new RuntimeException('This site exceeds Playground’s 2 GiB import limit (site files plus SQL). Use the Reprint CLI to pull this site locally.');
         }
         $this->site_file_bytes = $file_bytes;
@@ -236,6 +237,10 @@ function run_transfer(): void {
         }
         echo json_encode(['playgroundReprint' => $result], JSON_THROW_ON_ERROR) . "\n";
     } catch (Throwable $error) {
+        echo json_encode(['playgroundError' => [
+            'message' => $error->getMessage(),
+            'stage' => $operation['stage'] ?? 'preflight',
+        ]], JSON_THROW_ON_ERROR) . "\n";
         fwrite(STDERR, $error->getMessage() . "\n");
         $exit_code = 1;
     } finally {
@@ -272,7 +277,16 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     write_private_key($request);
     $client->run(['command' => 'preflight', 'private_key_path' => $request['privateKeyPath'], 'progress' => 'jsonl'], $lock);
     $error = $client->get_preflight_error();
-    if ($error !== null) throw new RuntimeException($error['message']);
+    if ($error !== null) {
+        $failure = new RuntimeException($error['message']);
+        // The saved preflight report omits cURL's error number. Keep it from
+        // the client so the UI can distinguish a timeout from a TLS failure.
+        echo json_encode([
+            'error' => $error['message'],
+            'error_code' => $error['code'],
+        ] + $client->get_error_details($failure), JSON_THROW_ON_ERROR) . "\n";
+        throw $failure;
+    }
     $preflight = $client->get_state()->preflight_record()['data'];
     $metadata = source_metadata($preflight);
     $metadata['routeHandlers'] = host_route_handlers($preflight);
@@ -302,10 +316,9 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
  * ImportClient::run() already indexes, downloads, removes remote-absent local
  * paths inside today's pull selection, and resumes unfinished downloads. This
  * function supplies Playground's options and adds a files-prepare step because
- * Reprint's follow_symlinks option downloads link targets but keeps the links.
- * Playground's OPFS save/restore layer does not preserve symbolic links yet.
- * Copy their targets into ordinary files as a Playground workaround. If only
- * that setup fails, retry setup without repeating a completed download.
+ * Reprint's fetched relative links can point through remote host aliases instead
+ * of their downloaded targets. Repair them using the canonical indexed paths.
+ * If only that setup fails, retry setup without repeating a completed download.
  *
  * Run Reprint's db-pull and db-apply commands into a separate SQLite file so
  * WordPress cannot see half-imported tables. Once they finish, install that
@@ -381,7 +394,6 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
     if ($stage === 'files-prepare') {
         echo json_encode(['playgroundProgress' => ['phase' => $stage, 'message' => 'Setting up downloaded files…']]) . "\n";
         restore_pulled_links($root);
-        materialize_site_links($files, $files, wp_join_unix_paths($root, 'linked-copy'));
         $operation['stage'] = 'db-pull';
         return ['status' => 'continue', 'stage' => $operation['stage']];
     }
@@ -431,10 +443,9 @@ function write_private_key(array $request): void {
  * Reprint's remap option performs the mapping; it cannot choose which local
  * layout this application needs. For example, map an active /srv/content to
  * /wordpress/wp-content. Put a separate bundled core/wp-content elsewhere so
- * both copies cannot write wp-content/index.php. Reprint's flat-docroot command
- * builds a standard layout with symbolic links. Playground's OPFS save/restore
- * layer does not preserve those links yet, so choose final download paths before
- * files-pull instead.
+ * both copies cannot write wp-content/index.php. Choose final download paths
+ * before files-pull so the site files and protected local runtime share one
+ * directory without a second layout assembled by flat-docroot.
  */
 function pull_path_mappings(array $metadata): array {
     $paths = $metadata['paths'];
@@ -484,7 +495,7 @@ function pull_path_mappings(array $metadata): array {
  * Reprint's exclude option enforces these rules for both writes and mirror
  * deletions. Playground must choose the rules: the live site's wp-config.php
  * cannot replace its SQLite setup, and host cache drop-ins cannot run here.
- * Share the same list with linked-file copying so setup cannot bypass it.
+ * Share the same list with link repair so setup cannot bypass it.
  */
 function pull_exclusions(): array {
     // Production credentials, host-specific paths, and server configuration
@@ -511,8 +522,8 @@ function pull_exclusions(): array {
  * while Reprint's index names its canonical target. Read that index and use
  * Reprint's RemoteToLocalPathMapper and Utils::resolve_symlink_target_path()
  * to find the downloaded target; do not invent another path mapper. Save the
- * pairs in links.json so setup can also restore link nodes that Playground's
- * OPFS save/restore layer does not preserve yet.
+ * pairs in links.json before setup replaces any links, so a failed replacement
+ * can be retried even if the original link has already been removed.
  */
 function save_pulled_links(string $files, string $root, array $metadata, PlaygroundReprintClient $client): void {
     $mappings = [];
@@ -544,7 +555,16 @@ function save_pulled_links(string $files, string $root, array $metadata, Playgro
             // (e.g. /srv/wordpress), while the index names /wordpress/themes/….
             // Map the indexed target, not that host-specific relative spelling.
             $target = Utils::resolve_symlink_target_path($remote, base64_decode($entry['target'], true), $format);
-            $links[] = ['path' => $path, 'target' => $mapper->remote_path_to_local_path($target)];
+            $target = $mapper->remote_path_to_local_path($target);
+            foreach ($excluded as $excluded_path) {
+                // A directory alias must not expose protected descendants either.
+                if (Utils::path_is_same_as_or_descendant_of($target, [$excluded_path])
+                    || Utils::path_is_same_as_or_descendant_of($excluded_path, [$target])) {
+                    unlink($path);
+                    continue 2;
+                }
+            }
+            $links[] = ['path' => $path, 'target' => $target];
         }
     } finally {
         fclose($index);
@@ -553,21 +573,20 @@ function save_pulled_links(string $files, string $root, array $metadata, Playgro
 }
 
 /**
- * Points saved links at their downloaded targets before copying their bytes.
+ * Points saved links at their downloaded targets without copying their bytes.
  *
  * Reprint has already finished files-pull. Its fetched relative links may need
- * the mapped canonical targets saved in links.json. Playground's OPFS
- * save/restore layer also does not preserve link nodes yet. Rebuild only the
- * saved links instead of rerunning the download. On a setup retry, leave paths
- * already replaced by ordinary files alone. Report a missing target rather
- * than silently losing a theme or plugin.
+ * the mapped canonical targets saved in links.json. Rebuild only those links
+ * instead of rerunning the download; OPFS preserves them when the clone is saved.
+ * On a setup retry, leave local file or directory replacements alone. Report a
+ * missing target rather than silently losing a theme or plugin.
  */
 function restore_pulled_links(string $root): void {
     $links = json_decode(file_get_contents(wp_join_unix_paths($root, 'links.json')), true, 512, JSON_THROW_ON_ERROR);
     foreach ($links as $link) {
         $path = $link['path'];
         $target = $link['target'];
-        if (!is_link($path) && file_exists($path)) continue; // Already materialized before a setup failure.
+        if (!is_link($path) && file_exists($path)) continue; // Keep local replacements on a setup retry.
         if (is_link($path)) unlink($path);
         if (!is_dir(dirname($path))) mkdir(dirname($path), 0700, true);
         if (!symlink($target, $path)) throw new RuntimeException('Could not restore downloaded link: ' . $path . ' -> ' . $target);
@@ -575,41 +594,6 @@ function restore_pulled_links(string $root): void {
     foreach ($links as $link) {
         if (is_link($link['path']) && !file_exists($link['path'])) {
             throw new RuntimeException('Downloaded link target is missing: ' . $link['path'] . ' -> ' . $link['target'] . '. Local setup stopped; the downloaded files are retained.');
-        }
-    }
-}
-
-/**
- * Replaces downloaded links with ordinary files for Playground's OPFS storage.
- *
- * A link such as wp-content/themes/iotix can point to valid downloaded theme
- * bytes. Reprint can download these targets and keep the links, and Playground's
- * running PHP filesystem supports them. The gap is Playground's OPFS save/restore
- * layer: it does not preserve symbolic links. Keep this copy workaround until
- * Playground can save and restore them. Copy each target to a temporary path
- * before replacing its link, leaving ordinary downloaded files and protected
- * runtime paths alone.
- */
-function materialize_site_links(string $path, string $document_root, string $temporary): void {
-    $local_exclusions = str_replace(
-        [':abspath:', ':wp-content:', ':wp-mu-plugins:'],
-        [$document_root, $document_root . '/wp-content', $document_root . '/wp-content/mu-plugins'],
-        pull_exclusions()
-    );
-    // Followed packages already have canonical files here. Copying their host
-    // aliases too would duplicate entire plugin/theme trees a second time.
-    $local_exclusions[] = wp_join_unix_paths($document_root, 'wp-content/.reprint-linked-files');
-    if (in_array($path, $local_exclusions, true)) return;
-    if (is_link($path)) {
-        // Playground's OPFS save/restore does not preserve symlinks yet. Copy
-        // only linked content; ordinary downloads already sit at their final path.
-        remove_tree($temporary);
-        sync_tree($path, $temporary, [realpath($document_root)]);
-        unlink($path);
-        if (!rename($temporary, $path)) throw new RuntimeException('Could not install linked content: ' . $path);
-    } elseif (is_dir($path)) {
-        foreach (array_diff(scandir($path), ['.', '..']) as $name) {
-            materialize_site_links(wp_join_unix_paths($path, $name), $document_root, $temporary);
         }
     }
 }
@@ -652,57 +636,6 @@ function source_metadata(array $data): array {
         'documentRoot' => $data['runtime']['document_root'] ?? null,
         'paths' => $paths,
     ];
-}
-
-/**
- * Copies a link target as ordinary files for materialize_site_links().
- *
- * Playground's OPFS persistence currently needs ordinary files in place of
- * links. PHP's copy() copies one file, so this workaround walks directories too.
- * It follows only targets inside the downloaded roots and rejects directory
- * loops. Without those checks, a linked theme could copy unrelated local files
- * or recurse forever.
- * Track the current branch rather than all visited paths so two aliases of
- * the same theme can both be copied.
- */
-function sync_tree(string $source, string $target, array $allowed_roots, array $ancestors = []): void {
-    if (is_link($source)) {
-        $resolved = realpath($source);
-        $allowed = false;
-        foreach ($allowed_roots as $directory) {
-            if ($resolved !== false && ($resolved === $directory || str_starts_with($resolved, $directory . '/'))) $allowed = true;
-        }
-        if ($resolved === false) throw new RuntimeException('Cannot resolve symbolic link: ' . $source . ' -> ' . readlink($source));
-        if (!$allowed) throw new RuntimeException('Symbolic link target is outside the transferred directories: ' . $source . ' -> ' . $resolved);
-        $source = $resolved;
-    }
-    // Copy bytes because Playground's OPFS save/restore does not preserve links yet.
-    // Track the current branch only, so two aliases of one theme are allowed.
-    $resolved = realpath($source);
-    if ($resolved !== false && in_array($resolved, $ancestors, true)) {
-        throw new RuntimeException('A symbolic link creates a directory loop: ' . $source);
-    }
-    $ancestors[] = $resolved;
-    if (!file_exists($source)) {
-        remove_tree($target);
-        return;
-    }
-    if (is_dir($source)) {
-        if (file_exists($target) && !is_dir($target)) {
-            remove_tree($target);
-        }
-        if (!is_dir($target)) mkdir($target, 0700, true);
-        foreach (array_diff(scandir($target), ['.', '..']) as $name) {
-            if (!file_exists(wp_join_unix_paths($source, $name))) remove_tree(wp_join_unix_paths($target, $name));
-        }
-        foreach (array_diff(scandir($source), ['.', '..']) as $name) {
-            sync_tree(wp_join_unix_paths($source, $name), wp_join_unix_paths($target, $name), $allowed_roots, $ancestors);
-        }
-    } elseif (!is_file($target) || hash_file('sha256', $source) !== hash_file('sha256', $target)) {
-        remove_tree($target);
-        if (!is_dir(dirname($target))) mkdir(dirname($target), 0700, true);
-        if (!copy($source, $target)) throw new RuntimeException('Could not copy linked content: ' . $source);
-    }
 }
 
 /**

@@ -892,6 +892,12 @@
 		position: relative;
 	}
 
+	/* Center the 36px back target on the title's first 24px line, like the X. */
+	.pane-back {
+		align-self: flex-start;
+		margin-block: -6px;
+	}
+
 	/* The X shares the title's center without making the title row taller. This
 	   keeps title and subtitle as the same compact text block used before the
 	   mobile close control was added. */

@@ -1,11 +1,12 @@
 # Clone a live WordPress site
 
 Start Playground with `?reprint`, then open **New Playground → Clone a live site**.
-Enter the live URL. The panel links to the site's plugin upload page and the
-pinned Reprint Server zip when setup is needed. When Reprint answers, Playground
-generates a key pair. Copy the public key into
-**Tools → Reprint Server** on the live site, click **Enroll key**, then return
-and click **Clone site**. The source site stays unchanged.
+Enter the live URL. If setup is needed, the panel links directly to the `reprint`
+plugin's directory page in that site's wp-admin. Install and activate it, then
+return and check again. When Reprint answers, Playground generates a key pair.
+Under **Tools → Reprint Server** on the live site, paste the migration key into
+**Migration Token** and choose **Authorize tool**. Older versions use **Public key**
+and **Enroll key**. Return and click **Clone site**. The source site stays unchanged.
 
 ## Import
 
@@ -16,18 +17,22 @@ There is no site archive, extraction, or second copy of ordinary files.
 
 Preflight maps active content, plugin, MU plugin, and upload directories into
 Playground's `wp-content` layout. Bundled copies use separate paths under
-`.reprint-source-files`. Canonical indexed link targets become ordinary local
-files because OPFS cannot store symlinks. Runtime configuration, SQLite,
+`.reprint-source-files`. Downloaded links are repaired to point at their canonical
+indexed targets and stay as links across browser saves and reloads. Linked files
+are not copied a second time. Runtime configuration, SQLite,
 Playground MU plugins, and connection metadata stay outside mirror writes and
-deletions. Paths inside today's mirror scope match today's remote index;
+deletions. Link repair removes aliases to those protected paths or directories
+containing them. Paths inside today's mirror scope match today's remote index;
 remote-absent local paths there are removed.
 
 SQL is applied to a separate SQLite file, then installed at the path selected
 by the local SQLite driver. Reprint rewrites stored URLs. The local config keeps
 the source table prefix and enables error logging without displaying errors.
 The clone signs in as the first existing administrator, verifies the cookie,
-and removes its temporary login endpoint even on failure. A missing theme or
-blank homepage produces a warning without discarding the completed import.
+and removes its temporary login endpoint even on failure. If sign-in fails,
+the finished copy is still saved. Open the copy or retry sign-in without
+downloading or importing it again. A missing theme or blank homepage produces
+a warning without discarding the completed import.
 
 The imported username is kept for auto-login after reopening. The completed
 clone is autosaved in the background. The address bar reports that save.
@@ -64,8 +69,14 @@ entry is no longer part of this flow. Hosts without public-key verification
 must use Reprint's CLI token flow instead.
 
 Keep the tab open. Failed stages retain their in-memory Reprint checkpoints.
-**Try resuming** reuses the key and downloaded bytes; local link setup can resume
-without downloading again. **Stop** waits for the current PHP stage to return.
+The error panel uses Reprint’s error code and failed stage to choose the next
+step. Missing keys link to Reprint settings; redirects ask for the final site
+address; host blocks explain what must change; unsupported hosts and oversized
+sites link to the CLI. Temporary connection and server failures offer a plain
+**Resume cloning** action. Other retries say what to check or change first. Unknown
+failures keep a tentative **Try again** action and expandable technical details.
+Resuming reuses the key and download checkpoints; local link setup can resume
+without downloading again. No extra automatic retry loop is added. **Stop** waits for the current PHP stage to return.
 Reloading or crashing discards an unfinished temporary clone. No partial clone
 is saved to browser storage. Files change in place, so an interrupted pull is
 not an atomic replacement and must be resumed or restarted.

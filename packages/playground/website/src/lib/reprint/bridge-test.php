@@ -166,7 +166,7 @@ try {
     check($rejected, 'The new transport opt-in remains limited to local development URLs.');
 
     // Host-plugin filtering can leave an intermediate link in the index without
-    // its package. The pinned client must skip it before OPFS preparation runs.
+    // its package. The pinned client must skip it before local link repair runs.
     $link_site = $root . '/excluded-link-site';
     mkdir($link_site);
     $link_state = $root . '/excluded-link-state';
@@ -185,9 +185,9 @@ try {
     $skipped_link = $link_site . '/wp-content/.reprint-linked-files/srv/wordpress/plugins/wpcomsh/latest';
     check(!is_link($skipped_link) && !file_exists($skipped_link), 'An intermediate link without a downloaded target is not recreated.');
     check(str_contains(file_get_contents($link_state . '/audit.log'), 'target was not downloaded'), 'The skipped intermediate link is explained in the audit log.');
-    materialize_site_links($link_site, $link_site, $root . '/excluded-link-copy');
 
     check_link_setup_lifecycle($root);
+    check_protected_link_targets($root);
     check_site_size_limit($root);
 
     echo "All Reprint bridge checks passed.\n";
@@ -329,6 +329,9 @@ readfile(__DIR__ . "/response.json");
                 if (!$accepted) {
                     check($exit !== 0 && str_contains($errors, 'Fixture denied the connection.'), 'A failed preflight reports the remote error: ' . $errors);
                     check($operation['stage'] === 'preflight' && !is_file($transfer . '/source.json'), 'A failed preflight does not advance the operation.');
+                    $records = array_map(fn($line) => json_decode($line, true), array_filter(explode("\n", trim($output))));
+                    $failure = end($records)['playgroundError'] ?? null;
+                    check(($failure['stage'] ?? null) === 'preflight', 'The bridge reports its failed stage separately from the native diagnosis.');
                     continue;
                 }
                 check($exit === 0, 'A successful ' . $kind . ' preflight returns without entering the next stage: ' . $errors);
@@ -349,6 +352,25 @@ readfile(__DIR__ . "/response.json");
             }
         }
         check(array_unique(file($server_root . '/requests.log', FILE_IGNORE_NEW_LINES)) === ['preflight'], 'Setup does not start a file or database transfer.');
+        // Use a closed loopback port to fail before any HTTP response. The saved
+        // preflight report lacks cURL's error number; the bridge must add it.
+        $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
+        $request['url'] = 'http://' . stream_socket_get_name($socket, false) . '/?reprint-api';
+        fclose($socket);
+        $transfer_roots[] = '/tmp/playground-reprint-state/' . md5($request['documentRoot'] . "\n" . $request['url']);
+        $process = proc_open([PHP_BINARY, __DIR__ . '/bridge.php'], [
+            0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
+        ], $pipes, null, array_merge(getenv(), ['PLAYGROUND_REPRINT' => json_encode($request)]));
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        check(proc_close($process) !== 0, 'An unreachable source stops preflight.');
+        $records = array_map(fn($line) => json_decode($line, true), array_filter(explode("\n", trim($output))));
+        $transport_errors = array_filter($records, fn($record) => ($record['error_code'] ?? null) === 'CURL_ERROR' && ($record['curl_errno'] ?? null) === CURLE_COULDNT_CONNECT);
+        check(count($transport_errors) > 0, 'Preflight keeps the native cURL error number for recovery.');
+
     } finally {
         proc_terminate($server);
         proc_close($server);
@@ -404,7 +426,7 @@ function check_link_setup_lifecycle(string $root): void {
         check($result['stage'] === 'files-prepare', 'A completed download advances to local setup without contacting the server.');
         $links = json_decode(file_get_contents($transfer . '/links.json'), true);
         check($links === [['path' => $theme, 'target' => $target]], 'Only the selected theme link is saved, using its canonical indexed target.');
-        unlink($theme); // OPFS restores files and directories, not symlink nodes.
+        unlink($theme); // Simulate an interrupted link replacement.
         unlink($target . '/style.css');
         rmdir($target);
         $rejected = false;
@@ -415,14 +437,57 @@ function check_link_setup_lifecycle(string $root): void {
         file_put_contents($target . '/style.css', 'Theme Name: Iotix!');
         $result = pull_site($request, $transfer, $operation, $lock);
         check($result['stage'] === 'db-pull', 'Retrying local setup reaches SQL download without rerunning the file pull.');
-        check(!is_link($theme) && file_get_contents($theme . '/style.css') === 'Theme Name: Iotix!', 'The theme becomes ordinary files that survive browser storage.');
+        check(is_link($theme) && readlink($theme) === $target && file_get_contents($theme . '/style.css') === 'Theme Name: Iotix!', 'The theme remains a link to its downloaded canonical target.');
         $operation['stage'] = 'files-prepare';
         file_put_contents($theme . '/style.css', 'Local theme edit');
         pull_site($request, $transfer, $operation, $lock);
-        check(file_get_contents($theme . '/style.css') === 'Local theme edit', 'Resuming setup leaves an already materialized theme intact.');
+        check(is_link($theme) && file_get_contents($target . '/style.css') === 'Local theme edit', 'Resuming setup preserves edits made through the theme link.');
+        unlink($theme);
+        mkdir($theme);
+        file_put_contents($theme . '/style.css', 'Local replacement');
+        $operation['stage'] = 'files-prepare';
+        pull_site($request, $transfer, $operation, $lock);
+        check(!is_link($theme) && file_get_contents($theme . '/style.css') === 'Local replacement', 'Resuming setup leaves a local directory replacement intact.');
     } finally {
         $lock->close();
     }
+}
+
+/** Imported aliases must not expose protected local files or their parent directories. */
+function check_protected_link_targets(string $root): void {
+    $site = $root . '/protected-links';
+    $transfer = $root . '/protected-link-state';
+    mkdir($site . '/wp-content/database', 0700, true);
+    file_put_contents($site . '/wp-config.php', 'local configuration');
+    file_put_contents($site . '/wp-content/database/.ht.sqlite', 'local database');
+    $metadata = ['paths' => ['abspath' => '/srv/site', 'content_dir' => '/srv/site/wp-content']];
+    $metadata['pullMappings'] = pull_path_mappings($metadata);
+    $client = new PlaygroundReprintClient('https://example.com', $transfer . '/pull-state', $site);
+    $client->get_state()->set_preflight_record(['http_code' => 200, 'data' => ['database' => ['wp' => ['paths_urls' => $metadata['paths']]]]]);
+    $client->prepare_files_pull_options([
+        'include' => [':abspath:', ':wp-content:'],
+        'exclude' => pull_exclusions(),
+        'remap' => $metadata['pullMappings'],
+    ], false);
+    $targets = ['wp-config.php', 'wp-content/database', 'wp-content/database/.ht.sqlite', 'wp-content'];
+    $index = [];
+    foreach ($targets as $number => $target) {
+        $remote = '/srv/site/imported-link-' . $number;
+        $index[] = json_encode(['path' => base64_encode($remote), 'target' => base64_encode('/srv/site/' . $target), 'type' => 'link', 'ctime' => 1, 'size' => 0]);
+        (new ReflectionMethod(ImportClient::class, 'handle_symlink_chunk'))->invoke($client, [
+            'headers' => ['x-symlink-path' => base64_encode($remote), 'x-symlink-target' => base64_encode($target), 'x-symlink-ctime' => '1'],
+        ]);
+        check(is_link($site . '/imported-link-' . $number), 'The pinned writer creates the alias before local repair.');
+    }
+    file_put_contents($client->pull_state_directory . '/remote-index.next.jsonl', implode("\n", $index) . "\n");
+    save_pulled_links($site, $transfer, $metadata, $client);
+    restore_pulled_links($transfer);
+    foreach ($targets as $number => $target) {
+        check(!is_link($site . '/imported-link-' . $number) && !file_exists($site . '/imported-link-' . $number), 'Local repair removes the alias to protected target: ' . $target);
+    }
+    check(json_decode(file_get_contents($transfer . '/links.json'), true) === [], 'A setup retry cannot recreate rejected aliases.');
+    check(file_get_contents($site . '/wp-config.php') === 'local configuration', 'Rejecting aliases leaves the local configuration unchanged.');
+    check(file_get_contents($site . '/wp-content/database/.ht.sqlite') === 'local database', 'Rejecting aliases leaves the local database unchanged.');
 }
 
 /** Reject oversized selected indexes before writes, including resumed stages. */
@@ -472,6 +537,7 @@ function check_site_size_limit(string $root): void {
     catch (RuntimeException $error) { $rejected = str_contains($error->getMessage(), '2 GiB import limit'); }
     finally { ob_end_clean(); }
     check($rejected, 'A full index over the limit is rejected even when no remote files changed.');
+    check($client->last_error_code === 'SITE_TOO_LARGE', 'The browser limit has a distinct code, so the UI cannot offer an unchanged retry.');
     check(!is_file($pull . '/fetch-list.jsonl'), 'The size check runs before the download plan.');
     check(file_get_contents($site . '/keep-local.txt') === 'Do not remove before checking size.', 'An oversized pull does not delete local files.');
     check(!is_file($site . '/a') && !is_file($site . '/b'), 'An oversized pull does not download site files.');
