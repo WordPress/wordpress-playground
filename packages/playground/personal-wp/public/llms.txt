@@ -4,7 +4,7 @@
 
 ## Browser Agent Integration (WebMCP / `document.modelContext`)
 
-When an AI browser agent (Chrome 156+ WebMCP, ChatGPT desktop built-in browser Site Tools, or a WebMCP extension) opens `https://my.wordpress.net/`, it automatically registers structured tools on `document.modelContext`:
+When a browser exposes `document.modelContext`, my.wordpress.net registers structured tools for AI agents. Chrome requires the WebMCP origin trial or the `chrome://flags/#enable-webmcp-testing` flag. ChatGPT desktop built-in browser Site Tools require eligible account and model access and a page that provides matching tools:
 
 - **PHP & HTTP Execution:** `playground_execute_php`, `playground_request`
 - **Navigation & Inspection:** `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`, `playground_list_emails`

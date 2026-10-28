@@ -12,11 +12,11 @@ AI assistants can generate working WordPress Playground links directly in respon
 - `php=<version>`: Choose PHP version (`7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`).
 - `url=<path>`: Open a specific WordPress path on boot (e.g., `?url=/wp-admin/post-new.php`).
 - `login=yes` / `login=no`: Automatically log in as `admin` (enabled by default).
-- `networking=yes`: Enable outbound `wp_remote_get` / network access inside PHP (required for plugins fetching external APIs or installing plugins from within wp-admin).
+- `networking=yes` / `networking=no`: Control outbound `wp_remote_get` / network access inside PHP (enabled by default). Plugins that fetch external APIs or install plugins from within wp-admin require networking to be enabled.
 - `language=<locale>`: Set site language (e.g., `?language=es_ES`, `?language=pt_BR`, `?language=ja`).
 - `multisite=yes`: Configure WordPress as a Multisite network.
 - `mode=seamless` / `mode=browser-full-screen`: Hide (`seamless`) or show (`browser-full-screen`) the Playground browser bar and dock UI when embedding in an `<iframe>`.
-- `storage=none` / `storage=browser`: Ephemeral in-memory storage (`none`, default) or persistent browser OPFS storage (`browser`).
+- `storage=temp`: Create a temporary Playground that is discarded when the page is refreshed or closed. Without this parameter, Playground may autosave the site when browser storage and saving are available.
 - `blueprint-url=<url>`: Load a Blueprint JSON file from an external URL or GitHub file URL.
 
 ## Inline Blueprints via URL Hash
@@ -40,7 +40,7 @@ Common Blueprint steps (`steps` array):
 
 ## Browser Agent Integration (WebMCP / `document.modelContext`)
 
-When an AI browser agent (Chrome 156+ WebMCP, ChatGPT desktop built-in browser Site Tools, or a WebMCP extension) opens `https://playground.wordpress.net/`, Playground automatically registers structured tools on `document.modelContext`:
+When a browser exposes `document.modelContext`, playground.wordpress.net registers structured tools for AI agents. Chrome requires the WebMCP origin trial or the `chrome://flags/#enable-webmcp-testing` flag. ChatGPT desktop built-in browser Site Tools require eligible account and model access and a page that provides matching tools:
 
 - **PHP & HTTP Execution:** `playground_execute_php`, `playground_request`
 - **Navigation & Inspection:** `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`, `playground_list_emails`
