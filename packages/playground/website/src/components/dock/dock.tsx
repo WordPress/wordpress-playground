@@ -111,7 +111,6 @@ export function Dock({
 		() =>
 			buildPlaygroundAnnotationMetadata({
 				siteSlug: activeSite?.slug,
-				siteName: playgroundTitle,
 				storage: activeSite?.metadata.storage,
 				wpVersion: activeSite?.metadata.runtimeConfiguration.wpVersion,
 				phpVersion:
@@ -119,7 +118,7 @@ export function Dock({
 				currentUrl: clientInfo?.url,
 				activeDockPane: dockPaneIsOpen ? section : null,
 			}),
-		[activeSite, playgroundTitle, clientInfo?.url, dockPaneIsOpen, section]
+		[activeSite, clientInfo?.url, dockPaneIsOpen, section]
 	);
 	const savingDisabled = isSiteSavingDisabled();
 	const inlineRename = useInlineRename();
@@ -1079,6 +1078,7 @@ export function Dock({
 					ref={paneRef}
 					title={paneTitle}
 					annotatableSection={section}
+					annotationMetadata={dockAnnotationMetadata}
 					description={
 						section === 'settings' && activeSite
 							? undefined
