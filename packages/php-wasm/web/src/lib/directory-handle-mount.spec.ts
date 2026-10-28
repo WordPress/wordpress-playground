@@ -221,6 +221,13 @@ describe('saved symlinks', () => {
 				expect(php.isDir('/site/dir')).toBe(true);
 				expect(php.readlink('/site/valid')).toBe('file');
 				expect(php.fileExists('/site/missing')).toBe(false);
+				expect(
+					JSON.parse(
+						decode(
+							root.files.get('.playground-symlinks.json')!.bytes
+						)
+					).links
+				).toEqual({ '/valid': 'file' });
 				expect(warn).toHaveBeenCalledTimes(1);
 				expect(warn).toHaveBeenCalledWith(
 					expect.any(String),
@@ -235,6 +242,72 @@ describe('saved symlinks', () => {
 			}
 		}
 	);
+
+	it('does not restore a skipped link after its missing parent is recreated', async () => {
+		const root = new MemoryDirectoryHandle('root');
+		const index = new MemoryFileHandle('.playground-symlinks.json');
+		index.bytes = encode(
+			JSON.stringify({
+				version: 1,
+				links: { '/missing/link': 'target' },
+			})
+		);
+		root.files.set(index.name, index);
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+		let unmount: (() => Promise<void>) | undefined;
+		try {
+			unmount = await php.mount(
+				'/site',
+				createDirectoryHandleMountHandler(handle)
+			);
+			php.mkdir('/site/missing');
+			await unmount();
+			unmount = undefined;
+			unmount = await php.mount(
+				'/site',
+				createDirectoryHandleMountHandler(handle)
+			);
+			expect(php.listFiles('/site/missing')).toEqual([]);
+			expect(root.files.has(index.name)).toBe(false);
+		} finally {
+			await unmount?.();
+			warn.mockRestore();
+		}
+	});
+
+	it('can retry restoring after saving the pruned index fails', async () => {
+		const root = new MemoryDirectoryHandle('root');
+		const index = new MemoryFileHandle('.playground-symlinks.json');
+		index.bytes = encode(
+			JSON.stringify({
+				version: 1,
+				links: { '/missing/link': 'target', '/valid': 'missing' },
+			})
+		);
+		root.files.set(index.name, index);
+		const failure = new Error('Cannot save pruned index');
+		vi.spyOn(index, 'createWritable').mockRejectedValueOnce(failure);
+		const handle = root as unknown as FileSystemDirectoryHandle;
+		const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+		let unmount: (() => Promise<void>) | undefined;
+		try {
+			await expect(
+				php.mount('/site', createDirectoryHandleMountHandler(handle))
+			).rejects.toBe(failure);
+			unmount = await php.mount(
+				'/site',
+				createDirectoryHandleMountHandler(handle)
+			);
+			expect(php.readlink('/site/valid')).toBe('missing');
+			expect(JSON.parse(decode(index.bytes)).links).toEqual({
+				'/valid': 'missing',
+			});
+		} finally {
+			await unmount?.();
+			warn.mockRestore();
+		}
+	});
 
 	it('rejects unexpected failures while restoring saved links', async () => {
 		php.mkdir('/site');

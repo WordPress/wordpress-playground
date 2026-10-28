@@ -170,7 +170,9 @@ export function createDirectoryHandleMountHandler(
  * into MEMFS. Links are created after the real files and directories, with
  * their saved targets unchanged even when those targets do not exist.
  * A stale index entry is skipped with a warning if a real entry occupies its
- * path or its parent is missing or no longer a directory. Other errors reject.
+ * path or its parent is missing or no longer a directory. Skipped records are
+ * removed from the saved index so later path changes cannot restore them.
+ * Other errors, including a failed index update, reject for the caller to retry.
  */
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
@@ -267,6 +269,7 @@ async function copyOpfsToMemfs(
 	if (copyError !== undefined) throw copyError;
 	// Targets may be missing, outside the mount, or links themselves. Restore
 	// the links only after all real directories and files have been copied.
+	const savedSymlinkCount = symlinks.size;
 	for (const [path, target] of symlinks) {
 		const linkPath = joinPaths(memfsRoot, path);
 		try {
@@ -278,12 +281,16 @@ async function copyOpfsToMemfs(
 			if (errno !== 20 && errno !== 44 && errno !== 54) {
 				throw error;
 			}
+			symlinks.delete(path);
 			logger.warn('Skipping saved symlink that conflicts with OPFS', {
 				linkPath,
 				target,
 				error,
 			});
 		}
+	}
+	if (symlinks.size !== savedSymlinkCount) {
+		await writeSavedSymlinks(opfsRoot, symlinks);
 	}
 }
 

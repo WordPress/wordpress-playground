@@ -205,7 +205,9 @@ completed.
 File changes and the index are saved separately. If a save is interrupted,
 restore keeps real files and directories and skips stale links whose paths are
 occupied or whose parents are missing or no longer directories. Each skipped
-link is logged as a warning; other errors still fail the mount.
+link is logged as a warning and removed from the saved index, so creating its
+parent later cannot bring it back. Other errors, including a failed index
+update, still fail the mount and can be retried.
 
 The same format applies to local folders mounted through a directory handle.
 Their saved links are records in this JSON file, not native host symlinks.
