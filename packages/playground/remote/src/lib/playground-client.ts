@@ -82,7 +82,8 @@ export interface WebClientMixin extends ProgressReceiver {
 	 *
 	 * @param name The tool name as announced by `onWebMCPToolsChanged`.
 	 * @param args The tool input.
-	 * @param callId An optional identifier used to cancel this call.
+	 * @param callId An optional identifier used to cancel this call. Use a fresh ID
+	 * for each invocation; an already-pending ID is rejected.
 	 */
 	callWebMCPTool(
 		name: string,

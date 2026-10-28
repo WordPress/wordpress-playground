@@ -10,6 +10,45 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
+describe('WebMCP frame call IDs', () => {
+	// Contract: concurrent calls cannot replace one another's pending response.
+	// A caller-supplied ID bypasses randomUUID and could accidentally overwrite
+	// the first resolver and timeout when a second invocation reuses that ID.
+	it('rejects a pending duplicate and preserves the first response', async () => {
+		vi.useFakeTimers();
+		let receive!: (event: MessageEvent) => void;
+		const postMessage = vi.fn();
+		const contentWindow = { postMessage };
+		vi.stubGlobal('window', {
+			addEventListener: (type: string, listener: typeof receive) => {
+				if (type === 'message') receive = listener;
+			},
+		});
+		const frame = {
+			contentWindow,
+			addEventListener: vi.fn(),
+		} as unknown as HTMLIFrameElement;
+		const bridge = createWebMCPFrameBridge(frame);
+		const first = bridge.callTool('first_tool', {}, 'same-id');
+		const duplicate = bridge.callTool('second_tool', {}, 'same-id');
+
+		receive({
+			source: contentWindow,
+			origin: 'https://wordpress.test',
+			data: {
+				type: 'playground-webmcp-call-result',
+				callId: 'same-id',
+				resultJson: JSON.stringify({ from: 'first_tool' }),
+			},
+		} as unknown as MessageEvent);
+
+		await expect(duplicate).rejects.toThrow('already pending');
+		await expect(first).resolves.toEqual({ from: 'first_tool' });
+		expect(postMessage).toHaveBeenCalledTimes(1);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});
+
 describe('WebMCP frame cancellation', () => {
 	// Contract: the remote rejects and releases a cancelled call and sends the
 	// same ID to WordPress. The independently delivered cancellation message

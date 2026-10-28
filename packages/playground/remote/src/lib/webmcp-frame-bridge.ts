@@ -44,6 +44,7 @@ export interface WebMCPToolDescriptor {
 
 export interface WebMCPFrameBridge {
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
+	/** Use a fresh call ID for each invocation; pending duplicates are rejected. */
 	callTool(
 		name: string,
 		args: Record<string, unknown>,
@@ -186,6 +187,12 @@ export function createWebMCPFrameBridge(
 			const contentWindow = wpFrame.contentWindow;
 			if (!contentWindow) {
 				throw new Error('The WordPress frame is not loaded.');
+			}
+			if (pendingCalls.has(callId)) {
+				throw new Error(
+					`A WebMCP tool call with ID "${callId}" is already pending. ` +
+						'Use a fresh ID for each invocation.'
+				);
 			}
 			return await new Promise<unknown>((resolve, reject) => {
 				const timeout = setTimeout(() => {
