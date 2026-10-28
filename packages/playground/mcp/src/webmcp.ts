@@ -110,7 +110,13 @@ export async function registerWebMCPTools(
 						};
 					}
 					const adapter = createToolClient(getActiveClient());
-					return await executor(adapter, input);
+					const result = await executor(
+						adapter,
+						input,
+						client?.signal
+					);
+					client?.signal?.throwIfAborted();
+					return result;
 				} catch (error) {
 					return {
 						error: `${def.errorPrefix}: ${stringifyError(error)}`,
@@ -216,7 +222,9 @@ function createSiteManagementTools(
 							storage,
 						};
 					}
+					// Storage operations do not currently expose an interrupt API.
 					const saved = await config.saveInBrowser();
+					client?.signal?.throwIfAborted();
 					return {
 						success: true,
 						alreadySaved: false,
@@ -243,6 +251,7 @@ function createSiteManagementTools(
 					const sites = config.list();
 					const activeSite = sites.find((s) => s.isActive);
 					await config.rename(newName);
+					client?.signal?.throwIfAborted();
 					return {
 						success: true,
 						siteId: activeSite?.slug,

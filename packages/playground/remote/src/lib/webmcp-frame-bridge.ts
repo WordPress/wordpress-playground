@@ -10,6 +10,7 @@ const TOOLS_CHANGED = 'playground-webmcp-tools-changed';
 const LIST_TOOLS = 'playground-webmcp-list-tools';
 const CALL_TOOL = 'playground-webmcp-call-tool';
 const CALL_RESULT = 'playground-webmcp-call-result';
+const CANCEL_TOOL = 'playground-webmcp-cancel-tool';
 
 const CALL_TIMEOUT_MS = 60000;
 
@@ -42,7 +43,12 @@ export interface WebMCPToolDescriptor {
 
 export interface WebMCPFrameBridge {
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
-	callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
+	callTool(
+		name: string,
+		args: Record<string, unknown>,
+		callId?: string
+	): Promise<unknown>;
+	cancelTool(callId: string): void;
 }
 
 /**
@@ -173,12 +179,11 @@ export function createWebMCPFrameBridge(
 			notify(listener, tools);
 			requestToolList();
 		},
-		async callTool(name, args) {
+		async callTool(name, args, callId = crypto.randomUUID()) {
 			const contentWindow = wpFrame.contentWindow;
 			if (!contentWindow) {
 				throw new Error('The WordPress frame is not loaded.');
 			}
-			const callId = crypto.randomUUID();
 			return await new Promise<unknown>((resolve, reject) => {
 				const timeout = setTimeout(() => {
 					pendingCalls.delete(callId);
@@ -195,6 +200,21 @@ export function createWebMCPFrameBridge(
 					window.location.origin
 				);
 			});
+		},
+		cancelTool(callId) {
+			const pending = pendingCalls.get(callId);
+			if (!pending) {
+				return;
+			}
+			pendingCalls.delete(callId);
+			clearTimeout(pending.timeout);
+			wpFrame.contentWindow?.postMessage(
+				{ type: CANCEL_TOOL, callId },
+				window.location.origin
+			);
+			pending.reject(
+				new DOMException('The tool call was cancelled.', 'AbortError')
+			);
 		},
 	};
 }

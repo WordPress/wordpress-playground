@@ -108,12 +108,16 @@ async function executeSiteInfo(client: ToolClient): Promise<SiteInfo> {
 
 export const toolExecutors: Record<
 	string,
-	(client: ToolClient, input: Record<string, unknown>) => Promise<unknown>
+	(
+		client: ToolClient,
+		input: Record<string, unknown>,
+		signal?: AbortSignal
+	) => Promise<unknown>
 > = {
 	playground_execute_php: (client, input) =>
 		client.run({ code: input['code'] as string }),
 
-	playground_request: async (client, input) => {
+	playground_request: async (client, input, signal) => {
 		const url = input['url'] as string;
 		const method = (input['method'] as string) ?? 'GET';
 		const headers = {
@@ -156,9 +160,11 @@ export const toolExecutors: Record<
 				const nonceUrl = `/wp-content/mcp-nonce-${nonceId}.php`;
 				const nonceCode =
 					"<?php require_once '/wordpress/wp-load.php'; echo wp_create_nonce('wp_rest');";
+				signal?.throwIfAborted();
 				await client.writeFile(noncePath, nonceCode);
 				let nonce = '';
 				try {
+					signal?.throwIfAborted();
 					const nonceResp = await client.request({
 						url: nonceUrl,
 						method: 'GET',
@@ -175,6 +181,9 @@ export const toolExecutors: Record<
 			// Nonce generation failed — proceed without it.
 		}
 
+		// PHP requests already running cannot be interrupted. Stop before the
+		// requested mutation if cancellation arrived during nonce preparation.
+		signal?.throwIfAborted();
 		return await client.request({ url, method, headers, body });
 	},
 

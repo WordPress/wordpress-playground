@@ -135,15 +135,31 @@ function proxyTool(
 		inputSchema: tool.inputSchema,
 		annotations: tool.annotations,
 		execute: async (input, clientArg) => {
+			const signal = clientArg?.signal;
+			const callId = crypto.randomUUID();
+			const abort = () => {
+				void client.cancelWebMCPTool(callId).catch((error) => {
+					logger.warn('Failed to cancel the site tool:', error);
+				});
+			};
 			try {
-				clientArg?.signal?.throwIfAborted();
-				return await client.callWebMCPTool(tool.name, input ?? {});
+				signal?.throwIfAborted();
+				signal?.addEventListener('abort', abort, { once: true });
+				const result = await client.callWebMCPTool(
+					tool.name,
+					input ?? {},
+					callId
+				);
+				signal?.throwIfAborted();
+				return result;
 			} catch (error) {
 				return {
 					error:
 						`Error running the WordPress site's "${tool.name}" ` +
 						`tool: ${stringifyError(error)}`,
 				};
+			} finally {
+				signal?.removeEventListener('abort', abort);
 			}
 		},
 	};

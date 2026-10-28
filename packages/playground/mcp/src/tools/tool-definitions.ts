@@ -166,7 +166,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: false,
-			consequentialHint: false,
+			consequentialHint: true,
 			untrustedContentHint: true,
 			debugging: true,
 			idempotentHint: false,

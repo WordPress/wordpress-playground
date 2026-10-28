@@ -6,7 +6,7 @@ import {
 	paramsToJsonSchema,
 	playgroundUrl,
 	toolDefinitions,
-} from '../../src/tools/tool-definitions';
+} from './tool-definitions';
 
 describe('playgroundUrl', () => {
 	it('adds MCP query args to the default Playground URL', () => {

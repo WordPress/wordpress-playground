@@ -367,8 +367,11 @@ export async function bootPlaygroundRemote() {
 		async onWebMCPToolsChanged(fn) {
 			webMCPBridge.subscribe(fn);
 		},
-		async callWebMCPTool(name, args) {
-			return await webMCPBridge.callTool(name, args);
+		async callWebMCPTool(name, args, callId) {
+			return await webMCPBridge.callTool(name, args, callId);
+		},
+		async cancelWebMCPTool(callId) {
+			webMCPBridge.cancelTool(callId);
 		},
 		/**
 		 * This function is merely here to explicitly call workerApi.onMessage.
