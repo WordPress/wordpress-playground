@@ -562,6 +562,108 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 	// Default mode retries only the failed test instead of replaying the suite.
 	test.describe.configure({ mode: 'default' });
 
+	test('migrates a legacy stored site URL once before opening WordPress', async ({
+		website,
+		wordpress,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test needs browser OPFS.');
+		await website.goto(getTemporaryPlaygroundUrl());
+		await website.page.evaluate(() =>
+			(window as any).playgroundSites.isReady()
+		);
+		const saved = await website.page.evaluate(() =>
+			(window as any).playgroundSites.saveInBrowser()
+		);
+		await waitForInitialOpfsSync(website.page, saved.slug);
+		await website.page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites?.getClient())
+		);
+		const seeded = await website.page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			const currentUrl = (await client.absoluteUrl) + '/';
+			const oldUrl = new URL(
+				new URL(currentUrl).pathname,
+				window.location.origin
+			).href;
+			if (await client.fileExists('/wordpress/.playground-site-url')) {
+				await client.unlink('/wordpress/.playground-site-url');
+			}
+			await client.mkdir('/wordpress/wp-content/uploads');
+			await client.writeFile(
+				'/wordpress/wp-content/uploads/migration.svg',
+				'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'
+			);
+			const result = await client.run({
+				code: `<?php
+				require '/wordpress/wp-load.php';
+				$old_url = ${JSON.stringify(oldUrl)};
+				update_option('migration_settings', array('nested' => array('image' => $old_url . 'wp-content/uploads/migration.svg')));
+				echo wp_insert_post(array(
+					'post_status' => 'publish',
+					'post_title' => 'Migration image',
+					'post_content' => '<img alt="Migrated image" src="' . $old_url . 'wp-content/uploads/migration.svg">',
+				));
+				`,
+			});
+			await client.flushOpfs('/wordpress');
+			return { currentUrl, oldUrl, postId: Number(result.text) };
+		});
+		expect(seeded.oldUrl).not.toBe(seeded.currentUrl);
+
+		await website.goto(`./?site-slug=${encodeURIComponent(saved.slug)}`);
+		await website.page.evaluate(() =>
+			(window as any).playgroundSites.isReady()
+		);
+		await openPlaygroundPath(website.page, `/?p=${seeded.postId}`);
+		const image = wordpress.getByAltText('Migrated image');
+		await expect(image).toHaveAttribute(
+			'src',
+			`${seeded.currentUrl}wp-content/uploads/migration.svg`
+		);
+		await expect
+			.poll(() =>
+				image.evaluate(
+					(element: HTMLImageElement) => element.naturalWidth
+				)
+			)
+			.toBeGreaterThan(0);
+		const settings = await website.page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			const result = await client.run({
+				code: `<?php require '/wordpress/wp-load.php'; echo json_encode(get_option('migration_settings'));`,
+			});
+			return result.json;
+		});
+		expect(settings).toEqual({
+			nested: {
+				image: `${seeded.currentUrl}wp-content/uploads/migration.svg`,
+			},
+		});
+
+		// A later user edit must not trigger another scan of an already migrated site.
+		await website.page.evaluate(async (oldUrl) => {
+			const client = (window as any).playgroundSites.getClient();
+			await client.run({
+				code: `<?php require '/wordpress/wp-load.php'; update_option('later_link', ${JSON.stringify(oldUrl)});`,
+			});
+			await client.flushOpfs('/wordpress');
+		}, seeded.oldUrl);
+		await website.goto(`./?site-slug=${encodeURIComponent(saved.slug)}`);
+		await website.page.evaluate(() =>
+			(window as any).playgroundSites.isReady()
+		);
+		const laterLink = await website.page.evaluate(async () => {
+			const result = await (window as any).playgroundSites
+				.getClient()
+				.run({
+					code: `<?php require '/wordpress/wp-load.php'; echo get_option('later_link');`,
+				});
+			return result.text;
+		});
+		expect(laterLink).toBe(seeded.oldUrl);
+	});
+
 	test('should retry pending OPFS cleanup after another tab releases storage', async ({
 		website,
 		context,

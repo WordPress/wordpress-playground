@@ -69,6 +69,10 @@ jobs:
             contents: read # Required to clone the repo.
         environment:
             name: playground-wordpress-net-wp-cloud
+        # One origin choice for the browser build and the installed PHP host rule.
+        env:
+            PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
+            VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
         steps:
             - uses: actions/checkout@v5
               with:
@@ -78,7 +82,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Sync PHP next build assets
               run: npm run sync:php-next
-            - run: npx nx build playground-website
+            # Do not restore bundles built with a different WordPress origin.
+            - run: npx nx build playground-website --skip-nx-cache
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
                   VITE_GOOGLE_ANALYTICS_ID: G-SVTNFCP8T7
@@ -116,4 +121,4 @@ jobs:
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                    -tt -C '~/website-deployment/apply-update.sh'
+                    -tt -C "~/website-deployment/apply-update.sh '$PLAYGROUND_APP_ORIGIN' '$VITE_WORDPRESS_SITE_URL'"

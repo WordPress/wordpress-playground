@@ -49,7 +49,7 @@ h3:where(.wp-block-heading).has-background,
 h4:where(.wp-block-heading).has-background,
 h5:where(.wp-block-heading).has-background,
 h6:where(.wp-block-heading).has-background {
-  padding: 1.25em 2.375em;
+  padding: var(--wp--style--block-background-padding, 1.25em 2.375em);
 }
 h1.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]), h1.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),
 h2.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]),

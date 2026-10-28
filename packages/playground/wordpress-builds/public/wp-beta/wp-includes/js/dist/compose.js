@@ -75,9 +75,9 @@ var wp;
     }
   });
 
-  // node_modules/mousetrap/mousetrap.js
+  // node_modules/.store/mousetrap@1.6.5-wXrhfo95WfPhGlz0ygmxKA/node_modules/mousetrap/mousetrap.js
   var require_mousetrap = __commonJS({
-    "node_modules/mousetrap/mousetrap.js"(exports, module) {
+    "node_modules/.store/mousetrap@1.6.5-wXrhfo95WfPhGlz0ygmxKA/node_modules/mousetrap/mousetrap.js"(exports, module) {
       (function(window2, document2, undefined2) {
         if (!window2) {
           return;
@@ -551,13 +551,6 @@ var wp;
     }
   });
 
-  // vendor-external:react
-  var require_react = __commonJS({
-    "vendor-external:react"(exports, module) {
-      module.exports = window.React;
-    }
-  });
-
   // packages/compose/build-module/index.mjs
   var index_exports = {};
   __export(index_exports, {
@@ -606,7 +599,7 @@ var wp;
     withState: () => withState
   });
 
-  // node_modules/tslib/tslib.es6.mjs
+  // node_modules/.store/tslib@2.8.1-LT-dxu1EkVy7OUDyVf5glQ/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -618,12 +611,12 @@ var wp;
     return __assign.apply(this, arguments);
   };
 
-  // node_modules/lower-case/dist.es2015/index.js
+  // node_modules/.store/lower-case@2.0.2-5YZP5nczP5_f_8Vt5KBPjA/node_modules/lower-case/dist.es2015/index.js
   function lowerCase(str) {
     return str.toLowerCase();
   }
 
-  // node_modules/no-case/dist.es2015/index.js
+  // node_modules/.store/no-case@3.0.4-R4Hzt6qn-erEsTak7ojDpg/node_modules/no-case/dist.es2015/index.js
   var DEFAULT_SPLIT_REGEXP = [/([a-z0-9])([A-Z])/g, /([A-Z])([A-Z][a-z])/g];
   var DEFAULT_STRIP_REGEXP = /[^A-Z0-9]+/gi;
   function noCase(input, options) {
@@ -648,7 +641,7 @@ var wp;
     }, input);
   }
 
-  // node_modules/pascal-case/dist.es2015/index.js
+  // node_modules/.store/pascal-case@3.1.2-khtSA9hpCTEVLYfMgyRdoA/node_modules/pascal-case/dist.es2015/index.js
   function pascalCaseTransform(input, index) {
     var firstChar = input.charAt(0);
     var lowerChars = input.substr(1).toLowerCase();
@@ -1029,11 +1022,9 @@ var wp;
       }
     }
     handleEvent(event) {
-      this.listeners[event.type]?.forEach(
-        (instance) => {
-          instance.handleEvent(event);
-        }
-      );
+      this.listeners[event.type]?.forEach((instance) => {
+        instance.handleEvent(event);
+      });
     }
   };
   var listener_default = Listener;
@@ -1064,12 +1055,11 @@ var wp;
           });
         }
         handleEvent(event) {
-          const handler = eventTypesToHandlers[
-            /** @type {keyof GlobalEventHandlersEventMap} */
-            event.type
-          ];
+          const handler = eventTypesToHandlers[event.type];
           if (typeof this.wrappedRef[handler] === "function") {
-            this.wrappedRef[handler](event);
+            this.wrappedRef[handler](
+              event
+            );
           }
         }
         handleRef(el) {
@@ -1089,7 +1079,13 @@ var wp;
         }
       }
       return (0, import_element2.forwardRef)((props, ref) => {
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Wrapper, { ownProps: props, forwardedRef: ref });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          Wrapper,
+          {
+            ownProps: props,
+            forwardedRef: ref
+          }
+        );
       });
     }, "withGlobalEvents");
   }
@@ -1158,7 +1154,7 @@ var wp;
         }
         render() {
           return (
-            // @ts-ignore
+            // @ts-expect-error `LibraryManagedAttributes` cannot see the injected timeout props.
             /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
               OriginalComponent,
               {
@@ -1179,30 +1175,37 @@ var wp;
   var import_element5 = __toESM(require_element(), 1);
   var import_deprecated3 = __toESM(require_deprecated(), 1);
   var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
-  function withState(initialState = {}) {
+  function createWithState(initialState) {
     (0, import_deprecated3.default)("wp.compose.withState", {
       since: "5.8",
       alternative: "wp.element.useState"
     });
-    return createHigherOrderComponent((OriginalComponent) => {
-      return class WrappedComponent extends import_element5.Component {
-        constructor(props) {
-          super(props);
-          this.setState = this.setState.bind(this);
-          this.state = initialState;
-        }
-        render() {
-          return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-            OriginalComponent,
-            {
-              ...this.props,
-              ...this.state,
-              setState: this.setState
-            }
-          );
-        }
-      };
-    }, "withState");
+    return createHigherOrderComponent(
+      (OriginalComponent) => {
+        const Inner = OriginalComponent;
+        return class WrappedComponent extends import_element5.Component {
+          constructor(props) {
+            super(props);
+            this.setState = this.setState.bind(this);
+            this.state = initialState;
+          }
+          render() {
+            return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+              Inner,
+              {
+                ...this.props,
+                ...this.state,
+                setState: this.setState
+              }
+            );
+          }
+        };
+      },
+      "withState"
+    );
+  }
+  function withState(initialState = {}) {
+    return createWithState(initialState);
   }
 
   // packages/compose/build-module/hooks/use-constrained-tabbing/index.mjs
@@ -1237,6 +1240,10 @@ var wp;
           return;
         }
         if (node.contains(nextElement)) {
+          return;
+        }
+        if (!import_dom.focus.tabbable.find(node).length) {
+          event.preventDefault();
           return;
         }
         const domAction = shiftKey ? "append" : "prepend";
@@ -1533,6 +1540,7 @@ var wp;
       if (ignoreForRelatedTarget && event.relatedTarget?.closest(ignoreForRelatedTarget)) {
         return;
       }
+      clearTimeout(blurCheckTimeoutIdRef.current);
       blurCheckTimeoutIdRef.current = setTimeout(() => {
         if (!document.hasFocus()) {
           event.preventDefault();
@@ -1668,7 +1676,7 @@ var wp;
             if (!(child instanceof defaultView.HTMLElement)) {
               return;
             }
-            if (!child.getAttribute("inert")) {
+            if (!child.hasAttribute("inert")) {
               child.setAttribute("inert", "true");
               updates.push(() => {
                 child.removeAttribute("inert");
@@ -1742,10 +1750,10 @@ var wp;
       eventsRef.current.onDragMove?.(event);
     }, []);
     const endDrag = (0, import_element16.useCallback)(
-      function endDrag2(event) {
+      function handleEndDrag(event) {
         eventsRef.current.onDragEnd?.(event);
         document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", endDrag2);
+        document.removeEventListener("mouseup", handleEndDrag);
         setIsDragging(false);
       },
       [onMouseMove]
@@ -1777,7 +1785,7 @@ var wp;
   // packages/compose/build-module/hooks/use-keyboard-shortcut/index.mjs
   var import_mousetrap = __toESM(require_mousetrap(), 1);
 
-  // node_modules/mousetrap/plugins/global-bind/mousetrap-global-bind.js
+  // node_modules/.store/mousetrap@1.6.5-wXrhfo95WfPhGlz0ygmxKA/node_modules/mousetrap/plugins/global-bind/mousetrap-global-bind.js
   (function(Mousetrap3) {
     if (!Mousetrap3) {
       return;
@@ -2032,7 +2040,7 @@ var wp;
   ViewportMatchWidthContext.displayName = "ViewportMatchWidthContext";
   var useViewportMatch = (breakpoint, operator = ">=", view = typeof window !== "undefined" ? window : void 0) => {
     const simulatedWidth = (0, import_element21.useContext)(ViewportMatchWidthContext);
-    const mediaQuery = !simulatedWidth && `(${CONDITIONS[operator]}: ${BREAKPOINTS[breakpoint]}px)`;
+    const mediaQuery = !simulatedWidth && `screen and (${CONDITIONS[operator]}: ${BREAKPOINTS[breakpoint]}px)`;
     const mediaQueryResult = useMediaQuery(mediaQuery || void 0, view);
     if (simulatedWidth) {
       return OPERATOR_EVALUATORS[operator](
@@ -2051,6 +2059,15 @@ var wp;
     const callbackEvent = useEvent(callback);
     const observedElementRef = (0, import_element22.useRef)(null);
     const resizeObserverRef = (0, import_element22.useRef)(void 0);
+    (0, import_element22.useEffect)(() => {
+      if (observedElementRef.current) {
+        resizeObserverRef.current?.observe(
+          observedElementRef.current,
+          resizeObserverOptions
+        );
+      }
+      return () => resizeObserverRef.current?.disconnect();
+    }, []);
     return useEvent((element) => {
       if (element === observedElementRef.current) {
         return;
@@ -2188,43 +2205,13 @@ var wp;
   }
   var use_warn_on_change_default = useWarnOnChange;
 
-  // node_modules/use-memo-one/dist/use-memo-one.esm.js
-  var import_react = __toESM(require_react());
-  function areInputsEqual(newInputs, lastInputs) {
-    if (newInputs.length !== lastInputs.length) {
-      return false;
-    }
-    for (var i = 0; i < newInputs.length; i++) {
-      if (newInputs[i] !== lastInputs[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-  function useMemoOne(getResult, inputs) {
-    var initial = (0, import_react.useState)(function() {
-      return {
-        inputs,
-        result: getResult()
-      };
-    })[0];
-    var committed = (0, import_react.useRef)(initial);
-    var isInputMatch = Boolean(inputs && committed.current.inputs && areInputsEqual(inputs, committed.current.inputs));
-    var cache = isInputMatch ? committed.current : {
-      inputs,
-      result: getResult()
-    };
-    (0, import_react.useEffect)(function() {
-      committed.current = cache;
-    }, [cache]);
-    return cache.result;
-  }
-
   // packages/compose/build-module/hooks/use-debounce/index.mjs
   var import_element25 = __toESM(require_element(), 1);
   function useDebounce(fn, wait, options) {
-    const debounced = useMemoOne(
+    const debounced = (0, import_element25.useMemo)(
       () => debounce(fn, wait ?? 0, options),
+      // Depends on the individual options rather than the `options` object.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [fn, wait, options?.leading, options?.trailing, options?.maxWait]
     );
     (0, import_element25.useEffect)(() => () => debounced.cancel(), [debounced]);
@@ -2246,7 +2233,7 @@ var wp;
   // packages/compose/build-module/hooks/use-throttle/index.mjs
   var import_element27 = __toESM(require_element(), 1);
   function useThrottle(fn, wait, options) {
-    const throttled = useMemoOne(
+    const throttled = (0, import_element27.useMemo)(
       () => throttle(fn, wait ?? 0, options),
       [fn, wait, options]
     );
@@ -2402,8 +2389,12 @@ var wp;
   var import_keycodes2 = __toESM(require_keycodes(), 1);
   var DEFAULT_INIT_WINDOW_SIZE = 30;
   function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
-    const initWindowSize = options?.initWindowSize ?? DEFAULT_INIT_WINDOW_SIZE;
-    const useWindowing = options?.useWindowing ?? true;
+    const {
+      windowOverscan,
+      useWindowing = true,
+      initWindowSize = DEFAULT_INIT_WINDOW_SIZE,
+      expandedState
+    } = options ?? {};
     const [fixedListWindow, setFixedListWindow] = (0, import_element28.useState)(
       {
         visibleItems: initWindowSize,
@@ -2414,117 +2405,109 @@ var wp;
         }
       }
     );
+    const visibleItemsRef = (0, import_element28.useRef)(initWindowSize);
+    const isFirstMeasurementRef = (0, import_element28.useRef)(true);
+    const measureWindow = useEvent((initRender) => {
+      const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
+      if (!scrollContainer) {
+        return;
+      }
+      const visibleItems = Math.ceil(
+        scrollContainer.clientHeight / itemHeight
+      );
+      visibleItemsRef.current = visibleItems;
+      const isFirstMeasurement = isFirstMeasurementRef.current;
+      isFirstMeasurementRef.current = false;
+      const overscan = initRender ? visibleItems : windowOverscan ?? visibleItems;
+      const firstViewableIndex = Math.floor(
+        scrollContainer.scrollTop / itemHeight
+      );
+      const start = Math.max(0, firstViewableIndex - overscan);
+      const end = Math.min(
+        totalItems - 1,
+        firstViewableIndex + visibleItems + overscan
+      );
+      setFixedListWindow((lastWindow) => {
+        if (lastWindow.start <= start && lastWindow.end >= end) {
+          return lastWindow;
+        }
+        if (isFirstMeasurement && lastWindow.start <= firstViewableIndex && lastWindow.end >= firstViewableIndex + visibleItems) {
+          return lastWindow;
+        }
+        return {
+          visibleItems,
+          start,
+          end,
+          itemInView: (index) => {
+            return start <= index && index <= end;
+          }
+        };
+      });
+    });
+    const handleKeyDown = useEvent(
+      (event, scrollContainer) => {
+        switch (event.keyCode) {
+          case import_keycodes2.HOME: {
+            return scrollContainer.scrollTo({ top: 0 });
+          }
+          case import_keycodes2.END: {
+            return scrollContainer.scrollTo({
+              top: totalItems * itemHeight
+            });
+          }
+          case import_keycodes2.PAGEUP: {
+            return scrollContainer.scrollTo({
+              top: scrollContainer.scrollTop - visibleItemsRef.current * itemHeight
+            });
+          }
+          case import_keycodes2.PAGEDOWN: {
+            return scrollContainer.scrollTo({
+              top: scrollContainer.scrollTop + visibleItemsRef.current * itemHeight
+            });
+          }
+        }
+      }
+    );
     (0, import_element28.useLayoutEffect)(() => {
       if (!useWindowing) {
         return;
       }
-      const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
-      const measureWindow = (initRender) => {
-        if (!scrollContainer) {
-          return;
-        }
-        const visibleItems = Math.ceil(
-          scrollContainer.clientHeight / itemHeight
-        );
-        const windowOverscan = initRender ? visibleItems : options?.windowOverscan ?? visibleItems;
-        const firstViewableIndex = Math.floor(
-          scrollContainer.scrollTop / itemHeight
-        );
-        const start = Math.max(0, firstViewableIndex - windowOverscan);
-        const end = Math.min(
-          totalItems - 1,
-          firstViewableIndex + visibleItems + windowOverscan
-        );
-        setFixedListWindow((lastWindow) => {
-          const nextWindow = {
-            visibleItems,
-            start,
-            end,
-            itemInView: (index) => {
-              return start <= index && index <= end;
-            }
-          };
-          if (lastWindow.start !== nextWindow.start || lastWindow.end !== nextWindow.end || lastWindow.visibleItems !== nextWindow.visibleItems) {
-            return nextWindow;
-          }
-          return lastWindow;
-        });
-      };
       measureWindow(true);
-      const debounceMeasureList = debounce(() => {
-        measureWindow();
-      }, 16);
-      scrollContainer?.addEventListener("scroll", debounceMeasureList);
-      scrollContainer?.ownerDocument?.defaultView?.addEventListener(
-        "resize",
-        debounceMeasureList
-      );
-      scrollContainer?.ownerDocument?.defaultView?.addEventListener(
-        "resize",
-        debounceMeasureList
-      );
-      return () => {
-        scrollContainer?.removeEventListener(
-          "scroll",
-          debounceMeasureList
-        );
-        scrollContainer?.ownerDocument?.defaultView?.removeEventListener(
-          "resize",
-          debounceMeasureList
-        );
-      };
     }, [
+      useWindowing,
+      measureWindow,
       itemHeight,
-      elementRef,
       totalItems,
-      options?.expandedState,
-      options?.windowOverscan,
-      useWindowing
+      windowOverscan,
+      expandedState
     ]);
     (0, import_element28.useLayoutEffect)(() => {
       if (!useWindowing) {
         return;
       }
       const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
-      const handleKeyDown = (event) => {
-        switch (event.keyCode) {
-          case import_keycodes2.HOME: {
-            return scrollContainer?.scrollTo({ top: 0 });
-          }
-          case import_keycodes2.END: {
-            return scrollContainer?.scrollTo({
-              top: totalItems * itemHeight
-            });
-          }
-          case import_keycodes2.PAGEUP: {
-            return scrollContainer?.scrollTo({
-              top: scrollContainer.scrollTop - fixedListWindow.visibleItems * itemHeight
-            });
-          }
-          case import_keycodes2.PAGEDOWN: {
-            return scrollContainer?.scrollTo({
-              top: scrollContainer.scrollTop + fixedListWindow.visibleItems * itemHeight
-            });
-          }
-        }
-      };
-      scrollContainer?.ownerDocument?.defaultView?.addEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      if (!scrollContainer) {
+        return;
+      }
+      const { defaultView } = scrollContainer.ownerDocument;
+      const onMeasure = () => measureWindow();
+      const onKeyDown = (event) => handleKeyDown(event, scrollContainer);
+      scrollContainer.addEventListener("scroll", onMeasure);
+      defaultView?.addEventListener("resize", onMeasure);
+      defaultView?.addEventListener("keydown", onKeyDown);
       return () => {
-        scrollContainer?.ownerDocument?.defaultView?.removeEventListener(
-          "keydown",
-          handleKeyDown
-        );
+        scrollContainer.removeEventListener("scroll", onMeasure);
+        defaultView?.removeEventListener("resize", onMeasure);
+        defaultView?.removeEventListener("keydown", onKeyDown);
       };
     }, [
-      totalItems,
-      itemHeight,
-      elementRef,
-      fixedListWindow.visibleItems,
       useWindowing,
-      options?.expandedState
+      elementRef,
+      itemHeight,
+      totalItems,
+      expandedState,
+      measureWindow,
+      handleKeyDown
     ]);
     return [fixedListWindow, setFixedListWindow];
   }

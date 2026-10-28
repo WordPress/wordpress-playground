@@ -231,12 +231,18 @@ add_action('wp_head', 'playground_add_target_blank_to_external_links');
 add_action('admin_head', 'playground_add_target_blank_to_external_links');
 
 /**
- * Reports the current URL to the parent frame.
+ * Report the WordPress URL so the app can update its address bar without reading this frame.
  *
- * When Document-Isolation-Policy is enabled, the parent frame can't access
- * the iframe's location.href due to cross-origin restrictions. This script
- * posts a message to the parent frame with the current URL so the address
- * bar can be updated.
+ * A different origin or Document-Isolation-Policy can block the parent's location read.
+ * Use messages for same-origin pages too, so both cases follow the same path:
+ *
+ * 1. Send the startup URL from wp_head/admin_head.
+ * 2. Reply to playground-request-url from the expected parent with the live location.
+ *    Use its reply port when supplied; otherwise send another playground-url-change.
+ *
+ * The parent requests the URL when it subscribes, in case it missed the startup report,
+ * and polls for History API changes. For example, pushState() can change the path to
+ * /wp-admin/edit.php without firing iframe load or changing iframe.src.
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  */
@@ -244,19 +250,74 @@ function playground_report_url_to_parent() {
 	?>
 	<script>
 		if (window.parent !== window) {
-			window.parent.postMessage(
-				JSON.stringify({
-					type: 'playground-url-change',
-					url: window.location.href
-				}),
-				'*'
-			);
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
+			reportPlaygroundUrl();
+			window.addEventListener('message', function (event) {
+				if (
+					event.source === window.parent &&
+					event.origin === parentOrigin &&
+					event.data?.type === 'playground-request-url'
+				) {
+					if (event.ports[0]) {
+						event.ports[0].postMessage(window.location.href);
+						event.ports[0].close();
+					} else {
+						reportPlaygroundUrl();
+					}
+				}
+			});
+
+			/** Publish the current URL, including replies to a late-subscribing parent. */
+			function reportPlaygroundUrl() {
+				window.parent.postMessage(
+					JSON.stringify({ type: 'playground-url-change', url: window.location.href }),
+					parentOrigin
+				);
+			}
 		}
 	</script>
 	<?php
 }
 add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
+
+/**
+ * Relay pointer presses so a click in WordPress can close the app's open menus.
+ *
+ * Events do not bubble across iframe documents. Send playground-pointer-relay-ready to
+ * the parent and wait for playground-enable-pointer-relay from that window and origin.
+ * Only then send presses and set data-playground-pointer-relay on this document.
+ *
+ * remote.html turns each message into a pointer event on its #wp element. The app sees
+ * that event and skips the original press in marked documents, avoiding duplicate calls.
+ * A nested editor frame may also run this hook, but its WordPress parent does not reply
+ * or forward clicks. It stays unmarked, keeping native outside-click handling when the
+ * app can read it. The marker covers this document only, not any nested documents.
+ */
+function playground_report_pointer_to_parent() {
+	?>
+	<script>
+		if (window.parent !== window) {
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
+			window.addEventListener('message', function enablePointerRelay(event) {
+				if (
+					event.source !== window.parent ||
+					event.origin !== parentOrigin ||
+					event.data?.type !== 'playground-enable-pointer-relay'
+				) return;
+				window.removeEventListener('message', enablePointerRelay);
+				document.addEventListener('pointerdown', function () {
+					window.parent.postMessage({ type: 'playground-pointerdown' }, parentOrigin);
+				}, true);
+				document.documentElement.setAttribute('data-playground-pointer-relay', '');
+			});
+			window.parent.postMessage({ type: 'playground-pointer-relay-ready' }, parentOrigin);
+		}
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_report_pointer_to_parent');
+add_action('admin_head', 'playground_report_pointer_to_parent');
 
 /**
  * Captures this document when the trusted Playground parent requests a site
@@ -282,13 +343,14 @@ function playground_enable_site_thumbnail_capture() {
 				return;
 			}
 			window.__playgroundSiteThumbnailCaptureEnabled = true;
+			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
 
 			window.addEventListener('message', async function (event) {
 				// The origin protects the trust boundary. Checking source as well
 				// prevents another same-origin frame from requesting code execution.
 				if (
 					event.source !== window.parent ||
-					event.origin !== window.location.origin ||
+					event.origin !== parentOrigin ||
 					event.data?.type !== 'playground-capture-site-thumbnail'
 				) {
 					return;
@@ -303,7 +365,7 @@ function playground_enable_site_thumbnail_capture() {
 						throw new Error('Missing site thumbnail module URL.');
 					}
 					// Dynamic import executes inside the WordPress document. Accept only
-					// the same-origin renderer asset marked by the trusted parent.
+					// the renderer asset from the trusted parent's origin, with its marker.
 					const moduleUrl = new URL(request.moduleUrl);
 					const isRendererModule =
 						moduleUrl.pathname ===
@@ -393,8 +455,8 @@ function playground_enable_webmcp_bridge() {
 			var CANCEL_TOOL = 'playground-webmcp-cancel-tool';
 			var pendingCalls = new Map();
 
-			// The remote frame is same-origin with this document.
-			var parentOrigin = window.location.origin;
+			// The runtime supplies its origin when rendered WordPress is cross-origin.
+			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
 			var tools = new Map();
 			var announceScheduled = false;
 

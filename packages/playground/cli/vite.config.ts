@@ -208,7 +208,11 @@ export default defineConfig({
 			forks: {
 				execArgv: [
 					'--experimental-strip-types',
-					'--experimental-transform-types',
+					...(process.allowedNodeEnvironmentFlags.has(
+						'--experimental-transform-types'
+					)
+						? ['--experimental-transform-types']
+						: []),
 					'--disable-warning=ExperimentalWarning',
 					// Use our own ESM loader to help resolve modules within the Worker script.
 					'--import',

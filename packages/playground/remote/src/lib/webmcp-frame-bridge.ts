@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from './config';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -79,7 +80,7 @@ export function createWebMCPFrameBridge(
 	window.addEventListener('message', (event: MessageEvent) => {
 		if (
 			event.source !== wpFrame.contentWindow ||
-			event.origin !== window.location.origin ||
+			event.origin !== wordPressSiteUrl ||
 			!event.data
 		) {
 			return;
@@ -164,10 +165,11 @@ export function createWebMCPFrameBridge(
 		}
 	}
 
+	/** Ask the rendered WordPress frame to announce its current tool registry. */
 	function requestToolList() {
 		wpFrame.contentWindow?.postMessage(
 			{ type: LIST_TOOLS },
-			window.location.origin
+			wordPressSiteUrl
 		);
 	}
 
@@ -179,6 +181,7 @@ export function createWebMCPFrameBridge(
 			notify(listener, tools);
 			requestToolList();
 		},
+		/** Dispatch a tool call only to the rendered WordPress origin and bound its response time. */
 		async callTool(name, args, callId = crypto.randomUUID()) {
 			const contentWindow = wpFrame.contentWindow;
 			if (!contentWindow) {
@@ -197,7 +200,7 @@ export function createWebMCPFrameBridge(
 				pendingCalls.set(callId, { resolve, reject, timeout });
 				contentWindow.postMessage(
 					{ type: CALL_TOOL, callId, name, arguments: args ?? {} },
-					window.location.origin
+					wordPressSiteUrl
 				);
 			});
 		},
@@ -210,7 +213,7 @@ export function createWebMCPFrameBridge(
 			clearTimeout(pending.timeout);
 			wpFrame.contentWindow?.postMessage(
 				{ type: CANCEL_TOOL, callId },
-				window.location.origin
+				wordPressSiteUrl
 			);
 			pending.reject(
 				new DOMException('The tool call was cancelled.', 'AbortError')

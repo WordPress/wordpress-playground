@@ -3,6 +3,8 @@ import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
 
+vi.mock('./config', () => ({ wordPressSiteUrl: 'https://wordpress.test' }));
+
 afterEach(() => {
 	vi.useRealTimers();
 	vi.unstubAllGlobals();
@@ -29,7 +31,7 @@ describe('WebMCP frame cancellation', () => {
 		await expect(result).rejects.toMatchObject({ name: 'AbortError' });
 		expect(postMessage).toHaveBeenLastCalledWith(
 			{ type: 'playground-webmcp-cancel-tool', callId: 'call-1' },
-			'https://playground.test'
+			'https://wordpress.test'
 		);
 		expect(vi.getTimerCount()).toBe(0);
 		postMessage.mockClear();
@@ -72,10 +74,16 @@ describe('WordPress WebMCP registry cancellation', () => {
 				}) => Promise<void>;
 			};
 		} = {};
-		runInNewContext(script!, {
+		// Substitute the PHP-rendered configuration while exercising the actual
+		// injected JavaScript across distinct app and WordPress origins.
+		const renderedScript = script!.replace(
+			"<?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?>",
+			JSON.stringify('https://playground.test')
+		);
+		runInNewContext(renderedScript, {
 			window: {
 				parent,
-				location: { origin: 'https://playground.test' },
+				location: { origin: 'https://wordpress.test' },
 				addEventListener: (type: string, listener: typeof receive) => {
 					if (type === 'message') receive = listener;
 				},

@@ -126,6 +126,26 @@ export interface WebClientMixin extends ProgressReceiver {
 	unmountOpfs(mountpoint: string): Promise<void>;
 
 	boot(options: WorkerBootOptions): Promise<void>;
+	/**
+	 * Retires the shared runtime for all connected tabs. Stops accepting new work,
+	 * drains active operations, flushes and unmounts OPFS, and disposes PHP before
+	 * confirming shutdown. Rejects if retirement fails. Dedicated runtimes ignore this call.
+	 */
+	shutdownSharedRuntime(): Promise<void>;
+	/**
+	 * Whether this connection owns initial Blueprint execution. Always true for a
+	 * dedicated runtime. Used by the client startup handlers, not application code.
+	 * @internal
+	 */
+	shouldRunStartupBlueprint(): Promise<boolean>;
+	/**
+	 * Signals that the initializing connection has finished its startup Blueprint,
+	 * allowing waiting tabs to attach. Only that connection may complete initialization.
+	 * Used by the client startup handlers, including after Blueprint errors so recovery
+	 * tools remain available. Dedicated runtimes ignore this call.
+	 * @internal
+	 */
+	finishSharedRuntimeInitialization(): Promise<void>;
 }
 
 export type SiteThumbnail = {

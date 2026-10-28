@@ -16,13 +16,24 @@ import type {
 import { Icon, chevronLeft, close } from '@wordpress/icons';
 import css from './style.module.css';
 
-export type DockPaneHeaderOverride = {
+/** A back action always has an accessible label; title-only headers have neither. */
+export type DockPaneBackAction =
+	| {
+			backLabel: string;
+			backButtonRef?: RefObject<HTMLButtonElement>;
+			focusBackButton?: boolean;
+			onBack: MouseEventHandler<HTMLButtonElement>;
+	  }
+	| {
+			backLabel?: undefined;
+			backButtonRef?: undefined;
+			focusBackButton?: undefined;
+			onBack?: undefined;
+	  };
+
+export type DockPaneHeaderOverride = DockPaneBackAction & {
 	title: string;
 	description?: string;
-	backLabel: string;
-	backButtonRef?: RefObject<HTMLButtonElement>;
-	focusBackButton?: boolean;
-	onBack: MouseEventHandler<HTMLButtonElement>;
 };
 
 export type DockPaneProps = {
@@ -130,7 +141,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				)}
 				{showHeader && (
 					<div className={css.paneHeader}>
-						{headerOverride && (
+						{headerOverride?.onBack && (
 							<button
 								ref={headerOverride.backButtonRef}
 								type="button"

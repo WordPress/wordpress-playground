@@ -81,6 +81,53 @@ test('WordPress 6.3 site editor renders through the empty.html iframe', async ({
 	).toBe(true);
 });
 
+for (const [name, quote] of [
+	['single quotes', "'"],
+	['backticks', '`'],
+]) {
+	test(`Post editor canvas inherits the service worker with ${name} in the script`, async ({
+		website,
+		wordpress,
+		page,
+	}) => {
+		await website.goto('./?storage=temp&wp=7.1');
+
+		await page.evaluate(async (quote) => {
+			const playground = (window as any).playground;
+			// The minified archive omits this script. Restore it before changing
+			// the iframe tag's quotes to match newer Gutenberg build output.
+			await playground.backfillStaticFilesRemovedFromMinifiedBuild();
+			const path = '/wordpress/wp-includes/js/dist/block-editor.min.js';
+			const script = await playground.readFileAsText(path);
+			if (!script.includes('("iframe",')) {
+				throw new Error('The fixture must contain the iframe call');
+			}
+			await playground.writeFile(
+				path,
+				script.replace('("iframe",', `(${quote}iframe${quote},`)
+			);
+			await playground.goTo('/wp-admin/post-new.php');
+		}, quote);
+
+		const canvas = wordpress.locator('iframe[name="editor-canvas"]');
+		await expect(canvas).toHaveAttribute(
+			'src',
+			/\/wp-includes\/empty\.html/
+		);
+		const canvasFrame = wordpress.frameLocator(
+			'iframe[name="editor-canvas"]'
+		);
+		await expect(
+			canvasFrame.getByRole('textbox', { name: 'Add title' })
+		).toBeVisible();
+		expect(
+			await canvasFrame
+				.locator('html')
+				.evaluate(() => !!navigator.serviceWorker.controller)
+		).toBe(true);
+	});
+}
+
 test('Site editor preview renders after the service worker restarts', async ({
 	website,
 	wordpress,
@@ -150,7 +197,9 @@ test('Post editor canvas renders when Gutenberg marks iframes credentialless', a
 
 	// Gutenberg 22.4–22.7 add the credentialless attribute to iframes in an
 	// isolated editor. 22.6 and 22.7 isolate the editor by default.
+	// WordPress 7.1 also sends DIP, so this covers the mixed old/new headers.
 	const blueprint: Blueprint = {
+		preferredVersions: { wp: '7.1' },
 		landingPage: '/wp-admin/post-new.php',
 		plugins: ['gutenberg.22.7.0.zip'],
 		login: true,

@@ -140,6 +140,40 @@ assert_contains(
 );
 
 // ──────────────────────────────────────────────
+// Test 4a: A relative redirect keeps the target's custom port
+// ──────────────────────────────────────────────
+echo "\nTest 4a: A relative redirect keeps the target's custom port\n";
+$redirect_target = "http://127.0.0.1:$upstream_port/relative-redirect";
+$response = proxy_request($proxy_port, $redirect_target);
+assert_true(
+    $response['http_code'] === 302,
+    'The proxy should relay the redirect for the client to follow'
+);
+assert_true(
+    get_header_list($response['headers_raw'], 'location') === [
+        "/cors-proxy.php?http://127.0.0.1:$upstream_port/plain-text",
+    ],
+    'The rewritten Location should retain the target port'
+);
+
+$ch = curl_init("http://127.0.0.1:$proxy_port/cors-proxy.php?$redirect_target");
+curl_setopt_array($ch, [
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 2,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 5,
+]);
+$body = curl_exec($ch);
+assert_true(
+    curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200,
+    'Following the rewritten Location should reach the target'
+);
+assert_true(
+    $body === 'Hello from plain-text endpoint',
+    'The redirected request should return the body from the same custom port'
+);
+
+// ──────────────────────────────────────────────
 // Test 5: Preflight allows the Range request header
 // ──────────────────────────────────────────────
 echo "\nTest 5: Preflight allows the Range request header\n";
@@ -486,6 +520,79 @@ assert_not_contains(
     "502 response should not carry the other protocol's bytes"
 );
 assert_only_proxy_headers($response, '502');
+
+// ──────────────────────────────────────────────
+// Test 20: The real handler refuses private and reserved destinations
+// ──────────────────────────────────────────────
+echo "\nTest 20: The real handler refuses private and reserved destinations\n";
+// Unlike the response-handling fixture above, this server uses the actual
+// IP validator. A blocked target must return 400 without an upstream response.
+$secure_proxy_port = find_free_port();
+$secure_proxy_proc = start_php_server($secure_proxy_port, null, $proxy_dir);
+try {
+    $blocked_targets = [
+        "http://localhost:$upstream_port/plain-text",
+        "http://127.0.0.1:$upstream_port/plain-text",
+        "http://10.0.0.1:$upstream_port/plain-text",
+        "http://172.16.0.1:$upstream_port/plain-text",
+        "http://192.168.1.1:$upstream_port/plain-text",
+        "http://169.254.169.254:$upstream_port/plain-text",
+        "http://100.64.0.1:$upstream_port/plain-text",
+        "http://192.0.2.1:$upstream_port/plain-text",
+        "http://224.0.0.1:$upstream_port/plain-text",
+        "http://240.0.0.1:$upstream_port/plain-text",
+    ];
+    foreach ($blocked_targets as $target) {
+        $response = proxy_request($secure_proxy_port, $target);
+        assert_true(
+            $response['http_code'] === 400,
+            "Private or reserved destination $target should be rejected before a connection"
+        );
+        assert_not_contains(
+            'Hello from plain-text endpoint',
+            $response['body'],
+            'The private upstream response must never be relayed'
+        );
+    }
+} finally {
+    proc_terminate($secure_proxy_proc);
+    proc_close($secure_proxy_proc);
+}
+
+// ──────────────────────────────────────────────
+// Test 21: The handler uses the validated address on a custom port
+// ──────────────────────────────────────────────
+echo "\nTest 21: The handler uses the validated address on a custom port\n";
+// The fixture replaces PHP's hostname lookup with a fixed 127.0.0.1 answer
+// and permits that loopback address. All connection code is the real handler.
+// proxy-target.test is a test hostname with no real DNS entry. A successful
+// response requires the handler to pin the fixture address for this custom port.
+$destination_proxy_port = find_free_port();
+$destination_proxy_proc = start_server_process(
+    escapeshellarg(PHP_BINARY) . ' -d disable_functions=gethostbynamel' .
+        " -S 127.0.0.1:$destination_proxy_port -t " . escapeshellarg($proxy_dir) . ' ' .
+        escapeshellarg(__DIR__ . '/destination-test-router.php'),
+    $destination_proxy_port
+);
+try {
+    $response = proxy_request(
+        $destination_proxy_port,
+        "http://proxy-target.test:$upstream_port/headers"
+    );
+    $received_headers = json_decode($response['body'], true) ?? [];
+    assert_true(
+        $response['http_code'] === 200,
+        "The handler should reach the local upstream using the validated address " .
+            "(got {$response['http_code']})"
+    );
+    assert_true(
+        ($received_headers['host'] ?? null) === "proxy-target.test:$upstream_port",
+        'The upstream should receive the URL hostname and custom port in its Host header'
+    );
+} finally {
+    proc_terminate($destination_proxy_proc);
+    proc_close($destination_proxy_proc);
+}
 
 // ──────────────────────────────────────────────
 // Clean up

@@ -18,7 +18,41 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 	);
 }
 
-function playground_handle_request() {
+/**
+ * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
+ *
+ * The configured sandbox host serves the wordpress-sandbox/ subdirectory and
+ * versioned WordPress static files, never app documents or PHP endpoints.
+ * Other hosts continue through the existing request handling below.
+ *
+ * The deployment script passes its private build directory. Personal WP passes no
+ * argument and keeps its existing public/static-files-to-serve-via-php layout.
+ * A missing private build must fail rather than fall back to public files.
+ *
+ * Deployment writes the configured sandbox origin into the release entry. Request
+ * headers and query parameters must not change that configuration. The build
+ * has already pointed the sandbox's script URLs at the shared app origin.
+ *
+ * @param string|null $build_directory Private main-website build, or null for the public layout.
+ * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
+ */
+function playground_handle_request( $build_directory = null, $wordpress_origin = null ) {
+	// Endpoints and range handling can fail after setting cacheable headers.
+	// Check the final status before output. PHP has only one header callback;
+	// native endpoints must not replace this callback.
+	header_register_callback( function () {
+		if ( http_response_code() >= 400 ) {
+			header( 'A8C-Edge-Cache: no-cache' );
+			header( 'Cache-Control: no-store' );
+		}
+	} );
+
+	$directory = realpath( $build_directory ?? __DIR__ );
+	if ( false === $directory || ! is_dir( $directory ) ) {
+		http_response_code( 503 );
+		exit;
+	}
+
 	$may_edge_cache = true;
 
 	// TODO: If needed, switch to a printf style signature
@@ -37,6 +71,49 @@ function playground_handle_request() {
 
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
+
+	// Do not let this host reach the normal app handler, including its redirects
+	// and PHP endpoints. Shared app bundles keep their app-host URLs. WordPress's
+	// static-file redirects also need the /wp-<version>/ files on this origin.
+	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
+	if ( null !== $wordpress_origin && is_string( $request_host ) &&
+		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
+	) {
+		// Serve built helper/loader files or one WordPress static-asset directory.
+		// Never fall back to app files, redirects, directory indexes, or native PHP.
+		// Scoped WordPress pages come from the browser service worker, not this directory.
+		$wordpress_asset_path = array();
+		$is_wordpress_asset = 1 === preg_match( '~^/(wp-(?:[0-9]+\.[0-9]+|beta|nightly))/~', $original_requested_path, $wordpress_asset_path );
+		$asset_directory = realpath( $directory . ( $is_wordpress_asset
+			? '/' . $wordpress_asset_path[1] : '/wordpress-sandbox' ) );
+		// A helper URL containing the app's buildVersion can bypass a browser worker
+		// installed by a different release. Every alias serves the deployed release's
+		// one helper document; the version never selects another file or release.
+		$sandbox_path = preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
+			? '/wordpress-bridge.html' : $original_requested_path;
+		$file = $asset_directory ? realpath( ( $is_wordpress_asset ? $directory : $asset_directory ) . $sandbox_path ) : false;
+		if ( ! $file || ! is_file( $file ) ||
+			! str_starts_with( $asset_directory, $directory . '/' ) ||
+			! str_starts_with( $file, $asset_directory . '/' ) ||
+			'php' === strtolower( pathinfo( $file, PATHINFO_EXTENSION ) )
+		) {
+			http_response_code( 404 );
+			exit;
+		}
+		require_once __DIR__ . '/mime-types.php';
+		$extension = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
+		header( 'Content-Type: ' . ( $mime_types[ $extension ] ?? $mime_types['_default'] ) );
+		if ( $is_wordpress_asset ) {
+			header( 'A8C-Edge-Cache: cache' );
+			header( 'Cache-Control: public, max-age=3600' );
+		} else {
+			header( 'Cache-Control: private, no-store' );
+		}
+		header( 'X-Content-Type-Options: nosniff' );
+		header_remove( 'X-Frame-Options' );
+		playground_serve_static_file( $file );
+		exit;
+	}
 
 	//
 	// REWRITES
@@ -86,14 +163,27 @@ function playground_handle_request() {
 	// PATH RESOLUTION
 	//
 	$served_path = $requested_path;
-	$resolved_path = realpath( __DIR__ . $served_path );
+	$resolved_path = realpath( $directory . $served_path );
 	if ( is_dir( $resolved_path ) ) {
+		if ( null !== $build_directory &&
+			str_starts_with( $resolved_path, $directory . '/' ) &&
+			! str_ends_with( $served_path, '/' )
+		) {
+			// Nginx normally adds the trailing slash for public directories. It
+			// cannot see private build directories, so preserve that redirect here.
+			$location = './' . rawurlencode( basename( $served_path ) ) . '/';
+			if ( isset( $url['query'] ) ) {
+				$location .= '?' . $url['query'];
+			}
+			header( 'Location: ' . $location, true, 301 );
+			die();
+		}
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
 	if ( false === $resolved_path && ! str_ends_with( $served_path, '.php' ) ) {
 		// Static files that need special treatment are served from a different directory.
-		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $served_path );
+		$resolved_path = realpath( $directory . '/static-files-to-serve-via-php' . $served_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
@@ -112,7 +202,7 @@ function playground_handle_request() {
 		die();
 	}
 
-	if ( ! str_starts_with( $resolved_path, '/srv/htdocs/' ) ) {
+	if ( ! str_starts_with( $resolved_path, $directory . '/' ) ) {
 		$log( "This looks like attempted path traversal: '$original_requested_path'" );
 		http_response_code( 403 );
 		die();
@@ -145,6 +235,24 @@ function playground_handle_request() {
 		header( "Content-Type: $content_type" );
 	}
 
+	// The private main build shares platform code with the WordPress origin. Add
+	// CORS independently so existing cache/agent-cluster exceptions still run.
+	// Personal WP keeps its existing public-file headers.
+	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
+		str_starts_with( $served_path, '/assets/' ) ||
+		str_ends_with( $served_path, '.js' ) || preg_match( '~^/wp-[^/]+/~', $served_path )
+	);
+	if ( $is_shared_asset ) {
+		header( 'Access-Control-Allow-Origin: *' );
+		header( 'Access-Control-Allow-Headers: *' );
+		header( 'Access-Control-Allow-Methods: GET, HEAD' );
+		header( 'Cross-Origin-Resource-Policy: cross-origin' );
+		if ( 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
+			http_response_code( 204 );
+			die();
+		}
+	}
+
 	$custom_response_headers = playground_get_custom_response_headers( $served_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
@@ -154,6 +262,9 @@ function playground_handle_request() {
 		if ( $may_edge_cache ) {
 			$log( "Marking for cache: '$resolved_path'" );
 			header( 'A8C-Edge-Cache: cache' );
+			if ( $is_shared_asset && 'html' !== $extension ) {
+				header( 'Cache-Control: public, max-age=3600' );
+			}
 		} else {
 			$log( "Skipping edge cache: '$resolved_path'" );
 			header( 'Cache-Control: no-cache' );
@@ -161,6 +272,9 @@ function playground_handle_request() {
 	}
 
 	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'php' !== $extension ) {
+			playground_serve_static_file( $resolved_path );
+		}
 		die();
 	}
 
@@ -171,12 +285,74 @@ function playground_handle_request() {
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$original_requested_path'" );
 		playground_maybe_set_environment( $served_path );
+		if ( null !== $build_directory ) {
+			// Nginx cannot execute a private endpoint directly. Run the resolved
+			// file only after the same headers and persistent-data setup as before.
+			require $resolved_path;
+			die();
+		}
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
-		readfile( $resolved_path );
+		playground_serve_static_file( $resolved_path );
 		die();
 	}
+}
+
+/**
+ * Send a validated static file, including a single byte range for download retries.
+ *
+ * For example, GET with Range: bytes=1024- returns only the bytes still missing
+ * from a PHP runtime download, with status 206 and Content-Range. Bounded ranges
+ * work too; an end beyond the file is clamped to its last byte. A supported
+ * range with no valid bytes returns 416 and the current file size.
+ *
+ * Multiple ranges, suffix ranges, unknown units, and unrecognized syntax are
+ * ignored: send the normal full response, not a multipart body or a false 416.
+ * Requests with If-Range also get a full response; this handler does not compare
+ * validators. Only GET uses ranges. HEAD sends the full length without a body.
+ *
+ * The caller must already have resolved and checked the path and set MIME/cache
+ * headers. Full responses still use readfile(); partial responses seek directly
+ * to the requested offset and stream only the requested bytes.
+ *
+ * @param string $path Existing static file selected by playground_handle_request().
+ */
+function playground_serve_static_file( $path ) {
+	$size = filesize( $path );
+	$start = 0;
+	$end = $size - 1;
+	$range = null;
+	header( 'Accept-Ranges: bytes' );
+	if (
+		'GET' === $_SERVER['REQUEST_METHOD'] &&
+		! isset( $_SERVER['HTTP_IF_RANGE'] ) &&
+		isset( $_SERVER['HTTP_RANGE'] ) &&
+		preg_match( '/\Abytes=(\d+)-(\d*)\z/i', trim( $_SERVER['HTTP_RANGE'] ), $range )
+	) {
+		$start = (int) $range[1];
+		$end = '' === $range[2] ? $end : min( $end, (int) $range[2] );
+		if ( $start > $end ) {
+			header( "Content-Range: bytes */$size", true, 416 );
+			header( 'Content-Length: 0' );
+			return;
+		}
+		http_response_code( 206 );
+		header( "Content-Range: bytes $start-$end/$size" );
+	}
+	$length = $end - $start + 1;
+	header( "Content-Length: $length" );
+	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
+	}
+	if ( ! $range ) {
+		readfile( $path );
+		return;
+	}
+	$stream = fopen( $path, 'rb' );
+	fseek( $stream, $start );
+	stream_copy_to_stream( $stream, fopen( 'php://output', 'wb' ), $length );
+	fclose( $stream );
 }
 
 function playground_maybe_rewrite( $original_requested_path ) {

@@ -2,7 +2,12 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { formatBytes, joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import {
+	ensureAbsolutePath,
+	formatBytes,
+	joinPaths,
+	sendmailSpawnHandler,
+} from '@php-wasm/util';
 import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import PostalMime from 'postal-mime';
 import type { Email } from 'postal-mime';
@@ -22,7 +27,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -161,12 +166,27 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 	}
 
+	/** Give PHP the same public WordPress origin used by its iframe and HTTP helper. */
 	protected computeSiteUrl(scope: string) {
 		return setURLScope(wordPressSiteUrl, scope).toString();
 	}
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
+	/**
+	 * Create the PHP runtime pool and route siteUrl requests into its WordPress files.
+	 *
+	 * siteUrl is WordPress's public scoped URL, even when PHP runs on the app origin.
+	 * For each PHP instance, define PLAYGROUND_PARENT_ORIGIN in split-origin mode.
+	 * The injected WordPress scripts use it to send navigation, pointer, thumbnail,
+	 * and tool messages back to remote.html instead of assuming their parent shares
+	 * WordPress's origin. The value comes from the app module URL, not user input.
+	 *
+	 * Known remote asset paths get a marked 404 when absent from the local files.
+	 * The service worker uses that marker to fetch the shared public asset instead
+	 * of treating every missing URL, including PHP routes, as a static download.
+	 * Existing runtime hooks set up networking, mail capture, and shared files.
+	 */
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
@@ -290,6 +310,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				if (new URL(siteUrl).origin !== playgroundOrigin) {
+					php.defineConstant(
+						'PLAYGROUND_PARENT_ORIGIN',
+						playgroundOrigin
+					);
+				}
 				/**
 				 * The remote runtime has no mail server. Capture sendmail stdin as an
 				 * event through a null transport; consumers must relay the message if
@@ -400,6 +426,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return requestHandler;
 	}
 
+	/**
+	 * Finish WordPress startup and identify static files omitted from minified builds.
+	 *
+	 * Enable outbound networking only after installation, then read the installed
+	 * WordPress version. A saved site may contain a different version than requested;
+	 * using the requested version could select the wrong public asset directory.
+	 *
+	 * Older saved sites may lack wordpress-remote-asset-paths. Fetch that list from
+	 * the installed version's directory on the shared app origin and save it in the
+	 * site's files. The WordPress host serves virtual site pages, not these platform
+	 * downloads. Add the listed paths to the set used by createRequestHandler() to
+	 * distinguish omitted static files from normal WordPress 404s. If recovery fails,
+	 * log a warning and continue startup without the missing list.
+	 */
 	protected async finalizeAfterBoot(
 		requestHandler: any,
 		withNetworking: boolean,
@@ -445,7 +485,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		) {
 			const listUrl = new URL(
 				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
-				wordPressSiteUrl
+				playgroundOrigin
 			);
 			try {
 				const remoteAssetPaths = await fetch(listUrl).then((res) =>
@@ -622,6 +662,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
+		// Block bulk access to saved sites through both startup mounts and mountOpfs().
+		// The site manager still needs direct directory access to list saved sites.
+		if (options.device.type === 'opfs') {
+			const path = ensureAbsolutePath(options.device.path);
+			if (path === '/' || path === '/sites') {
+				throw new Error(
+					'Cannot mount the OPFS root or the /sites directory.'
+				);
+			}
+		}
 		if (
 			hasOwnProperty(this.opfsMounts, options.mountpoint) ||
 			hasOwnProperty(this.unmounts, options.mountpoint)
