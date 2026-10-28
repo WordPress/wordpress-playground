@@ -1,10 +1,11 @@
 /* eslint-disable @nx/enforce-module-boundaries */
-import { PHP } from '@php-wasm/universal';
+import { __private__dont__use, PHP } from '@php-wasm/universal';
 import type { FilesystemOperation } from '../lib/fs-journal';
 import {
 	journalFSEvents,
 	normalizeFilesystemOperations,
 	recordExistingPath,
+	replayFSJournal,
 } from '../lib/fs-journal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
@@ -13,6 +14,280 @@ describe('Journal MemFS', () => {
 	let php: PHP;
 	beforeEach(async () => {
 		php = new PHP(await loadNodeRuntime(LatestSupportedPHPVersion));
+	});
+	afterEach(() => php.exit());
+	it('records links without following their targets', async () => {
+		php.mkdir('/test');
+		php.writeFile('/test/target', 'original');
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			await php.run({
+				code: `<?php
+					symlink('./target', '/test/link');
+					symlink('../missing', '/test/broken');
+					symlink('.', '/test/cycle');
+					rename('/test/broken', '/test/renamed');
+					unlink('/test/renamed');
+				`,
+			});
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/link',
+					target: './target',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/broken',
+					target: '../missing',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/cycle',
+					target: '.',
+				},
+				{
+					operation: 'RENAME',
+					nodeType: 'symlink',
+					path: '/test/broken',
+					toPath: '/test/renamed',
+					target: '../missing',
+				},
+				{
+					operation: 'DELETE',
+					nodeType: 'symlink',
+					path: '/test/renamed',
+				},
+			]);
+			php.writeFile('/test/link', 'updated');
+			expect(events[events.length - 1]).toMatchObject({
+				operation: 'WRITE',
+				path: '/test/target',
+			});
+			expect(php.readlink('/test/link')).toBe('./target');
+		} finally {
+			unbind();
+		}
+	});
+	it('records creates and removals below directory links at their real paths', () => {
+		php.mkdir('/test/real');
+		php.symlink('real', '/test/alias');
+		const FS = php[__private__dont__use].FS;
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			FS.mkdir('/test/alias/created');
+			FS.mknod('/test/alias/file', 0o100644, 0);
+			FS.symlink('../missing', '/test/alias/link');
+			FS.rmdir('/test/alias/created');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/real/created',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'file',
+					path: '/test/real/file',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/real/link',
+					target: '../missing',
+				},
+				{
+					operation: 'DELETE',
+					nodeType: 'directory',
+					path: '/test/real/created',
+				},
+			]);
+		} finally {
+			unbind();
+		}
+	});
+	it('scopes linked-parent operations by the resolved path', () => {
+		php.mkdir('/test');
+		php.mkdir('/outside');
+		php.symlink('/outside', '/test/link-out');
+		php.symlink('/test', '/outside/link-in');
+		const FS = php[__private__dont__use].FS;
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			FS.mkdir('/test/link-out/ignored');
+			FS.mknod('/test/link-out/ignored-file', 0o100644, 0);
+			FS.symlink('missing', '/test/link-out/ignored-link');
+			FS.rmdir('/test/link-out/ignored');
+			FS.mkdir('/outside/link-in/created');
+			FS.mknod('/outside/link-in/file', 0o100644, 0);
+			FS.symlink('missing', '/outside/link-in/link');
+			FS.rmdir('/outside/link-in/created');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/created',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'file',
+					path: '/test/file',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/link',
+					target: 'missing',
+				},
+				{
+					operation: 'DELETE',
+					nodeType: 'directory',
+					path: '/test/created',
+				},
+			]);
+		} finally {
+			unbind();
+		}
+	});
+	it('does not record failed filesystem calls', () => {
+		php.mkdir('/test');
+		php.mkdir('/test/directory');
+		php.writeFile('/test/existing', 'keep');
+		php.symlink('missing', '/test-outside-link');
+		const FS = php[__private__dont__use].FS;
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			expect(() => php.symlink('missing', '/test/existing')).toThrow();
+			expect(() =>
+				php.symlink('missing', '/test/missing/link')
+			).toThrowError(expect.objectContaining({ errno: 44 }));
+			expect(() =>
+				php.mv('/test-outside-link', '/test/directory')
+			).toThrow();
+			expect(() => FS.mkdir('/missing/directory')).toThrowError(
+				expect.objectContaining({ errno: 44 })
+			);
+			expect(() => FS.mknod('/missing/file', 0o100644, 0)).toThrowError(
+				expect.objectContaining({ errno: 44 })
+			);
+			expect(() => FS.rmdir('/missing/directory')).toThrowError(
+				expect.objectContaining({ errno: 44 })
+			);
+			expect(events).toEqual([]);
+			FS.mkdir('/test/after-failure');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/after-failure',
+				},
+			]);
+		} finally {
+			unbind();
+		}
+	});
+	it('records links in a directory moved into the journal root', () => {
+		php.mkdir('/test-outside');
+		php.mkdir('/test');
+		php.symlink('../missing', '/test-outside/broken');
+		php.symlink('.', '/test-outside/cycle');
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			php.mv('/test-outside', '/test/moved');
+			expect(events).toEqual([
+				{
+					operation: 'CREATE',
+					nodeType: 'directory',
+					path: '/test/moved',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/moved/broken',
+					target: '../missing',
+				},
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/moved/cycle',
+					target: '.',
+				},
+			]);
+		} finally {
+			unbind();
+		}
+	});
+	it('replays link creation, rename, and deletion without deleting the target', () => {
+		php.mkdir('/test');
+		php.writeFile('/test/target', 'keep');
+		const events: FilesystemOperation[] = [];
+		const unbind = journalFSEvents(php, '/test', (op) => events.push(op));
+		try {
+			replayFSJournal(php, [
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/link',
+					target: './target',
+				},
+				{
+					operation: 'RENAME',
+					nodeType: 'symlink',
+					path: '/test/link',
+					toPath: '/test/renamed',
+					target: './target',
+				},
+			]);
+			expect(php.readlink('/test/renamed')).toBe('./target');
+			replayFSJournal(php, [
+				{
+					operation: 'DELETE',
+					nodeType: 'symlink',
+					path: '/test/renamed',
+				},
+			]);
+			expect(php.listFiles('/test')).toEqual(['target']);
+			expect(php.readFileAsText('/test/target')).toBe('keep');
+			expect(events).toEqual([]);
+		} finally {
+			unbind();
+		}
+	});
+	it('replays a write followed by an existing directory move', () => {
+		php.mkdir('/old');
+		php.writeFile('/old/file', 'old');
+		const unbind = journalFSEvents(php, '/', () => {});
+		try {
+			replayFSJournal(
+				php,
+				normalizeFilesystemOperations([
+					{
+						operation: 'WRITE',
+						nodeType: 'file',
+						path: '/old/file',
+						data: new TextEncoder().encode('new'),
+					},
+					{
+						operation: 'RENAME',
+						nodeType: 'directory',
+						path: '/old',
+						toPath: '/new',
+					},
+				])
+			);
+			expect(php.fileExists('/old')).toBe(false);
+			expect(php.readFileAsText('/new/file')).toBe('new');
+		} finally {
+			unbind();
+		}
 	});
 	it('Can recreate an existing directory structure', async () => {
 		php.mkdir('/test-ref');
@@ -99,6 +374,7 @@ describe('Journal MemFS', () => {
 			unlink('/test/second/file.txt');
 			rmdir('/test/second');
 
+			// /test/temp-1 still exists, so this rmdir fails.
 			rmdir('/test');
 			`,
 		});
@@ -176,12 +452,87 @@ describe('Journal MemFS', () => {
 				path: '/test/second',
 				nodeType: 'directory',
 			},
-			{ operation: 'DELETE', path: '/test', nodeType: 'directory' },
 		]);
 	});
 });
 
 describe('normalizeFilesystemOperations()', () => {
+	it('keeps an existing directory move after rewriting a child write', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'WRITE', nodeType: 'file', path: '/old/file' },
+				{
+					operation: 'RENAME',
+					nodeType: 'directory',
+					path: '/old',
+					toPath: '/new',
+				},
+			])
+		).toEqual([
+			{
+				operation: 'RENAME',
+				nodeType: 'directory',
+				path: '/old',
+				toPath: '/new',
+			},
+			{ operation: 'WRITE', nodeType: 'file', path: '/new/file' },
+		]);
+	});
+	it('keeps the raw link target when moving a link or its parent', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/link',
+					target: '../target',
+				},
+				{
+					operation: 'RENAME',
+					nodeType: 'symlink',
+					path: '/test/link',
+					toPath: '/test/renamed',
+					target: '../target',
+				},
+			])
+		).toEqual([
+			{
+				operation: 'CREATE',
+				nodeType: 'symlink',
+				path: '/test/renamed',
+				target: '../target',
+			},
+		]);
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					nodeType: 'symlink',
+					path: '/test/link',
+					target: '../target',
+				},
+				{
+					operation: 'RENAME',
+					nodeType: 'directory',
+					path: '/test',
+					toPath: '/moved',
+				},
+			])
+		).toEqual([
+			{
+				operation: 'RENAME',
+				nodeType: 'directory',
+				path: '/test',
+				toPath: '/moved',
+			},
+			{
+				operation: 'CREATE',
+				nodeType: 'symlink',
+				path: '/moved/link',
+				target: '../target',
+			},
+		]);
+	});
 	it('normalizes a large download without scanning unrelated paths for every write', () => {
 		// Downloads write each file in chunks. Comparing all pairs of these
 		// records blocks the PHP worker, including error and log delivery.

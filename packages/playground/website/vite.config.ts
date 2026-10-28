@@ -33,6 +33,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
+import { safariModulePreloadWorkaround } from './vite-safari-module-preload';
 
 const exec = promisify(execCb);
 
@@ -146,10 +147,9 @@ export default defineConfig(({ command, mode }) => {
 
 	return {
 		root: __dirname,
-		// Split traffic from this server on dev so that the iframe content and
-		// outer content can be served from the same origin. In production it's
-		// already the same host, but dev builds run two separate servers. See proxy
-		// config above.
+		// Keep the SPA's module graph under /website-server/ so runtime module
+		// requests can be proxied to remote without losing the app origin. PHP
+		// and native handles need that shared origin; rendered WordPress does not.
 		base: mode === 'production' ? '/' : '/website-server/',
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
@@ -173,6 +173,8 @@ export default defineConfig(({ command, mode }) => {
 
 		server: {
 			port: websiteDevServerPort,
+			// Remote host routing identifies app requests by this fixed port.
+			strictPort: true,
 			host: serverHost,
 			allowedHosts: [
 				'playground.test',
@@ -196,11 +198,12 @@ export default defineConfig(({ command, mode }) => {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
 					changeOrigin: true,
 				},
-				// Proxy requests to the remote content through this server for dev
-				// builds. See base config below.
+				// App-origin runtime modules still come from the remote Vite server.
+				// Keep the app Host header so it can distinguish these requests from
+				// direct WordPress-origin requests, which may not load app documents.
 				'^[/]((?!website-server|php-next).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
-					changeOrigin: true,
+					changeOrigin: false,
 				},
 			},
 			fs: {
@@ -264,7 +267,14 @@ export default defineConfig(({ command, mode }) => {
 				configureServer(server: ViteDevServer) {
 					// Production serves api.html from the origin root. Preserve that
 					// URL in development even though the website uses a Vite base.
-					server.middlewares.use((req, _res, next) => {
+					server.middlewares.use((req, res, next) => {
+						// User HTML must never execute with the app's OPFS access,
+						// including before the app service worker takes control.
+						if (req.url?.startsWith('/scope:')) {
+							res.statusCode = 404;
+							res.end('Not found');
+							return;
+						}
 						if (
 							req.url === '/api.html' ||
 							req.url?.startsWith('/api.html?')
@@ -360,6 +370,7 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			analyticsInjectionPlugin(),
+			safariModulePreloadWorkaround(),
 			{
 				name: 'inject-commit-id',
 				transformIndexHtml(html) {

@@ -1,4 +1,5 @@
 (function() {
+"use strict";
 var wp;
 (wp ||= {}).theme = (() => {
   var __create = Object.create;
@@ -98,7 +99,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/multiply-matrices.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/multiply-matrices.js
   function dot3(a, b2) {
     return a[0] * b2[0] + a[1] * b2[1] + a[2] * b2[2];
   }
@@ -112,7 +113,7 @@ var wp;
     return out;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/util.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/util.js
   function isString(str) {
     return type(str) === "string";
   }
@@ -142,14 +143,14 @@ var wp;
     const multiplier = 10 ** (precision - digits);
     return Math.floor(n2 * multiplier + 0.5) / multiplier;
   }
-  function interpolate(start, end, p2) {
-    if (isNaN(start)) {
+  function interpolate(start, end, p3) {
+    if (isNone(start) || isNaN(start)) {
       return end;
     }
-    if (isNaN(end)) {
+    if (isNone(end) || isNaN(end)) {
       return start;
     }
-    return start + (end - start) * p2;
+    return start + (end - start) * p3;
   }
   function interpolateInv(start, end, value) {
     return (value - start) / (end - start);
@@ -166,8 +167,8 @@ var wp;
   function copySign(to2, from) {
     return Math.sign(to2) === Math.sign(from) ? to2 : -to2;
   }
-  function spow(base, exp) {
-    return copySign(Math.abs(base) ** exp, base);
+  function spow(base, exp2) {
+    return copySign(Math.abs(base) ** exp2, base);
   }
   function zdiv(n2, d2) {
     return d2 === 0 ? 0 : n2 / d2;
@@ -202,7 +203,7 @@ var wp;
     return false;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/Type.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/Type.js
   var Type = class {
     // Class properties - declared here so that type inference works
     type;
@@ -310,7 +311,7 @@ var wp;
     }
   };
 
-  // packages/theme/node_modules/colorjs.io/src/Format.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/Format.js
   var instance = /* @__PURE__ */ Symbol("instance");
   var Format = class _Format {
     // Class properties - declared here so that type inference works
@@ -427,7 +428,7 @@ var wp;
     }
   };
 
-  // packages/theme/node_modules/colorjs.io/src/hooks.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/hooks.js
   var Hooks = class {
     add(name, callback, first) {
       if (typeof arguments[0] != "string") {
@@ -453,7 +454,7 @@ var wp;
   var hooks = new Hooks();
   var hooks_default = hooks;
 
-  // packages/theme/node_modules/colorjs.io/src/adapt.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/adapt.js
   var WHITES = {
     // for compatibility, the four-digit chromaticity-derived ones everyone else uses
     D50: [0.3457 / 0.3585, 1, (1 - 0.3457 - 0.3585) / 0.3585],
@@ -501,7 +502,7 @@ var wp;
     }
   }
 
-  // packages/theme/node_modules/colorjs.io/src/defaults.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/defaults.js
   var defaults_default = {
     gamut_mapping: "css",
     precision: 5,
@@ -515,7 +516,7 @@ var wp;
     }
   };
 
-  // packages/theme/node_modules/colorjs.io/src/parse.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/parse.js
   function parse(str, options) {
     let env = {
       str: String(str)?.trim(),
@@ -699,7 +700,7 @@ var wp;
     }
   }
 
-  // packages/theme/node_modules/colorjs.io/src/getColor.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/getColor.js
   function getColor(color, options) {
     if (Array.isArray(color)) {
       return color.map((c) => getColor(c, options));
@@ -720,7 +721,7 @@ var wp;
     return color;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/ColorSpace.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/ColorSpace.js
   var \u03B5 = 75e-6;
   var ColorSpace = class _ColorSpace {
     constructor(options) {
@@ -728,9 +729,24 @@ var wp;
       this.name = options.name;
       this.base = options.base ? _ColorSpace.get(options.base) : null;
       this.aliases = options.aliases;
+      this.displaySpaces = options.displaySpaces?.map((space) => _ColorSpace.get(space));
+      this.bases = [];
+      for (let base = this.base; base; base = base.base) {
+        this.bases.push(base);
+      }
+      if (options.rgbGamut) {
+        this.rgbGamut = options.rgbGamut;
+      }
+      if (options.linearGamut) {
+        this.linearGamut = options.linearGamut;
+      }
       if (this.base) {
-        this.fromBase = options.fromBase;
-        this.toBase = options.toBase;
+        if (options.fromBase) {
+          this.fromBase = options.fromBase;
+        }
+        if (options.toBase) {
+          this.toBase = options.toBase;
+        }
       }
       let coords = options.coords ?? this.base.coords;
       for (let name in coords) {
@@ -767,6 +783,7 @@ var wp;
           return true;
         };
       }
+      this.M = options.M ?? {};
       this.referred = options.referred;
       Object.defineProperty(this, "path", {
         value: getPath(this).reverse(),
@@ -800,13 +817,27 @@ var wp;
     get cssId() {
       return this.formats?.color?.id || this.id;
     }
-    get isPolar() {
+    /**
+     * The id of this space's hue coordinate, or null if the space is not polar
+     * @returns {string | null}
+     */
+    get hueId() {
       for (let id in this.coords) {
         if (this.coords[id].type === "angle") {
-          return true;
+          return id;
         }
       }
-      return false;
+      return null;
+    }
+    /**
+     * The index of this space's hue coordinate within its coords array, or -1 if the space is not polar
+     * @returns {number}
+     */
+    get hueIndex() {
+      return Object.keys(this.coords).findIndex((id) => this.coords[id].type === "angle");
+    }
+    get isPolar() {
+      return this.hueId !== null;
     }
     /**
      * Lookup a format in this color space
@@ -1037,7 +1068,7 @@ var wp;
     return ret;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/xyz-d65.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/xyz-d65.js
   var xyz_d65_default = new ColorSpace({
     id: "xyz-d65",
     name: "XYZ D65",
@@ -1064,13 +1095,14 @@ var wp;
     aliases: ["xyz"]
   });
 
-  // packages/theme/node_modules/colorjs.io/src/RGBColorSpace.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/RGBColorSpace.js
   var RGBColorSpace = class extends ColorSpace {
     /**
      * Creates a new RGB ColorSpace.
      * If coords are not specified, they will use the default RGB coords.
      * Instead of `fromBase()` and `toBase()` functions,
-     * you can specify to/from XYZ matrices and have `toBase()` and `fromBase()` automatically generated.
+     * you can specify to/from XYZ matrices and have the default `toBase()` and `fromBase()`
+     * methods use them via `this.M.toXYZ` and `this.M.fromXYZ`.
      * @param {RGBOptions} options
      */
     constructor(options) {
@@ -1093,90 +1125,29 @@ var wp;
       if (!options.base) {
         options.base = xyz_d65_default;
       }
-      if (options.toXYZ_M && options.fromXYZ_M) {
-        options.toBase ??= (rgb) => {
-          let xyz = multiply_v3_m3x3(rgb, options.toXYZ_M);
-          if (this.white !== this.base.white) {
-            xyz = adapt(this.white, this.base.white, xyz);
-          }
-          return xyz;
-        };
-        options.fromBase ??= (xyz) => {
-          xyz = adapt(this.base.white, this.white, xyz);
-          return multiply_v3_m3x3(xyz, options.fromXYZ_M);
-        };
-      }
+      let toXYZ2 = options.toXYZ_M ?? options.M?.toXYZ;
+      let fromXYZ2 = options.fromXYZ_M ?? options.M?.fromXYZ;
       options.referred ??= "display";
       super(options);
+      if (toXYZ2 && fromXYZ2) {
+        this.M.toXYZ = toXYZ2;
+        this.M.fromXYZ = fromXYZ2;
+      }
+    }
+    toBase(rgb) {
+      let xyz = multiply_v3_m3x3(rgb, this.M.toXYZ);
+      if (this.white !== this.base.white) {
+        xyz = adapt(this.white, this.base.white, xyz);
+      }
+      return xyz;
+    }
+    fromBase(xyz) {
+      xyz = adapt(this.base.white, this.white, xyz);
+      return multiply_v3_m3x3(xyz, this.M.fromXYZ);
     }
   };
 
-  // packages/theme/node_modules/colorjs.io/src/getAll.js
-  function getAll(color, options) {
-    color = getColor(color);
-    let space = ColorSpace.get(options, options?.space);
-    let precision = options?.precision;
-    let coords;
-    if (!space || color.space.equals(space)) {
-      coords = color.coords.slice();
-    } else {
-      coords = space.from(color);
-    }
-    return precision === void 0 ? coords : coords.map((coord) => toPrecision(coord, precision));
-  }
-
-  // packages/theme/node_modules/colorjs.io/src/get.js
-  function get(color, prop) {
-    color = getColor(color);
-    if (prop === "alpha") {
-      return color.alpha ?? 1;
-    }
-    let { space, index } = ColorSpace.resolveCoord(prop, color.space);
-    let coords = getAll(color, space);
-    return coords[index];
-  }
-
-  // packages/theme/node_modules/colorjs.io/src/setAll.js
-  function setAll(color, space, coords, alpha) {
-    color = getColor(color);
-    if (Array.isArray(space)) {
-      [space, coords, alpha] = [color.space, space, coords];
-    }
-    space = ColorSpace.get(space);
-    color.coords = space === color.space ? coords.slice() : space.to(color.space, coords);
-    if (alpha !== void 0) {
-      color.alpha = alpha;
-    }
-    return color;
-  }
-  setAll.returns = "color";
-
-  // packages/theme/node_modules/colorjs.io/src/set.js
-  function set(color, prop, value) {
-    color = getColor(color);
-    if (arguments.length === 2 && type(arguments[1]) === "object") {
-      let object = arguments[1];
-      for (let p2 in object) {
-        set(color, p2, object[p2]);
-      }
-    } else {
-      if (typeof value === "function") {
-        value = value(get(color, prop));
-      }
-      if (prop === "alpha") {
-        color.alpha = value;
-      } else {
-        let { space, index } = ColorSpace.resolveCoord(prop, color.space);
-        let coords = getAll(color, space);
-        coords[index] = value;
-        setAll(color, space, coords);
-      }
-    }
-    return color;
-  }
-  set.returns = "color";
-
-  // packages/theme/node_modules/colorjs.io/src/spaces/xyz-d50.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/xyz-d50.js
   var xyz_d50_default = new ColorSpace({
     id: "xyz-d50",
     name: "XYZ D50",
@@ -1186,7 +1157,7 @@ var wp;
     toBase: (coords) => adapt("D50", xyz_d65_default.white, coords)
   });
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/lab.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/lab.js
   var \u03B52 = 216 / 24389;
   var \u03B53 = 24 / 116;
   var \u03BA = 24389 / 27;
@@ -1247,7 +1218,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/angles.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/angles.js
   function constrain(angle) {
     if (typeof angle !== "number") {
       return angle;
@@ -1255,7 +1226,7 @@ var wp;
     return (angle % 360 + 360) % 360;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/lch.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/lch.js
   var lch_default = new ColorSpace({
     id: "lch",
     name: "LCH",
@@ -1304,7 +1275,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaE2000.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaE2000.js
   var Gfactor = 25 ** 7;
   var \u03C0 = Math.PI;
   var r2d = 180 / \u03C0;
@@ -1393,27 +1364,31 @@ var wp;
     return Math.sqrt(dE);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/oklab.js
-  var XYZtoLMS_M = [
-    [0.819022437996703, 0.3619062600528904, -0.1288737815209879],
-    [0.0329836539323885, 0.9292868615863434, 0.0361446663506424],
-    [0.0481771893596242, 0.2642395317527308, 0.6335478284694309]
-  ];
-  var LMStoXYZ_M = [
-    [1.2268798758459243, -0.5578149944602171, 0.2813910456659647],
-    [-0.0405757452148008, 1.112286803280317, -0.0717110580655164],
-    [-0.0763729366746601, -0.4214933324022432, 1.5869240198367816]
-  ];
-  var LMStoLab_M = [
-    [0.210454268309314, 0.7936177747023054, -0.0040720430116193],
-    [1.9779985324311684, -2.42859224204858, 0.450593709617411],
-    [0.0259040424655478, 0.7827717124575296, -0.8086757549230774]
-  ];
-  var LabtoLMS_M = [
-    [1, 0.3963377773761749, 0.2158037573099136],
-    [1, -0.1055613458156586, -0.0638541728258133],
-    [1, -0.0894841775298119, -1.2914855480194092]
-  ];
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/oklab.js
+  var M = {
+    XYZtoLMS: [
+      [0.819022437996703, 0.3619062600528904, -0.1288737815209879],
+      [0.0329836539323885, 0.9292868615863434, 0.0361446663506424],
+      [0.0481771893596242, 0.2642395317527308, 0.6335478284694309]
+    ],
+    // inverse of XYZtoLMS
+    LMStoXYZ: [
+      [1.2268798758459243, -0.5578149944602171, 0.2813910456659647],
+      [-0.0405757452148008, 1.112286803280317, -0.0717110580655164],
+      [-0.0763729366746601, -0.4214933324022432, 1.5869240198367816]
+    ],
+    LMStoLab: [
+      [0.210454268309314, 0.7936177747023054, -0.0040720430116193],
+      [1.9779985324311684, -2.42859224204858, 0.450593709617411],
+      [0.0259040424655478, 0.7827717124575296, -0.8086757549230774]
+    ],
+    // LMStoLab inverted
+    LabtoLMS: [
+      [1, 0.3963377773761749, 0.2158037573099136],
+      [1, -0.1055613458156586, -0.0638541728258133],
+      [1, -0.0894841775298119, -1.2914855480194092]
+    ]
+  };
   var oklab_default = new ColorSpace({
     id: "oklab",
     name: "Oklab",
@@ -1432,19 +1407,20 @@ var wp;
     // Note that XYZ is relative to D65
     white: "D65",
     base: xyz_d65_default,
+    M,
     fromBase(XYZ) {
-      let LMS = multiply_v3_m3x3(XYZ, XYZtoLMS_M);
+      let LMS = multiply_v3_m3x3(XYZ, M.XYZtoLMS);
       LMS[0] = Math.cbrt(LMS[0]);
       LMS[1] = Math.cbrt(LMS[1]);
       LMS[2] = Math.cbrt(LMS[2]);
-      return multiply_v3_m3x3(LMS, LMStoLab_M, LMS);
+      return multiply_v3_m3x3(LMS, M.LMStoLab, LMS);
     },
     toBase(OKLab) {
-      let LMSg = multiply_v3_m3x3(OKLab, LabtoLMS_M);
+      let LMSg = multiply_v3_m3x3(OKLab, M.LabtoLMS);
       LMSg[0] = LMSg[0] ** 3;
       LMSg[1] = LMSg[1] ** 3;
       LMSg[2] = LMSg[2] ** 3;
-      return multiply_v3_m3x3(LMSg, LMStoXYZ_M, LMSg);
+      return multiply_v3_m3x3(LMSg, M.LMStoXYZ, LMSg);
     },
     formats: {
       oklab: {
@@ -1457,7 +1433,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaEOK.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaEOK.js
   function deltaEOK_default(color, sample) {
     [color, sample] = getColor([color, sample]);
     let [L1, a1, b1] = oklab_default.from(color);
@@ -1468,7 +1444,7 @@ var wp;
     return Math.sqrt(\u0394L ** 2 + \u0394a ** 2 + \u0394b ** 2);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/inGamut.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/inGamut.js
   var \u03B54 = 75e-6;
   function inGamut(color, space, { epsilon = \u03B54 } = {}) {
     color = getColor(color);
@@ -1483,7 +1459,115 @@ var wp;
     return space.inGamut(coords, { epsilon });
   }
 
-  // packages/theme/node_modules/colorjs.io/src/clone.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/to.js
+  function to(color, space, { inGamut: inGamut2 } = {}) {
+    color = getColor(color);
+    space = ColorSpace.get(space);
+    let coords = space.from(color);
+    let ret = { space, coords, alpha: color.alpha };
+    if (inGamut2) {
+      ret = toGamut(ret, inGamut2 === true ? void 0 : inGamut2);
+    }
+    return ret;
+  }
+  to.returns = "color";
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/getAll.js
+  function getAll(color, options) {
+    color = getColor(color);
+    let space = ColorSpace.get(options, options?.space);
+    let precision = options?.precision;
+    let coords;
+    if (!space || color.space.equals(space)) {
+      coords = color.coords.slice();
+    } else {
+      coords = space.from(color);
+    }
+    return precision === void 0 ? coords : coords.map((coord) => toPrecision(coord, precision));
+  }
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/get.js
+  function get(color, prop) {
+    color = getColor(color);
+    if (prop === "alpha") {
+      return color.alpha ?? 1;
+    }
+    let { space, index } = ColorSpace.resolveCoord(prop, color.space);
+    let coords = getAll(color, space);
+    return coords[index];
+  }
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/oklch.js
+  var oklch_default = new ColorSpace({
+    id: "oklch",
+    name: "OkLCh",
+    coords: {
+      l: {
+        refRange: [0, 1],
+        name: "Lightness"
+      },
+      c: {
+        refRange: [0, 0.4],
+        name: "Chroma"
+      },
+      h: {
+        refRange: [0, 360],
+        type: "angle",
+        name: "Hue"
+      }
+    },
+    white: "D65",
+    base: oklab_default,
+    fromBase: lch_default.fromBase,
+    toBase: lch_default.toBase,
+    formats: {
+      oklch: {
+        coords: ["<percentage> | <number>", "<number> | <percentage>", "<number> | <angle>"]
+      }
+    }
+  });
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/setAll.js
+  function setAll(color, space, coords, alpha) {
+    color = getColor(color);
+    if (Array.isArray(space)) {
+      [space, coords, alpha] = [color.space, space, coords];
+    }
+    space = ColorSpace.get(space);
+    color.coords = space === color.space ? coords.slice() : space.to(color.space, coords);
+    if (alpha !== void 0) {
+      color.alpha = alpha;
+    }
+    return color;
+  }
+  setAll.returns = "color";
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/set.js
+  function set(color, prop, value) {
+    color = getColor(color);
+    if (arguments.length === 2 && type(arguments[1]) === "object") {
+      let object = arguments[1];
+      for (let p3 in object) {
+        set(color, p3, object[p3]);
+      }
+    } else {
+      if (typeof value === "function") {
+        value = value(get(color, prop));
+      }
+      if (prop === "alpha") {
+        color.alpha = value;
+      } else {
+        let { space, index } = ColorSpace.resolveCoord(prop, color.space);
+        let coords = getAll(color, space);
+        coords[index] = value;
+        setAll(color, space, coords);
+      }
+    }
+    return color;
+  }
+  set.returns = "color";
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/clone.js
   function clone(color) {
     return {
       space: color.space,
@@ -1495,7 +1579,7 @@ var wp;
     };
   }
 
-  // packages/theme/node_modules/colorjs.io/src/distance.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/distance.js
   function distance(color1, color2, space = "lab") {
     space = ColorSpace.get(space);
     let coords1 = space.from(color1);
@@ -1511,12 +1595,12 @@ var wp;
     );
   }
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaE76.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaE76.js
   function deltaE76(color, sample) {
     return distance(color, sample, "lab");
   }
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaECMC.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaECMC.js
   var \u03C02 = Math.PI;
   var d2r2 = \u03C02 / 180;
   function deltaECMC_default(color, sample, { l = 2, c = 1 } = {}) {
@@ -1559,7 +1643,7 @@ var wp;
     return Math.sqrt(dE);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/xyz-abs-d65.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/xyz-abs-d65.js
   var Yw = 203;
   var xyz_abs_d65_default = new ColorSpace({
     // Absolute CIE XYZ, with a D65 whitepoint,
@@ -1592,7 +1676,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/jzazbz.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/jzazbz.js
   var b = 1.15;
   var g = 0.66;
   var n = 2610 / 2 ** 14;
@@ -1604,26 +1688,30 @@ var wp;
   var pinv = 2 ** 5 / (1.7 * 2523);
   var d = -0.56;
   var d0 = 16295499532821565e-27;
-  var XYZtoCone_M = [
-    [0.41478972, 0.579999, 0.014648],
-    [-0.20151, 1.120649, 0.0531008],
-    [-0.0166008, 0.2648, 0.6684799]
-  ];
-  var ConetoXYZ_M = [
-    [1.9242264357876067, -1.0047923125953657, 0.037651404030618],
-    [0.35031676209499907, 0.7264811939316552, -0.06538442294808501],
-    [-0.09098281098284752, -0.3127282905230739, 1.5227665613052603]
-  ];
-  var ConetoIab_M = [
-    [0.5, 0.5, 0],
-    [3.524, -4.066708, 0.542708],
-    [0.199076, 1.096799, -1.295875]
-  ];
-  var IabtoCone_M = [
-    [1, 0.13860504327153927, 0.05804731615611883],
-    [1, -0.1386050432715393, -0.058047316156118904],
-    [1, -0.09601924202631895, -0.811891896056039]
-  ];
+  var M2 = {
+    XYZtoCone: [
+      [0.41478972, 0.579999, 0.014648],
+      [-0.20151, 1.120649, 0.0531008],
+      [-0.0166008, 0.2648, 0.6684799]
+    ],
+    // XYZtoCone inverted
+    ConetoXYZ: [
+      [1.9242264357876067, -1.0047923125953657, 0.037651404030618],
+      [0.35031676209499907, 0.7264811939316552, -0.06538442294808501],
+      [-0.09098281098284752, -0.3127282905230739, 1.5227665613052603]
+    ],
+    ConetoIab: [
+      [0.5, 0.5, 0],
+      [3.524, -4.066708, 0.542708],
+      [0.199076, 1.096799, -1.295875]
+    ],
+    // ConetoIab inverted
+    IabtoCone: [
+      [1, 0.13860504327153927, 0.05804731615611883],
+      [1, -0.1386050432715393, -0.058047316156118904],
+      [1, -0.09601924202631895, -0.811891896056039]
+    ]
+  };
   var jzazbz_default = new ColorSpace({
     id: "jzazbz",
     name: "Jzazbz",
@@ -1640,11 +1728,12 @@ var wp;
       }
     },
     base: xyz_abs_d65_default,
+    M: M2,
     fromBase(XYZ) {
       let [Xa, Ya, Za] = XYZ;
       let Xm = b * Xa - (b - 1) * Za;
       let Ym = g * Ya - (g - 1) * Xa;
-      let LMS = multiply_v3_m3x3([Xm, Ym, Za], XYZtoCone_M);
+      let LMS = multiply_v3_m3x3([Xm, Ym, Za], M2.XYZtoCone);
       let PQLMS = (
         /** @type {Vector3} } */
         LMS.map(function(val) {
@@ -1653,14 +1742,14 @@ var wp;
           return spow(num / denom, p);
         })
       );
-      let [Iz, az, bz] = multiply_v3_m3x3(PQLMS, ConetoIab_M);
+      let [Iz, az, bz] = multiply_v3_m3x3(PQLMS, M2.ConetoIab);
       let Jz = (1 + d) * Iz / (1 + d * Iz) - d0;
       return [Jz, az, bz];
     },
     toBase(Jzazbz) {
       let [Jz, az, bz] = Jzazbz;
       let Iz = (Jz + d0) / (1 + d - d * (Jz + d0));
-      let PQLMS = multiply_v3_m3x3([Iz, az, bz], IabtoCone_M);
+      let PQLMS = multiply_v3_m3x3([Iz, az, bz], M2.IabtoCone);
       let LMS = (
         /** @type {Vector3} } */
         PQLMS.map(function(val) {
@@ -1670,7 +1759,7 @@ var wp;
           return x;
         })
       );
-      let [Xm, Ym, Za] = multiply_v3_m3x3(LMS, ConetoXYZ_M);
+      let [Xm, Ym, Za] = multiply_v3_m3x3(LMS, M2.ConetoXYZ);
       let Xa = (Xm + (b - 1) * Za) / b;
       let Ya = (Ym + (g - 1) * Xa) / g;
       return [Xa, Ya, Za];
@@ -1687,7 +1776,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/jzczhz.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/jzczhz.js
   var jzczhz_default = new ColorSpace({
     id: "jzczhz",
     name: "JzCzHz",
@@ -1717,7 +1806,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaEJz.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaEJz.js
   function deltaEJz_default(color, sample) {
     [color, sample] = getColor([color, sample]);
     let [Jz1, Cz1, Hz1] = jzczhz_default.from(color);
@@ -1737,7 +1826,7 @@ var wp;
     return Math.sqrt(\u0394J ** 2 + \u0394C ** 2 + \u0394H ** 2);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/ictcp.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/ictcp.js
   var c12 = 3424 / 4096;
   var c22 = 2413 / 128;
   var c32 = 2392 / 128;
@@ -1745,26 +1834,32 @@ var wp;
   var m2 = 2523 / 32;
   var im1 = 16384 / 2610;
   var im2 = 32 / 2523;
-  var XYZtoLMS_M2 = [
-    [0.3592832590121217, 0.6976051147779502, -0.035891593232029],
-    [-0.1920808463704993, 1.100476797037432, 0.0753748658519118],
-    [0.0070797844607479, 0.0748396662186362, 0.8433265453898765]
-  ];
-  var LMStoIPT_M = [
-    [2048 / 4096, 2048 / 4096, 0],
-    [6610 / 4096, -13613 / 4096, 7003 / 4096],
-    [17933 / 4096, -17390 / 4096, -543 / 4096]
-  ];
-  var IPTtoLMS_M = [
-    [0.9999999999999998, 0.0086090370379328, 0.111029625003026],
-    [0.9999999999999998, -0.0086090370379328, -0.1110296250030259],
-    [0.9999999999999998, 0.5600313357106791, -0.3206271749873188]
-  ];
-  var LMStoXYZ_M2 = [
-    [2.0701522183894223, -1.3263473389671563, 0.2066510476294053],
-    [0.3647385209748072, 0.6805660249472273, -0.0453045459220347],
-    [-0.0497472075358123, -0.0492609666966131, 1.1880659249923042]
-  ];
+  var M3 = {
+    // includes the 4% crosstalk components, from the Dolby "What is ICtCp" paper
+    XYZtoLMS: [
+      [0.3592832590121217, 0.6976051147779502, -0.035891593232029],
+      [-0.1920808463704993, 1.100476797037432, 0.0753748658519118],
+      [0.0070797844607479, 0.0748396662186362, 0.8433265453898765]
+    ],
+    // includes the Ebner LMS coefficients, the rotation,
+    // and the scaling to the [-0.5,0.5] range
+    LMStoIPT: [
+      [2048 / 4096, 2048 / 4096, 0],
+      [6610 / 4096, -13613 / 4096, 7003 / 4096],
+      [17933 / 4096, -17390 / 4096, -543 / 4096]
+    ],
+    // inverted matrices, calculated from the above
+    IPTtoLMS: [
+      [0.9999999999999998, 0.0086090370379328, 0.111029625003026],
+      [0.9999999999999998, -0.0086090370379328, -0.1110296250030259],
+      [0.9999999999999998, 0.5600313357106791, -0.3206271749873188]
+    ],
+    LMStoXYZ: [
+      [2.0701522183894223, -1.3263473389671563, 0.2066510476294053],
+      [0.3647385209748072, 0.6805660249472273, -0.0453045459220347],
+      [-0.0497472075358123, -0.0492609666966131, 1.1880659249923042]
+    ]
+  };
   var ictcp_default = new ColorSpace({
     id: "ictcp",
     name: "ICTCP",
@@ -1794,13 +1889,14 @@ var wp;
       }
     },
     base: xyz_abs_d65_default,
+    M: M3,
     fromBase(XYZ) {
-      let LMS = multiply_v3_m3x3(XYZ, XYZtoLMS_M2);
+      let LMS = multiply_v3_m3x3(XYZ, M3.XYZtoLMS);
       return LMStoICtCp(LMS);
     },
     toBase(ICtCp) {
       let LMS = ICtCptoLMS(ICtCp);
-      return multiply_v3_m3x3(LMS, LMStoXYZ_M2);
+      return multiply_v3_m3x3(LMS, M3.LMStoXYZ);
     },
     formats: {
       ictcp: {
@@ -1821,10 +1917,10 @@ var wp;
         return (num / denom) ** m2;
       })
     );
-    return multiply_v3_m3x3(PQLMS, LMStoIPT_M);
+    return multiply_v3_m3x3(PQLMS, M3.LMStoIPT);
   }
   function ICtCptoLMS(ICtCp) {
-    let PQLMS = multiply_v3_m3x3(ICtCp, IPTtoLMS_M);
+    let PQLMS = multiply_v3_m3x3(ICtCp, M3.IPTtoLMS);
     let LMS = (
       /** @type {Vector3} */
       PQLMS.map(function(val) {
@@ -1836,7 +1932,7 @@ var wp;
     return LMS;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaEITP.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaEITP.js
   function deltaEITP_default(color, sample) {
     [color, sample] = getColor([color, sample]);
     let [I1, T1, P1] = ictcp_default.from(color);
@@ -1844,7 +1940,7 @@ var wp;
     return 720 * Math.sqrt((I1 - I2) ** 2 + 0.25 * (T1 - T2) ** 2 + (P1 - P2) ** 2);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaEOK2.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaEOK2.js
   function deltaEOK2_default(color, sample) {
     [color, sample] = getColor([color, sample]);
     let abscale = 2;
@@ -1856,26 +1952,28 @@ var wp;
     return Math.sqrt(\u0394L ** 2 + \u0394a ** 2 + \u0394b ** 2);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/cam16.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/cam16.js
   var white2 = WHITES.D65;
   var adaptedCoef = 0.42;
   var adaptedCoefInv = 1 / adaptedCoef;
   var tau = 2 * Math.PI;
-  var cat16 = [
-    [0.401288, 0.650173, -0.051461],
-    [-0.250268, 1.204414, 0.045854],
-    [-2079e-6, 0.048952, 0.953127]
-  ];
-  var cat16Inv = [
-    [1.8620678550872327, -1.0112546305316843, 0.14918677544445175],
-    [0.38752654323613717, 0.6214474419314753, -0.008973985167612518],
-    [-0.015841498849333856, -0.03412293802851557, 1.0499644368778496]
-  ];
-  var m12 = [
-    [460, 451, 288],
-    [460, -891, -261],
-    [460, -220, -6300]
-  ];
+  var M4 = {
+    cat16: [
+      [0.401288, 0.650173, -0.051461],
+      [-0.250268, 1.204414, 0.045854],
+      [-2079e-6, 0.048952, 0.953127]
+    ],
+    cat16Inv: [
+      [1.8620678550872327, -1.0112546305316843, 0.14918677544445175],
+      [0.38752654323613717, 0.6214474419314753, -0.008973985167612518],
+      [-0.015841498849333856, -0.03412293802851557, 1.0499644368778496]
+    ],
+    m1: [
+      [460, 451, 288],
+      [460, -891, -261],
+      [460, -220, -6300]
+    ]
+  };
   var surroundMap = {
     dark: [0.8, 0.525, 0.8],
     dim: [0.9, 0.59, 0.9],
@@ -1943,7 +2041,7 @@ var wp;
     env.la = adaptingLuminance;
     env.yb = backgroundLuminance;
     const yw = xyzW[1];
-    const rgbW = multiply_v3_m3x3(xyzW, cat16);
+    const rgbW = multiply_v3_m3x3(xyzW, M4.cat16);
     let values = surroundMap[env.surround];
     const f = values[0];
     env.c = values[1];
@@ -2015,13 +2113,13 @@ var wp;
     const et = 0.25 * (Math.cos(hRad + 2) + 3.8);
     const A = env.aW * spow(Jroot, 2 / env.c / env.z);
     const p1 = 5e4 / 13 * env.nc * env.ncb * et;
-    const p2 = A / env.nbb;
-    const r = 23 * (p2 + 0.305) * zdiv(t, 23 * p1 + t * (11 * cosh + 108 * sinh));
+    const p22 = A / env.nbb;
+    const r = 23 * (p22 + 0.305) * zdiv(t, 23 * p1 + t * (11 * cosh + 108 * sinh));
     const a = r * cosh;
     const b2 = r * sinh;
     const rgb_c = unadapt(
       /** @type {Vector3} */
-      multiply_v3_m3x3([p2, a, b2], m12).map((c) => {
+      multiply_v3_m3x3([p22, a, b2], M4.m1).map((c) => {
         return c * 1 / 1403;
       }),
       env.fl
@@ -2033,7 +2131,7 @@ var wp;
         rgb_c.map((c, i) => {
           return c * env.dRgbInv[i];
         }),
-        cat16Inv
+        M4.cat16Inv
       ).map((c) => {
         return c / 100;
       })
@@ -2048,7 +2146,7 @@ var wp;
     );
     const rgbA = adapt2(
       /** @type {[number, number, number]} */
-      multiply_v3_m3x3(xyz100, cat16).map((c, i) => {
+      multiply_v3_m3x3(xyz100, M4.cat16).map((c, i) => {
         return c * env.dRgb[i];
       }),
       env.fl
@@ -2064,11 +2162,11 @@ var wp;
     const J = 100 * spow(Jroot, 2);
     const Q = 4 / env.c * Jroot * (env.aW + 4) * env.flRoot;
     const C = alpha * Jroot;
-    const M = C * env.flRoot;
+    const colorfulness = C * env.flRoot;
     const h = constrain(hRad * rad2deg);
     const H = hueQuadrature(h);
     const s = 50 * spow(env.c * alpha / (env.aW + 4), 1 / 2);
-    return { J, C, h, s, Q, M, H };
+    return { J, C, h, s, Q, M: colorfulness, H };
   }
   var cam16_default = new ColorSpace({
     id: "cam16-jmh",
@@ -2090,6 +2188,7 @@ var wp;
       }
     },
     base: xyz_d65_default,
+    M: M4,
     fromBase(xyz) {
       if (this.\u03B5 === void 0) {
         this.\u03B5 = Object.values(this.coords)[1].refRange[1] / 1e5;
@@ -2103,7 +2202,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/hct.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/hct.js
   var white3 = WHITES.D65;
   var \u03B55 = 216 / 24389;
   var \u03BA2 = 24389 / 27;
@@ -2131,7 +2230,7 @@ var wp;
     const max_attempts = 15;
     let attempt = 0;
     let last = Infinity;
-    let best = j;
+    let best = [0, 0, 0];
     while (attempt <= max_attempts) {
       xyz = fromCam16({ J: j, C: c, h }, env);
       const delta = Math.abs(xyz[1] - y);
@@ -2139,13 +2238,13 @@ var wp;
         if (delta <= threshold) {
           return xyz;
         }
-        best = j;
+        best = xyz;
         last = delta;
       }
       j = j - (xyz[1] - y) * j / (2 * xyz[1]);
       attempt += 1;
     }
-    return fromCam16({ J: j, C: c, h }, env);
+    return best;
   }
   function toHct(xyz, env) {
     const t = toLstar(xyz[1]);
@@ -2203,7 +2302,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/deltaEHCT.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaEHCT.js
   var rad2deg2 = 180 / Math.PI;
   var deg2rad2 = Math.PI / 180;
   var ucsCoeff = [1, 7e-3, 0.0228];
@@ -2211,10 +2310,10 @@ var wp;
     if (coords[1] < 0) {
       coords = hct_default.fromBase(hct_default.toBase(coords));
     }
-    const M = Math.log(Math.max(1 + ucsCoeff[2] * coords[1] * viewingConditions2.flRoot, 1)) / ucsCoeff[2];
+    const M7 = Math.log(Math.max(1 + ucsCoeff[2] * coords[1] * viewingConditions2.flRoot, 1)) / ucsCoeff[2];
     const hrad = coords[0] * deg2rad2;
-    const a = M * Math.cos(hrad);
-    const b2 = M * Math.sin(hrad);
+    const a = M7 * Math.cos(hrad);
+    const b2 = M7 * Math.sin(hrad);
     return [coords[2], a, b2];
   }
   function deltaEHCT_default(color, sample) {
@@ -2224,7 +2323,309 @@ var wp;
     return Math.sqrt((t1 - t2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/deltaE/index.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/helmlab.js
+  var { cos, sin, sqrt, atan2, exp, abs, pow, PI } = Math;
+  var CAT_TO_HELM = [
+    [1.000042977349746, 20718877053183e-18, -4361018085669474e-20],
+    [26946201090235744e-21, 0.9999906145080147, -14898828405401079e-21],
+    [-7941753620756204e-21, 12875204405137254e-21, 0.9997859822609763]
+  ];
+  var CAT_FROM_HELM = [
+    [0.9999570254019492, -2071874272730964e-20, 4361733292468361e-20],
+    [-2694517763358666e-20, 1.000009385946497, 1490098223546482e-20],
+    [7943459292954202e-21, -1287824596735154e-20, 1.000214063706999]
+  ];
+  var M1 = [
+    [0.7212986433113499, 0.45344826541531813, -0.19288975751942616],
+    [-0.788211869495579, 1.795241376757236, 0.0876172451181785],
+    [-0.0917700599912156, 0.45765588659459255, 1.2922045513917677]
+  ];
+  var M1_INV = [
+    [1.065107295808859, -0.3150044075301121, 0.1803492381741039],
+    [0.4721107713837796, 0.4271995765962455, 0.04150680489380985],
+    [-0.09156391926309541, -0.1736709363194979, 0.7719790382558294]
+  ];
+  var GAMMA = [0.47229813098762524, 0.5149184096354483, 0.5113233386366979];
+  var INV_GAMMA = [2.1173067060606283, 1.9420552485353544, 1.9557096741686448];
+  var M22 = [
+    [-0.26355622180094096, 0.4168322883703174, 0.4926763141656403],
+    [1.8897570508777322, -3.1212232034205774, 1.0421666921060384],
+    [0.3585108617962056, 1.7694028193790368, -1.4120626067695372]
+  ];
+  var M2_INV = [
+    [0.9183897822815021, 0.5232051237088666, 0.7065804598090856],
+    [1.0899090574433026, 0.07005324849041904, 0.4319776874787044],
+    [1.598895729264209, 0.22061850068770233, 0.012506037355220951]
+  ];
+  var M5 = { CAT_TO_HELM, CAT_FROM_HELM, M1, M1_INV, M2: M22, M2_INV };
+  var hue_cos1 = -0.02833024015436984;
+  var hue_sin1 = -0.21131429516166544;
+  var hue_cos2 = 0.2189784817615645;
+  var hue_sin2 = -0.06871898981942523;
+  var hue_cos3 = 0.005506053349515315;
+  var hue_sin3 = -0.0641329861299175;
+  var hue_cos4 = -0.053592461436994296;
+  var hue_sin4 = -0.00954137464208059;
+  var hk_weight = 0.2676231133101982;
+  var hk_power = 0.8934892185255707;
+  var hk_hue_mod = 0.7173169828841472;
+  var hk_sin1 = 0.6915224124600773;
+  var hk_cos2 = 0.48647127559605596;
+  var hk_sin2 = 0.9853124591201782;
+  var L_corr_p1 = 0.5385456675962418;
+  var L_corr_p2 = 0.12508858146241716;
+  var L_corr_p3 = 0.6768950256217603;
+  var Lh_cos1 = -0.4963251525324449;
+  var Lh_sin1 = -0.09564696283240552;
+  var lp_dark = -0.029053748937210654;
+  var lp_dark_hcos = 1.3346761652952872;
+  var lp_dark_hsin = -0.1698908144723919;
+  var cs_cos1 = -0.195370576218515;
+  var cs_sin1 = 0.5330819227283227;
+  var cs_cos2 = 0.08863325582067766;
+  var cs_sin2 = 0.9365540137751136;
+  var cs_cos3 = 0.13789738139719568;
+  var cs_sin3 = 0.061650260197979936;
+  var cs_cos4 = 0.0641970862504494;
+  var cs_sin4 = -0.027401052793571013;
+  var cp_cos1 = -0.09900209889026965;
+  var cp_sin1 = 0.059635520647228726;
+  var cp_cos2 = -0.013586499967803128;
+  var cp_sin2 = 0.2253393118474472;
+  var lc1 = -1.5239477450767043;
+  var lc2 = -1.751157310240011;
+  var hlc_cos1 = -0.43576378069144767;
+  var hlc_sin1 = 1.060094063845983;
+  var hlc_cos2 = 0.47931193034584496;
+  var hlc_sin2 = -0.2622579649434462;
+  var hl_cos1 = 0.13610794232685908;
+  var hl_sin1 = 0.1168702235362288;
+  var hl_cos2 = -0.01617739641422492;
+  var hl_sin2 = 0.038145638815030566;
+  var PHI = -28.2 * PI / 180;
+  var ROT_COS = cos(PHI);
+  var ROT_SIN = sin(PHI);
+  function hueDelta(h) {
+    return hue_cos1 * cos(h) + hue_sin1 * sin(h) + hue_cos2 * cos(2 * h) + hue_sin2 * sin(2 * h) + hue_cos3 * cos(3 * h) + hue_sin3 * sin(3 * h) + hue_cos4 * cos(4 * h) + hue_sin4 * sin(4 * h);
+  }
+  function hueDeltaDeriv(h) {
+    return -hue_cos1 * sin(h) + hue_sin1 * cos(h) + -2 * hue_cos2 * sin(2 * h) + 2 * hue_sin2 * cos(2 * h) + -3 * hue_cos3 * sin(3 * h) + 3 * hue_sin3 * cos(3 * h) + -4 * hue_cos4 * sin(4 * h) + 4 * hue_sin4 * cos(4 * h);
+  }
+  function chromaScaleH(h) {
+    let logS = cs_cos1 * cos(h) + cs_sin1 * sin(h) + cs_cos2 * cos(2 * h) + cs_sin2 * sin(2 * h) + cs_cos3 * cos(3 * h) + cs_sin3 * sin(3 * h) + cs_cos4 * cos(4 * h) + cs_sin4 * sin(4 * h);
+    return exp(logS);
+  }
+  function lChromaScale(L) {
+    let dL = L - 0.5;
+    return exp(clamp(-30, lc1 * dL + lc2 * dL * dL, 30));
+  }
+  function hlcScale(h, L) {
+    let hueFactor = hlc_cos1 * cos(h) + hlc_sin1 * sin(h) + hlc_cos2 * cos(2 * h) + hlc_sin2 * sin(2 * h);
+    return exp(clamp(-30, (L - 0.5) * hueFactor, 30));
+  }
+  function hueLightnessScale(h) {
+    let logS = hl_cos1 * cos(h) + hl_sin1 * sin(h) + hl_cos2 * cos(2 * h) + hl_sin2 * sin(2 * h);
+    return exp(logS);
+  }
+  function chromaPowerH(h) {
+    return 1 + cp_cos1 * cos(h) + cp_sin1 * sin(h) + cp_cos2 * cos(2 * h) + cp_sin2 * sin(2 * h);
+  }
+  function lCorrectFwd(L, h) {
+    let t = L * (1 - L);
+    let result = L + L_corr_p1 * t + L_corr_p2 * t * (0.5 - L) + L_corr_p3 * t * t;
+    result += t * (Lh_cos1 * cos(h) + Lh_sin1 * sin(h));
+    return result;
+  }
+  function lCorrectInv(L1, h) {
+    let Lh = Lh_cos1 * cos(h) + Lh_sin1 * sin(h);
+    let L = L1;
+    for (let i = 0; i < 15; i++) {
+      let t = L * (1 - L);
+      let dt = 1 - 2 * L;
+      let f = L + (L_corr_p1 + Lh) * t + L_corr_p2 * t * (0.5 - L) + L_corr_p3 * t * t - L1;
+      let dfdL = 1 + (L_corr_p1 + Lh) * dt + L_corr_p2 * (dt * (0.5 - L) - t) + L_corr_p3 * 2 * t * dt;
+      if (abs(dfdL) < 1e-10) {
+        dfdL = 1;
+      }
+      L -= f / dfdL;
+    }
+    return L;
+  }
+  function darkLFwd(L, h) {
+    let coeff = lp_dark + lp_dark_hcos * cos(h) + lp_dark_hsin * sin(h);
+    let oml = L < 1 ? 1 - L : 0;
+    let g2 = coeff * L * oml * oml;
+    return L * exp(clamp(-30, g2, 30));
+  }
+  function darkLInv(Ln, h) {
+    let coeff = lp_dark + lp_dark_hcos * cos(h) + lp_dark_hsin * sin(h);
+    let L = Ln;
+    for (let i = 0; i < 12; i++) {
+      let oml = L < 1 ? 1 - L : 0;
+      let g2 = coeff * L * oml * oml;
+      let eg = exp(clamp(-30, g2, 30));
+      let f = L * eg - Ln;
+      let gp = coeff * oml * (1 - 3 * L);
+      let fp = eg * (1 + L * gp);
+      if (abs(fp) < 1e-10) {
+        fp = 1;
+      }
+      L -= f / fp;
+    }
+    return L;
+  }
+  var fromXYZ = function(xyz) {
+    let adapted = multiply_v3_m3x3(xyz, M5.CAT_TO_HELM);
+    let [lms0, lms1, lms2] = multiply_v3_m3x3(adapted, M5.M1);
+    let c0 = spow(lms0, GAMMA[0]);
+    let c13 = spow(lms1, GAMMA[1]);
+    let c23 = spow(lms2, GAMMA[2]);
+    let [L, a, b2] = multiply_v3_m3x3([c0, c13, c23], M5.M2);
+    let h = atan2(b2, a);
+    let C = sqrt(a * a + b2 * b2);
+    let delta = hueDelta(h);
+    let hNew = h + delta;
+    a = C * cos(hNew);
+    b2 = C * sin(hNew);
+    let Cr = sqrt(a * a + b2 * b2);
+    let hkBoost = hk_weight * pow(Cr, clamp(0.01, hk_power, 10));
+    let hr = atan2(b2, a);
+    let factor = 1 + hk_hue_mod * cos(hr) + hk_sin1 * sin(hr) + hk_cos2 * cos(2 * hr) + hk_sin2 * sin(2 * hr);
+    L += hkBoost * factor;
+    h = atan2(b2, a);
+    L = lCorrectFwd(L, h);
+    h = atan2(b2, a);
+    L = darkLFwd(L, h);
+    h = atan2(b2, a);
+    let cs = chromaScaleH(h);
+    a *= cs;
+    b2 *= cs;
+    h = atan2(b2, a);
+    C = sqrt(a * a + b2 * b2);
+    let p3 = chromaPowerH(h);
+    let Cn = C > 0 ? pow(C, p3) : 0;
+    a = Cn * cos(h);
+    b2 = Cn * sin(h);
+    let T = lChromaScale(L);
+    a *= T;
+    b2 *= T;
+    h = atan2(b2, a);
+    let hlcS = hlcScale(h, L);
+    a *= hlcS;
+    b2 *= hlcS;
+    h = atan2(b2, a);
+    L *= hueLightnessScale(h);
+    let aRot = a * ROT_COS - b2 * ROT_SIN;
+    let bRot = a * ROT_SIN + b2 * ROT_COS;
+    return [L, aRot, bRot];
+  };
+  var toXYZ = function(lab) {
+    let [L, a, b2] = lab;
+    let aUn = a * ROT_COS + b2 * ROT_SIN;
+    let bUn = -a * ROT_SIN + b2 * ROT_COS;
+    a = aUn;
+    b2 = bUn;
+    let h = atan2(b2, a);
+    L /= hueLightnessScale(h);
+    h = atan2(b2, a);
+    let hlcS = hlcScale(h, L);
+    a /= hlcS;
+    b2 /= hlcS;
+    let T = lChromaScale(L);
+    a /= T;
+    b2 /= T;
+    h = atan2(b2, a);
+    let C = sqrt(a * a + b2 * b2);
+    let p3 = chromaPowerH(h);
+    let Co = C > 0 ? pow(C, 1 / p3) : 0;
+    a = Co * cos(h);
+    b2 = Co * sin(h);
+    h = atan2(b2, a);
+    let cs = chromaScaleH(h);
+    a /= cs;
+    b2 /= cs;
+    h = atan2(b2, a);
+    L = darkLInv(L, h);
+    h = atan2(b2, a);
+    L = lCorrectInv(L, h);
+    let Cr = sqrt(a * a + b2 * b2);
+    let hkBoost = hk_weight * pow(Cr, clamp(0.01, hk_power, 10));
+    let hr = atan2(b2, a);
+    let factor = 1 + hk_hue_mod * cos(hr) + hk_sin1 * sin(hr) + hk_cos2 * cos(2 * hr) + hk_sin2 * sin(2 * hr);
+    L -= hkBoost * factor;
+    let hOut = atan2(b2, a);
+    C = sqrt(a * a + b2 * b2);
+    let hRaw = hOut;
+    for (let i = 0; i < 8; i++) {
+      let f = hRaw + hueDelta(hRaw) - hOut;
+      let fp = 1 + hueDeltaDeriv(hRaw);
+      if (abs(fp) < 1e-10) {
+        fp = 1;
+      }
+      hRaw -= f / fp;
+    }
+    a = C * cos(hRaw);
+    b2 = C * sin(hRaw);
+    let [lc0, lc12, lc22] = multiply_v3_m3x3([L, a, b2], M5.M2_INV);
+    let l0 = spow(lc0, INV_GAMMA[0]);
+    let l1 = spow(lc12, INV_GAMMA[1]);
+    let l2 = spow(lc22, INV_GAMMA[2]);
+    let xyz = multiply_v3_m3x3([l0, l1, l2], M5.M1_INV);
+    return multiply_v3_m3x3(xyz, M5.CAT_FROM_HELM);
+  };
+  var helmlab_default = new ColorSpace({
+    id: "helmlab-metric",
+    name: "Helmlab MetricSpace",
+    cssId: "--helmlab-metric",
+    coords: {
+      l: {
+        refRange: [0, 1.6],
+        name: "Lightness"
+      },
+      a: {
+        refRange: [-1.5, 1.5]
+      },
+      b: {
+        refRange: [-1.5, 1.5]
+      }
+    },
+    white: "D65",
+    base: xyz_d65_default,
+    M: M5,
+    fromBase(xyz) {
+      return fromXYZ(xyz);
+    },
+    toBase(lab) {
+      return toXYZ(lab);
+    }
+  });
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/deltaEHelmlab.js
+  var sl = -0.9155125151657894;
+  var sc = 2.9268353744941558;
+  var wC = 3.966003089807536;
+  var p2 = 1.9737081170404969;
+  var compress = 52.473130649294724;
+  var q = 0.47897301074925214;
+  function deltaEHelmlab_default(color, sample) {
+    [color, sample] = getColor([color, sample]);
+    let [L1, a1, b1] = helmlab_default.from(color);
+    let [L2, a2, b2] = helmlab_default.from(sample);
+    let \u0394L = L1 - L2;
+    let \u0394a = a1 - a2;
+    let \u0394b = b1 - b2;
+    let Lavg = (L1 + L2) * 0.5;
+    let SL = 1 + sl * (Lavg - 0.5) ** 2;
+    let C1 = Math.sqrt(a1 ** 2 + b1 ** 2);
+    let C2 = Math.sqrt(a2 ** 2 + b2 ** 2);
+    let Cavg = (C1 + C2) * 0.5;
+    let SC = 1 + sc * Cavg;
+    let raw = (\u0394L ** 2 / SL ** 2 + wC * (\u0394a ** 2 + \u0394b ** 2) / SC ** 2) ** (p2 / 2);
+    let compressed = raw / (1 + compress * raw);
+    return compressed ** q;
+  }
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/deltaE/index.js
   var deltaE_default = {
     deltaE76,
     deltaECMC: deltaECMC_default,
@@ -2233,10 +2634,11 @@ var wp;
     deltaEITP: deltaEITP_default,
     deltaEOK: deltaEOK_default,
     deltaEOK2: deltaEOK2_default,
-    deltaEHCT: deltaEHCT_default
+    deltaEHCT: deltaEHCT_default,
+    deltaEHelmlab: deltaEHelmlab_default
   };
 
-  // packages/theme/node_modules/colorjs.io/src/toGamut.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/toGamut.js
   function calcEpsilon(jnd) {
     const order = !jnd ? 0 : Math.floor(Math.log10(Math.abs(jnd)));
     return Math.max(parseFloat(`1e${order - 2}`), 1e-6);
@@ -2278,8 +2680,10 @@ var wp;
     let spaceColor;
     if (method === "css") {
       spaceColor = toGamutCSS(color, { space });
+    } else if (method === "raytrace") {
+      spaceColor = toGamutRayTrace(color, { space });
     } else {
-      if (method !== "clip" && !inGamut(color, space)) {
+      if (method !== "clip") {
         if (Object.prototype.hasOwnProperty.call(GMAPPRESET, method)) {
           ({ method, jnd, deltaEMethod, blackWhiteClamp } = GMAPPRESET[method]);
         }
@@ -2380,11 +2784,10 @@ var wp;
       space = origin.space;
     }
     space = ColorSpace.get(space);
-    const oklchSpace = ColorSpace.get("oklch");
     if (space.isUnbounded) {
       return to(origin, space);
     }
-    const origin_OKLCH = to(origin, oklchSpace);
+    const origin_OKLCH = to(origin, oklch_default);
     let L = origin_OKLCH.coords[0];
     if (L >= 1) {
       const white4 = to(COLORS.WHITE, space);
@@ -2446,21 +2849,131 @@ var wp;
     }
     return clipped;
   }
-
-  // packages/theme/node_modules/colorjs.io/src/to.js
-  function to(color, space, { inGamut: inGamut2 } = {}) {
-    color = getColor(color);
-    space = ColorSpace.get(space);
-    let coords = space.from(color);
-    let ret = { space, coords, alpha: color.alpha };
-    if (inGamut2) {
-      ret = toGamut(ret, inGamut2 === true ? void 0 : inGamut2);
+  function raytrace_box(start, end, bmin = [0, 0, 0], bmax = [1, 1, 1]) {
+    let tfar = Infinity;
+    let tnear = -Infinity;
+    let direction = [];
+    for (let i = 0; i < 3; i++) {
+      const a = start[i];
+      const b2 = end[i];
+      const d2 = b2 - a;
+      const bn = bmin[i];
+      const bx = bmax[i];
+      direction.push(d2);
+      if (Math.abs(d2) > 1e-12) {
+        const inv_d = 1 / d2;
+        const t1 = (bn - a) * inv_d;
+        const t2 = (bx - a) * inv_d;
+        tnear = Math.max(Math.min(t1, t2), tnear);
+        tfar = Math.min(Math.max(t1, t2), tfar);
+      } else if (a < bn || a > bx) {
+        return [];
+      }
     }
-    return ret;
+    if (tnear > tfar || tfar < 0) {
+      return [];
+    }
+    if (tnear < 0) {
+      tnear = tfar;
+    }
+    if (!isFinite(tnear)) {
+      return [];
+    }
+    return [
+      start[0] + direction[0] * tnear,
+      start[1] + direction[1] * tnear,
+      start[2] + direction[2] * tnear
+    ];
   }
-  to.returns = "color";
+  function toGamutRayTrace(origin, { space } = {}) {
+    origin = getColor(origin);
+    if (!space) {
+      space = origin.space;
+    }
+    space = ColorSpace.get(space);
+    if (space.isUnbounded) {
+      return to(origin, space);
+    }
+    let oklchOrigin = to(origin, oklch_default);
+    let [lightness, chroma, hue] = oklchOrigin.coords;
+    if (lightness >= 1) {
+      const white4 = to(COLORS.WHITE, space);
+      white4.alpha = origin.alpha;
+      return to(white4, space);
+    } else if (lightness <= 0) {
+      const black = to(COLORS.BLACK, space);
+      black.alpha = origin.alpha;
+      return to(black, space);
+    }
+    const originSpace = space;
+    const rGamut = space.rgbGamut;
+    if (rGamut !== void 0) {
+      space = rGamut;
+    }
+    if (!isInstance(space, RGBColorSpace)) {
+      throw Error("An RGB gamut is required");
+    }
+    let [mn, mx] = Object.values(space.coords)[0].range;
+    let max = (
+      /** @type {[number, number, number]} */
+      [mx, mx, mx]
+    );
+    const lGamut = space.linearGamut;
+    if (lGamut !== void 0) {
+      let temp = to({ space, coords: max, alpha: origin.alpha }, lGamut);
+      mx = temp.coords[0];
+      max = /** @type {[number, number, number]} */
+      [mx, mx, mx];
+      space = lGamut;
+      mn = Object.values(space.coords)[0].range[0];
+    }
+    let min = (
+      /** @type {[number, number, number]} */
+      [mn, mn, mn]
+    );
+    let rgbOrigin = to(oklchOrigin, space);
+    if (!rgbOrigin.coords.every((x) => mn <= x && x <= mx)) {
+      let anchor = to({ space: oklch_default, coords: [lightness, 0, hue] }, space).coords;
+      const low = mn + 1e-12;
+      const high = mx - 1e-12;
+      let last = rgbOrigin.coords;
+      for (let i = 0; i < 4; i++) {
+        if (i) {
+          const oklchColor = to(rgbOrigin, oklch_default);
+          oklchColor.coords[0] = lightness;
+          oklchColor.coords[2] = hue;
+          rgbOrigin = to(oklchColor, space);
+        }
+        const intersection = raytrace_box(anchor, rgbOrigin.coords, min, max);
+        if (intersection.length === 0) {
+          rgbOrigin.coords = [...last];
+          break;
+        }
+        if (i && rgbOrigin.coords.every((x) => low < x && x < high)) {
+          anchor = [...rgbOrigin.coords];
+        }
+        last = /** @type {[number, number, number]} */
+        intersection;
+        rgbOrigin.coords = [...intersection];
+      }
+    }
+    rgbOrigin = to(rgbOrigin, originSpace);
+    const spaceCoords = Object.values(
+      /** @type {ColorSpace} */
+      originSpace.coords
+    );
+    rgbOrigin.coords = /** @type {[number, number, number]} */
+    rgbOrigin.coords.map((coord, index) => {
+      if ("range" in spaceCoords[index]) {
+        const [lower, upper] = spaceCoords[index].range;
+        return clamp(lower, coord, upper);
+      }
+      return coord;
+    });
+    return rgbOrigin;
+  }
 
-  // packages/theme/node_modules/colorjs.io/src/serialize.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/serialize.js
   function serialize(color, options = {}) {
     let {
       precision = defaults_default.precision,
@@ -2540,26 +3053,32 @@ var wp;
     return ret;
   }
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/srgb-linear.js
-  var toXYZ_M = [
-    [0.41239079926595934, 0.357584339383878, 0.1804807884018343],
-    [0.21263900587151027, 0.715168678767756, 0.07219231536073371],
-    [0.01933081871559182, 0.11919477979462598, 0.9505321522496607]
-  ];
-  var fromXYZ_M = [
-    [3.2409699419045226, -1.537383177570094, -0.4986107602930034],
-    [-0.9692436362808796, 1.8759675015077202, 0.04155505740717559],
-    [0.05563007969699366, -0.20397695888897652, 1.0569715142428786]
-  ];
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/srgb-linear.js
+  var M6 = {
+    // calculated directly from the RGB and white chromaticities; when rounded to
+    // 8 decimal places, agrees completely with the official matrix
+    // see https://github.com/w3c/csswg-drafts/issues/5922
+    toXYZ: [
+      [0.41239079926595934, 0.357584339383878, 0.1804807884018343],
+      [0.21263900587151027, 0.715168678767756, 0.07219231536073371],
+      [0.01933081871559182, 0.11919477979462598, 0.9505321522496607]
+    ],
+    // the inverse of the above; again agrees with the official definition
+    // when rounded to 8 decimal places
+    fromXYZ: [
+      [3.2409699419045226, -1.537383177570094, -0.4986107602930034],
+      [-0.9692436362808796, 1.8759675015077202, 0.04155505740717559],
+      [0.05563007969699366, -0.20397695888897652, 1.0569715142428786]
+    ]
+  };
   var srgb_linear_default = new RGBColorSpace({
     id: "srgb-linear",
     name: "Linear sRGB",
     white: "D65",
-    toXYZ_M,
-    fromXYZ_M
+    M: M6
   });
 
-  // packages/theme/node_modules/colorjs.io/src/keywords.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/keywords.js
   var keywords_default = {
     aliceblue: [240 / 255, 248 / 255, 1],
     antiquewhite: [250 / 255, 235 / 255, 215 / 255],
@@ -2711,19 +3230,20 @@ var wp;
     yellowgreen: [154 / 255, 205 / 255, 50 / 255]
   };
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/srgb.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/srgb.js
   var coordGrammar = Array(3).fill("<percentage> | <number>[0, 255]");
   var coordGrammarNumber = Array(3).fill("<number>[0, 255]");
   var srgb_default = new RGBColorSpace({
     id: "srgb",
     name: "sRGB",
     base: srgb_linear_default,
+    linearGamut: srgb_linear_default,
     fromBase: (rgb) => {
       return rgb.map((val) => {
         let sign = val < 0 ? -1 : 1;
-        let abs = val * sign;
-        if (abs > 31308e-7) {
-          return sign * (1.055 * abs ** (1 / 2.4) - 0.055);
+        let abs2 = val * sign;
+        if (abs2 > 31308e-7) {
+          return sign * (1.055 * abs2 ** (1 / 2.4) - 0.055);
         }
         return 12.92 * val;
       });
@@ -2731,11 +3251,11 @@ var wp;
     toBase: (rgb) => {
       return rgb.map((val) => {
         let sign = val < 0 ? -1 : 1;
-        let abs = val * sign;
-        if (abs <= 0.04045) {
+        let abs2 = val * sign;
+        if (abs2 <= 0.04045) {
           return val / 12.92;
         }
-        return sign * ((abs + 0.055) / 1.055) ** 2.4;
+        return sign * ((abs2 + 0.055) / 1.055) ** 2.4;
       });
     },
     formats: {
@@ -2825,24 +3345,19 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/luminance.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/equals.js
+  function equals(color1, color2) {
+    color1 = getColor(color1);
+    color2 = getColor(color2);
+    return color1.space === color2.space && color1.alpha === color2.alpha && color1.coords.every((c, i) => c === color2.coords[i]);
+  }
+
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/luminance.js
   function getLuminance(color) {
     return get(color, [xyz_d65_default, "y"]);
   }
 
-  // packages/theme/node_modules/colorjs.io/src/contrast/WCAG21.js
-  function contrastWCAG21(color1, color2) {
-    color1 = getColor(color1);
-    color2 = getColor(color2);
-    let Y1 = Math.max(getLuminance(color1), 0);
-    let Y2 = Math.max(getLuminance(color2), 0);
-    if (Y2 > Y1) {
-      [Y1, Y2] = [Y2, Y1];
-    }
-    return (Y1 + 0.05) / (Y2 + 0.05);
-  }
-
-  // packages/theme/node_modules/colorjs.io/src/spaces/hsl.js
+  // node_modules/.store/colorjs.io@0.7.1-METd09ReG36PFivDyznZ-w/node_modules/colorjs.io/src/spaces/hsl.js
   var hsl_default = new ColorSpace({
     id: "hsl",
     name: "HSL",
@@ -2862,6 +3377,7 @@ var wp;
       }
     },
     base: srgb_default,
+    rgbGamut: srgb_default,
     // Adapted from https://drafts.csswg.org/css-color-4/better-rgbToHsl.js
     fromBase: (rgb) => {
       let max = Math.max(...rgb);
@@ -2920,37 +3436,7 @@ var wp;
     }
   });
 
-  // packages/theme/node_modules/colorjs.io/src/spaces/oklch.js
-  var oklch_default = new ColorSpace({
-    id: "oklch",
-    name: "OkLCh",
-    coords: {
-      l: {
-        refRange: [0, 1],
-        name: "Lightness"
-      },
-      c: {
-        refRange: [0, 0.4],
-        name: "Chroma"
-      },
-      h: {
-        refRange: [0, 360],
-        type: "angle",
-        name: "Hue"
-      }
-    },
-    white: "D65",
-    base: oklab_default,
-    fromBase: lch_default.fromBase,
-    toBase: lch_default.toBase,
-    formats: {
-      oklch: {
-        coords: ["<percentage> | <number>", "<number> | <percentage>", "<number> | <angle>"]
-      }
-    }
-  });
-
-  // node_modules/memize/dist/index.js
+  // node_modules/.store/memize@2.1.1-roXbtpG2bis3Lggp7SQpAA/node_modules/memize/dist/index.js
   function memize(fn, options) {
     var size = 0;
     var head;
@@ -3034,11 +3520,11 @@ var wp;
       "background-interactive-neutral-weak-disabled"
     ],
     "primary-bgFill1": ["background-interactive-brand-strong"],
+    "primary-bgFill2": ["background-interactive-brand-strong-active"],
     "primary-fgFill": [
       "foreground-interactive-brand-strong",
       "foreground-interactive-brand-strong-active"
     ],
-    "primary-bgFill2": ["background-interactive-brand-strong-active"],
     "primary-surface4": ["background-interactive-brand-weak-active"],
     "primary-fgSurface4": ["foreground-interactive-brand-active"],
     "primary-fgSurface3": ["foreground-interactive-brand"],
@@ -3071,11 +3557,11 @@ var wp;
     "warning-stroke3": ["stroke-surface-warning-strong"],
     "warning-stroke1": ["stroke-surface-warning"],
     "error-bgFill1": ["background-interactive-error-strong"],
+    "error-bgFill2": ["background-interactive-error-strong-active"],
     "error-fgFill": [
       "foreground-interactive-error-strong",
       "foreground-interactive-error-strong-active"
     ],
-    "error-bgFill2": ["background-interactive-error-strong-active"],
     "error-surface2": [
       "background-interactive-error-active",
       "background-surface-error-weak"
@@ -3106,8 +3592,14 @@ var wp;
       "background-interactive-neutral-strong-disabled"
     ],
     "bg-surface4": ["background-interactive-neutral-weak-active"],
-    "bg-surface3": ["background-surface-neutral-strong"],
+    "bg-surface3": [
+      "background-interactive-neutral",
+      "background-interactive-neutral-active",
+      "background-interactive-neutral-disabled",
+      "background-surface-neutral-strong"
+    ],
     "bg-fgSurface4": [
+      "background-thumb-neutral",
       "foreground-content-neutral",
       "foreground-interactive-neutral",
       "foreground-interactive-neutral-active",
@@ -3166,16 +3658,38 @@ var wp;
 
   // packages/theme/build-module/color-ramps/lib/color-utils.mjs
   var ALLOWED_SEED_COLOR_SPACES = [srgb_default];
+  var objectLuminanceCache = /* @__PURE__ */ new WeakMap();
   function getColorString(color) {
     ColorSpace.register(srgb_default);
     const rgbRounded = serialize(to(color, srgb_default));
     return serialize(rgbRounded, { format: "hex" });
   }
   function getContrast(colorA, colorB) {
-    ColorSpace.register(srgb_default);
-    return contrastWCAG21(colorA, colorB);
+    return getContrastFromLuminances(
+      getRelativeLuminance(colorA),
+      getRelativeLuminance(colorB)
+    );
   }
-  function assertValidSeedColor(seed) {
+  function getRelativeLuminance(color) {
+    if (typeof color === "string") {
+      ColorSpace.register(srgb_default);
+      return Math.max(getLuminance(color), 0);
+    }
+    const cachedLuminance = objectLuminanceCache.get(color);
+    if (cachedLuminance && equals(cachedLuminance.color, color)) {
+      return cachedLuminance.luminance;
+    }
+    const luminance = Math.max(getLuminance(color), 0);
+    objectLuminanceCache.set(color, {
+      color: clone(color),
+      luminance
+    });
+    return luminance;
+  }
+  function getContrastFromLuminances(first, second) {
+    return first > second ? (first + 0.05) / (second + 0.05) : (second + 0.05) / (first + 0.05);
+  }
+  function parseSeedColor(seed) {
     ALLOWED_SEED_COLOR_SPACES.forEach(
       (space) => ColorSpace.register(space)
     );
@@ -3187,21 +3701,29 @@ var wp;
         `Unsupported seed color "${seed}": expected a fully opaque hex value, an \`rgb()\`/\`rgba()\` string, or a CSS named color.`
       );
     }
-    const { alpha = 1, spaceId } = parsedColor;
+    const { alpha = 1, coords, spaceId } = parsedColor;
     if (!ALLOWED_SEED_COLOR_SPACES.some((space) => space.id === spaceId)) {
       throw new Error(
         `Unsupported seed color "${seed}": expected a fully opaque hex value, an \`rgb()\`/\`rgba()\` string, or a CSS named color, but received a \`${spaceId}\` color.`
       );
+    }
+    for (const [index, coordinate] of coords.entries()) {
+      if (coordinate === null) {
+        coords[index] = 0;
+      } else if (typeof coordinate !== "number" || !Number.isFinite(coordinate)) {
+        throw new Error(
+          `Unsupported seed color "${seed}": expected every RGB channel to be a finite number.`
+        );
+      }
     }
     if (alpha !== 1) {
       throw new Error(
         `Unsupported seed color "${seed}": expected a fully opaque color.`
       );
     }
+    return parsedColor;
   }
   function clampToGamut(c) {
-    ColorSpace.register(srgb_default);
-    ColorSpace.register(oklch_default);
     return to(toGamut(c, { space: srgb_default, method: "css" }), oklch_default);
   }
 
@@ -3247,9 +3769,14 @@ var wp;
     });
     Object.entries(config).forEach(([stepName, stepConfig]) => {
       const step = stepName;
-      const reference = stepConfig.contrast.reference;
-      dependencies.get(step).push(reference);
-      dependents.get(reference).push(step);
+      const references = [
+        stepConfig.contrast.reference,
+        ...stepConfig.contrast.additionalReferences ?? []
+      ];
+      for (const reference of references) {
+        dependencies.get(step).push(reference);
+        dependents.get(reference).push(step);
+      }
       if (stepConfig.sameAsIfPossible) {
         dependencies.get(step).push(stepConfig.sameAsIfPossible);
         dependents.get(stepConfig.sameAsIfPossible).push(step);
@@ -3298,6 +3825,7 @@ var wp;
         return;
       }
       visit(stepConfig.contrast.reference);
+      stepConfig.contrast.additionalReferences?.forEach(visit);
       if (stepConfig.sameAsIfPossible) {
         visit(stepConfig.sameAsIfPossible);
       }
@@ -3306,9 +3834,18 @@ var wp;
     visit(stepName);
     return Array.from(result);
   }
-  function computeBetterFgColorDirection(seed, preferLighter) {
-    const contrastAgainstBlack = getContrast(seed, BLACK);
-    const contrastAgainstWhite = getContrast(seed, WHITE);
+  function computeBetterFgColorDirection(references, preferLighter) {
+    const referenceColors = Array.isArray(references) ? references : [references];
+    const contrastAgainstBlack = Math.min(
+      ...referenceColors.map(
+        (reference) => getContrast(reference, BLACK)
+      )
+    );
+    const contrastAgainstWhite = Math.min(
+      ...referenceColors.map(
+        (reference) => getContrast(reference, WHITE)
+      )
+    );
     return contrastAgainstBlack > contrastAgainstWhite + (preferLighter ? WHITE_TEXT_CONTRAST_MARGIN : 0) ? { better: "darker", worse: "lighter" } : { better: "lighter", worse: "darker" };
   }
   function adjustContrastTarget(target) {
@@ -3361,12 +3898,10 @@ var wp;
   }
 
   // packages/theme/build-module/color-ramps/lib/taper-chroma.mjs
-  function taperChroma(seed, lTarget, options = {}) {
-    ColorSpace.register(oklch_default);
+  function createChromaTaper(seed, options = {}) {
     const gamut = options.gamut ?? srgb_default;
     const alpha = options.alpha ?? 0.65;
     const carry = options.carry ?? 0.5;
-    const cUpperBound = options.cUpperBound ?? 0.45;
     const radiusLight = options.radiusLight ?? 0.2;
     const radiusDark = options.radiusDark ?? 0.2;
     const kLight = options.kLight ?? 0.85;
@@ -3380,35 +3915,32 @@ var wp;
       if (typeof options.hueFallback === "number") {
         hSeed = normalizeHue(options.hueFallback);
       } else {
-        return {
+        return (lTarget) => ({
           space: oklch_default,
           coords: [clamp01(lTarget), 0, 0],
           alpha: 1
-        };
+        });
       }
     }
     const lSeed = clamp01(get(seed, [oklch_default, "l"]));
-    const cmaxSeed = getCachedMaxChromaAtLH(lSeed, hSeed, gamut, cUpperBound);
-    const cmaxTarget = getCachedMaxChromaAtLH(
-      clamp01(lTarget),
-      hSeed,
-      gamut,
-      cUpperBound
-    );
-    let seedRelative = 0;
+    const cmaxSeed = getMaxChromaAtLH(lSeed, hSeed, gamut);
     const denom = cmaxSeed > 0 ? cmaxSeed : 1e-6;
-    seedRelative = clamp01(cSeed / denom);
-    const cIntendedBase = alpha * cmaxTarget;
-    const cWithCarry = cIntendedBase * Math.pow(seedRelative, clamp01(carry));
-    const t = continuousTaper(lSeed, lTarget, {
-      radiusLight,
-      radiusDark,
-      kLight,
-      kDark
-    });
-    const cPlanned = cWithCarry * t;
-    const lOut = clamp01(lTarget);
-    return { l: lOut, c: cPlanned };
+    const seedRelative = clamp01(cSeed / denom);
+    const seedCarry = Math.pow(seedRelative, clamp01(carry));
+    return (lTarget) => {
+      const cmaxTarget = getMaxChromaAtLH(clamp01(lTarget), hSeed, gamut);
+      const cIntendedBase = alpha * cmaxTarget;
+      const cWithCarry = cIntendedBase * seedCarry;
+      const t = continuousTaper(lSeed, lTarget, {
+        radiusLight,
+        radiusDark,
+        kLight,
+        kDark
+      });
+      const cPlanned = cWithCarry * t;
+      const lOut = clamp01(lTarget);
+      return { l: lOut, c: cPlanned };
+    };
   }
   function clamp01(x) {
     if (x < 0) {
@@ -3441,35 +3973,14 @@ var wp;
     const w = raisedCosine(u > 1 ? 1 : u);
     return 1 - (1 - opts.kDark) * w;
   }
-  var maxChromaCache = /* @__PURE__ */ new Map();
-  function keyMax(l, h, gamut, cap) {
-    const lq = quantize(l, 0.05);
-    const hq = quantize(normalizeHue(h), 10);
-    const cq = quantize(cap, 0.05);
-    return `${gamut}|L:${lq}|H:${hq}|cap:${cq}`;
-  }
-  function quantize(x, step) {
-    const k = Math.round(x / step);
-    return k * step;
-  }
-  function getCachedMaxChromaAtLH(l, h, gamutSpace, cap) {
-    const gamut = gamutSpace.id;
-    const key = keyMax(l, h, gamut, cap);
-    const hit = maxChromaCache.get(key);
-    if (typeof hit === "number") {
-      return hit;
-    }
-    const computed = maxInGamutChromaAtLH(l, h, gamutSpace, cap);
-    maxChromaCache.set(key, computed);
-    return computed;
-  }
-  function maxInGamutChromaAtLH(l, h, gamutSpace, cap) {
+  var MAX_CHROMA = 0.45;
+  function getMaxChromaAtLH(l, h, gamutSpace) {
     const probe = {
       space: oklch_default,
-      coords: [l, cap, h],
+      coords: [clamp01(l), MAX_CHROMA, normalizeHue(h)],
       alpha: 1
     };
-    const clamped = toGamut(probe, { space: gamutSpace, method: "css" });
+    const clamped = toGamutCSS(probe, { space: gamutSpace });
     return get(clamped, [oklch_default, "c"]);
   }
 
@@ -3488,11 +3999,14 @@ var wp;
         achieved: 1
       };
     }
+    const seedChroma = get(seed, [oklch_default, "c"]);
+    const seedHue = get(seed, [oklch_default, "h"]);
+    const taperChromaAtLightness = taperChromaOptions ? createChromaTaper(seed, taperChromaOptions) : void 0;
     function getColorForL(l) {
       let newL = l;
-      let newC = get(seed, [oklch_default, "c"]);
-      if (taperChromaOptions) {
-        const tapered = taperChroma(seed, newL, taperChromaOptions);
+      let newC = seedChroma;
+      if (taperChromaAtLightness) {
+        const tapered = taperChromaAtLightness(newL);
         if ("l" in tapered && "c" in tapered) {
           newL = tapered.l;
           newC = tapered.c;
@@ -3502,7 +4016,7 @@ var wp;
       }
       return clampToGamut({
         space: oklch_default,
-        coords: [newL, newC, get(seed, [oklch_default, "h"])],
+        coords: [newL, newC, seedHue],
         alpha: seed.alpha
       });
     }
@@ -3568,7 +4082,7 @@ var wp;
     const calculatedColors = /* @__PURE__ */ new Map();
     calculatedColors.set("seed", seed);
     for (const stepName of sortedSteps) {
-      let computeDirection = function(color, followDirection) {
+      let computeDirection2 = function(colors, followDirection) {
         if (followDirection === "main") {
           return mainDir;
         }
@@ -3577,24 +4091,32 @@ var wp;
         }
         if (followDirection === "best") {
           return computeBetterFgColorDirection(
-            color,
+            colors,
             contrast.preferLighter
           ).better;
         }
         return followDirection;
       };
+      var computeDirection = computeDirection2;
       const {
         contrast,
         lightness: stepLightnessConstraint,
         taperChromaOptions,
         sameAsIfPossible
       } = config[stepName];
-      const referenceColor = calculatedColors.get(contrast.reference);
-      if (!referenceColor) {
-        throw new Error(
-          `Reference color for step ${stepName} not found: ${contrast.reference}`
-        );
-      }
+      const referenceNames = [
+        contrast.reference,
+        ...contrast.additionalReferences ?? []
+      ];
+      const referenceColors = referenceNames.map((referenceName) => {
+        const referenceColor2 = calculatedColors.get(referenceName);
+        if (!referenceColor2) {
+          throw new Error(
+            `Reference color for step ${stepName} not found: ${referenceName}`
+          );
+        }
+        return referenceColor2;
+      });
       if (sameAsIfPossible) {
         const candidateColor = calculatedColors.get(sameAsIfPossible);
         if (!candidateColor) {
@@ -3602,20 +4124,23 @@ var wp;
             `Same-as color for step ${stepName} not found: ${sameAsIfPossible}`
           );
         }
-        const candidateContrast = getContrast(
-          referenceColor,
-          candidateColor
-        );
         const adjustedTarget2 = adjustContrastTarget(contrast.target);
-        if (candidateContrast >= adjustedTarget2) {
+        const candidateMeetsTarget = referenceColors.every(
+          (referenceColor2) => getContrast(referenceColor2, candidateColor) >= adjustedTarget2
+        );
+        if (candidateMeetsTarget) {
           calculatedColors.set(stepName, candidateColor);
           rampResults[stepName] = getColorString(candidateColor);
           continue;
         }
       }
-      const computedDir = computeDirection(
-        referenceColor,
+      const computedDir = computeDirection2(
+        referenceColors,
         contrast.followDirection
+      );
+      const endpoint = computedDir === "lighter" ? WHITE : BLACK;
+      const referenceColor = referenceColors.reduce(
+        (tightest, current) => getContrast(current, endpoint) < getContrast(tightest, endpoint) ? current : tightest
       );
       const adjustedTarget = adjustContrastTarget(contrast.target);
       let lightnessConstraint;
@@ -3665,10 +4190,10 @@ var wp;
     pinLightness,
     rescaleToFitContrastTargets = true
   } = {}) {
-    assertValidSeedColor(seedArg);
+    const parsedSeed = parseSeedColor(seedArg);
     let seed;
     try {
-      seed = clampToGamut(seedArg);
+      seed = clampToGamut(parsedSeed);
     } catch (error) {
       throw new Error(
         `Invalid seed color "${seedArg}": ${error instanceof Error ? error.message : "Unknown error"}`
@@ -3700,10 +4225,11 @@ var wp;
       pinLightness
     });
     let bestRamp = rampResults;
+    let bestWarnings = warnings;
     if (maxDeficit > CONTRAST_EPSILON && rescaleToFitContrastTargets) {
-      let getSeedForL = function(l) {
+      let getSeedForL2 = function(l) {
         return clampToGamut(set(clone(seed), [oklch_default, "l"], l));
-      }, getDeficitForSeed = function(s) {
+      }, getDeficitForSeed2 = function(s) {
         const iterationResults = calculateRamp({
           seed: s,
           sortedSteps: iterSteps,
@@ -3714,27 +4240,30 @@ var wp;
         });
         return iterationResults.maxDeficitDirection === maxDeficitDirection ? iterationResults.maxDeficit : -maxDeficit;
       };
+      var getSeedForL = getSeedForL2, getDeficitForSeed = getDeficitForSeed2;
       const iterSteps = stepsForStep(maxDeficitStep, config);
       const lowerSeedL = maxDeficitDirection === "lighter" ? 0 : 1;
       const lowerDeficit = -maxDeficit;
       const upperSeedL = get(seed, [oklch_default, "l"]);
       const upperDeficit = maxDeficit;
       const bestSeed = solveWithBisect(
-        getSeedForL,
-        getDeficitForSeed,
+        getSeedForL2,
+        getDeficitForSeed2,
         lowerSeedL,
         lowerDeficit,
         upperSeedL,
         upperDeficit
       );
-      bestRamp = calculateRamp({
+      const finalResult = calculateRamp({
         seed: bestSeed,
         sortedSteps,
         config,
         mainDir,
         oppDir,
         pinLightness
-      }).rampResults;
+      });
+      bestRamp = finalResult.rampResults;
+      bestWarnings = finalResult.warnings;
     }
     if (mainDir === "darker") {
       const tmpSurface1 = bestRamp.surface1;
@@ -3743,7 +4272,7 @@ var wp;
     }
     return {
       ramp: bestRamp,
-      warnings,
+      warnings: bestWarnings,
       direction: mainDir
     };
   }
@@ -3934,9 +4463,10 @@ var wp;
     fgFill: {
       contrast: {
         reference: "bgFill1",
+        additionalReferences: ["bgFill2"],
         followDirection: "best",
-        target: 4.5,
-        preferLighter: true
+        // Preserve the 4.5:1 WCAG floor after 8-bit sRGB serialization.
+        target: 4.55
       },
       lightness: lightnessConstraintForegroundHighContrast,
       taperChromaOptions: FG_TAPER_CHROMA
@@ -4063,6 +4593,158 @@ var wp;
     return buildRamp(seed, ACCENT_RAMP_CONFIG, bgRampInfo);
   }
 
+  // packages/theme/build-module/semantic-color-contrast-pairs.mjs
+  var MINIMUM_TEXT_CONTRAST = 4.5;
+  var SEMANTIC_COLOR_CONTRAST_PAIRS = [
+    {
+      background: "background.interactive.neutral",
+      foreground: "foreground.interactive.neutral"
+    },
+    {
+      background: "background.interactive.neutral",
+      foreground: "foreground.interactive.neutral-weak"
+    },
+    {
+      background: "background.interactive.neutral-active",
+      foreground: "foreground.interactive.neutral"
+    },
+    {
+      background: "background.interactive.neutral-active",
+      foreground: "foreground.interactive.neutral-weak"
+    },
+    {
+      background: "background.interactive.neutral-weak-active",
+      foreground: "foreground.interactive.neutral-active"
+    },
+    {
+      background: "background.surface.neutral",
+      foreground: "foreground.content.neutral"
+    },
+    {
+      background: "background.surface.neutral-strong",
+      foreground: "foreground.content.neutral"
+    },
+    {
+      background: "background.surface.neutral-weak",
+      foreground: "foreground.content.neutral"
+    },
+    {
+      background: "background.surface.neutral",
+      foreground: "foreground.content.neutral-weak"
+    },
+    {
+      background: "background.surface.info",
+      foreground: "foreground.content.info"
+    },
+    {
+      background: "background.surface.info-weak",
+      foreground: "foreground.content.info-weak"
+    },
+    {
+      background: "background.surface.success",
+      foreground: "foreground.content.success"
+    },
+    {
+      background: "background.surface.success-weak",
+      foreground: "foreground.content.success-weak"
+    },
+    {
+      background: "background.surface.warning",
+      foreground: "foreground.content.warning"
+    },
+    {
+      background: "background.surface.warning-weak",
+      foreground: "foreground.content.warning-weak"
+    },
+    {
+      background: "background.surface.caution",
+      foreground: "foreground.content.caution"
+    },
+    {
+      background: "background.surface.caution-weak",
+      foreground: "foreground.content.caution-weak"
+    },
+    {
+      background: "background.surface.error",
+      foreground: "foreground.content.error"
+    },
+    {
+      background: "background.surface.error-weak",
+      foreground: "foreground.content.error-weak"
+    },
+    {
+      background: "background.interactive.brand-strong",
+      foreground: "foreground.interactive.brand-strong"
+    },
+    {
+      background: "background.interactive.brand-strong-active",
+      foreground: "foreground.interactive.brand-strong-active"
+    },
+    {
+      background: "background.interactive.error-strong",
+      foreground: "foreground.interactive.error-strong"
+    },
+    {
+      background: "background.interactive.error-strong-active",
+      foreground: "foreground.interactive.error-strong-active"
+    },
+    {
+      background: "background.interactive.neutral-strong",
+      foreground: "foreground.interactive.neutral-strong"
+    },
+    {
+      background: "background.interactive.neutral-strong-active",
+      foreground: "foreground.interactive.neutral-strong-active"
+    }
+  ];
+  function getSemanticColorCustomProperty(token) {
+    return `--wpds-color-${token.replaceAll(".", "-")}`;
+  }
+
+  // packages/theme/build-module/theme-provider-color-warnings.mjs
+  function collectThemeProviderColorWarnings(ramps, colorValues) {
+    const warnings = [];
+    for (const [rampName, result] of ramps) {
+      for (const step of result.warnings ?? []) {
+        warnings.push({
+          type: "ramp",
+          ramp: rampName,
+          step
+        });
+      }
+    }
+    for (const {
+      background: backgroundToken,
+      foreground: foregroundToken
+    } of SEMANTIC_COLOR_CONTRAST_PAIRS) {
+      const backgroundColor = colorValues.get(
+        getSemanticColorCustomProperty(backgroundToken)
+      );
+      const foregroundColor = colorValues.get(
+        getSemanticColorCustomProperty(foregroundToken)
+      );
+      if (backgroundColor === void 0 || foregroundColor === void 0) {
+        continue;
+      }
+      const achievedContrast = getContrast(
+        backgroundColor,
+        foregroundColor
+      );
+      if (achievedContrast < MINIMUM_TEXT_CONTRAST) {
+        warnings.push({
+          type: "contrast",
+          backgroundToken,
+          backgroundColor,
+          foregroundToken,
+          foregroundColor,
+          requiredContrast: MINIMUM_TEXT_CONTRAST,
+          achievedContrast
+        });
+      }
+    }
+    return warnings;
+  }
+
   // packages/theme/build-module/use-theme-provider-styles.mjs
   var getCachedBgRamp = memize(buildBgRamp, { maxSize: 10 });
   var getCachedAccentRamp = memize(buildAccentRamp, { maxSize: 10 });
@@ -4160,7 +4842,8 @@ var wp;
     const entries = [];
     for (const [rampName, { ramp }] of computedColorRamps) {
       for (const [tokenName, tokenValue] of Object.entries(ramp)) {
-        const key = `${rampName}-${tokenName}`;
+        const primitiveRampName = rampName === "background" ? "bg" : rampName;
+        const key = `${primitiveRampName}-${tokenName}`;
         const aliasedBy = color_tokens_default[key] ?? [];
         for (const aliasedId of aliasedBy) {
           entries.push([`--wpds-color-${aliasedId}`, tokenValue]);
@@ -4171,17 +4854,44 @@ var wp;
   }
   function generateStyles({
     primary,
-    computedColorRamps
+    colorEntries
   }) {
     return Object.fromEntries(
       [
         // Semantic color tokens
-        colorTokensCSS(computedColorRamps),
+        colorEntries,
         // Legacy overrides
         legacyWpAdminThemeOverridesCSS(primary),
         legacyWpComponentsOverridesCSS
       ].flat()
     );
+  }
+  function generateThemeProviderColors(primary, background) {
+    const seeds = {
+      ...DEFAULT_SEED_COLORS,
+      background,
+      primary
+    };
+    const computedColorRamps = /* @__PURE__ */ new Map();
+    const bgRamp = getCachedBgRamp(seeds.background);
+    for (const [rawRampName, seed] of Object.entries(seeds)) {
+      const rampName = rawRampName;
+      computedColorRamps.set(
+        rampName,
+        rampName === "background" ? bgRamp : getCachedAccentRamp(seed, bgRamp)
+      );
+    }
+    const colorEntries = colorTokensCSS(computedColorRamps);
+    return {
+      styles: generateStyles({
+        primary: seeds.primary,
+        colorEntries
+      }),
+      warnings: collectThemeProviderColorWarnings(
+        computedColorRamps,
+        new Map(colorEntries)
+      )
+    };
   }
   function useThemeProviderStyles({
     color = {},
@@ -4205,44 +4915,28 @@ var wp;
       }),
       [primary, background, cursorControl, cornerRadiusPreset]
     );
-    const colorStyles = (0, import_element2.useMemo)(() => {
+    const generatedColors = (0, import_element2.useMemo)(() => {
       if (primary === void 0 || background === void 0) {
-        return {};
+        return {
+          styles: {},
+          warnings: void 0
+        };
       }
-      const seeds = {
-        ...DEFAULT_SEED_COLORS,
-        background,
-        primary
-      };
-      const computedColorRamps = /* @__PURE__ */ new Map();
-      const bgRamp = getCachedBgRamp(seeds.background);
-      Object.entries(seeds).forEach(([rampName, seed]) => {
-        if (rampName === "background") {
-          computedColorRamps.set("bg", bgRamp);
-        } else {
-          computedColorRamps.set(
-            rampName,
-            getCachedAccentRamp(seed, bgRamp)
-          );
-        }
-      });
-      return generateStyles({
-        primary: seeds.primary,
-        computedColorRamps
-      });
+      return generateThemeProviderColors(primary, background);
     }, [primary, background]);
     const themeProviderStyles = (0, import_element2.useMemo)(
       () => ({
-        ...colorStyles,
+        ...generatedColors.styles,
         ...cursorControl && {
           "--wpds-cursor-control": cursorControl
         }
       }),
-      [colorStyles, cursorControl]
+      [generatedColors.styles, cursorControl]
     );
     return {
       resolvedSettings,
-      themeProviderStyles
+      themeProviderStyles,
+      colorWarnings: generatedColors.warnings
     };
   }
 
@@ -4329,23 +5023,25 @@ var wp;
     }
   }
   if (typeof process === "undefined" || true) {
-    registerStyle("f4e6e06c6a", ".dba930ea7a9438fd__root{display:contents}");
+    registerStyle("8d074a190c", "._0ebd6d9bf8b95794__wrapper{display:contents}");
   }
-  var style_default = { "root": "dba930ea7a9438fd__root" };
+  var style_default = { "wrapper": "_0ebd6d9bf8b95794__wrapper" };
   var rootProviderCountByDocument = /* @__PURE__ */ new WeakMap();
   var ThemeProvider = ({
     children,
     color = {},
     cursor,
     cornerRadius,
-    isRoot = false
+    isRoot = false,
+    onColorWarnings
   }) => {
-    const { themeProviderStyles, resolvedSettings } = useThemeProviderStyles({
+    const { themeProviderStyles, resolvedSettings, colorWarnings } = useThemeProviderStyles({
       color,
       cursor,
       cornerRadius
     });
     const cornerRadiusPreset = resolvedSettings.cornerRadius ?? "subtle";
+    const onColorWarningsEvent = (0, import_compose.useEvent)(onColorWarnings);
     const contextValue = (0, import_element3.useMemo)(
       () => ({
         resolvedSettings
@@ -4353,6 +5049,11 @@ var wp;
       [resolvedSettings]
     );
     const wrapperRef = (0, import_element3.useRef)(null);
+    (0, import_element3.useEffect)(() => {
+      if (colorWarnings !== void 0) {
+        onColorWarningsEvent(colorWarnings);
+      }
+    }, [colorWarnings, onColorWarningsEvent]);
     (0, import_compose.useIsomorphicLayoutEffect)(() => {
       if (!isRoot) {
         return;
@@ -4371,7 +5072,15 @@ var wp;
         }
         rootProviderCountByDocument.set(doc, active + 1);
       }
-      const previous = /* @__PURE__ */ new Map();
+      const previous = new Map(
+        Array.from(root.style, (key) => [
+          key,
+          {
+            value: root.style.getPropertyValue(key),
+            priority: root.style.getPropertyPriority(key)
+          }
+        ])
+      );
       const applied = [];
       const previousRootProvider = root.getAttribute(
         "data-wpds-root-provider"
@@ -4387,7 +5096,6 @@ var wp;
         if (!rawKey.startsWith("--") || rawValue === null || rawValue === void 0) {
           continue;
         }
-        previous.set(rawKey, root.style.getPropertyValue(rawKey));
         root.style.setProperty(rawKey, String(rawValue));
         applied.push(rawKey);
       }
@@ -4401,9 +5109,13 @@ var wp;
           }
         }
         for (const key of applied) {
-          const prev = previous.get(key);
-          if (prev) {
-            root.style.setProperty(key, prev);
+          const previousProperty = previous.get(key);
+          if (previousProperty) {
+            root.style.setProperty(
+              key,
+              previousProperty.value || " ",
+              previousProperty.priority
+            );
           } else {
             root.style.removeProperty(key);
           }
@@ -4432,7 +5144,7 @@ var wp;
         ref: wrapperRef,
         "data-wpds-root-provider": isRoot || void 0,
         "data-wpds-corner-radius": cornerRadiusPreset,
-        className: style_default.root,
+        className: style_default.wrapper,
         style: themeProviderStyles,
         children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ThemeContext.Provider, { value: contextValue, children })
       }

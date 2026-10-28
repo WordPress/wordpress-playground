@@ -21,6 +21,7 @@ describe('remote sendmail transport', () => {
 		const phpListeners: Array<(event: { type: string }) => void> = [];
 		const php = {
 			requestHandler: undefined,
+			defineConstant: vi.fn(),
 			setCommandSpawnHandler,
 			addEventListener: vi.fn(
 				(

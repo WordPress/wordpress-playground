@@ -144,6 +144,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [dispatch]);
 
 	useEffect(() => {
+		/** Select or create the site requested by setup and lifecycle URL values. */
 		async function ensureSiteIsSelected() {
 			const isInitialPageLoadUrl = url.href === initialUrlHref.current;
 			if (!isInitialPageLoadUrl) {
@@ -199,12 +200,16 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			// If only the 'modal' parameter changes in searchParams, don't reload the page
-			const notRefreshingParam = 'modal';
+			// Dock navigation removes `overlay` from the URL. Like `modal`, it
+			// must not create another Playground or discard the clone form.
+			// Keep ignoring the hash here: the Blueprint editor writes its draft
+			// there, but only Run Blueprint should replace the running site.
 			const oldParams = new URLSearchParams(prevUrl?.search);
-			const newParams = new URLSearchParams(url?.search);
-			oldParams.delete(notRefreshingParam);
-			newParams.delete(notRefreshingParam);
+			const newParams = new URLSearchParams(url.search);
+			for (const parameter of ['modal', 'overlay']) {
+				oldParams.delete(parameter);
+				newParams.delete(parameter);
+			}
 			const avoidUnnecessaryTempSiteReload =
 				activeSite && oldParams.toString() === newParams.toString();
 			if (avoidUnnecessaryTempSiteReload) {

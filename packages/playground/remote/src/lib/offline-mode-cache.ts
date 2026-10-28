@@ -1,8 +1,11 @@
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer } from './dev-server';
+import { playgroundOrigin } from './config';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
+const BLUEPRINTS_INDEX_URL =
+	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json';
 const CACHE_NAME_PREFIX = 'playground-cache';
 const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
@@ -103,6 +106,38 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 	return response;
 }
 
+/** Fetch the directory index without serving upstream HTML or headers on the app origin. */
+export async function fetchBlueprintsIndex(): Promise<Response> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	let jsonResponse: Response;
+	try {
+		const response = await fetchFresh(BLUEPRINTS_INDEX_URL, {
+			credentials: 'omit',
+		});
+		if (!response.ok) {
+			throw new Error('Unable to fetch the Blueprints directory index.');
+		}
+		jsonResponse = Response.json(await response.json(), {
+			headers: { 'X-Content-Type-Options': 'nosniff' },
+		});
+	} catch {
+		const cachedResponse =
+			await offlineModeCache.match(BLUEPRINTS_INDEX_URL);
+		return (
+			cachedResponse ??
+			new Response('Blueprints directory index unavailable.', {
+				status: 502,
+			})
+		);
+	}
+
+	// Keep only valid JSON for offline use. A full cache must not hide a fresh index.
+	await offlineModeCache
+		.put(BLUEPRINTS_INDEX_URL, jsonResponse.clone())
+		.catch(() => {});
+	return jsonResponse;
+}
+
 /**
  * For offline mode to work we need to cache all required assets.
  *
@@ -110,13 +145,17 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
  * file and contain JavaScript, CSS, and other assets required to load the
  * site without making any network requests.
  */
-export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
+export async function cacheOfflineModeAssetsForCurrentRelease(
+	excludedAssets: readonly string[] = []
+): Promise<any> {
 	// Get the cache manifest and add all the files to the cache
 	const manifestResponse = await fetchFresh(
 		'/assets-required-for-offline-mode.json'
 	);
 	const requiredOfflineAssetUrls = await manifestResponse.json();
-	const urlsToCache = ['/', ...requiredOfflineAssetUrls];
+	const urlsToCache = ['/', ...requiredOfflineAssetUrls].filter(
+		(url) => !excludedAssets.includes(url)
+	);
 	const websiteRequests = urlsToCache.map(
 		/**
 		 * Ensure the response is not coming from HTTP cache.
@@ -175,7 +214,36 @@ export async function putCachedResponse(
 	await offlineModeCache.put(request, response);
 }
 
+/**
+ * Decide whether this worker may use Playground's CacheStorage for a URL.
+ *
+ * Only the app-origin worker may use CacheStorage for shared platform downloads.
+ * WordPress code can open and change any cache on the WordPress origin, including
+ * Playground's cache. Giving the cache a special name does not protect it.
+ *
+ * For example, a plugin could store a fake response under the cache key
+ * https://playground.wordpress.net/wp-6.9/wordpress-static.zip. Without the origin
+ * guard, the archive shortcut below would allow the WordPress worker to reuse
+ * those attacker-written bytes as a WordPress download. The app hostname in the
+ * key does not protect the entry: the cache still belongs to the WordPress origin.
+ *
+ * Reject WordPress-origin CacheStorage before checking the requested URL. The app
+ * can still cache its own shared downloads, and WordPress-side fetches can use the
+ * browser HTTP cache. This rule does not disable HTTP caching or require a separate
+ * copy of every download for each Playground.
+ *
+ * On the app origin, the WordPress static-archive shortcut is checked first.
+ * For other URLs, exclude live scoped responses, PHP endpoints, and Vite
+ * development assets. The final origin check also rejects other ports, which
+ * may serve a live site's responses rather than reusable platform files.
+ */
 export function shouldCacheUrl(url: URL) {
+	// An app-host URL can still name an entry in a WordPress-writable cache.
+	// Reject that cache before the static-archive shortcut can accept the URL.
+	if (self.location.origin !== playgroundOrigin) {
+		return false;
+	}
+
 	if (url.href.includes('wordpress-static.zip')) {
 		return true;
 	}

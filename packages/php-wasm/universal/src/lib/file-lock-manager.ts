@@ -19,6 +19,8 @@ export type Fd = number;
 /**
  * This is an interface used to abstract byte range locking like fcntl()
  * and whole-file locking like flock().
+ * Node's JavaScript fallback passes opaque device/inode keys in place of paths
+ * so multiple paths to the same file share locks.
  */
 export type FileLockManager = {
 	/**

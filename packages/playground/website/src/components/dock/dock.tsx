@@ -39,6 +39,7 @@ import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
+import type { ToolHeaderState } from '../site-manager/site-info-panel/site-tool-renderers';
 import {
 	useRecentAutosaveNudgeVisible,
 	useSetRecentAutosaveNudgeAnchor,
@@ -90,6 +91,12 @@ export function Dock({
 			setNewPlaygroundHeaderOverride(header),
 		[]
 	);
+	const [toolBack, setToolBack] = useState<ToolHeaderState>();
+	const {
+		action: toolAction,
+		hideHeader: toolHidesHeader,
+		...toolHeader
+	} = toolBack ?? {};
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneCopy = getDockTool(section);
@@ -100,7 +107,8 @@ export function Dock({
 	const isFixedHeightSection =
 		Boolean(paneCopy.fixedHeight) ||
 		(section === 'share' && shareExportOpen);
-	const showSharedHeader = !isEditorSection;
+	const showSharedHeader =
+		!isEditorSection && !(section === 'transfer' && toolHidesHeader);
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
@@ -163,7 +171,9 @@ export function Dock({
 			? newPlaygroundHeaderOverride
 			: section === 'share' && shareExportOpen
 				? githubExportHeaderOverride
-				: undefined;
+				: section === 'transfer' && toolBack
+					? { title: paneTitle, ...toolHeader }
+					: undefined;
 
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
 	const [paneHeight, setPaneHeight] = useState(0);
@@ -1118,6 +1128,8 @@ export function Dock({
 								<Icon icon={plus} size={20} />
 								New Playground
 							</button>
+						) : section === 'transfer' ? (
+							toolAction
 						) : undefined
 					}
 					headerOverride={paneHeaderOverride}
@@ -1148,6 +1160,7 @@ export function Dock({
 						isVisible={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
+						onToolBackChange={setToolBack}
 						onNewPlaygroundHeaderChange={
 							handleNewPlaygroundHeaderChange
 						}
@@ -1228,7 +1241,9 @@ export function Dock({
 							<AddressBar
 								url={clientInfo?.url}
 								isMobile={isMobile}
-								disabled={!clientInfo}
+								// A running transfer changes the site: no navigation
+								// and no quick-navigation popover meanwhile.
+								disabled={!clientInfo || paneCloseBlocked}
 								onUpdate={
 									clientInfo
 										? (newUrl) =>

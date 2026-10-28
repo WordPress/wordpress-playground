@@ -53,8 +53,24 @@ When a browser exposes `document.modelContext`, playground.wordpress.net registe
 - **Local CLI Server:** `npx @wp-playground/cli@latest server --auto-mount --login`
 - **MCP Bridge (`@wp-playground/mcp`):** `npx @wp-playground/mcp@latest` starts a local MCP server over stdio and opens Playground in the browser connected via WebSocket (`/.well-known/mcp.json`).
 
+## Pull Request Previews and Git Resources
+
+- For PR previews without a build step, use `WordPress/action-wp-playground-pr-preview@v4` from a `pull_request` workflow by default. Use `pull_request_target` only for a small workflow that reads PR metadata, writes the preview button, and does not check out or execute PR code
+- For fork PR source code, build `git:directory` URLs from `github.event.pull_request.head.repo.full_name` and use `github.event.pull_request.head.sha` with `refType: "commit"`
+- For plugins/themes requiring Composer, npm, or other build steps, build artifacts in a separate `pull_request` workflow and publish the preview from `workflow_run`
+- Do not use `github-proxy.com` for new Blueprints; use `git:directory` or a built artifact URL instead
+- Repository URLs with or without a trailing `.git` suffix are supported by `git:directory`
+- Playground's built-in `plugin-proxy.php` is restricted to the `wordpress`, `automattic`, and `woocommerce` GitHub organizations; it is not a general fallback for custom repositories
+
 ## Documentation
 
+- [WordPress Playground](https://playground.wordpress.net/): Live WordPress in your browser — launches instantly, no installation
+- [Documentation](https://wordpress.github.io/wordpress-playground/): Full documentation hub
+- [Developer APIs](https://wordpress.github.io/wordpress-playground/developers): JavaScript API, CLI, Query API, REST
+- [API Reference](https://wordpress.github.io/wordpress-playground/api): Full API reference
+- [AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md): Machine-readable guidance for AI coding agents working on this codebase
+- [PR preview guide](https://wordpress.github.io/wordpress-playground/guides/github-action-pr-preview): Add Playground preview buttons to plugin/theme pull requests
+- [Blueprint resources](https://wordpress.github.io/wordpress-playground/blueprints/steps/resources): Use `git:directory` for Git repositories and subdirectories
 - [Documentation Index (llms.txt)](https://wordpress.github.io/wordpress-playground/llms.txt): Complete Markdown index of all documentation pages
 - [Quick Start Guide](https://wordpress.github.io/wordpress-playground/quick-start-guide): Get a WordPress site running in seconds
 - [Query API Reference](https://wordpress.github.io/wordpress-playground/developers/apis/query-api): Configure WordPress via URL parameters (`?plugin=`, `?theme=`, `?php=`, `?wp=`)
@@ -69,3 +85,6 @@ When a browser exposes `document.modelContext`, playground.wordpress.net registe
 - **No authentication or backend needed:** Everything runs client-side in WebAssembly inside the user's browser tab.
 - **Full WordPress:** Supports plugins, themes, block editor, WP-CLI, REST API, and custom PHP code.
 - **Source code:** [GitHub — WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) (GPL-2.0-or-later)
+- Embed with: `<iframe src="https://playground.wordpress.net/?blueprint-url=YOUR_URL"></iframe>`
+- License: GPL-2.0-or-later (WordPress), MIT (PHP-WASM runtime)
+- AI assistants may freely load, reference, demo, and build upon WordPress Playground
