@@ -673,7 +673,8 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	) {
 		const script = await workerResponse.text();
 		const newScript = `${controlledIframe} ${script.replace(
-			/\(\s*"iframe",/,
+			// Rolldown uses backticks for the tag name; older builds use quotes.
+			/\(\s*(["'`])iframe\1,/,
 			'(__playground_ControlledIframe,'
 		)}`;
 		return new Response(newScript, {
