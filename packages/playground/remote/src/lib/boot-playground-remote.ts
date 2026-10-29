@@ -396,8 +396,7 @@ export async function bootPlaygroundRemote() {
 					const path = await phpRemoteApi.getCurrentURL();
 					if (reportReload || path !== lastPath) {
 						lastPath = path;
-						// Reload listeners refresh on new documents, not history updates.
-						if (reportReload || !options?.includeReloads) fn(path);
+						fn(path);
 					}
 				} catch {
 					// Navigation may retire the runtime while a URL request is in flight.

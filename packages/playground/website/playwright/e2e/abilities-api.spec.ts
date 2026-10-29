@@ -2,6 +2,48 @@ import { test, expect } from '../playground-fixtures';
 import { blueprint, fixture } from '../abilities-fixtures';
 import Ajv from 'ajv';
 
+// Opting into reloads must preserve navigation callbacks. History API changes
+// reach the listener through URL polling, independently of document startup.
+test('reload subscriptions retain initial and History API navigation', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto(`./?storage=temp#${blueprint()}`);
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playground)
+	);
+	await website.page.evaluate(async () => {
+		const events = { navigation: [] as string[], reloads: [] as string[] };
+		(window as any).navigationEvents = events;
+		const client = (window as any).playground;
+		await client.onNavigation((path: string) =>
+			events.navigation.push(path)
+		);
+		await client.onNavigation((path: string) => events.reloads.push(path), {
+			includeReloads: true,
+		});
+	});
+	const paths = ['/wp-admin/'];
+	const expectPaths = async () => {
+		await expect
+			.poll(() =>
+				website.page.evaluate(() => (window as any).navigationEvents)
+			)
+			.toEqual({ navigation: paths, reloads: paths });
+	};
+	await expectPaths();
+	await wordpress.locator('body').evaluate(() => {
+		window.history.pushState({}, '', '?ability-navigation=push');
+	});
+	paths.push('/wp-admin/?ability-navigation=push');
+	await expectPaths();
+	await wordpress.locator('body').evaluate(() => {
+		window.history.replaceState({}, '', '?ability-navigation=replace');
+	});
+	paths.push('/wp-admin/?ability-navigation=replace');
+	await expectPaths();
+});
+
 // Discovery must emit valid JSON Schema without converting literal arrays or
 // schema lists into objects. PHP's empty arrays make these independent cases.
 test('ability discovery preserves empty schemas and array keywords', async ({
