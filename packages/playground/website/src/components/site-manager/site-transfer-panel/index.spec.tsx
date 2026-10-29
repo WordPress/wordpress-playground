@@ -80,6 +80,7 @@ vi.mock('@wordpress/components', () => ({
 		variant: _variant,
 		isDestructive: _destructive,
 		isBusy: _busy,
+		accessibleWhenDisabled,
 		type = 'button',
 		href,
 		target,
@@ -92,6 +93,7 @@ vi.mock('@wordpress/components', () => ({
 		variant?: string;
 		isDestructive?: boolean;
 		isBusy?: boolean;
+		accessibleWhenDisabled?: boolean;
 	}) =>
 		href ? (
 			<a
@@ -103,7 +105,11 @@ vi.mock('@wordpress/components', () => ({
 				{children}
 			</a>
 		) : (
-			<button type={type} {...props}>
+			<button
+				type={type}
+				{...props}
+				disabled={props.disabled && !accessibleWhenDisabled}
+			>
 				{children}
 			</button>
 		),
@@ -253,8 +259,8 @@ describe('Reprint connection changes', () => {
 		expect(createNewTemporarySite).not.toHaveBeenCalled();
 		await click('Open Reprint settings ↗');
 		expect(createNewTemporarySite).not.toHaveBeenCalled();
-		await click('Back to Reprint settings');
-		await click('Back to migration key');
+		await click('Back to site address');
+		await submit();
 		await submit();
 		expect(createNewTemporarySite).toHaveBeenCalledTimes(1);
 		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
@@ -284,6 +290,32 @@ describe('Reprint connection changes', () => {
 		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
 	});
 
+	it('keeps the same controls focused as the checklist advances', async () => {
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		const copy = Array.from(container.querySelectorAll('button')).find(
+			(button) => button.textContent === 'Copy migration key'
+		)!;
+		copy.focus();
+		await click('Copy migration key');
+		expect(document.activeElement).toBe(copy);
+		const settings = container.querySelector<HTMLAnchorElement>(
+			'a[href*="tools.php"]'
+		)!;
+		settings.focus();
+		await click('Open Reprint settings ↗');
+		expect(document.activeElement).toBe(settings);
+		await click('Copy migration key');
+		expect(
+			container
+				.querySelector('button[type=submit]')!
+				.hasAttribute('disabled')
+		).toBe(false);
+		expect(pullSite).not.toHaveBeenCalled();
+	});
+
 	it('ignores a clipboard result after returning to edit the site address', async () => {
 		let finish!: () => void;
 		vi.mocked(navigator.clipboard.writeText).mockReturnValueOnce(
@@ -296,7 +328,7 @@ describe('Reprint connection changes', () => {
 		edit('url', 'https://first.example');
 		await submit();
 		await click('Copy migration key');
-		await click('Copying key…');
+		await click('Copy migration key');
 		expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
 		await click('Back to site address');
 		edit('url', 'https://second.example');
@@ -938,6 +970,7 @@ describe('Reprint connection changes', () => {
 	/** Follow the key guidance before submitting the current setup form. */
 	async function submit() {
 		if (
+			!container.querySelector('a[href*="tools.php"]') &&
 			Array.from(container.querySelectorAll('button')).some(
 				(button) => button.textContent === 'Copy migration key'
 			)

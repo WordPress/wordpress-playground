@@ -65,11 +65,23 @@ test(
 		await pane
 			.getByRole('button', { name: 'Copy migration key', exact: true })
 			.click();
+		await expect(
+			pane.getByRole('button', {
+				name: 'Copy migration key',
+				exact: true,
+			})
+		).toBeFocused();
 		const settingsOpened = page.context().waitForEvent('page');
 		await pane
 			.getByRole('link', { name: 'Open Reprint settings ↗', exact: true })
 			.click();
 		await (await settingsOpened).close();
+		await expect(
+			pane.getByRole('link', {
+				name: 'Open Reprint settings ↗',
+				exact: true,
+			})
+		).toBeFocused();
 		await pane
 			.locator('summary')
 			.filter({ hasText: 'Show key and connection details' })
