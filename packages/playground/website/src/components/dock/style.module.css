@@ -402,6 +402,110 @@
 		transform 240ms cubic-bezier(0.64, 0, 0.78, 0);
 }
 
+/* New and Clone share one surface. Resize that surface and carry its header
+   along, without stretching text or animating the WordPress preview behind it. */
+:global(:root[data-clone-transition]) {
+	view-transition-name: none;
+}
+
+.pane[data-clone-transition] {
+	view-transition-name: clone-pane;
+}
+
+.pane[data-clone-transition] .pane-header {
+	view-transition-name: clone-header;
+}
+
+.pane[data-clone-transition] .pane-body {
+	view-transition-name: clone-content;
+}
+
+:global(::view-transition-group(clone-pane)),
+:global(::view-transition-group(clone-header)),
+:global(::view-transition-group(clone-content)) {
+	animation-duration: 360ms;
+	animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:global(::view-transition-group(clone-pane)) {
+	background: var(--surface);
+	border-radius: 14px;
+	overflow: clip;
+}
+
+:global(::view-transition-group(clone-content)) {
+	overflow: clip;
+}
+
+:global(::view-transition-old(clone-pane)),
+:global(::view-transition-new(clone-pane)) {
+	height: 100%;
+}
+
+:global(::view-transition-old(clone-header)),
+:global(::view-transition-new(clone-header)),
+:global(::view-transition-old(clone-content)),
+:global(::view-transition-new(clone-content)) {
+	height: 100%;
+	mix-blend-mode: normal;
+	object-fit: none;
+	object-position: top left;
+}
+
+:global(::view-transition-old(clone-header)),
+:global(::view-transition-old(clone-content)) {
+	animation: clone-content-out 120ms ease-out both;
+}
+
+:global(::view-transition-new(clone-header)),
+:global(::view-transition-new(clone-content)) {
+	animation: clone-content-in 220ms ease-out 100ms both;
+}
+
+/* Back retraces the 360ms timeline: reverse the easing, and place each fade
+   the same distance from the end that it was from the start. */
+:global(:root[data-clone-transition='back']::view-transition-group(clone-pane)),
+:global(
+	:root[data-clone-transition='back']::view-transition-group(clone-header)
+),
+:global(
+	:root[data-clone-transition='back']::view-transition-group(clone-content)
+) {
+	animation-timing-function: cubic-bezier(0.64, 0, 0.78, 0);
+}
+
+:global(:root[data-clone-transition='back']::view-transition-old(clone-header)),
+:global(
+	:root[data-clone-transition='back']::view-transition-old(clone-content)
+) {
+	animation: clone-content-out 220ms ease-in 40ms both;
+}
+
+:global(:root[data-clone-transition='back']::view-transition-new(clone-header)),
+:global(
+	:root[data-clone-transition='back']::view-transition-new(clone-content)
+) {
+	animation: clone-content-in 120ms ease-in 240ms both;
+}
+
+@keyframes clone-content-out {
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes clone-content-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (max-width: 1024px) {
+	:global(::view-transition-group(clone-pane)) {
+		border-radius: 0;
+	}
+}
+
 .pane-header {
 	align-items: center;
 	display: flex;

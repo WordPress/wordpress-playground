@@ -361,6 +361,12 @@
 	gap: var(--space-4);
 	animation: step-enter 240ms ease-out;
 }
+
+/* The shared pane transition already brings in the address form. */
+.step-content[data-step='site'] {
+	animation: none;
+}
+
 /* Steps advance left to right, so the new one slides in from the right. */
 @keyframes step-enter {
 	from {
