@@ -462,6 +462,32 @@
 	animation: clone-content-in 220ms ease-out 100ms both;
 }
 
+/* Back retraces the 360ms timeline: reverse the easing, and place each fade
+   the same distance from the end that it was from the start. */
+:global(:root[data-clone-transition='back']::view-transition-group(clone-pane)),
+:global(
+	:root[data-clone-transition='back']::view-transition-group(clone-header)
+),
+:global(
+	:root[data-clone-transition='back']::view-transition-group(clone-content)
+) {
+	animation-timing-function: cubic-bezier(0.64, 0, 0.78, 0);
+}
+
+:global(:root[data-clone-transition='back']::view-transition-old(clone-header)),
+:global(
+	:root[data-clone-transition='back']::view-transition-old(clone-content)
+) {
+	animation: clone-content-out 220ms ease-in 40ms both;
+}
+
+:global(:root[data-clone-transition='back']::view-transition-new(clone-header)),
+:global(
+	:root[data-clone-transition='back']::view-transition-new(clone-content)
+) {
+	animation: clone-content-in 120ms ease-in 240ms both;
+}
+
 @keyframes clone-content-out {
 	to {
 		opacity: 0;

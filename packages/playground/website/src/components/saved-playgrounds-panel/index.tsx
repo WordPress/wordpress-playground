@@ -1,6 +1,6 @@
 import css from './style.module.css';
 import classNames from 'classnames';
-import { createPortal, flushSync } from 'react-dom';
+import { createPortal } from 'react-dom';
 import {
 	Spinner,
 	DropdownMenu,
@@ -39,6 +39,7 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { transitionClonePane } from '../dock/transition-clone-pane';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -1049,38 +1050,13 @@ export function SavedPlaygroundsPanel({
 	};
 
 	const handleCloneClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-		const openClone = () => {
+		const pane =
+			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
+		transitionClonePane(pane, 'forward', () => {
 			dispatch(setCloneRequested(true));
 			dispatch(setDockPaneSection('transfer'));
 			dispatch(setDockPaneOpen(true));
-		};
-		const transitionDocument = document as Document & {
-			startViewTransition?: (update: () => void) => {
-				finished: Promise<void>;
-			};
-		};
-		if (
-			!transitionDocument.startViewTransition ||
-			window.matchMedia('(prefers-reduced-motion: reduce)').matches
-		) {
-			openClone();
-			return;
-		}
-		const pane =
-			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
-		const root = document.documentElement;
-		pane.setAttribute('data-clone-transition', '');
-		root.setAttribute('data-clone-transition', '');
-		const transition = transitionDocument.startViewTransition(
-			// Commit the destination before the browser measures its new layout.
-			() => flushSync(openClone)
-		);
-		const cleanup = () => {
-			pane.removeAttribute('data-clone-transition');
-			root.removeAttribute('data-clone-transition');
-		};
-		// Skipping a transition must also release its temporary names.
-		void transition.finished.then(cleanup, cleanup);
+		});
 	};
 
 	const inactiveStoredSites = storedSites.filter(
@@ -1530,6 +1506,7 @@ export function SavedPlaygroundsPanel({
 							</div>
 							<button
 								type="button"
+								id="clone-site-launcher"
 								className={classNames(
 									css.creationButton,
 									css.creationLauncher

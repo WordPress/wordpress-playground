@@ -107,7 +107,7 @@ test(
 );
 
 for (const motion of ['animated', 'reduced-motion', 'unsupported', 'skipped']) {
-	test(`opening the clone form keeps its temporary Playground (${motion})`, async ({
+	test(`entering and leaving the clone form keeps its temporary Playground (${motion})`, async ({
 		website,
 	}) => {
 		const page = website.page;
@@ -154,13 +154,38 @@ for (const motion of ['animated', 'reduced-motion', 'unsupported', 'skipped']) {
 		// Temporary snapshot names must be released even when the browser skips the animation.
 		await expect(page.locator('html')).not.toHaveAttribute(
 			'data-clone-transition',
-			''
+			/.*/
 		);
-		await expect(pane).not.toHaveAttribute('data-clone-transition', '');
+		await expect(pane).not.toHaveAttribute('data-clone-transition', /.*/);
 		await expect(page).not.toHaveURL(/[?&]overlay=/);
+		await pane
+			.getByRole('button', { name: 'Back to New Playground' })
+			.click();
+		const launcher = page.getByRole('button', {
+			name: 'Clone a live site',
+		});
+		await expect(launcher).toBeFocused();
+		await expect(page.locator('html')).not.toHaveAttribute(
+			'data-clone-transition',
+			/.*/
+		);
 		await expect(
-			pane.getByRole('button', { name: 'Back to New Playground' })
-		).toBeVisible();
+			page.getByRole('dialog', { name: 'New Playground pane' })
+		).not.toHaveAttribute('data-clone-transition', /.*/);
+		// Back returns to the launcher, so Enter can open another fresh clone form.
+		await launcher.press('Enter');
+		await expect(
+			pane.getByRole('textbox', { name: 'Live site URL' })
+		).toBeFocused();
+		// Keyboard Back can interrupt the entry motion before it finishes.
+		await pane
+			.getByRole('button', { name: 'Back to New Playground' })
+			.press('Enter');
+		await expect(launcher).toBeFocused();
+		await expect(page.locator('html')).not.toHaveAttribute(
+			'data-clone-transition',
+			/.*/
+		);
 		const current = await page.evaluate(async () => {
 			const api = (window as any).playgroundSites;
 			return {
