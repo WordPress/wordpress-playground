@@ -39,11 +39,17 @@ test('playgroundSites.saveInBrowser() persists a temporary site', async ({
 		Boolean((window as any).playgroundSites?.getClient())
 	);
 
-	const result = await website.page.evaluate(() =>
-		(window as any).playgroundSites.saveInBrowser()
-	);
-	expect(result.slug).toBeTruthy();
-	expect(result.storage).toBe('opfs');
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const beforeName = api.list().find((site: any) => site.isActive).name;
+		const saved = await api.saveInBrowser();
+		const afterName = api.list().find((site: any) => site.isActive).name;
+		return { saved, beforeName, afterName };
+	});
+	expect(result.saved.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
+	expect(result.saved.storage).toBe('opfs');
+	expect(result.beforeName).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/);
+	expect(result.afterName).toBe(result.beforeName);
 });
 
 test('playgroundSites.autosaveTemporarySite() persists without disrupting the tab', async ({
@@ -238,19 +244,19 @@ test('playgroundSites.createNewSavedSite() creates unique slugs for repeated Blu
 		const secondSlug = await api.createNewSavedSite(undefined, undefined, {
 			updateUrl: false,
 		});
-		const sites = api
-			.list()
-			.filter((s: any) => s.slug.startsWith('shared-blueprint-name'));
+		const sites = api.list();
 		return { firstSlug, secondSlug, sites };
 	}, blueprint);
 
-	expect(result.firstSlug).toBe('shared-blueprint-name');
-	expect(result.secondSlug).toBe('shared-blueprint-name-2');
+	const slugPattern = /^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/;
+	expect(result.firstSlug).toMatch(slugPattern);
+	expect(result.secondSlug).toMatch(slugPattern);
+	expect(result.secondSlug).not.toBe(result.firstSlug);
 	const firstSite = result.sites.find(
-		(site: any) => site.slug === 'shared-blueprint-name'
+		(site: any) => site.slug === result.firstSlug
 	);
 	const secondSite = result.sites.find(
-		(site: any) => site.slug === 'shared-blueprint-name-2'
+		(site: any) => site.slug === result.secondSlug
 	);
 	expect(firstSite).toEqual(
 		expect.objectContaining({
@@ -304,10 +310,62 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 	// explicit save unless the caller opts into autosave persistence.
 	expect(result.slug).toBe('api-created-site');
 	expect(result.active.slug).toBe('api-created-site');
+	expect(result.active.name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/);
+	expect(result.active.name).not.toBe('Api Created Site');
 	expect(result.active.storage).toBe('opfs');
 	expect(result.active.persistence).toBe('explicit');
 	expect(result.hasClient).toBe(true);
 	expect(result.sameUrl).toBe(true);
+});
+
+test('playgroundSites.createNewTemporarySite() defaults to a readable name separate from its slug', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp&php=8.3&networking=yes');
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playgroundSites?.getClient())
+	);
+
+	const result = await website.page.evaluate(async () => {
+		const api = (window as any).playgroundSites;
+		const beforeUrl = window.location.href;
+		const beforeClient = api.getClient();
+		await beforeClient.writeFile('/tmp/clone-reuse-canary.txt', 'original');
+		const originalSlug = api.list().find((site: any) => site.isActive).slug;
+		const slug = await api.createNewTemporarySite(
+			originalSlug,
+			{ networking: true, phpVersion: '8.3' },
+			{ updateUrl: false }
+		);
+		return {
+			originalSlug,
+			slug,
+			active: api.list().find((site: any) => site.isActive),
+			sameUrl: window.location.href === beforeUrl,
+			sameClient: beforeClient === api.getClient(),
+			hasOriginalFile: await api
+				.getClient()
+				.fileExists('/tmp/clone-reuse-canary.txt'),
+		};
+	});
+
+	expect(result.slug).not.toBe(result.originalSlug);
+	expect(result.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
+	expect(result.active).toEqual(
+		expect.objectContaining({
+			slug: result.slug,
+			name: expect.stringMatching(
+				/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/
+			),
+			storage: 'temporary',
+		})
+	);
+	expect(result.active.name.toLowerCase().replaceAll(' ', '-')).not.toBe(
+		result.originalSlug
+	);
+	expect(result.sameUrl).toBe(true);
+	expect(result.sameClient).toBe(false);
+	expect(result.hasOriginalFile).toBe(false);
 });
 
 test('playgroundSites.rename() renames a saved site', async ({
