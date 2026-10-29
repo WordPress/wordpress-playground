@@ -292,7 +292,7 @@ export async function bootPlaygroundRemote() {
 		 *
 		 * @param fn Receives the path within WordPress, without the internal scope prefix.
 		 */
-		async onNavigation(fn) {
+		async onNavigation(fn, options) {
 			/**
 			 * Note: We do not manually clear the event listener and the interval set in this function.
 			 *
@@ -303,6 +303,7 @@ export async function bootPlaygroundRemote() {
 			 */
 
 			let lastPath: string | undefined;
+			let navigationReportedBeforeLoad = false;
 
 			/**
 			 * Receive the startup URL posted by the WordPress MU plugin in wp_head/admin_head.
@@ -330,8 +331,9 @@ export async function bootPlaygroundRemote() {
 					) {
 						return;
 					}
+					navigationReportedBeforeLoad = true;
 					const path = await playground.internalUrlToPath(data.url);
-					if (path !== lastPath) {
+					if (options?.includeReloads || path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
@@ -346,6 +348,9 @@ export async function bootPlaygroundRemote() {
 
 			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async () => {
+				const reportReload =
+					options?.includeReloads && !navigationReportedBeforeLoad;
+				navigationReportedBeforeLoad = false;
 				/**
 				 * When navigating to a page with %0A sequences (encoded newlines)
 				 * in the query string, the `location.href` property of the
@@ -370,7 +375,7 @@ export async function bootPlaygroundRemote() {
 				 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 				 */
 				await new Promise((resolve) => setTimeout(resolve, 0));
-				await reportCurrentPath();
+				await reportCurrentPath(reportReload);
 			});
 
 			// Ask twice a second to catch pushState()/replaceState() and any navigation
@@ -382,14 +387,14 @@ export async function bootPlaygroundRemote() {
 			// * https://github.com/WordPress/wordpress-playground/pull/1945
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
-			setInterval(reportCurrentPath, 500);
+			setInterval(() => void reportCurrentPath(), 500);
 
 			/** Use the same URL read as explicit API calls, and skip unchanged paths. */
-			async function reportCurrentPath() {
+			async function reportCurrentPath(reportReload = false) {
 				if (sharedRuntime?.isRetired()) return;
 				try {
 					const path = await phpRemoteApi.getCurrentURL();
-					if (path !== lastPath) {
+					if (reportReload || path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
@@ -478,6 +483,12 @@ export async function bootPlaygroundRemote() {
 		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
+		},
+		async listAbilities() {
+			return await webMCPBridge.listAbilities();
+		},
+		async executeAbility(name, input) {
+			return await webMCPBridge.executeAbility(name, input);
 		},
 		async onWebMCPToolsChanged(fn) {
 			webMCPBridge.subscribe(fn);
