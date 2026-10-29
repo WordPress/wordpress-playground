@@ -21,33 +21,56 @@ call inside JavaScript. This is **not** a network-based REST API.
 To use the JavaScript API, you'll need:
 
 - An `<iframe>` element
-- The `@wp-playground/client` package (from npm or a CDN)
+- The Playground JavaScript client, loaded from `playground.wordpress.net` or installed from npm
 
-Here's the shortest example of how to use the JavaScript API in a HTML page:
+### Load the client from playground.wordpress.net
+
+You can load the client directly from `https://playground.wordpress.net/client/index.js`. No npm installation or build step is required. Use a `<script type="module">` element so you can import the client and use `await`.
+
+Save the following example as `index.html` and serve it from a local web server, or paste it into an online HTML editor such as CodePen or JSFiddle:
 
 ```html
 <iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
 <script type="module">
-	// Use unpkg for convenience
-	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
+	const { startPlaygroundWeb } = await import('https://playground.wordpress.net/client/index.js');
 
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),
-		remoteUrl: `https://playground.wordpress.net/remote.html`,
+		remoteUrl: 'https://playground.wordpress.net/remote.html',
 	});
 	// Let's wait until Playground is fully loaded
 	await client.isReady();
 </script>
 ```
 
+The import loads the JavaScript client into your page. `startPlaygroundWeb()` then loads WordPress in the iframe using `remoteUrl` and returns a client you can use to control it.
+
 <div class="callout callout-info">
 
 **/remote.html is a special URL**
 
 `/remote.html` is a special URL that loads the Playground
-API endpoint instead of the demo app with the browser UI. Read more about the difference between `/` and `/remote.html` and [on this page](/developers/apis/javascript-api/-html-vs-remote-html).
+API endpoint instead of the demo app with the browser UI. Read more about [the difference between `/` and `/remote.html`](/developers/apis/javascript-api/-html-vs-remote-html).
+
+Use `https://playground.wordpress.net/remote.html` for `remoteUrl` to connect to Playground. WordPress pages load from `wpsandbox.wordpress.net` automatically. You don't need to configure that address.
 
 </div>
+
+### Install the client from npm
+
+If your application uses a bundler, install the client package:
+
+```bash
+npm install @wp-playground/client
+```
+
+Then replace the URL import in the example above with this import in your JavaScript module:
+
+```javascript
+const { startPlaygroundWeb } = await import('@wp-playground/client');
+```
+
+For the hosted runtime at `https://playground.wordpress.net/remote.html`, use the URL import above to keep the client and runtime in sync. With npm, use matching client and runtime versions and update them together.
 
 ## Controlling the website
 
