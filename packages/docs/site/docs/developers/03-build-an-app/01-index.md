@@ -38,7 +38,7 @@ WordPress Playground provides three APIs you can use to control the iframed webs
 
 - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
 - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
+- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm
 
 Learn more about each of these APIs in the [APIs overview section](/developers/apis/).
 
@@ -211,16 +211,18 @@ With JSON Blueprints, you'd use the `preferredVersions` property:
 
 ## Run PHP code in the browser
 
-The JavaScript API provides the `run()` method which you can use to run PHP code in the browser:
+The JavaScript API provides the `run()` method which you can use to run PHP code in the browser. This example loads the client directly from `playground.wordpress.net`, so no npm installation or build step is required. See the [JavaScript API quick start](/developers/apis/javascript-api#quick-start) for setup instructions and the npm alternative.
 
 ```html
 <iframe id="wp"></iframe>
 <script type="module">
+	const { startPlaygroundWeb } = await import('https://playground.wordpress.net/client/index.js');
+
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),
 		remoteUrl: 'https://playground.wordpress.net/remote.html',
 	});
-	await client.isReady;
+	await client.isReady();
 	await client.run({
 		code: `<?php
 		require("/wordpress/wp-load.php");
@@ -229,7 +231,7 @@ The JavaScript API provides the `run()` method which you can use to run PHP code
 		echo "Site title updated!";
 		`,
 	});
-	client.goTo('/');
+	await client.goTo('/');
 </script>
 ```
 
