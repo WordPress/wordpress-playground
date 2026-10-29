@@ -1,10 +1,28 @@
 /**
+ * Keeps an available explicit slug, otherwise draws random slugs until one is free.
+ * Explicit slug hints are not sanitized here; their URL/storage escaping remains
+ * the responsibility of the boundaries that consume them.
+ */
+export function getUniqueSiteSlug(
+	preferredSlug: string | undefined,
+	{
+		unavailableSlugs,
+	}: {
+		unavailableSlugs: Iterable<string>;
+	}
+) {
+	const unavailable = new Set(unavailableSlugs);
+	let candidate = preferredSlug || generateSiteSlug();
+	while (unavailable.has(candidate)) {
+		candidate = generateSiteSlug();
+	}
+	return candidate;
+}
+
+/**
  * Generates a site slug independently of its human-readable display name.
  * Twelve random letters from a 25-letter alphabet provide about 55.7 bits of entropy.
  * Omit "l" to avoid confusing it with "i".
- *
- * Explicit slug hints bypass this helper so their URL/storage escaping remains
- * the responsibility of the boundaries that consume them.
  */
 export function generateSiteSlug() {
 	const alphabet = 'abcdefghijkmnopqrstuvwxyz';
@@ -22,32 +40,4 @@ export function generateSiteSlug() {
 		}
 	}
 	return `${letters.slice(0, 4)}-${letters.slice(4, 8)}-${letters.slice(8)}`;
-}
-
-/**
- * Returns a preferred site slug with a numeric suffix when needed.
- *
- * Callers supply either a generated slug or an explicit slug hint.
- * This function only handles empty strings and collisions.
- */
-export function getUniqueSiteSlug(
-	preferredSlug: string,
-	{
-		unavailableSlugs,
-	}: {
-		unavailableSlugs: Iterable<string>;
-	}
-) {
-	const unavailable = new Set(unavailableSlugs);
-	const baseSlug = preferredSlug || 'playground';
-	if (!unavailable.has(baseSlug)) {
-		return baseSlug;
-	}
-	let suffix = 2;
-	let candidate = `${baseSlug}-${suffix}`;
-	while (unavailable.has(candidate)) {
-		suffix++;
-		candidate = `${baseSlug}-${suffix}`;
-	}
-	return candidate;
 }

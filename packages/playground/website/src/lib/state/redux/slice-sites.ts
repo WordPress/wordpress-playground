@@ -32,7 +32,7 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
-import { generateSiteSlug, getUniqueSiteSlug } from './site-slug';
+import { getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
@@ -445,14 +445,14 @@ export function isUnfinishedBlueprintRun(site: SiteInfo) {
 }
 
 /**
- * Creates or reuses a temporary Playground in the redux state. Replacements
- * receive a different slug so React boots them in a fresh iframe.
+ * Creates or reuses a temporary Playground in the redux state. New Playgrounds
+ * receive a free slug; existing temporary Playgrounds keep their running iframes.
  */
 export function setTemporarySiteSpec(
 	siteName: string,
 	playgroundUrlWithQueryApiArgs: URL,
 	preferredSlug?: string,
-	options: { replaceExisting?: boolean } = {}
+	options: { forceNew?: boolean } = {}
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
@@ -468,7 +468,9 @@ export function setTemporarySiteSpec(
 		}) => {
 			// Create a mock temporary site to associate the error with.
 			const errorSite: SiteInfo = {
-				slug: siteSlug,
+				slug: getUniqueSiteSlug(preferredSlug, {
+					unavailableSlugs: selectSiteSlugs(getState()),
+				}),
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
 					name: siteName,
@@ -521,11 +523,13 @@ export function setTemporarySiteSpec(
 			return errorSite;
 		};
 
+		const activeSite = selectActiveSite(getState());
 		const currentTemporarySite = selectTemporarySite(getState());
 		if (
 			currentTemporarySite &&
-			!options.replaceExisting &&
-			(!preferredSlug || preferredSlug === currentTemporarySite.slug)
+			(!activeSite || activeSite.slug === currentTemporarySite.slug) &&
+			!options.forceNew &&
+			!preferredSlug
 		) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
@@ -534,34 +538,6 @@ export function setTemporarySiteSpec(
 				JSON.stringify(newSiteUrlParams)
 			) {
 				return currentTemporarySite;
-			}
-		}
-
-		// Temporary sites are removed before the new one is added, so they
-		// should not force the replacement site to take a numeric suffix.
-		const storedSites = selectAllSites(getState()).filter(
-			(site) => site.metadata.storage !== 'none'
-		);
-		const unavailableSlugs = storedSites.map((site) => site.slug);
-		if (currentTemporarySite && options.replaceExisting) {
-			// Reserve the old slug so selecting the replacement changes the active
-			// slug and React boots a fresh iframe for it.
-			unavailableSlugs.push(currentTemporarySite.slug);
-		}
-		const unavailableNames = storedSites.map((site) => site.metadata.name);
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || generateSiteSlug(),
-			{
-				unavailableSlugs,
-			}
-		);
-
-		const sites = getState().sites.entities;
-
-		// First, delete any existing temporary sites
-		for (const site of Object.values(sites)) {
-			if (site.metadata.storage === 'none') {
-				dispatch(sitesSlice.actions.removeSite(site.slug));
 			}
 		}
 
@@ -596,6 +572,15 @@ export function setTemporarySiteSpec(
 				resolvedBlueprint,
 				playgroundUrlWithQueryApiArgs
 			);
+			const runtimeConfiguration = await resolveRuntimeConfiguration(
+				resolvedBlueprint.blueprint
+			);
+			// Resolve the setup before choosing a slug: another creation can finish
+			// while we await the Blueprint. Retain every existing Playground.
+			const sites = selectAllSites(getState());
+			const siteSlug = getUniqueSiteSlug(preferredSlug, {
+				unavailableSlugs: sites.map((site) => site.slug),
+			});
 			let displayName = siteName;
 			if (!preferredSlug) {
 				const defaultName = getDefaultSiteNameFromBlueprint(
@@ -604,7 +589,7 @@ export function setTemporarySiteSpec(
 				);
 				displayName = getSiteNameWithCreationTimeIfDuplicate(
 					defaultName,
-					unavailableNames,
+					sites.map((site) => site.metadata.name),
 					new Date()
 				);
 			}
@@ -621,9 +606,7 @@ export function setTemporarySiteSpec(
 					),
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
-					runtimeConfiguration: await resolveRuntimeConfiguration(
-						resolvedBlueprint.blueprint
-					)!,
+					runtimeConfiguration,
 				},
 			};
 			dispatch(sitesSlice.actions.addSite(newSiteInfo));
@@ -730,10 +713,9 @@ export function createStoredSite(
 				new Date(now)
 			);
 		}
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || generateSiteSlug(),
-			{ unavailableSlugs: sites.map((site) => site.slug) }
-		);
+		const siteSlug = getUniqueSiteSlug(preferredSlug, {
+			unavailableSlugs: sites.map((site) => site.slug),
+		});
 		const blueprintBundle = isTraversableFilesystemBackend(blueprint)
 			? blueprint
 			: undefined;
@@ -990,8 +972,11 @@ export const selectSortedStoredSites = createSelector(
 );
 
 export const selectTemporarySite = createSelector(
-	[selectAllSites],
-	(sites: SiteInfo[]) => {
+	[selectAllSites, (state) => selectActiveSite(state)],
+	(sites: SiteInfo[], activeSite) => {
+		if (activeSite && isTemporarySite(activeSite)) {
+			return activeSite;
+		}
 		return sites.find(isTemporarySite);
 	}
 );

@@ -37,12 +37,22 @@ describe('site slug helpers', () => {
 		expect(crypto.getRandomValues).toHaveBeenCalledTimes(2);
 	});
 
-	it('appends a suffix to avoid slug collisions', () => {
-		expect(
-			getUniqueSiteSlug('demo-site', {
-				unavailableSlugs: ['demo-site', 'demo-site-2', 'other-site'],
+	it('draws another random slug for every collision', () => {
+		vi.mocked(crypto.getRandomValues)
+			.mockImplementationOnce((array) => {
+				(array as Uint8Array).fill(1);
+				return array;
 			})
-		).toBe('demo-site-3');
+			.mockImplementationOnce((array) => {
+				(array as Uint8Array).fill(2);
+				return array;
+			});
+		expect(
+			getUniqueSiteSlug('aaaa-aaaa-aaaa', {
+				unavailableSlugs: ['aaaa-aaaa-aaaa', 'bbbb-bbbb-bbbb'],
+			})
+		).toBe('cccc-cccc-cccc');
+		expect(crypto.getRandomValues).toHaveBeenCalledTimes(2);
 	});
 
 	it('does not sanitize explicit slug hints while avoiding collisions', () => {
@@ -56,17 +66,15 @@ describe('site slug helpers', () => {
 				unavailableSlugs: [],
 			})
 		).toBe('  spaced slug  ');
-		expect(
-			getUniqueSiteSlug('Mój Playground 🚀', {
-				unavailableSlugs: ['Mój Playground 🚀'],
-			})
-		).toBe('Mój Playground 🚀-2');
 		expect(crypto.getRandomValues).not.toHaveBeenCalled();
 	});
 
-	it('uses a fallback when an explicit slug hint is empty', () => {
-		expect(getUniqueSiteSlug('', { unavailableSlugs: [] })).toBe(
-			'playground'
-		);
-	});
+	it.each(['', undefined])(
+		'generates a random slug for an empty hint (%s)',
+		(hint) => {
+			expect(getUniqueSiteSlug(hint, { unavailableSlugs: [] })).toBe(
+				'aaaa-aaaa-aaaa'
+			);
+		}
+	);
 });

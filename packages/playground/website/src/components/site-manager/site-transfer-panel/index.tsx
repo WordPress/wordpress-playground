@@ -35,10 +35,7 @@ import {
 } from '../../../lib/state/redux/slice-sites';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
 import { randomSiteName } from '../../../lib/state/redux/random-site-name';
-import {
-	generateSiteSlug,
-	getUniqueSiteSlug,
-} from '../../../lib/state/redux/site-slug';
+import { getUniqueSiteSlug } from '../../../lib/state/redux/site-slug';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import type { SiteToolPanelProps } from '../site-info-panel/site-tool-renderers';
@@ -504,7 +501,7 @@ export function SiteTransferPanel({
 			overallPercent: 0,
 		});
 		const address = getReprintAdminUrls(url).site;
-		const slug = getUniqueSiteSlug(generateSiteSlug(), {
+		const slug = getUniqueSiteSlug(undefined, {
 			unavailableSlugs: existingSlugs,
 		});
 		rememberConnection(slug, address, keyPair!);

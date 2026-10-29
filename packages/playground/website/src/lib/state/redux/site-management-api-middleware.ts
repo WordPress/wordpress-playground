@@ -977,7 +977,7 @@ export function createSitesAPI(
 			setTemporarySiteSpec(siteName, url, requestedSiteSlug, {
 				// ZIP initialization must run during a fresh boot, before WordPress
 				// starts serving requests from the new filesystem.
-				replaceExisting: Boolean(initialize),
+				forceNew: Boolean(initialize),
 			})
 		);
 		await activateNewSite(newSiteInfo.slug, initialize, {

@@ -520,22 +520,36 @@ describe('stored sites', () => {
 	});
 
 	it.each([
-		{ requestedSlug: undefined, expectedSlug: 'current-temp', reuse: true },
 		{
-			requestedSlug: 'current-temp',
+			requestedSlug: undefined,
 			expectedSlug: 'current-temp',
 			reuse: true,
+			activeStored: false,
+		},
+		{
+			requestedSlug: 'current-temp',
+			expectedSlug: undefined,
+			reuse: false,
+			activeStored: false,
 		},
 		{
 			requestedSlug: 'clone-temp',
 			expectedSlug: 'clone-temp',
 			reuse: false,
+			activeStored: false,
+		},
+		{
+			requestedSlug: undefined,
+			expectedSlug: undefined,
+			reuse: false,
+			activeStored: true,
 		},
 	])(
 		'handles temporary site reuse for slug $requestedSlug',
-		async ({ requestedSlug, expectedSlug, reuse }) => {
+		async ({ requestedSlug, expectedSlug, reuse, activeStored }) => {
 			const { setTemporarySiteSpec, sitesSlice } =
 				await import('./slice-sites');
+			const { selectActiveSite } = await import('./store');
 			const currentSite = createSiteInfo({
 				slug: 'current-temp',
 				name: 'Original Playground',
@@ -549,13 +563,19 @@ describe('stored sites', () => {
 				},
 			});
 			currentSite.metadata.storage = 'none';
+			const activeSite = activeStored
+				? createSiteInfo({ slug: 'stored' })
+				: currentSite;
+			vi.mocked(selectActiveSite).mockReturnValue(activeSite);
 			resolveRuntimeConfiguration.mockResolvedValue(
 				currentSite.metadata.runtimeConfiguration
 			);
 			let state = {
 				sites: sitesSlice.reducer(
 					undefined,
-					sitesSlice.actions.addSite(currentSite)
+					sitesSlice.actions.addSites(
+						activeStored ? [currentSite, activeSite] : [currentSite]
+					)
 				),
 			};
 			const dispatch = vi.fn((action) => {
@@ -571,15 +591,54 @@ describe('stored sites', () => {
 				requestedSlug
 			)(dispatch as any, () => state as any);
 
-			expect(site.slug).toBe(expectedSlug);
+			if (expectedSlug) {
+				expect(site.slug).toBe(expectedSlug);
+			} else {
+				expect(site.slug).toMatch(
+					/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/
+				);
+			}
 			expect(site.metadata.name).toBe(
 				reuse ? 'Original Playground' : 'Cloned Playground'
 			);
-			expect(state.sites.entities['current-temp']).toBe(
-				reuse ? currentSite : undefined
-			);
+			expect(state.sites.entities['current-temp']).toBe(currentSite);
 		}
 	);
+
+	it('keeps the existing temporary Playground when a new Blueprint cannot load', async () => {
+		const { setTemporarySiteSpec, sitesSlice } =
+			await import('./slice-sites');
+		const { resolveBlueprintFromURL } =
+			await import('../url/resolve-blueprint-from-url');
+		vi.mocked(resolveBlueprintFromURL).mockRejectedValueOnce(
+			new Error('Download failed')
+		);
+		const original = createSiteInfo({
+			slug: 'original',
+			name: 'Original Playground',
+		});
+		original.metadata.storage = 'none';
+		let state = {
+			sites: sitesSlice.reducer(
+				undefined,
+				sitesSlice.actions.addSite(original)
+			),
+		};
+		const dispatch = vi.fn((action) => {
+			state = { sites: sitesSlice.reducer(state.sites, action) };
+			return action;
+		});
+
+		const failedSite = await setTemporarySiteSpec(
+			'Failed Clone',
+			new URL('https://playground.test/?storage=temp'),
+			original.slug
+		)(dispatch as any, () => state as any);
+
+		expect(failedSite.slug).not.toBe(original.slug);
+		expect(state.sites.entities[original.slug]).toBe(original);
+		expect(state.sites.entities[failedSite.slug]).toBe(failedSite);
+	});
 
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
@@ -657,7 +716,7 @@ describe('stored sites', () => {
 			}
 		)(dispatch as any, getState as any);
 
-		expect(newSite.slug).toBe('source-site-2');
+		expect(newSite.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
 		expect(newSite.metadata).toMatchObject({
 			name: 'Edited Blueprint',
 			storage: 'opfs',
@@ -669,11 +728,11 @@ describe('stored sites', () => {
 			runtimeConfiguration,
 		});
 		expect(persistBlueprintBundle).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			editedBundle
 		);
 		expect(createSite).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			newSite.metadata,
 			undefined
 		);
@@ -681,7 +740,7 @@ describe('stored sites', () => {
 		expect(writes).toEqual(['bundle', 'metadata']);
 		expect(state.sites.entities).toMatchObject({
 			'source-site': sourceSite,
-			'source-site-2': newSite,
+			[newSite.slug]: newSite,
 		});
 	});
 

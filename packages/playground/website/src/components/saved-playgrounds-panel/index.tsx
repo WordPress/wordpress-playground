@@ -167,7 +167,8 @@ export function SavedPlaygroundsPanel({
 	onPaneHeaderChange,
 }: SavedPlaygroundsPanelProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
-	const storedSites = useAppSelector(selectSortedSites).filter(
+	const sites = useAppSelector(selectSortedSites);
+	const storedSites = sites.filter(
 		(site) => site.metadata.storage !== 'none'
 	);
 	const activeSite = useActiveSite();
@@ -531,9 +532,7 @@ export function SavedPlaygroundsPanel({
 		onClose();
 		void sitesAPI.setActiveSite(slug).catch((error) => {
 			logger.error('Error opening saved Playground', error);
-			const site = storedSites.find(
-				(candidate) => candidate.slug === slug
-			);
+			const site = sites.find((candidate) => candidate.slug === slug);
 			dispatch(
 				setDockOperationNotice({
 					status: 'error',
@@ -635,7 +634,10 @@ export function SavedPlaygroundsPanel({
 	// no modal, no leaving the pane. An autosave is just marked permanent; a
 	// temporary Playground is persisted to OPFS. Either way it moves into the
 	// "Saved" group, animated by the FLIP effect above.
-	const handleStoreInBrowser = (site: SiteInfo, closeMenu: () => void) => {
+	const handleStoreInBrowser = async (
+		site: SiteInfo,
+		closeMenu: () => void
+	) => {
 		if (isImportingZip) {
 			return;
 		}
@@ -643,10 +645,14 @@ export function SavedPlaygroundsPanel({
 		dispatch(setDockOperationNotice(undefined));
 		rowRectsRef.current = snapshotRowRects();
 		animateMoveRef.current = true;
-		const stored = isAutosavedSite(site)
-			? sitesAPI.keep(site.slug)
-			: sitesAPI.saveInBrowser();
-		void stored.catch((error) => {
+		try {
+			if (isAutosavedSite(site)) {
+				await sitesAPI.keep(site.slug);
+			} else {
+				await sitesAPI.setActiveSite(site.slug);
+				await sitesAPI.saveInBrowser();
+			}
+		} catch (error) {
 			animateMoveRef.current = false;
 			logger.error('Error storing Playground in the browser', error);
 			dispatch(
@@ -656,7 +662,7 @@ export function SavedPlaygroundsPanel({
 					message: 'No changes were made to this Playground.',
 				})
 			);
-		});
+		}
 	};
 
 	// Save a browser-side Playground's files to a folder the user picks. Saving
@@ -1051,6 +1057,10 @@ export function SavedPlaygroundsPanel({
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
+	const inactiveTemporarySites = sites.filter(
+		(site) =>
+			site.metadata.storage === 'none' && site.slug !== activeSite?.slug
+	);
 	const recentSites = inactiveStoredSites.filter(isRestorableAutosavedSite);
 	const savedSites = inactiveStoredSites.filter(isExplicitlySavedSite);
 
@@ -1368,7 +1378,10 @@ export function SavedPlaygroundsPanel({
 		const hiddenSavedSitesCount =
 			savedSites.length - visibleSavedSites.length;
 		const hasSites =
-			!!activeSite || recentSites.length > 0 || savedSites.length > 0;
+			!!activeSite ||
+			inactiveTemporarySites.length > 0 ||
+			recentSites.length > 0 ||
+			savedSites.length > 0;
 
 		return (
 			<OverlaySection className={css.playgroundsSection}>
@@ -1393,6 +1406,7 @@ export function SavedPlaygroundsPanel({
 								</div>
 							</div>
 						)}
+						{renderSiteGroup('Unsaved', inactiveTemporarySites)}
 						{renderSiteGroup('Recent autosaves', recentSites)}
 						{renderSiteGroup('Saved', visibleSavedSites)}
 					</>
