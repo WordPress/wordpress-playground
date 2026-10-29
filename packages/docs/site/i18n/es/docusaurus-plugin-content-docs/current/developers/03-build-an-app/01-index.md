@@ -66,7 +66,9 @@ WordPress Playground proporciona tres APIs que puedes usar para controlar el sit
 
 - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
 - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
+    <!-- - [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm -->
+
+- [API de JavaScript](/developers/apis/javascript-api): ofrece un control completo mediante un cliente de JavaScript cargado desde `playground.wordpress.net` o instalado con npm
 
 <!--
 Learn more about each of these APIs in the [APIs overview section](/developers/apis/).
@@ -332,19 +334,21 @@ Con Blueprints JSON, usarías la propiedad `preferredVersions`:
 ## Ejecutar código PHP en el navegador
 
 <!--
-The JavaScript API provides the `run()` method which you can use to run PHP code in the browser:
+The JavaScript API provides the `run()` method which you can use to run PHP code in the browser. This example loads the client directly from `playground.wordpress.net`, so no npm installation or build step is required. See the [JavaScript API quick start](/developers/apis/javascript-api#quick-start) for setup instructions and the npm alternative.
 -->
 
-La API de JavaScript proporciona el método `run()` que puedes usar para ejecutar código PHP en el navegador:
+La API de JavaScript ofrece el método `run()` para ejecutar código PHP en el navegador. Este ejemplo carga el cliente directamente desde `playground.wordpress.net`, sin instalar paquetes con npm ni compilar el proyecto. Consulta el [inicio rápido de la API de JavaScript](/developers/apis/javascript-api#inicio-rápido) para ver las instrucciones de configuración y la alternativa con npm.
 
 ```html
 <iframe id="wp"></iframe>
 <script type="module">
+	const { startPlaygroundWeb } = await import('https://playground.wordpress.net/client/index.js');
+
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),
 		remoteUrl: 'https://playground.wordpress.net/remote.html',
 	});
-	await client.isReady;
+	await client.isReady();
 	await client.run({
 		code: `<?php
 		require("/wordpress/wp-load.php");
@@ -353,7 +357,7 @@ La API de JavaScript proporciona el método `run()` que puedes usar para ejecuta
 		echo "Site title updated!";
 		`,
 	});
-	client.goTo('/');
+	await client.goTo('/');
 </script>
 ```
 
