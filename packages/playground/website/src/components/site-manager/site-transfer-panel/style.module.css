@@ -117,6 +117,43 @@
 	min-height: 0;
 }
 
+.key-steps {
+	color: var(--ink-muted);
+	display: flex;
+	flex-wrap: wrap;
+	font-size: 13px;
+	gap: var(--space-4);
+	list-style: none;
+	margin: 0 0 var(--space-2);
+	padding: 0;
+}
+
+.key-steps [aria-current='step'] {
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.key-copied {
+	align-items: center;
+	color: var(--ink-muted);
+	display: flex;
+	font-size: 13px;
+	gap: var(--space-1);
+}
+
+.connection-details {
+	color: var(--ink-muted);
+	font-size: 13px;
+}
+
+.connection-details summary {
+	cursor: pointer;
+}
+
+.connection-details[open] > :not(summary) {
+	margin-top: var(--space-3);
+}
+
 .error {
 	overflow-wrap: anywhere;
 }

@@ -26,6 +26,7 @@ test(
 
 		await website.goto('./?reprint');
 		const page = website.page;
+		await page.context().grantPermissions(['clipboard-write']);
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
@@ -52,6 +53,10 @@ test(
 			.fill(siteUrl!);
 		await pane.getByRole('button', { name: 'Check site' }).click();
 		// The key step opens only when Reprint Server answered the probe.
+		await pane
+			.locator('summary')
+			.filter({ hasText: 'Show key and connection details' })
+			.click();
 		const key = pane.getByRole('textbox', {
 			name: 'Migration key',
 			exact: true,
@@ -60,10 +65,14 @@ test(
 		const publicKey = await key.inputValue();
 		// Enroll through the actual plugin settings, just as a user would. No
 		// shared token or unauthenticated test endpoint stands in for signatures.
-		const sourceAdmin = await page.context().newPage();
-		await sourceAdmin.goto(
-			new URL('wp-admin/tools.php?page=reprint-server', siteUrl).href
-		);
+		await pane
+			.getByRole('button', { name: 'Copy migration key', exact: true })
+			.click();
+		const sourceAdminOpened = page.context().waitForEvent('page');
+		await pane
+			.getByRole('link', { name: 'Open Reprint settings ↗', exact: true })
+			.click();
+		const sourceAdmin = await sourceAdminOpened;
 		await sourceAdmin
 			.getByRole('textbox', { name: 'Username or Email Address' })
 			.fill('admin');
@@ -89,7 +98,9 @@ test(
 			sourceAdmin.getByText('Public key enrolled.')
 		).toBeVisible();
 		await sourceAdmin.close();
-		await pane.getByRole('button', { name: 'Clone site' }).click();
+		await pane
+			.getByRole('button', { name: 'I’ve authorized it — clone site' })
+			.click();
 
 		const openSite = page.getByRole('button', { name: 'Open site' });
 		// Stop waiting when the UI reports a failed stage, so the failure snapshot

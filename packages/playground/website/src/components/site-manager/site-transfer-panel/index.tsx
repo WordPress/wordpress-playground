@@ -89,9 +89,16 @@ export function SiteTransferPanel({
 				rememberedConnection(site.slug)?.keyPair ??
 				null)
 	);
-	const [step, setStep] = useState<'site' | 'install' | 'key' | 'transfer'>(
-		handoff ? 'transfer' : 'site'
-	);
+	const [step, setStep] = useState<
+		| 'site'
+		| 'install'
+		| 'key'
+		| 'copying-key'
+		| 'manual-key'
+		| 'authorize'
+		| 'confirm'
+		| 'transfer'
+	>(handoff ? 'transfer' : 'site');
 	// A clone handoff pulls as soon as the new Playground can run PHP.
 	const [autoStart, setAutoStart] = useState(!!handoff);
 	const heading = useRef<HTMLHeadingElement>(null);
@@ -228,9 +235,13 @@ export function SiteTransferPanel({
 			heading.current?.focus();
 			return;
 		}
-		const input = content.current?.querySelector<
-			HTMLInputElement | HTMLTextAreaElement
-		>('input:not([disabled]):not([type=checkbox]), textarea[readonly]');
+		const input = Array.from(
+			content.current?.querySelectorAll<
+				HTMLInputElement | HTMLTextAreaElement
+			>(
+				'input:not([disabled]):not([type=checkbox]), textarea[readonly]'
+			) ?? []
+		).find((input) => !input.closest('details:not([open])'));
 		if (input) input.focus();
 		else heading.current?.focus();
 	}, [step, isVisible, busy, completed, keyPair, setup, error]);
@@ -256,6 +267,21 @@ export function SiteTransferPanel({
 		setKeyPair(null);
 		setError('');
 		setCompleted(false);
+	};
+
+	/** Copy during the click gesture; ignore completion after Back or an address edit. */
+	const copyMigrationKey = async () => {
+		if (!keyPair || step === 'copying-key') return;
+		checkController.current?.abort();
+		const controller = new AbortController();
+		checkController.current = controller;
+		setStep('copying-key');
+		try {
+			await navigator.clipboard.writeText(keyPair.publicKey);
+			if (!controller.signal.aborted) setStep('authorize');
+		} catch {
+			if (!controller.signal.aborted) setStep('manual-key');
+		}
 	};
 
 	/** Advance only when the current address probe returns. */
@@ -304,8 +330,14 @@ export function SiteTransferPanel({
 			dispatch(setDockPaneSection('new'));
 			return;
 		}
-		if (step === 'transfer') {
+		if (
+			step === 'transfer' ||
+			step === 'authorize' ||
+			step === 'manual-key'
+		) {
 			setStep('key');
+		} else if (step === 'confirm') {
+			setStep('authorize');
 		} else {
 			skipConnectionRestore.current = true;
 			setSetup(null);
@@ -382,8 +414,8 @@ export function SiteTransferPanel({
 		} catch (error) {
 			setSetup('manual');
 			if ((error as { name?: string } | null)?.name === 'AbortError') {
-				// Stopped on request: the key step offers to resume later.
-				setStep('key');
+				// Stopped on request: the confirmation step offers to resume later.
+				setStep('confirm');
 				return;
 			}
 			const message =
@@ -619,9 +651,13 @@ export function SiteTransferPanel({
 									backLabel:
 										step === 'site'
 											? 'Back to New Playground'
-											: step === 'transfer'
+											: step === 'transfer' ||
+												  step === 'authorize' ||
+												  step === 'manual-key'
 												? 'Back to migration key'
-												: 'Back to site address',
+												: step === 'confirm'
+													? 'Back to Reprint settings'
+													: 'Back to site address',
 									onBack: goBack,
 								}
 							: undefined
@@ -655,6 +691,19 @@ export function SiteTransferPanel({
 			void start();
 		}
 	};
+
+	const migrationKeyField = (
+		<TextareaControl
+			__nextHasNoMarginBottom
+			label="Migration key"
+			onChange={() => {}}
+			readOnly
+			autoFocus={isVisible && step === 'manual-key'}
+			onFocus={(event) => event.target.select()}
+			value={keyPair?.publicKey ?? ''}
+			rows={3}
+		/>
+	);
 
 	return (
 		<VStack spacing={4} className={css.panel}>
@@ -869,111 +918,228 @@ export function SiteTransferPanel({
 						</VStack>
 					</VStack>
 				)}
-				{!busy && !completed && step === 'key' && links && (
-					<form
-						onSubmit={(event) => {
-							event.preventDefault();
-							if (cloneRequested) {
-								void cloneIntoNewSite();
-								return;
-							}
-							if (keyReady && ready) {
-								rememberConnection(
-									site.slug,
-									getReprintAdminUrls(url).site,
-									keyPair!
-								);
-								void start();
-							}
-						}}
-					>
-						<VStack spacing={3}>
-							{generatingKey && (
-								<InlineProgress message="Generating a migration key…" />
-							)}
-							{keyPair && (
-								<>
-									<p>
-										In{' '}
-										<a
-											href={links.settings}
-											target="_blank"
-											rel="noreferrer"
-										>
-											Reprint settings on {hostname}
-										</a>
-										, paste this migration key into{' '}
-										<strong>Migration Token</strong> and
-										choose <strong>Authorize tool</strong>.
-										Then come back and clone the site.
-									</p>
-									<p className={css.hint}>
-										Older versions use the{' '}
-										<strong>Public key</strong> field and{' '}
-										<strong>Enroll key</strong> button.
-									</p>
-									<TextareaControl
-										__nextHasNoMarginBottom
-										label="Migration key"
-										onChange={() => {}}
-										readOnly
-										autoFocus={isVisible}
-										onFocus={(event) =>
-											event.target.select()
+				{!busy &&
+					!completed &&
+					step !== 'site' &&
+					step !== 'install' &&
+					step !== 'transfer' &&
+					links && (
+						<form
+							onSubmit={(event) => {
+								event.preventDefault();
+								if (step !== 'confirm') return;
+								if (cloneRequested) {
+									void cloneIntoNewSite();
+									return;
+								}
+								if (keyReady && ready) {
+									rememberConnection(
+										site.slug,
+										getReprintAdminUrls(url).site,
+										keyPair!
+									);
+									void start();
+								}
+							}}
+						>
+							<VStack spacing={3}>
+								<ol
+									className={css.keySteps}
+									aria-label="Connection steps"
+								>
+									<li
+										aria-current={
+											step !== 'authorize' &&
+											step !== 'confirm'
+												? 'step'
+												: undefined
 										}
-										value={keyPair.publicKey}
-										rows={3}
-									/>
-									<Button
-										variant="secondary"
-										onClick={async () => {
-											try {
-												await navigator.clipboard.writeText(
-													keyPair.publicKey
-												);
-												dispatch(
-													setDockOperationNotice({
-														status: 'success',
-														title: 'Migration key copied',
-													})
-												);
-											} catch {
-												setError(
-													'Select the migration key above and copy it manually.'
-												);
-											}
-										}}
 									>
-										Copy migration key
-									</Button>
+										1. Copy key
+									</li>
+									<li
+										aria-current={
+											step === 'authorize'
+												? 'step'
+												: undefined
+										}
+									>
+										2. Authorize
+									</li>
+									<li
+										aria-current={
+											step === 'confirm'
+												? 'step'
+												: undefined
+										}
+									>
+										3. {cloning ? 'Clone' : 'Pull'}
+									</li>
+								</ol>
+								<h3
+									ref={error ? undefined : heading}
+									tabIndex={-1}
+									className={`${css.setupTitle} ${css.setupSite}`}
+								>
+									{step === 'authorize'
+										? `Authorize on ${hostname}`
+										: step === 'confirm'
+											? 'Finish on your live site'
+											: 'Copy your migration key'}
+								</h3>
+								{(step === 'key' || step === 'copying-key') && (
 									<p className={css.hint}>
-										Only the migration key goes to your live
-										site. The private key stays in this tab
-										and is reused when you retry.
+										You’ll paste it into Reprint on your
+										live site.
 									</p>
+								)}
+								{generatingKey && (
+									<InlineProgress message="Generating a migration key…" />
+								)}
+								{step === 'manual-key' && (
+									<>
+										<p className={css.hint} role="alert">
+											We couldn’t copy automatically.
+											Select and copy the key below.
+										</p>
+										{migrationKeyField}
+									</>
+								)}
+								{step === 'authorize' && (
+									<p className={css.keyCopied}>
+										<Icon icon={check} size={16} />
+										Key copied
+									</p>
+								)}
+								{(step === 'authorize' ||
+									step === 'confirm') && (
+									<VStack
+										as="ol"
+										spacing={2}
+										className={css.steps}
+									>
+										<li>
+											Paste the key into{' '}
+											<strong>Migration Token</strong>.
+										</li>
+										<li>
+											Choose{' '}
+											<strong>Authorize tool</strong>
+											{step === 'confirm'
+												? ', then return here.'
+												: '.'}
+										</li>
+									</VStack>
+								)}
+								{step === 'authorize' ? (
 									<Button
-										type="submit"
 										variant="primary"
+										href={links.settings}
+										target="_blank"
+										rel="noreferrer"
+										onClick={() => setStep('confirm')}
+									>
+										Open Reprint settings ↗
+									</Button>
+								) : (
+									<Button
+										variant="primary"
+										type={
+											step === 'confirm'
+												? 'submit'
+												: 'button'
+										}
 										disabled={
 											!keyReady ||
-											(!cloneRequested && !ready)
+											step === 'copying-key' ||
+											(step === 'confirm' &&
+												!cloneRequested &&
+												!ready)
 										}
+										isBusy={step === 'copying-key'}
+										onClick={() => {
+											if (step === 'key')
+												void copyMigrationKey();
+											else if (step === 'manual-key')
+												setStep('authorize');
+										}}
 									>
-										{cloning ? 'Clone site' : 'Pull site'}
+										{step === 'confirm'
+											? cloning
+												? 'I’ve authorized it — clone site'
+												: 'I’ve authorized it — pull site'
+											: step === 'manual-key'
+												? 'I’ve copied the key'
+												: step === 'copying-key'
+													? 'Copying key…'
+													: 'Copy migration key'}
 									</Button>
-								</>
-							)}
-							{!cloneRequested && (
-								<PlaygroundBootNotice show={!playground} />
-							)}
-							{!cloneRequested && !ready && playground && (
-								<Notice status="info" isDismissible={false}>
-									Enable networking and use PHP 8.1 or newer.
-								</Notice>
-							)}
-						</VStack>
-					</form>
-				)}
+								)}
+								{step === 'authorize' && (
+									<p className={css.hint}>
+										Opens in a new tab. Return here when
+										you’re done.
+									</p>
+								)}
+								{step === 'confirm' && (
+									<p className={css.hint}>
+										We’ll check access before copying your
+										site.
+									</p>
+								)}
+								{(step === 'authorize' ||
+									step === 'confirm') && (
+									<details className={css.connectionDetails}>
+										<summary>
+											My screen looks different
+										</summary>
+										<p className={css.hint}>
+											Older versions use the{' '}
+											<strong>Public key</strong> field
+											and <strong>Enroll key</strong>{' '}
+											button.
+										</p>
+									</details>
+								)}
+								{keyPair && (
+									<details className={css.connectionDetails}>
+										<summary>
+											{step === 'manual-key'
+												? 'About this connection'
+												: 'Show key and connection details'}
+										</summary>
+										{step !== 'manual-key' &&
+											migrationKeyField}
+										<p className={css.hint}>
+											Only the migration key goes to your
+											live site. The private key stays in
+											this tab and is reused when you
+											retry.
+										</p>
+										{step === 'confirm' && (
+											<Button
+												variant="link"
+												href={links.settings}
+												target="_blank"
+												rel="noreferrer"
+											>
+												Open Reprint settings again ↗
+											</Button>
+										)}
+									</details>
+								)}
+								{!cloneRequested && (
+									<PlaygroundBootNotice show={!playground} />
+								)}
+								{!cloneRequested && !ready && playground && (
+									<Notice status="info" isDismissible={false}>
+										Enable networking and use PHP 8.1 or
+										newer.
+									</Notice>
+								)}
+							</VStack>
+						</form>
+					)}
 				{busy && <TransferProgressView progress={progress} />}
 				{busy && confirmStop && (
 					<Notice status="warning" isDismissible={false}>
