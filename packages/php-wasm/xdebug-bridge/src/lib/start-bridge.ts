@@ -7,8 +7,9 @@ import { DbgpSession } from './dbgp-session';
 import { XdebugCDPBridge } from './xdebug-cdp-bridge';
 
 export type StartBridgeConfig = {
-	cdpPort?: number;
 	cdpHost?: string;
+	cdpPort?: number;
+	dbgpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
 	excludedPaths?: string[];
@@ -18,9 +19,10 @@ export type StartBridgeConfig = {
 };
 
 export async function startBridge(config: StartBridgeConfig) {
-	const cdpPort = config.cdpPort ?? 9229;
-	const dbgpPort = config.dbgpPort ?? 9003;
 	const cdpHost = config.cdpHost ?? '127.0.0.1';
+	const cdpPort = config.cdpPort ?? 9229;
+	const dbgpHost = config.dbgpHost ?? '127.0.0.1';
+	const dbgpPort = config.dbgpPort ?? 9003;
 	const phpRoot = config.phpRoot ?? process.cwd();
 	const breakOnFirstLine = config.breakOnFirstLine ?? false;
 	const excludedPaths = config.excludedPaths ?? [];
@@ -28,7 +30,7 @@ export async function startBridge(config: StartBridgeConfig) {
 	logger.log('Starting XDebug Bridge...');
 
 	// Entry point to start the service
-	const cdpServer = new CDPServer(cdpPort);
+	const cdpServer = new CDPServer(cdpHost, cdpPort);
 
 	logger.log('Connect Chrome DevTools to CDP at:');
 	logger.log(
@@ -40,7 +42,7 @@ export async function startBridge(config: StartBridgeConfig) {
 
 	logger.log('Chrome connected! Initializing Xdebug receiver...');
 
-	const dbgpSession = new DbgpSession(dbgpPort);
+	const dbgpSession = new DbgpSession(dbgpHost, dbgpPort);
 
 	logger.log(`XDebug receiver running on port ${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');

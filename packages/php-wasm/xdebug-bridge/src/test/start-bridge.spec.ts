@@ -59,8 +59,8 @@ describe('Bridge', () => {
 		it('starts the bridge with default config', async () => {
 			const bridge = await startBridge({});
 
-			expect(CDPServer).toHaveBeenCalledWith(9229);
-			expect(DbgpSession).toHaveBeenCalledWith(9003);
+			expect(CDPServer).toHaveBeenCalledWith('127.0.0.1', 9229);
+			expect(DbgpSession).toHaveBeenCalledWith('127.0.0.1', 9003);
 			expect(XdebugCDPBridge).toHaveBeenCalled();
 			expect(bridge).toBeInstanceOf(XdebugCDPBridge);
 		});
@@ -68,11 +68,13 @@ describe('Bridge', () => {
 		it('respects custom ports and hosts', async () => {
 			await startBridge({
 				cdpPort: 9999,
+				cdpHost: '0.0.0.0',
 				dbgpPort: 8888,
+				dbgpHost: '0.0.0.0',
 			});
 
-			expect(CDPServer).toHaveBeenCalledWith(9999);
-			expect(DbgpSession).toHaveBeenCalledWith(8888);
+			expect(CDPServer).toHaveBeenCalledWith('0.0.0.0', 9999);
+			expect(DbgpSession).toHaveBeenCalledWith('0.0.0.0', 8888);
 		});
 
 		it('finds PHP files', async () => {
