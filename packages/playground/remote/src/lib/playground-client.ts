@@ -82,11 +82,17 @@ export interface WebClientMixin extends ProgressReceiver {
 	 *
 	 * @param name The tool name as announced by `onWebMCPToolsChanged`.
 	 * @param args The tool input.
+	 * @param callId An optional identifier used to cancel this call. Use a fresh ID
+	 * for each invocation; an already-pending ID is rejected.
 	 */
 	callWebMCPTool(
 		name: string,
-		args: Record<string, unknown>
+		args: Record<string, unknown>,
+		callId?: string
 	): Promise<unknown>;
+
+	/** Signals cancellation to a pending tool inside the WordPress document. */
+	cancelWebMCPTool(callId: string): Promise<void>;
 
 	/**
 	 * The onDownloadProgress event listener.

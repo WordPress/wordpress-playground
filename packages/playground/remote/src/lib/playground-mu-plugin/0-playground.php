@@ -452,6 +452,8 @@ function playground_enable_webmcp_bridge() {
 			var LIST_TOOLS = 'playground-webmcp-list-tools';
 			var CALL_TOOL = 'playground-webmcp-call-tool';
 			var CALL_RESULT = 'playground-webmcp-call-result';
+			var CANCEL_TOOL = 'playground-webmcp-cancel-tool';
+			var pendingCalls = new Map();
 
 			// The runtime supplies its origin when rendered WordPress is cross-origin.
 			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
@@ -618,6 +620,14 @@ function playground_enable_webmcp_bridge() {
 					announce();
 					return;
 				}
+				if (event.data.type === CANCEL_TOOL) {
+					var pending = pendingCalls.get(event.data.callId);
+					if (pending) {
+						pending.abort();
+						pendingCalls.delete(event.data.callId);
+					}
+					return;
+				}
 				if (event.data.type !== CALL_TOOL) {
 					return;
 				}
@@ -631,18 +641,26 @@ function playground_enable_webmcp_bridge() {
 					);
 					return;
 				}
+				var controller = new AbortController();
+				pendingCalls.set(callId, controller);
 				Promise.resolve()
 					.then(function () {
+						controller.signal.throwIfAborted();
 						return tool.execute(
 							event.data.arguments || {},
-							toolClient
+							{
+								signal: controller.signal,
+								requestUserInteraction: toolClient.requestUserInteraction
+							}
 						);
 					})
 					.then(
 						function (result) {
+							pendingCalls.delete(callId);
 							respond(callId, result, null);
 						},
 						function (error) {
+							pendingCalls.delete(callId);
 							respond(
 								callId,
 								null,

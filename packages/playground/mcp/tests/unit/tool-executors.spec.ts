@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import {
 	createToolClient,
@@ -7,6 +7,47 @@ import {
 import type { ToolClient } from '../../src/tools/tool-executors';
 
 describe('toolExecutors', () => {
+	// Contract: cancellation during nonce preparation prevents the later REST
+	// mutation and still removes the temporary file. The nonce helper and final
+	// request are independent asynchronous stages that could ignore the signal.
+	it('stops a cancelled REST request after nonce preparation and cleans up', async () => {
+		const controller = new AbortController();
+		let finishNonce!: (response: {
+			text: string;
+			httpStatusCode: number;
+			headers: Record<string, string[]>;
+		}) => void;
+		let nonceStarted!: () => void;
+		const started = new Promise<void>((resolve) => {
+			nonceStarted = resolve;
+		});
+		const request = vi.fn<ToolClient['request']>(
+			() =>
+				new Promise<{
+					text: string;
+					httpStatusCode: number;
+					headers: Record<string, string[]>;
+				}>((resolve) => {
+					finishNonce = resolve;
+					nonceStarted();
+				})
+		);
+		const unlink = vi.fn(async () => undefined);
+		const result = toolExecutors['playground_request'](
+			createStubToolClient({ request, unlink }),
+			{ url: '/wp-json/wp/v2/posts/123', method: 'DELETE' },
+			controller.signal
+		);
+		await started;
+		controller.abort();
+		finishNonce({ text: 'nonce', httpStatusCode: 200, headers: {} });
+
+		await expect(result).rejects.toMatchObject({ name: 'AbortError' });
+		expect(request).toHaveBeenCalledTimes(1);
+		expect(request.mock.calls[0][0]).toMatchObject({ method: 'GET' });
+		expect(unlink).toHaveBeenCalledTimes(1);
+	});
+
 	it('serializes object request bodies', async () => {
 		const requests: Array<{
 			url: string;

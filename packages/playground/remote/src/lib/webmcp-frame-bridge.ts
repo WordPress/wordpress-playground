@@ -11,6 +11,7 @@ const TOOLS_CHANGED = 'playground-webmcp-tools-changed';
 const LIST_TOOLS = 'playground-webmcp-list-tools';
 const CALL_TOOL = 'playground-webmcp-call-tool';
 const CALL_RESULT = 'playground-webmcp-call-result';
+const CANCEL_TOOL = 'playground-webmcp-cancel-tool';
 
 const CALL_TIMEOUT_MS = 60000;
 
@@ -32,12 +33,24 @@ export interface WebMCPToolDescriptor {
 	name: string;
 	description: string;
 	inputSchema?: Record<string, unknown>;
-	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	annotations?: {
+		readOnlyHint?: boolean;
+		destructiveHint?: boolean;
+		consequentialHint?: boolean;
+		untrustedContentHint?: boolean;
+		debugging?: boolean;
+	};
 }
 
 export interface WebMCPFrameBridge {
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
-	callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
+	/** Use a fresh call ID for each invocation; pending duplicates are rejected. */
+	callTool(
+		name: string,
+		args: Record<string, unknown>,
+		callId?: string
+	): Promise<unknown>;
+	cancelTool(callId: string): void;
 }
 
 /**
@@ -170,12 +183,17 @@ export function createWebMCPFrameBridge(
 			requestToolList();
 		},
 		/** Dispatch a tool call only to the rendered WordPress origin and bound its response time. */
-		async callTool(name, args) {
+		async callTool(name, args, callId = crypto.randomUUID()) {
 			const contentWindow = wpFrame.contentWindow;
 			if (!contentWindow) {
 				throw new Error('The WordPress frame is not loaded.');
 			}
-			const callId = crypto.randomUUID();
+			if (pendingCalls.has(callId)) {
+				throw new Error(
+					`A WebMCP tool call with ID "${callId}" is already pending. ` +
+						'Use a fresh ID for each invocation.'
+				);
+			}
 			return await new Promise<unknown>((resolve, reject) => {
 				const timeout = setTimeout(() => {
 					pendingCalls.delete(callId);
@@ -192,6 +210,21 @@ export function createWebMCPFrameBridge(
 					wordPressSiteUrl
 				);
 			});
+		},
+		cancelTool(callId) {
+			const pending = pendingCalls.get(callId);
+			if (!pending) {
+				return;
+			}
+			pendingCalls.delete(callId);
+			clearTimeout(pending.timeout);
+			wpFrame.contentWindow?.postMessage(
+				{ type: CANCEL_TOOL, callId },
+				wordPressSiteUrl
+			);
+			pending.reject(
+				new DOMException('The tool call was cancelled.', 'AbortError')
+			);
 		},
 	};
 }
