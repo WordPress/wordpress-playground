@@ -6,18 +6,10 @@ import {
 	setYouHaveAutosaveNudgeEnabled,
 } from './store';
 import type { PlaygroundReduxState } from './store';
-import { selectSortedStoredSites, selectTemporarySite } from './slice-sites';
+import { selectSortedStoredSites } from './slice-sites';
 import type { SiteInfo } from './slice-sites';
 
 describe('saved Playground state selectors', () => {
-	it('selects the active temporary Playground when several are retained', () => {
-		const original = createSite('original', 'none', 1);
-		const clone = createSite('clone', 'none', 2);
-		const state = createState(clone.slug, [original, clone]);
-
-		expect(selectTemporarySite(state)).toBe(clone);
-	});
-
 	it('returns the active stored site with a stable reference', () => {
 		const temporarySite = createSite('temporary', 'none', 1);
 		const storedSite = createSite('stored', 'opfs', 2);

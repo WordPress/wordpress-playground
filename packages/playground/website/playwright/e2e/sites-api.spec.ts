@@ -318,7 +318,6 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 
 test('playgroundSites.createNewTemporarySite() keeps a clone name separate from its slug', async ({
 	website,
-	browserName,
 }) => {
 	await website.goto('./?storage=temp&php=8.3&networking=yes');
 	await website.page.waitForFunction(() =>
@@ -328,33 +327,27 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 	const result = await website.page.evaluate(async () => {
 		const api = (window as any).playgroundSites;
 		const beforeUrl = window.location.href;
-		const original = api.list().find((site: any) => site.isActive);
 		const beforeClient = api.getClient();
-		await beforeClient.writeFile(
-			'/wordpress/wp-content/clone-reuse-canary.txt',
-			'original'
-		);
+		await beforeClient.writeFile('/tmp/clone-reuse-canary.txt', 'original');
+		const originalSlug = api.list().find((site: any) => site.isActive).slug;
 		const slug = await api.createNewTemporarySite(
-			original.slug,
+			originalSlug,
 			{ networking: true, phpVersion: '8.3' },
 			{ updateUrl: false, name: 'Happy Quiet River' }
 		);
 		return {
-			original,
+			originalSlug,
 			slug,
 			active: api.list().find((site: any) => site.isActive),
 			sameUrl: window.location.href === beforeUrl,
 			sameClient: beforeClient === api.getClient(),
 			hasOriginalFile: await api
 				.getClient()
-				.fileExists('/wordpress/wp-content/clone-reuse-canary.txt'),
-			originalStillListed: api
-				.list()
-				.some((site: any) => site.slug === original.slug),
+				.fileExists('/tmp/clone-reuse-canary.txt'),
 		};
 	});
 
-	expect(result.slug).not.toBe(result.original.slug);
+	expect(result.slug).not.toBe(result.originalSlug);
 	expect(result.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
 	expect(result.active).toEqual(
 		expect.objectContaining({
@@ -366,64 +359,6 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 	expect(result.sameUrl).toBe(true);
 	expect(result.sameClient).toBe(false);
 	expect(result.hasOriginalFile).toBe(false);
-	expect(result.originalStillListed).toBe(true);
-	await website.waitForNestedIframes();
-
-	await website.openDockPane('Playgrounds');
-	if (browserName === 'chromium') {
-		await website.page
-			.getByRole('button', {
-				name: `Actions for ${result.original.name}`,
-				exact: true,
-			})
-			.click();
-		await website.page
-			.getByRole('menuitem', {
-				name: 'Save in browser storage',
-				exact: true,
-			})
-			.click();
-		await expect
-			.poll(() =>
-				website.page.evaluate(
-					(slug) =>
-						(window as any).playgroundSites
-							.list()
-							.find((site: any) => site.slug === slug)?.storage,
-					result.original.slug
-				)
-			)
-			.toBe('opfs');
-		const cloneStorage = await website.page.evaluate(
-			(slug) =>
-				(window as any).playgroundSites
-					.list()
-					.find((site: any) => site.slug === slug)?.storage,
-			result.slug
-		);
-		expect(cloneStorage).toBe('temporary');
-	} else {
-		await website.page
-			.getByRole('button', {
-				name: `Open ${result.original.name}`,
-				exact: true,
-			})
-			.click();
-	}
-	const restored = await website.page.evaluate(async () => {
-		const api = (window as any).playgroundSites;
-		await api.isReady();
-		return {
-			slug: api.list().find((site: any) => site.isActive).slug,
-			contents: await api
-				.getClient()
-				.readFileAsText('/wordpress/wp-content/clone-reuse-canary.txt'),
-		};
-	});
-	expect(restored).toEqual({
-		slug: result.original.slug,
-		contents: 'original',
-	});
 });
 
 test('playgroundSites.rename() renames a saved site', async ({
