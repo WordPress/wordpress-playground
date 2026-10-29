@@ -1,4 +1,4 @@
-/* kandelo-host-build-inputs-sha256:13337d182912ab643ec360a5486162a572b30515556b4796542987e466a317bc */
+/* kandelo-host-build-inputs-sha256:37c5a0ec9fe537aee1b14f18334d6cce2d3390adfcb5744f8192078bf74b13ac */
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __esm = (fn, res) => function __init() {
@@ -14,7 +14,7 @@ var ABI_VERSION, WPK_FORK_LINKED_FRAME_FORMAT_SECTION, WPK_FORK_LINKED_FRAME_FOR
 var init_abi = __esm({
   "src/generated/abi.ts"() {
     "use strict";
-    ABI_VERSION = 49;
+    ABI_VERSION = 50;
     WPK_FORK_LINKED_FRAME_FORMAT_SECTION = "kandelo.wpk_fork.linked_frames";
     WPK_FORK_LINKED_FRAME_FORMAT_VERSION = 1;
     WPK_FORK_LINKED_FRAME_FORMAT_MAGIC = [75, 76, 67, 70];
@@ -4262,6 +4262,7 @@ function checkSideModuleForkContract(name, imports, contract) {
 
 // src/worker-protocol.ts
 var EXEC_RETIRE_SIGNAL_CODE = 1262835794;
+var EXIT_RETIRE_SIGNAL_CODE = 1262835796;
 
 // src/vfork-workspace.ts
 function checkedEnd(address, bytes, label) {
@@ -21388,7 +21389,7 @@ function buildFatalTrap() {
     throw new Error("unreachable Worker exception fatal trap returned");
   };
 }
-var fatalTrap = buildFatalTrap();
+var trapProcessWorker = buildFatalTrap();
 var ForkWorkerLocalImportExceptionNormalizer = class {
   constructor(caller, tokens, options = {}) {
     this.caller = caller;
@@ -21457,7 +21458,7 @@ var ForkWorkerLocalImportExceptionNormalizer = class {
   }
   replaceThrown(_sourceImportOrdinal, thrown) {
     if (thrown instanceof WebAssembly.RuntimeError) {
-      return fatalTrap();
+      return trapProcessWorker();
     }
     throw thrown;
   }
@@ -22668,10 +22669,20 @@ var SYS_MMAP_NR = ABI_SYSCALLS.Mmap;
 var PROT_READ_WRITE = 3;
 var MAP_PRIVATE_ANONYMOUS = 34;
 var SIGKILL = 9;
-var ExecRetirement = class extends Error {
-};
 function isWasmUnreachableTrap(error) {
   return error instanceof WebAssembly.RuntimeError && /\bunreachable\b/i.test(error.message);
+}
+function isExecRetirementTrap(error, memory, channelOffset) {
+  return error instanceof WebAssembly.RuntimeError && isExecRetirementMarker(new DataView(memory.buffer), channelOffset);
+}
+function isExitedWorkerRetirement(memory, channelOffset) {
+  const view = new DataView(memory.buffer);
+  return view.getUint32(channelOffset + CH_SIG_SIGNUM, true) === SIGKILL && view.getUint32(channelOffset + CH_SIG_SI_CODE, true) === EXIT_RETIRE_SIGNAL_CODE;
+}
+function clearWorkerRetirementMarker(memory, channelOffset) {
+  const view = new DataView(memory.buffer);
+  view.setUint32(channelOffset + CH_SIG_SIGNUM, 0, true);
+  view.setUint32(channelOffset + CH_SIG_SI_CODE, 0, true);
 }
 function isExecRetirementMarker(view, channelOffset) {
   return view.getUint32(channelOffset + CH_SIG_SIGNUM, true) === SIGKILL && view.getUint32(channelOffset + CH_SIG_SI_CODE, true) === EXEC_RETIRE_SIGNAL_CODE;
@@ -22859,10 +22870,8 @@ function buildKernelImports(memory, channelOffset, ptrWidth, argv, envVars, secu
     kernel_exit: (status) => {
       const view = new DataView(memory.buffer);
       const base = channelOffset;
-      if (isExecRetirementMarker(view, base)) {
-        view.setUint32(base + CH_SIG_SIGNUM, 0, true);
-        view.setUint32(base + CH_SIG_SI_CODE, 0, true);
-        throw new ExecRetirement();
+      if (isExecRetirementMarker(view, base) || isExitedWorkerRetirement(memory, base)) {
+        return trapProcessWorker();
       }
       view.setInt32(base + CH_SYSCALL, ABI_SYSCALLS.Exit, true);
       view.setBigInt64(base + CH_ARGS, BigInt(status), true);
@@ -22872,7 +22881,7 @@ function buildKernelImports(memory, channelOffset, ptrWidth, argv, envVars, secu
       while (Atomics.wait(i32, (base + CH_STATUS) / 4, CHANNEL_STATUS_PENDING) === "ok") {
       }
       onKernelExit?.(status);
-      throw new WebAssembly.RuntimeError("unreachable");
+      return trapProcessWorker();
     },
     // Clone dispatches through channel (SYS_CLONE)
     kernel_clone: (fnPtr, stackPtr, flags, arg, ptidPtr, tlsPtr, ctidPtr) => {
@@ -24544,8 +24553,12 @@ function verifyProgramAbi(programBytes, expected, pid) {
 var abiMissingWarned = false;
 async function centralizedWorkerMain(port, initData) {
   let processHostImportRuntime = null;
+  let kernelExitStatus = null;
   try {
     const { memory, programBytes, channelOffset, pid } = initData;
+    const releaseProgramBytes = () => {
+      programBytes.transfer(0);
+    };
     const ptrWidth = initData.ptrWidth ?? 4;
     const artifactFailures = describeWasmArtifactPolicyFailures(programBytes, {
       expectedAbi: initData.kernelAbiVersion,
@@ -24590,6 +24603,7 @@ async function centralizedWorkerMain(port, initData) {
       }
       const instance = await WebAssembly.instantiate(module, importObject);
       wasiShim.init();
+      releaseProgramBytes();
       port.postMessage({ type: "ready", pid });
       let exitCode = 0;
       try {
@@ -24612,7 +24626,6 @@ async function centralizedWorkerMain(port, initData) {
     const processLongjmpTag = createLongjmpTag(ptrWidth);
     const processCppExceptionTag = createCppExceptionTag(ptrWidth);
     const processForkUnwindTag = createForkUnwindTag();
-    let kernelExitStatus = null;
     const kernelImports = buildKernelImports(
       memory,
       channelOffset,
@@ -25416,6 +25429,7 @@ async function centralizedWorkerMain(port, initData) {
           ptrWidth
         );
       }
+      releaseProgramBytes();
       port.postMessage({ type: "ready", pid });
       let exitCode = 0;
       try {
@@ -25478,12 +25492,6 @@ async function centralizedWorkerMain(port, initData) {
           } catch (e) {
             if (isForkUnwindException(e, processForkUnwindTag)) {
               transportedForkUnwind = true;
-            } else if (isWasmUnreachableTrap(e)) {
-              if (kernelExitStatus !== null) {
-                exitCode = kernelExitStatus;
-                break;
-              }
-              throw e;
             } else {
               throw e;
             }
@@ -25510,19 +25518,16 @@ async function centralizedWorkerMain(port, initData) {
           break;
         }
       } catch (e) {
+        if (isExitedWorkerRetirement(memory, channelOffset) || isExecRetirementTrap(e, memory, channelOffset) || kernelExitStatus !== null && isWasmUnreachableTrap(e)) throw e;
         processTableReplication.abortActiveMutations();
         releaseProcessForkArchiveReader();
-        if (isWasmUnreachableTrap(e) && kernelExitStatus !== null) {
-          exitCode = kernelExitStatus;
-        } else {
-          if (processContinuation.phaseName() !== "idle") {
-            try {
-              processContinuation.abort();
-            } catch {
-            }
+        if (processContinuation.phaseName() !== "idle") {
+          try {
+            processContinuation.abort();
+          } catch {
           }
-          throw e;
         }
+        throw e;
       }
       processContinuation.clear();
       releaseProcessForkArchiveReader();
@@ -25591,6 +25596,7 @@ async function centralizedWorkerMain(port, initData) {
         programBytes,
         ptrWidth
       );
+      releaseProgramBytes();
       port.postMessage({ type: "ready", pid });
       let exitCode = 0;
       try {
@@ -25622,10 +25628,23 @@ async function centralizedWorkerMain(port, initData) {
     }
   } catch (err) {
     processHostImportRuntime?.clear();
-    if (err instanceof ExecRetirement) {
+    if (isExitedWorkerRetirement(initData.memory, initData.channelOffset)) {
+      clearWorkerRetirementMarker(initData.memory, initData.channelOffset);
+      return;
+    }
+    if (isExecRetirementTrap(err, initData.memory, initData.channelOffset)) {
+      clearWorkerRetirementMarker(initData.memory, initData.channelOffset);
       port.postMessage({
         type: "exec_retired",
         pid: initData.pid
+      });
+      return;
+    }
+    if (kernelExitStatus !== null && isWasmUnreachableTrap(err)) {
+      port.postMessage({
+        type: "exit",
+        pid: initData.pid,
+        status: kernelExitStatus
       });
       return;
     }
@@ -26208,6 +26227,7 @@ async function centralizedThreadWorkerMain(port, initData) {
   let processDlopenLock;
   let processDlopenOwner;
   let pthreadForkLockHeld = false;
+  let kernelThreadExitStatus = null;
   const acquirePthreadForkLock = () => {
     if (!processDlopenLock || !processDlopenOwner) {
       throw new Error(
@@ -26456,7 +26476,6 @@ async function centralizedThreadWorkerMain(port, initData) {
         threadProcessContinuation.beginParentReplay();
       }
     };
-    let kernelThreadExitStatus = null;
     const kernelImports = buildKernelImports(
       memory,
       channelOffset,
@@ -26763,9 +26782,6 @@ async function centralizedThreadWorkerMain(port, initData) {
         } catch (e) {
           if (isForkUnwindException(e, threadForkUnwindTag)) {
             transportedForkUnwind = true;
-          } else if (isWasmUnreachableTrap(e) && kernelThreadExitStatus !== null) {
-            result = kernelThreadExitStatus;
-            break;
           } else {
             throw e;
           }
@@ -26788,16 +26804,8 @@ async function centralizedThreadWorkerMain(port, initData) {
         break;
       }
     } else {
-      try {
-        const raw = threadFn(...threadArgs);
-        result = Number(raw);
-      } catch (e) {
-        if (isWasmUnreachableTrap(e) && kernelThreadExitStatus !== null) {
-          result = kernelThreadExitStatus;
-        } else {
-          throw e;
-        }
-      }
+      const raw = threadFn(...threadArgs);
+      result = Number(raw);
     }
     releasePthreadForkLock();
     threadProcessContinuation?.clear();
@@ -26820,6 +26828,31 @@ async function centralizedThreadWorkerMain(port, initData) {
       tid
     });
   } catch (err) {
+    if (isExitedWorkerRetirement(memory, channelOffset)) {
+      clearWorkerRetirementMarker(memory, channelOffset);
+      return;
+    }
+    if (isExecRetirementTrap(err, memory, channelOffset)) {
+      clearWorkerRetirementMarker(memory, channelOffset);
+      port.postMessage({
+        type: "exec_retired",
+        pid,
+        tid
+      });
+      return;
+    }
+    if (kernelThreadExitStatus !== null && isWasmUnreachableTrap(err)) {
+      threadTableReplication?.abortActiveMutations();
+      releasePthreadForkLock();
+      threadExternrefTokens?.clear();
+      threadHostImportRuntime?.clear();
+      port.postMessage({
+        type: "thread_exit",
+        pid,
+        tid
+      });
+      return;
+    }
     threadTableReplication?.abortActiveMutations();
     releasePthreadForkLock();
     try {
@@ -26828,14 +26861,6 @@ async function centralizedThreadWorkerMain(port, initData) {
     }
     threadExternrefTokens?.clear();
     threadHostImportRuntime?.clear();
-    if (err instanceof ExecRetirement) {
-      port.postMessage({
-        type: "exec_retired",
-        pid,
-        tid
-      });
-      return;
-    }
     const message = err instanceof Error ? `${err.message}
 ${err.stack ?? ""}` : String(err);
     port.postMessage({

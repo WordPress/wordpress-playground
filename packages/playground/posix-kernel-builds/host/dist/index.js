@@ -1,4 +1,4 @@
-/* kandelo-host-build-inputs-sha256:13337d182912ab643ec360a5486162a572b30515556b4796542987e466a317bc */
+/* kandelo-host-build-inputs-sha256:37c5a0ec9fe537aee1b14f18334d6cce2d3390adfcb5744f8192078bf74b13ac */
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __esm = (fn, res) => function __init() {
@@ -14,7 +14,7 @@ var ABI_VERSION, ABI_KERNEL_EXPORT, RECORD_HEADER_BYTES, RECORD_LEN_OFFSET, RECO
 var init_abi = __esm({
   "src/generated/abi.ts"() {
     "use strict";
-    ABI_VERSION = 49;
+    ABI_VERSION = 50;
     ABI_KERNEL_EXPORT = "__abi_version";
     RECORD_HEADER_BYTES = 64;
     RECORD_LEN_OFFSET = 12;
@@ -681,6 +681,7 @@ var init_abi = __esm({
       "kernel_publish_spawn_child",
       "kernel_reap_exited_child",
       "kernel_remove_process",
+      "kernel_reset_tcp_connection",
       "kernel_set_current_tid",
       "kernel_set_cwd",
       "kernel_spawn_exec_commit",
@@ -693,6 +694,7 @@ var init_abi = __esm({
       "kernel_spawn_scratch_pointer",
       "kernel_spawn_scratch_retained_capacity",
       "kernel_take_process_timer_cleanup",
+      "kernel_tcp_connection_id",
       "kernel_thread_exit",
       "kernel_thread_has_deliverable",
       "kernel_transfer_channel_execute",
@@ -1230,11 +1232,13 @@ var init_abi = __esm({
       ENETUNREACH: 101,
       ECONNABORTED: 103,
       ECONNRESET: 104,
+      ENOBUFS: 105,
       EISCONN: 106,
       ENOTCONN: 107,
       ESHUTDOWN: 108,
       ETIMEDOUT: 110,
       ECONNREFUSED: 111,
+      EHOSTUNREACH: 113,
       EALREADY: 114,
       EINPROGRESS: 115
     };
@@ -1521,7 +1525,10 @@ var init_abi = __esm({
       35077: { argKind: "pointer", direction: "out", wasm32Size: 4, wasm64Size: 4 },
       35088: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35090: { argKind: "pointer", direction: "inout", wasm32Size: 8, wasm64Size: 16 },
+      35091: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35093: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
+      35097: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
+      35099: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35111: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35123: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       1074021776: { argKind: "scalar-i32", direction: "none", wasm32Size: 0, wasm64Size: 0 },
@@ -1565,8 +1572,10 @@ var init_abi = __esm({
       3222299873: { argKind: "pointer", direction: "inout", wasm32Size: 16, wasm64Size: 16 },
       3222561958: { argKind: "pointer", direction: "inout", wasm32Size: 20, wasm64Size: 20 },
       3222824112: { argKind: "pointer", direction: "in", wasm32Size: 24, wasm64Size: 24 },
+      3223086243: { argKind: "pointer", direction: "in", wasm32Size: 28, wasm64Size: 28 },
       3223348402: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 32 },
       3223610368: { argKind: "pointer", direction: "inout", wasm32Size: 36, wasm64Size: null },
+      3223610555: { argKind: "pointer", direction: "in", wasm32Size: 36, wasm64Size: 36 },
       3225445376: { argKind: "pointer", direction: "inout", wasm32Size: null, wasm64Size: 64 },
       3225445536: { argKind: "pointer", direction: "inout", wasm32Size: 64, wasm64Size: 64 },
       3226494119: { argKind: "pointer", direction: "inout", wasm32Size: 80, wasm64Size: 80 },
@@ -5836,7 +5845,7 @@ var FramebufferRegistry = class {
   writeListeners = /* @__PURE__ */ new Set();
   bind(b) {
     const isWriteBased = b.addr === 0 && b.len === 0;
-    const hostBuffer = isWriteBased ? new Uint8ClampedArray(new ArrayBuffer(b.h * b.stride)) : null;
+    const hostBuffer = b.pixels !== void 0 ? new Uint8ClampedArray(b.pixels) : isWriteBased ? new Uint8ClampedArray(new ArrayBuffer(b.h * b.stride)) : null;
     this.bindings.set(b.pid, {
       ...b,
       view: null,
@@ -5918,8 +5927,24 @@ var FramebufferRegistry = class {
   }
 };
 
+// src/shared-byte-runs.ts
+function mergeChangedByteRuns(source, sourceOffset, snapshot, snapshotOffset, destination, destinationOffset, len) {
+  let changed = false;
+  let i = 0;
+  while (i < len) {
+    while (i < len && source[sourceOffset + i] === snapshot[snapshotOffset + i]) i++;
+    if (i >= len) break;
+    const start = i;
+    do {
+      i++;
+    } while (i < len && source[sourceOffset + i] !== snapshot[snapshotOffset + i]);
+    destination.set(source.subarray(sourceOffset + start, sourceOffset + i), destinationOffset + start);
+    changed = true;
+  }
+  return changed;
+}
+
 // src/dri/registry.ts
-var NO_CREATOR = -1;
 var GbmBoRegistry = class {
   bos = /* @__PURE__ */ new Map();
   listeners = /* @__PURE__ */ new Set();
@@ -5935,6 +5960,8 @@ var GbmBoRegistry = class {
   }
   deleteBinding(e, pid) {
     if (!e.bindingsByPid.delete(pid)) return;
+    e.snapshotsByPid.delete(pid);
+    e.pendingReaders.delete(pid);
     const n = (this.bindingCounts.get(pid) ?? 1) - 1;
     if (n > 0) this.bindingCounts.set(pid, n);
     else this.bindingCounts.delete(pid);
@@ -5957,10 +5984,11 @@ var GbmBoRegistry = class {
         w: b.w,
         h: b.h,
         stride: b.stride,
-        creatorPid: b.pid,
         sab: new SharedArrayBuffer(b.size),
         pids: /* @__PURE__ */ new Set([b.pid]),
-        bindingsByPid: /* @__PURE__ */ new Map()
+        bindingsByPid: /* @__PURE__ */ new Map(),
+        snapshotsByPid: /* @__PURE__ */ new Map(),
+        pendingReaders: /* @__PURE__ */ new Set()
       });
     }
     for (const l of this.listeners) l(b.pid, b.bo_id, "create");
@@ -5977,6 +6005,7 @@ var GbmBoRegistry = class {
     if (!e) return -1;
     e.pids.add(pid);
     this.setBinding(e, pid, { addr, len });
+    e.snapshotsByPid.set(pid, new Uint8Array(Math.min(len, e.size)));
     for (const l of this.listeners) l(pid, bo_id, "bind");
     return 0;
   }
@@ -5988,13 +6017,17 @@ var GbmBoRegistry = class {
     this.deleteBinding(e, pid);
     for (const l of this.listeners) l(pid, bo_id, "unbind");
   }
+  /** Exec replaces mappings, while non-CLOEXEC GEM handles remain open.
+   * Flush the retiring address space without discarding kernel-owned BOs. */
+  releaseProcessMappings(pid) {
+    for (const [boId, entry] of this.bos) {
+      if (entry.bindingsByPid.has(pid)) this.unbind(pid, boId);
+    }
+  }
   /**
-   * Remove every binding and handle owned by one process.
-   *
-   * WHY: a trapped/force-terminated Worker cannot run the normal GEM_CLOSE and
-   * munmap hooks. Flush its last visible pixels while the process Memory
-   * resolver is still valid, then remove only that pid's ownership. Shared
-   * bos survive while another process still owns them.
+   * Retire a process's observed mappings and metadata. Flush while the old
+   * address space is still resolvable. Kernel handles (including unmapped
+   * imports) determine storage lifetime; only destroy() can release a BO.
    */
   releaseProcess(pid) {
     for (const [bo_id, e] of Array.from(this.bos)) {
@@ -6005,10 +6038,6 @@ var GbmBoRegistry = class {
         for (const l of this.listeners) l(pid, bo_id, "unbind");
       }
       if (!e.pids.delete(pid)) continue;
-      if (e.creatorPid === pid) e.creatorPid = NO_CREATOR;
-      if (e.pids.size !== 0) continue;
-      this.bos.delete(bo_id);
-      for (const l of this.listeners) l(pid, bo_id, "destroy");
     }
   }
   /** Find the bo bound for `pid` at `addr`. Used by kernel-worker's
@@ -6040,17 +6069,26 @@ var GbmBoRegistry = class {
     const dst = new Uint8Array(memory.buffer, binding.addr, copyLen);
     const src = new Uint8Array(e.sab, 0, copyLen);
     dst.set(src);
+    e.snapshotsByPid.get(pid)?.set(src);
+    e.pendingReaders.delete(pid);
   }
-  flushMemoryToSab(e, pid, binding) {
+  flushMemoryToSab(e, pid, binding, byteLimit = Infinity) {
     const resolver = this.getProcessMemory;
     if (!resolver) return;
     const mem = resolver(pid);
     if (!mem) return;
-    const copyLen = Math.min(binding.len, e.size);
+    const copyLen = Math.min(binding.len, e.size, byteLimit);
     if (binding.addr + copyLen > mem.buffer.byteLength) return;
     const dst = new Uint8Array(e.sab, 0, copyLen);
     const src = new Uint8Array(mem.buffer, binding.addr, copyLen);
-    dst.set(src);
+    const snapshot = e.snapshotsByPid.get(pid);
+    if (!snapshot) throw new Error("DRI mapping has no publication snapshot");
+    if (mergeChangedByteRuns(src, 0, snapshot, 0, dst, 0, copyLen)) {
+      for (const reader of e.bindingsByPid.keys()) {
+        if (reader !== pid) e.pendingReaders.add(reader);
+      }
+    }
+    snapshot.set(src);
   }
   get(pid, bo_id) {
     const e = this.bos.get(bo_id);
@@ -6079,60 +6117,45 @@ var GbmBoRegistry = class {
     if (!e) return void 0;
     return { w: e.w, h: e.h, stride: e.stride };
   }
-  /** Flush ONLY the creator's live mapping into the SAB. The foreign-
-   *  texture upload path calls this before reading the SAB so a texture
-   *  bind sees the producer's latest pixels. Unlike `syncFromMemory`,
-   *  consumers' (possibly stale) mappings are left out — flushing an
-   *  importer after the creator would clobber fresh bytes. */
-  syncCreatorToSab(bo_id) {
+  /** Publish every writer, preserving bytes untouched by stale readers. */
+  syncToSab(bo_id, byteLimit = Infinity) {
     const e = this.bos.get(bo_id);
     if (!e) return;
-    const binding = e.bindingsByPid.get(e.creatorPid);
-    if (binding) this.flushMemoryToSab(e, e.creatorPid, binding);
+    for (const [pid, binding] of e.bindingsByPid) {
+      this.flushMemoryToSab(e, pid, binding, byteLimit);
+    }
   }
   /** Flush each bound pid's Memory into the SAB (KMS scanout calls this
    *  per vblank so mid-bind paints land without an explicit munmap). */
   syncFromMemory(bo_id) {
     const e = this.bos.get(bo_id);
     if (!e) return;
-    for (const [pid, binding] of e.bindingsByPid) {
-      this.flushMemoryToSab(e, pid, binding);
-    }
+    this.syncToSab(bo_id);
   }
-  /** True when `pid` holds a live mapping of a bo it did not create
-   *  while the creator also holds one — i.e. imported pixels that go
-   *  stale whenever the creator keeps drawing (wl_shm's compositor
-   *  side). Cheap gate for the kernel-worker's post-poll coherence
-   *  hook: O(live bos), no copies. */
+  /** O(1) for processes without BO mappings. A mapping can be stale when
+   * another process maps that BO or its final publication is still pending. */
   hasStaleableImports(pid) {
     if (!this.bindingCounts.has(pid)) return false;
     for (const e of this.bos.values()) {
-      if (e.creatorPid !== pid && e.bindingsByPid.has(pid) && e.bindingsByPid.has(e.creatorPid)) {
+      if (e.bindingsByPid.has(pid) && (e.bindingsByPid.size > 1 || e.pendingReaders.has(pid))) {
         return true;
       }
     }
     return false;
   }
-  /** Coherence pass for `pid`'s imported bos: flush the creator's
-   *  current mapping into the SAB, then copy the SAB into `pid`'s
-   *  mapping. The kernel-worker calls this when `pid` returns from a
-   *  poll-family syscall — the moment a compositor-style importer is
-   *  about to read buffers a client just committed. Without it, an
-   *  importer only ever sees the snapshot taken by `primeBindFromSab`
-   *  at mmap time (the registry is bind-boundary-synced, not live —
-   *  see the file header), which for a long-lived wl_shm mapping means
-   *  a permanently stale first frame. */
+  /** Publish changed bytes from every writer, then refresh this process's
+   * view and baseline at a readiness boundary. */
   syncImportsForPid(pid, memory) {
     for (const e of this.bos.values()) {
-      if (e.creatorPid === pid) continue;
       const binding = e.bindingsByPid.get(pid);
       if (!binding) continue;
-      const creatorBinding = e.bindingsByPid.get(e.creatorPid);
-      if (creatorBinding) this.flushMemoryToSab(e, e.creatorPid, creatorBinding);
+      this.syncToSab(e.bo_id);
       const copyLen = Math.min(binding.len, e.size);
       if (binding.addr + copyLen > memory.buffer.byteLength) continue;
       const dst = new Uint8Array(memory.buffer, binding.addr, copyLen);
       dst.set(new Uint8Array(e.sab, 0, copyLen));
+      e.snapshotsByPid.get(pid)?.set(dst);
+      e.pendingReaders.delete(pid);
     }
   }
   onChange(fn) {
@@ -6199,6 +6222,77 @@ var KmsRegistry = class {
   crtcBindings = /* @__PURE__ */ new Map();
   masterPid = null;
   flips = 0;
+  cursor = {
+    version: 0,
+    x: 0,
+    y: 0,
+    hotX: 0,
+    hotY: 0,
+    width: 0,
+    height: 0,
+    pixels: null
+  };
+  cursorBo = 0;
+  cursorBytes = null;
+  /** Called under the kernel entry before deferred canvas presentation.
+   * Cursor mappings remain live, just like scanout; only changed pixels
+   * allocate a new owned snapshot for the detached observer phase. */
+  cursorSnapshot() {
+    if (!this.cursorBo) return this.cursor;
+    const length = this.cursor.width * this.cursor.height * 4;
+    this.gbm.syncToSab(this.cursorBo, length);
+    const bytes = this.gbm.pixelView(this.cursorBo);
+    if (!bytes || bytes.length < length) {
+      throw new Error("KMS cursor BO is unavailable or undersized");
+    }
+    if (this.cursorBytes?.every((value, i) => value === bytes[i])) return this.cursor;
+    this.cursorBytes = bytes.slice(0, length);
+    const pixels = new Uint8ClampedArray(length);
+    for (let i = 0; i < length; i += 4) {
+      const a = bytes[i + 3];
+      pixels[i] = a ? bytes[i + 2] * 255 / a : 0;
+      pixels[i + 1] = a ? bytes[i + 1] * 255 / a : 0;
+      pixels[i + 2] = a ? bytes[i] * 255 / a : 0;
+      pixels[i + 3] = a;
+    }
+    this.cursor = { ...this.cursor, version: this.cursor.version + 1, pixels };
+    return this.cursor;
+  }
+  setCursor(_pid, flags, boId, width, height, x, y, hotX, hotY) {
+    const next = { ...this.cursor, version: this.cursor.version + 1 };
+    if (flags & 1) {
+      this.cursorBo = boId;
+      this.cursorBytes = null;
+      next.pixels = null;
+      next.width = width;
+      next.height = height;
+      next.hotX = hotX;
+      next.hotY = hotY;
+    }
+    if (flags & 2) {
+      next.x = x;
+      next.y = y;
+    }
+    this.cursor = next;
+    this.cursorSnapshot();
+  }
+  /** Protocol 1 carries the complete latest state, never a dangling delta. */
+  applyCursorRecord(bytes) {
+    if (bytes.byteLength !== 32) throw new Error("Invalid KMS cursor record");
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const pid = view.getInt32(0, true);
+    if (pid !== 0 && !this.isMasterPid(pid)) return;
+    const bo = view.getUint32(4, true);
+    const width = view.getUint32(8, true);
+    const height = view.getUint32(12, true);
+    const x = view.getInt32(16, true), y = view.getInt32(20, true);
+    const hotX = view.getInt32(24, true), hotY = view.getInt32(28, true);
+    if (bo && (!width || !height || width > 64 || height > 64)) {
+      throw new Error("Invalid KMS cursor image geometry");
+    }
+    const imageChanged = bo !== this.cursorBo || width !== this.cursor.width || height !== this.cursor.height || hotX !== this.cursor.hotX || hotY !== this.cursor.hotY;
+    this.setCursor(pid, imageChanged ? 3 : 2, bo, width, height, x, y, hotX, hotY);
+  }
   addFb(fb) {
     this.fbs.set(fb.fb_id, fb);
   }
@@ -6224,6 +6318,9 @@ var KmsRegistry = class {
   }
   dropMaster() {
     this.masterPid = null;
+    this.cursorBo = 0;
+    this.cursorBytes = null;
+    this.cursor = { ...this.cursor, version: this.cursor.version + 1, pixels: null };
   }
   isMasterPid(pid) {
     return this.masterPid === pid;
@@ -6394,6 +6491,7 @@ var GlContextRegistry = class {
       canvas,
       contextId: null,
       surfaceId: null,
+      surfaceSize: null,
       buffers: /* @__PURE__ */ new Map(),
       textures: /* @__PURE__ */ new Map(),
       shaders: /* @__PURE__ */ new Map(),
@@ -6419,9 +6517,39 @@ var GlContextRegistry = class {
     this.pendingForwards.delete(pid);
     const b = this.bindings.get(pid);
     if (!b) return;
-    for (const entry of b.foreignTextures.values()) {
-      b.gl?.deleteTexture(entry.tex);
-    }
+    this.destroyContext(pid);
+    this.bindings.delete(pid);
+    for (const l of this.listeners) l(pid, "unbind");
+  }
+  /** The native WebGL context is shared and survives guest EGL contexts.
+   * Retire this context's resources and shadow state before reusing it. */
+  destroyContext(pid) {
+    const b = this.bindings.get(pid);
+    if (!b) return;
+    const gl = b.gl;
+    const boTextures = new Set([...this.gpuBos.values()].map((bo) => bo.tex));
+    const textures = /* @__PURE__ */ new Set([
+      ...b.textures.values(),
+      ...[...b.foreignTextures.values()].map((entry) => entry.tex)
+    ]);
+    for (const texture of textures) if (!boTextures.has(texture)) gl?.deleteTexture(texture);
+    for (const object of b.buffers.values()) gl?.deleteBuffer(object);
+    for (const object of b.shaders.values()) gl?.deleteShader(object);
+    for (const object of b.programs.values()) gl?.deleteProgram(object);
+    for (const object of b.vaos.values()) gl?.deleteVertexArray(object);
+    for (const object of b.fbos.values()) gl?.deleteFramebuffer(object);
+    for (const object of b.rbos.values()) gl?.deleteRenderbuffer(object);
+    for (const map of [
+      b.buffers,
+      b.textures,
+      b.shaders,
+      b.programs,
+      b.vaos,
+      b.fbos,
+      b.rbos,
+      b.uniformLocations,
+      b.foreignTextures
+    ]) map.clear();
     if (b.shadow.defaultVao) {
       b.gl?.deleteVertexArray(b.shadow.defaultVao);
       b.shadow.defaultVao = null;
@@ -6432,8 +6560,11 @@ var GlContextRegistry = class {
       b.gl?.deleteRenderbuffer(b.presentTarget.depthStencil);
       b.presentTarget = null;
     }
-    this.bindings.delete(pid);
-    for (const l of this.listeners) l(pid, "unbind");
+    b.renderTargetFbo = null;
+    b.currentProgram = null;
+    b.shadow = defaultShadow();
+    b.contextId = null;
+    b.gl = null;
   }
   get(pid) {
     return this.bindings.get(pid);
@@ -9794,6 +9925,7 @@ var KERNEL_SCRATCH_EXPORT_NAMES = intrinsicObjectFreeze2([
   "kernel_handle_channel_record",
   "kernel_inject_datagram",
   "kernel_ioctl",
+  "kernel_kms_cursor_read",
   "kernel_ipc_shm_read_chunk",
   "kernel_ipc_shm_write_chunk",
   "kernel_mq_drain_notification",
@@ -9864,6 +9996,7 @@ function kernelScratchRequiredPointerArguments(name) {
     case "kernel_rootfs_set_foreign_mount_roots":
     case "kernel_watch_fs_changes":
     case "kernel_drain_fs_changes":
+    case "kernel_kms_cursor_read":
     case "kernel_rootfs_stat_mode":
     case "kernel_rootfs_unlink_file":
     case "kernel_truncate":
@@ -9973,6 +10106,7 @@ function isKernelScratchExportName(value) {
     case "kernel_rootfs_set_foreign_mount_roots":
     case "kernel_watch_fs_changes":
     case "kernel_drain_fs_changes":
+    case "kernel_kms_cursor_read":
     case "kernel_rootfs_stat_mode":
     case "kernel_rootfs_inspect_stat":
     case "kernel_rootfs_inspect_read_file":
@@ -11791,10 +11925,8 @@ var WasmPosixKernel = class _WasmPosixKernel {
    * A bo owns the foreign textures bound from it (see shared's
    * BIND_FOREIGN_TEXTURE doc), so they die with the bo however it goes:
    * the guest's GEM_CLOSE (`host_gbm_bo_destroy`) or a process teardown that
-   * releases the bo's last owner (`releaseProcessViews` → `releaseProcess`,
-   * the path a crashed or force-terminated client takes). Hooking only the
-   * GEM_CLOSE import left every crashed client's textures alive in the
-   * compositor's GL context for the rest of the session.
+   * releases the kernel's last reference. Forced removal drains the same
+   * DRI close effects; host mapping retirement must never infer BO lifetime.
    */
   offBoTextureCleanup = this.bos.onChange((_pid, bo_id, event) => {
     if (event !== "destroy") return;
@@ -11853,7 +11985,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
       if (crtc == null) return;
       const canvas = this.callbacks.getKmsCanvas?.(crtc);
       if (!canvas) return;
-      const fb = this.kms.currentFb(crtc) ?? connectorModeSize(this.callbacks.getKmsDisplaySize?.());
+      const fb = b.surfaceSize ?? this.kms.currentFb(crtc) ?? connectorModeSize(this.callbacks.getKmsDisplaySize?.());
       if (canvas.width !== fb.width || canvas.height !== fb.height) {
         canvas.width = fb.width;
         canvas.height = fb.height;
@@ -11881,22 +12013,28 @@ var WasmPosixKernel = class _WasmPosixKernel {
       b.claimedKmsCrtc = attachedCrtc;
       this.callbacks.markKmsCanvasGlOwned?.(attachedCrtc);
       ensurePresentTarget(b);
+      this.gl_muxers.get(ctx)?.invalidateCurrent();
     }
   }
   /**
    * Release every device-side alias owned by one process generation.
    *
    * Normal guest close/unmap paths remain authoritative for device semantics;
-   * this idempotent host backstop covers exec, traps, and forced termination
-   * where those guest hooks may never run.
+   * exec retires address-space aliases while retaining open DRI resources.
+   * The exit backstop also releases ownership for traps or forced termination
+   * where guest cleanup hooks may never run.
    */
-  releaseProcessViews(pid) {
+  releaseProcessViews(pid, transition = "exit") {
     this.gl_submit_queue.removePid(pid);
     this.releaseClaimedKmsCanvas(pid);
     this.gl.unbind(pid);
     this.framebuffers.unbind(pid);
-    this.bos.releaseProcess(pid);
-    if (this.kms.isMasterPid(pid)) this.kms.dropMaster();
+    if (transition === "exec") {
+      this.bos.releaseProcessMappings(pid);
+    } else {
+      this.bos.releaseProcess(pid);
+      if (this.kms.isMasterPid(pid)) this.kms.dropMaster();
+    }
   }
   /**
    * Install the deferred-resource byte provider.
@@ -12346,6 +12484,14 @@ var WasmPosixKernel = class _WasmPosixKernel {
         this.#kernelEntryGate
       );
       this.#initializationState = "initialized";
+      const exports = this.#instance.exports;
+      const configureCursor = exports.kernel_kms_cursor_configure;
+      const readCursor = exports.kernel_kms_cursor_read;
+      if (typeof configureCursor === "function" && typeof readCursor === "function") {
+        if (configureCursor(1) !== 1) throw new Error("Kernel rejected KMS cursor protocol 1");
+      } else if (configureCursor || readCursor) {
+        throw new Error("Kernel has an incomplete KMS cursor transport");
+      }
       this.#publishHostDirectoryRoots();
     } catch (error) {
       this.#abortInitialization(error);
@@ -12709,19 +12855,27 @@ var WasmPosixKernel = class _WasmPosixKernel {
           }
         },
         // Workstream H4 (host-surface minimization): the network-interface
-        // ioctl content (interface table, MAC, ifreq/ifconf layout) is now
-        // kernel-owned (`crates/runtime-core/src/netif.rs`). This is the one
-        // remaining host-owned fact the kernel cannot compute itself.
-        host_network_local_address: (bufPtr) => {
+        // ioctl content (interface table, MAC, flags, ifreq/ifconf layout) is
+        // kernel-owned (`crates/runtime-core/src/netif.rs`). The address the
+        // host assigned and the netmask of its link are the one remaining
+        // host-owned fact the kernel cannot compute itself.
+        host_network_interface: (bufPtr) => {
           const address = this.io.network?.localAddress;
+          const netmask = this.io.network?.localNetmask;
           if (address?.length !== 4) return 0;
+          if (netmask?.length !== 4) {
+            throw new Error("the network adapter reports an address without its netmask");
+          }
           try {
             const destination = this.#rustLentKernelDestination(
               bufPtr,
-              4,
-              "host_network_local_address destination"
+              8,
+              "host_network_interface destination"
             );
-            this.#writeKernelBytes(destination, address);
+            const config = new IntrinsicUint8Array2(8);
+            config.set(address, 0);
+            config.set(netmask, 4);
+            this.#writeKernelBytes(destination, config);
             return 1;
           } catch {
             return 0;
@@ -12780,8 +12934,32 @@ var WasmPosixKernel = class _WasmPosixKernel {
         host_net_readiness: (handle) => {
           return this.#hostNetReadiness(handle);
         },
+        host_net_connect_from: (handle, addrPtr, addrLen, port, source, sourcePort) => {
+          return this.#hostNetConnect(handle, addrPtr, addrLen, port, { addr: new Uint8Array([source >>> 24, source >>> 16 & 255, source >>> 8 & 255, source & 255]), port: sourcePort });
+        },
         host_net_connect_status: (handle) => {
           return this.#hostNetConnectStatus(handle);
+        },
+        host_net_local_endpoint: (handle) => {
+          try {
+            const value = this.io.network?.localEndpoint?.(handle);
+            if (!value) return -95n;
+            if (!(value.addr instanceof Uint8Array) || value.addr.length !== 4 || !Number.isInteger(value.port) || value.port < 1 || value.port > 65535) return -5n;
+            let packed = 0n;
+            for (const byte of value.addr) packed = packed << 8n | BigInt(byte);
+            return packed << 16n | BigInt(value.port);
+          } catch (error) {
+            return Number.isInteger(error?.errno) && error.errno > 0 && error.errno <= 4095 ? -BigInt(error.errno) : -5n;
+          }
+        },
+        host_net_shutdown: (handle, how) => {
+          try {
+            if (!this.io.network?.shutdown) return -95;
+            this.io.network.shutdown(handle, how);
+            return 0;
+          } catch (error) {
+            return Number.isInteger(error?.errno) && error.errno > 0 && error.errno <= 4095 ? -error.errno : -5;
+          }
         },
         host_net_close: (handle) => {
           return this.#hostNetClose(handle);
@@ -12791,6 +12969,9 @@ var WasmPosixKernel = class _WasmPosixKernel {
         },
         host_udp_bind: (handle, addrA, addrB, addrC, addrD, port) => {
           return this.#hostUdpBind(handle, addrA, addrB, addrC, addrD, port);
+        },
+        host_udp_source_address: (a, b, c, d) => {
+          return BigInt(this.callbacks.onUdpSourceAddress?.([a, b, c, d]) ?? -101);
         },
         host_udp_unbind: (handle) => {
           return this.#hostUdpUnbind(handle);
@@ -12975,9 +13156,8 @@ var WasmPosixKernel = class _WasmPosixKernel {
           this.releaseClaimedKmsCanvas(pid);
           const b = this.gl.get(pid);
           if (!b) return;
-          b.gl = null;
-          b.contextId = null;
-          b.currentProgram = null;
+          if (b.gl) this.gl_muxers.get(b.gl)?.invalidateCurrent();
+          this.gl.destroyContext(pid);
           if (b.forward) b.forward.onDestroyContext();
         },
         host_gl_create_surface: (pid, surfaceId, attrsPtr, attrsLen) => {
@@ -12993,6 +13173,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
             const dv = new DataView(attrs.buffer, attrs.byteOffset, 20);
             const w = dv.getUint32(4, true);
             const h = dv.getUint32(8, true);
+            if (w > 0 && h > 0) b.surfaceSize = { width: w, height: h };
             if (b.canvas && w > 0 && h > 0 && (b.canvas.width !== w || b.canvas.height !== h)) {
               b.canvas.width = w;
               b.canvas.height = h;
@@ -13003,11 +13184,21 @@ var WasmPosixKernel = class _WasmPosixKernel {
               this.gl.applyRenderTarget(b);
             }
           }
+          if (b.gl && b.claimedKmsCrtc != null) {
+            const previousDefault = b.renderTargetFbo;
+            const previousFramebuffer = b.shadow.fbo;
+            ensurePresentTarget(b);
+            if (previousFramebuffer !== null && previousFramebuffer !== previousDefault) {
+              b.shadow.fbo = previousFramebuffer;
+            }
+            this.gl_muxers.get(b.gl)?.invalidateCurrent();
+          }
         },
         host_gl_destroy_surface: (pid, _surfaceId) => {
           const b = this.gl.get(pid);
           if (!b) return;
           b.surfaceId = null;
+          b.surfaceSize = null;
           b.pendingRenderTargetBoId = 0;
           if (b.renderTargetFbo) {
             b.renderTargetFbo = null;
@@ -13016,6 +13207,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
           if (b.presentTarget) {
             b.gl?.deleteFramebuffer(b.presentTarget.fbo);
             b.gl?.deleteTexture(b.presentTarget.tex);
+            b.gl?.deleteRenderbuffer(b.presentTarget.depthStencil);
             b.presentTarget = null;
           }
         },
@@ -13100,6 +13292,9 @@ var WasmPosixKernel = class _WasmPosixKernel {
           if (b && b.claimedKmsCrtc != null) {
             const established = b.presentTarget !== null;
             if (ensurePresentTarget(b) && established) blitPresentTarget(b);
+            if (b.gl && b.canvas && (b.presentTarget !== null || b.renderTargetFbo === null)) {
+              this.callbacks.onKmsGlPresented?.(b.claimedKmsCrtc);
+            }
           }
           return 0;
         },
@@ -13166,7 +13361,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
           const dims = this.bos.dims(boId);
           const bytes = this.bos.pixelView(boId);
           if (!dims || !bytes) return -2;
-          this.bos.syncCreatorToSab(boId);
+          this.bos.syncToSab(boId);
           return bindForeignTexture(b, boId, bytes, dims);
         },
         host_kms_set_master: (pid) => {
@@ -14834,7 +15029,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
     });
   }
   // ---- Networking host imports ----
-  #hostNetConnect(handle, addrPtr, addrLen, port) {
+  #hostNetConnect(handle, addrPtr, addrLen, port, source) {
     if (!this.io.network) return -111;
     let addr;
     try {
@@ -14843,9 +15038,10 @@ var WasmPosixKernel = class _WasmPosixKernel {
       return -14;
     }
     try {
-      this.io.network.connect(handle, addr, port);
+      this.io.network.connect(handle, addr, port, source);
       return 0;
-    } catch {
+    } catch (error) {
+      if (Number.isInteger(error?.errno) && error.errno > 0 && error.errno <= 4095) return -error.errno;
       return -111;
     }
   }
@@ -14936,7 +15132,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
     return 0;
   }
   #hostUdpBind(handle, addrA, addrB, addrC, addrD, port) {
-    if (!this.callbacks.onUdpBind) return 0;
+    if (!this.callbacks.onUdpBind) return (addrA | addrB | addrC | addrD) === 0 ? 0 : -99;
     return this.callbacks.onUdpBind(handle, [addrA, addrB, addrC, addrD], port);
   }
   #hostUdpUnbind(handle) {
@@ -15019,6 +15215,52 @@ var WasmPosixKernel = class _WasmPosixKernel {
       );
     } catch {
       return -22;
+    }
+  }
+};
+
+// src/dri/cursor-plane.ts
+var KmsCursorPlane = class {
+  constructor(canvas) {
+    this.canvas = canvas;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("KMS cursor canvas requires a 2D context");
+    this.context = context;
+    canvas.addEventListener("contextrestored", () => {
+      this.version = -1;
+      this.painted = null;
+    });
+  }
+  canvas;
+  context;
+  version = -1;
+  painted = null;
+  present(cursor, width, height) {
+    const resized = this.canvas.width !== width || this.canvas.height !== height;
+    if (!resized && cursor.version === this.version) return;
+    if (resized) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.painted = null;
+    }
+    this.version = cursor.version;
+    if (this.painted) {
+      const { x, y, width: width2, height: height2 } = this.painted;
+      this.context.clearRect(x, y, width2, height2);
+      this.painted = null;
+    }
+    if (cursor.pixels) {
+      this.context.putImageData(
+        new ImageData(cursor.pixels, cursor.width, cursor.height),
+        cursor.x,
+        cursor.y
+      );
+      this.painted = {
+        x: cursor.x,
+        y: cursor.y,
+        width: cursor.width,
+        height: cursor.height
+      };
     }
   }
 };
@@ -15706,6 +15948,9 @@ var LongTimeouts = class {
     return this.#armed.size;
   }
 };
+
+// src/input/input-source.ts
+var ABSOLUTE_POINTER_EXTENT = 65536;
 
 // src/channel-scalar-contract.ts
 init_abi();
@@ -17850,6 +18095,7 @@ var LinkedForkContinuation = class {
 
 // src/worker-protocol.ts
 var EXEC_RETIRE_SIGNAL_CODE = 1262835794;
+var EXIT_RETIRE_SIGNAL_CODE = 1262835796;
 
 // src/audio/pcm-transport.ts
 init_abi();
@@ -18055,6 +18301,8 @@ var EAGAIN3 = 11;
 var EACCES = 13;
 var EBADF = 9;
 var EBUSY = 16;
+var EADDRNOTAVAIL = 99;
+var ENETUNREACH = 101;
 var EFAULT = 14;
 var EIO2 = 5;
 var EINVAL2 = 22;
@@ -18983,20 +19231,8 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       // before binding an FB (SDL2's KMSDRM ordering). See
       // WasmPosixKernel.tryAttachKmsGlCanvas.
       getKmsCrtcIds: () => [...this.kmsCanvases.keys()],
-      // The scanout framebuffer defines the pointer coordinate space:
-      // the pane maps pointer positions into framebuffer pixels and
-      // `sendPointerAbs` forwards them as EV_ABS, so EVIOCGABS on the
-      // pointer device must advertise exactly this framebuffer's size.
-      // This SETCRTC hook keeps the range truthful for consumers that
-      // open the device later and for mid-session modesets. Consumers
-      // scale EV_ABS by the range (SDL's evdev backend does), so a range
-      // that is not the framebuffer's misplaces the pointer. It cannot reach a
-      // libinput consumer that is already running — libinput caches
-      // absinfo at device open — which is why `setKmsDisplaySize`
-      // advertises the derived connector mode before the guest starts.
-      onKmsScanoutFb: (_crtcId, width, height) => {
-        this.setInputCanvasDims(width, height);
-      },
+      // Absolute pointer axes belong to the device, not the framebuffer.
+      // Never change their range at SETCRTC: running input clients cache it.
       markKmsCanvasGlOwned: (crtcId) => {
         releaseKmsGlPresenter(this.kmsGlPresenters.get(crtcId));
         this.kmsGlPresenters.delete(crtcId);
@@ -19006,6 +19242,13 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
         this.kmsContextMode.set(crtcId, "webgl2");
         const stats = this.kmsStatsViews.get(crtcId);
         if (stats && stats.length > 7) Atomics.store(stats, 7, 3);
+      },
+      onKmsGlPresented: (crtcId) => {
+        const stats = this.kmsStatsViews.get(crtcId);
+        if (stats) {
+          Atomics.add(stats, 0, 1);
+          Atomics.store(stats, 1, performance.now() | 0);
+        }
       },
       markKmsCanvasGlReleased: (crtcId) => {
         if (!this.kmsModeBeforeGlOwn.has(crtcId)) return;
@@ -19080,9 +19323,19 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
         );
         return 0;
       },
+      onUdpSourceAddress: (destination) => {
+        const selected = this.io.network?.udpSourceAddress?.(new Uint8Array(destination));
+        if (typeof selected === "number") return -selected;
+        const address = selected;
+        if (address?.length !== 4 || address.every((octet) => octet === 0)) return -ENETUNREACH;
+        return (address[0] << 24 | address[1] << 16 | address[2] << 8 | address[3]) >>> 0;
+      },
       onUdpBind: (handle, addr, port) => {
         const pid = this.currentHandlePid;
-        if (pid === 0 || !this.io.network?.bindUdp) return 0;
+        if (pid === 0) return -EINVAL2;
+        if (!this.io.network?.bindUdp) {
+          return addr.every((octet) => octet === 0) ? 0 : -EADDRNOTAVAIL;
+        }
         const key = `${pid}:${handle}`;
         const result = this.io.network.bindUdp(
           key,
@@ -19658,6 +19911,8 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
    *  host without an OffscreenCanvas polyfill) so the pump doesn't retry
    *  `getContext` at 60 Hz. */
   kmsGlPresenters = /* @__PURE__ */ new Map();
+  /** Cursor output is independent of the CPU/GPU scanout presenter. */
+  kmsCursorPlanes = /* @__PURE__ */ new Map();
   /** Canvases whose WebGL context-loss listeners are installed. A lost
    *  context silently no-ops every GL call, so without these hooks the
    *  pump keeps "presenting" frozen pixels while the kernel-side flip
@@ -21600,6 +21855,7 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
     } catch {
     }
     this.#initialized = true;
+    this.setInputCanvasDims(ABSOLUTE_POINTER_EXTENT, ABSOLUTE_POINTER_EXTENT);
     if (this.kmsCanvases.size > 0 || this.kmsStatsViews.size > 0) {
       this.startVblankPump();
     }
@@ -23620,10 +23876,10 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
    * generation. A stale exec continuation must never clear the replacement
    * image merely because it inherited the same numeric pid.
    */
-  releaseProcessViews(pid, expectedMemory) {
+  releaseProcessViews(pid, expectedMemory, transition = "exit") {
     const registration = this.processes.get(pid);
     if (!registration || registration.memory !== expectedMemory) return false;
-    this.#kernel.releaseProcessViews(pid);
+    this.#kernel.releaseProcessViews(pid, transition);
     return true;
   }
   /**
@@ -24455,7 +24711,7 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       return false;
     }
     if (registration) {
-      this.releaseProcessViews(pid, registration.memory);
+      this.releaseProcessViews(pid, registration.memory, "exec");
     }
     (this.execHandoffPids ??= /* @__PURE__ */ new Set()).add(pid);
     for (const channel of registration?.channels ?? []) {
@@ -26090,9 +26346,23 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
     if (syscallNr === SYS_EXIT || syscallNr === SYS_EXIT_GROUP) {
       this.completeProcessExitHandshake(channel, syscallNr, entry);
     } else {
-      channel.handling = true;
+      this.wakeExitedChannelForRetirement(channel, entry);
     }
     return true;
+  }
+  wakeExitedChannelForRetirement(channel, entry) {
+    const view = new DataView(channel.memory.buffer, channel.channelOffset);
+    view.setUint32(CH_SIG_SIGNUM, SIGKILL, true);
+    view.setUint32(CH_SIG_HANDLER, 0, true);
+    view.setUint32(CH_SIG_SI_CODE, EXIT_RETIRE_SIGNAL_CODE, true);
+    this.completeChannelRaw(channel, -1, EINTR_ERRNO, entry);
+    if (entry) {
+      entry.deferProtocolEffect(() => {
+        this.relistenChannel(channel);
+      });
+    } else {
+      this.relistenChannel(channel);
+    }
   }
   completeProcessExitHandshake(channel, syscallNr, entry) {
     this.completeChannelRaw(channel, 0, 0, entry);
@@ -28545,6 +28815,7 @@ ${recent}`
     this.pendingSelectRetries.clear();
     this.pendingSleeps.clear();
     this.pendingSignalWaits.clear();
+    for (const wait of Array.from(this.pendingFutexWaits.values())) wait.retire();
     this.pendingFutexWaits.clear();
     for (const channel of Array.from(this.blockingRetrySnapshots.keys())) {
       this.#releaseBlockingRetrySnapshot(channel, entry);
@@ -28553,7 +28824,7 @@ ${recent}`
     const woken = /* @__PURE__ */ new Set();
     const getExitStatus = this.#kernelInstanceIfAvailableForEntry(entry)?.exports.kernel_get_process_exit_status;
     for (const registration of this.processes.values()) {
-      if (getExitStatus && getExitStatus(registration.pid) !== -1) continue;
+      const alreadyExited = this.hostReaped?.has(registration.pid) || getExitStatus !== void 0 && getExitStatus(registration.pid) !== -1;
       for (const channel of registration.channels) {
         let status;
         try {
@@ -28567,7 +28838,7 @@ ${recent}`
         }
         if (status !== CH_PENDING) continue;
         try {
-          this.wakeChannelForTeardownExit(channel, entry);
+          this.wakeChannelForTeardownExit(channel, entry, alreadyExited);
           woken.add(channel.pid);
         } catch (err) {
           this.#rethrowKernelEntryFatal(err);
@@ -28657,8 +28928,10 @@ ${recent}`
       if (kept.length) this.pendingPipeWriters.set(pipeIdx, kept);
       else this.pendingPipeWriters.delete(pipeIdx);
     }
-    for (const [channel] of [...this.pendingFutexWaits]) {
-      if (ownsChannel(channel)) this.pendingFutexWaits.delete(channel);
+    for (const [channel, wait] of [...this.pendingFutexWaits]) {
+      if (!ownsChannel(channel)) continue;
+      wait.retire();
+      this.pendingFutexWaits.delete(channel);
     }
     for (const channel of Array.from(this.blockingRetrySnapshots.keys())) {
       if (ownsChannel(channel)) {
@@ -28666,7 +28939,7 @@ ${recent}`
       }
     }
     const getExitStatus = this.#kernelInstanceIfAvailableForEntry(entry)?.exports.kernel_get_process_exit_status;
-    if (getExitStatus && getExitStatus(pid) !== -1) return woken;
+    const alreadyExited = this.hostReaped?.has(pid) || getExitStatus !== void 0 && getExitStatus(pid) !== -1;
     for (const channel of registration.channels) {
       let status;
       try {
@@ -28677,7 +28950,7 @@ ${recent}`
       }
       if (status !== CH_PENDING) continue;
       try {
-        this.wakeChannelForTeardownExit(channel, entry);
+        this.wakeChannelForTeardownExit(channel, entry, alreadyExited);
         woken.add(channel.pid);
       } catch (err) {
         this.#rethrowKernelEntryFatal(err);
@@ -28780,7 +29053,11 @@ ${recent}`
    *  runs its cooperative exit. See {@link killAllBlockedForTeardown}.
    *  [JSC-TERMINATE-ATOMICS-WAIT-LEAK] — see
    *  docs/jsc-terminate-atomics-wait-workaround.md. */
-  wakeChannelForTeardownExit(channel, entry) {
+  wakeChannelForTeardownExit(channel, entry, alreadyExited = false) {
+    if (alreadyExited || this.hostReaped?.has(channel.pid)) {
+      this.wakeExitedChannelForRetirement(channel, entry);
+      return;
+    }
     const pv = new DataView(channel.memory.buffer, channel.channelOffset);
     pv.setUint32(CH_SIG_SIGNUM, SIGKILL, true);
     pv.setUint32(CH_SIG_HANDLER, 0, true);
@@ -35401,8 +35678,7 @@ ${recent}`
     this.#drainAndProcessWakeupEventsWithinKernelEntry(entry);
     this.notifyParentOfExitedProcess(exitingPid, entry);
     if (canQuiesceBorrowedWorker) {
-      this.wakeChannelForTeardownExit(channel, entry);
-      return;
+      this.wakeChannelForTeardownExit(channel, entry, true);
     }
     entry.deferProtocolEffect(() => {
       this.callbacks.onExit?.(
@@ -37177,7 +37453,7 @@ ${recent}`
             offset,
             len
           )) continue;
-          if (this.mergeChangedByteRuns(
+          if (mergeChangedByteRuns(
             processMem,
             mapAddr + offset,
             mapping.snapshot,
@@ -38380,21 +38656,6 @@ ${recent}`
     this.#kernel.releaseHostFileHandle(backing.handle);
     this.sharedMmapBackings.delete(backing.key);
     this.invalidateSharedMmapFdCache();
-  }
-  mergeChangedByteRuns(source, sourceOffset, snapshot, snapshotOffset, destination, destinationOffset, len) {
-    let changed = false;
-    let i = 0;
-    while (i < len) {
-      while (i < len && source[sourceOffset + i] === snapshot[snapshotOffset + i]) i++;
-      if (i >= len) break;
-      const start = i;
-      do {
-        i++;
-      } while (i < len && source[sourceOffset + i] !== snapshot[snapshotOffset + i]);
-      destination.set(source.subarray(sourceOffset + start, sourceOffset + i), destinationOffset + start);
-      changed = true;
-    }
-    return changed;
   }
   rangeDiffersFromSnapshot(source, sourceOffset, snapshot, snapshotOffset, len) {
     const sourceByteOffset = source.byteOffset + sourceOffset;
@@ -39940,9 +40201,9 @@ ${recent}`
     }, CLIPBOARD_ACK_POLL_MS);
   }
   /**
-   * Tell the kernel the current host canvas dimensions so EVIOCGABS
-   * on `/dev/input/event1` reports the right `ABS_X.maximum` /
-   * `ABS_Y.maximum`. Idempotent; call again on canvas resize.
+   * Configure the absolute input producer's coordinate extent for
+   * EVIOCGABS on `/dev/input/event1`. Consumers cache these bounds when
+   * opening the device; display geometry changes must not alter them.
    */
   setInputCanvasDims(width, height) {
     this.#runOrDeferKernelEntry(
@@ -40362,14 +40623,15 @@ ${recent}`
         new Uint8Array(addr),
         port,
         {
-          accept: (peer, _local, remote) => {
+          accept: (peer, local, remote) => {
             const target = this.pickListenerTarget(port);
             if (!target) return EHOSTUNREACH;
             return this.handleIncomingVirtualTcpConnection(
               target.pid,
               target.fd,
               peer,
-              remote
+              remote,
+              local
             );
           }
         }
@@ -41132,11 +41394,13 @@ ${recent}`
       port
     };
   }
-  handleIncomingVirtualTcpConnection(pid, listenerFd, peer, remote) {
+  handleIncomingVirtualTcpConnection(pid, listenerFd, peer, remote, local) {
     if (!this.#initialized || this.#kernelInstance === null) return 107;
+    let localSnapshot;
     let remoteSnapshot;
     try {
       remoteSnapshot = this.#snapshotVirtualNetworkAddress(remote);
+      localSnapshot = this.#snapshotVirtualNetworkAddress(local);
     } catch {
       return EIO2;
     }
@@ -41150,12 +41414,15 @@ ${recent}`
           { pid, fd: listenerFd },
           remoteSnapshot.addr,
           remoteSnapshot.port,
+          localSnapshot.addr,
           entry
         );
         if (recvPipeIdx < 0) {
           result = -recvPipeIdx;
           return;
         }
+        const connectionId = this.#kernelInstanceForEntry(entry).exports.kernel_tcp_connection_id(recvPipeIdx, recvPipeIdx + 1);
+        if (!connectionId) throw new Error("TCP injection did not mint its backing identity");
         result = 0;
         entry.deferProtocolEffect(() => {
           this.wakeTargetPollNow(pid);
@@ -41163,7 +41430,8 @@ ${recent}`
           this.#startIncomingVirtualTcpConnectionPump(
             pid,
             recvPipeIdx,
-            peer
+            peer,
+            connectionId
           );
           return void 0;
         });
@@ -41171,7 +41439,7 @@ ${recent}`
     );
     return deferred || result === void 0 ? EIO2 : result;
   }
-  #injectIncomingVirtualTcpConnection(target, remoteAddr, remotePort, entry) {
+  #injectIncomingVirtualTcpConnection(target, remoteAddr, remotePort, localAddr, entry) {
     return this.#kernelInstanceForEntry(entry).exports.kernel_inject_connection(
       target.pid,
       target.fd,
@@ -41179,13 +41447,15 @@ ${recent}`
       remoteAddr[1],
       remoteAddr[2],
       remoteAddr[3],
-      remotePort
+      remotePort,
+      (localAddr[0] << 24 | localAddr[1] << 16 | localAddr[2] << 8 | localAddr[3]) >>> 0
     );
   }
-  #startIncomingVirtualTcpConnectionPump(targetPid, recvPipeIdx, peer) {
+  #startIncomingVirtualTcpConnectionPump(targetPid, recvPipeIdx, peer, connectionId) {
     const sendPipeIdx = recvPipeIdx + 1;
     let cleaned = false;
     let abortRequested = false;
+    let peerSendClosed = false;
     let peerReceiveEnded = false;
     let guestReadShutdown = false;
     let guestWriteShutdown = false;
@@ -41220,7 +41490,10 @@ ${recent}`
           }
         } catch (error) {
           const errno = error?.errno;
-          if (errno !== EAGAIN3) abortRequested = true;
+          if (errno === 32) {
+            peerSendClosed = true;
+            pendingOutbound = null;
+          } else if (errno !== EAGAIN3) abortRequested = true;
         }
       }
       if (!pendingInbound && !peerReceiveEnded && !guestReadShutdown && !abortRequested) {
@@ -41249,6 +41522,11 @@ ${recent}`
           let shutdownPeerRead = false;
           let shutdownPeerWrite = false;
           let closePeer = false;
+          if (peerSendClosed && sendPipeReadOpen) {
+            this.#closeTcpPipeReadWithinKernelEntry(sendPipeIdx, entry);
+            sendPipeReadOpen = false;
+            notifyWritable = true;
+          }
           if (!abortRequested) {
             const readOpen = recvPipeWriteOpen ? this.#tcpPipeReadOpenWithinKernelEntry(
               recvPipeIdx,
@@ -41294,7 +41572,7 @@ ${recent}`
               madeProgress = true;
               notifyReadable = true;
             }
-            if (pendingOutbound === null) {
+            if (pendingOutbound === null && sendPipeReadOpen) {
               pendingOutbound = this.readPipeChunk(
                 0,
                 sendPipeIdx,
@@ -41313,6 +41591,10 @@ ${recent}`
               shutdownPeerWrite = true;
             }
             closePeer = !writeOpen && !hasReaders && pendingOutbound === null || guestWriteShutdown && !recvPipeWriteOpen && pendingOutbound === null;
+          }
+          if (abortRequested) {
+            const reset = this.#kernelInstanceForEntry(entry).exports.kernel_reset_tcp_connection;
+            if (reset(recvPipeIdx, sendPipeIdx, connectionId) !== 0) throw new Error("TCP bridge lost its owned socket backing during reset");
           }
           if (abortRequested || closePeer) {
             if (recvPipeWriteOpen) {
@@ -42048,6 +42330,8 @@ ${recent}`
     }
     const statsView = statsSab === void 0 ? void 0 : new Int32Array(statsSab);
     this.kmsCanvases.set(crtc_id, canvas);
+    if (opts?.cursorCanvas) this.kmsCursorPlanes.set(crtc_id, new KmsCursorPlane(opts.cursorCanvas));
+    else this.kmsCursorPlanes.delete(crtc_id);
     if (statsView) this.kmsStatsViews.set(crtc_id, statsView);
     const mode = opts?.mode ?? "auto";
     if (mode === "2d") {
@@ -42072,12 +42356,8 @@ ${recent}`
    *  with `devicePixelContentBoxSize`. Zero/negative dims are ignored
    *  (a hidden pane reports 0×0 — keep the last real size).
    *
-   *  It also keys the EVIOCGABS range on `/dev/input/event1` to the
-   *  connector mode this size derives (`connectorModeSize`, which the
-   *  compositor's framebuffer will match). It must land here, not only
-   *  at SETCRTC: libinput caches absinfo when it opens the device, and
-   *  a compositor opens `event1` before it presents its first frame —
-   *  a range corrected at SETCRTC is a range libinput never sees.
+   *  The pointer's fixed device range remains independent of this size;
+   *  SDL and libinput cache it before the first frame and across modesets.
    *
    *  `physicalMm`, when given, is the display's physical size; the kernel
    *  reports it on the connector, where a compositor derives its output
@@ -42093,8 +42373,6 @@ ${recent}`
       display.mmHeight = Math.round(physicalMm.height);
     }
     this.kmsDisplaySizes.set(crtc_id, display);
-    const mode = connectorModeSize(display);
-    this.setInputCanvasDims(mode.width, mode.height);
   }
   /** Attach a stats SAB for a CRTC without registering a scanout canvas.
    *  Slots 5/6 (kernel commit count + last-frame µs) are populated by
@@ -42219,14 +42497,35 @@ ${recent}`
           const lastUs = stats.length < 7 ? 0 : Number((lastFrameUs?.(crtcId) ?? 0n) & 0x7fffffffn);
           statsSnapshots.push({
             stats,
+            ownerPid: this.#kernel.kms.getMasterPid() ?? 0,
             width: fb?.width ?? null,
             height: fb?.height ?? null,
             commits,
             lastUs
           });
         }
+        if (typeof entry.instance.exports.kernel_kms_cursor_read === "function") {
+          this.#requireMainScratchRegion().withLease((lease) => {
+            const pointer = lease.exportPointer(0, 32);
+            const count = this.#invokeEntryScratchExport(
+              entry,
+              lease,
+              "kernel_kms_cursor_read",
+              [pointer, 32]
+            );
+            if (count === 32) this.#kernel.kms.applyCursorRecord(lease.copyOut(0, 32));
+            else if (count !== 0) throw new Error(`Invalid KMS cursor record length: ${count}`);
+          });
+        }
+        const cursor = this.#kernel.kms.cursorSnapshot();
+        const cursorPlanes = Array.from(this.kmsCursorPlanes, ([crtcId, plane]) => {
+          const fb = this.#kernel.kms.currentFb(crtcId);
+          const size = fb ?? connectorModeSize(this.kmsDisplaySizes.get(crtcId));
+          return { plane, width: size.width, height: size.height };
+        });
         entry.deferObserverEffect(() => {
           if (this.vblankTimer !== timer) return void 0;
+          for (const { plane, width, height } of cursorPlanes) plane.present(cursor, width, height);
           for (const blit of blits) {
             if (blit.canvas.width !== blit.width || blit.canvas.height !== blit.height) {
               blit.canvas.width = blit.width;
@@ -42274,6 +42573,9 @@ ${recent}`
             }
           }
           for (const snapshot of statsSnapshots) {
+            if (snapshot.stats.length > 8) {
+              Atomics.store(snapshot.stats, 8, snapshot.ownerPid);
+            }
             if (snapshot.width !== null && snapshot.height !== null) {
               Atomics.store(snapshot.stats, 2, snapshot.width);
               Atomics.store(snapshot.stats, 3, snapshot.height);
@@ -60891,7 +61193,7 @@ function buildFatalTrap() {
     throw new Error("unreachable Worker exception fatal trap returned");
   };
 }
-var fatalTrap = buildFatalTrap();
+var trapProcessWorker = buildFatalTrap();
 var ForkWorkerLocalImportExceptionNormalizer = class {
   constructor(caller, tokens, options = {}) {
     this.caller = caller;
@@ -60960,7 +61262,7 @@ var ForkWorkerLocalImportExceptionNormalizer = class {
   }
   replaceThrown(_sourceImportOrdinal, thrown) {
     if (thrown instanceof WebAssembly.RuntimeError) {
-      return fatalTrap();
+      return trapProcessWorker();
     }
     throw thrown;
   }
@@ -62171,10 +62473,20 @@ var SYS_MMAP_NR = ABI_SYSCALLS.Mmap;
 var PROT_READ_WRITE = 3;
 var MAP_PRIVATE_ANONYMOUS = 34;
 var SIGKILL2 = 9;
-var ExecRetirement = class extends Error {
-};
 function isWasmUnreachableTrap(error) {
   return error instanceof WebAssembly.RuntimeError && /\bunreachable\b/i.test(error.message);
+}
+function isExecRetirementTrap(error, memory, channelOffset) {
+  return error instanceof WebAssembly.RuntimeError && isExecRetirementMarker(new DataView(memory.buffer), channelOffset);
+}
+function isExitedWorkerRetirement(memory, channelOffset) {
+  const view = new DataView(memory.buffer);
+  return view.getUint32(channelOffset + CH_SIG_SIGNUM, true) === SIGKILL2 && view.getUint32(channelOffset + CH_SIG_SI_CODE, true) === EXIT_RETIRE_SIGNAL_CODE;
+}
+function clearWorkerRetirementMarker(memory, channelOffset) {
+  const view = new DataView(memory.buffer);
+  view.setUint32(channelOffset + CH_SIG_SIGNUM, 0, true);
+  view.setUint32(channelOffset + CH_SIG_SI_CODE, 0, true);
 }
 function isExecRetirementMarker(view, channelOffset) {
   return view.getUint32(channelOffset + CH_SIG_SIGNUM, true) === SIGKILL2 && view.getUint32(channelOffset + CH_SIG_SI_CODE, true) === EXEC_RETIRE_SIGNAL_CODE;
@@ -62362,10 +62674,8 @@ function buildKernelImports(memory, channelOffset, ptrWidth, argv, envVars, secu
     kernel_exit: (status) => {
       const view = new DataView(memory.buffer);
       const base = channelOffset;
-      if (isExecRetirementMarker(view, base)) {
-        view.setUint32(base + CH_SIG_SIGNUM, 0, true);
-        view.setUint32(base + CH_SIG_SI_CODE, 0, true);
-        throw new ExecRetirement();
+      if (isExecRetirementMarker(view, base) || isExitedWorkerRetirement(memory, base)) {
+        return trapProcessWorker();
       }
       view.setInt32(base + CH_SYSCALL, ABI_SYSCALLS.Exit, true);
       view.setBigInt64(base + CH_ARGS, BigInt(status), true);
@@ -62375,7 +62685,7 @@ function buildKernelImports(memory, channelOffset, ptrWidth, argv, envVars, secu
       while (Atomics.wait(i32, (base + CH_STATUS) / 4, CHANNEL_STATUS_PENDING) === "ok") {
       }
       onKernelExit?.(status);
-      throw new WebAssembly.RuntimeError("unreachable");
+      return trapProcessWorker();
     },
     // Clone dispatches through channel (SYS_CLONE)
     kernel_clone: (fnPtr, stackPtr, flags, arg, ptidPtr, tlsPtr, ctidPtr) => {
@@ -64047,8 +64357,12 @@ function verifyProgramAbi(programBytes, expected, pid) {
 var abiMissingWarned = false;
 async function centralizedWorkerMain(port, initData) {
   let processHostImportRuntime = null;
+  let kernelExitStatus = null;
   try {
     const { memory, programBytes, channelOffset, pid } = initData;
+    const releaseProgramBytes = () => {
+      programBytes.transfer(0);
+    };
     const ptrWidth = initData.ptrWidth ?? 4;
     const artifactFailures = describeWasmArtifactPolicyFailures(programBytes, {
       expectedAbi: initData.kernelAbiVersion,
@@ -64093,6 +64407,7 @@ async function centralizedWorkerMain(port, initData) {
       }
       const instance = await WebAssembly.instantiate(module, importObject);
       wasiShim.init();
+      releaseProgramBytes();
       port.postMessage({ type: "ready", pid });
       let exitCode = 0;
       try {
@@ -64115,7 +64430,6 @@ async function centralizedWorkerMain(port, initData) {
     const processLongjmpTag = createLongjmpTag(ptrWidth);
     const processCppExceptionTag = createCppExceptionTag(ptrWidth);
     const processForkUnwindTag = createForkUnwindTag();
-    let kernelExitStatus = null;
     const kernelImports = buildKernelImports(
       memory,
       channelOffset,
@@ -64919,6 +65233,7 @@ async function centralizedWorkerMain(port, initData) {
           ptrWidth
         );
       }
+      releaseProgramBytes();
       port.postMessage({ type: "ready", pid });
       let exitCode = 0;
       try {
@@ -64981,12 +65296,6 @@ async function centralizedWorkerMain(port, initData) {
           } catch (e) {
             if (isForkUnwindException(e, processForkUnwindTag)) {
               transportedForkUnwind = true;
-            } else if (isWasmUnreachableTrap(e)) {
-              if (kernelExitStatus !== null) {
-                exitCode = kernelExitStatus;
-                break;
-              }
-              throw e;
             } else {
               throw e;
             }
@@ -65013,19 +65322,16 @@ async function centralizedWorkerMain(port, initData) {
           break;
         }
       } catch (e) {
+        if (isExitedWorkerRetirement(memory, channelOffset) || isExecRetirementTrap(e, memory, channelOffset) || kernelExitStatus !== null && isWasmUnreachableTrap(e)) throw e;
         processTableReplication.abortActiveMutations();
         releaseProcessForkArchiveReader();
-        if (isWasmUnreachableTrap(e) && kernelExitStatus !== null) {
-          exitCode = kernelExitStatus;
-        } else {
-          if (processContinuation.phaseName() !== "idle") {
-            try {
-              processContinuation.abort();
-            } catch {
-            }
+        if (processContinuation.phaseName() !== "idle") {
+          try {
+            processContinuation.abort();
+          } catch {
           }
-          throw e;
         }
+        throw e;
       }
       processContinuation.clear();
       releaseProcessForkArchiveReader();
@@ -65094,6 +65400,7 @@ async function centralizedWorkerMain(port, initData) {
         programBytes,
         ptrWidth
       );
+      releaseProgramBytes();
       port.postMessage({ type: "ready", pid });
       let exitCode = 0;
       try {
@@ -65125,10 +65432,23 @@ async function centralizedWorkerMain(port, initData) {
     }
   } catch (err) {
     processHostImportRuntime?.clear();
-    if (err instanceof ExecRetirement) {
+    if (isExitedWorkerRetirement(initData.memory, initData.channelOffset)) {
+      clearWorkerRetirementMarker(initData.memory, initData.channelOffset);
+      return;
+    }
+    if (isExecRetirementTrap(err, initData.memory, initData.channelOffset)) {
+      clearWorkerRetirementMarker(initData.memory, initData.channelOffset);
       port.postMessage({
         type: "exec_retired",
         pid: initData.pid
+      });
+      return;
+    }
+    if (kernelExitStatus !== null && isWasmUnreachableTrap(err)) {
+      port.postMessage({
+        type: "exit",
+        pid: initData.pid,
+        status: kernelExitStatus
       });
       return;
     }
@@ -65711,6 +66031,7 @@ async function centralizedThreadWorkerMain(port, initData) {
   let processDlopenLock;
   let processDlopenOwner;
   let pthreadForkLockHeld = false;
+  let kernelThreadExitStatus = null;
   const acquirePthreadForkLock = () => {
     if (!processDlopenLock || !processDlopenOwner) {
       throw new Error(
@@ -65959,7 +66280,6 @@ async function centralizedThreadWorkerMain(port, initData) {
         threadProcessContinuation.beginParentReplay();
       }
     };
-    let kernelThreadExitStatus = null;
     const kernelImports = buildKernelImports(
       memory,
       channelOffset,
@@ -66266,9 +66586,6 @@ async function centralizedThreadWorkerMain(port, initData) {
         } catch (e) {
           if (isForkUnwindException(e, threadForkUnwindTag)) {
             transportedForkUnwind = true;
-          } else if (isWasmUnreachableTrap(e) && kernelThreadExitStatus !== null) {
-            result = kernelThreadExitStatus;
-            break;
           } else {
             throw e;
           }
@@ -66291,16 +66608,8 @@ async function centralizedThreadWorkerMain(port, initData) {
         break;
       }
     } else {
-      try {
-        const raw = threadFn(...threadArgs);
-        result = Number(raw);
-      } catch (e) {
-        if (isWasmUnreachableTrap(e) && kernelThreadExitStatus !== null) {
-          result = kernelThreadExitStatus;
-        } else {
-          throw e;
-        }
-      }
+      const raw = threadFn(...threadArgs);
+      result = Number(raw);
     }
     releasePthreadForkLock();
     threadProcessContinuation?.clear();
@@ -66323,6 +66632,31 @@ async function centralizedThreadWorkerMain(port, initData) {
       tid
     });
   } catch (err) {
+    if (isExitedWorkerRetirement(memory, channelOffset)) {
+      clearWorkerRetirementMarker(memory, channelOffset);
+      return;
+    }
+    if (isExecRetirementTrap(err, memory, channelOffset)) {
+      clearWorkerRetirementMarker(memory, channelOffset);
+      port.postMessage({
+        type: "exec_retired",
+        pid,
+        tid
+      });
+      return;
+    }
+    if (kernelThreadExitStatus !== null && isWasmUnreachableTrap(err)) {
+      threadTableReplication?.abortActiveMutations();
+      releasePthreadForkLock();
+      threadExternrefTokens?.clear();
+      threadHostImportRuntime?.clear();
+      port.postMessage({
+        type: "thread_exit",
+        pid,
+        tid
+      });
+      return;
+    }
     threadTableReplication?.abortActiveMutations();
     releasePthreadForkLock();
     try {
@@ -66331,14 +66665,6 @@ async function centralizedThreadWorkerMain(port, initData) {
     }
     threadExternrefTokens?.clear();
     threadHostImportRuntime?.clear();
-    if (err instanceof ExecRetirement) {
-      port.postMessage({
-        type: "exec_retired",
-        pid,
-        tid
-      });
-      return;
-    }
     const message = err instanceof Error ? `${err.message}
 ${err.stack ?? ""}` : String(err);
     port.postMessage({
@@ -66354,6 +66680,92 @@ init_abi();
 
 // src/networking/tcp-backend.ts
 import * as net from "net";
+
+// src/networking/egress-link.ts
+var EGRESS_ADDRESS = Object.freeze([10, 0, 2, 15]);
+var EGRESS_NETMASK = Object.freeze([255, 255, 255, 0]);
+var EHOSTUNREACH2 = 113;
+var EADDRNOTAVAIL2 = 99;
+var egressAddress = () => new Uint8Array(EGRESS_ADDRESS);
+var isAny = (addr) => addr.length === 4 && addr.every((part) => part === 0);
+var isEgress = (addr) => addr.length === 4 && addr.every((part, i) => part === EGRESS_ADDRESS[i]);
+var EgressLink = class {
+  streamPorts = /* @__PURE__ */ new Map();
+  nextStreamPort = 49152;
+  get localAddress() {
+    return egressAddress();
+  }
+  get localNetmask() {
+    return new Uint8Array(EGRESS_NETMASK);
+  }
+  udpSourceAddress(_destination) {
+    return egressAddress();
+  }
+  /** A socket may bind this machine's address; nothing ever arrives on it. */
+  bindUdp(_id, addr, _port, _target) {
+    return isAny(addr) || isEgress(addr) ? 0 : EADDRNOTAVAIL2;
+  }
+  unbindUdp(_id) {
+  }
+  sendDatagram() {
+    return EHOSTUNREACH2;
+  }
+  /**
+   * Start a stream's NAT bookkeeping: it begins from this machine's address
+   * (or any), on the port the socket bound or a fresh ephemeral one.
+   * Backends whose host side has no ports of its own (fetch) use this.
+   */
+  openStream(handle, source) {
+    if (source && !isAny(source.addr) && !isEgress(source.addr)) {
+      throw Object.assign(new Error("EADDRNOTAVAIL"), { errno: EADDRNOTAVAIL2 });
+    }
+    let port = source?.port || 0;
+    if (!port) {
+      const used = new Set(this.streamPorts.values());
+      for (let tries = 0; tries < 16384 && !port; tries++) {
+        const candidate = this.nextStreamPort;
+        this.nextStreamPort = candidate === 65535 ? 49152 : candidate + 1;
+        if (!used.has(candidate)) port = candidate;
+      }
+      if (!port) throw Object.assign(new Error("EADDRNOTAVAIL"), { errno: EADDRNOTAVAIL2 });
+    }
+    this.streamPorts.set(handle, port);
+  }
+  /** getsockname for a stream: this machine's address and its port. */
+  streamEndpoint(handle) {
+    const port = this.streamPorts.get(handle);
+    if (port === void 0) throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    return { addr: egressAddress(), port };
+  }
+  closeStream(handle) {
+    this.streamPorts.delete(handle);
+  }
+  /** Whether a stream may start from `source`: this machine's address or any. */
+  ownsSource(source) {
+    return !source || isAny(source.addr) || isEgress(source.addr);
+  }
+};
+var SyntheticHostAddresses = class {
+  byName = /* @__PURE__ */ new Map();
+  byAddress = /* @__PURE__ */ new Map();
+  next = 1;
+  resolve(hostname) {
+    let key = this.byName.get(hostname);
+    if (!key) {
+      if (this.next >= 131071) throw Object.assign(new Error("synthetic address space exhausted"), { errno: 11 });
+      const offset = this.next++;
+      key = `198.${18 + (offset >> 16)}.${offset >> 8 & 255}.${offset & 255}`;
+      this.byName.set(hostname, key);
+      this.byAddress.set(key, hostname);
+    }
+    return new Uint8Array(key.split(".").map(Number));
+  }
+  hostname(addr) {
+    return this.byAddress.get(Array.from(addr).join("."));
+  }
+};
+
+// src/networking/tcp-backend.ts
 import { lookup } from "dns";
 
 // src/networking/fetch-backend.ts
@@ -66426,6 +66838,126 @@ function corsProxyFetchUrl(corsProxyUrl, targetUrl) {
   const proxiedTarget = proxyUrl.endsWith("?") ? targetUrl : encodeURIComponent(targetUrl);
   return `${proxyUrl}${proxiedTarget}`;
 }
+
+// src/networking/cors-proxy-session.ts
+function createProxySessionTransport(storage) {
+  const sessions = /* @__PURE__ */ new Map();
+  const pending = /* @__PURE__ */ new Map();
+  const header = "X-Kandelo-Proxy-Session";
+  function valid(value) {
+    const s = value;
+    return !!s && typeof s.token === "string" && /^v1\.[a-f0-9]{32}\.[0-9]{10}\.[a-f0-9]{64}$/.test(s.token) && typeof s.expiresAt === "number" && s.expiresAt > Date.now() / 1e3;
+  }
+  function storageOperation(origin, value) {
+    if (storage !== void 0) return value ? storage?.write(origin, value) ?? Promise.resolve() : storage?.read(origin) ?? Promise.resolve(void 0);
+    if (!globalThis.indexedDB) return Promise.resolve(void 0);
+    return new Promise((resolve4, reject) => {
+      let finished = false;
+      const open = indexedDB.open("kandelo-proxy-sessions-v1", 1);
+      const timeout = setTimeout(() => {
+        finished = true;
+        reject(new Error("Proxy session storage timed out"));
+      }, 2e3);
+      const fail = () => {
+        finished = true;
+        clearTimeout(timeout);
+        reject(new Error("Proxy session storage unavailable"));
+      };
+      open.onerror = fail;
+      open.onblocked = fail;
+      open.onupgradeneeded = () => open.result.createObjectStore("sessions");
+      open.onsuccess = () => {
+        const db = open.result;
+        if (finished) {
+          db.close();
+          return;
+        }
+        try {
+          const tx = db.transaction("sessions", value ? "readwrite" : "readonly");
+          const store = tx.objectStore("sessions");
+          const request = value ? store.put(value, origin) : store.get(origin);
+          tx.oncomplete = () => {
+            finished = true;
+            clearTimeout(timeout);
+            db.close();
+            resolve4(request.result);
+          };
+          tx.onabort = tx.onerror = () => {
+            db.close();
+            fail();
+          };
+        } catch {
+          db.close();
+          fail();
+        }
+      };
+    });
+  }
+  async function read(origin) {
+    const memory = sessions.get(origin);
+    if (valid(memory)) return memory;
+    try {
+      const value = await storageOperation(origin);
+      if (valid(value)) {
+        sessions.set(origin, value);
+        return value;
+      }
+    } catch {
+    }
+    return void 0;
+  }
+  async function session(origin, previous, send) {
+    const existing = pending.get(origin);
+    if (existing) return existing;
+    async function issue() {
+      const stored = await read(origin);
+      if (stored && stored.token !== previous) return stored;
+      const response = await send(`${origin}/cors-proxy-session`, {
+        method: "GET",
+        credentials: globalThis.location?.origin === origin ? "same-origin" : "omit",
+        referrerPolicy: "strict-origin",
+        cache: "no-store",
+        redirect: "error",
+        signal: AbortSignal.timeout(1e4)
+      });
+      if (!response.ok) throw new Error(`CORS proxy session failed (${response.status})`);
+      const value = await response.json();
+      if (!valid(value)) throw new Error("CORS proxy returned an invalid session");
+      sessions.set(origin, value);
+      try {
+        await storageOperation(origin, value);
+      } catch {
+      }
+      return value;
+    }
+    const locks = globalThis.navigator?.locks;
+    const promise = locks ? locks.request(`kandelo-proxy-session:${origin}`, issue) : issue();
+    pending.set(origin, promise);
+    try {
+      return await promise;
+    } finally {
+      pending.delete(origin);
+    }
+  }
+  return async function proxyFetch(url, init, send) {
+    const origin = new URL(url).origin;
+    const stored = await read(origin);
+    const headers = new Headers(init.headers);
+    headers.delete(header);
+    if (stored) headers.set(header, stored.token);
+    const projected = { ...init, headers, referrerPolicy: "strict-origin" };
+    const response = await send(url, projected);
+    if (response.status !== 401 || response.headers.get(header) !== "required") return response;
+    await response.body?.cancel().catch(() => {
+    });
+    if (init.body instanceof ReadableStream) throw new Error("CORS proxy session requires a replayable request body");
+    const fresh = await session(origin, stored?.token, send);
+    init.signal?.throwIfAborted();
+    headers.set(header, fresh.token);
+    return send(url, projected);
+  };
+}
+var fetchWithProxySession = createProxySessionTransport();
 
 // src/networking/browser-cors-proxy.ts
 var BrowserCorsProxyRequestError = class extends Error {
@@ -66582,7 +67114,7 @@ var BrowserCorsProxy = class {
     if (alias !== void 0 && headers.has(alias)) {
       init.cache = "no-store";
     }
-    const response = await fetchImpl(url, init);
+    const response = await fetchWithProxySession(url, init, fetchImpl);
     if (ifRange === void 0 || request.method !== "GET" || response.status !== 206 && response.status !== 416 || ifRangeMatches(ifRange, response.headers)) {
       return response;
     }
@@ -66591,7 +67123,7 @@ var BrowserCorsProxy = class {
     headers.delete("range");
     if (alias !== void 0) headers.delete(alias);
     const { cache: _cache, ...wholeInit } = init;
-    return fetchImpl(url, { ...wholeInit, headers });
+    return fetchWithProxySession(url, { ...wholeInit, headers }, fetchImpl);
   }
   project(input) {
     const headers = new Headers();
@@ -66689,8 +67221,9 @@ var EagainError = class extends Error {
 var MSG_PEEK = 2;
 var FetchNetworkBackend = class {
   connections = /* @__PURE__ */ new Map();
-  hostnameMap = /* @__PURE__ */ new Map();
-  // ip string → hostname
+  // The guest sees fetch as a NAT gateway on its own link (egress-link.ts).
+  egress = new EgressLink();
+  addresses = new SyntheticHostAddresses();
   options;
   corsProxy;
   constructor(options) {
@@ -66698,9 +67231,31 @@ var FetchNetworkBackend = class {
     const corsProxyConfig = validateBrowserCorsProxyConfig(options?.corsProxy);
     this.corsProxy = corsProxyConfig === void 0 ? void 0 : new BrowserCorsProxy(corsProxyConfig, options?.onCorsProxyDiagnostic);
   }
-  connect(handle, addr, port) {
-    const ipStr = `${addr[0]}.${addr[1]}.${addr[2]}.${addr[3]}`;
-    const hostname = this.hostnameMap.get(ipStr) || ipStr;
+  get localAddress() {
+    return this.egress.localAddress;
+  }
+  get localNetmask() {
+    return this.egress.localNetmask;
+  }
+  udpSourceAddress(destination) {
+    return this.egress.udpSourceAddress(destination);
+  }
+  bindUdp(id, addr, port, target) {
+    return this.egress.bindUdp(id, addr, port, target);
+  }
+  unbindUdp(id) {
+    this.egress.unbindUdp(id);
+  }
+  sendDatagram() {
+    return this.egress.sendDatagram();
+  }
+  localEndpoint(handle) {
+    if (!this.connections.has(handle)) throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    return this.egress.streamEndpoint(handle);
+  }
+  connect(handle, addr, port, source) {
+    this.egress.openStream(handle, source);
+    const hostname = this.addresses.hostname(addr) ?? Array.from(addr).join(".");
     this.connections.set(handle, {
       hostname,
       ip: new Uint8Array(addr),
@@ -66821,19 +67376,13 @@ var FetchNetworkBackend = class {
   }
   close(handle) {
     this.connections.delete(handle);
+    this.egress.closeStream(handle);
   }
   getaddrinfo(hostname) {
     const literalIp = parseNumericIpv4Hostname(hostname);
     if (literalIp) return literalIp;
     validateSyntheticDnsHostname(hostname, this.options.hostAliases);
-    let hash = 0;
-    for (let i = 0; i < hostname.length; i++) {
-      hash = (hash << 5) - hash + hostname.charCodeAt(i) | 0;
-    }
-    const ip = new Uint8Array([10, hash >> 16 & 255, hash >> 8 & 255, hash & 255]);
-    const ipStr = `${ip[0]}.${ip[1]}.${ip[2]}.${ip[3]}`;
-    this.hostnameMap.set(ipStr, hostname);
-    return ip;
+    return this.addresses.resolve(hostname);
   }
 };
 function rewriteHostAlias(host, aliases) {
@@ -66952,7 +67501,29 @@ function mapNetErrnoCode(code) {
 var TcpNetworkBackend = class {
   connections = /* @__PURE__ */ new Map();
   dns = /* @__PURE__ */ new Map();
-  connect(handle, addr, port) {
+  // The guest sees the host's sockets as a NAT gateway on its own link
+  // (egress-link.ts); it never sees the host's real addresses.
+  egress = new EgressLink();
+  get localAddress() {
+    return this.egress.localAddress;
+  }
+  get localNetmask() {
+    return this.egress.localNetmask;
+  }
+  udpSourceAddress(destination) {
+    return this.egress.udpSourceAddress(destination);
+  }
+  bindUdp(id, addr, port, target) {
+    return this.egress.bindUdp(id, addr, port, target);
+  }
+  unbindUdp(id) {
+    this.egress.unbindUdp(id);
+  }
+  sendDatagram() {
+    return this.egress.sendDatagram();
+  }
+  connect(handle, addr, port, source) {
+    if (!this.egress.ownsSource(source)) throw Object.assign(new Error("EADDRNOTAVAIL"), { errno: 99 });
     const ip = `${addr[0]}.${addr[1]}.${addr[2]}.${addr[3]}`;
     const socket = new net.Socket({ allowHalfOpen: true });
     const conn = {
@@ -66960,6 +67531,7 @@ var TcpNetworkBackend = class {
       recvBuf: Buffer.alloc(0),
       closed: false,
       readEnded: false,
+      readShutdown: false,
       connected: false,
       error: null
     };
@@ -66967,7 +67539,7 @@ var TcpNetworkBackend = class {
       conn.connected = true;
     });
     socket.on("data", (data) => {
-      conn.recvBuf = Buffer.concat([conn.recvBuf, data]);
+      if (!conn.readShutdown) conn.recvBuf = Buffer.concat([conn.recvBuf, data]);
     });
     socket.on("end", () => {
       conn.readEnded = true;
@@ -66979,7 +67551,7 @@ var TcpNetworkBackend = class {
       conn.closed = true;
       conn.readEnded = true;
     });
-    socket.connect(port, ip);
+    socket.connect({ port, host: ip, ...source?.port ? { localPort: source.port } : {} });
     this.connections.set(handle, conn);
   }
   /**
@@ -67001,7 +67573,7 @@ var TcpNetworkBackend = class {
   send(handle, data, _flags) {
     const conn = this.connections.get(handle);
     if (!conn) throw new Error("ENOTCONN");
-    if (conn.error) throw conn.error;
+    if (conn.error) throw Object.assign(conn.error, { errno: mapNetErrnoCode(conn.error.code) });
     if (conn.closed || conn.socket.destroyed || conn.socket.writableEnded || !conn.socket.writable) {
       throw Object.assign(new Error("EPIPE"), { code: "EPIPE", errno: 32 });
     }
@@ -67011,7 +67583,7 @@ var TcpNetworkBackend = class {
   recv(handle, maxLen, flags) {
     const conn = this.connections.get(handle);
     if (!conn) throw new Error("ENOTCONN");
-    if (conn.error) throw conn.error;
+    if (conn.error) throw Object.assign(conn.error, { errno: mapNetErrnoCode(conn.error.code) });
     if (conn.recvBuf.length > 0) {
       const len = Math.min(maxLen, conn.recvBuf.length);
       const result = new Uint8Array(
@@ -67047,6 +67619,22 @@ var TcpNetworkBackend = class {
       facts |= NET_READINESS.SEND_READY;
     }
     return facts;
+  }
+  localEndpoint(handle) {
+    const value = this.connections.get(handle)?.socket.address();
+    if (!value || typeof value === "string" || !("family" in value) || value.family !== "IPv4") throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    return { addr: this.egress.localAddress, port: value.port };
+  }
+  shutdown(handle, how) {
+    const conn = this.connections.get(handle);
+    if (!conn) throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    if (!Number.isInteger(how) || how < 0 || how > 2) throw Object.assign(new Error("EINVAL"), { errno: 22 });
+    if (how === 0 || how === 2) {
+      conn.readShutdown = true;
+      conn.readEnded = true;
+      conn.recvBuf = Buffer.alloc(0);
+    }
+    if ((how === 1 || how === 2) && !conn.socket.writableEnded) conn.socket.end();
   }
   close(handle) {
     const conn = this.connections.get(handle);
@@ -68977,8 +69565,6 @@ function materializeSessionSeedTrees(spec, sessionDir, seeds, shadowingMountPoin
 }
 
 // src/binary-resolver.ts
-init_constants();
-init_abi();
 import {
   closeSync as closeSync2,
   constants as fsConstants,
@@ -69004,6 +69590,8 @@ import {
   sep as sep3
 } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
+init_constants();
+init_abi();
 var EXECUTABLE_PROGRAM_REQUIRED_EXPORTS = ["__abi_version", "_start"];
 var cachedRepoRoot = null;
 function currentModuleDir() {
@@ -69410,7 +69998,7 @@ ${commandFailure(xtaskPath, args, result)}`
   }
 }
 function withFreshProgramIndexes(relPaths, operation) {
-  if (programIndexFreshnessBoundaryDepth > 0 || !relPaths.some((relPath) => relPath.startsWith("programs/"))) {
+  if (sourceOnlyPolicyEnabled() || programIndexFreshnessBoundaryDepth > 0 || !relPaths.some((relPath) => relPath.startsWith("programs/"))) {
     return operation();
   }
   programIndexFreshnessBoundaryDepth += 1;
@@ -71654,6 +72242,7 @@ var NodeKernelHost = class {
         const maxProcessMemoryBytes = this.options.maxProcessMemoryBytes ?? maxWorkers * maxPages * WASM_PAGE_SIZE;
         const initMsg = {
           type: "init",
+          remoteNetwork: this.options.remoteNetwork,
           kernelWasmBytes: wasmBytes,
           config: {
             maxWorkers,
@@ -71678,6 +72267,7 @@ var NodeKernelHost = class {
           enableTcpNetwork: this.options.enableTcpNetwork
         };
         const transfer = [
+          ...this.options.remoteNetwork?.role === "joiner" ? [this.options.remoteNetwork.peer.port] : [],
           ...(rootfsLazyAssets ?? []).map(
             (asset) => asset.bytes.buffer
           ),
@@ -71888,9 +72478,11 @@ var NodeKernelHost = class {
     this.sendToWorker({ type: "input_event_batch_inject", records });
   }
   /**
-   * Tell the kernel the current host canvas dimensions so EVIOCGABS
+   * Set the absolute input producer's coordinate extent so EVIOCGABS
    * on `/dev/input/event1` reports the right `ABS_X.maximum` /
-   * `ABS_Y.maximum`. Mirrors `BrowserKernel.setInputCanvasDims`.
+   * `ABS_Y.maximum`. The default extent is 65536×65536; display setup,
+   * pane resizing, and guest modesets never overwrite producer bounds.
+   * Mirrors `BrowserKernel.setInputCanvasDims`.
    */
   setInputCanvasDims(width, height) {
     this.sendToWorker({ type: "set_input_canvas_dims", width, height });
@@ -72288,6 +72880,43 @@ var NodeKernelHost = class {
       throw new Error("kernel worker returned an invalid rootfs image");
     }
     return result;
+  }
+  /** Transfer a connected peer's byte bridge to the forwarding kernel worker. */
+  async attachRemotePeer(peer) {
+    const requestId = this._nextRequestId++;
+    try {
+      return await this.request(requestId, { type: "remote_network_attach", requestId, peer }, [peer.port]);
+    } catch (error) {
+      this.pendingRequests.delete(requestId);
+      throw error;
+    }
+  }
+  /** Inspect the worker-owned session: state, membership and endpoints. */
+  remoteNetworkSnapshot() {
+    const requestId = this._nextRequestId++;
+    return this.request(requestId, { type: "remote_network_snapshot", requestId });
+  }
+  /** Start a network session hosted by this running machine; resolves with
+   *  its session address. */
+  hostRemoteNetwork() {
+    const requestId = this._nextRequestId++;
+    return this.request(requestId, { type: "remote_network_host", requestId });
+  }
+  /** Join a session over a connected peer's byte bridge to its host;
+   *  resolves with the address the host assigned. */
+  async joinRemoteNetwork(peer) {
+    const requestId = this._nextRequestId++;
+    try {
+      return await this.request(requestId, { type: "remote_network_join", requestId, peer }, [peer.port]);
+    } catch (error) {
+      this.pendingRequests.delete(requestId);
+      throw error;
+    }
+  }
+  /** Leave the session. Its address disappears and its streams reset. */
+  async leaveRemoteNetwork() {
+    const requestId = this._nextRequestId++;
+    await this.request(requestId, { type: "remote_network_leave", requestId });
   }
   /** Destroy the kernel and release all resources */
   async destroy() {
