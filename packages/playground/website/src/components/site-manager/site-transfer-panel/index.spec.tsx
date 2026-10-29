@@ -80,6 +80,7 @@ vi.mock('@wordpress/components', () => ({
 		variant: _variant,
 		isDestructive: _destructive,
 		isBusy: _busy,
+		accessibleWhenDisabled,
 		type = 'button',
 		href,
 		target,
@@ -92,13 +93,23 @@ vi.mock('@wordpress/components', () => ({
 		variant?: string;
 		isDestructive?: boolean;
 		isBusy?: boolean;
+		accessibleWhenDisabled?: boolean;
 	}) =>
 		href ? (
-			<a href={href} target={target} rel={rel}>
+			<a
+				{...(props as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
+				href={href}
+				target={target}
+				rel={rel}
+			>
 				{children}
 			</a>
 		) : (
-			<button type={type} {...props}>
+			<button
+				type={type}
+				{...props}
+				disabled={props.disabled && !accessibleWhenDisabled}
+			>
 				{children}
 			</button>
 		),
@@ -172,6 +183,9 @@ describe('Reprint connection changes', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
 		vi.mocked(generateReprintKeyPair).mockResolvedValue(keyPair);
+		vi.stubGlobal('navigator', {
+			clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+		});
 		ui.pendingClone = undefined;
 		ui.cloneRequested = false;
 		dispatch.mockImplementation((action) => {
@@ -216,6 +230,178 @@ describe('Reprint connection changes', () => {
 		);
 	});
 
+	it('waits for the final confirmation before creating the clone', async () => {
+		ui.cloneRequested = true;
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		// Enter must not skip the copy or settings step.
+		await act(async () => {
+			container
+				.querySelector('form')!
+				.dispatchEvent(
+					new Event('submit', { bubbles: true, cancelable: true })
+				);
+		});
+		expect(createNewTemporarySite).not.toHaveBeenCalled();
+		await click('Copy migration key');
+		expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+			keyPair.publicKey
+		);
+		await act(async () => {
+			container
+				.querySelector('form')!
+				.dispatchEvent(
+					new Event('submit', { bubbles: true, cancelable: true })
+				);
+		});
+		expect(createNewTemporarySite).not.toHaveBeenCalled();
+		await click('Open Reprint settings ↗');
+		expect(createNewTemporarySite).not.toHaveBeenCalled();
+		await click('Back to site address');
+		await submit();
+		await submit();
+		expect(createNewTemporarySite).toHaveBeenCalledTimes(1);
+		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
+	});
+
+	it('allows manual copying when clipboard access is denied', async () => {
+		vi.mocked(navigator.clipboard.writeText).mockRejectedValue(
+			new Error('Denied')
+		);
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		await click('Copy migration key');
+		const field = container.querySelector<HTMLTextAreaElement>('textarea')!;
+		expect(field.value).toBe(keyPair.publicKey);
+		expect(field.closest('details')).toBeNull();
+		expect(document.activeElement).toBe(field);
+		expect(pullSite).not.toHaveBeenCalled();
+		await click('I’ve copied the key');
+		await click('Open Reprint settings ↗');
+		await submit();
+		expect(vi.mocked(pullSite).mock.calls[0].slice(1, 3)).toEqual([
+			'https://example.com/',
+			privateKey,
+		]);
+		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps the same controls focused as the checklist advances', async () => {
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		const copy = Array.from(container.querySelectorAll('button')).find(
+			(button) => button.textContent === 'Copy migration key'
+		)!;
+		copy.focus();
+		await click('Copy migration key');
+		expect(document.activeElement).toBe(copy);
+		const settings = container.querySelector<HTMLAnchorElement>(
+			'a[href*="tools.php"]'
+		)!;
+		settings.focus();
+		await click('Open Reprint settings ↗');
+		expect(document.activeElement).toBe(settings);
+		await click('Copy migration key');
+		expect(
+			container
+				.querySelector('button[type=submit]')!
+				.hasAttribute('disabled')
+		).toBe(false);
+		expect(pullSite).not.toHaveBeenCalled();
+	});
+
+	it('keeps Copy focused when retrying after clone creation fails', async () => {
+		ui.cloneRequested = true;
+		createNewTemporarySite.mockRejectedValueOnce(
+			new Error('Creating the clone failed')
+		);
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		await submit();
+		expect(container.textContent).toContain('Creating the clone failed');
+
+		const copy = Array.from(container.querySelectorAll('button')).find(
+			(button) => button.textContent === 'Copy migration key'
+		)!;
+		copy.focus();
+		await click('Copy migration key');
+		expect(document.activeElement).toBe(copy);
+		expect(container.textContent).not.toContain(
+			'Creating the clone failed'
+		);
+	});
+
+	it.each(['succeeds', 'fails'])(
+		'keeps the pull enabled when a pending second copy %s after settings opens',
+		async (result) => {
+			vi.mocked(detectReprint).mockResolvedValue('needs-key');
+			await render();
+			edit('url', 'https://example.com');
+			await submit();
+			await click('Copy migration key');
+
+			let finish!: () => void;
+			vi.mocked(navigator.clipboard.writeText).mockReturnValueOnce(
+				new Promise<void>((resolve, reject) => {
+					finish = () => {
+						if (result === 'succeeds') resolve();
+						else reject(new Error('Denied'));
+					};
+				})
+			);
+			await click('Copy migration key');
+			await click('Open Reprint settings ↗');
+			expect(
+				container.querySelector<HTMLButtonElement>(
+					'button[type=submit]'
+				)!.disabled
+			).toBe(false);
+
+			await act(async () => finish());
+			expect(
+				container.querySelector<HTMLButtonElement>(
+					'button[type=submit]'
+				)!.disabled
+			).toBe(false);
+			await submit();
+			expect(pullSite).toHaveBeenCalledTimes(1);
+		}
+	);
+
+	it('ignores a clipboard result after returning to edit the site address', async () => {
+		let finish!: () => void;
+		vi.mocked(navigator.clipboard.writeText).mockReturnValueOnce(
+			new Promise<void>((resolve) => {
+				finish = resolve;
+			})
+		);
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://first.example');
+		await submit();
+		await click('Copy migration key');
+		await click('Copy migration key');
+		expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
+		await click('Back to site address');
+		edit('url', 'https://second.example');
+		await submit();
+		await act(async () => finish());
+		expect(container.querySelector('a[href*="tools.php"]')).toBeNull();
+		expect(pullSite).not.toHaveBeenCalled();
+		await submit();
+		expect(vi.mocked(pullSite).mock.calls[0][1]).toBe(
+			'https://second.example/'
+		);
+	});
+
 	it('ignores a late detection result after the address changes', async () => {
 		let finish!: (value: 'configured') => void;
 		vi.mocked(detectReprint).mockReturnValueOnce(
@@ -245,6 +431,7 @@ describe('Reprint connection changes', () => {
 		await click('Back to site address');
 		edit('url', 'https://second.example');
 		await submit();
+		await click('Copy migration key');
 		expect(
 			container.querySelector<HTMLTextAreaElement>('textarea')!.value
 		).toBe('public-key');
@@ -309,6 +496,7 @@ describe('Reprint connection changes', () => {
 			await render(playground, false);
 			await render(playground, true);
 			expect(playground.readFileAsText).toHaveBeenCalledTimes(2);
+			await click('Copy migration key');
 			expect(
 				container.querySelector<HTMLAnchorElement>(
 					'a[href*="tools.php"]'
@@ -341,8 +529,8 @@ describe('Reprint connection changes', () => {
 		).toBe('https://typed.example');
 	});
 
-	// Editing or stepping back must not start a pull. Only submitting the key
-	// starts it, with no direction choice or second confirmation screen.
+	// Copying the key or opening settings must not start a pull. Confirmation
+	// starts it with the same pair, even after stepping back to edit the address.
 	it('preserves the key when stepping back and pulls on key submission', async () => {
 		vi.mocked(detectReprint).mockResolvedValue('configured');
 		await render();
@@ -365,7 +553,7 @@ describe('Reprint connection changes', () => {
 		expect(container.textContent).toContain('Open site');
 	});
 
-	it('focuses each input and explains completed steps without retaining their forms', async () => {
+	it('focuses the current task and removes setup after the pull finishes', async () => {
 		vi.mocked(detectReprint).mockResolvedValue('configured');
 		await render();
 		expect(document.activeElement).toBe(
@@ -373,12 +561,8 @@ describe('Reprint connection changes', () => {
 		);
 		edit('url', 'https://example.com');
 		await submit();
-		expect(document.activeElement).toBe(
-			container.querySelector('textarea')
-		);
-		expect(container.textContent).toContain(
-			'Reprint settings on example.com'
-		);
+		expect(document.activeElement).toBe(container.querySelector('h3'));
+		expect(container.textContent).toContain('Copy your migration key');
 		await submit();
 		expect(container.textContent).toContain('example.com cloned');
 		expect(container.querySelector('input')).toBeNull();
@@ -584,9 +768,7 @@ describe('Reprint connection changes', () => {
 		expect(
 			container.querySelector<HTMLTextAreaElement>('textarea')!.value
 		).toBe(keyPair.publicKey);
-		expect(document.activeElement).toBe(
-			container.querySelector('textarea')
-		);
+		expect(document.activeElement).toBe(container.querySelector('h3'));
 		expect(generateReprintKeyPair).toHaveBeenCalledTimes(1);
 		expect(pullSite).toHaveBeenCalledTimes(1);
 		await submit();
@@ -789,7 +971,9 @@ describe('Reprint connection changes', () => {
 	async function click(text: string, startsWith = false) {
 		await act(async () => {
 			const button = Array.from(
-				container.querySelectorAll('button')
+				container.querySelectorAll<
+					HTMLButtonElement | HTMLAnchorElement
+				>('button, a')
 			).find((button) =>
 				startsWith
 					? button.textContent!.startsWith(text)
@@ -843,8 +1027,17 @@ describe('Reprint connection changes', () => {
 			input.dispatchEvent(new Event('input', { bubbles: true }));
 		});
 	}
-	/** Submit setup without bypassing its current validation state. */
+	/** Follow the key guidance before submitting the current setup form. */
 	async function submit() {
+		if (
+			!container.querySelector('a[href*="tools.php"]') &&
+			Array.from(container.querySelectorAll('button')).some(
+				(button) => button.textContent === 'Copy migration key'
+			)
+		) {
+			await click('Copy migration key');
+			await click('Open Reprint settings ↗');
+		}
 		await act(async () =>
 			container
 				.querySelector('form')!

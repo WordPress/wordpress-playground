@@ -10,6 +10,7 @@ test(
 		);
 		await website.goto('./?reprint&name=pull-entry-original');
 		const page = website.page;
+		await page.context().grantPermissions(['clipboard-write']);
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
@@ -56,10 +57,42 @@ test(
 		await pane.getByRole('button', { name: 'Check site' }).click();
 		await pane.getByRole('button', { name: 'Connect manually' }).click();
 		await expect(
+			pane.getByRole('button', {
+				name: 'Copy migration key',
+				exact: true,
+			})
+		).toBeVisible();
+		await pane
+			.getByRole('button', { name: 'Copy migration key', exact: true })
+			.click();
+		await expect(
+			pane.getByRole('button', {
+				name: 'Copy migration key',
+				exact: true,
+			})
+		).toBeFocused();
+		const settingsOpened = page.context().waitForEvent('page');
+		await pane
+			.getByRole('link', { name: 'Open Reprint settings ↗', exact: true })
+			.click();
+		await (await settingsOpened).close();
+		await expect(
+			pane.getByRole('link', {
+				name: 'Open Reprint settings ↗',
+				exact: true,
+			})
+		).toBeFocused();
+		await pane
+			.locator('summary')
+			.filter({ hasText: 'Show key and connection details' })
+			.click();
+		await expect(
 			pane.getByRole('textbox', { name: 'Migration key', exact: true })
 		).toHaveValue(/^[A-Za-z0-9+/]+=*$/);
 		expect(await activeSlug()).toBe(originalSlug);
-		await pane.getByRole('button', { name: 'Clone site' }).click();
+		await pane
+			.getByRole('button', { name: 'I’ve authorized it — clone site' })
+			.click();
 
 		await page.waitForFunction(
 			(slug) =>

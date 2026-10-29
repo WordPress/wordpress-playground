@@ -117,6 +117,49 @@
 	min-height: 0;
 }
 
+.connection-steps {
+	display: grid;
+	gap: var(--space-6);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.connection-steps > li {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.connection-steps > li:not([aria-current='step']) .setup-title {
+	color: var(--ink-muted);
+}
+
+.connection-steps :global(.components-button:disabled) {
+	color: var(--ink-muted);
+}
+
+.key-copied {
+	align-items: center;
+	color: var(--ink-muted);
+	display: flex;
+	font-size: 13px;
+	gap: var(--space-1);
+}
+
+.connection-details {
+	color: var(--ink-muted);
+	font-size: 13px;
+}
+
+.connection-details summary {
+	cursor: pointer;
+}
+
+.connection-details[open] > :not(summary) {
+	margin-top: var(--space-3);
+}
+
 .error {
 	overflow-wrap: anywhere;
 }
