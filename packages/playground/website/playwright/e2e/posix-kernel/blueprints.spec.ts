@@ -273,7 +273,7 @@ test('Intl functions should be disabled by default', async ({
 	await expect(wordpress.locator('body')).toContainText('bool(false)');
 });
 
-// posix-kernel mode ships a single PHP build (8.3) and loads `intl` as a
+// posix-kernel mode ships a single PHP build (8.5) and loads `intl` as a
 // dynamic side-module only when a blueprint opts in with
 // `features: { intl: true }`. That opt-in makes the boot skip the shared
 // (intl-off) snapshot and cold-build the image with `intl.so` staged (see
