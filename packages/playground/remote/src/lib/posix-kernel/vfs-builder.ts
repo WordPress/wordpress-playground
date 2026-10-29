@@ -55,10 +55,6 @@ import curlSoUrl from '@kernel-binary/programs/wasm32/php/curl.so?url';
 // `Phar` class (kandelo builds PHP with `--enable-phar=shared`) so the
 // `wp-cli` blueprint step can run `wp-cli.phar`. Mirrors the CLI path.
 import pharSoUrl from '@kernel-binary/programs/wasm32/php/phar.so?url';
-// Zend extension loaded by php-fpm via `-d zend_extension=opcache.so`.
-// Caches compiled WordPress scripts, so a request does not compile every
-// file it includes again.
-import opcacheSoUrl from '@kernel-binary/programs/wasm32/php/opcache.so?url';
 // Side module loaded by php-fpm via `-d extension=intl.so` ONLY when a
 // blueprint opts in with `features: { intl: true }`. Provides the intl
 // functions/classes (NumberFormatter, Collator, …). Off by default: it is
@@ -88,8 +84,6 @@ const VFS_MAX_BYTES = 1024 * 1024 * 1024;
 
 const SHIPPED_DATABASE_PATH =
 	/^wp-content\/database\/\.ht\.[^/]+\/\.ht\.sqlite$/;
-
-const OPCACHE_FILE_CACHE = '/var/cache/opcache';
 
 export interface BuildVfsImageOptions {
 	/**
@@ -363,7 +357,6 @@ async function populateServerBinaries(
 		zipSoBytes,
 		curlSoBytes,
 		pharSoBytes,
-		opcacheSoBytes,
 	] = await Promise.all([
 		fetchBinary(nginxUrl),
 		fetchBinary(phpFpmUrl),
@@ -371,7 +364,6 @@ async function populateServerBinaries(
 		fetchBinary(zipSoUrl),
 		fetchBinary(curlSoUrl),
 		fetchBinary(pharSoUrl),
-		fetchBinary(opcacheSoUrl),
 	]);
 
 	writeVfsBinary(fs, '/usr/sbin/nginx', nginxBytes);
@@ -386,15 +378,6 @@ async function populateServerBinaries(
 	writeVfsBinary(fs, '/usr/lib/php/extensions/zip.so', zipSoBytes);
 	writeVfsBinary(fs, '/usr/lib/php/extensions/curl.so', curlSoBytes);
 	writeVfsBinary(fs, '/usr/lib/php/extensions/phar.so', pharSoBytes);
-	writeVfsBinary(fs, '/usr/lib/php/extensions/opcache.so', opcacheSoBytes);
-	// php-fpm workers run as `nobody` and write the opcache file cache.
-	ensureDirRecursive(fs, OPCACHE_FILE_CACHE);
-	fs.chmod(OPCACHE_FILE_CACHE, 0o777);
-	// opcache calls `mkdir('/var/cache/opcache')` and accepts only EEXIST.
-	// The Kandelo kernel checks parent write access before existence, so
-	// `nobody` gets EACCES under a root-owned `/var/cache` and opcache
-	// writes nothing. Drop this once the kernel returns EEXIST first.
-	fs.chmod('/var/cache', 0o777);
 
 	// intl.so + its 30 MB ICU data bundle are only staged when a blueprint
 	// opts in (`features: { intl: true }`). The shared prebuilt snapshot
@@ -606,17 +589,12 @@ export function serverDaemons(withIntl: boolean): string[][] {
 			'extension=curl.so',
 			'-d',
 			'extension=phar.so',
-			// Kandelo has no cross-process MAP_SHARED yet, so opcache's
-			// shared memory would not stay coherent across FPM workers.
-			// The file cache works per process, like Kandelo's own images.
-			'-d',
-			'zend_extension=opcache.so',
+			// Kandelo maps opcache's shared memory privately, so each FPM
+			// worker keeps its own cache.
 			'-d',
 			'opcache.enable=1',
 			'-d',
-			`opcache.file_cache=${OPCACHE_FILE_CACHE}`,
-			'-d',
-			'opcache.file_cache_only=1',
+			'opcache.memory_consumption=64',
 			// Only the intl opt-in tests load intl.so; the shared snapshot
 			// omits it (see `populateServerBinaries`).
 			...(withIntl ? ['-d', 'extension=intl.so'] : []),
