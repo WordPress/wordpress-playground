@@ -661,6 +661,7 @@ export function SiteTransferPanel({
 			<div
 				ref={content}
 				key={`${step}-${busy}-${completed}`}
+				data-step={step}
 				className={css.stepContent}
 			>
 				{error && (

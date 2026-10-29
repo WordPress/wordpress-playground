@@ -1,6 +1,6 @@
 import css from './style.module.css';
 import classNames from 'classnames';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import {
 	Spinner,
 	DropdownMenu,
@@ -1048,6 +1048,41 @@ export function SavedPlaygroundsPanel({
 		setActiveCreationTab(tabId);
 	};
 
+	const handleCloneClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		const openClone = () => {
+			dispatch(setCloneRequested(true));
+			dispatch(setDockPaneSection('transfer'));
+			dispatch(setDockPaneOpen(true));
+		};
+		const transitionDocument = document as Document & {
+			startViewTransition?: (update: () => void) => {
+				finished: Promise<void>;
+			};
+		};
+		if (
+			!transitionDocument.startViewTransition ||
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches
+		) {
+			openClone();
+			return;
+		}
+		const pane =
+			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
+		const root = document.documentElement;
+		pane.setAttribute('data-clone-transition', '');
+		root.setAttribute('data-clone-transition', '');
+		const transition = transitionDocument.startViewTransition(
+			// Commit the destination before the browser measures its new layout.
+			() => flushSync(openClone)
+		);
+		const cleanup = () => {
+			pane.removeAttribute('data-clone-transition');
+			root.removeAttribute('data-clone-transition');
+		};
+		// Skipping a transition must also release its temporary names.
+		void transition.finished.then(cleanup, cleanup);
+	};
+
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
@@ -1505,11 +1540,7 @@ export function SavedPlaygroundsPanel({
 										? 'Needs an internet connection — unavailable offline'
 										: undefined
 								}
-								onClick={() => {
-									dispatch(setCloneRequested(true));
-									dispatch(setDockPaneSection('transfer'));
-									dispatch(setDockPaneOpen(true));
-								}}
+								onClick={handleCloneClick}
 							>
 								<span className={css.creationIcon}>
 									<Icon icon={download} size={20} />
