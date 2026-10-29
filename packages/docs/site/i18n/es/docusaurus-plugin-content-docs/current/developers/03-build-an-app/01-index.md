@@ -66,7 +66,8 @@ WordPress Playground proporciona tres APIs que puedes usar para controlar el sit
 
 - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
 - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-    <!-- - [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm -->
+
+<!-- - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm -->
 
 - [API de JavaScript](/developers/apis/javascript-api): ofrece un control completo mediante un cliente de JavaScript cargado desde `playground.wordpress.net` o instalado con npm
 
@@ -337,7 +338,7 @@ Con Blueprints JSON, usarías la propiedad `preferredVersions`:
 The JavaScript API provides the `run()` method which you can use to run PHP code in the browser. This example loads the client directly from `playground.wordpress.net`, so no npm installation or build step is required. See the [JavaScript API quick start](/developers/apis/javascript-api#quick-start) for setup instructions and the npm alternative.
 -->
 
-La API de JavaScript ofrece el método `run()` para ejecutar código PHP en el navegador. Este ejemplo carga el cliente directamente desde `playground.wordpress.net`, sin instalar paquetes con npm ni compilar el proyecto. Consulta el [inicio rápido de la API de JavaScript](/developers/apis/javascript-api#inicio-rápido) para ver las instrucciones de configuración y la alternativa con npm.
+La API de JavaScript ofrece el método `run()` para ejecutar código PHP en el navegador. Este ejemplo carga el cliente directamente desde `playground.wordpress.net`, sin instalar paquetes con npm ni compilar el proyecto. Consulta el [inicio rápido de la API de JavaScript](../06-apis/javascript-api/01-index.md#inicio-rápido) para ver las instrucciones de configuración y la alternativa con npm.
 
 ```html
 <iframe id="wp"></iframe>

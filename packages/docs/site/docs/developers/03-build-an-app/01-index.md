@@ -38,7 +38,7 @@ WordPress Playground provides three APIs you can use to control the iframed webs
 
 - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
 - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm
+- [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm
 
 Learn more about each of these APIs in the [APIs overview section](/developers/apis/).
 

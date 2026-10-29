@@ -70,7 +70,7 @@ Then replace the URL import in the example above with this import in your JavaSc
 const { startPlaygroundWeb } = await import('@wp-playground/client');
 ```
 
-Keep `remoteUrl` set to `https://playground.wordpress.net/remote.html` to use the hosted Playground runtime.
+For the hosted runtime at `https://playground.wordpress.net/remote.html`, use the URL import above to keep the client and runtime in sync. With npm, use matching client and runtime versions and update them together.
 
 ## Controlling the website
 

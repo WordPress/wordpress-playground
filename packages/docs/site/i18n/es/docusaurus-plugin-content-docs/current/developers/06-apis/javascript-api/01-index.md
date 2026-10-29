@@ -105,9 +105,9 @@ Después, sustituye la importación por URL del ejemplo anterior por esta import
 const { startPlaygroundWeb } = await import('@wp-playground/client');
 ```
 
-<!-- Keep `remoteUrl` set to `https://playground.wordpress.net/remote.html` to use the hosted Playground runtime. -->
+<!-- For the hosted runtime at `https://playground.wordpress.net/remote.html`, use the URL import above to keep the client and runtime in sync. With npm, use matching client and runtime versions and update them together. -->
 
-Mantén `remoteUrl` configurado como `https://playground.wordpress.net/remote.html` para usar el entorno alojado de Playground.
+Para usar el entorno alojado en `https://playground.wordpress.net/remote.html`, usa la importación por URL anterior para mantener el cliente y el entorno sincronizados. Con npm, usa versiones correspondientes del cliente y del entorno y actualiza ambos a la vez.
 
 <!-- ## Controlling the website -->
 
