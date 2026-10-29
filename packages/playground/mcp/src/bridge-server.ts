@@ -5,12 +5,18 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { formatStorageLabel } from './tools/tool-definitions';
+import type { ExposedAbility } from './exposed-abilities';
 
 export interface SiteRegistration {
 	slug: string;
 	name: string;
 	storage: string;
 	isActive: boolean;
+	/**
+	 * Abilities the tab exposes for this site. Only sent for the tab's
+	 * active site; tabs from older versions omit it (none exposed).
+	 */
+	abilities?: ExposedAbility[];
 }
 
 export interface BridgeSiteInfo {
@@ -39,7 +45,12 @@ export interface SiteEntry {
 	storage: string;
 	reportedByTabs: Set<string>;
 	activeInTabs: string[];
+	/** Exposed abilities per tab. Only the active tab's set is effective. */
+	abilitiesByTab: Map<string, ExposedAbility[]>;
 }
+
+/** Effective exposed abilities keyed by site ID. */
+export type ExposedAbilitiesBySite = Map<string, ExposedAbility[]>;
 
 /**
  * Origins allowed to connect to the WebSocket bridge.
@@ -54,6 +65,7 @@ const ALLOWED_ORIGIN_PATTERNS = [
 ];
 
 type SiteActivatedListener = (siteId: string) => void;
+type AbilitiesChangedListener = (abilities: ExposedAbilitiesBySite) => void;
 
 export class PlaygroundBridge {
 	private additionalAllowedOrigins = new Set<string>();
@@ -72,6 +84,8 @@ export class PlaygroundBridge {
 	private httpServer: ReturnType<typeof createHttpServer> | undefined;
 	private sessionToken = randomUUID();
 	private siteActivatedListeners: SiteActivatedListener[] = [];
+	private abilitiesChangedListeners = new Set<AbilitiesChangedListener>();
+	private previousAbilitiesSerialized = '[]';
 
 	constructor(additionalAllowedUrls: string[] = []) {
 		for (const url of additionalAllowedUrls) {
@@ -218,6 +232,7 @@ export class PlaygroundBridge {
 					tabId = message.tabId;
 					this.connections.set(tabId, ws);
 					this.updateSitesForTab(tabId, message.sites);
+					this.notifyAbilitiesIfChanged();
 					if (isNew) {
 						console.error(
 							`[MCP] Tab registered: ${tabId} ` +
@@ -266,6 +281,7 @@ export class PlaygroundBridge {
 			// Remove tab from all sites and clean up orphans
 			for (const [siteId, site] of this.sites) {
 				site.reportedByTabs.delete(tabId);
+				site.abilitiesByTab.delete(tabId);
 				const idx = site.activeInTabs.indexOf(tabId);
 				if (idx !== -1) {
 					site.activeInTabs.splice(idx, 1);
@@ -274,6 +290,7 @@ export class PlaygroundBridge {
 					this.sites.delete(siteId);
 				}
 			}
+			this.notifyAbilitiesIfChanged();
 		});
 	}
 
@@ -287,6 +304,7 @@ export class PlaygroundBridge {
 		for (const [siteId, site] of this.sites) {
 			if (!tabSiteSlugs.has(site.siteSlug)) {
 				site.reportedByTabs.delete(tabId);
+				site.abilitiesByTab.delete(tabId);
 				const idx = site.activeInTabs.indexOf(tabId);
 				if (idx !== -1) {
 					site.activeInTabs.splice(idx, 1);
@@ -309,6 +327,7 @@ export class PlaygroundBridge {
 					storage: reg.storage,
 					reportedByTabs: new Set(),
 					activeInTabs: [],
+					abilitiesByTab: new Map(),
 				};
 				this.sites.set(siteId, site);
 			}
@@ -319,6 +338,7 @@ export class PlaygroundBridge {
 			site.reportedByTabs.add(tabId);
 
 			if (reg.isActive) {
+				site.abilitiesByTab.set(tabId, reg.abilities ?? []);
 				const wasActive = site.activeInTabs.length > 0;
 
 				// activeInTabs is ordered most-recently-active first.
@@ -336,6 +356,7 @@ export class PlaygroundBridge {
 					}
 				}
 			} else {
+				site.abilitiesByTab.delete(tabId);
 				// Remove this tab from activeInTabs if it was there
 				const idx = site.activeInTabs.indexOf(tabId);
 				if (idx !== -1) {
@@ -452,6 +473,22 @@ export class PlaygroundBridge {
 		});
 	}
 
+	private notifyAbilitiesIfChanged() {
+		const abilities = this.listExposedAbilities();
+		const serialized = JSON.stringify([...abilities]);
+		if (serialized === this.previousAbilitiesSerialized) {
+			return;
+		}
+		this.previousAbilitiesSerialized = serialized;
+		for (const listener of this.abilitiesChangedListeners) {
+			try {
+				listener(abilities);
+			} catch (error) {
+				console.error('[MCP] Abilities listener failed:', error);
+			}
+		}
+	}
+
 	private removeSiteActivatedListener(listener: SiteActivatedListener) {
 		const idx = this.siteActivatedListeners.indexOf(listener);
 		if (idx !== -1) {
@@ -466,6 +503,37 @@ export class PlaygroundBridge {
 			storage: formatStorageLabel(site.storage),
 			isActive: site.activeInTabs.length > 0,
 		}));
+	}
+
+	/**
+	 * Abilities exposed for each site by the tab that site-level commands
+	 * target (activeInTabs[0]). Sites without exposed abilities are omitted.
+	 */
+	listExposedAbilities(): ExposedAbilitiesBySite {
+		const result: ExposedAbilitiesBySite = new Map();
+		for (const [siteId, site] of this.sites) {
+			const tabId = site.activeInTabs[0];
+			const abilities =
+				tabId === undefined
+					? undefined
+					: site.abilitiesByTab.get(tabId);
+			if (abilities && abilities.length > 0) {
+				result.set(siteId, abilities);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * Calls `listener` whenever the effective exposed abilities change,
+	 * including when a tab disconnects or a site stops being active.
+	 * Returns a function that removes the listener.
+	 */
+	onAbilitiesChanged(listener: AbilitiesChangedListener): () => void {
+		this.abilitiesChangedListeners.add(listener);
+		return () => {
+			this.abilitiesChangedListeners.delete(listener);
+		};
 	}
 
 	getTabCount(): number {
