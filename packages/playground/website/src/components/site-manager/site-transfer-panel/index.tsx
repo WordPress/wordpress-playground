@@ -1095,14 +1095,6 @@ export function SiteTransferPanel({
 									</Button>
 								</li>
 							</ol>
-							<details className={css.connectionDetails}>
-								<summary>My screen looks different</summary>
-								<p className={css.hint}>
-									Older versions use the{' '}
-									<strong>Public key</strong> field and{' '}
-									<strong>Enroll key</strong> button.
-								</p>
-							</details>
 							{keyPair && (
 								<details className={css.connectionDetails}>
 									<summary>
