@@ -6,6 +6,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
+import type { MouseEvent } from 'react';
 import {
 	Button,
 	DropdownMenu,
@@ -39,6 +40,7 @@ import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playg
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import type { SiteToolPanelProps } from '../site-info-panel/site-tool-renderers';
 import { InlineProgress, PlaygroundBootNotice } from '../../pane-loading';
+import { transitionClonePane } from '../../dock/transition-clone-pane';
 import css from './style.module.css';
 import { TransferProgressView } from './transfer-progress';
 import { getTransferDiagnostics } from '../../../lib/reprint/transfer-diagnostics';
@@ -295,23 +297,32 @@ export function SiteTransferPanel({
 	};
 
 	/** Return to the previous setup input without forgetting a valid key. */
-	const goBack = useCallback(() => {
-		checkController.current?.abort();
-		setAutoStart(false);
-		setError('');
-		if (step === 'site') {
-			dispatch(setCloneRequested(false));
-			dispatch(setDockPaneSection('new'));
-			return;
-		}
-		if (step === 'transfer') {
-			setStep('key');
-		} else {
-			skipConnectionRestore.current = true;
-			setSetup(null);
-			setStep('site');
-		}
-	}, [dispatch, step]);
+	const goBack = useCallback(
+		(event: MouseEvent<HTMLElement>) => {
+			checkController.current?.abort();
+			setAutoStart(false);
+			setError('');
+			if (step === 'site') {
+				const pane =
+					event.currentTarget.closest<HTMLElement>(
+						'[role="dialog"]'
+					)!;
+				transitionClonePane(pane, 'back', () => {
+					dispatch(setCloneRequested(false));
+					dispatch(setDockPaneSection('new'));
+				});
+				return;
+			}
+			if (step === 'transfer') {
+				setStep('key');
+			} else {
+				skipConnectionRestore.current = true;
+				setSetup(null);
+				setStep('site');
+			}
+		},
+		[dispatch, step]
+	);
 
 	/** Run the pull, retain failures for retry, then autosave the completed clone. */
 	const start = useCallback(async () => {
@@ -661,6 +672,7 @@ export function SiteTransferPanel({
 			<div
 				ref={content}
 				key={`${step}-${busy}-${completed}`}
+				data-step={step}
 				className={css.stepContent}
 			>
 				{error && (

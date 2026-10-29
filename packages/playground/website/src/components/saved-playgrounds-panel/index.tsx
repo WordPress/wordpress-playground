@@ -39,6 +39,7 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { transitionClonePane } from '../dock/transition-clone-pane';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -1048,6 +1049,16 @@ export function SavedPlaygroundsPanel({
 		setActiveCreationTab(tabId);
 	};
 
+	const handleCloneClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		const pane =
+			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
+		transitionClonePane(pane, 'forward', () => {
+			dispatch(setCloneRequested(true));
+			dispatch(setDockPaneSection('transfer'));
+			dispatch(setDockPaneOpen(true));
+		});
+	};
+
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
@@ -1495,6 +1506,7 @@ export function SavedPlaygroundsPanel({
 							</div>
 							<button
 								type="button"
+								id="clone-site-launcher"
 								className={classNames(
 									css.creationButton,
 									css.creationLauncher
@@ -1505,11 +1517,7 @@ export function SavedPlaygroundsPanel({
 										? 'Needs an internet connection — unavailable offline'
 										: undefined
 								}
-								onClick={() => {
-									dispatch(setCloneRequested(true));
-									dispatch(setDockPaneSection('transfer'));
-									dispatch(setDockPaneOpen(true));
-								}}
+								onClick={handleCloneClick}
 							>
 								<span className={css.creationIcon}>
 									<Icon icon={download} size={20} />
