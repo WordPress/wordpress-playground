@@ -50,6 +50,8 @@ export type DockPaneProps = {
 	headerAction?: ReactNode;
 	headerOverride?: DockPaneHeaderOverride;
 	ariaLabel?: string;
+	annotatableSection?: string;
+	annotationMetadata?: string;
 	closeDisabled?: boolean;
 	closeTitle?: string;
 	onClose?: MouseEventHandler<HTMLButtonElement>;
@@ -77,6 +79,8 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 			headerAction,
 			headerOverride,
 			ariaLabel,
+			annotatableSection,
+			annotationMetadata,
 			closeDisabled = false,
 			closeTitle,
 			onClose,
@@ -130,6 +134,13 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				role="dialog"
 				tabIndex={-1}
 				aria-label={ariaLabel ?? `${displayedTitle} pane`}
+				oai-annotation-container=""
+				oai-annotation-metadata={annotationMetadata}
+				oai-annotatable={
+					annotatableSection
+						? `dock-pane-${annotatableSection}`
+						: 'dock-pane'
+				}
 			>
 				{closeButton && closeDescription && (
 					<span
