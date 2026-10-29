@@ -34,7 +34,6 @@ import {
 	updateSiteMetadata,
 } from '../../../lib/state/redux/slice-sites';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
-import { randomSiteName } from '../../../lib/state/redux/random-site-name';
 import { getUniqueSiteSlug } from '../../../lib/state/redux/site-slug';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
@@ -514,7 +513,7 @@ export function SiteTransferPanel({
 			const created = await sitesAPI.createNewTemporarySite(
 				slug,
 				{ networking: true, phpVersion: '8.3' },
-				{ updateUrl: false, name: randomSiteName() }
+				{ updateUrl: false }
 			);
 			if (created !== slug) {
 				rememberConnection(created, address, keyPair!);

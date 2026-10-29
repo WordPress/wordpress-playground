@@ -201,7 +201,7 @@ describe('Reprint connection changes', () => {
 		vi.unstubAllGlobals();
 	});
 
-	it('creates a clone with a readable name separate from its random slug', async () => {
+	it('creates a clone with a random slug without changing the URL during setup', async () => {
 		ui.cloneRequested = true;
 		vi.mocked(detectReprint).mockResolvedValue('configured');
 		await render();
@@ -212,12 +212,7 @@ describe('Reprint connection changes', () => {
 		expect(createNewTemporarySite).toHaveBeenCalledWith(
 			expect.stringMatching(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/),
 			{ networking: true, phpVersion: '8.3' },
-			{
-				updateUrl: false,
-				name: expect.stringMatching(
-					/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/
-				),
-			}
+			{ updateUrl: false }
 		);
 	});
 

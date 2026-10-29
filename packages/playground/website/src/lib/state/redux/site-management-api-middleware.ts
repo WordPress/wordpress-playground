@@ -29,7 +29,6 @@ import {
 	preserveSite,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
-	deriveSiteNameFromSlug,
 	getSitePublicPersistence,
 	isAutosavedSite,
 	isStoredSite,
@@ -814,18 +813,16 @@ export function createSitesAPI(
 		/**
 		 * Creates a new temporary site and boots it.
 		 *
-		 * @param requestedSiteSlug Optional slug hint. When omitted, the
-		 *   Blueprint title becomes the site name if available; otherwise a
-		 *   random name is generated.
+		 * @param requestedSiteSlug Optional slug hint. Names are generated separately.
+		 *   When omitted, a Blueprint title replaces the random name if available.
 		 * @param settings Optional site settings.
 		 * @param options Set updateUrl to false when a clone must boot without routing.
-		 *   Set name to keep its display name separate from an explicit slug.
 		 * @returns The new site's slug.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
 			settings?: SiteSettings,
-			options: { updateUrl?: boolean; name?: string } = {}
+			options: { updateUrl?: boolean } = {}
 		): Promise<string> {
 			return await createTemporarySite(
 				requestedSiteSlug,
@@ -842,9 +839,8 @@ export function createSitesAPI(
 		 * autosave. First boot creates the WordPress files from the setup URL,
 		 * then stores that initialized filesystem in OPFS for later boots.
 		 *
-		 * @param requestedSiteSlug Optional slug hint. When omitted, the
-		 *   Blueprint title becomes the site name if available; otherwise a
-		 *   random name is generated.
+		 * @param requestedSiteSlug Optional slug hint. Names are generated separately.
+		 *   When omitted, a Blueprint title replaces the random name if available.
 		 * @param settings Optional site settings.
 		 * @param options Optional persistence, routing, and pruning behavior.
 		 * @returns The new site's slug.
@@ -963,13 +959,9 @@ export function createSitesAPI(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
 		initialize?: (playground: PlaygroundClient) => Promise<void>,
-		options: { updateUrl?: boolean; name?: string } = {}
+		options: { updateUrl?: boolean } = {}
 	): Promise<string> {
-		const siteName =
-			options.name ??
-			(requestedSiteSlug
-				? deriveSiteNameFromSlug(requestedSiteSlug)
-				: randomSiteName());
+		const siteName = randomSiteName();
 		const url = getSetupUrlForNewSite(settings, {
 			baseUrl: new URL(window.location.href),
 		});
@@ -1002,9 +994,7 @@ export function createSitesAPI(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
 		}
-		const siteName = requestedSiteSlug
-			? deriveSiteNameFromSlug(requestedSiteSlug)
-			: randomSiteName();
+		const siteName = randomSiteName();
 		const url = getSetupUrlForNewSite(settings, {
 			baseUrl: new URL(window.location.href),
 			onlySetupParams: true,

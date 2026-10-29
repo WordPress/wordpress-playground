@@ -310,13 +310,15 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 	// explicit save unless the caller opts into autosave persistence.
 	expect(result.slug).toBe('api-created-site');
 	expect(result.active.slug).toBe('api-created-site');
+	expect(result.active.name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/);
+	expect(result.active.name).not.toBe('Api Created Site');
 	expect(result.active.storage).toBe('opfs');
 	expect(result.active.persistence).toBe('explicit');
 	expect(result.hasClient).toBe(true);
 	expect(result.sameUrl).toBe(true);
 });
 
-test('playgroundSites.createNewTemporarySite() keeps a clone name separate from its slug', async ({
+test('playgroundSites.createNewTemporarySite() defaults to a readable name separate from its slug', async ({
 	website,
 }) => {
 	await website.goto('./?storage=temp&php=8.3&networking=yes');
@@ -333,7 +335,7 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 		const slug = await api.createNewTemporarySite(
 			originalSlug,
 			{ networking: true, phpVersion: '8.3' },
-			{ updateUrl: false, name: 'Happy Quiet River' }
+			{ updateUrl: false }
 		);
 		return {
 			originalSlug,
@@ -352,9 +354,14 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 	expect(result.active).toEqual(
 		expect.objectContaining({
 			slug: result.slug,
-			name: 'Happy Quiet River',
+			name: expect.stringMatching(
+				/^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/
+			),
 			storage: 'temporary',
 		})
+	);
+	expect(result.active.name.toLowerCase().replaceAll(' ', '-')).not.toBe(
+		result.originalSlug
 	);
 	expect(result.sameUrl).toBe(true);
 	expect(result.sameClient).toBe(false);

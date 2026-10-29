@@ -159,13 +159,6 @@ export const getSitesLoadingState = (state: {
 	sites: ReturnType<typeof sitesSlice.reducer>;
 }) => state.sites.opfsSitesLoadingState;
 
-export function deriveSiteNameFromSlug(slug: string) {
-	return slug
-		.replaceAll('-', ' ')
-		.replaceAll(/\b\w/g, (c) => c.toUpperCase())
-		.replaceAll(/WordPress/gi, 'WordPress');
-}
-
 /**
  * Updates site metadata in redux and, for stored sites, in OPFS.
  */
