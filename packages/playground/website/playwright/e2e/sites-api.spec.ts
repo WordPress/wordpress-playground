@@ -319,7 +319,7 @@ test('playgroundSites.createNewSavedSite() creates an explicit OPFS site by defa
 test('playgroundSites.createNewTemporarySite() keeps a clone name separate from its slug', async ({
 	website,
 }) => {
-	await website.goto('./?storage=temp');
+	await website.goto('./?storage=temp&php=8.3&networking=yes');
 	await website.page.waitForFunction(() =>
 		Boolean((window as any).playgroundSites?.getClient())
 	);
@@ -327,6 +327,8 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 	const result = await website.page.evaluate(async () => {
 		const api = (window as any).playgroundSites;
 		const beforeUrl = window.location.href;
+		const beforeClient = api.getClient();
+		await beforeClient.writeFile('/tmp/clone-reuse-canary.txt', 'original');
 		const slug = await api.createNewTemporarySite(
 			'abcd-efgh-ijkm',
 			{ networking: true, phpVersion: '8.3' },
@@ -336,6 +338,10 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 			slug,
 			active: api.list().find((site: any) => site.isActive),
 			sameUrl: window.location.href === beforeUrl,
+			sameClient: beforeClient === api.getClient(),
+			hasOriginalFile: await api
+				.getClient()
+				.fileExists('/tmp/clone-reuse-canary.txt'),
 		};
 	});
 
@@ -348,6 +354,8 @@ test('playgroundSites.createNewTemporarySite() keeps a clone name separate from 
 		})
 	);
 	expect(result.sameUrl).toBe(true);
+	expect(result.sameClient).toBe(false);
+	expect(result.hasOriginalFile).toBe(false);
 });
 
 test('playgroundSites.rename() renames a saved site', async ({

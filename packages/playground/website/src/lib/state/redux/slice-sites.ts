@@ -522,7 +522,11 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite && !options.replaceExisting) {
+		if (
+			currentTemporarySite &&
+			!options.replaceExisting &&
+			(!preferredSlug || preferredSlug === currentTemporarySite.slug)
+		) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
