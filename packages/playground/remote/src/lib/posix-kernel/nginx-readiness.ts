@@ -16,6 +16,12 @@ export async function waitForNginx(
 	// Any other status means nginx → fpm → PHP finished a request, so
 	// the server stack is up and the caller can proceed (a 500 is a
 	// real PHP error and shouldn't be silently retried).
+	//
+	// The probe requests `version.php`, which the FPM router runs
+	// without loading WordPress: a few milliseconds instead of a full
+	// front page render. In PHP-only mode the file is missing, so the
+	// router falls through to the docroot `index.php` or a 404; either
+	// still proves PHP-FPM is up.
 	const deadline = Date.now() + timeoutMs;
 	let lastStatus: number | undefined;
 	let lastError: unknown;
@@ -24,7 +30,7 @@ export async function waitForNginx(
 		try {
 			const response = await send({
 				method: 'GET',
-				url: '/',
+				url: '/wp-includes/version.php',
 				headers: {},
 				body: null,
 			});

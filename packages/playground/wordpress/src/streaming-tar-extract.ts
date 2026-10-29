@@ -45,6 +45,12 @@ const TAR_ROOT = '/__tar-root__';
 const ZSTD_MAGIC = [0x28, 0xb5, 0x2f, 0xfd];
 /** ZIP local-file-header magic: "PK\x03\x04". */
 const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
+/**
+ * `zstddec` copies each compressed chunk whole into its Wasm memory, and that
+ * memory never shrinks. Feeding it a whole archive grows the memory by the
+ * archive size for the life of the page.
+ */
+const ZSTDDEC_INPUT_CHUNK_BYTES = 128 * 1024;
 const textDecoder = new TextDecoder();
 
 export type TarCodec = 'zstd' | 'gzip' | 'deflate' | 'br';
@@ -425,7 +431,9 @@ export class StreamingTarParser {
 		if (entry.isLongLink) {
 			// GNU longlink body is the full path (NUL-terminated) for the NEXT
 			// entry.
-			this.pendingLongName = textDecoder.decode(data).replace(/\0.*$/, '');
+			this.pendingLongName = textDecoder
+				.decode(data)
+				.replace(/\0.*$/, '');
 			return;
 		}
 		if (entry.isPaxHeader) {
@@ -628,7 +636,7 @@ async function toChunkIterable(
 	bytesOrStream: Uint8Array | ReadableStream<Uint8Array>
 ): Promise<Iterable<Uint8Array>> {
 	if (!isReadableStream(bytesOrStream)) {
-		return [bytesOrStream];
+		return splitIntoChunks(bytesOrStream);
 	}
 	const reader = bytesOrStream.getReader();
 	const chunks: Uint8Array[] = [];
@@ -644,6 +652,16 @@ async function toChunkIterable(
 		throw e;
 	} finally {
 		reader.releaseLock();
+	}
+}
+
+function* splitIntoChunks(bytes: Uint8Array): Generator<Uint8Array> {
+	for (
+		let offset = 0;
+		offset < bytes.length;
+		offset += ZSTDDEC_INPUT_CHUNK_BYTES
+	) {
+		yield bytes.subarray(offset, offset + ZSTDDEC_INPUT_CHUNK_BYTES);
 	}
 }
 

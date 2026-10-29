@@ -312,6 +312,25 @@ export class KernelLimitedPHPApi {
 		);
 	}
 
+	/**
+	 * Translate from the classic Playground convention (`/wordpress`)
+	 * to the kernel VFS docroot (`/var/www/html`). Paths that don't
+	 * begin with `/wordpress` pass through unchanged so absolute VFS
+	 * paths supplied by blueprint steps still work.
+	 */
+	toVfs(path: string): string {
+		if (path === '/wordpress') {
+			return VFS_DOCUMENT_ROOT;
+		}
+		if (path.startsWith('/wordpress/')) {
+			return joinPaths(
+				VFS_DOCUMENT_ROOT,
+				path.slice('/wordpress'.length)
+			);
+		}
+		return path;
+	}
+
 	private async regenerateDefinesPlugin(): Promise<void> {
 		const entries: Record<string, string | number | boolean | null> = {};
 		for (const [k, v] of this.constants.entries()) {
@@ -428,25 +447,6 @@ export class KernelLimitedPHPApi {
 
 	private translateVfsPathsInCode(code: string): string {
 		return code.replace(VFS_DOCROOT_IN_CODE, VFS_DOCUMENT_ROOT);
-	}
-
-	/**
-	 * Translate from the classic Playground convention (`/wordpress`)
-	 * to the kernel VFS docroot (`/var/www/html`). Paths that don't
-	 * begin with `/wordpress` pass through unchanged so absolute VFS
-	 * paths supplied by blueprint steps still work.
-	 */
-	private toVfs(path: string): string {
-		if (path === '/wordpress') {
-			return VFS_DOCUMENT_ROOT;
-		}
-		if (path.startsWith('/wordpress/')) {
-			return joinPaths(
-				VFS_DOCUMENT_ROOT,
-				path.slice('/wordpress'.length)
-			);
-		}
-		return path;
 	}
 }
 

@@ -34,7 +34,8 @@
  */
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
-import { existsSync } from 'fs';
+import { createHash } from 'crypto';
+import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
@@ -91,6 +92,24 @@ function resolveKernelBinariesPlugin(): Plugin {
 				);
 			}
 			return resolved + query;
+		},
+		/**
+		 * `@kernel-binary/<rel>?lazy` exports the asset URL with the size
+		 * and SHA-256 that `KandeloImageFs.registerLazyFile()` needs, so
+		 * the boot registers the binary without downloading it.
+		 */
+		load(id) {
+			if (!id.startsWith(binariesDir) || !id.endsWith('?lazy')) {
+				return null;
+			}
+			const file = id.slice(0, -'?lazy'.length);
+			const bytes = readFileSync(file);
+			const sha256 = createHash('sha256').update(bytes).digest('hex');
+			return (
+				`import url from ${JSON.stringify(file + '?url')};\n` +
+				`export default { url, size: ${bytes.length}, ` +
+				`sha256: ${JSON.stringify(sha256)} };\n`
+			);
 		},
 	};
 }

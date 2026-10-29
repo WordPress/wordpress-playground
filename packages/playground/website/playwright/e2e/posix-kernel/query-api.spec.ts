@@ -11,11 +11,11 @@ const LatestSupportedWordPressVersion = Object.keys(
 	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
 ).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
-test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
+test('should load PHP 8.5 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
 	await website.goto('./?url=/phpinfo.php');
 	await expect(wordpress.locator('h1.p').first()).toContainText(
-		'PHP Version 8.3'
+		'PHP Version 8.5'
 	);
 });
 

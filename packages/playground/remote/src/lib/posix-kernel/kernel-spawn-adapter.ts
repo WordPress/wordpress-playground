@@ -59,14 +59,16 @@ export interface RunPhpOptions {
 export interface KernelSpawnAdapterOptions {
 	kernel: BrowserKernel;
 	coreutilsBytes: ArrayBuffer;
-	phpWasmBytes: ArrayBuffer;
+	/** Downloads php.wasm. Runs once, on the first `runPhpCli()`. */
+	loadPhpWasm: () => Promise<ArrayBuffer>;
 	setCapture: (handler: CaptureHandler | null) => void;
 }
 
 export class KernelSpawnAdapter {
 	private readonly kernel: BrowserKernel;
 	private readonly coreutilsBytes: ArrayBuffer;
-	private readonly phpWasmBytes: ArrayBuffer;
+	private readonly loadPhpWasm: () => Promise<ArrayBuffer>;
+	private phpWasmBytes?: Promise<ArrayBuffer>;
 	private readonly setCapture: (h: CaptureHandler | null) => void;
 	/**
 	 * Serializes spawns. `BrowserKernel`'s `onStdout` / `onStderr` are
@@ -79,7 +81,7 @@ export class KernelSpawnAdapter {
 	constructor(options: KernelSpawnAdapterOptions) {
 		this.kernel = options.kernel;
 		this.coreutilsBytes = options.coreutilsBytes;
-		this.phpWasmBytes = options.phpWasmBytes;
+		this.loadPhpWasm = options.loadPhpWasm;
 		this.setCapture = options.setCapture;
 	}
 
@@ -111,11 +113,11 @@ export class KernelSpawnAdapter {
 	}
 
 	/** `mkdir -p` — also satisfies `mkdirTree`. */
-	async mkdir(path: string): Promise<void> {
-		const result = await this.runCoreutils(['mkdir', '-p', path]);
+	async mkdir(...paths: string[]): Promise<void> {
+		const result = await this.runCoreutils(['mkdir', '-p', ...paths]);
 		if (result.exitCode !== 0) {
 			throw new Error(
-				`mkdir(${path}) failed (exit=${result.exitCode}): ` +
+				`mkdir(${paths.join(', ')}) failed (exit=${result.exitCode}): ` +
 					decodeText(result.stderr)
 			);
 		}
@@ -249,7 +251,8 @@ export class KernelSpawnAdapter {
 	 * with the same shape; this is the browser equivalent.
 	 */
 	async runPhpCli(options: RunPhpOptions): Promise<SpawnResult> {
-		return this.spawnCapturing(this.phpWasmBytes, options);
+		this.phpWasmBytes ??= this.loadPhpWasm();
+		return this.spawnCapturing(await this.phpWasmBytes, options);
 	}
 
 	private async runCoreutils(

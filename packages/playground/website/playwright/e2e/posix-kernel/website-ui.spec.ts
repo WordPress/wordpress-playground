@@ -31,7 +31,7 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 
 SupportedPHPVersions.forEach(async (version) => {
 	test(`should switch PHP version to ${version}`, async ({ website }) => {
-		// posix-kernel mode ships a single PHP build (8.3); the
+		// posix-kernel mode ships a single PHP build (8.5); the
 		// `?php=<version>` URL parameter is silently ignored at boot
 		// (`playground-worker-endpoint.ts` only consumes
 		// `options.wpVersion`). The dropdown still persists the selected
@@ -40,7 +40,7 @@ SupportedPHPVersions.forEach(async (version) => {
 		// kernel mode bundles multiple PHP builds.
 		test.skip(
 			true,
-			'posix-kernel: single PHP build (8.3); the `php=<version>` URL param is ignored at boot.'
+			'posix-kernel: single PHP build (8.5); the `php=<version>` URL param is ignored at boot.'
 		);
 		await website.goto('./?storage=temp');
 		await website.ensureSiteManagerIsOpen();

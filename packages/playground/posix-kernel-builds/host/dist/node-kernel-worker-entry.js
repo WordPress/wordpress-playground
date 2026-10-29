@@ -1,4 +1,4 @@
-/* kandelo-host-build-inputs-sha256:13337d182912ab643ec360a5486162a572b30515556b4796542987e466a317bc */
+/* kandelo-host-build-inputs-sha256:37c5a0ec9fe537aee1b14f18334d6cce2d3390adfcb5744f8192078bf74b13ac */
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
@@ -9,7 +9,7 @@ var ABI_VERSION, ABI_KERNEL_EXPORT, RECORD_HEADER_BYTES, RECORD_LEN_OFFSET, RECO
 var init_abi = __esm({
   "src/generated/abi.ts"() {
     "use strict";
-    ABI_VERSION = 49;
+    ABI_VERSION = 50;
     ABI_KERNEL_EXPORT = "__abi_version";
     RECORD_HEADER_BYTES = 64;
     RECORD_LEN_OFFSET = 12;
@@ -583,6 +583,7 @@ var init_abi = __esm({
       "kernel_publish_spawn_child",
       "kernel_reap_exited_child",
       "kernel_remove_process",
+      "kernel_reset_tcp_connection",
       "kernel_set_current_tid",
       "kernel_set_cwd",
       "kernel_spawn_exec_commit",
@@ -595,6 +596,7 @@ var init_abi = __esm({
       "kernel_spawn_scratch_pointer",
       "kernel_spawn_scratch_retained_capacity",
       "kernel_take_process_timer_cleanup",
+      "kernel_tcp_connection_id",
       "kernel_thread_exit",
       "kernel_thread_has_deliverable",
       "kernel_transfer_channel_execute",
@@ -1142,11 +1144,13 @@ var init_abi = __esm({
       ENETUNREACH: 101,
       ECONNABORTED: 103,
       ECONNRESET: 104,
+      ENOBUFS: 105,
       EISCONN: 106,
       ENOTCONN: 107,
       ESHUTDOWN: 108,
       ETIMEDOUT: 110,
       ECONNREFUSED: 111,
+      EHOSTUNREACH: 113,
       EALREADY: 114,
       EINPROGRESS: 115
     };
@@ -1433,7 +1437,10 @@ var init_abi = __esm({
       35077: { argKind: "pointer", direction: "out", wasm32Size: 4, wasm64Size: 4 },
       35088: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35090: { argKind: "pointer", direction: "inout", wasm32Size: 8, wasm64Size: 16 },
+      35091: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35093: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
+      35097: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
+      35099: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35111: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       35123: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 40 },
       1074021776: { argKind: "scalar-i32", direction: "none", wasm32Size: 0, wasm64Size: 0 },
@@ -1477,8 +1484,10 @@ var init_abi = __esm({
       3222299873: { argKind: "pointer", direction: "inout", wasm32Size: 16, wasm64Size: 16 },
       3222561958: { argKind: "pointer", direction: "inout", wasm32Size: 20, wasm64Size: 20 },
       3222824112: { argKind: "pointer", direction: "in", wasm32Size: 24, wasm64Size: 24 },
+      3223086243: { argKind: "pointer", direction: "in", wasm32Size: 28, wasm64Size: 28 },
       3223348402: { argKind: "pointer", direction: "inout", wasm32Size: 32, wasm64Size: 32 },
       3223610368: { argKind: "pointer", direction: "inout", wasm32Size: 36, wasm64Size: null },
+      3223610555: { argKind: "pointer", direction: "in", wasm32Size: 36, wasm64Size: 36 },
       3225445376: { argKind: "pointer", direction: "inout", wasm32Size: null, wasm64Size: 64 },
       3225445536: { argKind: "pointer", direction: "inout", wasm32Size: 64, wasm64Size: 64 },
       3226494119: { argKind: "pointer", direction: "inout", wasm32Size: 80, wasm64Size: 80 },
@@ -4151,12 +4160,2297 @@ var init_constants = __esm({
   }
 });
 
+// src/networking/remote-segment-runtime.ts
+init_abi();
+
+// src/networking/egress-link.ts
+var EGRESS_ADDRESS = Object.freeze([10, 0, 2, 15]);
+var EGRESS_NETMASK = Object.freeze([255, 255, 255, 0]);
+var EHOSTUNREACH = 113;
+var EADDRNOTAVAIL = 99;
+var egressAddress = () => new Uint8Array(EGRESS_ADDRESS);
+var isAny = (addr) => addr.length === 4 && addr.every((part) => part === 0);
+var isEgress = (addr) => addr.length === 4 && addr.every((part, i) => part === EGRESS_ADDRESS[i]);
+var EgressLink = class {
+  streamPorts = /* @__PURE__ */ new Map();
+  nextStreamPort = 49152;
+  get localAddress() {
+    return egressAddress();
+  }
+  get localNetmask() {
+    return new Uint8Array(EGRESS_NETMASK);
+  }
+  udpSourceAddress(_destination) {
+    return egressAddress();
+  }
+  /** A socket may bind this machine's address; nothing ever arrives on it. */
+  bindUdp(_id, addr, _port, _target) {
+    return isAny(addr) || isEgress(addr) ? 0 : EADDRNOTAVAIL;
+  }
+  unbindUdp(_id) {
+  }
+  sendDatagram() {
+    return EHOSTUNREACH;
+  }
+  /**
+   * Start a stream's NAT bookkeeping: it begins from this machine's address
+   * (or any), on the port the socket bound or a fresh ephemeral one.
+   * Backends whose host side has no ports of its own (fetch) use this.
+   */
+  openStream(handle, source) {
+    if (source && !isAny(source.addr) && !isEgress(source.addr)) {
+      throw Object.assign(new Error("EADDRNOTAVAIL"), { errno: EADDRNOTAVAIL });
+    }
+    let port2 = source?.port || 0;
+    if (!port2) {
+      const used = new Set(this.streamPorts.values());
+      for (let tries = 0; tries < 16384 && !port2; tries++) {
+        const candidate = this.nextStreamPort;
+        this.nextStreamPort = candidate === 65535 ? 49152 : candidate + 1;
+        if (!used.has(candidate)) port2 = candidate;
+      }
+      if (!port2) throw Object.assign(new Error("EADDRNOTAVAIL"), { errno: EADDRNOTAVAIL });
+    }
+    this.streamPorts.set(handle, port2);
+  }
+  /** getsockname for a stream: this machine's address and its port. */
+  streamEndpoint(handle) {
+    const port2 = this.streamPorts.get(handle);
+    if (port2 === void 0) throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    return { addr: egressAddress(), port: port2 };
+  }
+  closeStream(handle) {
+    this.streamPorts.delete(handle);
+  }
+  /** Whether a stream may start from `source`: this machine's address or any. */
+  ownsSource(source) {
+    return !source || isAny(source.addr) || isEgress(source.addr);
+  }
+};
+
+// src/networking/hostname.ts
+var DNS_MAX_WIRE_OCTETS = 255;
+var DNS_MAX_LABEL_OCTETS = 63;
+function nameNotFoundError(hostname) {
+  return Object.assign(new Error(`ENOENT: ${hostname}`), { errno: 2 });
+}
+function parseNumericIpv4Hostname(hostname) {
+  if (!/^[0-9.]+$/.test(hostname)) return null;
+  if (!/^\d+(?:\.\d+){0,3}$/.test(hostname)) {
+    throw nameNotFoundError(hostname);
+  }
+  const parts = hostname.split(".");
+  const widths = parts.length === 1 ? [32n] : parts.length === 2 ? [8n, 24n] : parts.length === 3 ? [8n, 8n, 16n] : [8n, 8n, 8n, 8n];
+  let packed = 0n;
+  for (let i = 0; i < parts.length; i++) {
+    const value = BigInt(parts[i]);
+    const width = widths[i];
+    if (value > (1n << width) - 1n) {
+      throw nameNotFoundError(hostname);
+    }
+    packed = packed << width | value;
+  }
+  return new Uint8Array([
+    Number(packed >> 24n & 0xffn),
+    Number(packed >> 16n & 0xffn),
+    Number(packed >> 8n & 0xffn),
+    Number(packed & 0xffn)
+  ]);
+}
+function validateDnsHostname(hostname) {
+  const absoluteName = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+  if (absoluteName.length === 0 || !/^[\x00-\x7f]+$/.test(absoluteName)) {
+    throw nameNotFoundError(hostname);
+  }
+  let wireOctets = 1;
+  for (const label of absoluteName.split(".")) {
+    if (label.length === 0 || label.length > DNS_MAX_LABEL_OCTETS || !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label)) {
+      throw nameNotFoundError(hostname);
+    }
+    wireOctets += 1 + label.length;
+  }
+  if (wireOctets > DNS_MAX_WIRE_OCTETS) {
+    throw nameNotFoundError(hostname);
+  }
+}
+
+// src/networking/fetch-backend.ts
+var EagainError = class extends Error {
+  errno = 11;
+  constructor() {
+    super("EAGAIN");
+  }
+};
+
+// src/networking/virtual-network.ts
+init_abi();
+var EADDRINUSE = 98;
+var EADDRNOTAVAIL2 = 99;
+var ECONNRESET = 104;
+var ENOTCONN = 107;
+var EISCONN = 106;
+var ECONNREFUSED = 111;
+var EHOSTUNREACH2 = 113;
+var MSG_PEEK = 2;
+var ANY = "0.0.0.0";
+function ipKey(addr) {
+  return `${addr[0]}.${addr[1]}.${addr[2]}.${addr[3]}`;
+}
+function copyAddr(addr) {
+  return new Uint8Array([addr[0] ?? 0, addr[1] ?? 0, addr[2] ?? 0, addr[3] ?? 0]);
+}
+function addrMatches(bound, dst) {
+  return bound === ANY || bound === dst;
+}
+function addrConflicts(a, b) {
+  return a === ANY || b === ANY || a === b;
+}
+function concatBytes(a, b) {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  return out;
+}
+var VirtualTcpPeer = class {
+  constructor(onRelease) {
+    this.onRelease = onRelease;
+  }
+  onRelease;
+  recvBuf = new Uint8Array(0);
+  peer;
+  readClosed = false;
+  writeClosed = false;
+  orphanedReceive = false;
+  reset = false;
+  pairWith(peer) {
+    this.peer = peer;
+  }
+  enqueue(data) {
+    if (this.readClosed || this.reset) return;
+    this.recvBuf = concatBytes(this.recvBuf, data);
+  }
+  send(data, _flags) {
+    if (this.reset) {
+      const err = new Error("ECONNRESET");
+      err.errno = ECONNRESET;
+      throw err;
+    }
+    if (this.writeClosed || !this.peer) {
+      const err = new Error("EPIPE");
+      err.errno = 32;
+      throw err;
+    }
+    if (this.peer.reset) {
+      const err = new Error("ECONNRESET");
+      err.errno = ECONNRESET;
+      throw err;
+    }
+    if (this.peer.readClosed) {
+      const err = new Error("EPIPE");
+      err.errno = 32;
+      throw err;
+    }
+    if (this.peer.orphanedReceive) {
+      return data.length;
+    }
+    this.peer.enqueue(data.slice());
+    return data.length;
+  }
+  recv(maxLen, flags) {
+    if (this.reset) {
+      const err = new Error("ECONNRESET");
+      err.errno = ECONNRESET;
+      throw err;
+    }
+    if (this.recvBuf.length > 0) {
+      const len = Math.min(maxLen, this.recvBuf.length);
+      const out = this.recvBuf.slice(0, len);
+      if ((flags & MSG_PEEK) === 0) {
+        this.recvBuf = this.recvBuf.slice(len);
+      }
+      return out;
+    }
+    if (!this.peer || this.peer.writeClosed) {
+      return new Uint8Array(0);
+    }
+    throw new EagainError();
+  }
+  /**
+   * Report the fabric-observable state of this endpoint. No POSIX readiness
+   * decision is made here — `runtime_core::net_readiness` makes it.
+   */
+  readiness() {
+    if (this.reset) {
+      return NET_READINESS.ERROR | ECONNRESET << NET_READINESS.ERRNO_SHIFT | NET_READINESS.RECV_EOF | NET_READINESS.SEND_CLOSED | NET_READINESS.HANGUP;
+    }
+    let facts = 0;
+    if (this.recvBuf.length > 0) facts |= NET_READINESS.RECV_READY;
+    if (!this.peer || this.peer.writeClosed || this.readClosed) {
+      facts |= NET_READINESS.RECV_EOF;
+    }
+    if ((!this.peer || this.peer.writeClosed) && this.writeClosed) {
+      facts |= NET_READINESS.HANGUP;
+    }
+    if (this.writeClosed || !this.peer || this.peer.readClosed || this.peer.reset) {
+      facts |= NET_READINESS.SEND_CLOSED;
+    } else {
+      facts |= NET_READINESS.SEND_READY;
+    }
+    return facts;
+  }
+  shutdown(how) {
+    if (how === 0 || how === 2) {
+      this.readClosed = true;
+      this.recvBuf = new Uint8Array(0);
+    }
+    if (how === 1 || how === 2) {
+      this.writeClosed = true;
+    }
+  }
+  close() {
+    this.writeClosed = true;
+    this.orphanedReceive = true;
+    this.recvBuf = new Uint8Array(0);
+    this.releaseFromOwner();
+  }
+  abort() {
+    this.readClosed = true;
+    this.writeClosed = true;
+    this.orphanedReceive = false;
+    this.reset = true;
+    this.recvBuf = new Uint8Array(0);
+    this.releaseFromOwner();
+    this.peer?.resetPeer();
+  }
+  resetPeer() {
+    this.reset = true;
+    this.recvBuf = new Uint8Array(0);
+  }
+  releaseFromOwner() {
+    const onRelease = this.onRelease;
+    this.onRelease = void 0;
+    onRelease?.(this);
+  }
+};
+var toU32 = (addr) => (addr[0] << 24 | addr[1] << 16 | addr[2] << 8 | addr[3]) >>> 0;
+var fromU32 = (value) => new Uint8Array([value >>> 24, value >>> 16 & 255, value >>> 8 & 255, value & 255]);
+var LocalVirtualNetwork = class {
+  /** The link's netmask, in network byte order. */
+  netmask;
+  /** The link's directed broadcast address, or null on a /31 or /32 link. */
+  broadcastAddress;
+  networkAddress;
+  mask;
+  machines = /* @__PURE__ */ new Map();
+  addressOwners = /* @__PURE__ */ new Map();
+  hostnames = /* @__PURE__ */ new Map();
+  tcpListeners = [];
+  udpEndpoints = [];
+  tcpPeersByMachine = /* @__PURE__ */ new Map();
+  constructor(subnet) {
+    const { prefixLength } = subnet;
+    if (!Number.isInteger(prefixLength) || prefixLength < 1 || prefixLength > 32) {
+      throw new Error("a virtual link's prefix length is 1 to 32");
+    }
+    this.mask = prefixLength === 32 ? 4294967295 : ~((1 << 32 - prefixLength) - 1) >>> 0;
+    this.networkAddress = toU32(copyAddr(new Uint8Array(subnet.network))) & this.mask;
+    if (this.networkAddress !== toU32(copyAddr(new Uint8Array(subnet.network)))) {
+      throw new Error("a virtual link's network address has host bits set");
+    }
+    this.netmask = fromU32(this.mask);
+    this.broadcastAddress = prefixLength <= 30 ? fromU32((this.networkAddress | ~this.mask) >>> 0) : null;
+  }
+  /** Whether `addr` names every machine on this link. */
+  isBroadcast(addr) {
+    if (addr.length === 4 && addr.every((part) => part === 255)) return true;
+    return this.broadcastAddress !== null && ipKey(addr) === ipKey(this.broadcastAddress);
+  }
+  attachMachine(options) {
+    const address2 = copyAddr(options.address instanceof Uint8Array ? options.address : new Uint8Array(options.address));
+    const key2 = ipKey(address2);
+    if ((toU32(address2) & this.mask) !== this.networkAddress || this.broadcastAddress && (toU32(address2) === this.networkAddress || this.isBroadcast(address2))) {
+      throw new Error(`address ${key2} is not a host address on this link`);
+    }
+    if (this.addressOwners.has(key2)) {
+      throw new Error(`address ${key2} is already attached`);
+    }
+    const backend = new VirtualNetworkBackend(this, options.id, address2);
+    this.machines.set(options.id, backend);
+    this.addressOwners.set(key2, options.id);
+    this.hostnames.set(options.id, address2);
+    for (const hostname of options.hostnames ?? []) {
+      this.hostnames.set(hostname, address2);
+    }
+    return backend;
+  }
+  detachMachine(machineId) {
+    const backend = this.machines.get(machineId);
+    if (!backend) return;
+    this.addressOwners.delete(ipKey(backend.localAddress));
+    this.machines.delete(machineId);
+    for (const [hostname, addr] of this.hostnames) {
+      if (ipKey(addr) === ipKey(backend.localAddress) || hostname === machineId) {
+        this.hostnames.delete(hostname);
+      }
+    }
+    this.tcpListeners = this.tcpListeners.filter((l) => l.machineId !== machineId);
+    this.udpEndpoints = this.udpEndpoints.filter((e) => e.machineId !== machineId);
+    for (const peer of this.tcpPeersByMachine.get(machineId) ?? []) {
+      peer.abort();
+    }
+    this.tcpPeersByMachine.delete(machineId);
+    backend.resetAllConnections();
+  }
+  hasAddress(addr) {
+    return this.addressOwners.has(ipKey(addr));
+  }
+  resolve(hostname) {
+    const direct = parseNumericIpv4Hostname(hostname);
+    if (direct) return direct;
+    validateDnsHostname(hostname);
+    const addr = this.hostnames.get(hostname);
+    return addr ? copyAddr(addr) : null;
+  }
+  listenTcp(machineId, listenerId, addr, port2, target) {
+    const addrKey = ipKey(addr);
+    if (!this.machineOwnsAddress(machineId, addrKey)) return EADDRNOTAVAIL2;
+    for (const listener of this.tcpListeners) {
+      if (listener.machineId === machineId && listener.port === port2 && addrConflicts(listener.addrKey, addrKey)) {
+        return EADDRINUSE;
+      }
+    }
+    this.closeTcpListener(listenerId);
+    this.tcpListeners.push({
+      machineId,
+      listenerId,
+      addr: copyAddr(addr),
+      addrKey,
+      port: port2,
+      target
+    });
+    return 0;
+  }
+  closeTcpListener(listenerId) {
+    this.tcpListeners = this.tcpListeners.filter((l) => l.listenerId !== listenerId);
+  }
+  connectTcp(sourceMachineId, source, destination) {
+    const dstKey = ipKey(destination.addr);
+    const targetMachineId = this.addressOwners.get(dstKey);
+    if (!targetMachineId) {
+      return { peer: new VirtualTcpPeer(), status: EHOSTUNREACH2 };
+    }
+    const listener = this.tcpListeners.find(
+      (candidate) => candidate.machineId === targetMachineId && candidate.port === destination.port && addrMatches(candidate.addrKey, dstKey)
+    );
+    if (!listener) {
+      return { peer: new VirtualTcpPeer(), status: ECONNREFUSED };
+    }
+    const client = this.createTcpPeer(sourceMachineId);
+    const server = this.createTcpPeer(targetMachineId);
+    client.pairWith(server);
+    server.pairWith(client);
+    const accepted = listener.target.accept(
+      server,
+      { addr: copyAddr(destination.addr), port: destination.port },
+      { addr: copyAddr(source.addr), port: source.port }
+    );
+    if (accepted !== 0) {
+      client.resetPeer();
+      server.resetPeer();
+      return { peer: client, status: accepted };
+    }
+    return { peer: client, status: 0 };
+  }
+  bindUdp(machineId, endpointId, addr, port2, target) {
+    const addrKey = ipKey(addr);
+    if (!this.machineOwnsAddress(machineId, addrKey)) return EADDRNOTAVAIL2;
+    for (const endpoint of this.udpEndpoints) {
+      if (endpoint.machineId === machineId && endpoint.port === port2 && addrConflicts(endpoint.addrKey, addrKey)) {
+        return EADDRINUSE;
+      }
+    }
+    this.unbindUdp(endpointId);
+    this.udpEndpoints.push({
+      machineId,
+      endpointId,
+      addr: copyAddr(addr),
+      addrKey,
+      port: port2,
+      target
+    });
+    return 0;
+  }
+  unbindUdp(endpointId) {
+    this.udpEndpoints = this.udpEndpoints.filter((e) => e.endpointId !== endpointId);
+  }
+  sendDatagram(datagram) {
+    if (this.isBroadcast(datagram.dstAddr)) {
+      this.broadcastDatagram(datagram, () => true);
+      return 0;
+    }
+    const dstKey = ipKey(datagram.dstAddr);
+    const targetMachineId = this.addressOwners.get(dstKey);
+    if (!targetMachineId) return EHOSTUNREACH2;
+    const endpoint = this.udpEndpoints.find(
+      (candidate) => candidate.machineId === targetMachineId && candidate.port === datagram.dstPort && addrMatches(candidate.addrKey, dstKey)
+    );
+    if (!endpoint) return ECONNREFUSED;
+    return endpoint.target.receive({
+      srcAddr: copyAddr(datagram.srcAddr),
+      srcPort: datagram.srcPort,
+      dstAddr: copyAddr(datagram.dstAddr),
+      dstPort: datagram.dstPort,
+      data: datagram.data.slice()
+    });
+  }
+  /**
+   * Deliver one limited broadcast (255.255.255.255) to every endpoint on its
+   * port that accepts it, as a broadcast reaches every host on a link. Only
+   * wildcard-bound sockets hear it: a socket bound to a unicast address does
+   * not, as on Linux. `reaches` selects which machines the copy is for.
+   */
+  broadcastDatagram(datagram, reaches) {
+    for (const endpoint of [...this.udpEndpoints]) {
+      if (endpoint.port !== datagram.dstPort || endpoint.addrKey !== ANY || !reaches(endpoint.machineId)) continue;
+      endpoint.target.receive({
+        srcAddr: copyAddr(datagram.srcAddr),
+        srcPort: datagram.srcPort,
+        dstAddr: copyAddr(datagram.dstAddr),
+        dstPort: datagram.dstPort,
+        data: datagram.data.slice()
+      });
+    }
+  }
+  machineOwnsAddress(machineId, addrKey) {
+    if (addrKey === ANY) return true;
+    return this.addressOwners.get(addrKey) === machineId;
+  }
+  trackTcpPeer(machineId, peer) {
+    let peers = this.tcpPeersByMachine.get(machineId);
+    if (!peers) {
+      peers = /* @__PURE__ */ new Set();
+      this.tcpPeersByMachine.set(machineId, peers);
+    }
+    peers.add(peer);
+  }
+  createTcpPeer(machineId) {
+    const peer = new VirtualTcpPeer((released) => {
+      const peers = this.tcpPeersByMachine.get(machineId);
+      peers?.delete(released);
+      if (peers?.size === 0) this.tcpPeersByMachine.delete(machineId);
+    });
+    this.trackTcpPeer(machineId, peer);
+    return peer;
+  }
+};
+var VirtualNetworkBackend = class {
+  constructor(network, machineId, localAddress) {
+    this.network = network;
+    this.machineId = machineId;
+    this.localAddress = localAddress;
+  }
+  network;
+  machineId;
+  localAddress;
+  connections = /* @__PURE__ */ new Map();
+  connectErrors = /* @__PURE__ */ new Map();
+  localEndpoints = /* @__PURE__ */ new Map();
+  nextEphemeralPort = 49152;
+  get localNetmask() {
+    return copyAddr(this.network.netmask);
+  }
+  udpSourceAddress(destination) {
+    return this.network.hasAddress(destination) || this.network.isBroadcast(destination) ? copyAddr(this.localAddress) : 101;
+  }
+  connect(handle, addr, port2, source) {
+    if (this.connections.has(handle)) {
+      this.connectErrors.set(handle, EISCONN);
+      return;
+    }
+    if (source && (source.addr.length !== 4 || !source.addr.every((v) => v === 0) && !source.addr.every((v, i) => v === this.localAddress[i]))) {
+      this.connectErrors.set(handle, EADDRNOTAVAIL2);
+      return;
+    }
+    const sourcePort = source?.port || this.allocateEphemeralPort();
+    const result = this.network.connectTcp(
+      this.machineId,
+      { addr: this.localAddress, port: sourcePort },
+      { addr: copyAddr(addr), port: port2 }
+    );
+    if (result.status === 0) {
+      this.connections.set(handle, result.peer);
+      this.localEndpoints.set(handle, { addr: copyAddr(this.localAddress), port: sourcePort });
+      this.connectErrors.delete(handle);
+    } else {
+      this.connectErrors.set(handle, result.status);
+    }
+  }
+  connectStatus(handle) {
+    const err = this.connectErrors.get(handle);
+    if (err !== void 0) return err;
+    return this.connections.has(handle) ? 0 : ENOTCONN;
+  }
+  send(handle, data, flags) {
+    const conn = this.connections.get(handle);
+    if (!conn) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN });
+    return conn.send(data, flags);
+  }
+  recv(handle, maxLen, flags) {
+    const conn = this.connections.get(handle);
+    if (!conn) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN });
+    return conn.recv(maxLen, flags);
+  }
+  readiness(handle) {
+    const conn = this.connections.get(handle);
+    if (!conn) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN });
+    if (typeof conn.readiness === "function") {
+      return conn.readiness();
+    }
+    return NET_READINESS.UNOBSERVABLE;
+  }
+  localEndpoint(handle) {
+    const value = this.localEndpoints.get(handle);
+    if (!value) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN });
+    return { addr: copyAddr(value.addr), port: value.port };
+  }
+  shutdown(handle, how) {
+    const conn = this.connections.get(handle);
+    if (!conn) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN });
+    conn.shutdown(how);
+  }
+  close(handle) {
+    const conn = this.connections.get(handle);
+    if (conn) conn.close();
+    this.connections.delete(handle);
+    this.localEndpoints.delete(handle);
+    this.connectErrors.delete(handle);
+  }
+  getaddrinfo(hostname) {
+    const addr = this.network.resolve(hostname);
+    if (!addr) throw Object.assign(new Error("ENOENT"), { errno: 2 });
+    return addr;
+  }
+  listenTcp(listenerId, addr, port2, target) {
+    return this.network.listenTcp(this.machineId, this.scopedId(listenerId), addr, port2, target);
+  }
+  closeTcpListener(listenerId) {
+    this.network.closeTcpListener(this.scopedId(listenerId));
+  }
+  bindUdp(endpointId, addr, port2, target) {
+    return this.network.bindUdp(this.machineId, this.scopedId(endpointId), addr, port2, target);
+  }
+  unbindUdp(endpointId) {
+    this.network.unbindUdp(this.scopedId(endpointId));
+  }
+  sendDatagram(datagram) {
+    return this.network.sendDatagram({
+      ...datagram,
+      srcAddr: ipKey(datagram.srcAddr) === ANY ? this.localAddress : datagram.srcAddr
+    });
+  }
+  resetAllConnections() {
+    for (const conn of this.connections.values()) conn.abort();
+    this.connections.clear();
+    this.connectErrors.clear();
+  }
+  allocateEphemeralPort() {
+    const port2 = this.nextEphemeralPort;
+    this.nextEphemeralPort += 1;
+    if (this.nextEphemeralPort > 65535) this.nextEphemeralPort = 49152;
+    return port2;
+  }
+  scopedId(id) {
+    return `${this.machineId}:${id}`;
+  }
+};
+
+// src/networking/remote-udp-codec.ts
+var REMOTE_UDP_HEADER_BYTES = 16;
+var IPV4_UDP_MAX_PAYLOAD = 65507;
+var VERSION = 1;
+function validateAddress(address2) {
+  if (address2.length !== 4) throw new Error("remote UDP frames require IPv4 addresses");
+}
+function validatePort(port2) {
+  if (!Number.isInteger(port2) || port2 < 0 || port2 > 65535) {
+    throw new Error("remote UDP frames require 16-bit ports");
+  }
+}
+function encodeRemoteUdp(datagram, maxPayload) {
+  validateAddress(datagram.srcAddr);
+  validateAddress(datagram.dstAddr);
+  validatePort(datagram.srcPort);
+  validatePort(datagram.dstPort);
+  if (datagram.data.length > Math.min(maxPayload, IPV4_UDP_MAX_PAYLOAD)) {
+    throw Object.assign(new Error("EMSGSIZE"), { errno: 90 });
+  }
+  const frame = new Uint8Array(REMOTE_UDP_HEADER_BYTES + datagram.data.length);
+  const view = new DataView(frame.buffer);
+  frame[0] = VERSION;
+  frame.set(datagram.srcAddr, 4);
+  frame.set(datagram.dstAddr, 8);
+  view.setUint16(12, datagram.srcPort);
+  view.setUint16(14, datagram.dstPort);
+  frame.set(datagram.data, REMOTE_UDP_HEADER_BYTES);
+  return frame;
+}
+function decodeRemoteUdp(frame, maxPayload) {
+  if (frame.length < REMOTE_UDP_HEADER_BYTES || frame.length - REMOTE_UDP_HEADER_BYTES > Math.min(maxPayload, IPV4_UDP_MAX_PAYLOAD) || frame[0] !== VERSION || frame[1] !== 0 || frame[2] !== 0 || frame[3] !== 0) {
+    throw new Error("invalid remote UDP frame version, length or reserved bytes");
+  }
+  const view = new DataView(frame.buffer, frame.byteOffset, frame.byteLength);
+  return {
+    srcAddr: frame.slice(4, 8),
+    dstAddr: frame.slice(8, 12),
+    srcPort: view.getUint16(12),
+    dstPort: view.getUint16(14),
+    data: frame.slice(REMOTE_UDP_HEADER_BYTES)
+  };
+}
+
+// src/networking/remote-segment.ts
+init_abi();
+
+// src/networking/remote-tcp.ts
+init_abi();
+
+// src/networking/remote-tcp-codec.ts
+var REMOTE_TCP_HEADER_BYTES = 24;
+var REMOTE_TCP_DATA_BYTES = 16 * 1024;
+var REMOTE_TCP_WINDOW_BYTES = 64 * 1024;
+var REMOTE_TCP_MARKER = 84;
+var TCP_FRAME = { open: 1, accept: 2, data: 3, credit: 4, fin: 5, readStop: 6, reset: 7, refuse: 8, close: 9 };
+function validateRemoteTcpFrame(frame) {
+  if (!Number.isInteger(frame.kind) || frame.kind < 1 || frame.kind > 9 || !Number.isInteger(frame.origin) || frame.origin < 1 || frame.origin > 254 || !Number.isInteger(frame.serial) || frame.serial < 1 || frame.serial > 4294967295 || !Number.isInteger(frame.value) || frame.value < 0 || frame.value > 4294967295 || !(frame.data instanceof Uint8Array)) throw new Error("invalid remote TCP frame");
+  for (const endpoint of [frame.source, frame.destination]) {
+    if (!(endpoint?.addr instanceof Uint8Array) || endpoint.addr.length !== 4 || !Number.isInteger(endpoint.port) || endpoint.port < 1 || endpoint.port > 65535) throw new Error("invalid remote TCP endpoint");
+  }
+  if (frame.kind === TCP_FRAME.data) {
+    if (frame.value || !frame.data.length || frame.data.length > REMOTE_TCP_DATA_BYTES) throw new Error("invalid remote TCP data length");
+  } else {
+    if (frame.data.length) throw new Error("remote TCP control has a payload");
+    if ([TCP_FRAME.open, TCP_FRAME.accept, TCP_FRAME.credit].includes(frame.kind)) {
+      if (!frame.value || frame.value > REMOTE_TCP_WINDOW_BYTES) throw new Error("invalid remote TCP credit");
+    } else if (frame.kind === TCP_FRAME.reset || frame.kind === TCP_FRAME.refuse) {
+      if (!frame.value || frame.value > 4095) throw new Error("invalid remote TCP errno");
+    } else if (frame.value) throw new Error("invalid remote TCP control value");
+  }
+}
+function encodeRemoteTcp(frame) {
+  validateRemoteTcpFrame(frame);
+  const bytes = new Uint8Array(REMOTE_TCP_HEADER_BYTES + frame.data.length);
+  const view = new DataView(bytes.buffer);
+  bytes.set([REMOTE_TCP_MARKER, 1, frame.kind, frame.origin]);
+  view.setUint32(4, frame.serial);
+  bytes.set(frame.source.addr, 8);
+  bytes.set(frame.destination.addr, 12);
+  view.setUint16(16, frame.source.port);
+  view.setUint16(18, frame.destination.port);
+  view.setUint32(20, frame.value);
+  bytes.set(frame.data, REMOTE_TCP_HEADER_BYTES);
+  return bytes;
+}
+function decodeRemoteTcp(bytes) {
+  if (bytes.length < REMOTE_TCP_HEADER_BYTES || bytes.length > REMOTE_TCP_HEADER_BYTES + REMOTE_TCP_DATA_BYTES || bytes[0] !== REMOTE_TCP_MARKER || bytes[1] !== 1) throw new Error("invalid remote TCP frame header");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const frame = {
+    kind: bytes[2],
+    origin: bytes[3],
+    serial: view.getUint32(4),
+    source: { addr: bytes.slice(8, 12), port: view.getUint16(16) },
+    destination: { addr: bytes.slice(12, 16), port: view.getUint16(18) },
+    value: view.getUint32(20),
+    data: bytes.slice(REMOTE_TCP_HEADER_BYTES)
+  };
+  validateRemoteTcpFrame(frame);
+  return frame;
+}
+
+// src/networking/remote-tcp.ts
+var MAX_REMOTE_TCP_STREAMS = 64;
+var endpointEqual = (a, b) => a.port === b.port && a.addr.every((v, i) => v === b.addr[i]);
+var copyEndpoint = (a) => ({ addr: a.addr.slice(), port: a.port });
+var key = (origin, serial) => `${origin}:${serial}`;
+var fail = (errno) => {
+  throw Object.assign(new Error(`TCP errno ${errno}`), { errno });
+};
+var RemoteTcpEngine = class {
+  constructor(address2, router, connectTimeoutMs = 1e4) {
+    this.address = address2;
+    this.router = router;
+    this.connectTimeoutMs = connectTimeoutMs;
+  }
+  address;
+  router;
+  connectTimeoutMs;
+  streams = /* @__PURE__ */ new Map();
+  handles = /* @__PURE__ */ new Map();
+  listeners = /* @__PURE__ */ new Map();
+  highWater = /* @__PURE__ */ new Map();
+  serial = 0;
+  nextPort = 49152;
+  listen(id, addr, port2, target) {
+    if (addr.length !== 4 || !addr.every((v) => v === 0) && !addr.every((v, i) => v === this.address[i])) return 99;
+    if (!Number.isInteger(port2) || port2 < 1 || port2 > 65535) return 22;
+    for (const [other, listener] of this.listeners) if (other !== id && listener.port === port2) return 98;
+    this.listeners.set(id, { addr: addr.slice(), port: port2, target });
+    return 0;
+  }
+  unlisten(id) {
+    this.listeners.delete(id);
+  }
+  connect(handle, destination, source) {
+    if (this.handles.has(handle)) fail(114);
+    if (this.slotCount >= MAX_REMOTE_TCP_STREAMS || this.serial === 4294967295) fail(105);
+    if (source && (source.addr.length !== 4 || !source.addr.every((v) => v === 0) && !source.addr.every((v, i) => v === this.address[i]))) fail(99);
+    let port2 = source?.port || this.nextPort;
+    for (let count = 0; count < 16384; count++) {
+      const busy = [...this.streams.values()].some((p) => p.local.port === port2) || [...this.listeners.values()].some((l) => l.port === port2);
+      if (!source?.port) this.nextPort = port2 === 65535 ? 49152 : port2 + 1;
+      if (!busy) break;
+      if (source?.port) fail(98);
+      port2 = this.nextPort;
+      if (count === 16383) fail(99);
+    }
+    const peer = this.create(this.address[3], ++this.serial, { addr: this.address, port: port2 }, destination, false);
+    this.handles.set(handle, peer);
+    peer.begin(this.connectTimeoutMs);
+  }
+  create(origin, serial, local, remote, accepted) {
+    const peer = new RemoteTcpPeer(this, origin, serial, copyEndpoint(local), copyEndpoint(remote), accepted);
+    this.streams.set(key(origin, serial), peer);
+    return peer;
+  }
+  connection(handle) {
+    return this.handles.get(handle) ?? fail(107);
+  }
+  has(handle) {
+    return this.handles.has(handle);
+  }
+  close(handle) {
+    const peer = this.handles.get(handle);
+    this.handles.delete(handle);
+    peer?.close();
+  }
+  retire(peer) {
+    this.streams.delete(key(peer.origin, peer.serial));
+  }
+  send(frame) {
+    return this.router.send(frame);
+  }
+  maxData(remote) {
+    return Math.max(0, Math.min(REMOTE_TCP_DATA_BYTES, this.router.maxData(remote)));
+  }
+  canSend(destination) {
+    return this.router.canSend?.(destination) ?? true;
+  }
+  fatal(reason) {
+    this.router.failed(reason);
+  }
+  writable() {
+    for (const peer of [...this.streams.values()]) peer.flushControls();
+  }
+  receive(frame) {
+    validateRemoteTcpFrame(frame);
+    if (!frame.destination.addr.every((v, i) => v === this.address[i])) throw new Error("TCP frame addressed to a different machine");
+    const id = key(frame.origin, frame.serial);
+    const existing = this.streams.get(id);
+    if (existing) {
+      if (!endpointEqual(existing.local, frame.destination) || !endpointEqual(existing.remote, frame.source)) throw new Error("TCP connection endpoint changed");
+      existing.receive(frame);
+      return;
+    }
+    if (frame.kind !== TCP_FRAME.open) return;
+    if (frame.origin !== frame.source.addr[3] || frame.serial <= (this.highWater.get(frame.origin) ?? 0)) throw new Error("replayed TCP connect identifier");
+    this.highWater.set(frame.origin, frame.serial);
+    const listener = [...this.listeners.values()].find((l) => l.port === frame.destination.port);
+    let errno = listener ? 0 : 111;
+    if (this.slotCount >= MAX_REMOTE_TCP_STREAMS) errno = 105;
+    if (errno) {
+      this.refuse(frame, errno);
+      return;
+    }
+    const peer = this.create(frame.origin, frame.serial, frame.destination, frame.source, true);
+    peer.remoteCredit = frame.value;
+    try {
+      errno = listener.target.accept(peer, copyEndpoint(peer.local), copyEndpoint(peer.remote));
+    } catch {
+      errno = 5;
+    }
+    if (errno) {
+      peer.rejected(errno);
+      this.refuse(frame, errno);
+      return;
+    }
+    peer.accepted();
+  }
+  refuse(frame, errno) {
+    if (!this.send({ ...frame, kind: TCP_FRAME.refuse, source: frame.destination, destination: frame.source, value: errno, data: new Uint8Array(0) })) this.fatal("remote TCP refusal could not be admitted");
+  }
+  disconnect(address2, forceReset = false) {
+    for (const peer of [...this.streams.values()]) if (!address2 || peer.remote.addr.every((v, i) => v === address2[i])) peer.disconnected(forceReset);
+  }
+  dispose() {
+    this.disconnect();
+    this.listeners.clear();
+    this.handles.clear();
+  }
+  get slotCount() {
+    return (/* @__PURE__ */ new Set([...this.streams.values(), ...this.handles.values()])).size;
+  }
+  get streamCount() {
+    return this.streams.size;
+  }
+};
+var RemoteTcpPeer = class {
+  constructor(engine, origin, serial, local, remote, _accepted) {
+    this.engine = engine;
+    this.origin = origin;
+    this.serial = serial;
+    this.local = local;
+    this.remote = remote;
+    this.connected = false;
+  }
+  engine;
+  origin;
+  serial;
+  local;
+  remote;
+  remoteCredit = 0;
+  receiveBytes = 0;
+  buffer = new Uint8Array(REMOTE_TCP_WINDOW_BYTES);
+  readOffset = 0;
+  receiveAllowance = REMOTE_TCP_WINDOW_BYTES;
+  controls = [];
+  timer;
+  connected;
+  error = 0;
+  readClosed = false;
+  writeClosed = false;
+  remoteReadClosed = false;
+  remoteFin = false;
+  remoteOrderlyClose = false;
+  orphaned = false;
+  retired = false;
+  finSent = false;
+  accepted() {
+    this.connected = true;
+    this.controls.unshift({ kind: TCP_FRAME.accept, value: REMOTE_TCP_WINDOW_BYTES });
+    this.flushControls();
+  }
+  get status() {
+    return this.error || (this.connected ? 0 : -11);
+  }
+  begin(timeout) {
+    this.timer = setTimeout(() => {
+      this.setError(110);
+      this.emitReset();
+    }, timeout);
+    this.timer.unref?.();
+    this.control(TCP_FRAME.open, REMOTE_TCP_WINDOW_BYTES);
+  }
+  frame(kind, value = 0, data = new Uint8Array(0)) {
+    return { kind, origin: this.origin, serial: this.serial, source: this.local, destination: this.remote, value, data };
+  }
+  control(kind, value = 0) {
+    const credit = kind === TCP_FRAME.credit ? this.controls.find((c) => c.kind === kind) : void 0;
+    if (credit) credit.value += value;
+    else this.controls.push({ kind, value });
+    if (this.controls.length > 5 || credit && credit.value > REMOTE_TCP_WINDOW_BYTES) throw new Error("remote TCP pending controls exceeded their bound");
+    this.flushControls();
+  }
+  flushControls() {
+    if (this.error || this.retired) return;
+    while (this.controls.length) {
+      const next = this.controls[0];
+      if (!this.engine.send(this.frame(next.kind, next.value))) return;
+      this.controls.shift();
+      if (next.kind === TCP_FRAME.fin) this.finSent = true;
+      if (next.kind === TCP_FRAME.credit) this.receiveAllowance += next.value;
+    }
+    this.maybeRetire();
+  }
+  receive(frame) {
+    if (this.error) return;
+    if (frame.kind === TCP_FRAME.reset || frame.kind === TCP_FRAME.refuse) {
+      this.setError(frame.kind === TCP_FRAME.reset ? 104 : frame.value);
+      return;
+    }
+    if (frame.kind === TCP_FRAME.accept) {
+      if (this.connected || this.origin !== this.local.addr[3]) throw new Error("unexpected TCP accept");
+      this.connected = true;
+      this.remoteCredit = frame.value;
+      clearTimeout(this.timer);
+      return;
+    }
+    if (!this.connected) throw new Error("TCP data arrived before connect completed");
+    if (frame.kind === TCP_FRAME.credit) {
+      if (this.remoteCredit + frame.value > REMOTE_TCP_WINDOW_BYTES) throw new Error("remote TCP credit exceeds the granted window");
+      this.remoteCredit += frame.value;
+    } else if (frame.kind === TCP_FRAME.data) {
+      if (this.remoteFin || frame.data.length > this.receiveAllowance) throw new Error("remote TCP exceeded receive credit or sent data after FIN");
+      this.receiveAllowance -= frame.data.length;
+      if (this.readClosed) return;
+      if (this.orphaned) this.control(TCP_FRAME.credit, frame.data.length);
+      else {
+        const writeOffset = (this.readOffset + this.receiveBytes) % this.buffer.length;
+        const first = Math.min(frame.data.length, this.buffer.length - writeOffset);
+        this.buffer.set(frame.data.subarray(0, first), writeOffset);
+        this.buffer.set(frame.data.subarray(first), 0);
+        this.receiveBytes += frame.data.length;
+      }
+    } else if (frame.kind === TCP_FRAME.fin) {
+      if (this.remoteFin) throw new Error("duplicate remote TCP FIN");
+      this.remoteFin = true;
+      this.maybeRetire();
+    } else if (frame.kind === TCP_FRAME.close) {
+      if (!this.remoteFin || this.remoteOrderlyClose) throw new Error("invalid orderly TCP close");
+      this.remoteOrderlyClose = true;
+    } else if (frame.kind === TCP_FRAME.readStop) this.remoteReadClosed = true;
+    else throw new Error("unexpected TCP control");
+  }
+  send(data, _flags) {
+    if (this.error) fail(this.error);
+    if (this.writeClosed || this.remoteReadClosed) fail(32);
+    if (!this.connected || this.controls.length || !this.remoteCredit) fail(11);
+    if (!data.length) return 0;
+    const length = Math.min(data.length, this.remoteCredit, this.engine.maxData(this.remote.addr));
+    if (!length || !this.engine.send(this.frame(TCP_FRAME.data, 0, data.slice(0, length)))) fail(11);
+    this.remoteCredit -= length;
+    return length;
+  }
+  recv(maxLen, flags) {
+    if (this.error) fail(this.error);
+    if (maxLen < 0 || !Number.isInteger(maxLen)) fail(22);
+    if (!maxLen || this.readClosed) return new Uint8Array(0);
+    const length = Math.min(maxLen, this.receiveBytes);
+    if (!length) {
+      if (this.remoteFin) return new Uint8Array(0);
+      return fail(11);
+    }
+    const result = new Uint8Array(length);
+    const first = Math.min(length, this.buffer.length - this.readOffset);
+    result.set(this.buffer.subarray(this.readOffset, this.readOffset + first));
+    result.set(this.buffer.subarray(0, length - first), first);
+    if (!(flags & 2)) {
+      this.readOffset = (this.readOffset + length) % this.buffer.length;
+      this.receiveBytes -= length;
+      this.control(TCP_FRAME.credit, length);
+    }
+    return result;
+  }
+  /**
+   * Report this stream's observable facts. No POSIX readiness decision is
+   * made here — `runtime_core::net_readiness` makes it.
+   */
+  readiness() {
+    if (this.error) {
+      return NET_READINESS.ERROR | this.error << NET_READINESS.ERRNO_SHIFT | NET_READINESS.RECV_EOF | NET_READINESS.SEND_CLOSED | NET_READINESS.HANGUP;
+    }
+    let facts = 0;
+    if (this.receiveBytes) facts |= NET_READINESS.RECV_READY;
+    if (this.remoteFin || this.readClosed) facts |= NET_READINESS.RECV_EOF;
+    if (this.remoteFin && this.writeClosed) facts |= NET_READINESS.HANGUP;
+    if (this.writeClosed || this.remoteReadClosed) facts |= NET_READINESS.SEND_CLOSED;
+    else if (this.connected && this.remoteCredit && !this.controls.length && this.engine.canSend(this.remote.addr)) facts |= NET_READINESS.SEND_READY;
+    return facts;
+  }
+  shutdown(how) {
+    if (how < 0 || how > 2 || !Number.isInteger(how)) fail(22);
+    if (this.error) fail(this.error);
+    if ((how === 0 || how === 2) && !this.readClosed) {
+      this.readClosed = true;
+      this.clearReceive();
+      this.control(TCP_FRAME.readStop);
+    }
+    if ((how === 1 || how === 2) && !this.writeClosed) {
+      this.writeClosed = true;
+      this.control(TCP_FRAME.fin);
+    }
+  }
+  close() {
+    if (this.error || this.orphaned) return;
+    if (!this.connected) {
+      this.abort();
+      return;
+    }
+    const discarded = this.receiveBytes;
+    this.clearReceive();
+    if (discarded && !this.readClosed) this.control(TCP_FRAME.credit, discarded);
+    if (!this.writeClosed) {
+      this.writeClosed = true;
+      this.controls.push({ kind: TCP_FRAME.fin, value: 0 });
+    }
+    this.controls.push({ kind: TCP_FRAME.close, value: 0 });
+    this.orphaned = true;
+    this.flushControls();
+    this.maybeRetire();
+  }
+  abort() {
+    if (!this.error) {
+      this.setError(104);
+      this.emitReset();
+    }
+  }
+  emitReset() {
+    if (!this.engine.send(this.frame(TCP_FRAME.reset, 104))) this.engine.fatal("remote TCP reset could not be admitted");
+  }
+  rejected(errno) {
+    this.setError(errno);
+  }
+  disconnected(forceReset = false) {
+    if (forceReset || !this.remoteOrderlyClose) this.setError(this.connected ? 104 : 113);
+    else {
+      this.remoteReadClosed = true;
+      this.controls.length = 0;
+      this.retire();
+    }
+  }
+  setError(errno) {
+    this.error = errno;
+    this.buffer = new Uint8Array(0);
+    clearTimeout(this.timer);
+    this.controls.length = 0;
+    this.clearReceive();
+    this.retire();
+  }
+  clearReceive() {
+    this.readOffset = 0;
+    this.receiveBytes = 0;
+  }
+  maybeRetire() {
+    if (this.orphaned && this.remoteFin && this.finSent && !this.controls.length) this.retire();
+  }
+  retire() {
+    if (!this.retired) {
+      this.retired = true;
+      clearTimeout(this.timer);
+      this.engine.retire(this);
+    }
+  }
+};
+
+// src/networking/remote-segment.ts
+var MAX_MEMBERS = 32;
+var MAX_BINDINGS = 16;
+var MAX_SEGMENT_CONTROL_BYTES = 64 * 1024;
+var EADDRNOTAVAIL3 = 99;
+var ENETUNREACH = 101;
+var ENOBUFS = 105;
+var ENOTCONN2 = 107;
+var EOPNOTSUPP = 95;
+var EMSGSIZE = 90;
+var BROADCAST_BURST = 64;
+var BROADCAST_PER_SECOND = 64;
+var address = (id) => new Uint8Array([10, 89, 0, id]);
+var addressKey = (addr) => Array.from(addr).join(".");
+var machineName = (id) => id === 1 ? "host" : `peer-${id}`;
+var endpointKey = (owner, id) => `${owner}:${id}`;
+var inSegment = (addr) => addr.length === 4 && addr[0] === 10 && addr[1] === 89 && addr[2] === 0;
+var SEGMENT_SUBNET = { network: [10, 89, 0, 0], prefixLength: 24 };
+var validId = (id) => Number.isInteger(id) && Number(id) >= 1 && Number(id) <= 254;
+var validEndpoint = (id) => typeof id === "string" && /^[a-zA-Z0-9:._-]{1,64}$/.test(id);
+var validPort = (port2) => Number.isInteger(port2) && Number(port2) > 0 && Number(port2) <= 65535;
+var validLimit = (limit) => Number.isInteger(limit) && Number(limit) >= 0 && Number(limit) <= IPV4_UDP_MAX_PAYLOAD;
+var ownedBindAddress = (addr, owner) => Array.isArray(addr) && addr.length === 4 && addr.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) && (addr.every((part) => part === 0) || addressKey(addr) === addressKey(address(owner)));
+function parseControl(value) {
+  if (new TextEncoder().encode(JSON.stringify(value)).length > MAX_SEGMENT_CONTROL_BYTES) throw new Error("remote segment control exceeds its limit");
+  if (!value || typeof value !== "object" || value.version !== 1) {
+    throw new Error("invalid remote segment control version");
+  }
+  const message = value;
+  if (message.type === "hello") {
+  } else if (message.type === "bind" || message.type === "listen") {
+    if (!validEndpoint(message.id) || !validPort(message.port)) throw new Error("invalid remote UDP binding");
+  } else if (message.type === "unbind" || message.type === "unlisten") {
+    if (!validEndpoint(message.id)) throw new Error("invalid remote UDP endpoint");
+  } else if (message.type === "directory") {
+    if (!validId(message.self) || message.self === 1 || !Array.isArray(message.members) || !Array.isArray(message.bindings) || message.members.length < 2 || message.members.length > MAX_MEMBERS || message.bindings.length > MAX_MEMBERS * MAX_BINDINGS) throw new Error("invalid remote segment directory");
+    const ids = /* @__PURE__ */ new Set();
+    for (const member of message.members) {
+      if (!validId(member?.id) || !validLimit(member.maxPayload) || ids.has(member.id)) throw new Error("invalid remote segment member");
+      if (member.maxTcpData !== void 0 && (!Number.isInteger(member.maxTcpData) || member.maxTcpData < 0 || member.maxTcpData > 16384)) throw new Error("invalid remote TCP frame ceiling");
+      ids.add(member.id);
+    }
+    if (!ids.has(1) || !ids.has(message.self)) throw new Error("remote directory lacks host or local ownership");
+    if (message.tcpBindings !== void 0 && !Array.isArray(message.tcpBindings)) throw new Error("invalid TCP directory");
+    const endpoints = /* @__PURE__ */ new Set();
+    const counts = /* @__PURE__ */ new Map();
+    for (const binding of [...message.bindings, ...message.tcpBindings ?? []]) {
+      if (!binding || !ids.has(binding.owner) || !validEndpoint(binding.id) || !validPort(binding.port) || !ownedBindAddress(binding.addr, binding.owner)) throw new Error("invalid remote directory binding");
+      const key2 = `${message.bindings.includes(binding) ? "udp" : "tcp"}:${endpointKey(binding.owner, binding.id)}`;
+      const count = (counts.get(binding.owner) ?? 0) + 1;
+      if (endpoints.has(key2) || count > MAX_BINDINGS) throw new Error("duplicate or excessive remote bindings");
+      endpoints.add(key2);
+      counts.set(binding.owner, count);
+    }
+  } else throw new Error("unknown remote segment control type");
+  return message;
+}
+var RemoteVirtualNetwork = class {
+  constructor(role, fallback) {
+    this.role = role;
+    this.fallback = fallback;
+    if (role !== "host" && role !== "joiner") throw new Error("invalid remote segment role");
+    void this.ready.catch(() => {
+    });
+    if (role === "host") {
+      this.localId = 1;
+      this.members.set(1, { id: 1, maxPayload: IPV4_UDP_MAX_PAYLOAD, maxTcpData: 16384 });
+      this.local = this.attachMember(1);
+      this.initializeTcp();
+      this.resolveReady();
+    }
+  }
+  role;
+  fallback;
+  network = new LocalVirtualNetwork(SEGMENT_SUBNET);
+  members = /* @__PURE__ */ new Map();
+  bindings = /* @__PURE__ */ new Map();
+  tcpBindings = /* @__PURE__ */ new Map();
+  tcp;
+  localTcpHandles = /* @__PURE__ */ new Set();
+  localTcpConnecting = /* @__PURE__ */ new Set();
+  mirroredEndpoints = /* @__PURE__ */ new Set();
+  peers = /* @__PURE__ */ new Map();
+  subscriptions = /* @__PURE__ */ new Map();
+  local;
+  localId;
+  nextMemberId = 2;
+  closed = false;
+  connectErrors = /* @__PURE__ */ new Map();
+  closedListeners = /* @__PURE__ */ new Set();
+  broadcastBudgets = /* @__PURE__ */ new Map();
+  droppedBroadcasts = 0;
+  closedReason;
+  resolveReady;
+  rejectReady;
+  ready = new Promise((resolve4, reject) => {
+    this.resolveReady = resolve4;
+    this.rejectReady = reject;
+  });
+  get localAddress() {
+    return this.local?.localAddress;
+  }
+  get localNetmask() {
+    return this.local?.localNetmask;
+  }
+  /** Whether `addr` belongs to this segment's subnet. */
+  static routes(addr) {
+    return inSegment(addr);
+  }
+  /**
+   * Observe the end of this segment: an explicit close, or, for a joiner, the
+   * loss of its link to the forwarding host. A joiner without that link has
+   * no route to any other member and no authority for its address.
+   */
+  onClosed(listener) {
+    if (this.closedReason !== void 0) {
+      const reason = this.closedReason;
+      queueMicrotask(() => listener(reason));
+      return () => {
+      };
+    }
+    this.closedListeners.add(listener);
+    return () => {
+      this.closedListeners.delete(listener);
+    };
+  }
+  notifyClosed(reason) {
+    if (this.closedReason !== void 0) return;
+    this.closedReason = reason;
+    for (const listener of [...this.closedListeners]) listener(reason);
+    this.closedListeners.clear();
+  }
+  udpSourceAddress(destination) {
+    if (this.localAddress && (inSegment(destination) || this.network.isBroadcast(destination))) return this.localAddress.slice();
+    return this.fallback?.udpSourceAddress?.(destination) ?? ENETUNREACH;
+  }
+  attachPeer(transport) {
+    if (this.closed || !validLimit(transport.maxPayload)) throw new Error("invalid or closed remote segment transport");
+    if (this.role === "joiner") {
+      if (this.peers.size) throw new Error("a joiner has one link to its forwarding host");
+      this.installPeer(1, transport);
+      if (!transport.sendControl({ version: 1, type: "hello" })) {
+        this.dropPeer(1, "the remote segment hello could not be admitted");
+        throw new Error("the remote segment hello could not be admitted");
+      }
+      return 1;
+    }
+    if (this.members.size >= MAX_MEMBERS) throw new Error("the remote segment is full");
+    if (this.nextMemberId > 254) throw new Error("remote segment address lifetime exhausted; create a new segment");
+    const id = this.nextMemberId++;
+    this.members.set(id, { id, maxPayload: transport.maxPayload, maxTcpData: transport.maxTcpData ?? 0 });
+    this.attachMember(id);
+    this.installPeer(id, transport);
+    this.publishDirectory();
+    if (!this.peers.has(id)) throw new Error("the remote peer could not accept its segment directory");
+    return id;
+  }
+  attachMember(id) {
+    return this.network.attachMachine({ id: machineName(id), address: address(id) });
+  }
+  installPeer(id, transport) {
+    this.peers.set(id, transport);
+    this.subscriptions.set(id, [
+      transport.onControl((value) => {
+        try {
+          this.receiveControl(id, parseControl(value));
+        } catch (error) {
+          this.dropPeer(id, String(error), true);
+        }
+      }),
+      transport.onDatagram((datagram) => {
+        const broadcast = this.network.isBroadcast(datagram.dstAddr);
+        if (!this.localId || !inSegment(datagram.srcAddr) || !this.members.has(datagram.srcAddr[3]) || this.role === "host" && datagram.srcAddr[3] !== id || this.role === "joiner" && !broadcast && addressKey(datagram.dstAddr) !== addressKey(this.localAddress)) {
+          this.dropPeer(id, "the remote peer sent a datagram outside its address ownership");
+          return;
+        }
+        if (!broadcast) {
+          this.network.sendDatagram(datagram);
+          return;
+        }
+        if (this.role === "joiner") this.network.broadcastDatagram(datagram, (machine) => machine === machineName(this.localId));
+        else if (this.admitBroadcast(id)) this.network.broadcastDatagram(datagram, (machine) => machine !== machineName(id));
+      }),
+      transport.onTcp?.((frame) => {
+        try {
+          this.receiveTcp(id, frame);
+        } catch (error) {
+          this.dropPeer(id, String(error), true);
+        }
+      }) ?? (() => {
+      }),
+      transport.onWritable?.(() => this.tcp?.writable()) ?? (() => {
+      }),
+      transport.onClose((reason) => this.dropPeer(id, reason))
+    ]);
+  }
+  initializeTcp() {
+    if (this.tcp || !this.localAddress) return;
+    this.tcp = new RemoteTcpEngine(this.localAddress.slice(), {
+      send: (frame) => {
+        const transport = this.peers.get(this.role === "host" ? frame.destination.addr[3] : 1);
+        return transport?.sendTcp?.(frame) ?? false;
+      },
+      canSend: (destination) => this.peers.get(this.role === "host" ? destination[3] : 1)?.canSendTcp?.(1) ?? false,
+      maxData: (destination) => Math.min(
+        this.members.get(destination[3])?.maxTcpData ?? 0,
+        this.peers.get(this.role === "host" ? destination[3] : 1)?.maxTcpData ?? 0
+      ),
+      failed: (reason) => {
+        for (const id of [...this.peers.keys()]) this.dropPeer(id, reason, true);
+      }
+    });
+  }
+  receiveTcp(ingress, frame) {
+    if (!this.localId || !inSegment(frame.source.addr) || !inSegment(frame.destination.addr) || !this.members.has(frame.source.addr[3]) || !this.members.has(frame.origin) || this.role === "host" && frame.source.addr[3] !== ingress || this.role === "joiner" && frame.destination.addr[3] !== this.localId) throw new Error("remote TCP source ownership violated");
+    if (frame.destination.addr[3] === this.localId) {
+      this.tcp.receive(frame);
+      return;
+    }
+    const transport = this.peers.get(frame.destination.addr[3]);
+    if (!transport?.sendTcp?.(frame)) this.dropPeer(ingress, "remote TCP forwarding could not be admitted", true);
+  }
+  receiveControl(peer, message) {
+    if (this.role === "joiner") {
+      if (message.type !== "directory") throw new Error("the forwarding host must send a directory");
+      this.installDirectory(message);
+      return;
+    }
+    if (message.type === "hello") {
+      this.publishDirectory();
+      return;
+    }
+    if (message.type === "directory") throw new Error("a joiner cannot assign segment addresses");
+    const key2 = endpointKey(peer, message.id);
+    if (message.type === "listen" || message.type === "unlisten") {
+      if (message.type === "unlisten") this.tcpBindings.delete(key2);
+      else {
+        if (!ownedBindAddress(message.addr, peer)) throw new Error("TCP listener address ownership violated");
+        if (!this.tcpBindings.has(key2) && this.bindingCount(peer) >= MAX_BINDINGS) throw new Error("binding directory is full");
+        for (const [other, binding] of this.tcpBindings) if (other !== key2 && binding.owner === peer && binding.port === message.port) throw new Error("conflicting TCP listener");
+        this.tcpBindings.set(key2, { owner: peer, id: message.id, addr: [...message.addr], port: message.port });
+      }
+      this.publishDirectory();
+      return;
+    }
+    if (message.type === "unbind") {
+      this.bindings.delete(key2);
+      this.network.unbindUdp(`remote:${key2}`);
+      this.mirroredEndpoints.delete(key2);
+    } else {
+      if (!ownedBindAddress(message.addr, peer)) throw new Error("the joiner tried to bind another member's address");
+      if (!this.bindings.has(key2) && this.bindingCount(peer) >= MAX_BINDINGS) throw new Error("the joiner's binding directory is full");
+      const binding = { owner: peer, id: message.id, addr: [...message.addr], port: message.port };
+      this.mirrorBinding(binding);
+      this.bindings.set(key2, binding);
+    }
+    this.publishDirectory();
+  }
+  installDirectory(message) {
+    if (this.localId !== void 0 && this.localId !== message.self) throw new Error("the host changed this machine's address assignment");
+    const transport = this.peers.get(1);
+    if (message.members.find((member) => member.id === message.self).maxPayload !== transport.maxPayload) {
+      throw new Error("the host's local transport limit differs from negotiation");
+    }
+    if ((message.members.find((member) => member.id === message.self).maxTcpData ?? 0) !== (transport.maxTcpData ?? 0)) throw new Error("TCP frame ceiling differs from negotiation");
+    this.clearMirroredBindings();
+    const incoming = new Set(message.members.map((member) => member.id));
+    for (const id of this.members.keys()) {
+      if (!incoming.has(id)) {
+        this.tcp?.disconnect(address(id));
+        this.network.detachMachine(machineName(id));
+        this.members.delete(id);
+      }
+    }
+    this.localId = message.self;
+    for (const member of message.members) {
+      if (!this.members.has(member.id)) {
+        const backend = this.attachMember(member.id);
+        if (member.id === this.localId) this.local = backend;
+      }
+      this.members.set(member.id, { id: member.id, maxPayload: member.maxPayload, maxTcpData: member.maxTcpData ?? 0 });
+    }
+    for (const [key2, binding] of this.bindings) if (binding.owner !== this.localId) this.bindings.delete(key2);
+    for (const binding of message.bindings) {
+      if (binding.owner === this.localId) continue;
+      this.mirrorBinding(binding);
+      this.bindings.set(endpointKey(binding.owner, binding.id), { owner: binding.owner, id: binding.id, port: binding.port, addr: [...binding.addr] });
+    }
+    for (const [key2, binding] of this.tcpBindings) if (binding.owner !== this.localId) this.tcpBindings.delete(key2);
+    for (const binding of message.tcpBindings ?? []) if (binding.owner !== this.localId) this.tcpBindings.set(endpointKey(binding.owner, binding.id), { ...binding, addr: [...binding.addr] });
+    this.initializeTcp();
+    this.resolveReady();
+  }
+  mirrorBinding(binding) {
+    const key2 = endpointKey(binding.owner, binding.id);
+    const result = this.network.bindUdp(
+      machineName(binding.owner),
+      `remote:${key2}`,
+      new Uint8Array(binding.addr),
+      binding.port,
+      {
+        receive: (datagram) => {
+          const transport = this.peers.get(this.role === "host" ? binding.owner : 1);
+          const limit = Math.min(transport?.maxPayload ?? 0, this.members.get(binding.owner)?.maxPayload ?? 0);
+          if (datagram.data.length > limit) return EMSGSIZE;
+          return transport ? transport.sendDatagram(datagram) : ENETUNREACH;
+        }
+      }
+    );
+    if (result !== 0) throw new Error(`conflicting remote UDP endpoint (${result})`);
+    this.mirroredEndpoints.add(key2);
+  }
+  clearMirroredBindings() {
+    for (const key2 of this.mirroredEndpoints) this.network.unbindUdp(`remote:${key2}`);
+    this.mirroredEndpoints.clear();
+  }
+  admitBroadcast(origin) {
+    const now = Date.now();
+    const budget = this.broadcastBudgets.get(origin) ?? { tokens: BROADCAST_BURST, at: now };
+    budget.tokens = Math.min(BROADCAST_BURST, budget.tokens + (now - budget.at) * BROADCAST_PER_SECOND / 1e3);
+    budget.at = now;
+    this.broadcastBudgets.set(origin, budget);
+    if (budget.tokens < 1) {
+      this.droppedBroadcasts++;
+      return false;
+    }
+    budget.tokens--;
+    return true;
+  }
+  bindingCount(owner) {
+    let count = 0;
+    for (const binding of [...this.bindings.values(), ...this.tcpBindings.values()]) if (binding.owner === owner) count++;
+    return count;
+  }
+  publishDirectory() {
+    for (const [self, transport] of [...this.peers]) {
+      if (!transport.sendControl({
+        version: 1,
+        type: "directory",
+        self,
+        members: [...this.members.values()].map((member) => ({ ...member })),
+        tcpBindings: [...this.tcpBindings.values()].map((binding) => ({ ...binding, addr: [...binding.addr] })),
+        bindings: [...this.bindings.values()].map((binding) => ({ owner: binding.owner, id: binding.id, port: binding.port, addr: [...binding.addr] }))
+      })) this.dropPeer(self, "the reliable segment control bridge is full");
+    }
+  }
+  dropPeer(id, reason, forceReset = false) {
+    const transport = this.peers.get(id);
+    if (!transport) return;
+    this.peers.delete(id);
+    for (const unsubscribe of this.subscriptions.get(id) ?? []) unsubscribe();
+    this.subscriptions.delete(id);
+    transport.close();
+    if (this.role === "joiner") this.tcp?.disconnect(void 0, forceReset);
+    else this.tcp?.disconnect(address(id), forceReset);
+    for (const [key2, binding] of this.tcpBindings) if (this.role === "joiner" ? binding.owner !== this.localId : binding.owner === id) this.tcpBindings.delete(key2);
+    if (this.role === "joiner") {
+      this.rejectReady(new Error(`remote segment disconnected: ${reason}`));
+      this.notifyClosed(reason);
+      this.clearMirroredBindings();
+      for (const member of [...this.members.keys()]) {
+        if (member !== this.localId) {
+          this.network.detachMachine(machineName(member));
+          this.members.delete(member);
+        }
+      }
+      for (const [key2, binding] of this.bindings) if (binding.owner !== this.localId) this.bindings.delete(key2);
+    } else {
+      this.network.detachMachine(machineName(id));
+      this.members.delete(id);
+      this.broadcastBudgets.delete(id);
+      for (const [key2, binding] of this.bindings) if (binding.owner === id) {
+        this.bindings.delete(key2);
+        this.mirroredEndpoints.delete(key2);
+      }
+      this.publishDirectory();
+    }
+  }
+  bindUdp(id, addr, port2, target) {
+    if (!this.local || this.closed) return ENETUNREACH;
+    if (!validEndpoint(id) || !validPort(port2)) return EADDRNOTAVAIL3;
+    const key2 = endpointKey(this.localId, id);
+    if (!this.bindings.has(key2) && this.bindingCount(this.localId) >= MAX_BINDINGS) return ENOBUFS;
+    const result = this.local.bindUdp(id, addr, port2, target);
+    if (result !== 0) return result;
+    if (this.role === "joiner" && !this.peers.get(1)?.sendControl({ version: 1, type: "bind", id, addr: Array.from(addr), port: port2 })) {
+      this.local.unbindUdp(id);
+      return ENETUNREACH;
+    }
+    this.bindings.set(key2, { owner: this.localId, id, addr: Array.from(addr), port: port2 });
+    if (this.role === "host") this.publishDirectory();
+    return 0;
+  }
+  unbindUdp(id) {
+    this.local?.unbindUdp(id);
+    this.bindings.delete(endpointKey(this.localId, id));
+    if (this.role === "host") this.publishDirectory();
+    else if (this.peers.get(1) && !this.peers.get(1).sendControl({ version: 1, type: "unbind", id })) {
+      this.dropPeer(1, "the reliable segment control bridge is full");
+    }
+  }
+  sendDatagram(datagram) {
+    if (!this.local || this.closed) return ENETUNREACH;
+    if (addressKey(datagram.srcAddr) !== "0.0.0.0" && addressKey(datagram.srcAddr) !== addressKey(this.localAddress)) return EADDRNOTAVAIL3;
+    if (this.network.isBroadcast(datagram.dstAddr)) return this.sendBroadcast({ ...datagram, srcAddr: this.localAddress.slice() });
+    return this.local.sendDatagram(datagram);
+  }
+  /**
+   * A broadcast — to 255.255.255.255 or the session's 10.89.0.255 —
+   * reaches every member with a wildcard socket on its
+   * port, this machine included, as Linux loops a broadcast back to its
+   * sender. A joiner delivers its own copy and sends one to the host; the
+   * host delivers to every member but the one it came from.
+   */
+  sendBroadcast(datagram) {
+    const self = machineName(this.localId);
+    if (this.role === "host") {
+      if (this.admitBroadcast(this.localId)) this.network.broadcastDatagram(datagram, () => true);
+      return 0;
+    }
+    const transport = this.peers.get(1);
+    if (!transport) return ENETUNREACH;
+    if (datagram.data.length > Math.min(transport.maxPayload, this.members.get(this.localId)?.maxPayload ?? 0)) return EMSGSIZE;
+    this.network.broadcastDatagram(datagram, (machine) => machine === self);
+    return transport.sendDatagram(datagram);
+  }
+  getaddrinfo(hostname) {
+    const result = this.network.resolve(hostname);
+    if (result) return result;
+    if (this.fallback) return this.fallback.getaddrinfo(hostname);
+    throw Object.assign(new Error("ENOENT"), { errno: 2 });
+  }
+  connect(handle, addr, port2, source) {
+    this.connectErrors.delete(handle);
+    if (inSegment(addr)) {
+      if (!this.local || this.closed || !this.members.has(addr[3])) {
+        this.connectErrors.set(handle, 113);
+        return;
+      }
+      if (addr[3] === this.localId) {
+        this.localTcpHandles.add(handle);
+        this.localTcpConnecting.add(handle);
+        const destination = addr.slice();
+        const localSource = source ? { addr: source.addr.slice(), port: source.port } : void 0;
+        queueMicrotask(() => {
+          if (!this.localTcpConnecting.delete(handle)) return;
+          if (this.closed) {
+            this.connectErrors.set(handle, 113);
+            return;
+          }
+          try {
+            this.local.connect(handle, destination, port2, localSource);
+          } catch (error) {
+            this.connectErrors.set(handle, error.errno ?? 5);
+          }
+        });
+        return;
+      }
+      if (!this.members.get(addr[3])?.maxTcpData || !this.peers.get(this.role === "host" ? addr[3] : 1)?.maxTcpData) {
+        this.connectErrors.set(handle, EOPNOTSUPP);
+        return;
+      }
+      try {
+        this.tcp.connect(handle, { addr, port: port2 }, source);
+      } catch (error) {
+        this.connectErrors.set(handle, error.errno ?? 5);
+      }
+    } else if (!this.fallback) this.connectErrors.set(handle, ENETUNREACH);
+    else this.fallback.connect(handle, addr, port2, source);
+  }
+  connectStatus(handle) {
+    if (this.connectErrors.has(handle)) return this.connectErrors.get(handle);
+    if (this.tcp?.has(handle)) return this.tcp.connection(handle).status;
+    if (this.localTcpConnecting.has(handle)) return -11;
+    if (this.localTcpHandles.has(handle)) return this.local.connectStatus(handle);
+    return this.fallback?.connectStatus(handle) ?? ENOTCONN2;
+  }
+  send(handle, data, flags) {
+    if (this.tcp?.has(handle)) return this.tcp.connection(handle).send(data, flags);
+    if (this.localTcpHandles.has(handle)) return this.local.send(handle, data, flags);
+    if (!this.fallback || this.connectErrors.has(handle)) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN2 });
+    return this.fallback.send(handle, data, flags);
+  }
+  recv(handle, maxLen, flags) {
+    if (this.tcp?.has(handle)) return this.tcp.connection(handle).recv(maxLen, flags);
+    if (this.localTcpHandles.has(handle)) return this.local.recv(handle, maxLen, flags);
+    if (!this.fallback || this.connectErrors.has(handle)) throw Object.assign(new Error("ENOTCONN"), { errno: ENOTCONN2 });
+    return this.fallback.recv(handle, maxLen, flags);
+  }
+  readiness(handle) {
+    const failed = this.connectErrors.get(handle);
+    if (failed !== void 0) {
+      return NET_READINESS.ERROR | failed << NET_READINESS.ERRNO_SHIFT | NET_READINESS.RECV_EOF | NET_READINESS.SEND_CLOSED | NET_READINESS.HANGUP;
+    }
+    if (this.tcp?.has(handle)) return this.tcp.connection(handle).readiness();
+    if (this.localTcpHandles.has(handle)) return this.local.readiness(handle);
+    return this.fallback?.readiness?.(handle) ?? NET_READINESS.UNOBSERVABLE;
+  }
+  localEndpoint(handle) {
+    if (this.tcp?.has(handle)) return { addr: this.tcp.connection(handle).local.addr.slice(), port: this.tcp.connection(handle).local.port };
+    const backend = this.localTcpHandles.has(handle) ? this.local : this.fallback;
+    if (!backend?.localEndpoint) throw Object.assign(new Error("EOPNOTSUPP"), { errno: 95 });
+    return backend.localEndpoint(handle);
+  }
+  shutdown(handle, how) {
+    if (this.tcp?.has(handle)) {
+      this.tcp.connection(handle).shutdown(how);
+      return;
+    }
+    const backend = this.localTcpHandles.has(handle) ? this.local : this.fallback;
+    if (!backend?.shutdown) throw Object.assign(new Error("EOPNOTSUPP"), { errno: 95 });
+    backend.shutdown(handle, how);
+  }
+  close(handle) {
+    if (handle !== void 0) {
+      this.connectErrors.delete(handle);
+      this.localTcpConnecting.delete(handle);
+      if (this.tcp?.has(handle)) this.tcp.close(handle);
+      else if (this.localTcpHandles.delete(handle)) this.local?.close(handle);
+      else this.fallback?.close(handle);
+      return;
+    }
+    if (this.closed) return;
+    this.closed = true;
+    for (const id of [...this.peers.keys()]) this.dropPeer(id, "the local segment closed");
+    for (const id of this.members.keys()) this.network.detachMachine(machineName(id));
+    this.localTcpConnecting.clear();
+    this.tcp?.dispose();
+    this.members.clear();
+    this.bindings.clear();
+    this.tcpBindings.clear();
+    this.mirroredEndpoints.clear();
+    this.rejectReady(new Error("the local segment closed before assignment"));
+    this.notifyClosed("the local segment closed");
+  }
+  listenTcp(id, addr, port2, target) {
+    if (!this.local || this.closed) return ENETUNREACH;
+    const key2 = endpointKey(this.localId, id);
+    if (!validEndpoint(id) || !validPort(port2)) return EADDRNOTAVAIL3;
+    if (!this.tcpBindings.has(key2) && this.bindingCount(this.localId) >= MAX_BINDINGS) return ENOBUFS;
+    const result = this.tcp.listen(id, addr, port2, target);
+    if (result) return result;
+    const localResult = this.local.listenTcp(id, addr, port2, target);
+    if (localResult) {
+      this.tcp.unlisten(id);
+      return localResult;
+    }
+    if (this.role === "joiner" && !this.peers.get(1)?.sendControl({ version: 1, type: "listen", id, addr: Array.from(addr), port: port2 })) {
+      this.tcp.unlisten(id);
+      this.local.closeTcpListener(id);
+      return ENETUNREACH;
+    }
+    this.tcpBindings.set(key2, { owner: this.localId, id, addr: Array.from(addr), port: port2 });
+    if (this.role === "host") this.publishDirectory();
+    return 0;
+  }
+  closeTcpListener(id) {
+    this.tcp?.unlisten(id);
+    this.local?.closeTcpListener(id);
+    this.tcpBindings.delete(endpointKey(this.localId, id));
+    if (this.role === "host") this.publishDirectory();
+    else if (this.peers.get(1) && !this.peers.get(1).sendControl({ version: 1, type: "unlisten", id })) this.dropPeer(1, "TCP unlisten could not be admitted");
+  }
+  snapshot() {
+    return {
+      address: this.localAddress ? addressKey(this.localAddress) : null,
+      members: [...this.members.values()].map((member) => ({ address: addressKey(address(member.id)), hostname: machineName(member.id), maxPayload: member.maxPayload })),
+      tcpListeners: [...this.tcpBindings.values()].map((binding) => ({ address: addressKey(address(binding.owner)), port: binding.port, endpoint: binding.id })),
+      bindings: [...this.bindings.values()].map((binding) => ({ address: addressKey(address(binding.owner)), port: binding.port, endpoint: binding.id })),
+      droppedBroadcasts: this.droppedBroadcasts
+    };
+  }
+};
+
+// src/networking/remote-segment-port.ts
+var MAX_PENDING_FRAMES = 128;
+var MAX_PENDING_BYTES = 1024 * 1024;
+var SegmentPortBridge = class {
+  constructor(descriptor) {
+    this.descriptor = descriptor;
+    if (!Number.isInteger(descriptor.maxPayload) || descriptor.maxPayload < 0 || descriptor.maxPayload > IPV4_UDP_MAX_PAYLOAD || !Number.isInteger(descriptor.maxControlBytes) || descriptor.maxControlBytes < 128 || descriptor.maxControlBytes > MAX_SEGMENT_CONTROL_BYTES) throw new Error("invalid segment port limits");
+    descriptor.port.addEventListener("message", this.handleMessage);
+    descriptor.port.addEventListener("messageerror", this.handleMessageError);
+    descriptor.port.addEventListener("close", this.handlePortClose);
+    descriptor.port.start();
+  }
+  descriptor;
+  pending = /* @__PURE__ */ new Map();
+  pendingBytes = 0;
+  nextSequence = 1;
+  closed = false;
+  frameListeners = /* @__PURE__ */ new Set();
+  writableListeners = /* @__PURE__ */ new Set();
+  closeListeners = /* @__PURE__ */ new Set();
+  closeReason = "the segment port closed";
+  handleMessage = (event) => {
+    if (this.closed) return;
+    const message = event.data;
+    if (!message || typeof message !== "object") {
+      this.close("invalid segment port message");
+      return;
+    }
+    if (message.type === "close") {
+      this.close(String(message.reason).slice(0, 512), false);
+      return;
+    }
+    if (!Number.isSafeInteger(message.sequence) || message.sequence < 1) {
+      this.close("invalid segment port sequence");
+      return;
+    }
+    if (message.type === "ack") {
+      const bytes = this.pending.get(message.sequence);
+      if (bytes === void 0) {
+        this.close("unknown or duplicate segment port acknowledgement");
+        return;
+      }
+      this.pending.delete(message.sequence);
+      this.pendingBytes -= bytes;
+      for (const listener of [...this.writableListeners]) listener();
+      return;
+    }
+    const limit = message.type === "udp" ? this.descriptor.maxPayload + REMOTE_UDP_HEADER_BYTES : this.descriptor.maxControlBytes;
+    if (message.type !== "udp" && message.type !== "control" && message.type !== "tcp" || !(message.frame instanceof Uint8Array) || !(message.frame.buffer instanceof ArrayBuffer) || message.frame.byteLength > limit || message.type === "udp" && message.frame.byteLength < REMOTE_UDP_HEADER_BYTES || message.type === "tcp" && message.frame.byteLength < REMOTE_TCP_HEADER_BYTES) {
+      this.close("invalid or oversized segment port frame");
+      return;
+    }
+    let released = false;
+    const release = () => {
+      if (released || this.closed) return;
+      released = true;
+      this.descriptor.port.postMessage({ type: "ack", sequence: message.sequence });
+    };
+    if (!this.frameListeners.size) {
+      this.close("the segment port has no frame consumer");
+      return;
+    }
+    try {
+      for (const listener of [...this.frameListeners]) listener(message.type, message.frame, release);
+    } catch (error) {
+      this.close(`segment port frame failed: ${String(error)}`);
+    }
+  };
+  handleMessageError = () => this.close("segment port deserialization failed");
+  // Node emits close when the opposite worker or native port disappears.
+  // Browser RTC lifecycle also closes explicitly through the proxy protocol.
+  handlePortClose = () => this.close("the native segment port closed", false);
+  canSend(kind, length) {
+    const limit = kind === "udp" ? this.descriptor.maxPayload + REMOTE_UDP_HEADER_BYTES : this.descriptor.maxControlBytes;
+    return !this.closed && length <= limit && this.pending.size < MAX_PENDING_FRAMES && this.pendingBytes + length <= MAX_PENDING_BYTES;
+  }
+  send(kind, frame) {
+    if (!this.canSend(kind, frame.byteLength)) return false;
+    const sequence = this.nextSequence++;
+    const owned = new Uint8Array(frame);
+    this.pending.set(sequence, owned.byteLength);
+    this.pendingBytes += owned.byteLength;
+    try {
+      this.descriptor.port.postMessage({ type: kind, sequence, frame: owned }, [owned.buffer]);
+      return true;
+    } catch (error) {
+      this.pending.delete(sequence);
+      this.pendingBytes -= frame.byteLength;
+      this.close(`segment port send failed: ${String(error)}`);
+      return false;
+    }
+  }
+  onWritable(listener) {
+    this.writableListeners.add(listener);
+    return () => {
+      this.writableListeners.delete(listener);
+    };
+  }
+  onFrame(listener) {
+    this.frameListeners.add(listener);
+    return () => {
+      this.frameListeners.delete(listener);
+    };
+  }
+  onClose(listener) {
+    let subscribed = true;
+    if (this.closed) queueMicrotask(() => {
+      if (subscribed) listener(this.closeReason);
+    });
+    else this.closeListeners.add(listener);
+    return () => {
+      subscribed = false;
+      this.closeListeners.delete(listener);
+    };
+  }
+  close(reason = "the local segment port closed", notify = true) {
+    if (this.closed) return;
+    this.closed = true;
+    this.closeReason = reason;
+    if (notify) {
+      try {
+        this.descriptor.port.postMessage({ type: "close", reason: reason.slice(0, 512) });
+      } catch {
+      }
+    }
+    this.descriptor.port.removeEventListener("message", this.handleMessage);
+    this.descriptor.port.removeEventListener("messageerror", this.handleMessageError);
+    this.descriptor.port.removeEventListener("close", this.handlePortClose);
+    this.descriptor.port.close();
+    this.pending.clear();
+    this.pendingBytes = 0;
+    for (const listener of [...this.closeListeners]) listener(reason);
+    this.closeListeners.clear();
+    this.frameListeners.clear();
+    this.writableListeners.clear();
+  }
+};
+var RemoteSegmentPortTransport = class {
+  bridge;
+  controlListeners = /* @__PURE__ */ new Set();
+  tcpListeners = /* @__PURE__ */ new Set();
+  datagramListeners = /* @__PURE__ */ new Set();
+  maxPayload;
+  maxTcpData;
+  constructor(descriptor) {
+    this.maxPayload = descriptor.maxPayload;
+    this.maxTcpData = Math.min(16384, descriptor.maxControlBytes - REMOTE_TCP_HEADER_BYTES);
+    this.bridge = new SegmentPortBridge(descriptor);
+    this.bridge.onFrame((kind, frame, release) => {
+      try {
+        if (kind === "udp") {
+          const datagram = decodeRemoteUdp(frame, this.maxPayload);
+          for (const listener of [...this.datagramListeners]) listener(datagram);
+        } else if (kind === "tcp") {
+          const tcp = decodeRemoteTcp(frame);
+          for (const listener of [...this.tcpListeners]) listener(tcp);
+        } else {
+          const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(frame));
+          for (const listener of [...this.controlListeners]) listener(value);
+        }
+      } finally {
+        release();
+      }
+    });
+  }
+  canSendTcp(length) {
+    return this.bridge.canSend("tcp", length + REMOTE_TCP_HEADER_BYTES);
+  }
+  sendTcp(frame) {
+    return this.bridge.send("tcp", encodeRemoteTcp(frame));
+  }
+  onTcp(listener) {
+    this.tcpListeners.add(listener);
+    return () => {
+      this.tcpListeners.delete(listener);
+    };
+  }
+  onWritable(listener) {
+    return this.bridge.onWritable(listener);
+  }
+  sendControl(message) {
+    return this.bridge.send("control", new TextEncoder().encode(JSON.stringify(message)));
+  }
+  sendDatagram(datagram) {
+    if (datagram.data.length > this.maxPayload) return 90;
+    return this.bridge.send("udp", encodeRemoteUdp(datagram, this.maxPayload)) ? 0 : 11;
+  }
+  onControl(listener) {
+    this.controlListeners.add(listener);
+    return () => {
+      this.controlListeners.delete(listener);
+    };
+  }
+  onDatagram(listener) {
+    this.datagramListeners.add(listener);
+    return () => {
+      this.datagramListeners.delete(listener);
+    };
+  }
+  onClose(listener) {
+    return this.bridge.onClose(listener);
+  }
+  close() {
+    this.bridge.close();
+    this.controlListeners.clear();
+    this.datagramListeners.clear();
+    this.tcpListeners.clear();
+  }
+};
+
+// src/networking/remote-segment-runtime.ts
+var ENOENT = 2;
+var EOPNOTSUPP2 = 95;
+var EADDRNOTAVAIL4 = 99;
+var ENETUNREACH2 = 101;
+var ECONNRESET2 = 104;
+var ENOTCONN3 = 107;
+var ECONNREFUSED2 = 111;
+var JOIN_ASSIGNMENT_TIMEOUT_MS = 3e4;
+var fail2 = (errno) => {
+  throw Object.assign(new Error(`network errno ${errno}`), { errno });
+};
+var wildcard = (addr) => addr.length === 4 && addr.every((octet) => octet === 0);
+var limitedBroadcast = (addr) => addr.length === 4 && addr.every((octet) => octet === 255);
+var SessionNetwork = class {
+  constructor(fallback) {
+    this.fallback = fallback;
+  }
+  fallback;
+  segment;
+  udp = /* @__PURE__ */ new Map();
+  tcp = /* @__PURE__ */ new Map();
+  segmentHandles = /* @__PURE__ */ new Set();
+  /** Connections whose session ended under them: they report a reset. */
+  resetHandles = /* @__PURE__ */ new Set();
+  get attached() {
+    return this.segment;
+  }
+  get localAddress() {
+    return this.segment?.localAddress ?? this.fallback?.localAddress;
+  }
+  /** The netmask that belongs to whichever address `localAddress` reports. */
+  get localNetmask() {
+    return this.segment?.localAddress ? this.segment.localNetmask : this.fallback?.localNetmask;
+  }
+  /** Route the session's subnet through `segment`, replaying wildcard endpoints. */
+  attach(segment) {
+    if (this.segment) throw new Error("this machine is already in a network session");
+    this.segment = segment;
+    for (const [id, binding] of this.udp) {
+      if (binding.inSegment) continue;
+      const result = segment.bindUdp(id, binding.addr, binding.port, binding.target);
+      if (result !== 0) console.warn(`[session network] UDP ${binding.port} could not join the session: errno ${result}`);
+    }
+    for (const [id, listener] of this.tcp) {
+      if (listener.inSegment) continue;
+      const result = segment.listenTcp(id, listener.addr, listener.port, listener.target);
+      if (result !== 0) console.warn(`[session network] TCP ${listener.port} could not join the session: errno ${result}`);
+    }
+  }
+  /**
+   * Remove the session's subnet. Its address disappears, its streams reset,
+   * and endpoints bound to it specifically stop receiving; wildcard
+   * endpoints keep whatever the wrapped backend gives them.
+   */
+  detach() {
+    const segment = this.segment;
+    if (!segment) return;
+    this.segment = void 0;
+    for (const handle of this.segmentHandles) this.resetHandles.add(handle);
+    this.segmentHandles.clear();
+    for (const [id, binding] of [...this.udp]) if (binding.inSegment) this.udp.delete(id);
+    for (const [id, listener] of [...this.tcp]) if (listener.inSegment) this.tcp.delete(id);
+    segment.close();
+  }
+  routesToSegment(addr) {
+    return Boolean(this.segment) && RemoteVirtualNetwork.routes(addr);
+  }
+  udpSourceAddress(destination) {
+    if (this.segment && (RemoteVirtualNetwork.routes(destination) || limitedBroadcast(destination))) {
+      return this.segment.udpSourceAddress(destination);
+    }
+    return this.fallback?.udpSourceAddress?.(destination) ?? ENETUNREACH2;
+  }
+  connect(handle, addr, port2, source) {
+    this.resetHandles.delete(handle);
+    if (this.routesToSegment(addr)) {
+      this.segmentHandles.add(handle);
+      this.segment.connect(handle, addr, port2, source);
+      return;
+    }
+    if (!this.fallback) fail2(ECONNREFUSED2);
+    this.fallback.connect(handle, addr, port2, source);
+  }
+  connectStatus(handle) {
+    if (this.resetHandles.has(handle)) return ECONNRESET2;
+    if (this.segmentHandles.has(handle)) return this.segment.connectStatus(handle);
+    return this.fallback?.connectStatus(handle) ?? ENOTCONN3;
+  }
+  send(handle, data, flags) {
+    if (this.resetHandles.has(handle)) fail2(ECONNRESET2);
+    if (this.segmentHandles.has(handle)) return this.segment.send(handle, data, flags);
+    if (!this.fallback) fail2(ENOTCONN3);
+    return this.fallback.send(handle, data, flags);
+  }
+  recv(handle, maxLen, flags) {
+    if (this.resetHandles.has(handle)) fail2(ECONNRESET2);
+    if (this.segmentHandles.has(handle)) return this.segment.recv(handle, maxLen, flags);
+    if (!this.fallback) fail2(ENOTCONN3);
+    return this.fallback.recv(handle, maxLen, flags);
+  }
+  readiness(handle) {
+    if (this.resetHandles.has(handle)) {
+      return NET_READINESS.ERROR | ECONNRESET2 << NET_READINESS.ERRNO_SHIFT | NET_READINESS.RECV_EOF | NET_READINESS.SEND_CLOSED | NET_READINESS.HANGUP;
+    }
+    if (this.segmentHandles.has(handle)) return this.segment.readiness(handle);
+    if (!this.fallback) fail2(ENOTCONN3);
+    return this.fallback.readiness?.(handle) ?? NET_READINESS.UNOBSERVABLE;
+  }
+  localEndpoint(handle) {
+    if (this.segmentHandles.has(handle)) return this.segment.localEndpoint(handle);
+    if (this.resetHandles.has(handle) || !this.fallback?.localEndpoint) fail2(EOPNOTSUPP2);
+    return this.fallback.localEndpoint(handle);
+  }
+  shutdown(handle, how) {
+    if (this.resetHandles.has(handle)) fail2(ECONNRESET2);
+    if (this.segmentHandles.has(handle)) {
+      this.segment.shutdown(handle, how);
+      return;
+    }
+    if (!this.fallback?.shutdown) fail2(EOPNOTSUPP2);
+    this.fallback.shutdown(handle, how);
+  }
+  close(handle) {
+    if (this.resetHandles.delete(handle)) return;
+    if (this.segmentHandles.delete(handle)) {
+      this.segment?.close(handle);
+      return;
+    }
+    this.fallback?.close(handle);
+  }
+  getaddrinfo(hostname) {
+    if (this.segment) {
+      try {
+        return this.segment.getaddrinfo(hostname);
+      } catch {
+      }
+    }
+    if (!this.fallback) fail2(ENOENT);
+    return this.fallback.getaddrinfo(hostname);
+  }
+  bindUdp(id, addr, port2, target) {
+    const inSegment2 = RemoteVirtualNetwork.routes(addr);
+    if (inSegment2) {
+      if (!this.segment) return EADDRNOTAVAIL4;
+      const result = this.segment.bindUdp(id, addr, port2, target);
+      if (result === 0) this.udp.set(id, { addr: addr.slice(), port: port2, target, inSegment: inSegment2 });
+      return result;
+    }
+    if (this.fallback?.bindUdp) {
+      const result = this.fallback.bindUdp(id, addr, port2, target);
+      if (result !== 0) return result;
+    } else if (!wildcard(addr)) {
+      return EADDRNOTAVAIL4;
+    }
+    if (this.segment && wildcard(addr)) {
+      const result = this.segment.bindUdp(id, addr, port2, target);
+      if (result !== 0) {
+        this.fallback?.unbindUdp?.(id);
+        return result;
+      }
+    }
+    this.udp.set(id, { addr: addr.slice(), port: port2, target, inSegment: inSegment2 });
+    return 0;
+  }
+  unbindUdp(id) {
+    const binding = this.udp.get(id);
+    this.udp.delete(id);
+    if (!binding) {
+      this.fallback?.unbindUdp?.(id);
+      return;
+    }
+    if (this.segment && (binding.inSegment || wildcard(binding.addr))) this.segment.unbindUdp(id);
+    if (!binding.inSegment) this.fallback?.unbindUdp?.(id);
+  }
+  sendDatagram(datagram) {
+    if (this.segment && (RemoteVirtualNetwork.routes(datagram.dstAddr) || limitedBroadcast(datagram.dstAddr))) {
+      return this.segment.sendDatagram(datagram);
+    }
+    return this.fallback?.sendDatagram?.(datagram) ?? ENETUNREACH2;
+  }
+  listenTcp(id, addr, port2, target) {
+    const inSegment2 = RemoteVirtualNetwork.routes(addr);
+    if (inSegment2) {
+      if (!this.segment) return EADDRNOTAVAIL4;
+      const result = this.segment.listenTcp(id, addr, port2, target);
+      if (result === 0) this.tcp.set(id, { addr: addr.slice(), port: port2, target, inSegment: inSegment2 });
+      return result;
+    }
+    if (this.fallback?.listenTcp) {
+      const result = this.fallback.listenTcp(id, addr, port2, target);
+      if (result !== 0) return result;
+    }
+    if (this.segment && wildcard(addr)) {
+      const result = this.segment.listenTcp(id, addr, port2, target);
+      if (result !== 0) {
+        this.fallback?.closeTcpListener?.(id);
+        return result;
+      }
+    }
+    this.tcp.set(id, { addr: addr.slice(), port: port2, target, inSegment: inSegment2 });
+    return 0;
+  }
+  closeTcpListener(id) {
+    const listener = this.tcp.get(id);
+    this.tcp.delete(id);
+    if (!listener) {
+      this.fallback?.closeTcpListener?.(id);
+      return;
+    }
+    if (this.segment && (listener.inSegment || wildcard(listener.addr))) this.segment.closeTcpListener(id);
+    if (!listener.inSegment) this.fallback?.closeTcpListener?.(id);
+  }
+};
+var RemoteSegmentRuntime = class {
+  session;
+  state = "offline";
+  lastDisconnect = null;
+  generation = 0;
+  /** Install the machine's network. Call once, before the kernel starts. */
+  install(fallback) {
+    if (this.session) throw new Error("the session network is already installed");
+    this.session = new SessionNetwork(fallback);
+    return this.session;
+  }
+  /** Boot-time shorthand for `install` followed by `host` or `join`. */
+  async initialize(config, fallback) {
+    if (!config || config.role !== "host" && config.role !== "joiner") throw new Error("invalid remote segment role");
+    const network = this.install(fallback);
+    if (config.role === "host") this.host();
+    else await this.join(config.peer);
+    return network;
+  }
+  requireSession() {
+    if (!this.session) throw new Error("the session network is not installed");
+    return this.session;
+  }
+  /** Start a session with this machine as the forwarding host, 10.89.0.1. */
+  host() {
+    const session = this.requireSession();
+    if (session.attached) throw new Error("this machine is already in a network session");
+    const segment = new RemoteVirtualNetwork("host");
+    session.attach(segment);
+    this.state = "hosting";
+    this.lastDisconnect = null;
+    this.generation++;
+    return segment.snapshot().address;
+  }
+  /**
+   * Join a session over `peer`, the byte bridge to the forwarding host.
+   * Resolves with the address the host assigned once the directory arrives.
+   */
+  async join(peer) {
+    const session = this.requireSession();
+    if (session.attached || this.state === "joining") {
+      peer.port.close();
+      throw new Error("this machine is already in a network session");
+    }
+    const generation = ++this.generation;
+    const segment = new RemoteVirtualNetwork("joiner");
+    this.state = "joining";
+    this.lastDisconnect = null;
+    let timeout;
+    try {
+      segment.attachPeer(new RemoteSegmentPortTransport(peer));
+      await Promise.race([
+        segment.ready,
+        new Promise((_resolve, reject) => {
+          timeout = setTimeout(() => reject(new Error("the hosting computer did not assign an address within 30 seconds")), JOIN_ASSIGNMENT_TIMEOUT_MS);
+        })
+      ]);
+    } catch (error) {
+      segment.close();
+      if (generation === this.generation) this.state = "offline";
+      throw error;
+    } finally {
+      if (timeout !== void 0) clearTimeout(timeout);
+    }
+    if (generation !== this.generation) {
+      segment.close();
+      throw new Error("the join was cancelled");
+    }
+    session.attach(segment);
+    this.state = "joined";
+    segment.onClosed((reason) => {
+      if (generation !== this.generation || session.attached !== segment) return;
+      session.detach();
+      this.state = "offline";
+      this.lastDisconnect = reason;
+    });
+    return segment.snapshot().address;
+  }
+  attachPeer(peer) {
+    const segment = this.session?.attached;
+    if (!segment || segment.role !== "host") {
+      peer.port.close();
+      throw new Error("only a hosting computer can attach remote peers");
+    }
+    let transport;
+    try {
+      transport = new RemoteSegmentPortTransport(peer);
+      return segment.attachPeer(transport);
+    } catch (error) {
+      if (transport) transport.close();
+      else peer.port.close();
+      throw error;
+    }
+  }
+  /** Leave the session. A host leaving ends it for every member. */
+  leave() {
+    this.generation++;
+    this.session?.detach();
+    this.state = "offline";
+  }
+  snapshot() {
+    const segment = this.session?.attached;
+    const base = segment ? segment.snapshot() : { address: null, members: [], bindings: [], tcpListeners: [], droppedBroadcasts: 0 };
+    return { ...base, state: this.state, lastDisconnect: this.lastDisconnect };
+  }
+  /** Destroy: leave any session and forget the installed network. */
+  close() {
+    this.leave();
+    this.session = void 0;
+    this.lastDisconnect = null;
+  }
+};
+var REMOTE_NETWORK_MESSAGES = /* @__PURE__ */ new Set([
+  "remote_network_attach",
+  "remote_network_snapshot",
+  "remote_network_host",
+  "remote_network_join",
+  "remote_network_leave"
+]);
+function handleRemoteNetworkMessage(runtime, message, ready, respond2, respondError2) {
+  if (!REMOTE_NETWORK_MESSAGES.has(message.type)) return false;
+  const request = message;
+  const reject = (error) => respondError2(request.requestId, error instanceof Error ? error.message : String(error));
+  const transferredPort = "peer" in request ? request.peer.port : void 0;
+  if (!ready) {
+    transferredPort?.close();
+    reject(new Error("the kernel is not initialized"));
+    return true;
+  }
+  try {
+    switch (request.type) {
+      case "remote_network_attach":
+        respond2(request.requestId, runtime.attachPeer(request.peer));
+        break;
+      case "remote_network_snapshot":
+        respond2(request.requestId, runtime.snapshot());
+        break;
+      case "remote_network_host":
+        respond2(request.requestId, runtime.host());
+        break;
+      case "remote_network_leave":
+        runtime.leave();
+        respond2(request.requestId, null);
+        break;
+      case "remote_network_join":
+        void runtime.join(request.peer).then((address2) => respond2(request.requestId, address2), reject);
+        break;
+    }
+  } catch (error) {
+    reject(error);
+  }
+  return true;
+}
+
 // src/node-kernel-worker-entry.ts
 import { parentPort } from "worker_threads";
 import { readFileSync as readFileSync3, existsSync as existsSync6, mkdtempSync as mkdtempSync2, rmSync as rmSync3 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
 import { join as join6 } from "path";
 import { fileURLToPath as fileURLToPath3 } from "url";
+
+// src/shared-byte-runs.ts
+function mergeChangedByteRuns(source, sourceOffset, snapshot, snapshotOffset, destination, destinationOffset, len) {
+  let changed = false;
+  let i = 0;
+  while (i < len) {
+    while (i < len && source[sourceOffset + i] === snapshot[snapshotOffset + i]) i++;
+    if (i >= len) break;
+    const start = i;
+    do {
+      i++;
+    } while (i < len && source[sourceOffset + i] !== snapshot[snapshotOffset + i]);
+    destination.set(source.subarray(sourceOffset + start, sourceOffset + i), destinationOffset + start);
+    changed = true;
+  }
+  return changed;
+}
+
+// src/dri/cursor-plane.ts
+var KmsCursorPlane = class {
+  constructor(canvas) {
+    this.canvas = canvas;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("KMS cursor canvas requires a 2D context");
+    this.context = context;
+    canvas.addEventListener("contextrestored", () => {
+      this.version = -1;
+      this.painted = null;
+    });
+  }
+  canvas;
+  context;
+  version = -1;
+  painted = null;
+  present(cursor, width, height) {
+    const resized = this.canvas.width !== width || this.canvas.height !== height;
+    if (!resized && cursor.version === this.version) return;
+    if (resized) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.painted = null;
+    }
+    this.version = cursor.version;
+    if (this.painted) {
+      const { x, y, width: width2, height: height2 } = this.painted;
+      this.context.clearRect(x, y, width2, height2);
+      this.painted = null;
+    }
+    if (cursor.pixels) {
+      this.context.putImageData(
+        new ImageData(cursor.pixels, cursor.width, cursor.height),
+        cursor.x,
+        cursor.y
+      );
+      this.painted = {
+        x: cursor.x,
+        y: cursor.y,
+        width: cursor.width,
+        height: cursor.height
+      };
+    }
+  }
+};
 
 // src/vfs/types.ts
 init_abi();
@@ -5908,6 +8202,7 @@ var KERNEL_SCRATCH_EXPORT_NAMES = intrinsicObjectFreeze2([
   "kernel_handle_channel_record",
   "kernel_inject_datagram",
   "kernel_ioctl",
+  "kernel_kms_cursor_read",
   "kernel_ipc_shm_read_chunk",
   "kernel_ipc_shm_write_chunk",
   "kernel_mq_drain_notification",
@@ -5978,6 +8273,7 @@ function kernelScratchRequiredPointerArguments(name) {
     case "kernel_rootfs_set_foreign_mount_roots":
     case "kernel_watch_fs_changes":
     case "kernel_drain_fs_changes":
+    case "kernel_kms_cursor_read":
     case "kernel_rootfs_stat_mode":
     case "kernel_rootfs_unlink_file":
     case "kernel_truncate":
@@ -6087,6 +8383,7 @@ function isKernelScratchExportName(value) {
     case "kernel_rootfs_set_foreign_mount_roots":
     case "kernel_watch_fs_changes":
     case "kernel_drain_fs_changes":
+    case "kernel_kms_cursor_read":
     case "kernel_rootfs_stat_mode":
     case "kernel_rootfs_inspect_stat":
     case "kernel_rootfs_inspect_read_file":
@@ -7778,7 +10075,7 @@ var FramebufferRegistry = class {
   writeListeners = /* @__PURE__ */ new Set();
   bind(b) {
     const isWriteBased = b.addr === 0 && b.len === 0;
-    const hostBuffer = isWriteBased ? new Uint8ClampedArray(new ArrayBuffer(b.h * b.stride)) : null;
+    const hostBuffer = b.pixels !== void 0 ? new Uint8ClampedArray(b.pixels) : isWriteBased ? new Uint8ClampedArray(new ArrayBuffer(b.h * b.stride)) : null;
     this.bindings.set(b.pid, {
       ...b,
       view: null,
@@ -7861,7 +10158,6 @@ var FramebufferRegistry = class {
 };
 
 // src/dri/registry.ts
-var NO_CREATOR = -1;
 var GbmBoRegistry = class {
   bos = /* @__PURE__ */ new Map();
   listeners = /* @__PURE__ */ new Set();
@@ -7877,6 +10173,8 @@ var GbmBoRegistry = class {
   }
   deleteBinding(e, pid) {
     if (!e.bindingsByPid.delete(pid)) return;
+    e.snapshotsByPid.delete(pid);
+    e.pendingReaders.delete(pid);
     const n = (this.bindingCounts.get(pid) ?? 1) - 1;
     if (n > 0) this.bindingCounts.set(pid, n);
     else this.bindingCounts.delete(pid);
@@ -7899,10 +10197,11 @@ var GbmBoRegistry = class {
         w: b.w,
         h: b.h,
         stride: b.stride,
-        creatorPid: b.pid,
         sab: new SharedArrayBuffer(b.size),
         pids: /* @__PURE__ */ new Set([b.pid]),
-        bindingsByPid: /* @__PURE__ */ new Map()
+        bindingsByPid: /* @__PURE__ */ new Map(),
+        snapshotsByPid: /* @__PURE__ */ new Map(),
+        pendingReaders: /* @__PURE__ */ new Set()
       });
     }
     for (const l of this.listeners) l(b.pid, b.bo_id, "create");
@@ -7919,6 +10218,7 @@ var GbmBoRegistry = class {
     if (!e) return -1;
     e.pids.add(pid);
     this.setBinding(e, pid, { addr, len });
+    e.snapshotsByPid.set(pid, new Uint8Array(Math.min(len, e.size)));
     for (const l of this.listeners) l(pid, bo_id, "bind");
     return 0;
   }
@@ -7930,13 +10230,17 @@ var GbmBoRegistry = class {
     this.deleteBinding(e, pid);
     for (const l of this.listeners) l(pid, bo_id, "unbind");
   }
+  /** Exec replaces mappings, while non-CLOEXEC GEM handles remain open.
+   * Flush the retiring address space without discarding kernel-owned BOs. */
+  releaseProcessMappings(pid) {
+    for (const [boId, entry] of this.bos) {
+      if (entry.bindingsByPid.has(pid)) this.unbind(pid, boId);
+    }
+  }
   /**
-   * Remove every binding and handle owned by one process.
-   *
-   * WHY: a trapped/force-terminated Worker cannot run the normal GEM_CLOSE and
-   * munmap hooks. Flush its last visible pixels while the process Memory
-   * resolver is still valid, then remove only that pid's ownership. Shared
-   * bos survive while another process still owns them.
+   * Retire a process's observed mappings and metadata. Flush while the old
+   * address space is still resolvable. Kernel handles (including unmapped
+   * imports) determine storage lifetime; only destroy() can release a BO.
    */
   releaseProcess(pid) {
     for (const [bo_id, e] of Array.from(this.bos)) {
@@ -7947,10 +10251,6 @@ var GbmBoRegistry = class {
         for (const l of this.listeners) l(pid, bo_id, "unbind");
       }
       if (!e.pids.delete(pid)) continue;
-      if (e.creatorPid === pid) e.creatorPid = NO_CREATOR;
-      if (e.pids.size !== 0) continue;
-      this.bos.delete(bo_id);
-      for (const l of this.listeners) l(pid, bo_id, "destroy");
     }
   }
   /** Find the bo bound for `pid` at `addr`. Used by kernel-worker's
@@ -7982,17 +10282,26 @@ var GbmBoRegistry = class {
     const dst = new Uint8Array(memory.buffer, binding.addr, copyLen);
     const src = new Uint8Array(e.sab, 0, copyLen);
     dst.set(src);
+    e.snapshotsByPid.get(pid)?.set(src);
+    e.pendingReaders.delete(pid);
   }
-  flushMemoryToSab(e, pid, binding) {
+  flushMemoryToSab(e, pid, binding, byteLimit = Infinity) {
     const resolver = this.getProcessMemory;
     if (!resolver) return;
     const mem = resolver(pid);
     if (!mem) return;
-    const copyLen = Math.min(binding.len, e.size);
+    const copyLen = Math.min(binding.len, e.size, byteLimit);
     if (binding.addr + copyLen > mem.buffer.byteLength) return;
     const dst = new Uint8Array(e.sab, 0, copyLen);
     const src = new Uint8Array(mem.buffer, binding.addr, copyLen);
-    dst.set(src);
+    const snapshot = e.snapshotsByPid.get(pid);
+    if (!snapshot) throw new Error("DRI mapping has no publication snapshot");
+    if (mergeChangedByteRuns(src, 0, snapshot, 0, dst, 0, copyLen)) {
+      for (const reader of e.bindingsByPid.keys()) {
+        if (reader !== pid) e.pendingReaders.add(reader);
+      }
+    }
+    snapshot.set(src);
   }
   get(pid, bo_id) {
     const e = this.bos.get(bo_id);
@@ -8021,60 +10330,45 @@ var GbmBoRegistry = class {
     if (!e) return void 0;
     return { w: e.w, h: e.h, stride: e.stride };
   }
-  /** Flush ONLY the creator's live mapping into the SAB. The foreign-
-   *  texture upload path calls this before reading the SAB so a texture
-   *  bind sees the producer's latest pixels. Unlike `syncFromMemory`,
-   *  consumers' (possibly stale) mappings are left out — flushing an
-   *  importer after the creator would clobber fresh bytes. */
-  syncCreatorToSab(bo_id) {
+  /** Publish every writer, preserving bytes untouched by stale readers. */
+  syncToSab(bo_id, byteLimit = Infinity) {
     const e = this.bos.get(bo_id);
     if (!e) return;
-    const binding = e.bindingsByPid.get(e.creatorPid);
-    if (binding) this.flushMemoryToSab(e, e.creatorPid, binding);
+    for (const [pid, binding] of e.bindingsByPid) {
+      this.flushMemoryToSab(e, pid, binding, byteLimit);
+    }
   }
   /** Flush each bound pid's Memory into the SAB (KMS scanout calls this
    *  per vblank so mid-bind paints land without an explicit munmap). */
   syncFromMemory(bo_id) {
     const e = this.bos.get(bo_id);
     if (!e) return;
-    for (const [pid, binding] of e.bindingsByPid) {
-      this.flushMemoryToSab(e, pid, binding);
-    }
+    this.syncToSab(bo_id);
   }
-  /** True when `pid` holds a live mapping of a bo it did not create
-   *  while the creator also holds one — i.e. imported pixels that go
-   *  stale whenever the creator keeps drawing (wl_shm's compositor
-   *  side). Cheap gate for the kernel-worker's post-poll coherence
-   *  hook: O(live bos), no copies. */
+  /** O(1) for processes without BO mappings. A mapping can be stale when
+   * another process maps that BO or its final publication is still pending. */
   hasStaleableImports(pid) {
     if (!this.bindingCounts.has(pid)) return false;
     for (const e of this.bos.values()) {
-      if (e.creatorPid !== pid && e.bindingsByPid.has(pid) && e.bindingsByPid.has(e.creatorPid)) {
+      if (e.bindingsByPid.has(pid) && (e.bindingsByPid.size > 1 || e.pendingReaders.has(pid))) {
         return true;
       }
     }
     return false;
   }
-  /** Coherence pass for `pid`'s imported bos: flush the creator's
-   *  current mapping into the SAB, then copy the SAB into `pid`'s
-   *  mapping. The kernel-worker calls this when `pid` returns from a
-   *  poll-family syscall — the moment a compositor-style importer is
-   *  about to read buffers a client just committed. Without it, an
-   *  importer only ever sees the snapshot taken by `primeBindFromSab`
-   *  at mmap time (the registry is bind-boundary-synced, not live —
-   *  see the file header), which for a long-lived wl_shm mapping means
-   *  a permanently stale first frame. */
+  /** Publish changed bytes from every writer, then refresh this process's
+   * view and baseline at a readiness boundary. */
   syncImportsForPid(pid, memory) {
     for (const e of this.bos.values()) {
-      if (e.creatorPid === pid) continue;
       const binding = e.bindingsByPid.get(pid);
       if (!binding) continue;
-      const creatorBinding = e.bindingsByPid.get(e.creatorPid);
-      if (creatorBinding) this.flushMemoryToSab(e, e.creatorPid, creatorBinding);
+      this.syncToSab(e.bo_id);
       const copyLen = Math.min(binding.len, e.size);
       if (binding.addr + copyLen > memory.buffer.byteLength) continue;
       const dst = new Uint8Array(memory.buffer, binding.addr, copyLen);
       dst.set(new Uint8Array(e.sab, 0, copyLen));
+      e.snapshotsByPid.get(pid)?.set(dst);
+      e.pendingReaders.delete(pid);
     }
   }
   onChange(fn) {
@@ -8141,6 +10435,77 @@ var KmsRegistry = class {
   crtcBindings = /* @__PURE__ */ new Map();
   masterPid = null;
   flips = 0;
+  cursor = {
+    version: 0,
+    x: 0,
+    y: 0,
+    hotX: 0,
+    hotY: 0,
+    width: 0,
+    height: 0,
+    pixels: null
+  };
+  cursorBo = 0;
+  cursorBytes = null;
+  /** Called under the kernel entry before deferred canvas presentation.
+   * Cursor mappings remain live, just like scanout; only changed pixels
+   * allocate a new owned snapshot for the detached observer phase. */
+  cursorSnapshot() {
+    if (!this.cursorBo) return this.cursor;
+    const length = this.cursor.width * this.cursor.height * 4;
+    this.gbm.syncToSab(this.cursorBo, length);
+    const bytes = this.gbm.pixelView(this.cursorBo);
+    if (!bytes || bytes.length < length) {
+      throw new Error("KMS cursor BO is unavailable or undersized");
+    }
+    if (this.cursorBytes?.every((value, i) => value === bytes[i])) return this.cursor;
+    this.cursorBytes = bytes.slice(0, length);
+    const pixels = new Uint8ClampedArray(length);
+    for (let i = 0; i < length; i += 4) {
+      const a = bytes[i + 3];
+      pixels[i] = a ? bytes[i + 2] * 255 / a : 0;
+      pixels[i + 1] = a ? bytes[i + 1] * 255 / a : 0;
+      pixels[i + 2] = a ? bytes[i] * 255 / a : 0;
+      pixels[i + 3] = a;
+    }
+    this.cursor = { ...this.cursor, version: this.cursor.version + 1, pixels };
+    return this.cursor;
+  }
+  setCursor(_pid, flags, boId, width, height, x, y, hotX, hotY) {
+    const next = { ...this.cursor, version: this.cursor.version + 1 };
+    if (flags & 1) {
+      this.cursorBo = boId;
+      this.cursorBytes = null;
+      next.pixels = null;
+      next.width = width;
+      next.height = height;
+      next.hotX = hotX;
+      next.hotY = hotY;
+    }
+    if (flags & 2) {
+      next.x = x;
+      next.y = y;
+    }
+    this.cursor = next;
+    this.cursorSnapshot();
+  }
+  /** Protocol 1 carries the complete latest state, never a dangling delta. */
+  applyCursorRecord(bytes) {
+    if (bytes.byteLength !== 32) throw new Error("Invalid KMS cursor record");
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const pid = view.getInt32(0, true);
+    if (pid !== 0 && !this.isMasterPid(pid)) return;
+    const bo = view.getUint32(4, true);
+    const width = view.getUint32(8, true);
+    const height = view.getUint32(12, true);
+    const x = view.getInt32(16, true), y = view.getInt32(20, true);
+    const hotX = view.getInt32(24, true), hotY = view.getInt32(28, true);
+    if (bo && (!width || !height || width > 64 || height > 64)) {
+      throw new Error("Invalid KMS cursor image geometry");
+    }
+    const imageChanged = bo !== this.cursorBo || width !== this.cursor.width || height !== this.cursor.height || hotX !== this.cursor.hotX || hotY !== this.cursor.hotY;
+    this.setCursor(pid, imageChanged ? 3 : 2, bo, width, height, x, y, hotX, hotY);
+  }
   addFb(fb) {
     this.fbs.set(fb.fb_id, fb);
   }
@@ -8166,6 +10531,9 @@ var KmsRegistry = class {
   }
   dropMaster() {
     this.masterPid = null;
+    this.cursorBo = 0;
+    this.cursorBytes = null;
+    this.cursor = { ...this.cursor, version: this.cursor.version + 1, pixels: null };
   }
   isMasterPid(pid) {
     return this.masterPid === pid;
@@ -8336,6 +10704,7 @@ var GlContextRegistry = class {
       canvas,
       contextId: null,
       surfaceId: null,
+      surfaceSize: null,
       buffers: /* @__PURE__ */ new Map(),
       textures: /* @__PURE__ */ new Map(),
       shaders: /* @__PURE__ */ new Map(),
@@ -8361,9 +10730,39 @@ var GlContextRegistry = class {
     this.pendingForwards.delete(pid);
     const b = this.bindings.get(pid);
     if (!b) return;
-    for (const entry of b.foreignTextures.values()) {
-      b.gl?.deleteTexture(entry.tex);
-    }
+    this.destroyContext(pid);
+    this.bindings.delete(pid);
+    for (const l of this.listeners) l(pid, "unbind");
+  }
+  /** The native WebGL context is shared and survives guest EGL contexts.
+   * Retire this context's resources and shadow state before reusing it. */
+  destroyContext(pid) {
+    const b = this.bindings.get(pid);
+    if (!b) return;
+    const gl = b.gl;
+    const boTextures = new Set([...this.gpuBos.values()].map((bo) => bo.tex));
+    const textures = /* @__PURE__ */ new Set([
+      ...b.textures.values(),
+      ...[...b.foreignTextures.values()].map((entry) => entry.tex)
+    ]);
+    for (const texture of textures) if (!boTextures.has(texture)) gl?.deleteTexture(texture);
+    for (const object of b.buffers.values()) gl?.deleteBuffer(object);
+    for (const object of b.shaders.values()) gl?.deleteShader(object);
+    for (const object of b.programs.values()) gl?.deleteProgram(object);
+    for (const object of b.vaos.values()) gl?.deleteVertexArray(object);
+    for (const object of b.fbos.values()) gl?.deleteFramebuffer(object);
+    for (const object of b.rbos.values()) gl?.deleteRenderbuffer(object);
+    for (const map of [
+      b.buffers,
+      b.textures,
+      b.shaders,
+      b.programs,
+      b.vaos,
+      b.fbos,
+      b.rbos,
+      b.uniformLocations,
+      b.foreignTextures
+    ]) map.clear();
     if (b.shadow.defaultVao) {
       b.gl?.deleteVertexArray(b.shadow.defaultVao);
       b.shadow.defaultVao = null;
@@ -8374,8 +10773,11 @@ var GlContextRegistry = class {
       b.gl?.deleteRenderbuffer(b.presentTarget.depthStencil);
       b.presentTarget = null;
     }
-    this.bindings.delete(pid);
-    for (const l of this.listeners) l(pid, "unbind");
+    b.renderTargetFbo = null;
+    b.currentProgram = null;
+    b.shadow = defaultShadow();
+    b.contextId = null;
+    b.gl = null;
   }
   get(pid) {
     return this.bindings.get(pid);
@@ -9154,29 +11556,29 @@ function dispatch(gl, b, v, p, op) {
       return;
     }
     case OP_STENCIL_OP: {
-      const fail = v.getUint32(p, true);
+      const fail3 = v.getUint32(p, true);
       const zfail = v.getUint32(p + 4, true);
       const zpass = v.getUint32(p + 8, true);
-      b.shadow.stencil.front.fail = fail;
+      b.shadow.stencil.front.fail = fail3;
       b.shadow.stencil.front.zfail = zfail;
       b.shadow.stencil.front.zpass = zpass;
-      b.shadow.stencil.back.fail = fail;
+      b.shadow.stencil.back.fail = fail3;
       b.shadow.stencil.back.zfail = zfail;
       b.shadow.stencil.back.zpass = zpass;
-      gl.stencilOp(fail, zfail, zpass);
+      gl.stencilOp(fail3, zfail, zpass);
       return;
     }
     case OP_STENCIL_OP_SEPARATE: {
       const face = v.getUint32(p, true);
-      const fail = v.getUint32(p + 4, true);
+      const fail3 = v.getUint32(p + 4, true);
       const zfail = v.getUint32(p + 8, true);
       const zpass = v.getUint32(p + 12, true);
       updateStencilFaces(b.shadow, face, (state) => {
-        state.fail = fail;
+        state.fail = fail3;
         state.zfail = zfail;
         state.zpass = zpass;
       });
-      gl.stencilOpSeparate(face, fail, zfail, zpass);
+      gl.stencilOpSeparate(face, fail3, zfail, zpass);
       return;
     }
     case OP_POLYGON_OFFSET:
@@ -10179,11 +12581,11 @@ var SubmitQueue = class {
   clients = [];
   byKey = /* @__PURE__ */ new Map();
   enqueue(binding, frame) {
-    const key = `${binding.pid}:${binding.contextId ?? "_"}`;
-    let entry = this.byKey.get(key);
+    const key2 = `${binding.pid}:${binding.contextId ?? "_"}`;
+    let entry = this.byKey.get(key2);
     if (!entry) {
-      entry = { key, binding, frames: [] };
-      this.byKey.set(key, entry);
+      entry = { key: key2, binding, frames: [] };
+      this.byKey.set(key2, entry);
       (this.isCompositor(binding.pid) ? this.compositor : this.clients).push(entry);
     }
     entry.frames.push(frame);
@@ -10228,10 +12630,10 @@ var SubmitQueue = class {
    * the process generation is gone.
    */
   removePid(pid) {
-    for (const [key, entry] of Array.from(this.byKey)) {
+    for (const [key2, entry] of Array.from(this.byKey)) {
       if (entry.binding.pid !== pid) continue;
       entry.frames.length = 0;
-      this.byKey.delete(key);
+      this.byKey.delete(key2);
       const compositorIndex = this.compositor.indexOf(entry);
       if (compositorIndex >= 0) {
         this.compositor.splice(compositorIndex, 1);
@@ -11009,10 +13411,8 @@ var WasmPosixKernel = class _WasmPosixKernel {
    * A bo owns the foreign textures bound from it (see shared's
    * BIND_FOREIGN_TEXTURE doc), so they die with the bo however it goes:
    * the guest's GEM_CLOSE (`host_gbm_bo_destroy`) or a process teardown that
-   * releases the bo's last owner (`releaseProcessViews` → `releaseProcess`,
-   * the path a crashed or force-terminated client takes). Hooking only the
-   * GEM_CLOSE import left every crashed client's textures alive in the
-   * compositor's GL context for the rest of the session.
+   * releases the kernel's last reference. Forced removal drains the same
+   * DRI close effects; host mapping retirement must never infer BO lifetime.
    */
   offBoTextureCleanup = this.bos.onChange((_pid, bo_id, event) => {
     if (event !== "destroy") return;
@@ -11071,7 +13471,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
       if (crtc == null) return;
       const canvas = this.callbacks.getKmsCanvas?.(crtc);
       if (!canvas) return;
-      const fb = this.kms.currentFb(crtc) ?? connectorModeSize(this.callbacks.getKmsDisplaySize?.());
+      const fb = b.surfaceSize ?? this.kms.currentFb(crtc) ?? connectorModeSize(this.callbacks.getKmsDisplaySize?.());
       if (canvas.width !== fb.width || canvas.height !== fb.height) {
         canvas.width = fb.width;
         canvas.height = fb.height;
@@ -11099,22 +13499,28 @@ var WasmPosixKernel = class _WasmPosixKernel {
       b.claimedKmsCrtc = attachedCrtc;
       this.callbacks.markKmsCanvasGlOwned?.(attachedCrtc);
       ensurePresentTarget(b);
+      this.gl_muxers.get(ctx)?.invalidateCurrent();
     }
   }
   /**
    * Release every device-side alias owned by one process generation.
    *
    * Normal guest close/unmap paths remain authoritative for device semantics;
-   * this idempotent host backstop covers exec, traps, and forced termination
-   * where those guest hooks may never run.
+   * exec retires address-space aliases while retaining open DRI resources.
+   * The exit backstop also releases ownership for traps or forced termination
+   * where guest cleanup hooks may never run.
    */
-  releaseProcessViews(pid) {
+  releaseProcessViews(pid, transition = "exit") {
     this.gl_submit_queue.removePid(pid);
     this.releaseClaimedKmsCanvas(pid);
     this.gl.unbind(pid);
     this.framebuffers.unbind(pid);
-    this.bos.releaseProcess(pid);
-    if (this.kms.isMasterPid(pid)) this.kms.dropMaster();
+    if (transition === "exec") {
+      this.bos.releaseProcessMappings(pid);
+    } else {
+      this.bos.releaseProcess(pid);
+      if (this.kms.isMasterPid(pid)) this.kms.dropMaster();
+    }
   }
   /**
    * Install the deferred-resource byte provider.
@@ -11564,6 +13970,14 @@ var WasmPosixKernel = class _WasmPosixKernel {
         this.#kernelEntryGate
       );
       this.#initializationState = "initialized";
+      const exports = this.#instance.exports;
+      const configureCursor = exports.kernel_kms_cursor_configure;
+      const readCursor = exports.kernel_kms_cursor_read;
+      if (typeof configureCursor === "function" && typeof readCursor === "function") {
+        if (configureCursor(1) !== 1) throw new Error("Kernel rejected KMS cursor protocol 1");
+      } else if (configureCursor || readCursor) {
+        throw new Error("Kernel has an incomplete KMS cursor transport");
+      }
       this.#publishHostDirectoryRoots();
     } catch (error) {
       this.#abortInitialization(error);
@@ -11927,19 +14341,27 @@ var WasmPosixKernel = class _WasmPosixKernel {
           }
         },
         // Workstream H4 (host-surface minimization): the network-interface
-        // ioctl content (interface table, MAC, ifreq/ifconf layout) is now
-        // kernel-owned (`crates/runtime-core/src/netif.rs`). This is the one
-        // remaining host-owned fact the kernel cannot compute itself.
-        host_network_local_address: (bufPtr) => {
-          const address = this.io.network?.localAddress;
-          if (address?.length !== 4) return 0;
+        // ioctl content (interface table, MAC, flags, ifreq/ifconf layout) is
+        // kernel-owned (`crates/runtime-core/src/netif.rs`). The address the
+        // host assigned and the netmask of its link are the one remaining
+        // host-owned fact the kernel cannot compute itself.
+        host_network_interface: (bufPtr) => {
+          const address2 = this.io.network?.localAddress;
+          const netmask = this.io.network?.localNetmask;
+          if (address2?.length !== 4) return 0;
+          if (netmask?.length !== 4) {
+            throw new Error("the network adapter reports an address without its netmask");
+          }
           try {
             const destination = this.#rustLentKernelDestination(
               bufPtr,
-              4,
-              "host_network_local_address destination"
+              8,
+              "host_network_interface destination"
             );
-            this.#writeKernelBytes(destination, address);
+            const config = new IntrinsicUint8Array2(8);
+            config.set(address2, 0);
+            config.set(netmask, 4);
+            this.#writeKernelBytes(destination, config);
             return 1;
           } catch {
             return 0;
@@ -11998,8 +14420,32 @@ var WasmPosixKernel = class _WasmPosixKernel {
         host_net_readiness: (handle) => {
           return this.#hostNetReadiness(handle);
         },
+        host_net_connect_from: (handle, addrPtr, addrLen, port2, source, sourcePort) => {
+          return this.#hostNetConnect(handle, addrPtr, addrLen, port2, { addr: new Uint8Array([source >>> 24, source >>> 16 & 255, source >>> 8 & 255, source & 255]), port: sourcePort });
+        },
         host_net_connect_status: (handle) => {
           return this.#hostNetConnectStatus(handle);
+        },
+        host_net_local_endpoint: (handle) => {
+          try {
+            const value = this.io.network?.localEndpoint?.(handle);
+            if (!value) return -95n;
+            if (!(value.addr instanceof Uint8Array) || value.addr.length !== 4 || !Number.isInteger(value.port) || value.port < 1 || value.port > 65535) return -5n;
+            let packed = 0n;
+            for (const byte of value.addr) packed = packed << 8n | BigInt(byte);
+            return packed << 16n | BigInt(value.port);
+          } catch (error) {
+            return Number.isInteger(error?.errno) && error.errno > 0 && error.errno <= 4095 ? -BigInt(error.errno) : -5n;
+          }
+        },
+        host_net_shutdown: (handle, how) => {
+          try {
+            if (!this.io.network?.shutdown) return -95;
+            this.io.network.shutdown(handle, how);
+            return 0;
+          } catch (error) {
+            return Number.isInteger(error?.errno) && error.errno > 0 && error.errno <= 4095 ? -error.errno : -5;
+          }
         },
         host_net_close: (handle) => {
           return this.#hostNetClose(handle);
@@ -12009,6 +14455,9 @@ var WasmPosixKernel = class _WasmPosixKernel {
         },
         host_udp_bind: (handle, addrA, addrB, addrC, addrD, port2) => {
           return this.#hostUdpBind(handle, addrA, addrB, addrC, addrD, port2);
+        },
+        host_udp_source_address: (a, b, c, d) => {
+          return BigInt(this.callbacks.onUdpSourceAddress?.([a, b, c, d]) ?? -101);
         },
         host_udp_unbind: (handle) => {
           return this.#hostUdpUnbind(handle);
@@ -12193,9 +14642,8 @@ var WasmPosixKernel = class _WasmPosixKernel {
           this.releaseClaimedKmsCanvas(pid);
           const b = this.gl.get(pid);
           if (!b) return;
-          b.gl = null;
-          b.contextId = null;
-          b.currentProgram = null;
+          if (b.gl) this.gl_muxers.get(b.gl)?.invalidateCurrent();
+          this.gl.destroyContext(pid);
           if (b.forward) b.forward.onDestroyContext();
         },
         host_gl_create_surface: (pid, surfaceId, attrsPtr, attrsLen) => {
@@ -12211,6 +14659,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
             const dv = new DataView(attrs.buffer, attrs.byteOffset, 20);
             const w = dv.getUint32(4, true);
             const h = dv.getUint32(8, true);
+            if (w > 0 && h > 0) b.surfaceSize = { width: w, height: h };
             if (b.canvas && w > 0 && h > 0 && (b.canvas.width !== w || b.canvas.height !== h)) {
               b.canvas.width = w;
               b.canvas.height = h;
@@ -12221,11 +14670,21 @@ var WasmPosixKernel = class _WasmPosixKernel {
               this.gl.applyRenderTarget(b);
             }
           }
+          if (b.gl && b.claimedKmsCrtc != null) {
+            const previousDefault = b.renderTargetFbo;
+            const previousFramebuffer = b.shadow.fbo;
+            ensurePresentTarget(b);
+            if (previousFramebuffer !== null && previousFramebuffer !== previousDefault) {
+              b.shadow.fbo = previousFramebuffer;
+            }
+            this.gl_muxers.get(b.gl)?.invalidateCurrent();
+          }
         },
         host_gl_destroy_surface: (pid, _surfaceId) => {
           const b = this.gl.get(pid);
           if (!b) return;
           b.surfaceId = null;
+          b.surfaceSize = null;
           b.pendingRenderTargetBoId = 0;
           if (b.renderTargetFbo) {
             b.renderTargetFbo = null;
@@ -12234,6 +14693,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
           if (b.presentTarget) {
             b.gl?.deleteFramebuffer(b.presentTarget.fbo);
             b.gl?.deleteTexture(b.presentTarget.tex);
+            b.gl?.deleteRenderbuffer(b.presentTarget.depthStencil);
             b.presentTarget = null;
           }
         },
@@ -12318,6 +14778,9 @@ var WasmPosixKernel = class _WasmPosixKernel {
           if (b && b.claimedKmsCrtc != null) {
             const established = b.presentTarget !== null;
             if (ensurePresentTarget(b) && established) blitPresentTarget(b);
+            if (b.gl && b.canvas && (b.presentTarget !== null || b.renderTargetFbo === null)) {
+              this.callbacks.onKmsGlPresented?.(b.claimedKmsCrtc);
+            }
           }
           return 0;
         },
@@ -12384,7 +14847,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
           const dims = this.bos.dims(boId);
           const bytes = this.bos.pixelView(boId);
           if (!dims || !bytes) return -2;
-          this.bos.syncCreatorToSab(boId);
+          this.bos.syncToSab(boId);
           return bindForeignTexture(b, boId, bytes, dims);
         },
         host_kms_set_master: (pid) => {
@@ -14052,7 +16515,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
     });
   }
   // ---- Networking host imports ----
-  #hostNetConnect(handle, addrPtr, addrLen, port2) {
+  #hostNetConnect(handle, addrPtr, addrLen, port2, source) {
     if (!this.io.network) return -111;
     let addr;
     try {
@@ -14061,9 +16524,10 @@ var WasmPosixKernel = class _WasmPosixKernel {
       return -14;
     }
     try {
-      this.io.network.connect(handle, addr, port2);
+      this.io.network.connect(handle, addr, port2, source);
       return 0;
-    } catch {
+    } catch (error) {
+      if (Number.isInteger(error?.errno) && error.errno > 0 && error.errno <= 4095) return -error.errno;
       return -111;
     }
   }
@@ -14154,7 +16618,7 @@ var WasmPosixKernel = class _WasmPosixKernel {
     return 0;
   }
   #hostUdpBind(handle, addrA, addrB, addrC, addrD, port2) {
-    if (!this.callbacks.onUdpBind) return 0;
+    if (!this.callbacks.onUdpBind) return (addrA | addrB | addrC | addrD) === 0 ? 0 : -99;
     return this.callbacks.onUdpBind(handle, [addrA, addrB, addrC, addrD], port2);
   }
   #hostUdpUnbind(handle) {
@@ -14240,6 +16704,9 @@ var WasmPosixKernel = class _WasmPosixKernel {
     }
   }
 };
+
+// src/input/input-source.ts
+var ABSOLUTE_POINTER_EXTENT = 65536;
 
 // src/channel-scalar-contract.ts
 init_abi();
@@ -14867,9 +17334,9 @@ var WasmModuleCache = class {
   #retainedBytes = 0;
   #sweepTimer = null;
   #sweepAt = Infinity;
-  #finalizer = new FinalizationRegistry((key) => {
-    const entry = this.#entries.get(key);
-    if (entry && entry.ref.deref() === void 0) this.#entries.delete(key);
+  #finalizer = new FinalizationRegistry((key2) => {
+    const entry = this.#entries.get(key2);
+    if (entry && entry.ref.deref() === void 0) this.#entries.delete(key2);
   });
   #stats = {
     compiles: 0,
@@ -14927,8 +17394,8 @@ var WasmModuleCache = class {
   }
   stats() {
     let liveEntries = 0;
-    for (const [key, entry] of this.#entries) {
-      if (entry.ref.deref() === void 0) this.#entries.delete(key);
+    for (const [key2, entry] of this.#entries) {
+      if (entry.ref.deref() === void 0) this.#entries.delete(key2);
       else liveEntries += 1;
     }
     return {
@@ -14963,15 +17430,15 @@ var WasmModuleCache = class {
     return identity;
   }
   #getOrCompile(variant, identity, produce) {
-    const key = `${variant}:${identity.id}`;
-    const cached = this.#entries.get(key)?.ref.deref();
+    const key2 = `${variant}:${identity.id}`;
+    const cached = this.#entries.get(key2)?.ref.deref();
     if (cached !== void 0) {
       this.#stats.hits += 1;
       if (variant === "thread") this.#stats.threadHits += 1;
-      this.#retain(key, cached, identity.byteLength);
+      this.#retain(key2, cached, identity.byteLength);
       return Promise.resolve(cached);
     }
-    const pending = this.#inflight.get(key);
+    const pending = this.#inflight.get(key2);
     if (pending) {
       this.#stats.joins += 1;
       if (variant === "thread") this.#stats.threadJoins += 1;
@@ -14979,14 +17446,14 @@ var WasmModuleCache = class {
     }
     const compilation = (async () => {
       const module = await produce();
-      this.#entries.set(key, { ref: new WeakRef(module) });
-      this.#finalizer.register(module, key);
-      this.#retain(key, module, identity.byteLength);
+      this.#entries.set(key2, { ref: new WeakRef(module) });
+      this.#finalizer.register(module, key2);
+      this.#retain(key2, module, identity.byteLength);
       return module;
     })();
-    this.#inflight.set(key, compilation);
+    this.#inflight.set(key2, compilation);
     const settle = () => {
-      if (this.#inflight.get(key) === compilation) this.#inflight.delete(key);
+      if (this.#inflight.get(key2) === compilation) this.#inflight.delete(key2);
     };
     compilation.then(settle, settle);
     return compilation;
@@ -15004,16 +17471,16 @@ var WasmModuleCache = class {
       this.#stats.compileMs += this.#now() - start;
     }
   }
-  #retain(key, module, byteLength) {
+  #retain(key2, module, byteLength) {
     const { maxBytes, idleMs } = this.#retention;
-    const previous = this.#retained.get(key);
+    const previous = this.#retained.get(key2);
     if (previous) {
-      this.#retained.delete(key);
+      this.#retained.delete(key2);
       this.#retainedBytes -= previous.byteLength;
     }
     if (maxBytes <= 0 || idleMs <= 0 || byteLength > maxBytes) return;
     const expiresAt = this.#now() + idleMs;
-    this.#retained.set(key, { module, byteLength, expiresAt });
+    this.#retained.set(key2, { module, byteLength, expiresAt });
     this.#retainedBytes += byteLength;
     for (const [oldest, entry] of this.#retained) {
       if (this.#retainedBytes <= maxBytes) break;
@@ -15043,9 +17510,9 @@ var WasmModuleCache = class {
     this.#sweepAt = Infinity;
     const now = this.#now();
     let next = Infinity;
-    for (const [key, entry] of this.#retained) {
+    for (const [key2, entry] of this.#retained) {
       if (entry.expiresAt <= now) {
-        this.#retained.delete(key);
+        this.#retained.delete(key2);
         this.#retainedBytes -= entry.byteLength;
       } else {
         next = Math.min(next, entry.expiresAt);
@@ -15062,8 +17529,8 @@ function buildRawHttpRequest(req) {
   let header = `${req.method} ${req.url} HTTP/1.1\r
 `;
   const lowerKeys = Object.keys(req.headers).map((k) => k.toLowerCase());
-  for (const [key, value] of Object.entries(req.headers)) {
-    header += `${key}: ${value}\r
+  for (const [key2, value] of Object.entries(req.headers)) {
+    header += `${key2}: ${value}\r
 `;
   }
   if (req.body && req.body.length > 0 && !lowerKeys.includes("content-length")) {
@@ -15103,8 +17570,8 @@ function parseRawHttpResponse(data, requestMethod = "GET") {
   const headers = {};
   const valuesByLowerName = /* @__PURE__ */ new Map();
   for (let i = 1; i < lines.length; i++) {
-    const { key, value } = parseHttpFieldLine(lines[i], "header");
-    const lowerName = key.toLowerCase();
+    const { key: key2, value } = parseHttpFieldLine(lines[i], "header");
+    const lowerName = key2.toLowerCase();
     const values = valuesByLowerName.get(lowerName) ?? [];
     values.push(value);
     valuesByLowerName.set(lowerName, values);
@@ -15114,7 +17581,7 @@ function parseRawHttpResponse(data, requestMethod = "GET") {
     if (lowerName === "set-cookie" && existingKey !== void 0) {
       headers[existingKey] += "\n" + value;
     } else {
-      headers[key] = value;
+      headers[key2] = value;
     }
   }
   let body = data.subarray(headerEnd + 4);
@@ -15132,8 +17599,8 @@ function parseRawHttpResponse(data, requestMethod = "GET") {
       throw new Error("in-kernel HTTP response has unsupported transfer encoding");
     }
     if (!bodyForbidden) body = decodeChunked(body);
-    for (const key of Object.keys(headers)) {
-      if (key.toLowerCase() === "transfer-encoding") delete headers[key];
+    for (const key2 of Object.keys(headers)) {
+      if (key2.toLowerCase() === "transfer-encoding") delete headers[key2];
     }
   } else if (contentLengths.length > 0) {
     if (!contentLengths.every((value) => value === contentLengths[0]) || !/^(?:0|[1-9][0-9]*)$/u.test(contentLengths[0])) {
@@ -15151,8 +17618,8 @@ function parseHttpFieldLine(line, kind) {
   if (colon < 1) {
     throw new Error(`in-kernel HTTP response has a malformed ${kind} line`);
   }
-  const key = line.slice(0, colon);
-  if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(key)) {
+  const key2 = line.slice(0, colon);
+  if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(key2)) {
     throw new Error(`in-kernel HTTP response has a malformed ${kind} name`);
   }
   const rawValue = line.slice(colon + 1);
@@ -15160,7 +17627,7 @@ function parseHttpFieldLine(line, kind) {
     throw new Error(`in-kernel HTTP response has a malformed ${kind} value`);
   }
   return {
-    key,
+    key: key2,
     value: rawValue.replace(/^[\t ]*/u, "").replace(/[\t ]*$/u, "")
   };
 }
@@ -15246,12 +17713,12 @@ init_abi();
 var CLIPBOARD_ACK_TIMEOUT_MS = 2e3;
 var CLIPBOARD_ACK_POLL_MS = 16;
 var EINVAL = 22;
-var EMSGSIZE = 90;
+var EMSGSIZE2 = 90;
 var ENXIO = 6;
 function clipboardOfferFailure(negErrno2) {
   const errno = -negErrno2;
   if (errno === ENXIO) return { ok: false, reason: "no-agent" };
-  if (errno === EMSGSIZE) return { ok: false, reason: "too-large" };
+  if (errno === EMSGSIZE2) return { ok: false, reason: "too-large" };
   if (errno === EINVAL) return { ok: false, reason: "invalid-text" };
   return { ok: false, reason: "agent-error", errno };
 }
@@ -16676,6 +19143,7 @@ function linkedFramePointerFormat(ptrWidth) {
 
 // src/worker-protocol.ts
 var EXEC_RETIRE_SIGNAL_CODE = 1262835794;
+var EXIT_RETIRE_SIGNAL_CODE = 1262835796;
 
 // src/audio/pcm-transport.ts
 init_abi();
@@ -16965,20 +19433,22 @@ var EAGAIN4 = 11;
 var EACCES = 13;
 var EBADF = 9;
 var EBUSY = 16;
+var EADDRNOTAVAIL5 = 99;
+var ENETUNREACH3 = 101;
 var EFAULT = 14;
 var EIO3 = 5;
 var EINVAL2 = 22;
-var EMSGSIZE2 = 90;
+var EMSGSIZE3 = 90;
 var EOVERFLOW2 = 75;
 var ENOMEM2 = 12;
 var ERANGE = 34;
 var ENAMETOOLONG = 36;
-var ENOENT = 2;
+var ENOENT2 = 2;
 var ENOSYS = 38;
 var ENOTSUP = 95;
 var MISSING_SHARED_MAPPING_EXPORT = "Kernel lacks the shared-mapping exports";
 var ETIMEDOUT2 = 110;
-var EHOSTUNREACH = 113;
+var EHOSTUNREACH3 = 113;
 var EALREADY = 114;
 var EINPROGRESS = 115;
 var EINTR_ERRNO = 4;
@@ -17167,7 +19637,7 @@ function validateCompleteChannelInputSize(syscallNr, argIndex, size) {
   if (syscallNr === ABI_SYSCALLS.MqTimedsend && argIndex === 1 && size > MAX_REPORTABLE_TRANSFER_BYTES) {
     throw new KernelScratchError(
       "message exceeds the maximum reportable queue message size",
-      EMSGSIZE2
+      EMSGSIZE3
     );
   }
 }
@@ -17903,20 +20373,8 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       // before binding an FB (SDL2's KMSDRM ordering). See
       // WasmPosixKernel.tryAttachKmsGlCanvas.
       getKmsCrtcIds: () => [...this.kmsCanvases.keys()],
-      // The scanout framebuffer defines the pointer coordinate space:
-      // the pane maps pointer positions into framebuffer pixels and
-      // `sendPointerAbs` forwards them as EV_ABS, so EVIOCGABS on the
-      // pointer device must advertise exactly this framebuffer's size.
-      // This SETCRTC hook keeps the range truthful for consumers that
-      // open the device later and for mid-session modesets. Consumers
-      // scale EV_ABS by the range (SDL's evdev backend does), so a range
-      // that is not the framebuffer's misplaces the pointer. It cannot reach a
-      // libinput consumer that is already running — libinput caches
-      // absinfo at device open — which is why `setKmsDisplaySize`
-      // advertises the derived connector mode before the guest starts.
-      onKmsScanoutFb: (_crtcId, width, height) => {
-        this.setInputCanvasDims(width, height);
-      },
+      // Absolute pointer axes belong to the device, not the framebuffer.
+      // Never change their range at SETCRTC: running input clients cache it.
       markKmsCanvasGlOwned: (crtcId) => {
         releaseKmsGlPresenter(this.kmsGlPresenters.get(crtcId));
         this.kmsGlPresenters.delete(crtcId);
@@ -17926,6 +20384,13 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
         this.kmsContextMode.set(crtcId, "webgl2");
         const stats = this.kmsStatsViews.get(crtcId);
         if (stats && stats.length > 7) Atomics.store(stats, 7, 3);
+      },
+      onKmsGlPresented: (crtcId) => {
+        const stats = this.kmsStatsViews.get(crtcId);
+        if (stats) {
+          Atomics.add(stats, 0, 1);
+          Atomics.store(stats, 1, performance.now() | 0);
+        }
       },
       markKmsCanvasGlReleased: (crtcId) => {
         if (!this.kmsModeBeforeGlOwn.has(crtcId)) return;
@@ -18000,96 +20465,106 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
         );
         return 0;
       },
+      onUdpSourceAddress: (destination) => {
+        const selected = this.io.network?.udpSourceAddress?.(new Uint8Array(destination));
+        if (typeof selected === "number") return -selected;
+        const address2 = selected;
+        if (address2?.length !== 4 || address2.every((octet) => octet === 0)) return -ENETUNREACH3;
+        return (address2[0] << 24 | address2[1] << 16 | address2[2] << 8 | address2[3]) >>> 0;
+      },
       onUdpBind: (handle, addr, port2) => {
         const pid = this.currentHandlePid;
-        if (pid === 0 || !this.io.network?.bindUdp) return 0;
-        const key = `${pid}:${handle}`;
+        if (pid === 0) return -EINVAL2;
+        if (!this.io.network?.bindUdp) {
+          return addr.every((octet) => octet === 0) ? 0 : -EADDRNOTAVAIL5;
+        }
+        const key2 = `${pid}:${handle}`;
         const result = this.io.network.bindUdp(
-          key,
+          key2,
           new Uint8Array(addr),
           port2,
           {
             receive: (datagram) => this.injectUdpDatagram(pid, datagram)
           }
         );
-        if (result === 0) this.udpBindings.add(key);
+        if (result === 0) this.udpBindings.add(key2);
         return result === 0 ? 0 : -result;
       },
       onUdpUnbind: (handle) => {
         const pid = this.currentHandlePid;
         if (pid === 0 || !this.io.network?.unbindUdp) return 0;
-        const key = `${pid}:${handle}`;
-        this.io.network.unbindUdp(key);
-        this.udpBindings.delete(key);
+        const key2 = `${pid}:${handle}`;
+        this.io.network.unbindUdp(key2);
+        this.udpBindings.delete(key2);
         return 0;
       },
       onPosixTimer: (timerId, signo, valueMs, intervalMs) => {
         const pid = this.currentHandlePid;
         if (pid === 0) return 0;
-        const key = `${pid}:${timerId}`;
-        const existing = this.posixTimers.get(key);
+        const key2 = `${pid}:${timerId}`;
+        const existing = this.posixTimers.get(key2);
         if (existing) {
           this.#cancelRegisteredTimeout(existing.timeout);
           if (existing.interval) clearInterval(existing.interval);
           if (existing.longInterval) {
             this.#cancelRegisteredTimeout(existing.longInterval);
           }
-          this.posixTimers.delete(key);
+          this.posixTimers.delete(key2);
         }
         if (valueMs > 0 || intervalMs > 0) {
           const delay = Math.max(0, valueMs);
           const timeout = this.#registerTimeout(() => {
-            const current = this.posixTimers.get(key);
+            const current = this.posixTimers.get(key2);
             if (!current || current.timeout !== timeout) return;
             if (!this.processes.has(pid)) {
-              this.posixTimers.delete(key);
+              this.posixTimers.delete(key2);
               return;
             }
             this.firePosixTimer(pid, timerId, signo);
             if (intervalMs > MAX_ENGINE_TIMER_DELAY_MS) {
               const rearm = () => {
                 const next = this.#registerTimeout(() => {
-                  const intervalEntry = this.posixTimers.get(key);
+                  const intervalEntry = this.posixTimers.get(key2);
                   if (!intervalEntry || intervalEntry.longInterval !== next) {
                     return;
                   }
                   if (!this.processes.has(pid)) {
-                    this.posixTimers.delete(key);
+                    this.posixTimers.delete(key2);
                     return;
                   }
                   this.firePosixTimer(pid, timerId, signo);
                   rearm();
                 }, intervalMs);
-                const entry = this.posixTimers.get(key);
+                const entry = this.posixTimers.get(key2);
                 if (entry?.timeout === timeout) entry.longInterval = next;
                 else this.#cancelRegisteredTimeout(next);
               };
               rearm();
             } else if (intervalMs > 0) {
               const iv = setInterval(() => {
-                const intervalEntry = this.posixTimers.get(key);
+                const intervalEntry = this.posixTimers.get(key2);
                 if (!intervalEntry || intervalEntry.interval !== iv) {
                   clearInterval(iv);
                   return;
                 }
                 if (!this.processes.has(pid)) {
                   clearInterval(iv);
-                  this.posixTimers.delete(key);
+                  this.posixTimers.delete(key2);
                   return;
                 }
                 this.firePosixTimer(pid, timerId, signo);
               }, intervalMs);
-              const entry = this.posixTimers.get(key);
+              const entry = this.posixTimers.get(key2);
               if (entry?.timeout === timeout) {
                 entry.interval = iv;
               } else {
                 clearInterval(iv);
               }
             } else {
-              this.posixTimers.delete(key);
+              this.posixTimers.delete(key2);
             }
           }, delay);
-          this.posixTimers.set(key, { timeout, signo });
+          this.posixTimers.set(key2, { timeout, signo });
         }
         return 0;
       }
@@ -18578,6 +21053,8 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
    *  host without an OffscreenCanvas polyfill) so the pump doesn't retry
    *  `getContext` at 60 Hz. */
   kmsGlPresenters = /* @__PURE__ */ new Map();
+  /** Cursor output is independent of the CPU/GPU scanout presenter. */
+  kmsCursorPlanes = /* @__PURE__ */ new Map();
   /** Canvases whose WebGL context-loss listeners are installed. A lost
    *  context silently no-ops every GL call, so without these hooks the
    *  pump keeps "presenting" frozen pixels while the kernel-side flip
@@ -19285,13 +21762,13 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
             let channelTidEntries = 0;
             let forkContextEntries = 0;
             let activeThreadChannels = 0;
-            for (const [key, tid] of this.channelTids) {
-              if (key.startsWith(prefix) && tid !== pid) {
+            for (const [key2, tid] of this.channelTids) {
+              if (key2.startsWith(prefix) && tid !== pid) {
                 channelTidEntries++;
               }
             }
-            for (const key of this.threadForkContexts.keys()) {
-              if (key.startsWith(prefix)) forkContextEntries++;
+            for (const key2 of this.threadForkContexts.keys()) {
+              if (key2.startsWith(prefix)) forkContextEntries++;
             }
             for (const channel of this.activeChannels) {
               if (channel.pid !== pid) continue;
@@ -20200,7 +22677,7 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       });
       if (!Number.isSafeInteger(result)) {
         failErrno = EIO3;
-      } else if (result === -ENOENT) {
+      } else if (result === -ENOENT2) {
         removed = false;
       } else if (result < 0) {
         failErrno = -result;
@@ -20520,6 +22997,7 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
     } catch {
     }
     this.#initialized = true;
+    this.setInputCanvasDims(ABSOLUTE_POINTER_EXTENT, ABSOLUTE_POINTER_EXTENT);
     if (this.kmsCanvases.size > 0 || this.kmsStatsViews.size > 0) {
       this.startVblankPump();
     }
@@ -22346,11 +24824,11 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
   hostPosixTimerIdsForProcess(pid) {
     const prefix = `${pid}:`;
     const timerIds = [];
-    for (const key of this.posixTimers.keys()) {
-      if (!key.startsWith(prefix)) continue;
-      const timerId = Number(key.slice(prefix.length));
+    for (const key2 of this.posixTimers.keys()) {
+      if (!key2.startsWith(prefix)) continue;
+      const timerId = Number(key2.slice(prefix.length));
       if (!Number.isSafeInteger(timerId) || timerId < 0 || timerId > 4294967295) {
-        throw new Error(`invalid host POSIX timer identity ${key}`);
+        throw new Error(`invalid host POSIX timer identity ${key2}`);
       }
       timerIds.push(timerId);
     }
@@ -22457,10 +24935,10 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
   applyProcessHostTimerCleanup(pid, plan) {
     if (plan.cancelAlarm) this.cancelAlarmTimerForProcess(pid);
     for (const timerId of plan.posixTimerIds) {
-      const key = `${pid}:${timerId}`;
-      const timer = this.posixTimers.get(key);
+      const key2 = `${pid}:${timerId}`;
+      const timer = this.posixTimers.get(key2);
       if (timer === void 0) continue;
-      this.posixTimers.delete(key);
+      this.posixTimers.delete(key2);
       this.#cancelRegisteredTimeout(timer.timeout);
       if (timer.interval !== void 0) {
         this.#cancelRegisteredInterval(timer.interval);
@@ -22540,10 +25018,10 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
    * generation. A stale exec continuation must never clear the replacement
    * image merely because it inherited the same numeric pid.
    */
-  releaseProcessViews(pid, expectedMemory) {
+  releaseProcessViews(pid, expectedMemory, transition = "exit") {
     const registration = this.processes.get(pid);
     if (!registration || registration.memory !== expectedMemory) return false;
-    this.#kernel.releaseProcessViews(pid);
+    this.#kernel.releaseProcessViews(pid, transition);
     return true;
   }
   /**
@@ -23029,9 +25507,9 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       }
     }
     const prefix = `${pid}:`;
-    for (const [key, listener] of this.tcpListeners) {
-      if (!key.startsWith(prefix)) continue;
-      const fd = Number(key.slice(prefix.length));
+    for (const [key2, listener] of this.tcpListeners) {
+      if (!key2.startsWith(prefix)) continue;
+      const fd = Number(key2.slice(prefix.length));
       const target = this.tcpListenerTargets.get(listener.port)?.find((entry2) => entry2.pid === pid && entry2.fd === fd);
       const wakeIdx = target?.acceptWakeIdx ?? getAcceptWake(pid, fd);
       if (wakeIdx >= 0) snapshot.set(`${listener.port}:${fd}`, wakeIdx);
@@ -23159,9 +25637,9 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
     }
     const nextTcpListeners = new Map(this.tcpListeners);
     const removedByPort = /* @__PURE__ */ new Map();
-    for (const [key, listener] of Array.from(this.tcpListeners.entries())) {
-      if (!key.startsWith(prefix)) continue;
-      const fd = Number(key.slice(prefix.length));
+    for (const [key2, listener] of Array.from(this.tcpListeners.entries())) {
+      if (!key2.startsWith(prefix)) continue;
+      const fd = Number(key2.slice(prefix.length));
       const replacementFd = this.#resolveExecListenerFdWithinKernelEntry(
         pid,
         listener.port,
@@ -23171,7 +25649,7 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
         entry
       );
       if (replacementFd === fd) continue;
-      nextTcpListeners.delete(key);
+      nextTcpListeners.delete(key2);
       if (replacementFd === null) {
         removedByPort.set(listener.port, listener);
       } else {
@@ -23375,7 +25853,7 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       return false;
     }
     if (registration) {
-      this.releaseProcessViews(pid, registration.memory);
+      this.releaseProcessViews(pid, registration.memory, "exec");
     }
     (this.execHandoffPids ??= /* @__PURE__ */ new Set()).add(pid);
     for (const channel of registration?.channels ?? []) {
@@ -23429,14 +25907,14 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
       if (channel.pid === pid) this.activeChannelRequests.delete(channel);
     }
     this.clearProcessThreadTransportState(pid);
-    for (const [key, entry] of this.posixTimers) {
-      if (key.startsWith(`${pid}:`)) {
+    for (const [key2, entry] of this.posixTimers) {
+      if (key2.startsWith(`${pid}:`)) {
         this.#cancelRegisteredTimeout(entry.timeout);
         if (entry.interval) clearInterval(entry.interval);
         if (entry.longInterval) {
           this.#cancelRegisteredTimeout(entry.longInterval);
         }
-        this.posixTimers.delete(key);
+        this.posixTimers.delete(key2);
       }
     }
     for (const [ch, timer] of this.socketTimeoutTimers) {
@@ -23454,13 +25932,13 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
   /** Remove host transport metadata for every pthread in one process image. */
   clearProcessThreadTransportState(pid) {
     const prefix = `${pid}:`;
-    for (const key of Array.from(this.channelTids.keys())) {
-      if (!key.startsWith(prefix)) continue;
-      const channelOffset = Number(key.slice(prefix.length));
+    for (const key2 of Array.from(this.channelTids.keys())) {
+      if (!key2.startsWith(prefix)) continue;
+      const channelOffset = Number(key2.slice(prefix.length));
       this.releaseThreadChannelOwnership(pid, channelOffset);
     }
-    for (const key of this.threadForkContexts.keys()) {
-      if (key.startsWith(prefix)) this.threadForkContexts.delete(key);
+    for (const key2 of this.threadForkContexts.keys()) {
+      if (key2.startsWith(prefix)) this.threadForkContexts.delete(key2);
     }
   }
   /** Release the exec guard only after the outer worker generation is installed. */
@@ -25010,9 +27488,23 @@ var CentralizedKernelWorker = class _CentralizedKernelWorker {
     if (syscallNr === SYS_EXIT || syscallNr === SYS_EXIT_GROUP) {
       this.completeProcessExitHandshake(channel, syscallNr, entry);
     } else {
-      channel.handling = true;
+      this.wakeExitedChannelForRetirement(channel, entry);
     }
     return true;
+  }
+  wakeExitedChannelForRetirement(channel, entry) {
+    const view = new DataView(channel.memory.buffer, channel.channelOffset);
+    view.setUint32(CH_SIG_SIGNUM, SIGKILL, true);
+    view.setUint32(CH_SIG_HANDLER, 0, true);
+    view.setUint32(CH_SIG_SI_CODE, EXIT_RETIRE_SIGNAL_CODE, true);
+    this.completeChannelRaw(channel, -1, EINTR_ERRNO, entry);
+    if (entry) {
+      entry.deferProtocolEffect(() => {
+        this.relistenChannel(channel);
+      });
+    } else {
+      this.relistenChannel(channel);
+    }
   }
   completeProcessExitHandshake(channel, syscallNr, entry) {
     this.completeChannelRaw(channel, 0, 0, entry);
@@ -26202,11 +28694,11 @@ ${recentSyscalls}`
           const elapsed = performance.now() - sysprofStart;
           const g = globalThis;
           if (!g.__sysprofTable) g.__sysprofTable = /* @__PURE__ */ new Map();
-          const key = `${channel.pid}:${syscallNr}`;
-          let row = g.__sysprofTable.get(key);
+          const key2 = `${channel.pid}:${syscallNr}`;
+          let row = g.__sysprofTable.get(key2);
           if (!row) {
             row = { count: 0, totalMs: 0, maxMs: 0 };
-            g.__sysprofTable.set(key, row);
+            g.__sysprofTable.set(key2, row);
           }
           row.count++;
           row.totalMs += elapsed;
@@ -27465,6 +29957,7 @@ ${recent}`
     this.pendingSelectRetries.clear();
     this.pendingSleeps.clear();
     this.pendingSignalWaits.clear();
+    for (const wait of Array.from(this.pendingFutexWaits.values())) wait.retire();
     this.pendingFutexWaits.clear();
     for (const channel of Array.from(this.blockingRetrySnapshots.keys())) {
       this.#releaseBlockingRetrySnapshot(channel, entry);
@@ -27473,7 +29966,7 @@ ${recent}`
     const woken = /* @__PURE__ */ new Set();
     const getExitStatus = this.#kernelInstanceIfAvailableForEntry(entry)?.exports.kernel_get_process_exit_status;
     for (const registration of this.processes.values()) {
-      if (getExitStatus && getExitStatus(registration.pid) !== -1) continue;
+      const alreadyExited = this.hostReaped?.has(registration.pid) || getExitStatus !== void 0 && getExitStatus(registration.pid) !== -1;
       for (const channel of registration.channels) {
         let status;
         try {
@@ -27487,7 +29980,7 @@ ${recent}`
         }
         if (status !== CH_PENDING) continue;
         try {
-          this.wakeChannelForTeardownExit(channel, entry);
+          this.wakeChannelForTeardownExit(channel, entry, alreadyExited);
           woken.add(channel.pid);
         } catch (err) {
           this.#rethrowKernelEntryFatal(err);
@@ -27562,10 +30055,10 @@ ${recent}`
     }
     dropChannelKeyed(this.pendingSelectRetries);
     dropChannelKeyed(this.pendingSleeps);
-    for (const [key, value] of [...this.pendingSignalWaits]) {
+    for (const [key2, value] of [...this.pendingSignalWaits]) {
       if (value.channel.pid !== pid) continue;
       this.#cancelRegisteredTimeout(value.timer);
-      this.pendingSignalWaits.delete(key);
+      this.pendingSignalWaits.delete(key2);
     }
     for (const [pipeIdx, waiters] of [...this.pendingPipeReaders]) {
       const kept = waiters.filter((w) => w.pid !== pid);
@@ -27577,8 +30070,10 @@ ${recent}`
       if (kept.length) this.pendingPipeWriters.set(pipeIdx, kept);
       else this.pendingPipeWriters.delete(pipeIdx);
     }
-    for (const [channel] of [...this.pendingFutexWaits]) {
-      if (ownsChannel(channel)) this.pendingFutexWaits.delete(channel);
+    for (const [channel, wait] of [...this.pendingFutexWaits]) {
+      if (!ownsChannel(channel)) continue;
+      wait.retire();
+      this.pendingFutexWaits.delete(channel);
     }
     for (const channel of Array.from(this.blockingRetrySnapshots.keys())) {
       if (ownsChannel(channel)) {
@@ -27586,7 +30081,7 @@ ${recent}`
       }
     }
     const getExitStatus = this.#kernelInstanceIfAvailableForEntry(entry)?.exports.kernel_get_process_exit_status;
-    if (getExitStatus && getExitStatus(pid) !== -1) return woken;
+    const alreadyExited = this.hostReaped?.has(pid) || getExitStatus !== void 0 && getExitStatus(pid) !== -1;
     for (const channel of registration.channels) {
       let status;
       try {
@@ -27597,7 +30092,7 @@ ${recent}`
       }
       if (status !== CH_PENDING) continue;
       try {
-        this.wakeChannelForTeardownExit(channel, entry);
+        this.wakeChannelForTeardownExit(channel, entry, alreadyExited);
         woken.add(channel.pid);
       } catch (err) {
         this.#rethrowKernelEntryFatal(err);
@@ -27700,7 +30195,11 @@ ${recent}`
    *  runs its cooperative exit. See {@link killAllBlockedForTeardown}.
    *  [JSC-TERMINATE-ATOMICS-WAIT-LEAK] — see
    *  docs/jsc-terminate-atomics-wait-workaround.md. */
-  wakeChannelForTeardownExit(channel, entry) {
+  wakeChannelForTeardownExit(channel, entry, alreadyExited = false) {
+    if (alreadyExited || this.hostReaped?.has(channel.pid)) {
+      this.wakeExitedChannelForRetirement(channel, entry);
+      return;
+    }
     const pv = new DataView(channel.memory.buffer, channel.channelOffset);
     pv.setUint32(CH_SIG_SIGNUM, SIGKILL, true);
     pv.setUint32(CH_SIG_HANDLER, 0, true);
@@ -28042,12 +30541,12 @@ ${recent}`
     const matches = Array.from(this.pendingPollRetries.entries()).filter(
       ([, e]) => e.acceptIndices?.includes(acceptIdx)
     );
-    for (const [key, entry] of matches) {
-      if (this.pendingPollRetries.get(key) !== entry) continue;
+    for (const [key2, entry] of matches) {
+      if (this.pendingPollRetries.get(key2) !== entry) continue;
       if (entry.timer !== null) {
         this.#cancelRegisteredTimeout(entry.timer);
       }
-      this.pendingPollRetries.delete(key);
+      this.pendingPollRetries.delete(key2);
       if (this.isRegisteredChannel(entry.channel)) {
         this.retrySyscall(entry.channel);
       }
@@ -28058,8 +30557,8 @@ ${recent}`
     const matches = Array.from(this.pendingPollRetries.entries()).filter(
       ([, entry]) => (pidFilter === void 0 || entry.channel.pid === pidFilter) && entry.pipeIndices.includes(pipeIdx)
     );
-    for (const [key, entry] of matches) {
-      if (this.pendingPollRetries.get(key) !== entry) continue;
+    for (const [key2, entry] of matches) {
+      if (this.pendingPollRetries.get(key2) !== entry) continue;
       if (options.deferSignalSafe && entry.needsSignalSafeWake) {
         deferredSignalSafeWake = true;
         continue;
@@ -28067,7 +30566,7 @@ ${recent}`
       if (entry.timer !== null) {
         this.#cancelRegisteredTimeout(entry.timer);
       }
-      this.pendingPollRetries.delete(key);
+      this.pendingPollRetries.delete(key2);
       if (this.isRegisteredChannel(entry.channel)) {
         this.retrySyscall(entry.channel);
       }
@@ -28150,22 +30649,22 @@ ${recent}`
   }
   /** Cancel all pending poll retries for a given pid (used during cleanup) */
   cleanupPendingPollRetries(pid) {
-    for (const [key, entry] of this.pendingPollRetries) {
+    for (const [key2, entry] of this.pendingPollRetries) {
       if (entry.channel.pid === pid) {
         if (entry.timer) this.#cancelRegisteredTimeout(entry.timer);
-        this.pendingPollRetries.delete(key);
+        this.pendingPollRetries.delete(key2);
       }
     }
   }
   /** Cancel all pending select/pselect retries for a given pid. */
   cleanupPendingSelectRetries(pid) {
-    for (const [key, entry] of this.pendingSelectRetries) {
+    for (const [key2, entry] of this.pendingSelectRetries) {
       if (entry.channel.pid === pid) {
         if (entry.timer !== null) {
           this.#cancelRegisteredTimeout(entry.timer);
           this.#cancelRegisteredImmediate(entry.timer);
         }
-        this.pendingSelectRetries.delete(key);
+        this.pendingSelectRetries.delete(key2);
       }
     }
   }
@@ -28323,10 +30822,10 @@ ${recent}`
     const pending = this.pendingAdvisoryLockRetries;
     if (!pending || pending.size === 0) return;
     const entries = Array.from(pending.entries());
-    for (const [key, entry] of entries) {
-      if (pending.get(key) !== entry) continue;
+    for (const [key2, entry] of entries) {
+      if (pending.get(key2) !== entry) continue;
       this.#cancelRegisteredTimeout(entry.timer);
-      pending.delete(key);
+      pending.delete(key2);
       if (this.isRegisteredChannel(entry.channel)) {
         this.retrySyscall(entry.channel);
       }
@@ -28348,9 +30847,9 @@ ${recent}`
     const matches = Array.from(this.pendingPollRetries.entries()).filter(
       ([, entry]) => entry.isWriteRetry
     );
-    for (const [key, entry] of matches) {
-      if (this.pendingPollRetries.get(key) !== entry) continue;
-      this.pendingPollRetries.delete(key);
+    for (const [key2, entry] of matches) {
+      if (this.pendingPollRetries.get(key2) !== entry) continue;
+      this.pendingPollRetries.delete(key2);
       if (entry.timer !== null) this.#cancelRegisteredTimeout(entry.timer);
       if (this.isRegisteredChannel(entry.channel)) {
         this.retrySyscall(entry.channel);
@@ -28391,7 +30890,7 @@ ${recent}`
   }
   postponeSignalSafePollRetries(delayMs) {
     const now = this.#monotonicNowMs();
-    for (const [key, entry] of this.pendingPollRetries) {
+    for (const [key2, entry] of this.pendingPollRetries) {
       if (!entry.needsSignalSafeWake) continue;
       if (entry.timer !== null) {
         this.#cancelRegisteredTimeout(entry.timer);
@@ -28399,8 +30898,8 @@ ${recent}`
       const remainingMs = entry.deadlineHintMs && entry.deadlineHintMs > 0 ? Math.max(1, entry.deadlineHintMs - now) : delayMs;
       const retryMs = Math.max(1, Math.min(delayMs, remainingMs));
       entry.timer = this.#registerTimeout(() => {
-        if (this.pendingPollRetries.get(key) !== entry) return;
-        this.pendingPollRetries.delete(key);
+        if (this.pendingPollRetries.get(key2) !== entry) return;
+        this.pendingPollRetries.delete(key2);
         if (this.isRegisteredChannel(entry.channel)) {
           this.retrySyscall(entry.channel);
         }
@@ -28410,7 +30909,7 @@ ${recent}`
   /** Keep pselect's fallback timer from bypassing the signal-safe wake grace. */
   postponeSignalSafeSelectRetries(delayMs) {
     const now = this.#monotonicNowMs();
-    for (const [key, entry] of this.pendingSelectRetries) {
+    for (const [key2, entry] of this.pendingSelectRetries) {
       if (!entry.needsSignalSafeWake) continue;
       if (entry.timer !== null) {
         this.#cancelRegisteredTimeout(entry.timer);
@@ -28419,8 +30918,8 @@ ${recent}`
       const remainingMs = entry.deadlineHintMs > 0 ? Math.max(1, entry.deadlineHintMs - now) : delayMs;
       const retryMs = Math.max(1, Math.min(delayMs, remainingMs));
       entry.timer = this.#registerTimeout(() => {
-        if (this.pendingSelectRetries.get(key) !== entry) return;
-        this.pendingSelectRetries.delete(key);
+        if (this.pendingSelectRetries.get(key2) !== entry) return;
+        this.pendingSelectRetries.delete(key2);
         if (!this.isRegisteredChannel(entry.channel)) return;
         this.retrySyscall(entry.channel);
       }, retryMs);
@@ -28462,8 +30961,8 @@ ${recent}`
     if (preserveSignalSafeWaits) {
       pollEntries = pollEntries.filter(([, retry]) => !retry.needsSignalSafeWake);
       selectEntries = selectEntries.filter(([, retry]) => !retry.needsSignalSafeWake);
-      for (const [key] of pollEntries) this.pendingPollRetries.delete(key);
-      for (const [key] of selectEntries) this.pendingSelectRetries.delete(key);
+      for (const [key2] of pollEntries) this.pendingPollRetries.delete(key2);
+      for (const [key2] of selectEntries) this.pendingSelectRetries.delete(key2);
     } else {
       this.pendingPollRetries.clear();
       this.pendingSelectRetries.clear();
@@ -29001,15 +31500,15 @@ ${recent}`
     if (syscallNr !== SYS_CONNECT || retVal !== -1 || errVal !== EINPROGRESS && errVal !== EALREADY) {
       return false;
     }
-    const address = plannedDispatch.plannedScratchWrites.find(
+    const address2 = plannedDispatch.plannedScratchWrites.find(
       (write) => write.argIndex === 1
     );
-    if (!address || address.inputBytes === null || address.size < 2 || address.inputBytes.byteLength !== address.size) return false;
+    if (!address2 || address2.inputBytes === null || address2.size < 2 || address2.inputBytes.byteLength !== address2.size) return false;
     const AF_INET = 2;
     return new DataView(
-      address.inputBytes.buffer,
-      address.inputBytes.byteOffset,
-      address.inputBytes.byteLength
+      address2.inputBytes.buffer,
+      address2.inputBytes.byteOffset,
+      address2.inputBytes.byteLength
     ).getUint16(0, true) === AF_INET;
   }
   handlePendingInetConnect(channel, syscallNr, origArgs, retVal, errVal, argDescs, plannedDispatch, entry, retainedSnapshot, deliveredSignal = 0, firstAttemptDisposition) {
@@ -29199,7 +31698,7 @@ ${recent}`
         error
       );
     }
-    if ((retryToken === -BigInt(ENOENT) || retryToken === -BigInt(ESRCH2)) && this.#retireBlockingRetryCaptureAfterExitedProcess(channel, entry)) {
+    if ((retryToken === -BigInt(ENOENT2) || retryToken === -BigInt(ESRCH2)) && this.#retireBlockingRetryCaptureAfterExitedProcess(channel, entry)) {
       return false;
     }
     if (typeof retryToken !== "bigint" || retryToken < 0n || retryToken > (1n << 63n) - 1n) {
@@ -29853,20 +32352,20 @@ ${recent}`
           cancellationIdentity,
           entry
         )) return;
-        const key2 = `${channel.pid}:${channel.channelOffset}`;
-        const previous = this.pendingSignalWaits.get(key2);
+        const key3 = `${channel.pid}:${channel.channelOffset}`;
+        const previous = this.pendingSignalWaits.get(key3);
         if (previous) this.#cancelRegisteredTimeout(previous.timer);
         const timer2 = this.#registerTimeout(() => {
-          const current = this.pendingSignalWaits.get(key2);
+          const current = this.pendingSignalWaits.get(key3);
           if (current?.timer !== timer2 || current.channel !== channel) {
             return;
           }
-          this.pendingSignalWaits.delete(key2);
+          this.pendingSignalWaits.delete(key3);
           if (this.isRegisteredChannel(channel)) {
             this.retrySyscall(channel);
           }
         }, 500);
-        this.pendingSignalWaits.set(key2, {
+        this.pendingSignalWaits.set(key3, {
           ...cancellationIdentity,
           timer: timer2,
           channel,
@@ -29897,7 +32396,7 @@ ${recent}`
         return;
       }
       const EAGAIN_ERRNO = 11;
-      const key = `${channel.pid}:${channel.channelOffset}`;
+      const key2 = `${channel.pid}:${channel.channelOffset}`;
       if (timeoutMs <= 0) {
         this.closeWaitDeadline(channel, entry);
         this.completeChannel(
@@ -29939,14 +32438,14 @@ ${recent}`
           cancellationIdentity,
           entry
         )) return;
-        const previous = this.pendingSignalWaits.get(key);
+        const previous = this.pendingSignalWaits.get(key2);
         if (previous) this.#cancelRegisteredTimeout(previous.timer);
         const timer2 = this.#registerTimeout(() => {
-          const current = this.pendingSignalWaits.get(key);
+          const current = this.pendingSignalWaits.get(key2);
           if (current?.timer !== timer2 || current.channel !== channel) {
             return;
           }
-          this.pendingSignalWaits.delete(key);
+          this.pendingSignalWaits.delete(key2);
           if (this.isRegisteredChannel(channel)) {
             this.#runOrDeferChannelKernelEntry(
               channel,
@@ -29968,7 +32467,7 @@ ${recent}`
             );
           }
         }, remainingMs);
-        this.pendingSignalWaits.set(key, {
+        this.pendingSignalWaits.set(key2, {
           ...cancellationIdentity,
           timer: timer2,
           channel,
@@ -33620,7 +36119,7 @@ ${recent}`
     const output = this.#readKernelOwnedPath(pid, null, entry);
     if (output.kind === "error") return output;
     if (output.value.byteLength === 0) {
-      return { kind: "error", errno: ENOENT };
+      return { kind: "error", errno: ENOENT2 };
     }
     const cwd = new TextDecoder().decode(output.value);
     const joined = cwd.endsWith("/") ? cwd + path2 : cwd + "/" + path2;
@@ -33729,7 +36228,7 @@ ${recent}`
           origArgs,
           void 0,
           -1,
-          output.kind === "error" ? output.errno : ENOENT,
+          output.kind === "error" ? output.errno : ENOENT2,
           [],
           void 0,
           entry
@@ -33753,7 +36252,7 @@ ${recent}`
           origArgs,
           void 0,
           -1,
-          output.kind === "error" ? output.errno : ENOENT,
+          output.kind === "error" ? output.errno : ENOENT2,
           [],
           void 0,
           entry
@@ -34321,8 +36820,7 @@ ${recent}`
     this.#drainAndProcessWakeupEventsWithinKernelEntry(entry);
     this.notifyParentOfExitedProcess(exitingPid, entry);
     if (canQuiesceBorrowedWorker) {
-      this.wakeChannelForTeardownExit(channel, entry);
-      return;
+      this.wakeChannelForTeardownExit(channel, entry, true);
     }
     entry.deferProtocolEffect(() => {
       this.callbacks.onExit?.(
@@ -35457,20 +37955,20 @@ ${recent}`
         return (entry.signalMask & 1n << BigInt(signum - 1)) !== 0n;
       }
     );
-    for (const [key, entry] of matches) {
-      if (this.pendingSignalWaits.get(key) !== entry) continue;
+    for (const [key2, entry] of matches) {
+      if (this.pendingSignalWaits.get(key2) !== entry) continue;
       this.#cancelRegisteredTimeout(entry.timer);
-      this.pendingSignalWaits.delete(key);
+      this.pendingSignalWaits.delete(key2);
       if (this.isRegisteredChannel(entry.channel)) {
         this.retrySyscall(entry.channel);
       }
     }
   }
   cleanupPendingSignalWaits(pid, kernelEntry) {
-    for (const [key, waiter] of this.pendingSignalWaits ?? []) {
+    for (const [key2, waiter] of this.pendingSignalWaits ?? []) {
       if (waiter.channel.pid !== pid) continue;
       this.#cancelRegisteredTimeout(waiter.timer);
-      this.pendingSignalWaits.delete(key);
+      this.pendingSignalWaits.delete(key2);
       this.closeWaitDeadline(waiter.channel, kernelEntry);
     }
     this.#retireKernelWaitsForProcess(pid, kernelEntry);
@@ -35626,10 +38124,10 @@ ${recent}`
     const pollMatches = Array.from(this.pendingPollRetries.entries()).filter(
       ([, e]) => e.channel.pid === targetPid
     );
-    for (const [key, pollEntry] of pollMatches) {
-      if (this.pendingPollRetries.get(key) !== pollEntry) continue;
+    for (const [key2, pollEntry] of pollMatches) {
+      if (this.pendingPollRetries.get(key2) !== pollEntry) continue;
       if (pollEntry.timer) this.#cancelRegisteredTimeout(pollEntry.timer);
-      this.pendingPollRetries.delete(key);
+      this.pendingPollRetries.delete(key2);
       if (this.processes.has(targetPid)) {
         this.retrySyscall(pollEntry.channel);
       }
@@ -35638,10 +38136,10 @@ ${recent}`
     const advisoryMatches = advisoryRetries ? Array.from(advisoryRetries.entries()).filter(
       ([, entry2]) => entry2.channel.pid === targetPid
     ) : [];
-    for (const [key, entry2] of advisoryMatches) {
-      if (advisoryRetries.get(key) !== entry2) continue;
+    for (const [key2, entry2] of advisoryMatches) {
+      if (advisoryRetries.get(key2) !== entry2) continue;
       this.#cancelRegisteredTimeout(entry2.timer);
-      advisoryRetries.delete(key);
+      advisoryRetries.delete(key2);
       if (this.isRegisteredChannel(entry2.channel)) {
         this.retrySyscall(entry2.channel);
       }
@@ -35649,11 +38147,11 @@ ${recent}`
     const selectMatches = Array.from(this.pendingSelectRetries.entries()).filter(
       ([, e]) => e.channel.pid === targetPid
     );
-    for (const [key, selectEntry] of selectMatches) {
-      if (this.pendingSelectRetries.get(key) !== selectEntry) continue;
+    for (const [key2, selectEntry] of selectMatches) {
+      if (this.pendingSelectRetries.get(key2) !== selectEntry) continue;
       this.#cancelRegisteredTimeout(selectEntry.timer);
       this.#cancelRegisteredImmediate(selectEntry.timer);
-      this.pendingSelectRetries.delete(key);
+      this.pendingSelectRetries.delete(key2);
       if (!this.processes.has(targetPid)) continue;
       this.retrySyscall(selectEntry.channel);
     }
@@ -35812,10 +38310,10 @@ ${recent}`
     if (len === 0) return;
     const processMem = new Uint8Array(channel.memory.buffer);
     if (mapAddr + len > processMem.length) return;
-    const key = `anon:${channel.pid}:${mapAddr}:${this.nextAnonymousSharedBackingId++}`;
+    const key2 = `anon:${channel.pid}:${mapAddr}:${this.nextAnonymousSharedBackingId++}`;
     const initial = processMem.slice(mapAddr, mapAddr + len);
-    this.anonymousSharedBackings.set(key, {
-      key,
+    this.anonymousSharedBackings.set(key2, {
+      key: key2,
       bytes: initial.slice(),
       refCount: 1,
       version: 0
@@ -35831,7 +38329,7 @@ ${recent}`
       len,
       writable: (origArgs[2] & PROT_WRITE) !== 0,
       backingKind: "anonymous",
-      backingKey: key,
+      backingKey: key2,
       snapshot: initial,
       seenVersion: 0
     });
@@ -36097,7 +38595,7 @@ ${recent}`
             offset,
             len
           )) continue;
-          if (this.mergeChangedByteRuns(
+          if (mergeChangedByteRuns(
             processMem,
             mapAddr + offset,
             mapping.snapshot,
@@ -36196,9 +38694,9 @@ ${recent}`
       entry
     );
     if (keyResult.kind === "error") return keyResult;
-    const key = keyResult.value;
+    const key2 = keyResult.value;
     const backingResult = this.getOrCreateSharedMmapBacking(
-      key,
+      key2,
       stat,
       writeAllowed,
       entry
@@ -36277,7 +38775,7 @@ ${recent}`
   /** Resolve a backend-qualified identity from the live handle, never its path. */
   resolveSharedMmapBackingKey(stat, handle, entry) {
     try {
-      const key = this.#invokeSharedMmapHostOperation(
+      const key2 = this.#invokeSharedMmapHostOperation(
         entry,
         () => this.io.fileHandleIdentity?.(
           handle,
@@ -36285,7 +38783,7 @@ ${recent}`
           stat.ino
         ) ?? null
       );
-      return key ? { kind: "ok", value: key } : { kind: "error", errno: ENOTSUP };
+      return key2 ? { kind: "ok", value: key2 } : { kind: "error", errno: ENOTSUP };
     } catch (err) {
       return { kind: "error", errno: this.sharedMmapErrno(err) };
     }
@@ -36379,7 +38877,7 @@ ${recent}`
     );
     if (output.kind === "error") return output;
     if (output.value.byteLength === 0) {
-      return { kind: "error", errno: ENOENT };
+      return { kind: "error", errno: ENOENT2 };
     }
     return {
       kind: "ok",
@@ -36441,10 +38939,10 @@ ${recent}`
     }
     return { kind: "ok", value: result & O_ACCMODE };
   }
-  getOrCreateSharedMmapBacking(key, source, sourceWritable, entry) {
+  getOrCreateSharedMmapBacking(key2, source, sourceWritable, entry) {
     const sourceHandle = source.hostHandle;
     if (sourceHandle === null) return { kind: "error", errno: ENOTSUP };
-    const existing = this.sharedMmapBackings.get(key);
+    const existing = this.sharedMmapBackings.get(key2);
     if (existing) {
       if (sourceWritable && !existing.writable) {
         if (sourceHandle === existing.handle) {
@@ -36475,7 +38973,7 @@ ${recent}`
       return { kind: "error", errno: this.sharedMmapErrno(err) };
     }
     const backing = {
-      key,
+      key: key2,
       handle: sourceHandle,
       writable: sourceWritable,
       size: source.size,
@@ -36485,7 +38983,7 @@ ${recent}`
       refCount: 0,
       version: 0
     };
-    this.sharedMmapBackings.set(key, backing);
+    this.sharedMmapBackings.set(key2, backing);
     this.invalidateSharedMmapFdCache();
     return { kind: "ok", value: backing };
   }
@@ -36897,7 +39395,7 @@ ${recent}`
       const pathBytes = new Uint8Array(end - pathPtr);
       pathBytes.set(memory.subarray(pathPtr, end));
       const path2 = new TextDecoder().decode(pathBytes);
-      if (!path2) return { kind: "error", errno: ENOENT };
+      if (!path2) return { kind: "error", errno: ENOENT2 };
       if (path2.startsWith("/")) {
         return { kind: "ok", value: this.normalizeSharedMmapPath(path2) };
       }
@@ -36915,7 +39413,7 @@ ${recent}`
         const output = this.#readKernelOwnedPath(channel.pid, null, entry);
         if (output.kind === "error") return output;
         if (output.value.byteLength === 0) {
-          return { kind: "error", errno: ENOENT };
+          return { kind: "error", errno: ENOENT2 };
         }
         base = new TextDecoder().decode(output.value);
       }
@@ -36950,8 +39448,8 @@ ${recent}`
         };
       });
       if (!Number.isSafeInteger(snapshot.mode) || (snapshot.mode & FILE_MODES.S_IFMT) !== FILE_MODES.S_IFREG) return null;
-      const key = snapshot.key;
-      return key ? this.sharedMmapBackings.get(key) ?? null : null;
+      const key2 = snapshot.key;
+      return key2 ? this.sharedMmapBackings.get(key2) ?? null : null;
     } catch {
       return null;
     }
@@ -37273,8 +39771,8 @@ ${recent}`
   invalidateSharedMmapFdCacheForPid(pid) {
     if (!this.sharedMmapFdCache) return;
     const prefix = `${pid}:`;
-    for (const key of this.sharedMmapFdCache.keys()) {
-      if (key.startsWith(prefix)) this.sharedMmapFdCache.delete(key);
+    for (const key2 of this.sharedMmapFdCache.keys()) {
+      if (key2.startsWith(prefix)) this.sharedMmapFdCache.delete(key2);
     }
   }
   releaseFileSharedMapping(mapping, entry) {
@@ -37300,21 +39798,6 @@ ${recent}`
     this.#kernel.releaseHostFileHandle(backing.handle);
     this.sharedMmapBackings.delete(backing.key);
     this.invalidateSharedMmapFdCache();
-  }
-  mergeChangedByteRuns(source, sourceOffset, snapshot, snapshotOffset, destination, destinationOffset, len) {
-    let changed = false;
-    let i = 0;
-    while (i < len) {
-      while (i < len && source[sourceOffset + i] === snapshot[snapshotOffset + i]) i++;
-      if (i >= len) break;
-      const start = i;
-      do {
-        i++;
-      } while (i < len && source[sourceOffset + i] !== snapshot[snapshotOffset + i]);
-      destination.set(source.subarray(sourceOffset + start, sourceOffset + i), destinationOffset + start);
-      changed = true;
-    }
-    return changed;
   }
   rangeDiffersFromSnapshot(source, sourceOffset, snapshot, snapshotOffset, len) {
     const sourceByteOffset = source.byteOffset + sourceOffset;
@@ -38860,9 +41343,9 @@ ${recent}`
     }, CLIPBOARD_ACK_POLL_MS);
   }
   /**
-   * Tell the kernel the current host canvas dimensions so EVIOCGABS
-   * on `/dev/input/event1` reports the right `ABS_X.maximum` /
-   * `ABS_Y.maximum`. Idempotent; call again on canvas resize.
+   * Configure the absolute input producer's coordinate extent for
+   * EVIOCGABS on `/dev/input/event1`. Consumers cache these bounds when
+   * opening the device; display geometry changes must not alter them.
    */
   setInputCanvasDims(width, height) {
     this.#runOrDeferKernelEntry(
@@ -39227,10 +41710,10 @@ ${recent}`
     return oldPort === newPort ? existing : void 0;
   }
   #prepareTcpListenerRegistration(pid, fd, _port, entry) {
-    const key = `${pid}:${fd}`;
+    const key2 = `${pid}:${fd}`;
     const getAcceptWake = this.#kernelInstanceForEntry(entry).exports.kernel_get_fd_accept_wake_idx;
     const liveWakeIdx = getAcceptWake?.(pid, fd) ?? -1;
-    const existing = this.tcpListeners.get(key);
+    const existing = this.tcpListeners.get(key2);
     const oldTarget = existing ? this.tcpListenerTargets.get(existing.port)?.find((target) => target.pid === pid && target.fd === fd) : void 0;
     const resolvedOldAlias = oldTarget?.acceptWakeIdx !== void 0 ? this.resolveInheritedListenerFd(
       pid,
@@ -39243,9 +41726,9 @@ ${recent}`
   }
   #startTcpListenerHostPhase(pid, fd, port2, addr = [0, 0, 0, 0], plan) {
     const { liveWakeIdx, oldAlias } = plan;
-    const key = `${pid}:${fd}`;
+    const key2 = `${pid}:${fd}`;
     let reusableListener;
-    const existing = this.tcpListeners.get(key);
+    const existing = this.tcpListeners.get(key2);
     if (existing) {
       const existingTarget = this.tcpListenerTargets.get(existing.port)?.find((target) => target.pid === pid && target.fd === fd);
       const existingWakeIdx = existingTarget?.acceptWakeIdx;
@@ -39278,18 +41761,19 @@ ${recent}`
     }
     if (this.io.network?.listenTcp && !this.tcpVirtualListenerKeys.has(port2)) {
       const result = this.io.network.listenTcp(
-        key,
+        key2,
         new Uint8Array(addr),
         port2,
         {
-          accept: (peer, _local, remote) => {
+          accept: (peer, local, remote) => {
             const target = this.pickListenerTarget(port2);
-            if (!target) return EHOSTUNREACH;
+            if (!target) return EHOSTUNREACH3;
             return this.handleIncomingVirtualTcpConnection(
               target.pid,
               target.fd,
               peer,
-              remote
+              remote,
+              local
             );
           }
         }
@@ -39297,12 +41781,12 @@ ${recent}`
       if (result !== 0) {
         console.warn(`virtual TCP listener registration failed on port ${port2}: errno ${result}`);
       } else {
-        this.tcpVirtualListenerKeys.set(port2, key);
+        this.tcpVirtualListenerKeys.set(port2, key2);
       }
     }
     if (!this.netModule) return;
     if (reusableListener) {
-      this.tcpListeners.set(key, {
+      this.tcpListeners.set(key2, {
         ...reusableListener,
         pid,
         port: port2
@@ -39311,7 +41795,7 @@ ${recent}`
     }
     for (const [, listener] of this.tcpListeners) {
       if (listener.port === port2) {
-        this.tcpListeners.set(key, listener);
+        this.tcpListeners.set(key2, listener);
         return;
       }
     }
@@ -39325,7 +41809,7 @@ ${recent}`
     server.on("error", (err) => {
       console.error(`TCP listener error on port ${port2}:`, err);
     });
-    this.tcpListeners.set(key, { server, pid, port: port2, connections });
+    this.tcpListeners.set(key2, { server, pid, port: port2, connections });
   }
   /** Select the Rust-authoritative listener target for host-side injection. */
   pickListenerTarget(port2) {
@@ -39462,10 +41946,10 @@ ${recent}`
    * sendHttpRequest right after injecting a connection.
    */
   wakeTargetPollNow(pid) {
-    for (const [key, entry] of this.pendingPollRetries) {
+    for (const [key2, entry] of this.pendingPollRetries) {
       if (entry.channel.pid !== pid) continue;
       if (entry.timer !== null) this.#cancelRegisteredTimeout(entry.timer);
-      this.pendingPollRetries.delete(key);
+      this.pendingPollRetries.delete(key2);
       if (this.isRegisteredChannel(entry.channel)) this.retrySyscall(entry.channel);
       break;
     }
@@ -39644,7 +42128,7 @@ ${recent}`
       throw new RangeError(`invalid peer port ${String(peerPort)}`);
     }
     const addressLength = peerAddr.length;
-    const address = [
+    const address2 = [
       peerAddr[0],
       peerAddr[1],
       peerAddr[2],
@@ -39653,7 +42137,7 @@ ${recent}`
     if (addressLength !== 4) {
       throw new RangeError("peer address must contain exactly four octets");
     }
-    for (const octet of address) {
+    for (const octet of address2) {
       if (!Number.isSafeInteger(octet) || octet < 0 || octet > 255) {
         throw new RangeError(`invalid peer address octet ${String(octet)}`);
       }
@@ -39670,10 +42154,10 @@ ${recent}`
         result = inject(
           pid,
           fd,
-          address[0],
-          address[1],
-          address[2],
-          address[3],
+          address2[0],
+          address2[1],
+          address2[2],
+          address2[3],
           peerPort
         );
         if (result >= 0) {
@@ -39787,7 +42271,7 @@ ${recent}`
     const remoteAddr = clientSocket.remoteAddress || "127.0.0.1";
     const remotePort = clientSocket.remotePort || 0;
     const parts = remoteAddr.replace("::ffff:", "").split(".");
-    const address = [0, 1, 2, 3].map((index) => {
+    const address2 = [0, 1, 2, 3].map((index) => {
       const value = Number(parts[index]);
       return Number.isInteger(value) && value >= 0 && value <= 255 ? value : [127, 0, 0, 1][index];
     });
@@ -39806,10 +42290,10 @@ ${recent}`
         const recvPipeIdx = entry.instance.exports.kernel_inject_connection(
           target.pid,
           target.fd,
-          address[0],
-          address[1],
-          address[2],
-          address[3],
+          address2[0],
+          address2[1],
+          address2[2],
+          address2[3],
           remotePort
         );
         if (recvPipeIdx < 0) {
@@ -40052,11 +42536,13 @@ ${recent}`
       port: port2
     };
   }
-  handleIncomingVirtualTcpConnection(pid, listenerFd, peer, remote) {
+  handleIncomingVirtualTcpConnection(pid, listenerFd, peer, remote, local) {
     if (!this.#initialized || this.#kernelInstance === null) return 107;
+    let localSnapshot;
     let remoteSnapshot;
     try {
       remoteSnapshot = this.#snapshotVirtualNetworkAddress(remote);
+      localSnapshot = this.#snapshotVirtualNetworkAddress(local);
     } catch {
       return EIO3;
     }
@@ -40070,12 +42556,15 @@ ${recent}`
           { pid, fd: listenerFd },
           remoteSnapshot.addr,
           remoteSnapshot.port,
+          localSnapshot.addr,
           entry
         );
         if (recvPipeIdx < 0) {
           result = -recvPipeIdx;
           return;
         }
+        const connectionId = this.#kernelInstanceForEntry(entry).exports.kernel_tcp_connection_id(recvPipeIdx, recvPipeIdx + 1);
+        if (!connectionId) throw new Error("TCP injection did not mint its backing identity");
         result = 0;
         entry.deferProtocolEffect(() => {
           this.wakeTargetPollNow(pid);
@@ -40083,7 +42572,8 @@ ${recent}`
           this.#startIncomingVirtualTcpConnectionPump(
             pid,
             recvPipeIdx,
-            peer
+            peer,
+            connectionId
           );
           return void 0;
         });
@@ -40091,7 +42581,7 @@ ${recent}`
     );
     return deferred || result === void 0 ? EIO3 : result;
   }
-  #injectIncomingVirtualTcpConnection(target, remoteAddr, remotePort, entry) {
+  #injectIncomingVirtualTcpConnection(target, remoteAddr, remotePort, localAddr, entry) {
     return this.#kernelInstanceForEntry(entry).exports.kernel_inject_connection(
       target.pid,
       target.fd,
@@ -40099,13 +42589,15 @@ ${recent}`
       remoteAddr[1],
       remoteAddr[2],
       remoteAddr[3],
-      remotePort
+      remotePort,
+      (localAddr[0] << 24 | localAddr[1] << 16 | localAddr[2] << 8 | localAddr[3]) >>> 0
     );
   }
-  #startIncomingVirtualTcpConnectionPump(targetPid, recvPipeIdx, peer) {
+  #startIncomingVirtualTcpConnectionPump(targetPid, recvPipeIdx, peer, connectionId) {
     const sendPipeIdx = recvPipeIdx + 1;
     let cleaned = false;
     let abortRequested = false;
+    let peerSendClosed = false;
     let peerReceiveEnded = false;
     let guestReadShutdown = false;
     let guestWriteShutdown = false;
@@ -40140,7 +42632,10 @@ ${recent}`
           }
         } catch (error) {
           const errno = error?.errno;
-          if (errno !== EAGAIN4) abortRequested = true;
+          if (errno === 32) {
+            peerSendClosed = true;
+            pendingOutbound = null;
+          } else if (errno !== EAGAIN4) abortRequested = true;
         }
       }
       if (!pendingInbound && !peerReceiveEnded && !guestReadShutdown && !abortRequested) {
@@ -40169,6 +42664,11 @@ ${recent}`
           let shutdownPeerRead = false;
           let shutdownPeerWrite = false;
           let closePeer = false;
+          if (peerSendClosed && sendPipeReadOpen) {
+            this.#closeTcpPipeReadWithinKernelEntry(sendPipeIdx, entry);
+            sendPipeReadOpen = false;
+            notifyWritable = true;
+          }
           if (!abortRequested) {
             const readOpen = recvPipeWriteOpen ? this.#tcpPipeReadOpenWithinKernelEntry(
               recvPipeIdx,
@@ -40214,7 +42714,7 @@ ${recent}`
               madeProgress = true;
               notifyReadable = true;
             }
-            if (pendingOutbound === null) {
+            if (pendingOutbound === null && sendPipeReadOpen) {
               pendingOutbound = this.readPipeChunk(
                 0,
                 sendPipeIdx,
@@ -40233,6 +42733,10 @@ ${recent}`
               shutdownPeerWrite = true;
             }
             closePeer = !writeOpen && !hasReaders && pendingOutbound === null || guestWriteShutdown && !recvPipeWriteOpen && pendingOutbound === null;
+          }
+          if (abortRequested) {
+            const reset = this.#kernelInstanceForEntry(entry).exports.kernel_reset_tcp_connection;
+            if (reset(recvPipeIdx, sendPipeIdx, connectionId) !== 0) throw new Error("TCP bridge lost its owned socket backing during reset");
           }
           if (abortRequested || closePeer) {
             if (recvPipeWriteOpen) {
@@ -40397,10 +42901,10 @@ ${recent}`
     const prefix = `${pid}:`;
     const nextBindings = new Set(this.udpBindings);
     const endpointKeysToUnbind = [];
-    for (const key of this.udpBindings) {
-      if (!key.startsWith(prefix)) continue;
-      nextBindings.delete(key);
-      endpointKeysToUnbind.push(key);
+    for (const key2 of this.udpBindings) {
+      if (!key2.startsWith(prefix)) continue;
+      nextBindings.delete(key2);
+      endpointKeysToUnbind.push(key2);
     }
     return {
       udpBindings: nextBindings,
@@ -40434,9 +42938,9 @@ ${recent}`
     const nextListeners = new Map(this.tcpListeners);
     const listenerServersToClose = /* @__PURE__ */ new Set();
     const keyPrefix = `${pid}:`;
-    for (const [key, entry] of Array.from(this.tcpListeners)) {
-      if (!key.startsWith(keyPrefix)) continue;
-      nextListeners.delete(key);
+    for (const [key2, entry] of Array.from(this.tcpListeners)) {
+      if (!key2.startsWith(keyPrefix)) continue;
+      nextListeners.delete(key2);
       const remainingTargets = nextTargets.get(entry.port);
       if (!remainingTargets || remainingTargets.length === 0) {
         listenerServersToClose.add(entry.server);
@@ -40466,8 +42970,8 @@ ${recent}`
     this.tcpListeners = plan.tcpListeners;
     this.tcpVirtualListenerKeys = plan.tcpVirtualListenerKeys;
     this.tcpConnections.delete(pid);
-    for (const key of plan.virtualListenerKeysToClose) {
-      this.io.network?.closeTcpListener?.(key);
+    for (const key2 of plan.virtualListenerKeysToClose) {
+      this.io.network?.closeTcpListener?.(key2);
     }
     for (const server of plan.listenerServersToClose) {
       server.close();
@@ -40480,11 +42984,11 @@ ${recent}`
     this.tcpListeners = tcpPlan.tcpListeners;
     this.tcpVirtualListenerKeys = tcpPlan.tcpVirtualListenerKeys;
     this.tcpConnections.delete(pid);
-    for (const key of udpPlan.endpointKeysToUnbind) {
-      this.io.network?.unbindUdp?.(key);
+    for (const key2 of udpPlan.endpointKeysToUnbind) {
+      this.io.network?.unbindUdp?.(key2);
     }
-    for (const key of tcpPlan.virtualListenerKeysToClose) {
-      this.io.network?.closeTcpListener?.(key);
+    for (const key2 of tcpPlan.virtualListenerKeysToClose) {
+      this.io.network?.closeTcpListener?.(key2);
     }
     for (const server of tcpPlan.listenerServersToClose) {
       server.close();
@@ -40968,6 +43472,8 @@ ${recent}`
     }
     const statsView = statsSab === void 0 ? void 0 : new Int32Array(statsSab);
     this.kmsCanvases.set(crtc_id, canvas);
+    if (opts?.cursorCanvas) this.kmsCursorPlanes.set(crtc_id, new KmsCursorPlane(opts.cursorCanvas));
+    else this.kmsCursorPlanes.delete(crtc_id);
     if (statsView) this.kmsStatsViews.set(crtc_id, statsView);
     const mode = opts?.mode ?? "auto";
     if (mode === "2d") {
@@ -40992,12 +43498,8 @@ ${recent}`
    *  with `devicePixelContentBoxSize`. Zero/negative dims are ignored
    *  (a hidden pane reports 0×0 — keep the last real size).
    *
-   *  It also keys the EVIOCGABS range on `/dev/input/event1` to the
-   *  connector mode this size derives (`connectorModeSize`, which the
-   *  compositor's framebuffer will match). It must land here, not only
-   *  at SETCRTC: libinput caches absinfo when it opens the device, and
-   *  a compositor opens `event1` before it presents its first frame —
-   *  a range corrected at SETCRTC is a range libinput never sees.
+   *  The pointer's fixed device range remains independent of this size;
+   *  SDL and libinput cache it before the first frame and across modesets.
    *
    *  `physicalMm`, when given, is the display's physical size; the kernel
    *  reports it on the connector, where a compositor derives its output
@@ -41013,8 +43515,6 @@ ${recent}`
       display.mmHeight = Math.round(physicalMm.height);
     }
     this.kmsDisplaySizes.set(crtc_id, display);
-    const mode = connectorModeSize(display);
-    this.setInputCanvasDims(mode.width, mode.height);
   }
   /** Attach a stats SAB for a CRTC without registering a scanout canvas.
    *  Slots 5/6 (kernel commit count + last-frame µs) are populated by
@@ -41139,14 +43639,35 @@ ${recent}`
           const lastUs = stats.length < 7 ? 0 : Number((lastFrameUs?.(crtcId) ?? 0n) & 0x7fffffffn);
           statsSnapshots.push({
             stats,
+            ownerPid: this.#kernel.kms.getMasterPid() ?? 0,
             width: fb?.width ?? null,
             height: fb?.height ?? null,
             commits,
             lastUs
           });
         }
+        if (typeof entry.instance.exports.kernel_kms_cursor_read === "function") {
+          this.#requireMainScratchRegion().withLease((lease) => {
+            const pointer = lease.exportPointer(0, 32);
+            const count = this.#invokeEntryScratchExport(
+              entry,
+              lease,
+              "kernel_kms_cursor_read",
+              [pointer, 32]
+            );
+            if (count === 32) this.#kernel.kms.applyCursorRecord(lease.copyOut(0, 32));
+            else if (count !== 0) throw new Error(`Invalid KMS cursor record length: ${count}`);
+          });
+        }
+        const cursor = this.#kernel.kms.cursorSnapshot();
+        const cursorPlanes = Array.from(this.kmsCursorPlanes, ([crtcId, plane]) => {
+          const fb = this.#kernel.kms.currentFb(crtcId);
+          const size = fb ?? connectorModeSize(this.kmsDisplaySizes.get(crtcId));
+          return { plane, width: size.width, height: size.height };
+        });
         entry.deferObserverEffect(() => {
           if (this.vblankTimer !== timer) return void 0;
+          for (const { plane, width, height } of cursorPlanes) plane.present(cursor, width, height);
           for (const blit of blits) {
             if (blit.canvas.width !== blit.width || blit.canvas.height !== blit.height) {
               blit.canvas.width = blit.width;
@@ -41194,6 +43715,9 @@ ${recent}`
             }
           }
           for (const snapshot of statsSnapshots) {
+            if (snapshot.stats.length > 8) {
+              Atomics.store(snapshot.stats, 8, snapshot.ownerPid);
+            }
             if (snapshot.width !== null && snapshot.height !== null) {
               Atomics.store(snapshot.stats, 2, snapshot.width);
               Atomics.store(snapshot.stats, 3, snapshot.height);
@@ -41823,11 +44347,11 @@ var NativeMetadataOverlay = class {
     }
   }
   metadataFor(s) {
-    const key = this.key(s);
-    let metadata = this.entries.get(key);
+    const key2 = this.key(s);
+    let metadata = this.entries.get(key2);
     if (metadata === void 0) {
       metadata = {};
-      this.entries.set(key, metadata);
+      this.entries.set(key2, metadata);
     }
     return metadata;
   }
@@ -42877,19 +45401,19 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
   }
   const controller = options.transportController ?? new AbortController();
   let firstFailure;
-  const fail = (reason) => {
+  const fail3 = (reason) => {
     if (firstFailure !== void 0) return;
     firstFailure = { reason };
     controller.abort(reason);
   };
   if (controller.signal.aborted) {
-    fail(controller.signal.reason);
+    fail3(controller.signal.reason);
   }
   const callerSignal = options.signal;
-  const onCallerAbort = () => fail(callerSignal.reason);
+  const onCallerAbort = () => fail3(callerSignal.reason);
   let callerListenerAdded = false;
   if (callerSignal?.aborted) {
-    fail(callerSignal.reason);
+    fail3(callerSignal.reason);
   } else if (callerSignal !== void 0) {
     callerSignal.addEventListener("abort", onCallerAbort, { once: true });
     callerListenerAdded = true;
@@ -42915,7 +45439,7 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
         const error = new Error(
           `closed lazy asset source ${diagnosticUrl} followed a redirect`
         );
-        fail(error);
+        fail3(error);
         await cancelResponseBody(response, error);
         throw error;
       }
@@ -42923,7 +45447,7 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
         const error = new Error(
           `closed lazy asset source ${diagnosticUrl} returned HTTP ${response.status}`
         );
-        fail(error);
+        fail3(error);
         await cancelResponseBody(response, error);
         throw error;
       }
@@ -42932,7 +45456,7 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
         source.size,
         diagnosticUrl,
         controller.signal,
-        fail
+        fail3
       );
       throwIfAborted(controller.signal);
       const actualSha256 = hex(
@@ -42945,7 +45469,7 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
         const error = new Error(
           `closed lazy asset source ${diagnosticUrl} changed SHA-256`
         );
-        fail(error);
+        fail3(error);
         throw error;
       }
       return {
@@ -42955,7 +45479,7 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
         bytes
       };
     } catch (reason) {
-      fail(reason);
+      fail3(reason);
       throw reason;
     }
   };
@@ -42970,7 +45494,7 @@ async function loadClosedLazyAssetSources(sources, options = {}) {
           try {
             output[index] = await loadOne(validated[index]);
           } catch (reason) {
-            fail(reason);
+            fail3(reason);
             return;
           }
         }
@@ -43274,12 +45798,12 @@ function validateClosedSourceUrl(sourceUrl, index) {
 function isLoopbackHostname(hostname) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }
-async function readExactResponseBytes(response, expectedBytes, diagnosticUrl, signal, fail) {
+async function readExactResponseBytes(response, expectedBytes, diagnosticUrl, signal, fail3) {
   if (response.body === null) {
     const error = new Error(
       `closed lazy asset source ${diagnosticUrl} has no response body`
     );
-    fail(error);
+    fail3(error);
     throw error;
   }
   const output = new Uint8Array(expectedBytes);
@@ -43318,7 +45842,7 @@ async function readExactResponseBytes(response, expectedBytes, diagnosticUrl, si
         const error = new Error(
           `closed lazy asset source ${diagnosticUrl} exceeds ${expectedBytes} bytes`
         );
-        fail(error);
+        fail3(error);
         await cancel(error);
         throw error;
       }
@@ -43329,12 +45853,12 @@ async function readExactResponseBytes(response, expectedBytes, diagnosticUrl, si
       const error = new Error(
         `closed lazy asset source ${diagnosticUrl} has ${offset} bytes, expected ${expectedBytes}`
       );
-      fail(error);
+      fail3(error);
       throw error;
     }
     return output;
   } catch (reason) {
-    fail(reason);
+    fail3(reason);
     throw reason;
   } finally {
     signal.removeEventListener("abort", onAbort);
@@ -43703,64 +46227,8 @@ function forget() {
 // src/networking/tcp-backend.ts
 import * as net from "net";
 import { lookup } from "dns";
-
-// src/networking/hostname.ts
-var DNS_MAX_WIRE_OCTETS = 255;
-var DNS_MAX_LABEL_OCTETS = 63;
-function nameNotFoundError(hostname) {
-  return Object.assign(new Error(`ENOENT: ${hostname}`), { errno: 2 });
-}
-function parseNumericIpv4Hostname(hostname) {
-  if (!/^[0-9.]+$/.test(hostname)) return null;
-  if (!/^\d+(?:\.\d+){0,3}$/.test(hostname)) {
-    throw nameNotFoundError(hostname);
-  }
-  const parts = hostname.split(".");
-  const widths = parts.length === 1 ? [32n] : parts.length === 2 ? [8n, 24n] : parts.length === 3 ? [8n, 8n, 16n] : [8n, 8n, 8n, 8n];
-  let packed = 0n;
-  for (let i = 0; i < parts.length; i++) {
-    const value = BigInt(parts[i]);
-    const width = widths[i];
-    if (value > (1n << width) - 1n) {
-      throw nameNotFoundError(hostname);
-    }
-    packed = packed << width | value;
-  }
-  return new Uint8Array([
-    Number(packed >> 24n & 0xffn),
-    Number(packed >> 16n & 0xffn),
-    Number(packed >> 8n & 0xffn),
-    Number(packed & 0xffn)
-  ]);
-}
-function validateDnsHostname(hostname) {
-  const absoluteName = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
-  if (absoluteName.length === 0 || !/^[\x00-\x7f]+$/.test(absoluteName)) {
-    throw nameNotFoundError(hostname);
-  }
-  let wireOctets = 1;
-  for (const label of absoluteName.split(".")) {
-    if (label.length === 0 || label.length > DNS_MAX_LABEL_OCTETS || !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label)) {
-      throw nameNotFoundError(hostname);
-    }
-    wireOctets += 1 + label.length;
-  }
-  if (wireOctets > DNS_MAX_WIRE_OCTETS) {
-    throw nameNotFoundError(hostname);
-  }
-}
-
-// src/networking/fetch-backend.ts
-var EagainError = class extends Error {
-  errno = 11;
-  constructor() {
-    super("EAGAIN");
-  }
-};
-
-// src/networking/tcp-backend.ts
 init_abi();
-var MSG_PEEK = 2;
+var MSG_PEEK2 = 2;
 function mapNetErrnoCode(code) {
   switch (code) {
     case "ECONNREFUSED":
@@ -43786,7 +46254,29 @@ function mapNetErrnoCode(code) {
 var TcpNetworkBackend = class {
   connections = /* @__PURE__ */ new Map();
   dns = /* @__PURE__ */ new Map();
-  connect(handle, addr, port2) {
+  // The guest sees the host's sockets as a NAT gateway on its own link
+  // (egress-link.ts); it never sees the host's real addresses.
+  egress = new EgressLink();
+  get localAddress() {
+    return this.egress.localAddress;
+  }
+  get localNetmask() {
+    return this.egress.localNetmask;
+  }
+  udpSourceAddress(destination) {
+    return this.egress.udpSourceAddress(destination);
+  }
+  bindUdp(id, addr, port2, target) {
+    return this.egress.bindUdp(id, addr, port2, target);
+  }
+  unbindUdp(id) {
+    this.egress.unbindUdp(id);
+  }
+  sendDatagram() {
+    return this.egress.sendDatagram();
+  }
+  connect(handle, addr, port2, source) {
+    if (!this.egress.ownsSource(source)) throw Object.assign(new Error("EADDRNOTAVAIL"), { errno: 99 });
     const ip = `${addr[0]}.${addr[1]}.${addr[2]}.${addr[3]}`;
     const socket = new net.Socket({ allowHalfOpen: true });
     const conn = {
@@ -43794,6 +46284,7 @@ var TcpNetworkBackend = class {
       recvBuf: Buffer.alloc(0),
       closed: false,
       readEnded: false,
+      readShutdown: false,
       connected: false,
       error: null
     };
@@ -43801,7 +46292,7 @@ var TcpNetworkBackend = class {
       conn.connected = true;
     });
     socket.on("data", (data) => {
-      conn.recvBuf = Buffer.concat([conn.recvBuf, data]);
+      if (!conn.readShutdown) conn.recvBuf = Buffer.concat([conn.recvBuf, data]);
     });
     socket.on("end", () => {
       conn.readEnded = true;
@@ -43813,7 +46304,7 @@ var TcpNetworkBackend = class {
       conn.closed = true;
       conn.readEnded = true;
     });
-    socket.connect(port2, ip);
+    socket.connect({ port: port2, host: ip, ...source?.port ? { localPort: source.port } : {} });
     this.connections.set(handle, conn);
   }
   /**
@@ -43835,7 +46326,7 @@ var TcpNetworkBackend = class {
   send(handle, data, _flags) {
     const conn = this.connections.get(handle);
     if (!conn) throw new Error("ENOTCONN");
-    if (conn.error) throw conn.error;
+    if (conn.error) throw Object.assign(conn.error, { errno: mapNetErrnoCode(conn.error.code) });
     if (conn.closed || conn.socket.destroyed || conn.socket.writableEnded || !conn.socket.writable) {
       throw Object.assign(new Error("EPIPE"), { code: "EPIPE", errno: 32 });
     }
@@ -43845,7 +46336,7 @@ var TcpNetworkBackend = class {
   recv(handle, maxLen, flags) {
     const conn = this.connections.get(handle);
     if (!conn) throw new Error("ENOTCONN");
-    if (conn.error) throw conn.error;
+    if (conn.error) throw Object.assign(conn.error, { errno: mapNetErrnoCode(conn.error.code) });
     if (conn.recvBuf.length > 0) {
       const len = Math.min(maxLen, conn.recvBuf.length);
       const result = new Uint8Array(
@@ -43853,7 +46344,7 @@ var TcpNetworkBackend = class {
         conn.recvBuf.byteOffset,
         len
       );
-      if ((flags & MSG_PEEK) === 0) {
+      if ((flags & MSG_PEEK2) === 0) {
         conn.recvBuf = conn.recvBuf.subarray(len);
       }
       return result;
@@ -43882,6 +46373,22 @@ var TcpNetworkBackend = class {
     }
     return facts;
   }
+  localEndpoint(handle) {
+    const value = this.connections.get(handle)?.socket.address();
+    if (!value || typeof value === "string" || !("family" in value) || value.family !== "IPv4") throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    return { addr: this.egress.localAddress, port: value.port };
+  }
+  shutdown(handle, how) {
+    const conn = this.connections.get(handle);
+    if (!conn) throw Object.assign(new Error("ENOTCONN"), { errno: 107 });
+    if (!Number.isInteger(how) || how < 0 || how > 2) throw Object.assign(new Error("EINVAL"), { errno: 22 });
+    if (how === 0 || how === 2) {
+      conn.readShutdown = true;
+      conn.readEnded = true;
+      conn.recvBuf = Buffer.alloc(0);
+    }
+    if ((how === 1 || how === 2) && !conn.socket.writableEnded) conn.socket.end();
+  }
   close(handle) {
     const conn = this.connections.get(handle);
     if (conn) {
@@ -43900,11 +46407,11 @@ var TcpNetworkBackend = class {
       entry = { result: null, error: null };
       this.dns.set(hostname, entry);
       const e = entry;
-      lookup(hostname, 4, (err, address) => {
-        if (err || !address) {
+      lookup(hostname, 4, (err, address2) => {
+        if (err || !address2) {
           e.error = err ?? new Error("ENOTFOUND");
         } else {
-          const parts = address.split(".").map(Number);
+          const parts = address2.split(".").map(Number);
           e.result = new Uint8Array(parts);
         }
       });
@@ -44320,19 +46827,19 @@ var NodeLazyAssetResolver = class {
       const finish = (results) => {
         if (finished) return;
         finished = true;
-        this.pending.delete(fail);
+        this.pending.delete(fail3);
         if (worker) {
           worker.off("message", onMessage);
-          worker.off("error", fail);
+          worker.off("error", fail3);
           worker.off("exit", onExit);
         }
         terminate();
         resolve4(results);
       };
-      const fail = (error) => {
+      const fail3 = (error) => {
         finish(new Map(urls.map((url) => [url, { error }])));
       };
-      const onExit = (code) => fail(new Error(
+      const onExit = (code) => fail3(new Error(
         `Lazy asset resolver exited before replying (status ${code})`
       ));
       const onMessage = (message) => {
@@ -44340,20 +46847,20 @@ var NodeLazyAssetResolver = class {
           const value = message.get(url);
           return !value || !(typeof value.path === "string" || value.error instanceof Error);
         })) {
-          fail(new Error("Invalid lazy asset resolver reply"));
+          fail3(new Error("Invalid lazy asset resolver reply"));
           return;
         }
         finish(message);
       };
-      this.pending.add(fail);
+      this.pending.add(fail3);
       try {
         const repoRoot = findRepoRoot(process.env.WASM_POSIX_BINARY_RESOLVER_REPO_ROOT);
         worker = this.adapter.createWorker({ repoRoot, urls });
         worker.on("message", onMessage);
-        worker.on("error", fail);
+        worker.on("error", fail3);
         worker.on("exit", onExit);
       } catch (error) {
-        fail(error instanceof Error ? error : new Error(String(error)));
+        fail3(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
@@ -45360,13 +47867,13 @@ function encodeForkImportedGlobalBindings(bindings) {
   for (const [index, binding] of bindings.entries()) {
     const context = `imported-global binding ${index}`;
     validateImportedGlobalBinding(binding, context);
-    const key = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
-    if (key <= previousKey) {
+    const key2 = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
+    if (key2 <= previousKey) {
       throw new Error(
         `${context}: consumer declarations must be unique and strictly ordered`
       );
     }
-    previousKey = key;
+    previousKey = key2;
     const offset = WPK_FORK_IMPORTED_GLOBAL_BINDINGS_HEADER_SIZE + index * WPK_FORK_IMPORTED_GLOBAL_BINDINGS_ENTRY_SIZE;
     view.setUint32(offset, binding.consumerActivation, true);
     view.setUint32(offset + 4, binding.consumerOwner, true);
@@ -45434,13 +47941,13 @@ function decodeForkImportedGlobalBindings(payload, context = "module-state impor
       typeCode: view.getUint8(offset + 34)
     };
     validateImportedGlobalBinding(binding, `${context} entry ${index}`);
-    const key = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
-    if (key <= previousKey) {
+    const key2 = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
+    if (key2 <= previousKey) {
       throw new Error(
         `${context} entry ${index}: consumer declarations are duplicated or unordered`
       );
     }
-    previousKey = key;
+    previousKey = key2;
     bindings.push(binding);
   }
   return bindings;
@@ -45497,13 +48004,13 @@ function encodeForkImportedTableBindings(bindings) {
   for (const [index, binding] of bindings.entries()) {
     const context = `imported-table binding ${index}`;
     validateImportedTableBinding(binding, context);
-    const key = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
-    if (key <= previousKey) {
+    const key2 = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
+    if (key2 <= previousKey) {
       throw new Error(
         `${context}: consumer declarations must be unique and strictly ordered`
       );
     }
-    previousKey = key;
+    previousKey = key2;
     const offset = WPK_FORK_IMPORTED_TABLE_BINDINGS_HEADER_SIZE + index * WPK_FORK_IMPORTED_TABLE_BINDINGS_ENTRY_SIZE;
     view.setUint32(offset, binding.consumerActivation, true);
     view.setUint32(offset + 4, binding.consumerOwner, true);
@@ -45556,13 +48063,13 @@ function decodeForkImportedTableBindings(payload, context = "module-state import
       kind: view.getUint8(offset + 20)
     };
     validateImportedTableBinding(binding, `${context} entry ${index}`);
-    const key = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
-    if (key <= previousKey) {
+    const key2 = `${binding.consumerActivation.toString(16).padStart(8, "0")}:` + binding.consumerOwner.toString(16).padStart(8, "0");
+    if (key2 <= previousKey) {
       throw new Error(
         `${context} entry ${index}: consumer declarations are duplicated or unordered`
       );
     }
-    previousKey = key;
+    previousKey = key2;
     bindings.push(binding);
   }
   return bindings;
@@ -45733,27 +48240,27 @@ function validateRecordOwnership(records, ptrWidth) {
       throw new Error(`${context}: state record has no explicit owner`);
     }
     if (record2.kind === ForkModuleStateRecordKind.TablePage) {
-      const key2 = tableKey(record2.activationId, record2.ownerId);
-      const table = tables.get(key2);
+      const key3 = tableKey(record2.activationId, record2.ownerId);
+      const table = tables.get(key3);
       if (!table) {
         throw new Error(`${context}: table page precedes its owning table descriptor`);
       }
       const page = validateTablePage(record2, table, context);
-      const previous = lastTablePages.get(key2);
+      const previous = lastTablePages.get(key3);
       if (previous !== void 0 && page.pageIndex <= previous) {
         throw new Error(`${context}: table pages are not strictly increasing`);
       }
-      lastTablePages.set(key2, page.pageIndex);
-      tablePageCounts.set(key2, (tablePageCounts.get(key2) ?? 0) + 1);
+      lastTablePages.set(key3, page.pageIndex);
+      tablePageCounts.set(key3, (tablePageCounts.get(key3) ?? 0) + 1);
       continue;
     }
-    const key = ownerKey(record2.kind, record2.activationId, record2.ownerId);
-    if (owned.has(key)) {
+    const key2 = ownerKey(record2.kind, record2.activationId, record2.ownerId);
+    if (owned.has(key2)) {
       throw new Error(
         `${context}: duplicate owner ${record2.ownerId} for record kind ${record2.kind}`
       );
     }
-    owned.add(key);
+    owned.add(key2);
     if (record2.kind === ForkModuleStateRecordKind.ReferenceRecipe) {
       referenceRecipeSeen = true;
     }
@@ -45795,11 +48302,11 @@ function validateRecordOwnership(records, ptrWidth) {
       }
     }
   }).activationIds : null;
-  for (const [key, table] of tables) {
-    const actual = tablePageCounts.get(key) ?? 0;
+  for (const [key2, table] of tables) {
+    const actual = tablePageCounts.get(key2) ?? 0;
     if (actual !== table.pageCount) {
       throw new Error(
-        `module-state table ${key} declares ${table.pageCount} sparse pages, found ${actual}`
+        `module-state table ${key2} declares ${table.pageCount} sparse pages, found ${actual}`
       );
     }
   }
@@ -45932,8 +48439,8 @@ var ForkModuleStateArena = class {
     this.tail = chunks[chunks.length - 1].addr;
     this.chunks = chunks;
     this.payloadIndex.clear();
-    for (const [key, addresses] of payloadIndex) {
-      this.payloadIndex.set(key, addresses);
+    for (const [key2, addresses] of payloadIndex) {
+      this.payloadIndex.set(key2, addresses);
     }
     this.sealed = true;
     this.ownership = ownership;
@@ -46250,14 +48757,14 @@ var ForkModuleStateArena = class {
       chunk.recordCount,
       true
     );
-    const key = ownerKey(
+    const key2 = ownerKey(
       pending.kind,
       pending.activationId,
       pending.ownerId
     );
-    const addresses = this.payloadIndex.get(key) ?? [];
+    const addresses = this.payloadIndex.get(key2) ?? [];
     addresses.push(pending.payloadAddr);
-    this.payloadIndex.set(key, addresses);
+    this.payloadIndex.set(key2, addresses);
     this.pending = null;
   }
   /**
@@ -46623,10 +49130,10 @@ var ForkModuleStateArena = class {
         const totalSize = view.getUint32(addr + 8, true);
         const activationId = view.getUint32(addr + 16, true);
         const ownerId = view.getUint32(addr + 20, true);
-        const key = ownerKey(kind, activationId, ownerId);
-        const addresses = index.get(key) ?? [];
+        const key2 = ownerKey(kind, activationId, ownerId);
+        const addresses = index.get(key2) ?? [];
         addresses.push(addr + RECORD_HEADER_SIZE);
-        index.set(key, addresses);
+        index.set(key2, addresses);
         offset += totalSize;
       }
     }
@@ -47426,8 +49933,8 @@ function validateVectorSemantics(parsed) {
       second = Math.imul(second ^ rotated, 2246822507) >>> 0;
       second = (second ^ first >>> 13) >>> 0;
     }
-    const key = `${length}:${first}:${second}`;
-    for (const previousOrdinal of vectorIntern.get(key) ?? []) {
+    const key2 = `${length}:${first}:${second}`;
+    for (const previousOrdinal of vectorIntern.get(key2) ?? []) {
       const previous = requiredDirectoryEntry(
         vectors,
         previousOrdinal - 1,
@@ -47439,10 +49946,10 @@ function validateVectorSemantics(parsed) {
         );
       }
     }
-    let bucket = vectorIntern.get(key);
+    let bucket = vectorIntern.get(key2);
     if (!bucket) {
       bucket = new PagedForkReferenceDirectory();
-      vectorIntern.set(key, bucket);
+      vectorIntern.set(key2, bucket);
     }
     bucket.push(ordinal);
     vectors.push(Object.freeze({ start, length }));
@@ -49030,7 +51537,7 @@ function buildFatalTrap() {
     throw new Error("unreachable Worker exception fatal trap returned");
   };
 }
-var fatalTrap = buildFatalTrap();
+var trapProcessWorker = buildFatalTrap();
 
 // src/fork-host-import-runtime.ts
 function importKey(module, name) {
@@ -49080,8 +51587,8 @@ var ForkHostImportOwnerRuntime = class {
         `fork owner import ordinal ${descriptor.ordinal} is reserved`
       );
     }
-    const key = importKey(module, name);
-    if (this.registrations.has(key)) {
+    const key2 = importKey(module, name);
+    if (this.registrations.has(key2)) {
       throw new Error(`duplicate fork owner import ${module}.${name}`);
     }
     const registration = cloneWireRegistration({
@@ -49090,7 +51597,7 @@ var ForkHostImportOwnerRuntime = class {
       descriptor
     });
     this.catalog.register(registration.descriptor, handler);
-    this.registrations.set(key, registration);
+    this.registrations.set(key2, registration);
   }
   createWorker(options) {
     this.sealed = true;
@@ -49470,22 +51977,22 @@ var ThreadExitCoordinator = class {
   terminators = /* @__PURE__ */ new Map();
   pendingExits = /* @__PURE__ */ new Set();
   register(pid, channelOffset, terminate) {
-    const key = this.key(pid, channelOffset);
-    this.terminators.set(key, terminate);
-    if (this.pendingExits.delete(key)) {
+    const key2 = this.key(pid, channelOffset);
+    this.terminators.set(key2, terminate);
+    if (this.pendingExits.delete(key2)) {
       void terminate();
     }
   }
   release(pid, channelOffset) {
-    const key = this.key(pid, channelOffset);
-    this.terminators.delete(key);
-    this.pendingExits.delete(key);
+    const key2 = this.key(pid, channelOffset);
+    this.terminators.delete(key2);
+    this.pendingExits.delete(key2);
   }
   requestExit(pid, channelOffset) {
-    const key = this.key(pid, channelOffset);
-    const terminate = this.terminators.get(key);
+    const key2 = this.key(pid, channelOffset);
+    const terminate = this.terminators.get(key2);
     if (!terminate) {
-      this.pendingExits.add(key);
+      this.pendingExits.add(key2);
       return true;
     }
     void terminate();
@@ -50286,12 +52793,12 @@ function sampleProcessMemoryStats(enabled, source) {
 // src/owned-jobs.ts
 var OwnedJobs = class {
   constructor(kill, retainedBytes = 256 * 1024, reap = () => {
-  }, fail = () => {
+  }, fail3 = () => {
   }) {
     this.kill = kill;
     this.retainedBytes = retainedBytes;
     this.reap = reap;
-    this.fail = fail;
+    this.fail = fail3;
   }
   kill;
   retainedBytes;
@@ -51675,6 +54182,7 @@ function cleanupSessionDir() {
   rootfsLazyFetcher = void 0;
   rootfsForeignPrefixes = [];
 }
+var remoteSegmentRuntime = new RemoteSegmentRuntime();
 async function handleInit(msg) {
   initReady = false;
   injectedExecWorkerConstructionFailure = false;
@@ -51710,6 +54218,7 @@ async function handleInit(msg) {
   if (msg.enableTcpNetwork) {
     io.network = new TcpNetworkBackend();
   }
+  io.network = msg.remoteNetwork ? await remoteSegmentRuntime.initialize(msg.remoteNetwork, io.network) : remoteSegmentRuntime.install(io.network);
   kernelWorker = new CentralizedKernelWorker(
     {
       maxWorkers: msg.config.maxWorkers,
@@ -53526,6 +56035,11 @@ async function finishProcessExit(pid, exitStatus, expectedWorker = processes.get
     return;
   }
   const teardown = (async () => {
+    try {
+      await kernelWorker.killBlockedProcessForTeardown(pid);
+    } catch (error) {
+      console.warn(`[kernel-worker] pid=${pid} retirement wake failed: ${String(error)}`);
+    }
     const [workerQuiescent, threadsQuiescent] = await Promise.all([
       waitForWorkerQuiescence(
         info.workerQuiescence,
@@ -53765,6 +56279,7 @@ async function performDestroy() {
   }
   await pcmDriver?.close();
   pcmDriver = null;
+  remoteSegmentRuntime.close();
   kernelWorker.shutdownPcmTransport();
   if (gracefulDetachComplete) {
     try {
@@ -54006,10 +56521,12 @@ function handleWatchVfsChanges(msg) {
   }
 }
 port.on("message", (msg) => {
+  if (handleRemoteNetworkMessage(remoteSegmentRuntime, msg, initReady, respond, respondError)) return;
   switch (msg.type) {
     case "init":
       void handleInit(msg).catch((error) => {
         cleanupSessionDir();
+        remoteSegmentRuntime.close();
         initReady = false;
         post({
           type: "init_error",

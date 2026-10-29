@@ -168,9 +168,11 @@ export async function bootKernelWordPress(
 	// for `sendRequest()`.
 	const bridge = new HttpBridgeHost();
 
-	await kernel.initFromImage({
+	// Transfer the image instead of copying it: the kernel keeps it as the
+	// read source of `/`, and a copy left in this worker is never read again.
+	await kernel.initFromOwnedImage({
 		kernelWasm: options.kernelWasm,
-		vfsImage: options.vfsImage,
+		vfsImage: options.vfsImage.buffer,
 	});
 
 	// Wire the kernel worker to consume requests from port1 of the
