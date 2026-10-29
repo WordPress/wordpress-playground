@@ -9,6 +9,8 @@ import type { BrowserKernel } from './host-bridge';
 import type { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
 import { KernelPlaygroundWorkerEndpoint } from './playground-worker-endpoint';
+import { prepareWordPressZips } from './prepare-wordpress';
+import { buildVfsImage } from './vfs-builder';
 
 vi.hoisted(() => {
 	vi.stubGlobal('self', { postMessage: () => undefined });
@@ -21,6 +23,10 @@ vi.mock('@php-wasm/web', () => ({
 vi.mock('@wp-playground/storage', () => ({
 	directoryHandleFromMountDevice: async (device: unknown) => device,
 }));
+
+vi.mock('./prepare-wordpress', () => ({ prepareWordPressZips: vi.fn() }));
+
+vi.mock('./vfs-builder', () => ({ buildVfsImage: vi.fn() }));
 
 function makeEndpoint(absoluteUrl: string): KernelPlaygroundWorkerEndpoint {
 	const endpoint = new KernelPlaygroundWorkerEndpoint(
@@ -262,6 +268,38 @@ describe('KernelPlaygroundWorkerEndpoint.mountOpfs', () => {
 		await endpoint.flushOpfs('/wordpress');
 
 		expect(readOpfsTree(opfs)).toEqual({ 'foo.php': 'corge' });
+	});
+});
+
+describe('KernelPlaygroundWorkerEndpoint.captureVfsImage', () => {
+	it('builds the image from the zips of the boot request', async () => {
+		const wordPressZips = {
+			wpVersionQuery: 'foo',
+			sqliteVersion: 'trunk' as const,
+			corsProxyUrl: 'https://baz.test/',
+		};
+		const zips = {
+			wpZipBytes: new Uint8Array([1]),
+			sqliteZipBytes: new Uint8Array([2]),
+			sqliteZipStripLeadingDir: 'qux',
+			wpVersion: 'foo',
+		};
+		const database = new Uint8Array([3]);
+		vi.mocked(prepareWordPressZips).mockResolvedValue(zips);
+		const endpoint = makeEndpoint(scoped);
+		Object.assign(endpoint, {
+			api: { readFileAsBuffer: async () => database },
+			vfsBuildInputs: { wordPressZips },
+		});
+
+		await endpoint.captureVfsImage();
+
+		expect(prepareWordPressZips).toHaveBeenCalledWith(
+			expect.objectContaining(wordPressZips)
+		);
+		expect(buildVfsImage).toHaveBeenCalledWith(
+			expect.objectContaining({ ...zips, preinstalledDatabase: database })
+		);
 	});
 });
 

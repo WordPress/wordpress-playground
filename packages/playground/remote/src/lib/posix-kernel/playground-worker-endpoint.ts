@@ -54,7 +54,10 @@ import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 
 import { bootKernelWordPress, type KernelBootResult } from './boot';
-import { prepareWordPressZips } from './prepare-wordpress';
+import {
+	prepareWordPressZips,
+	type PrepareWordPressZipsOptions,
+} from './prepare-wordpress';
 import { buildVfsImage, serverDaemons } from './vfs-builder';
 import { KernelSpawnAdapter } from './kernel-spawn-adapter';
 import { KernelLimitedPHPApi } from './php-api';
@@ -200,20 +203,16 @@ export interface KernelWorkerBootOptions {
 }
 
 /**
- * The zip/config inputs {@link buildVfsImage} needs, minus the per-capture
- * `preinstalledDatabase` and `onStatus`. Stashed on {@link boot} so
- * {@link KernelPlaygroundWorkerEndpoint.captureVfsImage} can rebuild the
- * image with the freshly-installed DB seeded in. Absent when the worker
- * booted from a prebuilt image (nothing to rebuild from).
+ * What {@link KernelPlaygroundWorkerEndpoint.captureVfsImage} needs to
+ * rebuild the image with the freshly-installed DB seeded in. Stashed on
+ * {@link boot}. It keeps the zip request, not the zip bytes, so the worker
+ * does not hold the zips for its whole lifetime only for the e2e capture.
+ * Absent when the worker booted from a prebuilt image (nothing to rebuild
+ * from).
  */
 interface VfsBuildInputs {
-	wpZipBytes?: Uint8Array;
-	sqliteZipBytes?: Uint8Array;
-	sqliteZipStripLeadingDir?: string;
-	wpZipStripLeadingDir?: string;
-	wpStaticZipBytes?: Uint8Array;
-	withNetworking: boolean;
-	withIntl: boolean;
+	/** Absent in PHP-only mode. */
+	wordPressZips?: PrepareWordPressZipsOptions;
 }
 
 /**
@@ -325,10 +324,11 @@ export class KernelPlaygroundWorkerEndpoint {
 	 * so a caller can persist it and feed it back as
 	 * {@link KernelWorkerBootOptions.prebuiltVfsImageUrl} on later boots
 	 * (which then skip the zip download + {@link buildVfsImage} entirely).
-	 * Rebuilds from the stashed boot inputs rather than re-serializing the
-	 * live kernel VFS — the kernel exposes no image-export hook, and the WP
-	 * files are byte-identical to boot; only the DB changed during install,
-	 * and that is captured via {@link captureInstalledDatabase}.
+	 * Downloads the boot zips again and rebuilds from them rather than
+	 * re-serializing the live kernel VFS — the kernel exposes no
+	 * image-export hook, and the WP files are byte-identical to boot; only
+	 * the DB changed during install, and that is captured via
+	 * {@link captureInstalledDatabase}.
 	 *
 	 * Must be called after a full-build boot (the e2e globalSetup's, which
 	 * never carries a prebuilt image). Throws if the worker itself booted
@@ -348,6 +348,13 @@ export class KernelPlaygroundWorkerEndpoint {
 			);
 		}
 		const preinstalledDatabase = await this.captureInstalledDatabase();
+		const { wordPressZips } = this.vfsBuildInputs;
+		const zips =
+			wordPressZips &&
+			(await prepareWordPressZips({
+				...wordPressZips,
+				onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
+			}));
 		// The shared snapshot must carry the DEFAULT runtime config so the
 		// `doBoot` snapshot gate can serve it to any default-config test:
 		// networking ON (curl enabled) and intl OFF. Install itself still
@@ -355,7 +362,7 @@ export class KernelPlaygroundWorkerEndpoint {
 		// only flip the baked runtime config at capture time. Tests that
 		// need networking-off or intl-on fall through to a cold build.
 		return await buildVfsImage({
-			...this.vfsBuildInputs,
+			...zips,
 			withNetworking: true,
 			withIntl: false,
 			preinstalledDatabase,
@@ -797,14 +804,20 @@ export class KernelPlaygroundWorkerEndpoint {
 			let sqliteZipStripLeadingDir: string | undefined;
 			let wpZipStripLeadingDir: string | undefined;
 			let wpStaticZipBytes: Uint8Array | undefined;
-			if (bootWordPress) {
+			const wordPressZips: PrepareWordPressZipsOptions | undefined =
+				bootWordPress
+					? {
+							wpVersionQuery,
+							sqliteVersion: options.sqliteDriverVersion,
+							corsProxyUrl,
+						}
+					: undefined;
+			if (wordPressZips) {
 				logger.debug(
 					`[posix-kernel] preparing WordPress zips (scope=${options.scope})`
 				);
 				const zips = await prepareWordPressZips({
-					wpVersionQuery,
-					sqliteVersion: options.sqliteDriverVersion,
-					corsProxyUrl,
+					...wordPressZips,
 					monitor: this.downloadMonitor,
 					onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
 				});
@@ -867,7 +880,10 @@ export class KernelPlaygroundWorkerEndpoint {
 			// Stash the build inputs so `captureVfsImage` (e2e globalSetup)
 			// can re-serialize the image with the freshly-installed DB seeded
 			// in — the snapshot every other test then boots from.
-			this.vfsBuildInputs = {
+			this.vfsBuildInputs = { wordPressZips };
+
+			logger.debug('[posix-kernel] building VFS image');
+			vfsImage = await buildVfsImage({
 				wpZipBytes,
 				sqliteZipBytes,
 				sqliteZipStripLeadingDir,
@@ -875,11 +891,6 @@ export class KernelPlaygroundWorkerEndpoint {
 				wpStaticZipBytes,
 				withNetworking,
 				withIntl,
-			};
-
-			logger.debug('[posix-kernel] building VFS image');
-			vfsImage = await buildVfsImage({
-				...this.vfsBuildInputs,
 				preinstalledDatabase,
 				onStatus: (m) => logger.log(`[posix-kernel] ${m}`),
 			});
