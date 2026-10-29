@@ -729,4 +729,28 @@ describe('createDecodedTarStream + zstddec fallback', () => {
 			]);
 		});
 	});
+
+	it('decodes a byte array larger than one zstddec input slice', async () => {
+		await withoutNativeDecompressionStream(async () => {
+			const copies = Math.ceil((256 * 1024) / ZSTD_TAR_FIXTURE.length);
+			const archive = Buffer.concat(
+				Array.from({ length: copies }, () => ZSTD_TAR_FIXTURE)
+			);
+
+			expect(await decodedLength(archive)).toBe(
+				(await decodedLength(ZSTD_TAR_FIXTURE)) * copies
+			);
+		});
+	});
 });
+
+async function decodedLength(compressed: Uint8Array) {
+	const stream = await createDecodedTarStream(compressed, 'zstd');
+	const reader = stream.getReader();
+	let length = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) return length;
+		length += value.length;
+	}
+}
