@@ -316,6 +316,29 @@ describe('Reprint connection changes', () => {
 		expect(pullSite).not.toHaveBeenCalled();
 	});
 
+	it('keeps Copy focused when retrying after clone creation fails', async () => {
+		ui.cloneRequested = true;
+		createNewTemporarySite.mockRejectedValueOnce(
+			new Error('Creating the clone failed')
+		);
+		vi.mocked(detectReprint).mockResolvedValue('needs-key');
+		await render();
+		edit('url', 'https://example.com');
+		await submit();
+		await submit();
+		expect(container.textContent).toContain('Creating the clone failed');
+
+		const copy = Array.from(container.querySelectorAll('button')).find(
+			(button) => button.textContent === 'Copy migration key'
+		)!;
+		copy.focus();
+		await click('Copy migration key');
+		expect(document.activeElement).toBe(copy);
+		expect(container.textContent).not.toContain(
+			'Creating the clone failed'
+		);
+	});
+
 	it.each(['succeeds', 'fails'])(
 		'keeps the pull enabled when a pending second copy %s after settings opens',
 		async (result) => {

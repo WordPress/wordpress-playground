@@ -298,6 +298,8 @@ export function SiteTransferPanel({
 	const copyMigrationKey = async () => {
 		if (!keyPair || step === 'copying-key') return;
 		checkController.current?.abort();
+		// An old clone error would make the focus effect jump back to its heading.
+		setError('');
 		const controller = new AbortController();
 		checkController.current = controller;
 		// Copying again must not undo a settings tab the user already opened.
