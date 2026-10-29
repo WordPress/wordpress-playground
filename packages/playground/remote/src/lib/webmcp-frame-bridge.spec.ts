@@ -115,10 +115,19 @@ describe('WordPress WebMCP registry cancellation', () => {
 		} = {};
 		// Substitute the PHP-rendered configuration while exercising the actual
 		// injected JavaScript across distinct app and WordPress origins.
-		const renderedScript = script!.replace(
-			"<?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?>",
-			JSON.stringify('https://playground.test')
-		);
+		const renderedScript = script!
+			.replace(
+				"<?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?>",
+				JSON.stringify('https://playground.test')
+			)
+			.replace(
+				"<?php echo wp_json_encode(wp_create_nonce('playground-abilities')); ?>",
+				'"test-nonce"'
+			)
+			.replace(
+				"<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>",
+				'"https://wordpress.test/wp-admin/admin-ajax.php"'
+			);
 		runInNewContext(renderedScript, {
 			window: {
 				parent,
@@ -130,6 +139,7 @@ describe('WordPress WebMCP registry cancellation', () => {
 			document,
 			navigator: {},
 			AbortController,
+			crypto,
 		});
 		const signals: AbortSignal[] = [];
 		const interaction = vi.fn(async () => 'confirmed');
@@ -175,3 +185,89 @@ describe('WordPress WebMCP registry cancellation', () => {
 		send({ type: 'playground-webmcp-cancel-tool', callId: 'call-2' });
 	});
 });
+
+// Contract: a response belongs to one WordPress document. Head announcements,
+// load events, and asynchronous PHP responses arrive through independent paths.
+describe('WordPress document request lifecycle', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('does not reject a request when its current document finishes loading', async () => {
+		vi.useFakeTimers();
+		const { bridge, frame, announce, respond, postMessage } = setup();
+		announce('one');
+		const result = bridge.listAbilities();
+		const request = postMessage.mock.calls.at(-1)![0];
+		expect(request.documentId).toBe('one');
+		frame.dispatchEvent(new Event('load'));
+		announce('one');
+		respond(request.callId, {
+			available: true,
+			abilities: [],
+			user: { id: 1, name: 'admin' },
+		});
+		await expect(result).resolves.toMatchObject({ available: true });
+	});
+
+	it('rejects pending execution when another document announces itself', async () => {
+		const { bridge, announce } = setup();
+		announce('one');
+		const pending = bridge.executeAbility('test/write', false);
+		const assertion = expect(pending).rejects.toThrow(
+			'operation may have completed'
+		);
+		announce('two');
+		await assertion;
+	});
+
+	it('rejects pending calls when navigation reaches a document without the bridge', async () => {
+		vi.useFakeTimers();
+		const { bridge, frame, announce } = setup();
+		announce('one');
+		const pending = bridge.executeAbility('test/write');
+		const assertion = expect(pending).rejects.toThrow(
+			'WordPress navigated'
+		);
+		frame.dispatchEvent(new Event('load'));
+		vi.advanceTimersByTime(1000);
+		await assertion;
+	});
+});
+
+function setup() {
+	let receive!: (event: MessageEvent) => void;
+	const postMessage = vi.fn();
+	const frame = Object.assign(new EventTarget(), {
+		contentWindow: { postMessage },
+	}) as unknown as HTMLIFrameElement;
+	vi.stubGlobal('window', {
+		addEventListener: (type: string, listener: typeof receive) => {
+			if (type === 'message') receive = listener;
+		},
+	});
+	const bridge = createWebMCPFrameBridge(frame);
+	const send = (data: unknown) =>
+		receive({
+			source: frame.contentWindow,
+			origin: 'https://wordpress.test',
+			data,
+		} as MessageEvent);
+	return {
+		bridge,
+		frame,
+		postMessage,
+		announce: (documentId: string) =>
+			send({
+				type: 'playground-webmcp-tools-changed',
+				documentId,
+				tools: [],
+			}),
+		respond: (callId: string, result: unknown) =>
+			send({
+				type: 'playground-webmcp-call-result',
+				callId,
+				resultJson: JSON.stringify(result),
+			}),
+	};
+}
