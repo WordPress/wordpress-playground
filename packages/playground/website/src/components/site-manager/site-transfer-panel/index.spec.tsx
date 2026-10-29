@@ -316,6 +316,43 @@ describe('Reprint connection changes', () => {
 		expect(pullSite).not.toHaveBeenCalled();
 	});
 
+	it.each(['succeeds', 'fails'])(
+		'keeps the pull enabled when a pending second copy %s after settings opens',
+		async (result) => {
+			vi.mocked(detectReprint).mockResolvedValue('needs-key');
+			await render();
+			edit('url', 'https://example.com');
+			await submit();
+			await click('Copy migration key');
+
+			let finish!: () => void;
+			vi.mocked(navigator.clipboard.writeText).mockReturnValueOnce(
+				new Promise<void>((resolve, reject) => {
+					finish = () => {
+						if (result === 'succeeds') resolve();
+						else reject(new Error('Denied'));
+					};
+				})
+			);
+			await click('Copy migration key');
+			await click('Open Reprint settings ↗');
+			expect(
+				container.querySelector<HTMLButtonElement>(
+					'button[type=submit]'
+				)!.disabled
+			).toBe(false);
+
+			await act(async () => finish());
+			expect(
+				container.querySelector<HTMLButtonElement>(
+					'button[type=submit]'
+				)!.disabled
+			).toBe(false);
+			await submit();
+			expect(pullSite).toHaveBeenCalledTimes(1);
+		}
+	);
+
 	it('ignores a clipboard result after returning to edit the site address', async () => {
 		let finish!: () => void;
 		vi.mocked(navigator.clipboard.writeText).mockReturnValueOnce(

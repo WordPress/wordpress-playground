@@ -291,7 +291,10 @@ export function SiteTransferPanel({
 		setCompleted(false);
 	};
 
-	/** Copy during the click gesture; ignore completion after Back or an address edit. */
+	/**
+	 * Copy during the click gesture; ignore completion after Back or an address edit.
+	 * A repeated copy must leave any newer setup step in place.
+	 */
 	const copyMigrationKey = async () => {
 		if (!keyPair || step === 'copying-key') return;
 		checkController.current?.abort();
@@ -302,9 +305,14 @@ export function SiteTransferPanel({
 		try {
 			await navigator.clipboard.writeText(keyPair.publicKey);
 			if (!controller.signal.aborted)
-				setStep(step === 'confirm' ? 'confirm' : 'authorize');
+				setStep((current) =>
+					current === 'copying-key' ? 'authorize' : current
+				);
 		} catch {
-			if (!controller.signal.aborted) setStep('manual-key');
+			if (!controller.signal.aborted)
+				setStep((current) =>
+					current === 'copying-key' ? 'manual-key' : current
+				);
 		}
 	};
 
