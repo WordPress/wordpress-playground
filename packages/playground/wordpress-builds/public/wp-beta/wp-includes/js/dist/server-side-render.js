@@ -1,3 +1,5 @@
+(function() {
+"use strict";
 var wp;
 (wp ||= {}).serverSideRender = (() => {
   var __create = Object.create;
@@ -114,6 +116,36 @@ var wp;
   var import_api_fetch = __toESM(require_api_fetch(), 1);
   var import_url = __toESM(require_url(), 1);
   var import_blocks = __toESM(require_blocks(), 1);
+
+  // packages/server-side-render/build-module/errors.mjs
+  function parseErrorMessage(error) {
+    if (error?.code === "rest_invalid_param" && error.data?.params?.attributes && 1 === Object.values(error.data.params).length) {
+      return `Invalid attribute: ${error.data.params.attributes}`;
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (!error) {
+      return "";
+    } else if (typeof error.message === "string") {
+      return error.message;
+    } else if (typeof error === "string") {
+      return error;
+    } else if (
+      // Only consider own method, lest we erroneously end up calling
+      // `Object#toString` at the end of the prototype chain, thereby
+      // returning `"[object Object]"`.
+      Object.hasOwn(error, "toString") && typeof error.toString === "function"
+    ) {
+      const result = error.toString();
+      if (typeof result === "string") {
+        return result;
+      }
+    }
+    return "";
+  }
+
+  // packages/server-side-render/build-module/hook.mjs
   function rendererPath(block, attributes = null, urlQueryArgs = {}) {
     return (0, import_url.addQueryArgs)(`/wp/v2/block-renderer/${block}`, {
       context: "edit",
@@ -147,7 +179,9 @@ var wp;
     };
   }
   function useServerSideRender(args) {
-    const [response, setResponse] = (0, import_element.useState)({ status: "idle" });
+    const [response, setResponse] = (0, import_element.useState)({
+      status: "idle"
+    });
     const shouldDebounceRef = (0, import_element.useRef)(false);
     const {
       attributes,
@@ -156,8 +190,8 @@ var wp;
       httpMethod = "GET",
       urlQueryArgs
     } = args;
-    let sanitizedAttributes = attributes && (0, import_blocks.__experimentalSanitizeBlockAttributes)(block, attributes);
-    if (skipBlockSupportAttributes) {
+    let sanitizedAttributes = attributes && (0, import_blocks.sanitizeBlockAttributes)(block, attributes);
+    if (skipBlockSupportAttributes && sanitizedAttributes) {
       sanitizedAttributes = removeBlockSupportAttributes(sanitizedAttributes);
     }
     const isPostRequest = "POST" === httpMethod;
@@ -184,12 +218,13 @@ var wp;
                 content: res ? res.rendered : ""
               });
             }).catch((error) => {
-              if (error.name === "AbortError") {
+              if (error instanceof Error && error.name === "AbortError") {
                 return;
               }
+              console.warn(error);
               setResponse({
                 status: "error",
-                error: error.message
+                error: parseErrorMessage(error)
               });
             }).finally(() => {
               shouldDebounceRef.current = true;
@@ -213,15 +248,20 @@ var wp;
   function DefaultEmptyResponsePlaceholder({ className }) {
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.Placeholder, { className, children: (0, import_i18n.__)("Block rendered as empty.") });
   }
-  function DefaultErrorResponsePlaceholder({ message, className }) {
+  function DefaultErrorResponsePlaceholder({
+    message,
+    className
+  }) {
     const errorMessage = (0, import_i18n.sprintf)(
       // translators: %s: error message describing the problem
       (0, import_i18n.__)("Error loading block: %s"),
-      message
+      message || (0, import_i18n.__)("Unknown error")
     );
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.Placeholder, { className, children: errorMessage });
   }
-  function DefaultLoadingResponsePlaceholder({ children }) {
+  function DefaultLoadingResponsePlaceholder({
+    children
+  }) {
     const [showLoader, setShowLoader] = (0, import_element2.useState)(false);
     (0, import_element2.useEffect)(() => {
       const timeout = setTimeout(() => {
@@ -262,7 +302,11 @@ var wp;
       }
     }, [content]);
     if (status === "loading") {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoadingResponsePlaceholder, { ...props, children: !!prevContentRef.current && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_element2.RawHTML, { className, children: prevContentRef.current }) });
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoadingResponsePlaceholder, { ...props, children: !!prevContentRef.current && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_element2.RawHTML, {
+        className,
+        // eslint-disable-next-line react-hooks/refs
+        children: prevContentRef.current
+      }) });
     }
     if (status === "success" && !content) {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EmptyResponsePlaceholder, { ...props });
@@ -270,14 +314,15 @@ var wp;
     if (status === "error") {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorResponsePlaceholder, { message: error, ...props });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_element2.RawHTML, { className, children: content });
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_element2.RawHTML, { className, children: content || "" });
   }
   function ServerSideRenderWithPostId({
     urlQueryArgs = EMPTY_OBJECT,
     ...props
   }) {
     const currentPostId = (0, import_data.useSelect)((select) => {
-      const postId = select("core/editor")?.getCurrentPostId();
+      const editorStore = select("core/editor");
+      const postId = editorStore?.getCurrentPostId?.();
       return postId && typeof postId === "number" ? postId : null;
     }, []);
     const newUrlQueryArgs = (0, import_element2.useMemo)(() => {
@@ -300,3 +345,5 @@ var wp;
   return __toCommonJS(index_exports);
 })();
 if (typeof wp.serverSideRender === 'object' && wp.serverSideRender.default) { wp.serverSideRender = wp.serverSideRender.default; }
+(window.wp ||= {}).serverSideRender = wp.serverSideRender;
+})();

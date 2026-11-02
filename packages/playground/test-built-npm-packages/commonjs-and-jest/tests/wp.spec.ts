@@ -22,7 +22,7 @@ SupportedPHPVersions.forEach((phpVersion: string) => {
 			} finally {
 				await cli[Symbol.asyncDispose]();
 			}
-		}, 30000);
+		}, 60000);
 	});
 	/**
 	 * Very the built Playground packages ship worker files that have stable names.

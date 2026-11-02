@@ -1,3 +1,5 @@
 #!/bin/bash
+set -e
 
-# phpunit ./tests/ProxyFunctionsTests.php
+phpunit
+php tests/e2e/cors-proxy-e2e-test.php

@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 19062121;
+export const dependenciesTotalSize = 19062823;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6243,7 +6243,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map,
+		socketTimeouts: new Map(),
 		init: function () {
 			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
 			if (PHPLoader.bindUserSpace) {
@@ -6841,7 +6841,6 @@ export function init(RuntimeName, PHPLoader) {
 			const peer = PHPWASM.getAllPeers(sock).find(
 				(candidate) => candidate.socket === ws
 			);
-
 			const cleanupConnectListeners = () => {
 				if (typeof timeoutId !== 'undefined') {
 					clearTimeout(timeoutId);
@@ -6850,7 +6849,6 @@ export function init(RuntimeName, PHPLoader) {
 				ws.removeEventListener('error', handleError);
 				ws.removeEventListener('close', handleClose);
 			};
-
 			const cleanupFailedConnect = (errno) => {
 				try {
 					if (
@@ -6859,16 +6857,13 @@ export function init(RuntimeName, PHPLoader) {
 					) {
 						ws.close();
 					}
-				} catch (e) {
-					// Ignore close errors on an already-failed connect.
-				}
+				} catch (e) {}
 				if (peer) {
 					SOCKFS.websocket_sock_ops.removePeer(sock, peer);
 				}
 				sock.connecting = false;
 				sock.error = errno;
 			};
-
 			const finishConnect = (result) => {
 				if (!resolved) {
 					resolved = true;
@@ -6879,21 +6874,17 @@ export function init(RuntimeName, PHPLoader) {
 					wakeUp(result);
 				}
 			};
-
 			if (timeout > 0) {
 				timeoutId = setTimeout(() => {
 					finishConnect(-ERRNO_CODES.ETIMEDOUT);
 				}, timeout);
 			}
-
 			handleOpen = () => {
 				finishConnect(0);
 			};
-
 			handleError = () => {
 				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
-
 			handleClose = () => {
 				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
@@ -8560,6 +8551,14 @@ export function init(RuntimeName, PHPLoader) {
 
 	_emscripten_resize_heap.sig = 'ip';
 
+	var runAndAbortIfError = (func) => {
+		try {
+			return func();
+		} catch (e) {
+			abort(e);
+		}
+	};
+
 	var runtimeKeepalivePush = () => {
 		runtimeKeepaliveCounter += 1;
 	};
@@ -8572,6 +8571,242 @@ export function init(RuntimeName, PHPLoader) {
 
 	runtimeKeepalivePop.sig = 'v';
 
+	var Asyncify = {
+		instrumentWasmImports(imports) {
+			var importPattern =
+				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iiij|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|zend_hash_str_find|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|recv|_recv|setsockopt|_setsockopt|wasm_connect|_wasm_connect|__asyncjs__.*)$/;
+			for (let [x, original] of Object.entries(imports)) {
+				if (typeof original == 'function') {
+					let isAsyncifyImport =
+						original.isAsync || importPattern.test(x);
+				}
+			}
+		},
+		instrumentFunction(original) {
+			var wrapper = (...args) => {
+				Asyncify.exportCallStack.push(original);
+				try {
+					return original(...args);
+				} finally {
+					if (!ABORT) {
+						var top = Asyncify.exportCallStack.pop();
+						Asyncify.maybeStopUnwind();
+					}
+				}
+			};
+			Asyncify.funcWrappers.set(original, wrapper);
+			wrapper.orig = original;
+			return wrapper;
+		},
+		instrumentWasmExports(exports) {
+			var ret = {};
+			for (let [x, original] of Object.entries(exports)) {
+				if (typeof original == 'function') {
+					var wrapper = Asyncify.instrumentFunction(original);
+					ret[x] = wrapper;
+				} else {
+					ret[x] = original;
+				}
+			}
+			return ret;
+		},
+		State: {
+			Normal: 0,
+			Unwinding: 1,
+			Rewinding: 2,
+			Disabled: 3,
+		},
+		state: 0,
+		StackSize: 4096,
+		currData: null,
+		handleSleepReturnValue: 0,
+		exportCallStack: [],
+		callstackFuncToId: new Map(),
+		callStackIdToFunc: new Map(),
+		funcWrappers: new Map(),
+		callStackId: 0,
+		asyncPromiseHandlers: null,
+		sleepCallbacks: [],
+		getCallStackId(func) {
+			if (!Asyncify.callstackFuncToId.has(func)) {
+				var id = Asyncify.callStackId++;
+				Asyncify.callstackFuncToId.set(func, id);
+				Asyncify.callStackIdToFunc.set(id, func);
+			}
+			return Asyncify.callstackFuncToId.get(func);
+		},
+		maybeStopUnwind() {
+			if (
+				Asyncify.currData &&
+				Asyncify.state === Asyncify.State.Unwinding &&
+				Asyncify.exportCallStack.length === 0
+			) {
+				// We just finished unwinding.
+				// Be sure to set the state before calling any other functions to avoid
+				// possible infinite recursion here (For example in debug pthread builds
+				// the dbg() function itself can call back into WebAssembly to get the
+				// current pthread_self() pointer).
+				Asyncify.state = Asyncify.State.Normal;
+				runtimeKeepalivePush();
+				// Keep the runtime alive so that a re-wind can be done later.
+				runAndAbortIfError(_asyncify_stop_unwind);
+				if (typeof Fibers != 'undefined') {
+					Fibers.trampoline();
+				}
+			}
+		},
+		whenDone() {
+			return new Promise((resolve, reject) => {
+				Asyncify.asyncPromiseHandlers = {
+					resolve,
+					reject,
+				};
+			});
+		},
+		allocateData() {
+			// An asyncify data structure has three fields:
+			//  0  current stack pos
+			//  4  max stack pos
+			//  8  id of function at bottom of the call stack (callStackIdToFunc[id] == wasm func)
+			// The Asyncify ABI only interprets the first two fields, the rest is for the runtime.
+			// We also embed a stack in the same memory region here, right next to the structure.
+			// This struct is also defined as asyncify_data_t in emscripten/fiber.h
+			var ptr = _malloc(12 + Asyncify.StackSize);
+			Asyncify.setDataHeader(ptr, ptr + 12, Asyncify.StackSize);
+			Asyncify.setDataRewindFunc(ptr);
+			return ptr;
+		},
+		setDataHeader(ptr, stack, stackSize) {
+			HEAPU32[ptr >> 2] = stack;
+			HEAPU32[(ptr + 4) >> 2] = stack + stackSize;
+		},
+		setDataRewindFunc(ptr) {
+			var bottomOfCallStack = Asyncify.exportCallStack[0];
+			var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
+			HEAP32[(ptr + 8) >> 2] = rewindId;
+		},
+		getDataRewindFunc(ptr) {
+			var id = HEAP32[(ptr + 8) >> 2];
+			var func = Asyncify.callStackIdToFunc.get(id);
+			return func;
+		},
+		doRewind(ptr) {
+			var original = Asyncify.getDataRewindFunc(ptr);
+			var func = Asyncify.funcWrappers.get(original);
+			// Once we have rewound and the stack we no longer need to artificially
+			// keep the runtime alive.
+			runtimeKeepalivePop();
+			return func();
+		},
+		handleSleep(startAsync) {
+			if (ABORT) return;
+			if (Asyncify.state === Asyncify.State.Normal) {
+				// Prepare to sleep. Call startAsync, and see what happens:
+				// if the code decided to call our callback synchronously,
+				// then no async operation was in fact begun, and we don't
+				// need to do anything.
+				var reachedCallback = false;
+				var reachedAfterCallback = false;
+				startAsync((handleSleepReturnValue = 0) => {
+					if (ABORT) return;
+					Asyncify.handleSleepReturnValue = handleSleepReturnValue;
+					reachedCallback = true;
+					if (!reachedAfterCallback) {
+						// We are happening synchronously, so no need for async.
+						return;
+					}
+					Asyncify.state = Asyncify.State.Rewinding;
+					runAndAbortIfError(() =>
+						_asyncify_start_rewind(Asyncify.currData)
+					);
+					if (typeof MainLoop != 'undefined' && MainLoop.func) {
+						MainLoop.resume();
+					}
+					var asyncWasmReturnValue,
+						isError = false;
+					try {
+						asyncWasmReturnValue = Asyncify.doRewind(
+							Asyncify.currData
+						);
+					} catch (err) {
+						asyncWasmReturnValue = err;
+						isError = true;
+					}
+					// Track whether the return value was handled by any promise handlers.
+					var handled = false;
+					if (!Asyncify.currData) {
+						// All asynchronous execution has finished.
+						// `asyncWasmReturnValue` now contains the final
+						// return value of the exported async WASM function.
+						// Note: `asyncWasmReturnValue` is distinct from
+						// `Asyncify.handleSleepReturnValue`.
+						// `Asyncify.handleSleepReturnValue` contains the return
+						// value of the last C function to have executed
+						// `Asyncify.handleSleep()`, where as `asyncWasmReturnValue`
+						// contains the return value of the exported WASM function
+						// that may have called C functions that
+						// call `Asyncify.handleSleep()`.
+						var asyncPromiseHandlers =
+							Asyncify.asyncPromiseHandlers;
+						if (asyncPromiseHandlers) {
+							Asyncify.asyncPromiseHandlers = null;
+							(isError
+								? asyncPromiseHandlers.reject
+								: asyncPromiseHandlers.resolve)(
+								asyncWasmReturnValue
+							);
+							handled = true;
+						}
+					}
+					if (isError && !handled) {
+						// If there was an error and it was not handled by now, we have no choice but to
+						// rethrow that error into the global scope where it can be caught only by
+						// `onerror` or `onunhandledpromiserejection`.
+						throw asyncWasmReturnValue;
+					}
+				});
+				reachedAfterCallback = true;
+				if (!reachedCallback) {
+					// A true async operation was begun; start a sleep.
+					Asyncify.state = Asyncify.State.Unwinding;
+					// TODO: reuse, don't alloc/free every sleep
+					if (!Asyncify._cachedData) {
+						Asyncify._cachedData = Asyncify.allocateData();
+					} else {
+						Asyncify.setDataHeader(
+							Asyncify._cachedData,
+							Asyncify._cachedData + 12,
+							Asyncify.StackSize
+						);
+						Asyncify.setDataRewindFunc(Asyncify._cachedData);
+					}
+					Asyncify.currData = Asyncify._cachedData;
+					if (typeof MainLoop != 'undefined' && MainLoop.func) {
+						MainLoop.pause();
+					}
+					runAndAbortIfError(() =>
+						_asyncify_start_unwind(Asyncify.currData)
+					);
+				}
+			} else if (Asyncify.state === Asyncify.State.Rewinding) {
+				// Stop a resume.
+				Asyncify.state = Asyncify.State.Normal;
+				runAndAbortIfError(_asyncify_stop_rewind);
+				Asyncify.currData = null;
+				// Call all sleep callbacks now that the sleep-resume is all done.
+				Asyncify.sleepCallbacks.forEach(callUserCallback);
+			} else {
+				abort(`invalid state: ${Asyncify.state}`);
+			}
+			return Asyncify.handleSleepReturnValue;
+		},
+		handleAsync: (startAsync) =>
+			Asyncify.handleSleep((wakeUp) => {
+				// TODO: add error handling as a second param when handleSleep implements it.
+				startAsync().then(wakeUp);
+			}),
+	};
+
 	/** @param {number=} timeout */ var safeSetTimeout = (func, timeout) => {
 		runtimeKeepalivePush();
 		return setTimeout(() => {
@@ -8580,8 +8815,22 @@ export function init(RuntimeName, PHPLoader) {
 		}, timeout);
 	};
 
-	var _emscripten_sleep = (ms) =>
-		Asyncify.handleSleep((wakeUp) => safeSetTimeout(wakeUp, ms));
+	var _emscripten_sleep = function (ms) {
+		return Asyncify.handleSleep((wakeUp) => {
+			// select() yields between socket reads. Nested zero-delay timers are
+			// clamped by browsers, adding seconds to even a local curl download.
+			// Use a task (not a microtask) so network events still get a turn.
+			if (ms === 0 && globalThis.scheduler?.postTask) {
+				runtimeKeepalivePush();
+				globalThis.scheduler.postTask(() => {
+					runtimeKeepalivePop();
+					callUserCallback(wakeUp);
+				});
+			} else {
+				safeSetTimeout(wakeUp, ms);
+			}
+		});
+	};
 
 	_emscripten_sleep.sig = 'vi';
 
@@ -9425,9 +9674,39 @@ export function init(RuntimeName, PHPLoader) {
 				// callbacks.
 				const interval = setInterval(pump, 20);
 				pump();
+			} else {
+				/**
+				 * Descriptor 0 was not provided, so the child process must observe EOF.
+				 * Closing stdin explicitly lets spawn handlers distinguish that case from
+				 * a valid pipe whose first bytes have not arrived yet.
+				 */ cp.stdin.end();
 			}
 			return ProcInfo.pid;
 		});
+	}
+
+	function _js_popen_clear_pid_for_fd(fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				delete PHPWASM.processTable[pid].fd;
+				return;
+			}
+		}
+	}
+
+	function _js_popen_get_pid_for_fd(fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				return PHPWASM.processTable[pid].pid;
+			}
+		}
+		return -1;
+	}
+
+	function _js_popen_set_pid_for_fd(fd, pid) {
+		if (PHPWASM.processTable[pid]) {
+			PHPWASM.processTable[pid].fd = fd;
+		}
 	}
 
 	function _js_process_status(pid, exitCodePtr) {
@@ -9876,6 +10155,7 @@ export function init(RuntimeName, PHPLoader) {
 			PHPWASM.socketTimeouts.set(socketd, timeouts);
 			return 0;
 		}
+		// Options that we can forward to the WebSocket proxy
 		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
@@ -9896,250 +10176,6 @@ export function init(RuntimeName, PHPLoader) {
 	function _wasm_shutdown(socketd, how) {
 		return PHPWASM.shutdownSocket(socketd, how);
 	}
-
-	var runAndAbortIfError = (func) => {
-		try {
-			return func();
-		} catch (e) {
-			abort(e);
-		}
-	};
-
-	var Asyncify = {
-		instrumentWasmImports(imports) {
-			var importPattern =
-				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iiij|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|zend_hash_str_find|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|recv|_recv|setsockopt|_setsockopt|wasm_connect|_wasm_connect|__asyncjs__.*)$/;
-			for (let [x, original] of Object.entries(imports)) {
-				if (typeof original == 'function') {
-					let isAsyncifyImport =
-						original.isAsync || importPattern.test(x);
-				}
-			}
-		},
-		instrumentFunction(original) {
-			var wrapper = (...args) => {
-				Asyncify.exportCallStack.push(original);
-				try {
-					return original(...args);
-				} finally {
-					if (!ABORT) {
-						var top = Asyncify.exportCallStack.pop();
-						Asyncify.maybeStopUnwind();
-					}
-				}
-			};
-			Asyncify.funcWrappers.set(original, wrapper);
-			wrapper.orig = original;
-			return wrapper;
-		},
-		instrumentWasmExports(exports) {
-			var ret = {};
-			for (let [x, original] of Object.entries(exports)) {
-				if (typeof original == 'function') {
-					var wrapper = Asyncify.instrumentFunction(original);
-					ret[x] = wrapper;
-				} else {
-					ret[x] = original;
-				}
-			}
-			return ret;
-		},
-		State: {
-			Normal: 0,
-			Unwinding: 1,
-			Rewinding: 2,
-			Disabled: 3,
-		},
-		state: 0,
-		StackSize: 4096,
-		currData: null,
-		handleSleepReturnValue: 0,
-		exportCallStack: [],
-		callstackFuncToId: new Map(),
-		callStackIdToFunc: new Map(),
-		funcWrappers: new Map(),
-		callStackId: 0,
-		asyncPromiseHandlers: null,
-		sleepCallbacks: [],
-		getCallStackId(func) {
-			if (!Asyncify.callstackFuncToId.has(func)) {
-				var id = Asyncify.callStackId++;
-				Asyncify.callstackFuncToId.set(func, id);
-				Asyncify.callStackIdToFunc.set(id, func);
-			}
-			return Asyncify.callstackFuncToId.get(func);
-		},
-		maybeStopUnwind() {
-			if (
-				Asyncify.currData &&
-				Asyncify.state === Asyncify.State.Unwinding &&
-				Asyncify.exportCallStack.length === 0
-			) {
-				// We just finished unwinding.
-				// Be sure to set the state before calling any other functions to avoid
-				// possible infinite recursion here (For example in debug pthread builds
-				// the dbg() function itself can call back into WebAssembly to get the
-				// current pthread_self() pointer).
-				Asyncify.state = Asyncify.State.Normal;
-				runtimeKeepalivePush();
-				// Keep the runtime alive so that a re-wind can be done later.
-				runAndAbortIfError(_asyncify_stop_unwind);
-				if (typeof Fibers != 'undefined') {
-					Fibers.trampoline();
-				}
-			}
-		},
-		whenDone() {
-			return new Promise((resolve, reject) => {
-				Asyncify.asyncPromiseHandlers = {
-					resolve,
-					reject,
-				};
-			});
-		},
-		allocateData() {
-			// An asyncify data structure has three fields:
-			//  0  current stack pos
-			//  4  max stack pos
-			//  8  id of function at bottom of the call stack (callStackIdToFunc[id] == wasm func)
-			// The Asyncify ABI only interprets the first two fields, the rest is for the runtime.
-			// We also embed a stack in the same memory region here, right next to the structure.
-			// This struct is also defined as asyncify_data_t in emscripten/fiber.h
-			var ptr = _malloc(12 + Asyncify.StackSize);
-			Asyncify.setDataHeader(ptr, ptr + 12, Asyncify.StackSize);
-			Asyncify.setDataRewindFunc(ptr);
-			return ptr;
-		},
-		setDataHeader(ptr, stack, stackSize) {
-			HEAPU32[ptr >> 2] = stack;
-			HEAPU32[(ptr + 4) >> 2] = stack + stackSize;
-		},
-		setDataRewindFunc(ptr) {
-			var bottomOfCallStack = Asyncify.exportCallStack[0];
-			var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
-			HEAP32[(ptr + 8) >> 2] = rewindId;
-		},
-		getDataRewindFunc(ptr) {
-			var id = HEAP32[(ptr + 8) >> 2];
-			var func = Asyncify.callStackIdToFunc.get(id);
-			return func;
-		},
-		doRewind(ptr) {
-			var original = Asyncify.getDataRewindFunc(ptr);
-			var func = Asyncify.funcWrappers.get(original);
-			// Once we have rewound and the stack we no longer need to artificially
-			// keep the runtime alive.
-			runtimeKeepalivePop();
-			return func();
-		},
-		handleSleep(startAsync) {
-			if (ABORT) return;
-			if (Asyncify.state === Asyncify.State.Normal) {
-				// Prepare to sleep. Call startAsync, and see what happens:
-				// if the code decided to call our callback synchronously,
-				// then no async operation was in fact begun, and we don't
-				// need to do anything.
-				var reachedCallback = false;
-				var reachedAfterCallback = false;
-				startAsync((handleSleepReturnValue = 0) => {
-					if (ABORT) return;
-					Asyncify.handleSleepReturnValue = handleSleepReturnValue;
-					reachedCallback = true;
-					if (!reachedAfterCallback) {
-						// We are happening synchronously, so no need for async.
-						return;
-					}
-					Asyncify.state = Asyncify.State.Rewinding;
-					runAndAbortIfError(() =>
-						_asyncify_start_rewind(Asyncify.currData)
-					);
-					if (typeof MainLoop != 'undefined' && MainLoop.func) {
-						MainLoop.resume();
-					}
-					var asyncWasmReturnValue,
-						isError = false;
-					try {
-						asyncWasmReturnValue = Asyncify.doRewind(
-							Asyncify.currData
-						);
-					} catch (err) {
-						asyncWasmReturnValue = err;
-						isError = true;
-					}
-					// Track whether the return value was handled by any promise handlers.
-					var handled = false;
-					if (!Asyncify.currData) {
-						// All asynchronous execution has finished.
-						// `asyncWasmReturnValue` now contains the final
-						// return value of the exported async WASM function.
-						// Note: `asyncWasmReturnValue` is distinct from
-						// `Asyncify.handleSleepReturnValue`.
-						// `Asyncify.handleSleepReturnValue` contains the return
-						// value of the last C function to have executed
-						// `Asyncify.handleSleep()`, where as `asyncWasmReturnValue`
-						// contains the return value of the exported WASM function
-						// that may have called C functions that
-						// call `Asyncify.handleSleep()`.
-						var asyncPromiseHandlers =
-							Asyncify.asyncPromiseHandlers;
-						if (asyncPromiseHandlers) {
-							Asyncify.asyncPromiseHandlers = null;
-							(isError
-								? asyncPromiseHandlers.reject
-								: asyncPromiseHandlers.resolve)(
-								asyncWasmReturnValue
-							);
-							handled = true;
-						}
-					}
-					if (isError && !handled) {
-						// If there was an error and it was not handled by now, we have no choice but to
-						// rethrow that error into the global scope where it can be caught only by
-						// `onerror` or `onunhandledpromiserejection`.
-						throw asyncWasmReturnValue;
-					}
-				});
-				reachedAfterCallback = true;
-				if (!reachedCallback) {
-					// A true async operation was begun; start a sleep.
-					Asyncify.state = Asyncify.State.Unwinding;
-					// TODO: reuse, don't alloc/free every sleep
-					if (!Asyncify._cachedData) {
-						Asyncify._cachedData = Asyncify.allocateData();
-					} else {
-						Asyncify.setDataHeader(
-							Asyncify._cachedData,
-							Asyncify._cachedData + 12,
-							Asyncify.StackSize
-						);
-						Asyncify.setDataRewindFunc(Asyncify._cachedData);
-					}
-					Asyncify.currData = Asyncify._cachedData;
-					if (typeof MainLoop != 'undefined' && MainLoop.func) {
-						MainLoop.pause();
-					}
-					runAndAbortIfError(() =>
-						_asyncify_start_unwind(Asyncify.currData)
-					);
-				}
-			} else if (Asyncify.state === Asyncify.State.Rewinding) {
-				// Stop a resume.
-				Asyncify.state = Asyncify.State.Normal;
-				runAndAbortIfError(_asyncify_stop_rewind);
-				Asyncify.currData = null;
-				// Call all sleep callbacks now that the sleep-resume is all done.
-				Asyncify.sleepCallbacks.forEach(callUserCallback);
-			} else {
-				abort(`invalid state: ${Asyncify.state}`);
-			}
-			return Asyncify.handleSleepReturnValue;
-		},
-		handleAsync: (startAsync) =>
-			Asyncify.handleSleep((wakeUp) => {
-				// TODO: add error handling as a second param when handleSleep implements it.
-				startAsync().then(wakeUp);
-			}),
-	};
 
 	var getCFunc = (ident) => {
 		var func = Module['_' + ident];
@@ -10247,11 +10283,9 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _wasm_recv = function (sockfd, buffer, size, flags) {
 		return Asyncify.handleSleep((wakeUp) => {
-			const receiveTimeout =
-				PHPWASM.socketTimeouts.get(sockfd)?.receive;
+			const receiveTimeout = PHPWASM.socketTimeouts.get(sockfd)?.receive;
 			const startedAt = Date.now();
 			let resolved = false;
-
 			const poll = function () {
 				if (resolved) {
 					return;
@@ -10906,37 +10940,40 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_objects_store_del,
 		_smart_str_erealloc,
 		__smart_string_alloc,
+		_strtoll,
 		_strlen,
-		_munmap,
-		_fiprintf,
-		_free,
 		_memcmp,
-		_fileno,
-		_isatty,
-		_fread,
-		_fclose,
+		_free,
+		_dlopen,
+		_fiprintf,
+		_dlsym,
+		_dlclose,
 		_strcmp,
+		_getenv,
+		_explicit_bzero,
 		_malloc,
 		___wasm_setjmp,
 		___wasm_setjmp_test,
 		_emscripten_longjmp,
 		_strcasecmp,
 		_atoi,
-		_memchr,
-		_strncasecmp,
-		_snprintf,
-		_dlopen,
-		_dlsym,
-		_dlclose,
-		_getenv,
 		_strrchr,
 		_realloc,
 		___errno_location,
+		_memchr,
 		_strchr,
 		_strncmp,
 		_isxdigit,
 		_tolower,
 		_strtok_r,
+		_unlink,
+		_fileno,
+		_isatty,
+		_fread,
+		_fclose,
+		_strncasecmp,
+		_snprintf,
+		_strtoul,
 		_strstr,
 		_strpbrk,
 		_strdup,
@@ -10944,17 +10981,26 @@ export function init(RuntimeName, PHPLoader) {
 		_stat,
 		_fopen,
 		_open,
+		_rename,
+		_mkdir,
+		_rmdir,
+		_opendir,
 		_strncpy,
+		_isalnum,
 		_close,
+		_ftell,
 		_write,
 		_strerror,
+		_fseek,
 		_fwrite,
 		_wasm_read,
 		_feof,
+		_munmap,
 		_fflush,
 		_fcntl,
 		_flock,
 		_mmap,
+		_closedir,
 		_gettimeofday,
 		_iprintf,
 		_puts,
@@ -10970,13 +11016,13 @@ export function init(RuntimeName, PHPLoader) {
 		_acos,
 		_localtime_r,
 		_strtoull,
+		_sscanf,
 		_tan,
 		_asin,
 		_atan,
 		_log,
 		_log2,
 		_fmod,
-		_wasm_popen,
 		_wasm_php_exec,
 		_socket,
 		_freeaddrinfo,
@@ -10988,11 +11034,11 @@ export function init(RuntimeName, PHPLoader) {
 		_htonl,
 		_strcpy,
 		_strcat,
-		_strtoul,
 		_clock_gettime,
 		_setlocale,
 		_tzset,
 		_wasm_sleep,
+		_readdir,
 		_fputs,
 		_expf,
 		___small_fprintf,
@@ -11006,6 +11052,8 @@ export function init(RuntimeName, PHPLoader) {
 		_strncat,
 		_abort,
 		___wrap_usleep,
+		_wasm_popen,
+		_wasm_pclose,
 		_poll,
 		___wrap_select,
 		_wasm_set_sapi_name,
@@ -11032,6 +11080,8 @@ export function init(RuntimeName, PHPLoader) {
 		_wasm_get_end_offset,
 		___wrap_getpid,
 		_wasm_trace,
+		_sqlite3_auto_extension,
+		_sqlite3_cancel_auto_extension,
 		_modf,
 		_gmtime,
 		___ctype_get_mb_cur_max,
@@ -11070,18 +11120,18 @@ export function init(RuntimeName, PHPLoader) {
 		___cxa_can_catch,
 		__ZNSt20bad_array_new_lengthD1Ev,
 		__ZNSt12length_errorD1Ev,
-		dynCall_iiii,
-		dynCall_ii,
 		dynCall_vi,
 		dynCall_vii,
 		dynCall_viiiii,
 		dynCall_iii,
-		dynCall_iiiii,
-		dynCall_iiiiiii,
+		dynCall_iiii,
 		dynCall_iiiiii,
+		dynCall_iiiii,
+		dynCall_ii,
+		dynCall_viii,
+		dynCall_iiiiiii,
 		dynCall_i,
 		dynCall_iijii,
-		dynCall_viii,
 		dynCall_viiii,
 		dynCall_ji,
 		dynCall_viiiiiiii,
@@ -11603,16 +11653,18 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['smart_str_erealloc'];
 		__smart_string_alloc = Module['__smart_string_alloc'] =
 			wasmExports['_smart_string_alloc'];
+		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_strlen = Module['_strlen'] = wasmExports['strlen'];
-		_munmap = Module['_munmap'] = wasmExports['munmap'];
-		_fiprintf = Module['_fiprintf'] = wasmExports['fiprintf'];
-		_free = Module['_free'] = wasmExports['free'];
 		_memcmp = Module['_memcmp'] = wasmExports['memcmp'];
-		_fileno = Module['_fileno'] = wasmExports['fileno'];
-		_isatty = Module['_isatty'] = wasmExports['isatty'];
-		_fread = Module['_fread'] = wasmExports['fread'];
-		_fclose = Module['_fclose'] = wasmExports['fclose'];
+		_free = Module['_free'] = wasmExports['free'];
+		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
+		_fiprintf = Module['_fiprintf'] = wasmExports['fiprintf'];
+		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
+		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
 		_strcmp = Module['_strcmp'] = wasmExports['strcmp'];
+		_getenv = Module['_getenv'] = wasmExports['getenv'];
+		_explicit_bzero = Module['_explicit_bzero'] =
+			wasmExports['explicit_bzero'];
 		_malloc =
 			PHPLoader['malloc'] =
 			Module['_malloc'] =
@@ -11625,22 +11677,24 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['emscripten_longjmp'];
 		_strcasecmp = Module['_strcasecmp'] = wasmExports['strcasecmp'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
-		_memchr = Module['_memchr'] = wasmExports['memchr'];
-		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
-		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
-		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
-		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
-		_dlclose = Module['_dlclose'] = wasmExports['dlclose'];
-		_getenv = Module['_getenv'] = wasmExports['getenv'];
 		_strrchr = Module['_strrchr'] = wasmExports['strrchr'];
 		_realloc = Module['_realloc'] = wasmExports['realloc'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];
+		_memchr = Module['_memchr'] = wasmExports['memchr'];
 		_strchr = Module['_strchr'] = wasmExports['strchr'];
 		_strncmp = Module['_strncmp'] = wasmExports['strncmp'];
 		_isxdigit = Module['_isxdigit'] = wasmExports['isxdigit'];
 		_tolower = Module['_tolower'] = wasmExports['tolower'];
 		_strtok_r = Module['_strtok_r'] = wasmExports['strtok_r'];
+		_unlink = Module['_unlink'] = wasmExports['unlink'];
+		_fileno = Module['_fileno'] = wasmExports['fileno'];
+		_isatty = Module['_isatty'] = wasmExports['isatty'];
+		_fread = Module['_fread'] = wasmExports['fread'];
+		_fclose = Module['_fclose'] = wasmExports['fclose'];
+		_strncasecmp = Module['_strncasecmp'] = wasmExports['strncasecmp'];
+		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
+		_strtoul = Module['_strtoul'] = wasmExports['strtoul'];
 		_strstr = Module['_strstr'] = wasmExports['strstr'];
 		_strpbrk = Module['_strpbrk'] = wasmExports['strpbrk'];
 		_strdup = Module['_strdup'] = wasmExports['strdup'];
@@ -11648,17 +11702,26 @@ export function init(RuntimeName, PHPLoader) {
 		_stat = Module['_stat'] = wasmExports['stat'];
 		_fopen = Module['_fopen'] = wasmExports['fopen'];
 		_open = Module['_open'] = wasmExports['open'];
+		_rename = Module['_rename'] = wasmExports['rename'];
+		_mkdir = Module['_mkdir'] = wasmExports['mkdir'];
+		_rmdir = Module['_rmdir'] = wasmExports['rmdir'];
+		_opendir = Module['_opendir'] = wasmExports['opendir'];
 		_strncpy = Module['_strncpy'] = wasmExports['strncpy'];
+		_isalnum = Module['_isalnum'] = wasmExports['isalnum'];
 		_close = Module['_close'] = wasmExports['close'];
+		_ftell = Module['_ftell'] = wasmExports['ftell'];
 		_write = Module['_write'] = wasmExports['write'];
 		_strerror = Module['_strerror'] = wasmExports['strerror'];
+		_fseek = Module['_fseek'] = wasmExports['fseek'];
 		_fwrite = Module['_fwrite'] = wasmExports['fwrite'];
 		_wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'];
 		_feof = Module['_feof'] = wasmExports['feof'];
+		_munmap = Module['_munmap'] = wasmExports['munmap'];
 		_fflush = Module['_fflush'] = wasmExports['fflush'];
 		_fcntl = Module['_fcntl'] = wasmExports['fcntl'];
 		_flock = Module['_flock'] = wasmExports['flock'];
 		_mmap = Module['_mmap'] = wasmExports['mmap'];
+		_closedir = Module['_closedir'] = wasmExports['closedir'];
 		_gettimeofday = Module['_gettimeofday'] = wasmExports['gettimeofday'];
 		_iprintf = Module['_iprintf'] = wasmExports['iprintf'];
 		_puts = Module['_puts'] = wasmExports['puts'];
@@ -11674,13 +11737,13 @@ export function init(RuntimeName, PHPLoader) {
 		_acos = Module['_acos'] = wasmExports['acos'];
 		_localtime_r = Module['_localtime_r'] = wasmExports['localtime_r'];
 		_strtoull = Module['_strtoull'] = wasmExports['strtoull'];
+		_sscanf = Module['_sscanf'] = wasmExports['sscanf'];
 		_tan = Module['_tan'] = wasmExports['tan'];
 		_asin = Module['_asin'] = wasmExports['asin'];
 		_atan = Module['_atan'] = wasmExports['atan'];
 		_log = Module['_log'] = wasmExports['log'];
 		_log2 = Module['_log2'] = wasmExports['log2'];
 		_fmod = Module['_fmod'] = wasmExports['fmod'];
-		_wasm_popen = Module['_wasm_popen'] = wasmExports['wasm_popen'];
 		_wasm_php_exec = Module['_wasm_php_exec'] =
 			wasmExports['wasm_php_exec'];
 		_socket = Module['_socket'] = wasmExports['socket'];
@@ -11694,12 +11757,12 @@ export function init(RuntimeName, PHPLoader) {
 		_htonl = wasmExports['htonl'];
 		_strcpy = Module['_strcpy'] = wasmExports['strcpy'];
 		_strcat = Module['_strcat'] = wasmExports['strcat'];
-		_strtoul = Module['_strtoul'] = wasmExports['strtoul'];
 		_clock_gettime = Module['_clock_gettime'] =
 			wasmExports['clock_gettime'];
 		_setlocale = Module['_setlocale'] = wasmExports['setlocale'];
 		_tzset = Module['_tzset'] = wasmExports['tzset'];
 		_wasm_sleep = Module['_wasm_sleep'] = wasmExports['wasm_sleep'];
+		_readdir = Module['_readdir'] = wasmExports['readdir'];
 		_fputs = Module['_fputs'] = wasmExports['fputs'];
 		_expf = Module['_expf'] = wasmExports['expf'];
 		___small_fprintf = Module['___small_fprintf'] =
@@ -11715,6 +11778,8 @@ export function init(RuntimeName, PHPLoader) {
 		_abort = Module['_abort'] = wasmExports['abort'];
 		___wrap_usleep = Module['___wrap_usleep'] =
 			wasmExports['__wrap_usleep'];
+		_wasm_popen = Module['_wasm_popen'] = wasmExports['wasm_popen'];
+		_wasm_pclose = Module['_wasm_pclose'] = wasmExports['wasm_pclose'];
 		_poll = Module['_poll'] = wasmExports['poll'];
 		___wrap_select = Module['___wrap_select'] =
 			wasmExports['__wrap_select'];
@@ -11766,6 +11831,11 @@ export function init(RuntimeName, PHPLoader) {
 		___wrap_getpid = Module['___wrap_getpid'] =
 			wasmExports['__wrap_getpid'];
 		_wasm_trace = Module['_wasm_trace'] = wasmExports['wasm_trace'];
+		_sqlite3_auto_extension = Module['_sqlite3_auto_extension'] =
+			wasmExports['sqlite3_auto_extension'];
+		_sqlite3_cancel_auto_extension = Module[
+			'_sqlite3_cancel_auto_extension'
+		] = wasmExports['sqlite3_cancel_auto_extension'];
 		_modf = Module['_modf'] = wasmExports['modf'];
 		_gmtime = Module['_gmtime'] = wasmExports['gmtime'];
 		___ctype_get_mb_cur_max = Module['___ctype_get_mb_cur_max'] =
@@ -11822,18 +11892,18 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['_ZNSt20bad_array_new_lengthD1Ev'];
 		__ZNSt12length_errorD1Ev = Module['__ZNSt12length_errorD1Ev'] =
 			wasmExports['_ZNSt12length_errorD1Ev'];
-		dynCall_iiii = dynCalls['iiii'] = wasmExports['dynCall_iiii'];
-		dynCall_ii = dynCalls['ii'] = wasmExports['dynCall_ii'];
 		dynCall_vi = dynCalls['vi'] = wasmExports['dynCall_vi'];
 		dynCall_vii = dynCalls['vii'] = wasmExports['dynCall_vii'];
 		dynCall_viiiii = dynCalls['viiiii'] = wasmExports['dynCall_viiiii'];
 		dynCall_iii = dynCalls['iii'] = wasmExports['dynCall_iii'];
-		dynCall_iiiii = dynCalls['iiiii'] = wasmExports['dynCall_iiiii'];
-		dynCall_iiiiiii = dynCalls['iiiiiii'] = wasmExports['dynCall_iiiiiii'];
+		dynCall_iiii = dynCalls['iiii'] = wasmExports['dynCall_iiii'];
 		dynCall_iiiiii = dynCalls['iiiiii'] = wasmExports['dynCall_iiiiii'];
+		dynCall_iiiii = dynCalls['iiiii'] = wasmExports['dynCall_iiiii'];
+		dynCall_ii = dynCalls['ii'] = wasmExports['dynCall_ii'];
+		dynCall_viii = dynCalls['viii'] = wasmExports['dynCall_viii'];
+		dynCall_iiiiiii = dynCalls['iiiiiii'] = wasmExports['dynCall_iiiiiii'];
 		dynCall_i = dynCalls['i'] = wasmExports['dynCall_i'];
 		dynCall_iijii = dynCalls['iijii'] = wasmExports['dynCall_iijii'];
-		dynCall_viii = dynCalls['viii'] = wasmExports['dynCall_viii'];
 		dynCall_viiii = dynCalls['viiii'] = wasmExports['dynCall_viiii'];
 		dynCall_ji = dynCalls['ji'] = wasmExports['dynCall_ji'];
 		dynCall_viiiiiiii = dynCalls['viiiiiiii'] =
@@ -11921,108 +11991,108 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var _core_globals = (Module['_core_globals'] = 12133440);
+	var _core_globals = (Module['_core_globals'] = 12132192);
 
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 11990848);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 11989872);
 
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 11990852);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 11989876);
 
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 11990856);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 11989880);
 
-	var _sapi_module = (Module['_sapi_module'] = 12074284);
+	var _sapi_module = (Module['_sapi_module'] = 12073308);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 12074432);
+	var _sapi_globals = (Module['_sapi_globals'] = 12073456);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 12136192);
+	var _compiler_globals = (Module['_compiler_globals'] = 12136216);
 
-	var _executor_globals = (Module['_executor_globals'] = 12136568);
+	var _executor_globals = (Module['_executor_globals'] = 12136592);
 
-	var _zend_compile_file = (Module['_zend_compile_file'] = 12137728);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 12137752);
 
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 12136080);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 12136192);
 
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12136084);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12136196);
 
-	var _zend_write = (Module['_zend_write'] = 12136120);
+	var _zend_write = (Module['_zend_write'] = 12135084);
 
-	var _zend_error_cb = (Module['_zend_error_cb'] = 12136128);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 12135092);
 
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 12136100);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 12135064);
 
-	var _module_registry = (Module['_module_registry'] = 12134968);
+	var _module_registry = (Module['_module_registry'] = 12133640);
 
-	var _zend_extensions = (Module['_zend_extensions'] = 12134296);
+	var _zend_extensions = (Module['_zend_extensions'] = 12133048);
 
-	var _zend_pass_function = (Module['_zend_pass_function'] = 11630556);
+	var _zend_pass_function = (Module['_zend_pass_function'] = 11631096);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11986408);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11985248);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11986412);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11985252);
 
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11986424);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11985264);
 
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12134488);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12133164);
 
-	var _zend_ce_error = (Module['_zend_ce_error'] = 12134604);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 12133280);
 
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12134472);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12133148);
 
 	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		12134484);
+		12133160);
 
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 11985972);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 12133956);
 
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 12131160);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 12130120);
 
-	var _zend_empty_string = (Module['_zend_empty_string'] = 11984832);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 12133960);
 
-	var _zend_known_strings = (Module['_zend_known_strings'] = 11984836);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 12133964);
 
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		11984900);
+		12134028);
 
-	var _std_object_handlers = (Module['_std_object_handlers'] = 11644740);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11233924);
 
 	var ___memory_base = (Module['___memory_base'] = 0);
 
 	var ___table_base = (Module['___table_base'] = 1);
 
-	var _stderr = (Module['_stderr'] = 11978016);
+	var _stderr = (Module['_stderr'] = 11978032);
 
-	var ___THREW__ = (Module['___THREW__'] = 12185700);
+	var ___THREW__ = (Module['___THREW__'] = 12185732);
 
-	var ___threwValue = (Module['___threwValue'] = 12185704);
+	var ___threwValue = (Module['___threwValue'] = 12185736);
 
-	var _stdout = (Module['_stdout'] = 11978320);
+	var _stdout = (Module['_stdout'] = 11978336);
 
-	var _timezone = (Module['_timezone'] = 12172592);
+	var _timezone = (Module['_timezone'] = 12172624);
 
-	var _tzname = (Module['_tzname'] = 12172600);
+	var _tzname = (Module['_tzname'] = 12172632);
 
-	var ___heap_base = 13234384;
+	var ___heap_base = 13234416;
 
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		12185788);
+		12185820);
 
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 11978568);
+	] = 11978584);
 
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 11978528);
+	] = 11978544);
 
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 11978620);
+	] = 11978636);
 
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 11978692);
+	] = 11978708);
 
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11978736);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11978752);
 
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11978756);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11978772);
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,
@@ -12152,6 +12222,9 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */ js_flock: _js_flock,
 		/** @export */ js_getpid: _js_getpid,
 		/** @export */ js_open_process: _js_open_process,
+		/** @export */ js_popen_clear_pid_for_fd: _js_popen_clear_pid_for_fd,
+		/** @export */ js_popen_get_pid_for_fd: _js_popen_get_pid_for_fd,
+		/** @export */ js_popen_set_pid_for_fd: _js_popen_set_pid_for_fd,
 		/** @export */ js_popen_to_file,
 		/** @export */ js_process_status: _js_process_status,
 		/** @export */ js_release_file_locks: _js_release_file_locks,

@@ -7,7 +7,10 @@ import classNames from 'classnames';
 import { Modal } from '../../components/modal';
 import { connectToGitHub } from '../connect-to-github';
 
-export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
+export function GitHubOAuthGuardModal({
+	children,
+	intro,
+}: GitHubOAuthGuardProps) {
 	const [isModalOpen, setIsModalOpen] = useState(!oAuthState.value.token);
 
 	if (oAuthState.value.token && !children) {
@@ -25,7 +28,7 @@ export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 				setIsModalOpen(false);
 			}}
 		>
-			<GitHubOAuthGuard mayLoseProgress={false}>
+			<GitHubOAuthGuard mayLoseProgress={false} intro={intro}>
 				{children}
 			</GitHubOAuthGuard>
 		</Modal>
@@ -35,14 +38,16 @@ export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 interface GitHubOAuthGuardProps {
 	children?: React.ReactNode;
 	mayLoseProgress?: boolean;
+	intro?: React.ReactNode;
 }
 export default function GitHubOAuthGuard({
 	children,
 	mayLoseProgress,
+	intro,
 }: GitHubOAuthGuardProps) {
 	if (oAuthState.value.isAuthorizing) {
 		return (
-			<div>
+			<div className={css.authorizing}>
 				<Spinner />
 				<p>
 					Authorization popup opened. Continue in the popup to connect
@@ -56,14 +61,18 @@ export default function GitHubOAuthGuard({
 		return <div>{children}</div>;
 	}
 
-	return <Authenticate mayLoseProgress={mayLoseProgress} />;
+	return <Authenticate mayLoseProgress={mayLoseProgress} intro={intro} />;
 }
 
 interface AuthenticateProps {
 	mayLoseProgress?: boolean;
+	intro?: React.ReactNode;
 }
 
-function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
+function Authenticate({
+	mayLoseProgress = undefined,
+	intro,
+}: AuthenticateProps) {
 	const [exported, setExported] = useState(false);
 	const [error, setError] = useState<string>();
 	const buttonClass = classNames(css.githubButton, {
@@ -71,10 +80,10 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 	});
 
 	return (
-		<div>
+		<div className={css.authenticate}>
 			<p>
-				Importing plugins, themes, and wp-content directories directly
-				from your public GitHub repositories.
+				{intro ??
+					'Importing plugins, themes, and wp-content directories directly from your public GitHub repositories.'}
 			</p>
 			<p>
 				To enable this feature, connect your GitHub account with
@@ -86,7 +95,7 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 						The authentication flow opens in a popup. Your running
 						Playground will stay open.
 					</p>
-					<label style={{ cursor: 'pointer' }}>
+					<label className={css.confirm}>
 						<input
 							type="checkbox"
 							checked={exported}
@@ -97,25 +106,27 @@ function Authenticate({ mayLoseProgress = undefined }: AuthenticateProps) {
 					</label>
 				</>
 			) : null}
-			<p>
-				<a
-					aria-label="Connect your GitHub account"
-					className={buttonClass}
-					href={new URL('oauth.php', window.location.href).toString()}
-					onClick={async (e) => {
-						e.preventDefault();
-						if (mayLoseProgress && !exported) {
-							return;
-						}
-						await connectToGitHub({ setError });
-					}}
-				>
-					<Icon icon={GitHubIcon} />
-					Connect your GitHub account
-				</a>
-			</p>
-			{error ? <p role="alert">{error}</p> : null}
-			<p>
+			<a
+				aria-label="Connect your GitHub account"
+				className={buttonClass}
+				href={new URL('oauth.php', window.location.href).toString()}
+				onClick={async (e) => {
+					e.preventDefault();
+					if (mayLoseProgress && !exported) {
+						return;
+					}
+					await connectToGitHub({ setError });
+				}}
+			>
+				<Icon icon={GitHubIcon} />
+				Connect your GitHub account
+			</a>
+			{error ? (
+				<p className={css.error} role="alert">
+					{error}
+				</p>
+			) : null}
+			<p className={css.note}>
 				Your access token is not stored anywhere, which means you'll
 				have to re-authenticate after every page refresh.
 			</p>

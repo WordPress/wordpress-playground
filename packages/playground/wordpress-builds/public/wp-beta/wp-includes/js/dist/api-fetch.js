@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).apiFetch = (() => {
@@ -39,6 +40,13 @@ var wp;
     }
   });
 
+  // package-external:@wordpress/private-apis
+  var require_private_apis = __commonJS({
+    "package-external:@wordpress/private-apis"(exports, module) {
+      module.exports = window.wp.privateApis;
+    }
+  });
+
   // package-external:@wordpress/url
   var require_url = __commonJS({
     "package-external:@wordpress/url"(exports, module) {
@@ -52,6 +60,13 @@ var wp;
     default: () => index_default
   });
   var import_i18n3 = __toESM(require_i18n(), 1);
+
+  // packages/api-fetch/build-module/lock-unlock.mjs
+  var import_private_apis = __toESM(require_private_apis(), 1);
+  var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
+    "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
+    "@wordpress/api-fetch"
+  );
 
   // packages/api-fetch/build-module/middlewares/nonce.mjs
   function createNonceMiddleware(nonce) {
@@ -124,14 +139,19 @@ var wp;
 
   // packages/api-fetch/build-module/middlewares/preloading.mjs
   var import_url = __toESM(require_url(), 1);
+  var ENABLE_MULTI_USE = /* @__PURE__ */ Symbol("preloadingEnableMultiUse");
+  var CLEAR = /* @__PURE__ */ Symbol("preloadingClear");
   function createPreloadingMiddleware(preloadedData) {
-    const cache = Object.fromEntries(
+    const { OPTIONS = {}, ...GET } = Object.fromEntries(
       Object.entries(preloadedData).map(([path, data]) => [
         (0, import_url.normalizePath)(path),
         data
       ])
     );
-    return (options, next) => {
+    const unusedGet = new Set(Object.keys(GET));
+    const unusedOptions = new Set(Object.keys(OPTIONS));
+    let multiUse = false;
+    const middleware = (options, next) => {
       const { parse = true } = options;
       let rawPath = options.path;
       if (!rawPath && options.url) {
@@ -147,17 +167,49 @@ var wp;
       }
       const method = options.method || "GET";
       const path = (0, import_url.normalizePath)(rawPath);
-      if ("GET" === method && cache[path]) {
-        const cacheData = cache[path];
-        delete cache[path];
-        return prepareResponse(cacheData, !!parse);
-      } else if ("OPTIONS" === method && cache[method] && cache[method][path]) {
-        const cacheData = cache[method][path];
-        delete cache[method][path];
-        return prepareResponse(cacheData, !!parse);
+      if ("GET" === method && GET[path]) {
+        const data = GET[path];
+        if (!multiUse) {
+          delete GET[path];
+        }
+        unusedGet.delete(path);
+        return prepareResponse(data, !!parse);
+      } else if ("OPTIONS" === method && OPTIONS[path]) {
+        const data = OPTIONS[path];
+        if (!multiUse) {
+          delete OPTIONS[path];
+        }
+        unusedOptions.delete(path);
+        return prepareResponse(data, !!parse);
       }
       return next(options);
     };
+    middleware[ENABLE_MULTI_USE] = () => {
+      multiUse = true;
+    };
+    middleware[CLEAR] = () => {
+      const tags = [
+        ...Array.from(unusedGet, (p) => `GET ${p}`),
+        ...Array.from(unusedOptions, (p) => `OPTIONS ${p}`)
+      ];
+      if (tags.length) {
+        console.warn(
+          "[api-fetch][preload] Some preloads were never consumed:",
+          tags
+        );
+      } else {
+        console.log("[api-fetch][preload] All preloads consumed.");
+      }
+      unusedGet.clear();
+      unusedOptions.clear();
+      for (const key of Object.keys(GET)) {
+        delete GET[key];
+      }
+      for (const key of Object.keys(OPTIONS)) {
+        delete OPTIONS[key];
+      }
+    };
+    return middleware;
   }
   function prepareResponse(responseData, parse) {
     if (parse) {
@@ -268,9 +320,9 @@ var wp;
       options = {
         ...options,
         headers: {
+          "Content-Type": "application/json",
           ...options.headers,
-          "X-HTTP-Method-Override": method,
-          "Content-Type": "application/json"
+          "X-HTTP-Method-Override": method
         },
         method: "POST"
       };
@@ -297,13 +349,21 @@ var wp;
 
   // packages/api-fetch/build-module/utils/response.mjs
   var import_i18n = __toESM(require_i18n(), 1);
-  async function parseJsonAndNormalizeError(response) {
+  async function parseJsonAndNormalizeError(response, allowEmptyBody = false) {
     try {
-      return await response.json();
+      if (typeof response.text !== "function") {
+        return await response.json();
+      }
+      const text = await response.text();
+      if (allowEmptyBody && text === "") {
+        return null;
+      }
+      return JSON.parse(text);
     } catch {
       throw {
         code: "invalid_json",
-        message: (0, import_i18n.__)("The response is not a valid JSON response.")
+        message: (0, import_i18n.__)("The response is not a valid JSON response."),
+        data: { status: response.status }
       };
     }
   }
@@ -314,13 +374,17 @@ var wp;
     if (response.status === 204) {
       return null;
     }
-    return await parseJsonAndNormalizeError(response);
+    return await parseJsonAndNormalizeError(response, true);
   }
   async function parseAndThrowError(response, shouldParseResponse = true) {
     if (!shouldParseResponse) {
       throw response;
     }
-    throw await parseJsonAndNormalizeError(response);
+    const error = await parseJsonAndNormalizeError(response);
+    if (error && typeof error === "object" && !Array.isArray(error) && error.data === void 0) {
+      throw { ...error, data: { status: response.status } };
+    }
+    throw error;
   }
 
   // packages/api-fetch/build-module/middlewares/media-upload.mjs
@@ -439,9 +503,27 @@ var wp;
   function registerMiddleware(middleware) {
     middlewares.unshift(middleware);
   }
-  var defaultFetchHandler = (nextOptions) => {
-    const { url, path, data, parse = true, ...remainingOptions } = nextOptions;
-    let { body, headers } = nextOptions;
+  function unregisterMiddleware(middleware) {
+    const index = middlewares.indexOf(middleware);
+    if (index === -1) {
+      return false;
+    }
+    middlewares.splice(index, 1);
+    return true;
+  }
+  function enablePreloadMultiUse() {
+    for (const middleware of middlewares) {
+      middleware[ENABLE_MULTI_USE]?.();
+    }
+  }
+  function clearPreloadedData() {
+    for (const middleware of middlewares) {
+      middleware[CLEAR]?.();
+    }
+  }
+  var defaultFetchHandler = (options) => {
+    const { url, path, data, parse = true, ...remainingOptions } = options;
+    let { body, headers } = options;
     headers = { ...DEFAULT_HEADERS, ...headers };
     if (data) {
       body = JSON.stringify(data);
@@ -512,14 +594,24 @@ var wp;
     });
   };
   apiFetch.use = registerMiddleware;
+  apiFetch.unregister = unregisterMiddleware;
   apiFetch.setFetchHandler = setFetchHandler;
+  apiFetch.defaultFetchHandler = defaultFetchHandler;
+  apiFetch.privateApis = {};
+  lock(apiFetch.privateApis, {
+    enablePreloadMultiUse,
+    clearPreloadedData
+  });
   apiFetch.createNonceMiddleware = nonce_default;
   apiFetch.createPreloadingMiddleware = preloading_default;
   apiFetch.createRootURLMiddleware = root_url_default;
   apiFetch.fetchAllMiddleware = fetch_all_middleware_default;
+  apiFetch.httpV1Middleware = http_v1_default;
   apiFetch.mediaUploadMiddleware = media_upload_default;
   apiFetch.createThemePreviewMiddleware = theme_preview_default;
   var index_default = apiFetch;
   return __toCommonJS(index_exports);
 })();
 if (typeof wp.apiFetch === 'object' && wp.apiFetch.default) { wp.apiFetch = wp.apiFetch.default; }
+(window.wp ||= {}).apiFetch = wp.apiFetch;
+})();

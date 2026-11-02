@@ -149,6 +149,13 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	blueprintInstallMessage: string | null;
+	/**
+	 * Set when the active site's backup interval has elapsed. The viewport
+	 * shows a speech bubble on the Site Tools latch inviting the user to
+	 * download a backup; nothing leaves the device until they click it.
+	 */
+	autoBackupDue: boolean;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -186,6 +193,8 @@ const initialState: UIState = {
 		// quite a confusing experience.
 		!isMobile,
 	siteManagerSection: 'site-details',
+	blueprintInstallMessage: null,
+	autoBackupDue: false,
 };
 
 const uiSlice = createSlice({
@@ -256,6 +265,15 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setBlueprintInstallMessage: (
+			state,
+			action: PayloadAction<string | null>
+		) => {
+			state.blueprintInstallMessage = action.payload;
+		},
+		setAutoBackupDue: (state, action: PayloadAction<boolean>) => {
+			state.autoBackupDue = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -304,6 +322,8 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
+	setBlueprintInstallMessage,
+	setAutoBackupDue,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,

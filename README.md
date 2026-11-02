@@ -149,6 +149,8 @@ PHP=7.4 npx @php-wasm/cli -v
 npx @php-wasm/cli phpcbf
 ```
 
+For debug build examples and an explanation of the Emscripten flags, see [Debug builds](https://developer.wordpress.org/playground/developers/architecture/wasm-php-compiling/#debug-builds).
+
 ### Test offline support
 
 To test the offline support you need to build the website and run a local server:
@@ -210,4 +212,4 @@ A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https
 
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is a WordPress.org project started and led by [Adam Zielinski](https://github.com/adamziel).
 
-[Playground tools](https://github.com/WordPress/playground-tools) like `wp-now` or the interactive code block are maintained by their authors in the [playground-tools monorepo](https://github.com/WordPress/playground-tools).
+[Playground tools](https://github.com/WordPress/playground-tools) like the interactive code block are maintained by their authors in the [playground-tools monorepo](https://github.com/WordPress/playground-tools).

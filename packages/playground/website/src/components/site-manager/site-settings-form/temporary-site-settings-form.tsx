@@ -1,67 +1,48 @@
 import { useMemo } from 'react';
-import css from './style.module.css';
-import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { selectSiteBySlug } from '../../../lib/state/redux/slice-sites';
 import type { SiteFormData } from './unconnected-site-settings-form';
 import { UnconnectedSiteSettingsForm } from './unconnected-site-settings-form';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
+import {
+	getSetupFormDefaultValues,
+	getSiteSettingsFromFormData,
+} from './setup-form-values';
+import { TemporarySiteSettingsActionFooter } from './site-settings-action-footer';
+import type { SiteSettingsSubmission } from './use-site-settings-submission';
 
 export function TemporarySiteSettingsForm({
 	siteSlug,
-	onSubmit,
+	submission,
 }: {
 	siteSlug: string;
-	onSubmit?: () => void;
+	submission: SiteSettingsSubmission;
 }) {
 	const siteInfo = useAppSelector((state) =>
 		selectSiteBySlug(state, siteSlug)
 	)!;
 	const sitesAPI = useSitesAPI();
 	const updateSite = async (data: SiteFormData) => {
-		await sitesAPI.createNewTemporarySite(undefined, {
-			phpVersion: data.phpVersion,
-			wpVersion: data.wpVersion,
-			networking: data.withNetworking,
-			language: data.language,
-			multisite: data.multisite,
-		});
-		onSubmit?.();
+		await sitesAPI.createNewTemporarySite(
+			undefined,
+			getSiteSettingsFromFormData(data)
+		);
 	};
-	const defaultValues = useMemo<Partial<SiteFormData>>(() => {
-		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
-		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
-		const language = searchParams.language;
-		const multisite = searchParams.multisite;
-		return {
-			phpVersion: runtimeConf?.phpVersion as any,
-			wpVersion: runtimeConf?.wpVersion as any,
-			withNetworking: runtimeConf?.networking,
-			language: typeof language === 'string' ? language : '',
-			multisite: multisite === 'yes',
-		};
-	}, [siteInfo]);
+	const defaultValues = useMemo(
+		() => getSetupFormDefaultValues(siteInfo),
+		[siteInfo]
+	);
 
 	return (
 		<UnconnectedSiteSettingsForm
 			className="is-temporary-site"
-			onSubmit={updateSite}
+			onSubmit={(data) => submission.run(updateSite, data)}
 			defaultValues={defaultValues}
 			footer={
-				<VStack
-					justify="flex-end"
-					spacing={6}
-					style={{ margin: 0 }}
-					className={`${css.footer} ${css.formSection}`}
-				>
-					<p>
-						<b>Destructive action!</b> Applying these settings will
-						reset the WordPress site to its initial state.
-					</p>
-					<Button type="submit" variant="primary">
-						Apply Settings & Reset Playground
-					</Button>
-				</VStack>
+				<TemporarySiteSettingsActionFooter
+					isPending={submission.isPending}
+					error={submission.error}
+				/>
 			}
 		/>
 	);

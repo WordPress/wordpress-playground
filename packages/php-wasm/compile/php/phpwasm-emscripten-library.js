@@ -8,6 +8,32 @@
 'use strict';
 
 const LibraryExample = {
+	emscripten_sleep__deps: [
+		'$Asyncify',
+		'$safeSetTimeout',
+		'$runtimeKeepalivePush',
+		'$runtimeKeepalivePop',
+		'$callUserCallback',
+	],
+	emscripten_sleep__sig: 'vi',
+	emscripten_sleep__async: true,
+	emscripten_sleep: function (ms) {
+		return Asyncify.handleSleep((wakeUp) => {
+			// select() yields between socket reads. Nested zero-delay timers are
+			// clamped by browsers, adding seconds to even a local curl download.
+			// Use a task (not a microtask) so network events still get a turn.
+			if (ms === 0 && globalThis.scheduler?.postTask) {
+				runtimeKeepalivePush();
+				globalThis.scheduler.postTask(() => {
+					runtimeKeepalivePop();
+					callUserCallback(wakeUp);
+				});
+			} else {
+				safeSetTimeout(wakeUp, ms);
+			}
+		});
+	},
+
 	// Emscripten dependencies:
 	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
 	$PHPWASM__postset: 'PHPWASM.init();',
@@ -945,6 +971,13 @@ const LibraryExample = {
 				// callbacks.
 				const interval = setInterval(pump, 20);
 				pump();
+			} else {
+				/**
+				 * Descriptor 0 was not provided, so the child process must observe EOF.
+				 * Closing stdin explicitly lets spawn handlers distinguish that case from
+				 * a valid pipe whose first bytes have not arrived yet.
+				 */
+				cp.stdin.end();
 			}
 
 			return ProcInfo.pid;
@@ -978,6 +1011,30 @@ const LibraryExample = {
 			};
 			poll();
 		});
+	},
+
+	js_popen_set_pid_for_fd: function (fd, pid) {
+		if (PHPWASM.processTable[pid]) {
+			PHPWASM.processTable[pid].fd = fd;
+		}
+	},
+
+	js_popen_get_pid_for_fd: function (fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				return PHPWASM.processTable[pid].pid;
+			}
+		}
+		return -1;
+	},
+
+	js_popen_clear_pid_for_fd: function (fd) {
+		for (const pid in PHPWASM.processTable) {
+			if (PHPWASM.processTable[pid].fd === fd) {
+				delete PHPWASM.processTable[pid].fd;
+				return;
+			}
+		}
 	},
 
 	/**

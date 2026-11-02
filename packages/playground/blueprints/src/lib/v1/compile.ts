@@ -39,16 +39,10 @@ const keyedStepHandlers = {
 import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
+import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
+import { InvalidBlueprintError } from '../invalid-blueprint-error';
 
-export class InvalidBlueprintError extends Error {
-	public readonly validationErrors?: unknown;
-
-	constructor(message: string, validationErrors?: unknown) {
-		super(message);
-		this.name = 'InvalidBlueprintError';
-		this.validationErrors = validationErrors;
-	}
-}
+export { InvalidBlueprintError };
 
 /**
  * Error thrown when a single Blueprint step fails during execution.
@@ -141,7 +135,7 @@ export interface CompileBlueprintV1Options {
 
 export async function compileBlueprintV1(
 	input: BlueprintV1Declaration | BlueprintBundle,
-	options: Omit<CompileBlueprintV1Options, 'streamBundledFile'> = {}
+	options: CompileBlueprintV1Options = {}
 ): Promise<CompiledBlueprintV1> {
 	const finalOptions: CompileBlueprintV1Options = {
 		...options,
@@ -259,7 +253,7 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (isGitRepoUrl(value)) {
+					if (seemsLikeGitRepoUrl(value)) {
 						return {
 							resource: 'zip',
 							inner: {
@@ -702,7 +696,8 @@ function compileStep<S extends StepDefinition>(
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
-		(step.progress?.weight || 1) / totalProgressWeight
+		(step.progress?.weight || 1) / totalProgressWeight,
+		step.progress?.caption
 	);
 
 	const args: any = {};
@@ -721,6 +716,9 @@ function compileStep<S extends StepDefinition>(
 
 	const run = async (playground: UniversalPHP) => {
 		try {
+			if (step.progress?.caption) {
+				stepProgress.setCaption(step.progress.caption);
+			}
 			stepProgress.fillSlowly();
 			return await keyedStepHandlers[step.step](
 				playground,
@@ -842,22 +840,4 @@ function assertNoWordPressFeatures(blueprint: BlueprintV1Declaration) {
 			[]
 		);
 	}
-}
-
-function isGitRepoUrl(url: string): boolean {
-	const normalizedUrl = url.trim().replace(/\/+$/, '');
-	if (/^https:\/\/.+\.git$/.test(normalizedUrl)) {
-		return true;
-	}
-	// GitHub: exactly /owner/repo
-	if (/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(normalizedUrl)) {
-		return true;
-	}
-	// GitLab: /group[/subgroup...]/project (2+ path segments)
-	if (
-		/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*$/.test(normalizedUrl)
-	) {
-		return true;
-	}
-	return false;
 }

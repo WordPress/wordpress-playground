@@ -1,4 +1,5 @@
-import dependencyFilename from './5_2_17/php_5_2.wasm';
+const dependencyFilename = new URL('./5_2_17/php_5_2.wasm', import.meta.url)
+	.href;
 export { dependencyFilename };
 export const dependenciesTotalSize = 9781068;
 const phpVersionString = '5.2.17';
@@ -4716,7 +4717,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map,
+		socketTimeouts: new Map(),
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
@@ -6536,8 +6537,22 @@ export function init(RuntimeName, PHPLoader) {
 			callUserCallback(func);
 		}, timeout);
 	};
-	var _emscripten_sleep = (ms) =>
-		Asyncify.handleSleep((wakeUp) => safeSetTimeout(wakeUp, ms));
+	var _emscripten_sleep = function (ms) {
+		return Asyncify.handleSleep((wakeUp) => {
+			// select() yields between socket reads. Nested zero-delay timers are
+			// clamped by browsers, adding seconds to even a local curl download.
+			// Use a task (not a microtask) so network events still get a turn.
+			if (ms === 0 && globalThis.scheduler?.postTask) {
+				runtimeKeepalivePush();
+				globalThis.scheduler.postTask(() => {
+					runtimeKeepalivePop();
+					callUserCallback(wakeUp);
+				});
+			} else {
+				safeSetTimeout(wakeUp, ms);
+			}
+		});
+	};
 	_emscripten_sleep.sig = 'vi';
 	_emscripten_sleep.isAsync = true;
 	var ENV = PHPLoader.ENV || {};
@@ -7192,6 +7207,13 @@ export function init(RuntimeName, PHPLoader) {
 				}
 				const interval = setInterval(pump, 20);
 				pump();
+			} else {
+				/**
+				 * Descriptor 0 was not provided, so the child process must observe EOF.
+				 * Closing stdin explicitly lets spawn handlers distinguish that case from
+				 * a valid pipe whose first bytes have not arrived yet.
+				 */
+				cp.stdin.end();
 			}
 			return ProcInfo.pid;
 		});

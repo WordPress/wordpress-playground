@@ -20,7 +20,7 @@ describe('PlaygroundRoute', () => {
 	it('strips Playground query keys and preserves WordPress/plugin params at the app base path', () => {
 		const url =
 			appBaseUrlWithSearch(
-				'url=%2Fwp-admin%2F&blueprint-url=https%3A%2F%2Fexample.com%2Fblueprint.json&plugin=friends&app-store=1&p=42'
+				'url=%2Fwp-admin%2F&blueprint-url=https%3A%2F%2Fexample.com%2Fblueprint.json&plugin=friends&playground-recovery-mode=health-check&app-store=1&p=42'
 			) + '#legacy-blueprint';
 		const expected = appBaseUrlWithSearch('app-store=1&p=42');
 

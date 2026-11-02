@@ -69,7 +69,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
   Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/launch) your products.
 - **[Guides](/guides)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
 - **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
-- **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+- **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 -->
 
 - **[Quick Start Guide](/quick-start-guide)**: जो लोग WordPress Playground के साथ अभी शुरुआत कर रहे हैं, उनके लिए यह सबसे सही जगह है जहां आप जल्दी से शुरू कर सकते हैं: [नई WordPress साइट शुरू करें](/quick-start-guide#start-a-new-wordpress-site), [ब्लॉक/थीम/प्लगइन आज़माएं](/quick-start-guide#try-a-block-a-theme-or-a-plugin), या [किसी खास WordPress/PHP वर्शन का परीक्षण करें](/quick-start-guide#use-a-specific-wordpress-or-php-version)।
@@ -84,7 +84,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 
 - **[Contributing](/contributing)**: WordPress Playground एक ओपन-सोर्स प्रोजेक्ट है जो हर तरह के योगदानकर्ताओं का स्वागत करता है—कोड से डिज़ाइन तक, दस्तावेज़ों से ट्रायेज तक। योगदान कैसे करना है, यहां जानें।
 
-- **[Links and resources](/resources)**: WordPress Playground से संबंधित उपयोगी लिंक और संसाधनों का एक अच्छा संग्रह।
+- **[Links and resources](/links-and-resources)**: WordPress Playground से संबंधित उपयोगी लिंक और संसाधनों का एक अच्छा संग्रह।
 
 ## शुरुआती कदम
 
@@ -127,7 +127,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 
 <!--
 - Read about [Playground APIs](/developers/apis/) and basic concepts
-- Review [links and resources](/resources)
+- Review [links and resources](/links-and-resources)
 - Choose the right API for your app:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
@@ -136,7 +136,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 -->
 
 - [Playground APIs](/developers/apis/) और बुनियादी अवधारणाओं के बारे में पढ़ें
-- [लिंक्स और संसाधन](/resources) देखें
+- [लिंक्स और संसाधन](/links-and-resources) देखें
 - अपने ऐप के लिए सही API चुनें:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file

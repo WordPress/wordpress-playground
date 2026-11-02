@@ -76,3 +76,31 @@ options still work, but new code should use `extensions`.
 ## Attribution
 
 `@php-wasm/node` started as a fork of the original PHP to WebAssembly build published by Oraoto in https://github.com/oraoto/pib and modified by Sean Morris in https://github.com/seanmorris/php-wasm.
+
+## File locking without native binaries
+
+`fs-ext-extra-prebuilt` is optional and accepts patch updates so fresh installs
+can pick up newly published binaries. If its native addon cannot load, PHP uses
+JavaScript locks. CLI workers share one lock manager, including blocking lock
+requests. A blocking request waits in the requesting worker; the shared manager
+continues serving lock and unlock requests from other workers.
+If a shared-to-exclusive whole-file upgrade must wait, it drops that handle's
+shared lock first so two upgrading readers cannot keep each other blocked.
+A failed nonblocking upgrade keeps its shared lock.
+
+The fallback identifies files by their device and inode numbers, not their
+paths. Hard links share locks, and replacing a file at the same path does not
+carry the old file's locks over to the replacement. A caller-supplied
+`fileLockManager` receives these opaque file keys in place of paths in fallback
+mode. File-handle identities are retained for cleanup after close or unlink.
+
+These locks only coordinate runtimes using the same manager. They do not lock
+against separate CLI runs, native PHP, SQLite tools, or other host programs.
+Use private site files in this mode. Keep the native addon available when other
+programs may access the same writable files. The fallback is silent by default.
+Native-loading details are logged at debug level.
+
+As with native synchronous locks, do not wait for a conflicting lock held by
+another runtime on the same JS thread: that thread cannot release the lock while
+it is blocked. Put concurrently running PHP instances in separate workers and
+pass them the same shared lock manager.

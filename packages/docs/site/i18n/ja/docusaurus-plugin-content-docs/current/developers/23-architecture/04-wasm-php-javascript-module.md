@@ -45,10 +45,13 @@ const php = new PHP(await loadNodeRuntime('8.0'));
 const php = new PHP(await loadWebRuntime('8.0'));
 ```
 
-これらのクラスは両方とも、`@php-wasm/universal` パッケージによって公開される `BasePHP` クラスを拡張し、すべての PHP 環境で API を標準化する `UniversalPHP` インターフェイスを実装します。
+どちらのプラットフォーム ローダーも、`@php-wasm/universal` の `PHP` クラスが受け付けるランタイム ID を返します。この `PHP` クラスは、環境をまたいで共有される API を提供します。共有 API、プラットフォーム アダプター、バージョン固有のバイナリがどのように組み合わさるかについては、[PHP.wasm パッケージ](/developers/architecture/php-wasm-packages) を参照してください。
 
 <!--
-Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/universal` package and implement the `UniversalPHP` interface that standardizes the API across all PHP environments.
+Both platform loaders return a runtime ID accepted by the `PHP` class from
+`@php-wasm/universal`, which provides the shared API across environments. See
+[PHP.wasm packages](/developers/architecture/php-wasm-packages) for how the
+shared API, platform adapters, and version-specific binaries fit together.
 -->
 
 ### PHP ランタイムのロード
@@ -57,10 +60,11 @@ Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/unive
 ### Loading the PHP runtime
 -->
 
-load() メソッドは、PHP の初期化パイプライン全体を処理します。具体的には、次の処理を行います。
+`loadPHPRuntime()` 関数は、PHP の初期化パイプラインを処理します。具体的には、次の処理を行います。
 
 <!--
-The load() method handles the entire PHP initialization pipeline. In particular, it:
+The `loadPHPRuntime()` function handles the PHP initialization pipeline. In
+particular, it:
 -->
 
 - Emscripten PHP モジュールをインスタンス化する
@@ -69,8 +73,8 @@ The load() method handles the entire PHP initialization pipeline. In particular,
 - ロードシーケンス全体が完了するまで待機する
 
 <!--
--   Instantiates the Emscripten PHP module
--   Wires it together with the data dependencies and loads them
--   Ensures is all happens in a correct order
--   Waits until the entire loading sequence is finished
+- Instantiates the Emscripten PHP module
+- Wires it together with the data dependencies and loads them
+- Ensures it all happens in the correct order
+- Waits until the entire loading sequence is finished
 -->

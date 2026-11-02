@@ -14,7 +14,10 @@ const exec = promisify(execCb);
 
 export interface ServerOptions {
 	port: number;
-	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
+	onBind: (
+		server: Server,
+		port: number
+	) => Promise<RunCLIServer | number | void>;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
@@ -36,7 +39,7 @@ export function isPortInUse(port: number): Promise<boolean> {
 
 export async function startServer(
 	options: ServerOptions
-): Promise<RunCLIServer | void> {
+): Promise<RunCLIServer | number | void> {
 	const app = express();
 
 	const server = await new Promise<
@@ -84,7 +87,22 @@ export async function startServer(
 		setCodespacesPortPublic(port, codespaceName);
 	}
 
-	return await options.onBind(server, port);
+	try {
+		return await options.onBind(server, port);
+	} catch (error) {
+		// The server is already listening when onBind runs. If onBind
+		// throws (e.g., a blueprint file is missing, port allocation
+		// races, etc.), the listening socket would otherwise stay open
+		// and keep library callers' processes alive. Close it here so
+		// callers only need to handle the rejection.
+		if (server.listening) {
+			await new Promise<void>((resolve) => {
+				server.close(() => resolve());
+				server.closeAllConnections();
+			});
+		}
+		throw error;
+	}
 }
 
 /**

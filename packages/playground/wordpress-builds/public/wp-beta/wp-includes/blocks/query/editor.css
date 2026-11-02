@@ -68,6 +68,12 @@
  * Focus styles.
  */
 /**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
  * Applies editor left position to the selector passed as argument
  */
 /**
@@ -109,12 +115,6 @@
   z-index: 2;
 }
 
-@media (min-width: 600px) {
-  .wp-block-query__enhanced-pagination-modal {
-    max-width: 480px;
-  }
-}
-
 .block-editor-block-settings-menu__popover.is-expanded {
   overflow-y: scroll;
 }
@@ -131,7 +131,7 @@
   }
 }
 .block-editor-block-settings-menu__popover .block-editor-block-patterns-list {
-  grid-gap: 12px;
+  gap: 12px;
   min-width: 280px;
 }
 @media (min-width: 600px) {
@@ -145,4 +145,14 @@
 
 .wp-block-query > .block-editor-media-placeholder.is-small {
   min-height: 60px;
+}
+
+.block-library-query-inspector__taxonomy-control-path {
+  margin-inline-start: var(--wpds-dimension-gap-xs, 4px);
+  font-size: var(--wpds-typography-font-size-sm, 12px);
+  color: var(--wpds-color-foreground-content-neutral-weak, #707070);
+}
+
+.block-library-query-inspector__taxonomy-control-limited-count {
+  padding-block: var(--wpds-dimension-padding-xs, 4px);
 }

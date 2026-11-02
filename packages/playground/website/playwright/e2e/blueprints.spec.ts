@@ -1,6 +1,6 @@
-import { test, expect } from '../playground-fixtures';
+import { test, expect, serveBuiltWpCli } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
-import { encodeStringAsBase64 } from '../../src/lib/base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -20,6 +20,39 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('Blueprint v2 declarations should route by version through the website flow', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': {
+				landingPage: '/v2-website-smoke.php',
+			},
+		},
+		siteOptions: {
+			blogname: 'V2 Website Smoke',
+		},
+		additionalStepsAfterExecution: [
+			{
+				step: 'writeFiles',
+				files: {
+					'site:v2-website-smoke.php': {
+						filename: 'v2-website-smoke.php',
+						content:
+							'<?php require __DIR__ . "/wp-load.php"; echo get_option("blogname");',
+					},
+				},
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('V2 Website Smoke');
 });
 
 test('spawning less should work', async ({ website, wordpress }) => {
@@ -176,10 +209,12 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
+	context,
 	website,
 	wordpress,
 	browserName,
 }) => {
+	await serveBuiltWpCli(context);
 	test.skip(
 		browserName === 'firefox',
 		`The multisite tests consistently fail in CI on Firefox. The root cause is unknown, ` +
@@ -210,10 +245,12 @@ test('enableMultisite step should re-activate the plugins', async ({
 });
 
 test('enableMultisite step should enable a multisite', async ({
+	context,
 	website,
 	wordpress,
 	browserName,
 }) => {
+	await serveBuiltWpCli(context);
 	test.skip(
 		browserName === 'firefox',
 		`The multisite tests consistently fail in CI on Firefox. The root cause is unknown, ` +
@@ -296,7 +333,12 @@ test('/wp-admin/customize.php should work as a landing page', async ({
 	await expect(wordpress.locator('body')).toContainText('Customize');
 });
 
-test('wp-cli step should create a post', async ({ website, wordpress }) => {
+test('wp-cli step should create a post', async ({
+	context,
+	website,
+	wordpress,
+}) => {
+	await serveBuiltWpCli(context);
 	const blueprint: Blueprint = {
 		landingPage: '/wp-admin/post.php',
 		login: true,
@@ -460,6 +502,36 @@ test('CURLFile uploads via curl_exec() should work', async ({
 			'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
 			'Perhaps it is something highly specific to the CI runtime.'
 	);
+	const uploadUrl = 'https://curlfile-upload.test/post';
+	await website.page.route(uploadUrl, async (route) => {
+		const request = route.request();
+		if (request.method() === 'OPTIONS') {
+			await route.fulfill({
+				status: 204,
+				headers: {
+					'Access-Control-Allow-Origin': '*',
+					'Access-Control-Allow-Methods': 'POST, OPTIONS',
+					'Access-Control-Allow-Headers': '*',
+				},
+			});
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: {
+				'Access-Control-Allow-Origin': '*',
+			},
+			body: JSON.stringify({
+				method: request.method(),
+				isMultipartUpload: (
+					request.headers()['content-type'] ?? ''
+				).startsWith('multipart/form-data; boundary='),
+			}),
+		});
+	});
+
 	const blueprint: Blueprint = {
 		landingPage: '/curlfile-test.php',
 		features: { networking: true },
@@ -468,21 +540,28 @@ test('CURLFile uploads via curl_exec() should work', async ({
 				step: 'writeFile',
 				path: '/wordpress/curlfile-test.php',
 				/**
-				 * Test CURLFile upload: creates a temp file > 1024 bytes
-				 * (triggering Expect: 100-continue), uploads it via curl
-				 * to a known endpoint, and verifies it succeeds.
+				 * Test CURLFile upload: creates a temp file, uploads it via
+				 * curl to a Playwright-routed endpoint, and verifies curl
+				 * emits a multipart upload request.
 				 *
-				 * The URL:
+				 * Playwright routes streaming uploads, but does not expose
+				 * their bodies via request.postData(). This test still keeps
+				 * the network observable in-process and independent from
+				 * third-party availability.
 				 *
-				 * * Is served over HTTPS.
-				 * * Echoes back the uploaded file contents.
-				 * * The response is proxied through the CORS proxy.
+				 * Keep this endpoint controlled by the test. Using public echo
+				 * services such as httpbin.org made this test depend on
+				 * third-party availability and rate limits, which showed up in
+				 * CI as intermittent 503s.
+				 *
+				 * Keep this payload small. The CORS proxy-specific test below
+				 * covers larger uploads that trigger Expect: 100-continue.
 				 */
 				data: `<?php
 					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
-					file_put_contents($tmpFile, str_repeat('PLAYGROUND_TEST_CONTENT ', 100));
+					file_put_contents($tmpFile, 'PLAYGROUND_TEST_CONTENT');
 					$ch = curl_init();
-					curl_setopt($ch, CURLOPT_URL, "https://httpbin.org/post");
+					curl_setopt($ch, CURLOPT_URL, '${uploadUrl}');
 					curl_setopt($ch, CURLOPT_POST, true);
 					curl_setopt($ch, CURLOPT_POSTFIELDS, [
 						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
@@ -498,11 +577,11 @@ test('CURLFile uploads via curl_exec() should work', async ({
 					} else {
 						echo "HTTP_CODE:" . $httpCode;
 						$decoded = json_decode($result, true);
-						if (isset($decoded['files']['file'])) {
-							echo " FILE_RECEIVED:YES";
-							echo " CONTENT_MATCH:" . (strpos($decoded['files']['file'], 'PLAYGROUND_TEST_CONTENT') !== false ? 'YES' : 'NO');
+						if (isset($decoded['isMultipartUpload'])) {
+							echo " POST_RECEIVED:" . ($decoded['method'] === 'POST' ? 'YES' : 'NO');
+							echo " MULTIPART_UPLOAD:" . ($decoded['isMultipartUpload'] ? 'YES' : 'NO');
 						} else {
-							echo " FILE_RECEIVED:NO";
+							echo " MULTIPART_UPLOAD:NO";
 							echo " BODY:" . substr($result, 0, 500);
 						}
 					}
@@ -512,8 +591,10 @@ test('CURLFile uploads via curl_exec() should work', async ({
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(wordpress.locator('body')).toContainText('HTTP_CODE:200');
-	await expect(wordpress.locator('body')).toContainText('FILE_RECEIVED:YES');
-	await expect(wordpress.locator('body')).toContainText('CONTENT_MATCH:YES');
+	await expect(wordpress.locator('body')).toContainText('POST_RECEIVED:YES');
+	await expect(wordpress.locator('body')).toContainText(
+		'MULTIPART_UPLOAD:YES'
+	);
 });
 
 /**
@@ -839,12 +920,14 @@ test('should login a non-admin user if a login step with a non-admin username is
 }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/wp-admin/profile.php',
-		extraLibraries: ['wp-cli'],
 		steps: [
 			{
-				step: 'wp-cli',
-				command:
-					"wp user create user user@example.com  --user_pass='password'",
+				// This test needs a user account, not a remote WP-CLI download.
+				step: 'runPHP',
+				code: `<?php
+					require '/wordpress/wp-load.php';
+					wp_create_user('user', 'password', 'user@example.com');
+				`,
 			},
 			{
 				step: 'login',
@@ -878,9 +961,11 @@ test('should login a non-admin user if a login step with a non-admin username is
 });
 
 test('should correctly redirect to a multisite wp-admin url', async ({
+	context,
 	website,
 	wordpress,
 }) => {
+	await serveBuiltWpCli(context);
 	const blueprint: Blueprint = {
 		landingPage: '/example/wp-admin/options-general.php',
 		steps: [

@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).plugins = (() => {
@@ -74,6 +75,111 @@ var wp;
     }
   });
 
+  // node_modules/.store/react-is@19.3.0-h9DBeE4BCfrMSfxZZXEDFw/node_modules/react-is/cjs/react-is.development.js
+  var require_react_is_development = __commonJS({
+    "node_modules/.store/react-is@19.3.0-h9DBeE4BCfrMSfxZZXEDFw/node_modules/react-is/cjs/react-is.development.js"(exports) {
+      "use strict";
+      (function() {
+        function typeOf(object) {
+          if ("object" === typeof object && null !== object) {
+            var $$typeof = object.$$typeof;
+            switch ($$typeof) {
+              case REACT_ELEMENT_TYPE:
+                switch (object = object.type, object) {
+                  case REACT_FRAGMENT_TYPE:
+                  case REACT_PROFILER_TYPE:
+                  case REACT_STRICT_MODE_TYPE:
+                  case REACT_SUSPENSE_TYPE:
+                  case REACT_SUSPENSE_LIST_TYPE:
+                  case REACT_VIEW_TRANSITION_TYPE:
+                    return object;
+                  default:
+                    switch (object = object && object.$$typeof, object) {
+                      case REACT_CONTEXT_TYPE:
+                      case REACT_FORWARD_REF_TYPE:
+                      case REACT_LAZY_TYPE:
+                      case REACT_MEMO_TYPE:
+                        return object;
+                      case REACT_CONSUMER_TYPE:
+                        return object;
+                      default:
+                        return $$typeof;
+                    }
+                }
+              case REACT_PORTAL_TYPE:
+                return $$typeof;
+            }
+          }
+        }
+        var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition"), REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference");
+        exports.ContextConsumer = REACT_CONSUMER_TYPE;
+        exports.ContextProvider = REACT_CONTEXT_TYPE;
+        exports.Element = REACT_ELEMENT_TYPE;
+        exports.ForwardRef = REACT_FORWARD_REF_TYPE;
+        exports.Fragment = REACT_FRAGMENT_TYPE;
+        exports.Lazy = REACT_LAZY_TYPE;
+        exports.Memo = REACT_MEMO_TYPE;
+        exports.Portal = REACT_PORTAL_TYPE;
+        exports.Profiler = REACT_PROFILER_TYPE;
+        exports.StrictMode = REACT_STRICT_MODE_TYPE;
+        exports.Suspense = REACT_SUSPENSE_TYPE;
+        exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+        exports.isContextConsumer = function(object) {
+          return typeOf(object) === REACT_CONSUMER_TYPE;
+        };
+        exports.isContextProvider = function(object) {
+          return typeOf(object) === REACT_CONTEXT_TYPE;
+        };
+        exports.isElement = function(object) {
+          return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+        };
+        exports.isForwardRef = function(object) {
+          return typeOf(object) === REACT_FORWARD_REF_TYPE;
+        };
+        exports.isFragment = function(object) {
+          return typeOf(object) === REACT_FRAGMENT_TYPE;
+        };
+        exports.isLazy = function(object) {
+          return typeOf(object) === REACT_LAZY_TYPE;
+        };
+        exports.isMemo = function(object) {
+          return typeOf(object) === REACT_MEMO_TYPE;
+        };
+        exports.isPortal = function(object) {
+          return typeOf(object) === REACT_PORTAL_TYPE;
+        };
+        exports.isProfiler = function(object) {
+          return typeOf(object) === REACT_PROFILER_TYPE;
+        };
+        exports.isStrictMode = function(object) {
+          return typeOf(object) === REACT_STRICT_MODE_TYPE;
+        };
+        exports.isSuspense = function(object) {
+          return typeOf(object) === REACT_SUSPENSE_TYPE;
+        };
+        exports.isSuspenseList = function(object) {
+          return typeOf(object) === REACT_SUSPENSE_LIST_TYPE;
+        };
+        exports.isValidElementType = function(type) {
+          return "string" === typeof type || "function" === typeof type || type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || type === REACT_VIEW_TRANSITION_TYPE || "object" === typeof type && null !== type && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || type.$$typeof === REACT_CLIENT_REFERENCE || void 0 !== type.getModuleId) ? true : false;
+        };
+        exports.typeOf = typeOf;
+      })();
+    }
+  });
+
+  // node_modules/.store/react-is@19.3.0-h9DBeE4BCfrMSfxZZXEDFw/node_modules/react-is/index.js
+  var require_react_is = __commonJS({
+    "node_modules/.store/react-is@19.3.0-h9DBeE4BCfrMSfxZZXEDFw/node_modules/react-is/index.js"(exports, module) {
+      "use strict";
+      if (false) {
+        module.exports = null;
+      } else {
+        module.exports = require_react_is_development();
+      }
+    }
+  });
+
   // package-external:@wordpress/primitives
   var require_primitives = __commonJS({
     "package-external:@wordpress/primitives"(exports, module) {
@@ -93,7 +199,7 @@ var wp;
     withPluginContext: () => withPluginContext
   });
 
-  // node_modules/memize/dist/index.js
+  // node_modules/.store/memize@2.1.1-roXbtpG2bis3Lggp7SQpAA/node_modules/memize/dist/index.js
   function memize(fn, options) {
     var size = 0;
     var head;
@@ -221,12 +327,13 @@ var wp;
   };
 
   // packages/plugins/build-module/api/index.mjs
+  var import_react_is = __toESM(require_react_is(), 1);
   var import_hooks = __toESM(require_hooks(), 1);
 
   // packages/icons/build-module/library/plugins.mjs
   var import_primitives = __toESM(require_primitives(), 1);
   var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-  var plugins_default = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_primitives.SVG, { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_primitives.Path, { d: "M10.5 4v4h3V4H15v4h1.5a1 1 0 011 1v4l-3 4v2a1 1 0 01-1 1h-3a1 1 0 01-1-1v-2l-3-4V9a1 1 0 011-1H9V4h1.5zm.5 12.5v2h2v-2l3-4v-3H8v3l3 4z" }) });
+  var plugins_default = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_primitives.SVG, { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", style: { fill: "none" }, stroke: "currentColor", strokeWidth: "1.5", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_primitives.Path, { d: "M15.3995 11.5711L12.2175 8.38909L10.273 6.44454L7.67678 9.04074C7.3017 9.41581 7.09099 9.92452 7.09099 10.455L7.09099 13.455C7.09099 13.7202 6.98563 13.9745 6.7981 14.1621L5.14645 15.8137C4.95118 16.009 4.95118 16.3256 5.14645 16.5208L7.26777 18.6421C7.46303 18.8374 7.77961 18.8374 7.97487 18.6421L9.62652 16.9905C9.81406 16.8029 10.0684 16.6976 10.3336 16.6976H13.3336C13.8641 16.6976 14.3728 16.4869 14.7478 16.1118L17.344 13.5156L15.3995 11.5711ZM12.2175 8.38909L16.1066 4.5M15.3995 11.5711L19.2886 7.68198" }) });
 
   // packages/plugins/build-module/api/index.mjs
   var plugins = {};
@@ -254,9 +361,9 @@ var wp;
       name
     );
     const { render, scope } = settings;
-    if (typeof render !== "function") {
+    if (!(0, import_react_is.isValidElementType)(render)) {
       console.error(
-        'The "render" property must be specified and must be a valid function.'
+        'The "render" property must be specified and must be a valid component.'
       );
       return null;
     }
@@ -361,4 +468,19 @@ var wp;
   }
   var plugin_area_default = PluginArea;
   return __toCommonJS(index_exports);
+})();
+/*! Bundled license information:
+
+react-is/cjs/react-is.development.js:
+  (**
+   * @license React
+   * react-is.development.js
+   *
+   * Copyright (c) Meta Platforms, Inc. and affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   *)
+*/
+(window.wp ||= {}).plugins = wp.plugins;
 })();

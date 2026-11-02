@@ -1,0 +1,533 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type { SiteMetadata } from '../state/redux/slice-sites';
+import {
+	classifyBlueprintUrl,
+	normalizeReferrer,
+	getBlueprintUsageStatsProperties,
+	getSiteUsageStatsProperties,
+	getStreakUsageStatsUpdate,
+	getUsageStatsDate,
+	isUsageStatsAllowedOnCurrentHost,
+	logPersonalWpEvent,
+	shouldLogReturningVisitUsageStats,
+} from './usage-stats';
+
+const DAY = 24 * 60 * 60 * 1000;
+
+describe('Personal WP usage stats', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('sends best-effort events to the configured endpoint', () => {
+		vi.stubGlobal('location', {
+			hostname: 'my.wordpress.net',
+		});
+		const fetchImpl = vi.fn().mockResolvedValue(new Response(null));
+
+		logPersonalWpEvent(
+			'returning_visit',
+			{
+				site_age_bucket: '8-30-days',
+			},
+			{
+				endpoint: 'https://usage-stats.example.test/events',
+				fetchImpl,
+			}
+		);
+
+		expect(fetchImpl).toHaveBeenCalledOnce();
+		const [url, init] = fetchImpl.mock.calls[0];
+		expect(url).toBe('https://usage-stats.example.test/events');
+		expect(init).toMatchObject({
+			method: 'POST',
+			credentials: 'omit',
+			keepalive: true,
+			mode: 'no-cors',
+			headers: {
+				'content-type': 'text/plain;charset=UTF-8',
+			},
+		});
+		expect(JSON.parse(init.body)).toMatchObject({
+			schema: 'personal-wp-event/v1',
+			app: 'personal-wp',
+			event: 'returning_visit',
+			properties: {
+				site_age_bucket: '8-30-days',
+			},
+		});
+	});
+
+	it('does not call fetch without an endpoint', () => {
+		const fetchImpl = vi.fn();
+
+		logPersonalWpEvent(
+			'returning_visit',
+			{},
+			{
+				endpoint: undefined,
+				fetchImpl,
+			}
+		);
+
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('does not call fetch outside my.wordpress.net', () => {
+		vi.stubGlobal('location', {
+			hostname: 'staging.my.wordpress.net',
+		});
+		const fetchImpl = vi.fn();
+
+		logPersonalWpEvent(
+			'returning_visit',
+			{},
+			{
+				endpoint: 'https://my.wordpress.net/mywp-event.php',
+				fetchImpl,
+			}
+		);
+
+		expect(fetchImpl).not.toHaveBeenCalled();
+		expect(isUsageStatsAllowedOnCurrentHost()).toBe(false);
+	});
+
+	it('allows usage stats on my.wordpress.net', () => {
+		vi.stubGlobal('location', {
+			hostname: 'my.wordpress.net',
+		});
+
+		expect(isUsageStatsAllowedOnCurrentHost()).toBe(true);
+	});
+
+	it('summarizes site details without stable identifiers', () => {
+		const now = Date.UTC(2026, 4, 28);
+		const metadata: SiteMetadata = {
+			storage: 'opfs',
+			id: 'site-id-that-must-not-be-reported',
+			name: 'Private Client Site',
+			whenCreated: now - 12 * 24 * 60 * 60 * 1000,
+			lastAccessDate: now - 2 * 24 * 60 * 60 * 1000,
+			originalBlueprint: {},
+			originalBlueprintSource: {
+				type: 'remote-url',
+				url: 'https://private.example.test/blueprint.json?token=secret',
+			},
+			runtimeConfiguration: {
+				phpVersion: '8.4',
+				wpVersion: 'latest',
+				intl: true,
+				networking: false,
+				extraLibraries: ['wp-cli'],
+				constants: {
+					WP_DEBUG: true,
+				},
+			},
+		};
+
+		const properties = getSiteUsageStatsProperties(metadata, now);
+
+		expect(properties).toEqual({
+			site_age_bucket: '8-30-days',
+			previous_visit_age_bucket: '1-7-days',
+		});
+		expect(JSON.stringify(properties)).not.toContain('Private Client Site');
+		expect(JSON.stringify(properties)).not.toContain(
+			'site-id-that-must-not-be-reported'
+		);
+	});
+
+	it('deduplicates returning visits by UTC day in local metadata', () => {
+		const now = Date.UTC(2026, 4, 28, 23, 30);
+		const metadata = {
+			storage: 'opfs',
+			whenCreated: now - 30 * 24 * 60 * 60 * 1000,
+			lastAccessDate: now - 24 * 60 * 60 * 1000,
+		} as SiteMetadata;
+
+		expect(getUsageStatsDate(now)).toBe('2026-05-28');
+		expect(shouldLogReturningVisitUsageStats(metadata, now)).toBe(true);
+
+		metadata.lastUsageStatsReturningVisitDate = '2026-05-28';
+		expect(shouldLogReturningVisitUsageStats(metadata, now)).toBe(false);
+
+		expect(
+			shouldLogReturningVisitUsageStats(
+				metadata,
+				Date.UTC(2026, 4, 29, 0, 1)
+			)
+		).toBe(true);
+	});
+
+	it('summarizes blueprint details without full URLs or content fields', () => {
+		const blueprint = {
+			login: true,
+			landingPage: '/wp-admin/admin.php?page=secret',
+			plugins: ['friends', 'Invalid Plugin Name'],
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginData: {
+						resource: 'wordpress.org/plugins',
+						slug: 'woocommerce',
+					},
+				},
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'url',
+						url: 'https://private.example.test/plugin.zip?token=secret',
+					},
+				},
+				{
+					step: 'writeFile',
+					path: '/wordpress/wp-content/private.txt',
+					data: {
+						resource: 'literal',
+						contents: 'user@example.test',
+					},
+				},
+				{
+					step: 'x'.repeat(100),
+					file: {
+						resource: 'data:application/zip;base64,private',
+					},
+				},
+				{
+					step: 'installTheme',
+					themeData: {
+						resource: 'wordpress.org/themes',
+						slug: 'twentytwentyfive',
+					},
+				},
+			],
+		} as unknown as BlueprintV1Declaration;
+
+		const properties = getBlueprintUsageStatsProperties(
+			blueprint,
+			'https://private.example.test/blueprint.json?token=secret'
+		);
+
+		expect(properties).toEqual({
+			blueprint_source: 'external-url',
+		});
+
+		const serialized = JSON.stringify(properties);
+		expect(serialized).not.toContain('private.example.test');
+		expect(serialized).not.toContain('token=secret');
+		expect(serialized).not.toContain('user@example.test');
+		expect(serialized).not.toContain('/wp-admin/admin.php');
+		expect(serialized).not.toContain('woocommerce');
+		expect(serialized).not.toContain('twentytwentyfive');
+	});
+
+	it('reports only safe plugin slugs from app blueprint plugin installs', () => {
+		const properties = getBlueprintUsageStatsProperties(
+			{
+				steps: [
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'git:directory',
+							url: 'https://github.com/akirk/ai-assistant',
+						},
+						options: {
+							targetFolderName: 'ai-assistant',
+						},
+					},
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'wordpress.org/plugins',
+							slug: 'friends',
+						},
+					},
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'git:directory',
+							url: 'https://github.com/akirk/send-to-e-reader.git',
+						},
+					},
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'git:directory',
+							url: 'https://private.example.test/private-plugin',
+						},
+					},
+					{
+						step: 'installPlugin',
+						pluginData: {
+							resource: 'wordpress.org/plugins',
+							slug: 'Invalid Plugin Name',
+						},
+					},
+				],
+			} as unknown as BlueprintV1Declaration,
+			'/blueprints/apps/ai-assistant.json',
+			{ requestSource: 'my-apps' }
+		);
+
+		expect(properties.plugin_slugs).toEqual([
+			'ai-assistant',
+			'friends',
+			'send-to-e-reader',
+			'unknown',
+		]);
+		expect(JSON.stringify(properties)).not.toContain(
+			'private.example.test'
+		);
+	});
+
+	it('classifies blueprint URLs instead of reporting them', () => {
+		vi.stubGlobal('location', {
+			href: 'https://playground.wordpress.net/',
+			origin: 'https://playground.wordpress.net',
+		});
+
+		expect(classifyBlueprintUrl('/blueprint.json')).toBe('same-origin');
+		expect(
+			classifyBlueprintUrl(
+				'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprint.json'
+			)
+		).toBe('github');
+		expect(classifyBlueprintUrl('data:application/json,{}')).toBe(
+			'data-url'
+		);
+		expect(classifyBlueprintUrl('http://[invalid')).toBe('invalid-url');
+	});
+
+	it('reports only the referring host, never the path', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('')).toBe('direct');
+		expect(normalizeReferrer('https://my.wordpress.net/builder')).toBe(
+			'internal'
+		);
+		expect(
+			normalizeReferrer('https://news.ycombinator.com/item?id=1')
+		).toBe('news.ycombinator.com');
+		expect(normalizeReferrer('https://www.example.com/a-post#top')).toBe(
+			'example.com'
+		);
+		expect(normalizeReferrer('https://Blog.Example.CO.UK:8443/x')).toBe(
+			'blog.example.co.uk'
+		);
+	});
+
+	it('keeps make.wordpress.org distinct from wordpress.org', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('https://make.wordpress.org/core/')).toBe(
+			'make.wordpress.org'
+		);
+		expect(normalizeReferrer('https://wordpress.org/plugins/')).toBe(
+			'wordpress.org'
+		);
+	});
+
+	it('reports a host that names a network as private-address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('http://wiki/page')).toBe('private-address');
+		expect(normalizeReferrer('http://localhost:3000/')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://192.168.1.5/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[::1]/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[2001:db8::1]/dashboard')).toBe(
+			'private-address'
+		);
+	});
+
+	it('keeps an unreadable referrer apart from a private address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('android-app://com.example.reader')).toBe(
+			'unknown'
+		);
+		expect(normalizeReferrer('not a url')).toBe('unknown');
+		expect(
+			normalizeReferrer(`https://${'a'.repeat(130)}.example.com/`)
+		).toBe('unknown');
+	});
+
+	it('does not report blueprint identifiers', () => {
+		vi.stubGlobal('location', {
+			href: 'https://playground.wordpress.net/',
+			origin: 'https://playground.wordpress.net',
+		});
+
+		const properties = getBlueprintUsageStatsProperties(
+			{
+				steps: [],
+			},
+			'/blueprints/chat-to-blog/blueprint.json?token=secret',
+			{ requestSource: 'my-apps' }
+		);
+
+		expect(properties).toEqual({
+			blueprint_source: 'same-origin',
+		});
+		expect(JSON.stringify(properties)).not.toContain('token=secret');
+	});
+
+	it('ignores a backward clock jump instead of resetting and re-emitting the streak', () => {
+		const day1 = Date.UTC(2026, 5, 10);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		metadata = { ...metadata, ...first.metadata };
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		// The client's clock jumps back to before the last-recorded day.
+		const clockSkewedBackward = getStreakUsageStatsUpdate(
+			metadata,
+			day1 - 3 * DAY
+		);
+		expect(clockSkewedBackward.events).toEqual([]);
+		expect(clockSkewedBackward.metadata).toEqual({});
+	});
+
+	it('advances the daily streak once per day and resets after a gap', () => {
+		const day1 = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		expect(first.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const laterSameDay = getStreakUsageStatsUpdate(
+			metadata,
+			day1 + 12 * 60 * 60 * 1000
+		);
+		expect(laterSameDay.events).toEqual([]);
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		const afterGap = getStreakUsageStatsUpdate(metadata, day1 + 4 * DAY);
+		expect(afterGap.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '1' },
+		});
+	});
+
+	it('walks the daily streak length boundaries across consecutive days', () => {
+		const start = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+		const lengths: string[] = [];
+
+		for (let day = 0; day < 31; day++) {
+			const update = getStreakUsageStatsUpdate(
+				metadata,
+				start + day * DAY
+			);
+			metadata = { ...metadata, ...update.metadata };
+			const dailyEvent = update.events.find(
+				(event) => event.event === 'daily_streak'
+			);
+			lengths.push(dailyEvent!.properties.length as string);
+		}
+
+		expect(lengths[0]).toBe('1');
+		expect(lengths[29]).toBe('30');
+		expect(lengths[30]).toBe('31+');
+	});
+
+	it('advances the weekly streak across calendar weeks and resets on a skipped week', () => {
+		const monday1 = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, monday1);
+		expect(first.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { length: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const fridaySameWeek = getStreakUsageStatsUpdate(
+			metadata,
+			monday1 + 4 * DAY
+		);
+		expect(
+			fridaySameWeek.events.some(
+				(event) => event.event === 'weekly_streak'
+			)
+		).toBe(false);
+
+		const monday2 = getStreakUsageStatsUpdate(metadata, monday1 + 7 * DAY);
+		expect(monday2.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...monday2.metadata };
+
+		const mondaySkippedWeek = getStreakUsageStatsUpdate(
+			metadata,
+			monday1 + 21 * DAY
+		);
+		expect(mondaySkippedWeek.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { length: '1' },
+		});
+	});
+
+	it('advances the monthly streak across a year boundary and resets on a skipped month', () => {
+		const december = Date.UTC(2025, 11, 15);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, december);
+		expect(first.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { length: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const january = getStreakUsageStatsUpdate(
+			metadata,
+			Date.UTC(2026, 0, 10)
+		);
+		expect(january.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...january.metadata };
+
+		const marchSkippedFebruary = getStreakUsageStatsUpdate(
+			metadata,
+			Date.UTC(2026, 2, 5)
+		);
+		expect(marchSkippedFebruary.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { length: '1' },
+		});
+	});
+});

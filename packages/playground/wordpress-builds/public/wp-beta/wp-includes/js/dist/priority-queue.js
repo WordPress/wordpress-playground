@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).priorityQueue = (() => {
@@ -32,9 +33,9 @@ var wp;
   ));
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // node_modules/requestidlecallback/index.js
+  // node_modules/.store/requestidlecallback@0.3.0-yuquNN0kRGQuzC4XrCd13g/node_modules/requestidlecallback/index.js
   var require_requestidlecallback = __commonJS({
-    "node_modules/requestidlecallback/index.js"(exports, module) {
+    "node_modules/.store/requestidlecallback@0.3.0-yuquNN0kRGQuzC4XrCd13g/node_modules/requestidlecallback/index.js"(exports, module) {
       (function(factory) {
         if (typeof define === "function" && define.amd) {
           define([], factory);
@@ -291,4 +292,6 @@ var wp;
     };
   };
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).priorityQueue = wp.priorityQueue;
 })();

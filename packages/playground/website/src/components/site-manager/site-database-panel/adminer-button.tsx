@@ -1,7 +1,9 @@
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { logger } from '@php-wasm/logger';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
 import css from './style.module.css';
+import { getWordPressPopupUrl } from '../../../lib/wordpress-popup';
 import {
 	type PlaygroundClient,
 	type StepDefinition,
@@ -52,6 +54,7 @@ async function installAdminer(playground: PlaygroundClient) {
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
 }
 
+/** Install and open Adminer without moving WordPress into another storage partition. */
 export function AdminerButton({
 	playground,
 }: {
@@ -61,23 +64,36 @@ export function AdminerButton({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		if (!playground) {
+			setState('idle');
+			setError(null);
+			return;
+		}
+		let cancelled = false;
+
 		async function detectAdminer() {
-			if (!playground) {
-				return;
-			}
-
-			const documentRoot = await playground.documentRoot;
-			const adminerPath = `${documentRoot}/adminer`;
-
-			if (await playground.isDir(adminerPath)) {
-				setState('ready');
-			} else {
+			try {
+				if (!playground) return;
+				const documentRoot = await playground.documentRoot;
+				if (cancelled) return;
+				const adminerPath = `${documentRoot}/adminer`;
+				const isDir = await playground.isDir(adminerPath);
+				if (cancelled) return;
+				setState(isDir ? 'ready' : 'idle');
+			} catch (error) {
+				if (cancelled) return;
+				logger.error('Failed to detect Adminer', error);
 				setState('idle');
 			}
 		}
-		detectAdminer();
+
+		void detectAdminer();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
+	/** Open the installed tool through the matching WordPress browsing context. */
 	const handleOpenAdminer = async () => {
 		if (!playground) {
 			return;
@@ -104,7 +120,7 @@ export function AdminerButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/adminer/`,
+				getWordPressPopupUrl(`${playgroundUrl}/adminer/`),
 				'_blank',
 				'noopener,noreferrer'
 			);
@@ -116,7 +132,7 @@ export function AdminerButton({
 		<>
 			<Flex direction="column" gap={0} expanded={false}>
 				<Button
-					variant="primary"
+					variant="secondary"
 					disabled={!playground || isLoading}
 					isBusy={isLoading}
 					onClick={handleOpenAdminer}

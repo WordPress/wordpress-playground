@@ -10,6 +10,9 @@
 	height: 100%;
 	justify-content: center;
 	align-items: center;
+	box-sizing: border-box;
+	overflow: hidden;
+	padding: 24px;
 	opacity: 1;
 	transition: opacity ease-in 0.25s;
 }
@@ -21,12 +24,30 @@
 
 .wrapper {
 	position: relative;
-	width: 512px;
-	max-width: 60vw;
-	height: 4px;
-	margin: 4px auto;
-	border-radius: 10px;
-	background: #e0e0e0;
+	width: calc(100% - 48px);
+	max-width: 420px;
+	height: 9px;
+	margin: 19px auto 0;
+	overflow: hidden;
+	border-radius: 999px;
+	background: #d8dce2;
+	box-shadow:
+		0 1px 0 rgb(255 255 255 / 0.72) inset,
+		0 10px 24px rgb(0 0 0 / 0.08);
+}
+
+.wrapper::after {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgb(255 255 255 / 0.58) 50%,
+		transparent 100%
+	);
+	animation: track-shimmer 2.2s ease-in-out infinite;
+	content: '';
+	transform: translateX(-100%);
 }
 
 .wrapper-definite .progress-bar.is-indefinite,
@@ -45,14 +66,23 @@
 	left: 0;
 	bottom: 0;
 	right: 100%;
+	z-index: 1;
 	width: 0;
-	background: #3858e9;
-	border-radius: 2px;
-	transition: opacity linear 0.2s, width ease-in 0.2s;
+	background: linear-gradient(90deg, #3858e9 0%, #6f7dff 100%);
+	border-radius: inherit;
+	transition:
+		opacity linear 0.2s,
+		width ease-in 0.2s;
 }
 
 .progress-bar.is-indefinite {
 	animation: indefinite-loading 2s linear infinite;
+}
+
+@keyframes track-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
 }
 
 @keyframes indefinite-loading {
@@ -79,9 +109,30 @@
 }
 
 .caption {
-	font-weight: 400;
+	font-weight: 300;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-	font-size: 1.1rem;
+	font-size: 20px;
+	line-height: 1.12;
+	margin: 0;
+	width: calc(100% - 48px);
+	max-width: 720px;
+	overflow-wrap: anywhere;
+	text-align: center;
+}
+
+.caption,
+.wrapper {
+	z-index: 1;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -91,6 +142,20 @@
 	}
 
 	.wrapper {
-		background: #32363a;
+		background: #2f3338;
+		box-shadow:
+			inset 0 0 0 1px rgb(255 255 255 / 0.04),
+			0 10px 28px rgb(0 0 0 / 0.22);
+	}
+
+	.progress-bar {
+		box-shadow: 0 0 18px rgb(72 103 255 / 0.45);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wrapper::after,
+	.progress-bar.is-indefinite {
+		animation: none;
 	}
 }

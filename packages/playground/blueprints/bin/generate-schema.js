@@ -3,6 +3,7 @@ import fs from 'fs';
 import Ajv from 'ajv';
 import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
 import prettier from 'prettier';
+import { generateBlueprintV2SchemaValidator } from './generate-v2-schema-validator.js';
 
 /** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
 const config = {
@@ -14,7 +15,7 @@ const config = {
 
 const output_path =
 	'packages/playground/blueprints/public/blueprint-schema.json';
-const validator_output_path =
+const v1ValidatorOutputPath =
 	'packages/playground/blueprints/public/blueprint-schema-validator.js';
 
 const maxRetries = 2;
@@ -37,12 +38,12 @@ async function exponentialBackoff(callback, retries = 0, delay = 1000) {
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/789
  */
-const schema = await exponentialBackoff(() =>
+const v1Schema = await exponentialBackoff(() =>
 	tsj.createGenerator(config).createSchema(config.type)
 );
 
-schema.$schema = 'http://json-schema.org/schema';
-schema.definitions.BlueprintV1Declaration.properties.$schema = {
+v1Schema.$schema = 'http://json-schema.org/schema';
+v1Schema.definitions.BlueprintV1Declaration.properties.$schema = {
 	type: 'string',
 };
 
@@ -50,42 +51,82 @@ schema.definitions.BlueprintV1Declaration.properties.$schema = {
 // provide more useful error messages with respect to StepDefinition.
 // Without a discriminator, it will validate each invalid step
 // against all possible `anyOf` entries, which is not helpful.
-Object.assign(schema.definitions.StepDefinition, {
+Object.assign(v1Schema.definitions.StepDefinition, {
 	type: 'object',
 	discriminator: { propertyName: 'step' },
 	required: ['step'],
 });
-schema.definitions.StepDefinition.oneOf =
-	schema.definitions.StepDefinition.anyOf;
-delete schema.definitions.StepDefinition.anyOf;
-
-const rawSchemaString = JSON.stringify(schema, null, 2)
-	// Naively remove TypeScript generics <T> from the schema:
-	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
-	.replaceAll(/<[a-zA-Z]+>/g, '');
+v1Schema.definitions.StepDefinition.oneOf =
+	v1Schema.definitions.StepDefinition.anyOf;
+delete v1Schema.definitions.StepDefinition.anyOf;
 
 // Use prettier to make the generated text more readable
 // and to avoid differing with the files formatted by pre-commit hook.
 const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
-const formattedSchemaString = await prettier.format(rawSchemaString, {
-	...prettierConfig,
-	parser: 'json',
-});
 
-fs.writeFileSync(output_path, formattedSchemaString);
-
-const ajv = new Ajv({
+const v1Ajv = new Ajv({
 	discriminator: true,
 	code: {
 		source: true,
 		esm: true,
 	},
 });
-const validate = ajv.compile(schema);
-const rawValidationCode = ajvStandaloneCode(ajv, validate);
+await writeValidator(v1Ajv, v1Schema, v1ValidatorOutputPath, prettierConfig);
 
-const formattedValidationCode = await prettier.format(rawValidationCode, {
+const v2Schema = await generateBlueprintV2SchemaValidator(
+	exponentialBackoff,
+	prettierConfig
+);
+const publicSchema = createPublicSchema(v1Schema, v2Schema);
+const rawSchemaString = JSON.stringify(publicSchema, null, 2);
+const formattedSchemaString = await prettier.format(rawSchemaString, {
 	...prettierConfig,
-	parser: 'babel',
+	parser: 'json',
 });
-fs.writeFileSync(validator_output_path, formattedValidationCode);
+fs.writeFileSync(output_path, formattedSchemaString);
+
+/** Combines the independently generated schemas without shadowing definitions. */
+function createPublicSchema(v1Schema, v2Schema) {
+	const conflictingDefinitions = new Set(
+		Object.keys(v1Schema.definitions).filter(
+			(name) => name in v2Schema.definitions
+		)
+	);
+	if (
+		'BlueprintDeclaration' in v1Schema.definitions ||
+		'BlueprintDeclaration' in v2Schema.definitions
+	) {
+		conflictingDefinitions.add('BlueprintDeclaration');
+	}
+	if (conflictingDefinitions.size > 0) {
+		throw new Error(
+			`Blueprint schema definitions collide: ${Array.from(conflictingDefinitions).join(', ')}`
+		);
+	}
+
+	return {
+		$schema: 'http://json-schema.org/schema',
+		$ref: '#/definitions/BlueprintDeclaration',
+		definitions: {
+			BlueprintDeclaration: {
+				oneOf: [
+					{ $ref: '#/definitions/BlueprintV1Declaration' },
+					{ $ref: '#/definitions/BlueprintV2Declaration' },
+				],
+			},
+			...v1Schema.definitions,
+			...v2Schema.definitions,
+		},
+	};
+}
+
+/** Compiles, formats, and writes one generated standalone schema validator. */
+async function writeValidator(ajv, schema, outputPath, prettierConfig) {
+	const validate = ajv.compile(schema);
+	const rawValidationCode = ajvStandaloneCode(ajv, validate);
+	const formattedValidationCode = await prettier.format(rawValidationCode, {
+		...prettierConfig,
+		parser: 'babel',
+	});
+	fs.writeFileSync(outputPath, formattedValidationCode);
+}

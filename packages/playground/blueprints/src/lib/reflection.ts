@@ -1,4 +1,4 @@
-import type { Blueprint, BlueprintBundle } from './types';
+import type { Blueprint, BlueprintBundle, BlueprintDeclaration } from './types';
 import type { BlueprintV1Declaration } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
@@ -7,8 +7,26 @@ export function isBlueprintBundle(input: any): input is BlueprintBundle {
 }
 
 export async function getBlueprintDeclaration(
-	blueprint: Blueprint
+	blueprint: Blueprint | string
 ): Promise<BlueprintV1Declaration | BlueprintV2Declaration> {
+	if (typeof blueprint === 'string') {
+		let declaration: unknown;
+		try {
+			declaration = JSON.parse(blueprint);
+		} catch {
+			throw new Error('Raw JSON input must be valid JSON.');
+		}
+		if (
+			!declaration ||
+			typeof declaration !== 'object' ||
+			Array.isArray(declaration)
+		) {
+			throw new Error(
+				'Raw JSON input must contain a Blueprint declaration object.'
+			);
+		}
+		return declaration as BlueprintDeclaration;
+	}
 	if (!isBlueprintBundle(blueprint)) {
 		return blueprint;
 	}

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { logger } from '@php-wasm/logger';
 
+vi.mock('@wp-playground/wordpress', () => ({
+	getLoadedWordPressVersion: vi.fn(async () => '6.9'),
+}));
+
 describe('worker-utils', () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -49,5 +53,21 @@ describe('worker-utils', () => {
 		const { getWordPressStaticZipUrl } = await import('./worker-utils');
 
 		await expect(getWordPressStaticZipUrl({} as any)).resolves.toBe(false);
+	});
+
+	it('builds the static assets ZIP URL for a loaded minified WordPress version', async () => {
+		vi.stubGlobal('caches', {
+			open: vi.fn(async () => ({
+				match: vi.fn(),
+			})),
+		});
+		const { getWordPressStaticZipUrl } = await import('./worker-utils');
+
+		await expect(
+			getWordPressStaticZipUrl({
+				requestHandler: { documentRoot: '/wordpress' },
+				isFile: vi.fn(() => true),
+			} as any)
+		).resolves.toBe('/wp-6.9/wordpress-static.zip');
 	});
 });

@@ -1,3 +1,5 @@
+import { connectWordPressOrigin } from './connect-wordpress-origin';
+import { wordPressSiteUrl } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -14,9 +16,17 @@ import type {
 	MountDescriptor,
 } from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
-import type { WebClientMixin } from './playground-client';
+import type { SiteThumbnail, WebClientMixin } from './playground-client';
+// @ts-ignore -- Provided by Vite.
+import { buildVersion as remoteBuildVersion } from 'virtual:remote-config';
+import { RELOAD_REQUIRED } from './shared-runtime';
+import { connectSharedRuntime } from './connect-shared-runtime';
+import { createWebMCPFrameBridge } from './webmcp-frame-bridge';
+import { requestWordPressUrl } from './request-wordpress-url';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
+// @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
+import siteThumbnailModuleUrl from './capture-site-thumbnail.ts?worker&url';
 
 type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 
@@ -24,27 +34,25 @@ type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
-import { PhpWasmError } from '@php-wasm/util';
+import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
-// Select worker runtime (v1 or v2) based on query parameter
 // @ts-ignore
-import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
-// @ts-ignore
-import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&url';
+import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?worker&url';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
+const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
-	const runner = new URL(document.location.href).searchParams.get(
-		'blueprints-runner'
-	);
-	const isV2 = runner === 'v2';
-	const selected = isV2 ? workerV2Url : workerV1Url;
-	return new URL(selected, origin) + '';
+	const query = new URL(document.location.href).searchParams;
+	const workerUrl = new URL(workerEntryPointUrl, origin);
+	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
+		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
+	}
+	return workerUrl + '';
 }
 
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
@@ -62,8 +70,35 @@ if (import.meta.hot) {
 }
 
 const query = new URL(document.location.href).searchParams;
+/**
+ * Start remote.html's PHP host and expose its client API to the embedding window.
+ *
+ * This document and the PHP worker stay on the app origin. PHP keeps access to
+ * the site's OPFS files or user-picked directory handles there. With a separate
+ * origin configured, the rendered WordPress iframe uses wordPressSiteUrl; this
+ * document and PHP do not move.
+ *
+ * Finish activating the app service worker before starting PHP's module worker.
+ * WebKit can interrupt that worker's script download if a service-worker update
+ * takes over during the download, leaving the embed on its "Try again" screen.
+ *
+ * The returned API's boot() method starts PHP and connects HTTP requests to it.
+ * With separate origins it creates a hidden WordPress-origin request iframe;
+ * with one origin a dedicated runtime uses the existing service-worker listener.
+ * Same-origin shared runtimes receive requests directly through MessagePorts.
+ * The WordPress request connection is separate from the full client API exposed
+ * to the embedding window: rendered WordPress does not receive that API here.
+ */
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
+	const sharedMode = query.get('shared-worker') === '1';
+	const reportStartupProgress = (caption: string) => {
+		if (sharedMode)
+			window.parent.postMessage(
+				{ type: 'playground-runtime-startup-progress', caption },
+				location.origin
+			);
+	};
 
 	const hasProgressBar = query.has('progressbar');
 	let bar: ProgressBar | undefined;
@@ -88,7 +123,10 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
-	const registration = await sw.register(serviceWorkerUrl + '', {
+	reportStartupProgress('Starting WordPress runtime');
+	const registrationUrl = new URL(serviceWorkerUrl);
+	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
+	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:
 		updateViaCache: 'none',
@@ -101,35 +139,98 @@ export async function bootPlaygroundRemote() {
 	} catch (e) {
 		// registration.update() throws if it can't reach the server.
 		// We're swallowing the error to keep the app working in offline mode
-		// or when playground.wordpress.net is down. We can be sure we have a
-		// functional service worker at this point because sw.register() succeeded.
+		// or when playground.wordpress.net is down. Reuse the registered worker;
+		// the activation check below still rejects a failed first installation.
 		logger.error('Failed to update service worker.', e);
 	}
 
-	/**
-	 * Feature-detect Document-Isolation-Policy support.
-	 *
-	 * Note this is not awaited on purpose. We don't want to delay the entire
-	 * loading pipeline here. This information is only needed before the first
-	 * page load inside the iframe so it's awaited later on in goTo().
-	 *
-	 * See `service-worker.ts` for the full story on why Playground does this.
-	 */
-	const documentIsolationSupportDetected =
-		detectDocumentIsolationPolicySuport().then((isolationSupported) => {
-			navigator.serviceWorker.controller?.postMessage({
-				type: 'document-isolation-policy-support-check',
-				supported: isolationSupported,
-			});
-		});
+	// update() can return while release B is still installing and release A
+	// handles downloads. Starting PHP now lets B replace A during the module
+	// worker's script download, which WebKit fails with "Service Worker context
+	// closed". Wait for B, not just serviceWorker.ready, which A already satisfies.
+	const serviceWorker =
+		registration.installing ?? registration.waiting ?? registration.active;
+	if (!serviceWorker) {
+		throw new Error('The Playground service worker is unavailable.');
+	}
+	while (serviceWorker.state !== 'activated') {
+		if (serviceWorker.state === 'redundant') {
+			throw new Error(
+				'The Playground service worker could not activate.'
+			);
+		}
+		await new Promise<void>((resolve) =>
+			serviceWorker.addEventListener('statechange', () => resolve(), {
+				once: true,
+			})
+		);
+	}
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
-	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
-	);
+	const sharedRuntime = sharedMode
+		? await connectSharedRuntime(
+				query.get('scope')!,
+				query.get('shared-worker-version') ?? remoteBuildVersion,
+				query.get('shared-worker-client-version') ?? remoteBuildVersion,
+				reportStartupProgress
+			)
+		: undefined;
+	const phpWorkerApi =
+		sharedRuntime?.api ??
+		consumeAPI<PlaygroundWorkerEndpoint>(
+			await spawnPHPWorkerThread(workerUrl)
+		);
+	if (sharedRuntime && registration.active)
+		sharedRuntime.register(registration.active);
+	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	// Pointer events stop at the WordPress document boundary. Accept messages from
+	// this #wp window at the WordPress origin, then dispatch a press in remote.html,
+	// where the app's outside-click listeners can observe it. Checking the origin
+	// alone would also accept messages from other Playgrounds on that origin.
+	window.addEventListener('message', (event: MessageEvent) => {
+		if (
+			event.source !== wpFrame.contentWindow ||
+			event.origin !== wordPressSiteUrl
+		) {
+			return;
+		}
+		let data;
+		try {
+			data =
+				typeof event.data === 'string'
+					? JSON.parse(event.data)
+					: event.data;
+		} catch {
+			// Ignore non-JSON messages from other WordPress scripts.
+			return;
+		}
+		if (data?.type === 'playground-pointer-relay-ready') {
+			// Confirm that #wp has a receiver before it marks its pointer relay active.
+			// A nested editor frame sends to its WordPress parent, not here. Without
+			// this reply, it stays unmarked so readable frames keep native click handling.
+			wpFrame.contentWindow?.postMessage(
+				{ type: 'playground-enable-pointer-relay' },
+				wordPressSiteUrl
+			);
+		} else if (data?.type === 'playground-pointerdown') {
+			// Bubble from the iframe element into remote.html's document. The app skips
+			// the original press in marked WordPress documents to avoid handling it twice.
+			// This synthetic event dismisses UI; it does not carry user activation.
+			wpFrame.dispatchEvent(
+				new PointerEvent('pointerdown', { bubbles: true })
+			);
+		}
+	});
+	if (sharedRuntime) {
+		const reloadDocuments = new WeakSet<Document>();
+		wpFrame.addEventListener('load', () =>
+			relaySharedRuntimeReloads(wpFrame, reloadDocuments)
+		);
+	}
+	const webMCPBridge = createWebMCPFrameBridge(wpFrame);
 	const phpRemoteApi: PHPRemoteApi = {
 		async onDownloadProgress(fn) {
 			return phpWorkerApi.onDownloadProgress(fn);
@@ -150,7 +251,21 @@ export async function bootPlaygroundRemote() {
 			return phpWorkerApi.replayFSJournal(events);
 		},
 		async addEventListener(event, listener) {
-			return await phpWorkerApi.addEventListener(event, listener);
+			return await phpWorkerApi.addEventListener(event, (phpEvent) => {
+				if (
+					'stdin' in phpEvent &&
+					typeof phpEvent.stdin === 'object' &&
+					phpEvent.stdin !== null &&
+					typeof phpEvent.stdin.getReader === 'function'
+				) {
+					listener({
+						...phpEvent,
+						[phpEventStdinTransfer]: true,
+					});
+					return;
+				}
+				listener(phpEvent);
+			});
 		},
 		async removeEventListener(event, listener) {
 			return await phpWorkerApi.removeEventListener(event, listener);
@@ -169,9 +284,13 @@ export async function bootPlaygroundRemote() {
 		},
 
 		/**
-		 * Listens to Playground navigation.
+		 * Reports changes to the WordPress path, including History API navigation.
 		 *
-		 * @param fn The function to be called when a navigation event occurs.
+		 * WordPress reports its URL during page startup. Also request it on subscription,
+		 * after loads, and every 500ms: pushState() changes the URL without a load event.
+		 * Both reports and requests share lastPath so an unchanged path is not sent twice.
+		 *
+		 * @param fn Receives the path within WordPress, without the internal scope prefix.
 		 */
 		async onNavigation(fn) {
 			/**
@@ -186,16 +305,18 @@ export async function bootPlaygroundRemote() {
 			let lastPath: string | undefined;
 
 			/**
-			 * Listen for URL change messages from the WordPress iframe.
-			 *
-			 * When Document-Isolation-Policy is enabled, we can't access the
-			 * iframe's location.href due to cross-origin restrictions. Instead,
-			 * a WordPress MU plugin posts a message with the current URL.
+			 * Receive the startup URL posted by the WordPress MU plugin in wp_head/admin_head.
+			 * Use the same messages for both origins, even when DOM reads would be allowed.
+			 * This also works when Document-Isolation-Policy blocks DOM access. Accept only
+			 * our #wp window at the expected origin, not another frame's URL report.
 			 *
 			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
 			 */
 			window.addEventListener('message', async (event) => {
-				if (event.source !== wpFrame.contentWindow) {
+				if (
+					event.source !== wpFrame.contentWindow ||
+					event.origin !== wordPressSiteUrl
+				) {
 					return;
 				}
 				try {
@@ -203,7 +324,10 @@ export async function bootPlaygroundRemote() {
 						typeof event.data === 'string'
 							? JSON.parse(event.data)
 							: event.data;
-					if (data?.type !== 'playground-url-change') {
+					if (
+						data?.type !== 'playground-url-change' ||
+						typeof data.url !== 'string'
+					) {
 						return;
 					}
 					const path = await playground.internalUrlToPath(data.url);
@@ -216,54 +340,41 @@ export async function bootPlaygroundRemote() {
 				}
 			});
 
+			// WordPress may have sent its startup URL before this listener was attached.
+			// Ask the current document rather than waiting for another navigation.
+			void reportCurrentPath();
+
 			// Listen for iframe load events (for navigation)
-			wpFrame.addEventListener('load', async (e: any) => {
-				try {
-					/**
-					 * When navigating to a page with %0A sequences (encoded newlines)
-					 * in the query string, the `location.href` property of the
-					 * iframe's content window doesn't seem to reflect them. Everything
-					 * else is in place, but not the %0A sequences.
-					 *
-					 * Weirdly, these sequences are available after the next event
-					 * loop tick – hence the `setTimeout(0)`.
-					 *
-					 * The exact cause is unclear at the moment of writing of this
-					 * comment. The WHATWG HTML Standard [1] has a few hints:
-					 *
-					 * * Current and active session history entries may get out of
-					 *   sync for iframes.
-					 * * Documents inside iframes have "is delaying load events" set
-					 *   to true.
-					 *
-					 * But there doesn't seem to be any concrete explanation and no
-					 * recommended remediation. If anyone has a clue, please share it
-					 * in a GitHub issue or start a new PR.
-					 *
-					 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
-					 */
-					// Get the content window while e.currentTarget is available.
-					// It will be undefined on the next event loop tick.
-					const contentWindow = e.currentTarget!.contentWindow;
-					await new Promise((resolve) => setTimeout(resolve, 0));
-					const path = await playground.internalUrlToPath(
-						contentWindow.location.href
-					);
-					if (path !== lastPath) {
-						lastPath = path;
-						fn(path);
-					}
-				} catch {
-					// @TODO: The above call can fail if the remote iframe
-					// is embedded in StackBlitz, or presumably, any other
-					// environment with restrictive CSP. Any error thrown
-					// due to CORS-related stuff crashes the entire remote
-					// so let's ignore it for now and find a correct fix in time.
-				}
+			wpFrame.addEventListener('load', async () => {
+				/**
+				 * When navigating to a page with %0A sequences (encoded newlines)
+				 * in the query string, the `location.href` property of the
+				 * iframe's content window doesn't seem to reflect them. Everything
+				 * else is in place, but not the %0A sequences.
+				 *
+				 * Weirdly, these sequences are available after the next event
+				 * loop tick – hence the `setTimeout(0)`.
+				 *
+				 * The exact cause is unclear at the moment of writing of this
+				 * comment. The WHATWG HTML Standard [1] has a few hints:
+				 *
+				 * * Current and active session history entries may get out of
+				 *   sync for iframes.
+				 * * Documents inside iframes have "is delaying load events" set
+				 *   to true.
+				 *
+				 * But there doesn't seem to be any concrete explanation and no
+				 * recommended remediation. If anyone has a clue, please share it
+				 * in a GitHub issue or start a new PR.
+				 *
+				 * [1] https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+				 */
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				await reportCurrentPath();
 			});
 
-			// Also propagate navigation changes twice a second for any
-			// updates we don't receive via the iframe load event.
+			// Ask twice a second to catch pushState()/replaceState() and any navigation
+			// missed by the load handler. Poll here for both origins, not separately in WordPress.
 			//
 			// For more details on the challenges related to the load event,
 			// see:
@@ -271,29 +382,24 @@ export async function bootPlaygroundRemote() {
 			// * https://github.com/WordPress/wordpress-playground/pull/1945
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
-			setInterval(async () => {
+			setInterval(reportCurrentPath, 500);
+
+			/** Use the same URL read as explicit API calls, and skip unchanged paths. */
+			async function reportCurrentPath() {
+				if (sharedRuntime?.isRetired()) return;
 				try {
-					let href = '';
-					if (wpFrame.contentWindow) {
-						href = wpFrame.contentWindow.location.href;
-					} else {
-						href = wpFrame.src;
-					}
-					const path = await playground.internalUrlToPath(href);
+					const path = await phpRemoteApi.getCurrentURL();
 					if (path !== lastPath) {
 						lastPath = path;
 						fn(path);
 					}
 				} catch {
-					// Ignore errors due to CORS or CSP restrictions
+					// Navigation may retire the runtime while a URL request is in flight.
 				}
-			}, 500);
+			}
 		},
+		/** Navigate the WordPress frame and wait for its load event. */
 		async goTo(requestedPath: string) {
-			// We need to know whether the browser supports
-			// Document-Isolation-Policy before the first navigation.
-			await documentIsolationSupportDetected;
-
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
 			}
@@ -343,25 +449,44 @@ export async function bootPlaygroundRemote() {
 			wpFrame.src = newUrl;
 			await navigationComplete;
 		},
+		/**
+		 * Return the current WordPress path without waiting for the next navigation poll.
+		 * Ask the live document first: a cached report can predate a pushState() call.
+		 * If it does not reply, try a direct location read, then fall back to iframe.src.
+		 * That last fallback is only the requested URL; it may miss later navigation.
+		 */
 		async getCurrentURL() {
-			let url = '';
-			try {
-				url = wpFrame.contentWindow!.location.href;
-			} catch {
-				// The above call can fail if we're embedded in an
-				// environment with a restrictive CSP policy.
-			}
+			let url = await requestWordPressUrl(wpFrame, wordPressSiteUrl);
 			if (!url) {
-				// If we can't get the URL from the iframe (e.g. it's not loaded
-				// yet), let's refer to the src attribute of the iframe itself.
-				// This is less reliable because the src attribute may not be
-				// updated when the iframe navigates to a new URL.
+				// Plain HTML has no reporter; a loading or busy page can also miss the deadline.
+				// A live location read may still work. Across origins, only src may be available.
 				url = wpFrame.src;
+				try {
+					url = wpFrame.contentWindow?.location.href || url;
+				} catch {
+					// StackBlitz and other restrictive CSPs can block even same-origin reads.
+					// Do not let a failed DOM read crash the remote frame.
+				}
 			}
 			return await playground.internalUrlToPath(url);
 		},
+		async captureSiteThumbnail() {
+			return await captureSiteThumbnailFromWordPress({
+				frontPageUrl: await playground.pathToInternalUrl('/'),
+				sandbox: wpFrame.getAttribute('sandbox'),
+			});
+		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
+		},
+		async onWebMCPToolsChanged(fn) {
+			webMCPBridge.subscribe(fn);
+		},
+		async callWebMCPTool(name, args, callId) {
+			return await webMCPBridge.callTool(name, args, callId);
+		},
+		async cancelWebMCPTool(callId) {
+			webMCPBridge.cancelTool(callId);
 		},
 		/**
 		 * This function is merely here to explicitly call workerApi.onMessage.
@@ -423,72 +548,104 @@ export async function bootPlaygroundRemote() {
 			return await phpWorkerApi.hasCachedStaticFilesRemovedFromMinifiedBuild();
 		},
 
+		async shutdownSharedRuntime() {
+			if (sharedRuntime) await sharedRuntime.api.shutdownSharedRuntime();
+		},
+		async shouldRunStartupBlueprint() {
+			return runStartupBlueprint;
+		},
+		async finishSharedRuntimeInitialization() {
+			if (sharedRuntime)
+				await sharedRuntime.api.finishSharedRuntimeInitialization();
+		},
+		/**
+		 * Start or join PHP, then connect the service worker that serves WordPress.
+		 *
+		 * A WordPress-origin service worker cannot reach this app-origin document
+		 * directly. Wait for connectWordPressOrigin() to establish its hidden iframe
+		 * connection before reporting the API as ready. Same-origin dedicated
+		 * runtimes keep the window listener below; same-origin shared runtimes
+		 * already have a direct service-worker connection and need no window relay.
+		 */
 		async boot(options) {
-			await phpWorkerApi.boot(options);
+			if (sharedRuntime) {
+				runStartupBlueprint =
+					await sharedRuntime.api.beginSharedBoot(options);
+			} else {
+				await phpWorkerApi.boot(options);
+			}
 
-			// Proxy the service worker messages to the web worker:
-			navigator.serviceWorker.addEventListener(
-				'message',
-				async function onMessage(event) {
-					/**
-					 * Ignore events meant for other PHP instances to
-					 * avoid handling the same event twice.
-					 *
-					 * This is important because the service worker posts the
-					 * same message to all application instances across all browser tabs.
-					 */
-					if (options.scope && event.data.scope !== options.scope) {
-						return;
-					}
-
-					const args = event.data.args || [];
-					const method = event.data
-						.method as keyof PlaygroundWorkerEndpoint;
-
-					if (method === 'request') {
-						const streamedResponse = await (
-							phpWorkerApi.requestStreamed as any
-						)(...args);
-						const httpStatusCode =
-							await streamedResponse.httpStatusCode;
-						const headers = await streamedResponse.headers;
-
+			if (wordPressSiteUrl !== origin) {
+				await connectWordPressOrigin(phpWorkerApi, options.scope!);
+			} else if (!sharedRuntime) {
+				// Dedicated runtimes retain the existing window relay.
+				navigator.serviceWorker.addEventListener(
+					'message',
+					async function onMessage(event) {
 						/**
-						 * ReadableStreams are transferable, but cannot be
-						 * transferred to the service worker.
+						 * Ignore events meant for other PHP instances to
+						 * avoid handling the same event twice.
 						 *
-						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
-						 * message when the transfer list contains a ReadableStream.
-						 * The call succeeds and the stream detaches from the sender,
-						 * but the message never arrives at the service worker.
-						 *
-						 * To work around this, we bridge the body stream via a MessagePort.
-						 *
-						 * See:
-						 * * https://github.com/whatwg/streams/issues/1063
-						 * * https://github.com/whatwg/streams/issues/276
-						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 * This is important because the service worker posts the
+						 * same message to all application instances across all browser tabs.
 						 */
-						const bodyPort = streamToPort(streamedResponse.stdout);
-						(event.source! as ServiceWorker).postMessage(
-							responseTo(event.data.requestId, {
-								httpStatusCode,
-								headers,
-								bodyPort,
-							}),
-							[bodyPort]
-						);
-					} else {
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-						const result = await (phpWorkerApi[method] as Function)(
-							...args
-						);
-						event.source!.postMessage(
-							responseTo(event.data.requestId, result)
-						);
+						if (
+							options.scope &&
+							event.data.scope !== options.scope
+						) {
+							return;
+						}
+
+						const args = event.data.args || [];
+						const method = event.data
+							.method as keyof PlaygroundWorkerEndpoint;
+
+						if (method === 'request') {
+							const streamedResponse = await (
+								phpWorkerApi.requestStreamed as any
+							)(...args);
+							const httpStatusCode =
+								await streamedResponse.httpStatusCode;
+							const headers = await streamedResponse.headers;
+
+							/**
+							 * ReadableStreams are transferable, but cannot be
+							 * transferred to the service worker.
+							 *
+							 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+							 * message when the transfer list contains a ReadableStream.
+							 * The call succeeds and the stream detaches from the sender,
+							 * but the message never arrives at the service worker.
+							 *
+							 * To work around this, we bridge the body stream via a MessagePort.
+							 *
+							 * See:
+							 * * https://github.com/whatwg/streams/issues/1063
+							 * * https://github.com/whatwg/streams/issues/276
+							 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+							 */
+							const bodyPort = streamToPort(
+								streamedResponse.stdout
+							);
+							(event.source! as ServiceWorker).postMessage(
+								responseTo(event.data.requestId, {
+									httpStatusCode,
+									headers,
+									bodyPort,
+								}),
+								[bodyPort]
+							);
+						} else {
+							const result = await (
+								phpWorkerApi[method] as (...args: any[]) => any
+							)(...args);
+							event.source!.postMessage(
+								responseTo(event.data.requestId, result)
+							);
+						}
 					}
-				}
-			);
+				);
+			}
 			sw.startMessages();
 
 			try {
@@ -518,6 +675,7 @@ export async function bootPlaygroundRemote() {
 			 *
 			 * Below we're downloading a zipped bundle of the missing assets.
 			 */
+			if (!runStartupBlueprint) return;
 			if (
 				await phpRemoteApi.hasCachedStaticFilesRemovedFromMinifiedBuild()
 			) {
@@ -549,6 +707,7 @@ export async function bootPlaygroundRemote() {
 		},
 	};
 
+	reportStartupProgress('Connecting to WordPress runtime');
 	await phpWorkerApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
@@ -570,53 +729,160 @@ export async function bootPlaygroundRemote() {
 	return playground;
 }
 
-/**
- * Interacts with the service-worker served HTML document to check
- * the browser support for Document-Isolation-Policy.
- *
- * See `service-worker.ts` for more details.
- */
-function detectDocumentIsolationPolicySuport(): Promise<boolean> {
-	return new Promise((resolve) => {
-		const testFrame = document.createElement('iframe');
-		testFrame.style.display = 'none';
-		// This file does not exist on the server. It is served by the
-		// service worker.
-		testFrame.src = '/feature-detect/document-isolation-policy.html';
-
-		// From here, we're:
-		// 1. Creating an iframe.
-		// 2. Waiting for a message that confirms support for Document-Isolation-Policy.
-		// 3. If anything goes wrong or we time out, we assume no support.
-		let resolved = false;
-		const cleanup = () => {
-			if (resolved) return;
-			resolved = true;
-			window.removeEventListener('message', messageHandler);
-			clearTimeout(timeoutId);
-			testFrame.remove();
+/** Includes the editor's nested frames, whose fetches have their own ServiceWorker client IDs. */
+function relaySharedRuntimeReloads(
+	frame: HTMLIFrameElement,
+	watched: WeakSet<Document>
+) {
+	try {
+		const frameWindow = frame.contentWindow!;
+		const document = frameWindow.document;
+		if (watched.has(document)) return;
+		watched.add(document);
+		const onReload = (event: MessageEvent) => {
+			if (event.origin && event.origin !== window.location.origin) return;
+			if (event.data?.type === RELOAD_REQUIRED) {
+				window.parent.postMessage(event.data, window.location.origin);
+			}
 		};
+		frameWindow.addEventListener('message', onReload);
+		frameWindow.navigator.serviceWorker.addEventListener(
+			'message',
+			onReload
+		);
+		frameWindow.navigator.serviceWorker.startMessages();
+		document.addEventListener(
+			'load',
+			(event) => {
+				if ((event.target as Element)?.tagName === 'IFRAME') {
+					relaySharedRuntimeReloads(
+						event.target as HTMLIFrameElement,
+						watched
+					);
+				}
+			},
+			true
+		);
+		document
+			.querySelectorAll('iframe')
+			.forEach((nested) => relaySharedRuntimeReloads(nested, watched));
+	} catch {
+		// Opaque or cross-origin error documents cannot be inspected.
+	}
+}
 
-		const messageHandler = (event: MessageEvent) => {
-			if (event.source !== testFrame.contentWindow) {
+const SITE_THUMBNAIL_REQUEST = 'playground-capture-site-thumbnail';
+const SITE_THUMBNAIL_RESPONSE = 'playground-site-thumbnail-result';
+const SITE_THUMBNAIL_LOAD_TIMEOUT_MS = 20000;
+const SITE_THUMBNAIL_RENDER_TIMEOUT_MS = 3000;
+
+/**
+ * Loads the front page in a disposable iframe and asks that document to render
+ * itself. The WordPress MU plugin owns the receiving side because the remote
+ * frame cannot inspect the WordPress DOM under Document-Isolation-Policy. A
+ * separate iframe avoids navigating or capturing wp-admin in the visible one.
+ * Every response path removes the iframe and listeners. The load watchdog
+ * covers a page that never loads; once it loads, a shorter deadline bounds the
+ * renderer work.
+ */
+async function captureSiteThumbnailFromWordPress({
+	frontPageUrl,
+	sandbox,
+}: {
+	frontPageUrl: string;
+	sandbox: string | null;
+}): Promise<SiteThumbnail> {
+	const frontPageOrigin = new URL(frontPageUrl).origin;
+	const iframe = document.createElement('iframe');
+	iframe.setAttribute('aria-hidden', 'true');
+	iframe.tabIndex = -1;
+	iframe.style.position = 'fixed';
+	iframe.style.left = '-10000px';
+	iframe.style.top = '0';
+	iframe.style.width = '1024px';
+	iframe.style.height = '768px';
+	iframe.style.opacity = '0';
+	iframe.style.pointerEvents = 'none';
+	if (sandbox) {
+		iframe.setAttribute('sandbox', sandbox);
+	}
+	iframe.src = frontPageUrl;
+
+	return await new Promise<SiteThumbnail>((resolve, reject) => {
+		const requestId = `${Date.now()}-${Math.random()}`;
+		let timeout = setTimeout(onTimeout, SITE_THUMBNAIL_LOAD_TIMEOUT_MS);
+
+		const onMessage = (event: MessageEvent) => {
+			if (
+				event.source !== iframe.contentWindow ||
+				event.origin !== frontPageOrigin ||
+				event.data?.type !== SITE_THUMBNAIL_RESPONSE ||
+				event.data?.requestId !== requestId
+			) {
 				return;
 			}
-			cleanup();
-			resolve(event.data.supported === true);
+			if (event.data.error) {
+				finish(() => reject(new Error(event.data.error)));
+				return;
+			}
+			const thumbnail = event.data.thumbnail;
+			if (
+				typeof thumbnail !== 'object' ||
+				thumbnail === null ||
+				(thumbnail.mime !== 'image/webp' &&
+					thumbnail.mime !== 'image/jpeg') ||
+				typeof thumbnail.data !== 'string' ||
+				thumbnail.data.length === 0
+			) {
+				finish(() =>
+					reject(
+						new Error(
+							'The site thumbnail renderer returned an invalid image.'
+						)
+					)
+				);
+				return;
+			}
+			finish(() => resolve(thumbnail));
 		};
-		window.addEventListener('message', messageHandler);
 
-		const timeoutId = setTimeout(() => {
-			cleanup();
-			resolve(false);
-		}, 1000);
-
-		testFrame.onerror = () => {
-			cleanup();
-			resolve(false);
+		const onLoad = () => {
+			clearTimeout(timeout);
+			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
+			const moduleUrl = new URL(
+				siteThumbnailModuleUrl,
+				document.location.href
+			);
+			// The marker lets the service worker distinguish this app asset
+			// from a path inside the scoped WordPress site.
+			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');
+			iframe.contentWindow?.postMessage(
+				{
+					type: SITE_THUMBNAIL_REQUEST,
+					requestId,
+					moduleUrl: moduleUrl.href,
+				},
+				frontPageOrigin
+			);
 		};
 
-		document.body.appendChild(testFrame);
+		function onTimeout() {
+			finish(() =>
+				reject(new Error('Timed out capturing the site thumbnail.'))
+			);
+		}
+
+		function finish(callback: () => void) {
+			clearTimeout(timeout);
+			window.removeEventListener('message', onMessage);
+			iframe.removeEventListener('load', onLoad);
+			iframe.remove();
+			callback();
+		}
+
+		window.addEventListener('message', onMessage);
+		iframe.addEventListener('load', onLoad, { once: true });
+		document.body.append(iframe);
 	});
 }
 

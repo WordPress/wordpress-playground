@@ -7,17 +7,21 @@ import { join } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 export default defineConfig({
 	root: __dirname,
 	base: '/',
 
 	cacheDir: '../../../node_modules/.vite/packages-playground-storage',
+
+	resolve: {
+		alias: [isomorphicGitBrowserAlias()],
+	},
 
 	css: {
 		modules: {
@@ -33,9 +37,6 @@ export default defineConfig({
 		}),
 		viteTsConfigPaths({
 			root: '../../../',
-		}),
-		viteIgnoreImports({
-			extensions: ['wasm'],
 		}),
 		...viteGlobalExtensions,
 	],

@@ -91,6 +91,8 @@ function filterSyncableChanges(
 	const syncableFields: (keyof SiteMetadata)[] = [
 		'backupHistory',
 		'lastAccessDate',
+		'lastUsageStatsReturningVisitDate',
+		'appliedMigrations',
 	];
 
 	const filtered: Partial<SiteMetadata> = {};

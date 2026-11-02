@@ -46,6 +46,43 @@ describe('Mounting', () => {
 		php.exit();
 	});
 
+	it('Should reject a missing local source path', async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+		const missingSourcePath = path.join(tempDir, 'missing-source.txt');
+
+		try {
+			await expect(
+				php.mount(
+					'/missing-source.txt',
+					createNodeFsMountHandler(missingSourcePath)
+				)
+			).rejects.toMatchObject({ code: 'ENOENT' });
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it('Should include dot entries when PHP scans an empty mounted directory', async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+		const unmount = await php.mount(
+			directoryMountPoint,
+			createNodeFsMountHandler(tempDir)
+		);
+
+		try {
+			const result = await php.run({
+				code: `<?php
+					echo json_encode(scandir('${directoryMountPoint}'));
+				`,
+			});
+
+			expect(JSON.parse(result.text)).toEqual(['.', '..']);
+		} finally {
+			unmount();
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	[
 		{
 			filePath: testFilePath,

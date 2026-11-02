@@ -1,4 +1,8 @@
-import { parseBlueprint, PlaygroundRoute } from './router';
+import {
+	parseBlueprint,
+	PlaygroundRoute,
+	isSiteSavingDisabled,
+} from './router';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import type { SiteInfo } from '../redux/slice-sites';
 
@@ -50,12 +54,12 @@ describe('decodeBlueprintHash', () => {
 		expect(JSON.parse(decodeBlueprintHash(raw))).toEqual(blueprint);
 	});
 
-	it('returns non-JSON hashes unchanged (e.g. last-autosave)', () => {
-		expect(decodeBlueprintHash('#last-autosave')).toBe('last-autosave');
+	it('returns non-JSON hashes unchanged', () => {
+		expect(decodeBlueprintHash('#not-json')).toBe('not-json');
 	});
 
 	it('handles raw hash without leading #', () => {
-		expect(decodeBlueprintHash('last-autosave')).toBe('last-autosave');
+		expect(decodeBlueprintHash('not-json')).toBe('not-json');
 	});
 
 	it('returns empty string for empty hash', () => {
@@ -153,5 +157,71 @@ describe('PlaygroundRoute site creation routes', () => {
 		expect(params.get('url')).toBe('/wp-admin/');
 		expect(params.get('php')).toBe('8.0');
 		expect(params.get('wp')).toBe('6.6');
+	});
+});
+
+describe('isSiteSavingDisabled', () => {
+	const topWindow = {};
+	const regularWindow = {} as unknown as Window;
+	Object.defineProperties(regularWindow, {
+		self: { value: regularWindow },
+		top: { value: regularWindow },
+	});
+	const embeddedWindow = {} as unknown as Window;
+	Object.defineProperties(embeddedWindow, {
+		self: { value: embeddedWindow },
+		top: { value: topWindow },
+	});
+
+	it('allows saving by default', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/'),
+				regularWindow
+			)
+		).toBe(false);
+	});
+
+	it('disables saving when can-save=no', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/?can-save=no'),
+				regularWindow
+			)
+		).toBe(true);
+	});
+
+	it('disables saving in seamless mode', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/?mode=seamless'),
+				regularWindow
+			)
+		).toBe(true);
+	});
+
+	it('disables saving when embedded in another iframe', () => {
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/'),
+				embeddedWindow
+			)
+		).toBe(true);
+	});
+
+	it('treats inaccessible iframe parents as embedded', () => {
+		const crossOriginWindow = {
+			self: {},
+			get top() {
+				throw new Error('Cross-origin parent');
+			},
+		} as unknown as Window;
+
+		expect(
+			isSiteSavingDisabled(
+				new URL('https://playground.test/'),
+				crossOriginWindow
+			)
+		).toBe(true);
 	});
 });

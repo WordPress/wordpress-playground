@@ -1,8 +1,4 @@
-import {
-	lockFileExSync,
-	unlockFileExSync,
-	constants,
-} from 'fs-ext-extra-prebuilt';
+import { loadFsExt } from './load-fs-ext';
 import { logger } from '@php-wasm/logger';
 import type {
 	FileLockManager,
@@ -41,7 +37,14 @@ function tryLockFileExSync(
 	const [offsetLow, offsetHigh] = toLowAndHigh32BitNumbers(start);
 	const [lengthLow, lengthHigh] = toLowAndHigh32BitNumbers(end - start);
 	try {
-		lockFileExSync(fd, flags, offsetLow, offsetHigh, lengthLow, lengthHigh);
+		loadFsExt().lockFileExSync(
+			fd,
+			flags,
+			offsetLow,
+			offsetHigh,
+			lengthLow,
+			lengthHigh
+		);
 		return true;
 	} catch (e) {
 		if (!isErrnoError(e)) {
@@ -55,7 +58,13 @@ function tryUnlockFileExSync(fd: number, start: bigint, end: bigint): boolean {
 	const [offsetLow, offsetHigh] = toLowAndHigh32BitNumbers(start);
 	const [lengthLow, lengthHigh] = toLowAndHigh32BitNumbers(end - start);
 	try {
-		unlockFileExSync(fd, offsetLow, offsetHigh, lengthLow, lengthHigh);
+		loadFsExt().unlockFileExSync(
+			fd,
+			offsetLow,
+			offsetHigh,
+			lengthLow,
+			lengthHigh
+		);
 		return true;
 	} catch (e) {
 		if (!isErrnoError(e)) {
@@ -68,6 +77,7 @@ function tryUnlockFileExSync(fd: number, start: bigint, end: bigint): boolean {
 type StoredWholeFileLock = WholeFileLockOp & { path: Path };
 
 export class FileLockManagerForWindows implements FileLockManager {
+	private readonly fsExt = loadFsExt();
 	wholeFileLockMap = new Map<Pid, Map<Fd, StoredWholeFileLock>>();
 	rangeLockedFds = new Map<Path, FileLockIntervalTree>();
 
@@ -102,7 +112,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 		let flags = 0;
 		if (!op.waitForLock) {
-			flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
+			flags |= this.fsExt.constants.LOCKFILE_FAIL_IMMEDIATELY;
 		}
 
 		let success = false;
@@ -135,7 +145,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 				}
 			}
 		} else if (op.type === 'exclusive') {
-			flags |= constants.LOCKFILE_EXCLUSIVE_LOCK;
+			flags |= this.fsExt.constants.LOCKFILE_EXCLUSIVE_LOCK;
 
 			let sharedUnlockSuccess;
 			if (preexistingLock?.type === 'shared') {
@@ -251,7 +261,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 		let flags = 0;
 		if (!waitForLock) {
-			flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
+			flags |= this.fsExt.constants.LOCKFILE_FAIL_IMMEDIATELY;
 		}
 		if (op.type === 'shared') {
 			const success = tryLockFileExSync(op.fd, flags, op.start, op.end);
@@ -290,7 +300,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 			}
 
 			if (op.type === 'exclusive') {
-				flags |= constants.LOCKFILE_EXCLUSIVE_LOCK;
+				flags |= this.fsExt.constants.LOCKFILE_EXCLUSIVE_LOCK;
 			}
 
 			const success = tryLockFileExSync(op.fd, flags, op.start, op.end);

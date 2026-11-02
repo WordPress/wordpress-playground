@@ -13,6 +13,7 @@ import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { ClientInfo } from './slice-clients';
 import clientsReducer, { selectAllClientInfo } from './slice-clients';
 import { useDispatch, useSelector } from 'react-redux';
+import { mcpBridgeMiddleware } from './init-mcp-bridge';
 
 // NOTE: A GetDefaultMiddleware type is not exported from @reduxjs/toolkit,
 // so we have to derive it from the configureStore() signature.
@@ -61,7 +62,8 @@ const store = configureStore({
 	},
 	middleware: (getDefaultMiddleware) =>
 		ignoreSerializableCheck(getDefaultMiddleware).concat(
-			listenToOnlineOfflineEventsMiddleware
+			listenToOnlineOfflineEventsMiddleware,
+			mcpBridgeMiddleware.middleware
 		),
 });
 

@@ -78,6 +78,8 @@ RUN cd wordpress && \
     # WordPress functions like wp_mime_type_icon() use
     # the icons shipped in images/media. See #770.
     -not -path '*/wp-includes/images/media/*' \
+    # The Icon Registry reads core icon SVGs from disk. See #4326.
+    -not -path '*/wp-includes/images/icon-library/*' \
     -delete
 
 # Keep only the CSS files that are read by PHP
@@ -149,6 +151,5 @@ RUN cd wordpress && \
 # Build the final wp.zip file
 RUN mv wordpress /wordpress && \
     cp wordpress-remote-asset-paths /wordpress/ && \
-    cp wordpress-static.zip /wordpress/ && \
     cd /wordpress && \
     zip /root/output/$OUT_FILENAME.zip -r .

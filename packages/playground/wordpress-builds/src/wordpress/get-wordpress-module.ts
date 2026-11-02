@@ -1,7 +1,11 @@
-import { getWordPressModuleDetails } from './get-wordpress-module-details';
+import {
+	getWordPressModuleDetails,
+	type WordPressModuleDetails,
+} from './get-wordpress-module-details';
 
 export async function getWordPressModule(wpVersion = '6.8'): Promise<File> {
-	const url = getWordPressModuleDetails(wpVersion).url;
+	const details = getWordPressModuleDetails(wpVersion);
+	const url = details.url;
 	let data = null;
 	if (url.startsWith('/')) {
 		let path = url;
@@ -19,7 +23,30 @@ export async function getWordPressModule(wpVersion = '6.8'): Promise<File> {
 		// @see https://github.com/WordPress/wordpress-playground/issues/2769
 		data = await response.arrayBuffer();
 	}
-	return new File([data as any], `${wpVersion || 'wp'}.zip`, {
-		type: 'application/zip',
-	});
+	const bundleFileMetadata = getWordPressBundleFileMetadata(details);
+	return new File(
+		[data as any],
+		`${wpVersion || 'wp'}.${bundleFileMetadata.extension}`,
+		{
+			type: bundleFileMetadata.mimeType,
+		}
+	);
+}
+
+const WORDPRESS_BUNDLE_FILE_METADATA = {
+	zip: {
+		extension: 'zip',
+		mimeType: 'application/zip',
+	},
+	'tar.zst': {
+		extension: 'tar.zst',
+		mimeType: 'application/zstd',
+	},
+} satisfies Record<
+	WordPressModuleDetails['format'],
+	{ extension: string; mimeType: string }
+>;
+
+function getWordPressBundleFileMetadata(details: WordPressModuleDetails) {
+	return WORDPRESS_BUNDLE_FILE_METADATA[details.format];
 }

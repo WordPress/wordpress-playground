@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).compose = (() => {
@@ -31,6 +32,13 @@ var wp;
     mod
   ));
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // package-external:@wordpress/private-apis
+  var require_private_apis = __commonJS({
+    "package-external:@wordpress/private-apis"(exports, module) {
+      module.exports = window.wp.privateApis;
+    }
+  });
 
   // vendor-external:react/jsx-runtime
   var require_jsx_runtime = __commonJS({
@@ -67,16 +75,9 @@ var wp;
     }
   });
 
-  // package-external:@wordpress/keycodes
-  var require_keycodes = __commonJS({
-    "package-external:@wordpress/keycodes"(exports, module) {
-      module.exports = window.wp.keycodes;
-    }
-  });
-
-  // node_modules/mousetrap/mousetrap.js
+  // node_modules/.store/mousetrap@1.6.5-wXrhfo95WfPhGlz0ygmxKA/node_modules/mousetrap/mousetrap.js
   var require_mousetrap = __commonJS({
-    "node_modules/mousetrap/mousetrap.js"(exports, module) {
+    "node_modules/.store/mousetrap@1.6.5-wXrhfo95WfPhGlz0ygmxKA/node_modules/mousetrap/mousetrap.js"(exports, module) {
       (function(window2, document2, undefined2) {
         if (!window2) {
           return;
@@ -529,6 +530,13 @@ var wp;
     }
   });
 
+  // package-external:@wordpress/keycodes
+  var require_keycodes = __commonJS({
+    "package-external:@wordpress/keycodes"(exports, module) {
+      module.exports = window.wp.keycodes;
+    }
+  });
+
   // package-external:@wordpress/undo-manager
   var require_undo_manager = __commonJS({
     "package-external:@wordpress/undo-manager"(exports, module) {
@@ -540,13 +548,6 @@ var wp;
   var require_priority_queue = __commonJS({
     "package-external:@wordpress/priority-queue"(exports, module) {
       module.exports = window.wp.priorityQueue;
-    }
-  });
-
-  // vendor-external:react
-  var require_react = __commonJS({
-    "vendor-external:react"(exports, module) {
-      module.exports = window.React;
     }
   });
 
@@ -564,6 +565,7 @@ var wp;
     ifCondition: () => if_condition_default,
     observableMap: () => observableMap,
     pipe: () => pipe_default,
+    privateApis: () => privateApis,
     pure: () => pure_default,
     throttle: () => throttle,
     useAsyncList: () => use_async_list_default,
@@ -597,7 +599,7 @@ var wp;
     withState: () => withState
   });
 
-  // node_modules/tslib/tslib.es6.mjs
+  // node_modules/.store/tslib@2.8.1-LT-dxu1EkVy7OUDyVf5glQ/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -609,12 +611,12 @@ var wp;
     return __assign.apply(this, arguments);
   };
 
-  // node_modules/lower-case/dist.es2015/index.js
+  // node_modules/.store/lower-case@2.0.2-5YZP5nczP5_f_8Vt5KBPjA/node_modules/lower-case/dist.es2015/index.js
   function lowerCase(str) {
     return str.toLowerCase();
   }
 
-  // node_modules/no-case/dist.es2015/index.js
+  // node_modules/.store/no-case@3.0.4-R4Hzt6qn-erEsTak7ojDpg/node_modules/no-case/dist.es2015/index.js
   var DEFAULT_SPLIT_REGEXP = [/([a-z0-9])([A-Z])/g, /([A-Z])([A-Z][a-z])/g];
   var DEFAULT_STRIP_REGEXP = /[^A-Z0-9]+/gi;
   function noCase(input, options) {
@@ -639,7 +641,7 @@ var wp;
     }, input);
   }
 
-  // node_modules/pascal-case/dist.es2015/index.js
+  // node_modules/.store/pascal-case@3.1.2-khtSA9hpCTEVLYfMgyRdoA/node_modules/pascal-case/dist.es2015/index.js
   function pascalCaseTransform(input, index) {
     var firstChar = input.charAt(0);
     var lowerChars = input.substr(1).toLowerCase();
@@ -839,6 +841,96 @@ var wp;
     };
   }
 
+  // packages/compose/build-module/lock-unlock.mjs
+  var import_private_apis = __toESM(require_private_apis(), 1);
+  var { lock, unlock } = (0, import_private_apis.__dangerousOptInToUnstableAPIsOnlyForCoreModules)(
+    "I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.",
+    "@wordpress/compose"
+  );
+
+  // packages/compose/build-module/utils/subscribe-delegated-listener/index.mjs
+  var registries = /* @__PURE__ */ new WeakMap();
+  function subscribeDelegatedListener(target, eventType, callback, capture = false) {
+    const ownerDoc = target.ownerDocument;
+    const root = ownerDoc ?? target;
+    const isWindow = ownerDoc === void 0;
+    let perRoot = registries.get(root);
+    if (!perRoot) {
+      perRoot = /* @__PURE__ */ new Map();
+      registries.set(root, perRoot);
+    }
+    const key = capture ? `${eventType}:capture` : eventType;
+    let perEvent = perRoot.get(key);
+    if (!perEvent) {
+      perEvent = /* @__PURE__ */ new WeakMap();
+      perRoot.set(key, perEvent);
+      const subscribers = perEvent;
+      root.addEventListener(
+        eventType,
+        (event) => {
+          if (isWindow) {
+            const set2 = subscribers.get(root);
+            if (set2) {
+              for (const cb of set2) {
+                cb(event);
+              }
+            }
+            return;
+          }
+          if (capture) {
+            const path = [];
+            let current = event.target;
+            while (current) {
+              path.push(current);
+              if (current === root) {
+                break;
+              }
+              current = current.parentNode;
+            }
+            for (let i = path.length - 1; i >= 0; i--) {
+              const set2 = subscribers.get(path[i]);
+              if (set2) {
+                for (const cb of set2) {
+                  cb(event);
+                }
+              }
+            }
+          } else {
+            let current = event.target;
+            while (current) {
+              const set2 = subscribers.get(current);
+              if (set2) {
+                for (const cb of set2) {
+                  cb(event);
+                }
+              }
+              if (current === root) {
+                break;
+              }
+              current = current.parentNode;
+            }
+          }
+        },
+        capture
+      );
+    }
+    let set = perEvent.get(target);
+    if (!set) {
+      set = /* @__PURE__ */ new Set();
+      perEvent.set(target, set);
+    }
+    set.add(callback);
+    return () => {
+      set.delete(callback);
+    };
+  }
+
+  // packages/compose/build-module/private-apis.mjs
+  var privateApis = {};
+  lock(privateApis, {
+    subscribeDelegatedListener
+  });
+
   // packages/compose/build-module/higher-order/pipe.mjs
   var basePipe = (reverse = false) => (...funcs) => (...args) => {
     const functions = funcs.flat();
@@ -875,8 +967,13 @@ var wp;
   // packages/compose/build-module/higher-order/pure/index.mjs
   var import_is_shallow_equal = __toESM(require_is_shallow_equal(), 1);
   var import_element = __toESM(require_element(), 1);
+  var import_deprecated = __toESM(require_deprecated(), 1);
   var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
   var pure = createHigherOrderComponent(function(WrappedComponent) {
+    (0, import_deprecated.default)("wp.compose.pure", {
+      since: "7.1",
+      alternative: "Use `memo` or `PureComponent` instead"
+    });
     if (WrappedComponent.prototype instanceof import_element.Component) {
       return class extends WrappedComponent {
         shouldComponentUpdate(nextProps, nextState) {
@@ -897,7 +994,7 @@ var wp;
 
   // packages/compose/build-module/higher-order/with-global-events/index.mjs
   var import_element2 = __toESM(require_element(), 1);
-  var import_deprecated = __toESM(require_deprecated(), 1);
+  var import_deprecated2 = __toESM(require_deprecated(), 1);
 
   // packages/compose/build-module/higher-order/with-global-events/listener.mjs
   var Listener = class {
@@ -925,11 +1022,9 @@ var wp;
       }
     }
     handleEvent(event) {
-      this.listeners[event.type]?.forEach(
-        (instance) => {
-          instance.handleEvent(event);
-        }
-      );
+      this.listeners[event.type]?.forEach((instance) => {
+        instance.handleEvent(event);
+      });
     }
   };
   var listener_default = Listener;
@@ -938,7 +1033,7 @@ var wp;
   var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
   var listener = new listener_default();
   function withGlobalEvents(eventTypesToHandlers) {
-    (0, import_deprecated.default)("wp.compose.withGlobalEvents", {
+    (0, import_deprecated2.default)("wp.compose.withGlobalEvents", {
       since: "5.7",
       alternative: "useEffect"
     });
@@ -960,12 +1055,11 @@ var wp;
           });
         }
         handleEvent(event) {
-          const handler = eventTypesToHandlers[
-            /** @type {keyof GlobalEventHandlersEventMap} */
-            event.type
-          ];
+          const handler = eventTypesToHandlers[event.type];
           if (typeof this.wrappedRef[handler] === "function") {
-            this.wrappedRef[handler](event);
+            this.wrappedRef[handler](
+              event
+            );
           }
         }
         handleRef(el) {
@@ -985,7 +1079,13 @@ var wp;
         }
       }
       return (0, import_element2.forwardRef)((props, ref) => {
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Wrapper, { ownProps: props, forwardedRef: ref });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          Wrapper,
+          {
+            ownProps: props,
+            forwardedRef: ref
+          }
+        );
       });
     }, "withGlobalEvents");
   }
@@ -1054,7 +1154,7 @@ var wp;
         }
         render() {
           return (
-            // @ts-ignore
+            // @ts-expect-error `LibraryManagedAttributes` cannot see the injected timeout props.
             /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
               OriginalComponent,
               {
@@ -1073,32 +1173,39 @@ var wp;
 
   // packages/compose/build-module/higher-order/with-state/index.mjs
   var import_element5 = __toESM(require_element(), 1);
-  var import_deprecated2 = __toESM(require_deprecated(), 1);
+  var import_deprecated3 = __toESM(require_deprecated(), 1);
   var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
-  function withState(initialState = {}) {
-    (0, import_deprecated2.default)("wp.compose.withState", {
+  function createWithState(initialState) {
+    (0, import_deprecated3.default)("wp.compose.withState", {
       since: "5.8",
       alternative: "wp.element.useState"
     });
-    return createHigherOrderComponent((OriginalComponent) => {
-      return class WrappedComponent extends import_element5.Component {
-        constructor(props) {
-          super(props);
-          this.setState = this.setState.bind(this);
-          this.state = initialState;
-        }
-        render() {
-          return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-            OriginalComponent,
-            {
-              ...this.props,
-              ...this.state,
-              setState: this.setState
-            }
-          );
-        }
-      };
-    }, "withState");
+    return createHigherOrderComponent(
+      (OriginalComponent) => {
+        const Inner = OriginalComponent;
+        return class WrappedComponent extends import_element5.Component {
+          constructor(props) {
+            super(props);
+            this.setState = this.setState.bind(this);
+            this.state = initialState;
+          }
+          render() {
+            return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+              Inner,
+              {
+                ...this.props,
+                ...this.state,
+                setState: this.setState
+              }
+            );
+          }
+        };
+      },
+      "withState"
+    );
+  }
+  function withState(initialState = {}) {
+    return createWithState(initialState);
   }
 
   // packages/compose/build-module/hooks/use-constrained-tabbing/index.mjs
@@ -1126,19 +1233,17 @@ var wp;
           return;
         }
         const action = shiftKey ? "findPrevious" : "findNext";
-        const nextElement = import_dom.focus.tabbable[action](
-          /** @type {HTMLElement} */
-          target
-        ) || null;
-        if (
-          /** @type {HTMLElement} */
-          target.contains(nextElement)
-        ) {
+        const nextElement = import_dom.focus.tabbable[action](target) || null;
+        if (target.contains(nextElement)) {
           event.preventDefault();
           nextElement?.focus();
           return;
         }
         if (node.contains(nextElement)) {
+          return;
+        }
+        if (!import_dom.focus.tabbable.find(node).length) {
+          event.preventDefault();
           return;
         }
         const domAction = shiftKey ? "append" : "prepend";
@@ -1159,7 +1264,7 @@ var wp;
 
   // packages/compose/build-module/hooks/use-copy-on-click/index.mjs
   var import_element8 = __toESM(require_element(), 1);
-  var import_deprecated3 = __toESM(require_deprecated(), 1);
+  var import_deprecated4 = __toESM(require_deprecated(), 1);
 
   // packages/compose/build-module/hooks/use-copy-to-clipboard/index.mjs
   var import_element7 = __toESM(require_element(), 1);
@@ -1192,11 +1297,10 @@ var wp;
       return false;
     }
   }
-  function clearSelection(trigger) {
+  function restoreFocus(trigger) {
     if ("focus" in trigger && typeof trigger.focus === "function") {
       trigger.focus();
     }
-    trigger.ownerDocument?.defaultView?.getSelection()?.removeAllRanges();
   }
   function useUpdatedRef(value) {
     const ref = (0, import_element7.useRef)(value);
@@ -1213,11 +1317,10 @@ var wp;
       const handleClick = async () => {
         const textToCopy = typeof textRef.current === "function" ? textRef.current() : textRef.current || "";
         const success = await copyToClipboard(textToCopy, node);
-        if (!isActive) {
-          return;
-        }
         if (success) {
-          clearSelection(node);
+          if (isActive) {
+            restoreFocus(node);
+          }
           if (onSuccessRef.current) {
             onSuccessRef.current();
           }
@@ -1233,7 +1336,7 @@ var wp;
 
   // packages/compose/build-module/hooks/use-copy-on-click/index.mjs
   function useCopyOnClick(ref, text, timeout = 4e3) {
-    (0, import_deprecated3.default)("wp.compose.useCopyOnClick", {
+    (0, import_deprecated4.default)("wp.compose.useCopyOnClick", {
       since: "5.8",
       alternative: "wp.compose.useCopyToClipboard"
     });
@@ -1268,7 +1371,7 @@ var wp;
           return;
         }
         if (success) {
-          clearSelection(trigger);
+          restoreFocus(trigger);
           if (timeout) {
             setHasCopied(true);
             clearTimeout(timeoutId);
@@ -1295,11 +1398,10 @@ var wp;
 
   // packages/compose/build-module/hooks/use-dialog/index.mjs
   var import_element13 = __toESM(require_element(), 1);
-  var import_keycodes = __toESM(require_keycodes(), 1);
 
   // packages/compose/build-module/hooks/use-focus-on-mount/index.mjs
-  var import_element9 = __toESM(require_element(), 1);
   var import_dom2 = __toESM(require_dom(), 1);
+  var import_element9 = __toESM(require_element(), 1);
   function useFocusOnMount(focusOnMount = "firstElement") {
     const focusOnMountRef = (0, import_element9.useRef)(focusOnMount);
     const setFocus = (target) => {
@@ -1310,12 +1412,11 @@ var wp;
         preventScroll: true
       });
     };
-    const timerIdRef = (0, import_element9.useRef)(void 0);
     (0, import_element9.useEffect)(() => {
       focusOnMountRef.current = focusOnMount;
     }, [focusOnMount]);
     return useRefEffect((node) => {
-      if (!node || focusOnMountRef.current === false) {
+      if (focusOnMountRef.current === false) {
         return;
       }
       if (node.contains(node.ownerDocument?.activeElement ?? null)) {
@@ -1325,14 +1426,11 @@ var wp;
         setFocus(node);
         return;
       }
-      timerIdRef.current = setTimeout(() => {
+      const timerId = setTimeout(() => {
         if (focusOnMountRef.current === "firstInputElement") {
-          let formInput = null;
-          if (typeof window !== "undefined" && node instanceof window.Element) {
-            formInput = node.querySelector(
-              'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
-            );
-          }
+          const formInput = node.querySelector(
+            'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+          );
           if (formInput) {
             setFocus(formInput);
             return;
@@ -1344,9 +1442,7 @@ var wp;
         }
       }, 0);
       return () => {
-        if (timerIdRef.current) {
-          clearTimeout(timerIdRef.current);
-        }
+        clearTimeout(timerId);
       };
     }, []);
   }
@@ -1356,31 +1452,34 @@ var wp;
   var origin = null;
   function useFocusReturn(onFocusReturn) {
     const ref = (0, import_element10.useRef)(null);
-    const focusedBeforeMount = (0, import_element10.useRef)(null);
-    const onFocusReturnRef = (0, import_element10.useRef)(onFocusReturn);
+    const focusedBeforeMountRef = (0, import_element10.useRef)(null);
+    const onFocusReturnRef = (0, import_element10.useRef)(
+      onFocusReturn
+    );
     (0, import_element10.useEffect)(() => {
       onFocusReturnRef.current = onFocusReturn;
     }, [onFocusReturn]);
     return (0, import_element10.useCallback)((node) => {
       if (node) {
         ref.current = node;
-        if (focusedBeforeMount.current) {
+        if (focusedBeforeMountRef.current) {
           return;
         }
         const activeDocument = node.ownerDocument.activeElement instanceof window.HTMLIFrameElement ? node.ownerDocument.activeElement.contentDocument : node.ownerDocument;
-        focusedBeforeMount.current = activeDocument?.activeElement ?? null;
-      } else if (focusedBeforeMount.current) {
+        focusedBeforeMountRef.current = activeDocument?.activeElement ?? null;
+      } else if (focusedBeforeMountRef.current) {
         const isFocused = ref.current?.contains(
-          ref.current?.ownerDocument.activeElement
+          ref.current?.ownerDocument.activeElement ?? null
         );
         if (ref.current?.isConnected && !isFocused) {
-          origin ??= focusedBeforeMount.current;
+          origin ??= focusedBeforeMountRef.current;
           return;
         }
         if (onFocusReturnRef.current) {
           onFocusReturnRef.current();
         } else {
-          (!focusedBeforeMount.current.isConnected ? origin : focusedBeforeMount.current)?.focus();
+          const elementToFocus = !focusedBeforeMountRef.current.isConnected ? origin : focusedBeforeMountRef.current;
+          elementToFocus?.focus();
         }
         origin = null;
       }
@@ -1441,6 +1540,7 @@ var wp;
       if (ignoreForRelatedTarget && event.relatedTarget?.closest(ignoreForRelatedTarget)) {
         return;
       }
+      clearTimeout(blurCheckTimeoutIdRef.current);
       blurCheckTimeoutIdRef.current = setTimeout(() => {
         if (!document.hasFocus()) {
           event.preventDefault();
@@ -1465,40 +1565,54 @@ var wp;
   var import_element12 = __toESM(require_element(), 1);
   function assignRef(ref, value) {
     if (typeof ref === "function") {
-      ref(value);
+      const returned = ref(value);
+      return typeof returned === "function" ? returned : void 0;
     } else if (ref && ref.hasOwnProperty("current")) {
       ref.current = value;
     }
+    return void 0;
+  }
+  function detachRef(ref, index, cleanups) {
+    const cleanup = cleanups[index];
+    if (cleanup) {
+      cleanups[index] = void 0;
+      cleanup();
+    } else {
+      assignRef(ref, null);
+    }
   }
   function useMergeRefs(refs) {
-    const element = (0, import_element12.useRef)(null);
-    const isAttachedRef = (0, import_element12.useRef)(false);
-    const didElementChangeRef = (0, import_element12.useRef)(false);
-    const previousRefsRef = (0, import_element12.useRef)([]);
+    const elementRef = (0, import_element12.useRef)(null);
+    const attachedRefsRef = (0, import_element12.useRef)([]);
     const currentRefsRef = (0, import_element12.useRef)(refs);
+    const cleanupsRef = (0, import_element12.useRef)([]);
     currentRefsRef.current = refs;
     (0, import_element12.useLayoutEffect)(() => {
-      if (didElementChangeRef.current === false && isAttachedRef.current === true) {
-        refs.forEach((ref, index) => {
-          const previousRef = previousRefsRef.current[index];
-          if (ref !== previousRef) {
-            assignRef(previousRef, null);
-            assignRef(ref, element.current);
-          }
-        });
+      const element = elementRef.current;
+      if (element === null) {
+        return;
       }
-      previousRefsRef.current = refs;
+      refs.forEach((ref, index) => {
+        const attachedRef = attachedRefsRef.current[index];
+        if (ref !== attachedRef) {
+          detachRef(attachedRef, index, cleanupsRef.current);
+          cleanupsRef.current[index] = assignRef(ref, element);
+        }
+      });
+      attachedRefsRef.current = refs;
     }, refs);
-    (0, import_element12.useLayoutEffect)(() => {
-      didElementChangeRef.current = false;
-    });
     return (0, import_element12.useCallback)((value) => {
-      assignRef(element, value);
-      didElementChangeRef.current = true;
-      isAttachedRef.current = value !== null;
-      const refsToAssign = value ? currentRefsRef.current : previousRefsRef.current;
-      for (const ref of refsToAssign) {
-        assignRef(ref, value);
+      elementRef.current = value;
+      if (value === null) {
+        attachedRefsRef.current.forEach((ref, index) => {
+          detachRef(ref, index, cleanupsRef.current);
+        });
+        attachedRefsRef.current = [];
+      } else {
+        attachedRefsRef.current = currentRefsRef.current;
+        attachedRefsRef.current.forEach((ref, index) => {
+          cleanupsRef.current[index] = assignRef(ref, value);
+        });
       }
     }, []);
   }
@@ -1520,26 +1634,23 @@ var wp;
         currentOptions.current.onClose();
       }
     });
-    const closeOnEscapeRef = (0, import_element13.useCallback)((node) => {
-      if (!node) {
-        return;
+    const onKeyDown = (0, import_element13.useCallback)((event) => {
+      currentOptions.current?.onKeyDown?.(event);
+      if (event.key === "Escape" && !event.defaultPrevented && currentOptions.current?.onClose) {
+        event.preventDefault();
+        event.stopPropagation();
+        currentOptions.current.onClose();
       }
-      node.addEventListener("keydown", (event) => {
-        if (event.keyCode === import_keycodes.ESCAPE && !event.defaultPrevented && currentOptions.current?.onClose) {
-          event.preventDefault();
-          currentOptions.current.onClose();
-        }
-      });
     }, []);
     return [
       useMergeRefs([
         constrainTabbing ? constrainedTabbingRef : null,
         options.focusOnMount !== false ? focusReturnRef : null,
-        options.focusOnMount !== false ? focusOnMountRef : null,
-        closeOnEscapeRef
+        options.focusOnMount !== false ? focusOnMountRef : null
       ]),
       {
         ...focusOutsideProps,
+        onKeyDown,
         tabIndex: -1
       }
     ];
@@ -1565,7 +1676,7 @@ var wp;
             if (!(child instanceof defaultView.HTMLElement)) {
               return;
             }
-            if (!child.getAttribute("inert")) {
+            if (!child.hasAttribute("inert")) {
               child.setAttribute("inert", "true");
               updates.push(() => {
                 child.removeAttribute("inert");
@@ -1619,7 +1730,11 @@ var wp;
   var use_isomorphic_layout_effect_default = useIsomorphicLayoutEffect;
 
   // packages/compose/build-module/hooks/use-dragging/index.mjs
-  function useDragging({ onDragStart, onDragMove, onDragEnd }) {
+  function useDragging({
+    onDragStart,
+    onDragMove,
+    onDragEnd
+  }) {
     const [isDragging, setIsDragging] = (0, import_element16.useState)(false);
     const eventsRef = (0, import_element16.useRef)({
       onDragStart,
@@ -1631,26 +1746,27 @@ var wp;
       eventsRef.current.onDragMove = onDragMove;
       eventsRef.current.onDragEnd = onDragEnd;
     }, [onDragStart, onDragMove, onDragEnd]);
-    const onMouseMove = (0, import_element16.useCallback)(
-      (event) => eventsRef.current.onDragMove && eventsRef.current.onDragMove(event),
-      []
+    const onMouseMove = (0, import_element16.useCallback)((event) => {
+      eventsRef.current.onDragMove?.(event);
+    }, []);
+    const endDrag = (0, import_element16.useCallback)(
+      function handleEndDrag(event) {
+        eventsRef.current.onDragEnd?.(event);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", handleEndDrag);
+        setIsDragging(false);
+      },
+      [onMouseMove]
     );
-    const endDrag = (0, import_element16.useCallback)((event) => {
-      if (eventsRef.current.onDragEnd) {
-        eventsRef.current.onDragEnd(event);
-      }
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", endDrag);
-      setIsDragging(false);
-    }, []);
-    const startDrag = (0, import_element16.useCallback)((event) => {
-      if (eventsRef.current.onDragStart) {
-        eventsRef.current.onDragStart(event);
-      }
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", endDrag);
-      setIsDragging(true);
-    }, []);
+    const startDrag = (0, import_element16.useCallback)(
+      (event) => {
+        eventsRef.current.onDragStart?.(event);
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", endDrag);
+        setIsDragging(true);
+      },
+      [onMouseMove, endDrag]
+    );
     (0, import_element16.useEffect)(() => {
       return () => {
         if (isDragging) {
@@ -1658,7 +1774,7 @@ var wp;
           document.removeEventListener("mouseup", endDrag);
         }
       };
-    }, [isDragging]);
+    }, [isDragging, onMouseMove, endDrag]);
     return {
       startDrag,
       endDrag,
@@ -1669,7 +1785,7 @@ var wp;
   // packages/compose/build-module/hooks/use-keyboard-shortcut/index.mjs
   var import_mousetrap = __toESM(require_mousetrap(), 1);
 
-  // node_modules/mousetrap/plugins/global-bind/mousetrap-global-bind.js
+  // node_modules/.store/mousetrap@1.6.5-wXrhfo95WfPhGlz0ygmxKA/node_modules/mousetrap/plugins/global-bind/mousetrap-global-bind.js
   (function(Mousetrap3) {
     if (!Mousetrap3) {
       return;
@@ -1702,12 +1818,11 @@ var wp;
 
   // packages/compose/build-module/hooks/use-keyboard-shortcut/index.mjs
   var import_element17 = __toESM(require_element(), 1);
-  var import_keycodes2 = __toESM(require_keycodes(), 1);
+  var import_keycodes = __toESM(require_keycodes(), 1);
   function useKeyboardShortcut(shortcuts, callback, {
     bindGlobal = false,
     eventName = "keydown",
     isDisabled = false,
-    // This is important for performance considerations.
     target
   } = {}) {
     const currentCallbackRef = (0, import_element17.useRef)(callback);
@@ -1723,8 +1838,6 @@ var wp;
           // We were passing `document` here previously, so to successfully cast it to Element we must cast it first to `unknown`.
           // Not sure if this is a mistake but it was the behavior previous to the addition of types so we're just doing what's
           // necessary to maintain the existing behavior.
-          /** @type {Element} */
-          /** @type {unknown} */
           document
         )
       );
@@ -1736,7 +1849,7 @@ var wp;
         );
         const hasAlt = modifiers.has("alt");
         const hasShift = modifiers.has("shift");
-        if ((0, import_keycodes2.isAppleOS)() && (modifiers.size === 1 && hasAlt || modifiers.size === 2 && hasAlt && hasShift)) {
+        if ((0, import_keycodes.isAppleOS)() && (modifiers.size === 1 && hasAlt || modifiers.size === 2 && hasAlt && hasShift)) {
           throw new Error(
             `Cannot bind ${shortcut}. Alt and Shift+Alt modifiers are reserved for character input.`
           );
@@ -1758,47 +1871,53 @@ var wp;
   // packages/compose/build-module/hooks/use-media-query/index.mjs
   var import_element18 = __toESM(require_element(), 1);
   var perWindowCache = /* @__PURE__ */ new WeakMap();
-  function getMediaQueryList(view, query) {
-    if (!query) {
-      return null;
+  var EMPTY_SUBSCRIBER = {
+    subscribe: () => () => {
+    },
+    getValue: () => false
+  };
+  function getMQLSubscriber(view, query) {
+    if (!view || !query || typeof view.matchMedia !== "function") {
+      return EMPTY_SUBSCRIBER;
     }
-    const matchMediaCache = perWindowCache.get(view) ?? /* @__PURE__ */ new Map();
-    if (!perWindowCache.has(view)) {
-      perWindowCache.set(view, matchMediaCache);
+    let queryCache = perWindowCache.get(view);
+    if (!queryCache) {
+      queryCache = /* @__PURE__ */ new Map();
+      perWindowCache.set(view, queryCache);
     }
-    let match = matchMediaCache.get(query);
-    if (match) {
-      return match;
+    const cached = queryCache.get(query);
+    if (cached) {
+      return cached;
     }
-    if (typeof view?.matchMedia === "function") {
-      match = view.matchMedia(query);
-      matchMediaCache.set(query, match);
-      return match;
-    }
-    return null;
-  }
-  function useMediaQuery(query, view = window) {
-    const source = (0, import_element18.useMemo)(() => {
-      const mediaQueryList = getMediaQueryList(view, query);
-      return {
-        subscribe(onStoreChange) {
-          if (!mediaQueryList) {
-            return () => {
-            };
-          }
-          mediaQueryList.addEventListener?.("change", onStoreChange);
-          return () => {
-            mediaQueryList.removeEventListener?.(
-              "change",
-              onStoreChange
-            );
-          };
-        },
-        getValue() {
-          return mediaQueryList?.matches ?? false;
+    const mediaQueryList = view.matchMedia(query);
+    const listeners = /* @__PURE__ */ new Set();
+    const notify = () => {
+      for (const listener2 of listeners) {
+        listener2();
+      }
+    };
+    const subscriber = {
+      subscribe(onStoreChange) {
+        if (listeners.size === 0) {
+          mediaQueryList.addEventListener?.("change", notify);
         }
-      };
-    }, [view, query]);
+        listeners.add(onStoreChange);
+        return () => {
+          listeners.delete(onStoreChange);
+          if (listeners.size === 0) {
+            mediaQueryList.removeEventListener?.("change", notify);
+          }
+        };
+      },
+      getValue() {
+        return mediaQueryList.matches;
+      }
+    };
+    queryCache.set(query, subscriber);
+    return subscriber;
+  }
+  function useMediaQuery(query, view = typeof window !== "undefined" ? window : void 0) {
+    const source = getMQLSubscriber(view, query);
     return (0, import_element18.useSyncExternalStore)(
       source.subscribe,
       source.getValue,
@@ -1917,14 +2036,11 @@ var wp;
     ">=": (breakpointValue, width) => width >= breakpointValue,
     "<": (breakpointValue, width) => width < breakpointValue
   };
-  var ViewportMatchWidthContext = (0, import_element21.createContext)(
-    /** @type {null | number} */
-    null
-  );
+  var ViewportMatchWidthContext = (0, import_element21.createContext)(null);
   ViewportMatchWidthContext.displayName = "ViewportMatchWidthContext";
-  var useViewportMatch = (breakpoint, operator = ">=", view = window) => {
+  var useViewportMatch = (breakpoint, operator = ">=", view = typeof window !== "undefined" ? window : void 0) => {
     const simulatedWidth = (0, import_element21.useContext)(ViewportMatchWidthContext);
-    const mediaQuery = !simulatedWidth && `(${CONDITIONS[operator]}: ${BREAKPOINTS[breakpoint]}px)`;
+    const mediaQuery = !simulatedWidth && `screen and (${CONDITIONS[operator]}: ${BREAKPOINTS[breakpoint]}px)`;
     const mediaQueryResult = useMediaQuery(mediaQuery || void 0, view);
     if (simulatedWidth) {
       return OPERATOR_EVALUATORS[operator](
@@ -1943,6 +2059,15 @@ var wp;
     const callbackEvent = useEvent(callback);
     const observedElementRef = (0, import_element22.useRef)(null);
     const resizeObserverRef = (0, import_element22.useRef)(void 0);
+    (0, import_element22.useEffect)(() => {
+      if (observedElementRef.current) {
+        resizeObserverRef.current?.observe(
+          observedElementRef.current,
+          resizeObserverOptions
+        );
+      }
+      return () => resizeObserverRef.current?.disconnect();
+    }, []);
     return useEvent((element) => {
       if (element === observedElementRef.current) {
         return;
@@ -2069,61 +2194,24 @@ var wp;
   function useWarnOnChange(object, prefix = "Change detection") {
     const previousValues = usePrevious(object);
     Object.entries(previousValues ?? []).forEach(([key, value]) => {
-      if (value !== object[
-        /** @type {keyof typeof object} */
-        key
-      ]) {
+      if (value !== object[key]) {
         console.warn(
           `${prefix}: ${key} key changed:`,
           value,
-          object[
-            /** @type {keyof typeof object} */
-            key
-          ]
-          /* eslint-enable jsdoc/check-types */
+          object[key]
         );
       }
     });
   }
   var use_warn_on_change_default = useWarnOnChange;
 
-  // node_modules/use-memo-one/dist/use-memo-one.esm.js
-  var import_react = __toESM(require_react());
-  function areInputsEqual(newInputs, lastInputs) {
-    if (newInputs.length !== lastInputs.length) {
-      return false;
-    }
-    for (var i = 0; i < newInputs.length; i++) {
-      if (newInputs[i] !== lastInputs[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-  function useMemoOne(getResult, inputs) {
-    var initial = (0, import_react.useState)(function() {
-      return {
-        inputs,
-        result: getResult()
-      };
-    })[0];
-    var committed = (0, import_react.useRef)(initial);
-    var isInputMatch = Boolean(inputs && committed.current.inputs && areInputsEqual(inputs, committed.current.inputs));
-    var cache = isInputMatch ? committed.current : {
-      inputs,
-      result: getResult()
-    };
-    (0, import_react.useEffect)(function() {
-      committed.current = cache;
-    }, [cache]);
-    return cache.result;
-  }
-
   // packages/compose/build-module/hooks/use-debounce/index.mjs
   var import_element25 = __toESM(require_element(), 1);
   function useDebounce(fn, wait, options) {
-    const debounced = useMemoOne(
+    const debounced = (0, import_element25.useMemo)(
       () => debounce(fn, wait ?? 0, options),
+      // Depends on the individual options rather than the `options` object.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [fn, wait, options?.leading, options?.trailing, options?.maxWait]
     );
     (0, import_element25.useEffect)(() => () => debounced.cancel(), [debounced]);
@@ -2145,7 +2233,7 @@ var wp;
   // packages/compose/build-module/hooks/use-throttle/index.mjs
   var import_element27 = __toESM(require_element(), 1);
   function useThrottle(fn, wait, options) {
-    const throttled = useMemoOne(
+    const throttled = (0, import_element27.useMemo)(
       () => throttle(fn, wait ?? 0, options),
       [fn, wait, options]
     );
@@ -2204,10 +2292,7 @@ var wp;
         }
         function onDragEnter(event) {
           event.preventDefault();
-          if (element.contains(
-            /** @type {Node} */
-            event.relatedTarget
-          )) {
+          if (element.contains(event.relatedTarget)) {
             return;
           }
           if (_onDragEnter) {
@@ -2301,130 +2386,128 @@ var wp;
   // packages/compose/build-module/hooks/use-fixed-window-list/index.mjs
   var import_element28 = __toESM(require_element(), 1);
   var import_dom3 = __toESM(require_dom(), 1);
-  var import_keycodes3 = __toESM(require_keycodes(), 1);
+  var import_keycodes2 = __toESM(require_keycodes(), 1);
   var DEFAULT_INIT_WINDOW_SIZE = 30;
   function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
-    const initWindowSize = options?.initWindowSize ?? DEFAULT_INIT_WINDOW_SIZE;
-    const useWindowing = options?.useWindowing ?? true;
-    const [fixedListWindow, setFixedListWindow] = (0, import_element28.useState)({
-      visibleItems: initWindowSize,
-      start: 0,
-      end: initWindowSize,
-      itemInView: (index) => {
-        return index >= 0 && index <= initWindowSize;
+    const {
+      windowOverscan,
+      useWindowing = true,
+      initWindowSize = DEFAULT_INIT_WINDOW_SIZE,
+      expandedState
+    } = options ?? {};
+    const [fixedListWindow, setFixedListWindow] = (0, import_element28.useState)(
+      {
+        visibleItems: initWindowSize,
+        start: 0,
+        end: initWindowSize,
+        itemInView: (index) => {
+          return index >= 0 && index <= initWindowSize;
+        }
       }
+    );
+    const visibleItemsRef = (0, import_element28.useRef)(initWindowSize);
+    const isFirstMeasurementRef = (0, import_element28.useRef)(true);
+    const measureWindow = useEvent((initRender) => {
+      const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
+      if (!scrollContainer) {
+        return;
+      }
+      const visibleItems = Math.ceil(
+        scrollContainer.clientHeight / itemHeight
+      );
+      visibleItemsRef.current = visibleItems;
+      const isFirstMeasurement = isFirstMeasurementRef.current;
+      isFirstMeasurementRef.current = false;
+      const overscan = initRender ? visibleItems : windowOverscan ?? visibleItems;
+      const firstViewableIndex = Math.floor(
+        scrollContainer.scrollTop / itemHeight
+      );
+      const start = Math.max(0, firstViewableIndex - overscan);
+      const end = Math.min(
+        totalItems - 1,
+        firstViewableIndex + visibleItems + overscan
+      );
+      setFixedListWindow((lastWindow) => {
+        if (lastWindow.start <= start && lastWindow.end >= end) {
+          return lastWindow;
+        }
+        if (isFirstMeasurement && lastWindow.start <= firstViewableIndex && lastWindow.end >= firstViewableIndex + visibleItems) {
+          return lastWindow;
+        }
+        return {
+          visibleItems,
+          start,
+          end,
+          itemInView: (index) => {
+            return start <= index && index <= end;
+          }
+        };
+      });
     });
+    const handleKeyDown = useEvent(
+      (event, scrollContainer) => {
+        switch (event.keyCode) {
+          case import_keycodes2.HOME: {
+            return scrollContainer.scrollTo({ top: 0 });
+          }
+          case import_keycodes2.END: {
+            return scrollContainer.scrollTo({
+              top: totalItems * itemHeight
+            });
+          }
+          case import_keycodes2.PAGEUP: {
+            return scrollContainer.scrollTo({
+              top: scrollContainer.scrollTop - visibleItemsRef.current * itemHeight
+            });
+          }
+          case import_keycodes2.PAGEDOWN: {
+            return scrollContainer.scrollTo({
+              top: scrollContainer.scrollTop + visibleItemsRef.current * itemHeight
+            });
+          }
+        }
+      }
+    );
     (0, import_element28.useLayoutEffect)(() => {
       if (!useWindowing) {
         return;
       }
-      const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
-      const measureWindow = (initRender) => {
-        if (!scrollContainer) {
-          return;
-        }
-        const visibleItems = Math.ceil(
-          scrollContainer.clientHeight / itemHeight
-        );
-        const windowOverscan = initRender ? visibleItems : options?.windowOverscan ?? visibleItems;
-        const firstViewableIndex = Math.floor(
-          scrollContainer.scrollTop / itemHeight
-        );
-        const start = Math.max(0, firstViewableIndex - windowOverscan);
-        const end = Math.min(
-          totalItems - 1,
-          firstViewableIndex + visibleItems + windowOverscan
-        );
-        setFixedListWindow((lastWindow) => {
-          const nextWindow = {
-            visibleItems,
-            start,
-            end,
-            itemInView: (index) => {
-              return start <= index && index <= end;
-            }
-          };
-          if (lastWindow.start !== nextWindow.start || lastWindow.end !== nextWindow.end || lastWindow.visibleItems !== nextWindow.visibleItems) {
-            return nextWindow;
-          }
-          return lastWindow;
-        });
-      };
       measureWindow(true);
-      const debounceMeasureList = debounce(() => {
-        measureWindow();
-      }, 16);
-      scrollContainer?.addEventListener("scroll", debounceMeasureList);
-      scrollContainer?.ownerDocument?.defaultView?.addEventListener(
-        "resize",
-        debounceMeasureList
-      );
-      scrollContainer?.ownerDocument?.defaultView?.addEventListener(
-        "resize",
-        debounceMeasureList
-      );
-      return () => {
-        scrollContainer?.removeEventListener(
-          "scroll",
-          debounceMeasureList
-        );
-        scrollContainer?.ownerDocument?.defaultView?.removeEventListener(
-          "resize",
-          debounceMeasureList
-        );
-      };
     }, [
+      useWindowing,
+      measureWindow,
       itemHeight,
-      elementRef,
       totalItems,
-      options?.expandedState,
-      options?.windowOverscan,
-      useWindowing
+      windowOverscan,
+      expandedState
     ]);
     (0, import_element28.useLayoutEffect)(() => {
       if (!useWindowing) {
         return;
       }
       const scrollContainer = (0, import_dom3.getScrollContainer)(elementRef.current);
-      const handleKeyDown = (event) => {
-        switch (event.keyCode) {
-          case import_keycodes3.HOME: {
-            return scrollContainer?.scrollTo({ top: 0 });
-          }
-          case import_keycodes3.END: {
-            return scrollContainer?.scrollTo({
-              top: totalItems * itemHeight
-            });
-          }
-          case import_keycodes3.PAGEUP: {
-            return scrollContainer?.scrollTo({
-              top: scrollContainer.scrollTop - fixedListWindow.visibleItems * itemHeight
-            });
-          }
-          case import_keycodes3.PAGEDOWN: {
-            return scrollContainer?.scrollTo({
-              top: scrollContainer.scrollTop + fixedListWindow.visibleItems * itemHeight
-            });
-          }
-        }
-      };
-      scrollContainer?.ownerDocument?.defaultView?.addEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      if (!scrollContainer) {
+        return;
+      }
+      const { defaultView } = scrollContainer.ownerDocument;
+      const onMeasure = () => measureWindow();
+      const onKeyDown = (event) => handleKeyDown(event, scrollContainer);
+      scrollContainer.addEventListener("scroll", onMeasure);
+      defaultView?.addEventListener("resize", onMeasure);
+      defaultView?.addEventListener("keydown", onKeyDown);
       return () => {
-        scrollContainer?.ownerDocument?.defaultView?.removeEventListener(
-          "keydown",
-          handleKeyDown
-        );
+        scrollContainer.removeEventListener("scroll", onMeasure);
+        defaultView?.removeEventListener("resize", onMeasure);
+        defaultView?.removeEventListener("keydown", onKeyDown);
       };
     }, [
-      totalItems,
-      itemHeight,
-      elementRef,
-      fixedListWindow.visibleItems,
       useWindowing,
-      options?.expandedState
+      elementRef,
+      itemHeight,
+      totalItems,
+      expandedState,
+      measureWindow,
+      handleKeyDown
     ]);
     return [fixedListWindow, setFixedListWindow];
   }
@@ -2442,4 +2525,6 @@ var wp;
     return (0, import_element29.useSyncExternalStore)(subscribe, getValue, getValue);
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).compose = wp.compose;
 })();

@@ -10,6 +10,8 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
 function validateOrigin(origin: string) {
 	try {
@@ -42,7 +44,7 @@ export default defineConfig({
 			pathsToAliases: false,
 		}),
 		viteIgnoreImports({
-			extensions: ['wasm', 'so', 'dat'],
+			extensions: ['so', 'dat'],
 		}),
 		...viteGlobalExtensions,
 		// @wp-playground/client doesn't actually use the remote-config virtual
@@ -78,6 +80,9 @@ export default defineConfig({
 			},
 		},
 	],
+	resolve: {
+		alias: [isomorphicGitBrowserAlias()],
+	},
 
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode

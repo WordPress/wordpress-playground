@@ -43,4 +43,41 @@ describe('Blueprint step setSiteOptions()', () => {
 		});
 		expect(response.text).toBe('My test site!');
 	});
+
+	it('should flush rewrite rules when setting permalink_structure', async () => {
+		await php.run({
+			code: `<?php
+	                require '/wordpress/wp-load.php';
+	                delete_option('rewrite_rules');
+			`,
+		});
+		const missingRules = await php.run({
+			code: `<?php
+                require '/wordpress/wp-load.php';
+                echo json_encode(get_option('rewrite_rules'));
+			`,
+		});
+		expect(missingRules.json).toBe(false);
+
+		await setSiteOptions(php, {
+			options: {
+				permalink_structure: '/%postname%/',
+			},
+		});
+
+		const response = await php.run({
+			code: `<?php
+                require '/wordpress/wp-load.php';
+                $rewrite_rules = get_option('rewrite_rules');
+                echo json_encode([
+                    'permalink_structure' => get_option('permalink_structure'),
+                    'has_rewrite_rules' => is_array($rewrite_rules) && count($rewrite_rules) > 0,
+                ]);
+			`,
+		});
+		expect(response.json).toEqual({
+			permalink_structure: '/%postname%/',
+			has_rewrite_rules: true,
+		});
+	});
 });

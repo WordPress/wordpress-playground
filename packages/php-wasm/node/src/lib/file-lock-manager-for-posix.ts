@@ -7,7 +7,7 @@ import type {
 	Path,
 } from '@php-wasm/universal';
 import { MAX_ADDRESSABLE_FILE_OFFSET } from '@php-wasm/universal';
-import { constants, fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
+import { loadFsExt } from './load-fs-ext';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -25,6 +25,7 @@ function isLockDenialError(e: unknown): boolean {
 type StoredWholeFileLock = WholeFileLockOp & { path: Path };
 
 export class FileLockManagerForPosix implements FileLockManager {
+	private readonly fsExt = loadFsExt();
 	wholeFileLockMap = new Map<Pid, Map<Fd, StoredWholeFileLock>>();
 	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
 
@@ -41,7 +42,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 						: 'shnb';
 
 		try {
-			flockSync(op.fd, opType);
+			this.fsExt.flockSync(op.fd, opType);
 
 			// Remember lock so we can release them
 			// when the process exits or the file descriptor is closed.
@@ -87,14 +88,14 @@ export class FileLockManagerForPosix implements FileLockManager {
 		const fcntlCmd = waitForLock ? 'setlkw' : 'setlk';
 		const fcntlOp =
 			op.type === 'unlocked'
-				? constants.F_UNLCK
+				? this.fsExt.constants.F_UNLCK
 				: op.type === 'exclusive'
-					? constants.F_WRLCK
-					: constants.F_RDLCK;
+					? this.fsExt.constants.F_WRLCK
+					: this.fsExt.constants.F_RDLCK;
 
 		try {
 			// TODO: Fix this API to take bigint for start and end. Possible optionally.
-			fcntlSync(
+			this.fsExt.fcntlSync(
 				op.fd,
 				fcntlCmd,
 				fcntlOp,

@@ -37,6 +37,7 @@ export function getSiteErrorView(
 	if (
 		blueprintStepError &&
 		error !== 'network-firewall-interference' &&
+		error !== 'resource-unavailable' &&
 		error !== 'resource-download-failed'
 	) {
 		return blueprintStepExecutionView(context);
@@ -58,14 +59,100 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'browser-storage-cleanup-failed':
+			return browserStorageCleanupFailedView(context);
+		case 'initial-opfs-sync-interrupted':
+			return initialOpfsSyncInterruptedView(context);
 		case 'network-firewall-interference':
 			return networkFirewallInterferenceView(context);
+		case 'resource-unavailable':
+			return resourceUnavailableView(context);
 		case 'resource-download-failed':
 			return resourceDownloadFailedView(context);
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
 	}
+}
+
+function browserStorageCleanupFailedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Close other Playground tabs, then reload',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					An earlier reset was interrupted, and old site files are
+					still in this saved Playground.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						Playground tried to remove those old files again before
+						opening the site, but the browser still would not remove
+						them.
+					</li>
+					<li>
+						Playground stopped because those old files may show the
+						old site instead of the reset site.
+					</li>
+					<li>
+						Close any other Playground tabs that may be using this
+						saved site, then click <strong>Reload</strong>. If no
+						other Playground tabs are open, make sure your browser
+						has free storage, then reload.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-page"
+				onClick={helpers.reloadPage}
+			>
+				Reload
+			</Button>,
+		],
+	};
+}
+
+function initialOpfsSyncInterruptedView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Start a new Playground to continue',
+		isDeveloperError: false,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					This saved Playground is incomplete and can’t be reopened.
+					Start a new Playground to keep working.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						What happened: the previous save stopped before all
+						WordPress files were copied.
+					</li>
+					<li>
+						This can happen if the tab was closed or reloaded, the
+						browser suspended the page, or the browser ran out of
+						space for saved sites.
+					</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-tab"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start a new Playground
+			</Button>,
+		],
+	};
 }
 
 function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
@@ -478,6 +565,46 @@ function networkFirewallInterferenceView({
 	};
 }
 
+/**
+ * Builds the error view for a resource that is unavailable for download.
+ *
+ * Displays the error message when available and falls back to a generic message.
+ *
+ * @returns The unavailable-resource view configuration.
+ */
+function resourceUnavailableView({
+	errorDetails,
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	let message = 'A required resource is not available for download.';
+	if (typeof errorDetails === 'string') {
+		message = errorDetails;
+	} else if (
+		errorDetails &&
+		typeof errorDetails === 'object' &&
+		'message' in errorDetails &&
+		typeof errorDetails.message === 'string'
+	) {
+		message = errorDetails.message;
+	}
+	return {
+		title: 'Required resource is unavailable',
+		isDeveloperError: true,
+		hideReportButton: true,
+		detailSummaryOverride: 'Download details',
+		body: <p className={css.errorLead}>{message}</p>,
+		actions: [
+			<Button
+				variant="primary"
+				key="start-without-blueprint"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start without a Blueprint
+			</Button>,
+		],
+	};
+}
+
 function resourceDownloadFailedView({
 	errorDetails,
 }: SiteErrorViewContext): SiteErrorViewConfig {
@@ -534,6 +661,7 @@ function resourceDownloadFailedView({
 function genericSiteBootFailedView({
 	blueprintStepError,
 	helpers,
+	errorDetails,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	// If we have a Blueprint step error, the dedicated view will have been used.
 	if (blueprintStepError) {
@@ -543,6 +671,9 @@ function genericSiteBootFailedView({
 			blueprintStepError,
 			helpers,
 		});
+	}
+	if (isIncompleteWordPressBundleError(errorDetails)) {
+		return incompleteWordPressBundleView(helpers);
 	}
 
 	return {
@@ -562,6 +693,56 @@ function genericSiteBootFailedView({
 				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Reload Fresh Playground
+			</Button>,
+		],
+	};
+}
+
+function isIncompleteWordPressBundleError(errorDetails: unknown): boolean {
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return false;
+	}
+	const error = errorDetails as {
+		name?: unknown;
+		originalErrorClassName?: unknown;
+	};
+	return (
+		error.name === 'WordPressBundleFileCountMismatchError' ||
+		error.originalErrorClassName === 'WordPressBundleFileCountMismatchError'
+	);
+}
+
+function incompleteWordPressBundleView(
+	helpers: PresentationHelpers
+): SiteErrorViewConfig {
+	return {
+		title: 'WordPress download was incomplete',
+		isDeveloperError: false,
+		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Playground stopped because the downloaded WordPress package
+					was missing files.
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						This usually means the download was interrupted or a
+						cached copy was damaged.
+					</li>
+					<li>Reload to download WordPress again.</li>
+				</ul>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload-incomplete-wordpress"
+				onClick={helpers.reloadPage}
+			>
+				Reload and try again
 			</Button>,
 		],
 	};

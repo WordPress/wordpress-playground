@@ -1,50 +1,27 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
 
-/*
- * Import internal data parsers and structures from isomorphic-git. These
- * exports are not available in the npm version of isomorphic-git, which is why
- * we use one from the git repository.
- *
- * This file heavily relies on isomorphic-git internals to parse Git data formats
- * such as PACK, trees, deltas, etc.
- */
-import './isomorphic-git.d.ts';
-import { GitPktLine } from 'isomorphic-git/src/models/GitPktLine.js';
-import { GitTree } from 'isomorphic-git/src/models/GitTree.js';
-import { GitAnnotatedTag } from 'isomorphic-git/src/models/GitAnnotatedTag.js';
-import { GitCommit } from 'isomorphic-git/src/models/GitCommit.js';
-import { GitPackIndex } from 'isomorphic-git/src/models/GitPackIndex.js';
-import { collect } from 'isomorphic-git/src/internal-apis.js';
-import { parseUploadPackResponse } from 'isomorphic-git/src/wire/parseUploadPackResponse.js';
-import { ObjectTypeError } from 'isomorphic-git/src/errors/ObjectTypeError.js';
+import {
+	GitPktLine,
+	GitTree,
+	GitAnnotatedTag,
+	GitCommit,
+	GitPackIndex,
+	collect,
+	parseUploadPackResponse,
+	ObjectTypeError,
+} from './isomorphic-git-internals';
 import { Buffer as BufferPolyfill } from 'buffer';
+import { GitAuthenticationError } from './git-authentication-error';
+
+export { GitAuthenticationError } from './git-authentication-error';
 
 /**
  * Polyfills the Buffer class in the browser.
  *
- * We need it because isomorphic-git uses Buffer internally. The isomorphic-git version
- * released via npm shipes a Buffer implementation, but we're using a version cloned from
- * the git repository which assumes a global Buffer is available.
+ * We need it because isomorphic-git uses Buffer internally.
  */
 if (typeof globalThis.Buffer === 'undefined') {
 	globalThis.Buffer = BufferPolyfill;
-}
-
-/**
- * Custom error class for git authentication failures.
- */
-export class GitAuthenticationError extends Error {
-	public repoUrl: string;
-	public status: number;
-
-	constructor(repoUrl: string, status: number) {
-		super(
-			`Authentication required to access private repository: ${repoUrl}`
-		);
-		this.name = 'GitAuthenticationError';
-		this.repoUrl = repoUrl;
-		this.status = status;
-	}
 }
 
 export type GitAdditionalHeaders = Record<string, string>;

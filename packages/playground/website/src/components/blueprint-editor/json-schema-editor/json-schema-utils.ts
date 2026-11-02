@@ -24,6 +24,23 @@ interface DocumentContext {
 let lastParsedDocument: ParsedJsonDocument | null = null;
 let lastParsedText = '';
 
+/**
+ * Returns a top-level property value from the current JSON document.
+ *
+ * `jsonc-parser` keeps this useful while the document is incomplete, which is
+ * when schema completion is needed most.
+ */
+export function getRootObjectPropertyValue(
+	doc: CodeMirrorDoc,
+	propertyName: string
+): unknown {
+	const tree = getParsedJsonDocument(doc).tree;
+	if (!tree || tree.type !== 'object') {
+		return undefined;
+	}
+	return findNodeAtLocation(tree, [propertyName])?.value;
+}
+
 function getParsedJsonDocument(doc: CodeMirrorDoc): ParsedJsonDocument {
 	const text = doc.toString();
 
@@ -222,9 +239,7 @@ export function resolveRef(schema: JSONSchema, ref: string): JSONSchema | null {
 	return current as JSONSchema;
 }
 
-/**
- * Resolve all $ref in a schema object (non-recursive, one level)
- */
+/** Resolves chained local `$ref` entries while preserving inline overrides. */
 export function resolveSchemaRefs(
 	schema: JSONSchema,
 	rootSchema: JSONSchema
@@ -233,14 +248,20 @@ export function resolveSchemaRefs(
 		return schema;
 	}
 
-	if (schema.$ref) {
-		const resolved = resolveRef(rootSchema, schema.$ref);
-		if (resolved) {
-			return { ...resolved, ...schema, $ref: undefined };
+	let resolvedSchema = schema;
+	const visitedRefs = new Set<string>();
+	while (resolvedSchema.$ref && !visitedRefs.has(resolvedSchema.$ref)) {
+		const ref = resolvedSchema.$ref;
+		visitedRefs.add(ref);
+		const resolvedRef = resolveRef(rootSchema, ref);
+		if (!resolvedRef) {
+			break;
 		}
+		const { $ref: _ref, ...overrides } = resolvedSchema;
+		resolvedSchema = { ...resolvedRef, ...overrides };
 	}
 
-	return schema;
+	return resolvedSchema;
 }
 
 /**

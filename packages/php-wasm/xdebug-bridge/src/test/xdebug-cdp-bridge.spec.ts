@@ -1,6 +1,6 @@
 import fs from 'fs';
-import { createHash } from 'crypto';
 import { vi } from 'vitest';
+import { createHash } from 'crypto';
 import { DbgpSession } from '../lib/dbgp-session';
 import { CDPServer } from '../lib/cdp-server';
 import { XdebugCDPBridge } from '../lib/xdebug-cdp-bridge';
@@ -366,6 +366,7 @@ describe('XdebugCDPBridge', () => {
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.scriptParsed') {
 					script = message;
+
 					resolve();
 				}
 				return originalSendMessage(message);
@@ -449,5 +450,61 @@ describe('XdebugCDPBridge', () => {
 		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
 			expect.objectContaining({ method: 'Debugger.scriptParsed' })
 		);
+	});
+
+	// Excluded paths are surfaced to DevTools through the source map's
+	// x_google_ignoreList field. DevTools then drives the step-over /
+	// step-into behavior (skipping ignored frames, hiding them from stack
+	// traces, etc.) — the bridge's only job is to tag the right scripts.
+	it('tags excluded scripts via x_google_ignoreList in the source map', async () => {
+		bridge.stop();
+
+		// Arrange: two scripts, one inside the excluded prefix, one outside.
+		const ignoredScript = `${fixtures}/array.php`;
+		const userScript = `${fixtures}/test.php`;
+
+		dbgpSession = new DbgpSession();
+		cdpServer = new CDPServer();
+		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
+			knownScriptUrls: [ignoredScript, userScript],
+			getPHPFile: (file) => php.readFileAsText(file),
+			excludedPaths: [ignoredScript],
+		});
+
+		// Act: start the bridge and decode the source maps for the two
+		// scripts we care about, identifying each by its original path.
+		let ignoredMap: any;
+		let userMap: any;
+
+		await new Promise<void>((resolve) => {
+			const original = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
+				if (message.method === 'Debugger.scriptParsed') {
+					const sourceMap = JSON.parse(
+						Buffer.from(
+							message.params.sourceMapURL.split(',')[1],
+							'base64'
+						).toString('utf8')
+					);
+					const source = sourceMap.sources[0];
+					if (source.endsWith(ignoredScript)) {
+						ignoredMap = sourceMap;
+					} else if (source.endsWith(userScript)) {
+						userMap = sourceMap;
+					}
+					if (ignoredMap && userMap) {
+						resolve();
+					}
+				}
+				return original(message);
+			});
+
+			bridge.start();
+		});
+
+		// Assert: only the ignored script carries the ignore-list entry;
+		// the user script's source map stays untouched.
+		expect(ignoredMap.x_google_ignoreList).toEqual([0]);
+		expect(userMap.x_google_ignoreList).toBeUndefined();
 	});
 });

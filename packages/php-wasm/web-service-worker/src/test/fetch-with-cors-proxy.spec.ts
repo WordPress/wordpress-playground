@@ -126,6 +126,31 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:8080/api');
 	});
 
+	it.each(['playground.localhost', 'wp.playground.localhost'])(
+		'keeps HTTP downloads on the local subdomain %s without a proxy',
+		async (hostname) => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
+			const url = `http://${hostname}:9500/toolkit.txt`;
+			await fetchWithCorsProxy(url, undefined, 'https://proxy.test/?');
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			expect((fetchMock.mock.calls[0][0] as Request).url).toBe(url);
+		}
+	);
+
+	it('does not treat a hostname containing localhost as a loopback suffix', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		await fetchWithCorsProxy(
+			'http://playground.localhost.example.org/toolkit.txt'
+		);
+		expect((fetchMock.mock.calls[0][0] as Request).url).toBe(
+			'https://playground.localhost.example.org/toolkit.txt'
+		);
+	});
+
 	it('never proxies 127.0.0.1 requests', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
@@ -247,7 +272,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
 	});
 
-	it('passes request through to fetch for localhost http:// URLs', async () => {
+	it('buffers streamed uploads to localhost HTTP/1.1 servers', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -269,9 +294,87 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// Direct fetch — no buffering, same Request passed through.
-		expect(sentRequest).toBe(request);
-		expect(request.bodyUsed).toBe(false);
+		// Buffer before direct fetch: Chrome cannot stream to an HTTP/1.1 server.
+		expect(sentRequest).not.toBe(request);
+		expect(sentRequest.url).toBe(request.url);
+		expect(sentRequest.method).toBe('POST');
+		expect(await sentRequest.text()).toBe('streamed data');
+		expect(request.bodyUsed).toBe(true);
+	});
+
+	it('preserves keepalive when buffering a localhost upload', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body: 'complete this upload after unload',
+			keepalive: true,
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(sentRequest.keepalive).toBe(true);
+		expect(await sentRequest.text()).toBe(
+			'complete this upload after unload'
+		);
+	});
+
+	it('retains earlier bytes when a localhost stream reuses its buffer', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const chunk = new Uint8Array(1);
+		let nextByte = 65;
+		const body = new ReadableStream(
+			{
+				/** Reuse the producer's buffer only when the reader asks for the next chunk. */
+				pull(controller) {
+					if (nextByte === 67) {
+						controller.close();
+						return;
+					}
+					chunk[0] = nextByte++;
+					controller.enqueue(chunk);
+				},
+			},
+			{ highWaterMark: 0 }
+		);
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies.
+			duplex: 'half',
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(await sentRequest.text()).toBe('AB');
+	});
+
+	it('stops buffering a localhost upload whose body never closes when aborted', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const controller = new AbortController();
+		const request = new Request('http://127.0.0.1:8181/?reprint-api', {
+			method: 'POST',
+			body: new ReadableStream({
+				start(stream) {
+					stream.enqueue(new TextEncoder().encode('partial'));
+					// Never closes: a stalled producer.
+				},
+			}),
+			signal: controller.signal,
+			// @ts-expect-error duplex is required for streamed bodies.
+			duplex: 'half',
+		});
+		const pending = fetchWithCorsProxy(request, undefined, undefined);
+		setTimeout(() => controller.abort(), 10);
+		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it('passes request through to fetch for https:// URLs without proxy', async () => {
@@ -415,16 +518,18 @@ describe('fetchWithCorsProxy', () => {
 
 	/**
 	 * These tests exercise the non-streaming fallback path (Safari/Firefox)
-	 * by resetting the cached probe result and mocking the
-	 * `supportsReadableStreamBody` probe fetch to reject. The probe now
-	 * fires inside the retry (catch) path — after the direct fetch fails —
-	 * so mock ordering is: [direct fetch, probe, CORS proxy fetch].
-	 *
-	 * The GET case has no request body, so there is no probe; only
-	 * direct-fetch behavior is exercised.
+	 * by forcing `supportsReadableStreamBody()` to return `false` in
+	 * beforeEach, then asserting it before each test runs. Because the cached
+	 * result is already set, no probe fetch fires during the retry path — mock
+	 * ordering is just: [direct fetch, CORS proxy fetch].
 	 */
 	describe('non-streaming fallback (Safari/Firefox)', () => {
-		beforeEach(() => {
+		beforeEach(async () => {
+			__testing.setStreamBodySupported(false);
+			expect(await supportsReadableStreamBody()).toBe(false);
+		});
+
+		afterEach(() => {
 			__testing.resetStreamBodySupported();
 		});
 
@@ -454,14 +559,11 @@ describe('fetchWithCorsProxy', () => {
 			const corsProxyHeaders = new Headers();
 			corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
 
-			// Mock ordering: direct fetch → probe → CORS proxy fetch.
-			// The probe fires inside the catch block after direct fails.
+			// Streaming is already forced unsupported in beforeEach, so no
+			// probe fires — mock ordering is just: direct fetch → CORS proxy.
 			const fetchMock = vi
 				.spyOn(globalThis, 'fetch')
 				.mockRejectedValueOnce(new Error('CORS'))
-				.mockRejectedValueOnce(
-					new TypeError('ReadableStream uploading is not supported')
-				)
 				.mockResolvedValueOnce(
 					new Response('proxied', { headers: corsProxyHeaders })
 				);
@@ -477,9 +579,8 @@ describe('fetchWithCorsProxy', () => {
 				'https://proxy.test/?url='
 			);
 
-			// direct + probe + proxy
-			expect(fetchMock).toHaveBeenCalledTimes(3);
-			const proxyReq = fetchMock.mock.calls[2][0] as Request;
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const proxyReq = fetchMock.mock.calls[1][0] as Request;
 			expect(proxyReq.url).toBe(
 				'https://proxy.test/?url=https://example.com/upload'
 			);

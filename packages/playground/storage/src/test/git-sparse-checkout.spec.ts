@@ -218,18 +218,20 @@ describe('gitAdditionalHeaders', () => {
 });
 
 describe('authentication error handling', () => {
-	let originalFetch: typeof global.fetch;
-
-	beforeEach(() => {
-		originalFetch = global.fetch;
-	});
-
 	afterEach(() => {
-		global.fetch = originalFetch;
+		vi.unstubAllGlobals();
 	});
+
+	const stubFetch = (response: {
+		ok: boolean;
+		status: number;
+		statusText: string;
+	}) => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+	};
 
 	it('should throw GitAuthenticationError for 401 responses', async () => {
-		global.fetch = vi.fn().mockResolvedValue({
+		stubFetch({
 			ok: false,
 			status: 401,
 			statusText: 'Unauthorized',
@@ -251,7 +253,7 @@ describe('authentication error handling', () => {
 	});
 
 	it('should throw GitAuthenticationError for 403 responses', async () => {
-		global.fetch = vi.fn().mockResolvedValue({
+		stubFetch({
 			ok: false,
 			status: 403,
 			statusText: 'Forbidden',
@@ -273,7 +275,7 @@ describe('authentication error handling', () => {
 	});
 
 	it('should throw generic error for 404 even with auth token (ambiguous: repo not found OR no access)', async () => {
-		global.fetch = vi.fn().mockResolvedValue({
+		stubFetch({
 			ok: false,
 			status: 404,
 			statusText: 'Not Found',
@@ -295,7 +297,7 @@ describe('authentication error handling', () => {
 	});
 
 	it('should throw generic error for 404 without auth token', async () => {
-		global.fetch = vi.fn().mockResolvedValue({
+		stubFetch({
 			ok: false,
 			status: 404,
 			statusText: 'Not Found',

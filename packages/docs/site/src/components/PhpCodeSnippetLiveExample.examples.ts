@@ -188,6 +188,76 @@ echo get_bloginfo( 'version' );
 6.8
   </script>
 </php-snippet>`,
+	symfonyBlueprint: String.raw`<script id="symfony-blueprint-preview" type="application/json">
+{
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "unzip",
+      "zipFile": {
+        "resource": "url",
+        "url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=html-api-2026-06-08"
+      },
+      "extractToPath": "/app"
+    }
+  ]
+}
+</script>
+
+<php-snippet name="run-symfony.php" wp="none" blueprint="symfony-blueprint-preview">
+  <script type="application/x-php">
+<?php
+require '/app/symfony-package-radar/vendor/autoload.php';
+
+use App\Kernel;
+use Symfony\Component\HttpFoundation\Request;
+
+$kernel = new Kernel('prod', false);
+$request = Request::create('/');
+$response = $kernel->handle($request);
+
+$pageTitle = get_first_h1_text($response->getContent());
+
+echo 'HTTP ' . $response->getStatusCode() . PHP_EOL;
+echo 'Symfony page: ' . $pageTitle . PHP_EOL;
+echo 'WordPress installed: ';
+echo file_exists('/wordpress/wp-load.php') ? 'yes' : 'no';
+
+$kernel->terminate($request, $response);
+
+/**
+ * The app's Composer dependencies include the WordPress HTML API, so the
+ * snippet can read the <h1> with WP_HTML_Processor without installing or
+ * booting WordPress.
+ */
+function get_first_h1_text(string $html): string
+{
+    $processor = WP_HTML_Processor::create_fragment($html);
+    if (!$processor->next_tag('H1')) {
+        return 'unknown';
+    }
+
+    $text = '';
+    while ($processor->next_token()) {
+        if ('H1' === $processor->get_tag() && $processor->is_tag_closer()) {
+            break;
+        }
+        if ('#text' === $processor->get_token_type()) {
+            $text .= $processor->get_modifiable_text();
+        }
+    }
+
+    return trim($text);
+}
+  </script>
+  <script type="text/expected-output">
+HTTP 200
+Symfony page: Symfony Playground
+WordPress installed: no
+  </script>
+</php-snippet>`,
 	illustration: String.raw`<php-snippet name="illustration.php" runnable="false">
   <script type="application/x-php">
 <?php

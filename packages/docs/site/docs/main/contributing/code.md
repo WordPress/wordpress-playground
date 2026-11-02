@@ -81,12 +81,13 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 
 ### Running a local Multisite
 
-WordPress Multisite has a few [restrictions when run locally](https://developer.wordpress.org/advanced-administration/multisite/prepare-network/#restrictions). If you plan to test a Multisite network using Playground's `enableMultisite` step, make sure you either change `wp-now`'s default port or set a local test domain running via HTTPS.
+WordPress Multisite has a few [restrictions when run locally](https://developer.wordpress.org/advanced-administration/multisite/prepare-network/#restrictions). If you plan to test a Multisite network using Playground's `enableMultisite` step, make sure you either change Playground CLI's default port or set a local test domain running via HTTPS.
 
-To change `wp-now`'s default port to the one supported by WordPress Multisite, run it using the `--port=80` flag:
+To change Playground CLI's default port to the one supported by WordPress
+Multisite, run it using the `--port=80` flag:
 
 ```bash
-npx @wp-now/wp-now start --port=80
+npx @wp-playground/cli@latest start --port=80
 ```
 
 There are a few ways to set up a local test domain, including editing your `hosts` file. If you're unsure how to do that, we suggest installing [Laravel Valet](https://laravel.com/docs/11.x/valet) and then running the following command:

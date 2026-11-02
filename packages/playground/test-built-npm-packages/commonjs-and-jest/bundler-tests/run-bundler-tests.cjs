@@ -8,7 +8,7 @@
  * 3. Verifies it doesn't error out
  */
 const { spawn } = require('child_process');
-const { mkdir, readdir, writeFile } = require('fs/promises');
+const { mkdir, readdir, readFile, writeFile } = require('fs/promises');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 const { chromium } = require('playwright');
@@ -102,6 +102,22 @@ async function findOutputFile(distDir, expectedBaseName, extensions) {
 	}
 
 	return { success: true, file: outputFile };
+}
+
+async function assertNoInlinedBinary(distDir) {
+	const files = await readdir(distDir);
+
+	for (const file of files.filter((name) => /\.[cm]?js$/.test(name))) {
+		const contents = await readFile(join(distDir, file), 'utf8');
+		if (contents.includes('data:application/wasm;base64')) {
+			return {
+				success: false,
+				error: `${file} inlines a PHP binary as a base64 data URI and is ${contents.length} bytes`,
+			};
+		}
+	}
+
+	return { success: true };
 }
 
 async function loadWebBundleInBrowser(distDir, jsFile) {
@@ -275,6 +291,11 @@ async function runTest(name, configFile, outputDir, expectedBaseName, target) {
 			]);
 			if (!outputFile.success) {
 				return { name, success: false, error: outputFile.error };
+			}
+
+			const inlined = await assertNoInlinedBinary(distDir);
+			if (!inlined.success) {
+				return { name, success: false, error: inlined.error };
 			}
 
 			const browserResult = await loadWebBundleInBrowser(

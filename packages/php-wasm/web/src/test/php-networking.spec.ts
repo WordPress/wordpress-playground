@@ -14,6 +14,7 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 	let mockServer: http.Server;
 	let corsProxyServer: http2.Http2SecureServer;
 	let serverUrl: string;
+	let secureServerUrl: string;
 	let corsProxyUrl: string;
 
 	test.beforeAll(async () => {
@@ -103,6 +104,19 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 					return;
 				}
 
+				const url = new URL(req.url!, `https://${req.headers.host}`);
+				let targetPath = url.pathname;
+				try {
+					targetPath = new URL(req.url!.slice(1)).pathname;
+				} catch {
+					// This request was not routed through the CORS proxy.
+				}
+				if (targetPath === '/stats/php/1.0/') {
+					res.setHeader('Content-Type', 'application/json');
+					res.end(JSON.stringify({ '8.3': 50, '8.4': 50 }));
+					return;
+				}
+
 				const chunks: Buffer[] = [];
 				req.on('data', (chunk: Buffer) => chunks.push(chunk));
 				req.on('end', () => {
@@ -125,7 +139,8 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 			corsProxyServer.listen(0, '127.0.0.1', () => resolve());
 		});
 		const corsProxyAddr = corsProxyServer.address() as AddressInfo;
-		corsProxyUrl = `https://127.0.0.1:${corsProxyAddr.port}/`;
+		secureServerUrl = `https://127.0.0.1:${corsProxyAddr.port}`;
+		corsProxyUrl = `${secureServerUrl}/`;
 	});
 
 	test.afterAll(() => {
@@ -253,6 +268,79 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 		test.expect(parsed.code).toBe(200);
 		test.expect(parsed.error).toBe('');
 		test.expect(parsed.has83).toBe(true);
+	});
+
+	test('PHP curl can share the TLS session cache between HTTPS requests', async ({
+		page,
+	}) => {
+		const result = await page.evaluate(async (proxyUrl: string) => {
+			const CAroot = await window.generateCertificate({
+				subject: {
+					commonName: 'TestCA',
+					organizationName: 'Test',
+					countryName: 'US',
+				},
+				basicConstraints: { ca: true },
+			});
+
+			const php = new window.PHP(
+				await window.loadWebRuntime('8.4', {
+					tcpOverFetch: {
+						CAroot,
+						corsProxyUrl: proxyUrl,
+					},
+				})
+			);
+
+			const caBundlePath = '/internal/shared/ca-bundle.crt';
+			php.mkdir('/internal/shared');
+			php.writeFile(
+				caBundlePath,
+				window.certificateToPEM(CAroot.certificate)
+			);
+
+			await window.setPhpIniEntries(php, {
+				allow_url_fopen: '1',
+				disable_functions: '',
+				'openssl.cafile': caBundlePath,
+				'curl.cainfo': caBundlePath,
+			});
+
+			const response = await php.runStream({
+				code: `<?php
+					$share = curl_share_init();
+					curl_share_setopt($share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+
+					$results = [];
+					for ($i = 0; $i < 2; $i++) {
+						$ch = curl_init('https://remote-server.example/stats/php/1.0/');
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+						curl_setopt($ch, CURLOPT_SHARE, $share);
+						$body = curl_exec($ch);
+						$json = json_decode($body, true);
+						$results[] = [
+							'code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
+							'error' => curl_error($ch),
+							'has83' => is_array($json) && array_key_exists('8.3', $json),
+						];
+						curl_close($ch);
+					}
+					curl_share_close($share);
+					echo json_encode($results);
+				`,
+			});
+			const text = await response.stdoutText;
+			php.exit();
+			return text;
+		}, corsProxyUrl);
+
+		const parsed = JSON.parse(result);
+		test.expect(parsed).toHaveLength(2);
+		for (const request of parsed) {
+			test.expect(request.code).toBe(200);
+			test.expect(request.error).toBe('');
+			test.expect(request.has83).toBe(true);
+		}
 	});
 
 	test('PHP curl receives decompressed body for brotli-compressed response', async ({

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Remote Access Frame</title>
+		<style>
+			html,
+			body,
+			iframe {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				border: 0;
+				padding: 0;
+				background: #ffffff;
+			}
+		</style>
+	</head>
+	<body>
+		<script>
+			const params = new URLSearchParams(window.location.search);
+			let wpFrame = createWordPressFrame();
+
+			function getScopedUrl() {
+				return normalizeScopedUrl(params.get('src'));
+			}
+
+			function createWordPressFrame() {
+				const frame = document.createElement('iframe');
+				frame.id = 'wp';
+				frame.title = 'Remote WordPress site';
+				frame.sandbox =
+					'allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals';
+				frame.addEventListener('load', () => {
+					let href = frame.src;
+					try {
+						href = frame.contentWindow?.location.href || href;
+					} catch {
+						// Keep the src fallback if Chrome is between documents.
+					}
+					if (href === 'about:blank') {
+						return;
+					}
+					postToParent({
+						type: 'remote-access-frame-load',
+						href,
+					});
+				});
+				document.body.appendChild(frame);
+				return frame;
+			}
+
+			function normalizeScopedUrl(src) {
+				if (!src) {
+					return null;
+				}
+				const url = new URL(src, window.location.href);
+				if (url.origin !== window.location.origin) {
+					return null;
+				}
+				const scopePrefix = getScopePrefix();
+				if (scopePrefix && !url.pathname.startsWith(scopePrefix)) {
+					url.pathname = `${scopePrefix}${url.pathname}`;
+				}
+				return url.toString();
+			}
+
+			function getScopePrefix() {
+				const src = params.get('src');
+				if (!src) {
+					return null;
+				}
+				const url = new URL(src, window.location.href);
+				return url.pathname.match(/^\/scope:[^/]+/)?.[0] || null;
+			}
+
+			function postToParent(data) {
+				window.parent.postMessage(data, window.location.origin);
+			}
+
+			window.addEventListener('message', (event) => {
+				if (event.origin !== window.location.origin) {
+					return;
+				}
+				if (event.source === wpFrame.contentWindow) {
+					postToParent({
+						type: 'remote-access-frame-message',
+						payload: event.data,
+					});
+					return;
+				}
+				if (
+					event.source === window.parent &&
+					event.data?.type === 'remote-access-frame-forward'
+				) {
+					wpFrame.contentWindow?.postMessage(
+						event.data.payload,
+						window.location.origin
+					);
+					return;
+				}
+			});
+
+			const scopedUrl = getScopedUrl();
+			if (scopedUrl) {
+				wpFrame.src = scopedUrl;
+			} else {
+				document.body.textContent =
+					'Remote access frame URL is invalid.';
+			}
+		</script>
+	</body>
+</html>

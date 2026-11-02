@@ -14,7 +14,22 @@ import {
 import { joinPaths } from '@php-wasm/util';
 import { getDirectoryPathForSlug } from './opfs-site-path';
 
-const BUNDLE_DIR_NAME = 'blueprint-bundle';
+export const BUNDLE_DIR_NAME = 'blueprint-bundle';
+
+export function isTraversableFilesystemBackend(
+	value: unknown
+): value is TraversableFilesystemBackend {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		typeof (value as Partial<TraversableFilesystemBackend>).read ===
+			'function' &&
+		typeof (value as Partial<TraversableFilesystemBackend>).listFiles ===
+			'function' &&
+		typeof (value as Partial<TraversableFilesystemBackend>).isDir ===
+			'function'
+	);
+}
 
 /**
  * Get the OPFS path for a site's blueprint bundle directory.
@@ -39,17 +54,28 @@ export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
 }
 
 /**
- * Copy files from a source filesystem to a site's blueprint bundle storage.
+ * Copies a Blueprint bundle into a site's OPFS directory.
+ *
+ * The returned backend points to the copied bundle. Callers creating a site can
+ * store it in the site's metadata without reopening the destination directory.
+ *
+ * A failed copy may leave partial files in the destination. Callers that need
+ * atomic creation are responsible for removing that destination during rollback.
+ *
+ * @param siteSlug The site that will own the copied bundle.
+ * @param source The bundle filesystem to copy.
+ * @returns The OPFS backend containing the copied bundle.
  */
 export async function persistBlueprintBundle(
 	siteSlug: string,
 	source: TraversableFilesystemBackend
-): Promise<void> {
+): Promise<OpfsFilesystemBackend> {
 	const destination = await OpfsFilesystemBackend.fromPath(
 		getBundlePath(siteSlug),
 		true
 	);
 	await copyFilesystem(source, destination);
+	return destination;
 }
 
 /**

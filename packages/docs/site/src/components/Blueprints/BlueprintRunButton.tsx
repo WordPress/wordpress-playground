@@ -1,8 +1,8 @@
 import React from 'react';
 
-export function BlueprintRunButton({ blueprint }) {
+export function BlueprintRunButton({ blueprint, blueprintUrl }) {
 	const [isRunning, setIsRunning] = React.useState(false);
-	if (!blueprint) {
+	if (!blueprint && !blueprintUrl) {
 		return null;
 	}
 	if (!isRunning) {
@@ -17,9 +17,15 @@ export function BlueprintRunButton({ blueprint }) {
 			</button>
 		);
 	}
-	const url = `https://playground.wordpress.net/?mode=seamless#${btoa(
-		typeof blueprint === 'string' ? blueprint : JSON.stringify(blueprint)
-	)}`;
+	const url = blueprintUrl
+		? `https://playground.wordpress.net/?mode=seamless&blueprint-url=${encodeURIComponent(
+				blueprintUrl
+			)}`
+		: `https://playground.wordpress.net/?mode=seamless#${btoa(
+				typeof blueprint === 'string'
+					? blueprint
+					: JSON.stringify(blueprint)
+			)}`;
 	return (
 		<iframe
 			style={{

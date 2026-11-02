@@ -1,4 +1,4 @@
-import { Semaphore } from '@php-wasm/util';
+import { decodeBase64ToUint8Array, Semaphore } from '@php-wasm/util';
 import { Octokit } from 'octokit';
 import type { Changeset } from './changeset';
 
@@ -118,21 +118,11 @@ async function getFileContent(
 		return {
 			name: item.name,
 			path: item.path,
-			content: base64ToUint8Array(fileContent.content),
+			content: decodeBase64ToUint8Array(fileContent.content),
 		};
 	} finally {
 		release();
 	}
-}
-
-function base64ToUint8Array(base64: string) {
-	const binaryString = window.atob(base64); // This will convert base64 to binary string
-	const len = binaryString.length;
-	const bytes = new Uint8Array(len);
-	for (let i = 0; i < len; i++) {
-		bytes[i] = binaryString.charCodeAt(i);
-	}
-	return bytes;
 }
 
 /**

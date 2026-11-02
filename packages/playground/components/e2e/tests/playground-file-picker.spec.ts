@@ -309,6 +309,60 @@ test('renaming a directory keeps it expanded with its children', async ({
 	).toBeVisible();
 });
 
+test('preserves backslashes and spaces in renamed entries', async ({
+	page,
+}) => {
+	await expandToPath(page, 'wordpress/wp-content/themes');
+	await nodeButton(page, 'wordpress/wp-content/themes').click({
+		button: 'right',
+	});
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+	const input = renameInput(page, 'wordpress/wp-content/themes');
+	const name = ' themes\\ ';
+	const renamedPath = `/wordpress/wp-content/${name}`;
+	await input.fill(name);
+	await input.press('Enter');
+
+	await expect
+		.poll(() =>
+			page.evaluate((path) => {
+				return Array.from(
+					document.querySelectorAll<HTMLElement>('[data-path]')
+				).some((element) => element.dataset.path === path);
+			}, renamedPath)
+		)
+		.toBe(true);
+	await expect(
+		page.evaluate((path) => {
+			return window.__filePickerHarness!.filesystem.isDir(path);
+		}, renamedPath)
+	).resolves.toBe(true);
+	await expect
+		.poll(() =>
+			page.evaluate(
+				() => (document.activeElement as HTMLElement)?.dataset.path
+			)
+		)
+		.toBe(renamedPath);
+
+	await page.keyboard.press('ArrowRight');
+	await expect
+		.poll(() =>
+			page.evaluate(
+				() => (document.activeElement as HTMLElement)?.dataset.path
+			)
+		)
+		.toBe(`${renamedPath}/twentytwentyone`);
+	await page.keyboard.press('ArrowLeft');
+	await expect
+		.poll(() =>
+			page.evaluate(
+				() => (document.activeElement as HTMLElement)?.dataset.path
+			)
+		)
+		.toBe(renamedPath);
+});
+
 test('escape cancels an in-progress rename', async ({ page }) => {
 	await expandToPath(page, 'wordpress/workspace');
 	await nodeButton(page, 'wordpress/workspace/index.php').click({

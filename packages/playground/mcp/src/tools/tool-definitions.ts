@@ -11,9 +11,16 @@ export interface ToolAnnotations {
 	destructiveHint?: boolean;
 	idempotentHint?: boolean;
 	openWorldHint?: boolean;
+	consequentialHint?: boolean;
+	untrustedContentHint?: boolean;
+	debugging?: boolean;
 }
 
-export type ToolParamType = 'string' | 'boolean' | 'object';
+export type ToolParamType =
+	| 'string'
+	| 'boolean'
+	| 'object'
+	| 'string_or_object';
 
 export interface ToolParam {
 	name: string;
@@ -34,8 +41,13 @@ export interface ToolDefinition {
 
 const PLAYGROUND_BASE_URL = 'https://playground.wordpress.net/';
 
-export function playgroundUrl(port: number): string {
-	return `${PLAYGROUND_BASE_URL}?mcp=yes&mcp-port=${port}`;
+export function playgroundUrl(port: number, baseUrl?: string): string {
+	if (!baseUrl) {
+		return `${PLAYGROUND_BASE_URL}?mcp-port=${port}`;
+	}
+	const url = new URL(baseUrl);
+	url.searchParams.set('mcp-port', String(port));
+	return url.toString();
 }
 
 // -- Per-site tool definitions --
@@ -67,6 +79,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
+			debugging: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -94,12 +108,48 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			   REST API for standard content CRUD — posts,
 			   pages, users, terms, comments, settings, etc.
 			   The REST API handles serialization, pagination,
-			   and field filtering for you.
-			2. Use playground_execute_php when the data you
+			   and field filtering for you. Prefer compact
+			   REST responses: use _fields to request only the
+			   fields needed and per_page/page for large
+			   collections. Before using endpoint-specific
+			   filters, inspect the route metadata from
+			   /wp-json/ and use only args documented for that
+			   route.
+			2. Use this tool with the WordPress REST API to
+			   discover and call registered abilities when the
+			   site exposes the Abilities API:
+			   - GET /wp-json/wp-abilities/v1/abilities
+			     lists registered abilities. Always assume this
+			     response may be large and start with _fields,
+			     e.g.
+			     /wp-json/wp-abilities/v1/abilities?_fields=name,category,label,description
+			     Do not assume filters like search or category
+			     exist unless /wp-json/ route metadata documents
+			     them.
+			   - GET /wp-json/wp-abilities/v1/abilities/{name}
+			     gets one ability, including schemas and
+			     metadata. Ability names include "/" in the
+			     path; do not encode it. For example, use
+			     /wp-json/wp-abilities/v1/abilities/memex/save-note
+			     for "memex/save-note".
+			   - GET, POST, or DELETE
+			     /wp-json/wp-abilities/v1/abilities/{name}/run
+			     executes the ability. Inspect the ability
+			     metadata first, then call /run with the
+			     documented method. POST bodies usually wrap
+			     arguments in an "input" object, e.g.
+			     {"input":{"title":"Hello"}}.
+			   - GET /wp-json/wp-abilities/v1/categories
+			     lists ability categories. Each category includes
+			     _links.abilities; follow that URL to list
+			     abilities in that category. The abilities
+			     collection can also be filtered directly with
+			     /wp-json/wp-abilities/v1/abilities?category={slug}.
+			3. Use playground_execute_php when the data you
 			   need is not exposed by the REST API (e.g.
 			   raw options, direct database queries, or
 			   custom table access).
-			3. Use this tool as a plain HTTP request (non-REST)
+			4. Use this tool as a plain HTTP request (non-REST)
 			   when the HTTP layer itself matters: verifying
 			   redirects, status codes, cookies, or response
 			   headers.
@@ -116,6 +166,9 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: false,
+			consequentialHint: true,
+			untrustedContentHint: true,
+			debugging: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -147,8 +200,9 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			},
 			{
 				name: 'body',
-				type: 'string',
-				description: 'Request body (for POST/PUT requests)',
+				type: 'string_or_object',
+				description: `Request body (for POST/PUT requests).
+					Accepts a JSON string or an object.`,
 				required: false,
 			},
 		],
@@ -220,6 +274,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: true,
 			destructiveHint: false,
+			untrustedContentHint: true,
 			openWorldHint: true,
 		},
 		params: [
@@ -251,6 +306,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -331,6 +387,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -357,6 +414,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -396,6 +454,32 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 				required: true,
 			},
 		],
+	},
+	playground_list_emails: {
+		title: 'List Captured Emails',
+		errorPrefix: 'Error listing emails',
+		description: `List every email the WordPress site has sent
+			so far. Playground has no mail server. Each
+			message WordPress attempts to send (password
+			resets, comment notifications, wp_mail() calls…)
+			is captured instead of being delivered. Use this
+			tool to read those messages, e.g. to verify that
+			a plugin sent an email or to retrieve a
+			confirmation link.
+
+			Returns the full inbox in send order. Each entry
+			contains the from/to/CC addresses, subject, date,
+			text and HTML bodies, and attachment metadata
+			(file name, MIME type, size). Attachment contents
+			are not included.`,
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			untrustedContentHint: true,
+			debugging: true,
+			openWorldHint: true,
+		},
+		params: [],
 	},
 };
 
@@ -531,10 +615,13 @@ export function paramsToJsonSchema(
 	const required: string[] = [];
 
 	for (const param of params) {
-		const prop: Record<string, unknown> = {
-			type: param.type,
-			description: param.description,
-		};
+		const prop: Record<string, unknown> = {};
+		if (param.type === 'string_or_object') {
+			prop['oneOf'] = [{ type: 'string' }, { type: 'object' }];
+		} else {
+			prop['type'] = param.type;
+		}
+		prop['description'] = param.description;
 		if (param.additionalProperties !== undefined) {
 			prop['additionalProperties'] = param.additionalProperties;
 		}
@@ -550,6 +637,7 @@ export function paramsToJsonSchema(
 	const schema: Record<string, unknown> = {
 		type: 'object',
 		properties,
+		additionalProperties: false,
 	};
 	if (required.length > 0) {
 		schema['required'] = required;

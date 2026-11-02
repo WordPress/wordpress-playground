@@ -134,13 +134,38 @@
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
 
+			prNumber = prNumber.trim();
+
 			// Extract number from a GitHub URL
-			if (
-				prNumber
-					.toLowerCase()
-					.includes('github.com/wordpress/wordpress-develop/pull')
-			) {
-				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
+			const wordpressDevelopPr = prNumber.match(
+				/github\.com\/wordpress\/wordpress-develop\/pull\/(\d+)/i
+			);
+			if (wordpressDevelopPr) {
+				prNumber = wordpressDevelopPr[1];
+			}
+
+			if (!/^\d+$/.test(prNumber)) {
+				if (
+					prNumber
+						.toLowerCase()
+						.includes('github.com/wordpress/gutenberg/pull')
+				) {
+					const link = document.createElement('a');
+					link.href = './gutenberg.html';
+					link.textContent = 'Gutenberg PR previewer';
+					errorDiv.replaceChildren(
+						'This looks like a Gutenberg PR. Use the ',
+						link,
+						' instead.'
+					);
+				} else {
+					errorDiv.innerText =
+						'Please enter a valid wordpress-develop PR number or URL.';
+				}
+				submitting = false;
+				submitButton.classList.remove('loading');
+				submitButton.disabled = false;
+				return;
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it

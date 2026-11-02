@@ -8,9 +8,9 @@ Here's how to use it:
 import { PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { loadWebRuntime } from '@php-wasm/web';
 
-// loadWebRuntime() calls import('php.wasm').
-// Your bundler must resolve import('php.wasm') as a static file URL.
-// If you use Webpack, you can use the file-loader to do so.
+// The PHP loader resolves its own .wasm file with
+// new URL('./8_5_10/php_8_5.wasm', import.meta.url).
+// See "Usage with bundlers" below for the options each bundler still needs.
 const php = new PHP(await loadWebRuntime('8.5'));
 
 let response;
@@ -98,20 +98,132 @@ on bundlers.
 To resolve that error, you'll need to configure your bundler to resolve the import above to the URL
 of the `icu.dat` in your app, e.g. `https://playground.wordpress.net/assets/icu.dat`.
 
+### ES module output is required
+
+Build your app to ES modules. Each PHP loader resolves its `.wasm` file with
+`new URL('./8_5_10/php_8_5.wasm', import.meta.url)`, and `import.meta.url` only exists in an ES module.
+A `cjs` or `iife` bundle replaces `import.meta` with an empty object, so `new URL()` throws
+`TypeError: Invalid URL` when PHP loads. The published `index.cjs` entry point is not affected: it
+loads the ES module loader with a native dynamic `import()`.
+
+### Vite
+
 In Vite, you can use the following options to support importing all the required assets types:
 
 ```js
 export default defineConfig({
-	assetsInclude: [/\.dat$/, /\.wasm$/, /\.so$/, /\.la$/],
+	assetsInclude: [/\.dat$/, /\.so$/, /\.la$/],
 	optimizeDeps: {
 		exclude: ['@php-wasm/web'],
 	},
 });
 ```
 
+`optimizeDeps.exclude` is required. Without it, the Vite dev server pre-bundles the PHP loader into
+`node_modules/.vite`, `new URL('./8_5_10/php_8_5.wasm', import.meta.url)` resolves against that
+directory, and the request for the `.wasm` file returns 404.
+
+### webpack 5
+
+webpack 5 resolves `new URL('./8_5_10/php_8_5.wasm', import.meta.url)` on its own and emits the
+`.wasm` file as an asset. An earlier version of this README asked you to add a `file-loader` rule for
+`.wasm`. Delete that rule: `file-loader` also matches the `new URL()` asset and returns the string
+`[object%20Module]`, so PHP never starts. Keep the rule only if other code still imports `.wasm`
+files, and exclude URL dependencies from it:
+
+```js
+{
+	test: /\.wasm$/,
+	loader: 'file-loader',
+	dependency: { not: ['url'] },
+}
+```
+
+### esbuild
+
+esbuild leaves `new URL(..., import.meta.url)` as written. Builds no longer need
+`--loader:.wasm=file`, but you must serve the PHP version directories, such as `8_5_10/`, next to the
+bundle.
+
+### Library authors
+
+If you publish a library that depends on `@php-wasm/web`, mark the PHP version packages as external
+and let the app bundler resolve them from its own `node_modules`. Vite library mode inlines every
+`new URL()` asset as a base64 data URI and offers no option to disable that, so a library that bundles
+the version packages ships all 16 PHP binaries, over 600 MB, inside its JavaScript.
+
+```js
+export default defineConfig({
+	build: {
+		lib: {
+			entry: 'src/index.ts',
+			formats: ['es'],
+		},
+		rollupOptions: {
+			external: [/^@php-wasm\/web-\d+-\d+$/],
+		},
+	},
+});
+```
+
+`@php-wasm/web` declares every version package in its `dependencies`, so npm installs them next to
+your library and the app bundler finds them.
+
 Other bundlers will typically have analogous options or plugins. If you create a working configuration for
-WebPack, esbuild, or another bundler, feel free to propose a new configuration example for this README at
+another bundler, feel free to propose a new configuration example for this README at
 https://github.com/WordPress/wordpress-playground/edit/trunk/packages/php-wasm/web/README.md
+
+## Saving symlinks in directory-handle mounts
+
+A link such as `wp-content/plugins/demo -> ../../shared/demo` must keep its
+target string. Copying the linked directory loses that information, and following
+a link to `.` can loop forever.
+
+The [File System standard](https://fs.spec.whatwg.org/#concepts) has file and
+directory entries, but no symlink entries. Directory-handle mounts therefore
+store links in a reserved `.playground-symlinks.json` file at the mount root:
+
+```json
+{
+	"format": "wordpress-playground-symlinks",
+	"version": 1,
+	"links": {
+		"/wp-content/plugins/demo": "../../shared/demo"
+	}
+}
+```
+
+Keys start at the mount root, not the PHP filesystem root. Targets are stored
+unchanged, including relative paths, absolute paths, broken links, and cycles.
+The link itself has no file or directory entry in OPFS. On restore, real files
+and directories are copied first, then links are created in the PHP filesystem.
+The index is not exposed as a PHP file.
+
+Journaled link changes save the index once per batch. A failed index write stays
+pending for the next flush, without replaying file operations that already
+completed.
+
+File changes and the index are saved separately. If a save is interrupted,
+restore keeps real files and directories and skips stale links whose paths are
+occupied or whose parents are missing or no longer directories. Each skipped
+link is logged as a warning and removed from the saved index, so creating its
+parent later cannot bring it back. Other errors, including a failed index
+update, still fail the mount and can be retried.
+
+The same format applies to local folders mounted through a directory handle.
+Their saved links are records in this JSON file, not native host symlinks.
+A real PHP file at the reserved root path is rejected. Invalid saved indexes
+also fail the mount instead of being ignored or overwritten.
+
+The format marker is required before a root file is treated as link metadata.
+An unmarked file, even one matching the JSON shape used by earlier drafts of
+this change, causes mounting and saving to fail without changing that file.
+There is no automatic migration: move an ordinary file to another name, or
+back up an old index and add the marker only after confirming it is link metadata.
+
+Older saves that copied link targets cannot recover the original link. Recreate
+the link in PHP and save again. Older versions of this mount code cannot read
+this format and will load the JSON file as an ordinary file instead.
 
 ## Attribution
 

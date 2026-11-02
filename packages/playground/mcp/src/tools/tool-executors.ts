@@ -9,6 +9,7 @@
 
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type { PHPRequest } from '@php-wasm/universal';
+import type { Address, Email } from 'postal-mime';
 
 /**
  * Minimal client interface consumed by tool executors.
@@ -41,6 +42,27 @@ export interface ToolClient {
 	unlink(path: string): Promise<void>;
 	rmdir(path: string, options: { recursive: boolean }): Promise<void>;
 	fileExists(path: string): Promise<boolean>;
+	listEmails(): Promise<EmailSummary[]>;
+}
+
+/**
+ * JSON-serializable view of a captured email. Attachment contents are
+ * dropped on purpose: they may be megabytes of binary data and would not
+ * survive the JSON transport between the browser and the MCP server.
+ */
+export interface EmailSummary {
+	from?: string;
+	to?: string[];
+	cc?: string[];
+	subject?: string;
+	date?: string;
+	text?: string;
+	html?: string;
+	attachments: Array<{
+		filename: string | null;
+		mimeType: string;
+		size: number;
+	}>;
 }
 
 export interface SiteInfo {
@@ -86,18 +108,26 @@ async function executeSiteInfo(client: ToolClient): Promise<SiteInfo> {
 
 export const toolExecutors: Record<
 	string,
-	(client: ToolClient, input: Record<string, unknown>) => Promise<unknown>
+	(
+		client: ToolClient,
+		input: Record<string, unknown>,
+		signal?: AbortSignal
+	) => Promise<unknown>
 > = {
 	playground_execute_php: (client, input) =>
 		client.run({ code: input['code'] as string }),
 
-	playground_request: async (client, input) => {
+	playground_request: async (client, input, signal) => {
 		const url = input['url'] as string;
 		const method = (input['method'] as string) ?? 'GET';
 		const headers = {
 			...((input['headers'] as Record<string, string>) ?? {}),
 		};
-		const body = input['body'] as string | undefined;
+		const rawBody = input['body'];
+		const body =
+			typeof rawBody === 'object' && rawBody !== null
+				? JSON.stringify(rawBody)
+				: (rawBody as string | undefined);
 
 		try {
 			const parsedUrl = new URL(url, 'http://localhost');
@@ -130,9 +160,11 @@ export const toolExecutors: Record<
 				const nonceUrl = `/wp-content/mcp-nonce-${nonceId}.php`;
 				const nonceCode =
 					"<?php require_once '/wordpress/wp-load.php'; echo wp_create_nonce('wp_rest');";
+				signal?.throwIfAborted();
 				await client.writeFile(noncePath, nonceCode);
 				let nonce = '';
 				try {
+					signal?.throwIfAborted();
 					const nonceResp = await client.request({
 						url: nonceUrl,
 						method: 'GET',
@@ -149,6 +181,9 @@ export const toolExecutors: Record<
 			// Nonce generation failed — proceed without it.
 		}
 
+		// PHP requests already running cannot be interrupted. Stop before the
+		// requested mutation if cancellation arrived during nonce preparation.
+		signal?.throwIfAborted();
 		return await client.request({ url, method, headers, body });
 	},
 
@@ -200,14 +235,19 @@ export const toolExecutors: Record<
 	playground_file_exists: async (client, input) => ({
 		exists: await client.fileExists(input['path'] as string),
 	}),
+
+	playground_list_emails: async (client) => ({
+		emails: await client.listEmails(),
+	}),
 };
 
 /**
  * Wrap a PlaygroundClient as a ToolClient.
  *
- * Most methods pass through directly. Only `run` and `request`
- * are intercepted to decode PHP/HTTP response bytes into plain
- * strings via TextDecoder.
+ * Most methods pass through directly. `run` and `request` are
+ * intercepted to decode PHP/HTTP response bytes into plain strings
+ * via TextDecoder, and `listEmails` condenses the captured emails
+ * into JSON-serializable summaries.
  */
 export function createToolClient(client: PlaygroundClient): ToolClient {
 	const decoder = new TextDecoder();
@@ -233,6 +273,10 @@ export function createToolClient(client: PlaygroundClient): ToolClient {
 				headers: resp.headers,
 			};
 		},
+		async listEmails() {
+			const emails = await client.email();
+			return emails.map(summarizeEmail);
+		},
 	};
 	return new Proxy(client as unknown as ToolClient, {
 		get: (target, prop: string) => {
@@ -244,4 +288,36 @@ export function createToolClient(client: PlaygroundClient): ToolClient {
 			return typeof val === 'function' ? val.bind(target) : val;
 		},
 	});
+}
+
+function summarizeEmail(email: Email): EmailSummary {
+	return {
+		from: email.from ? formatAddress(email.from) : undefined,
+		to: email.to?.map(formatAddress),
+		cc: email.cc?.map(formatAddress),
+		subject: email.subject,
+		date: email.date,
+		text: email.text,
+		html: email.html,
+		attachments: (email.attachments ?? []).map((attachment) => ({
+			filename: attachment.filename,
+			mimeType: attachment.mimeType,
+			size:
+				typeof attachment.content === 'string'
+					? attachment.content.length
+					: (attachment.content?.byteLength ?? 0),
+		})),
+	};
+}
+
+function formatAddress(address: Address): string {
+	if (address.group) {
+		return `${address.name}: ${address.group
+			.map(formatAddress)
+			.join(', ')};`;
+	}
+	if (address.name && address.address) {
+		return `${address.name} <${address.address}>`;
+	}
+	return address.address || address.name || '';
 }

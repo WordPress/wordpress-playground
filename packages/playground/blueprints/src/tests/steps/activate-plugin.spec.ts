@@ -313,9 +313,60 @@ describe('Blueprint step activatePlugin()', () => {
 			activatePlugin(php, {
 				pluginPath: 'error-log-plugin.php',
 			})
-		).rejects.toThrow(
-			/PHP error log:[\s\S]*marker-from-activation-hook/
+		).rejects.toThrow(/PHP error log:[\s\S]*marker-from-activation-hook/);
+	});
+
+	it('uses a distinct scratch log for each concurrent activation', async () => {
+		const activationLogPaths: string[] = [];
+		const playground = {
+			documentRoot: '/wordpress',
+			fileExists: vi.fn().mockResolvedValue(false),
+			run: vi.fn().mockImplementation(async ({ env }) => {
+				if (env?.ACTIVATION_LOG) {
+					activationLogPaths.push(env.ACTIVATION_LOG);
+					return { text: '', headers: {} };
+				}
+				return { text: '{"success": true}', headers: {} };
+			}),
+		};
+
+		await Promise.all([
+			activatePlugin(playground as any, { pluginPath: 'first.php' }),
+			activatePlugin(playground as any, { pluginPath: 'second.php' }),
+		]);
+
+		expect(new Set(activationLogPaths).size).toBe(2);
+		expect(activationLogPaths).toEqual([
+			expect.stringMatching(
+				/^\/tmp\/playground-activate-plugin-[a-zA-Z0-9]+\.log$/
+			),
+			expect.stringMatching(
+				/^\/tmp\/playground-activate-plugin-[a-zA-Z0-9]+\.log$/
+			),
+		]);
+	});
+
+	it('removes the scratch log when the activation request throws', async () => {
+		let activationLogPath = '';
+		const playground = {
+			documentRoot: '/wordpress',
+			fileExists: vi.fn().mockResolvedValue(true),
+			readFileAsText: vi.fn().mockResolvedValue('activation failure'),
+			unlink: vi.fn().mockResolvedValue(undefined),
+			run: vi.fn().mockImplementation(async ({ env }) => {
+				activationLogPath = env.ACTIVATION_LOG;
+				throw new Error('PHP request failed');
+			}),
+		};
+
+		await expect(
+			activatePlugin(playground as any, { pluginPath: 'failing.php' })
+		).rejects.toThrow('PHP request failed');
+
+		expect(playground.readFileAsText).toHaveBeenCalledWith(
+			activationLogPath
 		);
+		expect(playground.unlink).toHaveBeenCalledWith(activationLogPath);
 	});
 
 	it('should not throw an error if the plugin is already active', async () => {

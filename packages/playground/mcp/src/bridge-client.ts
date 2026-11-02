@@ -157,7 +157,6 @@ async function handleCommand(
 ): Promise<unknown> {
 	if (method === '__open_site_in_new_tab') {
 		const url = new URL(window.location.href);
-		url.searchParams.set('mcp', 'yes');
 		url.searchParams.set('mcp-port', String(port));
 		url.searchParams.set('site-slug', siteSlug);
 		const newWindow = window.open(url.toString(), '_blank');

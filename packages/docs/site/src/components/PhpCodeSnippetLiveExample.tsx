@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import type { ExampleName } from './PhpCodeSnippetLiveExample.examples';
 
-const SCRIPT_URL = 'https://playground.wordpress.net/php-code-snippet.js';
+// In dev, load the local Playground website script so docs previews exercise
+// uncommitted php-code-snippet.js changes. Production docs still use the hosted
+// script and keep a query string to avoid stale one-year browser caches.
+const SCRIPT_URL =
+	process.env.NODE_ENV === 'development'
+		? 'http://127.0.0.1:5400/website-server/php-code-snippet.js'
+		: 'https://playground.wordpress.net/php-code-snippet.js?v=selected-text-visible';
 
 function usePhpSnippetScript() {
 	useEffect(() => {
@@ -23,11 +29,13 @@ function usePhpSnippetExample(name: ExampleName) {
 		let isCurrent = true;
 
 		setHtml(undefined);
-		void import('./PhpCodeSnippetLiveExample.examples').then(({ examples }) => {
-			if (isCurrent) {
-				setHtml(examples[name]);
+		void import('./PhpCodeSnippetLiveExample.examples').then(
+			({ examples }) => {
+				if (isCurrent) {
+					setHtml(examples[name]);
+				}
 			}
-		});
+		);
 
 		return () => {
 			isCurrent = false;

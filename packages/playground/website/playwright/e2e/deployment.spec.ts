@@ -8,7 +8,11 @@ import { startVersionSwitchingServer as startServer } from '../version-switching
 test.describe.configure({ mode: 'serial' });
 
 const port = 7999;
-const url = new URL(`http://localhost:${port}`);
+const host =
+	process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1'
+		? 'playground.localhost'
+		: 'localhost';
+const url = new URL(`http://${host}:${port}`);
 // Disable login because an old WP build used in this test
 // blocks auto-login. This is because it has an admin user
 // with an expired email verification window. If we do not
@@ -73,12 +77,17 @@ for (const cachingEnabled of [true, false]) {
 		server!.switchToNewVersion();
 		await page.goto(url.href);
 		await website.waitForNestedIframes();
-		await expect(
-			website.page.getByLabel('Open Site Manager')
-		).toBeVisible();
+		await website.waitForPlaygroundShell();
 		await expect(wordpress.locator('body')).toContainText(
 			'My WordPress Website'
 		);
+		if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+			expect(
+				await wordpress
+					.locator('body')
+					.evaluate(() => window.location.origin)
+			).toBe(`http://wp.playground.localhost:${port}`);
+		}
 	});
 }
 
@@ -155,7 +164,7 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.goto(`${url}`);
 	await website.waitForNestedIframes();
 
-	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);
@@ -171,8 +180,15 @@ test('offline mode – the app should load even when the server goes offline', a
 	await page.reload();
 	await website.waitForNestedIframes();
 
-	await expect(website.page.getByLabel('Open Site Manager')).toBeVisible();
+	await website.waitForPlaygroundShell();
 	await expect(wordpress.locator('body')).toContainText(
 		'My WordPress Website'
 	);
+	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+		expect(
+			await wordpress
+				.locator('body')
+				.evaluate(() => window.location.origin)
+		).toBe(`http://wp.playground.localhost:${port}`);
+	}
 });

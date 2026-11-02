@@ -46,6 +46,10 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
     }
 
     $host = $parsedUrl['host'];
+    $port = $parsedUrl['port'] ?? ($parsedUrl['scheme'] === 'https' ? 443 : 80);
+    if ($port < 1 || $port > 65535) {
+        throw new CorsProxyException("Invalid port");
+    }
 
     if (
         ( isset( $_SERVER['HTTP_HOST'] ) &&
@@ -56,13 +60,17 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
         throw new CorsProxyException("URL cannot target the CORS proxy host.");
     }
 
-    // Ensure the hostname does not resolve to a private IP
+    // Resolve IPv4 only. The connection must use this same address family
+    // and the validated IP, never a second DNS lookup (including AAAA).
     $resolved_ips = $resolve_function($host);
-    if ($resolved_ips === false) {
+    if (empty($resolved_ips)) {
         throw new CorsProxyException("Hostname could not be resolved");
     }
 
     foreach ($resolved_ips as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new CorsProxyException("Invalid IPv4 address");
+        }
         if (is_private_ip($ip)) {
             throw new CorsProxyException("Private IPs are forbidden");
         }
@@ -70,8 +78,25 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
 
     return [
         'host' => $host,
-        'ip' => $resolved_ips[0]
+        'ip' => $resolved_ips[0],
+        'port' => $port,
     ];
+}
+
+/**
+ * Bind the connection to the validated destination. Keep the URL's hostname
+ * for HTTP Host and TLS verification, but never resolve it again in cURL.
+ */
+function set_curl_destination($ch, $resolved) {
+    if (!curl_setopt_array($ch, [
+        CURLOPT_RESOLVE => ["{$resolved['host']}:{$resolved['port']}:{$resolved['ip']}"],
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        // An environment-configured HTTP/SOCKS proxy could resolve the
+        // target itself, bypassing our validated address entirely.
+        CURLOPT_PROXY => '',
+    ])) {
+        throw new CorsProxyException("Could not pin the target address");
+    }
 }
 
 if (!function_exists('is_private_ip')) {
@@ -372,13 +397,66 @@ function kv_headers_to_curl_format($headers) {
     return $curl_headers;
 }
 
+/**
+ * Answers whether a response header instructs the web server or CDN in
+ * front of PHP rather than the client.
+ *
+ * For example, nginx performs an internal redirect when PHP sends
+ * X-Accel-Redirect. The proxy must not relay these from a target, or the
+ * target could control the proxy's own server.
+ */
+function is_server_control_response_header($name) {
+    $name = strtolower($name);
+    $prefixes = [
+        // nginx: X-Accel-Redirect, X-Accel-Expires, X-Accel-Buffering, etc.
+        'x-accel-',
+        // LiteSpeed: X-LiteSpeed-Location, X-LiteSpeed-Cache-Control, etc.
+        'x-litespeed-',
+    ];
+    foreach ($prefixes as $prefix) {
+        if (str_starts_with($name, $prefix)) {
+            return true;
+        }
+    }
+    // CDN-targeted cache control. RFC 9213 defines CDN-Cache-Control and
+    // names CDN-specific variants the same way, e.g.
+    // Cloudflare-CDN-Cache-Control. A CDN obeys these over Cache-Control, so
+    // relaying one would override the proxy's Cache-Control: no-cache.
+    if (
+        $name === 'cdn-cache-control' ||
+        str_ends_with($name, '-cdn-cache-control')
+    ) {
+        return true;
+    }
+    return in_array($name, [
+        // Apache mod_xsendfile. X-Sendfile-Temporary also deletes the file
+        // after sending it when the server allows that.
+        'x-sendfile',
+        'x-sendfile-temporary',
+        // lighttpd.
+        'x-sendfile2',
+        'x-lighttpd-send-file',
+        // Other cache directives aimed at CDNs rather than browsers.
+        'surrogate-control',
+        'edge-control',
+        // CGI and FastCGI servers take the response status from this header,
+        // overriding the status PHP would send.
+        'status',
+    ], true);
+}
+
 function rewrite_relative_redirect(
     $request_url,
     $redirect_location,
     $proxy_absolute_url
 ) {
-    $target_hostname = parse_url($request_url, PHP_URL_HOST);
+    $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
     if (!parse_url($redirect_location, PHP_URL_HOST)) {
+        $target_authority = parse_url($request_url, PHP_URL_HOST);
+        $target_port = parse_url($request_url, PHP_URL_PORT);
+        if ($target_port !== null) {
+            $target_authority .= ':' . $target_port;
+        }
         $redirect_path = parse_url($redirect_location, PHP_URL_PATH);
         if ($redirect_path && $redirect_path[0] !== '/') {
             $request_path = parse_url($request_url, PHP_URL_PATH);
@@ -386,12 +464,9 @@ function rewrite_relative_redirect(
             $redirect_location = $request_path_parent . '/' . $redirect_path;
         }
 
-        $redirect_location = $target_hostname . $redirect_location;
-    }
-
-    if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
-        $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
-        $redirect_location = "$target_scheme://$redirect_location";
+        $redirect_location = "$target_scheme://$target_authority$redirect_location";
+    } else if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
+        $redirect_location = "$target_scheme:$redirect_location";
     }
 
     $last_char = $proxy_absolute_url[strlen($proxy_absolute_url) - 1];
@@ -426,28 +501,200 @@ function should_respond_with_cors_headers($host, $origin) {
         return false;
     }
 
-    $supported_origins = array(
-        'https://playground-preview.test',
-        'https://playground.wordpress.net',
-        'http://localhost',
-        'http://127.0.0.1',
-        'http://127.0.0.1:5400',
-        'http://localhost:5400',
-        'http://127.0.0.1:5401',
-        'http://localhost:5401',
-        'http://127.0.0.1:4400',
-        'http://localhost:4400',
-    );
+    $supported_origin_rules = [
+        ['type' => 'match-exact', 'origin' => 'https://playground-preview.test'],
+        ['type' => 'match-exact', 'origin' => 'https://playground.wordpress.net'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1:5400'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost:5400'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1:5401'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost:5401'],
+        ['type' => 'match-exact', 'origin' => 'http://127.0.0.1:4400'],
+        ['type' => 'match-exact', 'origin' => 'http://localhost:4400'],
+    ];
     if (
-        defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS') &&
-        is_array(PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS)
+        defined('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES') &&
+        is_array(PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES)
     ) {
-        $supported_origins = PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS;
+        $supported_origin_rules =
+            PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGIN_RULES;
     }
 
-    return in_array(
-        $origin,
-        $supported_origins,
-        true
+    return is_cors_proxy_origin_supported($origin, $supported_origin_rules);
+}
+
+/**
+ * Whether an origin matches one of the configured origin rules.
+ */
+function is_cors_proxy_origin_supported($origin, $supported_origin_rules) {
+    $origin_parts = parse_cors_proxy_origin($origin);
+    if ($origin_parts === false) {
+        return false;
+    }
+
+    foreach ($supported_origin_rules as $supported_origin_rule) {
+        if (!is_array($supported_origin_rule)) {
+            continue;
+        }
+
+        $rule_type = $supported_origin_rule['type'] ?? null;
+
+        if ($rule_type === 'match-exact') {
+            $supported_origin = $supported_origin_rule['origin'] ?? null;
+            if (!is_string($supported_origin)) {
+                continue;
+            }
+
+            if ($origin === $supported_origin) {
+                return true;
+            }
+
+            continue;
+        }
+
+        if ($rule_type === 'match-subdomain') {
+            if (
+                cors_proxy_origin_matches_subdomain_rule(
+                    $origin,
+                    $origin_parts,
+                    $supported_origin_rule
+                )
+            ) {
+                return true;
+            }
+
+            continue;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Whether a parsed origin matches a subdomain rule.
+ */
+function cors_proxy_origin_matches_subdomain_rule(
+    $origin,
+    $origin_parts,
+    $supported_origin_rule
+) {
+    $required_scheme = $supported_origin_rule['scheme'] ?? null;
+    if ($required_scheme !== 'http' && $required_scheme !== 'https') {
+        return false;
+    }
+
+    $required_host = $supported_origin_rule['host'] ?? null;
+    if (!is_string($required_host) || $required_host === '') {
+        return false;
+    }
+
+    if (!array_key_exists('port', $supported_origin_rule)) {
+        return false;
+    }
+
+    $required_port = $supported_origin_rule['port'];
+    if ($required_port !== null && !is_int($required_port)) {
+        return false;
+    }
+
+    if (
+        $required_port !== null &&
+        ($required_port < 1 || $required_port > 65535)
+    ) {
+        return false;
+    }
+
+    $first_dot = strpos($origin_parts['host'], '.');
+    if ($first_dot === false || $first_dot === 0) {
+        return false;
+    }
+
+    $origin_first_host_label = substr(
+        $origin_parts['host'],
+        0,
+        $first_dot
     );
+
+    $port_suffix = '';
+    if ($required_port !== null) {
+        $port_suffix = ":{$required_port}";
+    }
+
+    $expected_host = "{$origin_first_host_label}.{$required_host}";
+    $expected_origin =
+        "{$required_scheme}://{$expected_host}{$port_suffix}";
+
+    return strcasecmp($origin, $expected_origin) === 0;
+}
+
+/**
+ * Parses a concrete HTTP(S) origin into the fields used by origin rules.
+ */
+function parse_cors_proxy_origin($origin) {
+    if (!is_string($origin)) {
+        return false;
+    }
+
+    if ($origin === '') {
+        return false;
+    }
+
+    if (str_contains($origin, '*')) {
+        return false;
+    }
+
+    if (filter_var($origin, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+
+    $origin_parts = parse_url($origin);
+    if ($origin_parts === false) {
+        return false;
+    }
+
+    $scheme = $origin_parts['scheme'] ?? null;
+    if ($scheme !== 'http' && $scheme !== 'https') {
+        return false;
+    }
+
+    $host = $origin_parts['host'] ?? null;
+    if (!is_string($host) || $host === '') {
+        return false;
+    }
+
+    if (isset($origin_parts['user'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['pass'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['path'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['query'])) {
+        return false;
+    }
+
+    if (isset($origin_parts['fragment'])) {
+        return false;
+    }
+
+    $port = $origin_parts['port'] ?? null;
+    if ($port !== null && $port < 1) {
+        return false;
+    }
+
+    if ($port !== null && $port > 65535) {
+        return false;
+    }
+
+    return [
+        'scheme' => $scheme,
+        'host' => $host,
+        'port' => $port,
+    ];
 }

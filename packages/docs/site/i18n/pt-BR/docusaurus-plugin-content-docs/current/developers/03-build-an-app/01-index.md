@@ -52,7 +52,10 @@ O WordPress Playground fornece três APIs que você pode usar para controlar o s
 
 - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
 - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
+
+<!-- - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm -->
+
+- [API JavaScript](/developers/apis/javascript-api): oferece controle total por meio de um cliente JavaScript carregado de `playground.wordpress.net` ou instalado pelo npm
 
 <!-- Learn more about each of these APIs in the [APIs overview section](/developers/apis/). -->
 
@@ -202,32 +205,23 @@ blueprint={{
 			"password": "password"
 		},
 		{
-			"step": "mkdir",
-			"path": "/wordpress/pr"
-		},
-		{
 			"step": "writeFile",
-			"path": "/wordpress/pr/pr.zip",
+			"path": "/tmp/gutenberg.zip",
 			"data": {
 				"resource": "url",
-				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=60819",
-				"caption": "Downloading Gutenberg PR 47739"
+				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=60819",
+				"caption": "Downloading Gutenberg PR 60819"
 			},
 			"progress": {
 				"weight": 2,
-				"caption": "Applying Gutenberg PR 47739"
+				"caption": "Applying Gutenberg PR 60819"
 			}
-		},
-		{
-			"step": "unzip",
-			"zipPath": "/wordpress/pr/pr.zip",
-			"extractToPath": "/wordpress/pr"
 		},
 		{
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "vfs",
-				"path": "/wordpress/pr/gutenberg.zip"
+				"path": "/tmp/gutenberg.zip"
 			}
 		}
 	]
@@ -282,18 +276,20 @@ Com JSON Blueprints, você usaria a propriedade `preferredVersions`:
 
 ## Executar código PHP no navegador
 
-<!-- The JavaScript API provides the `run()` method which you can use to run PHP code in the browser: -->
+<!-- The JavaScript API provides the `run()` method which you can use to run PHP code in the browser. This example loads the client directly from `playground.wordpress.net`, so no npm installation or build step is required. See the [JavaScript API quick start](/developers/apis/javascript-api#quick-start) for setup instructions and the npm alternative. -->
 
-A API JavaScript fornece o método `run()` que você pode usar para executar código PHP no navegador:
+A API JavaScript oferece o método `run()` para executar código PHP no navegador. Este exemplo carrega o cliente diretamente de `playground.wordpress.net`, sem instalar pacotes pelo npm nem compilar o projeto. Consulte o [início rápido da API JavaScript](../06-apis/javascript-api/01-index.md#início-rápido) para ver as instruções de configuração e a alternativa com npm.
 
 ```html
 <iframe id="wp"></iframe>
 <script type="module">
+	const { startPlaygroundWeb } = await import('https://playground.wordpress.net/client/index.js');
+
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),
 		remoteUrl: 'https://playground.wordpress.net/remote.html',
 	});
-	await client.isReady;
+	await client.isReady();
 	await client.run({
 		code: `<?php
 		require("/wordpress/wp-load.php");
@@ -302,7 +298,7 @@ A API JavaScript fornece o método `run()` que você pode usar para executar có
 		echo "Site title updated!";
 		`,
 	});
-	client.goTo('/');
+	await client.goTo('/');
 </script>
 ```
 

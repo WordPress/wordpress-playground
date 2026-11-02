@@ -24,10 +24,21 @@ describe('Test WP version detection', async () => {
 						await loadNodeRuntime(RecommendedPHPVersion),
 					siteUrl: 'http://playground-domain/',
 					wordPressZip: await getWordPressModule(
-						expectedWordPressVersion
+						expectedWordPressVersion === 'trunk'
+							? undefined
+							: expectedWordPressVersion
 					),
 					sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 				});
+				if (expectedWordPressVersion === 'trunk') {
+					// Avoid live GitHub master.zip; detection only needs
+					// a trunk-style version.php value.
+					const php = await handler.getPrimaryPhp();
+					php.writeFile(
+						`${handler.documentRoot}/wp-includes/version.php`,
+						'<?php $wp_version = "6.6-alpha-57783";'
+					);
+				}
 				const loadedWordPressVersion =
 					await getLoadedWordPressVersion(handler);
 				expect(loadedWordPressVersion).to.equal(

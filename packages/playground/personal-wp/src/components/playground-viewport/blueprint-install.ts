@@ -10,6 +10,7 @@ import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import { analyzeBlueprint } from '../../lib/blueprint-confirmation';
 import type { BlueprintWarning } from '../../lib/blueprint-confirmation';
+import type { BlueprintInstallUsageStatsRequestSource } from '../../lib/personalwp/usage-stats';
 
 export type RemoteBlueprintInstall = {
 	blueprintUrl: string;
@@ -24,7 +25,12 @@ export type BlueprintInstallPreview = {
 	json: string;
 };
 
-const TRUSTED_BLUEPRINT_INSTALL_PATHS = ['/my-apps/'];
+const TRUSTED_BLUEPRINT_INSTALL_SOURCES: Record<
+	string,
+	BlueprintInstallUsageStatsRequestSource
+> = {
+	'/my-apps/': 'my-apps',
+};
 
 export async function prepareBlueprintForRemoteInstall(
 	blueprintUrl: string,
@@ -140,10 +146,14 @@ export function stripLoginFromInstallBlueprint(
 export function shouldSkipBlueprintInstallConfirmation(
 	location: string | undefined
 ): boolean {
+	return !!getTrustedBlueprintInstallSource(location);
+}
+
+export function getTrustedBlueprintInstallSource(
+	location: string | undefined
+): BlueprintInstallUsageStatsRequestSource | undefined {
 	const pathname = getWordPressPathname(location);
-	return pathname
-		? TRUSTED_BLUEPRINT_INSTALL_PATHS.includes(pathname)
-		: false;
+	return pathname ? TRUSTED_BLUEPRINT_INSTALL_SOURCES[pathname] : undefined;
 }
 
 function getBlueprintLandingPage(
