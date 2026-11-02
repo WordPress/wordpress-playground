@@ -49,15 +49,14 @@ export function mergeBlueprintVersions(
 
 	const existing = blueprint.preferredVersions;
 	const wp = overrides.wp || existing?.wp || 'latest';
-	const phpDefault = resolveDefaultPhp
-		? resolveDefaultPhp(wp)
-		: RecommendedPHPVersion;
 	return {
 		...blueprint,
 		preferredVersions: {
-			php: (overrides.php || existing?.php || phpDefault) as
-				| BlueprintPHPVersion
-				| 'latest',
+			php: (overrides.php ||
+				existing?.php ||
+				(resolveDefaultPhp
+					? resolveDefaultPhp(wp)
+					: RecommendedPHPVersion)) as BlueprintPHPVersion | 'latest',
 			wp,
 		},
 	};

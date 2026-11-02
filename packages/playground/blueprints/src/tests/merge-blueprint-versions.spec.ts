@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
 import { mergeBlueprintVersions } from '../lib/merge-blueprint-versions';
@@ -97,7 +97,7 @@ describe('mergeBlueprintVersions', () => {
 	});
 
 	it('skips resolveDefaultPhp when an override or blueprint already specifies PHP', () => {
-		const resolver = (_wp: string) => '7.4';
+		const resolver = vi.fn(() => '7.4');
 		const blueprint: BlueprintV1Declaration = {
 			preferredVersions: { php: '8.2', wp: '5.5' },
 		};
@@ -111,6 +111,7 @@ describe('mergeBlueprintVersions', () => {
 				resolver
 			).preferredVersions
 		).toEqual({ php: '8.4', wp: '5.5' });
+		expect(resolver).not.toHaveBeenCalled();
 	});
 
 	it('preserves unrelated blueprint fields', () => {
