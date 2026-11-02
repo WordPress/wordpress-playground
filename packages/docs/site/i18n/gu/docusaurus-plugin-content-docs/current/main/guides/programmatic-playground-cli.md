@@ -200,7 +200,7 @@ import { describe, test, expect, afterEach } from 'vitest';
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
 describe('My Plugin Tests', () => {
-  const cliServer: RunCLIServer;
+  let cliServer: RunCLIServer | undefined;
 
   afterEach(async () => {
     if (cliServer) {
