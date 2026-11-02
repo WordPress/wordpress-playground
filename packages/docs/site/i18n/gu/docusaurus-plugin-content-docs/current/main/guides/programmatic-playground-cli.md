@@ -8,13 +8,13 @@ description: ઓટોમેશન અને ટેસ્ટિંગ માટ�
 # Programmatic Usage of Playground CLI
 -->
 
-# Playground CLI નો પ્રોગ્રામેટિક ઉપયોગ
+# પ્લેગ્રાઉન્ડ CLI નો પ્રોગ્રામેટિક ઉપયોગ
 
 <!--
 The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This gives you direct access to all CLI functionalities within your code, which is useful for automating end-to-end tests. The options you pass to `runCLI` map directly to the [CLI flags](/developers/local-development/wp-playground-cli#command-and-arguments).
 -->
 
-`runCLI` ફંક્શનનો ઉપયોગ કરીને તમારા JavaScript/TypeScript કોડમાંથી Playground CLI ને પ્રોગ્રામેટિક રીતે પણ નિયંત્રિત કરી શકાય છે. આથી તમારા કોડની અંદર CLI ની તમામ સુવિધાઓનો સીધો ઉપયોગ કરી શકાય છે, જે ખાસ કરીને end-to-end ટેસ્ટને ઓટોમેટ કરવા માટે ઉપયોગી છે. તમે `runCLI` ને આપો છો તે વિકલ્પો સીધા જ [CLI flags](/developers/local-development/wp-playground-cli#command-and-arguments) સાથે મેળ ખાય છે.
+`runCLI` ફંક્શનનો ઉપયોગ કરીને તમારા JavaScript/TypeScript કોડમાંથી પ્લેગ્રાઉન્ડ CLI ને પ્રોગ્રામેટિક રીતે પણ નિયંત્રિત કરી શકાય છે. આથી તમારા કોડની અંદર CLI ની તમામ સુવિધાઓનો સીધો ઉપયોગ કરી શકાય છે, જે ખાસ કરીને end-to-end ટેસ્ટને ઓટોમેટ કરવા માટે ઉપયોગી છે. તમે `runCLI` ને આપો છો તે વિકલ્પો સીધા જ [CLI flags](/developers/local-development/wp-playground-cli#command-and-arguments) સાથે મેળ ખાય છે.
 
 <!--
 <iframe width="800" src="https://www.youtube.com/embed/rmNf3CfXbtA?si=cduqQYbBWc6zAPVj" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen title="Running WordPress Directly from the JavaScript Code with runCLI"></iframe>
