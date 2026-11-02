@@ -1,5 +1,7 @@
 import { InMemoryFilesystem } from '@wp-playground/storage';
 import { ProgressTracker } from '@php-wasm/progress';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { vi } from 'vitest';
 import { compileBlueprintForExecution } from '../lib/compile';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
@@ -32,9 +34,27 @@ describe('compileBlueprintForExecution', () => {
 
 		expect(compiled.version).toBe(1);
 		expect(compiled.declaration).toBe(declaration);
-		expect(compiled.compiled).toHaveProperty('versions');
+		expect(compiled.compiled).toMatchObject({
+			versions: { php: RecommendedPHPVersion },
+		});
 		expect(compiled.run).toBe(compiled.compiled.run);
 	});
+
+	it.each([
+		['latest', LatestSupportedPHPVersion],
+		['8.4', '8.4'],
+	] as const)(
+		'preserves an explicit PHP choice of %s',
+		async (php, expected) => {
+			const compiled = await compileBlueprintForExecution({
+				preferredVersions: { php, wp: 'latest' },
+			});
+
+			expect(compiled.compiled).toMatchObject({
+				versions: { php: expected },
+			});
+		}
+	);
 
 	it('compiles Blueprint v1 bundles with bundled resources', async () => {
 		const bundle = new InMemoryFilesystem({
@@ -60,6 +80,9 @@ describe('compileBlueprintForExecution', () => {
 		await compiled.run(playground as any);
 
 		expect(compiled.version).toBe(1);
+		expect(compiled.compiled).toMatchObject({
+			versions: { php: RecommendedPHPVersion },
+		});
 		expect(compiled.declaration).toEqual({
 			steps: [
 				{
