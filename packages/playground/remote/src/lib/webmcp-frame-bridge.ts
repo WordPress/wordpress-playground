@@ -43,7 +43,7 @@ export interface WebMCPToolDescriptor {
 }
 
 export interface WebMCPFrameBridge {
-	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
+	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): () => void;
 	dispose(): void;
 	/** Use a fresh call ID for each invocation; pending duplicates are rejected. */
 	callTool(
@@ -127,6 +127,15 @@ export function createWebMCPFrameBridge(
 	 * its own reply moments later.
 	 */
 	function handleLoad() {
+		for (const [callId, pending] of pendingCalls) {
+			pendingCalls.delete(callId);
+			clearTimeout(pending.timeout);
+			pending.reject(
+				new Error(
+					'The WordPress page changed before the WebMCP tool responded.'
+				)
+			);
+		}
 		requestToolList();
 		cancelProbe();
 		probeTimeout = setTimeout(() => {
@@ -215,6 +224,9 @@ export function createWebMCPFrameBridge(
 			// waiting for the next registration change.
 			notify(listener, tools);
 			requestToolList();
+			return () => {
+				listeners.delete(listener);
+			};
 		},
 		/** Dispatch a tool call only to the rendered WordPress origin and bound its response time. */
 		async callTool(name, args, callId = crypto.randomUUID()) {

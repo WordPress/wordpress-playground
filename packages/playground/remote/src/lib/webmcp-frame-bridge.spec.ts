@@ -202,7 +202,7 @@ describe('remote access WebMCP bridge', () => {
 			relayMessages: true,
 		});
 		const listener = vi.fn();
-		bridge.subscribe(listener);
+		const unsubscribe = bridge.subscribe(listener);
 		const deliver = (
 			data: unknown,
 			source: unknown = contentWindow,
@@ -248,14 +248,44 @@ describe('remote access WebMCP bridge', () => {
 			},
 		});
 		await expect(result).resolves.toEqual({ ok: true });
+		const navigatedCall = bridge.callTool(
+			'guest_tool',
+			{},
+			'before-navigation'
+		);
+		postMessage.mockClear();
 		deliver({
 			type: 'remote-access-frame-load',
 			href: 'https://guest.test/plain',
 		});
+		await expect(navigatedCall).rejects.toThrow('WordPress page changed');
+		expect(postMessage).toHaveBeenCalledTimes(1);
+		expect(postMessage).toHaveBeenLastCalledWith(
+			{
+				type: 'remote-access-frame-forward',
+				payload: { type: 'playground-webmcp-list-tools' },
+			},
+			'https://guest.test'
+		);
+		expect(vi.getTimerCount()).toBe(1);
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(listener).toHaveBeenLastCalledWith([]);
+		unsubscribe();
+		listener.mockClear();
+		deliver(announcement);
+		expect(listener).not.toHaveBeenCalled();
 		const pending = bridge.callTool('guest_tool', {}, 'call-2');
 		bridge.dispose();
+		expect(postMessage).toHaveBeenLastCalledWith(
+			{
+				type: 'remote-access-frame-forward',
+				payload: {
+					type: 'playground-webmcp-cancel-tool',
+					callId: 'call-2',
+				},
+			},
+			'https://guest.test'
+		);
 		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 		expect(removeEventListener).toHaveBeenCalledWith('message', receive);
 		expect(vi.getTimerCount()).toBe(0);

@@ -480,7 +480,7 @@ export async function bootPlaygroundRemote() {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
 		},
 		async onWebMCPToolsChanged(fn) {
-			webMCPBridge.subscribe(fn);
+			return webMCPBridge.subscribe(fn);
 		},
 		async callWebMCPTool(name, args, callId) {
 			return await webMCPBridge.callTool(name, args, callId);

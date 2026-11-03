@@ -31,7 +31,7 @@ export interface WebMCPSiteToolProxy {
 interface WebMCPSiteToolClient {
 	onWebMCPToolsChanged(
 		listener: (tools: WebMCPToolDescriptor[]) => void
-	): Promise<void>;
+	): Promise<() => void>;
 	callWebMCPTool(
 		name: string,
 		args: Record<string, unknown>,
@@ -62,6 +62,7 @@ export function startWebMCPSiteToolProxy(
 	let registration: AbortController | null = null;
 	let stopped = false;
 	let registeredDescriptors = '';
+	let unsubscribe: (() => void) | null = null;
 
 	async function register(tools: WebMCPToolDescriptor[]) {
 		if (stopped) {
@@ -108,6 +109,13 @@ export function startWebMCPSiteToolProxy(
 		.onWebMCPToolsChanged((tools: WebMCPToolDescriptor[]) => {
 			void register(tools);
 		})
+		.then((remove) => {
+			if (stopped) {
+				remove();
+			} else {
+				unsubscribe = remove;
+			}
+		})
 		.catch((error) => {
 			logger.warn("Failed to observe the site's WebMCP tools:", error);
 		});
@@ -115,6 +123,8 @@ export function startWebMCPSiteToolProxy(
 	return {
 		stop() {
 			stopped = true;
+			unsubscribe?.();
+			unsubscribe = null;
 			registration?.abort();
 			registration = null;
 			registeredDescriptors = '';

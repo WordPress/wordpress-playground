@@ -25,18 +25,31 @@ export function RemoteAccessConnect() {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		async function checkSavedSite() {
-			if (!opfsSiteStorage) {
-				return;
+		async function checkSavedSite(): Promise<boolean | null> {
+			let hasSavedSite: boolean | null = null;
+			try {
+				if (opfsSiteStorage) {
+					hasSavedSite = !!(await opfsSiteStorage.read(
+						personalWPSiteSlug ?? 'default'
+					));
+				}
+			} catch (error) {
+				logger.warn(
+					'Could not check the saved My WordPress site:',
+					error
+				);
 			}
-			const sites = await opfsSiteStorage.list();
-			if (controller.signal.aborted) {
-				return;
+			if (!controller.signal.aborted) {
+				setHasSavedMainSite(hasSavedSite);
 			}
-			const hasSavedSite = sites.some(
-				(site) => site.slug === (personalWPSiteSlug ?? 'default')
-			);
-			setHasSavedMainSite(hasSavedSite);
+			return hasSavedSite;
+		}
+		const refreshSavedSite = () => {
+			void checkSavedSite();
+		};
+		refreshSavedSite();
+		window.addEventListener('focus', refreshSavedSite);
+		async function registerStatusTool() {
 			await getModelContext()?.registerTool(
 				{
 					name: 'my_wordpress_get_connection_status',
@@ -54,29 +67,43 @@ export function RemoteAccessConnect() {
 						additionalProperties: false,
 					},
 					annotations: { readOnlyHint: true, destructiveHint: false },
-					execute: async () => ({
-						hasSavedMainSite: hasSavedSite,
-						localSiteUrl: getAppBaseUrl().href,
-						guidance: hasSavedSite
-							? 'A main site is saved in this browser. Offer to open it ' +
-								'at localSiteUrl if that is the site the user wants. ' +
-								'To connect to a site in another browser, ask the user to ' +
-								`open ${window.location.origin} there, choose Site Tools → ` +
-								'Remote Access, and provide its access code. Enter the code ' +
-								'here. No browser extension is required.'
-							: 'No main site is saved in this browser. Ask the user to ' +
-								`open ${window.location.origin} in their usual browser, choose ` +
-								'Site Tools → Remote Access, and provide its access code. ' +
-								'Enter the code here. No browser extension is required.',
-					}),
+					execute: async () => {
+						const hasSavedSite = await checkSavedSite();
+						return {
+							hasSavedMainSite: hasSavedSite,
+							localSiteUrl: getAppBaseUrl().href,
+							guidance:
+								hasSavedSite === null
+									? 'Could not determine whether a main site is saved in this browser. ' +
+										'Offer to open localSiteUrl to check, or use Remote Access ' +
+										'to connect to a site in another browser.'
+									: hasSavedSite
+										? 'A main site is saved in this browser. Offer to open it ' +
+											'at localSiteUrl if that is the site the user wants. ' +
+											'To connect to a site in another browser, ask the user to ' +
+											`open ${window.location.origin} there, choose Site Tools → ` +
+											'Remote Access, and provide its access code. Enter the code ' +
+											'here. No browser extension is required.'
+										: 'No main site is saved in this browser. Ask the user to ' +
+											`open ${window.location.origin} in their usual browser, choose ` +
+											'Site Tools → Remote Access, and provide its access code. ' +
+											'Enter the code here. No browser extension is required.',
+						};
+					},
 				},
 				{ signal: controller.signal }
 			);
 		}
-		void checkSavedSite().catch((error) => {
-			logger.warn('Could not check the saved My WordPress site:', error);
+		void registerStatusTool().catch((error) => {
+			logger.warn(
+				'Could not register the connection status tool:',
+				error
+			);
 		});
-		return () => controller.abort();
+		return () => {
+			controller.abort();
+			window.removeEventListener('focus', refreshSavedSite);
+		};
 	}, []);
 
 	async function submit(event: FormEvent) {
