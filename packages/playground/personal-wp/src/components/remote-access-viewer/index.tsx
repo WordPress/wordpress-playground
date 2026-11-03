@@ -1,4 +1,4 @@
-import { createWebMCPFrameBridge } from '@wp-playground/remote';
+import { createWebMCPFrameBridge } from '@wp-playground/remote/webmcp-frame-bridge';
 import { startWebMCPSiteToolProxy } from '@wp-playground/mcp/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
