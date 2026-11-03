@@ -117,7 +117,7 @@ const myBlueprint: BlueprintDeclaration = {
 ## Mounting a plugin programmatically
 -->
 
-## પ્રોગ્રામેટિક રીતે પ્લગઇન માઉન્ટ કરવું
+## પ્રોગ્રામેટિક રીતે પ્લગિન માઉન્ટ કરવું
 
 <!--
 You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed.
@@ -187,7 +187,7 @@ const cliServer: RunCLIServer = await runCLI({
 ### Integration testing with Vitest
 -->
 
-### Vitest સાથે Integration Testing
+### Vitest સાથે ઇન્ટિગ્રેશન ટેસ્ટિંગ
 
 <!--
 The programmatic API is excellent for automated testing. Here's a complete example using Vitest:
@@ -260,7 +260,7 @@ describe('My Plugin Tests', () => {
       '/wp-admin/options-general.php?page=my-plugin',
       cliServer.serverUrl
     );
-    const response = await fetch(settingsUrl);
+    const response = await fetch(settingsUrl, { redirect: 'manual' });
 
     // Note: A plain `fetch` call does not send the admin session cookie set by `login: true`,
     // so this request is typically redirected to the login page instead of returning 200.
