@@ -28,7 +28,6 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 	setDockPaneSection,
-	setCloneRequested,
 	setPendingClone,
 } from '../../../lib/state/redux/slice-ui';
 import {
@@ -379,7 +378,6 @@ export function SiteTransferPanel({
 						'[role="dialog"]'
 					)!;
 				transitionClonePane(pane, 'back', () => {
-					dispatch(setCloneRequested(undefined));
 					dispatch(setDockPaneSection('new'));
 				});
 				return;
@@ -1104,7 +1102,8 @@ export function SiteTransferPanel({
 									<p className={css.hint}>
 										Paste into{' '}
 										<strong>Migration Token</strong>, then
-										choose <strong>Authorize tool</strong>.
+										choose <strong>Authorize client</strong>
+										.
 									</p>
 									{keyCopied ? (
 										<Button
