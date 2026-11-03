@@ -24,7 +24,7 @@ test(
 		).json();
 		const sourceOrigin = new URL(siteUrl!).origin;
 
-		await website.goto('./?reprint');
+		await website.goto('./');
 		const page = website.page;
 		await page.context().grantPermissions(['clipboard-write']);
 		await page.waitForFunction(() =>
@@ -35,9 +35,7 @@ test(
 			(window as any).playgroundSites.saveInBrowser()
 		);
 		await expect(page.getByText('Saved', { exact: true })).toBeVisible();
-		await website.goto(
-			'./?reprint&site-slug=' + encodeURIComponent(original.slug)
-		);
+		await website.goto('./?site-slug=' + encodeURIComponent(original.slug));
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);

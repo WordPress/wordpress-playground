@@ -91,8 +91,7 @@ port 9500, separately from normal development. CI runs all website E2E tests onc
 against the separate WordPress origin, with shared storage/import grouping.
 Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
-WordPress always uses the configured sandbox origin, with or without `?reprint`.
-The flag still controls Reprint UI, not origin selection. PHP, OPFS, and directory
+WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
 handles stay on the app origin. Tabs share one app service worker and asset cache.
 Standalone and self-hosted builds without a sandbox retain one origin.
 External embeds do not need a referrer or new URL parameters. This mode does not

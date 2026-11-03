@@ -70,7 +70,7 @@ export function SiteTransferPanel({
 	const sitesAPI = useSitesAPI();
 	// Clone mode collects a live site before any Playground exists for it. The
 	// current site only hosts the form; the pull runs in a new Playground.
-	const cloneRequested = !!useAppSelector((state) => state.ui.cloneRequested);
+	const cloneRequested = useAppSelector((state) => state.ui.cloneRequested);
 	const pendingClone = useAppSelector((state) => state.ui.pendingClone);
 	const existingSlugs = useAppSelector(selectAllSites).map(
 		(existing) => existing.slug
@@ -82,7 +82,7 @@ export function SiteTransferPanel({
 	const cloning = cloneRequested || isClone;
 	const [url, setUrl] = useState(() =>
 		cloneRequested
-			? ''
+			? (cloneRequested.url ?? '')
 			: (handoff?.url ?? rememberedConnection(site.slug)?.url ?? '')
 	);
 	const [keyPair, setKeyPair] = useState<ReprintKeyPair | null>(() =>
@@ -366,7 +366,7 @@ export function SiteTransferPanel({
 						'[role="dialog"]'
 					)!;
 				transitionClonePane(pane, 'back', () => {
-					dispatch(setCloneRequested(false));
+					dispatch(setCloneRequested(undefined));
 					dispatch(setDockPaneSection('new'));
 				});
 				return;

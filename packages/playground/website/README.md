@@ -28,7 +28,6 @@ hosts and forwarded tunnel URLs keep their existing same-origin behavior; this
 change does not configure a second public tunnel. Standalone remote, Personal WP,
 and sync development also keep their existing behavior.
 
-`?reprint` still enables the Reprint UI. It does not choose where WordPress runs.
 The configured sandbox is used during SPA navigation and full reloads alike.
 
 The single WordPress origin is still shared by all sites. The split does not add

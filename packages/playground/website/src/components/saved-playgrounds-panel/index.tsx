@@ -76,11 +76,6 @@ import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
-// Keep the startup opt-in when site navigation replaces the query string.
-const isReprintEnabled = new URLSearchParams(window.location.search).has(
-	'reprint'
-);
-
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
  * source. Loaded lazily so opening the New pane on the Gallery never pulls in
@@ -1053,7 +1048,7 @@ export function SavedPlaygroundsPanel({
 		const pane =
 			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
 		transitionClonePane(pane, 'forward', () => {
-			dispatch(setCloneRequested(true));
+			dispatch(setCloneRequested({}));
 			dispatch(setDockPaneSection('transfer'));
 			dispatch(setDockPaneOpen(true));
 		});
@@ -1496,38 +1491,31 @@ export function SavedPlaygroundsPanel({
 							</button>
 						))}
 					</div>
-					{isReprintEnabled && (
-						<>
-							<div
-								className={css.creationDivider}
-								aria-hidden="true"
-							>
-								or
-							</div>
-							<button
-								type="button"
-								id="clone-site-launcher"
-								className={classNames(
-									css.creationButton,
-									css.creationLauncher
-								)}
-								disabled={offline || isImportingZip}
-								title={
-									offline
-										? 'Needs an internet connection — unavailable offline'
-										: undefined
-								}
-								onClick={handleCloneClick}
-							>
-								<span className={css.creationIcon}>
-									<Icon icon={download} size={20} />
-								</span>
-								<span className={css.creationTitle}>
-									Clone a live site
-								</span>
-							</button>
-						</>
-					)}
+					<div className={css.creationDivider} aria-hidden="true">
+						or
+					</div>
+					<button
+						type="button"
+						id="clone-site-launcher"
+						className={classNames(
+							css.creationButton,
+							css.creationLauncher
+						)}
+						disabled={offline || isImportingZip}
+						title={
+							offline
+								? 'Needs an internet connection — unavailable offline'
+								: undefined
+						}
+						onClick={handleCloneClick}
+					>
+						<span className={css.creationIcon}>
+							<Icon icon={download} size={20} />
+						</span>
+						<span className={css.creationTitle}>
+							Clone a live site
+						</span>
+					</button>
 				</div>
 				<div
 					id="creation-panel"

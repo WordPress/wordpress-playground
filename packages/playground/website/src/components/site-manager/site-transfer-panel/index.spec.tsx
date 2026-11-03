@@ -27,7 +27,7 @@ import type {
 const { ui, dispatch, createNewTemporarySite, autosaveTemporarySite } =
 	vi.hoisted(() => ({
 		ui: {
-			cloneRequested: false,
+			cloneRequested: undefined as { url?: string } | undefined,
 			pendingClone: undefined as
 				| { slug: string; url: string; keyPair: ReprintKeyPair }
 				| undefined,
@@ -187,7 +187,7 @@ describe('Reprint connection changes', () => {
 			clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
 		});
 		ui.pendingClone = undefined;
-		ui.cloneRequested = false;
+		ui.cloneRequested = undefined;
 		dispatch.mockImplementation((action) => {
 			if (action?.type === 'ui/setPendingClone')
 				ui.pendingClone = action.payload;
@@ -216,7 +216,7 @@ describe('Reprint connection changes', () => {
 	});
 
 	it('creates a clone with a random slug without changing the URL during setup', async () => {
-		ui.cloneRequested = true;
+		ui.cloneRequested = {};
 		vi.mocked(detectReprint).mockResolvedValue('configured');
 		await render();
 		edit('url', 'https://example.com');
@@ -231,7 +231,7 @@ describe('Reprint connection changes', () => {
 	});
 
 	it('waits for the final confirmation before creating the clone', async () => {
-		ui.cloneRequested = true;
+		ui.cloneRequested = {};
 		vi.mocked(detectReprint).mockResolvedValue('needs-key');
 		await render();
 		edit('url', 'https://example.com');
@@ -317,7 +317,7 @@ describe('Reprint connection changes', () => {
 	});
 
 	it('keeps Copy focused when retrying after clone creation fails', async () => {
-		ui.cloneRequested = true;
+		ui.cloneRequested = {};
 		createNewTemporarySite.mockRejectedValueOnce(
 			new Error('Creating the clone failed')
 		);
