@@ -258,7 +258,7 @@ test('a clone link prefills the public demo and waits for Clone site', async ({
 	const address = pane.getByRole('textbox', { name: 'Live site URL' });
 	await expect(address).toHaveValue(source);
 	await expect(
-		pane.getByRole('button', { name: 'Check site' })
+		pane.getByRole('button', { name: 'Clone site' })
 	).toBeEnabled();
 	await address.fill('https://example.com');
 	await expect(address).toHaveValue('https://example.com');
