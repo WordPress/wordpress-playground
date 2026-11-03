@@ -117,9 +117,8 @@ export function RemoteAccessConnect() {
 				<h1>Connect to a remote My WordPress</h1>
 				{hasSavedMainSite === true && (
 					<p>
-						This browser already has a saved WordPress.{' '}
-						<a href={getAppBaseUrl().href}>Open your WordPress</a>,
-						or connect to one in another browser below.
+						To use the WordPress saved in this browser,{' '}
+						<a href={getAppBaseUrl().href}>open your site</a>.
 					</p>
 				)}
 				{hasSavedMainSite === false && (
@@ -129,9 +128,9 @@ export function RemoteAccessConnect() {
 					</p>
 				)}
 				<p>
-					Open my.wordpress.net in the browser where you normally use
-					your WordPress. In Site Tools, start Remote Access, then
-					enter the code shown there.
+					To connect to a site in another browser, open
+					my.wordpress.net there and start Remote Access in Site
+					Tools. Enter the code below.
 				</p>
 				<form className={css.form} onSubmit={submit}>
 					<label htmlFor="remote-access-code">Access code</label>
