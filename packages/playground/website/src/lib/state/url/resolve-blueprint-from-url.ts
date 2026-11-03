@@ -202,6 +202,11 @@ export async function applyQueryOverrides(
 	}
 }
 
+/**
+ * Applies URL version and site options to a WordPress Blueprint declaration.
+ * Missing PHP versions use the default for the selected WordPress version.
+ * PHP-only Blueprints bypass these overrides to avoid adding WordPress-only features.
+ */
 function applyQueryOverridesToDeclaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams

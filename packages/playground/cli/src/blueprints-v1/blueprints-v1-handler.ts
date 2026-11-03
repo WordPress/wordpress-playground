@@ -236,10 +236,14 @@ export class BlueprintsV1Handler {
 		});
 	}
 
+	/**
+	 * Applies CLI version overrides and a default login setting to the input Blueprint.
+	 * Bundles retain their resource filesystem and access restrictions beneath an overlaid
+	 * declaration. PHP-only Blueprints bypass these overrides, matching the website.
+	 */
 	private async getEffectiveBlueprint(): Promise<BlueprintV1> {
 		const resolvedBlueprint = (this.args.blueprint || {}) as BlueprintV1;
 		const declaration = await getBlueprintDeclaration(resolvedBlueprint);
-		// Match the website: PHP-only Blueprints opt out of WP-bound overrides, including login.
 		if (declaration.preferredVersions?.wp === false) {
 			return resolvedBlueprint;
 		}
