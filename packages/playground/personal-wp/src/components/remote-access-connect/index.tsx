@@ -117,8 +117,9 @@ export function RemoteAccessConnect() {
 				<h1>Connect to a remote My WordPress</h1>
 				{hasSavedMainSite === true && (
 					<p>
-						To use the WordPress saved in this browser,{' '}
-						<a href={getAppBaseUrl().href}>open your site</a>.
+						It looks like you already have My WordPress in this
+						browser. <a href={getAppBaseUrl().href}>Open it here</a>
+						.
 					</p>
 				)}
 				{hasSavedMainSite === false && (
