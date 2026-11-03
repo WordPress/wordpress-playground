@@ -477,7 +477,11 @@ class Atomic_Persistent_Data {
 require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 `
 	);
+	// Read the public entry from disk on each request so the release switch
+	// does not depend on the runner's OPcache settings.
 	server = spawn('php', [
+		'-d',
+		'opcache.enable=0',
 		'-S',
 		`127.0.0.1:${port}`,
 		'-t',
