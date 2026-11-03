@@ -1086,6 +1086,25 @@ export function SiteTransferPanel({
 											)}
 										</span>
 									</div>
+									{keyPair && (
+										<details
+											className={css.connectionDetails}
+										>
+											<summary>
+												{step === 'manual-key'
+													? 'About this connection'
+													: 'Show key and connection details'}
+											</summary>
+											{step !== 'manual-key' &&
+												migrationKeyField}
+											<p className={css.hint}>
+												Only the migration key goes to
+												your live site. The private key
+												stays in this tab and is reused
+												when you retry.
+											</p>
+										</details>
+									)}
 								</li>
 								<li
 									aria-current={
@@ -1157,21 +1176,6 @@ export function SiteTransferPanel({
 									</Button>
 								</li>
 							</ol>
-							{keyPair && (
-								<details className={css.connectionDetails}>
-									<summary>
-										{step === 'manual-key'
-											? 'About this connection'
-											: 'Show key and connection details'}
-									</summary>
-									{step !== 'manual-key' && migrationKeyField}
-									<p className={css.hint}>
-										Only the migration key goes to your live
-										site. The private key stays in this tab
-										and is reused when you retry.
-									</p>
-								</details>
-							)}
 							{pullRequirements}
 						</VStack>
 					</form>
