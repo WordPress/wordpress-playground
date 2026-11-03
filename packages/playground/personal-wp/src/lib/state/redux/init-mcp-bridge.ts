@@ -6,6 +6,7 @@ import type {
 	WebMCPSiteToolProxy,
 } from '@wp-playground/mcp/client';
 import {
+	getModelContext,
 	registerWebMCPTools,
 	startMcpBridge,
 	startWebMCPSiteToolProxy,
@@ -29,8 +30,22 @@ const PERSONAL_WP_MCP_SITE_SLUG = personalWPSiteSlug ?? 'default';
 
 startListening({
 	actionCreator: setOPFSSitesLoadingState,
-	effect: (_action, listenerApi) => {
+	effect: (action, listenerApi) => {
+		if (action.payload !== 'loaded') {
+			return;
+		}
 		listenerApi.unsubscribe();
+
+		// Capture the initial listing before a fresh browser automatically creates
+		// and saves a site. Keep the connection offer for this document's lifetime.
+		const hasSavedSite = Object.values(
+			listenerApi.getState().sites.entities
+		).some((site) => site.metadata.storage !== 'none');
+		if (!hasSavedSite) {
+			void registerConnectExistingSiteTool().catch((error) => {
+				logger.warn('Remote access WebMCP registration failed:', error);
+			});
+		}
 		let handle: McpBridgeHandle | null = null;
 		let connectedPort: number | null = null;
 
@@ -196,3 +211,40 @@ startListening({
 		});
 	},
 });
+
+async function registerConnectExistingSiteTool(): Promise<void> {
+	await getModelContext()?.registerTool({
+		name: 'my_wordpress_connect_existing_site',
+		description:
+			'Connect to the user’s existing WordPress in another browser. ' +
+			'No saved site was found in this browser when this page opened. ' +
+			'My WordPress stores sites in each browser separately; a site created ' +
+			'here may not be the user’s existing site. If the user asks to add ' +
+			'content to or update their existing WordPress, offer Remote Access ' +
+			'and use this tool to open /connect. Ask the user to open My WordPress ' +
+			'in their usual browser, start Remote Access from Site Tools, and ' +
+			'provide the access code or link. Continue their original task after ' +
+			'connecting. If the user wants a new site in this browser, use the ' +
+			'local site tools instead.',
+		inputSchema: {
+			type: 'object',
+			properties: {},
+			additionalProperties: false,
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+		},
+		execute: async () => {
+			window.location.href = '/connect';
+			return {
+				status: 'connection_required',
+				guidance:
+					'Ask the user to start Remote Access from Site Tools in the ' +
+					'browser where their WordPress lives and provide the access ' +
+					'code or link. Enter the code on /connect, then ask the user ' +
+					'to approve access on the host device.',
+			};
+		},
+	});
+}
