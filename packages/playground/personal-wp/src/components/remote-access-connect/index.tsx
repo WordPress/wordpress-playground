@@ -57,8 +57,9 @@ export function RemoteAccessConnect() {
 			<section className={css.panel}>
 				<h1>Connect to a remote My WordPress</h1>
 				<p>
-					On the host device, open Site Tools and start remote access.
-					Then enter the code shown there.
+					Open my.wordpress.net in the browser where you normally use
+					your WordPress. In Site Tools, start Remote Access, then
+					enter the code shown there.
 				</p>
 				<form className={css.form} onSubmit={submit}>
 					<label htmlFor="remote-access-code">Access code</label>
