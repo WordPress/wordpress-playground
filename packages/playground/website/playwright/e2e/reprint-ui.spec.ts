@@ -265,7 +265,9 @@ test('a clone link prefills the public demo and waits for Clone site', async ({
 	await expect(
 		pane.getByRole('button', { name: 'Check site' })
 	).toBeEnabled();
-	await pane.getByRole('button', { name: 'Back to New Playground' }).click();
+	await page
+		.getByRole('button', { name: 'New Playground', exact: true })
+		.click();
 	await page.getByRole('button', { name: 'Clone a live site' }).click();
 	await expect(address).toHaveValue('');
 	expect(requests).toEqual([]);

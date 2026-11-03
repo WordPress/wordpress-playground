@@ -165,6 +165,16 @@ export function SiteTransferPanel({
 		isKeySetup && isVisible && !busy && !completed
 	);
 	const keyCopied = step === 'authorize' || step === 'confirm';
+	const pullRequirements = !cloneRequested && (
+		<>
+			<PlaygroundBootNotice show={!playground} />
+			{!ready && playground && (
+				<Notice status="info" isDismissible={false}>
+					Enable networking and use PHP 8.1 or newer.
+				</Notice>
+			)}
+		</>
+	);
 
 	// Restore only an idle address form. A late saved-connection read must not
 	// replace transfer progress or a completed clone. Explicit address editing
@@ -902,6 +912,7 @@ export function SiteTransferPanel({
 										? 'No account or migration key needed.'
 										: 'You’ll need admin access to this site.'}
 								</p>
+								{publicDemo && pullRequirements}
 							</VStack>
 						</VStack>
 					</form>
@@ -1162,14 +1173,7 @@ export function SiteTransferPanel({
 									</p>
 								</details>
 							)}
-							{!cloneRequested && (
-								<PlaygroundBootNotice show={!playground} />
-							)}
-							{!cloneRequested && !ready && playground && (
-								<Notice status="info" isDismissible={false}>
-									Enable networking and use PHP 8.1 or newer.
-								</Notice>
-							)}
+							{pullRequirements}
 						</VStack>
 					</form>
 				)}

@@ -346,7 +346,14 @@ const uiSlice = createSlice({
 		) => {
 			state.pendingClone = action.payload;
 		},
+		/** Discard an unsubmitted clone when switching away from its pane. */
 		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
+			if (
+				state.dockPaneSection === 'transfer' &&
+				action.payload !== 'transfer'
+			) {
+				state.cloneRequested = undefined;
+			}
 			state.dockPaneSection = action.payload;
 		},
 		setWriteOwnBlueprintDraft: (

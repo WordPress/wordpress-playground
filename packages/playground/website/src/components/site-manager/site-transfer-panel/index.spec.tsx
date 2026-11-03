@@ -215,6 +215,19 @@ describe('Reprint connection changes', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('explains why pulling the public demo requires a compatible Playground', async () => {
+		await render(playground, true, false, false);
+		edit('url', 'https://reprint-demo.wordpress.net');
+		const button = container.querySelector<HTMLButtonElement>(
+			'button[type=submit]'
+		)!;
+		expect(button.textContent).toBe('Pull site');
+		expect(button.disabled).toBe(true);
+		expect(container.textContent).toContain(
+			'Enable networking and use PHP 8.1 or newer.'
+		);
+	});
+
 	it('clones the public demo without generating or enrolling a key', async () => {
 		ui.cloneRequested = { url: 'https://reprint-demo.wordpress.net' };
 		createNewTemporarySite.mockImplementationOnce(async (slug) => slug);
@@ -1005,7 +1018,8 @@ describe('Reprint connection changes', () => {
 	async function render(
 		client: PlaygroundClient = playground,
 		isVisible = true,
-		initialOpfsSyncPending = false
+		initialOpfsSyncPending = false,
+		networking = true
 	) {
 		await act(async () =>
 			root.render(
@@ -1017,7 +1031,7 @@ describe('Reprint connection changes', () => {
 								storage: 'opfs',
 								initialOpfsSyncPending,
 								runtimeConfiguration: {
-									networking: true,
+									networking,
 									phpVersion: '8.3',
 								},
 							},
