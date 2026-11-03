@@ -175,3 +175,89 @@ describe('WordPress WebMCP registry cancellation', () => {
 		send({ type: 'playground-webmcp-cancel-tool', callId: 'call-2' });
 	});
 });
+
+// Contract: the guest proxies only its bound wrapper and clears tools after a
+// navigation without a registry. Wrapper forwarding and inner load messages
+// arrive independently of the browser's outer iframe load event.
+describe('remote access WebMCP bridge', () => {
+	it('uses the guest frame, probes inner navigation, and releases pending calls', async () => {
+		vi.useFakeTimers();
+		let receive!: (event: MessageEvent) => void;
+		const removeEventListener = vi.fn();
+		vi.stubGlobal('window', {
+			addEventListener: (_type: string, listener: typeof receive) => {
+				receive = listener;
+			},
+			removeEventListener,
+		});
+		const postMessage = vi.fn();
+		const contentWindow = { postMessage };
+		const frame = {
+			contentWindow,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		} as unknown as HTMLIFrameElement;
+		const bridge = createWebMCPFrameBridge(frame, {
+			origin: 'https://guest.test',
+			relayMessages: true,
+		});
+		const listener = vi.fn();
+		bridge.subscribe(listener);
+		const deliver = (
+			data: unknown,
+			source: unknown = contentWindow,
+			origin = 'https://guest.test'
+		) => receive({ source, origin, data } as MessageEvent);
+		const announcement = {
+			type: 'remote-access-frame-message',
+			payload: {
+				type: 'playground-webmcp-tools-changed',
+				tools: [{ name: 'guest_tool', description: 'Guest tool' }],
+			},
+		};
+		deliver(announcement, {});
+		deliver(announcement, contentWindow, 'https://other.test');
+		expect(listener).toHaveBeenCalledTimes(1);
+		deliver(announcement);
+		expect(listener).toHaveBeenLastCalledWith([
+			{ name: 'guest_tool', description: 'Guest tool' },
+		]);
+		const result = bridge.callTool(
+			'guest_tool',
+			{ name: 'Guest' },
+			'call-1'
+		);
+		expect(postMessage).toHaveBeenLastCalledWith(
+			{
+				type: 'remote-access-frame-forward',
+				payload: {
+					type: 'playground-webmcp-call-tool',
+					callId: 'call-1',
+					name: 'guest_tool',
+					arguments: { name: 'Guest' },
+				},
+			},
+			'https://guest.test'
+		);
+		deliver({
+			type: 'remote-access-frame-message',
+			payload: {
+				type: 'playground-webmcp-call-result',
+				callId: 'call-1',
+				resultJson: '{"ok":true}',
+			},
+		});
+		await expect(result).resolves.toEqual({ ok: true });
+		deliver({
+			type: 'remote-access-frame-load',
+			href: 'https://guest.test/plain',
+		});
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(listener).toHaveBeenLastCalledWith([]);
+		const pending = bridge.callTool('guest_tool', {}, 'call-2');
+		bridge.dispose();
+		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+		expect(removeEventListener).toHaveBeenCalledWith('message', receive);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});

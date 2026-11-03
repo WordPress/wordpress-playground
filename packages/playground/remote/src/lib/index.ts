@@ -6,3 +6,5 @@ export {
 	MinifiedWordPressVersionsList,
 	LatestMinifiedWordPressVersion,
 } from '@wp-playground/wordpress-builds';
+
+export { createWebMCPFrameBridge } from './webmcp-frame-bridge';

@@ -14,10 +14,7 @@
  *           → WordPress document                  (the plugin's execute())
  */
 
-import type {
-	PlaygroundClient,
-	WebMCPToolDescriptor,
-} from '@wp-playground/remote';
+import type { WebMCPToolDescriptor } from '@wp-playground/remote';
 import { logger } from '@php-wasm/logger';
 import {
 	toolDefinitions,
@@ -31,6 +28,18 @@ export interface WebMCPSiteToolProxy {
 	stop(): void;
 }
 
+interface WebMCPSiteToolClient {
+	onWebMCPToolsChanged(
+		listener: (tools: WebMCPToolDescriptor[]) => void
+	): Promise<void>;
+	callWebMCPTool(
+		name: string,
+		args: Record<string, unknown>,
+		callId?: string
+	): Promise<unknown>;
+	cancelWebMCPTool(callId: string): Promise<void>;
+}
+
 /**
  * Starts mirroring `client`'s in-site WebMCP tools onto this page.
  *
@@ -39,7 +48,7 @@ export interface WebMCPSiteToolProxy {
  * unregisters everything it registered.
  */
 export function startWebMCPSiteToolProxy(
-	client: PlaygroundClient
+	client: WebMCPSiteToolClient
 ): WebMCPSiteToolProxy {
 	const maybeModelContext = getModelContext();
 	if (!maybeModelContext) {
@@ -126,7 +135,7 @@ function reservedToolNames(): Set<string> {
 }
 
 function proxyTool(
-	client: PlaygroundClient,
+	client: WebMCPSiteToolClient,
 	tool: WebMCPToolDescriptor
 ): ModelContextTool {
 	return {

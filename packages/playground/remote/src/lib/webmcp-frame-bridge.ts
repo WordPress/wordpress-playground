@@ -44,6 +44,7 @@ export interface WebMCPToolDescriptor {
 
 export interface WebMCPFrameBridge {
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
+	dispose(): void;
 	/** Use a fresh call ID for each invocation; pending duplicates are rejected. */
 	callTool(
 		name: string,
@@ -63,8 +64,11 @@ export interface WebMCPFrameBridge {
  * no tools clears the list.
  */
 export function createWebMCPFrameBridge(
-	wpFrame: HTMLIFrameElement
+	wpFrame: HTMLIFrameElement,
+	options: { origin?: string; relayMessages?: boolean } = {}
 ): WebMCPFrameBridge {
+	const origin = options.origin ?? wordPressSiteUrl;
+	let disposed = false;
 	let tools: WebMCPToolDescriptor[] = [];
 	let serializedTools = '[]';
 	let probeTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -78,23 +82,36 @@ export function createWebMCPFrameBridge(
 		}
 	>();
 
-	window.addEventListener('message', (event: MessageEvent) => {
+	function handleMessage(event: MessageEvent) {
 		if (
 			event.source !== wpFrame.contentWindow ||
-			event.origin !== wordPressSiteUrl ||
+			event.origin !== origin ||
 			!event.data
 		) {
 			return;
 		}
-		if (event.data.type === TOOLS_CHANGED) {
-			cancelProbe();
-			setTools(toDescriptors(event.data.tools));
+		if (
+			options.relayMessages &&
+			event.data.type === 'remote-access-frame-load'
+		) {
+			handleLoad();
 			return;
 		}
-		if (event.data.type === CALL_RESULT) {
-			resolveCall(event.data);
+		const data = options.relayMessages
+			? event.data.type === 'remote-access-frame-message' &&
+				event.data.payload
+			: event.data;
+		if (!data) return;
+		if (data.type === TOOLS_CHANGED) {
+			cancelProbe();
+			setTools(toDescriptors(data.tools));
+			return;
 		}
-	});
+		if (data.type === CALL_RESULT) {
+			resolveCall(data);
+		}
+	}
+	window.addEventListener('message', handleMessage);
 
 	/**
 	 * Confirms that the newly loaded document still owns the advertised tools.
@@ -109,14 +126,15 @@ export function createWebMCPFrameBridge(
 	 * A document merely too busy to answer in time is cleared and restored by
 	 * its own reply moments later.
 	 */
-	wpFrame.addEventListener('load', () => {
+	function handleLoad() {
 		requestToolList();
 		cancelProbe();
 		probeTimeout = setTimeout(() => {
 			probeTimeout = null;
 			setTools([]);
 		}, ANNOUNCE_PROBE_TIMEOUT_MS);
-	});
+	}
+	wpFrame.addEventListener('load', handleLoad);
 
 	function setTools(next: WebMCPToolDescriptor[]) {
 		const serialized = JSON.stringify(next);
@@ -168,13 +186,29 @@ export function createWebMCPFrameBridge(
 
 	/** Ask the rendered WordPress frame to announce its current tool registry. */
 	function requestToolList() {
+		postMessage({ type: LIST_TOOLS });
+	}
+
+	function postMessage(data: unknown) {
 		wpFrame.contentWindow?.postMessage(
-			{ type: LIST_TOOLS },
-			wordPressSiteUrl
+			options.relayMessages
+				? { type: 'remote-access-frame-forward', payload: data }
+				: data,
+			origin
 		);
 	}
 
 	return {
+		dispose() {
+			disposed = true;
+			window.removeEventListener('message', handleMessage);
+			wpFrame.removeEventListener('load', handleLoad);
+			cancelProbe();
+			for (const callId of pendingCalls.keys()) {
+				this.cancelTool(callId);
+			}
+			listeners.clear();
+		},
 		subscribe(listener) {
 			listeners.add(listener);
 			// Replay the current list so a late subscriber is not left
@@ -185,7 +219,7 @@ export function createWebMCPFrameBridge(
 		/** Dispatch a tool call only to the rendered WordPress origin and bound its response time. */
 		async callTool(name, args, callId = crypto.randomUUID()) {
 			const contentWindow = wpFrame.contentWindow;
-			if (!contentWindow) {
+			if (disposed || !contentWindow) {
 				throw new Error('The WordPress frame is not loaded.');
 			}
 			if (pendingCalls.has(callId)) {
@@ -205,10 +239,12 @@ export function createWebMCPFrameBridge(
 					);
 				}, CALL_TIMEOUT_MS);
 				pendingCalls.set(callId, { resolve, reject, timeout });
-				contentWindow.postMessage(
-					{ type: CALL_TOOL, callId, name, arguments: args ?? {} },
-					wordPressSiteUrl
-				);
+				postMessage({
+					type: CALL_TOOL,
+					callId,
+					name,
+					arguments: args ?? {},
+				});
 			});
 		},
 		cancelTool(callId) {
@@ -218,10 +254,7 @@ export function createWebMCPFrameBridge(
 			}
 			pendingCalls.delete(callId);
 			clearTimeout(pending.timeout);
-			wpFrame.contentWindow?.postMessage(
-				{ type: CANCEL_TOOL, callId },
-				wordPressSiteUrl
-			);
+			postMessage({ type: CANCEL_TOOL, callId });
 			pending.reject(
 				new DOMException('The tool call was cancelled.', 'AbortError')
 			);
