@@ -29,7 +29,7 @@ const { ui, dispatch, createNewTemporarySite, autosaveTemporarySite } =
 		ui: {
 			cloneRequested: undefined as { url?: string } | undefined,
 			pendingClone: undefined as
-				| { slug: string; url: string; keyPair: ReprintKeyPair }
+				| { slug: string; url: string; keyPair: ReprintKeyPair | null }
 				| undefined,
 		},
 		dispatch: vi.fn(),
@@ -213,6 +213,22 @@ describe('Reprint connection changes', () => {
 		act(() => root.unmount());
 		container.remove();
 		vi.unstubAllGlobals();
+	});
+
+	it('clones the public demo without generating or enrolling a key', async () => {
+		ui.cloneRequested = { url: 'https://reprint-demo.wordpress.net' };
+		createNewTemporarySite.mockImplementationOnce(async (slug) => slug);
+		await render();
+		expect(createNewTemporarySite).not.toHaveBeenCalled();
+		await submit();
+		expect(ui.pendingClone).toEqual({
+			slug: expect.any(String),
+			url: 'https://reprint-demo.wordpress.net/',
+			keyPair: null,
+		});
+		expect(createNewTemporarySite).toHaveBeenCalledTimes(1);
+		expect(detectReprint).not.toHaveBeenCalled();
+		expect(generateReprintKeyPair).not.toHaveBeenCalled();
 	});
 
 	it('creates a clone with a random slug without changing the URL during setup', async () => {

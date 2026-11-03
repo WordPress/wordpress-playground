@@ -235,7 +235,7 @@ for (const motion of ['animated', 'reduced-motion', 'unsupported', 'skipped']) {
 	});
 }
 
-test('a clone link prefills the live site and waits for Check site', async ({
+test('a clone link prefills the public demo and waits for Clone site', async ({
 	website,
 }) => {
 	const source = 'https://reprint-demo.wordpress.net';
@@ -262,6 +262,9 @@ test('a clone link prefills the live site and waits for Check site', async ({
 	).toBeEnabled();
 	await address.fill('https://example.com');
 	await expect(address).toHaveValue('https://example.com');
+	await expect(
+		pane.getByRole('button', { name: 'Check site' })
+	).toBeEnabled();
 	await pane.getByRole('button', { name: 'Back to New Playground' }).click();
 	await page.getByRole('button', { name: 'Clone a live site' }).click();
 	await expect(address).toHaveValue('');

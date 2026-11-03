@@ -274,8 +274,7 @@ function connect_site(array $request, string $root, array &$operation, ReprintPr
     $client = new ImportClient($request['url'], $state, $files, ['allow_http' => is_local_reprint_url($request['url'])]);
     // Reprint now returns from preflight instead of exiting PHP. Save its
     // metadata here, before advancing the operation or emitting the next stage.
-    write_private_key($request);
-    $client->run(['command' => 'preflight', 'private_key_path' => $request['privateKeyPath'], 'progress' => 'jsonl'], $lock);
+    $client->run(['command' => 'preflight', 'progress' => 'jsonl'] + reprint_auth_options($request), $lock);
     $error = $client->get_preflight_error();
     if ($error !== null) {
         $failure = new RuntimeException($error['message']);
@@ -397,10 +396,8 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         $operation['stage'] = 'db-pull';
         return ['status' => 'continue', 'stage' => $operation['stage']];
     }
-    write_private_key($request);
     $client->run([
         'command' => $stage,
-        'private_key_path' => $request['privateKeyPath'],
         'progress' => 'jsonl',
         // Reprint also selects detached plugins, MU plugins, and uploads when
         // wp-content is selected. Map them into the Playground's local layout.
@@ -414,7 +411,7 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
         'target_engine' => 'sqlite',
         'target_sqlite_path' => wp_join_unix_paths($state, 'import.sqlite'),
         'new_site_url' => $request['siteUrl'],
-    ], $lock);
+    ] + reprint_auth_options($request), $lock);
     if ($client->exit_code !== 0 && $client->exit_code !== 2) {
         throw new RuntimeException('Reprint stopped. Check the transfer error and retry with the same site and key.');
     }
@@ -426,15 +423,21 @@ function pull_site(array $request, string $root, array &$operation, ReprintProce
 }
 
 /**
- * Supplies Reprint's key-file API only when a stage calls ImportClient::run().
+ * Supplies Reprint's authentication options only when a stage calls ImportClient::run().
  *
  * The request's path is under the private /tmp transfer directory. Local
  * setup and finish-pull never write it; run_transfer() removes it in finally
  * after both successful and failed commands, before imported plugins can run.
  */
-function write_private_key(array $request): void {
+function reprint_auth_options(array $request): array {
+    if ($request['privateKey'] === null) {
+        // Reprint 0.11.6 requires a credential option. The public demo
+        // accepts pull requests without checking this placeholder.
+        return ['secret' => 'public-demo'];
+    }
     file_put_contents($request['privateKeyPath'], $request['privateKey']);
     chmod($request['privateKeyPath'], 0600);
+    return ['private_key_path' => $request['privateKeyPath']];
 }
 
 /**

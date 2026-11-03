@@ -175,7 +175,11 @@ export interface UIState {
 	 * Connection details for a Playground created by the clone flow. The
 	 * transfer panel mounted for that slug starts the pull with them.
 	 */
-	pendingClone?: { slug: string; url: string; keyPair: ReprintKeyPair };
+	pendingClone?: {
+		slug: string;
+		url: string;
+		keyPair: ReprintKeyPair | null;
+	};
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
 	 * pane does not discard the user's work.
