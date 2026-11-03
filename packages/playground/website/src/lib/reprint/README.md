@@ -1,11 +1,18 @@
 # Clone a live WordPress site
 
-Start Playground with `?reprint`, then open **New Playground → Clone a live site**.
+Open **New Playground → Clone a live site**.
+
+To share a link that opens the form with the source address filled in, pass
+`clone-site` with a URL-encoded site address. For example:
+[Copy Reprint Field Notes](https://playground.wordpress.net/?clone-site=https%3A%2F%2Freprint-demo.wordpress.net).
+Playground waits for the visitor to choose **Check site** before contacting the source.
+The public Field Notes demo can be cloned directly with **Clone site**, without a key.
+Its export has no administrator, so Playground creates one in the local copy.
 Enter the live URL. If setup is needed, the panel links directly to the `reprint`
 plugin's directory page in that site's wp-admin. Install and activate it, then
 return and check again. When Reprint answers, Playground generates a key pair.
 Under **Tools → Reprint Server** on the live site, paste the migration key into
-**Migration Token** and choose **Authorize tool**. Older versions use **Public key**
+**Migration Token** and choose **Authorize client**. Older versions use **Public key**
 and **Enroll key**. Return and click **Clone site**. The source site stays unchanged.
 
 ## Import

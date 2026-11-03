@@ -5,9 +5,8 @@ The normal website deployment serves:
 - App: `https://playground.wordpress.net`
 - Rendered WordPress: `https://wpsandbox.wordpress.net`
 
-Every WordPress frame uses the sandbox, whether or not the URL contains
-`?reprint`. That flag still controls Reprint UI, not origin selection. The SPA,
-PHP, OPFS, and picked directory handles stay on the app origin. Existing saved
+Every WordPress frame uses the sandbox. The SPA, PHP, OPFS, and picked
+directory handles stay on the app origin. Existing saved
 sites use the same app-origin files when reopened; no storage migration is needed.
 Shared scripts, PHP WASM, and WordPress downloads keep their app-host asset URLs.
 Versioned WordPress static files are also served on the sandbox host because
@@ -154,9 +153,9 @@ npm exec -- nx run playground-website:test:wordpress-frame-router
 ```
 
 After deployment, check both HTTPS hosts without bypassing TLS verification.
-With and without `?reprint`, confirm the dock stays on the app host and WordPress
-uses the sandbox host. Open both URLs together and check their pages and
-database-tool popups still work.
+Confirm the dock stays on the app host and WordPress uses the sandbox host.
+Open two Playgrounds together and check their pages and database-tool popups
+still work.
 Test a post save, saved-site switching, a database-tool popup, and a disposable
 local folder outside Documents/iCloud. An unchanged external iframe with
 `referrerpolicy="no-referrer"` must still load. Repeat the direct-parent OPFS

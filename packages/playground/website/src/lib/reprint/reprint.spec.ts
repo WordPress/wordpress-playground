@@ -300,6 +300,17 @@ describe('Reprint command replies', () => {
 		expect(() => normalizeReprintUrl(url)).toThrow();
 	});
 
+	it.each([
+		'https://reprint-demo.wordpress.net.example.com/',
+		'https://reprint-demo.wordpress.net/another-site/',
+	])('does not use the demo import for %s', async (url) => {
+		const { playground, runStream } = createClient([]);
+		await expect(pullSite(playground, url, null, vi.fn())).rejects.toThrow(
+			'Generate a Reprint key before pulling.'
+		);
+		expect(runStream).not.toHaveBeenCalled();
+	});
+
 	it('reads native Reprint byte counts before PHP finishes and ignores text-only file updates', async () => {
 		const { playground } = createClient([]);
 		let output!: ReadableStreamDefaultController<Uint8Array>;

@@ -170,12 +170,16 @@ export interface UIState {
 	dockPaneIsOpen: boolean;
 	dockPaneSection: DockPaneSection;
 	/** The transfer pane collects a live site to copy into a new Playground. */
-	cloneRequested?: boolean;
+	cloneRequested?: { url?: string };
 	/**
 	 * Connection details for a Playground created by the clone flow. The
 	 * transfer panel mounted for that slug starts the pull with them.
 	 */
-	pendingClone?: { slug: string; url: string; keyPair: ReprintKeyPair };
+	pendingClone?: {
+		slug: string;
+		url: string;
+		keyPair: ReprintKeyPair | null;
+	};
 	/**
 	 * Draft kept by the New pane's "Write a Blueprint" editor so closing the
 	 * pane does not discard the user's work.
@@ -191,6 +195,10 @@ export interface UIState {
 }
 
 const query = new URL(document.location.href).searchParams;
+const cloneSiteUrl =
+	query.get('mode') !== 'seamless'
+		? query.get('clone-site')?.trim()
+		: undefined;
 const isEmbeddedInAnIframe = window.self !== window.top;
 
 const shouldOpenDockPaneByDefault = false;
@@ -223,7 +231,8 @@ const initialState: UIState = {
 	dockPaneIsOpen:
 		// The Dock pane should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
-		(query.get('overlay') !== null ||
+		(!!cloneSiteUrl ||
+			query.get('overlay') !== null ||
 			(shouldOpenDockPaneByDefault &&
 				// We do not expect to render the Playground app UI in an iframe.
 				!isEmbeddedInAnIframe &&
@@ -231,21 +240,28 @@ const initialState: UIState = {
 				// as that would mean seeing something that's not Playground filling
 				// your entire screen – quite a confusing experience.
 				window.innerWidth >= BREAKPOINTS.tablet)),
-	dockPaneSection:
-		query.get('overlay') === 'blueprints' || query.get('overlay') === 'new'
+	dockPaneSection: cloneSiteUrl
+		? 'transfer'
+		: query.get('overlay') === 'blueprints' ||
+			  query.get('overlay') === 'new'
 			? 'new'
 			: query.get('overlay') !== null
 				? 'playgrounds'
 				: 'settings',
+	cloneRequested: cloneSiteUrl ? { url: cloneSiteUrl } : undefined,
 };
 
 const uiSlice = createSlice({
 	name: 'ui',
 	initialState,
 	reducers: {
-		/** Select a site and leave any pre-creation clone form behind. */
+		/** Select a site and discard the clone form when leaving a site. */
 		setActiveSite: (state, action: PayloadAction<string | undefined>) => {
-			state.cloneRequested = undefined;
+			// Startup selects the Playground that hosts a linked clone form.
+			// Only later site changes should discard that form.
+			if (state.activeSite || !action.payload) {
+				state.cloneRequested = undefined;
+			}
 			state.activeSite = action.payload
 				? {
 						slug: action.payload,
@@ -316,9 +332,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteImportProgress = action.payload;
 		},
-		/** Open an empty clone form without changing the active site. */
-		setCloneRequested: (state, action: PayloadAction<boolean>) => {
-			state.cloneRequested = action.payload || undefined;
+		/** Set or clear the clone form without changing the active site. */
+		setCloneRequested: (
+			state,
+			action: PayloadAction<UIState['cloneRequested']>
+		) => {
+			state.cloneRequested = action.payload;
 		},
 		/** Pass the connection to the new site until its panel starts the pull. */
 		setPendingClone: (
@@ -327,7 +346,14 @@ const uiSlice = createSlice({
 		) => {
 			state.pendingClone = action.payload;
 		},
+		/** Discard an unsubmitted clone when switching away from its pane. */
 		setDockPaneSection: (state, action: PayloadAction<DockPaneSection>) => {
+			if (
+				state.dockPaneSection === 'transfer' &&
+				action.payload !== 'transfer'
+			) {
+				state.cloneRequested = undefined;
+			}
 			state.dockPaneSection = action.payload;
 		},
 		setWriteOwnBlueprintDraft: (

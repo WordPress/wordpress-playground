@@ -8,7 +8,7 @@ test(
 			browserName !== 'chromium',
 			'This flow requires browser storage.'
 		);
-		await website.goto('./?reprint&name=pull-entry-original');
+		await website.goto('./?name=pull-entry-original');
 		const page = website.page;
 		await page.context().grantPermissions(['clipboard-write']);
 		await page.waitForFunction(() =>
@@ -162,7 +162,7 @@ for (const motion of ['animated', 'reduced-motion', 'unsupported', 'skipped']) {
 							};
 			}, motion);
 		}
-		await website.goto('./?reprint&storage=temp&overlay=new');
+		await website.goto('./?storage=temp&overlay=new');
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
@@ -234,3 +234,41 @@ for (const motion of ['animated', 'reduced-motion', 'unsupported', 'skipped']) {
 		});
 	});
 }
+
+test('a clone link prefills the public demo and waits for Clone site', async ({
+	website,
+}) => {
+	const source = 'https://reprint-demo.wordpress.net';
+	const page = website.page;
+	const requests: string[] = [];
+	page.on('request', (request) => {
+		if (
+			['fetch', 'xhr'].includes(request.resourceType()) &&
+			request.url().includes(new URL(source).hostname)
+		) {
+			requests.push(request.url());
+		}
+	});
+
+	await website.goto(`./?clone-site=${encodeURIComponent(source)}`);
+
+	const pane = page.getByRole('dialog', {
+		name: 'Clone a WordPress site pane',
+	});
+	const address = pane.getByRole('textbox', { name: 'Live site URL' });
+	await expect(address).toHaveValue(source);
+	await expect(
+		pane.getByRole('button', { name: 'Clone site' })
+	).toBeEnabled();
+	await address.fill('https://example.com');
+	await expect(address).toHaveValue('https://example.com');
+	await expect(
+		pane.getByRole('button', { name: 'Check site' })
+	).toBeEnabled();
+	await page
+		.getByRole('button', { name: 'New Playground', exact: true })
+		.click();
+	await page.getByRole('button', { name: 'Clone a live site' }).click();
+	await expect(address).toHaveValue('');
+	expect(requests).toEqual([]);
+});

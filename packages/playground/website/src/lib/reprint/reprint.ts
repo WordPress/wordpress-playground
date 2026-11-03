@@ -202,17 +202,30 @@ export function normalizeReprintUrl(input: string): string {
 	return url.href;
 }
 
+/** Only Field Notes uses the public demo protocol; other sites need a key. */
+export function isPublicReprintDemo(url: string): boolean {
+	try {
+		return (
+			normalizeReprintUrl(url) ===
+			'https://reprint-demo.wordpress.net/?reprint-api'
+		);
+	} catch {
+		return false;
+	}
+}
+
 /** Import files and SQL; a sign-in failure returns the finished copy with a separate error. */
 export async function pullSite(
 	playground: PlaygroundClient,
 	url: string,
-	privateKey: string,
+	privateKey: string | null,
 	onProgress: (progress: TransferProgress) => void,
 	/** Stops after the current PHP run. The checkpoint allows a later resume. */
 	signal?: AbortSignal
 ): Promise<{ warning?: string; loginError?: ReprintTransferError }> {
 	url = normalizeReprintUrl(url);
-	if (!privateKey.trim())
+	const publicDemo = privateKey === null && isPublicReprintDemo(url);
+	if (!publicDemo && !privateKey?.trim())
 		throw new Error('Generate a Reprint key before pulling.');
 	// Phase weights estimate work, not elapsed time. SQL and file bytes have
 	// different costs. Checkpoints keep the bar; only completion reaches 100%.
@@ -304,7 +317,9 @@ export async function pullSite(
 			if (result.status === 'install') {
 				report({ phase: 'login', message: phases.login[2] });
 				try {
-					warning = await loginImportedSite(playground);
+					warning = await loginImportedSite(playground, {
+						createLocalAdmin: publicDemo,
+					});
 				} catch (error) {
 					// The copy is installed. Finish cleanup and let the UI save it;
 					// a sign-in retry must never start another file or SQL pull.
@@ -346,7 +361,8 @@ export async function pullSite(
 
 /** Sign in to an already imported site; never download or apply its data again. */
 export async function loginImportedSite(
-	playground: PlaygroundClient
+	playground: PlaygroundClient,
+	{ createLocalAdmin = false } = {}
 ): Promise<string | undefined> {
 	const documentRoot = await playground.documentRoot;
 	let warning: string | undefined;
@@ -365,10 +381,24 @@ export async function loginImportedSite(
 			delete_site_transient('theme_roots');
 			wp_clean_themes_cache();
 			$admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
-			if (!$admins) {
+			if ($admins) {
+				echo json_encode(['username' => $admins[0]->user_login]);
+			} elseif (${phpVar(createLocalAdmin)}) {
+				// The public demo exports no admin account. Create one only
+				// in the local copy so the visitor can edit it in Playground.
+				$username = 'playground-' . bin2hex(random_bytes(8));
+				$user = wp_insert_user([
+					'user_login' => $username,
+					'user_pass' => wp_generate_password(32),
+					'role' => 'administrator',
+				]);
+				if (is_wp_error($user)) {
+					throw new RuntimeException($user->get_error_message());
+				}
+				echo json_encode(['username' => $username]);
+			} else {
 				throw new RuntimeException('The imported site has no administrator account.');
 			}
-			echo json_encode(['username' => $admins[0]->user_login]);
 		`,
 	});
 	if (setup.errors) logger.error(setup.errors);
@@ -503,7 +533,7 @@ export async function runBridge(
 	request: {
 		command: 'pull' | 'finish-pull';
 		url: string;
-		privateKey: string;
+		privateKey: string | null;
 		documentRoot: string;
 		siteUrl: string;
 		databasePath?: string;

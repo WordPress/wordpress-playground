@@ -27,9 +27,9 @@ import type {
 const { ui, dispatch, createNewTemporarySite, autosaveTemporarySite } =
 	vi.hoisted(() => ({
 		ui: {
-			cloneRequested: false,
+			cloneRequested: undefined as { url?: string } | undefined,
 			pendingClone: undefined as
-				| { slug: string; url: string; keyPair: ReprintKeyPair }
+				| { slug: string; url: string; keyPair: ReprintKeyPair | null }
 				| undefined,
 		},
 		dispatch: vi.fn(),
@@ -187,7 +187,7 @@ describe('Reprint connection changes', () => {
 			clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
 		});
 		ui.pendingClone = undefined;
-		ui.cloneRequested = false;
+		ui.cloneRequested = undefined;
 		dispatch.mockImplementation((action) => {
 			if (action?.type === 'ui/setPendingClone')
 				ui.pendingClone = action.payload;
@@ -215,8 +215,37 @@ describe('Reprint connection changes', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('explains why pulling the public demo requires a compatible Playground', async () => {
+		await render(playground, true, false, false);
+		edit('url', 'https://reprint-demo.wordpress.net');
+		const button = container.querySelector<HTMLButtonElement>(
+			'button[type=submit]'
+		)!;
+		expect(button.textContent).toBe('Pull site');
+		expect(button.disabled).toBe(true);
+		expect(container.textContent).toContain(
+			'Enable networking and use PHP 8.1 or newer.'
+		);
+	});
+
+	it('clones the public demo without generating or enrolling a key', async () => {
+		ui.cloneRequested = { url: 'https://reprint-demo.wordpress.net' };
+		createNewTemporarySite.mockImplementationOnce(async (slug) => slug);
+		await render();
+		expect(createNewTemporarySite).not.toHaveBeenCalled();
+		await submit();
+		expect(ui.pendingClone).toEqual({
+			slug: expect.any(String),
+			url: 'https://reprint-demo.wordpress.net/',
+			keyPair: null,
+		});
+		expect(createNewTemporarySite).toHaveBeenCalledTimes(1);
+		expect(detectReprint).not.toHaveBeenCalled();
+		expect(generateReprintKeyPair).not.toHaveBeenCalled();
+	});
+
 	it('creates a clone with a random slug without changing the URL during setup', async () => {
-		ui.cloneRequested = true;
+		ui.cloneRequested = {};
 		vi.mocked(detectReprint).mockResolvedValue('configured');
 		await render();
 		edit('url', 'https://example.com');
@@ -231,7 +260,7 @@ describe('Reprint connection changes', () => {
 	});
 
 	it('waits for the final confirmation before creating the clone', async () => {
-		ui.cloneRequested = true;
+		ui.cloneRequested = {};
 		vi.mocked(detectReprint).mockResolvedValue('needs-key');
 		await render();
 		edit('url', 'https://example.com');
@@ -317,7 +346,7 @@ describe('Reprint connection changes', () => {
 	});
 
 	it('keeps Copy focused when retrying after clone creation fails', async () => {
-		ui.cloneRequested = true;
+		ui.cloneRequested = {};
 		createNewTemporarySite.mockRejectedValueOnce(
 			new Error('Creating the clone failed')
 		);
@@ -989,7 +1018,8 @@ describe('Reprint connection changes', () => {
 	async function render(
 		client: PlaygroundClient = playground,
 		isVisible = true,
-		initialOpfsSyncPending = false
+		initialOpfsSyncPending = false,
+		networking = true
 	) {
 		await act(async () =>
 			root.render(
@@ -1001,7 +1031,7 @@ describe('Reprint connection changes', () => {
 								storage: 'opfs',
 								initialOpfsSyncPending,
 								runtimeConfiguration: {
-									networking: true,
+									networking,
 									phpVersion: '8.3',
 								},
 							},

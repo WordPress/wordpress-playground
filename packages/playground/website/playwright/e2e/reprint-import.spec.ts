@@ -24,7 +24,7 @@ test(
 		).json();
 		const sourceOrigin = new URL(siteUrl!).origin;
 
-		await website.goto('./?reprint');
+		await website.goto('./');
 		const page = website.page;
 		await page.context().grantPermissions(['clipboard-write']);
 		await page.waitForFunction(() =>
@@ -35,9 +35,7 @@ test(
 			(window as any).playgroundSites.saveInBrowser()
 		);
 		await expect(page.getByText('Saved', { exact: true })).toBeVisible();
-		await website.goto(
-			'./?reprint&site-slug=' + encodeURIComponent(original.slug)
-		);
+		await website.goto('./?site-slug=' + encodeURIComponent(original.slug));
 		await page.waitForFunction(() =>
 			Boolean((window as any).playgroundSites?.getClient())
 		);
@@ -82,7 +80,7 @@ test(
 			.click();
 		try {
 			await sourceAdmin
-				.getByRole('textbox', { name: 'Public key', exact: true })
+				.getByRole('textbox', { name: 'Migration Token', exact: true })
 				.fill(publicKey, { timeout: 15_000 });
 		} catch (error) {
 			await test.info().attach('Source Reprint settings', {
@@ -92,10 +90,10 @@ test(
 			throw error;
 		}
 		await sourceAdmin
-			.getByRole('button', { name: 'Enroll key', exact: true })
+			.getByRole('button', { name: 'Authorize client', exact: true })
 			.click();
 		await expect(
-			sourceAdmin.getByText('Public key enrolled.')
+			sourceAdmin.getByRole('heading', { name: 'Client authorized' })
 		).toBeVisible();
 		await sourceAdmin.close();
 		await pane

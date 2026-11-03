@@ -15,7 +15,7 @@ CACHE="${REPRINT_E2E_CACHE:-/tmp/playground-reprint-e2e-cache}"
 
 WP_VERSION=7.1.2
 SQLITE_PLUGIN_VERSION=3.0.2
-REPRINT_SERVER_SHA256=5d8eb1080e7d680b7f1234f5672145f7f590fed514e192fb5c5175c9eed2f407
+REPRINT_SERVER_SHA256=99d1457e24136958b2f0ea52acbe39cf43bd2affdbedf4090f917ef1ce4055d0
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # Read the client pin rather than maintaining a second release version.
