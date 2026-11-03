@@ -42,11 +42,12 @@ export function RemoteAccessConnect() {
 					name: 'my_wordpress_get_connection_status',
 					description:
 						'Check whether the main My WordPress site is saved in this ' +
-						'browser before connecting to another browser. A saved site ' +
+						'browser before using My WordPress’s built-in Remote Access. A saved site ' +
 						'can be opened locally; if none exists here, ask the user to ' +
 						'start Remote Access in the browser where their WordPress ' +
 						'lives and provide the access code or link. This checks ' +
-						'saved-site availability, not whether its content is empty.',
+						'saved-site availability, not whether its content is empty. ' +
+						'Remote Access uses an access code and requires no browser extension.',
 					inputSchema: {
 						type: 'object',
 						properties: {},
@@ -59,10 +60,14 @@ export function RemoteAccessConnect() {
 						guidance: hasSavedSite
 							? 'A main site is saved in this browser. Offer to open it ' +
 								'at localSiteUrl if that is the site the user wants. ' +
-								'Remote Access is available for a site in another browser.'
+								'To connect to a site in another browser, ask the user to ' +
+								`open ${window.location.origin} there, choose Site Tools → ` +
+								'Remote Access, and provide its access code. Enter the code ' +
+								'here. No browser extension is required.'
 							: 'No main site is saved in this browser. Ask the user to ' +
-								'open My WordPress in their usual browser, start Remote ' +
-								'Access from Site Tools, and provide the access code or link.',
+								`open ${window.location.origin} in their usual browser, choose ` +
+								'Site Tools → Remote Access, and provide its access code. ' +
+								'Enter the code here. No browser extension is required.',
 					}),
 				},
 				{ signal: controller.signal }
@@ -130,7 +135,7 @@ export function RemoteAccessConnect() {
 				)}
 				<p>
 					To connect to a site in another browser, open
-					my.wordpress.net there and start Remote Access in Site
+					{window.location.host} there and start Remote Access in Site
 					Tools. Enter the code below.
 				</p>
 				<form className={css.form} onSubmit={submit}>
@@ -161,7 +166,7 @@ export function RemoteAccessConnect() {
 }
 
 export function isRemoteAccessConnectRoute(): boolean {
-	// my.wordpress.net is configured to serve index.html for unknown paths.
+	// The deployment serves index.html for unknown paths.
 	// That SPA fallback is what lets /connect and /connect/... resume here.
 	return (
 		window.location.pathname === '/connect' ||

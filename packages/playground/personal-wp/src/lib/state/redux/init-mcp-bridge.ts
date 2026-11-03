@@ -36,16 +36,9 @@ startListening({
 		}
 		listenerApi.unsubscribe();
 
-		// Capture the initial listing before a fresh browser automatically creates
-		// and saves a site. Keep the connection offer for this document's lifetime.
-		const hasSavedSite = Object.values(
-			listenerApi.getState().sites.entities
-		).some((site) => site.metadata.storage !== 'none');
-		if (!hasSavedSite) {
-			void registerConnectExistingSiteTool().catch((error) => {
-				logger.warn('Remote access WebMCP registration failed:', error);
-			});
-		}
+		void registerConnectViaAccessCodeTool().catch((error) => {
+			logger.warn('Remote access WebMCP registration failed:', error);
+		});
 		let handle: McpBridgeHandle | null = null;
 		let connectedPort: number | null = null;
 
@@ -212,20 +205,21 @@ startListening({
 	},
 });
 
-async function registerConnectExistingSiteTool(): Promise<void> {
+async function registerConnectViaAccessCodeTool(): Promise<void> {
 	await getModelContext()?.registerTool({
-		name: 'my_wordpress_connect_existing_site',
+		name: 'my_wordpress_connect_via_access_code',
 		description:
-			'Connect to the user’s existing WordPress in another browser. ' +
-			'No saved site was found in this browser when this page opened. ' +
-			'My WordPress stores sites in each browser separately; a site created ' +
-			'here may not be the user’s existing site. If the user asks to add ' +
-			'content to or update their existing WordPress, offer Remote Access ' +
-			'and use this tool to open /connect. Ask the user to open My WordPress ' +
-			'in their usual browser, start Remote Access from Site Tools, and ' +
-			'provide the access code or link. Continue their original task after ' +
-			'connecting. If the user wants a new site in this browser, use the ' +
-			'local site tools instead.',
+			'Open My WordPress’s built-in Remote Access page at /connect to ' +
+			'access a site stored in another browser. Each browser profile ' +
+			'stores its own WordPress; even a saved site here may differ from ' +
+			'the user’s intended site. If the destination is unclear, ask ' +
+			'whether to use the site here or connect to their existing WordPress. ' +
+			`To connect, ask the user to open ${window.location.origin} in their ` +
+			'usual browser, choose Site Tools → Remote Access, and provide the ' +
+			'access code shown there. Enter that code on /connect and ask the ' +
+			'user to approve access in their usual browser. This connection ' +
+			'works through My WordPress itself and requires no browser extension. ' +
+			'Continue the original task after connecting.',
 		inputSchema: {
 			type: 'object',
 			properties: {},
@@ -240,10 +234,11 @@ async function registerConnectExistingSiteTool(): Promise<void> {
 			return {
 				status: 'connection_required',
 				guidance:
-					'Ask the user to start Remote Access from Site Tools in the ' +
-					'browser where their WordPress lives and provide the access ' +
-					'code or link. Enter the code on /connect, then ask the user ' +
-					'to approve access on the host device.',
+					`Ask the user to open ${window.location.origin} in their usual ` +
+					'browser, choose Site Tools → Remote Access, and provide the ' +
+					'access code. Enter that code on /connect, then ask them to ' +
+					'approve access in their usual browser. This uses My WordPress’s ' +
+					'built-in Remote Access and requires no browser extension.',
 			};
 		},
 	});
