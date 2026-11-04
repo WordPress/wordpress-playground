@@ -109,13 +109,12 @@ export function UnconnectedSiteSettingsForm({
 	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
 
 	useEffect(() => {
-		if (
-			latestWPVersion &&
-			['', 'latest'].includes(getValues('wpVersion'))
-		) {
+		// Applying PHP or networking settings can reset the form to 'latest'.
+		// Resolve it again so the footer does not mistake it for a WordPress change.
+		if (latestWPVersion && ['', 'latest'].includes(currentWpVersion)) {
 			setValue('wpVersion', latestWPVersion);
 		}
-	}, [latestWPVersion, setValue, getValues]);
+	}, [latestWPVersion, currentWpVersion, setValue]);
 
 	// Lock phpVersion to whatever is compatible with the selected
 	// WordPress release. The callback fires on every wpVersion
