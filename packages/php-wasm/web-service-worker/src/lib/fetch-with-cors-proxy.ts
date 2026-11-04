@@ -216,9 +216,18 @@ async function readBodyUntilAborted(request: Request): Promise<ArrayBuffer> {
 	return body.buffer;
 }
 
+/**
+ * Recognize loopback addresses and localhost names, including local subdomains.
+ *
+ * For example, wp.playground.localhost must reach the local HTTP server directly.
+ * The generic path would upgrade it to HTTPS or retry through a remote CORS proxy,
+ * which cannot reach the developer's loopback server. This does not bypass the
+ * browser's CORS checks: the local server still needs the appropriate headers.
+ */
 function isLocalhost(url: URL) {
 	return (
 		url.hostname === 'localhost' ||
+		url.hostname.endsWith('.localhost') ||
 		url.hostname === '127.0.0.1' ||
 		url.hostname === '[::1]' ||
 		url.hostname === '::1'

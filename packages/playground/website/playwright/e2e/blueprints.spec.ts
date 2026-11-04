@@ -1,4 +1,4 @@
-import { test, expect } from '../playground-fixtures';
+import { test, expect, serveBuiltWpCli } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '@php-wasm/util';
 
@@ -209,10 +209,12 @@ test('?blueprint-url=... should work with JSON blueprints referring bundled reso
 });
 
 test('enableMultisite step should re-activate the plugins', async ({
+	context,
 	website,
 	wordpress,
 	browserName,
 }) => {
+	await serveBuiltWpCli(context);
 	test.skip(
 		browserName === 'firefox',
 		`The multisite tests consistently fail in CI on Firefox. The root cause is unknown, ` +
@@ -243,10 +245,12 @@ test('enableMultisite step should re-activate the plugins', async ({
 });
 
 test('enableMultisite step should enable a multisite', async ({
+	context,
 	website,
 	wordpress,
 	browserName,
 }) => {
+	await serveBuiltWpCli(context);
 	test.skip(
 		browserName === 'firefox',
 		`The multisite tests consistently fail in CI on Firefox. The root cause is unknown, ` +
@@ -329,7 +333,12 @@ test('/wp-admin/customize.php should work as a landing page', async ({
 	await expect(wordpress.locator('body')).toContainText('Customize');
 });
 
-test('wp-cli step should create a post', async ({ website, wordpress }) => {
+test('wp-cli step should create a post', async ({
+	context,
+	website,
+	wordpress,
+}) => {
+	await serveBuiltWpCli(context);
 	const blueprint: Blueprint = {
 		landingPage: '/wp-admin/post.php',
 		login: true,
@@ -952,9 +961,11 @@ test('should login a non-admin user if a login step with a non-admin username is
 });
 
 test('should correctly redirect to a multisite wp-admin url', async ({
+	context,
 	website,
 	wordpress,
 }) => {
+	await serveBuiltWpCli(context);
 	const blueprint: Blueprint = {
 		landingPage: '/example/wp-admin/options-general.php',
 		steps: [

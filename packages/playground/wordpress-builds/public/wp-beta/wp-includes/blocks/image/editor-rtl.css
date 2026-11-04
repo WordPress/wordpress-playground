@@ -105,7 +105,6 @@ figure.wp-block-image:not(.wp-block) {
   position: relative;
 }
 .wp-block-image.is-transient:not(.alignwide):not(.alignfull), .wp-block-image:has(img.is-swapping-media):not(.alignwide):not(.alignfull) {
-  width: -moz-fit-content;
   width: fit-content;
 }
 .wp-block-image .is-applying img, .wp-block-image.is-transient img,
@@ -121,6 +120,12 @@ figure.wp-block-image:not(.wp-block) {
   right: 50%;
   transform: translate(50%, -50%);
   margin: 0;
+}
+.wp-block-image .components-resizable-box__container {
+  pointer-events: none;
+}
+.wp-block-image .components-resizable-box__handle {
+  pointer-events: auto;
 }
 
 .wp-block-image__placeholder {
@@ -190,36 +195,6 @@ figure.wp-block-image:not(.wp-block) {
 
 .wp-block[data-align]:has(> .wp-block-image) {
   position: relative;
-}
-
-.wp-block-image__crop-area {
-  position: relative;
-  max-width: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-.wp-block-image__crop-area .reactEasyCrop_Container {
-  pointer-events: auto;
-}
-.wp-block-image__crop-area .reactEasyCrop_Container .reactEasyCrop_Image {
-  border: none;
-  border-radius: 0;
-}
-
-.wp-block-image__crop-icon {
-  padding: 0 8px;
-  min-width: 48px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.wp-block-image__crop-icon svg {
-  fill: currentColor;
-}
-
-.wp-block-image__zoom .components-popover__content {
-  min-width: 260px;
-  overflow: visible !important;
 }
 
 .wp-block-image__toolbar_content_textarea__container {

@@ -14,6 +14,7 @@ import { ensureWpConfig } from '@wp-playground/wordpress';
 import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
 import { wpContentPathsExcludedFromLegacyExports } from '../utils/legacy-wp-content-paths-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
+import { replaceSiteUrl } from '../utils/replace-site-url';
 
 /**
  * @inheritDoc importWordPressFiles
@@ -284,9 +285,8 @@ export const importWordPressFiles: StepHandler<
             `,
 	});
 
-	// If the site URL changed (different scope), update all URLs in the database.
-	// This ensures that image and media URLs that reference the old scope
-	// are updated to use the new scope.
+	// If the site URL changed (host or scope), update stored image and media
+	// URLs to point at this Playground.
 	if (oldSiteUrl && oldSiteUrl !== newSiteUrl) {
 		progress?.tracker.setCaption('Updating site URLs');
 		progress?.tracker.set(90);
@@ -295,110 +295,6 @@ export const importWordPressFiles: StepHandler<
 	progress?.tracker.setCaption('WordPress files imported');
 	progress?.tracker.finish();
 };
-
-/**
- * Extracts the scope path segment from a Playground URL.
- * For example, "http://playground.wordpress.net/scope:abc123/" returns "/scope:abc123/".
- * Returns null if no scope is found.
- */
-function extractScopePath(url: string): string | null {
-	const match = url.match(/\/scope:[^/]+\/?/);
-	return match ? match[0].replace(/\/?$/, '/') : null;
-}
-
-/**
- * Replaces the scope path segment in URLs stored in the database.
- * Only replaces /scope:old-scope/ with /scope:new-scope/, leaving the rest
- * of URLs intact. This is a targeted replacement that handles scope changes
- * when importing a Playground export into a different scope.
- *
- * This approach is reasonably safe because:
- * - The scope string is fairly unique (/scope:xyz/ pattern)
- * - The database fits into memory anyway
- * - There's no expectation of HTML entities or other escaping within the scope string
- */
-async function replaceSiteUrl(
-	playground: UniversalPHP,
-	documentRoot: string,
-	oldSiteUrl: string,
-	newSiteUrl: string
-) {
-	const oldScopePath = extractScopePath(oldSiteUrl);
-	const newScopePath = extractScopePath(newSiteUrl);
-
-	// If we can't extract scope paths, there's nothing to replace
-	if (!oldScopePath || !newScopePath) {
-		return;
-	}
-
-	// If the scopes are the same, no replacement needed
-	if (oldScopePath === newScopePath) {
-		return;
-	}
-
-	await playground.run({
-		code: `<?php
-		require_once getenv('DOCUMENT_ROOT') . '/wp-load.php';
-		global $wpdb;
-
-		$old_scope = getenv('OLD_SCOPE');
-		$new_scope = getenv('NEW_SCOPE');
-
-		// Update URLs in posts content, excerpts, and GUIDs
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->posts} SET post_content = REPLACE(post_content, %s, %s)",
-			$old_scope, $new_scope
-		));
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->posts} SET post_excerpt = REPLACE(post_excerpt, %s, %s)",
-			$old_scope, $new_scope
-		));
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->posts} SET guid = REPLACE(guid, %s, %s)",
-			$old_scope, $new_scope
-		));
-
-		// Update URLs in post meta
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->postmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-
-		// Update URLs in options (handles both regular and serialized data)
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->options} SET option_value = REPLACE(option_value, %s, %s) WHERE option_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-
-		// Update URLs in user meta
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->usermeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-
-		// Update URLs in term meta
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->termmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-
-		// Update URLs in comments
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->comments} SET comment_content = REPLACE(comment_content, %s, %s) WHERE comment_content LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-		$wpdb->query($wpdb->prepare(
-			"UPDATE {$wpdb->comments} SET comment_author_url = REPLACE(comment_author_url, %s, %s) WHERE comment_author_url LIKE %s",
-			$old_scope, $new_scope, '%' . $wpdb->esc_like($old_scope) . '%'
-		));
-		`,
-		env: {
-			DOCUMENT_ROOT: documentRoot,
-			OLD_SCOPE: oldScopePath,
-			NEW_SCOPE: newScopePath,
-		},
-	});
-}
 
 /**
  * Attempts to infer the old site URL from the WordPress database.

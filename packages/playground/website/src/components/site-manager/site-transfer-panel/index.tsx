@@ -6,6 +6,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
+import type { MouseEvent } from 'react';
 import {
 	Button,
 	DropdownMenu,
@@ -17,6 +18,7 @@ import {
 } from '@wordpress/components';
 import { Icon, check, moreVertical } from '@wordpress/icons';
 import { formatBytes } from '@php-wasm/util';
+import { usePrevious } from '../../../lib/hooks/use-previous';
 import {
 	generateReprintKeyPair,
 	type ReprintKeyPair,
@@ -26,7 +28,6 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 	setDockPaneSection,
-	setCloneRequested,
 	setPendingClone,
 } from '../../../lib/state/redux/slice-ui';
 import {
@@ -34,26 +35,28 @@ import {
 	updateSiteMetadata,
 } from '../../../lib/state/redux/slice-sites';
 import { useSitesAPI } from '../../../lib/state/redux/site-management-api-middleware';
-import { randomSiteName } from '../../../lib/state/redux/random-site-name';
-import {
-	deriveSlugFromSiteName,
-	getUniqueSiteSlug,
-} from '../../../lib/state/redux/site-slug';
+import { getUniqueSiteSlug } from '../../../lib/state/redux/site-slug';
 import { getPlaygroundDefinedPHPConstants } from '../../../lib/state/redux/playground-defined-php-constants';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import type { SiteToolPanelProps } from '../site-info-panel/site-tool-renderers';
 import { InlineProgress, PlaygroundBootNotice } from '../../pane-loading';
+import { transitionClonePane } from '../../dock/transition-clone-pane';
 import css from './style.module.css';
 import { TransferProgressView } from './transfer-progress';
 import { getTransferDiagnostics } from '../../../lib/reprint/transfer-diagnostics';
 import {
 	detectReprint,
 	getReprintAdminUrls,
+	isPublicReprintDemo,
 	pullSite,
-	REPRINT_VERSION,
+	loginImportedSite,
 	type ReprintAvailability,
 	type TransferProgress,
 } from '../../../lib/reprint/reprint';
+import {
+	ReprintTransferError,
+	getTransferRecovery,
+} from '../../../lib/reprint/transfer-error';
 
 /** Connect a live site and hand its clone to a new temporary Playground. */
 export function SiteTransferPanel({
@@ -67,7 +70,7 @@ export function SiteTransferPanel({
 	const sitesAPI = useSitesAPI();
 	// Clone mode collects a live site before any Playground exists for it. The
 	// current site only hosts the form; the pull runs in a new Playground.
-	const cloneRequested = !!useAppSelector((state) => state.ui.cloneRequested);
+	const cloneRequested = useAppSelector((state) => state.ui.cloneRequested);
 	const pendingClone = useAppSelector((state) => state.ui.pendingClone);
 	const existingSlugs = useAppSelector(selectAllSites).map(
 		(existing) => existing.slug
@@ -79,7 +82,7 @@ export function SiteTransferPanel({
 	const cloning = cloneRequested || isClone;
 	const [url, setUrl] = useState(() =>
 		cloneRequested
-			? ''
+			? (cloneRequested.url ?? '')
 			: (handoff?.url ?? rememberedConnection(site.slug)?.url ?? '')
 	);
 	const [keyPair, setKeyPair] = useState<ReprintKeyPair | null>(() =>
@@ -89,9 +92,16 @@ export function SiteTransferPanel({
 				rememberedConnection(site.slug)?.keyPair ??
 				null)
 	);
-	const [step, setStep] = useState<'site' | 'install' | 'key' | 'transfer'>(
-		handoff ? 'transfer' : 'site'
-	);
+	const [step, setStep] = useState<
+		| 'site'
+		| 'install'
+		| 'key'
+		| 'copying-key'
+		| 'manual-key'
+		| 'authorize'
+		| 'confirm'
+		| 'transfer'
+	>(handoff ? 'transfer' : 'site');
 	// A clone handoff pulls as soon as the new Playground can run PHP.
 	const [autoStart, setAutoStart] = useState(!!handoff);
 	const heading = useRef<HTMLHeadingElement>(null);
@@ -100,11 +110,11 @@ export function SiteTransferPanel({
 		ReprintAvailability | 'checking' | 'manual' | null
 	>(handoff ? 'manual' : null);
 	const checkController = useRef<AbortController>();
-	const urlEdited = useRef(false);
+	const skipConnectionRestore = useRef(false);
 	const [busy, setBusy] = useState(false);
 	const running = useRef(false);
 	const [progress, setProgress] = useState<TransferProgress>({ message: '' });
-	const [error, setError] = useState('');
+	const [error, setError] = useState<string | ReprintTransferError>('');
 	const [completed, setCompleted] = useState(false);
 	const [warning, setWarning] = useState('');
 	const [diagnostics, setDiagnostics] = useState('');
@@ -117,28 +127,75 @@ export function SiteTransferPanel({
 	const [stopping, setStopping] = useState(false);
 	const [confirmStop, setConfirmStop] = useState(false);
 	const [readingDiagnostics, setReadingDiagnostics] = useState(false);
-	const links =
-		setup && setup !== 'checking' ? getReprintAdminUrls(url) : null;
+	const publicDemo = isPublicReprintDemo(url);
+	const links = setup || publicDemo ? getReprintAdminUrls(url) : null;
 	const hostname = links ? new URL(links.site).hostname : '';
+	const recovery =
+		step === 'transfer' && error instanceof ReprintTransferError
+			? getTransferRecovery(error.details)
+			: null;
+	const recoveryUrl =
+		recovery && links
+			? {
+					settings: links.settings,
+					install: links.install,
+					plugins: links.plugins,
+					admin: links.admin,
+					wordfence: links.wordfence,
+					site: links.site,
+					cli: 'https://github.com/WordPress/reprint#readme',
+					address: undefined,
+					resume: undefined,
+					'open-copy': undefined,
+				}[recovery.action]
+			: undefined;
 	const acceptsKey =
 		setup === 'configured' || setup === 'needs-key' || setup === 'manual';
 	const keyReady = acceptsKey && !!keyPair;
+	const canPull = publicDemo || keyReady;
 	const generatingKey = step === 'key' && !keyPair && !error;
 	const ready =
 		playground &&
 		site.metadata.runtimeConfiguration.networking &&
 		Number.parseFloat(site.metadata.runtimeConfiguration.phpVersion) >= 8.1;
+	const isKeySetup =
+		step !== 'site' && step !== 'install' && step !== 'transfer';
+	const wasKeySetupVisible = usePrevious(
+		isKeySetup && isVisible && !busy && !completed
+	);
+	const keyCopied = step === 'authorize' || step === 'confirm';
+	const pullRequirements = !cloneRequested && (
+		<>
+			<PlaygroundBootNotice show={!playground} />
+			{!ready && playground && (
+				<Notice status="info" isDismissible={false}>
+					Enable networking and use PHP 8.1 or newer.
+				</Notice>
+			)}
+		</>
+	);
 
+	// Restore only an idle address form. A late saved-connection read must not
+	// replace transfer progress or a completed clone. Explicit address editing
+	// takes priority until the panel closes.
 	useEffect(() => {
 		if (!isVisible) {
-			urlEdited.current = false;
+			skipConnectionRestore.current = false;
 			return;
 		}
-		if (cloneRequested || !playground || running.current) return;
+		if (
+			cloneRequested ||
+			!playground ||
+			running.current ||
+			step !== 'site' ||
+			skipConnectionRestore.current
+		)
+			return;
 		let cancelled = false;
 		void readReprintConnection(playground)
 			.then((connection) => {
-				if (cancelled || !connection || urlEdited.current) return;
+				if (cancelled || !connection || skipConnectionRestore.current)
+					return;
 				const address = getReprintAdminUrls(connection).site;
 				const saved = rememberedConnection(site.slug);
 				setUrl(address);
@@ -146,7 +203,7 @@ export function SiteTransferPanel({
 				setSetup('manual');
 				setCompleted(false);
 				setError('');
-				setStep('key');
+				if (!isPublicReprintDemo(address)) setStep('key');
 			})
 			.catch(() => {
 				// Invalid saved URLs must not block entering a new address.
@@ -154,7 +211,7 @@ export function SiteTransferPanel({
 		return () => {
 			cancelled = true;
 		};
-	}, [isVisible, playground, site.slug, cloneRequested]);
+	}, [isVisible, playground, site.slug, cloneRequested, step]);
 
 	// Generate once per live-site address. A late key generation must not attach
 	// the old address's pair to a different site or a closed setup step.
@@ -176,7 +233,7 @@ export function SiteTransferPanel({
 			(error) => {
 				if (cancelled) return;
 				setError(
-					`Could not generate a connection key: ${error instanceof Error ? error.message : String(error)}`
+					`Could not generate a migration key: ${error instanceof Error ? error.message : String(error)}`
 				);
 			}
 		);
@@ -195,12 +252,33 @@ export function SiteTransferPanel({
 
 	useEffect(() => {
 		if (!isVisible) return;
-		const input = content.current?.querySelector<
-			HTMLInputElement | HTMLTextAreaElement
-		>('input:not([disabled]):not([type=checkbox]), textarea[readonly]');
+		if (completed || error) {
+			heading.current?.focus();
+			return;
+		}
+		// Copying and opening settings update the same checklist. Keep the clicked
+		// control focused instead of sending keyboard users back to its heading.
+		if (isKeySetup && wasKeySetupVisible && step !== 'manual-key') return;
+		const input = Array.from(
+			content.current?.querySelectorAll<
+				HTMLInputElement | HTMLTextAreaElement
+			>(
+				'input:not([disabled]):not([type=checkbox]), textarea[readonly]'
+			) ?? []
+		).find((input) => !input.closest('details:not([open])'));
 		if (input) input.focus();
 		else heading.current?.focus();
-	}, [step, isVisible, busy, completed, keyPair]);
+	}, [
+		step,
+		isVisible,
+		busy,
+		completed,
+		keyPair,
+		setup,
+		error,
+		isKeySetup,
+		wasKeySetupVisible,
+	]);
 
 	useEffect(() => {
 		if (!busy) return;
@@ -215,7 +293,7 @@ export function SiteTransferPanel({
 
 	/** Drop the previous probe and key when selecting another live site. */
 	const changeUrl = (value: string) => {
-		urlEdited.current = true;
+		skipConnectionRestore.current = true;
 		checkController.current?.abort();
 		setUrl(value);
 		setSetup(null);
@@ -223,6 +301,33 @@ export function SiteTransferPanel({
 		setKeyPair(null);
 		setError('');
 		setCompleted(false);
+	};
+
+	/**
+	 * Copy during the click gesture; ignore completion after Back or an address edit.
+	 * A repeated copy must leave any newer setup step in place.
+	 */
+	const copyMigrationKey = async () => {
+		if (!keyPair || step === 'copying-key') return;
+		checkController.current?.abort();
+		// An old clone error would make the focus effect jump back to its heading.
+		setError('');
+		const controller = new AbortController();
+		checkController.current = controller;
+		// Copying again must not undo a settings tab the user already opened.
+		if (!keyCopied) setStep('copying-key');
+		try {
+			await navigator.clipboard.writeText(keyPair.publicKey);
+			if (!controller.signal.aborted)
+				setStep((current) =>
+					current === 'copying-key' ? 'authorize' : current
+				);
+		} catch {
+			if (!controller.signal.aborted)
+				setStep((current) =>
+					current === 'copying-key' ? 'manual-key' : current
+				);
+		}
 	};
 
 	/** Advance only when the current address probe returns. */
@@ -262,26 +367,35 @@ export function SiteTransferPanel({
 	};
 
 	/** Return to the previous setup input without forgetting a valid key. */
-	const goBack = useCallback(() => {
-		checkController.current?.abort();
-		setAutoStart(false);
-		setError('');
-		if (step === 'site') {
-			dispatch(setCloneRequested(false));
-			dispatch(setDockPaneSection('new'));
-			return;
-		}
-		if (step === 'transfer') {
-			setStep('key');
-		} else {
-			setSetup(null);
-			setStep('site');
-		}
-	}, [dispatch, step]);
+	const goBack = useCallback(
+		(event: MouseEvent<HTMLElement>) => {
+			checkController.current?.abort();
+			setAutoStart(false);
+			setError('');
+			if (step === 'site') {
+				const pane =
+					event.currentTarget.closest<HTMLElement>(
+						'[role="dialog"]'
+					)!;
+				transitionClonePane(pane, 'back', () => {
+					dispatch(setDockPaneSection('new'));
+				});
+				return;
+			}
+			if (step === 'transfer') {
+				setStep(publicDemo ? 'site' : 'key');
+			} else {
+				skipConnectionRestore.current = true;
+				setSetup(null);
+				setStep('site');
+			}
+		},
+		[dispatch, publicDemo, step]
+	);
 
 	/** Run the pull, retain failures for retry, then autosave the completed clone. */
 	const start = useCallback(async () => {
-		if (!playground || !ready || !keyReady || running.current) return;
+		if (!playground || !ready || !canPull || running.current) return;
 		running.current = true;
 		setStep('transfer');
 		setBusy(true);
@@ -303,7 +417,7 @@ export function SiteTransferPanel({
 			const result = await pullSite(
 				playground,
 				url,
-				keyPair!.privateKey,
+				publicDemo ? null : keyPair!.privateKey,
 				(update) => {
 					// File batches report both counters; keep the last totals
 					// for the completion summary.
@@ -326,10 +440,11 @@ export function SiteTransferPanel({
 				})
 			);
 			setWarning(result?.warning ?? '');
-			setCompleted(true);
+			setCompleted(!result?.loginError);
+			setError(result?.loginError ?? '');
 			setSetup('configured');
-			// The site is usable now. Persisting it to this browser happens in
-			// the background; the address bar's save indicator reports it.
+			// The copy is installed even if sign-in failed. Persist it in the
+			// background; the address bar’s save indicator reports it.
 			void sitesAPI
 				.autosaveTemporarySite(site.slug, { updateUrl: true })
 				.catch((error) => {
@@ -347,8 +462,8 @@ export function SiteTransferPanel({
 		} catch (error) {
 			setSetup('manual');
 			if ((error as { name?: string } | null)?.name === 'AbortError') {
-				// Stopped on request: the key step offers to resume later.
-				setStep('key');
+				// Return to the action that can resume the stopped transfer.
+				setStep(publicDemo ? 'site' : 'confirm');
 				return;
 			}
 			const message =
@@ -356,7 +471,11 @@ export function SiteTransferPanel({
 			// An unenrolled key can be added on the live site before retrying.
 			// Keep this pair; replacing it would require another enrollment.
 			setStep('transfer');
-			setError(message);
+			setError(
+				error instanceof ReprintTransferError
+					? error
+					: new ReprintTransferError(message)
+			);
 		} finally {
 			running.current = false;
 			setBusy(false);
@@ -365,12 +484,51 @@ export function SiteTransferPanel({
 		dispatch,
 		playground,
 		ready,
-		keyReady,
+		canPull,
+		publicDemo,
 		site.slug,
 		url,
 		keyPair,
 		sitesAPI,
 	]);
+
+	/** Retry only sign-in after a completed copy, without touching transfer checkpoints. */
+	const retryLogin = async () => {
+		if (!playground || running.current) return;
+		running.current = true;
+		setBusy(true);
+		setError('');
+		setProgress({
+			phase: 'login',
+			message: 'Signing in to the cloned site…',
+		});
+		try {
+			const warning = await (publicDemo
+				? loginImportedSite(playground, { createLocalAdmin: true })
+				: loginImportedSite(playground));
+			setWarning(warning ?? '');
+			await dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						playgroundDefinedConstants:
+							await getPlaygroundDefinedPHPConstants(playground),
+					},
+				})
+			);
+			setCompleted(true);
+		} catch (error) {
+			setError(
+				new ReprintTransferError(
+					error instanceof Error ? error.message : String(error),
+					{ code: 'LOGIN_FAILED', stage: 'login' }
+				)
+			);
+		} finally {
+			running.current = false;
+			setBusy(false);
+		}
+	};
 
 	// A pull rewrites the site underneath the Playground, and switching sites
 	// would end its PHP runtime. Pin the pane until it completes or is stopped.
@@ -390,11 +548,11 @@ export function SiteTransferPanel({
 	}, [handoff]);
 
 	useEffect(() => {
-		if (!isVisible || !autoStart || !ready || !keyReady) return;
+		if (!isVisible || !autoStart || !ready || !canPull) return;
 		setAutoStart(false);
 		dispatch(setPendingClone(undefined));
 		void start();
-	}, [isVisible, autoStart, ready, keyReady, start, dispatch]);
+	}, [isVisible, autoStart, ready, canPull, start, dispatch]);
 
 	// An idle transfer step has nothing to show and would keep the dock
 	// locked. Only a running, finished, or failed pull belongs there.
@@ -407,16 +565,16 @@ export function SiteTransferPanel({
 			!autoStart &&
 			!handoff
 		) {
-			setStep('key');
+			setStep(publicDemo ? 'site' : 'key');
 		}
-	}, [step, busy, completed, error, autoStart, handoff]);
+	}, [step, busy, completed, error, autoStart, handoff, publicDemo]);
 
 	/**
 	 * Creates the Playground that receives the clone. Its transfer panel mounts
 	 * with the connection details and starts the pull once the site has booted.
 	 */
 	const cloneIntoNewSite = async () => {
-		if (!keyReady || running.current) return;
+		if (!canPull || running.current) return;
 		running.current = true;
 		setStep('transfer');
 		setBusy(true);
@@ -426,12 +584,14 @@ export function SiteTransferPanel({
 			overallPercent: 0,
 		});
 		const address = getReprintAdminUrls(url).site;
-		const slug = getUniqueSiteSlug(
-			deriveSlugFromSiteName(randomSiteName()),
-			{ unavailableSlugs: existingSlugs }
+		const slug = getUniqueSiteSlug(undefined, {
+			unavailableSlugs: existingSlugs,
+		});
+		const cloneKeyPair = publicDemo ? null : keyPair;
+		if (cloneKeyPair) rememberConnection(slug, address, cloneKeyPair);
+		dispatch(
+			setPendingClone({ slug, url: address, keyPair: cloneKeyPair })
 		);
-		rememberConnection(slug, address, keyPair!);
-		dispatch(setPendingClone({ slug, url: address, keyPair: keyPair! }));
 		try {
 			// The clone stays temporary while it downloads: nothing is written to
 			// browser storage until the site is complete and usable.
@@ -443,19 +603,20 @@ export function SiteTransferPanel({
 				{ updateUrl: false }
 			);
 			if (created !== slug) {
-				rememberConnection(created, address, keyPair!);
+				if (cloneKeyPair)
+					rememberConnection(created, address, cloneKeyPair);
 				dispatch(
 					setPendingClone({
 						slug: created,
 						url: address,
-						keyPair: keyPair!,
+						keyPair: cloneKeyPair,
 					})
 				);
 			}
 		} catch (error) {
 			dispatch(setPendingClone(undefined));
 			setSetup('manual');
-			setStep('key');
+			setStep(publicDemo ? 'site' : 'key');
 			setError(error instanceof Error ? error.message : String(error));
 		} finally {
 			running.current = false;
@@ -526,27 +687,32 @@ export function SiteTransferPanel({
 		onBackChange?.(
 			busy
 				? {
-						title: `${cloning ? 'Cloning' : 'Pulling'} ${hostname}`,
+						title:
+							progress.phase === 'login'
+								? `Signing in to ${hostname}`
+								: `${cloning ? 'Cloning' : 'Pulling'} ${hostname}`,
 						action: transferLogMenu,
 					}
 				: completed
 					? // The result screen names the site itself and needs no header.
 						{ title: 'Site cloned', hideHeader: true }
-					: step !== 'site' || cloning
-						? {
-								action:
-									step === 'transfer'
-										? transferLogMenu
-										: undefined,
-								backLabel:
-									step === 'site'
-										? 'Back to New Playground'
-										: step === 'transfer'
-											? 'Back to connection key'
-											: 'Back to site address',
-								onBack: goBack,
-							}
-						: undefined
+					: recovery?.action === 'open-copy'
+						? { title: 'Site cloned', action: transferLogMenu }
+						: step !== 'site' || cloning
+							? {
+									action:
+										step === 'transfer'
+											? transferLogMenu
+											: undefined,
+									backLabel:
+										step === 'site'
+											? 'Back to New Playground'
+											: step === 'transfer' && !publicDemo
+												? 'Back to migration key'
+												: 'Back to site address',
+									onBack: goBack,
+								}
+							: undefined
 		);
 		return () => onBackChange?.(undefined);
 	}, [
@@ -559,33 +725,119 @@ export function SiteTransferPanel({
 		goBack,
 		onBackChange,
 		transferLogMenu,
+		recovery?.action,
+		progress.phase,
+		publicDemo,
 	]);
+
+	/** Follow the recovery step without replacing the current clone or key. */
+	const recoverTransfer = () => {
+		if (recovery?.action === 'address') {
+			skipConnectionRestore.current = true;
+			setError('');
+			setSetup(null);
+			setStep('site');
+		} else if (recovery?.action === 'open-copy') {
+			void playground?.goTo('/');
+			dispatch(setDockPaneOpen(false));
+		} else {
+			void start();
+		}
+	};
+
+	const migrationKeyField = (
+		<TextareaControl
+			__nextHasNoMarginBottom
+			label="Migration key"
+			onChange={() => {}}
+			readOnly
+			autoFocus={isVisible && step === 'manual-key'}
+			onFocus={(event) => event.target.select()}
+			value={keyPair?.publicKey ?? ''}
+			rows={3}
+		/>
+	);
 
 	return (
 		<VStack spacing={4} className={css.panel}>
-			{step === 'install' && <p className={css.siteAddress}>{url}</p>}
 			<div
 				ref={content}
-				key={`${step}-${busy}-${completed}`}
+				key={`${isKeySetup ? 'connection' : step}-${busy}-${completed}`}
+				data-step={step}
 				className={css.stepContent}
 			>
 				{error && (
-					<Notice status="error" isDismissible={false}>
-						<p>{error}</p>
-						{!busy && step === 'transfer' && keyReady && (
+					<VStack spacing={5} className={css.error} role="alert">
+						<VStack spacing={2}>
+							<h3
+								ref={heading}
+								tabIndex={-1}
+								className={css.setupTitle}
+							>
+								{recovery?.title ??
+									'Couldn’t complete this step'}
+							</h3>
+							<p className={css.hint}>
+								{recovery?.message ??
+									(error instanceof Error
+										? error.message
+										: error)}
+							</p>
+							{!publicDemo && recovery?.action === 'settings' && (
+								<Button variant="link" onClick={goBack}>
+									View migration key
+								</Button>
+							)}
+						</VStack>
+						{!busy && recovery && canPull && (
 							<div className={css.actions}>
 								<Button
-									variant="secondary"
-									autoFocus={isVisible}
-									onClick={() => void start()}
+									variant="primary"
+									href={recoveryUrl}
+									target={recoveryUrl ? '_blank' : undefined}
+									rel={recoveryUrl ? 'noreferrer' : undefined}
+									onClick={
+										recoveryUrl
+											? undefined
+											: recoverTransfer
+									}
 								>
-									{progress.phase === 'files-prepare'
-										? 'Resume local setup'
-										: 'Try resuming'}
+									{recovery.label}
 								</Button>
+								{recovery.resumeLabel && (
+									<Button
+										variant="secondary"
+										onClick={() => {
+											if (recovery.action === 'open-copy')
+												void retryLogin();
+											else void start();
+										}}
+									>
+										{recovery.resumeLabel}
+									</Button>
+								)}
 							</div>
 						)}
-					</Notice>
+						{recovery && error instanceof ReprintTransferError && (
+							<details className={css.errorDetails}>
+								<summary>Technical details</summary>
+								<pre>
+									{[
+										error.details.code,
+										error.details.stage &&
+											`Stage: ${error.details.stage}`,
+										error.details.httpStatus &&
+											`HTTP ${error.details.httpStatus}`,
+										error.details.curlError &&
+											`cURL ${error.details.curlError}`,
+										error.message,
+									]
+										.filter(Boolean)
+										.join('\n')}
+								</pre>
+							</details>
+						)}
+					</VStack>
 				)}
 				{!busy && !completed && autoStart && !error && (
 					<InlineProgress message="Waiting for the new Playground to boot…" />
@@ -594,7 +846,12 @@ export function SiteTransferPanel({
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
-							void checkSite();
+							if (publicDemo) {
+								if (cloneRequested) void cloneIntoNewSite();
+								else void start();
+							} else {
+								void checkSite();
+							}
 						}}
 					>
 						<VStack spacing={4}>
@@ -621,96 +878,124 @@ export function SiteTransferPanel({
 									<Button
 										type="submit"
 										variant={
-											setup && setup !== 'checking'
+											!publicDemo &&
+											setup &&
+											setup !== 'checking'
 												? 'secondary'
 												: 'primary'
 										}
 										isBusy={setup === 'checking'}
 										disabled={
-											busy || !url || setup === 'checking'
+											busy ||
+											!url ||
+											setup === 'checking' ||
+											(publicDemo &&
+												!cloneRequested &&
+												!ready)
 										}
 									>
-										{setup === 'checking'
-											? 'Checking…'
-											: setup
-												? 'Check again'
-												: 'Check site'}
+										{publicDemo
+											? cloneRequested
+												? 'Clone site'
+												: 'Pull site'
+											: setup === 'checking'
+												? 'Checking…'
+												: setup
+													? 'Check again'
+													: 'Check site'}
 									</Button>
 								</div>
 								<p className={css.hint}>
-									You’ll need admin access to this site.
+									{publicDemo
+										? 'No account or migration key needed.'
+										: 'You’ll need admin access to this site.'}
 								</p>
+								{publicDemo && pullRequirements}
 							</VStack>
 						</VStack>
 					</form>
 				)}
 				{!busy && !completed && step === 'install' && links && (
-					<VStack spacing={4} ref={heading} tabIndex={-1}>
-						<Notice status="error" isDismissible={false}>
-							<strong className={css.errorTitle}>
+					<VStack spacing={6}>
+						<VStack spacing={2}>
+							<h3
+								ref={heading}
+								tabIndex={-1}
+								className={css.setupTitle}
+							>
+								Install Reprint Server
+							</h3>
+							<p className={css.hint}>
 								{setup === 'unreachable'
-									? 'Couldn’t check this site'
-									: 'Reprint Server not detected'}
-							</strong>
-							<p>
-								{setup === 'unreachable'
-									? 'Check the URL and try again, or follow the setup steps below.'
-									: 'Install and activate Reprint Server on your live site, then check again.'}
-							</p>
-							<p>
-								Already installed? Make sure it’s active. If
-								your host blocks the check, you can set up a key
-								below.
-							</p>
-						</Notice>
-						<VStack as="ol" spacing={3} className={css.steps}>
-							<li>
+									? 'We couldn’t check Reprint on '
+									: 'Add the plugin to '}
 								<a
-									href={`https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint-exporter-wp.zip`}
+									href={links.site}
 									target="_blank"
 									rel="noreferrer"
+									className={css.setupSite}
 								>
-									Download Reprint Server (.zip)
+									{hostname}
 								</a>
-								. Keep the file zipped.
-							</li>
+								{setup === 'unreachable'
+									? '. Check the address, or follow the steps below.'
+									: ' so Playground can connect to your live site.'}
+							</p>
+						</VStack>
+						<VStack as="ol" spacing={6} className={css.steps}>
 							<li>
 								<a
 									href={links.install}
 									target="_blank"
 									rel="noreferrer"
 								>
-									Open your plugin installer
-								</a>{' '}
-								and sign in if asked. Choose the zip, click{' '}
-								<strong>Install Now</strong>, then{' '}
-								<strong>Activate Plugin</strong>.
+									Install Reprint
+								</a>
+								<p className={css.hint}>
+									Sign in if asked. Choose{' '}
+									<strong>Install Now</strong>.
+								</p>
 							</li>
-							<li>Come back here and check again.</li>
+							<li>
+								<strong>Activate the plugin</strong>
+								<p className={css.hint}>
+									Choose <strong>Activate</strong>, then come
+									back here.
+								</p>
+							</li>
 						</VStack>
-						<div className={css.actions}>
+						<VStack spacing={4}>
 							<Button
 								variant="primary"
+								isBusy={setup === 'checking'}
+								disabled={setup === 'checking'}
 								onClick={() => void checkSite()}
 							>
-								I’ve activated Reprint — check again
+								{setup === 'checking'
+									? 'Checking…'
+									: 'Check again'}
 							</Button>
-							<Button
-								variant="tertiary"
-								onClick={() => {
-									setSetup('manual');
-									setStep('key');
-								}}
-							>
-								Reprint is installed — connect
-							</Button>
-						</div>
+							<div className={css.manualConnection}>
+								<span>Already active?</span>
+								<Button
+									variant="link"
+									disabled={setup === 'checking'}
+									onClick={() => {
+										setSetup('manual');
+										setStep('key');
+									}}
+								>
+									Connect manually
+								</Button>
+							</div>
+						</VStack>
 					</VStack>
 				)}
-				{!busy && !completed && step === 'key' && links && (
+				{!busy && !completed && isKeySetup && links && (
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
+							if (step !== 'confirm') return;
 							if (cloneRequested) {
 								void cloneIntoNewSite();
 								return;
@@ -725,82 +1010,173 @@ export function SiteTransferPanel({
 							}
 						}}
 					>
-						<VStack spacing={3}>
-							{generatingKey && (
-								<InlineProgress message="Generating a connection key…" />
-							)}
-							{keyPair && (
-								<>
-									<p>
-										Add this public key in{' '}
-										<a
+						<VStack spacing={4}>
+							<ol
+								className={css.connectionSteps}
+								aria-label="Connection steps"
+							>
+								<li
+									aria-current={
+										!keyCopied ? 'step' : undefined
+									}
+								>
+									<h3
+										ref={error ? undefined : heading}
+										tabIndex={-1}
+										className={css.setupTitle}
+									>
+										1. Copy your migration key
+									</h3>
+									<p className={css.hint}>
+										You’ll paste it into Reprint on your
+										live site.
+									</p>
+									{generatingKey && (
+										<InlineProgress message="Generating a migration key…" />
+									)}
+									{step === 'manual-key' && (
+										<>
+											<p
+												className={css.hint}
+												role="alert"
+											>
+												We couldn’t copy automatically.
+												Select and copy the key below.
+											</p>
+											{migrationKeyField}
+										</>
+									)}
+									<div className={css.actions}>
+										<Button
+											variant={
+												keyCopied
+													? 'secondary'
+													: 'primary'
+											}
+											disabled={
+												!keyReady ||
+												step === 'copying-key'
+											}
+											accessibleWhenDisabled={
+												step === 'copying-key'
+											}
+											isBusy={step === 'copying-key'}
+											onClick={() => {
+												if (step === 'manual-key')
+													setStep('authorize');
+												else void copyMigrationKey();
+											}}
+										>
+											{step === 'manual-key'
+												? 'I’ve copied the key'
+												: 'Copy migration key'}
+										</Button>
+										<span
+											className={css.keyCopied}
+											role="status"
+										>
+											{keyCopied && (
+												<>
+													<Icon
+														icon={check}
+														size={16}
+													/>
+													Copied
+												</>
+											)}
+										</span>
+									</div>
+									{keyPair && (
+										<details
+											className={css.connectionDetails}
+										>
+											<summary>
+												{step === 'manual-key'
+													? 'About this connection'
+													: 'Show key and connection details'}
+											</summary>
+											{step !== 'manual-key' &&
+												migrationKeyField}
+											<p className={css.hint}>
+												Only the migration key goes to
+												your live site. The private key
+												stays in this tab and is reused
+												when you retry.
+											</p>
+										</details>
+									)}
+								</li>
+								<li
+									aria-current={
+										step === 'authorize'
+											? 'step'
+											: undefined
+									}
+								>
+									<h3
+										className={`${css.setupTitle} ${css.setupSite}`}
+									>
+										2. Authorize on {hostname}
+									</h3>
+									<p className={css.hint}>
+										Paste into{' '}
+										<strong>Migration Token</strong>, then
+										choose <strong>Authorize client</strong>
+										.
+									</p>
+									{keyCopied ? (
+										<Button
+											variant={
+												step === 'authorize'
+													? 'primary'
+													: 'secondary'
+											}
 											href={links.settings}
 											target="_blank"
 											rel="noreferrer"
+											onClick={() => setStep('confirm')}
 										>
-											Reprint settings on {hostname}
-										</a>
-										, then come back and clone the site.
-									</p>
-									<TextareaControl
-										__nextHasNoMarginBottom
-										label="Public key"
-										onChange={() => {}}
-										readOnly
-										autoFocus={isVisible}
-										onFocus={(event) =>
-											event.target.select()
-										}
-										value={keyPair.publicKey}
-										rows={3}
-									/>
-									<Button
-										variant="secondary"
-										onClick={async () => {
-											try {
-												await navigator.clipboard.writeText(
-													keyPair.publicKey
-												);
-												dispatch(
-													setDockOperationNotice({
-														status: 'success',
-														title: 'Public key copied',
-													})
-												);
-											} catch {
-												setError(
-													'Select the public key above and copy it manually.'
-												);
-											}
-										}}
-									>
-										Copy public key
-									</Button>
+											Open Reprint settings ↗
+										</Button>
+									) : (
+										<Button variant="secondary" disabled>
+											Open Reprint settings ↗
+										</Button>
+									)}
+								</li>
+								<li
+									aria-current={
+										step === 'confirm' ? 'step' : undefined
+									}
+								>
+									<h3 className={css.setupTitle}>
+										3. Return here and{' '}
+										{cloning ? 'clone' : 'pull'} your site
+									</h3>
 									<p className={css.hint}>
-										Only the public key goes to your live
-										site. The private key stays in this tab
-										and is reused when you retry.
+										We’ll check access before copying your
+										site.
 									</p>
 									<Button
 										type="submit"
-										variant="primary"
+										variant={
+											step === 'confirm'
+												? 'primary'
+												: 'secondary'
+										}
 										disabled={
+											step !== 'confirm' ||
 											!keyReady ||
 											(!cloneRequested && !ready)
 										}
 									>
-										{cloning ? 'Clone site' : 'Pull site'}
+										{cloning
+											? 'I’ve authorized it — clone site'
+											: 'I’ve authorized it — pull site'}
 									</Button>
-								</>
-							)}
-							{!cloneRequested && (
-								<PlaygroundBootNotice show={!playground} />
-							)}
-							{!cloneRequested && !ready && playground && (
-								<Notice status="info" isDismissible={false}>
-									Enable networking and use PHP 8.1 or newer.
-								</Notice>
-							)}
+								</li>
+							</ol>
+							{pullRequirements}
 						</VStack>
 					</form>
 				)}
@@ -832,7 +1208,7 @@ export function SiteTransferPanel({
 						</div>
 					</Notice>
 				)}
-				{busy && !confirmStop && (
+				{busy && !confirmStop && progress.phase !== 'login' && (
 					<div className={css.transferFooter}>
 						<p className={css.hint}>
 							{cloning
@@ -865,7 +1241,13 @@ export function SiteTransferPanel({
 						<span className={css.doneIcon}>
 							<Icon icon={check} size={32} />
 						</span>
-						<h3 className={css.doneTitle}>{hostname} cloned</h3>
+						<h3
+							ref={heading}
+							tabIndex={-1}
+							className={css.doneTitle}
+						>
+							{hostname} cloned
+						</h3>
 						{summary && (
 							<p className={css.doneSummary}>
 								{[
@@ -892,7 +1274,10 @@ export function SiteTransferPanel({
 					<div className={css.doneActions}>
 						<Button
 							variant="primary"
-							onClick={() => dispatch(setDockPaneOpen(false))}
+							onClick={() => {
+								if (publicDemo) void playground?.goTo('/');
+								dispatch(setDockPaneOpen(false));
+							}}
 						>
 							Open site
 						</Button>
@@ -902,9 +1287,6 @@ export function SiteTransferPanel({
 					<p className={css.doneNote}>
 						You’re signed in as an administrator. Your live site was
 						not changed.
-						<br />
-						This copy is being saved to your browser in the
-						background.
 					</p>
 				)}
 			</div>

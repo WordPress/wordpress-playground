@@ -126,6 +126,31 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:8080/api');
 	});
 
+	it.each(['playground.localhost', 'wp.playground.localhost'])(
+		'keeps HTTP downloads on the local subdomain %s without a proxy',
+		async (hostname) => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
+			const url = `http://${hostname}:9500/toolkit.txt`;
+			await fetchWithCorsProxy(url, undefined, 'https://proxy.test/?');
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			expect((fetchMock.mock.calls[0][0] as Request).url).toBe(url);
+		}
+	);
+
+	it('does not treat a hostname containing localhost as a loopback suffix', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		await fetchWithCorsProxy(
+			'http://playground.localhost.example.org/toolkit.txt'
+		);
+		expect((fetchMock.mock.calls[0][0] as Request).url).toBe(
+			'https://playground.localhost.example.org/toolkit.txt'
+		);
+	});
+
 	it('never proxies 127.0.0.1 requests', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')

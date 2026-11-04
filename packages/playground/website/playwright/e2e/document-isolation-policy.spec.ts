@@ -164,6 +164,8 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 // Sends the headers that older Gutenberg versions send on editor screens with
 // the client-side media processing experiment enabled.
 const coepCoopBlueprint: Blueprint = {
+	// A pre-DIP release keeps this focused on converting the older headers.
+	preferredVersions: { wp: '6.9' },
 	landingPage: '/wp-admin/post-new.php',
 	login: true,
 	steps: [

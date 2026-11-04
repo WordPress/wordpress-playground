@@ -13,7 +13,8 @@
 .wp-block-categories.wp-block-categories-dropdown.aligncenter {
   text-align: center;
 }
-.wp-block-categories .wp-block-categories__label:not(.screen-reader-text) {
+
+:where(.wp-block-categories__label:not(.screen-reader-text)) {
   width: 100%;
   display: block;
 }

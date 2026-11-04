@@ -8,7 +8,6 @@ import {
 	addClientInfo,
 	removeClientInfo,
 	updateClientInfo,
-	selectClientInfoBySiteSlug,
 } from './slice-clients';
 import {
 	type Blueprint,
@@ -42,7 +41,8 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import { initTabCoordinator, destroyTabCoordinator } from './tab-coordinator';
+import { getDeploymentVersion } from '../../deployment-version';
+import { buildVersion } from '../../config';
 import { isAppBasePath } from '../url/app-base-url';
 import { PLAYGROUND_QUERY_KEYS } from '../url/router';
 import { getBrowserPathAsLandingPage } from '../url/landing-page';
@@ -97,7 +97,6 @@ export function bootSiteClient(
 
 		reportBootProgress(1, 'Reading site settings');
 		signal.onabort = () => {
-			destroyTabCoordinator();
 			dispatch(removeClientInfo(siteSlug));
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
@@ -181,46 +180,6 @@ export function bootSiteClient(
 				? 'Found existing WordPress files'
 				: 'No existing WordPress install found'
 		);
-
-		// Only one tab may run the Personal WP runtime at a time. Other tabs
-		// preserve their iframe and observe the browser-managed main-tab locks.
-		if (site.metadata.storage !== 'none') {
-			reportBootProgress(10, 'Checking for another open tab');
-			const tabInfo = await initTabCoordinator(site.slug, {
-				onMainTabStatusChange: (mainTabStatus) => {
-					if (!selectClientInfoBySiteSlug(getState(), site.slug)) {
-						return;
-					}
-					dispatch(
-						updateClientInfo({
-							siteSlug: site.slug,
-							changes: { mainTabStatus },
-						})
-					);
-				},
-				onSiteReset: () => {
-					window.location.href =
-						window.location.origin + window.location.pathname;
-				},
-			});
-
-			if (tabInfo.isDependentMode) {
-				reportBootProgress(14, 'Connecting to the main tab');
-				bootDependentModeClient({
-					siteSlug: site.slug,
-					iframe,
-					dispatch,
-					getState,
-					signal,
-					mainTabStatus: tabInfo.mainTabStatus || 'missing',
-					onReady,
-				});
-				logger.info(
-					'Playground running in dependent mode - using the main tab worker'
-				);
-				return;
-			}
-		}
 
 		reportBootProgress(16, 'Preparing boot blueprint');
 		let blueprint: Blueprint;
@@ -312,11 +271,27 @@ export function bootSiteClient(
 			reportBootProgress(100, 'WordPress runtime is ready');
 			onReady?.();
 		});
+		const onRuntimeStartupProgress = (event: MessageEvent) => {
+			if (
+				event.origin !== window.location.origin ||
+				event.source !== iframe.contentWindow ||
+				event.data?.type !== 'playground-runtime-startup-progress' ||
+				typeof event.data.caption !== 'string'
+			)
+				return;
+			progressTracker.setCaption(event.data.caption);
+		};
+		window.addEventListener('message', onRuntimeStartupProgress, {
+			signal,
+		});
 		try {
 			reportBootProgress(20, 'Starting Playground runtime');
 			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
+				workerMode: 'shared',
+				sharedWorkerVersion: await getDeploymentVersion(),
+				sharedWorkerClientVersion: buildVersion,
 				scope: site.slug,
 				blueprint,
 				disableProgressBar: true,
@@ -394,8 +369,8 @@ export function bootSiteClient(
 			}
 		}
 
+		window.removeEventListener('message', onRuntimeStartupProgress);
 		if (signal.aborted || !playground) {
-			destroyTabCoordinator();
 			return;
 		}
 		if (Object.keys(gitDirectorySources).length > 0) {
@@ -426,8 +401,6 @@ export function bootSiteClient(
 				url: '/',
 				client: playground,
 				opfsMountDescriptor: mountDescriptor,
-				isDependentMode: false,
-				mainTabStatus: 'booting',
 			})
 		);
 
@@ -479,7 +452,6 @@ export function bootSiteClient(
 		}
 
 		signal.onabort = () => {
-			destroyTabCoordinator();
 			dispatch(removeClientInfo(site.slug));
 		};
 		reportBootProgress(100, 'WordPress is ready');
@@ -580,128 +552,6 @@ function getWordPressInstallModeCaption(
 			return 'Booting from existing WordPress files';
 		case 'download-and-install':
 			return 'Downloading and installing WordPress';
-	}
-}
-
-function bootDependentModeClient({
-	siteSlug,
-	iframe,
-	dispatch,
-	getState,
-	signal,
-	mainTabStatus,
-	onReady,
-}: {
-	siteSlug: string;
-	iframe: HTMLIFrameElement;
-	dispatch: PlaygroundDispatch;
-	getState: () => PlaygroundReduxState;
-	signal: AbortSignal;
-	mainTabStatus: 'connected' | 'booting' | 'missing';
-	onReady?: () => void;
-}): void {
-	const remoteUrl = getRemoteUrl();
-	const scopedSiteUrl = `/scope:${encodeURIComponent(siteSlug)}/`;
-	const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
-	const landingPage = getBrowserPathAsLandingPage() || '/';
-
-	const dependentModeClient = {
-		goTo: async (path: string) => {
-			const newUrl = new URL(
-				scopedSiteUrl + path.replace(/^\//, ''),
-				remoteUrl
-			);
-			iframe.src = newUrl.toString();
-		},
-		getCurrentURL: async () => {
-			return getDependentModeCurrentUrl(iframe, scopedSiteUrl) || '/';
-		},
-	} as PlaygroundClient;
-
-	const updateUrlFromIframe = () => {
-		const url = getDependentModeCurrentUrl(iframe, scopedSiteUrl);
-		if (!url) {
-			return;
-		}
-		dispatch(
-			updateClientInfo({
-				siteSlug,
-				changes: { url },
-			})
-		);
-	};
-	const markIframeReady = () => {
-		onReady?.();
-	};
-
-	const existingClient = selectClientInfoBySiteSlug(getState(), siteSlug);
-	if (existingClient) {
-		dispatch(
-			updateClientInfo({
-				siteSlug,
-				changes: {
-					url: landingPage,
-					client: dependentModeClient,
-					opfsMountDescriptor: undefined,
-					isDependentMode: true,
-					mainTabStatus,
-				},
-			})
-		);
-	} else {
-		dispatch(
-			addClientInfo({
-				siteSlug,
-				url: landingPage,
-				client: dependentModeClient,
-				opfsMountDescriptor: undefined,
-				isDependentMode: true,
-				mainTabStatus,
-			})
-		);
-	}
-
-	dispatch(
-		updateSiteMetadata({
-			slug: siteSlug,
-			metadata: {
-				lastAccessDate: Date.now(),
-			},
-		})
-	);
-
-	iframe.addEventListener('load', updateUrlFromIframe);
-	iframe.addEventListener('load', markIframeReady, { once: true });
-	signal.addEventListener(
-		'abort',
-		() => {
-			iframe.removeEventListener('load', updateUrlFromIframe);
-			iframe.removeEventListener('load', markIframeReady);
-		},
-		{ once: true }
-	);
-
-	// Resolve relative to scopedUrl so query strings stay in URL.search.
-	iframe.src = new URL(landingPage.replace(/^\//, ''), scopedUrl).toString();
-}
-
-function getDependentModeCurrentUrl(
-	iframe: HTMLIFrameElement,
-	scopedSiteUrl: string
-): string | undefined {
-	try {
-		const iframeHref = iframe.contentWindow?.location?.href;
-		if (!iframeHref) {
-			return;
-		}
-		const iframeUrl = new URL(iframeHref);
-		if (!iframeUrl.pathname.startsWith(scopedSiteUrl)) {
-			return;
-		}
-		const path = '/' + iframeUrl.pathname.slice(scopedSiteUrl.length);
-		return path + iframeUrl.search;
-	} catch {
-		return;
 	}
 }
 

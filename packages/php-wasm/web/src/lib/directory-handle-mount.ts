@@ -4,7 +4,14 @@ import {
 	MountStillActiveError,
 	__private__dont__use,
 } from '@php-wasm/universal';
-import { Semaphore, basename, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	basename,
+	dirname,
+	isParentOf,
+	joinPaths,
+	normalizePath,
+} from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { normalizeFilesystemOperations } from '@php-wasm/fs-journal';
@@ -71,9 +78,12 @@ export type SyncProgressCallback = (
 
 interface JournalFSEventsToOpfsOptions {
 	maxFlushPasses?: number;
+	initialSync?: Promise<void>;
 }
 
 const DEFAULT_MAX_OPFS_FLUSH_PASSES = 1000;
+const SYMLINKS_FILENAME = '.playground-symlinks.json';
+const SYMLINKS_FORMAT = 'wordpress-playground-symlinks';
 
 /**
  * Creates a PHP mount handler backed by an OPFS directory.
@@ -107,7 +117,13 @@ export function createDirectoryHandleMountHandler(
 			options.onMount?.(mount);
 			return mount.unmount;
 		} else {
-			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			let finishInitialSync!: () => void;
+			const initialSync = new Promise<void>((resolve) => {
+				finishInitialSync = resolve;
+			});
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint, {
+				initialSync,
+			});
 			options.onMount?.(mount);
 			let lastProgress: SyncProgress | undefined;
 			try {
@@ -123,6 +139,7 @@ export function createDirectoryHandleMountHandler(
 						await options.initialSync.onProgress?.(lastProgress);
 					}
 				);
+				finishInitialSync();
 				await options.initialSync.onProgress?.({
 					files: lastProgress?.files ?? 0,
 					total: lastProgress?.total ?? 0,
@@ -135,6 +152,7 @@ export function createDirectoryHandleMountHandler(
 					});
 				});
 			} catch (error) {
+				finishInitialSync();
 				// Setup never completed, so there is no valid mount to keep retryable.
 				await mount.discard();
 				throw error;
@@ -148,6 +166,16 @@ export function createDirectoryHandleMountHandler(
  * Restores saved files while bounding both active reads and queued promises.
  * Outstanding reads settle before a failed restore returns, so retrying the
  * mount cannot overlap writes from the previous attempt.
+ *
+ * The mount-root `.playground-symlinks.json` is read as a link index, not copied
+ * into MEMFS. Its format marker must identify it as link metadata; unmarked
+ * files reject the mount without being changed. Links are created after the
+ * real files and directories, with their saved targets unchanged even when
+ * those targets do not exist.
+ * A stale index entry is skipped with a warning if a real entry occupies its
+ * path or its parent is missing or no longer a directory. Skipped records are
+ * removed from the saved index so later path changes cannot restore them.
+ * Other errors, including a failed index update, reject for the caller to retry.
  */
 async function copyOpfsToMemfs(
 	FS: Emscripten.RootFS,
@@ -166,6 +194,7 @@ async function copyOpfsToMemfs(
 	});
 
 	const ops: Array<Promise<void>> = [];
+	let symlinks = new Map<string, string>();
 	let copyError: unknown;
 	const stack: Array<[FileSystemDirectoryHandle, string]> = [
 		[opfsRoot, memfsRoot],
@@ -202,6 +231,13 @@ async function copyOpfsToMemfs(
 						stack.push([opfsHandle, memfsEntryPath]);
 					} else if (opfsHandle.kind === 'file') {
 						const file = await opfsHandle.getFile();
+						if (
+							memfsParentPath === memfsRoot &&
+							opfsHandle.name === SYMLINKS_FILENAME
+						) {
+							symlinks = parseSavedSymlinks(await file.text());
+							return;
+						}
 						const byteArray = new Uint8Array(
 							await file.arrayBuffer()
 						);
@@ -234,24 +270,101 @@ async function copyOpfsToMemfs(
 		await Promise.all(ops);
 	}
 	if (copyError !== undefined) throw copyError;
+	// Targets may be missing, outside the mount, or links themselves. Restore
+	// the links only after all real directories and files have been copied.
+	const savedSymlinkCount = symlinks.size;
+	for (const [path, target] of symlinks) {
+		const linkPath = joinPaths(memfsRoot, path);
+		try {
+			FS.symlink(target, linkPath);
+		} catch (error) {
+			// Files and the index are saved separately. After an interrupted
+			// flush, EEXIST, ENOENT, or ENOTDIR can mean the index is stale.
+			const errno = (error as Emscripten.FS.ErrnoError)?.errno;
+			if (errno !== 20 && errno !== 44 && errno !== 54) {
+				throw error;
+			}
+			symlinks.delete(path);
+			logger.warn('Skipping saved symlink that conflicts with OPFS', {
+				linkPath,
+				target,
+				error,
+			});
+		}
+	}
+	if (symlinks.size !== savedSymlinkCount) {
+		await writeSavedSymlinks(opfsRoot, symlinks);
+	}
 }
 
+/**
+ * Copies a MEMFS tree into OPFS and saves its links without following them.
+ *
+ * Validates the previous link index before copying, then replaces it with the
+ * links found in this tree. The reserved index name cannot be a MEMFS entry
+ * at the mount root. An index with saved links is removed if this tree has none.
+ *
+ * Unrelated OPFS entries remain. File writes and the index write are separate;
+ * a failed copy is not rolled back.
+ */
 export async function copyMemfsToOpfs(
 	FS: Emscripten.RootFS,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string,
 	onProgress?: SyncProgressCallback
 ) {
+	// Validate an existing sidecar before replacing it. An unrelated file with
+	// this reserved name must not be silently overwritten.
+	const previousSymlinks = await readSavedSymlinks(opfsRoot);
 	// Ensure the memfs directory exists.
-	FS.mkdirTree(memfsRoot);
+	if (!FSHelpers.fileExists(FS, memfsRoot)) {
+		FS.mkdirTree(memfsRoot);
+	}
+	const symlinks = new Map<string, string>();
+	await copyMemfsTreeToOpfs(
+		FS,
+		opfsRoot,
+		memfsRoot,
+		symlinks,
+		'/',
+		onProgress
+	);
+	if (symlinks.size || previousSymlinks.size) {
+		await writeSavedSymlinks(opfsRoot, symlinks);
+	}
+}
 
+/**
+ * Copies real files and directories while collecting links in the supplied map.
+ *
+ * `relativeRoot` places this subtree inside the mount-root link index: `/` for
+ * an initial save, or the destination path when replaying a directory rename.
+ * Link targets are kept as written. Any old OPFS entry at a link path is removed
+ * instead of copying the target. The caller saves the collected map later.
+ *
+ * File writes are bounded and all outstanding writes settle before returning
+ * or reporting a write failure. Successful writes are not rolled back.
+ */
+async function copyMemfsTreeToOpfs(
+	FS: Emscripten.RootFS,
+	opfsRoot: FileSystemDirectoryHandle,
+	memfsRoot: string,
+	symlinks: Map<string, string>,
+	relativeRoot: string,
+	onProgress?: SyncProgressCallback
+) {
 	// Create all MEMFS directories in OPFS but don't create
 	// files yet. This is quite fast.
 	const filesToCreate: Array<[FileSystemDirectoryHandle, string, string]> =
 		[];
+	/**
+	 * Prepares directories and queues regular files for the bounded write pass.
+	 * Records links without descending into them, including broken or cyclic links.
+	 */
 	async function mirrorMemfsDirectoryinOpfs(
 		memfsParent: string,
-		opfsDir: FileSystemDirectoryHandle
+		opfsDir: FileSystemDirectoryHandle,
+		relativeParent: string
 	) {
 		await Promise.all(
 			FS.readdir(memfsParent)
@@ -261,7 +374,22 @@ export async function copyMemfsToOpfs(
 				)
 				.map(async (entryName: string) => {
 					const memfsPath = joinPaths(memfsParent, entryName);
-					if (!isMemfsDir(FS, memfsPath)) {
+					const relativePath = joinPaths(relativeParent, entryName);
+					if (relativePath === '/' + SYMLINKS_FILENAME) {
+						throw new Error(
+							`${SYMLINKS_FILENAME} is reserved for saved symlinks`
+						);
+					}
+					const node = FS.lookupPath(memfsPath, {
+						follow: false,
+					}).node;
+					if (FS.isLink(node.mode)) {
+						symlinks.set(relativePath, FS.readlink(memfsPath));
+						// Older saves may have copied the target at this path.
+						await removeOpfsEntry(opfsDir, entryName);
+						return;
+					}
+					if (!FS.isDir(node.mode)) {
 						filesToCreate.push([opfsDir, memfsPath, entryName]);
 						return;
 					}
@@ -269,11 +397,15 @@ export async function copyMemfsToOpfs(
 					const handle = await opfsDir.getDirectoryHandle(entryName, {
 						create: true,
 					});
-					return await mirrorMemfsDirectoryinOpfs(memfsPath, handle);
+					return await mirrorMemfsDirectoryinOpfs(
+						memfsPath,
+						handle,
+						relativePath
+					);
 				})
 		);
 	}
-	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot);
+	await mirrorMemfsDirectoryinOpfs(memfsRoot, opfsRoot, relativeRoot);
 
 	// Now let's create all the required files in OPFS. This can be quite slow
 	// so we report progress. Throttle the progress callback to avoid flooding
@@ -362,10 +494,13 @@ export async function copyMemfsToOpfs(
 	});
 }
 
-function isMemfsDir(FS: Emscripten.RootFS, path: string) {
-	return FS.isDir(FS.lookupPath(path, { follow: true }).node.mode);
-}
-
+/**
+ * Writes the current MEMFS bytes at a saved file's path.
+ *
+ * Journal entries store paths, not file contents. A file may have moved or
+ * disappeared by the time replay reads it. Any MEMFS read failure leaves the
+ * OPFS file untouched; write failures still reject for the caller to retry.
+ */
 async function overwriteOpfsFile(
 	opfsParent: FileSystemDirectoryHandle,
 	name: string,
@@ -382,6 +517,22 @@ async function overwriteOpfsFile(
 		return;
 	}
 
+	await writeOpfsFile(opfsParent, name, buffer);
+}
+
+/**
+ * Replaces a file's bytes, including truncating any previous contents.
+ *
+ * Uses a writable stream when available, or a synchronous access handle in
+ * browsers that lack it. The latter requires a worker. Both paths close the
+ * writer after success. A truncate or write failure triggers best-effort abort
+ * or close without hiding the original error or restoring the previous bytes.
+ */
+async function writeOpfsFile(
+	opfsParent: FileSystemDirectoryHandle,
+	name: string,
+	buffer: Uint8Array
+) {
 	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
 	const writer =
 		opfsFile.createWritable !== undefined
@@ -404,6 +555,161 @@ async function overwriteOpfsFile(
 		throw error;
 	}
 	await writer.close();
+}
+
+/**
+ * Reads and validates the mount-root link index without creating it.
+ *
+ * A missing index means no saved links. All other read errors and invalid index
+ * contents reject, so callers can stop before replacing an unreadable index.
+ * Unmarked files are ambiguous and reject without automatic migration, even
+ * when their contents match the link-map shape used by earlier drafts.
+ */
+async function readSavedSymlinks(opfsRoot: FileSystemDirectoryHandle) {
+	let handle;
+	try {
+		handle = await opfsRoot.getFileHandle(SYMLINKS_FILENAME);
+	} catch (error) {
+		if ((error as DOMException).name === 'NotFoundError') {
+			return new Map<string, string>();
+		}
+		throw error;
+	}
+	return parseSavedSymlinks(await (await handle.getFile()).text());
+}
+
+/**
+ * Parses an identified version-1 index into mount-root paths and raw targets.
+ * Requires the explicit format marker before interpreting any link records,
+ * so an unmarked user file cannot enter the cleanup or overwrite flow.
+ *
+ * Paths must be normalized, start with `/`, contain no NUL bytes, and name
+ * neither the mount root nor its reserved index file. A link cannot contain
+ * another saved link below it, because restoring the child would traverse the
+ * parent link's target.
+ * Targets must be nonempty strings without NUL bytes; their paths are not
+ * resolved or checked for existence, so broken and cyclic links remain valid.
+ */
+function parseSavedSymlinks(json: string): Map<string, string> {
+	const data = JSON.parse(json);
+	if (data?.format !== SYMLINKS_FORMAT) {
+		throw new Error(
+			`Unrecognized symlink index format in ${SYMLINKS_FILENAME}. ` +
+				'The file will not be overwritten or removed.'
+		);
+	}
+	if (
+		data?.version !== 1 ||
+		!data.links ||
+		typeof data.links !== 'object' ||
+		Array.isArray(data.links)
+	) {
+		throw new Error(`Invalid ${SYMLINKS_FILENAME}`);
+	}
+	const symlinks = new Map<string, string>();
+	for (const [path, target] of Object.entries(data.links)) {
+		if (
+			!path.startsWith('/') ||
+			path === '/' ||
+			normalizePath(path) !== path ||
+			path.includes('\0') ||
+			path === '/' + SYMLINKS_FILENAME ||
+			typeof target !== 'string' ||
+			!target ||
+			target.includes('\0')
+		) {
+			throw new Error(`Invalid saved symlink: ${path}`);
+		}
+		symlinks.set(path, target);
+	}
+	for (const path of symlinks.keys()) {
+		for (
+			let parent = dirname(path);
+			parent !== '/';
+			parent = dirname(parent)
+		) {
+			if (symlinks.has(parent)) {
+				throw new Error(
+					`Saved symlink ${path} is inside another symlink`
+				);
+			}
+		}
+	}
+	return symlinks;
+}
+
+/**
+ * Saves the complete link map in the mount-root `.playground-symlinks.json`.
+ *
+ * OPFS has no symlink entries. This index lets a restore rebuild them in MEMFS
+ * without saving a copy of each link's target.
+ *
+ * The version-1 JSON has a `format: "wordpress-playground-symlinks"` marker and
+ * a `links` object such as `{ "/alias": "../target" }`. Keys start at the mount
+ * root and targets are stored as written. Callers supply a valid, complete map;
+ * this function neither validates it nor merges the old index.
+ * An empty map removes the index instead of storing an empty links object.
+ *
+ * If the index did not exist before a failed write, attempts to remove the new
+ * file so a later save is not blocked by an empty or partial index. Cleanup is
+ * best-effort and the original error is rethrown. An existing index is not
+ * removed on failure, but its previous contents are not guaranteed to survive.
+ */
+async function writeSavedSymlinks(
+	opfsRoot: FileSystemDirectoryHandle,
+	symlinks: Map<string, string>
+) {
+	if (symlinks.size === 0) {
+		await removeOpfsEntry(opfsRoot, SYMLINKS_FILENAME);
+		return;
+	}
+	let existed = true;
+	try {
+		await opfsRoot.getFileHandle(SYMLINKS_FILENAME);
+	} catch (error) {
+		if ((error as DOMException).name !== 'NotFoundError') throw error;
+		existed = false;
+	}
+	try {
+		await writeOpfsFile(
+			opfsRoot,
+			SYMLINKS_FILENAME,
+			new TextEncoder().encode(
+				JSON.stringify({
+					format: SYMLINKS_FORMAT,
+					version: 1,
+					links: Object.fromEntries(symlinks),
+				})
+			)
+		);
+	} catch (error) {
+		// Creating the handle leaves an empty file even if opening the writer
+		// fails. Remove that new file so a retry does not read it as a broken index.
+		if (!existed) {
+			try {
+				await removeOpfsEntry(opfsRoot, SYMLINKS_FILENAME);
+			} catch (cleanupError) {
+				logger.error(cleanupError);
+			}
+		}
+		throw error;
+	}
+}
+
+/**
+ * Removes one physical entry, including its whole subtree if it is a directory.
+ * A missing entry is already removed, which makes retries safe. Other errors
+ * reject so callers do not mark a failed removal as saved.
+ */
+async function removeOpfsEntry(
+	parent: FileSystemDirectoryHandle,
+	name: string
+) {
+	try {
+		await parent.removeEntry(name, { recursive: true });
+	} catch (error) {
+		if ((error as DOMException).name !== 'NotFoundError') throw error;
+	}
 }
 
 /**
@@ -493,7 +799,19 @@ export function journalFSEventsToOpfs(
 		});
 	}
 
+	/**
+	 * Waits for initial sync, then drains queued changes within the batch limit.
+	 * Also retries a dirty symlink index when no filesystem operations remain.
+	 */
 	async function flushJournal() {
+		// Initial copying and replay both write the symlink index. Capture
+		// changes during setup, but replay them only after that copy finishes.
+		await options.initialSync;
+		// A failed index write can leave an empty journal. Retry that write even
+		// when there are no new filesystem operations to replay.
+		if (journal.length === 0) {
+			await rewriter.flushSymlinks();
+		}
 		const maxFlushPasses =
 			options.maxFlushPasses ?? DEFAULT_MAX_OPFS_FLUSH_PASSES;
 		for (let pass = 0; journal.length > 0; pass++) {
@@ -517,6 +835,8 @@ export function journalFSEventsToOpfs(
 	 * If replay fails, restores the failed operation and its unattempted suffix
 	 * ahead of events captured during replay. Completed operations are not
 	 * retried because moves and deletes are not generally safe to apply twice.
+	 * Saves the symlink index once after replay; a failed index write stays
+	 * pending without putting completed filesystem operations back in the journal.
 	 */
 	async function flushJournalOnce() {
 		if (journal.length === 0) {
@@ -539,6 +859,7 @@ export function journalFSEventsToOpfs(
 				await rewriter.processEntry(entry);
 				processedEntryCount++;
 			}
+			await rewriter.flushSymlinks();
 		} catch (error) {
 			// Put the failed operation and unattempted remainder back ahead of
 			// events captured while this batch was replaying.
@@ -563,10 +884,19 @@ export function journalFSEventsToOpfs(
 
 type JournalEntry = FilesystemOperation;
 
+/**
+ * Replays mount-scoped journal operations into OPFS and buffers link changes.
+ *
+ * Loads the saved link map once and updates it as entries are processed. The
+ * caller must flush that map after each batch. Physical entries and the link
+ * index are written separately, so a batch is not an atomic filesystem save.
+ */
 class OpfsRewriter {
 	private memfsRoot: string;
 	private php: PHP;
 	private opfs: FileSystemDirectoryHandle;
+	private symlinks?: Map<string, string>;
+	private symlinksDirty = false;
 
 	constructor(php: PHP, opfs: FileSystemDirectoryHandle, memfsRoot: string) {
 		this.php = php;
@@ -586,7 +916,7 @@ class OpfsRewriter {
 	 */
 	public async processEntry(entry: JournalEntry) {
 		if (
-			!entry.path.startsWith(this.memfsRoot) ||
+			!isParentOf(this.memfsRoot, entry.path) ||
 			entry.path === this.memfsRoot
 		) {
 			return;
@@ -599,16 +929,37 @@ class OpfsRewriter {
 		}
 
 		try {
-			if (entry.operation === 'DELETE') {
+			if (opfsPath === '/' + SYMLINKS_FILENAME) {
+				throw new Error(
+					`${SYMLINKS_FILENAME} is reserved for saved symlinks`
+				);
+			}
+			this.symlinks ??= await readSavedSymlinks(this.opfs);
+			const symlinksChanged =
+				entry.operation === 'DELETE' || entry.operation === 'RENAME'
+					? removeSavedSymlinks(this.symlinks, opfsPath)
+					: this.symlinks.delete(opfsPath);
+			this.symlinksDirty ||= symlinksChanged;
+			if (
+				entry.operation === 'DELETE' ||
+				(entry.operation === 'RENAME' &&
+					!isParentOf(this.memfsRoot, entry.toPath))
+			) {
 				try {
 					await opfsParent.removeEntry(name, {
 						recursive: true,
 					});
-				} catch {
+				} catch (error) {
+					if ((error as DOMException).name !== 'NotFoundError')
+						throw error;
 					// If the directory already doesn't exist, it's fine
 				}
 			} else if (entry.operation === 'CREATE') {
-				if (entry.nodeType === 'directory') {
+				if (entry.nodeType === 'symlink') {
+					await removeOpfsEntry(opfsParent, name);
+					this.symlinks.set(opfsPath, entry.target);
+					this.symlinksDirty = true;
+				} else if (entry.nodeType === 'directory') {
 					await opfsParent.getDirectoryHandle(name, {
 						create: true,
 					});
@@ -626,28 +977,58 @@ class OpfsRewriter {
 				);
 			} else if (
 				entry.operation === 'RENAME' &&
-				entry.toPath.startsWith(this.memfsRoot)
+				isParentOf(this.memfsRoot, entry.toPath)
 			) {
 				const opfsTargetPath = this.toOpfsPath(entry.toPath);
+				if (opfsTargetPath === '/' + SYMLINKS_FILENAME) {
+					throw new Error(
+						`${SYMLINKS_FILENAME} is reserved for saved symlinks`
+					);
+				}
+				this.symlinksDirty =
+					removeSavedSymlinks(this.symlinks, opfsTargetPath) ||
+					this.symlinksDirty;
 				const opfsTargetParent = await resolveParent(
 					this.opfs,
 					opfsTargetPath
 				);
 
-				if (entry.nodeType === 'directory') {
+				if (entry.nodeType === 'symlink') {
+					await removeOpfsEntry(opfsParent, name);
+					await removeOpfsEntry(
+						opfsTargetParent,
+						basename(opfsTargetPath)
+					);
+					this.symlinks.set(opfsTargetPath, entry.target);
+					this.symlinksDirty = true;
+				} else if (entry.nodeType === 'directory') {
 					const opfsDir = await opfsTargetParent.getDirectoryHandle(
-						name,
+						basename(opfsTargetPath),
 						{
 							create: true,
 						}
 					);
 					// in OPFS, move() doesn't work for directories :-(
 					// We have to copy the directory recursively instead.
-					await copyMemfsToOpfs(
-						this.php[__private__dont__use].FS,
-						opfsDir,
-						entry.toPath
-					);
+					const FS = this.php[__private__dont__use].FS;
+					// A later move or replacement may have removed this directory.
+					// Do not recreate it in MEMFS or follow a replacement link.
+					if (
+						FSHelpers.fileExists(FS, entry.toPath) &&
+						FS.isDir(
+							FS.lookupPath(entry.toPath, { follow: false }).node
+								.mode
+						)
+					) {
+						await copyMemfsTreeToOpfs(
+							FS,
+							opfsDir,
+							entry.toPath,
+							this.symlinks,
+							opfsTargetPath
+						);
+					}
+					this.symlinksDirty = true;
 					// Then delete the old directory. A retry may observe that a
 					// previous attempt removed it before reporting an error.
 					try {
@@ -706,6 +1087,39 @@ class OpfsRewriter {
 			throw e;
 		}
 	}
+
+	/**
+	 * Saves the buffered link map once per batch, doing no I/O when it is clean.
+	 *
+	 * Clears the dirty flag only after the index is written or removed. A failure
+	 * leaves the map dirty so an empty-journal flush can retry just the index,
+	 * without repeating completed moves or deletes.
+	 */
+	public async flushSymlinks() {
+		if (!this.symlinksDirty) {
+			return;
+		}
+		// Keep a changed index dirty until it is saved. On retry, deletion
+		// may already be reflected in the map, but its write still needs to run.
+		await writeSavedSymlinks(this.opfs, this.symlinks!);
+		this.symlinksDirty = false;
+	}
+}
+
+/**
+ * Removes cached links at `path` and below it without touching OPFS or targets.
+ * For example, `/plugins` includes `/plugins/demo` but not `/plugins-old/demo`.
+ * Returns whether the map changed, so the caller can mark the index dirty.
+ */
+function removeSavedSymlinks(symlinks: Map<string, string>, path: string) {
+	let changed = false;
+	for (const linkPath of symlinks.keys()) {
+		if (isParentOf(path, linkPath)) {
+			symlinks.delete(linkPath);
+			changed = true;
+		}
+	}
+	return changed;
 }
 
 function normalizeMemfsPath(path: string) {

@@ -38,10 +38,7 @@ import { getAppBaseUrl } from '../../../lib/state/url/app-base-url';
 import { PlaygroundRoute } from '../../../lib/state/url/router';
 import { getRelativeDate } from '../../../lib/utils/get-relative-date';
 import { opfsSiteStorage } from '../../../lib/state/opfs/opfs-site-storage';
-import {
-	broadcastSiteReset,
-	requestBlueprintInstall,
-} from '../../../lib/state/redux/tab-coordinator';
+import { requestBlueprintInstall } from '../../../lib/state/redux/runtime-actions';
 import { logger } from '@php-wasm/logger';
 import {
 	APP_LAUNCHER_BLUEPRINT,
@@ -57,6 +54,7 @@ import {
 import { normalizeVerificationCode } from '@wp-playground/remote-access';
 import { logPersonalWpEvent } from '../../../lib/personalwp/usage-stats';
 import { SupportedPHPVersions } from '@php-wasm/universal';
+import { buildVersion } from '../../../lib/config';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -428,12 +426,8 @@ const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
 function BackupSection() {
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const { isDependentMode, performBackup, isBackingUp } = useBackup();
-	// In dependent mode the client only exposes navigation methods, so it
-	// can't be used for `importWordPressFiles`. Treat it as absent here so
-	// the Restore button stays disabled.
-	const rawPlayground = usePlaygroundClient();
-	const playground = isDependentMode ? null : rawPlayground;
+	const { performBackup, isBackingUp } = useBackup();
+	const playground = usePlaygroundClient();
 	const [showHistory, setShowHistory] = useState(false);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -472,6 +466,7 @@ function BackupSection() {
 			await flushWordPressMount(playground);
 			await playground.goTo('/');
 			logPersonalWpEvent('backup_restored');
+			await playground.shutdownSharedRuntime();
 			window.location.reload();
 		} catch (error) {
 			logger.error(error);
@@ -531,7 +526,6 @@ function BackupSection() {
 						value={autoBackupSelectValue}
 						options={autoBackupOptions}
 						onChange={handleAutoBackupChange}
-						disabled={isDependentMode}
 					/>
 					<button
 						className={css.backupNowButton}
@@ -548,17 +542,15 @@ function BackupSection() {
 						accept=".zip,application/zip"
 						style={{ display: 'none' }}
 					/>
-					{!isDependentMode && (
-						<button
-							className={css.backupNowButton}
-							onClick={handleRestoreClick}
-							disabled={!playground || isBackingUp || isRestoring}
-							type="button"
-						>
-							<Icon icon={upload} size={16} />
-							{isRestoring ? 'Restoring...' : 'Restore'}
-						</button>
-					)}
+					<button
+						className={css.backupNowButton}
+						onClick={handleRestoreClick}
+						disabled={!playground || isBackingUp || isRestoring}
+						type="button"
+					>
+						<Icon icon={upload} size={16} />
+						{isRestoring ? 'Restoring...' : 'Restore'}
+					</button>
 				</div>
 				<span className={css.backupStatus}>
 					{lastBackupText}
@@ -602,7 +594,7 @@ async function flushWordPressMount(playground: PlaygroundClient) {
 
 function RecoverySection() {
 	const activeSite = useActiveSite();
-	const { isDependentMode } = useBackup();
+	const playground = usePlaygroundClient();
 	const [showRecovery, setShowRecovery] = useState(false);
 	const [showReset, setShowReset] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -621,7 +613,7 @@ function RecoverySection() {
 		}
 		setIsDeleting(true);
 		try {
-			broadcastSiteReset(activeSite.slug);
+			await playground?.shutdownSharedRuntime();
 			await opfsSiteStorage?.delete(activeSite.slug);
 			window.location.href =
 				window.location.origin + window.location.pathname;
@@ -644,32 +636,46 @@ function RecoverySection() {
 				>
 					enter recovery mode
 				</button>
+				. Or{' '}
+				<button
+					className={css.textButton}
+					onClick={() => setShowReset(!showReset)}
+					type="button"
+				>
+					start over
+				</button>
 				.
-				{!isDependentMode && (
-					<>
-						{' '}
-						Or{' '}
-						<button
-							className={css.textButton}
-							onClick={() => setShowReset(!showReset)}
-							type="button"
-						>
-							start over
-						</button>
-						.
-					</>
-				)}
 			</p>
 			{showRecovery && (
 				<a
 					href={getHealthCheckRecoveryUrl()}
 					className={css.recoveryLink}
-					onClick={() => logPersonalWpEvent('health_check_installed')}
+					onClick={async (event) => {
+						logPersonalWpEvent('health_check_installed');
+						if (
+							event.metaKey ||
+							event.ctrlKey ||
+							event.shiftKey ||
+							event.altKey
+						)
+							return;
+						event.preventDefault();
+						const recoveryUrl = event.currentTarget.href;
+						try {
+							await playground?.shutdownSharedRuntime();
+							window.location.href = recoveryUrl;
+						} catch (error) {
+							logger.error(error);
+							window.alert(
+								'Unable to save WordPress before starting recovery. Please try again.'
+							);
+						}
+					}}
 				>
 					Install Health Check &amp; Troubleshoot
 				</a>
 			)}
-			{showReset && !isDependentMode && (
+			{showReset && (
 				<button
 					className={css.dangerButton}
 					onClick={handleStartOver}
@@ -689,9 +695,6 @@ function RecoverySection() {
 // ── About Tab (composed) ──────────────────────────────────────
 
 function AboutTab({ siteSlug }: { siteSlug: string }) {
-	const clientInfo = usePlaygroundClientInfo();
-	const isDependentMode = clientInfo?.isDependentMode ?? false;
-
 	return (
 		<div className={css.aboutTab}>
 			<h3 className={css.aboutHeading}>My WordPress</h3>
@@ -706,25 +709,11 @@ function AboutTab({ siteSlug }: { siteSlug: string }) {
 			    between this user and total data loss, and there is no host to
 			    recover from. */}
 			<BackupSection />
-			{!isDependentMode && (
-				<>
-					<RemoteAccessSection />
-					<RecoverySection />
-				</>
-			)}
-			{isDependentMode && <DependentTabToolsNotice />}
-		</div>
-	);
-}
-
-function DependentTabToolsNotice() {
-	return (
-		<div className={css.dependentTabToolsNotice}>
-			<h4>Recovery and reset are in your other tab</h4>
-			<p>
-				This tab can view, navigate, install apps, and back up your
-				site. Recovery and reset need the tab where you first opened My
-				WordPress.
+			<RemoteAccessSection />
+			<RecoverySection />
+			<p className={css.aboutNote}>
+				Build{' '}
+				<code title={buildVersion}>{buildVersion.slice(0, 12)}</code>
 			</p>
 		</div>
 	);
@@ -775,16 +764,8 @@ export function SiteInfoPanel({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
-	// The dependent-mode client is a minimal stub exposing only `goTo` and
-	// `getCurrentURL` — calling PHP-runtime methods (`isDir`, `fileExists`,
-	// `documentRoot`, …) on it throws. Use the navigation client for the
-	// header buttons but treat the runtime client as absent so file/database
-	// panels fall back to OPFS access or render a disabled state.
 	const navigationClient = clientInfo?.client;
-	const playground =
-		clientInfo && !clientInfo.isDependentMode
-			? clientInfo.client
-			: undefined;
+	const playground = clientInfo?.client;
 	const bootError = useAppSelector(selectActiveSiteError);
 
 	// Resolve documentRoot from playground, or use fallback for direct OPFS access
@@ -959,9 +940,6 @@ export function SiteInfoPanel({
 									<AdvancedTab
 										site={site}
 										playground={playground}
-										isDependentMode={
-											clientInfo?.isDependentMode ?? false
-										}
 										showDevTools={showDevTools}
 										onShowDevToolsChange={
 											handleShowDevToolsChange
@@ -1078,13 +1056,11 @@ export function SiteInfoPanel({
 function AdvancedTab({
 	site,
 	playground,
-	isDependentMode,
 	showDevTools,
 	onShowDevToolsChange,
 }: {
 	site: SiteInfo;
 	playground: PlaygroundClient | undefined;
-	isDependentMode: boolean;
 	showDevTools: boolean;
 	onShowDevToolsChange: (next: boolean) => void;
 }) {
@@ -1120,16 +1096,14 @@ function AdvancedTab({
 		const version = SupportedPHPVersions.find(
 			(supportedVersion) => supportedVersion === selectedPHPVersion
 		);
-		if (!version || version === currentPHPVersion || isDependentMode) {
+		if (!version || version === currentPHPVersion) {
 			return;
 		}
 
 		setIsApplyingPHPVersion(true);
 		setPHPVersionError(null);
 		try {
-			if (playground) {
-				await flushWordPressMount(playground);
-			}
+			await playground?.shutdownSharedRuntime();
 			await dispatch(
 				updateSiteMetadata({
 					slug: site.slug,
@@ -1180,18 +1154,15 @@ function AdvancedTab({
 								setSelectedPHPVersion(version);
 							}
 						}}
-						disabled={isDependentMode || isApplyingPHPVersion}
+						disabled={isApplyingPHPVersion}
 						help={
-							isDependentMode
-								? 'Change the PHP version in the tab running WordPress.'
-								: 'Applying a new version restarts WordPress. Your site data stays saved.'
+							'Applying a new version restarts WordPress. Your site data stays saved.'
 						}
 					/>
 					<Button
 						variant="secondary"
 						onClick={applyPHPVersion}
 						disabled={
-							isDependentMode ||
 							isApplyingPHPVersion ||
 							selectedPHPVersion === currentPHPVersion
 						}

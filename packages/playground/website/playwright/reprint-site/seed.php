@@ -93,6 +93,13 @@ $unicode_dir = $uploads['basedir'] . '/zdjęcia';
 wp_mkdir_p($unicode_dir);
 file_put_contents($unicode_dir . '/ślimak-🐌.txt', "unicode path\n");
 
+// Keep the active theme outside themes/ so the clone must preserve its link.
+$theme_directory = get_stylesheet_directory();
+$theme_source = ABSPATH . 'playground-linked-theme';
+rename($theme_directory, $theme_source);
+symlink('../../playground-linked-theme', $theme_directory);
+file_put_contents($theme_source . '/playground-link-check.txt', "linked theme\n");
+
 echo json_encode([
 	'siteUrl' => $site_url,
 	'heroPost' => $hero_post,

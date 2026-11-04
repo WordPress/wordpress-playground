@@ -39,6 +39,7 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { transitionClonePane } from '../dock/transition-clone-pane';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -74,11 +75,6 @@ import { TruncatedText } from '../truncated-text';
 import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
-
-// Keep the startup opt-in when site navigation replaces the query string.
-const isReprintEnabled = new URLSearchParams(window.location.search).has(
-	'reprint'
-);
 
 /**
  * The schema-aware Blueprint editor (CodeMirror) used by the "Write your own"
@@ -1048,6 +1044,16 @@ export function SavedPlaygroundsPanel({
 		setActiveCreationTab(tabId);
 	};
 
+	const handleCloneClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		const pane =
+			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
+		transitionClonePane(pane, 'forward', () => {
+			dispatch(setCloneRequested({}));
+			dispatch(setDockPaneSection('transfer'));
+			dispatch(setDockPaneOpen(true));
+		});
+	};
+
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
@@ -1485,41 +1491,31 @@ export function SavedPlaygroundsPanel({
 							</button>
 						))}
 					</div>
-					{isReprintEnabled && (
-						<>
-							<div
-								className={css.creationDivider}
-								aria-hidden="true"
-							>
-								or
-							</div>
-							<button
-								type="button"
-								className={classNames(
-									css.creationButton,
-									css.creationLauncher
-								)}
-								disabled={offline || isImportingZip}
-								title={
-									offline
-										? 'Needs an internet connection — unavailable offline'
-										: undefined
-								}
-								onClick={() => {
-									dispatch(setCloneRequested(true));
-									dispatch(setDockPaneSection('transfer'));
-									dispatch(setDockPaneOpen(true));
-								}}
-							>
-								<span className={css.creationIcon}>
-									<Icon icon={download} size={20} />
-								</span>
-								<span className={css.creationTitle}>
-									Clone a live site
-								</span>
-							</button>
-						</>
-					)}
+					<div className={css.creationDivider} aria-hidden="true">
+						or
+					</div>
+					<button
+						type="button"
+						id="clone-site-launcher"
+						className={classNames(
+							css.creationButton,
+							css.creationLauncher
+						)}
+						disabled={offline || isImportingZip}
+						title={
+							offline
+								? 'Needs an internet connection — unavailable offline'
+								: undefined
+						}
+						onClick={handleCloneClick}
+					>
+						<span className={css.creationIcon}>
+							<Icon icon={download} size={20} />
+						</span>
+						<span className={css.creationTitle}>
+							Clone a live site
+						</span>
+					</button>
 				</div>
 				<div
 					id="creation-panel"

@@ -155,6 +155,29 @@ Agora, vá para o seu código, adicione os breakpoints e bons testes.
 
 ![Xdebug em execução no VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
+<!-- ### PhpStorm troubleshooting -->
+
+### Solução de problemas no PhpStorm
+
+<!-- If PhpStorm pauses on the first line of unmapped files or scripts outside your project, you can disable these optional settings under **Settings > PHP > Debug > Xdebug**: -->
+
+Se o PhpStorm pausa na primeira linha de arquivos sem mapeamento de caminho ou de scripts fora do seu projeto, você pode desativar estas configurações opcionais em **Settings > PHP > Debug > Xdebug**:
+
+- **Force break at first line when no path mapping specified**.
+- **Force break at first line when a script is outside the project**.
+
+<!-- If requests that do not hit a breakpoint produce unwanted notifications, disable **Notify if debug session was finished without being paused** under **Settings > PHP > Debug > Settings** (called **Advanced settings** in the current JetBrains documentation). When this setting is disabled and no breakpoint is hit, PhpStorm runs the script without pausing or establishing a debugging session. -->
+
+Se as requisições que não atingem um ponto de interrupção geram notificações indesejadas, desative **Notify if debug session was finished without being paused** em **Settings > PHP > Debug > Settings** (chamado de **Advanced settings** na documentação atual da JetBrains). Quando essa configuração está desativada e nenhum ponto de interrupção é atingido, o PhpStorm executa o script sem pausar nem iniciar uma sessão de depuração.
+
+<!-- These options suppress unwanted pauses or notifications. They do not fix path mappings or configure breakpoints: you still need correct path mappings and enabled breakpoints in the code you want to debug. -->
+
+Essas opções evitam pausas ou notificações indesejadas. Elas não corrigem os mapeamentos de caminhos nem configuram os pontos de interrupção: você ainda precisa de mapeamentos de caminhos corretos e pontos de interrupção ativados no código que deseja depurar.
+
+<!-- For more details, see [JetBrains' debug settings reference](https://www.jetbrains.com/help/phpstorm/debug.html) and the [PhpStorm examples](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm). -->
+
+Para mais detalhes, consulte a [referência de configurações de depuração da JetBrains](https://www.jetbrains.com/help/phpstorm/debug.html) e os [exemplos para PhpStorm](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm).
+
 <!-- This feature is in experimental mode. Until it is completed, we will need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts. -->
 
 Esta funcionalidade está em modo experimental. Até que seja concluída, precisaremos do seu feedback. Por favor, conecte-se conosco no [canal Slack #playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) e compartilhe seus pensamentos.

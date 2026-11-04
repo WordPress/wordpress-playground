@@ -13,7 +13,6 @@ describe('PWA manifest configuration', () => {
 			display_override: ['standalone'],
 			scope: '/',
 			start_url: '/',
-			categories: ['development', 'education', 'utilities'],
 		});
 		expect(manifest.screenshots).toEqual([
 			expect.objectContaining({

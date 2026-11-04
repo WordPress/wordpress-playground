@@ -1,6 +1,6 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { __private__dont__use } from '@php-wasm/universal';
-import { Semaphore, basename, joinPaths } from '@php-wasm/util';
+import { Semaphore, basename, isParentOf, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 
 export type EmscriptenFS = any;
@@ -38,7 +38,7 @@ export type EmscriptenFSNode = {
 /**
  * Represents the type of node in PHP file system.
  */
-export type FSNodeType = 'file' | 'directory';
+export type FSNodeType = 'file' | 'directory' | 'symlink';
 
 /**
  * Represents an update operation on a file system node.
@@ -54,7 +54,7 @@ export type UpdateFileOperation = {
 };
 
 /**
- * Represents a directory operation.
+ * Represents creation of a file, directory, or symbolic link.
  */
 export type CreateOperation = {
 	/** The type of operation being performed. */
@@ -63,7 +63,14 @@ export type CreateOperation = {
 	path: string;
 	/** The type of the node being created. */
 	nodeType: FSNodeType;
-};
+} & (
+	| { nodeType: 'file' | 'directory' }
+	| {
+			nodeType: 'symlink';
+			/** The link target as written, without resolving relative paths. */
+			target: string;
+	  }
+);
 
 export type DeleteOperation = {
 	/** The type of operation being performed. */
@@ -75,7 +82,7 @@ export type DeleteOperation = {
 };
 
 /**
- * Represents a rename operation on a file or directory in PHP file system.
+ * Represents a rename operation on a file, directory, or symbolic link.
  */
 export type RenameOperation = {
 	/** The type of operation being performed. */
@@ -84,9 +91,16 @@ export type RenameOperation = {
 	path: string;
 	/** The new path of the file or directory after the rename operation. */
 	toPath: string;
-	/** The type of node being renamed (file or directory). */
+	/** The type of node being renamed (file, directory, or symbolic link). */
 	nodeType: FSNodeType;
-};
+} & (
+	| { nodeType: 'file' | 'directory' }
+	| {
+			nodeType: 'symlink';
+			/** The link target as written, without resolving relative paths. */
+			target: string;
+	  }
+);
 
 /**
  * Represents a node in the file system.
@@ -94,7 +108,7 @@ export type RenameOperation = {
 export type FSNode = {
 	/** The name of this file or directory. */
 	name: string;
-	/** The type of this node (file or directory). */
+	/** The type of this node (file, directory, or symbolic link). */
 	type: FSNodeType;
 	/** The contents of the file, if it is a file and it's stored in memory. */
 	contents?: string;
@@ -108,6 +122,16 @@ export type FilesystemOperation =
 	| DeleteOperation
 	| RenameOperation;
 
+/**
+ * Reports successful filesystem changes at or below `fsRoot`.
+ *
+ * Holds records from nested FS calls until the outer call succeeds. A move
+ * into this root records the source tree before it moves, using destination
+ * paths. Links carry their raw targets rather than their targets' contents.
+ *
+ * Hooks follow PHP runtime restarts. The returned function stops listening
+ * for runtime changes and restores the current runtime's original FS methods.
+ */
 export function journalFSEvents(
 	php: PHP,
 	fsRoot: string,
@@ -116,20 +140,22 @@ export function journalFSEvents(
 	function bindToCurrentRuntime() {
 		fsRoot = normalizePath(fsRoot);
 		const FS = php[__private__dont__use].FS;
+		const pendingBatches: FilesystemOperation[][] = [];
 		const FSHooks = createFSHooks(FS, (entry: FilesystemOperation) => {
+			const batch = pendingBatches[pendingBatches.length - 1];
 			// Only journal entries inside the specified root directory.
-			if (entry.path.startsWith(fsRoot)) {
-				onEntry(entry);
+			if (isParentOf(fsRoot, entry.path)) {
+				batch.push(entry);
 			} else if (
 				entry.operation === 'RENAME' &&
-				entry.toPath.startsWith(fsRoot)
+				isParentOf(fsRoot, entry.toPath)
 			) {
 				for (const op of recordExistingPath(
 					php,
 					entry.path,
 					entry.toPath
 				)) {
-					onEntry(op);
+					batch.push(op);
 				}
 			}
 		});
@@ -145,13 +171,34 @@ export function journalFSEvents(
 			originalFunctions[name] = FS[name];
 		}
 
+		/**
+		 * Wraps FS calls with a stack of batches for their pending records.
+		 * Cleanup always pops the batch. Publishing follows the try/finally, so a
+		 * thrown error discards that call's records and leaves the stack ready for
+		 * the next call. Successful nested calls append to their parent's batch.
+		 */
 		// eslint-disable-next-line no-inner-declarations
 		function bind() {
 			for (const [name, hook] of Object.entries(FSHooks)) {
 				FS[name] = function (...args: any[]) {
-					// @ts-ignore
-					hook(...args);
-					return originalFunctions[name].apply(this, args);
+					const batch: FilesystemOperation[] = [];
+					pendingBatches.push(batch);
+					let result;
+					try {
+						// Moves need the old path while it still exists. Keep their
+						// records pending until the call succeeds, including nested
+						// FS calls, so a failed move cannot erase a saved directory.
+						// @ts-ignore
+						hook(...args);
+						result = originalFunctions[name].apply(this, args);
+					} finally {
+						pendingBatches.pop();
+					}
+					const parentBatch =
+						pendingBatches[pendingBatches.length - 1];
+					if (parentBatch) parentBatch.push(...batch);
+					else for (const entry of batch) onEntry(entry);
+					return result;
 				};
 			}
 		}
@@ -187,6 +234,13 @@ export function journalFSEvents(
 	};
 }
 
+/**
+ * Builds observers that describe FS calls without changing the filesystem.
+ *
+ * All hooks run before the original call, while source entries still exist.
+ * Create hooks resolve only the parent because the new node may not exist yet.
+ * `journalFSEvents` buffers these records and publishes them only on success.
+ */
 const createFSHooks = (
 	FS: EmscriptenFS,
 	recordEntry: (entry: FilesystemOperation) => void = () => {}
@@ -215,17 +269,32 @@ const createFSHooks = (
 		});
 	},
 	unlink(path: string) {
+		const lookup = FS.lookupPath(path, { follow: false });
 		recordEntry({
 			operation: 'DELETE',
-			path,
-			nodeType: 'file',
+			path: lookup.path,
+			nodeType: FS.isLink(lookup.node.mode) ? 'symlink' : 'file',
+		});
+	},
+	/**
+	 * Records link creation before the original FS.symlink call.
+	 * Resolves parent links without looking up the new node or its target.
+	 * Keeps the raw target, even if it is broken or points to another link,
+	 * so the journal can outlive the link itself.
+	 */
+	symlink(target: string, path: string) {
+		recordEntry({
+			operation: 'CREATE',
+			path: resolveEntryPath(FS, path),
+			nodeType: 'symlink',
+			target,
 		});
 	},
 	mknod(path: string, mode: number) {
 		if (FS.isFile(mode)) {
 			recordEntry({
 				operation: 'CREATE',
-				path,
+				path: resolveEntryPath(FS, path),
 				nodeType: 'file',
 			});
 		}
@@ -233,21 +302,21 @@ const createFSHooks = (
 	mkdir(path: string) {
 		recordEntry({
 			operation: 'CREATE',
-			path,
+			path: resolveEntryPath(FS, path),
 			nodeType: 'directory',
 		});
 	},
 	rmdir(path: string) {
 		recordEntry({
 			operation: 'DELETE',
-			path,
+			path: resolveEntryPath(FS, path),
 			nodeType: 'directory',
 		});
 	},
 	rename(old_path: string, new_path: string) {
 		try {
 			const oldLookup = FS.lookupPath(old_path, {
-				follow: true,
+				follow: false,
 			});
 			const newParentPath = FS.lookupPath(new_path, {
 				parent: true,
@@ -255,7 +324,16 @@ const createFSHooks = (
 
 			recordEntry({
 				operation: 'RENAME',
-				nodeType: FS.isDir(oldLookup.node.mode) ? 'directory' : 'file',
+				...(FS.isLink(oldLookup.node.mode)
+					? {
+							nodeType: 'symlink' as const,
+							target: FS.readlink(oldLookup.path),
+						}
+					: {
+							nodeType: FS.isDir(oldLookup.node.mode)
+								? ('directory' as const)
+								: ('file' as const),
+						}),
 				path: oldLookup.path,
 				toPath: joinPaths(newParentPath, basename(new_path)),
 			});
@@ -266,6 +344,24 @@ const createFSHooks = (
 		}
 	},
 });
+
+/**
+ * Resolves parent links while keeping the final entry, which may not exist yet.
+ *
+ * For example, creating `/site/alias/new` below `alias -> real` must record
+ * `/site/real/new`. If lookup fails, leaves the path unchanged so the original
+ * FS call reports its own error. Failed calls do not publish journal entries.
+ */
+function resolveEntryPath(FS: EmscriptenFS, path: string) {
+	try {
+		return joinPaths(
+			FS.lookupPath(path, { parent: true }).path,
+			basename(path)
+		);
+	} catch {
+		return path;
+	}
+}
 
 /**
  * Replays a list of filesystem operations on a PHP instance.
@@ -286,11 +382,13 @@ export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 			if (entry.operation === 'CREATE') {
 				if (entry.nodeType === 'file') {
 					php.writeFile(entry.path, ' ');
+				} else if (entry.nodeType === 'symlink') {
+					php.symlink(entry.target, entry.path);
 				} else {
 					php.mkdir(entry.path);
 				}
 			} else if (entry.operation === 'DELETE') {
-				if (entry.nodeType === 'file') {
+				if (entry.nodeType !== 'directory') {
 					php.unlink(entry.path);
 				} else {
 					php.rmdir(entry.path);
@@ -306,12 +404,30 @@ export function replayFSJournal(php: PHP, entries: FilesystemOperation[]) {
 	}
 }
 
+/**
+ * Describes an existing source tree as creations at the destination path.
+ *
+ * Called before a move into the journal root, while `fromPath` still exists.
+ * Traverses directories but records links without following their targets.
+ * File WRITE records contain only paths, not a snapshot of the bytes; callers
+ * read the destination contents later. These records may be published only
+ * after the move succeeds.
+ */
 export function* recordExistingPath(
 	php: PHP,
 	fromPath: string,
 	toPath: string
 ): Generator<FilesystemOperation> {
-	if (php.isDir(fromPath)) {
+	const FS = php[__private__dont__use].FS;
+	const node = FS.lookupPath(fromPath, { follow: false }).node;
+	if (FS.isLink(node.mode)) {
+		yield {
+			operation: 'CREATE',
+			path: toPath,
+			nodeType: 'symlink',
+			target: php.readlink(fromPath),
+		};
+	} else if (FS.isDir(node.mode)) {
 		// The rename operation moved a directory from outside root directory
 		// into the root directory. We need to traverse the entire tree
 		// and provide a create operation for each file and directory.
@@ -467,13 +583,19 @@ export function normalizeFilesystemOperations(
 									...former,
 									path: latter.toPath,
 								},
-								...(substitutions[i] || []),
+								...(substitutions[i] || []).filter(
+									(op: FilesystemOperation) => op !== latter
+								),
 							];
 						} else if (formerType === 'descendant') {
 							// Creating a node and then renaming its parent directory is
 							// equivalent to creating it in the new location.
 							substitutions[j] = [];
+							const previous = substitutions[i] || [latter];
 							substitutions[i] = [
+								// Keep the directory move before its rewritten children.
+								// Otherwise journal replay writes to a parent that does not exist.
+								...(previous[0] === latter ? [latter] : []),
 								{
 									...former,
 									path: joinPaths(
@@ -483,7 +605,9 @@ export function normalizeFilesystemOperations(
 										)
 									),
 								},
-								...(substitutions[i] || []),
+								...previous.filter(
+									(op: FilesystemOperation) => op !== latter
+								),
 							];
 						}
 					} else if (

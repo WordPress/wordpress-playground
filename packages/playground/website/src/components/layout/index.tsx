@@ -24,6 +24,7 @@ import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
 import { Dock } from '../dock';
+import '../../lib/oai-annotations';
 import classNames from 'classnames';
 
 /**
@@ -103,6 +104,8 @@ export function Layout() {
 							[css.siteViewContentBlurred]:
 								showDock && dockPaneIsOpen,
 						})}
+						oai-annotation-container=""
+						oai-annotatable="wordpress-preview"
 					>
 						<PlaygroundViewport displayMode={displayMode} />
 					</div>
