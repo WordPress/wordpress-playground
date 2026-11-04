@@ -1,5 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { request } from '@playwright/test';
 import { basename, isParentOf, joinPaths } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -16,8 +15,12 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 const blueprintsRevision = '620985d9f0e89317ebcfa66efabbda789a4130c3';
 const myAppsRevision = '6a575777e55c4e9ff645cef7cc80a0c4c34e1fe7';
 
+/** Download pinned launch assets once and expose named ZIPs through the local Vite server. */
 export default async function globalSetup() {
-	const directory = await mkdtemp(joinPaths(tmpdir(), 'personal-wp-e2e-'));
+	// Keep assets inside the existing remote-server allow list and outside Playwright's output cleanup.
+	const fixturesRoot = joinPaths(__dirname, 'test-results');
+	await mkdir(fixturesRoot, { recursive: true });
+	const directory = await mkdtemp(joinPaths(fixturesRoot, 'launch-assets-'));
 	const api = await request.newContext({
 		timeout: 120_000,
 		failOnStatusCode: true,
@@ -57,9 +60,18 @@ export default async function globalSetup() {
 					step.options?.targetFolderName ||
 					basename(resource.path || repository),
 			};
+			const zipPath = joinPaths(
+				directory,
+				`${step.options.targetFolderName}.zip`
+			);
+			await writeFile(zipPath, zip);
 			step.pluginData = {
 				resource: 'url',
-				url: `data:application/zip;base64,${Buffer.from(zip).toString('base64')}`,
+				// Personal WP's dev server permits filesystem assets, including these temporary ZIPs.
+				url: new URL(
+					joinPaths('/@fs', zipPath),
+					'http://127.0.0.1:5401'
+				).href,
 			};
 		}
 		const blueprintPath = joinPaths(directory, 'blueprint.json');

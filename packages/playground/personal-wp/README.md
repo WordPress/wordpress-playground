@@ -180,8 +180,9 @@ npx nx lint playground-personal-wp
 
 The browser suite downloads the real launch Blueprint and both plugins once in
 `playwright/global-setup.ts`, using pinned GitHub revisions. Each isolated browser
-context receives that Blueprint with inline plugin ZIPs, so booting a fresh site
-does not repeat live Git checkouts through the PHP CORS proxy. Setup still requires
+context receives that Blueprint with named plugin ZIPs served by the local Vite
+server through `/@fs/`, so booting a fresh site does not repeat live Git checkouts
+through the PHP CORS proxy. Setup still requires
 GitHub access and fails if a fixture cannot be downloaded. Update the two revision
 constants together to refresh the launch fixture; temporary assets are removed at
 the end of the run.
