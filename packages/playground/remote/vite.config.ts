@@ -12,7 +12,6 @@ import {
 	websiteDevServerPort,
 } from '../build-config';
 import { wordPressFrameDevPlugin } from './vite.wordpress-frame';
-import { wordPressSandboxPlugin } from './vite.wordpress-sandbox';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
@@ -72,6 +71,11 @@ export default defineConfig(({ mode }) => {
 	);
 
 	return {
+		define: {
+			'import.meta.env.VITE_PLAYGROUND_APP_ORIGIN': JSON.stringify(
+				process.env['PLAYGROUND_APP_ORIGIN'] || ''
+			),
+		},
 		root: __dirname,
 		assetsInclude: [
 			'**/*.wasm',
@@ -135,9 +139,6 @@ export default defineConfig(({ mode }) => {
 
 		plugins: [
 			...plugins,
-			process.env['PLAYGROUND_APP_ORIGIN']
-				? wordPressSandboxPlugin(process.env['PLAYGROUND_APP_ORIGIN'])
-				: null,
 			mode === 'wordpress-frame'
 				? wordPressFrameDevPlugin(
 						`http://${websiteDevServerHost}:${websiteDevServerPort}`,
@@ -205,6 +206,10 @@ export default defineConfig(({ mode }) => {
 						if (chunkInfo.name === 'service-worker') {
 							return 'sw.js';
 						}
+						if (chunkInfo.name === 'app-service-worker')
+							return 'app-sw.js';
+						if (chunkInfo.name === 'sandbox-service-worker')
+							return 'sandbox-sw.js';
 						return '[name]-[hash].js';
 					},
 				},

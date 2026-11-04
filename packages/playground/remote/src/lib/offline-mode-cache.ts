@@ -9,12 +9,11 @@ const BLUEPRINTS_INDEX_URL =
 const CACHE_NAME_PREFIX = 'playground-cache';
 const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
-// We save a top-level Promise because this module is imported by
-// a Service Worker module which does not allow top-level await.
-const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
+// Open storage lazily, after the worker's role and origin have been checked.
+let promisedOfflineModeCache: Promise<Cache> | undefined;
 
 export async function cacheFirstFetch(request: Request): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	const cachedResponse = await offlineModeCache.match(request, {
 		ignoreSearch: true,
 	});
@@ -60,7 +59,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 }
 
 export async function networkFirstFetch(request: Request): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	const cachedResponse = await offlineModeCache.match(request, {
 		ignoreSearch: true,
 	});
@@ -108,7 +107,7 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 
 /** Fetch the directory index without serving upstream HTML or headers on the app origin. */
 export async function fetchBlueprintsIndex(): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	let jsonResponse: Response;
 	try {
 		const response = await fetchFresh(BLUEPRINTS_INDEX_URL, {
@@ -171,7 +170,7 @@ export async function cacheOfflineModeAssetsForCurrentRelease(
 				cache: 'no-store',
 			})
 	);
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	await offlineModeCache.addAll(websiteRequests);
 }
 
@@ -201,7 +200,7 @@ export async function hasCachedResponse(
 	url: string,
 	queryOptions: CacheQueryOptions = { ignoreSearch: true }
 ): Promise<boolean> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	const cachedResponse = await offlineModeCache.match(url, queryOptions);
 	return !!cachedResponse;
 }
@@ -210,7 +209,7 @@ export async function putCachedResponse(
 	request: RequestInfo,
 	response: Response
 ): Promise<void> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	await offlineModeCache.put(request, response);
 }
 
@@ -323,4 +322,8 @@ export function isCurrentServiceWorkerActive() {
 	}
 	// @ts-ignore
 	return self.serviceWorker.state === 'activated';
+}
+
+function getOfflineModeCache(): Promise<Cache> {
+	return (promisedOfflineModeCache ??= caches.open(LATEST_CACHE_NAME));
 }

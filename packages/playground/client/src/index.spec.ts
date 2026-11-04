@@ -38,6 +38,35 @@ describe('startPlaygroundWeb', () => {
 		vi.clearAllMocks();
 	});
 
+	it('accepts an immutable release endpoint on a compatible origin', async () => {
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		mocks.bootPlaygroundV1.mockResolvedValue({ connected: true });
+		const iframe = createIframe();
+		await startPlaygroundWeb({
+			iframe,
+			remoteUrl: 'http://localhost/releases/release.A/remote.html',
+			progressTracker: createProgressTracker(),
+			blueprint: { steps: [] },
+		});
+		expect(iframe.src).toContain('/releases/release.A/remote.html');
+	});
+
+	it.each([
+		'http://localhost/releases/release.A/other/remote.html',
+		'https://example.com/releases/release.A/remote.html',
+	])('rejects an incompatible release endpoint: %s', async (remoteUrl) => {
+		await expect(
+			startPlaygroundWeb({
+				iframe: createIframe(),
+				remoteUrl,
+				progressTracker: createProgressTracker(),
+				blueprint: { steps: [] },
+			})
+		).rejects.toThrow('Invalid remote URL');
+	});
+
 	it('routes Blueprint v1 declarations through the v1 handler', async () => {
 		const playground = { connected: true };
 		mocks.BlueprintsV1Handler.mockImplementation(() => ({

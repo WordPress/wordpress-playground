@@ -20,6 +20,9 @@ export function getWordPressBridgePath(buildVersion: string): string {
 export function isWordPressBridgePath(pathname: string): boolean {
 	return (
 		pathname === '/wordpress-bridge.html' ||
+		/^\/releases\/release\.[a-zA-Z0-9]+\/wordpress-bridge\.html$/.test(
+			pathname
+		) ||
 		/^\/wordpress-bridge-[a-f0-9]+\.html$/.test(pathname)
 	);
 }

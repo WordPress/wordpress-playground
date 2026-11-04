@@ -13,23 +13,30 @@
  * that scope. The parent performs the HTTP URL and method checks before calling
  * PHP. No directory handles or general PHP API connection cross this iframe.
  *
- * The document uses the WordPress origin, but this module loads from the app
- * origin. config.ts derives playgroundOrigin from that module URL. On the first
- * load the sandbox build has already pointed the HTML's script URLs at the app
- * (development servers rewrite them on demand). Once installed, the WordPress
- * worker can generate HTML naming its own release's app-origin script, but only
- * for its matching buildVersion or the unversioned /wordpress-bridge.html URL.
- * Helper URLs naming a different buildVersion go to the server, so a worker
- * installed before deployment cannot supply a script URL that deployment removed.
+ * Static deployments load this module from the selected release on the WordPress
+ * origin. Canonical origins come from build configuration. The immutable helper
+ * URL and stable bridge module allow an installed worker to generate trusted
+ * helper HTML for retained releases without consulting WordPress CacheStorage.
+ * Development keeps its existing app-origin Vite module import.
  */
 import { playgroundOrigin } from './config';
+import {
+	assertDocumentOrigin,
+	getDeployment,
+	getReleaseWorkerUrl,
+	verifyWorker,
+} from './deployment';
 import { portToStream, streamToPort } from '@php-wasm/universal';
 import { buildVersion } from 'virtual:remote-config';
 
 const scope = new URL(location.href).searchParams.get('scope');
-// The host serves /sw.js as a same-origin loader for the app's public worker.
-// Keep this URL literal: the service worker also bundles this helper for offline HTML.
-const workerUrl = new URL('/sw.js', location.origin);
+assertDocumentOrigin('sandbox');
+const deployment = await getDeployment();
+// Keep the standalone URL literal: the worker also bundles this helper for offline HTML.
+const workerUrl = deployment
+	? getReleaseWorkerUrl(deployment, 'sandbox', location.origin)
+	: new URL('/sandbox-sw.js', location.origin);
+if (deployment) workerUrl.searchParams.set('release', deployment.release);
 // A CDN may retain the old single-origin worker at /sw.js even after deployment.
 // updateViaCache bypasses the browser's HTTP cache, not that CDN response.
 workerUrl.searchParams.set('build-version', buildVersion);
@@ -63,6 +70,7 @@ while (worker.state !== 'activated') {
 		worker.addEventListener('statechange', () => resolve(), { once: true })
 	);
 }
+await verifyWorker(worker, 'sandbox', deployment?.release);
 
 navigator.serviceWorker.addEventListener('message', (event) => {
 	if (event.source !== registration.active || event.data?.scope !== scope)

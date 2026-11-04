@@ -85,46 +85,50 @@ their previous routing. Do not replace either server with an auto-selected port.
 A single Chromium CI smoke test covers the live Vite module graph; the full
 browser suite still runs once against the built cross-origin preview.
 
-The WordPress-only origin prototype has `build:wordpress-frame`,
-`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
-port 9500, separately from normal development. CI runs all website E2E tests once
-against the separate WordPress origin, with shared storage/import grouping.
-Deployment tests use the same boundary on port 7999. See
-`packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
-WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
-handles stay on the app origin. Tabs share one app service worker and asset cache.
-Standalone and self-hosted builds without a sandbox retain one origin.
-External embeds do not need a referrer or new URL parameters. This mode does not
-block WordPress from embedding fresh app/API documents.
-The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` in one workflow environment. Pass those same
-values to the single `apply-update.sh` deployment script; it writes the sandbox
-origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
-create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
-worker loaders, all importing shared app-origin scripts. The PHP host gate
-serves that directory as-is, without constructing response bodies or falling
-back to app files. The built preview uses the same directory and generators.
-Do not add a second installer script. Host checks live in
-`website-deployment/custom-redirects-lib.php`, reached
-through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
-bootstrap-only path; app requests keep the existing redirects, headers, and PHP
-setup. The deployment script selects a complete
-private release and checks both hosts and Nginx's hidden-path deny rule before
-activation. Personal WP keeps its no-argument public-file layout and separate script.
-The HTTP/install contract tests run with
-`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
-WordPress request-helper URLs include the app build version. Servers map them to
-the deployed release's sandbox helper file; workers generate helper HTML only for
-their own buildVersion and the unversioned /wordpress-bridge.html URL. Requests
-naming any other buildVersion reach the server, so a worker installed during a
-previous visit cannot supply a script URL removed by deployment. The deployed
-helper waits for the worker it registers to activate before completing PHP startup.
+The two-origin built preview has `build:wordpress-frame`, `preview:wordpress-frame`,
+and `e2e:wordpress-frame` website targets on port 9500. CI uses the same boundary
+on its normal HTTP port; deployment upgrade tests use port 7999. The preview uses
+the production installer in loopback-only mode, so Node 24 and PHP are required.
+See `packages/playground/website/bin/wordpress-frame/README.md`.
 
-WP Cloud's PHP-served static files support single bounded and open-ended byte
-ranges for runtime download retries. Other range forms get the full response;
-HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
-PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
+The WP Cloud build configures `PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`
+and passes those same origins to the single `website-deployment/apply-update.sh`.
+Nginx serves public immutable `releases/release.<id>/` files on both hostnames.
+The small root `index.html` bootstrap is the authoritative release selector;
+replacing it last atomically selects app assets and native PHP endpoint code.
+Root-level immutable app/sandbox worker loaders retain root scope without special
+headers. Startup verifies document origin and worker role, protocol, release,
+activation, and control before loading app code. Existing app documents retain
+release selections across worker updates and restarts. Do not route ordinary
+static downloads through PHP or add a second installer.
+
+The dedicated app worker owns static routing/caching and rejects scoped WordPress
+execution on the app origin. The sandbox worker owns WordPress HTTP transport and
+response transforms. Shared code remains in imported modules; single-origin builds
+compose both handlers through the compatibility `sw.js` entry. Internal sandbox
+assets use sandbox URLs and need no CORS. External SDK/download contracts remain.
+Sandbox CacheStorage is writable by WordPress and must not supply trusted platform
+code. Generate helper HTML from worker code using the retained release's stable
+bridge module. Keep canonical app/sandbox identities explicit in production builds.
+
+Native PHP endpoints and support files remain under Nginx-protected
+`.playground-releases/`. The installer checks the hidden-path deny rule, host
+mapping, and complete uploads before activation, restores public entries on failure
+before the switch, and purges the edge after activation. Previous releases, worker
+loaders, and rollback backups are retained. Personal WP keeps its no-argument PHP
+handler and separate existing deployment script and schema updates.
+
+Run `playground-website:test:wordpress-frame-router` for real installation/HTTP
+contracts, including zero PHP invocations for ordinary static requests on either
+host. Verify live Nginx MIME types, ranges, archive compression, framing, and edge
+behavior before rollout. `playground-website:test:static-file-ranges` still covers
+the legacy PHP range handler used by Personal WP and exceptional fallback URLs.
+
+WordPress always uses its configured sandbox origin. PHP, OPFS, and directory
+handles stay on the app origin; no saved-site migration is needed. Existing
+external embeds need no referrer or new URL parameters. The origin split does not
+block WordPress from embedding a fresh app/API document and does not provide
+HTTP authorization between running WordPress sites.
 
 ### Package Naming Convention
 

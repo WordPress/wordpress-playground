@@ -74,7 +74,7 @@ describe('WordPress development HTTP routing', () => {
 			const worker = await get('/sw.js', `${host}:4400`);
 			expect(worker.status).toBe(200);
 			expect(worker.body).toBe(
-				`import "http://${host}:5400/service-worker.ts?worker_file&type=module";`
+				`import "http://${host}:5400/sandbox-service-worker.ts?worker_file&type=module";`
 			);
 			expect(worker.headers['cache-control']).toBe('no-store');
 		}

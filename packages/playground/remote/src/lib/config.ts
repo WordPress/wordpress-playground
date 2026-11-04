@@ -1,13 +1,37 @@
 /// <reference types="vite/client" />
 import { getWordPressDevelopmentOrigin } from './dev-server';
+import { getReleaseRoot } from '@wp-playground/common';
+import { joinPaths } from '@php-wasm/util';
 
-const playgroundUrl = new URL('/', (import.meta || {}).url);
+const moduleUrl = new URL((import.meta || {}).url);
+const playgroundUrl = new URL('/', moduleUrl);
+// The built local preview uses the same files on both hostnames and on the upgrade-test port.
+if (playgroundUrl.hostname === 'wp.playground.localhost') {
+	playgroundUrl.hostname = 'playground.localhost';
+}
 /**
- * App origin, taken from the loaded module URL rather than the current document.
- * The WordPress-origin helper also imports this code from the app host, so using
- * location.origin there would incorrectly identify the WordPress host as the app.
+ * Canonical app origin. Production builds configure it explicitly because the same
+ * modules are served on the sandbox too. Unconfigured standalone builds derive it
+ * from their module URL; the local two-host preview recognizes its fixed host pair.
  */
-export const playgroundOrigin = playgroundUrl.origin;
+export const playgroundOrigin =
+	import.meta.env['VITE_PLAYGROUND_APP_ORIGIN'] || playgroundUrl.origin;
+/** Static downloads use the executing origin, with immutable release URLs in WP Cloud builds. */
+export const assetBaseUrl =
+	getReleaseRoot(moduleUrl) ?? new URL('/', moduleUrl);
+
+/** Resolve bundled root-relative URLs inside the running immutable release. */
+export function resolveAssetUrl(path: string): URL {
+	const url = new URL(path, assetBaseUrl);
+	if (
+		getReleaseRoot(assetBaseUrl) &&
+		url.origin === assetBaseUrl.origin &&
+		!getReleaseRoot(url)
+	) {
+		url.pathname = joinPaths(assetBaseUrl.pathname, url.pathname);
+	}
+	return url;
+}
 const developmentWordPressOrigin = import.meta.env.DEV
 	? getWordPressDevelopmentOrigin(playgroundUrl)
 	: undefined;

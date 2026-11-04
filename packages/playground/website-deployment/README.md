@@ -1,78 +1,126 @@
 # Hosting playground.wordpress.net on WP Cloud
 
-This document covers our setup to host playground.wordpress.net on WP Cloud.
+WP Cloud's Nginx serves the website's static files directly. The app and sandbox
+hostnames expose the same public files. The browser selects an immutable release
+and installs a dedicated worker for its origin before starting application code.
+PHP handles native endpoints and exceptional legacy URLs; it does not stream
+ordinary runtime downloads, scripts, styles, or WordPress static files.
 
-## Web server configuration
+## Public files and release selection
 
-The WP Cloud platform is primarily focused on hosting WordPress. Since playground.wordpress.net is not a WordPress site and has some Playground-specific requirements, we had to do a number of things to get the site running as desired.
+`apply-update.sh` installs this layout:
 
-WP Cloud uses Nginx which does not support the .htaccess files we used previously for:
+```text
+/srv/htdocs/
+├── index.html                       # Small bootstrap and authoritative release selector
+├── bootstrap.js
+├── remote.html, api.html            # Stable bootstrap documents
+├── wordpress-bridge.html            # Sandbox bootstrap document
+├── app-sw-release.<id>.js            # Immutable root-scope worker loaders
+├── sandbox-sw-release.<id>.js
+├── assets/                          # Retained hashed aliases for older clients
+├── releases/release.<id>/            # Immutable public static build
+│   ├── index.html, remote.html, api.html, assets/, wp-<version>/, ...
+│   ├── release.json
+│   ├── app-sw.js, sandbox-sw.js
+│   └── wordpress-bridge.html, wordpress-bridge.js
+├── custom-redirects.php              # WP Cloud's native PHP/fallback entry
+└── .playground-releases/release.<id>/ # Nginx-protected native PHP and support files
+```
 
-- rewriting URLs
-- redirecting requests
-- customizing response headers
+The JSON in `index.html` names the selected release and both configured origins.
+The installer uploads all immutable files and root-level worker loaders before
+atomically replacing this one selector document. Native PHP requests read the
+same selector, so their endpoint code comes from the selected release too.
+Previous releases, loaders, and rollback backups are retained.
 
-In order to customize these aspects for static files on WP Cloud, we did the following:
+The bootstrap revalidates `/`, checks its expected origin, installs the selected
+worker with root scope, and checks its role, protocol, and release through a
+message handshake. It waits for document control before loading application
+HTML. A failed installation or verification produces a startup error. Document
+URLs, query parameters, fragments, and existing SDK iframe URLs remain intact.
 
-- Configured the WP Cloud site to delegate requests for non-existent files to WordPress.
-- Provided a `__wp__/index.php` file as a default target for Nginx. - Even though this is not a WordPress site, we can provide a `__wp__/index.php` file that Nginx will run as a fallback for non-existent files. The `__wp__/index.php` file is empty and simply exists so Nginx will invoke PHP.
-- Added a `custom-redirects.php` file to implement special request handling. - WP Cloud invokes `<web-root>/custom-redirects.php` (if it exists) at the beginning of every PHP run in order to provide custom request handling. We added this file to implement the rewrites, redirects, and custom headers that we used to get via htaccess.
-- Keep the main website's complete build behind a server-level deny rule under
-  `<web-root>/.playground-releases/`. Nginx must not find a public copy of app
-  HTML or assets on the WordPress sandbox host. Otherwise it would serve those
-  files before PHP can check the hostname. The deployed `custom-redirects.php`
-  selects a private build and calls `playground_handle_request()` in
-  `custom-redirects-lib.php`. That library contains all host and path rules.
+Using `/` for selection also lets workers installed before this deployment find
+the new bootstrap: those workers already fetch `/` network-first. A new selector
+URL could otherwise be retained by their cache-first handler.
 
-## Deployment notes
+Application HTML names immutable resource URLs. The app worker also records each
+document's selected release for remaining root-relative downloads. Those records
+survive worker replacement and restart. Installing a newer worker in another tab
+must not redirect an existing document's assets into a different release.
 
-New website builds are pushed to the WP Cloud site via SSH.
+## Hostnames and response behavior
 
-The main Playground site uses `apply-update.sh`. The My WordPress site uses
-`my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
-updates do not affect the main Playground deployment path.
+Both hostnames must map to this WP Cloud site with valid TLS. Keep
+`canonicalize_aliases=false`; the sandbox must not redirect to the app hostname.
+Nginx must deny hidden files, including `.playground-releases/` and encoded path
+variants. The installer checks readable probes on both hosts before publishing.
+It rejects incomplete uploads and build symlinks. Native PHP source is removed
+from the public release and kept behind the deny rule.
 
-The main deployment workflow sets `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` and `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net`. It uses those values for the browser build and
-passes them to the single `apply-update.sh` script. The build produces a small
-`wordpress-sandbox/` document root; PHP serves its existing files and versioned
-WordPress static files on the sandbox host without generating their contents.
-The PHP library has no hardcoded host choice.
-`apply-update.sh` checks both hosts, installs a private
-release, moves old public files to a rollback backup, and replaces the public
-entry file. See the [two-host deployment guide](wordpress-frame/README.md) for
-required WP Cloud settings, the Nginx preflight checks, and rollback.
+Shared files are requested through the executing origin. Sandbox worker modules,
+transport code, thumbnail resources, and WordPress static fallbacks therefore do
+not require CORS. External SDK and download consumers still need their existing
+CORS contracts. Stable compatibility URLs without a public file continue through
+`custom-redirects-lib.php`, which supplies their redirects and headers.
 
-Personal WP retains the previous file placement: its deployment consults
-`custom-redirects-lib.php` about each file and moves files needing custom headers
-or routing under `<web-root>/static-files-to-serve-via-php/`, with their relative
-paths preserved. Its no-argument `playground_handle_request()` call keeps that
-existing handler. The main website's two-host routing does not change Personal
-WP's endpoint deployment or database updates.
+Verify these properties against the actual WP Cloud static server before rollout:
 
-At the end of the deployment process, the WP Cloud edge cache is purged.
+- Correct JavaScript, WASM, CSS, and archive MIME types.
+- Byte ranges and HEAD for large runtime downloads.
+- Identity bytes for random-access `*store.zip` archives; do not transparently
+  compress these responses.
+- HTML and worker framing behavior compatible with existing external embeds.
+- Revalidation of the root bootstrap and selection document. Immutable release
+  files and loaders may be cached for a long time. Deployment purges the edge.
 
-## Static-file ranges
+The original PHP static-file range handler remains for Personal WP and exceptional
+fallback requests. Its bounded and open-ended GET ranges, HEAD behavior, and
+unsupported-range handling are tested by
+`npm exec -- nx run playground-website:test:static-file-ranges`.
 
-PHP-served files support `Range: bytes=<start>-` and `bytes=<start>-<end>` on GET,
-so interrupted runtime downloads can resume with HTTP 206. Multiple ranges,
-suffix ranges, unrecognized syntax/units, and requests with `If-Range` get the
-normal full response. A supported range outside the file returns 416. HEAD
-ignores Range and returns the full content length without a body. No multipart
-response handling or validator matching is added.
+## Deploy, verify, and roll back
 
-Run `npm exec -- nx run playground-website:test:static-file-ranges` with Node 24
-and PHP to check the real HTTP responses. This does not change hostname routing
-or the deployment file layout.
+Build with `PLAYGROUND_APP_ORIGIN=https://playground.wordpress.net` and
+`VITE_WORDPRESS_SITE_URL=https://wpsandbox.wordpress.net`, then pass those same
+origins to the existing single installer:
+
+```sh
+~/website-deployment/apply-update.sh \
+  https://playground.wordpress.net https://wpsandbox.wordpress.net
+```
+
+A failure before selector activation restores the previous public entry documents.
+An edge-purge failure reports an error and leaves the new coherent release active.
+The first migration from the private-static layout can briefly interrupt startup
+while the stable bootstrap documents and entry are installed.
+
+For later deployments, restore the desired backup's `index.html` through a
+same-directory temporary file and rename, then purge the edge. Retain the public
+and private release and worker loaders it selects. Rolling back the first layout
+migration additionally requires restoring the previous `custom-redirects.php` and
+public-file layout from its backup; remove new bootstrap entries that did not
+exist in that layout. Never delete a release still named by an active selector,
+rollback backup, or supported running client.
+
+Run the installation and HTTP contracts with Node 24 and PHP:
+
+```sh
+npm exec -- nx run playground-website:test:wordpress-frame-router
+```
+
+The test models Nginx static delivery before real PHP fallback and verifies that
+ordinary static requests on either hostname invoke no PHP handler. It also checks
+preflight rejection, upload validation, activation failure recovery, retained
+releases, ranges, HEAD, native endpoints, redirects, and purge failure behavior.
+It cannot verify the live WP Cloud Nginx, TLS, or edge configuration.
+
+Personal WP retains its separate `my-wordpress-net/apply-update.sh`, no-argument
+PHP handler, public-file layout, endpoint setup, and schema updates.
 
 ## Secrets
 
-Secrets are provided by a "Persistent Data" feature of WP Cloud and are set manually via a WP Cloud API. Once set, the secrets are synched to the site in an encrypted form which is accessed by `custom-redirects-lib.php` via the `Atomic_Persistent_Data`. Here is an [example of retrieving Slack-related secrets](https://github.com/WordPress/wordpress-playground/blob/776e8bbddecdde287ae7bb1d42d711dedf71f138/packages/playground/website-deployment/custom-redirects-lib.php#L186-L192).
-
-The Personal WP usage stats dashboard is protected by GitHub OAuth. Configure
-`MYWP_EVENT_DASHBOARD_GITHUB_USERS` as a comma-separated list of allowed GitHub
-logins. It can use `MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID` and
-`MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET`; when those are absent, it falls back
-to `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET`. The OAuth app callback
-URL must allow `https://my.wordpress.net/mywp-event-dashboard.php`.
+Native endpoints continue receiving secrets from WP Cloud Persistent Data through
+`playground_maybe_set_environment()`. No server secret is written to the selector
+or public static release. Personal WP's stats dashboard uses
+`MYWP_EVENT_DASHBOARD_GITHUB_USERS` and its configured GitHub OAuth credentials.

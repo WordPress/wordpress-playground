@@ -85,8 +85,10 @@
 			if (window.top != window.self) {
 				document.body.classList.add('is-embedded');
 			}
-			import { bootPlaygroundRemote } from './src/index';
+			import { assertDocumentOrigin } from './src/lib/deployment';
 			try {
+				assertDocumentOrigin('app');
+				const { bootPlaygroundRemote } = await import('./src/index');
 				window.playground = await bootPlaygroundRemote();
 			} catch (e) {
 				console.error(e);

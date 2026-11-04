@@ -88,6 +88,8 @@
 		<link rel="stylesheet" href="/src/styles.css" />
 		<script type="module">
 			import { isDevServer } from '../remote/src/lib/dev-server';
+			import { assertDocumentOrigin } from '../remote/src/lib/deployment';
+			assertDocumentOrigin('app');
 
 			/**
 			 * Dynamically create <link rel="manifest" /> to enable using Playground with
@@ -382,6 +384,8 @@
 			</script>
 		</main>
 		<script type="module">
+			import { assertDocumentOrigin } from '../remote/src/lib/deployment';
+			assertDocumentOrigin('app');
 			if (!shouldLazyLoadPlayground && !window.__isWKWebView) {
 				/**
 				 * Safari sometimes fail to import this script after playground.wordpress.net

@@ -1,5 +1,18 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
-import { wordPressSiteUrl } from './config';
+import {
+	playgroundOrigin,
+	wordPressSiteUrl,
+	resolveAssetUrl,
+	assetBaseUrl,
+} from './config';
+import { getReleaseRoot } from '@wp-playground/common';
+import {
+	assertDocumentOrigin,
+	getDeployment,
+	getReleaseWorkerUrl,
+	verifyWorker,
+	pinDocumentRelease,
+} from './deployment';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -32,6 +45,10 @@ type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
+// @ts-ignore -- Vite emits a dedicated app-origin worker.
+import appServiceWorkerPath from '../../app-service-worker.ts?worker&url';
+// @ts-ignore -- Emit the sandbox entry independently, without a recursive bridge import.
+import sandboxServiceWorkerPath from '../../sandbox-service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
@@ -44,18 +61,27 @@ import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?work
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
+export const sandboxServiceWorkerUrl = new URL(
+	sandboxServiceWorkerPath,
+	origin
+);
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
 	const query = new URL(document.location.href).searchParams;
-	const workerUrl = new URL(workerEntryPointUrl, origin);
+	const workerUrl = resolveAssetUrl(workerEntryPointUrl);
 	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
 		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
 	}
 	return workerUrl + '';
 }
 
-export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
+export const serviceWorkerUrl = new URL(
+	wordPressSiteUrl === playgroundOrigin
+		? serviceWorkerPath
+		: appServiceWorkerPath,
+	origin
+);
 
 // Prevent Vite from hot-reloading this file – it would
 // cause bootPlaygroundRemote() to register another web worker
@@ -90,6 +116,7 @@ const query = new URL(document.location.href).searchParams;
  * to the embedding window: rendered WordPress does not receive that API here.
  */
 export async function bootPlaygroundRemote() {
+	assertDocumentOrigin('app');
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
 	const reportStartupProgress = (caption: string) => {
@@ -124,7 +151,12 @@ export async function bootPlaygroundRemote() {
 	}
 
 	reportStartupProgress('Starting WordPress runtime');
-	const registrationUrl = new URL(serviceWorkerUrl);
+	const deployment = await getDeployment();
+	const registrationUrl = deployment
+		? getReleaseWorkerUrl(deployment, 'app', location.origin)
+		: new URL(serviceWorkerUrl);
+	if (deployment)
+		registrationUrl.searchParams.set('release', deployment.release);
 	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
@@ -165,6 +197,8 @@ export async function bootPlaygroundRemote() {
 			})
 		);
 	}
+	await verifyWorker(serviceWorker, 'app', deployment?.release);
+	await pinDocumentRelease(serviceWorker);
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
@@ -849,10 +883,10 @@ async function captureSiteThumbnailFromWordPress({
 		const onLoad = () => {
 			clearTimeout(timeout);
 			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
-			const moduleUrl = new URL(
-				siteThumbnailModuleUrl,
-				document.location.href
-			);
+			const assetUrl = resolveAssetUrl(siteThumbnailModuleUrl);
+			const moduleUrl = getReleaseRoot(assetBaseUrl)
+				? new URL(assetUrl.pathname + assetUrl.search, frontPageOrigin)
+				: assetUrl;
 			// The marker lets the service worker distinguish this app asset
 			// from a path inside the scoped WordPress site.
 			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');

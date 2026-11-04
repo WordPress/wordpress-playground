@@ -5,6 +5,7 @@ import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
 import { hasCachedResponse } from './offline-mode-cache';
 import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
+import { assetBaseUrl } from './config';
 
 /**
  * Downloads and unzips a ZIP bundle of all the static assets removed from
@@ -155,5 +156,9 @@ export async function getWordPressStaticZipUrl(php: PHP) {
 	if (!staticAssetsDirectory) {
 		return false;
 	}
-	return joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip');
+	return joinPaths(
+		assetBaseUrl.pathname,
+		staticAssetsDirectory,
+		'wordpress-static.zip'
+	);
 }

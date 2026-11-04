@@ -3,6 +3,7 @@ import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
 vi.mock('./config', () => ({
 	playgroundOrigin: 'http://playground.localhost:9500',
+	assetBaseUrl: new URL('http://playground.localhost:9500/'),
 	wordPressSiteUrl: 'http://wp.playground.localhost:9500',
 }));
 vi.mock('@wp-playground/wordpress', async (importOriginal) => ({

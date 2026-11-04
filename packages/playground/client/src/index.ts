@@ -49,6 +49,7 @@ import type {
 import { consumeAPI, type PathAlias } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { additionalRemoteOrigins } from './additional-remote-origins';
+import { getReleaseRoot } from '@wp-playground/common';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
@@ -381,10 +382,14 @@ function assertLikelyCompatibleRemotePath(
 ) {
 	const url = new URL(urlString, remoteOrigin);
 	const endpointName = expectedPath === '/api.html' ? 'API' : 'remote';
+	const releaseRoot = getReleaseRoot(url);
+	const releasePath = releaseRoot
+		? new URL(`.${expectedPath}`, releaseRoot).pathname
+		: undefined;
 
 	const validRemote =
 		validRemoteOrigins.includes(url.origin) &&
-		url.pathname === expectedPath;
+		(url.pathname === expectedPath || url.pathname === releasePath);
 
 	if (!validRemote) {
 		throw new Error(

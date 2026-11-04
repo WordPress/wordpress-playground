@@ -1,5 +1,6 @@
 import { getURLScope } from '@php-wasm/scopes';
 import { wordPressSiteUrl } from './config';
+import { assertDocumentOrigin } from './deployment';
 
 /**
  * Opens a WordPress tool in a popup with the same frame layout as the main app:
@@ -14,6 +15,7 @@ import { wordPressSiteUrl } from './config';
  * wrapper cannot be used to load trusted app documents into the iframe.
  */
 function bootWordPressPopup() {
+	assertDocumentOrigin('app');
 	const target = new URL(location.hash.substring(1), wordPressSiteUrl);
 	if (target.origin !== wordPressSiteUrl || !getURLScope(target)) {
 		throw new Error('The popup URL must name a scoped WordPress page.');
