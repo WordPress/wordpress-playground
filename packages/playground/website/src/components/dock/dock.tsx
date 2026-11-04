@@ -207,7 +207,9 @@ export function Dock({
 	// `?dock=minimized` starts in the left corner launcher. Mobile and an open
 	// pane still reset this through the effects below, as they do after a drag.
 	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(() =>
-		readDockStartsMinimized() ? 'left' : null
+		readDockStartsMinimized() && !isMobile && !dockPaneIsOpen
+			? 'left'
+			: null
 	);
 	const [isModeSwitching, setIsModeSwitching] = useState(false);
 	const [isFolding, setIsFolding] = useState(false);
