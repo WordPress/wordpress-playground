@@ -24,6 +24,8 @@ export function createServer(): McpServer {
 			Capabilities: execute arbitrary PHP with full WordPress access, read/write files in the virtual filesystem \
 			(WordPress root: /wordpress/), make HTTP requests to the site, navigate the browser, \
 			and manage multiple Playground sites simultaneously.\n\n\
+			WordPress abilities: when the user exposes abilities in the Playground Abilities panel, \
+			they appear as wp_ability_* tools (the tool list changes as abilities are toggled).\n\n\
 			Important: sites are temporary by default and not persisted between sessions. \
 			Call playground_save_in_browser early in any multi-step workflow where losing progress would be costly.\n\n\
 			Error handling: tool failures are returned as thrown exceptions with descriptive messages, \

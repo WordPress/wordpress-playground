@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import WebSocket from 'ws';
 import { PlaygroundBridge } from '../../src/bridge-server';
 
@@ -224,5 +224,106 @@ describe('Origin allowlist', () => {
 
 		const response = await fetch(`http://127.0.0.1:${port}/bridge-token`);
 		expect(response.status).toBe(403);
+	});
+});
+
+/*
+ * Contract: ability tools follow the abilities of the tab that
+ * site-level commands are routed to (activeInTabs[0]). Otherwise a tab
+ * that no longer handles a site's commands, or has closed, could keep
+ * an ability callable.
+ */
+describe('Exposed abilities per tab', () => {
+	let bridge: PlaygroundBridge;
+
+	afterEach(async () => {
+		await bridge?.close();
+	});
+
+	const echo = {
+		name: 'test/echo',
+		label: 'Echo',
+		description: 'Echo',
+		input_schema: null,
+		meta: {},
+	};
+
+	async function connectTab(port: number) {
+		const res = await fetch(`http://127.0.0.1:${port}/bridge-token`, {
+			headers: { Origin: 'http://localhost:5400' },
+		});
+		const { token } = await res.json();
+		const ws = new WebSocket(`ws://127.0.0.1:${port}?token=${token}`);
+		await waitForWebSocket(ws, WebSocket.OPEN);
+		const tabId = crypto.randomUUID();
+		return {
+			ws,
+			register(isActive: boolean, abilities: unknown[] = []) {
+				ws.send(
+					JSON.stringify({
+						type: 'register',
+						tabId,
+						sites: [
+							{
+								slug: 'site-a',
+								name: 'A',
+								storage: 'temporary',
+								isActive,
+								abilities: isActive ? abilities : undefined,
+							},
+						],
+					})
+				);
+			},
+		};
+	}
+
+	const exposedNames = () =>
+		(bridge.listExposedAbilities().get('site-a') ?? []).map((a) => a.name);
+
+	it('uses only the most recently active tab and forgets closed tabs', async () => {
+		const port = getPort();
+		bridge = new PlaygroundBridge();
+		await bridge.startWebSocketServer(port);
+
+		const first = await connectTab(port);
+		first.register(true, [echo]);
+		await vi.waitFor(() => expect(exposedNames()).toEqual(['test/echo']));
+
+		// A second tab activates the same site without exposing anything;
+		// commands now go to it, so the ability must not stay callable.
+		const second = await connectTab(port);
+		second.register(true, []);
+		await vi.waitFor(() => expect(exposedNames()).toEqual([]));
+
+		second.ws.close();
+		await vi.waitFor(() => expect(exposedNames()).toEqual(['test/echo']));
+
+		first.register(false);
+		await vi.waitFor(() => expect(exposedNames()).toEqual([]));
+
+		first.register(true, [echo]);
+		await vi.waitFor(() => expect(exposedNames()).toEqual(['test/echo']));
+		first.ws.close();
+		await vi.waitFor(() =>
+			expect(bridge.listExposedAbilities().size).toBe(0)
+		);
+	});
+
+	it('notifies listeners only when the effective abilities change', async () => {
+		const port = getPort();
+		bridge = new PlaygroundBridge();
+		await bridge.startWebSocketServer(port);
+		const listener = vi.fn();
+		bridge.onAbilitiesChanged(listener);
+
+		const tab = await connectTab(port);
+		tab.register(true, [echo]);
+		await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
+
+		tab.register(true, [echo]);
+		tab.register(true, []);
+		await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(2));
+		expect(listener.mock.calls[1][0].size).toBe(0);
 	});
 });
