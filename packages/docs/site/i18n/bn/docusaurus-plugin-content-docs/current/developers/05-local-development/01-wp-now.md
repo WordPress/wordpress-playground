@@ -18,7 +18,7 @@ The NPM package @wp-now/wp-now is deprecated and won't receive updates in the fu
 
 **প্যাকেজটি অপ্রচলিত (Deprecated)**
 
-`@wp-now/wp-now` এনপিএম প্যাকেজটি বাতিল করা হয়েছে এবং ভবিষ্যতে আর কোনো আপডেট পাবে না। আপনার ডেভেলপার ওয়ার্কফ্লোতে কমান্ড-লাইন টুল ব্যবহার করতে `@wp-playground/cli` এনপিএম প্যাকেজটি ব্যবহার করুন।
+`@wp-now/wp-now` এনপিএম প্যাকেজটি অপ্রচলিত (deprecated) এবং ভবিষ্যতে আর কোনো আপডেট পাবে না। আপনার ডেভেলপার ওয়ার্কফ্লোতে কমান্ড-লাইন টুল ব্যবহার করতে `@wp-playground/cli` এনপিএম প্যাকেজটি ব্যবহার করুন।
 
 </div>
 
@@ -35,7 +35,7 @@ It uses the same WordPress Playground runtime and is maintained in the main
 WordPress Playground repository.
 -->
 
-[`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) বাতিল করা হয়েছে। এর পরিবর্তে [Playground CLI](/developers/local-development/wp-playground-cli) ব্যবহার করুন। এটি একই ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রানটাইম ব্যবহার করে এবং মূল ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রেপোজিটরিতে রক্ষণাবেক্ষণ করা হয়।
+[`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) অপ্রচলিত (deprecated)। এর পরিবর্তে [Playground CLI](/developers/local-development/wp-playground-cli) ব্যবহার করুন। এটি একই ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রানটাইম ব্যবহার করে এবং মূল ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রেপোজিটরিতে রক্ষণাবেক্ষণ করা হয়।
 
 <!--
 ## Migrate to Playground CLI
