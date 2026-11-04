@@ -80,6 +80,14 @@ Open **Export** from the Dock and use **Download as .zip**.
 
 The exported file contains the current files, database, plugins, themes, uploads, and edits. You can restore it in Playground or host it on a server that supports PHP and SQLite.
 
+:::warning Before putting an exported site online
+
+A default Playground uses the WordPress login `admin` with the password `password`. A ZIP keeps the database, including the account and its password hash. If you put the site online unchanged, anyone who knows the defaults can sign in as an administrator.
+
+Set a strong, unique password under **Users → Profile** before exporting for a live site, or change it on a private staging site before allowing public access. Keep the ZIP private because it contains the database and `wp-config.php`. See the [WordPress hardening guide](https://developer.wordpress.org/advanced-administration/security/hardening/) for more steps before going live.
+
+:::
+
 The SQLite database is included in `wp-content/database/`. When this directory contains `db-path.php`, that file returns the database path inside a randomized subdirectory. Older sites use `wp-content/database/.ht.sqlite`. Keep the whole `database` directory together when copying a site. Files starting with a dot are hidden by default on most operating systems, so you may need to enable hidden files in your file manager.
 
 ## Restore a ZIP
