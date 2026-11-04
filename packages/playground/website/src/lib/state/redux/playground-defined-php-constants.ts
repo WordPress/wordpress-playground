@@ -18,5 +18,17 @@ export async function getPlaygroundDefinedPHPConstants(
 	if (!(await playground.fileExists(constantsPath))) {
 		return {};
 	}
-	return JSON.parse(await playground.readFileAsText(constantsPath));
+	return getReplayablePHPConstants(
+		JSON.parse(await playground.readFileAsText(constantsPath))
+	);
+}
+
+export function getReplayablePHPConstants(
+	constants: PHPConstants
+): PHPConstants {
+	const replayable = { ...constants };
+	// The worker sets this when it installs the transport. Replaying an old
+	// value after boot can override the site's current Network access setting.
+	delete replayable.USE_FETCH_FOR_REQUESTS;
+	return replayable;
 }

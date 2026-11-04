@@ -787,17 +787,7 @@ for (const [version, blueprint] of Object.entries(offlineBlueprints)) {
 		await website.ensureSiteManagerIsOpen();
 
 		await expect(networking).toBeChecked();
-		const transportEnabled = await website.page.evaluate(async () => {
-			const sites = (window as any).playgroundSites;
-			await sites.isReady();
-			const response = await sites.getClient().run({
-				code: `<?php
-					require '/wordpress/wp-load.php';
-					echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
-			});
-			return response.text;
-		});
-		expect(transportEnabled).toBe('on');
+		expect(await isNetworkTransportEnabled(website.page)).toBe(true);
 	});
 }
 
@@ -2052,6 +2042,17 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		await expect(
 			website.page.getByLabel('Allow network access')
 		).not.toBeChecked();
+		expect(await isNetworkTransportEnabled(website.page)).toBe(false);
+
+		await website.page.getByLabel('Allow network access').check();
+		await applySettingsButton.click();
+		await website.waitForNestedIframes();
+		await expect
+			.poll(() => isNetworkTransportEnabled(website.page))
+			.toBe(true);
+		expect(await getActivePlaygroundSite(website.page)).toMatchObject({
+			slug: originalSite.slug,
+		});
 	});
 
 	test('should create exactly one fresh Playground for structural settings', async ({
@@ -3696,3 +3697,16 @@ test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not s
 		.count();
 	expect(gtmScripts).toBe(0);
 });
+
+async function isNetworkTransportEnabled(page: Page) {
+	return page.evaluate(async () => {
+		const sites = (window as any).playgroundSites;
+		await sites.isReady();
+		const response = await sites.getClient().run({
+			code: `<?php
+				require '/wordpress/wp-load.php';
+				echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
+		});
+		return response.text === 'on';
+	});
+}
