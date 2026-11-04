@@ -92,7 +92,7 @@ This restores the files and database from the ZIP into a new Playground.
 
 ## Use a specific WordPress or PHP version
 
-Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
+Open **Site Settings** from the Dock to choose WordPress, Gutenberg branch, PHP, language, multisite, and networking options.
 
 ![The Site Settings pane](/img/dock/dock-site-settings.webp)
 
