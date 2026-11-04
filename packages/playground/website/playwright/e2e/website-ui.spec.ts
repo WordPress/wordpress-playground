@@ -758,19 +758,48 @@ test('should display networking as active when networking is enabled', async ({
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
-test('should enable networking when requested', async ({ website }) => {
-	await website.goto('./?storage=temp');
+const offlineBlueprints = {
+	v1: { features: { networking: false } },
+	v2: {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': { networkAccess: false },
+		},
+	},
+} satisfies Record<string, Blueprint>;
 
-	await website.ensureSiteManagerIsOpen();
-	await website.page.getByLabel('Network access').check();
-	await website.page
-		.getByText('Discard current work & create a fresh Playground')
-		.click();
-	await website.ensureSiteManagerIsClosed();
-	await website.ensureSiteManagerIsOpen();
+for (const [version, blueprint] of Object.entries(offlineBlueprints)) {
+	test(`should re-enable networking over a Blueprint ${version} default`, async ({
+		website,
+	}) => {
+		const hash = encodeURIComponent(JSON.stringify(blueprint));
+		await website.goto(`./?storage=temp#${hash}`);
 
-	await expect(website.page.getByLabel('Network access')).toBeChecked();
-});
+		await website.ensureSiteManagerIsOpen();
+		const networking = website.page.getByLabel('Network access');
+		await expect(networking).not.toBeChecked();
+		await networking.check();
+		await website.page
+			.getByText('Discard current work & create a fresh Playground')
+			.click();
+		await website.ensureSiteManagerIsClosed();
+		await website.waitForNestedIframes();
+		await website.ensureSiteManagerIsOpen();
+
+		await expect(networking).toBeChecked();
+		const transportEnabled = await website.page.evaluate(async () => {
+			const sites = (window as any).playgroundSites;
+			await sites.isReady();
+			const response = await sites.getClient().run({
+				code: `<?php
+					require '/wordpress/wp-load.php';
+					echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
+			});
+			return response.text;
+		});
+		expect(transportEnabled).toBe('on');
+	});
+}
 
 test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?storage=temp&networking=yes');

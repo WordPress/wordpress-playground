@@ -1,12 +1,11 @@
 import type {
 	BlueprintV1Declaration,
-	BlueprintBundle,
+	BlueprintV2Declaration,
 	StepDefinition,
 	Blueprint,
 } from '@wp-playground/client';
 import {
-	getBlueprintDeclaration,
-	isBlueprintBundle,
+	BlueprintReflection,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
 import { parseBlueprint, isMcpServerEnabled } from './router';
@@ -177,34 +176,57 @@ export async function resolveBlueprintFromURL(
 }
 
 export async function applyQueryOverrides(
-	blueprint: BlueprintV1Declaration | BlueprintBundle,
+	blueprint: Blueprint,
 	query: URLSearchParams
-): Promise<BlueprintV1Declaration | BlueprintBundle> {
-	/**
-	 * Allow overriding PHP and WordPress versions defined in a Blueprint
-	 * via query params.
-	 */
-	if (isBlueprintBundle(blueprint)) {
-		let blueprintObject = await getBlueprintDeclaration(blueprint);
-		blueprintObject = applyQueryOverridesToDeclaration(
-			blueprintObject,
+): Promise<Blueprint> {
+	const reflection = await BlueprintReflection.create(blueprint);
+	let declaration = reflection.getDeclaration();
+	const version = reflection.getVersion();
+	if (version === 1) {
+		declaration = applyQueryOverridesToDeclaration(
+			declaration as BlueprintV1Declaration,
 			query
 		);
-		return new OverlayFilesystem([
-			new InMemoryFilesystem({
-				'blueprint.json': JSON.stringify(blueprintObject),
-			}),
-			blueprint,
-		]);
+	} else if (version === 2) {
+		const networking = query.get('networking');
+		if (networking !== 'yes' && networking !== 'no') {
+			return blueprint;
+		}
+		const v2 = declaration as BlueprintV2Declaration;
+		v2.applicationOptions = {
+			...v2.applicationOptions,
+			'wordpress-playground': {
+				...v2.applicationOptions?.['wordpress-playground'],
+				networkAccess: networking === 'yes',
+			},
+		};
 	} else {
-		return applyQueryOverridesToDeclaration(blueprint, query);
+		return blueprint;
 	}
+
+	const bundle = reflection.getBundle();
+	// Replace the declaration, leaving all bundled resources available.
+	return bundle
+		? new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': JSON.stringify(declaration),
+				}),
+				bundle,
+			])
+		: declaration;
 }
 
 function applyQueryOverridesToDeclaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {
+	// An explicit setting takes precedence in both directions. Without it,
+	// keep the Blueprint's choice or let the runtime use its default.
+	const networking = query.get('networking');
+	if (networking) {
+		(blueprint.features ??= {}).networking = networking === 'yes';
+	}
+
 	// PHP-only blueprints opt out of WordPress entirely. Skip the WP-bound
 	// query overrides — adding `login`, `enableMultisite`, etc. would
 	// trip the compile-time guard that rejects WP-only features when
@@ -225,19 +247,6 @@ function applyQueryOverridesToDeclaration(
 		(query.get('php') as any) ||
 		blueprint.preferredVersions!.php ||
 		getDefaultPhpVersionForWordPress(blueprint.preferredVersions!.wp);
-
-	// Features
-	if (!blueprint.features) {
-		blueprint.features = {};
-	}
-
-	/**
-	 * Networking is enabled by default, so we only need to disable it
-	 * if the query param is explicitly set to something other than "yes".
-	 */
-	if (query.get('networking') && query.get('networking') !== 'yes') {
-		blueprint.features['networking'] = false;
-	}
 
 	// Language
 	if (query.get('language')) {
