@@ -18,6 +18,13 @@ export type {
 	RuntimeType,
 } from '@php-wasm/universal';
 export type { WordPressInstallMode } from '@wp-playground/wordpress';
+export type {
+	AbilitiesList,
+	AbilityDescriptor,
+	AbilityError,
+	AbilityInput,
+	AbilityResult,
+} from '@wp-playground/remote';
 export {
 	setPhpIniEntries,
 	PHPNextVersion,
