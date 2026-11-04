@@ -81,6 +81,17 @@ export default defineConfig(({ mode }) => {
 			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		// This library has no HTML entry to scan. Discovering these dependencies during worker
+		// startup can replace optimized chunks while another tab is still importing them.
+		optimizeDeps: {
+			include: [
+				'@zip.js/zip.js',
+				'ini',
+				'octokit',
+				'wasm-feature-detect',
+				'zstddec/stream',
+			],
+		},
 		resolve: {
 			alias: [isomorphicGitBrowserAlias()],
 		},
