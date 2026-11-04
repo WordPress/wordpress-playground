@@ -578,7 +578,9 @@ function check_site_size_limit(string $root): void {
 function check_private_key_lifecycle(string $root): void {
     $key = WordPress\Reprint\Server\PublicKeyClient::generate_keypair()[0];
     $path = $root . '/key.pem';
-    write_private_key(['privateKeyPath' => $path, 'privateKey' => $key]);
+    $options = reprint_auth_options(['privateKeyPath' => $path, 'privateKey' => null]);
+    check($options === ['secret' => 'public-demo'] && !is_file($path), 'The public demo uses a placeholder without writing a key file.');
+    reprint_auth_options(['privateKeyPath' => $path, 'privateKey' => $key]);
     check(file_get_contents($path) === $key && (fileperms($path) & 0777) === 0600, 'The temporary file supplies Reprint the private PEM with mode 0600.');
     unlink($path);
     $request = ['documentRoot' => $root . '/finished-site', 'url' => 'https://finished.example/', 'privateKey' => $key];

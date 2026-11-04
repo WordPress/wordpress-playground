@@ -91,8 +91,8 @@ to identify its origin would break existing embeds that hide their referrer.
 
 ## Limits
 
-Every WordPress frame uses the configured sandbox origin, including saved sites
-reopened without `?reprint`. PHP, saved files, and native directory handles remain
+Every WordPress frame uses the configured sandbox origin, including reopened
+saved sites. PHP, saved files, and native directory handles remain
 on the app origin; no saved-site migration is needed. Builds without a configured
 sandbox keep their single-origin behavior.
 
