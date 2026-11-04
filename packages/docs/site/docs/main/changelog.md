@@ -12,6 +12,271 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.62] (2026-11-02) 
+
+### Tools
+
+- \[Website\] Replace corrupt DevTools extension icons\. ([#4338](https://github.com/WordPress/wordpress-playground/pull/4338))
+
+### Documentation
+
+- Add S3 hosting guidance for Blueprint resources\. ([#3754](https://github.com/WordPress/wordpress-playground/pull/3754))
+- \[Docs\] Add PhpStorm troubleshooting options \(PLAYGRD\-475\)\. ([#4498](https://github.com/WordPress/wordpress-playground/pull/4498))
+- \[Website\] Preserve protected WP Cloud files and permissions during deployment\. ([#4519](https://github.com/WordPress/wordpress-playground/pull/4519))
+- \[Website\] Serve WordPress static assets on the sandbox host\. ([#4528](https://github.com/WordPress/wordpress-playground/pull/4528))
+- \[i18n\] ja translations developer architecture Cross\-process communication\. ([#4517](https://github.com/WordPress/wordpress-playground/pull/4517))
+
+### Experiments
+
+
+#### PHP WebAssembly
+
+- \[Website\] Route WordPress through wpsandbox\.wordpress\.net on WP Cloud\. ([#4468](https://github.com/WordPress/wordpress-playground/pull/4468))
+
+### PHP WebAssembly
+
+- Add a \-\-php\-ini flag to the Playground CLI\. ([#4280](https://github.com/WordPress/wordpress-playground/pull/4280))
+- \[ php\-wasm \] Keep constant attributes in the PHP 8\.5 OPcache file cache\. ([#4499](https://github.com/WordPress/wordpress-playground/pull/4499))
+- \[ php\-wasm \] Terminate the non\-CLI additional functions list\. ([#4524](https://github.com/WordPress/wordpress-playground/pull/4524))
+- \[PHP\] Bump to 8\.5\.12\, 8\.4\.27\, 8\.3\.36 and 8\.2\.35 for CVE\-2026\-109618 and CVE\-2026\-109619\. ([#4487](https://github.com/WordPress/wordpress-playground/pull/4487))
+- \[PHP\] Persist symlink targets in OPFS mounts\. ([#4414](https://github.com/WordPress/wordpress-playground/pull/4414))
+
+### Website
+
+- Activate the app service worker before starting PHP\. ([#4525](https://github.com/WordPress/wordpress-playground/pull/4525))
+- Add ChatGPT browser annotation containers and live site metadata\. ([#4412](https://github.com/WordPress/wordpress-playground/pull/4412))
+- Add robots\.txt for AI crawlers\, Schema\.org JSON\-LD\, and noscript fallback\. ([#4410](https://github.com/WordPress/wordpress-playground/pull/4410))
+- Docs\: Update action\-wp\-playground\-pr\-preview references from v3 to v4\. ([#4516](https://github.com/WordPress/wordpress-playground/pull/4516))
+- Generate random 12\-letter slugs with readable Playground names\. ([#4534](https://github.com/WordPress/wordpress-playground/pull/4534))
+- Keep Reprint authorization steps visible\. ([#4537](https://github.com/WordPress/wordpress-playground/pull/4537))
+- Keep Reprint symlinks instead of copying their targets\. ([#4535](https://github.com/WordPress/wordpress-playground/pull/4535))
+- Reject OPFS root and sites\-directory mounts\. ([#4533](https://github.com/WordPress/wordpress-playground/pull/4533))
+- Render WordPress on wpsandbox\.wordpress\.net without a feature flag\. ([#4520](https://github.com/WordPress/wordpress-playground/pull/4520))
+- Reshape the New pane into the clone form\. ([#4538](https://github.com/WordPress/wordpress-playground/pull/4538))
+- Show Reprint setup steps and clone results\. ([#4530](https://github.com/WordPress/wordpress-playground/pull/4530))
+- Skip JavaScript module preloading in Safari\. ([#4523](https://github.com/WordPress/wordpress-playground/pull/4523))
+- Start WordPress after deployment with an older sandbox worker\. ([#4521](https://github.com/WordPress/wordpress-playground/pull/4521))
+- Version sandbox service worker URLs by build\. ([#4526](https://github.com/WordPress/wordpress-playground/pull/4526))
+- \[Docs\] Enrich llms\.txt\, add \.well\-known\/mcp\.json\, and generate documentation llms\.txt\. ([#4409](https://github.com/WordPress/wordpress-playground/pull/4409))
+- \[MCP\] Add WebMCP security annotations\, strict inputSchema\, and AbortSignal support\. ([#4411](https://github.com/WordPress/wordpress-playground/pull/4411))
+- \[Web\] Load editor canvas assets with backtick iframe tags\. ([#4532](https://github.com/WordPress/wordpress-playground/pull/4532))
+
+#### Blueprints
+
+- Migrate saved site URLs to the WordPress sandbox once\. ([#4527](https://github.com/WordPress/wordpress-playground/pull/4527))
+
+### Various
+
+- \[Website\] Send no\-store headers for PHP error responses\. ([#4529](https://github.com/WordPress/wordpress-playground/pull/4529))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ekamran @erseco @fellyph @mho22 @rejaulalomkhan @shimotmk
+
+
+## [v3.1.61] (2026-10-26) 
+
+### Experiments
+
+
+#### Website
+
+- \[Website\] Render local dev WordPress on the remote Vite port\. ([#4496](https://github.com/WordPress/wordpress-playground/pull/4496))
+
+### PHP WebAssembly
+
+- \[Personal WP\] Use a SharedWorker runtime\. ([#4423](https://github.com/WordPress/wordpress-playground/pull/4423))
+- \[Web\] Accept API calls only from the connected window\. ([#4476](https://github.com/WordPress/wordpress-playground/pull/4476))
+- \[Website\] Check local\-folder access against the PHP host\. ([#4477](https://github.com/WordPress/wordpress-playground/pull/4477))
+
+#### Website
+
+- \[Web\] Exchange WordPress frame messages across origins\. ([#4478](https://github.com/WordPress/wordpress-playground/pull/4478))
+- \[Website\] Serve WordPress frames from a separate internal origin\. ([#4482](https://github.com/WordPress/wordpress-playground/pull/4482))
+
+### Website
+
+- Enable the WordPress sandbox only with \?reprint\. ([#4510](https://github.com/WordPress/wordpress-playground/pull/4510))
+- Enable the WordPress sandbox only with \?reprint\. ([#4511](https://github.com/WordPress/wordpress-playground/pull/4511))
+- Keep database tools in the app browser partition\. ([#4479](https://github.com/WordPress/wordpress-playground/pull/4479))
+- Remove the Rust parser extension loading test\. ([#4514](https://github.com/WordPress/wordpress-playground/pull/4514))
+- Run local subdomains with storage and API boundary checks\. ([#4483](https://github.com/WordPress/wordpress-playground/pull/4483))
+- Run website end\-to\-end tests with cross\-origin WordPress frames\. ([#4484](https://github.com/WordPress/wordpress-playground/pull/4484))
+- Serve single byte ranges from WP Cloud PHP\. ([#4507](https://github.com/WordPress/wordpress-playground/pull/4507))
+- Show Autosaving during the first autosave\. ([#4504](https://github.com/WordPress/wordpress-playground/pull/4504))
+- \[CI\] Wait for static\-file responses and use public Ubuntu mirrors\. ([#4509](https://github.com/WordPress/wordpress-playground/pull/4509))
+- \[Web\] Keep editor canvas isolation when DIP and COEP overlap\. ([#4481](https://github.com/WordPress/wordpress-playground/pull/4481))
+
+### Various
+
+- \[Personal WP\] Serve app reloads at reflected WordPress paths\. ([#4490](https://github.com/WordPress/wordpress-playground/pull/4490))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk
+
+
+## [v3.1.60] (2026-10-20) 
+
+### Documentation
+
+- \[i18n\] Translate AI assistants through MCP into Gujarati\. ([#4434](https://github.com/WordPress/wordpress-playground/pull/4434))
+- \[i18n\] Translate Blueprints content import guide into Gujarati\. ([#4433](https://github.com/WordPress/wordpress-playground/pull/4433))
+- \[i18n\] Translate troubleshooting guide into Gujarati\. ([#4432](https://github.com/WordPress/wordpress-playground/pull/4432))
+
+### PHP WebAssembly
+
+- \[PHP\] Use shared JavaScript locks when native bindings cannot load\. ([#4470](https://github.com/WordPress/wordpress-playground/pull/4470))
+
+### Website
+
+- Replace the generic proxy with a cached Blueprints index\. ([#4471](https://github.com/WordPress/wordpress-playground/pull/4471))
+
+### Various
+
+- \[PHP\] Use fs\-ext\-extra\-prebuilt 2\.2\.15 for Node 26 native locks\. ([#4472](https://github.com/WordPress/wordpress-playground/pull/4472))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @ahirpravin
+
+
+## [v3.1.59] (2026-10-19) 
+
+### Documentation
+
+- CORS proxy\: Pin validated destinations on custom ports\. ([#4416](https://github.com/WordPress/wordpress-playground/pull/4416))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
+## [v3.1.58] (2026-10-12) 
+
+### Documentation
+
+- \[i18n\] Translate php\-frameworks guide into Gujarati\. ([#4380](https://github.com/WordPress/wordpress-playground/pull/4380))
+
+### PHP WebAssembly
+
+- \[PHP\-WASM\] Allow worker requests to use the primary PHP instance\. ([#4387](https://github.com/WordPress/wordpress-playground/pull/4387))
+- \[PHP\-WASM\] Avoid timer delays between PHP socket reads\. ([#4384](https://github.com/WordPress/wordpress-playground/pull/4384))
+- \[PHP\-WASM\] Buffer localhost HTTP uploads and preserve cancellation\. ([#4390](https://github.com/WordPress/wordpress-playground/pull/4390))
+- \[PHP\-WASM\] Index filesystem journal entries by path\. ([#4385](https://github.com/WordPress/wordpress-playground/pull/4385))
+- \[PHP\] Bound pending reads when restoring OPFS sites\. ([#4386](https://github.com/WordPress/wordpress-playground/pull/4386))
+- \[PHP\] Retain current OPFS mounts across PHP runtime rotation\. ([#4389](https://github.com/WordPress/wordpress-playground/pull/4389))
+- \[Website\] Add the Reprint connection and PHP stream adapter\. ([#4397](https://github.com/WordPress/wordpress-playground/pull/4397))
+
+### Website
+
+- Clone live WordPress sites with Reprint \(behind the \?reprint flag\)\. ([#4402](https://github.com/WordPress/wordpress-playground/pull/4402))
+- Fix blank editor canvas with Gutenberg 22\.4–22\.7 in Chromium\. ([#4401](https://github.com/WordPress/wordpress-playground/pull/4401))
+- Fix editor preview isolation without service worker state\. ([#4388](https://github.com/WordPress/wordpress-playground/pull/4388))
+- Import Reprint SQL and verify the administrator session\. ([#4400](https://github.com/WordPress/wordpress-playground/pull/4400))
+- Keep late autosaves from changing the active site URL\. ([#4394](https://github.com/WordPress/wordpress-playground/pull/4394))
+- Pull Reprint files directly into the Playground directory\. ([#4399](https://github.com/WordPress/wordpress-playground/pull/4399))
+- Test PHP snippets against the local Playground build\. ([#4398](https://github.com/WordPress/wordpress-playground/pull/4398))
+- \[Web\] Cache offline assets only from the Playground origin\. ([#4391](https://github.com/WordPress/wordpress-playground/pull/4391))
+
+### Reliability
+
+- \[PHP\-WASM\] Track PHP log replacement separately for each Playground\. ([#4392](https://github.com/WordPress/wordpress-playground/pull/4392))
+
+### Various
+
+- CORS proxy\: Preserve custom ports in redirects\. ([#4417](https://github.com/WordPress/wordpress-playground/pull/4417))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @JanJakes @rahultank-spaceo
+
+
+## [v3.1.57] (2026-10-05) 
+
+### Blueprints
+
+- Allow writeFiles to omit resource for inline file trees\. ([#4359](https://github.com/WordPress/wordpress-playground/pull/4359))
+- Docs\: Add a complete importThemeStarterContent example\. ([#4355](https://github.com/WordPress/wordpress-playground/pull/4355))
+
+### Documentation
+
+- Document ESM and CommonJS build check\. ([#4361](https://github.com/WordPress/wordpress-playground/pull/4361))
+- \[docs\] Generate handbook manifest during documentation builds\. ([#4332](https://github.com/WordPress/wordpress-playground/pull/4332))
+- \[docs\] Updating WASM compiling doc\. ([#4316](https://github.com/WordPress/wordpress-playground/pull/4316))
+- \[docs\] Updating resource documentation with new talks\. ([#4356](https://github.com/WordPress/wordpress-playground/pull/4356))
+- \[i18n\] Translate \'translations\' file into Gujarati\. ([#4367](https://github.com/WordPress/wordpress-playground/pull/4367))
+- \[i18n\] Translate phpunit\-testing guide into Gujarati\. ([#4368](https://github.com/WordPress/wordpress-playground/pull/4368))
+- \[i18n\] Translate troubleshoot file into Gujarati\. ([#4369](https://github.com/WordPress/wordpress-playground/pull/4369))
+- \[i18n\] Update Tagalog code contributions guide to match English documentation\. ([#4354](https://github.com/WordPress/wordpress-playground/pull/4354))
+- docs\(i18n\)\: Translate 06\-bundles documentation to Gujarati\. ([#4371](https://github.com/WordPress/wordpress-playground/pull/4371))
+
+### PHP WebAssembly
+
+- Replace bare \.wasm imports with new URL\(\) in web loaders\. ([#4347](https://github.com/WordPress/wordpress-playground/pull/4347))
+
+### Website
+
+- Acknowledge Blueprint install relay requests\. ([#4350](https://github.com/WordPress/wordpress-playground/pull/4350))
+- Define \`DB\_PATH\` for explicit SQLite database paths\. ([#4374](https://github.com/WordPress/wordpress-playground/pull/4374))
+- Preserve core icon SVGs in minified WordPress builds\. ([#4345](https://github.com/WordPress/wordpress-playground/pull/4345))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @fellyph @JanJakes @Kotiyajenish @mho22 @rahultank-spaceo @rakeshnagar10 @rollybueno @sonali195
+
+
+## [v3.1.56] (2026-09-28) 
+
+### Documentation
+
+- Add CONTRIBUTING\.md linking to the Playground handbook\. ([#4288](https://github.com/WordPress/wordpress-playground/pull/4288))
+- Tagalog\/main\/guides\. ([#4352](https://github.com/WordPress/wordpress-playground/pull/4352))
+- \[CORS Proxy\] Don\'t relay server\-control response headers\. ([#4364](https://github.com/WordPress/wordpress-playground/pull/4364))
+- \[CORS Proxy\] Support HEAD and relay Content\-Length for non\-chunked responses\. ([#4365](https://github.com/WordPress/wordpress-playground/pull/4365))
+- \[CORS Proxy\] Support range requests from browsers\. ([#4362](https://github.com/WordPress/wordpress-playground/pull/4362))
+- \[docs\] Adding MCP playground guide\. ([#3826](https://github.com/WordPress/wordpress-playground/pull/3826))
+- \[i18n\] Translate releases into Gujarati\. ([#4360](https://github.com/WordPress/wordpress-playground/pull/4360))
+- \[i18n\] Update Tagalog Contributor Day guide to match English documentation\. ([#4353](https://github.com/WordPress/wordpress-playground/pull/4353))
+
+### Experiments
+
+
+#### Website
+
+- Support randomized SQLite database storage\. ([#4344](https://github.com/WordPress/wordpress-playground/pull/4344))
+
+### Website
+
+- Migrate remaining Cypress tests to Playwright\. ([#4358](https://github.com/WordPress/wordpress-playground/pull/4358))
+
+#### Blueprints
+
+- Remember and mount plugins\/themes from git in the Files browser\. ([#4300](https://github.com/WordPress/wordpress-playground/pull/4300))
+
+### Various
+
+- \[CI\] Restore the working tree before republishing missing packages\. ([#4349](https://github.com/WordPress/wordpress-playground/pull/4349))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @brandonpayton @fellyph @JanJakes @karan241296 @mho22 @rollybueno @swcidd
+
+
 ## [v3.1.55] (2026-09-21) 
 
 ### Tools

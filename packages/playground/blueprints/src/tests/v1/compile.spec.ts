@@ -44,6 +44,36 @@ describe('Blueprints', () => {
 		);
 	});
 
+	it('writes an inline file tree without a resource property', async () => {
+		const blueprint = {
+			steps: [
+				{
+					step: 'writeFiles' as const,
+					writeToPath: '/inline-plugin',
+					filesTree: {
+						name: 'inline-plugin',
+						files: {
+							'plugin.php': '<?php // Plugin entry point',
+							includes: {
+								'helper.php': '<?php // Helper',
+							},
+						},
+					},
+				},
+			],
+		};
+
+		expect(validateBlueprint(blueprint)).toEqual({ valid: true });
+		await runBlueprintV1Steps(await compileBlueprintV1(blueprint), php);
+
+		expect(php.readFileAsText('/inline-plugin/plugin.php')).toBe(
+			'<?php // Plugin entry point'
+		);
+		expect(php.readFileAsText('/inline-plugin/includes/helper.php')).toBe(
+			'<?php // Helper'
+		);
+	});
+
 	it('should define the consts in a json and auto load the defined constants', async () => {
 		// Define the constants to be tested
 		const consts = {

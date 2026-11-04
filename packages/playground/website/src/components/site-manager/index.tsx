@@ -10,6 +10,7 @@ import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 import { SavedPlaygroundsPanel } from '../saved-playgrounds-panel';
 import { SaveSiteModal } from '../save-site-modal';
 import { SiteInfoPanel } from './site-info-panel';
+import type { SiteToolPanelProps } from './site-info-panel/site-tool-renderers';
 import { isSiteToolSection } from '../dock/tool-registry';
 import { SiteSharePanel } from './site-share-panel';
 import css from './style.module.css';
@@ -19,6 +20,7 @@ export type SiteManagerProps = {
 	isVisible: boolean;
 	mobileUi: boolean;
 	onPaneCloseBlockedChange: (isBlocked: boolean) => void;
+	onToolBackChange?: SiteToolPanelProps['onBackChange'];
 	onNewPlaygroundHeaderChange: (
 		header: DockPaneHeaderOverride | undefined
 	) => void;
@@ -33,6 +35,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			mobileUi,
 			onPaneCloseBlockedChange,
 			onNewPlaygroundHeaderChange,
+			onToolBackChange,
 		},
 		ref
 	) {
@@ -134,6 +137,8 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 							site={activeSite}
 							activeTabName={activeSiteTab}
 							mobileUi={mobileUi}
+							onBackChange={onToolBackChange}
+							onCloseBlockedChange={onPaneCloseBlockedChange}
 						/>
 					)}
 			</div>

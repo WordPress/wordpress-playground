@@ -14,11 +14,15 @@ export function SiteToolPanels({
 	playground,
 	activeTabName,
 	mobileUi = false,
+	onBackChange,
+	onCloseBlockedChange,
 }: {
 	site: SiteToolPanelProps['site'];
 	playground: SiteToolPanelProps['playground'];
 	activeTabName: SiteInfoTabName | null;
 	mobileUi?: boolean;
+	onBackChange?: SiteToolPanelProps['onBackChange'];
+	onCloseBlockedChange?: SiteToolPanelProps['onCloseBlockedChange'];
 }) {
 	const [mountedTabNames, setMountedTabNames] = useState<SiteInfoTabName[]>(
 		() => (activeTabName ? [activeTabName] : [])
@@ -51,6 +55,8 @@ export function SiteToolPanels({
 							site={site}
 							playground={playground}
 							isVisible={isVisible}
+							onBackChange={onBackChange}
+							onCloseBlockedChange={onCloseBlockedChange}
 							mobileHeaderTarget={
 								isVisible && mobileUi ? editorHeaderSlot : null
 							}

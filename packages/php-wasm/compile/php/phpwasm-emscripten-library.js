@@ -8,6 +8,32 @@
 'use strict';
 
 const LibraryExample = {
+	emscripten_sleep__deps: [
+		'$Asyncify',
+		'$safeSetTimeout',
+		'$runtimeKeepalivePush',
+		'$runtimeKeepalivePop',
+		'$callUserCallback',
+	],
+	emscripten_sleep__sig: 'vi',
+	emscripten_sleep__async: true,
+	emscripten_sleep: function (ms) {
+		return Asyncify.handleSleep((wakeUp) => {
+			// select() yields between socket reads. Nested zero-delay timers are
+			// clamped by browsers, adding seconds to even a local curl download.
+			// Use a task (not a microtask) so network events still get a turn.
+			if (ms === 0 && globalThis.scheduler?.postTask) {
+				runtimeKeepalivePush();
+				globalThis.scheduler.postTask(() => {
+					runtimeKeepalivePop();
+					callUserCallback(wakeUp);
+				});
+			} else {
+				safeSetTimeout(wakeUp, ms);
+			}
+		});
+	},
+
 	// Emscripten dependencies:
 	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
 	$PHPWASM__postset: 'PHPWASM.init();',

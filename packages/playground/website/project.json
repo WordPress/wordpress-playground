@@ -48,7 +48,8 @@
 			},
 			"dependsOn": [
 				"^build",
-				"playground-blueprints:build:blueprint-schema"
+				"playground-blueprints:build:blueprint-schema",
+				"sync-reprint"
 			]
 		},
 		"dev": {
@@ -80,7 +81,8 @@
 					"buildTarget": "playground-website:build:standalone:production",
 					"hmr": false
 				}
-			}
+			},
+			"dependsOn": ["sync-reprint"]
 		},
 		"sync-php-next-assets": {
 			"executor": "nx:run-commands",
@@ -122,7 +124,8 @@
 			"options": {
 				"useFlatConfig": false,
 				"lintFilePatterns": [
-					"packages/playground/website/**/*.{ts,tsx,js,jsx}"
+					"packages/playground/website/**/*.{ts,tsx,js,jsx}",
+					"packages/playground/website/bin/*.mts"
 				],
 				"maxWarnings": 0
 			}
@@ -137,32 +140,14 @@
 			}
 		},
 		"e2e": {
-			"executor": "@nx/cypress:cypress",
+			"executor": "nx:run-commands",
 			"options": {
-				"cypressConfig": "packages/playground/website/cypress.config.ts",
-				"testingType": "e2e",
-				"devServerTarget": "playground-website:dev:local",
-				"browser": "chrome"
+				"command": "nx run playground-website:e2e:playwright --"
 			},
 			"configurations": {
 				"ci": {
-					"devServerTarget": "playground-website:preview:ci",
-					"baseUrl": "http://localhost/website-server/"
+					"command": "nx run playground-website:e2e:playwright:ci --"
 				}
-			},
-			"dependsOn": ["build"]
-		},
-		"e2e:dev": {
-			"executor": "nx:noop",
-			"dependsOn": ["dev", "e2e:dev:cypress"]
-		},
-		"e2e:dev:cypress": {
-			"executor": "@nx/cypress:cypress",
-			"options": {
-				"cypressConfig": "packages/playground/website/cypress.config.ts",
-				"testingType": "e2e",
-				"headless": false,
-				"baseUrl": "https://playground.test/website-server/"
 			}
 		},
 		"e2e:playwright": {
@@ -176,6 +161,7 @@
 		},
 		"e2e:playwright:ci": {
 			"executor": "nx:run-commands",
+			"dependsOn": ["e2e:playwright:prepare-app-deploy-and-offline-mode"],
 			"options": {
 				"commands": [
 					"PLAYWRIGHT_TEST_GROUP=regular npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts",
@@ -195,8 +181,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"unzip ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
-					"unzip ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
+					"unzip -o ./packages/playground/website/playwright/deploy-e2e-old-release.zip",
+					"unzip -o ./packages/playground/website/playwright/deploy-e2e-mid-release.zip"
 				]
 			}
 		},
@@ -229,6 +215,48 @@
 				"parallel": false
 			},
 			"dependsOn": ["build"]
+		},
+		"sync-reprint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/reprint-assets.mts"
+			}
+		},
+		"update-reprint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/reprint-assets.mts update"
+			}
+		},
+		"test:static-file-ranges": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website-deployment/test-static-file-ranges.mjs"
+			}
+		},
+		"build:wordpress-frame": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/wordpress-frame/build.mjs"
+			}
+		},
+		"test:wordpress-frame-router": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website-deployment/wordpress-frame/test-router.mjs"
+			}
+		},
+		"preview:wordpress-frame": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/wordpress-frame/serve.mjs"
+			}
+		},
+		"e2e:wordpress-frame": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts"
+			}
 		}
 	}
 }

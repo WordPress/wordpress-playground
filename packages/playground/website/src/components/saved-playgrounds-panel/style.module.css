@@ -779,7 +779,7 @@
    three Blueprint sources fill the top row; the code/import flows the bottom.
    Inactive cells are transparent so the well reads through; the active cell is a
    raised white segment. */
-.playgrounds-pane.new-pane .creationTabs {
+.playgrounds-pane.new-pane .creationMethods {
 	background: var(--surface-control-hover);
 	border: 1px solid var(--interactive-border);
 	border-radius: 14px;
@@ -787,13 +787,45 @@
 	display: grid;
 	flex: none;
 	gap: 6px;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
 	margin: var(--space-1, 4px) 0 0;
 	padding: 6px;
 }
 
-.playgrounds-pane.new-pane .creationTabs[hidden] {
+.playgrounds-pane.new-pane .creationMethods[hidden] {
 	display: none;
+}
+
+.playgrounds-pane.new-pane .creationTabs {
+	display: grid;
+	gap: 6px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Seven entries cannot tile three columns. The one option that starts from
+   an existing site sits under the grid, past a hairline "or", centered so
+   the odd cell reads as a choice of its own rather than a leftover. */
+/* The divider row is as tall as its text, so the well's 6px grid gap gives
+   it the same breathing room above and below as between any two tab rows. */
+.playgrounds-pane.new-pane .creationDivider {
+	align-items: center;
+	color: var(--ink-muted);
+	display: flex;
+	font-size: 12px;
+	gap: var(--space-2);
+	line-height: 1;
+	margin: 0;
+	padding: 0 4px;
+}
+
+.playgrounds-pane.new-pane .creationDivider::before,
+.playgrounds-pane.new-pane .creationDivider::after {
+	border-top: 1px solid var(--interactive-border);
+	content: '';
+	flex: 1;
+}
+
+.playgrounds-pane.new-pane .creationButton.creationLauncher {
+	justify-content: center;
 }
 
 .playgrounds-pane.new-pane .creationButton {

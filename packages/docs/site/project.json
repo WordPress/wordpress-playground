@@ -100,6 +100,13 @@
 				"maxWarnings": 0
 			}
 		},
+		"test-plugins": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node --test plugins/*.spec.js",
+				"cwd": "packages/docs/site"
+			}
+		},
 		"check-orphan-pages": {
 			"executor": "nx:run-commands",
 			"options": {

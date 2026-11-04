@@ -8,6 +8,7 @@
 		"vite.config.ts",
 		"tests/**/*.spec.ts",
 		"tests/**/*.test.ts",
-		"src/**/*.d.ts"
+		"src/**/*.d.ts",
+		"src/**/*.spec.ts"
 	]
 }

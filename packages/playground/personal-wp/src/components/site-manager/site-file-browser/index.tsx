@@ -49,8 +49,7 @@ export function SiteFileBrowser({
 	// can't use it for filesystem access. Treat it as absent and fall back
 	// to direct OPFS access below.
 	const clientInfo = usePlaygroundClientInfo(site.slug);
-	const client =
-		clientInfo && !clientInfo.isDependentMode ? clientInfo.client : null;
+	const client = clientInfo?.client ?? null;
 	const filesystem = useFilesystem(client, site);
 	const pathBadges = useGitDirectoryPathBadges(site);
 	const fileEditorRef = useRef<PlaygroundFileEditorHandle | null>(null);

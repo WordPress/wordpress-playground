@@ -360,7 +360,9 @@
 					"file-lock-manager-in-memory.spec.ts",
 					"file-lock-manager-for-posix.spec.ts",
 					"file-lock-manager-for-windows.spec.ts",
-					"file-lock-manager-composite.spec.ts"
+					"file-lock-manager-composite.spec.ts",
+					"create-file-lock-manager.spec.ts",
+					"file-lock-manager-fallback.spec.ts"
 				]
 			}
 		},
@@ -375,7 +377,9 @@
 					"file-lock-manager-in-memory.spec.ts",
 					"file-lock-manager-for-posix.spec.ts",
 					"file-lock-manager-for-windows.spec.ts",
-					"file-lock-manager-composite.spec.ts"
+					"file-lock-manager-composite.spec.ts",
+					"create-file-lock-manager.spec.ts",
+					"file-lock-manager-fallback.spec.ts"
 				]
 			}
 		},

@@ -204,6 +204,25 @@ describe('parseFileBrowserQuery', () => {
 		});
 	});
 
+	it.each(['wp-content/file\\name.php', ' spaced file.php '])(
+		'preserves valid POSIX filename bytes in %s',
+		(path) => {
+			expect(
+				parseFileBrowserQuery(
+					new URLSearchParams({ filebrowser: path })
+				)
+			).toMatchObject({ path, error: null });
+		}
+	);
+
+	it('rejects null bytes before passing the path to the filesystem', () => {
+		expect(
+			parseFileBrowserQuery(
+				new URLSearchParams({ filebrowser: 'wp-config.php\0.txt' })
+			)
+		).toMatchObject({ path: null, error: expect.any(String) });
+	});
+
 	it('rejects traversal outside the document root', () => {
 		const parsed = parseFileBrowserQuery(
 			new URLSearchParams('filebrowser=wp-content/../../wp-config.php')
@@ -252,6 +271,13 @@ describe('resolveFileBrowserPath', () => {
 			)
 		).toBe('/wordpress/wp-content/plugins/foo/index.php');
 	});
+
+	it.each(['../outside.php', '.', 'wp-content/..', 'wp-config.php\0.txt'])(
+		'rejects non-file or out-of-root targets: %s',
+		(path) => {
+			expect(resolveFileBrowserPath('/wordpress', path)).toBe(null);
+		}
+	);
 });
 
 describe('shouldUseFileBrowserQuery', () => {

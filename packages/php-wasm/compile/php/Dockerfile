@@ -2662,7 +2662,7 @@ RUN set -euxo pipefail; \
 			echo "const dependencyFilename = path.join(currentDirPath, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js;\
 			/root/replace.sh "s/scriptDirectory\s*=\s*__dirname/scriptDirectory = currentDirPath/" /root/output/php.js; \
 		else \
-			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+			echo "const dependencyFilename = new URL('./${PHP_VERSION_ESCAPED}/$WASM_FILENAME', import.meta.url).href; " >> /root/output/php-module.js; \
 		fi; \
 		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \

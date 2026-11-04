@@ -7,6 +7,7 @@ import React, {
 	useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { EditorState } from '@codemirror/state';
 import classNames from 'classnames';
 import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
@@ -292,9 +293,17 @@ export const PlaygroundFileEditor = forwardRef<
 
 				const content = await filesystem.readFileAsText(initialPath);
 				if (cancelled) return;
-				const lineOffset = initialLine
-					? getLineStartOffset(content, initialLine)
+				// Use CodeMirror's line model, which normalizes CRLF and CR to LF.
+				const doc = initialLine
+					? EditorState.create({ doc: content }).doc
 					: null;
+				const lineOffset =
+					doc &&
+					initialLine &&
+					initialLine >= 1 &&
+					initialLine <= doc.lines
+						? doc.line(initialLine).from
+						: null;
 				skipNextSaveRef.current = true;
 				setCurrentPath(initialPath);
 				setCode(content);
@@ -302,8 +311,8 @@ export const PlaygroundFileEditor = forwardRef<
 				setReadOnly(false);
 				setSaveState(SaveState.IDLE);
 				setSaveError(null);
-				if (initialLine && lineOffset === null) {
-					const lineCount = getLineCount(content);
+				if (initialLine && doc && lineOffset === null) {
+					const lineCount = doc.lines;
 					setEditorNotice(
 						`Line ${initialLine} is outside this file. The file has ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}.`
 					);
@@ -845,36 +854,4 @@ function getDockSaveTooltip(saveState: SaveState) {
 		default:
 			return 'All changes saved.';
 	}
-}
-
-function getLineStartOffset(content: string, lineNumber: number) {
-	if (lineNumber < 1) {
-		return null;
-	}
-	if (lineNumber === 1) {
-		return 0;
-	}
-
-	let currentLine = 1;
-	for (let index = 0; index < content.length; index++) {
-		if (content[index] !== '\n') {
-			continue;
-		}
-		currentLine++;
-		if (currentLine === lineNumber) {
-			return index + 1;
-		}
-	}
-
-	return null;
-}
-
-function getLineCount(content: string) {
-	let lineCount = 1;
-	for (let index = 0; index < content.length; index++) {
-		if (content[index] === '\n') {
-			lineCount++;
-		}
-	}
-	return lineCount;
 }

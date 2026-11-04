@@ -808,7 +808,7 @@
 						},
 						"themeSlug": {
 							"type": "string",
-							"description": "The name of the theme to import content from."
+							"description": "The slug of an installed theme to import content from. Defaults to the active theme."
 						}
 					},
 					"required": ["step"]
@@ -1465,8 +1465,29 @@
 							"description": "The path of the file to write to"
 						},
 						"filesTree": {
-							"$ref": "#/definitions/DirectoryReference",
-							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
+							"anyOf": [
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"resource": {
+											"type": "string",
+											"const": "literal:directory"
+										},
+										"files": {
+											"$ref": "#/definitions/FileTree"
+										},
+										"name": {
+											"type": "string"
+										}
+									},
+									"required": ["files", "name"]
+								}
+							],
+							"description": "The 'filesTree' defines the directory structure. Inline directories can provide 'name' and 'files' without a 'resource' property. Explicit 'literal:directory' and 'git:directory' resources are also supported. The 'name' represents the root directory, while 'files' maps file paths to contents or nested subdirectories."
 						}
 					},
 					"required": ["filesTree", "step", "writeToPath"]
@@ -1831,6 +1852,10 @@
 				"code": {
 					"type": "string",
 					"description": "The code snippet to eval instead of a php file."
+				},
+				"usePrimaryPhp": {
+					"type": "boolean",
+					"description": "Run on the primary PHP instance instead of any pooled instance.\n\nPooled instances see shared paths through a proxy filesystem whose node cache is not invalidated when the primary deletes a file. A job that spans several runs and rewrites its own state files must stay on the primary so every run sees the same filesystem. The run waits for the primary to become free."
 				}
 			},
 			"additionalProperties": false
@@ -2295,13 +2320,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 													}
 												}
 											]
@@ -2718,13 +2743,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																}
 															}
 														]
@@ -3130,13 +3155,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																	}
 																}
 															]
@@ -3276,13 +3301,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																				}
 																			}
 																		]
@@ -3819,13 +3844,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																						}
 																					}
 																				]
@@ -3967,13 +3992,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 																									}
 																								}
 																							]
@@ -4271,13 +4296,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 													}
 												}
 											]
@@ -4520,13 +4545,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 													}
 												}
 											]
@@ -4823,7 +4848,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862": {
+		"alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4837,13 +4862,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
 					}
 				}
 			]

@@ -200,7 +200,7 @@ self.addEventListener('fetch', (event) => {
 	}
 	const mapping = getRemoteAccessRelayMapping(scope) || getRemoteAccessRelayMappingFromUrl(scope, url);
 	if (mapping) {
-		return event.respondWith(handleRemoteAccessRelayRequest(event, mapping).then((response) => applyCrossOriginIsolationHeaders(response, scope)));
+		return event.respondWith(handleRemoteAccessRelayRequest(event, mapping).then(applyCrossOriginIsolationHeaders));
 	}
 });
 ```

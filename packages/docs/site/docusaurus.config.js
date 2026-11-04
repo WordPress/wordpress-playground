@@ -106,6 +106,7 @@ const config = {
 			},
 		],
 		'./plugins/generate-translation-availability.js',
+		'./plugins/generate-handbook-manifest.js',
 		'./plugins/redirect-docs-to-developer-wordpress-org.js',
 		'./plugins/kapa-ai-plugin.js',
 	],

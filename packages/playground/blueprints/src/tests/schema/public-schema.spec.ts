@@ -45,6 +45,70 @@ describe('public Blueprint schema', () => {
 	});
 
 	it.each([
+		[
+			'inline directory without resource',
+			{ name: 'plugin', files: { 'plugin.php': '<?php' } },
+		],
+		[
+			'explicit literal directory',
+			{
+				resource: 'literal:directory',
+				name: 'plugin',
+				files: { 'plugin.php': '<?php' },
+			},
+		],
+		[
+			'git directory',
+			{
+				resource: 'git:directory',
+				url: 'https://github.com/example/plugin.git',
+				ref: 'main',
+			},
+		],
+	])('accepts writeFiles with %s', (_description, filesTree) => {
+		const blueprint = {
+			steps: [{ step: 'writeFiles', writeToPath: '/plugin', filesTree }],
+		};
+		expect(publicBlueprintValidator(blueprint)).toBe(true);
+		expect(validateBlueprint(blueprint)).toEqual({ valid: true });
+	});
+
+	it.each([
+		['missing name', { files: { 'plugin.php': '<?php' } }],
+		['missing files', { name: 'plugin' }],
+		[
+			'unknown resource',
+			{
+				resource: 'unknown',
+				name: 'plugin',
+				files: { 'plugin.php': '<?php' },
+			},
+		],
+	])('rejects writeFiles with %s', (_description, filesTree) => {
+		const blueprint = {
+			steps: [{ step: 'writeFiles', writeToPath: '/plugin', filesTree }],
+		};
+		expect(publicBlueprintValidator(blueprint)).toBe(false);
+		expect(validateBlueprint(blueprint).valid).toBe(false);
+	});
+
+	it('still requires a resource for installPlugin directory data', () => {
+		const blueprint = {
+			steps: [
+				{
+					step: 'installPlugin',
+					pluginData: {
+						name: 'plugin',
+						files: { 'plugin.php': '<?php' },
+					},
+				},
+			],
+		};
+		expect(publicBlueprintValidator(blueprint)).toBe(false);
+		expect(validateBlueprint(blueprint).valid).toBe(false);
+	});
+
+	it.each([
 		['a malformed v2 declaration', { version: 2, pluginz: [] }],
 		['a declaration mixing v1 and v2 fields', { version: 2, steps: [] }],
 		[

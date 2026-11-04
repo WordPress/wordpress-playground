@@ -56,9 +56,9 @@ export class WebsitePage {
 		);
 	}
 
+	/** Exercise real startup URLs without injecting a sandbox opt-in for tests. */
 	async goto(url: string, options?: any) {
-		const originalGoto = this.page.goto.bind(this.page);
-		const response = await originalGoto(url, options);
+		const response = await this.page.goto(url, options);
 		await this.waitForNestedIframes();
 		return response;
 	}

@@ -37,7 +37,7 @@ runs:
           shell: bash
           if: steps.cache-nodemodules.outputs.cache-hit != 'true'
           run: npm ci
-        - name: Disable unrelated Microsoft apt feeds
+        - name: Configure apt repositories for browser dependencies
           shell: bash
           run: |
               # Playwright's --with-deps runs apt-get update. The GitHub Ubuntu
@@ -49,6 +49,12 @@ runs:
                   /etc/apt/sources.list.d/azure-cli.sources \
                   /etc/apt/sources.list.d/microsoft-prod.list \
                   /etc/apt/sources.list.d/microsoft-prod.sources || true
+              # The Azure Ubuntu mirror can take over 20 minutes to download
+              # browser dependencies. Keep the runner's public Ubuntu archive
+              # and security mirrors instead, before Playwright runs apt.
+              if [ -f /etc/apt/apt-mirrors.txt ]; then
+                  sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+              fi
         - name: Reset NX cache
           shell: bash
           run: npx nx reset

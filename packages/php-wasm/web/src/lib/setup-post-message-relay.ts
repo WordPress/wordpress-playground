@@ -1,15 +1,19 @@
 /**
- * Setup a postMessage relay between the parent window and a nested iframe.
+ * Forward messages marked type: 'relay' between the parent window and a child iframe.
  *
- * When we're running a Playground instance inside an iframe, sometimes that
- * iframe will contain another iframe and so on. The parent application,
- * however, needs to be able to communicate with the innermost iframe. This
- * function relays the communication both ways. Call it in in every iframe
- * layer between the topmost window and the innermost iframe.
+ * For example, in app -> remote.html -> WordPress, remote.html calls this with the
+ * WordPress iframe. A message from either adjacent window is forwarded to the other;
+ * messages from unrelated windows are ignored. Call this in each intermediate layer
+ * when there are more nested frames.
+ *
+ * expectedOrigin applies to the child: it filters replies and targets requests, so
+ * the child may be cross-origin. The parent may be an external embedder; its window
+ * is checked, but its origin is not restricted here.
  *
  * @param nestedFrame The nested iframe element
- * @param expectedOrigin The origin that the nested iframe is expected to be on. If not
- *                       provided, any origin is allowed.
+ * @param expectedOrigin The nested iframe's origin, used to filter incoming messages
+ *                       and target outgoing ones. If omitted, incoming messages may
+ *                       use any origin, but outgoing messages stay same-origin.
  */
 export function setupPostMessageRelay(
 	nestedFrame: HTMLIFrameElement,
@@ -50,6 +54,10 @@ export function setupPostMessageRelay(
 			return;
 		}
 
-		nestedFrame?.contentWindow?.postMessage(event.data);
+		// The default target only reaches same-origin windows; WordPress may be cross-origin.
+		nestedFrame?.contentWindow?.postMessage(
+			event.data,
+			expectedOrigin ?? '/'
+		);
 	});
 }

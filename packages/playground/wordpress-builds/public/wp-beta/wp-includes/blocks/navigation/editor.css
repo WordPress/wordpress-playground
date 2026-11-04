@@ -134,6 +134,10 @@
   visibility: visible;
 }
 
+.wp-block-navigation__container.block-editor-block-list__layout {
+  flex-grow: 1;
+}
+
 .is-editing > .wp-block-navigation__container {
   visibility: visible;
   opacity: 1;
@@ -227,6 +231,7 @@
   background-color: #1e1e1e;
   color: #fff;
   height: 24px;
+  width: 24px;
 }
 .wp-block-navigation .wp-block + .block-list-appender .block-editor-button-block-appender.block-editor-button-block-appender.block-editor-button-block-appender {
   padding: 0;
@@ -640,4 +645,8 @@ body.editor-styles-wrapper .wp-block-navigation__responsive-container.is-menu-op
 
 .wp-block-navigation__overlay-help-text-wrapper {
   margin-top: 8px;
+}
+
+.wp-block-audio__autoplay-help-text {
+  grid-column: 1/-1;
 }

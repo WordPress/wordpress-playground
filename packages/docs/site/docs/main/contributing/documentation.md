@@ -46,3 +46,29 @@ npm run dev:docs
 ```
 
 The documentation site opens in a new browser tab and refreshes automatically with each change. Continue to edit the relevant file in your code editor and test the changes in real-time.
+
+### Generated handbook manifest
+
+The documentation build generates `manifest.json` alongside `translation-availability.json`
+in `dist/docs/build`. Both use Docusaurus's `postBuild` hook and run only for the default
+locale. The deployed manifest is available at
+`https://wordpress.github.io/wordpress-playground/manifest.json`.
+
+When adding a page, add its Markdown source and reference it in `sidebars.js`.
+The manifest uses Docusaurus's resolved document titles and slugs, plus the sidebar
+hierarchy and order. Removing or moving a page updates the manifest on the next build.
+Drafts, unlisted pages, and pages marked `orphan: true` are excluded. A page missing
+from the sidebar without one of these flags fails manifest generation.
+
+The generator preserves existing handbook URLs that differ from Docusaurus routes,
+and uses the generated Markdown versions of the Steps and Playground API Client pages.
+The English redirect plugin uses the same entries. Changes to these exceptions belong
+in `plugins/generate-handbook-manifest.js`.
+
+The generated manifest uses absolute raw GitHub URLs for its Markdown sources so the
+handbook importer can fetch them even though the JSON is hosted on GitHub Pages.
+The committed `packages/docs/site/manifest.json` is retained for the existing importer
+during migration. Switch the importer's manifest URL to the deployed endpoint above
+before removing that legacy snapshot; builds do not update it.
+
+To check the build plugins, run `npx nx run docs-site:test-plugins`.

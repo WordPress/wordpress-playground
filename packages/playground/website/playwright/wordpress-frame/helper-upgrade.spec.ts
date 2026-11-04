@@ -1,0 +1,168 @@
+import { expect, test } from '@playwright/test';
+import { readFile, rm, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import {
+	appOrigin,
+	wordPressOrigin,
+} from '../../bin/wordpress-frame/origins.mjs';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
+
+const sandbox = resolve(
+	__dirname,
+	'../../../../../dist/packages/playground/remote/wordpress-sandbox'
+);
+const appDirectory = resolve(
+	__dirname,
+	'../../../../../dist/packages/playground/website'
+);
+const workerPath = resolve(sandbox, 'sw.js');
+const seedDocument = '__previous-wordpress-worker.html';
+const appSeedDocument = '__previous-wordpress-app.html';
+const previousHelper = getWordPressBridgePath('0'.repeat(40));
+const expiredScript = appOrigin + '/assets/wordpress-bridge-expired.js';
+let deployedWorker: Buffer;
+
+test.describe('WordPress helper upgrades', { tag: '@storage' }, () => {
+	test.beforeAll(async () => {
+		// Install a test worker representing release A before loading this test's
+		// app build (release B). For both /wordpress-bridge.html and A's versioned
+		// helper URL, it generates HTML naming a script B no longer serves.
+		// Use the real /sw.js URL and options: changing the URL would force an
+		// update and hide the existing-registration case that returning users hit.
+		// Seed the worker itself, not CacheStorage.
+		deployedWorker = await readFile(workerPath);
+		await writeFile(
+			workerPath,
+			`
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', event => {
+    const path = new URL(event.request.url).pathname;
+    if (path === '/wordpress-bridge.html' || path === ${JSON.stringify(previousHelper)}) {
+        event.respondWith(new Response(${JSON.stringify(`<!doctype html><script type="module" src="${expiredScript}"></script>`)}, {
+            headers: { 'Content-Type': 'text/html' }
+        }));
+    } else if (path === ${JSON.stringify('/' + seedDocument)}) {
+        event.respondWith(fetch(event.request));
+    }
+});`
+		);
+		await writeFile(
+			resolve(sandbox, seedDocument),
+			'<!doctype html><title>Previous WordPress worker seed</title>'
+		);
+		await writeFile(
+			resolve(appDirectory, appSeedDocument),
+			`<!doctype html><iframe src="${wordPressOrigin}/${seedDocument}"></iframe>`
+		);
+	});
+
+	test.afterAll(async () => {
+		await writeFile(workerPath, deployedWorker);
+		await rm(resolve(sandbox, seedDocument), { force: true });
+		await rm(resolve(appDirectory, appSeedDocument), { force: true });
+	});
+
+	test('a new app boots when the previous worker references a removed helper script', async ({
+		page,
+	}) => {
+		// Seed below the app origin so browsers use the same service-worker
+		// partition as the real nested WordPress frame, including in WebKit.
+		// Serve both fixture documents over HTTP so browser origin and local-network
+		// checks match the real app, rather than a mocked navigation response.
+		await page.goto(appOrigin + '/' + appSeedDocument);
+		const seed = page
+			.frames()
+			.find((frame) => frame.url().endsWith(seedDocument))!;
+		await expect
+			.poll(() => seed.title())
+			.toBe('Previous WordPress worker seed');
+		await seed.evaluate(async () => {
+			(window as any).previousRegistration =
+				await navigator.serviceWorker.register('/sw.js', {
+					scope: '/',
+					type: 'module',
+					updateViaCache: 'none',
+				});
+		});
+		await expect
+			.poll(() =>
+				seed.evaluate(
+					() => (window as any).previousRegistration.active?.state
+				)
+			)
+			.toBe('activated');
+		// Navigate the fixture again so the installed test worker controls it.
+		// It must respondWith() this navigation, even though it forwards to HTTP:
+		// Playwright's Firefox loses the controller on unhandled navigations.
+		// https://github.com/microsoft/playwright/issues/37012
+		await seed.goto(wordPressOrigin + '/' + seedDocument);
+		await seed.waitForFunction(() =>
+			Boolean(navigator.serviceWorker.controller)
+		);
+		for (const path of ['/wordpress-bridge.html', previousHelper]) {
+			expect(
+				await seed.evaluate(
+					async (path) => (await fetch(path)).text(),
+					path
+				)
+			).toContain(expiredScript);
+		}
+		// Deploy B's bytes at the same /sw.js URL while A remains installed.
+		await writeFile(workerPath, deployedWorker);
+		let expiredRequests = 0;
+		page.on('request', (request) => {
+			if (request.url() === expiredScript) expiredRequests++;
+		});
+
+		await page.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
+		await page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites)
+		);
+		await page.evaluate(() => (window as any).playgroundSites.isReady());
+		await page.evaluate(() =>
+			(window as any).playgroundSites
+				.getClient()
+				.writeFile(
+					'/wordpress/helper-upgrade.txt',
+					'current PHP connection'
+				)
+		);
+		const wordpress = page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.frameLocator('#wp');
+		await expect(wordpress.locator('body')).not.toBeEmpty();
+		const element = await page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.locator('#wp')
+			.elementHandle();
+		const frame = (await element!.contentFrame())!;
+		await element!.dispose();
+		await expect
+			.poll(() =>
+				frame.evaluate(async () =>
+					(await fetch('helper-upgrade.txt')).text()
+				)
+			)
+			.toBe('current PHP connection');
+		expect(expiredRequests).toBe(0);
+
+		// The active worker now belongs to the tested app build, release B.
+		// Release C represents another deployment after B. Its helper URL must
+		// reach the server, not receive HTML naming B's script, which C may remove.
+		const future = new URL(
+			getWordPressBridgePath('f'.repeat(40)),
+			wordPressOrigin
+		).href;
+		const response = page.waitForResponse(future);
+		await frame.evaluate(async (url) => {
+			await fetch(url, { referrerPolicy: 'no-referrer' });
+		}, future);
+		expect((await response).fromServiceWorker()).toBe(false);
+	});
+});

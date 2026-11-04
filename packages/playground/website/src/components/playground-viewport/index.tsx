@@ -23,6 +23,7 @@ import {
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import { getRuntimeBootFingerprint } from '../../lib/state/playground-identity';
+import { isMessageFromIframeTree } from '@wp-playground/components';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -279,6 +280,41 @@ export const JustViewport = function JustViewport({
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [siteSlug, iframeRef, runtimeBootFingerprint]);
+
+	useEffect(() => {
+		function handleMessage(event: MessageEvent) {
+			const data = event.data;
+			if (
+				typeof data !== 'object' ||
+				data === null ||
+				data.type !== 'relay' ||
+				data.relayType !== 'install-blueprint' ||
+				typeof data.blueprintUrl !== 'string' ||
+				!isMessageFromIframeTree(event, iframeRef.current) ||
+				event.origin !== window.location.origin ||
+				!event.source
+			) {
+				return;
+			}
+
+			(event.source as Window).postMessage(
+				{
+					type: 'relay',
+					relayType: 'install-blueprint-result',
+					blueprintUrl: data.blueprintUrl,
+					requestId:
+						typeof data.requestId === 'string'
+							? data.requestId
+							: undefined,
+					status: 'unsupported',
+				},
+				event.origin
+			);
+		}
+
+		window.addEventListener('message', handleMessage);
+		return () => window.removeEventListener('message', handleMessage);
+	}, []);
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);

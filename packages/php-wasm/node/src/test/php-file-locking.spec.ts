@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { fstatSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
@@ -1436,6 +1436,22 @@ error_log = ${errorLogPath}
 		// SQLite WAL unlinks `.ht.sqlite-shm` before its fd is closed.
 		test(`should release SQLite WAL shared-memory byte-range locks when the file descriptor is closed`, async () => {
 			const fileLockManager = createMockFileLockManager();
+			let shmLockCall:
+				| Parameters<FileLockManager['lockFileByteRange']>
+				| undefined;
+			vi.mocked(fileLockManager.lockFileByteRange).mockImplementation(
+				(key, lock, waitForLock) => {
+					const shm = statSync(join(tempDir, '.ht.sqlite-shm'), {
+						bigint: true,
+						throwIfNoEntry: false,
+					});
+					const file = fstatSync(lock.fd, { bigint: true });
+					if (shm && file.dev === shm.dev && file.ino === shm.ino) {
+						shmLockCall ??= [key, lock, waitForLock];
+					}
+					return true;
+				}
+			);
 			using php = new PHP(
 				await loadNodeRuntime(phpVersion, {
 					fileLockManager,
@@ -1459,21 +1475,13 @@ error_log = ${errorLogPath}
 			});
 
 			expect(result.exitCode).toBe(0);
-			expect(fileLockManager.lockFileByteRange).toHaveBeenCalledWith(
-				expect.stringMatching(/\.ht\.sqlite-shm$/),
-				expect.any(Object),
-				expect.any(Boolean)
-			);
-			const shmLockCall = vi
-				.mocked(fileLockManager.lockFileByteRange)
-				.mock.calls.find(([path]) => /\.ht\.sqlite-shm$/.test(path));
 			expect(shmLockCall).toBeDefined();
-			const [shmNativePath, shmLock] = shmLockCall!;
+			const [shmLockKey, shmLock] = shmLockCall!;
 			expect(shmLock.fd).toEqual(expect.any(Number));
 			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
 				expect.any(Number),
 				shmLock.fd,
-				shmNativePath
+				shmLockKey
 			);
 		});
 
@@ -1525,7 +1533,6 @@ error_log = ${errorLogPath}
 			php.mount(vfsMountPoint, createNodeFsMountHandler(tempDir));
 
 			const fileName = 'locked-unlinked.txt';
-			const nativePathPattern = /[\\/]locked-unlinked\.txt$/;
 			const nativeFilePath = join(tempDir, fileName);
 			const vfsFilePath = `${vfsMountPoint}/${fileName}`;
 			writeFileSync(nativeFilePath, 'test content');
@@ -1549,17 +1556,14 @@ error_log = ${errorLogPath}
 			expect(result.exitCode).toBe(0);
 			const wholeFileLockCall = vi
 				.mocked(fileLockManager.lockWholeFile)
-				.mock.calls.find(
-					([path, op]) =>
-						nativePathPattern.test(path) && op.type === 'exclusive'
-				);
+				.mock.calls.find(([, op]) => op.type === 'exclusive');
 			expect(wholeFileLockCall).toBeDefined();
-			const [wholeFileNativePath, wholeFileLock] = wholeFileLockCall!;
+			const [wholeFileLockKey, wholeFileLock] = wholeFileLockCall!;
 			expect(wholeFileLock.fd).toEqual(expect.any(Number));
 			expect(fileLockManager.releaseLocksOnFdClose).toHaveBeenCalledWith(
 				expect.any(Number),
 				wholeFileLock.fd,
-				wholeFileNativePath
+				wholeFileLockKey
 			);
 			expect(fileLockManager.releaseLocksForProcess).toHaveBeenCalled();
 			expect(pidsReleasedOnFdClose).toEqual([expect.any(Number)]);

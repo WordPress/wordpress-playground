@@ -7,6 +7,7 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { SiteToolPanels } from './site-tool-panels';
 
 vi.mock('../../../lib/state/redux/store', () => ({
+	selectActiveSiteError: vi.fn(),
 	useAppDispatch: () => vi.fn(),
 	useAppSelector: () => false,
 }));

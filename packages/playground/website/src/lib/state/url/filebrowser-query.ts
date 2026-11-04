@@ -1,9 +1,4 @@
-import {
-	isParentOf,
-	joinPaths,
-	normalizePath,
-	toPosixPath,
-} from '@php-wasm/util';
+import { normalizePath, resolvePathUnder } from '@php-wasm/util';
 
 export type FileBrowserQuery = {
 	isRequested: boolean;
@@ -17,6 +12,7 @@ export const FILE_BROWSER_INVALID_PATH_NOTICE =
 export const FILE_BROWSER_INVALID_LINE_NOTICE =
 	'The requested line number is invalid. Use a 1-based line number.';
 
+/** Parses a document-root-relative file path and optional 1-based line from the URL. */
 export function parseFileBrowserQuery(
 	searchParams: URLSearchParams
 ): FileBrowserQuery {
@@ -66,6 +62,7 @@ export function parseFileBrowserQuery(
 	};
 }
 
+/** Enables file-browser startup only where the standalone Playground UI is available. */
 export function shouldUseFileBrowserQuery(
 	searchParams: URLSearchParams,
 	isEmbeddedInIframe: boolean
@@ -77,16 +74,12 @@ export function shouldUseFileBrowserQuery(
 	);
 }
 
+/** Resolves a parsed file path without allowing it to escape the document root. */
 export function resolveFileBrowserPath(
 	documentRoot: string,
 	relativePath: string
 ) {
-	const root = normalizePath(documentRoot);
-	const resolvedPath = joinPaths(root, relativePath);
-	if (!isParentOf(root, resolvedPath)) {
-		return null;
-	}
-	return resolvedPath;
+	return resolvePathUnder(relativePath, documentRoot) ?? null;
 }
 
 function splitLineSuffix(rawValue: string) {
@@ -104,12 +97,11 @@ function splitLineSuffix(rawValue: string) {
 }
 
 function normalizeRelativeFileBrowserPath(rawPath: string) {
-	const posixPath = toPosixPath(rawPath.trim());
-	if (!posixPath || posixPath.startsWith('/')) {
+	if (!rawPath || rawPath.startsWith('/') || rawPath.includes('\0')) {
 		return null;
 	}
 
-	const normalizedPath = normalizePath(posixPath);
+	const normalizedPath = normalizePath(rawPath);
 	if (
 		!normalizedPath ||
 		normalizedPath === '.' ||

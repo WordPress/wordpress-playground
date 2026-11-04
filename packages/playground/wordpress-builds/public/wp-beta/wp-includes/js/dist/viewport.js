@@ -130,7 +130,7 @@ var wp;
         return operatorEntries.map(
           ([operator, condition]) => {
             const list = window.matchMedia(
-              `(${condition}: ${width}px)`
+              `screen and (${condition}: ${width}px)`
             );
             list.addEventListener("change", setIsMatching2);
             return [`${operator} ${name}`, list];

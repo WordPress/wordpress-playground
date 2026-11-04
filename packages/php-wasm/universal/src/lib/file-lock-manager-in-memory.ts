@@ -505,7 +505,9 @@ export class FileLock {
 			if (
 				this.wholeFileLock.type === 'shared' &&
 				Array.from(this.wholeFileLock.pidFds).some(
-					([pid]) => pid !== requestedLock.pid
+					([pid, fds]) =>
+						pid !== requestedLock.pid ||
+						Array.from(fds).some((fd) => fd !== requestedLock.fd)
 				)
 			) {
 				return true;
@@ -527,7 +529,8 @@ export class FileLock {
 		if (requestedLock.type === 'shared') {
 			if (
 				this.wholeFileLock.type === 'exclusive' &&
-				this.wholeFileLock.pid !== requestedLock.pid
+				(this.wholeFileLock.pid !== requestedLock.pid ||
+					this.wholeFileLock.fd !== requestedLock.fd)
 			) {
 				return true;
 			}

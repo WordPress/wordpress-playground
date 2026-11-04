@@ -43,6 +43,10 @@ export type WorkerBootWordPressOptions = {
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
 	phpVersion: AllPHPVersion;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 */
+	phpIniEntries?: Record<string, string>;
 	processId: number;
 	trace: boolean;
 	networking?: boolean;
@@ -177,9 +181,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					'/internal/shared/ca-bundle.crt':
 						rootCertificates.join('\n'),
 				},
-				phpIniEntries: getNetworkingPhpIniEntries(
-					options.networking ?? true
-				),
+				phpIniEntries: {
+					...getNetworkingPhpIniEntries(options.networking ?? true),
+					...options.phpIniEntries,
+				},
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!
