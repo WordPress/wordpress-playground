@@ -58,9 +58,9 @@ VS Code এক্সটেনশনটি একটি ভিন্ন গিট
 3.  **Develop and Debug**: Use the integrated tools to develop and debug your WordPress site.
 -->
 
-১. **এক্সটেনশনটি ইনস্টল করুন**: VS Code-এর এক্সটেনশন মার্কেটপ্লেসে "WordPress Playground" লিখে অনুসন্ধান করুন এবং এটি ইনস্টল করুন।
-২. **সেটআপ**: আপনার ডেভেলপমেন্ট এনভায়রনমেন্ট কনফিগার করতে এক্সটেনশনে দেওয়া সেটআপ নির্দেশিকা অনুসরণ করুন।
-৩. **ডেভেলপ এবং ডিবাগ**: আপনার ওয়ার্ডপ্রেস সাইট ডেভেলপ ও ডিবাগ করতে ইন্টিগ্রেটেড টুলস ব্যবহার করুন।
+1. **এক্সটেনশনটি ইনস্টল করুন**: VS Code-এর এক্সটেনশন মার্কেটপ্লেসে "WordPress Playground" লিখে অনুসন্ধান করুন এবং এটি ইনস্টল করুন।
+2. **সেটআপ**: আপনার ডেভেলপমেন্ট এনভায়রনমেন্ট কনফিগার করতে এক্সটেনশনে দেওয়া সেটআপ নির্দেশিকা অনুসরণ করুন।
+3. **ডেভেলপ এবং ডিবাগ**: আপনার ওয়ার্ডপ্রেস সাইট ডেভেলপ ও ডিবাগ করতে ইন্টিগ্রেটেড টুলস ব্যবহার করুন।
 
 <!--
 The extension ships with a portable WebAssembly version of PHP and sets up WordPress to use SQLite. Once installed, all you have to do is click the **Start WordPress Server** button in VS Code:
