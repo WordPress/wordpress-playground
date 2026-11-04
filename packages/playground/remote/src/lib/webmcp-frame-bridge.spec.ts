@@ -96,6 +96,7 @@ describe('WordPress WebMCP registry cancellation', () => {
 			origin: string;
 			data: Record<string, unknown>;
 		}) => void;
+		let pageHide!: () => void;
 		const parent = { postMessage: vi.fn() };
 		const document: {
 			modelContext?: {
@@ -125,8 +126,11 @@ describe('WordPress WebMCP registry cancellation', () => {
 				location: { origin: 'https://wordpress.test' },
 				addEventListener: (type: string, listener: typeof receive) => {
 					if (type === 'message') receive = listener;
+					if (type === 'pagehide')
+						pageHide = listener as unknown as () => void;
 				},
 			},
+			crypto: { randomUUID: () => 'document-1' },
 			document,
 			navigator: {},
 			AbortController,
@@ -151,11 +155,19 @@ describe('WordPress WebMCP registry cancellation', () => {
 				origin: 'https://playground.test',
 				data,
 			});
+		// A message queued for the previous document must not execute in this one.
+		send({
+			type: 'playground-webmcp-call-tool',
+			name: 'site_tool',
+			callId: 'old-document-call',
+			documentId: 'document-0',
+		});
 		for (const callId of ['call-1', 'call-2']) {
 			send({
 				type: 'playground-webmcp-call-tool',
 				name: 'site_tool',
 				callId,
+				documentId: 'document-1',
 			});
 		}
 		await vi.waitFor(() => expect(interaction).toHaveBeenCalledTimes(2));
@@ -173,6 +185,21 @@ describe('WordPress WebMCP registry cancellation', () => {
 			)
 		);
 		send({ type: 'playground-webmcp-cancel-tool', callId: 'call-2' });
+		pageHide();
+		expect(parent.postMessage).toHaveBeenCalledWith(
+			{
+				type: 'playground-webmcp-document-hidden',
+				documentId: 'document-1',
+			},
+			'https://playground.test'
+		);
+		expect(parent.postMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'playground-webmcp-tools-changed',
+				documentId: 'document-1',
+			}),
+			'https://playground.test'
+		);
 	});
 });
 
@@ -207,11 +234,12 @@ describe('remote access WebMCP bridge', () => {
 			data: unknown,
 			source: unknown = contentWindow,
 			origin = 'https://guest.test'
-		) => receive({ source, origin, data } as MessageEvent);
+		) => receive({ source, origin, data } as unknown as MessageEvent);
 		const announcement = {
 			type: 'remote-access-frame-message',
 			payload: {
 				type: 'playground-webmcp-tools-changed',
+				documentId: 'guest-document',
 				tools: [{ name: 'guest_tool', description: 'Guest tool' }],
 			},
 		};
@@ -233,6 +261,7 @@ describe('remote access WebMCP bridge', () => {
 				payload: {
 					type: 'playground-webmcp-call-tool',
 					callId: 'call-1',
+					documentId: 'guest-document',
 					name: 'guest_tool',
 					arguments: { name: 'Guest' },
 				},
@@ -244,6 +273,7 @@ describe('remote access WebMCP bridge', () => {
 			payload: {
 				type: 'playground-webmcp-call-result',
 				callId: 'call-1',
+				documentId: 'guest-document',
 				resultJson: '{"ok":true}',
 			},
 		});
@@ -254,6 +284,13 @@ describe('remote access WebMCP bridge', () => {
 			'before-navigation'
 		);
 		postMessage.mockClear();
+		deliver({
+			type: 'remote-access-frame-message',
+			payload: {
+				type: 'playground-webmcp-document-hidden',
+				documentId: 'guest-document',
+			},
+		});
 		deliver({
 			type: 'remote-access-frame-load',
 			href: 'https://guest.test/plain',
@@ -282,6 +319,7 @@ describe('remote access WebMCP bridge', () => {
 				payload: {
 					type: 'playground-webmcp-cancel-tool',
 					callId: 'call-2',
+					documentId: 'guest-document',
 				},
 			},
 			'https://guest.test'
@@ -291,3 +329,87 @@ describe('remote access WebMCP bridge', () => {
 		expect(vi.getTimerCount()).toBe(0);
 	});
 });
+
+// Contract: calls belong to the document that advertised their tool. A new
+// document can announce tools and execute mutations before its load event or
+// the previous document's pagehide message reaches the parent.
+describe.each([false, true])(
+	'WebMCP document ownership (relay: %s)',
+	(relayMessages) => {
+		it('keeps a new document’s call alive across load and a late departure', async () => {
+			vi.useFakeTimers();
+			let receive!: (event: MessageEvent) => void;
+			let load!: () => void;
+			vi.stubGlobal('window', {
+				addEventListener: (_type: string, listener: typeof receive) => {
+					receive = listener;
+				},
+				removeEventListener: vi.fn(),
+			});
+			const postMessage = vi.fn();
+			const contentWindow = { postMessage };
+			const frame = {
+				contentWindow,
+				addEventListener: (_type: string, listener: () => void) => {
+					load = listener;
+				},
+				removeEventListener: vi.fn(),
+			} as unknown as HTMLIFrameElement;
+			const bridge = createWebMCPFrameBridge(frame, { relayMessages });
+			const deliver = (payload: Record<string, unknown>) =>
+				receive({
+					source: contentWindow,
+					origin: 'https://wordpress.test',
+					data: relayMessages
+						? { type: 'remote-access-frame-message', payload }
+						: payload,
+				} as unknown as MessageEvent);
+			const announce = (documentId: string) =>
+				deliver({
+					type: 'playground-webmcp-tools-changed',
+					documentId,
+					tools: [
+						{ name: 'save_recipe', description: 'Save a recipe' },
+					],
+				});
+			announce('old');
+			const oldCall = bridge.callTool('save_recipe', {}, 'old-call');
+			announce('new');
+			await expect(oldCall).rejects.toThrow('check before retrying');
+			const current = bridge.callTool('save_recipe', {}, 'new-call');
+			const settled = vi.fn();
+			void current.then(settled, settled);
+			if (relayMessages) {
+				receive({
+					source: contentWindow,
+					origin: 'https://wordpress.test',
+					data: { type: 'remote-access-frame-load' },
+				} as unknown as MessageEvent);
+			} else {
+				load();
+			}
+			deliver({
+				type: 'playground-webmcp-document-hidden',
+				documentId: 'old',
+			});
+			// A late result from a different document must not settle this call.
+			deliver({
+				type: 'playground-webmcp-call-result',
+				documentId: 'old',
+				callId: 'new-call',
+				resultJson: 'false',
+			});
+			await Promise.resolve();
+			expect(settled).not.toHaveBeenCalled();
+			deliver({
+				type: 'playground-webmcp-call-result',
+				documentId: 'new',
+				callId: 'new-call',
+				resultJson: '{"saved":true}',
+			});
+			await expect(current).resolves.toEqual({ saved: true });
+			bridge.dispose();
+			expect(vi.getTimerCount()).toBe(0);
+		});
+	}
+);

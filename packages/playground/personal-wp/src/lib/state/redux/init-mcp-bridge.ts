@@ -6,7 +6,6 @@ import type {
 	WebMCPSiteToolProxy,
 } from '@wp-playground/mcp/client';
 import {
-	getModelContext,
 	registerWebMCPTools,
 	startMcpBridge,
 	startWebMCPSiteToolProxy,
@@ -36,9 +35,6 @@ startListening({
 		}
 		listenerApi.unsubscribe();
 
-		void registerConnectViaAccessCodeTool().catch((error) => {
-			logger.warn('Remote access WebMCP registration failed:', error);
-		});
 		let handle: McpBridgeHandle | null = null;
 		let connectedPort: number | null = null;
 
@@ -204,42 +200,3 @@ startListening({
 		});
 	},
 });
-
-async function registerConnectViaAccessCodeTool(): Promise<void> {
-	await getModelContext()?.registerTool({
-		name: 'my_wordpress_connect_via_access_code',
-		description:
-			'Open My WordPress’s built-in Remote Access page at /connect to ' +
-			'access a site stored in another browser. Each browser profile ' +
-			'stores its own WordPress; even a saved site here may differ from ' +
-			'the user’s intended site. If the destination is unclear, ask ' +
-			'whether to use the site here or connect to their existing WordPress. ' +
-			`To connect, ask the user to open ${window.location.origin} in their ` +
-			'usual browser, choose Site Tools → Remote Access, and provide the ' +
-			'access code shown there. Enter that code on /connect and ask the ' +
-			'user to approve access in their usual browser. This connection ' +
-			'works through My WordPress itself and requires no browser extension. ' +
-			'Continue the original task after connecting.',
-		inputSchema: {
-			type: 'object',
-			properties: {},
-			additionalProperties: false,
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-		},
-		execute: async () => {
-			window.location.href = '/connect';
-			return {
-				status: 'connection_required',
-				guidance:
-					`Ask the user to open ${window.location.origin} in their usual ` +
-					'browser, choose Site Tools → Remote Access, and provide the ' +
-					'access code. Enter that code on /connect, then ask them to ' +
-					'approve access in their usual browser. This uses My WordPress’s ' +
-					'built-in Remote Access and requires no browser extension.',
-			};
-		},
-	});
-}

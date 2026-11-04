@@ -52,21 +52,19 @@ export function RemoteAccessConnect() {
 		async function registerStatusTool() {
 			await getModelContext()?.registerTool(
 				{
-					name: 'my_wordpress_get_connection_status',
+					name: 'my_wordpress_connection_status',
 					description:
-						'Check whether the main My WordPress site is saved in this ' +
-						'browser before using My WordPress’s built-in Remote Access. A saved site ' +
-						'can be opened locally; if none exists here, ask the user to ' +
-						'start Remote Access in the browser where their WordPress ' +
-						'lives and provide the access code or link. This checks ' +
-						'saved-site availability, not whether its content is empty. ' +
-						'Remote Access uses an access code and requires no browser extension.',
+						'Check whether this browser has a saved main WordPress before ' +
+						'connecting elsewhere. A saved site may differ from the user’s ' +
+						'intended site. Returns true, false, or null if storage cannot ' +
+						'be checked, plus built-in Remote Access instructions. This ' +
+						'checks site availability, not content. No extension is required.',
 					inputSchema: {
 						type: 'object',
 						properties: {},
 						additionalProperties: false,
 					},
-					annotations: { readOnlyHint: true, destructiveHint: false },
+					annotations: { readOnlyHint: true },
 					execute: async () => {
 						const hasSavedSite = await checkSavedSite();
 						return {

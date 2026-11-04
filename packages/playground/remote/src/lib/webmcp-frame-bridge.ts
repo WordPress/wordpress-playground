@@ -12,6 +12,7 @@ const LIST_TOOLS = 'playground-webmcp-list-tools';
 const CALL_TOOL = 'playground-webmcp-call-tool';
 const CALL_RESULT = 'playground-webmcp-call-result';
 const CANCEL_TOOL = 'playground-webmcp-cancel-tool';
+const DOCUMENT_HIDDEN = 'playground-webmcp-document-hidden';
 
 const CALL_TIMEOUT_MS = 60000;
 
@@ -71,11 +72,13 @@ export function createWebMCPFrameBridge(
 	let disposed = false;
 	let tools: WebMCPToolDescriptor[] = [];
 	let serializedTools = '[]';
+	let documentId: string | undefined;
 	let probeTimeout: ReturnType<typeof setTimeout> | null = null;
 	const listeners = new Set<(tools: WebMCPToolDescriptor[]) => void>();
 	const pendingCalls = new Map<
 		string,
 		{
+			documentId: string | undefined;
 			resolve: (value: unknown) => void;
 			reject: (error: Error) => void;
 			timeout: ReturnType<typeof setTimeout>;
@@ -102,7 +105,26 @@ export function createWebMCPFrameBridge(
 				event.data.payload
 			: event.data;
 		if (!data) return;
+		if (
+			data.type === DOCUMENT_HIDDEN &&
+			typeof data.documentId === 'string'
+		) {
+			rejectDocumentCalls(data.documentId);
+			if (data.documentId === documentId) {
+				documentId = undefined;
+				setTools([]);
+			}
+			return;
+		}
 		if (data.type === TOOLS_CHANGED) {
+			const nextDocumentId =
+				typeof data.documentId === 'string'
+					? data.documentId
+					: undefined;
+			if (nextDocumentId !== documentId) {
+				rejectDocumentCalls(documentId);
+				documentId = nextDocumentId;
+			}
 			cancelProbe();
 			setTools(toDescriptors(data.tools));
 			return;
@@ -127,15 +149,6 @@ export function createWebMCPFrameBridge(
 	 * its own reply moments later.
 	 */
 	function handleLoad() {
-		for (const [callId, pending] of pendingCalls) {
-			pendingCalls.delete(callId);
-			clearTimeout(pending.timeout);
-			pending.reject(
-				new Error(
-					'The WordPress page changed before the WebMCP tool responded.'
-				)
-			);
-		}
 		requestToolList();
 		cancelProbe();
 		probeTimeout = setTimeout(() => {
@@ -144,6 +157,23 @@ export function createWebMCPFrameBridge(
 		}, ANNOUNCE_PROBE_TIMEOUT_MS);
 	}
 	wpFrame.addEventListener('load', handleLoad);
+
+	/** Reject only calls owned by the document that left, never its replacement. */
+	function rejectDocumentCalls(departedDocumentId: string | undefined) {
+		for (const [callId, pending] of pendingCalls) {
+			if (pending.documentId !== departedDocumentId) {
+				continue;
+			}
+			pendingCalls.delete(callId);
+			clearTimeout(pending.timeout);
+			pending.reject(
+				new Error(
+					'The WordPress page changed before the WebMCP tool responded. ' +
+						'The operation may have completed; check before retrying.'
+				)
+			);
+		}
+	}
 
 	function setTools(next: WebMCPToolDescriptor[]) {
 		const serialized = JSON.stringify(next);
@@ -165,13 +195,17 @@ export function createWebMCPFrameBridge(
 	}
 
 	function resolveCall(data: {
+		documentId?: unknown;
 		callId?: unknown;
 		error?: unknown;
 		resultJson?: unknown;
 	}) {
 		const callId = typeof data.callId === 'string' ? data.callId : '';
 		const pending = pendingCalls.get(callId);
-		if (!pending) {
+		if (
+			!pending ||
+			(pending.documentId && data.documentId !== pending.documentId)
+		) {
 			return;
 		}
 		pendingCalls.delete(callId);
@@ -250,10 +284,16 @@ export function createWebMCPFrameBridge(
 						)
 					);
 				}, CALL_TIMEOUT_MS);
-				pendingCalls.set(callId, { resolve, reject, timeout });
+				pendingCalls.set(callId, {
+					documentId,
+					resolve,
+					reject,
+					timeout,
+				});
 				postMessage({
 					type: CALL_TOOL,
 					callId,
+					...(documentId ? { documentId } : {}),
 					name,
 					arguments: args ?? {},
 				});
@@ -266,7 +306,13 @@ export function createWebMCPFrameBridge(
 			}
 			pendingCalls.delete(callId);
 			clearTimeout(pending.timeout);
-			postMessage({ type: CANCEL_TOOL, callId });
+			postMessage({
+				type: CANCEL_TOOL,
+				callId,
+				...(pending.documentId
+					? { documentId: pending.documentId }
+					: {}),
+			});
 			pending.reject(
 				new DOMException('The tool call was cancelled.', 'AbortError')
 			);
