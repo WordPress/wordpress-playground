@@ -40,7 +40,17 @@ Reprint is downloaded and verified before the website build or dev server starts
 The browser loads that bundled client from Playground only when a transfer needs it.
 It is excluded from the files downloaded eagerly for offline mode.
 
-To select the latest stable release:
+The [Refresh Reprint workflow](../../../.github/workflows/refresh-reprint.yml)
+checks daily for a newer stable release. It verifies the download, runs the PHP
+bridge checks, and clones the public demo in a preview build before committing
+the new pin to `trunk`. The next website deployment picks up that pin.
+
+The same workflow checks the live demo even when there is no new release.
+It follows the link on [WordPress.org](https://wordpress.org/reprint/), clones
+Field Notes without a migration key, and opens the copy to check a page and an
+uploaded photo. This check runs separately from the PR tests.
+
+To select the latest stable release manually:
 
 ```bash
 npm exec -- nx run playground-website:update-reprint
