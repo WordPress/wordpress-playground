@@ -2,6 +2,59 @@ import { test, expect } from '../playground-fixtures';
 import { blueprint, fixture } from '../abilities-fixtures';
 import Ajv from 'ajv';
 
+// PHP accepts empty arrays for both object and array schemas. Serialization
+// must use the output schema at each level to preserve the JSON contract.
+test('ability output preserves nested objects and arrays', async ({
+	website,
+}) => {
+	const outputFixture =
+		fixture +
+		`
+add_action('wp_abilities_api_init', function () {
+ wp_register_ability('fixture/output', array(
+  'label' => 'Output shapes', 'description' => 'Preserves nested JSON types', 'category' => 'fixture',
+  'permission_callback' => '__return_true',
+  'output_schema' => array('type' => 'object', 'properties' => array(
+   'settings' => array('type' => 'object'),
+   'items' => array('type' => 'array', 'items' => array('type' => 'object', 'properties' => array(
+    'settings' => array('type' => 'object'), 'list' => array('type' => 'array')
+   ))),
+   'list' => array('type' => 'array'),
+   'map' => array('type' => 'object', 'additionalProperties' => array('type' => 'object')),
+   'patterns' => array('type' => 'object', 'patternProperties' => array('^entry' => array('type' => 'object'))),
+   'nullable' => array('type' => array('object', 'null')),
+   'choice' => array('anyOf' => array(array('type' => 'object'), array('type' => 'null')))
+  )),
+  'execute_callback' => function () {
+   return array(
+    'settings' => array(), 'items' => array(array('settings' => array(), 'list' => array())),
+    'list' => array(), 'map' => array('entry' => array()), 'patterns' => array('entry' => array()),
+    'nullable' => array(), 'choice' => array()
+   );
+  }
+ ));
+});`;
+	await website.goto(`./?storage=temp#${blueprint('6.9', outputFixture)}`);
+	await website.page.waitForFunction(() =>
+		Boolean((window as any).playground)
+	);
+	const result = await website.page.evaluate(async () =>
+		(window as any).playground.executeAbility('fixture/output')
+	);
+	expect(result).toEqual({
+		success: true,
+		data: {
+			settings: {},
+			items: [{ settings: {}, list: [] }],
+			list: [],
+			map: { entry: {} },
+			patterns: { entry: {} },
+			nullable: {},
+			choice: {},
+		},
+	});
+});
+
 // Opting into reloads must preserve navigation callbacks. History API changes
 // reach the listener through URL polling, independently of document startup.
 test('reload subscriptions retain initial and History API navigation', async ({

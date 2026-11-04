@@ -490,15 +490,49 @@ function playground_abilities_request() {
 		}
 		wp_send_json(array('success' => false, 'errors' => $errors));
 	}
-	$output_schema = $ability->get_output_schema();
-	if (
-		$result === array() &&
-		is_array($output_schema) &&
-		($output_schema['type'] ?? null) === 'object'
-	) {
-		$result = new stdClass();
-	}
+	$result = playground_ability_output_to_json($result, $ability->get_output_schema());
 	wp_send_json(array('success' => true, 'data' => $result));
+}
+
+/** Preserves object and array output shapes, including nested empty objects. */
+function playground_ability_output_to_json($value, $schema) {
+	if (!is_array($schema) || (!is_array($value) && !($value instanceof stdClass))) {
+		return $value;
+	}
+	// Use the same branch and type selection as WordPress output validation.
+	foreach (array(
+		'anyOf' => 'rest_find_any_matching_schema',
+		'oneOf' => 'rest_find_one_matching_schema',
+	) as $keyword => $find_schema) {
+		if (isset($schema[$keyword])) {
+			$matching_schema = $find_schema($value, $schema, 'output');
+			if (!is_wp_error($matching_schema)) {
+				$value = playground_ability_output_to_json($value, $matching_schema);
+				if (!isset($schema['type'])) {
+					$schema['type'] = $matching_schema['type'] ?? null;
+				}
+			}
+		}
+	}
+	$type = $schema['type'] ?? null;
+	if (is_array($type)) {
+		$type = rest_handle_multi_type_schema($value, $schema, 'output');
+	}
+	if ($type === 'array' && is_array($value) && isset($schema['items'])) {
+		foreach ($value as $index => $item) {
+			$value[$index] = playground_ability_output_to_json($item, $schema['items']);
+		}
+	} elseif ($type === 'object') {
+		$properties = (array) $value;
+		foreach ($properties as $name => $property) {
+			$property_schema = $schema['properties'][$name] ??
+				rest_find_matching_pattern_property_schema($name, $schema) ??
+				($schema['additionalProperties'] ?? null);
+			$properties[$name] = playground_ability_output_to_json($property, $property_schema);
+		}
+		return (object) $properties;
+	}
+	return $value;
 }
 
 /**
