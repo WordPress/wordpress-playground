@@ -153,10 +153,6 @@ export function SiteSharePanel() {
 						Saves everything as it is right now — files, database,
 						and your edits — to a .zip you can re-import later.
 					</p>
-					<p className={css.hint}>
-						Before putting this site online, change the default
-						WordPress admin password under Users → Profile.
-					</p>
 					<div className={css.actions}>
 						<Button
 							variant="primary"

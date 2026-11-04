@@ -8,11 +8,14 @@ if (version_compare(PHP_VERSION, '5.3', '<')
 }
 
 /**
- * Add a notice to wp-login.php offering the username and password.
+ * Show the default credentials on wp-login.php unless the admin was renamed.
  */
 add_filter(
 	'login_message',
 	function ( $message ) {
+		if ( get_option( 'playground_renamed_admin_id' ) ) {
+			return $message;
+		}
 		return $message . <<<EOT
 <div class="message info">
 	<strong>username:</strong> <code>admin</code><br><strong>password</strong>: <code>password</code>
