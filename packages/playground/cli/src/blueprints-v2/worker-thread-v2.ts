@@ -201,7 +201,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						await mountResources(php, options.mountsAfterWpInstall);
 					}
 				},
-				sapiName: 'cli',
+				sapiName: 'cli-server',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
 				spawnHandler: () =>

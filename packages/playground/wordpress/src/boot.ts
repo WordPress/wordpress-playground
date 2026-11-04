@@ -67,9 +67,7 @@ export interface BootRequestHandlerOptions {
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	maxPhpInstances?: number;
 	/**
-	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
-	 * it is useful for running programs that check for this value,
-	 * e.g. WP-CLI
+	 * PHP SAPI name that php_sapi_name() and PHP_SAPI report to PHP code.
 	 */
 	sapiName?: string;
 	/**

@@ -20,6 +20,8 @@ const playground = await startPlaygroundWeb({
 		// landingPage: '/wp-content/index.php',
 		landingPage: '/',
 	},
+	// blueprints.phar's requirements check exits on any other SAPI.
+	sapiName: 'cli',
 });
 
 const response = await fetch('./blueprints.phar');

@@ -58,6 +58,9 @@ const blueprintVersions = [
 	},
 ];
 
+const runPhpStepWritingSapi =
+	"<?php file_put_contents('/wordpress/run-php-step-sapi.txt', PHP_SAPI);";
+
 const fullNativeBlueprintV2ModeTest =
 	process.platform === 'win32' ? test.skip : test;
 
@@ -1065,6 +1068,58 @@ test('should execute v2 blueprints through the CLI server', async () => {
 	expect(response.status).toBe(200);
 	expect(await response.text()).toBe('V2 CLI Smoke');
 }, 120000);
+
+describe.each([
+	{
+		runner: 'v1',
+		blueprint: {
+			steps: [{ step: 'runPHP', code: runPhpStepWritingSapi }],
+		},
+	},
+	{
+		runner: 'v2',
+		blueprint: {
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'runPHP',
+					code: {
+						filename: 'sapi.php',
+						content: runPhpStepWritingSapi,
+					},
+				},
+			],
+		},
+	},
+] as { runner: string; blueprint: RunCLIArgs['blueprint'] }[])(
+	'PHP_SAPI with Blueprints $runner',
+	({ blueprint }) => {
+		test('should be cli-server in an HTTP request and a runPHP step', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				workers: 1,
+				blueprint,
+			});
+			await cliServer.playground.writeFile(
+				'/wordpress/sapi.php',
+				'<?php echo PHP_SAPI;'
+			);
+
+			const response = await fetch(
+				new URL('/sapi.php', cliServer.serverUrl)
+			);
+			expect({
+				httpRequest: await response.text(),
+				runPHPStep: await cliServer.playground.readFileAsText(
+					'/wordpress/run-php-step-sapi.txt'
+				),
+			}).toEqual({
+				httpRequest: 'cli-server',
+				runPHPStep: 'cli-server',
+			});
+		}, 120000);
+	}
+);
 
 describe('native Blueprint v2 modes', () => {
 	fullNativeBlueprintV2ModeTest(
