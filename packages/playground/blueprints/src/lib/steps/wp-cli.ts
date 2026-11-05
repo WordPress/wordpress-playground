@@ -118,7 +118,7 @@ export interface WPCLIStep {
 	step: 'wp-cli';
 	/** The WP CLI command to run. */
 	command: string | string[];
-	/** Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step. */
+	/** wp-cli.phar path */
 	wpCliPath?: string;
 }
 

@@ -564,8 +564,7 @@ const schema11 = {
 						step: { type: 'string', const: 'enableMultisite' },
 						wpCliPath: {
 							type: 'string',
-							description:
-								'Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step.',
+							description: 'wp-cli.phar path',
 						},
 					},
 					required: ['step'],
@@ -1240,8 +1239,7 @@ const schema11 = {
 						},
 						wpCliPath: {
 							type: 'string',
-							description:
-								'Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step.',
+							description: 'wp-cli.phar path',
 						},
 					},
 					required: ['command', 'step'],
@@ -4697,11 +4695,7 @@ const schema33 = {
 					additionalProperties: false,
 				},
 				step: { type: 'string', const: 'enableMultisite' },
-				wpCliPath: {
-					type: 'string',
-					description:
-						'Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step.',
-				},
+				wpCliPath: { type: 'string', description: 'wp-cli.phar path' },
 			},
 			required: ['step'],
 		},
@@ -5353,11 +5347,7 @@ const schema33 = {
 					],
 					description: 'The WP CLI command to run.',
 				},
-				wpCliPath: {
-					type: 'string',
-					description:
-						'Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step.',
-				},
+				wpCliPath: { type: 'string', description: 'wp-cli.phar path' },
 			},
 			required: ['command', 'step'],
 		},

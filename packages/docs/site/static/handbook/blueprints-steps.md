@@ -233,7 +233,7 @@ This step can be called multiple times, and the constants will be merged.
 
 ### Parameters
 
-- **wpCliPath** (string) (optional) – Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step.
+- **wpCliPath** (string) (optional) – wp-cli.phar path
 
 ### Blueprint API example
 
@@ -1108,7 +1108,7 @@ Runs PHP code using [WP-CLI](https://developer.wordpress.org/cli/commands/).
 ### Parameters
 
 - **command** – The WP CLI command to run.
-- **wpCliPath** (string) (optional) – Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step.
+- **wpCliPath** (string) (optional) – wp-cli.phar path
 
 ### Blueprint API example
 

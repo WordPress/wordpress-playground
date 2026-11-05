@@ -17,7 +17,7 @@ import { assertWpCli, wpCLI } from './wp-cli';
  */
 export interface EnableMultisiteStep {
 	step: 'enableMultisite';
-	/** Path to a wp-cli.phar as packaged by WP-CLI. Other files fail the step. */
+	/** wp-cli.phar path */
 	wpCliPath?: string;
 }
 
