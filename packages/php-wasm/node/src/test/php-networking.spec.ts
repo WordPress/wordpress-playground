@@ -416,10 +416,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				{ timeout: 15000 }
 			);
 
-			it('should close open connections when runtime is exited', async () => {
-				const tcpServer = net.createServer();
-				const connection = new Promise<net.Socket>((resolve) =>
-					tcpServer.once('connection', resolve)
+			it('should release open connections when runtime is exited', async () => {
+				// The server keeps its side open after the client closes. It then
+				// writes to each connection: a released socket answers with a reset
+				// and the connection closes, while a half-closed one accepts the data.
+				const tcpServer = net.createServer({ allowHalfOpen: true });
+				const connections: net.Socket[] = [];
+				const bothConnected = new Promise<void>((resolve) =>
+					tcpServer.on('connection', (socket) => {
+						socket.resume();
+						connections.push(socket);
+						if (connections.length === 2) {
+							resolve();
+						}
+					})
 				);
 				await new Promise<void>((resolve) =>
 					tcpServer.listen(0, '127.0.0.1', resolve)
@@ -430,18 +440,36 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						await loadNodeRuntime(phpVersion, options)
 					);
 					// A persistent socket stays open after the request ends.
+					// The other socket is closed by PHP but not by the server.
 					await php.run({
-						code: `<?php pfsockopen('127.0.0.1', ${port});`,
+						code: `<?php
+						pfsockopen('127.0.0.1', ${port});
+						fclose(fsockopen('127.0.0.1', ${port}));
+						`,
 					});
-					const socket = await connection;
-					const closed = new Promise((resolve) =>
-						socket.once('close', resolve)
+					await bothConnected;
+					const closed = connections.map(
+						(socket) =>
+							new Promise((resolve) => {
+								socket.on('error', () => {});
+								socket.once('close', resolve);
+							})
 					);
-					socket.resume();
 
 					php.exit();
 
-					await closed;
+					const writes = setInterval(() => {
+						for (const socket of connections) {
+							if (socket.writable) {
+								socket.write('x');
+							}
+						}
+					}, 20);
+					try {
+						await Promise.all(closed);
+					} finally {
+						clearInterval(writes);
+					}
 				} finally {
 					tcpServer.close();
 				}

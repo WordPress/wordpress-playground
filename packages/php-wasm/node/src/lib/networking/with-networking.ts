@@ -13,11 +13,15 @@ import {
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<EmscriptenOptions> {
-	// The runtime closes these when it exits.
+	// The runtime releases these when it exits.
 	const openHandles = new Set<TcpSocket | TcpServer>();
 	const track = (handle: TcpSocket | TcpServer) => {
 		openHandles.add(handle);
-		handle.once('close', () => openHandles.delete(handle));
+		// A socket that PHP closed stays open until the peer closes its side,
+		// so keep tracking it until the TCP socket itself closes.
+		const closeEvents =
+			handle instanceof TcpServer ? handle : (handle._socket ?? handle);
+		closeEvents.once('close', () => openHandles.delete(handle));
 	};
 
 	class RuntimeOutboundTcpSocket extends OutboundTcpSocket {
@@ -39,7 +43,11 @@ export async function withNetworking(
 		...phpModuleArgs,
 		closeNetworkConnections: () => {
 			for (const handle of openHandles) {
-				handle.close();
+				if (handle instanceof TcpServer) {
+					handle.close();
+				} else {
+					handle.destroy();
+				}
 			}
 		},
 		websocket: {

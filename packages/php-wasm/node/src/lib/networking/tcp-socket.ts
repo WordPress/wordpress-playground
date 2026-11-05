@@ -94,6 +94,15 @@ export class TcpSocket extends EventEmitter {
 		this.shutDown();
 	}
 
+	/**
+	 * Releases the TCP socket right away. A socket that PHP closed stays
+	 * open until the peer closes its side, so this also releases those.
+	 */
+	destroy() {
+		this._socket?.destroy();
+		this.shutDown(true);
+	}
+
 	addEventListener(event: string, listener: (...args: any[]) => void) {
 		this.on(event, listener);
 	}
