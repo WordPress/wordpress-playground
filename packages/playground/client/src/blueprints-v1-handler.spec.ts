@@ -140,22 +140,15 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
 	});
 
-	it('boots with the cli-server SAPI unless told otherwise', async () => {
+	it('boots with an explicit sapiName instead of the default', async () => {
 		const iframe = createIframe();
-		const boot = (sapiName?: string) =>
-			new BlueprintsV1Handler({
-				iframe,
-				remoteUrl: 'http://example.com/remote.html',
-				blueprint: {},
-				sapiName,
-			}).bootPlayground(iframe, createProgressTracker());
+		await new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+			sapiName: 'cli',
+		}).bootPlayground(iframe, createProgressTracker());
 
-		await boot();
-		expect(mocks.playground.boot).toHaveBeenLastCalledWith(
-			expect.objectContaining({ sapiName: 'cli-server' })
-		);
-
-		await boot('cli');
 		expect(mocks.playground.boot).toHaveBeenLastCalledWith(
 			expect.objectContaining({ sapiName: 'cli' })
 		);

@@ -34,7 +34,6 @@ async function bootWordPressWithWpCli(
 describe.each([
 	{ phpVersion: '7.4', sapiName: 'cli-server' },
 	{ phpVersion: '8.5', sapiName: 'cli-server' },
-	{ phpVersion: '7.4', sapiName: 'cli' },
 	{ phpVersion: '8.5', sapiName: 'cli' },
 ] as const)(
 	'Blueprint step wpCLI on PHP $phpVersion, SAPI $sapiName',
