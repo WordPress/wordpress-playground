@@ -103,10 +103,14 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 	test('wrong-origin documents and worker registrations fail before app startup', async ({
 		page,
 	}) => {
+		// Firefox reports a logged Error object's text as "Error", without its message.
 		const originFailure = page.waitForEvent('console', {
-			predicate: (message) =>
+			predicate: async (message) =>
 				message.type() === 'error' &&
-				message.text().includes('Incorrect Playground app hostname'),
+				(await message
+					.args()[0]
+					?.evaluate((error) => error?.message)) ===
+					'Incorrect Playground app hostname.',
 		});
 		await page.goto(`${wordPressOrigin}/releases/${release}/remote.html`);
 		await originFailure;

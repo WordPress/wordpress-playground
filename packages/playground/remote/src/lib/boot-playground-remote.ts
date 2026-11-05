@@ -47,8 +47,8 @@ type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 // @ts-ignore -- Vite emits a dedicated app-origin worker.
 import appServiceWorkerPath from '../../app-service-worker.ts?worker&url';
-// @ts-ignore -- Emit the sandbox entry independently, without a recursive bridge import.
-import sandboxServiceWorkerPath from '../../sandbox-service-worker.ts?worker&url';
+// Emit the sandbox entry independently, without a recursive bridge import.
+import '../../sandbox-service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
@@ -61,10 +61,6 @@ import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?work
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
-export const sandboxServiceWorkerUrl = new URL(
-	sandboxServiceWorkerPath,
-	origin
-);
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {

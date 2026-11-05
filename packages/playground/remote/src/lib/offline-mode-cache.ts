@@ -175,24 +175,6 @@ export async function cacheOfflineModeAssetsForCurrentRelease(
 }
 
 /**
- * Remove outdated files from the cache.
- *
- * We cache data based on `buildVersion` which is updated whenever Playground
- * is built. So when a new version of Playground is deployed, the service
- * worker will remove the old cache and cache the new assets.
- *
- * If your build version doesn't change while developing locally check
- * `buildVersionPlugin` for more details on how it's generated.
- */
-export async function purgeEverythingFromPreviousRelease() {
-	const keys = await caches.keys();
-	const oldKeys = keys.filter(
-		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
-	);
-	return Promise.all(oldKeys.map((key) => caches.delete(key)));
-}
-
-/**
  * Answers whether a given URL has a response in the offline mode cache.
  * Ignores the search part of the URL by default.
  */

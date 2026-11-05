@@ -169,7 +169,7 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 		window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
 			const requestUrl =
 				input instanceof Request ? input.url : String(input);
-			const url = new URL(requestUrl);
+			const url = new URL(requestUrl, window.location.href);
 			if (
 				url.origin !== 'https://api.github.com' ||
 				!url.pathname.startsWith('/repos/playground-test/import-source')
@@ -3552,6 +3552,7 @@ echo get_option('blogname');
 			String(testInfo.project.use.baseURL)
 		).href;
 		await website.page.goto('./', { waitUntil: 'domcontentloaded' });
+		await expect(website.page.locator('#root')).toBeAttached();
 		await website.page.setContent(
 			`<iframe title="Embedded Playground test" src="${embeddedUrl}"></iframe>`
 		);

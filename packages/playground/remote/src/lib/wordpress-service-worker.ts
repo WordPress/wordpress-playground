@@ -63,6 +63,11 @@ function handleWordPressFetch(event: FetchEvent) {
 				bridgeResponse(new URL('wordpress-bridge.js', releaseRoot))
 			);
 		}
+		// Firefox sends a new worker's first request to the network unless this
+		// service worker answered the worker's script request.
+		if (event.request.destination === 'worker') {
+			event.respondWith(fetch(event.request));
+		}
 		return;
 	}
 
@@ -87,7 +92,7 @@ function handleWordPressFetch(event: FetchEvent) {
 		// Its script comes from a public immutable release, never WordPress-writable cache bytes.
 		const scriptUrl = getReleaseRoot(assetBaseUrl)
 			? new URL('wordpress-bridge.js', assetBaseUrl)
-			: new URL(wordpressBridgeScriptUrl, self.location.origin);
+			: new URL(wordpressBridgeScriptUrl, playgroundOrigin);
 		return event.respondWith(bridgeResponse(scriptUrl));
 	}
 
