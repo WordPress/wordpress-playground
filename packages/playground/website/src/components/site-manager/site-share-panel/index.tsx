@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GitHubIcon } from '../../../github/github';
 import { useGitHubExportSession } from '../../../github/github-export-session';
 import { getSetupUrlFromSite } from '../../../lib/state/playground-identity';
-import { setShareExportOpen } from '../../../lib/state/redux/slice-ui';
+import { setShareExportView } from '../../../lib/state/redux/slice-ui';
 import {
 	useActiveSite,
 	useAppDispatch,
@@ -18,6 +18,7 @@ import { downloadPlaygroundAsZip } from '../../toolbar-buttons/download-as-zip';
 import css from './style.module.css';
 
 type CopyStatus = 'idle' | 'copied' | 'failed';
+type ZipExportView = 'options' | 'hosting';
 
 // The export form pulls in the GitHub/storage stack, so load it only when the
 // user opens that option.
@@ -34,57 +35,63 @@ export function SiteSharePanel() {
 	const playground = usePlaygroundClient();
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
-	const [isDownloading, setIsDownloading] = useState(false);
-	const [downloadError, setDownloadError] = useState('');
-	const [hostingExport, setHostingExport] = useState<{
-		client: typeof playground;
-		username: string;
+	const [downloadingView, setDownloadingView] = useState<ZipExportView>();
+	const [downloadError, setDownloadError] = useState<{
+		view: ZipExportView;
+		message: string;
 	}>();
-	const hostingUsername =
-		hostingExport?.client === playground
-			? hostingExport?.username
-			: undefined;
+	const [hostingUsername, setHostingUsername] = useState('');
 	const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
-	const showGitHubExport = useAppSelector(
-		(state) => state.ui.shareExportOpen
+	const shareExportView = useAppSelector((state) => state.ui.shareExportView);
+	const exportPaneIsOpen = useAppSelector(
+		(state) =>
+			state.ui.dockPaneIsOpen && state.ui.dockPaneSection === 'share'
 	);
 	const githubExportSession = useGitHubExportSession();
-	const exportButtonRef = useRef<HTMLButtonElement>(null);
-	const exportWasOpenRef = useRef(false);
+	const githubExportButtonRef = useRef<HTMLButtonElement>(null);
+	const hostingExportButtonRef = useRef<HTMLButtonElement>(null);
+	const previousExportView = useRef(shareExportView);
 
 	useEffect(() => {
 		return () => {
-			dispatch(setShareExportOpen(false));
+			dispatch(setShareExportView('options'));
 		};
 	}, [dispatch]);
 
 	useEffect(() => {
-		if (!showGitHubExport && exportWasOpenRef.current) {
-			exportButtonRef.current?.focus();
+		if (shareExportView === 'options' && exportPaneIsOpen) {
+			if (previousExportView.current === 'github') {
+				githubExportButtonRef.current?.focus();
+			} else if (previousExportView.current === 'hosting') {
+				hostingExportButtonRef.current?.focus();
+			}
 		}
-		exportWasOpenRef.current = showGitHubExport;
-	}, [showGitHubExport]);
+		previousExportView.current = shareExportView;
+	}, [exportPaneIsOpen, shareExportView]);
 
 	/** Packages the running site's wp-content and database into a local zip. */
 	async function downloadZip(newAdminUsername?: string) {
-		if (!playground || isDownloading) {
+		if (!playground || !!downloadingView) {
 			return;
 		}
 
-		setIsDownloading(true);
-		setDownloadError('');
+		const view = newAdminUsername === undefined ? 'options' : 'hosting';
+		setDownloadingView(view);
+		setDownloadError(undefined);
 		try {
 			await downloadPlaygroundAsZip(playground, newAdminUsername);
 		} catch (error) {
 			logger.error('Failed to download Playground zip', error);
-			setDownloadError(
-				error instanceof Error &&
+			setDownloadError({
+				view,
+				message:
+					error instanceof Error &&
 					error.name === 'ZipExportUsernameError'
-					? error.message
-					: 'Unable to prepare the .zip download. Please try again.'
-			);
+						? error.message
+						: 'Unable to prepare the .zip download. Please try again.',
+			});
 		} finally {
-			setIsDownloading(false);
+			setDownloadingView(undefined);
 		}
 	}
 
@@ -110,7 +117,7 @@ export function SiteSharePanel() {
 		void import('../../../github/github-export-form/form');
 	}
 
-	if (showGitHubExport) {
+	if (shareExportView === 'github') {
 		return (
 			<section
 				className={`${css.sharePanel} ${css.githubExportPanel}`}
@@ -127,7 +134,9 @@ export function SiteSharePanel() {
 						<GitHubExportForm
 							className={css.githubExportForm}
 							playground={playground}
-							onClose={() => dispatch(setShareExportOpen(false))}
+							onClose={() =>
+								dispatch(setShareExportView('options'))
+							}
 							onExported={(_prUrl, formValues) =>
 								githubExportSession.recordExport(formValues)
 							}
@@ -144,6 +153,57 @@ export function SiteSharePanel() {
 						message="The Playground is still loading — Export to GitHub will be ready in a moment."
 					/>
 				)}
+			</section>
+		);
+	}
+
+	if (shareExportView === 'hosting') {
+		return (
+			<section
+				className={css.sharePanel}
+				aria-label="Hosting ZIP options"
+			>
+				<PlaygroundBootNotice
+					show={!playground}
+					message="The Playground is still loading — the hosting ZIP will be ready in a moment."
+				/>
+				<form
+					className={css.groupBody}
+					onSubmit={(event) => {
+						event.preventDefault();
+						void downloadZip(hostingUsername);
+					}}
+				>
+					<TextControl
+						__nextHasNoMarginBottom
+						label="Admin username in this ZIP"
+						help="Only this ZIP uses the new username. Your password stays the same. Change the default password before publishing."
+						value={hostingUsername}
+						onChange={(username) => {
+							setHostingUsername(username);
+							setDownloadError(undefined);
+						}}
+						disabled={!playground || !!downloadingView}
+						required
+						maxLength={60}
+					/>
+					<div className={css.actions}>
+						<Button
+							type="submit"
+							variant="primary"
+							disabled={!playground || !!downloadingView}
+						>
+							{downloadingView === 'hosting'
+								? 'Preparing .zip…'
+								: 'Download hosting ZIP'}
+						</Button>
+					</div>
+					{downloadError?.view === 'hosting' && (
+						<p className={css.error} role="alert">
+							{downloadError.message}
+						</p>
+					)}
+				</form>
 			</section>
 		);
 	}
@@ -168,76 +228,31 @@ export function SiteSharePanel() {
 						<Button
 							variant="primary"
 							data-cy="download-as-zip"
-							disabled={!playground || isDownloading}
+							disabled={!playground || !!downloadingView}
 							onClick={() => void downloadZip()}
 						>
-							{isDownloading
+							{downloadingView === 'options'
 								? 'Preparing .zip…'
 								: 'Download as .zip'}
 						</Button>
-						{hostingUsername === undefined && (
-							<Button
-								variant="secondary"
-								disabled={!playground || isDownloading}
-								onClick={() => {
-									setDownloadError('');
-									setHostingExport({
-										client: playground,
-										username: `site-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`,
-									});
-								}}
-							>
-								Export for hosting
-							</Button>
-						)}
-					</div>
-					{hostingUsername !== undefined && (
-						<form
-							onSubmit={(event) => {
-								event.preventDefault();
-								void downloadZip(hostingUsername);
+						<Button
+							ref={hostingExportButtonRef}
+							variant="link"
+							disabled={!playground || !!downloadingView}
+							onClick={() => {
+								setDownloadError(undefined);
+								setHostingUsername(
+									`site-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`
+								);
+								dispatch(setShareExportView('hosting'));
 							}}
 						>
-							<TextControl
-								__nextHasNoMarginBottom
-								label="Admin username in this ZIP"
-								help="Changes the username in the downloaded copy. The password stays the same. Change the default password before publishing."
-								value={hostingUsername}
-								onChange={(username) => {
-									setHostingExport({
-										client: playground,
-										username,
-									});
-									setDownloadError('');
-								}}
-								disabled={isDownloading}
-								required
-								maxLength={60}
-							/>
-							<div className={css.actions}>
-								<Button
-									type="submit"
-									variant="primary"
-									disabled={isDownloading}
-								>
-									Download hosting ZIP
-								</Button>
-								<Button
-									variant="tertiary"
-									disabled={isDownloading}
-									onClick={() => {
-										setHostingExport(undefined);
-										setDownloadError('');
-									}}
-								>
-									Cancel
-								</Button>
-							</div>
-						</form>
-					)}
-					{downloadError && (
+							Export for hosting
+						</Button>
+					</div>
+					{downloadError?.view === 'options' && (
 						<p className={css.error} role="alert">
-							{downloadError}
+							{downloadError.message}
 						</p>
 					)}
 				</div>
@@ -293,12 +308,14 @@ export function SiteSharePanel() {
 					</p>
 					<div className={css.actions}>
 						<Button
-							ref={exportButtonRef}
+							ref={githubExportButtonRef}
 							variant="secondary"
 							disabled={offline || !playground}
 							onMouseEnter={preloadExportForm}
 							onFocus={preloadExportForm}
-							onClick={() => dispatch(setShareExportOpen(true))}
+							onClick={() =>
+								dispatch(setShareExportView('github'))
+							}
 						>
 							Export to GitHub
 						</Button>

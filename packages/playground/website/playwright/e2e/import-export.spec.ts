@@ -20,16 +20,40 @@ test('should use the suggested username only in a hosting ZIP', async ({
 	});
 	await expect(username).toHaveValue('admin');
 	await website.openDockPane('Export');
-	await website.page
-		.getByRole('button', { name: 'Export for hosting' })
-		.click();
-	const input = website.page.getByRole('textbox', {
+	const options = website.page.getByRole('dialog', {
+		name: 'Export pane',
+		exact: true,
+	});
+	const hosting = options.getByRole('button', { name: 'Export for hosting' });
+	await expect(hosting).toBeEnabled();
+	await hosting.focus();
+	await expect(hosting).toBeFocused();
+	await hosting.press('Enter');
+	const hostingPane = website.page.getByRole('dialog', {
+		name: 'Export for hosting pane',
+	});
+	const back = hostingPane.getByRole('button', {
+		name: 'Back to export options',
+	});
+	await expect(back).toBeFocused();
+	await back.press('Enter');
+	await expect(hosting).toBeFocused();
+
+	await hosting.click();
+	await website.ensureSiteManagerIsClosed();
+	await website.openDockPane('Export');
+	await expect(
+		options.getByRole('button', { name: 'Download as .zip' })
+	).toBeEnabled();
+	await hosting.click();
+
+	const input = hostingPane.getByRole('textbox', {
 		name: 'Admin username in this ZIP',
 	});
 	await expect(input).toHaveValue(/^site-/);
 	const suggested = await input.inputValue();
 	await input.fill('Admin');
-	const submit = website.page.getByRole('button', {
+	const submit = hostingPane.getByRole('button', {
 		name: 'Download hosting ZIP',
 	});
 	await submit.click();
