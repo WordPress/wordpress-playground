@@ -1627,6 +1627,31 @@ phpLoaderOptions.forEach((options) => {
 				expect(result.text).toEqual('still open');
 			}, 10000);
 
+			it('returns from a blocking fread when the spawn fails without exiting', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => {
+					setTimeout(() => child.emit('error', new Error('foo')));
+					return child;
+				}) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
+					`,
+				});
+
+				expect(result.text).toEqual('""');
+			}, 10000);
+
 			it('reports the spawn error when the process never starts', async () => {
 				php.setSpawnHandler(spawn as any);
 
