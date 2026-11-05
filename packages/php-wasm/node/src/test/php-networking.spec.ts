@@ -2,14 +2,13 @@ import {
 	PHP,
 	SupportedPHPVersions,
 	setPhpIniEntries,
-	popLoadedRuntime,
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
 import type { PHPLoaderOptions } from '../lib';
-import http from 'http';
+import net from 'net';
 
 const phpVersions =
 	'PHP' in process.env
@@ -417,26 +416,35 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				{ timeout: 15000 }
 			);
 
-			it('should close server when runtime is exited', async () => {
-				const id = await loadNodeRuntime(phpVersion, options);
-				const rt = popLoadedRuntime(id, {
-					dangerouslyKeepTheRuntimeInTheMap: true,
-				});
-				const php = new PHP(id);
-
-				expect(rt.outboundNetworkProxyServer).toBeDefined();
-				expect(rt.outboundNetworkProxyServer).toBeInstanceOf(
-					http.Server
+			it('should close open connections when runtime is exited', async () => {
+				const tcpServer = net.createServer();
+				const connection = new Promise<net.Socket>((resolve) =>
+					tcpServer.once('connection', resolve)
 				);
-				expect(rt.outboundNetworkProxyServer.listening).toBe(true);
-				php.exit();
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				try {
+					const php = new PHP(
+						await loadNodeRuntime(phpVersion, options)
+					);
+					// A persistent socket stays open after the request ends.
+					await php.run({
+						code: `<?php pfsockopen('127.0.0.1', ${port});`,
+					});
+					const socket = await connection;
+					const closed = new Promise((resolve) =>
+						socket.once('close', resolve)
+					);
+					socket.resume();
 
-				// Wait for the server to close
-				await new Promise((resolve) => {
-					rt.outboundNetworkProxyServer.on('close', resolve);
-				});
+					php.exit();
 
-				expect(rt.outboundNetworkProxyServer.listening).toBe(false);
+					await closed;
+				} finally {
+					tcpServer.close();
+				}
 			});
 		});
 	});

@@ -1,32 +1,26 @@
 import type { EmscriptenOptions } from '@php-wasm/universal';
 import {
-	initOutboundWebsocketProxyServer,
-	addSocketOptionsSupportToWebSocketClass,
-} from './outbound-ws-to-tcp-proxy';
+	createOutboundTcpSocketClass,
+	getOutboundTcpSocketUrl,
+} from './outbound-tcp-socket';
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
-import { getServerPort } from './utils';
 
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<EmscriptenOptions> {
-	const outboundNetworkProxyServer =
-		await initOutboundWebsocketProxyServer(0);
-	const outboundProxyWsServerPort = getServerPort(outboundNetworkProxyServer);
+	const OutboundTcpSocket = createOutboundTcpSocketClass();
 
 	return {
 		...phpModuleArgs,
-		outboundNetworkProxyServer,
+		closeOutboundConnections: () => OutboundTcpSocket.closeAll(),
 		websocket: {
 			...(phpModuleArgs['websocket'] || {}),
-			url: (_: any, host: string, port: string) => {
-				const query = new URLSearchParams({
-					host,
-					port,
-				}).toString();
-				return `ws://127.0.0.1:${outboundProxyWsServerPort}/?${query}`;
-			},
+			url: (_: any, host: string, port: string) =>
+				getOutboundTcpSocketUrl(host, port),
 			subprotocol: 'binary',
-			decorator: addSocketOptionsSupportToWebSocketClass,
+			// Emscripten passes the `ws` WebSocket class here. Outbound
+			// connections use TCP directly instead of a local WebSocket server.
+			decorator: () => OutboundTcpSocket,
 			serverDecorator: addTCPServerToWebSocketServerClass,
 		},
 	};
