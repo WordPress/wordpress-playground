@@ -31,6 +31,15 @@
 	line-height: 20px;
 }
 
+.panel p + p {
+	margin-top: 12px;
+}
+
+.panel a,
+.panel a:visited {
+	color: var(--wp-admin-theme-color);
+}
+
 .form {
 	display: grid;
 	gap: 10px;

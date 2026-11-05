@@ -74,7 +74,7 @@ export interface WebClientMixin extends ProgressReceiver {
 	 */
 	onWebMCPToolsChanged(
 		fn: (tools: WebMCPToolDescriptor[]) => void
-	): Promise<void>;
+	): Promise<() => void>;
 
 	/**
 	 * Runs one of those tools inside the WordPress document and returns its

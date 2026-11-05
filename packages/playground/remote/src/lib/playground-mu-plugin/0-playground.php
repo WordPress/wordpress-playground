@@ -453,6 +453,8 @@ function playground_enable_webmcp_bridge() {
 			var CALL_TOOL = 'playground-webmcp-call-tool';
 			var CALL_RESULT = 'playground-webmcp-call-result';
 			var CANCEL_TOOL = 'playground-webmcp-cancel-tool';
+			var DOCUMENT_HIDDEN = 'playground-webmcp-document-hidden';
+			var documentId = crypto.randomUUID();
 			var pendingCalls = new Map();
 
 			// The runtime supplies its origin when rendered WordPress is cross-origin.
@@ -486,7 +488,7 @@ function playground_enable_webmcp_bridge() {
 						});
 					});
 					window.parent.postMessage(
-						{ type: TOOLS_CHANGED, tools: described },
+						{ type: TOOLS_CHANGED, documentId: documentId, tools: described },
 						parentOrigin
 					);
 				});
@@ -590,7 +592,7 @@ function playground_enable_webmcp_bridge() {
 			};
 
 			function respond(callId, result, error) {
-				var message = { type: CALL_RESULT, callId: callId };
+				var message = { type: CALL_RESULT, documentId: documentId, callId: callId };
 				if (error) {
 					message.error = error;
 				} else {
@@ -618,6 +620,13 @@ function playground_enable_webmcp_bridge() {
 				}
 				if (event.data.type === LIST_TOOLS) {
 					announce();
+					return;
+				}
+				if (
+					event.data.documentId &&
+					event.data.documentId !== documentId
+				) {
+					// A call queued for the previous document must never run here.
 					return;
 				}
 				if (event.data.type === CANCEL_TOOL) {
@@ -671,6 +680,15 @@ function playground_enable_webmcp_bridge() {
 						}
 					);
 			});
+
+			window.addEventListener('pagehide', function () {
+				window.parent.postMessage(
+					{ type: DOCUMENT_HIDDEN, documentId: documentId },
+					parentOrigin
+				);
+			});
+			// A document restored from the back-forward cache owns the same registry.
+			window.addEventListener('pageshow', announce);
 
 			// Announce right away so the parent replaces the previous
 			// document's tools on every navigation, even when this page
