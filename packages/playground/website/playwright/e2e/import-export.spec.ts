@@ -9,60 +9,86 @@ test('should export wp-content when Download as .zip is clicked', async ({
 	await downloadZip(website, testInfo.outputPath('wordpress-playground.zip'));
 });
 
+test('should use the suggested username only in a hosting ZIP', async ({
+	website,
+	wordpress,
+}, testInfo) => {
+	await website.goto('./?storage=temp&url=/wp-admin/profile.php');
+	const username = wordpress.getByRole('textbox', {
+		name: 'Username',
+		exact: true,
+	});
+	await expect(username).toHaveValue('admin');
+	await website.openDockPane('Export');
+	await website.page
+		.getByRole('button', { name: 'Export for hosting' })
+		.click();
+	const input = website.page.getByRole('textbox', {
+		name: 'Admin username in this ZIP',
+	});
+	await expect(input).toHaveValue(/^site-/);
+	const suggested = await input.inputValue();
+	await input.fill('Admin');
+	const submit = website.page.getByRole('button', {
+		name: 'Download hosting ZIP',
+	});
+	await submit.click();
+	await expect(
+		website.page.getByRole('alert').filter({ hasText: 'other than admin' })
+	).toBeVisible();
+	await input.fill(suggested);
+	const downloadPromise = website.page.waitForEvent('download');
+	await submit.click();
+	const zipPath = testInfo.outputPath('hosting.zip');
+	await (await downloadPromise).saveAs(zipPath);
+
+	await website.ensureSiteManagerIsClosed();
+	await expect(username).toHaveValue('admin');
+	await website.openDockPane('New Playground');
+	await website.page.getByRole('tab', { name: 'Import zip' }).click();
+	await website.page
+		.locator('input[type="file"][accept*=".zip"]')
+		.setInputFiles(zipPath);
+	await expect
+		.poll(async () => {
+			return await website.page.evaluate(async (login) => {
+				const sites = (window as any).playgroundSites;
+				await sites.isReady();
+				const response = await sites.getClient().run({
+					code: `<?php require '/wordpress/wp-load.php';
+					echo (int) !is_wp_error(wp_authenticate(${JSON.stringify(login)}, 'password'));`,
+				});
+				return response.text;
+			}, suggested);
+		})
+		.toBe('1');
+	await expect(
+		website.page
+			.getByRole('navigation', { name: 'Playground tools' })
+			.getByText(/^(Autosaved|Unsaved)$/)
+	).toBeVisible();
+});
+
 // Importing a ZIP creates an autosaved site when browser storage is available.
 test.describe('Playground ZIP import', { tag: '@storage' }, () => {
 	test.describe.configure({ mode: 'default' });
 
-	test('should restore an exported site with a renamed administrator', async ({
+	test('should restore a previously exported wp-content directory', async ({
 		website,
 		wordpress,
 	}, testInfo) => {
 		const siteTitle = 'Playwright tests – site title';
 		const blueprint = { siteOptions: { blogname: siteTitle } };
+		// Specify initial WP URL because the Playground has changed
+		// its default WP URL in the past.
 		await website.goto(
-			`./?storage=temp&url=/wp-admin/profile.php#${JSON.stringify(blueprint)}`
+			`./?storage=temp&url=%2F#${JSON.stringify(blueprint)}`
 		);
-		const login = wordpress.getByRole('textbox', {
-			name: 'Username',
-			exact: true,
-		});
-		const newLogin = wordpress.getByRole('textbox', {
-			name: 'New username',
-		});
-		const updateProfile = wordpress.getByRole('button', {
-			name: 'Update Profile',
-		});
-		await expect(login).toHaveValue('admin');
-
-		const originalAccount = await getAdminAccount(website, 'admin');
-		expect(originalAccount).toMatchObject({
-			roles: ['administrator'],
-		});
-		await website.page.evaluate(async () => {
-			await (window as any).playgroundSites.getClient().run({
-				code: `<?php require '/wordpress/wp-load.php';
-					wp_insert_user(['user_login' => 'taken-name', 'user_pass' => 'test-password']);`,
-			});
-		});
-		await newLogin.fill('taken-name');
-		await updateProfile.click();
-		await expect(
-			wordpress.getByText('That username is already in use.')
-		).toBeVisible();
-		await expect(login).toHaveValue('admin');
-
-		await newLogin.fill('site-maintainer');
-		await updateProfile.click();
-		await expect(login).toHaveValue('site-maintainer');
-		expect(await getAdminAccount(website, 'admin')).toBeNull();
-		expect(await getAdminAccount(website, 'site-maintainer')).toEqual(
-			originalAccount
-		);
+		await expect(wordpress.locator('body')).toContainText(siteTitle);
 
 		const zipPath = testInfo.outputPath('wordpress-playground.zip');
 		await downloadZip(website, zipPath);
 
-		// Specify the front page because Playground's default URL has changed.
 		await website.goto('./?storage=temp&url=%2F');
 		await expect(wordpress.locator('body')).not.toContainText(siteTitle);
 
@@ -81,31 +107,8 @@ test.describe('Playground ZIP import', { tag: '@storage' }, () => {
 				.getByRole('navigation', { name: 'Playground tools' })
 				.getByText(/^(Autosaved|Unsaved)$/)
 		).toBeVisible();
-		expect(await getAdminAccount(website, 'admin')).toBeNull();
-		expect(await getAdminAccount(website, 'site-maintainer')).toEqual(
-			originalAccount
-		);
 	});
 });
-
-/** Authenticates with the original password and reads the fields a rename must preserve. */
-async function getAdminAccount(website: WebsitePage, username: string) {
-	return website.page.evaluate(async (username) => {
-		const sites = (window as any).playgroundSites;
-		await sites.isReady();
-		const response = await sites.getClient().run({
-			code: `<?php require '/wordpress/wp-load.php';
-				$user = wp_authenticate(${JSON.stringify(username)}, 'password');
-				echo wp_json_encode(is_wp_error($user) ? null : [
-					'id' => $user->ID,
-					'roles' => $user->roles,
-					'authorSlug' => $user->user_nicename,
-					'postAuthor' => get_post_field('post_author', 1),
-				]);`,
-		});
-		return JSON.parse(response.text);
-	}, username);
-}
 
 async function downloadZip(website: WebsitePage, zipPath: string) {
 	await website.openDockPane('Export');

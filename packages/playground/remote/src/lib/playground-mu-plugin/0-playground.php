@@ -8,12 +8,13 @@ if (version_compare(PHP_VERSION, '5.3', '<')
 }
 
 /**
- * Show the default credentials on wp-login.php unless the admin was renamed.
+ * Show the default credentials on wp-login.php only while they still work.
  */
 add_filter(
 	'login_message',
 	function ( $message ) {
-		if ( get_option( 'playground_renamed_admin_id' ) ) {
+		$admin = get_user_by( 'login', 'admin' );
+		if ( ! $admin || ! wp_check_password( 'password', $admin->user_pass, $admin->ID ) ) {
 			return $message;
 		}
 		return $message . <<<EOT

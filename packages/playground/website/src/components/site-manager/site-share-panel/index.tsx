@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import { Button, Icon } from '@wordpress/components';
+import { Button, Icon, TextControl } from '@wordpress/components';
 import { download, link } from '@wordpress/icons';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GitHubIcon } from '../../../github/github';
@@ -36,6 +36,14 @@ export function SiteSharePanel() {
 	const dispatch = useAppDispatch();
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [downloadError, setDownloadError] = useState('');
+	const [hostingExport, setHostingExport] = useState<{
+		client: typeof playground;
+		username: string;
+	}>();
+	const hostingUsername =
+		hostingExport?.client === playground
+			? hostingExport?.username
+			: undefined;
 	const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
 	const showGitHubExport = useAppSelector(
 		(state) => state.ui.shareExportOpen
@@ -58,19 +66,22 @@ export function SiteSharePanel() {
 	}, [showGitHubExport]);
 
 	/** Packages the running site's wp-content and database into a local zip. */
-	async function downloadZip() {
-		if (!playground) {
+	async function downloadZip(newAdminUsername?: string) {
+		if (!playground || isDownloading) {
 			return;
 		}
 
 		setIsDownloading(true);
 		setDownloadError('');
 		try {
-			await downloadPlaygroundAsZip(playground);
+			await downloadPlaygroundAsZip(playground, newAdminUsername);
 		} catch (error) {
 			logger.error('Failed to download Playground zip', error);
 			setDownloadError(
-				'Unable to prepare the .zip download. Please try again.'
+				error instanceof Error &&
+					error.name === 'ZipExportUsernameError'
+					? error.message
+					: 'Unable to prepare the .zip download. Please try again.'
 			);
 		} finally {
 			setIsDownloading(false);
@@ -158,18 +169,77 @@ export function SiteSharePanel() {
 							variant="primary"
 							data-cy="download-as-zip"
 							disabled={!playground || isDownloading}
-							onClick={downloadZip}
+							onClick={() => void downloadZip()}
 						>
 							{isDownloading
 								? 'Preparing .zip…'
 								: 'Download as .zip'}
 						</Button>
-						{downloadError && (
-							<p className={css.error} role="alert">
-								{downloadError}
-							</p>
+						{hostingUsername === undefined && (
+							<Button
+								variant="secondary"
+								disabled={!playground || isDownloading}
+								onClick={() => {
+									setDownloadError('');
+									setHostingExport({
+										client: playground,
+										username: `site-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`,
+									});
+								}}
+							>
+								Export for hosting
+							</Button>
 						)}
 					</div>
+					{hostingUsername !== undefined && (
+						<form
+							onSubmit={(event) => {
+								event.preventDefault();
+								void downloadZip(hostingUsername);
+							}}
+						>
+							<TextControl
+								__nextHasNoMarginBottom
+								label="Admin username in this ZIP"
+								help="Changes the username in the downloaded copy. The password stays the same. Change the default password before publishing."
+								value={hostingUsername}
+								onChange={(username) => {
+									setHostingExport({
+										client: playground,
+										username,
+									});
+									setDownloadError('');
+								}}
+								disabled={isDownloading}
+								required
+								maxLength={60}
+							/>
+							<div className={css.actions}>
+								<Button
+									type="submit"
+									variant="primary"
+									disabled={isDownloading}
+								>
+									Download hosting ZIP
+								</Button>
+								<Button
+									variant="tertiary"
+									disabled={isDownloading}
+									onClick={() => {
+										setHostingExport(undefined);
+										setDownloadError('');
+									}}
+								>
+									Cancel
+								</Button>
+							</div>
+						</form>
+					)}
+					{downloadError && (
+						<p className={css.error} role="alert">
+							{downloadError}
+						</p>
+					)}
 				</div>
 			</div>
 

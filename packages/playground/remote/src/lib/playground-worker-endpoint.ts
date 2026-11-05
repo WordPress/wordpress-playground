@@ -67,8 +67,6 @@ import { networkingDisabledFunctions } from './disabled-functions';
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 /* @ts-ignore */
 import playgroundWebMuPluginPhp52 from './playground-mu-plugin/0-playground-php52.php?raw';
-/* @ts-ignore */
-import renameAdminMuPlugin from './playground-mu-plugin/rename-admin.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
 let activeRequestHandler: PHPRequestHandler | undefined;
@@ -379,9 +377,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					'1-playground-web.php': isLegacyPhp
 						? playgroundWebMuPluginPhp52
 						: playgroundWebMuPlugin,
-					...(!isLegacyPhp && {
-						'2-playground-rename-admin.php': renameAdminMuPlugin,
-					}),
 					'playground-includes': {
 						'wp_http_dummy.php': transportDummy,
 						'wp_http_fetch.php': transportFetch,

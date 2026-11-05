@@ -177,11 +177,6 @@ export async function setupPlatformLevelMuPlugins(
 				return;
 			}
 			$user = get_user_by('login', $user_name);
-			if (!$user && 'admin' === $user_name) {
-				// A Playground profile rename keeps the account ID. Resolve it
-				// only for auto-login; WordPress password login still uses the new name.
-				$user = get_user_by('id', (int) get_option('playground_renamed_admin_id'));
-			}
 			if (!$user) {
 				return;
 			}

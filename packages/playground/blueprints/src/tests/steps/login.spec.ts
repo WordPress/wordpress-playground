@@ -59,22 +59,6 @@ describe('Blueprint step login', () => {
 		expect(response.text).toContain('Dashboard');
 	}, 10000);
 
-	it('keeps default auto-login working after a Playground admin rename', async () => {
-		await php.run({
-			code: `<?php
-				require '/wordpress/wp-load.php';
-				$user = get_user_by('login', 'admin');
-				$wpdb->update($wpdb->users, ['user_login' => 'site-maintainer'], ['ID' => $user->ID]);
-				update_option('playground_renamed_admin_id', $user->ID);`,
-		});
-		await login(php, {});
-		const response = await requestFollowRedirects({
-			url: '/wp-admin/profile.php',
-		});
-		expect(response.httpStatusCode).toBe(200);
-		expect(response.text).toContain('value="site-maintainer"');
-	}, 10000);
-
 	it('should log the user in if the playground_force_auto_login_as_user query parameter is set', async () => {
 		await defineWpConfigConsts(php, {
 			consts: {
