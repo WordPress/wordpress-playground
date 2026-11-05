@@ -72,20 +72,9 @@ export function UnconnectedSiteSettingsForm({
 		}),
 		[defaultValues]
 	);
-	const {
-		handleSubmit,
-		setValue,
-		getValues,
-		control,
-		formState: { errors },
-	} = useForm<SiteFormData>({
-		defaultValues: mergedDefaults,
-		values: mergedDefaults,
-	});
-
 	const { supportedWPVersions, latestWPVersion } =
 		useSupportedWordPressVersions();
-	const comparableDefaults = useMemo<SiteFormData>(
+	const resolvedDefaults = useMemo<SiteFormData>(
 		() => ({
 			...mergedDefaults,
 			wpVersion:
@@ -97,6 +86,18 @@ export function UnconnectedSiteSettingsForm({
 		[latestWPVersion, mergedDefaults]
 	);
 
+	// Resolve aliases in the form defaults so a user can still clear the field.
+	const {
+		handleSubmit,
+		setValue,
+		getValues,
+		control,
+		formState: { errors },
+	} = useForm<SiteFormData>({
+		defaultValues: resolvedDefaults,
+		values: resolvedDefaults,
+	});
+
 	// If the caller restored a stored site running an older WP
 	// version, expand the dropdown automatically so the current
 	// value is visible in the list.
@@ -107,14 +108,6 @@ export function UnconnectedSiteSettingsForm({
 	const values = useWatch({ control }) as SiteFormData;
 	const currentWpVersion = values.wpVersion;
 	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
-
-	useEffect(() => {
-		// Applying PHP or networking settings can reset the form to 'latest'.
-		// Resolve it again so the footer does not mistake it for a WordPress change.
-		if (latestWPVersion && ['', 'latest'].includes(currentWpVersion)) {
-			setValue('wpVersion', latestWPVersion);
-		}
-	}, [latestWPVersion, currentWpVersion, setValue]);
 
 	// Lock phpVersion to whatever is compatible with the selected
 	// WordPress release. The callback fires on every wpVersion
@@ -145,9 +138,9 @@ export function UnconnectedSiteSettingsForm({
 		return getWordPressVersionOptions({
 			supportedWPVersions,
 			includeOlderVersions,
-			selectedVersion: mergedDefaults.wpVersion,
+			selectedVersion: resolvedDefaults.wpVersion,
 		});
-	}, [supportedWPVersions, includeOlderVersions, mergedDefaults.wpVersion]);
+	}, [supportedWPVersions, includeOlderVersions, resolvedDefaults.wpVersion]);
 
 	const phpVersionOptions = useMemo(() => {
 		if (forcedPhpVersion) {
@@ -559,7 +552,7 @@ export function UnconnectedSiteSettingsForm({
 			{typeof footer === 'function'
 				? footer({
 						values,
-						defaultValues: comparableDefaults,
+						defaultValues: resolvedDefaults,
 						submit: handleSubmit,
 					})
 				: footer}

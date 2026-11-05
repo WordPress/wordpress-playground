@@ -2077,12 +2077,18 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 			(version) =>
 				!['beta', 'default', currentWpVersion].includes(version)
 		)!;
-		await wpSelect.selectOption(nextWpVersion);
 
 		const mainAction = website.page.getByRole('button', {
 			name: 'Create a fresh Playground',
 			exact: true,
 		});
+		await wpSelect.selectOption('');
+		await mainAction.click();
+		await expect(wpSelect).toHaveValue('');
+		await expect(
+			website.page.getByText('WordPress Version is required')
+		).toBeVisible();
+		await wpSelect.selectOption(nextWpVersion);
 		await expect(mainAction).toBeEnabled();
 		await website.page
 			.getByRole('button', { name: 'More settings actions' })
