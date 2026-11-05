@@ -63,33 +63,26 @@ const client = await startPlaygroundWeb({
 
 ## Static assets
 
-There are several ways to get the static assets necessary to host the Playground.
+Build the browser website from source to host it on your own domain. This does
+not require a GitHub Actions artifact. The `@wp-playground/client` npm package
+connects your app to an already hosted browser runtime. The
+`@wp-playground/cli` npm package runs WordPress locally with Node.js. Neither
+installs the browser website and its Dock.
 
-In order of convenience and ease:
-
-- Download pre-built package
-- Fork the repository and build with GitHub Action
-- Build locally
-
-### Download pre-built package
-
-To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
-
-- Click on **Deploy Playground website**.
-- In the section **Artifacts** at the bottom of the page, click `playground-website`.
-- It's a zip package with the same files deployed to the public site.
-
-### Fork the repository and build with GitHub Action
-
-To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork).
-
-Build it from the fork's GitHub page by going to: **Actions -> Deploy Playground website -> Run workflow**.
+The [Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml)
+produces a temporary artifact for the public deployment. It expires, and the
+build is configured to render WordPress on `wpsandbox.wordpress.net`. Use the
+source build below for another domain, even if the artifact is still available.
+Running the deploy workflow in a fork without the deployment secrets skips
+the build, too.
 
 ### Build locally
 
-The most flexible and customizable method is to build the site locally.
-
-Create a shallow clone of the Playground repository, or your own fork.
+Create a shallow clone of the Playground repository or your own fork. To pin
+the Playground source to a specific version, replace `trunk` with a release
+tag. The tag does not make the build reproducible: the build downloads
+`wp-cli.phar` from the `wp-cli/builds` repository's `gh-pages` branch, which
+can change between builds.
 
 ```sh
 git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
@@ -101,12 +94,20 @@ Enter the `wordpress-playground` directory.
 cd wordpress-playground
 ```
 
-Install dependencies, and build the website.
+Use the Node.js version in `.nvmrc`, install the locked dependencies, and
+build the website:
 
 ```sh
-npm install
+nvm use
+npm ci
 npm run build:website
 ```
+
+Leave `PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL` unset to serve
+the Playground app and its WordPress pages from the same origin. For a public
+instance that runs untrusted plugins or Blueprints, use a separate WordPress
+origin to reduce exposure. This does not fully protect saved files or native
+directory handles. See the [split-origin deployment guide](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website-deployment/wordpress-frame/README.md).
 
 This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies the built assets from packages `remote` and `website` into a new folder at the following path:
 
@@ -114,7 +115,12 @@ This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies
 dist/packages/playground/wasm-wordpress-net
 ```
 
-The entire service of the Playground consists of the content of this folder.
+Serve the contents of this folder as your site root.
+
+This builds the files you serve. It does not make every Playground feature
+independent of external services. For example, production builds use the
+project's CORS proxy for requests that the browser cannot make directly,
+unless you set `CORS_PROXY_URL` at build time.
 
 ## Summary of included files
 
