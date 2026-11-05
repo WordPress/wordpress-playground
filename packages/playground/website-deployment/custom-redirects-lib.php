@@ -588,6 +588,12 @@ function playground_is_versioned_php_wasm_path( $path ) {
 }
 
 function playground_get_custom_response_headers( $requested_path ) {
+	// Release files keep the immutable caching, whatever their filename (the
+	// packages include an index.js, which the rules below match).
+	if ( playground_is_versioned_php_wasm_path( $requested_path ) ) {
+		return false;
+	}
+
 	$filename = basename( $requested_path );
 
 	if ( 'iframe-worker.html' === $filename ) {
