@@ -14,8 +14,9 @@ import type { SiteSettingsSubmission } from './use-site-settings-submission';
 /**
  * Renders the setup settings form for an autosaved Playground.
  *
- * PHP and networking can be applied to the current Playground. Setup changes
- * create a fresh autosaved Playground while preserving the current one.
+ * PHP, networking, and enabling multisite can be applied to the current
+ * Playground. Other setup changes create a fresh autosaved Playground while
+ * preserving the current one.
  */
 export function AutosavedSiteSettingsForm({
 	siteSlug,
@@ -32,6 +33,7 @@ export function AutosavedSiteSettingsForm({
 		await sitesAPI.updateRuntimeSettings({
 			phpVersion: data.phpVersion,
 			networking: data.withNetworking,
+			enableMultisite: data.multisite && !defaultValues.multisite,
 		});
 	};
 	const createFreshSite = async (data: SiteFormData) => {
