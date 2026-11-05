@@ -79,7 +79,10 @@ the build, too.
 ### Build locally
 
 Create a shallow clone of the Playground repository or your own fork. To pin
-the source to a specific version, replace `trunk` with a release tag.
+the Playground source to a specific version, replace `trunk` with a release
+tag. The tag does not make the build reproducible: the build downloads
+`wp-cli.phar` from the `wp-cli/builds` repository's `gh-pages` branch, which
+can change between builds.
 
 ```sh
 git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
@@ -103,7 +106,8 @@ npm run build:website
 Leave `PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL` unset to serve
 the Playground app and its WordPress pages from the same origin. For a public
 instance that runs untrusted plugins or Blueprints, use a separate WordPress
-origin instead. See the [split-origin deployment guide](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website-deployment/wordpress-frame/README.md).
+origin to reduce exposure. This does not fully protect saved files or native
+directory handles. See the [split-origin deployment guide](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website-deployment/wordpress-frame/README.md).
 
 This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies the built assets from packages `remote` and `website` into a new folder at the following path:
 
