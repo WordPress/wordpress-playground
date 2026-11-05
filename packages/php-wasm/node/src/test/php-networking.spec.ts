@@ -447,5 +447,85 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				}
 			});
 		});
+
+		describe('Connection failures', () => {
+			it('should fail promptly when cURL connects to a closed port', async () => {
+				const port = await getClosedPort();
+				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				try {
+					const { text } = await php.run({
+						code: `<?php
+						$ch = curl_init("http://127.0.0.1:${port}/");
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+						curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+						$start = microtime(true);
+						$result = curl_exec($ch);
+						echo json_encode([
+							'result' => $result,
+							'errno' => curl_errno($ch),
+							'seconds' => microtime(true) - $start,
+						]);
+						`,
+					});
+					const { result, errno, seconds } = JSON.parse(text);
+					expect(result).toBe(false);
+					// 28 is CURLE_OPERATION_TIMEDOUT.
+					expect(errno).not.toBe(28);
+					expect(seconds).toBeLessThan(5);
+				} finally {
+					php.exit();
+				}
+			});
+
+			it('should read the data and the end of the stream when the peer resets the connection', async () => {
+				const tcpServer = net.createServer((socket) => {
+					socket.write('partial');
+					setTimeout(() => socket.resetAndDestroy(), 50);
+				});
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				try {
+					const { text } = await php.run({
+						code: `<?php
+						$start = microtime(true);
+						$socket = fsockopen('127.0.0.1', ${port});
+						$data = '';
+						while (!feof($socket) && microtime(true) - $start < 10) {
+							$chunk = fread($socket, 100);
+							if ($chunk === false) {
+								break;
+							}
+							$data .= $chunk;
+						}
+						echo json_encode([
+							'data' => $data,
+							'eof' => feof($socket),
+							'seconds' => microtime(true) - $start,
+						]);
+						`,
+					});
+					const { data, eof, seconds } = JSON.parse(text);
+					expect(data).toBe('partial');
+					expect(eof).toBe(true);
+					expect(seconds).toBeLessThan(5);
+				} finally {
+					php.exit();
+					tcpServer.close();
+				}
+			});
+		});
 	});
 });
+
+async function getClosedPort() {
+	const server = net.createServer();
+	await new Promise<void>((resolve) =>
+		server.listen(0, '127.0.0.1', resolve)
+	);
+	const { port } = server.address() as net.AddressInfo;
+	await new Promise((resolve) => server.close(resolve));
+	return port;
+}

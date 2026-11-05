@@ -10,7 +10,6 @@
  * a listening port, and any program or web page on the machine could then use
  * it to open TCP connections as this Node.js process.
  */
-import * as dns from 'dns';
 import { EventEmitter } from 'events';
 import * as net from 'net';
 import { debugLog } from './utils';
@@ -62,6 +61,14 @@ export function createOutboundTcpSocketClass(): typeof OutboundTcpSocket & {
 /**
  * A TCP connection with the subset of the `ws` WebSocket API that
  * Emscripten's SOCKFS and the php-wasm socket functions use.
+ *
+ * The socket reports itself open right away and buffers writes until the TCP
+ * connection is established, like the WebSocket proxy it replaces. A connection
+ * that fails then closes, and PHP reads the end of the stream.
+ *
+ * CAUTION: Reporting the failure from connect() instead breaks cURL with JSPI.
+ * php-wasm's connect() drops a socket whose connection fails, so cURL's polls
+ * never see the failure, and it waits until its timeout.
  */
 export class OutboundTcpSocket extends EventEmitter {
 	static readonly CONNECTING = 0;
@@ -83,10 +90,23 @@ export class OutboundTcpSocket extends EventEmitter {
 		super();
 		this.url = url;
 		const { searchParams } = new URL(url);
-		this.connect(
-			searchParams.get('host'),
-			Number(searchParams.get('port'))
-		);
+		const host = searchParams.get('host');
+		const port = Number(searchParams.get('port'));
+		if (host && Number.isInteger(port) && port > 0 && port < 65536) {
+			this.target = this.connect(host, port);
+		} else {
+			log(`Invalid TCP address: ${host}:${port}`);
+		}
+		process.nextTick(() => {
+			if (this.readyState !== this.CONNECTING) {
+				return;
+			}
+			this.readyState = this.OPEN;
+			this.emit('open');
+			if (!this.target) {
+				this.shutDown();
+			}
+		});
 	}
 
 	send(data: ArrayBuffer | ArrayBufferView) {
@@ -119,90 +139,42 @@ export class OutboundTcpSocket extends EventEmitter {
 		this.off(event, listener);
 	}
 
-	private async connect(host: string | null, port: number) {
-		if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
-			this.shutDown(new Error(`Invalid TCP address: ${host}:${port}`));
-			return;
-		}
-
-		let ip = host;
-		if (net.isIP(host) === 0) {
-			try {
-				ip = await lookupIPv4(host);
-			} catch (e) {
-				this.shutDown(e as Error);
-				return;
-			}
-			// PHP may have closed the socket during the lookup.
-			if (this.readyState !== this.CONNECTING) {
-				return;
-			}
-		}
-
-		log(`Connecting to ${ip}:${port}`);
-		const target = net.createConnection(port, ip);
-		this.target = target;
-		target.on('connect', () => {
-			if (this.readyState === this.CONNECTING) {
-				this.readyState = this.OPEN;
-				this.emit('open');
-			}
-		});
+	private connect(host: string, port: number) {
+		log(`Connecting to ${host}:${port}`);
+		// Prefer IPv4 because many services (including Redis) only listen on
+		// IPv4 by default, and macOS resolves 'localhost' to IPv6 first.
+		const target = net.createConnection({ host, port, family: 4 });
 		target.on('data', (data: Buffer) => {
 			// Emscripten ignores messages that aren't marked as binary.
 			this.emit('message', data, true);
 		});
 		target.on('end', () => this.shutDown());
-		target.on('error', (e) => this.shutDown(e));
+		target.on('error', (error) => {
+			log('Connection error', error);
+			this.shutDown(true);
+		});
+		return target;
 	}
 
 	/**
 	 * Closes the connection and emits `close` on the next tick, like `ws`.
-	 *
-	 * Only a connection that never opened emits `error`. Emscripten records it
-	 * as a refused connection. An established connection that fails closes
-	 * without an error, so PHP reads the end of the stream.
 	 */
-	private shutDown(error?: Error) {
+	private shutDown(destroy = false) {
 		if (
 			this.readyState === this.CLOSING ||
 			this.readyState === this.CLOSED
 		) {
 			return;
 		}
-		const wasOpen = this.readyState === this.OPEN;
-		if (error) {
-			log('Connection error', error);
-		}
 		this.readyState = this.CLOSING;
-		if (wasOpen && !error) {
-			this.target!.end();
-		} else {
+		if (destroy) {
 			this.target?.destroy();
+		} else {
+			this.target?.end();
 		}
 		process.nextTick(() => {
 			this.readyState = this.CLOSED;
-			if (error && !wasOpen && this.listenerCount('error') > 0) {
-				this.emit('error', error);
-			}
 			this.emit('close');
 		});
 	}
-}
-
-/**
- * Resolve a hostname to an IPv4 address.
- * Prefers IPv4 because many services (including Redis) only listen on IPv4
- * by default, and macOS's dns.lookup returns IPv6 for 'localhost'.
- */
-function lookupIPv4(hostname: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		dns.lookup(hostname, { family: 4 }, (err, address) => {
-			if (err) {
-				reject(err);
-			} else {
-				resolve(address);
-			}
-		});
-	});
 }

@@ -6,7 +6,7 @@ import {
 } from '../lib/networking/outbound-tcp-socket';
 
 describe('OutboundTcpSocket', () => {
-	it('reports a refused connection without opening', async () => {
+	it('opens and then closes when the connection is refused', async () => {
 		const port = await getClosedPort();
 		const socket = new OutboundTcpSocket(
 			getOutboundTcpSocketUrl('127.0.0.1', String(port))
@@ -17,7 +17,7 @@ describe('OutboundTcpSocket', () => {
 
 		await new Promise((resolve) => socket.once('close', resolve));
 
-		expect(events).toEqual(['error']);
+		expect(events).toEqual(['open']);
 		expect(socket.readyState).toBe(OutboundTcpSocket.CLOSED);
 	});
 });
