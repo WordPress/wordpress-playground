@@ -40,7 +40,9 @@ export function getOutboundTcpSocketUrl(host: string, port: string) {
  * Its `closeAll()` method closes the runtime's open connections when the
  * runtime exits.
  */
-export function createOutboundTcpSocketClass() {
+export function createOutboundTcpSocketClass(): typeof OutboundTcpSocket & {
+	closeAll(): void;
+} {
 	const openSockets = new Set<OutboundTcpSocket>();
 	return class RuntimeOutboundTcpSocket extends OutboundTcpSocket {
 		static closeAll() {
