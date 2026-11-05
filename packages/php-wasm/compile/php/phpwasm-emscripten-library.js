@@ -718,10 +718,18 @@ const LibraryExample = {
 			/**
 			 * Closes the child ends of the pipes so a blocking fread() on the
 			 * parent end sees a broken pipe instead of polling forever. Runs on
-			 * 'exit', on 'error', and when the spawn wait fails, because a
-			 * failed spawn may never emit 'exit'.
+			 * 'exit' and when the spawn wait fails, because a failed spawn may
+			 * never emit 'exit'.
+			 *
+			 * Runs at most once. After the first call, PHP may reuse these fd
+			 * numbers for unrelated streams that a late 'exit' must not close.
 			 */
+			let childPipesClosed = false;
 			const closeChildPipes = function () {
+				if (childPipesClosed) {
+					return;
+				}
+				childPipesClosed = true;
 				for (const detach of detachPipeDataListeners) {
 					detach();
 				}
@@ -741,7 +749,6 @@ const LibraryExample = {
 				}
 			};
 
-			cp.on('error', closeChildPipes);
 			cp.on('exit', function (code) {
 				closeChildPipes();
 				ProcInfo.exitCode = code;

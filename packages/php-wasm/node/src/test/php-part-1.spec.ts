@@ -1572,7 +1572,30 @@ phpLoaderOptions.forEach((options) => {
 				expect(result.text).toEqual('""');
 			}, 10000);
 
-			it('blocking fread returns when the process errors without exiting', async () => {
+			it('delivers the stderr message of a spawn program that throws', async () => {
+				php.setSpawnHandler(
+					createSpawnHandler(async () => {
+						await new Promise((resolve) =>
+							setTimeout(resolve, 100)
+						);
+						throw new Error('spawn program failed');
+					})
+				);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						2 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo stream_get_contents($pipes[2]);
+					`,
+				});
+
+				expect(result.text).toEqual('spawn program failed');
+			}, 10000);
+
+			it('does not close reused fds when a failed spawn exits late', async () => {
 				const child = Object.assign(new EventEmitter(), {
 					pid: 1,
 					stdout: new PassThrough(),
@@ -1581,11 +1604,8 @@ phpLoaderOptions.forEach((options) => {
 				});
 				php.setSpawnHandler((() => {
 					setTimeout(() => {
-						child.emit('spawn');
-						setTimeout(
-							() => child.emit('error', new Error('foo')),
-							100
-						);
+						child.emit('error', new Error('foo'));
+						setTimeout(() => child.emit('exit', 1), 200);
 					});
 					return child;
 				}) as any);
@@ -1596,11 +1616,15 @@ phpLoaderOptions.forEach((options) => {
 						1 => array("pipe","w")
 					);
 					$proc = proc_open("foo", $descriptorspec, $pipes);
-					echo json_encode(fread($pipes[1], 1024));
+					file_put_contents("/tmp/fd-reuse.txt", "still open");
+					$file = fopen("/tmp/fd-reuse.txt", "r");
+					// Wait for the late 'exit' event.
+					usleep(500000);
+					echo fread($file, 1024);
 					`,
 				});
 
-				expect(result.text).toEqual('""');
+				expect(result.text).toEqual('still open');
 			}, 10000);
 
 			it('reports the spawn error when the process never starts', async () => {
