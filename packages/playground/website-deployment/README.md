@@ -68,9 +68,11 @@ or the deployment file layout.
 
 ## Versioned php-wasm runtimes
 
-Each build includes the published `@php-wasm/web-<php>` npm packages for the
-release in `lerna.json`, at `/php-wasm/<version>/web-<php>/` (for example
-`/php-wasm/3.1.62/web-8-3/jspi/php_8_3.js`). Pages on other origins that bundle
+Each deploy adds the published `@php-wasm/web-<php>` npm packages for the
+release in `lerna.json` (the versions `@php-wasm/web` at that release depends
+on), at `/php-wasm/<version>/web-<php>/` (for example
+`/php-wasm/3.1.62/web-8-3/jspi/php_8_3.js`). The deploy workflow downloads
+them after the website build; a release that isn't on npm yet is skipped. Pages on other origins that bundle
 `@php-wasm/universal` at the same version can load PHP from there instead of
 shipping it.
 
