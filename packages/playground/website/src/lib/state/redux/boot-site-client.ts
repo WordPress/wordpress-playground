@@ -56,8 +56,8 @@ import PostalMime from 'postal-mime';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
 import {
+	filterPHPConstantsForSavedSite,
 	getPlaygroundDefinedPHPConstants,
-	getReplayablePHPConstants,
 } from './playground-defined-php-constants';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
@@ -184,7 +184,7 @@ export function bootSiteClient(
 				},
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
-				constants: getReplayablePHPConstants({
+				constants: filterPHPConstantsForSavedSite({
 					...site.metadata.runtimeConfiguration.constants,
 					...site.metadata.playgroundDefinedConstants,
 				}),

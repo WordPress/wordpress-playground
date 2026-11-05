@@ -18,17 +18,23 @@ export async function getPlaygroundDefinedPHPConstants(
 	if (!(await playground.fileExists(constantsPath))) {
 		return {};
 	}
-	return getReplayablePHPConstants(
+	return filterPHPConstantsForSavedSite(
 		JSON.parse(await playground.readFileAsText(constantsPath))
 	);
 }
 
-export function getReplayablePHPConstants(
+/**
+ * Returns the PHP constants to keep when saving or reopening a Playground.
+ *
+ * The worker sets `USE_FETCH_FOR_REQUESTS` when it installs the network
+ * transport for the current Network access setting. For example, an old
+ * `false` can keep requests offline after the user turns networking back on.
+ * Leave the flag out of new saves and ignore it when loading older saves.
+ */
+export function filterPHPConstantsForSavedSite(
 	constants: PHPConstants
 ): PHPConstants {
-	const replayable = { ...constants };
-	// The worker sets this when it installs the transport. Replaying an old
-	// value after boot can override the site's current Network access setting.
-	delete replayable.USE_FETCH_FOR_REQUESTS;
-	return replayable;
+	const savedSiteConstants = { ...constants };
+	delete savedSiteConstants.USE_FETCH_FOR_REQUESTS;
+	return savedSiteConstants;
 }
