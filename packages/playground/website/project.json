@@ -22,6 +22,7 @@
 					"cp -r ./website/* ./wasm-wordpress-net/",
 					"cp -r ./website-extras/* ./wasm-wordpress-net/",
 					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess",
+					"node ../../../packages/playground/website/bin/copy-php-wasm-builds.mjs ./wasm-wordpress-net/php-wasm",
 					"curl https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar > wasm-wordpress-net/wp-cli.phar",
 					"cat wasm-wordpress-net/wp-cli.phar | gzip -c -9 > wasm-wordpress-net/wp-cli.phar.gz"
 				],
