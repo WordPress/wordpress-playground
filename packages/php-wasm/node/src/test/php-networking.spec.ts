@@ -448,9 +448,67 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			});
 		});
 
+		describe('Listening sockets', () => {
+			it('should accept a connection and report the real peer address', async () => {
+				const port = await getUnusedPort();
+				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				let clientPort = 0;
+				let received = '';
+				// PHP's server starts during php.run(), so retry until it listens.
+				const client = (async () => {
+					for (let attempt = 0; attempt < 100; attempt++) {
+						try {
+							await new Promise<void>((resolve, reject) => {
+								const socket = net.connect(port, '127.0.0.1');
+								socket.once('error', reject);
+								socket.once('connect', () => {
+									clientPort = socket.localPort!;
+									socket.write('hello from node');
+								});
+								socket.on('data', (data) => (received += data));
+								socket.once('close', () => resolve());
+							});
+							return;
+						} catch {
+							await new Promise((resolve) =>
+								setTimeout(resolve, 20)
+							);
+						}
+					}
+				})();
+				try {
+					const { text } = await php.run({
+						code: `<?php
+						$server = stream_socket_server("tcp://127.0.0.1:${port}");
+						$start = microtime(true);
+						$connection = false;
+						while (!$connection && microtime(true) - $start < 5) {
+							$connection = @stream_socket_accept($server, 0.1, $peer);
+							if (!$connection) {
+								usleep(10000);
+							}
+						}
+						$data = fread($connection, 100);
+						fwrite($connection, 'hello from php');
+						fclose($connection);
+						fclose($server);
+						echo json_encode(['data' => $data, 'peer' => $peer]);
+						`,
+					});
+					await client;
+					const { data, peer } = JSON.parse(text);
+					expect(data).toBe('hello from node');
+					expect(peer).toBe(`127.0.0.1:${clientPort}`);
+					expect(received).toBe('hello from php');
+				} finally {
+					php.exit();
+				}
+			});
+		});
+
 		describe('Connection failures', () => {
 			it('should fail promptly when cURL connects to a closed port', async () => {
-				const port = await getClosedPort();
+				const port = await getUnusedPort();
 				const php = new PHP(await loadNodeRuntime(phpVersion, options));
 				try {
 					const { text } = await php.run({
@@ -520,7 +578,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	});
 });
 
-async function getClosedPort() {
+async function getUnusedPort() {
 	const server = net.createServer();
 	await new Promise<void>((resolve) =>
 		server.listen(0, '127.0.0.1', resolve)

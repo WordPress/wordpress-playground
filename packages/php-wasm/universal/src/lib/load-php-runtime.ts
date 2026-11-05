@@ -172,7 +172,7 @@ export async function loadPHPRuntime(
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
-		PHPRuntime.closeOutboundConnections?.();
+		PHPRuntime.closeNetworkConnections?.();
 		if (PHPRuntime.outboundNetworkProxyServer) {
 			PHPRuntime.outboundNetworkProxyServer.close();
 			PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
@@ -305,11 +305,12 @@ export type EmscriptenOptions = {
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
 	/**
-	 * Closes PHP's open outbound TCP connections. The runtime calls it on exit.
+	 * Closes PHP's open TCP connections and listening sockets. The runtime
+	 * calls it on exit.
 	 */
-	closeOutboundConnections?: () => void;
+	closeNetworkConnections?: () => void;
 	/**
-	 * @deprecated php-wasm no longer sets this. Use `closeOutboundConnections`.
+	 * @deprecated php-wasm no longer sets this. Use `closeNetworkConnections`.
 	 *
 	 * Node.js runtimes used to start a WebSocket-to-TCP proxy server on
 	 * 127.0.0.1 for PHP's outbound connections. Any program on the machine

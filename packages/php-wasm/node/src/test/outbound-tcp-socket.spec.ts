@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	OutboundTcpSocket,
 	getOutboundTcpSocketUrl,
-} from '../lib/networking/outbound-tcp-socket';
+} from '../lib/networking/tcp-socket';
 
 describe('OutboundTcpSocket', () => {
 	it('opens and then closes when the connection is refused', async () => {
