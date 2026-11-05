@@ -787,7 +787,9 @@ for (const [version, blueprint] of Object.entries(offlineBlueprints)) {
 		await website.ensureSiteManagerIsOpen();
 
 		await expect(networking).toBeChecked();
-		expect(await isNetworkTransportEnabled(website.page)).toBe(true);
+		await expect
+			.poll(() => isNetworkTransportEnabled(website.page))
+			.toBe(true);
 	});
 }
 
@@ -2042,7 +2044,9 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		await expect(
 			website.page.getByLabel('Allow network access')
 		).not.toBeChecked();
-		expect(await isNetworkTransportEnabled(website.page)).toBe(false);
+		await expect
+			.poll(() => isNetworkTransportEnabled(website.page))
+			.toBe(false);
 
 		await website.page.getByLabel('Allow network access').check();
 		await applySettingsButton.click();
@@ -3704,15 +3708,32 @@ test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not s
 	expect(gtmScripts).toBe(0);
 });
 
+/** Reads the running transport without waiting on a client that is being replaced. */
 async function isNetworkTransportEnabled(page: Page) {
 	return page.evaluate(async () => {
-		const sites = (window as any).playgroundSites;
-		await sites.isReady();
-		const response = await sites.getClient().run({
-			code: `<?php
-				require '/wordpress/wp-load.php';
-				echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
-		});
-		return response.text === 'on';
+		const client = (window as any).playgroundSites?.getClient();
+		if (!client) {
+			return undefined;
+		}
+		return Promise.race([
+			client
+				.run({
+					code: `<?php
+					require '/wordpress/wp-load.php';
+					echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
+				})
+				.then(({ text }: { text: string }) => {
+					return text === 'on'
+						? true
+						: text === 'off'
+							? false
+							: undefined;
+				})
+				.catch(() => undefined),
+			// A disposed worker may never answer an RPC sent just before a reboot.
+			new Promise<undefined>((resolve) =>
+				window.setTimeout(resolve, 1000)
+			),
+		]);
 	});
 }

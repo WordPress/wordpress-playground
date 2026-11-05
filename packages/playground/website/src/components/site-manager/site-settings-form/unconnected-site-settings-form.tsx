@@ -64,29 +64,14 @@ export function UnconnectedSiteSettingsForm({
 	const mergedDefaults = useMemo<SiteFormData>(
 		() => ({
 			phpVersion: RecommendedPHPVersion as AllPHPVersion,
-			wpVersion: 'latest',
 			language: '',
 			withNetworking: true,
 			multisite: false,
 			...defaultValues,
+			wpVersion: defaultValues.wpVersion || 'latest',
 		}),
 		[defaultValues]
 	);
-	const { supportedWPVersions, latestWPVersion } =
-		useSupportedWordPressVersions();
-	const resolvedDefaults = useMemo<SiteFormData>(
-		() => ({
-			...mergedDefaults,
-			wpVersion:
-				latestWPVersion &&
-				['', 'latest'].includes(mergedDefaults.wpVersion)
-					? latestWPVersion
-					: mergedDefaults.wpVersion,
-		}),
-		[latestWPVersion, mergedDefaults]
-	);
-
-	// Resolve aliases in the form defaults so a user can still clear the field.
 	const {
 		handleSubmit,
 		setValue,
@@ -94,9 +79,22 @@ export function UnconnectedSiteSettingsForm({
 		control,
 		formState: { errors },
 	} = useForm<SiteFormData>({
-		defaultValues: resolvedDefaults,
-		values: resolvedDefaults,
+		defaultValues: mergedDefaults,
+		values: mergedDefaults,
 	});
+
+	const { supportedWPVersions, latestWPVersion } =
+		useSupportedWordPressVersions();
+	const comparableDefaults = useMemo<SiteFormData>(
+		() => ({
+			...mergedDefaults,
+			wpVersion:
+				latestWPVersion && mergedDefaults.wpVersion === 'latest'
+					? latestWPVersion
+					: mergedDefaults.wpVersion,
+		}),
+		[latestWPVersion, mergedDefaults]
+	);
 
 	// If the caller restored a stored site running an older WP
 	// version, expand the dropdown automatically so the current
@@ -108,6 +106,15 @@ export function UnconnectedSiteSettingsForm({
 	const values = useWatch({ control }) as SiteFormData;
 	const currentWpVersion = values.wpVersion;
 	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
+
+	useEffect(() => {
+		// Applying PHP or networking settings can reset the form to 'latest'.
+		// Resolve just that field. Resetting the whole form when the version
+		// list arrives can discard edits, including an explicitly empty choice.
+		if (latestWPVersion && getValues('wpVersion') === 'latest') {
+			setValue('wpVersion', latestWPVersion);
+		}
+	}, [latestWPVersion, currentWpVersion, getValues, setValue]);
 
 	// Lock phpVersion to whatever is compatible with the selected
 	// WordPress release. The callback fires on every wpVersion
@@ -138,9 +145,9 @@ export function UnconnectedSiteSettingsForm({
 		return getWordPressVersionOptions({
 			supportedWPVersions,
 			includeOlderVersions,
-			selectedVersion: resolvedDefaults.wpVersion,
+			selectedVersion: mergedDefaults.wpVersion,
 		});
-	}, [supportedWPVersions, includeOlderVersions, resolvedDefaults.wpVersion]);
+	}, [supportedWPVersions, includeOlderVersions, mergedDefaults.wpVersion]);
 
 	const phpVersionOptions = useMemo(() => {
 		if (forcedPhpVersion) {
@@ -552,7 +559,7 @@ export function UnconnectedSiteSettingsForm({
 			{typeof footer === 'function'
 				? footer({
 						values,
-						defaultValues: resolvedDefaults,
+						defaultValues: comparableDefaults,
 						submit: handleSubmit,
 					})
 				: footer}
