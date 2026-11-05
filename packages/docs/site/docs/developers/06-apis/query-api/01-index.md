@@ -49,6 +49,11 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `mcp-port`         | `7999`                | Sets the WebSocket port used by the MCP bridge to communicate with the MCP server. For example, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                                            |
 | `overlay`          |                       | Opens a Playground tool on page load. Supports `new` for the Dock's **New** pane. For example, `?overlay=new`. `blueprints` is kept as a compatibility alias that opens the same **New** pane, so `?overlay=blueprints` still works. The parameter is removed from the URL when the pane is closed.                                                                                                                                                                         |
 
+Use `language=browser` to choose a WordPress translation from the browser's preferred languages
+(`navigator.languages`). Regional preferences fall back to an available translation of the same
+language. If no translation matches, WordPress uses US English (`en_US`). For example:
+[Open Playground in your browser's language](https://playground.wordpress.net/?language=browser&networking=yes).
+
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
 
 ```html
