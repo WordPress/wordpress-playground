@@ -22,6 +22,7 @@ import {
 } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
 import { createDotGitDirectory } from '@wp-playground/storage';
+import { decodeHTML } from 'entities';
 
 const BUNDLED_RESOURCE_ERROR_MESSAGE =
 	'Blueprint resource of type "bundled" requires a filesystem.\n\n' +
@@ -557,7 +558,7 @@ export abstract class FetchResource extends Resource<File> {
 				);
 			}
 			const filename =
-				this.name ||
+				this.filename ||
 				parseContentDisposition(
 					response.headers.get('content-disposition') || ''
 				) ||
@@ -586,6 +587,11 @@ export abstract class FetchResource extends Resource<File> {
 	 */
 	protected get caption() {
 		return `Downloading ${this.name}`;
+	}
+
+	/** The filename to use for the downloaded file. */
+	protected get filename() {
+		return this.name;
 	}
 
 	/** @inheritDoc */
@@ -889,19 +895,73 @@ export class LiteralDirectoryResource extends Resource<Directory> {
 	}
 }
 
-/**
- * A `Resource` that represents a WordPress core theme.
- */
-export class CoreThemeResource extends FetchResource {
-	private resource: CoreThemeReference;
+/** Fetches optional display metadata without changing the requested ZIP URL. */
+abstract class WordPressOrgResource extends FetchResource {
+	protected resource: CoreThemeReference | CorePluginReference;
+	private displayName?: string;
 
-	constructor(resource: CoreThemeReference, progress?: ProgressTracker) {
+	constructor(
+		resource: CoreThemeReference | CorePluginReference,
+		progress?: ProgressTracker
+	) {
 		super(progress);
 		this.resource = resource;
 	}
+
+	override async resolve() {
+		const isPlugin = this.resource.resource === 'wordpress.org/plugins';
+		this.progress?.setCaption(
+			isPlugin ? 'Preparing plugin' : 'Preparing theme'
+		);
+		const url = new URL(
+			`https://api.wordpress.org/${isPlugin ? 'plugins' : 'themes'}/info/1.2/`
+		);
+		url.searchParams.set(
+			'action',
+			isPlugin ? 'plugin_information' : 'theme_information'
+		);
+		// WordPress.org slugs contain no dots; ZIP names may append a version.
+		url.searchParams.set('slug', this.resource.slug.split('.')[0]);
+		try {
+			const response = await fetchWithCorsProxy(
+				url.href,
+				{ signal: AbortSignal.timeout(3000) },
+				undefined,
+				await this.playground?.absoluteUrl
+			);
+			if (response.ok) {
+				const metadata: { name?: unknown } = await response.json();
+				if (
+					typeof metadata?.name === 'string' &&
+					metadata.name.trim()
+				) {
+					this.displayName = decodeHTML(metadata.name);
+				}
+			}
+		} catch {
+			// Display metadata is optional, including when offline or the API times out.
+		}
+		return super.resolve();
+	}
+
 	override get name() {
+		return this.displayName || zipNameToHumanName(this.resource.slug);
+	}
+
+	protected override get filename() {
+		// Display metadata must not change filenames used by other Blueprint steps.
 		return zipNameToHumanName(this.resource.slug);
 	}
+}
+
+/**
+ * A `Resource` that represents a WordPress core theme.
+ */
+export class CoreThemeResource extends WordPressOrgResource {
+	constructor(resource: CoreThemeReference, progress?: ProgressTracker) {
+		super(resource, progress);
+	}
+
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
 		return `https://downloads.wordpress.org/theme/${zipName}`;
@@ -911,17 +971,9 @@ export class CoreThemeResource extends FetchResource {
 /**
  * A resource that fetches a WordPress plugin from wordpress.org.
  */
-export class CorePluginResource extends FetchResource {
-	private resource: CorePluginReference;
-
+export class CorePluginResource extends WordPressOrgResource {
 	constructor(resource: CorePluginReference, progress?: ProgressTracker) {
-		super(progress);
-		this.resource = resource;
-	}
-
-	/** @inheritDoc */
-	override get name() {
-		return zipNameToHumanName(this.resource.slug);
+		super(resource, progress);
 	}
 
 	/** @inheritDoc */

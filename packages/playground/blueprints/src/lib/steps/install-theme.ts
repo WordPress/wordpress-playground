@@ -192,7 +192,12 @@ export const installTheme: StepHandler<
 				{
 					themeFolderName: assetFolderName,
 				},
-				progress
+				progress && {
+					...progress,
+					initialCaption:
+						progress.initialCaption ||
+						`Activating ${progressName()}`,
+				}
 			);
 		}
 
