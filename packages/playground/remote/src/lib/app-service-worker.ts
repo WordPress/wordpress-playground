@@ -7,21 +7,25 @@ import {
 	fetchBlueprintsIndex,
 	cacheOfflineModeAssetsForCurrentRelease,
 	shouldCacheUrl,
+	pruneOfflineModeCaches,
 } from './offline-mode-cache';
 import { getReleaseRoot } from '@wp-playground/common';
-import { wordPressSiteUrl, playgroundOrigin } from './config';
+import { basename } from '@php-wasm/util';
+import { wordPressSiteUrl, playgroundOrigin, assetBaseUrl } from './config';
 
 declare const self: ServiceWorkerGlobalScope;
 const clientReleases = new Map<string, string>();
 const releaseRegistry = 'playground-client-releases';
+let registryQueue = Promise.resolve();
 
 /** App routing deliberately has no handler capable of executing WordPress HTML. */
 export function installAppServiceWorker() {
 	const sharedMode =
 		new URL(self.location.href).searchParams.get('shared-worker') === '1';
 	self.addEventListener('activate', (event) => {
+		event.waitUntil(updateReleaseRegistry());
 		if (
-			!new URL(self.location.href).searchParams.has('release') &&
+			!getReleaseRoot(assetBaseUrl) &&
 			wordPressSiteUrl === playgroundOrigin
 		) {
 			event.waitUntil(
@@ -40,7 +44,7 @@ export function installAppServiceWorker() {
 		if (!source?.id || !root || root.origin !== self.location.origin)
 			return;
 		event.waitUntil(
-			pinRelease(source.id, root.pathname).then(() => {
+			updateReleaseRegistry(source.id, root.pathname).then(() => {
 				event.ports[0]?.postMessage({
 					protocol: 1,
 					root: root.pathname,
@@ -96,13 +100,51 @@ export function installAppServiceWorker() {
 	});
 }
 
-async function pinRelease(clientId: string, root: string) {
-	clientReleases.set(clientId, root);
-	const registry = await caches.open(releaseRegistry);
-	await registry.put(
-		new URL(`/__client-release/${clientId}`, self.location.origin),
-		new Response(root)
-	);
+/** Serialize pins and collection so a new document's selection cannot be deleted mid-write. */
+function updateReleaseRegistry(
+	clientId?: string,
+	root?: string
+): Promise<void> {
+	const update = registryQueue.then(async () => {
+		const registry = await caches.open(releaseRegistry);
+		if (clientId && root) {
+			clientReleases.set(clientId, root);
+			await registry.put(
+				new URL(`/__client-release/${clientId}`, self.location.origin),
+				new Response(root)
+			);
+		}
+		const currentRoot = getReleaseRoot(assetBaseUrl)?.pathname;
+		const retained = new Set(currentRoot ? [currentRoot] : []);
+		const pinnedClients = new Set<string>();
+		for (const request of await registry.keys()) {
+			const id = basename(new URL(request.url).pathname);
+			if (!(await self.clients.get(id))) {
+				clientReleases.delete(id);
+				await registry.delete(request);
+				continue;
+			}
+			pinnedClients.add(id);
+			retained.add(await (await registry.match(request))!.text());
+		}
+		let unknownClient = false;
+		for (const client of await self.clients.matchAll({
+			includeUncontrolled: true,
+			type: 'all',
+		})) {
+			const clientRoot = getReleaseRoot(new URL(client.url))?.pathname;
+			if (clientRoot) retained.add(clientRoot);
+			else if (!pinnedClients.has(client.id)) unknownClient = true;
+		}
+		// Unknown legacy clients may still need older cached assets. Never evict a live release.
+		await pruneOfflineModeCaches(
+			unknownClient ? undefined : retained,
+			!unknownClient &&
+				[...retained].every((value) => value === currentRoot)
+		);
+	});
+	registryQueue = update.catch(() => {});
+	return update;
 }
 
 async function fetchAppAsset(event: FetchEvent): Promise<Response> {

@@ -1,22 +1,28 @@
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer } from './dev-server';
-import { playgroundOrigin } from './config';
+import { playgroundOrigin, assetBaseUrl } from './config';
+import { getReleaseRoot } from '@wp-playground/common';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
 const BLUEPRINTS_INDEX_URL =
 	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json';
 const CACHE_NAME_PREFIX = 'playground-cache';
-const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
+const LATEST_CACHE_NAME = getReleaseRoot(assetBaseUrl)
+	? `${CACHE_NAME_PREFIX}-release-assets-v1`
+	: `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
 // Open storage lazily, after the worker's role and origin have been checked.
 let promisedOfflineModeCache: Promise<Cache> | undefined;
 
 export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const offlineModeCache = await getOfflineModeCache();
-	const cachedResponse = await offlineModeCache.match(request, {
-		ignoreSearch: true,
-	});
+	const cachedResponse =
+		(await offlineModeCache.match(request, { ignoreSearch: true })) ??
+		// An upgrade can reuse immutable files warmed by an older worker cache.
+		(getReleaseRoot(new URL(request.url))
+			? await caches.match(request, { ignoreSearch: true })
+			: undefined);
 	if (cachedResponse) {
 		return cachedResponse;
 	}
@@ -304,6 +310,29 @@ export function isCurrentServiceWorkerActive() {
 	}
 	// @ts-ignore
 	return self.serviceWorker.state === 'activated';
+}
+
+/** Collect only releases with no remaining document or worker clients. */
+export async function pruneOfflineModeCaches(
+	retainedRoots: ReadonlySet<string> | undefined,
+	deletePreviousBuilds: boolean
+) {
+	if (retainedRoots) {
+		const cache = await getOfflineModeCache();
+		for (const request of await cache.keys()) {
+			const root = getReleaseRoot(new URL(request.url))?.pathname;
+			if (root && !retainedRoots.has(root)) await cache.delete(request);
+		}
+	}
+	if (deletePreviousBuilds) {
+		for (const name of await caches.keys()) {
+			if (
+				name.startsWith(`${CACHE_NAME_PREFIX}-`) &&
+				name !== LATEST_CACHE_NAME
+			)
+				await caches.delete(name);
+		}
+	}
 }
 
 function getOfflineModeCache(): Promise<Cache> {

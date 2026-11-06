@@ -655,10 +655,10 @@ export function expose(
 					'RPC prototype properties cannot be accessed.'
 				);
 			}
-			const parent = path
-				.slice(0, -1)
-				.reduce((obj, prop) => obj[prop], obj);
-			const rawValue = path.reduce((obj, prop) => obj[prop], obj);
+			const parent = path.slice(0, -1).reduce(readApiProperty, obj);
+			const rawValue = path.length
+				? readApiProperty(parent, path[path.length - 1])
+				: obj;
 			switch (type) {
 				case MessageType.GET:
 					{
@@ -667,6 +667,8 @@ export function expose(
 					break;
 				case MessageType.SET:
 					{
+						if (!path.length)
+							throw new TypeError('An API property is required.');
 						parent[path.slice(-1)[0]] = fromWireValue(
 							ev.data.value
 						);
@@ -675,7 +677,11 @@ export function expose(
 					break;
 				case MessageType.APPLY:
 					{
-						returnValue = rawValue.apply(parent, argumentList);
+						returnValue = Reflect.apply(
+							rawValue,
+							parent,
+							argumentList
+						);
 					}
 					break;
 				case MessageType.CONSTRUCT:
@@ -736,6 +742,32 @@ export function expose(
 	if (ep.start) {
 		ep.start();
 	}
+}
+
+/** API instances expose their members, never JavaScript's shared object/function machinery. */
+function readApiProperty(object: any, property: string): any {
+	if (typeof object === 'function') {
+		throw new TypeError('API functions can only be called.');
+	}
+	for (let owner = object; owner; owner = Object.getPrototypeOf(owner)) {
+		if (
+			owner === Object.prototype ||
+			Object.getPrototypeOf(owner) === null
+		) {
+			break;
+		}
+		if (Object.prototype.hasOwnProperty.call(owner, property)) {
+			return Reflect.get(object, property);
+		}
+	}
+	// A piped RPC proxy resolves virtual members at its destination. It must not
+	// acquire built-in members locally when its target has no prototype.
+	if (Object.prototype.hasOwnProperty.call(Object.prototype, property)) {
+		throw new TypeError(
+			'Inherited JavaScript properties are not API members.'
+		);
+	}
+	return Reflect.get(object, property);
 }
 
 function isMessagePort(endpoint: Endpoint): endpoint is MessagePort {

@@ -79,6 +79,27 @@ fallback requests. Its bounded and open-ended GET ranges, HEAD behavior, and
 unsupported-range handling are tested by
 `npm exec -- nx run playground-website:test:static-file-ranges`.
 
+## Execution rules
+
+The installer wraps platform HTML as inert data and checks its own document
+origin before restoring the page. App, builder, demo, and public runtime pages
+require the configured app origin; the bridge requires the sandbox origin.
+WordPress distribution templates are content and retain their normal behavior.
+Public bytes remain downloadable through either hostname.
+
+Workers independently check their configured origin and role before installation.
+Their reported release comes from the immutable module URL and their origins
+come from build configuration. Worker URL query parameters are not identity.
+The bridge uses this same identity without downloading release metadata, so an
+installed worker remains usable when that metadata is unavailable offline.
+
+The app caches immutable release URLs in one asset cache. On activation and
+document pinning, it removes dead client records and collects unused releases.
+Live documents and PHP workers retain their releases; unrecognized legacy
+clients conservatively prevent eviction. Old build caches are removed only
+after those clients no longer need them. The sandbox never trusts its writable
+CacheStorage for platform code.
+
 ## Privileged API callers
 
 The saved-site `api.html` endpoint accepts RPC messages only from its parent
@@ -89,10 +110,14 @@ before loading its iframe. This intentionally changes the saved-site API's
 cross-origin embedding contract. Public `remote.html` WordPress embeds retain
 their existing external embedding contract.
 
-The shared `exposeAPI` transport defaults window endpoints to same-origin parents;
-public cross-origin endpoints must explicitly opt in. Worker and MessagePort
+The shared `exposeAPI` transport defaults window endpoints to same-origin parents.
+Each window endpoint accepts one exact origin; public cross-origin endpoints
+must explicitly opt into `'*'`. Replies use that same target origin, including
+asynchronous replies after a caller navigates. Worker and MessagePort
 endpoints retain their capability-based contract. RPC property paths reject
-constructor and prototype traversal, including on transferred function ports.
+constructor and prototype traversal and inherited Object methods. Exported
+functions can be called, but their properties cannot be traversed, including on
+transferred function ports. Class and forwarded API methods remain callable.
 These are intentional API compatibility changes for cross-origin window callers
 and callers that traversed those properties.
 

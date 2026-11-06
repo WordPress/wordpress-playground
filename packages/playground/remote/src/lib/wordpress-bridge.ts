@@ -31,15 +31,14 @@ import { buildVersion } from 'virtual:remote-config';
 
 const scope = new URL(location.href).searchParams.get('scope');
 assertDocumentOrigin('sandbox');
-const deployment = await getDeployment();
+const deployment = getDeployment();
 // Keep the standalone URL literal: the worker also bundles this helper for offline HTML.
 const workerUrl = deployment
 	? getReleaseWorkerUrl(deployment, 'sandbox', location.origin)
 	: new URL('/sandbox-sw.js', location.origin);
-if (deployment) workerUrl.searchParams.set('release', deployment.release);
 // A CDN may retain the old single-origin worker at /sw.js even after deployment.
 // updateViaCache bypasses the browser's HTTP cache, not that CDN response.
-workerUrl.searchParams.set('build-version', buildVersion);
+if (!deployment) workerUrl.searchParams.set('build-version', buildVersion);
 let registration: ServiceWorkerRegistration;
 try {
 	registration = await navigator.serviceWorker.register(workerUrl, {

@@ -16,7 +16,6 @@ try {
 		`/${role}-sw-${release.release}.js`,
 		location.origin
 	);
-	workerUrl.searchParams.set('release', release.release);
 	const registration = await navigator.serviceWorker.register(workerUrl, {
 		type: 'module',
 		scope: '/',
@@ -41,6 +40,8 @@ try {
 	if (
 		status.protocol !== 1 ||
 		status.role !== role ||
+		status.appOrigin !== release.appOrigin ||
+		status.wordPressOrigin !== release.wordPressOrigin ||
 		status.release !== release.release
 	) {
 		throw new Error(
@@ -105,11 +106,9 @@ async function selectRelease() {
 			!/^release\.[a-zA-Z0-9]+$/.test(status.release)
 		)
 			throw error;
-		const response = await fetch(
-			`/releases/${status.release}/release.json`
-		);
-		if (!response.ok) throw error;
-		release = await response.json();
+		// Installed code reports its own immutable URL and compiled origins. No
+		// sandbox cache or additional metadata download is an authority for startup.
+		release = status;
 	}
 	if (
 		release.protocol !== 1 ||

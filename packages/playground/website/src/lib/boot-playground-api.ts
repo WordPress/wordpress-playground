@@ -21,7 +21,7 @@ export function bootPlaygroundAPI(appOrigin: string) {
 		},
 		undefined,
 		undefined,
-		[appOrigin]
+		appOrigin
 	);
 	setAPIReady();
 	return api;

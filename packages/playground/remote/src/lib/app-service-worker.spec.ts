@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('./config', () => ({
 	playgroundOrigin: 'https://app.test',
 	wordPressSiteUrl: 'https://wordpress.test',
+	assetBaseUrl: new URL('https://app.test/releases/release.B/'),
 }));
 vi.mock('./offline-mode-cache', () => ({
 	cacheFirstFetch: vi.fn(
@@ -12,6 +13,7 @@ vi.mock('./offline-mode-cache', () => ({
 	fetchBlueprintsIndex: vi.fn(),
 	cacheOfflineModeAssetsForCurrentRelease: vi.fn(),
 	shouldCacheUrl: () => true,
+	pruneOfflineModeCaches: vi.fn(),
 }));
 
 let listeners: Record<string, (event: any) => void>;
@@ -25,7 +27,10 @@ beforeEach(() => {
 		location: new URL(
 			'https://app.test/app-sw-release.B.js?release=release.B'
 		),
-		clients: { get: vi.fn(async () => ({ url: 'https://app.test/' })) },
+		clients: {
+			get: vi.fn(async () => ({ url: 'https://app.test/' })),
+			matchAll: vi.fn(async () => []),
+		},
 		addEventListener: (type: string, listener: (event: any) => void) => {
 			listeners[type] = listener;
 		},
@@ -35,7 +40,10 @@ beforeEach(() => {
 			put: async (url: URL, response: Response) => {
 				stored.set(url.href, response);
 			},
-			match: async (url: URL) => stored.get(url.href)?.clone(),
+			match: async (url: URL | Request) =>
+				stored.get('href' in url ? url.href : url.url)?.clone(),
+			keys: async () => [...stored.keys()].map((url) => new Request(url)),
+			delete: async (request: Request) => stored.delete(request.url),
 		}),
 	});
 });
@@ -110,4 +118,57 @@ function fetchEvent(path: string, clientId: string): Promise<Response> {
 it('refreshes the root selector instead of resolving it inside a document release', async () => {
 	(await import('./app-service-worker')).installAppServiceWorker();
 	expect(await (await fetchEvent('/', 'document')).text()).toBe('bootstrap');
+});
+
+it('collects dead pins while retaining caches required by live documents and PHP workers', async () => {
+	const { pruneOfflineModeCaches } = await import('./offline-mode-cache');
+	const clients = (self as unknown as ServiceWorkerGlobalScope).clients;
+	stored.set(
+		'https://app.test/__client-release/closed',
+		new Response('/releases/release.C/')
+	);
+	stored.set(
+		'https://app.test/__client-release/live',
+		new Response('/releases/release.A/')
+	);
+	vi.mocked(clients.get).mockImplementation(async (id) =>
+		id === 'live' ? ({ id, url: 'https://app.test/' } as Client) : undefined
+	);
+	vi.mocked(clients.matchAll).mockResolvedValue([
+		{ id: 'live', url: 'https://app.test/' },
+		{
+			id: 'php',
+			url: 'https://app.test/releases/release.D/assets/php-worker.js',
+		},
+	] as Client[]);
+	(await import('./app-service-worker')).installAppServiceWorker();
+	let pending!: Promise<void>;
+	listeners['activate']({
+		waitUntil: (promise: Promise<void>) => {
+			pending = promise;
+		},
+	});
+	await pending;
+	expect(stored.has('https://app.test/__client-release/closed')).toBe(false);
+	expect(pruneOfflineModeCaches).toHaveBeenLastCalledWith(
+		new Set([
+			'/releases/release.B/',
+			'/releases/release.A/',
+			'/releases/release.D/',
+		]),
+		false
+	);
+	vi.mocked(clients.get).mockResolvedValue(undefined);
+	vi.mocked(clients.matchAll).mockResolvedValue([]);
+	listeners['activate']({
+		waitUntil: (promise: Promise<void>) => {
+			pending = promise;
+		},
+	});
+	await pending;
+	expect(stored.size).toBe(0);
+	expect(pruneOfflineModeCaches).toHaveBeenLastCalledWith(
+		new Set(['/releases/release.B/']),
+		true
+	);
 });

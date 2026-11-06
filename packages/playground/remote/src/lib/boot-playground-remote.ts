@@ -147,12 +147,10 @@ export async function bootPlaygroundRemote() {
 	}
 
 	reportStartupProgress('Starting WordPress runtime');
-	const deployment = await getDeployment();
+	const deployment = getDeployment();
 	const registrationUrl = deployment
 		? getReleaseWorkerUrl(deployment, 'app', location.origin)
 		: new URL(serviceWorkerUrl);
-	if (deployment)
-		registrationUrl.searchParams.set('release', deployment.release);
 	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
@@ -752,7 +750,7 @@ export async function bootPlaygroundRemote() {
 		phpWorkerApi,
 		undefined,
 		// This is the public runtime API used by external SDK embedders.
-		['*']
+		'*'
 	);
 
 	/*

@@ -28,8 +28,17 @@ Use Node 24 and PHP. From the repository root:
 nvm use
 npm ci
 npm exec -- nx run playground-website:sync-reprint
+export CORS_PROXY_URL='http://127.0.0.1:5263/cors-proxy.php?'
 npm exec -- nx run playground-website:build:wordpress-frame
 npm exec -- nx run playground-website:preview:wordpress-frame
+```
+
+For plugin/theme downloads that use the local CORS proxy, start it in a separate
+terminal. The `CORS_PROXY_URL` above is captured at build time, so set it
+before building or using the `:fresh` test target:
+
+```sh
+npm exec -- nx run playground-php-cors-proxy:start
 ```
 
 Open <http://playground.wordpress.localhost:9500/?wp=6.9&php=8.3>.
@@ -39,11 +48,14 @@ and 4400. Normal Vite development retains those fixed ports and source reloads.
 
 ## Released interactive code block integration
 
-After building, run the downstream plugin check with Playwright:
+Build the current sources and run the downstream plugin check with Playwright:
 
 ```sh
-npm exec -- nx run playground-website:e2e:wordpress-frame -- --project=chromium interactive-code-block.spec.ts --retries=0
+npm exec -- nx run playground-website:e2e:wordpress-frame:fresh -- --project=chromium interactive-code-block.spec.ts --retries=0
 ```
+
+Use `e2e:wordpress-frame` for quick reruns against the existing build. That target
+does not rebuild sources. The `:fresh` target always builds first.
 
 The test installs the real WordPress.org `interactive-code-block` plugin (the
 `wordpress-playground-block` package in `WordPress/playground-tools`) in a separate
@@ -101,6 +113,17 @@ used to load platform code. Other sandbox platform assets use their same-origin
 HTTP URLs and browser HTTP cache. The app keeps its separate CacheStorage for
 on-demand downloads; split-origin mode does not eagerly prefetch unused runtimes.
 
+The installer keeps platform HTML inert until its configured document origin is
+checked, including builder and demo pages. Workers independently reject the wrong
+configured origin. Installed workers report their own immutable module release
+and compiled origins; query strings cannot change that identity. Helper startup
+needs no metadata fetch.
+
+App cache entries use immutable release URLs. Dead client pins are collected when
+a worker activates or a document pins its release. Live document and PHP-worker
+releases keep their assets; unknown legacy clients conservatively prevent eviction.
+Unused release entries and obsolete build caches are then removed.
+
 App entry pages and workers reject the wrong configured origin. Both hosts may
 still fetch the same public static files. Serving the same bytes on the sandbox
 does not give those documents access to app-origin storage.
@@ -118,8 +141,9 @@ Existing iframe and SDK embeds work without referrers or new origin declarations
 ```
 
 WordPress cannot directly read an existing app parent document, its OPFS, or its
-connected PHP API. WordPress can still embed a fresh app-origin API document and
-connect to that new API. The split is not complete protection against every route
+connected PHP API. WordPress can still embed a fresh public app-origin runtime and connect to that
+new runtime. The privileged saved-site `api.html` requires an app-origin parent.
+Public runtime OPFS mounting still needs a separate per-site authorization boundary. The split is not complete protection against every route
 to saved files or native directory handles.
 
 All Playgrounds share the sandbox origin's storage and can request other running

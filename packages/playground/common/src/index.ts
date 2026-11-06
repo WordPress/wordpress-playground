@@ -429,4 +429,4 @@ export const zipDirectory = async (
 	}
 };
 
-export { getReleaseRoot } from './public-release';
+export { getReleaseRoot, getReleaseId } from './public-release';

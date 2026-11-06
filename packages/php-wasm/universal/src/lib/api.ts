@@ -269,7 +269,7 @@ export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
 	targetWorker?: MessagePort | NodeWorker | NodeProcess,
-	allowedOrigins?: (string | RegExp)[]
+	allowedOrigin?: string
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -292,24 +292,26 @@ export function exposeAPI<Methods, PipedAPI>(
 		}
 	} else {
 		if (typeof window !== 'undefined') {
-			allowedOrigins ??=
-				window.location.origin === 'null'
-					? []
-					: [window.location.origin];
-			// A privileged endpoint's reply must not follow its parent to another origin.
-			const targetOrigin =
-				allowedOrigins.length === 1 &&
-				typeof allowedOrigins[0] === 'string'
-					? allowedOrigins[0]
-					: '*';
+			allowedOrigin ??= window.location.origin;
+			if (
+				allowedOrigin !== '*' &&
+				(typeof allowedOrigin !== 'string' ||
+					allowedOrigin === 'null' ||
+					new URL(allowedOrigin).origin !== allowedOrigin)
+			) {
+				throw new TypeError(
+					'A window API requires one exact origin or "*".'
+				);
+			}
+			// The same exact origin authorizes requests and receives replies, even after navigation.
 			endpoint = Comlink.windowEndpoint(
 				self.parent,
 				undefined,
-				targetOrigin
+				allowedOrigin
 			);
 		}
 	}
-	Comlink.expose(exposedApi, endpoint, allowedOrigins);
+	Comlink.expose(exposedApi, endpoint, [allowedOrigin ?? '*']);
 	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
 }
 

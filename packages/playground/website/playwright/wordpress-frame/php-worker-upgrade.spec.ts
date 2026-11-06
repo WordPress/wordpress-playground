@@ -44,7 +44,7 @@ self.addEventListener('install', event => event.waitUntil((async () => {
 })()));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 self.addEventListener('message', event => {
-    if (event.data?.type === 'playground-worker-status') event.ports[0]?.postMessage({ protocol: 1, role: 'app' });
+    if (event.data?.type === 'playground-worker-status') event.ports[0]?.postMessage({ protocol: 1, role: 'app', appOrigin: ${JSON.stringify(appOrigin)}, wordPressOrigin: ${JSON.stringify(appOrigin)} });
 });
 self.addEventListener('fetch', event => {
     const headers = new Headers(event.request.headers);

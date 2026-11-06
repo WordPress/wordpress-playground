@@ -1,5 +1,6 @@
 /// <reference lib="WebWorker" />
 import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { getDeployment } from './deployment';
 // @ts-ignore -- Supplied by Vite.
 import { buildVersion } from 'virtual:remote-config';
 
@@ -28,9 +29,9 @@ export function installWorkerLifecycle(role: 'app' | 'sandbox') {
 			protocol: 1,
 			role,
 			buildVersion,
-			release: self.location.search
-				? new URL(self.location.href).searchParams.get('release')
-				: undefined,
+			appOrigin: playgroundOrigin,
+			wordPressOrigin: wordPressSiteUrl,
+			release: getDeployment()?.release,
 		});
 	});
 }

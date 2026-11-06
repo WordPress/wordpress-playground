@@ -1,5 +1,5 @@
 import { assetBaseUrl, playgroundOrigin, wordPressSiteUrl } from './config';
-import { getReleaseRoot } from '@wp-playground/common';
+import { getReleaseRoot, getReleaseId } from '@wp-playground/common';
 
 export function assertDocumentOrigin(role: 'app' | 'sandbox') {
 	const expected = role === 'app' ? playgroundOrigin : wordPressSiteUrl;
@@ -10,19 +10,16 @@ export function assertDocumentOrigin(role: 'app' | 'sandbox') {
 		throw new Error(`Incorrect Playground ${role} hostname.`);
 }
 
-export async function getDeployment(): Promise<PlaygroundRelease | undefined> {
-	if (!getReleaseRoot(assetBaseUrl)) return undefined;
-	const response = await fetch(new URL('release.json', assetBaseUrl));
-	if (!response.ok)
-		throw new Error('Playground release metadata is unavailable.');
-	const release = validateRelease(await response.json());
-	if (
-		release.appOrigin !== playgroundOrigin ||
-		release.wordPressOrigin !== wordPressSiteUrl
-	) {
-		throw new Error('Playground release origins do not match the build.');
-	}
-	return release;
+export function getDeployment(): PlaygroundRelease | undefined {
+	const release = getReleaseId(assetBaseUrl);
+	return release
+		? {
+				protocol: 1,
+				release,
+				appOrigin: playgroundOrigin,
+				wordPressOrigin: wordPressSiteUrl,
+			}
+		: undefined;
 }
 
 export async function verifyWorker(
@@ -36,6 +33,8 @@ export async function verifyWorker(
 	if (
 		result.protocol !== 1 ||
 		result.role !== role ||
+		result.appOrigin !== playgroundOrigin ||
+		result.wordPressOrigin !== wordPressSiteUrl ||
 		(release && result.release !== release)
 	) {
 		throw new Error(
@@ -86,20 +85,4 @@ export function getReleaseWorkerUrl(
 	origin: string
 ): URL {
 	return new URL(`/${role}-sw-${release.release}.js`, origin);
-}
-
-/** Both the selector and retained release metadata must name a local immutable directory. */
-function validateRelease(value: unknown): PlaygroundRelease {
-	const release = value as PlaygroundRelease;
-	if (
-		release?.protocol !== 1 ||
-		typeof release.release !== 'string' ||
-		!/^release\.[a-zA-Z0-9]+$/.test(release.release) ||
-		new URL(release.appOrigin).origin !== release.appOrigin ||
-		new URL(release.wordPressOrigin).origin !== release.wordPressOrigin ||
-		release.appOrigin === release.wordPressOrigin
-	) {
-		throw new Error('Invalid Playground release selector.');
-	}
-	return release;
 }

@@ -130,7 +130,11 @@ process.stdout.write(process.env.PUBLIC_HIDDEN === '1' ? '200' : process.argv.at
 	assert.equal(first.wordPressOrigin, wordPressOrigin);
 	const root = `/releases/${first.release}`;
 	assert.match(
-		await readFile(join(webRoot, root, 'index.html'), 'utf8'),
+		JSON.parse(
+			(await readFile(join(webRoot, root, 'index.html'), 'utf8')).match(
+				/id="playground-document">(.*?)<\/script>/s
+			)[1]
+		),
 		new RegExp(`${root}/assets/main.js`)
 	);
 	assert.match(
@@ -150,6 +154,25 @@ process.stdout.write(process.env.PUBLIC_HIDDEN === '1' ? '200' : process.argv.at
 		),
 		'<?php echo "native endpoint";'
 	);
+	const stableRemote = await readFile(join(webRoot, 'remote.html'), 'utf8');
+	const validBridge = await readFile(
+		join(upload, 'wordpress-bridge.html'),
+		'utf8'
+	);
+	for (const brokenBridge of [
+		'<p>No module</p>',
+		'<script src="/assets/missing.js"></script>',
+	]) {
+		await writeFile(join(upload, 'wordpress-bridge.html'), brokenBridge);
+		await assert.rejects(install());
+		assert.equal((await selector(webRoot)).release, first.release);
+		assert.equal(
+			await readFile(join(webRoot, 'remote.html'), 'utf8'),
+			stableRemote
+		);
+	}
+	await writeFile(join(upload, 'wordpress-bridge.html'), validBridge);
+
 	await writeFile(join(upload, 'sandbox-sw.js'), '');
 	await assert.rejects(install());
 	assert.equal((await selector(webRoot)).release, first.release);

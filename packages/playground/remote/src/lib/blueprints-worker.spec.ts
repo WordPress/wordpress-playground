@@ -5,6 +5,7 @@ vi.mock('@wp-playground/blueprints', () => ({
 	replaceSiteUrl: vi.fn(),
 }));
 vi.mock('./config', () => ({
+	assetBaseUrl: new URL('https://app.test/'),
 	playgroundOrigin: 'https://playground.wordpress.net',
 }));
 

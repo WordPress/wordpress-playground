@@ -67,7 +67,7 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 				.frameLocator('#wp')
 				.locator('body')
 				.evaluate(() => navigator.serviceWorker.controller!.scriptURL)
-		).toContain(`/sandbox-sw-${release}.js?release=${release}`);
+		).toContain(`/sandbox-sw-${release}.js`);
 		expect(
 			await page.evaluate(async () =>
 				(await fetch('/release-routing-probe.txt')).text()
@@ -97,6 +97,59 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 				() => navigator.serviceWorker.controller!.scriptURL
 			)
 		);
+		// Prove both live releases still have cached bytes after collection.
+		let cachedProbes: { url: string; value: string }[] = [];
+		await expect
+			.poll(async () => {
+				cachedProbes = await page.evaluate(async () => {
+					const entries: { url: string; value: string }[] = [];
+					for (const name of await caches.keys()) {
+						const cache = await caches.open(name);
+						for (const request of await cache.keys()) {
+							if (
+								new URL(request.url).pathname.endsWith(
+									'/release-routing-probe.txt'
+								)
+							)
+								entries.push({
+									url: request.url,
+									value: await (await cache.match(
+										request
+									))!.text(),
+								});
+						}
+					}
+					return entries;
+				});
+				return [
+					...new Set(cachedProbes.map(({ value }) => value)),
+				].sort();
+			})
+			.toEqual(['release A', 'release B']);
+		// Changed server bytes prove responses come from the retained cache. This also
+		// works in WebKit, whose offline emulation blocks even synthetic SW responses.
+		const originals: { path: string; bytes: Buffer }[] = [];
+		try {
+			for (const { url } of cachedProbes) {
+				const path = joinPaths(directory, new URL(url).pathname);
+				originals.push({ path, bytes: await readFile(path) });
+				await writeFile(path, 'uncached server bytes');
+			}
+			for (const [document, expected] of [
+				[page, 'release A'],
+				[other, 'release B'],
+			] as const) {
+				expect(
+					await document.evaluate(async () =>
+						(await fetch('/release-routing-probe.txt')).text()
+					)
+				).toBe(expected);
+			}
+		} finally {
+			for (const { path, bytes } of originals)
+				await writeFile(path, bytes);
+		}
+
 		await other.close();
 	});
 
@@ -123,7 +176,7 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 					`/sandbox-sw-${release}.js`,
 					window.location.origin
 				);
-				correct.searchParams.set('release', release);
+				correct.searchParams.set('release', 'release.forged');
 				const registration = await navigator.serviceWorker.register(
 					correct,
 					{ type: 'module', scope: '/' }
@@ -150,12 +203,53 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 				} catch {
 					rejected = true;
 				}
-				return { rejected, active: registration.active!.scriptURL };
+				const status = await new Promise<any>((resolve) => {
+					const channel = new MessageChannel();
+					channel.port1.onmessage = (event) => {
+						channel.port1.close();
+						resolve(event.data);
+					};
+					registration.active!.postMessage(
+						{ type: 'playground-worker-status' },
+						[channel.port2]
+					);
+				});
+				return {
+					rejected,
+					active: registration.active!.scriptURL,
+					release: status.release,
+				};
 			},
 			{ release }
 		);
 		expect(result.rejected).toBe(true);
+		expect(result.release).toBe(release);
 		expect(result.active).toContain(`/sandbox-sw-${release}.js`);
+	});
+
+	test('all platform HTML stays inert on the sandbox hostname', async ({
+		page,
+	}) => {
+		const scripts: string[] = [];
+		page.on('request', (request) => {
+			if (['script', 'worker'].includes(request.resourceType()))
+				scripts.push(request.url());
+		});
+		for (const entry of [
+			'index.html',
+			'api.html',
+			'wordpress.html',
+			'gutenberg.html',
+			'builder/builder.html',
+			'php-playground.html',
+			'playground-block-frame.html',
+		]) {
+			await page.goto(`${wordPressOrigin}/releases/${release}/${entry}`);
+			await expect(page.locator('body')).toHaveText(
+				'Incorrect Playground app hostname.'
+			);
+		}
+		expect(scripts).toEqual([]);
 	});
 
 	test('an archived worker discovers the root selector without consulting a cached JSON selector', async ({

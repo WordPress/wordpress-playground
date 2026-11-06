@@ -1,7 +1,7 @@
 vi.mock('./config', () => ({
 	playgroundOrigin: 'https://playground.test',
 	wordPressSiteUrl: 'https://wp.playground.test',
-	assetBaseUrl: new URL('https://playground.test/'),
+	assetBaseUrl: new URL('https://playground.test/releases/release.A/'),
 }));
 vi.mock('virtual:remote-config', () => ({ buildVersion: 'new-release' }));
 
@@ -18,6 +18,12 @@ describe('WordPress helper worker updates', () => {
 
 	beforeEach(() => {
 		vi.resetModules();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(() => {
+				throw new TypeError('Offline');
+			})
+		);
 		registration = {
 			active: Object.assign(new EventTarget(), {
 				state: 'activated',
@@ -48,14 +54,13 @@ describe('WordPress helper worker updates', () => {
 
 	afterEach(() => vi.unstubAllGlobals());
 
-	it('bypasses a previous release cached by the CDN at the unversioned worker URL', async () => {
+	it('selects the immutable worker from loaded code without fetching metadata', async () => {
 		await import('./wordpress-bridge');
 		expect(navigator.serviceWorker.register).toHaveBeenCalledWith(
-			new URL(
-				'https://wp.playground.test/sandbox-sw.js?build-version=new-release'
-			),
+			new URL('https://wp.playground.test/sandbox-sw-release.A.js'),
 			{ type: 'module', updateViaCache: 'none' }
 		);
+		expect(fetch).not.toHaveBeenCalled();
 	});
 
 	it('waits for the update check and replacement activation with an existing registration', async () => {
@@ -118,6 +123,29 @@ describe('WordPress helper worker updates', () => {
 		);
 	});
 
+	it.each([
+		{ role: 'app' },
+		{ release: 'release.B' },
+		{ appOrigin: 'https://attacker.test' },
+		{ wordPressOrigin: 'https://attacker.test' },
+	])('rejects mismatched installed code %j', async (mismatch) => {
+		Object.assign(registration.active!, {
+			postMessage: (_message: unknown, ports: MessagePort[]) =>
+				ports[0].postMessage({
+					protocol: 1,
+					role: 'sandbox',
+					release: 'release.A',
+					appOrigin: 'https://playground.test',
+					wordPressOrigin: 'https://wp.playground.test',
+					...mismatch,
+				}),
+		});
+		await expect(import('./wordpress-bridge')).rejects.toThrow(
+			'does not match'
+		);
+		expect(postMessage).not.toHaveBeenCalled();
+	});
+
 	it.each(['missing', 'inactive'])(
 		'does not report ready after a registration failure with a %s worker',
 		async (state) => {
@@ -147,5 +175,11 @@ describe('WordPress helper worker updates', () => {
 });
 
 function workerStatus(_message: unknown, ports: MessagePort[]) {
-	ports[0].postMessage({ protocol: 1, role: 'sandbox' });
+	ports[0].postMessage({
+		protocol: 1,
+		role: 'sandbox',
+		release: 'release.A',
+		appOrigin: 'https://playground.test',
+		wordPressOrigin: 'https://wp.playground.test',
+	});
 }

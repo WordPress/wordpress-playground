@@ -149,9 +149,33 @@ foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $build,
 // A stable module name lets installed workers generate trustworthy helper HTML
 // for retained releases without consulting WordPress-writable CacheStorage.
 $bridge = file_get_contents( "$public/wordpress-bridge.html" );
-if ( preg_match( '~<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>~i', $bridge, $bridge_script ) ) {
-    file_put_contents( "$public/wordpress-bridge.js", 'import ' . json_encode( $bridge_script[1], JSON_THROW_ON_ERROR ) . ";\n" );
-    file_put_contents( "$public/wordpress-bridge.html", str_replace( $bridge_script[1], "/releases/$release/wordpress-bridge.js", $bridge ) );
+if ( ! preg_match( '~<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>~i', $bridge, $bridge_script ) ) {
+    throw new RuntimeException( 'The WordPress bridge module is missing.' );
+}
+$bridge_module = realpath( $web_root . $bridge_script[1] );
+if ( ! str_starts_with( $bridge_script[1], "/releases/$release/" ) ||
+    ! $bridge_module || ! str_starts_with( $bridge_module, realpath( $public ) . '/' ) ||
+    ! is_file( $bridge_module ) || ! filesize( $bridge_module ) ) {
+    throw new RuntimeException( 'The WordPress bridge module is not a file in this release.' );
+}
+file_put_contents( "$public/wordpress-bridge.js", 'import ' . json_encode( $bridge_script[1], JSON_THROW_ON_ERROR ) . ";\n" );
+file_put_contents( "$public/wordpress-bridge.html", str_replace( $bridge_script[1], "/releases/$release/wordpress-bridge.js", $bridge ) );
+
+// Keep every platform page inert until its own document origin has been checked.
+// WordPress distribution templates are content, not platform entry points.
+foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $public, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+    $relative = substr( $file->getPathname(), strlen( $public ) + 1 );
+    if ( ! str_ends_with( $relative, '.html' ) || preg_match( '~^wp-[^/]+/~', $relative ) ) continue;
+    $origin = $relative === 'wordpress-bridge.html' ? $wordpress_origin : $app_origin;
+    $payload = json_encode( file_get_contents( $file->getPathname() ), JSON_HEX_TAG | JSON_THROW_ON_ERROR );
+    $expected = json_encode( $origin, JSON_HEX_TAG | JSON_THROW_ON_ERROR );
+    file_put_contents( $file->getPathname(), '<!doctype html><meta charset="utf-8"><body>' .
+        '<script type="application/json" id="playground-document">' . $payload . '</script>' .
+        '<script>(()=>{if(location.origin!==' . $expected . '){' .
+        'const error=new Error("Incorrect Playground ' . ( $relative === 'wordpress-bridge.html' ? 'sandbox' : 'app' ) . ' hostname.");' .
+        'document.body.textContent=error.message;console.error(error);return;}' .
+        'const html=JSON.parse(document.getElementById("playground-document").textContent);' .
+        'document.open();document.write(html);document.close();})();</script>' );
 }
 copy( $deployment . '/custom-redirects-lib.php', "$private/custom-redirects-lib.php" );
 $types = json_decode( file_get_contents( getenv( 'PLAYGROUND_MIME_TYPES' ) ?: $deployment . '/mime-types.json' ), true, 512, JSON_THROW_ON_ERROR );

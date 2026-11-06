@@ -86,7 +86,7 @@ A single Chromium CI smoke test covers the live Vite module graph; the full
 browser suite still runs once against the built cross-origin preview.
 
 The two-origin built preview has `build:wordpress-frame`, `preview:wordpress-frame`,
-and `e2e:wordpress-frame` website targets on port 9500, using sibling hostnames
+`e2e:wordpress-frame`, and `e2e:wordpress-frame:fresh` website targets on port 9500, using sibling hostnames
 `playground.wordpress.localhost` and `wpsandbox.wordpress.localhost`. CI uses the same boundary on its
 normal HTTP port; deployment upgrade tests use port 7999. The preview uses
 the production installer in loopback-only mode, so Node 24 and PHP are required.
@@ -110,13 +110,21 @@ compose both handlers through the compatibility `sw.js` entry. Internal sandbox
 assets use sandbox URLs and need no CORS. External SDK/download contracts remain.
 Sandbox CacheStorage is writable by WordPress and must not supply trusted platform
 code. Generate helper HTML from worker code using the retained release's stable
-bridge module. Keep canonical app/sandbox identities explicit in production builds.
+bridge module. Worker identity comes from the immutable module URL and compiled
+origins, never query strings or a metadata fetch. The installer keeps platform HTML
+inert until its own document origin passes, including builder and demo pages.
+Keep canonical app/sandbox identities explicit in production builds.
+
+App asset caches use immutable release URLs. Activation and document pinning collect
+dead client records and releases no live document or PHP worker needs. Unrecognized
+legacy clients conservatively prevent cache eviction.
 
 App-storage window APIs must pass the configured app origin to `exposeAPI`'s
-`allowedOrigins` argument. The parent-window source and browser-supplied origin
+`allowedOrigin` argument. The parent-window source and browser-supplied origin
 are checked before executing RPC calls or granting a private MessagePort.
 Window APIs default to same-origin callers; the public runtime explicitly opts
-into external callers. RPC paths cannot traverse constructor or prototype properties.
+into external callers. RPC functions are callable capabilities with no traversable
+properties; paths cannot reach inherited Object methods, constructors, or prototypes.
 `api.html` and `startPlaygroundAPI` require an app-origin embedding document.
 Public `remote.html` runtime embeds remain separate from this privileged API.
 Neither referrers nor caller-provided origin strings authorize saved-site access.
