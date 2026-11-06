@@ -380,7 +380,7 @@ jobs:
                   extensions: sqlite3, pdo_sqlite, gd, mbstring, curl, zip, xml
                   tools: none
             - name: Resolve the local prototype hosts in every browser
-              run: echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
+              run: echo '127.0.0.1 playground.wordpress.localhost wpsandbox.wordpress.localhost' | sudo tee -a /etc/hosts
             - name: Install Playwright Browser
               run: sudo npx playwright install chromium --with-deps
             - name: Build app for E2E tests
@@ -451,7 +451,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Resolve the local prototype hosts in every browser
-              run: echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
+              run: echo '127.0.0.1 playground.wordpress.localhost wpsandbox.wordpress.localhost' | sudo tee -a /etc/hosts
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.browser }} --with-deps
             - name: Build app for E2E tests

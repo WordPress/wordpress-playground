@@ -1,9 +1,16 @@
 # Two-origin static release preview
 
-The app stays on `http://playground.localhost:9500`; rendered WordPress uses
-`http://wp.playground.localhost:9500`. Both names resolve to loopback in Chromium.
+The app stays on `http://playground.wordpress.localhost:9500`; rendered WordPress uses
+`http://wpsandbox.wordpress.localhost:9500`. Both names resolve to loopback in Chromium.
 The public static tree is shared, while browser execution, OPFS, and caches remain
 separated by origin.
+
+These are sibling hostnames, matching the production app/sandbox relationship.
+For native hostname resolution, add this line to `/etc/hosts`:
+
+```text
+127.0.0.1 playground.wordpress.localhost wpsandbox.wordpress.localhost
+```
 
 ```text
 app origin
@@ -25,7 +32,7 @@ npm exec -- nx run playground-website:build:wordpress-frame
 npm exec -- nx run playground-website:preview:wordpress-frame
 ```
 
-Open <http://playground.localhost:9500/?wp=6.9&php=8.3>.
+Open <http://playground.wordpress.localhost:9500/?wp=6.9&php=8.3>.
 Source changes require rebuilding; this is not the Vite development server. It
 binds to `127.0.0.1` on port 9500 and does not replace normal development on 5400
 and 4400. Normal Vite development retains those fixed ports and source reloads.
@@ -77,7 +84,7 @@ separate deployment remain independent of this static release layout.
 Existing iframe and SDK embeds work without referrers or new origin declarations:
 
 ```html
-<iframe src="http://playground.localhost:9500/" referrerpolicy="no-referrer"></iframe>
+<iframe src="http://playground.wordpress.localhost:9500/" referrerpolicy="no-referrer"></iframe>
 ```
 
 WordPress cannot directly read an existing app parent document, its OPFS, or its

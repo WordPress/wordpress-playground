@@ -219,7 +219,7 @@ async function readBodyUntilAborted(request: Request): Promise<ArrayBuffer> {
 /**
  * Recognize loopback addresses and localhost names, including local subdomains.
  *
- * For example, wp.playground.localhost must reach the local HTTP server directly.
+ * For example, wpsandbox.wordpress.localhost must reach the local HTTP server directly.
  * The generic path would upgrade it to HTTPS or retry through a remote CORS proxy,
  * which cannot reach the developer's loopback server. This does not bypass the
  * browser's CORS checks: the local server still needs the appropriate headers.

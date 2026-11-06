@@ -86,8 +86,9 @@ A single Chromium CI smoke test covers the live Vite module graph; the full
 browser suite still runs once against the built cross-origin preview.
 
 The two-origin built preview has `build:wordpress-frame`, `preview:wordpress-frame`,
-and `e2e:wordpress-frame` website targets on port 9500. CI uses the same boundary
-on its normal HTTP port; deployment upgrade tests use port 7999. The preview uses
+and `e2e:wordpress-frame` website targets on port 9500, using sibling hostnames
+`playground.wordpress.localhost` and `wpsandbox.wordpress.localhost`. CI uses the same boundary on its
+normal HTTP port; deployment upgrade tests use port 7999. The preview uses
 the production installer in loopback-only mode, so Node 24 and PHP are required.
 See `packages/playground/website/bin/wordpress-frame/README.md`.
 

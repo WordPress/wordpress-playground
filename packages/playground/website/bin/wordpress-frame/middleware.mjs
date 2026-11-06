@@ -14,7 +14,7 @@ import { joinPaths as join } from '../../../../php-wasm/util/src/lib/paths.ts';
  * the directory on every request so a test's release switch changes the layout too.
  *
  * @param {() => string} getSandboxDirectory Current public root or archived sandbox root.
- * @returns Express middleware for the fixed playground.localhost host pair.
+ * @returns Express middleware for the fixed playground.wordpress.localhost host pair.
  */
 export function wordPressFrameMiddleware(getSandboxDirectory) {
 	return (req, res, next) => {
@@ -29,7 +29,7 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 		}
 		res.set('X-Content-Type-Options', 'nosniff');
 		res.set('Cache-Control', 'no-store');
-		if (req.hostname === 'wp.playground.localhost') {
+		if (req.hostname === 'wpsandbox.wordpress.localhost') {
 			// Versions in these URLs bypass workers installed by a different release.
 			// They do not select a release from disk: serve the preview's selected
 			// sandbox helper, which already names that release's scripts.
@@ -44,7 +44,8 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 				cacheControl: false,
 			})(req, res, () => res.sendStatus(404));
 		}
-		if (req.hostname !== 'playground.localhost') return res.sendStatus(404);
+		if (req.hostname !== 'playground.wordpress.localhost')
+			return res.sendStatus(404);
 		// Do not add COOP here: OAuth must retain its opener after cross-origin navigation.
 		if (req.path.startsWith('/scope:')) return res.sendStatus(404);
 		if (
@@ -67,9 +68,10 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 /** Model Nginx serving the same public files on both origins, without PHP or internal CORS. */
 function servePublicRelease(directory, req, res, next) {
 	if (
-		!['playground.localhost', 'wp.playground.localhost'].includes(
-			req.hostname
-		)
+		![
+			'playground.wordpress.localhost',
+			'wpsandbox.wordpress.localhost',
+		].includes(req.hostname)
 	) {
 		return res.sendStatus(404);
 	}

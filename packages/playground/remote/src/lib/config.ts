@@ -6,8 +6,8 @@ import { joinPaths } from '@php-wasm/util';
 const moduleUrl = new URL((import.meta || {}).url);
 const playgroundUrl = new URL('/', moduleUrl);
 // The built local preview uses the same files on both hostnames and on the upgrade-test port.
-if (playgroundUrl.hostname === 'wp.playground.localhost') {
-	playgroundUrl.hostname = 'playground.localhost';
+if (playgroundUrl.hostname === 'wpsandbox.wordpress.localhost') {
+	playgroundUrl.hostname = 'playground.wordpress.localhost';
 }
 /**
  * Canonical app origin. Production builds configure it explicitly because the same
@@ -35,6 +35,8 @@ export function resolveAssetUrl(path: string): URL {
 const developmentWordPressOrigin = import.meta.env.DEV
 	? getWordPressDevelopmentOrigin(playgroundUrl)
 	: undefined;
+const previewWordPressUrl = new URL(playgroundUrl);
+previewWordPressUrl.hostname = 'wpsandbox.wordpress.localhost';
 /**
  * Render every WordPress page on the build-configured sandbox, regardless of
  * feature flags. PHP, OPFS, and picked directory handles stay on the app origin.
@@ -47,8 +49,8 @@ const developmentWordPressOrigin = import.meta.env.DEV
 export const wordPressSiteUrl = import.meta.env['VITE_WORDPRESS_SITE_URL']
 	? new URL(import.meta.env['VITE_WORDPRESS_SITE_URL']).origin
 	: (developmentWordPressOrigin ??
-		(playgroundUrl.hostname === 'playground.localhost'
-			? playgroundOrigin.replace('://playground.', '://wp.playground.')
+		(playgroundUrl.hostname === 'playground.wordpress.localhost'
+			? previewWordPressUrl.origin
 			: playgroundOrigin));
 
 // Hardcoded in wp.js:

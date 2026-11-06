@@ -126,7 +126,10 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:8080/api');
 	});
 
-	it.each(['playground.localhost', 'wp.playground.localhost'])(
+	it.each([
+		'playground.wordpress.localhost',
+		'wpsandbox.wordpress.localhost',
+	])(
 		'keeps HTTP downloads on the local subdomain %s without a proxy',
 		async (hostname) => {
 			const fetchMock = vi
@@ -144,10 +147,10 @@ describe('fetchWithCorsProxy', () => {
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
 		await fetchWithCorsProxy(
-			'http://playground.localhost.example.org/toolkit.txt'
+			'http://playground.wordpress.localhost.example.org/toolkit.txt'
 		);
 		expect((fetchMock.mock.calls[0][0] as Request).url).toBe(
-			'https://playground.localhost.example.org/toolkit.txt'
+			'https://playground.wordpress.localhost.example.org/toolkit.txt'
 		);
 	});
 
