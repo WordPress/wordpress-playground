@@ -26,8 +26,8 @@ Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Ty
 Together, `@php-wasm/node` and a version-specific package provide the compiled
 PHP runtime and JavaScript API optimized for Node.js. PHP starts with an
 in-memory filesystem; use the Node.js filesystem helpers to mount host paths.
-The runtime can access the network if you plug in a custom WebSocket-to-TCP
-proxy.
+PHP can open TCP connections and listen for them. The runtime uses Node.js
+TCP sockets directly.
 
 ### Basic usage
 

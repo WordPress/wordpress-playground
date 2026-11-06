@@ -415,7 +415,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				},
 				{ timeout: 15000 }
 			);
+		});
 
+		describe('Runtime exit', () => {
 			it('should release open connections when runtime is exited', async () => {
 				// The server keeps its side open after the client closes. It then
 				// writes to each connection: a released socket answers with a reset

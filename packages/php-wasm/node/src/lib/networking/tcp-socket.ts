@@ -11,6 +11,7 @@
  * Any program or web page on the machine could connect to it and use PHP's
  * connections, or open TCP connections as this Node.js process.
  */
+import * as dns from 'dns';
 import { EventEmitter } from 'events';
 import * as net from 'net';
 import { debugLog } from './utils';
@@ -183,6 +184,11 @@ export interface TcpServerOptions {
  *
  * It listens on the host and port PHP binds to, and emits each accepted
  * connection as a `TcpSocket`.
+ *
+ * CAUTION: An error before the server listens, such as EADDRINUSE, is left
+ * unhandled so that it stops the process. Emscripten's listen() has already
+ * returned by then, so PHP can't report it. If the error reached PHP's socket,
+ * PHP would wait for connections forever.
  */
 export class TcpServer extends EventEmitter {
 	readonly clients = new Set<TcpSocket>();
@@ -196,14 +202,27 @@ export class TcpServer extends EventEmitter {
 			client.once('close', () => this.clients.delete(client));
 			this.emit('connection', client);
 		});
-		this.server.on('listening', () => this.emit('listening'));
-		this.server.on('close', () => this.emit('close'));
-		this.server.on('error', (error) => {
-			log('Server error', error);
-			this.emit('error', error);
+		this.server.on('listening', () => {
+			this.server.on('error', (error) => {
+				log('Server error', error);
+				this.emit('error', error);
+			});
+			this.emit('listening');
 		});
-		log(`Listening on ${host}:${port}`);
-		this.server.listen(port, host);
+		this.server.on('close', () => this.emit('close'));
+		if (host && net.isIP(host) === 0) {
+			// Emscripten only represents IPv4 addresses. A hostname that resolves
+			// to IPv6 first would make PHP see every client as 0.0.0.0.
+			dns.lookup(host, { family: 4 }, (error, address) => {
+				if (error) {
+					this.server.emit('error', error);
+				} else {
+					this.listen(port, address);
+				}
+			});
+		} else {
+			this.listen(port, host);
+		}
 	}
 
 	address() {
@@ -216,6 +235,11 @@ export class TcpServer extends EventEmitter {
 	 */
 	close(callback?: (error?: Error) => void) {
 		this.server.close(callback);
+	}
+
+	private listen(port: number | undefined, host: string | undefined) {
+		log(`Listening on ${host}:${port}`);
+		this.server.listen(port, host);
 	}
 }
 
