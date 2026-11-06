@@ -14,5 +14,10 @@
 		"../web/src/php-library/parse-worker-startup-options.ts",
 		"../web/src/lib/api.ts"
 	],
-	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+	"exclude": [
+		"jest.config.ts",
+		"src/test/**/*",
+		"src/**/*.spec.ts",
+		"src/**/*.test.ts"
+	]
 }
