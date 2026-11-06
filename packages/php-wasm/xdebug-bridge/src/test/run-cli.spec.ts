@@ -32,6 +32,7 @@ describe('CLI', () => {
 			cdpPort: 9229,
 			cdpHost: '127.0.0.1',
 			dbgpPort: 9003,
+			dbgpHost: '127.0.0.1',
 			phpRoot: undefined,
 		});
 
@@ -44,7 +45,7 @@ describe('CLI', () => {
 			'--port',
 			'9000',
 			'--host',
-			'127.0.0.1',
+			'0.0.0.0',
 			'--php-root',
 			'/var/www'
 		);
@@ -55,6 +56,7 @@ describe('CLI', () => {
 			cdpPort: 9229,
 			cdpHost: '127.0.0.1',
 			dbgpPort: 9000,
+			dbgpHost: '0.0.0.0',
 			phpRoot: '/var/www',
 		});
 	});

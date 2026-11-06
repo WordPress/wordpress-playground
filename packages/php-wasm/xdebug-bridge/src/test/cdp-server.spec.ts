@@ -10,12 +10,19 @@ describe('CDPServer', () => {
 	beforeEach(() => {
 		// @ts-ignore
 		socket = new WebSocket();
-		server = new CDPServer(9999);
+		server = new CDPServer('127.0.0.1', 9999);
 	});
 
 	afterEach(() => {
 		server.removeAllListeners();
 		vi.clearAllMocks();
+	});
+
+	it('binds the WebSocket server to the given host', () => {
+		expect(server.wss.options).toMatchObject({
+			port: 9999,
+			host: '127.0.0.1',
+		});
 	});
 
 	it('emits clientConnected on new connection', () => {
@@ -24,6 +31,30 @@ describe('CDPServer', () => {
 		server.on('clientConnected', onClientConnected);
 		server.wss.emit('connection', socket);
 
+		expect(onClientConnected).toHaveBeenCalled();
+	});
+
+	it('closes a connection that carries a browser Origin', () => {
+		const onClientConnected = vi.fn();
+
+		server.on('clientConnected', onClientConnected);
+		server.wss.emit('connection', socket, {
+			headers: { origin: 'https://foo.bar' },
+		});
+
+		expect(socket.close).toHaveBeenCalledWith(1008, 'Origin not allowed');
+		expect(onClientConnected).not.toHaveBeenCalled();
+	});
+
+	it('accepts a connection from the DevTools front-end', () => {
+		const onClientConnected = vi.fn();
+
+		server.on('clientConnected', onClientConnected);
+		server.wss.emit('connection', socket, {
+			headers: { origin: 'devtools://devtools' },
+		});
+
+		expect(socket.close).not.toHaveBeenCalled();
 		expect(onClientConnected).toHaveBeenCalled();
 	});
 
