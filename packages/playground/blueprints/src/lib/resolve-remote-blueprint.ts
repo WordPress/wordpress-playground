@@ -19,6 +19,7 @@ export class BlueprintFetchError extends Error {
 }
 
 export interface ResolveRemoteBlueprintOptions {
+	/** Fetches the Blueprint and its relative bundled resources. Handles proxying when provided. */
 	fetch?: typeof fetch;
 	corsProxy?: string;
 }
@@ -63,7 +64,8 @@ export async function resolveRemoteBlueprint(
 			}),
 			new FetchFilesystem({
 				baseUrl: url,
-				corsProxy: options.corsProxy,
+				fetch: options.fetch,
+				corsProxy: options.fetch ? undefined : options.corsProxy,
 			}),
 		]);
 	} catch (error) {
