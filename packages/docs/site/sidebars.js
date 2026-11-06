@@ -185,6 +185,7 @@ const sidebars = {
 							},
 							items: [
 								'developers/apis/javascript-api/playground-api-client',
+								'developers/apis/javascript-api/wordpress-abilities',
 								'developers/apis/javascript-api/index-html-vs-remote-html',
 								'developers/apis/javascript-api/blueprint-json-in-api-client',
 								'developers/apis/javascript-api/blueprint-functions-in-api-client',
