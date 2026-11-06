@@ -37,6 +37,36 @@ Source changes require rebuilding; this is not the Vite development server. It
 binds to `127.0.0.1` on port 9500 and does not replace normal development on 5400
 and 4400. Normal Vite development retains those fixed ports and source reloads.
 
+## Released interactive code block integration
+
+After building, run the downstream plugin check with Playwright:
+
+```sh
+npm exec -- nx run playground-website:e2e:wordpress-frame -- --project=chromium interactive-code-block.spec.ts --retries=0
+```
+
+The test installs the real WordPress.org `interactive-code-block` plugin (the
+`wordpress-playground-block` package in `WordPress/playground-tools`) in a separate
+Node-hosted WordPress server on an ephemeral port. It publishes a post containing
+the block, activates its preview, edits and runs PHP, checks the downloaded ZIP,
+and opens the full-page view. The embedding page, app iframe, and rendered
+WordPress have distinct origins. No SDK or RPC methods are mocked.
+
+`playwright/wordpress-frame/interactive-code-block-release.json` pins the plugin
+version, download URL, and SHA-256. The verified ZIP is cached in
+`node_modules/.cache/playground-e2e/`. To update the fixture, change the version,
+URL, and checksum together. The installed plugin's JavaScript keeps its compiled
+logic; only literal `https://playground.wordpress.net` origins are replaced with
+the app origin under test, including SDK imports and the full-page URL. The test
+rejects accidental requests to the production app. Its worker fixture disposes
+the WordPress server and PHP workers on completion or failure.
+
+This spec belongs to the existing regular split-origin CI group and runs against
+the same built release as the other website tests. It complements the separate
+full-page block implementation and tests in `website-extras`.
+
+## Installed preview layout
+
 The build assembles `wordpress-frame-upload/`, then invokes the production
 `website-deployment/apply-update.sh` in loopback-only mode. That mode accepts only
 local hostnames and skips public-host preflight and edge purging because the local

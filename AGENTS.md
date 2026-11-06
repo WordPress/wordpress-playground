@@ -121,6 +121,15 @@ into external callers. RPC paths cannot traverse constructor or prototype proper
 Public `remote.html` runtime embeds remain separate from this privileged API.
 Neither referrers nor caller-provided origin strings authorize saved-site access.
 
+The split-origin Playwright suite also installs a checksum-pinned release of the
+real `interactive-code-block` plugin in a separate Node-hosted WordPress server.
+It retargets only production Playground origin literals in the installed plugin's
+JavaScript, then exercises its own UI and the built SDK/runtime over real HTTP.
+Keep this downstream integration separate from the bundled full-page block copy.
+The fixture uses the CLI source loader on Node 24 and disposes its server/workers.
+The full-page block uses website-extras' shared `getRemoteUrl()` helper so its
+runtime stays on the app origin and selected release, including in local builds.
+
 Native PHP endpoints and support files remain under Nginx-protected
 `.playground-releases/`. The installer checks the hidden-path deny rule, host
 mapping, and complete uploads before activation, restores public entries on failure
