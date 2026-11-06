@@ -17,6 +17,8 @@ You can use Blueprints in one of the following ways:
 - Use Blueprint bundles (ZIP files or directories).
 - Use the JavaScript API.
 
+When the Playground URL includes the `mcp-port` parameter, Playground rejects Blueprints passed as a URL fragment or through the `blueprint-url` parameter. This prevents prompt injection while the MCP server is active. Remove `mcp-port` from the URL to load a Blueprint this way.
+
 ![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ## URL Fragment

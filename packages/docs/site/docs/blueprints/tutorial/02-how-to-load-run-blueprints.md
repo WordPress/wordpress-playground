@@ -60,3 +60,5 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 ```
 Access-Control-Allow-Origin: *
 ```
+
+When the Playground URL includes the `mcp-port` parameter, Playground rejects Blueprints passed as a URL fragment or through the `blueprint-url` parameter. This prevents prompt injection while the MCP server is active. Remove `mcp-port` from the URL to load a Blueprint this way.
