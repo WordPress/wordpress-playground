@@ -516,6 +516,72 @@ describe('fetchWithCorsProxy', () => {
 		expect(await response.text()).toBe('proxied');
 	});
 
+	it('retries via the CORS proxy when a permissive-CORS host returns 401 for a credentialed request', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+		// A permissive-CORS host resolves the direct request with 401 because
+		// the browser strips the JS-set Authorization header from a
+		// non-credentialed cross-origin request. The direct fetch resolves
+		// rather than throwing, so this exercises the fall-through to the
+		// proxy retry.
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(
+				new Response('{"error":"no api key"}', { status: 401 })
+			)
+			.mockResolvedValueOnce(
+				new Response('{"account":"ok"}', { headers: corsProxyHeaders })
+			);
+
+		const request = new Request('https://api.stripe.com/v1/account', {
+			headers: {
+				Authorization: 'Basic sk_test_123:',
+				// Developer opt-in that lets the proxy forward the header.
+				'X-Cors-Proxy-Allowed-Request-Headers': 'Authorization',
+			},
+		});
+
+		const response = await fetchWithCorsProxy(
+			request,
+			undefined,
+			'https://cors.wordpress.net/proxy.php?'
+		);
+
+		// The 401 is not returned; a second, proxied fetch must run.
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const directRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(directRequest.url).toBe('https://api.stripe.com/v1/account');
+
+		const proxiedRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxiedRequest.url).toBe(
+			'https://cors.wordpress.net/proxy.php?https://api.stripe.com/v1/account'
+		);
+		expect(proxiedRequest.credentials).toBe('include');
+		expect(await response.text()).toBe('{"account":"ok"}');
+	});
+
+	it('returns a 401 from the direct fetch when the request did not opt in to the CORS proxy', async () => {
+		// No X-Cors-Proxy-Allowed-Request-Headers header: the narrow retry
+		// predicate must not fire, preserving the previous behavior.
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(new Response('nope', { status: 401 }));
+
+		const request = new Request('https://api.stripe.com/v1/account', {
+			headers: { Authorization: 'Basic sk_test_123:' },
+		});
+
+		const response = await fetchWithCorsProxy(
+			request,
+			undefined,
+			'https://cors.wordpress.net/proxy.php?'
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(401);
+	});
+
 	/**
 	 * These tests exercise the non-streaming fallback path (Safari/Firefox)
 	 * by forcing `supportsReadableStreamBody()` to return `false` in
