@@ -140,6 +140,20 @@ describe('BlueprintsV1Handler', () => {
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
 	});
 
+	it('boots with an explicit sapiName instead of the default', async () => {
+		const iframe = createIframe();
+		await new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {},
+			sapiName: 'cli',
+		}).bootPlayground(iframe, createProgressTracker());
+
+		expect(mocks.playground.boot).toHaveBeenLastCalledWith(
+			expect.objectContaining({ sapiName: 'cli' })
+		);
+	});
+
 	it('boots WordPress setup when only installation is disabled', async () => {
 		const iframe = createIframe();
 		const progressTracker = createProgressTracker();

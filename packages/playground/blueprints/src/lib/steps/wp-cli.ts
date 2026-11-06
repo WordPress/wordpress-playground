@@ -254,7 +254,27 @@ This will ensure your code works reliably regardless of the current working dire
 		define('STDOUT', fopen('php://stdout', 'wb'));
 		define('STDERR', fopen('php://stderr', 'wb'));
 
-		require( ${phpVar(wpCliPath)} );
+		// WP-CLI's php/boot-phar.php die()s on any SAPI but cli, so don't run the
+		// phar's stub. This loads the archive and mirrors the rest of that file:
+		// https://github.com/wp-cli/wp-cli/blob/main/php/boot-phar.php
+		try {
+			Phar::loadPhar( ${phpVar(wpCliPath)}, 'wp-cli.phar' );
+		} catch ( PharException $e ) {
+			throw new RuntimeException(
+				${phpVar(wpCliPath + ' is not a WP-CLI phar: ')} . $e->getMessage()
+			);
+		}
+		define( 'WP_CLI_PHAR_PATH', getcwd() );
+		if ( file_exists( 'phar://wp-cli.phar/php/wp-cli.php' ) ) {
+			define( 'WP_CLI_ROOT', 'phar://wp-cli.phar' );
+		} elseif ( file_exists( 'phar://wp-cli.phar/vendor/wp-cli/wp-cli/php/wp-cli.php' ) ) {
+			define( 'WP_CLI_ROOT', 'phar://wp-cli.phar/vendor/wp-cli/wp-cli' );
+		} else {
+			throw new RuntimeException(
+				${phpVar(wpCliPath + ' is not a WP-CLI phar: php/wp-cli.php not found.')}
+			);
+		}
+		include WP_CLI_ROOT . '/php/wp-cli.php';
 		`
 	);
 
