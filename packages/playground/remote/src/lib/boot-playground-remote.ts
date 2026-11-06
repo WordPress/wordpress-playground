@@ -749,7 +749,10 @@ export async function bootPlaygroundRemote() {
 	//        the onDownloadProgress method
 	const [setAPIReady, setAPIError, playground] = exposeAPI(
 		phpRemoteApi,
-		phpWorkerApi
+		phpWorkerApi,
+		undefined,
+		// This is the public runtime API used by external SDK embedders.
+		['*']
 	);
 
 	/*

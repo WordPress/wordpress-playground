@@ -392,9 +392,8 @@ export type ProxyOrClone<T> = T extends ProxyMarked ? Remote<T> : T;
 /**
  * Inverse of `ProxyOrClone<T>`.
  */
-export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
-	? Local<T>
-	: T;
+export type UnproxyOrClone<T> =
+	T extends RemoteObject<ProxyMarked> ? Local<T> : T;
 
 /**
  * Takes the raw type of a remote object in the other thread and returns the type as it is visible
@@ -439,7 +438,7 @@ export type Remote<T> =
 					...args: {
 						[I in keyof TArguments]: UnproxyOrClone<TArguments[I]>;
 					}
-			  ) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
+				) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -452,7 +451,7 @@ export type Remote<T> =
 							>;
 						}
 					): Promisify<Remote<TInstance>>;
-			  }
+				}
 			: unknown) &
 		// Include additional special comlink methods available on the proxy.
 		ProxyMethods;
@@ -478,8 +477,8 @@ export type Local<T> =
 					...args: {
 						[I in keyof TArguments]: ProxyOrClone<TArguments[I]>;
 					}
-			  ) => // The raw function could either be sync or async, but is always proxied automatically
-			  MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
+				) => // The raw function could either be sync or async, but is always proxied automatically
+				MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -493,7 +492,7 @@ export type Local<T> =
 						}
 					): // The raw constructor could either be sync or async, but is always proxied automatically
 					MaybePromise<Local<Unpromisify<TInstance>>>;
-			  }
+				}
 			: unknown);
 
 const isObject = (val: unknown): val is object =>
@@ -641,6 +640,21 @@ export function expose(
 		const argumentList = (ev.data.argumentList || []).map(fromWireValue);
 		let returnValue;
 		try {
+			// RPC paths must not turn a declared API into access to its realm's constructors.
+			if (
+				!Array.isArray(path) ||
+				path.some(
+					(prop) =>
+						typeof prop !== 'string' ||
+						prop === 'constructor' ||
+						prop === 'prototype' ||
+						prop === '__proto__'
+				)
+			) {
+				throw new TypeError(
+					'RPC prototype properties cannot be accessed.'
+				);
+			}
 			const parent = path
 				.slice(0, -1)
 				.reduce((obj, prop) => obj[prop], obj);

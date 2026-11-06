@@ -112,6 +112,15 @@ Sandbox CacheStorage is writable by WordPress and must not supply trusted platfo
 code. Generate helper HTML from worker code using the retained release's stable
 bridge module. Keep canonical app/sandbox identities explicit in production builds.
 
+App-storage window APIs must pass the configured app origin to `exposeAPI`'s
+`allowedOrigins` argument. The parent-window source and browser-supplied origin
+are checked before executing RPC calls or granting a private MessagePort.
+Window APIs default to same-origin callers; the public runtime explicitly opts
+into external callers. RPC paths cannot traverse constructor or prototype properties.
+`api.html` and `startPlaygroundAPI` require an app-origin embedding document.
+Public `remote.html` runtime embeds remain separate from this privileged API.
+Neither referrers nor caller-provided origin strings authorize saved-site access.
+
 Native PHP endpoints and support files remain under Nginx-protected
 `.playground-releases/`. The installer checks the hidden-path deny rule, host
 mapping, and complete uploads before activation, restores public entries on failure

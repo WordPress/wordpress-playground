@@ -79,6 +79,33 @@ fallback requests. Its bounded and open-ended GET ranges, HEAD behavior, and
 unsupported-range handling are tested by
 `npm exec -- nx run playground-website:test:static-file-ranges`.
 
+## Privileged API callers
+
+The saved-site `api.html` endpoint accepts RPC messages only from its parent
+window at the configured app origin. Authorization happens before dispatching a
+method or transferring a private API MessagePort; opaque and sandbox-origin
+parents are rejected. `startPlaygroundAPI` also rejects a cross-origin caller
+before loading its iframe. This intentionally changes the saved-site API's
+cross-origin embedding contract. Public `remote.html` WordPress embeds retain
+their existing external embedding contract.
+
+The shared `exposeAPI` transport defaults window endpoints to same-origin parents;
+public cross-origin endpoints must explicitly opt in. Worker and MessagePort
+endpoints retain their capability-based contract. RPC property paths reject
+constructor and prototype traversal, including on transferred function ports.
+These are intentional API compatibility changes for cross-origin window callers
+and callers that traversed those properties.
+
+This caller restriction is not an HTTP framing policy or per-Playground storage
+authorization. The public runtime still accepts named OPFS site paths through
+startup mounts and `mountOpfs`; rejecting only `/` and `/sites` does not authorize
+access to individual saved sites. Those APIs need an app-issued directory
+capability instead of caller-selected app-storage paths. Blocking a particular
+sandbox anywhere in the ancestor chain while allowing arbitrary external
+embedders is not expressible with a CSP ancestor
+allowlist. An app-origin-only `frame-ancestors` policy would also reject those
+external embeds and must cover stable bootstrap and immutable HTML responses.
+
 ## Deploy, verify, and roll back
 
 Build with `PLAYGROUND_APP_ORIGIN=https://playground.wordpress.net` and

@@ -271,17 +271,27 @@ export async function startPlaygroundWeb(
 /**
  * Loads the lightweight Playground API endpoint without booting WordPress.
  *
- * The API endpoint and saved OPFS site must share an origin and storage partition.
+ * The embedding document, API endpoint, and saved OPFS site must share the app
+ * origin and storage partition. Unlike the public WordPress runtime, this API
+ * does not accept cross-origin embedders.
  */
 export async function startPlaygroundAPI(
 	options: StartPlaygroundAPIOptions
 ): Promise<PlaygroundAPIClient> {
 	const { iframe, apiUrl } = options;
 	assertLikelyCompatibleAPIOrigin(apiUrl);
+	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin);
+	if (
+		resolvedAPIUrl.origin !==
+		iframe.ownerDocument.defaultView?.location.origin
+	) {
+		throw new Error(
+			'The saved-site API must be embedded by its app origin.'
+		);
+	}
 	allowStorageAccessByUserActivation(iframe);
-	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
 
-	await loadIframe(iframe, resolvedAPIUrl);
+	await loadIframe(iframe, resolvedAPIUrl.href);
 
 	const api = consumeAPI<PlaygroundAPIClient>(
 		iframe.contentWindow!,

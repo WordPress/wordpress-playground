@@ -151,6 +151,25 @@ describe('startPlaygroundWeb', () => {
 });
 
 describe('startPlaygroundAPI', () => {
+	it('rejects a different caller origin before navigating the API frame', async () => {
+		const iframe = Object.assign(createIframe(), {
+			ownerDocument: {
+				defaultView: {
+					location: { origin: 'https://wpsandbox.wordpress.net' },
+				},
+			},
+		}) as unknown as HTMLIFrameElement;
+		await expect(
+			startPlaygroundAPI({
+				iframe,
+				apiUrl: 'https://playground.wordpress.net/api.html',
+			})
+		).rejects.toThrow(
+			'The saved-site API must be embedded by its app origin.'
+		);
+		expect(iframe.src).toBe('');
+	});
+
 	it.each([
 		['a different endpoint', 'http://localhost/remote.html'],
 		['an untrusted origin', 'https://example.com/api.html'],

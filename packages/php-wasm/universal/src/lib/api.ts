@@ -260,10 +260,16 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 	Methods & PipedAPI
 >;
 
+/**
+ * Restrict window callers before allowing RPC calls or transferring an API MessagePort.
+ * Window APIs default to same-origin parents; public embeds must explicitly allow other origins.
+ * Worker and MessagePort endpoints rely on possession of the endpoint instead.
+ */
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: MessagePort | NodeWorker | NodeProcess
+	targetWorker?: MessagePort | NodeWorker | NodeProcess,
+	allowedOrigins?: (string | RegExp)[]
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -285,12 +291,25 @@ export function exposeAPI<Methods, PipedAPI>(
 			);
 		}
 	} else {
-		endpoint =
-			typeof window !== 'undefined'
-				? Comlink.windowEndpoint(self.parent)
-				: undefined;
+		if (typeof window !== 'undefined') {
+			allowedOrigins ??=
+				window.location.origin === 'null'
+					? []
+					: [window.location.origin];
+			// A privileged endpoint's reply must not follow its parent to another origin.
+			const targetOrigin =
+				allowedOrigins.length === 1 &&
+				typeof allowedOrigins[0] === 'string'
+					? allowedOrigins[0]
+					: '*';
+			endpoint = Comlink.windowEndpoint(
+				self.parent,
+				undefined,
+				targetOrigin
+			);
+		}
 	}
-	Comlink.expose(exposedApi, endpoint);
+	Comlink.expose(exposedApi, endpoint, allowedOrigins);
 	return [setReady, setFailed, exposedApi as PublicAPI<Methods, PipedAPI>];
 }
 
