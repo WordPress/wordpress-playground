@@ -1,4 +1,4 @@
-export const FILE_HEADER_SIZE = 32;
+export const FILE_HEADER_SIZE = 30;
 export const SIGNATURE_FILE = 67324752 as const;
 export const SIGNATURE_CENTRAL_DIRECTORY = 33639248 as const;
 export const SIGNATURE_CENTRAL_DIRECTORY_END = 101010256 as const;
