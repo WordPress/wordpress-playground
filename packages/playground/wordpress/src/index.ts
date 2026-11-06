@@ -498,7 +498,7 @@ function buildModernSqlitePreload(
 export async function unzipWordPress(
 	php: PHP,
 	wpZip: File,
-	options: { expectedFileCount?: number } = {}
+	options: { expectedFileCount?: number; skipDatabase?: boolean } = {}
 ) {
 	php.mkdir('/tmp/unzipped-wordpress');
 
@@ -567,6 +567,15 @@ export async function unzipWordPress(
 			) {
 				wpPath = joinPaths(wpPath, firstDir);
 			}
+		}
+	}
+
+	// Drop the factory database only from the temporary bundle extraction. A database
+	// already mounted in the document root must survive localized installation.
+	if (options.skipDatabase) {
+		const databaseDirectory = joinPaths(wpPath, 'wp-content/database');
+		if (php.isDir(databaseDirectory)) {
+			php.rmdir(databaseDirectory, { recursive: true });
 		}
 	}
 

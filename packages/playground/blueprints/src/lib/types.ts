@@ -23,6 +23,8 @@ export type BlueprintDeclaration =
 export type Blueprint = BlueprintV1 | BlueprintV2;
 
 export interface RuntimeConfiguration {
+	/** Locale to use when creating a fresh WordPress database. */
+	installationLanguage?: string;
 	phpVersion: AllPHPVersion;
 	wpVersion: string;
 	intl: boolean;
