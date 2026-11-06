@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	parseOptionsAndRunCLI: vi.fn(),
 	shouldRespawnWithJSPI: vi.fn(),
+	shouldRespawnWithExnref: vi.fn(),
 }));
 
 vi.mock('../src/run-cli', () => ({
@@ -13,6 +14,10 @@ vi.mock('../src/ensure-jspi', () => ({
 	shouldRespawnWithJSPI: mocks.shouldRespawnWithJSPI,
 }));
 
+vi.mock('../src/posix-kernel/ensure-exnref', () => ({
+	shouldRespawnWithExnref: mocks.shouldRespawnWithExnref,
+}));
+
 const handledSignals = ['SIGINT', 'SIGTERM'] as const;
 
 describe('CLI signal handling', () => {
@@ -21,6 +26,8 @@ describe('CLI signal handling', () => {
 		mocks.parseOptionsAndRunCLI.mockReset();
 		mocks.shouldRespawnWithJSPI.mockReset();
 		mocks.shouldRespawnWithJSPI.mockReturnValue(false);
+		mocks.shouldRespawnWithExnref.mockReset();
+		mocks.shouldRespawnWithExnref.mockReturnValue(false);
 	});
 
 	test.each(handledSignals)('cleans up and exits on %s', async (signal) => {

@@ -141,6 +141,16 @@
 				"reportsDirectory": "../../../coverage/packages/playground/cli"
 			}
 		},
+		"test-playground-cli-posix-kernel": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/cli-posix-kernel"
+			],
+			"options": {
+				"configFile": "packages/playground/cli/vite.posix-kernel.config.ts",
+				"reportsDirectory": "../../../coverage/packages/playground/cli-posix-kernel"
+			}
+		},
 		"typecheck": {
 			"executor": "nx:run-commands",
 			"options": {
