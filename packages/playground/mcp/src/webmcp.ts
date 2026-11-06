@@ -72,7 +72,8 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
 }
 
 export async function registerWebMCPTools(
-	config: PlaygroundBridgeConfig
+	config: PlaygroundBridgeConfig,
+	options?: { signal?: AbortSignal }
 ): Promise<void> {
 	const modelContext = getModelContext();
 	if (!modelContext) {
@@ -84,6 +85,14 @@ export async function registerWebMCPTools(
 	registrationController = new AbortController();
 	const controller = registrationController;
 	const signal = controller.signal;
+	if (options?.signal?.aborted) {
+		controller.abort();
+	} else {
+		options?.signal?.addEventListener('abort', () => controller.abort(), {
+			once: true,
+			signal,
+		});
+	}
 
 	function getActiveClient(): PlaygroundClient {
 		const client = config.getClient();
