@@ -294,8 +294,6 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: 24.18.0
-            - name: Check that this Node.js version loads the Asyncify build
-              run: node -e "if ('Suspending' in WebAssembly) { console.error('JSPI is enabled, so PHP would load the JSPI build.'); process.exit(1); }"
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test-networking-asyncify
               env:
                   MYSQL_DATABASE: test_db

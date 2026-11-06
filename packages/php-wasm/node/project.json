@@ -316,6 +316,7 @@
 			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
+				"configFile": "packages/php-wasm/node/vite.asyncify.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"tcp-socket.spec.ts",

@@ -309,6 +309,7 @@ The addon is restored before the shared dependency cache is saved.
 Node.js enables JSPI by default from 24.20.0, so the `-asyncify` unit test targets
 load the JSPI build in CI. The `test-networking-asyncify` job runs the
 `@php-wasm/node` networking tests on Node 24.18.0, which loads the Asyncify build.
+Its `vite.asyncify.config.ts` stops with an error on Node versions that enable JSPI.
 
 Dependabot's daily version check opens PRs for `fs-ext-extra-prebuilt` patch
 releases. It raises the minimum package version and updates the lockfile; the
