@@ -82,6 +82,8 @@ export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-bluepri
 export { getLegacyPlaygroundRuntimeWpContentPaths } from './lib/utils/legacy-playground-runtime-wp-content-paths';
 export { replaceSiteUrl } from './lib/utils/replace-site-url';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
+export { mergeBlueprintVersions } from './lib/merge-blueprint-versions';
+export type { BlueprintVersionOverrides } from './lib/merge-blueprint-versions';
 export type { ResolveRuntimeConfigurationOptions } from './lib/resolve-runtime-configuration';
 export { assertBlueprintV2WordPressVersionCompatibility } from './lib/v2/resolve-runtime-configuration';
 export type { BlueprintV2SiteMode } from './lib/v2/resolve-runtime-configuration';
