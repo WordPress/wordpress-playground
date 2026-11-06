@@ -404,6 +404,10 @@ before builds and standalone dev startup. The generated asset lives in the ignor
 `packages/playground/website/public/assets/optional/reprint/` directory and is loaded
 on demand. Use `npm exec -- nx run playground-website:update-reprint` to update the
 version and checksum together in `src/lib/reprint/release.json`; see the website README.
+The daily refresh workflow checks the public demo on the deployed website and
+tests a newer client in a preview before committing its pin for the next deploy.
+The authenticated import test keeps its source plugin pinned separately so a
+client update does not also change the source's enrollment form.
 
 ## Key Files & Directories
 

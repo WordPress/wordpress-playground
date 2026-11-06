@@ -1,0 +1,146 @@
+name: Refresh Reprint client and check the demo
+
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: '15 8 * * *'
+
+concurrency:
+    group: refresh-reprint
+
+permissions: {}
+
+jobs:
+    check_live_demo:
+        if: github.repository == 'WordPress/wordpress-playground' && github.ref == 'refs/heads/trunk'
+        runs-on: ubuntu-latest
+        timeout-minutes: 25
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - uses: ./.github/actions/prepare-playground
+            - run: npx playwright install chromium --with-deps
+            - name: Clone the public demo on playground.wordpress.net
+              run: npx playwright test --config=packages/playground/website/playwright/playwright.reprint-demo.config.ts
+            - uses: actions/upload-artifact@v4
+              if: failure()
+              with:
+                  name: playwright-report-live-reprint-demo
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+                  retention-days: 7
+
+    check_update:
+        if: github.repository == 'WordPress/wordpress-playground' && github.ref == 'refs/heads/trunk'
+        runs-on: ubuntu-latest
+        timeout-minutes: 35
+        permissions:
+            contents: read
+        outputs:
+            previous_lock: ${{ steps.release.outputs.previous_lock }}
+            release: ${{ steps.release.outputs.release }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+            - name: Check for a newer stable Reprint client
+              id: release
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              run: |
+                  lock=packages/playground/website/src/lib/reprint/release.json
+                  current=$(jq -r .version "$lock")
+                  node packages/playground/website/bin/reprint-assets.mts update
+                  git diff --quiet -- "$lock" && exit 0
+
+                  latest=$(jq -r .version "$lock")
+                  if [[ "$latest" == "$current" ]]; then
+                      echo "::error::The checksum changed for Reprint $current."
+                      exit 1
+                  fi
+                  if [[ "$(printf '%s\n' "$current" "$latest" | sort -V | tail -n1)" != "$latest" ]]; then
+                      echo "GitHub's latest release ($latest) is older than the pinned client ($current)."
+                      exit 0
+                  fi
+
+                  echo "previous_lock=$(git rev-parse HEAD:"$lock")" >> "$GITHUB_OUTPUT"
+                  echo "release=$(jq -c . "$lock")" >> "$GITHUB_OUTPUT"
+            - uses: ./.github/actions/prepare-playground
+              if: steps.release.outputs.release != ''
+            - name: Install PHP for the preview's CORS proxy and bridge checks
+              if: steps.release.outputs.release != ''
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: sqlite3, pdo_sqlite, curl, zip
+                  tools: none
+            - name: Run the native PHP bridge checks
+              if: steps.release.outputs.release != ''
+              run: |
+                  digest=$(jq -r .sha256 packages/playground/website/src/lib/reprint/release.json)
+                  cp "packages/playground/website/public/assets/optional/reprint/reprint-$digest.phar" /tmp/playground-reprint.phar
+                  php packages/playground/website/src/lib/reprint/bridge-test.php
+            - name: Set up the split-origin browser preview
+              if: steps.release.outputs.release != ''
+              run: |
+                  echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
+                  sudo npx playwright install chromium --with-deps
+                  CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx build playground-website --skip-nx-cache
+                  CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx run playground-website:build:wordpress-frame
+            - name: Clone the public demo with the new client
+              if: steps.release.outputs.release != ''
+              run: sudo CI=true PLAYWRIGHT_REPRINT_DEMO_PREVIEW=1 npx playwright test --config=packages/playground/website/playwright/playwright.reprint-demo.config.ts
+            - uses: actions/upload-artifact@v4
+              if: failure()
+              with:
+                  name: playwright-report-reprint-update
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+                  retention-days: 7
+
+    publish_update:
+        needs: check_update
+        if: >-
+            needs.check_update.outputs.release != '' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
+            )
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write
+        environment:
+            name: wordpress-assets
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: trunk
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
+            - name: Commit the tested pin for the next website deployment
+              env:
+                  PREVIOUS_LOCK: ${{ needs.check_update.outputs.previous_lock }}
+                  RELEASE: ${{ needs.check_update.outputs.release }}
+              run: |
+                  lock=packages/playground/website/src/lib/reprint/release.json
+                  if [[ "$(git rev-parse HEAD:"$lock")" != "$PREVIOUS_LOCK" ]]; then
+                      echo "The Reprint pin changed during testing. Leaving it alone."
+                      exit 0
+                  fi
+                  jq --tab . <<< "$RELEASE" > "$lock"
+                  git config user.name deployment_bot
+                  git config user.email deployment_bot@users.noreply.github.com
+                  git add -- "$lock"
+                  git commit -m "[Website] Pin Reprint $(jq -r .version "$lock")"
+                  git push origin HEAD:trunk
